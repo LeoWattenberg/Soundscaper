@@ -1,4 +1,5 @@
 import { AUDACITY_EFFECT_COPY_ENTRIES } from './canonical-extras-audacity-effects.js';
+import { AUDACITY_EFFECT_PRESET_COPY_ENTRIES } from './canonical-extras-audacity-presets.js';
 import { localeLanguage } from './locale.js';
 // Canonical effect/layout and Audacity parity copy. The exported catalogs are flat.
 const COPY_ENTRIES = Object.freeze([
@@ -16,6 +17,7 @@ const COPY_ENTRIES = Object.freeze([
 	["effectNameReverb","Reverb","Hall"],
 	["effectNameDelay","Delay","Delay"],
 	...AUDACITY_EFFECT_COPY_ENTRIES,
+	...AUDACITY_EFFECT_PRESET_COPY_ENTRIES,
 	["effectCardAmplification","Amplification","Verstärkung"],
 	["effectCardDucking","Ducking","Absenkung"],
 	["effectCardFadeDown","Fade down","Abblenden"],
@@ -440,6 +442,10 @@ export function effectParameterCopyKey(type, name) {
 
 export function effectOptionCopyKey(type, name, value) {
 	return 'effectOption' + keyPart(type) + keyPart(name) + keyPart(value);
+}
+
+export function effectPresetCopyKey(type, name) {
+	return 'effectPreset' + keyPart(type) + keyPart(name);
 }
 
 export function effectCardCopyKey(title) {

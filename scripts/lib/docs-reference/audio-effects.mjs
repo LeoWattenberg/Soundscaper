@@ -154,6 +154,7 @@ function localParameterRows(type, definition, context) {
 function collectEffects(context) {
 	const {
 		audacityDefinitions,
+		factoryPresets,
 		localDefinitions,
 		rackEffectTypes,
 		selectionEffectTypes,
@@ -184,15 +185,19 @@ function collectEffects(context) {
 			parameters: audacity
 				? audacityParameterRows(type, audacity, context)
 				: localParameterRows(type, local, context),
+			presets: Object.hasOwn(factoryPresets, type) ? factoryPresets[type] : [],
 		};
 	}).sort((left, right) => compareText(left.label, right.label) || compareText(left.type, right.type));
 }
 
 export function renderAudioEffectReference(context) {
-	const { products, audacitySource, staffPadSource } = context;
+	const { products, audacitySource, factoryPresetSource, staffPadSource } = context;
 	assertProducts(products);
 	if (!audacitySource?.commit || !audacitySource?.version) throw new TypeError('Audacity effect provenance is required.');
 	if (!staffPadSource?.commit || !staffPadSource?.version) throw new TypeError('StaffPad provenance is required.');
+	if (!factoryPresetSource?.commit || !factoryPresetSource?.version) {
+		throw new TypeError('Audacity preset provenance is required.');
+	}
 	const effects = collectEffects(context);
 	const enabledProducts = products.filter((product) => product.capabilities?.audioEffects === true);
 	if (enabledProducts.length === 0) throw new Error('No product profile enables audio effects.');
@@ -235,6 +240,19 @@ export function renderAudioEffectReference(context) {
 		'Defaults and limits come from the same definitions the editor validates against, so a value outside a listed range is refused rather than clamped. Each parameter is named the way the editor names it.',
 		'',
 		table(['Effect', 'Effect ID', 'Parameter', 'Default', 'Range', 'Unit'], parameterRows),
+		'',
+		'## Presets',
+		'',
+		`These effects arrive with the presets Audacity ships, transcribed from Audacity ${factoryPresetSource.version} at [\`${factoryPresetSource.commit.slice(0, 12)}\`](${factoryPresetSource.url}). Each one appears in the preset list above the effect's controls, after any preset the project saved there. A shipped preset can be applied, exported, or saved onward under a new name, and cannot be overwritten or deleted.`,
+		'',
+		table(
+			['Effect', 'Effect ID', 'Presets'],
+			effects.filter((effect) => effect.presets.length > 0).map((effect) => [
+				effect.label,
+				`\`${effect.type}\``,
+				effect.presets.map((preset) => preset.name).join('; '),
+			]),
+		),
 	];
 	return page({
 		title: 'Audio effects',

@@ -259,16 +259,14 @@ export function AudioEditorEffectsOverlay({
 	const rackPresets = effect && effect.type !== 'missing'
 		? controller.actions.effects.presets.list(effect.type)
 		: [];
-	const rackPresetChoices = effectPresetChoices(rackPresets, copy.noEffectPreset);
+	const rackPresetChoices = effectPresetChoices(rackPresets, copy.noEffectPreset, copy);
 	const selectedRackPreset = rackPresetChoices.find((choice) => choice.id === rackPresetId);
 	// Upstream flags a preset whose parameters have been edited away from the
 	// stored values, which is what arms Reset and marks the dropdown entry.
 	const rackPresetEdited = Boolean(selectedRackPreset) && !samePresetParams(
 		effect?.params, selectedRackPreset.preset.params,
 	);
-	const rackPresetOptions = rackPresetChoices.map((choice) => ({
-		id: choice.id, label: choice.label, custom: true,
-	}));
+	const rackPresetOptions = rackPresetChoices.map(({ id, label, custom }) => ({ id, label, custom }));
 	const writeRackParams = (params) => run(() => controller.actions.effects.update(
 		effectScope,
 		effectScope === 'master' ? null : targetId,

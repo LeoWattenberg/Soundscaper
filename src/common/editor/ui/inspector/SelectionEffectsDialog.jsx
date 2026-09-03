@@ -108,6 +108,8 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 		setSelectedPresetId(preset.id);
 		setSelectionType(preset.effectType);
 		setSelectionParams(preset.params);
+		// Saving a factory preset on means saving it under a name, and the name
+		// it starts from is the one it is stored and exported under.
 		setPresetName(preset.name);
 	});
 	const savePreset = (id = null, name = presetName) => run(() => controller.actions.effects.presets.save({
@@ -140,7 +142,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 			setPresetName('');
 		},
 	);
-	const presetChoices = effectPresetChoices(effectPresets, copy.noEffectPreset);
+	const presetChoices = effectPresetChoices(effectPresets, copy.noEffectPreset, copy);
 	const selectedPresetChoice = presetChoices.find((choice) => choice.id === selectedPresetId);
 
 	return (
@@ -160,7 +162,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 					copy={copy}
 					disabled={blocked}
 					resetKey={projectIdentity}
-					presets={presetChoices.map((choice) => ({ id: choice.id, label: choice.label, custom: true }))}
+					presets={presetChoices.map(({ id, label, custom }) => ({ id, label, custom }))}
 					selectedId={selectedPresetId}
 					unsaved={Boolean(selectedPresetChoice)
 						&& !samePresetParams(selectionParams, selectedPresetChoice.preset.params)}

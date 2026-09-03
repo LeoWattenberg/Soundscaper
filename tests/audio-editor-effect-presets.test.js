@@ -96,3 +96,47 @@ test('parametric EQ presets migrate legacy bands and preserve stable node IDs', 
 	assert.equal(updated.preset.params.bands[0].id, 'presence-node');
 	assert.equal(updated.preset.params.bands[0].type, 'highshelf');
 });
+
+test('the presets Audacity ships sit behind a project\'s own and cannot be edited away', () => {
+	const saved = saveAudioEditorEffectPreset(createAudioEditorEffectPresets(), {
+		effectType: 'audacity-reverb',
+		name: 'Booth',
+		params: { roomSize: 12, wetGainDb: -9 },
+		idFactory: () => 'preset-booth',
+		now: '2026-07-13T12:00:00.000Z',
+	});
+	const listed = listAudioEditorEffectPresets(saved.state, 'audacity-reverb');
+	assert.equal(listed.length, 19);
+	assert.deepEqual(listed[0], saved.preset);
+	assert.equal(listed[1].name, 'Acoustic');
+	assert.ok(listed.slice(1).every((preset) => preset.custom === false));
+
+	const cathedral = 'audacity-factory:audacity-reverb:cathedral';
+	assert.equal(applyAudioEditorEffectPreset(saved.state, cathedral).params.roomSize, 90);
+	assert.throws(
+		() => saveAudioEditorEffectPreset(saved.state, {
+			id: cathedral, effectType: 'audacity-reverb', name: 'Cathedral', params: {},
+		}),
+		/A factory effect preset cannot be overwritten/,
+	);
+	assert.throws(
+		() => deleteAudioEditorEffectPreset(saved.state, cathedral),
+		/A factory effect preset cannot be deleted/,
+	);
+});
+
+test('an exported factory preset comes back as a preset of the project\'s own', () => {
+	const cathedral = 'audacity-factory:audacity-reverb:cathedral';
+	const encoded = exportAudioEditorEffectPreset(createAudioEditorEffectPresets(), cathedral);
+	const written = JSON.parse(encoded).presets[0];
+	assert.deepEqual(Object.keys(written), ['id', 'effectType', 'name', 'params']);
+
+	const restored = importAudioEditorEffectPresets(createAudioEditorEffectPresets(), encoded, {
+		idFactory: () => 'preset-cathedral',
+	});
+	assert.equal(restored.presets.length, 1);
+	assert.equal(restored.presets[0].id, 'preset-cathedral');
+	assert.equal(restored.presets[0].name, 'Cathedral');
+	assert.equal(restored.presets[0].params.roomSize, 90);
+	assert.equal(applyAudioEditorEffectPreset(restored, cathedral).id, cathedral);
+});

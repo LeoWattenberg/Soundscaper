@@ -8,6 +8,10 @@ import {
 	safeEffectLabel,
 } from '../src/common/editor/ui/inspector/effect-helpers.ts';
 import {
+	createAudioEditorEffectPresets,
+	listAudioEditorEffectPresets,
+} from '../src/common/editor/effect-presets.js';
+import {
 	compactFields,
 	macroFileName,
 	nonNegativeFrame,
@@ -57,6 +61,32 @@ test('effect helpers keep labels, presets, and conditional controls deterministi
 		params: { applyGain: false },
 	}, 'peakDb'), false);
 	assert.equal(audacityParameterPresentation('audacity-amplify', 'gainDb'), 'slider');
+});
+
+test('preset choices name the presets Audacity ships from the catalog', () => {
+	const listPresets = listAudioEditorEffectPresets as unknown as (
+		state: unknown,
+		effectType: string,
+	) => ReadonlyArray<Readonly<{ id: string; name: string; labelKey?: string; custom?: boolean }>>;
+	const presets = listPresets(createAudioEditorEffectPresets(), 'audacity-reverb');
+	const english = effectPresetChoices(presets, 'No preset', 'en');
+	const german = effectPresetChoices(presets, 'Kein Preset', 'de');
+	assert.equal(english.length, 18);
+	// Factory presets are not the project's own, so the bar must not offer to
+	// overwrite or delete one, and their names come from the copy catalog.
+	assert.ok(english.every((choice) => choice.custom === false));
+	assert.equal(english.find((choice) => choice.id.endsWith(':cathedral'))?.label, 'Cathedral');
+	assert.equal(german.find((choice) => choice.id.endsWith(':cathedral'))?.label, 'Kathedrale');
+
+	const mixed = effectPresetChoices([
+		{ id: 'saved', name: 'Booth' },
+		...presets,
+	], 'No preset', 'en');
+	assert.deepEqual(
+		[mixed[0]?.label, mixed[0]?.custom],
+		['Booth', true],
+		'a preset the project saved stays a custom entry',
+	);
 });
 
 test('a project-authored missing effect name cannot expand into its own label', () => {

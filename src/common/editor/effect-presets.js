@@ -2,6 +2,11 @@ import {
 	AUDIO_SELECTION_EFFECT_DEFINITIONS,
 	normalizeAudioSelectionEffectParams,
 } from './effects.js';
+import {
+	audacityFactoryPreset,
+	audacityFactoryPresets,
+	isAudacityFactoryPresetId,
+} from './audacity-effects/factory-presets.js';
 
 export const AUDIO_EDITOR_EFFECT_PRESETS_SCHEMA_VERSION = 1;
 
@@ -15,9 +20,15 @@ export function createAudioEditorEffectPresets(value = {}) {
 	return freezeState(presets);
 }
 
+/**
+ * The presets on offer for an effect: what this project has saved first, then
+ * the presets Audacity ships. Upstream's preset bar is ordered the same way,
+ * so the entries a user wrote stay at the top of the list they grow.
+ */
 export function listAudioEditorEffectPresets(state, effectType = null) {
 	const normalized = createAudioEditorEffectPresets(state);
-	return normalized.presets.filter((preset) => !effectType || preset.effectType === effectType);
+	const saved = normalized.presets.filter((preset) => !effectType || preset.effectType === effectType);
+	return [...saved, ...audacityFactoryPresets(effectType)];
 }
 
 export function saveAudioEditorEffectPreset(state, options = {}) {
@@ -25,6 +36,7 @@ export function saveAudioEditorEffectPreset(state, options = {}) {
 	const effectType = effectTypeValue(options.effectType);
 	const now = timestamp(options.now);
 	const requestedId = String(options.id || '').trim();
+	if (isAudacityFactoryPresetId(requestedId)) throw new RangeError('A factory effect preset cannot be overwritten.');
 	const existing = requestedId ? current.presets.find((preset) => preset.id === requestedId) : null;
 	if (requestedId && !existing) throw new ReferenceError(`Effect preset ${requestedId} does not exist.`);
 	if (existing && existing.effectType !== effectType) throw new RangeError('An effect preset cannot change effect type.');
@@ -45,20 +57,36 @@ export function saveAudioEditorEffectPreset(state, options = {}) {
 export function deleteAudioEditorEffectPreset(state, presetIdValue) {
 	const current = createAudioEditorEffectPresets(state);
 	const id = nonEmptyString(presetIdValue, 'presetId');
+	if (isAudacityFactoryPresetId(id)) throw new RangeError('A factory effect preset cannot be deleted.');
 	if (!current.presets.some((preset) => preset.id === id)) throw new ReferenceError(`Effect preset ${id} does not exist.`);
 	return freezeState(current.presets.filter((preset) => preset.id !== id));
 }
 
 export function applyAudioEditorEffectPreset(state, presetIdValue) {
 	const id = nonEmptyString(presetIdValue, 'presetId');
-	const preset = createAudioEditorEffectPresets(state).presets.find((candidate) => candidate.id === id);
+	const preset = createAudioEditorEffectPresets(state).presets.find((candidate) => candidate.id === id)
+		|| audacityFactoryPreset(id);
 	if (!preset) throw new ReferenceError(`Effect preset ${id} does not exist.`);
 	return preset;
 }
 
 export function exportAudioEditorEffectPreset(state, presetIdValue) {
 	const preset = applyAudioEditorEffectPreset(state, presetIdValue);
-	return JSON.stringify({ schemaVersion: AUDIO_EDITOR_EFFECT_PRESETS_SCHEMA_VERSION, presets: [preset] }, null, 2);
+	return JSON.stringify({
+		schemaVersion: AUDIO_EDITOR_EFFECT_PRESETS_SCHEMA_VERSION,
+		// A factory preset is written out with the same fields a saved one has,
+		// minus the display key and the flag that only means something in this
+		// editor's own list. It comes back as a saved preset, which is the only
+		// kind a project can carry.
+		presets: [{
+			id: preset.id,
+			effectType: preset.effectType,
+			name: preset.name,
+			params: preset.params,
+			createdAt: preset.createdAt,
+			updatedAt: preset.updatedAt,
+		}],
+	}, null, 2);
 }
 
 export function importAudioEditorEffectPresets(state, input, options = {}) {
@@ -74,7 +102,8 @@ export function importAudioEditorEffectPresets(state, input, options = {}) {
 	const byId = new Map(current.presets.map((preset) => [preset.id, preset]));
 	for (const preset of imported) {
 		let id = preset.id;
-		if (byId.has(id) && JSON.stringify(byId.get(id)) !== JSON.stringify(preset)) {
+		if (isAudacityFactoryPresetId(id)
+			|| (byId.has(id) && JSON.stringify(byId.get(id)) !== JSON.stringify(preset))) {
 			id = presetId(options.idFactory);
 		}
 		byId.set(id, normalizePreset({ ...preset, id }));

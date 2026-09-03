@@ -61,6 +61,16 @@ test('every preset surface renders the shared bar rather than its own controls',
 	assert.deepEqual(owners, ['EffectPresetBar.jsx']);
 });
 
+// The bar tells a stored preset from a shipped one by the flag its options
+// carry, and both effect surfaces used to hard-code every entry as stored.
+test('the effect surfaces pass through whether a preset is the project\'s own', async () => {
+	for (const name of ['AudioEditorEffectsOverlay.jsx', 'SelectionEffectsDialog.jsx']) {
+		const source = await readFile(new URL(name, INSPECTOR), 'utf8');
+		assert.doesNotMatch(source, /custom:\s*true/u, `${name} must not declare every preset stored`);
+		assert.match(source, /effectPresetChoices\([^)]*copy\)/u, `${name} must localize preset names`);
+	}
+});
+
 test('the bar clears a half-typed name when its subject changes', async () => {
 	const source = await readFile(BAR, 'utf8');
 	const effect = source.slice(source.indexOf('useEffect(('), source.indexOf('}, [resetKey]);'));

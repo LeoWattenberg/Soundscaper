@@ -105,7 +105,13 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		? resolvedContext.effectOpened
 		: ['selection-effect', 'generator'].includes(ui.request?.payload?.surface);
 	const effectPresetId = resolvedContext?.effectPresetId || null;
-	const effectPresetSelected = Boolean(effectPresetId && snapshot.effects?.presets?.some((preset) => preset.id === effectPresetId));
+	const effectPreset = effectPresetId
+		? snapshot.effects?.presets?.find((preset) => preset.id === effectPresetId) || null
+		: null;
+	const effectPresetSelected = Boolean(effectPreset);
+	// Audacity's Save and Delete act on the presets a user wrote; the presets it
+	// ships can only be applied, exported, or saved onward under a new name.
+	const effectPresetEditable = Boolean(effectPreset && effectPreset.custom !== false);
 	const hasSelection = timeSelection || selectedTrackIds.length > 0 || selectedClipIds.length > 0;
 	const predicates = {
 		always: true,
@@ -153,7 +159,7 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		'repeatable-analyzer': projectHasAudio && Boolean(snapshot.analysisRepeatable),
 		'effect-opened': effectOpened,
 		'effect-preset-selected': effectPresetSelected,
-		'editable-effect-preset-selected': projectWritable && effectPresetSelected,
+		'editable-effect-preset-selected': projectWritable && effectPresetEditable,
 		'realtime-effect-selected': realtimeEffectIndex >= 0,
 		'realtime-effect-can-move-up': realtimeEffectIndex > 0,
 		'realtime-effect-can-move-down': realtimeEffectIndex >= 0 && realtimeEffectIndex < realtimeEffects.length - 1,

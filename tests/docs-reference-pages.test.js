@@ -38,6 +38,12 @@ function audioEffectInput(overrides = {}) {
 		audacitySource: { version: '3.7.7', commit: 'a'.repeat(40), url: 'https://example.invalid/audacity' },
 		staffPadSource: { version: '4.0.0', commit: 'b'.repeat(40), url: 'https://example.invalid/staffpad' },
 		staffPadEffectTypes: ['audacity-change-tempo'],
+		factoryPresetSource: { version: '4.0.0', commit: 'c'.repeat(40), url: 'https://example.invalid/presets' },
+		factoryPresets: {
+			'audacity-normalize': [
+				{ id: 'audacity-factory:audacity-normalize:broadcast', name: 'Broadcast', params: {} },
+			],
+		},
 		audacityDefinitions: {
 			'audacity-normalize': {
 				category: 'volume',
@@ -80,6 +86,21 @@ test('audio effect reference separates realtime rack availability from selection
 	assert.match(rendered, /The gain depends on complete-selection statistics\./u);
 	// A local effect has no live capability to consult, so it must not claim a reason.
 	assert.doesNotMatch(rendered, /\| Compressor \| `compressor` \| [^|]*depends/u);
+});
+
+test('audio effect reference lists the presets an effect ships with, and only those', () => {
+	const rendered = renderAudioEffectReference(audioEffectInput());
+
+	assert.match(rendered, /\| Normalize \| `audacity-normalize` \| Broadcast \|/u);
+	// An effect with no shipped presets has no row at all, rather than a blank one.
+	assert.doesNotMatch(rendered, /\| Compressor \| `compressor` \| — \|/u);
+});
+
+test('audio effect reference refuses preset provenance it cannot cite', () => {
+	assert.throws(
+		() => renderAudioEffectReference(audioEffectInput({ factoryPresetSource: { version: '4.0.0' } })),
+		/Audacity preset provenance is required/u,
+	);
 });
 
 test('audio effect reference renders defaults, ranges, and resolved option labels', () => {

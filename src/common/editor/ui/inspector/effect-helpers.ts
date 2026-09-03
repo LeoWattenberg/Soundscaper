@@ -24,6 +24,8 @@ const resolveCanonicalCopy = canonicalCopyValue as unknown as (
 interface EffectPreset {
 	readonly id: string;
 	readonly name: string;
+	readonly labelKey?: string;
+	readonly custom?: boolean;
 	readonly params?: Readonly<Record<string, unknown>>;
 }
 
@@ -43,20 +45,27 @@ interface CurvePoint {
 	readonly gain: number;
 }
 
+/**
+ * Presets as the preset bar wants them: a label to show and whether the entry
+ * is one this project saved. A factory preset names its catalog key instead of
+ * carrying translated text, so its label is resolved here, where the copy is.
+ */
 export function effectPresetChoices<T extends EffectPreset>(
 	presets: readonly T[] | null | undefined,
 	emptyLabel: string,
-): ReadonlyArray<Readonly<{ id: string; label: string; preset: T }>> {
+	copyOrLocale?: CopyOrLocale,
+): ReadonlyArray<Readonly<{ id: string; label: string; custom: boolean; preset: T }>> {
 	const labels = new Set([emptyLabel]);
 	return (presets || []).map((preset) => {
-		let label = preset.name;
+		const name = preset.labelKey ? resolveCanonicalCopy(preset.labelKey, copyOrLocale) : preset.name;
+		let label = name;
 		let suffix = 2;
 		while (labels.has(label)) {
-			label = `${preset.name} (${suffix})`;
+			label = `${name} (${suffix})`;
 			suffix += 1;
 		}
 		labels.add(label);
-		return { id: preset.id, label, preset };
+		return { id: preset.id, label, custom: preset.custom !== false, preset };
 	});
 }
 

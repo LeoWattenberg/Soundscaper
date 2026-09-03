@@ -231,3 +231,16 @@ Defaults and limits come from the same definitions the editor validates against,
 | Wahwah | `audacity-wahwah` | Resonance | 2.5 | 0.1 to 10 | — |
 | Wahwah | `audacity-wahwah` | Frequency offset | 30 | 0 to 100 | % |
 | Wahwah | `audacity-wahwah` | Output gain | -6 | -30 to 30 | dB |
+
+## Presets
+
+These effects arrive with the presets Audacity ships, transcribed from Audacity 4.0.0 at [`4c177d436e48`](https://github.com/audacity/audacity/tree/Audacity-4.0.0). Each one appears in the preset list above the effect's controls, after any preset the project saved there. A shipped preset can be applied, exported, or saved onward under a new name, and cannot be overwritten or deleted.
+
+| Effect | Effect ID | Presets |
+| --- | --- | --- |
+| Compressor (Audacity) | `audacity-compressor` | Modern; Glue Compressor; Gentle; Beat Booster; Deep Dive Master; Beefy Master; Make It Right Master; Brick Wall Master; Lead Vocals; Fat Vocals; Power Vocals; Vocal Control; Vocal Touch-Up; Voice Memos Balancer; Podcast/Radio; Piano; Acoustic Guitar; Bass Guitar; Strings; Kick Drums; Drums Control; Climax Impulser SFX; Engine Breathing SFX; Great Impact SFX; Great Body SFX; Great Tail SFX; Smack Explosion SFX |
+| Distortion | `audacity-distortion` | Hard clip -12dB, 80% make-up gain; Soft clip -12dB, 80% make-up gain; Fuzz Box; Walkie-talkie; Blues drive sustain; Light Crunch Overdrive; Heavy Overdrive; 3rd Harmonic (Perfect Fifth); Valve Overdrive; 2nd Harmonic (Octave); Gated Expansion Distortion; Leveller, Light, -70dB noise floor; Leveller, Moderate, -70dB noise floor; Leveller, Heavy, -70dB noise floor; Leveller, Heavier, -70dB noise floor; Leveller, Heaviest, -70dB noise floor; Half-wave Rectifier; Full-wave Rectifier; Full-wave Rectifier (DC blocked); Percussion Limiter |
+| Filter Curve EQ | `audacity-filter-curve-eq` | 100Hz Rumble; AM Radio; Bass Boost; Bass Cut; Low rolloff for speech; RIAA; Telephone; Treble Boost; Treble Cut; Walkie-talkie |
+| Graphic EQ | `audacity-graphic-eq` | Bass Boost; Bass Cut; RIAA; Treble Boost; Treble Cut |
+| Limiter (Audacity) | `audacity-limiter` | Master Limiter; SFX Limiter; VO Limiter; Modern; Modern Punch; Modern Punch 2; Play it Loud |
+| Reverb | `audacity-reverb` | Acoustic; Ambience; Artificial; Clean; Modern; Vocal I; Vocal II; Dance Vocal; Modern Vocal; Voice Tail; Bathroom; Small Room Bright; Small Room Dark; Medium Room; Large Room; Church Hall; Cathedral; Big Cave |

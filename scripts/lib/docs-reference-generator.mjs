@@ -61,6 +61,7 @@ const RUNTIME_MODULES = Object.freeze({
 	effectHelpers: 'src/common/editor/ui/inspector/effect-helpers.ts',
 	effects: 'src/common/editor/effects.js',
 	exportSettings: 'src/common/editor/controller/export-settings.ts',
+	factoryPresets: 'src/common/editor/audacity-effects/factory-presets.js',
 	labels: 'src/common/editor/label-io.js',
 	liveEffects: 'src/common/editor/audacity-effects/live-capabilities.js',
 	locales: 'src/common/i18n/locales.js',
@@ -123,7 +124,9 @@ function copyResolver(sources) {
 }
 
 function audioEffectInputs(sources, productProfiles) {
-	const { audacityEffects, copyKeys, effectHelpers, effects, liveEffects, staffPad } = sources;
+	const {
+		audacityEffects, copyKeys, effectHelpers, effects, factoryPresets, liveEffects, staffPad,
+	} = sources;
 	const resolveCopy = copyResolver(sources);
 	// The editor's own resolver owns parameter naming, so a reader meets the
 	// same word the effect panel shows rather than a second vocabulary.
@@ -134,6 +137,8 @@ function audioEffectInputs(sources, productProfiles) {
 		audacitySource: audacityEffects.AUDACITY_EFFECT_SOURCE,
 		staffPadSource: audacityEffects.AUDACITY_STAFFPAD_SOURCE,
 		staffPadEffectTypes: staffPad.AUDACITY_STAFFPAD_EFFECT_TYPES,
+		factoryPresets: factoryPresets.AUDACITY_EFFECT_FACTORY_PRESETS,
+		factoryPresetSource: factoryPresets.AUDACITY_FACTORY_PRESET_SOURCE,
 		liveCapability: (type) => liveEffects.audacityLiveEffectCapability(type),
 		// The rack and selection registries each merge the Audacity inventory
 		// into the local one, so their union is every documented definition and
