@@ -115,7 +115,7 @@ function breakpointCount(value: unknown): number {
 export function reportInterchangeAnnotationOmission(
 	draft: DeliveryReportDraft,
 	project: Readonly<Record<string, unknown>>,
-	profile: 'otio' | 'fcpxml' | 'edl',
+	profile: 'otio' | 'fcpxml' | 'edl' | 'dawproject',
 ): void {
 	const omission = interchangeAnnotationOmission(project);
 	if (!omission) return;
@@ -137,7 +137,7 @@ export function reportInterchangeAnnotationOmission(
 export function reportInterchangeCaptionTrackOmission(
 	draft: DeliveryReportDraft,
 	project: Readonly<Record<string, unknown>>,
-	profile: 'otio' | 'fcpxml' | 'edl',
+	profile: 'otio' | 'fcpxml' | 'edl' | 'dawproject',
 	sequenceId?: string | null,
 ): void {
 	const omission = interchangeCaptionTrackOmission(project, sequenceId);
