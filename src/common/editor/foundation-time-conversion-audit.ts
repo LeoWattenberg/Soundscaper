@@ -327,6 +327,15 @@ const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversion
 		],
 	},
 	{
+		id: 'dawproject-arrangement-timing',
+		file: 'src/common/editor/dawproject-import-timeline.ts',
+		behavior: 'DAWproject beat-timed arrangement positions resolve to nearest sample instants, and sample positions invert to exact beats so a re-read of an imported clip lands where it was written.',
+		conversions: [
+			{ helper: 'beatToSampleFrame', policies: ['point'] },
+			{ helper: 'sampleFrameToBeat', policies: ['exact'] },
+		],
+	},
+	{
 		id: 'design-system-time-controls',
 		file: 'src/common/editor/design-system-adapters/control-values.ts',
 		behavior: 'Time controls expose exact seconds for display and commit edited seconds as clamped nearest sample instants.',

@@ -46,6 +46,8 @@ module.exports = {
 			filter: [
 				'.local-browsers/**/*',
 				'config/**/*',
+				// The lesson specs replay handbook step data, which lives outside `tests/`.
+				'handbook/**/*',
 				'sites/**/*',
 				'licenses/**/*',
 				'package.json',
