@@ -1,3 +1,4 @@
+import { AUDACITY_WAVEFORM_STEM_PIXELS_PER_SAMPLE } from './audacity-waveform-renderer.js';
 import { createStableId } from './project.js';
 import { AUDIO_EDITOR_SOURCE_CHUNK_FRAMES } from './project-audio-factory.js';
 import {
@@ -7,10 +8,14 @@ import {
 	smoothImmutablePcmRange,
 } from './pcm-chunks.js';
 
-export const AUDIO_EDITOR_SAMPLE_EDIT_MIN_PIXELS_PER_SAMPLE = 1;
+export const AUDIO_EDITOR_SAMPLE_EDIT_MIN_PIXELS_PER_SAMPLE = AUDACITY_WAVEFORM_STEM_PIXELS_PER_SAMPLE;
 export const AUDIO_EDITOR_SAMPLE_EDIT_MAX_FRAMES = 262_144;
 
-/** Sample editing is intentionally unavailable until one source sample spans a pixel. */
+/**
+ * Sample editing is intentionally unavailable until the waveform is drawn as
+ * individual sample heads, which is also where Audacity's draw tool starts
+ * hit-testing samples. Below that a pointer cannot address one sample.
+ */
 export function canEditAudioSamplesAtZoom(pixelsPerSecond, sampleRate, options = {}) {
 	const pixels = Number(pixelsPerSecond);
 	const rate = Number(sampleRate);

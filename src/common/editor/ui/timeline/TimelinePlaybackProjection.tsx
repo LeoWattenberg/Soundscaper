@@ -8,6 +8,7 @@ import {
 	createTimelinePlaybackFrameLoop,
 	lowRateTimelinePositionFrame,
 } from './timeline-playback-frame-loop.ts';
+import { timelineDomScrollForElement } from './timeline-scroll-space.ts';
 
 interface PlaybackTelemetrySnapshot {
 	readonly positionFrame?: number;
@@ -26,7 +27,6 @@ export function TimelinePlaybackProjection({
 	scrollRef,
 	pixelsPerSecond,
 	sampleRate,
-	timelineWidth,
 	viewportWidth,
 	pinned,
 }: Readonly<{
@@ -35,7 +35,6 @@ export function TimelinePlaybackProjection({
 	scrollRef: RefObject<HTMLElement | null>;
 	pixelsPerSecond: number;
 	sampleRate: number;
-	timelineWidth: number;
 	viewportWidth: number;
 	pinned: boolean;
 }>) {
@@ -58,10 +57,9 @@ export function TimelinePlaybackProjection({
 		);
 		const scroll = scrollRef.current;
 		if (!follow || !pinned || !scroll) return;
-		const maximumScroll = Math.max(0, timelineWidth - viewportWidth);
-		const nextScroll = Math.max(0, Math.min(maximumScroll, positionPixels - viewportWidth / 2));
+		const nextScroll = timelineDomScrollForElement(scroll, positionPixels - viewportWidth / 2);
 		if (Math.abs(scroll.scrollLeft - nextScroll) > 1) scroll.scrollLeft = nextScroll;
-	}, [pinned, pixelsPerSecond, rootRef, sampleRate, scrollRef, timelineWidth, viewportWidth]);
+	}, [pinned, pixelsPerSecond, rootRef, sampleRate, scrollRef, viewportWidth]);
 
 	useLayoutEffect(() => {
 		if (transportState === 'playing' || transportState === 'recording') return;

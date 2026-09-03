@@ -77,7 +77,11 @@
 	height: 100%;
 	background: var(--kw-editor-text);
 	pointer-events: none;
-	transform: translate3d(calc(var(--timeline-playhead-x, 0px) - var(--timeline-scroll-x, 0px)), 0, 0);
+	transform: translate3d(calc(
+		var(--timeline-playhead-x, 0px)
+		+ var(--timeline-render-origin-x, 0px)
+		- var(--timeline-scroll-x, 0px)
+	), 0, 0);
 	will-change: transform;
 }
 

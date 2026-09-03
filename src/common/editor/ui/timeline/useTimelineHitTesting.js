@@ -7,27 +7,29 @@ import {
 	NEW_AUDIO_TRACK_DROP_TARGET,
 	NEW_AUDIO_TRACK_DROP_ZONE_HEIGHT,
 } from './constants.ts';
+import { readTimelineContentScrollX } from './timeline-scroll-space.ts';
 
 export function useTimelineHitTesting({ state, model }) {
 	const {
 		navigationRootRef,
 		scrollRef,
-		scrollX,
 		setDraggingClipIds,
 		setProjectBinDragPreview,
 	} = state;
-	const { durationFrames, pixelsPerSecond, sampleRate } = model;
+	const { contentScrollX, durationFrames, pixelsPerSecond, renderOriginX, sampleRate } = model;
 
 	const frameAtClientX = useCallback((clientX, lane) => {
 		const rect = lane.getBoundingClientRect();
+		// The ruler is pinned beside the track panel, while a lane is drawn in
+		// the scrolled surface and carries the render origin at deep zoom.
 		const currentScrollX = lane.dataset.rulerInteraction !== undefined
-			? (scrollRef.current?.scrollLeft ?? scrollX)
-			: 0;
+			? (scrollRef.current ? readTimelineContentScrollX(scrollRef.current) : contentScrollX)
+			: -renderOriginX;
 		return secondsToFrames(Math.max(0, (currentScrollX + clientX - rect.left - CLIP_CONTENT_OFFSET) / pixelsPerSecond), {
 			maximumFrame: durationFrames,
 			sampleRate,
 		});
-	}, [durationFrames, pixelsPerSecond, sampleRate, scrollX]);
+	}, [contentScrollX, durationFrames, pixelsPerSecond, renderOriginX, sampleRate]);
 
 	const isInNewTrackDropZone = useCallback((clientY) => {
 		const surface = scrollRef.current?.querySelector('.audio-editor-timeline-inner');

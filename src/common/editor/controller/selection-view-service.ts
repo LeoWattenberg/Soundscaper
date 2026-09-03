@@ -10,7 +10,6 @@ type LegacyPort = (...args: any[]) => any;
 export interface SelectionViewServiceRuntime {
 	readonly DEFAULT_PIXELS_PER_SECOND: number;
 	readonly MAX_PIXELS_PER_SECOND: number;
-	readonly MAX_TIMELINE_PIXELS: number;
 	readonly activeSelection: LegacyPort;
 	readonly audioBufferChannels: LegacyPort;
 	readonly cloneProject: LegacyPort;
@@ -45,7 +44,7 @@ export interface SelectionViewServiceRuntime {
 
 export function createSelectionViewService(runtime: SelectionViewServiceRuntime) {
 	const {
-		DEFAULT_PIXELS_PER_SECOND, MAX_PIXELS_PER_SECOND, MAX_TIMELINE_PIXELS,
+		DEFAULT_PIXELS_PER_SECOND, MAX_PIXELS_PER_SECOND,
 		activeSelection, audioBufferChannels, cloneProject, collectRelatedClipIds,
 		commit, copy, editorTimelineDurationFrames, engine, findClip, findClipTrack,
 		findNearestAudioZeroCrossing, findTrack, getProject, handleError,
@@ -339,9 +338,11 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 	function setZoom(pixelsPerSecond: any) {
 		const project = getProject();
 		const durationSeconds = editorTimelineDurationFrames(project, projectSampleRate()) / projectSampleRate();
-		const maximum = Math.min(MAX_PIXELS_PER_SECOND, MAX_TIMELINE_PIXELS / durationSeconds);
 		const minimum = state.timelineViewportWidth > 0 ? state.timelineViewportWidth / durationSeconds : 1;
-		state.pixelsPerSecond = Math.max(minimum, Math.min(maximum, Number(pixelsPerSecond) || DEFAULT_PIXELS_PER_SECOND));
+		state.pixelsPerSecond = Math.max(
+			minimum,
+			Math.min(MAX_PIXELS_PER_SECOND, Number(pixelsPerSecond) || DEFAULT_PIXELS_PER_SECOND),
+		);
 		synchronizeAutomaticSampleEditMode();
 		updatePlayhead(engine.getPositionFrames());
 		publishDocumentSnapshot();

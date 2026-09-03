@@ -7,6 +7,7 @@ import { AutomaticCrossfadeOverlays, createVideoOverlapPresentation } from './Tr
 import { TrackNameEditor } from './TrackControls.jsx';
 import { clipGroups, focusFirst, normalizeClipSemantics } from './timeline-navigation.js';
 import { VideoFilmstripClip } from './VideoFilmstrip.jsx';
+import { timelineContentLeft } from './timeline-scroll-space.ts';
 
 export function VideoTrackRow({
 	controller,
@@ -183,7 +184,7 @@ export function VideoTrackRow({
 				<div
 					ref={trackWindowRef}
 					className="audio-editor-track-window audio-editor-video-track-window"
-					style={{ left: windowLeft, width: windowWidth }}
+					style={{ left: timelineContentLeft(windowLeft), width: windowWidth }}
 					onFocusCapture={(event) => {
 						if (isFlatNavigation || !event.target.matches?.('[data-clip-id][role="group"]')) return;
 						for (const clip of clipGroups(trackWindowRef.current)) clip.tabIndex = -1;

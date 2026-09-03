@@ -10,6 +10,11 @@ import {
 	timelineFrameToSourceFrame,
 } from '../src/common/editor/sample-edit.js';
 import {
+	audacityWaveformMode,
+	audacityWaveformShowsPoints,
+} from '../src/common/editor/audacity-waveform-renderer.js';
+import { AUDIO_EDITOR_MAX_PIXELS_PER_SECOND } from '../src/common/editor/timeline-zoom-limits.ts';
+import {
 	createAddSourceCommand,
 	createReplaceClipSourceCommand,
 } from '../src/common/editor/commands.js';
@@ -52,11 +57,22 @@ const CLIP = Object.freeze({
 	reversed: false,
 });
 
-test('sample editing is exposed only once one sample spans one visible pixel', () => {
-	assert.equal(AUDIO_EDITOR_SAMPLE_EDIT_MIN_PIXELS_PER_SAMPLE, 1);
-	assert.equal(canEditAudioSamplesAtZoom(47_999, 48_000), false);
-	assert.equal(canEditAudioSamplesAtZoom(48_000, 48_000), true);
-	assert.equal(canEditAudioSamplesAtZoom(96_000, 48_000), true);
+test('the deepest timeline zoom reaches stem rendering and the pencil', () => {
+	// One pixel per sample used to be the ceiling, and the renderer still joins
+	// samples with a line there, so neither stems nor the pencil were reachable.
+	assert.equal(audacityWaveformMode(48_000 / 48_000), 'connecting-dots');
+	assert.equal(canEditAudioSamplesAtZoom(48_000, 48_000), false);
+	assert.equal(audacityWaveformMode(AUDIO_EDITOR_MAX_PIXELS_PER_SECOND / 48_000), 'stem');
+	assert.equal(canEditAudioSamplesAtZoom(AUDIO_EDITOR_MAX_PIXELS_PER_SECOND, 48_000), true);
+});
+
+test('sample editing is exposed only once a sample is drawn as its own stem', () => {
+	assert.equal(AUDIO_EDITOR_SAMPLE_EDIT_MIN_PIXELS_PER_SAMPLE, 4);
+	// The pencil arrives exactly when the renderer starts drawing sample heads.
+	assert.equal(audacityWaveformShowsPoints(AUDIO_EDITOR_SAMPLE_EDIT_MIN_PIXELS_PER_SAMPLE), true);
+	assert.equal(canEditAudioSamplesAtZoom(191_999, 48_000), false);
+	assert.equal(canEditAudioSamplesAtZoom(192_000, 48_000), true);
+	assert.equal(canEditAudioSamplesAtZoom(384_000, 48_000), true);
 	assert.equal(canEditAudioSamplesAtZoom(Infinity, 48_000), false);
 });
 

@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 import {
+	readTimelineContentScrollX,
+	timelineDomScrollForElement,
+} from '../timeline/timeline-scroll-space.ts';
+import {
 	accumulateTimelineZoomWheel,
 	centeredTimelinePlayheadScroll,
 	resolveTimelineViewportGeometry,
@@ -24,7 +28,7 @@ export function useTimelineNavigation({ controller, editorRef, project, run, sna
 		} else {
 			const clientX = anchor?.clientX ?? rect.left + scroll.clientWidth / 2;
 			anchorOffset = clientX - rect.left - panelWidth;
-			anchorSeconds = (scroll.scrollLeft + anchorOffset - CLIP_CONTENT_OFFSET) / currentZoom;
+			anchorSeconds = (readTimelineContentScrollX(scroll) + anchorOffset - CLIP_CONTENT_OFFSET) / currentZoom;
 		}
 		const action = direction === 'in'
 			? controller.actions.timeline.zoomIn
@@ -42,13 +46,12 @@ export function useTimelineNavigation({ controller, editorRef, project, run, sna
 		pendingZoomAnchorRef.current = null;
 		const element = workspaceRef.current?.querySelector('.audio-editor-timeline-scroll');
 		if (!element) return;
-		const maximumScroll = Math.max(0, element.scrollWidth - element.clientWidth);
-		element.scrollLeft = Math.max(0, Math.min(
-			maximumScroll,
+		element.scrollLeft = timelineDomScrollForElement(
+			element,
 			CLIP_CONTENT_OFFSET
 				+ pending.anchorSeconds * (snapshot.timeline?.pixelsPerSecond || 120)
 				- pending.anchorOffset,
-		));
+		);
 		element.dispatchEvent(new Event('scroll', { bubbles: true }));
 	}, [snapshot.timeline?.pixelsPerSecond, workspaceRef]);
 	const jumpTransport = useCallback((action) => {

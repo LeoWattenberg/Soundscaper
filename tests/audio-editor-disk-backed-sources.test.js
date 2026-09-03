@@ -234,7 +234,7 @@ test('sample editing a long source rebuilds peaks from chunks without rehydratin
 		await controller.actions.project.importFiles([virtualPcm16Wav(LONG_STEREO_SOURCE_FRAMES, 2)]);
 		const originalClip = controller.getSnapshot().project.clips[0];
 		controller.actions.timeline.selectClip(originalClip.id);
-		controller.actions.timeline.setZoom(48_000);
+		controller.actions.timeline.setZoom(192_000);
 		assert.equal(controller.getSnapshot().sampleEdit.available, true);
 
 		await controller.actions.sampleEdit.pencil({

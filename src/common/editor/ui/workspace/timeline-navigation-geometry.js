@@ -2,6 +2,8 @@
 
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
+import { timelineDomScrollForElement } from '../timeline/timeline-scroll-space.ts';
+
 const TIMELINE_ZOOM_WHEEL_THRESHOLD = 48;
 const TIMELINE_ZOOM_WHEEL_IDLE_MILLISECONDS = 250;
 
@@ -20,18 +22,20 @@ export function resolveTimelineViewportGeometry(scroll) {
 	return Object.freeze({ panelWidth, viewportWidth });
 }
 
-/** Center one playhead in the visible clip-content viewport and clamp it to the scroll range. */
+/**
+ * Center one playhead in the visible clip-content viewport. The result is a
+ * browser scroll offset, which the timeline scales down from the content
+ * position once the surface is capped at deep zoom.
+ */
 export function centeredTimelinePlayheadScroll(scroll, {
 	positionFrame,
 	sampleRate,
 	pixelsPerSecond,
 }) {
 	const { viewportWidth } = resolveTimelineViewportGeometry(scroll);
-	const nextScroll = CLIP_CONTENT_OFFSET
+	return timelineDomScrollForElement(scroll, CLIP_CONTENT_OFFSET
 		+ positionFrame / sampleRate * pixelsPerSecond
-		- viewportWidth / 2;
-	const maximumScroll = Math.max(0, scroll.scrollWidth - scroll.clientWidth);
-	return Math.max(0, Math.min(maximumScroll, nextScroll));
+		- viewportWidth / 2);
 }
 
 /** Convert high-resolution wheel input into at most one discrete zoom notch. */

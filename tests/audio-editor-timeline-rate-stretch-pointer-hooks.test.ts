@@ -42,7 +42,7 @@ test('timeline renders one conformed rate-stretch guide with the shared transien
 	assert.match(markup, /data-rate-stretch-guide="true"/u);
 	assert.match(markup, /data-rate-stretch-edge="right"/u);
 	assert.match(markup, /data-rate-stretch-boundary-sample="24000"/u);
-	assert.match(markup, /style="left:312px;height:144px"/u);
+	assert.match(markup, /style="left:calc\(312px \+ var\(--timeline-render-origin-x, 0px\)\);height:144px"/u);
 	assert.equal(renderGuide(1.5), '');
 	assert.equal(renderGuide(Number.MAX_SAFE_INTEGER + 1), '');
 

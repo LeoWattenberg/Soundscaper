@@ -28,6 +28,12 @@ import {
 } from './constants.ts';
 import { timelineAnnotationsAvailable } from './timeline-annotation-ui-model.ts';
 import { useAnchoredTimelineRenderScrollX } from './timeline-render-window.ts';
+import {
+	createTimelineScrollSpace,
+	timelineContentScrollX,
+	timelineDomScrollX,
+	timelineRenderOriginX,
+} from './timeline-scroll-space.ts';
 
 export function useTimelineViewportModel({
 	controller,
@@ -122,17 +128,6 @@ export function useTimelineViewportModel({
 		: (hasFrequencyRuler ? SPECTROGRAM_RULER_WIDTH : VERTICAL_RULER_WIDTH);
 	const viewportWidth = Math.max(1, timelineSize.width - panelWidth - verticalRulerWidth);
 	const pixelsPerSecond = snapshot.timeline?.pixelsPerSecond || 120;
-	useLayoutEffect(() => {
-		const pending = pendingPinchAnchorRef.current;
-		if (!pending) return;
-		pendingPinchAnchorRef.current = null;
-		if (!scrollRef.current) return;
-		scrollRef.current.scrollLeft = Math.max(
-			0,
-			pending.anchorSeconds * pixelsPerSecond - pending.anchorOffset,
-		);
-		scrollRef.current.dispatchEvent(new Event('scroll', { bubbles: true }));
-	}, [pendingPinchAnchorRef, pixelsPerSecond, scrollRef]);
 	const sampleRate = project?.sampleRate || 48_000;
 	const recordingPreviews = snapshot.recordingPreviews?.length
 		? snapshot.recordingPreviews
@@ -142,11 +137,32 @@ export function useTimelineViewportModel({
 		...recordingPreviews.map((preview) => preview.startFrame + preview.durationFrames),
 	);
 	const durationSeconds = framesToSeconds(durationFrames, { sampleRate });
-	const timelineWidth = Math.max(viewportWidth, Math.ceil(durationSeconds * pixelsPerSecond));
-	const viewportStartFrame = Math.max(0, secondsToFrames(scrollX / pixelsPerSecond, { sampleRate }));
+	// Sample-depth zoom asks for a surface far wider than a browser will lay
+	// out, so the scroll box is capped and the reported offset is scaled back
+	// onto the content space the timeline draws in.
+	const contentWidth = Math.max(viewportWidth, Math.ceil(durationSeconds * pixelsPerSecond));
+	const scrollSpace = useMemo(
+		() => createTimelineScrollSpace({ contentWidth, viewportWidth }),
+		[contentWidth, viewportWidth],
+	);
+	const timelineWidth = scrollSpace.scrollWidth;
+	const contentScrollX = timelineContentScrollX(scrollSpace, scrollX);
+	const renderOriginX = timelineRenderOriginX(scrollSpace, scrollX);
+	useLayoutEffect(() => {
+		const pending = pendingPinchAnchorRef.current;
+		if (!pending) return;
+		pendingPinchAnchorRef.current = null;
+		if (!scrollRef.current) return;
+		scrollRef.current.scrollLeft = timelineDomScrollX(
+			scrollSpace,
+			Math.max(0, pending.anchorSeconds * pixelsPerSecond - pending.anchorOffset),
+		);
+		scrollRef.current.dispatchEvent(new Event('scroll', { bubbles: true }));
+	}, [pendingPinchAnchorRef, pixelsPerSecond, scrollRef, scrollSpace]);
+	const viewportStartFrame = Math.max(0, secondsToFrames(contentScrollX / pixelsPerSecond, { sampleRate }));
 	const viewportDurationFrames = Math.max(1, secondsToFrames(viewportWidth / pixelsPerSecond, { sampleRate }));
 	const renderScrollX = useAnchoredTimelineRenderScrollX({
-		scrollX,
+		scrollX: contentScrollX,
 		viewportWidth,
 		pixelsPerSecond,
 		sampleRate,
@@ -214,7 +230,11 @@ export function useTimelineViewportModel({
 		recordingPreviews,
 		durationFrames,
 		durationSeconds,
+		contentWidth,
 		timelineWidth,
+		scrollSpace,
+		contentScrollX,
+		renderOriginX,
 		viewportStartFrame,
 		renderScrollX,
 		renderViewportStartFrame,

@@ -11,7 +11,7 @@ import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 } from '../src/common/editor/project-schema-version.ts';
 
-function createFixture() {
+function createFixture(options: { readonly timelineDurationFrames?: number } = {}) {
 	type TestProject = {
 		id: string;
 		schemaFamily?: string;
@@ -86,7 +86,6 @@ function createFixture() {
 	const runtime: SelectionViewServiceRuntime = {
 		DEFAULT_PIXELS_PER_SECOND: 100,
 		MAX_PIXELS_PER_SECOND: 10_000,
-		MAX_TIMELINE_PIXELS: 1_000_000,
 		activeSelection: () => project.selection,
 		audioBufferChannels: () => [new Float32Array(64)],
 		cloneProject: (value) => structuredClone(value),
@@ -106,7 +105,7 @@ function createFixture() {
 			v2Required: 'Version 2 required.',
 			zeroCrossingsAligned: 'Aligned.',
 		},
-		editorTimelineDurationFrames: () => 100,
+		editorTimelineDurationFrames: () => options.timelineDurationFrames ?? 100,
 		engine: { getPositionFrames: () => 20, seek: (frame: number) => { seeks.push(frame); } },
 		findClip: (value, clipId) => value.clips.find((clip: { id: string }) => clip.id === clipId) || null,
 		findClipTrack: (value, clipId) => value.tracks.find((track: { clipIds?: string[] }) => track.clipIds?.includes(clipId)) || null,
@@ -419,6 +418,14 @@ test('snap settings, legacy frame clamping, and zoom remain bounded', () => {
 	assert.equal(fixture.service.setZoom(0), 100);
 	assert.equal(fixture.automaticModeSynchronizations(), 2);
 	assert.deepEqual(fixture.playheads, [20, 20]);
+});
+
+test('the zoom ceiling stays reachable however long the project is', () => {
+	// Ten minutes of timeline at this fixture's rate. The ceiling used to be a
+	// total pixel budget divided by the duration, so a long project could not be
+	// zoomed anywhere near a single sample.
+	const fixture = createFixture({ timelineDurationFrames: 600_000 });
+	assert.equal(fixture.service.setZoom(10_000), 10_000);
 });
 
 test('zero-crossing alignment commits success and reports render failures', async () => {

@@ -32,7 +32,7 @@ export interface ProjectViewServiceDependencies<
 	readonly projectDurationFrames: (project: Project) => number;
 	readonly editorTimelineDurationFrames: (project: Project, sampleRate: number) => number;
 	readonly projectSampleRate: () => number;
-	readonly maximumTimelinePixels: number;
+	readonly maximumPixelsPerSecond: number;
 	readonly synchronizeAutomaticSampleEditMode: () => void;
 	readonly getEnginePositionFrames: () => number;
 	readonly updatePlayhead: (frame: number, duration: number) => void;
@@ -75,7 +75,7 @@ export function createProjectViewService<
 		);
 		dependencies.state.pixelsPerSecond = Math.min(
 			dependencies.state.pixelsPerSecond,
-			dependencies.maximumTimelinePixels / durationSeconds,
+			dependencies.maximumPixelsPerSecond,
 		);
 		dependencies.state.timelineWidth = Math.max(
 			1,

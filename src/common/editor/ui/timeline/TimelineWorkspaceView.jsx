@@ -71,6 +71,9 @@ export function TimelineWorkspaceView({
 		durationFrames,
 		durationSeconds,
 		timelineWidth,
+		scrollSpace,
+		contentScrollX,
+		renderOriginX,
 		renderScrollX,
 		renderViewportStartFrame,
 		viewportDurationFrames,
@@ -173,6 +176,7 @@ export function TimelineWorkspaceView({
 				'--track-panel-width': `${panelWidth}px`,
 				'--timeline-viewport-width': `${viewportWidth}px`,
 				'--timeline-scroll-x': `${scrollX}px`,
+				'--timeline-render-origin-x': `${renderOriginX}px`,
 				'--vertical-ruler-width': `${verticalRulerWidth}px`,
 			}}
 		>
@@ -182,7 +186,6 @@ export function TimelineWorkspaceView({
 				scrollRef={scrollRef}
 				pixelsPerSecond={pixelsPerSecond}
 				sampleRate={sampleRate}
-				timelineWidth={timelineWidth}
 				viewportWidth={viewportWidth}
 				pinned={Boolean(
 					snapshot.timeline?.pinnedPlayhead
@@ -192,6 +195,7 @@ export function TimelineWorkspaceView({
 			<div
 				className="audio-editor-timeline-scroll"
 				data-timeline
+				data-timeline-scroll-scale={scrollSpace.scale}
 				ref={setTimelineScrollNode}
 				onScroll={handleTimelineScroll}
 				onPointerDownCapture={onPointerDown}
@@ -272,7 +276,7 @@ export function TimelineWorkspaceView({
 							{rulerScale.kind === 'timecode' ? <SequenceTimecodeRuler
 								height={markerLaneVisible ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined}
 								pixelsPerSecond={pixelsPerSecond}
-								scrollX={scrollX}
+								scrollX={contentScrollX}
 								width={timelineWidth}
 								viewportWidth={viewportWidth}
 								timeSelection={timeSelection}
@@ -285,7 +289,7 @@ export function TimelineWorkspaceView({
 							/> : rulerScale.kind === 'musical-map' ? <MusicalTimelineRuler
 								height={markerLaneVisible ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined}
 								pixelsPerSecond={pixelsPerSecond}
-								scrollX={scrollX}
+								scrollX={contentScrollX}
 								width={timelineWidth}
 								viewportWidth={viewportWidth}
 								timeSelection={timeSelection}
@@ -299,7 +303,7 @@ export function TimelineWorkspaceView({
 							/> : <TimelineRuler
 								height={markerLaneVisible ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined}
 								pixelsPerSecond={pixelsPerSecond}
-								scrollX={scrollX}
+								scrollX={contentScrollX}
 								totalDuration={durationSeconds}
 								width={timelineWidth}
 								viewportWidth={viewportWidth}
@@ -322,7 +326,7 @@ export function TimelineWorkspaceView({
 								locale={locale}
 								pixelsPerSecond={pixelsPerSecond}
 								sampleRate={sampleRate}
-								scrollX={scrollX}
+								scrollX={contentScrollX}
 								viewportWidth={viewportWidth}
 								blocked={mutationsBlocked}
 								run={run}
@@ -340,7 +344,7 @@ export function TimelineWorkspaceView({
 					<TimelineGridLines
 						scale={rulerScale}
 						pixelsPerSecond={pixelsPerSecond}
-						scrollX={scrollX}
+						scrollX={contentScrollX}
 						viewportWidth={viewportWidth}
 						height={Math.max(1, scrollViewportHeight - rulerRowHeight)}
 						sampleRate={sampleRate}
@@ -488,7 +492,7 @@ export function TimelineWorkspaceView({
 				verticalRulerWidth={verticalRulerWidth}
 				viewportWidth={viewportWidth}
 				timelineWidth={timelineWidth}
-				scrollX={scrollX}
+				scrollX={contentScrollX}
 				pixelsPerSecond={pixelsPerSecond}
 				sampleRate={sampleRate}
 				rulerScale={rulerScale}

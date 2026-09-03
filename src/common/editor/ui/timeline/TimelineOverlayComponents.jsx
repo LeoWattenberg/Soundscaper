@@ -9,6 +9,7 @@ import { framesToSeconds, secondsToFrames } from '../../design-system-adapters.j
 import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-audio-factory.js';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import { lowRateTimelinePositionFrame } from './timeline-playback-frame-loop.ts';
+import { timelineContentLeft } from './timeline-scroll-space.ts';
 
 export function TimelineOverlayPortal({ target, children }) {
 	return target ? createPortal(children, target) : children;
@@ -213,7 +214,7 @@ export function TimeSelectionOverlay({ selection, panelWidth, pixelsPerSecond, h
 			data-time-selection-overlay
 			aria-hidden="true"
 			style={{
-				left: panelWidth + CLIP_CONTENT_OFFSET + selection.startTime * pixelsPerSecond,
+				left: timelineContentLeft(panelWidth + CLIP_CONTENT_OFFSET + selection.startTime * pixelsPerSecond),
 				width: Math.max(1, (selection.endTime - selection.startTime) * pixelsPerSecond),
 				height,
 			}}
@@ -235,12 +236,12 @@ export function TimelineTrimPreviewGuide({
 			data-roll-ripple-trim-guide="true"
 			aria-hidden="true"
 			style={{
-				left: timelineTrimPreviewGuideLeft(
+				left: timelineContentLeft(timelineTrimPreviewGuideLeft(
 					sample,
 					panelWidth,
 					pixelsPerSecond,
 					sampleRate,
-				),
+				)),
 				height,
 			}}
 		/>
@@ -264,12 +265,12 @@ export function TimelineRateStretchPreviewGuide({
 			data-rate-stretch-boundary-sample={sample}
 			aria-hidden="true"
 			style={{
-				left: timelineTrimPreviewGuideLeft(
+				left: timelineContentLeft(timelineTrimPreviewGuideLeft(
 					sample,
 					panelWidth,
 					pixelsPerSecond,
 					sampleRate,
-				),
+				)),
 				height,
 			}}
 		/>
@@ -295,12 +296,12 @@ export function TimelineSlipSlidePreviewGuides({
 			data-slip-slide-guide-role={role}
 			aria-hidden="true"
 			style={{
-				left: timelineTrimPreviewGuideLeft(
+				left: timelineContentLeft(timelineTrimPreviewGuideLeft(
 					sample,
 					panelWidth,
 					pixelsPerSecond,
 					sampleRate,
-				),
+				)),
 				height,
 			}}
 		/>

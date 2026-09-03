@@ -10,6 +10,7 @@ import { AudacityWaveformCanvases } from './TimelineCanvasRenderer.jsx';
 import { SpectralBrushOverlay } from './SpectralBrushOverlay.jsx';
 import { SpectralSelectionOverlay } from './SpectralSelectionOverlay.jsx';
 import { createSpectrogramCanvasOptions } from './spectrogram-canvas-options.ts';
+import { timelineContentLeft } from './timeline-scroll-space.ts';
 import { clipGroups, focusFirst } from './timeline-navigation.js';
 import { renderAmplitudeRulers } from './track-row-helpers.jsx';
 import { useAudioTrackRowNavigation } from './useAudioTrackRowNavigation.js';
@@ -218,7 +219,7 @@ export function AudioTrackRow({
 				<div
 					ref={trackWindowRef}
 					className="audio-editor-track-window"
-					style={{ left: windowLeft, width: windowWidth }}
+					style={{ left: timelineContentLeft(windowLeft), width: windowWidth }}
 					onFocusCapture={(event) => {
 						if (isFlatNavigation || !event.target.matches?.('[data-clip-id][role="group"]')) return;
 						for (const clip of clipGroups(trackWindowRef.current)) clip.tabIndex = -1;

@@ -12,6 +12,7 @@ import {
 	gainDbToDesignVolume,
 	panToDesignValue,
 } from '../../design-system-adapters.js';
+import { timelineContentLeft } from './timeline-scroll-space.ts';
 import {
 	createEnvelopeValueEvaluator,
 	envelopeFramesToDesignPoints,
@@ -308,7 +309,7 @@ export function OutputTrackRow({
 					style={{
 						width: timelineWidth,
 						height: rowHeight,
-						transform: `translate3d(${-scrollX}px, 0, 0)`,
+						transform: `translate3d(calc(${-scrollX}px - var(--timeline-render-origin-x, 0px)), 0, 0)`,
 					}}
 					onFocus={onFocus}
 					onKeyDown={(event) => {
@@ -338,13 +339,13 @@ export function OutputTrackRow({
 						className="audio-editor-output-time-selection"
 						aria-hidden="true"
 						style={{
-							left: CLIP_CONTENT_OFFSET + selection.startTime * pixelsPerSecond,
+							left: timelineContentLeft(CLIP_CONTENT_OFFSET + selection.startTime * pixelsPerSecond),
 							width: Math.max(1, (selection.endTime - selection.startTime) * pixelsPerSecond),
 						}}
 					/>}
 					{stripEnvelopeAvailable && <div
 						className="audio-editor-output-envelope"
-						style={{ left: envelopeLeft, width: envelopeWidth }}
+						style={{ left: timelineContentLeft(envelopeLeft), width: envelopeWidth }}
 						onMouseDownCapture={(event) => {
 							if (event.button === 0 && automationToolEnabled && !blocked) setEnvelopeEditActive(true);
 						}}

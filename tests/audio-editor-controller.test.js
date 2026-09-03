@@ -70,7 +70,7 @@ const COPY = Object.freeze({
 	sampleEditSaving: 'Saving sample edit',
 	sampleEditDone: 'Edited samples.',
 	sampleEditCancelled: 'Sample editing cancelled.',
-	sampleEditZoomRequired: 'Zoom to at least one pixel per sample.',
+	sampleEditZoomRequired: 'Zoom in until individual samples are shown.',
 	audioClipNotFound: 'The selected audio clip could not be found.',
 	rewritingChannels: 'Rewriting channels',
 	channelsSwapped: 'channels swapped',
@@ -2359,15 +2359,19 @@ test('controller gates sample tools by zoom and commits pencil and smoothing as 
 	await controller.ready;
 	controller.actions.timeline.selectClip('controller-sample-clip');
 	assert.equal(controller.getSnapshot().sampleEdit.available, false);
-	assert.throws(() => controller.actions.sampleEdit.setMode('pencil'), /one pixel per sample/);
+	assert.throws(() => controller.actions.sampleEdit.setMode('pencil'), /individual samples/);
+	// One pixel per sample only joins samples with a line; the pencil waits for
+	// the zoom where the renderer draws each sample as its own stem.
 	controller.actions.timeline.setZoom(48_000);
+	assert.equal(controller.getSnapshot().sampleEdit.available, false);
+	controller.actions.timeline.setZoom(192_000);
 	assert.equal(controller.getSnapshot().sampleEdit.available, true);
 	assert.equal(controller.getSnapshot().sampleEdit.mode, 'pencil');
 	controller.actions.sampleEdit.setMode(null);
 	assert.equal(controller.getSnapshot().sampleEdit.mode, null);
 	controller.actions.timeline.setZoom(100);
 	assert.equal(controller.getSnapshot().sampleEdit.available, false);
-	controller.actions.timeline.setZoom(48_000);
+	controller.actions.timeline.setZoom(192_000);
 	assert.equal(controller.getSnapshot().sampleEdit.mode, 'pencil');
 	controller.actions.track.setSpectrogramView('controller-sample-track');
 	assert.equal(controller.getSnapshot().sampleEdit.available, false);

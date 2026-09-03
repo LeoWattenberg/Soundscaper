@@ -11,7 +11,10 @@
  */
 
 const CONNECTING_DOTS_THRESHOLD = 0.5;
-const STEM_THRESHOLD = 4;
+
+/** Audacity draws sample heads and zero-line stems from this scale upwards. */
+export const AUDACITY_WAVEFORM_STEM_PIXELS_PER_SAMPLE = 4;
+const STEM_THRESHOLD = AUDACITY_WAVEFORM_STEM_PIXELS_PER_SAMPLE;
 
 /** Return the Audacity display mode for a horizontal sample scale. */
 export function audacityWaveformMode(pixelsPerSample) {

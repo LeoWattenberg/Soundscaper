@@ -40,7 +40,6 @@ function createFixture() {
 	};
 	const runtime: ViewStateServiceRuntime = {
 		MAX_PIXELS_PER_SECOND: 48_000,
-		MAX_TIMELINE_PIXELS: 1_000_000,
 		commit: (command) => { commands.push(command); return project; },
 		copy: { trackNotFound: 'Track not found.' },
 		editingBlocked: () => blocked,

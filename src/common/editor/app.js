@@ -1,4 +1,8 @@
 import { findNearestAudioZeroCrossing } from './zero-crossing.js';
+import {
+	AUDIO_EDITOR_DEFAULT_PIXELS_PER_SECOND,
+	AUDIO_EDITOR_MAX_PIXELS_PER_SECOND,
+} from './timeline-zoom-limits.ts';
 import { createAiffStreamEncoder, encodeAiff } from './aiff.js';
 import {
 	collectRelatedClipIds,
@@ -319,9 +323,8 @@ import {
 
 export { calculateAudioEditorMetronomeSchedule } from './controller/transport-model.ts';
 
-const DEFAULT_PIXELS_PER_SECOND = 120;
-const MAX_PIXELS_PER_SECOND = AUDIO_EDITOR_SAMPLE_RATE;
-const MAX_TIMELINE_PIXELS = 16_000_000;
+const DEFAULT_PIXELS_PER_SECOND = AUDIO_EDITOR_DEFAULT_PIXELS_PER_SECOND;
+const MAX_PIXELS_PER_SECOND = AUDIO_EDITOR_MAX_PIXELS_PER_SECOND;
 const NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES = 128 * 1024 * 1024;
 const LIVE_RECORDING_WAVEFORM_PUBLISH_INTERVAL_MS = 80;
 const MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES = 262_144;
@@ -656,7 +659,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const projectViewService = createProjectViewService({
 		lifetime, state, getProject: () => project, projectDurationFrames, editorTimelineDurationFrames,
 		projectSampleRate: () => projectSampleRate(),
-		maximumTimelinePixels: MAX_TIMELINE_PIXELS,
+		maximumPixelsPerSecond: MAX_PIXELS_PER_SECOND,
 		synchronizeAutomaticSampleEditMode, updatePlayhead, publishDocumentSnapshot, editingBlocked, commit,
 		getEnginePositionFrames: () => engine.getPositionFrames(),
 	});
@@ -1025,7 +1028,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		activateVideoSource: (source, options) => activateVideoSource(source, options),
 	});
 	const viewStateService = createViewStateService({
-		MAX_PIXELS_PER_SECOND, MAX_TIMELINE_PIXELS, commit, copy, editingBlocked,
+		MAX_PIXELS_PER_SECOND, commit, copy, editingBlocked,
 		editorTimelineDurationFrames, findTrack,
 		getMicrophoneMeterSession: microphoneMeterService.getSession,
 		getProject: () => project,
@@ -1233,7 +1236,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		activateStoredSource,
 	});
 	const selectionViewService = createSelectionViewService({
-		DEFAULT_PIXELS_PER_SECOND, MAX_PIXELS_PER_SECOND, MAX_TIMELINE_PIXELS,
+		DEFAULT_PIXELS_PER_SECOND, MAX_PIXELS_PER_SECOND,
 		activeSelection, audioBufferChannels, cloneProject: projectRuntime.cloneProject, collectRelatedClipIds,
 		commit, copy, editorTimelineDurationFrames, engine, findClip, findClipTrack,
 		findNearestAudioZeroCrossing, findTrack, getProject: () => project, handleError,

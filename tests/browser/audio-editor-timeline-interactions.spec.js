@@ -60,7 +60,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		await splitTool.click();
 		await expect(splitTool).toHaveAttribute('aria-pressed', 'true');
 		const zoomIn = editor.getByRole('button', { name: 'Zoom in', exact: true });
-		for (let step = 0; step < 9; step += 1) await zoomIn.click();
+		// Two notches deeper than one pixel per sample, where the renderer stops
+		// joining samples with a line and draws each one as its own stem.
+		for (let step = 0; step < 11; step += 1) await zoomIn.click();
 		const sampleTools = editor.getByRole('toolbar', { name: 'Sample tools', exact: true });
 		await expect(sampleTools).toBeVisible();
 		const pencil = sampleTools.getByRole('button', { name: 'Sample pencil', exact: true });

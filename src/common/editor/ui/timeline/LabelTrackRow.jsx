@@ -6,6 +6,7 @@ import { LabelMarker } from '@soundscaper/design-system/LabelMarker';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
 import { TrackNameEditor } from './TrackControls.jsx';
+import { timelineContentLeft } from './timeline-scroll-space.ts';
 
 export function LabelTrackRow({
 	controller,
@@ -214,7 +215,7 @@ export function AudacityLabelMarker({
 			data-point-label={point ? 'true' : 'false'}
 			onMouseUp={finishDrag}
 			onPointerUp={finishDrag}
-			style={{ left: displayedLeft, width: displayedWidth }}
+			style={{ left: timelineContentLeft(displayedLeft), width: displayedWidth }}
 			role="group"
 			tabIndex={0}
 			aria-label={`${copy.editLabels}: ${label.title || copy.newLabel}`}

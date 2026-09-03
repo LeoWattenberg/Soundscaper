@@ -11,6 +11,10 @@ import {
 	focusPanelControl,
 	trackNavigationRow,
 } from './timeline-navigation.js';
+import {
+	readTimelineScrollScale,
+	timelineDomScrollForElement,
+} from './timeline-scroll-space.ts';
 
 export function useTimelineNavigation({
 	controller,
@@ -147,8 +151,7 @@ export function useTimelineNavigation({
 			clip.timelineStartFrame + clip.durationFrames / 2,
 			{ sampleRate },
 		) * pixelsPerSecond;
-		const maximumScroll = Math.max(0, scroll.scrollWidth - scroll.clientWidth);
-		scroll.scrollLeft = Math.max(0, Math.min(maximumScroll, clipCenterPixels - viewportWidth / 2));
+		scroll.scrollLeft = timelineDomScrollForElement(scroll, clipCenterPixels - viewportWidth / 2);
 
 		let frame = 0;
 		let attempts = 0;
@@ -176,8 +179,13 @@ export function useTimelineNavigation({
 		const maximumScroll = Math.max(0, timelineWidth - viewportWidth);
 		const nextScrollX = Math.max(0, Math.min(maximumScroll, event.currentTarget.scrollLeft));
 		if (event.currentTarget.scrollLeft !== nextScrollX) event.currentTarget.scrollLeft = nextScrollX;
-		event.currentTarget.closest('.audio-editor-timeline-panel')?.style
-			.setProperty('--timeline-scroll-x', `${nextScrollX}px`);
+		// Scrolled content is drawn at its content coordinate plus this origin,
+		// which stays zero until the surface is capped at deep zoom.
+		const scale = readTimelineScrollScale(event.currentTarget);
+		const renderOriginX = scale === 1 ? 0 : nextScrollX - nextScrollX * scale;
+		const panelStyle = event.currentTarget.closest('.audio-editor-timeline-panel')?.style;
+		panelStyle?.setProperty('--timeline-scroll-x', `${nextScrollX}px`);
+		panelStyle?.setProperty('--timeline-render-origin-x', `${renderOriginX}px`);
 		setScrollX(nextScrollX);
 	}, [timelineWidth, viewportWidth]);
 

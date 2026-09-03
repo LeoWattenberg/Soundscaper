@@ -49,7 +49,7 @@ test('the transient trim guide uses the conformed sample in timeline coordinates
 	assert.match(markup, /class="audio-editor-trim-preview-guide"/u);
 	assert.match(markup, /data-roll-ripple-trim-guide="true"/u);
 	assert.match(markup, /aria-hidden="true"/u);
-	assert.match(markup, /style="left:312px;height:144px"/u);
+	assert.match(markup, /style="left:calc\(312px \+ var\(--timeline-render-origin-x, 0px\)\);height:144px"/u);
 	for (const sample of [null, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
 		assert.equal(renderGuide(sample), '', String(sample));
 	}

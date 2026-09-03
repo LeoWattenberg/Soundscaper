@@ -12,6 +12,7 @@ import {
 import { captureTimelineRollRippleTrimPointerMode } from './roll-ripple-trim-pointer-routing.ts';
 import { captureTimelineSlipSlidePointerGesture } from './slip-slide-pointer-routing.ts';
 import { isRulerLoopBand, samplePointAtPointer } from './track-row-helpers.jsx';
+import { readTimelineContentScrollX } from './timeline-scroll-space.ts';
 
 export function useTimelinePointerStart({
 	controller,
@@ -54,7 +55,7 @@ export function useTimelinePointerStart({
 					distance: Math.max(1, Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y)),
 					pixelsPerSecond,
 					midpoint: (points[0].x + points[1].x) / 2,
-					scrollLeft: scrollRef.current?.scrollLeft || 0,
+					scrollLeft: readTimelineContentScrollX(scrollRef.current),
 				};
 				setSelectionPreview(null);
 				pointerSession.current = null;

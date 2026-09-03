@@ -6,7 +6,6 @@ type LegacyPort = (...args: any[]) => any;
 
 export interface ViewStateServiceRuntime {
 	readonly MAX_PIXELS_PER_SECOND: number;
-	readonly MAX_TIMELINE_PIXELS: number;
 	readonly commit: LegacyPort;
 	readonly copy: any;
 	readonly editingBlocked: LegacyPort;
@@ -27,7 +26,7 @@ export interface ViewStateServiceRuntime {
 
 export function createViewStateService(runtime: ViewStateServiceRuntime) {
 	const {
-		MAX_PIXELS_PER_SECOND, MAX_TIMELINE_PIXELS, commit, copy, editingBlocked,
+		MAX_PIXELS_PER_SECOND, commit, copy, editingBlocked,
 		editorTimelineDurationFrames, findTrack, getMicrophoneMeterSession, getProject,
 		getRoutedInputLoudnessMeter, projectDurationFrames, projectSampleRate,
 		publishProjectState, publishTelemetrySnapshot, sampleEditingAvailable, state,
@@ -88,8 +87,7 @@ export function createViewStateService(runtime: ViewStateServiceRuntime) {
 			const fitDurationSeconds = contentDurationFrames > 0
 				? contentDurationFrames / sampleRate
 				: editorDurationSeconds;
-			const maximum = Math.min(MAX_PIXELS_PER_SECOND, MAX_TIMELINE_PIXELS / editorDurationSeconds);
-			state.pixelsPerSecond = Math.max(1, Math.min(maximum, viewport / fitDurationSeconds));
+			state.pixelsPerSecond = Math.max(1, Math.min(MAX_PIXELS_PER_SECOND, viewport / fitDurationSeconds));
 		} else {
 			const durationSeconds = editorTimelineDurationFrames(project, projectSampleRate()) / projectSampleRate();
 			const minimum = state.timelineViewportWidth > 0 ? state.timelineViewportWidth / durationSeconds : 1;
