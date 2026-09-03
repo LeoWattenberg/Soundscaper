@@ -23,6 +23,12 @@ export interface WorkerRequestOptions<Context = unknown> {
 	readonly context?: Context;
 	readonly signal?: AbortSignal | null;
 	readonly timeoutMs?: number;
+	/**
+	 * Arm the inactivity deadline immediately. Clients that hold requests in a
+	 * queue before posting them pass `false` and call {@link WorkerRequestBroker.touch}
+	 * at dispatch, so a request cannot expire for time it spent waiting its turn.
+	 */
+	readonly armOnRequest?: boolean;
 	readonly post?: () => void;
 	readonly onAbort?: () => void;
 	readonly onTimeout?: (error: Error) => void;
@@ -105,7 +111,7 @@ export class WorkerRequestBroker {
 			entry.onAbort = () => this.#abort(entry);
 			this.entries.set(id, entry);
 			signal?.addEventListener('abort', entry.onAbort, { once: true });
-			this.#arm(entry);
+			if (options.armOnRequest !== false) this.#arm(entry);
 			if (signal?.aborted) {
 				this.#abort(entry);
 				return;

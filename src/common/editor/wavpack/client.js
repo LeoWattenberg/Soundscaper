@@ -7,11 +7,8 @@ import {
 	pcmRawByteLength,
 	validatePcmGeometry,
 } from './pcm.js';
-import {
-	DEFAULT_WORKER_REQUEST_TIMEOUT_MS,
-	normalizeWorkerRequestTimeout,
-} from '../worker-request-broker.ts';
-import { createWorkerRequestId } from '../worker-protocol.ts';
+import { WorkerRequestBroker } from '../worker-request-broker.ts';
+import { WORKER_TIMEOUT_CODE, createWorkerRequestId } from '../worker-protocol.ts';
 import { createWorkerAbortError, deserializeWorkerError } from '../worker-error-transport.ts';
 
 const WAVPACK_ERROR_FIELDS = ['code'];
@@ -21,6 +18,12 @@ let nextRequestId = 1;
  * One lazy worker with strict foreground-first scheduling. Only a single
  * request is posted at a time, so migration work can never get ahead of a
  * foreground read or write already waiting in this client.
+ *
+ * The shared broker owns each request's deadline, abort wiring and
+ * exactly-once settlement; what stays here is the part it has no opinion
+ * about — the two priority lanes, and the policy that a cancelled or expired
+ * request takes the worker down with it because a WavPack codec call cannot be
+ * interrupted once it is running.
  */
 export class WavPackCodecClient {
 	constructor(options = {}) {
@@ -29,13 +32,13 @@ export class WavPackCodecClient {
 		this.worker = null;
 		this.foregroundQueue = [];
 		this.migrationQueue = [];
-		this.active = null;
+		this.activeId = null;
 		this.closed = false;
-		this.defaultTimeoutMs = normalizeWorkerRequestTimeout(
-			options.timeoutMs ?? DEFAULT_WORKER_REQUEST_TIMEOUT_MS,
-		);
-		this.setTimeout = options.setTimeout ?? globalThis.setTimeout?.bind(globalThis);
-		this.clearTimeout = options.clearTimeout ?? globalThis.clearTimeout?.bind(globalThis);
+		this.requests = new WorkerRequestBroker({
+			timeoutMs: options.timeoutMs,
+			setTimeout: options.setTimeout,
+			clearTimeout: options.clearTimeout,
+		});
 	}
 
 	encode(payload, options = {}) {
@@ -58,89 +61,66 @@ export class WavPackCodecClient {
 	close() {
 		if (this.closed) return;
 		this.closed = true;
-		const worker = this.worker;
-		this.worker = null;
-		const error = new Error('WavPack codec client is closed.');
-		try {
-			worker?.terminate();
-		} catch { /* Worker termination is best effort. */ }
-		try {
-			for (const request of [...this.foregroundQueue, ...this.migrationQueue]) {
-				this.#finish(request, error);
-			}
-			this.foregroundQueue.length = 0;
-			this.migrationQueue.length = 0;
-			if (this.active) this.#finish(this.active, error);
-		} finally {
-			this.active = null;
-		}
+		this.activeId = null;
+		this.foregroundQueue.length = 0;
+		this.migrationQueue.length = 0;
+		this.#dropWorker();
+		this.requests.dispose(new Error('WavPack codec client is closed.'));
 	}
 
 	#enqueue(type, message, options) {
 		if (this.closed) return Promise.reject(new Error('WavPack codec client is closed.'));
 		if (options.signal?.aborted) return Promise.reject(abortError());
-		const transferInput = options.transferInput === true;
-		const timeoutMs = normalizeWorkerRequestTimeout(options.timeoutMs ?? this.defaultTimeoutMs);
 		const source = exactArrayBuffer(message.payload);
-		const payload = transferInput ? source : source.slice(0);
-		return new Promise((resolve, reject) => {
-			const request = {
-				id: createWorkerRequestId('wavpack', nextRequestId++),
-				type,
-				message: { ...message, payload },
-				resolve,
-				reject,
-				signal: options.signal || null,
-				onAbort: null,
-				finished: false,
-				timer: null,
-				timeoutMs,
-			};
-			if (request.signal) {
-				request.onAbort = () => {
-					if (request === this.active) {
-						this.#terminateActive(request, abortError());
-					} else {
-						removeQueued(this.foregroundQueue, request);
-						removeQueued(this.migrationQueue, request);
-						this.#finish(request, abortError());
-					}
-				};
-				request.signal.addEventListener('abort', request.onAbort, { once: true });
-			}
-			const queue = options.priority === 'migration'
-				? this.migrationQueue
-				: this.foregroundQueue;
-			queue.push(request);
-			this.#dispatch();
+		const payload = options.transferInput === true ? source : source.slice(0);
+		const id = createWorkerRequestId('wavpack', nextRequestId++);
+		const pending = this.requests.request({
+			id,
+			context: { type, message: { ...message, payload } },
+			signal: options.signal,
+			timeoutMs: options.timeoutMs,
+			// The deadline measures worker inactivity, so it starts at dispatch
+			// rather than here; a request must not expire for waiting its turn.
+			armOnRequest: false,
+			abortError,
+			timeoutError: inactivityError,
+			onAbort: () => this.#retire(id),
+			onTimeout: () => this.#retire(id),
 		});
+		(options.priority === 'migration' ? this.migrationQueue : this.foregroundQueue).push(id);
+		this.#dispatch();
+		return pending;
 	}
 
 	#dispatch() {
-		if (this.active || this.closed) return;
-		const request = this.foregroundQueue.shift() || this.migrationQueue.shift();
-		if (!request) return;
+		if (this.activeId || this.closed) return;
+		const id = this.foregroundQueue.shift() || this.migrationQueue.shift();
+		if (!id) return;
+		const request = this.requests.get(id)?.context;
+		if (!request) {
+			this.#dispatch();
+			return;
+		}
 		let worker;
 		try {
 			worker = this.#worker();
 		} catch (error) {
-			this.#finish(request, error);
+			this.requests.reject(id, error);
 			queueMicrotask(() => this.#dispatch());
 			return;
 		}
-		this.active = request;
-		this.#armTimeout(request);
-		const message = {
-			type: request.type,
-			id: request.id,
-			...request.message,
-			wasmUrl: this.wasmUrl,
-		};
+		this.activeId = id;
+		this.requests.touch(id);
 		try {
-			worker.postMessage(message, [request.message.payload]);
+			worker.postMessage({
+				type: request.type,
+				id,
+				...request.message,
+				wasmUrl: this.wasmUrl,
+			}, [request.message.payload]);
 		} catch (error) {
-			this.active = null;
-			this.#finish(request, error);
+			this.activeId = null;
+			this.requests.reject(id, error);
 			queueMicrotask(() => this.#dispatch());
 		}
 	}
@@ -163,60 +143,46 @@ export class WavPackCodecClient {
 	}
 
 	#handleMessage(worker, message) {
-		if (worker !== this.worker) return;
-		if (!message || typeof message !== 'object' || message.id !== this.active?.id) return;
-		const request = this.active;
-		this.active = null;
-		if (request.aborted) this.#finish(request, abortError());
-		else if (message.type === 'result') this.#finish(request, null, message.result);
-		else if (message.type === 'error') this.#finish(request, deserializeError(message.error));
-		else this.#finish(request, new Error('WavPack worker returned an invalid response.'));
+		if (worker !== this.worker || !this.activeId) return;
+		if (!message || typeof message !== 'object' || message.id !== this.activeId) return;
+		const id = this.activeId;
+		this.activeId = null;
+		if (message.type === 'result') this.requests.resolve(id, message.result);
+		else if (message.type === 'error') this.requests.reject(id, deserializeError(message.error));
+		else this.requests.reject(id, new Error('WavPack worker returned an invalid response.'));
 		this.#dispatch();
 	}
 
 	#handleWorkerFailure(worker, error) {
 		if (worker !== this.worker) return;
-		const active = this.active;
-		this.active = null;
-		try { worker.terminate(); } catch {}
+		const id = this.activeId;
+		this.activeId = null;
 		this.worker = null;
-		if (active) this.#finish(active, error);
+		try { worker.terminate(); } catch { /* Termination is best effort. */ }
+		if (id) this.requests.reject(id, error);
 		this.#dispatch();
 	}
 
-	#armTimeout(request) {
-		if (typeof this.setTimeout !== 'function') return;
-		request.timer = this.setTimeout(() => {
-			if (request !== this.active || request.finished) return;
-			request.timer = null;
-			const error = new Error(`WavPack worker received no activity for ${request.timeoutMs} milliseconds.`);
-			error.name = 'TimeoutError';
-			error.code = 'WORKER_INACTIVITY_TIMEOUT';
-			this.#terminateActive(request, error);
-		}, request.timeoutMs);
-		request.timer?.unref?.();
-	}
-
-	#terminateActive(request, error) {
-		if (request !== this.active || request.finished) return;
-		const worker = this.worker;
-		this.active = null;
-		this.worker = null;
-		try { worker?.terminate(); } catch {}
-		this.#finish(request, error);
+	/**
+	 * Runs after the broker has already settled a cancelled or expired request.
+	 * A queued request only has to leave its lane; a running one has to take the
+	 * worker with it, since the codec call cannot be stopped any other way.
+	 */
+	#retire(id) {
+		if (this.activeId === id) {
+			this.activeId = null;
+			this.#dropWorker();
+		} else {
+			removeQueued(this.foregroundQueue, id);
+			removeQueued(this.migrationQueue, id);
+		}
 		queueMicrotask(() => this.#dispatch());
 	}
 
-	#finish(request, error, result) {
-		if (request.finished) return;
-		request.finished = true;
-		if (request.timer != null && typeof this.clearTimeout === 'function') this.clearTimeout(request.timer);
-		request.timer = null;
-		if (request.signal && request.onAbort) {
-			request.signal.removeEventListener('abort', request.onAbort);
-		}
-		if (error) request.reject(error);
-		else request.resolve(result);
+	#dropWorker() {
+		const worker = this.worker;
+		this.worker = null;
+		try { worker?.terminate(); } catch { /* Termination is best effort. */ }
 	}
 }
 
@@ -247,9 +213,16 @@ function defaultWorkerFactory() {
 	});
 }
 
-function removeQueued(queue, request) {
-	const index = queue.indexOf(request);
+function removeQueued(queue, id) {
+	const index = queue.indexOf(id);
 	if (index >= 0) queue.splice(index, 1);
+}
+
+function inactivityError(timeoutMs) {
+	const error = new Error(`WavPack worker received no activity for ${timeoutMs} milliseconds.`);
+	error.name = 'TimeoutError';
+	error.code = WORKER_TIMEOUT_CODE;
+	return error;
 }
 
 function deserializeError(value) {

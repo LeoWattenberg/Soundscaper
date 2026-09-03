@@ -258,6 +258,48 @@ test('Nyquist restarts the interpreter on a deadline and fails its collateral ev
 	}
 });
 
+test('WavPack does not spend a queued request its inactivity deadline, and drains foreground first', async () => {
+	const workers = [];
+	const timers = createManualTimers();
+	const client = new WavPackCodecClient({
+		timeoutMs: 5,
+		setTimeout: timers.setTimeout,
+		clearTimeout: timers.clearTimeout,
+		workerFactory() {
+			const worker = new FakeWorker();
+			workers.push(worker);
+			return worker;
+		},
+	});
+	try {
+		const active = client.encode(new ArrayBuffer(4), codecOptions());
+		const migration = client.encode(new ArrayBuffer(4), codecOptions({ priority: 'migration' }));
+		const foreground = client.encode(new ArrayBuffer(4), codecOptions());
+		// Three requests are outstanding but only the running one is on the
+		// clock: a deadline measures worker inactivity, not queue depth.
+		assert.equal(timers.active().length, 1);
+		assert.equal(workers.length, 1);
+
+		const first = workers[0].messages.at(-1).message.id;
+		workers[0].emit({ type: 'result', id: first, result: { payload: Uint8Array.of(1) } });
+		const second = workers[0].messages.at(-1).message.id;
+		assert.notEqual(second, first);
+		assert.equal(timers.active().length, 1);
+		workers[0].emit({ type: 'result', id: second, result: { payload: Uint8Array.of(2) } });
+		const third = workers[0].messages.at(-1).message.id;
+		workers[0].emit({ type: 'result', id: third, result: { payload: Uint8Array.of(3) } });
+
+		assert.deepEqual(Array.from((await active).payload), [1]);
+		// The migration request was enqueued first and still waits: once a lane
+		// has to be chosen, foreground work goes ahead of it.
+		assert.deepEqual(Array.from((await foreground).payload), [2]);
+		assert.deepEqual(Array.from((await migration).payload), [3]);
+		assert.equal(timers.active().length, 0);
+	} finally {
+		client.close();
+	}
+});
+
 test('WavPack ignores late failures from a replaced worker', async () => {
 	const workers = [];
 	const client = new WavPackCodecClient({
