@@ -76,6 +76,7 @@ export const TRACK_AND_EXPORT_GUIDES = Object.freeze([
 		tips: [
 			'An MP3 is a delivery copy, not a backup. Keep the project or export a WAV as well if you may edit again.',
 			'Peaks right at full scale can clip after encoding. Normalize to −1 dB or lower before exporting.',
+			'Bit Rate Mode decides how the encoder spends bits. The Standard preset varies the rate to suit the material and is the right answer for most deliveries; pick Constant when a host or an older hardware player asks for one fixed rate.',
 		],
 	},
 	{
