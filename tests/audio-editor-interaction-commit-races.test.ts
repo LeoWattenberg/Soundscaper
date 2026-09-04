@@ -14,8 +14,8 @@ test('new shortcut rows reconcile controlled input during the layout commit', as
 
 test('dynamic macro roving focus is initialized during the layout commit', async () => {
 	const source = await readFile(new URL(
-		'../src/common/editor/ui/inspector/AudioEditorMacroManagerDialog.jsx',
+		'../src/common/editor/ui/inspector/MacroManagerStepList.jsx',
 		import.meta.url,
 	), 'utf8');
-	assert.match(source, /useLayoutEffect\(\(\) => \{\s*if \(isOpen && !selectedEffect && !picker\) initMacroTabIndices\(\);/u);
+	assert.match(source, /useLayoutEffect\(\(\) => \{\s*if \(!picker\) initTabIndices\(\);/u);
 });
