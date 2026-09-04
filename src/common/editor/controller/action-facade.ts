@@ -516,6 +516,14 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			setTheme: (theme: RuntimeValue) => updatePreferences({ appearance: { theme } }),
 			setClipStyle: (clipStyle: RuntimeValue) => updatePreferences({ appearance: { clipStyle } }),
 			setLayout: (layout: RuntimeValue) => updatePreferences({ appearance: { layout } }),
+			// The default view is the timeline's view: tracks without a display of
+			// their own follow it, so the session adopts the new default at once
+			// rather than at the next launch.
+			setDefaultView: (defaultView: RuntimeValue) => {
+				const updated = updatePreferences({ appearance: { defaultView } });
+				setTimelineView(defaultView);
+				return updated;
+			},
 			toggleToolbar: toggleToolbarPreference,
 			moveToolbar: moveToolbarPreference,
 			setToolbarButton: setToolbarButtonPreference,

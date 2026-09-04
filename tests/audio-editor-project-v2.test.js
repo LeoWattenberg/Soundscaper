@@ -243,6 +243,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	assert.equal(preferences.appearance.theme, 'system');
 	assert.equal(preferences.appearance.clipStyle, 'colorful');
 	assert.equal(preferences.appearance.layout, 'auto');
+	assert.equal(preferences.appearance.defaultView, 'waveform');
 	assert.equal(preferences.view.showMasterTrack, false);
 	assert.equal(preferences.import.detectTempo, true);
 	assert.equal(preferences.recording.retainInputs, true);
@@ -409,6 +410,6 @@ test('the layout preference accepts the three chrome modes and defaults older do
 	delete saved.appearance.layout;
 	assert.deepEqual(
 		loadAudioEditorPreferencesV1(saved).preferences.appearance,
-		{ theme: 'dark', clipStyle: 'classic', layout: 'auto' },
+		{ theme: 'dark', clipStyle: 'classic', layout: 'auto', defaultView: 'waveform' },
 	);
 });

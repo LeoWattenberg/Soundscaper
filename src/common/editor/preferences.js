@@ -82,6 +82,13 @@ export { AUDIO_EDITOR_STARTUP_MODES };
  */
 export const AUDIO_EDITOR_EFFECT_MENU_ORGANIZATIONS = Object.freeze(['default', 'sortby:name']);
 export const AUDIO_EDITOR_LAYOUTS = Object.freeze(['auto', 'compact', 'desktop']);
+/**
+ * Audacity's "Default View Mode": the display a track gets when nothing has
+ * given it one of its own. Upstream also offers waveform in decibels; this
+ * editor draws waveforms on a linear scale only, so it offers the three
+ * displays its timeline can actually render.
+ */
+export const AUDIO_EDITOR_DEFAULT_VIEWS = Object.freeze(['waveform', 'spectrogram', 'multiview']);
 
 const AUDIO_EDITOR_LOCAL_DEFAULT_SHORTCUTS_BY_ACTION = Object.freeze({
 	...Object.fromEntries(Object.values(AUDACITY_ACTION_MANIFEST)
@@ -124,6 +131,7 @@ const THEME_SET = new Set(AUDIO_EDITOR_THEMES);
 const CLIP_STYLE_SET = new Set(AUDIO_EDITOR_CLIP_STYLES);
 const PLAY_AT_SPEED_MODE_SET = new Set(AUDIO_EDITOR_PLAY_AT_SPEED_MODES);
 const LAYOUT_SET = new Set(AUDIO_EDITOR_LAYOUTS);
+const DEFAULT_VIEW_SET = new Set(AUDIO_EDITOR_DEFAULT_VIEWS);
 const STARTUP_MODE_SET = new Set(AUDIO_EDITOR_STARTUP_MODES);
 const EFFECT_MENU_ORGANIZATION_SET = new Set(AUDIO_EDITOR_EFFECT_MENU_ORGANIZATIONS);
 const RIPPLE_MODE_SET = new Set(['off', 'per-track', 'all-tracks']);
@@ -161,7 +169,7 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
  * @property {number} shortcutDefaultsVersion
  * @property {{rippleMode: 'off'|'per-track'|'all-tracks', collisionBehavior: 'audacity', snapToZeroCrossings: boolean, zoomPrecision: number}} editing
  * @property {Record<string, string[]>} shortcuts
- * @property {{theme: string, clipStyle: 'classic'|'colorful', layout: 'auto'|'compact'|'desktop'}} appearance
+ * @property {{theme: string, clipStyle: 'classic'|'colorful', layout: 'auto'|'compact'|'desktop', defaultView: 'waveform'|'spectrogram'|'multiview'}} appearance
  * @property {{showMasterTrack: boolean, showMarkers: boolean}} view
  * @property {{activeId: string, custom: Object[], toolbars: Record<string, Object>, toolbarButtons: Record<string, boolean>, panels: Record<string, AudioEditorPanelStateV1>}} workspace
  * @property {Object} spectrogram
@@ -287,6 +295,9 @@ export function createAudioEditorPreferencesV1(options = {}) {
 			// 'auto' follows the viewport width; the explicit values force the
 			// compact (drawer) or desktop chrome regardless of window size.
 			layout: oneOf(options.appearance?.layout ?? 'auto', LAYOUT_SET, 'appearance.layout'),
+			// The display new sessions start every track in; a track given a
+			// display of its own keeps it.
+			defaultView: oneOf(options.appearance?.defaultView ?? 'waveform', DEFAULT_VIEW_SET, 'appearance.defaultView'),
 		},
 		view: {
 			showMasterTrack,

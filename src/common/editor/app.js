@@ -2011,7 +2011,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function hasMissingTimelineSources(...args) { return projectVisualService.hasMissingTimelineSources(...args); }
 	function getVisibleClips(...args) { return projectVisualService.getVisibleClips(...args); }
 	async function loadPreferences(token = lifetime.capture()) {
-		return preferencesService.load((value) => lifetime.guard(value, token));
+		const preferences = await preferencesService.load((value) => lifetime.guard(value, token));
+		// The timeline view is what a track without a display of its own is drawn
+		// as, so the stored default view is applied by starting the session in it.
+		state.timelineView = preferences.appearance?.defaultView || 'waveform';
+		return preferences;
 	}
 	async function persistSetting(key, value, { policy = 'best-effort' } = {}) {
 		return settingPersistence.persist(key, value, { policy });

@@ -263,6 +263,21 @@ export default function WorkspacePreferencesDialog({
 									</div>
 								</PreferencePanel>
 								<Separator />
+								<PreferencePanel title={copy.defaultTrackView}>
+									<PreferenceDropdownField
+										label={copy.defaultTrackView}
+										visuallyHiddenLabel
+										value={preferences.appearance.defaultView ?? 'waveform'}
+										onChange={(value) => run(() => controller.actions.preferences.setDefaultView(value))}
+										options={[
+											{ value: 'waveform', label: copy.waveformView },
+											{ value: 'spectrogram', label: copy.spectrogramView },
+											{ value: 'multiview', label: copy.multiview },
+										]}
+									/>
+									<p className="kw-audio-editor-preferences__note">{copy.defaultTrackViewNote}</p>
+								</PreferencePanel>
+								<Separator />
 								<PreferencePanel title={copy.layout}>
 									<PreferenceDropdownField
 										label={copy.layout}

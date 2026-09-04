@@ -1087,7 +1087,7 @@ test('controller reverts editor preferences to product factory defaults without 
 
 	const snapshot = controller.getSnapshot();
 	assert.equal(snapshot.project.id, projectId);
-	assert.deepEqual(snapshot.preferences.appearance, { theme: 'system', clipStyle: 'colorful', layout: 'auto' });
+	assert.deepEqual(snapshot.preferences.appearance, { theme: 'system', clipStyle: 'colorful', layout: 'auto', defaultView: 'waveform' });
 	assert.equal(snapshot.preferences.workspace.activeId, 'modern');
 	assert.ok(Object.keys(snapshot.preferences.shortcuts).length > 0);
 	assert.deepEqual(store.settings.get('audio-editor-preferences-v1'), snapshot.preferences);

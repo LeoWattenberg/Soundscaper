@@ -12,6 +12,8 @@ const ENTRIES = Object.freeze([
 	['layoutAuto', 'Automatic', 'Automatisch'],
 	['layoutCompact', 'Compact (menus and track headers in drawers)', 'Kompakt (Menüs und Spurköpfe in Schubladen)'],
 	['layoutDesktop', 'Desktop', 'Desktop'],
+	['defaultTrackView', 'Default view', 'Standardansicht'],
+	['defaultTrackViewNote', 'How tracks are drawn until one is given a display of its own.', 'Wie Spuren dargestellt werden, solange keine eigene Darstellung gewählt ist.'],
 	['chromeMenu', 'Menu', 'Menü'],
 	['chromeMenuClose', 'Close menu', 'Menü schließen'],
 	['trackHeaders', 'Track headers', 'Spurköpfe'],
