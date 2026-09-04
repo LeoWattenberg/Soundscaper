@@ -49,8 +49,7 @@ test.describe('Broadcast WAV metadata UI', () => {
 		await importFiles(editor, [monoTone]);
 		let dialog = await openExportDialog(page, editor);
 		await chooseDropdown(page, dialog.locator('[data-export-field="format"]'), 'Broadcast WAV (BWF)');
-		await expect(dialog.locator('[data-export-channel-option="stereo"]').getByRole('radio'))
-			.toHaveAttribute('aria-checked', 'true');
+		await expect(dialog.locator('[data-export-channel-option="stereo"] input')).toBeChecked();
 		await dialog.getByRole('button', { name: 'Metadata', exact: true }).click();
 
 		let metadataDialog = page.getByRole('dialog', { name: 'Metadata', exact: true });

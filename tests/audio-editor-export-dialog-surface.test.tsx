@@ -214,13 +214,15 @@ async function mountedExportDialog(options: ExportDialogFixtureOptions = {}) {
 		},
 		channelOptionLabels() {
 			return descendants(dom.one('[data-export-field="channelMapping"]'))
-				.filter((node) => node.getAttribute('class')?.includes('labeled-radio__label'))
+				.filter((node) => node.getAttribute('data-export-channel-option'))
 				.map((node) => node.textContent);
 		},
-		chooseChannels(value: string) {
-			return click(elementWithAttribute(
-				dom.one(`[data-export-channel-option="${value}"]`), 'role', 'radio',
-			));
+		async chooseChannels(value: string) {
+			const radio = elementByTag(dom.one(`[data-export-channel-option="${value}"]`), 'input');
+			await act(async () => {
+				reactProps(radio).onChange({ currentTarget: { value } });
+				await Promise.resolve();
+			});
 		},
 		editMappingButton() {
 			return elementByTag(dom.one('[data-export-channel-action="edit-mapping"]'), 'button');

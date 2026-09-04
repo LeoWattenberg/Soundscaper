@@ -63,6 +63,47 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('splits the mix into one file per label and archives the chapters', async ({ page }) => {
+		await disableNativeSavePicker(page);
+		const errors = collectClientErrors(page);
+		// The dialog starts the download itself once the file is ready, so the
+		// browser must report one without the link ever being pressed.
+		const downloads = [];
+		page.on('download', (download) => downloads.push(download.suggestedFilename()));
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [longTone]);
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
+		const markers = editor.getByRole('region', { name: 'Markers and named regions', exact: true });
+		await markers.getByRole('button', { name: 'Add marker at playhead', exact: true }).click();
+		await seekOnRuler(page, editor, 220);
+		await markers.getByRole('button', { name: 'Add marker at playhead', exact: true }).click();
+		await expect(markers.locator('[data-timeline-annotation]')).toHaveCount(2);
+
+		const exportDialog = await openExportDialog(page, editor);
+		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'WAV');
+		await chooseDropdown(page, exportDialog.locator('[data-export-field="output"]'), 'Chapters (split by labels)');
+		// A chapter delivers exactly the span its label names, so there is no tail.
+		await expect(exportDialog.locator('[data-export-field="tails"]')).toHaveCount(0);
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
+
+		const download = exportDialog.locator('[data-export-download]');
+		await expect(download).toBeVisible({ timeout: 20_000 });
+		await expect(download).toHaveAttribute('download', /-chapters-.*\.zip$/u);
+		const archive = await download.evaluate(async (link) => {
+			const bytes = new Uint8Array(await (await fetch(link.href)).arrayBuffer());
+			const text = new TextDecoder('latin1').decode(bytes);
+			return {
+				signature: Array.from(bytes.subarray(0, 4)),
+				entries: [...text.matchAll(/\d\d-[A-Za-z0-9-]+\.wav/gu)].map(([name]) => name),
+			};
+		});
+		expect(archive.signature).toEqual([0x50, 0x4b, 0x03, 0x04]);
+		expect([...new Set(archive.entries)]).toEqual(['01-chapter-1.wav', '02-chapter-2.wav']);
+		await expect.poll(() => downloads.length).toBe(1);
+		expect(downloads[0]).toMatch(/-chapters-.*\.zip$/u);
+		expect(errors).toEqual([]);
+	});
+
 	test('keeps delivery preset controls aligned in the export dialog', async ({ page }) => {
 		await page.setViewportSize({ width: 700, height: 760 });
 		const editor = await bootEditor(page, '/embed/en/');

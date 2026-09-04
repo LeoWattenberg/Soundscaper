@@ -297,7 +297,7 @@ export async function chooseDropdown(page, group, optionName) {
  * wants rather than the presses that happen to produce it.
  */
 export async function chooseCustomChannelMapping(page, exportDialog, { outputs, routes }) {
-	await exportDialog.locator('[data-export-channel-option="custom"]').getByRole('radio').click();
+	await exportDialog.locator('[data-export-channel-option="custom"] input').check();
 	await exportDialog.locator('[data-export-channel-action="edit-mapping"]').getByRole('button').click();
 	const mapping = page.locator('[data-export-channel-mapping]');
 	await mapping.locator('[data-export-channel-mapping-field="outputs"] input').fill(String(outputs));

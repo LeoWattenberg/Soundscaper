@@ -62,9 +62,9 @@ test.describe('BW64 ADM metadata UI', () => {
 		await expect(page.getByRole('option')).toHaveCount(1);
 		await expect(page.getByRole('option', { name: 'Entire project' })).toHaveCount(1);
 		await page.keyboard.press('Escape');
-		await expect(dialog.locator('[data-export-channel-option="preserve"] .radio')).toHaveClass(/radio--disabled/u);
-		await expect(dialog.locator('[data-export-channel-option="preserve"] .radio')).toHaveAttribute('aria-checked', 'true');
-		await expect(dialog.locator('[data-export-channel-option="custom"] .radio')).toHaveClass(/radio--disabled/u);
+		await expect(dialog.locator('[data-export-channel-option="preserve"] input')).toBeChecked();
+		await expect(dialog.locator('[data-export-channel-option="preserve"] input')).toBeDisabled();
+		await expect(dialog.locator('[data-export-channel-option="custom"] input')).toBeDisabled();
 		await dialog.getByRole('button', { name: 'Metadata', exact: true }).click();
 		const metadataDialog = page.getByRole('dialog', { name: 'Metadata', exact: true });
 		await expect(metadataDialog.getByRole('tab')).toHaveCount(3);
