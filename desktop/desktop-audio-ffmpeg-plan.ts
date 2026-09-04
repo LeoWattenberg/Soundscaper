@@ -7,6 +7,7 @@ import {
 	getDesktopAudioFormatDescriptor,
 	type DesktopAudioCodecFormat,
 	type DesktopAudioEncodeRequest,
+	type DesktopAudioMp3EncodeSettings,
 } from './desktop-audio-codec-operation-contract.ts';
 
 export const DESKTOP_AUDIO_FFMPEG_INPUT_NAME = 'soundscaper-codec-input.media';
@@ -176,7 +177,7 @@ function encodeSettingsArguments(request: DesktopAudioEncodeRequest): readonly s
 				'-compression_level', String(request.settings.compressionLevel),
 			]);
 		case 'mp3':
-			return Object.freeze(['-b:a', `${String(request.settings.bitrateKbps)}k`]);
+			return mp3RateArguments(request.settings);
 		case 'ogg-vorbis':
 			return Object.freeze(['-q:a', String(request.settings.quality)]);
 		case 'opus':
@@ -204,4 +205,26 @@ function decodeFormat(
 
 function assertNever(value: never): never {
 	throw new TypeError(`Unsupported desktop audio FFmpeg request: ${String(value)}`);
+}
+
+/**
+ * FFmpeg spellings for Audacity's four MP3 bit-rate strategies, mirroring LAME's
+ * own preset table so this tier and the bundled encoder agree: Excessive is
+ * constant 320 kbps, and Extreme, Standard and Medium are V0, V2 and V4.
+ */
+const MP3_PRESET_ARGUMENTS: readonly (readonly string[])[] = Object.freeze([
+	Object.freeze(['-b:a', '320k']), Object.freeze(['-q:a', '0']),
+	Object.freeze(['-q:a', '2']), Object.freeze(['-q:a', '4']),
+]);
+
+function mp3RateArguments(settings: DesktopAudioMp3EncodeSettings): readonly string[] {
+	const record = settings as Readonly<Record<string, number>>;
+	if (Object.hasOwn(record, 'preset')) return MP3_PRESET_ARGUMENTS[record.preset!]!;
+	if (Object.hasOwn(record, 'vbrQuality')) {
+		return Object.freeze(['-q:a', String(record.vbrQuality)]);
+	}
+	if (Object.hasOwn(record, 'averageBitrateKbps')) {
+		return Object.freeze(['-b:a', `${String(record.averageBitrateKbps)}k`, '-abr', '1']);
+	}
+	return Object.freeze(['-b:a', `${String(record.bitrateKbps)}k`]);
 }

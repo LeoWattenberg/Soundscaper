@@ -8,6 +8,7 @@ import { isAbsolute, join } from 'node:path';
 
 import { readBoundedRegularFile } from './bounded-regular-file.ts';
 import {
+	desktopAudioMp3ConstantBitrateKbps,
 	normalizeDesktopAudioCodecRequest,
 	type DesktopAudioCodecRequest,
 } from './desktop-audio-codec-operation-contract.ts';
@@ -128,6 +129,18 @@ type ReviewedAudioEncodeRequest = Extract<
 
 type ReviewedAudioCodecRequest = ReviewedAudioDecodeRequest | ReviewedAudioEncodeRequest;
 
+/**
+ * The constant bitrate a reviewed encode request states. The operating-system
+ * encoders admit one exact tuple per format, so an MP3 request whose strategy
+ * varies the rate states none and never reaches them.
+ */
+function encodeBitrateKbps(request: ReviewedAudioCodecRequest): number | null {
+	if (request.operation !== 'audio-encode') return null;
+	return request.format === 'mp3'
+		? desktopAudioMp3ConstantBitrateKbps(request.settings)
+		: request.settings.bitrateKbps;
+}
+
 const SHA256 = /^[a-f0-9]{64}$/u;
 const TARGETS = new Set<string>(['mac-arm64', 'win-x64', 'win-arm64']);
 const DEFAULT_DURATION_MS = 30_000;
@@ -201,7 +214,7 @@ function reviewedAudioCodecRequest(
 	return request.operation === 'audio-encode'
 		&& (request.format === 'aac-m4a' || request.format === 'mp3')
 		&& request.sampleRate === 48_000 && request.channelCount === 2
-		&& request.settings.bitrateKbps === (request.format === 'mp3' ? 192 : 160);
+		&& encodeBitrateKbps(request) === (request.format === 'mp3' ? 192 : 160);
 }
 
 async function executeActive(options: Readonly<{
@@ -268,7 +281,8 @@ async function executeStaged(options: Readonly<{
 		...(options.request.operation === 'audio-encode' ? {
 			sampleRate: options.request.sampleRate,
 			channelCount: options.request.channelCount,
-			bitrateKbps: options.request.settings.bitrateKbps,
+			/* Preflight admitted one exact constant tuple, so the rate is stated. */
+			bitrateKbps: encodeBitrateKbps(options.request)!,
 		} : {}),
 		signal: options.signal, maximumDurationMs: options.maximumDurationMs,
 		killWaitMs: options.killWaitMs,
@@ -290,11 +304,11 @@ async function executeStaged(options: Readonly<{
 		if (tuple.sampleRate !== options.request.sampleRate
 			|| tuple.channelCount !== options.request.channelCount
 			|| tuple.frameCount !== frameCount
-			|| tuple.bitrateKbps !== options.request.settings.bitrateKbps
+			|| tuple.bitrateKbps !== encodeBitrateKbps(options.request)
 			|| inspected?.sampleRate !== options.request.sampleRate
 			|| inspected?.channelCount !== options.request.channelCount
 			|| options.request.format === 'mp3'
-				&& mp3Profile?.bitrateKbps !== options.request.settings.bitrateKbps) return unavailable('output-invalid');
+				&& mp3Profile?.bitrateKbps !== encodeBitrateKbps(options.request)) return unavailable('output-invalid');
 		return Object.freeze({ status: 'executed', output: output.bytes });
 	}
 	if (helperResult.status !== 'decoded') return unavailable('output-invalid');

@@ -6,6 +6,7 @@ import {
 	DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT,
 	DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE,
 	DESKTOP_AUDIO_CODEC_MINIMUM_SAMPLE_RATE,
+	desktopAudioMp3ConstantBitrateKbps,
 	normalizeDesktopAudioCodecRequest,
 	type DesktopAudioCodecRequest,
 } from './desktop-audio-codec-operation-contract.ts';
@@ -309,8 +310,11 @@ function requestAdmission(
 			return Object.freeze({ disposition: 'unsupported', reason: MP3_ENCODE_TUPLE_REASON });
 		}
 		const bitrateKbps = request.format === 'mp3' ? 192 : 160;
+		const stated = request.format === 'mp3'
+			? desktopAudioMp3ConstantBitrateKbps(request.settings)
+			: (request.settings as Readonly<{ readonly bitrateKbps: number }>).bitrateKbps;
 		return request.sampleRate === 48_000 && request.channelCount === 2
-			&& request.settings.bitrateKbps === bitrateKbps
+			&& stated === bitrateKbps
 			? Object.freeze({ disposition: 'supported', request })
 			: Object.freeze({ disposition: 'unsupported', reason: request.format === 'mp3'
 				? MP3_ENCODE_TUPLE_REASON : AAC_ENCODE_TUPLE_REASON });

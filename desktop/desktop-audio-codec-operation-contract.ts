@@ -303,6 +303,20 @@ export function getDesktopAudioFormatDescriptor(format: DesktopAudioCodecFormat)
 	return FORMAT_DESCRIPTORS[audioFormat(format)];
 }
 
+/**
+ * The bitrate an MP3 request pins for every frame, or null when its strategy
+ * varies the rate. The operating-system encoders admit one constant tuple only,
+ * so a varying request falls through them to the bundled LAME provider.
+ */
+export function desktopAudioMp3ConstantBitrateKbps(
+	settings: DesktopAudioMp3EncodeSettings,
+): number | null {
+	const record = settings as Readonly<Record<string, unknown>>;
+	if (Object.hasOwn(record, 'bitrateKbps')) return Number(record.bitrateKbps);
+	/* The Excessive preset is LAME's own constant 320 kbps. */
+	return record.preset === 0 ? 320 : null;
+}
+
 /** Exact sample-rate choices admitted by the main-process encode contract. */
 export function desktopAudioCodecEncodeSampleRates(
 	format: DesktopAudioCodecFormat,

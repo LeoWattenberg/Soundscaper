@@ -12,6 +12,7 @@ import {
 	desktopAudioCodecCapabilityReason,
 	queryDesktopAudioCodecCapability,
 } from '../desktop-audio-codec-capabilities.ts';
+import { mp3CodecRateSettings } from '../media-export.js';
 import {
 	DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER,
 	isDesktopMainAudioCodecRuntime,
@@ -27,6 +28,10 @@ interface DesktopAudioExportPlan {
 		readonly sampleFormat?: unknown;
 		readonly quality?: unknown;
 		readonly bitRate?: unknown;
+		readonly bitRateMode?: unknown;
+		readonly bitRatePreset?: unknown;
+		readonly vbrQuality?: unknown;
+		readonly averageBitRate?: unknown;
 	}>;
 }
 
@@ -88,7 +93,10 @@ function audioPlan(value: DesktopAudioExportPlan): Readonly<{
 	else if (value.format === 'ogg-vorbis') settings = Object.freeze({
 		quality: plannedInteger(value.encoding?.quality, 0, 10, 'Vorbis quality'),
 	});
-	else settings = Object.freeze({
+	/* MP3 asks about the strategy the delivery actually chose, not just a bitrate. */
+	else if (value.format === 'mp3') {
+		settings = mp3CodecRateSettings(value.encoding ?? {}) as DesktopAudioCodecCapabilitySettings;
+	} else settings = Object.freeze({
 		bitrateKbps: plannedInteger(value.encoding?.bitRate, 1, 1_000, `${value.format} bitrate`),
 	});
 	return Object.freeze({

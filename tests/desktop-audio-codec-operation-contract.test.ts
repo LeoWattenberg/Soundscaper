@@ -8,6 +8,7 @@ import {
 	DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES,
 	assertDesktopAudioCodecRequest,
 	assertDesktopAudioCodecResult,
+	desktopAudioMp3ConstantBitrateKbps,
 	createDesktopAudioCodecResult,
 	normalizeDesktopAudioCodecRequest,
 	normalizeDesktopAudioCodecResult,
@@ -335,6 +336,45 @@ function decodeRequest(): Record<string, unknown> {
 		maximumOutputBytes: 8_192,
 	};
 }
+
+test("the MP3 contract admits Audacity's four bit-rate strategies, one per request", () => {
+	const mp3 = (settings: Readonly<Record<string, number>>) => ({
+		...encodeRequest('mp3'), settings,
+	});
+	for (const settings of [
+		{ bitrateKbps: 192 }, { averageBitrateKbps: 128 }, { vbrQuality: 0 }, { vbrQuality: 9 },
+		{ preset: 0 }, { preset: 3 },
+	]) assert.doesNotThrow(() => assertDesktopAudioCodecRequest(mp3(settings)), JSON.stringify(settings));
+
+	for (const settings of [
+		{ vbrQuality: 10 }, { preset: 4 }, { averageBitrateKbps: 191 },
+		{ bitrateKbps: 192, vbrQuality: 2 }, { preset: 1, bitrateKbps: 192 },
+	]) assert.throws(() => assertDesktopAudioCodecRequest(mp3(settings)), JSON.stringify(settings));
+
+	/* Only a constant strategy pins a rate the operating-system encoders can match. */
+	assert.equal(desktopAudioMp3ConstantBitrateKbps({ bitrateKbps: 192 }), 192);
+	assert.equal(desktopAudioMp3ConstantBitrateKbps({ preset: 0 }), 320);
+	assert.equal(desktopAudioMp3ConstantBitrateKbps({ preset: 2 }), null);
+	assert.equal(desktopAudioMp3ConstantBitrateKbps({ vbrQuality: 2 }), null);
+	assert.equal(desktopAudioMp3ConstantBitrateKbps({ averageBitrateKbps: 192 }), null);
+});
+
+test('the external FFmpeg tier spells every MP3 strategy the way LAME means it', () => {
+	const rateArguments = (settings: Readonly<Record<string, number>>) => {
+		const plan = buildDesktopAudioFfmpegPlan({ ...encodeRequest('mp3'), settings });
+		const codec = plan.arguments.indexOf('libmp3lame');
+		assert.ok(codec >= 0);
+		return plan.arguments.slice(codec + 1, codec + 4).filter((value) => value.startsWith('-')
+			|| /^\d/u.test(value));
+	};
+	assert.deepEqual(rateArguments({ bitrateKbps: 256 }).slice(0, 2), ['-b:a', '256k']);
+	assert.deepEqual(rateArguments({ averageBitrateKbps: 224 }), ['-b:a', '224k', '-abr']);
+	assert.deepEqual(rateArguments({ vbrQuality: 6 }).slice(0, 2), ['-q:a', '6']);
+	assert.deepEqual(rateArguments({ preset: 0 }).slice(0, 2), ['-b:a', '320k']);
+	assert.deepEqual(rateArguments({ preset: 1 }).slice(0, 2), ['-q:a', '0']);
+	assert.deepEqual(rateArguments({ preset: 2 }).slice(0, 2), ['-q:a', '2']);
+	assert.deepEqual(rateArguments({ preset: 3 }).slice(0, 2), ['-q:a', '4']);
+});
 
 function encodeRequest(format: DesktopAudioCodecFormat): Record<string, unknown> {
 	const fixture = ENCODE_FIXTURES.find((entry) => entry.format === format);

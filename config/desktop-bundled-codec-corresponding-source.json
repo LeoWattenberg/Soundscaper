@@ -44,7 +44,7 @@
 			"id": "lame",
 			"sourceManifest": {
 				"path": "src/common/editor/lame/source-manifest.json",
-				"sha256": "2304d77adcb2f368772572890ed427b1c513614fb4a255b57d612af4d228352f"
+				"sha256": "350f8b6172efca4590ca464e390b36ae3c2a0238593b0eee12d1d2ecee964a88"
 			},
 			"buildScript": {
 				"path": "scripts/build-lame-wasm.mjs",

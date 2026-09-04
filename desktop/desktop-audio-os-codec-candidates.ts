@@ -6,6 +6,7 @@ import {
 	DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT,
 	DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE,
 	DESKTOP_AUDIO_CODEC_MINIMUM_SAMPLE_RATE,
+	desktopAudioMp3ConstantBitrateKbps,
 	normalizeDesktopAudioCodecRequest,
 	type DesktopAudioCodecRequest,
 } from './desktop-audio-codec-operation-contract.ts';
@@ -83,7 +84,8 @@ function reviewedOperationFromRequest(
 	if (request.operation === 'audio-decode') return null;
 	if (request.format === 'aac-m4a' || (request.format === 'mp3'
 		&& target.startsWith('win-') && request.sampleRate === 48_000
-		&& request.channelCount === 2 && request.settings.bitrateKbps === 192)) return Object.freeze({
+		&& request.channelCount === 2
+		&& desktopAudioMp3ConstantBitrateKbps(request.settings) === 192)) return Object.freeze({
 		direction: 'encode',
 		mediaKind: 'audio',
 		container: request.format === 'aac-m4a' ? 'm4a' : 'mp3',
