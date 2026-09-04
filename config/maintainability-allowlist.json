@@ -20,18 +20,6 @@
 			"maxLines": 2899,
 			"reason": "Legacy JavaScript composition root retained while its typed services and ports complete staged migration."
 		},
-		"src/common/editor/audacity-effects/live.js": {
-			"maxLines": 1156,
-			"reason": "Legacy realtime effect graph implementation."
-		},
-		"src/common/editor/audacity-effects/realtime.js": {
-			"maxLines": 788,
-			"reason": "Legacy realtime effect processors and routing helpers."
-		},
-		"src/common/editor/audacity-effects/spectral.js": {
-			"maxLines": 916,
-			"reason": "Legacy spectral effect algorithms with shared FFT plumbing."
-		},
 		"src/common/editor/aup4-conversion.js": {
 			"maxLines": 772,
 			"reason": "AUP4 compatibility conversion matrix retained for interoperability."
