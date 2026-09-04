@@ -43,6 +43,7 @@ import {
 	renderNativePluginRealtimePcmIfRequired,
 } from './native-plugin-realtime-render.ts';
 import { resolveRenderTailSeconds } from './rendering-range.ts';
+import type { EngineRenderMixOptions } from './public-api.ts';
 
 /**
  * Render a mix offline, as fast as the machine allows.
@@ -65,7 +66,7 @@ export async function renderMix(this: EngineRuntimeHost, {
 		preRollFrames = 0,
 		signal = null,
 		onProgress = null,
-	} = {}) {
+	}: EngineRenderMixOptions = {}) {
 		if (!this.project) throw new Error('Load an audio editor project before rendering.');
 		const native = await renderNativePluginRealtimePcmIfRequired(this, {
 			startFrame, endFrame, includeTail, trackId, includeMaster, includeTrackPan,
