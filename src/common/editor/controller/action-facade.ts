@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorActions } from '../types.ts';
+import type { EditorActionRuntime, RuntimeValue } from './action-facade-runtime.ts';
 import {
 	createRecordingActionFacade,
 	createRecordingPreferenceActionFacade,
@@ -8,7 +9,7 @@ import {
 } from './recording-action-facade.ts';
 import { createProjectOwnedFeatureActionFacades } from './project-owned-feature-action-facades.ts';
 import { createTimelineAnnotationActionFacade } from './timeline-annotation-action-facade.ts';
-import { createVideoTrimActionFacade } from './video-trim-action-facade.ts';
+import { createVideoActionGroup } from './video-action-group.ts';
 import { snapshotProductActionExtensions } from './product-action-extensions.ts';
 import { createExportActionGroup } from './export-action-group.ts';
 import { createProjectMediaActionGroup } from './project-media-action-group.ts';
@@ -24,59 +25,50 @@ import {
 	type EffectLibraryActionScope,
 } from './effect-library-action-groups.ts';
 
-export interface EditorActionRuntime {
-	// The runtime composition root is JavaScript while it is being decomposed.
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	readonly [name: string]: any;
-}
-
-type RuntimeValue = EditorActionRuntime[string];
+export type { EditorActionRuntime } from './action-facade-runtime.ts';
 
 export function createGroupedEditorActions(scope: EditorActionRuntime): EditorActions;
 export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeValue {
 	const {
-	addEffect, addLabel, addLabelTrack, addTrack, addVideoClipEffect, addVideoTrackPair, adjustAllTrackHeights,
-	adjustTrackHeight, analysisService, applyAudacityEffectFromController, applyProjectBinReplacement,
-	applySamplePencil, applySpectralSelection, beginParametricEqGesture, beginRackEffectGesture,
-	beginVideoEffectGesture, bypassVideoClipEffect, cancelAudacityEffectPreview, cancelNyquistEvaluation,
-	cancelParametricEqGesture, cancelPlaybackCachePreparation, cancelProjectBinReplacement, cancelRackEffectGesture,
-	cancelSampleEdit, cancelVideoEffectGesture, capabilities, captureRackNoiseProfileFromController,
-	captureSelectedNoiseProfile, claimProjectLock, clearLocalData, clearLoopRegion, clearRecentProjects,
-	closeProjectTab, commit, commitParametricEqGesture, commitRackEffectGesture, commitVideoEffectGesture,
-	configureDisplayInput, continueLoudnessMeasurement, copy, copyEffectStack, createStableId, deleteProject,
-	disjoinSelectedClip, dismissAup4CompatibilitySummary, duplicateProject, duplicateTrack, engine,
-	framescaperCaptureActions, framescaperWebVcrActions, exportLabels, exportVideo, ffmpeg, fileService, findTrack,
-	persistSetting, publishDocumentSnapshot, flushProject, generateSelectionSilence, generateSignal,
-	repeatLastGenerator, getClipVisualData, getProjectBinClipVisualData, getVideoSourceVisualData, getVisibleClips,
-	handleClipAction, handleEdit, handleExportAction, handlePlayAtSpeed, handleTransport, hasMissingTimelineSources,
-	importFiles, importLabelFile, inspectScape, listProjects, makeStereoTrack, mixAndRenderTracks, moveClips,
-	moveClipsToNewTrack, moveClipsToProjectBin, moveTrack, newProject, normalizePlaybackFrame, openAudacityProject,
-	openAup4, openProject, openScape, openScapeFile, overwriteClips, openDawproject, saveDawproject,
-	pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip, playPauseProjectBinClip,
-	prepareProjectBinReplacement, prepareProjectHandoff, previewAudacityEffectFromController, previewParametricEq,
-	previewRackEffect, previewVideoEffectGesture, product, getProject, projectBinInstanceCount, refreshAudioDevices,
-	refreshStorageUsage, canRelinkLinkedAudio, classifyLinkedAudioRelink, relinkLinkedAudio, canRelinkLinkedVideo,
-	classifyLinkedVideoRelink, relinkLinkedVideo, releaseVideoSourceVisual, reloadVideoSourceVisual,
-	reportVideoPreviewPressure, removeProjectBinClip, removeProjectBinSource, removeVideoClipEffect, renameProject,
-	renameProjectBinClip, renderClipPitchSpeed, reorderTrack, reorderVideoClipEffect, repeatLastAudacityEffect,
-	requestInputAccess, requestStoragePersistence, requestWaveformPcmWindow, resampleClip, resampleTrack,
-	resetClipPitchSpeed, resetLoudnessMeasurement, resizeTrackHeight, runNyquistEvaluation, saveAup4, saveNow,
-	saveScape, selectAllTracks, selectAtZeroCrossings, selectClip, selectCursorToTrackEnd,
-	selectLeftOfPlaybackPosition, selectProjectBinInstances, selectRightOfPlaybackPosition, selectTrack,
-	selectTrackStartToCursor, selectTrackStartToEnd, sessionTab, setAllTracksView, setAudacityControlTrack,
-	setAudacityEffectParamsFromController, setAudacityEffectType, setAudioOutputDevice, setAutoFitTrackHeight,
-	setClipTimePitch, setLoopRegion, setLoopRegionInOut, setStatus, setLoopRegionToSelection, setPlayAtSpeedRate,
-	setExactSelection, setPreferredInputChannelCount, setPreferredInputDevice, setProjectBinClipColor, setSampleEditMode, setSelection,
-	setSelectionToLoopRegion, setSnapSettings, effectSelectionService, setTimelineView, setTimelineViewportWidth,
-	setTrackDisplayMode, setTrackRate, setVisibleTrackHeights, setZoom, smoothSelectedSamples, snapTimelineFrame,
-	splitAtFrame, splitStereoTrack, state, stopProjectBinPreview, cleanupDisposableStorage, cleanupDerivativeCache,
-	store, stretchClip, swapTrackChannels, switchProject, taskProgress, toggleMetronome, togglePinnedPlayhead,
-	toggleRmsWaveform, toggleRulerPlayback, toggleSelectionFollowsLoop, toggleStretchToTempo,
-	toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect, trimClips, updateRackEffect,
-	updateVideoClipEffect, updateZoom, selectionViewService, sequenceTimingService, sourceMonitorService,
+	addEffect, addLabel, addLabelTrack, addTrack, addVideoTrackPair, adjustAllTrackHeights, adjustTrackHeight,
+	analysisService, applyAudacityEffectFromController, applyProjectBinReplacement, applySamplePencil,
+	applySpectralSelection, beginParametricEqGesture, beginRackEffectGesture, cancelAudacityEffectPreview,
+	cancelNyquistEvaluation, cancelParametricEqGesture, cancelPlaybackCachePreparation,
+	cancelProjectBinReplacement, cancelRackEffectGesture, cancelSampleEdit, capabilities,
+	captureRackNoiseProfileFromController, captureSelectedNoiseProfile, claimProjectLock, clearLocalData,
+	clearLoopRegion, clearRecentProjects, closeProjectTab, commit, commitParametricEqGesture,
+	commitRackEffectGesture, configureDisplayInput, continueLoudnessMeasurement, copy, copyEffectStack,
+	createStableId, deleteProject, disjoinSelectedClip, dismissAup4CompatibilitySummary, duplicateProject,
+	duplicateTrack, engine, framescaperCaptureActions, framescaperWebVcrActions, exportLabels, ffmpeg,
+	fileService, findTrack, persistSetting, publishDocumentSnapshot, flushProject, generateSelectionSilence,
+	generateSignal, repeatLastGenerator, getClipVisualData, getProjectBinClipVisualData, getVisibleClips,
+	handleClipAction, handleEdit, handleExportAction, handlePlayAtSpeed, handleTransport,
+	hasMissingTimelineSources, importFiles, importLabelFile, inspectScape, listProjects, makeStereoTrack,
+	mixAndRenderTracks, moveClips, moveClipsToNewTrack, moveClipsToProjectBin, moveTrack, newProject,
+	normalizePlaybackFrame, openAudacityProject, openAup4, openProject, openScape, openScapeFile, overwriteClips,
+	openDawproject, saveDawproject, pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip,
+	playPauseProjectBinClip, prepareProjectBinReplacement, prepareProjectHandoff,
+	previewAudacityEffectFromController, previewParametricEq, previewRackEffect, product, getProject,
+	projectBinInstanceCount, refreshAudioDevices, refreshStorageUsage, canRelinkLinkedAudio,
+	classifyLinkedAudioRelink, relinkLinkedAudio, canRelinkLinkedVideo, classifyLinkedVideoRelink,
+	relinkLinkedVideo, removeProjectBinClip, removeProjectBinSource, renameProject, renameProjectBinClip,
+	renderClipPitchSpeed, reorderTrack, repeatLastAudacityEffect, requestInputAccess, requestStoragePersistence,
+	requestWaveformPcmWindow, resampleClip, resampleTrack, resetClipPitchSpeed, resetLoudnessMeasurement,
+	resizeTrackHeight, runNyquistEvaluation, saveAup4, saveNow, saveScape, selectAllTracks, selectAtZeroCrossings,
+	selectClip, selectCursorToTrackEnd, selectLeftOfPlaybackPosition, selectProjectBinInstances,
+	selectRightOfPlaybackPosition, selectTrack, selectTrackStartToCursor, selectTrackStartToEnd, sessionTab,
+	setAllTracksView, setAudacityControlTrack, setAudacityEffectParamsFromController, setAudacityEffectType,
+	setAudioOutputDevice, setAutoFitTrackHeight, setClipTimePitch, setLoopRegion, setLoopRegionInOut, setStatus,
+	setLoopRegionToSelection, setPlayAtSpeedRate, setExactSelection, setPreferredInputChannelCount,
+	setPreferredInputDevice, setProjectBinClipColor, setSampleEditMode, setSelection, setSelectionToLoopRegion,
+	setSnapSettings, effectSelectionService, setTimelineView, setTimelineViewportWidth, setTrackDisplayMode,
+	setTrackRate, setVisibleTrackHeights, setZoom, smoothSelectedSamples, snapTimelineFrame, splitAtFrame,
+	splitStereoTrack, state, stopProjectBinPreview, cleanupDisposableStorage, cleanupDerivativeCache, store,
+	stretchClip, swapTrackChannels, switchProject, toggleMetronome, togglePinnedPlayhead, toggleRmsWaveform,
+	toggleRulerPlayback, toggleSelectionFollowsLoop, toggleStretchToTempo, toggleUpdateWhilePlaying,
+	toggleVerticalRulers, trimClips, updateRackEffect, updateZoom, selectionViewService, sequenceTimingService,
 	timelineAnnotationService, regularIntervalAnnotationController, trackFolderService, trackStructuralOperations,
-	videoEditService, audioWarpService, takeCompService, videoNavigationService, videoSourceReprobeService,
-	videoTrimServices,
+	audioWarpService, takeCompService, videoNavigationService,
 	} = scope;
 	const restricted = (capability: RuntimeValue, action: RuntimeValue) => (...args: RuntimeValue) => {
 		if (!capabilities[capability]) {
@@ -85,35 +77,6 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 		return action(...args);
 	};
 	const effectLibraryScope = scope as EffectLibraryActionScope;
-	const videoNavigationMessage = (template: RuntimeValue, values: Readonly<Record<string, RuntimeValue>>) => (
-		Object.entries(values).reduce((message, [key, value]) => (
-			message.replace(`{${key}}`, String(value))
-		), String(template))
-	);
-	const reportVideoShuttle = (operation: RuntimeValue) => {
-		const view = operation();
-		const timecode = sequenceTimingService.label(view.positionFrame, view.sequenceId);
-		const message = view.rate === 0
-			? videoNavigationMessage(copy.shuttleStoppedStatus, { timecode })
-			: videoNavigationMessage(copy.shuttleStatus, {
-				direction: view.rate < 0 ? copy.shuttleBackward : copy.shuttleForward,
-				rate: Math.abs(view.rate), timecode,
-			});
-		setStatus(message, 'success');
-		return view;
-	};
-	const navigateVideoEdit = (direction: 'previous' | 'next') => {
-		const result = direction === 'previous'
-			? videoNavigationService.previousEditPoint()
-			: videoNavigationService.nextEditPoint();
-		const found = result !== null;
-		setStatus(found
-			? videoNavigationMessage(direction === 'previous' ? copy.previousEditStatus : copy.nextEditStatus, {
-				timecode: sequenceTimingService.playheadLabel(),
-			})
-			: direction === 'previous' ? copy.noPreviousEdit : copy.noNextEdit, found ? 'success' : 'info');
-		return result;
-	};
 	const storedProjectOpenActions = createStoredProjectOpenActions({
 		copy, state, store, sessionTab, switchProject, openProject,
 	});
@@ -202,76 +165,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			stopPreview: stopProjectBinPreview,
 			getVisualData: getProjectBinClipVisualData,
 		}),
-		video: Object.freeze({
-			getClipVisualData,
-			getSourceVisualData: getVideoSourceVisualData,
-			releaseSourceVisual: releaseVideoSourceVisual,
-			reloadSourceVisual: reloadVideoSourceVisual, reportPreviewPressure: reportVideoPreviewPressure,
-			export: exportVideo,
-			trim: createVideoTrimActionFacade({
-				videoCompositing: capabilities.videoCompositing, productName: product.name, services: videoTrimServices,
-			}),
-			navigation: Object.freeze({
-				view: restricted('videoCompositing', () => videoNavigationService.view()),
-				shuttleBackward: restricted('videoCompositing', () => reportVideoShuttle(videoNavigationService.shuttleReverse)),
-				shuttleStop: restricted('videoCompositing', () => reportVideoShuttle(videoNavigationService.shuttleStop)),
-				shuttleForward: restricted('videoCompositing', () => reportVideoShuttle(videoNavigationService.shuttleForward)),
-				previousEdit: restricted('videoCompositing', () => navigateVideoEdit('previous')),
-				nextEdit: restricted('videoCompositing', () => navigateVideoEdit('next')),
-			}),
-			effects: Object.freeze({
-				add: restricted('videoEffects', addVideoClipEffect),
-				update: restricted('videoEffects', updateVideoClipEffect),
-				bypass: restricted('videoEffects', bypassVideoClipEffect),
-				toggle: restricted('videoEffects', toggleVideoClipEffect),
-				reorder: restricted('videoEffects', reorderVideoClipEffect),
-				remove: restricted('videoEffects', removeVideoClipEffect),
-				beginGesture: restricted('videoEffects', beginVideoEffectGesture),
-				preview: restricted('videoEffects', previewVideoEffectGesture),
-				commit: restricted('videoEffects', commitVideoEffectGesture),
-				cancel: restricted('videoEffects', cancelVideoEffectGesture),
-			}),
-			// Three-point editing from the Project Bin into the targeted lanes.
-			targets: (sequenceId: RuntimeValue) => videoEditService.targets(sequenceId),
-			toggleTarget: (trackId: RuntimeValue, sequenceId: RuntimeValue) => (
-				videoEditService.toggleTarget(trackId, sequenceId)
-			),
-			clearTargets: () => videoEditService.clearTargets(),
-			insert: (request: RuntimeValue) => videoEditService.insert(request),
-			overwrite: (request: RuntimeValue) => videoEditService.overwrite(request),
-			// Replace and match-frame are both defined against the frame under the
-			// program playhead.
-			replace: (request: RuntimeValue) => videoEditService.replace(request),
-			matchFrame: (request: RuntimeValue) => videoEditService.matchFrame(request),
-			sourceTimecodeAtSample: (sample: RuntimeValue, sequenceId: RuntimeValue) => videoEditService.sourceTimecodeAtSample(sample, sequenceId),
-			// One video source on its own frame grid supplies marks without persistence.
-			sourceMonitor: Object.freeze({
-				view: () => sourceMonitorService.view(),
-				open: (binItemId: RuntimeValue, options: RuntimeValue) => (
-					sourceMonitorService.open(binItemId, options)
-				),
-				close: () => sourceMonitorService.close(),
-				seek: (frame: RuntimeValue) => sourceMonitorService.seek(frame),
-				step: (frameDelta: RuntimeValue) => sourceMonitorService.step(frameDelta),
-				markIn: (frame: RuntimeValue) => sourceMonitorService.markIn(frame),
-				markOut: (frame: RuntimeValue) => sourceMonitorService.markOut(frame),
-				clearMarks: () => sourceMonitorService.clearMarks(),
-			}),
-			// Re-read an already-imported source: the same bytes, probed again by
-			// the current build, with every edit cut against the old grid conformed.
-			reprobeSource: (sourceId: RuntimeValue, options: RuntimeValue) => (
-				taskProgress?.run
-					? taskProgress.run('probe', copy.probingVideoSource, () => videoSourceReprobeService.reprobe(sourceId, options))
-					: videoSourceReprobeService.reprobe(sourceId, options)
-			),
-			link: (videoClipId: RuntimeValue, audioClipId: RuntimeValue) => commit({
-				type: 'clip/link-av',
-				videoClipId,
-				audioClipId,
-				avLinkId: createStableId('av-link'),
-			}),
-			unlink: (clipId: RuntimeValue) => commit({ type: 'clip/unlink-av', clipId }),
-		}),
+		video: createVideoActionGroup(scope, restricted),
 		edit: Object.freeze({
 			execute: handleEdit,
 			commit,
