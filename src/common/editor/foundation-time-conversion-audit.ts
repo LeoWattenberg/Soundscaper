@@ -56,8 +56,8 @@ const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversion
 	},
 	{
 		id: 'audacity-live-effect-windows',
-		file: 'src/common/editor/audacity-effects/live.js',
-		behavior: 'Effect durations and analysis windows resolve seconds as nearest sample instants, preserving Audacity block behavior.',
+		file: 'src/common/editor/audacity-effects/live-dynamics-processors.js',
+		behavior: 'Compressor and limiter attack, release and lookahead windows resolve seconds as nearest sample instants, preserving Audacity block behavior.',
 		conversions: [{ helper: 'secondsToSampleFrame', policies: ['point'] }],
 	},
 	{
@@ -132,11 +132,26 @@ const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversion
 	{
 		id: 'aup4-project-conversion',
 		file: 'src/common/editor/aup4-conversion.js',
-		behavior: 'AUP4 labels, selections, envelopes, and resampled lengths resolve as point coordinates without cumulative conversion drift.',
-		conversions: [
-			{ helper: 'scaleSampleFrame', policies: ['point'] },
-			{ helper: 'secondsToSampleFrame', policies: ['point'] },
-		],
+		behavior: 'AUP4 label and selection instants resolve as point coordinates without cumulative conversion drift.',
+		conversions: [{ helper: 'secondsToSampleFrame', policies: ['point'] }],
+	},
+	{
+		id: 'aup4-conversion-settings',
+		file: 'src/common/editor/aup4-conversion-settings.js',
+		behavior: 'AUP4 view and envelope settings resolve their second-valued instants relative to the visible start as nearest sample frames.',
+		conversions: [{ helper: 'secondsToSampleFrame', policies: ['point'] }],
+	},
+	{
+		id: 'aup4-conversion-wave-clips',
+		file: 'src/common/editor/aup4-conversion-wave-clips.js',
+		behavior: 'AUP4 wave clips derive their resampled destination length from the source extent and the two rates under point rounding.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
+	},
+	{
+		id: 'aup4-track-node-seconds',
+		file: 'src/common/editor/aup4-track-nodes.js',
+		behavior: 'AUP4 track nodes write clip, envelope and label instants as exact seconds, so a re-read recovers the sample frame they came from.',
+		conversions: [{ helper: 'sampleFrameToSeconds', policies: ['exact'] }],
 	},
 	{
 		id: 'aup4-profile-wire-values',

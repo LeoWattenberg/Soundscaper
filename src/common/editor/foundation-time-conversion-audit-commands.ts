@@ -53,7 +53,7 @@ export const FOUNDATION_TIME_CONVERSION_COMMAND_SITES: readonly FoundationTimeCo
 	},
 	{
 		id: 'overwrite-video-collision-conformance',
-		file: 'src/common/editor/commands/clip-transform-runtime.js',
+		file: 'src/common/editor/commands/clip-overwrite-ranges.js',
 		behavior: 'Video overwrite collision cuts conform the active clip endpoints to nearest sequence frames before segmenting inactive material.',
 		conversions: [
 			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },

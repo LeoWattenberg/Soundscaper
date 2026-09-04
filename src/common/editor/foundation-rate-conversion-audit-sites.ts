@@ -12,7 +12,7 @@ export const FOUNDATION_RATE_CONVERSION_AUDIT_SITES: readonly FoundationTimeConv
 	},
 	{
 		id: 'aup4-export-resample-length',
-		file: 'src/common/editor/aup4-export.js',
+		file: 'src/common/editor/aup4-export-variants.js',
 		behavior: 'AUP4 export derives the destination PCM extent from the admitted source length and source/output rates under point rounding before the bounded resampler runs.',
 		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
 	},
