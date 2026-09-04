@@ -7,10 +7,7 @@ import { normalizeLocalAssistanceShotDetectionMode,
 	type LocalAssistanceShotDetectionMode } from '../assistance/shot-detection-mode.ts';
 import {
 	LOCAL_ASSISTANCE_PROGRESS_PHASES,
-	type LocalAssistanceBridge,
 	type LocalAssistanceModel,
-	type LocalAssistanceOutputClaim,
-	type LocalAssistanceProgress,
 	type LocalAssistanceUnavailableReason,
 } from './local-assistance-bridge.ts';
 import {
@@ -21,13 +18,11 @@ import {
 	localAssistanceSelectedModels,
 	normalizeLocalAssistancePreparedMedia,
 	normalizeLocalAssistanceSelectedMediaInventory,
-	type LocalAssistanceSelectedMediaPreparationPort,
 	type LocalAssistanceSelectedMediaSource,
 	type LocalAssistanceValidatedResultAcceptanceRequest,
 } from './local-assistance-preparation.ts';
 import {
 	reviewLocalAssistanceOutput,
-	type LocalAssistanceOutputReview,
 } from './local-assistance-result-review.ts';
 import { deriveLocalAssistanceReviewAuthority } from './local-assistance-review-authority.ts';
 import {
@@ -37,79 +32,17 @@ import {
 	localAssistanceTranscriptCleanupEligible,
 	localAssistanceTranscriptCleanupPortAvailable,
 	normalizeLocalAssistanceTranscriptCleanupProposals,
-	type LocalAssistanceTranscriptCleanupState,
 	type LocalAssistanceTranscriptCleanupPreset,
 	type LocalAssistanceTranscriptCleanupVoiceActivity,
 } from './local-assistance-cleanup.ts';
 
-export type LocalAssistancePhase =
-	| 'idle' | 'loading' | 'selection-required' | 'ready' | 'preparing' | 'running'
-	| 'cancelling' | 'completed' | 'accepting' | 'accepted'
-	| 'cancelled' | 'unavailable' | 'error';
-
-export type LocalAssistanceUiUnavailableReason =
-	| LocalAssistanceUnavailableReason
-	| 'bridge-unavailable'
-	| 'selection-required'
-	| 'no-compatible-model';
-
-export interface LocalAssistanceOutputBody {
-	readonly slotId?: 'enhanced-audio' | 'dereverberated-audio' | 'dialogue' | 'music' | 'effects';
-	readonly claim: LocalAssistanceOutputClaim;
-	readonly bytes: Blob;
-	readonly review: LocalAssistanceOutputReview;
-}
-
-export interface LocalAssistanceValidatedResult {
-	readonly operation: AssistanceOperation;
-	readonly outputs: readonly LocalAssistanceOutputBody[];
-}
-
-export interface LocalAssistanceSnapshot {
-	readonly phase: LocalAssistancePhase;
-	readonly sources: readonly LocalAssistanceSelectedMediaSource[];
-	readonly models: readonly LocalAssistanceModel[];
-	readonly selectedSourceId: string | null;
-	readonly selectedOperation: AssistanceOperation | null;
-	readonly shotDetectionMode: LocalAssistanceShotDetectionMode;
-	readonly selectedModelIds: readonly string[];
-	readonly consent: boolean;
-	readonly progress: LocalAssistanceProgress | null;
-	readonly result: LocalAssistanceValidatedResult | null;
-	readonly unavailableReason: LocalAssistanceUiUnavailableReason | null;
-	readonly error: string | null;
-	readonly cleanup?: LocalAssistanceTranscriptCleanupState | null;
-	readonly canRun: boolean;
-	readonly canCancel: boolean;
-	readonly canReview: boolean;
-	readonly canAccept: boolean;
-	readonly canPrepareTranscriptCleanup?: boolean;
-}
-
-export interface LocalAssistanceSessionStore {
-	getSnapshot(): LocalAssistanceSnapshot;
-	subscribe(listener: () => void): () => void;
-	connect(): () => void;
-	load(): Promise<void>;
-	selectSource(sourceId: string): void;
-	selectOperation(operation: AssistanceOperation): void;
-	selectShotDetectionMode(mode: LocalAssistanceShotDetectionMode): void;
-	selectModel(modelId: string): void;
-	setConsent(consent: boolean): void;
-	run(): Promise<void>;
-	cancel(): Promise<void>;
-	accept(): Promise<void>;
-	prepareTranscriptCleanup(preset?: LocalAssistanceTranscriptCleanupPreset): Promise<void>;
-	setTranscriptCleanupProposalSelected(proposalId: string, selected: boolean): void;
-	acceptTranscriptCleanup(): Promise<void>;
-	rejectTranscriptCleanup(): Promise<void>;
-	dispose(): Promise<void>;
-}
-
-interface StoreOptions {
-	readonly bridge: LocalAssistanceBridge | null;
-	readonly preparation: LocalAssistanceSelectedMediaPreparationPort | null;
-}
+export type * from './local-assistance-session-types.ts';
+import type {
+	LocalAssistanceSessionStore,
+	LocalAssistanceSnapshot,
+	LocalAssistanceValidatedResult,
+	StoreOptions,
+} from './local-assistance-session-types.ts';
 
 const EMPTY_SOURCES = Object.freeze([]) as readonly LocalAssistanceSelectedMediaSource[];
 const EMPTY_MODELS = Object.freeze([]) as readonly LocalAssistanceModel[];
