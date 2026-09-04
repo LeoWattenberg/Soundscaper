@@ -19,6 +19,29 @@ import {
 
 const MANAGER_COPY = resolveMacroManagerCopy('en');
 
+test('every built-in template is offered, including the one that moves the selection', async () => {
+	const fixture = await mountedMacroManagerFixture();
+	try {
+		await fixture.render(macroSnapshot('project-a'));
+		assert.equal(fixture.buttonLabels().includes('Restoration'), true);
+		assert.equal(fixture.buttonLabels().includes('Fade ends'), true);
+
+		await click(fixture.button('Fade ends'));
+		// A command step is named by the command it runs and what it carries; a
+		// blank row would say nothing at all.
+		assert.deepEqual(fixture.effectNames(), [
+			'Select: start 0, end 1',
+			'Fade In',
+			'Select: start 0, end 1, relativeTo project-end',
+			'Fade Out',
+			'Select: start 0, end 0',
+		]);
+	} finally {
+		fixture.settlePending();
+		await fixture.cleanup();
+	}
+});
+
 test('a running macro offers a cancel that stops it and says so', async () => {
 	// Before this the manager had no way to stop a macro at all; a long chain ran
 	// to the end or the user switched project.

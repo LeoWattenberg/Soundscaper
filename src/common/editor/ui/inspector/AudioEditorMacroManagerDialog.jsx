@@ -6,6 +6,7 @@ import { TextInput } from '@soundscaper/design-system/TextInput';
 import { createEffectMacroStep, effectMacroStepTypes } from '../../effect-macro-steps.ts';
 import { parseAudacityEffectMacro, serializeAudacityEffectMacro } from '../../effect-macros.js';
 import {
+	EFFECT_MACRO_TEMPLATE_IDS,
 	createEffectMacroTemplateDraft,
 	effectMacroMissingEmbeddedNoiseProfile,
 } from '../../effect-macro-templates.ts';
@@ -55,8 +56,8 @@ export function AudioEditorMacroManagerDialog({
 	const managerCopy = resolveMacroManagerCopy(locale);
 	const blocked = selectAudioEditorEditBlock(snapshot).blocked;
 	const hasRunTarget = Boolean(snapshot.selection || snapshot.selectedClipId);
-	const restorationAvailable = productId === 'soundscaper';
-	const missingEmbeddedNoiseProfile = restorationAvailable
+	const templatesAvailable = productId === 'soundscaper';
+	const missingEmbeddedNoiseProfile = templatesAvailable
 		&& effectMacroMissingEmbeddedNoiseProfile(effects);
 	const [selectedEffectId, setSelectedEffectId] = useState(null);
 	const [message, setMessage] = useState('');
@@ -341,10 +342,13 @@ export function AudioEditorMacroManagerDialog({
 						macros={macros}
 						selectedId={draft?.id || null}
 						exportDisabled={!effects.length}
-						templates={restorationAvailable ? {
+						templates={templatesAvailable ? {
 							heading: templateCopy.templates,
-							restoration: templateCopy.restoration,
-							onCreateRestoration: () => createMacro(createEffectMacroTemplateDraft('restoration')),
+							entries: EFFECT_MACRO_TEMPLATE_IDS.map((templateId) => ({
+								id: templateId,
+								label: templateCopy.names[templateId],
+								onCreate: () => createMacro(createEffectMacroTemplateDraft(templateId)),
+							})),
 						} : null}
 						onSelect={(macroId) => openMacro(macros.find((macro) => macro.id === macroId) || null)}
 						onCreate={() => createMacro({ name: copy.untitledMacro, effects: [] })}
@@ -403,7 +407,7 @@ export function AudioEditorMacroManagerDialog({
 							tracks={project?.tracks || []}
 							targetTrackId={snapshot.selectedTrackId}
 							hideControlTrack
-							captureNoiseProfile={restorationAvailable && selectedEffect.type === 'audacity-noise-reduction'
+							captureNoiseProfile={templatesAvailable && selectedEffect.type === 'audacity-noise-reduction'
 								? () => captureMacroNoiseProfile(selectedEffect.id)
 								: undefined}
 							captureNoiseProfileDisabled={blocked || isCapturingProfile || !hasRunTarget}

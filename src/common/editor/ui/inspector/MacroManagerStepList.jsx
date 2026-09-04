@@ -5,6 +5,7 @@ import { EffectSlot } from '@soundscaper/design-system/EffectsPanel/EffectSlot';
 import { Icon } from '@soundscaper/design-system/Icon';
 import { useContainerTabGroup } from '@soundscaper/design-system/hooks/useContainerTabGroup';
 import EffectPicker from './EffectPicker.jsx';
+import { isMacroCommandStep } from '../../macro-command-steps.ts';
 import { safeEffectLabel } from './effect-helpers.ts';
 
 /**
@@ -68,14 +69,16 @@ export default function MacroManagerStepList({
 						<EffectSlot
 							key={effect.id}
 							className="audio-editor-macro-manager__effect"
-							effectName={safeEffectLabel(effect, copy)}
+							effectName={stepLabel(effect, copy)}
 							enabled
 							isDragging={draggedIndex === index}
 							onSelectEffect={() => onSelectEffect(effect.id)}
 							onRemoveEffect={() => onRemoveEffect(effect.id)}
-							onReplaceEffect={(candidate) => onReplaceEffect(effect.id, candidate)}
-							replaceEffectOptions={replaceEffectOptions}
-							onChangeEffect={() => setPicker({ replaceId: effect.id, anchor: null })}
+							{...(isMacroCommandStep(effect) ? {} : {
+								onReplaceEffect: (candidate) => onReplaceEffect(effect.id, candidate),
+								replaceEffectOptions,
+								onChangeEffect: () => setPicker({ replaceId: effect.id, anchor: null }),
+							})}
 							onDragStart={(event) => {
 								setDraggedIndex(index);
 								event.dataTransfer.effectAllowed = 'move';
@@ -116,4 +119,19 @@ export default function MacroManagerStepList({
 			)}
 		</>
 	);
+}
+
+/**
+ * What a step is called in the list.
+ *
+ * A command step is named by the command it runs and the parameters it carries,
+ * because those are the whole step — there is no effect behind it to look a
+ * label up from, and a blank row would say nothing at all.
+ */
+function stepLabel(step, copy) {
+	if (!isMacroCommandStep(step)) return safeEffectLabel(step, copy);
+	const params = Object.entries(step.params)
+		.map(([name, value]) => `${name} ${String(value)}`)
+		.join(', ');
+	return params ? `${step.command}: ${params}` : step.command;
 }

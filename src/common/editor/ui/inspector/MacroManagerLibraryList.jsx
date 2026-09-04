@@ -48,10 +48,12 @@ export default function MacroManagerLibraryList({
 					))}
 				</ul>
 				: <p className="audio-editor-panel-hint" data-macro-library-empty>{copy.macroLibraryEmpty}</p>}
-			{templates && <div className="audio-editor-macro-manager__templates" data-macro-templates>
+			{templates?.entries?.length ? <div className="audio-editor-macro-manager__templates" data-macro-templates>
 				<h3>{templates.heading}</h3>
-				<Button variant="secondary" onClick={templates.onCreateRestoration}>{templates.restoration}</Button>
-			</div>}
+				{templates.entries.map(({ id, label, onCreate }) => (
+					<Button key={id} variant="secondary" onClick={onCreate}>{label}</Button>
+				))}
+			</div> : null}
 		</section>
 	);
 }

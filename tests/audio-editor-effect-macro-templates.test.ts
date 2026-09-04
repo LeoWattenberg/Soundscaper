@@ -3,11 +3,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { serializeAudacityEffectMacro } from '../src/common/editor/effect-macros.js';
+import { resolveEffectMacroTemplateCopy } from '../src/common/editor/ui/inspector/effect-macro-template-copy.ts';
 import {
 	EFFECT_MACRO_TEMPLATE_IDS,
 	createEffectMacroTemplateDraft,
 	effectMacroMissingEmbeddedNoiseProfile,
 } from '../src/common/editor/effect-macro-templates.ts';
+
+const TEMPLATE_COPY = resolveEffectMacroTemplateCopy('en');
 
 test('the built-in Restoration template is an ordered editable macro with canonical defaults', () => {
 	let sequence = 0;
@@ -15,7 +19,7 @@ test('the built-in Restoration template is an ordered editable macro with canoni
 		idFactory: (prefix) => `${prefix}-${++sequence}`,
 	});
 
-	assert.deepEqual(EFFECT_MACRO_TEMPLATE_IDS, ['restoration']);
+	assert.deepEqual(EFFECT_MACRO_TEMPLATE_IDS, ['restoration', 'fade-ends']);
 	assert.equal(draft.id, 'macro-1');
 	assert.equal(draft.name, 'Restoration');
 	assert.deepEqual(draft.effects.map(({ id, type }) => ({ id, type })), [
@@ -65,4 +69,43 @@ test('macro profile admission requires a serialized profile on every Noise Reduc
 		() => createEffectMacroTemplateDraft('unknown' as never),
 		/unknown effect macro template/iu,
 	);
+});
+
+test('the built-in Fade ends template is Audacity\'s own, step for step', () => {
+	// Upstream's smaller built-in macro, and the one that shows what a macro is
+	// for: the selection moves between the effects, so one chain acts on both the
+	// head and the tail of the same recording.
+	const draft = createEffectMacroTemplateDraft('fade-ends', {
+		idFactory: (prefix, index = 0) => `${prefix}-${index}`,
+	});
+
+	assert.equal(draft.name, 'Fade ends');
+	assert.deepEqual(draft.effects.map((step) => step.command ?? step.type), [
+		'Select', 'audacity-fade-in', 'Select', 'audacity-fade-out', 'Select',
+	]);
+	assert.deepEqual(draft.effects.map(({ params }) => params), [
+		{ start: 0, end: 1 },
+		{},
+		{ start: 0, end: 1, relativeTo: 'project-end' },
+		{},
+		{ start: 0, end: 0 },
+	]);
+	// It exports as the file Audacity would read, line for line.
+	assert.equal(serializeAudacityEffectMacro(draft.effects), [
+		'Select:Start="0" End="1"',
+		'FadeIn:',
+		'Select:Start="0" End="1" RelativeTo="ProjectEnd"',
+		'FadeOut:',
+		'Select:Start="0" End="0"',
+		'',
+	].join('\n'));
+	assert.equal(effectMacroMissingEmbeddedNoiseProfile(draft.effects), false);
+});
+
+test('every built-in template is offered by id and none of them is missing', () => {
+	for (const templateId of EFFECT_MACRO_TEMPLATE_IDS) {
+		const draft = createEffectMacroTemplateDraft(templateId);
+		assert.ok(draft.effects.length, `${templateId} must have steps`);
+		assert.ok(TEMPLATE_COPY.names[templateId], `${templateId} must have a label`);
+	}
 });
