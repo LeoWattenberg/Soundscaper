@@ -374,7 +374,12 @@ export default function AudioEditorMenuBar({
 						x={openMenu.x}
 						y={openMenu.y}
 						autoFocus={false}
-						onClose={() => closeMenu()}
+						// Passed by reference, not wrapped: ContextMenu lists onClose in the
+						// dependencies of the effect that arms its outside-pointerdown
+						// listener, and re-arming goes through a setTimeout during which no
+						// listener is attached. A fresh closure per render reopened that gap
+						// on every render, so a click landing in one left the menu open.
+						onClose={closeMenu}
 						className="kw-audio-editor__application-menu"
 					>
 						{currentMenu.items.map((item, index) => renderApplicationMenuItem(
