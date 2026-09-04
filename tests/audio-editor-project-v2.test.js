@@ -249,6 +249,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	assert.equal(preferences.playback.playAtSpeedMode, 'naive');
 	assert.deepEqual(preferences.startup, { mode: 'continue-last-session', projectId: '' });
 	assert.equal(preferences.editing.collisionBehavior, 'audacity');
+	assert.equal(preferences.editing.zoomPrecision, 6);
 	assert.equal(validateAudioEditorPreferencesV1(preferences), true);
 	assert.deepEqual(loadAudioEditorPreferencesV1(preferences), { preferences, readOnly: false, reason: null });
 	const savedWithWebVcrOpen = structuredClone(preferences);
@@ -307,6 +308,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 		delete panel.width;
 		delete panel.height;
 	}
+	delete legacyPreferences.editing.zoomPrecision;
 	const loadedLegacyPreferences = loadAudioEditorPreferencesV1(legacyPreferences).preferences;
 	assert.equal(loadedLegacyPreferences.view.showMasterTrack, false);
 	assert.equal(loadedLegacyPreferences.recording.retainInputs, true);
@@ -314,6 +316,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	// Preferences saved before Program start existed keep continuing the last
 	// session, which is what those sessions already did.
 	assert.deepEqual(loadedLegacyPreferences.startup, { mode: 'continue-last-session', projectId: '' });
+	assert.equal(loadedLegacyPreferences.editing.zoomPrecision, 6);
 	assert.deepEqual(
 		Object.keys(loadedLegacyPreferences.workspace.panels.history).sort(),
 		['dock', 'height', 'order', 'size', 'visible', 'width', 'x', 'y'],
@@ -340,6 +343,9 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 		...preferences, startup: { mode: 'start-empty', projectId: '' },
 	}), /startup\.mode/);
 	assert.throws(() => createAudioEditorPreferencesV1({ startup: { projectId: 7 } }), /startup\.projectId must be a string/);
+	assert.equal(createAudioEditorPreferencesV1({ editing: { zoomPrecision: 12 } }).editing.zoomPrecision, 12);
+	assert.throws(() => createAudioEditorPreferencesV1({ editing: { zoomPrecision: 0 } }), /editing\.zoomPrecision/);
+	assert.throws(() => createAudioEditorPreferencesV1({ editing: { zoomPrecision: 17 } }), /editing\.zoomPrecision must be at most 16/);
 	assert.throws(() => validateAudioEditorPreferencesV1({
 		...preferences, playback: { playAtSpeedMode: 'phase-vocoder' },
 	}), /playback\.playAtSpeedMode has an unsupported value/);

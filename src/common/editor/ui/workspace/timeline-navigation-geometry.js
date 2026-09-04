@@ -38,6 +38,16 @@ export function centeredTimelinePlayheadScroll(scroll, {
 		- viewportWidth / 2);
 }
 
+/**
+ * Audacity's wheel zoom speed: one notch multiplies the zoom by 2^(1/precision),
+ * so a precision of 1 doubles on every notch and 16 needs sixteen of them.
+ */
+export function timelineWheelZoomFactor(precision) {
+	const steps = Number(precision);
+	if (!Number.isFinite(steps) || steps < 1) return 2;
+	return 2 ** (1 / Math.min(16, Math.floor(steps)));
+}
+
 /** Convert high-resolution wheel input into at most one discrete zoom notch. */
 export function accumulateTimelineZoomWheel(stateValue, event, viewportHeight) {
 	const state = stateValue ?? { delta: 0, direction: 0, timeStamp: null };

@@ -8,12 +8,14 @@ import {
 	accumulateTimelineZoomWheel,
 	centeredTimelinePlayheadScroll,
 	resolveTimelineViewportGeometry,
+	timelineWheelZoomFactor,
 } from './timeline-navigation-geometry.js';
 
 export function useTimelineNavigation({ controller, editorRef, project, run, snapshot, workspaceRef }) {
+	const zoomPrecision = snapshot.preferences?.editing?.zoomPrecision;
 	const pendingZoomAnchorRef = useRef(null);
 	const wheelZoomRef = useRef(null);
-	const zoomProject = useCallback((direction, anchor = null) => {
+	const zoomProject = useCallback((direction, anchor = null, factor = undefined) => {
 		const scroll = workspaceRef.current?.querySelector('.audio-editor-timeline-scroll');
 		if (!scroll) return undefined;
 		const rect = scroll.getBoundingClientRect();
@@ -34,7 +36,7 @@ export function useTimelineNavigation({ controller, editorRef, project, run, sna
 			? controller.actions.timeline.zoomIn
 			: controller.actions.timeline.zoomOut;
 		pendingZoomAnchorRef.current = { anchorSeconds, anchorOffset };
-		const nextZoom = run(() => action());
+		const nextZoom = run(() => action(factor));
 		if (!Number.isFinite(Number(nextZoom)) || Number(nextZoom) === currentZoom) {
 			pendingZoomAnchorRef.current = null;
 		}
@@ -88,11 +90,15 @@ export function useTimelineNavigation({ controller, editorRef, project, run, sna
 				wheelZoomRef.current, event, editor.clientHeight,
 			);
 			wheelZoomRef.current = accumulated.state;
-			if (accumulated.zoom) zoomProject(accumulated.zoom, { clientX: event.clientX });
+			// Audacity's mouse zoom precision: the wheel moves a fraction of an
+			// octave a notch, where the menu's Zoom In and Zoom Out move a whole one.
+			if (accumulated.zoom) {
+				zoomProject(accumulated.zoom, { clientX: event.clientX }, timelineWheelZoomFactor(zoomPrecision));
+			}
 		};
 		editor.addEventListener('wheel', onWheel, { passive: false });
 		return () => editor.removeEventListener('wheel', onWheel);
-	}, [editorRef, zoomProject]);
+	}, [editorRef, zoomPrecision, zoomProject]);
 
 	return { jumpToEnd, jumpToStart, zoomProject };
 }

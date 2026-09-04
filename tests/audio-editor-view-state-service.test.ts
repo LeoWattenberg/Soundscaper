@@ -138,6 +138,12 @@ test('zoom fitting, viewport changes, and auto-fit state stay within project bou
 	assert.equal(fixture.state.sampleEditMode, null);
 	fixture.setSampleEditing(true);
 	assert.equal(fixture.service.updateZoom('out', undefined), 1_000);
+	// The mouse wheel supplies Audacity's zoom-precision factor; menu zoom keeps
+	// the octave, and a factor that could shrink or stall the zoom is refused.
+	assert.equal(fixture.service.updateZoom('in', undefined, 1.25), 1_250);
+	assert.equal(fixture.service.updateZoom('out', undefined, 1.25), 1_000);
+	assert.equal(fixture.service.updateZoom('in', undefined, 0.5), 2_000);
+	assert.equal(fixture.service.updateZoom('out', undefined, Number.NaN), 1_000);
 
 	assert.equal(fixture.service.setTimelineViewportWidth(800), 800);
 	assert.equal(fixture.service.setTimelineViewportWidth(800), 800);

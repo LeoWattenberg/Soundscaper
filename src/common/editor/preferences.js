@@ -11,7 +11,6 @@ import {
 import {
 	AUDIO_EDITOR_BUILT_IN_WORKSPACES,
 	AUDIO_EDITOR_WORKSPACE_PRESETS,
-	DEFAULT_FLOATING_PANEL_GEOMETRY,
 	DEFAULT_PANELS,
 	DEFAULT_TOOLBAR_BUTTONS,
 	DEFAULT_TOOLBARS,
@@ -33,8 +32,15 @@ import {
 	collectAudioEditorShortcutConflicts,
 	normalizeAudioEditorShortcut,
 } from './audio-editor-shortcut-normalization.ts';
-import { canonicalizeWorkspacePanelGroups, normalizeWorkspacePanelGroupFields } from './workspace-panel-layout.ts';
 import { clone, finiteInRange, integer, nonEmptyString, oneOf } from './preferences-validators.js';
+import {
+	BUILT_IN_WORKSPACE_SET,
+	normalizeCustomWorkspaces,
+	normalizePanelEntries,
+	normalizeToolbarButtonEntries,
+	normalizeToolbarEntries,
+	workspaceLayout,
+} from './workspace-preference-normalization.js';
 
 export {
 	AUDIO_EDITOR_BUILT_IN_WORKSPACES,
@@ -55,6 +61,13 @@ export const AUDIO_EDITOR_THEMES = Object.freeze([
 ]);
 export const AUDIO_EDITOR_CLIP_STYLES = Object.freeze(['classic', 'colorful']);
 export const AUDIO_EDITOR_PLAY_AT_SPEED_MODES = Object.freeze(['naive', 'staffpad']);
+/**
+ * Audacity's mouse zoom precision: one wheel notch multiplies the zoom by
+ * 2^(1/precision), so the precision is how many notches double it.
+ */
+export const AUDIO_EDITOR_DEFAULT_ZOOM_PRECISION = 6;
+export const AUDIO_EDITOR_MINIMUM_ZOOM_PRECISION = 1;
+export const AUDIO_EDITOR_MAXIMUM_ZOOM_PRECISION = 16;
 export { AUDIO_EDITOR_STARTUP_MODES };
 export const AUDIO_EDITOR_LAYOUTS = Object.freeze(['auto', 'compact', 'desktop']);
 
@@ -95,14 +108,12 @@ const LEGACY_SHORTCUT_ACTION_IDS = Object.freeze({
 	'quick-help': 'online-handbook',
 });
 
-const BUILT_IN_WORKSPACE_SET = new Set(AUDIO_EDITOR_BUILT_IN_WORKSPACES);
 const THEME_SET = new Set(AUDIO_EDITOR_THEMES);
 const CLIP_STYLE_SET = new Set(AUDIO_EDITOR_CLIP_STYLES);
 const PLAY_AT_SPEED_MODE_SET = new Set(AUDIO_EDITOR_PLAY_AT_SPEED_MODES);
 const LAYOUT_SET = new Set(AUDIO_EDITOR_LAYOUTS);
 const STARTUP_MODE_SET = new Set(AUDIO_EDITOR_STARTUP_MODES);
 const RIPPLE_MODE_SET = new Set(['off', 'per-track', 'all-tracks']);
-const DOCK_SET = new Set(['left', 'right', 'bottom', 'floating']);
 const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
 	'account',
 	'audio',
@@ -135,7 +146,7 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
  * @typedef {Object} AudioEditorPreferencesV1
  * @property {1} schemaVersion
  * @property {number} shortcutDefaultsVersion
- * @property {{rippleMode: 'off'|'per-track'|'all-tracks', collisionBehavior: 'audacity', snapToZeroCrossings: boolean}} editing
+ * @property {{rippleMode: 'off'|'per-track'|'all-tracks', collisionBehavior: 'audacity', snapToZeroCrossings: boolean, zoomPrecision: number}} editing
  * @property {Record<string, string[]>} shortcuts
  * @property {{theme: string, clipStyle: 'classic'|'colorful', layout: 'auto'|'compact'|'desktop'}} appearance
  * @property {{showMasterTrack: boolean, showMarkers: boolean}} view
@@ -204,97 +215,6 @@ function normalizeRecordingSoundActivation(recording) {
 	}
 	return normalizeSoundActivationPreferences(descriptor.value);
 }
-
-function workspaceLayout(activeId, custom) {
-	if (BUILT_IN_WORKSPACE_SET.has(activeId)) return AUDIO_EDITOR_WORKSPACE_PRESETS[activeId];
-	return custom.find((workspace) => workspace.id === activeId)?.layout || {};
-}
-
-function normalizeToolbarEntries(value = {}) {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('workspace.toolbars must be an object.');
-	const entries = {};
-	for (const [id, defaults] of Object.entries(DEFAULT_TOOLBARS)) {
-		const entry = value[id] || {};
-		entries[id] = {
-			visible: entry.visible ?? defaults.visible,
-			order: integer(entry.order ?? defaults.order, 0, `workspace.toolbars.${id}.order`),
-		};
-		if (typeof entries[id].visible !== 'boolean') throw new TypeError(`workspace.toolbars.${id}.visible must be boolean.`);
-	}
-	for (const [id, entry] of Object.entries(value)) {
-		if (entries[id]) continue;
-		nonEmptyString(id, 'toolbar ID');
-		if (!entry || typeof entry !== 'object') throw new TypeError(`workspace.toolbars.${id} must be an object.`);
-		entries[id] = {
-			visible: entry.visible !== false,
-			order: integer(entry.order ?? Object.keys(entries).length, 0, `workspace.toolbars.${id}.order`),
-		};
-	}
-	return entries;
-}
-
-function normalizeToolbarButtonEntries(value = {}) {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('workspace.toolbarButtons must be an object.');
-	const entries = { ...DEFAULT_TOOLBAR_BUTTONS };
-	for (const [id, visible] of Object.entries(value)) {
-		if (id === 'timecode-format') continue;
-		nonEmptyString(id, 'toolbar button ID');
-		if (typeof visible !== 'boolean') throw new TypeError(`workspace.toolbarButtons.${id} must be boolean.`);
-		entries[id] = visible;
-	}
-	return entries;
-}
-
-function normalizePanelEntries(value = {}) {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('workspace.panels must be an object.');
-	const entries = {};
-	const ids = new Set([...Object.keys(DEFAULT_PANELS), ...Object.keys(value)].filter((id) => id !== 'spectrogram'));
-	for (const id of ids) {
-		nonEmptyString(id, 'panel ID');
-		const defaults = DEFAULT_PANELS[id] || { visible: false, dock: 'right', order: Object.keys(entries).length, size: 320 };
-		const floatingDefaults = DEFAULT_FLOATING_PANEL_GEOMETRY[id] || {
-			x: 24 + Object.keys(entries).length * 24,
-			y: 24 + Object.keys(entries).length * 24,
-			width: Math.max(240, defaults.size),
-			height: 320,
-		};
-		const entry = value[id] || {};
-		if (!entry || typeof entry !== 'object') throw new TypeError(`workspace.panels.${id} must be an object.`);
-		const visible = entry.visible ?? defaults.visible;
-		if (typeof visible !== 'boolean') throw new TypeError(`workspace.panels.${id}.visible must be boolean.`);
-		entries[id] = {
-			visible,
-			dock: oneOf(entry.dock ?? defaults.dock, DOCK_SET, `workspace.panels.${id}.dock`),
-			order: integer(entry.order ?? defaults.order, 0, `workspace.panels.${id}.order`),
-			size: finiteInRange(entry.size ?? defaults.size, 80, 4_096, `workspace.panels.${id}.size`),
-			x: finiteInRange(entry.x ?? floatingDefaults.x, 0, 1_000_000, `workspace.panels.${id}.x`),
-			y: finiteInRange(entry.y ?? floatingDefaults.y, 0, 1_000_000, `workspace.panels.${id}.y`),
-			width: finiteInRange(entry.width ?? entry.size ?? floatingDefaults.width, 80, 4_096, `workspace.panels.${id}.width`),
-			height: finiteInRange(entry.height ?? floatingDefaults.height, 80, 4_096, `workspace.panels.${id}.height`),
-			...normalizeWorkspacePanelGroupFields(entry, `workspace.panels.${id}`),
-		};
-	}
-	return canonicalizeWorkspacePanelGroups(entries);
-}
-
-function normalizeCustomWorkspaces(value = []) {
-	if (!Array.isArray(value)) throw new TypeError('workspace.custom must be an array.');
-	const workspaces = value.map((workspace, index) => {
-		if (!workspace || typeof workspace !== 'object') throw new TypeError(`workspace.custom[${index}] must be an object.`);
-		const id = nonEmptyString(workspace.id, `workspace.custom[${index}].id`);
-		if (BUILT_IN_WORKSPACE_SET.has(id)) throw new RangeError(`Custom workspace ID ${id} is reserved.`);
-		return {
-			id,
-			name: nonEmptyString(workspace.name, `workspace.custom[${index}].name`),
-			layout: clone(workspace.layout ?? {}),
-		};
-	});
-	if (new Set(workspaces.map((workspace) => workspace.id)).size !== workspaces.length) {
-		throw new RangeError('Custom workspace IDs must be unique.');
-	}
-	return workspaces;
-}
-
 /**
  * Editor-only preferences. Audio device selection, plugins, cloud accounts,
  * telemetry and operating-system integration deliberately do not belong here.
@@ -319,6 +239,14 @@ export function createAudioEditorPreferencesV1(options = {}) {
 	if (typeof showMasterTrack !== 'boolean') throw new TypeError('view.showMasterTrack must be boolean.');
 	const showMarkers = options.view?.showMarkers ?? false;
 	if (typeof showMarkers !== 'boolean') throw new TypeError('view.showMarkers must be boolean.');
+	const zoomPrecision = integer(
+		options.editing?.zoomPrecision ?? AUDIO_EDITOR_DEFAULT_ZOOM_PRECISION,
+		AUDIO_EDITOR_MINIMUM_ZOOM_PRECISION,
+		'editing.zoomPrecision',
+	);
+	if (zoomPrecision > AUDIO_EDITOR_MAXIMUM_ZOOM_PRECISION) {
+		throw new RangeError(`editing.zoomPrecision must be at most ${AUDIO_EDITOR_MAXIMUM_ZOOM_PRECISION}.`);
+	}
 	const startupProjectId = options.startup?.projectId ?? '';
 	if (typeof startupProjectId !== 'string') throw new TypeError('startup.projectId must be a string.');
 	return {
@@ -335,6 +263,7 @@ export function createAudioEditorPreferencesV1(options = {}) {
 			rippleMode: oneOf(options.editing?.rippleMode ?? 'off', RIPPLE_MODE_SET, 'editing.rippleMode'),
 			collisionBehavior: 'audacity',
 			snapToZeroCrossings: Boolean(options.editing?.snapToZeroCrossings),
+			zoomPrecision,
 		},
 		shortcuts: normalizeShortcuts(options.shortcuts === undefined ? AUDIO_EDITOR_DEFAULT_SHORTCUTS : options.shortcuts),
 		appearance: {
@@ -510,6 +439,11 @@ export function validateAudioEditorPreferencesV1(preferences) {
 	if (typeof preferences.editing.snapToZeroCrossings !== 'boolean') {
 		throw new TypeError('editing.snapToZeroCrossings must be boolean.');
 	}
+	// Preferences saved before the zoom-speed control existed carry no
+	// precision; normalization supplies Audacity's default.
+	if (preferences.editing.zoomPrecision !== undefined) {
+		integer(preferences.editing.zoomPrecision, AUDIO_EDITOR_MINIMUM_ZOOM_PRECISION, 'editing.zoomPrecision');
+	}
 	if (typeof preferences.import.detectTempo !== 'boolean') throw new TypeError('import.detectTempo must be boolean.');
 	if (preferences.view !== undefined) {
 		if (!preferences.view || typeof preferences.view !== 'object' || Array.isArray(preferences.view)) {
@@ -582,6 +516,7 @@ export function loadAudioEditorPreferencesV1(value) {
 					'web-vcr': { ...normalized.workspace.panels['web-vcr'], visible: false },
 				},
 			},
+			editing: normalized.editing,
 			recording: normalized.recording,
 			playback: normalized.playback,
 			// Preferences saved before Program start existed carry no startup

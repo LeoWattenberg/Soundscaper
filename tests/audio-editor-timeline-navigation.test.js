@@ -7,6 +7,7 @@ import {
 	accumulateTimelineZoomWheel,
 	centeredTimelinePlayheadScroll,
 	resolveTimelineViewportGeometry,
+	timelineWheelZoomFactor,
 } from '../src/common/editor/ui/workspace/timeline-navigation-geometry.js';
 
 test('playhead centring accounts for the sticky track panel and clip content offset', () => {
@@ -53,4 +54,16 @@ test('trackpad pinch deltas accumulate to one bounded timeline zoom step', () =>
 	}, 800);
 	assert.equal(discrete.zoom, 'out');
 	assert.equal(discrete.state.delta, 0, 'one event cannot queue compounding follow-up steps');
+});
+
+test("Audacity's mouse zoom precision is how many wheel notches double the zoom", () => {
+	assert.equal(timelineWheelZoomFactor(1), 2);
+	assert.equal(timelineWheelZoomFactor(6) ** 6, 2.0000000000000004);
+	assert.ok(timelineWheelZoomFactor(16) < timelineWheelZoomFactor(6));
+	// A precision this editor never stores still has to zoom, so an unusable
+	// value falls back to the octave a menu Zoom In moves.
+	for (const precision of [undefined, null, 0, -3, Number.NaN, 'six']) {
+		assert.equal(timelineWheelZoomFactor(precision), 2, String(precision));
+	}
+	assert.equal(timelineWheelZoomFactor(64), timelineWheelZoomFactor(16));
 });

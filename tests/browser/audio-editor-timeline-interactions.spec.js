@@ -706,4 +706,39 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(endHandle).toBeVisible();
 		expect(errors).toEqual([]);
 	});
+
+	test("wheel zoom follows Audacity's mouse zoom precision", async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const scroll = editor.locator('.audio-editor-timeline-scroll');
+		const timelineWidth = () => scroll.evaluate((element) => element.scrollWidth);
+
+		await setMouseZoomPrecision(page, editor, 1);
+		const beforeCoarse = await timelineWidth();
+		await wheelZoomIn(page, scroll);
+		await expect.poll(timelineWidth).toBeGreaterThan(beforeCoarse * 1.8);
+
+		await setMouseZoomPrecision(page, editor, 16);
+		const beforeFine = await timelineWidth();
+		await wheelZoomIn(page, scroll);
+		await expect.poll(timelineWidth).toBeGreaterThan(beforeFine);
+		expect(await timelineWidth()).toBeLessThan(beforeFine * 1.2);
+	});
 });
+
+async function setMouseZoomPrecision(page, editor, precision) {
+	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+	const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+	await preferences.getByRole('tab', { name: /Editing$/u }).click();
+	const field = preferences.getByLabel('Mouse zoom precision', { exact: true });
+	await field.fill(String(precision));
+	await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+	await expect(preferences).toBeHidden();
+}
+
+async function wheelZoomIn(page, scroll) {
+	await scroll.hover({ position: { x: 40, y: 20 } });
+	await page.keyboard.down('Control');
+	await page.mouse.wheel(0, -120);
+	await page.keyboard.up('Control');
+}

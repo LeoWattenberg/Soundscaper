@@ -77,7 +77,13 @@ export function createViewStateService(runtime: ViewStateServiceRuntime) {
 		publishTelemetrySnapshot();
 	}
 
-	function updateZoom(action: any, requestedViewportWidth: any) {
+	/**
+	 * Zoom the timeline. Menu and shortcut zoom moves one octave a step, the way
+	 * Audacity's Zoom In and Zoom Out do; a caller that supplies its own factor
+	 * — the mouse wheel, which honours Audacity's zoom precision — moves by that
+	 * instead.
+	 */
+	function updateZoom(action: any, requestedViewportWidth: any, requestedFactor?: any) {
 		const project = getProject();
 		if (action === 'fit') {
 			const viewport = Math.max(320, Number(requestedViewportWidth) || state.timelineViewportWidth || 960);
@@ -91,9 +97,11 @@ export function createViewStateService(runtime: ViewStateServiceRuntime) {
 		} else {
 			const durationSeconds = editorTimelineDurationFrames(project, projectSampleRate()) / projectSampleRate();
 			const minimum = state.timelineViewportWidth > 0 ? state.timelineViewportWidth / durationSeconds : 1;
+			const requested = Number(requestedFactor);
+			const factor = Number.isFinite(requested) && requested > 1 ? requested : 2;
 			state.pixelsPerSecond = Math.max(minimum, Math.min(
 				MAX_PIXELS_PER_SECOND,
-				state.pixelsPerSecond * (action === 'in' ? 2 : 0.5),
+				state.pixelsPerSecond * (action === 'in' ? factor : 1 / factor),
 			));
 		}
 		if (!sampleEditingAvailable()) state.sampleEditMode = null;

@@ -2822,8 +2822,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return viewStateService.updateMeters(meters);
 	}
 
-	function updateZoom(action, requestedViewportWidth) {
-		return viewStateService.updateZoom(action, requestedViewportWidth);
+	function updateZoom(action, requestedViewportWidth, requestedFactor) {
+		return viewStateService.updateZoom(action, requestedViewportWidth, requestedFactor);
 	}
 
 	function setTimelineViewportWidth(width) {

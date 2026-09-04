@@ -134,6 +134,12 @@
 	gap: 18px;
 }
 
+#kw-audio-editor-design-system .kw-audio-editor-preferences__note {
+	margin: 0;
+	color: var(--kw-editor-muted);
+	font-size: 11px;
+}
+
 #kw-audio-editor-design-system .kw-audio-editor-preferences__startup {
 	display: grid;
 	gap: 10px;
