@@ -242,7 +242,7 @@ function capabilityQuery() {
 		schemaVersion: 2 as const,
 		operations: [{
 			operation: 'audio-encode' as const, format: 'opus' as const,
-			sampleRate: 48_000, channelCount: 2, settings: { bitrateKbps: 128 },
+			sampleRate: 48_000, channelCount: 2, settings: { bitrateKbps: 128, vbrMode: 1 },
 		}],
 	};
 }
@@ -260,7 +260,7 @@ function capabilityResult(query: DesktopAudioCodecCapabilityQuery) {
 function encodeRequest(input: Uint8Array, requestId = 'audio-request-1') {
 	return {
 		operation: 'audio-encode' as const, format: 'opus' as const, input,
-		sampleRate: 48_000, channelCount: 2, settings: { bitrateKbps: 128 },
+		sampleRate: 48_000, channelCount: 2, settings: { bitrateKbps: 128, vbrMode: 1 },
 		maximumOutputBytes: 8_192, requestId,
 	};
 }

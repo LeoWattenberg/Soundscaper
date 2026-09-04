@@ -86,7 +86,7 @@ test('open codecs remain bundled-owner territory outside the reviewed Windows MP
 	for (const request of [
 		encodeRequest('flac', { compressionLevel: 5, bitDepth: 24 }),
 		encodeRequest('ogg-vorbis', { quality: 6 }),
-		encodeRequest('opus', { bitrateKbps: 128 }),
+		encodeRequest('opus', { bitrateKbps: 128, vbrMode: 1 }),
 		encodeRequest('wavpack', { compressionLevel: 2 }),
 		encodeRequest('mp2', { bitrateKbps: 192 }),
 		decodeRequest('flac'), decodeRequest('ogg-vorbis'), decodeRequest('opus'),
