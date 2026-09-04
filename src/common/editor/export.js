@@ -1,5 +1,4 @@
 import { projectEffectTailFrames } from './effects.js';
-import { findStereoLimitedMultichannelRenderEffects } from './adm-render-safety.ts';
 import { createBwfExportMetadata, projectBextMetadata } from './broadcast-wave-project.ts';
 import { inspectPreservedAdmRiffChunks, sameBextMetadata } from './adm-riff-passthrough.ts';
 import { createBw64AdmExport, resolveBw64Adm } from './export-bw64-adm.js';
@@ -20,15 +19,19 @@ import { inspectAiffLayout } from './aiff.js';
 import { inspectWavLayout } from './wav.js';
 import { createStemArchivePlan } from './controller/stem-archive.ts';
 import { EBU_R128_MAXIMUM_CHANNELS } from './ebu-r128.js';
-import { normalizeLoudnessNormalizationTarget } from './loudness-normalization.ts';
 import { resolveAdmEbuChannelWeights } from './loudness-channel-layout.ts';
 import { createRiffAnnotationExport } from './timeline-annotation-riff-interchange.ts';
 import { resolveBinauralDelivery } from './binaural-delivery.ts';
 import { resolveExportChapters } from './export-chapters.ts';
 import { resolveMasteringSequenceExport } from './mastering-sequence-export.ts';
-import { planExportOfflineRenderStrategyAdmission } from './export-render-admission.ts';
+import {
+	assertSoundscaperEffectChannelSafety,
+	deliversMasterMix,
+	longestChapterRange,
+	resolveExportLoudnessNormalization,
+	selectExportOfflineRenderAdmission,
+} from './export-plan-admission.js';
 import { scaleSampleFrame } from './timeline-time.ts';
-import { isSoundscaperProductionProject } from './project-schema-version.ts';
 
 export const EXPORT_FORMAT_DEFAULTS = Object.freeze({
 	wav: { bitDepth: 24 },
@@ -475,86 +478,6 @@ export function createExportPlan(project, options = {}) {
 }
 
 /** Every mode but stems delivers the master mix, whole or in named spans. */
-function deliversMasterMix(mode) {
-	return mode !== 'stems';
-}
-
-function assertSoundscaperEffectChannelSafety(project, mode) {
-	if (!isSoundscaperProductionProject(project)) return;
-	const issues = findStereoLimitedMultichannelRenderEffects(project, Number(project.masterChannels), {
-		includeMaster: deliversMasterMix(mode),
-	});
-	if (!issues.length) return;
-	throw new Error(`Multichannel audio export cannot use effects that change terminal channel width: ${issues
-		.map(({ effectType, scope, targetId, channelCount }) => (
-			`${effectType} on ${scope}${targetId ? ` ${targetId}` : ''} (${String(channelCount)} channels)`
-		))
-		.join(', ')}.`);
-}
-
-/**
- * Resolve the delivery's loudness target, refusing every case where a gain
- * cannot be applied honestly.
- *
- * Normalization is a **plan step**: the target is decided here, from the plan,
- * so no encoder ever receives a loudness flag and no format can normalize
- * differently from another. The failure this guards against is not a crash but
- * a file that looks normalized and is not, so each case below is a typed
- * refusal rather than a quietly un-normalized delivery.
- */
-function resolveExportLoudnessNormalization(options, { mode, admMetadata, renderStrategy }) {
-	const target = normalizeLoudnessNormalizationTarget(options.loudnessNormalization);
-	if (!target) return null;
-	if (mode !== 'mix') {
-		// Normalizing stems independently moves them relative to each other, so
-		// their sum stops being the normalized mix. Applying the mix's gain to
-		// every stem instead needs the mix rendered as well, which is the render
-		// topology change this slice stops at. Chapters are refused for the same
-		// reason read along the timeline: each one would be gained from its own
-		// measurement, so the split would change the programme's own dynamics.
-		throw new Error(mode === 'chapters'
-			? 'Loudness normalization is mix-only; chapters normalized one by one would no longer share the delivery\'s level.'
-			: 'Loudness normalization is mix-only; normalized stems would no longer sum to the normalized mix.');
-	}
-	if (admMetadata?.mode === 'passthrough') {
-		throw new Error('ADM passthrough preserves the source bytes and cannot be loudness-normalized.');
-	}
-	if (renderStrategy === 'realtime-stream') {
-		// The gain is decided from a measurement of the whole delivery, which a
-		// stream that encodes as it renders has no opportunity to take.
-		throw new Error('Loudness normalization requires the offline render; a realtime stream cannot measure the delivery before writing it.');
-	}
-	return target;
-}
-
-function selectExportOfflineRenderAdmission({
-	project, mode, outputs, range, tailFrames, channelCount,
-}) {
-	const common = {
-		project,
-		rangeStartFrame: range.startFrame,
-		requestedRenderFrames: Math.max(1, range.durationFrames + tailFrames),
-		...(channelCount == null ? {} : { channelCount }),
-	};
-	const targets = deliversMasterMix(mode)
-		? [{ trackId: null, includeMaster: true }]
-		: outputs.map(({ trackId }) => ({ trackId, includeMaster: false }));
-	return targets.reduce((selected, target) => {
-		const candidate = planExportOfflineRenderStrategyAdmission({ ...common, ...target });
-		return selected == null || candidate.peakUsefulBinaryBytes > selected.peakUsefulBinaryBytes
-			? candidate
-			: selected;
-	}, null);
-}
-
-/** The chapter whose own render is the largest one this delivery performs. */
-function longestChapterRange(chapters) {
-	return chapters.reduce(
-		(longest, chapter) => (chapter.durationFrames > longest.durationFrames ? chapter : longest),
-		chapters[0],
-	);
-}
-
 function multiplySafeIntegers(left, right, name) {
 	if (!Number.isSafeInteger(left) || left < 0 || !Number.isSafeInteger(right) || right < 0
 		|| (right !== 0 && left > Math.floor(Number.MAX_SAFE_INTEGER / right))) {
