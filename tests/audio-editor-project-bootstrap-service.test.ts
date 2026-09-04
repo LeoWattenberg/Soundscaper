@@ -72,6 +72,9 @@ function createFixture(options: Readonly<{
 		// to start with the empty state rather than without the field.
 		deliveryPresets: createDeliveryPresetState(),
 		effectMacros: createInitialEffectMacroLibrary(),
+		// Bootstrap withholds writes for a library it could not read, so the
+		// fixture starts with the writable state the flag is toggled from.
+		effectMacrosReadOnly: false,
 		monitoring: false,
 		microphoneMetering: false,
 		recordingInputGain: 0,

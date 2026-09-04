@@ -3,15 +3,19 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createMacroCommandService } from '../src/common/editor/controller/macro-command-service.ts';
+import {
+	createMacroCommandService,
+	type MacroCommandProject,
+	type MacroCommandSelection,
+} from '../src/common/editor/controller/macro-command-service.ts';
 import { createMacroCommandStep } from '../src/common/editor/macro-command-steps.ts';
 
 const SAMPLE_RATE = 100;
 const PROJECT_END = 1_000;
 
-function createHarness(selection: Record<string, unknown> = { startFrame: 200, endFrame: 400 }) {
+function createHarness(selection: MacroCommandSelection = { startFrame: 200, endFrame: 400 }) {
 	const applied: Array<[number, number, Record<string, unknown>]> = [];
-	const project = {
+	const project: MacroCommandProject = {
 		tracks: [{ id: 'track-a' }, { id: 'track-b' }, { id: 'track-c' }, { id: 'track-d' }],
 		selection,
 	};

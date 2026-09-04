@@ -84,10 +84,10 @@ test('a macro transaction defers the per-step work and settles into one entry', 
 	fixture.service.commit({ type: 'project/rename', title: 'Two' });
 	assert.deepEqual(events, ['publish', 'publish'], 'no compaction or autosave while the macro runs');
 
-	transaction.commit({ type: 'macro/run' } as AudioEditorCommand);
+	transaction.commit({ type: 'macro/run' } as unknown as AudioEditorCommand);
 	assert.deepEqual(events.slice(2), ['compact', 'publish', 'autosave'], 'settling does it once');
 	assert.deepEqual(history.undo, ['macro']);
-	assert.throws(() => transaction.commit({ type: 'macro/run' } as AudioEditorCommand), /settles exactly once/u);
+	assert.throws(() => transaction.commit({ type: 'macro/run' } as unknown as AudioEditorCommand), /settles exactly once/u);
 });
 
 test('a rolled-back macro transaction settles the same way and cannot also commit', () => {
@@ -104,7 +104,7 @@ test('a rolled-back macro transaction settles the same way and cannot also commi
 	fixture.service.commit({ type: 'project/rename', title: 'One' });
 	transaction.rollback();
 	assert.deepEqual(history.undo, []);
-	assert.throws(() => transaction.commit({ type: 'macro/run' } as AudioEditorCommand), /settles exactly once/u);
+	assert.throws(() => transaction.commit({ type: 'macro/run' } as unknown as AudioEditorCommand), /settles exactly once/u);
 });
 
 test('a runtime that cannot fold history refuses to open a macro transaction', () => {
