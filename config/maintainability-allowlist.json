@@ -20,10 +20,6 @@
 			"maxLines": 2899,
 			"reason": "Legacy JavaScript composition root retained while its typed services and ports complete staged migration."
 		},
-		"src/common/editor/audacity-effects/basic.js": {
-			"maxLines": 718,
-			"reason": "Legacy basic-effect implementations; new effects belong in focused modules."
-		},
 		"src/common/editor/audacity-effects/live.js": {
 			"maxLines": 1156,
 			"reason": "Legacy realtime effect graph implementation."

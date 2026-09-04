@@ -23,12 +23,24 @@
  */
 
 import { normalizeAudacityEffectParams } from './manifest.js';
+import {
+	applyLegacyCompressorChannel,
+	applyLinkedDynamics,
+	RMS_WINDOW_SIZE,
+} from './basic-dynamics.js';
+import {
+	channelPeak,
+	cloneChannels,
+	dbToLinear,
+	multiplyChannel,
+	multiplyChannels,
+	sampleOrZero,
+	timeToFrames,
+} from './basic-channel-math.js';
+import { integratedLoudnessPower, normalizeRms } from './basic-loudness.js';
 
-const RMS_WINDOW_SIZE = 100;
-const EBU_HISTOGRAM_BIN_COUNT = 65_536;
-const EBU_ABSOLUTE_GATE = (-70 + 0.691) / 10;
-const EBU_POWER_SCALE = 0.8529037031;
 const TRUNCATE_BLEND_FRAMES = 100;
+
 
 /** Audacity Amplify, including its selection-peak clipping guard. */
 export function applyAudacityAmplify(channels, sampleRate = 48_000, params = {}) {
@@ -358,246 +370,6 @@ export function applyAudacityTruncateSilence(
 	return output;
 }
 
-function applyLinkedDynamics(channels, sampleRate, settings) {
-	const frameCount = channels[0].length;
-	const envelope = new Float64Array(frameCount);
-	const slope = Number.isFinite(settings.ratio) ? 1 / settings.ratio - 1 : -1;
-	const kneeHalf = settings.kneeWidthDb / 2;
-	const attackSeconds = settings.attackMs / 1_000;
-	const releaseSeconds = settings.releaseMs / 1_000;
-	const alphaAttack = attackSeconds === 0
-		? 1
-		: 1 - Math.exp(-1 / (sampleRate * attackSeconds));
-	const alphaRelease = releaseSeconds === 0
-		? 1
-		: 1 - Math.exp(-1 / (sampleRate * releaseSeconds));
-	let state = 0;
-
-	for (let index = 0; index < frameCount; index += 1) {
-		let sidechain = 0;
-		for (const channel of channels) sidechain = Math.max(sidechain, Math.abs(channel[index]));
-		const levelDb = sidechain === 0 ? Number.NEGATIVE_INFINITY : 20 * Math.log10(sidechain);
-		const overshoot = levelDb - settings.thresholdDb;
-		let gainReduction;
-		if (overshoot <= -kneeHalf) gainReduction = 0;
-		else if (overshoot <= kneeHalf && settings.kneeWidthDb > 0) {
-			gainReduction = 0.5 * slope * (overshoot + kneeHalf) ** 2 / settings.kneeWidthDb;
-		} else gainReduction = slope * overshoot;
-		const difference = gainReduction - state;
-		state += (difference < 0 ? alphaAttack : alphaRelease) * difference;
-		envelope[index] = state;
-	}
-
-	const lookaheadFrames = Math.trunc(settings.lookaheadMs * sampleRate / 1_000);
-	if (lookaheadFrames > 0) applyLookaheadEnvelope(envelope, lookaheadFrames);
-	return channels.map((channel) => {
-		const output = new Float32Array(frameCount);
-		for (let index = 0; index < frameCount; index += 1) {
-			output[index] = channel[index] * dbToLinear(envelope[index] + settings.makeupGainDb);
-		}
-		return output;
-	});
-}
-
-function applyLookaheadEnvelope(envelope, lookaheadFrames) {
-	// SimpleCompressor works backwards through its gain-reduction delay line.
-	// A one-shot selection can compensate the matching audio delay directly,
-	// leaving an aligned, same-length result while preserving that ramp logic.
-	let nextGainReduction = 0;
-	let step = 0;
-	for (let index = envelope.length - 1; index >= 0; index -= 1) {
-		const sample = envelope[index];
-		if (sample > nextGainReduction) {
-			envelope[index] = nextGainReduction;
-			nextGainReduction += step;
-		} else {
-			step = -sample / lookaheadFrames;
-			nextGainReduction = sample + step;
-		}
-	}
-}
-
-function applyLegacyCompressorChannel(channel, sampleRate, settings) {
-	if (channel.length === 0) return new Float32Array();
-	const threshold = dbToLinear(settings.thresholdDb);
-	const noiseFloor = dbToLinear(settings.noiseFloorDb);
-	const attackInverse = Math.exp(Math.log(threshold) /
-		(sampleRate * settings.attackSeconds + 0.5));
-	const decay = Math.exp(Math.log(threshold) /
-		(sampleRate * settings.releaseSeconds + 0.5));
-	const compression = settings.ratio > 1 ? 1 - 1 / settings.ratio : 0;
-	const envelope = new Float64Array(channel.length);
-	const rmsWindow = new Float64Array(RMS_WINDOW_SIZE);
-	let rmsPosition = 0;
-	let rmsSum = 0;
-	let noiseCounter = RMS_WINDOW_SIZE;
-	let lastLevel = threshold;
-	for (const sample of channel) lastLevel = Math.max(lastLevel, Math.abs(sample));
-
-	for (let index = 0; index < channel.length; index += 1) {
-		let level;
-		if (settings.usePeak) level = Math.abs(channel[index]);
-		else {
-			rmsSum -= rmsWindow[rmsPosition];
-			rmsWindow[rmsPosition] = channel[index] * channel[index];
-			rmsSum += rmsWindow[rmsPosition];
-			rmsPosition = (rmsPosition + 1) % RMS_WINDOW_SIZE;
-			level = Math.sqrt(rmsSum / RMS_WINDOW_SIZE);
-		}
-		if (level < noiseFloor) noiseCounter += 1;
-		else noiseCounter = 0;
-		if (noiseCounter < RMS_WINDOW_SIZE) {
-			lastLevel = Math.max(threshold, lastLevel * decay, level);
-		}
-		envelope[index] = lastLevel;
-	}
-
-	for (let index = envelope.length - 1; index >= 0; index -= 1) {
-		lastLevel = Math.max(threshold, lastLevel * attackInverse);
-		if (envelope[index] < lastLevel) envelope[index] = lastLevel;
-		else lastLevel = envelope[index];
-	}
-
-	const output = new Float32Array(channel.length);
-	for (let index = 0; index < channel.length; index += 1) {
-		const numerator = settings.usePeak ? 1 : threshold;
-		const sample = channel[index] * (numerator / envelope[index]) ** compression;
-		output[index] = sample;
-	}
-	return output;
-}
-
-function normalizeRms(channels, targetDb, independent) {
-	const target = dbToLinear(targetDb);
-	const rmsValues = channels.map(channelRms);
-	if (independent) {
-		return channels.map((channel, index) => rmsValues[index] === 0
-			? new Float32Array(channel)
-			: multiplyChannel(channel, target / rmsValues[index]));
-	}
-	let squareSum = 0;
-	for (const rms of rmsValues) squareSum += rms * rms;
-	const extent = Math.sqrt(squareSum / rmsValues.length);
-	return extent === 0 ? cloneChannels(channels) : multiplyChannels(channels, target / extent);
-}
-
-function integratedLoudnessPower(channels, sampleRate) {
-	if (channels[0].length === 0) return 0;
-	const blockSize = Math.ceil(0.4 * sampleRate);
-	const blockOverlap = Math.ceil(0.1 * sampleRate);
-	const ring = new Float64Array(blockSize);
-	const histogram = new Uint32Array(EBU_HISTOGRAM_BIN_COUNT);
-	const filters = channels.map(() => weightingFilters(sampleRate));
-	let ringPosition = 0;
-	let ringSize = 0;
-	let histogramCount = 0;
-
-	for (let index = 0; index < channels[0].length; index += 1) {
-		let power = 0;
-		for (let channelIndex = 0; channelIndex < channels.length; channelIndex += 1) {
-			const [shelf, highPass] = filters[channelIndex];
-			const weighted = processBiquad(
-				processBiquad(channels[channelIndex][index], shelf),
-				highPass,
-			);
-			power += weighted * weighted;
-		}
-		ring[ringPosition] = power;
-		ringPosition += 1;
-		ringSize += 1;
-		if (ringPosition % blockOverlap === 0 && ringSize >= blockSize) {
-			histogramCount += addLoudnessBlock(histogram, ring, blockSize);
-			ringSize = blockSize;
-		}
-		if (ringPosition === blockSize) ringPosition = 0;
-	}
-
-	if (histogramCount === 0) {
-		histogramCount += addLoudnessBlock(histogram, ring, Math.min(ringSize, blockSize));
-	}
-	if (histogramCount === 0) return 0;
-	const absolute = histogramSums(histogram, 0);
-	if (absolute.count === 0 || absolute.power === 0) return 0;
-	const relativeGate = Math.log10(absolute.power / absolute.count) - 1;
-	const relativeIndex = Math.round(
-		(relativeGate - EBU_ABSOLUTE_GATE) * EBU_HISTOGRAM_BIN_COUNT
-		/ -EBU_ABSOLUTE_GATE - 1,
-	);
-	const gated = histogramSums(histogram, Math.max(0, relativeIndex + 1));
-	return gated.count === 0 ? 0 : EBU_POWER_SCALE * gated.power / gated.count;
-}
-
-function weightingFilters(sampleRate) {
-	const shelfFrequency = 1681.974450955533;
-	const shelfQ = 0.7071752369554196;
-	const shelfDb = 3.999843853973347;
-	let k = Math.tan(Math.PI * shelfFrequency / sampleRate);
-	const high = 10 ** (shelfDb / 20);
-	const band = high ** 0.4996667741545416;
-	let a0 = 1 + k / shelfQ + k * k;
-	const shelf = createBiquad(
-		(high + band * k / shelfQ + k * k) / a0,
-		2 * (k * k - high) / a0,
-		(high - band * k / shelfQ + k * k) / a0,
-		2 * (k * k - 1) / a0,
-		(1 - k / shelfQ + k * k) / a0,
-	);
-
-	const highPassFrequency = 38.13547087602444;
-	const highPassQ = 0.5003270373238773;
-	k = Math.tan(Math.PI * highPassFrequency / sampleRate);
-	a0 = 1 + k / highPassQ + k * k;
-	const highPass = createBiquad(
-		1,
-		-2,
-		1,
-		2 * (k * k - 1) / a0,
-		(1 - k / highPassQ + k * k) / a0,
-	);
-	return [shelf, highPass];
-}
-
-function createBiquad(b0, b1, b2, a1, a2) {
-	return { b0, b1, b2, a1, a2, x1: 0, x2: 0, y1: 0, y2: 0 };
-}
-
-function processBiquad(input, filter) {
-	const output = input * filter.b0 + filter.x1 * filter.b1 + filter.x2 * filter.b2
-		- filter.y1 * filter.a1 - filter.y2 * filter.a2;
-	filter.x2 = filter.x1;
-	filter.x1 = input;
-	filter.y2 = filter.y1;
-	filter.y1 = output;
-	return Math.fround(output);
-}
-
-function addLoudnessBlock(histogram, ring, validLength) {
-	if (validLength <= 0) return 0;
-	let blockPower = 0;
-	for (let index = 0; index < validLength; index += 1) blockPower += ring[index];
-	if (!(blockPower > 0)) return 0;
-	const logPower = Math.log10(blockPower / validLength);
-	const histogramIndex = Math.round(
-		(logPower - EBU_ABSOLUTE_GATE) * EBU_HISTOGRAM_BIN_COUNT
-		/ -EBU_ABSOLUTE_GATE - 1,
-	);
-	if (histogramIndex < 0 || histogramIndex >= EBU_HISTOGRAM_BIN_COUNT) return 0;
-	histogram[histogramIndex] += 1;
-	return 1;
-}
-
-function histogramSums(histogram, startIndex) {
-	let power = 0;
-	let count = 0;
-	for (let index = startIndex; index < EBU_HISTOGRAM_BIN_COUNT; index += 1) {
-		if (histogram[index] === 0) continue;
-		const value = -EBU_ABSOLUTE_GATE / EBU_HISTOGRAM_BIN_COUNT * (index + 1)
-			+ EBU_ABSOLUTE_GATE;
-		power += 10 ** value * histogram[index];
-		count += histogram[index];
-	}
-	return { power, count };
-}
 
 function findLinkedSilentRegions(channels, threshold, minimumFrames) {
 	const regions = [];
@@ -646,9 +418,6 @@ function removeRangeWithCrossfade(channel, cutStart, cutEnd, blendFrames) {
 	return output;
 }
 
-function sampleOrZero(channel, index) {
-	return index >= 0 && index < channel.length ? channel[index] : 0;
-}
 
 function validateAudio(channels, sampleRate) {
 	if (!Array.isArray(channels) || channels.length === 0) {
@@ -682,37 +451,3 @@ function effectParams(type, params) {
 	return normalizeAudacityEffectParams(type, params);
 }
 
-function cloneChannels(channels) {
-	return channels.map((channel) => new Float32Array(channel));
-}
-
-function multiplyChannels(channels, gain) {
-	return channels.map((channel) => multiplyChannel(channel, gain));
-}
-
-function multiplyChannel(channel, gain) {
-	return Float32Array.from(channel, (sample) => sample * gain);
-}
-
-function channelPeak(channels) {
-	let peak = 0;
-	for (const channel of channels) {
-		for (const sample of channel) peak = Math.max(peak, Math.abs(sample));
-	}
-	return peak;
-}
-
-function channelRms(channel) {
-	if (channel.length === 0) return 0;
-	let sum = 0;
-	for (const sample of channel) sum += sample * sample;
-	return Math.sqrt(sum / channel.length);
-}
-
-function dbToLinear(db) {
-	return 10 ** (db / 20);
-}
-
-function timeToFrames(seconds, sampleRate) {
-	return Math.round(seconds * sampleRate);
-}
