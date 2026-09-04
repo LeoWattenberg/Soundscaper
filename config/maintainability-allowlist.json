@@ -4,10 +4,6 @@
 	"browserSpecMaxLines": 800,
 	"warnLines": 550,
 	"allow": {
-		"scripts/audit-aup4-interop.mjs": {
-			"maxLines": 863,
-			"reason": "Pinned interoperability audit and fixture evidence pipeline."
-		},
 		"src/common/editor/app.js": {
 			"maxLines": 2899,
 			"reason": "Legacy JavaScript composition root retained while its typed services and ports complete staged migration."
