@@ -312,6 +312,55 @@ test('stem exports archive each output, report progress, and abort failed archiv
 	assert.match((failed.errors[0] as Error).message, /archive add failed/u);
 });
 
+test('chapter exports render the whole mix once per label span into one archive', async () => {
+	const fixture = createFixture();
+	const renderRanges: Array<Record<string, unknown>> = [];
+	const renderSnapshot = fixture.renderOptions.renderSnapshot!;
+	fixture.renderOptions.renderSnapshot = async (...args: unknown[]) => {
+		renderRanges.push(args[1] as Record<string, unknown>);
+		return renderSnapshot(...args);
+	};
+	const chapters = defaultPlan();
+	chapters.mode = 'chapters';
+	chapters.tailFrames = 0;
+	chapters.outputs = [
+		{
+			fileName: '01-Intro.wav', trackId: null, kind: 'chapter',
+			includeMaster: true, respectMuteSolo: true,
+			range: { startFrame: 0, endFrame: 6, durationFrames: 6 },
+			outputFrames: 6, outputFileBytes: 128,
+		},
+		{
+			fileName: '02-Outro.wav', trackId: null, kind: 'chapter',
+			includeMaster: true, respectMuteSolo: true,
+			range: { startFrame: 6, endFrame: 12, durationFrames: 6 },
+			outputFrames: 6, outputFileBytes: 128,
+		},
+	];
+	chapters.requiredTemporaryBytes = 768;
+	chapters.archive = {
+		format: 'zip',
+		fileName: 'chapters.zip',
+		mimeType: 'application/zip',
+		expectedByteLength: null,
+		entries: chapters.outputs.map(({ fileName }) => ({ fileName, expectedByteLength: null })),
+	};
+	fixture.setPlan(chapters);
+	const result = await createEditorExportService(fixture.runtime).handleExportAction('export');
+	assert.equal(result.fileName, 'chapters.zip');
+	assert.equal(fixture.calls.includes('archive-create:zip:chapters.zip'), true);
+	assert.equal(fixture.calls.filter((entry) => entry.startsWith('archive-add')).length, 2);
+	assert.deepEqual(fixture.progress, [0.5, 1]);
+	// Each chapter is the master mix over its own span, not a track of it.
+	assert.deepEqual(renderRanges.map(({ startFrame, endFrame, trackId, includeMaster }) => ({
+		startFrame, endFrame, trackId, includeMaster,
+	})), [
+		{ startFrame: 0, endFrame: 6, trackId: null, includeMaster: true },
+		{ startFrame: 6, endFrame: 12, trackId: null, includeMaster: true },
+	]);
+	assert.deepEqual(renderRanges.map(({ includeTail }) => includeTail), [false, false]);
+});
+
 test('realtime exports stream native PCM and transcode staged compressed formats', async () => {
 	const native = createFixture();
 	const nativePlan = defaultPlan();

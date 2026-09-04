@@ -31,6 +31,10 @@ export interface TestPlan extends Record<string, unknown> {
 		kind?: string;
 		includeMaster?: boolean;
 		respectMuteSolo?: boolean;
+		/** A chapter delivers its own span, so it states one; stems do not. */
+		range?: { startFrame: number; endFrame: number; durationFrames: number };
+		outputFrames?: number;
+		outputFileBytes?: number | null;
 	}>;
 	outputBytesPerRender: number;
 	requiredTemporaryBytes: number;

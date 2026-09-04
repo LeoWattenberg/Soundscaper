@@ -24,6 +24,7 @@ import { normalizeLoudnessNormalizationTarget } from './loudness-normalization.t
 import { resolveAdmEbuChannelWeights } from './loudness-channel-layout.ts';
 import { createRiffAnnotationExport } from './timeline-annotation-riff-interchange.ts';
 import { resolveBinauralDelivery } from './binaural-delivery.ts';
+import { resolveExportChapters } from './export-chapters.ts';
 import { resolveMasteringSequenceExport } from './mastering-sequence-export.ts';
 import { planExportOfflineRenderStrategyAdmission } from './export-render-admission.ts';
 import { scaleSampleFrame } from './timeline-time.ts';
@@ -51,7 +52,7 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
 
 /**
  * @typedef {Object} AudioExportPlan
- * @property {'mix' | 'stems'} mode
+ * @property {'mix' | 'stems' | 'chapters'} mode
  * @property {import('./media-export.js').MediaExportFormatId} format
  * @property {number} sampleRate
  * @property {number} channelCount
@@ -149,9 +150,10 @@ export function sanitizeExportName(value, fallback = 'audio-project') {
 
 export function createExportFileName(project, options = {}) {
 	const extension = options.extension || exportExtension(options.format || 'wav');
-	if (options.mode === 'stem') {
+	if (options.mode === 'stem' || options.mode === 'chapter') {
 		const index = Number(options.trackIndex ?? 0) + 1;
-		return `${String(index).padStart(2, '0')}-${sanitizeExportName(options.trackName, 'track')}.${extension}`;
+		const fallback = options.mode === 'chapter' ? 'chapter' : 'track';
+		return `${String(index).padStart(2, '0')}-${sanitizeExportName(options.trackName, fallback)}.${extension}`;
 	}
 	const date = isoDate(options.date);
 	return `${sanitizeExportName(project.title)}-mix-${date}.${extension}`;
@@ -161,7 +163,9 @@ export function createExportFileName(project, options = {}) {
 export function createExportPlan(project, options = {}) {
 	const runtimeProject = projectForRuntimeConsumers(project);
 	const mode = options.mode || 'mix';
-	if (mode !== 'mix' && mode !== 'stems') throw new RangeError('Export mode must be mix or stems.');
+	if (mode !== 'mix' && mode !== 'stems' && mode !== 'chapters') {
+		throw new RangeError('Export mode must be mix, stems, or chapters.');
+	}
 	const format = canonicalMediaExportFormat(options.format || 'wav');
 	if (format === 'bw64' && mode !== 'mix') throw new RangeError('BW64 / ADM export is mix-only.');
 	assertSoundscaperEffectChannelSafety(runtimeProject, mode);
@@ -187,7 +191,14 @@ export function createExportPlan(project, options = {}) {
 		throw new Error('ADM passthrough with preserved RIFF INFO cannot add replacement INFO metadata.');
 	}
 	const sampleRate = encoding.sampleRate;
-	const range = resolveExportRange(runtimeProject, options.range || 'project');
+	const requestedRange = resolveExportRange(runtimeProject, options.range || 'project');
+	// A chapter delivery reads the labels inside the requested range and writes
+	// one file per chapter; the range the rest of the plan describes is then the
+	// span those chapters actually cover, not the range they were selected from.
+	const chapters = mode === 'chapters' ? resolveExportChapters(runtimeProject, requestedRange) : null;
+	const range = chapters
+		? normalizeFrameRange(chapters[0].startFrame, chapters[chapters.length - 1].endFrame, 'export chapters')
+		: requestedRange;
 	const masteringSequence = resolveMasteringSequenceExport(runtimeProject, {
 		masteringSequenceId: options.masteringSequenceId ?? null,
 		mode,
@@ -197,7 +208,11 @@ export function createExportPlan(project, options = {}) {
 	const markerExport = createRiffAnnotationExport(runtimeProject, {
 		range,
 		outputSampleRate: sampleRate,
-		...(options.markerSource == null ? {} : { markerSource: options.markerSource }),
+		// The labels are the split, so writing them into every chapter as cues
+		// would describe boundaries the file no longer crosses.
+		...(chapters
+			? { markerSource: 'none' }
+			: options.markerSource == null ? {} : { markerSource: options.markerSource }),
 		...(options.markerTrackId == null ? {} : { markerTrackId: options.markerTrackId }),
 		preservedRiffMarkers: preservedRiffChunks?.markers === true,
 		masteringSequenceCues: masteringSequence !== null,
@@ -232,27 +247,39 @@ export function createExportPlan(project, options = {}) {
 	if (bext) encoding = Object.freeze({ ...encoding, bext });
 	// A sequence delivers exactly the regions it names: audio past the last one is
 	// audio the sequence did not ask for, so there is no tail to add.
-	const tailFrames = masteringSequence
+	// A chapter delivers exactly the span its label names, the way a sequence
+	// delivers exactly the regions it names: a tail would spill the end of one
+	// chapter into the audio the next chapter already starts with.
+	const tailFrames = masteringSequence || chapters
 		? 0
 		: determineTailFrames(runtimeProject, mode, options.includeTail !== false);
-	const rangeOutputFrames = scaleSampleFrame(
-		range.durationFrames, runtimeProject.sampleRate, sampleRate, 'enclosingEnd',
+	const outputFrameCount = (durationFrames) => scaleSampleFrame(
+		durationFrames, runtimeProject.sampleRate, sampleRate, 'enclosingEnd',
 	);
-	const tailOutputFrames = scaleSampleFrame(
-		tailFrames, runtimeProject.sampleRate, sampleRate, 'enclosingEnd',
-	);
+	const rangeOutputFrames = outputFrameCount(range.durationFrames);
+	const tailOutputFrames = outputFrameCount(tailFrames);
+	const chapterOutputFrames = chapters
+		? chapters.map((chapter) => outputFrameCount(chapter.durationFrames))
+		: null;
+	// The plan states one render's size, and chapters render one at a time, so
+	// the longest chapter is what the memory estimates and the render strategy
+	// have to hold — not the whole span the chapters were cut from.
 	const outputFrames = masteringSequence
 		? masteringSequence.outputFrames
-		: rangeOutputFrames + tailOutputFrames;
+		: chapterOutputFrames
+			? Math.max(...chapterOutputFrames)
+			: rangeOutputFrames + tailOutputFrames;
 	const adm = bw64Adm ? createBw64AdmExport(runtimeProject, bw64Adm, {
 		range,
 		outputFrames,
 		encoding,
 	}) : null;
 	const outputBytes = estimatePcmBytes(outputFrames, encoding.channelCount);
-	const outputLayout = format === 'aiff'
+	// Each delivered file's container layout, which chapters need per file: they
+	// share every encoding decision and differ only in how many frames they hold.
+	const layoutForFrames = (totalFrames) => (format === 'aiff'
 		? inspectAiffLayout({
-			sampleRate, channelCount: encoding.channelCount, totalFrames: outputFrames,
+			sampleRate, channelCount: encoding.channelCount, totalFrames,
 			sampleFormat: encoding.sampleFormat, metadata: encoding.metadata, markers,
 		})
 		: format === 'wav' || format === 'bwf' || format === 'bw64'
@@ -260,7 +287,7 @@ export function createExportPlan(project, options = {}) {
 				container: adm ? 'bw64' : 'auto',
 				sampleRate,
 				channelCount: encoding.channelCount,
-				totalFrames: outputFrames,
+				totalFrames,
 				bitDepth: encoding.bitDepth,
 				float: encoding.floatingPoint,
 				metadata: encoding.metadata,
@@ -271,22 +298,43 @@ export function createExportPlan(project, options = {}) {
 				preDataChunks: adm?.preDataChunks,
 				trailingChunks: adm?.trailingChunks,
 			})
-			: null;
-	const outputs = mode === 'mix'
-		? [{
-			kind: 'mix',
-			fileName: createExportFileName(runtimeProject, { format, extension: encoding.extension, date: options.date }),
+			: null);
+	const outputLayout = layoutForFrames(outputFrames);
+	const outputs = chapters
+		? chapters.map((chapter, chapterIndex) => ({
+			kind: 'chapter',
+			fileName: createExportFileName(runtimeProject, {
+				format, extension: encoding.extension, mode: 'chapter',
+				trackIndex: chapterIndex, trackName: chapter.name,
+			}),
 			trackId: null,
 			includeMaster: true,
 			respectMuteSolo: true,
-		}]
-		: runtimeProject.tracks.filter((track) => track.type !== 'label' && track.type !== 'video').map((track, trackIndex) => ({
-			kind: 'stem',
-			fileName: createExportFileName(runtimeProject, { format, extension: encoding.extension, mode: 'stem', trackIndex, trackName: track.name }),
-			trackId: track.id,
-			includeMaster: false,
-			respectMuteSolo: false,
-		}));
+			// The span this file holds, so the render reads the chapter rather
+			// than the whole delivery the plan's own range describes.
+			range: Object.freeze({
+				startFrame: chapter.startFrame,
+				endFrame: chapter.endFrame,
+				durationFrames: chapter.durationFrames,
+			}),
+			outputFrames: chapterOutputFrames[chapterIndex],
+			outputFileBytes: layoutForFrames(chapterOutputFrames[chapterIndex])?.byteLength ?? null,
+		}))
+		: mode === 'mix'
+			? [{
+				kind: 'mix',
+				fileName: createExportFileName(runtimeProject, { format, extension: encoding.extension, date: options.date }),
+				trackId: null,
+				includeMaster: true,
+				respectMuteSolo: true,
+			}]
+			: runtimeProject.tracks.filter((track) => track.type !== 'label' && track.type !== 'video').map((track, trackIndex) => ({
+				kind: 'stem',
+				fileName: createExportFileName(runtimeProject, { format, extension: encoding.extension, mode: 'stem', trackIndex, trackName: track.name }),
+				trackId: track.id,
+				includeMaster: false,
+				respectMuteSolo: false,
+			}));
 	const renderStrategyOptions = {
 		mobile: Boolean(options.mobile),
 		outputBytes,
@@ -302,7 +350,9 @@ export function createExportPlan(project, options = {}) {
 				outputs,
 				range: masteringSequence
 					? { startFrame: masteringSequence.sourceRange.startFrame, durationFrames: masteringSequence.longestRenderFrames }
-					: range,
+					: chapters
+						? longestChapterRange(chapters)
+						: range,
 				tailFrames,
 				channelCount: adm?.channelCount,
 			}),
@@ -342,13 +392,21 @@ export function createExportPlan(project, options = {}) {
 		&& encoding.channelMapping.mode === 'preserve'
 		? resolveAdmEbuChannelWeights(runtimeProject.metadata?.adm, encoding.channelCount)
 		: null;
-	const fallbackTemporaryBytes = multiplySafeIntegers(outputBytes, outputs.length, 'Temporary export size');
-	const archive = mode === 'stems'
+	const fallbackTemporaryBytes = chapters
+		? chapters.reduce(
+			(bytes, chapter, chapterIndex) => bytes
+				+ estimatePcmBytes(chapterOutputFrames[chapterIndex], encoding.channelCount),
+			0,
+		)
+		: multiplySafeIntegers(outputBytes, outputs.length, 'Temporary export size');
+	const archive = mode === 'stems' || mode === 'chapters'
 		? createStemArchivePlan(
-			`${sanitizeExportName(runtimeProject.title)}-stems-${isoDate(options.date)}`,
+			`${sanitizeExportName(runtimeProject.title)}-${mode}-${isoDate(options.date)}`,
 			outputs.map((output) => ({
 				fileName: output.fileName,
-				expectedByteLength: outputLayout?.byteLength ?? null,
+				expectedByteLength: chapters
+					? output.outputFileBytes
+					: outputLayout?.byteLength ?? null,
 			})),
 			fallbackTemporaryBytes,
 		)
@@ -388,7 +446,9 @@ export function createExportPlan(project, options = {}) {
 		tailFrames,
 		outputFrames,
 		outputBytesPerRender: outputBytes,
-		outputFileBytesPerRender: outputLayout?.byteLength ?? null,
+		// Chapters differ in length, so there is no one delivered file size; each
+		// output states its own, and the archive plan carries them as entries.
+		outputFileBytesPerRender: chapters ? null : outputLayout?.byteLength ?? null,
 		requiredTemporaryBytes,
 		render,
 		outputs,
@@ -397,10 +457,15 @@ export function createExportPlan(project, options = {}) {
 	};
 }
 
+/** Every mode but stems delivers the master mix, whole or in named spans. */
+function deliversMasterMix(mode) {
+	return mode !== 'stems';
+}
+
 function assertSoundscaperEffectChannelSafety(project, mode) {
 	if (!isSoundscaperProductionProject(project)) return;
 	const issues = findStereoLimitedMultichannelRenderEffects(project, Number(project.masterChannels), {
-		includeMaster: mode === 'mix',
+		includeMaster: deliversMasterMix(mode),
 	});
 	if (!issues.length) return;
 	throw new Error(`Multichannel audio export cannot use effects that change terminal channel width: ${issues
@@ -427,8 +492,12 @@ function resolveExportLoudnessNormalization(options, { mode, admMetadata, render
 		// Normalizing stems independently moves them relative to each other, so
 		// their sum stops being the normalized mix. Applying the mix's gain to
 		// every stem instead needs the mix rendered as well, which is the render
-		// topology change this slice stops at.
-		throw new Error('Loudness normalization is mix-only; normalized stems would no longer sum to the normalized mix.');
+		// topology change this slice stops at. Chapters are refused for the same
+		// reason read along the timeline: each one would be gained from its own
+		// measurement, so the split would change the programme's own dynamics.
+		throw new Error(mode === 'chapters'
+			? 'Loudness normalization is mix-only; chapters normalized one by one would no longer share the delivery\'s level.'
+			: 'Loudness normalization is mix-only; normalized stems would no longer sum to the normalized mix.');
 	}
 	if (admMetadata?.mode === 'passthrough') {
 		throw new Error('ADM passthrough preserves the source bytes and cannot be loudness-normalized.');
@@ -450,7 +519,7 @@ function selectExportOfflineRenderAdmission({
 		requestedRenderFrames: Math.max(1, range.durationFrames + tailFrames),
 		...(channelCount == null ? {} : { channelCount }),
 	};
-	const targets = mode === 'mix'
+	const targets = deliversMasterMix(mode)
 		? [{ trackId: null, includeMaster: true }]
 		: outputs.map(({ trackId }) => ({ trackId, includeMaster: false }));
 	return targets.reduce((selected, target) => {
@@ -459,6 +528,14 @@ function selectExportOfflineRenderAdmission({
 			? candidate
 			: selected;
 	}, null);
+}
+
+/** The chapter whose own render is the largest one this delivery performs. */
+function longestChapterRange(chapters) {
+	return chapters.reduce(
+		(longest, chapter) => (chapter.durationFrames > longest.durationFrames ? chapter : longest),
+		chapters[0],
+	);
 }
 
 function multiplySafeIntegers(left, right, name) {
@@ -487,7 +564,7 @@ function resolveExportRange(project, requestedRange) {
 function determineTailFrames(project, mode, includeTail) {
 	if (!includeTail) return 0;
 	return projectEffectTailFrames(project, {
-		includeMaster: mode === 'mix',
+		includeMaster: deliversMasterMix(mode),
 		maximumSeconds: 10,
 	});
 }

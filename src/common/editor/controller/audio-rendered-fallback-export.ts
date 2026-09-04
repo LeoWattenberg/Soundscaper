@@ -84,7 +84,7 @@ export function assertAudioRenderedFallbackExportSettings(
 	const mode = ownData(record, 'mode', 'Normalized audio export settings');
 	const format = ownData(record, 'format', 'Normalized audio export settings');
 	if (mode !== 'mix') {
-		throw new RangeError('Audio rendered-fallback export supports only normalized mix mode, not stems.');
+		throw new RangeError(`Audio rendered-fallback export supports only normalized mix mode, not ${String(mode)}.`);
 	}
 	if (typeof format !== 'string' || !(EDITOR_EXPORT_FORMATS as readonly string[]).includes(format)) {
 		throw new TypeError('Audio rendered-fallback export requires normalized export settings.');

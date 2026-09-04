@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { admitBrowserExportBlob, prepareBrowserExportBlob } from '../browser-export-output.ts';
+import { createExportChapterPlan } from '../export-chapters.ts';
 import { isVideoExportRequestFormat } from '../video-export-request-format.ts';
 import {
 	inheritTrackFolderMediaStateProjectionV12,
@@ -363,11 +364,16 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				const archive = await createStreamingStemArchive(plan.archive, copy);
 				try {
 					const findings: DeliveryConformanceFinding[] = [];
+					const chapters = plan.mode === 'chapters';
 					for (let index = 0; index < plan.outputs.length; index += 1) {
 						throwIfAborted(abort.signal);
 						const output = plan.outputs[index];
-						const snapshot = stemProject(exportProject, output.trackId);
-						const encoded = await renderAndEncode(snapshot, plan, settings, abort.signal, exportRenderSources, output, {
+						// A chapter is the whole mix over its own span, so it renders the
+						// export project under a plan that names that span; a stem is one
+						// track of the project over the delivery's single range.
+						const snapshot = chapters ? exportProject : stemProject(exportProject, output.trackId);
+						const outputPlan = chapters ? createExportChapterPlan(plan, output) : plan;
+						const encoded = await renderAndEncode(snapshot, outputPlan, settings, abort.signal, exportRenderSources, output, {
 							start: index / plan.outputs.length,
 							end: (index + 1) / plan.outputs.length,
 						});
@@ -375,7 +381,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 							// Every stem is a file the reader can reopen, so each one is
 							// conformed from its own bytes before it joins the archive.
 							findings.push(...await conformPersistentExport(
-								plan, encoded, index / plan.outputs.length, (index + 1) / plan.outputs.length,
+								outputPlan, encoded, index / plan.outputs.length, (index + 1) / plan.outputs.length,
 							));
 							await archive.add(output.fileName, encoded.blob || encoded.bytes, abort.signal);
 						} finally {

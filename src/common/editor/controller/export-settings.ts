@@ -30,7 +30,7 @@ export interface EditorExportFrameRange {
 }
 
 export interface EditorExportSettings {
-	readonly mode: 'mix' | 'stems';
+	readonly mode: 'mix' | 'stems' | 'chapters';
 	readonly range: 'project' | 'selection' | 'loop' | EditorExportFrameRange;
 	readonly format: EditorExportFormat;
 	readonly bitDepth: 16 | 20 | 24 | 32;
@@ -74,7 +74,9 @@ export function normalizeEditorExportSettings(
 	const quality = numberOrDefault(value.quality, 5);
 	const compressionLevel = numberOrDefault(value.compressionLevel, format === 'flac' ? 5 : 2);
 	return Object.freeze({
-		mode: format === 'bw64' ? 'mix' : value.mode === 'stems' ? 'stems' : 'mix',
+		mode: format === 'bw64' || (value.mode !== 'stems' && value.mode !== 'chapters')
+			? 'mix'
+			: value.mode,
 		range: normalizeExportRange(value.range),
 		format,
 		bitDepth,
