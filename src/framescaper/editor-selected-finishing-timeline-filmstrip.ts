@@ -164,19 +164,40 @@ function mediaLayer(
 	});
 }
 
+/**
+ * Load a thumbnail through an image element rather than a fetch.
+ *
+ * A frame's source is an object URL, and the shipped policy admits `blob:` as
+ * an image but not as a connection, so fetching one is refused outright. An
+ * image element is the load the policy is written for.
+ */
+async function loadFilmstripImage(url: string, signal: AbortSignal): Promise<HTMLImageElement> {
+	throwIfAborted(signal);
+	const image = globalThis.document.createElement('img');
+	image.decoding = 'async';
+	image.src = url;
+	const decoded = image.decode();
+	const aborted = new Promise<never>((_resolve, reject) => {
+		signal.addEventListener('abort', () => {
+			image.src = '';
+			reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+		}, { once: true });
+	});
+	await Promise.race([decoded, aborted]);
+	throwIfAborted(signal);
+	return image;
+}
+
 async function decodeFilmstripSource(
 	url: string,
 	maximumWidth: number,
 	maximumHeight: number,
 	signal: AbortSignal,
 ): Promise<DecodedFilmstripSourceFinishing> {
-	if (typeof globalThis.fetch !== 'function' || typeof globalThis.createImageBitmap !== 'function'
-		|| !globalThis.document?.createElement) {
+	if (typeof globalThis.createImageBitmap !== 'function' || !globalThis.document?.createElement) {
 		throw new Error('Selected finishing timeline thumbnail decode requires a browser image runtime.');
 	}
-	const response = await globalThis.fetch(url, { signal });
-	if (!response.ok) throw new Error(`Timeline thumbnail decode failed with HTTP ${String(response.status)}.`);
-	const bitmap = await globalThis.createImageBitmap(await response.blob());
+	const bitmap = await globalThis.createImageBitmap(await loadFilmstripImage(url, signal));
 	try {
 		throwIfAborted(signal);
 		const scale = Math.min(1, maximumWidth / bitmap.width, maximumHeight / bitmap.height);
