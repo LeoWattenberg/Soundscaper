@@ -203,7 +203,8 @@ test('all OS-capable package paths build the codec host while Linux receives no 
 test('pull-request quality compiles every supported Windows and macOS native target', async () => {
 	const workflow = await readFile(join(ROOT, '.github/workflows/quality.yml'), 'utf8');
 	const compileJob = jobSource(workflow, 'native-platform-compile', 'tests');
-	assert.match(compileJob, /needs: quality/u);
+	assert.match(compileJob, /needs: \[build, lint, typecheck, audits\]/u,
+		'the native compiles wait on the whole sharded static gate');
 	assert.match(compileJob,
 		/- runner: windows-2025\n\s+platform: win\n\s+arch: x64\n\s+node_arch: x64\n\s+cmake_arch: x64\n\s+native_target: win-x64/u);
 	assert.match(compileJob,

@@ -17,15 +17,23 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  quality:
+  # `npm run check:static` ran as one 6½-minute step, and every other job in the
+  # workflow waited behind all of it. It is six independent checks in a trench
+  # coat, so it is six jobs here, and the gate now clears in about the time its
+  # slowest single piece takes: lint was 4m17s of the 6m30s and shards eight ways
+  # along the split `scripts/lib/lint-shards.mjs` already defines, typecheck was
+  # 1m30s and splits along its tsconfig projects, and the remainder — the
+  # architecture rules, the package audits, the handbook, and the build the
+  # browser jobs consume — are short enough to sit where they land.
+  build:
+    name: Build
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - name: Check out source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
@@ -39,14 +47,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run the canonical quality checks that are not the Node test suite
-        # The Node suite runs in the per-product `tests` shards below, and the
-        # thresholds it feeds are enforced once over their union in `coverage`.
-        run: npm run check:static
+      - name: Build the site
+        run: npm run build
         env:
-          # Type-aware linting of the whole tree exhausts the default old-space
-          # limit and dies with "Ineffective mark-compacts near heap limit"
-          # before it reports a single rule. The ubuntu-24.04 runner has 16 GiB.
           NODE_OPTIONS: --max-old-space-size=8192
 
       - name: Measure the built transfer documents against the build just made
@@ -83,9 +86,126 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  lint:
+    name: Lint / ${{ matrix.shard }}
+    strategy:
+      fail-fast: false
+      # One job per shard in `scripts/lib/lint-shards.mjs`, which `npm run lint`
+      # otherwise walks in sequence. The shards are balanced by file count rather
+      # than by cost, so they are not equal - 17 seconds for source-products
+      # against 40 for tests-2 - but no grouping of them beats the longest one,
+      # and a runner spends longer starting up than it would linting a second
+      # shard.
+      matrix:
+        shard:
+          - source-common-1
+          - source-common-2
+          - source-products
+          - tests-1
+          - tests-2
+          - tests-3
+          - desktop
+          - tooling
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint the ${{ matrix.shard }} shard
+        run: npm run lint -- --shard=${{ matrix.shard }}
+        env:
+          # Type-aware linting exhausts the default old-space limit and dies with
+          # "Ineffective mark-compacts near heap limit" before it reports a single
+          # rule. The ubuntu-24.04 runner has 16 GiB.
+          NODE_OPTIONS: --max-old-space-size=8192
+
+  typecheck:
+    name: Typecheck / ${{ matrix.project }}
+    strategy:
+      fail-fast: false
+      # `npm run typecheck` is five `tsc` invocations in a row and the two halves
+      # here are the balanced cut of them: tsconfig.tests.json alone is more than
+      # half the work, and everything that types the shipped runtimes is the
+      # other half.
+      matrix:
+        project: [sources, tests]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check the ${{ matrix.project }} projects
+        run: npm run typecheck:${{ matrix.project }}
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+
+  audits:
+    name: Architecture, audits and handbook
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          # `npm run audit:ci` reads revision-bound Git inputs, so this one cannot
+          # run against a depth-1 clone.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check the architecture rules
+        run: npm run check:architecture
+
+      - name: Audit the pinned third-party payloads
+        run: npm run audit:ci
+
+      - name: Check and build the handbook
+        run: npm run docs:check
+
   native-platform-compile:
     name: Native compile / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
-    needs: quality
+    needs: [build, lint, typecheck, audits]
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -161,7 +281,7 @@ jobs:
 
   tests:
     name: Tests / ${{ matrix.shard }}
-    needs: quality
+    needs: [build, lint, typecheck, audits]
     strategy:
       fail-fast: false
       # Soundscaper and Framescaper own their own source trees and everything they
@@ -172,9 +292,11 @@ jobs:
       # their count) and Soundscaper 6%, so the longest job is roughly half the
       # half-hour the one job took.
       #
-      # These wait on `quality` on purpose. The browser jobs are the pipeline's
-      # long pole either way, so the shards lose nothing by starting after lint
-      # and typecheck, and a red lint no longer burns three runners.
+      # These wait on the whole gate on purpose. The browser jobs are the
+      # pipeline's long pole either way, so the shards lose nothing by starting
+      # after lint and typecheck, and a red lint no longer burns three runners.
+      # Waiting costs about ninety seconds now that the gate is sharded, where it
+      # used to cost seven and a half minutes.
       matrix:
         shard: [common, framescaper, soundscaper]
     runs-on: ubuntu-24.04
@@ -282,7 +404,7 @@ jobs:
 
   browser:
     name: Browser / ${{ matrix.project }} ${{ matrix.shard }}/3
-    needs: quality
+    needs: [build, lint, typecheck, audits]
     strategy:
       fail-fast: false
       # Playwright ran one runner per engine with two workers on four cores, and
@@ -357,7 +479,7 @@ jobs:
 
   firefox:
     name: Browser / firefox ${{ matrix.shard }}/3
-    needs: quality
+    needs: [build, lint, typecheck, audits]
     strategy:
       fail-fast: false
       # Sharded the same three ways as the containerized engines above; see the

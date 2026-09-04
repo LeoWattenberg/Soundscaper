@@ -6,6 +6,20 @@ import test from 'node:test';
 
 import { extractJob } from './helpers/workflow-jobs.js';
 
+// Both workflows build the site once and verify it with the same browser jobs,
+// but quality.yml shards its static checks so those jobs start about ninety
+// seconds in rather than seven and a half minutes in. That moves the build into
+// its own job and turns the gate the browser jobs wait on into a list, so each
+// workflow says which job publishes the build and what its gate edge reads.
+const SITE_WORKFLOWS = new Map([
+	['quality.yml', {
+		staticJobs: ['build', 'lint', 'typecheck', 'audits'],
+		buildJob: 'build',
+		gate: 'needs: [build, lint, typecheck, audits]',
+	}],
+	['desktop-preview.yml', { staticJobs: ['quality'], buildJob: 'quality', gate: 'needs: quality' }],
+]);
+
 test('Playwright allows CI to pass when a retry succeeds', async () => {
 	process.env.CI = 'true';
 	const { default: config } = await import('../playwright.config.mjs?ci-flaky-policy');
@@ -147,17 +161,17 @@ test('each site-verifying workflow runs the dual-origin proof exactly once', asy
 });
 
 test('each site-verifying workflow publishes and consumes a verified Framescaper browser build', async () => {
-	for (const workflowName of ['quality.yml', 'desktop-preview.yml']) {
+	for (const [workflowName, { buildJob }] of SITE_WORKFLOWS) {
 		const workflow = await readFile(new URL(`../.github/workflows/${workflowName}`, import.meta.url), 'utf8');
-		const qualityJob = extractJob(workflow, 'quality');
+		const publisher = extractJob(workflow, buildJob);
 		const browserJob = extractJob(workflow, 'browser');
 		const firefoxJob = extractJob(workflow, 'firefox');
-		const buildIndex = qualityJob.indexOf('run: npm run build:browser:framescaper');
-		const uploadIndex = qualityJob.indexOf('name: verified-framescaper-site-build');
-		assert.ok(buildIndex >= 0, `${workflowName} must build the Framescaper site once in quality`);
+		const buildIndex = publisher.indexOf('run: npm run build:browser:framescaper');
+		const uploadIndex = publisher.indexOf('name: verified-framescaper-site-build');
+		assert.ok(buildIndex >= 0, `${workflowName} must build the Framescaper site once in ${buildJob}`);
 		assert.ok(uploadIndex > buildIndex,
 			`${workflowName} must upload Framescaper only after its build verifies successfully`);
-		assert.match(qualityJob,
+		assert.match(publisher,
 			/name: verified-framescaper-site-build\n\s+path: \.wrangler\/browser-products\/framescaper\/\n\s+include-hidden-files: true/u);
 		for (const [job, label] of [[browserJob, 'browser'], [firefoxJob, 'firefox']]) {
 			assert.match(job,
@@ -169,7 +183,7 @@ test('each site-verifying workflow publishes and consumes a verified Framescaper
 
 test('desktop verification isolates browser engines and tests packages with every engine', async () => {
 	const workflow = await readFile(new URL('../.github/workflows/desktop-preview.yml', import.meta.url), 'utf8');
-	assertBrowserCoverage(workflow, 'desktop');
+	assertBrowserCoverage(workflow, 'desktop', SITE_WORKFLOWS.get('desktop-preview.yml'));
 	for (const jobName of ['package', 'package-with-tests', 'soundscaper-project-library-lease-matrix']) {
 		// Packaging waits on the sharded Node suite and the merged coverage gate too:
 		// a package built off unverified source is worse than no package.
@@ -180,7 +194,7 @@ test('desktop verification isolates browser engines and tests packages with ever
 
 test('quality verification keeps Chromium and WebKit in the pinned container and gives Firefox real audio', async () => {
 	const workflow = await readFile(new URL('../.github/workflows/quality.yml', import.meta.url), 'utf8');
-	assertBrowserCoverage(workflow, 'quality');
+	assertBrowserCoverage(workflow, 'quality', SITE_WORKFLOWS.get('quality.yml'));
 });
 
 test('Firefox CI audio helpers configure a null sink/source and reject a stalled clock', async () => {
@@ -200,14 +214,16 @@ test('Firefox CI audio helpers configure a null sink/source and reject a stalled
 	assert.match(clockProbe, /did not advance/u);
 });
 
-function assertBrowserCoverage(workflow, label) {
-	const qualityJob = extractJob(workflow, 'quality');
+function assertBrowserCoverage(workflow, label, { staticJobs, gate }) {
 	const browserJob = extractJob(workflow, 'browser');
 	const firefoxJob = extractJob(workflow, 'firefox');
 
-	assert.doesNotMatch(qualityJob, /test:browser|playwright install/u, `${label} quality must not share a browser budget`);
+	for (const jobName of staticJobs) {
+		assert.doesNotMatch(extractJob(workflow, jobName), /test:browser|playwright install/u,
+			`${label} ${jobName} must not share a browser budget`);
+	}
 	assert.ok(browserJob.includes('name: Browser / ${{ matrix.project }}'));
-	assert.match(browserJob, /needs: quality/u);
+	assert.ok(browserJob.includes(gate), `${label} browser must wait on the whole gate`);
 	assert.match(browserJob, /matrix:\n\s+project: \[chromium, webkit\]/u);
 	assert.match(browserJob, /container:\n\s+image: mcr\.microsoft\.com\/playwright:v1\.62\.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e\n\s+options: --user 1001/u);
 	assert.match(browserJob, /npm install --global --prefix "\$HOME\/\.local" npm@12\.0\.1/u);
@@ -224,7 +240,7 @@ function assertBrowserCoverage(workflow, label) {
 	assert.match(handbookLegs[0].groups.condition, /matrix\.shard == 1/u, `${label} must not run the handbook suite once per shard`);
 
 	assert.match(firefoxJob, /name: Browser \/ firefox/u);
-	assert.match(firefoxJob, /needs: quality/u);
+	assert.ok(firefoxJob.includes(gate), `${label} firefox must wait on the whole gate`);
 	assert.match(firefoxJob, /runs-on: ubuntu-24\.04/u);
 	assert.doesNotMatch(firefoxJob, /^\s+container:/mu);
 	assert.match(firefoxJob, /playwright install --with-deps firefox/u);

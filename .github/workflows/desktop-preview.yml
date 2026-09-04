@@ -102,11 +102,13 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=8192
 
       - name: Measure the built transfer documents against the build just made
-        # The same step quality.yml runs, for the same reason and in the same
-        # place. This job is a duplicate of that one - it builds the site, then
-        # publishes it as `verified-site-build` - so a build it uploads without
-        # this step is a build nothing measured, sitting under the artifact name
-        # that says otherwise. The `tests` shards below never build, and the
+        # The same step quality.yml runs in its `build` job, for the same
+        # reason. This job does what that whole gate does, in one runner rather
+        # than sharded across several - nothing waits on it in a hurry, and the
+        # release scope resolved above has to be an output of it - and it ends by
+        # publishing `verified-site-build`, so a build it uploads without this
+        # step is a build nothing measured, sitting under the artifact name that
+        # says otherwise. The `tests` shards below never build, and the
         # three assertions in this file that read `dist/` are the only ones that
         # can see the chunk-graph edge no source-level model declares: rolldown
         # injects `vite/preload-helper` into the transfer chunk for its dynamic
