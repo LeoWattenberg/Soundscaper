@@ -55,3 +55,18 @@ test('the sidebar links origins while the editable-copy menu uses the permanent 
 	assert.doesNotMatch(menu, /productHref\(|productLocalePath\(/u);
 	assert.match(menu, /\/transfer\/send\/\?\$\{serializeCrossProductHandoffLaunchIntent\(intent\)\}/u);
 });
+
+test('a link falls back to the built product and can address the embedded route', () => {
+	// No builtProductId: a plain Node import resolves BUILT_PRODUCT_ID to Soundscaper,
+	// so a Soundscaper link is same-origin and a Framescaper one crosses the origin.
+	assert.equal(productHref('soundscaper', 'en'), '/en/');
+	assert.equal(productHref('framescaper', 'en'), 'https://framescaper.org/en/');
+	assert.equal(productHref('soundscaper', 'de', { embedded: true }), '/embed/de/');
+	assert.equal(
+		productHref('framescaper', 'de', { builtProductId: 'soundscaper', embedded: true }),
+		'https://framescaper.org/embed/de/',
+	);
+	// An absent locale is the default rather than an empty segment.
+	assert.equal(productHref('soundscaper', '', { builtProductId: 'soundscaper' }), '/en/');
+});
+

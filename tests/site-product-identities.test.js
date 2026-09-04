@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import {
 	PRODUCT_IDENTITIES,
+	normalizeProductId,
 	otherProductId,
 	productIdentity,
 	productLocalePath,
@@ -32,3 +33,13 @@ test('site product identities preserve full-profile navigation values without im
 	assert.match(sidebar, /from ['"]\.\.\/product-identities\.js['"]/u);
 	assert.doesNotMatch(sidebar, /from ['"]\.\.\/products\.js['"]/u);
 });
+
+test('an empty product or locale falls back rather than producing an empty segment', () => {
+	assert.equal(normalizeProductId(''), 'soundscaper');
+	assert.equal(normalizeProductId(null), 'soundscaper');
+	assert.equal(productIdentity('').id, 'soundscaper');
+	assert.equal(productLocalePath('soundscaper', ''), '/en/');
+	assert.equal(productLocalePath('framescaper', null, { embedded: true }), '/framescaper/embed/en/');
+	assert.equal(otherProductId('framescaper'), 'soundscaper');
+});
+
