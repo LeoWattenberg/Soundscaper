@@ -34,6 +34,7 @@ import {
 	runResample,
 } from './guide-actions.js';
 import { guideFixtureClipName, guideFixtureFile } from './guide-fixtures.js';
+import { runContrast, runMacro, runPlayAtSpeed } from './guide-workflows.js';
 import { chooseTrackMenuAction } from './track-menu.js';
 
 const EFFECT_TIMEOUT = 30_000;
@@ -175,13 +176,14 @@ async function runGenerate(page, state, entry) {
 	await expect(dialog).toBeHidden({ timeout: EFFECT_TIMEOUT });
 }
 
-async function runMixRender(page, state) {
+async function runMixRender(page, state, entry) {
 	await chooseCommandAction(page, state.editor, 'Tracks', 'Mix & Render');
 	const dialog = page.getByRole('dialog', { name: 'Mix & Render', exact: true });
 	await expect(dialog).toBeVisible();
 	for (const label of ['Mix down', 'Render effects', 'Replace originals']) {
 		await expect(dialog.getByRole('checkbox', { name: label, exact: true })).toBeChecked();
 	}
+	if (!entry.replaceOriginals) await dialog.getByRole('checkbox', { name: 'Replace originals', exact: true }).setChecked(false);
 	await chooseDropdown(page, dialog.getByRole('group', { name: 'Mix down to', exact: true }), 'Stereo');
 	await dialog.getByRole('button', { name: 'Mix & Render', exact: true }).click();
 	await expect(dialog).toBeHidden({ timeout: EFFECT_TIMEOUT });
@@ -189,12 +191,16 @@ async function runMixRender(page, state) {
 
 async function runMarker(page, state, entry) {
 	const { editor } = state;
-	await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
+	// The Panels entry toggles, so a second marker in the same guide must not
+	// close the panel the first one opened.
 	const panel = editor.getByRole('region', { name: 'Markers and named regions', exact: true });
+	if (!await panel.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
 	await expect(panel).toBeVisible();
 	await panel.getByRole('button', { name: 'Add marker at playhead', exact: true }).click();
+	// A new marker is the one still called "Unnamed annotation"; earlier markers
+	// keep the names the guide gave them, wherever on the timeline they sit.
 	const layer = editor.getByRole('listbox', { name: 'Markers and named regions', exact: true });
-	const marker = layer.getByRole('option').first();
+	const marker = layer.getByRole('option', { name: /^Unnamed annotation, / }).first();
 	await expect(marker).toBeVisible();
 	await marker.focus();
 	await marker.press('Enter');
@@ -202,7 +208,8 @@ async function runMarker(page, state, entry) {
 	await expect(rename).toBeFocused();
 	await rename.fill(entry.name);
 	await rename.press('Enter');
-	await expect(marker).toHaveAttribute('aria-label', new RegExp(`^${entry.name}, Marker`, 'u'));
+	// The marker locator matched by its unnamed label, so look the renamed one up afresh.
+	await expect(layer.getByRole('option', { name: new RegExp(`^${entry.name}, Marker`, 'u') })).toHaveCount(1);
 }
 
 async function runNyquist(page, state, entry) {
@@ -241,6 +248,14 @@ async function runCheck(state, entry) {
 	if (entry.loop !== null) {
 		await expect(editor.getByRole('button', { name: 'Loop selection', exact: true })).toHaveAttribute('aria-pressed', String(entry.loop));
 	}
+	if (entry.muted !== null) {
+		// A fresh project starts with an empty track of its own, so the check is
+		// about every Mute button the project has rather than a fixed count.
+		const buttons = editor.locator('[data-track-row]').getByRole('button', { name: 'Mute', exact: true });
+		const pressed = editor.locator('[data-track-row]').getByRole('button', { name: 'Mute', exact: true, pressed: true });
+		await expect(pressed).toHaveCount(entry.muted === 'all' ? await buttons.count() : 0);
+	}
+	if (entry.panel !== null) await expect(editor.locator(`[data-workspace-panel="${entry.panel.id}"]`)).toBeVisible();
 }
 
 async function executeStep(page, state, entry) {
@@ -259,7 +274,16 @@ async function executeStep(page, state, entry) {
 			else await chooseNestedCommandAction(page, state.editor, entry.path[0], entry.path.slice(1));
 			return;
 		case 'mix-render':
-			await runMixRender(page, state);
+			await runMixRender(page, state, entry);
+			return;
+		case 'contrast':
+			await runContrast(state, entry);
+			return;
+		case 'macro':
+			await runMacro(page, state, entry);
+			return;
+		case 'play-at-speed':
+			await runPlayAtSpeed(page, state, entry);
 			return;
 		case 'select-range':
 			await dragSelection(page, state, entry.from, entry.to);

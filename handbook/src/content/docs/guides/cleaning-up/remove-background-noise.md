@@ -44,6 +44,8 @@ More [cleaning up a recording](/guides/cleaning-up/) guides:
 - [Silence part of a recording](/guides/cleaning-up/silence-part-of-a-recording/) — Replace a stretch of audio with silence while keeping everything in place.
 - [Remove low rumble](/guides/cleaning-up/remove-low-rumble/) — Cut the sub-bass thumps from traffic, wind and handling with a high-pass filter.
 - [Fix a DC offset](/guides/cleaning-up/fix-dc-offset/) — Recentre a waveform that sits above or below the zero line.
+- [Remove mains hum with a notch filter](/guides/cleaning-up/remove-mains-hum-with-a-notch-filter/) — Cut a single frequency — 50 or 60 Hz hum, a whistle, a ring — without touching the rest.
+- [Silence the noise between phrases with a gate](/guides/cleaning-up/gate-out-noise-between-phrases/) — Let the voice through and close the door on the room noise whenever nobody is speaking.
 
 ## Reference
 

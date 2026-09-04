@@ -20,6 +20,8 @@ Take noise, clicks, rumble and dead air out of a take before you work on it.
 - [Silence part of a recording](/guides/cleaning-up/silence-part-of-a-recording/) — Replace a stretch of audio with silence while keeping everything in place.
 - [Remove low rumble](/guides/cleaning-up/remove-low-rumble/) — Cut the sub-bass thumps from traffic, wind and handling with a high-pass filter.
 - [Fix a DC offset](/guides/cleaning-up/fix-dc-offset/) — Recentre a waveform that sits above or below the zero line.
+- [Remove mains hum with a notch filter](/guides/cleaning-up/remove-mains-hum-with-a-notch-filter/) — Cut a single frequency — 50 or 60 Hz hum, a whistle, a ring — without touching the rest.
+- [Silence the noise between phrases with a gate](/guides/cleaning-up/gate-out-noise-between-phrases/) — Let the voice through and close the door on the room noise whenever nobody is speaking.
 
 ## [Volume and dynamics](/guides/volume/)
 
@@ -32,6 +34,7 @@ Set levels, even out the loud and quiet parts, and hit a delivery target.
 - [Fade in and fade out](/guides/volume/fade-in-and-fade-out/) — Start a clip from silence and end it smoothly instead of cutting off.
 - [Tame peaks with a limiter](/guides/volume/tame-peaks-with-a-limiter/) — Stop the loudest moments from going over a ceiling without touching the rest.
 - [Duck music under a voice](/guides/volume/duck-music-under-a-voice/) — Turn a music bed down automatically whenever a voice track is speaking.
+- [Even out volume with the classic compressor](/guides/volume/even-out-volume-with-the-legacy-compressor/) — Use Audacity 3’s original compressor, with its noise floor and make-up gain, on a recording.
 
 ## [Editing](/guides/editing/)
 
@@ -51,6 +54,7 @@ Cut, split, copy, move and mark up material on the timeline.
 - [Undo and redo](/guides/editing/undo-and-redo/) — Step back through your edits and forward again.
 - [Loop a section while you practise](/guides/editing/loop-a-section-while-you-practise/) — Play a selected passage over and over.
 - [Move a clip along the timeline](/guides/editing/move-a-clip-along-the-timeline/) — Drag a clip to a different time on its track.
+- [Listen faster or slower without changing the recording](/guides/editing/listen-at-a-different-speed/) — Slow a passage down to transcribe it or speed a long take up to review it, leaving the project untouched.
 
 ## [Effects](/guides/effects/)
 
@@ -67,6 +71,9 @@ Change the character of a sound: pitch, tempo, space, filtering and distortion.
 - [Add a wah-wah](/guides/effects/add-a-wah-wah/) — Sweep a resonant filter across a sound for the classic funk effect.
 - [Use a Nyquist plug-in](/guides/effects/use-a-nyquist-plugin/) — Run one of the bundled Nyquist effects — here, a tremolo.
 - [Add a realtime effect to a track](/guides/effects/add-a-realtime-effect-to-a-track/) — Put an effect on a track so it runs while you play, without rendering.
+- [Add a phaser](/guides/effects/add-a-phaser/) — Sweep a set of notches through a sound for the classic swirling guitar and keyboard effect.
+- [Apply the same chain of effects every time](/guides/effects/apply-the-same-effects-every-time/) — Save a sequence of effects as a macro and run it on any selection with one command.
+- [Slide from one tempo to another](/guides/effects/slide-from-one-tempo-to-another/) — Speed a passage up or slow it down gradually across its length, with or without a pitch slide.
 
 ## [Tracks and export](/guides/tracks-and-export/)
 
@@ -79,6 +86,9 @@ Work with several tracks and render the result to a file.
 - [Export a WAV](/guides/tracks-and-export/export-a-wav/) — Render the project to an uncompressed WAV file.
 - [Mute and solo tracks](/guides/tracks-and-export/mute-and-solo-tracks/) — Silence a track, or listen to one track by itself, while you work on a mix.
 - [Add an empty track](/guides/tracks-and-export/add-an-empty-track/) — Create a new track to record into or to paste onto.
+- [Mute every track at once](/guides/tracks-and-export/mute-every-track-at-once/) — Silence the whole project in one step, then bring it all back.
+- [Mix tracks into a new track and keep the originals](/guides/tracks-and-export/mix-tracks-into-a-new-track/) — Render a mix of several tracks onto a new track while the sources stay in the project.
+- [Balance tracks in the mixer](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — Open a mixing console with a channel strip per track to set levels and pans side by side.
 
 ## [Projects and files](/guides/projects/)
 
@@ -89,6 +99,7 @@ Save, move, and open projects, including projects made in Audacity.
 - [Open an Audacity project](/guides/projects/open-an-audacity-project/) — Bring an existing .aup3 or .aup4 project into Soundscaper with its tracks intact.
 - [Export each track as its own file](/guides/projects/export-each-track-as-its-own-file/) — Render the tracks separately, as stems, in one download.
 - [Change a clip’s sample rate](/guides/projects/change-a-clips-sample-rate/) — Resample a clip so it matches the rate the rest of the project uses.
+- [Export each chapter as its own file](/guides/projects/export-each-chapter-as-its-own-file/) — Split one long recording into files at the markers you have placed.
 
 ## [Analysis](/guides/analysis/)
 
@@ -98,6 +109,7 @@ Measure loudness, inspect frequencies, and find problems in a recording.
 - [See which frequencies a sound contains](/guides/analysis/plot-a-spectrum/) — Plot the spectrum of a selection to find hum, hiss or resonances.
 - [Find where a recording clipped](/guides/analysis/find-clipping/) — Locate the places where a recording hit full scale and distorted.
 - [Find the beats in a loop](/guides/analysis/find-the-beats/) — Let the Beat Finder analyzer mark every beat it hears.
+- [Check that speech stands out from its background](/guides/analysis/check-speech-contrast/) — Measure how far a voice sits above the noise behind it, the way accessibility guidelines ask.
 
 ## How the guides stay correct
 

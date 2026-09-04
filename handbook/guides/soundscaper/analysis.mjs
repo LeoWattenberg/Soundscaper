@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { analyze, check, importAudio, menu, nyquist, open } from '../steps.mjs';
+import { analyze, check, contrast, importAudio, menu, nyquist, open, selectRange } from '../steps.mjs';
 
 const selectAll = (extras) => menu(['Select', 'Select all'], extras);
 
@@ -76,6 +76,27 @@ export const ANALYSIS_GUIDES = Object.freeze([
 		tips: [
 			'The labels land on a new label track under the audio. Rename or delete any the analyzer got wrong.',
 			'**Analyze → Nyquist → Label Sounds** does a similar job for whole sounds separated by silence.',
+		],
+	},
+
+	{
+		id: 'check-speech-contrast',
+		title: 'Check that speech stands out from its background',
+		description: 'Measure how far a voice sits above the noise behind it, the way accessibility guidelines ask.',
+		audacity: 'Analyze → Contrast (Audacity 3; Audacity 4 has no Contrast analyzer)',
+		intro: 'A voice that is only a little louder than the room behind it is hard work to follow, and accessibility guidelines put a number on it: speech should sit at least 20 dB above its background. The Contrast analyzer measures a stretch of background and a stretch of speech, reports the difference, and says whether it meets that recommendation. It is the analyzer Audacity 3 offered for WCAG checks, and Audacity 4 does not include it.',
+		steps: [
+			open(),
+			importAudio('noisy-take', { what: 'the recording with speech over background noise' }),
+			selectRange(0, 0.15, { where: 'a stretch of background with nobody speaking', why: 'The background measurement should contain only the noise the voice has to compete with.' }),
+			analyze({ name: 'Contrast', panel: 'contrast' }),
+			contrast('background'),
+			selectRange(0.3, 0.9, { where: 'a passage of speech', why: 'Pick ordinary speech rather than the loudest word, since the whole passage is averaged.' }),
+			contrast('foreground', { see: 'The foreground and background levels, their difference in dB, and whether the difference meets the recommended 20 dB.' }),
+		],
+		tips: [
+			'If the difference falls short, [reduce the background noise](guide:remove-background-noise) or [even out the voice with a compressor](guide:even-out-volume-with-a-compressor), then measure again.',
+			'The measurement is an RMS average over the selection, so a single loud syllable does not rescue a quiet take.',
 		],
 	},
 ]);

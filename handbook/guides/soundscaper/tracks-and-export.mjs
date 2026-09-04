@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { addTrack, check, exportAudio, generate, importAudio, mixRender, open, selectClips, trackButton, trackMenu } from '../steps.mjs';
+import { addTrack, check, exportAudio, generate, importAudio, menu, mixRender, note, open, play, selectClips, trackButton, trackMenu } from '../steps.mjs';
 
 export const TRACK_AND_EXPORT_GUIDES = Object.freeze([
 	{
@@ -127,6 +127,66 @@ export const TRACK_AND_EXPORT_GUIDES = Object.freeze([
 		tips: [
 			'Rename the track from its menu so a session with many tracks stays readable.',
 			'Drag a track by its header to reorder it.',
+		],
+	},
+
+	{
+		id: 'mute-every-track-at-once',
+		title: 'Mute every track at once',
+		description: 'Silence the whole project in one step, then bring it all back.',
+		audacity: 'Tracks → Mute/Unmute → Mute All Tracks and Unmute All Tracks (Audacity 3; not in Audacity 4)',
+		intro: 'With a dozen tracks, muting them one header at a time to audition a single new part is tedious, and unmuting them afterwards is worse. Mute all tracks silences the whole project in one command and Unmute all tracks restores it, and neither touches the solo buttons. Audacity 3 had both commands; Audacity 4 has not brought them back.',
+		steps: [
+			open(),
+			importAudio('music-loop', { what: 'the first recording' }),
+			importAudio('second-loop', { what: 'the second recording' }),
+			menu(['Tracks', 'Mute all tracks']),
+			check({ muted: 'all' }, { see: 'Playback is silent.' }),
+			menu(['Tracks', 'Unmute all tracks']),
+			check({ muted: 'none' }, { see: 'Everything plays again.' }),
+		],
+		tips: [
+			'Mute everything, then unmute the one or two tracks you want to hear — quicker than soloing when the selection changes often.',
+			'To hear one track alone without touching the others, [solo it](guide:mute-and-solo-tracks) instead.',
+		],
+	},
+	{
+		id: 'mix-tracks-into-a-new-track',
+		title: 'Mix tracks into a new track and keep the originals',
+		description: 'Render a mix of several tracks onto a new track while the sources stay in the project.',
+		audacity: 'Tracks → Mix → Mix and Render to New Track (Audacity 3; Audacity 4 has no Mix and Render)',
+		intro: 'Mixing tracks down usually replaces them, which is fine for a finished bed but not when you may still want to adjust the parts. Turning off Replace originals in the Mix & Render dialog renders the mix — gains, pans and realtime effects included — onto a new track and leaves every source track where it was, so you can compare, keep editing, or mute the sources and carry on with the stereo mix. Audacity 3 offered this as Mix and Render to New Track; Audacity 4 has neither command.',
+		steps: [
+			open(),
+			importAudio('music-loop', { what: 'the first track to mix' }),
+			importAudio('second-loop', { what: 'the second track to mix' }),
+			selectClips(['music-loop', 'second-loop'], { which: ['the first clip', 'the second clip'], why: 'Every track with a selected clip goes into the mix.' }),
+			mixRender({ replaceOriginals: false }),
+			check({ clips: 3, clip: 'Mix' }, { that: 'A new track under the originals holds a clip named **Mix**, and the original clips are still where they were.', see: 'Three clips: the two you started with and the mix.' }),
+		],
+		tips: [
+			'Mute the source tracks to hear the mix on its own; otherwise both play.',
+			'To replace the sources with the mix instead, leave **Replace originals** on: [Mix several tracks into one](guide:mix-tracks-into-one).',
+		],
+	},
+	{
+		id: 'balance-tracks-in-the-mixer',
+		title: 'Balance tracks in the mixer',
+		description: 'Open a mixing console with a channel strip per track to set levels and pans side by side.',
+		audacity: 'View → Mixer Board (Audacity 3; Audacity 4 has no mixer board)',
+		intro: 'Track headers hold a volume slider each, but balancing a mix means seeing them together. The Mixer panel lays out one channel strip per track — name, volume fader, pan, mute and solo, and the track’s effects — beside a master strip, the way a mixing desk does. Audacity 3 had a Mixer Board for this; Audacity 4 has not brought it back.',
+		steps: [
+			open(),
+			importAudio('music-loop', { what: 'the first track of the mix' }),
+			importAudio('second-loop', { what: 'the second track' }),
+			menu(['View', 'Panels', 'Mixer']),
+			check({ panel: { id: 'mixer', name: 'Mixer' } }, { see: 'A strip for each track, with its Volume fader, Pan control and Mute/Solo buttons, and a Master strip at the end.' }),
+			note('Drag a strip’s **Volume** fader to set that track’s level and turn **Pan** to place it left or right. These are the same controls as the track header, so either view can be used.'),
+			play({ see: 'The meters on each strip move with its track while the project plays.' }),
+		],
+		tips: [
+			'**Add group bus** creates a bus that several tracks can feed, so a whole drum kit or a group of voices has one fader.',
+			'The **Routing graph** button in the panel shows the same mixer as a diagram of what feeds what.',
 		],
 	},
 ]);

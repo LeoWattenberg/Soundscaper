@@ -39,6 +39,7 @@ More [projects and files](/guides/projects/) guides:
 - [Move a project between computers](/guides/projects/move-a-project-between-computers/) — Export the whole project as one file, then open that file elsewhere.
 - [Export each track as its own file](/guides/projects/export-each-track-as-its-own-file/) — Render the tracks separately, as stems, in one download.
 - [Change a clip’s sample rate](/guides/projects/change-a-clips-sample-rate/) — Resample a clip so it matches the rate the rest of the project uses.
+- [Export each chapter as its own file](/guides/projects/export-each-chapter-as-its-own-file/) — Split one long recording into files at the markers you have placed.
 
 ## Reference
 

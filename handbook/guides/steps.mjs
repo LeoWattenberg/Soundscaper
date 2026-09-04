@@ -25,7 +25,10 @@ const STEP_KINDS = Object.freeze([
 	'noise-profile', 'nyquist', 'analyze', 'export', 'save', 'track-menu', 'track-button',
 	'add-track', 'play', 'generate', 'marker', 'check', 'note', 'rack-effect',
 	'open-audacity-project', 'export-project', 'open-project-file', 'resample', 'drag-clip', 'mix-render',
+	'contrast', 'macro', 'play-at-speed',
 ]);
+
+const CONTRAST_ROLES = new Set(['foreground', 'background']);
 
 const KIND_SET = new Set(STEP_KINDS);
 const FACETS = new Set(['howto', 'tutorial']);
@@ -81,9 +84,41 @@ export function importAudio(fixture, extras = {}) {
 	return step({ kind: 'import', fixture, what: phrase(extras, 'what', 'import') }, extras, ['what']);
 }
 
-/** Mix the selected tracks with the Mix & Render dialog's defaults. */
-export function mixRender(extras) {
-	return step({ kind: 'mix-render' }, extras);
+/**
+ * Mix the selected tracks with the Mix & Render dialog's defaults. Turning off
+ * `replaceOriginals` keeps the source tracks and adds the mix beside them, the
+ * way Audacity's Mix and Render to New Track did.
+ */
+export function mixRender({ replaceOriginals = true } = {}, extras) {
+	if (typeof replaceOriginals !== 'boolean') throw new TypeError('A mix-render step says whether to replace the originals with true or false.');
+	return step({ kind: 'mix-render', replaceOriginals }, extras);
+}
+
+/** Measure the current selection as the foreground or the background in the Contrast panel. */
+export function contrast(role, extras) {
+	if (!CONTRAST_ROLES.has(role)) throw new RangeError('A contrast step measures the selection as foreground or background.');
+	return step({ kind: 'contrast', role }, extras);
+}
+
+/**
+ * Build a macro in the Macro manager from the named effects, in order, and run
+ * it on the current selection. Effects are named the way the effect picker
+ * lists them and keep their default settings.
+ */
+export function macro({ name, effects }, extras) {
+	if (typeof name !== 'string' || name.length === 0) throw new TypeError('A macro step needs the macro name.');
+	if (!Array.isArray(effects) || effects.length === 0 || effects.some((effect) => typeof effect !== 'string' || effect.length === 0)) {
+		throw new TypeError('A macro step needs the names of the effects it chains.');
+	}
+	return step({ kind: 'macro', name, effects: Object.freeze([...effects]) }, extras);
+}
+
+/** Set the transport's playback speed, play at that speed, then pause. */
+export function playAtSpeed(rate, extras) {
+	if (typeof rate !== 'number' || !(rate >= 0.5 && rate <= 2) || rate === 1) {
+		throw new RangeError('A play-at-speed step needs a rate from 0.5 to 2 other than 1.');
+	}
+	return step({ kind: 'play-at-speed', rate }, extras);
 }
 
 /** Choose a command from the application menu bar, given the labels along its path. */
@@ -256,13 +291,24 @@ export function dragClip(seconds, extras = {}) {
  * expectation about an example clip's position (`startsAt`, `moved`) needs
  * `that`, the outcome as a reader would see it on their own material.
  */
-export function check({ clips = null, tracks = null, clip = null, startsAt = null, moved = null, track = null, loop = null }, extras = {}) {
-	if ([clips, tracks, clip, startsAt, moved, track, loop].every((value) => value === null)) throw new TypeError('A check step must state at least one expectation.');
+export function check({
+	clips = null, tracks = null, clip = null, startsAt = null, moved = null, track = null, loop = null, muted = null, panel = null,
+}, extras = {}) {
+	if ([clips, tracks, clip, startsAt, moved, track, loop, muted, panel].every((value) => value === null)) {
+		throw new TypeError('A check step must state at least one expectation.');
+	}
 	if (startsAt !== null && (typeof startsAt.fixture !== 'string' || typeof startsAt.seconds !== 'number')) {
 		throw new TypeError('A start-time check names a fixture and a whole number of seconds.');
 	}
+	if (muted !== null && muted !== 'all' && muted !== 'none') throw new TypeError('A muted check expects all tracks muted or none.');
+	if (panel !== null && (typeof panel.id !== 'string' || typeof panel.name !== 'string')) {
+		throw new TypeError('A panel check names the workspace panel by id and by the name a reader sees.');
+	}
 	const that = phrase(extras, 'that', 'check', { required: startsAt !== null || moved !== null });
-	return step({ kind: 'check', clips, tracks, clip, startsAt: startsAt && Object.freeze({ ...startsAt }), moved, track, loop, that }, extras, ['that']);
+	return step({
+		kind: 'check', clips, tracks, clip, startsAt: startsAt && Object.freeze({ ...startsAt }), moved, track, loop, muted,
+		panel: panel && Object.freeze({ ...panel }), that,
+	}, extras, ['that']);
 }
 
 /** Prose with nothing to replay. */
@@ -376,6 +422,8 @@ function describeCheck(entry, facet, fixture) {
 	if (entry.moved !== null) parts.push('the clip starting later than 0 s');
 	if (entry.track !== null) parts.push(`a track named ${bold(entry.track)}`);
 	if (entry.loop !== null) parts.push(`the ${bold('Loop selection')} button lit`);
+	if (entry.muted !== null) parts.push(entry.muted === 'all' ? `every track’s ${bold('Mute')} button lit` : 'no track muted');
+	if (entry.panel !== null) parts.push(`the ${bold(entry.panel.name)} panel open`);
 	return `The project now shows ${listPhrases(parts)}.`;
 }
 
@@ -398,8 +446,25 @@ export function describeStep(entry, { fixture, facet = 'howto' }) {
 		}
 		case 'menu':
 			return `Choose ${menuPath(entry.path)}.`;
-		case 'mix-render':
-			return `Choose ${menuPath(['Tracks', 'Mix & Render'])}. In the ${bold('Mix & Render')} dialog, leave ${bold('Mix down')}, ${bold('Render effects')} and ${bold('Replace originals')} checked, choose ${bold('Stereo')} for ${bold('Mix down to')}, then press ${bold('Mix & Render')}.`;
+		case 'mix-render': {
+			const originals = entry.replaceOriginals
+				? `leave ${bold('Mix down')}, ${bold('Render effects')} and ${bold('Replace originals')} checked`
+				: `leave ${bold('Mix down')} and ${bold('Render effects')} checked, turn off ${bold('Replace originals')}`;
+			return `Choose ${menuPath(['Tracks', 'Mix & Render'])}. In the ${bold('Mix & Render')} dialog, ${originals}, choose ${bold('Stereo')} for ${bold('Mix down to')}, then press ${bold('Mix & Render')}.`;
+		}
+		case 'contrast': {
+			const button = entry.role === 'foreground' ? 'Measure foreground' : 'Measure background';
+			const report = entry.role === 'foreground'
+				? ' The panel reports the foreground level, the background level and the difference between them.'
+				: ' The panel keeps the selection’s level as the background.';
+			return `In the ${bold('Contrast')} panel, press ${bold(button)}.${report}`;
+		}
+		case 'macro': {
+			const chain = listPhrases(entry.effects.map((effect) => bold(effect)));
+			return `Choose ${menuPath(['Tools', 'Macro manager'])} and press ${bold('New macro')}. Type \`${entry.name}\` into ${bold('Macro name')}. Press ${bold('Add effect')} and choose ${chain}, pressing ${bold('Add effect')} again for each one. Press ${bold('Run macro')}; the dialog reports that the macro was applied. Press ${bold('Close')}.`;
+		}
+		case 'play-at-speed':
+			return `Press ${bold('Play options')} beside the Play button, set ${bold('Playback speed')} to \`${String(entry.rate)}×\`, and press Escape to close the options. The Play button now reads ${bold('Play at speed')}; press it to listen, then press ${bold('Pause play at speed')}.`;
 		case 'select-range':
 			return howto
 				? `Drag in the ruler above the clip to select ${entry.where}.`
@@ -428,7 +493,7 @@ export function describeStep(entry, { fixture, facet = 'howto' }) {
 			return `Choose ${menuPath([entry.menu, 'Nyquist', entry.name])}.${fields} press ${bold('Apply')}.${report}`;
 		}
 		case 'analyze':
-			return `Choose ${menuPath(['Analyze', entry.name])}. The ${bold(entry.name)} panel opens with the result.`;
+			return `Choose ${menuPath(['Analyze', entry.name])}. The ${bold(entry.name)} panel opens.`;
 		case 'export': {
 			const mode = entry.mode ? ` set ${bold('Output')} to ${bold(entry.mode)},` : '';
 			return `Choose ${menuPath(['File', 'Export audio'])}, set ${bold('Format')} to ${bold(entry.format)},${mode} and press ${bold('Export')}. The file downloads as soon as the render finishes, and its link stays in the dialog.`;
@@ -450,7 +515,7 @@ export function describeStep(entry, { fixture, facet = 'howto' }) {
 			return `Choose ${menuPath(['Generate', entry.name])}.${fields} press ${bold('Generate')}.`;
 		}
 		case 'marker':
-			return `Choose ${menuPath(['View', 'Panels', 'Markers'])} to show the Markers panel, then press ${bold('Add marker at playhead')}. Press Enter on the new marker, type \`${entry.name}\` and press Enter again to name it.`;
+			return `With the Markers panel open (${menuPath(['View', 'Panels', 'Markers'])} shows it), press ${bold('Add marker at playhead')}. Press Enter on the new marker, type \`${entry.name}\` and press Enter again to name it.`;
 		case 'rack-effect':
 			return `Press ${bold('Effects')} in the track's header to open the Effects panel, press ${bold('Effects')} in the track's rack and choose ${bold(entry.name)}. Its settings window opens; press ${bold('Close')} when you are done with it.`;
 		case 'open-audacity-project':

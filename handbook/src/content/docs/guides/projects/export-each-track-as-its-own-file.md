@@ -39,6 +39,7 @@ More [projects and files](/guides/projects/) guides:
 - [Move a project between computers](/guides/projects/move-a-project-between-computers/) — Export the whole project as one file, then open that file elsewhere.
 - [Open an Audacity project](/guides/projects/open-an-audacity-project/) — Bring an existing .aup3 or .aup4 project into Soundscaper with its tracks intact.
 - [Change a clip’s sample rate](/guides/projects/change-a-clips-sample-rate/) — Resample a clip so it matches the rate the rest of the project uses.
+- [Export each chapter as its own file](/guides/projects/export-each-chapter-as-its-own-file/) — Split one long recording into files at the markers you have placed.
 
 ## Reference
 

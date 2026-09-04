@@ -52,6 +52,7 @@ More [editing](/guides/editing/) guides:
 - [Zoom in for precise edits](/guides/editing/zoom-in-for-precise-edits/) — Get close enough to the waveform to cut on a beat or between words.
 - [Undo and redo](/guides/editing/undo-and-redo/) — Step back through your edits and forward again.
 - [Move a clip along the timeline](/guides/editing/move-a-clip-along-the-timeline/) — Drag a clip to a different time on its track.
+- [Listen faster or slower without changing the recording](/guides/editing/listen-at-a-different-speed/) — Slow a passage down to transcribe it or speed a long take up to review it, leaving the project untouched.
 
 ## Reference
 

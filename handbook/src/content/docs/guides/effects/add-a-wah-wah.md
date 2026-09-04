@@ -47,6 +47,9 @@ More [effects](/guides/effects/) guides:
 - [Add distortion](/guides/effects/add-distortion/) — Overdrive a sound from gentle warmth to full fuzz.
 - [Use a Nyquist plug-in](/guides/effects/use-a-nyquist-plugin/) — Run one of the bundled Nyquist effects — here, a tremolo.
 - [Add a realtime effect to a track](/guides/effects/add-a-realtime-effect-to-a-track/) — Put an effect on a track so it runs while you play, without rendering.
+- [Add a phaser](/guides/effects/add-a-phaser/) — Sweep a set of notches through a sound for the classic swirling guitar and keyboard effect.
+- [Apply the same chain of effects every time](/guides/effects/apply-the-same-effects-every-time/) — Save a sequence of effects as a macro and run it on any selection with one command.
+- [Slide from one tempo to another](/guides/effects/slide-from-one-tempo-to-another/) — Speed a passage up or slow it down gradually across its length, with or without a pitch slide.
 
 ## Reference
 

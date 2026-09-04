@@ -43,6 +43,7 @@ More [volume and dynamics](/guides/volume/) guides:
 - [Normalize loudness for a podcast](/guides/volume/normalize-loudness-for-podcasts/) — Match the perceived loudness of an episode to the level streaming platforms expect.
 - [Fade in and fade out](/guides/volume/fade-in-and-fade-out/) — Start a clip from silence and end it smoothly instead of cutting off.
 - [Duck music under a voice](/guides/volume/duck-music-under-a-voice/) — Turn a music bed down automatically whenever a voice track is speaking.
+- [Even out volume with the classic compressor](/guides/volume/even-out-volume-with-the-legacy-compressor/) — Use Audacity 3’s original compressor, with its noise floor and make-up gain, on a recording.
 
 ## Reference
 

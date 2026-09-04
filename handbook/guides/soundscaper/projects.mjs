@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { check, exportAudio, exportProject, importAudio, open, openAudacityProject, openProjectFile, play, resample, save } from '../steps.mjs';
+import { check, cursor, exportAudio, exportProject, importAudio, marker, menu, open, openAudacityProject, openProjectFile, play, resample, save, tool } from '../steps.mjs';
 
 export const PROJECT_GUIDES = Object.freeze([
 	{
@@ -84,6 +84,28 @@ export const PROJECT_GUIDES = Object.freeze([
 		tips: [
 			'Resampling is an edit and can be undone.',
 			'Going down in rate discards the highest frequencies; going up adds nothing but is harmless.',
+		],
+	},
+
+	{
+		id: 'export-each-chapter-as-its-own-file',
+		title: 'Export each chapter as its own file',
+		description: 'Split one long recording into files at the markers you have placed.',
+		audacity: 'File → Export Audio → Export Multiple, split by labels (Audacity 3; Audacity 4 has no Export Multiple)',
+		intro: 'A lecture that should become one file per topic, an album side that needs cutting into tracks, an audiobook with a chapter per file: put a marker at the start of each part and export once. Every marker opens a chapter that runs to the next one, and each chapter is written as its own file, named after the marker, inside a single archive. Audacity 3 did this with Export Multiple; Audacity 4 has not brought it back.',
+		steps: [
+			open(),
+			importAudio('music-loop', { what: 'the recording to split' }),
+			menu(['View', 'Show markers'], { why: 'The marker lane is where the chapter starts are shown and named.' }),
+			tool('Jump to project start', { why: 'The first chapter should begin at the very start, so the first marker goes at zero.' }),
+			marker('Part one'),
+			cursor(0.5, { where: 'where the second part begins' }),
+			marker('Part two'),
+			exportAudio({ format: 'MP3', extension: 'zip', mode: 'Chapters (split by labels)' }, { why: 'Each chapter becomes an MP3 inside the archive, numbered in order and named after its marker.' }),
+		],
+		tips: [
+			'A named region exports exactly its own span, so use regions instead of markers when the parts have gaps between them.',
+			'To split by tracks rather than by markers, see [Export each track as its own file](guide:export-each-track-as-its-own-file).',
 		],
 	},
 ]);

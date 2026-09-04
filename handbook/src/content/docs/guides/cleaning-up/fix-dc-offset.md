@@ -43,6 +43,8 @@ More [cleaning up a recording](/guides/cleaning-up/) guides:
 - [Remove clicks and pops](/guides/cleaning-up/remove-clicks-and-pops/) — Take short sharp clicks out of a recording without touching the rest.
 - [Shorten long pauses](/guides/cleaning-up/remove-silent-pauses/) — Tighten a recording by trimming every long silence to the same short gap.
 - [Silence part of a recording](/guides/cleaning-up/silence-part-of-a-recording/) — Replace a stretch of audio with silence while keeping everything in place.
+- [Remove mains hum with a notch filter](/guides/cleaning-up/remove-mains-hum-with-a-notch-filter/) — Cut a single frequency — 50 or 60 Hz hum, a whistle, a ring — without touching the rest.
+- [Silence the noise between phrases with a gate](/guides/cleaning-up/gate-out-noise-between-phrases/) — Let the voice through and close the door on the room noise whenever nobody is speaking.
 
 ## Reference
 

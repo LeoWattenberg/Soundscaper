@@ -40,6 +40,7 @@ More [projects and files](/guides/projects/) guides:
 - [Move a project between computers](/guides/projects/move-a-project-between-computers/) — Export the whole project as one file, then open that file elsewhere.
 - [Open an Audacity project](/guides/projects/open-an-audacity-project/) — Bring an existing .aup3 or .aup4 project into Soundscaper with its tracks intact.
 - [Export each track as its own file](/guides/projects/export-each-track-as-its-own-file/) — Render the tracks separately, as stems, in one download.
+- [Export each chapter as its own file](/guides/projects/export-each-chapter-as-its-own-file/) — Split one long recording into files at the markers you have placed.
 
 ## About this guide
 

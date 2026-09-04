@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { check, cursor, dragClip, effect, generate, importAudio, marker, menu, open, play, selectClips, selectRange, tool } from '../steps.mjs';
+import { check, cursor, dragClip, effect, generate, importAudio, marker, menu, open, play, playAtSpeed, selectClips, selectRange, tool } from '../steps.mjs';
 
 const selectAll = (extras) => menu(['Select', 'Select all'], extras);
 
@@ -273,6 +273,23 @@ export const EDITING_GUIDES = Object.freeze([
 		tips: [
 			'Turn on snapping from the transport bar so a dragged clip locks to seconds, beats or frames.',
 			'Hold Shift while dragging to keep the clip on its own track.',
+		],
+	},
+
+	{
+		id: 'listen-at-a-different-speed',
+		title: 'Listen faster or slower without changing the recording',
+		description: 'Slow a passage down to transcribe it or speed a long take up to review it, leaving the project untouched.',
+		audacity: 'The Play-at-Speed slider (Audacity 3; Audacity 4 has no play-at-speed)',
+		intro: 'Transcribing an interview, learning a solo or skimming a two-hour recording all go better at a speed other than real time. Play-at-speed changes only how fast you hear the project; nothing is rendered and the clips are exactly as they were when you stop. Audacity 3 kept a speed slider in its toolbar, which Audacity 4 has not brought back.',
+		steps: [
+			open(),
+			importAudio('music-loop', { what: 'the recording you want to listen to' }),
+			playAtSpeed(0.75, { see: 'The recording plays at three quarters of its speed.' }),
+		],
+		tips: [
+			'**Preserve pitch** in the same options keeps a voice sounding natural while it is slowed; turn it off for a tape-style pitch drop.',
+			'Set the speed back to `1×` and the button is an ordinary Play again. To change the recording itself, use [Change tempo](guide:change-tempo-without-changing-pitch).',
 		],
 	},
 ]);

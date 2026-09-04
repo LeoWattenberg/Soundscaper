@@ -17,6 +17,7 @@ Measure loudness, inspect frequencies, and find problems in a recording.
 - [See which frequencies a sound contains](/guides/analysis/plot-a-spectrum/) — Plot the spectrum of a selection to find hum, hiss or resonances.
 - [Find where a recording clipped](/guides/analysis/find-clipping/) — Locate the places where a recording hit full scale and distorted.
 - [Find the beats in a loop](/guides/analysis/find-the-beats/) — Let the Beat Finder analyzer mark every beat it hears.
+- [Check that speech stands out from its background](/guides/analysis/check-speech-contrast/) — Measure how far a voice sits above the noise behind it, the way accessibility guidelines ask.
 
 ## Other categories
 

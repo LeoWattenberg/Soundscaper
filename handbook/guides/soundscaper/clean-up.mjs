@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { check, effect, importAudio, menu, noiseProfile, open, play, selectRange } from '../steps.mjs';
+import { check, effect, importAudio, menu, noiseProfile, nyquist, open, play, selectRange } from '../steps.mjs';
 
 const selectAll = (extras) => menu(['Select', 'Select all'], extras);
 
@@ -132,6 +132,51 @@ export const CLEAN_UP_GUIDES = Object.freeze([
 		tips: [
 			'[Normalize](guide:normalize-peaks) removes DC offset as part of its job, so if you normalize anyway there is nothing extra to do.',
 			'An offset that changes over the recording is not DC; use a [high-pass filter](guide:remove-low-rumble) instead.',
+		],
+	},
+
+	{
+		id: 'remove-mains-hum-with-a-notch-filter',
+		title: 'Remove mains hum with a notch filter',
+		description: 'Cut a single frequency — 50 or 60 Hz hum, a whistle, a ring — without touching the rest.',
+		audacity: 'Effect → EQ and Filters → Notch Filter',
+		intro: 'Mains hum sits at one frequency: 50 Hz in most of the world, 60 Hz in the Americas, sometimes with a harmonic at twice that. A notch filter cuts a narrow band around one frequency and leaves everything else alone, which is far gentler than a high-pass filter when the hum is not low enough to roll off. The same tool takes out a monitor whistle or a ringing resonance once you know its frequency.',
+		steps: [
+			open(),
+			importAudio('noisy-take', { what: 'the recording with the hum' }),
+			selectAll(),
+			nyquist({
+				menu: 'Effect',
+				name: 'Notch Filter',
+				fields: [{ label: 'Frequency (Hz)', value: '50' }, { label: 'Q (higher value reduces width)', value: '4' }],
+			}, { why: 'Use 60 if your mains is 60 Hz. A Q of 4 is a narrow notch; lower it if the hum wanders, raise it if the cut is audible on the voice.' }),
+			play({ see: 'The hum is gone and the voice sounds the same.' }),
+		],
+		tips: [
+			'Not sure of the frequency? [Plot the spectrum](guide:plot-a-spectrum) of a quiet passage and read the peak.',
+			'Hum often has a harmonic at double the frequency. Run the filter again at 100 or 120 Hz if some remains.',
+		],
+	},
+	{
+		id: 'gate-out-noise-between-phrases',
+		title: 'Silence the noise between phrases with a gate',
+		description: 'Let the voice through and close the door on the room noise whenever nobody is speaking.',
+		audacity: 'Effect → Noise Removal and Repair → Noise Gate',
+		intro: 'Noise Reduction takes noise out of the whole recording; a gate takes a different approach. Whenever the level drops below a threshold — between sentences, in pauses — the gate turns the audio down, and it opens again the moment the voice returns. It cannot clean noise from under the words, but it makes the gaps between them clean, and it is quick to set.',
+		steps: [
+			open(),
+			importAudio('gapped-take', { what: 'the take with noisy pauses' }),
+			selectAll(),
+			nyquist({
+				menu: 'Effect',
+				name: 'Noise Gate',
+				fields: [{ label: 'Gate threshold (dB)', value: '-35' }, { label: 'Level reduction (dB)', value: '-30' }],
+			}, { why: 'The threshold should sit above the noise and below the quietest speech; −35 dB suits most voice recordings. The reduction sets how far the gaps are turned down — not all the way, which sounds unnatural.' }),
+			play({ see: 'The pauses are quiet and every phrase comes through untouched.' }),
+		],
+		tips: [
+			'If the ends of words are being cut off, raise **Hold (ms)** or **Decay (ms)** so the gate closes more slowly.',
+			'For noise that continues under the voice, use [Noise Reduction](guide:remove-background-noise) instead, or both together.',
 		],
 	},
 ]);

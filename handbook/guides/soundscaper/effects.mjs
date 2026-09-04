@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { effect, importAudio, menu, nyquist, open, play, rackEffect } from '../steps.mjs';
+import { effect, importAudio, macro, menu, nyquist, open, play, rackEffect } from '../steps.mjs';
 
 const selectAll = (extras) => menu(['Select', 'Select all'], extras);
 
@@ -252,6 +252,69 @@ export const EFFECT_GUIDES = Object.freeze([
 		tips: [
 			'Add several effects to a rack and drag them to change their order; each feeds the next.',
 			'The master rack, at the bottom of the Effects panel, processes the whole mix.',
+		],
+	},
+
+	{
+		id: 'add-a-phaser',
+		title: 'Add a phaser',
+		description: 'Sweep a set of notches through a sound for the classic swirling guitar and keyboard effect.',
+		audacity: 'Effect → Phaser (Audacity 3; Audacity 4 has no Phaser)',
+		intro: 'A phaser mixes a sound with a copy of itself passed through moving all-pass stages, so notches sweep up and down the spectrum in time with a slow oscillator. On a guitar, an electric piano or a pad it gives the swirl heard on countless records. Audacity 3 shipped a phaser and Audacity 4 does not, so this is one to reach for here.',
+		steps: [
+			open(),
+			importAudio('music-loop', { what: 'the sound to treat' }),
+			selectAll(),
+			effect({
+				group: 'Distortion and modulation',
+				name: 'Phaser',
+				settings: [{ label: 'Stages', value: '4' }, { label: 'LFO frequency', value: '0.6' }],
+			}, { why: 'More stages make deeper notches; four is a classic pedal. The LFO frequency is how fast the sweep moves — 0.6 Hz is a slow, musical swirl.' }),
+			play({ see: 'The sound swirls slowly as the notches sweep through it.' }),
+		],
+		tips: [
+			'**Feedback** sharpens the notches into a more metallic, resonant sweep; keep it near zero for a subtle effect.',
+			'Phaser also runs as a realtime effect in a track’s rack, so you can hear the sweep while you adjust it: [Add a realtime effect to a track](guide:add-a-realtime-effect-to-a-track).',
+		],
+	},
+	{
+		id: 'apply-the-same-effects-every-time',
+		title: 'Apply the same chain of effects every time',
+		description: 'Save a sequence of effects as a macro and run it on any selection with one command.',
+		audacity: 'Tools → Macros → Manage Macros and Apply Macro (Audacity 3; Audacity 4 has no macros)',
+		intro: 'Every episode gets the same treatment: normalize, fade the ending. A macro records that sequence once and runs it whenever you ask, with the settings you chose, so a ten-step routine becomes one command. Audacity 3 had a Macro Manager for exactly this; Audacity 4 has not brought macros back.',
+		steps: [
+			open(),
+			importAudio('quiet-take', { what: 'a recording to process' }),
+			selectAll({ why: 'A macro runs on the selection, just as each effect would on its own.' }),
+			macro({ name: 'Episode finish', effects: ['Normalize', 'Fade Out'] }, { why: 'Each step keeps its default settings here; press a step’s **Select effect** button to change them before you run.', see: 'The recording is normalized and fades to silence at the end.' }),
+			play(),
+		],
+		tips: [
+			'The macro is saved with the editor, so it is waiting under **Tools → Macro manager** for the next recording.',
+			'**Export macro** writes the chain as an Audacity macro text file, and **Import macro** reads one, so a routine can move between the two programs.',
+		],
+	},
+	{
+		id: 'slide-from-one-tempo-to-another',
+		title: 'Slide from one tempo to another',
+		description: 'Speed a passage up or slow it down gradually across its length, with or without a pitch slide.',
+		audacity: 'Effect → Pitch and Tempo → Sliding Stretch',
+		intro: 'Change Tempo applies one change to the whole selection. Sliding Stretch lets the change move: start at the original tempo and end a quarter faster, or ramp a pitch across a phrase for a tape-stop or a rising drone. The tempo and pitch slides are set separately, so one can move while the other stays put.',
+		steps: [
+			open(),
+			importAudio('music-loop', { what: 'the passage to stretch' }),
+			selectAll(),
+			effect({
+				group: 'Pitch and tempo',
+				name: 'Sliding stretch',
+				settings: [{ label: 'Final tempo change', value: '25' }],
+			}, { why: 'The initial tempo change stays at zero, so the passage starts at its own speed and is a quarter faster by the end.' }),
+			play({ see: 'The passage gathers speed as it goes.' }),
+		],
+		tips: [
+			'Set **Initial pitch shift** and **Final pitch shift** to slide the pitch as well; a positive final value rises towards the end.',
+			'Like the other tempo effects, this changes the length of the clip, so anything after it on the track moves.',
 		],
 	},
 ]);

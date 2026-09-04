@@ -42,6 +42,9 @@ More [tracks and export](/guides/tracks-and-export/) guides:
 - [Export a WAV](/guides/tracks-and-export/export-a-wav/) — Render the project to an uncompressed WAV file.
 - [Mute and solo tracks](/guides/tracks-and-export/mute-and-solo-tracks/) — Silence a track, or listen to one track by itself, while you work on a mix.
 - [Add an empty track](/guides/tracks-and-export/add-an-empty-track/) — Create a new track to record into or to paste onto.
+- [Mute every track at once](/guides/tracks-and-export/mute-every-track-at-once/) — Silence the whole project in one step, then bring it all back.
+- [Mix tracks into a new track and keep the originals](/guides/tracks-and-export/mix-tracks-into-a-new-track/) — Render a mix of several tracks onto a new track while the sources stay in the project.
+- [Balance tracks in the mixer](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — Open a mixing console with a channel strip per track to set levels and pans side by side.
 
 ## Reference
 

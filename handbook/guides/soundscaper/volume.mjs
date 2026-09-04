@@ -165,4 +165,27 @@ export const VOLUME_GUIDES = Object.freeze([
 			'Put the voice track above the music in the track list so the relationship is easy to see.',
 		],
 	},
+
+	{
+		id: 'even-out-volume-with-the-legacy-compressor',
+		title: 'Even out volume with the classic compressor',
+		description: 'Use Audacity 3’s original compressor, with its noise floor and make-up gain, on a recording.',
+		audacity: 'Effect → Volume and Compression → Legacy Compressor (Audacity 3; Audacity 4 has only the new Compressor)',
+		intro: 'Audacity 3 shipped two compressors: the modern one with a knee, lookahead and live meters, and the original, simpler one it kept as Legacy Compressor. The legacy design has a noise floor below which it stops working — so it never pumps room noise up during pauses — and it makes the result up to 0 dB by default. Audacity 4 dropped it; Soundscaper keeps it for projects and ears that are used to it.',
+		steps: [
+			open(),
+			importAudio('quiet-take', { what: 'the recording to even out' }),
+			selectAll(),
+			effect({
+				group: 'Legacy effects',
+				name: 'Legacy Compressor',
+				settings: [{ label: 'Threshold', value: '-20' }, { label: 'Ratio', value: '4' }],
+			}, { why: 'Anything above −20 dB is turned down by the ratio, 4:1 here. Make-up gain then raises the whole result to peak at 0 dB.' }),
+			play({ see: 'Loud and quiet passages sit closer together and the whole take is louder.' }),
+		],
+		tips: [
+			'Raise **Noise floor** if the compressor is bringing up hiss in the pauses; the effect ignores anything quieter than it.',
+			'For a compressor you can hear working while you set it, use the modern one: [Even out volume with a compressor](guide:even-out-volume-with-a-compressor).',
+		],
+	},
 ]);

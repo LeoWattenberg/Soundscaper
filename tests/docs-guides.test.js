@@ -9,13 +9,17 @@ import { SOUNDSCAPER_GUIDE_GROUPS, SOUNDSCAPER_GUIDES } from '../handbook/guides
 import {
 	STEP_KINDS,
 	check,
+	contrast,
 	cursor,
 	describeStep,
 	dragClip,
 	effect,
 	importAudio,
+	macro,
 	menu,
+	mixRender,
 	open,
+	playAtSpeed,
 	selectClips,
 	selectRange,
 	validateGuide,
@@ -191,6 +195,45 @@ test('guide pages carry the generated banner, the Audacity aside, and every step
 	}
 	assert.throws(() => renderGuidePages({ ...inputs, groups: [] }), TypeError);
 	assert.throws(() => renderTutorialPages({ ...inputs, tutorials: [] }), TypeError);
+});
+
+test('the workflow steps validate their input and describe the surfaces they drive', () => {
+	assert.throws(() => contrast('middle'), RangeError);
+	assert.throws(() => macro({ name: '', effects: ['Normalize'] }), TypeError);
+	assert.throws(() => macro({ name: 'Finish', effects: [] }), TypeError);
+	assert.throws(() => playAtSpeed(1), RangeError);
+	assert.throws(() => playAtSpeed(3), RangeError);
+	assert.throws(() => mixRender({ replaceOriginals: 'no' }), TypeError);
+	assert.throws(() => check({ muted: 2 }), TypeError);
+	assert.throws(() => check({ panel: 'mixer' }), TypeError);
+
+	assert.match(howto(contrast('background')), /^In the \*\*Contrast\*\* panel, press \*\*Measure background\*\*\./u);
+	assert.match(howto(contrast('foreground')), /press \*\*Measure foreground\*\*\. The panel reports the foreground level/u);
+	const chain = howto(macro({ name: 'Finish', effects: ['Normalize', 'Fade Out'] }));
+	assert.match(chain, /\*\*Tools → Macro manager\*\* and press \*\*New macro\*\*\. Type `Finish` into \*\*Macro name\*\*/u);
+	assert.match(chain, /choose \*\*Normalize\*\* and \*\*Fade Out\*\*/u);
+	assert.match(chain, /\*\*Run macro\*\*/u);
+	assert.match(howto(playAtSpeed(0.75)), /set \*\*Playback speed\*\* to `0\.75×`.*\*\*Play at speed\*\*.*\*\*Pause play at speed\*\*/u);
+	assert.match(howto(mixRender()), /leave \*\*Mix down\*\*, \*\*Render effects\*\* and \*\*Replace originals\*\* checked/u);
+	assert.match(howto(mixRender({ replaceOriginals: false })), /turn off \*\*Replace originals\*\*/u);
+	assert.match(howto(check({ muted: 'all' })), /every track’s \*\*Mute\*\* button lit/u);
+	assert.match(howto(check({ muted: 'none' })), /no track muted/u);
+	assert.match(howto(check({ panel: { id: 'mixer', name: 'Mixer' } })), /the \*\*Mixer\*\* panel open/u);
+});
+
+test('the guides cover the Audacity 3 features Audacity 4 left out', () => {
+	// Each of these is an Audacity 3 surface with no counterpart in the Audacity 4
+	// sources the parity inventory is pinned to; the guide has to say so.
+	for (const id of [
+		'add-a-phaser', 'apply-the-same-effects-every-time', 'even-out-volume-with-the-legacy-compressor',
+		'check-speech-contrast', 'listen-at-a-different-speed', 'mute-every-track-at-once',
+		'mix-tracks-into-a-new-track', 'balance-tracks-in-the-mixer', 'export-each-chapter-as-its-own-file',
+	]) {
+		const guide = SOUNDSCAPER_GUIDES.find((entry) => entry.id === id);
+		assert.ok(guide, `the ${id} guide is missing`);
+		assert.match(guide.audacity, /Audacity 3/u, `${id} names its Audacity 3 origin`);
+		assert.match(guide.audacity, /Audacity 4/u, `${id} says Audacity 4 lacks it`);
+	}
 });
 
 test('the DC offset guide names Audacity’s own effect rather than Normalize', () => {

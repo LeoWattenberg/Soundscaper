@@ -44,6 +44,7 @@ More [volume and dynamics](/guides/volume/) guides:
 - [Even out volume with a compressor](/guides/volume/even-out-volume-with-a-compressor/) — Reduce the gap between loud and quiet moments so speech is easier to follow.
 - [Fade in and fade out](/guides/volume/fade-in-and-fade-out/) — Start a clip from silence and end it smoothly instead of cutting off.
 - [Tame peaks with a limiter](/guides/volume/tame-peaks-with-a-limiter/) — Stop the loudest moments from going over a ceiling without touching the rest.
+- [Even out volume with the classic compressor](/guides/volume/even-out-volume-with-the-legacy-compressor/) — Use Audacity 3’s original compressor, with its noise floor and make-up gain, on a recording.
 
 ## Reference
 
