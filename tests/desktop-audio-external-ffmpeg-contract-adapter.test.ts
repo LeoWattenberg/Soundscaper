@@ -163,7 +163,7 @@ function admittedOperation(
 function encodeRequest(overrides: Readonly<Record<string, unknown>> = {}): Record<string, unknown> {
 	return {
 		operation: 'audio-encode', format: 'opus', input: new Uint8Array(8),
-		sampleRate: 48_000, channelCount: 2, settings: { bitrateKbps: 128 },
+		sampleRate: 48_000, channelCount: 2, settings: { bitrateKbps: 128, vbrMode: 1 },
 		maximumOutputBytes: 8_192, requestId: 'adapter-encode', ...overrides,
 	};
 }

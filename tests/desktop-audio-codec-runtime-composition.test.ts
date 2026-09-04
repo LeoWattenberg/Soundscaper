@@ -502,7 +502,7 @@ function encodeRequest(format: 'flac' | 'opus'): DesktopAudioCodecRequest {
 		operation: 'audio-encode', format,
 		input: new Uint8Array(new Float32Array([0.25, -0.25]).buffer),
 		sampleRate: 48_000, channelCount: 2,
-		settings: format === 'flac' ? { compressionLevel: 5, bitDepth: 24 } : { bitrateKbps: 128 },
+		settings: format === 'flac' ? { compressionLevel: 5, bitDepth: 24 } : { bitrateKbps: 128, vbrMode: 1 },
 		maximumOutputBytes: 1_024, requestId: 'audio-runtime-1',
 	} as DesktopAudioCodecRequest;
 }
@@ -559,7 +559,7 @@ function capabilityQuery(): DesktopAudioCodecCapabilityQuery {
 	return {
 		schemaVersion: 2,
 		operations: [
-			{ operation: 'audio-encode', format: 'opus', sampleRate: 48_000, channelCount: 2, settings: { bitrateKbps: 160 } },
+			{ operation: 'audio-encode', format: 'opus', sampleRate: 48_000, channelCount: 2, settings: { bitrateKbps: 160, vbrMode: 1 } },
 			{ operation: 'audio-decode', format: 'opus', sampleRate: 48_000, channelCount: 2, settings: { sampleFormat: 'f32le' } },
 			{ operation: 'audio-encode', format: 'flac', sampleRate: 48_000, channelCount: 2, settings: { compressionLevel: 5, bitDepth: 24 } },
 			{ operation: 'audio-decode', format: 'flac', sampleRate: 48_000, channelCount: 2, settings: { sampleFormat: 'f32le' } },
