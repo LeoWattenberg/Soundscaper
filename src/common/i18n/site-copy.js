@@ -7,7 +7,7 @@ const SITE_COPY_ENTRIES = Object.freeze([
 	['framescaperEyebrow', 'Local video editing', 'Video lokal bearbeiten'],
 	['framescaperTitle', 'Framescaper', 'Framescaper'],
 	['framescaperIntro', 'Edit video and sound nondestructively, combine layers and effects, and export the finished video.', 'Schneide Video und Ton nondestruktiv, kombiniere Ebenen und Effekte und exportiere das fertige Video.'],
-	['framescaperMetaDescription', 'Local-first video editor in your browser.', 'Lokaler Video-Editor im Browser.'],
+	['framescaperMetaDescription', 'Beta: A browser-based video editor inspired by Audacity 4.', 'Beta: Ein browserbasierter Videoeditor, inspiriert von Audacity 4.'],
 	['eyebrow', 'Local multitrack audio editing', 'Mehrspur-Audio lokal bearbeiten'],
 	['title', 'Soundscaper', 'Soundscaper'],
 	['intro', 'Record audio, edit multiple tracks nondestructively, mix effects, and inspect loudness and frequency content.', 'Nimm Audio auf, schneide mehrere Spuren nondestruktiv, mische Effekte und prüfe Lautheit und Spektrum.'],
