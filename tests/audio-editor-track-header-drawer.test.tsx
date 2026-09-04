@@ -92,6 +92,47 @@ test('pointer targets inside a header or the handle strip do not dismiss the dra
 	assert.equal(isWithinTrackHeaderDrawer({}), false);
 });
 
+/*
+ * With the drawer open the lanes start at x = 0 and the headers slide back over
+ * them, so the lane's dimming wash and its sibling header overlap for the
+ * header's whole width. Every track row carries `contain: layout paint`, which
+ * makes the row a stacking context of its own: the wash and the header are
+ * ordered against each other on the row's local scale, where a document-level
+ * z-index does not sit under the dock chrome it was picked for - it simply wins
+ * and paints the dimming over the header the drawer has just brought back.
+ */
+test('the drawer dims the lanes under the reopened headers, never over them', () => {
+	const styles = (file: string) => readFileSync(
+		new URL(`../src/common/editor/ui/audio-editor-design-system/${file}`, import.meta.url),
+		'utf8',
+	);
+	const compact = styles('36-compact-layout.css');
+	const tracks = styles('07-timeline-tracks.css');
+	assert.match(styleBlock(tracks, '.audio-editor-track-row {'), /contain:\s*layout paint/u);
+
+	const dim = styleZIndex(compact, '.audio-editor-track-lane::after {');
+	const headers = [
+		'.audio-editor-track-controls {',
+		'.audio-editor-label-track-controls {',
+		'.audio-editor-video-track-controls {',
+	];
+	for (const header of headers) {
+		assert.ok(dim < styleZIndex(tracks, header), `${header} paints above the drawer dimming, not under it`);
+	}
+	assert.ok(
+		dim < styleZIndex(compact, '.audio-editor-track-folder-row__panel {'),
+		'the folder header paints above the drawer dimming, not under it',
+	);
+
+	// The wash still covers everything it is meant to darken: the lane's window
+	// sits on the row's auto layer and its vertical ruler just above that.
+	assert.ok(dim > 0, 'the dimming covers the lane content on the row\'s auto layer');
+	assert.ok(
+		dim > styleZIndex(styles('08-timeline-clips-effects.css'), '.audio-editor-vertical-ruler {'),
+		'the dimming covers the lane\'s vertical ruler',
+	);
+});
+
 interface MenuItem {
 	readonly id?: string;
 	readonly label?: string;
@@ -147,4 +188,21 @@ function menuInput() {
 		actionRuntime: null,
 		actions: new Proxy({}, { get: () => () => undefined }),
 	};
+}
+
+/** The declarations of the first rule whose selector contains `selector`. */
+function styleBlock(css: string, selector: string): string {
+	const start = css.indexOf(selector);
+	assert.notEqual(start, -1, `${selector} is declared`);
+	const open = css.indexOf('{', start);
+	const close = css.indexOf('}', open);
+	assert.ok(open !== -1 && close !== -1, `${selector} has a declaration block`);
+	return css.slice(open + 1, close);
+}
+
+function styleZIndex(css: string, selector: string): number {
+	const match = /z-index:\s*(-?\d+)/u.exec(styleBlock(css, selector));
+	const value = Number(match?.[1]);
+	assert.ok(Number.isInteger(value), `${selector} sets a numeric z-index`);
+	return value;
 }

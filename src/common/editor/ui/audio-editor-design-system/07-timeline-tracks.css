@@ -119,7 +119,10 @@
 	transform: translateX(var(--timeline-viewport-origin-x, 0px));
 }
 
-/* Rows and lanes are transparent so the timeline grid canvas shows through. */
+/* Rows and lanes are transparent so the timeline grid canvas shows through.
+   Containment makes each row its own stacking context, so every z-index a row
+   contains - the header's below, the lane's overlays - is compared inside the
+   row alone, on this local scale rather than the document's. */
 #kw-audio-editor-design-system .audio-editor-track-row {
 	--audio-editor-track-selection-line: color-mix(in srgb, var(--kw-editor-accent) 78%, white);
 

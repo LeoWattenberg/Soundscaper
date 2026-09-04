@@ -334,10 +334,16 @@
 	transition: transform 180ms ease;
 }
 
-/* Lanes dim under the open headers so the tap that closes them reads as such. */
+/* Lanes dim under the open headers so the tap that closes them reads as such.
+   The row is its own stacking context (`contain: layout paint`), so this wash
+   is only ever ordered against its sibling header, at z 45, and never against
+   the document-level scale the dock and dialogs share: a four-digit z-index
+   would paint the dimming over the header the drawer has just slid back in.
+   Anything above 0 still covers the lane's own content, whose window and
+   overlays sit on the row's auto layer. */
 #kw-audio-editor-design-system .audio-editor-timeline-panel[data-track-header-drawer='open'] .audio-editor-track-lane::after {
 	position: absolute;
-	z-index: 1003;
+	z-index: 40;
 	background: rgb(0 0 0 / 22%);
 	content: '';
 	inset: 0;
