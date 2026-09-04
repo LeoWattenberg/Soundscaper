@@ -542,6 +542,43 @@ import {
 		expect(errors).toEqual([]);
 	});
 
+	test('runs a macro whose steps mix a realtime rack effect with an offline one', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		await chooseCommandAction(page, editor, 'Tools', 'Macro manager');
+
+		const manager = page.getByRole('dialog', { name: 'Macro manager', exact: true });
+		await manager.getByRole('region', { name: 'Macros', exact: true })
+			.getByRole('button', { name: 'New macro', exact: true }).click();
+		const steps = manager.locator('[data-macro-steps]');
+		const picker = () => page.getByRole('menu', { name: 'Choose an effect' });
+
+		// Bass and Treble streams in a rack; Amplify only ever runs over a
+		// selection, and the chain has to carry one into the other.
+		await steps.locator('[data-macro-add-effect]').click();
+		await picker().getByRole('menuitem', { name: 'Bass and Treble', exact: true }).click();
+		await steps.locator('[data-macro-add-effect]').click();
+		await picker().getByRole('menuitem', { name: 'Amplify', exact: true }).click();
+		await expect(manager.locator('.effect-slot__name-text')).toHaveText(['Bass and Treble', 'Amplify']);
+
+		await manager.getByRole('group', { name: 'Amplify', exact: true })
+			.getByRole('button', { name: 'Select effect', exact: true }).click();
+		const amplify = page.getByRole('dialog', { name: 'Amplify', exact: true });
+		await commitInput(amplify.getByRole('spinbutton', { name: 'Amplification (dB)' }), '-6');
+		await closeDialog(amplify);
+
+		const runButton = page.getByRole('dialog', { name: 'Macro manager', exact: true })
+			.getByRole('button', { name: 'Run macro', exact: true });
+		await runButton.click();
+		await expect(page.getByRole('dialog', { name: 'Macro manager', exact: true }).getByRole('status'))
+			.toHaveText('Macro applied.', { timeout: 20_000 });
+		await expect.poll(async () => (
+			(await effectSourceMetadata(page)).some((source) => source.name.includes('Untitled macro'))
+		)).toBe(true);
+		expect(errors).toEqual([]);
+	});
+
 	test('captures and restores a rack Noise Reduction profile', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
