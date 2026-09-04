@@ -313,8 +313,30 @@ test('labelled silence declines a selection with no span and tracks it cannot si
 	assert.equal(await service.generateLabeledSilence([{ startFrame: 20, endFrame: 20 }], ['track-a']), false);
 	assert.equal(await service.generateLabeledSilence([{ startFrame: 20, endFrame: 40 }], []), false);
 	assert.equal(await service.generateLabeledSilence([{ startFrame: 20, endFrame: 40 }], ['labels']), false);
+	// The one clip ends at frame 100, so a label past it covers no audio at all.
+	assert.equal(await service.generateLabeledSilence([{ startFrame: 200, endFrame: 300 }], ['track-a']), false);
 	assert.deepEqual(fixture.commits, []);
 	assert.deepEqual(fixture.preflights, []);
+});
+
+test('labelled silence covers only the part of a label that sits over audio', async () => {
+	const fixture = createFixture();
+	const service = createAudioGeneratorService(fixture.dependencies);
+
+	// The label runs from 80 to 300; the clip stops at 100.
+	assert.equal(await service.generateLabeledSilence([{ startFrame: 80, endFrame: 300 }], ['track-a']), true);
+
+	assert.deepEqual(fixture.preflights, [84]);
+	const batch = fixture.commits[0]?.command;
+	assert.equal(batch?.type, 'batch');
+	if (batch?.type !== 'batch') return;
+	const additions = batch.commands.filter((command) => command.type === 'clip/add');
+	assert.deepEqual(
+		additions.map((command) => command.type === 'clip/add'
+			? [command.clip.timelineStartFrame, command.clip.durationFrames]
+			: null),
+		[[80, 20]],
+	);
 });
 
 test('silence without a selection or effect target reports the selection requirement', async () => {

@@ -7,7 +7,6 @@ import {
 	bootEditor,
 	chooseNestedCommandAction,
 	collectClientErrors,
-	getMenuItem,
 	importFiles,
 	openNestedCommandMenu,
 	registerAudioEditorHooks,
@@ -32,6 +31,14 @@ async function labelTheSelection(page, editor) {
 	await expect(editor.locator('[data-label-track] .audio-editor-label-marker')).toHaveCount(1);
 }
 
+/** The submenu's rows in Audacity's order, addressed by position rather than name. */
+async function labeledRows(page, editor) {
+	const submenu = await openNestedCommandMenu(page, editor, 'Edit', ['Labeled audio']);
+	const items = submenu.getByRole('menuitem');
+	await expect(items).toHaveCount(LABELED_ROWS.length);
+	return items;
+}
+
 test.describe('labeled audio', () => {
 	registerAudioEditorHooks();
 
@@ -43,8 +50,11 @@ test.describe('labeled audio', () => {
 
 		await labelTheSelection(page, editor);
 
-		const labeled = await openNestedCommandMenu(page, editor, 'Edit', ['Labeled audio']);
-		for (const row of LABELED_ROWS) await expect(getMenuItem(labeled, row)).toBeEnabled();
+		const rows = await labeledRows(page, editor);
+		for (const [index, row] of LABELED_ROWS.entries()) {
+			await expect(rows.nth(index)).toContainText(row);
+			await expect(rows.nth(index)).toBeEnabled();
+		}
 		await page.keyboard.press('Escape');
 		await page.keyboard.press('Escape');
 
@@ -54,18 +64,46 @@ test.describe('labeled audio', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('silencing a labelled region replaces exactly the audio it covers', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		await labelTheSelection(page, editor);
+
+		await chooseNestedCommandAction(page, editor, 'Edit', ['Labeled audio', 'Silence audio']);
+
+		// The clip either side of the label survives, and one silent clip fills
+		// the label. The empty track beside it gains nothing: upstream silences
+		// samples, and there are none there to silence.
+		await expect(editor).toHaveAttribute('data-clip-count', '3');
+		expect(errors).toEqual([]);
+	});
+
+	test('cutting a labelled region closes the gap and fills the clipboard', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		await labelTheSelection(page, editor);
+
+		await chooseNestedCommandAction(page, editor, 'Edit', ['Labeled audio', 'Cut']);
+
+		await expect(editor).toHaveAttribute('data-clip-count', '2');
+		const edit = await openNestedCommandMenu(page, editor, 'Edit', ['Paste']);
+		await expect(edit.getByRole('menuitem').first()).toBeEnabled();
+		await page.keyboard.press('Escape');
+		await page.keyboard.press('Escape');
+		expect(errors).toEqual([]);
+	});
+
 	test('the submenu stays inert until a whole label sits inside the selection', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 
-		const edit = await openNestedCommandMenu(page, editor, 'Edit', []);
-		const submenu = getMenuItem(edit, 'Labeled audio');
-		await expect(submenu).toBeVisible();
-		await submenu.press('ArrowRight');
-		for (const row of LABELED_ROWS) {
-			await expect(submenu.getByRole('menu').getByRole('menuitem', { name: row, exact: true }))
-				.toHaveAttribute('aria-disabled', 'true');
+		const rows = await labeledRows(page, editor);
+		for (const [index, row] of LABELED_ROWS.entries()) {
+			await expect(rows.nth(index)).toContainText(row);
+			await expect(rows.nth(index)).toHaveAttribute('aria-disabled', 'true');
 		}
 		await page.keyboard.press('Escape');
 		await page.keyboard.press('Escape');

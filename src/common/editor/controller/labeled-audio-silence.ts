@@ -11,7 +11,10 @@ import { prepareDisjointRangeDeleteCommand } from '../commands/range-runtime.js'
 import { generateAudioEditorSignal } from '../generators.js';
 import { normalizeProjectSampleRate } from './app-helpers.ts';
 import type {
+	AudioGeneratorClip,
+	AudioGeneratorProject,
 	AudioGeneratorServiceDependencies,
+	AudioGeneratorTrack,
 	AudioGeneratorWriter,
 	GeneratedSignal,
 	OperationOwnership,
@@ -61,9 +64,17 @@ export function createLabeledAudioSilence(
 			const project = owned.project;
 			const requested = new Set(trackIds);
 			const targets = project.tracks.filter((track) => requested.has(track.id) && track.type === 'audio');
-			if (targets.length === 0) return false;
+			// Upstream silences samples, so a labelled region over a track that
+			// holds nothing there silences nothing. Only the stretches that
+			// actually cover audio become silent clips.
+			const plan = targets
+				.map((track) => Object.freeze({ trackId: track.id, spans: coveredSpans(project, track, spans) }))
+				.filter((entry) => entry.spans.length > 0);
+			if (plan.length === 0) return false;
 			const sampleRate = normalizeProjectSampleRate(project.sampleRate);
-			const longestRegionFrames = Math.max(...spans.map((region) => region.endFrame - region.startFrame));
+			const longestRegionFrames = Math.max(...plan.flatMap((entry) => (
+				entry.spans.map((region) => region.endFrame - region.startFrame)
+			)));
 			const channelCount = Number(dependencies.trackChannelCount(project, targets[0]!, project.masterChannels || 2));
 			// One frame of headroom keeps every clip inside the source bounds
 			// however the requested duration rounds.
@@ -115,17 +126,16 @@ export function createLabeledAudioSilence(
 			await dependencies.store.saveAnalysis(dependencies.peakCacheKey(sourceId), peaks);
 			ownership.assert(owned);
 			const commandProject = dependencies.getCommandProject?.() ?? project;
-			const targetTrackIds = targets.map((track) => track.id);
 			dependencies.commit({
 				type: 'batch',
 				commands: [
 					createAddSourceCommand(source),
 					prepareDisjointRangeDeleteCommand(commandProject, {
 						ranges: spans.map((region) => ({ startFrame: region.startFrame, endFrame: region.endFrame })),
-						trackIds: targetTrackIds,
+						trackIds: plan.map((entry) => entry.trackId),
 						rippleMode: 'none',
 					}) as AudioEditorCommand,
-					...targetTrackIds.flatMap((trackId) => spans.map((region) => createAddClipCommand(trackId, {
+					...plan.flatMap((entry) => entry.spans.map((region) => createAddClipCommand(entry.trackId, {
 						id: dependencies.createId('clip'),
 						sourceId: sourceId as string,
 						title: name,
@@ -150,4 +160,43 @@ export function createLabeledAudioSilence(
 			ownership.finish(owned, processing);
 		}
 	}
+}
+
+/**
+ * The stretches of one track a set of labelled regions actually covers.
+ *
+ * Each region is intersected with the clips it crosses, and stretches that end
+ * where the next begins are merged so a run of abutting clips is silenced as
+ * one piece rather than several.
+ */
+function coveredSpans(
+	project: AudioGeneratorProject,
+	track: AudioGeneratorTrack,
+	regions: readonly LabeledAudioRegion[],
+): readonly LabeledAudioRegion[] {
+	const clips = (track.clipIds ?? [])
+		.map((clipId) => project.clips.find((clip) => clip.id === clipId))
+		.filter((clip): clip is AudioGeneratorClip => Boolean(clip));
+	const overlaps: LabeledAudioRegion[] = [];
+	for (const region of regions) {
+		for (const clip of clips) {
+			const startFrame = Math.max(region.startFrame, clip.timelineStartFrame);
+			const endFrame = Math.min(region.endFrame, clip.timelineStartFrame + clip.durationFrames);
+			if (endFrame > startFrame) overlaps.push({ startFrame, endFrame });
+		}
+	}
+	overlaps.sort((left, right) => left.startFrame - right.startFrame || left.endFrame - right.endFrame);
+	const merged: LabeledAudioRegion[] = [];
+	for (const span of overlaps) {
+		const previous = merged.at(-1);
+		if (previous && span.startFrame <= previous.endFrame) {
+			merged[merged.length - 1] = {
+				startFrame: previous.startFrame,
+				endFrame: Math.max(previous.endFrame, span.endFrame),
+			};
+			continue;
+		}
+		merged.push(span);
+	}
+	return Object.freeze(merged);
 }
