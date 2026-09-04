@@ -1,21 +1,23 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createHash, randomUUID } from 'node:crypto';
-import { createReadStream } from 'node:fs';
-import {
-	cp,
-	lstat,
-	mkdir,
-	readFile,
-	readdir,
-	readlink,
-	realpath,
-	rename,
-	rm,
-	writeFile,
-} from 'node:fs/promises';
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { lstat, mkdir, readdir, readlink, rename, rm } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 
+import {
+	assertDirectory,
+	assertRegularFile,
+	assertSafeOutput,
+	assertSafeOutputPath,
+	assertSafeTree,
+	copyTree,
+	hashFile,
+	isPathInside,
+	readRequiredJson,
+	resolveRequiredPath,
+	sha256,
+	writeJson,
+} from './desktop-nightly-tests-staging-filesystem.mjs';
 import {
 	pruneFrameworkDevelopmentHeaders,
 	pruneFrameworkLinkerStubs,
@@ -371,62 +373,6 @@ async function stageLicenses(root, output, runtimePackages) {
 	}
 }
 
-async function assertSafeTree(root, label, options = {}) {
-	const excludedRootNames = options.excludedRootNames ?? new Set();
-	const canonicalRoot = await realpath(root);
-	await visit(root, '');
-
-	async function visit(path, relativePath) {
-		const metadata = await lstat(path);
-		if (metadata.isSymbolicLink()) {
-			if (!options.allowContainedSymlinks) throw new Error(`${label} contains a symbolic link: ${relativePath || '.'}`);
-			const target = await readlink(path);
-			if (isAbsolute(target)) throw new Error(`${label} symbolic link must be relative: ${relativePath}`);
-			const lexicalTarget = resolve(dirname(path), target);
-			if (!isPathInside(root, lexicalTarget) && lexicalTarget !== root) {
-				throw new Error(`${label} symbolic link leaves its source root: ${relativePath}`);
-			}
-			let canonicalTarget;
-			try {
-				canonicalTarget = await realpath(path);
-			} catch (error) {
-				throw new Error(`${label} contains an unresolved symbolic link: ${relativePath}`, { cause: error });
-			}
-			if (!isPathInside(canonicalRoot, canonicalTarget) && canonicalTarget !== canonicalRoot) {
-				throw new Error(`${label} symbolic link leaves its canonical source root: ${relativePath}`);
-			}
-			return;
-		}
-		if (metadata.isFile()) return;
-		if (!metadata.isDirectory()) throw new Error(`${label} contains a non-file entry: ${relativePath || '.'}`);
-		for (const entry of await readdir(path, { withFileTypes: true })) {
-			if (!relativePath && excludedRootNames.has(entry.name)) continue;
-			await visit(join(path, entry.name), relativePath ? `${relativePath}/${entry.name}` : entry.name);
-		}
-	}
-}
-
-async function copyTree(source, destination, options = {}) {
-	const sourceMetadata = await lstat(source);
-	await mkdir(dirname(destination), { recursive: true });
-	if (sourceMetadata.isFile()) {
-		await cp(source, destination, { force: false, errorOnExist: true });
-		return;
-	}
-	const excludedRootNames = options.excludedRootNames ?? new Set();
-	await cp(source, destination, {
-		recursive: true,
-		force: false,
-		errorOnExist: true,
-		verbatimSymlinks: true,
-		filter: (candidate) => {
-			const relativePath = relative(source, candidate);
-			if (!relativePath) return true;
-			return !excludedRootNames.has(relativePath.split(sep)[0]);
-		},
-	});
-}
-
 async function describePayload(path, manifestPath) {
 	const entries = [];
 	await collect(path, '');
@@ -496,98 +442,7 @@ function normalizeTargetValue(value, label) {
 	return value;
 }
 
-function assertSafeOutput({ root, output, browsers }) {
-	const buildRoot = join(root, '.desktop-build');
-	if (!isPathInside(buildRoot, output)) {
-		throw new Error('Nightly test output must be a proper descendant of the repository .desktop-build directory.');
-	}
-	if (output === browsers || isPathInside(output, browsers) || isPathInside(browsers, output)) {
-		throw new Error('Nightly test output cannot overlap its browser source.');
-	}
-}
-
-async function assertSafeOutputPath(path) {
-	let candidate = path;
-	while (true) {
-		try {
-			const metadata = await lstat(candidate);
-			if (metadata.isSymbolicLink()) {
-				throw new Error(`Nightly test output path contains a symbolic link: ${candidate}`);
-			}
-			if (candidate !== path && !metadata.isDirectory()) {
-				throw new Error(`Nightly test output parent is not a directory: ${candidate}`);
-			}
-		} catch (error) {
-			if (error?.code !== 'ENOENT') throw error;
-		}
-		const parent = dirname(candidate);
-		if (parent === candidate) return;
-		candidate = parent;
-	}
-}
-
-async function assertDirectory(path, label) {
-	let metadata;
-	try {
-		metadata = await lstat(path);
-	} catch (error) {
-		if (error?.code === 'ENOENT') throw new Error(`Required ${label} is missing: ${path}`, { cause: error });
-		throw error;
-	}
-	if (metadata.isSymbolicLink()) throw new Error(`Required ${label} cannot be a symbolic link: ${path}`);
-	if (!metadata.isDirectory()) throw new Error(`Required ${label} is not a directory: ${path}`);
-}
-
-async function assertRegularFile(path, label) {
-	let metadata;
-	try {
-		metadata = await lstat(path);
-	} catch (error) {
-		if (error?.code === 'ENOENT') throw new Error(`Required ${label} is missing: ${path}`, { cause: error });
-		throw error;
-	}
-	if (metadata.isSymbolicLink()) throw new Error(`Required ${label} cannot be a symbolic link: ${path}`);
-	if (!metadata.isFile()) throw new Error(`Required ${label} is not a regular file: ${path}`);
-}
-
-async function readRequiredJson(path, label) {
-	await assertRegularFile(path, label);
-	try {
-		return JSON.parse(await readFile(path, 'utf8'));
-	} catch (error) {
-		throw new Error(`${label} is not valid JSON: ${path}`, { cause: error });
-	}
-}
-
-function resolveRequiredPath(value, label) {
-	if (typeof value !== 'string' || !value.trim()) throw new TypeError(`Nightly test ${label} is required.`);
-	return resolve(value);
-}
-
 function assertPackageName(name) {
 	if (typeof name !== 'string' || !PACKAGE_NAME.test(name)) throw new Error(`Unsafe runtime package name: ${String(name)}`);
 }
 
-function isPathInside(root, candidate) {
-	const path = relative(root, candidate);
-	return path !== '' && path !== '..' && !path.startsWith(`..${sep}`) && !isAbsolute(path);
-}
-
-function hashFile(path) {
-	return new Promise((resolvePromise, reject) => {
-		const hash = createHash('sha256');
-		const stream = createReadStream(path);
-		stream.on('error', reject);
-		stream.on('data', (chunk) => hash.update(chunk));
-		stream.on('end', () => resolvePromise(hash.digest('hex')));
-	});
-}
-
-function sha256(bytes) {
-	return createHash('sha256').update(bytes).digest('hex');
-}
-
-async function writeJson(path, value) {
-	await mkdir(dirname(path), { recursive: true });
-	await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, { flag: 'wx' });
-}
