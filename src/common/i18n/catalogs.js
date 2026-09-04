@@ -1,7 +1,7 @@
 import { localeLanguage } from './locale.js';
 import { CANONICAL_EXTRA_COPY_BY_LOCALE } from './canonical-extras.js';
 import { REPORT_COPY_BY_LOCALE } from './report-copy.js';
-import { EXPORT_MENU_COPY_BY_LOCALE } from './export-menu-copy.js'; import { DAWPROJECT_COPY_BY_LOCALE } from './dawproject-copy.js';
+import { EXPORT_MENU_COPY_BY_LOCALE } from './export-menu-copy.js'; import { MP3_EXPORT_COPY_BY_LOCALE } from './mp3-export-copy.js'; import { DAWPROJECT_COPY_BY_LOCALE } from './dawproject-copy.js';
 import { LABEL_EXPORT_COPY_BY_LOCALE } from './label-export-copy.js';
 import { DELIVERY_QUEUE_COPY_BY_LOCALE } from './delivery-queue-copy.js';
 import { EXPORT_CHANNEL_MAPPING_COPY_BY_LOCALE } from './export-channel-mapping-copy.js';
@@ -93,7 +93,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		importLabels: 'Beschriftungen importieren',
 		importFile: 'Importieren',
 		...REPORT_COPY_BY_LOCALE.de,
-		...EXPORT_MENU_COPY_BY_LOCALE.de, ...DAWPROJECT_COPY_BY_LOCALE.de,
+		...EXPORT_MENU_COPY_BY_LOCALE.de, ...MP3_EXPORT_COPY_BY_LOCALE.de, ...DAWPROJECT_COPY_BY_LOCALE.de,
 		...LABEL_EXPORT_COPY_BY_LOCALE.de,
 		...DELIVERY_QUEUE_COPY_BY_LOCALE.de,
 		...EXPORT_CHANNEL_MAPPING_COPY_BY_LOCALE.de,
@@ -785,17 +785,6 @@ export const COPY_BY_LOCALE = deepFreeze({
 		bitDepth: 'Bittiefe',
 		sampleFormat: 'Sampleformat',
 		quality: 'Qualität',
-		bitRateMode: 'Bitratenmodus',
-		bitRateModePreset: 'Voreinstellung',
-		bitRateModeVariable: 'Variabel',
-		bitRateModeAverage: 'Durchschnitt',
-		bitRateModeConstant: 'Konstant',
-		mp3PresetExcessive: 'Überragend, 320 kbps',
-		mp3PresetExtreme: 'Extrem, 220-260 kbps',
-		mp3PresetStandard: 'Standard, 170-210 kbps',
-		mp3PresetMedium: 'Mittel, 145-185 kbps',
-		mp3VariableBest: '220-260 kbps (Beste Qualität)',
-		mp3VariableSmallest: '45-85 kbps (Kleinere Dateien)',
 		sampleRate: 'Samplerate',
 		channelMapping: 'Kanalzuordnung',
 		preserveChannels: 'Kanäle beibehalten',
@@ -1097,7 +1086,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		importLabels: 'Import labels',
 		importFile: 'Import',
 		...REPORT_COPY_BY_LOCALE.en,
-		...EXPORT_MENU_COPY_BY_LOCALE.en, ...DAWPROJECT_COPY_BY_LOCALE.en,
+		...EXPORT_MENU_COPY_BY_LOCALE.en, ...MP3_EXPORT_COPY_BY_LOCALE.en, ...DAWPROJECT_COPY_BY_LOCALE.en,
 		...LABEL_EXPORT_COPY_BY_LOCALE.en,
 		...DELIVERY_QUEUE_COPY_BY_LOCALE.en,
 		...EXPORT_CHANNEL_MAPPING_COPY_BY_LOCALE.en,
@@ -1789,17 +1778,6 @@ export const COPY_BY_LOCALE = deepFreeze({
 		bitDepth: 'Bit depth',
 		sampleFormat: 'Sample format',
 		quality: 'Quality',
-		bitRateMode: 'Bit Rate Mode',
-		bitRateModePreset: 'Preset',
-		bitRateModeVariable: 'Variable',
-		bitRateModeAverage: 'Average',
-		bitRateModeConstant: 'Constant',
-		mp3PresetExcessive: 'Excessive, 320 kbps',
-		mp3PresetExtreme: 'Extreme, 220-260 kbps',
-		mp3PresetStandard: 'Standard, 170-210 kbps',
-		mp3PresetMedium: 'Medium, 145-185 kbps',
-		mp3VariableBest: '220-260 kbps (Best Quality)',
-		mp3VariableSmallest: '45-85 kbps (Smaller files)',
 		sampleRate: 'Sample rate',
 		channelMapping: 'Channel mapping',
 		preserveChannels: 'Preserve channels',
