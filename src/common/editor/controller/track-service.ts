@@ -334,8 +334,17 @@ export function createEditorTrackService(
 			target = findControllerTrack(project, createdTrackId);
 		}
 		if (!target || target.type !== 'label') throw new Error(dependencies.copy.trackNotFound);
-		const startFrame = dependencies.snapTimelineFrame(options.startFrame ?? dependencies.getPositionFrames());
-		const endFrame = dependencies.snapTimelineFrame(options.endFrame ?? startFrame);
+		// Audacity's OnAddLabel hands DoAddLabel the selected region, so a label
+		// added over a time selection spans it and a label added without one is
+		// a point at the cursor. The Labeled audio commands act on whole labels
+		// inside a selection, and only region labels can carry audio.
+		const region = timeSelectionRegion(project);
+		const startFrame = dependencies.snapTimelineFrame(
+			options.startFrame ?? region?.startFrame ?? dependencies.getPositionFrames(),
+		);
+		const endFrame = dependencies.snapTimelineFrame(
+			options.endFrame ?? (options.startFrame === undefined ? region?.endFrame : undefined) ?? startFrame,
+		);
 		const labelId = options.id || dependencies.createId('label');
 		const command = createAddLabelCommand(target.id, {
 			...options,
@@ -346,6 +355,18 @@ export function createEditorTrackService(
 		dependencies.commit(command, { selectTrackId: target.id });
 		return labelId;
 	}
+}
+
+/** The current time selection, when it actually spans time. */
+function timeSelectionRegion(
+	project: ControllerProject,
+): Readonly<{ startFrame: number; endFrame: number }> | null {
+	const selection = project.selection;
+	if (!selection) return null;
+	if (!Number.isSafeInteger(selection.startFrame) || !Number.isSafeInteger(selection.endFrame)) return null;
+	return selection.endFrame > selection.startFrame
+		? { startFrame: selection.startFrame, endFrame: selection.endFrame }
+		: null;
 }
 
 /**

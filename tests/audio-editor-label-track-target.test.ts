@@ -48,6 +48,22 @@ test('a project without a label track still gets one for its first label', () =>
 	assert.equal(service.lastLabelTrackId(), 'label-track-1');
 });
 
+test('a label spans the time selection, as Audacity\'s Add label does', () => {
+	const region = labelServiceFixture(['audio', 'labels'], 'audio', { startFrame: 1_000, endFrame: 5_000 });
+	assert.equal(region.addLabel(), 'label-1');
+	assert.deepEqual(region.lastLabelRange(), [1_000, 5_000]);
+
+	// Without a span the label stays a point at the cursor, and an explicit
+	// start still wins over the selection.
+	const point = labelServiceFixture(['audio', 'labels'], 'audio', { startFrame: 3_000, endFrame: 3_000 });
+	assert.equal(point.addLabel(), 'label-1');
+	assert.deepEqual(point.lastLabelRange(), [24_000, 24_000]);
+
+	const explicit = labelServiceFixture(['audio', 'labels'], 'audio', { startFrame: 1_000, endFrame: 5_000 });
+	assert.equal(explicit.addLabel(null, { startFrame: 8_000 }), 'label-1');
+	assert.deepEqual(explicit.lastLabelRange(), [8_000, 8_000]);
+});
+
 test('an explicitly named label track always receives the label', () => {
 	const service = labelServiceFixture(['audio', 'first-labels', 'second-labels'], 'audio');
 
@@ -56,14 +72,19 @@ test('an explicitly named label track always receives the label', () => {
 });
 
 interface LabelServiceFixture {
-	addLabel(trackId?: string | null): string | null;
+	addLabel(trackId?: string | null, options?: Record<string, unknown>): string | null;
 	commands(): readonly string[];
 	lastLabelTrackId(): string | null;
+	lastLabelRange(): readonly [number, number] | null;
 }
 
 /** A track service over tracks named for their kind: `audio` or anything else. */
-function labelServiceFixture(trackIds: readonly string[], selectedTrackId: string): LabelServiceFixture {
-	let project = projectFixture(trackIds);
+function labelServiceFixture(
+	trackIds: readonly string[],
+	selectedTrackId: string,
+	selection: Readonly<{ startFrame: number; endFrame: number }> | null = null,
+): LabelServiceFixture {
+	let project = projectFixture(trackIds, selection);
 	const commits: AudioEditorCommand[] = [];
 	let sequence = 0;
 	const dependencies: EditorTrackServiceDependencies = {
@@ -96,18 +117,27 @@ function labelServiceFixture(trackIds: readonly string[], selectedTrackId: strin
 	};
 	const service = createEditorTrackService(dependencies);
 	return {
-		addLabel: (trackId = null) => service.addLabel(trackId),
+		addLabel: (trackId = null, options = {}) => service.addLabel(trackId, options),
 		commands: () => commits.map((command) => command.type),
 		lastLabelTrackId: () => {
 			const added = commits.filter((command) => command.type === 'label/add').at(-1);
 			return added ? String((added as unknown as { trackId: string }).trackId) : null;
 		},
+		lastLabelRange: () => {
+			const added = commits.filter((command) => command.type === 'label/add').at(-1);
+			const label = (added as unknown as { label: { startFrame: number; endFrame: number } } | undefined)?.label;
+			return label ? [label.startFrame, label.endFrame] : null;
+		},
 	};
 }
 
-function projectFixture(trackIds: readonly string[]): ControllerProject {
+function projectFixture(
+	trackIds: readonly string[],
+	selection: Readonly<{ startFrame: number; endFrame: number }> | null = null,
+): ControllerProject {
 	return {
 		id: 'project',
+		selection,
 		schemaVersion: Number.MAX_SAFE_INTEGER,
 		tracks: trackIds.map((id) => ({
 			id,
