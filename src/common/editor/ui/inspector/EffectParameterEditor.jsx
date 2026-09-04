@@ -24,6 +24,7 @@ import {
 	audacityParameterPresentation,
 	audacityParameterVisible,
 	audioEffectParamRangeFromDescriptor,
+	effectParameterIsClipDuration,
 	isAudacityDefinition,
 	nativeEffectOptionLabel,
 	nativeEffectParameterLabel,
@@ -219,7 +220,7 @@ export default function EffectParameterEditor({
 					copy={copy}
 					disabled={disabled}
 					hook={name}
-					timeUnit={editorTimeUnit(unit)}
+					durationUnit={durationUnit(effect.type, name, unit)}
 					sampleRate={sampleRate}
 						onCommit={(next) => updateParam(name, next, { controlValue: next })}
 						{...parameterGestureProps(name, null, fallback)}
@@ -435,7 +436,7 @@ function AudacityParameter({ name, effectType, descriptor, value, effectParams, 
 			copy={copy}
 			disabled={disabled}
 			hook={name}
-			timeUnit={editorTimeUnit(descriptor.unit)}
+			durationUnit={durationUnit(effectType, name, descriptor.unit)}
 			sampleRate={sampleRate}
 			onCommit={(next) => onCommit(next, { controlValue: next })}
 			{...gestureFor(name)}
@@ -452,7 +453,7 @@ function ParameterNumber({
 	copy,
 	disabled,
 	hook,
-	timeUnit,
+	durationUnit: durationTimeUnit,
 	sampleRate = AUDIO_EDITOR_SAMPLE_RATE,
 	onCommit,
 	onGestureBegin,
@@ -535,7 +536,7 @@ function ParameterNumber({
 			aria-label={label}
 		>
 			<span>{label}</span>
-			{!timeUnit && knobRange && presentation === 'knob' && <Knob
+			{!durationTimeUnit && knobRange && presentation === 'knob' && <Knob
 				value={gestureValue ?? (Number(value) || 0)}
 				min={knobRange[0]}
 				max={knobRange[1]}
@@ -548,7 +549,7 @@ function ParameterNumber({
 				onGestureEnd={gestureEnabled ? finishKnobGesture : undefined}
 				onGestureCancel={gestureEnabled ? cancelKnobGesture : undefined}
 			/>}
-			{!timeUnit && knobRange && presentation === 'slider' && <SteppedSlider
+			{!durationTimeUnit && knobRange && presentation === 'slider' && <SteppedSlider
 				value={Number(value) || 0}
 				min={knobRange[0]}
 				max={knobRange[1]}
@@ -560,12 +561,12 @@ function ParameterNumber({
 					onGestureEnd={onGestureCommit}
 					onGestureCancel={onGestureCancel}
 				/>}
-			{timeUnit ? <AudioEditorTimeCodeInput
+			{durationTimeUnit ? <AudioEditorTimeCodeInput
 				label={label}
 				value={Number(value) || 0}
-				unit={timeUnit}
+				unit={durationTimeUnit}
 				rate={sampleRate}
-				format={timeUnit === 'samples' ? 'samples' : 'hh:mm:ss+milliseconds'}
+				format={durationTimeUnit === 'samples' ? 'samples' : 'hh:mm:ss+milliseconds'}
 				minimum={knobRange?.[0] ?? 0}
 				maximum={knobRange?.[1]}
 				disabled={disabled}
@@ -584,7 +585,15 @@ function ParameterNumber({
 	);
 }
 
-function editorTimeUnit(unit) {
+/**
+ * The timecode component is for durations only: a value that says how long the
+ * audio will be once the effect has run, which is the only kind of parameter a
+ * user may want to enter in minutes or hours. An attack, a release, a lookahead
+ * or a fade length is a bounded shaping control, so it keeps the knob or slider
+ * its effect gives every other parameter of the same shape.
+ */
+function durationUnit(effectType, name, unit) {
+	if (!effectParameterIsClipDuration(effectType, name)) return null;
 	if (unit === 's') return 'seconds';
 	if (unit === 'ms') return 'milliseconds';
 	if (unit === 'samples') return 'samples';

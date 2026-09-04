@@ -178,6 +178,22 @@ export function audacityParameterVisible(effect: EffectLike, name: string): bool
 
 export type AudacityParameterPresentation = 'knob' | 'slider' | 'number';
 
+/**
+ * Time-valued parameters that state how long audio will be once the effect has
+ * run — the only ones that earn the full timecode component, because they are
+ * the only ones a user may reasonably want to enter in minutes or hours. Every
+ * other time-adjacent value is a shaping control with a minimum and a maximum
+ * (an attack, a release, a lookahead, a fade length), so it gets the same knob
+ * or slider as the rest of that effect's bounded parameters.
+ */
+const CLIP_DURATION_PARAMETERS: Readonly<Record<string, readonly string[]>> = {
+	'audacity-truncate-silence': ['minimumSilence', 'truncateTo'],
+};
+
+export function effectParameterIsClipDuration(effectType: string, name: string): boolean {
+	return CLIP_DURATION_PARAMETERS[effectType]?.includes(name) ?? false;
+}
+
 export function audacityParameterPresentation(effectType: string, name: string): AudacityParameterPresentation {
 	const sliderParameters: Readonly<Record<string, readonly string[]>> = {
 		'audacity-amplify': ['gainDb'],
@@ -190,6 +206,13 @@ export function audacityParameterPresentation(effectType: string, name: string):
 		'audacity-normalize': ['peakDb'],
 	};
 	if (sliderParameters[effectType]?.includes(name)) return 'slider';
+	// Bounded time values are knobs even where the rest of the effect reads as a
+	// plain Audacity form: Auto Duck's four fade lengths are the whole content of
+	// their two cards, so turning them into knobs keeps each card coherent.
+	const knobParameters: Readonly<Record<string, readonly string[]>> = {
+		'audacity-auto-duck': ['innerFadeDown', 'innerFadeUp', 'outerFadeDown', 'outerFadeUp'],
+	};
+	if (knobParameters[effectType]?.includes(name)) return 'knob';
 	if ([
 		'bitcrusher',
 		'audacity-bass-treble',

@@ -8,8 +8,8 @@ const EFFECT_LAYOUTS = Object.freeze({
 	],
 	'audacity-auto-duck': [
 		{ titleKey: 'effectCardDucking', names: ['duckAmountDb', 'thresholdDb', 'maximumPause'], wide: true },
-		{ titleKey: 'effectCardFadeDown', names: ['outerFadeDown', 'innerFadeDown'] },
-		{ titleKey: 'effectCardFadeUp', names: ['innerFadeUp', 'outerFadeUp'] },
+		{ titleKey: 'effectCardFadeDown', names: ['outerFadeDown', 'innerFadeDown'], knobs: true },
+		{ titleKey: 'effectCardFadeUp', names: ['innerFadeUp', 'outerFadeUp'], knobs: true },
 	],
 	'audacity-bass-treble': [
 		{ titleKey: 'effectCardTone', names: ['bassDb', 'trebleDb'], knobs: true },

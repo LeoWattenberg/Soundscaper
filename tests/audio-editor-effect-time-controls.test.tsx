@@ -1,0 +1,80 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+
+import EffectParameterEditor from '../src/common/editor/ui/inspector/EffectParameterEditor.jsx';
+import { AUDIO_EFFECT_DEFINITIONS } from '../src/common/editor/effects.js';
+import { audacityEffectDefaults } from '../src/common/editor/audacity-effects/manifest.js';
+import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+
+Object.defineProperty(globalThis, 'React', { configurable: true, value: React });
+
+// Truncate Silence is a selection effect rather than a rack effect, so every
+// subject here is built as the plain effect record the dialogs pass in instead
+// of going through createEffect, which only knows the rack types.
+function parameterMarkup(type: string, params: Readonly<Record<string, unknown>> = {}) {
+	const defaults = AUDIO_EFFECT_DEFINITIONS[type as keyof typeof AUDIO_EFFECT_DEFINITIONS]?.defaults
+		?? audacityEffectDefaults(type);
+	const effect = {
+		id: `${type}-time-controls`, type, enabled: true, params: { ...defaults, ...params },
+	};
+	const markup = renderToStaticMarkup(<EffectParameterEditor
+		effect={effect}
+		copy={ENGLISH_COPY}
+		disabled={false}
+		tracks={[]}
+		targetTrackId="track-1"
+		onChange={() => undefined}
+	/>);
+	return (name: string): string => {
+		const start = markup.indexOf(`data-effect-param="${name}"`);
+		assert.notEqual(start, -1, `${type}.${name} is not rendered`);
+		const next = markup.indexOf('data-effect-param="', start + 1);
+		return markup.slice(start, next === -1 ? undefined : next);
+	};
+}
+
+test('bounded time parameters are knobs rather than timecode fields', () => {
+	const cases: ReadonlyArray<readonly [string, readonly string[]]> = [
+		['compressor', ['attack', 'release']],
+		['limiter', ['lookahead', 'release']],
+		['gate', ['attack', 'hold', 'release']],
+		['reverb', ['decay', 'preDelay']],
+		['delay', ['time']],
+		['audacity-compressor', ['attackMs', 'releaseMs', 'lookaheadMs']],
+		['audacity-legacy-compressor', ['attackSeconds', 'releaseSeconds']],
+		['audacity-limiter', ['lookaheadMs', 'releaseMs']],
+		['audacity-reverb', ['preDelay']],
+		['audacity-auto-duck', ['innerFadeDown', 'innerFadeUp', 'outerFadeDown', 'outerFadeUp']],
+	];
+	for (const [type, names] of cases) {
+		const parameter = parameterMarkup(type);
+		for (const name of names) {
+			const markup = parameter(name);
+			assert.doesNotMatch(markup, /data-timecode-input/u, `${type}.${name}`);
+			assert.match(markup, /class="knob/u, `${type}.${name}`);
+			// One field beside the knob, so a control locator stays unambiguous.
+			assert.equal(markup.match(/<input\b/gu)?.length, 1, `${type}.${name}`);
+		}
+	}
+});
+
+test('an unbounded time parameter takes a plain number field, never a timecode', () => {
+	assert.doesNotMatch(parameterMarkup('audacity-echo')('delaySeconds'), /data-timecode-input/u);
+	assert.match(parameterMarkup('audacity-echo')('delaySeconds'), /type="number"/u);
+	assert.doesNotMatch(parameterMarkup('audacity-paulstretch')('timeResolution'), /data-timecode-input/u);
+	assert.doesNotMatch(parameterMarkup('audacity-auto-duck')('maximumPause'), /data-timecode-input/u);
+});
+
+test('durations that set how long the processed audio is keep the timecode component', () => {
+	const parameter = parameterMarkup('audacity-truncate-silence', { action: 'truncate' });
+	for (const name of ['minimumSilence', 'truncateTo']) {
+		const markup = parameter(name);
+		assert.match(markup, /data-timecode-input="seconds"/u, name);
+		assert.doesNotMatch(markup, /class="knob/u, name);
+	}
+});
