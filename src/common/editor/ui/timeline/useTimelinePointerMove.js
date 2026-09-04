@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
 import { createClipTrimPreview } from './interaction-helpers.js';
@@ -131,7 +132,8 @@ export function useTimelinePointerMove({
 				const session = pinchSession.current;
 				const nextZoom = session.pixelsPerSecond * distance / session.distance;
 				const rect = scrollRef.current?.getBoundingClientRect();
-				const anchorSeconds = (session.scrollLeft + session.midpoint - (rect?.left || 0) - panelWidth) / session.pixelsPerSecond;
+				const anchorSeconds = (session.scrollLeft + session.midpoint - (rect?.left || 0)
+					- panelWidth - CLIP_CONTENT_OFFSET) / session.pixelsPerSecond;
 				pendingPinchAnchorRef.current = {
 					anchorSeconds,
 					anchorOffset: midpoint - (rect?.left || 0) - panelWidth,

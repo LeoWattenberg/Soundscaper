@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from 'react';
+import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
 import {
@@ -92,7 +93,7 @@ export function useTimelineNavigation({
 		const trackIndex = project.tracks.findIndex((track) => track.clipIds?.includes(clip?.id));
 		const scroll = scrollRef.current;
 		if (!clip || trackIndex < 0 || !scroll) return undefined;
-		const clipCenterPixels = framesToSeconds(
+		const clipCenterPixels = CLIP_CONTENT_OFFSET + framesToSeconds(
 			clip.timelineStartFrame + clip.durationFrames / 2,
 			{ sampleRate },
 		) * pixelsPerSecond;

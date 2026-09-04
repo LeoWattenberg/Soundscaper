@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
+import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 import { useAccessibilityProfile } from '@soundscaper/design-system/contexts/AccessibilityProfileContext';
 import { useTabOrder } from '@soundscaper/design-system/hooks/useTabOrder';
 
@@ -155,7 +156,7 @@ export function useTimelineViewportModel({
 		if (!scrollRef.current) return;
 		scrollRef.current.scrollLeft = timelineDomScrollX(
 			scrollSpace,
-			Math.max(0, pending.anchorSeconds * pixelsPerSecond - pending.anchorOffset),
+			Math.max(0, CLIP_CONTENT_OFFSET + pending.anchorSeconds * pixelsPerSecond - pending.anchorOffset),
 		);
 		scrollRef.current.dispatchEvent(new Event('scroll', { bubbles: true }));
 	}, [pendingPinchAnchorRef, pixelsPerSecond, scrollRef, scrollSpace]);

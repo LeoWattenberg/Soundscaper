@@ -52,6 +52,33 @@ test('the label lane places its markers through the shared helper', () => {
 	assert.match(source, /left=\{labelLaneContentX\(label\.startFrame, pixelsPerSecond, sampleRate\)\}/u);
 });
 
+test('scrolling to a timeline position lands on the pixel that draws it', () => {
+	// These four expressions centre or anchor the viewport on a time. Each has to
+	// carry the inset the position is drawn at, or the target sits 12px away.
+	const source = (path: string) => readFileSync(new URL(`../src/common/editor/ui/${path}`, import.meta.url), 'utf8');
+
+	assert.match(
+		source('timeline/TimelinePlaybackProjection.tsx'),
+		/CLIP_CONTENT_OFFSET \+ positionPixels - viewportWidth \/ 2,/u,
+		'the pinned playhead centres on its own drawn position',
+	);
+	assert.match(
+		source('timeline/useTimelineNavigation.js'),
+		/const clipCenterPixels = CLIP_CONTENT_OFFSET \+ framesToSeconds\(/u,
+		'a clip revealed from search centres on the clip as drawn',
+	);
+	assert.match(
+		source('timeline/useTimelinePointerMove.js'),
+		/- panelWidth - CLIP_CONTENT_OFFSET\) \/ session\.pixelsPerSecond/u,
+		'a pinch reads the time under the fingers',
+	);
+	assert.match(
+		source('timeline/useTimelineViewportModel.js'),
+		/CLIP_CONTENT_OFFSET \+ pending\.anchorSeconds \* pixelsPerSecond - pending\.anchorOffset/u,
+		'a pinch puts that time back under the fingers',
+	);
+});
+
 test('marker-lane annotations sit under the ruler ticks that name their time', () => {
 	const markup = render(<TimelineAnnotationLayer
 		controller={annotationControllerFixture()}

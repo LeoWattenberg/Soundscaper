@@ -57,7 +57,10 @@ export function TimelinePlaybackProjection({
 		);
 		const scroll = scrollRef.current;
 		if (!follow || !pinned || !scroll) return;
-		const nextScroll = timelineDomScrollForElement(scroll, positionPixels - viewportWidth / 2);
+		const nextScroll = timelineDomScrollForElement(
+			scroll,
+			CLIP_CONTENT_OFFSET + positionPixels - viewportWidth / 2,
+		);
 		if (Math.abs(scroll.scrollLeft - nextScroll) > 1) scroll.scrollLeft = nextScroll;
 	}, [pinned, pixelsPerSecond, rootRef, sampleRate, scrollRef, viewportWidth]);
 
