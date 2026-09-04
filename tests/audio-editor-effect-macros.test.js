@@ -8,6 +8,7 @@ import {
 	parseAudacityEffectMacro,
 	serializeAudacityEffectMacro,
 } from '../src/common/editor/effect-macros.js';
+import { AUDACITY_EFFECT_DEFINITIONS } from '../src/common/editor/audacity-effects/manifest.js';
 import {
 	AUDIO_EFFECT_DEFINITIONS,
 	AUDACITY_RACK_EFFECT_TYPES,
@@ -79,6 +80,7 @@ test('every Audacity effect with a macro command round-trips through concrete ma
 		'audacity-loudness-normalization': 'LoudnessNormalization',
 		'audacity-normalize': 'Normalize',
 		'audacity-paulstretch': 'Paulstretch',
+		'audacity-remove-dc-offset': 'RemoveDcOffset',
 		'audacity-repair': 'Repair',
 		'audacity-repeat': 'Repeat',
 		'audacity-reverb': 'Reverb',
@@ -372,13 +374,16 @@ test('offline effects travel as their own Audacity commands', () => {
 	);
 });
 
-test('Audacity settings its own commands cannot express keep the extension namespace', () => {
-	// Remove DC Offset exists in Soundscaper as its own effect; Audacity only
-	// offers it inside Normalize, so it has no command of its own.
-	const exported = serializeAudacityEffectMacro([{ type: 'audacity-remove-dc-offset', id: 'dc' }]);
-	assert.equal(exported, 'SoundscaperEffect:Type="audacity-remove-dc-offset" Params="{}"\n');
-	assert.deepEqual(parseAudacityEffectMacro(exported, { idFactory: () => 'opened' })
-		.effects.map(({ type }) => type), ['audacity-remove-dc-offset']);
+test('Noise Reduction is the only Audacity effect left in the extension namespace', () => {
+	const audacityTypes = Object.keys(AUDACITY_EFFECT_DEFINITIONS);
+	assert.deepEqual(
+		audacityTypes.filter((type) => !AUDACITY_EFFECT_MACRO_COMMANDS[type]),
+		[],
+	);
+	// Remove DC Offset became an effect of its own in Audacity 4, so it has a
+	// command even though Audacity 3 only offers it inside Normalize.
+	assert.equal(serializeAudacityEffectMacro([{ type: 'audacity-remove-dc-offset', id: 'dc' }]),
+		'RemoveDcOffset:\n');
 	assert.throws(() => parseAudacityEffectMacro(
 		'SoundscaperEffect:Type="audacity-normalize" Params="{}"',
 	), /Unsupported Soundscaper effect type: audacity-normalize/);
@@ -389,7 +394,7 @@ test('an extension macro step rejects parameters the effect does not define', ()
 		'SoundscaperEffect:Type="audacity-noise-reduction" Params="{\\"reductionDb\\":3,\\"future\\":1}"',
 	), /Unsupported audacity-noise-reduction parameter: future/);
 	assert.throws(() => parseAudacityEffectMacro(
-		'SoundscaperEffect:Type="audacity-remove-dc-offset" Params="{}" Context="{}"',
+		'SoundscaperEffect:Type="highpass" Params="{}" Context="{}"',
 	), /Context is supported only for Noise Reduction/);
 });
 

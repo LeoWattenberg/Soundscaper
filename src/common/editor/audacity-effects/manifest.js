@@ -96,7 +96,10 @@ export const AUDACITY_EFFECT_UPSTREAM_FILES = deepFreeze({
 		'libraries/lib-builtin-effects/Repair.cpp',
 		'libraries/lib-math/InterpolateAudio.cpp',
 	],
-	'audacity-remove-dc-offset': ['libraries/lib-builtin-effects/NormalizeBase.cpp'],
+	'audacity-remove-dc-offset': [
+		'src/effects/builtin_collection/removedcoffset/removedcoffseteffect.cpp',
+		'libraries/lib-builtin-effects/NormalizeBase.cpp',
+	],
 	'audacity-reverb': ['au3/libraries/au3-builtin-effects/ReverbBase.cpp'],
 	'audacity-repeat': ['libraries/lib-builtin-effects/RepeatBase.cpp'],
 	'audacity-reverse': ['libraries/lib-builtin-effects/Reverse.cpp'],

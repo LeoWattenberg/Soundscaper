@@ -8,8 +8,11 @@
  * effect's ComponentInterfaceSymbol; parameter names, value encodings and
  * declaration order come from each effect's own EffectParameter declarations.
  * Ported from Audacity 3.7.7 commit
- * 5ef610ed23260d6d648175735bb16b32536eb30b. Audacity is distributed under GPL
- * version 3; this JavaScript adaptation was created for kw.media in 2026.
+ * 5ef610ed23260d6d648175735bb16b32536eb30b, except Remove DC Offset, which
+ * only became an effect of its own in Audacity 4 commit
+ * 4c177d436e48c1d20f231eada44035593cb26292. GetSquashedName is unchanged
+ * between the two. Audacity is distributed under GPL version 3; this
+ * JavaScript adaptation was created for kw.media in 2026.
  */
 
 import {
@@ -178,6 +181,10 @@ export const AUDACITY_SELECTION_EFFECT_MACRO_PROFILES = deepFreeze({
 			numberParam('timeResolution', 'Time Resolution'),
 		],
 	},
+	// Audacity 4 extracted Remove DC Offset from Normalize into an effect of
+	// its own; Audacity 3 only offers it as a Normalize checkbox and will not
+	// recognize this command.
+	'audacity-remove-dc-offset': { symbol: 'Remove DC offset', params: [] },
 	'audacity-repair': { symbol: 'Repair', params: [] },
 	'audacity-repeat': { symbol: 'Repeat', params: [numberParam('count', 'Count')] },
 	'audacity-reverb': {
@@ -224,10 +231,9 @@ export const AUDACITY_SELECTION_EFFECT_MACRO_PROFILES = deepFreeze({
 });
 
 /**
- * Every effect that travels as an Audacity macro command. Soundscaper effects
- * and Audacity effects with no macro command of their own — Remove DC Offset,
- * which Audacity only offers inside Normalize — travel as namespaced extension
- * lines instead.
+ * Every effect that travels as an Audacity macro command. Soundscaper's own
+ * effects travel as namespaced extension lines instead, as does Noise
+ * Reduction, whose Audacity command cannot carry its settings.
  */
 export const AUDACITY_EFFECT_MACRO_COMMANDS = Object.freeze(Object.fromEntries([
 	...Object.entries(AUP4_REALTIME_EFFECT_PROFILES),
