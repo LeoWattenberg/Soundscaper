@@ -20,10 +20,6 @@
 			"maxLines": 2899,
 			"reason": "Legacy JavaScript composition root retained while its typed services and ports complete staged migration."
 		},
-		"src/common/editor/aup4-worker.js": {
-			"maxLines": 786,
-			"reason": "Legacy worker-side AUP4 database command boundary."
-		},
 		"src/common/editor/nyquist/plugins/catalog.js": {
 			"maxLines": 630,
 			"reason": "Reviewed bundled Nyquist plug-in catalog."
