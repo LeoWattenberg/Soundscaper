@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 
 import {
@@ -93,6 +93,22 @@ export function persistedShortcutBindings(
 		|| [];
 }
 
+const SHORTCUT_ADD_CONTROL = '[data-shortcut-add="true"]';
+
+/**
+ * Name the control that should take focus once a binding is removed.
+ *
+ * The fields are rebuilt from the shortened list, so the button that was pressed
+ * is gone: focus follows the position instead, landing on the binding that took
+ * the removed one's place, or on the new last binding when the trailing one was
+ * removed. A lone binding carries no remove control, so the add button catches
+ * focus there.
+ */
+export function shortcutFocusTargetAfterRemove(index: number, remaining: number): string {
+	if (remaining < 2) return SHORTCUT_ADD_CONTROL;
+	return `[data-shortcut-remove="${Math.min(index, remaining - 1)}"]`;
+}
+
 export function ShortcutEditorRow({ command, preferences, controller, copy, run }: ShortcutEditorRowProps) {
 	const preferenceId = command.id;
 	// A normalized binding never contains a space, so the joined list doubles as
@@ -101,6 +117,20 @@ export function ShortcutEditorRow({ command, preferences, controller, copy, run 
 	const persisted = useMemo(() => (persistedKey ? persistedKey.split(' ') : []), [persistedKey]);
 	const [entries, setEntries] = useState<string[]>(() => editableEntries(persisted));
 	useLayoutEffect(() => setEntries(editableEntries(persisted)), [persisted]);
+	const errorId = useId();
+	const bindingsRef = useRef<HTMLDivElement | null>(null);
+	// Removing a binding unmounts the button that was pressed, so focus would fall
+	// to the document body and a keyboard user would have to tab in from the top
+	// of the dialog again. The row records where focus belongs and hands it over
+	// once React has rebuilt the fields.
+	const [focusAfterRemove, setFocusAfterRemove] = useState<{ readonly selector: string } | null>(null);
+	useEffect(() => {
+		if (!focusAfterRemove) return;
+		const bindings = bindingsRef.current;
+		const target = bindings?.querySelector<HTMLElement>(focusAfterRemove.selector)
+			|| bindings?.querySelector<HTMLElement>(SHORTCUT_ADD_CONTROL);
+		target?.focus();
+	}, [focusAfterRemove]);
 	const draft = shortcutEditorDraft({
 		shortcuts: preferences.shortcuts,
 		preferenceId,
@@ -120,9 +150,11 @@ export function ShortcutEditorRow({ command, preferences, controller, copy, run 
 	const setEntry = (index: number, value: string) => setEntries((current) => (
 		current.map((entry, position) => position === index ? value : entry)
 	));
-	const removeEntry = (index: number) => setEntries((current) => (
-		editableEntries(current.filter((entry, position) => position !== index))
-	));
+	const removeEntry = (index: number) => {
+		const remaining = editableEntries(entries.filter((entry, position) => position !== index));
+		setEntries(remaining);
+		setFocusAfterRemove({ selector: shortcutFocusTargetAfterRemove(index, remaining.length) });
+	};
 	return (
 		<div
 			className="kw-audio-editor-preferences__shortcut-row"
@@ -132,7 +164,7 @@ export function ShortcutEditorRow({ command, preferences, controller, copy, run 
 			title={command.disabledReason || undefined}
 		>
 			<span className="kw-audio-editor-preferences__shortcut-command">{command.label}</span>
-			<div className="kw-audio-editor-preferences__shortcut-bindings" role="group" aria-label={command.label}>
+			<div className="kw-audio-editor-preferences__shortcut-bindings" role="group" aria-label={command.label} ref={bindingsRef}>
 				{entries.map((entry, index) => (
 					<div className="kw-audio-editor-preferences__shortcut-binding" key={`binding-${index}`}>
 						<label>
@@ -144,6 +176,7 @@ export function ShortcutEditorRow({ command, preferences, controller, copy, run 
 								disabled={command.disabled}
 								value={entry}
 								aria-invalid={error ? 'true' : 'false'}
+								aria-describedby={error ? errorId : undefined}
 								onChange={(event) => setEntry(index, event.currentTarget.value)}
 							/>
 						</label>
@@ -172,7 +205,7 @@ export function ShortcutEditorRow({ command, preferences, controller, copy, run 
 				disabled={command.disabled || Boolean(error) || unchanged}
 				onClick={() => run(() => controller.actions.preferences.setShortcut(preferenceId, draft.bindings))}
 			>{copy.shortcutAssign}</Button>
-			{error && <small role="alert">{error}</small>}
+			{error && <small id={errorId} role="alert">{error}</small>}
 			{command.disabledReason && <small data-shortcut-disabled-reason>{command.disabledReason}</small>}
 		</div>
 	);
