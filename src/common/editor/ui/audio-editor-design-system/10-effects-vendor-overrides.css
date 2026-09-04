@@ -382,7 +382,12 @@
 .audio-editor-effect-picker-flyout__grid button:focus-visible {
 	background: var(--kw-toolbar-button-hover);
 	border-color: var(--kw-editor-line);
-	outline: none;
+}
+
+/* Focus must not look like hover; the ring is what a keyboard user has. */
+.audio-editor-effect-picker-flyout__grid button:focus-visible {
+	outline: var(--focus-ring-size, 2px) solid var(--kw-editor-accent);
+	outline-offset: -1px;
 }
 
 .audio-editor-effect-picker-flyout__grid button:disabled {

@@ -239,7 +239,12 @@
 #kw-audio-editor-design-system .kw-audio-editor__aup4-compatibility-dismiss:focus-visible {
 	color: var(--kw-editor-text);
 	background: var(--kw-toolbar-button-hover);
-	outline: none;
+}
+
+/* Focus must not look like hover; the ring is what a keyboard user has. */
+#kw-audio-editor-design-system .kw-audio-editor__aup4-compatibility-dismiss:focus-visible {
+	outline: var(--focus-ring-size) solid var(--kw-editor-accent);
+	outline-offset: 1px;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__video-workspace {

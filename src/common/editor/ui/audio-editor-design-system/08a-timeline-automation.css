@@ -158,7 +158,12 @@
 #kw-audio-editor-design-system .audio-editor-track-automation-menu__surface button:is(:hover, :focus-visible),
 #kw-audio-editor-design-system .audio-editor-track-automation-menu__surface button[aria-checked='true'] {
 	background: color-mix(in srgb, var(--kw-editor-accent) 22%, var(--kw-editor-control));
-	outline: none;
+}
+
+/* Focus must not look like hover or the checked row; the ring separates them. */
+#kw-audio-editor-design-system .audio-editor-track-automation-menu__surface button:focus-visible {
+	outline: var(--focus-ring-size) solid var(--kw-editor-accent);
+	outline-offset: -2px;
 }
 
 #kw-audio-editor-design-system .audio-editor-track-automation-menu__delete {
