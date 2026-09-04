@@ -713,17 +713,15 @@ jobs:
 
   package-with-tests:
     name: Package nightly-with-tests / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
-    # A failing suite is exactly when a package to test by hand is worth most, so
-    # a red Quality run still produces one. Cancelled and skipped runs do not: an
-    # upstream run without a result has no verified source, and this workflow
-    # cancels superseded main-commit packaging instead of building dead source.
+    # Only a green Quality run is packaged. A red, cancelled or skipped upstream
+    # run has no verified source, and this workflow cancels superseded
+    # main-commit packaging rather than building dead source.
     if: >-
       !cancelled()
       && (
         (
           github.event_name == 'workflow_run'
-          && github.event.workflow_run.conclusion != 'cancelled'
-          && github.event.workflow_run.conclusion != 'skipped'
+          && github.event.workflow_run.conclusion == 'success'
         )
         || (
           github.event_name == 'workflow_dispatch'
