@@ -259,11 +259,11 @@ test('the onboarding hook offers the surface once per session and after recovery
 });
 
 test('the workspace shell, overlays and menu runtime wire the onboarding surface', async () => {
-	const [workspace, overlays, runtime, menus, dialog, css, manifest] = await Promise.all([
+	const [workspace, overlays, runtime, viewMenu, dialog, css, manifest] = await Promise.all([
 		source('src/common/editor/ui/workspace/AudioEditorWorkspace.jsx'),
 		source('src/common/editor/ui/workspace/AudioEditorWorkspaceOverlays.jsx'),
 		source('src/common/editor/ui/workspace/workspace-application-menu-runtime.js'),
-		source('src/common/editor/ui/application-menus.js'),
+		source('src/common/editor/ui/application-view-menu.js'),
 		source('src/common/editor/ui/dialogs/WorkspaceOnboardingDialog.tsx'),
 		source('src/common/editor/ui/audio-editor-design-system/33-workspace-onboarding.css'),
 		source('src/common/editor/ui/audio-editor-design-system.css'),
@@ -275,7 +275,7 @@ test('the workspace shell, overlays and menu runtime wire the onboarding surface
 	assert.match(overlays, /activeSurface === 'workspace-onboarding'/u);
 	assert.match(overlays, /data-editor-surface="workspace-onboarding"/u);
 	assert.match(runtime, /openWorkspaceOnboarding: \(\) => openSurface\('workspace-onboarding'\)/u);
-	assert.match(menus, /id: 'workspace-onboarding', label: copy\.workspaceOnboardingMenu, onClick: actions\.openWorkspaceOnboarding/u);
+	assert.match(viewMenu, /id: 'workspace-onboarding', label: copy\.workspaceOnboardingMenu, onClick: actions\.openWorkspaceOnboarding/u);
 	assert.match(dialog, /audio-editor-design-system\/33-workspace-onboarding\.css/u);
 	assert.doesNotMatch(manifest, /33-workspace-onboarding\.css/u);
 	assert.match(css, /@media \(forced-colors: active\)/u);
