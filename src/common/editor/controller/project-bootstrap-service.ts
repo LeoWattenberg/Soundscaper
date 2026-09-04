@@ -12,11 +12,13 @@ import {
 	createInitialEffectMacroLibrary,
 	type EffectMacroLibraryState,
 } from './effect-macro-library-service.ts';
+import { effectMacroLibrarySchemaIsAhead } from '../effect-macro-library.js';
 
 export interface ProjectBootstrapState<Preferences, EffectPresets> {
 	preferences: Preferences;
 	effectPresets: EffectPresets;
 	effectMacros: EffectMacroLibraryState;
+	effectMacrosReadOnly?: boolean;
 	deliveryPresets: DeliveryPresetState;
 	monitoring: boolean;
 	microphoneMetering: boolean;
@@ -161,11 +163,22 @@ export function createProjectBootstrapService<
 		// The saved macro library hydrates the same way, and for the same reason:
 		// a write-only library would let the first save of a session replace every
 		// macro stored before it with the one just edited.
+		//
+		// A library a newer build wrote is a different failure and gets a different
+		// answer. This build cannot read it, but starting empty and then saving
+		// would replace it — so a user who opens a stale build, a rolled-back
+		// deploy, or a desktop app lagging the web app would lose every macro. The
+		// session keeps nothing and refuses to write instead.
 		try {
 			const storedMacros = await guard(
 				runtime.store.loadSetting(EFFECT_MACRO_LIBRARY_SETTING_KEY, null),
 			);
-			runtime.state.effectMacros = createInitialEffectMacroLibrary(storedMacros || {});
+			if (effectMacroLibrarySchemaIsAhead(storedMacros)) {
+				runtime.state.effectMacros = createInitialEffectMacroLibrary();
+				runtime.state.effectMacrosReadOnly = true;
+			} else {
+				runtime.state.effectMacros = createInitialEffectMacroLibrary(storedMacros || {});
+			}
 		} catch (error) {
 			if (runtime.isDisposedError(error)) throw error;
 			runtime.state.effectMacros = createInitialEffectMacroLibrary();

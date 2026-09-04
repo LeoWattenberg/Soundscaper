@@ -129,8 +129,32 @@ test('a store that keeps refusing the write gives up after one retry', async () 
 	assert.deepEqual(harness.writes, []);
 });
 
-function createHarness() {
-	const state = { effectMacros: createInitialEffectMacroLibrary() };
+test('a read-only library refuses edits and writes nothing', async () => {
+	// The session reached a library a newer build wrote. Saving anything here
+	// would persist this build's shape over macros it cannot even read, so both
+	// mutations have to fail before they touch state or the store.
+	const harness = createHarness({ readOnly: true });
+
+	assert.throws(() => harness.service.save({ name: 'Restoration', effects: [] }), /read-only/u);
+	assert.throws(() => harness.service.delete('macro-a'), /read-only/u);
+
+	await harness.service.flush();
+	assert.deepEqual(harness.writes, [], 'a refused edit must not reach the store');
+	assert.deepEqual(harness.service.list(), []);
+	assert.equal(harness.publications, 0);
+	assert.equal(harness.service.readOnly(), true);
+});
+
+test('an ordinary library reports itself writable and still saves', async () => {
+	const harness = createHarness();
+	assert.equal(harness.service.readOnly(), false);
+	harness.service.save({ name: 'Restoration', effects: [] });
+	await harness.service.flush();
+	assert.equal(harness.writes.length, 1);
+});
+
+function createHarness({ readOnly = false }: { readOnly?: boolean } = {}) {
+	const state = { effectMacros: createInitialEffectMacroLibrary(), effectMacrosReadOnly: readOnly };
 	const writes: [string, typeof state.effectMacros, string][] = [];
 	const errors: unknown[] = [];
 	let failure: Error | null = null;

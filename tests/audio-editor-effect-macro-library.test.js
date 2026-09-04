@@ -7,6 +7,7 @@ import {
 	AUDIO_EDITOR_EFFECT_MACRO_LIBRARY_SCHEMA_VERSION,
 	createEffectMacroLibrary,
 	deleteEffectMacro,
+	effectMacroLibrarySchemaIsAhead,
 	listEffectMacros,
 	saveEffectMacro,
 } from '../src/common/editor/effect-macro-library.js';
@@ -88,4 +89,22 @@ test('the library refuses to grow past its bound', () => {
 	assert.throws(() => saveEffectMacro(state, {
 		macro: { id: 'macro-overflow', name: 'Overflow', effects: [] },
 	}), /library is full/u);
+});
+
+test('a library written by a newer build is recognised as ahead, not merely unreadable', () => {
+	// The two failures need telling apart: a library this build cannot read
+	// because it is newer must never be overwritten, while one that is merely
+	// corrupt may be replaced.
+	assert.equal(effectMacroLibrarySchemaIsAhead({ schemaVersion: 2, macros: [] }), true);
+	assert.equal(effectMacroLibrarySchemaIsAhead({ schemaVersion: 99 }), true);
+	assert.equal(
+		effectMacroLibrarySchemaIsAhead({
+			schemaVersion: AUDIO_EDITOR_EFFECT_MACRO_LIBRARY_SCHEMA_VERSION,
+			macros: [],
+		}),
+		false,
+	);
+	for (const value of [null, undefined, {}, 'v2', { schemaVersion: 'later' }, { schemaVersion: 0 }]) {
+		assert.equal(effectMacroLibrarySchemaIsAhead(value), false, `unexpected for ${JSON.stringify(value)}`);
+	}
 });

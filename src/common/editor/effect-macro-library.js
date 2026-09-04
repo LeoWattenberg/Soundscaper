@@ -24,6 +24,22 @@ export function createEffectMacroLibrary(value = {}) {
 	return freezeLibrary(macros);
 }
 
+/**
+ * Whether a stored library was written by a build newer than this one.
+ *
+ * This is not the same failure as a corrupt library, and the difference decides
+ * whether the user keeps their macros. A library this build cannot read because
+ * it is newer must be left exactly where it is: replacing it with an empty one
+ * and then saving over it destroys every macro a later build stored. A caller
+ * that sees this keeps the session read-only instead.
+ */
+export function effectMacroLibrarySchemaIsAhead(value) {
+	const source = value && typeof value === 'object' ? value : {};
+	return typeof source.schemaVersion === 'number'
+		&& Number.isFinite(source.schemaVersion)
+		&& source.schemaVersion > AUDIO_EDITOR_EFFECT_MACRO_LIBRARY_SCHEMA_VERSION;
+}
+
 export function listEffectMacros(state) {
 	return createEffectMacroLibrary(state).macros;
 }

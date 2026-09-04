@@ -259,10 +259,28 @@ test('the saved macro library hydrates, and an unreadable one starts empty', asy
 	assert.deepEqual(fixture.state.effectMacros.macros.map(({ name }) => name), ['Restoration']);
 
 	const broken = createFixture();
-	broken.settings.set(EFFECT_MACRO_LIBRARY_SETTING_KEY, { schemaVersion: 99, macros: [] });
+	broken.settings.set(EFFECT_MACRO_LIBRARY_SETTING_KEY, { macros: [{ name: 'No effects array' }] });
 	await broken.service.bootstrap(broken.lifetime.capture());
 	assert.deepEqual(broken.state.effectMacros, createInitialEffectMacroLibrary(),
 		'an unreadable library starts empty rather than failing the bootstrap');
+	assert.notEqual(broken.state.effectMacrosReadOnly, true,
+		'a corrupt library may be replaced, so the session stays writable');
+});
+
+test('a macro library written by a newer build is kept, not emptied and overwritten', async () => {
+	// Opening a stale build must not cost the user their macros. The library
+	// cannot be read here, but an empty one that the next edit persists would
+	// destroy it, so the session holds nothing and refuses to write.
+	const fixture = createFixture();
+	fixture.settings.set(EFFECT_MACRO_LIBRARY_SETTING_KEY, {
+		schemaVersion: 99,
+		macros: [{ id: 'macro-a', name: 'From the future', steps: [] }],
+	});
+
+	await fixture.service.bootstrap(fixture.lifetime.capture());
+
+	assert.deepEqual(fixture.state.effectMacros, createInitialEffectMacroLibrary());
+	assert.equal(fixture.state.effectMacrosReadOnly, true);
 });
 
 test('bootstrap applies settings before opening the saved project', async () => {

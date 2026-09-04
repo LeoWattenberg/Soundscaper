@@ -21,7 +21,15 @@ export interface EffectMacroLibraryState {
 }
 
 export interface EffectMacroLibraryServiceRuntime {
-	readonly state: { effectMacros: EffectMacroLibraryState };
+	readonly state: {
+		effectMacros: EffectMacroLibraryState;
+		/**
+		 * Set when the stored library was written by a newer build. Such a library
+		 * cannot be read here and must not be replaced, so the session keeps it and
+		 * refuses every edit rather than saving this build's shape over it.
+		 */
+		effectMacrosReadOnly?: boolean;
+	};
 	readonly createId: (prefix: string) => string;
 	readonly persistSetting: (
 		key: string,
@@ -47,16 +55,28 @@ export function createEffectMacroLibraryService(runtime: EffectMacroLibraryServi
 
 	return Object.freeze({
 		list: listMacros,
+		readOnly: isReadOnly,
 		save: saveMacro,
 		delete: deleteMacro,
 		flush: flushMacroLibrary,
 	});
+
+	function isReadOnly(): boolean {
+		return runtime.state.effectMacrosReadOnly === true;
+	}
+
+	function assertWritable(): void {
+		if (isReadOnly()) {
+			throw new RangeError('The macro library is read-only: a newer build wrote it.');
+		}
+	}
 
 	function listMacros(): readonly EffectMacroLibraryEntry[] {
 		return listEffectMacros(runtime.state.effectMacros) as readonly EffectMacroLibraryEntry[];
 	}
 
 	function saveMacro(macro: unknown): EffectMacroLibraryEntry {
+		assertWritable();
 		const result = saveEffectMacro(runtime.state.effectMacros, {
 			macro,
 			idFactory: (prefix: string) => runtime.createId(prefix),
@@ -66,6 +86,7 @@ export function createEffectMacroLibraryService(runtime: EffectMacroLibraryServi
 	}
 
 	function deleteMacro(macroId: string): true {
+		assertWritable();
 		commit(deleteEffectMacro(runtime.state.effectMacros, macroId) as EffectMacroLibraryState);
 		return true;
 	}
