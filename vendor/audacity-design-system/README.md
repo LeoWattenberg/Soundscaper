@@ -170,6 +170,23 @@ Tracked so upstream syncs know what to preserve. Aside from this list, keep the 
     upstream behaviour. Covered by `tests/vendored-design-system-clip-pitch-badge.test.ts`.
     Upstream-PR candidate.
 
+22. `Checkbox.tsx` sets `aria-disabled` when it is disabled. The element is a `div` with
+    `role="checkbox"`, which carries no native disabled state, and upstream conveys the state
+    only by dropping the element out of the tab order. That hides it from Tab but tells a
+    screen reader nothing, and a host that supplies its own `tabIndex` — a roving group, or the
+    application's `PreferenceCheckbox` chain — keeps it focusable and announced as an operable
+    checkbox. Covered by `tests/vendored-design-system-control-accessible-state.test.tsx`.
+    Upstream-PR candidate.
+23. `NumberStepper.tsx` names its increment and decrement arrows (`incrementLabel` /
+    `decrementLabel`, defaulting to "Increase value" / "Decrease value") and marks their glyph
+    spans `aria-hidden`. The arrows' only content upstream is a MuseScore private-use
+    codepoint, which becomes the button's whole accessible name, so a screen reader announces
+    the raw glyph. `BpmStepper` in this same tree already labels its own arrows, and
+    `DialogHeader` likewise ships English control names. The props exist so a localized host can
+    supply its own strings; the application does not pass them yet, so the arrows announce
+    English in a German UI. Covered by
+    `tests/vendored-design-system-control-accessible-state.test.tsx`. Upstream-PR candidate.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they

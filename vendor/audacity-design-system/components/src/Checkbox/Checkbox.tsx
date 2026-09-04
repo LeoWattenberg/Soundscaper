@@ -86,6 +86,9 @@ export function Checkbox({
       className={`checkbox ${checked ? 'checkbox--checked' : 'checkbox--unchecked'} ${getStateClass()} ${disabled ? 'checkbox--disabled' : ''} ${className}`}
       role="checkbox"
       aria-checked={checked}
+      // A role="checkbox" element carries no native disabled state, so without
+      // this the control is announced as an ordinary, operable checkbox.
+      aria-disabled={disabled || undefined}
       aria-label={ariaLabel}
       aria-describedby={ariaDescribedBy}
       tabIndex={tabIndex !== undefined ? tabIndex : (disabled ? -1 : 0)}

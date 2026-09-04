@@ -51,6 +51,14 @@ export interface NumberStepperProps {
    * Maximum value
    */
   max?: number;
+  /**
+   * Accessible name for the increment arrow
+   */
+  incrementLabel?: string;
+  /**
+   * Accessible name for the decrement arrow
+   */
+  decrementLabel?: string;
 }
 
 /**
@@ -68,6 +76,8 @@ export const NumberStepper = React.forwardRef<HTMLInputElement, NumberStepperPro
   step = 1,
   min,
   max,
+  incrementLabel = 'Increase value',
+  decrementLabel = 'Decrease value',
 }, ref) => {
   const { theme } = useTheme();
   const [internalValue, setInternalValue] = useState(defaultValue);
@@ -201,20 +211,24 @@ export const NumberStepper = React.forwardRef<HTMLInputElement, NumberStepperPro
         <button
           type="button"
           className="number-stepper__arrow number-stepper__arrow--up"
+          // The glyph is a private-use codepoint in the icon font, so it is the
+          // whole accessible name unless one is given, as BpmStepper's arrows do.
+          aria-label={incrementLabel}
           onClick={handleIncrement}
           disabled={disabled}
           tabIndex={-1}
         >
-          <span className="number-stepper__icon musescore-icon">{'\uEF10'}</span>
+          <span className="number-stepper__icon musescore-icon" aria-hidden="true">{'\uEF10'}</span>
         </button>
         <button
           type="button"
           className="number-stepper__arrow number-stepper__arrow--down"
+          aria-label={decrementLabel}
           onClick={handleDecrement}
           disabled={disabled}
           tabIndex={-1}
         >
-          <span className="number-stepper__icon musescore-icon">{'\uEF12'}</span>
+          <span className="number-stepper__icon musescore-icon" aria-hidden="true">{'\uEF12'}</span>
         </button>
       </div>
     </div>
