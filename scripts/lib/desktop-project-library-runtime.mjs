@@ -150,6 +150,8 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/adm-bed-layout.js',
 	'src/common/editor/adm-normalization-guards.js',
 	'src/common/editor/adm-project-metadata.js',
+	'src/common/editor/audacity-command-parameters.js',
+	'src/common/editor/audacity-macro-commands.js',
 	'src/common/editor/audio-groove-template.js',
 	'src/common/editor/audio-warp-clip-authority.js',
 	'src/common/editor/audio-warp-domain.js',
