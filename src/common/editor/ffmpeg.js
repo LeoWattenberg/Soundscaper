@@ -19,13 +19,18 @@ import {
 	encodeFfmpegVideoToSink,
 } from './ffmpeg-video-output.ts';
 import { readBoundedFfmpegOutputFile } from './browser-export-output.ts';
-import { getVideoExportFormat } from './video-export.js';
-import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 import { conformFfmpegVideoToCfr } from './ffmpeg-cfr-ingest.ts';
 import { createVideoKeyframeEncoderOperationRunner } from './video-keyframe-ffmpeg-operation.ts';
 import { probeFfmpegVideoTiming } from './ffmpeg-video-timing-operation.ts';
 import { runFfmpegMediaFileOperation } from './ffmpeg-media-file-operation.ts';
 import { safeFfmpegWorkerFsName } from './ffmpeg-workerfs-name.ts';
+import { decodeFloatWave, toUint8Array } from './ffmpeg-pcm-exchange.js';
+import {
+	FfmpegCoreUnavailableError,
+	FfmpegDisposedError,
+	FfmpegEncodingError,
+	FfmpegVideoEncodingError,
+} from './ffmpeg-errors.js';
 import {
 	FFMPEG_RUNTIME_PUBLIC_ORIGIN,
 	FFMPEG_RUNTIME_PUBLIC_PREFIX,
@@ -34,46 +39,14 @@ import {
 
 const DEFAULT_IDLE_TIMEOUT_MS = 30_000;
 
-export class FfmpegCoreUnavailableError extends Error {
-	constructor(cause) {
-		super('The browser FFmpeg core could not be loaded; compressed media export is unavailable.', { cause });
-		this.name = 'FfmpegCoreUnavailableError';
-		this.code = 'FFMPEG_CORE_UNAVAILABLE';
-	}
-}
+export {
+	FfmpegCoreUnavailableError,
+	FfmpegDisposedError,
+	FfmpegEncodingError,
+	FfmpegVideoEncodingError,
+};
 
-export class FfmpegDisposedError extends Error {
-	constructor() {
-		super('The browser FFmpeg runtime has been disposed.');
-		this.name = 'FfmpegDisposedError';
-		this.code = 'FFMPEG_DISPOSED';
-	}
-}
 
-export class FfmpegEncodingError extends Error {
-	constructor(format, exitCode) {
-		const descriptor = getMediaExportFormat(format);
-		super(`${descriptor.label} encoding failed because FFmpeg codec ${descriptor.codec} is unavailable or rejected the export settings (exit code ${exitCode}).`);
-		this.name = 'FfmpegEncodingError';
-		this.code = 'FFMPEG_ENCODING_FAILED';
-		this.format = descriptor.id;
-		this.codec = descriptor.codec;
-		this.exitCode = exitCode;
-	}
-}
-
-export class FfmpegVideoEncodingError extends Error {
-	constructor(format, exitCode) {
-		const descriptor = getVideoExportFormat(format);
-		super(`${descriptor.label} encoding failed because FFmpeg codec ${descriptor.videoEncoder} is unavailable or rejected the video export plan (exit code ${exitCode}).`);
-		this.name = 'FfmpegVideoEncodingError';
-		this.code = 'FFMPEG_VIDEO_ENCODING_FAILED';
-		this.format = descriptor.id;
-		this.videoCodec = descriptor.videoCodec;
-		this.videoEncoder = descriptor.videoEncoder;
-		this.exitCode = exitCode;
-	}
-}
 
 /**
  * Lazy, single-thread FFmpeg runtime used only for editor decode and encoding.
@@ -550,39 +523,6 @@ function normalizeIdleTimeout(value) {
 
 export function encoderArgs(input, output, format, settings = {}) {
 	return buildMediaFfmpegEncoderArgs(input, output, format, settings);
-}
-
-function toUint8Array(value) {
-	if (value instanceof Uint8Array) return value.slice();
-	if (value instanceof ArrayBuffer) return new Uint8Array(value.slice(0));
-	if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength));
-	throw new TypeError('Expected WAV bytes');
-}
-
-async function decodeFloatWave(bytes, signal) {
-	const blob = new Blob([bytes]);
-	const descriptor = await inspectWavBlobPcm(blob, { signal });
-	if (descriptor.encoding !== 'ieee-float' || descriptor.bitDepth !== 32) {
-		throw new Error('FFmpeg returned an unexpected PCM format.');
-	}
-	const channels = Array.from(
-		{ length: descriptor.channelCount },
-		() => new Float32Array(descriptor.frameCount),
-	);
-	await streamWavBlobPcm(blob, {
-		descriptor,
-		signal,
-		onChunk(packet, { frameOffset }) {
-			for (let channel = 0; channel < channels.length; channel += 1) {
-				channels[channel].set(packet[channel], frameOffset);
-			}
-		},
-	});
-	return {
-		sampleRate: descriptor.sampleRate,
-		channels,
-		frameCount: descriptor.frameCount,
-	};
 }
 
 function abortError() {
