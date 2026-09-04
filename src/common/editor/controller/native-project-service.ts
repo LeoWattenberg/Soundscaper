@@ -3,7 +3,8 @@
 import { isProjectFileName } from '../../project-file-extensions.ts';
 import { createDeferredDawprojectService } from './deferred-dawproject-service.ts';
 import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
-import { EditorDisposedError, type EditorProjectToken, type EditorTaskScope } from './lifecycle.ts';
+import type { EditorProjectToken, EditorTaskScope } from './lifecycle.ts';
+import { createNativeProjectOwnership, type ProjectTask } from './native-project-ownership.ts';
 import { nativeProjectProgressMessage, publishAup4OpenStatus } from './native-project-status.ts';
 import {
 	beginNativeScapeSave,
@@ -42,10 +43,12 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 	let environment: Aup4Environment | null = null;
 	let initialization: Promise<Aup4Environment> | null = null;
 	let clientDisposed = false;
-	let disposed = false;
-	let importOwner: EditorTaskScope | null = null;
-	let saveOwner: EditorTaskScope | null = null;
 	let futureScapeArchive: NativeRetainedScapeArchive | null = null;
+	const {
+		assertNotDisposed, assertOwnership, beginImport, beginProjectTask, beginSave,
+		failSave, finishImport, finishSave, markDisposed,
+		requireOwnedProject, requireProject,
+	} = createNativeProjectOwnership(runtime);
 	const dawproject = createDeferredDawprojectService(runtime, { beginProjectTask, assertOwnership, beginImport, finishImport, persistDecodedSource, updateNativeProjectProgress, requireProject });
 
 	return Object.freeze({
@@ -81,8 +84,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 	}
 
 	async function dispose(): Promise<void> {
-		if (disposed) return;
-		disposed = true;
+		if (!markDisposed()) return;
 		const activeClient = client;
 		client = null;
 		environment = null;
@@ -472,108 +474,10 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			onProgress,
 		};
 	}
-
-	function beginProjectTask(name: string, expectedProjectId?: string): ProjectTask {
-		assertNotDisposed();
-		const project = requireProject();
-		if (expectedProjectId && project.id !== expectedProjectId) throw projectChangedError();
-		return {
-			task: runtime.lifetime.startTask(name),
-			projectToken: runtime.projectGeneration.capture(project.id),
-		};
-	}
-
-	function beginImport(task: EditorTaskScope): void {
-		importOwner = task;
-		runtime.state.importing = true;
-		runtime.publishDocumentSnapshot();
-	}
-
-	function finishImport(task: EditorTaskScope): void {
-		if (importOwner !== task) return;
-		importOwner = null;
-		runtime.state.importing = false;
-		runtime.publishDocumentSnapshot();
-	}
-
-	function beginSave(task: EditorTaskScope, token: EditorProjectToken): void {
-		assertOwnership(task, token);
-		saveOwner = task;
-		runtime.state.saveState = 'saving';
-		runtime.publishDocumentSnapshot();
-	}
-
-	function finishSave(task: EditorTaskScope, token: EditorProjectToken, state: 'saved'): boolean {
-		if (saveOwner !== task) return false;
-		saveOwner = null;
-		if (!ownershipIsCurrent(task, token)) {
-			try {
-				runtime.projectGeneration.assertCurrent(token);
-			} catch {
-				return false;
-			}
-			runtime.state.saveState = 'dirty';
-			runtime.publishDocumentSnapshot();
-			return false;
-		}
-		runtime.state.saveState = state;
-		return true;
-	}
-
-	function failSave(task: EditorTaskScope, token: EditorProjectToken): void {
-		if (saveOwner !== task) return;
-		saveOwner = null;
-		try {
-			runtime.projectGeneration.assertCurrent(token);
-		} catch {
-			return;
-		}
-		runtime.state.saveState = 'dirty';
-		runtime.publishDocumentSnapshot();
-	}
-
-	function requireProject(): NativeProjectDocument {
-		const activeProject = runtime.getProject();
-		if (!activeProject) throw new Error(runtime.copy.projectNotFound);
-		return activeProject;
-	}
-
-	function requireOwnedProject(projectId: string): NativeProjectDocument {
-		const activeProject = requireProject();
-		if (activeProject.id !== projectId) throw projectChangedError();
-		return activeProject;
-	}
-
-	function assertOwnership(task: EditorTaskScope, token: EditorProjectToken): void {
-		task.assertCurrent();
-		runtime.projectGeneration.assertCurrent(token);
-	}
-
-	function ownershipIsCurrent(task: EditorTaskScope, token: EditorProjectToken): boolean {
-		try {
-			assertOwnership(task, token);
-			return true;
-		} catch {
-			return false;
-		}
-	}
-
-	function assertNotDisposed(): void {
-		if (disposed) throw new EditorDisposedError();
-	}
-}
-
-interface ProjectTask {
-	readonly task: EditorTaskScope;
-	readonly projectToken: EditorProjectToken;
 }
 
 function sanitizeNativeId(value: string): string {
 	return value.replace(/[^a-z0-9_-]/gi, '-');
-}
-
-function projectChangedError(): DOMException {
-	return new DOMException('The active editor project changed before the operation completed.', 'AbortError');
 }
 
 function isAbortError(error: unknown): boolean {
