@@ -25,7 +25,40 @@ test('AUP4 realtime effect IDs use Audacity stable family, vendor, symbol, and p
 		aup4NativeEffectId('audacity-filter-curve-eq'),
 		'Effect_Audacity_Audacity_Filter Curve_Built-in Effect: Filter Curve',
 	);
+	// Audacity capitalizes both words of these two symbols; an ID built from a
+	// lower-cased second word is a plugin Audacity cannot resolve.
+	assert.equal(
+		aup4NativeEffectId('audacity-click-removal'),
+		'Effect_Audacity_Audacity_Click Removal_Built-in Effect: Click Removal',
+	);
+	assert.equal(
+		aup4NativeEffectId('audacity-noise-reduction'),
+		'Effect_Audacity_Audacity_Noise Reduction_Built-in Effect: Noise Reduction',
+	);
 	assert.equal(aup4NativeEffectId('browser-only'), null);
+});
+
+test('AUP4 racks still read the mis-capitalized effect IDs earlier browser builds wrote', () => {
+	const legacy = createAudacityXmlNode('effects', [
+		{ kind: 'attribute', name: 'active', type: 'bool', value: true },
+	], [{
+		kind: 'node',
+		node: createAudacityXmlNode('effect', [
+			{
+				kind: 'attribute',
+				name: 'id',
+				type: 'string',
+				value: 'Effect_Audacity_Audacity_Click removal_Built-in Effect: Click removal',
+			},
+			{ kind: 'attribute', name: 'active', type: 'bool', value: true },
+		], [{ kind: 'node', node: createAudacityXmlNode('parameters', [], [
+			parameter('Threshold', '150'),
+			parameter('Width', '30'),
+		]) }]),
+	}]);
+	const [effect] = readAup4EffectsNode(legacy, { idFactory: () => 'legacy-click-removal' });
+	assert.equal(effect.type, 'audacity-click-removal');
+	assert.deepEqual(effect.params, { threshold: 150, maximumWidth: 30 });
 });
 
 test('AUP4 realtime racks round-trip native parameter names without translated UI labels', () => {

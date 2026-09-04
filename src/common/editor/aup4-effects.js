@@ -86,7 +86,7 @@ export const AUP4_REALTIME_EFFECT_PROFILES = deepFreeze({
 		],
 	},
 	'audacity-click-removal': {
-		symbol: 'Click removal',
+		symbol: 'Click Removal',
 		params: [numberParam('threshold', 'Threshold'), numberParam('maximumWidth', 'Width')],
 	},
 	'audacity-compressor': {
@@ -137,7 +137,7 @@ export const AUP4_REALTIME_EFFECT_PROFILES = deepFreeze({
 		],
 	},
 	'audacity-noise-reduction': {
-		symbol: 'Noise reduction',
+		symbol: 'Noise Reduction',
 		params: [
 			numberParam('sensitivity', 'Sensitivity'),
 			numberParam('frequencySmoothingBands', 'Frequency Smoothing Bands'),
@@ -183,6 +183,10 @@ export const AUP4_REALTIME_EFFECT_PROFILES = deepFreeze({
 
 const TYPE_BY_NATIVE_ID = new Map(Object.entries(AUP4_REALTIME_EFFECT_PROFILES)
 	.map(([type, profile]) => [nativeEffectId(profile.symbol), type]));
+// Earlier browser builds lower-cased the second word of these two symbols and
+// wrote a plugin ID Audacity does not recognize. Keep reading those files.
+TYPE_BY_NATIVE_ID.set(nativeEffectId('Click removal'), 'audacity-click-removal');
+TYPE_BY_NATIVE_ID.set(nativeEffectId('Noise reduction'), 'audacity-noise-reduction');
 
 export function aup4NativeEffectId(type) {
 	const profile = AUP4_REALTIME_EFFECT_PROFILES[type];
