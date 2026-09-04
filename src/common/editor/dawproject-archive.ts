@@ -7,7 +7,7 @@ import {
 	TextWriter,
 	ZipReader,
 	ZipWriter,
-} from '@zip.js/zip.js';
+} from '@zip.js/zip.js/index-native.js';
 
 import {
 	DAWPROJECT_METADATA_ENTRY,

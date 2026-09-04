@@ -1,7 +1,7 @@
 import {
 	TextReader,
 	ZipWriter,
-} from '@zip.js/zip.js';
+} from '@zip.js/zip.js/index-native.js';
 
 import { createStableId } from './project.js';
 import { isCurrentProjectSchemaIdentity } from './project-schema-identity.ts';

@@ -4,7 +4,7 @@ import {
 	configure,
 	Reader,
 	ZipReader,
-} from '@zip.js/zip.js';
+} from '@zip.js/zip.js/index-native.js';
 
 import {
 	SCAPE_ARCHIVE_LIMITS,

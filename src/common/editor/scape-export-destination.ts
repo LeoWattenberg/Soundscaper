@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { BlobWriter } from '@zip.js/zip.js';
+import { BlobWriter } from '@zip.js/zip.js/index-native.js';
 
 import { aggregateScapeErrors, throwIfScapeAborted } from './scape-abort.ts';
 
