@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { serializeMacroScriptEnvelope } from '../src/common/editor/macro-script-envelope.ts';
 import {
 	MACRO_SCRIPT_LIBRARY_SCHEMA_VERSION,
 	createMacroScriptLibrary,
@@ -70,4 +71,68 @@ test('trust is bound to the exact bytes it was granted for', () => {
 	assert.equal(saveMacroScript(undefined, {
 		script: { name: 'Odd', source: 'x', trust: 'anything' }, idFactory: () => 'a',
 	}).script.trust, 'authored');
+});
+
+test('an imported program has no permission until somebody gives it one', async () => {
+	const { createMacroScriptLibraryService, MACRO_SCRIPT_LIBRARY_SETTING_KEY } = await import(
+		'../src/common/editor/controller/macro-script-library-service.ts'
+	);
+	const written: Array<[string, unknown]> = [];
+	let minted = 0;
+	const state = { macroScripts: createMacroScriptLibrary() };
+	const service = createMacroScriptLibraryService({
+		state,
+		createId: (prefix: string) => `${prefix}-${++minted}`,
+		persistSetting: async (key: string, value: unknown) => { written.push([key, value]); },
+		publishDocumentSnapshot: () => {},
+		handleError: (error: unknown) => { throw error; },
+	} as never);
+
+	const file = serializeMacroScriptEnvelope({ name: 'Sweep', source: 'await sound.select.all();' });
+	const imported = service.import(file, 'sweep.soundscapemacro');
+	assert.equal(imported.trust, 'imported-untrusted');
+	assert.equal(imported.origin, 'sweep.soundscapemacro');
+	assert.equal(imported.trustedSource, null);
+	assert.equal(macroScriptIsRunnable(imported), false);
+	assert.equal(service.blocked('await sound.select.all();'), true,
+		'the gate is on the bytes, so passing the text straight to the runner is not a way around it');
+
+	// Editing an imported program does not launder it: the permission would still
+	// name text nobody reviewed.
+	service.save({ ...imported, source: 'await sound.select.none();' });
+	assert.equal(macroScriptIsRunnable(service.list()[0]!), false);
+	assert.equal(service.blocked('await sound.select.none();'), true);
+
+	const trusted = service.trust(imported.id);
+	assert.equal(trusted.trust, 'imported-trusted');
+	assert.equal(trusted.trustedSource, 'await sound.select.none();');
+	assert.equal(service.blocked('await sound.select.none();'), false);
+
+	// A permission is for the exact bytes it was given for. Anything else re-arms it.
+	service.save({ ...trusted, source: 'await sound.effect.apply("audacity-amplify", {});' });
+	assert.equal(service.blocked('await sound.effect.apply("audacity-amplify", {});'), true);
+
+	await service.flush();
+	assert.deepEqual(written.map(([key]) => key),
+		Array.from({ length: written.length }, () => MACRO_SCRIPT_LIBRARY_SETTING_KEY));
+	assert.throws(() => service.trust('missing'), /does not exist/u);
+});
+
+test('a program the user wrote here exports as a file that will not run itself', async () => {
+	const { createMacroScriptLibraryService } = await import(
+		'../src/common/editor/controller/macro-script-library-service.ts'
+	);
+	const state = { macroScripts: createMacroScriptLibrary() };
+	const service = createMacroScriptLibraryService({
+		state,
+		createId: () => 'macro-script-1',
+		persistSetting: async () => {},
+		publishDocumentSnapshot: () => {},
+		handleError: (error: unknown) => { throw error; },
+	} as never);
+	const saved = service.save({ name: 'Level all', source: 'await sound.select.all();' });
+	assert.equal(macroScriptIsRunnable(saved), true, 'a program written here is the user\'s own');
+	assert.equal(service.blocked('await sound.select.all();'), false);
+	assert.equal(JSON.parse(service.export(saved.id)).kind, 'script');
+	assert.throws(() => service.export('missing'), /does not exist/u);
 });

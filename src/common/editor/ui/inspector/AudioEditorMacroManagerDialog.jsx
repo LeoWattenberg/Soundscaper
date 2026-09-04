@@ -10,6 +10,7 @@ import {
 	createEffectMacroTemplateDraft,
 	effectMacroMissingEmbeddedNoiseProfile,
 } from '../../effect-macro-templates.ts';
+import { MACRO_SCRIPT_FILE_EXTENSION } from '../../macro-script-envelope.ts';
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../../project.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
@@ -72,6 +73,39 @@ export function AudioEditorMacroManagerDialog({
 		if (!String(next.name || '').trim()) return;
 		scriptLibrary.save(next);
 	};
+	// Importing a program stores text and marks it unreviewed; it never runs
+	// anything and never grants anything, so the message says what is owed next.
+	const importScript = async (file) => {
+		if (!file) return;
+		try {
+			if (file.size > MAX_MACRO_IMPORT_BYTES) {
+				throw new RangeError('File exceeds the 1 MiB macro import limit.');
+			}
+			const created = scriptLibrary.import(await file.text(), file.name);
+			setSelectedScriptId(created.id);
+			openMacro(null);
+			showMessage(managerCopy.programImported, 'warning');
+		} catch (cause) {
+			showMessage(managerCopy.programImportFailed
+				.replace('{message}', cause instanceof Error ? cause.message : String(cause)), 'error');
+		}
+	};
+	const exportScript = async () => {
+		if (!selectedScript) return;
+		try {
+			const saved = await downloadTextFile(
+				scriptLibrary.export(selectedScript.id),
+				`${macroFileName(selectedScript.name)}${MACRO_SCRIPT_FILE_EXTENSION}`,
+				fileService,
+				'macro',
+			);
+			if (saved?.cancelled) return;
+			showMessage(copy.macroExported, 'success');
+		} catch (cause) {
+			showMessage(copy.macroExportFailed
+				.replace('{message}', cause instanceof Error ? cause.message : String(cause)), 'error');
+		}
+	};
 	const blocked = selectAudioEditorEditBlock(snapshot).blocked;
 	const hasRunTarget = Boolean(snapshot.selection || snapshot.selectedClipId);
 	const templatesAvailable = productId === 'soundscaper';
@@ -83,6 +117,7 @@ export function AudioEditorMacroManagerDialog({
 	const [isRunning, setIsRunning] = useState(false);
 	const [isCapturingProfile, setIsCapturingProfile] = useState(false);
 	const fileInputRef = useRef(null);
+	const scriptInputRef = useRef(null);
 	const mountedRef = useRef(false);
 	const operationSessionRef = useRef(null);
 	const activeImportRef = useRef(null);
@@ -371,9 +406,15 @@ export function AudioEditorMacroManagerDialog({
 						scripts={{
 							entries: scripts,
 							selectedId: selectedScriptId,
+							heading: managerCopy.programs,
 							newProgram: managerCopy.newProgram,
+							importProgram: managerCopy.importProgram,
+							exportProgram: managerCopy.exportProgram,
+							notTrusted: managerCopy.notTrusted,
 							onSelect: (scriptId) => { setSelectedScriptId(scriptId); openMacro(null); },
 							onCreate: createScript,
+							onImport: () => scriptInputRef.current?.click(),
+							onExport: () => { void exportScript(); },
 						}}
 						onSelect={(macroId) => {
 							setSelectedScriptId(null);
@@ -422,6 +463,7 @@ export function AudioEditorMacroManagerDialog({
 						{message && <p className={`audio-editor-macro-manager__message audio-editor-macro-manager__message--${messageState}`} role={messageState === 'error' ? 'alert' : 'status'}>{message}</p>}
 					</section>
 					<input ref={fileInputRef} type="file" accept="text/plain,.txt" hidden data-macro-import-file onChange={(event) => { void importMacro(takeSelectedFile(event.currentTarget)); }} />
+					<input ref={scriptInputRef} type="file" accept={`application/json,${MACRO_SCRIPT_FILE_EXTENSION}`} hidden data-macro-script-import-file onChange={(event) => { void importScript(takeSelectedFile(event.currentTarget)); }} />
 				</section>
 			</AudioEditorDialogShell>
 

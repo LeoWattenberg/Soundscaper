@@ -9,10 +9,11 @@
  * lose every macro they had. A separate key means an older build simply does
  * not read this one.
  *
- * A record carries the trust the program has earned rather than a flag: trust
- * is bound to the exact bytes, so editing a program in the manager re-signs it
- * (the user wrote that edit) while anything arriving from a file has to be
- * looked at again.
+ * A record carries the trust the program has earned rather than a flag, and the
+ * permission is for the exact bytes it was given for. A program written here is
+ * the user's own and runs. One that arrived from a file runs only after somebody
+ * has read it and said so — and editing it afterwards does not launder it,
+ * because the permission still names the text that was actually reviewed.
  */
 
 export const MACRO_SCRIPT_LIBRARY_SCHEMA_VERSION = 1;
@@ -97,6 +98,40 @@ export function deleteMacroScript(state: unknown, scriptId: string): MacroScript
 export function macroScriptIsRunnable(script: Readonly<Partial<MacroScriptRecord>>): boolean {
 	if (script.trust === 'authored') return true;
 	return script.trust === 'imported-trusted' && script.trustedSource === script.source;
+}
+
+/**
+ * Grant this program permission to run, for exactly the bytes it holds now.
+ *
+ * The permission is not a flag on the record but a copy of the source it was
+ * given for, so a later edit — from a re-import, from a sync, from anything
+ * that is not the user typing here — leaves the record trusted for a program
+ * that is no longer in it, and it stops being runnable.
+ */
+export function trustMacroScript(state: unknown, scriptId: string): MacroScriptLibraryState {
+	const current = createMacroScriptLibrary(state);
+	const id = String(scriptId ?? '');
+	const script = current.scripts.find((candidate) => candidate.id === id);
+	if (!script) throw new ReferenceError(`Macro program ${id} does not exist.`);
+	return freezeLibrary(current.scripts.map((candidate) => candidate.id === id
+		? normalizeMacroScript({ ...candidate, trust: 'imported-trusted', trustedSource: script.source })
+		: candidate));
+}
+
+/**
+ * Whether this exact text is text the user has been shown and has not enabled.
+ *
+ * The gate lives on the bytes rather than on the record, because the run action
+ * is handed a name and a source rather than a library ID. Checking the record
+ * would leave the obvious bypass — read the untrusted program out of the list
+ * and pass its text straight to the runner — open.
+ */
+export function macroScriptSourceIsBlocked(
+	scripts: readonly Readonly<Partial<MacroScriptRecord>>[],
+	source: string,
+): boolean {
+	const text = String(source ?? '');
+	return scripts.some((script) => script.source === text && !macroScriptIsRunnable(script));
 }
 
 export function normalizeMacroScript(value: unknown): MacroScriptRecord {

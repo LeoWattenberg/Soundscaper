@@ -1,10 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { parseMacroScriptEnvelope, serializeMacroScriptEnvelope } from '../macro-script-envelope.ts';
 import {
 	createMacroScriptLibrary,
 	deleteMacroScript,
 	listMacroScripts,
+	macroScriptSourceIsBlocked,
 	saveMacroScript,
+	trustMacroScript,
 	type MacroScriptLibraryState,
 	type MacroScriptRecord,
 } from '../macro-script-library.ts';
@@ -34,7 +37,7 @@ export function createMacroScriptLibraryService(runtime: MacroScriptLibraryServi
 	let pending: MacroScriptLibraryState | null = null;
 	let writing: Promise<void> | null = null;
 
-	return Object.freeze({ list, save, delete: remove, flush });
+	return Object.freeze({ list, save, delete: remove, trust, import: importFile, export: exportFile, blocked, flush });
 
 	function list(): readonly MacroScriptRecord[] {
 		return listMacroScripts(runtime.state.macroScripts);
@@ -47,6 +50,41 @@ export function createMacroScriptLibraryService(runtime: MacroScriptLibraryServi
 		});
 		commit(result.state);
 		return result.script;
+	}
+
+	/**
+	 * Take in a program someone else wrote.
+	 *
+	 * Importing never runs anything and never grants anything: the program lands
+	 * in the list marked untrusted, with the file it came from recorded, and the
+	 * manager offers a review rather than a Run button until a person has read it.
+	 */
+	function importFile(text: unknown, origin?: unknown): MacroScriptRecord {
+		const envelope = parseMacroScriptEnvelope(text);
+		return save({
+			name: envelope.name,
+			source: envelope.source,
+			trust: 'imported-untrusted',
+			origin: typeof origin === 'string' && origin ? origin : null,
+		});
+	}
+
+	function exportFile(scriptId: string): string {
+		const script = list().find((candidate) => candidate.id === String(scriptId ?? ''));
+		if (!script) throw new ReferenceError(`Macro program ${String(scriptId)} does not exist.`);
+		return serializeMacroScriptEnvelope(script);
+	}
+
+	function trust(scriptId: string): MacroScriptRecord {
+		commit(trustMacroScript(runtime.state.macroScripts, scriptId));
+		const script = list().find((candidate) => candidate.id === String(scriptId ?? ''));
+		if (!script) throw new ReferenceError(`Macro program ${String(scriptId)} does not exist.`);
+		return script;
+	}
+
+	/** Whether this exact program text is something the user has not enabled. */
+	function blocked(source: string): boolean {
+		return macroScriptSourceIsBlocked(list(), source);
 	}
 
 	function remove(scriptId: string): true {

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
+import { Checkbox } from '@soundscaper/design-system/Checkbox';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 
 /**
@@ -26,9 +27,12 @@ export default function MacroScriptEditor({
 	onChange,
 	onRun,
 	onCancel,
+	onTrust,
+	runnable = true,
 }) {
 	const sourceRef = useRef(null);
 	const [tabEscapes, setTabEscapes] = useState(false);
+	const [reviewed, setReviewed] = useState(false);
 
 	const handleKeyDown = (event) => {
 		if (event.key === 'Escape') {
@@ -94,10 +98,36 @@ export default function MacroScriptEditor({
 					<p key={`${index}:${entry.at}`} data-macro-script-log-level={entry.level}>{entry.text}</p>
 				))}
 			</div>
+			{!runnable && (
+				// The gate sits directly under the program it is about, so the text
+				// being vouched for is the text on screen rather than a summary of it.
+				<section className="audio-editor-macro-script__review" data-macro-script-review>
+					<h4>{copy.reviewHeading}</h4>
+					<p className="audio-editor-panel-hint">
+						{script.origin
+							? copy.reviewOrigin.replace('{origin}', script.origin)
+							: copy.reviewUnknownOrigin}
+					</p>
+					<p className="audio-editor-panel-hint">{copy.reviewRisk}</p>
+					<div
+						className="audio-editor-macro-script__review-acknowledge"
+						onClick={() => setReviewed((current) => !current)}
+					>
+						<Checkbox
+							checked={reviewed}
+							onChange={setReviewed}
+							aria-label={copy.reviewAcknowledge}
+						/>
+						<span aria-hidden="true">{copy.reviewAcknowledge}</span>
+					</div>
+				</section>
+			)}
 			<div className="audio-editor-macro-script__actions">
 				{running
 					? <Button variant="secondary" onClick={onCancel}>{copy.cancelRun}</Button>
-					: <Button variant="primary" disabled={blocked || !String(script.source || '').trim()} onClick={onRun}>{copy.runProgram}</Button>}
+					: runnable
+						? <Button variant="primary" disabled={blocked || !String(script.source || '').trim()} onClick={onRun}>{copy.runProgram}</Button>
+						: <Button variant="primary" disabled={!reviewed} onClick={onTrust}>{copy.enableProgram}</Button>}
 			</div>
 		</section>
 	);

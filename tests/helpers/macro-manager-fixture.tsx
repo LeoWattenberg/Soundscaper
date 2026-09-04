@@ -13,6 +13,11 @@ import assert from 'node:assert/strict';
 import React, { act, useEffect, useState } from 'react';
 
 import AudioEditorMacroManagerDialog from '../../src/common/editor/ui/inspector/AudioEditorMacroManagerDialog.jsx';
+import {
+	createMacroScriptLibraryService,
+	type MacroScriptRecord,
+} from '../../src/common/editor/controller/macro-script-library-service.ts';
+import { createMacroScriptLibrary } from '../../src/common/editor/macro-script-library.ts';
 import { createEffect } from '../../src/common/editor/effects.js';
 import { ENGLISH_COPY } from '../../src/common/i18n/catalogs.js';
 import {
@@ -91,6 +96,34 @@ export async function mountedMacroManagerFixture(initialDraft: MacroEntry = {
 			return true as const;
 		},
 	};
+	// The saved programs use the real library service, so the trust rules a spec
+	// asserts against are the ones that actually gate a run rather than a double's
+	// approximation of them.
+	const scriptPublishers = new Set<(scripts: readonly MacroScriptRecord[]) => void>();
+	const scriptState = { macroScripts: createMacroScriptLibrary() };
+	let mintedScripts = 0;
+	const scriptService = createMacroScriptLibraryService({
+		state: scriptState,
+		createId: (prefix: string) => `${prefix}-${(mintedScripts += 1)}`,
+		persistSetting: async () => {},
+		publishDocumentSnapshot: () => {
+			for (const publish of scriptPublishers) publish(scriptService.list());
+		},
+		handleError: (error: unknown) => { throw error; },
+	} as never);
+	const scriptLibrary = {
+		list: () => scriptService.list(),
+		save: (script: unknown) => scriptService.save(script),
+		delete: (scriptId: string) => scriptService.delete(scriptId),
+		import: (text: unknown, origin?: unknown) => scriptService.import(text, origin),
+		export: (scriptId: string) => scriptService.export(scriptId),
+		trust: (scriptId: string) => scriptService.trust(scriptId),
+		blocked: (source: string) => scriptService.blocked(source),
+	};
+	const scriptRuns: Array<Readonly<{
+		readonly source: string;
+		readonly settlement: ReturnType<typeof deferred<Readonly<{ log: readonly unknown[] }>>>;
+	}>> = [];
 	const profileResponses: Promise<unknown>[] = [];
 	const profileParams: unknown[] = [];
 	const controller = {
@@ -111,6 +144,15 @@ export async function mountedMacroManagerFixture(initialDraft: MacroEntry = {
 					return true;
 				},
 				library: macroLibrary,
+				scripts: scriptLibrary,
+				runScript: (request: Readonly<{ readonly source: string }>) => {
+					if (scriptService.blocked(request.source)) {
+						return Promise.reject(new Error('MACRO_SCRIPT_NOT_TRUSTED'));
+					}
+					const settlement = deferred<Readonly<{ log: readonly unknown[] }>>();
+					scriptRuns.push({ source: request.source, settlement });
+					return settlement.promise;
+				},
 			},
 			effects: {
 			captureNoiseProfile: (params: unknown) => {
@@ -138,15 +180,20 @@ export async function mountedMacroManagerFixture(initialDraft: MacroEntry = {
 	function Host({ snapshot }: Readonly<{ snapshot: ReturnType<typeof macroSnapshot> }>) {
 		const [draft, setDraft] = useState<MacroEntry | null>(() => initialDraft);
 		const [macros, setMacros] = useState(() => library);
+		const [scripts, setScripts] = useState(() => scriptService.list());
 		useEffect(() => {
 			libraryPublishers.add(setMacros);
-			return () => { libraryPublishers.delete(setMacros); };
+			scriptPublishers.add(setScripts);
+			return () => {
+				libraryPublishers.delete(setMacros);
+				scriptPublishers.delete(setScripts);
+			};
 		}, []);
 		return <AudioEditorMacroManagerDialog
 			isOpen
 			productId={productId}
 			controller={controller}
-			snapshot={{ ...snapshot, macros: { library: macros } }}
+			snapshot={{ ...snapshot, macros: { library: macros, scripts } }}
 			copy={ENGLISH_COPY}
 			locale="en"
 			fileService={fileService}
@@ -159,6 +206,8 @@ export async function mountedMacroManagerFixture(initialDraft: MacroEntry = {
 	const root = createRoot(dom.container as unknown as Element);
 	return {
 		runs,
+		scriptRuns,
+		scripts: scriptLibrary,
 		cancels: () => cancels,
 		exports,
 		button: (label: string) => buttonByLabel(dom.container, label),
@@ -179,6 +228,16 @@ export async function mountedMacroManagerFixture(initialDraft: MacroEntry = {
 			return button;
 		},
 		importInput: () => dom.one('[data-macro-import-file]'),
+		importScriptInput: () => dom.one('[data-macro-script-import-file]'),
+		programNames: () => dom.container.querySelectorAll('[data-macro-script-id]').map(({ textContent }) => textContent),
+		program: (name: string) => {
+			const entry = dom.container.querySelectorAll('[data-macro-script-id]').find((candidate) => (
+				candidate.textContent.startsWith(name)
+			));
+			assert.ok(entry, `Missing ${name} in the program list.`);
+			return entry;
+		},
+		review: () => dom.find('[data-macro-script-review]'),
 		macroNames: () => dom.container.querySelectorAll('[data-macro-id]').map(({ textContent }) => textContent),
 		selectedMacroName: () => dom.container.querySelectorAll('[data-macro-id]').find((candidate) => (
 			candidate.getAttribute('aria-current') === 'true'

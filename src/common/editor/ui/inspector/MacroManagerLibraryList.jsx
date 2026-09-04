@@ -50,16 +50,30 @@ export default function MacroManagerLibraryList({
 				</ul>
 				: <p className="audio-editor-panel-hint" data-macro-library-empty>{copy.macroLibraryEmpty}</p>}
 			{scripts && <div className="audio-editor-macro-manager__programs" data-macro-programs>
-				<h3>{scripts.newProgram}</h3>
+				<header className="audio-editor-macro-manager__library-header">
+					<h3>{scripts.heading}</h3>
+					<div className="audio-editor-macro-manager__library-actions">
+						<LibraryAction icon="import" label={scripts.importProgram} onClick={scripts.onImport} />
+						<LibraryAction icon="export" label={scripts.exportProgram} disabled={!scripts.selectedId} onClick={scripts.onExport} />
+					</div>
+				</header>
 				{scripts.entries.length ? <ul>
 					{scripts.entries.map((script) => (
 						<li key={script.id}>
 							<button
 								type="button"
 								data-macro-script-id={script.id}
+								data-macro-script-trust={script.trust}
 								aria-current={script.id === scripts.selectedId}
 								onClick={() => scripts.onSelect(script.id)}
-							>{script.name}</button>
+							>
+								{script.name}
+								{/* A program waiting to be read says so in the list, so the
+								    state is visible before it is opened. */}
+								{script.trust === 'imported-untrusted' && (
+									<span className="audio-editor-macro-manager__program-untrusted">{scripts.notTrusted}</span>
+								)}
+							</button>
 						</li>
 					))}
 				</ul> : null}

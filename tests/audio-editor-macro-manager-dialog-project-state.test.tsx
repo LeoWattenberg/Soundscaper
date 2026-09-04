@@ -16,6 +16,7 @@ import {
 	mountedMacroManagerFixture,
 	SERIALIZED_NOISE_PROFILE,
 } from './helpers/macro-manager-fixture.tsx';
+import { reactProps } from './helpers/react-test-dom.ts';
 
 const MANAGER_COPY = resolveMacroManagerCopy('en');
 
@@ -379,6 +380,62 @@ test('Framescaper keeps its shared Macro Manager unchanged', async () => {
 		await fixture.render(macroSnapshot('project-a'));
 		assert.equal(fixture.find('[data-macro-templates]'), null);
 		assert.doesNotMatch(fixture.text(), /Restoration/u);
+	} finally {
+		fixture.settlePending();
+		await fixture.cleanup();
+	}
+});
+
+test('an imported program is stored unreviewed and has no Run button until it is enabled', async () => {
+	// This is the only place the editor accepts executable content from a file,
+	// so importing stores text and nothing else: no run, no permission, and a
+	// list entry that says out loud what is still owed.
+	const fixture = await mountedMacroManagerFixture();
+	try {
+		await fixture.render(macroSnapshot('project-a'));
+		await changeFile(fixture.importScriptInput(), new File([JSON.stringify({
+			schemaVersion: 1,
+			kind: 'script',
+			engine: 'soundscaper-macro-js/1',
+			name: 'Sweep',
+			source: 'await sound.select.all();',
+		})], 'sweep.soundscapemacro'));
+
+		assert.equal(fixture.message(), MANAGER_COPY.programImported);
+		assert.deepEqual(fixture.scripts.list().map(({ name, trust }) => ({ name, trust })), [
+			{ name: 'Sweep', trust: 'imported-untrusted' },
+		]);
+		assert.equal(fixture.program('Sweep').textContent.includes(MANAGER_COPY.notTrusted), true);
+		assert.equal(fixture.scriptRuns.length, 0, 'importing never runs anything');
+
+		// The gate sits under the source it is about, and it is the only control
+		// offered — the acknowledgement has to be ticked before it does anything.
+		const review = fixture.review();
+		assert.ok(review, 'an unreviewed program shows the review gate');
+		assert.equal(fixture.buttonLabels().includes(MANAGER_COPY.runProgram), false);
+		const enable = fixture.button(MANAGER_COPY.enableProgram);
+		assert.equal(reactProps(enable).disabled, true);
+
+		await click(fixture.find('[role="checkbox"]')!);
+		await click(fixture.button(MANAGER_COPY.enableProgram));
+		assert.equal(fixture.scripts.list()[0]!.trust, 'imported-trusted');
+		assert.equal(fixture.buttonLabels().includes(MANAGER_COPY.runProgram), true);
+		assert.equal(fixture.review(), null);
+	} finally {
+		fixture.settlePending();
+		await fixture.cleanup();
+	}
+});
+
+test('a file that is not a macro program is refused by name rather than stored', async () => {
+	const fixture = await mountedMacroManagerFixture();
+	try {
+		await fixture.render(macroSnapshot('project-a'));
+		await changeFile(fixture.importScriptInput(), new File(
+			['await sound.select.all();'], 'sweep.soundscapemacro',
+		));
+		assert.match(fixture.message(), /could not be imported/u);
+		assert.deepEqual(fixture.scripts.list(), []);
 	} finally {
 		fixture.settlePending();
 		await fixture.cleanup();

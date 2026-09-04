@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 
+import { macroScriptIsRunnable } from '../../macro-script-library.ts';
 import MacroScriptEditor from './MacroScriptEditor.jsx';
 
 /**
@@ -12,6 +13,10 @@ import MacroScriptEditor from './MacroScriptEditor.jsx';
  * rather than outliving it.
  */
 export default function MacroScriptPanel({ controller, copy, script, blocked, onChange }) {
+	// A program the user wrote here is theirs. One that arrived from a file has
+	// no Run button until somebody has read it and said so, and the permission
+	// they give names the exact text they read.
+	const runnable = macroScriptIsRunnable(script);
 	const [log, setLog] = useState([]);
 	const [failure, setFailure] = useState(null);
 	const [running, setRunning] = useState(false);
@@ -53,8 +58,10 @@ export default function MacroScriptPanel({ controller, copy, script, blocked, on
 			failure={failure}
 			running={running}
 			blocked={blocked}
+			runnable={runnable}
 			onChange={onChange}
 			onRun={() => { void run(); }}
+			onTrust={() => controller.actions.macros.scripts.trust(script.id)}
 			onCancel={() => controller.actions.macros.cancel()}
 		/>
 	);

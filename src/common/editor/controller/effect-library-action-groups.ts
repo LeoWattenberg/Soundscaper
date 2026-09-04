@@ -135,6 +135,10 @@ export function createEffectMacroActions(
 		}) as RuntimeAction),
 		runScript: restricted('audioMacros', (async (request: unknown) => {
 			const { name, source } = readScriptRequest(request, scope);
+			// The gate is on the bytes, not on the record the manager happens to hold,
+			// so reading an unreviewed program out of the list and passing its text
+			// straight here is not a way around it.
+			if (scripts.blocked(source)) throw new Error('MACRO_SCRIPT_NOT_TRUSTED');
 			// The sandbox is loaded on demand: it is only reachable from the macro
 			// manager, and its worker prelude has no business in the startup graph.
 			const { createBrowserMacroSandbox } = await import('../macro-script/browser-sandbox.ts');
@@ -164,6 +168,11 @@ export function createEffectMacroActions(
 			list: restricted('audioMacros', () => scripts.list()),
 			save: restricted('audioMacros', ((script: unknown) => scripts.save(script)) as RuntimeAction),
 			delete: restricted('audioMacros', ((scriptId: unknown) => scripts.delete(scriptId as string)) as RuntimeAction),
+			// Importing stores text and nothing else; enabling it is a separate act.
+			import: restricted('audioMacros', ((text: unknown, origin?: unknown) => scripts.import(text, origin)) as RuntimeAction),
+			export: restricted('audioMacros', ((scriptId: unknown) => scripts.export(scriptId as string)) as RuntimeAction),
+			trust: restricted('audioMacros', ((scriptId: unknown) => scripts.trust(scriptId as string)) as RuntimeAction),
+			blocked: (source: unknown) => scripts.blocked(String(source ?? '')),
 			flush: () => scripts.flush(),
 		}),
 		library: Object.freeze({
