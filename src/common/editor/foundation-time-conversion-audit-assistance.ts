@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { deepFreezeAuditSites } from './foundation-audit-site-freeze.ts';
 import type { FoundationTimeConversionSite } from './foundation-time-conversion-audit.ts';
 
 /**
@@ -78,10 +79,5 @@ const ASSISTANCE_SITES: readonly FoundationTimeConversionSite[] = [
 	},
 ];
 
-export const FOUNDATION_TIME_CONVERSION_ASSISTANCE_SITES = deepFreeze(ASSISTANCE_SITES);
+export const FOUNDATION_TIME_CONVERSION_ASSISTANCE_SITES = deepFreezeAuditSites(ASSISTANCE_SITES);
 
-function deepFreeze<Value>(value: Value): Readonly<Value> {
-	if (!value || typeof value !== 'object') return value;
-	for (const nested of Object.values(value)) deepFreeze(nested);
-	return Object.freeze(value);
-}
