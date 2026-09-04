@@ -37,3 +37,74 @@
 	outline: 3px solid var(--sl-color-text-accent);
 	outline-offset: 0.25rem;
 }
+
+/*
+ * Comparison matrices. `src/plugins/rehype-verdict-tables.mjs` tags the cells
+ * of a table whose every comparison cell reads Yes, Partial or No, so that a
+ * column can be scanned by colour instead of read as prose. The verdict word
+ * stays in the cell as text, so the colour only repeats what the cell says.
+ */
+:root {
+	--verdict-yes-text: #4ade80;
+	--verdict-yes-tint: rgb(34 197 94 / 12%);
+	--verdict-partial-text: #fbbf24;
+	--verdict-partial-tint: rgb(245 158 11 / 12%);
+	--verdict-no-text: #fb7185;
+	--verdict-no-tint: rgb(244 63 94 / 10%);
+}
+
+:root[data-theme='light'] {
+	--verdict-yes-text: #166534;
+	--verdict-yes-tint: rgb(34 197 94 / 13%);
+	--verdict-partial-text: #92400e;
+	--verdict-partial-tint: rgb(245 158 11 / 16%);
+	--verdict-no-text: #9f1239;
+	--verdict-no-tint: rgb(244 63 94 / 10%);
+}
+
+.sl-markdown-content .verdict-cell {
+	background-color: var(--verdict-tint);
+}
+
+.sl-markdown-content .verdict-cell--yes {
+	--verdict-tint: var(--verdict-yes-tint);
+	--verdict-text: var(--verdict-yes-text);
+}
+
+.sl-markdown-content .verdict-cell--partial {
+	--verdict-tint: var(--verdict-partial-tint);
+	--verdict-text: var(--verdict-partial-text);
+}
+
+.sl-markdown-content .verdict-cell--no {
+	--verdict-tint: var(--verdict-no-tint);
+	--verdict-text: var(--verdict-no-text);
+}
+
+.sl-markdown-content .verdict {
+	color: var(--verdict-text);
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+/* Decorative: a dot for readers scanning a column rather than reading it. */
+.sl-markdown-content .verdict::before {
+	content: '';
+	display: inline-block;
+	inline-size: 0.5em;
+	block-size: 0.5em;
+	margin-inline-end: 0.4em;
+	border-radius: 50%;
+	background-color: currentcolor;
+	vertical-align: middle;
+}
+
+@media (prefers-contrast: more) {
+	.sl-markdown-content .verdict-cell {
+		background-color: transparent;
+	}
+
+	.sl-markdown-content .verdict {
+		color: inherit;
+	}
+}
