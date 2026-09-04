@@ -116,3 +116,21 @@ export function exportDialogOutputOptions(
 		})),
 	]);
 }
+
+/**
+ * The sentence that says how to make a chapter delivery available again.
+ *
+ * The option greys out for two reasons. A single-file format refuses the split
+ * whatever the project holds, so only a project without labels is told to add
+ * some: the same words under a BW64 delivery would name a remedy that changes
+ * nothing.
+ */
+export function exportDialogOutputNoLabelsHint(
+	copy: DataRecord,
+	context: Pick<ExportDialogOutputContext, 'chapterCount' | 'singleFileOnly'>,
+): string | null {
+	const missingLabels = !context.singleFileOnly && context.chapterCount < 1;
+	if (!missingLabels) return null;
+	const hint = copy.exportOutputNoLabels;
+	return typeof hint === 'string' ? hint : 'Add labels to split the export into chapters.';
+}
