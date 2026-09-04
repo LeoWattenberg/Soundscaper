@@ -40,10 +40,11 @@ mac-x64 is rejected rather than treated as a compatibility alias:
   `d2b5686a16141ec97dbeb4e4f2a1ce28b756dd3eaf6438b31379356c8dd958ae`,
   for feed-only float32 MPEG-1 Layer II/III decode at 32, 44.1, or 48 kHz,
   mono or stereo;
-- LAME 4.0, 212,205 bytes, SHA-256
-  `654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502`,
-  for bounded CBR MPEG-1 Layer III encode at 32, 44.1, or 48 kHz, mono or
-  stereo, with only the encoder's reviewed bitrate combinations admitted; and
+- LAME 4.0, 213,293 bytes, SHA-256
+  `d624f2202ce5a560ca38bc156cb80441fe93ec799e59a35d0f9379a990256123`,
+  for bounded MPEG-1 Layer III encode at 32, 44.1, or 48 kHz, mono or stereo,
+  in Audacity's constant, average, variable, and preset bit-rate modes, with
+  only the encoder's reviewed bitrate combinations admitted; and
 - TwoLAME 0.4.0, 146,820 bytes, SHA-256
   `b4b166bed688504b548adcee02cda391d4d8b25a44aec914c3fe1082f466ed1b`,
   for bounded CBR MPEG-1 Layer II encode at 32, 44.1, or 48 kHz, mono or

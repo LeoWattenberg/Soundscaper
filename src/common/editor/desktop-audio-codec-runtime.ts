@@ -21,7 +21,7 @@ import {
 } from './desktop-audio-codec-result.ts';
 import {
 	applyMediaChannelMapping, canonicalMediaExportFormat, createMediaExportCapabilities,
-	normalizeMediaExportSettings,
+	mp3CodecRateSettings, normalizeMediaExportSettings,
 } from './media-export.js';
 import {
 	FFMPEG_OUTPUT_STREAM_MAXIMUM_CHUNK_BYTES, abortFfmpegOutputSink,
@@ -375,6 +375,7 @@ function encodeSettings(format: DesktopAudioCodecFormat, media: NormalizedMediaS
 	if (format === 'ogg-vorbis') {
 		return Object.freeze({ quality: requiredInteger(media.quality, 'Vorbis quality') });
 	}
+	if (format === 'mp3') return mp3CodecRateSettings(media);
 	return Object.freeze({ bitrateKbps: requiredInteger(media.bitRate, `${format} bitrate`) });
 }
 

@@ -296,7 +296,8 @@ libFLAC 1.5.0 for signed-24-bit FLAC encode/decode; libopus 1.6.1 plus libogg
 libogg 1.3.6 for 8–192 kHz mono/stereo Ogg Vorbis encode/decode; WavPack 5.9.0
 for the float32, compression-level-2 slice; mpg123 1.33.7 for feed-only
 MPEG-1 Layer II/III decode at 32, 44.1, or 48 kHz, mono or stereo; LAME 4.0 for
-the admitted MPEG-1 Layer III CBR encode combinations at those rates; and
+the admitted MPEG-1 Layer III constant, average, variable, and preset
+encode combinations at those rates; and
 TwoLAME 0.4.0 for the supported MPEG-1 Layer II CBR encode combinations at
 those rates. The matrix pins every payload's exact byte length and SHA-256.
 Valid but unreviewed settings fall through; malformed input, validation failure,

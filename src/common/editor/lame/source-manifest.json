@@ -31,7 +31,7 @@
 		"maximumChannels": 2,
 		"simd": false,
 		"threads": false,
-		"vbr": false,
+		"vbr": true,
 		"xingLameGaplessTag": true
 	},
 	"compiledArchiveEvidence": {
@@ -41,7 +41,7 @@
 	"localFiles": [
 		{
 			"path": "native/soundscaper_lame.c",
-			"sha256": "0377efd55d8439264f18e689f01ae07aae10c5301ef4374ce0a3e6c207f86a77"
+			"sha256": "a46461db6daee97b3c8e314133026318018c8a634514cb7cf71e0d87b51d1767"
 		},
 		{
 			"path": "NOTICE.md",
@@ -58,7 +58,7 @@
 	],
 	"wasm": {
 		"path": "lame.wasm",
-		"sha256": "654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502",
+		"sha256": "d624f2202ce5a560ca38bc156cb80441fe93ec799e59a35d0f9379a990256123",
 		"maximumBytes": 1048576,
 		"initialMemoryBytes": 8388608,
 		"maximumMemoryBytes": 268435456,
@@ -71,6 +71,9 @@
 			"sclm_lame_minor",
 			"sclm_maximum_channels",
 			"sclm_maximum_frames",
+			"sclm_maximum_rate_mode",
+			"sclm_maximum_vbr_quality",
+			"sclm_maximum_preset",
 			"sclm_initial_memory_bytes",
 			"sclm_maximum_memory_bytes",
 			"sclm_allocate",

@@ -23,6 +23,7 @@ import {
 	applyMediaChannelMapping,
 	canonicalMediaExportFormat,
 	createMediaExportCapabilities,
+	mp3CodecRateSettings,
 	normalizeMediaExportSettings,
 } from './media-export.js';
 import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
@@ -419,6 +420,7 @@ function codecSettings(
 		return Object.freeze({ compressionLevel: requiredInteger(media.compressionLevel, 'compression level') });
 	}
 	if (format === 'ogg-vorbis') return Object.freeze({ quality: requiredInteger(media.quality, 'quality') });
+	if (format === 'mp3') return mp3CodecRateSettings(media);
 	return Object.freeze({ bitrateKbps: requiredInteger(media.bitRate, 'bitrate') });
 }
 

@@ -11,6 +11,7 @@ import {
 	createMediaExportCapabilities,
 	listMediaExportFormats,
 	mediaChannelMappingToFfmpegFilter,
+	mp3CodecRateSettings,
 	normalizeMediaChannelMapping,
 	normalizeMediaDecodeSampleRate,
 	normalizeMediaExportSettings,
@@ -192,6 +193,61 @@ test('pure FFmpeg command builder covers all pinned codec paths and rejects unsa
 	assert.throws(() => normalizeMediaExportSettings('custom', {
 		extension: 'mka', mimeType: 'audio/x-matroska', customArguments: ['https://example.invalid/input'],
 	}), /not allowed/);
+});
+
+test("MP3 export carries Audacity's four bit-rate strategies through FFmpeg and the codecs", () => {
+	const settingsFor = (options) => normalizeMediaExportSettings('mp3', {
+		...options, sampleRate: 44_100, inputChannelCount: 2,
+	});
+	const rateArgumentsFor = (options) => {
+		const args = buildMediaFfmpegEncoderArgs('stage.wav', 'out.mp3', 'mp3', {
+			...options, sampleRate: 44_100, channelCount: 2,
+		});
+		return args.slice(args.indexOf('libmp3lame') + 1, args.indexOf('-f'));
+	};
+
+	/* A fresh request takes Audacity's default: the Standard preset, which is V2. */
+	assert.equal(settingsFor({}).bitRateMode, 'preset');
+	assert.equal(settingsFor({}).preset, 2);
+	assert.deepEqual(rateArgumentsFor({}), ['-q:a', '2']);
+	assert.deepEqual(mp3CodecRateSettings(settingsFor({})), { preset: 2 });
+
+	/* The remaining presets mirror LAME's own table. */
+	assert.deepEqual(rateArgumentsFor({ bitRateMode: 'preset', preset: 0 }), ['-b:a', '320k']);
+	assert.deepEqual(rateArgumentsFor({ bitRateMode: 'preset', preset: 1 }), ['-q:a', '0']);
+	assert.deepEqual(rateArgumentsFor({ bitRateMode: 'preset', preset: 3 }), ['-q:a', '4']);
+
+	assert.deepEqual(rateArgumentsFor({ bitRateMode: 'variable', vbrQuality: 6 }), ['-q:a', '6']);
+	assert.deepEqual(mp3CodecRateSettings(settingsFor({ bitRateMode: 'variable', vbrQuality: 6 })), {
+		vbrQuality: 6,
+	});
+	assert.deepEqual(rateArgumentsFor({ bitRateMode: 'average', averageBitRate: 224 }), [
+		'-b:a', '224k', '-abr', '1',
+	]);
+	assert.deepEqual(mp3CodecRateSettings(settingsFor({ bitRateMode: 'average', averageBitRate: 224 })), {
+		averageBitrateKbps: 224,
+	});
+	assert.deepEqual(rateArgumentsFor({ bitRateMode: 'constant', bitRate: 320 }), ['-b:a', '320k']);
+	assert.deepEqual(mp3CodecRateSettings(settingsFor({ bitRateMode: 'constant', bitRate: 320 })), {
+		bitrateKbps: 320,
+	});
+
+	/* A request that names one strategy's value and no mode means that strategy. */
+	assert.equal(settingsFor({ bitRate: 256 }).bitRateMode, 'constant');
+	assert.deepEqual(rateArgumentsFor({ bitRate: 256 }), ['-b:a', '256k']);
+	assert.equal(settingsFor({ vbrQuality: 4 }).bitRateMode, 'variable');
+	assert.equal(settingsFor({ averageBitRate: 160 }).bitRateMode, 'average');
+
+	/* Every mode keeps its own value, so switching modes restores what it last used. */
+	const kept = settingsFor({ bitRateMode: 'variable', vbrQuality: 7, bitRate: 320, preset: 1 });
+	assert.deepEqual(
+		[kept.bitRateMode, kept.vbrQuality, kept.bitRate, kept.preset], ['variable', 7, 320, 1],
+	);
+
+	assert.throws(() => settingsFor({ bitRateMode: 'insane' }), /bit rate mode/u);
+	assert.throws(() => settingsFor({ bitRateMode: 'preset', preset: 4 }), /MP3 preset/u);
+	assert.throws(() => settingsFor({ bitRateMode: 'variable', vbrQuality: 10 }), /variable quality/u);
+	assert.throws(() => settingsFor({ bitRate: 144 }), /MP3 bitrate/u);
 });
 
 test('FFmpeg import targets the requested project sample rate instead of a fixed 48 kHz', () => {

@@ -33,7 +33,7 @@ export function validateDedicatedAudioOutput(
 	const bitrateKbps = request.settings.bitrateKbps;
 	if (request.format === 'mp3') {
 		if (!sameGeometry(geometry, request) || geometry.layer !== 3 || geometry.mpegVersion !== 1
-			|| geometry.bitrateKbps !== bitrateKbps || geometry.gapless !== 'lame'
+			|| !admittedMp3Bitrate(geometry.bitrateKbps, request) || geometry.gapless !== 'lame'
 			|| geometry.encoderDelay < 1 || geometry.endPadding < 0) fail();
 		return;
 	}
@@ -43,6 +43,24 @@ export function validateDedicatedAudioOutput(
 		|| geometry.bitrateKbps !== bitrateKbps || geometry.mpegFrameCount !== mpegFrameCount
 		|| geometry.frameCount !== mpegFrameCount * 1_152 || geometry.gapless !== 'none'
 		|| geometry.encoderDelay !== 0 || geometry.endPadding !== 0) fail();
+}
+
+/**
+ * A constant-rate request pins every frame to the requested rate, and so does
+ * the Excessive preset, which is LAME's constant 320 kbps. The average, variable
+ * and remaining preset strategies vary the rate per frame, so the parser reports
+ * null whenever the frames differ; either way the rate stays inside MPEG-1
+ * Layer III's table.
+ */
+function admittedMp3Bitrate(
+	bitrateKbps: number | null,
+	request: DedicatedAudioEncodeRequest,
+): boolean {
+	if (Object.hasOwn(request.settings, 'bitrateKbps')) {
+		return bitrateKbps === request.settings.bitrateKbps;
+	}
+	if (request.settings.preset === 0) return bitrateKbps === 320;
+	return bitrateKbps === null || bitrateKbps >= 32 && bitrateKbps <= 320;
 }
 
 function sameGeometry(

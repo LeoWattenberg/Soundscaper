@@ -232,8 +232,8 @@ thread, SIMD, or VBR support is included.
   [`LGPL-2.0.txt`](src/common/editor/lame/licenses/LGPL-2.0.txt)
 - detailed notice: [`NOTICE.md`](src/common/editor/lame/NOTICE.md)
 - source/build manifest: [`source-manifest.json`](src/common/editor/lame/source-manifest.json)
-- exact `lame.wasm`: 212,205 bytes; SHA-256
-  `654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502`
+- exact `lame.wasm`: 213,293 bytes; SHA-256
+  `d624f2202ce5a560ca38bc156cb80441fe93ec799e59a35d0f9379a990256123`
 
 The admitted profile is MPEG-1 Layer III CBR at 32, 44.1, or 48 kHz, mono or
 stereo, for the exact bitrate tuples accepted by the request preflight. A

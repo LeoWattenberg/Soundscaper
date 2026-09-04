@@ -31,8 +31,8 @@ const CODEC_FILES = Object.freeze({
 	lame: Object.freeze({
 		module: 'project-library-runtime/desktop/bundled-lame-audio-codec-runtime.js',
 		wasm: 'project-library-runtime/src/common/editor/lame/lame.wasm',
-		wasmBytes: 212_205,
-		wasmSha256: '654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502',
+		wasmBytes: 213_293,
+		wasmSha256: 'd624f2202ce5a560ca38bc156cb80441fe93ec799e59a35d0f9379a990256123',
 	}),
 	mpg123: Object.freeze({
 		module: 'project-library-runtime/desktop/bundled-mpg123-audio-codec-runtime.js',

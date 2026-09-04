@@ -8,8 +8,15 @@ import { setImmediate as waitImmediate } from 'node:timers/promises';
 
 import { parseBundledMpegAudioStream } from './bundled-mpeg-audio-stream.ts';
 import {
+	MP3_MAXIMUM_PRESET,
+	MP3_MAXIMUM_VBR_QUALITY,
+	MP3_RATE_MODE_AVERAGE,
+	MP3_RATE_MODE_CONSTANT,
+	MP3_RATE_MODE_PRESET,
+	MP3_RATE_MODE_VARIABLE,
 	normalizeDesktopAudioCodecRequest,
 	type DesktopAudioCodecRequest,
+	type DesktopAudioMp3EncodeSettings,
 } from './desktop-audio-codec-operation-contract.ts';
 import type {
 	DesktopAudioCodecProviderExecutionResult,
@@ -26,8 +33,8 @@ import {
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 
 export const BUNDLED_LAME_VERSION = '4.0';
-export const BUNDLED_LAME_WASM_BYTE_LENGTH = 212_205;
-export const BUNDLED_LAME_WASM_SHA256 = '654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502';
+export const BUNDLED_LAME_WASM_BYTE_LENGTH = 213_293;
+export const BUNDLED_LAME_WASM_SHA256 = 'd624f2202ce5a560ca38bc156cb80441fe93ec799e59a35d0f9379a990256123';
 export const BUNDLED_LAME_WASM_URL = new URL(
 	'../src/common/editor/lame/lame.wasm', import.meta.url,
 );
@@ -63,9 +70,12 @@ interface LameExports {
 	readonly sclm_maximum_memory_bytes: () => number;
 	readonly sclm_allocate: (bytes: number) => number;
 	readonly sclm_free: (pointer: number) => void;
+	readonly sclm_maximum_rate_mode: () => number;
+	readonly sclm_maximum_vbr_quality: () => number;
+	readonly sclm_maximum_preset: () => number;
 	readonly sclm_encode_float32: (
 		input: number, frames: number, channels: number, sampleRate: number,
-		bitrateKbps: number, output: number, outputCapacity: number,
+		rateMode: number, rateValue: number, output: number, outputCapacity: number,
 	) => number;
 }
 
@@ -74,7 +84,8 @@ interface LameCodec {
 		readonly frameCount: number;
 		readonly channelCount: number;
 		readonly sampleRate: number;
-		readonly bitrateKbps: number;
+		readonly rateMode: number;
+		readonly rateValue: number;
 		readonly maximumOutputBytes: number;
 	}>): Uint8Array;
 }
@@ -189,10 +200,10 @@ function encode(
 		/ (request.channelCount * Float32Array.BYTES_PER_ELEMENT);
 	let output: Uint8Array;
 	try {
+		const [rateMode, rateValue] = mp3RateArguments(request.settings);
 		output = codec.encode(request.input, {
 			frameCount, channelCount: request.channelCount, sampleRate: request.sampleRate,
-			bitrateKbps: request.settings.bitrateKbps,
-			maximumOutputBytes: request.maximumOutputBytes,
+			rateMode, rateValue, maximumOutputBytes: request.maximumOutputBytes,
 		});
 	} catch (error) {
 		if (error instanceof LameCodecOutputBoundError) {
@@ -206,7 +217,7 @@ function encode(
 			|| geometry.sampleRate !== request.sampleRate
 			|| geometry.channelCount !== request.channelCount
 			|| geometry.frameCount !== frameCount
-			|| geometry.bitrateKbps !== request.settings.bitrateKbps
+			|| !admittedMp3Bitrate(geometry.bitrateKbps, request.settings)
 			|| geometry.gapless !== 'lame' || geometry.encoderDelay < 1 || geometry.endPadding < 0) {
 			throw new LameOutputValidationError();
 		}
@@ -234,10 +245,13 @@ async function loadReviewedWasm(source: Uint8Array): Promise<LameExports> {
 	const instance = await WebAssembly.instantiate(module, imports);
 	const exports = normalizeExports(instance.exports);
 	exports._initialize();
-	if (exports.sclm_abi_version() !== 1
+	if (exports.sclm_abi_version() !== 2
 		|| exports.sclm_lame_major() !== 4 || exports.sclm_lame_minor() !== 0
 		|| exports.sclm_maximum_channels() !== MAXIMUM_CHANNEL_COUNT
 		|| exports.sclm_maximum_frames() !== MAXIMUM_FRAME_COUNT
+		|| exports.sclm_maximum_rate_mode() !== MP3_RATE_MODE_PRESET
+		|| exports.sclm_maximum_vbr_quality() !== MP3_MAXIMUM_VBR_QUALITY
+		|| exports.sclm_maximum_preset() !== MP3_MAXIMUM_PRESET
 		|| exports.sclm_initial_memory_bytes() !== INITIAL_MEMORY_BYTES
 		|| exports.sclm_maximum_memory_bytes() !== MAXIMUM_MEMORY_BYTES
 		|| exports.memory.buffer.byteLength !== INITIAL_MEMORY_BYTES) {
@@ -252,7 +266,8 @@ function normalizeExports(exports: WebAssembly.Exports): LameExports {
 	const result: Record<string, WebAssembly.Memory | ((...arguments_: number[]) => number | void)> = { memory };
 	for (const name of [
 		'_initialize', 'sclm_abi_version', 'sclm_lame_major', 'sclm_lame_minor',
-		'sclm_maximum_channels', 'sclm_maximum_frames', 'sclm_initial_memory_bytes',
+		'sclm_maximum_channels', 'sclm_maximum_frames', 'sclm_maximum_rate_mode',
+		'sclm_maximum_vbr_quality', 'sclm_maximum_preset', 'sclm_initial_memory_bytes',
 		'sclm_maximum_memory_bytes', 'sclm_allocate', 'sclm_free', 'sclm_encode_float32',
 	]) {
 		const value = exports[name] ?? exports[`_${name}`];
@@ -268,7 +283,8 @@ function wasmCodec(exports: LameExports): LameCodec {
 			readonly frameCount: number;
 			readonly channelCount: number;
 			readonly sampleRate: number;
-			readonly bitrateKbps: number;
+			readonly rateMode: number;
+			readonly rateValue: number;
 			readonly maximumOutputBytes: number;
 		}>): Uint8Array {
 			const capacity = Math.max(options.maximumOutputBytes, MINIMUM_ENCODER_BUFFER_BYTES);
@@ -279,7 +295,7 @@ function wasmCodec(exports: LameExports): LameCodec {
 				new Uint8Array(exports.memory.buffer, inputPointer, input.byteLength).set(input);
 				const result = exports.sclm_encode_float32(
 					inputPointer, options.frameCount, options.channelCount, options.sampleRate,
-					options.bitrateKbps, outputPointer, capacity,
+					options.rateMode, options.rateValue, outputPointer, capacity,
 				);
 				if (result === -1 || result > options.maximumOutputBytes) {
 					throw new LameCodecOutputBoundError();
@@ -315,7 +331,8 @@ function verifyCanary(codec: LameCodec): void {
 	const bitrateKbps = 128;
 	const input = new Uint8Array(new Float32Array(frameCount).buffer);
 	const output = codec.encode(input, {
-		frameCount, channelCount, sampleRate, bitrateKbps, maximumOutputBytes: 64 * 1024,
+		frameCount, channelCount, sampleRate, rateMode: MP3_RATE_MODE_CONSTANT,
+		rateValue: bitrateKbps, maximumOutputBytes: 64 * 1024,
 	});
 	const geometry = parseBundledMpegAudioStream(output, 'mp3');
 	if (geometry.format !== 'mp3' || geometry.layer !== 3 || geometry.frameCount !== frameCount
@@ -339,7 +356,7 @@ function bundledProvider(target: DesktopCodecTarget): DesktopCodecProvider {
 				? Object.freeze({ disposition: 'supported', reason: null })
 				: Object.freeze({
 					disposition: 'unsupported',
-					reason: 'The bundled LAME payload supports bounded MP3 CBR encoding only.',
+					reason: 'The bundled LAME payload supports bounded MP3 encoding only.',
 				});
 		},
 	});
@@ -358,10 +375,44 @@ function matchingOperation(operation: DesktopCodecOperation): boolean {
 function encodeProfileSupported(
 	request: Extract<DesktopAudioCodecRequest, { readonly operation: 'audio-encode'; readonly format: 'mp3' }>,
 ): boolean {
+	const bitrate = Object.hasOwn(request.settings, 'bitrateKbps')
+		? (request.settings as { readonly bitrateKbps: number }).bitrateKbps
+		: Object.hasOwn(request.settings, 'averageBitrateKbps')
+			? (request.settings as { readonly averageBitrateKbps: number }).averageBitrateKbps
+			: null;
+	if (bitrate === null) return true;
 	const minimumBitrate = request.sampleRate === 32_000
 		? request.channelCount === 1 ? 40 : 48
 		: request.sampleRate === 44_100 && request.channelCount === 1 ? 56 : 64;
-	return request.settings.bitrateKbps >= minimumBitrate;
+	return bitrate >= minimumBitrate;
+}
+
+/**
+ * Marshal Audacity's four bit-rate strategies into the payload's rate-mode,
+ * rate-value pair. The request names its strategy by its own settings key.
+ */
+function mp3RateArguments(settings: DesktopAudioMp3EncodeSettings): readonly [number, number] {
+	const record = settings as Readonly<Record<string, number>>;
+	if (Object.hasOwn(record, 'preset')) return [MP3_RATE_MODE_PRESET, record.preset!];
+	if (Object.hasOwn(record, 'vbrQuality')) return [MP3_RATE_MODE_VARIABLE, record.vbrQuality!];
+	if (Object.hasOwn(record, 'averageBitrateKbps')) {
+		return [MP3_RATE_MODE_AVERAGE, record.averageBitrateKbps!];
+	}
+	return [MP3_RATE_MODE_CONSTANT, record.bitrateKbps!];
+}
+
+/**
+ * Constant requests and the Excessive preset pin every frame to one rate; the
+ * other strategies vary it per frame, and the parser then reports null.
+ */
+function admittedMp3Bitrate(
+	bitrateKbps: number | null,
+	settings: DesktopAudioMp3EncodeSettings,
+): boolean {
+	const record = settings as Readonly<Record<string, number>>;
+	if (Object.hasOwn(record, 'bitrateKbps')) return bitrateKbps === record.bitrateKbps;
+	if (record.preset === 0) return bitrateKbps === 320;
+	return bitrateKbps === null || bitrateKbps >= 32 && bitrateKbps <= 320;
 }
 
 function validateFiniteFloat32(input: Uint8Array): void {

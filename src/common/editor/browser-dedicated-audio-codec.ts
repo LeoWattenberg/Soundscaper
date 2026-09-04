@@ -53,6 +53,8 @@ interface PayloadDescriptor {
 	readonly byteLength: number;
 	readonly sha256: string;
 	readonly prefix: 'scfl' | 'sclm' | 'scvb' | 'scop' | 'scwp' | 'sctl' | 'scmp';
+	/** Reviewed shim ABI; LAME moved to 2 when it gained its four bit-rate modes. */
+	readonly abiVersion?: number;
 }
 
 interface ReviewedExports {
@@ -68,6 +70,12 @@ const MAXIMUM_WAVPACK_BLOCK_OVERHEAD_BYTES = 64 * 1024;
 const MP3_BITRATES = new Set([32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]);
 const MP2_BITRATES = new Set([32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384]);
 const OPUS_BITRATES = new Set([16, 24, 32, 48, 64, 80, 96, 112, 128, 160, 192, 256]);
+const MAXIMUM_MP3_VBR_QUALITY = 9;
+const MAXIMUM_MP3_PRESET = 3;
+const MP3_RATE_MODE_CONSTANT = 0;
+const MP3_RATE_MODE_AVERAGE = 1;
+const MP3_RATE_MODE_VARIABLE = 2;
+const MP3_RATE_MODE_PRESET = 3;
 
 const PAYLOADS: Readonly<Record<BrowserDedicatedAudioFormat, PayloadDescriptor>> = Object.freeze({
 	flac: Object.freeze({
@@ -75,8 +83,9 @@ const PAYLOADS: Readonly<Record<BrowserDedicatedAudioFormat, PayloadDescriptor>>
 		sha256: '0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986', prefix: 'scfl',
 	}),
 	mp3: Object.freeze({
-		url: new URL('./lame/lame.wasm', import.meta.url), byteLength: 212_205,
-		sha256: '654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502', prefix: 'sclm',
+		url: new URL('./lame/lame.wasm', import.meta.url), byteLength: 213_293,
+		sha256: 'd624f2202ce5a560ca38bc156cb80441fe93ec799e59a35d0f9379a990256123',
+		prefix: 'sclm', abiVersion: 2,
 	}),
 	'ogg-vorbis': Object.freeze({
 		url: new URL('./vorbis/vorbis.wasm', import.meta.url), byteLength: 523_227,
@@ -345,14 +354,8 @@ function validateProfile(
 	else if (format === 'wavpack') exactIntegerSetting(settings, 'compressionLevel', 2, 2);
 	else if (format === 'opus') {
 		admittedBitrate(exactIntegerSetting(settings, 'bitrateKbps', 16, 256), OPUS_BITRATES, format);
-	} else if (format === 'mp3') {
-		const bitrate = exactIntegerSetting(settings, 'bitrateKbps', 32, 320);
-		admittedBitrate(bitrate, MP3_BITRATES, format);
-		const minimum = geometry.sampleRate === 32_000
-			? geometry.channelCount === 1 ? 40 : 48
-			: geometry.sampleRate === 44_100 && geometry.channelCount === 1 ? 56 : 64;
-		if (bitrate < minimum) throw new RangeError('The dedicated MP3 bitrate is outside its admitted tuple.');
-	} else {
+	} else if (format === 'mp3') validateMp3Profile(geometry, settings);
+	else {
 		const bitrate = exactIntegerSetting(settings, 'bitrateKbps', 32, 384);
 		admittedBitrate(bitrate, MP2_BITRATES, format);
 		if (geometry.channelCount === 1 ? bitrate > 192 : bitrate < 64 || bitrate === 80) {
@@ -380,7 +383,7 @@ function encodeArguments(request: DedicatedAudioEncodeRequest): number[] {
 	const common = [request.frameCount, request.channelCount];
 	switch (request.format) {
 		case 'flac': return [...common, request.sampleRate, request.settings.compressionLevel!];
-		case 'mp3': return [...common, request.sampleRate, request.settings.bitrateKbps!];
+		case 'mp3': return [...common, request.sampleRate, ...mp3RateArguments(request.settings)];
 		case 'ogg-vorbis': return [...common, request.sampleRate, request.settings.quality!];
 		case 'opus': return [...common, request.settings.bitrateKbps! * 1_000];
 		case 'mp2': return [...common, request.sampleRate, request.settings.bitrateKbps!];
@@ -468,7 +471,9 @@ function allocate(reviewed: ReviewedExports, byteLength: number): number {
 function initialize(exportsValue: WebAssembly.Exports, descriptor: PayloadDescriptor): void {
 	exportedFunction(exportsValue, '_initialize')();
 	const abi = exportedFunction(exportsValue, `${descriptor.prefix}_abi_version`)();
-	if (abi !== 1) throw new DedicatedAudioCodecError('The reviewed codec reports an unexpected ABI version.');
+	if (abi !== (descriptor.abiVersion ?? 1)) {
+		throw new DedicatedAudioCodecError('The reviewed codec reports an unexpected ABI version.');
+	}
 }
 
 function exportedFunction(exportsValue: WebAssembly.Exports, name: string): (...arguments_: number[]) => number {
@@ -558,6 +563,45 @@ function validateFinitePcm(input: Uint8Array): void {
 			throw new RangeError('Dedicated audio PCM must contain only finite samples.');
 		}
 	}
+}
+
+/**
+ * MP3 admits one bit-rate strategy per request, named by the request's only
+ * setting key. The four strategies are Audacity's: `preset` selects a named
+ * LAME preset 0 (Excessive) through 3 (Medium), `vbrQuality` LAME's variable
+ * rate at quality 0 (best) through 9, `averageBitrateKbps` its average rate,
+ * and `bitrateKbps` its constant rate. `exactIntegerSetting` rejects a request
+ * that names more than one.
+ */
+function validateMp3Profile(
+	geometry: Readonly<{ frameCount: number; channelCount: number; sampleRate: number }>,
+	settings: Readonly<Record<string, number>>,
+): void {
+	if (Object.hasOwn(settings, 'preset')) {
+		exactIntegerSetting(settings, 'preset', 0, MAXIMUM_MP3_PRESET);
+		return;
+	}
+	if (Object.hasOwn(settings, 'vbrQuality')) {
+		exactIntegerSetting(settings, 'vbrQuality', 0, MAXIMUM_MP3_VBR_QUALITY);
+		return;
+	}
+	const key = Object.hasOwn(settings, 'averageBitrateKbps') ? 'averageBitrateKbps' : 'bitrateKbps';
+	const bitrate = exactIntegerSetting(settings, key, 32, 320);
+	admittedBitrate(bitrate, MP3_BITRATES, 'mp3');
+	const minimum = geometry.sampleRate === 32_000
+		? geometry.channelCount === 1 ? 40 : 48
+		: geometry.sampleRate === 44_100 && geometry.channelCount === 1 ? 56 : 64;
+	if (bitrate < minimum) throw new RangeError('The dedicated MP3 bitrate is outside its admitted tuple.');
+}
+
+/** Marshal the chosen strategy into the payload's rate-mode, rate-value pair. */
+function mp3RateArguments(settings: Readonly<Record<string, number>>): number[] {
+	if (Object.hasOwn(settings, 'preset')) return [MP3_RATE_MODE_PRESET, settings.preset!];
+	if (Object.hasOwn(settings, 'vbrQuality')) return [MP3_RATE_MODE_VARIABLE, settings.vbrQuality!];
+	if (Object.hasOwn(settings, 'averageBitrateKbps')) {
+		return [MP3_RATE_MODE_AVERAGE, settings.averageBitrateKbps!];
+	}
+	return [MP3_RATE_MODE_CONSTANT, settings.bitrateKbps!];
 }
 
 function exactIntegerSetting(

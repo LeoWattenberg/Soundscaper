@@ -6,8 +6,8 @@ import { dirname, join } from 'node:path';
 
 export const DESKTOP_BUNDLED_LAME_WASM = Object.freeze({
 	file: 'src/common/editor/lame/lame.wasm',
-	byteLength: 212_205,
-	sha256: '654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502',
+	byteLength: 213_293,
+	sha256: 'd624f2202ce5a560ca38bc156cb80441fe93ec799e59a35d0f9379a990256123',
 });
 
 /** Copy only the exact reviewed LAME payload into the compiled desktop graph. */

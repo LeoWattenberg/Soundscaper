@@ -238,7 +238,7 @@ test('runtime provenance entries and distribution checks fail closed without cla
 		vorbis: ['libvorbis-1.3.7+libogg-1.3.6', 'BSD-3-Clause', 523227, 'c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5'],
 		wavpack: ['5.9.0', 'BSD-3-Clause', 145537, 'c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908'],
 		mpg123: ['1.33.7', 'LGPL-2.1-only', 172329, 'd2b5686a16141ec97dbeb4e4f2a1ce28b756dd3eaf6438b31379356c8dd958ae'],
-		lame: ['4.0', 'LGPL-2.0-or-later', 212205, '654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502'],
+		lame: ['4.0', 'LGPL-2.0-or-later', 213293, 'd624f2202ce5a560ca38bc156cb80441fe93ec799e59a35d0f9379a990256123'],
 		twolame: ['0.4.0', 'LGPL-2.1-or-later', 146820, 'b4b166bed688504b548adcee02cda391d4d8b25a44aec914c3fe1082f466ed1b'],
 	};
 	for (const [id, [version, license, byteLength, sha256]] of Object.entries(expectedAudioPayloads)) {

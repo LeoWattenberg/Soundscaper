@@ -19,7 +19,12 @@ export type DesktopAudioFlacEncodeSettings = Readonly<{
 	/** Explicit integer PCM representation written into the lossless FLAC stream. */
 	readonly bitDepth: 16 | 24;
 }>;
-export type DesktopAudioMp3EncodeSettings = Readonly<{ readonly bitrateKbps: number }>;
+/** One of Audacity's four MP3 bit-rate strategies, each named by its own key. */
+export type DesktopAudioMp3EncodeSettings =
+	| Readonly<{ readonly bitrateKbps: number }>
+	| Readonly<{ readonly averageBitrateKbps: number }>
+	| Readonly<{ readonly vbrQuality: number }>
+	| Readonly<{ readonly preset: number }>;
 export type DesktopAudioVorbisEncodeSettings = Readonly<{ readonly quality: number }>;
 export type DesktopAudioOpusEncodeSettings = Readonly<{ readonly bitrateKbps: number }>;
 export type DesktopAudioWavpackEncodeSettings = Readonly<{ readonly compressionLevel: number }>;
@@ -131,6 +136,16 @@ const AAC_SAMPLE_RATE_VALUES = Object.freeze([
 	8_000, 11_025, 12_000, 16_000, 22_050, 24_000, 32_000, 44_100, 48_000, 64_000, 88_200, 96_000,
 ]);
 const MP3_BITRATE_VALUES = Object.freeze([32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]);
+/**
+ * Payload rate-mode selectors for Audacity's four MP3 bit-rate strategies, and
+ * the bounds of the two strategies that carry an index rather than a bitrate.
+ */
+export const MP3_RATE_MODE_CONSTANT = 0;
+export const MP3_RATE_MODE_AVERAGE = 1;
+export const MP3_RATE_MODE_VARIABLE = 2;
+export const MP3_RATE_MODE_PRESET = 3;
+export const MP3_MAXIMUM_VBR_QUALITY = 9;
+export const MP3_MAXIMUM_PRESET = 3;
 const OPUS_BITRATE_VALUES = Object.freeze([16, 24, 32, 48, 64, 80, 96, 112, 128, 160, 192, 256]);
 const MP2_BITRATE_VALUES = Object.freeze([32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384]);
 const AAC_BITRATE_VALUES = Object.freeze([32, 48, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]);
@@ -358,13 +373,51 @@ function validateEncodeSettings(
 		integer(settings.quality, 0, 10, 'ogg-vorbis quality');
 		return;
 	}
+	if (format === 'mp3') {
+		validateMp3EncodeSettings(settings, sampleRate, channelCount);
+		return;
+	}
 	exactKeys(settings, ['bitrateKbps'], ['bitrateKbps'], `${format} encode settings`);
+	validateEncodeBitrate(format, settings.bitrateKbps, sampleRate, channelCount);
+}
+
+/**
+ * MP3 carries one of Audacity's four bit-rate strategies, and the request names
+ * its choice by using that strategy's own exact key: `bitrateKbps` is constant,
+ * `averageBitrateKbps` is average, `vbrQuality` is variable at quality 0 (best)
+ * through 9, and `preset` is a named preset 0 (Excessive) through 3 (Medium).
+ */
+function validateMp3EncodeSettings(
+	settings: Readonly<Record<string, unknown>>,
+	sampleRate: number,
+	channelCount: number,
+): void {
+	if (Object.hasOwn(settings, 'vbrQuality')) {
+		exactKeys(settings, ['vbrQuality'], ['vbrQuality'], 'mp3 encode settings');
+		integer(settings.vbrQuality, 0, MP3_MAXIMUM_VBR_QUALITY, 'mp3 variable quality');
+		return;
+	}
+	if (Object.hasOwn(settings, 'preset')) {
+		exactKeys(settings, ['preset'], ['preset'], 'mp3 encode settings');
+		integer(settings.preset, 0, MP3_MAXIMUM_PRESET, 'mp3 preset');
+		return;
+	}
+	const key = Object.hasOwn(settings, 'averageBitrateKbps') ? 'averageBitrateKbps' : 'bitrateKbps';
+	exactKeys(settings, [key], [key], 'mp3 encode settings');
+	validateEncodeBitrate('mp3', settings[key], sampleRate, channelCount);
+}
+
+function validateEncodeBitrate(
+	format: DesktopAudioCodecFormat,
+	value: unknown,
+	sampleRate: number,
+	channelCount: number,
+): void {
 	const permitted = desktopAudioCodecEncodeBitRates(format);
-	if (!Number.isSafeInteger(settings.bitrateKbps) || !permitted.includes(Number(settings.bitrateKbps))) {
+	if (!Number.isSafeInteger(value) || !permitted.includes(Number(value))) {
 		throw new RangeError(`The desktop audio ${format} bitrate is unsupported.`);
 	}
-	if (!desktopAudioCodecEncodeBitRates(format, sampleRate, channelCount)
-		.includes(Number(settings.bitrateKbps))) {
+	if (!desktopAudioCodecEncodeBitRates(format, sampleRate, channelCount).includes(Number(value))) {
 		throw new RangeError(`The desktop audio ${format} bitrate is unsupported at this sample rate and channel count.`);
 	}
 }

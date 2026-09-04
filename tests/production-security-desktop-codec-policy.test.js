@@ -135,7 +135,7 @@ test('desktop codec security separates Electron framework, application, and exte
 	);
 	assert.match(
 		helperPayload.summary,
-		/seven exact reviewed compressed-audio WebAssembly payloads.*linux-x64.*linux-arm64.*mac-arm64.*win-x64.*win-arm64.*never mac-x64.*153,076-byte libFLAC 1\.5\.0.*385,789-byte libopus 1\.6\.1.*523,227-byte libvorbis 1\.3\.7.*145,537-byte WavPack 5\.9\.0.*172,329-byte mpg123 1\.33\.7.*212,205-byte LAME 4\.0.*146,820-byte TwoLAME 0\.4\.0.*exact settings.*libsndfile is not bundled/iu,
+		/seven exact reviewed compressed-audio WebAssembly payloads.*linux-x64.*linux-arm64.*mac-arm64.*win-x64.*win-arm64.*never mac-x64.*153,076-byte libFLAC 1\.5\.0.*385,789-byte libopus 1\.6\.1.*523,227-byte libvorbis 1\.3\.7.*145,537-byte WavPack 5\.9\.0.*172,329-byte mpg123 1\.33\.7.*213,293-byte LAME 4\.0.*146,820-byte TwoLAME 0\.4\.0.*exact settings.*libsndfile is not bundled/iu,
 	);
 	assert.match(
 		helperPayload.summary,

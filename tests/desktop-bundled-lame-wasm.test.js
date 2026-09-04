@@ -16,8 +16,8 @@ test('bundled MP3 encode is an exact LAME 4.0 artifact', async () => {
 	assert.equal(result.ok, true);
 	assert.equal(result.version, '4.0');
 	assert.equal(result.archiveSha256, '3df5124d5ad3a98312ffd7ba6a9b36230e4f8a3e66d3ce0f425e336c32d216eb');
-	assert.equal(result.wasmBytes, 212_205);
-	assert.equal(result.wasmSha256, '654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502');
+	assert.equal(result.wasmBytes, 213_293);
+	assert.equal(result.wasmSha256, 'd624f2202ce5a560ca38bc156cb80441fe93ec799e59a35d0f9379a990256123');
 });
 
 test('bundled LAME build remains reproducible and excludes broader authority', async () => {
@@ -26,7 +26,7 @@ test('bundled LAME build remains reproducible and excludes broader authority', a
 	), 'utf8'));
 	assert.deepEqual(manifest.buildFeatures, {
 		decoder: false, files: false, frontend: false, maximumChannels: 2,
-		simd: false, threads: false, vbr: false, xingLameGaplessTag: true,
+		simd: false, threads: false, vbr: true, xingLameGaplessTag: true,
 	});
 	assert.deepEqual(manifest.compiledArchiveEvidence, {
 		memberCount: 20,
@@ -43,4 +43,27 @@ test('bundled LAME build remains reproducible and excludes broader authority', a
 		'--disable-cpml', '--disable-nasm',
 	]);
 	assert.doesNotMatch(manifest.configureArguments.join('\n'), /enable-(?:decoder|frontend|nasm|shared)/iu);
+});
+
+test('the reviewed shim exports Audacity\'s four MP3 bit-rate modes', async () => {
+	const manifest = JSON.parse(await readFile(resolve(
+		ROOT, 'src/common/editor/lame/source-manifest.json',
+	), 'utf8'));
+	for (const name of ['sclm_maximum_rate_mode', 'sclm_maximum_vbr_quality', 'sclm_maximum_preset']) {
+		assert.ok(manifest.wasm.requiredExports.includes(name), name);
+	}
+	const wasm = await readFile(resolve(ROOT, 'src/common/editor/lame/lame.wasm'));
+	const module = await WebAssembly.compile(Uint8Array.from(wasm).buffer);
+	const imports = {};
+	for (const descriptor of WebAssembly.Module.imports(module)) {
+		imports[descriptor.module] ??= {};
+		imports[descriptor.module][descriptor.name] = () => 8;
+	}
+	const { exports } = await WebAssembly.instantiate(module, imports);
+	const exported = (name) => exports[name] ?? exports[`_${name}`];
+	exported('_initialize')();
+	assert.equal(exported('sclm_abi_version')(), 2);
+	assert.equal(exported('sclm_maximum_rate_mode')(), 3);
+	assert.equal(exported('sclm_maximum_vbr_quality')(), 9);
+	assert.equal(exported('sclm_maximum_preset')(), 3);
 });

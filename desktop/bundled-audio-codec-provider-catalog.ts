@@ -28,7 +28,7 @@ const DESCRIPTORS: Readonly<Record<BundledAudioCodecId, Readonly<ProviderDescrip
 	lame: Object.freeze({
 		id: (target: DesktopCodecTarget) => `bundled-lame-wasm-${target}`,
 		implementation: 'lame-wasm-f32-mp3', version: '4.0',
-		capabilityGeneration: 'lame-654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502',
+		capabilityGeneration: 'lame-d624f2202ce5a560ca38bc156cb80441fe93ec799e59a35d0f9379a990256123',
 		unsupportedReason: 'The bundled LAME payload supports bounded MP3 encoding only.',
 	}),
 	mpg123: Object.freeze({

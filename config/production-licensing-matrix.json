@@ -380,11 +380,11 @@
 			"provenanceKind": "pinned-in-tree-wasm-and-desktop-bundled-codec-provider",
 			"upstream": "LAME 4.0 release archive",
 			"license": "LGPL-2.0-or-later",
-			"byteLength": 212205,
-			"sha256": "654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502",
+			"byteLength": 213293,
+			"sha256": "d624f2202ce5a560ca38bc156cb80441fe93ec799e59a35d0f9379a990256123",
 			"providerRole": "soundscaper-bundled-mpeg1-layer3-cbr-encoder",
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
-			"verification": "Exact reviewed encoder-only MPEG-1 Layer III CBR slice with output parsing, gapless-tag validation, and startup canary. No patent-clearance or non-infringement claim is made.",
+			"verification": "Exact reviewed encoder-only MPEG-1 Layer III slice in constant, average, variable, and preset bit-rate modes, with output parsing, gapless-tag validation, and startup canary. No patent-clearance or non-infringement claim is made.",
 			"evidence": ["src/common/editor/lame/source-manifest.json", "src/common/editor/lame/NOTICE.md", "scripts/audit-lame-wasm.mjs", "scripts/lib/desktop-bundled-lame-runtime.mjs", "desktop/bundled-lame-audio-codec-runtime.ts", "desktop/bundled-mpeg-audio-stream.ts", "tests/desktop-bundled-lame-audio-codec-runtime.test.ts", "tests/desktop-bundled-lame-wasm.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
@@ -597,8 +597,8 @@
 				"container": "mp3",
 				"codec": "mp3",
 				"profile": "mpeg1-layer3-cbr-32-44.1-48khz-mono-stereo-reviewed-bitrates",
-				"byteLength": 212205,
-				"sha256": "654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502",
+				"byteLength": 213293,
+				"sha256": "d624f2202ce5a560ca38bc156cb80441fe93ec799e59a35d0f9379a990256123",
 				"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
 				"startupAdmission": ["exact-byte-length", "sha256", "encode-parse-gapless-canary"],
 				"verification": "exact-reviewed-slice-no-patent-clearance"

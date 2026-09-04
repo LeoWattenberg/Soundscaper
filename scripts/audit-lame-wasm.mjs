@@ -58,7 +58,7 @@ function validateManifest(manifest, findings) {
 	])) findings.push('LAME configure admission changed.');
 	if (JSON.stringify(manifest.buildFeatures) !== JSON.stringify({
 		decoder: false, files: false, frontend: false, maximumChannels: 2,
-		simd: false, threads: false, vbr: false, xingLameGaplessTag: true,
+		simd: false, threads: false, vbr: true, xingLameGaplessTag: true,
 	})) findings.push('LAME public build profile changed.');
 	if (manifest.compiledArchiveEvidence?.memberCount !== 20
 		|| manifest.compiledArchiveEvidence?.membersSha256
@@ -123,9 +123,12 @@ async function auditModule(wasm, manifest, findings) {
 		const api = instance.exports;
 		const exported = (name) => api[name] || api[`_${name}`];
 		exported('_initialize')?.();
-		if (exported('sclm_abi_version')() !== 1 || exported('sclm_lame_major')() !== 4
+		if (exported('sclm_abi_version')() !== 2 || exported('sclm_lame_major')() !== 4
 			|| exported('sclm_lame_minor')() !== 0 || exported('sclm_maximum_channels')() !== 2
 			|| exported('sclm_maximum_frames')() !== 8_388_608
+			|| exported('sclm_maximum_rate_mode')() !== 3
+			|| exported('sclm_maximum_vbr_quality')() !== 9
+			|| exported('sclm_maximum_preset')() !== 3
 			|| exported('sclm_initial_memory_bytes')() !== 8 * 1024 * 1024
 			|| exported('sclm_maximum_memory_bytes')() !== 256 * 1024 * 1024
 			|| api.memory.buffer.byteLength !== 8 * 1024 * 1024) {
@@ -137,6 +140,13 @@ async function auditModule(wasm, manifest, findings) {
 }
 
 function verifyCanary(memory, exported) {
+	/* Constant 128 kbps, then variable quality 2, then the Standard preset. */
+	verifyRateMode(memory, exported, 0, 128, 'Info');
+	verifyRateMode(memory, exported, 2, 2, 'Xing');
+	verifyRateMode(memory, exported, 3, 2, 'Xing');
+}
+
+function verifyRateMode(memory, exported, rateMode, rateValue, expectedTag) {
 	const frames = 1_153;
 	const inputBytes = frames * Float32Array.BYTES_PER_ELEMENT;
 	const inputPointer = allocate(exported, memory, inputBytes);
@@ -144,15 +154,15 @@ function verifyCanary(memory, exported) {
 	const outputPointer = allocate(exported, memory, outputCapacity);
 	try {
 		const encodedBytes = exported('sclm_encode_float32')(
-			inputPointer, frames, 1, 48_000, 128, outputPointer, outputCapacity,
+			inputPointer, frames, 1, 48_000, rateMode, rateValue, outputPointer, outputCapacity,
 		);
 		if (!Number.isSafeInteger(encodedBytes) || encodedBytes < 512 || encodedBytes > outputCapacity) {
-			throw new Error('encoder returned an invalid byte count');
+			throw new Error(`rate mode ${String(rateMode)} returned an invalid byte count`);
 		}
 		const encoded = new Uint8Array(memory.buffer, outputPointer, encodedBytes);
 		if (encoded[0] !== 0xff || (encoded[1] & 0xfe) !== 0xfa
-			|| !includesAscii(encoded, 'Info') || !includesAscii(encoded, 'LAME')) {
-			throw new Error('encoder returned an unexpected MPEG/Xing/LAME stream');
+			|| !includesAscii(encoded, expectedTag) || !includesAscii(encoded, 'LAME')) {
+			throw new Error(`rate mode ${String(rateMode)} returned an unexpected MPEG/Xing/LAME stream`);
 		}
 	} finally {
 		exported('sclm_free')(outputPointer);

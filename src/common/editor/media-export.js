@@ -59,7 +59,8 @@ export const MEDIA_EXPORT_FORMATS = deepFreeze({
 	mp3: {
 		id: 'mp3', label: 'MP3', backend: 'ffmpeg', extension: 'mp3', mimeType: 'audio/mpeg',
 		container: 'MP3', codec: 'libmp3lame', lossless: false, maximumChannels: 2,
-		sampleFormats: [], defaults: { bitRate: 192 },
+		sampleFormats: [],
+		defaults: { bitRateMode: 'preset', preset: 2, vbrQuality: 2, bitRate: 192, averageBitRate: 192 },
 		requiredEncoders: ['libmp3lame'], requiredMuxers: [['mp3']],
 	},
 	'ogg-vorbis': {
@@ -109,8 +110,14 @@ const FORMAT_ALIASES = Object.freeze({
 	custom: 'custom-ffmpeg',
 });
 
+/** Audacity's four MP3 bit-rate strategies, in its own option order. */
+export const MP3_BIT_RATE_MODES = Object.freeze(['preset', 'variable', 'average', 'constant']);
+/** Audacity's named presets, from Excessive through Medium. */
+export const MP3_PRESETS = Object.freeze(['excessive', 'extreme', 'standard', 'medium']);
+export const MP3_MAXIMUM_VBR_QUALITY = 9;
+
 const BIT_RATES = Object.freeze({
-	mp3: [128, 192, 256, 320],
+	mp3: [32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320],
 	opus: [64, 96, 128, 160, 192, 256, 320],
 	mp2: [128, 160, 192, 224, 256, 320, 384],
 	'aac-m4a': [96, 128, 160, 192, 256, 320],
@@ -275,6 +282,8 @@ export function normalizeMediaExportSettings(format, options = {}) {
 		settings.compressionLevel = integerInRange(options.compressionLevel ?? descriptor.defaults.compressionLevel, 0, 5, 'WavPack compression level');
 	} else if (descriptor.id === 'ogg-vorbis') {
 		settings.quality = numberInRange(options.quality ?? descriptor.defaults.quality, -1, 10, 'Vorbis quality');
+	} else if (descriptor.id === 'mp3') {
+		normalizeMp3RateSettings(settings, descriptor, options);
 	} else if (BIT_RATES[descriptor.id]) {
 		settings.bitRate = allowedNumber(options.bitRate ?? descriptor.defaults.bitRate, BIT_RATES[descriptor.id], `${descriptor.label} bitrate`);
 	}
@@ -435,7 +444,7 @@ export function buildMediaFfmpegEncoderArgs(input, output, format, options = {})
 	if (filters.length) args.push('-filter:a', filters.join(','));
 	args.push('-ac', String(settings.channelCount));
 
-	if (descriptor.id === 'mp3') args.push('-c:a', 'libmp3lame', '-b:a', `${settings.bitRate}k`, '-f', 'mp3');
+	if (descriptor.id === 'mp3') args.push('-c:a', 'libmp3lame', ...mp3FfmpegRateArguments(settings), '-f', 'mp3');
 	else if (descriptor.id === 'flac') args.push('-c:a', 'flac', '-sample_fmt', settings.sampleFormat === 'int16' ? 's16' : 's32', '-compression_level', String(settings.compressionLevel), '-f', 'flac');
 	else if (descriptor.id === 'ogg-vorbis') args.push('-c:a', 'libvorbis', '-q:a', String(settings.quality), '-f', 'ogg');
 	else if (descriptor.id === 'opus') args.push('-c:a', 'libopus', '-b:a', `${settings.bitRate}k`, '-vbr', 'on', '-f', 'ogg');
@@ -447,6 +456,77 @@ export function buildMediaFfmpegEncoderArgs(input, output, format, options = {})
 	args.push(...mediaMetadataToFfmpegArgs(settings.metadata));
 	args.push('-y', String(output));
 	return args;
+}
+
+/**
+ * Project normalized MP3 settings onto the single strategy key that a codec
+ * request carries. Every encoder — the bundled LAME payload, the desktop
+ * provider and FFmpeg — names its strategy this way.
+ * @returns {Readonly<Record<string, number>>}
+ */
+export function mp3CodecRateSettings(settings) {
+	const mode = String(settings.bitRateMode ?? 'constant');
+	if (mode === 'preset') return Object.freeze({ preset: Number(settings.preset) });
+	if (mode === 'variable') return Object.freeze({ vbrQuality: Number(settings.vbrQuality) });
+	if (mode === 'average') return Object.freeze({ averageBitrateKbps: Number(settings.averageBitRate) });
+	return Object.freeze({ bitrateKbps: Number(settings.bitRate) });
+}
+
+/**
+ * MP3 carries Audacity's four bit-rate strategies. Every strategy keeps its own
+ * value so that switching modes restores what that mode last used, exactly as
+ * Audacity's export options do.
+ */
+function normalizeMp3RateSettings(settings, descriptor, options) {
+	const mode = String(options.bitRateMode ?? inferredMp3BitRateMode(options, descriptor));
+	if (!MP3_BIT_RATE_MODES.includes(mode)) {
+		throw new RangeError(`MP3 bit rate mode ${mode} is unsupported.`);
+	}
+	settings.bitRateMode = mode;
+	settings.preset = integerInRange(
+		options.preset ?? descriptor.defaults.preset, 0, MP3_PRESETS.length - 1, 'MP3 preset',
+	);
+	settings.vbrQuality = integerInRange(
+		options.vbrQuality ?? descriptor.defaults.vbrQuality, 0, MP3_MAXIMUM_VBR_QUALITY,
+		'MP3 variable quality',
+	);
+	settings.bitRate = allowedNumber(
+		options.bitRate ?? descriptor.defaults.bitRate, BIT_RATES.mp3, 'MP3 bitrate',
+	);
+	settings.averageBitRate = allowedNumber(
+		options.averageBitRate ?? descriptor.defaults.averageBitRate, BIT_RATES.mp3,
+		'MP3 average bitrate',
+	);
+}
+
+/**
+ * A caller that names one strategy's value and no mode means that strategy: an
+ * explicit `bitRate` is a constant-rate request, as it was before the other
+ * three modes existed. Only a request that names no value at all takes the
+ * dialog's Preset default.
+ */
+function inferredMp3BitRateMode(options, descriptor) {
+	if (options.bitRate != null) return 'constant';
+	if (options.averageBitRate != null) return 'average';
+	if (options.vbrQuality != null) return 'variable';
+	return descriptor.defaults.bitRateMode;
+}
+
+/**
+ * Mirror LAME's own preset table so FFmpeg and the bundled encoder agree:
+ * Excessive is constant 320 kbps, and Extreme, Standard and Medium are the
+ * variable qualities V0, V2 and V4.
+ */
+const MP3_PRESET_FFMPEG_ARGUMENTS = Object.freeze([
+	Object.freeze(['-b:a', '320k']), Object.freeze(['-q:a', '0']),
+	Object.freeze(['-q:a', '2']), Object.freeze(['-q:a', '4']),
+]);
+
+function mp3FfmpegRateArguments(settings) {
+	if (settings.bitRateMode === 'preset') return [...MP3_PRESET_FFMPEG_ARGUMENTS[settings.preset]];
+	if (settings.bitRateMode === 'variable') return ['-q:a', String(settings.vbrQuality)];
+	if (settings.bitRateMode === 'average') return ['-b:a', `${settings.averageBitRate}k`, '-abr', '1'];
+	return ['-b:a', `${settings.bitRate}k`];
 }
 
 function normalizeSampleFormat(descriptor, options) {

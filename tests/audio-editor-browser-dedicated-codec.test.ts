@@ -81,6 +81,66 @@ for (const entry of CASES) {
 	});
 }
 
+test("browser dedicated MP3 honours Audacity's four bit-rate strategies", async () => {
+	const frameCount = 48_000;
+	const channelCount = 2;
+	const sampleRate = 48_000;
+	const input = sinePcm(frameCount, channelCount, sampleRate);
+	const payload = await readFile(PAYLOADS.mp3);
+	const encode = async (settings: Readonly<Record<string, number>>) => encodeDedicatedAudioPcm({
+		format: 'mp3',
+		input: new Uint8Array(input.buffer),
+		frameCount,
+		channelCount,
+		sampleRate,
+		settings,
+		maximumOutputBytes: 4 * 1024 * 1024,
+	}, { loadPayload: async () => payload });
+
+	const constant = await encode({ bitrateKbps: 128 });
+	assert.deepEqual(frameBitrates(constant), [128]);
+	/* A constant stream carries LAME's Info tag; the varying ones carry Xing. */
+	assert.notEqual(indexOfAscii(constant, 'Info'), -1);
+
+	for (const settings of [
+		{ averageBitrateKbps: 128 }, { vbrQuality: 2 }, { preset: 1 }, { preset: 2 }, { preset: 3 },
+	]) {
+		const varying = await encode(settings);
+		const rates = frameBitrates(varying);
+		assert.ok(rates.length > 1, `${JSON.stringify(settings)} produced one rate`);
+		assert.ok(rates.every((rate) => rate >= 32 && rate <= 320));
+		assert.notEqual(indexOfAscii(varying, 'Xing'), -1);
+	}
+
+	/* The Excessive preset is LAME's own constant 320 kbps. */
+	assert.deepEqual(frameBitrates(await encode({ preset: 0 })), [320]);
+
+	/* Variable quality 9 is smaller than quality 2, which is smaller than constant 320. */
+	const lean = await encode({ vbrQuality: 9 });
+	const rich = await encode({ vbrQuality: 2 });
+	assert.ok(lean.byteLength < rich.byteLength);
+	assert.ok(rich.byteLength < (await encode({ preset: 0 })).byteLength);
+});
+
+test('browser dedicated MP3 rejects a request naming more than one strategy', async () => {
+	for (const settings of [
+		{ bitrateKbps: 128, vbrQuality: 2 }, { preset: 4 }, { vbrQuality: 10 },
+		{ preset: 1, averageBitrateKbps: 128 },
+	]) {
+		await assert.rejects(() => encodeDedicatedAudioPcm({
+			format: 'mp3',
+			input: new Uint8Array(64 * 2 * Float32Array.BYTES_PER_ELEMENT),
+			frameCount: 64,
+			channelCount: 2,
+			sampleRate: 48_000,
+			settings,
+			maximumOutputBytes: 64 * 1024,
+		}, {
+			loadPayload: async () => { throw new Error('the payload must not load'); },
+		}), RangeError, JSON.stringify(settings));
+	}
+});
+
 test('browser dedicated codecs reject tuples outside the reviewed native profiles before loading payloads', async () => {
 	const cases: readonly Readonly<{
 		format: BrowserDedicatedAudioFormat;
@@ -139,4 +199,18 @@ function indexOfAscii(bytes: Uint8Array, text: string): number {
 function readInterleaved(bytes: Uint8Array): number[] {
 	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 	return Array.from({ length: bytes.byteLength / 4 }, (_value, index) => view.getFloat32(index * 4, true));
+}
+
+/** Every distinct MPEG-1 Layer III frame rate in the stream, ascending. */
+function frameBitrates(bytes: Uint8Array): readonly number[] {
+	const table = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0];
+	const rates = new Set<number>();
+	for (let offset = 0; offset + 4 <= bytes.byteLength;) {
+		if (bytes[offset] !== 0xff || (bytes[offset + 1]! & 0xe0) !== 0xe0) { offset++; continue; }
+		const kbps = table[bytes[offset + 2]! >>> 4]!;
+		if (kbps === 0) { offset++; continue; }
+		rates.add(kbps);
+		offset += Math.floor(144 * kbps * 1_000 / 48_000) + (bytes[offset + 2]! >>> 1 & 1);
+	}
+	return [...rates].sort((left, right) => left - right);
 }
