@@ -2,6 +2,7 @@
 	"schemaVersion": 1,
 	"defaultMaxLines": 600,
 	"browserSpecMaxLines": 800,
+	"warnLines": 550,
 	"allow": {
 		"scripts/audacity-qt-translations.mjs": {
 			"maxLines": 942,

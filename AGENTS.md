@@ -37,7 +37,12 @@
   every promise, and do not pass promise callbacks to void-returning APIs.
 - Do not grow files listed in `config/maintainability-allowlist.json`; extract a
   focused module instead. New maintained source files have a 600-line ceiling;
-  browser specs have an 800-line ceiling.
+  browser specs have an 800-line ceiling. From 550 lines a file is in the warning
+  band: `npm run check:architecture` counts it, `--warnings` lists it, and a
+  PostToolUse hook reports its headroom as you edit it. Treat entering the band as
+  the moment to split, not the moment to start counting lines. Only growth fails
+  the guard, so a file may shrink below its allowlist ratchet freely; run
+  `npm run check:size:tighten` to claim the recovered lines when you have.
 - Production JavaScript chunks have a 500,000-byte ceiling. Preserve the
   semantic chunk groups in `vite.config.mjs`; split module ownership instead of
   weakening the build-output guard.

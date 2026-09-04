@@ -49,6 +49,7 @@
 		"typecheck:tests": "tsc -p tsconfig.tests.json && tsc -p tsconfig.tooling.json",
 		"typecheck:javascript": "node scripts/check-checked-javascript.mjs && tsc -p tsconfig.javascript.json",
 		"check:architecture": "dependency-cruiser src && node scripts/check-file-size.mjs",
+		"check:size:tighten": "node scripts/check-file-size.mjs --tighten",
 		"check:notices": "node scripts/check-third-party-notices.mjs",
 		"test": "node scripts/run-node-tests.mjs",
 		"test:shard": "node scripts/run-node-tests.mjs --coverage-directory=coverage/v8-shard",
