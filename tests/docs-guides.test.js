@@ -34,6 +34,7 @@ import {
 	tutorialExamples,
 	tutorialRoute,
 } from '../scripts/lib/docs-reference/guides.mjs';
+import { AUDACITY_PINNED_BUILTIN_EFFECT_REGISTRATIONS } from '../src/common/editor/audacity-pinned-ui-inventory.js';
 
 const fixture = (id) => GUIDE_FIXTURES[id];
 const howto = (entry) => describeStep(entry, { fixture, facet: 'howto' });
@@ -190,6 +191,16 @@ test('guide pages carry the generated banner, the Audacity aside, and every step
 	}
 	assert.throws(() => renderGuidePages({ ...inputs, groups: [] }), TypeError);
 	assert.throws(() => renderTutorialPages({ ...inputs, tutorials: [] }), TypeError);
+});
+
+test('the DC offset guide names Audacity’s own effect rather than Normalize', () => {
+	// Audacity 4 registers Remove DC offset as a builtin of its own, extracted from
+	// Normalize, so the aside must not send readers to Normalize's checkbox instead.
+	assert.ok(AUDACITY_PINNED_BUILTIN_EFFECT_REGISTRATIONS.includes('RemoveDCOffsetEffect'));
+	const guide = SOUNDSCAPER_GUIDES.find((entry) => entry.id === 'fix-dc-offset');
+	assert.ok(guide, 'the fix-dc-offset guide is missing');
+	assert.match(guide.audacity, /→ Remove DC offset$/u);
+	assert.doesNotMatch(guide.audacity, /Normalize/u);
 });
 
 test('guide pages link to related guides, their reference pages, and carry a HowTo schema', () => {

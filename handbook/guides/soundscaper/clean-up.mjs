@@ -120,7 +120,7 @@ export const CLEAN_UP_GUIDES = Object.freeze([
 		id: 'fix-dc-offset',
 		title: 'Fix a DC offset',
 		description: 'Recentre a waveform that sits above or below the zero line.',
-		audacity: 'Effect → Normalize with Remove DC offset',
+		audacity: 'Effect → Volume and Compression → Remove DC offset',
 		intro: 'Some sound cards and cheap interfaces add a constant voltage to a recording, so the whole waveform sits slightly above or below the centre line. You cannot hear it directly, but it wastes headroom and produces a click at every edit. Remove DC Offset centres the waveform again.',
 		steps: [
 			open(),
