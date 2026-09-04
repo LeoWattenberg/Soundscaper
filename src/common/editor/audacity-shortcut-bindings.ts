@@ -123,9 +123,23 @@ export const AUDACITY_SHORTCUT_BINDINGS_BY_ACTION = freezeBindings([
 	['track-view-item-move-down', 'Ctrl+Down'],
 ]);
 
-/** Soundscaper defaults intentionally retained outside Audacity's XML inventory. */
+/**
+ * Defaults intentionally retained outside Audacity's XML inventory: one
+ * Soundscaper key, plus the Labeled Audio submenu, whose commands Audacity 4
+ * has not carried over and which therefore keep the Audacity 3 defaults from
+ * au3/src/menus/LabelMenus.cpp.
+ */
 export const AUDIO_EDITOR_SUPPLEMENTAL_SHORTCUT_BINDINGS_BY_ACTION: Readonly<Record<string, readonly string[]>> = freezeBindings([
 	['fullscreen', 'F11'],
+	['cut-labels', 'Alt+X'],
+	['delete-labels', 'Alt+K'],
+	['split-cut-labels', 'Alt+Shift+X'],
+	['split-delete-labels', 'Alt+Shift+K'],
+	['silence-labels', 'Alt+L'],
+	['copy-labels', 'Alt+Shift+C'],
+	['split-labels', 'Alt+I'],
+	['join-labels', 'Alt+J'],
+	['disjoin-labels', 'Alt+Shift+J'],
 ]);
 
 /** Return the imported primary binding used in menus and command search. */

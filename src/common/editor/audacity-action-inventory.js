@@ -86,6 +86,23 @@ const legacyMixer = (id, label, enableWhen, location = 'Track context') => imple
 	{ enableWhen, source: 'au3/src/menus/TrackMenus.cpp' },
 );
 
+const labeledAudio = (id, label, handler, shortcut, upstreamAction) => implemented(
+	id, label, ['Edit > Labeled audio'], handler,
+	{ enableWhen: 'editable-labeled-audio', shortcut, source: 'au3/src/menus/LabelMenus.cpp', upstreamAction },
+);
+
+const labeledAudioDefinitions = [
+	labeledAudio('cut-labels', 'Cut labeled audio', 'edit.labeledCut', 'Alt+X', 'CutLabels'),
+	labeledAudio('delete-labels', 'Delete labeled audio', 'edit.labeledDelete', 'Alt+K', 'DeleteLabels'),
+	labeledAudio('split-cut-labels', 'Cut labeled audio and leave gap', 'edit.labeledCutLeaveGap', 'Alt+Shift+X', 'SplitCutLabels'),
+	labeledAudio('split-delete-labels', 'Delete labeled audio and leave gap', 'edit.labeledDeleteLeaveGap', 'Alt+Shift+K', 'SplitDeleteLabels'),
+	labeledAudio('silence-labels', 'Silence labeled audio', 'edit.labeledSilence', 'Alt+L', 'SilenceLabels'),
+	labeledAudio('copy-labels', 'Copy labeled audio', 'edit.labeledCopy', 'Alt+Shift+C', 'CopyLabels'),
+	labeledAudio('split-labels', 'Split labeled audio', 'edit.labeledSplit', 'Alt+I', 'SplitLabels'),
+	labeledAudio('join-labels', 'Join labeled audio', 'edit.labeledJoin', 'Alt+J', 'JoinLabels'),
+	labeledAudio('disjoin-labels', 'Detach labeled audio at silences', 'edit.labeledDisjoin', 'Alt+Shift+J', 'DisjoinLabels'),
+];
+
 const nyquistDefinitions = NYQUIST_BUNDLED_PLUGINS.map((plugin) => {
 	const location = 'Nyquist';
 	const enableWhen = plugin.spectral
@@ -149,6 +166,9 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 	implemented('ungroup-clips', 'Ungroup clips', ['Edit > Clip', 'Clip context'], 'clip.ungroup', { enableWhen: 'grouped-editable-clips', source: UPSTREAM.trackEdit }),
 	implemented('rename-item', 'Rename clip', ['Edit > Clip'], 'clip.rename', { enableWhen: 'clip-selected' }),
 	implemented('trim-clip', 'Trim clip', ['Edit > Clip'], 'clip.trim', { enableWhen: 'clip-selected' }),
+	// Labeled audio, ported from Audacity 3: every command turns the labels
+	// inside the time selection into regions and edits each of them.
+	...labeledAudioDefinitions,
 	implemented('label-add', 'Add label', ['Edit > Label'], 'labels.add', { enableWhen: 'project-writable', source: UPSTREAM.trackEdit }),
 	implemented('paste-new-label', 'Paste text to new label', ['Edit > Label'], 'labels.pasteNew', { enableWhen: 'project-writable', source: UPSTREAM.project }),
 	implemented('open-label-editor', 'Manage labels', ['Edit > Label', 'View'], 'panels.labels', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),

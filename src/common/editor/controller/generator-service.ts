@@ -7,6 +7,7 @@ import {
 } from '../commands/factories.ts';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
 import { prepareRangeReplacementCommand as prepareLegacyRangeReplacementCommand } from '../commands/range-runtime.js';
+import type { LabeledAudioRegion } from '../labeled-audio-regions.ts';
 import { generateAudioEditorSignal } from '../generators.js';
 import { generatorName, normalizeProjectSampleRate } from './app-helpers.ts';
 import {
@@ -17,6 +18,7 @@ import {
 	type EditorTaskScope,
 } from './lifecycle.ts';
 import type { AudioBufferLike } from './source-audio.ts';
+import { createLabeledAudioSilence } from './labeled-audio-silence.ts';
 
 export type AudioGeneratorType = 'silence' | 'tone' | 'chirp' | 'noise' | 'dtmf';
 
@@ -139,6 +141,7 @@ export interface AudioGeneratorServiceDependencies {
 	}>;
 	readonly sourceChunkFrames: number;
 	getProject(): AudioGeneratorProject;
+	getCommandProject?(): AudioGeneratorProject;
 	editingBlocked(): boolean;
 	getPositionFrames(): number;
 	snapFrame(value: unknown): number;
@@ -175,17 +178,21 @@ export interface AudioGeneratorServiceDependencies {
 
 export interface AudioGeneratorService {
 	generateSelectionSilence(): Promise<true | string | null>;
+	generateLabeledSilence(
+		regions: readonly LabeledAudioRegion[],
+		trackIds: readonly string[],
+	): Promise<boolean>;
 	generateSignal(type: AudioGeneratorType, options?: AudioGeneratorOptions): Promise<string | null>;
 	repeatLast(): Promise<string | null>;
 }
 
-interface GeneratedSignal {
+export interface GeneratedSignal {
 	readonly frameCount: number;
 	readonly channelCount: number;
 	readonly channels: readonly Float32Array[];
 }
 
-interface OperationOwnership {
+export interface OperationOwnership {
 	readonly generation: number;
 	readonly project: AudioGeneratorProject;
 	readonly projectToken: EditorProjectToken;
@@ -197,7 +204,19 @@ export function createAudioGeneratorService(
 ): Readonly<AudioGeneratorService> {
 	let operationGeneration = 0;
 
-	return Object.freeze({ generateSelectionSilence, generateSignal, repeatLast });
+	const labeledSilence = createLabeledAudioSilence(dependencies, Object.freeze({
+		begin: beginOperation,
+		assert: assertOwnership,
+		markProcessing,
+		finish: finishOperation,
+	}));
+
+	return Object.freeze({
+		generateLabeledSilence: labeledSilence.generateLabeledSilence,
+		generateSelectionSilence,
+		generateSignal,
+		repeatLast,
+	});
 
 	function repeatLast(): Promise<string | null> {
 		const request = dependencies.state.lastGeneratorRequest;

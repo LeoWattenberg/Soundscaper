@@ -7,6 +7,7 @@ import {
 	prepareSplitCommand as prepareLegacySplitCommand,
 } from '../commands/clip-link-runtime.js';
 import { createAddSourceCommand, createAddTrackCommand } from '../commands/factories.ts';
+import { findClipSilenceRegions } from '../clip-silence-regions.ts';
 import { hasProjectBinMediaAuthority } from '../project-schema-version.ts';
 import type {
 	AudioEditorClipboard,
@@ -143,6 +144,10 @@ export interface ClipboardEditService {
 	commitSplitAtFrames(frames: readonly unknown[], trackIds?: string | readonly string[] | null): unknown;
 	prepareControllerPaste(mode: ClipboardPasteMode, atFrame?: number): AudioEditorCommand;
 	disjoinSelectedClip(): Promise<void>;
+	disjoinLabeledRegions(
+		regions: readonly Readonly<{ startFrame: number; endFrame: number }>[],
+		trackIds: readonly string[],
+	): Promise<boolean>;
 }
 
 type SplitCommand = Extract<AudioEditorCommand, { readonly type: 'clip/split' }>;
@@ -157,6 +162,7 @@ export function createClipboardEditService(
 		commitSplitAtFrames,
 		prepareControllerPaste,
 		disjoinSelectedClip,
+		disjoinLabeledRegions,
 	});
 
 	function setSessionClipboard(descriptor: AudioEditorClipboard): AudioEditorClipboard {
@@ -368,49 +374,62 @@ export function createClipboardEditService(
 		const clip = findClip(project, dependencies.state.selectedClipId);
 		const buffer = clip ? dependencies.sourceBuffers.get(clip.sourceId) : null;
 		if (!clip || !buffer) return;
-		const sourceDurationFrames = clip.sourceDurationFrames ?? clip.durationFrames;
-		const minimumSilenceFrames = Math.max(1, Math.round(buffer.sampleRate * 0.01));
-		const regions: Array<readonly [number, number]> = [];
-		let silenceStart: number | null = null;
-		for (let relativeSourceFrame = 0; relativeSourceFrame < sourceDurationFrames; relativeSourceFrame += 1) {
-			const sourceFrame = clip.reversed
-				? clip.sourceStartFrame + sourceDurationFrames - 1 - relativeSourceFrame
-				: clip.sourceStartFrame + relativeSourceFrame;
-			let peak = 0;
-			for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
-				peak = Math.max(peak, Math.abs(buffer.getChannelData(channel)[sourceFrame] ?? 0));
-			}
-			if (peak <= 0.001) silenceStart ??= relativeSourceFrame;
-			else if (silenceStart != null) {
-				if (relativeSourceFrame - silenceStart >= minimumSilenceFrames) {
-					regions.push([silenceStart, relativeSourceFrame]);
-				}
-				silenceStart = null;
-			}
-		}
-		if (silenceStart != null && sourceDurationFrames - silenceStart >= minimumSilenceFrames) {
-			regions.push([silenceStart, sourceDurationFrames]);
-		}
-		const timelineRegions = regions.map(([start, end]) => [
-			clip.timelineStartFrame + Math.round(start / sourceDurationFrames * clip.durationFrames),
-			clip.timelineStartFrame + Math.round(end / sourceDurationFrames * clip.durationFrames),
-		] as const).filter(([start, end]) => (
-			start > clip.timelineStartFrame
-			&& end < clip.timelineStartFrame + clip.durationFrames
-			&& end > start
-		)).slice(0, 128);
-		if (!timelineRegions.length) {
+		const commands = detachCommandsForClip(clip, findClipSilenceRegions(clip, buffer));
+		if (!commands.length) {
 			dependencies.setStatus(dependencies.copy.noSilencesFound, 'info');
 			return;
 		}
+		dependencies.commit({ type: 'batch', commands }, { selectClipId: clip.id });
+	}
+
+	/**
+	 * Detach at silences inside labelled regions. Upstream's OnDisjoinLabels
+	 * runs the same scan the selected-clip command runs, once per labelled
+	 * region on every track being edited.
+	 */
+	async function disjoinLabeledRegions(
+		regions: readonly Readonly<{ startFrame: number; endFrame: number }>[],
+		trackIds: readonly string[],
+	): Promise<boolean> {
+		dependencies.lifetime.assertActive();
+		if (dependencies.editingBlocked()) return false;
+		const project = dependencies.getProject();
+		const targetTrackIds = new Set(trackIds);
+		const commands: AudioEditorCommand[] = [];
+		for (const track of project.tracks) {
+			if (!targetTrackIds.has(track.id) || !Array.isArray((track as ClipboardEditMediaTrack).clipIds)) continue;
+			for (const clipId of (track as ClipboardEditMediaTrack).clipIds) {
+				const clip = findClip(project, clipId);
+				const buffer = clip ? dependencies.sourceBuffers.get(clip.sourceId) : null;
+				if (!clip || !buffer) continue;
+				for (const region of [...regions].reverse()) {
+					if (region.endFrame <= region.startFrame) continue;
+					commands.push(...detachCommandsForClip(clip, findClipSilenceRegions(clip, buffer, region)));
+				}
+			}
+		}
+		if (!commands.length) {
+			dependencies.setStatus(dependencies.copy.noSilencesFound, 'info');
+			return false;
+		}
+		dependencies.commit({ type: 'batch', commands });
+		return true;
+	}
+
+	/** Split away each silent run of one clip, right to left, and drop it. */
+	function detachCommandsForClip(
+		clip: ClipboardEditClip,
+		regions: readonly (readonly [number, number])[],
+	): AudioEditorCommand[] {
+		if (!regions.length) return [];
 		const commands: AudioEditorCommand[] = [];
 		if (clip.avLinkId) commands.push({ type: 'clip/unlink-av', clipId: clip.id });
-		for (const [startFrame, endFrame] of timelineRegions.reverse()) {
+		for (const [startFrame, endFrame] of [...regions].reverse()) {
 			const after = prepareSplit(clip.id, endFrame);
 			const silence = prepareSplit(clip.id, startFrame);
 			commands.push(after, silence, { type: 'clip/remove', clipId: silence.rightClipId });
 		}
-		dependencies.commit({ type: 'batch', commands }, { selectClipId: clip.id });
+		return commands;
 	}
 
 	function collectSplitTargetClipIds(

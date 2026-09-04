@@ -213,6 +213,60 @@ test('disjoin removes only bounded silence and commits its splits atomically', a
 	assert.deepEqual(fixture.commits[0]?.selection, { selectClipId: 'clip-a' });
 });
 
+test('labelled detach scans only the regions its labels cover', async () => {
+	const fixture = createFixture();
+	const samples = new Float32Array(100).fill(1);
+	samples.fill(0, 10, 30);
+	samples.fill(0, 60, 80);
+	fixture.sourceBuffers.set('source-a', {
+		sampleRate: 1_000,
+		numberOfChannels: 1,
+		getChannelData: () => samples,
+	});
+	const service = createClipboardEditService(fixture.dependencies);
+
+	assert.equal(await service.disjoinLabeledRegions([{ startFrame: 0, endFrame: 50 }], ['track-a']), true);
+
+	const batch = fixture.commits[0]?.command;
+	assert.equal(batch?.type, 'batch');
+	if (batch?.type !== 'batch') return;
+	// The silence at 60..80 sits outside the label, so only the first is detached.
+	assert.deepEqual(batch.commands.map((command) => command.type), ['clip/split', 'clip/split', 'clip/remove']);
+	assert.deepEqual(
+		batch.commands.slice(0, 2).map((command) => command.type === 'clip/split' ? command.atFrame : null),
+		[30, 10],
+	);
+});
+
+test('labelled detach reports silence-free labels and leaves untargeted tracks alone', async () => {
+	const quiet = createFixture();
+	quiet.sourceBuffers.set('source-a', {
+		sampleRate: 1_000,
+		numberOfChannels: 1,
+		getChannelData: () => new Float32Array(100).fill(1),
+	});
+	assert.equal(
+		await createClipboardEditService(quiet.dependencies).disjoinLabeledRegions([{ startFrame: 0, endFrame: 100 }], ['track-a']),
+		false,
+	);
+	assert.deepEqual(quiet.commits, []);
+	assert.equal(quiet.statuses[0]?.message, 'No silences found.');
+
+	const untargeted = createFixture();
+	const samples = new Float32Array(100).fill(1);
+	samples.fill(0, 10, 30);
+	untargeted.sourceBuffers.set('source-a', {
+		sampleRate: 1_000,
+		numberOfChannels: 1,
+		getChannelData: () => samples,
+	});
+	assert.equal(
+		await createClipboardEditService(untargeted.dependencies).disjoinLabeledRegions([{ startFrame: 0, endFrame: 50 }], ['track-b']),
+		false,
+	);
+	assert.deepEqual(untargeted.commits, []);
+});
+
 test('setting the session clipboard updates the controller descriptor', () => {
 	const fixture = createFixture();
 	const service = createClipboardEditService(fixture.dependencies);

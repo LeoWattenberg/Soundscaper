@@ -14,8 +14,10 @@ import { createClipSelectionNavigationMenuModel } from './clip-selection-navigat
 import { createTrackStructuralOperationMenuModel } from './track-structural-operation-menu-model.ts';
 import { createImportAnalysisToolMenuItems, createRepeatAnalyzerMenuItem, createRepeatGeneratorMenuItem } from './import-analysis-application-menu.ts';
 import { createPitchAndTempoApplicationMenuItems } from './pitch-tempo-application-menu.ts';
+import { createLabeledAudioApplicationMenuItems } from './labeled-audio-application-menu.ts';
 import { createPrivacyPolicyMenuItem } from './privacy-policy-menu.ts';
 import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
+import { selectLabeledAudioRegions } from '../labeled-audio-regions.ts';
 import { createVisibleVideoTrackPredicate } from '../video-track-visibility.js';
 import { createLocalModelManagerMenuItems } from './local-model-manager-menu.ts';
 import { createLocalAssistanceMenuItems } from './local-assistance-menu.ts';
@@ -97,6 +99,17 @@ export default function createApplicationMenus({
 	const frequencySelectionActive = Boolean(snapshot.selection?.frequencyRange);
 	const spectralTrackSelected = audacitySpectrogramTrackSelected(selectedAudioTrack, snapshot);
 	const labelTracks = project?.tracks.filter((track) => track.type === 'label') || [];
+	// Labeled audio acts on whole labels inside the time selection, so the
+	// submenu offers itself only once the selection actually contains one.
+	const labeledAudioItems = createLabeledAudioApplicationMenuItems({
+		productId,
+		copy,
+		editBlocked,
+		available: selectLabeledAudioRegions(project, project?.selection, [
+			...(project?.selection?.trackIds || []),
+			...(snapshot.selectedTrackId ? [snapshot.selectedTrackId] : []),
+		]).length > 0,
+	}, { executeEdit: actions.executeEdit });
 	// An EDL describes picture, so the entry only offers itself when there is a
 	// video track that composes — a list of nothing is not a useful export.
 	const edlTracks = edlExportableVideoTracks(project);
@@ -319,6 +332,7 @@ export default function createApplicationMenus({
 						{ id: 'clip-properties', label: copy.clipPropertiesCommand, disabled: !selectedClip, onClick: actions.openClipProperties },
 					],
 				},
+				...labeledAudioItems,
 				divider(),
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.openLabelEditor, label: copy.editLabels, onClick: actions.openLabels },
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.openMetadataEditor, label: copy.metadata, onClick: actions.openMetadata },

@@ -17,6 +17,7 @@ import {
 import { normalizeBcp47Locale } from '../i18n/locale.js';
 import { audacitySpectrogramTrackSelected } from './audacity-action-enablement.ts';
 import { audacityShortcutCommandDisabled } from './audacity-shortcut-command-inventory.ts';
+import { selectLabeledAudioRegions } from './labeled-audio-regions.ts';
 import { selectAudioEditorEditBlock } from './edit-blocking.ts';
 import { audioTrackChannelCount } from './project-audio-factory.js';
 import { AUDACITY_ACTION_ALIASES } from './audacity-action-aliases.js';
@@ -159,6 +160,7 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 			track.id !== selectedAudioTrack.id && track.type === 'audio' && audioTrackChannelCount(project, track) === 1
 		)),
 		'label-track-present': tracks.some((track) => track.type === 'label'),
+		'editable-labeled-audio': editable && selectLabeledAudioRegions(project, selection, selectedTrackIds).length > 0,
 		'loop-region': Boolean(project?.loop?.enabled && project.loop.endFrame > project.loop.startFrame),
 		playing,
 		'playing-or-recording': playing || recording,

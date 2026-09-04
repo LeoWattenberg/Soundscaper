@@ -145,7 +145,7 @@ import { createEditorAnalysisVisuals } from './controller/analysis-visuals.ts';
 import { createGroupedEditorActions } from './controller/action-facade.ts';
 import { guardEditorControllerActions } from './controller/controller-action-guard.ts';
 import { productActionRuntime } from './controller/product-action-runtime.ts'; import { createScapeProjectFileService } from './controller/scape-project-file-service.ts'; import { bindSoundscaperPersistentDeliveryRuntime } from './controller/soundscaper-persistent-delivery-runtime-binding.ts';
-import { createEditorEditService } from './controller/edit-service.ts';
+import { createEditorEditService } from './controller/edit-service.ts'; import { createLabeledAudioClipboardPort } from './labeled-audio-clipboard.ts';
 import { createLabelService } from './controller/label-service.ts';
 import { createClipboardEditService } from './controller/clipboard-edit-service.ts';
 import { createAudioGeneratorService } from './controller/generator-service.ts';
@@ -1458,7 +1458,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		sourceBuffers,
 		sourcePeaks,
 		sourceChunkFrames: SOURCE_CHUNK_FRAMES,
-		getProject: () => project,
+		getProject: () => project, getCommandProject,
 		editingBlocked,
 		getPositionFrames: () => engine.getPositionFrames(),
 		snapFrame: snapTimelineFrame,
@@ -1483,7 +1483,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const handleEdit = createEditorEditService({
 		activeSelection, commit, commitSplitAtFrames: clipboardEditService.commitSplitAtFrames, compactLiveSourceState,
-		copy, createAddTrackCommand, createClipboardDescriptor: (commandProject, descriptorOptions) => projectRuntime.prepareEditClipboardDescriptor(project, createClipboardDescriptor(projectRuntime.projectForEditClipboardConsumers ? projectRuntime.projectForEditClipboardConsumers(project) : commandProject, descriptorOptions)), createStableId,
+		copy, createAddTrackCommand, createClipboardDescriptor: (commandProject, descriptorOptions) => projectRuntime.prepareEditClipboardDescriptor(project, createClipboardDescriptor(projectRuntime.projectForEditClipboardConsumers ? projectRuntime.projectForEditClipboardConsumers(project) : commandProject, descriptorOptions)), createStableId, labeledClipboard: createLabeledAudioClipboardPort({ getProject: () => project, getCommandProject, projectRuntime, createDescriptor: createClipboardDescriptor }), disjoinLabeledRegions: clipboardEditService.disjoinLabeledRegions, generateLabeledSilence: (regions, trackIds) => taskProgress.run('generate', copy.generatingAudio, () => audioGeneratorService.generateLabeledSilence(regions, trackIds)),
 		editingBlocked, engine, findClip, findClipTrack,
 		findTrack, garbageCollectSources, handleError, normalizeTimelineFrame,
 		prepareControllerPaste: clipboardEditService.prepareControllerPaste, prepareDisjointRangeDeleteCommand, prepareGroupClipsCommand, prepareKeepRangeCommand,

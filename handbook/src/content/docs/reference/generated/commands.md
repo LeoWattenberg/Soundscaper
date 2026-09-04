@@ -52,6 +52,7 @@ Product availability follows each product profile’s command filters. “—”
 | Contract selection from right | `sel-cntr-right` | — | Keyboard navigation | Soundscaper, Framescaper | Audacity |
 | Contrast | `contrast-analyzer` | Ctrl+Shift+T | Analyze | Soundscaper | Audacity |
 | Copy | `action://copy` | Ctrl+C | Edit | Soundscaper, Framescaper | Audacity |
+| Copy labeled audio | `copy-labels` | Alt+Shift+C | Edit > Labeled audio | Soundscaper | Audacity |
 | Creating a loop also selects audio | `toggle-selection-follows-loop-region` | — | Select > Looping | Soundscaper, Framescaper | Audacity |
 | Crossfade Clips | `nyquist:crossfadeclips` | — | Nyquist | Soundscaper | Audacity |
 | Crossfade Tracks | `nyquist:crossfadetracks` | — | Nyquist | Soundscaper | Audacity |
@@ -67,6 +68,8 @@ Product availability follows each product profile’s command filters. “—”
 | Cut and close gap per clip | `cut-per-clip-ripple` | — | Edit > Cut | Soundscaper, Framescaper | Audacity |
 | Cut and close gap per track | `cut-per-track-ripple` | Ctrl+Shift+X | Edit > Cut | Soundscaper, Framescaper | Audacity |
 | Cut and leave gap | `cut-leave-gap` | — | Edit > Cut | Soundscaper, Framescaper | Audacity |
+| Cut labeled audio | `cut-labels` | Alt+X | Edit > Labeled audio | Soundscaper | Audacity |
+| Cut labeled audio and leave gap | `split-cut-labels` | Alt+Shift+X | Edit > Labeled audio | Soundscaper | Audacity |
 | DTMF tones | `generator://dtmf` | — | Generate | Soundscaper | Audacity |
 | Decrease Gain on Focused Track | `track-gain-dec` | Alt+Shift+Down | Track context | Soundscaper, Framescaper | Audacity |
 | Decrease all track heights | `decrease-all-track-heights` | Ctrl+Shift+Down | View > Zoom | Soundscaper, Framescaper | Soundscaper local |
@@ -76,7 +79,10 @@ Product availability follows each product profile’s command filters. “—”
 | Delete and close gap per clip | `delete-per-clip-ripple` | — | Edit > Delete | Soundscaper, Framescaper | Audacity |
 | Delete and close gap per track | `delete-per-track-ripple` | Shift+Del | Edit > Delete | Soundscaper, Framescaper | Audacity |
 | Delete and leave gap | `delete-leave-gap` | — | Edit > Delete | Soundscaper, Framescaper | Audacity |
+| Delete labeled audio | `delete-labels` | Alt+K | Edit > Labeled audio | Soundscaper | Audacity |
+| Delete labeled audio and leave gap | `split-delete-labels` | Alt+Shift+K | Edit > Labeled audio | Soundscaper | Audacity |
 | Delete preset | `action://effects/presets/delete` | — | Effect dialog > Presets | Soundscaper | Audacity |
+| Detach labeled audio at silences | `disjoin-labels` | Alt+Shift+J | Edit > Labeled audio | Soundscaper | Audacity |
 | Diagnostics | `menu-diagnostics` | — | Help | Soundscaper, Framescaper | Audacity |
 | Draw tool | `draw-tool` | F3 | Tools toolbar | Soundscaper | Audacity |
 | Duplicate | `duplicate` | Ctrl+D | Edit | Soundscaper, Framescaper | Audacity |
@@ -113,6 +119,7 @@ Product availability follows each product profile’s command filters. “—”
 | Insert and preserve synchronisation | `action://trackedit/paste-insert-all-tracks-ripple` | Ctrl+Alt+Shift+V | Edit > Paste | Soundscaper, Framescaper | Audacity |
 | Item above | `track-view-above-item` | Up | Keyboard navigation | Soundscaper, Framescaper | Audacity |
 | Item below | `track-view-below-item` | Down | Keyboard navigation | Soundscaper, Framescaper | Audacity |
+| Join labeled audio | `join-labels` | Alt+J | Edit > Labeled audio | Soundscaper | Audacity |
 | Join selected clips | `join` | Ctrl+J | Edit > Clip | Soundscaper, Framescaper | Audacity |
 | Keep tracks synchronized | `keep-tracks-synchronised` | — | Tracks | Soundscaper, Framescaper | Audacity |
 | Label Sounds | `nyquist:label-sounds` | — | Nyquist | Soundscaper | Audacity |
@@ -240,6 +247,7 @@ Product availability follows each product profile’s command filters. “—”
 | Show vertical rulers | `toggle-vertical-rulers` | — | View | Soundscaper, Framescaper | Audacity |
 | Silence | `generator://silence` | — | Generate | Soundscaper | Audacity |
 | Silence audio selection | `silence-audio-selection` | Ctrl+L | Edit > Remove special | Soundscaper, Framescaper | Audacity |
+| Silence labeled audio | `silence-labels` | Alt+L | Edit > Labeled audio | Soundscaper | Audacity |
 | Skip to end | `action://playback/rewind-end` | End | Transport | Soundscaper, Framescaper | Audacity |
 | Skip to start | `action://playback/rewind-start` | Home | Transport | Soundscaper, Framescaper | Audacity |
 | Sliding stretch | `effect://builtin/sliding-stretch` | — | Effect > Pitch and tempo | Soundscaper | Audacity |
@@ -264,6 +272,7 @@ Product availability follows each product profile’s command filters. “—”
 | Split | `split` | Ctrl+I | Edit > Clip; Clip context | Soundscaper, Framescaper | Audacity |
 | Split clips at silences | `disjoin` | Ctrl+Alt+J | Edit > Clip | Soundscaper, Framescaper | Audacity |
 | Split into new track | `split-into-new-track` | Ctrl+Alt+I | Edit > Clip | Soundscaper, Framescaper | Audacity |
+| Split labeled audio | `split-labels` | Alt+I | Edit > Labeled audio | Soundscaper | Audacity |
 | Split stereo to L/R mono | `track-split-stereo-to-lr` | — | Track context | Soundscaper, Framescaper | Audacity |
 | Split stereo to center mono | `track-split-stereo-to-center` | — | Track context | Soundscaper, Framescaper | Audacity |
 | Split tool | `split-tool` | S | Tools toolbar | Soundscaper, Framescaper | Audacity |

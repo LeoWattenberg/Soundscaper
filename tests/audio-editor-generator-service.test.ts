@@ -275,6 +275,48 @@ test('generation on an empty timeline prepares source, track, and clip in one ba
 	assert.deepEqual(fixture.commits[0]?.selection, { selectTrackId: 'track-2', selectClipId: 'clip-3' });
 });
 
+test('labelled silence lifts each region and refills it from one generated source', async () => {
+	const fixture = createFixture();
+	const service = createAudioGeneratorService(fixture.dependencies);
+
+	assert.equal(
+		await service.generateLabeledSilence([
+			{ startFrame: 20, endFrame: 40 },
+			{ startFrame: 60, endFrame: 70 },
+		], ['track-a']),
+		true,
+	);
+
+	// The longest region plus a frame of rounding headroom, one mono channel.
+	assert.deepEqual(fixture.preflights, [84]);
+	assert.equal(fixture.commits.length, 1);
+	const batch = fixture.commits[0]?.command;
+	assert.equal(batch?.type, 'batch');
+	if (batch?.type !== 'batch') return;
+	assert.deepEqual(batch.commands.map((command) => command.type), [
+		'source/add', 'batch', 'clip/add', 'clip/add',
+	]);
+	const additions = batch.commands.filter((command) => command.type === 'clip/add');
+	assert.deepEqual(
+		additions.map((command) => command.type === 'clip/add'
+			? [command.clip.timelineStartFrame, command.clip.durationFrames]
+			: null),
+		[[20, 20], [60, 10]],
+	);
+	assert.equal(fixture.sourceBuffers.has('generator-1'), true);
+});
+
+test('labelled silence declines a selection with no span and tracks it cannot silence', async () => {
+	const fixture = createFixture();
+	const service = createAudioGeneratorService(fixture.dependencies);
+
+	assert.equal(await service.generateLabeledSilence([{ startFrame: 20, endFrame: 20 }], ['track-a']), false);
+	assert.equal(await service.generateLabeledSilence([{ startFrame: 20, endFrame: 40 }], []), false);
+	assert.equal(await service.generateLabeledSilence([{ startFrame: 20, endFrame: 40 }], ['labels']), false);
+	assert.deepEqual(fixture.commits, []);
+	assert.deepEqual(fixture.preflights, []);
+});
+
 test('silence without a selection or effect target reports the selection requirement', async () => {
 	const noSelection = project('project-a', null);
 	const fixture = createFixture({ getProject: () => noSelection, effectTargets: () => [] });

@@ -1,5 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	createLabeledAudioEditService,
+	isLabeledAudioEditAction,
+} from './labeled-audio-edit-service.ts';
+
 export interface EditServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -22,8 +27,10 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 		publishDocumentSnapshot, redoEditorCommand, resolveEditingSelection, setSessionClipboard,
 		state, undoEditorCommand,
 	} = runtime;
+	const executeLabeledAudioEdit = createLabeledAudioEditService(runtime);
 	function handleEdit(action: string) {
 		if (!state.history || editingBlocked()) return;
+		if (isLabeledAudioEditAction(action)) return executeLabeledAudioEdit(action);
 		try {
 			if (action === 'undo') {
 				state.videoEffectGestures.clear();

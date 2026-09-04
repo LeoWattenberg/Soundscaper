@@ -73,6 +73,7 @@ export function audacityShortcutCommandDisabled(
 		|| locations.some((location) => location.includes('Spectral'))
 	)) return true;
 	if (disabled.has('analyze') && (handler.startsWith('analysis.') || hasLocation('Analyze'))) return true;
+	if (disabled.has('labeled-audio') && hasLocation('Edit > Labeled audio')) return true;
 	if (disabled.has('manage-macros') && handler.startsWith('macros.')) return true;
 	return disabled.has('nyquist-prompt') && handler.startsWith('nyquist.');
 }

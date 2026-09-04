@@ -1,7 +1,7 @@
 import { localeLanguage } from './locale.js';
 import { CANONICAL_EXTRA_COPY_BY_LOCALE } from './canonical-extras.js';
 import { REPORT_COPY_BY_LOCALE } from './report-copy.js';
-import { EXPORT_MENU_COPY_BY_LOCALE } from './export-menu-copy.js'; import { MP3_EXPORT_COPY_BY_LOCALE } from './mp3-export-copy.js'; import { OPUS_EXPORT_COPY_BY_LOCALE } from './opus-export-copy.js'; import { PLAY_AT_SPEED_COPY_BY_LOCALE } from './play-at-speed-copy.js'; import { DAWPROJECT_COPY_BY_LOCALE } from './dawproject-copy.js';
+import { EXPORT_MENU_COPY_BY_LOCALE } from './export-menu-copy.js'; import { MP3_EXPORT_COPY_BY_LOCALE } from './mp3-export-copy.js'; import { OPUS_EXPORT_COPY_BY_LOCALE } from './opus-export-copy.js'; import { PLAY_AT_SPEED_COPY_BY_LOCALE } from './play-at-speed-copy.js'; import { DAWPROJECT_COPY_BY_LOCALE } from './dawproject-copy.js'; import { LABELED_AUDIO_COPY_BY_LOCALE } from './labeled-audio-copy.js';
 import { LABEL_EXPORT_COPY_BY_LOCALE } from './label-export-copy.js';
 import { DELIVERY_QUEUE_COPY_BY_LOCALE } from './delivery-queue-copy.js';
 import { EXPORT_CHANNEL_MAPPING_COPY_BY_LOCALE } from './export-channel-mapping-copy.js';
@@ -93,7 +93,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		importLabels: 'Beschriftungen importieren',
 		importFile: 'Importieren',
 		...REPORT_COPY_BY_LOCALE.de,
-		...EXPORT_MENU_COPY_BY_LOCALE.de, ...MP3_EXPORT_COPY_BY_LOCALE.de, ...OPUS_EXPORT_COPY_BY_LOCALE.de, ...PLAY_AT_SPEED_COPY_BY_LOCALE.de, ...DAWPROJECT_COPY_BY_LOCALE.de,
+		...EXPORT_MENU_COPY_BY_LOCALE.de, ...MP3_EXPORT_COPY_BY_LOCALE.de, ...OPUS_EXPORT_COPY_BY_LOCALE.de, ...PLAY_AT_SPEED_COPY_BY_LOCALE.de, ...DAWPROJECT_COPY_BY_LOCALE.de, ...LABELED_AUDIO_COPY_BY_LOCALE.de,
 		...LABEL_EXPORT_COPY_BY_LOCALE.de,
 		...DELIVERY_QUEUE_COPY_BY_LOCALE.de,
 		...EXPORT_CHANNEL_MAPPING_COPY_BY_LOCALE.de,
@@ -1077,7 +1077,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		importLabels: 'Import labels',
 		importFile: 'Import',
 		...REPORT_COPY_BY_LOCALE.en,
-		...EXPORT_MENU_COPY_BY_LOCALE.en, ...MP3_EXPORT_COPY_BY_LOCALE.en, ...OPUS_EXPORT_COPY_BY_LOCALE.en, ...PLAY_AT_SPEED_COPY_BY_LOCALE.en, ...DAWPROJECT_COPY_BY_LOCALE.en,
+		...EXPORT_MENU_COPY_BY_LOCALE.en, ...MP3_EXPORT_COPY_BY_LOCALE.en, ...OPUS_EXPORT_COPY_BY_LOCALE.en, ...PLAY_AT_SPEED_COPY_BY_LOCALE.en, ...DAWPROJECT_COPY_BY_LOCALE.en, ...LABELED_AUDIO_COPY_BY_LOCALE.en,
 		...LABEL_EXPORT_COPY_BY_LOCALE.en,
 		...DELIVERY_QUEUE_COPY_BY_LOCALE.en,
 		...EXPORT_CHANNEL_MAPPING_COPY_BY_LOCALE.en,
