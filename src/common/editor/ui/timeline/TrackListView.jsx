@@ -274,6 +274,7 @@ export function TrackListView({
 							blocked={mutationsBlocked}
 							selected={activeFolderId === entry.row.id}
 							activeFolderId={activeFolderId}
+							isFlatNavigation={isFlatNavigation}
 							panelWidth={panelWidth}
 							trackHeaderWidth={trackHeaderWidth}
 							editing={editingFolderId === entry.row.id}

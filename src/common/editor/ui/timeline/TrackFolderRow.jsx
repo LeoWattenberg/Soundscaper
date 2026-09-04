@@ -8,6 +8,11 @@ import { trackFolderRowTabIndex } from './track-folder-ui-model.ts';
  * the flattened folder tree; nesting is conveyed through level, position, and
  * set size, and the visual indent follows the level. Folder mute and solo are
  * authoritative folder state; the owned bus stays neutral behind them.
+ *
+ * The row's own controls follow the sequential-tab profile the media rows use,
+ * so the flat navigation preference reaches them too; under tree navigation the
+ * folder context menu carries the same mute, solo and hide toggles, because the
+ * tree keys spend their arrows on navigation and collapse.
  */
 export function TrackFolderRow({
 	row,
@@ -16,6 +21,7 @@ export function TrackFolderRow({
 	blocked,
 	selected,
 	activeFolderId,
+	isFlatNavigation = false,
 	panelWidth,
 	trackHeaderWidth = panelWidth,
 	editing,
@@ -27,6 +33,7 @@ export function TrackFolderRow({
 	onRename,
 	onDropNode,
 }) {
+	const controlTabIndex = isFlatNavigation ? 0 : -1;
 	const label = React.useMemo(() => (copy.trackFolderRowLabel || 'Folder {name}, level {level}')
 		.replace('{name}', row.name)
 		.replace('{level}', String(row.level)), [copy.trackFolderRowLabel, row.name, row.level]);
@@ -75,7 +82,7 @@ export function TrackFolderRow({
 					className="audio-editor-track-folder-row__chevron"
 					aria-label={row.collapsed ? copy.expandTrackFolder : copy.collapseTrackFolder}
 					disabled={blocked}
-					tabIndex={-1}
+					tabIndex={controlTabIndex}
 					onClick={(event) => {
 						event.stopPropagation();
 						onToggleCollapsed(row.id);
@@ -107,7 +114,7 @@ export function TrackFolderRow({
 						aria-label={copy.muteTrackFolder}
 						aria-pressed={row.mute}
 						disabled={blocked}
-						tabIndex={-1}
+						tabIndex={controlTabIndex}
 						onClick={(event) => {
 							event.stopPropagation();
 							onSetFlag(row.id, 'mute', !row.mute);
@@ -119,7 +126,7 @@ export function TrackFolderRow({
 						aria-label={copy.soloTrackFolder}
 						aria-pressed={row.solo}
 						disabled={blocked}
-						tabIndex={-1}
+						tabIndex={controlTabIndex}
 						onClick={(event) => {
 							event.stopPropagation();
 							onSetFlag(row.id, 'solo', !row.solo);
@@ -131,7 +138,7 @@ export function TrackFolderRow({
 						aria-label={copy.hideTrackFolder}
 						aria-pressed={row.hidden}
 						disabled={blocked}
-						tabIndex={-1}
+						tabIndex={controlTabIndex}
 						onClick={(event) => {
 							event.stopPropagation();
 							onSetFlag(row.id, 'hidden', !row.hidden);

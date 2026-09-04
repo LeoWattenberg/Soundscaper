@@ -198,6 +198,7 @@ export function TimelineMenus({
 					<ContextMenuItem
 						key={item.label}
 						label={item.label}
+						checked={item.checked}
 						disabled={item.disabled}
 						onClick={item.onClick}
 						onClose={() => setTrackMenu(null)}

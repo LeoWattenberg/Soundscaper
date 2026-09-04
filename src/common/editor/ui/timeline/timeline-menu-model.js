@@ -222,6 +222,18 @@ export function createTimelineMenuModel({
 			onClick: () => run(() => controller.actions.trackFolders.create(undefined, { parentFolderId: menuFolder.id })),
 		},
 		{ divider: true, label: '' },
+		// The row's own mute, solo and hide buttons stay out of the tab order
+		// under tree navigation, and the tree keys spend their arrows on moving
+		// and collapsing, so this menu is where those toggles are reachable.
+		...['mute', 'solo', 'hidden'].map((flag) => ({
+			label: { mute: copy.muteTrackFolder, solo: copy.soloTrackFolder, hidden: copy.hideTrackFolder }[flag],
+			checked: Boolean(menuFolder[flag]),
+			disabled: mutationsBlocked,
+			onClick: () => run(() => controller.actions.trackFolders.update(menuFolder.id, {
+				[flag]: !menuFolder[flag],
+			})),
+		})),
+		{ divider: true, label: '' },
 		{
 			label: copy.deleteTrackFolderKeepTracks,
 			disabled: mutationsBlocked,
