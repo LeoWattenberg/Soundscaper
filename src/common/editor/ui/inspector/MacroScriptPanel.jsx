@@ -20,6 +20,9 @@ export default function MacroScriptPanel({ controller, copy, script, blocked, on
 	const [log, setLog] = useState([]);
 	const [failure, setFailure] = useState(null);
 	const [running, setRunning] = useState(false);
+	// A run that logged nothing still ran. Inferring completion from the log
+	// would leave a silent program indistinguishable from one nobody started.
+	const [completed, setCompleted] = useState(false);
 	const runRef = useRef(null);
 
 	const run = useCallback(async () => {
@@ -28,6 +31,7 @@ export default function MacroScriptPanel({ controller, copy, script, blocked, on
 		runRef.current = operation;
 		setLog([]);
 		setFailure(null);
+		setCompleted(false);
 		setRunning(true);
 		try {
 			const result = await controller.actions.macros.runScript({
@@ -35,7 +39,11 @@ export default function MacroScriptPanel({ controller, copy, script, blocked, on
 				source: script.source,
 			});
 			if (runRef.current !== operation) return;
-			setLog(result?.log ? [...result.log] : []);
+			// The last line is the editor's, not the program's: a run that printed
+			// nothing must still say it finished, or the live region announces
+			// nothing at all to somebody who cannot see the button change back.
+			setLog([...(result?.log ?? []), { level: 'info', text: copy.programApplied, at: 0 }]);
+			setCompleted(true);
 		} catch (cause) {
 			if (runRef.current !== operation) return;
 			setFailure({
@@ -48,7 +56,7 @@ export default function MacroScriptPanel({ controller, copy, script, blocked, on
 				setRunning(false);
 			}
 		}
-	}, [controller, script.name, script.source]);
+	}, [controller, copy.programApplied, script.name, script.source]);
 
 	return (
 		<MacroScriptEditor
@@ -57,6 +65,7 @@ export default function MacroScriptPanel({ controller, copy, script, blocked, on
 			log={log}
 			failure={failure}
 			running={running}
+			completed={completed}
 			blocked={blocked}
 			runnable={runnable}
 			onChange={onChange}
