@@ -55,7 +55,7 @@ test.describe('Soundscaper timeline selection rendering', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('rings the selected track header so the focused track reads from its panel', async ({ page }) => {
+	test('rings the selected track once, across its header and its lane', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
@@ -73,9 +73,51 @@ test.describe('Soundscaper timeline selection rendering', () => {
 		expect(ringBox.width).toBeGreaterThan(headerBox.width - 2);
 		expect(ringBox.height).toBeGreaterThan(headerBox.height - 2);
 
+		// Audacity draws one selection around the whole track, so the header only
+		// carries its rounded outer end and the row runs the bars on to the end of
+		// the lane. Nothing may close the ring at the header/lane seam.
+		const outline = await rows.nth(1).evaluate((row) => {
+			const cap = getComputedStyle(row.querySelector('.audio-editor-track-header-selection'));
+			const lane = row.querySelector('[data-track-lane]');
+			const bar = (part) => {
+				const style = getComputedStyle(row, part);
+				return { height: style.height, width: style.width, color: style.backgroundColor };
+			};
+			return {
+				capTop: cap.borderTopWidth,
+				capLeft: cap.borderLeftWidth,
+				capBottom: cap.borderBottomWidth,
+				capRight: cap.borderRightWidth,
+				capOuterRadius: cap.borderTopLeftRadius,
+				capInnerRadius: cap.borderTopRightRadius,
+				capColor: cap.borderTopColor,
+				laneShadow: getComputedStyle(lane).boxShadow,
+				rowWidth: `${String(Math.round(row.getBoundingClientRect().width))}px`,
+				top: bar('::before'),
+				bottom: bar('::after'),
+			};
+		});
+		expect(outline.capTop).toBe('2px');
+		expect(outline.capLeft).toBe('2px');
+		expect(outline.capBottom).toBe('2px');
+		expect(outline.capRight).toBe('0px');
+		expect(outline.capInnerRadius).toBe('0px');
+		expect(Number.parseFloat(outline.capOuterRadius)).toBeGreaterThan(0);
+		expect(outline.laneShadow).toBe('none');
+		for (const bar of [outline.top, outline.bottom]) {
+			expect(bar.height).toBe('2px');
+			expect(bar.width).toBe(outline.rowWidth);
+			expect(bar.color).toBe(outline.capColor);
+		}
+
 		await rows.nth(0).locator('[data-track-lane]').click({ position: { x: 8, y: 8 } });
 		await expect(rows.nth(0).locator('[data-track-header] .audio-editor-track-header-selection')).toHaveCount(1);
 		await expect(rows.nth(1).locator('[data-track-header] .audio-editor-track-header-selection')).toHaveCount(0);
+		const unselectedBars = await rows.nth(1).evaluate((row) => [
+			getComputedStyle(row, '::before').content,
+			getComputedStyle(row, '::after').content,
+		]);
+		expect(unselectedBars).toEqual(['none', 'none']);
 		expect(errors).toEqual([]);
 	});
 

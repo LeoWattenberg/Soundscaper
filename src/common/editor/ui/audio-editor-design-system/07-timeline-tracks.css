@@ -121,12 +121,38 @@
 
 /* Rows and lanes are transparent so the timeline grid canvas shows through. */
 #kw-audio-editor-design-system .audio-editor-track-row {
+	--audio-editor-track-selection-line: color-mix(in srgb, var(--kw-editor-accent) 78%, white);
+
 	position: relative;
 	width: 100%;
 	min-width: 100%;
 	background: transparent;
 	border-bottom: 1px solid var(--kw-editor-stage-line);
 	contain: layout paint;
+}
+
+/* Audacity rings a selected track once, from the outer edge of its header to
+   the end of its lane, so the two halves of a row read as one track. The bars
+   run the whole row under the sticky header, which paints its own matching
+   edge over them. */
+#kw-audio-editor-design-system .audio-editor-track-row:has([data-track-lane][data-selected='true'])::before,
+#kw-audio-editor-design-system .audio-editor-track-row:has([data-track-lane][data-selected='true'])::after {
+	position: absolute;
+	z-index: 44;
+	right: 0;
+	left: 0;
+	height: 2px;
+	background: var(--audio-editor-track-selection-line);
+	content: '';
+	pointer-events: none;
+}
+
+#kw-audio-editor-design-system .audio-editor-track-row:has([data-track-lane][data-selected='true'])::before {
+	top: 0;
+}
+
+#kw-audio-editor-design-system .audio-editor-track-row:has([data-track-lane][data-selected='true'])::after {
+	bottom: 0;
 }
 
 #kw-audio-editor-design-system [data-track-row] [data-track-header]::before,
@@ -231,14 +257,16 @@
 	color: var(--kw-editor-stage-text);
 }
 
-/* The selected track is ringed on its header as well as its lane: the vendored
-   panel paints its focus bars outside its own box, where this wrapper's
-   overflow clip hides them. */
+/* The header carries the outer, rounded end of that ring: the vendored panel
+   paints its focus bars outside its own box, where this wrapper's overflow
+   clip hides them. It stays open on the lane side so the ring is continuous. */
 #kw-audio-editor-design-system .audio-editor-track-header-selection {
 	position: absolute;
-	z-index: 40;
+	z-index: 46;
 	inset: 0;
-	border: 2px solid color-mix(in srgb, var(--kw-editor-accent) 78%, white);
+	border: 2px solid var(--audio-editor-track-selection-line);
+	border-right: 0;
+	border-radius: 4px 0 0 4px;
 	pointer-events: none;
 }
 
