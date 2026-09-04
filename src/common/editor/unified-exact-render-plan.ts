@@ -12,6 +12,8 @@ import type { VideoCanvasFit } from './video-canvas-fit.ts';
 import type { VideoDeliveryAudioLayout } from './video-delivery-audio-layout.ts';
 import type { VideoDeliveryQuality } from './video-delivery-quality.ts';
 import { normalizePlan } from './unified-exact-render-plan-normalization.ts';
+export { UNIFIED_EXACT_RENDER_PLAN_VERSIONS } from './unified-exact-render-plan-versions.ts';
+import { UNIFIED_EXACT_RENDER_PLAN_VERSIONS } from './unified-exact-render-plan-versions.ts';
 import {
 	deepFreezeExactRenderValue as deepFreeze,
 } from './unified-exact-render-plan-primitives.ts';
@@ -61,7 +63,6 @@ export type {
 	UnifiedExactRenderTimingSidecars,
 };
 
-export const UNIFIED_EXACT_RENDER_PLAN_VERSIONS = Object.freeze([9, 10, 11, 12, 13, 14, 15] as const);
 export type UnifiedExactRenderPlanVersion = (typeof UNIFIED_EXACT_RENDER_PLAN_VERSIONS)[number];
 
 export type UnifiedExactRenderNode =

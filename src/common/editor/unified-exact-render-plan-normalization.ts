@@ -89,7 +89,7 @@ import type {
 	UnifiedExactRenderPlan,
 	UnifiedExactRenderPlanVersion,
 } from './unified-exact-render-plan.ts';
-import { UNIFIED_EXACT_RENDER_PLAN_VERSIONS } from './unified-exact-render-plan.ts';
+import { UNIFIED_EXACT_RENDER_PLAN_VERSIONS } from './unified-exact-render-plan-versions.ts';
 
 const PLAN_FIELDS = Object.freeze([
 	'version', 'strategy', 'project', 'format', 'codecs', 'timebase', 'output', 'tracks', 'sources', 'nodes',
