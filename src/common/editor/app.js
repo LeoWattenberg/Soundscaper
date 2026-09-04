@@ -165,6 +165,7 @@ import {
 	createEditorPreferenceActionDelegates,
 	createEditorPreferencesService,
 } from './controller/preferences-service.ts';
+import { applyLoadedPreferenceSession } from './controller/preference-session-defaults.ts';
 import { createControllerSoundActivationPolicy } from './controller/sound-activation-controller-composition.ts';
 import { createProjectSaveService } from './controller/project-save-service.ts';
 import { createProjectMutationService } from './controller/project-mutation-service.ts';
@@ -2010,16 +2011,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function allProjectClips(...args) { return projectVisualService.allProjectClips(...args); }
 	function hasMissingTimelineSources(...args) { return projectVisualService.hasMissingTimelineSources(...args); }
 	function getVisibleClips(...args) { return projectVisualService.getVisibleClips(...args); }
-	async function loadPreferences(token = lifetime.capture()) {
-		const preferences = await preferencesService.load((value) => lifetime.guard(value, token));
-		// The timeline view is what a track without a display of its own is drawn
-		// as, so the stored default view is applied by starting the session in it.
-		state.timelineView = preferences.appearance?.defaultView || 'waveform';
-		return preferences;
-	}
-	async function persistSetting(key, value, { policy = 'best-effort' } = {}) {
-		return settingPersistence.persist(key, value, { policy });
-	}
+	async function loadPreferences(token = lifetime.capture()) { return applyLoadedPreferenceSession(await preferencesService.load((value) => lifetime.guard(value, token)), state); }
+	async function persistSetting(key, value, { policy = 'best-effort' } = {}) { return settingPersistence.persist(key, value, { policy }); }
 	function updatePreferences(patch) { return preferencesService.update(patch); }
 	function revertFactorySettings() { return preferencesService.revertFactorySettings(); }
 	function sessionTab(projectId) {

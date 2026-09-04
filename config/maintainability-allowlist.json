@@ -16,7 +16,7 @@
 			"reason": "Legacy translation publication workflow; split by command before extending it."
 		},
 		"src/common/editor/app.js": {
-			"maxLines": 2902,
+			"maxLines": 2899,
 			"reason": "Legacy JavaScript composition root retained while its typed services and ports complete staged migration."
 		},
 		"src/common/editor/audacity-effects/basic.js": {
