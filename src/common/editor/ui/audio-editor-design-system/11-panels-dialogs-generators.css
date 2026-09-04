@@ -92,8 +92,36 @@
 }
 
 #kw-audio-editor-design-system .audio-editor-export-dialog__body {
-	gap: 16px;
+	gap: 0;
 	padding: 0;
+}
+
+/* The delivery preset is the whole dialog's subject rather than one of its
+	fields, so its bar spans the dialog and the sections start below it. */
+#kw-audio-editor-design-system .audio-editor-export-preset-banner {
+	margin:
+		calc(-1 * var(--kw-editor-dialog-body-padding, 18px))
+		calc(-1 * var(--kw-editor-dialog-body-padding, 18px))
+		0;
+	padding: 8px var(--kw-editor-dialog-body-padding, 18px);
+	background: var(--kw-editor-bg);
+	border-bottom: 1px solid var(--kw-editor-line);
+}
+
+#kw-audio-editor-design-system .audio-editor-export-dialog__content {
+	display: grid;
+	gap: 16px;
+	padding-top: 16px;
+}
+
+/* Audacity states the channel choice as radio buttons, so the options sit on
+	one line beside the label with the mapping editor at their end. */
+#kw-audio-editor-design-system .audio-editor-export-channels__options {
+	display: flex;
+	min-width: 0;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 14px;
 }
 
 #kw-audio-editor-design-system .audio-editor-label-export-dialog__tracks {
@@ -314,9 +342,13 @@
 }
 
 #kw-audio-editor-design-system .kw-audio-editor-dialog__body {
+	/* Named so a full-width banner inside the body can cancel exactly this
+		inset, at whatever width the layout is currently using. */
+	--kw-editor-dialog-body-padding: 18px;
+
 	max-height: calc(100dvh - 105px);
 	overflow: auto;
-	padding: 18px;
+	padding: var(--kw-editor-dialog-body-padding);
 }
 
 #kw-audio-editor-design-system .kw-audio-editor-dialog__body > p {

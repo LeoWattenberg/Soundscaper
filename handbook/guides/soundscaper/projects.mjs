@@ -62,7 +62,7 @@ export const PROJECT_GUIDES = Object.freeze([
 			open(),
 			importAudio('music-loop', { what: 'the first track' }),
 			importAudio('second-loop', { what: 'the second track' }),
-			exportAudio({ format: 'WAV', extension: 'zip', mode: 'Individual stems (archive)' }, { why: 'Each track becomes a WAV inside the ZIP, trimmed to the same length so they line up when imported elsewhere.' }),
+			exportAudio({ format: 'WAV', extension: 'zip', mode: 'Individual stems (split by tracks)' }, { why: 'Each track becomes a WAV inside the ZIP, trimmed to the same length so they line up when imported elsewhere.' }),
 		],
 		tips: [
 			'Mute and solo do not affect stems; every track is rendered.',

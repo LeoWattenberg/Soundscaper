@@ -217,8 +217,9 @@
 	}
 
 	#kw-audio-editor-design-system .kw-audio-editor-dialog__body {
+		--kw-editor-dialog-body-padding: 14px;
+
 		max-height: calc(84dvh - 42px);
-		padding: 14px;
 	}
 
 	#kw-audio-editor-design-system .kw-audio-editor-generator__content {

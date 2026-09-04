@@ -50,13 +50,13 @@ test.describe('direct pristine BW64 passthrough publication', () => {
 
 		const exportDialog = await openExportDialog(page, editor);
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'BW64 / ADM');
-		await expect(exportDialog.locator('[data-export-field="range"] button')).toBeDisabled();
-		await expect(exportDialog.locator('[data-export-field="range"] button')).toContainText('Entire project');
+		await expect(exportDialog.locator('[data-export-field="output"] button')).toBeDisabled();
+		await expect(exportDialog.locator('[data-export-field="output"] button')).toContainText('Entire project');
 		await expect(exportDialog.locator('[data-export-field="bitDepth"] button')).toBeDisabled();
 		await expect(exportDialog.locator('[data-export-field="bitDepth"] button')).toContainText('16-bit PCM');
 		await expect(exportDialog.locator('[data-export-field="sampleRate"] input')).toHaveValue(String(SAMPLE_RATE));
 		await expect(exportDialog.locator('[data-export-field="sampleRate"] input')).toBeDisabled();
-		await expect(exportDialog.locator('[data-export-field="channelMapping"] button')).toBeDisabled();
+		await expect(exportDialog.locator('[data-export-channel-option="preserve"] .radio')).toHaveClass(/radio--disabled/u);
 		await expect(exportDialog.locator('[data-export-field="dither"] button')).toBeDisabled();
 		await expect(exportDialog.locator('[data-export-field="dither"] button')).toContainText('None');
 		const tails = exportDialog.getByRole('checkbox', { name: 'Include effect tails up to 10 seconds', exact: true });
@@ -86,7 +86,7 @@ test.describe('direct pristine BW64 passthrough publication', () => {
 			prefixBytes: PREFIX_BYTES,
 			suffixBytes: SUFFIX_BYTES,
 		});
-		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect(editor.getByText(
 			'Large project: rendering in realtime to conserve memory',
 			{ exact: true },
@@ -94,7 +94,7 @@ test.describe('direct pristine BW64 passthrough publication', () => {
 		await expect(exportDialog.locator('[data-export-progress]')).toBeVisible();
 		await waitForPublicationOrExportFailure(page, editor, 0);
 		expect(await page.evaluate(() => globalThis.__directPcmSave.sessions[0]?.closes || 0)).toBe(1);
-		await expect(exportDialog.getByRole('button', { name: 'Start export' })).toBeVisible();
+		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
 		await expect(exportDialog.locator('[data-export-download]')).toBeHidden();
 
 		const saved = await inspectDirectPassthroughTarget(page, 0);
@@ -151,12 +151,12 @@ test.describe('direct pristine BW64 passthrough publication', () => {
 		expect(saved.objectUrls).toEqual([]);
 		expect(downloads).toBe(0);
 
-		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[1]?.nonzeroPcmBytes || 0), {
 			timeout: 30_000,
 		}).toBeGreaterThan(0);
 		await exportDialog.getByRole('button', { name: 'Cancel export' }).click();
-		await expect(exportDialog.getByRole('button', { name: 'Start export' })).toBeVisible({ timeout: 30_000 });
+		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible({ timeout: 30_000 });
 		const cancelled = await inspectDirectSession(page, 1);
 		expect(cancelled.opens).toBe(1);
 		expect(cancelled.closes).toBe(0);

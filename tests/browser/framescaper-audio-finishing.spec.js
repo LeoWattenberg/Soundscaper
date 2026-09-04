@@ -99,7 +99,7 @@ test.describe('Framescaper v1 audio finishing', () => {
 		]);
 		await loudnessOptions.getByRole('option', { name: 'EBU R 128 (-23 LUFS)', exact: true }).click();
 		await expect(loudness).toContainText('EBU R 128 (-23 LUFS)');
-		await exportDialog.getByRole('button', { name: 'Start export', exact: true }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect(exportDialog.locator('[data-export-download]')).toBeVisible({ timeout: 30_000 });
 		await expect(exportDialog.locator('[data-export-download]')).toHaveAttribute('download', /\.wav$/u);
 		expect(clientErrors).toEqual([]);

@@ -19,7 +19,7 @@ test.describe('BW64 ADM metadata UI', () => {
 		const dialog = await openExportDialog(page, editor);
 		await chooseDropdown(page, dialog.locator('[data-export-field="format"]'), 'BW64 / ADM');
 
-		await expect(dialog.getByRole('button', { name: 'Start export', exact: true })).toBeDisabled();
+		await expect(dialog.getByRole('button', { name: 'Export', exact: true })).toBeDisabled();
 		await expect(dialog.getByRole('alert')).toHaveText(
 			'BW64 export requires ADM. Open Metadata, select ADM, and enable it.',
 		);
@@ -31,7 +31,7 @@ test.describe('BW64 ADM metadata UI', () => {
 		await metadataDialog.getByRole('button', { name: 'Done', exact: true }).click();
 
 		await expect(dialog.getByRole('alert')).toHaveCount(0);
-		await expect(dialog.getByRole('button', { name: 'Start export', exact: true })).toBeEnabled();
+		await expect(dialog.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
 	});
 
 	test('authors a DirectSpeakers bed and carries its draft into BW64 export', async ({ page }) => {
@@ -56,8 +56,15 @@ test.describe('BW64 ADM metadata UI', () => {
 
 		const dialog = await openExportDialog(page, editor);
 		await chooseDropdown(page, dialog.locator('[data-export-field="format"]'), 'BW64 / ADM');
-		await expect(dialog.locator('[data-export-field="mode"] button')).toBeDisabled();
-		await expect(dialog.locator('[data-export-field="channelMapping"] button')).toBeDisabled();
+		// A programme is one delivered file, so the split forms are not offered and
+		// its authored channel order is the only mapping it can be written with.
+		await dialog.locator('[data-export-field="output"]').getByRole('button').click();
+		await expect(page.getByRole('option')).toHaveCount(1);
+		await expect(page.getByRole('option', { name: 'Entire project' })).toHaveCount(1);
+		await page.keyboard.press('Escape');
+		await expect(dialog.locator('[data-export-channel-option="preserve"] .radio')).toHaveClass(/radio--disabled/u);
+		await expect(dialog.locator('[data-export-channel-option="preserve"] .radio')).toHaveAttribute('aria-checked', 'true');
+		await expect(dialog.locator('[data-export-channel-option="custom"] .radio')).toHaveClass(/radio--disabled/u);
 		await dialog.getByRole('button', { name: 'Metadata', exact: true }).click();
 		const metadataDialog = page.getByRole('dialog', { name: 'Metadata', exact: true });
 		await expect(metadataDialog.getByRole('tab')).toHaveCount(3);

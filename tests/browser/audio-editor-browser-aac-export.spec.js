@@ -41,7 +41,7 @@ test.describe('browser-native AAC export', () => {
 		await importFiles(editor, [toneA]);
 		const exportDialog = await openExportDialog(page, editor);
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'AAC / M4A');
-		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 
 		const download = exportDialog.locator('[data-export-download]');
 		const failure = exportDialog.locator('.audio-editor-field-error');

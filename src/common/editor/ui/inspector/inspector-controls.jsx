@@ -144,7 +144,7 @@ export function SteppedSlider({ value, min, max, step, ariaLabel, valueText, dis
 }
 
 function dropdownDataHook(hook) {
-	if (['mode', 'range', 'format', 'bitDepth', 'quality', 'sampleRate', 'channelMapping', 'dither'].includes(hook)) {
+	if (['output', 'mode', 'range', 'format', 'bitDepth', 'quality', 'sampleRate', 'channelMapping', 'dither', 'loudnessNormalization'].includes(hook)) {
 		return { 'data-export-field': hook };
 	}
 	if (hook === 'effect-type') return { 'data-effect-type': '' };

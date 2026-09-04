@@ -170,7 +170,7 @@ export function analyze({ name, panel }, extras) {
 /** Export the project through File → Export audio in the named format; `mode` picks a non-default export mode. */
 export function exportAudio({ format, extension, mode = null }, extras) {
 	if (typeof format !== 'string' || typeof extension !== 'string') throw new TypeError('An export step needs a format label and a file extension.');
-	if (mode !== null && typeof mode !== 'string') throw new TypeError('An export mode must be its dropdown label.');
+	if (mode !== null && typeof mode !== 'string') throw new TypeError('An export output choice must be its dropdown label.');
 	return step({ kind: 'export', format, extension, mode }, extras);
 }
 
@@ -430,8 +430,8 @@ export function describeStep(entry, { fixture, facet = 'howto' }) {
 		case 'analyze':
 			return `Choose ${menuPath(['Analyze', entry.name])}. The ${bold(entry.name)} panel opens with the result.`;
 		case 'export': {
-			const mode = entry.mode ? ` set ${bold('Mode')} to ${bold(entry.mode)},` : '';
-			return `Choose ${menuPath(['File', 'Export audio'])},${mode} set ${bold('Format')} to ${bold(entry.format)} and press ${bold('Start export')}. When the render finishes, a download link for the \`.${entry.extension}\` file appears in the dialog.`;
+			const mode = entry.mode ? ` set ${bold('Output')} to ${bold(entry.mode)},` : '';
+			return `Choose ${menuPath(['File', 'Export audio'])}, set ${bold('Format')} to ${bold(entry.format)},${mode} and press ${bold('Export')}. The file downloads as soon as the render finishes, and its link stays in the dialog.`;
 		}
 		case 'save':
 			return `Choose ${menuPath(['File', 'Save project'])}. The save indicator in the status bar shows the project is saved.`;

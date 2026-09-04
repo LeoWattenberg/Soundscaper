@@ -49,7 +49,8 @@ test.describe('Broadcast WAV metadata UI', () => {
 		await importFiles(editor, [monoTone]);
 		let dialog = await openExportDialog(page, editor);
 		await chooseDropdown(page, dialog.locator('[data-export-field="format"]'), 'Broadcast WAV (BWF)');
-		await expect(dialog.locator('[data-export-field="channelMapping"]')).toContainText('Stereo');
+		await expect(dialog.locator('[data-export-channel-option="stereo"]').getByRole('radio'))
+			.toHaveAttribute('aria-checked', 'true');
 		await dialog.getByRole('button', { name: 'Metadata', exact: true }).click();
 
 		let metadataDialog = page.getByRole('dialog', { name: 'Metadata', exact: true });
@@ -109,7 +110,7 @@ test.describe('Broadcast WAV metadata UI', () => {
 		const dialog = await openExportDialog(page, editor);
 		await chooseDropdown(page, dialog.locator('[data-export-field="format"]'), 'Broadcast WAV (BWF)');
 		await authorExportBext(page, dialog, 'Offline delivery', '9007199254740993');
-		await dialog.getByRole('button', { name: 'Start export' }).click();
+		await dialog.getByRole('button', { name: 'Export', exact: true }).click();
 
 		const parsed = await readBwfDownload(dialog);
 		expect(parsed.fileName).toMatch(/\.wav$/u);
@@ -130,7 +131,7 @@ test.describe('Broadcast WAV metadata UI', () => {
 		const dialog = await openExportDialog(page, editor);
 		await chooseDropdown(page, dialog.locator('[data-export-field="format"]'), 'Broadcast WAV (BWF)');
 		await authorExportBext(page, dialog, 'Realtime delivery', '42');
-		await dialog.getByRole('button', { name: 'Start export' }).click();
+		await dialog.getByRole('button', { name: 'Export', exact: true }).click();
 
 		const parsed = await readBwfDownload(dialog);
 		expect(parsed.chunkIds.slice(0, 3)).toEqual(['bext', 'fmt ', 'data']);

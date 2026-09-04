@@ -116,7 +116,7 @@ test.describe('3B-2b source display geometry qualification', () => {
 		const format = exportDialog.getByRole('group', { name: 'Format', exact: true });
 		await format.getByRole('button').click();
 		await page.getByRole('option', { name: 'MP4 video', exact: true }).click();
-		await exportDialog.getByRole('button', { name: 'Start export', exact: true }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect.poll(() => page.evaluate(() => globalThis.__videoSaveTarget.closes), {
 			timeout: 45_000,
 		}).toBe(1);

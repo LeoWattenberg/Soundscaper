@@ -63,6 +63,13 @@ const DELIVERY_QUEUE_COPY_ENTRIES = Object.freeze([
 		'A mastering sequence cannot be delivered as stems.',
 		'Eine Mastering-Sequenz kann nicht als Einzelspuren ausgeliefert werden.',
 	],
+	// The export dialog asks what is delivered once, so its options name both the
+	// form and the span in the same words. The queue still asks the two questions
+	// separately and keeps the vocabulary above.
+	['exportOutputStems', 'Individual stems (split by tracks)', 'Einzelspuren (nach Spuren getrennt)'],
+	['exportOutputChapters', 'Chapters (split by labels)', 'Kapitel (nach Beschriftungen getrennt)'],
+	['exportOutputLoop', 'In/Out (looping region)', 'In/Out (Loop-Bereich)'],
+	['exportOutputNoLabels', 'Add labels to split the export into chapters.', 'Füge Beschriftungen hinzu, um den Export in Kapitel zu teilen.'],
 ]);
 
 export const DELIVERY_QUEUE_COPY_BY_LOCALE = Object.freeze({

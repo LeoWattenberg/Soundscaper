@@ -149,6 +149,7 @@ export class ReactTestElement extends ReactTestNode {
 	multiple = false;
 	type = '';
 	name = '';
+	clickCount = 0;
 	constructor(owner: ReactTestDocument, tagName: string) {
 		super(1, tagName.toUpperCase());
 		this.ownerDocument = owner;
@@ -185,6 +186,10 @@ export class ReactTestElement extends ReactTestNode {
 	getAttribute(name: string): string | null { return this.attributes.get(name) ?? null; }
 	hasAttribute(name: string): boolean { return this.attributes.has(name); }
 	focus(): void { this.ownerDocument.activeElement = this; }
+	// Nothing dispatches here, so a programmatic click is only ever recorded.
+	// A surface that starts a download by pressing its own link is verified by
+	// counting the presses rather than by a navigation the fake tree cannot make.
+	click(): void { this.clickCount += 1; }
 	// TypeScript forbids `override` on a computed name; this still replaces the
 	// node-level inspector above.
 	[Symbol.for('nodejs.util.inspect.custom')](): string {

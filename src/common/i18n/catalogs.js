@@ -4,6 +4,7 @@ import { REPORT_COPY_BY_LOCALE } from './report-copy.js';
 import { EXPORT_MENU_COPY_BY_LOCALE } from './export-menu-copy.js'; import { DAWPROJECT_COPY_BY_LOCALE } from './dawproject-copy.js';
 import { LABEL_EXPORT_COPY_BY_LOCALE } from './label-export-copy.js';
 import { DELIVERY_QUEUE_COPY_BY_LOCALE } from './delivery-queue-copy.js';
+import { EXPORT_CHANNEL_MAPPING_COPY_BY_LOCALE } from './export-channel-mapping-copy.js';
 import { MIX_RENDER_COPY_BY_LOCALE } from './mix-render-copy.js';
 import { MUSICAL_TIMELINE_COPY_BY_LOCALE } from './musical-timeline-copy.js';
 import { SEQUENCE_TIMING_COPY_BY_LOCALE } from './sequence-timing-copy.js';
@@ -93,6 +94,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		...EXPORT_MENU_COPY_BY_LOCALE.de, ...DAWPROJECT_COPY_BY_LOCALE.de,
 		...LABEL_EXPORT_COPY_BY_LOCALE.de,
 		...DELIVERY_QUEUE_COPY_BY_LOCALE.de,
+		...EXPORT_CHANNEL_MAPPING_COPY_BY_LOCALE.de,
 		exportSelectedAudio: 'Ausgewähltes Audio exportieren',
 		quitEditor: 'Beenden',
 		importHint: 'AUP/AUP3/AUP4, WAV, MP3, FLAC, Opus, OGG, M4A, AIFF oder WebM',
@@ -817,7 +819,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		customArguments: 'FFmpeg-Ausgabeargumente (eines pro Zeile)',
 		customMetadata: 'Weitere Metadaten (JSON)',
 		includeTails: 'Effektfahnen bis 10 Sekunden einbeziehen',
-		startExport: 'Export starten',
+		startExport: 'Exportieren',
 		cancelExport: 'Export abbrechen',
 		projectsTitle: 'Lokale Projekte',
 		projectsDescription: 'Projekte sind nur in diesem Browserprofil verfügbar.',
@@ -1103,6 +1105,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		...EXPORT_MENU_COPY_BY_LOCALE.en, ...DAWPROJECT_COPY_BY_LOCALE.en,
 		...LABEL_EXPORT_COPY_BY_LOCALE.en,
 		...DELIVERY_QUEUE_COPY_BY_LOCALE.en,
+		...EXPORT_CHANNEL_MAPPING_COPY_BY_LOCALE.en,
 		exportSelectedAudio: 'Export selected audio',
 		quitEditor: 'Quit',
 		importHint: 'AUP/AUP3/AUP4, WAV, MP3, FLAC, Opus, OGG, M4A, AIFF, or WebM',
@@ -1827,7 +1830,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		customArguments: 'FFmpeg output arguments (one per line)',
 		customMetadata: 'Additional metadata (JSON)',
 		includeTails: 'Include effect tails up to 10 seconds',
-		startExport: 'Start export',
+		startExport: 'Export',
 		cancelExport: 'Cancel export',
 		projectsTitle: 'Local projects',
 		projectsDescription: 'Projects are available only in this browser profile.',

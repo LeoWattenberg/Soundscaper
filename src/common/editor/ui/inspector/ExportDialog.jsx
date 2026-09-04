@@ -5,12 +5,9 @@ import { ProgressBar } from '@soundscaper/design-system/ProgressBar';
 import { Separator } from '@soundscaper/design-system/Separator';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 import { MEDIA_EXPORT_FORMATS } from '../../media-export.js';
-import AdmMetadataFields from '../AdmMetadataFields.tsx';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
-import BextMetadataFields from '../BextMetadataFields.tsx';
 import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
-import MetadataEditorTabs from '../MetadataEditorTabs.tsx';
 import VideoDeliveryFields from '../VideoDeliveryFields.jsx';
 import {
 	dialogSettingsFromDeliveryTarget, dialogSettingsFromPreset, presetFormatFromDialog,
@@ -24,10 +21,18 @@ import {
 	createExportDialogRequest,
 	isVideoExportDialogFormat,
 } from '../export-dialog-model.js';
+import { exportChapterCount } from '../../export-chapters.ts';
+import {
+	conformExportDialogOutput, exportDialogOutputOptions,
+	exportDialogOutputSettings, exportDialogOutputValue,
+} from '../export-dialog-output-options.ts';
 import { projectHasTimelineVideo } from '../timeline-media-presence.ts';
 import { exportSurfaceDialogTitle } from '../export-surface-copy.ts';
 import { framescaperCaptionDeliveryUnavailable } from '../video-caption-delivery-surface.ts';
 import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
+import ExportChannelMappingDialog from './ExportChannelMappingDialog.tsx';
+import ExportChannelsField from './ExportChannelsField.jsx';
+import ExportDialogMetadataPanel from './ExportDialogMetadataPanel.jsx';
 import ExportPresetSection from './ExportPresetSection.jsx';
 import {
 	compactFields, parseJsonChannelMapping, parseJsonObject,
@@ -47,12 +52,11 @@ import {
 import { useDesktopVideoExportCapabilities } from '../use-desktop-video-export-capabilities.ts';
 import { samePresetParams } from './effect-helpers.ts';
 
-const METADATA_FIELDS = Object.freeze(['metadataTitle', 'metadataArtist', 'metadataAlbum', 'metadataTrack', 'metadataYear', 'metadataGenre', 'metadataComments', 'metadataCopyright']);
-
 export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fileService, onClose }) {
 	const exportProgress = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.exportProgress);
 	const [metadataOpen, setMetadataOpen] = useState(false);
 	const [metadataTab, setMetadataTab] = useState('general');
+	const [mappingOpen, setMappingOpen] = useState(false);
 	const projectIdentity = exportDialogProjectIdentity(snapshot.project);
 	const settingsProjectIdentity = useRef(projectIdentity);
 	const [settings, setSettings] = useState(() => createExportDialogInitialSettings(snapshot.project));
@@ -66,6 +70,8 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	);
 	const currentOperationOwner = useRef(operationOwner);
 	const activeExportSubmission = useRef(null);
+	const downloadRef = useRef(null);
+	const startedDownloadUrl = useRef(null);
 	currentOperationOwner.current = operationOwner;
 	const desktop = fileService?.isDesktop === true;
 	const projectChannelCount = snapshot.project?.masterChannels || 2;
@@ -93,9 +99,12 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 			if (!id) return;
 			const preset = controller.actions.export.presets.apply(id);
 			setPresetName(preset.label);
-			setSettings((current) => normalizeExportDialogAudioSettings(
+			// A preset states the delivered form and never the span, so applying one
+			// over a chosen loop or selection has to put the dialog back on a whole
+			// delivery rather than leave it showing a form it is not delivering.
+			setSettings((current) => conformExportDialogOutput(normalizeExportDialogAudioSettings(
 				{ ...current, ...dialogSettingsFromPreset(preset) }, desktop, projectChannelCount,
-			));
+			)));
 		},
 		onNameChange: setPresetName,
 		onSave: async (name) => {
@@ -140,21 +149,27 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 		&& !videoFormat
 		&& settings.mode === 'mix'
 		&& settings.adm?.mode === 'authored';
-	// A sequence delivers one spliced artifact, so it cannot also be a stem set,
-	// an ADM programme, or a sub-range of the project.
+	// A sequence delivers one spliced artifact, so it cannot also be a stem set, a
+	// chapter split, an ADM programme, or a sub-range of the project.
 	const projectMasteringSequences = snapshot.masteringSequences?.sequences;
 	const masteringSequences = useMemo(() => (
-		settings.mode === 'stems' || settings.format === 'bw64'
+		settings.mode !== 'mix' || settings.format === 'bw64'
 			? []
 			: projectMasteringSequences ?? []
 	), [projectMasteringSequences, settings.format, settings.mode]);
-	const rangeValue = settings.masteringSequenceId
-		? `mastering-sequence:${settings.masteringSequenceId}`
-		: settings.range;
-	const chooseRange = (value) => setSettings((current) => (
-		value.startsWith('mastering-sequence:')
-			? { ...current, range: 'project', masteringSequenceId: value.slice('mastering-sequence:'.length) }
-			: { ...current, range: value, masteringSequenceId: '' }
+	const chapterCount = useMemo(() => exportChapterCount(snapshot.project), [snapshot.project]);
+	// A picture delivery is one file whatever the audio dialog last held, so the
+	// control shows the span it delivers rather than a form it cannot.
+	const outputValue = exportDialogOutputValue(videoFormat ? { ...settings, mode: 'mix' } : settings);
+	const outputOptions = exportDialogOutputOptions(copy, {
+		hasSelection,
+		hasLoop,
+		chapterCount,
+		singleFileOnly: videoFormat || settings.format === 'bw64',
+		masteringSequences,
+	});
+	const chooseOutput = (value) => setSettings((current) => normalizeExportDialogAudioSettings(
+		{ ...current, ...exportDialogOutputSettings(value) }, desktop, projectChannelCount,
 	));
 
 	useEffect(() => {
@@ -188,6 +203,14 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	}, [hasSelection, settings.range]);
 
 	useEffect(() => {
+		// The labels are what a chapter delivery splits on; once the project has
+		// none, the dialog would otherwise keep offering a delivery that refuses.
+		if (settings.mode === 'chapters' && chapterCount < 1) {
+			setSettings((current) => ({ ...current, mode: 'mix' }));
+		}
+	}, [chapterCount, settings.mode]);
+
+	useEffect(() => {
 		// A sequence chosen and then made undeliverable — a stem mode, an ADM
 		// format, a deleted region — falls back to the ordinary range rather than
 		// starting a delivery that would refuse.
@@ -200,8 +223,19 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 		if (!isOpen) {
 			setMetadataOpen(false);
 			setMetadataTab('general');
+			setMappingOpen(false);
 		}
 	}, [isOpen]);
+
+	const outputUrl = output?.url;
+	useEffect(() => {
+		// The file is ready, so the download starts itself: the operator asked for
+		// an export, not for a link to press afterwards. The link stays visible for
+		// a second copy, and for the browsers that refuse a scripted download.
+		if (!isOpen || !outputUrl || startedDownloadUrl.current === outputUrl) return;
+		startedDownloadUrl.current = outputUrl;
+		downloadRef.current?.click();
+	}, [isOpen, outputUrl]);
 
 	useEffect(() => {
 		if (!['bwf', 'bw64'].includes(settings.format) && metadataTab === 'bext') setMetadataTab('general');
@@ -359,80 +393,17 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	};
 	if (metadataOpen) {
 		return (
-			<AudioEditorDialogShell
+			<ExportDialogMetadataPanel
 				isOpen={isOpen}
-				title={copy.metadata}
+				copy={copy}
+				format={settings.format}
+				project={snapshot.project}
+				settings={settings}
+				activeTab={metadataTab}
+				onTabChange={setMetadataTab}
+				onChange={set}
 				onClose={() => setMetadataOpen(false)}
-				width={760}
-				className="audio-editor-metadata-dialog"
-				dataAttributes={{ 'data-export-metadata-dialog': '' }}
-				footer={(
-					<DialogFooter
-						className="audio-editor-dialog-footer"
-						rightContent={<Button variant="primary" onClick={() => setMetadataOpen(false)}>{copy.done}</Button>}
-					/>
-				)}
-			>
-				<section className="audio-editor-metadata-editor">
-					<MetadataEditorTabs
-						activeTab={metadataTab}
-						showBext={['bwf', 'bw64'].includes(settings.format)}
-						showAdm={settings.format === 'bw64'}
-						copy={copy}
-						onChange={setMetadataTab}
-					/>
-					<div
-						role="tabpanel"
-						aria-label={metadataTab === 'bext'
-							? copy.metadataBextTab
-							: metadataTab === 'adm' ? copy.metadataAdmTab : copy.metadataGeneralTab}
-						data-export-metadata-tab={metadataTab}
-					>
-						{metadataTab === 'bext' ? (
-							<>
-								<p className="audio-editor-panel-hint">{copy.bextExportHint}</p>
-								<BextMetadataFields
-									value={settings.bext}
-									copy={copy}
-									onCommit={(value) => set('bext', value)}
-								/>
-							</>
-						) : metadataTab === 'adm' ? (
-							<>
-								<p className="audio-editor-panel-hint">{copy.admExportHint}</p>
-								<AdmMetadataFields
-									value={settings.adm}
-									project={snapshot.project}
-									copy={copy}
-									onCommit={(value) => set('adm', value)}
-								/>
-							</>
-						) : (
-							<>
-								<div className="audio-editor-metadata-table" role="table" aria-label={copy.metadata}>
-									<div className="audio-editor-metadata-table__header" role="row">
-										<span role="columnheader">{copy.metadataTagColumn}</span>
-										<span role="columnheader">{copy.metadataValueColumn}</span>
-									</div>
-									{METADATA_FIELDS.map((name) => (
-										<label className="audio-editor-metadata-table__row" role="row" key={name}>
-											<span role="cell">{copy[name]}</span>
-											<span role="cell"><TextInput multiline={name === 'metadataComments'} value={settings[name]} onChange={(value) => set(name, value)} width="100%" /></span>
-										</label>
-									))}
-								</div>
-								<details className="audio-editor-export-details">
-									<summary>{copy.customMetadata}</summary>
-									<label className="audio-editor-field">
-										<span>{copy.customMetadata}</span>
-										<TextInput multiline value={settings.metadataCustom} onChange={(value) => set('metadataCustom', value)} width="100%" />
-									</label>
-								</details>
-							</>
-						)}
-					</div>
-				</section>
-			</AudioEditorDialogShell>
+			/>
 		);
 	}
 
@@ -477,24 +448,9 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 					)}
 					{...presetActions}
 				/>
-				<Separator />
+				<div className="audio-editor-export-dialog__content">
 				<section className="audio-editor-export-section">
 					<h3>{copy.exportSection}</h3>
-					<LabeledDropdown label={copy.exportMode} hook="mode" value={videoFormat ? 'mix' : settings.mode} onChange={(value) => setCodec('mode', value)} disabled={exporting || videoFormat || settings.format === 'bw64'} options={[{ value: 'mix', label: copy.mix }, { value: 'stems', label: copy.stems }]} />
-					<LabeledDropdown label={copy.exportRange} hook="range" value={rangeValue} onChange={chooseRange} disabled={exporting || admPassthrough} options={[
-						{ value: 'project', label: copy.entireProject },
-						{ value: 'selection', label: copy.currentSelection, disabled: !hasSelection },
-						{ value: 'loop', label: copy.loopRegion, disabled: !hasLoop },
-						...masteringSequences.map((sequence) => ({
-							value: `mastering-sequence:${sequence.id}`,
-							label: sequence.name,
-							disabled: !sequence.deliverable,
-						})),
-					]} />
-				</section>
-				<Separator />
-				<section className="audio-editor-export-section">
-					<h3>{videoFormat ? (copy.videoOptionsSection || copy.videoTrack) : copy.audioOptionsSection}</h3>
 					<LabeledDropdown label={copy.format} hook="format" value={settings.format} onChange={setFormat} disabled={exporting} options={[
 						...audioFormatDescriptors.map((descriptor) => ({
 							value: descriptor.id,
@@ -509,6 +465,20 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 							label: copy[descriptor.labelKey],
 						})) : []),
 					]} />
+					<LabeledDropdown label={copy.exportMode} hook="output" value={outputValue} onChange={chooseOutput} disabled={exporting || admPassthrough} options={outputOptions} />
+				</section>
+				<Separator />
+				<section className="audio-editor-export-section">
+					<h3>{videoFormat ? (copy.videoOptionsSection || copy.videoTrack) : copy.audioOptionsSection}</h3>
+					{!videoFormat && (
+						<ExportChannelsField
+							copy={copy}
+							value={settings.channelMapping}
+							disabled={exporting || settings.format === 'bw64'}
+							onChange={(value) => setCodec('channelMapping', value)}
+							onEditMapping={() => setMappingOpen(true)}
+						/>
+					)}
 					{!videoFormat && (pcmFormat ? (
 						<LabeledDropdown label={copy.sampleFormat || copy.bitDepth} hook="bitDepth" value={settings.sampleFormat} onChange={(value) => set('sampleFormat', value)} disabled={exporting || admPassthrough} options={sampleFormatOptions.map((sampleFormat) => ({
 							value: sampleFormat,
@@ -525,12 +495,6 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 						<LabeledDropdown label={copy.quality} hook="quality" value={settings.compressionLevel} onChange={(value) => setCodec('compressionLevel', value)} disabled={exporting} options={exportDialogCompressionLevels(settings.format, desktop).map((level) => ({ value: String(level), label: `${copy.level} ${level}` }))} />
 					)}
 					{!videoFormat && <label className="audio-editor-field" data-export-field="sampleRate"><span>{copy.sampleRate}</span><input type="number" min="8000" max={maximumAudioSampleRate} step="1" list="audio-editor-export-rates" value={settings.sampleRate} disabled={exporting || admPassthrough} onChange={(event) => set('sampleRate', event.currentTarget.value)} onBlur={() => setCodec('sampleRate', settings.sampleRate)} /><datalist id="audio-editor-export-rates">{exportDialogSampleRateSuggestions(maximumAudioSampleRate, snapshot.project?.sampleRate, settings.format, desktop).map((value) => <option key={value} value={value} />)}</datalist></label>}
-					{!videoFormat && <LabeledDropdown label={copy.channelMapping} hook="channelMapping" value={settings.channelMapping} onChange={(value) => setCodec('channelMapping', value)} disabled={exporting || settings.format === 'bw64'} options={[{ value: 'preserve', label: copy.preserveChannels }, { value: 'mono', label: copy.mono }, { value: 'stereo', label: copy.stereo }, { value: 'custom', label: copy.customChannelMapping }]} />}
-					{!videoFormat && pcmFormat && settings.sampleFormat !== 'float32' && <LabeledDropdown label={copy.dither} hook="dither" value={settings.dither} onChange={(value) => set('dither', value)} disabled={exporting || admPassthrough} options={[{ value: 'none', label: copy.none }, { value: 'triangular', label: copy.triangularDither }, { value: 'triangular-highpass', label: copy.highpassDither }]} />}
-					{/* A delivery normalizes only when a target is chosen: there is no
-						default, and stems and ADM passthrough refuse it outright. */}
-					{!videoFormat && settings.mode !== 'stems' && <LabeledDropdown label={copy.loudnessNormalization} hook="loudnessNormalization" value={settings.loudnessNormalization} onChange={(value) => set('loudnessNormalization', value)} disabled={exporting || admPassthrough} options={[{ value: '', label: copy.loudnessNormalizationNone }, { value: 'ebu-r128', label: copy.loudnessNormalizationR128 }, { value: 'atsc-a85', label: copy.loudnessNormalizationA85 }, { value: 'streaming-14', label: copy.loudnessNormalizationStreaming }]} />}
-					{!videoFormat && settings.channelMapping === 'custom' && <div className="audio-editor-helped-field"><label className="audio-editor-field"><span>{copy.customChannelMapping}</span><TextInput multiline value={settings.channelMatrix} disabled={exporting} onChange={(value) => set('channelMatrix', value)} width="100%" /></label><EditorHelpTooltip subject={copy.customChannelMapping} description={copy.customChannelMappingHint} helpLabel={copy.helpMenu} hook="channel-matrix" /></div>}
 					{videoFormat && (
 						<VideoDeliveryFields
 							copy={copy}
@@ -547,10 +511,16 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 						<Separator />
 						<section className="audio-editor-export-section">
 							<h3>{copy.renderingSection}</h3>
-							<div className="audio-editor-export-check" data-export-field="tails">
+							{/* A delivery normalizes only when a target is chosen: there is no
+								default, and stems, chapters and ADM passthrough refuse it outright. */}
+							{settings.mode === 'mix' && <LabeledDropdown label={copy.loudnessNormalization} hook="loudnessNormalization" value={settings.loudnessNormalization} onChange={(value) => set('loudnessNormalization', value)} disabled={exporting || admPassthrough} options={[{ value: '', label: copy.loudnessNormalizationNone }, { value: 'ebu-r128', label: copy.loudnessNormalizationR128 }, { value: 'atsc-a85', label: copy.loudnessNormalizationA85 }, { value: 'streaming-14', label: copy.loudnessNormalizationStreaming }]} />}
+							{pcmFormat && settings.sampleFormat !== 'float32' && <LabeledDropdown label={copy.dither} hook="dither" value={settings.dither} onChange={(value) => set('dither', value)} disabled={exporting || admPassthrough} options={[{ value: 'none', label: copy.none }, { value: 'triangular', label: copy.triangularDither }, { value: 'triangular-highpass', label: copy.highpassDither }]} />}
+							{/* A chapter delivers exactly the span its label names, so there
+								is no tail to carry past it into the next chapter. */}
+							{settings.mode !== 'chapters' && <div className="audio-editor-export-check" data-export-field="tails">
 								<span aria-hidden="true" />
 								<DesignCheckbox label={copy.includeTails} checked={settings.includeTail} disabled={exporting || admPassthrough} onChange={(checked) => set('includeTail', checked)} />
-							</div>
+							</div>}
 							{binauralAvailable && (
 								<div className="audio-editor-export-check" data-export-field="binaural">
 									<span aria-hidden="true" />
@@ -584,13 +554,26 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 				</div>
 				{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
 				<a
+					ref={downloadRef}
 					className="audio-editor-export-download"
 					data-export-download
 					href={output?.url || '#'}
 					download={output?.fileName || ''}
 					hidden={!output?.url}
 				>{output?.fileName || copy.done}</a>
+				</div>
 			</div>
+			{mappingOpen && (
+				<ExportChannelMappingDialog
+					copy={copy}
+					inputChannelCount={projectChannelCount}
+					value={settings.channelMatrix}
+					onCommit={(channelMatrix) => setSettings((current) => normalizeExportDialogAudioSettings(
+						{ ...current, channelMapping: 'custom', channelMatrix }, desktop, projectChannelCount,
+					))}
+					onClose={() => setMappingOpen(false)}
+				/>
+			)}
 		</AudioEditorDialogShell>
 	);
 }

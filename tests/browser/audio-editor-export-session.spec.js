@@ -47,9 +47,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA, toneB]);
 		const exportDialog = await openExportDialog(page, editor);
-		await chooseDropdown(page, exportDialog.locator('[data-export-field="mode"]'), 'Individual stems (archive)');
+		await chooseDropdown(page, exportDialog.locator('[data-export-field="output"]'), 'Individual stems (split by tracks)');
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'WAV');
-		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 
 		const download = exportDialog.locator('[data-export-download]');
 		await expect(download).toBeVisible({ timeout: 20_000 });
@@ -238,7 +238,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await importFiles(editor, [toneA]);
 		const exportDialog = await openExportDialog(page, editor);
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'WAV');
-		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 
 		const download = exportDialog.locator('[data-export-download]');
 		await expect(download).toBeVisible({ timeout: 15_000 });
@@ -260,7 +260,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 		const exportDialog = await openExportDialog(page, editor);
-		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		const download = exportDialog.locator('[data-export-download]');
 		await expect(download).toBeVisible({ timeout: 20_000 });
 		const header = await download.evaluate(async (link) => new TextDecoder().decode(new Uint8Array(await (await fetch(link.href)).arrayBuffer()).subarray(0, 4)));
@@ -276,10 +276,13 @@ test.describe('audio editor React/design-system workflows', () => {
 		await importFiles(editor, [longTone]);
 		const exportDialog = await openExportDialog(page, editor);
 
-		await exportDialog.locator('[data-export-field="range"]').getByRole('button').click();
-		await expect(page.getByRole('option')).toHaveCount(1);
+		// One delivery choice: the whole project, or one file per track. There is
+		// no selection, no loop and no label, so nothing else is deliverable.
+		await exportDialog.locator('[data-export-field="output"]').getByRole('button').click();
+		await expect(page.getByRole('option')).toHaveCount(2);
 		await expect(page.getByRole('option', { name: 'Current selection' })).toHaveCount(0);
-		await expect(exportDialog.locator('[data-export-field="range"]').getByRole('button')).toContainText('Entire project');
+		await expect(page.getByRole('option', { name: 'Chapters (split by labels)' })).toHaveCount(0);
+		await expect(exportDialog.locator('[data-export-field="output"]').getByRole('button')).toContainText('Entire project');
 		await page.keyboard.press('Escape');
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'FLAC');
 		await exportDialog.locator('[data-export-field="bitDepth"]').getByRole('button').click();
@@ -289,7 +292,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.keyboard.press('Escape');
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'WAV');
 
-		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		const cancel = exportDialog.getByRole('button', { name: 'Cancel export' });
 		await expect(cancel).toBeVisible();
 		await page.keyboard.press('Escape');
@@ -303,7 +306,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		);
 		await expect(cancel).toBeVisible();
 		await cancel.click();
-		await expect(exportDialog.getByRole('button', { name: 'Start export' })).toBeVisible({ timeout: 10_000 });
+		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible({ timeout: 10_000 });
 		await expect(exportDialog.locator('[data-export-download]')).toBeHidden();
 		expect(errors).toEqual([]);
 	});
@@ -526,7 +529,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await importFiles(editor, [toneA]);
 		const exportDialog = await openExportDialog(page, editor);
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'MP3');
-		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		const download = exportDialog.locator('[data-export-download]');
 		const failure = exportDialog.locator('.audio-editor-field-error');
 		await expect(download.or(failure)).toBeVisible({ timeout: 60_000 });

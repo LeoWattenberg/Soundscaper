@@ -1,0 +1,71 @@
+/* Audacity's custom channel mapping window: inputs down, outputs across. */
+
+#kw-audio-editor-design-system .audio-editor-channel-mapping {
+	display: grid;
+	gap: 12px;
+}
+
+#kw-audio-editor-design-system .audio-editor-channel-mapping .audio-editor-field {
+	display: grid;
+	grid-template-columns: 146px minmax(0, 1fr);
+	align-items: center;
+	gap: 12px;
+	color: var(--kw-editor-text);
+	font-size: 11px;
+	font-weight: 500;
+}
+
+#kw-audio-editor-design-system .audio-editor-channel-mapping__grid-scroll {
+	max-height: 320px;
+	overflow: auto;
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 5px;
+}
+
+#kw-audio-editor-design-system .audio-editor-channel-mapping__grid {
+	width: 100%;
+	border-collapse: collapse;
+	color: var(--kw-editor-text);
+	font-size: 11px;
+}
+
+#kw-audio-editor-design-system .audio-editor-channel-mapping__grid :is(th, td) {
+	padding: 5px 8px;
+	border-bottom: 1px solid var(--kw-editor-line);
+	text-align: center;
+	white-space: nowrap;
+}
+
+#kw-audio-editor-design-system .audio-editor-channel-mapping__grid thead th {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	color: var(--kw-editor-muted);
+	background: var(--kw-editor-bg);
+	font-size: 10px;
+	font-weight: 750;
+}
+
+/* The input names stay readable while the outputs scroll past them. */
+#kw-audio-editor-design-system .audio-editor-channel-mapping__grid tbody th {
+	position: sticky;
+	left: 0;
+	z-index: 1;
+	background: var(--kw-editor-panel);
+	font-weight: 600;
+	text-align: left;
+}
+
+#kw-audio-editor-design-system .audio-editor-channel-mapping__grid thead th:first-child {
+	z-index: 2;
+	left: 0;
+	background: var(--kw-editor-bg);
+}
+
+#kw-audio-editor-design-system .audio-editor-channel-mapping__grid td > .checkbox {
+	margin: 0 auto;
+}
+
+#kw-audio-editor-design-system .audio-editor-channel-mapping__grid tbody tr:last-child :is(th, td) {
+	border-bottom: 0;
+}

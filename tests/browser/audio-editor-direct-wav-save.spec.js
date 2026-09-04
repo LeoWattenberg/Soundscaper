@@ -1,6 +1,7 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
+	chooseCustomChannelMapping,
 	chooseDropdown,
 	collectClientErrors,
 	commitInput,
@@ -48,18 +49,19 @@ test.describe('direct native PCM File System Access publication', () => {
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'WAV');
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="bitDepth"]'), '16-bit PCM');
 		await expect(exportDialog.locator('[data-export-field="sampleRate"] input')).toHaveValue('48000');
-		await chooseDropdown(page, exportDialog.locator('[data-export-field="channelMapping"]'), 'Custom channel mapping');
-		await exportDialog.getByRole('textbox', { name: 'Custom channel mapping' })
-			.fill(JSON.stringify(Array.from({ length: CHANNEL_COUNT }, () => 0)));
+		await chooseCustomChannelMapping(page, exportDialog, {
+			outputs: CHANNEL_COUNT,
+			routes: (input) => input === 0,
+		});
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="dither"]'), 'None');
 		expect(FRAME_COUNT * CHANNEL_COUNT * 4).toBeGreaterThan(96 * 1024 ** 2);
 
-		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect(editor.getByText('Large project: rendering in realtime to conserve memory', { exact: true })).toBeVisible();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[0]?.closes || 0), {
 			timeout: 45_000,
 		}).toBe(1);
-		await expect(exportDialog.getByRole('button', { name: 'Start export' })).toBeVisible();
+		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
 		await expect(exportDialog.locator('[data-export-download]')).toBeHidden();
 
 		const saved = await inspectDirectWavTarget(page, 0);
@@ -95,12 +97,12 @@ test.describe('direct native PCM File System Access publication', () => {
 		expect(saved.objectUrls).toEqual([]);
 		expect(downloads).toBe(0);
 
-		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[1]?.totalBytes || 0), {
 			timeout: 15_000,
 		}).toBeGreaterThan(44);
 		await exportDialog.getByRole('button', { name: 'Cancel export' }).click();
-		await expect(exportDialog.getByRole('button', { name: 'Start export' })).toBeVisible({ timeout: 15_000 });
+		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible({ timeout: 15_000 });
 		const cancelled = await inspectDirectWavTarget(page, 1);
 		expect(cancelled.opens).toBe(1);
 		expect(cancelled.closes).toBe(0);
@@ -111,12 +113,12 @@ test.describe('direct native PCM File System Access publication', () => {
 		await expect(exportDialog.locator('[data-export-download]')).toBeHidden();
 		expect(downloads).toBe(0);
 
-		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[2]?.commitStarted || 0), {
 			timeout: 45_000,
 		}).toBe(1);
 		await exportDialog.getByRole('button', { name: 'Cancel export' }).click();
-		await expect(exportDialog.getByRole('button', { name: 'Start export' })).toBeVisible({ timeout: 15_000 });
+		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible({ timeout: 15_000 });
 		const cancelledStatus = await inspectEditorStatus(editor);
 		const cancelledOutput = await inspectExportOutput(exportDialog);
 		expect(cancelledStatus.state).not.toBe('success');
@@ -187,18 +189,19 @@ test.describe('direct native PCM File System Access publication', () => {
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'AIFF');
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="bitDepth"]'), '16-bit PCM');
 		await expect(exportDialog.locator('[data-export-field="sampleRate"] input')).toHaveValue('48000');
-		await chooseDropdown(page, exportDialog.locator('[data-export-field="channelMapping"]'), 'Custom channel mapping');
-		await exportDialog.getByRole('textbox', { name: 'Custom channel mapping' })
-			.fill(JSON.stringify(Array.from({ length: CHANNEL_COUNT }, () => 0)));
+		await chooseCustomChannelMapping(page, exportDialog, {
+			outputs: CHANNEL_COUNT,
+			routes: (input) => input === 0,
+		});
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="dither"]'), 'None');
 		expect(FRAME_COUNT * CHANNEL_COUNT * 4).toBeGreaterThan(96 * 1024 ** 2);
 
-		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect(editor.getByText('Large project: rendering in realtime to conserve memory', { exact: true })).toBeVisible();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[0]?.closes || 0), {
 			timeout: 45_000,
 		}).toBe(1);
-		await expect(exportDialog.getByRole('button', { name: 'Start export' })).toBeVisible();
+		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
 		await expect(exportDialog.locator('[data-export-download]')).toBeHidden();
 
 		const saved = await inspectDirectAiffTarget(page, 0);
@@ -236,12 +239,12 @@ test.describe('direct native PCM File System Access publication', () => {
 		expect(saved.objectUrls).toEqual([]);
 		expect(downloads).toBe(0);
 
-		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[1]?.totalBytes || 0), {
 			timeout: 15_000,
 		}).toBeGreaterThan(54);
 		await exportDialog.getByRole('button', { name: 'Cancel export' }).click();
-		await expect(exportDialog.getByRole('button', { name: 'Start export' })).toBeVisible({ timeout: 15_000 });
+		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible({ timeout: 15_000 });
 		const cancelled = await inspectDirectAiffTarget(page, 1);
 		expect(cancelled.opens).toBe(1);
 		expect(cancelled.closes).toBe(0);
@@ -278,19 +281,20 @@ test.describe('direct native PCM File System Access publication', () => {
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'Broadcast WAV (BWF)');
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="bitDepth"]'), '16-bit PCM');
 		await expect(exportDialog.locator('[data-export-field="sampleRate"] input')).toHaveValue('48000');
-		await chooseDropdown(page, exportDialog.locator('[data-export-field="channelMapping"]'), 'Custom channel mapping');
-		await exportDialog.getByRole('textbox', { name: 'Custom channel mapping' })
-			.fill(JSON.stringify(Array.from({ length: CHANNEL_COUNT }, () => 0)));
+		await chooseCustomChannelMapping(page, exportDialog, {
+			outputs: CHANNEL_COUNT,
+			routes: (input) => input === 0,
+		});
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="dither"]'), 'None');
 		await authorBextMetadata(page, exportDialog);
 		expect(FRAME_COUNT * CHANNEL_COUNT * 4).toBeGreaterThan(96 * 1024 ** 2);
 
-		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect(editor.getByText('Large project: rendering in realtime to conserve memory', { exact: true })).toBeVisible();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[0]?.closes || 0), {
 			timeout: 45_000,
 		}).toBe(1);
-		await expect(exportDialog.getByRole('button', { name: 'Start export' })).toBeVisible();
+		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
 		await expect(exportDialog.locator('[data-export-download]')).toBeHidden();
 
 		const saved = await inspectDirectBwfTarget(page, 0);
@@ -349,12 +353,12 @@ test.describe('direct native PCM File System Access publication', () => {
 		expect(saved.objectUrls).toEqual([]);
 		expect(downloads).toBe(0);
 
-		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[1]?.nonzeroPcmBytes || 0), {
 			timeout: 15_000,
 		}).toBeGreaterThan(0);
 		await exportDialog.getByRole('button', { name: 'Cancel export' }).click();
-		await expect(exportDialog.getByRole('button', { name: 'Start export' })).toBeVisible({ timeout: 15_000 });
+		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible({ timeout: 15_000 });
 		const cancelled = await inspectDirectBwfTarget(page, 1);
 		expect(cancelled.opens).toBe(1);
 		expect(cancelled.closes).toBe(0);
@@ -400,12 +404,12 @@ test.describe('direct native PCM File System Access publication', () => {
 		const outputFrames = BW64_FRAME_COUNT * BW64_SAMPLE_RATE / SAMPLE_RATE;
 		expect(outputFrames * 2 * 4).toBeGreaterThan(96 * 1024 ** 2);
 
-		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect(editor.getByText('Large project: rendering in realtime to conserve memory', { exact: true })).toBeVisible();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[0]?.closes || 0), {
 			timeout: BW64_COMPLETION_TIMEOUT_MS,
 		}).toBe(1);
-		await expect(exportDialog.getByRole('button', { name: 'Start export' })).toBeVisible();
+		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
 		await expect(exportDialog.locator('[data-export-download]')).toBeHidden();
 
 		const saved = await inspectDirectBw64Target(page, 0);
@@ -476,12 +480,12 @@ test.describe('direct native PCM File System Access publication', () => {
 		expect(saved.objectUrls).toEqual([]);
 		expect(downloads).toBe(0);
 
-		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[1]?.nonzeroPcmBytes || 0), {
 			timeout: 15_000,
 		}).toBeGreaterThan(0);
 		await exportDialog.getByRole('button', { name: 'Cancel export' }).click();
-		await expect(exportDialog.getByRole('button', { name: 'Start export' })).toBeVisible({ timeout: 15_000 });
+		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible({ timeout: 15_000 });
 		const cancelled = await inspectDirectBw64Target(page, 1);
 		expect(cancelled.opens).toBe(1);
 		expect(cancelled.closes).toBe(0);

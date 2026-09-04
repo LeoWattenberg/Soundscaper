@@ -94,7 +94,7 @@ import {
 
 		const exportDialog = await openExportDialog(page, editor);
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'WAV');
-		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		const download = exportDialog.locator('[data-export-download]');
 		await expect(download).toBeVisible({ timeout: 20_000 });
 		const peak = await download.evaluate(async (link) => {
@@ -339,7 +339,7 @@ import {
 		test.skip(!await page.evaluate(() => typeof globalThis.OfflineAudioContext === 'function' || typeof globalThis.webkitOfflineAudioContext === 'function'), 'OfflineAudioContext is unavailable in this browser.');
 		const exportDialog = await openExportDialog(page, restored);
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'WAV');
-		await exportDialog.getByRole('button', { name: 'Start export' }).click();
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		const download = exportDialog.locator('[data-export-download]');
 		await expect(download).toBeVisible({ timeout: 15_000 });
 		await expect(download).toHaveAttribute('download', /\.wav$/);

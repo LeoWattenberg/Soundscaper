@@ -289,6 +289,30 @@ export async function chooseDropdown(page, group, optionName) {
 	await expect(group.getByRole('button')).toContainText(optionName);
 }
 
+/**
+ * Route the export's inputs to its outputs through the mapping window.
+ *
+ * `routes(input, output)` says whether that cell is checked; only the cells
+ * that disagree with the grid are pressed, so the helper states the mapping it
+ * wants rather than the presses that happen to produce it.
+ */
+export async function chooseCustomChannelMapping(page, exportDialog, { outputs, routes }) {
+	await exportDialog.locator('[data-export-channel-option="custom"]').getByRole('radio').click();
+	await exportDialog.locator('[data-export-channel-action="edit-mapping"]').getByRole('button').click();
+	const mapping = page.locator('[data-export-channel-mapping]');
+	await mapping.locator('[data-export-channel-mapping-field="outputs"] input').fill(String(outputs));
+	const inputs = await mapping.locator('tbody tr').count();
+	for (let input = 0; input < inputs; input += 1) {
+		for (let output = 0; output < outputs; output += 1) {
+			const cell = mapping.locator(`[data-export-channel-mapping-cell="${input}-${output}"]`).getByRole('checkbox');
+			const checked = await cell.getAttribute('aria-checked') === 'true';
+			if (checked !== Boolean(routes(input, output))) await cell.click();
+		}
+	}
+	await mapping.locator('[data-export-channel-mapping-action="apply"]').getByRole('button').click();
+	await expect(mapping).toBeHidden();
+}
+
 export async function openRackPicker(panel, scope) {
 	const buttons = panel.locator('[data-effect-rack]').getByRole('button', { name: 'Effects', exact: true });
 	await (scope === 'master' ? buttons.last() : buttons.first()).click();

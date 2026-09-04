@@ -145,9 +145,9 @@ async function runNoiseProfile(page, state) {
 
 async function runExport(page, state, entry) {
 	const dialog = await openExportDialog(page, state.editor);
-	if (entry.mode) await chooseDropdown(page, dialog.locator('[data-export-field="mode"]'), entry.mode);
 	await chooseDropdown(page, dialog.locator('[data-export-field="format"]'), entry.format);
-	await dialog.getByRole('button', { name: 'Start export', exact: true }).click();
+	if (entry.mode) await chooseDropdown(page, dialog.locator('[data-export-field="output"]'), entry.mode);
+	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
 	const download = dialog.locator('[data-export-download]');
 	const failure = dialog.locator('.audio-editor-field-error');
 	await expect(download.or(failure)).toBeVisible({ timeout: EXPORT_TIMEOUT });
