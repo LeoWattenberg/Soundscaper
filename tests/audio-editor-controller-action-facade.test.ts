@@ -3,10 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-	createGroupedEditorActions,
-	type EditorActionRuntime,
-} from '../src/common/editor/controller/action-facade.ts';
+import { createGroupedEditorActions } from '../src/common/editor/controller/action-facade.ts';
+import { createActionFacadeRuntime } from './helpers/action-facade-runtime-fixture.ts';
 
 const EXPECTED_ACTION_GROUPS = Object.freeze([
 	'analysis',
@@ -43,40 +41,8 @@ const EXPECTED_ACTION_GROUPS = Object.freeze([
 	'webVcr',
 ]);
 
-function createRuntime(capability = true): EditorActionRuntime {
-	const callable = () => undefined;
-	const videoTrimServices = Object.freeze({
-		edge: Object.freeze({ preview: callable, commit: callable, commitStep: callable }),
-		rollRipple: Object.freeze({ preview: callable, commit: callable }),
-		slipSlide: Object.freeze({ buildStepRequest: callable, preview: callable, commit: callable }),
-		rateStretch: Object.freeze({ preview: callable, commit: callable, commitStep: callable }),
-	});
-	const runtime = new Proxy<Record<string, unknown>>({}, {
-		get(_target, name) {
-			if (name === 'capabilities') return new Proxy({}, { get: () => capability });
-			if (name === 'product') return { name: 'Soundscaper' };
-			if (name === 'videoTrimServices') return videoTrimServices;
-			if (name === 'copy') return { projectNotFound: 'Not found', localSourcesMissing: 'Missing', audioClipNotFound: 'Missing' };
-			if (name === 'project') return { tracks: [], clips: [] };
-			if (name === 'state') return {
-				recentProjectIds: [],
-				projects: [],
-				preferences: { recording: {} },
-				audacityEffectType: 'amplify',
-				effectPresets: {},
-			};
-			if (name === 'engine' || name === 'analysisService' || name === 'store') {
-				return new Proxy({}, { get: () => callable });
-			}
-			if (name === 'AUDIO_EDITOR_DEFAULT_SHORTCUTS') return {};
-			return callable;
-		},
-	});
-	return runtime as EditorActionRuntime;
-}
-
 test('controller action facade exposes stable frozen responsibility groups', () => {
-	const actions = createGroupedEditorActions(createRuntime());
+	const actions = createGroupedEditorActions(createActionFacadeRuntime());
 	assert.deepEqual(Object.keys(actions).sort(), EXPECTED_ACTION_GROUPS);
 	assert.equal(Object.isFrozen(actions), true);
 	for (const group of Object.values(actions)) assert.equal(Object.isFrozen(group), true);
@@ -84,7 +50,7 @@ test('controller action facade exposes stable frozen responsibility groups', () 
 
 test('project actions dispatch stable-ID musical map commands', () => {
 	const commands: unknown[] = [];
-	const base = createRuntime();
+	const base = createActionFacadeRuntime();
 	let stableId = 0;
 	const runtime = new Proxy(base, {
 		get(target, name, receiver) {
@@ -124,100 +90,16 @@ test('project actions dispatch stable-ID musical map commands', () => {
 });
 
 test('controller action facade enforces product capabilities at invocation', () => {
-	const actions = createGroupedEditorActions(createRuntime(false));
+	const actions = createGroupedEditorActions(createActionFacadeRuntime(false));
 	const addEffect = actions.effects.add;
 	assert.equal(typeof addEffect, 'function');
 	if (typeof addEffect !== 'function') throw new TypeError('The effects action must be callable.');
 	assert.throws(() => addEffect(), /does not support audioEffects/u);
 });
 
-test('Framescaper video navigation actions share one capability-gated service', () => {
-	const calls: string[] = [];
-	const statuses: string[] = [];
-	const view = (rate: number, positionFrame: number) => ({ rate, positionFrame, sequenceId: 'main' });
-	const service = {
-		view: () => { calls.push('view'); return view(0, 0); },
-		shuttleReverse: () => { calls.push('reverse'); return view(-1, 10); },
-		shuttleStop: () => { calls.push('stop'); return view(0, 10); },
-		shuttleForward: () => { calls.push('forward'); return view(1, 20); },
-		previousEditPoint: () => { calls.push('previous'); return 10; },
-		nextEditPoint: () => { calls.push('next'); return 20; },
-	};
-	const runtime = new Proxy(createRuntime(), {
-		get(target, name, receiver) {
-			if (name === 'videoNavigationService') return service;
-			if (name === 'sequenceTimingService') return {
-				label: (frame: unknown) => `TC-${String(frame)}`,
-				playheadLabel: () => 'TC-playhead',
-			};
-			if (name === 'setStatus') return (message: unknown) => statuses.push(String(message));
-			if (name === 'copy') return {
-				shuttleBackward: 'Reverse shuttle', shuttleForward: 'Forward shuttle',
-				shuttleStatus: '{direction} {rate}× at {timecode}',
-				shuttleStoppedStatus: 'Shuttle stopped at {timecode}',
-				previousEditStatus: 'Previous edit at {timecode}', nextEditStatus: 'Next edit at {timecode}',
-				noPreviousEdit: 'No previous edit point', noNextEdit: 'No next edit point',
-			};
-			return Reflect.get(target, name, receiver);
-		},
-	});
-	const navigation = createGroupedEditorActions(runtime).video.navigation;
-	if (typeof navigation !== 'object' || navigation === null) {
-		throw new TypeError('The video navigation action group is unavailable.');
-	}
-	for (const name of ['view', 'shuttleBackward', 'shuttleStop', 'shuttleForward', 'previousEdit', 'nextEdit']) {
-		const action = navigation[name];
-		if (typeof action !== 'function') throw new TypeError(`Missing video navigation action: ${name}.`);
-		action();
-	}
-	assert.deepEqual(calls, ['view', 'reverse', 'stop', 'forward', 'previous', 'next']);
-	assert.deepEqual(statuses, [
-		'Reverse shuttle 1× at TC-10',
-		'Shuttle stopped at TC-10',
-		'Forward shuttle 1× at TC-20',
-		'Previous edit at TC-playhead',
-		'Next edit at TC-playhead',
-	]);
-	assert.equal(Object.isFrozen(navigation), true);
-
-	const unavailable = createGroupedEditorActions(new Proxy(runtime, {
-		get(target, name, receiver) {
-			if (name === 'capabilities') return { videoCompositing: false };
-			return Reflect.get(target, name, receiver);
-		},
-	})).video.navigation;
-	const unavailableForward = typeof unavailable === 'object' && unavailable !== null
-		? unavailable.shuttleForward
-		: null;
-	if (typeof unavailableForward !== 'function') {
-		throw new TypeError('The guarded video navigation action is unavailable.');
-	}
-	assert.throws(() => unavailableForward(), /does not support videoCompositing/u);
-});
-
-test('ordinary transport retires Framescaper shuttle without touching Soundscaper projects', () => {
-	const run = (videoCompositing: boolean) => {
-		const calls: string[] = [];
-		const runtime = new Proxy(createRuntime(), {
-			get(target, name, receiver) {
-				if (name === 'capabilities') return { videoCompositing };
-				if (name === 'videoNavigationService') return { shuttleStop: () => calls.push('shuttle-stop') };
-				if (name === 'handleTransport') return () => calls.push('play');
-				return Reflect.get(target, name, receiver);
-			},
-		});
-		const playPause = createGroupedEditorActions(runtime).transport.playPause;
-		if (typeof playPause !== 'function') throw new TypeError('The play action is unavailable.');
-		playPause();
-		return calls;
-	};
-	assert.deepEqual(run(true), ['shuttle-stop', 'play']);
-	assert.deepEqual(run(false), ['play']);
-});
-
 test('recording actions expose one capability-guarded sound activation preference group', async () => {
 	const calls: unknown[][] = [];
-	const base = createRuntime();
+	const base = createActionFacadeRuntime();
 	const runtime = new Proxy(base, {
 		get(target, name, receiver) {
 			if (name === 'soundActivationPolicyService') return {
@@ -271,7 +153,7 @@ test('general preference actions cannot bypass sound activation ownership', () =
 		hysteresisDb: 3,
 		holdMilliseconds: 500,
 	};
-	const base = createRuntime();
+	const base = createActionFacadeRuntime();
 	const runtime = new Proxy(base, {
 		get(target, name, receiver) {
 			if (name === 'updatePreferences') return () => { updates += 1; };
@@ -363,7 +245,7 @@ test('controller action facade exposes the complete native timeline annotation w
 			};
 		},
 	});
-	const base = createRuntime();
+	const base = createActionFacadeRuntime();
 	const runtime = new Proxy(base, {
 		get(target, name, receiver) {
 			if (name === 'timelineAnnotationService') return service;
@@ -420,7 +302,7 @@ test('controller action facade exposes the complete native timeline annotation w
 });
 
 test('timeline annotation actions remain capability gated until product activation', () => {
-	const actions = createGroupedEditorActions(createRuntime(false)).timelineAnnotations;
+	const actions = createGroupedEditorActions(createActionFacadeRuntime(false)).timelineAnnotations;
 	const createMarker = actions.createMarkerAtPlayhead;
 	if (typeof createMarker !== 'function') throw new TypeError('Timeline marker creation must be callable.');
 	assert.throws(() => createMarker(), /does not support timelineAnnotations/u);
@@ -428,7 +310,7 @@ test('timeline annotation actions remain capability gated until product activati
 
 test('controller action facade exposes explicit safe storage operations', async () => {
 	const calls: string[] = [];
-	const base = createRuntime();
+	const base = createActionFacadeRuntime();
 	const overrides: Readonly<Record<string, () => void>> = {
 		refreshStorageUsage: () => { calls.push('refresh'); },
 		requestStoragePersistence: () => { calls.push('persist'); },
@@ -464,7 +346,7 @@ test('controller action facade exposes explicit safe storage operations', async 
 
 test('controller action facade routes Scape inspection through its owned service', async () => {
 	const calls: unknown[][] = [];
-	const base = createRuntime();
+	const base = createActionFacadeRuntime();
 	const expected = Object.freeze({ id: 'inspected-project' });
 	const runtime = new Proxy(base, {
 		get(target, name, receiver) {
@@ -484,7 +366,7 @@ test('controller action facade routes Scape inspection through its owned service
 
 test('controller action facade routes Scape file opens through continuation ownership', async () => {
 	const calls: unknown[][] = [];
-	const base = createRuntime();
+	const base = createActionFacadeRuntime();
 	const expected = Object.freeze({ cancelled: true });
 	const runtime = new Proxy(base, {
 		get(target, name, receiver) {
@@ -502,36 +384,9 @@ test('controller action facade routes Scape file opens through continuation owne
 	assert.deepEqual(calls, [[file, choose]]);
 });
 
-test('controller action facade exposes source-level video visual ownership', async () => {
-	const expected = Object.freeze({ mediaUrl: 'blob:fallback-video' });
-	const releases: unknown[][] = [];
-	const base = createRuntime();
-	const runtime = new Proxy(base, {
-		get(target, name, receiver) {
-			if (name === 'getVideoSourceVisualData') return (sourceId: unknown) => {
-				assert.equal(sourceId, 'fallback-video');
-				return expected;
-			};
-			if (name === 'releaseVideoSourceVisual') return (...args: unknown[]) => {
-				releases.push(args);
-				return true;
-			};
-			return Reflect.get(target, name, receiver);
-		},
-	});
-	const actions = createGroupedEditorActions(runtime);
-	const getSourceVisualData = actions.video.getSourceVisualData;
-	if (typeof getSourceVisualData !== 'function') throw new TypeError('Video source lookup must be callable.');
-	assert.strictEqual(getSourceVisualData('fallback-video'), expected);
-	const releaseSourceVisual = actions.video.releaseSourceVisual;
-	if (typeof releaseSourceVisual !== 'function') throw new TypeError('Video source release must be callable.');
-	assert.equal(await releaseSourceVisual('fallback-video', 'blob:fallback-video'), true);
-	assert.deepEqual(releases, [['fallback-video', 'blob:fallback-video']]);
-});
-
 test('controller action facade forwards the exact linked-video relink snapshot', async () => {
 	const calls: unknown[][] = [];
-	const base = createRuntime();
+	const base = createActionFacadeRuntime();
 	const runtime = new Proxy(base, {
 		get(target, name, receiver) {
 			if (name === 'relinkLinkedVideo') return (...args: unknown[]) => { calls.push(args); return 'video-source'; };
@@ -550,7 +405,7 @@ test('controller action facade forwards the exact linked-video relink snapshot',
 
 test('controller action facade keeps linked-audio eligibility and relink pathless', async () => {
 	const calls: Array<readonly [string, ...unknown[]]> = [];
-	const base = createRuntime();
+	const base = createActionFacadeRuntime();
 	const runtime = new Proxy(base, {
 		get(target, name, receiver) {
 			if (name === 'canRelinkLinkedAudio') return (...args: unknown[]) => {
