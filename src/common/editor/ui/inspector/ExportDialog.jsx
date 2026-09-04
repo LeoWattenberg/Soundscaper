@@ -10,8 +10,8 @@ import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import VideoDeliveryFields from '../VideoDeliveryFields.jsx';
 import {
-	dialogSettingsFromDeliveryTarget, dialogSettingsFromPreset, presetFormatFromDialog,
-	presetSettingsFromDialog, statedVideoCanvas, statedVideoDeliveryTarget,
+	dialogSettingsFromDeliveryTarget, presetSettingsFromDialog,
+	statedVideoCanvas, statedVideoDeliveryTarget,
 } from '../export-preset-model.ts';
 import {
 	createExportDialogInitialSettings, exportDialogProjectIdentity,
@@ -23,9 +23,10 @@ import {
 } from '../export-dialog-model.js';
 import { exportChapterCount } from '../../export-chapters.ts';
 import {
-	conformExportDialogOutput, exportDialogOutputNoLabelsHint,
-	exportDialogOutputOptions, exportDialogOutputSettings, exportDialogOutputValue,
+	exportDialogOutputNoLabelsHint, exportDialogOutputOptions,
+	exportDialogOutputSettings, exportDialogOutputValue,
 } from '../export-dialog-output-options.ts';
+import { createExportPresetActions } from '../export-preset-actions.js';
 import { projectHasTimelineVideo } from '../timeline-media-presence.ts';
 import { exportSurfaceDialogTitle } from '../export-surface-copy.ts';
 import { framescaperCaptionDeliveryUnavailable } from '../video-caption-delivery-surface.ts';
@@ -94,39 +95,10 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	}, [desktopCodecQuery, desktopCodecStatus]);
 	const presetKind = isVideoExportDialogFormat(settings.format) ? 'video' : 'audio';
 	const presets = controller.actions.export.presets.list(presetKind);
-	const presetActions = {
-		onApply: (id) => {
-			setPresetId(id);
-			if (!id) return;
-			const preset = controller.actions.export.presets.apply(id);
-			setPresetName(preset.label);
-			// A preset states the delivered form and never the span, so applying one
-			// over a chosen loop or selection has to put the dialog back on a whole
-			// delivery rather than leave it showing a form it is not delivering.
-			setSettings((current) => conformExportDialogOutput(normalizeExportDialogAudioSettings(
-				{ ...current, ...dialogSettingsFromPreset(preset) }, desktop, projectChannelCount,
-			)));
-		},
-		onNameChange: setPresetName,
-		onSave: async (name) => {
-			const preset = await controller.actions.export.presets.save({
-				...(presetId && name === undefined ? { id: presetId } : {}),
-				label: (name ?? presetName).trim(),
-				kind: presetKind,
-				format: presetFormatFromDialog(settings.format, presetKind),
-				settings: presetSettingsFromDialog(settings, presetKind),
-			});
-			setPresetId(preset.id);
-			setPresetName(preset.label);
-		},
-		onDelete: async () => {
-			await controller.actions.export.presets.delete(presetId);
-			setPresetId('');
-			setPresetName('');
-		},
-		onImport: async (file) => { await controller.actions.export.presets.import(await file.text()); },
-		onExport: () => controller.actions.export.presets.saveToFile(presetId),
-	};
+	const presetActions = createExportPresetActions({
+		controller, settings, presetId, presetName, presetKind, desktop, projectChannelCount,
+		setSettings, setPresetId, setPresetName,
+	});
 	const hasSelection = Boolean(snapshot.selection);
 	const hasLoop = Boolean(snapshot.project?.loop?.enabled);
 	const exporting = Boolean(snapshot.exporting);
