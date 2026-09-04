@@ -296,6 +296,14 @@
 	display: none !important;
 }
 
+/* The package fills an unchecked checkbox with the same colour as the surfaces
+ * it sits on, which leaves it invisible until it is checked. The theme carries
+ * a control-border colour for exactly this; the package's own stylesheet just
+ * never spends it. */
+#kw-audio-editor-design-system .checkbox {
+	border: 1px solid var(--kw-editor-checkbox-border);
+}
+
 #kw-audio-editor-design-system .kw-audio-editor__button-tooltip {
 	/* The package's Flyout selector is scoped as an adjacent sibling during the
 	 * Vite build, while this tooltip lives inside the editor. Keep it out of

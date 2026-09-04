@@ -173,8 +173,7 @@
 	#kw-audio-editor-design-system .audio-editor-audacity-layout__context-card--profile,
 	#kw-audio-editor-design-system .audio-editor-audacity-layout--audacity-noise-reduction,
 	#kw-audio-editor-design-system .audio-editor-clip-properties,
-	#kw-audio-editor-design-system .audio-editor-clip-properties__time-grid,
-	#kw-audio-editor-design-system .audio-editor-clip-properties__toggles {
+	#kw-audio-editor-design-system .audio-editor-clip-properties__time-grid {
 		grid-template-columns: 1fr;
 	}
 

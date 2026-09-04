@@ -171,6 +171,14 @@ function ClipProperties({ controller, snapshot, copy }) {
 						<ClipTimeCodeField name="durationFrame" label={copy.clipDuration} value={clip?.durationFrames ?? 1}
 							sampleRate={sampleRate} minimum={1} disabled={disabled}
 							onCommit={(value) => commitField('durationFrame', value)} />
+						{!isVideoClip && source && (
+							<ClipSourceFactRow name="sampleRate" label={copy.sampleRateHz} value={source.sampleRate}
+								action={snapshot.capabilities?.audioEffects !== false && (
+									<ActionHook hook="resample-clip">
+										<Button disabled={disabled} onClick={() => setResampleOpen(true)}>{copy.resample}</Button>
+									</ActionHook>
+								)} />
+						)}
 					</div>
 					{!isVideoClip && snapshot.capabilities?.audioEffects && (
 						<div className="audio-editor-clip-properties__toggles">
@@ -195,19 +203,6 @@ function ClipProperties({ controller, snapshot, copy }) {
 						<ClipTimeCodeField name="fadeOutFrame" label={copy.fadeOut} value={clip?.fadeOutFrames ?? 0}
 							sampleRate={sampleRate} maximum={clip?.durationFrames ?? 0} disabled={disabled}
 							onCommit={(value) => commitField('fadeOutFrame', value)} />
-					</div>
-				</section>}
-				{!isVideoClip && source && <section className="audio-editor-clip-properties__card">
-					<h3>{copy.sampleRate}</h3>
-					<div className="audio-editor-clip-properties__stack">
-						<ClipSourceFactRow name="sampleRate" label={copy.sampleRateHz} value={source.sampleRate} />
-						{snapshot.capabilities?.audioEffects !== false && (
-							<div className="audio-editor-panel-actions">
-								<ActionHook hook="resample-clip">
-									<Button disabled={disabled} onClick={() => setResampleOpen(true)}>{copy.resample}</Button>
-								</ActionHook>
-							</div>
-						)}
 					</div>
 				</section>}
 				{!isVideoClip && snapshot.capabilities?.audioEffects && <section className="audio-editor-clip-properties__card">
@@ -252,14 +247,18 @@ function ClipProperties({ controller, snapshot, copy }) {
 /**
  * One read-only fact about the material a clip plays.
  *
- * A rate is not edited in place: changing it is a resample, which the dialog
- * beside this row asks for, so it is displayed as text rather than as an input
- * that would refuse every keystroke.
+ * A rate is not edited in place: changing it is a resample, so the fact is
+ * displayed as text rather than as an input that would refuse every keystroke,
+ * and the action that does change it sits on the same row instead of claiming
+ * a card of its own.
  */
-function ClipSourceFactRow({ name, label, value }) {
+function ClipSourceFactRow({ name, label, value, action = null }) {
 	return <div className="audio-editor-field" data-clip-source-fact={name}>
 		<span>{label}</span>
-		<span className="audio-editor-field__value">{value}</span>
+		<div className="audio-editor-field__value-row">
+			<span className="audio-editor-field__value">{value}</span>
+			{action}
+		</div>
 	</div>;
 }
 

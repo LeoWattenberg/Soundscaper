@@ -84,6 +84,7 @@ export function useAudioEditorThemeVariables() {
 		'--kw-editor-bg': theme.background.surface.default,
 		'--kw-editor-panel': theme.background.surface.elevated,
 		'--kw-editor-control': theme.background.control.input.idle,
+		'--kw-editor-checkbox-border': theme.border.control.checkbox,
 		'--kw-editor-text': theme.foreground.text.primary,
 		'--kw-editor-primary-button-bg': theme.background.control.button.primary.idle,
 		'--kw-editor-primary-button-hover': theme.background.control.button.primary.hover,

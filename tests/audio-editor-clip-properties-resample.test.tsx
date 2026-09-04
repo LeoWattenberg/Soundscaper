@@ -46,6 +46,26 @@ test('the resample dialog opens seeded from the clip and applies to that clip al
 	}
 });
 
+test('the rate and the control that changes it share the media settings grid', async () => {
+	const fixture = await mountedFixture();
+	try {
+		await fixture.render();
+		const rate = fixture.sourceFact('sampleRate');
+		const grid = rate.closest('.audio-editor-clip-properties__time-grid');
+		assert.ok(grid, 'the rate is stated among the clip\u2019s other media settings');
+		assert.ok(
+			grid.querySelector('[data-clip-field="durationFrame"]'),
+			'that grid is the media settings one rather than some other pair of columns',
+		);
+		assert.ok(
+			rate.querySelector('[data-clip-action="resample-clip"]'),
+			'resampling reads as an action on the rate rather than a card of its own',
+		);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 test('a product without audio effects reports the rate but cannot resample', async () => {
 	const fixture = await mountedFixture({ audioEffects: false });
 	try {

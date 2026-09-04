@@ -142,6 +142,27 @@
 	text-transform: none;
 }
 
+/* A stated fact and the control that changes it read as one row, so neither
+ * needs a card of its own. */
+#kw-audio-editor-design-system .audio-editor-field__value-row {
+	display: flex;
+	min-width: 0;
+	align-items: center;
+	gap: 8px;
+}
+
+#kw-audio-editor-design-system .audio-editor-field__value-row > .audio-editor-field__value {
+	min-width: 0;
+	flex: 1 1 auto;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#kw-audio-editor-design-system .audio-editor-field__value-row > :not(.audio-editor-field__value) {
+	flex: 0 0 auto;
+}
+
 #kw-audio-editor-design-system .audio-editor-field .text-input,
 #kw-audio-editor-design-system .audio-editor-field .dropdown {
 	min-width: 0;
