@@ -9,6 +9,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { ThemeProvider } from '../vendor/audacity-design-system/components/src/ThemeProvider/ThemeProvider.tsx';
 import { Clip, clipPitchShiftLabel } from '../vendor/audacity-design-system/components/src/Clip/Clip.tsx';
 import { TrackNew } from '../vendor/audacity-design-system/components/src/Track/TrackNew.tsx';
+import { createTimelineClipViewModel } from '../src/common/editor/ui/timeline/waveform-view-model.ts';
 
 function render(element: React.ReactElement): string {
 	return renderToStaticMarkup(React.createElement(ThemeProvider, null, element));
@@ -51,6 +52,62 @@ test('a clip carrying a pitch shift draws the badge, and an unshifted one draws 
 		clipDuration: 2,
 	} as never));
 	assert.deepEqual(badgeValues(unshifted), []);
+});
+
+const pitchSource = {
+	id: 'source', storageKey: 'source', revision: 1, name: 'Source',
+	sampleRate: 48_000, frameCount: 100, channelCount: 1,
+};
+const pitchClip = {
+	id: 'clip', sourceId: pitchSource.id, title: 'Clip', timelineStartFrame: 0,
+	sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100,
+	waveformStartFrame: 0, waveformEndFrame: 100, gain: 1,
+	fadeInFrames: 0, fadeOutFrames: 0, reversed: false,
+	envelope: [{ frame: 0, value: 1 }],
+};
+const pitchProjection = {
+	controller: {
+		getClipVisualData: () => null,
+		getProjectBinClipVisualData: () => null,
+	},
+	sourceLookup: new Map([[pitchSource.id, pitchSource]]),
+	clip: pitchClip,
+	geometry: { overscanStartFrame: 0, pixelsPerSecond: 120, sampleRate: 48_000 },
+	selection: { selectedClipIds: null },
+	copy: { clip: 'Clip' },
+	rendering: { color: 'blue' },
+} as const;
+
+function projectedPitchCents(pitchCents: number): number {
+	return createTimelineClipViewModel({
+		...pitchProjection,
+		clip: { ...pitchClip, pitchCents },
+	}).pitchCents;
+}
+
+function badgeFor(clipPitchCents: number): string[] {
+	return badgeValues(render(React.createElement(Clip, {
+		name: 'One',
+		width: 320,
+		height: 120,
+		clipDuration: 2,
+		clipPitchCents,
+	} as never)));
+}
+
+test('a shift too fine to write as a semitone figure earns no badge', () => {
+	// The badge is drawn whenever the shift is not exactly zero, so the label
+	// and the badge only agree if the projection rounds the shift the way the
+	// label does: below half a cent there is no figure to show, and a badge
+	// reading '+0' would announce a shift of nothing.
+	assert.equal(projectedPitchCents(0.4), 0);
+	assert.deepEqual(badgeFor(projectedPitchCents(0.4)), []);
+	assert.deepEqual(badgeFor(projectedPitchCents(-0.4)), []);
+	// Half a cent is the smallest shift that still writes a figure, and it and
+	// everything above it keep their badge.
+	assert.equal(projectedPitchCents(0.5), 0.5);
+	assert.deepEqual(badgeFor(projectedPitchCents(0.5)), ['+0.01']);
+	assert.deepEqual(badgeFor(projectedPitchCents(120)), ['+1.2']);
 });
 
 test('the pitch badge sits beside the time-stretch badge it was modelled on', () => {

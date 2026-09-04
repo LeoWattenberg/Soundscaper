@@ -15,6 +15,11 @@ import {
 } from './audio-warp-waveform.ts';
 
 const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
+// The clip header writes the pitch badge as semitones rounded to two decimals,
+// so anything finer than half a cent reads as a bare '+0'. A shift that small
+// has to reach the design system as no shift at all, or the badge appears and
+// announces nothing.
+const SMALLEST_BADGED_PITCH_CENTS = 0.5;
 const EMPTY_DESIGN_SYSTEM_WAVEFORM = Object.freeze([]);
 
 export interface TimelineWaveformSource {
@@ -137,6 +142,12 @@ export interface TimelineClipViewModelOptions {
 	readonly reuseCachedWaveform?: boolean;
 }
 
+/** Read a stored shift the way the header badge rounds it, so the two agree. */
+function badgedPitchCents(cents: number | undefined): number {
+	const shift = Number(cents) || 0;
+	return Math.abs(shift) < SMALLEST_BADGED_PITCH_CENTS ? 0 : shift;
+}
+
 /** Build the design-system clip projection while owning waveform-plan caching. */
 export function createTimelineClipViewModel({
 	controller,
@@ -191,7 +202,7 @@ export function createTimelineClipViewModel({
 		stretchFactor: (clip.durationFrames / sampleRate) / (sourceDurationFrames / sourceRate),
 		// The clip header draws a pitch badge beside the time-stretch one, so the
 		// shift the pitch commands step has to reach the design system too.
-		pitchCents: Number(clip.pitchCents) || 0,
+		pitchCents: badgedPitchCents(clip.pitchCents),
 		envelopePoints: envelopeFramesToDesignPoints(clip.envelope, sampleRate, {
 			startFrame: clip.waveformStartFrame,
 			endFrame: clip.waveformEndFrame,
