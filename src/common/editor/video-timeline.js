@@ -1,23 +1,34 @@
-import { compareCodeUnits } from './code-unit-order.ts';
+import {
+	inheritTrackFolderMediaStateProjectionV12,
+	projectTrackFolderMediaStateV12,
+} from './track-folder-media-runtime.ts';
 import {
 	isRuntimeProjectProjection,
 	resolveRuntimeProjectProjection,
 } from './runtime-clip-projection.ts';
 import {
-	inheritTrackFolderMediaStateProjectionV12,
-	isTrackFolderMediaStateProjectionV12,
-	projectTrackFolderMediaStateV12,
-} from './track-folder-media-runtime.ts';
+	assertCompatibleVideoTransitionComposition,
+	isProductVisualClip,
+	nonNegativeFiniteNumber,
+	nonNegativeSafeInteger,
+	normalizeBlackColor,
+	normalizeClipLookup,
+	orderedVideoTrackClips,
+	positiveFiniteNumber,
+	positiveSafeInteger,
+	compareVideoClips,
+	resolveClipRenderDescription,
+	sameVisual,
+	videoSourceForClip,
+	videoClipEndFrame,
+	videoTrackVisibility,
+	videoTransition,
+} from './video-timeline-internals.js';
 import {
 	mapVideoTimelineFrameToSource,
 	videoClipPlaybackRate,
 	videoSourceCoordinateRate,
 } from './video-source-time.ts';
-import {
-	DEFAULT_VIDEO_CLIP_COMPOSITION,
-	normalizeVideoClipComposition,
-} from './video-clip-composition.ts';
-import { resolveVideoRenderDescription } from './video-render-description.ts';
 import { createExactVideoPresentationMapping } from './video-exact-presentation.ts';
 import { resolveVideoSourceDisplaySize } from './video-source-presentation.ts';
 import { resolveVideoTransitionPreviewOpacity } from './video-transition-preview-opacity.js';
@@ -32,11 +43,23 @@ export {
 } from './video-source-time.ts';
 
 export { createVisibleVideoTrackPredicate, isVisibleVideoTrack } from './video-track-visibility.js';
-import { createVisibleVideoTrackPredicate } from './video-track-visibility.js';
 
-export function videoClipEndFrame(clip) {
-	return nonNegativeSafeInteger(clip?.timelineStartFrame, 'clip.timelineStartFrame')
-		+ positiveSafeInteger(clip?.durationFrames, 'clip.durationFrames');
+export { isProductVisualClip, videoClipEndFrame } from './video-timeline-internals.js';
+
+/**
+ * Project the raw document once, at the boundary, before any timing is read.
+ *
+ * `foundation-runtime-consumer-audit.ts` registers this file as an owned boundary, and the
+ * audit requires the projection to happen here rather than in a helper, so every entry
+ * point below demonstrably reads a projected project and never a raw one.
+ */
+function runtimeProject(project) {
+	const mediaProject = projectTrackFolderMediaStateV12(project);
+	if (isRuntimeProjectProjection(mediaProject)) return mediaProject;
+	return inheritTrackFolderMediaStateProjectionV12(
+		mediaProject,
+		resolveRuntimeProjectProjection(mediaProject),
+	);
 }
 
 /**
@@ -454,145 +477,4 @@ export function videoTimelineDurationFrames(project) {
 		durationFrames = Math.max(durationFrames, videoClipEndFrame(clip));
 	}
 	return durationFrames;
-}
-
-function runtimeProject(project) {
-	const mediaProject = projectTrackFolderMediaStateV12(project);
-	if (isRuntimeProjectProjection(mediaProject)) return mediaProject;
-	return inheritTrackFolderMediaStateProjectionV12(
-		mediaProject,
-		resolveRuntimeProjectProjection(mediaProject),
-	);
-}
-
-function videoTrackVisibility(project, requested) {
-	const visible = createVisibleVideoTrackPredicate(project?.tracks);
-	if (typeof requested !== 'function') return visible;
-	// An explicit predicate still replaces the default outright for a legacy project.
-	if (!isTrackFolderMediaStateProjectionV12(project)) return requested;
-	return (track) => visible(track) && requested(track);
-}
-
-function normalizeClipLookup(value) {
-	if (value instanceof Map) return value;
-	if (Array.isArray(value)) return new Map(value.map((clip) => [clip.id, clip]));
-	if (value && typeof value.get === 'function') return value;
-	throw new TypeError('clipById must be a clip map or array.');
-}
-
-function compareVideoClips(left, right) {
-	return left.timelineStartFrame - right.timelineStartFrame
-		|| videoClipEndFrame(left) - videoClipEndFrame(right)
-		|| compareCodeUnits(String(left.id), String(right.id));
-}
-
-function orderedVideoTrackClips(track, clipById) {
-	return track.clipIds.map((clipId) => clipById.get(clipId)).filter((clip) => (
-		!isProductVisualClip(clip)
-	)).sort(compareVideoClips);
-}
-
-export function isProductVisualClip(clip) {
-	return clip?.kind === 'still' || clip?.kind === 'generator' || clip?.kind === 'image';
-}
-
-function videoSourceForClip(sourceById, clip) {
-	const source = sourceById.get(clip.sourceId);
-	if (!source) throw new ReferenceError(`Video clip ${clip.id} references missing source ${clip.sourceId}.`);
-	if (source.kind !== 'video') {
-		throw new TypeError(`Video clip ${clip.id} references non-video source ${source.id}.`);
-	}
-	return source;
-}
-
-function videoTransition(track, outgoing, incoming) {
-	const authored = (Array.isArray(track?.videoTransitions) ? track.videoTransitions : []).find((transition) => (
-		transition?.outgoingClipId === outgoing.id && transition?.incomingClipId === incoming.id
-	));
-	return {
-		startFrame: incoming.timelineStartFrame,
-		endFrame: videoClipEndFrame(outgoing),
-		...(authored?.curve == null ? {} : { curve: authored.curve }),
-	};
-}
-
-function clipComposition(clip) {
-	return Object.hasOwn(clip, 'videoComposition')
-		? normalizeVideoClipComposition(clip.videoComposition, `clip ${clip.id}.videoComposition`)
-		: DEFAULT_VIDEO_CLIP_COMPOSITION;
-}
-
-function assertCompatibleVideoTransitionComposition(outgoing, incoming, trackId) {
-	const outgoingComposition = clipComposition(outgoing);
-	const incomingComposition = clipComposition(incoming);
-	if (outgoingComposition.blendMode !== incomingComposition.blendMode) {
-		throw new RangeError(
-			`A same-track transition on ${trackId} requires one blend mode across both clips.`,
-		);
-	}
-	if (outgoingComposition.compositingOrder !== incomingComposition.compositingOrder) {
-		throw new RangeError(
-			`A same-track transition on ${trackId} requires one compositing order across both clips.`,
-		);
-	}
-}
-
-function resolveClipRenderDescription(clip, source, renderCanvas, opacityStart, opacityEnd = opacityStart) {
-	const sourceDisplaySize = resolveVideoSourceDisplaySize(source);
-	if (!sourceDisplaySize) {
-		throw new RangeError(`Video source ${source.id} has no resolvable display size.`);
-	}
-	return resolveVideoRenderDescription({
-		composition: clipComposition(clip),
-		sourceDisplaySize,
-		canvas: renderCanvas,
-		opacityStart,
-		opacityEnd,
-	});
-}
-
-function sameVisual(segment, active) {
-	if (segment.kind !== active.kind) return false;
-	if (segment.kind === 'black') return segment.color === active.color;
-	return segment.clipId === active.clipId && segment.trackId === active.trackId;
-}
-
-function normalizeBlackColor(value) {
-	const color = String(value || '#000000').trim();
-	if (!color) throw new TypeError('blackColor must not be empty.');
-	return color;
-}
-
-function finiteNumber(value, name) {
-	const number = Number(value);
-	if (!Number.isFinite(number)) throw new RangeError(`${name} must be finite.`);
-	return number;
-}
-
-function nonNegativeFiniteNumber(value, name) {
-	const number = finiteNumber(value, name);
-	if (number < 0) throw new RangeError(`${name} must be non-negative.`);
-	return number;
-}
-
-function positiveFiniteNumber(value, name) {
-	const number = finiteNumber(value, name);
-	if (number <= 0) throw new RangeError(`${name} must be positive.`);
-	return number;
-}
-
-function nonNegativeSafeInteger(value, name) {
-	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number < 0) {
-		throw new RangeError(`${name} must be a non-negative safe integer.`);
-	}
-	return number;
-}
-
-function positiveSafeInteger(value, name) {
-	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number <= 0) {
-		throw new RangeError(`${name} must be a positive safe integer.`);
-	}
-	return number;
 }
