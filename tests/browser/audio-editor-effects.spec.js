@@ -463,7 +463,7 @@ import {
 		await expect(manager.locator('[data-macro-effect-stack]').getByRole('group', { name: 'Invert', exact: true })).toBeVisible();
 		await expect(manager.getByRole('button', { name: 'Disable effect', exact: true })).toHaveCount(0);
 
-		await manager.locator('input[type="file"]').setInputFiles({
+		await manager.locator('[data-macro-import-file]').setInputFiles({
 			name: 'browser-chain.txt',
 			mimeType: 'text/plain',
 			buffer: Buffer.from('Echo:Delay="0.4" Decay="0.65"\nInvert:\n'),
@@ -478,7 +478,7 @@ import {
 		await page.keyboard.press('ArrowDown');
 		await expect(manager.getByRole('group', { name: 'Invert', exact: true })).toBeFocused();
 
-		await manager.locator('input[type="file"]').setInputFiles({
+		await manager.locator('[data-macro-import-file]').setInputFiles({
 			name: 'oversized-chain.txt',
 			mimeType: 'text/plain',
 			buffer: Buffer.alloc((1024 * 1024) + 1, 0x49),
