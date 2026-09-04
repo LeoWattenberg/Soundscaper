@@ -56,20 +56,83 @@ test('pitch and tempo owns its own render and reset buttons', async () => {
 	try {
 		await fixture.render();
 
-		const card = fixture.pitchCard();
+		const actions = fixture.pitchCard().querySelectorAll('[data-clip-action]')
+			.map((hook) => hook.querySelector('button'));
 		assert.deepEqual(
-			card.querySelectorAll('button').map((button) => button.textContent),
+			actions.map((button) => button?.textContent),
 			[ENGLISH_COPY.render, ENGLISH_COPY.reset],
 		);
 		assert.equal(fixture.buttonLabels().includes(ENGLISH_COPY.renderPitchSpeed), false);
 		assert.equal(fixture.buttonLabels().includes(ENGLISH_COPY.resetPitchSpeed), false);
 
-		await fixture.click(card.querySelectorAll('button')[0]!);
-		await fixture.click(card.querySelectorAll('button')[1]!);
+		await fixture.click(actions[0]!);
+		await fixture.click(actions[1]!);
 		assert.deepEqual(fixture.calls, [
 			['renderPitchSpeed', 'shared-clip'],
 			['resetPitchSpeed', 'shared-clip'],
 		]);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
+test('the pitch unit toggle rereads the same shift as cents, semitones or percent', async () => {
+	const fixture = await mountedFixture({ pitchCents: 200 });
+	try {
+		await fixture.render();
+
+		assert.equal(fixture.pitchLabel(), ENGLISH_COPY.clipPitchCents);
+		assert.equal(fixture.pitchValue(), '200');
+
+		await fixture.choosePitchUnit(ENGLISH_COPY.clipPitchUnitSemitones);
+		assert.equal(fixture.pitchLabel(), ENGLISH_COPY.clipPitchSemitones);
+		assert.equal(fixture.pitchValue(), '2.00');
+
+		await fixture.choosePitchUnit(ENGLISH_COPY.clipPitchUnitPercent);
+		assert.equal(fixture.pitchLabel(), ENGLISH_COPY.clipPitchPercent);
+		assert.equal(fixture.pitchValue(), '12.25', 'two hundred cents raise the frequency by 12.25%');
+
+		await fixture.choosePitchUnit(ENGLISH_COPY.clipPitchUnitCents);
+		assert.equal(fixture.pitchLabel(), ENGLISH_COPY.clipPitchCents);
+		assert.equal(fixture.pitchValue(), '200', 'reading the shift back never rewrote it');
+		assert.deepEqual(fixture.timePitchCalls, []);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
+test('a pitch typed in the chosen unit commits the cents it asks for', async () => {
+	const fixture = await mountedFixture();
+	try {
+		await fixture.render();
+
+		await fixture.commitPitch('-7');
+		await fixture.choosePitchUnit(ENGLISH_COPY.clipPitchUnitSemitones);
+		await fixture.commitPitch('-7');
+		await fixture.choosePitchUnit(ENGLISH_COPY.clipPitchUnitPercent);
+		await fixture.commitPitch('100');
+		await fixture.commitPitch('-50');
+
+		assert.deepEqual(fixture.timePitchCalls, [
+			{ pitchCents: -7 },
+			{ pitchCents: -700 },
+			{ pitchCents: 1_200 },
+			{ pitchCents: -1_200 },
+		]);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
+test('a percentage that would silence the clip is refused rather than committed', async () => {
+	const fixture = await mountedFixture();
+	try {
+		await fixture.render();
+		await fixture.choosePitchUnit(ENGLISH_COPY.clipPitchUnitPercent);
+		await fixture.commitPitch('-100');
+
+		assert.deepEqual(fixture.timePitchCalls, []);
+		assert.equal(fixture.errorText(), ENGLISH_COPY.clipPitchRange);
 	} finally {
 		await fixture.cleanup();
 	}
@@ -95,6 +158,7 @@ async function mountedFixture(clipOverrides: Readonly<Record<string, unknown>> =
 	Object.defineProperty(globalThis, 'React', { configurable: true, value: React });
 	const currentProject = project(clipOverrides);
 	const calls: Array<[string, string]> = [];
+	const timePitchCalls: Array<Record<string, unknown>> = [];
 	const record = (name: string) => (clipId: string) => {
 		calls.push([name, clipId]);
 		return Promise.resolve(clipId);
@@ -106,7 +170,9 @@ async function mountedFixture(clipOverrides: Readonly<Record<string, unknown>> =
 				update: () => undefined,
 				move: () => undefined,
 				trim: () => undefined,
-				setTimePitch: () => undefined,
+				setTimePitch: (_clipId: string, changes: Record<string, unknown>) => {
+					timePitchCalls.push(changes);
+				},
 				toggleStretchToTempo: () => undefined,
 				reverse: record('reverse'),
 				invert: record('invert'),
@@ -130,8 +196,15 @@ async function mountedFixture(clipOverrides: Readonly<Record<string, unknown>> =
 		assert.ok(box, `Missing mounted ${field} checkbox.`);
 		return box;
 	};
+	const pitchField = () => dom.one('[data-clip-field="pitchCents"]');
+	const pitchInput = () => {
+		const input = pitchField().querySelector('input');
+		assert.ok(input, 'Missing mounted pitch input.');
+		return input;
+	};
 	return {
 		calls,
+		timePitchCalls,
 		click,
 		render: async () => {
 			await act(async () => root.render(<ClipPropertiesDialog
@@ -156,6 +229,34 @@ async function mountedFixture(clipOverrides: Readonly<Record<string, unknown>> =
 		},
 		toggleState: (field: string) => checkbox(field).getAttribute('aria-checked'),
 		toggle: (field: string) => click(checkbox(field)),
+		errorText: () => dom.find('.audio-editor-field-error')?.textContent ?? '',
+		pitchLabel: () => pitchField().querySelectorAll('span')[0]?.textContent ?? '',
+		pitchValue: () => pitchInput().value,
+		commitPitch: async (typed: string) => {
+			const input = pitchInput();
+			await act(async () => {
+				reactProps(input).onChange({ target: { value: typed } });
+				await Promise.resolve();
+			});
+			await act(async () => {
+				reactProps(pitchInput()).onBlur();
+				await Promise.resolve();
+			});
+		},
+		choosePitchUnit: async (optionLabel: string) => {
+			const trigger = dom.one('[data-clip-pitch-unit]').querySelector('button');
+			assert.ok(trigger, 'Missing mounted pitch unit trigger.');
+			Object.defineProperty(trigger, 'getBoundingClientRect', {
+				configurable: true,
+				value: () => ({ bottom: 28, left: 0, width: 240 }),
+			});
+			await click(trigger);
+			const option = descendants(document.body as unknown as ReactTestElement).find((candidate) => (
+				candidate.getAttribute('role') === 'option' && candidate.textContent === optionLabel
+			));
+			assert.ok(option, `Missing mounted pitch unit option ${optionLabel}.`);
+			await click(option);
+		},
 		cleanup: async () => {
 			await act(async () => root.unmount());
 			actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
@@ -182,4 +283,10 @@ function project(clipOverrides: Readonly<Record<string, unknown>>) {
 		sources: [source], clips: [clip],
 		tracks: [createAudioTrack({ id: 'shared-track', name: 'Track', clipIds: [clip.id] })],
 	});
+}
+
+
+function descendants(root: ReactTestElement): ReactTestElement[] {
+	const children = root.childNodes.filter((node): node is ReactTestElement => 'tagName' in node);
+	return children.flatMap((child) => [child, ...descendants(child)]);
 }

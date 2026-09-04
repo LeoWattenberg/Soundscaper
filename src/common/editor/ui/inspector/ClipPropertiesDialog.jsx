@@ -5,10 +5,14 @@ import { AUDIO_EDITOR_SAMPLE_RATE, findClip, findClipTrack, findSource } from '.
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
-import { ActionHook, CommitField, DesignCheckbox } from './inspector-controls.jsx';
+import { ActionHook, CommitField, DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
 import ClipResampleDialog from './ClipResampleDialog.jsx';
 import { VideoEffectRack } from './VideoEffectRack.jsx';
 import {
+	clipPitchInUnit,
+	clipPitchUnitFieldLabel,
+	clipPitchUnitOptions,
+	clipPitchUnitToCents,
 	dbToLinear,
 	linearToDb,
 	nonNegativeFrame,
@@ -57,6 +61,11 @@ function ClipProperties({ controller, snapshot, copy }) {
 	const isVideoClip = clip?.kind === 'video';
 	const [error, setError] = useState('');
 	const [resampleOpen, setResampleOpen] = useState(false);
+	// A pitch shift is stored in cents, but musicians reach for semitones and
+	// sound designers for a percentage of the original frequency. The unit is a
+	// reading of the same stored value, so it is remembered for the dialog
+	// rather than written to the clip.
+	const [pitchUnit, setPitchUnit] = useState('cents');
 	const projectIdentity = project?.id ?? null;
 	const clipIdentity = clip?.id ?? null;
 	const currentTarget = useRef({ projectIdentity, clipIdentity });
@@ -107,7 +116,8 @@ function ClipProperties({ controller, snapshot, copy }) {
 					: secondsInputToFrames(rawValue, copy, sampleRate));
 				controller.actions.clip.update(clip.id, { [field]: frames });
 			} else if (name === 'pitchCents') {
-				controller.actions.clip.setTimePitch(clip.id, { pitchCents: Number(rawValue) });
+				const pitchCents = clipPitchUnitToCents(rawValue, pitchUnit, copy);
+				controller.actions.clip.setTimePitch(clip.id, { pitchCents });
 			} else if (name === 'speedRatio') {
 				controller.actions.clip.setTimePitch(clip.id, { speedRatio: Number(rawValue) });
 			}
@@ -203,7 +213,10 @@ function ClipProperties({ controller, snapshot, copy }) {
 				{!isVideoClip && snapshot.capabilities?.audioEffects && <section className="audio-editor-clip-properties__card">
 					<h3>{copy.pitchTempo}</h3>
 					<div className="audio-editor-clip-properties__stack">
-						<CommitField label={copy.clipPitchCents} name="pitchCents" value={clip?.pitchCents ?? 0} type="number" disabled={disabled} onCommit={commitField} />
+						<LabeledDropdown label={copy.clipPitchUnit} hook="clip-pitch-unit" options={clipPitchUnitOptions(copy)} value={pitchUnit} disabled={disabled} onChange={setPitchUnit} />
+						{/* Remounting on a unit change drops any half-typed draft, which
+						    would otherwise be read as a figure in the newly chosen unit. */}
+						<CommitField key={pitchUnit} label={clipPitchUnitFieldLabel(copy, pitchUnit)} name="pitchCents" value={clipPitchInUnit(clip?.pitchCents ?? 0, pitchUnit)} type="number" disabled={disabled} onCommit={commitField} />
 						<CommitField label={copy.clipSpeedRatio} name="speedRatio" value={clip?.speedRatio ?? 1} type="number" disabled={disabled} onCommit={commitField} />
 						<div data-clip-field="preserveFormants"><DesignCheckbox label={copy.preserveFormants} checked={Boolean(clip?.preserveFormants)} disabled={disabled} onChange={(checked) => controller.actions.clip.setTimePitch(clip.id, { preserveFormants: checked })} /></div>
 						<div data-clip-field="stretchToTempo"><DesignCheckbox label={copy.stretchToTempo} checked={Boolean(clip?.stretchToTempo)} disabled={disabled} onChange={() => controller.actions.clip.toggleStretchToTempo(clip.id)} /></div>

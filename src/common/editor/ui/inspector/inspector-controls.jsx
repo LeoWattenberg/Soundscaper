@@ -147,6 +147,7 @@ function dropdownDataHook(hook) {
 	if (['output', 'mode', 'range', 'format', 'bitDepth', 'quality', 'sampleRate', 'channelMapping', 'dither', 'loudnessNormalization'].includes(hook)) {
 		return { 'data-export-field': hook };
 	}
+	if (hook === 'clip-pitch-unit') return { 'data-clip-pitch-unit': '' };
 	if (hook === 'effect-type') return { 'data-effect-type': '' };
 	if (hook === 'audacity-effect-type') return { 'data-audacity-effect-type': '' };
 	if (hook === 'video-effect-picker') return { 'data-video-effect-picker': '' };
