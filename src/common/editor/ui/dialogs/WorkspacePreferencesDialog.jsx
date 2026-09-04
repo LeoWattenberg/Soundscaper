@@ -66,8 +66,9 @@ export default function WorkspacePreferencesDialog({
 	)), [copy, locale, menus, productId]);
 	const visibleCommands = commands.filter((command) => `${command.label} ${command.id}`.toLowerCase().includes(shortcutSearch.trim().toLowerCase()));
 	const activeCustom = preferences.workspace.custom.find((workspace) => workspace.id === preferences.workspace.activeId);
-	// Audacity's own page order, with the two pages it has no counterpart for —
-	// the workspace presets and the panel inventory — kept after Shortcuts.
+	// Audacity's own page order, with the one page it has no counterpart for —
+	// Workspace, holding both the presets and the panel inventory — kept after
+	// Shortcuts.
 	const pages = [
 		{ id: 'general', label: copy.metadataGeneralTab, icon: iconNameToChar('SETTINGS_COG') },
 		{ id: 'appearance', label: copy.appearance, icon: iconNameToChar('BRUSH') },
@@ -78,7 +79,6 @@ export default function WorkspacePreferencesDialog({
 		{ id: 'effects', label: copy.preferencesEffects, icon: iconNameToChar('WAVEFORM') },
 		{ id: 'shortcuts', label: copy.shortcuts, icon: iconNameToChar('SHORTCUTS') },
 		{ id: 'workspace', label: copy.workspace, icon: iconNameToChar('WORKSPACE') },
-		{ id: 'panels', label: copy.panels, icon: iconNameToChar('SPLIT_VIEW_VERTICAL') },
 	];
 	const selectedPageLabel = pages.find((page) => page.id === selectedPage)?.label || copy.preferencesTitle;
 	const appearanceTheme = preferences.appearance.theme;
@@ -271,6 +271,7 @@ export default function WorkspacePreferencesDialog({
 						)}
 
 						{selectedPage === 'workspace' && (
+							<>
 							<PreferencePanel title={copy.workspace}>
 								<PreferenceDropdownField
 									label={copy.workspacePreset}
@@ -300,6 +301,38 @@ export default function WorkspacePreferencesDialog({
 									<Button variant="secondary" disabled={!activeCustom} onClick={() => run(() => controller.actions.preferences.deleteWorkspace(activeCustom.id))}>{copy.workspaceDelete}</Button>
 								</div>
 							</PreferencePanel>
+							<Separator />
+							<PreferencePanel title={copy.panels}>
+								<div className="kw-audio-editor-preferences__panel-list">
+									{WORKSPACE_DISCOVERABLE_PANEL_IDS.filter((panelId) => workspacePanelAvailable(productId, panelId)).map((panelId) => {
+										const panel = preferences.workspace.panels[panelId];
+										const label = workspacePanelLabel(copy, panelId);
+										return (
+											<div key={panelId}>
+												<PreferenceCheckbox
+													label={label}
+													checked={isPanelVisible ? isPanelVisible(panelId) : panel.visible}
+													onChange={() => (
+														onTogglePanel
+															? onTogglePanel(panelId)
+															: run(() => controller.actions.preferences.togglePanel(panelId))
+													)}
+												/>
+												<PreferenceDropdownField
+													label={`${label}: ${copy.panelDock}`}
+													visuallyHiddenLabel
+													value={panel.dock}
+													onChange={(value) => run(() => controller.actions.preferences.movePanel(panelId, {
+														kind: 'dock', dock: value, groupIndex: Number.MAX_SAFE_INTEGER,
+													}))}
+													options={WORKSPACE_DOCK_IDS.map((dockId) => ({ value: dockId, label: workspaceDockLabel(copy, dockId) }))}
+												/>
+											</div>
+										);
+									})}
+								</div>
+							</PreferencePanel>
+							</>
 						)}
 
 						{selectedPage === 'spectrogram' && (
@@ -388,39 +421,6 @@ export default function WorkspacePreferencesDialog({
 								copy={copy}
 								run={run}
 							/>
-						)}
-
-						{selectedPage === 'panels' && (
-							<PreferencePanel title={copy.panels}>
-								<div className="kw-audio-editor-preferences__panel-list">
-									{WORKSPACE_DISCOVERABLE_PANEL_IDS.filter((panelId) => workspacePanelAvailable(productId, panelId)).map((panelId) => {
-										const panel = preferences.workspace.panels[panelId];
-										const label = workspacePanelLabel(copy, panelId);
-										return (
-											<div key={panelId}>
-												<PreferenceCheckbox
-													label={label}
-													checked={isPanelVisible ? isPanelVisible(panelId) : panel.visible}
-													onChange={() => (
-														onTogglePanel
-															? onTogglePanel(panelId)
-															: run(() => controller.actions.preferences.togglePanel(panelId))
-													)}
-												/>
-												<PreferenceDropdownField
-													label={`${label}: ${copy.panelDock}`}
-													visuallyHiddenLabel
-													value={panel.dock}
-													onChange={(value) => run(() => controller.actions.preferences.movePanel(panelId, {
-														kind: 'dock', dock: value, groupIndex: Number.MAX_SAFE_INTEGER,
-													}))}
-													options={WORKSPACE_DOCK_IDS.map((dockId) => ({ value: dockId, label: workspaceDockLabel(copy, dockId) }))}
-												/>
-											</div>
-										);
-									})}
-								</div>
-							</PreferencePanel>
 						)}
 
 						{selectedPage === 'shortcuts' && (

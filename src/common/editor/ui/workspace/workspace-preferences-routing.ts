@@ -8,7 +8,6 @@ const PREFERENCE_PAGES = new Set([
 	'editing',
 	'effects',
 	'workspace',
-	'panels',
 	'shortcuts',
 	'spectrogram',
 	'sound-activation',
@@ -25,5 +24,6 @@ export function workspacePreferencesPage(requestedSection: unknown): string {
 		return requestedSection;
 	}
 	if (requestedSection === 'snap') return 'editing';
+	if (requestedSection === 'panels') return 'workspace';
 	return 'general';
 }
