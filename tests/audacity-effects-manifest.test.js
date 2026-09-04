@@ -95,6 +95,10 @@ test('Audacity labels suffix only collisions and provide German names', () => {
 	assert.equal(audacityEffectLabel('audacity-bass-treble', 'de'), 'Bass und Höhen');
 	assert.equal(AUDACITY_EFFECT_DEFINITIONS['audacity-compressor'].collision, true);
 	assert.equal(AUDACITY_EFFECT_DEFINITIONS['audacity-limiter'].collision, true);
+	// The Macro Manager lists the rack and the offline effects together, so
+	// Audacity's Reverb sits beside Soundscaper's own and needs the suffix too.
+	assert.equal(audacityEffectLabel('audacity-reverb'), 'Reverb (Audacity)');
+	assert.equal(AUDACITY_EFFECT_DEFINITIONS['audacity-reverb'].collision, true);
 	assert.equal(AUDACITY_EFFECT_DEFINITIONS['audacity-reverse'].collision, undefined);
 	assert.equal(AUDACITY_EFFECT_DEFINITIONS['audacity-compressor'].label, undefined);
 	assert.equal(AUDACITY_EFFECT_DEFINITIONS['audacity-compressor'].labelKey, 'effectNameAudacityCompressor');

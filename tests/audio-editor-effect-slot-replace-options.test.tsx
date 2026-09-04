@@ -5,15 +5,23 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { EFFECT_REGISTRY } from '@audacity-ui/core';
+import { effectMacroStepTypes } from '../src/common/editor/effect-macro-steps.ts';
 import { audioEffectTypes } from '../src/common/editor/effects.js';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import { resolveSupportedEffectType, safeEffectLabel } from '../src/common/editor/ui/inspector/effect-helpers.ts';
 
 const ROOT = new URL('../', import.meta.url);
 const EFFECT_SLOT = new URL('vendor/audacity-design-system/components/src/EffectsPanel/EffectSlot.tsx', ROOT);
+// The rack swaps within what it can stream; a macro step may be any effect.
 const CALL_SITES = [
-	'src/common/editor/ui/inspector/AudioEditorEffectsOverlay.jsx',
-	'src/common/editor/ui/inspector/AudioEditorMacroManagerDialog.jsx',
+	{
+		path: 'src/common/editor/ui/inspector/AudioEditorEffectsOverlay.jsx',
+		registry: 'audioEffectTypes()',
+	},
+	{
+		path: 'src/common/editor/ui/inspector/AudioEditorMacroManagerDialog.jsx',
+		registry: 'macroEffectTypes',
+	},
 ];
 
 // The design-system package ships a three-effect sample registry. Rendering the
@@ -36,11 +44,13 @@ test('the effect slot takes its swap list from the host when one is supplied', a
 });
 
 test('both effect-slot call sites offer the whole Soundscaper registry', async () => {
-	for (const path of CALL_SITES) {
+	for (const { path, registry } of CALL_SITES) {
 		const source = await readFile(new URL(path, ROOT), 'utf8');
 		assert.match(
 			source,
-			/replaceEffectOptions\s*=\s*useMemo\(\s*\n?\s*\(\)\s*=>\s*audioEffectTypes\(\)/u,
+			new RegExp(`replaceEffectOptions\\s*=\\s*useMemo\\(\\s*\\n?\\s*\\(\\)\\s*=>\\s*${
+				registry.replace(/[()]/gu, '\\$&')
+			}`, 'u'),
 			`${path} must build the swap list from the effect registry`,
 		);
 		assert.match(
@@ -52,18 +62,24 @@ test('both effect-slot call sites offer the whole Soundscaper registry', async (
 });
 
 test('every offered replacement resolves back to a real effect type', () => {
-	const options = audioEffectTypes().map((type: string) => ({
-		id: type,
-		name: safeEffectLabel(type, ENGLISH_COPY),
-	}));
 	const packaged = Object.values(EFFECT_REGISTRY).flat();
+	const registries: ReadonlyArray<readonly [string, readonly string[]]> = [
+		['rack', audioEffectTypes() as readonly string[]],
+		['macro', effectMacroStepTypes()],
+	];
 
-	assert.ok(options.length > packaged.length * 3, 'the host registry dwarfs the packaged sample set');
-	for (const { id, name } of options) {
-		assert.equal(
-			resolveSupportedEffectType(name, 'en', ENGLISH_COPY),
-			id,
-			`the label the menu shows for ${id} must map back to it when picked`,
-		);
+	for (const [name, types] of registries) {
+		assert.ok(types.length > packaged.length * 3, `the ${name} registry dwarfs the packaged sample set`);
+		// A duplicate label would resolve to whichever effect is listed first,
+		// silently swapping the step for a different effect.
+		const labels = types.map((type) => safeEffectLabel(type, ENGLISH_COPY));
+		assert.equal(new Set(labels).size, labels.length, `${name} labels must be unique`);
+		for (const type of types) {
+			assert.equal(
+				resolveSupportedEffectType(safeEffectLabel(type, ENGLISH_COPY), 'en', ENGLISH_COPY, types),
+				type,
+				`the label the menu shows for ${type} must map back to it when picked`,
+			);
+		}
 	}
 });

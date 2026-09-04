@@ -99,10 +99,15 @@ export function effectHasEditableSettings(type: string): boolean {
 	));
 }
 
-export function resolveSupportedEffectType(candidate: unknown, locale: string | undefined, copy: Copy): string | null {
+export function resolveSupportedEffectType(
+	candidate: unknown,
+	locale: string | undefined,
+	copy: Copy,
+	types: readonly string[] = audioEffectTypes() as readonly string[],
+): string | null {
 	const normalizedLocale = normalizeBcp47Locale(locale);
 	const normalized = String(candidate || '').trim().toLocaleLowerCase(normalizedLocale);
-	return audioEffectTypes().find((type) => {
+	return types.find((type) => {
 		const labels = [type, safeEffectLabel(type, copy), safeEffectLabel(type, 'en'), safeEffectLabel(type, 'de')];
 		return labels.some((label) => label.trim().toLocaleLowerCase(normalizedLocale) === normalized);
 	}) || null;

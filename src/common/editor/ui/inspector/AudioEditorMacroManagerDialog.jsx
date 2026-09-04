@@ -3,7 +3,7 @@ import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { Icon } from '@soundscaper/design-system/Icon';
 import { TextInput } from '@soundscaper/design-system/TextInput';
-import { audioEffectTypes, createEffect } from '../../effects.js';
+import { createEffectMacroStep, effectMacroStepTypes } from '../../effect-macro-steps.ts';
 import { parseAudacityEffectMacro, serializeAudacityEffectMacro } from '../../effect-macros.js';
 import {
 	createEffectMacroTemplateDraft,
@@ -41,11 +41,14 @@ export function AudioEditorMacroManagerDialog({
 	const library = controller.actions.macros.library;
 	const macros = snapshot.macros?.library || EMPTY_MACROS;
 	const effects = draft?.effects || EMPTY_EFFECTS;
+	// A macro runs its steps over the selection, so it offers every effect the
+	// editor has rather than only the ones the realtime rack can stream.
+	const macroEffectTypes = useMemo(() => effectMacroStepTypes(), []);
 	// The caret menu swaps through Soundscaper's registry, not the sample set
 	// the design-system package ships with.
 	const replaceEffectOptions = useMemo(
-		() => audioEffectTypes().map((type) => ({ id: type, name: safeEffectLabel(type, copy) })),
-		[copy],
+		() => macroEffectTypes.map((type) => ({ id: type, name: safeEffectLabel(type, copy) })),
+		[copy, macroEffectTypes],
 	);
 	const templateCopy = resolveEffectMacroTemplateCopy(locale);
 	const blocked = selectAudioEditorEditBlock(snapshot).blocked;
@@ -181,7 +184,7 @@ export function AudioEditorMacroManagerDialog({
 			...(effect.context !== undefined ? { context: effect.context } : {}),
 			...(effect.state !== undefined ? { state: effect.state } : {}),
 		};
-		return createEffect(type, {
+		return createEffectMacroStep(type, {
 			id: effect.id,
 			enabled: true,
 			...preservedMetadata,
@@ -204,7 +207,7 @@ export function AudioEditorMacroManagerDialog({
 				throw new Error(copy.audacitySelectionHint || copy.rackNoiseProfileMissing);
 			}
 			setEffects((current) => current.map((effect) => effect.id === effectId
-				? createEffect(effect.type, {
+				? createEffectMacroStep(effect.type, {
 					id: effect.id,
 					enabled: true,
 					params: effect.params,
@@ -223,7 +226,7 @@ export function AudioEditorMacroManagerDialog({
 		}
 	};
 	const replaceFromRegistry = (effectId, candidate) => {
-		const type = resolveSupportedEffectType(candidate, locale, copy);
+		const type = resolveSupportedEffectType(candidate, locale, copy, macroEffectTypes);
 		if (!type) {
 			showMessage(copy.effectEngineUnsupported, 'error');
 			return;
@@ -231,7 +234,7 @@ export function AudioEditorMacroManagerDialog({
 		changeEffectType(effectId, type);
 	};
 	const changeEffectType = (effectId, type) => {
-		const replacement = createEffect(type, { id: effectId });
+		const replacement = createEffectMacroStep(type, { id: effectId });
 		updateEffect(effectId, { type, params: replacement.params });
 	};
 	const importMacro = async (file) => {
@@ -345,8 +348,9 @@ export function AudioEditorMacroManagerDialog({
 							<MacroManagerStepList
 								copy={copy}
 								effects={effects}
+								effectTypes={macroEffectTypes}
 								replaceEffectOptions={replaceEffectOptions}
-								onAddEffect={(type) => setEffects((current) => [...current, createEffect(type)])}
+								onAddEffect={(type) => setEffects((current) => [...current, createEffectMacroStep(type)])}
 								onChangeEffect={changeEffectType}
 								onRemoveEffect={(effectId) => setEffects((current) => current.filter((effect) => effect.id !== effectId))}
 								onReorderEffect={(fromIndex, toIndex) => setEffects((current) => {

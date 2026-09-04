@@ -219,6 +219,33 @@ test('Add effect sits after the last step and opens the rack flyout rather than 
 	}
 });
 
+test('the picker offers the offline effects a macro runs, not only the rack', async () => {
+	const fixture = await mountedMacroManagerFixture();
+	try {
+		await fixture.render(macroSnapshot('project-a'));
+		await click(fixture.addEffect());
+		const offered = fixture.menuItems();
+		assert.ok(offered.includes('Compressor'), 'the realtime rack effects stay on offer');
+		for (const name of ['Amplify', 'Normalize', 'Fade In', 'Change Pitch', 'Truncate Silence']) {
+			assert.ok(offered.includes(name), `${name} must be offered as a macro step`);
+		}
+
+		await click(fixture.menuItem('Normalize'));
+		assert.deepEqual(fixture.effectNames(), ['Invert', 'Normalize']);
+		assert.deepEqual(
+			fixture.library()[0]!.effects.map(({ type }) => type),
+			['audacity-invert', 'audacity-normalize'],
+			'an offline step must reach the saved macro',
+		);
+
+		await click(fixture.selectEffect('Normalize'));
+		assert.match(fixture.text(), /Peak amplitude/u, 'an offline step opens its own settings');
+	} finally {
+		fixture.settlePending();
+		await fixture.cleanup();
+	}
+});
+
 test('a failed Restoration profile capture stays gated and reports the failure in the dialog', async () => {
 	const fixture = await mountedMacroManagerFixture({ id: 'macro-initial', name: ENGLISH_COPY.untitledMacro, effects: [] });
 	try {
@@ -465,6 +492,7 @@ async function mountedMacroManagerFixture(initialDraft: MacroEntry = {
 			assert.ok(entry, `Missing ${name} in the macro list.`);
 			return entry;
 		},
+		menuItems: () => dom.container.querySelectorAll('[role="menuitem"]').map(({ textContent }) => textContent),
 		menuItem: (name: string) => {
 			const item = dom.container.querySelectorAll('[role="menuitem"]').find((candidate) => (
 				candidate.textContent === name

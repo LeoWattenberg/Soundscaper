@@ -124,7 +124,7 @@ export const AUDACITY_EFFECT_COPY_ENTRIES = Object.freeze([
 	["effectNameAudacityRepair","Repair","Reparieren"],
 	["effectNameAudacityRemoveDcOffset","Remove DC Offset","Gleichspannungsversatz entfernen"],
 	["effectParamAudacityTruncateSilenceIndependent","Truncate tracks independently","Spuren unabhängig kürzen"],
-	["effectNameAudacityReverb","Reverb","Hall"],
+	["effectNameAudacityReverb","Reverb (Audacity)","Hall (Audacity)"],
 	["effectParamAudacityReverbRoomSize","Room size","Raumgröße"],
 	["effectParamAudacityReverbPreDelay","Pre-delay","Vorverzögerung"],
 	["effectParamAudacityReverbReverberance","Reverberance","Halligkeit"],

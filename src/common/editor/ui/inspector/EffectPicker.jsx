@@ -8,8 +8,14 @@ import { useAudioEditorThemeVariables } from '../DesignSystemRuntime.jsx';
 import { LabeledDropdown } from './inspector-controls.jsx';
 import { safeEffectLabel } from './effect-helpers.ts';
 
-export default function EffectPicker({ copy, disabled, flyout = false, anchor = null, onClose, onChoose }) {
-	const types = useMemo(() => audioEffectTypes(), []);
+/**
+ * The effects a chain may hold. The rack picker offers what the rack can
+ * stream; the Macro Manager passes the wider set a macro step accepts.
+ */
+export default function EffectPicker({
+	copy, disabled, flyout = false, anchor = null, effectTypes = null, onClose, onChoose,
+}) {
+	const types = useMemo(() => effectTypes || audioEffectTypes(), [effectTypes]);
 	const themeVariables = useAudioEditorThemeVariables();
 	const triggerRef = useRef(anchor);
 	const [type, setType] = useState(types[0] || '');

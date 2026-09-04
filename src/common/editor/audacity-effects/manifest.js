@@ -350,6 +350,7 @@ const definitions = {
 	'audacity-reverb': {
 		category: 'delay',
 		browserAdaptation: 'schroeder',
+		collision: true,
 		params: {
 			roomSize: number(75, 0, 100, { unit: '%', step: 1 }),
 			preDelay: number(10, 0, 200, { unit: 'ms', step: 1 }),

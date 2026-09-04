@@ -12,12 +12,14 @@ import { safeEffectLabel } from './effect-helpers.ts';
  *
  * "Add effect" sits after the last step rather than in a footer, so the list
  * reads as the chain it is and grows where the eye already is. It opens the
- * same flyout the realtime effect rack uses; swapping an existing step keeps
- * the dialog picker, which stays anchored to the step it replaces.
+ * same flyout the realtime effect rack uses, over every effect a macro step
+ * can hold rather than the rack's own shorter list; swapping an existing step
+ * keeps the dialog picker, which stays anchored to the step it replaces.
  */
 export default function MacroManagerStepList({
 	copy,
 	effects,
+	effectTypes,
 	replaceEffectOptions,
 	onAddEffect,
 	onChangeEffect,
@@ -105,6 +107,7 @@ export default function MacroManagerStepList({
 				<EffectPicker
 					copy={copy}
 					disabled={false}
+					effectTypes={effectTypes}
 					flyout={!picker.replaceId}
 					anchor={picker.anchor}
 					onClose={() => setPicker(null)}

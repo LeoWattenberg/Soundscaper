@@ -50,8 +50,8 @@ Audio effects are registered by Soundscaper. Effects whose ID begins with `audac
 | Remove DC Offset | `audacity-remove-dc-offset` | Noise and repair | No | Yes | — |
 | Repair | `audacity-repair` | Noise and repair | No | Yes | Needs audio on either side of the selection |
 | Repeat | `audacity-repeat` | Special | No | Yes | Changes the selection length |
-| Reverb | `audacity-reverb` | Delay and reverb | No | Yes | Browser build uses a Schroeder reverb network |
 | Reverb | `reverb` | Delay and reverb | Yes | No | — |
+| Reverb (Audacity) | `audacity-reverb` | Delay and reverb | No | Yes | Browser build uses a Schroeder reverb network |
 | Reverse | `audacity-reverse` | Special | No | Yes | — |
 | Sliding Stretch | `audacity-sliding-stretch` | Pitch and tempo | No | Yes | Changes the selection length; Uses the StaffPad time and pitch library |
 | Truncate Silence | `audacity-truncate-silence` | Special | No | Yes | Changes the selection length |
@@ -77,7 +77,7 @@ These effects cannot be a realtime insert, because each one needs more of the se
 | Remove DC Offset | `audacity-remove-dc-offset` | This effect requires render-ahead selection processing. |
 | Repair | `audacity-repair` | Repair requires an explicitly marked short damaged selection and surrounding context. |
 | Repeat | `audacity-repeat` | The effect changes duration and cannot be a one-in/one-out insert. |
-| Reverb | `audacity-reverb` | This effect requires render-ahead selection processing. |
+| Reverb (Audacity) | `audacity-reverb` | This effect requires render-ahead selection processing. |
 | Reverse | `audacity-reverse` | The first output sample depends on the end of the complete selection. |
 | Sliding Stretch | `audacity-sliding-stretch` | This effect requires render-ahead selection processing. |
 | Truncate Silence | `audacity-truncate-silence` | The effect removes time and cannot be a one-in/one-out insert. |
@@ -200,19 +200,19 @@ Defaults and limits come from the same definitions the editor validates against,
 | Phaser | `audacity-phaser` | Feedback | 0 | -100 to 100 | % |
 | Phaser | `audacity-phaser` | Output gain | -6 | -30 to 30 | dB |
 | Repeat | `audacity-repeat` | Number of repeats | 1 | 1 to 2147483647 | — |
-| Reverb | `audacity-reverb` | Room size | 75 | 0 to 100 | % |
-| Reverb | `audacity-reverb` | Pre-delay | 10 | 0 to 200 | ms |
-| Reverb | `audacity-reverb` | Reverberance | 50 | 0 to 100 | % |
-| Reverb | `audacity-reverb` | Damping | 50 | 0 to 100 | % |
-| Reverb | `audacity-reverb` | Tone low | 100 | 0 to 100 | % |
-| Reverb | `audacity-reverb` | Tone high | 100 | 0 to 100 | % |
-| Reverb | `audacity-reverb` | Wet gain | -6 | -60 to 12 | dB |
-| Reverb | `audacity-reverb` | Dry gain | 0 | -60 to 12 | dB |
-| Reverb | `audacity-reverb` | Stereo width | 100 | 0 to 100 | % |
-| Reverb | `audacity-reverb` | Wet only | Off | On or off | — |
 | Reverb | `reverb` | Mix | 0.2 | 0 to 1 | ratio |
 | Reverb | `reverb` | Decay | 2 | 0.1 to 10 | s |
 | Reverb | `reverb` | Pre-delay | 0.01 | 0 to 1 | s |
+| Reverb (Audacity) | `audacity-reverb` | Room size | 75 | 0 to 100 | % |
+| Reverb (Audacity) | `audacity-reverb` | Pre-delay | 10 | 0 to 200 | ms |
+| Reverb (Audacity) | `audacity-reverb` | Reverberance | 50 | 0 to 100 | % |
+| Reverb (Audacity) | `audacity-reverb` | Damping | 50 | 0 to 100 | % |
+| Reverb (Audacity) | `audacity-reverb` | Tone low | 100 | 0 to 100 | % |
+| Reverb (Audacity) | `audacity-reverb` | Tone high | 100 | 0 to 100 | % |
+| Reverb (Audacity) | `audacity-reverb` | Wet gain | -6 | -60 to 12 | dB |
+| Reverb (Audacity) | `audacity-reverb` | Dry gain | 0 | -60 to 12 | dB |
+| Reverb (Audacity) | `audacity-reverb` | Stereo width | 100 | 0 to 100 | % |
+| Reverb (Audacity) | `audacity-reverb` | Wet only | Off | On or off | — |
 | Sliding Stretch | `audacity-sliding-stretch` | Initial tempo change | 0 | -50 to 100 | % |
 | Sliding Stretch | `audacity-sliding-stretch` | Final tempo change | 0 | -50 to 100 | % |
 | Sliding Stretch | `audacity-sliding-stretch` | Initial pitch shift | 0 | -12 to 12 | st |
@@ -243,4 +243,4 @@ These effects arrive with the presets Audacity ships, transcribed from Audacity 
 | Filter Curve EQ | `audacity-filter-curve-eq` | 100Hz Rumble; AM Radio; Bass Boost; Bass Cut; Low rolloff for speech; RIAA; Telephone; Treble Boost; Treble Cut; Walkie-talkie |
 | Graphic EQ | `audacity-graphic-eq` | Bass Boost; Bass Cut; RIAA; Treble Boost; Treble Cut |
 | Limiter (Audacity) | `audacity-limiter` | Master Limiter; SFX Limiter; VO Limiter; Modern; Modern Punch; Modern Punch 2; Play it Loud |
-| Reverb | `audacity-reverb` | Acoustic; Ambience; Artificial; Clean; Modern; Vocal I; Vocal II; Dance Vocal; Modern Vocal; Voice Tail; Bathroom; Small Room Bright; Small Room Dark; Medium Room; Large Room; Church Hall; Cathedral; Big Cave |
+| Reverb (Audacity) | `audacity-reverb` | Acoustic; Ambience; Artificial; Clean; Modern; Vocal I; Vocal II; Dance Vocal; Modern Vocal; Voice Tail; Bathroom; Small Room Bright; Small Room Dark; Medium Room; Large Room; Church Hall; Cathedral; Big Cave |
