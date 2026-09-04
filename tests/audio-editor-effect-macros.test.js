@@ -241,14 +241,13 @@ test('import handles BOM, CRLF, blank lines, decimal commas, aliases, and ignore
 	const parsed = parseAudacityEffectMacro(text, {
 		idFactory: (_prefix, index) => `imported-${index}`,
 	});
-	assert.deepEqual(parsed.effects.map(({ id, type }) => ({ id, type })), [
-		{ id: 'imported-0', type: 'audacity-echo' },
-		{ id: 'imported-1', type: 'audacity-classic-filters' },
-	]);
-	assert.equal(parsed.effects[0].params.delaySeconds, 0.25);
-	assert.equal(parsed.effects[0].params.decay, 0.4);
-	assert.equal(parsed.effects[1].params.cutoffHz, 1_200);
-	assert.deepEqual(parsed.ignoredCommands, ['SelectAll', 'ExportWav']);
+	// SelectAll is a step now; ExportWav still is not, and is still reported.
+	assert.deepEqual(parsed.effects.map((step) => step.command ?? step.type),
+		['SelectAll', 'audacity-echo', 'audacity-classic-filters', 'SelectAll']);
+	assert.equal(parsed.effects[1].params.delaySeconds, 0.25);
+	assert.equal(parsed.effects[1].params.decay, 0.4);
+	assert.equal(parsed.effects[2].params.cutoffHz, 1_200);
+	assert.deepEqual(parsed.ignoredCommands, ['ExportWav']);
 	assert.ok(Object.isFrozen(parsed));
 	assert.ok(Object.isFrozen(parsed.effects));
 	assert.ok(Object.isFrozen(parsed.effects[0]));
@@ -297,7 +296,7 @@ test('supported malformed lines reject the whole import before IDs are allocated
 		'',
 		'SoundscaperEffect:Type="highpass" Params="{\\"frequency\\":\\"bad\\nvalue\\"}"',
 	].join('\n')), /^SyntaxError: Invalid effect macro line 3:/u);
-	assert.throws(() => parseAudacityEffectMacro('SelectAll:\nExportWav:'), /no supported effects/);
+	assert.throws(() => parseAudacityEffectMacro('Benchmark:\nExportWav:'), /no supported effects/);
 	assert.throws(() => serializeAudacityEffectMacro([
 		createEffect('audacity-invert', { id: 'off', enabled: false }),
 	]), /at least one enabled effect/);
@@ -406,6 +405,26 @@ test('a selection command travels as its own Audacity command line', () => {
 	);
 	assert.deepEqual(parsed.effects[2].params, { start: 0, end: 1, relativeTo: 'project-end' });
 	assert.deepEqual(parsed.ignoredCommands, []);
+});
+
+test('a bare Audacity command round-trips as its own line', () => {
+	// The tier where a macro line is just a command name. These used to land in
+	// the ignored-commands warning, so a real Audacity macro ran a different
+	// macro than the file described.
+	const text = 'SelectAll:\nInvert:\nSplitDelete:\n';
+	const parsed = parseAudacityEffectMacro(text, { idFactory: (prefix, index) => `${prefix}-${index}` });
+
+	assert.deepEqual(parsed.effects.map((step) => step.command ?? step.type),
+		['SelectAll', 'audacity-invert', 'SplitDelete']);
+	assert.deepEqual(parsed.ignoredCommands, []);
+	assert.equal(serializeAudacityEffectMacro(parsed.effects), text);
+	assert.throws(() => parseAudacityEffectMacro('SelectAll:Start="0"'),
+		/Unsupported SelectAll parameter: Start/u);
+	// A command this build has no action for is still reported rather than run.
+	assert.deepEqual(
+		parseAudacityEffectMacro('Benchmark:\nInvert:', { idFactory: () => 'x' }).ignoredCommands,
+		['Benchmark'],
+	);
 });
 
 test('a command line carries only the parameters it was given', () => {

@@ -129,7 +129,8 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 		'label', 'setActive', 'stepFrame', 'seekLabel',
 	]);
 	const crossProductHandoffActions = createCrossProductHandoffActionFacade(scope as never);
-	return Object.freeze({
+	const macros = createEffectMacroActions(effectLibraryScope, restricted);
+	const actions = Object.freeze({
 		project: Object.freeze({
 			create: (projectOptions: RuntimeValue) => newProject(projectOptions),
 			open: (value: RuntimeValue) => openProject(value),
@@ -555,7 +556,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			repeatLast: restricted('audioEffects', repeatLastAudacityEffect),
 			presets: createEffectPresetActions(effectLibraryScope, restricted),
 		}),
-		macros: createEffectMacroActions(effectLibraryScope, restricted),
+		macros,
 		analysis: Object.freeze({
 			run: restricted('audioAnalysis', analysisService.run),
 			plotSpectrum: restricted('audioAnalysis', analysisService.plotSpectrum),
@@ -568,4 +569,8 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			state, getProject, store, publishDocumentSnapshot, setStatus, copy, fileService, ffmpeg, commit,
 		}),
 	});
+	// A macro's bare commands walk this tree, and it does not exist until the
+	// groups that make it up have all been built.
+	macros.bindEditorActions(actions as unknown as Readonly<Record<string, unknown>>);
+	return actions;
 }

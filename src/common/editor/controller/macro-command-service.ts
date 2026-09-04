@@ -9,6 +9,7 @@
  * created for kw.media in 2026.
  */
 
+import { audacityMacroMenuCommand } from '../audacity-macro-menu-commands.ts';
 import type { MacroCommandStep } from '../macro-command-steps.ts';
 
 export interface MacroCommandTrack extends Readonly<Record<string, unknown>> {
@@ -41,6 +42,15 @@ export interface MacroCommandServiceRuntime {
 		endFrame: number,
 		details?: Readonly<Record<string, unknown>>,
 	) => unknown;
+	/**
+	 * The editor's own action tree, read at call time.
+	 *
+	 * Bare commands name a path into it rather than into the action manifest,
+	 * because the manifest also describes a tier that only asks the interface to
+	 * open something — a command that cannot run headlessly has nowhere to be
+	 * written down this way.
+	 */
+	readonly getActions?: () => Readonly<Record<string, unknown>> | null;
 }
 
 const TRACK_MODES = Object.freeze({ set: 'set', add: 'add', remove: 'remove' } as const);
@@ -48,7 +58,8 @@ const TRACK_MODES = Object.freeze({ set: 'set', add: 'add', remove: 'remove' } a
 /** Whether this build can run the command a step names. */
 export function isRunnableMacroCommand(command: string): boolean {
 	return command === 'Select' || command === 'SelectTime'
-		|| command === 'SelectFrequencies' || command === 'SelectTracks';
+		|| command === 'SelectFrequencies' || command === 'SelectTracks'
+		|| audacityMacroMenuCommand(command) !== null;
 }
 
 export function createMacroCommandService(runtime: MacroCommandServiceRuntime) {
@@ -57,6 +68,11 @@ export function createMacroCommandService(runtime: MacroCommandServiceRuntime) {
 	function runMacroCommand(step: MacroCommandStep): void {
 		if (!isRunnableMacroCommand(step.command)) {
 			throw new RangeError(`This build cannot run the macro command ${step.command}.`);
+		}
+		const menuCommand = audacityMacroMenuCommand(step.command);
+		if (menuCommand) {
+			runMenuCommand(menuCommand.command, menuCommand.path);
+			return;
 		}
 		const project = runtime.getProject();
 		const selection = project.selection ?? { startFrame: 0, endFrame: 0 };
@@ -84,6 +100,28 @@ export function createMacroCommandService(runtime: MacroCommandServiceRuntime) {
 			details.frequencyRange = frequencyRange(params, selection);
 		}
 		runtime.setExactSelection(range.startFrame, range.endFrame, details);
+	}
+
+	/**
+	 * Run one bare command by walking the editor's own action tree.
+	 *
+	 * A path that does not resolve is a catalogue that has drifted from the
+	 * editor, and saying so is better than a step that quietly does nothing —
+	 * which is exactly how a macro produces a plausible-looking wrong result.
+	 */
+	function runMenuCommand(command: string, path: string): void {
+		const actions = runtime.getActions?.();
+		let target: unknown = actions;
+		for (const segment of path.split('.')) {
+			if (!target || typeof target !== 'object' || !Object.hasOwn(target, segment)) {
+				throw new RangeError(`The macro command ${command} has no editor action (${path}).`);
+			}
+			target = (target as Record<string, unknown>)[segment];
+		}
+		if (typeof target !== 'function') {
+			throw new RangeError(`The macro command ${command} has no editor action (${path}).`);
+		}
+		(target as () => unknown)();
 	}
 
 	/**

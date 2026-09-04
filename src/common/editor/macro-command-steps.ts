@@ -14,6 +14,7 @@
  * rewrite of whatever it touches.
  */
 
+import { audacityMacroMenuCommand, audacityMacroMenuCommandNames } from './audacity-macro-menu-commands.ts';
 import {
 	audacitySelectCommandProfile,
 	decodeMacroCommandParameter,
@@ -40,12 +41,17 @@ export interface MacroCommandStepOptions {
 
 /** Every command a macro step may name. */
 export function macroCommandStepCommands(): readonly string[] {
-	return Object.keys(macroCommandProfiles());
+	return [...Object.keys(macroCommandProfiles()), ...audacityMacroMenuCommandNames()];
 }
 
 export function macroCommandStepProfile(command: unknown): MacroCommandProfile | null {
-	return audacitySelectCommandProfile(command);
+	// A bare command carries no parameters, so its profile is the empty one; the
+	// same admission then covers both tiers.
+	return audacitySelectCommandProfile(command)
+		?? (audacityMacroMenuCommand(command) ? EMPTY_PROFILE : null);
 }
+
+const EMPTY_PROFILE: MacroCommandProfile = Object.freeze({ params: Object.freeze([]) });
 
 export function isMacroCommandStep(value: unknown): value is MacroCommandStep {
 	return Boolean(value) && typeof value === 'object'

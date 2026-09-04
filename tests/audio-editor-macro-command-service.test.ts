@@ -5,21 +5,31 @@ import test from 'node:test';
 
 import {
 	createMacroCommandService,
+	isRunnableMacroCommand,
 	type MacroCommandProject,
 	type MacroCommandSelection,
 } from '../src/common/editor/controller/macro-command-service.ts';
-import { createMacroCommandStep } from '../src/common/editor/macro-command-steps.ts';
+import {
+	createMacroCommandStep,
+	macroCommandStepCommands,
+} from '../src/common/editor/macro-command-steps.ts';
 
 const SAMPLE_RATE = 100;
 const PROJECT_END = 1_000;
 
 function createHarness(selection: MacroCommandSelection = { startFrame: 200, endFrame: 400 }) {
 	const applied: Array<[number, number, Record<string, unknown>]> = [];
+	const ran: string[] = [];
 	const project: MacroCommandProject = {
 		tracks: [{ id: 'track-a' }, { id: 'track-b' }, { id: 'track-c' }, { id: 'track-d' }],
 		selection,
 	};
 	const service = createMacroCommandService({
+		getActions: () => ({
+			edit: { cut: () => { ran.push('edit.cut'); } },
+			timeline: { selectAllTracks: () => { ran.push('timeline.selectAllTracks'); } },
+			track: { addMono: () => { ran.push('track.addMono'); } },
+		}),
 		getProject: () => project,
 		projectSampleRate: () => SAMPLE_RATE,
 		timelineDurationFrames: () => PROJECT_END,
@@ -30,6 +40,7 @@ function createHarness(selection: MacroCommandSelection = { startFrame: 200, end
 	});
 	return {
 		applied,
+		ran,
 		run: (command: string, params?: Record<string, unknown>) => service.runMacroCommand(
 			createMacroCommandStep(command, { id: 'step', params }),
 		),
@@ -107,4 +118,42 @@ test('Select applies time, frequency and track parameters together', () => {
 		trackIds: ['track-c'],
 		frequencyRange: { low: 50, high: 5_000 },
 	}]);
+});
+
+test('a bare command runs the editor action it names', () => {
+	// Bare commands name a path into the editor's own action tree rather than
+	// into the action manifest, which also describes a tier that only asks the
+	// interface to open a dialog.
+	const harness = createHarness();
+	harness.run('SelectAll');
+	harness.run('Cut');
+	harness.run('NewMonoTrack');
+	assert.deepEqual(harness.ran, ['timeline.selectAllTracks', 'edit.cut', 'track.addMono']);
+	assert.deepEqual(harness.applied, [], 'a bare command sets no selection of its own');
+});
+
+test('a command whose action is gone says so rather than doing nothing', () => {
+	// A step that quietly did nothing is how a macro produces a plausible-looking
+	// wrong result.
+	const service = createMacroCommandService({
+		getActions: () => ({ edit: {} }),
+		getProject: () => ({ tracks: [], selection: null }),
+		projectSampleRate: () => 100,
+		timelineDurationFrames: () => 0,
+		setExactSelection: () => undefined,
+	});
+	assert.throws(
+		() => service.runMacroCommand(createMacroCommandStep('Cut', { id: 'a' })),
+		/The macro command Cut has no editor action \(edit\.cut\)/u,
+	);
+});
+
+test('the macro command vocabulary is both tiers', () => {
+	assert.equal(isRunnableMacroCommand('Select'), true);
+	assert.equal(isRunnableMacroCommand('SelectAll'), true);
+	assert.equal(isRunnableMacroCommand('Undo'), false, 'undo would fight the macro\'s own transaction');
+	assert.equal(isRunnableMacroCommand('ExportWav'), false);
+	for (const command of macroCommandStepCommands()) {
+		assert.equal(isRunnableMacroCommand(command), true, `${command} must be runnable`);
+	}
 });

@@ -10,8 +10,17 @@ import {
 	normalizeMacroCommandStep,
 } from '../src/common/editor/macro-command-steps.ts';
 
-test('the selection commands Audacity scripts with are the vocabulary', () => {
-	assert.deepEqual(macroCommandStepCommands(), ['Select', 'SelectTime', 'SelectFrequencies', 'SelectTracks']);
+test('the vocabulary is Audacity\'s parameterised selection tier and its bare tier', () => {
+	const commands = macroCommandStepCommands();
+	assert.deepEqual(commands.slice(0, 4), ['Select', 'SelectTime', 'SelectFrequencies', 'SelectTracks']);
+	for (const command of ['SelectAll', 'Cut', 'Split', 'NewMonoTrack', 'AddLabel']) {
+		assert.ok(commands.includes(command), `${command} must be in the vocabulary`);
+	}
+	// A bare command carries nothing, so anything written on its line is refused
+	// rather than quietly dropped.
+	assert.deepEqual(createMacroCommandStep('SelectAll', { id: 'a' }).params, {});
+	assert.throws(() => createMacroCommandStep('SelectAll', { id: 'a', params: { start: 0 } }),
+		/Unsupported SelectAll parameter: start/u);
 	assert.throws(() => createMacroCommandStep('ExportWav', { id: 'a' }), /Unsupported macro command/u);
 	assert.throws(() => createMacroCommandStep('', { id: 'a' }), /Unsupported macro command/u);
 });

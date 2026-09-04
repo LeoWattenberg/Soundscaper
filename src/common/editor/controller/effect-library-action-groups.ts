@@ -47,6 +47,7 @@ export interface EffectLibraryActionScope {
 		readonly level: 'info' | 'warn' | 'error'; readonly text: string; readonly at: number;
 	}>) => void;
 	readonly macroScriptStartedAt?: () => string;
+	readonly getEditorActions?: () => Readonly<Record<string, unknown>> | null;
 }
 
 /**
@@ -91,11 +92,15 @@ export function createEffectMacroActions(
 	// The sequencer owns the order of a macro's steps; the effect runner keeps its
 	// job of turning one run of effects into audio, and the command service keeps
 	// Audacity's selection arithmetic.
+	// The action tree is read at call time rather than captured, because these
+	// groups are built while it is still being assembled.
+	let actions: Readonly<Record<string, unknown>> | null = null;
 	const commands = createMacroCommandService({
 		getProject: scope.getProject as () => never,
 		projectSampleRate: scope.projectSampleRate,
 		timelineDurationFrames: scope.timelineDurationFrames,
 		setExactSelection: scope.setExactSelection,
+		getActions: () => actions ?? scope.getEditorActions?.() ?? null,
 	});
 	const program = createMacroProgramService({
 		runEffectMacro: scope.runEffectMacro as never,
@@ -122,7 +127,7 @@ export function createEffectMacroActions(
 		beginMacroTransaction: scope.beginMacroTransaction,
 	});
 	let sandbox: Sandbox | null = null;
-	return Object.freeze({
+	const group = Object.freeze({
 		run: restricted('audioMacros', program.runMacroProgram as unknown as RuntimeAction),
 		cancel: restricted('audioMacros', ((...args: never[]) => {
 			sandbox?.cancelMacroSandbox();
@@ -167,7 +172,10 @@ export function createEffectMacroActions(
 			delete: restricted('audioMacros', ((macroId: unknown) => library.delete(macroId as string)) as RuntimeAction),
 			flush: () => library.flush(),
 		}),
+		/** Lets the facade hand back the assembled tree these commands walk. */
+		bindEditorActions(value: Readonly<Record<string, unknown>>) { actions = value; },
 	});
+	return group;
 }
 
 type Sandbox = ReturnType<
