@@ -86,8 +86,6 @@ test('the Audacity preset mirrors the 4.0.0 Modern layout while the others keep 
 	assert.deepEqual(audacity.toolbarButtons, {
 		...modern.toolbarButtons,
 		'play-at-speed': false,
-		'spectral-box-select': false,
-		'spectral-brush': false,
 		'zoom-fit': false,
 		snap: true,
 		'workspace-switcher': true,

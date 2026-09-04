@@ -97,7 +97,9 @@ export function createProjectViewService<
 
 	function setAllTracksView(view: unknown): Project | ProjectTimelineView | null | unknown {
 		dependencies.lifetime.assertActive();
-		const displayMode = view === 'spectrogram' ? 'spectrogram' : 'waveform';
+		const displayMode: ProjectTimelineView = view === 'spectrogram' || view === 'multiview'
+			? view
+			: 'waveform';
 		const project = dependencies.getProject();
 		if (!project) return setTimelineView(displayMode);
 		if (dependencies.editingBlocked()) return null;

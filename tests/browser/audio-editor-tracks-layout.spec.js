@@ -565,6 +565,12 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(flyout.getByRole('checkbox', { name: 'Delete and leave gap', exact: true })).toHaveAttribute('aria-checked', 'false');
 		await expect(flyout.getByRole('checkbox', { name: 'Cut and close gap on all tracks', exact: true })).toHaveAttribute('aria-checked', 'false');
 		await expect(flyout.getByRole('checkbox', { name: 'Delete and close gap on all tracks', exact: true })).toHaveAttribute('aria-checked', 'false');
+		// The spectral tools and multi-view belong to the spectrogram button's own
+		// options, so the list offers that button alone.
+		await expect(flyout.getByRole('checkbox', { name: 'Spectrogram', exact: true })).toBeVisible();
+		for (const label of ['Select spectral frequency range', 'Spectral brush', 'Multi-view']) {
+			await expect(flyout.getByRole('checkbox', { name: label, exact: true })).toHaveCount(0);
+		}
 		await expect(playToggle).toHaveAttribute('aria-checked', 'true');
 		await playToggle.click();
 		await expect(playToggle).toHaveAttribute('aria-checked', 'false');

@@ -1,4 +1,5 @@
 import { applyAudacityParityToMenus } from '../audacity-action-parity.js';
+import { audacitySpectrogramTrackSelected } from '../audacity-action-enablement.ts';
 import { AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS } from './application-menu-registry.ts';
 import { createSnapMenu } from './application-menu-model.js';
 import { createEffectMenuEntries } from './effect-menu-organization.js';
@@ -97,11 +98,7 @@ export default function createApplicationMenus({
 	const multipleSelectedClips = selectedClipIds.length > 1;
 	const groupedSelectedClips = selectedClipIds.some((clipId) => project?.clips.find((clip) => clip.id === clipId)?.groupId);
 	const frequencySelectionActive = Boolean(snapshot.selection?.frequencyRange);
-	const spectralTrackSelected = Boolean(selectedAudioTrack && (
-		selectedAudioTrack.displayMode === 'spectrogram'
-		|| selectedAudioTrack.displayMode === 'multiview'
-		|| snapshot.timeline?.view === 'spectrogram'
-	));
+	const spectralTrackSelected = audacitySpectrogramTrackSelected(selectedAudioTrack, snapshot);
 	const labelTracks = project?.tracks.filter((track) => track.type === 'label') || [];
 	// An EDL describes picture, so the entry only offers itself when there is a
 	// video track that composes — a list of nothing is not a useful export.

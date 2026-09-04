@@ -27,8 +27,6 @@ export const DEFAULT_TOOLBAR_BUTTONS = Object.freeze({
 	'split-tool': true,
 	'waveform-view': true,
 	'spectrogram-view': true,
-	'spectral-box-select': true,
-	'spectral-brush': false,
 	'zoom-in': true,
 	'zoom-out': true,
 	'zoom-fit': true,
@@ -65,8 +63,6 @@ const MODERN_TOOLBAR_BUTTONS = Object.freeze({
 export const AUDACITY_TOOLBAR_BUTTONS = Object.freeze({
 	...MODERN_TOOLBAR_BUTTONS,
 	'play-at-speed': false,
-	'spectral-box-select': false,
-	'spectral-brush': false,
 	'zoom-fit': false,
 	snap: true,
 	'workspace-switcher': true,

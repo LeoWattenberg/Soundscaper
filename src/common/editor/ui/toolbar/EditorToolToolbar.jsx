@@ -3,15 +3,12 @@ import { useCallback, useRef, useState } from 'react';
 import { isSoundscaperProductionProject } from '../../project-schema-version.ts';
 import { Flyout } from '@soundscaper/design-system/Flyout';
 import { Icon } from '@soundscaper/design-system/Icon';
-import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
 import { ToggleToolButton } from '@soundscaper/design-system/ToggleToolButton';
 import { Toolbar, ToolbarButtonGroup, ToolbarDivider } from '@soundscaper/design-system/Toolbar';
 import { ToolButton } from '@soundscaper/design-system/ToolButton';
 
 import { iconNameToChar } from '../../audacity-iconcodes.js';
-import AudioEditorSplitButton from '../AudioEditorSplitButton.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
-import { formatOptionsLabel } from '../localization-template.ts';
 import {
 	PlaybackMeterToolbarGroup,
 	RecordingMeterToolbarGroup,
@@ -20,6 +17,7 @@ import { TelemetryTimeCode } from './AudioEditorTransportControls.jsx';
 import { MusicalTimelineControls } from './MusicalTimelineControls.jsx';
 import { SequenceTimingControls } from './SequenceTimingControls.jsx';
 import SnapToolbarControl from './SnapToolbarControl.jsx';
+import SpectrogramToolControl from './SpectrogramToolControl.jsx';
 import {
 	framescaperCaptureRecordRequired,
 	useFramescaperCaptureRecordVisibility,
@@ -74,11 +72,6 @@ export default function EditorToolToolbar({
 		|| project?.mixer?.sends?.length
 		|| snapshot.preferences?.view?.showMasterTrack,
 	);
-	const spectralTrackSelected = Boolean(selectedTrack && (
-		selectedTrack.displayMode === 'spectrogram'
-		|| selectedTrack.displayMode === 'multiview'
-		|| snapshot.timeline?.view === 'spectrogram'
-	));
 	const toolbarSettingsTriggerRef = useRef(null);
 	const [toolbarSettingsPosition, setToolbarSettingsPosition] = useState(null);
 	const setToolbarSettingsTrigger = useCallback((element) => {
@@ -97,8 +90,7 @@ export default function EditorToolToolbar({
 		framescaperCaptureRecordVisible,
 		isToolbarButtonVisible,
 	});
-	const viewButtonsVisible = ['split-tool', 'volume-automation', 'spectrogram-view', 'spectral-box-select', 'spectral-brush']
-		.some(isToolbarButtonVisible);
+	const viewButtonsVisible = ['split-tool', 'volume-automation', 'spectrogram-view'].some(isToolbarButtonVisible);
 	const zoomButtonsVisible = ['zoom-in', 'zoom-out', 'zoom-fit'].some(isToolbarButtonVisible);
 	const toolbarButtonOptions = [
 		{ id: 'play', label: copy.play, icon: 'play' },
@@ -110,10 +102,11 @@ export default function EditorToolToolbar({
 		{ id: 'metronome', label: copy.metronome, icon: 'metronome' },
 		{ id: 'volume-automation', label: copy.clipGain, icon: 'automation' },
 		{ id: 'split-tool', label: copy.splitTool, icon: 'split' },
+		// Multi-view, the spectral box select and the spectral brush are not
+		// offered here: they are the spectrogram button's own options, and a
+		// toolbar without that button has nowhere to put them.
 		...(capabilities.audioSpectralEditing ? [
 			{ id: 'spectrogram-view', label: copy.spectrogramView, icon: 'spectrogram' },
-			{ id: 'spectral-box-select', label: copy.spectralBoxSelect, icon: 'spectrogram' },
-			{ id: 'spectral-brush', label: copy.spectralBrush, icon: 'brush' },
 		] : []),
 		{ id: 'zoom-in', label: copy.zoomIn, icon: 'zoom-in' },
 		{ id: 'zoom-out', label: copy.zoomOut, icon: 'zoom-out' },
@@ -200,38 +193,16 @@ export default function EditorToolToolbar({
 						/>
 					</span>
 					}
-					{capabilities.audioSpectralEditing && isToolbarButtonVisible('spectrogram-view') && <AudioEditorSplitButton
-						icon="spectrogram"
-						toggle
-						pressed={snapshot.timeline?.view === 'spectrogram'}
-						ariaLabel={copy.spectrogramView}
-						optionsAriaLabel={formatOptionsLabel(copy, copy.spectrogramView)}
-						onClick={() => run(() => controller.actions.timeline.setAllTracksView(snapshot.timeline?.view === 'spectrogram' ? 'waveform' : 'spectrogram'))}
-					>
-						{({ close }) => <div className="kw-audio-editor__split-button-options kw-audio-editor__spectrogram-tool-options">
-							{isToolbarButtonVisible('spectral-box-select') && <span data-action-id="spectral-box-select">
-								<ContextMenuItem
-									label={copy.spectralBoxSelect}
-									disabled={!spectralTrackSelected}
-									onClick={() => {
-										close();
-										onOpenSpectralSelection();
-									}}
-								/>
-							</span>}
-							{isToolbarButtonVisible('spectral-brush') && <span data-action-id="spectral-brush">
-								<ContextMenuItem
-									label={copy.spectralBrush}
-									checked={uiFlags.spectralBrush}
-									disabled={!spectralTrackSelected || blocked}
-									onClick={() => {
-										close();
-										actionRuntime.tools.toggleSpectralBrush();
-									}}
-								/>
-							</span>}
-						</div>}
-					</AudioEditorSplitButton>}
+					{capabilities.audioSpectralEditing && isToolbarButtonVisible('spectrogram-view') && <SpectrogramToolControl
+						actionRuntime={actionRuntime}
+						blocked={blocked}
+						controller={controller}
+						copy={copy}
+						onOpenSpectralSelection={onOpenSpectralSelection}
+						run={run}
+						snapshot={snapshot}
+						uiFlags={uiFlags}
+					/>}
 				</ToolbarButtonGroup>
 				}
 

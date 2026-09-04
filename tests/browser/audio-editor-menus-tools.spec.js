@@ -754,8 +754,13 @@ test.describe('audio editor React/design-system workflows', () => {
 			const spectrogram = editor.getByRole('button', { name: /^(Spectrogram|Spektrogramm)$/ });
 			await spectrogram.click();
 			await expect(spectrogram).toHaveAttribute('aria-pressed', 'true');
+			// The spectral tools are the spectrogram button's own options rather
+			// than separately customizable buttons, so they are always offered
+			// there once the timeline is drawn as a spectrogram.
 			await editor.getByRole('button', { name: locale.optionsLabel, exact: true }).click();
-			await expect(editor.locator('[data-action-id="spectral-brush"]')).toHaveCount(0);
+			const brushOption = editor.locator('[data-action-id="spectral-brush"] [role="menuitem"]');
+			await expect(brushOption).toHaveCount(1);
+			await expect(brushOption).not.toHaveAttribute('aria-disabled', 'true');
 			await page.keyboard.press('Escape');
 			await chooseNestedCommandAction(page, editor, locale.selectMenu, [locale.spectralMenu, locale.label]);
 			const brush = editor.locator('[data-spectral-brush]');
@@ -766,6 +771,26 @@ test.describe('audio editor React/design-system workflows', () => {
 			await expect(editor.locator('[data-spectral-selection]')).toBeVisible();
 		});
 	}
+
+	test('the spectrogram options put the whole timeline into multi-view and back', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const track = editor.locator('[data-track-row]').first();
+		await expect(track).toHaveAttribute('data-display-mode', 'waveform');
+
+		const options = editor.getByRole('button', { name: 'Spectrogram options', exact: true });
+		const multiView = () => editor.locator('[data-action-id="multiview-view"] [role="menuitem"]');
+		await options.click();
+		await multiView().click();
+		await expect(track).toHaveAttribute('data-display-mode', 'multiview');
+		await expect(editor.getByRole('button', { name: 'Spectrogram', exact: true }))
+			.toHaveAttribute('aria-pressed', 'false');
+
+		await options.click();
+		// The vendored menu item marks its checked state with a checkmark icon.
+		await expect(multiView().locator('.context-menu-item-checkmark .icon')).toHaveCount(1);
+		await multiView().click();
+		await expect(track).toHaveAttribute('data-display-mode', 'waveform');
+	});
 
 	test('builds the shortcut command inventory from implemented manifest actions', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');

@@ -84,6 +84,20 @@ test('project view setters normalize modes and commit all changed audio tracks a
 		commands: [{ type: 'track/update', trackId: 'first', changes: { displayMode: 'spectrogram' } }],
 	});
 	assert.equal(publishes, 2);
+
+	// Multi-view is a display of its own, not a value that falls back to the
+	// waveform: the toolbar's spectrogram options turn the whole timeline into it.
+	assert.equal(service.setAllTracksView('multiview'), project);
+	assert.equal(state.timelineView, 'multiview');
+	assert.deepEqual(commands[1], {
+		type: 'batch',
+		commands: [
+			{ type: 'track/update', trackId: 'first', changes: { displayMode: 'multiview' } },
+			{ type: 'track/update', trackId: 'second', changes: { displayMode: 'multiview' } },
+		],
+	});
+	assert.equal(service.setAllTracksView('half-wave'), project);
+	assert.equal(state.timelineView, 'waveform');
 });
 
 test('project view handles empty, blocked, and already-matching timelines without commands', () => {
