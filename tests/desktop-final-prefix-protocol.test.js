@@ -11,13 +11,14 @@ const WRITE_ID = 'b'.repeat(32);
 
 test('desktop final-prefix IPC has a dedicated owner-derived, offset-free handler', async () => {
 	assert.equal(IPC.patchFinalPrefix, 'soundscaper:v1:save:prefix');
-	const source = await readFile(new URL('../desktop/main.mjs', import.meta.url), 'utf8');
-	const start = source.indexOf('handle(IPC.patchFinalPrefix');
+	const source = await readFile(new URL('../desktop/main-file-capability-ipc.mjs', import.meta.url), 'utf8');
+	const start = source.indexOf('handle(channels.patchFinalPrefix');
 	const end = source.indexOf('\n\thandle(', start + 1);
 	assert.ok(start >= 0, 'missing patchFinalPrefix handler');
 	const handler = source.slice(start, end);
 	assert.match(handler, /saves\.patchFinalPrefix/u);
-	assert.match(handler, /owner: rendererSaveOwnerFor\(event\)/u);
+	// The owner is read off the IPC event, never accepted from the renderer's payload.
+	assert.match(handler, /owner: ownerFor\(event\)/u);
 	assert.doesNotMatch(handler, /offset/u);
 });
 

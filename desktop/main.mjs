@@ -37,12 +37,13 @@ import { disposeDesktopNativeTier, registerDesktopNativeTier, revokeDesktopNativ
 import { registerHostAffordances } from './host-affordances.mjs';
 import { registerExternalFfmpegPreferences } from './external-ffmpeg-registration.mjs';
 import { registerDesktopCodecProviders } from './desktop-codec-main-integration.mjs';
-import { ReadCapabilityStore, throwAfterReadCapabilityRollback } from './file-capabilities.js';
+import { ReadCapabilityStore } from './file-capabilities.js';
 import {
 	createPendingProjectDelivery, PendingProjectQueue, extractProjectPaths,
-	OPENABLE_PROJECT_EXTENSIONS, redispatchPendingProjectsAfterReadRelease,
+	OPENABLE_PROJECT_EXTENSIONS,
 } from './file-associations.js';
 import { registerSelectedReadCapability } from './read-selection-service.js';
+import { registerFileCapabilityIpc } from './main-file-capability-ipc.mjs';
 import { createProtocolHandler, registerAppScheme } from './protocol.js';
 import { createDesktopSmokeProbe } from './desktop-smoke.js';
 import { createDesktopNightlyTestsWindow } from './nightly-tests-window.mjs';
@@ -63,12 +64,9 @@ import {
 	runWindowAction, upgradePendingCloseRequestForQuit,
 } from './window-chrome.mjs';
 import {
-	acceptsFile,
 	assertEditorDocumentUrl,
 	isEditorDocumentUrl,
-	validateFileChoice,
 	validateLocale,
-	validateSaveChoice,
 } from './validation.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SOAK_DEBUG_ENABLED = PRODUCT_ID === 'soundscaper' && soakDebugProcessMetricsEnabled(process.argv); const dialog = createSoakDebugDialog(electronDialog, SOAK_DEBUG_ENABLED ? process.argv : []);
@@ -384,23 +382,10 @@ async function registerIpcHandlers(desktopSession) {
 		capabilities: { displayAudio: process.platform === 'win32', updates: settings.snapshot().updatesEnabled },
 	}));
 	if (SOAK_DEBUG_ENABLED) handle(IPC.soakDebugProcessMetrics, () => collectSoakDebugProcessMetrics(app));
-	handle(IPC.chooseFiles, (event, value) => chooseFiles(event, value));
-	handle(IPC.releaseRead, (event, id) => redispatchPendingProjectsAfterReadRelease(
-		pendingOpenProjects,
-		readCapabilities.release(opaqueId(id, 64), { owner: rendererSaveOwnerFor(event) }),
-	));
-	handle(IPC.chooseSaveTarget, (event, value) => chooseSaveTarget(event, value));
-	handle(IPC.beginWrite, (event, value) => saves.begin({
-		owner: rendererSaveOwnerFor(event),
-		targetId: opaqueId(value?.targetId, 48),
-		size: value?.size,
-		maximumSize: value?.maximumSize,
-		finalPrefixByteLength: value?.finalPrefixByteLength,
-	}));
-	handle(IPC.writeChunk, (event, value) => saves.writeChunk({ owner: rendererSaveOwnerFor(event), writeId: opaqueId(value?.writeId, 32), offset: value?.offset, bytes: value?.bytes }));
-	handle(IPC.patchFinalPrefix, (event, value) => saves.patchFinalPrefix({ owner: rendererSaveOwnerFor(event), writeId: opaqueId(value?.writeId, 32), bytes: value?.bytes }));
-	handle(IPC.finishWrite, (event, id) => saves.finish(opaqueId(id, 32), { owner: rendererSaveOwnerFor(event) }));
-	handle(IPC.abortWrite, (event, id) => saves.abort(opaqueId(id, 32), { owner: rendererSaveOwnerFor(event) }));
+	registerFileCapabilityIpc({
+		channels: IPC, desktopSmokeProbe, dialog, handle, opaqueId, ownerFor: rendererSaveOwnerFor,
+		pendingOpenProjects, readCapabilities, saves, saveTargets, windowFor: () => mainWindow,
+	});
 	handle(IPC.setLocale, async (_event, value) => {
 		const locale = validateLocale(value);
 		await settings.setLocale(locale);
@@ -441,45 +426,6 @@ function assertTrustedIpc(event) {
 		throw new Error('IPC sender is not the active main document');
 	}
 	assertEditorDocumentUrl(event.senderFrame.url);
-}
-
-async function chooseFiles(event, value) {
-	const owner = rendererSaveOwnerFor(event);
-	const choice = validateFileChoice(value);
-	const smokeFilePaths = desktopSmokeProbe.resolveOpenPaths(choice);
-	const result = smokeFilePaths !== null ? { canceled: false, filePaths: smokeFilePaths }
-		: await dialog.showOpenDialog(mainWindow, {
-			title: choice.purpose === 'project' ? 'Open project' : 'Import files',
-			properties: choice.multiple ? ['openFile', 'multiSelections'] : ['openFile'], filters: choice.filters,
-		});
-	if (result.canceled) return [];
-	const descriptors = [];
-	try {
-		for (const filePath of result.filePaths) {
-			if (!acceptsFile(choice.purpose, filePath)) throw new TypeError('The selected file type is not allowed');
-			descriptors.push(await registerSelectedReadCapability(readCapabilities, filePath, { owner, purpose: choice.purpose }));
-		}
-		return descriptors;
-	} catch (error) {
-		await throwAfterReadCapabilityRollback(readCapabilities, descriptors, owner, error);
-	}
-}
-
-async function chooseSaveTarget(event, value) {
-	const owner = rendererSaveOwnerFor(event);
-	const choice = validateSaveChoice(value);
-	const smokeFilePath = await desktopSmokeProbe.resolveSavePath(choice);
-	if (smokeFilePath !== null) {
-		return saveTargets.registerPath(smokeFilePath, { owner, purpose: choice.purpose });
-	}
-	const result = await dialog.showSaveDialog(mainWindow, {
-		title: choice.purpose === 'project' ? 'Export Audacity interchange' : 'Export',
-		defaultPath: choice.suggestedName,
-		filters: choice.filters,
-	});
-	return result.canceled || !result.filePath
-		? null
-		: saveTargets.registerPath(result.filePath, { owner, purpose: choice.purpose });
 }
 
 function respondToClose(value) {
