@@ -16,6 +16,7 @@ import {
 	EFFECT_MACRO_LIBRARY_SETTING_KEY,
 	createInitialEffectMacroLibrary,
 } from '../src/common/editor/controller/effect-macro-library-service.ts';
+import { createInitialMacroScriptLibrary } from '../src/common/editor/controller/macro-script-library-service.ts';
 import {
 	createDeliveryPresetState,
 	saveDeliveryPresetToState,
@@ -72,6 +73,7 @@ function createFixture(options: Readonly<{
 		// to start with the empty state rather than without the field.
 		deliveryPresets: createDeliveryPresetState(),
 		effectMacros: createInitialEffectMacroLibrary(),
+		macroScripts: createInitialMacroScriptLibrary(),
 		// Bootstrap withholds writes for a library it could not read, so the
 		// fixture starts with the writable state the flag is toggled from.
 		effectMacrosReadOnly: false,

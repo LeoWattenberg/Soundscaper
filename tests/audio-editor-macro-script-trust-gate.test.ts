@@ -3,12 +3,39 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createEffectMacroActions } from '../src/common/editor/controller/effect-library-action-groups.ts';
+import {
+	createEffectMacroActions,
+	type EffectLibraryActionScope,
+} from '../src/common/editor/controller/effect-library-action-groups.ts';
 import { createEffectMacroLibrary } from '../src/common/editor/effect-macro-library.js';
 import { createMacroScriptLibrary } from '../src/common/editor/macro-script-library.ts';
 import { serializeMacroScriptEnvelope } from '../src/common/editor/macro-script-envelope.ts';
 
-function createMacroActions() {
+interface MacroScriptRecord {
+	readonly id: string;
+	readonly name: string;
+	readonly trust: string;
+	readonly origin: unknown;
+	readonly trustedSource: unknown;
+}
+
+/**
+ * What this test drives. The action group describes its members as the
+ * capability wrapper leaves them — arguments withheld — so the fixture states
+ * the calls it makes rather than casting at each one.
+ */
+interface MacroScriptActions {
+	readonly scripts: Readonly<{
+		import: (envelope: string, fileName?: string) => MacroScriptRecord;
+		trust: (id: string) => unknown;
+		blocked: (source: string) => boolean;
+		list: () => readonly MacroScriptRecord[];
+		export: (id: string) => string;
+	}>;
+	readonly runScript: (script: Readonly<{ name: string; source: string }>) => Promise<unknown>;
+}
+
+function createMacroActions(): MacroScriptActions {
 	let minted = 0;
 	const state = {
 		effectMacros: createEffectMacroLibrary(),
@@ -26,7 +53,9 @@ function createMacroActions() {
 		timelineDurationFrames: () => 0,
 		setExactSelection: () => undefined,
 		beginMacroTransaction: () => ({ commit: () => undefined, rollback: () => undefined }),
-	} as never, (_capability: string, action: (...args: never[]) => unknown) => action);
+	} as unknown as EffectLibraryActionScope,
+	(_capability: string, action: (...args: never[]) => unknown) => action,
+	) as unknown as MacroScriptActions;
 }
 
 test('a program nobody has reviewed does not run, however it reaches the runner', async () => {
@@ -41,7 +70,7 @@ test('a program nobody has reviewed does not run, however it reaches the runner'
 	assert.equal(imported.trust, 'imported-untrusted');
 	assert.equal(macros.scripts.blocked('await sound.select.all();'), true);
 	await assert.rejects(
-		() => macros.runScript({ name: 'Sweep', source: 'await sound.select.all();' }) as Promise<unknown>,
+		() => macros.runScript({ name: 'Sweep', source: 'await sound.select.all();' }),
 		/MACRO_SCRIPT_NOT_TRUSTED/u,
 	);
 

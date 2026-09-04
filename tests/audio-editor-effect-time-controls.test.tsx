@@ -22,12 +22,29 @@ function parameterMarkup(type: string, params: Readonly<Record<string, unknown>>
 	const effect = {
 		id: `${type}-time-controls`, type, enabled: true, params: { ...defaults, ...params },
 	};
+	// The editor is untyped JSX, so every prop it destructures without a default
+	// has to be stated; the ones this subject does not use are stated as absent.
 	const markup = renderToStaticMarkup(<EffectParameterEditor
 		effect={effect}
 		copy={ENGLISH_COPY}
 		disabled={false}
 		tracks={[]}
 		targetTrackId="track-1"
+		captureNoiseProfile={undefined}
+		noiseProfileLabel=""
+		onRackEffectGestureBegin={undefined}
+		onRackEffectPreview={undefined}
+		onRackEffectCommit={undefined}
+		onRackEffectCancel={undefined}
+		onParametricEqGestureBegin={undefined}
+		onParametricEqPreview={undefined}
+		onParametricEqCommit={undefined}
+		onParametricEqCancel={undefined}
+		onParametricEqAudition={undefined}
+		readParametricEqSpectrum={undefined}
+		automationRuntime={undefined}
+		automationProject={undefined}
+		automationStrip={undefined}
 		onChange={() => undefined}
 	/>);
 	return (name: string): string => {

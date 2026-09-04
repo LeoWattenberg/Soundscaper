@@ -7,6 +7,7 @@ import {
 	MACRO_MAX_SOURCE_BYTES,
 	MACRO_PROTOCOL_VERSION,
 	MACRO_SOURCE_LINE_OFFSET,
+	type MacroValue,
 } from '../src/common/editor/macro-script/protocol.ts';
 import {
 	buildMacroSandboxModule,
@@ -18,7 +19,7 @@ const ENV = Object.freeze({
 });
 
 function createHarness(options: {
-	readonly dispatch?: (method: string, args: readonly unknown[]) => Promise<unknown>;
+	readonly dispatch?: (method: string, args: readonly MacroValue[]) => Promise<MacroValue>;
 } = {}) {
 	const sent: unknown[] = [];
 	const listeners = new Map<string, (event: unknown) => void>();
