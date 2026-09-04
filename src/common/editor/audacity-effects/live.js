@@ -17,7 +17,14 @@ import {
 } from './spectral.js';
 import { audacitySelectionOnlyReason, isAudacityEffectLiveCapable } from './live-capability-policy.js';
 import { fft } from '../pffft.js';
-import { classicFilterCoefficients } from './live-classic-filter-coefficients.js';
+import { classicFilterCoefficients } from './classic-filter-coefficients.js';
+import {
+	AUDACITY_DISTORTION_MODES as DISTORTION_MODES,
+	createDcState,
+	dcFilter,
+	distortionWaveShaper,
+	makeDistortionTable,
+} from './distortion-table.js';
 import { secondsToSampleFrame as secondsToFrames } from '../timeline-time.ts';
 
 const CLICK_WINDOW_SIZE = 8_192;
@@ -27,8 +34,6 @@ const NOISE_WINDOW_SIZE = 2_048;
 const NOISE_HOP_SIZE = 512;
 const NOISE_CHUNK_SIZE = 4_096;
 const RMS_WINDOW_SIZE = 100;
-const DISTORTION_STEPS = 1_024;
-const DISTORTION_TABLE_SIZE = DISTORTION_STEPS * 2 + 1;
 const PHASER_LFO_SHAPE = 4;
 const MAX_LIVE_DELAY_SECONDS = 10;
 
@@ -601,151 +606,6 @@ class DistortionLiveProcessor extends LiveProcessor {
 		}
 		return true;
 	}
-}
-
-const DISTORTION_MODES = Object.freeze([
-	'hard-clipping', 'soft-clipping', 'soft-overdrive', 'medium-overdrive',
-	'hard-overdrive', 'cubic', 'even-harmonics', 'expand-compress', 'leveller',
-	'rectifier', 'hard-limiter',
-]);
-
-function makeDistortionTable(settings) {
-	const table = new Float64Array(DISTORTION_TABLE_SIZE);
-	const mode = DISTORTION_MODES.indexOf(settings.mode);
-	let makeupGain = 1;
-	const copyPositiveHalf = () => {
-		let source = DISTORTION_TABLE_SIZE - 1;
-		for (let index = 0; index < DISTORTION_STEPS; index += 1) table[index] = -table[source--];
-	};
-	if (mode === 0 || mode === 10) {
-		const threshold = dbToLinear(settings.thresholdDb);
-		const low = 1 - threshold;
-		const high = 1 + threshold;
-		for (let index = 0; index < DISTORTION_TABLE_SIZE; index += 1) {
-			if (index < DISTORTION_STEPS * low) table[index] = -threshold;
-			else if (index > DISTORTION_STEPS * high) table[index] = threshold;
-			else table[index] = index / DISTORTION_STEPS - 1;
-		}
-		makeupGain = 1 / threshold;
-	} else if (mode === 1) {
-		const threshold = dbToLinear(settings.thresholdDb);
-		const tableThreshold = 1 + threshold;
-		const amount = 2 ** (7 * settings.parameter1 / 100);
-		const curve = (value) => Math.fround(threshold + (Math.exp(amount * (threshold - value)) - 1) / -amount);
-		makeupGain = 1 / curve(1);
-		table[DISTORTION_STEPS] = 0;
-		for (let index = DISTORTION_STEPS; index < DISTORTION_TABLE_SIZE; index += 1) {
-			const value = index / DISTORTION_STEPS - 1;
-			table[index] = index < DISTORTION_STEPS * tableThreshold ? value : curve(value);
-		}
-		copyPositiveHalf();
-	} else if (mode === 2) {
-		const iterations = Math.floor(settings.parameter1 / 20);
-		const fraction = settings.parameter1 / 20 - iterations;
-		let linear = 0;
-		for (let index = DISTORTION_STEPS; index < DISTORTION_TABLE_SIZE; index += 1) {
-			let value = linear;
-			for (let pass = 0; pass < iterations; pass += 1) value = Math.sin(value * Math.PI / 2);
-			value += (Math.sin(value * Math.PI / 2) - value) * fraction;
-			table[index] = value;
-			linear += 1 / DISTORTION_STEPS;
-		}
-		copyPositiveHalf();
-	} else if (mode === 3) {
-		const amount = Math.min(0.999, dbToLinear(-settings.parameter1));
-		for (let index = DISTORTION_STEPS; index < DISTORTION_TABLE_SIZE; index += 1) {
-			const linear = index / DISTORTION_STEPS;
-			table[index] = -1 / (1 - amount) * (Math.exp((linear - 1) * Math.log(amount)) - 1);
-		}
-		copyPositiveHalf();
-	} else if (mode === 4) {
-		let linear = 0;
-		for (let index = DISTORTION_STEPS; index < DISTORTION_TABLE_SIZE; index += 1) {
-			table[index] = settings.parameter1 === 0 ? linear : Math.log(1 + settings.parameter1 * linear) / Math.log(1 + settings.parameter1);
-			linear += 1 / DISTORTION_STEPS;
-		}
-		copyPositiveHalf();
-	} else if (mode === 5) {
-		const amount = settings.parameter1 * Math.sqrt(3) / 100;
-		const cubic = (value) => settings.parameter1 === 0 ? value : value - value ** 3 / 3;
-		const gain = amount === 0 ? 1 : 1 / cubic(Math.min(amount, 1));
-		let value = amount === 0 ? -1 : -amount;
-		for (let index = 0; index < DISTORTION_TABLE_SIZE; index += 1) {
-			table[index] = gain * cubic(value);
-			for (let repeat = 0; amount !== 0 && repeat < settings.repeats; repeat += 1) table[index] = gain * cubic(table[index] * amount);
-			value += (amount === 0 ? 1 : amount) / DISTORTION_STEPS;
-		}
-	} else if (mode === 6) {
-		const amount = settings.parameter1 / -100;
-		const shape = Math.max(0.001, settings.parameter2) / 10;
-		let value = -1;
-		for (let index = 0; index < DISTORTION_TABLE_SIZE; index += 1) {
-			table[index] = (1 + amount) * value - value * (amount / Math.tanh(shape)) * Math.tanh(shape * value);
-			value += 1 / DISTORTION_STEPS;
-		}
-	} else if (mode === 7) {
-		const iterations = Math.floor(settings.parameter1 / 20);
-		const fraction = settings.parameter1 / 20 - iterations;
-		let linear = 0;
-		for (let index = DISTORTION_STEPS; index < DISTORTION_TABLE_SIZE; index += 1) {
-			let value = linear;
-			for (let pass = 0; pass < iterations; pass += 1) value = (1 + Math.sin(value * Math.PI - Math.PI / 2)) / 2;
-			value += ((1 + Math.sin(value * Math.PI - Math.PI / 2)) / 2 - value) * fraction;
-			table[index] = value;
-			linear += 1 / DISTORTION_STEPS;
-		}
-		copyPositiveHalf();
-	} else if (mode === 8) {
-		const noiseFloor = dbToLinear(settings.noiseFloorDb);
-		const gainFactors = [0.8, 1, 1.2, 1.2, 1, 0.8];
-		const gainLimits = [0.0001, noiseFloor, 0.1, 0.3, 0.5, 1];
-		const addOns = [0];
-		for (let index = 0; index + 1 < gainFactors.length; index += 1) addOns[index + 1] = addOns[index] + gainLimits[index] * (gainFactors[index] - gainFactors[index + 1]);
-		for (let index = DISTORTION_STEPS; index < DISTORTION_TABLE_SIZE; index += 1) {
-			let value = (index - DISTORTION_STEPS) / DISTORTION_STEPS;
-			for (let pass = 0; pass < settings.repeats; pass += 1) {
-				const gainIndex = levellerGainIndex(value, gainLimits);
-				value = value * gainFactors[gainIndex] + addOns[gainIndex];
-			}
-			const fraction = settings.parameter1 / 100;
-			if (fraction > 0.001) {
-				const gainIndex = levellerGainIndex(value, gainLimits);
-				value += fraction * (value * (gainFactors[gainIndex] - 1) + addOns[gainIndex]);
-			}
-			table[index] = value;
-		}
-		copyPositiveHalf();
-	} else if (mode === 9) {
-		const amount = settings.parameter1 / 50 - 1;
-		for (let index = 0; index <= DISTORTION_STEPS; index += 1) table[DISTORTION_STEPS + index] = index / DISTORTION_STEPS;
-		for (let index = 1; index <= DISTORTION_STEPS; index += 1) table[DISTORTION_STEPS - index] = index / DISTORTION_STEPS * amount;
-	}
-	return { table, makeupGain };
-}
-
-function levellerGainIndex(value, limits) {
-	let index = limits.length - 1;
-	for (let candidate = index; candidate >= 0 && value < limits[candidate]; candidate -= 1) index = candidate;
-	return index;
-}
-
-function distortionWaveShaper(input, table, mode, parameter1) {
-	let sample = input;
-	if (mode === 0) sample = Math.fround(sample * (1 + parameter1 / 100));
-	let index = Math.floor(sample * DISTORTION_STEPS) + DISTORTION_STEPS;
-	index = Math.max(0, Math.min(index, DISTORTION_STEPS * 2 - 1));
-	let offset = Math.fround(1 + sample) * DISTORTION_STEPS - index;
-	offset = Math.max(0, Math.min(offset, 1));
-	return Math.fround(table[index] + (table[index + 1] - table[index]) * offset);
-}
-
-function createDcState(length) { return { samples: new Float32Array(length), length, size: 0, position: 0, total: 0 }; }
-function dcFilter(sample, state) {
-	state.total += sample;
-	if (state.size < state.length) { state.samples[state.position] = sample; state.size += 1; }
-	else { state.total -= state.samples[state.position]; state.samples[state.position] = sample; }
-	state.position = (state.position + 1) % state.length;
-	return sample - state.total / state.size;
 }
 
 class ClassicFilterLiveProcessor extends LiveProcessor {

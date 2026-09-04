@@ -111,6 +111,15 @@ test('causal live processors are block-stable and sample-identical to one-shot D
 		['audacity-invert', {}],
 		['audacity-phaser', { stages: 8, depth: 180, feedbackPercent: 30 }],
 		['audacity-classic-filters', { family: 'chebyshev-ii', direction: 'highpass', order: 7, cutoffHz: 1_200 }],
+		// Classic filter pole placement and the distortion waveshaper table are
+		// each computed once and shared by both effect forms. These cases cover
+		// the parameters those computations branch on, so a reintroduced second
+		// copy that drifted from the first would part playback from its render.
+		['audacity-classic-filters', { family: 'chebyshev-i', direction: 'lowpass', order: 6, cutoffHz: 3_000, passbandRippleDb: 3 }],
+		['audacity-classic-filters', { family: 'chebyshev-ii', direction: 'lowpass', order: 5, cutoffHz: 9_000, stopbandAttenuationDb: 24 }],
+		['audacity-distortion', { mode: 'hard-clipping', thresholdDb: -12, parameter1: 50, parameter2: 50 }],
+		['audacity-distortion', { mode: 'soft-clipping', thresholdDb: -24, parameter1: 87, parameter2: 40 }],
+		['audacity-distortion', { mode: 'leveller', thresholdDb: -6, parameter1: 30, repeats: 4 }],
 		['audacity-wahwah', { frequency: 2, phaseDegrees: 45, resonance: 4 }],
 	];
 	for (const [type, params] of cases) {

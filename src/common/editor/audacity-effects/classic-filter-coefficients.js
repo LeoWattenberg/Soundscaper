@@ -1,6 +1,9 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * Classic filter pole placement for the live Audacity filter processor.
+ *
+ * Classic filter pole placement, shared by Audacity's Classic Filter effect in
+ * both its one-shot and realtime forms so a filtered playback and a filtered
+ * render place their poles at exactly the same bits.
  */
 
 // Audacity's classic filters compute their ripple scaling with the exp/log form
