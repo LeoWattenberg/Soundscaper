@@ -18,9 +18,9 @@ test.describe('Web Core storage visibility', () => {
 		await expect(panel).toBeVisible();
 		await expect(panel.locator('summary')).toContainText('Storage:');
 		await editor.getByRole('button', { name: 'Play options', exact: true }).click();
-		const playAtSpeed = editor.getByRole('menuitem', { name: 'Play at speed', exact: true });
-		await expect(playAtSpeed).toBeVisible();
-		await playAtSpeed.click({ trial: true });
+		const preservePitch = editor.getByRole('menuitem', { name: 'Preserve pitch', exact: true });
+		await expect(preservePitch).toBeVisible();
+		await preservePitch.click({ trial: true });
 		await page.keyboard.press('Escape');
 		await panel.locator('summary').click();
 		await expect(panel.getByRole('button', { name: 'Refresh estimate', exact: true })).toBeVisible();

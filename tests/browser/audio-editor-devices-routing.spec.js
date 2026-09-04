@@ -371,35 +371,44 @@ test.describe('audio editor React/design-system workflows', () => {
 	test('exposes play at speed and persists its pitch behavior preference', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const playOptions = editor.getByRole('button', { name: 'Play options', exact: true });
+		await importFiles(editor, [monoTone]);
+
+		// At the neutral rate the single play control is ordinary playback.
+		await editor.getByRole('button', { name: 'Play', exact: true }).click();
+		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+
 		await playOptions.click();
 		const control = editor.locator('[data-play-at-speed]');
 		await expect(control).toBeVisible();
 		const speed = control.getByRole('slider', { name: 'Playback speed', exact: true });
 		await speed.fill('1.5');
 		await expect(control.locator('output')).toHaveText('1.5×');
-		await importFiles(editor, [monoTone]);
+		await page.keyboard.press('Escape');
 
-		await editor.getByRole('button', { name: 'Play', exact: true }).click();
-		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
-		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+		// Moving the slider off the neutral rate retunes that same control.
+		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toHaveCount(0);
+		await editor.getByRole('button', { name: 'Play at speed', exact: true }).click();
+		await expect(editor.getByRole('button', { name: 'Pause play at speed', exact: true })).toBeVisible();
+		await editor.getByRole('button', { name: 'Pause play at speed', exact: true }).click();
 
 		await playOptions.click();
-		await editor.getByRole('menuitem', { name: 'Play at speed', exact: true }).click();
-		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-		await editor.getByRole('button', { name: 'Pause', exact: true }).click();
+		await control.getByRole('menuitem', { name: 'Preserve pitch', exact: true }).click();
+		await page.keyboard.press('Escape');
 
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
 		await preferences.getByRole('tab', { name: /Playback\/Recording$/ }).click();
 		const mode = preferences.getByRole('group', { name: 'Play-at-speed pitch behavior', exact: true });
-		await chooseDropdown(page, mode, 'Preserve pitch with StaffPad');
+		// The transport toggle and the preferences dropdown are the same setting.
+		await expect(mode.getByRole('button')).toContainText('Preserve pitch with StaffPad');
+		await chooseDropdown(page, mode, 'Change speed and pitch');
 		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
 
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 		const reopened = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
 		await reopened.getByRole('tab', { name: /Playback\/Recording$/ }).click();
-		await expect(reopened.getByRole('group', { name: 'Play-at-speed pitch behavior', exact: true }).getByRole('button')).toContainText('Preserve pitch with StaffPad');
+		await expect(reopened.getByRole('group', { name: 'Play-at-speed pitch behavior', exact: true }).getByRole('button')).toContainText('Change speed and pitch');
 	});
 
 	test('reaches the same audio devices from Preferences as from the transport', async ({ page }) => {

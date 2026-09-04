@@ -269,6 +269,30 @@ test('play-at-speed aborts stale project work and propagates genuine preparation
 	assert.equal(failed.state.playAtSpeedAbort, null);
 });
 
+test('the play action owns play-at-speed once the speed slider leaves the neutral rate', async () => {
+	const fixture = createTransportFixture();
+	fixture.state.playAtSpeedRate = 1.5;
+	assert.equal(await fixture.service.handleTransport('play'), true);
+	assert.equal(fixture.calls.plays, 0);
+	assert.equal(fixture.calls.playAtSpeed.at(-1)?.[0], 1.5);
+
+	// A second press pauses the rate-changed playback instead of restarting it.
+	fixture.setPlaybackState({ state: 'playing', playbackMode: 'naive' });
+	assert.equal(await fixture.service.handleTransport('play'), 'paused');
+
+	// While pitch-preserving playback is still preparing, the same press cancels it.
+	fixture.setPlaybackState({ state: 'stopped', playbackMode: 'normal' });
+	fixture.state.playAtSpeedAbort = new AbortController();
+	assert.equal(await fixture.service.handleTransport('play'), false);
+	assert.equal(fixture.state.playAtSpeedAbort, null);
+
+	// Back at the neutral rate the very same action is ordinary playback again.
+	fixture.state.playAtSpeedRate = 1;
+	assert.equal(await fixture.service.handleTransport('play'), 'played');
+	assert.equal(fixture.calls.plays, 1);
+	assert.equal(fixture.calls.playAtSpeed.length, 1);
+});
+
 test('transport dispatch coordinates preview, playback, seeking, stop, loop, and record actions', async () => {
 	const fixture = createTransportFixture();
 	fixture.state.recordingStarting = true;

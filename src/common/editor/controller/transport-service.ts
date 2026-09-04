@@ -118,6 +118,10 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 		}
 		if (hasMissingTimelineSources() && action === 'play') throw new Error(copy.localSourcesMissing);
 		if (action === 'play') {
+			// The transport has a single play control. Once the speed slider leaves the
+			// neutral rate that control owns play-at-speed instead: it starts, pauses and
+			// cancels the rate-changed playback, so no separate command is needed.
+			if (state.playAtSpeedRate !== 1) return handlePlayAtSpeed();
 			cancelPlayAtSpeedPreparation();
 			if (engine.getState().state === 'playing') {
 				cancelPlaybackCachePreparation();

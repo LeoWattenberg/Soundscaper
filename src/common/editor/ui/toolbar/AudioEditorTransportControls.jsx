@@ -27,51 +27,52 @@ export function TelemetryPlayTransportControl({ copy, snapshot, blocked, control
 		(telemetry) => telemetry.transportState,
 	);
 	const playing = transportState === 'playing';
+	// The speed slider retunes this one button rather than adding a second control:
+	// off the neutral rate it starts, pauses and cancels play-at-speed, so its name
+	// has to say which playback the click will reach.
+	const preparing = Boolean(snapshot.playbackOptions?.preparing);
+	const atSpeed = (snapshot.playbackOptions?.rate ?? 1) !== 1;
+	const label = preparing
+		? copy.cancelPlayAtSpeed
+		: playing
+			? (atSpeed ? copy.pausePlayAtSpeed : copy.pause)
+			: (atSpeed ? copy.playAtSpeed : copy.play);
 	return <span data-transport="play"><AudioEditorSplitButton
 		icon={playing ? 'pause' : 'play'}
 		className="kw-audio-editor__transport-play kw-audio-editor__transport-play-split"
-		ariaLabel={playing ? copy.pause : copy.play}
+		ariaLabel={label}
 		optionsAriaLabel={formatOptionsLabel(copy, playing ? copy.pause : copy.play)}
-		disabled={blocked && !snapshot.recording}
+		disabled={blocked && !snapshot.recording && !preparing}
 		active={playing}
 		pressed={playing}
 		onClick={() => run(() => controller.actions.transport.playPause())}
 	>
-		{({ close }) => <PlaySpeedFlyout
+		{() => <PlaySpeedFlyout
 			copy={copy}
 			snapshot={snapshot}
 			blocked={blocked}
 			controller={controller}
 			run={run}
-			close={close}
 		/>}
 	</AudioEditorSplitButton></span>;
 }
 
-export function PlaySpeedFlyout({ copy, snapshot, blocked, controller, run, close }) {
+export function PlaySpeedFlyout({ copy, snapshot, blocked, controller, run }) {
 	const transportState = useAudioEditorTelemetrySelector(
 		controller,
 		(telemetry) => telemetry.transportState,
 	);
-	const playbackMode = useAudioEditorTelemetrySelector(
-		controller,
-		(telemetry) => telemetry.playbackMode,
-	);
-	const playAtSpeedPreparing = Boolean(snapshot.playbackOptions?.preparing);
-	const playAtSpeedActive = transportState === 'playing'
-		&& ['naive', 'staffpad'].includes(playbackMode);
-	const playAtSpeedLabel = playAtSpeedPreparing
-		? copy.cancelPlayAtSpeed
-		: playAtSpeedActive ? copy.pausePlayAtSpeed : copy.playAtSpeed;
+	// Preferences owns the same choice as a dropdown; the transport keeps it one
+	// click from the slider because pitch is what the listener notices first.
+	const preservePitch = snapshot.playbackOptions?.mode === 'staffpad';
 	return (
 		<div className="kw-audio-editor__split-button-options" data-play-at-speed>
 			<ContextMenuItem
-				label={playAtSpeedLabel}
-				disabled={blocked && !playAtSpeedPreparing}
-				onClick={() => {
-					close();
-					run(() => controller.actions.transport.playAtSpeed());
-				}}
+				label={copy.playAtSpeedPreservePitch}
+				checked={preservePitch}
+				onClick={() => run(() => controller.actions.preferences.update({
+					playback: { playAtSpeedMode: preservePitch ? 'naive' : 'staffpad' },
+				}))}
 			/>
 			<label className="kw-audio-editor__play-at-speed-slider">
 				<span>{copy.playbackSpeed}</span>
