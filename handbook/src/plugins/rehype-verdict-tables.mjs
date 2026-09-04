@@ -9,18 +9,55 @@
  * is wrapped in `<span class="verdict verdict--<state>">`, with the em-dash
  * separator dropped because the styled word now does that work.
  *
- * A table opts in by shape rather than by frontmatter or a wrapper element, so
- * that authoring stays plain Markdown: every body cell outside the first
- * column has to be a bare verdict. That deliberately excludes tables where a
- * Yes/No column sits beside prose or identifiers - the generated effect and
- * plug-in inventories - because a red `No` next to `Realtime rack` would read
- * as a fault rather than as a fact about where the effect runs. It also means
- * one non-verdict cell added later turns the colouring off for that table
- * instead of colouring part of it, which is the failure that is noticed.
+ * A table is coloured when its page asked for it - `VERDICT_TABLE_PAGES` below
+ * - and its own shape agrees: every body cell outside the first column has to
+ * be a verdict. The shape rule alone used to be the whole test, which claimed
+ * tables that never meant a verdict; it is kept as the second half because it
+ * excludes tables where a Yes/No column sits beside prose or identifiers - the
+ * generated effect and plug-in inventories - where a red `No` next to
+ * `Realtime rack` would read as a fault rather than as a fact about where the
+ * effect runs, and because one non-verdict cell added later then turns the
+ * colouring off for that table instead of colouring part of it, which is the
+ * failure that is noticed.
  *
  * Colour is redundant here: the word stays in the cell as text, so nothing is
  * conveyed by hue alone.
  */
+
+/**
+ * The pages whose tables are comparison matrices, as `src/content/docs` paths.
+ *
+ * Colouring cannot be claimed by shape alone, because a table can match the
+ * shape by accident: `reference/generated/platforms.md` lists three browser
+ * engines against a `Tested automatically` column that reads `Yes` three
+ * times, so shape alone tints it green and badges every cell with a pass/fail
+ * verdict that reference page never claimed - and would paint a row red the
+ * day `scripts/docs-reference.mjs` regenerates it with a `No` for an engine
+ * that is not tested yet. A page has to ask for the colouring, and a generated
+ * page never asks.
+ *
+ * The request lives here rather than in the page because neither annotation a
+ * page could carry reaches this transform: Astro renders Markdown with the
+ * frontmatter its collection schema has already validated, so a key Starlight's
+ * schema does not know is gone by the time the tree is built, and raw HTML in
+ * Markdown is still an unparsed `raw` node at this point because
+ * `@astrojs/markdown-remark` applies `rehype-raw` after the configured plugins.
+ * Authoring therefore stays plain Markdown, and a new comparison page is one
+ * line here.
+ */
+const VERDICT_TABLE_PAGES = ['start/how-soundscaper-compares.md'];
+
+const CONTENT_ROOT = 'src/content/docs';
+
+/**
+ * Whether the page being rendered asked for the colouring. Astro supplies the
+ * source path of the Markdown file; a render that has no path - the content
+ * loader's `renderMarkdown()` API - is left plain rather than guessed at.
+ */
+function optedIn(file) {
+	const path = typeof file?.path === 'string' ? file.path.replaceAll('\\', '/') : '';
+	return VERDICT_TABLE_PAGES.some((page) => path.endsWith(`/${CONTENT_ROOT}/${page}`));
+}
 
 const VERDICT_STATES = new Map([
 	['Yes', 'yes'],
@@ -114,5 +151,7 @@ const visit = (node) => {
 };
 
 export default function rehypeVerdictTables() {
-	return visit;
+	return (tree, file) => {
+		if (optedIn(file)) visit(tree);
+	};
 }
