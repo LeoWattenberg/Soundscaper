@@ -3,7 +3,7 @@ import { AccessibilityProfileProvider } from '@soundscaper/design-system/context
 import { darkTheme, lightTheme } from '@audacity-ui/tokens';
 import { ThemeProvider, useTheme } from '@soundscaper/design-system/ThemeProvider';
 
-import { readableTextColor } from './theme-contrast.ts';
+import { wcagContrastRatio } from './theme-contrast.ts';
 
 const PORTAL_BODY_CLASS = 'kw-audio-editor-design-system-mounted';
 const ACCESSIBILITY_STORAGE_KEY = 'audacity-accessibility-profile';
@@ -93,10 +93,7 @@ export function useAudioEditorThemeVariables() {
 		// Both themes paint the primary button a light blue, so the readable
 		// label is the dark one in both — the body token in light, the inverse
 		// token in dark. Naming either outright fails the other theme's scan.
-		'--kw-editor-primary-button-text': readableTextColor(
-			theme.background.control.button.primary.idle,
-			[theme.foreground.text.primary, theme.foreground.text.inverse],
-		),
+		'--kw-editor-primary-button-text': readablePrimaryButtonText(theme),
 		'--kw-editor-muted': theme.foreground.text.secondary,
 		'--kw-editor-line': theme.border.onSurface,
 		'--kw-editor-stage': theme.background.canvas.default,
@@ -127,6 +124,31 @@ export function useAudioEditorThemeVariables() {
 		'--stroke-main-stroke-primary': theme.border.default,
 		colorScheme: theme === darkTheme ? 'dark' : 'light',
 	}), [theme]);
+}
+
+// Button.css swaps the primary fill for :hover and for :active but paints the
+// label from a single variable, so the colour has to stay readable on every
+// fill the label is shown on rather than on the idle one alone. Where no text
+// token clears AA on all three — the dark theme's pressed blue is the case —
+// take the candidate whose worst fill reads best, so the weakest state is as
+// strong as the token pair allows.
+export function readablePrimaryButtonText(theme) {
+	const fills = theme.background.control.button.primary;
+	const backgrounds = [fills.idle, fills.hover, fills.active];
+	const candidates = [theme.foreground.text.primary, theme.foreground.text.inverse];
+	let best = candidates[0];
+	let bestRatio = -1;
+	for (const candidate of candidates) {
+		const ratio = backgrounds.reduce(
+			(worst, background) => Math.min(worst, wcagContrastRatio(candidate, background)),
+			Number.POSITIVE_INFINITY,
+		);
+		if (ratio > bestRatio) {
+			best = candidate;
+			bestRatio = ratio;
+		}
+	}
+	return best;
 }
 
 export function useElementSize() {
