@@ -1,8 +1,8 @@
 import React from 'react';
 import { ToggleButton } from '../ToggleButton';
 import { Button } from '../Button';
-import { GhostButton } from '../GhostButton';
 import { Icon } from '../Icon';
+import { GhostButton } from '../GhostButton';
 import { useTheme } from '../ThemeProvider';
 import './EffectsStackHeader.css';
 
@@ -115,8 +115,6 @@ export const EffectsStackHeader: React.FC<EffectsStackHeaderProps> = ({
           {addButtonLabel}
         </Button>
       )}
-
-      {/* Stack options menu button */}
       {onContextMenu && (
         <GhostButton
           icon="menu"

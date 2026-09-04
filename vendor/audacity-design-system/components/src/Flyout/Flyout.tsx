@@ -56,8 +56,7 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(', ');
 
-const clamp = (value: number, min: number, max: number): number =>
-  Math.min(Math.max(value, min), max);
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 /**
  * A floating surface for arbitrary content, anchored to viewport coordinates.
@@ -117,21 +116,19 @@ export const Flyout: React.FC<FlyoutProps> = ({
     const maxTop = Math.max(VIEWPORT_MARGIN, window.innerHeight - height - VIEWPORT_MARGIN);
     const clampedLeft = clamp(left, VIEWPORT_MARGIN, maxLeft);
     const clampedTop = clamp(top, VIEWPORT_MARGIN, maxTop);
-    const arrowOffset =
-      direction === 'up' || direction === 'down'
-        ? clamp(x - clampedLeft, ARROW_SIZE, Math.max(ARROW_SIZE, width - ARROW_SIZE))
-        : clamp(y - clampedTop, ARROW_SIZE, Math.max(ARROW_SIZE, height - ARROW_SIZE));
+    const arrowOffset = direction === 'up' || direction === 'down'
+      ? clamp(x - clampedLeft, ARROW_SIZE, Math.max(ARROW_SIZE, width - ARROW_SIZE))
+      : clamp(y - clampedTop, ARROW_SIZE, Math.max(ARROW_SIZE, height - ARROW_SIZE));
 
-    setPosition(current =>
+    setPosition(current => (
       current?.left === clampedLeft &&
       current.top === clampedTop &&
       current.arrowOffset === arrowOffset
         ? current
         : { left: clampedLeft, top: clampedTop, arrowOffset }
-    );
+    ));
   }, [direction, x, y]);
 
-  // Keep the flyout inside the viewport as it opens, resizes, or the window resizes
   React.useLayoutEffect(() => {
     if (!isOpen) {
       setPosition(null);
@@ -141,8 +138,9 @@ export const Flyout: React.FC<FlyoutProps> = ({
     updatePosition();
     window.addEventListener('resize', updatePosition);
 
-    const resizeObserver =
-      typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(updatePosition);
+    const resizeObserver = typeof ResizeObserver === 'undefined'
+      ? undefined
+      : new ResizeObserver(updatePosition);
     if (resizeObserver && flyoutRef.current) resizeObserver.observe(flyoutRef.current);
 
     return () => {
@@ -151,15 +149,12 @@ export const Flyout: React.FC<FlyoutProps> = ({
     };
   }, [children, isOpen, updatePosition]);
 
-  // Close on pointer press outside the flyout
   React.useEffect(() => {
     if (!isOpen || !closeOnOutsideClick) return;
 
     const handlePointerDown = (event: PointerEvent) => {
       if (!flyoutRef.current?.contains(event.target as Node)) onClose();
     };
-
-    // Add slight delay to prevent immediate close from the press that opened it
     const timeout = window.setTimeout(() => {
       document.addEventListener('pointerdown', handlePointerDown);
     }, 0);
@@ -170,7 +165,6 @@ export const Flyout: React.FC<FlyoutProps> = ({
     };
   }, [closeOnOutsideClick, isOpen, onClose]);
 
-  // Close on Escape and restore focus to the trigger
   React.useEffect(() => {
     if (!isOpen || !closeOnEscape) return;
 
@@ -185,7 +179,6 @@ export const Flyout: React.FC<FlyoutProps> = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [closeOnEscape, isOpen, onClose, triggerRef]);
 
-  // Focus the first focusable child when opened
   React.useEffect(() => {
     if (!isOpen || !autoFocus) return;
 

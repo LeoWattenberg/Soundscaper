@@ -1,4 +1,4 @@
-# Building an Audacity-style UI with `@dilsonspickles/components`
+# Building an Audacity-style UI with `@audacity-ui/components`
 
 This file is written for AI coding agents working in a consumer repo. It is the playbook for assembling a full Audacity-style audio editor UI out of the components this package ships. Read top-to-bottom for first-time setup; jump to sections by name for targeted tasks.
 
@@ -26,7 +26,7 @@ What it does **not** ship: the audio engine, project persistence, keyboard short
 ## 2. Install
 
 ```bash
-pnpm add @dilsonspickles/components
+pnpm add @audacity-ui/components
 # peer deps the package does not bundle:
 pnpm add react@^18 react-dom@^18
 ```
@@ -34,7 +34,7 @@ pnpm add react@^18 react-dom@^18
 Stylesheet (required — components are unstyled without it):
 
 ```ts
-import '@dilsonspickles/components/style.css';
+import '@audacity-ui/components/style.css';
 ```
 
 The MusescoreIcon font ships inside `dist/` and is auto-referenced from the stylesheet — no extra setup needed.
@@ -51,7 +51,7 @@ import {
   AccessibilityProfileProvider,
   PreferencesProvider,
   darkTheme,
-} from '@dilsonspickles/components';
+} from '@audacity-ui/components';
 
 <PreferencesProvider>
   <ThemeProvider theme={darkTheme}>
@@ -114,7 +114,7 @@ import {
   TimeCode, MasterMeter,
   TimelineRuler, TrackNew, TrackControlPanel, VerticalRuler,
   PlayheadCursor, ToastContainer,
-} from '@dilsonspickles/components';
+} from '@audacity-ui/components';
 
 export function EditorShell() {
   const [activeMenuItem, setActiveMenuItem] = useState<'home' | 'project' | 'export' | 'debug'>('home');
@@ -502,7 +502,7 @@ interface SpectralSelection {
 }
 ```
 
-Import the full set from `@dilsonspickles/components` (or the underlying `@audacity-ui/core` if you need the raw types only).
+Import the full set from `@audacity-ui/components` (or the underlying `@audacity-ui/core` if you need the raw types only).
 
 **State management is unopinionated.** The sandbox happens to use React Context + `useReducer` (`TracksProvider`, `TracksContext`) — fine to copy. But the components don't require it; pass arrays/objects however you manage them. Required pattern: tracks live in *one* source of truth that gets mutated through actions (add clip, move clip, edit envelope, etc.), then re-rendered. Don't sprinkle state across components.
 
@@ -513,7 +513,7 @@ Import the full set from `@dilsonspickles/components` (or the underlying `@audac
 ### 6a. Home tab (project picker)
 
 ```tsx
-import { HomeTab } from '@dilsonspickles/components';
+import { HomeTab } from '@audacity-ui/components';
 
 <HomeTab
   projects={projects}                    // your project list
@@ -598,7 +598,7 @@ When implementing one of these capabilities, start by reading the sandbox file. 
 ## 9. Accessibility notes
 
 - The accessibility profile system supports two modes: `'au4-tab-groups'` (composite-widget roving tabindex — Tab moves *between* groups, arrow keys move *within*) and `'au3-sequential'` (Tab moves linearly through every focusable). Choose via `<AccessibilityProfileProvider initialProfileId="…">`.
-- Components that participate in tab groups use the `useContainerTabGroup` hook internally. If you build a custom focusable region that should join the same scheme, use `useContainerTabGroup` or `useTabGroup` from `@dilsonspickles/components`.
+- Components that participate in tab groups use the `useContainerTabGroup` hook internally. If you build a custom focusable region that should join the same scheme, use `useContainerTabGroup` or `useTabGroup` from `@audacity-ui/components`.
 - Focus outlines render via CSS `:focus-visible` against `theme.border.focus`. Make sure your custom theme defines that token.
 
 ---
@@ -633,7 +633,7 @@ Real failure modes from observed consumer builds. Audit your output against this
 ## 11. When something breaks
 
 1. **"Invalid hook call" / null `useContext`** — two copies of React in resolution. Common in monorepos. Check `node_modules/react` is singular; check the dev server isn't symlinking the package against a different React than your app uses.
-2. **Components render without styles** — `import '@dilsonspickles/components/style.css'` missing or imported after another stylesheet that resets it.
+2. **Components render without styles** — `import '@audacity-ui/components/style.css'` missing or imported after another stylesheet that resets it.
 3. **Icons render as boxes** — the MusescoreIcon font is in `dist/`; check your bundler isn't stripping `.ttf` files from the publish or the CSS `url()` reference.
 4. **Tab navigation feels wrong** — wrong `AccessibilityProfileProvider initialProfileId`. Try `'au4-tab-groups'` (roving) or `'au3-sequential'` (flat).
 5. **Canvas blurry on Retina** — should not happen as of 0.2.1. If it does, the component bypassed `devicePixelRatio` scaling — file a bug.

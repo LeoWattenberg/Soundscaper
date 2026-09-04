@@ -30,9 +30,9 @@ export interface SpectrogramOptions {
 
 /**
  * Get color for spectrogram intensity value
- * Uses the perceptually uniform Roseus colormap
+ * Uses the Roseus perceptual colormap.
  * @param intensity - Normalized intensity (0-1)
- * @returns Opaque hex color string
+ * @returns RGBA color string
  */
 export function getSpectrogramColor(intensity: number): string {
   // Roseus colormap by dofuuz/roseus (MIT), sampled at 256 steps.

@@ -25,7 +25,7 @@ export interface ThemeProviderProps {
  *
  * @example
  * ```tsx
- * import { ThemeProvider, lightTheme, darkTheme } from '@dilsonspickles/components';
+ * import { ThemeProvider, lightTheme, darkTheme } from '@audacity-ui/components';
  *
  * function App() {
  *   const [isDark, setIsDark] = useState(false);

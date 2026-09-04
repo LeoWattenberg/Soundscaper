@@ -183,11 +183,9 @@ export const MixerChannel: React.FC<MixerChannelProps> = ({
 
   return (
     <div className={`mixer-channel ${className}`} style={style}>
-        {/* Input-routing controls */}
         {inputControls != null && (
           <div className="mixer-channel__input-controls">{inputControls}</div>
         )}
-
         {/* Effect stack */}
         <div className="mixer-channel__effect-slot">
           {effects.map((effect, i) => (
@@ -209,7 +207,6 @@ export const MixerChannel: React.FC<MixerChannelProps> = ({
           ))}
         </div>
 
-        {/* Effects footer row — reserved whenever visible so all channels stay height-aligned */}
         {effectFooterVisible && (
           <div className="mixer-channel__effect-footer">{effectFooter}</div>
         )}

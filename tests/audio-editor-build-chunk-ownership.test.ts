@@ -256,7 +256,7 @@ test('worker XML parsing dependencies share one bounded vendor owner', () => {
 
 test('editor UI imports exact internal design-system modules', () => {
 	const broadImporters = sourceModules(EDITOR_UI_DIRECTORY)
-		.filter((path) => readFileSync(path, 'utf8').includes("from '@dilsonspickles/components'"));
+		.filter((path) => readFileSync(path, 'utf8').includes("from '@audacity-ui/components'"));
 	assert.deepEqual(broadImporters, [], 'broad design-system imports retain every component stylesheet');
 	const viteConfig = readFileSync(fileURLToPath(new URL('../vite.config.mjs', import.meta.url)), 'utf8');
 	const tsconfig = readFileSync(fileURLToPath(new URL('../tsconfig.base.json', import.meta.url)), 'utf8');

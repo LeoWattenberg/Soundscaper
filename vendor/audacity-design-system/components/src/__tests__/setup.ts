@@ -1,5 +1,57 @@
 import '@testing-library/jest-dom/vitest';
 
+// --- Web Storage shim ------------------------------------------------------
+// Node 22+ ships native `localStorage`/`sessionStorage` globals whose accessors
+// take precedence over the ones jsdom installs on `window`, but return
+// `undefined` unless Node was started with `--localstorage-file`. On such a
+// Node, every test touching storage dies with
+// "Cannot read properties of undefined (reading 'clear')".
+//
+// This can't be solved with a Node flag. Both `--localstorage-file` and
+// `--no-experimental-webstorage` are rejected outright by Node 20 — the version
+// CI pins — with "is not allowed in NODE_OPTIONS", so setting either globally
+// converts a local-only failure into a CI-wide one.
+//
+// Restoring the globals here is version-agnostic: on Node 20 jsdom's own
+// Storage is already in place, so the guard below skips this entirely.
+class MemoryStorage {
+  private entries = new Map<string, string>();
+
+  get length(): number {
+    return this.entries.size;
+  }
+
+  clear(): void {
+    this.entries.clear();
+  }
+
+  getItem(key: string): string | null {
+    return this.entries.get(String(key)) ?? null;
+  }
+
+  key(index: number): string | null {
+    return [...this.entries.keys()][index] ?? null;
+  }
+
+  removeItem(key: string): void {
+    this.entries.delete(String(key));
+  }
+
+  setItem(key: string, value: string): void {
+    this.entries.set(String(key), String(value));
+  }
+}
+
+for (const name of ['localStorage', 'sessionStorage'] as const) {
+  if (typeof globalThis[name] === 'undefined') {
+    Object.defineProperty(globalThis, name, {
+      value: new MemoryStorage() as unknown as Storage,
+      configurable: true,
+      writable: true,
+    });
+  }
+}
+
 // Mock canvas context for components that render to canvas
 HTMLCanvasElement.prototype.getContext = (() => {
   const noop = () => {};

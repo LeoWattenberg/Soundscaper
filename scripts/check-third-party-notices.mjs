@@ -64,12 +64,18 @@ else {
 }
 
 const upstream = readFileSync(resolve(root, 'vendor/audacity-design-system/UPSTREAM'), 'utf8');
+// Upstream does not always tag the revision the vendored tree is taken from, so a pin names
+// either a tag or the branch it was cut from; whichever it is has to appear in the notices
+// alongside the commit, so the two records cannot drift apart.
 const upstreamTag = upstream.match(/^tag: (\S+)$/mu)?.[1];
+const upstreamBranch = upstream.match(/^branch: (\S+)$/mu)?.[1];
+const upstreamRef = upstreamTag ?? upstreamBranch;
 const upstreamCommit = upstream.match(/^commit: ([0-9a-f]{40})$/mu)?.[1];
-if (!upstreamTag || !upstreamCommit) {
-	findings.push('vendored design system: UPSTREAM is missing its tag or commit record.');
+if (!upstreamRef || !upstreamCommit) {
+	findings.push('vendored design system: UPSTREAM is missing its tag or branch record, or its commit record.');
 } else {
-	if (!notices.includes(`\`${upstreamTag}\``)) findings.push(`vendored design system: THIRD_PARTY_LICENSES.md does not record upstream tag ${upstreamTag}.`);
+	const refLabel = upstreamTag ? 'tag' : 'branch';
+	if (!notices.includes(`\`${upstreamRef}\``)) findings.push(`vendored design system: THIRD_PARTY_LICENSES.md does not record upstream ${refLabel} ${upstreamRef}.`);
 	if (!notices.includes(`\`${upstreamCommit}\``)) findings.push(`vendored design system: THIRD_PARTY_LICENSES.md does not record upstream commit ${upstreamCommit}.`);
 }
 

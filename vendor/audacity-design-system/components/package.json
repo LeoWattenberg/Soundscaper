@@ -1,6 +1,6 @@
 {
-  "name": "@dilsonspickles/components",
-  "version": "0.10.1",
+  "name": "@audacity-ui/components",
+  "version": "0.10.3",
   "type": "module",
   "description": "UI component library for Audacity Design System",
   "main": "./dist/index.js",
@@ -51,8 +51,7 @@
   },
   "license": "MIT",
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
-    "access": "restricted"
+    "access": "public"
   },
   "peerDependencies": {
     "react": ">=18.0.0",

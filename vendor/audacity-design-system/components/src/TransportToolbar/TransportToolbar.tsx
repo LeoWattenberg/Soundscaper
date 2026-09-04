@@ -166,7 +166,7 @@ function SplitRecordButton({
           width: 32,
           borderRadius: 0,
           backgroundColor: isRecording ? theme.audio.transport.record : bg(mainState),
-          color: isRecording ? '#FFFFFF' : theme.audio.transport.record,
+          color: isRecording ? '#FFFFFF' : '#F08080',
         }}
       >
         <Icon name="record" size={14} />
@@ -288,7 +288,7 @@ export function TransportToolbar({
       {activeMenuItem === 'export' ? (
         <>
           <ToolbarButtonGroup gap={2}>
-            <TransportButton icon={isPlaying ? "pause" : "play"} ariaLabel={isPlaying ? "Pause" : "Play"} onClick={onPlay} />
+            <TransportButton icon={isPlaying ? "pause" : "play"} iconColor="#74BE59" ariaLabel={isPlaying ? "Pause" : "Play"} onClick={onPlay} />
             <TransportButton icon="stop" ariaLabel="Stop" onClick={onStop} />
             <TransportButton
               icon="loop"
@@ -333,7 +333,7 @@ export function TransportToolbar({
       ) : (
         <>
           <ToolbarButtonGroup gap={2}>
-            <TransportButton icon={isPlaying ? "pause" : "play"} ariaLabel={isPlaying ? "Pause" : "Play"} onClick={onPlay} />
+            <TransportButton icon={isPlaying ? "pause" : "play"} iconColor="#74BE59" ariaLabel={isPlaying ? "Pause" : "Play"} onClick={onPlay} />
             <TransportButton icon="stop" ariaLabel="Stop" onClick={onStop} />
             {useSplitRecordButton ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 0, borderRadius: 3, overflow: 'hidden' }}>
@@ -363,6 +363,7 @@ export function TransportToolbar({
             ) : (
               <TransportButton
                 icon="record"
+                iconColor="#F08080"
                 ariaLabel="Record"
                 active={isRecording}
                 recording={isRecording}

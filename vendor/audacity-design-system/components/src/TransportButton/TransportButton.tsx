@@ -29,6 +29,12 @@ export interface TransportButtonProps {
    */
   recording?: boolean;
   /**
+   * Icon tint, e.g. the green play and red record accents.
+   * Defaults to the theme's primary icon color; the recording state's
+   * white icon still wins over it.
+   */
+  iconColor?: string;
+  /**
    * Accessible label for the button (required for icon-only buttons)
    */
   ariaLabel?: string;
@@ -52,6 +58,7 @@ export function TransportButton({
   disabled = false,
   active = false,
   recording = false,
+  iconColor,
   ariaLabel,
   className = '',
 }: TransportButtonProps) {
@@ -64,7 +71,7 @@ export function TransportButton({
     '--transport-btn-idle': recording ? theme.audio.transport.record : theme.background.control.button.secondary.idle,
     '--transport-btn-hover': recording ? theme.audio.transport.record : theme.background.control.button.secondary.hover,
     '--transport-btn-pressed': recording ? theme.audio.transport.record : theme.background.control.button.secondary.active,
-    '--transport-icon-color': recording ? '#FFFFFF' : theme.foreground.icon.primary,
+    '--transport-icon-color': recording ? '#FFFFFF' : (iconColor ?? theme.foreground.icon.primary),
   } as React.CSSProperties;
 
   const handleMouseEnter = () => {

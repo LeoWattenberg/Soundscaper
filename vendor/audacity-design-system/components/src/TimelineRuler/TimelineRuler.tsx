@@ -544,7 +544,6 @@ function drawMinutesAndSeconds(
 ) {
   const midHeight = height / 2;
 
-  // Determine major interval based on zoom level
   const majorInterval = getTimelineMajorInterval(pixelsPerSecond);
   const decimalPlaces = getDecimalPlaces(majorInterval);
 
@@ -784,6 +783,5 @@ function formatTime(seconds: number, decimalPlaces = 0): string {
   const mins = Math.floor(seconds / 60);
   const secs = (seconds % 60).toFixed(decimalPlaces);
 
-  // Format as m:ss, with fractional seconds (m:ss.f…) at sub-second intervals
   return `${mins}:${secs.padStart(2 + (decimalPlaces > 0 ? decimalPlaces + 1 : 0), '0')}`;
 }

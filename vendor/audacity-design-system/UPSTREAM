@@ -1,7 +1,11 @@
 repository: https://github.com/DilsonsPickles/audacity-design-system
-tag: components-v0.10.1
-commit: ad34f2195ce401179ec0f365f186150f05b8181c
-vendored: 2026-08-15
+branch: master
+commit: f5a0e9ee9e9c1ea59a3a13adb516ef0cc3f89447
+version: 0.10.3
+vendored: 2026-09-04
+note: upstream released @audacity-ui/components 0.10.3 and renamed the package from
+  @dilsonspickles/components without pushing a components-v0.10.3 tag, so this pin names the
+  master-tip commit instead of a tag. The newest tag, components-v0.10.2, predates the release.
 license: MIT (declared in each package manifest; the upstream repository ships no LICENSE file)
 packages: packages/components -> components/, packages/core -> core/, packages/tokens -> tokens/
 contents: src/ + package.json (+ upstream docs) per package; build tooling (tsup.config.ts,

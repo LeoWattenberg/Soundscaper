@@ -1,28 +1,19 @@
-# @dilsonspickles/components
+# @audacity-ui/components
 
 React component library for the Audacity Design System.
 
 ## Install
 
-This package is published to the **private** GitHub Packages registry under
-the `@dilsonspickles` scope. Consuming projects need an `.npmrc` that
-points the scope at npm.pkg.github.com with a `GITHUB_TOKEN` that has
-`read:packages` permission.
-
-```ini
-# .npmrc
-@dilsonspickles:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-```
-
-Then:
+This package is published publicly to npmjs.com under the `@audacity-ui`
+scope (moved from the private `@dilsonspickles` GitHub Packages registry
+on 4 Sep 2026, so consumers no longer need a token or an `.npmrc`).
 
 ```bash
-bun add @dilsonspickles/components
+bun add @audacity-ui/components
 # or
-pnpm add @dilsonspickles/components
+pnpm add @audacity-ui/components
 # or
-npm install @dilsonspickles/components
+npm install @audacity-ui/components
 ```
 
 React 18 or newer is a **peer dependency** — the package does not bundle it.
@@ -33,7 +24,7 @@ Components ship their styles + the embedded `MusescoreIcon` font file in a
 single stylesheet. Import it once at your app entry point:
 
 ```ts
-import '@dilsonspickles/components/style.css';
+import '@audacity-ui/components/style.css';
 ```
 
 After this, `<Icon>` (and anything that uses it — `TransportButton`,
@@ -48,8 +39,8 @@ wrapping needed — perfect for static sites that don't have a runtime
 context to plug into.
 
 ```tsx
-import { Toolbar, TransportButton } from '@dilsonspickles/components';
-import '@dilsonspickles/components/style.css';
+import { Toolbar, TransportButton } from '@audacity-ui/components';
+import '@audacity-ui/components/style.css';
 
 <Toolbar>
   <TransportButton icon="play" ariaLabel="Play" />
@@ -71,7 +62,7 @@ import {
   ThemeProvider,
   AccessibilityProfileProvider,
   darkTheme,
-} from '@dilsonspickles/components';
+} from '@audacity-ui/components';
 
 <ThemeProvider theme={darkTheme}>
   <AccessibilityProfileProvider initialProfileId="au4">
@@ -85,7 +76,7 @@ import {
 ### Icon
 
 ```tsx
-import { Icon, type IconName } from '@dilsonspickles/components';
+import { Icon, type IconName } from '@audacity-ui/components';
 
 <Icon name="record" size={20} />
 ```
@@ -97,7 +88,7 @@ import {
   Toolbar,
   ToolbarDivider,
   ToolbarButtonGroup,
-} from '@dilsonspickles/components';
+} from '@audacity-ui/components';
 
 <Toolbar height={48}>
   <ToolbarButtonGroup>
@@ -117,7 +108,7 @@ import {
 ### TransportButton
 
 ```tsx
-import { TransportButton } from '@dilsonspickles/components';
+import { TransportButton } from '@audacity-ui/components';
 
 <TransportButton icon="record" />
 <TransportButton icon="play" active />
@@ -127,7 +118,7 @@ import { TransportButton } from '@dilsonspickles/components';
 ### ToolButton
 
 ```tsx
-import { ToolButton } from '@dilsonspickles/components';
+import { ToolButton } from '@audacity-ui/components';
 
 <ToolButton icon="cog" ariaLabel="Settings" />
 <ToolButton icon="trim" label="Trim" />
@@ -159,13 +150,13 @@ contain breaking changes — pin to an exact version in production.
 
 ```bash
 # Build the package
-pnpm --filter @dilsonspickles/components build
+pnpm --filter @audacity-ui/components build
 
 # Watch mode for development
-pnpm --filter @dilsonspickles/components dev
+pnpm --filter @audacity-ui/components dev
 
 # Run tests
-pnpm --filter @dilsonspickles/components test
+pnpm --filter @audacity-ui/components test
 ```
 
 ## License

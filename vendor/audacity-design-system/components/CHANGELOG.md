@@ -1,4 +1,4 @@
-# @dilsonspickles/components
+# @audacity-ui/components
 
 ## 0.10.1 — 2026-07-23
 

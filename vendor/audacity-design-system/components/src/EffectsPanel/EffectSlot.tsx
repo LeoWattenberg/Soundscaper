@@ -357,10 +357,8 @@ export const EffectSlot: React.FC<EffectSlotProps> = ({
         </button>
       </div>
 
-      {/* Context menu — "Remove effect" tears the slot down; below the
-          divider, a flat list of every available effect (built-in registry
-          effects first, then MuseHub purchases sorted by vendor and name)
-          swaps the slot in one click. */}
+      {/* Context menu — remove first, followed by a flat list of installed
+          effects so replacing a slot takes one click. */}
       <ContextMenu
         isOpen={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -376,7 +374,7 @@ export const EffectSlot: React.FC<EffectSlotProps> = ({
         />
         <ContextMenuItem isDivider />
         {(replaceEffectOptions ?? Object.values(EFFECT_REGISTRY).flat())
-          .filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id))
+          .filter((effect) => !disabledPluginIds || !disabledPluginIds.has(effect.id))
           .map((effect) => (
             <ContextMenuItem
               key={effect.id}
@@ -387,8 +385,8 @@ export const EffectSlot: React.FC<EffectSlotProps> = ({
               }}
             />
           ))}
-        {(purchasedEffects || [])
-          .filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id))
+        {(purchasedEffects ?? [])
+          .filter((effect) => !disabledPluginIds || !disabledPluginIds.has(effect.id))
           .sort((a, b) => `${a.vendor}:${a.name}`.localeCompare(`${b.vendor}:${b.name}`))
           .map((effect) => (
             <ContextMenuItem

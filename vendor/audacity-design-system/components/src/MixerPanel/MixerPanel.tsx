@@ -143,13 +143,21 @@ export const MixerPanel: React.FC<MixerPanelProps> = ({
               {channels.map((ch, i) => (
                 <React.Fragment key={ch.id}>
                   {i > 0 && <div className="mixer-panel__channel-divider" />}
-                  <MixerChannel {...ch.channelProps} effectSlotCount={maxEffectSlots} effectFooterVisible={Boolean(effectFooterLabel)} />
+                  <MixerChannel
+                    {...ch.channelProps}
+                    effectSlotCount={maxEffectSlots}
+                    effectFooterVisible={Boolean(effectFooterLabel)}
+                  />
                 </React.Fragment>
               ))}
               {masterChannel && (
                 <>
                   {channels.length > 0 && <div className="mixer-panel__channel-divider" />}
-                  <MixerChannel {...masterChannel} effectSlotCount={maxEffectSlots} effectFooterVisible={Boolean(effectFooterLabel)} />
+                  <MixerChannel
+                    {...masterChannel}
+                    effectSlotCount={maxEffectSlots}
+                    effectFooterVisible={Boolean(effectFooterLabel)}
+                  />
                 </>
               )}
               <div className="mixer-panel__channel-divider" />

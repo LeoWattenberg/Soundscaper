@@ -111,9 +111,6 @@
   height: 28px;
   border: none;
   background-color: transparent;
-  font-family: 'Segoe MDL2 Assets', sans-serif;
-  font-size: 10px;
-  line-height: normal;
   color: var(--header-text);
   cursor: pointer;
   display: flex;

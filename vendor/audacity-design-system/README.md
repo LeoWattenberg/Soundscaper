@@ -4,23 +4,33 @@ In-tree copy of three packages from
 [DilsonsPickles/audacity-design-system](https://github.com/DilsonsPickles/audacity-design-system),
 vendored at the commit recorded in [UPSTREAM](UPSTREAM) (muse_framework style: plain copy, no
 submodule). The application's Vite build compiles this source directly; there is no separate
-build step. `check:notices` verifies that the commit recorded in `UPSTREAM` matches the entry
-in `THIRD_PARTY_LICENSES.md`.
+build step. `check:notices` verifies that the commit and the tag-or-branch recorded in
+`UPSTREAM` match the entry in `THIRD_PARTY_LICENSES.md`; upstream does not tag every release,
+so a pin may name a branch and commit rather than a tag.
 
 ## How it is wired
 
-- `@dilsonspickles/components` → `components/src/index.ts`
+- `@soundscaper/design-system/*` → `components/src/*` (the app-owned subpath alias; this is
+  what feature code imports)
+- `@audacity-ui/components` → `components/src/index.ts` (the package barrel, kept so the tree
+  resolves under its own upstream name)
 - `@audacity-ui/core` → `core/src/index.ts`
 - `@audacity-ui/tokens` → `tokens/src/index.ts`
 
-Aliases are declared in `vite.config.mjs` (`resolve.alias`) and `tsconfig.base.json` (`paths`),
-both file-targeted. Node-run tests resolve the same aliases through tsx and stub CSS/asset
-imports via `scripts/node-style-asset-loader.mjs`.
+Aliases are declared in `vite.config.mjs` (`resolve.alias`) and `tsconfig.base.json` (`paths`);
+all but the subpath alias are file-targeted. Node-run tests resolve the same aliases through tsx
+and stub CSS/asset imports via `scripts/node-style-asset-loader.mjs`.
+
+Upstream renamed the components package from `@dilsonspickles/components` to
+`@audacity-ui/components` at the currently pinned commit (the `@dilsonspickles` scope was taken
+on npmjs and GitHub Packages needed a token even for public reads).
 
 ## Rules
 
-- **No deep subpath imports** of `@dilsonspickles/components/...` — the file-targeted alias
-  does not support them and they resolve to broken paths.
+- **No deep subpath imports** of `@audacity-ui/components/...` — that alias is file-targeted
+  and does not support them, so they resolve to broken paths. Import an individual module
+  through `@soundscaper/design-system/<path>` instead, which is what keeps unused components'
+  stylesheets out of the bundle.
 - **Unused components' CSS does not ship.** Component modules the app never imports are
   tree-shaken along with their stylesheets. App code that renders a component's markup by
   class name *without* mounting the component must import that component's stylesheet
@@ -132,7 +142,10 @@ Tracked so upstream syncs know what to preserve. Aside from this list, keep the 
     `EFFECT_REGISTRY` as the source of the caret menu's swap list. The packaged registry holds
     three sample effects (Compressor, Limiter, Reverb), so every slot in the realtime rack
     offered only those three as replacements regardless of what the host actually implements.
-    Omitting the prop keeps upstream behaviour. Covered by
+    Upstream took the flat one-click replace list this was built on but not the host-catalogue
+    override, so the prop is still ours; `onChangeEffect` is also still destructured as
+    `_onChangeEffect`, because upstream removed the "Get effects…" item that used it and left the
+    binding unread. Omitting the prop keeps upstream behaviour. Covered by
     `tests/audio-editor-effect-slot-replace-options.test.tsx`. Upstream-PR candidate.
 17. `EffectsPanel.tsx` accepts an `autoFocusOnOpen` prop (default `true`) that gates the
     open-time move of keyboard focus onto the "Add effect" button. The application re-mounts an
@@ -204,12 +217,13 @@ are the places where the two keyboard models meet, so a future sync should re-ch
 
 1. Clone upstream and export the vendored subset — `packages/{components,core,tokens}/`
    restricted to `src/**`, `package.json`, and top-level `*.md` — at both the recorded commit
-   and the target tag.
+   and the target revision.
 2. Three-way merge rather than patch: in a scratch repo, commit the recorded-commit export as
    the base, branch this tree onto it as *ours* and the target export as *theirs*, then merge.
    Confirm afterwards that `diff` against *theirs* reproduces the local-deviation set exactly;
    that is what proves no deviation was silently dropped.
-3. Update `UPSTREAM` and the `THIRD_PARTY_LICENSES.md` entry (version + commit + tag) together.
+3. Update `UPSTREAM` and the `THIRD_PARTY_LICENSES.md` entry (version + commit + tag or
+   branch) together.
    Editing the notices file invalidates two pins in `config/ffmpeg-runtime-manifest.json`
    (`evidence.notices` and `review.payloadSha256`); refresh them with
    `repinFfmpegRuntimeEvidence` from `scripts/lib/ffmpeg-runtime-manifest.mjs`, which leaves the

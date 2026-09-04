@@ -220,7 +220,7 @@ export default defineConfig({
 				find: /^@soundscaper\/design-system\/(.+)$/u,
 				replacement: resolve(vendoredDesignSystem, 'components/src/$1'),
 			},
-			{ find: '@dilsonspickles/components', replacement: resolve(vendoredDesignSystem, 'components/src/index.ts') },
+			{ find: '@audacity-ui/components', replacement: resolve(vendoredDesignSystem, 'components/src/index.ts') },
 			{ find: '@audacity-ui/core', replacement: resolve(vendoredDesignSystem, 'core/src/index.ts') },
 			{ find: '@audacity-ui/tokens', replacement: resolve(vendoredDesignSystem, 'tokens/src/index.ts') },
 		],
