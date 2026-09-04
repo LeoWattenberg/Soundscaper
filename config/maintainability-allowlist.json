@@ -28,10 +28,6 @@
 			"maxLines": 726,
 			"reason": "Legacy SQLite AUP4 codec with strict schema validation."
 		},
-		"src/common/editor/aup4-effects.js": {
-			"maxLines": 849,
-			"reason": "Audacity effect mapping and compatibility policy."
-		},
 		"src/common/editor/aup4-export.js": {
 			"maxLines": 829,
 			"reason": "AUP4 exporter with interoperability fixtures and release audit."
