@@ -76,17 +76,19 @@ test('pitch and tempo owns its own render and reset buttons', async () => {
 	}
 });
 
-test('the pitch unit toggle rereads the same shift as cents, semitones or percent', async () => {
+test('the pitch unit toggle offers semitones and cents together or a percentage', async () => {
 	const fixture = await mountedFixture({ pitchCents: 200 });
 	try {
 		await fixture.render();
 
+		assert.deepEqual(
+			await fixture.pitchUnitOptions(),
+			[ENGLISH_COPY.clipPitchUnitCents, ENGLISH_COPY.clipPitchUnitPercent],
+			'semitones stay part of the cent field rather than becoming a unit of their own',
+		);
+		assert.equal(ENGLISH_COPY.clipPitchUnitCents, 'Semitones and cents');
 		assert.equal(fixture.pitchLabel(), ENGLISH_COPY.clipPitchCents);
-		assert.equal(fixture.pitchValue(), '200');
-
-		await fixture.choosePitchUnit(ENGLISH_COPY.clipPitchUnitSemitones);
-		assert.equal(fixture.pitchLabel(), ENGLISH_COPY.clipPitchSemitones);
-		assert.equal(fixture.pitchValue(), '2.00');
+		assert.equal(fixture.pitchValue(), '200', 'two hundred cents are the two semitones stored');
 
 		await fixture.choosePitchUnit(ENGLISH_COPY.clipPitchUnitPercent);
 		assert.equal(fixture.pitchLabel(), ENGLISH_COPY.clipPitchPercent);
@@ -107,8 +109,7 @@ test('a pitch typed in the chosen unit commits the cents it asks for', async () 
 		await fixture.render();
 
 		await fixture.commitPitch('-7');
-		await fixture.choosePitchUnit(ENGLISH_COPY.clipPitchUnitSemitones);
-		await fixture.commitPitch('-7');
+		await fixture.commitPitch('-700');
 		await fixture.choosePitchUnit(ENGLISH_COPY.clipPitchUnitPercent);
 		await fixture.commitPitch('100');
 		await fixture.commitPitch('-50');
@@ -196,6 +197,20 @@ async function mountedFixture(clipOverrides: Readonly<Record<string, unknown>> =
 		assert.ok(box, `Missing mounted ${field} checkbox.`);
 		return box;
 	};
+	// The unit menu is a portalled listbox, so its options only exist while the
+	// trigger has been clicked open; the trigger has to be measurable first
+	// because the menu positions itself against the trigger's box.
+	const togglePitchUnitMenu = async () => {
+		const trigger = dom.one('[data-clip-pitch-unit]').querySelector('button');
+		assert.ok(trigger, 'Missing mounted pitch unit trigger.');
+		Object.defineProperty(trigger, 'getBoundingClientRect', {
+			configurable: true,
+			value: () => ({ bottom: 28, left: 0, width: 240 }),
+		});
+		await click(trigger);
+		return descendants(document.body as unknown as ReactTestElement)
+			.filter((candidate) => candidate.getAttribute('role') === 'option');
+	};
 	const pitchField = () => dom.one('[data-clip-field="pitchCents"]');
 	const pitchInput = () => {
 		const input = pitchField().querySelector('input');
@@ -243,17 +258,14 @@ async function mountedFixture(clipOverrides: Readonly<Record<string, unknown>> =
 				await Promise.resolve();
 			});
 		},
+		pitchUnitOptions: async () => {
+			const labels = (await togglePitchUnitMenu()).map((option) => option.textContent);
+			await togglePitchUnitMenu();
+			return labels;
+		},
 		choosePitchUnit: async (optionLabel: string) => {
-			const trigger = dom.one('[data-clip-pitch-unit]').querySelector('button');
-			assert.ok(trigger, 'Missing mounted pitch unit trigger.');
-			Object.defineProperty(trigger, 'getBoundingClientRect', {
-				configurable: true,
-				value: () => ({ bottom: 28, left: 0, width: 240 }),
-			});
-			await click(trigger);
-			const option = descendants(document.body as unknown as ReactTestElement).find((candidate) => (
-				candidate.getAttribute('role') === 'option' && candidate.textContent === optionLabel
-			));
+			const option = (await togglePitchUnitMenu())
+				.find((candidate) => candidate.textContent === optionLabel);
 			assert.ok(option, `Missing mounted pitch unit option ${optionLabel}.`);
 			await click(option);
 		},

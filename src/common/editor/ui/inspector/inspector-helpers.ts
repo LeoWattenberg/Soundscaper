@@ -161,44 +161,41 @@ export function bitrateOption(value: number): Readonly<{ value: string; label: s
 	return { value: String(value), label: `${value} kbps` };
 }
 
-export const CLIP_PITCH_UNITS = Object.freeze(['cents', 'semitones', 'percent'] as const);
+export const CLIP_PITCH_UNITS = Object.freeze(['cents', 'percent'] as const);
 
 export type ClipPitchUnit = typeof CLIP_PITCH_UNITS[number];
 
 /**
  * The unit choices the clip inspector offers for a pitch shift.
  *
- * Cents stay first because they are the unit a clip stores and the one the
- * pitch up and down commands step in, so the list opens on the value the rest
- * of the editor talks about.
+ * Semitones and cents are one choice rather than two: a semitone is a hundred
+ * cents, so the single cent field already writes both, and the pitch up and
+ * down commands step it a semitone at a time. Cents stay first because they
+ * are the unit a clip stores and the one the rest of the editor talks about.
  */
 export function clipPitchUnitOptions(
 	copy: InspectorCopy,
 ): ReadonlyArray<Readonly<{ value: ClipPitchUnit; label: string }>> {
 	return [
 		{ value: 'cents', label: copy.clipPitchUnitCents },
-		{ value: 'semitones', label: copy.clipPitchUnitSemitones },
 		{ value: 'percent', label: copy.clipPitchUnitPercent },
 	];
 }
 
 export function clipPitchUnitFieldLabel(copy: InspectorCopy, unit: ClipPitchUnit): string {
-	if (unit === 'semitones') return copy.clipPitchSemitones;
-	if (unit === 'percent') return copy.clipPitchPercent;
-	return copy.clipPitchCents;
+	return unit === 'percent' ? copy.clipPitchPercent : copy.clipPitchCents;
 }
 
 /**
  * The pitch shift a clip carries, written in the unit on display.
  *
- * Cents are the stored unit and so are shown verbatim; a semitone is a hundred
- * of them. A percentage is the change in frequency the shift produces, not a
- * share of the supported range, which is why the octave a clip may be raised
- * reads as +100 while the octave it may be lowered reads as −50.
+ * Cents are the stored unit and so are shown verbatim. A percentage is the
+ * change in frequency the shift produces, not a share of the supported range,
+ * which is why the octave a clip may be raised reads as +100 while the octave
+ * it may be lowered reads as −50.
  */
 export function clipPitchInUnit(cents: unknown, unit: ClipPitchUnit): string {
 	const amount = Number(cents) || 0;
-	if (unit === 'semitones') return (amount / 100).toFixed(2);
 	if (unit === 'percent') return ((2 ** (amount / 1_200) - 1) * 100).toFixed(2);
 	return String(amount);
 }
@@ -219,7 +216,6 @@ export function clipPitchUnitToCents(
 ): number {
 	const amount = Number(String(value ?? '').trim());
 	if (!Number.isFinite(amount)) throw new RangeError(copy.clipPitchRange);
-	if (unit === 'semitones') return amount * 100;
 	if (unit !== 'percent') return amount;
 	if (amount <= -100) throw new RangeError(copy.clipPitchRange);
 	return Math.round(1_200 * Math.log2(1 + amount / 100));
