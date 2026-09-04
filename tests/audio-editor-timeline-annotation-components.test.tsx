@@ -193,7 +193,9 @@ test('short annotation regions retain two non-overlapping edge hit targets', () 
 		createAnnotation={createAnnotationFixture}
 	/>);
 
-	assert.match(markup, /style="left:0\.5px;width:16px"/u);
+	// 12.5px is the ruler's 12px content inset plus the half pixel the region
+	// starts at, so the handles sit under the ticks the region names.
+	assert.match(markup, /style="left:12\.5px;width:16px"/u);
 	assert.equal(markup.match(/data-annotation-edge="(?:start|end)"/gu)?.length, 2);
 });
 

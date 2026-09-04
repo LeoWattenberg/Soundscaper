@@ -410,6 +410,29 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('creates a label under the playhead rather than beside it', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+
+		const audioLane = editor.locator('.audio-editor-track-row:not(.audio-editor-label-track-row) [data-track-lane]').first();
+		const audioLaneBox = await audioLane.boundingBox();
+		expect(audioLaneBox).not.toBeNull();
+		await page.mouse.click(audioLaneBox.x + 96, audioLaneBox.y + 40);
+		const playhead = editor.getByRole('slider', { name: 'Playhead' });
+		await expect.poll(async () => Number(await playhead.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+		await page.keyboard.press('Control+b');
+
+		const marker = editor.locator('[data-label-track] .audio-editor-label-marker');
+		await expect(marker).toHaveCount(1);
+		const stalkBox = await marker.locator('.label-marker__stalk-line').boundingBox();
+		const playheadLineBox = await editor.locator('[data-playhead] .playhead-cursor__line').boundingBox();
+		expect(stalkBox).not.toBeNull();
+		expect(playheadLineBox).not.toBeNull();
+		expect(Math.abs(stalkBox.x - playheadLineBox.x)).toBeLessThanOrEqual(1);
+		expect(errors).toEqual([]);
+	});
+
 	test('shows time selections above clips and label tracks', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import React, { useRef, useState } from 'react';
+import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import {
 	consumeTimelineAnnotationRenameKey,
@@ -35,6 +36,10 @@ export function TimelineAnnotationLayer({
 	run,
 	createAnnotation,
 }) {
+	// The lane overlays the ruler, which draws time zero CLIP_CONTENT_OFFSET
+	// pixels in from the viewport edge; shifting the lane's scroll origin by the
+	// same inset keeps annotations under the ticks and the playhead they name.
+	const laneScrollX = scrollX - CLIP_CONTENT_OFFSET;
 	const model = React.useMemo(() => createTimelineAnnotationUiModel({
 		annotations,
 		primarySequenceId: project.primarySequenceId,
@@ -61,11 +66,11 @@ export function TimelineAnnotationLayer({
 	const visibleRows = React.useMemo(() => model.rows
 		.map((row, index) => ({ row, index }))
 		.filter(({ row }) => row.focused || row.id === editingId || timelineAnnotationIsVisible(
-			row.annotation, pixelsPerSecond, sampleRate, scrollX, viewportWidth,
-		)), [editingId, model.rows, pixelsPerSecond, sampleRate, scrollX, viewportWidth]);
+			row.annotation, pixelsPerSecond, sampleRate, laneScrollX, viewportWidth,
+		)), [editingId, laneScrollX, model.rows, pixelsPerSecond, sampleRate, viewportWidth]);
 	const editingRow = editingId ? rowById.get(editingId) : null;
 	const editingLeft = editingRow
-		? editingRow.annotation.timelineStartFrame / sampleRate * pixelsPerSecond - scrollX
+		? editingRow.annotation.timelineStartFrame / sampleRate * pixelsPerSecond - laneScrollX
 		: 0;
 	const editingWidth = editingRow?.annotation.kind === 'region'
 		? timelineAnnotationRegionWidth(editingRow.annotation.durationFrames, pixelsPerSecond, sampleRate)
@@ -212,7 +217,7 @@ export function TimelineAnnotationLayer({
 			const bounds = layerRef.current?.getBoundingClientRect();
 			const offsetX = event.clientX - (bounds?.left || 0);
 			const hitIds = timelineAnnotationHitIds(
-				projected, offsetX, pixelsPerSecond, sampleRate, scrollX, edge,
+				projected, offsetX, pixelsPerSecond, sampleRate, laneScrollX, edge,
 			);
 			if (hitIds.length > 1 && hitIds.includes(eventRow.id)) {
 				const signature = `${edge || 'body'}:${Math.round(offsetX)}:${hitIds.join('\u0000')}`;
@@ -334,7 +339,7 @@ export function TimelineAnnotationLayer({
 				const endFrame = resizing?.edge === 'end'
 					? Math.max(annotation.timelineStartFrame + 1, annotation.timelineEndFrame + resizing.deltaFrames)
 					: annotation.timelineEndFrame + movingDelta;
-				const left = startFrame / sampleRate * pixelsPerSecond - scrollX;
+				const left = startFrame / sampleRate * pixelsPerSecond - laneScrollX;
 				const width = annotation.kind === 'region'
 					? timelineAnnotationRegionWidth(endFrame - startFrame, pixelsPerSecond, sampleRate)
 					: 2;

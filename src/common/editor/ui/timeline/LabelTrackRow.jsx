@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
+import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 import { GhostButton } from '@soundscaper/design-system/GhostButton';
 import { Icon } from '@soundscaper/design-system/Icon';
 import { LabelMarker } from '@soundscaper/design-system/LabelMarker';
@@ -123,35 +124,32 @@ export function LabelTrackRow({
 					selection={timeSelection}
 					pixelsPerSecond={pixelsPerSecond}
 				/>}
-				{track.labels.map((label) => {
-					const startSeconds = framesToSeconds(label.startFrame, { sampleRate });
-					return (
-						<AudacityLabelMarker
-							key={label.id}
-							controller={controller}
-							trackId={track.id}
-							label={label}
-							left={startSeconds * pixelsPerSecond}
-							trackHeight={trackHeight}
-							pixelsPerSecond={pixelsPerSecond}
-							sampleRate={sampleRate}
-							laneRef={laneRef}
-							selected={selectedLabelId === label.id}
-							editing={editingLabelId === label.id}
-							blocked={blocked}
-							copy={copy}
-							run={run}
-							onSelect={() => setSelectedLabelId(label.id)}
-							onEdit={() => setEditingLabelId(label.id)}
-							onFinishEdit={() => setEditingLabelId(null)}
-							onRemove={() => {
-								setSelectedLabelId(null);
-								setEditingLabelId(null);
-								run(() => controller.actions.labels.remove(track.id, label.id));
-							}}
-						/>
-					);
-				})}
+				{track.labels.map((label) => (
+					<AudacityLabelMarker
+						key={label.id}
+						controller={controller}
+						trackId={track.id}
+						label={label}
+						left={labelLaneContentX(label.startFrame, pixelsPerSecond, sampleRate)}
+						trackHeight={trackHeight}
+						pixelsPerSecond={pixelsPerSecond}
+						sampleRate={sampleRate}
+						laneRef={laneRef}
+						selected={selectedLabelId === label.id}
+						editing={editingLabelId === label.id}
+						blocked={blocked}
+						copy={copy}
+						run={run}
+						onSelect={() => setSelectedLabelId(label.id)}
+						onEdit={() => setEditingLabelId(label.id)}
+						onFinishEdit={() => setEditingLabelId(null)}
+						onRemove={() => {
+							setSelectedLabelId(null);
+							setEditingLabelId(null);
+							run(() => controller.actions.labels.remove(track.id, label.id));
+						}}
+					/>
+				))}
 			</div>
 		</div>
 	);
@@ -292,8 +290,19 @@ export function AudacityLabelMarker({
 	);
 }
 
+/**
+ * Where a label frame is drawn inside its lane. Lanes start their content
+ * CLIP_CONTENT_OFFSET pixels in, exactly as the ruler, the grid lines and the
+ * playhead do, so a label placed at the playhead lands on the playhead.
+ */
+export function labelLaneContentX(frame, pixelsPerSecond, sampleRate) {
+	return CLIP_CONTENT_OFFSET + framesToSeconds(frame, { sampleRate }) * pixelsPerSecond;
+}
+
+/** The inverse of {@link labelLaneContentX} for a pointer over a label lane. */
 export function frameAtLabelClientX(clientX, lane, pixelsPerSecond, sampleRate) {
 	if (!lane) return 0;
 	const rect = lane.getBoundingClientRect();
-	return Math.max(0, Math.round(Math.max(0, clientX - rect.left) / pixelsPerSecond * sampleRate));
+	const contentX = clientX - rect.left - CLIP_CONTENT_OFFSET;
+	return Math.max(0, Math.round(Math.max(0, contentX) / pixelsPerSecond * sampleRate));
 }
