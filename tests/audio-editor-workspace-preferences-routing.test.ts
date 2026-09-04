@@ -7,19 +7,19 @@ import {
 	workspacePreferencesPage,
 } from '../src/common/editor/ui/workspace/workspace-preferences-routing.ts';
 
-test('desktop Preferences defaults to General and admits the desktop-only page', () => {
-	assert.equal(workspacePreferencesPage(undefined, true), 'general');
-	assert.equal(workspacePreferencesPage('general', true), 'general');
-	assert.equal(workspacePreferencesPage('appearance', true), 'appearance');
+test('Preferences opens on General the way Audacity does', () => {
+	assert.equal(workspacePreferencesPage(undefined), 'general');
+	assert.equal(workspacePreferencesPage('general'), 'general');
+	assert.equal(workspacePreferencesPage('nonsense'), 'general');
 });
 
-test('browser Preferences preserves its Shortcuts default and rejects General', () => {
-	assert.equal(workspacePreferencesPage(undefined, false), 'shortcuts');
-	assert.equal(workspacePreferencesPage('general', false), 'shortcuts');
-	assert.equal(workspacePreferencesPage('appearance', false), 'appearance');
+test('every preference page is reachable on both hosts', () => {
+	for (const page of ['appearance', 'editing', 'spectrogram', 'workspace', 'panels', 'shortcuts']) {
+		assert.equal(workspacePreferencesPage(page), page);
+	}
 });
 
-test('preference aliases remain stable on both hosts', () => {
-	assert.equal(workspacePreferencesPage('snap', true), 'editing');
-	assert.equal(workspacePreferencesPage('sound-activation', false), 'sound-activation');
+test('preference aliases remain stable', () => {
+	assert.equal(workspacePreferencesPage('snap'), 'editing');
+	assert.equal(workspacePreferencesPage('sound-activation'), 'sound-activation');
 });

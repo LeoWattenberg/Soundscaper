@@ -43,6 +43,7 @@ interface TestPresets {
 function createFixture(options: Readonly<{
 	genericReconciliation?: boolean;
 	automaticAudioDeviceEnumeration?: boolean;
+	startupProjectId?: (lastProjectId: string | null) => string | null;
 }> = {}) {
 	const lifetime = new EditorControllerLifetime();
 	const settings = new Map<string, unknown>();
@@ -153,6 +154,7 @@ function createFixture(options: Readonly<{
 		refreshAudioDevices: async (options) => { events.push(`refresh-devices:${String(options.publish)}`); },
 		setRemoveDeviceChangeListener: (remove) => { removeDeviceListener = remove; },
 		loadRecentProjectState: async () => lastProjectId,
+		...(options.startupProjectId ? { startupProjectId: options.startupProjectId } : {}),
 		openProject: (value) => openProject(value),
 		newProject: async () => { events.push('new-project'); },
 		openRecovery: {
@@ -435,4 +437,32 @@ test('missing source state remains a visible bootstrap error', async () => {
 	fixture.setMissingSources(true);
 	await fixture.service.bootstrap(fixture.lifetime.capture());
 	assert.deepEqual(fixture.statuses.at(-1), ['Missing sources', 'error']);
+});
+
+test('Program start opens the project the preference names, not the last session', async () => {
+	const pinned = { id: 'pinned-project', tracks: [] };
+	const fixture = createFixture({ startupProjectId: () => pinned.id });
+	fixture.setLastProject('last-session-project', pinned);
+	await fixture.service.bootstrap(fixture.lifetime.capture());
+	assert.equal(fixture.events.includes('load-project:pinned-project'), true);
+	assert.equal(fixture.events.includes('load-project:last-session-project'), false);
+	assert.equal(fixture.events.includes('new-project'), false);
+});
+
+test('Program start can begin with a new project while a last session exists', async () => {
+	const saved = { id: 'saved-project', tracks: [] };
+	const fixture = createFixture({ startupProjectId: () => null });
+	fixture.setLastProject(saved.id, saved);
+	await fixture.service.bootstrap(fixture.lifetime.capture());
+	assert.equal(fixture.events.some((event) => event.startsWith('load-project:')), false);
+	assert.equal(fixture.events.includes('new-project'), true);
+});
+
+test('a named startup project that no longer exists starts a new project', async () => {
+	const fixture = createFixture({ startupProjectId: () => 'deleted-project' });
+	fixture.setLastProject(null, null);
+	fixture.setLoadProject(async () => null);
+	await fixture.service.bootstrap(fixture.lifetime.capture());
+	assert.equal(fixture.events.includes('load-project:deleted-project'), true);
+	assert.equal(fixture.events.includes('new-project'), true);
 });

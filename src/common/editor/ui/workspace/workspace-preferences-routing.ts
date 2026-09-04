@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-const SHARED_PREFERENCE_PAGES = new Set([
+const PREFERENCE_PAGES = new Set([
+	'general',
 	'appearance',
 	'editing',
 	'workspace',
@@ -10,14 +11,16 @@ const SHARED_PREFERENCE_PAGES = new Set([
 	'sound-activation',
 ]);
 
-export function workspacePreferencesPage(
-	requestedSection: unknown,
-	isDesktop: boolean,
-): string {
-	if (requestedSection === 'general' && isDesktop) return 'general';
-	if (typeof requestedSection === 'string' && SHARED_PREFERENCE_PAGES.has(requestedSection)) {
+/**
+ * Audacity opens Preferences on its General page, and every page it lists is
+ * reachable on every host. The desktop build adds one section to General — the
+ * FFmpeg location — rather than a page of its own, so the host no longer
+ * decides which pages exist.
+ */
+export function workspacePreferencesPage(requestedSection: unknown): string {
+	if (typeof requestedSection === 'string' && PREFERENCE_PAGES.has(requestedSection)) {
 		return requestedSection;
 	}
 	if (requestedSection === 'snap') return 'editing';
-	return isDesktop ? 'general' : 'shortcuts';
+	return 'general';
 }

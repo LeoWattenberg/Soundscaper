@@ -635,6 +635,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 		let preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await preferences.getByRole('tab', { name: /Keyboard shortcuts$/u }).click();
 		const splitRow = preferences.locator('[data-shortcut-action="split-tool"]');
 		const splitShortcut = splitRow.locator('input');
 		await splitShortcut.focus();
@@ -770,6 +771,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await preferences.getByRole('tab', { name: /Keyboard shortcuts$/u }).click();
 		const search = preferences.getByRole('searchbox', { name: 'Search commands', exact: true });
 
 		await search.fill('Insert');

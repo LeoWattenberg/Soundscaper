@@ -912,9 +912,14 @@
       "count": 7
     }
   },
+  "src/common/editor/ui/dialogs/PreferenceDropdownField.jsx": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
   "src/common/editor/ui/dialogs/WorkspacePreferencesDialog.jsx": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "src/common/editor/ui/framescaper-native-image-sequence-source-resolver.ts": {

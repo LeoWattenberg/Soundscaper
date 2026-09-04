@@ -37,15 +37,35 @@ test('desktop Preferences opens General and manages the display-only FFmpeg loca
 	await expect(preferences.getByRole('group', { name: 'Language', exact: true })).toHaveCount(0);
 });
 
-test('browser Preferences keeps Shortcuts as its default and has no General page', async ({ page }) => {
+test('browser Preferences opens General without the desktop-only FFmpeg location', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
 	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 
 	const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
-	await expect(preferences.getByRole('tab').first()).toHaveText(/Appearance$/u);
-	await expect(preferences.getByRole('tab', { name: /Keyboard shortcuts$/u })).toHaveAttribute('aria-selected', 'true');
-	await expect(preferences.getByRole('tab', { name: /General$/u })).toHaveCount(0);
+	await expect(preferences.getByRole('tab').first()).toHaveText(/General$/u);
+	await expect(preferences.getByRole('tab', { name: /General$/u })).toHaveAttribute('aria-selected', 'true');
+	await expect(preferences.getByRole('group', { name: 'Language', exact: true })).toBeVisible();
 	await expect(preferences.locator('[data-external-ffmpeg-preference="true"]')).toHaveCount(0);
+});
+
+test('Program start chooses what the next session opens with', async ({ page }) => {
+	const editor = await bootEditor(page, '/embed/en/');
+	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+
+	const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+	const programStart = preferences.getByRole('radiogroup', { name: 'Program start', exact: true });
+	await expect(programStart).toHaveAttribute('data-program-start', 'continue-last-session');
+	await expect(programStart.getByRole('radio', { name: 'Continue last session', exact: true })).toBeChecked();
+
+	await programStart.getByRole('radio', { name: 'Start with new project', exact: true }).check();
+	await expect(programStart).toHaveAttribute('data-program-start', 'new-project');
+
+	// The attribute mirrors the stored preference, so reopening the dialog is
+	// what proves the choice reached the controller rather than the checkbox.
+	await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+	await expect(preferences.getByRole('radiogroup', { name: 'Program start', exact: true }))
+		.toHaveAttribute('data-program-start', 'new-project');
 });
 
 async function installDesktopFfmpegFixture(page) {

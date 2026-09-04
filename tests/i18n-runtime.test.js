@@ -8,6 +8,7 @@ import { SITE_SIDEBAR_COPY_BY_LOCALE } from '../src/common/i18n/site-sidebar-cop
 import { TIMELINE_ANNOTATION_COPY_BY_LOCALE } from '../src/common/i18n/timeline-annotation-copy.js';
 import { WORKSPACE_CHROME_COPY_BY_LOCALE } from '../src/common/i18n/workspace-chrome-copy.js';
 import { WORKSPACE_ONBOARDING_COPY_BY_LOCALE } from '../src/common/i18n/workspace-onboarding-copy.js';
+import { PREFERENCES_COPY_BY_LOCALE } from '../src/common/i18n/preferences-copy.js';
 import { AUDACITY_ACTION_MANIFEST } from '../src/common/editor/audacity-action-parity.js';
 import {
 	loadTranslationManifest,
@@ -77,6 +78,18 @@ test('the Soundscaper and Audacity workspace labels and their chrome copy exist 
 				assert.equal(catalog[key], value, `${locale}.${key}`);
 				assert.ok(value.length > 0, `${locale}.${key}`);
 			}
+		}
+	}
+});
+
+test("the General page's Program start copy reaches both catalogs", () => {
+	assert.deepEqual(Object.keys(PREFERENCES_COPY_BY_LOCALE.de), Object.keys(PREFERENCES_COPY_BY_LOCALE.en));
+	assert.equal(ENGLISH_COPY.programStart, 'Program start');
+	assert.equal(GERMAN_COPY.programStart, 'Programmstart');
+	for (const [locale, catalog] of Object.entries({ en: ENGLISH_COPY, de: GERMAN_COPY })) {
+		for (const [key, value] of Object.entries(PREFERENCES_COPY_BY_LOCALE[locale])) {
+			assert.equal(catalog[key], value, `${locale}.${key}`);
+			assert.ok(value.length > 0, `${locale}.${key}`);
 		}
 	}
 });

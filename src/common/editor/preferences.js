@@ -21,6 +21,10 @@ import {
 	normalizeSoundActivationPreferences,
 } from './sound-activation-preferences.ts';
 import {
+	AUDIO_EDITOR_DEFAULT_STARTUP_MODE,
+	AUDIO_EDITOR_STARTUP_MODES,
+} from './startup-preferences.ts';
+import {
 	AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION,
 	migrateAudioEditorShortcutDefaults,
 } from './shortcut-default-migration.ts';
@@ -51,6 +55,7 @@ export const AUDIO_EDITOR_THEMES = Object.freeze([
 ]);
 export const AUDIO_EDITOR_CLIP_STYLES = Object.freeze(['classic', 'colorful']);
 export const AUDIO_EDITOR_PLAY_AT_SPEED_MODES = Object.freeze(['naive', 'staffpad']);
+export { AUDIO_EDITOR_STARTUP_MODES };
 export const AUDIO_EDITOR_LAYOUTS = Object.freeze(['auto', 'compact', 'desktop']);
 
 const AUDIO_EDITOR_LOCAL_DEFAULT_SHORTCUTS_BY_ACTION = Object.freeze({
@@ -95,6 +100,7 @@ const THEME_SET = new Set(AUDIO_EDITOR_THEMES);
 const CLIP_STYLE_SET = new Set(AUDIO_EDITOR_CLIP_STYLES);
 const PLAY_AT_SPEED_MODE_SET = new Set(AUDIO_EDITOR_PLAY_AT_SPEED_MODES);
 const LAYOUT_SET = new Set(AUDIO_EDITOR_LAYOUTS);
+const STARTUP_MODE_SET = new Set(AUDIO_EDITOR_STARTUP_MODES);
 const RIPPLE_MODE_SET = new Set(['off', 'per-track', 'all-tracks']);
 const DOCK_SET = new Set(['left', 'right', 'bottom', 'floating']);
 const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
@@ -138,6 +144,7 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
  * @property {{detectTempo: boolean}} import
  * @property {{retainInputs: boolean, soundActivation: import('./sound-activation-preferences.ts').SoundActivationPreferences}} recording
  * @property {{playAtSpeedMode: 'naive'|'staffpad'}} playback
+ * @property {import('./startup-preferences.ts').AudioEditorStartupPreferences} startup
  */
 
 function normalizeShortcuts(value = {}) {
@@ -182,6 +189,7 @@ function mergePreferences(preferences, patch = {}) {
 		import: { ...preferences.import, ...patch.import },
 		recording: { ...preferences.recording, ...patch.recording },
 		playback: { ...preferences.playback, ...patch.playback },
+		startup: { ...preferences.startup, ...patch.startup },
 	};
 }
 
@@ -311,6 +319,8 @@ export function createAudioEditorPreferencesV1(options = {}) {
 	if (typeof showMasterTrack !== 'boolean') throw new TypeError('view.showMasterTrack must be boolean.');
 	const showMarkers = options.view?.showMarkers ?? false;
 	if (typeof showMarkers !== 'boolean') throw new TypeError('view.showMarkers must be boolean.');
+	const startupProjectId = options.startup?.projectId ?? '';
+	if (typeof startupProjectId !== 'string') throw new TypeError('startup.projectId must be a string.');
 	return {
 		schemaVersion: AUDIO_EDITOR_PREFERENCES_SCHEMA_VERSION,
 		shortcutDefaultsVersion: Math.max(
@@ -367,6 +377,14 @@ export function createAudioEditorPreferencesV1(options = {}) {
 				PLAY_AT_SPEED_MODE_SET,
 				'playback.playAtSpeedMode',
 			),
+		},
+		startup: {
+			mode: oneOf(
+				options.startup?.mode ?? AUDIO_EDITOR_DEFAULT_STARTUP_MODE,
+				STARTUP_MODE_SET,
+				'startup.mode',
+			),
+			projectId: startupProjectId,
 		},
 	};
 }
@@ -521,6 +539,12 @@ export function validateAudioEditorPreferencesV1(preferences) {
 		}
 		oneOf(preferences.playback.playAtSpeedMode, PLAY_AT_SPEED_MODE_SET, 'playback.playAtSpeedMode');
 	}
+	if (preferences.startup !== undefined) {
+		if (!preferences.startup || typeof preferences.startup !== 'object' || Array.isArray(preferences.startup)) {
+			throw new TypeError('preferences.startup must be an object.');
+		}
+		oneOf(preferences.startup.mode, STARTUP_MODE_SET, 'startup.mode');
+	}
 	createAudioEditorPreferencesV1(preferences);
 	return true;
 }
@@ -560,6 +584,10 @@ export function loadAudioEditorPreferencesV1(value) {
 			},
 			recording: normalized.recording,
 			playback: normalized.playback,
+			// Preferences saved before Program start existed carry no startup
+			// section; normalization supplies the mode that matches what those
+			// sessions already did, which is to continue the last session.
+			startup: normalized.startup,
 		},
 		readOnly: false,
 		reason: null,

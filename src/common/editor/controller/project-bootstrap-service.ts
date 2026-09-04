@@ -90,6 +90,12 @@ export interface ProjectBootstrapServiceRuntime<
 	readonly loadRecentProjectState: <Value>(
 		guard: (value: PromiseLike<Value> | Value) => Promise<Value>,
 	) => Promise<string | null>;
+	/**
+	 * Audacity's General > Program start preference, resolved against the
+	 * project the previous session left open. Absent, the last session is
+	 * continued, which is what every session did before the preference existed.
+	 */
+	readonly startupProjectId?: (lastProjectId: string | null) => string | null;
 	readonly openProject: (project: Project) => Promise<unknown>;
 	readonly newProject: () => Promise<unknown>;
 	readonly openRecovery?: Readonly<{
@@ -234,8 +240,11 @@ export function createProjectBootstrapService<
 			registerDeviceChangeListener();
 		}
 		const lastProjectId = await runtime.loadRecentProjectState(guard);
-		const saved = lastProjectId
-			? await guard(runtime.store.loadProject(lastProjectId, { signal: runtime.lifetimeSignal }))
+		const startupProjectId = runtime.startupProjectId
+			? runtime.startupProjectId(lastProjectId ?? null)
+			: lastProjectId;
+		const saved = startupProjectId
+			? await guard(runtime.store.loadProject(startupProjectId, { signal: runtime.lifetimeSignal }))
 			: null;
 		if (saved) await guard(runtime.openProject(saved));
 		else await guard(runtime.newProject());

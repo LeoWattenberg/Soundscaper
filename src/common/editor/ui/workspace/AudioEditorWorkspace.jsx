@@ -249,10 +249,10 @@ export default function AudioEditorWorkspace({
 
 	const openSurface = useCallback((surface, options = {}) => {
 		if (surface === 'preferences') {
-			setPreferencesPage(workspacePreferencesPage(options?.section, fileService.isDesktop));
+			setPreferencesPage(workspacePreferencesPage(options?.section));
 		}
 		setActiveSurface(surface);
-	}, [fileService.isDesktop, setActiveSurface]);
+	}, [setActiveSurface]);
 	const soundscaperWorkflow = useSoundscaperWorkflowWorkspace({ productId, controller, project, selectedTrackId: snapshot.selectedTrackId, openSurface });
 
 	const openEffects = useCallback((trackId, _anchorRect = null, scope = 'track') => {

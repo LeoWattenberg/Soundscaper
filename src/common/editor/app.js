@@ -172,7 +172,7 @@ import { createProjectRetentionService } from './controller/project-retention-se
 import { createProjectViewService } from './controller/project-view-service.ts';
 import { createTrackDuplicationService } from './controller/track-duplication-service.ts';
 import { createProjectSessionService } from './controller/project-session-service.ts';
-import { createProjectBootstrapService } from './controller/project-bootstrap-service.ts';
+import { createProjectBootstrapService } from './controller/project-bootstrap-service.ts'; import { resolveStartupProjectId } from './startup-preferences.ts';
 import { createProjectLockService } from './controller/project-lock-service.ts';
 import { createProjectSwitchService } from './controller/project-switch-service.ts';
 import { bindControllerEditClipboardRuntime, resolveControllerProjectRuntime } from './controller/project-runtime.ts';
@@ -848,7 +848,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		normalizeAudioDevicePreferences,
 		refreshAudioDevices,
 		setRemoveDeviceChangeListener: (remove) => { removeDeviceChangeListener = remove; },
-		loadRecentProjectState: (guard) => projectSessionService.loadRecentProjectState(guard),
+		loadRecentProjectState: (guard) => projectSessionService.loadRecentProjectState(guard), startupProjectId: (lastProjectId) => resolveStartupProjectId(state.preferences?.startup, lastProjectId),
 		openProject: (savedProject) => projectSwitchService.openProject(savedProject),
 		newProject: () => projectSwitchService.newProject(), openRecovery: takeCycleOpenRecovery,
 		publishProjectState,

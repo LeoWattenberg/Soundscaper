@@ -168,6 +168,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await preferences.getByRole('tab', { name: /Keyboard shortcuts$/u }).click();
 		const shortcutSearch = preferences.getByRole('searchbox', { name: 'Search commands', exact: true });
 		await shortcutSearch.fill('Mix & Render');
 		const shortcut = preferences.locator('[data-shortcut-action="mix-render"]');
@@ -311,6 +312,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await preferences.getByRole('tab', { name: /Keyboard shortcuts$/u }).click();
 		const search = preferences.getByRole('searchbox', { name: 'Search commands', exact: true });
 		await search.fill('Zoom toggle');
 		const row = preferences.locator('[data-shortcut-action="zoom-toggle"]');

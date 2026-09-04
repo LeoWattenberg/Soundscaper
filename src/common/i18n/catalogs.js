@@ -11,7 +11,7 @@ import { MUSICAL_TIMELINE_COPY_BY_LOCALE } from './musical-timeline-copy.js';
 import { SEQUENCE_TIMING_COPY_BY_LOCALE } from './sequence-timing-copy.js';
 import { SITE_COPY_BY_LOCALE } from './site-copy.js';
 import { TIMELINE_ANNOTATION_COPY_BY_LOCALE } from './timeline-annotation-copy.js'; import { LOCAL_ASSISTANCE_COPY_BY_LOCALE } from './local-assistance-copy.js';
-import { TRACK_FOLDER_COPY_BY_LOCALE } from './track-folder-copy.js'; import { FRAMESCAPER_CAPTURE_COPY_BY_LOCALE } from './framescaper-capture-copy.js'; import { LOCAL_MODEL_MANAGER_COPY_BY_LOCALE } from './local-model-manager-copy.js'; import { LOCAL_DIAGNOSTICS_COPY_BY_LOCALE } from './local-diagnostics-copy.js'; import { WORKSPACE_CHROME_COPY_BY_LOCALE } from './workspace-chrome-copy.js'; import { WORKSPACE_ONBOARDING_COPY_BY_LOCALE } from './workspace-onboarding-copy.js';
+import { TRACK_FOLDER_COPY_BY_LOCALE } from './track-folder-copy.js'; import { FRAMESCAPER_CAPTURE_COPY_BY_LOCALE } from './framescaper-capture-copy.js'; import { LOCAL_MODEL_MANAGER_COPY_BY_LOCALE } from './local-model-manager-copy.js'; import { LOCAL_DIAGNOSTICS_COPY_BY_LOCALE } from './local-diagnostics-copy.js'; import { WORKSPACE_CHROME_COPY_BY_LOCALE } from './workspace-chrome-copy.js'; import { WORKSPACE_ONBOARDING_COPY_BY_LOCALE } from './workspace-onboarding-copy.js'; import { PREFERENCES_COPY_BY_LOCALE } from './preferences-copy.js';
 import { VIDEO_EFFECT_COPY_BY_LOCALE } from './video-effect-copy.js'; import { VIDEO_COMPOSITION_COPY_BY_LOCALE } from './video-composition-copy.js'; import { VIDEO_CAPTION_COPY_BY_LOCALE } from './video-caption-copy.js';
 // Canonical bundled catalogs. Audacity-sourced overrides are merged at runtime.
 // User-visible copy intentionally omits ellipsis punctuation.
@@ -24,7 +24,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		...TIMELINE_ANNOTATION_COPY_BY_LOCALE.de,
 		...MIX_RENDER_COPY_BY_LOCALE.de,
 		...CLIP_PROPERTIES_COPY_BY_LOCALE.de,
-		...TRACK_FOLDER_COPY_BY_LOCALE.de, ...FRAMESCAPER_CAPTURE_COPY_BY_LOCALE.de, ...LOCAL_MODEL_MANAGER_COPY_BY_LOCALE.de, ...LOCAL_ASSISTANCE_COPY_BY_LOCALE.de, ...LOCAL_DIAGNOSTICS_COPY_BY_LOCALE.de, ...WORKSPACE_CHROME_COPY_BY_LOCALE.de, ...WORKSPACE_ONBOARDING_COPY_BY_LOCALE.de,
+		...TRACK_FOLDER_COPY_BY_LOCALE.de, ...FRAMESCAPER_CAPTURE_COPY_BY_LOCALE.de, ...LOCAL_MODEL_MANAGER_COPY_BY_LOCALE.de, ...LOCAL_ASSISTANCE_COPY_BY_LOCALE.de, ...LOCAL_DIAGNOSTICS_COPY_BY_LOCALE.de, ...WORKSPACE_CHROME_COPY_BY_LOCALE.de, ...WORKSPACE_ONBOARDING_COPY_BY_LOCALE.de, ...PREFERENCES_COPY_BY_LOCALE.de,
 		framescaperEyebrow: 'Video lokal bearbeiten',
 		framescaperTitle: 'Framescaper',
 		framescaperIntro: 'Schneide Video und Ton nondestruktiv, kombiniere Ebenen und Effekte und exportiere das fertige Video.',
@@ -1017,7 +1017,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		...TIMELINE_ANNOTATION_COPY_BY_LOCALE.en,
 		...MIX_RENDER_COPY_BY_LOCALE.en,
 		...CLIP_PROPERTIES_COPY_BY_LOCALE.en,
-		...TRACK_FOLDER_COPY_BY_LOCALE.en, ...FRAMESCAPER_CAPTURE_COPY_BY_LOCALE.en, ...LOCAL_MODEL_MANAGER_COPY_BY_LOCALE.en, ...LOCAL_ASSISTANCE_COPY_BY_LOCALE.en, ...LOCAL_DIAGNOSTICS_COPY_BY_LOCALE.en, ...WORKSPACE_CHROME_COPY_BY_LOCALE.en, ...WORKSPACE_ONBOARDING_COPY_BY_LOCALE.en,
+		...TRACK_FOLDER_COPY_BY_LOCALE.en, ...FRAMESCAPER_CAPTURE_COPY_BY_LOCALE.en, ...LOCAL_MODEL_MANAGER_COPY_BY_LOCALE.en, ...LOCAL_ASSISTANCE_COPY_BY_LOCALE.en, ...LOCAL_DIAGNOSTICS_COPY_BY_LOCALE.en, ...WORKSPACE_CHROME_COPY_BY_LOCALE.en, ...WORKSPACE_ONBOARDING_COPY_BY_LOCALE.en, ...PREFERENCES_COPY_BY_LOCALE.en,
 		framescaperEyebrow: 'Local video editing',
 		framescaperTitle: 'Framescaper',
 		framescaperIntro: 'Edit video and sound nondestructively, combine layers and effects, and export the finished video.',

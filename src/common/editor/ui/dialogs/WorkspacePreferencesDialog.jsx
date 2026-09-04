@@ -1,12 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogSideNav } from '@soundscaper/design-system/DialogSideNav/DialogSideNav';
-import { Dropdown } from '@soundscaper/design-system/Dropdown';
 import { PreferencePanel } from '@soundscaper/design-system/PreferencePanel';
 import { PreferenceThumbnail } from '@soundscaper/design-system/PreferenceThumbnail';
 import { Separator } from '@soundscaper/design-system/Separator';
 
-import { ROUTE_LOCALES } from '../../../i18n/locales.js';
 import { productProfile } from '../../../products.js';
 import { iconNameToChar } from '../../audacity-iconcodes.js';
 import { findAudioEditorShortcutConflicts, normalizeAudioEditorShortcut } from '../../preferences.js';
@@ -17,7 +15,8 @@ import SoundActivationPreferences from '../SoundActivationPreferences.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import { workspacePanelAvailable } from '../workspace/workspace-product-panel-runtime.ts';
 import { workspacePreferencesPage } from '../workspace/workspace-preferences-routing.ts';
-import DesktopFfmpegPreferencePanel from './DesktopFfmpegPreferencePanel.tsx';
+import GeneralPreferencesPage from './GeneralPreferencesPage.jsx';
+import PreferenceDropdownField from './PreferenceDropdownField.jsx';
 import { collectAudacityShortcutCommands } from './workspace-preferences-shortcut-commands.ts';
 import {
 	WORKSPACE_DOCK_IDS,
@@ -46,7 +45,7 @@ export default function WorkspacePreferencesDialog({
 	productId = 'soundscaper',
 }) {
 	const sideNavRef = useRef(null);
-	const [selectedPage, setSelectedPage] = useState(preferencePage(initialPage, fileService.isDesktop));
+	const [selectedPage, setSelectedPage] = useState(preferencePage(initialPage));
 	const [shortcutSearch, setShortcutSearch] = useState('');
 	const [workspaceName, setWorkspaceName] = useState('');
 	const preferences = snapshot.preferences;
@@ -60,7 +59,7 @@ export default function WorkspacePreferencesDialog({
 	const visibleCommands = commands.filter((command) => `${command.label} ${command.id}`.toLowerCase().includes(shortcutSearch.trim().toLowerCase()));
 	const activeCustom = preferences.workspace.custom.find((workspace) => workspace.id === preferences.workspace.activeId);
 	const pages = [
-		...(fileService.isDesktop ? [{ id: 'general', label: copy.metadataGeneralTab, icon: iconNameToChar('SETTINGS_COG') }] : []),
+		{ id: 'general', label: copy.metadataGeneralTab, icon: iconNameToChar('SETTINGS_COG') },
 		{ id: 'appearance', label: copy.appearance, icon: iconNameToChar('BRUSH') },
 		{ id: 'editing', label: copy.preferencesEditing, icon: iconNameToChar('WAVEFORM') },
 		{ id: 'spectrogram', label: copy.panelSpectrogram, icon: iconNameToChar('SPECTROGRAM') },
@@ -94,7 +93,7 @@ export default function WorkspacePreferencesDialog({
 		if (next.maximumFrequency <= next.minimumFrequency) return;
 		updateSpectrogram({ [name]: value });
 	};
-	useEffect(() => setSelectedPage(preferencePage(initialPage, fileService.isDesktop)), [fileService.isDesktop, initialPage]);
+	useEffect(() => setSelectedPage(preferencePage(initialPage)), [initialPage]);
 	const handleSideNavKeyDown = (event) => {
 		if (!event.target.closest('[role="tab"]') || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
 		event.preventDefault();
@@ -141,25 +140,16 @@ export default function WorkspacePreferencesDialog({
 						id={`dialog-panel-${selectedPage}`}
 						aria-label={selectedPageLabel}
 					>
-						{selectedPage === 'general' && fileService.isDesktop && (
-							<div className="kw-audio-editor-preferences__general">
-								<PreferencePanel title={copy.languageLabel}>
-									<PreferenceDropdownField
-										label={copy.languageLabel}
-										value={locale}
-										onChange={(value) => run(async () => {
-											await controller.actions.project.flush();
-											await fileService.setLocale(value);
-										})}
-										options={ROUTE_LOCALES.map((descriptor) => ({
-											value: descriptor.locale,
-											label: descriptor.nativeName,
-										}))}
-									/>
-								</PreferencePanel>
-								<Separator />
-								<DesktopFfmpegPreferencePanel fileService={fileService} copy={copy} />
-							</div>
+						{selectedPage === 'general' && (
+							<GeneralPreferencesPage
+								controller={controller}
+								snapshot={snapshot}
+								copy={copy}
+								locale={locale}
+								fileService={fileService}
+								productId={productId}
+								run={run}
+							/>
 						)}
 
 						{selectedPage === 'appearance' && (
@@ -427,22 +417,9 @@ export default function WorkspacePreferencesDialog({
 	);
 }
 
-function preferencePage(requestedPage, isDesktop) {
-	const page = workspacePreferencesPage(requestedPage, isDesktop);
+function preferencePage(requestedPage) {
+	const page = workspacePreferencesPage(requestedPage);
 	return page === 'sound-activation' ? 'editing' : page;
-}
-
-function PreferenceDropdownField({ label, options, value, visuallyHiddenLabel = false, onChange }) {
-	const wrapperRef = useRef(null);
-	useEffect(() => {
-		wrapperRef.current?.querySelector('.dropdown__trigger')?.setAttribute('aria-label', label);
-	}, [label]);
-	return (
-		<div ref={wrapperRef} className="kw-audio-editor-preferences__field" role="group" aria-label={label}>
-			<span className={visuallyHiddenLabel ? 'kw-audio-editor-sr-only' : undefined}>{label}</span>
-			<Dropdown options={options} value={value} onChange={onChange} width="100%" />
-		</div>
-	);
 }
 
 function PreferenceChoice({ selectLabel, label, ...props }) {
