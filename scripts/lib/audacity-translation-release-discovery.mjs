@@ -221,7 +221,7 @@ export async function loadPublicPreviousRelease(baseUrl) {
 }
 
 export async function verifyDeterministicRelease(release, publicBaseUrl) {
-	const { buildAudacityTranslationRelease } = await import('./audacity-qt-translations.mjs');
+	const { buildAudacityTranslationRelease } = await import('../audacity-qt-translations.mjs');
 	const archiveBytes = await readFile(join(release.root, release.archive.path));
 	const licenseBytes = await readFile(join(release.root, release.license.path));
 	const previousRelease = release.retainedLocales.length
