@@ -28,10 +28,6 @@
 			"maxLines": 1570,
 			"reason": "First-party parametric-EQ WASM implementation predating the native size gate; split DSP design, processing, and ABI surfaces before extending it."
 		},
-		"src/common/editor/recording.js": {
-			"maxLines": 674,
-			"reason": "Legacy recording graph and device lifecycle implementation."
-		},
 		"src/common/editor/staffpad/native/pffft/pffft.c": {
 			"maxLines": 1866,
 			"reason": "Digest-pinned patched PFFFT upstream source; preserve its audited byte-for-byte reproducibility."
