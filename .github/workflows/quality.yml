@@ -44,7 +44,21 @@ jobs:
       - name: Pin npm
         run: npm install --global npm@12.0.1
 
+      # Twelve gate jobs each writing 891 packages is what the split actually
+      # costs: `npm ci` takes twelve seconds in one job and five minutes in
+      # twelve, even though setup-node's package cache hits in every one of them.
+      # Restoring the installed tree is one archive extract instead, so the gate
+      # spends its time on the checks rather than on installing.
+      - name: Restore the installed dependency tree
+        id: dependency-tree
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: node_modules
+          key: >-
+            node-modules-${{ runner.os }}-${{ hashFiles('.nvmrc', 'package-lock.json', 'patches/npm/*.patch') }}
+
       - name: Install dependencies
+        if: steps.dependency-tree.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: Build the site
@@ -123,7 +137,21 @@ jobs:
       - name: Pin npm
         run: npm install --global npm@12.0.1
 
+      # Twelve gate jobs each writing 891 packages is what the split actually
+      # costs: `npm ci` takes twelve seconds in one job and five minutes in
+      # twelve, even though setup-node's package cache hits in every one of them.
+      # Restoring the installed tree is one archive extract instead, so the gate
+      # spends its time on the checks rather than on installing.
+      - name: Restore the installed dependency tree
+        id: dependency-tree
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: node_modules
+          key: >-
+            node-modules-${{ runner.os }}-${{ hashFiles('.nvmrc', 'package-lock.json', 'patches/npm/*.patch') }}
+
       - name: Install dependencies
+        if: steps.dependency-tree.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: Lint the ${{ matrix.shard }} shard
@@ -161,7 +189,21 @@ jobs:
       - name: Pin npm
         run: npm install --global npm@12.0.1
 
+      # Twelve gate jobs each writing 891 packages is what the split actually
+      # costs: `npm ci` takes twelve seconds in one job and five minutes in
+      # twelve, even though setup-node's package cache hits in every one of them.
+      # Restoring the installed tree is one archive extract instead, so the gate
+      # spends its time on the checks rather than on installing.
+      - name: Restore the installed dependency tree
+        id: dependency-tree
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: node_modules
+          key: >-
+            node-modules-${{ runner.os }}-${{ hashFiles('.nvmrc', 'package-lock.json', 'patches/npm/*.patch') }}
+
       - name: Install dependencies
+        if: steps.dependency-tree.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: Type-check the ${{ matrix.project }} projects
@@ -191,7 +233,21 @@ jobs:
       - name: Pin npm
         run: npm install --global npm@12.0.1
 
+      # Twelve gate jobs each writing 891 packages is what the split actually
+      # costs: `npm ci` takes twelve seconds in one job and five minutes in
+      # twelve, even though setup-node's package cache hits in every one of them.
+      # Restoring the installed tree is one archive extract instead, so the gate
+      # spends its time on the checks rather than on installing.
+      - name: Restore the installed dependency tree
+        id: dependency-tree
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: node_modules
+          key: >-
+            node-modules-${{ runner.os }}-${{ hashFiles('.nvmrc', 'package-lock.json', 'patches/npm/*.patch') }}
+
       - name: Install dependencies
+        if: steps.dependency-tree.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: Check the architecture rules
