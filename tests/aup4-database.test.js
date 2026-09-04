@@ -1,12 +1,8 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
-
-import initSqlJs from 'sql.js';
-
 import {
 	audacityXmlAttribute,
-	audacityXmlAttributes,
 	audacityXmlChildren,
 	createAudacityXmlNode,
 	decodeAudacityBinaryXml,
@@ -15,13 +11,10 @@ import {
 import {
 	commitAup4Autosave,
 	deleteAup4SampleBlocks,
-	discardExcludedAup4Metadata,
 	initializeAup4Database,
 	insertAup4SampleBlock,
 	listAup4History,
-	prepareAup4PortableExport,
 	prepareAup4SerializedDatabase,
-	pruneAup4OrphanSampleBlocks,
 	readAup4Document,
 	readAup4SampleBlock,
 	restoreAup4History,
@@ -31,13 +24,10 @@ import {
 } from '../src/common/editor/aup4-database.js';
 import { decodeAup4ProjectTree } from '../src/common/editor/aup4-conversion.js';
 import {
-	AUP4_BINARY_XML_VERSION,
-	AUP4_SCHEMA_SQL,
 	AUP4_USER_VERSION,
 	createAup4ProjectTree,
 	createAup4SampleBlock,
 	decodeAup4Float32Samples,
-	readAup4ProjectSummary,
 } from '../src/common/editor/aup4-profile.js';
 import {
 	AUP4_NATIVE_EMPTY_SHA256,
@@ -52,8 +42,13 @@ import {
 	AUP4_NATIVE_RICH_SHA256,
 	aup4NativeRichFixture,
 } from './fixtures/aup4-native-rich.js';
-
-const SQL = await initSqlJs();
+import {
+	SQL,
+	channelHash,
+	documentBytes,
+	portableClipState,
+	sha256,
+} from './helpers/aup4-database-harness.js';
 
 test('native WAL-mode snapshots are normalized only in a private deserialize copy', () => {
 	const native = aup4NativeEmptyFixture();
@@ -81,18 +76,6 @@ test('pinned native legacy AUP4 schema upgrades transactionally to the writer pr
 		assert.equal(database.exec('PRAGMA user_version')[0].values[0][0], AUP4_USER_VERSION);
 		assert.equal(database.exec("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='project_history'")[0].values[0][0], 1);
 		assert.equal(upgradeAup4Database(database).upgraded, false);
-	} finally {
-		database.close();
-	}
-});
-
-test('legacy AUP4 migration refuses unsafe schemas before publishing an upgrade', () => {
-	const database = new SQL.Database(aup4NativeLegacyFixture());
-	try {
-		database.run('CREATE TABLE injected_payload(value TEXT)');
-		assert.throws(() => upgradeAup4Database(database), (error) => error.code === 'UNSAFE_SCHEMA');
-		assert.equal(database.exec('PRAGMA user_version')[0].values[0][0], AUP4_NATIVE_LEGACY_USER_VERSION);
-		assert.equal(database.exec("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='project_history'")[0].values[0][0], 0);
 	} finally {
 		database.close();
 	}
@@ -369,52 +352,6 @@ test('AUP4 database initializes, autosaves, commits, restores, and validates the
 	}
 });
 
-test('portable AUP4 export requires a committed, checkpointed, fully valid database', () => {
-	const database = new SQL.Database();
-	try {
-		initializeAup4Database(database);
-		writeAup4Document(database, documentBytes(44_100));
-		assert.throws(
-			() => prepareAup4PortableExport(database),
-			(error) => error.code === 'UNCOMMITTED_AUTOSAVE',
-		);
-		assert.equal(commitAup4Autosave(database, { now: 0 }), true);
-		const validation = prepareAup4PortableExport(database);
-		assert.equal(validation.compatible, true);
-		assert.equal(validation.readOnly, false);
-		assert.equal(validation.source, 'project');
-		assert.equal(Number(database.exec('SELECT count(*) FROM autosave')[0].values[0][0]), 0);
-		database.run('DELETE FROM project_history');
-		assert.throws(
-			() => prepareAup4PortableExport(database),
-			(error) => error.code === 'UNCOMMITTED_HISTORY',
-		);
-	} finally {
-		database.close();
-	}
-});
-
-test('portable AUP4 certification never falls back to an older valid history document', () => {
-	const database = new SQL.Database();
-	try {
-		initializeAup4Database(database);
-		writeAup4Document(database, documentBytes(44_100));
-		commitAup4Autosave(database, { now: 0 });
-		writeAup4Document(
-			database,
-			encodeAudacityBinaryXml(projectTreeWithBlocks([{ blockId: 999, start: 0, sampleCount: 3 }])),
-		);
-		commitAup4Autosave(database, { now: 1 });
-
-		assert.throws(
-			() => prepareAup4PortableExport(database),
-			(error) => error.code === 'MISSING_SAMPLE_BLOCK',
-		);
-	} finally {
-		database.close();
-	}
-});
-
 test('AUP4 database stores immutable Float32 blocks', () => {
 	const database = new SQL.Database();
 	try {
@@ -431,400 +368,3 @@ test('AUP4 database stores immutable Float32 blocks', () => {
 		database.close();
 	}
 });
-
-test('AUP4 validation rejects arbitrary user-defined schema objects', () => {
-	const database = new SQL.Database();
-	try {
-		initializeAup4Database(database);
-		database.run('CREATE TABLE foreign_payload(secret TEXT)');
-		assert.throws(() => validateAup4Database(database, { allowEmpty: true }), (error) => error.code === 'UNSAFE_SCHEMA');
-	} finally {
-		database.close();
-	}
-});
-
-test('AUP4 validation rejects non-Audacity identifiers and invalid database profiles', () => {
-	const database = new SQL.Database();
-	try {
-		initializeAup4Database(database);
-		database.run('PRAGMA application_id = 1234');
-		assert.throws(
-			() => validateAup4Database(database, { allowEmpty: true }),
-			(error) => error.code === 'NOT_AUDACITY_PROJECT',
-		);
-		database.run('PRAGMA application_id = 1096107097');
-		database.run('PRAGMA user_version = 0');
-		assert.throws(
-			() => validateAup4Database(database, { allowEmpty: true }),
-			(error) => error.code === 'INVALID_DATABASE_VERSION',
-		);
-	} finally {
-		database.close();
-	}
-});
-
-test('AUP4 validation rejects lookalike schemas without native autoincrement keys', () => {
-	const database = new SQL.Database();
-	try {
-		database.exec(AUP4_SCHEMA_SQL.replaceAll('PRIMARY KEY AUTOINCREMENT', 'PRIMARY KEY'));
-		assert.throws(
-			() => validateAup4Database(database, { allowEmpty: true }),
-			(error) => error.code === 'UNSUPPORTED_SCHEMA',
-		);
-	} finally {
-		database.close();
-	}
-});
-
-test('AUP4 validation checks sample-block references and summary lengths', () => {
-	const database = new SQL.Database();
-	try {
-		initializeAup4Database(database);
-		const block = createAup4SampleBlock(Float32Array.of(-1, 0, 1));
-		const blockId = insertAup4SampleBlock(database, block);
-		writeAup4Document(database, projectWithBlocks(blockId, block.sampleCount));
-		assert.deepEqual(validateAup4Database(database).references, {
-			sequenceCount: 1,
-			blockReferenceCount: 1,
-			distinctSampleBlockCount: 1,
-			sampleBytes: 12,
-		});
-
-		database.run('UPDATE sampleblocks SET summary256 = x\'00\' WHERE blockid = ?', [blockId]);
-		assert.throws(
-			() => validateAup4Database(database),
-			(error) => error.code === 'INVALID_SAMPLE_BLOCK',
-		);
-	} finally {
-		database.close();
-	}
-});
-
-test('AUP4 validation rejects missing blocks and truncated binary XML', () => {
-	const database = new SQL.Database();
-	try {
-		initializeAup4Database(database);
-		writeAup4Document(database, projectWithBlocks(999, 3));
-		assert.throws(() => validateAup4Database(database), (error) => error.code === 'MISSING_SAMPLE_BLOCK');
-
-		const valid = documentBytes(44_100);
-		writeAup4Document(database, { ...valid, document: valid.document.subarray(0, valid.document.length - 1) });
-		assert.throws(() => validateAup4Database(database), (error) => error.code === 'TRUNCATED_BINARY_XML');
-	} finally {
-		database.close();
-	}
-});
-
-test('AUP4 validation ignores sample references inside unsupported nested wave clips', () => {
-	const database = new SQL.Database();
-	try {
-		initializeAup4Database(database);
-		const block = createAup4SampleBlock(Float32Array.of(-1, 0, 1));
-		const blockId = insertAup4SampleBlock(database, block);
-		const tree = projectTreeWithBlocks([{ blockId, start: 0, sampleCount: 3 }]);
-		const outerClip = audacityXmlChildren(audacityXmlChildren(tree, 'wavetrack')[0], 'waveclip')[0];
-		outerClip.content.push({
-			kind: 'node',
-			node: createAudacityXmlNode('waveclip', [], [{
-				kind: 'node',
-				node: createAudacityXmlNode('sequence', [
-					{ kind: 'attribute', name: 'maxsamples', type: 'size-t', value: 262_144 },
-					{ kind: 'attribute', name: 'numsamples', type: 'long-long', value: 3 },
-				], [{
-					kind: 'node',
-					node: createAudacityXmlNode('waveblock', [
-						{ kind: 'attribute', name: 'start', type: 'long-long', value: 0 },
-						{ kind: 'attribute', name: 'length', type: 'long-long', value: 3 },
-						{ kind: 'attribute', name: 'blockid', type: 'long-long', value: 999 },
-					]),
-				}]),
-			}]),
-		});
-		writeAup4Document(database, encodeAudacityBinaryXml(tree));
-
-		const validation = validateAup4Database(database);
-		assert.equal(validation.readOnly, false);
-		assert.equal(validation.references.sequenceCount, 1);
-		assert.equal(validation.references.blockReferenceCount, 1);
-		assert.deepEqual(validation.compatibilityReport.missingAudio, []);
-	} finally {
-		database.close();
-	}
-});
-
-test('AUP4 missing local audio is reportable read-only and cloud/account metadata is removed from every retained document', () => {
-	const database = new SQL.Database();
-	try {
-		initializeAup4Database(database);
-		const tree = projectTreeWithBlocks([{ blockId: 999, start: 0, sampleCount: 3 }]);
-		tree.content.unshift({ kind: 'attribute', name: 'cloudAccountId', type: 'string', value: 'secret-user' });
-		tree.content.push({ kind: 'node', node: createAudacityXmlNode('audio-com-sync', [
-			{ kind: 'attribute', name: 'snapshot', type: 'string', value: 'private-snapshot' },
-		]) });
-		writeAup4Document(database, encodeAudacityBinaryXml(tree));
-		commitAup4Autosave(database, { now: 1_000 });
-		writeAup4Document(database, encodeAudacityBinaryXml(tree));
-
-		const report = validateAup4Database(database, { references: { allowMissingSampleBlocks: true } });
-		assert.equal(report.readOnly, true);
-		assert.deepEqual(report.references.missingSampleBlockIds, [999]);
-		assert.deepEqual(report.compatibilityReport.missingAudio, [{
-			blockId: 999,
-			reason: 'missing-local-sample-block',
-			possiblyCloudBacked: true,
-			networkAccessAttempted: false,
-		}]);
-		assert.equal(report.compatibilityReport.networkAccessAttempted, false);
-		assert.ok(report.issues.some((issue) => issue.code === 'MISSING_LOCAL_AUDIO'));
-
-		const discarded = discardExcludedAup4Metadata(database);
-		assert.equal(discarded.rewrittenDocuments, 3);
-		assert.equal(discarded.discardedEntries, 6);
-		for (const table of ['project', 'autosave', 'project_history']) {
-			const [dictionary, document] = database.exec(`SELECT dict, doc FROM ${table} LIMIT 1`)[0].values[0];
-			const root = decodeAudacityBinaryXml(dictionary, document).root;
-			assert.equal(audacityXmlAttributes(root, 'cloudAccountId').length, 0);
-			assert.equal(audacityXmlChildren(root, 'audio-com-sync').length, 0);
-		}
-		const exportedText = Buffer.from(database.export()).toString('latin1');
-		assert.equal(exportedText.includes('secret-user'), false);
-		assert.equal(exportedText.includes('private-snapshot'), false);
-		const sanitized = validateAup4Database(database, { references: { allowMissingSampleBlocks: true } });
-		assert.equal(sanitized.compatibilityReport.discardedCloudMetadata.discardedEntries, 0);
-		assert.equal(sanitized.compatibilityReport.missingAudio[0].possiblyCloudBacked, false);
-	} finally {
-		database.close();
-	}
-});
-
-test('AUP4 validation rejects discontinuities, length mismatches, sample-count mismatches, and reference floods', () => {
-	const database = new SQL.Database();
-	try {
-		initializeAup4Database(database);
-		const block = createAup4SampleBlock(Float32Array.of(-1, 0, 1));
-		const blockId = insertAup4SampleBlock(database, block);
-		for (const [mutate, code] of [
-			[(tree) => { audacityXmlAttributes(firstWaveBlock(tree), 'start')[0].value = 1; }, 'CORRUPT_SEQUENCE'],
-			[(tree) => { audacityXmlAttributes(firstWaveBlock(tree), 'length')[0].value = 2; }, 'CORRUPT_SEQUENCE'],
-			[(tree) => { audacityXmlAttributes(firstSequence(tree), 'numsamples')[0].value = 2; }, 'CORRUPT_SEQUENCE'],
-		]) {
-			const tree = projectTreeWithBlocks([{ blockId, start: 0, sampleCount: 3 }]);
-			mutate(tree);
-			writeAup4Document(database, encodeAudacityBinaryXml(tree));
-			assert.throws(() => validateAup4Database(database), (error) => error.code === code);
-		}
-
-		const repeated = projectTreeWithBlocks([
-			{ blockId, start: 0, sampleCount: 3 },
-			{ blockId, start: 3, sampleCount: 3 },
-		]);
-		writeAup4Document(database, encodeAudacityBinaryXml(repeated));
-		assert.throws(
-			() => validateAup4Database(database, { references: { maxBlockReferences: 1 } }),
-			(error) => error.code === 'REFERENCE_LIMIT',
-		);
-	} finally {
-		database.close();
-	}
-});
-
-test('newer Audacity database schemas are rejected before trusting extra tables', () => {
-	const database = new SQL.Database();
-	try {
-		initializeAup4Database(database);
-		writeAup4Document(database, documentBytes(44_100), { autosave: false, now: 0 });
-		database.run(`PRAGMA user_version = ${AUP4_USER_VERSION + 1}`);
-		database.run('ALTER TABLE project ADD COLUMN future_flag INTEGER');
-		database.run('DROP TABLE autosave');
-		database.run('DROP TABLE project_history');
-		database.run('CREATE TABLE future_markers(id INTEGER PRIMARY KEY, value TEXT)');
-		database.run('CREATE INDEX future_markers_value ON future_markers(value)');
-		assert.throws(() => validateAup4Database(database), (error) => error.code === 'NEWER_DATABASE');
-
-		database.run('CREATE TRIGGER future_trigger AFTER INSERT ON future_markers BEGIN DELETE FROM project; END');
-		assert.throws(() => validateAup4Database(database), (error) => error.code === 'NEWER_DATABASE');
-	} finally {
-		database.close();
-	}
-});
-
-test('newer Audacity binary-XML profiles are rejected', () => {
-	const database = new SQL.Database();
-	try {
-		initializeAup4Database(database);
-		writeAup4Document(database, documentBytes(44_100, '2.1.0'), { autosave: false, now: 0 });
-		assert.throws(() => validateAup4Database(database), (error) => error.code === 'NEWER_XML');
-	} finally {
-		database.close();
-	}
-});
-
-test('AUP4 history keeps the newest ten committed documents', () => {
-	const database = new SQL.Database();
-	try {
-		initializeAup4Database(database);
-		for (let generation = 1; generation <= 12; generation += 1) {
-			writeAup4Document(database, documentBytes(44_100 + generation));
-			commitAup4Autosave(database, { now: generation * 1000 });
-		}
-		const history = listAup4History(database);
-		assert.equal(history.length, 10);
-		assert.deepEqual(history.map((entry) => entry.generation), [12, 11, 10, 9, 8, 7, 6, 5, 4, 3]);
-	} finally {
-		database.close();
-	}
-});
-
-test('AUP4 sampleblock GC retains current and history references and fails closed on corrupt documents', () => {
-	const database = new SQL.Database();
-	try {
-		initializeAup4Database(database);
-		const first = createAup4SampleBlock(Float32Array.of(0.1, 0.2));
-		const firstId = insertAup4SampleBlock(database, first);
-		writeAup4Document(database, projectWithBlocks(firstId, first.sampleCount));
-		commitAup4Autosave(database, { now: 1_000 });
-		const second = createAup4SampleBlock(Float32Array.of(0.3, 0.4));
-		const secondId = insertAup4SampleBlock(database, second);
-		writeAup4Document(database, projectWithBlocks(secondId, second.sampleCount));
-		commitAup4Autosave(database, { now: 2_000 });
-		const orphan = insertAup4SampleBlock(database, createAup4SampleBlock(Float32Array.of(0.9)));
-
-		assert.deepEqual(pruneAup4OrphanSampleBlocks(database), { deleted: 1, skipped: false, referenced: 2 });
-		assert.equal(readAup4SampleBlock(database, firstId)?.blockId, firstId);
-		assert.equal(readAup4SampleBlock(database, secondId)?.blockId, secondId);
-		assert.equal(readAup4SampleBlock(database, orphan), null);
-
-		const protectedOrphan = insertAup4SampleBlock(database, createAup4SampleBlock(Float32Array.of(0.8)));
-		database.run('UPDATE project_history SET doc = substr(doc, 1, length(doc) - 1) WHERE generation = 1');
-		assert.equal(pruneAup4OrphanSampleBlocks(database).skipped, true);
-		assert.equal(readAup4SampleBlock(database, protectedOrphan)?.blockId, protectedOrphan);
-	} finally {
-		database.close();
-	}
-});
-
-test('Audacity validation rejects a corrupt selected document unless audit recovery is explicit', () => {
-	const database = new SQL.Database();
-	try {
-		initializeAup4Database(database);
-		writeAup4Document(database, documentBytes(44_100));
-		commitAup4Autosave(database, { now: 1000 });
-		writeAup4Document(database, documentBytes(48_000));
-		commitAup4Autosave(database, { now: 2000 });
-		database.run('UPDATE project SET doc = substr(doc, 1, length(doc) - 1) WHERE id = 1');
-
-		assert.throws(() => validateAup4Database(database), (error) => error.code === 'TRUNCATED_BINARY_XML');
-		const recovered = validateAup4Database(database, { allowHistoryRecovery: true });
-		assert.equal(recovered.source, 'history');
-		assert.equal(recovered.generation, 2);
-		assert.equal(recovered.summary.sampleRate, 48_000);
-		assert.equal(recovered.recovery.failures[0].code, 'TRUNCATED_BINARY_XML');
-		assert.ok(recovered.issues.some((issue) => issue.code === 'RECOVERED_DOCUMENT'));
-	} finally {
-		database.close();
-	}
-});
-
-test('Audacity validation rejects a corrupt preferred autosave', () => {
-	const database = new SQL.Database();
-	try {
-		initializeAup4Database(database);
-		writeAup4Document(database, documentBytes(44_100));
-		commitAup4Autosave(database, { now: 1_000 });
-		writeAup4Document(database, documentBytes(48_000));
-		database.run('UPDATE autosave SET doc = substr(doc, 1, length(doc) - 1) WHERE id = 1');
-
-		assert.throws(() => validateAup4Database(database), (error) => error.code === 'TRUNCATED_BINARY_XML');
-		assert.equal(validateAup4Database(database, { useAutosave: false }).summary.sampleRate, 44_100);
-	} finally {
-		database.close();
-	}
-});
-
-test('AUP4 autosave commit rolls back the project and retains autosave when history publication fails', () => {
-	const database = new SQL.Database();
-	try {
-		initializeAup4Database(database);
-		writeAup4Document(database, documentBytes(44_100));
-		commitAup4Autosave(database, { now: 1_000 });
-		writeAup4Document(database, documentBytes(48_000));
-		database.run(`
-			CREATE TRIGGER reject_history BEFORE INSERT ON project_history
-			BEGIN SELECT RAISE(ABORT, 'history write failed'); END
-		`);
-		assert.throws(() => commitAup4Autosave(database, { now: 2_000 }), /history write failed/);
-		database.run('DROP TRIGGER reject_history');
-
-		const [[dictionary, document]] = database.exec('SELECT dict, doc FROM project WHERE id = 1')[0].values;
-		const current = decodeAudacityBinaryXml(dictionary, document);
-		assert.equal(readAup4ProjectSummary(current.root).sampleRate, 44_100);
-		assert.equal(Number(database.exec('SELECT count(*) FROM autosave')[0].values[0][0]), 1);
-		assert.equal(Number(database.exec('SELECT count(*) FROM project_history')[0].values[0][0]), 1);
-	} finally {
-		database.close();
-	}
-});
-
-function documentBytes(rate, version = AUP4_BINARY_XML_VERSION) {
-	return encodeAudacityBinaryXml(createAudacityXmlNode('project', [
-		{ kind: 'attribute', name: 'xmlns', type: 'string', value: 'http://audacity.sourceforge.net/xml/' },
-		{ kind: 'attribute', name: 'version', type: 'string', value: version },
-		{ kind: 'attribute', name: 'audacityversion', type: 'string', value: '4.0.0' },
-		{ kind: 'attribute', name: 'rate', type: 'double', value: rate, digits: -1 },
-	]));
-}
-
-function projectWithBlocks(blockId, sampleCount) {
-	return encodeAudacityBinaryXml(projectTreeWithBlocks([{ blockId, start: 0, sampleCount }]));
-}
-
-function projectTreeWithBlocks(blocks) {
-	const sampleCount = blocks.reduce((total, block) => total + block.sampleCount, 0);
-	return createAup4ProjectTree({
-		id: 'project',
-		sampleRate: 44_100,
-		selection: {},
-		metadata: {},
-		clips: [{
-			id: 'clip', sourceId: 'source', title: 'Audio', timelineStartFrame: 0,
-			durationFrames: sampleCount, sourceDurationFrames: sampleCount,
-		}],
-		tracks: [{
-			id: 'track', type: 'audio', name: 'Audio', clipIds: ['clip'], effects: [],
-		}],
-		sources: [{ id: 'source', frameCount: sampleCount, channelCount: 1, sampleRate: 44_100 }],
-		master: { effects: [] },
-	}, new Map([['source:0', blocks]]));
-}
-
-function firstSequence(tree) {
-	return audacityXmlChildren(audacityXmlChildren(audacityXmlChildren(tree, 'wavetrack')[0], 'waveclip')[0], 'sequence')[0];
-}
-
-function firstWaveBlock(tree) {
-	return audacityXmlChildren(firstSequence(tree), 'waveblock')[0];
-}
-
-function portableClipState(clip) {
-	return {
-		title: clip.title,
-		timelineStartFrame: clip.timelineStartFrame,
-		sourceStartFrame: clip.sourceStartFrame,
-		sourceDurationFrames: clip.sourceDurationFrames,
-		durationFrames: clip.durationFrames,
-		groupId: clip.groupId,
-		pitchCents: clip.pitchCents,
-		speedRatio: clip.speedRatio,
-		stretchToTempo: clip.stretchToTempo,
-	};
-}
-
-function channelHash(channel) {
-	return createHash('sha256')
-		.update(new Uint8Array(channel.buffer, channel.byteOffset, channel.byteLength))
-		.digest('hex');
-}
-
-function sha256(bytes) {
-	return createHash('sha256').update(bytes).digest('hex');
-}

@@ -76,10 +76,6 @@
 			"maxLines": 743,
 			"reason": "Legacy mix/render integration matrix."
 		},
-		"tests/audio-editor-model.test.js": {
-			"maxLines": 856,
-			"reason": "Legacy project model regression matrix."
-		},
 		"tests/audio-editor-multitrack-selection-effects.test.js": {
 			"maxLines": 602,
 			"reason": "Legacy multitrack selection/effect integration scenarios."
@@ -88,25 +84,9 @@
 			"maxLines": 625,
 			"reason": "Legacy Nyquist controller integration scenarios."
 		},
-		"tests/audio-editor-recording-controller.test.js": {
-			"maxLines": 1284,
-			"reason": "Legacy recording-controller regression suite."
-		},
 		"tests/audio-editor-video-ffmpeg.test.js": {
 			"maxLines": 825,
 			"reason": "Legacy FFmpeg video argument and composition matrix."
-		},
-		"tests/aup4-conversion.test.js": {
-			"maxLines": 1021,
-			"reason": "AUP4 conversion compatibility matrix."
-		},
-		"tests/aup4-database.test.js": {
-			"maxLines": 830,
-			"reason": "Legacy AUP4 database codec and corruption matrix."
-		},
-		"tests/aup4-export.test.js": {
-			"maxLines": 877,
-			"reason": "Legacy AUP4 export interoperability matrix."
 		},
 		"tests/parametric-eq-wasm.test.js": {
 			"maxLines": 729,
