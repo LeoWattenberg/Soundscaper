@@ -20,10 +20,6 @@
 			"maxLines": 2899,
 			"reason": "Legacy JavaScript composition root retained while its typed services and ports complete staged migration."
 		},
-		"src/common/editor/aup4-conversion.js": {
-			"maxLines": 772,
-			"reason": "AUP4 compatibility conversion matrix retained for interoperability."
-		},
 		"src/common/editor/aup4-database.js": {
 			"maxLines": 726,
 			"reason": "Legacy SQLite AUP4 codec with strict schema validation."
