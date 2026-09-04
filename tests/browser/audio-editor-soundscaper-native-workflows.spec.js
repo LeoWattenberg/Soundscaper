@@ -86,9 +86,9 @@ test.describe('Soundscaper native production workflows', () => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
-		await chooseCommandAction(page, editor, 'Tools', 'Manage macros');
+		await chooseCommandAction(page, editor, 'Tools', 'Macro manager');
 
-		let manager = page.getByRole('dialog', { name: 'Manage macros', exact: true });
+		let manager = page.getByRole('dialog', { name: 'Macro manager', exact: true });
 		await manager.getByRole('button', { name: 'Restoration', exact: true }).click();
 		await expect(manager.locator('.effect-slot__name-text')).toHaveText([
 			'Click Removal', 'Noise Reduction', 'Filter Curve EQ',
@@ -105,7 +105,7 @@ test.describe('Soundscaper native production workflows', () => {
 			.toBeVisible({ timeout: 20_000 });
 		await closeDialog(noiseReduction);
 
-		manager = page.getByRole('dialog', { name: 'Manage macros', exact: true });
+		manager = page.getByRole('dialog', { name: 'Macro manager', exact: true });
 		await expect(manager.getByRole('button', { name: 'Run macro', exact: true })).toBeEnabled();
 		await manager.getByRole('button', { name: 'Run macro', exact: true }).click();
 		await expect(manager.getByRole('status')).toHaveText('Macro applied.', { timeout: 30_000 });

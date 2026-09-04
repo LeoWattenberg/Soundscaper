@@ -1065,6 +1065,53 @@ test('controller persists direct workspace panel and toolbar moves', async () =>
 	await controller.dispose();
 });
 
+test('the macro library survives a controller restart and reaches the document snapshot', async () => {
+	const store = createMemoryStore();
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store,
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await controller.ready;
+	const saved = controller.actions.macros.library.save({
+		name: 'Cleanup',
+		effects: [{ type: 'audacity-invert' }],
+	});
+	assert.deepEqual(
+		controller.getSnapshot().macros.library.map(({ id, name }) => ({ id, name })),
+		[{ id: saved.id, name: 'Cleanup' }],
+	);
+	controller.actions.macros.library.save({ ...saved, name: 'Cleanup v2' });
+	await controller.actions.macros.library.flush();
+	assert.deepEqual(
+		store.settings.get('audio-editor-effect-macros-v1').macros.map(({ name }) => name),
+		['Cleanup v2'],
+	);
+	await controller.dispose();
+
+	const reopened = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		locale: 'en',
+		store,
+		engine: createMemoryEngine(),
+		ffmpeg: createMemoryFfmpeg(),
+	});
+	await reopened.ready;
+	assert.deepEqual(
+		reopened.getSnapshot().macros.library.map(({ name }) => name),
+		['Cleanup v2'],
+		'a saved macro must still be there the next time the manager opens',
+	);
+	assert.equal(reopened.actions.macros.library.delete(saved.id), true);
+	await reopened.actions.macros.library.flush();
+	assert.deepEqual(store.settings.get('audio-editor-effect-macros-v1').macros, []);
+	await reopened.dispose();
+});
+
 test('controller reverts editor preferences to product factory defaults without removing projects', async () => {
 	const store = createMemoryStore();
 	const controller = createAudioEditorController(null, {

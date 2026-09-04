@@ -150,6 +150,14 @@ Tracked so upstream syncs know what to preserve. Aside from this list, keep the 
     redirects Home/End into clip-list roving focus before the host can act. Plain Up/Down and
     plain Home/End retain the upstream focus-navigation behaviour. Covered by
     `tests/audio-editor-clip-focus-trim-keyboard-hooks.test.ts`. Upstream-PR candidate.
+20. `Icon.tsx` adds an `import` name mapping to `\uF357`, MuseScore's `IconCode::IMPORT`
+    (`framework/ui/view/iconcodes.h` in `musescore/muse_framework`). The bundled
+    `MusescoreIcon.ttf` already carries that glyph; upstream's map simply stops at
+    `\uEF24` — `IconCode::SHARE_FILE`, exported under the name `export` — so a host that
+    needs an import affordance has to fake one by rotating the export glyph 180°, which
+    reads as a share arrow pointing the wrong way rather than as an import. No glyph or
+    font asset changes. Covered by `tests/vendored-design-system-icon-map.test.ts`.
+    Upstream-PR candidate.
 
 ## Application-side adaptations
 

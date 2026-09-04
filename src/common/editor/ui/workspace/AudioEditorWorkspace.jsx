@@ -55,7 +55,7 @@ export default function AudioEditorWorkspace({
 	usePrivacyPolicySurface(productId, initialSurface, setActiveSurface); useWorkspaceOnboardingSurface({ productId, phase: snapshot.phase, initialSurface, takeCycleRecovery: snapshot.takeCycleRecovery, activeSurface, setActiveSurface });
 	const [effectsPanelTarget, setEffectsPanelTarget] = useState(null);
 	const [effectWindow, setEffectWindow] = useState(null);
-	const [macroDraft, setMacroDraft] = useState(() => ({ name: copy.untitledMacro, effects: [] }));
+	const [macroDraft, setMacroDraft] = useState(null);
 	const [dialog, setDialog] = useState(null);
 	const [dialogValue, setDialogValue] = useState('');
 	const [dialogSourceKey, setDialogSourceKey] = useState('global');

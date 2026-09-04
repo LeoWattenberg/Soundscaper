@@ -122,9 +122,9 @@ Product availability follows each product profile’s command filters. “—”
 | Legacy Limiter | `nyquist:legacy-limiter` | — | Nyquist | Soundscaper | Audacity |
 | Loop region | `toggle-loop-region` | L | Select > Looping; Transport | Soundscaper, Framescaper | Audacity |
 | Low-Pass Filter | `nyquist:lowpass` | — | Nyquist | Soundscaper | Audacity |
+| Macro manager | `manage-macros` | — | Tools | Soundscaper | Audacity |
 | Make stereo track | `track-make-stereo` | — | Track context | Soundscaper, Framescaper | Audacity |
 | Manage labels | `open-label-editor` | — | Edit > Label; View | Soundscaper, Framescaper | Audacity |
-| Manage macros | `manage-macros` | — | Tools | Soundscaper | Audacity |
 | Manual | `online-handbook` | — | Help | Soundscaper, Framescaper | Audacity |
 | Measure RMS | `nyquist:rms` | — | Nyquist | Soundscaper | Audacity |
 | Metadata editor | `open-metadata-editor` | — | Edit; View | Soundscaper, Framescaper | Audacity |

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import React, { act, useState } from 'react';
+import React, { act, useEffect, useState } from 'react';
 
 import AudioEditorMacroManagerDialog from '../src/common/editor/ui/inspector/AudioEditorMacroManagerDialog.jsx';
 import { createEffect } from '../src/common/editor/effects.js';
@@ -72,6 +72,7 @@ test('a macro import started for a replaced project cannot overwrite the survivi
 		assert.equal(fixture.nameInput().value, 'Project B chain');
 		assert.deepEqual(fixture.effectNames(), ['Invert']);
 		assert.equal(fixture.message(), '');
+		assert.deepEqual(fixture.macroNames(), ['Project B chain'], 'the stale import must not save a macro');
 	} finally {
 		importedText.resolve('Invert:\n');
 		await fixture.cleanup();
@@ -107,19 +108,19 @@ test('a stale macro export cannot replace the current project completion message
 	}
 });
 
-test('the Restoration template confirms replacement, embeds its captured profile, and only then admits Run', async () => {
+test('the Restoration template saves a macro of its own, embeds its captured profile, and only then admits Run', async () => {
 	const fixture = await mountedMacroManagerFixture();
 	try {
 		await fixture.render(macroSnapshot('project-a'));
 		await click(fixture.button('Restoration'));
-		assert.ok(fixture.find('[data-macro-template-confirmation="restoration"]'));
-		assert.deepEqual(fixture.effectNames(), []);
-		await click(fixture.button(ENGLISH_COPY.cancel));
-		assert.deepEqual(fixture.effectNames(), ['Invert']);
-
-		await click(fixture.button('Restoration'));
-		await click(fixture.button('Replace macro'));
+		assert.deepEqual(fixture.macroNames(), ['Portable chain', 'Restoration']);
+		assert.equal(fixture.selectedMacroName(), 'Restoration');
 		assert.deepEqual(fixture.effectNames(), ['Click Removal', 'Noise Reduction', 'Filter Curve EQ']);
+		assert.deepEqual(
+			fixture.library()[0]!.effects.map(({ type }) => type),
+			['audacity-invert'],
+			'the template must not reach into the macro that was open',
+		);
 		assert.equal(fixture.button(ENGLISH_COPY.runMacro).hasAttribute('disabled'), true);
 		assert.match(fixture.text(), /Capture a noise profile in every Noise Reduction step/u);
 
@@ -147,14 +148,71 @@ test('the Restoration template confirms replacement, embeds its captured profile
 	}
 });
 
-test('an untouched empty macro loads the Restoration template without replacement confirmation', async () => {
-	const fixture = await mountedMacroManagerFixture({ name: ENGLISH_COPY.untitledMacro, effects: [] });
+test('the macro list creates, renames, selects, and deletes saved macros', async () => {
+	const fixture = await mountedMacroManagerFixture();
 	try {
 		await fixture.render(macroSnapshot('project-a'));
-		await click(fixture.button('Restoration'));
+		assert.deepEqual(fixture.macroNames(), ['Portable chain']);
 
-		assert.equal(fixture.find('[data-macro-template-confirmation="restoration"]'), null);
-		assert.deepEqual(fixture.effectNames(), ['Click Removal', 'Noise Reduction', 'Filter Curve EQ']);
+		await click(fixture.button(ENGLISH_COPY.newMacro));
+		assert.deepEqual(fixture.macroNames(), ['Portable chain', ENGLISH_COPY.untitledMacro]);
+		assert.deepEqual(fixture.effectNames(), []);
+
+		await changeText(fixture.nameInput(), 'Second chain');
+		assert.deepEqual(fixture.macroNames(), ['Portable chain', 'Second chain']);
+		assert.deepEqual(fixture.library().map(({ name }) => name), ['Portable chain', 'Second chain']);
+
+		await click(fixture.macro('Portable chain'));
+		assert.equal(fixture.selectedMacroName(), 'Portable chain');
+		assert.deepEqual(fixture.effectNames(), ['Invert']);
+
+		await click(fixture.button(ENGLISH_COPY.deleteMacro));
+		assert.deepEqual(fixture.macroNames(), ['Second chain']);
+		assert.equal(fixture.selectedMacroName(), 'Second chain');
+	} finally {
+		fixture.settlePending();
+		await fixture.cleanup();
+	}
+});
+
+test('an emptied library leaves nothing to edit and takes the manager back to its own hint', async () => {
+	const fixture = await mountedMacroManagerFixture();
+	try {
+		await fixture.render(macroSnapshot('project-a'));
+		await click(fixture.button(ENGLISH_COPY.deleteMacro));
+
+		assert.deepEqual(fixture.macroNames(), []);
+		assert.ok(fixture.find('[data-macro-library-empty]'));
+		assert.ok(fixture.find('[data-macro-unselected]'));
+		assert.equal(fixture.find('[data-macro-steps]'), null);
+		assert.equal(fixture.button(ENGLISH_COPY.runMacro).hasAttribute('disabled'), true);
+	} finally {
+		fixture.settlePending();
+		await fixture.cleanup();
+	}
+});
+
+test('Add effect sits after the last step and opens the rack flyout rather than a dialog', async () => {
+	const fixture = await mountedMacroManagerFixture();
+	try {
+		await fixture.render(macroSnapshot('project-a'));
+		const steps = fixture.find('[data-macro-steps]');
+		assert.ok(steps);
+		const rows = steps.childNodes.filter((node) => node.nodeType === 1);
+		assert.equal(rows.at(-1), fixture.addEffect(), 'Add effect must follow the step stack.');
+
+		await click(fixture.addEffect());
+		assert.equal(fixture.find('[data-effect-picker]'), null, 'the picker must not open as a dialog');
+		const flyout = fixture.find('.audio-editor-effect-picker-flyout__grid');
+		assert.ok(flyout, 'the picker must open as the flyout the realtime rack uses');
+
+		await click(fixture.menuItem('Echo'));
+		assert.deepEqual(fixture.effectNames(), ['Invert', 'Echo']);
+		assert.deepEqual(
+			fixture.library()[0]!.effects.map(({ type }) => type),
+			['audacity-invert', 'audacity-echo'],
+			'the added step must reach the saved macro',
+		);
 	} finally {
 		fixture.settlePending();
 		await fixture.cleanup();
@@ -162,7 +220,7 @@ test('an untouched empty macro loads the Restoration template without replacemen
 });
 
 test('a failed Restoration profile capture stays gated and reports the failure in the dialog', async () => {
-	const fixture = await mountedMacroManagerFixture({ name: ENGLISH_COPY.untitledMacro, effects: [] });
+	const fixture = await mountedMacroManagerFixture({ id: 'macro-initial', name: ENGLISH_COPY.untitledMacro, effects: [] });
 	try {
 		await fixture.render(macroSnapshot('project-a'));
 		await click(fixture.button('Restoration'));
@@ -180,7 +238,7 @@ test('a failed Restoration profile capture stays gated and reports the failure i
 });
 
 test('Restoration profile recapture replaces the embedded portable profile', async () => {
-	const fixture = await mountedMacroManagerFixture({ name: ENGLISH_COPY.untitledMacro, effects: [] });
+	const fixture = await mountedMacroManagerFixture({ id: 'macro-initial', name: ENGLISH_COPY.untitledMacro, effects: [] });
 	const replacement = Object.freeze({ ...SERIALIZED_NOISE_PROFILE, windowCount: 3 });
 	try {
 		await fixture.render(macroSnapshot('project-a'));
@@ -204,7 +262,7 @@ test('Restoration profile recapture replaces the embedded portable profile', asy
 });
 
 test('a stale Restoration recapture cannot replace the surviving embedded profile', async () => {
-	const fixture = await mountedMacroManagerFixture({ name: ENGLISH_COPY.untitledMacro, effects: [] });
+	const fixture = await mountedMacroManagerFixture({ id: 'macro-initial', name: ENGLISH_COPY.untitledMacro, effects: [] });
 	const pending = deferred<unknown>();
 	try {
 		await fixture.render(macroSnapshot('project-a'));
@@ -259,10 +317,14 @@ const SERIALIZED_NOISE_PROFILE = Object.freeze({
 	meanPowers: Object.freeze(Array.from({ length: 1_025 }, () => 0.25)),
 });
 
-async function mountedMacroManagerFixture(initialDraft: Readonly<{
+type MacroEntry = Readonly<{
+	readonly id: string;
 	readonly name: string;
-	readonly effects: readonly ReturnType<typeof createEffect>[];
-}> = {
+	readonly effects: readonly Readonly<Record<string, unknown>>[];
+}>;
+
+async function mountedMacroManagerFixture(initialDraft: MacroEntry = {
+	id: 'macro-initial',
 	name: 'Portable chain',
 	effects: [createEffect('audacity-invert', { id: 'macro-effect-1' })],
 }, productId = 'soundscaper') {
@@ -287,6 +349,31 @@ async function mountedMacroManagerFixture(initialDraft: Readonly<{
 	}>> = [];
 	let profileCaptures = 0;
 	let profileFailure: Error | null = null;
+	// A stand-in for the controller's saved macro library: writes land in memory
+	// and republish, the way the service publishes a document snapshot.
+	const libraryPublishers = new Set<(macros: readonly MacroEntry[]) => void>();
+	let library: readonly MacroEntry[] = [initialDraft];
+	let mintedMacros = 0;
+	const publishLibrary = () => {
+		for (const publish of libraryPublishers) publish(library);
+	};
+	const macroLibrary = {
+		list: () => library,
+		save: (macro: MacroEntry) => {
+			const saved = { ...macro, id: macro.id ?? `macro-minted-${(mintedMacros += 1)}` };
+			const index = library.findIndex((candidate) => candidate.id === saved.id);
+			library = index < 0
+				? [...library, saved]
+				: library.map((candidate, at) => at === index ? saved : candidate);
+			publishLibrary();
+			return saved;
+		},
+		delete: (macroId: string) => {
+			library = library.filter((macro) => macro.id !== macroId);
+			publishLibrary();
+			return true as const;
+		},
+	};
 	const profileResponses: Promise<unknown>[] = [];
 	const profileParams: unknown[] = [];
 	const controller = {
@@ -298,6 +385,7 @@ async function mountedMacroManagerFixture(initialDraft: Readonly<{
 					runs.push({ projectId: currentProject?.id ?? null, macro, settlement });
 					return settlement.promise;
 				},
+				library: macroLibrary,
 			},
 			effects: {
 			captureNoiseProfile: (params: unknown) => {
@@ -323,12 +411,17 @@ async function mountedMacroManagerFixture(initialDraft: Readonly<{
 		},
 	};
 	function Host({ snapshot }: Readonly<{ snapshot: ReturnType<typeof macroSnapshot> }>) {
-		const [draft, setDraft] = useState(() => initialDraft);
+		const [draft, setDraft] = useState<MacroEntry | null>(() => initialDraft);
+		const [macros, setMacros] = useState(() => library);
+		useEffect(() => {
+			libraryPublishers.add(setMacros);
+			return () => { libraryPublishers.delete(setMacros); };
+		}, []);
 		return <AudioEditorMacroManagerDialog
 			isOpen
 			productId={productId}
 			controller={controller}
-			snapshot={snapshot}
+			snapshot={{ ...snapshot, macros: { library: macros } }}
 			copy={ENGLISH_COPY}
 			locale="en"
 			fileService={fileService}
@@ -359,6 +452,26 @@ async function mountedMacroManagerFixture(initialDraft: Readonly<{
 			return button;
 		},
 		importInput: () => dom.one('[data-macro-import-file]'),
+		macroNames: () => dom.container.querySelectorAll('[data-macro-id]').map(({ textContent }) => textContent),
+		selectedMacroName: () => dom.container.querySelectorAll('[data-macro-id]').find((candidate) => (
+			candidate.getAttribute('aria-current') === 'true'
+		))?.textContent ?? null,
+		library: () => library,
+		addEffect: () => dom.one('[data-macro-add-effect]'),
+		macro: (name: string) => {
+			const entry = dom.container.querySelectorAll('[data-macro-id]').find((candidate) => (
+				candidate.textContent === name
+			));
+			assert.ok(entry, `Missing ${name} in the macro list.`);
+			return entry;
+		},
+		menuItem: (name: string) => {
+			const item = dom.container.querySelectorAll('[role="menuitem"]').find((candidate) => (
+				candidate.textContent === name
+			));
+			assert.ok(item, `Missing ${name} in the effect flyout.`);
+			return item;
+		},
 		message: () => dom.find('[role="status"]')?.textContent
 			?? dom.find('[role="alert"]')?.textContent
 			?? '',

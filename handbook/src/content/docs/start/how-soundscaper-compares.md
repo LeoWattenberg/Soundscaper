@@ -117,7 +117,7 @@ product enables see
 | Real-time effect rack per track | Yes — a wider real-time set than upstream | Yes | Yes — sixteen slots per clip, track, and master |
 | Parametric EQ | Yes — a new parametric EQ with automatable bands | Partial — Filter Curve and Graphic EQ | Yes — parametric, graphic, and FFT filters |
 | Effect presets | Yes — apply, save, import, export | Yes — apply, save, import, export | Yes |
-| Macros and batch chains | Yes — macro manager with templates | No — the pinned beta comments the Macros menu out | Yes — Favorites and Batch Process |
+| Macros and batch chains | Yes — saved macro library with templates | No — the pinned beta comments the Macros menu out | Yes — Favorites and Batch Process |
 | Third-party plug-in formats | Partial — VST3, CLAP, AU, and LV2 on desktop behind consent and containment, none in the browser | Yes — VST3, AU, LV2, and Nyquist, with a plug-in manager | Partial — VST3, and AU on macOS, no CLAP or LV2 |
 | Nyquist scripting | Yes — bundled plug-ins and the Nyquist prompt | Yes — bundled plug-ins and the Nyquist prompt | No |
 | Sandboxed effect packages | Partial — reviewed WebAssembly packages, one ships and external ones are fenced | No | No |

@@ -58,7 +58,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	renameProjectBinClip, renderClipPitchSpeed, reorderTrack, reorderVideoClipEffect,
 	repeatLastAudacityEffect, requestInputAccess, requestStoragePersistence, requestWaveformPcmWindow, resampleClip, resampleTrack,
 	resetClipPitchSpeed, resetLoudnessMeasurement, resizeTrackHeight,
-	runEffectMacro, runNyquistEvaluation, saveAup4, saveEffectPreset,
+	runEffectMacro, effectMacroLibraryService, runNyquistEvaluation, saveAup4, saveEffectPreset,
 	saveNow, saveScape, selectAllTracks,
 	selectAtZeroCrossings, selectClip, selectCursorToTrackEnd, selectLeftOfPlaybackPosition,
 	selectProjectBinInstances, selectRightOfPlaybackPosition, selectTrack, selectTrackStartToCursor,
@@ -584,7 +584,15 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 				export: restricted('audioEffects', exportEffectPreset),
 			}),
 		}),
-		macros: Object.freeze({ run: restricted('audioMacros', runEffectMacro) }),
+		macros: Object.freeze({
+			run: restricted('audioMacros', runEffectMacro),
+			library: Object.freeze({
+				list: restricted('audioMacros', () => effectMacroLibraryService.list()),
+				save: restricted('audioMacros', (macro: RuntimeValue) => effectMacroLibraryService.save(macro)),
+				delete: restricted('audioMacros', (macroId: RuntimeValue) => effectMacroLibraryService.delete(macroId)),
+				flush: () => effectMacroLibraryService.flush(),
+			}),
+		}),
 		analysis: Object.freeze({
 			run: restricted('audioAnalysis', analysisService.run),
 			plotSpectrum: restricted('audioAnalysis', analysisService.plotSpectrum),

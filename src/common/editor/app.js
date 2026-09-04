@@ -155,6 +155,7 @@ import { createSelectionEffectExecutionService } from './controller/effect-execu
 import { createEffectControlsService } from './controller/effect-controls-service.ts';
 import { createEffectSelectionService } from './controller/effect-selection-service.ts';
 import { createEffectMacroService } from './controller/effect-macro-service.ts';
+import { createEffectMacroLibraryService } from './controller/effect-macro-library-service.ts';
 import { createEffectAudioService } from './controller/effect-audio-service.ts';
 import { createSelectionEffectWorkerService } from './controller/selection-effect-worker-service.ts';
 import { createNyquistHostService } from './controller/nyquist-host-service.ts';
@@ -1394,6 +1395,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 		persistAudacityEffectResult: (...args) => persistAudacityEffectResult(...args),
 		handleError,
 	});
+	const effectMacroLibraryService = createEffectMacroLibraryService({
+		state,
+		createId: createStableId,
+		persistSetting,
+		publishDocumentSnapshot,
+		handleError,
+	});
 	const {
 		applySelectedAudacityEffect,
 		previewAudacityEffectFromController,
@@ -1841,7 +1849,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		renameProjectBinClip, renderClipPitchSpeed, reorderTrack, reorderVideoClipEffect,
 		repeatLastAudacityEffect, requestInputAccess, requestStoragePersistence: storageCapacityService.requestStoragePersistence, requestWaveformPcmWindow, resampleClip, resampleTrack,
 		resetClipPitchSpeed, resetLoudnessMeasurement, resizeTrackHeight, revertFactorySettings,
-		runEffectMacro, runNyquistEvaluation, saveAup4, saveEffectPreset,
+		runEffectMacro, effectMacroLibraryService, runNyquistEvaluation, saveAup4, saveEffectPreset,
 		saveNow, saveScape, scheduleTimedRecording, selectAllTracks,
 		selectAtZeroCrossings, selectClip, selectCursorToTrackEnd, selectLeftOfPlaybackPosition,
 		selectProjectBinInstances, selectRightOfPlaybackPosition, selectTrack, selectTrackStartToCursor,

@@ -1,10 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
-import { EffectSlot } from '@soundscaper/design-system/EffectsPanel/EffectSlot';
 import { Icon } from '@soundscaper/design-system/Icon';
 import { TextInput } from '@soundscaper/design-system/TextInput';
-import { useContainerTabGroup } from '@soundscaper/design-system/hooks/useContainerTabGroup';
 import { audioEffectTypes, createEffect } from '../../effects.js';
 import { parseAudacityEffectMacro, serializeAudacityEffectMacro } from '../../effect-macros.js';
 import {
@@ -16,13 +14,15 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { takeSelectedFile } from '../file-input-selection.ts';
 import EffectParameterEditor from './EffectParameterEditor.jsx';
-import EffectPicker from './EffectPicker.jsx';
+import MacroManagerLibraryList from './MacroManagerLibraryList.jsx';
+import MacroManagerStepList from './MacroManagerStepList.jsx';
 import { resolveEffectMacroTemplateCopy } from './effect-macro-template-copy.ts';
 import { resolveSupportedEffectType, safeEffectLabel } from './effect-helpers.ts';
 import { downloadTextFile, macroFileName } from './inspector-helpers.ts';
 
 const MAX_MACRO_IMPORT_BYTES = 1024 * 1024;
 const EMPTY_EFFECTS = Object.freeze([]);
+const EMPTY_MACROS = Object.freeze([]);
 
 export function AudioEditorMacroManagerDialog({
 	isOpen,
@@ -38,6 +38,8 @@ export function AudioEditorMacroManagerDialog({
 }) {
 	const project = snapshot.project;
 	const projectIdentity = project?.id ?? null;
+	const library = controller.actions.macros.library;
+	const macros = snapshot.macros?.library || EMPTY_MACROS;
 	const effects = draft?.effects || EMPTY_EFFECTS;
 	// The caret menu swaps through Soundscaper's registry, not the sample set
 	// the design-system package ships with.
@@ -51,16 +53,12 @@ export function AudioEditorMacroManagerDialog({
 	const restorationAvailable = productId === 'soundscaper';
 	const missingEmbeddedNoiseProfile = restorationAvailable
 		&& effectMacroMissingEmbeddedNoiseProfile(effects);
-	const [picker, setPicker] = useState(null);
 	const [selectedEffectId, setSelectedEffectId] = useState(null);
-	const [pendingTemplateId, setPendingTemplateId] = useState(null);
-	const [draggedIndex, setDraggedIndex] = useState(null);
 	const [message, setMessage] = useState('');
 	const [messageState, setMessageState] = useState('info');
 	const [isRunning, setIsRunning] = useState(false);
 	const [isCapturingProfile, setIsCapturingProfile] = useState(false);
 	const fileInputRef = useRef(null);
-	const macroStackRef = useRef(null);
 	const mountedRef = useRef(false);
 	const operationSessionRef = useRef(null);
 	const activeImportRef = useRef(null);
@@ -68,19 +66,15 @@ export function AudioEditorMacroManagerDialog({
 	const activeProfileRef = useRef(null);
 	const runningRef = useRef(null);
 	const stateProjectIdentityRef = useRef(projectIdentity);
+	// Async work resumes against whatever the manager is editing now, not the
+	// draft that was open when it started.
+	const draftRef = useRef(draft);
+	draftRef.current = draft;
 	if (operationSessionRef.current?.projectIdentity !== projectIdentity
 		|| operationSessionRef.current?.isOpen !== isOpen) {
 		operationSessionRef.current = { projectIdentity, isOpen };
 	}
 	const selectedEffect = effects.find((effect) => effect.id === selectedEffectId) || null;
-	const macroTabGroup = useContainerTabGroup({
-		containerRef: macroStackRef,
-		groupId: 'effects-panel',
-		selector: '.effect-slot',
-		ariaLabel: copy.macroManager,
-		startTabIndex: 0,
-	});
-	const initMacroTabIndices = macroTabGroup.initTabIndices;
 
 	useEffect(() => {
 		if (selectedEffectId && !selectedEffect) setSelectedEffectId(null);
@@ -103,9 +97,7 @@ export function AudioEditorMacroManagerDialog({
 			activeExportRef.current = null;
 			activeProfileRef.current = null;
 			runningRef.current = null;
-			setPicker(null);
 			setSelectedEffectId(null);
-			setPendingTemplateId(null);
 			setMessage('');
 			setIsRunning(false);
 			setIsCapturingProfile(false);
@@ -125,18 +117,14 @@ export function AudioEditorMacroManagerDialog({
 		setIsCapturingProfile(false);
 	}, [projectIdentity]);
 
-	useLayoutEffect(() => {
-		if (isOpen && !selectedEffect && !picker) initMacroTabIndices();
-	}, [effects, initMacroTabIndices, isOpen, picker, selectedEffect]);
+	// A macro the library no longer holds cannot be edited, so the manager opens
+	// on the first saved macro instead of on a draft with nowhere to save to.
+	useEffect(() => {
+		if (!isOpen) return;
+		if (draft && macros.some((macro) => macro.id === draft.id)) return;
+		onDraftChange?.(macros[0] || null);
+	}, [draft, isOpen, macros, onDraftChange]);
 
-	const setDraft = (updater) => onDraftChange?.((current) => {
-		const base = current || { name: copy.untitledMacro, effects: [] };
-		return typeof updater === 'function' ? updater(base) : updater;
-	});
-	const setEffects = (nextEffects) => setDraft((current) => ({
-		...current,
-		effects: typeof nextEffects === 'function' ? nextEffects(current.effects || []) : nextEffects,
-	}));
 	const showMessage = (value, state = 'info') => {
 		setMessage(value);
 		setMessageState(state);
@@ -151,6 +139,41 @@ export function AudioEditorMacroManagerDialog({
 		&& operationSessionRef.current === operation.session
 		&& operation.session?.isOpen === true
 		&& (controller.project?.id ?? null) === operation.session.projectIdentity;
+	/** Publishes an edit to the open macro and stores it under the same name. */
+	const writeDraft = (updater) => {
+		const base = draftRef.current;
+		if (!base) return;
+		const next = typeof updater === 'function' ? updater(base) : updater;
+		draftRef.current = next;
+		onDraftChange?.(next);
+		// A half-typed name is not storable; the next keystroke that leaves one
+		// behind saves the macro, and the library keeps the last stored name.
+		if (String(next.name ?? '').trim()) library.save(next);
+	};
+	const openMacro = (macro) => {
+		draftRef.current = macro;
+		onDraftChange?.(macro);
+		setSelectedEffectId(null);
+		setMessage('');
+	};
+	const setEffects = (nextEffects) => writeDraft((current) => ({
+		...current,
+		effects: typeof nextEffects === 'function' ? nextEffects(current.effects || []) : nextEffects,
+	}));
+	const createMacro = (macro) => {
+		try {
+			openMacro(library.save(macro));
+		} catch (cause) {
+			showMessage(cause instanceof Error ? cause.message : String(cause), 'error');
+		}
+	};
+	const deleteMacro = () => {
+		const current = draftRef.current;
+		if (!current) return;
+		const index = macros.findIndex((macro) => macro.id === current.id);
+		library.delete(current.id);
+		openMacro(macros[index + 1] || macros[index - 1] || null);
+	};
 	const updateEffect = (effectId, changes) => setEffects((current) => current.map((effect) => {
 		if (effect.id !== effectId) return effect;
 		const type = changes.type || effect.type;
@@ -168,20 +191,6 @@ export function AudioEditorMacroManagerDialog({
 				: { ...effect.params, ...(changes.params || {}) },
 		});
 	}));
-	const loadRestorationTemplate = () => {
-		setDraft(createEffectMacroTemplateDraft('restoration'));
-		setSelectedEffectId(null);
-		setMessage('');
-		setPendingTemplateId(null);
-	};
-	const requestRestorationTemplate = () => {
-		const name = typeof draft?.name === 'string' ? draft.name.trim() : '';
-		if (!effects.length && (!name || name === copy.untitledMacro)) {
-			loadRestorationTemplate();
-			return;
-		}
-		setPendingTemplateId('restoration');
-	};
 	const captureMacroNoiseProfile = async (effectId) => {
 		if (activeProfileRef.current) return;
 		const operation = startOperation(activeProfileRef);
@@ -213,24 +222,17 @@ export function AudioEditorMacroManagerDialog({
 			}
 		}
 	};
-	const removeEffect = (effectId) => setEffects((current) => current.filter((effect) => effect.id !== effectId));
-	const reorderEffect = (fromIndex, toIndex) => {
-		if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || toIndex >= effects.length) return;
-		setEffects((current) => {
-			const next = [...current];
-			const [effect] = next.splice(fromIndex, 1);
-			next.splice(toIndex, 0, effect);
-			return next;
-		});
-	};
-	const replaceFromRegistry = (effect, candidate) => {
+	const replaceFromRegistry = (effectId, candidate) => {
 		const type = resolveSupportedEffectType(candidate, locale, copy);
 		if (!type) {
 			showMessage(copy.effectEngineUnsupported, 'error');
 			return;
 		}
-		const replacement = createEffect(type, { id: effect.id });
-		updateEffect(effect.id, { type, params: replacement.params });
+		changeEffectType(effectId, type);
+	};
+	const changeEffectType = (effectId, type) => {
+		const replacement = createEffect(type, { id: effectId });
+		updateEffect(effectId, { type, params: replacement.params });
 	};
 	const importMacro = async (file) => {
 		if (!file) return;
@@ -241,15 +243,10 @@ export function AudioEditorMacroManagerDialog({
 			}
 			const parsed = parseAudacityEffectMacro(await file.text());
 			if (!ownsOperation(activeImportRef, operation)) return;
-			setDraft((current) => {
-				if (!ownsOperation(activeImportRef, operation)) return current;
-				return {
-					...current,
-					name: file.name.replace(/\.txt$/i, '') || copy.untitledMacro,
-					effects: [...parsed.effects],
-				};
+			createMacro({
+				name: file.name.replace(/\.txt$/i, '') || copy.untitledMacro,
+				effects: [...parsed.effects],
 			});
-			if (!ownsOperation(activeImportRef, operation)) return;
 			const warning = parsed.ignoredCommands.length
 				? ` ${copy.macroUnsupportedCommands.replace('{commands}', parsed.ignoredCommands.join(', '))}`
 				: '';
@@ -307,89 +304,66 @@ export function AudioEditorMacroManagerDialog({
 	return (
 		<>
 			<AudioEditorDialogShell
-				isOpen={isOpen && !selectedEffect && !picker && !pendingTemplateId}
+				isOpen={isOpen && !selectedEffect}
 				title={copy.macroManager}
 				onClose={onClose}
-				width={680}
+				width={860}
 				className="audio-editor-macro-manager"
 				dataAttributes={{ 'data-macro-manager': '' }}
 				footer={(
 					<DialogFooter
 						className="audio-editor-dialog-footer audio-editor-macro-manager__footer"
-						leftContent={(
-							<Button
-								variant="secondary"
-								icon={<Icon name="plus" size={14} />}
-								onClick={() => setPicker({ replaceId: null })}
-							>{copy.effects}</Button>
-						)}
 						rightContent={(
-							<div className="audio-editor-macro-manager__footer-actions">
-								<div className="audio-editor-macro-manager__file-actions" role="group" aria-label={`${copy.importMacro} / ${copy.exportMacro}`}>
-									<button className="audio-editor-macro-manager__icon-button audio-editor-macro-manager__icon-button--import" type="button" aria-label={copy.importMacro} title={copy.importMacro} onClick={() => fileInputRef.current?.click()}>
-										<Icon name="export" size={16} />
-									</button>
-									<button className="audio-editor-macro-manager__icon-button" type="button" aria-label={copy.exportMacro} title={copy.exportMacro} disabled={!effects.length} onClick={exportMacro}>
-										<Icon name="export" size={16} />
-									</button>
-								</div>
-								<Button variant="primary" icon={<Icon name="play" size={14} />} disabled={blocked || isRunning || !hasRunTarget || !effects.length || missingEmbeddedNoiseProfile} onClick={runMacro}>{copy.runMacro}</Button>
-							</div>
+							<Button variant="primary" icon={<Icon name="play" size={14} />} disabled={blocked || isRunning || !hasRunTarget || !effects.length || missingEmbeddedNoiseProfile} onClick={runMacro}>{copy.runMacro}</Button>
 						)}
 					/>
 				)}
 			>
 				<section className="audio-editor-macro-manager__content">
-					{restorationAvailable && <section className="audio-editor-macro-manager__templates" data-macro-templates>
-						<h3>{templateCopy.templates}</h3>
-						<Button variant="secondary" onClick={requestRestorationTemplate}>{templateCopy.restoration}</Button>
-					</section>}
-					<label className="audio-editor-field audio-editor-macro-manager__name">
-						<span>{copy.macroName}</span>
-						<TextInput value={draft?.name || ''} onChange={(name) => setDraft((current) => ({ ...current, name }))} width="100%" />
-					</label>
-					<div
-						ref={macroStackRef}
-						className="audio-editor-macro-manager__stack"
-						{...macroTabGroup.containerProps}
-						aria-label={copy.macroManager}
-						onKeyDown={macroTabGroup.onKeyDown}
-						onBlur={macroTabGroup.onBlur}
-						onFocus={macroTabGroup.onFocus}
-						onClickCapture={macroTabGroup.onClickCapture}
-						data-macro-effect-stack
-					>
-						{effects.map((effect, index) => (
-							<EffectSlot
-								key={effect.id}
-								className="audio-editor-macro-manager__effect"
-								effectName={safeEffectLabel(effect, copy)}
-								enabled
-								isDragging={draggedIndex === index}
-								onSelectEffect={() => setSelectedEffectId(effect.id)}
-								onRemoveEffect={() => removeEffect(effect.id)}
-								onReplaceEffect={(candidate) => replaceFromRegistry(effect, candidate)}
+					<MacroManagerLibraryList
+						copy={copy}
+						macros={macros}
+						selectedId={draft?.id || null}
+						exportDisabled={!effects.length}
+						templates={restorationAvailable ? {
+							heading: templateCopy.templates,
+							restoration: templateCopy.restoration,
+							onCreateRestoration: () => createMacro(createEffectMacroTemplateDraft('restoration')),
+						} : null}
+						onSelect={(macroId) => openMacro(macros.find((macro) => macro.id === macroId) || null)}
+						onCreate={() => createMacro({ name: copy.untitledMacro, effects: [] })}
+						onDelete={deleteMacro}
+						onExport={exportMacro}
+						onImport={() => fileInputRef.current?.click()}
+					/>
+					<section className="audio-editor-macro-manager__detail">
+						{draft ? <>
+							<label className="audio-editor-field audio-editor-macro-manager__name">
+								<span>{copy.macroName}</span>
+								<TextInput value={draft.name || ''} onChange={(name) => writeDraft((current) => ({ ...current, name }))} width="100%" />
+							</label>
+							<MacroManagerStepList
+								copy={copy}
+								effects={effects}
 								replaceEffectOptions={replaceEffectOptions}
-								onChangeEffect={() => setPicker({ replaceId: effect.id })}
-								onDragStart={(event) => {
-									setDraggedIndex(index);
-									event.dataTransfer.effectAllowed = 'move';
-								}}
-								onDragOver={(event) => {
-									event.preventDefault();
-									if (draggedIndex === null || draggedIndex === index) return;
-									reorderEffect(draggedIndex, index);
-									setDraggedIndex(index);
-								}}
-								onDragEnd={() => setDraggedIndex(null)}
-								onReorder={(direction) => reorderEffect(index, index + direction)}
+								onAddEffect={(type) => setEffects((current) => [...current, createEffect(type)])}
+								onChangeEffect={changeEffectType}
+								onRemoveEffect={(effectId) => setEffects((current) => current.filter((effect) => effect.id !== effectId))}
+								onReorderEffect={(fromIndex, toIndex) => setEffects((current) => {
+									if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || toIndex >= current.length) return current;
+									const next = [...current];
+									const [effect] = next.splice(fromIndex, 1);
+									next.splice(toIndex, 0, effect);
+									return next;
+								})}
+								onReplaceEffect={replaceFromRegistry}
+								onSelectEffect={setSelectedEffectId}
 							/>
-						))}
-						{!effects.length && <p className="audio-editor-panel-hint" data-macro-empty>{copy.macroEmptyHint}</p>}
-					</div>
-					{!hasRunTarget && <p className="audio-editor-panel-hint">{copy.macroSelectionHint}</p>}
-					{missingEmbeddedNoiseProfile && <p className="audio-editor-panel-hint" data-macro-noise-profile-required>{templateCopy.profileRequired}</p>}
-					{message && <p className={`audio-editor-macro-manager__message audio-editor-macro-manager__message--${messageState}`} role={messageState === 'error' ? 'alert' : 'status'}>{message}</p>}
+						</> : <p className="audio-editor-panel-hint" data-macro-unselected>{copy.macroNotSelected}</p>}
+						{!hasRunTarget && <p className="audio-editor-panel-hint">{copy.macroSelectionHint}</p>}
+						{missingEmbeddedNoiseProfile && <p className="audio-editor-panel-hint" data-macro-noise-profile-required>{templateCopy.profileRequired}</p>}
+						{message && <p className={`audio-editor-macro-manager__message audio-editor-macro-manager__message--${messageState}`} role={messageState === 'error' ? 'alert' : 'status'}>{message}</p>}
+					</section>
 					<input ref={fileInputRef} type="file" accept="text/plain,.txt" hidden data-macro-import-file onChange={(event) => { void importMacro(takeSelectedFile(event.currentTarget)); }} />
 				</section>
 			</AudioEditorDialogShell>
@@ -425,44 +399,6 @@ export function AudioEditorMacroManagerDialog({
 					</section>
 				</AudioEditorDialogShell>
 			)}
-
-			{picker && (
-				<EffectPicker
-					copy={copy}
-					disabled={false}
-					onClose={() => setPicker(null)}
-					onChoose={(type) => {
-						if (picker.replaceId) {
-							const effect = effects.find((candidate) => candidate.id === picker.replaceId);
-							if (effect) {
-								const replacement = createEffect(type, { id: effect.id });
-								updateEffect(effect.id, { type, params: replacement.params });
-							}
-						} else setEffects((current) => [...current, createEffect(type)]);
-						setPicker(null);
-					}}
-				/>
-			)}
-
-			<AudioEditorDialogShell
-				isOpen={isOpen && pendingTemplateId === 'restoration'}
-				title={templateCopy.replaceTitle}
-				onClose={() => setPendingTemplateId(null)}
-				width={480}
-				dataAttributes={{ 'data-macro-template-confirmation': 'restoration' }}
-				footer={(
-					<DialogFooter
-						rightContent={(
-							<div className="audio-editor-macro-manager__footer-actions">
-								<Button variant="secondary" onClick={() => setPendingTemplateId(null)}>{copy.cancel}</Button>
-								<Button variant="primary" onClick={loadRestorationTemplate}>{templateCopy.replaceAction}</Button>
-							</div>
-						)}
-					/>
-				)}
-			>
-				<p>{templateCopy.replaceDescription}</p>
-			</AudioEditorDialogShell>
 		</>
 	);
 }

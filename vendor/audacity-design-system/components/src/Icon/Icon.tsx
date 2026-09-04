@@ -25,6 +25,7 @@ export type IconName =
   | 'cloud-filled'
   | 'cloud-sync'
   | 'export'
+  | 'import'
   | 'copy'
   | 'paste'
   | 'cut'
@@ -88,6 +89,9 @@ const ICON_MAP: Record<IconName, string> = {
   'cloud-filled': '\uF454',
   'cloud-sync': '\uEF25',
   export: '\uEF24',
+  // MuseScore's IconCode::IMPORT. Upstream's map stops at SHARE_FILE (the 'export'
+  // entry above), leaving hosts to fake an import affordance by rotating it.
+  import: '\uF357',
   copy: '\uF398',
   paste: '\uF399',
   cut: '\uF39A',

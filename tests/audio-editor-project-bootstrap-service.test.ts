@@ -13,6 +13,10 @@ import {
 } from '../src/common/editor/controller/project-bootstrap-service.ts';
 import { DELIVERY_PRESETS_SETTING_KEY } from '../src/common/editor/controller/delivery-preset-service.ts';
 import {
+	EFFECT_MACRO_LIBRARY_SETTING_KEY,
+	createInitialEffectMacroLibrary,
+} from '../src/common/editor/controller/effect-macro-library-service.ts';
+import {
 	createDeliveryPresetState,
 	saveDeliveryPresetToState,
 } from '../src/common/editor/delivery-preset-store.ts';
@@ -66,6 +70,7 @@ function createFixture(options: Readonly<{
 		// Bootstrap hydrates this from the stored collection, so the fixture has
 		// to start with the empty state rather than without the field.
 		deliveryPresets: createDeliveryPresetState(),
+		effectMacros: createInitialEffectMacroLibrary(),
 		monitoring: false,
 		microphoneMetering: false,
 		recordingInputGain: 0,
@@ -240,6 +245,22 @@ test('a delivery preset collection this build cannot read leaves a usable sessio
 
 	assert.deepEqual(fixture.state.deliveryPresets, createDeliveryPresetState(),
 		'an unreadable collection starts empty rather than failing the bootstrap');
+});
+
+test('the saved macro library hydrates, and an unreadable one starts empty', async () => {
+	const fixture = createFixture();
+	fixture.settings.set(EFFECT_MACRO_LIBRARY_SETTING_KEY, {
+		macros: [{ id: 'macro-a', name: 'Restoration', effects: [] }],
+	});
+
+	await fixture.service.bootstrap(fixture.lifetime.capture());
+	assert.deepEqual(fixture.state.effectMacros.macros.map(({ name }) => name), ['Restoration']);
+
+	const broken = createFixture();
+	broken.settings.set(EFFECT_MACRO_LIBRARY_SETTING_KEY, { schemaVersion: 99, macros: [] });
+	await broken.service.bootstrap(broken.lifetime.capture());
+	assert.deepEqual(broken.state.effectMacros, createInitialEffectMacroLibrary(),
+		'an unreadable library starts empty rather than failing the bootstrap');
 });
 
 test('bootstrap applies settings before opening the saved project', async () => {
