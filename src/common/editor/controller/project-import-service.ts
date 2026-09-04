@@ -26,6 +26,7 @@ import {
 	rollbackImportedAudioContentIdentityWriter,
 	type ImportedAudioContentIdentity,
 } from './imported-audio-content-identity.ts';
+import { createLegacyAudacityProjectImport } from './legacy-audacity-project-import.ts';
 import { createLinkedAudioImportAdmission } from './linked-audio-import-admission.ts';
 import { createLinkedPcmImporter } from './linked-wav-import-service.ts';
 import { persistDecodedLegacyAupProject } from './legacy-aup-project-persistence.ts';
@@ -76,6 +77,13 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		commit, copy, createStableId, getProject, importResultWithWarnings,
 		peakCacheKey, prepareImportedMediaCommand, projectSampleRate, sourceBuffers,
 		retireSourceChunkProvider, sourcePeaks, store, stripExtension, warnEnvelope,
+	});
+	const importLegacyAudacityProject = createLegacyAudacityProjectImport({
+		assertProject, captureProject, convertLegacyAupToProject, copy, createStableId,
+		decodeLegacyAupProject, formatLegacyAupWarning, generateWaveformPeaks, getProject,
+		peakCacheKey, persistDecodedLegacyAupProject, preflightStorage,
+		reportProgress: (value: number) => { activeImportProgress?.update?.(value); },
+		setStatus, sourceChunkFrames: SOURCE_CHUNK_FRAMES, store, stripExtension, switchProject,
 	});
 	const importLinkedAudio = createLinkedAudioImportAdmission({
 		importLinkedPcm, inspectWavBlobPcm, isWavFile, prepareWavImportMetadata,
@@ -510,62 +518,6 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	function prepareWavImportMetadata(descriptor: RuntimeValue, importOptions: RuntimeValue) {
 		return prepareImportedWavMetadata({ descriptor, importOptions, project: getProject(),
 			projectSampleRate: projectSampleRate(), copy, freezeImportOptions });
-	}
-	async function importLegacyAudacityProject(file: RuntimeValue, legacyDataFiles: RuntimeValue = []) {
-		const assertImportProjectCurrent = captureImportProjectCurrentAssertion(
-			'The project changed during Audacity project import.',
-		);
-		assertImportProjectCurrent();
-		await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
-		assertImportProjectCurrent();
-		setStatus(copy.aupImporting);
-		const structure = await decodeLegacyAupProject(file, legacyDataFiles, { onProgress: updateLegacyAupImportProgress });
-		assertImportProjectCurrent();
-		const decoded = await convertLegacyAupToProject(structure, {
-			title: stripExtension(file.name),
-			projectId: createStableId('project'),
-		});
-		assertImportProjectCurrent();
-		const importedProject = await persistDecodedLegacyAupProject({
-			decoded,
-			assertCurrent: assertImportProjectCurrent,
-			sourceChunkFrames: SOURCE_CHUNK_FRAMES,
-			copy,
-			generateWaveformPeaks,
-			getProject,
-			peakCacheKey,
-			preflightStorage,
-			store,
-			switchProject,
-		});
-		const detail = decoded.warnings.map(formatLegacyAupWarning).filter(Boolean).join(' ');
-		return {
-			project: importedProject,
-			warnings: decoded.warnings,
-			notice: detail ? `${copy.aupImported} ${detail}` : copy.aupImported,
-		};
-	}
-
-	function captureImportProjectCurrentAssertion(message: string) {
-		const hasProjectIdentity = typeof getProject === 'function';
-		const startingProjectId = hasProjectIdentity ? getProject()?.id ?? null : null;
-		const hasProjectToken = typeof captureProject === 'function' && typeof assertProject === 'function';
-		const startingProjectToken = hasProjectToken ? captureProject() : null;
-		return () => {
-			try { if (hasProjectToken) assertProject(startingProjectToken); }
-			catch (error) { throw new Error(message, { cause: error }); }
-			if (hasProjectIdentity && (getProject()?.id ?? null) !== startingProjectId) throw new Error(message);
-		};
-	}
-
-	function updateLegacyAupImportProgress(progress: RuntimeValue) {
-		const rawValue = typeof progress === 'number'
-			? progress
-			: Number(progress?.progress ?? progress?.value);
-		if (!Number.isFinite(rawValue)) return;
-		const percentage = rawValue <= 1 ? rawValue * 100 : rawValue;
-		activeImportProgress?.update?.(percentage / 100);
-		setStatus(`${copy.aupImporting} ${Math.max(0, Math.min(100, Math.round(percentage)))}%`);
 	}
 	return Object.freeze({
 		importFile,
