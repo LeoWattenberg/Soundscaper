@@ -44,8 +44,8 @@ import {
 	VideoPreviewOpenFxStatus,
 	boundedVideoPreviewOmissionSummary,
 	useVideoPreviewOpenFxIssue,
-	videoPreviewOpenFxDispositionAttribute,
 } from './video-preview-openfx-status.jsx';
+import { videoPreviewPanelStateAttributes } from './video-preview-panel-state-attributes.js';
 import { useVideoPreviewTransportState } from './use-video-preview-transport-state.js';
 
 export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
@@ -465,33 +465,11 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			ref={previewRootRef}
 			className="kw-audio-editor__video-preview"
 			data-video-preview
-			data-active-clip-id={visualPreviewState.activeClipIds.at(-1) || topActiveEntry?.clipId || ''}
-			data-active-clip-ids={[...activeEntries.map((entry) => entry.clipId),
-				...visualPreviewState.activeClipIds].join(' ')}
-			data-active-track-count={resolvedLayers.length + visualPreviewState.activeTrackCount}
-			data-renderable-clip-count={renderableCount}
-			data-unavailable-clip-count={unavailableCount}
-			data-active-video-effect-count={activeEffectCount}
-			data-video-preview-requested-effect-count={renderIssue.requestedEffectCount}
-			data-video-preview-omitted-effect-count={renderIssue.omittedEffectIds.length}
-			data-video-preview-omitted-effect-ids={renderIssue.omittedEffectIds.join(' ')}
-			data-video-preview-requested-composition-count={renderIssue.requestedCompositionCount}
-			data-video-preview-omitted-composition-count={renderIssue.omittedCompositionClipIds.length}
-			data-video-preview-omitted-composition-clip-ids={renderIssue.omittedCompositionClipIds.join(' ')}
-			data-video-preview-renderer={compositorState}
-			data-video-preview-openfx-degraded={openFxIssue.degraded ? 'true' : 'false'}
-			data-video-preview-openfx-dispositions={videoPreviewOpenFxDispositionAttribute(openFxIssue)}
-			data-video-preview-keyframe-error={keyframePreviewFailed ? 'true' : 'false'}
-			data-video-preview-visual-pending={visualPreviewState.pending ? 'true' : 'false'}
-			data-video-preview-visual-error={visualPreviewState.error || ''}
-			data-video-preview-visual-requested-count={visualPreviewState.requestedNodeIds.length}
-			data-video-preview-visual-requested-node-ids={visualPreviewState.requestedNodeIds.join(' ')}
-			data-video-preview-visual-consumed-count={visualPreviewState.consumedNodeIds.length}
-			data-video-preview-visual-consumed-node-ids={visualPreviewState.consumedNodeIds.join(' ')}
-			data-video-preview-visual-omitted-count={visualPreviewState.omittedNodeIds.length}
-			data-video-preview-visual-omitted-node-ids={visualPreviewState.omittedNodeIds.join(' ')}
-			data-video-preview-active-freeze-node-ids={visualPreviewState.activeFreezeNodeIds.join(' ')}
-			data-video-preview-available-preset-ids={visualPreviewState.availablePresetIds.join(' ')}
+			{...videoPreviewPanelStateAttributes({
+				activeEffectCount, activeEntries, compositorState, keyframePreviewFailed, openFxIssue,
+				renderIssue, renderableCount, resolvedLayers, topActiveEntry, unavailableCount,
+				visualPreviewState,
+			})}
 		>
 			{resolvedLayers.map((layer) => {
 				const renderableClips = keyframePreviewFailed

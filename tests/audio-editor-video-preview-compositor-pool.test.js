@@ -24,13 +24,17 @@ test('preview resolves its reference canvas before opting both timeline views in
 		'../src/common/editor/ui/workspace/video-preview-timeline-state.js',
 		import.meta.url,
 	), 'utf8');
+	const attributeSource = await readFile(new URL(
+		'../src/common/editor/ui/workspace/video-preview-panel-state-attributes.js',
+		import.meta.url,
+	), 'utf8');
 	assert.ok(source.indexOf('const referenceCanvas = useMemo') < source.indexOf('const layerResolution = useMemo'));
 	assert.match(source, /resolveActiveVideoLayers\(project, positionFrame, \{[\s\S]*renderCanvas: referenceCanvas,[\s\S]*resolveClipRenderState,[\s\S]*\}\)/u);
 	assert.match(timelineSource, /resolveVideoCompositionIntervals\(project, \{[\s\S]*renderCanvas, resolveClipPresentation, resolveTransitionWeight,[\s\S]*\}\)/u);
 	assert.match(source, /failedVideoSourcesRef\.current,\s*referenceCanvas,\s*keyframeStateProvider,/u);
 	assert.match(source, /isVideoKeyframePreviewStateError\(error\)/u);
 	assert.match(source, /clearVideoPreviewCompositorLayers/u);
-	assert.match(source, /data-video-preview-keyframe-error/u);
+	assert.match(attributeSource, /data-video-preview-keyframe-error/u);
 	assert.match(source, /videoPreviewKeyframesUnavailable/u);
 });
 
