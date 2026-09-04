@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useRef, useState } from 'react';
+import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import '../audio-editor-design-system/25-spectral-brush.css';
 
@@ -33,6 +34,7 @@ export function SpectralBrushOverlay({
 		endY,
 		laneWidth: windowWidth,
 		laneHeight,
+		contentOffsetX: CLIP_CONTENT_OFFSET,
 		overscanStartFrame,
 		pixelsPerSecond,
 		sampleRate,

@@ -14,6 +14,8 @@ export interface SpectralBrushGestureGeometry {
 	readonly endY: number;
 	readonly laneWidth: number;
 	readonly laneHeight: number;
+	/** Lane pixels between the lane edge and the time the lane starts at. */
+	readonly contentOffsetX: number;
 	readonly overscanStartFrame: number;
 	readonly pixelsPerSecond: number;
 	readonly sampleRate: number;
@@ -40,6 +42,7 @@ export function planSpectralBrushGesture(
 		geometry.overscanStartFrame,
 		'spectral brush overscan start frame',
 	);
+	const contentOffsetX = finiteNonNegative(geometry.contentOffsetX, 'spectral brush content offset');
 	const minimumFrequency = finiteNonNegative(
 		geometry.minimumFrequency,
 		'spectral brush minimum frequency',
@@ -52,7 +55,10 @@ export function planSpectralBrushGesture(
 	const endX = clamp(finite(geometry.endX, 'spectral brush end x'), 0, laneWidth);
 	const startY = clamp(finite(geometry.startY, 'spectral brush start y'), 0, laneHeight);
 	const endY = clamp(finite(geometry.endY, 'spectral brush end y'), 0, laneHeight);
-	const centerFrame = overscanStartFrame + Math.round(startX / pixelsPerSecond * sampleRate);
+	// Lanes draw their clips contentOffsetX pixels in, so a stroke names the audio
+	// under it only once that inset is taken back off.
+	const centerFrame = overscanStartFrame
+		+ Math.round(Math.max(0, startX - contentOffsetX) / pixelsPerSecond * sampleRate);
 	if (!Number.isSafeInteger(centerFrame)) throw new RangeError('Spectral brush center frame exceeds the safe integer domain.');
 	const radiusFrames = Math.max(
 		1,

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
 import {
@@ -72,7 +73,8 @@ export function SpectralSelectionOverlay({
 		const next = { ...previewRef.current };
 		if (drag.kind === 'start-time' || drag.kind === 'end-time') {
 			if (!drag.windowRect) return;
-			const frame = Math.round(overscanStartFrame + Math.max(0, event.clientX - drag.windowRect.left) / pixelsPerSecond * sampleRate);
+			const contentX = event.clientX - drag.windowRect.left - CLIP_CONTENT_OFFSET;
+			const frame = Math.round(overscanStartFrame + Math.max(0, contentX) / pixelsPerSecond * sampleRate);
 			if (drag.kind === 'start-time') next.startFrame = clamp(frame, 0, next.endFrame - 1);
 			else next.endFrame = clamp(frame, next.startFrame + 1, maximumFrame);
 		} else {
@@ -136,8 +138,12 @@ export function SpectralSelectionOverlay({
 		});
 	};
 
-	const startPixels = framesToSeconds(preview.startFrame - overscanStartFrame, { sampleRate }) * pixelsPerSecond;
-	const endPixels = framesToSeconds(preview.endFrame - overscanStartFrame, { sampleRate }) * pixelsPerSecond;
+	// The window draws its clips CLIP_CONTENT_OFFSET pixels in, so the box that
+	// marks a selection within them starts from the same origin.
+	const startPixels = CLIP_CONTENT_OFFSET
+		+ framesToSeconds(preview.startFrame - overscanStartFrame, { sampleRate }) * pixelsPerSecond;
+	const endPixels = CLIP_CONTENT_OFFSET
+		+ framesToSeconds(preview.endFrame - overscanStartFrame, { sampleRate }) * pixelsPerSecond;
 	const left = clamp(startPixels, 0, windowWidth);
 	const right = clamp(endPixels, 0, windowWidth);
 	if (right <= left) return null;

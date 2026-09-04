@@ -719,6 +719,11 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		const overlay = targetLane.locator('[data-spectral-selection]');
 		await expect(overlay).toBeVisible();
+		// The box marks the time that was dragged on the ruler, so it starts on the
+		// same pixel the drag did rather than the timeline's content inset away.
+		const overlayBox = await overlay.boundingBox();
+		expect(overlayBox).not.toBeNull();
+		expect(Math.abs(overlayBox.x - (rulerBox.x + 30))).toBeLessThanOrEqual(2);
 		const minimumHandle = overlay.getByRole('slider', { name: 'Spectral selection minimum-frequency handle' });
 		const maximumHandle = overlay.getByRole('slider', { name: 'Spectral selection maximum-frequency handle' });
 		const startHandle = overlay.getByRole('slider', { name: 'Spectral selection start-time handle' });
