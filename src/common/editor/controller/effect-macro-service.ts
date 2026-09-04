@@ -9,6 +9,7 @@ import {
 	isRealtimeEffectMacroStepType,
 	normalizeEffectMacroStep,
 } from '../effect-macro-steps.ts';
+import { isMacroCommandStep } from '../macro-command-steps.ts';
 import {
 	createEffectMacroChainRunner,
 	planEffectMacroChain,
@@ -230,6 +231,17 @@ export function createEffectMacroService(runtime: EffectMacroServiceRuntime) {
 		effect: EffectMacroRequestEffect,
 		trackId: string,
 	): MaterializedMacroEffect {
+		// A command step moves the selection or changes the project between audio
+		// steps, which this runner cannot express: it resolves one target up front
+		// and carries one buffer to the end. Refusing is the honest answer while
+		// the step sequencer that can run them is being built — the alternative is
+		// silently applying the effects to whatever happened to be selected, which
+		// is not the macro the file describes.
+		if (isMacroCommandStep(effect)) {
+			throw new RangeError(
+				`This macro contains the command ${String((effect as { command?: unknown }).command)}, which this build cannot run yet.`,
+			);
+		}
 		if (!isRealtimeEffectMacroStepType(effect.type)) {
 			return normalizeEffectMacroStep(effect) as unknown as MaterializedMacroEffect;
 		}

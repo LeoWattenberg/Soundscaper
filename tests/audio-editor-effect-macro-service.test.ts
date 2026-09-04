@@ -289,6 +289,20 @@ test('a superseding macro task fences stale persistence and cleanup publication'
 	successor.finish();
 });
 
+test('a macro carrying a command refuses to run rather than quietly dropping it', async () => {
+	// Until the sequencer that can move the selection between audio steps exists,
+	// running such a macro would apply its effects to whatever happened to be
+	// selected — not the macro the file describes.
+	const harness = createHarness();
+	await assert.rejects(
+		() => harness.service.runEffectMacro({
+			effects: [{ kind: 'command', id: 'select', enabled: true, command: 'SelectTime', params: { start: 0 } }],
+		}),
+		/contains the command SelectTime, which this build cannot run yet/u,
+	);
+	assert.equal(harness.processing, false);
+});
+
 test('cancelling a run aborts it without persisting anything', async () => {
 	// The manager had no way to stop a macro at all: a long chain ran to the end
 	// or the user switched project. Cancelling takes the same fence a superseding

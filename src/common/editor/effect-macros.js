@@ -11,6 +11,13 @@ import {
 	isEffectMacroStepType,
 	normalizeEffectMacroStep,
 } from './effect-macro-steps.ts';
+import {
+	createMacroCommandStep,
+	encodeMacroCommandStepParameters,
+	isMacroCommandStep,
+	macroCommandStepProfile,
+	normalizeMacroCommandStep,
+} from './macro-command-steps.ts';
 import { createStableId } from './project.js';
 
 const MAX_MACRO_CODE_UNITS = 1024 * 1024;
@@ -49,6 +56,13 @@ export function serializeAudacityEffectMacro(effects) {
 	const lines = [];
 	for (const effect of effects) {
 		if (effect?.enabled === false) continue;
+		if (isMacroCommandStep(effect)) {
+			const step = normalizeMacroCommandStep(effect);
+			lines.push(formatMacroLine(step.command, encodeMacroCommandStepParameters(step)
+				.map(([name, value]) => [normalizeCommandParameterName(name), value])));
+			if (lines.length > MAX_MACRO_EFFECTS) throw new RangeError('An effect macro has too many steps.');
+			continue;
+		}
 		const normalized = normalizeEffectMacroStep(effect);
 		const command = audacityMacroCommand(normalized.type);
 		if (command) {
@@ -104,15 +118,18 @@ export function parseAudacityEffectMacro(text, options = {}) {
 			throw macroSyntaxError(lineNumber, 'the command ID is malformed');
 		}
 		const effectType = EFFECT_TYPE_BY_COMMAND.get(command);
-		if (!effectType && command !== 'SoundscaperEffect') {
+		const commandProfile = effectType ? null : macroCommandStepProfile(command);
+		if (!effectType && !commandProfile && command !== 'SoundscaperEffect') {
 			addIgnoredCommand(command);
 			continue;
 		}
 		try {
 			const fields = parseMacroParameters(line.slice(separator + 1), lineNumber);
-			parsed.push(command === 'SoundscaperEffect'
-				? parseSoundscaperEffect(fields)
-				: parseAudacityEffect(effectType, command, fields));
+			parsed.push(commandProfile
+				? parseMacroCommand(command, commandProfile, fields)
+				: command === 'SoundscaperEffect'
+					? parseSoundscaperEffect(fields)
+					: parseAudacityEffect(effectType, command, fields));
 		} catch (error) {
 			if (error instanceof SyntaxError && /^Invalid effect macro line \d+:/.test(error.message)) throw error;
 			const message = error instanceof Error ? error.message : String(error);
@@ -126,6 +143,9 @@ export function parseAudacityEffectMacro(text, options = {}) {
 	const effects = parsed.map((effect, index) => {
 		const id = idFactory('effect', index);
 		assertStableId(id, `effect at index ${index}`);
+		if (isMacroCommandStep(effect)) {
+			return freezeValue(createMacroCommandStep(effect.command, { id, params: effect.params }));
+		}
 		const effectOptions = { id, enabled: true, params: effect.params };
 		if (effect.context !== undefined) effectOptions.context = effect.context;
 		return freezeValue(createEffectMacroStep(effect.type, effectOptions));
@@ -172,6 +192,14 @@ export function normalizeEffectMacroDraft(value, options = {}) {
 			? candidate.id
 			: idFactory('effect', index);
 		assertStableId(effectId, `effect at index ${index}`);
+		if (isMacroCommandStep(candidate)) {
+			effects.push(freezeValue(createMacroCommandStep(candidate.command, {
+				id: effectId,
+				params: candidate.params,
+			})));
+			if (effects.length > MAX_MACRO_EFFECTS) throw new RangeError('An effect macro has too many steps.');
+			continue;
+		}
 		const effectOptions = {
 			id: effectId,
 			enabled: true,
@@ -199,6 +227,25 @@ export function normalizeEffectMacroDraft(value, options = {}) {
 function audacityMacroCommand(type) {
 	if (type === 'audacity-noise-reduction') return null;
 	return AUDACITY_EFFECT_MACRO_COMMANDS[type] ?? null;
+}
+
+/**
+ * Read a command line into a step that keeps only the parameters it carried.
+ *
+ * A fixed temporary ID validates the vocabulary and every supplied range before
+ * any caller-provided ID factory is touched, the way the effect path does.
+ */
+function parseMacroCommand(command, profile, fields) {
+	const nativeNames = new Map(profile.params.map((descriptor) => [
+		normalizeCommandParameterName(descriptor.native), descriptor,
+	]));
+	const params = {};
+	for (const [name, rawValue] of fields) {
+		const descriptor = nativeNames.get(name);
+		if (!descriptor) throw new RangeError(`Unsupported ${command} parameter: ${name}.`);
+		params[descriptor.model] = decimalCommaValue(rawValue);
+	}
+	return createMacroCommandStep(command, { id: 'macro-parse-validation', params });
 }
 
 function parseAudacityEffect(type, command, fields) {

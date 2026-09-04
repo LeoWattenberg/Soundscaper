@@ -9,6 +9,7 @@ import {
 	serializeAudacityEffectMacro,
 } from '../src/common/editor/effect-macros.js';
 import { AUDACITY_EFFECT_DEFINITIONS } from '../src/common/editor/audacity-effects/manifest.js';
+import { createMacroCommandStep } from '../src/common/editor/macro-command-steps.ts';
 import {
 	AUDIO_EFFECT_DEFINITIONS,
 	AUDACITY_RACK_EFFECT_TYPES,
@@ -372,6 +373,58 @@ test('offline effects travel as their own Audacity commands', () => {
 		parsed.effects.map(({ type, params }) => ({ type, params })),
 		draft.effects.map(({ type, params }) => ({ type, params })),
 	);
+});
+
+test('a selection command travels as its own Audacity command line', () => {
+	const draft = createEffectMacroDraft({
+		name: 'Fade the ends',
+		effects: [
+			createMacroCommandStep('Select', { params: { start: 0, end: 1 } }),
+			{ type: 'audacity-fade-in' },
+			createMacroCommandStep('Select', { params: { start: 0, end: 1, relativeTo: 'project-end' } }),
+			{ type: 'audacity-fade-out' },
+			createMacroCommandStep('Select', { params: { start: 0, end: 0 } }),
+		],
+		idFactory: (prefix, index) => `${prefix}-${index}`,
+	});
+
+	// This is Audacity's own built-in "Fade Ends" macro, line for line.
+	const exported = serializeAudacityEffectMacro(draft.effects);
+	assert.equal(exported, [
+		'Select:Start="0" End="1"',
+		'FadeIn:',
+		'Select:Start="0" End="1" RelativeTo="ProjectEnd"',
+		'FadeOut:',
+		'Select:Start="0" End="0"',
+		'',
+	].join('\n'));
+
+	const parsed = parseAudacityEffectMacro(exported, { idFactory: (prefix, index) => `${prefix}-${index}` });
+	assert.deepEqual(
+		parsed.effects.map((step) => step.command ?? step.type),
+		['Select', 'audacity-fade-in', 'Select', 'audacity-fade-out', 'Select'],
+	);
+	assert.deepEqual(parsed.effects[2].params, { start: 0, end: 1, relativeTo: 'project-end' });
+	assert.deepEqual(parsed.ignoredCommands, []);
+});
+
+test('a command line carries only the parameters it was given', () => {
+	// Absent means "leave this alone" upstream, so a step that default-filled
+	// would turn every import into a full rewrite of the selection.
+	const parse = (line) => parseAudacityEffectMacro(line, { idFactory: () => 'step' }).effects[0];
+
+	assert.deepEqual(parse('SelectTime:Start="2.5"').params, { start: 2.5 });
+	assert.deepEqual(parse('SelectTracks:Track="1" TrackCount="2" Mode="Add"').params,
+		{ track: 1, trackCount: 2, mode: 'add' });
+	assert.deepEqual(parse('SelectFrequencies:High="8000" Low="200"').params, { high: 8_000, low: 200 });
+	// Audacity's own decimal-comma locales write the same file.
+	assert.deepEqual(parse('SelectTime:Start="0,25"').params, { start: 0.25 });
+	assert.equal(serializeAudacityEffectMacro([parse('SelectTime:Start="2.5"')]), 'SelectTime:Start="2.5"\n');
+
+	assert.throws(() => parseAudacityEffectMacro('SelectTime:Future="1"'),
+		/Unsupported SelectTime parameter: Future/u);
+	assert.throws(() => parseAudacityEffectMacro('SelectTracks:Mode="Toggle"'),
+		/Unsupported Mode value/u);
 });
 
 test('Noise Reduction is the only Audacity effect left in the extension namespace', () => {
