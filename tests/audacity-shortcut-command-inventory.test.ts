@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { isAudacityShortcutCommandDisabled } from '../src/common/editor/audacity-action-parity.js';
+import { AUDACITY_SHORTCUT_BINDINGS_BY_ACTION } from '../src/common/editor/audacity-shortcut-bindings.ts';
 import { audacityShortcutCommandUnassignable } from '../src/common/editor/audacity-shortcut-command-inventory.ts';
 import { collectAudacityShortcutCommands } from '../src/common/editor/ui/dialogs/workspace-preferences-shortcut-commands.ts';
 import { groupAudacityShortcutCommands } from '../src/common/editor/ui/dialogs/workspace-preferences-shortcut-groups.ts';
@@ -64,8 +65,30 @@ test('commands that only report on the application are not offered a shortcut', 
 	assert.equal(ids.has('desktop-view-source'), false);
 	assert.equal(ids.has('tutorials'), false);
 	assert.equal(ids.has('local://support'), false);
-	// The manual keeps its row because Audacity itself binds F1 to it.
-	assert.equal(ids.has('online-handbook'), true);
+	// The manual is one of those outward links: nothing upstream binds a key to
+	// it, so it is refused a row like the rest of them.
+	assert.equal(ids.has('online-handbook'), false);
+});
+
+test('an exemption from the informational rows must rest on a binding that exists', () => {
+	// The manual used to be exempt on the stated rationale that Audacity binds
+	// F1 to it. The reviewed Audacity 4 source spends F1 on the selection tool
+	// and binds no key to the manual at all, so the exemption protected nothing
+	// and left the row with no default a reader could ever see.
+	assert.equal(Object.hasOwn(AUDACITY_SHORTCUT_BINDINGS_BY_ACTION, 'online-handbook'), false);
+	assert.equal(audacityShortcutCommandUnassignable('online-handbook'), true);
+	assert.deepEqual(AUDACITY_SHORTCUT_BINDINGS_BY_ACTION['select-tool'], ['F1']);
+
+	// The invariant that drift breaks: every imported default binding has to
+	// reach a command the shortcut editor is willing to list, and every command
+	// it refuses has to be one no default binding points at.
+	for (const id of Object.keys(AUDACITY_SHORTCUT_BINDINGS_BY_ACTION)) {
+		assert.equal(audacityShortcutCommandUnassignable(id), false, id);
+	}
+
+	// Refusing the row does not refuse the command: the manual still runs, and
+	// the generated product command reference still lists it.
+	assert.equal(isAudacityShortcutCommandDisabled('online-handbook'), false);
 });
 
 test('a dynamic action template is not offered as a bindable command', () => {

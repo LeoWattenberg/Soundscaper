@@ -19,14 +19,17 @@ const SHORTCUT_CONTAINER_ACTION_IDS: ReadonlySet<string> = new Set([
  * Rows the shortcut editor never offers, over and above the containers above:
  * dynamic ActionQuery templates whose `%1` stands for a value chosen at
  * invocation time, and the application-information commands that report on the
- * program rather than act on the project or the view. The manual keeps its
- * upstream F1 because Audacity ships that binding; the rest of Help's outward
- * links do not. These commands still exist and still run, so they stay in the
- * product command reference — only a key can never reach them.
+ * program rather than act on the project or the view. Help's outward links are
+ * all of that kind, the manual included: the reviewed Audacity 4 shortcut
+ * source spends F1 on the selection tool and binds no key to the manual at all,
+ * so there is no upstream binding for a row to preserve. These commands still
+ * exist and still run, so they stay in the product command reference — only a
+ * key can never reach them.
  */
 const SHORTCUT_INFORMATIONAL_ACTION_IDS: ReadonlySet<string> = new Set([
-	'about-audacity', 'tutorials', 'local://support', 'privacy-policy',
-	'desktop-check-updates', 'desktop-product-help', 'desktop-view-source',
+	'about-audacity', 'tutorials', 'online-handbook', 'local://support',
+	'privacy-policy', 'desktop-check-updates', 'desktop-product-help',
+	'desktop-view-source',
 ]);
 
 /** A dynamic ActionQuery template stands in for a family of parameterized invocations. */
