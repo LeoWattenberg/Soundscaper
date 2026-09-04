@@ -323,7 +323,6 @@ function DeliveryReport({ report, copy, controller, run, onClose }) {
 	);
 	return (
 		<div data-delivery-report>
-			<p>{copy.deliveryReportDescription}</p>
 			<p>{formatDeliveryReportSubject(report, copy)}</p>
 			<p>{formatDeliveryReportSummary(report, copy)}</p>
 			<dl className="kw-audio-editor-compatibility-counts">

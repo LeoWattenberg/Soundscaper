@@ -26,7 +26,7 @@ export function VideoEffectRack({ clip, controller, copy, disabled, onError }) {
 	return (
 		<section className="audio-editor-clip-properties__card audio-editor-clip-properties__card--wide audio-editor-video-effects" data-video-effect-rack>
 			<div className="audio-editor-video-effects__heading">
-				<div><h3>{copy.videoEffects}</h3><p>{copy.videoEffectsHint}</p></div>
+				<div><h3>{copy.videoEffects}</h3></div>
 				<div className="audio-editor-video-effects__add">
 					<LabeledDropdown label={copy.chooseEffect} options={effectOptions} value={effectType} onChange={setEffectType} disabled={mutationDisabled} hook="video-effect-picker" />
 					<span data-video-effect-add><Button variant="secondary" disabled={mutationDisabled || !effectType} onClick={() => run(() => actions.add(clip.id, effectType))}>{copy.addEffect}</Button></span>

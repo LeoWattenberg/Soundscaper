@@ -2,7 +2,6 @@
 
 const ENTRIES = Object.freeze([
 	['localDiagnosticsTitle', 'Local Diagnostics', 'Lokale Diagnose'],
-	['localDiagnosticsDescription', 'Create a bounded report of versions, capabilities, typed errors, storage, library, and recovery state.', 'Erstellt einen begrenzten Bericht zu Versionen, Funktionen, typisierten Fehlern, Speicher, Bibliothek und Wiederherstellung.'],
 	['localDiagnosticsPrivacy', 'The report stays on this device unless you explicitly export it. It contains no project names, identifiers, file paths, media, transcripts, error messages, or stacks.', 'Der Bericht bleibt auf diesem Gerät, solange du ihn nicht ausdrücklich exportierst. Er enthält keine Projektnamen, Kennungen, Dateipfade, Medien, Transkripte, Fehlermeldungen oder Stapelverläufe.'],
 	['localDiagnosticsGenerate', 'Generate local diagnostic report', 'Lokalen Diagnosebericht erstellen'],
 	['localDiagnosticsGenerating', 'Generating report', 'Bericht wird erstellt'],

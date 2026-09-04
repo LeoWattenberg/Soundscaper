@@ -12,6 +12,7 @@ import {
 	playbackMeterPercent,
 } from '../../playback-meter.js';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
+import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
 import { formatDb } from '../meter-settings.ts';
 import { AudacityAudioMeter, MeterSettingsFlyout } from './AudioEditorMeters.jsx';
@@ -213,7 +214,15 @@ function RecordingMeterFlyout({
 
 	return (
 		<div className="kw-audio-editor__microphone-level-content" data-microphone-level-flyout>
-			<strong>{copy.microphoneLevel}</strong>
+			<span className="audio-editor-help-label">
+				<strong>{copy.microphoneLevel}</strong>
+				<EditorHelpTooltip
+					subject={copy.microphoneLevel}
+					description={copy.microphoneLevelNote}
+					helpLabel={copy.helpMenu}
+					hook="microphone-level"
+				/>
+			</span>
 			{settings.position === 'flyout' && <AudacityAudioMeter
 				copy={copy}
 				meter={meter}
@@ -225,7 +234,6 @@ function RecordingMeterFlyout({
 				dataMeterAttribute="input-meter"
 				slider={slider}
 			/>}
-			<p>{copy.microphoneLevelNote}</p>
 			<Separator />
 			<MeterSettingsFlyout
 				copy={copy}

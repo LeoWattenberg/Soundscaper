@@ -149,7 +149,6 @@ export function AdmMetadataFields({
 
 	return (
 		<div className="audio-editor-adm-fields" data-adm-metadata-editor data-adm-mode="authored">
-		<p className="audio-editor-panel-hint">{copy.admDirectSpeakersHint}</p>
 		<DraftField name="adm-programme-name" label={copy.admProgrammeName} value={authored.programme.name} disabled={disabled} onCommit={(next) => commitNamed('programme', 'name', next)} />
 		<DraftField name="adm-programme-language" label={copy.admProgrammeLanguage} value={authored.programme.language} disabled={disabled} maxLength={3} pattern="[A-Za-z]{2,3}" onCommit={(next) => commitNamed('programme', 'language', next)} />
 		<DraftField name="adm-content-name" label={copy.admContentName} value={authored.content.name} disabled={disabled} onCommit={(next) => commitNamed('content', 'name', next)} />

@@ -8,6 +8,7 @@ import { MEDIA_EXPORT_FORMATS } from '../../media-export.js';
 import AdmMetadataFields from '../AdmMetadataFields.tsx';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import BextMetadataFields from '../BextMetadataFields.tsx';
+import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import MetadataEditorTabs from '../MetadataEditorTabs.tsx';
 import VideoDeliveryFields from '../VideoDeliveryFields.jsx';
@@ -408,7 +409,6 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 							</>
 						) : (
 							<>
-								<p className="audio-editor-panel-hint">{copy.metadataFormatHint}</p>
 								<div className="audio-editor-metadata-table" role="table" aria-label={copy.metadata}>
 									<div className="audio-editor-metadata-table__header" role="row">
 										<span role="columnheader">{copy.metadataTagColumn}</span>
@@ -530,7 +530,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 					{/* A delivery normalizes only when a target is chosen: there is no
 						default, and stems and ADM passthrough refuse it outright. */}
 					{!videoFormat && settings.mode !== 'stems' && <LabeledDropdown label={copy.loudnessNormalization} hook="loudnessNormalization" value={settings.loudnessNormalization} onChange={(value) => set('loudnessNormalization', value)} disabled={exporting || admPassthrough} options={[{ value: '', label: copy.loudnessNormalizationNone }, { value: 'ebu-r128', label: copy.loudnessNormalizationR128 }, { value: 'atsc-a85', label: copy.loudnessNormalizationA85 }, { value: 'streaming-14', label: copy.loudnessNormalizationStreaming }]} />}
-					{!videoFormat && settings.channelMapping === 'custom' && <label className="audio-editor-field"><span>{copy.customChannelMapping}</span><span><TextInput multiline value={settings.channelMatrix} disabled={exporting} onChange={(value) => set('channelMatrix', value)} width="100%" /><small>{copy.customChannelMappingHint}</small></span></label>}
+					{!videoFormat && settings.channelMapping === 'custom' && <div className="audio-editor-helped-field"><label className="audio-editor-field"><span>{copy.customChannelMapping}</span><TextInput multiline value={settings.channelMatrix} disabled={exporting} onChange={(value) => set('channelMatrix', value)} width="100%" /></label><EditorHelpTooltip subject={copy.customChannelMapping} description={copy.customChannelMappingHint} helpLabel={copy.helpMenu} hook="channel-matrix" /></div>}
 					{videoFormat && (
 						<VideoDeliveryFields
 							copy={copy}
@@ -554,10 +554,12 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 							{binauralAvailable && (
 								<div className="audio-editor-export-check" data-export-field="binaural">
 									<span aria-hidden="true" />
-									<DesignCheckbox label={copy.binauralRender} checked={settings.binaural} disabled={exporting} onChange={(checked) => set('binaural', checked)} />
+									<span className="audio-editor-help-label">
+										<DesignCheckbox label={copy.binauralRender} checked={settings.binaural} disabled={exporting} onChange={(checked) => set('binaural', checked)} />
+										<EditorHelpTooltip subject={copy.binauralRender} description={copy.binauralRenderHint} helpLabel={copy.helpMenu} hook="binaural" />
+									</span>
 								</div>
 							)}
-							{binauralAvailable && settings.binaural && <p className="audio-editor-panel-hint">{copy.binauralRenderHint}</p>}
 						</section>
 					</>
 				)}
@@ -574,7 +576,6 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 						</details>
 					</>
 				)}
-				<p className="audio-editor-panel-hint">{copy.exportHint}</p>
 				{desktopCodecNotice && <p className="audio-editor-panel-hint" data-desktop-codec-status>{desktopCodecNotice}</p>}
 				{admRequired && <p className="audio-editor-field-error" role="alert">{copy.bw64AdmRequired}</p>}
 				<div className="audio-editor-export-progress" data-export-progress aria-live="polite" hidden={!exporting}>

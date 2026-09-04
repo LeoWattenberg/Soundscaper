@@ -74,12 +74,6 @@
 	cursor: not-allowed;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor-sound-activation__control small {
-	color: var(--kw-editor-text);
-	font-size: 10px;
-	line-height: 1.35;
-}
-
 #kw-audio-editor-design-system .kw-audio-editor-sound-activation__status {
 	min-height: 16px;
 	padding-inline-start: 8px;

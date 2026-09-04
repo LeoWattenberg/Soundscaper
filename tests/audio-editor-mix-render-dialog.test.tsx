@@ -418,7 +418,7 @@ function optionHelp(root: ReactTestElement, key: string): ReactTestElement {
 }
 
 function optionHelpWrapper(root: ReactTestElement, key: string): ReactTestElement {
-	const wrapper = optionHelp(root, key).closest('.audio-editor-mix-render__help-wrap');
+	const wrapper = optionHelp(root, key).closest('.audio-editor-help-wrap');
 	assert.ok(wrapper, `Missing Mix and Render help wrapper ${key}.`);
 	return wrapper;
 }
@@ -457,7 +457,7 @@ function assertVisibleTooltip(key: string, description: string): void {
 		.getAttribute('aria-describedby'), tooltip.getAttribute('id'));
 	const flyout = tooltip.closest('.flyout');
 	assert.ok(flyout, `Mix and Render tooltip ${key} must use the design-system flyout.`);
-	assertClass(flyout, 'audio-editor-mix-render__tooltip');
+	assertClass(flyout, 'audio-editor-help-tooltip');
 	const body = (globalThis.document as unknown as { body: ReactTestElement }).body;
 	assert.equal(body.querySelectorAll('[role="tooltip"]').length, 1,
 		'Mix and Render help must not create a duplicate global button tooltip.');

@@ -243,7 +243,6 @@ const COPY_ENTRIES = Object.freeze([
 	["admDistance","Distance","Entfernung"],
 	["admRemoveObject","Remove object","Objekt entfernen"],
 	["admObjectsFull","This programme already delivers the widest layout a render can carry.","Dieses Programm liefert bereits das breiteste Format, das ein Render tragen kann."],
-	["admDirectSpeakersHint","This delivery uses one ADM programme, one content object, and one DirectSpeakers bed.","Diese Auslieferung verwendet ein ADM-Programm, ein Inhaltsobjekt und ein DirectSpeakers-Bett."],
 	["admProgrammeName","Programme name","Programmname"],
 	["admProgrammeLanguage","Programme language (BCP 47)","Programmsprache (BCP 47)"],
 	["admContentName","Content name","Inhaltsname"],

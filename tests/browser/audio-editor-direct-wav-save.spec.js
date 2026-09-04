@@ -49,7 +49,7 @@ test.describe('direct native PCM File System Access publication', () => {
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="bitDepth"]'), '16-bit PCM');
 		await expect(exportDialog.locator('[data-export-field="sampleRate"] input')).toHaveValue('48000');
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="channelMapping"]'), 'Custom channel mapping');
-		await exportDialog.getByRole('textbox', { name: /^Custom channel mapping JSON matrix/ })
+		await exportDialog.getByRole('textbox', { name: 'Custom channel mapping' })
 			.fill(JSON.stringify(Array.from({ length: CHANNEL_COUNT }, () => 0)));
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="dither"]'), 'None');
 		expect(FRAME_COUNT * CHANNEL_COUNT * 4).toBeGreaterThan(96 * 1024 ** 2);
@@ -188,7 +188,7 @@ test.describe('direct native PCM File System Access publication', () => {
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="bitDepth"]'), '16-bit PCM');
 		await expect(exportDialog.locator('[data-export-field="sampleRate"] input')).toHaveValue('48000');
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="channelMapping"]'), 'Custom channel mapping');
-		await exportDialog.getByRole('textbox', { name: /^Custom channel mapping JSON matrix/ })
+		await exportDialog.getByRole('textbox', { name: 'Custom channel mapping' })
 			.fill(JSON.stringify(Array.from({ length: CHANNEL_COUNT }, () => 0)));
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="dither"]'), 'None');
 		expect(FRAME_COUNT * CHANNEL_COUNT * 4).toBeGreaterThan(96 * 1024 ** 2);
@@ -279,7 +279,7 @@ test.describe('direct native PCM File System Access publication', () => {
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="bitDepth"]'), '16-bit PCM');
 		await expect(exportDialog.locator('[data-export-field="sampleRate"] input')).toHaveValue('48000');
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="channelMapping"]'), 'Custom channel mapping');
-		await exportDialog.getByRole('textbox', { name: /^Custom channel mapping JSON matrix/ })
+		await exportDialog.getByRole('textbox', { name: 'Custom channel mapping' })
 			.fill(JSON.stringify(Array.from({ length: CHANNEL_COUNT }, () => 0)));
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="dither"]'), 'None');
 		await authorBextMetadata(page, exportDialog);

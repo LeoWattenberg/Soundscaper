@@ -8,6 +8,7 @@ import {
 	findPlatformDeliveryPreset,
 	PLATFORM_DELIVERY_PRESETS,
 } from '../platform-delivery-presets.ts';
+import EditorHelpTooltip from './EditorHelpTooltip.tsx';
 import { statedVideoDeliveryTarget } from './export-preset-model.ts';
 import { DesignCheckbox, LabeledDropdown } from './inspector/inspector-controls.jsx';
 
@@ -110,7 +111,15 @@ export default function VideoDeliveryFields({
 				</p>
 			)}
 			<label className="audio-editor-field" data-export-field="canvasSize">
-				<span>{copy.videoCanvasSize}</span>
+				<span className="audio-editor-help-label">
+					<span>{copy.videoCanvasSize}</span>
+					<EditorHelpTooltip
+						subject={copy.videoCanvasSize}
+						description={copy.videoCanvasHint}
+						helpLabel={copy.helpMenu}
+						hook="video-canvas-size"
+					/>
+				</span>
 				<span className="audio-editor-export-canvas-size">
 					<input
 						type="number"
@@ -239,7 +248,6 @@ export default function VideoDeliveryFields({
 					)}
 				</>
 			)}
-			<p className="audio-editor-panel-hint">{copy.videoCanvasHint}</p>
 		</>
 	);
 }

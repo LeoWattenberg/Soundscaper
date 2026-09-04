@@ -426,14 +426,8 @@
 	font-size: 12px;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__microphone-level-content > strong {
+#kw-audio-editor-design-system .kw-audio-editor__microphone-level-content strong {
 	font-size: 12px;
-	line-height: 16px;
-}
-
-#kw-audio-editor-design-system .kw-audio-editor__microphone-level-content > p {
-	margin: 0;
-	color: var(--kw-editor-muted);
 	line-height: 16px;
 }
 

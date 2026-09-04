@@ -70,7 +70,7 @@ async function expectMixRenderOptionTooltip(page, dialog, {
 	await expect(help).toHaveAttribute('data-tooltip-ignore', /^(?:|true)$/u);
 	if (interaction === 'hover') await help.hover();
 	else await help.focus();
-	const tooltip = page.locator('.audio-editor-mix-render__tooltip', {
+	const tooltip = page.locator('.audio-editor-help-tooltip', {
 		has: page.locator(`[data-mix-render-tooltip="${key}"]`),
 	});
 	await expect(tooltip).toBeVisible();

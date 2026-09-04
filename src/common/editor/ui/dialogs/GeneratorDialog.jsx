@@ -10,6 +10,7 @@ import { TextInput } from '@soundscaper/design-system/TextInput';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
+import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 
 export default function GeneratorDialog({ type, controller, copy, locale, run, onClose }) {
@@ -169,11 +170,18 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 							<div className="kw-audio-editor-generator__dtmf" data-generator-layout="dtmf">
 								<div role="group" aria-label={generatorLabel(type, copy)}>
 									<PreferencePanel className="kw-audio-editor-generator__card kw-audio-editor-generator__dtmf-fields">
-										<label className="kw-audio-editor-dialog__field" data-generator-field="sequence">
-											<span>{copy.generatorSequence}</span>
-											<TextInput value={params.sequence} onChange={updateDtmfSequence} />
-										</label>
-										<p className="kw-audio-editor-generator__explanation">{labels.dtmfExplanation}</p>
+										<div className="audio-editor-helped-field">
+											<label className="kw-audio-editor-dialog__field" data-generator-field="sequence">
+												<span>{copy.generatorSequence}</span>
+												<TextInput value={params.sequence} onChange={updateDtmfSequence} />
+											</label>
+											<EditorHelpTooltip
+												subject={copy.generatorSequence}
+												description={labels.dtmfExplanation}
+												helpLabel={copy.helpMenu}
+												hook="generator-sequence"
+											/>
+										</div>
 										{numberField('amplitude', copy.generatorAmplitude, { min: 0, max: 1, step: 0.01 })}
 										<label className="kw-audio-editor-dialog__field" data-generator-field="durationSeconds">
 											<span>{copy.generatorDuration}</span>

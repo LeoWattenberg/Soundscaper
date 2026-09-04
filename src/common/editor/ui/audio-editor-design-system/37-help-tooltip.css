@@ -1,0 +1,104 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+#kw-audio-editor-design-system .audio-editor-help-wrap {
+	display: inline-flex;
+}
+
+#kw-audio-editor-design-system .audio-editor-help {
+	--audio-editor-help-size: 24px;
+
+	display: inline-grid;
+	width: var(--audio-editor-help-size);
+	height: var(--audio-editor-help-size);
+	flex: 0 0 var(--audio-editor-help-size);
+	place-items: center;
+	padding: 0;
+	color: var(--kw-editor-muted);
+	background: var(--kw-editor-control);
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 50%;
+	font: 700 11px/1 Inter, sans-serif;
+	cursor: help;
+}
+
+#kw-audio-editor-design-system .audio-editor-help:hover {
+	color: var(--kw-editor-text);
+	background: color-mix(in srgb, var(--kw-editor-accent) 12%, var(--kw-editor-control));
+}
+
+#kw-audio-editor-design-system .audio-editor-help:focus-visible {
+	outline: var(--focus-ring-size) solid var(--focus-color, var(--kw-editor-accent));
+	outline-offset: 2px;
+}
+
+#kw-audio-editor-design-system .audio-editor-help svg {
+	width: 12px;
+	height: 12px;
+}
+
+#kw-audio-editor-design-system .audio-editor-help-tooltip {
+	z-index: 10020;
+	width: max-content;
+	max-width: min(340px, calc(100vw - 24px));
+	color: var(--kw-editor-text);
+	animation: none;
+	pointer-events: auto;
+	text-align: left;
+}
+
+#kw-audio-editor-design-system .audio-editor-help-tooltip .flyout__content {
+	padding: 7px 9px;
+	font: 400 12px/1.35 Inter, sans-serif;
+	white-space: normal;
+}
+
+/* A label that carries its own help affordance stays on one line, and the button
+   must not be clipped by the ellipsis the surrounding field applies to labels. */
+#kw-audio-editor-design-system .audio-editor-help-label {
+	display: inline-flex;
+	min-width: 0;
+	align-items: center;
+	gap: 4px;
+}
+
+#kw-audio-editor-design-system :is(.audio-editor-field, .audio-editor-export-check)
+	> span.audio-editor-help-label:first-child {
+	overflow: visible;
+}
+
+#kw-audio-editor-design-system .audio-editor-help-label > span:first-child {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#kw-audio-editor-design-system .audio-editor-help-label .audio-editor-help {
+	--audio-editor-help-size: 16px;
+}
+
+#kw-audio-editor-design-system .audio-editor-help-label .audio-editor-help svg {
+	width: 9px;
+	height: 9px;
+}
+
+/* A text field takes its accessible name from the label that wraps it, so the
+   help trigger sits beside that label rather than inside it. */
+#kw-audio-editor-design-system .audio-editor-helped-field {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: start;
+	column-gap: 4px;
+}
+
+#kw-audio-editor-design-system .audio-editor-helped-field > .audio-editor-help-wrap {
+	align-self: start;
+}
+
+#kw-audio-editor-design-system .audio-editor-helped-field .audio-editor-help {
+	--audio-editor-help-size: 16px;
+}
+
+#kw-audio-editor-design-system .audio-editor-helped-field .audio-editor-help svg {
+	width: 9px;
+	height: 9px;
+}

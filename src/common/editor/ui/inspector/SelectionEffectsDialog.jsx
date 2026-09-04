@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
-import { Separator } from '@soundscaper/design-system/Separator';
 import { audacityEffectTypes } from '../../audacity-effects/manifest.js';
 import {
 	audioSelectionEffectDefinition,
@@ -227,11 +226,6 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 			)}
 		>
 			<section className="audio-editor-selection-effects" data-audacity-effect-panel>
-				<div>
-					<h3>{safeEffectLabel(selectionType, copy)}</h3>
-					<p className="audio-editor-panel-hint">{copy.audacityEffectsDescription}</p>
-				</div>
-				<Separator />
 				{selectionDefinition?.requiresControlTrack && (
 					<LabeledDropdown
 						label={copy.controlTrack}
@@ -274,7 +268,6 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 						{copy.eqSpectralSelectionNotice || 'The EQ uses the spectral box time span and affects the full spectrum.'}
 					</p>
 				)}
-				<p className="audio-editor-panel-hint" data-audacity-effect-hint>{copy.audacitySelectionHint}</p>
 				{message && <p className="audio-editor-field-error" role="alert">{message}</p>}
 			</section>
 		</AudioEditorDialogShell>

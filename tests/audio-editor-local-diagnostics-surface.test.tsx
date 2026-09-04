@@ -28,8 +28,7 @@ const REPORT = buildLocalDiagnosticsReport({
 test('both bundled locales carry every local diagnostics surface string', () => {
 	for (const copy of [ENGLISH_COPY, GERMAN_COPY]) {
 		for (const key of [
-			'diagnostics', 'localDiagnosticsTitle', 'localDiagnosticsDescription',
-			'localDiagnosticsPrivacy', 'localDiagnosticsGenerate', 'localDiagnosticsGenerating',
+			'diagnostics', 'localDiagnosticsTitle', 'localDiagnosticsPrivacy', 'localDiagnosticsGenerate', 'localDiagnosticsGenerating',
 			'localDiagnosticsExport', 'localDiagnosticsExporting', 'localDiagnosticsSaved',
 			'localDiagnosticsError', 'localDiagnosticsVersions', 'localDiagnosticsEnvironment',
 			'localDiagnosticsCapabilities', 'localDiagnosticsErrors', 'localDiagnosticsStorage',

@@ -126,7 +126,6 @@ function AnalysisContent({ mode, controller, snapshot, copy, fileService }) {
 						.replace('{sampleRate}', String(result.sampleRate))}
 				</p>
 			)}
-			<p className="audio-editor-panel-hint">{copy.analyzeHint}</p>
 			{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
 			<div className="audio-editor-panel-actions">
 				{mode === 'contrast' ? (

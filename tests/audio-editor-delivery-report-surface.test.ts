@@ -34,7 +34,7 @@ function report(options: Record<string, unknown> = { format: 'mp3' }) {
 test('both locales carry every delivery report string the renderer reads', () => {
 	for (const copy of [ENGLISH_COPY, GERMAN_COPY]) {
 		for (const key of [
-			'deliveryReport', 'deliveryReportDescription', 'deliveryReportSummary',
+			'deliveryReport', 'deliveryReportSummary',
 			'deliveryReportSubject', 'deliveryReportNoConversions', 'deliveryReportSave',
 			'deliveryPreset', 'deliveryPresetNone', 'deliveryPresetName', 'deliveryPresetSave',
 			'deliveryPresetDelete', 'deliveryPresetImport', 'deliveryPresetExport',

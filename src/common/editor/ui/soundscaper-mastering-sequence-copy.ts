@@ -35,6 +35,7 @@ export const SOUNDSCAPER_MASTERING_SEQUENCE_COPY = Object.freeze({
 	applyLane: 'Apply changes',
 	operationComplete: 'Mastering sequence updated.',
 	close: 'Close',
+	helpMenu: 'Help',
 });
 
 export type SoundscaperMasteringSequenceCopy = Readonly<{

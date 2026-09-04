@@ -9,6 +9,7 @@ import type {
 } from '../../controller/document-mastering-sequence-snapshot.ts';
 import type { SoundscaperMasteringSequenceCopy } from '../soundscaper-mastering-sequence-copy.ts';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
+import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import type { MasteringSequenceDialogOperation } from './soundscaper-mastering-sequence-operation.ts';
 
 /**
@@ -235,11 +236,15 @@ function EntryEditor({ copy, entry, index, lastIndex, sequenceId, sampleRate, on
 	>
 		<h5>{entry.title}</h5>
 		{entry.durationFrames === null && <p role="alert">{copy.masteringMissingRegion}</p>}
-		<label className="kw-audio-editor-dialog__field">
-			<span>{copy.masteringEntryTitle}</span>
-			<input name="title" type="text" defaultValue={entry.titleOverride ?? ''} placeholder={entry.title} />
-		</label>
-		<p className="audio-editor-panel-hint">{copy.masteringEntryTitleFromRegion}</p>
+		<div className="audio-editor-helped-field">
+			<label className="kw-audio-editor-dialog__field">
+				<span>{copy.masteringEntryTitle}</span>
+				<input name="title" type="text" defaultValue={entry.titleOverride ?? ''} placeholder={entry.title} />
+			</label>
+			<EditorHelpTooltip subject={copy.masteringEntryTitle}
+				description={copy.masteringEntryTitleFromRegion}
+				helpLabel={copy.helpMenu} hook="mastering-entry-title" />
+		</div>
 		<NumberField name="gapBeforeFrames" label={copy.masteringGapBefore} value={gapBeforeFrames}
 			sampleRate={sampleRate} onChange={setGapBeforeFrames} />
 		<NumberField name="fadeInFrames" label={copy.masteringFadeIn} value={fadeInFrames}

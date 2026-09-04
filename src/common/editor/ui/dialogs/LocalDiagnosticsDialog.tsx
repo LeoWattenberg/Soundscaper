@@ -121,7 +121,6 @@ export function LocalDiagnosticsDialogView({
 			<button type="button" onClick={onClose}>{text(copy, 'close', 'Close')}</button>
 		</div>}
 	>
-		<p>{text(copy, 'localDiagnosticsDescription', 'Create a bounded local diagnostic report.')}</p>
 		<p>{text(copy, 'localDiagnosticsPrivacy', 'The report stays on this device unless you explicitly export it.')}</p>
 		<div className="kw-audio-editor-dialog__actions">
 			<button

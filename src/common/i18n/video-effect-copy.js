@@ -3,7 +3,6 @@
 export const VIDEO_EFFECT_COPY_BY_LOCALE = Object.freeze({
 	de: Object.freeze({
 		videoEffects: 'Videoeffekte',
-		videoEffectsHint: 'Effekte werden von oben nach unten angewendet und erscheinen in der Vorschau sowie im Videoexport.',
 		videoEffectsEmpty: 'Noch keine Videoeffekte.',
 		videoEffectColorAdjust: 'Farbanpassung',
 		videoEffectPixelate: 'Verpixeln',
@@ -48,7 +47,7 @@ export const VIDEO_EFFECT_COPY_BY_LOCALE = Object.freeze({
 		videoEffectColorInvalid: 'Gib die Farbe als #RRGGBB ein.',
 	}),
 	en: Object.freeze({
-		videoEffects: 'Video effects', videoEffectsHint: 'Effects run from top to bottom and appear in the preview and video export.', videoEffectsEmpty: 'No video effects yet.',
+		videoEffects: 'Video effects', videoEffectsEmpty: 'No video effects yet.',
 		videoEffectColorAdjust: 'Color Adjust', videoEffectPixelate: 'Pixelate', videoEffectVignette: 'Vignette', videoEffectGaussianBlur: 'Gaussian Blur', videoEffectSharpen: 'Sharpen', videoEffectRgbSplit: 'RGB Split',
 		videoEffectChromaKey: 'Chroma Key', videoEffectLumaKey: 'Luma Key', videoEffectSpillSuppression: 'Spill Suppression', videoEffectGlow: 'Glow', videoEffectOutline: 'Outline', videoEffectDropShadow: 'Drop Shadow',
 		videoEffectParamBrightness: 'Brightness', videoEffectParamContrast: 'Contrast', videoEffectParamSaturation: 'Saturation', videoEffectParamGamma: 'Gamma', videoEffectParamHue: 'Hue', videoEffectParamBlockSize: 'Block size', videoEffectParamAmount: 'Amount', videoEffectParamSigma: 'Radius', videoEffectParamOffsetX: 'Horizontal offset', videoEffectParamOffsetY: 'Vertical offset',

@@ -75,8 +75,6 @@ export default function FramescaperVisualInspectorDialog({
 		dataAttributes={{ 'data-framescaper-visual-inspector': 'true' }}
 	>
 		<form className="audio-editor-clip-inspector" onSubmit={apply}>
-			<p>{label(copy, 'visualInspectorDescription',
-				'Edit exact built-in generator and presentation state for the selected timeline visual.')}</p>
 			{model.clipId === null ? <p role="status">{label(copy, 'visualInspectorSelection',
 				'Select one still, title, text, shape, or solid clip first.')}</p> : <>
 				<p data-visual-inspector-kind>{model.kind}</p>

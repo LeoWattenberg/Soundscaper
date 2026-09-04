@@ -249,8 +249,6 @@ function MaintenanceControls({
 }>) {
 	return <section className="kw-local-model-manager__maintenance" aria-labelledby="local-model-maintenance-title">
 		<h3 id="local-model-maintenance-title">{text(copy, 'localModelsMaintenance', 'Storage and verification')}</h3>
-		<p>{text(copy, 'localModelsMaintenanceDescription',
-			'These operations run only when you request them.')}</p>
 		<div className="kw-local-model-manager__maintenance-actions">
 			<button type="button" disabled={busy} onClick={() => { void onReconcile(); }}>
 				{text(copy, 'localModelsReconcile', 'Reconcile pre-seeded files')}

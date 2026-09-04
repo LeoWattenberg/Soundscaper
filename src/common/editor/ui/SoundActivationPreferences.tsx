@@ -11,6 +11,7 @@ import {
 	type SoundActivationUiCopy,
 } from './sound-activation-ui-model.ts';
 import AudioEditorTimeCodeInput from './AudioEditorTimeCodeInput.tsx';
+import EditorHelpTooltip from './EditorHelpTooltip.tsx';
 
 interface SoundActivationActions {
 	setEnabled(value: boolean): unknown;
@@ -20,6 +21,7 @@ interface SoundActivationActions {
 }
 
 interface SoundActivationPreferencesCopy extends SoundActivationUiCopy {
+	readonly helpMenu: string;
 	readonly soundActivatedRecording: string;
 	readonly soundActivationDescription: string;
 	readonly soundActivationSettings: string;
@@ -78,7 +80,7 @@ export default function SoundActivationPreferences({
 			aria-labelledby={titleId}
 		>
 			<h3 id={titleId}>{copy.soundActivationSettings}</h3>
-			<p id={descriptionId}>{copy.soundActivationDescription}</p>
+			<span id={descriptionId} className="kw-audio-editor-sr-only">{copy.soundActivationDescription}</span>
 			<label className="kw-audio-editor-sound-activation__switch">
 				<input
 					type="checkbox"
@@ -90,6 +92,13 @@ export default function SoundActivationPreferences({
 					onChange={(event) => update(() => actions.setEnabled(event.currentTarget.checked))}
 				/>
 				<span>{copy.soundActivatedRecording}</span>
+				<EditorHelpTooltip
+					subject={copy.soundActivatedRecording}
+					description={copy.soundActivationDescription}
+					helpLabel={copy.helpMenu}
+					hook="sound-activation"
+					describedBy={descriptionId}
+				/>
 			</label>
 			<fieldset
 				className="kw-audio-editor-sound-activation__controls"
@@ -97,6 +106,7 @@ export default function SoundActivationPreferences({
 				aria-disabled={model.controlsDisabled}
 			>
 				<SoundActivationRange
+					helpLabel={copy.helpMenu}
 					name="sound-activation-threshold"
 					label={copy.soundActivationThreshold}
 					description={copy.soundActivationThresholdDescription}
@@ -109,6 +119,7 @@ export default function SoundActivationPreferences({
 					onChange={(value) => update(() => actions.setThresholdDb(value))}
 				/>
 				<SoundActivationRange
+					helpLabel={copy.helpMenu}
 					name="sound-activation-hysteresis"
 					label={copy.soundActivationHysteresis}
 					description={copy.soundActivationHysteresisDescription}
@@ -121,6 +132,7 @@ export default function SoundActivationPreferences({
 					onChange={(value) => update(() => actions.setHysteresisDb(value))}
 				/>
 				<SoundActivationTime
+					helpLabel={copy.helpMenu}
 					name="sound-activation-hold"
 					label={copy.soundActivationHold}
 					description={copy.soundActivationHoldDescription}
@@ -147,6 +159,7 @@ interface SoundActivationRangeProps {
 	readonly name: string;
 	readonly label: string;
 	readonly description: string;
+	readonly helpLabel: string;
 	readonly value: number;
 	readonly valueText: string;
 	readonly range: Readonly<{ minimum: number; maximum: number; step: number }>;
@@ -160,6 +173,7 @@ function SoundActivationRange({
 	name,
 	label,
 	description,
+	helpLabel,
 	value,
 	valueText,
 	range,
@@ -171,7 +185,14 @@ function SoundActivationRange({
 	const descriptionId = useId();
 	const data = { [`data-sound-activation-${dataAttribute}`]: true };
 	return <label className="kw-audio-editor-sound-activation__control">
-		<span><strong>{label}</strong><output htmlFor={name}>{valueText}</output></span>
+		<span>
+			<span className="audio-editor-help-label">
+				<strong>{label}</strong>
+				<EditorHelpTooltip subject={label} description={description} helpLabel={helpLabel}
+					hook={name} describedBy={descriptionId} />
+			</span>
+			<output htmlFor={name}>{valueText}</output>
+		</span>
 		<input
 			type="range"
 			{...data}
@@ -187,22 +208,29 @@ function SoundActivationRange({
 			disabled={disabled}
 			onChange={(event) => onChange(event.currentTarget.valueAsNumber)}
 		/>
-		<small id={descriptionId}>{description}</small>
+		<span id={descriptionId} className="kw-audio-editor-sr-only">{description}</span>
 	</label>;
 }
 
 function SoundActivationTime({
-	name, label, description, value, valueText, range, disabled, statusId, onChange,
+	name, label, description, helpLabel, value, valueText, range, disabled, statusId, onChange,
 }: Omit<SoundActivationRangeProps, 'dataAttribute'>) {
 	const descriptionId = useId();
 	return <label className="kw-audio-editor-sound-activation__control">
-		<span><strong>{label}</strong><output htmlFor={name}>{valueText}</output></span>
+		<span>
+			<span className="audio-editor-help-label">
+				<strong>{label}</strong>
+				<EditorHelpTooltip subject={label} description={description} helpLabel={helpLabel}
+					hook={name} describedBy={descriptionId} />
+			</span>
+			<output htmlFor={name}>{valueText}</output>
+		</span>
 		<span data-sound-activation-hold>
 			<AudioEditorTimeCodeInput name={name} label={label} value={value}
 				unit="milliseconds" minimum={range.minimum} maximum={range.maximum}
 				valueText={valueText} describedBy={`${descriptionId} ${statusId}`}
 				disabled={disabled} onChange={onChange} />
 		</span>
-		<small id={descriptionId} aria-describedby={statusId}>{description}</small>
+		<span id={descriptionId} className="kw-audio-editor-sr-only">{description}</span>
 	</label>;
 }

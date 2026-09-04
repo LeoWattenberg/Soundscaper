@@ -23,7 +23,6 @@ const REPORT_COPY_ENTRIES = Object.freeze([
 	['aup4CompatibilityOmitted', 'Omitted', 'Ausgelassen'],
 	['aup4CompatibilityDetails', 'Details', 'Details'],
 	['deliveryReport', 'Delivery Report', 'Auslieferungsbericht'],
-	['deliveryReportDescription', 'What this delivery did to the material. Every conversion is itemized; nothing is applied silently.', 'Was diese Lieferung mit dem Material gemacht hat. Jede Konvertierung wird einzeln aufgeführt; nichts wird stillschweigend angewendet.'],
 	['deliveryReportSummary', '{format}: {converted} converted, {omitted} omitted.', '{format}: {converted} konvertiert, {omitted} ausgelassen.'],
 	['deliveryReportSubject', '{format}, {sampleRate} Hz, {channels} ch', '{format}, {sampleRate} Hz, {channels} Kan.'],
 	['deliveryReportSave', 'Save report', 'Bericht speichern'],

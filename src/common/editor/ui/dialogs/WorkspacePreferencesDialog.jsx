@@ -11,6 +11,7 @@ import { productProfile } from '../../../products.js';
 import { iconNameToChar } from '../../audacity-iconcodes.js';
 import { findAudioEditorShortcutConflicts, normalizeAudioEditorShortcut } from '../../preferences.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
 import SoundActivationPreferences from '../SoundActivationPreferences.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
@@ -344,12 +345,19 @@ export default function WorkspacePreferencesDialog({
 								<Separator />
 								<PreferencePanel title={copy.recordingPreferences}>
 									<div className="kw-audio-editor-preferences__checks kw-audio-editor-preferences__recording">
-										<PreferenceCheckbox
-											label={copy.recordingKeepInputsOpen}
-											checked={snapshot.recordingInputs?.retainInputs ?? preferences.recording?.retainInputs ?? true}
-											onChange={(checked) => run(() => controller.actions.recording.setRetainInputs(checked))}
-										/>
-										<small>{copy.recordingKeepInputsOpenDescription}</small>
+										<span className="audio-editor-help-label">
+											<PreferenceCheckbox
+												label={copy.recordingKeepInputsOpen}
+												checked={snapshot.recordingInputs?.retainInputs ?? preferences.recording?.retainInputs ?? true}
+												onChange={(checked) => run(() => controller.actions.recording.setRetainInputs(checked))}
+											/>
+											<EditorHelpTooltip
+												subject={copy.recordingKeepInputsOpen}
+												description={copy.recordingKeepInputsOpenDescription}
+												helpLabel={copy.helpMenu}
+												hook="recording-keep-inputs-open"
+											/>
+										</span>
 									</div>
 									{snapshot.recordingInputs?.soundActivation && <SoundActivationPreferences
 										productId={productId}
