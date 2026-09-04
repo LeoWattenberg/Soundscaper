@@ -158,6 +158,8 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/assistance/workflow.js',
 	'src/common/editor/id3-metadata.js',
 	'src/common/editor/media-export.js',
+	'src/common/editor/media-export-codec-rate.js',
+	'src/common/editor/media-export-values.js',
 	'src/common/editor/riff-info.js',
 	'src/common/editor/riff-markers.js',
 	'src/common/editor/wav.js',
