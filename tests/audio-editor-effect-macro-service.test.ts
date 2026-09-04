@@ -48,6 +48,15 @@ function createHarness(options: Readonly<{
 	const projectGeneration = new EditorProjectGeneration();
 	projectGeneration.activate(project.id);
 	const render = deferred<{ channels: readonly Float32Array[] }>();
+	const dryRanges: Array<readonly [string, number, number]> = [];
+	const selectionEffectCalls: Array<Readonly<{
+		effectType: string;
+		channels: readonly Float32Array[];
+		params: Readonly<Record<string, unknown>>;
+		context: Readonly<Record<string, unknown>>;
+	}>> = [];
+	const stagedProjects: Array<Readonly<Record<string, unknown>>> = [];
+	const stagedSources: Array<ReadonlyMap<string, unknown>> = [];
 	const persistence = deferred<void>();
 	const persistenceStarted = deferred<void>();
 	const persisted: unknown[] = [];
@@ -73,6 +82,9 @@ function createHarness(options: Readonly<{
 			macroProcessing: 'Macro processing',
 			macroSelectionRequired: 'Selection required',
 			untitledMacro: 'Untitled Macro',
+			autoDuckControlTrack: 'Control track required',
+			effectInvalidAudio: 'Invalid audio',
+			noiseProfileMissing: 'Noise profile required',
 		},
 		memoryLimitBytes: options.memoryLimitBytes ?? 1_000_000,
 		getProject: () => project,
@@ -92,12 +104,36 @@ function createHarness(options: Readonly<{
 		publishDocumentSnapshot: () => { publications += 1; },
 		preflightStorage: async () => undefined,
 		cloneProject: (value) => structuredClone(value),
-		renderSnapshot: async (snapshot) => {
+		renderSnapshot: async (snapshot, _range, sourceBuffers) => {
 			const captured = structuredClone(snapshot) as unknown as Readonly<Record<string, unknown>>;
-			snapshots.push(captured);
-			options.validateRenderSnapshot?.(snapshot as unknown as Readonly<Record<string, unknown>>);
-			return render.promise;
+			if (!sourceBuffers) {
+				snapshots.push(captured);
+				options.validateRenderSnapshot?.(snapshot as unknown as Readonly<Record<string, unknown>>);
+				return render.promise;
+			}
+			// A staged rack run renders audio the chain already holds, so the
+			// fake echoes back what the caller handed the source map.
+			stagedProjects.push(captured);
+			stagedSources.push(sourceBuffers);
+			const staged = [...sourceBuffers.values()][0] as
+				Readonly<{ channels: readonly Float32Array[] }> | undefined;
+			return { channels: (staged?.channels ?? []).map((channel) => channel.map((value) => value * 4)) };
 		},
+		projectFrameCount: () => 10_000,
+		renderDryTrackRange: async (trackId, startFrame, endFrame) => {
+			dryRanges.push([trackId, startFrame, endFrame]);
+			return [new Float32Array([1, 2])];
+		},
+		runSelectionEffectWorker: async (request) => {
+			selectionEffectCalls.push({
+				effectType: request.effectType,
+				channels: request.channels.map((channel) => channel.slice()),
+				params: request.params,
+				context: request.context,
+			});
+			return { channels: request.channels.map((channel) => channel.map((value) => value + 1)) };
+		},
+		createAudioBuffer: async (channels) => ({ channels: channels.map((channel) => channel.slice()) }),
 		audioBufferChannels: (buffer) => [...buffer.channels as readonly Float32Array[]],
 		matchAudacitySelectionChannels: (channels) => [...channels],
 		persistAudacityEffectResult: async (...args) => {
@@ -114,7 +150,11 @@ function createHarness(options: Readonly<{
 		handleError: (error) => { errors.push(error); },
 	});
 	return {
+		dryRanges,
 		errors,
+		selectionEffectCalls,
+		stagedProjects,
+		stagedSources,
 		get processing() { return processing; },
 		get publications() { return publications; },
 		persistence,
@@ -136,6 +176,9 @@ function createHarness(options: Readonly<{
 		},
 	};
 }
+
+// Offline steps estimate their real worker peak, which carries a fixed overhead.
+const OFFLINE_MEMORY_LIMIT_BYTES = 64 * 1024 ** 2;
 
 const REQUEST = {
 	name: 'Voice cleanup',
@@ -297,3 +340,97 @@ function v21MacroProject() {
 		}],
 	});
 }
+
+test('a macro that mixes realtime and offline steps chains one into the next', async () => {
+	const harness = createHarness({ memoryLimitBytes: OFFLINE_MEMORY_LIMIT_BYTES });
+	const pending = harness.service.runEffectMacro({
+		name: 'Clean and level',
+		effects: [
+			{ id: 'effect-a', type: 'compressor', params: {} },
+			{ id: 'effect-b', type: 'audacity-amplify', params: { gainDb: 3 } },
+			{ id: 'effect-c', type: 'audacity-normalize', params: {} },
+		],
+	});
+	harness.render.resolve({ channels: [new Float32Array([0.25, 0.5])] });
+	assert.equal(await pending, true);
+
+	// The realtime run renders from the timeline, then each offline step is
+	// handed what the step before it produced.
+	assert.deepEqual(harness.snapshots.length, 1);
+	assert.deepEqual(harness.selectionEffectCalls.map(({ effectType }) => effectType), [
+		'audacity-amplify', 'audacity-normalize',
+	]);
+	assert.deepEqual([...harness.selectionEffectCalls[0]!.channels[0]!], [0.25, 0.5]);
+	assert.deepEqual([...harness.selectionEffectCalls[1]!.channels[0]!], [1.25, 1.5]);
+	assert.equal(harness.selectionEffectCalls[0]?.params.gainDb, 3);
+	assert.equal(harness.persisted.length, 1);
+	assert.deepEqual(
+		[...(harness.persisted[0] as [unknown, unknown, readonly Float32Array[]])[2][0]!],
+		[2.25, 2.5],
+	);
+});
+
+test('a macro that starts offline reads the dry selection instead of a rack render', async () => {
+	const harness = createHarness({ memoryLimitBytes: OFFLINE_MEMORY_LIMIT_BYTES });
+	assert.equal(await harness.service.runEffectMacro({
+		name: 'Amplify',
+		effects: [{ id: 'effect-a', type: 'audacity-amplify', params: {} }],
+	}), true);
+	assert.deepEqual(harness.dryRanges, [['track-a', 100, 300]]);
+	assert.equal(harness.snapshots.length, 0);
+	assert.deepEqual(harness.selectionEffectCalls.map(({ effectType }) => effectType), ['audacity-amplify']);
+	assert.deepEqual([...harness.selectionEffectCalls[0]!.channels[0]!], [1, 2]);
+});
+
+test('a realtime run after an offline step renders through a staged one-clip project', async () => {
+	const harness = createHarness({ memoryLimitBytes: OFFLINE_MEMORY_LIMIT_BYTES });
+	assert.equal(await harness.service.runEffectMacro({
+		name: 'Level then colour',
+		effects: [
+			{ id: 'effect-a', type: 'audacity-amplify', params: {} },
+			{ id: 'effect-b', type: 'compressor', params: {} },
+			{ id: 'effect-c', type: 'delay', params: {} },
+		],
+	}), true);
+
+	assert.equal(harness.stagedProjects.length, 1);
+	const staged = harness.stagedProjects[0] as {
+		readonly tracks: readonly Readonly<Record<string, unknown>>[];
+		readonly clips: readonly Readonly<Record<string, unknown>>[];
+		readonly sources: readonly Readonly<Record<string, unknown>>[];
+	};
+	assert.deepEqual(
+		(staged.tracks[0]?.effects as readonly Readonly<Record<string, unknown>>[]).map(({ type }) => type),
+		['compressor', 'delay'],
+	);
+	assert.equal(staged.clips.length, 1);
+	assert.equal(staged.clips[0]?.durationFrames, 2);
+	assert.equal(staged.sources[0]?.frameCount, 2);
+	// The staged source carries the audio the offline step produced.
+	const stagedBuffer = [...harness.stagedSources[0]!.values()][0] as
+		Readonly<{ channels: readonly Float32Array[] }>;
+	assert.deepEqual([...stagedBuffer.channels[0]!], [2, 3]);
+	assert.deepEqual(
+		[...(harness.persisted[0] as [unknown, unknown, readonly Float32Array[]])[2][0]!],
+		[8, 12],
+	);
+});
+
+test('an offline step that reads across the selection edge is given the neighbouring audio', async () => {
+	const harness = createHarness({ memoryLimitBytes: OFFLINE_MEMORY_LIMIT_BYTES });
+	assert.equal(await harness.service.runEffectMacro({
+		name: 'Repair',
+		effects: [{ id: 'effect-a', type: 'audacity-repair', params: {} }],
+	}), true);
+	assert.deepEqual(harness.dryRanges, [
+		['track-a', 100, 300],
+		['track-a', 0, 100],
+		['track-a', 300, 428],
+	]);
+	const context = harness.selectionEffectCalls[0]?.context as Readonly<{
+		beforeChannels?: readonly Float32Array[];
+		afterChannels?: readonly Float32Array[];
+	}>;
+	assert.equal(context.beforeChannels?.length, 1);
+	assert.equal(context.afterChannels?.length, 1);
+});

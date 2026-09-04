@@ -1,6 +1,19 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { isSoundscaperProductionProject } from '../project-schema-version.ts';
+import {
+	estimateAudioSelectionEffectOutputFrames,
+	estimateAudioSelectionEffectPeakBytes,
+} from '../selection-effects.js';
+import {
+	isRealtimeEffectMacroStepType,
+	normalizeEffectMacroStep,
+} from '../effect-macro-steps.ts';
+import {
+	createEffectMacroChainRunner,
+	planEffectMacroChain,
+	type EffectMacroChainStep,
+} from './effect-macro-chain.ts';
 import type {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
@@ -64,7 +77,10 @@ interface MacroCopy {
 	readonly audacityApplied: string;
 	readonly audacityProcessing: string;
 	readonly audacitySelectionHint: string;
+	readonly autoDuckControlTrack: string;
+	readonly effectInvalidAudio: string;
 	readonly effectRackEmpty: string;
+	readonly noiseProfileMissing: string;
 	readonly macroApplied?: string;
 	readonly macroEffectsRequired?: string;
 	readonly macroManager: string;
@@ -111,18 +127,27 @@ export interface EffectMacroServiceRuntime {
 	readonly preflightStorage: (bytes: number, kind: 'effect') => Promise<unknown>;
 	readonly cloneProject: (project: MacroProject) => MacroProject;
 	readonly renderSnapshot: (
-		project: MutableMacroProject,
-		options: Readonly<{
-			startFrame: number;
-			endFrame: number;
-			trackId: string;
-			includeMaster: false;
-			includeTrackPan: false;
-			respectMuteSolo: false;
-			outputFrames: number;
-			preRollFrames: number;
-		}>,
+		project: unknown,
+		options: Readonly<Record<string, unknown>>,
+		sourceBuffers?: ReadonlyMap<string, unknown>,
 	) => Promise<MacroRenderBuffer>;
+	readonly projectFrameCount: () => number;
+	readonly renderDryTrackRange: (
+		trackId: string,
+		startFrame: number,
+		endFrame: number,
+		channelCount: number,
+		clipIds?: readonly string[],
+	) => Promise<readonly Float32Array[]>;
+	readonly runSelectionEffectWorker: (request: Readonly<{
+		operation: 'apply';
+		effectType: string;
+		channels: readonly Float32Array[];
+		sampleRate: number;
+		params: Readonly<Record<string, unknown>>;
+		context: Readonly<Record<string, unknown>>;
+	}>) => Promise<Readonly<{ channels: readonly Float32Array[] }>>;
+	readonly createAudioBuffer: (channels: readonly Float32Array[]) => Promise<unknown>;
 	readonly audioBufferChannels: (buffer: MacroRenderBuffer) => readonly Float32Array[];
 	readonly matchAudacitySelectionChannels: (
 		channels: readonly Float32Array[],
@@ -149,32 +174,18 @@ export function createEffectMacroService(runtime: EffectMacroServiceRuntime) {
 		if (!enabledEffects.length) {
 			throw new Error(runtime.copy.macroEffectsRequired || runtime.copy.effectRackEmpty);
 		}
-		const effects = enabledEffects.map((effect) => runtime.materializeRackEffect(
-			effect,
-			'track',
-			target.track.id,
-			{ forceEnabled: true, requireNoiseProfile: true },
-		));
+		const effects = enabledEffects.map((effect) => materializeStep(effect, target.track.id));
 		const sampleRate = runtime.projectSampleRate();
 		const preRollFrames = Math.min(target.startFrame, sampleRate * 10);
-		const outputBytes = target.durationFrames * target.channelCount * Float32Array.BYTES_PER_ELEMENT;
+		const outputFrames = chainOutputFrames(effects, target.durationFrames);
+		const outputBytes = outputFrames * target.channelCount * Float32Array.BYTES_PER_ELEMENT;
 		const processingFrames = target.durationFrames + preRollFrames;
 		const latencyFrames = runtime.effectRackLatencyFrames(effects, sampleRate);
 		const offlineBytes = (processingFrames + latencyFrames) * 2 * Float32Array.BYTES_PER_ELEMENT;
-		let estimatedPeakBytes = offlineBytes * 2 + outputBytes * 3;
-		for (const effect of effects) {
-			if (!runtime.isAudacityRackEffectType(effect.type)) continue;
-			estimatedPeakBytes = Math.max(estimatedPeakBytes, runtime.estimateAudacityEffectPeakBytes(
-				effect.type,
-				processingFrames,
-				effect.params,
-				{
-					channelCount: target.channelCount,
-					...(effect.type === 'audacity-auto-duck' ? { controlChannelCount: 2 } : {}),
-					sampleRate,
-				},
-			));
-		}
+		const estimatedPeakBytes = Math.max(
+			offlineBytes * 2 + outputBytes * 3,
+			chainPeakBytes(effects, target, sampleRate, processingFrames),
+		);
 		if (estimatedPeakBytes > runtime.memoryLimitBytes) throw runtime.audacityEffectMemoryError();
 
 		const ownership = captureOwnership(runtime, project.id);
@@ -184,38 +195,7 @@ export function createEffectMacroService(runtime: EffectMacroServiceRuntime) {
 		try {
 			await runtime.preflightStorage(outputBytes, 'effect');
 			assertOwnership(runtime, ownership);
-			let snapshot = runtime.cloneProject(project) as MutableMacroProject;
-			const snapshotTrack = snapshot.tracks.find((track) => track.id === target.track.id);
-			if (!snapshotTrack) throw new Error(runtime.copy.audioTrackNotFound);
-			if (isSoundscaperProductionProject(snapshot)) {
-				snapshot = createIsolatedTrackRenderProjectV21(snapshot as never, {
-					trackId: target.track.id,
-					effects,
-				}) as unknown as MutableMacroProject;
-			} else {
-				snapshotTrack.effects = effects;
-				snapshotTrack.gain = 1;
-				snapshotTrack.pan = 0;
-				snapshotTrack.mute = false;
-				snapshotTrack.solo = false;
-				snapshotTrack.envelope = [];
-				snapshot.master = { ...snapshot.master, gain: 1, pan: 0, mute: false, effects: [] };
-				snapshot.mixer = { ...snapshot.mixer, groups: [], sends: [], routes: {} };
-			}
-			const rendered = await runtime.renderSnapshot(snapshot, {
-				startFrame: target.startFrame,
-				endFrame: target.endFrame,
-				trackId: target.track.id,
-				includeMaster: false,
-				includeTrackPan: false,
-				respectMuteSolo: false,
-				outputFrames: target.durationFrames,
-				preRollFrames,
-			});
-			assertOwnership(runtime, ownership);
-			const channels = runtime.matchAudacitySelectionChannels(
-				runtime.audioBufferChannels(rendered), target.channelCount,
-			);
+			const channels = await runChain(effects, target, project, sampleRate, preRollFrames, ownership);
 			const effectName = String(request.name || runtime.copy.untitledMacro || runtime.copy.macroManager).trim()
 				|| runtime.copy.untitledMacro
 				|| runtime.copy.macroManager;
@@ -235,6 +215,169 @@ export function createEffectMacroService(runtime: EffectMacroServiceRuntime) {
 			if (taskCurrent && projectIsCurrent(runtime, ownership.project)) runtime.publishDocumentSnapshot();
 			ownership.task.finish();
 		}
+	}
+
+	/**
+	 * A realtime step still materializes against the rack, so its live ranges,
+	 * routing and captured noise profile are resolved the way playback resolves
+	 * them; an offline step is only re-validated against its own definition.
+	 */
+	function materializeStep(
+		effect: EffectMacroRequestEffect,
+		trackId: string,
+	): MaterializedMacroEffect {
+		if (!isRealtimeEffectMacroStepType(effect.type)) {
+			return normalizeEffectMacroStep(effect) as unknown as MaterializedMacroEffect;
+		}
+		return runtime.materializeRackEffect(effect, 'track', trackId, {
+			forceEnabled: true,
+			requireNoiseProfile: true,
+		});
+	}
+
+	/** What the selection is left at once every length-changing step has run. */
+	function chainOutputFrames(
+		effects: readonly MaterializedMacroEffect[],
+		durationFrames: number,
+	): number {
+		let frames = durationFrames;
+		for (const effect of effects) {
+			if (isRealtimeEffectMacroStepType(effect.type)) continue;
+			frames = estimateAudioSelectionEffectOutputFrames(effect.type, frames, effect.params);
+		}
+		return frames;
+	}
+
+	/** Steps run one after another, so the chain peaks at its hungriest step. */
+	function chainPeakBytes(
+		effects: readonly MaterializedMacroEffect[],
+		target: EffectTarget,
+		sampleRate: number,
+		processingFrames: number,
+	): number {
+		let peakBytes = 0;
+		let frames = target.durationFrames;
+		for (const effect of effects) {
+			if (isRealtimeEffectMacroStepType(effect.type)) {
+				if (!runtime.isAudacityRackEffectType(effect.type)) continue;
+				peakBytes = Math.max(peakBytes, runtime.estimateAudacityEffectPeakBytes(
+					effect.type,
+					processingFrames,
+					effect.params,
+					{
+						channelCount: target.channelCount,
+						...(effect.type === 'audacity-auto-duck' ? { controlChannelCount: 2 } : {}),
+						sampleRate,
+					},
+				));
+				continue;
+			}
+			peakBytes = Math.max(peakBytes, estimateAudioSelectionEffectPeakBytes(
+				effect.type,
+				frames,
+				effect.params,
+				{ channelCount: target.channelCount, sampleRate },
+			));
+			frames = estimateAudioSelectionEffectOutputFrames(effect.type, frames, effect.params);
+		}
+		return peakBytes;
+	}
+
+	/**
+	 * Render a leading run of realtime steps straight from the timeline, so the
+	 * rack is warmed by the audio in front of the selection exactly as playback
+	 * warms it.
+	 */
+	async function renderTimelineRack(
+		effects: readonly MaterializedMacroEffect[],
+		target: EffectTarget,
+		project: MacroProject,
+		preRollFrames: number,
+		ownership: EffectMacroOwnership,
+	): Promise<readonly Float32Array[]> {
+		let snapshot = runtime.cloneProject(project) as MutableMacroProject;
+		const snapshotTrack = snapshot.tracks.find((track) => track.id === target.track.id);
+		if (!snapshotTrack) throw new Error(runtime.copy.audioTrackNotFound);
+		if (isSoundscaperProductionProject(snapshot)) {
+			snapshot = createIsolatedTrackRenderProjectV21(snapshot as never, {
+				trackId: target.track.id,
+				effects,
+			}) as unknown as MutableMacroProject;
+		} else {
+			snapshotTrack.effects = [...effects];
+			snapshotTrack.gain = 1;
+			snapshotTrack.pan = 0;
+			snapshotTrack.mute = false;
+			snapshotTrack.solo = false;
+			snapshotTrack.envelope = [];
+			snapshot.master = { ...snapshot.master, gain: 1, pan: 0, mute: false, effects: [] };
+			snapshot.mixer = { ...snapshot.mixer, groups: [], sends: [], routes: {} };
+		}
+		const rendered = await runtime.renderSnapshot(snapshot, {
+			startFrame: target.startFrame,
+			endFrame: target.endFrame,
+			trackId: target.track.id,
+			includeMaster: false,
+			includeTrackPan: false,
+			respectMuteSolo: false,
+			outputFrames: target.durationFrames,
+			preRollFrames,
+		});
+		assertOwnership(runtime, ownership);
+		return runtime.matchAudacitySelectionChannels(
+			runtime.audioBufferChannels(rendered), target.channelCount,
+		);
+	}
+
+	/**
+	 * Run the macro over the selection. A chain that is entirely realtime is one
+	 * rack render, unchanged; anything else carries the audio from step to step.
+	 */
+	async function runChain(
+		effects: readonly MaterializedMacroEffect[],
+		target: EffectTarget,
+		project: MacroProject,
+		sampleRate: number,
+		preRollFrames: number,
+		ownership: EffectMacroOwnership,
+	): Promise<readonly Float32Array[]> {
+		const segments = planEffectMacroChain(effects as unknown as readonly EffectMacroChainStep[]);
+		const leadsWithRack = segments[0]?.realtime === true;
+		let channels: readonly Float32Array[];
+		if (leadsWithRack) {
+			channels = await renderTimelineRack(
+				segments[0].steps as unknown as readonly MaterializedMacroEffect[],
+				target,
+				project,
+				preRollFrames,
+				ownership,
+			);
+		} else {
+			const dry = await runtime.renderDryTrackRange(
+				target.track.id,
+				target.startFrame,
+				target.endFrame,
+				target.channelCount,
+				target.clipIds,
+			);
+			assertOwnership(runtime, ownership);
+			channels = runtime.matchAudacitySelectionChannels(dry, target.channelCount);
+		}
+		const remaining = segments.slice(leadsWithRack ? 1 : 0);
+		if (!remaining.length) return channels;
+		const chain = createEffectMacroChainRunner({
+			copy: runtime.copy,
+			sampleRate,
+			assertCurrent: () => assertOwnership(runtime, ownership),
+			projectFrameCount: runtime.projectFrameCount,
+			renderDryRange: runtime.renderDryTrackRange,
+			runSelectionEffect: runtime.runSelectionEffectWorker,
+			createAudioBuffer: runtime.createAudioBuffer,
+			renderSnapshot: runtime.renderSnapshot,
+			audioBufferChannels: runtime.audioBufferChannels,
+			matchSelectionChannels: runtime.matchAudacitySelectionChannels,
+		});
+		return chain.runSegments(remaining, channels, target);
 	}
 
 	return Object.freeze({ runEffectMacro });
