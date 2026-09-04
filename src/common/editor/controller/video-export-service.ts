@@ -28,9 +28,7 @@ import {
 import { acquireVideoExportTimingIndexes } from './video-export-timing.ts';
 import { createVideoDeliveryReportForPlan } from '../delivery-video-conversion-inventory.ts';
 import { applyMediaChannelMapping } from '../media-export.js';
-import { serializeAudioEditorLabels } from '../label-io.js';
-import { saveLabelExport } from './app-helpers.ts';
-import { resolveVideoCaptionCues } from '../video-caption-cues.ts';
+import { deliverCaptionSidecar, stagedCaptionDocument } from './video-export-captions.ts';
 import { videoExportPlanFormat } from '../video-export-request-format.ts';
 import { loadVideoBurnInFonts } from '../video-burn-in-font.ts';
 import { videoBurnInFontSubsetIds } from '../video-caption-burn-in.ts';
@@ -62,61 +60,6 @@ const NO_TASK_PROGRESS = Object.freeze({
 	setPhase: () => false,
 	finish: () => false,
 });
-
-/**
- * Write the caption sidecar a plan asks for, after its video has been published.
- *
- * The order matters: a delivery that failed to publish its video must not leave
- * a caption file next to nothing. This reuses the label exporter's own writer,
- * so a caption sidecar and a label export land through the same path and the
- * same browser fallback.
- */
-async function deliverCaptionSidecar(
-	plan: RuntimeValue,
-	exportProject: RuntimeValue,
-	sampleRate: number,
-	videoFileName: string,
-	fileService: RuntimeValue,
-): Promise<void> {
-	const format = plan.captions?.sidecarFormat;
-	if (!format) return;
-	const cues = resolveVideoCaptionCues(exportProject, {
-		trackId: plan.captions.trackId,
-		startFrame: plan.range.startFrame,
-		endFrame: plan.range.endFrame,
-	});
-	const text = String(serializeAudioEditorLabels(cues, { format, sampleRate }));
-	await saveLabelExport({
-		format,
-		fileName: `${videoFileName.replace(/\.[^.]+$/u, '')}.${format}`,
-		mimeType: format === 'vtt' ? 'text/vtt' : 'application/x-subrip',
-		text,
-		labelCount: cues.length,
-		trackIds: Object.freeze([String(plan.captions.trackId)]),
-	} as never, null, fileService as never);
-}
-
-/**
- * The cue document a plan asks to mux, or null for the deliveries that mux none.
- *
- * SubRip is what the plan stages regardless of any sidecar the caller chose,
- * because both subtitle encoders read it losslessly for plain cues and one
- * staged form keeps the muxed track independent of the sidecar decision.
- */
-function stagedCaptionDocument(
-	plan: RuntimeValue,
-	exportProject: RuntimeValue,
-	sampleRate: number,
-): Blob | null {
-	if (!plan.captions?.mux) return null;
-	const cues = resolveVideoCaptionCues(exportProject, {
-		trackId: plan.captions.trackId,
-		startFrame: plan.range.startFrame,
-		endFrame: plan.range.endFrame,
-	});
-	const text = serializeAudioEditorLabels(cues, { format: 'srt', sampleRate });
-	return new Blob([text], { type: 'application/x-subrip' });
-}
 
 export function createEditorVideoExportAction(
 	runtime: VideoExportServiceRuntime,
