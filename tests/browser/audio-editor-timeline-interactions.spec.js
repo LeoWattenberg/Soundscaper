@@ -713,7 +713,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		const scroll = editor.locator('.audio-editor-timeline-scroll');
 		const timelineWidth = () => scroll.evaluate((element) => element.scrollWidth);
 
-		await setMouseZoomPrecision(page, editor, 1);
+		// A whole octave a notch is the default, so the first setting confirms it
+		// rather than changing it.
+		await setMouseZoomPrecision(page, editor, 1, { expectCurrent: 1 });
 		const beforeCoarse = await timelineWidth();
 		await wheelZoomIn(page, scroll);
 		await expect.poll(timelineWidth).toBeGreaterThan(beforeCoarse * 1.8);
@@ -726,11 +728,12 @@ test.describe('audio editor React/design-system workflows', () => {
 	});
 });
 
-async function setMouseZoomPrecision(page, editor, precision) {
+async function setMouseZoomPrecision(page, editor, precision, { expectCurrent = null } = {}) {
 	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 	const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
 	await preferences.getByRole('tab', { name: /Editing$/u }).click();
 	const field = preferences.getByLabel('Mouse zoom precision', { exact: true });
+	if (expectCurrent !== null) await expect(field).toHaveValue(String(expectCurrent));
 	await field.fill(String(precision));
 	await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
 	await expect(preferences).toBeHidden();

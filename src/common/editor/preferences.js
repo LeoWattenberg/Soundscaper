@@ -64,8 +64,12 @@ export const AUDIO_EDITOR_PLAY_AT_SPEED_MODES = Object.freeze(['naive', 'staffpa
 /**
  * Audacity's mouse zoom precision: one wheel notch multiplies the zoom by
  * 2^(1/precision), so the precision is how many notches double it.
+ *
+ * The default is 1 — a whole octave a notch — rather than Audacity's 6. The
+ * control is ported so the speed can be changed; the speed this editor already
+ * had is what it keeps until someone changes it.
  */
-export const AUDIO_EDITOR_DEFAULT_ZOOM_PRECISION = 6;
+export const AUDIO_EDITOR_DEFAULT_ZOOM_PRECISION = 1;
 export const AUDIO_EDITOR_MINIMUM_ZOOM_PRECISION = 1;
 export const AUDIO_EDITOR_MAXIMUM_ZOOM_PRECISION = 16;
 export { AUDIO_EDITOR_STARTUP_MODES };
