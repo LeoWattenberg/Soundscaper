@@ -995,13 +995,13 @@
       "count": 13
     }
   },
-  "src/common/editor/ui/workspace/ProjectBinPanel.jsx": {
-    "no-restricted-syntax": {
+  "src/common/editor/ui/workspace/linked-audio-choice-handoff.ts": {
+    "preserve-caught-error": {
       "count": 1
     }
   },
-  "src/common/editor/ui/workspace/linked-audio-choice-handoff.ts": {
-    "preserve-caught-error": {
+  "src/common/editor/ui/workspace/use-project-bin-file-drop.js": {
+    "no-restricted-syntax": {
       "count": 1
     }
   },

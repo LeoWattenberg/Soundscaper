@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+
+import { useProjectBinFileDrop } from './use-project-bin-file-drop.js';
 import { Button } from '@soundscaper/design-system/Button';
 import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
@@ -24,12 +26,10 @@ const FramescaperVideoProxyDialog = FRAMESCAPER_BUILD
 export default function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run, blocked }) {
 	const inputRef = useRef(null);
 	const replacementInputRef = useRef(null);
-	const dragDepthRef = useRef(0);
 	const linkedAudioRelinkRequestRef = useRef(0);
 	const linkedAudioRelinkProjectRef = useRef(null);
 	const relinkChangedChoiceRef = useRef(null);
 	const proxyProjectIdRef = useRef(null);
-	const [dropActive, setDropActive] = useState(false);
 	const [itemMenu, setItemMenu] = useState(null);
 	const [replacementClipId, setReplacementClipId] = useState(null);
 	const [replacementChoice, setReplacementChoice] = useState(null);
@@ -80,6 +80,10 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	const sourceById = new Map((project?.sources || []).map((source) => [source.id, source]));
 	const missingSourceIds = new Set(snapshot.missingSourceIds || []);
 	const mutationBlocked = selectAudioEditorEditBlock(snapshot).blocked;
+	const { dropActive, dropHandlers, resetDropState } = useProjectBinFileDrop({
+		blocked: mutationBlocked,
+		onFiles: (files) => run(() => importFiles(files)),
+	});
 	const selectedMediaTrack = project?.tracks.find((track) => (
 		track.id === snapshot.selectedTrackId && ['audio', 'video'].includes(track.type)
 	)) || null;
@@ -225,15 +229,6 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 			{ allowChangedContent: true },
 		));
 	};
-	const isFileDrag = (dataTransfer) => {
-		const types = [...(dataTransfer?.types || [])];
-		return types.includes('Files') || [...(dataTransfer?.items || [])].some((item) => item.kind === 'file');
-	};
-	const resetDropState = (element = null) => {
-		dragDepthRef.current = 0;
-		setDropActive(false);
-		element?.removeAttribute('data-drop-active');
-	};
 	const closeItemMenu = () => {
 		linkedAudioRelinkRequestRef.current += 1;
 		setItemMenu(null);
@@ -316,35 +311,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 			data-drop-active={dropActive ? 'true' : 'false'}
 			data-project-bin-disabled={mutationBlocked ? 'true' : 'false'}
 			aria-disabled={mutationBlocked ? 'true' : undefined}
-			onDragEnter={(event) => {
-				if (mutationBlocked || !isFileDrag(event.dataTransfer)) return;
-				event.preventDefault();
-				event.stopPropagation();
-				dragDepthRef.current += 1;
-				setDropActive(true);
-			}}
-			onDragOver={(event) => {
-				if (mutationBlocked || !isFileDrag(event.dataTransfer)) return;
-				event.preventDefault();
-				event.stopPropagation();
-				event.dataTransfer.dropEffect = 'copy';
-				setDropActive(true);
-			}}
-			onDragLeave={(event) => {
-				if (!isFileDrag(event.dataTransfer)) return;
-				event.stopPropagation();
-				dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
-				if (!dragDepthRef.current) setDropActive(false);
-			}}
-			onDrop={(event) => {
-				if (!isFileDrag(event.dataTransfer)) return;
-				event.preventDefault();
-				event.stopPropagation();
-				resetDropState(event.currentTarget);
-				if (mutationBlocked) return;
-				const files = [...(event.dataTransfer.files || [])];
-				if (files.length) run(() => importFiles(files));
-			}}
+			{...dropHandlers}
 		>
 			<input
 				ref={inputRef}
