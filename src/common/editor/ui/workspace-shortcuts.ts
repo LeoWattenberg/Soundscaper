@@ -5,6 +5,7 @@ import {
 	resolveAudacityActionHandler,
 	resolveAudacityActionId,
 } from '../audacity-action-parity.js';
+import { audacityShortcutCommandUnassignable } from '../audacity-shortcut-command-inventory.ts';
 import { normalizeAudioEditorShortcut } from '../preferences.js';
 import { keyboardShortcutEventKey } from './keyboard-shortcut-key.ts';
 import type { FocusEvent as ReactFocusEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
@@ -226,6 +227,8 @@ export function resolveAudioEditorShortcutHandler(
 	{ actionContext, actionRuntime, disabledActionIds = [], menus = [] }: ShortcutRegistry = {},
 ): ShortcutHandler | null {
 	const canonicalActionId = resolveAudacityActionId(actionId);
+	if (audacityShortcutCommandUnassignable(canonicalActionId)
+		|| audacityShortcutCommandUnassignable(actionId)) return null;
 	if (isAudacityShortcutCommandDisabled(canonicalActionId, disabledActionIds)) return null;
 	const definition = audacityActionDefinition(canonicalActionId);
 	const enablementContext = actionContext ?? (

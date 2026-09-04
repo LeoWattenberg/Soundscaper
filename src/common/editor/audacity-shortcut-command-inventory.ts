@@ -7,17 +7,23 @@ interface AudacityShortcutActionDefinition {
 }
 
 /*
- * Rows the shortcut editor never offers. Three kinds qualify, and nothing else:
- * submenu headers that only open another list, dynamic ActionQuery templates
- * whose `%1` stands for a value chosen at invocation time, and the
- * application-information commands that report on the program rather than act
- * on the project or the view. The manual keeps its upstream F1 because Audacity
- * ships that binding; the rest of Help's outward links do not.
+ * Submenu headers that only open another list. A container is not a command at
+ * all, so no surface offers it: neither the shortcut editor nor the reference
+ * that lists what each product can do.
  */
 const SHORTCUT_CONTAINER_ACTION_IDS: ReadonlySet<string> = new Set([
 	'menu-align', 'menu-sort', 'menu-macros',
 ]);
 
+/*
+ * Rows the shortcut editor never offers, over and above the containers above:
+ * dynamic ActionQuery templates whose `%1` stands for a value chosen at
+ * invocation time, and the application-information commands that report on the
+ * program rather than act on the project or the view. The manual keeps its
+ * upstream F1 because Audacity ships that binding; the rest of Help's outward
+ * links do not. These commands still exist and still run, so they stay in the
+ * product command reference — only a key can never reach them.
+ */
 const SHORTCUT_INFORMATIONAL_ACTION_IDS: ReadonlySet<string> = new Set([
 	'about-audacity', 'tutorials', 'local://support', 'privacy-policy',
 	'desktop-check-updates', 'desktop-product-help', 'desktop-view-source',
@@ -43,7 +49,7 @@ export function audacityShortcutCommandDisabled(
 ): boolean {
 	const definition = resolveDefinition(id);
 	const canonicalId = definition?.id || id;
-	if (audacityShortcutCommandUnassignable(canonicalId) || audacityShortcutCommandUnassignable(id)) return true;
+	if (SHORTCUT_CONTAINER_ACTION_IDS.has(canonicalId) || SHORTCUT_CONTAINER_ACTION_IDS.has(id)) return true;
 	const disabled = new Set(disabledCommandIds);
 	if (disabled.has(canonicalId) || disabled.has(id)) return true;
 	if (!definition) return false;

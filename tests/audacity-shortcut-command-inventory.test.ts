@@ -3,6 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { isAudacityShortcutCommandDisabled } from '../src/common/editor/audacity-action-parity.js';
+import { audacityShortcutCommandUnassignable } from '../src/common/editor/audacity-shortcut-command-inventory.ts';
 import { collectAudacityShortcutCommands } from '../src/common/editor/ui/dialogs/workspace-preferences-shortcut-commands.ts';
 import { groupAudacityShortcutCommands } from '../src/common/editor/ui/dialogs/workspace-preferences-shortcut-groups.ts';
 
@@ -127,4 +129,25 @@ test('commands the menubar never shows are grouped by where the inventory record
 test('grouping an empty inventory yields no groups in either view', () => {
 	assert.deepEqual(groupAudacityShortcutCommands([], 'categorized'), []);
 	assert.deepEqual(groupAudacityShortcutCommands([], 'alphabetical'), []);
+});
+
+test('a command without a shortcut row is still a command the product reference lists', () => {
+	// Refusing a command a keyboard binding says nothing about whether the
+	// product can run it, and the generated command reference asks the second
+	// question. Conflating the two silently dropped nine rows from the handbook.
+	for (const id of [
+		'about-audacity',
+		'local://support',
+		'action://effects/open?effectId=%1',
+		'action://trackedit/track/change-rate?rate=%1',
+	]) {
+		assert.equal(audacityShortcutCommandUnassignable(id), true);
+		assert.equal(isAudacityShortcutCommandDisabled(id), false);
+	}
+
+	// A submenu header is not a command on either surface.
+	assert.equal(isAudacityShortcutCommandDisabled('menu-align'), true);
+
+	// Product capability filters keep working through the same predicate.
+	assert.equal(isAudacityShortcutCommandDisabled('effect://builtin/change-pitch', ['selection-effect']), true);
 });

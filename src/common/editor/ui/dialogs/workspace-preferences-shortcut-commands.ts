@@ -8,6 +8,7 @@ import {
 	audacityActionDefinition,
 	isAudacityShortcutCommandDisabled,
 } from '../../audacity-action-parity.js';
+import { audacityShortcutCommandUnassignable } from '../../audacity-shortcut-command-inventory.ts';
 import { compareCodeUnits } from '../../code-unit-order.ts';
 import { createShortcutPlacementIndex } from './workspace-preferences-shortcut-categories.ts';
 
@@ -84,6 +85,8 @@ export function collectAudacityShortcutCommands(
 		inventoryOrder += 1;
 		if (definition.status === AUDACITY_ACTION_STATUS.EXCLUDED
 			|| definition.menuVisible === false
+			|| audacityShortcutCommandUnassignable(definition.id)
+			|| audacityShortcutCommandUnassignable(manifestDefinition.id)
 			|| isAudacityShortcutCommandDisabled(manifestDefinition.id, disabledCommandIds)) continue;
 		const disabled = definition.status === AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM;
 		commands.set(definition.id, {
@@ -109,6 +112,7 @@ export function collectAudacityShortcutCommands(
 			const definition = definitionFor(item.id);
 			if (definition?.status === AUDACITY_ACTION_STATUS.EXCLUDED) continue;
 			const id = definition?.id || item.id;
+			if (audacityShortcutCommandUnassignable(id) || audacityShortcutCommandUnassignable(item.id)) continue;
 			if (isAudacityShortcutCommandDisabled(id, disabledCommandIds)) continue;
 			const current = commands.get(id);
 			const disabled = definition
