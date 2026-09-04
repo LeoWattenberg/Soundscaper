@@ -53,12 +53,18 @@ import { prepareScapeImportSourceIdentities, resolveScapeProjectAssetExtension }
 import { inspectScapeCanonicalEvidence } from './scape-project-canonical-inspection.ts';
 import { canonicalMediaContentBlob } from './storage/media-content-digest.ts';
 import {
-	normalizeVideoTimingAssetReference,
 	validateVideoTimingAssetBytes,
 } from './video-timing-asset.ts';
 
 export { SCAPE_FORMAT, SCAPE_FORMAT_VERSION, SCAPE_MIME_TYPE };
 export { SCAPE_FILE_EXTENSION } from '../project-file-extensions.ts';
+
+import {
+	assertOwnedScapeMediaWriter,
+	captureScapeTimingWriter,
+	indexScapeTimingReferences,
+	joinScapeTimingChunks,
+} from './scape-project-timing-assets.ts';
 
 const PROJECT_ENTRY = SCAPE_PROJECT_ENTRY;
 const MANIFEST_ENTRY = SCAPE_MANIFEST_ENTRY;
@@ -471,64 +477,6 @@ export async function importScapeProject(input, store, options = {}) {
 		if (transaction) return transaction.rollback(error);
 		throw error;
 	}
-}
-
-function indexScapeTimingReferences(sources) {
-	const references = new Map();
-	for (const source of sources) {
-		if (source?.kind !== 'video' || source.timingAsset == null) continue;
-		const reference = normalizeVideoTimingAssetReference(source.timingAsset);
-		const existing = references.get(reference.storageKey);
-		if (existing && !sameScapeTimingBodyReference(existing, reference)) {
-			throw new Error(`Video sources sharing timing asset ${reference.storageKey} have conflicting references.`);
-		}
-		if (!existing) references.set(reference.storageKey, reference);
-	}
-	return references;
-}
-
-function sameScapeTimingBodyReference(left, right) {
-	return left.encoding === right.encoding
-		&& left.storageKey === right.storageKey
-		&& left.sha256 === right.sha256
-		&& left.byteLength === right.byteLength
-		&& left.frameCount === right.frameCount
-		&& left.timescale === right.timescale
-		&& left.finalFrameDurationTicks === right.finalFrameDurationTicks;
-}
-
-function captureScapeTimingWriter(writer, chunks) {
-	return {
-		maximumChunkBytes: writer.maximumChunkBytes,
-		get bytesWritten() { return writer.bytesWritten; },
-		async write(bytes, options) {
-			chunks.push(bytes.slice());
-			await writer.write(bytes, options);
-		},
-		commit: (options) => writer.commit(options),
-		commitOwned: (options) => writer.commitOwned(options),
-		abort: () => writer.abort(),
-	};
-}
-
-function assertOwnedScapeMediaWriter(writer) {
-	if (!writer || typeof writer !== 'object' || typeof writer.commitOwned !== 'function') {
-		throw new TypeError('A Scape media import requires an ownership-aware transactional writer.');
-	}
-}
-
-function joinScapeTimingChunks(chunks, expectedBytes) {
-	const output = new Uint8Array(expectedBytes);
-	let offset = 0;
-	for (const chunk of chunks) {
-		if (!(chunk instanceof Uint8Array) || chunk.byteLength > output.byteLength - offset) {
-			throw new Error('The Scape timing asset exceeded its admitted byte length.');
-		}
-		output.set(chunk, offset);
-		offset += chunk.byteLength;
-	}
-	if (offset !== output.byteLength) throw new Error('The Scape timing asset ended before its admitted byte length.');
-	return output;
 }
 
 /**
