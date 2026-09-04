@@ -5,11 +5,14 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 test('new shortcut rows reconcile controlled input during the layout commit', async () => {
+	// The row owns its own fields now that a command can hold several bindings,
+	// so the reconciliation lives with the editable entries rather than in the
+	// preferences dialog that mounts them.
 	const source = await readFile(new URL(
-		'../src/common/editor/ui/dialogs/WorkspacePreferencesDialog.jsx',
+		'../src/common/editor/ui/dialogs/ShortcutEditorRow.tsx',
 		import.meta.url,
 	), 'utf8');
-	assert.match(source, /useLayoutEffect\(\(\) => setBinding\(persisted\), \[persisted\]\);/u);
+	assert.match(source, /useLayoutEffect\(\(\) => setEntries\(editableEntries\(persisted\)\), \[persisted\]\);/u);
 });
 
 test('dynamic macro roving focus is initialized during the layout commit', async () => {
