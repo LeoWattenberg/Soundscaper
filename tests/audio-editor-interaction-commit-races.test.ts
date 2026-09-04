@@ -13,6 +13,9 @@ test('new shortcut rows reconcile controlled input during the layout commit', as
 });
 
 test('dynamic macro roving focus is initialized during the layout commit', async () => {
+	// The step list owns the roving group now that the macro library shares the
+	// dialog with it, so the open dialog and the chosen macro are implied by the
+	// list being mounted at all; only the picker still has to be closed.
 	const source = await readFile(new URL(
 		'../src/common/editor/ui/inspector/MacroManagerStepList.jsx',
 		import.meta.url,

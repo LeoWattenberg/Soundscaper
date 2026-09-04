@@ -85,8 +85,11 @@ const DETERMINISTIC_ORDER_MODULES = Object.freeze([
 	'../src/common/editor/video-timeline.js',
 ]);
 
+// The one place a shortcut label is collated for a human reader. The Audacity 4
+// shortcut import moved it out of the command inventory and into the
+// preferences surface that renders the list.
 const LOCALIZED_SHORTCUT_INVENTORY =
-	'../src/common/editor/audacity-shortcut-command-inventory.ts';
+	'../src/common/editor/ui/dialogs/workspace-preferences-shortcut-commands.ts';
 
 test('canonical render and export ordering never delegates to host collation', async () => {
 	for (const module of DETERMINISTIC_ORDER_MODULES) {
