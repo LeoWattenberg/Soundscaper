@@ -252,6 +252,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/commands/video-keyframe-carrier.js',
 	'src/common/editor/commands/video-keyframe-command-reconcile.js',
 	'src/common/editor/effect-explicit-sidechain-capability.js',
+	'src/common/editor/effect-macro-steps.js',
 	'src/common/editor/effect-parameter-descriptors.js',
 	'src/common/editor/effects.js',
 	'src/common/editor/first-party-effects/bitcrusher/definition.js',
