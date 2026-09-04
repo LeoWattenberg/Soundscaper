@@ -375,7 +375,19 @@ jobs:
       - name: Pin npm
         run: npm install --global npm@12.0.1
 
+      # The gate proved this out: a restored tree costs seconds where `npm ci`
+      # costs anywhere from twelve seconds to five minutes depending on how many
+      # jobs are writing 891 packages at once.
+      - name: Restore the installed dependency tree
+        id: dependency-tree
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: node_modules
+          key: >-
+            node-modules-${{ runner.os }}-${{ hashFiles('.nvmrc', 'package-lock.json', 'patches/npm/*.patch') }}
+
       - name: Install dependencies
+        if: steps.dependency-tree.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: Install virtual display for the native-helper Electron proof
@@ -494,7 +506,21 @@ jobs:
           npm install --global --prefix "$HOME/.local" npm@12.0.1
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
+      # The gate proved this out: a restored tree costs seconds where `npm ci`
+      # costs anywhere from twelve seconds to five minutes depending on how many
+      # jobs are writing 891 packages at once.
+      # Keyed apart from the plain runners: same Ubuntu and same Node, but a
+      # different image, so the container primes and reuses a tree of its own.
+      - name: Restore the installed dependency tree
+        id: dependency-tree
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: node_modules
+          key: >-
+            node-modules-playwright-${{ runner.os }}-${{ hashFiles('.nvmrc', 'package-lock.json', 'patches/npm/*.patch') }}
+
       - name: Install dependencies
+        if: steps.dependency-tree.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: Download the verified website build
@@ -559,7 +585,19 @@ jobs:
       - name: Pin npm
         run: npm install --global npm@12.0.1
 
+      # The gate proved this out: a restored tree costs seconds where `npm ci`
+      # costs anywhere from twelve seconds to five minutes depending on how many
+      # jobs are writing 891 packages at once.
+      - name: Restore the installed dependency tree
+        id: dependency-tree
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: node_modules
+          key: >-
+            node-modules-${{ runner.os }}-${{ hashFiles('.nvmrc', 'package-lock.json', 'patches/npm/*.patch') }}
+
       - name: Install dependencies
+        if: steps.dependency-tree.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: Install Playwright Firefox
