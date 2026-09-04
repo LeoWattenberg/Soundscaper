@@ -176,8 +176,13 @@ test('video composition dialog exposes every field, reset/apply, and accessible 
 	for (const mode of VIDEO_CLIP_COMPOSITION_BLEND_MODES) {
 		assert.match(markup, new RegExp(`<option value="${mode}"`, 'u'));
 	}
-	assert.match(markup, /type="submit"[^>]*>Apply</u);
-	assert.match(markup, /type="button"[^>]*>Reset</u);
+	// Apply and Reset are the shared footer's primary and secondary buttons, in
+	// that order; the form itself still commits the draft on Enter.
+	assert.match(markup, /<form[^>]*class="audio-editor-clip-inspector"/u);
+	assert.match(
+		markup,
+		/class="button button--secondary[^"]*"[^>]*><span class="button__text">Reset<\/span><\/button><button[^>]*class="button button--primary[^"]*"[^>]*><span class="button__text">Apply<\/span>/u,
+	);
 	assert.match(markup, /aria-live="polite" aria-atomic="true"/u);
 	const lockedMarkup = renderToStaticMarkup(<VideoCompositionDialog
 		productId="framescaper"
@@ -190,6 +195,50 @@ test('video composition dialog exposes every field, reset/apply, and accessible 
 	/>);
 	assert.match(lockedMarkup, /<fieldset[^>]*disabled=""[^>]*>[\s\S]*<legend>Crop<\/legend>/u);
 	assert.match(lockedMarkup, /Unlock the video track/u);
+});
+
+test('both the footer button and the form itself commit the composition draft', async () => {
+	// Apply moved out of the form and into the shared footer, so it can no longer
+	// be a submit button. Enter inside the form and the footer button have to
+	// reach the same commit, and only a live render proves both still do.
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const commands: unknown[] = [];
+	const controller = { actions: { edit: { commit: (command: unknown) => { commands.push(command); } } } };
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const render = () => root.render(<VideoCompositionDialog
+		productId="framescaper"
+		capability
+		controller={controller}
+		snapshot={{ project: project(), selectedClipId: 'video' }}
+		copy={{}}
+		run={(operation) => operation()}
+		onClose={() => undefined}
+	/>);
+	const typeCrop = async (value: string) => act(async () => {
+		reactProps(dom.one('[data-video-composition-field="crop-left"]')).onChange({
+			currentTarget: { value },
+		});
+	});
+	try {
+		await act(async () => render());
+		await typeCrop('25');
+		await act(async () => {
+			reactProps(dom.one('.audio-editor-clip-inspector')).onSubmit({ preventDefault: () => undefined });
+		});
+		assert.equal(commands.length, 1);
+
+		await typeCrop('30');
+		await act(async () => { reactProps(dom.one('.button--primary')).onClick(); });
+		assert.equal(commands.length, 2);
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
 });
 
 test('an unrelated controller snapshot preserves an in-progress composition draft', async () => {

@@ -217,7 +217,16 @@ test('the focused EN/DE catalog and dialog expose all operations without an impl
 	assert.equal(markup.match(/<option value="" disabled=""[^>]*>Choose<\/option>/gu)?.length, 3);
 	assert.doesNotMatch(markup, /I consent to local processing/u);
 	assert.match(markup, /one consent dialog for this exact operation, model, input, and output/u);
-	assert.match(markup, /Review result[^<]*<\/button>/u);
-	assert.match(markup, /Accept proposal[^<]*<\/button>/u);
-	assert.match(markup, /disabled=""[^>]*>Review result|>Review result<\/button>/u);
+	// Review and Accept are the shared footer's buttons, and neither is offered
+	// until the run that produced a result has been reviewed.
+	assert.match(markup, /<span class="button__text">Review result<\/span>/u);
+	assert.match(markup, /<span class="button__text">Accept proposal<\/span>/u);
+	assert.match(
+		markup,
+		/<button[^>]*disabled=""[^>]*><span class="button__text">Review result<\/span>/u,
+	);
+	assert.match(
+		markup,
+		/<button[^>]*class="button button--primary[^"]*"[^>]*disabled=""[^>]*><span class="button__text">Accept proposal<\/span>/u,
+	);
 });
