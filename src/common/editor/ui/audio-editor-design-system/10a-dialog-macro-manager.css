@@ -1,0 +1,235 @@
+/* The macro manager: the saved macro library beside the steps of the open macro. */
+
+#kw-audio-editor-design-system .audio-editor-macro-manager .audio-editor-controlled-dialog__body {
+	min-height: 360px;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__content {
+	display: grid;
+	min-height: 340px;
+	grid-template-columns: minmax(170px, 230px) minmax(0, 1fr);
+	gap: 12px;
+	align-items: stretch;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__library,
+#kw-audio-editor-design-system .audio-editor-macro-manager__steps {
+	background: var(--kw-editor-bg);
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 6px;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__library {
+	display: grid;
+	min-height: 0;
+	grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__library-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 6px 6px 6px 10px;
+	border-bottom: 1px solid var(--kw-editor-line);
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__library-header h3,
+#kw-audio-editor-design-system .audio-editor-macro-manager__templates h3 {
+	margin: 0;
+	color: var(--kw-editor-muted);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__library-actions {
+	display: flex;
+	align-items: center;
+	overflow: hidden;
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 4px;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__macro-list {
+	overflow-y: auto;
+	margin: 0;
+	padding: 6px;
+	list-style: none;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__macro {
+	display: block;
+	width: 100%;
+	padding: 6px 8px;
+	overflow: hidden;
+	color: var(--kw-editor-text);
+	background: none;
+	border: 0;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 12px;
+	text-align: left;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__macro:hover {
+	background: color-mix(in srgb, var(--kw-editor-control) 82%, var(--kw-editor-text));
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__macro[aria-current='true'] {
+	background: var(--kw-editor-control);
+	font-weight: 600;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__macro:focus-visible {
+	outline: 2px solid var(--kw-editor-focus, var(--kw-editor-accent));
+	outline-offset: -2px;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__library > .audio-editor-panel-hint {
+	display: grid;
+	margin: 0;
+	padding: 18px 12px;
+	place-items: center;
+	text-align: center;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__templates {
+	display: grid;
+	gap: 6px;
+	padding: 10px;
+	border-top: 1px solid var(--kw-editor-line);
+	justify-items: start;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__detail {
+	display: grid;
+	min-height: 0;
+	grid-template-rows: auto minmax(0, 1fr);
+	gap: 10px;
+	align-content: start;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__detail > [data-macro-unselected] {
+	display: grid;
+	margin: 0;
+	place-items: center;
+	text-align: center;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__name {
+	grid-template-columns: minmax(90px, auto) minmax(0, 1fr);
+	align-items: center;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__steps {
+	display: grid;
+	min-height: 210px;
+	grid-template-rows: auto auto minmax(0, 1fr);
+	align-content: start;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__stack {
+	overflow-y: auto;
+	padding: 10px 12px 0;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__stack:empty {
+	display: none;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__effect {
+	min-height: 32px;
+	padding: 4px 0;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__effect .effect-slot__content > .toggle-button {
+	display: none;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__steps > .audio-editor-panel-hint {
+	display: grid;
+	min-height: 140px;
+	place-items: center;
+	padding: 18px;
+	text-align: center;
+}
+
+/* The last row of the chain: the step after the last step. */
+#kw-audio-editor-design-system .audio-editor-macro-manager__add-effect {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	padding: 10px 12px;
+	color: var(--kw-editor-muted);
+	background: none;
+	border: 0;
+	border-top: 1px dashed var(--kw-editor-line);
+	cursor: pointer;
+	font-size: 12px;
+	text-align: left;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__add-effect:hover {
+	color: var(--kw-editor-text);
+	background: color-mix(in srgb, var(--kw-editor-control) 82%, var(--kw-editor-text));
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__add-effect:focus-visible {
+	outline: 2px solid var(--kw-editor-focus, var(--kw-editor-accent));
+	outline-offset: -2px;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__icon-button {
+	display: grid;
+	width: 30px;
+	height: 28px;
+	padding: 0;
+	place-items: center;
+	color: var(--kw-editor-text);
+	background: var(--kw-editor-control);
+	border: 0;
+	cursor: pointer;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__icon-button + .audio-editor-macro-manager__icon-button {
+	border-left: 1px solid var(--kw-editor-line);
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__icon-button:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--kw-editor-control) 82%, var(--kw-editor-text));
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__icon-button:focus-visible {
+	outline: 2px solid var(--kw-editor-focus, var(--kw-editor-accent));
+	outline-offset: -2px;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__icon-button:disabled {
+	opacity: 0.45;
+	cursor: default;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__message {
+	margin: 0;
+	padding: 8px 10px;
+	color: var(--kw-editor-muted);
+	background: var(--kw-editor-bg);
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 5px;
+	font-size: 11px;
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__message--error {
+	color: var(--kw-editor-danger);
+	background: var(--kw-editor-danger-bg);
+	border-color: var(--kw-editor-danger-line);
+}
+
+#kw-audio-editor-design-system .audio-editor-macro-manager__message--success {
+	color: var(--kw-editor-success, var(--kw-editor-text));
+}

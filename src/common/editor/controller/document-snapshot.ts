@@ -8,6 +8,7 @@ import { createDocumentMasteringSequenceSnapshot } from './document-mastering-se
 import { createDocumentTimelineAnnotationSnapshot } from './document-timeline-annotation-snapshot.ts';
 import { createDocumentTrackFolderSnapshot } from './document-track-folder-snapshot.ts';
 import { createDocumentRecordingInputSnapshot } from './document-recording-input-snapshot.ts';
+import type { EffectMacroLibraryState } from './effect-macro-library-service.ts';
 import type { SoundActivationPolicySnapshot } from './sound-activation-policy-service.ts';
 import type { TakeCyclePendingOpenRecovery } from './take-cycle-capture-orchestrator.ts';
 import type { FramescaperCaptureSessionSnapshot } from './framescaper-capture-session-types.ts';
@@ -152,7 +153,7 @@ export interface EditorDocumentSnapshotState {
 	readonly lastAnalysisRequest?: unknown;
 	readonly audacityPreviewSource: unknown;
 	readonly effectPresets: unknown;
-	readonly effectMacros: Readonly<{ readonly macros: readonly unknown[] }>;
+	readonly effectMacros: EffectMacroLibraryState;
 	readonly nyquistAbort: unknown;
 	readonly nyquistResult: unknown;
 	readonly monitoring: boolean;

@@ -14,6 +14,11 @@ import { createExportActionGroup } from './export-action-group.ts';
 import { createProjectMediaActionGroup } from './project-media-action-group.ts';
 import { createStoredProjectOpenActions } from './stored-project-open-actions.ts';
 import { createCrossProductHandoffActionFacade } from './cross-product-handoff-action-facade.ts';
+import {
+	createEffectMacroActions,
+	createEffectPresetActions,
+	type EffectLibraryActionScope,
+} from './effect-library-action-groups.ts';
 
 export interface EditorActionRuntime {
 	// The runtime composition root is JavaScript while it is being decomposed.
@@ -28,7 +33,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	const {
 	AUDIO_EDITOR_DEFAULT_SHORTCUTS, addEffect, addLabel, addLabelTrack,
 	addTrack, addVideoClipEffect, addVideoTrackPair, adjustAllTrackHeights,
-	adjustTrackHeight, analysisService, applyAudacityEffectFromController, applyEffectPreset,
+	adjustTrackHeight, analysisService, applyAudacityEffectFromController,
 	applyProjectBinReplacement, applySamplePencil, applySpectralSelection, beginParametricEqGesture,
 	beginRackEffectGesture, beginVideoEffectGesture, bypassVideoClipEffect, cancelAudacityEffectPreview,
 	cancelNyquistEvaluation, cancelParametricEqGesture, cancelPlaybackCachePreparation, cancelProjectBinReplacement,
@@ -37,15 +42,15 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	clearLocalData, clearLoopRegion, clearRecentProjects, closeProjectTab,
 	commit, commitParametricEqGesture, commitRackEffectGesture, commitVideoEffectGesture,
 	configureDisplayInput, continueLoudnessMeasurement, copy, copyEffectStack,
-	createStableId, createWorkspacePreference, currentAudacityEffectParams, deleteEffectPreset,
+	createStableId, createWorkspacePreference,
 	deleteProject, deleteWorkspacePreference, disjoinSelectedClip, dismissAup4CompatibilitySummary,
-	duplicateProject, duplicateTrack, engine, exportEffectPreset, framescaperCaptureActions, framescaperWebVcrActions,
+	duplicateProject, duplicateTrack, engine, framescaperCaptureActions, framescaperWebVcrActions,
 	exportLabels, exportVideo, ffmpeg, fileService, findTrack, persistSetting, publishDocumentSnapshot,
 	flushProject, generateSelectionSilence, generateSignal, repeatLastGenerator, getClipVisualData,
 	getProjectBinClipVisualData, getVideoSourceVisualData, getVisibleClips, handleClipAction, handleEdit,
 	handleExportAction, handlePlayAtSpeed, handleTransport, hasMissingTimelineSources,
-	importEffectPresets, importFiles, importLabelFile, inspectScape,
-	listAudioEditorEffectPresets, listProjects, makeStereoTrack, mixAndRenderTracks,
+	importFiles, importLabelFile, inspectScape,
+	listProjects, makeStereoTrack, mixAndRenderTracks,
 	moveClips, moveClipsToNewTrack, moveClipsToProjectBin, movePanelPreference, activatePanelTabPreference,
 	moveToolbarPreference, moveTrack, newProject, normalizePlaybackFrame,
 	openAudacityProject, openAup4, openProject, openScape, openScapeFile, overwriteClips, openDawproject, saveDawproject,
@@ -58,7 +63,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	renameProjectBinClip, renderClipPitchSpeed, reorderTrack, reorderVideoClipEffect,
 	repeatLastAudacityEffect, requestInputAccess, requestStoragePersistence, requestWaveformPcmWindow, resampleClip, resampleTrack,
 	resetClipPitchSpeed, resetLoudnessMeasurement, resizeTrackHeight,
-	runEffectMacro, effectMacroLibraryService, runNyquistEvaluation, saveAup4, saveEffectPreset,
+	runNyquistEvaluation, saveAup4,
 	saveNow, saveScape, selectAllTracks,
 	selectAtZeroCrossings, selectClip, selectCursorToTrackEnd, selectLeftOfPlaybackPosition,
 	selectProjectBinInstances, selectRightOfPlaybackPosition, selectTrack, selectTrackStartToCursor,
@@ -88,6 +93,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 		}
 		return action(...args);
 	};
+	const effectLibraryScope = scope as EffectLibraryActionScope;
 	const videoNavigationMessage = (template: RuntimeValue, values: Readonly<Record<string, RuntimeValue>>) => (
 		Object.entries(values).reduce((message, [key, value]) => (
 			message.replace(`{${key}}`, String(value))
@@ -574,25 +580,9 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			previewSelection: restricted('audioEffects', previewAudacityEffectFromController),
 			cancelPreview: () => cancelAudacityEffectPreview(),
 			repeatLast: restricted('audioEffects', repeatLastAudacityEffect),
-			presets: Object.freeze({
-				list: (effectType: RuntimeValue = state.audacityEffectType) => listAudioEditorEffectPresets(state.effectPresets, effectType),
-				apply: restricted('audioEffects', applyEffectPreset),
-				save: restricted('audioEffects', saveEffectPreset),
-				saveAs: restricted('audioEffects', (name: RuntimeValue, params: RuntimeValue = currentAudacityEffectParams()) => saveEffectPreset({ name, params })),
-				delete: restricted('audioEffects', deleteEffectPreset),
-				import: restricted('audioEffects', importEffectPresets),
-				export: restricted('audioEffects', exportEffectPreset),
-			}),
+			presets: createEffectPresetActions(effectLibraryScope, restricted),
 		}),
-		macros: Object.freeze({
-			run: restricted('audioMacros', runEffectMacro),
-			library: Object.freeze({
-				list: restricted('audioMacros', () => effectMacroLibraryService.list()),
-				save: restricted('audioMacros', (macro: RuntimeValue) => effectMacroLibraryService.save(macro)),
-				delete: restricted('audioMacros', (macroId: RuntimeValue) => effectMacroLibraryService.delete(macroId)),
-				flush: () => effectMacroLibraryService.flush(),
-			}),
-		}),
+		macros: createEffectMacroActions(effectLibraryScope, restricted),
 		analysis: Object.freeze({
 			run: restricted('audioAnalysis', analysisService.run),
 			plotSpectrum: restricted('audioAnalysis', analysisService.plotSpectrum),
