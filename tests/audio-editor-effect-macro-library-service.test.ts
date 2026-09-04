@@ -70,6 +70,65 @@ test('an unstorable macro is refused without disturbing the library', () => {
 	assert.deepEqual(harness.service.list().map(({ id }) => id), ['macro-a']);
 });
 
+test('a rejected write is retried and the flush waits for the retry to settle', async () => {
+	let release!: () => void;
+	const gate = new Promise<void>((resolve) => { release = resolve; });
+	const harness = createRetryHarness(async (attempt) => {
+		await Promise.resolve();
+		if (attempt === 1) throw new Error('settings store offline');
+		await gate;
+	});
+
+	harness.service.save({ id: 'macro-a', name: 'One', effects: [] });
+	let flushed = false;
+	const flushing = harness.service.flush().then(() => { flushed = true; });
+	await new Promise((resolve) => { setTimeout(resolve, 0); });
+
+	assert.equal(harness.attempts(), 2, 'the failed write must be retried');
+	// Read the length rather than comparing against a literal `[]`: assert.deepEqual
+	// narrows its first argument to the second's type, which would leave `writes`
+	// typed `never[]` for the rest of this test.
+	assert.equal(harness.writes.length, 0, 'the retry has not reached the store yet');
+	assert.equal(flushed, false, 'flush must not settle while the retry is outstanding');
+
+	release();
+	await flushing;
+	assert.deepEqual(harness.writes.map((value) => value.macros.map(({ name }) => name)), [['One']]);
+	assert.deepEqual(harness.errors.map((error) => (error as Error).message), ['settings store offline']);
+});
+
+test('an edit committed while a write is failing supersedes the failed value', async () => {
+	let release!: () => void;
+	const gate = new Promise<void>((resolve) => { release = resolve; });
+	const harness = createRetryHarness(async (attempt) => {
+		if (attempt > 1) return;
+		await gate;
+		throw new Error('settings store offline');
+	});
+
+	const macro = harness.service.save({ id: 'macro-a', name: 'One', effects: [] });
+	harness.service.save({ ...macro, name: 'One edited' });
+	release();
+	await harness.service.flush();
+
+	assert.equal(harness.attempts(), 2, 'the superseded value must not be written as well');
+	assert.deepEqual(harness.writes.map((value) => value.macros.map(({ name }) => name)), [['One edited']]);
+});
+
+test('a store that keeps refusing the write gives up after one retry', async () => {
+	const harness = createRetryHarness(async (attempt) => {
+		await Promise.resolve();
+		if (attempt <= 5) throw new Error(`refused ${attempt}`);
+	});
+
+	harness.service.save({ id: 'macro-a', name: 'One', effects: [] });
+	await harness.service.flush();
+
+	assert.equal(harness.attempts(), 2, 'a failed write is retried once, not forever');
+	assert.deepEqual(harness.errors.map((error) => (error as Error).message), ['refused 1', 'refused 2']);
+	assert.deepEqual(harness.writes, []);
+});
+
 function createHarness() {
 	const state = { effectMacros: createInitialEffectMacroLibrary() };
 	const writes: [string, typeof state.effectMacros, string][] = [];
@@ -100,4 +159,24 @@ function createHarness() {
 		failNextWrite: (cause: Error) => { failure = cause; },
 	};
 	return harness;
+}
+
+function createRetryHarness(persist: (attempt: number) => Promise<void>) {
+	const state = { effectMacros: createInitialEffectMacroLibrary() };
+	const writes: (typeof state.effectMacros)[] = [];
+	const errors: unknown[] = [];
+	let attempts = 0;
+	let minted = 0;
+	const service = createEffectMacroLibraryService({
+		state,
+		createId: (prefix: string) => `${prefix}-${(minted += 1)}`,
+		persistSetting: async (_key, value) => {
+			attempts += 1;
+			await persist(attempts);
+			writes.push(value);
+		},
+		publishDocumentSnapshot: () => undefined,
+		handleError: (error: unknown) => { errors.push(error); },
+	});
+	return { attempts: () => attempts, errors, service, writes };
 }

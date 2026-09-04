@@ -78,20 +78,29 @@ export function createEffectMacroLibraryService(runtime: EffectMacroLibraryServi
 	}
 
 	async function drain(): Promise<void> {
+		let retried: EffectMacroLibraryState | null = null;
 		try {
 			while (pending) {
 				const value = pending;
 				pending = null;
-				await runtime.persistSetting(EFFECT_MACRO_LIBRARY_SETTING_KEY, value, { policy: 'required' });
+				try {
+					await runtime.persistSetting(EFFECT_MACRO_LIBRARY_SETTING_KEY, value, { policy: 'required' });
+				} catch (error) {
+					runtime.handleError(error);
+					// A write that failed leaves the newest value unstored; retry it once the
+					// failing attempt has been reported rather than dropping it silently. An
+					// edit committed while the write was failing is newer and supersedes the
+					// failed value, and a second failure of the same value gives up rather
+					// than spinning against a store that keeps refusing it.
+					if (!pending && retried !== value) {
+						pending = value;
+						retried = value;
+					}
+				}
 			}
-		} catch (error) {
-			runtime.handleError(error);
 		} finally {
 			writing = null;
 		}
-		// A write that failed leaves the newest value unstored; retry it once the
-		// failing attempt has been reported rather than dropping it silently.
-		if (pending && !writing) writing = drain();
 	}
 
 	/** Settles the trailing write, for callers that must observe it (tests, teardown). */
