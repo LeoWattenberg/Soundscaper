@@ -46,6 +46,7 @@ export interface TimelineWaveformClip {
 	readonly fadeInFrames?: number;
 	readonly fadeOutFrames?: number;
 	readonly reversed?: boolean;
+	readonly pitchCents?: number;
 	readonly kind?: unknown;
 	readonly anchor?: unknown;
 	readonly musicalStartBeat?: unknown;
@@ -102,6 +103,7 @@ export interface TimelineClipViewModel {
 	readonly trimStart: number;
 	readonly fullDuration: number;
 	readonly stretchFactor: number;
+	readonly pitchCents: number;
 	readonly envelopePoints: unknown;
 	readonly waveform: readonly never[];
 	audacityWaveform?: unknown;
@@ -187,6 +189,9 @@ export function createTimelineClipViewModel({
 		trimStart: framesToSeconds(clip.waveformStartFrame, { sampleRate }),
 		fullDuration: sourceDurationFrames / sourceRate,
 		stretchFactor: (clip.durationFrames / sampleRate) / (sourceDurationFrames / sourceRate),
+		// The clip header draws a pitch badge beside the time-stretch one, so the
+		// shift the pitch commands step has to reach the design system too.
+		pitchCents: Number(clip.pitchCents) || 0,
 		envelopePoints: envelopeFramesToDesignPoints(clip.envelope, sampleRate, {
 			startFrame: clip.waveformStartFrame,
 			endFrame: clip.waveformEndFrame,

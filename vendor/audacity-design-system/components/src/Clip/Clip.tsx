@@ -26,6 +26,26 @@ const StretchIcon = () => (
 
 const EMPTY_NUMBER_ARRAY: number[] = [];
 
+/**
+ * LOCAL DEVIATION (see ../../../README.md): the pitch badge's text.
+ *
+ * Audacity writes the shift as semitones with two decimals and then drops the
+ * trailing zeros, so a whole semitone reads `1` rather than `1.00`
+ * (`GetPitchShiftText` in `ClipPitchAndSpeedButtonHandle.cpp`). It carries the
+ * direction in the glyph beside the number, choosing between a pitch-up and a
+ * pitch-down indicator bitmap; this header has one musical note for both, so
+ * the sign goes on the number instead and a raised clip reads `+1` where a
+ * lowered one reads `-1`.
+ */
+export function clipPitchShiftLabel(cents: number): string {
+  const semitones = (Number(cents) || 0) / 100;
+  if (semitones === 0) return '';
+  const magnitude = Math.abs(semitones)
+    .toFixed(2)
+    .replace(/\.?0+$/u, '');
+  return `${semitones > 0 ? '+' : '-'}${magnitude}`;
+}
+
 export type ClipState = 'default' | 'headerHover';
 
 const MIN_CLIP_HEIGHT = 44; // Minimum height before header is hidden
@@ -77,6 +97,10 @@ export interface ClipProps {
   /** Visual time-stretch factor (default 1). Forwarded to ClipBody so the
    *  waveform expands / compresses horizontally without changing trim. */
   clipStretchFactor?: number;
+  /** LOCAL DEVIATION (see ../../../README.md): pitch shift the clip carries,
+   *  in cents (default 0). A non-zero shift draws the header's pitch badge,
+   *  the counterpart of the time-stretch badge `clipStretchFactor` draws. */
+  clipPitchCents?: number;
   /** Pixels per second (timeline zoom level) */
   pixelsPerSecond?: number;
   /** Points to hide during drag (eating behavior) */
@@ -167,6 +191,7 @@ const ClipComponent: React.FC<ClipProps> = ({
   clipTrimStart = 0,
   clipFullDuration,
   clipStretchFactor = 1,
+  clipPitchCents = 0,
   pixelsPerSecond = 100,
   hiddenPointIndices = EMPTY_NUMBER_ARRAY,
   hoveredPointIndices = EMPTY_NUMBER_ARRAY,
@@ -369,6 +394,11 @@ const ClipComponent: React.FC<ClipProps> = ({
             // The audio plays inversely proportional to the visible width —
             // 2× wider clip = 50% speed, half-width = 200% speed.
             stretchPercent={100 / clipStretchFactor}
+            // LOCAL DEVIATION (see ../../../README.md): draw the pitch badge
+            // the header already knows how to render. Upstream never supplies
+            // it, so a clip shifted by the pitch commands looked untouched.
+            showPitch={clipPitchCents !== 0}
+            pitchValue={clipPitchShiftLabel(clipPitchCents)}
             clipStartTime={clipStartTime}
             clipDuration={clipDuration}
             timeSelectionRange={timeSelectionRange}

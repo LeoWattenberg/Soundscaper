@@ -237,6 +237,29 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('shows the pitch badge a clip earns from the Alt+Up and Alt+Down shortcuts', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const clip = clipByName(editor, toneA.name);
+		const timeline = editor.getByRole('region', { name: 'Timeline', exact: true }).first();
+		const badge = clip.locator('.clip-header__badge-value');
+		await clip.locator('.clip-header').click();
+		await expect(badge).toHaveCount(0);
+
+		// The badge carries the direction on the number, because the header draws
+		// one musical note where Audacity swaps between two arrow bitmaps.
+		await timeline.press('Alt+ArrowUp');
+		await expect(badge).toHaveText('+1');
+		await timeline.press('Alt+ArrowUp');
+		await expect(badge).toHaveText('+2');
+		for (let step = 0; step < 3; step += 1) await timeline.press('Alt+ArrowDown');
+		await expect(badge).toHaveText('-1');
+		await timeline.press('Alt+ArrowUp');
+		await expect(badge).toHaveCount(0);
+		expect(errors).toEqual([]);
+	});
+
 	test('enables delete menus and shortcuts for a clip-only selection', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');

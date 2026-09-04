@@ -49,6 +49,17 @@ test('timeline labels keep stable clip titles after rendered sources receive der
 	assert.equal(timelineName('Mix', 'Mix — Mix and render.wav'), 'Mix');
 });
 
+test('the clip projection carries the pitch shift the header badge is drawn from', () => {
+	assert.equal(createTimelineClipViewModel(base).pitchCents, 0);
+	assert.equal(createTimelineClipViewModel({ ...base, clip: { ...clip, pitchCents: -200 } }).pitchCents, -200);
+	// A project written before clips stored a shift leaves the field absent,
+	// and the badge must read that as an unshifted clip rather than as NaN.
+	assert.equal(createTimelineClipViewModel({
+		...base,
+		clip: { ...clip, pitchCents: undefined },
+	}).pitchCents, 0);
+});
+
 test('timeline waveform plans survive equivalent snapshots and drag previews, then refresh after commit', () => {
 	const cache = new Map();
 	const initial = createTimelineClipViewModel({ ...base, cache });

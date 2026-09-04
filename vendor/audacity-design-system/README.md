@@ -158,6 +158,17 @@ Tracked so upstream syncs know what to preserve. Aside from this list, keep the 
     reads as a share arrow pointing the wrong way rather than as an import. No glyph or
     font asset changes. Covered by `tests/vendored-design-system-icon-map.test.ts`.
     Upstream-PR candidate.
+21. `Clip.tsx` takes a `clipPitchCents` prop and draws `ClipHeader`'s pitch badge from it, and
+    `TrackNew.tsx` reads `clip.pitchCents` to supply it. `ClipHeader` has rendered a pitch badge
+    since before the vendoring, but nothing upstream ever turns it on — `Clip` forwards only
+    `showStretch` / `stretchPercent` — so a clip shifted by Alt+Up / Alt+Down looked exactly like
+    an unshifted one. The label follows Audacity's `GetPitchShiftText`
+    (`src/tracks/playabletrack/wavetrack/ui/ClipPitchAndSpeedButtonHandle.cpp`): semitones to two
+    decimals with the trailing zeros dropped. Audacity puts the direction in the glyph, choosing
+    between its `pitchUpIndicator` and `pitchDownIndicator` bitmaps, and this header has a single
+    musical note for both, so the sign moves onto the number instead. Omitting the prop keeps
+    upstream behaviour. Covered by `tests/vendored-design-system-clip-pitch-badge.test.ts`.
+    Upstream-PR candidate.
 
 ## Application-side adaptations
 

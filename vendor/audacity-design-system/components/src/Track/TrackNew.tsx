@@ -949,6 +949,9 @@ const TrackNewComponent: React.FC<TrackProps> = ({
             clipTrimStart={(clip as any).trimStart || 0} // justified: trimStart not on Clip type — pending components sweep
             clipFullDuration={(clip as any).fullDuration} // justified: fullDuration not on Clip type — pending components sweep
             clipStretchFactor={(clip as any).stretchFactor ?? 1} // justified: stretchFactor not on Clip type — pending components sweep
+            // LOCAL DEVIATION (see ../../../README.md): pass the clip's pitch
+            // shift through so the header draws its pitch badge.
+            clipPitchCents={(clip as any).pitchCents ?? 0} // justified: pitchCents not on Clip type — pending components sweep
             pixelsPerSecond={pixelsPerSecond}
             hiddenPointIndices={clipHiddenPoints.get(clip.id) ?? EMPTY_NUMBER_ARRAY}
             hoveredPointIndices={clipHoveredPoints.get(clip.id) ?? EMPTY_NUMBER_ARRAY}
