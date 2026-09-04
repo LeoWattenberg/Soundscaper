@@ -51,15 +51,62 @@ test('Audacity effect macro export uses scripting IDs, stable parameter names, a
 	assert.doesNotMatch(exported, /private|enabled|context|state|Distortion/);
 });
 
-test('all fourteen realtime Audacity profiles round-trip through concrete macro settings', () => {
-	assert.equal(Object.keys(AUDACITY_EFFECT_MACRO_COMMANDS).length, 14);
-	assert.deepEqual(Object.keys(AUDACITY_EFFECT_MACRO_COMMANDS), AUDACITY_RACK_EFFECT_TYPES);
-	const source = AUDACITY_RACK_EFFECT_TYPES.map((type, index) => createEffect(type, { id: `source-${index}` }));
-	const parsed = parseAudacityEffectMacro(serializeAudacityEffectMacro(source), {
+test('every Audacity effect with a macro command round-trips through concrete macro settings', () => {
+	// Audacity derives a macro command by capitalizing the words of the effect's
+	// own symbol, so these are the commands its Macro Manager lists.
+	assert.deepEqual(AUDACITY_EFFECT_MACRO_COMMANDS, {
+		'audacity-auto-duck': 'AutoDuck',
+		'audacity-bass-treble': 'BassAndTreble',
+		'audacity-click-removal': 'ClickRemoval',
+		'audacity-compressor': 'Compressor',
+		'audacity-distortion': 'Distortion',
+		'audacity-echo': 'Echo',
+		'audacity-filter-curve-eq': 'FilterCurve',
+		'audacity-graphic-eq': 'GraphicEq',
+		'audacity-invert': 'Invert',
+		'audacity-limiter': 'Limiter',
+		'audacity-noise-reduction': 'NoiseReduction',
+		'audacity-phaser': 'Phaser',
+		'audacity-classic-filters': 'ClassicFilters',
+		'audacity-wahwah': 'Wahwah',
+		'audacity-amplify': 'Amplify',
+		'audacity-change-pitch': 'ChangePitch',
+		'audacity-change-speed-pitch': 'ChangeSpeedAndPitch',
+		'audacity-change-tempo': 'ChangeTempo',
+		'audacity-fade-in': 'FadeIn',
+		'audacity-fade-out': 'FadeOut',
+		'audacity-legacy-compressor': 'LegacyCompressor',
+		'audacity-loudness-normalization': 'LoudnessNormalization',
+		'audacity-normalize': 'Normalize',
+		'audacity-paulstretch': 'Paulstretch',
+		'audacity-repair': 'Repair',
+		'audacity-repeat': 'Repeat',
+		'audacity-reverb': 'Reverb',
+		'audacity-reverse': 'Reverse',
+		'audacity-sliding-stretch': 'SlidingStretch',
+		'audacity-truncate-silence': 'TruncateSilence',
+	});
+	for (const type of AUDACITY_RACK_EFFECT_TYPES) {
+		assert.ok(AUDACITY_EFFECT_MACRO_COMMANDS[type], `${type} needs a macro command`);
+	}
+
+	// Noise Reduction has a command, but its settings only survive the
+	// extension, so it is exercised by its own test rather than here.
+	const types = Object.keys(AUDACITY_EFFECT_MACRO_COMMANDS)
+		.filter((type) => type !== 'audacity-noise-reduction');
+	const draft = createEffectMacroDraft({
+		name: 'Every command',
+		effects: types.map((type) => ({ type })),
+		idFactory: (prefix, index) => `source-${prefix}-${index}`,
+	});
+	const exported = serializeAudacityEffectMacro(draft.effects);
+	assert.deepEqual(exported.trimEnd().split('\n').map((line) => line.slice(0, line.indexOf(':'))),
+		types.map((type) => AUDACITY_EFFECT_MACRO_COMMANDS[type]));
+	const parsed = parseAudacityEffectMacro(exported, {
 		idFactory: (_prefix, index) => `parsed-${index}`,
 	});
-	assert.deepEqual(parsed.effects.map(({ type }) => type), AUDACITY_RACK_EFFECT_TYPES);
-	assert.deepEqual(parsed.effects.map(({ params }) => params), source.map(({ params }) => params));
+	assert.deepEqual(parsed.effects.map(({ type }) => type), types);
+	assert.deepEqual(parsed.effects.map(({ params }) => params), draft.effects.map(({ params }) => params));
 	assert.ok(parsed.effects.every(({ enabled }) => enabled));
 });
 
@@ -293,7 +340,7 @@ test('macro drafts are immutable settings-only chains with stable private IDs', 
 	}), /IDs must be unique/);
 });
 
-test('offline effects are macro steps that round-trip through the extension namespace', () => {
+test('offline effects travel as their own Audacity commands', () => {
 	const draft = createEffectMacroDraft({
 		name: 'Restore and level',
 		effects: [
@@ -309,9 +356,12 @@ test('offline effects are macro steps that round-trip through the extension name
 	assert.equal(draft.effects[1].params.peakDb, -3);
 
 	const exported = serializeAudacityEffectMacro(draft.effects);
-	assert.match(exported, /^ClickRemoval:/m);
-	assert.match(exported, /^SoundscaperEffect:Type="audacity-normalize"/m);
-	assert.match(exported, /^SoundscaperEffect:Type="audacity-fade-out"/m);
+	assert.equal(exported, [
+		'ClickRemoval:Threshold="200" Width="20"',
+		'Normalize:PeakLevel="-3" ApplyVolume="1" RemoveDcOffset="1" StereoIndependent="0"',
+		'FadeOut:',
+		'',
+	].join('\n'));
 
 	const parsed = parseAudacityEffectMacro(exported, {
 		idFactory: (prefix, index) => `${prefix}-${index}`,
@@ -322,11 +372,90 @@ test('offline effects are macro steps that round-trip through the extension name
 	);
 });
 
-test('an offline macro step rejects parameters the effect does not define', () => {
+test('Audacity settings its own commands cannot express keep the extension namespace', () => {
+	// Remove DC Offset exists in Soundscaper as its own effect; Audacity only
+	// offers it inside Normalize, so it has no command of its own.
+	const exported = serializeAudacityEffectMacro([{ type: 'audacity-remove-dc-offset', id: 'dc' }]);
+	assert.equal(exported, 'SoundscaperEffect:Type="audacity-remove-dc-offset" Params="{}"\n');
+	assert.deepEqual(parseAudacityEffectMacro(exported, { idFactory: () => 'opened' })
+		.effects.map(({ type }) => type), ['audacity-remove-dc-offset']);
 	assert.throws(() => parseAudacityEffectMacro(
-		'SoundscaperEffect:Type="audacity-normalize" Params="{\\"peakDb\\":-3,\\"future\\":1}"',
-	), /Unsupported audacity-normalize parameter: future/);
+		'SoundscaperEffect:Type="audacity-normalize" Params="{}"',
+	), /Unsupported Soundscaper effect type: audacity-normalize/);
+});
+
+test('an extension macro step rejects parameters the effect does not define', () => {
 	assert.throws(() => parseAudacityEffectMacro(
-		'SoundscaperEffect:Type="audacity-amplify" Params="{}" Context="{}"',
+		'SoundscaperEffect:Type="audacity-noise-reduction" Params="{\\"reductionDb\\":3,\\"future\\":1}"',
+	), /Unsupported audacity-noise-reduction parameter: future/);
+	assert.throws(() => parseAudacityEffectMacro(
+		'SoundscaperEffect:Type="audacity-remove-dc-offset" Params="{}" Context="{}"',
 	), /Context is supported only for Noise Reduction/);
+});
+
+test('macros Audacity itself wrote import with its own names, units and implied settings', () => {
+	const parse = (line) => parseAudacityEffectMacro(line, { idFactory: () => 'imported' }).effects[0];
+
+	// Audacity stores Amplify as a linear ratio and captures no clipping flag
+	// when the effect runs from a macro, where clipping is always allowed.
+	assert.deepEqual(parse('Amplify:Ratio="2"').params, { gainDb: 6.0205999133, allowClipping: true });
+	assert.equal(parse('Amplify:Ratio="2" AllowClipping="0"').params.allowClipping, false);
+
+	// Audacity 3.7 renamed Normalize's ApplyGain to ApplyVolume.
+	assert.deepEqual(parse('Normalize:PeakLevel="-3" ApplyGain="0" RemoveDcOffset="0" StereoIndependent="1"').params,
+		{ peakDb: -3, removeDc: false, applyGain: false, stereoIndependent: true });
+
+	// Truncate Silence writes a symbolic action; its pre-2.1.0 index still reads.
+	assert.equal(parse('TruncateSilence:Action="Compress Excess Silence"').params.action, 'compress');
+	assert.equal(parse('TruncateSilence:Action="1"').params.action, 'compress');
+
+	// Loudness Normalization writes its target as a bare index, not a symbol.
+	assert.equal(parse('LoudnessNormalization:NormalizeTo="1" RMSLevel="-18"').params.mode, 'rms');
+	assert.equal(parse('LoudnessNormalization:NormalizeTo="0"').params.mode, 'lufs');
+
+	// Change Pitch stores a percentage change in frequency, and its engine
+	// choice has no Soundscaper counterpart.
+	assert.equal(parse('ChangePitch:Percentage="100" SBSMS="1"').params.semitones, 12);
+	assert.equal(parse('ChangeTempo:Percentage="25" SBSMS="0"').params.tempoPercent, 25);
+	assert.equal(parse('ChangeSpeedAndPitch:Percentage="-30"').params.speedPercent, -30);
+
+	// Sliding Stretch writes the pitch slide as half steps and as a percentage;
+	// Audacity processes from the percentage, so that is what wins.
+	assert.equal(parse('SlidingStretch:PitchHalfStepsStart="5"').params.startPitchSemitones, 5);
+	assert.equal(parse('SlidingStretch:PitchHalfStepsStart="5" PitchPercentChangeStart="100"')
+		.params.startPitchSemitones, 12);
+
+	assert.throws(() => parseAudacityEffectMacro('Normalize:Future="1"'),
+		/Unsupported Normalize parameter: Future/);
+});
+
+test('decibel and semitone settings survive a macro round trip through Audacity units', () => {
+	for (const gainDb of [0.1, -0.9151498112, 12.3456, -37.5]) {
+		const exported = serializeAudacityEffectMacro([{ type: 'audacity-amplify', id: 'a', params: { gainDb } }]);
+		assert.equal(parseAudacityEffectMacro(exported, { idFactory: () => 'a' })
+			.effects[0].params.gainDb, gainDb);
+	}
+	for (const semitones of [3, -7.25, 0.01, 12]) {
+		const exported = serializeAudacityEffectMacro([
+			{ type: 'audacity-change-pitch', id: 'p', params: { semitones } },
+		]);
+		assert.match(exported, /^ChangePitch:Percentage="[^"]+" SBSMS="0"$/m);
+		assert.equal(parseAudacityEffectMacro(exported, { idFactory: () => 'p' })
+			.effects[0].params.semitones, semitones);
+	}
+	const sliding = serializeAudacityEffectMacro([{
+		type: 'audacity-sliding-stretch',
+		id: 's',
+		params: { startPitchSemitones: 5, endPitchSemitones: -3, startTempoPercent: 10, endTempoPercent: -20 },
+	}]);
+	assert.equal(sliding, 'SlidingStretch:RatePercentChangeStart="10" RatePercentChangeEnd="-20"'
+		+ ' PitchHalfStepsStart="5" PitchHalfStepsEnd="-3"'
+		+ ' PitchPercentChangeStart="33.48398541700344" PitchPercentChangeEnd="-15.91035847462855"\n');
+	assert.deepEqual(parseAudacityEffectMacro(sliding, { idFactory: () => 's' }).effects[0].params, {
+		startTempoPercent: 10,
+		endTempoPercent: -20,
+		startPitchSemitones: 5,
+		endPitchSemitones: -3,
+		preserveFormants: true,
+	});
 });

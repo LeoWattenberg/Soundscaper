@@ -1,9 +1,11 @@
+import { normalizeCommandParameterName } from './audacity-command-parameters.js';
 import {
-	AUP4_REALTIME_EFFECT_PROFILES,
-	decodeAudacityRealtimeEffectParameters,
-	encodeAudacityRealtimeEffectParameters,
-} from './aup4-effects.js';
-import { isAudacityRackEffectType } from './effects.js';
+	AUDACITY_EFFECT_MACRO_COMMANDS,
+	audacityMacroEffectDefaults,
+	audacityMacroEffectProfile,
+	decodeAudacityMacroEffectParameters,
+	encodeAudacityMacroEffectParameters,
+} from './audacity-macro-commands.js';
 import {
 	createEffectMacroStep,
 	isEffectMacroStepType,
@@ -24,22 +26,7 @@ const GRAPHIC_EQ_FREQUENCIES = Object.freeze([
 	10_000, 12_500, 16_000, 20_000,
 ]);
 
-export const AUDACITY_EFFECT_MACRO_COMMANDS = Object.freeze({
-	'audacity-auto-duck': 'AutoDuck',
-	'audacity-bass-treble': 'BassAndTreble',
-	'audacity-click-removal': 'ClickRemoval',
-	'audacity-compressor': 'Compressor',
-	'audacity-distortion': 'Distortion',
-	'audacity-echo': 'Echo',
-	'audacity-filter-curve-eq': 'FilterCurve',
-	'audacity-graphic-eq': 'GraphicEq',
-	'audacity-invert': 'Invert',
-	'audacity-limiter': 'Limiter',
-	'audacity-noise-reduction': 'NoiseReduction',
-	'audacity-phaser': 'Phaser',
-	'audacity-classic-filters': 'ClassicFilters',
-	'audacity-wahwah': 'Wahwah',
-});
+export { AUDACITY_EFFECT_MACRO_COMMANDS };
 
 const EFFECT_TYPE_BY_COMMAND = new Map(Object.entries(AUDACITY_EFFECT_MACRO_COMMANDS)
 	.map(([type, command]) => [command, type]));
@@ -63,15 +50,10 @@ export function serializeAudacityEffectMacro(effects) {
 	for (const effect of effects) {
 		if (effect?.enabled === false) continue;
 		const normalized = normalizeEffectMacroStep(effect);
-		if (normalized.type === 'audacity-noise-reduction') {
-			// Audacity's macro command stores only a preset reference for Noise
-			// Reduction, not the actual automation settings.
-			lines.push(formatSoundscaperEffect(normalized));
-		} else if (isAudacityRackEffectType(normalized.type)) {
-			const command = AUDACITY_EFFECT_MACRO_COMMANDS[normalized.type];
-			if (!command) throw new RangeError(`Unsupported Audacity macro effect: ${normalized.type}.`);
-			const parameters = encodeAudacityRealtimeEffectParameters(normalized.type, normalized.params)
-				.map(([name, value]) => [macroParameterName(name), value]);
+		const command = audacityMacroCommand(normalized.type);
+		if (command) {
+			const parameters = encodeAudacityMacroEffectParameters(normalized.type, normalized.params)
+				.map(([name, value]) => [normalizeCommandParameterName(name), value]);
 			lines.push(formatMacroLine(command, parameters));
 		} else {
 			if (!isEffectMacroStepType(normalized.type)) {
@@ -208,15 +190,29 @@ export function normalizeEffectMacroDraft(value, options = {}) {
 	return Object.freeze({ id, name, effects: Object.freeze(effects) });
 }
 
+/**
+ * The Audacity command a step travels as, or null when it has to travel as a
+ * namespaced extension line. Noise Reduction has an Audacity command, but that
+ * command stores only a preset reference rather than the automation settings,
+ * so its settings need the extension.
+ */
+function audacityMacroCommand(type) {
+	if (type === 'audacity-noise-reduction') return null;
+	return AUDACITY_EFFECT_MACRO_COMMANDS[type] ?? null;
+}
+
 function parseAudacityEffect(type, command, fields) {
 	if (fields.has('Use_Preset')) {
 		const preset = fields.get('Use_Preset');
 		throw new RangeError(`${command} references unresolved Audacity preset ${JSON.stringify(preset)}; its settings are not stored in the macro text.`);
 	}
-	const profile = AUP4_REALTIME_EFFECT_PROFILES[type];
-	const nativeNameByMacroName = new Map(profile.params.map((descriptor) => [
-		macroParameterName(descriptor.native), descriptor.native,
-	]));
+	const profile = audacityMacroEffectProfile(type);
+	const nativeNameByMacroName = new Map();
+	for (const descriptor of profile.params) {
+		for (const name of [descriptor.native, ...(descriptor.legacyNatives ?? [])]) {
+			nativeNameByMacroName.set(normalizeCommandParameterName(name), descriptor.native);
+		}
+	}
 	const native = new Map();
 	for (const [name, rawValue] of fields) {
 		const nativeName = nativeNameByMacroName.get(name);
@@ -233,10 +229,13 @@ function parseAudacityEffect(type, command, fields) {
 		throw new RangeError(`Unsupported ${command} parameter: ${name}.`);
 	}
 	validateEqualizationParameters(type, profile, native);
-	const params = decodeAudacityRealtimeEffectParameters(type, native);
+	const params = decodeAudacityMacroEffectParameters(type, native);
 	// A fixed temporary ID validates defaults, ranges, live constraints, enums,
 	// and curves before any caller-provided ID factory is touched.
-	return createEffectMacroStep(type, { id: 'macro-parse-validation', params });
+	return createEffectMacroStep(type, {
+		id: 'macro-parse-validation',
+		params: { ...audacityMacroEffectDefaults(type), ...params },
+	});
 }
 
 function parseSoundscaperEffect(fields) {
@@ -467,10 +466,6 @@ function quoteMacroValue(value) {
 		.replace(/\\/g, '\\\\')
 		.replace(/"/g, '\\"')
 		.replace(/\n/g, '\\n')}"`;
-}
-
-function macroParameterName(name) {
-	return String(name).replace(/[ /\\:=]/g, '_');
 }
 
 function decimalCommaValue(value) {

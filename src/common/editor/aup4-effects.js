@@ -9,6 +9,18 @@ import {
 	createMissingEffect,
 	normalizeEffect,
 } from './effects.js';
+import {
+	booleanParam,
+	booleanValue,
+	boundedIndex,
+	decodeCommandParameters,
+	encodeCommandParameters,
+	enumParam,
+	finiteNumber,
+	numberParam,
+	parameterEntries,
+	stableNumberString,
+} from './audacity-command-parameters.js';
 
 const AUDACITY_EFFECT_ID_PREFIX = 'Effect_Audacity_Audacity_';
 const AUDACITY_EFFECT_PATH_PREFIX = 'Built-in Effect: ';
@@ -46,27 +58,6 @@ const FILTER_DIRECTIONS = Object.freeze(['lowpass', 'highpass']);
 const FILTER_NATIVE_DIRECTIONS = Object.freeze(['Lowpass', 'Highpass']);
 const EQ_INTERPOLATIONS = Object.freeze(['bspline', 'cosine', 'cubic']);
 const EQ_NATIVE_INTERPOLATIONS = Object.freeze(['B-spline', 'Cosine', 'Cubic']);
-
-const numberParam = (model, native = model) => ({ model, native, kind: 'number', decode: finiteNumber });
-const booleanParam = (model, native = model) => ({ model, native, kind: 'boolean', encode: booleanString, decode: booleanValue });
-const enumParam = (model, native, values, nativeValues) => ({
-	model,
-	native,
-	kind: 'enum',
-	encode: (value) => {
-		const index = values.indexOf(value);
-		if (index < 0) throw new RangeError(`Unsupported ${native} value: ${value}.`);
-		return nativeValues[index];
-	},
-	decode: (value) => {
-		const text = String(value);
-		let index = nativeValues.indexOf(text);
-		// Browser builds before the pinned-id audit wrote enum indexes. Continue
-		// reading those files, but always emit Audacity's symbolic identifiers.
-		if (index < 0) index = boundedIndex(text, values.length);
-		return index === undefined ? undefined : values[index];
-	},
-});
 
 // These names and symbols are the stable CommandParameters representation
 // written by RealtimeEffectState at the pinned Audacity revision. Keeping the
@@ -218,15 +209,7 @@ export function canEncodeAup4NativeRealtimeEffect(effect) {
  */
 export function encodeAudacityRealtimeEffectParameters(type, params = {}) {
 	const profile = requireRealtimeEffectProfile(type);
-	const output = [];
-	for (const descriptor of profile.params) {
-		const raw = descriptor.constant ?? params[descriptor.model];
-		if (raw === undefined) continue;
-		output.push([
-			descriptor.native,
-			descriptor.encode ? descriptor.encode(raw) : stableNumberString(raw),
-		]);
-	}
+	const output = encodeCommandParameters(profile, params);
 	appendEqualizationPoints(profile, params, output);
 	return Object.freeze(output.map((entry) => Object.freeze(entry)));
 }
@@ -240,17 +223,7 @@ export function encodeAudacityRealtimeEffectParameters(type, params = {}) {
 export function decodeAudacityRealtimeEffectParameters(type, parameters) {
 	const profile = requireRealtimeEffectProfile(type);
 	const nativeParams = parameterEntries(parameters);
-	const params = {};
-	for (const descriptor of profile.params) {
-		if (!descriptor.model || !nativeParams.has(descriptor.native)) continue;
-		const value = descriptor.decode
-			? descriptor.decode(nativeParams.get(descriptor.native))
-			: nativeParams.get(descriptor.native);
-		if (value === undefined) {
-			throw new RangeError(`Invalid Audacity effect parameter: ${descriptor.native}.`);
-		}
-		params[descriptor.model] = value;
-	}
+	const params = decodeCommandParameters(profile, nativeParams);
 	readEqualizationPoints(profile, nativeParams, params);
 	return params;
 }
@@ -713,13 +686,6 @@ function requireRealtimeEffectProfile(type) {
 	return profile;
 }
 
-function parameterEntries(value) {
-	if (value instanceof Map) return new Map(value);
-	if (Array.isArray(value)) return new Map(value);
-	if (value && typeof value === 'object') return new Map(Object.entries(value));
-	throw new TypeError('Audacity effect parameters must be a map, object, or entry list.');
-}
-
 function nativeEffectId(symbol) {
 	return `${AUDACITY_EFFECT_ID_PREFIX}${symbol}_${AUDACITY_EFFECT_PATH_PREFIX}${symbol}`;
 }
@@ -738,39 +704,6 @@ function mergeAttributes(generated, opaqueContent) {
 	}
 	for (const entry of generated) if (!used.has(entry.name)) output.push(entry);
 	return output;
-}
-
-function stableNumberString(value) {
-	const number = Number(value);
-	if (!Number.isFinite(number)) throw new RangeError('AUP4 realtime effect parameters must be finite.');
-	return Object.is(number, -0) ? '0' : String(number);
-}
-
-function finiteNumber(value) {
-	const text = String(value).trim();
-	if (!text || text.length > 128) return undefined;
-	const number = Number(text);
-	return Number.isFinite(number) ? number : undefined;
-}
-
-function booleanString(value) {
-	return value ? '1' : '0';
-}
-
-function booleanValue(value) {
-	if (value === true || value === 1) return true;
-	if (value === false || value === 0) return false;
-	const text = String(value).trim().toLowerCase();
-	if (text === '1' || text === 'true') return true;
-	if (text === '0' || text === 'false') return false;
-	return undefined;
-}
-
-function boundedIndex(value, length) {
-	const text = String(value).trim();
-	if (!text || text.length > 32) return undefined;
-	const number = Number(text);
-	return Number.isInteger(number) && number >= 0 && number < length ? number : undefined;
 }
 
 function booleanAttribute(node, name, fallback) {
