@@ -52,10 +52,6 @@
 			"maxLines": 829,
 			"reason": "AUP4 exporter with interoperability fixtures and release audit."
 		},
-		"src/common/editor/aup4-profile.js": {
-			"maxLines": 961,
-			"reason": "Audacity profile and plug-in metadata compatibility mapping."
-		},
 		"src/common/editor/aup4-worker.js": {
 			"maxLines": 786,
 			"reason": "Legacy worker-side AUP4 database command boundary."

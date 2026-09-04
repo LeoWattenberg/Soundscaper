@@ -1,8 +1,32 @@
 import { audacityXmlAttribute, audacityXmlChildren, createAudacityXmlNode } from './audacity-binary-xml.js';
 import { createAup4EffectsNode } from './aup4-effects.js';
-import { rehydrateAup4OpaqueInt64Attribute } from './aup4-opaque-persistence.ts';
+import {
+	attribute,
+	mergeAttributes,
+	mergeOpaqueChildren,
+	stripUnsupportedNestedWaveClips,
+} from './aup4-opaque-merge.js';
+import {
+	AUP4_APPLICATION_ID,
+	AUP4_AUDACITY_VERSION,
+	AUP4_BINARY_XML_VERSION,
+	AUP4_USER_VERSION,
+	Aup4Error,
+	cloneCompatibilityValue,
+	compareVersion,
+	finite,
+	finiteInRange,
+	integerInRange,
+	positiveRate,
+} from './aup4-profile-values.js';
 import { sanitizeAup4ProjectRoot } from './aup4-sanitization.js';
 import { nativeAup4TimeSignatureDenominator } from './aup4-time-signature.ts';
+import {
+	createLabelTrackNode,
+	createMetadataNode,
+	createWaveTrackNode,
+	trackChannelCount,
+} from './aup4-track-nodes.js';
 import {
 	AUDIO_EDITOR_SNAP_UPSTREAM_MAX,
 	audioEditorSnapGrid,
@@ -13,17 +37,20 @@ import {
 	secondsToSampleFrame as secondsToFrames,
 } from './timeline-time.ts';
 
-export const AUP4_APPLICATION_ID = 0x41554459;
-export const AUP4_USER_VERSION = 0x04000001;
-export const AUP4_BINARY_XML_VERSION = '2.0.0';
-export const AUP4_AUDACITY_VERSION = '4.0.0';
-export const AUP4_SAMPLE_FORMAT_FLOAT32 = 0x0004000f;
-export const AUP4_MAX_BLOCK_SAMPLES = 262_144;
-export const AUP4_HISTORY_DEPTH = 10;
-export const AUP4_UPSTREAM_COMMIT = '4c177d436e48c1d20f231eada44035593cb26292';
-const FLOAT32_MAX = 3.4028234663852886e38;
+export {
+	AUP4_APPLICATION_ID,
+	AUP4_AUDACITY_VERSION,
+	AUP4_BINARY_XML_VERSION,
+	AUP4_HISTORY_DEPTH,
+	AUP4_MAX_BLOCK_SAMPLES,
+	AUP4_SAMPLE_FORMAT_FLOAT32,
+	AUP4_UPSTREAM_COMMIT,
+	AUP4_USER_VERSION,
+	Aup4Error,
+} from './aup4-profile-values.js';
+export { createAup4SampleBlock, decodeAup4Float32Samples } from './aup4-sample-block.js';
+
 const AUP4_COMPATIBILITY_DISPOSITIONS = new Set(['preserved', 'converted', 'missing', 'omitted']);
-const OMIT_OPAQUE_CHILD = Symbol('omit opaque AUP4 child');
 
 export const AUP4_SCHEMA_SQL = `
 	PRAGMA application_id = ${AUP4_APPLICATION_ID};
@@ -64,14 +91,6 @@ export const AUP4_ALLOWED_USER_SCHEMA = Object.freeze({
 	project_history: Object.freeze(['generation', 'saved_at', 'dict', 'doc']),
 });
 
-export class Aup4Error extends Error {
-	constructor(message, code = 'AUP4_ERROR', options) {
-		super(message, options);
-		this.name = 'Aup4Error';
-		this.code = code;
-	}
-}
-
 export function createAup4CompatibilityReport(direction, legacy = {}) {
 	if (direction !== 'open' && direction !== 'save') throw new TypeError('AUP4 compatibility direction must be open or save.');
 	const items = Array.isArray(legacy.items) ? legacy.items.map(cloneCompatibilityValue) : [];
@@ -110,97 +129,6 @@ export function addAup4CompatibilityItem(report, item) {
 	report.items.push(normalized);
 	report.counts[normalized.disposition] += 1;
 	return normalized;
-}
-
-export function createAup4SampleBlock(input) {
-	const samples = normalizeSamples(input);
-	if (!samples.length || samples.length > AUP4_MAX_BLOCK_SAMPLES) {
-		throw new Aup4Error(`AUP4 sample blocks must contain 1 to ${AUP4_MAX_BLOCK_SAMPLES} samples.`, 'INVALID_SAMPLE_COUNT');
-	}
-	const frames64k = Math.ceil(samples.length / 65_536);
-	const frames256 = frames64k * 256;
-	const usefulFrames256 = Math.ceil(samples.length / 256);
-	const summary256 = new Float32Array(frames256 * 3);
-	let totalSquares = 0;
-	let fraction = 0;
-	let usefulFinalSummaries = 256;
-
-	for (let frame = 0; frame < usefulFrames256; frame += 1) {
-		const start = frame * 256;
-		const count = Math.min(256, samples.length - start);
-		let minimum = samples[start];
-		let maximum = samples[start];
-		let squareSum = Math.fround(Math.fround(minimum) * Math.fround(minimum));
-		if (count < 256) fraction = 1 - count / 256;
-		for (let index = 1; index < count; index += 1) {
-			const sample = samples[start + index];
-			squareSum = Math.fround(squareSum + Math.fround(sample * sample));
-			if (sample < minimum) minimum = sample;
-			else if (sample > maximum) maximum = sample;
-		}
-		totalSquares += squareSum;
-		const offset = frame * 3;
-		summary256[offset] = minimum;
-		summary256[offset + 1] = maximum;
-		summary256[offset + 2] = Math.fround(Math.sqrt(squareSum / count));
-	}
-
-	for (let frame = usefulFrames256; frame < frames256; frame += 1) {
-		usefulFinalSummaries -= 1;
-		const offset = frame * 3;
-		summary256[offset] = FLOAT32_MAX;
-		summary256[offset + 1] = -FLOAT32_MAX;
-		summary256[offset + 2] = 0;
-	}
-
-	const summary64k = new Float32Array(frames64k * 3);
-	for (let frame = 0; frame < frames64k; frame += 1) {
-		const start = frame * 256 * 3;
-		let minimum = summary256[start];
-		let maximum = summary256[start + 1];
-		let squareSum = Math.fround(summary256[start + 2] * summary256[start + 2]);
-		for (let index = 1; index < 256; index += 1) {
-			const offset = start + index * 3;
-			if (summary256[offset] < minimum) minimum = summary256[offset];
-			if (summary256[offset + 1] > maximum) maximum = summary256[offset + 1];
-			const rms = summary256[offset + 2];
-			squareSum = Math.fround(squareSum + Math.fround(rms * rms));
-		}
-		const denominator = frame < frames64k - 1 ? 256 : usefulFinalSummaries - fraction;
-		const offset = frame * 3;
-		summary64k[offset] = minimum;
-		summary64k[offset + 1] = maximum;
-		summary64k[offset + 2] = Math.fround(Math.sqrt(squareSum / denominator));
-	}
-
-	let summin = summary64k[0];
-	let summax = summary64k[1];
-	for (let frame = 1; frame < frames64k; frame += 1) {
-		summin = Math.min(summin, summary64k[frame * 3]);
-		summax = Math.max(summax, summary64k[frame * 3 + 1]);
-	}
-	return {
-		sampleformat: AUP4_SAMPLE_FORMAT_FLOAT32,
-		summin,
-		summax,
-		sumrms: Math.sqrt(totalSquares / samples.length),
-		summary256: float32ToLittleEndianBytes(summary256),
-		summary64k: float32ToLittleEndianBytes(summary64k),
-		samples: float32ToLittleEndianBytes(samples),
-		sampleCount: samples.length,
-	};
-}
-
-export function decodeAup4Float32Samples(input) {
-	const bytes = toBytes(input);
-	if (bytes.byteLength % 4) throw new Aup4Error('AUP4 Float32 sample data is not 4-byte aligned.', 'INVALID_SAMPLE_BLOCK');
-	const output = new Float32Array(bytes.byteLength / 4);
-	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-	for (let index = 0; index < output.length; index += 1) {
-		const value = view.getFloat32(index * 4, true);
-		output[index] = Number.isFinite(value) ? value : 0;
-	}
-	return output;
 }
 
 export function getAup4SaveLimit(options = {}) {
@@ -403,454 +331,6 @@ export function readAup4ProjectSummary(root) {
 	};
 }
 
-function createWaveTrackNode(project, track, channel, channelBlocks, projectRate, selectedTrackIds, selectedClipIds, groupNumbers) {
-	const channelCount = trackChannelCount(project, track);
-	const trackRate = trackSampleRate(project, track, projectRate);
-	const opaqueTrack = track.opaqueExtensions?.aup4WaveTracks?.[channel]?.node;
-	const importedColor = track.opaqueExtensions?.aup4TrackColor;
-	const nativeColorIndex = Number.isSafeInteger(importedColor?.value)
-		&& track.color === importedColor.color
-		? importedColor.value
-		: colorIndex(track.color, audacityXmlAttribute(opaqueTrack, 'colorindex', 0));
-	const attributes = mergeAttributes([
-		attribute('name', 'string', String(track.name || 'Audio Track')),
-		attribute('isSelected', 'bool', selectedTrackIds.has(track.id)),
-		attribute('isFocused', 'bool', false),
-		attribute('colorindex', 'int', nativeColorIndex),
-		attribute('height', 'int', track.collapsed ? 40 : Math.max(40, Math.round(finite(track.height, 160)))),
-		attribute('rulerType', 'int', 0),
-		attribute('trackViewType', 'int', displayType(track.displayMode || track.display)),
-		attribute('syncWithGlobalSettings', 'bool', track.spectrogram?.syncWithGlobal !== false),
-		// Audacity 4 stores the frequency bounds as doubles, even though its
-		// settings UI currently presents whole-Hz values.
-		attribute('minFreq', 'double', Math.max(0, finite(track.spectrogram?.minimumFrequency, 0)), -1),
-		attribute('maxFreq', 'double', Math.max(1, finite(track.spectrogram?.maximumFrequency, 20_000)), -1),
-		attribute('range', 'int', Math.round(finite(track.spectrogram?.rangeDb ?? track.spectrogram?.range, 80))),
-		attribute('gain', 'int', Math.round(finite(track.spectrogram?.gainDb ?? track.spectrogram?.gain, 20))),
-		attribute('frequencyGain', 'int', Math.round(finite(track.spectrogram?.frequencyGainDb, 0))),
-		attribute('windowType', 'int', nativeSpectrogramWindowType(track.spectrogram)),
-		attribute('windowSize', 'int', integerInRange(track.spectrogram?.windowSize, 128, 131_072, 2048)),
-		attribute('zeroPaddingFactor', 'int', integerInRange(track.spectrogram?.zeroPaddingFactor, 1, 8, 2)),
-		attribute('colorScheme', 'int', integerInRange(track.spectrogram?.colorScheme, 0, 0x7fff_ffff, 0)),
-		attribute('scaleType', 'int', nativeSpectrogramScaleType(track.spectrogram)),
-		attribute('algorithm', 'int', integerInRange(track.spectrogram?.algorithm, 0, 0x7fff_ffff, 0)),
-		attribute('channel', 'int', channel),
-		attribute('linked', 'int', channelCount > 1 && channel === 0 ? 1 : 0),
-		attribute('mute', 'bool', Boolean(track.mute)),
-		attribute('solo', 'bool', Boolean(track.solo)),
-		attribute('rate', 'double', trackRate, -1),
-		attribute('gain', 'double', finiteInRange(track.gain, 0, 4, 1), -1),
-		attribute('pan', 'double', finiteInRange(track.pan, -1, 1, 0), -1),
-		attribute('sampleformat', 'long', AUP4_SAMPLE_FORMAT_FLOAT32),
-	], opaqueTrack?.content);
-	const generatedChildren = [];
-	const opaqueEffects = track.opaqueExtensions?.effects?.[channel];
-	if (channel === 0) {
-		generatedChildren.push({
-			key: 'effects',
-			entry: {
-				kind: 'node',
-				node: createAup4EffectsNode(track.effects, opaqueEffects?.node, {
-					effectsActive: track.effectsActive,
-				}),
-			},
-		});
-	} else if (opaqueEffects?.kind === 'node') {
-		// Native files normally attach the group rack to the leader channel. Keep
-		// an unexpected follower-channel rack opaque instead of shifting or losing it.
-		generatedChildren.push({ key: 'effects', entry: cloneXmlEntry(opaqueEffects) });
-	}
-	for (const clipId of track.clipIds || []) {
-		const clip = project.clips.find((candidate) => candidate.id === clipId);
-		if (clip) generatedChildren.push({
-			key: 'waveclip',
-			entry: { kind: 'node', node: createWaveClipNode(project, clip, channel, channelBlocks, trackRate, projectRate, selectedClipIds, groupNumbers) },
-		});
-	}
-	let matchedEffects = false;
-	const children = mergeOpaqueChildren(opaqueTrack, generatedChildren, (entry) => {
-		if (entry.kind !== 'node') return null;
-		if (entry.node?.name === 'waveclip') return 'waveclip';
-		if (entry.node?.name !== 'effects' || matchedEffects) return null;
-		matchedEffects = true;
-		return 'effects';
-	});
-	const content = [...attributes, ...children];
-	return createAudacityXmlNode('wavetrack', [], content);
-}
-
-function createWaveClipNode(project, clip, channel, channelBlocks, rate, projectRate, selectedClipIds, groupNumbers) {
-	const blocks = channelBlocks.get(`${clip.id}:${channel}`)
-		|| channelBlocks.get(`${clip.sourceId}:${channel}`)
-		|| channelBlocks.get(clip.id)
-		|| channelBlocks.get(clip.sourceId)
-		|| [];
-	const opaqueChannelClips = clip.opaqueExtensions?.aup4WaveClips;
-	const opaqueClip = Array.isArray(opaqueChannelClips)
-		? opaqueChannelClips[channel]?.node
-		: clip.opaqueExtensions?.aup4WaveClip?.node;
-	const source = project.sources?.find((candidate) => candidate.id === clip.sourceId);
-	const duration = Math.max(0, Number(clip.durationFrames || 0));
-	const sourceDuration = Math.max(0, Number(clip.sourceDurationFrames || duration));
-	const sequenceSamples = blocks.reduce((total, block) => total + Number(block.sampleCount || 0), 0) || Number(source?.frameCount || duration);
-	const trimStartFrames = Math.max(0, Number(clip.sourceStartFrame ?? clip.trimStartFrames ?? 0));
-	const trimEndFrames = Math.max(0, sequenceSamples - trimStartFrames - sourceDuration);
-	const modelStretchRatio = sourceDuration > 0 && duration > 0
-		? duration / projectRate * rate / sourceDuration
-		: Number.NaN;
-	const stretchRatio = finiteInRange(modelStretchRatio, 0.001, 1000,
-		finiteInRange(clip.stretchRatio ?? clip.timeRatio ?? inverseRatio(clip.speedRatio), 0.001, 1000, 1));
-	const clipTempo = optionalFiniteInRange(clip.tempo, 1, 999)
-		?? optionalFiniteInRange(audacityXmlAttribute(opaqueClip, 'clipTempo', null), 1, 999);
-	const rawAudioTempo = optionalFiniteInRange(clip.rawAudioTempo, 1, 999)
-		?? optionalFiniteInRange(audacityXmlAttribute(opaqueClip, 'rawAudioTempo', null), 1, 999);
-	const tempoStretchRatio = clipTempo != null && rawAudioTempo != null ? rawAudioTempo / clipTempo : 1;
-	const storedStretchRatio = stretchRatio / tempoStretchRatio;
-	const trimLeftSeconds = trimStartFrames * stretchRatio / rate;
-	const trimRightSeconds = trimEndFrames * stretchRatio / rate;
-	const visibleStartSeconds = framesToSeconds(clip.timelineStartFrame, projectRate);
-	const opaqueSequence = audacityXmlChildren(opaqueClip, 'sequence')[0];
-	const sequenceAttributes = [
-		attribute('maxsamples', 'size-t', AUP4_MAX_BLOCK_SAMPLES),
-		attribute('sampleformat', 'size-t', AUP4_SAMPLE_FORMAT_FLOAT32),
-		attribute('effectivesampleformat', 'size-t', AUP4_SAMPLE_FORMAT_FLOAT32),
-		attribute('numsamples', 'long-long', sequenceSamples),
-	];
-	const generatedWaveBlocks = [];
-	let start = 0;
-	for (const block of blocks) {
-		const sampleCount = nonNegativeInteger(block.sampleCount, 0);
-		generatedWaveBlocks.push({
-			key: 'waveblock',
-			entry: { kind: 'node', node: createAudacityXmlNode('waveblock', [
-				attribute('start', 'long-long', Number(block.start ?? start)),
-				attribute('length', 'long-long', sampleCount),
-				attribute('blockid', 'long-long', block.blockId),
-			]) },
-		});
-		start += sampleCount;
-	}
-	const sequenceNode = createAudacityXmlNode(
-		'sequence',
-		mergeAttributes(sequenceAttributes, opaqueSequence?.content),
-		mergeOpaqueChildren(opaqueSequence, generatedWaveBlocks, (entry) => (
-			entry.kind === 'node' && entry.node?.name === 'waveblock' ? 'waveblock' : null
-		)),
-	);
-	const modelEnvelopePoints = Array.isArray(clip.envelope) ? clip.envelope : [];
-	const opaqueEnvelope = audacityXmlChildren(opaqueClip, 'envelope')[0];
-	const importedEnvelope = clip.opaqueExtensions?.aup4Envelope;
-	const preserveImportedEnvelope = importedEnvelope?.node?.kind === 'node'
-		&& envelopePointsEqual(modelEnvelopePoints, importedEnvelope.model)
-		&& Math.abs(trimLeftSeconds - Number(importedEnvelope.trimLeftSeconds)) <= 1e-9
-		&& Number(clip.durationFrames) === Number(importedEnvelope.durationFrames);
-	const envelopePoints = nativeLinearEnvelopePoints(modelEnvelopePoints, duration);
-	const envelopeNode = preserveImportedEnvelope
-		? cloneXmlEntry(importedEnvelope.node).node
-		: createAudacityXmlNode(
-			'envelope',
-			mergeAttributes([
-				attribute('numpoints', 'size-t', envelopePoints.length),
-			], opaqueEnvelope?.content),
-			mergeOpaqueChildren(opaqueEnvelope, envelopePoints.map((point) => ({
-				key: 'controlpoint',
-				entry: { kind: 'node', node: createAudacityXmlNode('controlpoint', [
-					attribute('t', 'double', trimLeftSeconds + framesToSeconds(point.frame, projectRate), 12),
-					attribute('val', 'double', Math.max(0, Math.min(4, finite(point.value, 1))), 12),
-				]) },
-			})), (entry) => (
-				entry.kind === 'node' && entry.node?.name === 'controlpoint' ? 'controlpoint' : null
-			)),
-		);
-	const importedPitchPreset = clip.opaqueExtensions?.aup4PitchAndSpeedPreset;
-	const preserveImportedPitchPreset = Number.isSafeInteger(importedPitchPreset?.value)
-		&& importedPitchPreset.value >= 0
-		&& importedPitchPreset.value <= 0x7fff_ffff
-		&& Boolean(clip.preserveFormants) === Boolean(importedPitchPreset.preserveFormants);
-	const pitchAndSpeedPreset = preserveImportedPitchPreset
-		? importedPitchPreset.value
-		: (clip.preserveFormants ? 1 : 0);
-	const clipAttributes = [
-		attribute('offset', 'double', visibleStartSeconds - trimLeftSeconds, 8),
-		attribute('trimLeft', 'double', trimLeftSeconds, 8),
-		attribute('trimRight', 'double', trimRightSeconds, 8),
-		attribute('centShift', 'double', finiteInRange(clip.pitchCents, -1200, 1200, 0), -1),
-		attribute('pitchAndSpeedPreset', 'long', pitchAndSpeedPreset),
-		attribute('clipStretchRatio', 'double', storedStretchRatio, 8),
-		attribute('clipStretchToMatchTempo', 'bool', clip.stretchToTempo == null
-			? Boolean(audacityXmlAttribute(opaqueClip, 'clipStretchToMatchTempo', false))
-			: Boolean(clip.stretchToTempo)),
-		attribute('name', 'string', String(clip.name || clip.title || 'Audio')),
-		attribute('groupId', 'long', groupNumbers.get(clip.groupId) ?? -1),
-		attribute('colorindex', 'int', colorIndex(clip.color, audacityXmlAttribute(opaqueClip, 'colorindex', 0))),
-		attribute('isSelected', 'bool', selectedClipIds.has(clip.id)),
-	];
-	if (clipTempo != null) clipAttributes.push(attribute('clipTempo', 'double', clipTempo, 8));
-	if (rawAudioTempo != null) clipAttributes.push(attribute('rawAudioTempo', 'double', rawAudioTempo, 8));
-	const clipContent = mergeOpaqueChildren(opaqueClip, [
-		{ key: 'sequence', entry: { kind: 'node', node: sequenceNode } },
-		{ key: 'envelope', entry: { kind: 'node', node: envelopeNode } },
-	], (entry) => {
-		if (entry.kind !== 'node') return null;
-		if (entry.node?.name === 'waveclip') return OMIT_OPAQUE_CHILD;
-		if (entry.node?.name === 'sequence') return 'sequence';
-		if (entry.node?.name === 'envelope') return 'envelope';
-		return null;
-	});
-	return createAudacityXmlNode('waveclip', mergeAttributes(clipAttributes, opaqueClip?.content), clipContent);
-}
-
-function createLabelTrackNode(track, sampleRate, selectedTrackIds) {
-	const opaqueTrack = track.opaqueExtensions?.aup4LabelTrack?.node;
-	const attributes = mergeAttributes([
-		attribute('name', 'string', String(track.name || 'Labels')),
-		attribute('isSelected', 'bool', selectedTrackIds.has(track.id)),
-		attribute('isFocused', 'bool', false),
-		attribute('height', 'int', track.collapsed ? 40 : Math.max(40, Math.round(finite(track.height, 96)))),
-		attribute('numlabels', 'int', (track.labels || []).length),
-	], opaqueTrack?.content);
-	const generatedLabels = [];
-	for (const label of track.labels || []) {
-		const opaqueLabel = label.opaqueExtensions?.aup4Label?.node;
-		generatedLabels.push({
-			key: 'label',
-			entry: { kind: 'node', node: createAudacityXmlNode('label', mergeAttributes([
-				attribute('t', 'double', framesToSeconds(label.startFrame, sampleRate), 10),
-				attribute('t1', 'double', framesToSeconds(label.endFrame ?? label.startFrame, sampleRate), 10),
-				attribute('title', 'string', String(label.text || label.title || '')),
-				attribute('isSelected', 'bool', label.selected == null
-					? Boolean(audacityXmlAttribute(opaqueLabel, 'isSelected', false))
-					: Boolean(label.selected)),
-			], opaqueLabel?.content), opaqueChildren(opaqueLabel)) },
-		});
-	}
-	const content = [
-		...attributes,
-		...mergeOpaqueChildren(opaqueTrack, generatedLabels, (entry) => (
-			entry.kind === 'node' && entry.node?.name === 'label' ? 'label' : null
-		)),
-	];
-	return createAudacityXmlNode('labeltrack', [], content);
-}
-
-function createMetadataNode(metadata = {}, opaqueTags = null) {
-	const generatedTags = [];
-	const standard = {
-		TITLE: metadata.title,
-		ARTIST: metadata.artist,
-		ALBUM: metadata.album,
-		TRACKNUMBER: metadata.trackNumber,
-		YEAR: metadata.year,
-		COMMENTS: metadata.comments,
-	};
-	const entries = new Map(Object.entries(metadata.tags || {}).map(([name, value]) => [String(name).toUpperCase(), value]));
-	for (const [name, value] of Object.entries(standard)) if (value != null && value !== '') entries.set(name, value);
-	for (const [name, value] of entries) {
-		if (value == null || value === '') continue;
-		const canonicalName = String(name).toUpperCase();
-		generatedTags.push({
-			key: `tag:${canonicalName}`,
-			entry: { kind: 'node', node: createAudacityXmlNode('tag', [
-				attribute('name', 'string', canonicalName),
-				attribute('value', 'string', String(value)),
-			]) },
-		});
-	}
-	const content = mergeOpaqueChildren(opaqueTags, generatedTags, (entry) => {
-		if (entry.kind !== 'node' || entry.node?.name !== 'tag') return null;
-		return `tag:${String(audacityXmlAttribute(entry.node, 'name', '')).toUpperCase()}`;
-	});
-	return {
-		kind: 'node',
-		node: createAudacityXmlNode('tags', mergeAttributes([], opaqueTags?.content), content),
-	};
-}
-
-function attribute(name, type, value, digits) {
-	return { kind: 'attribute', name, type, value, ...(digits == null ? {} : { digits }) };
-}
-
-function mergeAttributes(generated, opaqueContent) {
-	const generatedByName = new Map();
-	for (let index = 0; index < generated.length; index += 1) {
-		const entry = generated[index];
-		const indexes = generatedByName.get(entry.name) || [];
-		indexes.push(index);
-		generatedByName.set(entry.name, indexes);
-	}
-	const consumed = new Set();
-	const output = [];
-	for (const entry of opaqueContent || []) {
-		if (entry?.kind !== 'attribute') continue;
-		const indexes = generatedByName.get(entry.name);
-		if (!indexes) {
-			output.push(cloneXmlEntry(entry));
-			continue;
-		}
-		const replacement = indexes.find((index) => !consumed.has(index));
-		if (replacement == null) continue;
-		consumed.add(replacement);
-		output.push(generated[replacement]);
-	}
-	for (let index = 0; index < generated.length; index += 1) {
-		if (!consumed.has(index)) output.push(generated[index]);
-	}
-	return output;
-}
-
-function appendOpaqueChildren(content, opaqueNode, excludedNames = new Set()) {
-	for (const entry of opaqueNode?.content || []) {
-		if (entry?.kind === 'attribute') continue;
-		if (entry?.kind === 'node' && excludedNames.has(entry.node?.name)) continue;
-		content.push(cloneXmlEntry(entry));
-	}
-}
-
-function mergeOpaqueChildren(opaqueNode, generated, keyForOpaque) {
-	const descriptors = generated || [];
-	if (!opaqueNode) return descriptors.map((descriptor) => descriptor.entry);
-	const queues = new Map();
-	for (const descriptor of descriptors) {
-		const queue = queues.get(descriptor.key) || [];
-		queue.push(descriptor);
-		queues.set(descriptor.key, queue);
-	}
-	const consumed = new Set();
-	const output = [];
-	for (const [index, entry] of (opaqueNode.content || []).entries()) {
-		if (entry?.kind === 'attribute') continue;
-		const key = keyForOpaque(entry, index);
-		if (key === OMIT_OPAQUE_CHILD) continue;
-		if (key != null) {
-			const descriptor = queues.get(key)?.shift();
-			if (descriptor) {
-				consumed.add(descriptor);
-				output.push(descriptor.entry);
-			}
-			// A modeled child which no longer has a generated counterpart was
-			// deleted. Never resurrect its stale opaque subtree.
-			continue;
-		}
-		output.push(cloneXmlEntry(entry));
-	}
-	for (const descriptor of descriptors) {
-		if (!consumed.has(descriptor)) output.push(descriptor.entry);
-	}
-	return output;
-}
-
-function opaqueChildren(node) {
-	const output = [];
-	appendOpaqueChildren(output, node);
-	return output;
-}
-
-function cloneXmlEntry(entry) {
-	const int64 = rehydrateAup4OpaqueInt64Attribute(entry);
-	if (int64) return int64;
-	if (typeof structuredClone === 'function') return structuredClone(entry);
-	if (entry?.value instanceof Uint8Array) return { ...entry, value: entry.value.slice() };
-	if (entry?.kind === 'node') return { kind: 'node', node: createAudacityXmlNode(entry.node.name, [], (entry.node.content || []).map(cloneXmlEntry)) };
-	return { ...entry };
-}
-
-function stripUnsupportedNestedWaveClips(root) {
-	const visit = (node, directProjectWaveTrack = false) => ({
-		...node,
-		content: (node.content || []).flatMap((entry) => {
-			if (entry?.kind !== 'node') return [cloneXmlEntry(entry)];
-			if (entry.node?.name === 'waveclip') {
-				return directProjectWaveTrack ? [{
-					kind: 'node',
-					node: visit(entry.node, false),
-				}] : [];
-			}
-			return [{
-				kind: 'node',
-				node: visit(entry.node, node.name === 'project' && entry.node?.name === 'wavetrack'),
-			}];
-		}),
-	});
-	return visit(root);
-}
-
-function cloneCompatibilityValue(value) {
-	if (value === undefined || value === null) return value;
-	if (typeof structuredClone === 'function') return structuredClone(value);
-	return JSON.parse(JSON.stringify(value));
-}
-
-function colorIndex(value, fallback) {
-	const number = Number(value);
-	if (Number.isSafeInteger(number) && number >= 0 && number <= 3) return number;
-	const colors = new Map([
-		['#66a3ff', 0], ['#9996fc', 1], ['#b5b5b5', 2], ['#ffad51', 3],
-	]);
-	return colors.get(String(value || '').toLowerCase()) ?? fallback;
-}
-
-function float32ToLittleEndianBytes(values) {
-	const bytes = new Uint8Array(values.length * 4);
-	const view = new DataView(bytes.buffer);
-	for (let index = 0; index < values.length; index += 1) view.setFloat32(index * 4, values[index], true);
-	return bytes;
-}
-
-function normalizeSamples(input) {
-	if (input instanceof Float32Array) {
-		if (input.every(Number.isFinite)) return input;
-		return Float32Array.from(input, (value) => Number.isFinite(value) ? value : 0);
-	}
-	if (ArrayBuffer.isView(input) || Array.isArray(input)) return Float32Array.from(input, (value) => Number.isFinite(Number(value)) ? Number(value) : 0);
-	throw new TypeError('A Float32 sample array is required.');
-}
-
-function toBytes(value) {
-	if (value instanceof Uint8Array) return value;
-	if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
-	if (value instanceof ArrayBuffer) return new Uint8Array(value);
-	throw new TypeError('Binary sample data is required.');
-}
-
-function compareVersion(left, right) {
-	const a = String(left).split('.').map(Number);
-	const b = String(right).split('.').map(Number);
-	for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
-		const difference = (a[index] || 0) - (b[index] || 0);
-		if (difference) return difference;
-	}
-	return 0;
-}
-
-function positiveRate(value) {
-	const rate = Number(value);
-	if (!Number.isFinite(rate) || rate < 1 || rate > 768_000) throw new Aup4Error('Audacity sample rate is invalid.', 'INVALID_SAMPLE_RATE');
-	return Math.round(rate);
-}
-
-function finite(value, fallback) { const number = Number(value); return Number.isFinite(number) ? number : fallback; }
-function finiteInRange(value, minimum, maximum, fallback) { const number = Number(value); return Number.isFinite(number) && number >= minimum && number <= maximum ? number : fallback; }
-function optionalFiniteInRange(value, minimum, maximum) { const number = Number(value); return value != null && value !== '' && Number.isFinite(number) && number >= minimum && number <= maximum ? number : null; }
-function integerInRange(value, minimum, maximum, fallback) { const number = Number(value); return Number.isSafeInteger(number) && number >= minimum && number <= maximum ? number : fallback; }
-function nonNegativeInteger(value, fallback) { const number = Number(value); return Number.isSafeInteger(number) && number >= 0 ? number : fallback; }
-function displayType(value) { return value === 'spectrogram' ? 1 : value === 'multiview' ? 2 : 0; }
-function inverseRatio(value) { const ratio = Number(value); return Number.isFinite(ratio) && ratio > 0 ? 1 / ratio : 1; }
-function envelopePointsEqual(left, right) {
-	if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
-	return left.every((point, index) => (
-		Number(point?.frame) === Number(right[index]?.frame)
-		&& Number(point?.value) === Number(right[index]?.value)
-	));
-}
-function nativeLinearEnvelopePoints(points, durationFrames) {
-	if (!points.length) return [];
-	const output = points.map((point) => ({
-		frame: Math.max(0, Math.min(durationFrames, Math.round(Number(point.frame)))),
-		value: finite(point.value, 1),
-	})).sort((left, right) => left.frame - right.frame);
-	if (output[0].frame > 0) output.unshift({ frame: 0, value: 1 });
-	return output.filter((point, index, all) => !index || point.frame > all[index - 1].frame);
-}
 function aup4SnapType(snap = {}) {
 	if (snap.type != null) return integerInRange(snap.type, 0, 255, 8);
 	const opaqueType = Number(snap.opaqueType);
@@ -872,56 +352,6 @@ function aup4FrequencySelection(value, sampleRate) {
 	const minimum = Math.min(nyquist, minimumFrequency);
 	const maximum = Math.min(nyquist, maximumFrequency);
 	return maximum > minimum ? { minimumFrequency: minimum, maximumFrequency: maximum } : null;
-}
-function nativeSpectrogramScaleType(spectrogram = {}) {
-	const imported = spectrogram.aup4ScaleType;
-	if (Number.isSafeInteger(imported?.value) && spectrogram.scale === imported.model) return imported.value;
-	return new Map([
-		['linear', 0],
-		['log', 1],
-		['logarithmic', 1],
-		['mel', 2],
-		['bark', 3],
-		['erb', 4],
-		['period', 5],
-	]).get(String(spectrogram.scale || '').toLowerCase()) ?? 2;
-}
-function nativeSpectrogramWindowType(spectrogram = {}) {
-	const imported = spectrogram.aup4WindowType;
-	if (Number.isSafeInteger(imported?.value) && spectrogram.windowType === imported.model) return imported.value;
-	return new Map([
-		['hamming', 2],
-		['hann', 3],
-		['hanning', 3],
-		['blackman', 4],
-	]).get(String(spectrogram.windowType || '').toLowerCase()) ?? 3;
-}
-
-function trackChannelCount(project, track) {
-	for (const clipId of track.clipIds || []) {
-		const clip = project.clips?.find((candidate) => candidate.id === clipId);
-		const source = project.sources?.find((candidate) => candidate.id === clip?.sourceId);
-		if (Number(source?.channelCount) > 1) return 2;
-	}
-	const importedChannels = track.opaqueExtensions?.aup4WaveTracks?.length;
-	if (Number.isSafeInteger(importedChannels) && importedChannels > 1) return 2;
-	return 1;
-}
-
-function trackSampleRate(project, track, projectRate) {
-	const rates = new Set();
-	for (const clipId of track.clipIds || []) {
-		const clip = project.clips?.find((candidate) => candidate.id === clipId);
-		const source = project.sources?.find((candidate) => candidate.id === clip?.sourceId);
-		if (source?.sampleRate != null) rates.add(positiveRate(source.sampleRate));
-	}
-	if (rates.size === 1) return rates.values().next().value;
-	const importedRate = audacityXmlAttribute(
-		track.opaqueExtensions?.aup4WaveTracks?.[0]?.node,
-		'rate',
-		null,
-	);
-	return importedRate == null ? projectRate : positiveRate(importedRate);
 }
 
 function createGroupNumberMap(project) {
