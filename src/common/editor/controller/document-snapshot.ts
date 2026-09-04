@@ -154,6 +154,7 @@ export interface EditorDocumentSnapshotState {
 	readonly audacityPreviewSource: unknown;
 	readonly effectPresets: unknown;
 	readonly effectMacros: EffectMacroLibraryState;
+	readonly macroScripts?: Readonly<{ scripts: readonly Readonly<Record<string, unknown>>[] }>;
 	readonly nyquistAbort: unknown;
 	readonly nyquistResult: unknown;
 	readonly monitoring: boolean;
@@ -356,7 +357,10 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 			previewing: Boolean(state.audacityPreviewSource),
 			presets: runtime.getEffectPresets(),
 		}),
-		macros: Object.freeze({ library: state.effectMacros.macros }),
+		macros: Object.freeze({
+			library: state.effectMacros.macros,
+			scripts: state.macroScripts?.scripts ?? [],
+		}),
 		generators: Object.freeze({ canRepeatLast: Boolean(state.lastGeneratorRequest) }),
 		nyquist: Object.freeze({
 			processing: Boolean(state.nyquistAbort),

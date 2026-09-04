@@ -3,6 +3,7 @@
 import type { EditorControllerPhase } from './lifecycle.ts';
 import { createLocalDiagnosticsErrorJournal } from '../local-diagnostics-error-journal.ts';
 import { createInitialEffectMacroLibrary } from './effect-macro-library-service.ts';
+import { createInitialMacroScriptLibrary } from './macro-script-library-service.ts';
 import { createInitialStorageCapacitySnapshot } from './storage-capacity-service.ts';
 import type { TakeCyclePendingOpenRecovery } from './take-cycle-capture-orchestrator.ts';
 
@@ -130,6 +131,7 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		audacityEffectTouchedParams: new Map<string, Set<string>>(),
 		effectPresets,
 		effectMacros: createInitialEffectMacroLibrary(),
+		macroScripts: createInitialMacroScriptLibrary(),
 		rackEffectGestures: new Map<string, unknown>(),
 		parametricEqGestures: new Map<string, unknown>(),
 		videoEffectGestures: new Map<string, unknown>(),

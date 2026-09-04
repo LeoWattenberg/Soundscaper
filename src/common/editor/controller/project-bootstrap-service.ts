@@ -13,12 +13,18 @@ import {
 	type EffectMacroLibraryState,
 } from './effect-macro-library-service.ts';
 import { effectMacroLibrarySchemaIsAhead } from '../effect-macro-library.js';
+import {
+	MACRO_SCRIPT_LIBRARY_SETTING_KEY,
+	createInitialMacroScriptLibrary,
+	type MacroScriptLibraryState,
+} from './macro-script-library-service.ts';
 
 export interface ProjectBootstrapState<Preferences, EffectPresets> {
 	preferences: Preferences;
 	effectPresets: EffectPresets;
 	effectMacros: EffectMacroLibraryState;
 	effectMacrosReadOnly?: boolean;
+	macroScripts: MacroScriptLibraryState;
 	deliveryPresets: DeliveryPresetState;
 	monitoring: boolean;
 	microphoneMetering: boolean;
@@ -182,6 +188,17 @@ export function createProjectBootstrapService<
 		} catch (error) {
 			if (runtime.isDisposedError(error)) throw error;
 			runtime.state.effectMacros = createInitialEffectMacroLibrary();
+		}
+		// Saved macro programs hydrate beside the step-list library, under their own
+		// key so an older build simply does not read them.
+		try {
+			const storedScripts = await guard(
+				runtime.store.loadSetting(MACRO_SCRIPT_LIBRARY_SETTING_KEY, null),
+			);
+			runtime.state.macroScripts = createInitialMacroScriptLibrary(storedScripts || {});
+		} catch (error) {
+			if (runtime.isDisposedError(error)) throw error;
+			runtime.state.macroScripts = createInitialMacroScriptLibrary();
 		}
 		// Delivery presets hydrate the same way effect presets do. Without this the
 		// preset service is write-only: every session starts with an empty

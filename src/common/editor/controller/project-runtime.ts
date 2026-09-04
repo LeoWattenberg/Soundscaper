@@ -25,6 +25,15 @@ const METHOD_NAMES = [
 	'createHistory', 'executeCommand', 'applyCommand', 'undo', 'redo', 'canUndo', 'canRedo',
 ] as const;
 
+/**
+ * Capabilities a runtime may carry but need not.
+ *
+ * Only a product that runs macros folds history, and the capability is fenced
+ * long before a transaction could open — so a runtime without these is complete,
+ * and one with them keeps them rather than having them snapshotted away.
+ */
+const OPTIONAL_METHOD_NAMES = ['collapseHistory', 'rollbackHistory'] as const;
+
 export interface ControllerRuntimeProject extends Record<string, unknown> {
 	readonly id: string;
 	readonly schemaVersion: number;
@@ -188,6 +197,14 @@ export function resolveControllerProjectRuntime(
 		const descriptor = Object.getOwnPropertyDescriptor(runtime, name);
 		if (!descriptor || !Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'function') {
 			throw new TypeError(`A complete controller project runtime requires ${name}.`);
+		}
+		snapshot[name] = descriptor.value;
+	}
+	for (const name of OPTIONAL_METHOD_NAMES) {
+		const descriptor = Object.getOwnPropertyDescriptor(runtime, name);
+		if (!descriptor) continue;
+		if (!Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'function') {
+			throw new TypeError(`Controller project runtime ${name} must be a function.`);
 		}
 		snapshot[name] = descriptor.value;
 	}

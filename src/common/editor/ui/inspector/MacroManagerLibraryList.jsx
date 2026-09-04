@@ -16,6 +16,7 @@ export default function MacroManagerLibraryList({
 	selectedId,
 	exportDisabled,
 	templates,
+	scripts,
 	onSelect,
 	onCreate,
 	onDelete,
@@ -48,6 +49,22 @@ export default function MacroManagerLibraryList({
 					))}
 				</ul>
 				: <p className="audio-editor-panel-hint" data-macro-library-empty>{copy.macroLibraryEmpty}</p>}
+			{scripts && <div className="audio-editor-macro-manager__programs" data-macro-programs>
+				<h3>{scripts.newProgram}</h3>
+				{scripts.entries.length ? <ul>
+					{scripts.entries.map((script) => (
+						<li key={script.id}>
+							<button
+								type="button"
+								data-macro-script-id={script.id}
+								aria-current={script.id === scripts.selectedId}
+								onClick={() => scripts.onSelect(script.id)}
+							>{script.name}</button>
+						</li>
+					))}
+				</ul> : null}
+				<Button variant="secondary" onClick={scripts.onCreate}>{scripts.newProgram}</Button>
+			</div>}
 			{templates?.entries?.length ? <div className="audio-editor-macro-manager__templates" data-macro-templates>
 				<h3>{templates.heading}</h3>
 				{templates.entries.map(({ id, label, onCreate }) => (

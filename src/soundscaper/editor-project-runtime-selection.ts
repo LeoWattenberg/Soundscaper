@@ -34,6 +34,8 @@ import {
 	undoSoundscaperProjectCommand,
 	validateSoundscaperProjectHistory,
 	type SoundscaperProjectHistory,
+	collapseSoundscaperProjectHistory,
+	rollbackSoundscaperProjectHistory,
 } from './editor-project-history.ts';
 import {
 	cloneSoundscaperProject,
@@ -95,6 +97,8 @@ export interface SoundscaperProjectRuntimeSelection {
 		command: SoundscaperProjectCommand,
 		options?: Readonly<{ now?: Date | string }>,
 	) => SoundscaperProjectHistory & ControllerRuntimeHistory;
+	readonly collapseHistory: NonNullable<ControllerProjectRuntime['collapseHistory']>;
+	readonly rollbackHistory: NonNullable<ControllerProjectRuntime['rollbackHistory']>;
 	readonly undo: ControllerProjectRuntime['undo'];
 	readonly redo: ControllerProjectRuntime['redo'];
 	readonly canUndo: ControllerProjectRuntime['canUndo'];
@@ -139,6 +143,12 @@ export function createSoundscaperProjectRuntimeSelection(): Readonly<Soundscaper
 		) => executeSoundscaperProjectCommand(
 			writableHistory(history), command, options,
 		) as SoundscaperProjectHistory & ControllerRuntimeHistory,
+		collapseHistory: ((history, depth, command) => collapseSoundscaperProjectHistory(
+			writableHistory(history as SoundscaperProjectHistorySelection), depth, command,
+		)) as NonNullable<ControllerProjectRuntime['collapseHistory']>,
+		rollbackHistory: ((history, depth, options = {}) => rollbackSoundscaperProjectHistory(
+			writableHistory(history as SoundscaperProjectHistorySelection), depth, options,
+		)) as NonNullable<ControllerProjectRuntime['rollbackHistory']>,
 		undo: (history: SoundscaperProjectHistorySelection, options = {}) => (
 			undoSoundscaperProjectCommand(
 				writableHistory(history), options,

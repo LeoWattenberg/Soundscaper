@@ -10,6 +10,8 @@ import {
 	validateSoundscaperProductionHistory,
 	type SoundscaperProductionHistoryRevision,
 	type SoundscaperProductionHistoryState,
+	collapseSoundscaperProductionHistory,
+	rollbackSoundscaperProductionHistory,
 } from './editor-project-production-history.ts';
 import {
 	applySoundscaperProjectCommand,
@@ -87,4 +89,20 @@ export function redoSoundscaperProjectCommand(
 	options: SoundscaperProjectCommandOptions = {},
 ): SoundscaperProjectHistory {
 	return asBaseline(redoSoundscaperProductionCommand(history, BASELINE, options));
+}
+
+export function collapseSoundscaperProjectHistory(
+	history: SoundscaperProjectHistory | unknown,
+	depth: number,
+	command: Parameters<typeof collapseSoundscaperProductionHistory>[2],
+): SoundscaperProjectHistory {
+	return asBaseline(collapseSoundscaperProductionHistory(history, depth, command, BASELINE));
+}
+
+export function rollbackSoundscaperProjectHistory(
+	history: SoundscaperProjectHistory | unknown,
+	depth: number,
+	options: SoundscaperProjectCommandOptions = {},
+): SoundscaperProjectHistory {
+	return asBaseline(rollbackSoundscaperProductionHistory(history, depth, BASELINE, options));
 }

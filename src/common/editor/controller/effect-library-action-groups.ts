@@ -5,6 +5,8 @@ import {
 	isRunnableMacroCommand,
 } from './macro-command-service.ts';
 import { createMacroProgramService } from './macro-program-service.ts';
+import { createMacroScriptHost } from './macro-script-host.ts';
+import { createMacroScriptLibraryService } from './macro-script-library-service.ts';
 import {
 	createEffectMacroLibraryService,
 	type EffectMacroLibraryServiceRuntime,
@@ -39,6 +41,12 @@ export interface EffectLibraryActionScope {
 		rollback(): unknown;
 	}>;
 	readonly copy: Readonly<Record<string, string>>;
+	readonly productId?: string;
+	readonly locale?: string;
+	readonly onMacroScriptLog?: (entry: Readonly<{
+		readonly level: 'info' | 'warn' | 'error'; readonly text: string; readonly at: number;
+	}>) => void;
+	readonly macroScriptStartedAt?: () => string;
 }
 
 /**
@@ -97,9 +105,62 @@ export function createEffectMacroActions(
 		isRunnableMacroCommand,
 		untitledMacroName: scope.copy.untitledMacro || scope.copy.macroManager || 'Untitled macro',
 	});
+	const scripts = createMacroScriptLibraryService({
+		state: scope.state,
+		createId: scope.createStableId,
+		persistSetting: scope.persistSetting,
+		publishDocumentSnapshot: scope.publishDocumentSnapshot,
+		handleError: scope.handleError,
+	} as never);
+	const scriptHost = createMacroScriptHost({
+		getProject: scope.getProject as () => never,
+		projectSampleRate: scope.projectSampleRate,
+		runEffectMacro: scope.runEffectMacro as never,
+		runMacroCommand: commands.runMacroCommand as never,
+		setExactSelection: scope.setExactSelection,
+		listSavedMacros: () => library.list() as never,
+		beginMacroTransaction: scope.beginMacroTransaction,
+	});
+	let sandbox: Sandbox | null = null;
 	return Object.freeze({
 		run: restricted('audioMacros', program.runMacroProgram as unknown as RuntimeAction),
-		cancel: restricted('audioMacros', program.cancelMacroProgram as unknown as RuntimeAction),
+		cancel: restricted('audioMacros', ((...args: never[]) => {
+			sandbox?.cancelMacroSandbox();
+			return (program.cancelMacroProgram as (...values: never[]) => unknown)(...args);
+		}) as RuntimeAction),
+		runScript: restricted('audioMacros', (async (request: unknown) => {
+			const { name, source } = readScriptRequest(request, scope);
+			// The sandbox is loaded on demand: it is only reachable from the macro
+			// manager, and its worker prelude has no business in the startup graph.
+			const { createBrowserMacroSandbox } = await import('../macro-script/browser-sandbox.ts');
+			return scriptHost.runMacroScript({
+				name,
+				run: async (dispatch) => {
+					sandbox = createBrowserMacroSandbox({ dispatch, onLog: scope.onMacroScriptLog });
+					try {
+						return await sandbox.runMacroSandbox({
+							runId: scope.createStableId('macro-run'),
+							source,
+							env: {
+								productId: String(scope.productId ?? 'soundscaper'),
+								locale: String(scope.locale ?? 'en'),
+								seed: scope.createStableId('macro-seed'),
+								startedAt: scope.macroScriptStartedAt?.() ?? '',
+								dryRun: false,
+							},
+						});
+					} finally {
+						sandbox = null;
+					}
+				},
+			});
+		}) as RuntimeAction),
+		scripts: Object.freeze({
+			list: restricted('audioMacros', () => scripts.list()),
+			save: restricted('audioMacros', ((script: unknown) => scripts.save(script)) as RuntimeAction),
+			delete: restricted('audioMacros', ((scriptId: unknown) => scripts.delete(scriptId as string)) as RuntimeAction),
+			flush: () => scripts.flush(),
+		}),
 		library: Object.freeze({
 			list: restricted('audioMacros', () => library.list()),
 			save: restricted('audioMacros', ((macro: unknown) => library.save(macro)) as RuntimeAction),
@@ -107,4 +168,19 @@ export function createEffectMacroActions(
 			flush: () => library.flush(),
 		}),
 	});
+}
+
+type Sandbox = ReturnType<
+	typeof import('../macro-script/browser-sandbox.ts')['createBrowserMacroSandbox']
+>;
+
+function readScriptRequest(
+	request: unknown,
+	scope: EffectLibraryActionScope,
+): Readonly<{ name: string; source: string }> {
+	const value = request && typeof request === 'object' ? request as Record<string, unknown> : {};
+	const source = typeof value.source === 'string' ? value.source : '';
+	if (!source.trim()) throw new RangeError('A macro program needs source to run.');
+	const name = String(value.name ?? '').trim() || scope.copy.untitledMacro || 'Untitled macro';
+	return Object.freeze({ name, source });
 }

@@ -17,6 +17,7 @@ import { takeSelectedFile } from '../file-input-selection.ts';
 import EffectParameterEditor from './EffectParameterEditor.jsx';
 import MacroManagerLibraryList from './MacroManagerLibraryList.jsx';
 import MacroManagerStepList from './MacroManagerStepList.jsx';
+import MacroScriptPanel from './MacroScriptPanel.jsx';
 import { resolveEffectMacroTemplateCopy } from './effect-macro-template-copy.ts';
 import { resolveMacroManagerCopy } from './macro-manager-copy.ts';
 import { resolveSupportedEffectType, safeEffectLabel } from './effect-helpers.ts';
@@ -54,6 +55,23 @@ export function AudioEditorMacroManagerDialog({
 	);
 	const templateCopy = resolveEffectMacroTemplateCopy(locale);
 	const managerCopy = resolveMacroManagerCopy(locale);
+	const scripts = snapshot.macros?.scripts || [];
+	const [selectedScriptId, setSelectedScriptId] = useState(null);
+	const selectedScript = scripts.find((script) => script.id === selectedScriptId) || null;
+	const scriptLibrary = controller.actions.macros.scripts;
+	const createScript = () => {
+		const created = scriptLibrary.save({
+			name: managerCopy.newProgram,
+			source: '// A macro program. `sound` is the editor.\n'
+				+ 'await sound.select.all();\n',
+		});
+		setSelectedScriptId(created.id);
+		openMacro(null);
+	};
+	const writeScript = (next) => {
+		if (!String(next.name || '').trim()) return;
+		scriptLibrary.save(next);
+	};
 	const blocked = selectAudioEditorEditBlock(snapshot).blocked;
 	const hasRunTarget = Boolean(snapshot.selection || snapshot.selectedClipId);
 	const templatesAvailable = productId === 'soundscaper';
@@ -350,14 +368,32 @@ export function AudioEditorMacroManagerDialog({
 								onCreate: () => createMacro(createEffectMacroTemplateDraft(templateId)),
 							})),
 						} : null}
-						onSelect={(macroId) => openMacro(macros.find((macro) => macro.id === macroId) || null)}
+						scripts={{
+							entries: scripts,
+							selectedId: selectedScriptId,
+							newProgram: managerCopy.newProgram,
+							onSelect: (scriptId) => { setSelectedScriptId(scriptId); openMacro(null); },
+							onCreate: createScript,
+						}}
+						onSelect={(macroId) => {
+							setSelectedScriptId(null);
+							openMacro(macros.find((macro) => macro.id === macroId) || null);
+						}}
 						onCreate={() => createMacro({ name: copy.untitledMacro, effects: [] })}
 						onDelete={deleteMacro}
 						onExport={exportMacro}
 						onImport={() => fileInputRef.current?.click()}
 					/>
 					<section className="audio-editor-macro-manager__detail">
-						{draft ? <>
+						{selectedScript ? (
+							<MacroScriptPanel
+								controller={controller}
+								copy={{ ...managerCopy }}
+								script={selectedScript}
+								blocked={blocked}
+								onChange={writeScript}
+							/>
+						) : draft ? <>
 							<label className="audio-editor-field audio-editor-macro-manager__name">
 								<span>{copy.macroName}</span>
 								<TextInput value={draft.name || ''} onChange={(name) => writeDraft((current) => ({ ...current, name }))} width="100%" />
