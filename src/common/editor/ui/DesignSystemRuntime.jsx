@@ -3,6 +3,8 @@ import { AccessibilityProfileProvider } from '@soundscaper/design-system/context
 import { darkTheme, lightTheme } from '@audacity-ui/tokens';
 import { ThemeProvider, useTheme } from '@soundscaper/design-system/ThemeProvider';
 
+import { readableTextColor } from './theme-contrast.ts';
+
 const PORTAL_BODY_CLASS = 'kw-audio-editor-design-system-mounted';
 const ACCESSIBILITY_STORAGE_KEY = 'audacity-accessibility-profile';
 const ACCESSIBILITY_PROFILE_IDS = new Set(['au4-tab-groups', 'wcag-flat']);
@@ -88,7 +90,13 @@ export function useAudioEditorThemeVariables() {
 		'--kw-editor-text': theme.foreground.text.primary,
 		'--kw-editor-primary-button-bg': theme.background.control.button.primary.idle,
 		'--kw-editor-primary-button-hover': theme.background.control.button.primary.hover,
-		'--kw-editor-primary-button-text': theme.foreground.text.inverse,
+		// Both themes paint the primary button a light blue, so the readable
+		// label is the dark one in both — the body token in light, the inverse
+		// token in dark. Naming either outright fails the other theme's scan.
+		'--kw-editor-primary-button-text': readableTextColor(
+			theme.background.control.button.primary.idle,
+			[theme.foreground.text.primary, theme.foreground.text.inverse],
+		),
 		'--kw-editor-muted': theme.foreground.text.secondary,
 		'--kw-editor-line': theme.border.onSurface,
 		'--kw-editor-stage': theme.background.canvas.default,

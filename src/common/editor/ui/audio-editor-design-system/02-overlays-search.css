@@ -247,7 +247,9 @@
 }
 
 #kw-audio-editor-design-system .button--primary:not(.button--disabled) {
-	/* ADS Button uses the regular foreground token against its dark-theme blue fill. */
+	/* ADS Button paints its label with the body text token, which does not read
+	 * on the dark theme's blue fill. The runtime measures both text tokens
+	 * against the fill and publishes whichever one clears AA. */
 	color: var(--kw-editor-primary-button-text);
 }
 
