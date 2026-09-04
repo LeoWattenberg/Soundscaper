@@ -36,6 +36,7 @@ export const PRESET_SETTING_KEYS: Readonly<Record<DeliveryPresetKind, readonly s
 		'sampleRate', 'channelMapping', 'sampleFormat', 'dither',
 		'bitRate', 'quality', 'compressionLevel', 'mode', 'includeTail',
 		'loudnessNormalization',
+		'bitRateMode', 'bitRatePreset', 'vbrQuality', 'averageBitRate',
 	]),
 	// The video canvas is nested rather than flat, so it is translated below
 	// rather than copied across; nothing else in the dialog is a video setting.
@@ -58,13 +59,16 @@ for (const kind of Object.keys(PRESET_SETTING_KEYS) as DeliveryPresetKind[]) {
 
 const NUMERIC_KEYS: readonly string[] = Object.freeze([
 	'sampleRate', 'bitRate', 'quality', 'compressionLevel',
+	'bitRatePreset', 'vbrQuality', 'averageBitRate',
 ]);
 
 const CANVAS_FIT_DEFAULT = 'contain';
 const VIDEO_QUALITY_DEFAULT = DEFAULT_VIDEO_DELIVERY_QUALITY;
 const AUDIO_LAYOUT_DEFAULT = DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT;
 
-const AUDIO_PRESET_DIALOG_DEFAULTS = Object.freeze({ loudnessNormalization: '' });
+const AUDIO_PRESET_DIALOG_DEFAULTS = Object.freeze({
+	loudnessNormalization: '', bitRatePreset: '2', vbrQuality: '2', averageBitRate: '192',
+});
 const VIDEO_PRESET_DIALOG_DEFAULTS = Object.freeze({
 	canvasWidth: '', canvasHeight: '', canvasFit: CANVAS_FIT_DEFAULT, canvasFrameRate: '',
 	canvasBackgroundColor: '', videoQuality: VIDEO_QUALITY_DEFAULT, videoAudioLayout: AUDIO_LAYOUT_DEFAULT,
@@ -307,6 +311,17 @@ export function dialogFormatFromPreset(preset: DeliveryPreset): string {
 	return preset.kind === 'video' ? videoExportRequestFormat(preset.format) : preset.format;
 }
 
+/**
+ * A preset written before MP3 gained its bit-rate modes states a bitrate and no
+ * mode, and it meant a constant rate; only a preset stating neither takes the
+ * dialog's Preset default.
+ */
+function impliedBitRateMode(settings: Readonly<Record<string, unknown>> | undefined): string {
+	const mode = settings?.bitRateMode;
+	if (typeof mode === 'string' && mode) return mode;
+	return settings?.bitRate == null ? 'preset' : 'constant';
+}
+
 /** The dialog patch a preset implies. Numbers become strings again for the inputs. */
 export function dialogSettingsFromPreset(
 	preset: DeliveryPreset,
@@ -314,6 +329,7 @@ export function dialogSettingsFromPreset(
 	const patch: Record<string, unknown> = {
 		format: dialogFormatFromPreset(preset),
 		...(preset.kind === 'video' ? VIDEO_PRESET_DIALOG_DEFAULTS : AUDIO_PRESET_DIALOG_DEFAULTS),
+		...(preset.kind === 'video' ? {} : { bitRateMode: impliedBitRateMode(preset.settings) }),
 	};
 	for (const [key, value] of Object.entries(preset.settings ?? {})) {
 		if (key === 'size') {

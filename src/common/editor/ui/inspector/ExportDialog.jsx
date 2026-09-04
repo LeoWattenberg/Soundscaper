@@ -23,8 +23,8 @@ import {
 } from '../export-dialog-model.js';
 import { exportChapterCount } from '../../export-chapters.ts';
 import {
-	conformExportDialogOutput, exportDialogOutputOptions,
-	exportDialogOutputSettings, exportDialogOutputValue,
+	conformExportDialogOutput, exportDialogOutputNoLabelsHint,
+	exportDialogOutputOptions, exportDialogOutputSettings, exportDialogOutputValue,
 } from '../export-dialog-output-options.ts';
 import { projectHasTimelineVideo } from '../timeline-media-presence.ts';
 import { exportSurfaceDialogTitle } from '../export-surface-copy.ts';
@@ -46,6 +46,7 @@ import {
 	constrainExportDialogSampleRate, exportDialogBitRateOptions,
 	exportDialogBitRateSelectionReason, exportDialogCompressionLevels,
 	exportDialogDefaultSampleFormat, exportDialogMaximumAudioSampleRate, exportDialogMetadata, exportDialogMetadataAvailable,
+	exportDialogMp3BitRateModeOptions, exportDialogMp3QualityKey, exportDialogMp3QualityOptions,
 	exportDialogOutputChannelCount, exportDialogSampleFormats, exportDialogSampleRateSuggestions,
 	exportDialogVorbisQualityOptions, normalizeExportDialogAudioSettings,
 } from '../export-dialog-audio-codec-options.ts';
@@ -161,13 +162,17 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	// A picture delivery is one file whatever the audio dialog last held, so the
 	// control shows the span it delivers rather than a form it cannot.
 	const outputValue = exportDialogOutputValue(videoFormat ? { ...settings, mode: 'mix' } : settings);
+	const singleFileOnly = videoFormat || settings.format === 'bw64';
 	const outputOptions = exportDialogOutputOptions(copy, {
 		hasSelection,
 		hasLoop,
 		chapterCount,
-		singleFileOnly: videoFormat || settings.format === 'bw64',
+		singleFileOnly,
 		masteringSequences,
 	});
+	// A chapter split greys out for two reasons, and only the missing labels are
+	// one the user can answer, so only that one says what to do about it.
+	const outputNoLabelsHint = exportDialogOutputNoLabelsHint(copy, { chapterCount, singleFileOnly });
 	const chooseOutput = (value) => setSettings((current) => normalizeExportDialogAudioSettings(
 		{ ...current, ...exportDialogOutputSettings(value) }, desktop, projectChannelCount,
 	));
@@ -360,16 +365,27 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 		}
 	};
 
-	const formatQualityOptions = exportDialogBitRateOptions(settings.format, desktop, settings.sampleRate, desktop
+	const qualityChannelCount = desktop
 		? desktopCodecQuery?.operations?.[0]?.channelCount
-		: exportDialogOutputChannelCount(settings, projectChannelCount));
+		: exportDialogOutputChannelCount(settings, projectChannelCount);
+	const mp3Format = settings.format === 'mp3';
+	/* MP3 carries Audacity's Bit Rate Mode, and its Quality row follows the mode. */
+	const mp3BitRateMode = settings.bitRateMode || 'preset';
+	const mp3QualityKey = exportDialogMp3QualityKey(mp3BitRateMode);
+	const formatQualityOptions = mp3Format
+		? exportDialogMp3QualityOptions(
+			mp3BitRateMode, copy, desktop, settings.sampleRate, qualityChannelCount,
+		)
+		: exportDialogBitRateOptions(settings.format, desktop, settings.sampleRate, qualityChannelCount);
 	const maximumAudioSampleRate = exportDialogMaximumAudioSampleRate(settings.format, desktop);
 	const formatDescriptor = MEDIA_EXPORT_FORMATS[settings.format];
 	const sampleFormatOptions = formatDescriptor ? exportDialogSampleFormats(settings.format, desktop) : [];
 	const desktopFormatRefusal = desktop
 		? (videoFormat ? desktopVideoCapabilities.reason(settings.format)
 			: desktopExportSelectionReason(settings, desktopCodecCapabilities, desktopCodecQuery === false)
-				|| exportDialogBitRateSelectionReason(settings.format, settings.bitRate, formatQualityOptions, desktop))
+				|| exportDialogBitRateSelectionReason(
+					settings.format, settings[mp3QualityKey] ?? settings.bitRate, formatQualityOptions, desktop,
+				))
 		: null;
 	const desktopCodecNotice = desktopFormatRefusal || (desktop && hasTimelineVideo ? desktopVideoCapabilities.notice : null)
 		|| (desktopCodecQuery === false
@@ -466,6 +482,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 						})) : []),
 					]} />
 					<LabeledDropdown label={copy.exportMode} hook="output" value={outputValue} onChange={chooseOutput} disabled={exporting || admPassthrough} options={outputOptions} />
+					{outputNoLabelsHint && <p className="audio-editor-panel-hint" data-export-no-labels>{outputNoLabelsHint}</p>}
 				</section>
 				<Separator />
 				<section className="audio-editor-export-section">
@@ -487,7 +504,12 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 								: copy.sampleFormatPcm.replace('{bits}', sampleFormat.slice(3)),
 						}))} />
 					) : bitrateFormat ? (
-						<LabeledDropdown label={copy.quality} hook="quality" value={settings.bitRate} onChange={(value) => setCodec('bitRate', value)} disabled={exporting} options={formatQualityOptions} />
+						<>
+							{mp3Format && (
+								<LabeledDropdown label={copy.bitRateMode} hook="bitRateMode" value={mp3BitRateMode} onChange={(value) => setCodec('bitRateMode', value)} disabled={exporting} options={exportDialogMp3BitRateModeOptions(copy)} />
+							)}
+							<LabeledDropdown label={copy.quality} hook="quality" value={settings[mp3Format ? mp3QualityKey : 'bitRate']} onChange={(value) => setCodec(mp3Format ? mp3QualityKey : 'bitRate', value)} disabled={exporting} options={formatQualityOptions} />
+						</>
 					) : settings.format === 'ogg-vorbis' ? (
 						<LabeledDropdown label={copy.quality} hook="quality" value={settings.quality} onChange={(value) => setCodec('quality', value)} disabled={exporting} options={exportDialogVorbisQualityOptions(desktop)} />
 					) : null)}

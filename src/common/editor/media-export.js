@@ -60,7 +60,9 @@ export const MEDIA_EXPORT_FORMATS = deepFreeze({
 		id: 'mp3', label: 'MP3', backend: 'ffmpeg', extension: 'mp3', mimeType: 'audio/mpeg',
 		container: 'MP3', codec: 'libmp3lame', lossless: false, maximumChannels: 2,
 		sampleFormats: [],
-		defaults: { bitRateMode: 'preset', preset: 2, vbrQuality: 2, bitRate: 192, averageBitRate: 192 },
+		defaults: {
+			bitRateMode: 'preset', bitRatePreset: 2, vbrQuality: 2, bitRate: 192, averageBitRate: 192,
+		},
 		requiredEncoders: ['libmp3lame'], requiredMuxers: [['mp3']],
 	},
 	'ogg-vorbis': {
@@ -466,7 +468,7 @@ export function buildMediaFfmpegEncoderArgs(input, output, format, options = {})
  */
 export function mp3CodecRateSettings(settings) {
 	const mode = String(settings.bitRateMode ?? 'constant');
-	if (mode === 'preset') return Object.freeze({ preset: Number(settings.preset) });
+	if (mode === 'preset') return Object.freeze({ preset: Number(settings.bitRatePreset) });
 	if (mode === 'variable') return Object.freeze({ vbrQuality: Number(settings.vbrQuality) });
 	if (mode === 'average') return Object.freeze({ averageBitrateKbps: Number(settings.averageBitRate) });
 	return Object.freeze({ bitrateKbps: Number(settings.bitRate) });
@@ -483,8 +485,9 @@ function normalizeMp3RateSettings(settings, descriptor, options) {
 		throw new RangeError(`MP3 bit rate mode ${mode} is unsupported.`);
 	}
 	settings.bitRateMode = mode;
-	settings.preset = integerInRange(
-		options.preset ?? descriptor.defaults.preset, 0, MP3_PRESETS.length - 1, 'MP3 preset',
+	settings.bitRatePreset = integerInRange(
+		options.bitRatePreset ?? descriptor.defaults.bitRatePreset, 0, MP3_PRESETS.length - 1,
+		'MP3 preset',
 	);
 	settings.vbrQuality = integerInRange(
 		options.vbrQuality ?? descriptor.defaults.vbrQuality, 0, MP3_MAXIMUM_VBR_QUALITY,
@@ -523,7 +526,7 @@ const MP3_PRESET_FFMPEG_ARGUMENTS = Object.freeze([
 ]);
 
 function mp3FfmpegRateArguments(settings) {
-	if (settings.bitRateMode === 'preset') return [...MP3_PRESET_FFMPEG_ARGUMENTS[settings.preset]];
+	if (settings.bitRateMode === 'preset') return [...MP3_PRESET_FFMPEG_ARGUMENTS[settings.bitRatePreset]];
 	if (settings.bitRateMode === 'variable') return ['-q:a', String(settings.vbrQuality)];
 	if (settings.bitRateMode === 'average') return ['-b:a', `${settings.averageBitRate}k`, '-abr', '1'];
 	return ['-b:a', `${settings.bitRate}k`];

@@ -12,6 +12,9 @@ import {
 	exportDialogMaximumAudioSampleRate,
 	exportDialogMetadata,
 	exportDialogMetadataAvailable,
+	exportDialogMp3BitRateModeOptions,
+	exportDialogMp3QualityKey,
+	exportDialogMp3QualityOptions,
 	exportDialogOutputChannelCount,
 	exportDialogSampleFormats,
 	exportDialogSampleRateSuggestions,
@@ -115,4 +118,64 @@ test('dedicated browser formats make unsupported metadata explicit and omit its 
 	}
 	assert.equal(exportDialogMetadataAvailable('aac-m4a', false), true);
 	assert.strictEqual(exportDialogMetadata('aac-m4a', false, metadata), metadata);
+});
+
+const MP3_COPY = Object.freeze({
+	bitRateModePreset: 'Preset', bitRateModeVariable: 'Variable',
+	bitRateModeAverage: 'Average', bitRateModeConstant: 'Constant',
+	mp3PresetExcessive: 'Excessive, 320 kbps', mp3PresetExtreme: 'Extreme, 220-260 kbps',
+	mp3PresetStandard: 'Standard, 170-210 kbps', mp3PresetMedium: 'Medium, 145-185 kbps',
+	mp3VariableBest: '220-260 kbps (Best Quality)', mp3VariableSmallest: '45-85 kbps (Smaller files)',
+});
+
+test("the MP3 rows are Audacity's four modes and their own quality lists", () => {
+	assert.deepEqual(exportDialogMp3BitRateModeOptions(MP3_COPY), [
+		{ value: 'preset', label: 'Preset' },
+		{ value: 'variable', label: 'Variable' },
+		{ value: 'average', label: 'Average' },
+		{ value: 'constant', label: 'Constant' },
+	]);
+
+	assert.deepEqual(exportDialogMp3QualityOptions('preset', MP3_COPY, false).map(({ label }) => label), [
+		'Excessive, 320 kbps', 'Extreme, 220-260 kbps',
+		'Standard, 170-210 kbps', 'Medium, 145-185 kbps',
+	]);
+
+	const variable = exportDialogMp3QualityOptions('variable', MP3_COPY, false);
+	assert.equal(variable.length, 10);
+	assert.deepEqual(variable[0], { value: '0', label: '220-260 kbps (Best Quality)' });
+	assert.deepEqual(variable[4], { value: '4', label: '145-185 kbps' });
+	assert.deepEqual(variable[9], { value: '9', label: '45-85 kbps (Smaller files)' });
+
+	/* Average and constant reuse the admitted kbps list for the current tuple. */
+	for (const mode of ['average', 'constant']) {
+		const rates = exportDialogMp3QualityOptions(mode, MP3_COPY, false, 44_100, 2);
+		assert.deepEqual(rates[0], { value: '64', label: '64 kbps' });
+		assert.equal(rates.at(-1)?.value, '320');
+	}
+	/* The reviewed profile refuses the lowest rates at the wider tuples. */
+	assert.equal(
+		exportDialogMp3QualityOptions('constant', MP3_COPY, false, 44_100, 1)[0]?.value, '56',
+	);
+	assert.equal(
+		exportDialogMp3QualityOptions('constant', MP3_COPY, false, 32_000, 1)[0]?.value, '40',
+	);
+
+	assert.equal(exportDialogMp3QualityKey('preset'), 'bitRatePreset');
+	assert.equal(exportDialogMp3QualityKey('variable'), 'vbrQuality');
+	assert.equal(exportDialogMp3QualityKey('average'), 'averageBitRate');
+	assert.equal(exportDialogMp3QualityKey('constant'), 'bitRate');
+});
+
+test('stale MP3 dialog settings are pulled back into their own rows', () => {
+	const normalized = normalizeExportDialogAudioSettings({
+		format: 'mp3', sampleRate: '44100', channelMapping: 'stereo',
+		bitRateMode: 'insane', bitRatePreset: '9', vbrQuality: '-3', bitRate: '17',
+		averageBitRate: '1000',
+	}, false);
+	assert.equal(normalized.bitRateMode, 'preset');
+	assert.equal(normalized.bitRatePreset, '3');
+	assert.equal(normalized.vbrQuality, '0');
+	assert.equal(normalized.bitRate, '64');
+	assert.equal(normalized.averageBitRate, '320');
 });

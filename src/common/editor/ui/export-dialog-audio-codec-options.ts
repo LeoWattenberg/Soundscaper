@@ -17,8 +17,27 @@ interface DialogOption {
 	readonly label: string;
 }
 
+/**
+ * Audacity's MP3 rows, ported verbatim. The four modes are its Bit Rate Mode
+ * choices; the preset and variable rows carry its own labels, and the average
+ * and constant rows reuse the plain kbps list.
+ */
+const MP3_BIT_RATE_MODE_COPY_KEYS: Readonly<Record<string, string>> = Object.freeze({
+	preset: 'bitRateModePreset',
+	variable: 'bitRateModeVariable',
+	average: 'bitRateModeAverage',
+	constant: 'bitRateModeConstant',
+});
+const MP3_PRESET_COPY_KEYS = Object.freeze([
+	'mp3PresetExcessive', 'mp3PresetExtreme', 'mp3PresetStandard', 'mp3PresetMedium',
+]);
+const MP3_VARIABLE_RANGES = Object.freeze([
+	'220-260 kbps', '200-250 kbps', '170-210 kbps', '155-195 kbps', '145-185 kbps',
+	'110-150 kbps', '95-135 kbps', '80-120 kbps', '65-105 kbps', '45-85 kbps',
+]);
+
 const BROWSER_BIT_RATES: Readonly<Record<string, readonly number[]>> = Object.freeze({
-	mp3: Object.freeze([128, 192, 256, 320]),
+	mp3: Object.freeze([32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]),
 	opus: Object.freeze([64, 96, 128, 160, 192, 256]),
 	mp2: Object.freeze([128, 160, 192, 224, 256, 320, 384]),
 	'aac-m4a': Object.freeze([96, 128, 160, 192, 256, 320]),
@@ -59,7 +78,67 @@ export function exportDialogBitRateOptions(
 	if (!desktop && String(format) === 'mp2' && Number(channelCount) === 1) {
 		rates = rates.filter((rate) => rate <= 192);
 	}
+	if (String(format) === 'mp3') {
+		const minimum = mp3MinimumBitrate(sampleRate, channelCount);
+		rates = rates.filter((rate) => rate >= minimum);
+	}
 	return Object.freeze(rates.map((rate) => Object.freeze({ value: String(rate), label: `${String(rate)} kbps` })));
+}
+
+/**
+ * The reviewed MPEG-1 Layer III profile refuses the lowest rates at the wider
+ * sample-rate and channel tuples, so the dialog must not offer them.
+ */
+function mp3MinimumBitrate(sampleRate: unknown, channelCount: unknown): number {
+	const rate = Number(sampleRate);
+	const channels = Number(channelCount);
+	if (rate === 32_000) return channels === 1 ? 40 : 48;
+	if (rate === 44_100) return channels === 1 ? 56 : 64;
+	/* Only the reviewed MPEG-1 rates carry the tuple minimum. */
+	return rate === 48_000 ? 64 : 0;
+}
+
+/** Audacity's four MP3 Bit Rate Mode choices, in its own order. */
+export function exportDialogMp3BitRateModeOptions(
+	copy: Readonly<Record<string, unknown>>,
+): readonly DialogOption[] {
+	return Object.freeze(Object.entries(MP3_BIT_RATE_MODE_COPY_KEYS).map(([value, key]) => (
+		Object.freeze({ value, label: String(copy[key] ?? value) })
+	)));
+}
+
+/**
+ * The Quality row for the selected mode. Preset and variable carry Audacity's
+ * own named rows; average and constant reuse the admitted kbps list.
+ */
+export function exportDialogMp3QualityOptions(
+	mode: unknown,
+	copy: Readonly<Record<string, unknown>>,
+	desktop: boolean,
+	sampleRate?: unknown,
+	channelCount?: unknown,
+): readonly DialogOption[] {
+	if (String(mode) === 'preset') {
+		return Object.freeze(MP3_PRESET_COPY_KEYS.map((key, index) => Object.freeze({
+			value: String(index), label: String(copy[key] ?? key),
+		})));
+	}
+	if (String(mode) === 'variable') {
+		return Object.freeze(MP3_VARIABLE_RANGES.map((range, index) => Object.freeze({
+			value: String(index),
+			label: index === 0 ? String(copy.mp3VariableBest ?? range)
+				: index === MP3_VARIABLE_RANGES.length - 1 ? String(copy.mp3VariableSmallest ?? range)
+					: range,
+		})));
+	}
+	return exportDialogBitRateOptions('mp3', desktop, sampleRate, channelCount);
+}
+
+/** The settings key that the Quality row writes for the selected mode. */
+export function exportDialogMp3QualityKey(mode: unknown): string {
+	if (String(mode) === 'preset') return 'bitRatePreset';
+	if (String(mode) === 'variable') return 'vbrQuality';
+	return String(mode) === 'average' ? 'averageBitRate' : 'bitRate';
 }
 
 export function exportDialogBitRateSelectionReason(
@@ -212,6 +291,16 @@ export function normalizeExportDialogAudioSettings(
 			defaults?: Readonly<{ bitRate?: unknown }>;
 		}>).defaults?.bitRate ?? options[0]?.value);
 		setChanged(patch, settings, 'bitRate', closestOption(settings.bitRate, options, fallback));
+		if (format === 'mp3') {
+			setChanged(patch, settings, 'averageBitRate', closestOption(
+				settings.averageBitRate ?? settings.bitRate, options, fallback,
+			));
+			setChanged(patch, settings, 'bitRateMode', Object.hasOwn(
+				MP3_BIT_RATE_MODE_COPY_KEYS, String(settings.bitRateMode),
+			) ? String(settings.bitRateMode) : 'preset');
+			setChanged(patch, settings, 'bitRatePreset', clampedIndex(settings.bitRatePreset, 3, 2));
+			setChanged(patch, settings, 'vbrQuality', clampedIndex(settings.vbrQuality, 9, 2));
+		}
 	}
 	if (format === 'ogg-vorbis') {
 		setChanged(patch, settings, 'quality', closestOption(
@@ -245,6 +334,13 @@ function exactSampleRates(format: unknown, desktop: boolean): readonly number[] 
 	return desktop
 		? desktopExportSampleRates(format)
 		: BROWSER_EXACT_SAMPLE_RATES[String(format)] ?? [];
+}
+
+/** Keep a stale preset or variable-quality index inside its own row. */
+function clampedIndex(value: unknown, maximum: number, fallback: number): string {
+	const requested = Number(value);
+	if (!Number.isSafeInteger(requested)) return String(fallback);
+	return String(Math.max(0, Math.min(requested, maximum)));
 }
 
 function closestOption(

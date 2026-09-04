@@ -208,14 +208,14 @@ test("MP3 export carries Audacity's four bit-rate strategies through FFmpeg and 
 
 	/* A fresh request takes Audacity's default: the Standard preset, which is V2. */
 	assert.equal(settingsFor({}).bitRateMode, 'preset');
-	assert.equal(settingsFor({}).preset, 2);
+	assert.equal(settingsFor({}).bitRatePreset, 2);
 	assert.deepEqual(rateArgumentsFor({}), ['-q:a', '2']);
 	assert.deepEqual(mp3CodecRateSettings(settingsFor({})), { preset: 2 });
 
 	/* The remaining presets mirror LAME's own table. */
-	assert.deepEqual(rateArgumentsFor({ bitRateMode: 'preset', preset: 0 }), ['-b:a', '320k']);
-	assert.deepEqual(rateArgumentsFor({ bitRateMode: 'preset', preset: 1 }), ['-q:a', '0']);
-	assert.deepEqual(rateArgumentsFor({ bitRateMode: 'preset', preset: 3 }), ['-q:a', '4']);
+	assert.deepEqual(rateArgumentsFor({ bitRateMode: 'preset', bitRatePreset: 0 }), ['-b:a', '320k']);
+	assert.deepEqual(rateArgumentsFor({ bitRateMode: 'preset', bitRatePreset: 1 }), ['-q:a', '0']);
+	assert.deepEqual(rateArgumentsFor({ bitRateMode: 'preset', bitRatePreset: 3 }), ['-q:a', '4']);
 
 	assert.deepEqual(rateArgumentsFor({ bitRateMode: 'variable', vbrQuality: 6 }), ['-q:a', '6']);
 	assert.deepEqual(mp3CodecRateSettings(settingsFor({ bitRateMode: 'variable', vbrQuality: 6 })), {
@@ -239,13 +239,13 @@ test("MP3 export carries Audacity's four bit-rate strategies through FFmpeg and 
 	assert.equal(settingsFor({ averageBitRate: 160 }).bitRateMode, 'average');
 
 	/* Every mode keeps its own value, so switching modes restores what it last used. */
-	const kept = settingsFor({ bitRateMode: 'variable', vbrQuality: 7, bitRate: 320, preset: 1 });
+	const kept = settingsFor({ bitRateMode: 'variable', vbrQuality: 7, bitRate: 320, bitRatePreset: 1 });
 	assert.deepEqual(
-		[kept.bitRateMode, kept.vbrQuality, kept.bitRate, kept.preset], ['variable', 7, 320, 1],
+		[kept.bitRateMode, kept.vbrQuality, kept.bitRate, kept.bitRatePreset], ['variable', 7, 320, 1],
 	);
 
 	assert.throws(() => settingsFor({ bitRateMode: 'insane' }), /bit rate mode/u);
-	assert.throws(() => settingsFor({ bitRateMode: 'preset', preset: 4 }), /MP3 preset/u);
+	assert.throws(() => settingsFor({ bitRateMode: 'preset', bitRatePreset: 4 }), /MP3 preset/u);
 	assert.throws(() => settingsFor({ bitRateMode: 'variable', vbrQuality: 10 }), /variable quality/u);
 	assert.throws(() => settingsFor({ bitRate: 144 }), /MP3 bitrate/u);
 });

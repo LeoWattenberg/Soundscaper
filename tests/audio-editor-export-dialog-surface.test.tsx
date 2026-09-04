@@ -53,6 +53,36 @@ test('a project with no labels is not offered a chapter split', async () => {
 	}
 });
 
+test('a project with no labels reads why the chapter split is greyed out', async () => {
+	const fixture = await mountedExportDialog({ labels: [] });
+	try {
+		assert.equal(fixture.noLabelsHint(), ENGLISH_COPY.exportOutputNoLabels);
+	} finally {
+		await fixture.unmount();
+	}
+});
+
+test('a single-file delivery does not blame the labels for refusing a chapter split', async () => {
+	const fixture = await mountedExportDialog();
+	try {
+		assert.equal(fixture.noLabelsHint(), null, 'the project already carries a label');
+
+		await fixture.chooseFormat('BW64 / ADM');
+		assert.deepEqual(
+			await fixture.outputOptionLabels(),
+			[ENGLISH_COPY.entireProject, ENGLISH_COPY.exportOutputLoop],
+			'BW64 carries one programme, so neither the stems nor the chapter split is offered',
+		);
+		assert.equal(
+			fixture.noLabelsHint(),
+			null,
+			'the format refuses the split whatever the labels say, so adding one would not help',
+		);
+	} finally {
+		await fixture.unmount();
+	}
+});
+
 test('the channel choice is radio buttons, and only a custom one opens the mapping editor', async () => {
 	const fixture = await mountedExportDialog();
 	try {
@@ -140,6 +170,45 @@ interface ExportDialogFixtureOptions {
 	readonly labels?: readonly Readonly<Record<string, unknown>>[];
 }
 
+test("MP3 delivery offers Audacity's bit rate modes and follows the chosen one", async () => {
+	const fixture = await mountedExportDialog();
+	try {
+		await fixture.chooseFormat('MP3');
+		assert.deepEqual(await fixture.fieldOptionLabels('bitRateMode'), [
+			ENGLISH_COPY.bitRateModePreset, ENGLISH_COPY.bitRateModeVariable,
+			ENGLISH_COPY.bitRateModeAverage, ENGLISH_COPY.bitRateModeConstant,
+		]);
+		/* A fresh MP3 delivery is Audacity's Standard preset. */
+		assert.deepEqual(await fixture.fieldOptionLabels('quality'), [
+			ENGLISH_COPY.mp3PresetExcessive, ENGLISH_COPY.mp3PresetExtreme,
+			ENGLISH_COPY.mp3PresetStandard, ENGLISH_COPY.mp3PresetMedium,
+		]);
+		await fixture.startExport();
+		assert.equal(fixture.requests[0]?.bitRateMode, 'preset');
+		assert.equal(fixture.requests[0]?.bitRatePreset, 2);
+
+		await fixture.chooseField('bitRateMode', ENGLISH_COPY.bitRateModeVariable);
+		const variable = await fixture.fieldOptionLabels('quality');
+		assert.equal(variable.length, 10);
+		assert.equal(variable[0], ENGLISH_COPY.mp3VariableBest);
+		assert.equal(variable.at(-1), ENGLISH_COPY.mp3VariableSmallest);
+		await fixture.chooseField('quality', '145-185 kbps');
+		await fixture.startExport();
+		assert.equal(fixture.requests[1]?.bitRateMode, 'variable');
+		assert.equal(fixture.requests[1]?.vbrQuality, 4);
+
+		await fixture.chooseField('bitRateMode', ENGLISH_COPY.bitRateModeConstant);
+		await fixture.chooseField('quality', '256 kbps');
+		await fixture.startExport();
+		assert.equal(fixture.requests[2]?.bitRateMode, 'constant');
+		assert.equal(fixture.requests[2]?.bitRate, 256);
+		/* The variable quality the user picked is still there to come back to. */
+		assert.equal(fixture.requests[2]?.vbrQuality, 4);
+	} finally {
+		await fixture.unmount();
+	}
+});
+
 async function mountedExportDialog(options: ExportDialogFixtureOptions = {}) {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
@@ -182,12 +251,13 @@ async function mountedExportDialog(options: ExportDialogFixtureOptions = {}) {
 			await Promise.resolve();
 		});
 	};
-	const outputDropdownOptions = async () => {
-		const trigger = elementByTag(dom.one('[data-export-field="output"]'), 'button');
+	const dropdownOptions = async (field: string) => {
+		const trigger = elementByTag(dom.one(`[data-export-field="${field}"]`), 'button');
 		await click(trigger);
 		const body = document.body as unknown as ReactTestElement;
 		return descendants(body).filter((candidate) => candidate.getAttribute('role') === 'option');
 	};
+	const outputDropdownOptions = () => dropdownOptions('output');
 	return {
 		dom,
 		requests,
@@ -211,6 +281,28 @@ async function mountedExportDialog(options: ExportDialogFixtureOptions = {}) {
 			const option = options.find((candidate) => candidate.textContent === label);
 			assert.ok(option, `Missing mounted output option ${label}.`);
 			await click(option);
+		},
+		/** Read a codec dropdown's rows and close it again without choosing one. */
+		async fieldOptionLabels(field: string) {
+			const options = await dropdownOptions(field);
+			const labels = options.map((option) => option.textContent);
+			await click(elementByTag(dom.one(`[data-export-field="${field}"]`), 'button'));
+			return labels;
+		},
+		async chooseField(field: string, label: string) {
+			const options = await dropdownOptions(field);
+			const option = options.find((candidate) => candidate.textContent === label);
+			assert.ok(option, `Missing mounted ${field} option ${label}.`);
+			await click(option);
+		},
+		async chooseFormat(label: string) {
+			const options = await dropdownOptions('format');
+			const option = options.find((candidate) => candidate.textContent === label);
+			assert.ok(option, `Missing mounted format option ${label}.`);
+			await click(option);
+		},
+		noLabelsHint() {
+			return dom.find('[data-export-no-labels]')?.textContent ?? null;
 		},
 		channelOptionLabels() {
 			return descendants(dom.one('[data-export-field="channelMapping"]'))

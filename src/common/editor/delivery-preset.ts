@@ -32,6 +32,8 @@ export const DELIVERY_PRESET_SETTINGS: Readonly<Record<DeliveryPresetKind, reado
 		'sampleRate', 'channelMapping', 'sampleFormat', 'dither',
 		'bitRate', 'quality', 'compressionLevel', 'mode', 'includeTail',
 		'loudnessNormalization',
+		/* MP3 carries Audacity's bit-rate mode plus the value each mode keeps. */
+		'bitRateMode', 'bitRatePreset', 'vbrQuality', 'averageBitRate',
 	]),
 	video: Object.freeze([
 		'size', 'fit', 'frameRate', 'backgroundColor',

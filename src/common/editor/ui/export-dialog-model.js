@@ -88,6 +88,13 @@ export function createExportDialogRequest(settings, options = {}) {
 		bitDepth: Number(settings.sampleFormat.replace(/\D/g, '')) || undefined,
 		floatingPoint: settings.sampleFormat === 'float32',
 		bitRate: ['mp3', 'opus', 'mp2', 'aac-m4a'].includes(settings.format) ? Number(settings.bitRate) : undefined,
+		/* MP3 states every mode's own value so the encoder can pick the named one. */
+		...(settings.format === 'mp3' ? {
+			bitRateMode: settings.bitRateMode || 'preset',
+			bitRatePreset: statedNumber(settings.bitRatePreset, 2),
+			vbrQuality: statedNumber(settings.vbrQuality, 2),
+			averageBitRate: statedNumber(settings.averageBitRate, 192),
+		} : {}),
 		quality: settings.format === 'ogg-vorbis' ? Number(settings.quality) : undefined,
 		compressionLevel: ['flac', 'wavpack'].includes(settings.format) ? Number(settings.compressionLevel) : undefined,
 		sampleRate: Number(settings.sampleRate),
@@ -104,4 +111,10 @@ export function createExportDialogRequest(settings, options = {}) {
 		...(settings.binaural ? { binaural: true } : {}),
 		...(settings.masteringSequenceId ? { masteringSequenceId: settings.masteringSequenceId } : {}),
 	};
+}
+
+/** A dialog control the caller did not state falls back to its own default. */
+function statedNumber(value, fallback) {
+	const requested = Number(value);
+	return Number.isFinite(requested) ? requested : fallback;
 }

@@ -36,7 +36,7 @@ export const EXPORT_FORMAT_DEFAULTS = Object.freeze({
 	bw64: { bitDepth: 24 },
 	aiff: { bitDepth: 24 },
 	flac: { bitDepth: 24, compressionLevel: 5 },
-	mp3: { bitRate: 192 },
+	mp3: { bitRateMode: 'preset', bitRatePreset: 2, vbrQuality: 2, bitRate: 192, averageBitRate: 192 },
 	'ogg-vorbis': { quality: 5 },
 	opus: { bitRate: 160 },
 	wavpack: { bitDepth: 24, compressionLevel: 2 },
@@ -65,6 +65,7 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
  * @property {{startFrame: number, endFrame: number, durationFrames: number}} [range]
  * @property {number} [outputFrames]
  * @property {number | null} [outputFileBytes]
+ * @property {import('./broadcast-wave.ts').BextMetadata} [bext]
  */
 
 /**
@@ -237,16 +238,13 @@ export function createExportPlan(project, options = {}) {
 	let markers = masteringSequence ? masteringSequence.cues : markerExport.markers;
 	let ixml = runtimeProject.metadata?.ixml ?? null;
 	let cart = format === 'bwf' || format === 'bw64' ? runtimeProject.metadata?.cart ?? null : null;
-	let bext = format === 'bwf' || format === 'bw64'
-		? createBwfExportMetadata(runtimeProject, {
-			bext: options.bext,
-			rangeStartFrame: range.startFrame,
-			outputSampleRate: sampleRate,
-			bitDepth: encoding.bitDepth,
-			channelCount: encoding.channelCount,
-			productName: options.productName,
-		})
-		: null;
+	// The TimeReference states where the delivered audio sits on the project's
+	// timeline, so it is derived per delivered span, not once for the whole plan.
+	const bwfMetadata = (rangeStartFrame) => createBwfExportMetadata(runtimeProject, {
+		bext: options.bext, rangeStartFrame, outputSampleRate: sampleRate,
+		bitDepth: encoding.bitDepth, channelCount: encoding.channelCount, productName: options.productName,
+	});
+	let bext = format === 'bwf' || format === 'bw64' ? bwfMetadata(range.startFrame) : null;
 	if (preservedRiffChunks?.bext) {
 		if (options.measureLoudness === true) {
 			throw new Error('ADM passthrough with preserved BEXT cannot replace its loudness metadata.');
@@ -336,6 +334,8 @@ export function createExportPlan(project, options = {}) {
 			}),
 			outputFrames: chapterOutputFrames[chapterIndex],
 			outputFileBytes: layoutForFrames(chapterOutputFrames[chapterIndex])?.byteLength ?? null,
+			// Where this file, rather than the whole delivery, sits on the timeline.
+			...(bext ? { bext: bwfMetadata(chapter.startFrame) } : {}),
 		}))
 		: mode === 'mix'
 			? [{

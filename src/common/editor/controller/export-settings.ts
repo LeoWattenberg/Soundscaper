@@ -37,6 +37,11 @@ export interface EditorExportSettings {
 	readonly sampleFormat: unknown;
 	readonly dither: unknown;
 	readonly bitRate: number | undefined;
+	/** MP3 only: Audacity's bit-rate mode and the value each mode keeps. */
+	readonly bitRateMode?: string;
+	readonly bitRatePreset?: number;
+	readonly vbrQuality?: number;
+	readonly averageBitRate?: number;
 	readonly quality: number | undefined;
 	readonly compressionLevel: number | undefined;
 	readonly sampleRate: number;
@@ -83,6 +88,14 @@ export function normalizeEditorExportSettings(
 		sampleFormat: value.sampleFormat || (bitDepth === 32 ? 'float32' : `int${bitDepth}`),
 		dither: value.dither ?? (bitDepth < 32 ? 'triangular' : 'none'),
 		bitRate: isBitRateFormat(format) ? Number(value.bitRate) || defaultBitRate : undefined,
+		...(format === 'mp3' ? {
+			bitRateMode: typeof value.bitRateMode === 'string' && value.bitRateMode
+				? value.bitRateMode
+				: value.bitRate == null ? 'preset' : 'constant',
+			bitRatePreset: numberOrDefault(value.bitRatePreset, 2),
+			vbrQuality: numberOrDefault(value.vbrQuality, 2),
+			averageBitRate: numberOrDefault(value.averageBitRate, 192),
+		} : {}),
 		quality: format === 'ogg-vorbis' ? quality : undefined,
 		compressionLevel: format === 'flac' || format === 'wavpack' ? compressionLevel : undefined,
 		sampleRate: value.sampleRate == null || value.sampleRate === ''
