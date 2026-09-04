@@ -13,6 +13,10 @@
 	color: var(--kw-editor-text);
 	font-size: 11px;
 	font-weight: 500;
+	/* The editor's generic field label is a small-caps panel heading; here it
+		names a control beside it, as every other export field's label does. */
+	letter-spacing: 0;
+	text-transform: none;
 }
 
 #kw-audio-editor-design-system .audio-editor-channel-mapping__grid-scroll {
