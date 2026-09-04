@@ -68,10 +68,6 @@
 			"maxLines": 688,
 			"reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility."
 		},
-		"tests/audio-editor-controller.test.js": {
-			"maxLines": 3266,
-			"reason": "Legacy controller regression suite; place new subsystem tests in focused files."
-		},
 		"tests/audio-editor-disk-backed-sources.test.js": {
 			"maxLines": 740,
 			"reason": "Legacy bounded-storage integration scenarios."
