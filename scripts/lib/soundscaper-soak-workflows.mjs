@@ -212,10 +212,13 @@ async function renderWav(page, target, outputDirectory) {
 	if (target === 'browser') {
 		const link = dialog.locator('[data-export-download]');
 		await link.waitFor({ state: 'visible', timeout: 60_000 });
-		signature = await link.evaluate(async (node) => {
-			const bytes = new Uint8Array(await (await fetch(node.href)).arrayBuffer());
-			return new TextDecoder().decode(bytes.subarray(0, 4));
-		});
+		// The shipped policy admits a `blob:` download but not a `blob:`
+		// connection, so reading the export means taking the file the browser
+		// saves rather than fetching the link from inside the page.
+		const [download] = await Promise.all([page.waitForEvent('download'), link.click()]);
+		const saved = await download.path();
+		if (!saved) throw new Error('The rendered WAV produced no file on disk.');
+		signature = (await readFile(saved)).subarray(0, 4).toString('ascii');
 	} else {
 		const path = await waitForOutput(outputDirectory, before, '.wav', 60_000);
 		signature = (await readFile(path)).subarray(0, 4).toString('ascii');
