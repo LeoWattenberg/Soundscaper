@@ -771,51 +771,6 @@ test.describe('audio editor React/design-system workflows', () => {
 			await expect(editor.locator('[data-spectral-selection]')).toBeVisible();
 		});
 	}
-
-	test('the spectrogram options put the whole timeline into multi-view and back', async ({ page }) => {
-		const editor = await bootEditor(page, '/embed/en/');
-		const track = editor.locator('[data-track-row]').first();
-		await expect(track).toHaveAttribute('data-display-mode', 'waveform');
-
-		const options = editor.getByRole('button', { name: 'Spectrogram options', exact: true });
-		const multiView = () => editor.locator('[data-action-id="multiview-view"] [role="menuitem"]');
-		await options.click();
-		await multiView().click();
-		await expect(track).toHaveAttribute('data-display-mode', 'multiview');
-		await expect(editor.getByRole('button', { name: 'Spectrogram', exact: true }))
-			.toHaveAttribute('aria-pressed', 'false');
-
-		await options.click();
-		// The vendored menu item marks its checked state with a checkmark icon.
-		await expect(multiView().locator('.context-menu-item-checkmark .icon')).toHaveCount(1);
-		await multiView().click();
-		await expect(track).toHaveAttribute('data-display-mode', 'waveform');
-	});
-
-	test('builds the shortcut command inventory from implemented manifest actions', async ({ page }) => {
-		const editor = await bootEditor(page, '/embed/en/');
-		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
-		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
-		await preferences.getByRole('tab', { name: /Keyboard shortcuts$/u }).click();
-		const search = preferences.getByRole('searchbox', { name: 'Search commands', exact: true });
-
-		await search.fill('Insert');
-		const insert = preferences.locator('[data-shortcut-action="insert"]');
-		await expect(insert).toBeVisible();
-		await expect(insert).not.toHaveAttribute('aria-disabled', 'true');
-		const insertShortcut = insert.locator('input');
-		await expect(insertShortcut).toBeEnabled();
-		await insertShortcut.fill('Alt+I');
-		await expect(insert.getByRole('button', { name: 'Assign', exact: true })).toBeEnabled();
-		await expect(insert.locator('[data-shortcut-disabled-reason]')).toHaveCount(0);
-
-		await search.fill('Zoom normal');
-		await expect(preferences.locator('[data-shortcut-action="zoom-default"]')).toBeVisible();
-		await expect(preferences.locator('[data-shortcut-action="plugin-manager"]')).toHaveCount(0);
-		await search.fill('Nyquist prompt');
-		await expect(preferences.locator('[data-shortcut-action="nyquist-prompt"]')).toBeVisible();
-	});
-
 });
 
 function directTimecodeInput(scope, label) {

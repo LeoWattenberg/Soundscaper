@@ -651,4 +651,24 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.getByRole('menuitem', { name: 'Soundscaper', exact: true }).click();
 		await expect(editor).toHaveAttribute('data-workspace-preset', 'modern');
 	});
+
+	test('the spectrogram options put the whole timeline into multi-view and back', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const track = editor.locator('[data-track-row]').first();
+		await expect(track).toHaveAttribute('data-display-mode', 'waveform');
+
+		const options = editor.getByRole('button', { name: 'Spectrogram options', exact: true });
+		const multiView = () => editor.locator('[data-action-id="multiview-view"] [role="menuitem"]');
+		await options.click();
+		await multiView().click();
+		await expect(track).toHaveAttribute('data-display-mode', 'multiview');
+		await expect(editor.getByRole('button', { name: 'Spectrogram', exact: true }))
+			.toHaveAttribute('aria-pressed', 'false');
+
+		await options.click();
+		// The vendored menu item marks its checked state with a checkmark icon.
+		await expect(multiView().locator('.context-menu-item-checkmark .icon')).toHaveCount(1);
+		await multiView().click();
+		await expect(track).toHaveAttribute('data-display-mode', 'waveform');
+	});
 });
