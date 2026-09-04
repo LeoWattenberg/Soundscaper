@@ -88,7 +88,7 @@ export const EDITOR_OPTIONAL_SPLIT_TOOL_CHUNK_TEST =
 
 /** Shared parameter editor plus its Audacity and parametric-EQ surface implementations. */
 export const EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST = new RegExp(
-	`${editorPath}ui[\\/](?:AudacityEffectLayout|ParametricEqEditor|inspector[\\/]EffectParameterEditor)\\.jsx$`,
+	`${editorPath}ui[\\/](?:AudacityEffectLayout|ParametricEqEditor|inspector[\\/]EffectParameter(?:Editor|Number))\\.jsx$`,
 );
 
 /**
