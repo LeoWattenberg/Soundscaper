@@ -2,10 +2,6 @@
 
 import type { AssistanceOperation } from '../assistance/operation.ts';
 import {
-	PROJECT_SCHEMA_VERSION,
-	readProjectSchemaIdentity,
-} from '../project-schema-identity.ts';
-import {
 	assistanceWorkflowStageGraph,
 	validateAssistanceWorkflow,
 	type AssistanceGuidedWorkflowId,
@@ -43,10 +39,18 @@ import {
 	localAssistanceGuidedOutputMaximumByteLength,
 	localAssistanceGuidedStorageReservation,
 } from './local-assistance-guided-output-capacity.ts';
+import {
+	assertSafeProjectTopology,
+	correlateSelectedVideoDescriptor,
+	type InventorySource,
+	dataRecord,
+	normalizeInventory,
+	primitiveFence,
+	projectRecord,
+	UnavailableError,
+} from './local-assistance-guided-admission.ts';
 import { localAssistanceGuidedModelCandidates } from './local-assistance-guided-model-selection.ts';
 import { selectLocalAssistanceGuidedStages } from './local-assistance-guided-stage-selection.ts';
-import { reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1 } from
-	'./local-assistance-selected-video-source-time.ts';
 
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
 const SHA256 = /^[a-f\d]{64}$/u;
@@ -402,35 +406,6 @@ function primitivePrepared(
 		fence: primitiveFence(row.selectionFence) });
 }
 
-function primitiveFence(value: unknown): PrimitiveFence {
-	const row = dataRecord(value, 'primitive selection fence');
-	const identity = readProjectSchemaIdentity(row);
-	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
-		throw new RangeError('Primitive selection requires the current project schema.');
-	}
-	const occurrenceIds = Array.isArray(row.occurrenceIds)
-		? row.occurrenceIds.map((id) => String(id)) : [];
-	if (occurrenceIds.length < 1) throw new TypeError('Primitive selection occurrences are unavailable.');
-	return Object.freeze({ projectId: String(row.projectId), schemaFamily: identity.schemaFamily,
-		schemaVersion: PROJECT_SCHEMA_VERSION,
-		revision: Number(row.revision), sequenceId: String(row.sequenceId),
-		occurrenceIds: Object.freeze(occurrenceIds), sourceId: String(row.sourceId),
-		sourceSha256: digest(row.sourceSha256), sourceStartFrame: positiveFrame(row.sourceStartFrame, 0),
-		sourceEndFrame: positiveFrame(row.sourceEndFrame, 1),
-		linkMembershipSha256: digest(row.linkMembershipSha256),
-		timingAuthoritySha256: digest(row.timingAuthoritySha256) });
-}
-
-interface InventorySource { readonly sourceId: string; readonly mediaKind: string }
-function normalizeInventory(value: unknown): readonly InventorySource[] {
-	const row = dataRecord(value, 'selected-media inventory');
-	if (!Array.isArray(row.sources)) throw new TypeError('Selected-media inventory is unavailable.');
-	return Object.freeze(row.sources.map((candidate) => {
-		const source = dataRecord(candidate, 'selected-media source');
-		return Object.freeze({ sourceId: String(source.sourceId), mediaKind: String(source.mediaKind) });
-	}));
-}
-
 function assertHandle(
 	handle: LocalAssistanceAggregateCustodyHandle,
 	direction: 'input' | 'output', jobId: string, stageId: string, slotId: string,
@@ -445,36 +420,6 @@ function assertHandle(
 }
 
 function bindingKey(stageId: string, slotId: string): string { return `${stageId}\0${slotId}`; }
-function assertSafeProjectTopology(project: Record<string, unknown>): void {
-	if (recordArray(project.subsequences).length > 0 || recordArray(project.multicameraGroups).length > 0) {
-		throw new UnavailableError('timing-authority-unavailable');
-	}
-	const selectedClipId = project.selectedClipId;
-	const clips = recordArray(project.clips).filter(({ id }) => id === selectedClipId);
-	if (clips.length !== 1) throw new UnavailableError('selected-media-unavailable');
-	const clip = clips[0]!;
-	if (clip.reversed === true || (typeof clip.speedRatio === 'number' && clip.speedRatio <= 0)
-		|| (clip.kind === 'audio' && (clip.speedRatio !== 1 || clip.warpMap != null))) {
-		throw new UnavailableError('timing-authority-unavailable');
-	}
-	const source = recordArray(project.sources).filter(({ id }) => id === clip.sourceId);
-	if (source.length !== 1 || liveSource(source[0]!)) {
-		throw new UnavailableError('source-custody-unavailable');
-	}
-}
-
-function projectRecord(value: unknown, selectedClipIdValue: string | null): Record<string, unknown> {
-	const row = dataRecord(value, 'aggregate project');
-	const selectedClipId = typeof selectedClipIdValue === 'string' && selectedClipIdValue.length > 0
-		? selectedClipIdValue : null;
-	return { ...row, selectedClipId };
-}
-
-function recordArray(value: unknown): Record<string, unknown>[] {
-	return Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => (
-		Boolean(item) && typeof item === 'object' && !Array.isArray(item)
-	)) : [];
-}
 
 function normalizeModel(model: LocalAssistanceModel): LocalAssistanceModel {
 	if (!model || typeof model !== 'object' || !MODEL_ID.test(model.modelId)
@@ -511,45 +456,6 @@ function externalReason(slotId: string): LocalAssistanceGuidedPreparationUnavail
 	return 'source-custody-unavailable';
 }
 
-function correlateSelectedVideoDescriptor(value: unknown, fence: PrimitiveFence): unknown {
-	const descriptor = reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1(value);
-	const row = dataRecord(descriptor, 'selected-video source-time descriptor');
-	if (row.descriptorVersion !== 1 || row.kind !== 'selected-video-source-time-authority'
-		|| row.schemaFamily !== fence.schemaFamily || row.schemaVersion !== fence.schemaVersion
-		|| row.projectId !== fence.projectId || row.projectRevision !== fence.revision
-		|| row.sequenceId !== fence.sequenceId || row.sourceId !== fence.sourceId
-		|| row.sourceSha256 !== fence.sourceSha256
-		|| row.timingAuthoritySha256 !== fence.timingAuthoritySha256
-		|| row.sourceStartFrame !== fence.sourceStartFrame
-		|| row.sourceEndFrame !== fence.sourceEndFrame
-		|| typeof row.videoOccurrenceId !== 'string'
-		|| !fence.occurrenceIds.includes(row.videoOccurrenceId)) {
-		throw new UnavailableError('timing-authority-unavailable');
-	}
-	return descriptor;
-}
-
-function liveSource(source: Record<string, unknown>): boolean {
-	return source.live === true || source.liveCapture === true || source.captureState === 'live';
-}
-
-function digest(value: unknown): string {
-	if (typeof value !== 'string' || !SHA256.test(value)) throw new TypeError('Aggregate digest authority is invalid.');
-	return value;
-}
-
-function positiveFrame(value: unknown, minimum: number): number {
-	if (!Number.isSafeInteger(value) || Number(value) < minimum) throw new RangeError('Aggregate frame authority is invalid.');
-	return Number(value);
-}
-
-function dataRecord(value: unknown, label: string): Record<string, unknown> {
-	if (!value || typeof value !== 'object' || Array.isArray(value) || ArrayBuffer.isView(value)) {
-		throw new TypeError(`The ${label} must be a record.`);
-	}
-	return value as Record<string, unknown>;
-}
-
 function assertDependencies(value: LocalAssistanceGuidedPreparationDependencies): void {
 	if (!value || typeof value !== 'object' || typeof value.getProject !== 'function'
 		|| typeof value.getSelectedClipId !== 'function' || typeof value.captureProject !== 'function'
@@ -571,9 +477,3 @@ function unavailable(
 	return Object.freeze({ outcome: 'unavailable', reason });
 }
 
-class UnavailableError extends Error {
-	readonly reason: LocalAssistanceGuidedPreparationUnavailableReason;
-	constructor(reason: LocalAssistanceGuidedPreparationUnavailableReason) {
-		super(`Guided preparation is unavailable: ${reason}`); this.reason = reason;
-	}
-}
