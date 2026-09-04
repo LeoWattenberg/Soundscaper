@@ -4,6 +4,13 @@
  * surface in the editor: the preset banner, the channel radio group, the
  * sectioned fields, the metadata table, and the progress and download states
  * the render publishes into.
+ *
+ * It must stay imported BEFORE 11. The dialog shell puts both
+ * `kw-audio-editor-dialog` and `audio-editor-export-dialog` on one element, and
+ * `#kw-audio-editor-design-system :is(.audio-editor-export-dialog, …)` has the
+ * same specificity as `#kw-audio-editor-design-system .kw-audio-editor-dialog`,
+ * so source order alone decides the frame's radius and drop shadow. The chrome
+ * in 11 is meant to win, as tests/audio-editor-dialog-wiring.test.ts asserts.
  */
 
 #kw-audio-editor-design-system :is(.audio-editor-export-dialog, .audio-editor-local-dialog) {

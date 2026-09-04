@@ -12,8 +12,8 @@
 @import './audio-editor-design-system/09a-dialog-parametric-eq.css';
 @import './audio-editor-design-system/10-effects-vendor-overrides.css';
 @import './audio-editor-design-system/10a-dialog-macro-manager.css';
+@import './audio-editor-design-system/10b-dialog-export.css';
 @import './audio-editor-design-system/11-panels-dialogs-generators.css';
-@import './audio-editor-design-system/11a-dialog-export.css';
 @import './audio-editor-design-system/12-dialogs-preferences-responsive.css';
 @import './audio-editor-design-system/13-responsive-accessibility.css';
 @import './audio-editor-design-system/14-task-progress.css';

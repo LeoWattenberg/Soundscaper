@@ -11,7 +11,7 @@ const DIALOG_ROOT = new URL('../src/common/editor/ui/dialogs/', import.meta.url)
 // covers both, so both are read.
 const DIALOG_STYLE_FILES = [
 	'../src/common/editor/ui/audio-editor-design-system/11-panels-dialogs-generators.css',
-	'../src/common/editor/ui/audio-editor-design-system/11a-dialog-export.css',
+	'../src/common/editor/ui/audio-editor-design-system/10b-dialog-export.css',
 ].map((path) => new URL(path, import.meta.url));
 
 test('custom track-rate dialog retains the track whose submenu opened it', async () => {
@@ -64,4 +64,26 @@ test('dialog surfaces use a drop shadow without blurring the editor behind them'
 		styles,
 		/\.kw-audio-editor-dialog\s*\{[^}]*box-shadow:\s*0 24px 80px rgba\(0, 0, 0, 0\.38\);/su,
 	);
+});
+
+test('the shared dialog frame outranks the export dialog that also wears it', async () => {
+	// The shell puts `kw-audio-editor-dialog` and `audio-editor-export-dialog` on
+	// one element, and both frame rules are `#id .class`, so nothing but source
+	// order decides the radius and drop shadow. Splitting the stylesheet by size
+	// once moved the export rules after the chrome and silently reframed the
+	// dialog, so the order the imports produce is asserted rather than assumed.
+	const root = new URL('../src/common/editor/ui/audio-editor-design-system.css', import.meta.url);
+	const imported = [...(await readFile(root, 'utf8')).matchAll(/^@import '\.\/audio-editor-design-system\/([^']+)';$/gmu)]
+		.map((match) => match[1]);
+	const [exportStyles, chromeStyles] = ['10b-dialog-export.css', '11-panels-dialogs-generators.css'];
+
+	assert.ok(imported.includes(exportStyles) && imported.includes(chromeStyles),
+		'both dialog stylesheets must still be imported by the design system');
+	assert.ok(imported.indexOf(exportStyles) < imported.indexOf(chromeStyles),
+		`${exportStyles} must precede ${chromeStyles}, or it overrides the shared frame's radius and shadow`);
+
+	const exportSheet = await readFile(new URL(`audio-editor-design-system/${exportStyles}`, root), 'utf8');
+	const chromeSheet = await readFile(new URL(`audio-editor-design-system/${chromeStyles}`, root), 'utf8');
+	assert.match(exportSheet, /:is\(\.audio-editor-export-dialog, \.audio-editor-local-dialog\) \{[^}]*border-radius:/su);
+	assert.match(chromeSheet, /\.kw-audio-editor-dialog \{[^}]*border-radius:/su);
 });
