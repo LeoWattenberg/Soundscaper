@@ -22,6 +22,7 @@ export interface EffectLibraryActionScope {
 	readonly importEffectPresets: RuntimeAction;
 	readonly exportEffectPreset: RuntimeAction;
 	readonly runEffectMacro: RuntimeAction;
+	readonly cancelEffectMacro: RuntimeAction;
 }
 
 /**
@@ -65,6 +66,7 @@ export function createEffectMacroActions(
 	} as unknown as EffectMacroLibraryServiceRuntime);
 	return Object.freeze({
 		run: restricted('audioMacros', scope.runEffectMacro),
+		cancel: restricted('audioMacros', scope.cancelEffectMacro),
 		library: Object.freeze({
 			list: restricted('audioMacros', () => library.list()),
 			save: restricted('audioMacros', ((macro: unknown) => library.save(macro)) as RuntimeAction),

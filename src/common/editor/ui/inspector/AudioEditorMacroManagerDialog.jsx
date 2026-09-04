@@ -17,6 +17,7 @@ import EffectParameterEditor from './EffectParameterEditor.jsx';
 import MacroManagerLibraryList from './MacroManagerLibraryList.jsx';
 import MacroManagerStepList from './MacroManagerStepList.jsx';
 import { resolveEffectMacroTemplateCopy } from './effect-macro-template-copy.ts';
+import { resolveMacroManagerCopy } from './macro-manager-copy.ts';
 import { resolveSupportedEffectType, safeEffectLabel } from './effect-helpers.ts';
 import { downloadTextFile, macroFileName } from './inspector-helpers.ts';
 
@@ -51,6 +52,7 @@ export function AudioEditorMacroManagerDialog({
 		[copy, macroEffectTypes],
 	);
 	const templateCopy = resolveEffectMacroTemplateCopy(locale);
+	const managerCopy = resolveMacroManagerCopy(locale);
 	const blocked = selectAudioEditorEditBlock(snapshot).blocked;
 	const hasRunTarget = Boolean(snapshot.selection || snapshot.selectedClipId);
 	const restorationAvailable = productId === 'soundscaper';
@@ -294,6 +296,12 @@ export function AudioEditorMacroManagerDialog({
 			if (applied) showMessage(copy.macroApplied, 'success');
 		} catch (cause) {
 			if (!ownsOperation(runningRef, operation)) return;
+			// A cancelled run is the user's own doing, not a failure to report as
+			// one: the runner aborts it exactly the way a superseding run does.
+			if (cause instanceof Error && cause.name === 'AbortError') {
+				showMessage(managerCopy.runCancelled, 'warning');
+				return;
+			}
 			const detail = cause instanceof Error ? cause.message : String(cause);
 			showMessage(copy.macroRunFailed.replace('{message}', detail), 'error');
 		} finally {
@@ -317,7 +325,12 @@ export function AudioEditorMacroManagerDialog({
 					<DialogFooter
 						className="audio-editor-dialog-footer audio-editor-macro-manager__footer"
 						rightContent={(
-							<Button variant="primary" icon={<Icon name="play" size={14} />} disabled={blocked || isRunning || !hasRunTarget || !effects.length || missingEmbeddedNoiseProfile} onClick={runMacro}>{copy.runMacro}</Button>
+							<>
+								{isRunning && (
+									<Button variant="secondary" onClick={() => controller.actions.macros.cancel()}>{managerCopy.cancelRun}</Button>
+								)}
+								<Button variant="primary" icon={<Icon name="play" size={14} />} disabled={blocked || isRunning || !hasRunTarget || !effects.length || missingEmbeddedNoiseProfile} onClick={runMacro}>{copy.runMacro}</Button>
+							</>
 						)}
 					/>
 				)}

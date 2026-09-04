@@ -1816,7 +1816,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		adjustTrackHeight, analysisService: progressAnalysisService, applyAudacityEffectFromController, applyEffectPreset,
 		applyProjectBinReplacement, applySamplePencil, applySpectralSelection, beginParametricEqGesture,
 		beginRackEffectGesture, beginVideoEffectGesture, bypassVideoClipEffect, cancelAudacityEffectPreview,
-		cancelNyquistEvaluation, cancelParametricEqGesture, cancelPlaybackCachePreparation, cancelProjectBinReplacement,
+		cancelEffectMacro: effectMacroService.cancelEffectMacro, cancelNyquistEvaluation, cancelParametricEqGesture, cancelPlaybackCachePreparation, cancelProjectBinReplacement,
 		cancelRackEffectGesture, cancelSampleEdit, cancelTimedRecording, cancelVideoEffectGesture,
 		capabilities, captureRackNoiseProfileFromController, captureSelectedNoiseProfile, claimProjectLock,
 		clearLocalData, clearLoopRegion, clearRecentProjects, closeProjectTab,

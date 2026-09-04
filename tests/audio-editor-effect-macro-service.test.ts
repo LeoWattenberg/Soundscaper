@@ -289,6 +289,29 @@ test('a superseding macro task fences stale persistence and cleanup publication'
 	successor.finish();
 });
 
+test('cancelling a run aborts it without persisting anything', async () => {
+	// The manager had no way to stop a macro at all: a long chain ran to the end
+	// or the user switched project. Cancelling takes the same fence a superseding
+	// run takes, so nothing half-rendered reaches the project.
+	const harness = createHarness({ deferPersistence: true });
+	const pending = harness.service.runEffectMacro(REQUEST);
+	harness.render.resolve({ channels: [new Float32Array([0.25])] });
+	await harness.persistenceStarted.promise;
+
+	assert.equal(harness.service.cancelEffectMacro(), true);
+	harness.persistence.resolve(undefined);
+
+	await assert.rejects(pending, { name: 'AbortError' });
+	assert.equal(harness.persistenceCommits, 0);
+	assert.deepEqual(harness.persistedProjects, []);
+	assert.equal(harness.errors.length, 0, 'a cancellation is not an error to report');
+	assert.notDeepEqual(harness.statuses.at(-1), ['Macro applied', 'success']);
+});
+
+test('cancelling with no run in flight reports that there was nothing to stop', () => {
+	assert.equal(createHarness().service.cancelEffectMacro(), false);
+});
+
 test('empty and disabled macro inventories fail before claiming async ownership', async () => {
 	const harness = createHarness();
 	await assert.rejects(

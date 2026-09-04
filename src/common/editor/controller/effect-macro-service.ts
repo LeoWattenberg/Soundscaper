@@ -94,7 +94,7 @@ interface MacroRenderBuffer {
 }
 
 export interface EffectMacroServiceRuntime {
-	readonly lifetime: Pick<EditorControllerLifetime, 'startTask'>;
+	readonly lifetime: Pick<EditorControllerLifetime, 'startTask' | 'cancelTask'>;
 	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
 	readonly copy: MacroCopy;
 	readonly memoryLimitBytes: number;
@@ -163,6 +163,8 @@ export interface EffectMacroServiceRuntime {
 }
 
 export function createEffectMacroService(runtime: EffectMacroServiceRuntime) {
+	let running = false;
+
 	async function runEffectMacro(request: EffectMacroRequest = {}): Promise<true | null> {
 		if (runtime.editingBlocked()) return null;
 		const project = runtime.getProject();
@@ -189,6 +191,7 @@ export function createEffectMacroService(runtime: EffectMacroServiceRuntime) {
 		if (estimatedPeakBytes > runtime.memoryLimitBytes) throw runtime.audacityEffectMemoryError();
 
 		const ownership = captureOwnership(runtime, project.id);
+		running = true;
 		runtime.setProcessing(true);
 		runtime.setStatus(runtime.copy.macroProcessing || runtime.copy.audacityProcessing);
 		runtime.publishDocumentSnapshot();
@@ -210,6 +213,7 @@ export function createEffectMacroService(runtime: EffectMacroServiceRuntime) {
 			if (ownershipIsCurrent(runtime, ownership) && !isCancellation(error)) runtime.handleError(error);
 			throw error;
 		} finally {
+			running = false;
 			const taskCurrent = taskIsCurrent(ownership.task);
 			if (taskCurrent) runtime.setProcessing(false);
 			if (taskCurrent && projectIsCurrent(runtime, ownership.project)) runtime.publishDocumentSnapshot();
@@ -380,7 +384,25 @@ export function createEffectMacroService(runtime: EffectMacroServiceRuntime) {
 		return chain.runSegments(remaining, channels, target);
 	}
 
-	return Object.freeze({ runEffectMacro });
+	/**
+	 * Stops the macro that is running, if one is. Cancellation takes the same
+	 * fence a superseding run takes, so a half-rendered chain can never reach the
+	 * project: every await boundary re-asserts ownership and the persist step is
+	 * refused once the task is no longer current.
+	 *
+	 * The service tracks its own run rather than reading the editor's processing
+	 * flag, which a single-effect application sets too — cancelling then would
+	 * abort a macro task that is not the thing the user is waiting on.
+	 *
+	 * @returns whether there was a run to stop.
+	 */
+	function cancelEffectMacro(): boolean {
+		if (!running) return false;
+		runtime.lifetime.cancelTask(EFFECT_MACRO_TASK);
+		return true;
+	}
+
+	return Object.freeze({ runEffectMacro, cancelEffectMacro });
 }
 
 interface EffectMacroOwnership {
