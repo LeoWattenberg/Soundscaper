@@ -15,7 +15,6 @@ import { createClipSelectionNavigationMenuModel } from './clip-selection-navigat
 import { createTrackStructuralOperationMenuModel } from './track-structural-operation-menu-model.ts';
 import { createImportAnalysisToolMenuItems, createRepeatAnalyzerMenuItem, createRepeatGeneratorMenuItem } from './import-analysis-application-menu.ts';
 import { createPitchAndTempoApplicationMenuItems } from './pitch-tempo-application-menu.ts';
-import { createDawprojectMenu } from './dawproject-menu.js';
 import { createPrivacyPolicyMenuItem } from './privacy-policy-menu.ts';
 import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
 import { createVisibleVideoTrackPredicate } from '../video-track-visibility.js';
@@ -168,15 +167,8 @@ export default function createApplicationMenus({
 							disabled: !snapshot.aup4Compatibility?.report,
 							onClick: actions.openAup4CompatibilityReport,
 						},
-						{
-							id: 'delivery-report',
-							label: copy.deliveryReport,
-							disabled: !snapshot.deliveryReport,
-							onClick: actions.openDeliveryReport,
-						},
 					],
 				},
-				createDawprojectMenu({ copy, blocked, snapshot, actions }),
 				{
 					id: 'recent-projects',
 					label: copy.recentProjects,
@@ -216,6 +208,7 @@ export default function createApplicationMenus({
 					onClick: actions.exportAudio,
 				},
 				{ id: 'delivery-queue', label: copy.deliveryQueue, disabled: blocked, onClick: actions.openDeliveryQueue },
+				{ id: 'delivery-report', label: copy.deliveryReport, disabled: !snapshot.deliveryReport, onClick: actions.openDeliveryReport },
 				{
 					id: 'export-other',
 					label: copy.exportOther,
@@ -245,6 +238,7 @@ export default function createApplicationMenus({
 							disabled: blocked,
 							onClick: actions.exportFcpxml,
 						},
+						{ id: 'export-dawproject', label: copy.saveDawproject, disabled: blocked, onClick: actions.saveDawproject },
 						...productItems.fileExport,
 					],
 				},

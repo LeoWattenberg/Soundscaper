@@ -1,15 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /**
- * Copy for the File > DAWproject submenu and the statuses its two operations
- * publish. The main catalog sits at its maintainability ceiling, so the
- * exchange format's copy lives behind its own seam, as the export menu's does.
+ * Copy for the DAWproject export entry and the statuses the exchange's two
+ * operations publish; opening one runs through the ordinary Open command, so
+ * the format needs no label of its own there. The main catalog sits at its
+ * maintainability ceiling, so the exchange format's copy lives behind its own
+ * seam, as the export menu's does.
  */
 const DAWPROJECT_COPY_ENTRIES = Object.freeze([
-	['dawprojectMenu', 'DAWproject', 'DAWproject'],
-	['openDawproject', 'Open DAWproject (.dawproject)', 'DAWproject (.dawproject) öffnen'],
 	['saveDawproject', 'Export DAWproject', 'DAWproject exportieren'],
-	['dawprojectReport', 'DAWproject exchange report', 'DAWproject-Austauschbericht'],
 	['chooseDawprojectFile', 'Choose a DAWproject file (.dawproject).', 'Wähle eine DAWproject-Datei (.dawproject).'],
 	['dawprojectOpened', 'DAWproject imported.', 'DAWproject importiert.'],
 	['dawprojectSaving', 'Exporting DAWproject', 'DAWproject wird exportiert'],

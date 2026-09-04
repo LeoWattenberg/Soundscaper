@@ -223,8 +223,10 @@ Studio One, Cubase, and others.
   `dawproject-import-project.ts` read them back into a current document;
   `dawproject-archive.ts` owns the container and `dawproject-xml.ts` the bounded
   XML layer both share. `controller/dawproject-service.ts` composes open and
-  export into the native project service, and File > DAWproject reaches both
-  plus the exchange report.
+  export into the native project service. A `.dawproject` opens through the
+  ordinary File > Open command, which routes it by extension the way it routes a
+  `.scape` or an Audacity project; File > Export other holds the export, and the
+  exchange report opens from File > Delivery Report beside every other profile's.
 - **Invariants.** DAWproject is a project exchange, not an edit list, so the
   visibility rule the other three profiles share does not apply: a muted track
   is written muted, never omitted. Time is written in seconds because every

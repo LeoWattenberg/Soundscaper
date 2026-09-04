@@ -1,12 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
-import { createDawprojectMenu } from '../src/common/editor/ui/dawproject-menu.js';
+import { partitionWorkspaceFiles } from '../src/common/editor/ui/workspace/workspace-file-routing.js';
 import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
+
+const ROOT = new URL('../', import.meta.url);
 
 type MenuItem = Record<string, unknown> & { items?: MenuItem[] };
 
@@ -47,62 +50,72 @@ function fileMenu(menus: readonly unknown[]): MenuItem {
 	return file;
 }
 
-function submenu(menus: readonly unknown[]): MenuItem {
-	const entry = fileMenu(menus).items?.find((item) => item.id === 'dawproject');
-	assert.ok(entry, 'File holds the DAWproject submenu');
+function submenu(menus: readonly unknown[], id: string): MenuItem {
+	const entry = fileMenu(menus).items?.find((item) => item.id === id);
+	assert.ok(entry, `File holds the ${id} submenu`);
 	return entry;
 }
 
-test('both locales carry every DAWproject menu and status string', () => {
+test('both locales carry every DAWproject status string, and none of the retired submenu labels', () => {
 	for (const copy of [ENGLISH_COPY, GERMAN_COPY]) {
 		for (const key of [
-			'dawprojectMenu', 'openDawproject', 'saveDawproject', 'dawprojectReport',
-			'chooseDawprojectFile', 'dawprojectOpened', 'dawprojectSaving', 'dawprojectSaved',
+			'saveDawproject', 'chooseDawprojectFile', 'dawprojectOpened', 'dawprojectSaving', 'dawprojectSaved',
 		]) {
 			assert.equal(typeof copy[key], 'string', `${key} is missing`);
 			assert.ok((copy[key] as string).length > 0, `${key} is empty`);
 		}
+		for (const key of ['dawprojectMenu', 'openDawproject', 'dawprojectReport']) {
+			assert.equal(copy[key], undefined, `${key} outlived the submenu it labelled`);
+		}
 	}
 });
 
-test('the File menu reaches open, export and the report through one DAWproject submenu beside the Audacity one', () => {
+test('the File menu holds no DAWproject category, and the export sits in the Export other bucket', () => {
 	const calls: string[] = [];
 	const menus = createApplicationMenus(menuInput(null, {
-		openDawproject: () => { calls.push('open'); },
 		saveDawproject: () => { calls.push('save'); },
-		openDeliveryReport: () => { calls.push('report'); },
 	})) as unknown[];
 	const items = fileMenu(menus).items!;
-	const audacityIndex = items.findIndex((item) => item.id === 'audacity-projects');
-	assert.equal(items[audacityIndex + 1]?.id, 'dawproject', 'the submenu follows the Audacity projects submenu');
-	const entry = submenu(menus);
-	assert.equal(entry.label, ENGLISH_COPY.dawprojectMenu);
-	assert.deepEqual(entry.items?.map((item) => item.id), ['open-dawproject', 'save-dawproject', 'dawproject-report']);
-	assert.deepEqual(entry.items?.map((item) => item.label), [
-		ENGLISH_COPY.openDawproject, ENGLISH_COPY.saveDawproject, ENGLISH_COPY.dawprojectReport,
-	]);
-	(entry.items?.[0]?.onClick as () => void)();
-	(entry.items?.[1]?.onClick as () => void)();
-	assert.deepEqual(calls, ['open', 'save']);
+	assert.equal(items.find((item) => item.id === 'dawproject'), undefined, 'the DAWproject submenu is gone');
+	const exportOther = submenu(menus, 'export-other');
+	const entry = exportOther.items?.find((item) => item.id === 'export-dawproject');
+	assert.ok(entry, 'Export other offers the DAWproject export');
+	assert.equal(entry.label, ENGLISH_COPY.saveDawproject);
+	assert.equal(entry.disabled, false);
+	(entry.onClick as () => void)();
+	assert.deepEqual(calls, ['save']);
 });
 
-test('the report entry is enabled only while the report on hand is a DAWproject one', () => {
+test('the delivery report answers for every profile from the File menu itself', () => {
 	const opened: string[] = [];
 	const actions = { openDeliveryReport: () => { opened.push('report'); } };
-	const without = submenu(createApplicationMenus(menuInput(null, actions)) as unknown[]);
-	assert.equal(without.items?.[2]?.disabled, true);
-	const foreign = submenu(createApplicationMenus(menuInput({ subject: { format: 'otio' } }, actions)) as unknown[]);
-	assert.equal(foreign.items?.[2]?.disabled, true, 'an OTIO report is not shown under the DAWproject name');
-	const own = submenu(createApplicationMenus(menuInput({ subject: { format: 'dawproject' } }, actions)) as unknown[]);
-	assert.equal(own.items?.[2]?.disabled, false);
-	(own.items?.[2]?.onClick as () => void)();
+	const audacity = submenu(createApplicationMenus(menuInput(null, actions)) as unknown[], 'audacity-projects');
+	assert.equal(
+		audacity.items?.find((item) => item.id === 'delivery-report'), undefined,
+		'a DAWproject delivery no longer reports itself under the Audacity projects name',
+	);
+	const without = fileMenu(createApplicationMenus(menuInput(null, actions)) as unknown[])
+		.items!.find((item) => item.id === 'delivery-report');
+	assert.equal(without?.disabled, true);
+	const own = fileMenu(createApplicationMenus(menuInput({ subject: { format: 'dawproject' } }, actions)) as unknown[])
+		.items!.find((item) => item.id === 'delivery-report');
+	assert.equal(own?.disabled, false, 'a DAWproject report opens like any other');
+	(own?.onClick as () => void)();
 	assert.deepEqual(opened, ['report']);
 });
 
-test('the submenu is blocked with the rest of the File menu while the editor is busy', () => {
-	const entry = createDawprojectMenu({
-		copy: ENGLISH_COPY, blocked: true, snapshot: { deliveryReport: { subject: { format: 'dawproject' } } }, actions: {},
-	});
-	assert.equal(entry.disabled, true);
-	assert.deepEqual(entry.items.map((item) => item.disabled), [true, true, false]);
+test('the ordinary Open command takes a .dawproject file', async () => {
+	assert.deepEqual(
+		partitionWorkspaceFiles([{ name: 'exchange.dawproject' }]).projects.map((file) => file.name),
+		['exchange.dawproject'],
+		'a dropped DAWproject is classified as a project, not as media',
+	);
+	const view = await readFile(new URL('src/common/editor/ui/workspace/AudioEditorWorkspaceView.jsx', ROOT), 'utf8');
+	const openInput = view.slice(view.indexOf('data-aup4-input'));
+	assert.match(openInput.slice(0, openInput.indexOf('/>')), /accept=\{`[^`]*\.dawproject/u);
+	const workspace = await readFile(new URL('src/common/editor/ui/workspace/AudioEditorWorkspace.jsx', ROOT), 'utf8');
+	assert.match(workspace, /\/\\\.dawproject\$\/iu\.test\(file\?\.name \|\| ''\) \? controller\.actions\.project\.openDawproject\(file\)/u);
+	const menus = await readFile(new URL('src/common/editor/ui/application-menus.js', ROOT), 'utf8');
+	assert.match(menus, /id: 'open-project', label: copy\.open, shortcut: 'Ctrl\+O'/u);
+	assert.doesNotMatch(menus, /dawproject-menu\.js/u);
 });
