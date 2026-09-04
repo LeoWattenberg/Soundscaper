@@ -32,7 +32,9 @@ test('AUP4 deserialize failure leaves FREEONCLOSE buffer ownership with SQLite',
 });
 
 test('AUP4 snapshot compatibility state is published only after COMMIT succeeds', async () => {
-	const source = await readFile(new URL('../src/common/editor/aup4-worker.js', import.meta.url), 'utf8');
+	const source = await readFile(
+		new URL('../src/common/editor/aup4-worker-snapshot.js', import.meta.url), 'utf8',
+	);
 	const finalize = source.slice(
 		source.indexOf('function finalizeSnapshot'),
 		source.indexOf('function abortSnapshot'),
