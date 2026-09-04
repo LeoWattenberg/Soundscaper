@@ -14,7 +14,10 @@ test('Preferences opens on General the way Audacity does', () => {
 });
 
 test('every preference page is reachable on both hosts', () => {
-	for (const page of ['appearance', 'editing', 'spectrogram', 'workspace', 'panels', 'shortcuts']) {
+	for (const page of [
+		'appearance', 'audio', 'playback-recording', 'editing', 'spectrogram',
+		'workspace', 'panels', 'shortcuts',
+	]) {
 		assert.equal(workspacePreferencesPage(page), page);
 	}
 });

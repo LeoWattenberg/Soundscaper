@@ -113,7 +113,7 @@ test.describe('Soundscaper sound-activated recording', () => {
 
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
-		await preferences.getByRole('tab', { name: /Editing$/u }).click();
+		await preferences.getByRole('tab', { name: /Playback\/Recording$/u }).click();
 		await expect(preferences.locator('[data-sound-activation-preferences]')).toHaveCount(0);
 		await preferences.getByRole('tab', { name: /Keyboard shortcuts$/u }).click();
 		await preferences.getByRole('searchbox').fill('sound activation');

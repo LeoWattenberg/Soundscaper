@@ -391,15 +391,28 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
-		await preferences.getByRole('tab', { name: /Editing$/ }).click();
+		await preferences.getByRole('tab', { name: /Playback\/Recording$/ }).click();
 		const mode = preferences.getByRole('group', { name: 'Play-at-speed pitch behavior', exact: true });
 		await chooseDropdown(page, mode, 'Preserve pitch with StaffPad');
 		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
 
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 		const reopened = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
-		await reopened.getByRole('tab', { name: /Editing$/ }).click();
+		await reopened.getByRole('tab', { name: /Playback\/Recording$/ }).click();
 		await expect(reopened.getByRole('group', { name: 'Play-at-speed pitch behavior', exact: true }).getByRole('button')).toContainText('Preserve pitch with StaffPad');
+	});
+
+	test('reaches the same audio devices from Preferences as from the transport', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await preferences.getByRole('tab', { name: /Audio settings$/u }).click();
+		const devices = preferences.locator('[data-audio-devices-flyout]');
+		await expect(devices.getByLabel('Microphone', { exact: true })).toBeVisible();
+		await expect(devices.getByLabel('Speakers', { exact: true })).toBeVisible();
+		await expect(devices.getByRole('radiogroup', { name: 'Recording channels', exact: true })).toBeVisible();
+		// The preferences panel draws the heading, so the flyout's own is absent.
+		await expect(devices.getByText('Audio setup', { exact: true })).toHaveCount(0);
 	});
 
 	test('mixes tracks through group and send buses with Audacity channel strips', async ({ page }) => {

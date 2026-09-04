@@ -6,6 +6,8 @@
  * main catalog.
  */
 const ENTRIES = Object.freeze([
+	['preferencesAudioSettings', 'Audio settings', 'Audio-Einstellungen'],
+	['preferencesPlaybackRecording', 'Playback/Recording', 'Wiedergabe/Aufnahme'],
 	['programStart', 'Program start', 'Programmstart'],
 	['startupContinueLastSession', 'Continue last session', 'Letzte Sitzung fortsetzen'],
 	['startupNewProject', 'Start with new project', 'Mit neuem Projekt beginnen'],

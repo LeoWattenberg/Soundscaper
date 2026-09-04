@@ -259,11 +259,18 @@ function RecordingMeterFlyout({
 	);
 }
 
+/**
+ * Audacity's Audio setup content: the recording device, its channel count, and
+ * the playback device. It is both the transport flyout and the body of the
+ * Audio settings preferences page, which is why the heading is optional — the
+ * preferences panel draws its own.
+ */
 export function AudioDevicesFlyout({
 	copy,
 	snapshot,
 	controller,
 	run,
+	heading = true,
 }) {
 	const devices = snapshot.audioDevices || {};
 	const inputs = Array.isArray(devices.inputs) ? devices.inputs : [];
@@ -289,7 +296,7 @@ export function AudioDevicesFlyout({
 
 	return (
 		<div className="kw-audio-editor__audio-devices-content" data-audio-devices-flyout>
-			<strong>{copy.audioDevices}</strong>
+			{heading && <strong>{copy.audioDevices}</strong>}
 			<label>
 				<span>{copy.audioInputDevice}</span>
 				<select

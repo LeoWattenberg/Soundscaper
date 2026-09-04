@@ -3,6 +3,8 @@
 const PREFERENCE_PAGES = new Set([
 	'general',
 	'appearance',
+	'audio',
+	'playback-recording',
 	'editing',
 	'workspace',
 	'panels',

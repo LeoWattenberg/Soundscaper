@@ -9,13 +9,13 @@ import { productProfile } from '../../../products.js';
 import { iconNameToChar } from '../../audacity-iconcodes.js';
 import { findAudioEditorShortcutConflicts, normalizeAudioEditorShortcut } from '../../preferences.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
-import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
-import SoundActivationPreferences from '../SoundActivationPreferences.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import { workspacePanelAvailable } from '../workspace/workspace-product-panel-runtime.ts';
 import { workspacePreferencesPage } from '../workspace/workspace-preferences-routing.ts';
+import AudioSettingsPreferencesPage from './AudioSettingsPreferencesPage.jsx';
 import GeneralPreferencesPage from './GeneralPreferencesPage.jsx';
+import PlaybackRecordingPreferencesPage from './PlaybackRecordingPreferencesPage.jsx';
 import PreferenceDropdownField from './PreferenceDropdownField.jsx';
 import { collectAudacityShortcutCommands } from './workspace-preferences-shortcut-commands.ts';
 import {
@@ -58,14 +58,18 @@ export default function WorkspacePreferencesDialog({
 	)), [copy, locale, menus, productId]);
 	const visibleCommands = commands.filter((command) => `${command.label} ${command.id}`.toLowerCase().includes(shortcutSearch.trim().toLowerCase()));
 	const activeCustom = preferences.workspace.custom.find((workspace) => workspace.id === preferences.workspace.activeId);
+	// Audacity's own page order, with the two pages it has no counterpart for —
+	// the workspace presets and the panel inventory — kept after Shortcuts.
 	const pages = [
 		{ id: 'general', label: copy.metadataGeneralTab, icon: iconNameToChar('SETTINGS_COG') },
 		{ id: 'appearance', label: copy.appearance, icon: iconNameToChar('BRUSH') },
-		{ id: 'editing', label: copy.preferencesEditing, icon: iconNameToChar('WAVEFORM') },
+		{ id: 'audio', label: copy.preferencesAudioSettings, icon: iconNameToChar('AUDIO') },
+		{ id: 'playback-recording', label: copy.preferencesPlaybackRecording, icon: iconNameToChar('MICROPHONE') },
 		{ id: 'spectrogram', label: copy.panelSpectrogram, icon: iconNameToChar('SPECTROGRAM') },
+		{ id: 'editing', label: copy.preferencesEditing, icon: iconNameToChar('EDIT') },
+		{ id: 'shortcuts', label: copy.shortcuts, icon: iconNameToChar('SHORTCUTS') },
 		{ id: 'workspace', label: copy.workspace, icon: iconNameToChar('WORKSPACE') },
 		{ id: 'panels', label: copy.panels, icon: iconNameToChar('SPLIT_VIEW_VERTICAL') },
-		{ id: 'shortcuts', label: copy.shortcuts, icon: iconNameToChar('SHORTCUTS') },
 	];
 	const selectedPageLabel = pages.find((page) => page.id === selectedPage)?.label || copy.preferencesTitle;
 	const appearanceTheme = preferences.appearance.theme;
@@ -147,6 +151,26 @@ export default function WorkspacePreferencesDialog({
 								copy={copy}
 								locale={locale}
 								fileService={fileService}
+								productId={productId}
+								run={run}
+							/>
+						)}
+
+						{selectedPage === 'audio' && (
+							<AudioSettingsPreferencesPage
+								controller={controller}
+								snapshot={snapshot}
+								copy={copy}
+								run={run}
+							/>
+						)}
+
+						{selectedPage === 'playback-recording' && (
+							<PlaybackRecordingPreferencesPage
+								controller={controller}
+								snapshot={snapshot}
+								copy={copy}
+								locale={locale}
 								productId={productId}
 								run={run}
 							/>
@@ -296,70 +320,27 @@ export default function WorkspacePreferencesDialog({
 						)}
 
 						{selectedPage === 'editing' && (
-							<>
-								<PreferencePanel title={copy.preferencesEditing}>
-									<div className="kw-audio-editor-preferences__grid">
-										<PreferenceDropdownField
-											label={copy.rippleEditing}
-											value={preferences.editing.rippleMode}
-											onChange={(value) => run(() => controller.actions.preferences.update({ editing: { rippleMode: value } }))}
-											options={[
-												{ value: 'off', label: copy.preferenceOff },
-												{ value: 'per-track', label: copy.preferencePerTrack },
-												{ value: 'all-tracks', label: copy.allTracks },
-											]}
-										/>
-									</div>
-									<div className="kw-audio-editor-preferences__checks">
-										<PreferenceCheckbox
-											label={copy.snapZeroCrossings}
-											checked={preferences.editing.snapToZeroCrossings}
-											onChange={(checked) => run(() => controller.actions.preferences.update({ editing: { snapToZeroCrossings: checked } }))}
-										/>
-									</div>
-								</PreferencePanel>
-								<Separator />
-								<PreferencePanel title={copy.playAtSpeed}>
-									<div className="kw-audio-editor-preferences__grid">
-										<PreferenceDropdownField
-											label={copy.playAtSpeedMode}
-											value={preferences.playback?.playAtSpeedMode || 'naive'}
-											onChange={(value) => run(() => controller.actions.preferences.update({ playback: { playAtSpeedMode: value } }))}
-											options={[
-												{ value: 'naive', label: copy.playAtSpeedNaive },
-												{ value: 'staffpad', label: copy.playAtSpeedStaffPad },
-											]}
-										/>
-									</div>
-								</PreferencePanel>
-								<Separator />
-								<PreferencePanel title={copy.recordingPreferences}>
-									<div className="kw-audio-editor-preferences__checks kw-audio-editor-preferences__recording">
-										<span className="audio-editor-help-label">
-											<PreferenceCheckbox
-												label={copy.recordingKeepInputsOpen}
-												checked={snapshot.recordingInputs?.retainInputs ?? preferences.recording?.retainInputs ?? true}
-												onChange={(checked) => run(() => controller.actions.recording.setRetainInputs(checked))}
-											/>
-											<EditorHelpTooltip
-												subject={copy.recordingKeepInputsOpen}
-												description={copy.recordingKeepInputsOpenDescription}
-												helpLabel={copy.helpMenu}
-												hook="recording-keep-inputs-open"
-											/>
-										</span>
-									</div>
-									{snapshot.recordingInputs?.soundActivation && <SoundActivationPreferences
-										productId={productId}
-										locale={locale}
-										readOnly={Boolean(snapshot.readOnly)}
-										soundActivation={snapshot.recordingInputs.soundActivation}
-										copy={copy}
-										controller={controller}
-										run={run}
-									/>}
-								</PreferencePanel>
-							</>
+							<PreferencePanel title={copy.preferencesEditing}>
+								<div className="kw-audio-editor-preferences__grid">
+									<PreferenceDropdownField
+										label={copy.rippleEditing}
+										value={preferences.editing.rippleMode}
+										onChange={(value) => run(() => controller.actions.preferences.update({ editing: { rippleMode: value } }))}
+										options={[
+											{ value: 'off', label: copy.preferenceOff },
+											{ value: 'per-track', label: copy.preferencePerTrack },
+											{ value: 'all-tracks', label: copy.allTracks },
+										]}
+									/>
+								</div>
+								<div className="kw-audio-editor-preferences__checks">
+									<PreferenceCheckbox
+										label={copy.snapZeroCrossings}
+										checked={preferences.editing.snapToZeroCrossings}
+										onChange={(checked) => run(() => controller.actions.preferences.update({ editing: { snapToZeroCrossings: checked } }))}
+									/>
+								</div>
+							</PreferencePanel>
 						)}
 
 						{selectedPage === 'panels' && (
@@ -419,7 +400,7 @@ export default function WorkspacePreferencesDialog({
 
 function preferencePage(requestedPage) {
 	const page = workspacePreferencesPage(requestedPage);
-	return page === 'sound-activation' ? 'editing' : page;
+	return page === 'sound-activation' ? 'playback-recording' : page;
 }
 
 function PreferenceChoice({ selectLabel, label, ...props }) {
