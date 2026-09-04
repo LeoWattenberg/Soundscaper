@@ -142,6 +142,7 @@ export function useTimelinePointerStart({
 		const trackId = lane.dataset.trackId;
 		const laneTrack = project.tracks.find((track) => track.id === trackId);
 		if (splitToolActive && !event.altKey && trackId
+			&& lane.dataset.rulerInteraction === undefined
 			&& laneTrack?.type !== 'label' && Array.isArray(laneTrack?.clipIds)) {
 			const rawStartFrame = frameAtClientX(event.clientX, lane);
 			const startFrame = resolveSplitToolGuidelineFrame({

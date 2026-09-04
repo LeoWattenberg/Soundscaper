@@ -66,6 +66,18 @@ test('active Split Tool yields an Alt-modified press to ordinary pointer routing
 	}
 });
 
+test('active Split Tool yields the ruler seek band to ordinary ruler routing', async () => {
+	const fixture = await mountPointerStart('none', { overClip: false, rulerInteraction: true });
+	try {
+		await act(async () => { fixture.onPointerDown()(fixture.pointerEvent); });
+		assert.deepEqual(fixture.splitCalls, []);
+		assert.equal(fixture.pointerSession.current?.kind, 'selection');
+		assert.equal(fixture.pointerEvent.defaultPrevented, false);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 test('Split press stores and commits its snapped guideline frame', async () => {
 	const fixture = await mountPointerStart('none', { annotationEdge: 124, rawFrame: 120 });
 	try {
@@ -85,6 +97,7 @@ async function mountPointerStart(
 		laneTrackType?: 'audio' | 'label';
 		overClip?: boolean;
 		rawFrame?: number;
+		rulerInteraction?: boolean;
 		shiftKey?: boolean;
 	}> = {},
 ) {
@@ -159,7 +172,12 @@ async function mountPointerStart(
 	return {
 		splitCalls,
 		pointerSession,
-		pointerEvent: pointerEvent(options.shiftKey, options.overClip ?? true, options.altKey),
+		pointerEvent: pointerEvent(
+			options.shiftKey,
+			options.overClip ?? true,
+			options.altKey,
+			options.rulerInteraction,
+		),
 		onPointerDown: () => {
 			assert.ok(onPointerDown);
 			return onPointerDown;
@@ -172,9 +190,14 @@ async function mountPointerStart(
 	};
 }
 
-function pointerEvent(shiftKey = false, overClip = true, altKey = false) {
+function pointerEvent(shiftKey = false, overClip = true, altKey = false, rulerInteraction = false) {
 	const lane = {
-		dataset: { trackId: 'track-a' },
+		dataset: rulerInteraction
+			? { trackId: 'track-a', rulerInteraction: '' }
+			: { trackId: 'track-a' },
+		// The ruler lane hosts no ruler canvas here, so the loop band is the
+		// upper half of the lane rect and clientY 90 lands in the seek band.
+		querySelector: () => null,
 		getBoundingClientRect: () => ({ top: 0, height: 100 }),
 	};
 	const clip = {
@@ -189,7 +212,7 @@ function pointerEvent(shiftKey = false, overClip = true, altKey = false) {
 		pointerType: 'mouse',
 		isPrimary: true,
 		clientX: 100,
-		clientY: 50,
+		clientY: rulerInteraction ? 90 : 50,
 		altKey,
 		ctrlKey: false,
 		metaKey: false,
