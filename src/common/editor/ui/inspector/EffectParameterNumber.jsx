@@ -6,7 +6,7 @@ import { Knob } from '@soundscaper/design-system/Knob';
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../../project.js';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { CommitField, SteppedSlider } from './inspector-controls.jsx';
-import { effectParameterIsClipDuration } from './effect-helpers.ts';
+import { effectParameterTakesTimeCode } from './effect-helpers.ts';
 
 /**
  * One numeric effect parameter, and the drag that edits it.
@@ -25,7 +25,7 @@ export default function ParameterNumber({
 	copy,
 	disabled,
 	hook,
-	durationUnit: durationTimeUnit,
+	timeCodeUnit: timeUnit,
 	sampleRate = AUDIO_EDITOR_SAMPLE_RATE,
 	onCommit,
 	onGestureBegin,
@@ -108,7 +108,7 @@ export default function ParameterNumber({
 			aria-label={label}
 		>
 			<span>{label}</span>
-			{!durationTimeUnit && knobRange && presentation === 'knob' && <Knob
+			{!timeUnit && knobRange && presentation === 'knob' && <Knob
 				value={gestureValue ?? (Number(value) || 0)}
 				min={knobRange[0]}
 				max={knobRange[1]}
@@ -121,7 +121,7 @@ export default function ParameterNumber({
 				onGestureEnd={gestureEnabled ? finishKnobGesture : undefined}
 				onGestureCancel={gestureEnabled ? cancelKnobGesture : undefined}
 			/>}
-			{!durationTimeUnit && knobRange && presentation === 'slider' && <SteppedSlider
+			{!timeUnit && knobRange && presentation === 'slider' && <SteppedSlider
 				value={Number(value) || 0}
 				min={knobRange[0]}
 				max={knobRange[1]}
@@ -133,12 +133,12 @@ export default function ParameterNumber({
 					onGestureEnd={onGestureCommit}
 					onGestureCancel={onGestureCancel}
 				/>}
-			{durationTimeUnit ? <AudioEditorTimeCodeInput
+			{timeUnit ? <AudioEditorTimeCodeInput
 				label={label}
 				value={Number(value) || 0}
-				unit={durationTimeUnit}
+				unit={timeUnit}
 				rate={sampleRate}
-				format={durationTimeUnit === 'samples' ? 'samples' : 'hh:mm:ss+milliseconds'}
+				format={timeUnit === 'samples' ? 'samples' : 'hh:mm:ss+milliseconds'}
 				minimum={knobRange?.[0] ?? 0}
 				maximum={knobRange?.[1]}
 				disabled={disabled}
@@ -158,14 +158,15 @@ export default function ParameterNumber({
 }
 
 /**
- * The timecode component is for durations only: a value that says how long the
- * audio will be once the effect has run, which is the only kind of parameter a
- * user may want to enter in minutes or hours. An attack, a release, a lookahead
- * or a fade length is a bounded shaping control, so it keeps the knob or slider
- * its effect gives every other parameter of the same shape.
+ * The unit a parameter's timecode counts in, or null when it takes a knob or a
+ * slider instead. An attack, a release, a lookahead or a fade length is bounded
+ * at both ends, so it keeps the control its effect gives every other parameter
+ * of the same shape. A duration that sets how long the audio ends up, and a
+ * value with no real maximum, both get the timecode — the latter so hours can
+ * be typed straight in rather than counted out in seconds.
  */
-export function durationUnit(effectType, name, unit) {
-	if (!effectParameterIsClipDuration(effectType, name)) return null;
+export function timeCodeUnit(effectType, name, unit, range) {
+	if (!effectParameterTakesTimeCode(effectType, name, range)) return null;
 	if (unit === 's') return 'seconds';
 	if (unit === 'ms') return 'milliseconds';
 	if (unit === 'samples') return 'samples';

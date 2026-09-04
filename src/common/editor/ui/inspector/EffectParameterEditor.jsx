@@ -17,7 +17,7 @@ import { AUDIO_EDITOR_SAMPLE_RATE } from '../../project.js';
 import { AudacityEffectLayout } from '../AudacityEffectLayout.jsx';
 import { ParametricEqEditor } from '../ParametricEqEditor.jsx';
 import { CommitField, DesignCheckbox, LabeledDropdown, SteppedSlider } from './inspector-controls.jsx';
-import ParameterNumber, { durationUnit } from './EffectParameterNumber.jsx';
+import ParameterNumber, { timeCodeUnit } from './EffectParameterNumber.jsx';
 import {
 	audacityCurvePolyline,
 	audacityParameterPresentation,
@@ -198,6 +198,7 @@ export default function EffectParameterEditor({
 			const descriptor = AUDIO_EFFECT_DEFINITIONS[effect.type]?.ranges?.[name]
 				|| AUDIO_SELECTION_EFFECT_DEFINITIONS[effect.type]?.ranges?.[name];
 				const unit = descriptor?.[2]?.unit;
+				const range = audioEffectParamRange(effect.type, name) || descriptor?.slice(0, 2);
 				const fallback = onRackEffectGestureBegin && onRackEffectPreview && onRackEffectCommit
 					? {
 						begin: () => invoke(onRackEffectGestureBegin),
@@ -213,12 +214,12 @@ export default function EffectParameterEditor({
 					<ParameterNumber
 					label={nativeEffectParameterLabel(effect.type, name, copy)}
 					value={effect.params?.[name]}
-					range={audioEffectParamRange(effect.type, name) || descriptor?.slice(0, 2)}
+					range={range}
 					step={descriptor?.[2]?.step}
 					copy={copy}
 					disabled={disabled}
 					hook={name}
-					durationUnit={durationUnit(effect.type, name, unit)}
+					timeCodeUnit={timeCodeUnit(effect.type, name, unit, range)}
 					sampleRate={sampleRate}
 						onCommit={(next) => updateParam(name, next, { controlValue: next })}
 						{...parameterGestureProps(name, null, fallback)}
@@ -434,7 +435,7 @@ function AudacityParameter({ name, effectType, descriptor, value, effectParams, 
 			copy={copy}
 			disabled={disabled}
 			hook={name}
-			durationUnit={durationUnit(effectType, name, descriptor.unit)}
+			timeCodeUnit={timeCodeUnit(effectType, name, descriptor.unit, range)}
 			sampleRate={sampleRate}
 			onCommit={(next) => onCommit(next, { controlValue: next })}
 			{...gestureFor(name)}

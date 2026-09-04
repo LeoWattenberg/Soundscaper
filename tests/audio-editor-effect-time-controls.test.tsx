@@ -66,7 +66,8 @@ test('bounded time parameters are knobs rather than timecode fields', () => {
 		['audacity-legacy-compressor', ['attackSeconds', 'releaseSeconds']],
 		['audacity-limiter', ['lookaheadMs', 'releaseMs']],
 		['audacity-reverb', ['preDelay']],
-		['audacity-auto-duck', ['innerFadeDown', 'innerFadeUp', 'outerFadeDown', 'outerFadeUp']],
+		['audacity-auto-duck', ['innerFadeDown', 'innerFadeUp', 'outerFadeDown', 'outerFadeUp', 'maximumPause']],
+		['audacity-echo', ['delaySeconds']],
 	];
 	for (const [type, names] of cases) {
 		const parameter = parameterMarkup(type);
@@ -80,11 +81,13 @@ test('bounded time parameters are knobs rather than timecode fields', () => {
 	}
 });
 
-test('an unbounded time parameter takes a plain number field, never a timecode', () => {
-	assert.doesNotMatch(parameterMarkup('audacity-echo')('delaySeconds'), /data-timecode-input/u);
-	assert.match(parameterMarkup('audacity-echo')('delaySeconds'), /type="number"/u);
-	assert.doesNotMatch(parameterMarkup('audacity-paulstretch')('timeResolution'), /data-timecode-input/u);
-	assert.doesNotMatch(parameterMarkup('audacity-auto-duck')('maximumPause'), /data-timecode-input/u);
+test('a time parameter with no real maximum keeps the timecode, so hours can be typed', () => {
+	// Paulstretch is the one effect whose time value the editor leaves open; the
+	// rack effects clamp theirs to a range a knob can be built on.
+	const markup = parameterMarkup('audacity-paulstretch')('timeResolution');
+	assert.match(markup, /data-timecode-input="seconds"/u);
+	assert.match(markup, /data-unit="hours"/u);
+	assert.doesNotMatch(markup, /class="knob/u);
 });
 
 test('durations that set how long the processed audio is keep the timecode component', () => {
