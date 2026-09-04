@@ -291,7 +291,9 @@ function eligiblePlan() {
 				channels: [{ inputs: [{ channel: 0, gain: 1 }] }, { inputs: [{ channel: 1, gain: 1 }] }],
 			},
 			sampleFormat: null, bitDepth: null, floatingPoint: false,
-			dither: 'none', metadata: {}, bitRate: 192,
+			dither: 'none', metadata: {},
+			bitRateMode: 'constant', bitRatePreset: 2, vbrQuality: 2,
+			bitRate: 192, averageBitRate: 192,
 		},
 		render: {
 			strategy: 'realtime-stream', fast: false, reason: 'total-memory',
