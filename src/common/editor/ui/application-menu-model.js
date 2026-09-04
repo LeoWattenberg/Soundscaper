@@ -27,11 +27,14 @@ export function createSnapMenu(copy, project, editBlocked, setSnap) {
 	const storedUnit = String(snap.division || snap.unit || 'seconds');
 	const unit = ({ beats: '1/4', frames: 'video-24' }[storedUnit] || storedUnit).replace(/-triplet$/, '');
 	const triplets = Boolean(snap.triplets || /-triplet$/.test(storedUnit));
+	// One value of the snap dropdown, not a command of its own: `1/128` reads as
+	// nothing outside that list, so the shortcut editor skips the whole group.
 	const item = ([id, copyKey]) => ({
 		id: `snap-${id.replace(/[^a-z0-9]+/gi, '-')}`,
 		label: copyKey ? copy[copyKey] : id,
 		checked: unit === id,
 		disabled: editBlocked,
+		shortcutAssignable: false,
 		onClick: () => setSnap({ unit: id, division: id }),
 	});
 	const musical = MUSICAL_SNAP_ITEMS.some(([id]) => id === unit);

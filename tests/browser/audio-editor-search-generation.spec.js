@@ -174,7 +174,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const shortcut = preferences.locator('[data-shortcut-action="mix-render"]');
 		await expect(shortcut).toBeVisible();
 		await expect(preferences.locator('[data-shortcut-action="mixdown-to"]')).toHaveCount(0);
-		await shortcut.locator('input').fill('Alt+Shift+M');
+		await shortcut.locator('[data-shortcut-binding="0"]').fill('Alt+Shift+M');
 		await shortcut.getByRole('button', { name: 'Assign', exact: true }).click();
 		await page.keyboard.press('Escape');
 		await expect(preferences).toBeHidden();
@@ -317,7 +317,11 @@ test.describe('audio editor React/design-system workflows', () => {
 		await search.fill('Zoom toggle');
 		const row = preferences.locator('[data-shortcut-action="zoom-toggle"]');
 		await expect(row).toBeVisible();
-		await row.locator('input').fill('K');
+		// One command, two bindings: the second field is added here, and both of
+		// them have to reach the same action once the dialog closes.
+		await row.locator('[data-shortcut-binding="0"]').fill('K');
+		await row.getByRole('button', { name: 'Add shortcut: Zoom toggle', exact: true }).click();
+		await row.locator('[data-shortcut-binding="1"]').fill('Alt+K');
 		await row.getByRole('button', { name: 'Assign', exact: true }).click();
 		await page.keyboard.press('Escape');
 		await expect(preferences).toBeHidden();
@@ -326,7 +330,14 @@ test.describe('audio editor React/design-system workflows', () => {
 		await timelinePanel.evaluate((element) => { element.tabIndex = -1; element.focus(); });
 		await page.keyboard.press('k');
 		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBeGreaterThan(normalWidth);
+		await page.keyboard.press('Alt+k');
+		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBe(normalWidth);
+		await page.keyboard.press('k');
+		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBeGreaterThan(normalWidth);
 		await page.keyboard.press('Control+2');
+		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBe(normalWidth);
+		// The replaced default is gone rather than kept alongside the new pair.
+		await page.keyboard.press('Shift+Z');
 		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBe(normalWidth);
 		expect(errors).toEqual([]);
 	});

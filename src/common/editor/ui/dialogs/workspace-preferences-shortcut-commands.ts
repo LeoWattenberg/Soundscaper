@@ -9,6 +9,7 @@ import {
 	isAudacityShortcutCommandDisabled,
 } from '../../audacity-action-parity.js';
 import { compareCodeUnits } from '../../code-unit-order.ts';
+import { createShortcutPlacementIndex } from './workspace-preferences-shortcut-categories.ts';
 
 interface AudacityShortcutActionDefinition {
 	readonly id: string;
@@ -17,6 +18,7 @@ interface AudacityShortcutActionDefinition {
 	readonly menuVisible?: boolean;
 	readonly shortcut?: string | null;
 	readonly reason?: unknown;
+	readonly locations?: readonly string[];
 }
 
 interface AudacityShortcutMenuItem {
@@ -26,6 +28,7 @@ interface AudacityShortcutMenuItem {
 	readonly disabled?: boolean;
 	readonly disabledReason?: string | null;
 	readonly divider?: boolean;
+	readonly shortcutAssignable?: boolean;
 	readonly items?: readonly AudacityShortcutMenuEntry[];
 }
 
@@ -39,6 +42,10 @@ export interface AudacityShortcutCommand {
 	readonly parityStatus: string | null;
 	readonly disabled: boolean;
 	readonly disabledReason: string | null;
+	readonly categoryId: string;
+	readonly categoryLabel: string;
+	readonly categoryOrder: number;
+	readonly order: number;
 }
 
 export interface AudacityShortcutCommandOptions {
@@ -62,10 +69,19 @@ export function collectAudacityShortcutCommands(
 	if (!Array.isArray(menus)) throw new TypeError('menus must be an array.');
 	const normalizedLocale = normalizeBcp47Locale(locale);
 	const localization = copy || normalizedLocale;
+	const placements = createShortcutPlacementIndex(menus, {
+		localization,
+		resolveCanonicalId: (id) => definitionFor(id)?.id || id,
+	});
 	const commands = new Map<string, AudacityShortcutCommand>();
+	const place = (id: string, locations: readonly string[] | undefined, inventoryOrder: number) => (
+		placements.placementFor(id, locations, inventoryOrder)
+	);
 
+	let inventoryOrder = 0;
 	for (const manifestDefinition of Object.values(manifest)) {
 		const definition = definitionFor(manifestDefinition.id) || manifestDefinition;
+		inventoryOrder += 1;
 		if (definition.status === AUDACITY_ACTION_STATUS.EXCLUDED
 			|| definition.menuVisible === false
 			|| isAudacityShortcutCommandDisabled(manifestDefinition.id, disabledCommandIds)) continue;
@@ -78,12 +94,13 @@ export function collectAudacityShortcutCommands(
 			parityStatus: definition.status,
 			disabled,
 			disabledReason: disabled ? localizedReason(definition.reason, localization) : null,
+			...place(definition.id, definition.locations, inventoryOrder),
 		});
 	}
 
 	const visit = (items: readonly AudacityShortcutMenuEntry[] = []): void => {
 		for (const item of items) {
-			if (!item || item.divider) continue;
+			if (!item || item.divider || item.shortcutAssignable === false) continue;
 			if (item.items?.length) {
 				visit(item.items);
 				continue;
@@ -97,6 +114,7 @@ export function collectAudacityShortcutCommands(
 			const disabled = definition
 				? definition.status === AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM
 				: Boolean(item.disabled);
+			inventoryOrder += 1;
 			commands.set(id, {
 				...(current || {}),
 				id,
@@ -110,6 +128,7 @@ export function collectAudacityShortcutCommands(
 							? localizedReason(definition.reason, localization)
 						: null))
 					: null,
+				...place(id, definition?.locations, inventoryOrder),
 			});
 		}
 	};

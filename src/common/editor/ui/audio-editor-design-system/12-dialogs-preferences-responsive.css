@@ -287,6 +287,13 @@
 	width: 100%;
 }
 
+#kw-audio-editor-design-system .kw-audio-editor-preferences__shortcut-controls {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(120px, 180px);
+	align-items: end;
+	gap: 9px;
+}
+
 #kw-audio-editor-design-system .kw-audio-editor-preferences__shortcut-list {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
@@ -297,10 +304,22 @@
 
 #kw-audio-editor-design-system :is(.kw-audio-editor-preferences__shortcut-header, .kw-audio-editor-preferences__shortcut-row) {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(120px, 0.45fr) 76px;
+	grid-template-columns: minmax(0, 1fr) minmax(170px, 0.5fr) 76px;
 	align-items: center;
 	gap: 9px;
 	padding: 7px 9px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-preferences__shortcut-group {
+	margin: 0;
+	padding: 7px 9px;
+	color: var(--kw-editor-muted);
+	background: var(--kw-editor-control);
+	border-bottom: 1px solid var(--kw-editor-line);
+	font-size: 9px;
+	font-weight: 750;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor-preferences__shortcut-header {
@@ -323,8 +342,65 @@
 	border-bottom: 0;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor-preferences__shortcut-row > label {
+#kw-audio-editor-design-system .kw-audio-editor-preferences__shortcut-command {
+	min-width: 0;
+	color: var(--kw-editor-muted);
+	font-size: 10px;
+	font-weight: 700;
+	overflow-wrap: anywhere;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-preferences__shortcut-bindings {
+	display: grid;
+	min-width: 0;
+	gap: 4px;
+}
+
+/* The remove and add controls keep fixed columns so stacked fields line up. */
+#kw-audio-editor-design-system .kw-audio-editor-preferences__shortcut-binding {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 22px 22px;
+	align-items: center;
+	gap: 4px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-preferences__shortcut-remove {
+	grid-column: 2;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-preferences__shortcut-add {
+	grid-column: 3;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-preferences__shortcut-binding > label {
 	display: contents;
+}
+
+#kw-audio-editor-design-system :is(.kw-audio-editor-preferences__shortcut-remove, .kw-audio-editor-preferences__shortcut-add) {
+	color: var(--kw-editor-muted);
+	background: transparent;
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 3px;
+	cursor: pointer;
+	font-size: 10px;
+	line-height: 1;
+}
+
+#kw-audio-editor-design-system :is(.kw-audio-editor-preferences__shortcut-remove, .kw-audio-editor-preferences__shortcut-add) {
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	font-size: 12px;
+}
+
+#kw-audio-editor-design-system :is(.kw-audio-editor-preferences__shortcut-remove, .kw-audio-editor-preferences__shortcut-add):hover:not(:disabled) {
+	color: var(--kw-editor-text);
+	border-color: var(--kw-editor-accent, var(--kw-editor-text));
+}
+
+#kw-audio-editor-design-system :is(.kw-audio-editor-preferences__shortcut-remove, .kw-audio-editor-preferences__shortcut-add):disabled {
+	cursor: default;
+	opacity: 0.5;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor-preferences__shortcut-row small {

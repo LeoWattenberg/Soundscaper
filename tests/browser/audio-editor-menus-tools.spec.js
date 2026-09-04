@@ -637,7 +637,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		let preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
 		await preferences.getByRole('tab', { name: /Keyboard shortcuts$/u }).click();
 		const splitRow = preferences.locator('[data-shortcut-action="split-tool"]');
-		const splitShortcut = splitRow.locator('input');
+		const splitShortcut = splitRow.locator('[data-shortcut-binding="0"]');
 		await splitShortcut.focus();
 		await page.keyboard.press('s');
 		await expect(timeline).toHaveAttribute('data-split-tool', 'false');
@@ -790,6 +790,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await search.fill('Nyquist prompt');
 		await expect(preferences.locator('[data-shortcut-action="nyquist-prompt"]')).toBeVisible();
 	});
+
 });
 
 function directTimecodeInput(scope, label) {

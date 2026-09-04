@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogSideNav } from '@soundscaper/design-system/DialogSideNav/DialogSideNav';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
@@ -12,8 +12,6 @@ import {
 	AUDIO_EDITOR_DEFAULT_ZOOM_PRECISION,
 	AUDIO_EDITOR_MAXIMUM_ZOOM_PRECISION,
 	AUDIO_EDITOR_MINIMUM_ZOOM_PRECISION,
-	findAudioEditorShortcutConflicts,
-	normalizeAudioEditorShortcut,
 } from '../../preferences.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
@@ -25,7 +23,12 @@ import EffectsPreferencesPage from './EffectsPreferencesPage.jsx';
 import GeneralPreferencesPage from './GeneralPreferencesPage.jsx';
 import PlaybackRecordingPreferencesPage from './PlaybackRecordingPreferencesPage.jsx';
 import PreferenceDropdownField from './PreferenceDropdownField.jsx';
+import { ShortcutEditorRow } from './ShortcutEditorRow.tsx';
 import { collectAudacityShortcutCommands } from './workspace-preferences-shortcut-commands.ts';
+import {
+	DEFAULT_SHORTCUT_SORT_MODE,
+	groupAudacityShortcutCommands,
+} from './workspace-preferences-shortcut-groups.ts';
 import {
 	WORKSPACE_DOCK_IDS,
 	WORKSPACE_DISCOVERABLE_PANEL_IDS,
@@ -55,6 +58,7 @@ export default function WorkspacePreferencesDialog({
 	const sideNavRef = useRef(null);
 	const [selectedPage, setSelectedPage] = useState(preferencePage(initialPage));
 	const [shortcutSearch, setShortcutSearch] = useState('');
+	const [shortcutSort, setShortcutSort] = useState(DEFAULT_SHORTCUT_SORT_MODE);
 	const [workspaceName, setWorkspaceName] = useState('');
 	const preferences = snapshot.preferences;
 	const commands = useMemo(() => collectAudacityShortcutCommands(menus, {
@@ -64,7 +68,12 @@ export default function WorkspacePreferencesDialog({
 	}).filter((command) => (
 		productId === 'soundscaper' || !SOUNDSCAPER_ONLY_SHORTCUT_IDS.has(command.id)
 	)), [copy, locale, menus, productId]);
-	const visibleCommands = commands.filter((command) => `${command.label} ${command.id}`.toLowerCase().includes(shortcutSearch.trim().toLowerCase()));
+	const shortcutGroups = useMemo(() => groupAudacityShortcutCommands(
+		commands.filter((command) => (
+			`${command.label} ${command.id}`.toLowerCase().includes(shortcutSearch.trim().toLowerCase())
+		)),
+		shortcutSort,
+	), [commands, shortcutSearch, shortcutSort]);
 	const activeCustom = preferences.workspace.custom.find((workspace) => workspace.id === preferences.workspace.activeId);
 	// Audacity's own page order, with the one page it has no counterpart for —
 	// Workspace, holding both the presets and the panel inventory — kept after
@@ -425,17 +434,34 @@ export default function WorkspacePreferencesDialog({
 
 						{selectedPage === 'shortcuts' && (
 							<PreferencePanel title={copy.shortcuts} className="kw-audio-editor-preferences__shortcuts">
-								<label className="kw-audio-editor-preferences__search">
-									<span className="kw-audio-editor-sr-only">{copy.shortcutSearch}</span>
-									<input type="search" value={shortcutSearch} onChange={(event) => setShortcutSearch(event.currentTarget.value)} placeholder={copy.shortcutSearch} aria-label={copy.shortcutSearch} />
-								</label>
+								<div className="kw-audio-editor-preferences__shortcut-controls">
+									<label className="kw-audio-editor-preferences__search">
+										<span className="kw-audio-editor-sr-only">{copy.shortcutSearch}</span>
+										<input type="search" value={shortcutSearch} onChange={(event) => setShortcutSearch(event.currentTarget.value)} placeholder={copy.shortcutSearch} aria-label={copy.shortcutSearch} />
+									</label>
+									<PreferenceDropdownField
+										label={copy.shortcutSortMode}
+										visuallyHiddenLabel
+										value={shortcutSort}
+										onChange={setShortcutSort}
+										options={[
+											{ value: 'categorized', label: copy.shortcutSortCategorized },
+											{ value: 'alphabetical', label: copy.shortcutSortAlphabetical },
+										]}
+									/>
+								</div>
 								<div className="kw-audio-editor-preferences__shortcut-header" aria-hidden="true">
 									<span>{copy.commandColumn}</span>
 									<span>{copy.shortcutColumn}</span>
 									<span>{copy.actionColumn}</span>
 								</div>
 								<div className="kw-audio-editor-preferences__shortcut-list">
-									{visibleCommands.map((command) => <ShortcutEditorRow key={command.id} command={command} preferences={preferences} controller={controller} copy={copy} run={run} />)}
+									{shortcutGroups.map((group) => (
+										<Fragment key={group.id}>
+											{group.label && <h5 className="kw-audio-editor-preferences__shortcut-group" data-shortcut-group={group.id}>{group.label}</h5>}
+											{group.commands.map((command) => <ShortcutEditorRow key={command.id} command={command} preferences={preferences} controller={controller} copy={copy} run={run} />)}
+										</Fragment>
+									))}
 								</div>
 								<Button variant="secondary" onClick={() => run(() => controller.actions.preferences.resetShortcuts())}>{copy.shortcutsReset}</Button>
 							</PreferencePanel>
@@ -484,68 +510,4 @@ function preferencePreview(kind) {
 		<path d="M68 82l5-5 5 11 5-8 5 4 5-10 5 15 5-8 5 3 5-6 5 9 5-5 5 2 5-7 5 11 5-6 5 3 5-5 5 7" fill="none" stroke="${text}" stroke-width="1" opacity=".85"/>
 	</svg>`;
 	return `data:image/svg+xml,${encodeURIComponent(svg)}`;
-}
-
-export function shortcutEditorDraft({
-	shortcuts,
-	preferenceId,
-	persistedBindings,
-	binding,
-	disabled = false,
-}) {
-	let normalized = '';
-	let bindings = [];
-	let conflict = null;
-	if (!disabled && binding.trim()) {
-		try {
-			normalized = normalizeAudioEditorShortcut(binding);
-			bindings = [normalized, ...persistedBindings.slice(1)];
-			const candidateShortcuts = { ...shortcuts, [preferenceId]: bindings };
-			conflict = findAudioEditorShortcutConflicts(candidateShortcuts)
-				.find((entry) => entry.actionIds.includes(preferenceId)) || null;
-		} catch {
-			conflict = { binding, actionIds: [preferenceId] };
-		}
-	}
-	return { normalized, bindings, conflict };
-}
-
-export function ShortcutEditorRow({ command, preferences, controller, copy, run }) {
-	const preferenceId = command.id;
-	const persistedBindings = preferences.shortcuts[command.id]
-		|| (command.preferenceId ? preferences.shortcuts[command.preferenceId] : null)
-		|| [];
-	const persisted = persistedBindings[0] || '';
-	const alternatives = persistedBindings.slice(1);
-	const [binding, setBinding] = useState(persisted);
-	useLayoutEffect(() => setBinding(persisted), [persisted]);
-	const draft = shortcutEditorDraft({
-		shortcuts: preferences.shortcuts,
-		preferenceId,
-		persistedBindings,
-		binding,
-		disabled: command.disabled,
-	});
-	const { normalized, bindings, conflict } = draft;
-	const conflictAction = conflict?.actionIds.find((id) => id !== preferenceId);
-	const error = conflict
-		? (conflictAction
-			? copy.shortcutConflict.replace('{binding}', conflict.binding).replace('{action}', conflictAction)
-			: copy.shortcutInvalid)
-		: '';
-	return (
-		<div
-			className="kw-audio-editor-preferences__shortcut-row"
-			data-shortcut-action={command.id}
-			data-disabled-reason={command.disabledReason || undefined}
-			aria-disabled={command.disabled ? 'true' : undefined}
-			title={command.disabledReason || undefined}
-		>
-			<label><span>{command.label}</span><input disabled={command.disabled} value={binding} aria-invalid={error ? 'true' : 'false'} onChange={(event) => setBinding(event.currentTarget.value)} /></label>
-			{alternatives.length > 0 && <small data-shortcut-alternatives="true">{copy.shortcutColumn}: {alternatives.join(', ')}</small>}
-			<Button variant="secondary" disabled={command.disabled || Boolean(error) || normalized === persisted} onClick={() => run(() => controller.actions.preferences.setShortcut(preferenceId, bindings))}>{copy.shortcutAssign}</Button>
-			{error && <small role="alert">{error}</small>}
-			{command.disabledReason && <small data-shortcut-disabled-reason>{command.disabledReason}</small>}
-		</div>
-	);
 }

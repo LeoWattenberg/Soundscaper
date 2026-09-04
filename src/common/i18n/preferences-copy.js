@@ -21,6 +21,11 @@ const ENTRIES = Object.freeze([
 	['startupNewProject', 'Start with new project', 'Mit neuem Projekt beginnen'],
 	['startupProject', 'Start with project:', 'Mit Projekt beginnen:'],
 	['startupProjectSelect', 'Startup project', 'Startprojekt'],
+	['shortcutSortMode', 'Sort commands', 'Befehle sortieren'],
+	['shortcutSortCategorized', 'By category', 'Nach Kategorie'],
+	['shortcutSortAlphabetical', 'Alphabetical', 'Alphabetisch'],
+	['shortcutAddBinding', 'Add shortcut', 'Kürzel hinzufügen'],
+	['shortcutRemoveBinding', 'Remove shortcut', 'Kürzel entfernen'],
 ]);
 
 export const PREFERENCES_COPY_BY_LOCALE = Object.freeze({

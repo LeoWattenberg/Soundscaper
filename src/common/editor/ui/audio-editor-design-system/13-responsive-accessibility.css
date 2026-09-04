@@ -275,7 +275,7 @@
 	}
 
 	#kw-audio-editor-design-system .kw-audio-editor-preferences__panel-list > div,
-	#kw-audio-editor-design-system .kw-audio-editor-preferences__shortcut-row {
+	#kw-audio-editor-design-system :is(.kw-audio-editor-preferences__shortcut-row, .kw-audio-editor-preferences__shortcut-controls) {
 		grid-template-columns: 1fr;
 	}
 
