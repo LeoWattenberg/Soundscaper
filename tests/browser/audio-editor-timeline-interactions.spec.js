@@ -410,7 +410,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('creates a label under the playhead rather than beside it', async ({ page }) => {
+	test('adds labels under the playhead and keeps them on one label track', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
@@ -423,13 +423,19 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect.poll(async () => Number(await playhead.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
 		await page.keyboard.press('Control+b');
 
-		const marker = editor.locator('[data-label-track] .audio-editor-label-marker');
-		await expect(marker).toHaveCount(1);
-		const stalkBox = await marker.locator('.label-marker__stalk-line').boundingBox();
+		const markers = editor.locator('[data-label-track] .audio-editor-label-marker');
+		await expect(markers).toHaveCount(1);
+		const stalkBox = await markers.locator('.label-marker__stalk-line').boundingBox();
 		const playheadLineBox = await editor.locator('[data-playhead] .playhead-cursor__line').boundingBox();
 		expect(stalkBox).not.toBeNull();
 		expect(playheadLineBox).not.toBeNull();
 		expect(Math.abs(stalkBox.x - playheadLineBox.x)).toBeLessThanOrEqual(1);
+
+		// A label added from an audio track joins the label track already there.
+		await page.mouse.click(audioLaneBox.x + 192, audioLaneBox.y + 40);
+		await page.keyboard.press('Control+b');
+		await expect(markers).toHaveCount(2);
+		await expect(editor.locator('[data-label-track]')).toHaveCount(1);
 		expect(errors).toEqual([]);
 	});
 

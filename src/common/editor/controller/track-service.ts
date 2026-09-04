@@ -326,8 +326,9 @@ export function createEditorTrackService(
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return null;
 		let project = dependencies.getProject();
-		let target = findControllerTrack(project, trackId || dependencies.getSelectedTrackId());
-		if (target?.type !== 'label') {
+		const focused = findControllerTrack(project, trackId || dependencies.getSelectedTrackId());
+		let target = focused?.type === 'label' ? focused : labelTrackFrom(project, focused);
+		if (!target) {
 			const createdTrackId = addLabelTrack();
 			project = dependencies.getProject();
 			target = findControllerTrack(project, createdTrackId);
@@ -345,6 +346,21 @@ export function createEditorTrackService(
 		dependencies.commit(command, { selectTrackId: target.id });
 		return labelId;
 	}
+}
+
+/**
+ * The label track a new label belongs to when the focused track is not one.
+ * Audacity's DoAddLabel (src/menus/LabelMenus.cpp) takes the first label track
+ * at or after the focused track, so labels land on the track below the audio
+ * they annotate. Where Audacity would then start a second label track we keep
+ * using the one the project already has, above the focused track or not, and
+ * create a track only for a project that has none.
+ */
+function labelTrackFrom(project: ControllerProject, focused: ControllerTrack | null): ControllerTrack | null {
+	const labelTracks = project.tracks.filter((track) => track.type === 'label');
+	const start = focused ? project.tracks.indexOf(focused) : 0;
+	const below = labelTracks.find((track) => project.tracks.indexOf(track) >= start);
+	return below ?? labelTracks.at(-1) ?? null;
 }
 
 function isTrackDisplayMode(value: string): value is TrackDisplayMode {
