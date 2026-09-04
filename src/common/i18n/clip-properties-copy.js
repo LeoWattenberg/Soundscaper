@@ -1,0 +1,46 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+/** Copy for the clip properties inspector: the clip's extents, its pitch and
+ * speed controls, its fades and gain, and the media settings behind them. */
+export const CLIP_PROPERTIES_COPY_BY_LOCALE = Object.freeze({
+	de: Object.freeze({
+			noClipSelected: 'Wähle einen Clip aus, um Start, Länge, Fades und Verstärkung präzise zu bearbeiten.',
+			clipName: 'Clipname',
+			clipStart: 'Start',
+			clipIn: 'Quellanfang',
+			clipDuration: 'Länge',
+			clipSpeedRatio: 'Geschwindigkeitsverhältnis',
+			preserveFormants: 'Für Stimme optimieren / Formanten beibehalten',
+			stretchToTempo: 'Mit Änderungen des Projekttempos strecken',
+			renderPitchSpeed: 'Tonhöhe und Geschwindigkeit rendern',
+			resetPitchSpeed: 'Tonhöhe und Geschwindigkeit zurücksetzen',
+			exportClip: 'Clip exportieren',
+			frames: 'Frames',
+			clipGain: 'Clip-Verstärkung',
+			volumeEnvelope: 'Lautstärkehüllkurve',
+			fadeIn: 'Einblendung',
+			fadeOut: 'Ausblendung',
+			reverse: 'Rückwärts',
+			clipMediaSettings: 'Medieneinstellungen',
+	}),
+	en: Object.freeze({
+			noClipSelected: 'Select a clip to edit its start, length, fades, and gain precisely.',
+			clipName: 'Clip name',
+			clipStart: 'Start',
+			clipIn: 'Source in',
+			clipDuration: 'Duration',
+			clipSpeedRatio: 'Speed ratio',
+			preserveFormants: 'Optimize for voice / preserve formants',
+			stretchToTempo: 'Stretch with project tempo changes',
+			renderPitchSpeed: 'Render pitch and speed',
+			resetPitchSpeed: 'Reset pitch and speed',
+			exportClip: 'Export clip',
+			frames: 'Frames',
+			clipGain: 'Clip gain',
+			volumeEnvelope: 'Volume envelope',
+			fadeIn: 'Fade in',
+			fadeOut: 'Fade out',
+			reverse: 'Reverse',
+			clipMediaSettings: 'Media settings',
+	}),
+});

@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { admitBrowserExportBlob, prepareBrowserExportBlob } from '../browser-export-output.ts';
-import { createExportChapterPlan } from '../export-chapters.ts';
 import { isVideoExportRequestFormat } from '../video-export-request-format.ts';
 import {
 	inheritTrackFolderMediaStateProjectionV12,
@@ -25,6 +24,7 @@ import { commitDirectPcmDestination, type DirectPcmDestination } from './direct-
 import { commitPreparedDirectStemArchiveDestination, directStemArchiveTemporaryBytes, prepareDirectStemArchiveDestination, streamDirectStemArchive } from './direct-stem-archive-export.ts';
 import { createEditorVideoExportAction } from './video-export-service.ts';
 import { createExportSnapshotRenderer } from './export-snapshot-renderer.ts';
+import { streamStemArchiveExport } from './streaming-stem-archive-export.ts';
 import { assertDesktopAudioExportCapability } from './desktop-audio-export-capability.ts';
 import { createDeliveryReportForPlan } from '../delivery-conversion-inventory.ts';
 import {
@@ -360,47 +360,26 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				stemConformance = Object.freeze(findings);
 				fileName = plan.archive.fileName;
 			} else {
-				if (!plan.archive) throw new Error('The stem export plan has no archive descriptor.');
-				const archive = await createStreamingStemArchive(plan.archive, copy);
-				try {
-					const findings: DeliveryConformanceFinding[] = [];
-					const chapters = plan.mode === 'chapters';
-					for (let index = 0; index < plan.outputs.length; index += 1) {
-						throwIfAborted(abort.signal);
-						const output = plan.outputs[index];
-						// A chapter is the whole mix over its own span, so it renders the
-						// export project under a plan that names that span; a stem is one
-						// track of the project over the delivery's single range.
-						const snapshot = chapters ? exportProject : stemProject(exportProject, output.trackId);
-						const outputPlan = chapters ? createExportChapterPlan(plan, output) : plan;
-						const encoded = await renderAndEncode(snapshot, outputPlan, settings, abort.signal, exportRenderSources, output, {
-							start: index / plan.outputs.length,
-							end: (index + 1) / plan.outputs.length,
-						});
-						try {
-							// Every stem is a file the reader can reopen, so each one is
-							// conformed from its own bytes before it joins the archive.
-							findings.push(...await conformPersistentExport(
-								outputPlan, encoded, index / plan.outputs.length, (index + 1) / plan.outputs.length,
-							));
-							await archive.add(output.fileName, encoded.blob || encoded.bytes, abort.signal);
-						} finally {
-							await encoded.cleanup?.();
-						}
-						reportExportProgress((index + 1) / plan.outputs.length);
-					}
-					stemConformance = Object.freeze(findings);
-					const result = await archive.finish();
-					outputCleanup = result.cleanup;
-					pendingCleanup = outputCleanup;
-					blob = admitBrowserExportBlob(
-						result.blob, 'Audio stem archive', browserMaximumOutputBytes,
-					);
-					fileName = plan.archive.fileName;
-				} catch (error) {
-					await archive.abort();
-					throw error;
-				}
+				const archived = await streamStemArchiveExport({
+					abortSignal: abort.signal,
+					admitOutputBytes: browserMaximumOutputBytes,
+					conformExport: conformPersistentExport,
+					copy,
+					createStreamingStemArchive,
+					exportProject,
+					exportRenderSources,
+					plan,
+					renderAndEncode,
+					reportProgress: reportExportProgress,
+					settings,
+					stemProject,
+					throwIfAborted,
+				});
+				stemConformance = archived.conformance;
+				outputCleanup = archived.cleanup;
+				pendingCleanup = outputCleanup;
+				blob = archived.blob;
+				fileName = archived.fileName;
 			}
 			if (stemConformance.length > 0) {
 				// Same rule the mix branch follows: the report is rebuilt with what the

@@ -6,10 +6,13 @@ import test from 'node:test';
 
 const WORKSPACE_ROOT = new URL('../src/common/editor/ui/workspace/', import.meta.url);
 const DIALOG_ROOT = new URL('../src/common/editor/ui/dialogs/', import.meta.url);
-const DIALOG_STYLES = new URL(
+// The dialog chrome and the export surface split into two files when the
+// combined one outgrew the maintainability ceiling; the no-blur rule below
+// covers both, so both are read.
+const DIALOG_STYLE_FILES = [
 	'../src/common/editor/ui/audio-editor-design-system/11-panels-dialogs-generators.css',
-	import.meta.url,
-);
+	'../src/common/editor/ui/audio-editor-design-system/11a-dialog-export.css',
+].map((path) => new URL(path, import.meta.url));
 
 test('custom track-rate dialog retains the track whose submenu opened it', async () => {
 	const [workspace, trackRateHook, overlays, dialog, menus, parity] = await Promise.all([
@@ -55,7 +58,7 @@ test('workspace overlays forward the product-specific About label to the dialog'
 });
 
 test('dialog surfaces use a drop shadow without blurring the editor behind them', async () => {
-	const styles = await readFile(DIALOG_STYLES, 'utf8');
+	const styles = (await Promise.all(DIALOG_STYLE_FILES.map((file) => readFile(file, 'utf8')))).join('\n');
 	assert.doesNotMatch(styles, /backdrop-filter\s*:/u);
 	assert.match(
 		styles,

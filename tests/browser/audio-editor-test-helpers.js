@@ -6,7 +6,6 @@ import {
 	TRANSLATIONS_ROOT,
 } from './audio-editor-test-fixtures.js';
 import { projectFileExtensionForProduct } from '../../src/common/project-file-extensions.ts';
-import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { settleFiniteAnimations } from './helpers/settle-finite-animations.js';
 import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
@@ -24,6 +23,11 @@ export {
 	stubStorageEstimate,
 } from './helpers/browser-environment-stubs.js';
 export { closeWorkspacePanel, dockWorkspacePanel, openWorkspacePanelMenu, workspacePanelMenu, workspacePanelMenuButton } from './helpers/workspace-panel-chrome.js';
+export {
+	effectSourceMetadata,
+	effectSourcePeak,
+	sourcePeakChannels,
+} from './helpers/stored-source-probes.js';
 export {
 	closeChromeDrawer,
 	expectSurfaceWithinViewport,
@@ -462,100 +466,6 @@ export async function assertNoSeriousAxeViolations(page, selector = '#kw-audio-e
 			nodes: violation.nodes.map((node) => node.target),
 		}));
 	expect(violations).toEqual([]);
-}
-
-export async function sourcePeakChannels(page, sourceName) {
-	return page.evaluate(({ databaseName, name }) => new Promise((resolve, reject) => {
-		const openRequest = indexedDB.open(databaseName);
-		openRequest.onerror = () => reject(openRequest.error);
-		openRequest.onsuccess = () => {
-			const database = openRequest.result;
-			const sourcesRequest = database.transaction('sources', 'readonly').objectStore('sources').getAll();
-			sourcesRequest.onerror = () => reject(sourcesRequest.error);
-			sourcesRequest.onsuccess = () => {
-				const source = sourcesRequest.result.find((candidate) => candidate.name === name);
-				if (!source) {
-					database.close();
-					reject(new Error(`Source ${name} was not found.`));
-					return;
-				}
-				const peaksRequest = database.transaction('analysis', 'readonly')
-					.objectStore('analysis').get(`audio-editor-peaks-v2:${source.id}`);
-				peaksRequest.onerror = () => reject(peaksRequest.error);
-				peaksRequest.onsuccess = () => {
-					database.close();
-					const peaks = peaksRequest.result?.value;
-					const level = peaks?.levels?.[0];
-					resolve({
-						version: peaks?.version,
-						channelCount: peaks?.channelCount,
-						blockSizes: (peaks?.levels || []).map(({ blockSize }) => blockSize),
-						channels: (level?.channels || []).map((channel) => ({
-							minimum: Math.min(...channel.minimums),
-							maximum: Math.max(...channel.maximums),
-						})),
-					});
-				};
-			};
-		};
-	}), { databaseName: SOUNDSCAPER_DATABASE_NAME, name: sourceName });
-}
-
-export async function effectSourceMetadata(page) {
-	return page.evaluate((databaseName) => new Promise((resolve, reject) => {
-		const openRequest = indexedDB.open(databaseName);
-		openRequest.onerror = () => reject(openRequest.error);
-		openRequest.onsuccess = () => {
-			const database = openRequest.result;
-			const request = database.transaction('sources', 'readonly').objectStore('sources').getAll();
-			request.onerror = () => {
-				database.close();
-				reject(request.error);
-			};
-			request.onsuccess = () => {
-				database.close();
-				resolve(request.result.filter((source) => source.id?.startsWith('audacity-effect-')));
-			};
-		};
-	}), SOUNDSCAPER_DATABASE_NAME);
-}
-
-export async function effectSourcePeak(page, name) {
-	return page.evaluate(async ({ databaseName, effectName }) => {
-		const { source, peaks } = await new Promise((resolve, reject) => {
-			const openRequest = indexedDB.open(databaseName);
-			openRequest.onerror = () => reject(openRequest.error);
-			openRequest.onsuccess = () => {
-				const database = openRequest.result;
-				const sourcesRequest = database.transaction('sources', 'readonly').objectStore('sources').getAll();
-				sourcesRequest.onerror = () => reject(sourcesRequest.error);
-				sourcesRequest.onsuccess = () => {
-					const source = sourcesRequest.result.find((candidate) => candidate.name?.includes(effectName));
-					if (!source) {
-						database.close();
-						resolve({ source: null, peaks: null });
-						return;
-					}
-					const peaksRequest = database.transaction('analysis', 'readonly')
-						.objectStore('analysis').get(`audio-editor-peaks-v2:${source.id}`);
-					peaksRequest.onerror = () => reject(peaksRequest.error);
-					peaksRequest.onsuccess = () => {
-						database.close();
-						resolve({ source, peaks: peaksRequest.result?.value || null });
-					};
-				};
-			};
-		});
-		if (!source || !peaks?.levels?.length) return 0;
-		let peak = 0;
-		for (const level of peaks.levels) {
-			for (const channel of level.channels || []) {
-				for (const sample of channel.minimums || []) peak = Math.max(peak, Math.abs(sample));
-				for (const sample of channel.maximums || []) peak = Math.max(peak, Math.abs(sample));
-			}
-		}
-		return peak;
-	}, { databaseName: SOUNDSCAPER_DATABASE_NAME, effectName: name });
 }
 
 export function collectClientErrors(page) {
