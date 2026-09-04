@@ -3,12 +3,12 @@ import {
 	decodeAudacityRealtimeEffectParameters,
 	encodeAudacityRealtimeEffectParameters,
 } from './aup4-effects.js';
+import { isAudacityRackEffectType } from './effects.js';
 import {
-	AUDIO_EFFECT_DEFINITIONS,
-	createEffect,
-	isAudacityRackEffectType,
-	normalizeEffect,
-} from './effects.js';
+	createEffectMacroStep,
+	isEffectMacroStepType,
+	normalizeEffectMacroStep,
+} from './effect-macro-steps.ts';
 import { createStableId } from './project.js';
 
 const MAX_MACRO_CODE_UNITS = 1024 * 1024;
@@ -62,7 +62,7 @@ export function serializeAudacityEffectMacro(effects) {
 	const lines = [];
 	for (const effect of effects) {
 		if (effect?.enabled === false) continue;
-		const normalized = normalizeEffect(effect);
+		const normalized = normalizeEffectMacroStep(effect);
 		if (normalized.type === 'audacity-noise-reduction') {
 			// Audacity's macro command stores only a preset reference for Noise
 			// Reduction, not the actual automation settings.
@@ -74,7 +74,7 @@ export function serializeAudacityEffectMacro(effects) {
 				.map(([name, value]) => [macroParameterName(name), value]);
 			lines.push(formatMacroLine(command, parameters));
 		} else {
-			if (!Object.hasOwn(AUDIO_EFFECT_DEFINITIONS, normalized.type)) {
+			if (!isEffectMacroStepType(normalized.type)) {
 				throw new RangeError(`Unsupported Soundscaper macro effect: ${normalized.type}.`);
 			}
 			lines.push(formatSoundscaperEffect(normalized));
@@ -146,7 +146,7 @@ export function parseAudacityEffectMacro(text, options = {}) {
 		assertStableId(id, `effect at index ${index}`);
 		const effectOptions = { id, enabled: true, params: effect.params };
 		if (effect.context !== undefined) effectOptions.context = effect.context;
-		return freezeValue(createEffect(effect.type, effectOptions));
+		return freezeValue(createEffectMacroStep(effect.type, effectOptions));
 	});
 	assertUniqueEffectIds(effects);
 	return Object.freeze({
@@ -200,7 +200,7 @@ export function normalizeEffectMacroDraft(value, options = {}) {
 				noiseProfile: candidate.context.noiseProfile,
 			});
 		}
-		const effect = createEffect(candidate?.type, effectOptions);
+		const effect = createEffectMacroStep(candidate?.type, effectOptions);
 		effects.push(freezeValue(effect));
 		if (effects.length > MAX_MACRO_EFFECTS) throw new RangeError('An effect macro has too many steps.');
 	}
@@ -236,7 +236,7 @@ function parseAudacityEffect(type, command, fields) {
 	const params = decodeAudacityRealtimeEffectParameters(type, native);
 	// A fixed temporary ID validates defaults, ranges, live constraints, enums,
 	// and curves before any caller-provided ID factory is touched.
-	return createEffect(type, { id: 'macro-parse-validation', params });
+	return createEffectMacroStep(type, { id: 'macro-parse-validation', params });
 }
 
 function parseSoundscaperEffect(fields) {
@@ -249,7 +249,12 @@ function parseSoundscaperEffect(fields) {
 		throw new RangeError('SoundscaperEffect requires Type and Params.');
 	}
 	const type = fields.get('Type');
-	if (!Object.hasOwn(AUDIO_EFFECT_DEFINITIONS, type) && type !== 'audacity-noise-reduction') {
+	// An effect Audacity itself can name travels as that command, so the
+	// extension namespace stays reserved for the steps Audacity has no syntax
+	// for: Soundscaper's own effects, the offline effects that carry no macro
+	// command, and Noise Reduction, whose settings its command cannot hold.
+	if (!isEffectMacroStepType(type)
+		|| (Object.hasOwn(AUDACITY_EFFECT_MACRO_COMMANDS, type) && type !== 'audacity-noise-reduction')) {
 		throw new RangeError(`Unsupported Soundscaper effect type: ${type}.`);
 	}
 	const json = fields.get('Params');
@@ -263,7 +268,7 @@ function parseSoundscaperEffect(fields) {
 		throw new SyntaxError(`Invalid SoundscaperEffect Params JSON: ${cause instanceof Error ? cause.message : String(cause)}`);
 	}
 	if (!isPlainObject(params)) throw new TypeError('SoundscaperEffect Params must be a JSON object.');
-	const knownNames = new Set(Object.keys(createEffect(type, { id: 'macro-extension-defaults' }).params));
+	const knownNames = new Set(Object.keys(createEffectMacroStep(type, { id: 'macro-extension-defaults' }).params));
 	for (const name of Object.keys(params)) {
 		if (!knownNames.has(name)) throw new RangeError(`Unsupported ${type} parameter: ${name}.`);
 	}
@@ -284,7 +289,7 @@ function parseSoundscaperEffect(fields) {
 		}
 		effectOptions.context = normalizeNoiseReductionContext(context);
 	}
-	return createEffect(type, effectOptions);
+	return createEffectMacroStep(type, effectOptions);
 }
 
 function validateEqualizationParameters(type, profile, parameters) {

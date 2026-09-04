@@ -292,3 +292,41 @@ test('macro drafts are immutable settings-only chains with stable private IDs', 
 		],
 	}), /IDs must be unique/);
 });
+
+test('offline effects are macro steps that round-trip through the extension namespace', () => {
+	const draft = createEffectMacroDraft({
+		name: 'Restore and level',
+		effects: [
+			{ type: 'audacity-click-removal' },
+			{ type: 'audacity-normalize', params: { peakDb: -3 } },
+			{ type: 'audacity-fade-out' },
+		],
+		idFactory: (prefix, index) => `${prefix}-${index}`,
+	});
+	assert.deepEqual(draft.effects.map(({ type }) => type), [
+		'audacity-click-removal', 'audacity-normalize', 'audacity-fade-out',
+	]);
+	assert.equal(draft.effects[1].params.peakDb, -3);
+
+	const exported = serializeAudacityEffectMacro(draft.effects);
+	assert.match(exported, /^ClickRemoval:/m);
+	assert.match(exported, /^SoundscaperEffect:Type="audacity-normalize"/m);
+	assert.match(exported, /^SoundscaperEffect:Type="audacity-fade-out"/m);
+
+	const parsed = parseAudacityEffectMacro(exported, {
+		idFactory: (prefix, index) => `${prefix}-${index}`,
+	});
+	assert.deepEqual(
+		parsed.effects.map(({ type, params }) => ({ type, params })),
+		draft.effects.map(({ type, params }) => ({ type, params })),
+	);
+});
+
+test('an offline macro step rejects parameters the effect does not define', () => {
+	assert.throws(() => parseAudacityEffectMacro(
+		'SoundscaperEffect:Type="audacity-normalize" Params="{\\"peakDb\\":-3,\\"future\\":1}"',
+	), /Unsupported audacity-normalize parameter: future/);
+	assert.throws(() => parseAudacityEffectMacro(
+		'SoundscaperEffect:Type="audacity-amplify" Params="{}" Context="{}"',
+	), /Context is supported only for Noise Reduction/);
+});
