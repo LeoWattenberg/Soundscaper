@@ -252,11 +252,6 @@
       "count": 1
     }
   },
-  "src/common/editor/aup4-export.js": {
-    "no-unused-vars": {
-      "count": 1
-    }
-  },
   "src/common/editor/aup4-worker.js": {
     "no-unused-vars": {
       "count": 1
