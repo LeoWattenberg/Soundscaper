@@ -136,7 +136,7 @@ test('a chapter plan writes one archive entry per chapter, each with its own spa
 		{ kind: 'chapter', fileName: '01-Intro.wav' },
 		{ kind: 'chapter', fileName: '02-Outro.wav' },
 	]);
-	assert.deepEqual(plan.outputs.map(({ range }) => [range.startFrame, range.endFrame]), [
+	assert.deepEqual(plan.outputs.map(({ range }) => [range?.startFrame, range?.endFrame]), [
 		[0, SAMPLE_RATE],
 		[SAMPLE_RATE, 3 * SAMPLE_RATE],
 	]);
@@ -148,7 +148,10 @@ test('a chapter plan writes one archive entry per chapter, each with its own spa
 	assert.equal(plan.outputFileBytesPerRender, null);
 	assert.equal(plan.archive?.fileName, 'Chaptered-chapters-2026-09-04.zip');
 	assert.deepEqual(plan.archive?.entries.map(({ fileName }) => fileName), ['01-Intro.wav', '02-Outro.wav']);
+	assert.ok(plan.archive, 'a chapter delivery is archived');
 	const [first, second] = plan.archive.entries;
+	assert.ok(first.expectedByteLength !== null && second.expectedByteLength !== null,
+		'a WAV chapter has a size known before it renders');
 	assert.ok(second.expectedByteLength > first.expectedByteLength);
 	assert.equal(second.expectedByteLength - first.expectedByteLength, SAMPLE_RATE * 2 * 2);
 	// The labels are the split, so they are not also written into every file.
@@ -176,6 +179,7 @@ test('one chapter renders under an ordinary whole-mix plan of its own span', () 
 		[chapterPlan.range.startFrame, chapterPlan.range.endFrame, chapterPlan.range.durationFrames],
 		[SAMPLE_RATE, 3 * SAMPLE_RATE, 2 * SAMPLE_RATE],
 	);
+	assert.ok(plan.archive, 'a chapter delivery is archived');
 	assert.equal(chapterPlan.outputFileBytesPerRender, plan.archive.entries[1].expectedByteLength);
 	assert.deepEqual(chapterPlan.outputs, [plan.outputs[1]]);
 	assert.equal(chapterPlan.format, plan.format);

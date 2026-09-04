@@ -51,6 +51,23 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
 });
 
 /**
+ * One file a plan delivers. A chapter output also states the span it holds and
+ * what that span renders to, because a chapter is rendered on its own rather
+ * than as a slice of the plan's range; a mix or stem output takes both from the
+ * plan itself and leaves them absent.
+ *
+ * @typedef {Object} AudioExportPlanOutput
+ * @property {string} kind
+ * @property {string} fileName
+ * @property {string | null} trackId
+ * @property {boolean} [includeMaster]
+ * @property {boolean} [respectMuteSolo]
+ * @property {{startFrame: number, endFrame: number, durationFrames: number}} [range]
+ * @property {number} [outputFrames]
+ * @property {number | null} [outputFileBytes]
+ */
+
+/**
  * @typedef {Object} AudioExportPlan
  * @property {'mix' | 'stems' | 'chapters'} mode
  * @property {import('./media-export.js').MediaExportFormatId} format
@@ -63,7 +80,7 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
  * @property {ReturnType<typeof normalizeMediaExportSettings>} encoding
  * @property {Readonly<Record<string, string>>} metadata
  * @property {{ strategy: 'offline' | 'realtime-stream', fast: boolean, reason: 'output-memory'|'total-memory'|'offline-render-output-memory'|null, offlineRenderAdmission?: import('./export-render-admission.ts').ExportOfflineRenderStrategyAdmission }} render
- * @property {Array<{kind: string, fileName: string, trackId: string | null}>} outputs
+ * @property {AudioExportPlanOutput[]} outputs
  * @property {import('./controller/stem-archive.ts').StemArchivePlan|null} archive
  * @property {import('./broadcast-wave.ts').BextMetadata} [bext]
  * @property {'bw64'} [container]
