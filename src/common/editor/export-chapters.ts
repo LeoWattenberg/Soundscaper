@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { projectDurationFrames } from './project.js';
 import { isTimelineAnnotationProjectSchema } from './project-schema-version.ts';
 import {
 	resolveRuntimeTimelineAnnotationsProjection,
@@ -34,9 +35,10 @@ interface ExportChapterRange {
  * project keeps them on: the maintained timeline annotations when the schema
  * carries them, and the first populated label track otherwise. A region label
  * delivers exactly its own span; a point label opens a chapter that runs to the
- * next label, or to the end of the delivered range. Everything is then clipped
- * to that range, so a chapter never promises audio the delivery is not
- * rendering.
+ * next label, or to the end of the delivered range — and no further than the
+ * end of a region it was dropped inside, whose tail is already delivered under
+ * the region's own name. Everything is then clipped to that range, so a chapter
+ * never promises audio the delivery is not rendering.
  */
 export function resolveExportChapters(
 	projectValue: unknown,
@@ -51,7 +53,10 @@ export function resolveExportChapters(
 	for (const [index, boundary] of boundaries.entries()) {
 		const openEnd = boundary.endFrame > boundary.startFrame
 			? boundary.endFrame
-			: boundaries[index + 1]?.startFrame ?? range.endFrame;
+			: Math.min(
+				boundaries[index + 1]?.startFrame ?? range.endFrame,
+				enclosingRegionEnd(boundaries, index) ?? range.endFrame,
+			);
 		const startFrame = Math.max(boundary.startFrame, range.startFrame);
 		const endFrame = Math.min(openEnd, range.endFrame);
 		if (endFrame <= startFrame) continue;
@@ -71,15 +76,44 @@ export function resolveExportChapters(
 /**
  * How many chapters a label split would deliver, without refusing.
  *
- * The dialog asks this to decide whether the option is offerable at all, so a
- * project that cannot answer — a shape the annotation projection rejects — is
- * reported as having none rather than failing the surface that asked.
+ * The dialog asks this to decide whether the option is offerable at all, so it
+ * answers with the files the delivery would actually write: the labels resolved
+ * over the very span the export cuts them from, not the labels alone. A project
+ * that cannot answer — a shape the annotation projection rejects, or one whose
+ * labels all fall outside that span — is reported as having none rather than
+ * failing the surface that asked.
  */
 export function exportChapterCount(projectValue: unknown): number {
 	try {
-		return chapterBoundaries(projectValue).length;
+		const range = chapterDeliveryRange(projectValue);
+		return range === null
+			? chapterBoundaries(projectValue).length
+			: resolveExportChapters(projectValue, range).length;
 	} catch {
 		return 0;
+	}
+}
+
+/**
+ * The span a chapter delivery is cut from.
+ *
+ * A chapter split is only ever paired with the whole project, and the export
+ * clips its chapters to that span, so a label past the last clip is delivered
+ * by neither. Reading the same span here keeps the offered count and the
+ * written files in agreement instead of offering a split that then refuses.
+ *
+ * A project that states no span of its own — a shape whose clip timing the
+ * runtime projection rejects, or one with no audio at all, which every mode
+ * refuses over its range rather than over its labels — leaves the count to the
+ * labels themselves rather than withdrawing an option for someone else's
+ * refusal.
+ */
+function chapterDeliveryRange(projectValue: unknown): ExportChapterRange | null {
+	try {
+		const endFrame = Number(projectDurationFrames(projectValue));
+		return Number.isSafeInteger(endFrame) && endFrame > 0 ? { startFrame: 0, endFrame } : null;
+	} catch {
+		return null;
 	}
 }
 
@@ -90,6 +124,26 @@ function chapterBoundaries(projectValue: unknown): readonly ChapterBoundary[] {
 	return Object.freeze([...boundaries].sort((left, right) => (
 		left.startFrame - right.startFrame || left.endFrame - right.endFrame
 	)));
+}
+
+/**
+ * Where a point label's chapter has to stop because a region label already
+ * promises the audio beyond it.
+ *
+ * A marker dropped inside a region would otherwise open a chapter running to
+ * the next label or to the end of the delivered range, writing the region's own
+ * tail a second time under another name. The region still delivers exactly its
+ * own span; the nested chapter is the part of it the marker opens.
+ */
+function enclosingRegionEnd(boundaries: readonly ChapterBoundary[], index: number): number | null {
+	const nested = boundaries[index];
+	let end: number | null = null;
+	for (const [candidate, region] of boundaries.entries()) {
+		if (candidate === index || region.endFrame <= region.startFrame) continue;
+		if (region.startFrame > nested.startFrame || region.endFrame <= nested.startFrame) continue;
+		if (end === null || region.endFrame < end) end = region.endFrame;
+	}
+	return end;
 }
 
 function annotationBoundaries(project: DataRecord): readonly ChapterBoundary[] {
@@ -166,8 +220,17 @@ export function createExportChapterPlan<Plan extends DataRecord>(
 	if (!Number.isSafeInteger(outputFrames) || outputFrames <= 0) {
 		throw new RangeError('A chapter output must state how many frames it delivers.');
 	}
+	// A chapter sits at its own place on the project's timeline, so it carries
+	// the broadcast metadata the plan derived for that place rather than the one
+	// the whole delivery was derived at — in both the copy the writer embeds and
+	// the copy the encoding settings hold, which the direct writers compare.
+	const declared: unknown = output.bext;
+	const bext = declared && typeof declared === 'object' && !Array.isArray(declared)
+		? declared as DataRecord
+		: null;
 	return Object.freeze({
 		...plan,
+		...(bext ? { bext, encoding: Object.freeze({ ...dataRecord(plan.encoding), bext }) } : {}),
 		// One chapter is an ordinary whole-mix delivery of its own span, so
 		// everything downstream of here reads the plan it always read.
 		mode: 'mix',

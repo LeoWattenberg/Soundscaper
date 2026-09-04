@@ -54,6 +54,12 @@ function annotatedProject(annotations: readonly Record<string, unknown>[]) {
 
 const RANGE = Object.freeze({ startFrame: 0, endFrame: 10 * SAMPLE_RATE });
 
+/** The parts of a chapter's own plan that carry its broadcast position. */
+interface BroadcastChapterPlan {
+	readonly bext?: { readonly timeReference?: string };
+	readonly encoding?: { readonly bext?: { readonly timeReference?: string } };
+}
+
 test('region labels deliver exactly their own spans', () => {
 	const chapters = resolveExportChapters(labelledProject([
 		{ id: 'a', title: 'Intro', startFrame: 0, endFrame: 2 * SAMPLE_RATE },
@@ -197,5 +203,68 @@ test('a chapter delivery refuses the containers and gains that only a single mix
 			mode: 'chapters', format: 'wav', loudnessNormalization: 'ebu-r128', date: '2026-09-04',
 		}),
 		/chapters normalized one by one/u,
+	);
+});
+
+test('a point label inside a region stops where the region does, so no audio is delivered twice', () => {
+	const chapters = resolveExportChapters(labelledProject([
+		{ id: 'a', title: 'Act', startFrame: 0, endFrame: 4 * SAMPLE_RATE },
+		{ id: 'b', title: 'Cue', startFrame: SAMPLE_RATE, endFrame: SAMPLE_RATE },
+		{ id: 'c', title: 'Coda', startFrame: 6 * SAMPLE_RATE, endFrame: 8 * SAMPLE_RATE },
+	]), RANGE);
+	// Without the clamp the nested marker would run to the next label at six
+	// seconds, writing the act's own tail — and the silence after it — a second
+	// time under another name.
+	assert.deepEqual(chapters.map(({ name, startFrame, endFrame }) => ({ name, startFrame, endFrame })), [
+		{ name: 'Act', startFrame: 0, endFrame: 4 * SAMPLE_RATE },
+		{ name: 'Cue', startFrame: SAMPLE_RATE, endFrame: 4 * SAMPLE_RATE },
+		{ name: 'Coda', startFrame: 6 * SAMPLE_RATE, endFrame: 8 * SAMPLE_RATE },
+	]);
+});
+
+test('every chapter file states its own place on the timeline in its BWF TimeReference', () => {
+	const project = labelledProject([
+		{ id: 'a', title: 'Intro', startFrame: 0, endFrame: 2 * SAMPLE_RATE },
+		{ id: 'b', title: 'Verse', startFrame: 4 * SAMPLE_RATE, endFrame: 6 * SAMPLE_RATE },
+	]);
+	const plan = createExportPlan(project, {
+		mode: 'chapters', format: 'bwf', bitDepth: 24, channelCount: 2, date: '2026-09-04',
+	});
+	const intro = createExportChapterPlan(plan, plan.outputs[0]) as unknown as BroadcastChapterPlan;
+	const verse = createExportChapterPlan(plan, plan.outputs[1]) as unknown as BroadcastChapterPlan;
+	// The verse starts four seconds into the project, so its file says so rather
+	// than repeating the intro's position, and the copy the writers compare the
+	// plan against says the same thing.
+	assert.equal(intro.bext?.timeReference, '0');
+	assert.equal(verse.bext?.timeReference, String(4 * SAMPLE_RATE));
+	assert.equal(intro.encoding?.bext?.timeReference, '0');
+	assert.equal(verse.encoding?.bext?.timeReference, String(4 * SAMPLE_RATE));
+});
+
+test('a marker past the last clip is not counted, because the delivery clips it away', () => {
+	const audio = {
+		id: 'clipped-project',
+		title: 'Clipped',
+		now: NOW,
+		sampleRate: SAMPLE_RATE,
+		sources: [{ id: 'source', storageKey: 'pcm/source', frameCount: 2 * SAMPLE_RATE, channelCount: 2 }],
+		clips: [{ id: 'clip', sourceId: 'source', durationFrames: 2 * SAMPLE_RATE }],
+		tracks: [{ type: 'audio', id: 'music', name: 'Music', clipIds: ['clip'] }],
+	};
+	const created = createCurrentAudioEditorProject(audio);
+	const project = createCurrentAudioEditorProject({
+		...audio,
+		timelineAnnotations: [{
+			id: 'afterthought', kind: 'marker', name: 'Afterthought', positionFrame: 5 * SAMPLE_RATE,
+			sequenceId: created.primarySequenceId, color: 'auto', batchId: null,
+			opaqueExtensions: {}, anchor: 'sample',
+		}],
+	});
+	// A chapter split is always delivered over the whole project, which ends with
+	// the last clip, so offering the option here would offer a refusal.
+	assert.equal(exportChapterCount(project), 0);
+	assert.throws(
+		() => createExportPlan(project, { mode: 'chapters', format: 'wav', date: '2026-09-04' }),
+		/No label falls inside the delivered range/u,
 	);
 });
