@@ -59,6 +59,8 @@ function createFixture(options: { readonly timelineDurationFrames?: number } = {
 		resolve(value: unknown): void;
 		reject(reason?: unknown): void;
 	}> = [];
+	const snappedFrames: number[] = [];
+	let snapFrame = (frame: number) => frame;
 	let commits = 0;
 	let publishes = 0;
 	let projectPublishes = 0;
@@ -128,7 +130,10 @@ function createFixture(options: { readonly timelineDurationFrames?: number } = {
 		}),
 		resetRoutedInputMeter: () => { meterResets += 1; },
 		setStatus: (message, status) => { statuses.push([message, status]); },
-		snapAudioEditorFrameWithProject: (frame) => frame,
+		snapAudioEditorFrameWithProject: (frame) => {
+			snappedFrames.push(Number(frame));
+			return snapFrame(Number(frame));
+		},
 		state,
 		synchronizeAutomaticSampleEditMode: () => { automaticModeSynchronizations += 1; },
 		synchronizeMicrophoneMeterTarget: () => { meterSynchronizations += 1; },
@@ -153,6 +158,8 @@ function createFixture(options: { readonly timelineDurationFrames?: number } = {
 		playheads,
 		seeks,
 		project: () => project,
+		snappedFrames,
+		useSnapGrid(step: number) { snapFrame = (frame) => Math.round(frame / step) * step; },
 		updateProject(changes: Partial<TestProject>) {
 			project = { ...project, ...changes };
 		},
@@ -240,6 +247,29 @@ test('selection frame validation and normalization remain centralized', () => {
 	const next = fixture.service.setSelection(120, -10);
 	assert.equal(next.selection.startFrame, 0);
 	assert.equal(next.selection.endFrame, 100);
+});
+
+test('an exact selection is not moved by the reader\'s snap grid', () => {
+	// A macro asking for a frame means that frame. The snap preference belongs to
+	// whoever is dragging, not to what the macro says.
+	const fixture = createFixture();
+	fixture.useSnapGrid(10);
+
+	const snapped = fixture.service.setSelection(13, 61).selection;
+	assert.deepEqual({ startFrame: snapped.startFrame, endFrame: snapped.endFrame },
+		{ startFrame: 10, endFrame: 60 });
+
+	fixture.snappedFrames.length = 0;
+	const exact = fixture.service.setExactSelection(13, 61).selection;
+	assert.deepEqual({ startFrame: exact.startFrame, endFrame: exact.endFrame },
+		{ startFrame: 13, endFrame: 61 });
+	assert.deepEqual(fixture.snappedFrames, [], 'an exact selection must not reach the grid at all');
+
+	// Everything else the ordinary path does still happens.
+	assert.throws(() => fixture.service.setExactSelection(Number.NaN, 1), /finite/u);
+	const clamped = fixture.service.setExactSelection(120, -10).selection;
+	assert.equal(clamped.startFrame, 0);
+	assert.equal(clamped.endFrame, 100);
 });
 
 test('track, clip, and time selection clear V17 annotation focus and selection', () => {

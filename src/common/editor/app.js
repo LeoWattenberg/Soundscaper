@@ -1852,7 +1852,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setLoopRegionToSelection, setMicrophoneMetering, setMonitoring, setPanelDockExtentPreference, setPanelFrameSizePreference, setPanelPreference, setPanelVisibilityPreference,
 		setPlayAtSpeedRate, setPreferredInputChannelCount, setPreferredInputDevice, setProjectBinClipColor,
 		setRecordingInputGain, setRecordingSourceLatency, setRecordingTrackInput, setRetainInputs,
-		setSampleEditMode, setSelection, setSelectionToLoopRegion, setShortcutPreference,
+		setExactSelection: selectionViewService.setExactSelection, setSampleEditMode, setSelection, setSelectionToLoopRegion, setShortcutPreference,
 		setSnapSettings, effectSelectionService, setTimelineView, setTimelineViewportWidth,
 		setToolbarButtonPreference, setTrackDisplayMode, setTrackRate,
 		setVisibleTrackHeights, setWorkspacePreference, setZoom, smoothSelectedSamples,

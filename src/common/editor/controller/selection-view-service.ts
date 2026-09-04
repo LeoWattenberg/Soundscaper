@@ -142,6 +142,21 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 	}
 
 	function setSelection(startFrame: any, endFrame: any, details: any = {}) {
+		return applySelectionRange(startFrame, endFrame, details, true);
+	}
+
+	/**
+	 * Select an exact frame range, unsnapped.
+	 *
+	 * A macro asking for one second means one second. Running its endpoints
+	 * through the snap grid would silently move them, and the reader's own snap
+	 * preference is not part of what the macro says.
+	 */
+	function setExactSelection(startFrame: any, endFrame: any, details: any = {}) {
+		return applySelectionRange(startFrame, endFrame, details, false);
+	}
+
+	function applySelectionRange(startFrame: any, endFrame: any, details: any, snap: boolean) {
 		const project = getProject();
 		if (!Number.isFinite(Number(startFrame)) || !Number.isFinite(Number(endFrame))) {
 			throw new TypeError(copy.selectionFramesFinite);
@@ -150,8 +165,11 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 			? editorTimelineDurationFrames(project, projectSampleRate())
 			: projectDurationFrames(project);
 		const clampSelectionFrame = (value: any) => Math.max(0, Math.min(maximumFrame, Math.round(Number(value))));
-		const start = snapTimelineFrame(clampSelectionFrame(Math.min(Number(startFrame), Number(endFrame))), { maximumFrame });
-		const end = snapTimelineFrame(clampSelectionFrame(Math.max(Number(startFrame), Number(endFrame))), { maximumFrame });
+		const place = (value: any) => snap
+			? snapTimelineFrame(clampSelectionFrame(value), { maximumFrame })
+			: clampSelectionFrame(value);
+		const start = place(Math.min(Number(startFrame), Number(endFrame)));
+		const end = place(Math.max(Number(startFrame), Number(endFrame)));
 		state.selectedClipId = null;
 		state.selectedAnnotationId = null;
 		const command: any = { type: 'selection/set', startFrame: start, endFrame: end };
@@ -364,6 +382,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		setSelection,
 		setSnapSettings,
 		setZoom,
+		setExactSelection,
 		snapTimelineFrame,
 		togglePinnedPlayhead,
 		toggleRmsWaveform,
