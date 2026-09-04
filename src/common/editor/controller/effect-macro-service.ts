@@ -231,15 +231,13 @@ export function createEffectMacroService(runtime: EffectMacroServiceRuntime) {
 		effect: EffectMacroRequestEffect,
 		trackId: string,
 	): MaterializedMacroEffect {
-		// A command step moves the selection or changes the project between audio
-		// steps, which this runner cannot express: it resolves one target up front
-		// and carries one buffer to the end. Refusing is the honest answer while
-		// the step sequencer that can run them is being built — the alternative is
-		// silently applying the effects to whatever happened to be selected, which
-		// is not the macro the file describes.
+		// The sequencer splits a macro at its command steps and hands this runner
+		// only runs of effects, because this runner resolves one target up front
+		// and carries one buffer to the end. A command reaching here would mean
+		// the split failed, so it fails loudly rather than being skipped.
 		if (isMacroCommandStep(effect)) {
 			throw new RangeError(
-				`This macro contains the command ${String((effect as { command?: unknown }).command)}, which this build cannot run yet.`,
+				`A macro command (${String((effect as { command?: unknown }).command)}) cannot be applied as an effect.`,
 			);
 		}
 		if (!isRealtimeEffectMacroStepType(effect.type)) {

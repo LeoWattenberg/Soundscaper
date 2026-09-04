@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	createMacroCommandService,
+	isRunnableMacroCommand,
+} from './macro-command-service.ts';
+import { createMacroProgramService } from './macro-program-service.ts';
+import {
 	createEffectMacroLibraryService,
 	type EffectMacroLibraryServiceRuntime,
 } from './effect-macro-library-service.ts';
@@ -23,6 +28,17 @@ export interface EffectLibraryActionScope {
 	readonly exportEffectPreset: RuntimeAction;
 	readonly runEffectMacro: RuntimeAction;
 	readonly cancelEffectMacro: RuntimeAction;
+	readonly getProject: () => unknown;
+	readonly projectSampleRate: () => number;
+	readonly timelineDurationFrames: () => number;
+	readonly setExactSelection: (
+		startFrame: number, endFrame: number, details?: Readonly<Record<string, unknown>>,
+	) => unknown;
+	readonly beginMacroTransaction: () => Readonly<{
+		commit(command: Readonly<Record<string, unknown>>): unknown;
+		rollback(): unknown;
+	}>;
+	readonly copy: Readonly<Record<string, string>>;
 }
 
 /**
@@ -64,9 +80,26 @@ export function createEffectMacroActions(
 		publishDocumentSnapshot: scope.publishDocumentSnapshot,
 		handleError: scope.handleError,
 	} as unknown as EffectMacroLibraryServiceRuntime);
+	// The sequencer owns the order of a macro's steps; the effect runner keeps its
+	// job of turning one run of effects into audio, and the command service keeps
+	// Audacity's selection arithmetic.
+	const commands = createMacroCommandService({
+		getProject: scope.getProject as () => never,
+		projectSampleRate: scope.projectSampleRate,
+		timelineDurationFrames: scope.timelineDurationFrames,
+		setExactSelection: scope.setExactSelection,
+	});
+	const program = createMacroProgramService({
+		runEffectMacro: scope.runEffectMacro as never,
+		cancelEffectMacro: scope.cancelEffectMacro as unknown as () => boolean,
+		runMacroCommand: commands.runMacroCommand,
+		beginMacroTransaction: scope.beginMacroTransaction,
+		isRunnableMacroCommand,
+		untitledMacroName: scope.copy.untitledMacro || scope.copy.macroManager || 'Untitled macro',
+	});
 	return Object.freeze({
-		run: restricted('audioMacros', scope.runEffectMacro),
-		cancel: restricted('audioMacros', scope.cancelEffectMacro),
+		run: restricted('audioMacros', program.runMacroProgram as unknown as RuntimeAction),
+		cancel: restricted('audioMacros', program.cancelMacroProgram as unknown as RuntimeAction),
 		library: Object.freeze({
 			list: restricted('audioMacros', () => library.list()),
 			save: restricted('audioMacros', ((macro: unknown) => library.save(macro)) as RuntimeAction),

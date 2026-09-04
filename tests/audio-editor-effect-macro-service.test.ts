@@ -289,16 +289,16 @@ test('a superseding macro task fences stale persistence and cleanup publication'
 	successor.finish();
 });
 
-test('a macro carrying a command refuses to run rather than quietly dropping it', async () => {
-	// Until the sequencer that can move the selection between audio steps exists,
-	// running such a macro would apply its effects to whatever happened to be
-	// selected — not the macro the file describes.
+test('a command reaching the effect runner is a split that failed, not a step to skip', async () => {
+	// The sequencer hands this runner only runs of effects. If one ever arrives
+	// here the split is wrong, and skipping it would apply the effects to whatever
+	// happened to be selected instead of what the macro says.
 	const harness = createHarness();
 	await assert.rejects(
 		() => harness.service.runEffectMacro({
 			effects: [{ kind: 'command', id: 'select', enabled: true, command: 'SelectTime', params: { start: 0 } }],
 		}),
-		/contains the command SelectTime, which this build cannot run yet/u,
+		/A macro command \(SelectTime\) cannot be applied as an effect/u,
 	);
 	assert.equal(harness.processing, false);
 });
