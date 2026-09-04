@@ -44,6 +44,17 @@
 	height: calc(100% - 67px);
 }
 
+/* The playhead's head hangs seventeen pixels above its boundary so it reads as
+   a ruler handle. Once the marker lane opens, that strip is the lane, and the
+   head covered any annotation sitting at the playhead's own time — which is
+   where "Add marker at playhead" puts one. The head stays drawn; the ruler
+   above it and the timeline below it still move the playhead. The component
+   sets this inline, so the override has to outrank it. */
+#kw-audio-editor-design-system .audio-editor-timeline-panel[data-show-markers='true']
+	.audio-editor-playhead-boundary .playhead-cursor__icon {
+	pointer-events: none !important;
+}
+
 #kw-audio-editor-design-system .audio-editor-timeline-annotations {
 	position: absolute;
 	z-index: 4;

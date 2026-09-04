@@ -175,6 +175,7 @@ function PlayheadCursorComponent({
       {/* Playhead head at top (for timeline ruler) */}
       {showTopIcon && (
         <div
+          className="playhead-cursor__icon"
           onMouseDown={handleIconMouseDown}
           style={{
             position: 'absolute',
