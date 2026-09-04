@@ -141,6 +141,7 @@ test('security matrix covers the production threat-model surfaces without promot
 		'desktop-write-path-capabilities': 'partial',
 		'shared-desktop-project-library-integrity': 'partial',
 		'nyquist-untrusted-code-runtime': 'enforced',
+		'macro-program-untrusted-code-runtime': 'partial',
 		'reviewed-web-effect-packages': 'enforced',
 		'native-helper-processes': 'partial',
 		'native-plugin-hosting': 'partial',

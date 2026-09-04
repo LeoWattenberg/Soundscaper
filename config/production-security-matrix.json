@@ -74,6 +74,7 @@
 		],
 		"third-party-plugins": [
 			"nyquist-untrusted-code-runtime",
+			"macro-program-untrusted-code-runtime",
 			"reviewed-web-effect-packages",
 			"native-plugin-hosting"
 		],
@@ -2069,6 +2070,54 @@
 				{
 					"kind": "audit",
 					"path": "scripts/audit-nyquist-wasm.mjs"
+				}
+			]
+		},
+		{
+			"id": "macro-program-to-editor-controller",
+			"from": "A macro written as JavaScript, running in a blob-URL module worker",
+			"to": "The one open project's controller actions",
+			"data": "Program source, bounded protocol calls, project snapshots, selection and effect parameters, and a run log",
+			"entryPoints": [
+				"src/common/editor/macro-script/browser-sandbox.ts",
+				"src/common/editor/controller/macro-script-host.ts"
+			],
+			"evidence": [
+				{
+					"kind": "implementation",
+					"path": "src/common/editor/macro-script/protocol.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "src/common/editor/macro-script/sandbox-prelude.js"
+				},
+				{
+					"kind": "implementation",
+					"path": "src/common/editor/macro-script/sandbox-client.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "src/common/editor/controller/macro-script-host.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "src/common/editor/macro-script-library.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/audio-editor-macro-script-protocol.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/audio-editor-macro-script-host.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/audio-editor-macro-script-trust-gate.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/browser/audio-editor-macro-script.spec.js"
 				}
 			]
 		},
@@ -10015,6 +10064,130 @@
 				}
 			],
 			"residualRisks": []
+		},
+		{
+			"id": "macro-program-untrusted-code-runtime",
+			"title": "A macro program written as JavaScript reaches past the one project it was run in",
+			"boundaryIds": [
+				"macro-program-to-editor-controller",
+				"controller-task-to-io"
+			],
+			"assets": [
+				"project integrity",
+				"editor availability",
+				"origin storage"
+			],
+			"actor": "A user runs a macro program they wrote, or one somebody sent them in a file.",
+			"impact": "high",
+			"status": "partial",
+			"surfaceDisposition": "conditional",
+			"ownerMilestone": "1",
+			"currentControls": [
+				{
+					"id": "macro-program-sandbox-and-dispatch-table",
+					"summary": "A macro program is the body of a module worker built from a blob URL, and neither shipped policy grants 'unsafe-eval', so in production the program cannot compile further code. The worker prelude reduces the realm by allowlist along the whole prototype chain rather than by deleting named properties, because the worker APIs that matter are accessor properties for which delete is a silent no-op: fetch, XMLHttpRequest, WebSocket, indexedDB, caches, Blob, URL, Worker, BroadcastChannel, WebAssembly, Atomics, crypto, navigator, location and the timers are all made undefined and non-configurable, postMessage and addEventListener are captured into a closure before removal so protocol traffic cannot be forged, and Date, performance.now and Math.random read a virtual clock and a seeded PRNG so a run is reproducible. The security boundary is the host dispatch table, not the prelude: a fixed set of reader and mutator method names is served and anything else is refused, so recording, audio and video devices, other projects, file reads and writes, exports, preferences, persistent storage and the Nyquist evaluator have no name to call. Cancellation, the deadline and any failure all terminate the worker, which is discarded after every run. A run's mutations are collapsed into one undo entry and rolled back on failure.",
+					"evidence": [
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/macro-script/sandbox-prelude.js"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/macro-script/sandbox-client.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/macro-script/browser-sandbox.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/controller/macro-script-host.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-macro-script-host.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-macro-script-sandbox-client.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/browser/audio-editor-macro-script.spec.js"
+						}
+					],
+					"policyAuthority": "family-v1-active"
+				},
+				{
+					"id": "macro-program-byte-bound-consent",
+					"summary": "This is the only place the editor accepts executable content from a file, so importing one stores text and grants nothing. The program lands unreviewed with the file it came from recorded, shows its source with the sentence about what it can do to the open project, and gains a Run button only after a person ticks an acknowledgement and enables it. The permission is a copy of the exact bytes it was granted for rather than a flag, so editing the program afterwards does not launder it, and the check runs against the source handed to the runner rather than the record the manager holds, which closes reading the unreviewed program out of the list and passing its text straight to the run action. The transport is a .soundscapemacro JSON envelope rather than a bare .js file, so the artifact is not something the recipient's own operating system will run outside this sandbox.",
+					"evidence": [
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/macro-script-envelope.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/macro-script-library.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/controller/macro-script-library-service.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-macro-script-envelope.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-macro-script-library.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-macro-script-trust-gate.test.ts"
+						}
+					],
+					"policyAuthority": "family-v1-active"
+				}
+			],
+			"residualRisks": [
+				{
+					"id": "macro-program-heap-ceiling",
+					"exposure": "No JavaScript heap ceiling exists. Nyquist caps its WebAssembly memory because it owns that memory; a JavaScript engine offers no equivalent, so containment for a program that allocates without bound is the run deadline plus worker termination. Chromium and Firefox kill the worker on its own; WebKit may take the tab with it.",
+					"requiredControl": "Bound a macro program's allocation the way the Nyquist runtime bounds its own, or contain a run in a realm whose memory the product owns.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": [
+						"A macro that allocates until it fails leaves the editor interactive and its project intact in all three qualified browsers."
+					]
+				},
+				{
+					"id": "macro-program-dynamic-import",
+					"exposure": "Dynamic import() is a syntactic form rather than a property, so the realm reduction cannot remove it. In production script-src 'self' confines it to this origin, and whatever it resolves lands in the same reduced realm, so no authority is gained; without a policy in front of it - a development server, or a preview server that has not been given the shipped headers - the fetch itself is a real network side effect the sandbox does not prevent.",
+					"requiredControl": "Keep every server that can run a macro under the shipped script-src, and refuse a module specifier the run did not itself supply.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": [
+						"A macro's dynamic import of an off-origin module is refused wherever a macro can be run, including the development and preview servers."
+					]
+				},
+				{
+					"id": "macro-program-inherited-connect-src",
+					"exposure": "A blob-URL worker inherits the creating document's policy and cannot be given a tighter one, so on the web the worker keeps connect-src 'self' plus the two first-party CDNs. There is no same-origin write endpoint in this repository, so exfiltration is narrow rather than absent. The desktop policy is 'self' blob: and closes it.",
+					"requiredControl": "Run the macro worker under a policy of its own, or keep the web origin free of any endpoint a macro could write to.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": [
+						"The web origin exposes no same-origin write endpoint, or the macro worker's connect-src is narrower than the document's."
+					]
+				},
+				{
+					"id": "macro-program-realm-reduction-is-not-a-boundary",
+					"exposure": "The worker prelude is capability reduction, not a security boundary - the same words this model already uses for Nyquist. The boundary is the host dispatch table and the validation behind it, and a hole in the prelude alone gains a program nothing it can call.",
+					"requiredControl": "Keep every capability decision in the host dispatch table rather than in the prelude, and prove denial positively from a real worker.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": [
+						"A macro asking for each denied global observes undefined, and an unknown method name is refused by the host, in all three qualified browsers."
+					]
+				}
+			]
 		},
 		{
 			"id": "reviewed-web-effect-packages",
