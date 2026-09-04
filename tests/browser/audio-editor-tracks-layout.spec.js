@@ -33,6 +33,28 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.locator('[data-track-row]')).toHaveCount(2);
 	});
 
+	test('reaches the add-track flyout view toggles from the keyboard', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		// Tab closes the flyout, the way a menu should, so the arrow rotation is
+		// the only keyboard route its items have. A toggle left out of it can be
+		// operated with the mouse alone.
+		await editor.getByRole('button', { name: 'Add track', exact: true }).press('Enter');
+		const flyout = page.locator('.add-track-flyout');
+		await expect(flyout.getByRole('menuitem', { name: 'Audio track', exact: true })).toBeFocused();
+
+		const showMaster = flyout.getByRole('menuitemcheckbox', { name: 'Show master track', exact: true });
+		for (let index = 0; index < 4; index += 1) await page.keyboard.press('ArrowDown');
+		await expect(showMaster).toBeFocused();
+		await expect(showMaster).toHaveAttribute('aria-checked', 'false');
+		await page.keyboard.press('Enter');
+		await expect(showMaster).toHaveAttribute('aria-checked', 'true');
+		await expect(editor.locator('[data-output-track-row][data-output-scope="master"]')).toHaveCount(1);
+		await expect(flyout).toBeVisible();
+
+		expect(errors).toEqual([]);
+	});
+
 	test('themes and spaces the add-track flyout in dark mode', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await setDocumentTheme(page, 'dark');
@@ -57,15 +79,15 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await addTrack.click();
 		let flyout = page.locator('.add-track-flyout');
-		const showMaster = flyout.getByRole('checkbox', { name: 'Show master track', exact: true });
+		const showMaster = flyout.getByRole('menuitemcheckbox', { name: 'Show master track', exact: true });
 		await expect(flyout.getByRole('menuitem', { name: 'Send track', exact: true })).toBeVisible();
-		await expect(showMaster).not.toBeChecked();
+		await expect(showMaster).toHaveAttribute('aria-checked', 'false');
 		await expect(flyout.locator('.add-track-flyout__row')).toHaveCount(2);
-		await expect(flyout.locator('.add-track-flyout__row').getByRole('checkbox', { name: 'Show master track', exact: true })).toHaveCount(1);
-		await expect(flyout.locator('.add-track-flyout__row').getByRole('checkbox', { name: 'Show markers', exact: true })).toHaveCount(1);
+		await expect(flyout.locator('.add-track-flyout__row').getByRole('menuitemcheckbox', { name: 'Show master track', exact: true })).toHaveCount(1);
+		await expect(flyout.locator('.add-track-flyout__row').getByRole('menuitemcheckbox', { name: 'Show markers', exact: true })).toHaveCount(1);
 		await showMaster.click();
 		await expect(flyout).toBeVisible();
-		await expect(showMaster).toBeChecked();
+		await expect(showMaster).toHaveAttribute('aria-checked', 'true');
 		await expect(editor.locator('[data-output-track-row][data-output-scope="master"]')).toHaveCount(1);
 		await expect(mediaTracks).toHaveCount(1);
 
@@ -82,8 +104,9 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await addTrack.click();
 		flyout = page.locator('.add-track-flyout');
-		await expect(flyout.getByRole('checkbox', { name: 'Show master track', exact: true })).not.toBeChecked();
-		await flyout.getByRole('checkbox', { name: 'Show master track', exact: true }).check();
+		await expect(flyout.getByRole('menuitemcheckbox', { name: 'Show master track', exact: true }))
+			.toHaveAttribute('aria-checked', 'false');
+		await flyout.getByRole('menuitemcheckbox', { name: 'Show master track', exact: true }).click();
 		await flyout.getByRole('menuitem', { name: 'Send track', exact: true }).click();
 		for (let index = 0; index < 4; index += 1) {
 			await addTrack.click();
@@ -145,8 +168,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await importFiles(editor, [longTone]);
 		await editor.getByRole('button', { name: 'Add track', exact: true }).click();
 		await page.locator('.add-track-flyout')
-			.getByRole('checkbox', { name: 'Show master track', exact: true })
-			.check();
+			.getByRole('menuitemcheckbox', { name: 'Show master track', exact: true })
+			.click();
 		const playbackPositions = () => editor.evaluate((root) => [
 			root.querySelector('.audio-editor-ruler-playhead')?.getBoundingClientRect().x,
 			root.querySelector('[data-playhead] .playhead-cursor__line')?.getBoundingClientRect().x,

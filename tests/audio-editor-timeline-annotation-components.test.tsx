@@ -453,11 +453,15 @@ test('the Add Track flyout offers Show markers only where the project carries an
 	const flyouts = readFileSync(new URL(
 		'../src/common/editor/ui/timeline/TimelineFlyouts.jsx', import.meta.url,
 	), 'utf8');
-	const row = flyouts.match(/\{markersAvailable && <div className="add-track-flyout__row">[\S\s]*?<\/div>\}/u)?.[0];
+	const row = flyouts.match(/\{markersAvailable && <div className="add-track-flyout__row" role="none">[\S\s]*?<\/div>\}/u)?.[0];
 
 	assert.ok(row, 'the marker toggle is gated on annotation availability');
-	assert.match(row, /checked=\{showMarkers\}/u);
-	assert.match(row, /onChange=\{onToggleMarkers\}/u);
+	// The flyout body is a menu, so the toggle is a menuitemcheckbox that the
+	// arrow-key rotation can reach; a bare input inside role="menu" was both
+	// invalid and unreachable, since Tab closes the flyout.
+	assert.match(row, /role="menuitemcheckbox"/u);
+	assert.match(row, /aria-checked=\{showMarkers\}/u);
+	assert.match(row, /onClick=\{onToggleMarkers\}/u);
 	assert.match(row, /\{copy\.showMarkers\}/u);
 	// The marker toggle is a view preference, not an edit, so it stays usable
 	// while mutations are blocked — unlike the track-type options above it.

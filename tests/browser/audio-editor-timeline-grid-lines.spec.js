@@ -135,7 +135,7 @@ test.describe('timeline grid lines', () => {
 		const panel = editor.locator('.audio-editor-timeline-panel');
 		await editor.getByRole('button', { name: 'Add track', exact: true }).click();
 		const flyout = page.locator('.add-track-flyout');
-		await flyout.getByRole('checkbox', { name: 'Show master track', exact: true }).click();
+		await flyout.getByRole('menuitemcheckbox', { name: 'Show master track', exact: true }).click();
 		await page.keyboard.press('Escape');
 		const masterRow = editor.locator('[data-output-track-row][data-output-scope="master"]');
 		await expect(masterRow).toHaveCount(1);

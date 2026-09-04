@@ -9,6 +9,11 @@ import '../../../../../vendor/audacity-design-system/components/src/AddTrackFlyo
 import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-audio-factory.js';
 import { colorName } from './TimelineOverlayComponents.jsx';
 
+// Arrow keys rove over every enabled item the menu owns. The view toggles below
+// the separator are menu items too: Tab closes the flyout the way a menu should,
+// so an item left out of this rotation has no keyboard route at all.
+const MENU_ITEM_SELECTOR = '[role="menuitem"]:not(:disabled), [role="menuitemcheckbox"]:not(:disabled)';
+
 export function ContainerAddTrackFlyout({
 	isOpen,
 	onSelectTrackType,
@@ -55,7 +60,7 @@ export function ContainerAddTrackFlyout({
 				return;
 			}
 			if (!['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp'].includes(event.key)) return;
-			const options = [...(flyoutRef.current?.querySelectorAll('.add-track-flyout__option:not(:disabled)') || [])];
+			const options = [...(flyoutRef.current?.querySelectorAll(MENU_ITEM_SELECTOR) || [])];
 			const currentIndex = options.indexOf(document.activeElement);
 			if (currentIndex < 0 || !options.length) return;
 			event.preventDefault();
@@ -72,7 +77,7 @@ export function ContainerAddTrackFlyout({
 	useEffect(() => {
 		if (!isOpen || !autoFocus) return undefined;
 		const timer = window.setTimeout(() => {
-			const firstEnabled = flyoutRef.current?.querySelector('.add-track-flyout__option:not(:disabled)');
+			const firstEnabled = flyoutRef.current?.querySelector(MENU_ITEM_SELECTOR);
 			(firstEnabled || firstOptionRef.current)?.focus();
 		}, 0);
 		return () => window.clearTimeout(timer);
@@ -121,22 +126,33 @@ export function ContainerAddTrackFlyout({
 					))}
 				</div>
 				<div className="add-track-flyout__separator" role="separator" />
-				<div className="add-track-flyout__row">
-					<label className="add-track-flyout__checkbox-control">
-						<input type="checkbox" checked={showMasterTrack} disabled={mutationsBlocked} onChange={onToggleMasterTrack} />
+				<div className="add-track-flyout__row" role="none">
+					<button
+						type="button"
+						className="add-track-flyout__checkbox-control"
+						role="menuitemcheckbox"
+						aria-checked={showMasterTrack}
+						tabIndex={-1}
+						disabled={mutationsBlocked}
+						onClick={onToggleMasterTrack}
+					>
+						<span className="add-track-flyout__checkbox-box" aria-hidden="true" />
 						<span>{copy.masterTrack}</span>
-					</label>
+					</button>
 				</div>
-				{markersAvailable && <div className="add-track-flyout__row">
-					<label className="add-track-flyout__checkbox-control">
-						<input
-							type="checkbox"
-							data-show-markers-toggle
-							checked={showMarkers}
-							onChange={onToggleMarkers}
-						/>
+				{markersAvailable && <div className="add-track-flyout__row" role="none">
+					<button
+						type="button"
+						className="add-track-flyout__checkbox-control"
+						role="menuitemcheckbox"
+						data-show-markers-toggle
+						aria-checked={showMarkers}
+						tabIndex={-1}
+						onClick={onToggleMarkers}
+					>
+						<span className="add-track-flyout__checkbox-box" aria-hidden="true" />
 						<span>{copy.showMarkers}</span>
-					</label>
+					</button>
 				</div>}
 			</div>
 		</div>

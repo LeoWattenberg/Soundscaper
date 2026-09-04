@@ -66,8 +66,8 @@ test.describe('native timeline annotations', () => {
 		await expect(laneActions).toHaveCount(0);
 		await editor.getByRole('button', { name: 'Add track', exact: true }).click();
 		const markerToggle = editor.locator('[data-show-markers-toggle]');
-		await expect(markerToggle).not.toBeChecked();
-		await markerToggle.check();
+		await expect(markerToggle).toHaveAttribute('aria-checked', 'false');
+		await markerToggle.click();
 		await expect(laneActions).toBeVisible();
 
 		await importFiles(editor, [toneA]);
