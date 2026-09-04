@@ -5,6 +5,8 @@ import './Flyout.css';
 export type FlyoutDirection = 'down' | 'up' | 'left' | 'right';
 
 export interface FlyoutProps {
+  /** Optional DOM id for associating the flyout with its trigger. */
+  id?: string;
   /** Whether the flyout is open. */
   isOpen: boolean;
   /** Called when the flyout should close. */
@@ -63,6 +65,7 @@ const clamp = (value: number, min: number, max: number): number =>
  * the viewport where possible.
  */
 export const Flyout: React.FC<FlyoutProps> = ({
+  id,
   isOpen,
   onClose,
   x,
@@ -208,6 +211,7 @@ export const Flyout: React.FC<FlyoutProps> = ({
 
   return (
     <div
+      id={id}
       ref={flyoutRef}
       className={`flyout flyout--${direction} ${className}`}
       data-direction={direction}

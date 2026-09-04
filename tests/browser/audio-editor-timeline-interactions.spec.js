@@ -55,6 +55,33 @@ async function mixedSourceChannelCount(page) {
 	}), SOUNDSCAPER_DATABASE_NAME);
 }
 
+async function expectMixRenderOptionTooltip(page, dialog, {
+	key, label, description, interaction,
+}) {
+	const checkbox = dialog.getByRole('checkbox', { name: label, exact: true });
+	const descriptionId = await checkbox.getAttribute('aria-describedby');
+	expect(descriptionId).toBeTruthy();
+	const persistentDescription = dialog.locator(`[id="${descriptionId}"]`);
+	await expect(persistentDescription).toHaveClass(/\bkw-audio-editor-sr-only\b/u);
+	await expect(persistentDescription).toHaveText(description);
+	const help = dialog.locator(`[data-mix-render-help="${key}"]`);
+	await expect(help).toHaveAttribute('aria-label', `Help: ${label}`);
+	await expect(help).toHaveAttribute('aria-describedby', descriptionId);
+	await expect(help).toHaveAttribute('data-tooltip-ignore', /^(?:|true)$/u);
+	if (interaction === 'hover') await help.hover();
+	else await help.focus();
+	const tooltip = page.locator('.audio-editor-mix-render__tooltip', {
+		has: page.locator(`[data-mix-render-tooltip="${key}"]`),
+	});
+	await expect(tooltip).toBeVisible();
+	await expect(tooltip).toHaveAttribute('role', 'tooltip');
+	await expect(tooltip).toHaveText(description);
+	await expect(page.getByRole('tooltip')).toHaveCount(1);
+	await expect(help).toHaveAttribute('aria-describedby', await tooltip.getAttribute('id'));
+	await expect(tooltip).toHaveClass(/\bflyout\b/u);
+	return { help, tooltip };
+}
+
 test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
 
@@ -68,9 +95,34 @@ test.describe('audio editor React/design-system workflows', () => {
 		await secondClip.locator('.clip-header').click({ modifiers: ['Shift'] });
 
 		const dialog = await openMixRenderDialog(page, editor);
+		await expect(dialog.getByRole('button', { name: 'Cancel', exact: true }))
+			.toHaveClass(/\bbutton--secondary\b/u);
+		await expect(dialog.getByRole('button', { name: 'Mix & Render', exact: true }))
+			.toHaveClass(/\bbutton--primary\b/u);
 		for (const label of ['Mix down', 'Render effects', 'Replace originals']) {
 			await expect(dialog.getByRole('checkbox', { name: label, exact: true })).toBeChecked();
 		}
+		const descriptions = [
+			'Combine the selected tracks into one rendered track. Clear this option to render each track separately.',
+			'Burn realtime effects into the rendered audio.',
+			'Replace the selected tracks. Clear this option to create new tracks.',
+		];
+		for (const description of descriptions) {
+			await expect(dialog.locator('p').filter({ hasText: description })).toHaveCount(0);
+		}
+		const hoveredHelp = await expectMixRenderOptionTooltip(page, dialog, {
+			key: 'mix-down', label: 'Mix down', description: descriptions[0], interaction: 'hover',
+		});
+		await hoveredHelp.tooltip.hover();
+		await expect(hoveredHelp.tooltip).toBeVisible();
+		await page.mouse.move(0, 0);
+		await expect(page.locator('[data-mix-render-tooltip]')).toHaveCount(0);
+		const focusedHelp = await expectMixRenderOptionTooltip(page, dialog, {
+			key: 'render-effects', label: 'Render effects', description: descriptions[1], interaction: 'focus',
+		});
+		await page.keyboard.press('Escape');
+		await expect(focusedHelp.tooltip).toHaveCount(0);
+		await expect(dialog).toBeVisible();
 		const channels = dialog.getByRole('group', { name: 'Mix down to', exact: true });
 		await expect(channels.getByRole('button')).toContainText('Stereo');
 		await chooseDropdown(page, channels, 'Mono');

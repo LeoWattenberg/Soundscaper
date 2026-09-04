@@ -1,6 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, {
+	useCallback,
+	useEffect,
+	useId,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from 'react';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
+import { Flyout } from '@soundscaper/design-system/Flyout';
 
 import '../audio-editor-design-system/28-mix-render.css';
 
@@ -12,6 +22,7 @@ import {
 import { selectAudioTracksForMix } from '../../controller/mix-render-model.ts';
 import type { ControllerProject } from '../../controller/track-domain-types.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { retainAudioEditorDialogEscapeOwner } from '../dialog-escape-ownership.ts';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
 import { LabeledDropdown } from '../inspector/inspector-controls.jsx';
 import { formatLocalizedTemplate } from '../localization-template.ts';
@@ -34,7 +45,16 @@ interface MixRenderDialogCopy {
 	readonly replaceOriginalsDescription: string;
 	readonly mixRenderNoOperation: string;
 	readonly cancel: string;
+	readonly helpMenu: string;
 }
+
+interface TooltipAnchor {
+	readonly direction: 'down' | 'up';
+	readonly x: number;
+	readonly y: number;
+}
+
+type TooltipVisibilityReason = 'focus' | 'pointer' | 'press';
 
 interface MixRenderDialogProps {
 	readonly controller: Readonly<{
@@ -143,6 +163,15 @@ export default function MixRenderDialog({
 		width={520}
 		initialFocus="[role='checkbox']"
 		dataAttributes={{ 'data-mix-render-dialog': 'true' }}
+		footer={<DialogFooter
+			className="audio-editor-dialog-footer"
+			primaryText={copy.mixRenderTitle}
+			secondaryText={copy.cancel}
+			onPrimaryClick={submit}
+			onSecondaryClick={onClose}
+			primaryDisabled={submitDisabled}
+			secondaryDisabled={pending}
+		/>}
 	>
 		<form className="audio-editor-mix-render" aria-busy={pending} onSubmit={(event) => {
 			event.preventDefault();
@@ -154,6 +183,8 @@ export default function MixRenderDialog({
 				checked={mixDown}
 				disabled={pending}
 				onChange={setMixDown}
+				helpLabel={copy.helpMenu}
+				helpHook="mix-down"
 			>
 				<div className="audio-editor-mix-render__layout" data-mix-render-channel-count>
 					<LabeledDropdown
@@ -177,6 +208,8 @@ export default function MixRenderDialog({
 				checked={renderEffects}
 				disabled={pending}
 				onChange={setRenderEffects}
+				helpLabel={copy.helpMenu}
+				helpHook="render-effects"
 			/>
 			<Option
 				label={copy.replaceOriginals}
@@ -184,6 +217,8 @@ export default function MixRenderDialog({
 				checked={replaceOriginals}
 				disabled={pending}
 				onChange={setReplaceOriginals}
+				helpLabel={copy.helpMenu}
+				helpHook="replace-originals"
 			/>
 			{emptyOperation && <p className="audio-editor-mix-render__message" role="status">
 				{copy.mixRenderNoOperation}
@@ -191,28 +226,120 @@ export default function MixRenderDialog({
 			{error && <p className="audio-editor-mix-render__message audio-editor-mix-render__error" role="alert">
 				{error}
 			</p>}
-			<div className="kw-audio-editor-dialog__actions">
-				<button type="button" disabled={pending} onClick={onClose}>{copy.cancel}</button>
-				<button type="submit" disabled={submitDisabled}>{copy.mixRenderTitle}</button>
-			</div>
 		</form>
 	</AudioEditorDialogShell>;
 }
 
-function Option({ label, description, checked, disabled, onChange, children }: Readonly<{
+function Option({
+	label,
+	description,
+	checked,
+	disabled,
+	onChange,
+	helpLabel,
+	helpHook,
+	children,
+}: Readonly<{
 	label: string;
 	description: string;
 	checked: boolean;
 	disabled: boolean;
 	onChange(checked: boolean): void;
+	helpLabel: string;
+	helpHook: string;
 	children?: React.ReactNode;
 }>) {
 	const descriptionId = useId();
+	const tooltipId = useId();
+	const helpRef = useRef<HTMLButtonElement | null>(null);
+	const visibilityReasonsRef = useRef(new Set<TooltipVisibilityReason>());
+	const [tooltip, setTooltip] = useState<TooltipAnchor | null>(null);
+	const tooltipOpen = tooltip !== null;
+	const positionTooltip = useCallback((): void => {
+		const bounds = helpRef.current?.getBoundingClientRect();
+		if (!bounds) return;
+		const viewportHeight = Number(window.innerHeight) || 768;
+		const direction = bounds.top >= viewportHeight - bounds.bottom ? 'up' : 'down';
+		setTooltip({
+			direction,
+			x: bounds.left + bounds.width / 2,
+			y: direction === 'up' ? bounds.top : bounds.bottom,
+		});
+	}, []);
+	const showTooltip = useCallback((reason: TooltipVisibilityReason): void => {
+		visibilityReasonsRef.current.add(reason);
+		positionTooltip();
+	}, [positionTooltip]);
+	const hideTooltip = useCallback((reason: TooltipVisibilityReason): void => {
+		visibilityReasonsRef.current.delete(reason);
+		if (visibilityReasonsRef.current.size === 0) setTooltip(null);
+	}, []);
+	const dismissTooltip = useCallback((): void => {
+		visibilityReasonsRef.current.clear();
+		setTooltip(null);
+	}, []);
+	useEffect(() => {
+		if (!tooltip) return undefined;
+		window.addEventListener('resize', positionTooltip);
+		window.addEventListener('scroll', positionTooltip, true);
+		return () => {
+			window.removeEventListener('resize', positionTooltip);
+			window.removeEventListener('scroll', positionTooltip, true);
+		};
+	}, [positionTooltip, tooltip]);
+	useLayoutEffect(() => {
+		if (!tooltipOpen) return undefined;
+		return retainAudioEditorDialogEscapeOwner(document, dismissTooltip);
+	}, [dismissTooltip, tooltipOpen]);
 	return <div className="audio-editor-mix-render__option">
-		<PreferenceCheckbox label={label} ariaDescribedBy={descriptionId}
-			checked={checked} disabled={disabled} onChange={onChange} />
+		<div className="audio-editor-mix-render__option-heading">
+			<PreferenceCheckbox label={label} ariaDescribedBy={descriptionId}
+				checked={checked} disabled={disabled} onChange={onChange} />
+			<span
+				className="audio-editor-mix-render__help-wrap"
+				onPointerEnter={() => showTooltip('pointer')}
+				onPointerLeave={() => hideTooltip('pointer')}
+			>
+				<button
+					ref={helpRef}
+					type="button"
+					className="audio-editor-mix-render__help"
+					aria-label={`${helpLabel}: ${label}`}
+					aria-describedby={tooltip ? tooltipId : descriptionId}
+					data-mix-render-help={helpHook}
+					data-tooltip-ignore
+					onFocus={() => showTooltip('focus')}
+					onBlur={() => hideTooltip('focus')}
+					onClick={() => {
+						if (visibilityReasonsRef.current.has('press')) hideTooltip('press');
+						else showTooltip('press');
+					}}
+				>
+					<svg aria-hidden="true" viewBox="0 0 12 12">
+						<circle cx="6" cy="2.5" r="1" fill="currentColor" />
+						<path d="M6 5v4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+					</svg>
+				</button>
+				{tooltip && <Flyout
+					id={tooltipId}
+					isOpen
+					onClose={dismissTooltip}
+					x={tooltip.x}
+					y={tooltip.y}
+					direction={tooltip.direction}
+					showArrow
+					closeOnOutsideClick
+					closeOnEscape={false}
+					ariaLabel={description}
+					role="tooltip"
+					className="audio-editor-mix-render__tooltip"
+				>
+					<span data-mix-render-tooltip={helpHook}>{description}</span>
+				</Flyout>}
+			</span>
+			<span id={descriptionId} className="kw-audio-editor-sr-only">{description}</span>
+		</div>
 		{children}
-		<p id={descriptionId}>{description}</p>
 	</div>;
 }
 

@@ -18,12 +18,7 @@ test('Mix & Render presents checked defaults and selectable predicted output lay
 	assert.match(mono, /role="checkbox"[^>]*aria-checked="true"[^>]*aria-label="Mix down"/u);
 	assert.match(mono, /role="checkbox"[^>]*aria-checked="true"[^>]*aria-label="Render effects"/u);
 	assert.match(mono, /role="checkbox"[^>]*aria-checked="true"[^>]*aria-label="Replace originals"/u);
-	assertCheckboxDescription(mono, 'Mix down',
-		'Combine the selected tracks into one rendered track. Clear this option to render each track separately.');
-	assertCheckboxDescription(mono, 'Render effects',
-		'Burn realtime effects into the rendered audio.');
-	assertCheckboxDescription(mono, 'Replace originals',
-		'Replace the selected tracks. Clear this option to create new tracks.');
+	assert.doesNotMatch(mono, /<p id="[^"]+">(?:Combine|Burn|Replace)[^<]*<\/p>/u);
 	assertDropdownMarkup(mono, 'Mono');
 	assertDropdownMarkup(renderDialog(project(2)), 'Stereo');
 	assertDropdownMarkup(renderDialog(project(1, 6)), '6 channels');
@@ -32,7 +27,49 @@ test('Mix & Render presents checked defaults and selectable predicted output lay
 		...empty,
 		tracks: [{ ...empty.tracks[0]!, clipIds: [] }],
 		clips: [],
-	}), /<button type="submit" disabled="">Mix &amp; Render<\/button>/u);
+	}), /<button[^>]*class="[^"]*button--primary[^"]*button--disabled[^"]*"[^>]*disabled=""/u);
+});
+
+test('Mix & Render exposes option help as accessible hover and focus tooltips and uses dialog actions', async () => {
+	const mounted = await mountDialog({ project: project(1), mixAndRender: () => undefined });
+	const options = [
+		{
+			key: 'mix-down', label: 'Mix down',
+			description: 'Combine the selected tracks into one rendered track. Clear this option to render each track separately.',
+		},
+		{
+			key: 'render-effects', label: 'Render effects',
+			description: 'Burn realtime effects into the rendered audio.',
+		},
+		{
+			key: 'replace-originals', label: 'Replace originals',
+			description: 'Replace the selected tracks. Clear this option to create new tracks.',
+		},
+	] as const;
+	try {
+		for (const option of options) assertOptionHelp(mounted.dom.container, option);
+		const visibleParagraphs = mounted.dom.container.querySelectorAll('p').map(({ textContent }) => textContent);
+		for (const { description } of options) assert.equal(visibleParagraphs.includes(description), false);
+		assertDialogButton(mounted.dom.container, 'Cancel', 'secondary');
+		assertDialogButton(mounted.dom.container, 'Mix & Render', 'primary');
+
+		await setOptionTooltipPointer(mounted.dom.container, 'mix-down', true);
+		assertVisibleTooltip('mix-down', options[0].description);
+		await setOptionTooltipFocus(mounted.dom.container, 'mix-down', true);
+		await setOptionTooltipPointer(mounted.dom.container, 'mix-down', false);
+		assertVisibleTooltip('mix-down', options[0].description);
+		await setOptionTooltipFocus(mounted.dom.container, 'mix-down', false);
+		assert.equal(optionTooltip('mix-down'), null);
+
+		await setOptionTooltipPointer(mounted.dom.container, 'render-effects', true);
+		await setOptionTooltipFocus(mounted.dom.container, 'render-effects', true);
+		await setOptionTooltipFocus(mounted.dom.container, 'render-effects', false);
+		assertVisibleTooltip('render-effects', options[1].description);
+		await setOptionTooltipPointer(mounted.dom.container, 'render-effects', false);
+		assert.equal(optionTooltip('render-effects'), null);
+	} finally {
+		await mounted.unmount();
+	}
 });
 
 test('Mix & Render disables an empty operation, submits every boolean once, and waits before closing', async () => {
@@ -50,7 +87,10 @@ test('Mix & Render disables an empty operation, submits every boolean once, and 
 		assert.equal(reactProps(dropdownTrigger(mounted.dom.container)).disabled, true);
 		await toggle(mounted.dom.container, 'Render effects');
 		assert.equal(checkbox(mounted.dom.container, 'Render effects').getAttribute('aria-checked'), 'false');
-		assert.equal(reactProps(buttonWithText(mounted.dom.container, 'Mix & Render')).disabled, true);
+		const disabledSubmit = buttonWithText(mounted.dom.container, 'Mix & Render');
+		assert.equal(reactProps(disabledSubmit).disabled, true);
+		assertClass(disabledSubmit, 'button--primary');
+		assertClass(disabledSubmit, 'button--disabled');
 
 		await toggle(mounted.dom.container, 'Render effects');
 		await toggle(mounted.dom.container, 'Replace originals');
@@ -67,6 +107,8 @@ test('Mix & Render disables an empty operation, submits every boolean once, and 
 		}]);
 		assert.equal(closes, 0);
 		assert.equal(reactProps(buttonWithText(mounted.dom.container, 'Mix & Render')).disabled, true);
+		assertClass(buttonWithText(mounted.dom.container, 'Cancel'), 'button--disabled');
+		assertClass(buttonWithText(mounted.dom.container, 'Mix & Render'), 'button--disabled');
 
 		await act(async () => {
 			completion.resolve();
@@ -91,7 +133,7 @@ test('Mix & Render submits the chosen mix-down layout and locks it while pending
 		assert.equal(dropdownSelectedText(mounted.dom.container), 'Mono');
 		await chooseDropdown(mounted.dom.container, 'Stereo');
 		assert.equal(dropdownSelectedText(mounted.dom.container), 'Stereo');
-		await submit(mounted.dom.container, false);
+		await clickButton(mounted.dom.container, 'Mix & Render', false);
 		assert.deepEqual(calls, [{
 			mixDown: true,
 			mixDownChannelCount: 2,
@@ -291,6 +333,17 @@ async function submit(root: ReactTestElement, settle = true): Promise<void> {
 	});
 }
 
+async function clickButton(root: ReactTestElement, label: string, settle = true): Promise<void> {
+	await act(async () => {
+		void reactProps(buttonWithText(root, label)).onClick({});
+		if (settle) {
+			await Promise.resolve();
+			await Promise.resolve();
+			await Promise.resolve();
+		}
+	});
+}
+
 function checkbox(root: ReactTestElement, label: string): ReactTestElement {
 	const result = root.querySelectorAll('[role="checkbox"]')
 		.find((candidate) => candidate.getAttribute('aria-label') === label);
@@ -338,18 +391,97 @@ function buttonWithText(root: ReactTestElement, text: string): ReactTestElement 
 	return button;
 }
 
-function assertCheckboxDescription(markup: string, label: string, description: string): void {
-	const checkboxTag = new RegExp(
-		`<div[^>]*role="checkbox"[^>]*aria-label="${escapeRegex(label)}"[^>]*>`,
-		'u',
-	).exec(markup)?.[0];
-	assert.ok(checkboxTag, `Missing checkbox ${label}.`);
-	const descriptionId = /aria-describedby="([^"]+)"/u.exec(checkboxTag)?.[1];
-	assert.ok(descriptionId, `Checkbox ${label} must describe its explanatory copy.`);
-	assert.match(markup, new RegExp(
-		`<p id="${escapeRegex(descriptionId)}">${escapeRegex(description)}</p>`,
-		'u',
-	));
+function assertOptionHelp(root: ReactTestElement, option: Readonly<{
+	key: string;
+	label: string;
+	description: string;
+}>): void {
+	const control = checkbox(root, option.label);
+	const descriptionId = control.getAttribute('aria-describedby');
+	assert.ok(descriptionId, `Checkbox ${option.label} must retain an accessible description.`);
+	const description = root.querySelector(`[id="${descriptionId}"]`);
+	assert.ok(description, `Missing persistent description for ${option.label}.`);
+	assert.notEqual(description.tagName, 'P', `${option.label} description must not remain a visible paragraph.`);
+	assertClass(description, 'kw-audio-editor-sr-only');
+	assert.equal(description.textContent, option.description);
+	const help = optionHelp(root, option.key);
+	assert.equal(help.getAttribute('type'), 'button');
+	assert.equal(help.getAttribute('aria-label'), `Help: ${option.label}`);
+	assert.equal(help.getAttribute('aria-describedby'), descriptionId);
+	assert.equal(help.hasAttribute('data-tooltip-ignore'), true);
+}
+
+function optionHelp(root: ReactTestElement, key: string): ReactTestElement {
+	const help = root.querySelector(`[data-mix-render-help="${key}"]`);
+	assert.ok(help, `Missing Mix and Render help trigger ${key}.`);
+	return help;
+}
+
+function optionHelpWrapper(root: ReactTestElement, key: string): ReactTestElement {
+	const wrapper = optionHelp(root, key).closest('.audio-editor-mix-render__help-wrap');
+	assert.ok(wrapper, `Missing Mix and Render help wrapper ${key}.`);
+	return wrapper;
+}
+
+async function setOptionTooltipPointer(root: ReactTestElement, key: string, active: boolean): Promise<void> {
+	const wrapper = optionHelpWrapper(root, key);
+	await act(async () => {
+		void reactProps(wrapper)[active ? 'onPointerEnter' : 'onPointerLeave']({
+			currentTarget: wrapper,
+			relatedTarget: null,
+		});
+		await Promise.resolve();
+	});
+}
+
+async function setOptionTooltipFocus(root: ReactTestElement, key: string, active: boolean): Promise<void> {
+	const trigger = optionHelp(root, key);
+	await act(async () => {
+		void reactProps(trigger)[active ? 'onFocus' : 'onBlur']({ currentTarget: trigger, relatedTarget: null });
+		await Promise.resolve();
+	});
+}
+
+function optionTooltip(key: string): ReactTestElement | null {
+	const body = (globalThis.document as unknown as { body: ReactTestElement }).body;
+	return body.querySelector(`[data-mix-render-tooltip="${key}"]`)?.closest('[role="tooltip"]') ?? null;
+}
+
+function assertVisibleTooltip(key: string, description: string): void {
+	const tooltip = optionTooltip(key);
+	assert.ok(tooltip, `Missing visible Mix and Render tooltip ${key}.`);
+	assert.equal(tooltip.getAttribute('role'), 'tooltip');
+	assert.ok(tooltip.getAttribute('id'), `Mix and Render tooltip ${key} must be addressable.`);
+	assert.equal(tooltip.textContent, description);
+	assert.equal(optionHelp((globalThis.document as unknown as { body: ReactTestElement }).body, key)
+		.getAttribute('aria-describedby'), tooltip.getAttribute('id'));
+	const flyout = tooltip.closest('.flyout');
+	assert.ok(flyout, `Mix and Render tooltip ${key} must use the design-system flyout.`);
+	assertClass(flyout, 'audio-editor-mix-render__tooltip');
+	const body = (globalThis.document as unknown as { body: ReactTestElement }).body;
+	assert.equal(body.querySelectorAll('[role="tooltip"]').length, 1,
+		'Mix and Render help must not create a duplicate global button tooltip.');
+}
+
+function assertDialogButton(
+	root: ReactTestElement,
+	label: string,
+	variant: 'primary' | 'secondary',
+): void {
+	const footer = root.querySelector('.footer');
+	assert.ok(footer, 'Mix and Render actions must use DialogFooter.');
+	assertClass(footer, 'audio-editor-dialog-footer');
+	const button = buttonWithText(root, label);
+	assert.equal(button.closest('form'), null, `${label} must live in the dialog footer.`);
+	assert.equal(button.getAttribute('type'), 'button');
+	assertClass(button, 'button');
+	assertClass(button, `button--${variant}`);
+	assertClass(button, 'button--default');
+}
+
+function assertClass(element: ReactTestElement, className: string): void {
+	assert.ok((element.getAttribute('class') ?? '').split(/\s+/u).includes(className),
+		`Expected ${element.tagName} to have class ${className}.`);
 }
 
 function assertDropdownMarkup(markup: string, selectedLabel: string): void {
