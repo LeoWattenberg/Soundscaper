@@ -72,7 +72,7 @@ test('both locales label the submenu and all nine of its rows', () => {
 		for (const key of [
 			'labeledAudio', 'labeledCut', 'labeledDelete', 'labeledCutLeaveGap', 'labeledDeleteLeaveGap',
 			'labeledSilence', 'labeledCopy', 'labeledSplit', 'labeledJoin', 'labeledDisjoin',
-			'labeledAudioRequired',
+			'labeledAudioRequired', 'noSilencesInLabels',
 		]) {
 			assert.equal(typeof copy[key], 'string', `${key} is missing`);
 			assert.ok((copy[key] as string).length > 0, `${key} is empty`);

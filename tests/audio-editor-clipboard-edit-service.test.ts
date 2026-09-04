@@ -66,7 +66,7 @@ function createFixture(projectValue = project(), overrides: Partial<ClipboardEdi
 	const dependencies: ClipboardEditServiceDependencies = {
 		lifetime,
 		state,
-		copy: { noSilencesFound: 'No silences found.', track: 'Track' },
+		copy: { noSilencesFound: 'No silences found.', noSilencesInLabels: 'No silences inside the labels.', track: 'Track' },
 		getProject: () => activeProject,
 		editingBlocked: () => false,
 		getPositionFrames: () => 50,
@@ -250,7 +250,7 @@ test('labelled detach reports silence-free labels and leaves untargeted tracks a
 		false,
 	);
 	assert.deepEqual(quiet.commits, []);
-	assert.equal(quiet.statuses[0]?.message, 'No silences found.');
+	assert.equal(quiet.statuses[0]?.message, 'No silences inside the labels.');
 
 	const untargeted = createFixture();
 	const samples = new Float32Array(100).fill(1);

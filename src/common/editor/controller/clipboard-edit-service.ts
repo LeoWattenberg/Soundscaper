@@ -113,7 +113,7 @@ interface CommitSelection {
 export interface ClipboardEditServiceDependencies {
 	readonly lifetime: EditorControllerLifetime;
 	readonly state: ClipboardEditState;
-	readonly copy: Readonly<{ noSilencesFound: string; track: string }>;
+	readonly copy: Readonly<{ noSilencesFound: string; noSilencesInLabels?: string; track: string }>;
 	readonly session: ClipboardSessionPort;
 	readonly sourceBuffers: Readonly<{
 		get(sourceId: string): ClipboardEditAudioBuffer | undefined;
@@ -409,7 +409,7 @@ export function createClipboardEditService(
 			}
 		}
 		if (!commands.length) {
-			dependencies.setStatus(dependencies.copy.noSilencesFound, 'info');
+			dependencies.setStatus(dependencies.copy.noSilencesInLabels ?? dependencies.copy.noSilencesFound, 'info');
 			return false;
 		}
 		dependencies.commit({ type: 'batch', commands });

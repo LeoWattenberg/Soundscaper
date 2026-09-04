@@ -20,6 +20,11 @@ const LABELED_AUDIO_COPY_ENTRIES = Object.freeze([
 	['labeledJoin', 'Join', 'Verbinden'],
 	['labeledDisjoin', 'Detach at silences', 'An stillen Bereichen trennen'],
 	[
+		'noSilencesInLabels',
+		'No separable silent regions were found inside the labelled audio.',
+		'In den beschrifteten Bereichen wurden keine trennbaren stillen Bereiche gefunden.',
+	],
+	[
 		'labeledAudioRequired',
 		'Select a time range that contains at least one whole label.',
 		'Wählen Sie einen Zeitbereich, der mindestens eine vollständige Beschriftung enthält.',
