@@ -12,7 +12,14 @@ import {
 	loadAudioEditorPreferencesV1,
 	normalizeAudioEditorShortcut,
 } from '../src/common/editor/preferences.js';
-import { AUDACITY_ACTION_MANIFEST } from '../src/common/editor/audacity-action-parity.js';
+import {
+	AUDACITY_ACTION_MANIFEST,
+	AUDACITY_ACTION_STATUS,
+} from '../src/common/editor/audacity-action-parity.js';
+import {
+	AUDACITY_SHORTCUT_BINDINGS_BY_ACTION,
+	AUDIO_EDITOR_SUPPLEMENTAL_SHORTCUT_BINDINGS_BY_ACTION,
+} from '../src/common/editor/audacity-shortcut-bindings.ts';
 
 test('default editor shortcuts use the complete mapped Audacity profile', () => {
 	assert.equal(AUDIO_EDITOR_DEFAULT_SHORTCUTS['zoom-default'][0], 'Ctrl+2');
@@ -25,6 +32,70 @@ test('default editor shortcuts use the complete mapped Audacity profile', () => 
 	assert.deepEqual(AUDIO_EDITOR_DEFAULT_SHORTCUTS.fullscreen, ['F11']);
 	assert.equal(AUDACITY_ACTION_MANIFEST.fullscreen.shortcut, 'F11');
 	assert.deepEqual(findAudioEditorShortcutConflicts(AUDIO_EDITOR_DEFAULT_SHORTCUTS), []);
+});
+
+test('every implemented local-origin action ships its documented default shortcut', () => {
+	// The mapped Audacity half of the defaults is re-verified exhaustively by
+	// tests/audacity-shortcut-profile.test.ts. This is the matching completeness
+	// check for the half derived straight from the manifest, so a local action
+	// whose documented shortcut never reaches the defaults fails here.
+	const expectedLocalDefaults = {};
+	for (const action of Object.values(AUDACITY_ACTION_MANIFEST)) {
+		if (action.status !== AUDACITY_ACTION_STATUS.IMPLEMENTED) continue;
+		if (action.origin !== 'local' || !action.shortcut) continue;
+		// A local action one of the binding tables also carries keeps that
+		// entry's full sequence list rather than the manifest's single primary
+		// spelling, in the order preferences.js resolves them: the supplemental
+		// table is spread last and so wins, then the reviewed profile.
+		if (Object.hasOwn(AUDIO_EDITOR_SUPPLEMENTAL_SHORTCUT_BINDINGS_BY_ACTION, action.id)) {
+			expectedLocalDefaults[action.id] = [...AUDIO_EDITOR_SUPPLEMENTAL_SHORTCUT_BINDINGS_BY_ACTION[action.id]];
+		} else if (Object.hasOwn(AUDACITY_SHORTCUT_BINDINGS_BY_ACTION, action.id)) {
+			expectedLocalDefaults[action.id] = [...AUDACITY_SHORTCUT_BINDINGS_BY_ACTION[action.id]];
+		} else {
+			expectedLocalDefaults[action.id] = [action.shortcut];
+		}
+	}
+
+	assert.deepEqual(expectedLocalDefaults, {
+		'decrease-all-track-heights': ['Ctrl+Shift+Down'],
+		'increase-all-track-heights': ['Ctrl+Shift+Up'],
+		'local://mute-all': ['Ctrl+U'],
+		'local://unmute-all': ['Ctrl+Shift+U'],
+		'mix-render': ['Ctrl+Shift+M'],
+	});
+
+	const installedLocalDefaults = {};
+	for (const id of Object.keys(expectedLocalDefaults)) {
+		installedLocalDefaults[id] = Object.hasOwn(AUDIO_EDITOR_DEFAULT_SHORTCUTS, id)
+			? [...AUDIO_EDITOR_DEFAULT_SHORTCUTS[id]]
+			: null;
+	}
+	assert.deepEqual(installedLocalDefaults, expectedLocalDefaults);
+});
+
+test('installed shortcut defaults hold exactly the mapped, supplemental and local bindings', () => {
+	const accountedFor = new Set([
+		...Object.keys(AUDACITY_SHORTCUT_BINDINGS_BY_ACTION),
+		...Object.keys(AUDIO_EDITOR_SUPPLEMENTAL_SHORTCUT_BINDINGS_BY_ACTION),
+		...Object.values(AUDACITY_ACTION_MANIFEST)
+			.filter((action) => (
+				action.status === AUDACITY_ACTION_STATUS.IMPLEMENTED
+				&& action.origin === 'local'
+				&& action.shortcut
+			))
+			.map((action) => action.id),
+	]);
+	const installed = Object.keys(AUDIO_EDITOR_DEFAULT_SHORTCUTS);
+
+	assert.deepEqual(installed.filter((id) => !accountedFor.has(id)), [], 'unexplained default binding');
+	assert.deepEqual(
+		[...accountedFor].filter((id) => !Object.hasOwn(AUDIO_EDITOR_DEFAULT_SHORTCUTS, id)),
+		[],
+		'documented binding missing from the installed defaults',
+	);
+	for (const [id, sequences] of Object.entries(AUDIO_EDITOR_SUPPLEMENTAL_SHORTCUT_BINDINGS_BY_ACTION)) {
+		assert.deepEqual(AUDIO_EDITOR_DEFAULT_SHORTCUTS[id], [...sequences], id);
+	}
 });
 
 test('new editor preferences identify the installed shortcut-default profile', () => {
