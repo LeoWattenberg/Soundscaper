@@ -4,6 +4,7 @@ import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	chooseCommandAction,
+	chooseDropdown,
 } from './audio-editor-test-helpers.js';
 
 test('desktop Preferences opens General and manages the display-only FFmpeg location', async ({ page }) => {
@@ -66,6 +67,29 @@ test('Program start chooses what the next session opens with', async ({ page }) 
 	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 	await expect(preferences.getByRole('radiogroup', { name: 'Program start', exact: true }))
 		.toHaveAttribute('data-program-start', 'new-project');
+});
+
+test("the Effects page rearranges the Effect menu the way Audacity's does", async ({ page }) => {
+	const editor = await bootEditor(page, '/embed/en/');
+	const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
+	await menubar.getByRole('menuitem', { name: 'Effect', exact: true }).click();
+	let menu = page.getByRole('menu', { name: 'Effect', exact: true });
+	await expect(menu.getByRole('menuitem', { name: 'Volume and compression', exact: true })).toBeVisible();
+	await page.keyboard.press('Escape');
+
+	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+	const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+	await preferences.getByRole('tab', { name: /Effects$/u }).click();
+	const organization = preferences.getByRole('group', { name: 'Effect menu organization', exact: true });
+	await chooseDropdown(page, organization, 'Sort by effect name');
+	await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+	await expect(preferences).toBeHidden();
+
+	await menubar.getByRole('menuitem', { name: 'Effect', exact: true }).click();
+	menu = page.getByRole('menu', { name: 'Effect', exact: true });
+	await expect(menu.getByRole('menuitem', { name: 'Volume and compression', exact: true })).toHaveCount(0);
+	await expect(menu.getByRole('menuitem', { name: 'Amplify', exact: true })).toBeVisible();
+	await page.keyboard.press('Escape');
 });
 
 async function installDesktopFfmpegFixture(page) {

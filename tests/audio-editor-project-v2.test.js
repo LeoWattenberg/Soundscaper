@@ -248,6 +248,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	assert.equal(preferences.recording.retainInputs, true);
 	assert.equal(preferences.playback.playAtSpeedMode, 'naive');
 	assert.deepEqual(preferences.startup, { mode: 'continue-last-session', projectId: '' });
+	assert.deepEqual(preferences.effects, { menuOrganization: 'default' });
 	assert.equal(preferences.editing.collisionBehavior, 'audacity');
 	assert.equal(preferences.editing.zoomPrecision, 6);
 	assert.equal(validateAudioEditorPreferencesV1(preferences), true);
@@ -302,6 +303,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	delete legacyPreferences.recording;
 	delete legacyPreferences.playback;
 	delete legacyPreferences.startup;
+	delete legacyPreferences.effects;
 	for (const panel of Object.values(legacyPreferences.workspace.panels)) {
 		delete panel.x;
 		delete panel.y;
@@ -317,6 +319,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	// session, which is what those sessions already did.
 	assert.deepEqual(loadedLegacyPreferences.startup, { mode: 'continue-last-session', projectId: '' });
 	assert.equal(loadedLegacyPreferences.editing.zoomPrecision, 6);
+	assert.equal(loadedLegacyPreferences.effects.menuOrganization, 'default');
 	assert.deepEqual(
 		Object.keys(loadedLegacyPreferences.workspace.panels.history).sort(),
 		['dock', 'height', 'order', 'size', 'visible', 'width', 'x', 'y'],
@@ -346,6 +349,11 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	assert.equal(createAudioEditorPreferencesV1({ editing: { zoomPrecision: 12 } }).editing.zoomPrecision, 12);
 	assert.throws(() => createAudioEditorPreferencesV1({ editing: { zoomPrecision: 0 } }), /editing\.zoomPrecision/);
 	assert.throws(() => createAudioEditorPreferencesV1({ editing: { zoomPrecision: 17 } }), /editing\.zoomPrecision must be at most 16/);
+	assert.equal(
+		createAudioEditorPreferencesV1({ effects: { menuOrganization: 'sortby:name' } }).effects.menuOrganization,
+		'sortby:name',
+	);
+	assert.throws(() => createAudioEditorPreferencesV1({ effects: { menuOrganization: 'groupby:publisher' } }), /effects\.menuOrganization/);
 	assert.throws(() => validateAudioEditorPreferencesV1({
 		...preferences, playback: { playAtSpeedMode: 'phase-vocoder' },
 	}), /playback\.playAtSpeedMode has an unsupported value/);

@@ -6,6 +6,7 @@ const PREFERENCE_PAGES = new Set([
 	'audio',
 	'playback-recording',
 	'editing',
+	'effects',
 	'workspace',
 	'panels',
 	'shortcuts',

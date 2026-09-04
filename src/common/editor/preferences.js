@@ -69,6 +69,14 @@ export const AUDIO_EDITOR_DEFAULT_ZOOM_PRECISION = 6;
 export const AUDIO_EDITOR_MINIMUM_ZOOM_PRECISION = 1;
 export const AUDIO_EDITOR_MAXIMUM_ZOOM_PRECISION = 16;
 export { AUDIO_EDITOR_STARTUP_MODES };
+/**
+ * Audacity's Effect menu organization. Upstream offers seven arrangements, four
+ * of which sort or group by a plug-in's publisher or type; this editor's
+ * effects have neither, so it keeps the two that mean something here — the
+ * category grouping Audacity itself defaults to, and one flat list sorted by
+ * name.
+ */
+export const AUDIO_EDITOR_EFFECT_MENU_ORGANIZATIONS = Object.freeze(['default', 'sortby:name']);
 export const AUDIO_EDITOR_LAYOUTS = Object.freeze(['auto', 'compact', 'desktop']);
 
 const AUDIO_EDITOR_LOCAL_DEFAULT_SHORTCUTS_BY_ACTION = Object.freeze({
@@ -113,6 +121,7 @@ const CLIP_STYLE_SET = new Set(AUDIO_EDITOR_CLIP_STYLES);
 const PLAY_AT_SPEED_MODE_SET = new Set(AUDIO_EDITOR_PLAY_AT_SPEED_MODES);
 const LAYOUT_SET = new Set(AUDIO_EDITOR_LAYOUTS);
 const STARTUP_MODE_SET = new Set(AUDIO_EDITOR_STARTUP_MODES);
+const EFFECT_MENU_ORGANIZATION_SET = new Set(AUDIO_EDITOR_EFFECT_MENU_ORGANIZATIONS);
 const RIPPLE_MODE_SET = new Set(['off', 'per-track', 'all-tracks']);
 const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
 	'account',
@@ -155,6 +164,7 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
  * @property {{detectTempo: boolean}} import
  * @property {{retainInputs: boolean, soundActivation: import('./sound-activation-preferences.ts').SoundActivationPreferences}} recording
  * @property {{playAtSpeedMode: 'naive'|'staffpad'}} playback
+ * @property {{menuOrganization: 'default'|'sortby:name'}} effects
  * @property {import('./startup-preferences.ts').AudioEditorStartupPreferences} startup
  */
 
@@ -200,6 +210,7 @@ function mergePreferences(preferences, patch = {}) {
 		import: { ...preferences.import, ...patch.import },
 		recording: { ...preferences.recording, ...patch.recording },
 		playback: { ...preferences.playback, ...patch.playback },
+		effects: { ...preferences.effects, ...patch.effects },
 		startup: { ...preferences.startup, ...patch.startup },
 	};
 }
@@ -305,6 +316,13 @@ export function createAudioEditorPreferencesV1(options = {}) {
 				options.playback?.playAtSpeedMode ?? 'naive',
 				PLAY_AT_SPEED_MODE_SET,
 				'playback.playAtSpeedMode',
+			),
+		},
+		effects: {
+			menuOrganization: oneOf(
+				options.effects?.menuOrganization ?? 'default',
+				EFFECT_MENU_ORGANIZATION_SET,
+				'effects.menuOrganization',
 			),
 		},
 		startup: {
@@ -473,6 +491,12 @@ export function validateAudioEditorPreferencesV1(preferences) {
 		}
 		oneOf(preferences.playback.playAtSpeedMode, PLAY_AT_SPEED_MODE_SET, 'playback.playAtSpeedMode');
 	}
+	if (preferences.effects !== undefined) {
+		if (!preferences.effects || typeof preferences.effects !== 'object' || Array.isArray(preferences.effects)) {
+			throw new TypeError('preferences.effects must be an object.');
+		}
+		oneOf(preferences.effects.menuOrganization, EFFECT_MENU_ORGANIZATION_SET, 'effects.menuOrganization');
+	}
 	if (preferences.startup !== undefined) {
 		if (!preferences.startup || typeof preferences.startup !== 'object' || Array.isArray(preferences.startup)) {
 			throw new TypeError('preferences.startup must be an object.');
@@ -519,6 +543,7 @@ export function loadAudioEditorPreferencesV1(value) {
 			editing: normalized.editing,
 			recording: normalized.recording,
 			playback: normalized.playback,
+			effects: normalized.effects,
 			// Preferences saved before Program start existed carry no startup
 			// section; normalization supplies the mode that matches what those
 			// sessions already did, which is to continue the last session.

@@ -1,6 +1,7 @@
 import { applyAudacityParityToMenus } from '../audacity-action-parity.js';
 import { AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS } from './application-menu-registry.ts';
-import { EFFECT_MENU_GROUPS, createSnapMenu } from './application-menu-model.js';
+import { createSnapMenu } from './application-menu-model.js';
+import { createEffectMenuEntries } from './effect-menu-organization.js';
 import { timelineAnnotationsAvailable } from './timeline/timeline-annotation-ui-model.ts';
 import { ANALYZER_PANEL_ID_SET, WORKSPACE_DISCOVERABLE_PANEL_IDS, workspacePanelLabel } from './workspace/workspace-panel-model.ts';
 import { filterProductMenus } from './application-menu-product-filter.js';
@@ -134,17 +135,11 @@ export default function createApplicationMenus({
 	const analyzerBlocked = (blocked && !snapshot.analysisProcessing) || !project?.clips.length;
 	const importAnalysisMenuContext = { productId, copy, snapshot, editBlocked, blocked, analyzerBlocked, actionRuntime };
 	const effectLabels = new Map((snapshot.effects?.selectionTypes || []).map(({ type, label }) => [type, label]));
-	const effectGroups = EFFECT_MENU_GROUPS.map(([labelKey, types]) => ({
-		id: labelKey,
-		label: copy[labelKey],
-		items: types.filter((type) => effectLabels.has(type)
-			&& (type !== 'reviewed-utility-gain' || productId === 'soundscaper')).map((type) => ({
-			id: type,
-			label: effectLabels.get(type),
-			disabled: editBlocked || !selectedAudioTrack,
-			onClick: () => actions.openSelectionEffect(type),
-		})),
-	})).filter((group) => group.items.length);
+	const effectGroups = createEffectMenuEntries({
+		organization: preferences?.effects?.menuOrganization,
+		copy, effectLabels, productId, locale,
+		disabled: editBlocked || !selectedAudioTrack,
+	}, actions.openSelectionEffect);
 	const nyquistItems = createNyquistPluginMenuItems({ editBlocked, blocked, selectedAudioTrack, frequencySelectionActive }, actions);
 	const menus = applyAudacityParityToMenus([
 		{

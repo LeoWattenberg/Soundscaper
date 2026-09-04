@@ -20,6 +20,7 @@ import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-worksp
 import { workspacePanelAvailable } from '../workspace/workspace-product-panel-runtime.ts';
 import { workspacePreferencesPage } from '../workspace/workspace-preferences-routing.ts';
 import AudioSettingsPreferencesPage from './AudioSettingsPreferencesPage.jsx';
+import EffectsPreferencesPage from './EffectsPreferencesPage.jsx';
 import GeneralPreferencesPage from './GeneralPreferencesPage.jsx';
 import PlaybackRecordingPreferencesPage from './PlaybackRecordingPreferencesPage.jsx';
 import PreferenceDropdownField from './PreferenceDropdownField.jsx';
@@ -73,6 +74,7 @@ export default function WorkspacePreferencesDialog({
 		{ id: 'playback-recording', label: copy.preferencesPlaybackRecording, icon: iconNameToChar('MICROPHONE') },
 		{ id: 'spectrogram', label: copy.panelSpectrogram, icon: iconNameToChar('SPECTROGRAM') },
 		{ id: 'editing', label: copy.preferencesEditing, icon: iconNameToChar('EDIT') },
+		{ id: 'effects', label: copy.preferencesEffects, icon: iconNameToChar('WAVEFORM') },
 		{ id: 'shortcuts', label: copy.shortcuts, icon: iconNameToChar('SHORTCUTS') },
 		{ id: 'workspace', label: copy.workspace, icon: iconNameToChar('WORKSPACE') },
 		{ id: 'panels', label: copy.panels, icon: iconNameToChar('SPLIT_VIEW_VERTICAL') },
@@ -373,6 +375,15 @@ export default function WorkspacePreferencesDialog({
 								<p className="kw-audio-editor-preferences__note">{copy.mouseZoomPrecisionNote}</p>
 							</PreferencePanel>
 							</>
+						)}
+
+						{selectedPage === 'effects' && (
+							<EffectsPreferencesPage
+								controller={controller}
+								snapshot={snapshot}
+								copy={copy}
+								run={run}
+							/>
 						)}
 
 						{selectedPage === 'panels' && (
