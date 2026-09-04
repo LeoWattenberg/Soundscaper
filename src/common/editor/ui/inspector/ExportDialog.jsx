@@ -6,7 +6,6 @@ import { Separator } from '@soundscaper/design-system/Separator';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 import { MEDIA_EXPORT_FORMATS } from '../../media-export.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
-import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import VideoDeliveryFields from '../VideoDeliveryFields.jsx';
 import {
@@ -30,11 +29,12 @@ import { createExportPresetActions } from '../export-preset-actions.js';
 import { projectHasTimelineVideo } from '../timeline-media-presence.ts';
 import { exportSurfaceDialogTitle } from '../export-surface-copy.ts';
 import { framescaperCaptionDeliveryUnavailable } from '../video-caption-delivery-surface.ts';
-import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
+import { LabeledDropdown } from './inspector-controls.jsx';
 import ExportChannelMappingDialog from './ExportChannelMappingDialog.tsx';
 import ExportChannelsField from './ExportChannelsField.jsx';
 import ExportDialogMetadataPanel from './ExportDialogMetadataPanel.jsx';
 import ExportPresetSection from './ExportPresetSection.jsx';
+import ExportRenderingSection from './ExportRenderingSection.jsx';
 import {
 	compactFields, parseJsonChannelMapping, parseJsonObject,
 } from './inspector-helpers.ts';
@@ -506,31 +506,15 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 					)}
 				</section>
 				{!videoFormat && (
-					<>
-						<Separator />
-						<section className="audio-editor-export-section">
-							<h3>{copy.renderingSection}</h3>
-							{/* A delivery normalizes only when a target is chosen: there is no
-								default, and stems, chapters and ADM passthrough refuse it outright. */}
-							{settings.mode === 'mix' && <LabeledDropdown label={copy.loudnessNormalization} hook="loudnessNormalization" value={settings.loudnessNormalization} onChange={(value) => set('loudnessNormalization', value)} disabled={exporting || admPassthrough} options={[{ value: '', label: copy.loudnessNormalizationNone }, { value: 'ebu-r128', label: copy.loudnessNormalizationR128 }, { value: 'atsc-a85', label: copy.loudnessNormalizationA85 }, { value: 'streaming-14', label: copy.loudnessNormalizationStreaming }]} />}
-							{pcmFormat && settings.sampleFormat !== 'float32' && <LabeledDropdown label={copy.dither} hook="dither" value={settings.dither} onChange={(value) => set('dither', value)} disabled={exporting || admPassthrough} options={[{ value: 'none', label: copy.none }, { value: 'triangular', label: copy.triangularDither }, { value: 'triangular-highpass', label: copy.highpassDither }]} />}
-							{/* A chapter delivers exactly the span its label names, so there
-								is no tail to carry past it into the next chapter. */}
-							{settings.mode !== 'chapters' && <div className="audio-editor-export-check" data-export-field="tails">
-								<span aria-hidden="true" />
-								<DesignCheckbox label={copy.includeTails} checked={settings.includeTail} disabled={exporting || admPassthrough} onChange={(checked) => set('includeTail', checked)} />
-							</div>}
-							{binauralAvailable && (
-								<div className="audio-editor-export-check" data-export-field="binaural">
-									<span aria-hidden="true" />
-									<span className="audio-editor-help-label">
-										<DesignCheckbox label={copy.binauralRender} checked={settings.binaural} disabled={exporting} onChange={(checked) => set('binaural', checked)} />
-										<EditorHelpTooltip subject={copy.binauralRender} description={copy.binauralRenderHint} helpLabel={copy.helpMenu} hook="binaural" />
-									</span>
-								</div>
-							)}
-						</section>
-					</>
+					<ExportRenderingSection
+						copy={copy}
+						settings={settings}
+						exporting={exporting}
+						admPassthrough={admPassthrough}
+						pcmFormat={pcmFormat}
+						binauralAvailable={binauralAvailable}
+						onChange={set}
+					/>
 				)}
 				{settings.format === 'custom-ffmpeg' && (
 					<>
