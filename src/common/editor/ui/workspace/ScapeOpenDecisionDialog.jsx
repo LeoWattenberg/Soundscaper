@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Button } from '@soundscaper/design-system/Button';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { formatLocalizedTemplate, formatResizeLabel } from '../localization-template.ts';
@@ -25,6 +26,34 @@ export default function ScapeOpenDecisionDialog({ copy, prompt, onSettle }) {
 			initialFocus={initialFocus}
 			ariaDescribedBy={descriptionId}
 			dataAttributes={{ 'data-scape-open-decision': prompt.kind }}
+			footer={<DialogFooter
+				className="audio-editor-dialog-footer"
+				rightContent={<>
+					<Button
+						className="audio-editor-scape-open-cancel"
+						variant="secondary"
+						onClick={() => onSettle(prompt, 'cancel')}
+					>
+						{copy.cancel}
+					</Button>
+					{prompt.kind === 'collision' ? (
+						<Button
+							className="audio-editor-scape-collision-copy"
+							variant="primary"
+							onClick={() => onSettle(prompt, 'copy')}
+						>
+							{copy.scapeOpenAsCopy}
+						</Button>
+					) : (
+						<Button variant="primary" onClick={() => onSettle(
+							prompt,
+							prompt.kind === 'compatibility' ? 'open-read-only' : 'copy-read-only',
+						)}>
+							{prompt.kind === 'compatibility' ? copy.scapeOpenReadOnly : copy.scapeOpenReadOnlyCopy}
+						</Button>
+					)}
+				</>}
+			/>}
 		>
 			<div id={descriptionId}>
 				{compatibility && (
@@ -56,27 +85,6 @@ export default function ScapeOpenDecisionDialog({ copy, prompt, onSettle }) {
 					</ul>
 				</>
 			)}
-			<div className="kw-audio-editor-dialog__actions">
-				{prompt.kind === 'collision' ? (
-					<Button className="audio-editor-scape-collision-copy" onClick={() => onSettle(prompt, 'copy')}>
-						{copy.scapeOpenAsCopy}
-					</Button>
-				) : (
-					<Button onClick={() => onSettle(
-						prompt,
-						prompt.kind === 'compatibility' ? 'open-read-only' : 'copy-read-only',
-					)}>
-						{prompt.kind === 'compatibility' ? copy.scapeOpenReadOnly : copy.scapeOpenReadOnlyCopy}
-					</Button>
-				)}
-				<Button
-					className="audio-editor-scape-open-cancel"
-					variant="secondary"
-					onClick={() => onSettle(prompt, 'cancel')}
-				>
-					{copy.cancel}
-				</Button>
-			</div>
 		</AudioEditorDialogShell>
 	);
 }

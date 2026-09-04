@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { Button } from '@soundscaper/design-system/Button';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
+
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 import { ASSISTANCE_OPERATIONS, type AssistanceOperation } from '../../assistance/operation.ts';
@@ -180,18 +183,19 @@ export function LocalAssistanceDialogView({
 		width={760}
 		initialFocus="dialog"
 		dataAttributes={{ 'data-local-assistance': 'true' }}
-		footer={activeSurface === 'advanced' ? <div className="kw-audio-editor-dialog__actions">
-			<button type="button" disabled={!snapshot.canReview} onClick={() => { void onReview(); }}>
-				{text(copy, 'localAssistanceReview', 'Review result')}
-			</button>
-			<button type="button" disabled={!snapshot.canAccept || !reviewOpen}
-				onClick={() => { void onAccept(); }}>
-				{text(copy, 'localAssistanceAccept', 'Accept proposal')}
-			</button>
-			<button type="button" onClick={onClose}>{text(copy, 'close', 'Close')}</button>
-		</div> : <div className="kw-audio-editor-dialog__actions">
-			<button type="button" onClick={onClose}>{text(copy, 'close', 'Close')}</button>
-		</div>}
+		footer={<DialogFooter
+			className="audio-editor-dialog-footer"
+			rightContent={activeSurface === 'advanced' ? <>
+				<Button variant="secondary" disabled={!snapshot.canReview} onClick={() => { void onReview(); }}>
+					{text(copy, 'localAssistanceReview', 'Review result')}
+				</Button>
+				<Button variant="secondary" onClick={onClose}>{text(copy, 'close', 'Close')}</Button>
+				<Button variant="primary" disabled={!snapshot.canAccept || !reviewOpen}
+					onClick={() => { void onAccept(); }}>
+					{text(copy, 'localAssistanceAccept', 'Accept proposal')}
+				</Button>
+			</> : <Button variant="primary" onClick={onClose}>{text(copy, 'close', 'Close')}</Button>}
+		/>}
 	>
 		<p>{text(copy, 'localAssistanceDescription',
 			'Process explicitly selected media locally with an installed, compatible model.')}</p>

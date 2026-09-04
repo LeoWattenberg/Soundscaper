@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Button } from '@soundscaper/design-system/Button';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
 
 import '../audio-editor-design-system/26-take-comp.css';
 
@@ -168,6 +170,10 @@ export default function TakeCompDialog({
 		width={900}
 		initialFocus="[data-take-comp-group]"
 		dataAttributes={{ 'data-take-comp-dialog': 'true' }}
+		footer={<DialogFooter
+			className="audio-editor-dialog-footer"
+			rightContent={<Button variant="primary" onClick={close}>{copy.close}</Button>}
+		/>}
 	>
 		<div className="audio-editor-take-comp">
 			{model.groups.length === 0 ? (
@@ -242,9 +248,6 @@ export default function TakeCompDialog({
 			</>}
 			<div className="audio-editor-take-comp__status" role="status" aria-live="polite" aria-atomic="true">
 				{error || (pending ? copy.loading : status)}
-			</div>
-			<div className="kw-audio-editor-dialog__actions">
-				<button type="button" onClick={close}>{copy.close}</button>
 			</div>
 		</div>
 	</AudioEditorDialogShell>;

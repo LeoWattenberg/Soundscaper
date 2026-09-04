@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import React, { useState } from 'react';
+import { Button } from '@soundscaper/design-system/Button';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
 
 import '../audio-editor-design-system/28-take-cycle-recovery.css';
 
@@ -58,28 +60,34 @@ export default function TakeCycleRecoveryDialog({
 	return <AudioEditorDialogShell
 		title={copy.takeCycleRecoveryTitle}
 		onClose={onClose}
-		initialFocus="[data-take-cycle-recover]"
+		initialFocus="[data-take-cycle-recover] button"
 		ariaDescribedBy={descriptionId}
 		dataAttributes={{ 'data-take-cycle-recovery-dialog': 'true' }}
 		width={560}
+		footer={<DialogFooter
+			className="audio-editor-dialog-footer"
+			rightContent={<>
+				<Button
+					variant="secondary"
+					disabled={pendingAction !== null}
+					onClick={() => perform('discard')}
+				>{pendingAction === 'discard' ? copy.takeCycleDiscarding : copy.takeCycleDiscard}</Button>
+				{/* The design-system Button forwards no data attributes, so the
+					recovery hook the dialog focuses on open lives on a wrapper. */}
+				<span data-take-cycle-recover="true">
+					<Button
+						variant="primary"
+						disabled={pendingAction !== null}
+						onClick={() => perform('recover')}
+					>{pendingAction === 'recover' ? copy.takeCycleRecovering : copy.takeCycleRecover}</Button>
+				</span>
+			</>}
+		/>}
 	>
 		<div className="audio-editor-take-cycle-recovery">
 			<p id={descriptionId}>{copy.takeCycleRecoveryDescription}</p>
 			<p className="audio-editor-take-cycle-recovery__summary">{summary}</p>
 			<p>{copy.takeCycleRecoveryCloseHint}</p>
-			<div className="audio-editor-take-cycle-recovery__actions">
-				<button
-					type="button"
-					data-take-cycle-recover="true"
-					disabled={pendingAction !== null}
-					onClick={() => perform('recover')}
-				>{pendingAction === 'recover' ? copy.takeCycleRecovering : copy.takeCycleRecover}</button>
-				<button
-					type="button"
-					disabled={pendingAction !== null}
-					onClick={() => perform('discard')}
-				>{pendingAction === 'discard' ? copy.takeCycleDiscarding : copy.takeCycleDiscard}</button>
-			</div>
 			<div role="status" aria-live="polite" aria-atomic="true">
 				{error || (pendingAction ? copy.takeCycleRecoveryWorking : '')}
 			</div>

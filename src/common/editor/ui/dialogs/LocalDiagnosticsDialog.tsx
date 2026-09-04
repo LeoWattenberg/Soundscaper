@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useState } from 'react';
+import { Button } from '@soundscaper/design-system/Button';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
 
 import {
 	buildLocalDiagnosticsReport,
@@ -117,9 +119,10 @@ export function LocalDiagnosticsDialogView({
 		initialFocus="[data-local-diagnostics-generate]"
 		width={680}
 		dataAttributes={{ 'data-local-diagnostics-dialog': 'true' }}
-		footer={<div className="kw-audio-editor-dialog__actions">
-			<button type="button" onClick={onClose}>{text(copy, 'close', 'Close')}</button>
-		</div>}
+		footer={<DialogFooter
+			className="audio-editor-dialog-footer"
+			rightContent={<Button variant="primary" onClick={onClose}>{text(copy, 'close', 'Close')}</Button>}
+		/>}
 	>
 		<p>{text(copy, 'localDiagnosticsPrivacy', 'The report stays on this device unless you explicitly export it.')}</p>
 		<div className="kw-audio-editor-dialog__actions">

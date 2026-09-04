@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { takeSelectedFile } from '../file-input-selection.ts';
@@ -146,18 +147,21 @@ export default function EffectPresetBar({
 					className="audio-editor-preset-name-dialog"
 					dataAttributes={{ 'data-preset-name-dialog': '' }}
 					footer={(
-						<div className="audio-editor-dialog-footer audio-editor-panel-actions">
-							<Button variant="secondary" onClick={() => setSaveAsName(null)}>{copy.cancel}</Button>
-							<Button
-								variant="primary"
-								disabled={!saveAsName.trim()}
-								onClick={() => {
-									const name = saveAsName.trim();
-									setSaveAsName(null);
-									if (name) onSaveAs(name);
-								}}
-							>{copy.saveEffectPreset}</Button>
-						</div>
+						<DialogFooter
+							className="audio-editor-dialog-footer"
+							rightContent={<>
+								<Button variant="secondary" onClick={() => setSaveAsName(null)}>{copy.cancel}</Button>
+								<Button
+									variant="primary"
+									disabled={!saveAsName.trim()}
+									onClick={() => {
+										const name = saveAsName.trim();
+										setSaveAsName(null);
+										if (name) onSaveAs(name);
+									}}
+								>{copy.saveEffectPreset}</Button>
+							</>}
+						/>
 					)}
 				>
 					<label className="audio-editor-field">

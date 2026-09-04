@@ -274,6 +274,17 @@ test('enhancement review retains its authenticated Blob and publication slot for
 	assert.equal(outputs[0]?.bytes, output);
 });
 
+/**
+ * The acceptance control is a design-system Button inside the shared dialog
+ * footer, so its opening tag carries class and style attributes the assertions
+ * must not depend on. Isolate the tag and assert only on `disabled`.
+ */
+function acceptProposalButton(markup: string): string {
+	const tag = markup.match(/<button[^>]*>(?:<span[^>]*>)?Accept proposal/u);
+	assert.ok(tag, 'the advanced surface renders an acceptance control');
+	return tag[0];
+}
+
 test('reviewed speech output enables one explicit controller-owned acceptance', async () => {
 	const fixture = rawBridgeFixture();
 	const bridge = resolveLocalAssistanceBridge({ localAssistance: fixture.api });
@@ -295,8 +306,8 @@ test('reviewed speech output enables one explicit controller-owned acceptance', 
 		onRun={() => undefined} onCancel={() => undefined}
 		onReview={() => undefined} onAccept={() => undefined}
 	/>);
-	assert.match(view(null), /<button type="button" disabled="">Accept proposal<\/button>/u);
-	assert.match(view(reviewedResultIdentity), /<button type="button">Accept proposal<\/button>/u);
+	assert.match(acceptProposalButton(view(null)), / disabled=""/u);
+	assert.doesNotMatch(acceptProposalButton(view(reviewedResultIdentity)), / disabled=""/u);
 	const replacement = Object.freeze({
 		...reviewable,
 		result: reviewable.result && Object.freeze({
@@ -307,8 +318,7 @@ test('reviewed speech output enables one explicit controller-owned acceptance', 
 			}))),
 		}),
 	});
-	assert.match(view(reviewedResultIdentity, replacement),
-		/<button type="button" disabled="">Accept proposal<\/button>/u,
+	assert.match(acceptProposalButton(view(reviewedResultIdentity, replacement)), / disabled=""/u,
 		'a prior job review must not authorize a replacement result');
 	await store.accept();
 	assert.equal(store.getSnapshot().phase, 'accepted');

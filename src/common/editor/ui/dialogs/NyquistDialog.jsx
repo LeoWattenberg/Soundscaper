@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
 
 import { getNyquistPlugin, loadNyquistPluginSource } from '../../nyquist/plugin-registry.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
@@ -122,6 +123,15 @@ export default function NyquistDialog({ controller, snapshot, copy, target, run,
 			className="kw-audio-editor-dialog--nyquist"
 			bodyClassName="kw-audio-editor-dialog__body"
 			dataAttributes={{ 'data-nyquist-plugin': plugin?.id || 'prompt' }}
+			footer={<DialogFooter
+				className="audio-editor-dialog-footer"
+				rightContent={<>
+					<Button variant="secondary" onClick={cancelAndClose}>{copy.cancel}</Button>
+					<Button variant="secondary" disabled={processing} onClick={reset}>{copy.nyquistReset}</Button>
+					{canPreview && <Button variant="secondary" disabled={processing || (!plugin && !source.trim())} onClick={() => previewing ? controller.actions.nyquist.cancel() : submit(true)}>{previewing ? copy.stopPreview : copy.previewEffect}</Button>}
+					<Button variant="primary" disabled={processing || snapshot.readOnly || (!plugin && !source.trim())} onClick={() => submit(false)}>{prompt ? copy.nyquistRun : copy.nyquistApply}</Button>
+				</>}
+			/>}
 		>
 					<p className="kw-audio-editor__nyquist-sandbox">{copy.nyquistSandboxNotice}</p>
 					{prompt && <>
@@ -156,12 +166,6 @@ export default function NyquistDialog({ controller, snapshot, copy, target, run,
 						<strong>{copy.nyquistOutput}</strong>
 						<pre>{output}</pre>
 					</section>}
-					<div className="kw-audio-editor-dialog__actions">
-						<Button variant="secondary" onClick={cancelAndClose}>{copy.cancel}</Button>
-						<Button variant="secondary" disabled={processing} onClick={reset}>{copy.nyquistReset}</Button>
-						{canPreview && <Button variant="secondary" disabled={processing || (!plugin && !source.trim())} onClick={() => previewing ? controller.actions.nyquist.cancel() : submit(true)}>{previewing ? copy.stopPreview : copy.previewEffect}</Button>}
-						<Button disabled={processing || snapshot.readOnly || (!plugin && !source.trim())} onClick={() => submit(false)}>{prompt ? copy.nyquistRun : copy.nyquistApply}</Button>
-					</div>
 		</AudioEditorDialogShell>
 	);
 }

@@ -13,6 +13,9 @@ import {
 	VIDEO_CLIP_COMPOSITION_BLEND_MODES,
 	videoClipCompositionsEqual,
 } from '../../video-clip-composition.ts';
+import { Button } from '@soundscaper/design-system/Button';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
+
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import {
@@ -143,11 +146,23 @@ export default function VideoCompositionDialog({
 		initialFocus={'[data-video-composition-field="crop-left"]'}
 		ariaDescribedBy={descriptionId}
 		dataAttributes={{ 'data-video-composition-dialog': 'true' }}
+		footer={<DialogFooter
+			className="audio-editor-dialog-footer"
+			rightContent={<>
+				<Button variant="secondary" disabled={disabled} onClick={reset}>
+					{label(copy, 'videoCompositionReset', 'Reset')}
+				</Button>
+				<Button variant="primary" disabled={disabled} onClick={applyDraft}>
+					{label(copy, 'videoCompositionApply', 'Apply')}
+				</Button>
+			</>}
+		/>}
 	>
 		<form className="audio-editor-clip-inspector" onSubmit={apply} onBlur={(event) => {
-			if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) {
-				applyDraft();
-			}
+			// The actions now live in the shared footer, outside the form. A blur
+			// that lands on them has not left the dialog, so it must not commit
+			// the draft first — Reset would otherwise record the draft it discards.
+			if (leavesCompositionDialog(event.relatedTarget)) applyDraft();
 		}}>
 			<p id={descriptionId}>{label(
 				copy,
@@ -201,15 +216,15 @@ export default function VideoCompositionDialog({
 					</div>
 				</fieldset>
 			</div>}
-			<fieldset disabled={disabled}>
-				<legend>{label(copy, 'videoCompositionActions', 'Composition actions')}</legend>
-				<button type="button" onClick={reset}>{label(copy, 'videoCompositionReset', 'Reset')}</button>
-				<button type="submit">{label(copy, 'videoCompositionApply', 'Apply')}</button>
-			</fieldset>
 			<div role="status" aria-live="polite" aria-atomic="true">{error || status}</div>
 			{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
 		</form>
 	</AudioEditorDialogShell>;
+}
+
+function leavesCompositionDialog(relatedTarget: EventTarget | null): boolean {
+	if (!(relatedTarget instanceof Element)) return true;
+	return relatedTarget.closest('[data-video-composition-dialog]') === null;
 }
 
 function NumberField({

@@ -42,7 +42,3 @@
 	color: var(--kw-editor-accent);
 }
 
-#kw-audio-editor-design-system .kw-audio-editor-privacy-policy__footer {
-	padding: 10px 18px;
-	border-top: 1px solid var(--kw-editor-line);
-}

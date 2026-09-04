@@ -2,6 +2,9 @@
 
 import React, { type FormEvent, useEffect, useMemo, useState } from 'react';
 
+import { Button } from '@soundscaper/design-system/Button';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
+
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import {
 	createFramescaperVisualInspectorCommand,
@@ -49,8 +52,9 @@ export default function FramescaperVisualInspectorDialog({
 		});
 		setError('');
 	};
-	const apply = (event: FormEvent): void => {
-		event.preventDefault();
+	// The apply control lives in the shared footer, outside the form, so both
+	// it and an Enter press inside a field run this one handler.
+	const applyDraft = (): void => {
 		if (blocked || model.clipId === null) return;
 		let command: unknown;
 		try {
@@ -67,12 +71,24 @@ export default function FramescaperVisualInspectorDialog({
 			.catch((cause: unknown) => { setError(cause instanceof Error ? cause.message : String(cause)); })
 			.finally(() => { setPending(false); });
 	};
+	const apply = (event: FormEvent): void => {
+		event.preventDefault();
+		applyDraft();
+	};
 	return <AudioEditorDialogShell
 		title={label(copy, 'videoVisualInspector', 'Selected Visual Inspector')}
 		onClose={onClose}
 		width={680}
 		initialFocus="[data-visual-inspector-opacity]"
 		dataAttributes={{ 'data-framescaper-visual-inspector': 'true' }}
+		footer={<DialogFooter
+			className="audio-editor-dialog-footer"
+			rightContent={<span data-visual-inspector-apply>
+				<Button variant="primary" disabled={blocked} onClick={applyDraft}>{
+					label(copy, 'apply', 'Apply')
+				}</Button>
+			</span>}
+		/>}
 	>
 		<form className="audio-editor-clip-inspector" onSubmit={apply}>
 			{model.clipId === null ? <p role="status">{label(copy, 'visualInspectorSelection',
@@ -136,9 +152,6 @@ export default function FramescaperVisualInspectorDialog({
 							}} />
 					</label>
 				</fieldset>}
-				<button type="submit" data-visual-inspector-apply disabled={blocked}>{
-					label(copy, 'apply', 'Apply')
-				}</button>
 			</>}
 			<div role="status" aria-live="polite" aria-atomic="true">{error || status}</div>
 		</form>

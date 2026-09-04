@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogSideNav } from '@soundscaper/design-system/DialogSideNav/DialogSideNav';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { PreferencePanel } from '@soundscaper/design-system/PreferencePanel';
 import { PreferenceThumbnail } from '@soundscaper/design-system/PreferenceThumbnail';
 import { Separator } from '@soundscaper/design-system/Separator';
@@ -135,7 +136,10 @@ export default function WorkspacePreferencesDialog({
 			initialFocus={initialPage === 'sound-activation' ? '[data-sound-activation-threshold]' : 'dialog'}
 			className="kw-audio-editor-preferences"
 			bodyClassName="kw-audio-editor-preferences__body"
-			footer={<div className="kw-audio-editor-dialog__actions kw-audio-editor-preferences__footer"><Button onClick={onClose}>{copy.close}</Button></div>}
+			footer={<DialogFooter
+				className="audio-editor-dialog-footer"
+				rightContent={<Button variant="primary" onClick={onClose}>{copy.close}</Button>}
+			/>}
 		>
 					<div ref={sideNavRef} className="kw-audio-editor-preferences__sidebar-adapter" onKeyDownCapture={handleSideNavKeyDown}>
 						<DialogSideNav

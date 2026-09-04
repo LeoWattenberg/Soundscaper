@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { NumberStepper } from '@soundscaper/design-system/NumberStepper';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
@@ -65,6 +66,15 @@ export default function SpectralSelectionDialog({ controller, snapshot, copy, ru
 			onClose={onClose}
 			width={540}
 			bodyClassName="kw-audio-editor-dialog__body"
+			footer={<DialogFooter
+				className="audio-editor-dialog-footer"
+				rightContent={<>
+					<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
+					<Button variant="secondary" disabled={!validRange} onClick={() => submit('select')}>{copy.selectFrequencyRange}</Button>
+					<Button variant="secondary" disabled={!validRange} onClick={() => submit('delete')}>{copy.spectralDelete}</Button>
+					<Button variant="primary" disabled={!validRange || !Number.isFinite(Number(gainDb))} onClick={() => submit('amplify')}>{copy.spectralAmplify}</Button>
+				</>}
+			/>}
 		>
 					<label className="kw-audio-editor-dialog__field">
 						<span>{copy.minimumFrequency}</span>
@@ -78,12 +88,6 @@ export default function SpectralSelectionDialog({ controller, snapshot, copy, ru
 						<span>{copy.spectralGain}</span>
 						<NumberStepper value={String(gainDb)} min={-60} max={60} step={1} width="100%" onChange={setGainDb} />
 					</label>
-					<div className="kw-audio-editor-dialog__actions">
-						<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
-						<Button variant="secondary" disabled={!validRange} onClick={() => submit('select')}>{copy.selectFrequencyRange}</Button>
-						<Button variant="secondary" disabled={!validRange} onClick={() => submit('delete')}>{copy.spectralDelete}</Button>
-						<Button disabled={!validRange || !Number.isFinite(Number(gainDb))} onClick={() => submit('amplify')}>{copy.spectralAmplify}</Button>
-					</div>
 		</AudioEditorDialogShell>
 	);
 }

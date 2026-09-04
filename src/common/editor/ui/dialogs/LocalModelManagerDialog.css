@@ -113,10 +113,6 @@
 	width: 100%;
 }
 
-#kw-audio-editor-design-system [data-local-model-manager] .kw-audio-editor-dialog__actions {
-	padding: 12px 18px;
-}
-
 @media (max-width: 680px) {
 	#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__list > li {
 		grid-template-columns: 1fr;

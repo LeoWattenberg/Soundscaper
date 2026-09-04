@@ -425,8 +425,40 @@
 	user-select: none;
 }
 
+/* The vendored footer is a single unwrapped flex row, which overflows once a
+	dialog carries more than two or three actions at its own width. Wrapping
+	keeps every action inside the panel, and the explicit end-justification
+	holds the wrapped rows against the right edge the way the unwrapped row
+	sits there through `margin-left: auto`. */
+#kw-audio-editor-design-system .audio-editor-dialog-footer {
+	flex-wrap: wrap;
+	row-gap: 8px;
+}
+
 #kw-audio-editor-design-system .audio-editor-dialog-footer :is(.footer__left-group, .footer__button-group) {
+	flex-wrap: wrap;
 	align-items: center;
+}
+
+#kw-audio-editor-design-system .audio-editor-dialog-footer .footer__button-group {
+	justify-content: flex-end;
+}
+
+/* The design-system button paints itself through custom properties, which a
+	forced-colors palette discards; every dialog's confirm row would otherwise
+	lose its button outlines entirely. */
+@media (forced-colors: active) {
+	#kw-audio-editor-design-system .audio-editor-dialog-footer .button {
+		forced-color-adjust: none;
+		border: 1px solid ButtonText;
+		background: Canvas;
+		color: CanvasText;
+	}
+
+	#kw-audio-editor-design-system .audio-editor-dialog-footer .button:focus-visible {
+		outline: 2px solid Highlight;
+		outline-offset: 2px;
+	}
 }
 
 #kw-audio-editor-design-system .audio-editor-effect-preset-header {

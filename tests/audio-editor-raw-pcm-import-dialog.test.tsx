@@ -62,7 +62,7 @@ test('raw PCM import admits only one rapid submit while conversion and import re
 		});
 		assert.equal(reads, 1, 'the second submit must not start another conversion');
 		assert.equal(form.getAttribute('aria-busy'), 'true');
-		assert.equal(dom.one('[type="submit"]').hasAttribute('disabled'), true);
+		assert.equal(dom.one('.audio-editor-raw-pcm-import-confirm').hasAttribute('disabled'), true);
 
 		await act(async () => {
 			readPending.resolve(new Uint8Array([0, 0]).buffer);
@@ -83,7 +83,7 @@ test('raw PCM import admits only one rapid submit while conversion and import re
 		});
 		assert.equal(closes, 1);
 		assert.equal(form.getAttribute('aria-busy'), 'false');
-		assert.equal(dom.one('[type="submit"]').hasAttribute('disabled'), false);
+		assert.equal(dom.one('.audio-editor-raw-pcm-import-confirm').hasAttribute('disabled'), false);
 	} finally {
 		readPending.resolve(new Uint8Array([0, 0]).buffer);
 		importPending.resolve();

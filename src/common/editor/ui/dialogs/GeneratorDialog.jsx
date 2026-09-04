@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { Dropdown } from '@soundscaper/design-system/Dropdown';
 import { Knob } from '@soundscaper/design-system/Knob';
 import { LabeledRadio } from '@soundscaper/design-system/LabeledRadio';
@@ -20,6 +21,17 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 	const labels = generatorLayoutLabels(copy);
 	const waveformOptions = generatorWaveformOptions(copy);
 	const dtmfTiming = generatorDtmfTiming(params);
+	// The generate button sits in the shared footer, outside the form, so both
+	// it and an Enter press inside a field run this one handler.
+	const generate = () => {
+		const options = type === 'dtmf'
+			? { ...params, durationSeconds: dtmfTiming.totalSeconds, toneSeconds: dtmfTiming.toneSeconds, silenceSeconds: dtmfTiming.silenceSeconds }
+			: params;
+		void runAwaitedAudioEditorOperation(
+			run,
+			() => controller.actions.generators.generate(type, options),
+		).then(onClose).catch(() => undefined);
+	};
 	const numberField = (name, label, options = {}) => (
 		<GeneratorNumberField
 			name={name}
@@ -91,16 +103,17 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 			dataAttributes={{ 'data-generator-type': type }}
 			closeOnOutside={false}
 			wrapBody={false}
+			footer={<DialogFooter
+				className="audio-editor-dialog-footer"
+				rightContent={<>
+					<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
+					<Button variant="primary" onClick={generate}>{copy.generate}</Button>
+				</>}
+			/>}
 		>
 				<form className="kw-audio-editor-generator" onSubmit={(event) => {
 					event.preventDefault();
-					const options = type === 'dtmf'
-						? { ...params, durationSeconds: dtmfTiming.totalSeconds, toneSeconds: dtmfTiming.toneSeconds, silenceSeconds: dtmfTiming.silenceSeconds }
-						: params;
-					void runAwaitedAudioEditorOperation(
-						run,
-						() => controller.actions.generators.generate(type, options),
-					).then(onClose).catch(() => undefined);
+					generate();
 				}}>
 					<div className="kw-audio-editor-generator__content">
 						{type === 'tone' && (
@@ -223,10 +236,6 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 								</div>
 							</div>
 						)}
-					</div>
-					<div className="kw-audio-editor-dialog__actions">
-						<Button type="button" variant="secondary" onClick={onClose}>{copy.cancel}</Button>
-						<Button type="submit">{copy.generate}</Button>
 					</div>
 				</form>
 		</AudioEditorDialogShell>

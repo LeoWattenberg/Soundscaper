@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { Button } from '@soundscaper/design-system/Button';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import {
@@ -104,9 +106,10 @@ export function LocalModelManagerDialogView({
 		width={760}
 		initialFocus="dialog"
 		dataAttributes={{ 'data-local-model-manager': 'true' }}
-		footer={<div className="kw-audio-editor-dialog__actions">
-			<button type="button" onClick={onClose}>{text(copy, 'close', 'Close')}</button>
-		</div>}
+		footer={<DialogFooter
+			className="audio-editor-dialog-footer"
+			rightContent={<Button variant="primary" onClick={onClose}>{text(copy, 'close', 'Close')}</Button>}
+		/>}
 	>
 		<p>{text(copy, 'localModelsDescription',
 			'Optional models download only when you explicitly request them and run locally on this device.')}</p>

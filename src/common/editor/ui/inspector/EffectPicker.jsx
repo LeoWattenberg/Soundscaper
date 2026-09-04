@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { Flyout } from '@soundscaper/design-system/Flyout';
 import { audioEffectTypes } from '../../effects.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
@@ -58,6 +59,13 @@ export default function EffectPicker({ copy, disabled, flyout = false, anchor = 
 			width={440}
 			className="audio-editor-effect-picker-dialog"
 			dataAttributes={{ 'data-effect-picker': '' }}
+			footer={<DialogFooter
+				className="audio-editor-dialog-footer"
+				rightContent={<>
+					<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
+					<Button variant="primary" disabled={disabled || !type} onClick={() => onChoose(type)}>{copy.addEffect}</Button>
+				</>}
+			/>}
 		>
 			<div className="audio-editor-local-dialog__body">
 				<LabeledDropdown
@@ -68,10 +76,6 @@ export default function EffectPicker({ copy, disabled, flyout = false, anchor = 
 					disabled={disabled}
 					hook="effect-type"
 				/>
-				<div className="audio-editor-panel-actions">
-					<Button variant="primary" disabled={disabled || !type} onClick={() => onChoose(type)}>{copy.addEffect}</Button>
-					<Button onClick={onClose}>{copy.cancel}</Button>
-				</div>
 			</div>
 		</AudioEditorDialogShell>
 	);

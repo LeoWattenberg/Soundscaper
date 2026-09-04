@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import readmeMarkdown from '../../../../../README.md?raw';
 import { Button } from '@soundscaper/design-system/Button';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { NumberStepper } from '@soundscaper/design-system/NumberStepper';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 
@@ -52,6 +53,119 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 		clear: copy.clearData,
 	}[type] || copy.deleteTitle;
 	const offsetSources = recordingOffsetSources(snapshot, copy);
+	// Every dialog here confirms through the shared footer, which the shell
+	// renders as a sibling of the body rather than inside it. A submit button
+	// in the footer is therefore outside its form, so each confirm path is a
+	// named handler that both the footer button and the form's Enter key run.
+	const submitRename = () => {
+		if (!value.trim()) return;
+		runThenClose(() => controller.actions.project.rename(value));
+	};
+	const submitTrackRename = () => {
+		if (!value.trim() || !snapshot.selectedTrackId) return;
+		runThenClose(() => controller.actions.track.update(snapshot.selectedTrackId, { name: value.trim() }));
+	};
+	// Re-read the clock on every call rather than once per render: a start time
+	// that was still in the future when the dialog painted may have passed by
+	// the time the footer button is pressed.
+	const timedRecordingReady = () => {
+		const startTimeMs = new Date(value).getTime();
+		return Number.isFinite(startTimeMs) && startTimeMs > Date.now();
+	};
+	const submitTimedRecording = () => {
+		if (!timedRecordingReady()) return;
+		const trackId = showArmControls
+			? undefined
+			: (() => {
+				const selectedTrack = snapshot.project?.tracks.find((track) => track.id === snapshot.selectedTrackId);
+				if (selectedTrack?.type === 'audio') return selectedTrack.id;
+				if (selectedTrack?.type === 'video' && selectedTrack.laneGroupId) {
+					const pairedTrack = snapshot.project?.tracks.find((track) => (
+						track.type === 'audio' && track.laneGroupId === selectedTrack.laneGroupId
+					));
+					if (pairedTrack) return pairedTrack.id;
+				}
+				return snapshot.project?.tracks.find((track) => track.type === 'audio')?.id;
+			})();
+		runThenClose(
+			() => controller.actions.recording.schedule(new Date(value).getTime(), { trackId }),
+			(scheduled) => Boolean(scheduled),
+		);
+	};
+	const submitRecordingOffset = () => runThenClose(() => sourceKey === 'global'
+		? controller.actions.recording.setLatencyOffset(value)
+		: controller.actions.recording.setSourceOffset(sourceKey, value));
+	const submitResample = () => {
+		const selectedTrackId = snapshot.selectedTrackId;
+		if (!selectedTrackId) return;
+		runThenClose(() => controller.actions.track.resample(selectedTrackId, Number(value)));
+	};
+	const submitTrackRate = () => runThenClose(
+		() => applyTrackRateDialog({ trackId, value,
+			run: (operation) => operation(),
+			setRate: controller.actions.track.setRate,
+		}),
+		(result) => result !== TRACK_RATE_DIALOG_MISSING_TRACK,
+	);
+	const confirmDeletion = () => {
+		if (type === 'delete' && snapshot.project?.id !== projectIdAtOpen.current) {
+			onClose();
+			return;
+		}
+		runThenClose(() => type === 'delete'
+			? controller.actions.project.remove(projectIdAtOpen.current)
+			: controller.actions.project.clear());
+	};
+	const dismiss = (onDismiss = onClose) => (
+		<Button variant="secondary" onClick={onDismiss}>{copy.cancel}</Button>
+	);
+	const confirm = (label, onConfirm, disabled = false) => (
+		<Button variant="primary" disabled={disabled} onClick={onConfirm}>{label}</Button>
+	);
+	const footerActions = () => {
+		if (type === 'rename' || type === 'track-rename') return <>
+			{dismiss()}
+			{confirm(
+				copy.saveName,
+				type === 'rename' ? submitRename : submitTrackRename,
+				!value.trim(),
+			)}
+		</>;
+		if (type === 'timed-recording') return <>
+			{snapshot.scheduledRecording && <Button variant="secondary" onClick={() => {
+				runThenClose(() => controller.actions.recording.cancelScheduled());
+			}}>{copy.timedRecordingCancel}</Button>}
+			{dismiss(closeDialog)}
+			{confirm(
+				copy.timedRecordingSchedule,
+				submitTimedRecording,
+				Boolean(snapshot.scheduledRecording) || !timedRecordingReady(),
+			)}
+		</>;
+		if (type === 'recording-offset') return <>{dismiss()}{confirm(copy.save, submitRecordingOffset)}</>;
+		if (type === 'resample') return <>{dismiss()}{confirm(copy.resample, submitResample)}</>;
+		if (type === 'track-rate') return <>{dismiss()}{confirm(copy.save, submitTrackRate)}</>;
+		if (type === 'about') return confirm(copy.close, onClose);
+		if (type === 'aup4-compatibility') return confirm(copy.close, onClose);
+		if (type === 'delivery-report') return <>
+			<Button variant="secondary" onClick={() => run(() => controller.actions.export.saveReport())}>
+				{copy.deliveryReportSave}
+			</Button>
+			{confirm(copy.close, onClose)}
+		</>;
+		if (type === 'revert-factory') return <>
+			{dismiss()}
+			{confirm(copy.confirmRevertFactorySettings, () => {
+				runThenClose(() => controller.actions.preferences.revertFactorySettings());
+			})}
+		</>;
+		if (type === 'delete' || type === 'clear') return <>
+			{dismiss()}
+			{confirm(type === 'delete' ? copy.confirmDelete : copy.clearData, confirmDeletion)}
+		</>;
+		return null;
+	};
+	const footer = footerActions();
 	return (
 		<AudioEditorDialogShell
 			title={title}
@@ -59,6 +173,7 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 			width={540}
 			initialFocus={['rename', 'track-rename'].includes(type) ? 'input' : 'first'}
 			bodyClassName="kw-audio-editor-dialog__body"
+			footer={footer && <DialogFooter className="audio-editor-dialog-footer" rightContent={footer} />}
 		>
 					{type === 'projects' && (
 						<>
@@ -77,61 +192,27 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 						</>
 					)}
 					{type === 'rename' && (
-						<form onSubmit={(event) => {
-							event.preventDefault();
-							if (!value.trim()) return;
-							runThenClose(() => controller.actions.project.rename(value));
-						}}>
+						<form onSubmit={(event) => { event.preventDefault(); submitRename(); }}>
 							<label className="kw-audio-editor-dialog__field">
 								<span>{copy.projectName}</span>
 								<span data-project-name-input>
 									<TextInput value={value} onChange={onValueChange} width="100%" />
 								</span>
 							</label>
-							<div className="kw-audio-editor-dialog__actions">
-								<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
-								<Button type="submit" disabled={!value.trim()}>{copy.saveName}</Button>
-							</div>
 						</form>
 					)}
 					{type === 'track-rename' && (
-						<form onSubmit={(event) => {
-							event.preventDefault();
-							if (!value.trim() || !snapshot.selectedTrackId) return;
-							runThenClose(() => controller.actions.track.update(snapshot.selectedTrackId, { name: value.trim() }));
-						}}>
+						<form onSubmit={(event) => { event.preventDefault(); submitTrackRename(); }}>
 							<label className="kw-audio-editor-dialog__field">
 								<span>{copy.trackName}</span>
 								<TextInput value={value} onChange={onValueChange} width="100%" />
 							</label>
-							<div className="kw-audio-editor-dialog__actions">
-								<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
-								<Button type="submit" disabled={!value.trim()}>{copy.saveName}</Button>
-							</div>
 						</form>
 					)}
 					{type === 'timed-recording' && (
 						<form data-timed-recording-dialog onSubmit={(event) => {
 							event.preventDefault();
-							const startTimeMs = new Date(value).getTime();
-							if (!Number.isFinite(startTimeMs) || startTimeMs <= Date.now()) return;
-							const trackId = showArmControls
-								? undefined
-								: (() => {
-									const selectedTrack = snapshot.project?.tracks.find((track) => track.id === snapshot.selectedTrackId);
-									if (selectedTrack?.type === 'audio') return selectedTrack.id;
-									if (selectedTrack?.type === 'video' && selectedTrack.laneGroupId) {
-										const pairedTrack = snapshot.project?.tracks.find((track) => (
-											track.type === 'audio' && track.laneGroupId === selectedTrack.laneGroupId
-										));
-										if (pairedTrack) return pairedTrack.id;
-									}
-									return snapshot.project?.tracks.find((track) => track.type === 'audio')?.id;
-								})();
-							runThenClose(
-								() => controller.actions.recording.schedule(startTimeMs, { trackId }),
-								(scheduled) => Boolean(scheduled),
-							);
+							submitTimedRecording();
 						}}>
 							<p>{copy.timedRecordingDescription}</p>
 							<label className="kw-audio-editor-dialog__field">
@@ -147,24 +228,10 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 								'{time}',
 								new Date(snapshot.scheduledRecording.startTimeMs).toLocaleString(locale),
 							)}</p>}
-							<div className="kw-audio-editor-dialog__actions">
-								{snapshot.scheduledRecording && <Button variant="secondary" onClick={() => {
-									runThenClose(() => controller.actions.recording.cancelScheduled());
-								}}>{copy.timedRecordingCancel}</Button>}
-								<Button variant="secondary" onClick={closeDialog}>{copy.cancel}</Button>
-								<Button type="submit" disabled={Boolean(snapshot.scheduledRecording) || !Number.isFinite(new Date(value).getTime()) || new Date(value).getTime() <= Date.now()}>
-									{copy.timedRecordingSchedule}
-								</Button>
-							</div>
 						</form>
 					)}
 					{type === 'recording-offset' && (
-						<form onSubmit={(event) => {
-							event.preventDefault();
-							runThenClose(() => sourceKey === 'global'
-								? controller.actions.recording.setLatencyOffset(value)
-								: controller.actions.recording.setSourceOffset(sourceKey, value));
-						}}>
+						<form onSubmit={(event) => { event.preventDefault(); submitRecordingOffset(); }}>
 							<label className="kw-audio-editor-dialog__field">
 								<span>{copy.recordingOffsetSource}</span>
 								<select value={sourceKey} onChange={(event) => {
@@ -183,105 +250,42 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 									value={Number(value)} unit="milliseconds" minimum={-500} maximum={500}
 									onChange={(next) => onValueChange(String(next))} />
 							</label>
-							<div className="kw-audio-editor-dialog__actions">
-								<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
-								<Button type="submit">{copy.save}</Button>
-							</div>
 						</form>
 					)}
 					{type === 'resample' && (
-						<form onSubmit={(event) => {
-							event.preventDefault();
-							const trackId = snapshot.selectedTrackId;
-							if (!trackId) return;
-							runThenClose(() => controller.actions.track.resample(trackId, Number(value)));
-						}}>
+						<form onSubmit={(event) => { event.preventDefault(); submitResample(); }}>
 							<label className="kw-audio-editor-dialog__field">
 								<span>{copy.sampleRate} (Hz)</span>
 								<NumberStepper value={String(value)} min={8_000} max={384_000} step={1_000} width="100%" onChange={onValueChange} />
 							</label>
-							<div className="kw-audio-editor-dialog__actions">
-								<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
-								<Button type="submit">{copy.resample}</Button>
-							</div>
 						</form>
 					)}
 					{type === 'track-rate' && (
-						<form onSubmit={(event) => {
-							event.preventDefault();
-							runThenClose(
-								() => applyTrackRateDialog({ trackId, value,
-									run: (operation) => operation(),
-									setRate: controller.actions.track.setRate,
-								}),
-								(result) => result !== TRACK_RATE_DIALOG_MISSING_TRACK,
-							);
-						}}>
+						<form onSubmit={(event) => { event.preventDefault(); submitTrackRate(); }}>
 							<label className="kw-audio-editor-dialog__field">
 								<span>{copy.sampleRate} (Hz)</span>
 								<NumberStepper value={String(value)} min={8_000} max={384_000} step={1_000} width="100%" onChange={onValueChange} />
 							</label>
-							<div className="kw-audio-editor-dialog__actions">
-								<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
-								<Button type="submit">{copy.save}</Button>
-							</div>
 						</form>
 					)}
 					{type === 'about' && (
-						<>
-							<pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'inherit' }}>{readmeMarkdown}</pre>
-							<div className="kw-audio-editor-dialog__actions"><Button onClick={onClose}>{copy.close}</Button></div>
-						</>
+						<pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'inherit' }}>{readmeMarkdown}</pre>
 					)}
 					{type === 'aup4-compatibility' && (
-						<Aup4CompatibilityReport
-							report={snapshot.aup4Compatibility?.report}
-							copy={copy}
-							onClose={onClose}
-						/>
+						<Aup4CompatibilityReport report={snapshot.aup4Compatibility?.report} copy={copy} />
 					)}
 					{type === 'delivery-report' && (
-						<DeliveryReport
-							report={snapshot.deliveryReport}
-							copy={copy}
-							controller={controller}
-							run={run}
-							onClose={onClose}
-						/>
+						<DeliveryReport report={snapshot.deliveryReport} copy={copy} />
 					)}
-					{type === 'revert-factory' && (
-						<>
-							<p>{copy.revertFactorySettingsDescription}</p>
-							<div className="kw-audio-editor-dialog__actions">
-								<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
-								<Button onClick={() => {
-									runThenClose(() => controller.actions.preferences.revertFactorySettings());
-								}}>{copy.confirmRevertFactorySettings}</Button>
-							</div>
-						</>
-					)}
+					{type === 'revert-factory' && <p>{copy.revertFactorySettingsDescription}</p>}
 					{(type === 'delete' || type === 'clear') && (
-						<>
-							<p>{type === 'delete' ? copy.deleteDescription : copy.clearData}</p>
-							<div className="kw-audio-editor-dialog__actions">
-								<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
-								<Button onClick={() => {
-									if (type === 'delete' && snapshot.project?.id !== projectIdAtOpen.current) {
-										onClose();
-										return;
-									}
-									runThenClose(() => type === 'delete'
-										? controller.actions.project.remove(projectIdAtOpen.current)
-										: controller.actions.project.clear());
-								}}>{type === 'delete' ? copy.confirmDelete : copy.clearData}</Button>
-							</div>
-						</>
+						<p>{type === 'delete' ? copy.deleteDescription : copy.clearData}</p>
 					)}
 		</AudioEditorDialogShell>
 	);
 }
 
-function Aup4CompatibilityReport({ report, copy, onClose }) {
+function Aup4CompatibilityReport({ report, copy }) {
 	const visibleItems = aup4CompatibilityItems(report);
 	const counts = report?.counts || {};
 	const visibleCount = (disposition) => visibleItems.filter((item) => item?.disposition === disposition).length;
@@ -307,14 +311,11 @@ function Aup4CompatibilityReport({ report, copy, onClose }) {
 					))}
 				</ul>
 			) : <p>{copy.aup4CompatibilityNoIssues}</p>}
-			<div className="kw-audio-editor-dialog__actions">
-				<Button onClick={onClose}>{copy.close}</Button>
-			</div>
 		</div>
 	);
 }
 
-function DeliveryReport({ report, copy, controller, run, onClose }) {
+function DeliveryReport({ report, copy }) {
 	const items = deliveryReportItems(report);
 	const counts = report?.counts || {};
 	const displayCount = (disposition) => compatibilityCount(counts[disposition], items, disposition);
@@ -345,15 +346,6 @@ function DeliveryReport({ report, copy, controller, run, onClose }) {
 				</ul>
 			) : <p>{copy.deliveryReportNoConversions}</p>}
 			{items.length > 0 && converting.length === 0 && <p>{copy.deliveryReportNoConversions}</p>}
-			<div className="kw-audio-editor-dialog__actions">
-				<Button
-					variant="secondary"
-					onClick={() => run(() => controller.actions.export.saveReport())}
-				>
-					{copy.deliveryReportSave}
-				</Button>
-				<Button onClick={onClose}>{copy.close}</Button>
-			</div>
 		</div>
 	);
 }

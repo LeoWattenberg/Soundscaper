@@ -277,7 +277,10 @@ export async function closeDialog(dialog) {
 }
 
 export async function closeAup4CompatibilityReport(dialog) {
-	await dialog.locator('[data-aup4-compatibility-report]').getByRole('button', { name: 'Close', exact: true }).click();
+	// The report's Close moved into the shared dialog footer, which the shell
+	// renders beside [data-aup4-compatibility-report] rather than inside it.
+	await dialog.locator('.audio-editor-dialog-footer')
+		.getByRole('button', { name: 'Close', exact: true }).click();
 	await expect(dialog).toBeHidden();
 }
 
