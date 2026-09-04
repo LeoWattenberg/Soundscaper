@@ -154,6 +154,34 @@ test('a percentage that would silence the clip is refused rather than committed'
 	}
 });
 
+test('clearing the pitch field is refused instead of wiping the shift', async () => {
+	const fixture = await mountedFixture({ pitchCents: 200 });
+	try {
+		await fixture.render();
+		await fixture.commitPitch('');
+
+		assert.deepEqual(fixture.timePitchCalls, [], 'an empty field asks for nothing, not for no shift');
+		assert.equal(fixture.errorText(), ENGLISH_COPY.clipPitchRangeSemitones);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
+test('a semitone shift past the octave is refused in semitones, not in cents', async () => {
+	const fixture = await mountedFixture({ pitchCents: 200 });
+	try {
+		await fixture.render();
+		assert.equal(fixture.pitchLabel(), ENGLISH_COPY.clipPitchSemitones);
+		await fixture.commitPitch('13');
+
+		assert.deepEqual(fixture.timePitchCalls, []);
+		assert.equal(fixture.errorText(), ENGLISH_COPY.clipPitchRangeSemitones);
+		assert.doesNotMatch(fixture.errorText(), /cents/u, 'the dialog never shows the reader cents');
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 test('the dialog confirms with an unpunctuated Done', async () => {
 	const fixture = await mountedFixture();
 	try {

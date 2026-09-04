@@ -204,11 +204,29 @@ export function clipPitchInUnit(cents: unknown, unit: ClipPitchUnit): string {
 }
 
 /**
+ * The refusal a pitch the field cannot take earns.
+ *
+ * The field is labelled in the unit on display, so the message has to state the
+ * bounds that label states: a reader shown "Pitch (semitones, −12 to +12)"
+ * meets cents nowhere in the dialog. Cents remain the clip service's own
+ * wording, because that guard reads the stored value rather than the typed one.
+ */
+function clipPitchRangeMessage(copy: InspectorCopy, unit: ClipPitchUnit): string {
+	return unit === 'percent' ? copy.clipPitchRange : copy.clipPitchRangeSemitones;
+}
+
+/**
  * The cents a value typed in the displayed unit asks for.
+ *
+ * An emptied field asks for nothing rather than for no shift, so it is refused
+ * the way the time and frame fields above refuse one: `Number('')` reads as
+ * zero, which would quietly wipe the shift the clip already carries.
  *
  * A percentage of −100 or less asks for a frequency of zero or below, which no
  * shift produces and whose logarithm is not a number, so it is refused with the
  * same range message the clip service raises for cents outside the octave.
+ * Semitones are bounded here too, so the octave either way is refused in the
+ * unit the reader is looking at instead of in the service's cents.
  * Both readings round to whole cents, because a cent is both the finest step a
  * clip stores and the last decimal either field shows.
  */
@@ -217,9 +235,14 @@ export function clipPitchUnitToCents(
 	unit: ClipPitchUnit,
 	copy: InspectorCopy,
 ): number {
-	const amount = Number(String(value ?? '').trim());
-	if (!Number.isFinite(amount)) throw new RangeError(copy.clipPitchRange);
-	if (unit !== 'percent') return Math.round(amount * 100);
-	if (amount <= -100) throw new RangeError(copy.clipPitchRange);
+	const text = String(value ?? '').trim();
+	if (!text) throw new RangeError(clipPitchRangeMessage(copy, unit));
+	const amount = Number(text);
+	if (!Number.isFinite(amount)) throw new RangeError(clipPitchRangeMessage(copy, unit));
+	if (unit !== 'percent') {
+		if (amount < -12 || amount > 12) throw new RangeError(clipPitchRangeMessage(copy, unit));
+		return Math.round(amount * 100);
+	}
+	if (amount <= -100) throw new RangeError(clipPitchRangeMessage(copy, unit));
 	return Math.round(1_200 * Math.log2(1 + amount / 100));
 }

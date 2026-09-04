@@ -12,6 +12,7 @@ import {
 	listAudioEditorEffectPresets,
 } from '../src/common/editor/effect-presets.js';
 import {
+	clipPitchUnitToCents,
 	compactFields,
 	macroFileName,
 	nonNegativeFrame,
@@ -19,6 +20,7 @@ import {
 	parseJsonObject,
 	secondsInputToFrames,
 } from '../src/common/editor/ui/inspector/inspector-helpers.ts';
+import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 
 const copy = {
 	channelMatrixRequired: '{label} is required',
@@ -100,4 +102,33 @@ test('a project-authored missing effect name cannot expand into its own label', 
 		"Missing: Delay $' $` $$",
 	);
 	assert.equal(safeEffectLabel({ type: 'missing', missing: { name: '   ' } }, missingCopy), 'Missing: Unknown');
+});
+
+const pitchCopy = {
+	clipPitchRange: String(ENGLISH_COPY.clipPitchRange),
+	clipPitchRangeSemitones: String(ENGLISH_COPY.clipPitchRangeSemitones),
+};
+
+test('an emptied pitch field is refused rather than read as no shift at all', () => {
+	// Number('') is zero, so without an empty guard blanking the field committed
+	// a perfectly valid nought cents and wiped the shift the clip carried.
+	assert.throws(() => clipPitchUnitToCents('', 'semitones', pitchCopy), RangeError);
+	assert.throws(() => clipPitchUnitToCents('   ', 'semitones', pitchCopy), RangeError);
+	assert.throws(() => clipPitchUnitToCents(null, 'semitones', pitchCopy), RangeError);
+	assert.throws(() => clipPitchUnitToCents('', 'percent', pitchCopy), RangeError);
+	// A nought the reader typed on purpose is still a shift of none.
+	assert.equal(clipPitchUnitToCents('0', 'semitones', pitchCopy), 0);
+	assert.equal(clipPitchUnitToCents('0', 'percent', pitchCopy), 0);
+	assert.equal(clipPitchUnitToCents('-0.07', 'semitones', pitchCopy), -7);
+});
+
+test('a pitch outside the octave is refused in the unit the field is labelled with', () => {
+	assert.equal(clipPitchUnitToCents('12', 'semitones', pitchCopy), 1_200);
+	assert.equal(clipPitchUnitToCents('-12', 'semitones', pitchCopy), -1_200);
+	assert.throws(() => clipPitchUnitToCents('13', 'semitones', pitchCopy), /semitones/u);
+	assert.throws(() => clipPitchUnitToCents('-24', 'semitones', pitchCopy), /−12 and \+12/u);
+	// The field reads "Pitch (semitones, −12 to +12)", so cents name a unit the
+	// reader is shown nowhere in the dialog.
+	assert.equal(pitchCopy.clipPitchRangeSemitones, 'Clip pitch must be between −12 and +12 semitones.');
+	assert.doesNotMatch(pitchCopy.clipPitchRangeSemitones, /cents|1200/u);
 });

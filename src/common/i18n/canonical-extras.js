@@ -188,6 +188,7 @@ const COPY_ENTRIES = Object.freeze([
 	["brandAccessibilityLabel","Soundscaper by kw.media","Soundscaper von kw.media"],
 	["addLabel","Add label","Beschriftung hinzufügen"],
 	["clipPitchRange","Clip pitch must be between -1200 and 1200 cents.","Die Clip-Tonhöhe muss zwischen -1200 und 1200 Cent liegen."],
+	["clipPitchRangeSemitones","Clip pitch must be between −12 and +12 semitones.","Die Clip-Tonhöhe muss zwischen −12 und +12 Halbtönen liegen."],
 	["clipPitchUnit","Pitch unit","Tonhöheneinheit"],
 	["clipPitchUnitSemitones","Semitones (half-steps)","Halbtöne"],
 	["clipPitchUnitPercent","Percent change","Prozentuale Änderung"],
