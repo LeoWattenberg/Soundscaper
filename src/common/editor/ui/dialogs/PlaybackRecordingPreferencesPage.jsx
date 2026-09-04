@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { useId } from 'react';
 import { PreferencePanel } from '@soundscaper/design-system/PreferencePanel';
 import { Separator } from '@soundscaper/design-system/Separator';
 
@@ -23,6 +24,7 @@ export default function PlaybackRecordingPreferencesPage({
 	run,
 }) {
 	const preferences = snapshot.preferences;
+	const keepInputsOpenDescriptionId = useId();
 	return (
 		<>
 			<PreferencePanel title={copy.playAtSpeed}>
@@ -44,6 +46,7 @@ export default function PlaybackRecordingPreferencesPage({
 					<span className="audio-editor-help-label">
 						<PreferenceCheckbox
 							label={copy.recordingKeepInputsOpen}
+							ariaDescribedBy={keepInputsOpenDescriptionId}
 							checked={snapshot.recordingInputs?.retainInputs ?? preferences.recording?.retainInputs ?? true}
 							onChange={(checked) => run(() => controller.actions.recording.setRetainInputs(checked))}
 						/>
@@ -52,7 +55,9 @@ export default function PlaybackRecordingPreferencesPage({
 							description={copy.recordingKeepInputsOpenDescription}
 							helpLabel={copy.helpMenu}
 							hook="recording-keep-inputs-open"
+							describedBy={keepInputsOpenDescriptionId}
 						/>
+						<span id={keepInputsOpenDescriptionId} className="kw-audio-editor-sr-only">{copy.recordingKeepInputsOpenDescription}</span>
 					</span>
 				</div>
 				{snapshot.recordingInputs?.soundActivation && <SoundActivationPreferences

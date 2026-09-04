@@ -4,15 +4,20 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import React, { act } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 import EditorHelpTooltip from '../src/common/editor/ui/EditorHelpTooltip.tsx';
 import SoundActivationPreferences from '../src/common/editor/ui/SoundActivationPreferences.tsx';
+import PlaybackRecordingPreferencesPage from '../src/common/editor/ui/dialogs/PlaybackRecordingPreferencesPage.jsx';
 import { SelectionEffectsDialog } from '../src/common/editor/ui/inspector/SelectionEffectsDialog.jsx';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import type {
 	SoundActivationPolicySnapshot,
 } from '../src/common/editor/controller/sound-activation-policy-service.ts';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
+
+// The .jsx modules compile against the global React the browser build provides.
+(globalThis as unknown as { React: unknown }).React = React;
 
 // An effect dialog states its effect once, in the title bar, and says nothing
 // about how effects work in general: that prose was never about this dialog.
@@ -74,6 +79,32 @@ test('sound activation parameters describe themselves through help tooltips', as
 	} finally {
 		await mounted.cleanup();
 	}
+});
+
+// The recording preference explains itself through the same affordance, and a
+// tooltip's text only joins the document once it opens. Without a standing
+// description the checkbox reaches assistive technology unexplained.
+test('the keep-inputs-open preference keeps its description outside the tooltip', () => {
+	const markup = renderToStaticMarkup(<PlaybackRecordingPreferencesPage
+		controller={recordingPreferencesController()}
+		snapshot={recordingPreferencesSnapshot()}
+		copy={ENGLISH_COPY}
+		locale="en"
+		productId="soundscaper"
+		run={(operation: () => unknown) => operation()}
+	/>);
+
+	const control = /<div[^>]*role="checkbox"[^>]*>/u.exec(markup)?.[0];
+	assert.ok(control, 'the recording page renders the keep-inputs-open checkbox.');
+	assert.match(control, /aria-label="Keep input devices open between recordings"/u);
+	const describedBy = /aria-describedby="([^"]*)"/u.exec(control)?.[1];
+	assert.ok(describedBy, 'the checkbox must name the element that describes it.');
+	const described = new RegExp(
+		`<span([^>]*)id="${escapePattern(describedBy)}"([^>]*)>([^<]*)</span>`, 'u',
+	).exec(markup);
+	assert.ok(described, 'the description must stand in the markup, not only inside the tooltip.');
+	assert.match(`${described[1]}${described[2]}`, /class="kw-audio-editor-sr-only"/u);
+	assert.equal(described[3], ENGLISH_COPY.recordingKeepInputsOpenDescription);
 });
 
 // The trigger commonly sits inside the label of the control it explains, and a
@@ -182,6 +213,30 @@ function soundActivationPolicy(): SoundActivationPolicySnapshot {
 		preferenceMutationBlockReason: null,
 		sources: Object.freeze([]),
 	});
+}
+
+function recordingPreferencesSnapshot() {
+	return {
+		readOnly: false,
+		preferences: {
+			playback: { playAtSpeedMode: 'naive' },
+			recording: { retainInputs: true },
+		},
+		recordingInputs: { retainInputs: true },
+	};
+}
+
+function recordingPreferencesController() {
+	return {
+		actions: {
+			preferences: { update: () => undefined },
+			recording: { setRetainInputs: () => undefined },
+		},
+	};
+}
+
+function escapePattern(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 }
 
 function soundActivationController() {
