@@ -262,7 +262,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [monoTone]);
 		const effectDialog = await openSelectionEffectDialog(page, editor);
-		await expect(effectDialog.getByRole('heading', { name: 'Bass and Treble', exact: true })).toBeVisible();
+		// The effect names the dialog from its header rather than from a second
+		// copy of its own title inside the body.
+		await expect(effectDialog.locator('.dialog-header__title')).toHaveText('Bass and Treble');
 		await effectDialog.getByRole('button', { name: 'Apply to selection' }).click();
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
 		await expect(effectDialog).toBeHidden();

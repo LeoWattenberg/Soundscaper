@@ -35,7 +35,12 @@ test('the checked JavaScript gate pins its strict runtime boundary inventory', a
 		packageJson.scripts['typecheck:javascript'],
 		'node scripts/check-checked-javascript.mjs && tsc -p tsconfig.javascript.json',
 	);
-	assert.match(packageJson.scripts.typecheck, /npm run typecheck:javascript$/u);
+	// `npm run typecheck` reaches the gate through whichever scripts it is
+	// composed of; it was one command and is now split across the projects the
+	// CI matrix type-checks in parallel, so what matters is that the gate is
+	// still reachable from it, not which script names it directly.
+	assert.ok(reachesScript(packageJson.scripts, 'typecheck', 'typecheck:javascript'),
+		'npm run typecheck must still run the checked JavaScript gate');
 
 	const eslintConfigurations = (await import('../eslint.config.mjs')).default;
 	const promiseLint = eslintConfigurations.find(({ files, rules }) => (
@@ -48,3 +53,12 @@ test('the checked JavaScript gate pins its strict runtime boundary inventory', a
 	assert.equal(promiseLint.rules['@typescript-eslint/no-misused-promises'], 'error');
 	assert.deepEqual(promiseLint.languageOptions.parserOptions.project, ['./tsconfig.javascript.json']);
 });
+
+/** Whether `npm run <from>` ultimately runs `npm run <target>`. */
+function reachesScript(scripts, from, target, seen = new Set()) {
+	if (seen.has(from)) return false;
+	seen.add(from);
+	return [...(scripts[from] ?? '').matchAll(/npm run ([\w:-]+)/gu)]
+		.map((match) => match[1])
+		.some((name) => name === target || reachesScript(scripts, name, target, seen));
+}

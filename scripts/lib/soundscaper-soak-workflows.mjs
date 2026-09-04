@@ -207,7 +207,7 @@ async function renderWav(page, target, outputDirectory) {
 	const dialog = page.getByRole('dialog', { name: 'Export audio', exact: true });
 	await dialog.waitFor({ state: 'visible' });
 	await chooseDropdown(page, dialog.locator('[data-export-field="format"]'), 'WAV');
-	await dialog.getByRole('button', { name: 'Start export', exact: true }).click();
+	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
 	let signature;
 	if (target === 'browser') {
 		const link = dialog.locator('[data-export-download]');
