@@ -74,7 +74,7 @@ test("the Effects page rearranges the Effect menu the way Audacity's does", asyn
 	const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
 	await menubar.getByRole('menuitem', { name: 'Effect', exact: true }).click();
 	let menu = page.getByRole('menu', { name: 'Effect', exact: true });
-	await expect(menu.getByRole('menuitem', { name: 'Volume and compression', exact: true })).toBeVisible();
+	await expect(menu.getByRole('menuitem', { name: /^Volume and compression/u })).toBeVisible();
 	await page.keyboard.press('Escape');
 
 	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
@@ -87,7 +87,7 @@ test("the Effects page rearranges the Effect menu the way Audacity's does", asyn
 
 	await menubar.getByRole('menuitem', { name: 'Effect', exact: true }).click();
 	menu = page.getByRole('menu', { name: 'Effect', exact: true });
-	await expect(menu.getByRole('menuitem', { name: 'Volume and compression', exact: true })).toHaveCount(0);
+	await expect(menu.getByRole('menuitem', { name: /^Volume and compression/u })).toHaveCount(0);
 	await expect(menu.getByRole('menuitem', { name: 'Amplify', exact: true })).toBeVisible();
 	await page.keyboard.press('Escape');
 });
