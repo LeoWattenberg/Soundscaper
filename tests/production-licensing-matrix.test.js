@@ -234,7 +234,7 @@ test('runtime provenance entries and distribution checks fail closed without cla
 	]);
 	const expectedAudioPayloads = {
 		flac: ['1.5.0', 'BSD-3-Clause', 153076, '0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986'],
-		opus: ['libopus-1.6.1+libogg-1.3.6', 'BSD-3-Clause', 385789, 'c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853'],
+		opus: ['libopus-1.6.1+libogg-1.3.6', 'BSD-3-Clause', 385914, 'c972c5019a7f56dfe9c712cb15c25ebb54b55b16b19b3b99a5b02c31ef311685'],
 		vorbis: ['libvorbis-1.3.7+libogg-1.3.6', 'BSD-3-Clause', 523227, 'c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5'],
 		wavpack: ['5.9.0', 'BSD-3-Clause', 145537, 'c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908'],
 		mpg123: ['1.33.7', 'LGPL-2.1-only', 172329, 'd2b5686a16141ec97dbeb4e4f2a1ce28b756dd3eaf6438b31379356c8dd958ae'],

@@ -26,7 +26,7 @@ const ENCODE_FIXTURES = Object.freeze([
 	Object.freeze({ format: 'flac', settings: Object.freeze({ compressionLevel: 5, bitDepth: 24 }) }),
 	Object.freeze({ format: 'mp3', settings: Object.freeze({ bitrateKbps: 192 }) }),
 	Object.freeze({ format: 'ogg-vorbis', settings: Object.freeze({ quality: 6 }) }),
-	Object.freeze({ format: 'opus', settings: Object.freeze({ bitrateKbps: 128 }) }),
+	Object.freeze({ format: 'opus', settings: Object.freeze({ bitrateKbps: 128, vbrMode: 1 }) }),
 	Object.freeze({ format: 'wavpack', settings: Object.freeze({ compressionLevel: 2 }) }),
 	Object.freeze({ format: 'mp2', settings: Object.freeze({ bitrateKbps: 192 }) }),
 	Object.freeze({ format: 'aac-m4a', settings: Object.freeze({ bitrateKbps: 192 }) }),
@@ -363,6 +363,25 @@ test("the MP3 contract admits Audacity's four bit-rate strategies, one per reque
 	assert.equal(desktopAudioMp3ConstantBitrateKbps({ preset: 2 }), null);
 	assert.equal(desktopAudioMp3ConstantBitrateKbps({ vbrQuality: 2 }), null);
 	assert.equal(desktopAudioMp3ConstantBitrateKbps({ averageBitrateKbps: 192 }), null);
+});
+
+test("the Opus contract carries Audacity's VBR Mode alongside the bitrate", () => {
+	const opus = (settings: Readonly<Record<string, number>>) => ({
+		...encodeRequest('opus'), sampleRate: 48_000, settings,
+	});
+	for (const vbrMode of [0, 1, 2]) {
+		assert.doesNotThrow(() => assertDesktopAudioCodecRequest(opus({ bitrateKbps: 128, vbrMode })));
+	}
+	/* The mode is required and bounded, and no other setting is admitted. */
+	assert.throws(() => assertDesktopAudioCodecRequest(opus({ bitrateKbps: 128 })), /inexact/u);
+	assert.throws(() => assertDesktopAudioCodecRequest(opus({ bitrateKbps: 128, vbrMode: 3 })), /VBR mode/u);
+	assert.throws(() => assertDesktopAudioCodecRequest(opus({ bitrateKbps: 129, vbrMode: 1 })), /bitrate/u);
+
+	for (const [vbrMode, spelling] of [[0, 'off'], [1, 'on'], [2, 'constrained']] as const) {
+		const plan = buildDesktopAudioFfmpegPlan(opus({ bitrateKbps: 128, vbrMode }));
+		assert.equal(argumentValue(plan.arguments, '-b:a'), '128k');
+		assert.equal(argumentValue(plan.arguments, '-vbr'), spelling);
+	}
 });
 
 test('the external FFmpeg tier spells every MP3 strategy the way LAME means it', () => {

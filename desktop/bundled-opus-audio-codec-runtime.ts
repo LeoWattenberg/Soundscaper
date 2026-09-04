@@ -12,6 +12,8 @@ import {
 	parseBundledOpusStream,
 } from './bundled-opus-stream.ts';
 import {
+	OPUS_MAXIMUM_VBR_MODE,
+	OPUS_VBR_MODE_ON,
 	normalizeDesktopAudioCodecRequest,
 	type DesktopAudioCodecRequest,
 } from './desktop-audio-codec-operation-contract.ts';
@@ -30,8 +32,8 @@ import {
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 
 export const BUNDLED_OPUS_VERSION = 'libopus-1.6.1+libogg-1.3.6';
-export const BUNDLED_OPUS_WASM_BYTE_LENGTH = 385_789;
-export const BUNDLED_OPUS_WASM_SHA256 = 'c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853';
+export const BUNDLED_OPUS_WASM_BYTE_LENGTH = 385_914;
+export const BUNDLED_OPUS_WASM_SHA256 = 'c972c5019a7f56dfe9c712cb15c25ebb54b55b16b19b3b99a5b02c31ef311685';
 export const BUNDLED_OPUS_SAMPLE_RATE = 48_000;
 export const BUNDLED_OPUS_MAXIMUM_CHANNELS = 2;
 export const BUNDLED_OPUS_WASM_URL = new URL(
@@ -63,8 +65,9 @@ interface OpusExports {
 	readonly scop_maximum_memory_bytes: () => number;
 	readonly scop_allocate: (bytes: number) => number;
 	readonly scop_free: (pointer: number) => void;
+	readonly scop_maximum_vbr_mode: () => number;
 	readonly scop_encode_float32: (
-		input: number, frames: number, channels: number, bitrate: number,
+		input: number, frames: number, channels: number, bitrate: number, vbrMode: number,
 		output: number, outputCapacity: number,
 	) => number;
 	readonly scop_decode_float32: (
@@ -77,6 +80,7 @@ interface OpusEncodeOptions {
 	readonly frameCount: number;
 	readonly channelCount: number;
 	readonly bitrate: number;
+	readonly vbrMode: number;
 	readonly maximumOutputBytes: number;
 }
 
@@ -211,12 +215,15 @@ function encode(
 	codec: OpusCodec,
 ): Uint8Array {
 	const frameCount = request.input.byteLength / (request.channelCount * Float32Array.BYTES_PER_ELEMENT);
-	const settings = request.settings as Readonly<{ readonly bitrateKbps: number }>;
+	const settings = request.settings as Readonly<{
+		readonly bitrateKbps: number; readonly vbrMode: number;
+	}>;
 	validateFiniteFloat32(request.input);
 	try {
 		return codec.encode(request.input, {
 			frameCount, channelCount: request.channelCount,
 			bitrate: settings.bitrateKbps * 1_000,
+			vbrMode: settings.vbrMode,
 			maximumOutputBytes: request.maximumOutputBytes,
 		});
 	} catch (error) {
@@ -272,7 +279,8 @@ async function loadReviewedWasm(source: Uint8Array): Promise<OpusExports> {
 	const instance = await WebAssembly.instantiate(module, imports);
 	const exports = normalizeExports(instance.exports);
 	exports._initialize();
-	if (exports.scop_abi_version() !== 1 || exports.scop_sample_rate() !== BUNDLED_OPUS_SAMPLE_RATE
+	if (exports.scop_abi_version() !== 2 || exports.scop_sample_rate() !== BUNDLED_OPUS_SAMPLE_RATE
+		|| exports.scop_maximum_vbr_mode() !== OPUS_MAXIMUM_VBR_MODE
 		|| exports.scop_maximum_channels() !== BUNDLED_OPUS_MAXIMUM_CHANNELS
 		|| exports.scop_maximum_frames() !== MAXIMUM_FRAME_COUNT
 		|| exports.scop_initial_memory_bytes() !== INITIAL_MEMORY_BYTES
@@ -289,7 +297,8 @@ function normalizeExports(exports: WebAssembly.Exports): OpusExports {
 	const result: Record<string, WebAssembly.Memory | ((...arguments_: number[]) => number | void)> = { memory };
 	for (const name of [
 		'_initialize', 'scop_abi_version', 'scop_sample_rate', 'scop_maximum_channels',
-		'scop_maximum_frames', 'scop_initial_memory_bytes', 'scop_maximum_memory_bytes',
+		'scop_maximum_frames', 'scop_maximum_vbr_mode',
+		'scop_initial_memory_bytes', 'scop_maximum_memory_bytes',
 		'scop_allocate', 'scop_free', 'scop_encode_float32', 'scop_decode_float32',
 	]) {
 		const value = exports[name] ?? exports[`_${name}`];
@@ -305,7 +314,7 @@ function wasmCodec(exports: OpusExports): OpusCodec {
 			return invokeCodec(exports, input, options.maximumOutputBytes, null, (inputPointer, outputPointer) => (
 				exports.scop_encode_float32(
 					inputPointer, options.frameCount, options.channelCount, options.bitrate,
-					outputPointer, options.maximumOutputBytes,
+					options.vbrMode, outputPointer, options.maximumOutputBytes,
 				)
 			));
 		},
@@ -367,7 +376,8 @@ function verifyCanary(codec: OpusCodec): void {
 	}
 	const input = new Uint8Array(source.buffer);
 	const encoded = codec.encode(input, {
-		frameCount: frames, channelCount: channels, bitrate: 128_000, maximumOutputBytes: 64 * 1024,
+		frameCount: frames, channelCount: channels, bitrate: 128_000,
+		vbrMode: OPUS_VBR_MODE_ON, maximumOutputBytes: 64 * 1024,
 	});
 	const geometry = parseBundledOpusStream(encoded);
 	const decoded = codec.decode(encoded, {

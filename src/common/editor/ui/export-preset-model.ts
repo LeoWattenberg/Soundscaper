@@ -36,7 +36,7 @@ export const PRESET_SETTING_KEYS: Readonly<Record<DeliveryPresetKind, readonly s
 		'sampleRate', 'channelMapping', 'sampleFormat', 'dither',
 		'bitRate', 'quality', 'compressionLevel', 'mode', 'includeTail',
 		'loudnessNormalization',
-		'bitRateMode', 'bitRatePreset', 'vbrQuality', 'averageBitRate',
+		'bitRateMode', 'bitRatePreset', 'vbrQuality', 'averageBitRate', 'vbrMode',
 	]),
 	// The video canvas is nested rather than flat, so it is translated below
 	// rather than copied across; nothing else in the dialog is a video setting.
@@ -68,6 +68,7 @@ const AUDIO_LAYOUT_DEFAULT = DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT;
 
 const AUDIO_PRESET_DIALOG_DEFAULTS = Object.freeze({
 	loudnessNormalization: '', bitRatePreset: '2', vbrQuality: '2', averageBitRate: '192',
+	vbrMode: 'on',
 });
 const VIDEO_PRESET_DIALOG_DEFAULTS = Object.freeze({
 	canvasWidth: '', canvasHeight: '', canvasFit: CANVAS_FIT_DEFAULT, canvasFrameRate: '',

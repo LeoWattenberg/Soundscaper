@@ -13,7 +13,8 @@ const QUERY = Object.freeze({
 	operations: Object.freeze([
 		Object.freeze({
 			operation: 'audio-encode' as const, format: 'opus' as const,
-			sampleRate: 48_000, channelCount: 2, settings: Object.freeze({ bitrateKbps: 128 }),
+			sampleRate: 48_000, channelCount: 2,
+			settings: Object.freeze({ bitrateKbps: 128, vbrMode: 1 }),
 		}),
 		Object.freeze({
 			operation: 'audio-decode' as const, format: 'flac' as const,
@@ -34,7 +35,7 @@ test('capability query is a closed bounded set of exact audio tuples', () => {
 		...QUERY,
 		operations: [
 			QUERY.operations[0],
-			{ ...QUERY.operations[0], settings: { bitrateKbps: 160 } },
+			{ ...QUERY.operations[0], settings: { bitrateKbps: 160, vbrMode: 1 } },
 		],
 	}));
 	for (const value of [
@@ -62,8 +63,9 @@ test('capability result is pathless, correlated, and has closed provider and rea
 	]);
 	for (const value of [
 		{ schemaVersion: 2, capabilities: [{ ...result.capabilities[0], executablePath: '/private/ffmpeg' }, result.capabilities[1]] },
-		{ schemaVersion: 2, capabilities: [{ ...result.capabilities[0], format: 'mp3' }, result.capabilities[1]] },
-		{ schemaVersion: 2, capabilities: [{ ...result.capabilities[0], settings: { bitrateKbps: 160 } }, result.capabilities[1]] },
+		/* A valid MP3 tuple that the opus query never asked about. */
+		{ schemaVersion: 2, capabilities: [{ ...result.capabilities[0], format: 'mp3', settings: { bitrateKbps: 128 } }, result.capabilities[1]] },
+		{ schemaVersion: 2, capabilities: [{ ...result.capabilities[0], settings: { bitrateKbps: 160, vbrMode: 1 } }, result.capabilities[1]] },
 		{ schemaVersion: 2, capabilities: [{ ...result.capabilities[0], provider: 'renderer' }, result.capabilities[1]] },
 		{ schemaVersion: 2, capabilities: [{ ...result.capabilities[0], available: false }, result.capabilities[1]] },
 		{ schemaVersion: 2, capabilities: [result.capabilities[0]] },

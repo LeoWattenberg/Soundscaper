@@ -15,6 +15,7 @@ import {
 	exportDialogMp3BitRateModeOptions,
 	exportDialogMp3QualityKey,
 	exportDialogMp3QualityOptions,
+	exportDialogOpusVbrModeOptions,
 	exportDialogOutputChannelCount,
 	exportDialogSampleFormats,
 	exportDialogSampleRateSuggestions,
@@ -72,6 +73,7 @@ test('browser codec options and stale settings stay inside dedicated profiles', 
 		format: 'opus', sampleRate: '44100', bitRate: '320', channelMapping: 'preserve',
 	}, false, 6), {
 		format: 'opus', sampleRate: '48000', bitRate: '256', channelMapping: 'stereo',
+		vbrMode: 'on',
 	});
 	assert.deepEqual(normalizeExportDialogAudioSettings({
 		format: 'ogg-vorbis', sampleRate: '384000', quality: '-1',
@@ -178,4 +180,22 @@ test('stale MP3 dialog settings are pulled back into their own rows', () => {
 	assert.equal(normalized.vbrQuality, '0');
 	assert.equal(normalized.bitRate, '64');
 	assert.equal(normalized.averageBitRate, '320');
+});
+
+test("the Opus rows are Audacity's three VBR modes", () => {
+	const copy = { vbrModeOff: 'Off', vbrModeOn: 'On', vbrModeConstrained: 'Constrained' };
+	assert.deepEqual(exportDialogOpusVbrModeOptions(copy), [
+		{ value: 'off', label: 'Off' },
+		{ value: 'on', label: 'On' },
+		{ value: 'constrained', label: 'Constrained' },
+	]);
+
+	/* A stale mode falls back to Audacity's default rather than reaching the codec. */
+	const normalized = normalizeExportDialogAudioSettings({
+		format: 'opus', sampleRate: '48000', channelMapping: 'stereo', vbrMode: 'auto',
+	}, false);
+	assert.equal(normalized.vbrMode, 'on');
+	assert.equal(normalizeExportDialogAudioSettings({
+		format: 'opus', sampleRate: '48000', channelMapping: 'stereo', vbrMode: 'constrained',
+	}, false).vbrMode, 'constrained');
 });

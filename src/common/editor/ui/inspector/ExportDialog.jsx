@@ -48,6 +48,7 @@ import {
 	exportDialogBitRateSelectionReason, exportDialogCompressionLevels,
 	exportDialogDefaultSampleFormat, exportDialogMaximumAudioSampleRate, exportDialogMetadata, exportDialogMetadataAvailable,
 	exportDialogMp3BitRateModeOptions, exportDialogMp3QualityKey, exportDialogMp3QualityOptions,
+	exportDialogOpusVbrModeOptions,
 	exportDialogOutputChannelCount, exportDialogSampleFormats, exportDialogSampleRateSuggestions,
 	exportDialogVorbisQualityOptions, normalizeExportDialogAudioSettings,
 } from '../export-dialog-audio-codec-options.ts';
@@ -341,6 +342,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 		? desktopCodecQuery?.operations?.[0]?.channelCount
 		: exportDialogOutputChannelCount(settings, projectChannelCount);
 	const mp3Format = settings.format === 'mp3';
+	const opusFormat = settings.format === 'opus';
 	/* MP3 carries Audacity's Bit Rate Mode, and its Quality row follows the mode. */
 	const mp3BitRateMode = settings.bitRateMode || 'preset';
 	const mp3QualityKey = exportDialogMp3QualityKey(mp3BitRateMode);
@@ -479,6 +481,9 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 						<>
 							{mp3Format && (
 								<LabeledDropdown label={copy.bitRateMode} hook="bitRateMode" value={mp3BitRateMode} onChange={(value) => setCodec('bitRateMode', value)} disabled={exporting} options={exportDialogMp3BitRateModeOptions(copy)} />
+							)}
+							{opusFormat && (
+								<LabeledDropdown label={copy.vbrMode} hook="vbrMode" value={settings.vbrMode || 'on'} onChange={(value) => setCodec('vbrMode', value)} disabled={exporting} options={exportDialogOpusVbrModeOptions(copy)} />
 							)}
 							<LabeledDropdown label={copy.quality} hook="quality" value={settings[mp3Format ? mp3QualityKey : 'bitRate']} onChange={(value) => setCodec(mp3Format ? mp3QualityKey : 'bitRate', value)} disabled={exporting} options={formatQualityOptions} />
 						</>

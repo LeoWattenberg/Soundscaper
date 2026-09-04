@@ -29,7 +29,7 @@ test('the exact artifact gates a narrow Ogg Opus provider on all five targets', 
 		assert.match(runtime.provider.capabilityGeneration, new RegExp(BUNDLED_OPUS_WASM_SHA256, 'u'));
 	}
 	assert.equal(BUNDLED_OPUS_SAMPLE_RATE, 48_000);
-	assert.equal(BUNDLED_OPUS_WASM_BYTE_LENGTH, 385_789);
+	assert.equal(BUNDLED_OPUS_WASM_BYTE_LENGTH, 385_914);
 	assert.equal(await loadBundledOpusAudioCodecRuntime({
 		target: 'win-x64', readPayload: async () => new Uint8Array(BUNDLED_OPUS_WASM_BYTE_LENGTH),
 	}), null);
@@ -55,9 +55,9 @@ test('UI-facing capability status exposes only the reviewed 48 kHz mono/stereo O
 		}),
 	});
 	const operations = [
-		{ operation: 'audio-encode' as const, format: 'opus' as const, sampleRate: 48_000, channelCount: 2, settings: { bitrateKbps: 160 } },
-		{ operation: 'audio-encode' as const, format: 'opus' as const, sampleRate: 24_000, channelCount: 2, settings: { bitrateKbps: 160 } },
-		{ operation: 'audio-encode' as const, format: 'opus' as const, sampleRate: 48_000, channelCount: 3, settings: { bitrateKbps: 160 } },
+		{ operation: 'audio-encode' as const, format: 'opus' as const, sampleRate: 48_000, channelCount: 2, settings: { bitrateKbps: 160, vbrMode: 1 } },
+		{ operation: 'audio-encode' as const, format: 'opus' as const, sampleRate: 24_000, channelCount: 2, settings: { bitrateKbps: 160, vbrMode: 1 } },
+		{ operation: 'audio-encode' as const, format: 'opus' as const, sampleRate: 48_000, channelCount: 3, settings: { bitrateKbps: 160, vbrMode: 1 } },
 	];
 	const result = await service.capabilities({ schemaVersion: 2, operations });
 	assert.deepEqual(result.capabilities.map(({ available, provider, reason }) => ({
@@ -182,7 +182,7 @@ function encodeRequest(
 ): DesktopAudioCodecRequest {
 	return Object.freeze({
 		operation: 'audio-encode', format: 'opus', input, sampleRate, channelCount,
-		settings: Object.freeze({ bitrateKbps }), maximumOutputBytes: 1024 * 1024,
+		settings: Object.freeze({ bitrateKbps, vbrMode: 1 }), maximumOutputBytes: 1024 * 1024,
 		requestId: 'opus-encode',
 	});
 }

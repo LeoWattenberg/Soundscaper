@@ -42,6 +42,8 @@ export interface EditorExportSettings {
 	readonly bitRatePreset?: number;
 	readonly vbrQuality?: number;
 	readonly averageBitRate?: number;
+	/** Opus only: Audacity's VBR Mode — off, on, or constrained. */
+	readonly vbrMode?: string;
 	readonly quality: number | undefined;
 	readonly compressionLevel: number | undefined;
 	readonly sampleRate: number;
@@ -95,6 +97,9 @@ export function normalizeEditorExportSettings(
 			bitRatePreset: numberOrDefault(value.bitRatePreset, 2),
 			vbrQuality: numberOrDefault(value.vbrQuality, 2),
 			averageBitRate: numberOrDefault(value.averageBitRate, 192),
+		} : {}),
+		...(format === 'opus' ? {
+			vbrMode: typeof value.vbrMode === 'string' && value.vbrMode ? value.vbrMode : 'on',
 		} : {}),
 		quality: format === 'ogg-vorbis' ? quality : undefined,
 		compressionLevel: format === 'flac' || format === 'wavpack' ? compressionLevel : undefined,

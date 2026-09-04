@@ -25,6 +25,7 @@ import {
 	createMediaExportCapabilities,
 	mp3CodecRateSettings,
 	normalizeMediaExportSettings,
+	opusCodecRateSettings,
 } from './media-export.js';
 import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 import type { WavPcmDescriptor } from './wav-pcm-chunk-reader.ts';
@@ -421,6 +422,7 @@ function codecSettings(
 	}
 	if (format === 'ogg-vorbis') return Object.freeze({ quality: requiredInteger(media.quality, 'quality') });
 	if (format === 'mp3') return mp3CodecRateSettings(media);
+	if (format === 'opus') return opusCodecRateSettings(media);
 	return Object.freeze({ bitrateKbps: requiredInteger(media.bitRate, 'bitrate') });
 }
 

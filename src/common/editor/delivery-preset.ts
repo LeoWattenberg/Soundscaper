@@ -34,6 +34,8 @@ export const DELIVERY_PRESET_SETTINGS: Readonly<Record<DeliveryPresetKind, reado
 		'loudnessNormalization',
 		/* MP3 carries Audacity's bit-rate mode plus the value each mode keeps. */
 		'bitRateMode', 'bitRatePreset', 'vbrQuality', 'averageBitRate',
+		/* Opus carries Audacity's VBR Mode. */
+		'vbrMode',
 	]),
 	video: Object.freeze([
 		'size', 'fit', 'frameRate', 'backgroundColor',

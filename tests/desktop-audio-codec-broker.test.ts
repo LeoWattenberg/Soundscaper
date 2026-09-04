@@ -99,7 +99,7 @@ test('preflight falls through in fixed priority and only the selected external r
 	assert.deepEqual(outcome.receipt.inputDigests, [sha256(input)]);
 	assert.equal(outcome.receipt.outputDigest, sha256(Uint8Array.of(9, 8, 7)));
 	assert.deepEqual(outcome.receipt.operation, deriveDesktopAudioCodecOperation(request));
-	assert.deepEqual(outcome.receipt.settings, { bitrateKbps: 128 });
+	assert.deepEqual(outcome.receipt.settings, { bitrateKbps: 128, vbrMode: 1 });
 	assert.equal(Object.isFrozen(outcome.receipt.settings), true);
 	assert.equal(outcome.receipt.capabilityGeneration, 'external-ffmpeg-test-generation');
 	assert.equal(outcome.receipt.timing, null);
@@ -350,7 +350,8 @@ function encodeRequest(format: DesktopAudioCodecFormat): DesktopAudioCodecReques
 	const settings = format === 'flac' ? { compressionLevel: 5, bitDepth: 24 as const }
 		: format === 'wavpack' ? { compressionLevel: 5 }
 		: format === 'ogg-vorbis' ? { quality: 7 }
-			: { bitrateKbps: format === 'mp2' ? 192 : 128 };
+			: format === 'opus' ? { bitrateKbps: 128, vbrMode: 1 }
+				: { bitrateKbps: format === 'mp2' ? 192 : 128 };
 	return {
 		operation: 'audio-encode', format, input: new Uint8Array(new Float32Array([0.25, -0.25]).buffer),
 		sampleRate: 48_000, channelCount: 2, settings, maximumOutputBytes: 1_024,

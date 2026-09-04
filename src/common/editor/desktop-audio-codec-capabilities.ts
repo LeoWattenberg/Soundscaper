@@ -15,6 +15,7 @@ import {
 } from '../../../desktop/desktop-audio-codec-capability-contract.ts';
 import {
 	DESKTOP_AUDIO_CODEC_FORMATS,
+	OPUS_VBR_MODE_ON,
 	desktopAudioCodecEncodeBitRates,
 	type DesktopAudioCodecFormat,
 } from '../../../desktop/desktop-audio-codec-operation-contract.ts';
@@ -153,7 +154,8 @@ function defaultEncodeSettings(
 	if (format === 'flac') return Object.freeze({ compressionLevel: 5, bitDepth: 24 });
 	if (format === 'wavpack') return Object.freeze({ compressionLevel: 2 });
 	if (format === 'ogg-vorbis') return Object.freeze({ quality: 5 });
-	if (format === 'opus') return Object.freeze({ bitrateKbps: 160 });
+	/* Opus states Audacity's default VBR Mode alongside its bitrate. */
+	if (format === 'opus') return Object.freeze({ bitrateKbps: 160, vbrMode: OPUS_VBR_MODE_ON });
 	if (format === 'mp2') return Object.freeze({ bitrateKbps: 256 });
 	return Object.freeze({
 		bitrateKbps: desktopAudioCodecEncodeBitRates(format, sampleRate, channelCount)[0]

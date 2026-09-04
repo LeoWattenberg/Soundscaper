@@ -26,9 +26,10 @@ mac-x64 is rejected rather than treated as a compatibility alias:
 - libFLAC 1.5.0, 153,076 bytes, SHA-256
   `0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986`,
   for bounded FLAC encode/decode through the reviewed signed-24-bit profile;
-- libopus 1.6.1 with libogg 1.3.6, 385,789 bytes, SHA-256
-  `c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853`,
-  for 48 kHz mono/stereo Ogg Opus encode/decode;
+- libopus 1.6.1 with libogg 1.3.6, 385,914 bytes, SHA-256
+  `c972c5019a7f56dfe9c712cb15c25ebb54b55b16b19b3b99a5b02c31ef311685`,
+  for 48 kHz mono/stereo Ogg Opus encode/decode in Audacity's constant,
+  variable, and constrained-variable bit-rate modes;
 - libvorbis 1.3.7 with libogg 1.3.6, 523,227 bytes, SHA-256
   `c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5`,
   for 8–192 kHz mono/stereo Ogg Vorbis encode/decode;

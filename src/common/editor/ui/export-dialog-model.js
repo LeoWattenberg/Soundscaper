@@ -95,6 +95,7 @@ export function createExportDialogRequest(settings, options = {}) {
 			vbrQuality: statedNumber(settings.vbrQuality, 2),
 			averageBitRate: statedNumber(settings.averageBitRate, 192),
 		} : {}),
+		...(settings.format === 'opus' ? { vbrMode: settings.vbrMode || 'on' } : {}),
 		quality: settings.format === 'ogg-vorbis' ? Number(settings.quality) : undefined,
 		compressionLevel: ['flac', 'wavpack'].includes(settings.format) ? Number(settings.compressionLevel) : undefined,
 		sampleRate: Number(settings.sampleRate),

@@ -26,7 +26,11 @@ export type DesktopAudioMp3EncodeSettings =
 	| Readonly<{ readonly vbrQuality: number }>
 	| Readonly<{ readonly preset: number }>;
 export type DesktopAudioVorbisEncodeSettings = Readonly<{ readonly quality: number }>;
-export type DesktopAudioOpusEncodeSettings = Readonly<{ readonly bitrateKbps: number }>;
+/** Opus carries a bitrate plus Audacity's VBR Mode index: Off, On, Constrained. */
+export type DesktopAudioOpusEncodeSettings = Readonly<{
+	readonly bitrateKbps: number;
+	readonly vbrMode: number;
+}>;
 export type DesktopAudioWavpackEncodeSettings = Readonly<{ readonly compressionLevel: number }>;
 export type DesktopAudioMp2EncodeSettings = Readonly<{ readonly bitrateKbps: number }>;
 export type DesktopAudioAacEncodeSettings = Readonly<{ readonly bitrateKbps: number }>;
@@ -146,6 +150,11 @@ export const MP3_RATE_MODE_VARIABLE = 2;
 export const MP3_RATE_MODE_PRESET = 3;
 export const MP3_MAXIMUM_VBR_QUALITY = 9;
 export const MP3_MAXIMUM_PRESET = 3;
+/** Audacity's Opus VBR Mode indices: 0 Off, 1 On, 2 Constrained. */
+export const OPUS_MAXIMUM_VBR_MODE = 2;
+export const OPUS_VBR_MODE_OFF = 0;
+export const OPUS_VBR_MODE_ON = 1;
+export const OPUS_VBR_MODE_CONSTRAINED = 2;
 const OPUS_BITRATE_VALUES = Object.freeze([16, 24, 32, 48, 64, 80, 96, 112, 128, 160, 192, 256]);
 const MP2_BITRATE_VALUES = Object.freeze([32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384]);
 const AAC_BITRATE_VALUES = Object.freeze([32, 48, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]);
@@ -389,6 +398,12 @@ function validateEncodeSettings(
 	}
 	if (format === 'mp3') {
 		validateMp3EncodeSettings(settings, sampleRate, channelCount);
+		return;
+	}
+	if (format === 'opus') {
+		exactKeys(settings, ['bitrateKbps', 'vbrMode'], ['bitrateKbps', 'vbrMode'], 'opus encode settings');
+		integer(settings.vbrMode, 0, OPUS_MAXIMUM_VBR_MODE, 'opus VBR mode');
+		validateEncodeBitrate('opus', settings.bitrateKbps, sampleRate, channelCount);
 		return;
 	}
 	exactKeys(settings, ['bitrateKbps'], ['bitrateKbps'], `${format} encode settings`);

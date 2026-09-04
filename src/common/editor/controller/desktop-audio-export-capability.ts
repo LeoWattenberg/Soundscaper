@@ -12,7 +12,7 @@ import {
 	desktopAudioCodecCapabilityReason,
 	queryDesktopAudioCodecCapability,
 } from '../desktop-audio-codec-capabilities.ts';
-import { mp3CodecRateSettings } from '../media-export.js';
+import { mp3CodecRateSettings, opusCodecRateSettings } from '../media-export.js';
 import {
 	DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER,
 	isDesktopMainAudioCodecRuntime,
@@ -32,6 +32,7 @@ interface DesktopAudioExportPlan {
 		readonly bitRatePreset?: unknown;
 		readonly vbrQuality?: unknown;
 		readonly averageBitRate?: unknown;
+		readonly vbrMode?: unknown;
 	}>;
 }
 
@@ -96,6 +97,8 @@ function audioPlan(value: DesktopAudioExportPlan): Readonly<{
 	/* MP3 asks about the strategy the delivery actually chose, not just a bitrate. */
 	else if (value.format === 'mp3') {
 		settings = mp3CodecRateSettings(value.encoding ?? {}) as DesktopAudioCodecCapabilitySettings;
+	} else if (value.format === 'opus') {
+		settings = opusCodecRateSettings(value.encoding ?? {}) as DesktopAudioCodecCapabilitySettings;
 	} else settings = Object.freeze({
 		bitrateKbps: plannedInteger(value.encoding?.bitRate, 1, 1_000, `${value.format} bitrate`),
 	});

@@ -7,7 +7,7 @@
 #include <ogg/ogg.h>
 #include <opus.h>
 
-#define SCOP_ABI_VERSION 1
+#define SCOP_ABI_VERSION 2
 #define SCOP_SAMPLE_RATE 48000
 #define SCOP_MAXIMUM_CHANNELS 2
 #define SCOP_MAXIMUM_FRAMES 33554432
@@ -16,6 +16,17 @@
 #define SCOP_FRAME_SIZE 960
 #define SCOP_PACKET_BYTES 1276
 #define SCOP_SERIAL 0x53434f50
+
+/*
+ * Audacity's Opus VBR Mode, ported: Off holds the bitrate constant, On lets
+ * each frame take what it needs, and Constrained varies the rate while keeping
+ * every frame inside the target so the stream stays usable where a decoder
+ * budgets per frame.
+ */
+#define SCOP_VBR_MODE_OFF 0
+#define SCOP_VBR_MODE_ON 1
+#define SCOP_VBR_MODE_CONSTRAINED 2
+#define SCOP_MAXIMUM_VBR_MODE 2
 
 typedef struct {
 	unsigned char *bytes;
@@ -68,6 +79,7 @@ int scop_abi_version(void) { return SCOP_ABI_VERSION; }
 int scop_sample_rate(void) { return SCOP_SAMPLE_RATE; }
 int scop_maximum_channels(void) { return SCOP_MAXIMUM_CHANNELS; }
 int scop_maximum_frames(void) { return SCOP_MAXIMUM_FRAMES; }
+int scop_maximum_vbr_mode(void) { return SCOP_MAXIMUM_VBR_MODE; }
 int scop_initial_memory_bytes(void) { return SCOP_INITIAL_MEMORY_BYTES; }
 int scop_maximum_memory_bytes(void) { return SCOP_MAXIMUM_MEMORY_BYTES; }
 
@@ -83,12 +95,14 @@ int scop_encode_float32(
 	uint32_t frames,
 	uint32_t channels,
 	uint32_t bitrate,
+	uint32_t vbr_mode,
 	unsigned char *output,
 	uint32_t output_capacity
 ) {
 	if (!input || !output || frames == 0 || frames > SCOP_MAXIMUM_FRAMES
 		|| channels == 0 || channels > SCOP_MAXIMUM_CHANNELS
-		|| bitrate < 16000 || bitrate > 256000 || output_capacity == 0) return 0;
+		|| bitrate < 16000 || bitrate > 256000
+		|| vbr_mode > SCOP_MAXIMUM_VBR_MODE || output_capacity == 0) return 0;
 	int error = OPUS_OK;
 	OpusEncoder *encoder = opus_encoder_create(SCOP_SAMPLE_RATE, (int)channels, OPUS_APPLICATION_AUDIO, &error);
 	ogg_stream_state stream;
@@ -98,11 +112,18 @@ int scop_encode_float32(
 	int result = 0;
 	if (!encoder || error != OPUS_OK) goto cleanup;
 	int lookahead = 0;
+	int variable = vbr_mode == SCOP_VBR_MODE_OFF ? 0 : 1;
+	int constrained = vbr_mode == SCOP_VBR_MODE_CONSTRAINED ? 1 : 0;
+	int applied_vbr = -1;
+	int applied_constraint = -1;
 	if (opus_encoder_ctl(encoder, OPUS_SET_BITRATE((int)bitrate)) != OPUS_OK
-		|| opus_encoder_ctl(encoder, OPUS_SET_VBR(1)) != OPUS_OK
-		|| opus_encoder_ctl(encoder, OPUS_SET_VBR_CONSTRAINT(0)) != OPUS_OK
+		|| opus_encoder_ctl(encoder, OPUS_SET_VBR(variable)) != OPUS_OK
+		|| opus_encoder_ctl(encoder, OPUS_SET_VBR_CONSTRAINT(constrained)) != OPUS_OK
 		|| opus_encoder_ctl(encoder, OPUS_SET_COMPLEXITY(10)) != OPUS_OK
 		|| opus_encoder_ctl(encoder, OPUS_SET_SIGNAL(OPUS_SIGNAL_MUSIC)) != OPUS_OK
+		|| opus_encoder_ctl(encoder, OPUS_GET_VBR(&applied_vbr)) != OPUS_OK
+		|| opus_encoder_ctl(encoder, OPUS_GET_VBR_CONSTRAINT(&applied_constraint)) != OPUS_OK
+		|| applied_vbr != variable || applied_constraint != constrained
 		|| opus_encoder_ctl(encoder, OPUS_GET_LOOKAHEAD(&lookahead)) != OPUS_OK
 		|| lookahead <= 0 || lookahead > UINT16_MAX) goto cleanup;
 	if (ogg_stream_init(&stream, SCOP_SERIAL) != 0) goto cleanup;

@@ -40,7 +40,7 @@ const DESCRIPTORS: Readonly<Record<BundledAudioCodecId, Readonly<ProviderDescrip
 	opus: Object.freeze({
 		id: (target: DesktopCodecTarget) => `bundled-libopus-libogg-wasm-${target}`,
 		implementation: 'libopus-libogg-wasm-f32', version: 'libopus-1.6.1+libogg-1.3.6',
-		capabilityGeneration: 'libopus-libogg-c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853',
+		capabilityGeneration: 'libopus-libogg-c972c5019a7f56dfe9c712cb15c25ebb54b55b16b19b3b99a5b02c31ef311685',
 		unsupportedReason: 'The bundled libopus/libogg payload supports 48 kHz family-0 mono/stereo only.',
 	}),
 	twolame: Object.freeze({

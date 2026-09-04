@@ -23,6 +23,7 @@ export function createExportDialogInitialSettings(projectValue: unknown) {
 		bitRateMode: 'preset',
 		bitRatePreset: '2',
 		vbrQuality: '2',
+		vbrMode: 'on',
 		compressionLevel: '5',
 		sampleRate: String(project.sampleRate || 48_000),
 		channelMapping: 'preserve',

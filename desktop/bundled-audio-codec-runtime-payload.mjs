@@ -43,8 +43,8 @@ const CODEC_FILES = Object.freeze({
 	opus: Object.freeze({
 		module: 'project-library-runtime/desktop/bundled-opus-audio-codec-runtime.js',
 		wasm: 'project-library-runtime/src/common/editor/opus/opus.wasm',
-		wasmBytes: 385_789,
-		wasmSha256: 'c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853',
+		wasmBytes: 385_914,
+		wasmSha256: 'c972c5019a7f56dfe9c712cb15c25ebb54b55b16b19b3b99a5b02c31ef311685',
 	}),
 	twolame: Object.freeze({
 		module: 'project-library-runtime/desktop/bundled-twolame-audio-codec-runtime.js',

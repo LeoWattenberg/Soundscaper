@@ -72,6 +72,7 @@ const MP2_BITRATES = new Set([32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 2
 const OPUS_BITRATES = new Set([16, 24, 32, 48, 64, 80, 96, 112, 128, 160, 192, 256]);
 const MAXIMUM_MP3_VBR_QUALITY = 9;
 const MAXIMUM_MP3_PRESET = 3;
+const MAXIMUM_OPUS_VBR_MODE = 2;
 const MP3_RATE_MODE_CONSTANT = 0;
 const MP3_RATE_MODE_AVERAGE = 1;
 const MP3_RATE_MODE_VARIABLE = 2;
@@ -92,8 +93,9 @@ const PAYLOADS: Readonly<Record<BrowserDedicatedAudioFormat, PayloadDescriptor>>
 		sha256: 'c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5', prefix: 'scvb',
 	}),
 	opus: Object.freeze({
-		url: new URL('./opus/opus.wasm', import.meta.url), byteLength: 385_789,
-		sha256: 'c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853', prefix: 'scop',
+		url: new URL('./opus/opus.wasm', import.meta.url), byteLength: 385_914,
+		sha256: 'c972c5019a7f56dfe9c712cb15c25ebb54b55b16b19b3b99a5b02c31ef311685',
+		prefix: 'scop', abiVersion: 2,
 	}),
 	wavpack: Object.freeze({
 		url: new URL('./wavpack/wavpack.wasm', import.meta.url), byteLength: 145_537,
@@ -352,9 +354,8 @@ function validateProfile(
 	if (format === 'flac') exactIntegerSetting(settings, 'compressionLevel', 0, 8);
 	else if (format === 'ogg-vorbis') exactIntegerSetting(settings, 'quality', 0, 10);
 	else if (format === 'wavpack') exactIntegerSetting(settings, 'compressionLevel', 2, 2);
-	else if (format === 'opus') {
-		admittedBitrate(exactIntegerSetting(settings, 'bitrateKbps', 16, 256), OPUS_BITRATES, format);
-	} else if (format === 'mp3') validateMp3Profile(geometry, settings);
+	else if (format === 'opus') validateOpusProfile(settings);
+	else if (format === 'mp3') validateMp3Profile(geometry, settings);
 	else {
 		const bitrate = exactIntegerSetting(settings, 'bitrateKbps', 32, 384);
 		admittedBitrate(bitrate, MP2_BITRATES, format);
@@ -385,7 +386,7 @@ function encodeArguments(request: DedicatedAudioEncodeRequest): number[] {
 		case 'flac': return [...common, request.sampleRate, request.settings.compressionLevel!];
 		case 'mp3': return [...common, request.sampleRate, ...mp3RateArguments(request.settings)];
 		case 'ogg-vorbis': return [...common, request.sampleRate, request.settings.quality!];
-		case 'opus': return [...common, request.settings.bitrateKbps! * 1_000];
+		case 'opus': return [...common, request.settings.bitrateKbps! * 1_000, request.settings.vbrMode!];
 		case 'mp2': return [...common, request.sampleRate, request.settings.bitrateKbps!];
 		case 'wavpack': throw new Error('WavPack uses its bounded chunk encoder.');
 	}
@@ -566,6 +567,23 @@ function validateFinitePcm(input: Uint8Array): void {
 }
 
 /**
+ * Opus carries a bitrate and Audacity's VBR Mode, which selects a constant rate,
+ * an unconstrained variable rate, or a variable rate held inside the target.
+ */
+function validateOpusProfile(settings: Readonly<Record<string, number>>): void {
+	exactIntegerSettings(settings, ['bitrateKbps', 'vbrMode'], 'opus');
+	if (!Number.isSafeInteger(settings.vbrMode)
+		|| settings.vbrMode! < 0 || settings.vbrMode! > MAXIMUM_OPUS_VBR_MODE) {
+		throw new RangeError('Dedicated audio setting vbrMode is outside its profile.');
+	}
+	if (!Number.isSafeInteger(settings.bitrateKbps)
+		|| settings.bitrateKbps! < 16 || settings.bitrateKbps! > 256) {
+		throw new RangeError('Dedicated audio setting bitrateKbps is outside its profile.');
+	}
+	admittedBitrate(settings.bitrateKbps!, OPUS_BITRATES, 'opus');
+}
+
+/**
  * MP3 admits one bit-rate strategy per request, named by the request's only
  * setting key. The four strategies are Audacity's: `preset` selects a named
  * LAME preset 0 (Excessive) through 3 (Medium), `vbrQuality` LAME's variable
@@ -619,6 +637,19 @@ function exactIntegerSetting(
 		throw new RangeError(`Dedicated audio setting ${key} is outside its profile.`);
 	}
 	return Number(value);
+}
+
+/** A request states exactly the settings its profile names, and nothing else. */
+function exactIntegerSettings(
+	settings: Readonly<Record<string, number>>,
+	keys: readonly string[],
+	format: string,
+): void {
+	const own = Reflect.ownKeys(settings);
+	if (own.length !== keys.length || keys.some((key) => {
+		const descriptor = Object.getOwnPropertyDescriptor(settings, key);
+		return descriptor === undefined || !Object.hasOwn(descriptor, 'value');
+	})) throw new RangeError(`Dedicated ${format} settings are outside their profile.`);
 }
 
 function admittedBitrate(

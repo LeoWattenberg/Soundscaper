@@ -6,8 +6,8 @@ import { dirname, join } from 'node:path';
 
 export const DESKTOP_BUNDLED_OPUS_WASM = Object.freeze({
 	file: 'src/common/editor/opus/opus.wasm',
-	byteLength: 385_789,
-	sha256: 'c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853',
+	byteLength: 385_914,
+	sha256: 'c972c5019a7f56dfe9c712cb15c25ebb54b55b16b19b3b99a5b02c31ef311685',
 });
 
 /** Copy only the exact reviewed libopus/libogg payload into the compiled desktop graph. */

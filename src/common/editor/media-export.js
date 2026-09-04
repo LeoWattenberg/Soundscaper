@@ -74,7 +74,7 @@ export const MEDIA_EXPORT_FORMATS = deepFreeze({
 	opus: {
 		id: 'opus', label: 'Opus', backend: 'ffmpeg', extension: 'opus', mimeType: 'audio/ogg; codecs=opus',
 		container: 'Ogg Opus', codec: 'libopus', lossless: false, maximumChannels: 8,
-		sampleFormats: [], defaults: { bitRate: 160 },
+		sampleFormats: [], defaults: { bitRate: 160, vbrMode: 'on' },
 		requiredEncoders: ['libopus'], requiredMuxers: [['opus', 'ogg']],
 	},
 	wavpack: {
@@ -117,6 +117,8 @@ export const MP3_BIT_RATE_MODES = Object.freeze(['preset', 'variable', 'average'
 /** Audacity's named presets, from Excessive through Medium. */
 export const MP3_PRESETS = Object.freeze(['excessive', 'extreme', 'standard', 'medium']);
 export const MP3_MAXIMUM_VBR_QUALITY = 9;
+/** Audacity's Opus VBR Mode: Off, On and Constrained, in its own option order. */
+export const OPUS_VBR_MODES = Object.freeze(['off', 'on', 'constrained']);
 
 const BIT_RATES = Object.freeze({
 	mp3: [32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320],
@@ -286,6 +288,13 @@ export function normalizeMediaExportSettings(format, options = {}) {
 		settings.quality = numberInRange(options.quality ?? descriptor.defaults.quality, -1, 10, 'Vorbis quality');
 	} else if (descriptor.id === 'mp3') {
 		normalizeMp3RateSettings(settings, descriptor, options);
+	} else if (descriptor.id === 'opus') {
+		settings.bitRate = allowedNumber(options.bitRate ?? descriptor.defaults.bitRate, BIT_RATES.opus, 'Opus bitrate');
+		const vbrMode = String(options.vbrMode ?? descriptor.defaults.vbrMode);
+		if (!OPUS_VBR_MODES.includes(vbrMode)) {
+			throw new RangeError(`Opus VBR mode ${vbrMode} is unsupported.`);
+		}
+		settings.vbrMode = vbrMode;
 	} else if (BIT_RATES[descriptor.id]) {
 		settings.bitRate = allowedNumber(options.bitRate ?? descriptor.defaults.bitRate, BIT_RATES[descriptor.id], `${descriptor.label} bitrate`);
 	}
@@ -449,7 +458,7 @@ export function buildMediaFfmpegEncoderArgs(input, output, format, options = {})
 	if (descriptor.id === 'mp3') args.push('-c:a', 'libmp3lame', ...mp3FfmpegRateArguments(settings), '-f', 'mp3');
 	else if (descriptor.id === 'flac') args.push('-c:a', 'flac', '-sample_fmt', settings.sampleFormat === 'int16' ? 's16' : 's32', '-compression_level', String(settings.compressionLevel), '-f', 'flac');
 	else if (descriptor.id === 'ogg-vorbis') args.push('-c:a', 'libvorbis', '-q:a', String(settings.quality), '-f', 'ogg');
-	else if (descriptor.id === 'opus') args.push('-c:a', 'libopus', '-b:a', `${settings.bitRate}k`, '-vbr', 'on', '-f', 'ogg');
+	else if (descriptor.id === 'opus') args.push('-c:a', 'libopus', '-b:a', `${settings.bitRate}k`, '-vbr', settings.vbrMode, '-f', 'ogg');
 	else if (descriptor.id === 'wavpack') args.push('-c:a', 'wavpack', '-sample_fmt', ffmpegSampleFormat(settings.sampleFormat), '-compression_level', String(settings.compressionLevel), '-f', 'wv');
 	else if (descriptor.id === 'mp2') args.push('-c:a', 'mp2', '-b:a', `${settings.bitRate}k`, '-f', 'mp2');
 	else if (descriptor.id === 'aac-m4a') args.push('-c:a', 'aac', '-b:a', `${settings.bitRate}k`, '-movflags', '+faststart', '-f', 'ipod');
@@ -458,6 +467,19 @@ export function buildMediaFfmpegEncoderArgs(input, output, format, options = {})
 	args.push(...mediaMetadataToFfmpegArgs(settings.metadata));
 	args.push('-y', String(output));
 	return args;
+}
+
+/**
+ * Project normalized Opus settings onto the codec request. The payload takes the
+ * VBR mode as its index in Audacity's own option order.
+ * @returns {Readonly<Record<string, number>>}
+ */
+export function opusCodecRateSettings(settings) {
+	const mode = OPUS_VBR_MODES.indexOf(String(settings.vbrMode ?? 'on'));
+	return Object.freeze({
+		bitrateKbps: Number(settings.bitRate),
+		vbrMode: mode < 0 ? OPUS_VBR_MODES.indexOf('on') : mode,
+	});
 }
 
 /**

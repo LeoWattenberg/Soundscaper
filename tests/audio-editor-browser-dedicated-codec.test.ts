@@ -23,7 +23,7 @@ const CASES = Object.freeze([
 	Object.freeze({ format: 'flac', settings: { compressionLevel: 5 }, signature: 'fLaC' }),
 	Object.freeze({ format: 'mp3', settings: { bitrateKbps: 128 }, signature: null }),
 	Object.freeze({ format: 'ogg-vorbis', settings: { quality: 5 }, signature: 'OggS' }),
-	Object.freeze({ format: 'opus', settings: { bitrateKbps: 128 }, signature: 'OggS' }),
+	Object.freeze({ format: 'opus', settings: { bitrateKbps: 128, vbrMode: 1 }, signature: 'OggS' }),
 	Object.freeze({ format: 'wavpack', settings: { compressionLevel: 2 }, signature: 'wvpk' }),
 	Object.freeze({ format: 'mp2', settings: { bitrateKbps: 192 }, signature: null }),
 ] satisfies readonly Readonly<{
@@ -143,6 +143,35 @@ test('browser dedicated MP3 rejects a request naming more than one strategy', as
 	}
 });
 
+test("browser dedicated Opus honours Audacity's three VBR modes", async () => {
+	const frameCount = 48_000 * 2;
+	const channelCount = 2;
+	const sampleRate = 48_000;
+	const input = sinePcm(frameCount, channelCount, sampleRate);
+	const payload = await readFile(PAYLOADS.opus);
+	const encode = async (vbrMode: number) => encodeDedicatedAudioPcm({
+		format: 'opus',
+		input: new Uint8Array(input.buffer),
+		frameCount,
+		channelCount,
+		sampleRate,
+		settings: { bitrateKbps: 96, vbrMode },
+		maximumOutputBytes: 4 * 1024 * 1024,
+	}, { loadPayload: async () => payload });
+
+	const constant = await encode(0);
+	const variable = await encode(1);
+	const constrained = await encode(2);
+	/* Every mode still writes a complete Ogg Opus stream at the same geometry. */
+	for (const output of [constant, variable, constrained]) {
+		assert.equal(new TextDecoder().decode(output.subarray(0, 4)), 'OggS');
+		assert.notEqual(indexOfAscii(output, 'OpusHead'), -1);
+	}
+	/* A constant rate holds every page to one size; an unconstrained one does not. */
+	assert.ok(oggPageSizes(constant).size < oggPageSizes(variable).size);
+	assert.ok(oggPageSizes(constrained).size <= oggPageSizes(variable).size);
+});
+
 test('browser dedicated codecs reject tuples outside the reviewed native profiles before loading payloads', async () => {
 	const cases: readonly Readonly<{
 		format: BrowserDedicatedAudioFormat;
@@ -150,7 +179,9 @@ test('browser dedicated codecs reject tuples outside the reviewed native profile
 		sampleRate: number;
 		settings: Readonly<Record<string, number>>;
 	}>[] = [
-		{ format: 'opus', channelCount: 2, sampleRate: 48_000, settings: { bitrateKbps: 384 } },
+		{ format: 'opus', channelCount: 2, sampleRate: 48_000, settings: { bitrateKbps: 384, vbrMode: 1 } },
+		{ format: 'opus', channelCount: 2, sampleRate: 48_000, settings: { bitrateKbps: 128 } },
+		{ format: 'opus', channelCount: 2, sampleRate: 48_000, settings: { bitrateKbps: 128, vbrMode: 3 } },
 		{ format: 'mp3', channelCount: 2, sampleRate: 48_000, settings: { bitrateKbps: 32 } },
 		{ format: 'mp3', channelCount: 1, sampleRate: 44_100, settings: { bitrateKbps: 17 } },
 		{ format: 'mp2', channelCount: 2, sampleRate: 48_000, settings: { bitrateKbps: 80 } },
@@ -215,4 +246,20 @@ function frameBitrates(bytes: Uint8Array): readonly number[] {
 		offset += Math.floor(144 * kbps * 1_000 / 48_000) + (bytes[offset + 2]! >>> 1 & 1);
 	}
 	return [...rates].sort((left, right) => left - right);
+}
+
+/** The distinct Ogg page payload sizes in a stream, past its two header pages. */
+function oggPageSizes(bytes: Uint8Array): ReadonlySet<number> {
+	const sizes = new Set<number>();
+	let page = 0;
+	for (let offset = 0; offset + 27 <= bytes.byteLength;) {
+		if (String.fromCharCode(...bytes.subarray(offset, offset + 4)) !== 'OggS') { offset++; continue; }
+		const segments = bytes[offset + 26]!;
+		let total = 0;
+		for (let index = 0; index < segments; index++) total += bytes[offset + 27 + index]!;
+		if (page >= 2) sizes.add(total);
+		page += 1;
+		offset += 27 + segments + total;
+	}
+	return sizes;
 }

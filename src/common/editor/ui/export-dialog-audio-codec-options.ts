@@ -31,6 +31,10 @@ const MP3_BIT_RATE_MODE_COPY_KEYS: Readonly<Record<string, string>> = Object.fre
 const MP3_PRESET_COPY_KEYS = Object.freeze([
 	'mp3PresetExcessive', 'mp3PresetExtreme', 'mp3PresetStandard', 'mp3PresetMedium',
 ]);
+/** Audacity's Opus VBR Mode row, in its own option order. */
+const OPUS_VBR_MODE_COPY_KEYS: Readonly<Record<string, string>> = Object.freeze({
+	off: 'vbrModeOff', on: 'vbrModeOn', constrained: 'vbrModeConstrained',
+});
 const MP3_VARIABLE_RANGES = Object.freeze([
 	'220-260 kbps', '200-250 kbps', '170-210 kbps', '155-195 kbps', '145-185 kbps',
 	'110-150 kbps', '95-135 kbps', '80-120 kbps', '65-105 kbps', '45-85 kbps',
@@ -132,6 +136,15 @@ export function exportDialogMp3QualityOptions(
 		})));
 	}
 	return exportDialogBitRateOptions('mp3', desktop, sampleRate, channelCount);
+}
+
+/** Audacity's three Opus VBR Mode choices. */
+export function exportDialogOpusVbrModeOptions(
+	copy: Readonly<Record<string, unknown>>,
+): readonly DialogOption[] {
+	return Object.freeze(Object.entries(OPUS_VBR_MODE_COPY_KEYS).map(([value, key]) => (
+		Object.freeze({ value, label: String(copy[key] ?? value) })
+	)));
 }
 
 /** The settings key that the Quality row writes for the selected mode. */
@@ -301,6 +314,11 @@ export function normalizeExportDialogAudioSettings(
 			setChanged(patch, settings, 'bitRatePreset', clampedIndex(settings.bitRatePreset, 3, 2));
 			setChanged(patch, settings, 'vbrQuality', clampedIndex(settings.vbrQuality, 9, 2));
 		}
+	}
+	if (format === 'opus') {
+		setChanged(patch, settings, 'vbrMode', Object.hasOwn(
+			OPUS_VBR_MODE_COPY_KEYS, String(settings.vbrMode),
+		) ? String(settings.vbrMode) : 'on');
 	}
 	if (format === 'ogg-vorbis') {
 		setChanged(patch, settings, 'quality', closestOption(

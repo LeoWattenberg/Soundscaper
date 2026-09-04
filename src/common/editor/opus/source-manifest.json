@@ -72,7 +72,7 @@
 	"localFiles": [
 		{
 			"path": "native/soundscaper_opus.c",
-			"sha256": "c00f7b9c29dc6fc411310f4966d3c67b7ecd12be4f56994699561f16cbee8e99"
+			"sha256": "8f25945c8cfaf220059e3bd5233899af22662d1a1a2941e4680a08aa5439b7c2"
 		},
 		{
 			"path": "NOTICE.md",
@@ -89,7 +89,7 @@
 	],
 	"wasm": {
 		"path": "opus.wasm",
-		"sha256": "c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853",
+		"sha256": "c972c5019a7f56dfe9c712cb15c25ebb54b55b16b19b3b99a5b02c31ef311685",
 		"maximumBytes": 524288,
 		"initialMemoryBytes": 8388608,
 		"maximumMemoryBytes": 268435456,
@@ -101,6 +101,7 @@
 			"scop_sample_rate",
 			"scop_maximum_channels",
 			"scop_maximum_frames",
+			"scop_maximum_vbr_mode",
 			"scop_initial_memory_bytes",
 			"scop_maximum_memory_bytes",
 			"scop_allocate",

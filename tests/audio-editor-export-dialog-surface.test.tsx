@@ -170,6 +170,25 @@ interface ExportDialogFixtureOptions {
 	readonly labels?: readonly Readonly<Record<string, unknown>>[];
 }
 
+test("Opus delivery offers Audacity's VBR modes and states the chosen one", async () => {
+	const fixture = await mountedExportDialog();
+	try {
+		await fixture.chooseFormat('Opus');
+		assert.deepEqual(await fixture.fieldOptionLabels('vbrMode'), [
+			ENGLISH_COPY.vbrModeOff, ENGLISH_COPY.vbrModeOn, ENGLISH_COPY.vbrModeConstrained,
+		]);
+		await fixture.startExport();
+		/* A fresh Opus delivery takes Audacity's default of an unconstrained VBR. */
+		assert.equal(fixture.requests[0]?.vbrMode, 'on');
+
+		await fixture.chooseField('vbrMode', ENGLISH_COPY.vbrModeConstrained);
+		await fixture.startExport();
+		assert.equal(fixture.requests[1]?.vbrMode, 'constrained');
+	} finally {
+		await fixture.unmount();
+	}
+});
+
 test("MP3 delivery offers Audacity's bit rate modes and follows the chosen one", async () => {
 	const fixture = await mountedExportDialog();
 	try {

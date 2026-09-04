@@ -30,7 +30,7 @@ test('desktop export gate requires the exact planned encode tuple before renderi
 	assert.deepEqual((queries[0] as { operations: unknown[] }).operations, [
 		{
 			operation: 'audio-encode', format: 'opus', sampleRate: 48_000, channelCount: 6,
-			settings: { bitrateKbps: 128 },
+			settings: { bitrateKbps: 128, vbrMode: 1 },
 		},
 	]);
 });

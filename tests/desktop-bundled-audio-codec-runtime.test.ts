@@ -82,7 +82,7 @@ test('the composite exposes one bundled tier and delegates every reviewed audio 
 			Math.sin(index / 31) * 0.25
 		)).buffer),
 		sampleRate: 48_000, channelCount: 2,
-		settings: { bitrateKbps: 128 }, maximumOutputBytes: 64 * 1024,
+		settings: { bitrateKbps: 128, vbrMode: 1 }, maximumOutputBytes: 64 * 1024,
 	};
 	const opusResult = await runtime.execute(opusRequest, {
 		operation: deriveDesktopAudioCodecOperation(opusRequest),
@@ -176,7 +176,7 @@ test('broker receipts attribute bundled encode and decode to each concrete revie
 		['opus', opus, {
 			operation: 'audio-encode', format: 'opus', input: pcm,
 			sampleRate: 48_000, channelCount: 2,
-			settings: { bitrateKbps: 128 }, maximumOutputBytes: 256 * 1024,
+			settings: { bitrateKbps: 128, vbrMode: 1 }, maximumOutputBytes: 256 * 1024,
 		}],
 		['ogg-vorbis', vorbis, {
 			operation: 'audio-encode', format: 'ogg-vorbis', input: pcm,

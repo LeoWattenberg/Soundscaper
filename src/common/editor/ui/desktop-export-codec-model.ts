@@ -12,7 +12,7 @@ import {
 	desktopAudioCodecEncodeSampleRates,
 	type DesktopAudioCodecFormat,
 } from '../../../../desktop/desktop-audio-codec-operation-contract.ts';
-import { mp3CodecRateSettings } from '../media-export.js';
+import { mp3CodecRateSettings, opusCodecRateSettings } from '../media-export.js';
 import {
 	createDesktopAudioCodecCapabilityQuery,
 	desktopAudioCodecCapabilityReason,
@@ -153,6 +153,7 @@ function selectedEncodeSettings(
 	});
 	else if (format === 'ogg-vorbis') value = Object.freeze({ quality: Number(settings.quality) });
 	else if (format === 'mp3') value = mp3CodecRateSettings(settings);
+	else if (format === 'opus') value = opusCodecRateSettings(settings);
 	else value = Object.freeze({ bitrateKbps: Number(settings.bitRate) });
 	return Object.freeze({ [format]: value });
 }

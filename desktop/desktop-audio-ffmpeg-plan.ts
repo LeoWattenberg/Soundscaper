@@ -182,7 +182,8 @@ function encodeSettingsArguments(request: DesktopAudioEncodeRequest): readonly s
 			return Object.freeze(['-q:a', String(request.settings.quality)]);
 		case 'opus':
 			return Object.freeze([
-				'-b:a', `${String(request.settings.bitrateKbps)}k`, '-vbr', 'on', '-application', 'audio',
+				'-b:a', `${String(request.settings.bitrateKbps)}k`,
+				'-vbr', OPUS_VBR_MODE_ARGUMENTS[request.settings.vbrMode]!, '-application', 'audio',
 			]);
 		case 'wavpack':
 			return Object.freeze(['-compression_level', String(request.settings.compressionLevel)]);
@@ -212,6 +213,9 @@ function assertNever(value: never): never {
  * own preset table so this tier and the bundled encoder agree: Excessive is
  * constant 320 kbps, and Extreme, Standard and Medium are V0, V2 and V4.
  */
+/** FFmpeg's libopus spelling of Audacity's VBR Mode, in its own option order. */
+const OPUS_VBR_MODE_ARGUMENTS: readonly string[] = Object.freeze(['off', 'on', 'constrained']);
+
 const MP3_PRESET_ARGUMENTS: readonly (readonly string[])[] = Object.freeze([
 	Object.freeze(['-b:a', '320k']), Object.freeze(['-q:a', '0']),
 	Object.freeze(['-q:a', '2']), Object.freeze(['-q:a', '4']),

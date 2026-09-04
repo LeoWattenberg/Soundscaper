@@ -12,6 +12,7 @@ import {
 	listMediaExportFormats,
 	mediaChannelMappingToFfmpegFilter,
 	mp3CodecRateSettings,
+	opusCodecRateSettings,
 	normalizeMediaChannelMapping,
 	normalizeMediaDecodeSampleRate,
 	normalizeMediaExportSettings,
@@ -248,6 +249,33 @@ test("MP3 export carries Audacity's four bit-rate strategies through FFmpeg and 
 	assert.throws(() => settingsFor({ bitRateMode: 'preset', bitRatePreset: 4 }), /MP3 preset/u);
 	assert.throws(() => settingsFor({ bitRateMode: 'variable', vbrQuality: 10 }), /variable quality/u);
 	assert.throws(() => settingsFor({ bitRate: 144 }), /MP3 bitrate/u);
+});
+
+test("Opus export carries Audacity's VBR Mode through FFmpeg and the codec", () => {
+	const rateArgumentsFor = (options) => {
+		const args = buildMediaFfmpegEncoderArgs('stage.wav', 'out.opus', 'opus', {
+			...options, sampleRate: 48_000, channelCount: 2,
+		});
+		return args.slice(args.indexOf('libopus') + 1, args.indexOf('-f'));
+	};
+
+	/* A fresh Opus delivery takes Audacity's default, an unconstrained variable rate. */
+	assert.deepEqual(rateArgumentsFor({}), ['-b:a', '160k', '-vbr', 'on']);
+	assert.deepEqual(rateArgumentsFor({ vbrMode: 'off', bitRate: 128 }), ['-b:a', '128k', '-vbr', 'off']);
+	assert.deepEqual(rateArgumentsFor({ vbrMode: 'constrained' }), ['-b:a', '160k', '-vbr', 'constrained']);
+
+	const settings = normalizeMediaExportSettings('opus', {
+		vbrMode: 'constrained', bitRate: 96, sampleRate: 48_000, inputChannelCount: 2,
+	});
+	assert.equal(settings.vbrMode, 'constrained');
+	assert.deepEqual(opusCodecRateSettings(settings), { bitrateKbps: 96, vbrMode: 2 });
+	assert.deepEqual(opusCodecRateSettings({ bitRate: 128, vbrMode: 'off' }), {
+		bitrateKbps: 128, vbrMode: 0,
+	});
+
+	assert.throws(() => normalizeMediaExportSettings('opus', {
+		vbrMode: 'auto', sampleRate: 48_000, inputChannelCount: 2,
+	}), /VBR mode/u);
 });
 
 test('FFmpeg import targets the requested project sample rate instead of a fixed 48 kHz', () => {

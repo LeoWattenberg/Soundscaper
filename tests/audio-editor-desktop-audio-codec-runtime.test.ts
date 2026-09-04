@@ -20,7 +20,10 @@ const FORMAT_CASES = Object.freeze([
 	Object.freeze({ format: 'flac', settings: Object.freeze({ compressionLevel: 5 }), expected: Object.freeze({ compressionLevel: 5, bitDepth: 24 }) }),
 	Object.freeze({ format: 'mp3', settings: Object.freeze({ bitRate: 192 }), expected: Object.freeze({ bitrateKbps: 192 }) }),
 	Object.freeze({ format: 'ogg-vorbis', settings: Object.freeze({ quality: 6 }), expected: Object.freeze({ quality: 6 }) }),
-	Object.freeze({ format: 'opus', settings: Object.freeze({ bitRate: 128 }), expected: Object.freeze({ bitrateKbps: 128 }) }),
+	Object.freeze({
+		format: 'opus', settings: Object.freeze({ bitRate: 128 }),
+		expected: Object.freeze({ bitrateKbps: 128, vbrMode: 1 }),
+	}),
 	Object.freeze({ format: 'wavpack', settings: Object.freeze({ compressionLevel: 2 }), expected: Object.freeze({ compressionLevel: 2 }) }),
 	Object.freeze({ format: 'mp2', settings: Object.freeze({ bitRate: 192 }), expected: Object.freeze({ bitrateKbps: 192 }) }),
 	Object.freeze({ format: 'aac-m4a', settings: Object.freeze({ bitRate: 192 }), expected: Object.freeze({ bitrateKbps: 192 }) }),

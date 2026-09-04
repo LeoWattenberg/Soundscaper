@@ -21,7 +21,7 @@ import {
 } from './desktop-audio-codec-result.ts';
 import {
 	applyMediaChannelMapping, canonicalMediaExportFormat, createMediaExportCapabilities,
-	mp3CodecRateSettings, normalizeMediaExportSettings,
+	mp3CodecRateSettings, normalizeMediaExportSettings, opusCodecRateSettings,
 } from './media-export.js';
 import {
 	FFMPEG_OUTPUT_STREAM_MAXIMUM_CHUNK_BYTES, abortFfmpegOutputSink,
@@ -376,6 +376,7 @@ function encodeSettings(format: DesktopAudioCodecFormat, media: NormalizedMediaS
 		return Object.freeze({ quality: requiredInteger(media.quality, 'Vorbis quality') });
 	}
 	if (format === 'mp3') return mp3CodecRateSettings(media);
+	if (format === 'opus') return opusCodecRateSettings(media);
 	return Object.freeze({ bitrateKbps: requiredInteger(media.bitRate, `${format} bitrate`) });
 }
 

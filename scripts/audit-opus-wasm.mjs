@@ -137,9 +137,10 @@ async function auditModule(wasm, manifest, findings) {
 		const api = instance.exports;
 		const exported = (name) => api[name] || api[`_${name}`];
 		exported('_initialize')?.();
-		if (exported('scop_abi_version')() !== 1 || exported('scop_sample_rate')() !== 48_000
+		if (exported('scop_abi_version')() !== 2 || exported('scop_sample_rate')() !== 48_000
 			|| exported('scop_maximum_channels')() !== 2
 			|| exported('scop_maximum_frames')() !== 33_554_432
+			|| exported('scop_maximum_vbr_mode')() !== 2
 			|| exported('scop_initial_memory_bytes')() !== 8 * 1024 * 1024
 			|| exported('scop_maximum_memory_bytes')() !== 256 * 1024 * 1024
 			|| api.memory.buffer.byteLength !== 8 * 1024 * 1024) {
@@ -166,7 +167,7 @@ function verifyCanary(memory, exported) {
 	try {
 		new Uint8Array(memory.buffer, inputPointer, input.byteLength).set(new Uint8Array(input.buffer));
 		const encodedBytes = exported('scop_encode_float32')(
-			inputPointer, frames, channels, 128_000, encodedPointer, encodedCapacity,
+			inputPointer, frames, channels, 128_000, 1, encodedPointer, encodedCapacity,
 		);
 		if (!Number.isSafeInteger(encodedBytes) || encodedBytes < 64 || encodedBytes > encodedCapacity) {
 			throw new Error('encoder returned an invalid byte count');

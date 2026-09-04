@@ -165,8 +165,8 @@ x64/ARM64, macOS ARM64, and Windows x64/ARM64. macOS x64 is unsupported.
   [`OGG.txt`](src/common/editor/opus/licenses/OGG.txt)
 - detailed notice: [`NOTICE.md`](src/common/editor/opus/NOTICE.md)
 - source/build manifest: [`source-manifest.json`](src/common/editor/opus/source-manifest.json)
-- exact `opus.wasm`: 385,789 bytes; SHA-256
-  `c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853`
+- exact `opus.wasm`: 385,914 bytes; SHA-256
+  `c972c5019a7f56dfe9c712cb15c25ebb54b55b16b19b3b99a5b02c31ef311685`
 
 The admitted public profile is Ogg Opus at the mandatory 48 kHz presentation
 rate, mapping family 0 mono or stereo, zero output gain, fixed 20 ms packets,

@@ -38,7 +38,7 @@ export const EXPORT_FORMAT_DEFAULTS = Object.freeze({
 	flac: { bitDepth: 24, compressionLevel: 5 },
 	mp3: { bitRateMode: 'preset', bitRatePreset: 2, vbrQuality: 2, bitRate: 192, averageBitRate: 192 },
 	'ogg-vorbis': { quality: 5 },
-	opus: { bitRate: 160 },
+	opus: { bitRate: 160, vbrMode: 'on' },
 	wavpack: { bitDepth: 24, compressionLevel: 2 },
 	mp2: { bitRate: 256 },
 	'aac-m4a': { bitRate: 192 },
