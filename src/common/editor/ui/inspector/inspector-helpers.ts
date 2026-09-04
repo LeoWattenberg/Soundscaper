@@ -161,43 +161,46 @@ export function bitrateOption(value: number): Readonly<{ value: string; label: s
 	return { value: String(value), label: `${value} kbps` };
 }
 
-export const CLIP_PITCH_UNITS = Object.freeze(['cents', 'percent'] as const);
+export const CLIP_PITCH_UNITS = Object.freeze(['semitones', 'percent'] as const);
 
 export type ClipPitchUnit = typeof CLIP_PITCH_UNITS[number];
 
 /**
  * The unit choices the clip inspector offers for a pitch shift.
  *
- * Semitones and cents are one choice rather than two: a semitone is a hundred
- * cents, so the single cent field already writes both, and the pitch up and
- * down commands step it a semitone at a time. Cents stay first because they
- * are the unit a clip stores and the one the rest of the editor talks about.
+ * Audacity's Change Pitch dialog is the model: it writes a shift as semitones
+ * carrying two decimals, so a hundred and one cents read as 1.01 rather than
+ * splitting into a semitone box and a cent box, and it offers the change in
+ * frequency beside them as a percentage. Semitones stay first because they are
+ * what the pitch up and down commands step.
  */
 export function clipPitchUnitOptions(
 	copy: InspectorCopy,
 ): ReadonlyArray<Readonly<{ value: ClipPitchUnit; label: string }>> {
 	return [
-		{ value: 'cents', label: copy.clipPitchUnitCents },
+		{ value: 'semitones', label: copy.clipPitchUnitSemitones },
 		{ value: 'percent', label: copy.clipPitchUnitPercent },
 	];
 }
 
 export function clipPitchUnitFieldLabel(copy: InspectorCopy, unit: ClipPitchUnit): string {
-	return unit === 'percent' ? copy.clipPitchPercent : copy.clipPitchCents;
+	return unit === 'percent' ? copy.clipPitchPercent : copy.clipPitchSemitones;
 }
 
 /**
  * The pitch shift a clip carries, written in the unit on display.
  *
- * Cents are the stored unit and so are shown verbatim. A percentage is the
- * change in frequency the shift produces, not a share of the supported range,
- * which is why the octave a clip may be raised reads as +100 while the octave
- * it may be lowered reads as −50.
+ * A clip stores cents, and the two decimals of a semitone are exactly those
+ * cents, which is why the reading never has to carry between two figures. The
+ * percentage is the change in frequency the shift produces rather than a share
+ * of the supported range, so the octave a clip may be raised reads as +100
+ * while the octave it may be lowered reads as −50. Both keep the precision
+ * Audacity's Change Pitch dialog shows: two decimals and three.
  */
 export function clipPitchInUnit(cents: unknown, unit: ClipPitchUnit): string {
 	const amount = Number(cents) || 0;
-	if (unit === 'percent') return ((2 ** (amount / 1_200) - 1) * 100).toFixed(2);
-	return String(amount);
+	if (unit === 'percent') return (100 * (2 ** (amount / 1_200) - 1)).toFixed(3);
+	return (amount / 100).toFixed(2);
 }
 
 /**
@@ -206,8 +209,8 @@ export function clipPitchInUnit(cents: unknown, unit: ClipPitchUnit): string {
  * A percentage of −100 or less asks for a frequency of zero or below, which no
  * shift produces and whose logarithm is not a number, so it is refused with the
  * same range message the clip service raises for cents outside the octave.
- * Percentages are rounded to whole cents because a cent is already the finest
- * pitch step the editor stores.
+ * Both readings round to whole cents, because a cent is both the finest step a
+ * clip stores and the last decimal either field shows.
  */
 export function clipPitchUnitToCents(
 	value: unknown,
@@ -216,7 +219,7 @@ export function clipPitchUnitToCents(
 ): number {
 	const amount = Number(String(value ?? '').trim());
 	if (!Number.isFinite(amount)) throw new RangeError(copy.clipPitchRange);
-	if (unit !== 'percent') return amount;
+	if (unit !== 'percent') return Math.round(amount * 100);
 	if (amount <= -100) throw new RangeError(copy.clipPitchRange);
 	return Math.round(1_200 * Math.log2(1 + amount / 100));
 }

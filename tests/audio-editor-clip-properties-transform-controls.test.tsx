@@ -76,47 +76,62 @@ test('pitch and tempo owns its own render and reset buttons', async () => {
 	}
 });
 
-test('the pitch unit toggle offers semitones and cents together or a percentage', async () => {
+test('the pitch unit toggle offers Audacity\'s semitones or its percent change', async () => {
 	const fixture = await mountedFixture({ pitchCents: 200 });
 	try {
 		await fixture.render();
 
 		assert.deepEqual(
 			await fixture.pitchUnitOptions(),
-			[ENGLISH_COPY.clipPitchUnitCents, ENGLISH_COPY.clipPitchUnitPercent],
-			'semitones stay part of the cent field rather than becoming a unit of their own',
+			[ENGLISH_COPY.clipPitchUnitSemitones, ENGLISH_COPY.clipPitchUnitPercent],
+			'the two readings Audacity\'s Change Pitch dialog shows',
 		);
-		assert.equal(ENGLISH_COPY.clipPitchUnitCents, 'Semitones and cents');
-		assert.equal(fixture.pitchLabel(), ENGLISH_COPY.clipPitchCents);
-		assert.equal(fixture.pitchValue(), '200', 'two hundred cents are the two semitones stored');
+		assert.equal(ENGLISH_COPY.clipPitchUnitSemitones, 'Semitones (half-steps)');
+		assert.equal(fixture.pitchLabel(), ENGLISH_COPY.clipPitchSemitones);
+		assert.equal(fixture.pitchValue(), '2.00');
 
 		await fixture.choosePitchUnit(ENGLISH_COPY.clipPitchUnitPercent);
 		assert.equal(fixture.pitchLabel(), ENGLISH_COPY.clipPitchPercent);
-		assert.equal(fixture.pitchValue(), '12.25', 'two hundred cents raise the frequency by 12.25%');
+		assert.equal(fixture.pitchValue(), '12.246', 'two hundred cents raise the frequency by 12.246%');
 
-		await fixture.choosePitchUnit(ENGLISH_COPY.clipPitchUnitCents);
-		assert.equal(fixture.pitchLabel(), ENGLISH_COPY.clipPitchCents);
-		assert.equal(fixture.pitchValue(), '200', 'reading the shift back never rewrote it');
+		await fixture.choosePitchUnit(ENGLISH_COPY.clipPitchUnitSemitones);
+		assert.equal(fixture.pitchValue(), '2.00', 'reading the shift back never rewrote it');
 		assert.deepEqual(fixture.timePitchCalls, []);
 	} finally {
 		await fixture.cleanup();
 	}
 });
 
-test('a pitch typed in the chosen unit commits the cents it asks for', async () => {
+test('cents are the two decimals of a semitone rather than a field of their own', async () => {
+	const fixture = await mountedFixture({ pitchCents: 101 });
+	try {
+		await fixture.render();
+		assert.equal(fixture.pitchValue(), '1.01', 'a semitone and a cent');
+
+		await fixture.commitPitch('1.01');
+		await fixture.commitPitch('-0.07');
+		await fixture.commitPitch('12');
+
+		assert.deepEqual(fixture.timePitchCalls, [
+			{ pitchCents: 101 },
+			{ pitchCents: -7 },
+			{ pitchCents: 1_200 },
+		]);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
+test('a percentage commits the cents that frequency change asks for', async () => {
 	const fixture = await mountedFixture();
 	try {
 		await fixture.render();
-
-		await fixture.commitPitch('-7');
-		await fixture.commitPitch('-700');
 		await fixture.choosePitchUnit(ENGLISH_COPY.clipPitchUnitPercent);
+
 		await fixture.commitPitch('100');
 		await fixture.commitPitch('-50');
 
 		assert.deepEqual(fixture.timePitchCalls, [
-			{ pitchCents: -7 },
-			{ pitchCents: -700 },
 			{ pitchCents: 1_200 },
 			{ pitchCents: -1_200 },
 		]);

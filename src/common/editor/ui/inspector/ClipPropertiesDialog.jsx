@@ -65,7 +65,7 @@ function ClipProperties({ controller, snapshot, copy }) {
 	// sound designers for a percentage of the original frequency. The unit is a
 	// reading of the same stored value, so it is remembered for the dialog
 	// rather than written to the clip.
-	const [pitchUnit, setPitchUnit] = useState('cents');
+	const [pitchUnit, setPitchUnit] = useState('semitones');
 	const projectIdentity = project?.id ?? null;
 	const clipIdentity = clip?.id ?? null;
 	const currentTarget = useRef({ projectIdentity, clipIdentity });
