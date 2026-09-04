@@ -553,9 +553,13 @@ test('design-system foundations stay vendor-owned while components follow eager 
 		chunkGroupForModulePath('vendor/audacity-design-system/components/src/TrackMeter/TrackMeter.tsx'),
 		'editor-shell-design-components',
 	);
+	// The shared dialog footer was dialog-only until every confirm row started
+	// going through it, including the effect preset bar and the effect picker,
+	// which the shell loads eagerly. Its bytes are in the startup path either
+	// way; owning them here keeps that from costing two more requests.
 	assert.equal(
 		chunkGroupForModulePath('vendor/audacity-design-system/components/src/Footer/Footer.tsx'),
-		null,
+		'editor-shell-design-components',
 	);
 	assert.equal(
 		chunkGroupForModulePath('vendor/audacity-design-system/components/src/PreferencePanel/PreferencePanel.tsx'),
