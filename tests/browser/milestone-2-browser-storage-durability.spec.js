@@ -70,6 +70,11 @@ test.describe('milestone 2 browser storage durability', () => {
 			return route.fulfill({
 				status: 200,
 				contentType: 'text/javascript; charset=utf-8',
+				// A worker script under /assets/ inherits its owner's embedder policy
+				// and has to carry it on its own response, which the deployment does
+				// through _headers. A fulfilled response never reaches that, so it
+				// says so itself or the worker does not load at all.
+				headers: { 'Cross-Origin-Embedder-Policy': 'credentialless' },
 				body: injected,
 			});
 		});

@@ -11,6 +11,7 @@ import {
 	chooseNestedCommandAction,
 	collectClientErrors,
 	importFiles,
+	readDownloadBytes,
 } from './audio-editor-test-helpers.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
@@ -322,18 +323,12 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		const download = dialog.locator('[data-export-download]');
 		await waitForVideoPublication(page, editor, download, 120_000, clientErrors);
 		await expect(download).toHaveAttribute('download', /\.mp4$/u, VISUAL_COMMAND_OPTIONS);
-		const witness = await download.evaluate(async (link) => {
-			const response = await fetch(link.href);
-			const bytes = new Uint8Array(await response.arrayBuffer());
-			return {
-				byteLength: bytes.byteLength,
-				mimeType: response.headers.get('content-type'),
-				box: String.fromCharCode(...bytes.subarray(4, 8)),
-			};
-		});
-		expect(witness.byteLength).toBeGreaterThan(32);
-		expect(witness.mimeType).toContain('video/mp4');
-		expect(witness.box).toBe('ftyp');
+		// Read through the download rather than fetching the blob: URL in the page:
+		// the shipped policy's connect-src carries no blob:. The container's own
+		// ftyp box stands where the blob's content type used to.
+		const bytes = await readDownloadBytes(page, download);
+		expect(bytes.byteLength).toBeGreaterThan(32);
+		expect(String.fromCharCode(...bytes.subarray(4, 8))).toBe('ftyp');
 		expect(clientErrors).toEqual([]);
 	});
 });

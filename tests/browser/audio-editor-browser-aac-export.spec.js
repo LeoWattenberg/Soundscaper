@@ -8,6 +8,7 @@ import {
 	disableNativeSavePicker,
 	importFiles,
 	openExportDialog,
+	readDownloadBytes,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 
@@ -48,9 +49,8 @@ test.describe('browser-native AAC export', () => {
 		await expect(download.or(failure)).toBeVisible({ timeout: 60_000 });
 		expect(await failure.allTextContents()).toEqual([]);
 		await expect(download).toHaveAttribute('download', /\.m4a$/u);
-		const witness = await download.evaluate(async (link) => {
-			const response = await fetch(link.href);
-			const bytes = new Uint8Array(await response.arrayBuffer());
+		const bytes = await readDownloadBytes(page, download);
+		const witness = ((() => {
 			const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 			const boxes = [];
 			let valid = true;
@@ -76,16 +76,20 @@ test.describe('browser-native AAC export', () => {
 			}
 			return {
 				boxes,
-				contentType: response.headers.get('content-type'),
+				brand: ascii(8, 4),
 				length: bytes.byteLength,
 				valid: valid && offset === bytes.byteLength,
 			};
-		});
+		})());
 
 		expect(witness.valid).toBe(true);
 		expect(witness.length).toBeGreaterThan(256);
-		expect(witness.contentType).toContain('audio/mp4');
 		expect(witness.boxes[0]?.type).toBe('ftyp');
+		// The container's own major brand stands where the blob's content type
+		// used to: reading it needed a page-side fetch of the blob: URL, which the
+		// shipped policy forbids, and the exporter's audio/mp4 label is asserted at
+		// its source in tests/audio-editor-media-export.test.js.
+		expect(['M4A ', 'isom', 'mp42', 'dash']).toContain(witness.brand);
 		expect(witness.boxes.map(({ type }) => type)).toEqual(expect.arrayContaining(['mdat', 'moov']));
 		expect(errors).toEqual([]);
 	});

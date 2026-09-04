@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+
 import {
 	AxeBuilder,
 	createHash,
@@ -132,6 +134,26 @@ export async function fileDataTransfer(page, files) {
 		mimeType: file.mimeType,
 		base64: file.buffer.toString('base64'),
 	})));
+}
+
+/**
+ * The bytes behind a download the browser has already reported.
+ *
+ * Specs used to read an export by fetching its `blob:` URL from inside the page,
+ * which the shipped content security policy forbids: `connect-src` carries no
+ * `blob:` on the web. Going through the download is both what a user's browser
+ * actually does and the only way that works under the real policy.
+ */
+export async function downloadBytes(download) {
+	const path = await download.path();
+	if (!path) throw new Error('The download produced no file on disk.');
+	return new Uint8Array(await readFile(path));
+}
+
+/** Presses a download link and returns the bytes the browser saved. */
+export async function readDownloadBytes(page, link) {
+	const [download] = await Promise.all([page.waitForEvent('download'), link.click()]);
+	return downloadBytes(download);
 }
 
 export async function importFiles(editor, files, options = { timeout: 20_000 }) {

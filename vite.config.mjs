@@ -13,6 +13,7 @@ import {
 	readProductReleaseLinesSync,
 	resolveProductApplicationVersion,
 } from './scripts/lib/product-release-lines.mjs';
+import { authoredWildcardResponseHeaders } from './scripts/lib/static-response-headers.mjs';
 import { enforceStartupGraphBudgets } from './scripts/lib/startup-graph-budget.mjs';
 import scopeAudacityDesignSystemCss, {
 	getScopedDesignSystemFiles,
@@ -85,6 +86,13 @@ function assertDesignSystemCssScoped() {
 }
 export default defineConfig({
 	appType: 'spa',
+	// The Playwright suite serves a real production build through `vite preview`,
+	// which does not apply `public/_headers` because that is a Cloudflare Pages
+	// artifact. Handing the preview server the authored wildcard rule is what
+	// makes the suite exercise the shipped content security policy and the
+	// cross-origin isolation the editor depends on, instead of a configuration no
+	// user ever gets.
+	preview: { headers: authoredWildcardResponseHeaders() },
 	publicDir: productId === 'soundscaper' && desktopCodecComposition ? false : 'public',
 	plugins: [
 		createPffftNodeModuleBrowserShim(),

@@ -10,6 +10,7 @@ import {
 	collectClientErrors,
 	getMenuItem,
 	openNestedCommandMenu,
+	readDownloadBytes,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
@@ -85,10 +86,15 @@ test.describe('Framescaper selected timeline images', () => {
 		const download = dialog.locator('[data-export-download]');
 		await waitForVideoPublication(page, editor, download, 120_000, clientErrors);
 		await expect(download).toHaveAttribute('download', /\.mp4$/u);
-		const witness = await download.evaluate(async (link) => {
-			const response = await fetch(link.href);
-			const bytes = new Uint8Array(await response.arrayBuffer());
-			const media = new Blob([bytes], { type: response.headers.get('content-type') || 'video/mp4' });
+		// Read through the download rather than fetching the blob: URL in the page:
+		// the shipped policy's connect-src carries no blob:. The bytes go back into
+		// the page because only a real <video> can prove the frame decodes.
+		const encoded = Buffer.from(await readDownloadBytes(page, download)).toString('base64');
+		const witness = await page.evaluate(async (base64) => {
+			const binary = atob(base64);
+			const bytes = new Uint8Array(binary.length);
+			for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+			const media = new Blob([bytes], { type: 'video/mp4' });
 			const mediaUrl = URL.createObjectURL(media);
 			let centerPixel;
 			try {
@@ -117,13 +123,11 @@ test.describe('Framescaper selected timeline images', () => {
 			}
 			return {
 				byteLength: bytes.byteLength,
-				mimeType: response.headers.get('content-type'),
 				box: String.fromCharCode(...bytes.subarray(4, 8)),
 				centerPixel,
 			};
-		});
+		}, encoded);
 		expect(witness.byteLength).toBeGreaterThan(32);
-		expect(witness.mimeType).toContain('video/mp4');
 		expect(witness.box).toBe('ftyp');
 		expect(witness.centerPixel[0]).toBeGreaterThan(160);
 		expect(witness.centerPixel[1]).toBeLessThan(96);

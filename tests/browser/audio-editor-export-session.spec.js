@@ -20,6 +20,7 @@ import {
 	collectClientErrors,
 	disableNativeSavePicker,
 	disableOfflineAudio,
+	downloadBytes,
 	effectSourceMetadata,
 	effectSourcePeak,
 	getMenuItem,
@@ -30,6 +31,7 @@ import {
 	openExportDialog,
 	openRackPicker,
 	openSelectionEffectDialog,
+	readDownloadBytes,
 	registerAudioEditorHooks,
 	seekOnRuler,
 	setDocumentTheme,
@@ -54,11 +56,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		const download = exportDialog.locator('[data-export-download]');
 		await expect(download).toBeVisible({ timeout: 20_000 });
 		await expect(download).toHaveAttribute('download', /-stems-.*\.zip$/);
-		const archive = await download.evaluate(async (link) => {
-			const bytes = new Uint8Array(await (await fetch(link.href)).arrayBuffer());
-			return { signature: Array.from(bytes.subarray(0, 4)), length: bytes.length };
-		});
-		expect(archive.signature).toEqual([0x50, 0x4b, 0x03, 0x04]);
+		const archive = await readDownloadBytes(page, download);
+		expect(Array.from(archive.subarray(0, 4))).toEqual([0x50, 0x4b, 0x03, 0x04]);
 		expect(archive.length).toBeGreaterThan(200);
 		expect(errors).toEqual([]);
 	});
@@ -69,7 +68,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		// The dialog starts the download itself once the file is ready, so the
 		// browser must report one without the link ever being pressed.
 		const downloads = [];
-		page.on('download', (download) => downloads.push(download.suggestedFilename()));
+		page.on('download', (download) => downloads.push(download));
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [longTone]);
 		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
@@ -89,18 +88,16 @@ test.describe('audio editor React/design-system workflows', () => {
 		const download = exportDialog.locator('[data-export-download]');
 		await expect(download).toBeVisible({ timeout: 20_000 });
 		await expect(download).toHaveAttribute('download', /-chapters-.*\.zip$/u);
-		const archive = await download.evaluate(async (link) => {
-			const bytes = new Uint8Array(await (await fetch(link.href)).arrayBuffer());
-			const text = new TextDecoder('latin1').decode(bytes);
-			return {
-				signature: Array.from(bytes.subarray(0, 4)),
-				entries: [...text.matchAll(/\d\d-[A-Za-z0-9-]+\.wav/gu)].map(([name]) => name),
-			};
-		});
+		await expect.poll(() => downloads.length).toBe(1);
+		const archiveBytes = await downloadBytes(downloads[0]);
+		const archive = {
+			signature: Array.from(archiveBytes.subarray(0, 4)),
+			entries: [...new TextDecoder('latin1').decode(archiveBytes).matchAll(/\d\d-[A-Za-z0-9-]+\.wav/gu)]
+				.map(([name]) => name),
+		};
 		expect(archive.signature).toEqual([0x50, 0x4b, 0x03, 0x04]);
 		expect([...new Set(archive.entries)]).toEqual(['01-chapter-1.wav', '02-chapter-2.wav']);
-		await expect.poll(() => downloads.length).toBe(1);
-		expect(downloads[0]).toMatch(/-chapters-.*\.zip$/u);
+		expect(downloads[0].suggestedFilename()).toMatch(/-chapters-.*\.zip$/u);
 		expect(errors).toEqual([]);
 	});
 
@@ -286,13 +283,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		const download = exportDialog.locator('[data-export-download]');
 		await expect(download).toBeVisible({ timeout: 15_000 });
 		await expect(download).toHaveAttribute('download', /\.wav$/);
-		const signature = await download.evaluate(async (link) => {
-			const bytes = new Uint8Array(await (await fetch(link.href)).arrayBuffer());
-			return [new TextDecoder().decode(bytes.subarray(0, 4)), new TextDecoder().decode(bytes.subarray(8, 12)), bytes.length];
-		});
-		expect(signature[0]).toBe('RIFF');
-		expect(signature[1]).toBe('WAVE');
-		expect(signature[2]).toBeGreaterThan(44);
+		const bytes = await readDownloadBytes(page, download);
+		expect(new TextDecoder().decode(bytes.subarray(0, 4))).toBe('RIFF');
+		expect(new TextDecoder().decode(bytes.subarray(8, 12))).toBe('WAVE');
+		expect(bytes.length).toBeGreaterThan(44);
 		expect(errors).toEqual([]);
 	});
 
@@ -306,7 +300,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		const download = exportDialog.locator('[data-export-download]');
 		await expect(download).toBeVisible({ timeout: 20_000 });
-		const header = await download.evaluate(async (link) => new TextDecoder().decode(new Uint8Array(await (await fetch(link.href)).arrayBuffer()).subarray(0, 4)));
+		const header = new TextDecoder().decode((await readDownloadBytes(page, download)).subarray(0, 4));
 		expect(header).toBe('RIFF');
 		expect(errors).toEqual([]);
 	});
@@ -578,12 +572,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(download.or(failure)).toBeVisible({ timeout: 60_000 });
 		expect(await failure.allTextContents()).toEqual([]);
 		await expect(download).toHaveAttribute('download', /\.mp3$/);
-		const signature = await download.evaluate(async (link) => {
-			const bytes = new Uint8Array(await (await fetch(link.href)).arrayBuffer());
-			return { head: new TextDecoder().decode(bytes.subarray(0, 3)), first: bytes[0], second: bytes[1], length: bytes.length };
-		});
-		expect(signature.head === 'ID3' || (signature.first === 0xff && (signature.second & 0xe0) === 0xe0)).toBe(true);
-		expect(signature.length).toBeGreaterThan(256);
+		const bytes = await readDownloadBytes(page, download);
+		const head = new TextDecoder().decode(bytes.subarray(0, 3));
+		expect(head === 'ID3' || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0)).toBe(true);
+		expect(bytes.length).toBeGreaterThan(256);
 		expect(errors).toEqual([]);
 	});
 });

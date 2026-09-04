@@ -10,6 +10,7 @@ import {
 	disableOfflineAudio,
 	importFiles,
 	openExportDialog,
+	readDownloadBytes,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 
@@ -111,7 +112,7 @@ test.describe('Broadcast WAV metadata UI', () => {
 		await authorExportBext(page, dialog, 'Offline delivery', '9007199254740993');
 		await dialog.getByRole('button', { name: 'Export', exact: true }).click();
 
-		const parsed = await readBwfDownload(dialog);
+		const parsed = await readBwfDownload(page, dialog);
 		expect(parsed.fileName).toMatch(/\.wav$/u);
 		expect(parsed.chunkIds.slice(0, 3)).toEqual(['bext', 'fmt ', 'data']);
 		expect(parsed.description).toBe('Offline delivery');
@@ -132,7 +133,7 @@ test.describe('Broadcast WAV metadata UI', () => {
 		await authorExportBext(page, dialog, 'Realtime delivery', '42');
 		await dialog.getByRole('button', { name: 'Export', exact: true }).click();
 
-		const parsed = await readBwfDownload(dialog);
+		const parsed = await readBwfDownload(page, dialog);
 		expect(parsed.chunkIds.slice(0, 3)).toEqual(['bext', 'fmt ', 'data']);
 		expect(parsed.description).toBe('Realtime delivery');
 		expect(parsed.version).toBe(2);
@@ -151,37 +152,36 @@ async function authorExportBext(page, dialog, description, timeReference) {
 	await metadataDialog.getByRole('button', { name: /^Done\.?$/u }).click();
 }
 
-async function readBwfDownload(dialog) {
-	const download = dialog.locator('[data-export-download]');
-	await expect(download).toBeVisible({ timeout: 20_000 });
-	return download.evaluate(async (link) => {
-		const bytes = new Uint8Array(await (await fetch(link.href)).arrayBuffer());
-		const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-		const text = (offset, length) => new TextDecoder('ascii').decode(bytes.subarray(offset, offset + length));
-		const chunkIds = [];
-		let offset = 12;
-		let bextOffset = -1;
-		let bextBytes = 0;
-		while (offset + 8 <= bytes.byteLength) {
-			const id = text(offset, 4);
-			const size = view.getUint32(offset + 4, true);
-			chunkIds.push(id);
-			if (id === 'bext') {
-				bextOffset = offset + 8;
-				bextBytes = size;
-			}
-			offset += 8 + size + (size & 1);
+async function readBwfDownload(page, dialog) {
+	const link = dialog.locator('[data-export-download]');
+	await expect(link).toBeVisible({ timeout: 20_000 });
+	const fileName = await link.getAttribute('download');
+	const bytes = await readDownloadBytes(page, link);
+	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+	const text = (offset, length) => new TextDecoder('ascii').decode(bytes.subarray(offset, offset + length));
+	const chunkIds = [];
+	let offset = 12;
+	let bextOffset = -1;
+	let bextBytes = 0;
+	while (offset + 8 <= bytes.byteLength) {
+		const id = text(offset, 4);
+		const size = view.getUint32(offset + 4, true);
+		chunkIds.push(id);
+		if (id === 'bext') {
+			bextOffset = offset + 8;
+			bextBytes = size;
 		}
-		if (bextOffset < 0) throw new Error('The downloaded WAV has no BEXT chunk.');
-		const low = BigInt(view.getUint32(bextOffset + 338, true));
-		const high = BigInt(view.getUint32(bextOffset + 342, true));
-		return {
-			fileName: link.download,
-			chunkIds,
-			description: text(bextOffset, 256).replace(/\0.*$/u, ''),
-			version: view.getUint16(bextOffset + 346, true),
-			timeReference: (low + (high << 32n)).toString(),
-			codingHistory: text(bextOffset + 602, Math.max(0, bextBytes - 602)),
-		};
-	});
+		offset += 8 + size + (size & 1);
+	}
+	if (bextOffset < 0) throw new Error('The downloaded WAV has no BEXT chunk.');
+	const low = BigInt(view.getUint32(bextOffset + 338, true));
+	const high = BigInt(view.getUint32(bextOffset + 342, true));
+	return {
+		fileName,
+		chunkIds,
+		description: text(bextOffset, 256).replace(/\0.*$/u, ''),
+		version: view.getUint16(bextOffset + 346, true),
+		timeReference: (low + (high << 32n)).toString(),
+		codingHistory: text(bextOffset + 602, Math.max(0, bextBytes - 602)),
+	};
 }

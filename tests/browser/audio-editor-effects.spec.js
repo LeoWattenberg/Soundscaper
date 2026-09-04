@@ -95,29 +95,19 @@ import {
 		const exportDialog = await openExportDialog(page, editor);
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'WAV');
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
-		const download = exportDialog.locator('[data-export-download]');
-		await expect(download).toBeVisible({ timeout: 20_000 });
-		const peak = await download.evaluate(async (link) => {
-			const bytes = new Uint8Array(await (await fetch(link.href)).arrayBuffer());
-			const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-			let offset = 12;
-			while (offset + 8 <= bytes.byteLength) {
-				const id = new TextDecoder('ascii').decode(bytes.subarray(offset, offset + 4));
-				const size = view.getUint32(offset + 4, true);
-				if (id === 'data') {
-					let maximum = 0;
-					for (let sample = offset + 8; sample + 2 < offset + 8 + size; sample += 3) {
-						let value = bytes[sample] | (bytes[sample + 1] << 8) | (bytes[sample + 2] << 16);
-						if (value & 0x800000) value |= 0xff000000;
-						maximum = Math.max(maximum, Math.abs(value / 0x800000));
-					}
-					return maximum;
-				}
-				offset += 8 + size + (size & 1);
-			}
-			return 0;
-		});
-		expect(peak).toBeGreaterThan(0.1);
+		const downloadLink = exportDialog.locator('[data-export-download]');
+		await expect(downloadLink).toBeVisible({ timeout: 20_000 });
+		// The bytes are read through the download rather than fetched from the
+		// blob: URL inside the page: the shipped policy's connect-src does not
+		// carry blob:, so a page-side fetch of it is exactly what a user's browser
+		// would refuse.
+		const [download] = await Promise.all([
+			page.waitForEvent('download'),
+			downloadLink.click(),
+		]);
+		const downloadPath = await download.path();
+		expect(downloadPath).not.toBeNull();
+		expect(wavPeak(await readFile(downloadPath))).toBeGreaterThan(0.1);
 		expect(errors).toEqual([]);
 	});
 
@@ -694,3 +684,24 @@ import {
 		expect(errors).toEqual([]);
 	});
 });
+
+/** Peak amplitude of a 24-bit PCM WAV, read from its data chunk. */
+function wavPeak(bytes) {
+	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+	let offset = 12;
+	while (offset + 8 <= bytes.byteLength) {
+		const id = new TextDecoder('ascii').decode(bytes.subarray(offset, offset + 4));
+		const size = view.getUint32(offset + 4, true);
+		if (id === 'data') {
+			let maximum = 0;
+			for (let sample = offset + 8; sample + 2 < offset + 8 + size; sample += 3) {
+				let value = bytes[sample] | (bytes[sample + 1] << 8) | (bytes[sample + 2] << 16);
+				if (value & 0x800000) value |= 0xff000000;
+				maximum = Math.max(maximum, Math.abs(value / 0x800000));
+			}
+			return maximum;
+		}
+		offset += 8 + size + (size & 1);
+	}
+	return 0;
+}
