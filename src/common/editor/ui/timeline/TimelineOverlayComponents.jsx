@@ -209,7 +209,15 @@ export function TelemetryPlayhead({
 	);
 }
 
-export function TimeSelectionOverlay({ selection, panelWidth, pixelsPerSecond, height }) {
+/**
+ * The selected time range, drawn inside one track lane.
+ *
+ * Audacity shades the range only in the tracks the selection acts on, so each
+ * row renders its own band rather than the timeline drawing a single column
+ * over every track. Lane coordinates start at the clip content offset, the
+ * same origin the output dock's band uses.
+ */
+export function TimeSelectionOverlay({ selection, pixelsPerSecond }) {
 	if (!selection || selection.endTime <= selection.startTime) return null;
 	return (
 		<div
@@ -217,9 +225,8 @@ export function TimeSelectionOverlay({ selection, panelWidth, pixelsPerSecond, h
 			data-time-selection-overlay
 			aria-hidden="true"
 			style={{
-				left: timelineContentLeft(panelWidth + CLIP_CONTENT_OFFSET + selection.startTime * pixelsPerSecond),
+				left: timelineContentLeft(CLIP_CONTENT_OFFSET + selection.startTime * pixelsPerSecond),
 				width: Math.max(1, (selection.endTime - selection.startTime) * pixelsPerSecond),
-				height,
 			}}
 		/>
 	);

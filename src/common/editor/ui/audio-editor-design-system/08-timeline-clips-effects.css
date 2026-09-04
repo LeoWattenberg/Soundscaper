@@ -222,7 +222,7 @@
 	outline: none;
 }
 
-#kw-audio-editor-design-system .audio-editor-track-lane[aria-selected='true'] {
+#kw-audio-editor-design-system .audio-editor-track-lane[data-selected='true'] {
 	background-color: color-mix(in srgb, var(--kw-editor-accent) 7%, transparent);
 }
 
@@ -367,9 +367,12 @@
 	cursor: ns-resize;
 }
 
+/* Each selected track lane paints its own band, so the shaded range names the
+   tracks the selection acts on instead of running down the whole timeline. */
 #kw-audio-editor-design-system .audio-editor-time-selection-overlay {
 	position: absolute;
-	top: 34px;
+	top: 0;
+	bottom: 0;
 	z-index: 50;
 	box-sizing: border-box;
 	background: color-mix(in srgb, var(--kw-editor-accent) 18%, transparent);

@@ -16,13 +16,13 @@ import {
 } from './useTimelineAnnotationCreateFeedback.js';
 import { timelineAnnotationCreateKind } from './timeline-annotation-ui-model.ts';
 import { resolveTimelineRulerScale } from './timeline-grid-model.ts';
+import { timelineSelectedTrackIds } from './track-selection-scope.ts';
 import { TimelineGridLines } from './TimelineGridLines.jsx';
 import { OutputTrackDock } from './OutputTrackRows.jsx';
 import {
 	RulerPlayhead,
 	SplitToolGuideline,
 	TelemetryPlayhead,
-	TimeSelectionOverlay,
 	TimelineRateStretchPreviewGuide,
 	TimelineSlipSlidePreviewGuides,
 	TimelineTrimPreviewGuide,
@@ -161,6 +161,13 @@ export function TimelineWorkspaceView({
 		controller, copy, locale, sampleRate, run,
 	});
 
+	// Only selected tracks shade their selected range, so the highlight names
+	// the tracks the next edit would act on rather than the whole timeline.
+	const selectedTrackIds = useMemo(
+		() => timelineSelectedTrackIds(project?.selection, snapshot.selectedTrackId),
+		[project?.selection, snapshot.selectedTrackId],
+	);
+
 	// In the compact layout the sticky ruler corner is the track-header drawer's
 	// handle: only the toggle while closed, the usual corner content while open.
 	const cornerWidth = trackHeaderDrawer
@@ -188,6 +195,10 @@ export function TimelineWorkspaceView({
 				'--timeline-viewport-width': `${viewportWidth}px`,
 				'--timeline-scroll-x': `${scrollX}px`,
 				'--timeline-render-origin-x': `${renderOriginX}px`,
+				// Where the scrollport's left edge sits inside the scrolled
+				// surface, so content that stands in for a sticky element can
+				// follow the horizontal scroll.
+				'--timeline-viewport-origin-x': `${contentScrollX + renderOriginX}px`,
 				'--vertical-ruler-width': `${verticalRulerWidth}px`,
 			}}
 		>
@@ -363,6 +374,8 @@ export function TimelineWorkspaceView({
 						visualTrackHeight={visualTrackHeight}
 						documentSelection={documentSelection}
 						timeSelection={timeSelection}
+						selectedTrackIds={selectedTrackIds}
+						minHeight={Math.max(0, scrollViewportHeight - rulerRowHeight)}
 						snapshot={snapshot}
 						selectedClipIdSet={selectedClipIdSet}
 						draggingClipIds={draggingClipIds}
@@ -404,12 +417,6 @@ export function TimelineWorkspaceView({
 						displayAudioSupported={displayAudioSupported}
 					/>
 
-					<TimeSelectionOverlay
-						selection={timeSelection}
-						panelWidth={panelWidth}
-						pixelsPerSecond={pixelsPerSecond}
-						height={totalTrackHeight}
-					/>
 					<SplitToolGuideline
 						guideline={splitToolActive ? splitToolGuideline : null}
 						panelWidth={panelWidth}

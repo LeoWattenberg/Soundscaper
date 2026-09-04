@@ -201,12 +201,13 @@ export function TrackControls({
 	};
 
 	return (
-		<div ref={controlsRef} className="audio-editor-track-controls" data-track-header style={{ width: panelWidth }} onFocusCapture={() => {
+		<div ref={controlsRef} className="audio-editor-track-controls" data-track-header data-selected={selected ? 'true' : 'false'} style={{ width: panelWidth }} onFocusCapture={() => {
 			if (!selected) run(() => controller.actions.timeline.selectTrack(track.id));
 		}} onDoubleClick={(event) => {
 			if (blocked || !(event.target instanceof Element) || !event.target.closest('.track-control-panel__track-name-text')) return;
 			setEditingName(true);
 		}}>
+			{selected && <span className="audio-editor-track-header-selection" aria-hidden="true" />}
 			<TrackControlPanel
 				trackName={track.name}
 				trackType="stereo"

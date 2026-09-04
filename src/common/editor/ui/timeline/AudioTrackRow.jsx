@@ -15,7 +15,7 @@ import { clipGroups, focusFirst } from './timeline-navigation.js';
 import { renderAmplitudeRulers } from './track-row-helpers.jsx';
 import { useAudioTrackRowNavigation } from './useAudioTrackRowNavigation.js';
 import { useAudioTrackRowViewModel } from './useAudioTrackRowViewModel.js';
-import { resolveAudioEditorColor } from './TimelineOverlayComponents.jsx';
+import { resolveAudioEditorColor, TimeSelectionOverlay } from './TimelineOverlayComponents.jsx';
 
 const CLIP_HEADER_HEIGHT = 20;
 
@@ -41,6 +41,7 @@ export function AudioTrackRow({
 	timelineWidth,
 	verticalRulerWidth,
 	selection,
+	rangeSelected,
 	spectralSelection,
 	selectedTrackId,
 	selectedClipId,
@@ -451,6 +452,10 @@ export function AudioTrackRow({
 						)
 					)}
 				</div>}
+				{rangeSelected && <TimeSelectionOverlay
+					selection={selection}
+					pixelsPerSecond={pixelsPerSecond}
+				/>}
 			</div>
 		</div>
 	);

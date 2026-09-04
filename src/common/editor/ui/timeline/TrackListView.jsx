@@ -27,6 +27,8 @@ export function TrackListView({
 	visualTrackHeight,
 	documentSelection,
 	timeSelection,
+	selectedTrackIds,
+	minHeight,
 	snapshot,
 	selectedClipIdSet,
 	draggingClipIds,
@@ -136,6 +138,8 @@ export function TrackListView({
 					pixelsPerSecond={pixelsPerSecond}
 					sampleRate={sampleRate}
 					selection={documentSelection}
+					timeSelection={timeSelection}
+					rangeSelected={selectedTrackIds?.has(track.id) === true}
 					selected={snapshot.selectedTrackId === track.id}
 					blocked={mutationsBlocked}
 					copy={copy}
@@ -164,6 +168,8 @@ export function TrackListView({
 					sampleRate={sampleRate}
 					timelineWidth={timelineWidth}
 					verticalRulerWidth={verticalRulerWidth}
+					timeSelection={timeSelection}
+					rangeSelected={selectedTrackIds?.has(track.id) === true}
 					selectedTrackId={snapshot.selectedTrackId}
 					selectedClipId={snapshot.selectedClipId}
 					selectedClipIdSet={selectedClipIdSet}
@@ -205,6 +211,7 @@ export function TrackListView({
 					timelineWidth={timelineWidth}
 					verticalRulerWidth={verticalRulerWidth}
 					selection={timeSelection}
+					rangeSelected={selectedTrackIds?.has(track.id) === true}
 					spectralSelection={documentSelection?.frequencyRange ? documentSelection : null}
 					selectedTrackId={snapshot.selectedTrackId}
 					selectedClipId={snapshot.selectedClipId}
@@ -247,7 +254,7 @@ export function TrackListView({
 				/>
 			);
 	return (
-		<div className="audio-editor-track-list" data-track-list>
+		<div className="audio-editor-track-list" data-track-list style={{ minHeight }}>
 			{plan.hasFolders && (
 				<div
 					className="audio-editor-track-folder-tree-anchor"

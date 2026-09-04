@@ -5,6 +5,7 @@ import { Icon } from '@soundscaper/design-system/Icon';
 import { LabelMarker } from '@soundscaper/design-system/LabelMarker';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
+import { TimeSelectionOverlay } from './TimelineOverlayComponents.jsx';
 import { TrackNameEditor } from './TrackControls.jsx';
 import { timelineContentLeft } from './timeline-scroll-space.ts';
 
@@ -20,6 +21,8 @@ export function LabelTrackRow({
 	pixelsPerSecond,
 	sampleRate,
 	selection,
+	timeSelection,
+	rangeSelected,
 	selected,
 	blocked,
 	copy,
@@ -58,7 +61,13 @@ export function LabelTrackRow({
 			data-collapsed="false"
 			style={{ height: trackHeight }}
 		>
-			<div className="audio-editor-label-track-controls" data-track-header style={{ width: trackHeaderWidth }}>
+			<div
+				className="audio-editor-label-track-controls"
+				data-track-header
+				data-selected={selected ? 'true' : 'false'}
+				style={{ width: trackHeaderWidth }}
+			>
+				{selected && <span className="audio-editor-track-header-selection" aria-hidden="true" />}
 				<div className="audio-editor-label-track-title">
 					<Icon name="label" size={16} aria-hidden="true" />
 					{editingName ? (
@@ -110,6 +119,10 @@ export function LabelTrackRow({
 					if (!event.target.closest('[data-label-id]')) addLabel(event);
 				}}
 			>
+				{rangeSelected && <TimeSelectionOverlay
+					selection={timeSelection}
+					pixelsPerSecond={pixelsPerSecond}
+				/>}
 				{track.labels.map((label) => {
 					const startSeconds = framesToSeconds(label.startFrame, { sampleRate });
 					return (

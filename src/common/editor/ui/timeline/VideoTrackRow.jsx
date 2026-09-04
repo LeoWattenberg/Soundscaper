@@ -4,6 +4,7 @@ import { Icon } from '@soundscaper/design-system/Icon';
 
 import { framesToSeconds, projectClipsToViewport } from '../../design-system-adapters.js';
 import { AutomaticCrossfadeOverlays, createVideoOverlapPresentation } from './TrackOverlapOverlays.jsx';
+import { TimeSelectionOverlay } from './TimelineOverlayComponents.jsx';
 import { TrackNameEditor } from './TrackControls.jsx';
 import { clipGroups, focusFirst, normalizeClipSemantics } from './timeline-navigation.js';
 import { VideoFilmstripClip } from './VideoFilmstrip.jsx';
@@ -29,6 +30,8 @@ export function VideoTrackRow({
 	sampleRate,
 	timelineWidth,
 	verticalRulerWidth,
+	timeSelection,
+	rangeSelected,
 	selectedTrackId,
 	selectedClipId,
 	selectedClipIdSet,
@@ -304,6 +307,10 @@ export function VideoTrackRow({
 					</div>
 					<AutomaticCrossfadeOverlays overlays={overlapPresentation.overlays} />
 				</div>
+				{rangeSelected && <TimeSelectionOverlay
+					selection={timeSelection}
+					pixelsPerSecond={pixelsPerSecond}
+				/>}
 			</div>
 		</div>
 	);
@@ -357,6 +364,7 @@ export function VideoTrackControls({
 			onClick={() => !selected && run(() => controller.actions.timeline.selectTrack(track.id))}
 			onKeyDownCapture={handleKeyDown}
 		>
+			{selected && <span className="audio-editor-track-header-selection" aria-hidden="true" />}
 			<div className="audio-editor-video-track-controls__title">
 				<span className="audio-editor-video-track-controls__icon" aria-hidden="true">
 					<Icon name="play" size={14} />

@@ -35,10 +35,6 @@
 }
 
 /* Overlays anchored below the ruler row follow the taller annotation ruler. */
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-show-markers='true'] .audio-editor-time-selection-overlay {
-	top: 67px;
-}
-
 #kw-audio-editor-design-system .audio-editor-timeline-panel[data-show-markers='true'] .audio-editor-trim-preview-guide {
 	top: 67px;
 }

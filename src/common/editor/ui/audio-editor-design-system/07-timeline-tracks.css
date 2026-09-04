@@ -103,6 +103,9 @@
 	isolation: isolate;
 }
 
+/* The header column keeps its surface below the last track, all the way to the
+   bottom of the viewport, and rides the horizontal scroll with the sticky
+   headers it continues. */
 #kw-audio-editor-design-system .audio-editor-track-list::before {
 	position: absolute;
 	z-index: -1;
@@ -113,6 +116,7 @@
 	background: var(--kw-editor-stage-raised);
 	border-right: 1px solid var(--kw-editor-stage-line);
 	content: '';
+	transform: translateX(var(--timeline-viewport-origin-x, 0px));
 }
 
 /* Rows and lanes are transparent so the timeline grid canvas shows through. */
@@ -227,8 +231,15 @@
 	color: var(--kw-editor-stage-text);
 }
 
-#kw-audio-editor-design-system .audio-editor-video-track-controls[data-selected='true'] {
-	box-shadow: inset 3px 0 0 var(--kw-editor-accent);
+/* The selected track is ringed on its header as well as its lane: the vendored
+   panel paints its focus bars outside its own box, where this wrapper's
+   overflow clip hides them. */
+#kw-audio-editor-design-system .audio-editor-track-header-selection {
+	position: absolute;
+	z-index: 40;
+	inset: 0;
+	border: 2px solid color-mix(in srgb, var(--kw-editor-accent) 78%, white);
+	pointer-events: none;
 }
 
 #kw-audio-editor-design-system .audio-editor-video-track-controls__title {
