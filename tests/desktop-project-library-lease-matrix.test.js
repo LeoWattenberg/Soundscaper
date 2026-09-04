@@ -124,9 +124,10 @@ function desktopTargetCells(targetIds) {
 }
 
 test('desktop preview CI runs both selected products on every test-activated target', async () => {
-	const [workflow, runner, closure] = await Promise.all([
+	const [workflow, runner, children, closure] = await Promise.all([
 		readFile(new URL('../.github/workflows/desktop-preview.yml', import.meta.url), 'utf8'),
 		readFile(new URL('../scripts/lib/desktop-project-library-lease-matrix.mjs', import.meta.url), 'utf8'),
+		readFile(new URL('../scripts/lib/desktop-project-library-lease-children.mjs', import.meta.url), 'utf8'),
 		readFile(new URL('../config/milestone-2-closure.json', import.meta.url), 'utf8').then(JSON.parse),
 	]);
 	const jobMarker = '\n  soundscaper-project-library-lease-matrix:';
@@ -155,8 +156,8 @@ test('desktop preview CI runs both selected products on every test-activated tar
 	assert.match(leaseJob, /soundscaper-v1-framescaper-v1-lease-matrix-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}\.json/u);
 	assert.match(runner, /\[\s*'soundscaper',\s*'framescaper'\s*\]/u);
 	assert.match(runner, /for \(const productId of \['soundscaper', 'framescaper'\]\)/u);
-	assert.match(runner, /runRendererLoss[\s\S]*awaitLeaseMatrixControlFile\(child\.control\.result, child\)/u);
-	assert.match(runner, /void terminateTree\(child, scope\.platform\)\.catch\(\(\) => undefined\)/u);
+	assert.match(children, /runRendererLoss[\s\S]*awaitLeaseMatrixControlFile\(child\.control\.result, child\)/u);
+	assert.match(children, /void terminateTree\(child, scope\.platform\)\.catch\(\(\) => undefined\)/u);
 	assert.ok(Buffer.byteLength(formatDesktopProjectLibraryLeaseMatrix({ cases: [] })) < 1024 * 1024);
 });
 
