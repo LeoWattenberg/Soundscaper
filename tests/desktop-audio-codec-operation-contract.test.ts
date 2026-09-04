@@ -341,15 +341,21 @@ test("the MP3 contract admits Audacity's four bit-rate strategies, one per reque
 	const mp3 = (settings: Readonly<Record<string, number>>) => ({
 		...encodeRequest('mp3'), settings,
 	});
-	for (const settings of [
+	const admitted: ReadonlyArray<Readonly<Record<string, number>>> = [
 		{ bitrateKbps: 192 }, { averageBitrateKbps: 128 }, { vbrQuality: 0 }, { vbrQuality: 9 },
 		{ preset: 0 }, { preset: 3 },
-	]) assert.doesNotThrow(() => assertDesktopAudioCodecRequest(mp3(settings)), JSON.stringify(settings));
+	];
+	for (const settings of admitted) {
+		assert.doesNotThrow(() => assertDesktopAudioCodecRequest(mp3(settings)), JSON.stringify(settings));
+	}
 
-	for (const settings of [
+	const refused: ReadonlyArray<Readonly<Record<string, number>>> = [
 		{ vbrQuality: 10 }, { preset: 4 }, { averageBitrateKbps: 191 },
 		{ bitrateKbps: 192, vbrQuality: 2 }, { preset: 1, bitrateKbps: 192 },
-	]) assert.throws(() => assertDesktopAudioCodecRequest(mp3(settings)), JSON.stringify(settings));
+	];
+	for (const settings of refused) {
+		assert.throws(() => assertDesktopAudioCodecRequest(mp3(settings)), JSON.stringify(settings));
+	}
 
 	/* Only a constant strategy pins a rate the operating-system encoders can match. */
 	assert.equal(desktopAudioMp3ConstantBitrateKbps({ bitrateKbps: 192 }), 192);

@@ -102,9 +102,10 @@ test("browser dedicated MP3 honours Audacity's four bit-rate strategies", async 
 	/* A constant stream carries LAME's Info tag; the varying ones carry Xing. */
 	assert.notEqual(indexOfAscii(constant, 'Info'), -1);
 
-	for (const settings of [
+	const varyingStrategies: ReadonlyArray<Readonly<Record<string, number>>> = [
 		{ averageBitrateKbps: 128 }, { vbrQuality: 2 }, { preset: 1 }, { preset: 2 }, { preset: 3 },
-	]) {
+	];
+	for (const settings of varyingStrategies) {
 		const varying = await encode(settings);
 		const rates = frameBitrates(varying);
 		assert.ok(rates.length > 1, `${JSON.stringify(settings)} produced one rate`);
@@ -123,10 +124,11 @@ test("browser dedicated MP3 honours Audacity's four bit-rate strategies", async 
 });
 
 test('browser dedicated MP3 rejects a request naming more than one strategy', async () => {
-	for (const settings of [
+	const conflicting: ReadonlyArray<Readonly<Record<string, number>>> = [
 		{ bitrateKbps: 128, vbrQuality: 2 }, { preset: 4 }, { vbrQuality: 10 },
 		{ preset: 1, averageBitrateKbps: 128 },
-	]) {
+	];
+	for (const settings of conflicting) {
 		await assert.rejects(() => encodeDedicatedAudioPcm({
 			format: 'mp3',
 			input: new Uint8Array(64 * 2 * Float32Array.BYTES_PER_ELEMENT),
