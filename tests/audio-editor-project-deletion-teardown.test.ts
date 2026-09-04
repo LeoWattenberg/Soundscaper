@@ -3,7 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createProjectAdminService } from '../src/common/editor/controller/project-admin-service.ts';
+import {
+	createProjectAdminService,
+	type ProjectAdminServiceRuntime,
+} from '../src/common/editor/controller/project-admin-service.ts';
 import {
 	createFixture,
 	deferred,
