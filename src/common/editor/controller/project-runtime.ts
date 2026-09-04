@@ -5,9 +5,11 @@ import { applyEditorCommand } from '../commands.js';
 import {
 	canRedo,
 	canUndo,
+	collapseEditorHistory,
 	createEditorHistory,
 	executeEditorCommand,
 	redoEditorCommand,
+	rollbackEditorHistory,
 	undoEditorCommand,
 } from '../history.js';
 import { cloneProject } from '../project.js';
@@ -99,6 +101,24 @@ export interface ControllerProjectRuntime {
 		command: AudioEditorCommand,
 		options?: Readonly<{ now?: Date | string }>,
 	) => ControllerRuntimeProject;
+	/**
+	 * Fold everything a macro committed since a depth into one undo entry.
+	 *
+	 * Optional, because only a product that runs macros needs it: the capability
+	 * is fenced on `audioMacros`, and a runtime without these two simply cannot
+	 * open a macro transaction.
+	 */
+	readonly collapseHistory?: (
+		history: ControllerRuntimeHistory,
+		depth: number,
+		command: AudioEditorCommand,
+	) => ControllerRuntimeHistory;
+	/** Put a failed macro's project back and drop what it committed. */
+	readonly rollbackHistory?: (
+		history: ControllerRuntimeHistory,
+		depth: number,
+		options?: Readonly<{ now?: Date | string }>,
+	) => ControllerRuntimeHistory;
 	readonly undo: (
 		history: ControllerRuntimeHistory,
 		options?: Readonly<{ now?: Date | string }>,
@@ -140,6 +160,8 @@ const DEFAULT_RUNTIME = Object.freeze({
 	createHistory: createEditorHistory,
 	executeCommand: executeEditorCommand,
 	applyCommand: applyEditorCommand,
+	collapseHistory: collapseEditorHistory,
+	rollbackHistory: rollbackEditorHistory,
 	undo: undoEditorCommand,
 	redo: redoEditorCommand,
 	canUndo,

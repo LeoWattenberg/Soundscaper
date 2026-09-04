@@ -17,8 +17,13 @@ export interface MutationProject<Track extends MutationTrack = MutationTrack> {
 	readonly clips: readonly Readonly<{ readonly id: string }>[];
 }
 
+export interface MutationHistoryEntry<Project> {
+	readonly project: Project;
+}
+
 export interface MutationHistory<Project extends MutationProject> {
 	readonly present: Project;
+	readonly undoStack?: readonly MutationHistoryEntry<Project>[];
 }
 
 export interface MutationRecordingRouting {
@@ -90,6 +95,14 @@ export interface ProjectMutationServiceDependencies<
 	readonly setHistory: (history: History) => void;
 	readonly executeEditorCommand: (history: History, command: AudioEditorCommand) => History;
 	readonly applyEditorCommand: (project: Project, command: AudioEditorCommand) => Project;
+	/**
+	 * Present only for a product that runs macros. Everything else is fenced out
+	 * by the `audioMacros` capability long before a transaction could be opened.
+	 */
+	readonly collapseEditorHistory?: (
+		history: History, depth: number, command: AudioEditorCommand,
+	) => History;
+	readonly rollbackEditorHistory?: (history: History, depth: number) => History;
 	readonly retention: ProjectRetentionPort<History>;
 	readonly publisher: ProjectPublisherPort;
 	readonly saves: ProjectSavePort;
@@ -111,8 +124,25 @@ export interface ProjectMutationServiceDependencies<
 	readonly isExpectedCancellation: (error: unknown) => boolean;
 }
 
+/**
+ * One macro run, folded into one undo entry.
+ *
+ * A macro is one action to the person who ran it, but it cannot be planned as a
+ * single command: an effect step writes audio asynchronously and only then knows
+ * what it produced. Its steps therefore commit normally and the range they added
+ * is settled here — collapsed into one entry, or rolled back to the project the
+ * macro began from. Exactly one of the two happens, once.
+ */
+export interface MacroTransaction<Project> {
+	/** Where in the undo stack the macro began. */
+	readonly depth: number;
+	commit(command: AudioEditorCommand): Project;
+	rollback(): Project;
+}
+
 export interface ProjectMutationService<Project extends MutationProject> {
 	commit(command: AudioEditorCommand, selection?: CommitSelection, options?: ProjectChangedOptions): Project;
+	beginMacroTransaction(): MacroTransaction<Project>;
 	updateSelection(command: AudioEditorCommand): Project;
 	projectChanged(options?: ProjectChangedOptions): void;
 	scheduleAutosave(): boolean;
@@ -133,8 +163,11 @@ export function createProjectMutationService<
 		Project, History, Routing, ProjectToken, LifetimeToken, Track
 	>,
 ): Readonly<ProjectMutationService<Project>> {
+	let openMacroTransactions = 0;
+
 	return Object.freeze({
 		commit,
+		beginMacroTransaction,
 		updateSelection,
 		projectChanged,
 		scheduleAutosave,
@@ -165,6 +198,35 @@ export function createProjectMutationService<
 		return requireProject();
 	}
 
+	function beginMacroTransaction(): MacroTransaction<Project> {
+		dependencies.lifetime.assertActive();
+		assertWritable();
+		const collapse = dependencies.collapseEditorHistory;
+		const rollback = dependencies.rollbackEditorHistory;
+		if (!collapse || !rollback) {
+			throw new Error('This project runtime does not run macros.');
+		}
+		const depth = requireHistory().undoStack?.length ?? 0;
+		openMacroTransactions += 1;
+		let settled = false;
+		const settle = (next: (history: History) => History): Project => {
+			if (settled) throw new Error('A macro transaction settles exactly once.');
+			settled = true;
+			openMacroTransactions = Math.max(0, openMacroTransactions - 1);
+			const nextHistory = next(requireHistory());
+			dependencies.setHistory(nextHistory);
+			dependencies.state.history = nextHistory;
+			dependencies.setProject(nextHistory.present);
+			projectChanged();
+			return requireProject();
+		};
+		return Object.freeze({
+			depth,
+			commit: (command: AudioEditorCommand) => settle((history) => collapse(history, depth, command)),
+			rollback: () => settle((history) => rollback(history, depth)),
+		});
+	}
+
 	function updateSelection(command: AudioEditorCommand): Project {
 		dependencies.lifetime.assertActive();
 		assertWritable();
@@ -184,8 +246,16 @@ export function createProjectMutationService<
 		dependencies.lifetime.assertActive();
 		if (dependencies.state.projectBinPreview) void dependencies.stopProjectBinPreview();
 		dependencies.clearWaveformPcmWindows();
-		dependencies.retention.compactLiveSourceState(true);
-		dependencies.retention.retainLiveClipIds();
+		// Inside a macro these run once at the end instead of once per step. Both
+		// walk every retained history project and every clip in it, so a long
+		// macro would otherwise spend most of its time compacting a history it is
+		// about to collapse — and would schedule an autosave, and re-queue the
+		// playback engine, for each of its own intermediate states.
+		const settling = openMacroTransactions === 0;
+		if (settling) {
+			dependencies.retention.compactLiveSourceState(true);
+			dependencies.retention.retainLiveClipIds();
+		}
 		const project = requireProject();
 		const normalizedRouting = dependencies.normalizeRecordingRouting(
 			dependencies.state.recordingRouting,
@@ -208,9 +278,9 @@ export function createProjectMutationService<
 		}
 		dependencies.synchronizeMicrophoneMeterTarget();
 		dependencies.synchronizeAnnotationFocus();
-		if (!options.skipPlaybackEngine) queuePlaybackProject(project);
+		if (settling && !options.skipPlaybackEngine) queuePlaybackProject(project);
 		dependencies.publisher.publishProjectState();
-		dependencies.saves.scheduleAutosave();
+		if (settling) dependencies.saves.scheduleAutosave();
 	}
 
 	function scheduleAutosave(): boolean {

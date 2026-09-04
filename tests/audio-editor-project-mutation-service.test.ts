@@ -22,6 +22,7 @@ interface TestProject extends MutationProject<TestTrack> {
 
 interface TestHistory extends MutationHistory<TestProject> {
 	readonly undo: readonly string[];
+	readonly undoStack?: readonly Readonly<{ project: TestProject }>[];
 }
 
 interface TestRouting {
@@ -57,6 +58,60 @@ test('commit executes one atomic history transition before project publication a
 	assert.equal(fixture.state.selectedClipId, null);
 	assert.deepEqual(history.undo, ['batch']);
 	assert.deepEqual(events.slice(0, 5), ['history', 'project:2', 'compact', 'publish', 'autosave']);
+});
+
+test('a macro transaction defers the per-step work and settles into one entry', () => {
+	// Compaction and clip retention walk every retained history project and every
+	// clip in it, so running them per step would make a long macro spend most of
+	// its time compacting a history it is about to collapse — and would schedule
+	// an autosave for each of its own intermediate states.
+	const events: string[] = [];
+	let history: TestHistory = { present: projectFixture(1), undo: ['user-a'], undoStack: [] };
+	const fixture = mutationFixture({
+		getHistory: () => history,
+		setHistory: (value) => { history = value; },
+		executeHistory: (value, command) => ({
+			present: projectFixture(2), undo: [...value.undo, command.type], undoStack: value.undoStack,
+		}),
+		compact: () => { events.push('compact'); },
+		autosave: () => { events.push('autosave'); return true; },
+		publish: () => { events.push('publish'); },
+	});
+
+	const transaction = fixture.service.beginMacroTransaction();
+	assert.equal(transaction.depth, 0);
+	fixture.service.commit({ type: 'project/rename', title: 'One' });
+	fixture.service.commit({ type: 'project/rename', title: 'Two' });
+	assert.deepEqual(events, ['publish', 'publish'], 'no compaction or autosave while the macro runs');
+
+	transaction.commit({ type: 'macro/run' } as AudioEditorCommand);
+	assert.deepEqual(events.slice(2), ['compact', 'publish', 'autosave'], 'settling does it once');
+	assert.deepEqual(history.undo, ['macro']);
+	assert.throws(() => transaction.commit({ type: 'macro/run' } as AudioEditorCommand), /settles exactly once/u);
+});
+
+test('a rolled-back macro transaction settles the same way and cannot also commit', () => {
+	let history: TestHistory = { present: projectFixture(1), undo: ['user-a'], undoStack: [] };
+	const fixture = mutationFixture({
+		getHistory: () => history,
+		setHistory: (value) => { history = value; },
+		executeHistory: (value, command) => ({
+			present: projectFixture(2), undo: [...value.undo, command.type], undoStack: value.undoStack,
+		}),
+	});
+
+	const transaction = fixture.service.beginMacroTransaction();
+	fixture.service.commit({ type: 'project/rename', title: 'One' });
+	transaction.rollback();
+	assert.deepEqual(history.undo, []);
+	assert.throws(() => transaction.commit({ type: 'macro/run' } as AudioEditorCommand), /settles exactly once/u);
+});
+
+test('a runtime that cannot fold history refuses to open a macro transaction', () => {
+	// Framescaper carries its own history primitives and no macros; the capability
+	// fence keeps it away from this, and the service says so rather than guessing.
+	const fixture = mutationFixture({ macroHistory: false });
+	assert.throws(() => fixture.service.beginMacroTransaction(), /does not run macros/u);
 });
 
 test('selection updates replace only history.present and do not autosave or compact', () => {
@@ -265,6 +320,9 @@ test('save aliases delegate to the single serialized project save service', asyn
 });
 
 interface FixtureOverrides {
+	readonly macroHistory?: false;
+	readonly collapseHistory?: (history: TestHistory, depth: number, command: AudioEditorCommand) => TestHistory;
+	readonly rollbackHistory?: (history: TestHistory, depth: number) => TestHistory;
 	readonly project?: TestProject;
 	readonly readOnly?: boolean;
 	readonly selectedTrackId?: string | null;
@@ -339,6 +397,12 @@ function mutationFixture(overrides: FixtureOverrides = {}) {
 		setHistory,
 		executeEditorCommand: overrides.executeHistory || ((value) => value),
 		applyEditorCommand: overrides.applyCommand || ((value) => value),
+		...(overrides.macroHistory === false ? {} : {
+			collapseEditorHistory: overrides.collapseHistory
+				|| ((value: TestHistory, depth: number) => ({ ...value, undo: value.undo.slice(0, depth).concat('macro') })),
+			rollbackEditorHistory: overrides.rollbackHistory
+				|| ((value: TestHistory, depth: number) => ({ ...value, undo: value.undo.slice(0, depth) })),
+		}),
 		retention: {
 			compactLiveSourceState: overrides.compact || (() => undefined),
 			retainLiveClipIds: overrides.retainClips || (() => undefined),

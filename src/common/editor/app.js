@@ -683,7 +683,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setProject: (nextProject) => { project = nextProject; },
 		getHistory: () => state.history,
 		setHistory: (history) => { state.history = history; },
-		executeEditorCommand: projectRuntime.executeCommand,
+		executeEditorCommand: projectRuntime.executeCommand, collapseEditorHistory: projectRuntime.collapseHistory, rollbackEditorHistory: projectRuntime.rollbackHistory,
 		applyEditorCommand: projectRuntime.applyCommand,
 		retention: projectRetentionService,
 		publisher: projectViewService,
