@@ -56,10 +56,6 @@
 			"maxLines": 786,
 			"reason": "Legacy worker-side AUP4 database command boundary."
 		},
-		"src/common/editor/clip-time-pitch-cache.js": {
-			"maxLines": 874,
-			"reason": "Legacy disk-backed pitch-cache pipeline with cancellation and recovery."
-		},
 		"src/common/editor/nyquist/plugins/catalog.js": {
 			"maxLines": 630,
 			"reason": "Reviewed bundled Nyquist plug-in catalog."

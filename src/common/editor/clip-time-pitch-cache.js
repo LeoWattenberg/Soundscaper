@@ -1,228 +1,52 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	STAFFPAD_ALGORITHM_ID,
-	STAFFPAD_ALGORITHM_VERSION,
 	STAFFPAD_MAXIMUM_RENDER_BYTES,
-	STAFFPAD_MAXIMUM_RATIO,
-	STAFFPAD_MINIMUM_PITCH_CENTS,
-	STAFFPAD_MINIMUM_RATIO,
-	STAFFPAD_MAXIMUM_PITCH_CENTS,
 	StaffPadRenderClient,
-	normalizeStaffPadTransform,
-	pitchCentsToRatio,
-	staffPadTransformOutputFrames,
 } from './staffpad/index.js';
 import { AUDIO_EDITOR_SOURCE_CHUNK_FRAMES } from './project-audio-factory.js';
 import { checkedPublicationByteSum, estimatePcmRenderPublication } from './publication-byte-estimates.ts';
 import { estimateClipTimePitchRenderAdmission, normalizeClipTimePitchRenderMaximumBytes } from './clip-time-pitch-render-admission.ts';
-import { ClipTimePitchCacheSessionFence } from './clip-time-pitch-cache-session.ts';
-import { cloneJson, reverseFloat32, stableSerialize } from './clip-time-pitch-cache-values.ts';
 import {
-	finiteRange,
+	isAudioBufferLike,
+	loadStoredSourceChannels,
+	normalizeLoadedChannels,
+	validateRenderedChannels,
+} from './clip-time-pitch-cache-channels.js';
+import {
+	abortError,
+	cacheError,
+	normalizeCacheError,
+	throwIfAborted,
+} from './clip-time-pitch-cache-errors.js';
+import {
+	CLIP_TIME_PITCH_CACHE_SCHEMA_VERSION,
+	cacheSourceIdForKey,
+	clipNeedsTimePitchRender,
+	deriveClipTimePitchCachePlan,
+	describeClipTimePitchRender,
+} from './clip-time-pitch-cache-plan.js';
+import { ClipTimePitchCacheSessionFence } from './clip-time-pitch-cache-session.ts';
+import { cloneJson, reverseFloat32 } from './clip-time-pitch-cache-values.ts';
+import {
 	integerRange,
-	nonEmptyString,
 	nonNegativeInteger,
-	positiveFinite,
 	positiveInteger,
 } from './clip-time-pitch-cache-validation.ts';
-export const CLIP_TIME_PITCH_CACHE_SCHEMA_VERSION = 1;
-export const CLIP_TIME_PITCH_CACHE_ALGORITHM_REVISION = STAFFPAD_ALGORITHM_VERSION;
-export const CLIP_TIME_PITCH_CACHE_PREFIX = 'audio-editor-time-pitch-v1';
+
+export { ClipTimePitchCacheError } from './clip-time-pitch-cache-errors.js';
+export { loadStoredSourceChannels } from './clip-time-pitch-cache-channels.js';
+export {
+	CLIP_TIME_PITCH_CACHE_ALGORITHM_REVISION,
+	CLIP_TIME_PITCH_CACHE_PREFIX,
+	CLIP_TIME_PITCH_CACHE_SCHEMA_VERSION,
+	cacheSourceIdForKey,
+	clipNeedsTimePitchRender,
+	deriveClipTimePitchCachePlan,
+	describeClipTimePitchRender,
+} from './clip-time-pitch-cache-plan.js';
+
 export const CLIP_TIME_PITCH_DEFAULT_RESIDENT_CHANNEL_BYTES = 32 * 1024 ** 2;
-const MAXIMUM_SEQUENTIAL_STAGES = 32;
-export function clipNeedsTimePitchRender(clip) {
-	if (!clip || typeof clip !== 'object') return false;
-	return Number(clip.pitchCents ?? 0) !== 0 || Number(clip.speedRatio ?? 1) !== 1;
-}
-
-/** A stable error surface for UI, worker, and quota reporting. */
-export class ClipTimePitchCacheError extends Error {
-	constructor(code, message, options = {}) {
-		super(message, options.cause ? { cause: options.cause } : undefined);
-		this.name = 'ClipTimePitchCacheError';
-		this.code = String(code || 'RENDER_FAILED');
-		this.details = options.details == null ? null : cloneJson(options.details);
-	}
-}
-
-/**
- * Validate one V2 clip/source pair and split extreme speed changes into scalar
- * StaffPad passes. The native ABI remains within 0.5–2.0 on every pass while
- * the browser model keeps accepting any finite positive clip speed.
- */
-export function describeClipTimePitchRender(clip, source, options = {}) {
-	if (!clip || typeof clip !== 'object' || Array.isArray(clip)) {
-		throw new TypeError('A V2 audio clip is required.');
-	}
-	if (!source || typeof source !== 'object' || Array.isArray(source)) {
-		throw new TypeError('A V2 audio source is required.');
-	}
-	const sourceId = nonEmptyString(source.id, 'source.id');
-	if (nonEmptyString(clip.sourceId, 'clip.sourceId') !== sourceId) {
-		throw cacheError('SOURCE_MISMATCH', 'The clip does not reference the supplied immutable source.');
-	}
-	const clipId = nonEmptyString(clip.id, 'clip.id');
-	const sourceFrameCount = positiveInteger(source.frameCount, 'source.frameCount');
-	const sourceStartFrame = nonNegativeInteger(clip.sourceStartFrame ?? 0, 'clip.sourceStartFrame');
-	const sourceDurationFrames = positiveInteger(
-		clip.sourceDurationFrames ?? clip.durationFrames,
-		'clip.sourceDurationFrames',
-	);
-	if (sourceStartFrame + sourceDurationFrames > sourceFrameCount) {
-		throw cacheError('INVALID_SOURCE_RANGE', 'The clip source range extends beyond its immutable source.');
-	}
-	const channelCount = integerRange(source.channelCount, 1, 2, 'source.channelCount');
-	const sampleRate = integerRange(
-		options.sampleRate ?? source.sampleRate,
-		8_000,
-		192_000,
-		'sampleRate',
-	);
-	const pitchCents = finiteRange(
-		clip.pitchCents ?? 0,
-		STAFFPAD_MINIMUM_PITCH_CENTS,
-		STAFFPAD_MAXIMUM_PITCH_CENTS,
-		'clip.pitchCents',
-	);
-	const speedRatio = positiveFinite(clip.speedRatio ?? 1, 'clip.speedRatio');
-	const preserveFormants = Boolean(clip.preserveFormants);
-	const direction = clip.reversed ? 'reverse' : 'forward';
-	const renderCacheRevision = nonNegativeInteger(
-		clip.renderCacheRevision ?? 0,
-		'clip.renderCacheRevision',
-	);
-	const algorithmRevision = nonEmptyString(
-		options.algorithmRevision ?? CLIP_TIME_PITCH_CACHE_ALGORITHM_REVISION,
-		'algorithmRevision',
-	);
-	const speedStages = decomposeSpeedRatio(speedRatio);
-	let inputFrames = sourceDurationFrames;
-	const stages = speedStages.map((tempoRatio, index) => {
-		const stagePitchCents = index === 0 ? pitchCents : 0;
-		const transform = normalizeStaffPadTransform({
-			tempoRatio,
-			pitchRatio: pitchCentsToRatio(stagePitchCents),
-			preserveFormants: index === 0 && preserveFormants,
-		});
-		const outputFrames = staffPadTransformOutputFrames(inputFrames, transform);
-		const stage = Object.freeze({
-			index,
-			inputFrames,
-			outputFrames,
-			tempoRatio,
-			pitchCents: stagePitchCents,
-			preserveFormants: transform.preserveFormants,
-			transform: freezeTransform(transform),
-		});
-		inputFrames = outputFrames;
-		return stage;
-	});
-	const outputFrames = stages.at(-1).outputFrames;
-	const outputBytes = outputFrames * channelCount * Float32Array.BYTES_PER_ELEMENT;
-	const maximumOutputBytes = options.maximumOutputBytes ?? STAFFPAD_MAXIMUM_RENDER_BYTES;
-	const largestStageBytes = stages.reduce((largest, stage) => (
-		Math.max(largest, stage.outputFrames * channelCount * Float32Array.BYTES_PER_ELEMENT)
-	), 0);
-	if (!Number.isSafeInteger(outputBytes) || !Number.isSafeInteger(largestStageBytes)
-		|| largestStageBytes > maximumOutputBytes) {
-		throw cacheError(
-			'OUTPUT_LIMIT_EXCEEDED',
-			`The clip render would exceed the ${maximumOutputBytes} byte output limit.`,
-			{ outputFrames, outputBytes, largestStageBytes },
-		);
-	}
-	const warnings = [];
-	if (speedRatio < STAFFPAD_MINIMUM_RATIO || speedRatio > STAFFPAD_MAXIMUM_RATIO) {
-		warnings.push(Object.freeze({
-			code: 'STAFFPAD_TIME_RATIO_OUTSIDE_TESTED_RANGE',
-			message: `The ${speedRatio}:1 clip speed is outside StaffPad's best-tested 0.5–2.0 range; ${stages.length} sequential passes will be used.`,
-			speedRatio,
-			stageCount: stages.length,
-		}));
-	}
-	return Object.freeze({
-		schemaVersion: CLIP_TIME_PITCH_CACHE_SCHEMA_VERSION,
-		clipId,
-		sourceId,
-		storageKey: nonEmptyString(source.storageKey || sourceId, 'source.storageKey'),
-		sourceFrameCount,
-		sourceRange: Object.freeze({ startFrame: sourceStartFrame, frameCount: sourceDurationFrames }),
-		channelCount,
-		sampleRate,
-		direction,
-		pitchCents,
-		speedRatio,
-		preserveFormants,
-		renderCacheRevision,
-		algorithmRevision,
-		outputFrames,
-		outputBytes,
-		stages: Object.freeze(stages),
-		warnings: Object.freeze(warnings),
-		sourceIdentity: Object.freeze({
-			id: sourceId,
-			storageKey: nonEmptyString(source.storageKey || sourceId, 'source.storageKey'),
-			frameCount: sourceFrameCount,
-			channelCount,
-			sampleRate,
-			sampleFormat: String(source.sampleFormat || 'float32'),
-			revision: sourceRevision(source),
-		}),
-	});
-}
-
-/** Derive the immutable, sequential stage keys without reading source PCM. */
-export async function deriveClipTimePitchCachePlan(clip, source, options = {}) {
-	const description = describeClipTimePitchRender(clip, source, options);
-	let priorKey = null;
-	const stages = [];
-	for (const stage of description.stages) {
-		const descriptor = Object.freeze({
-			schemaVersion: CLIP_TIME_PITCH_CACHE_SCHEMA_VERSION,
-			algorithm: Object.freeze({
-				id: STAFFPAD_ALGORITHM_ID,
-				revision: description.algorithmRevision,
-			}),
-			input: priorKey == null
-				? Object.freeze({
-					source: description.sourceIdentity,
-					range: description.sourceRange,
-					direction: description.direction,
-				})
-				: Object.freeze({
-					cacheKey: priorKey,
-					range: Object.freeze({ startFrame: 0, frameCount: stage.inputFrames }),
-					direction: 'forward',
-				}),
-			intent: Object.freeze({
-				pitchCents: description.pitchCents,
-				speedRatio: description.speedRatio,
-				preserveFormants: description.preserveFormants,
-				renderCacheRevision: description.renderCacheRevision,
-			}),
-			sampleRate: description.sampleRate,
-			channelCount: description.channelCount,
-			stage: Object.freeze({
-				index: stage.index,
-				count: description.stages.length,
-				inputFrames: stage.inputFrames,
-				outputFrames: stage.outputFrames,
-				transform: stage.transform,
-			}),
-		});
-		const cacheKey = await hashCacheDescriptor(descriptor);
-		stages.push(Object.freeze({ ...stage, descriptor, cacheKey }));
-		priorKey = cacheKey;
-	}
-	const finalKey = priorKey;
-	return Object.freeze({
-		...description,
-		stages: Object.freeze(stages),
-		finalKey,
-		cacheSourceId: cacheSourceIdForKey(finalKey),
-	});
-}
 
 /**
  * Coordinates immutable StaffPad renders and their atomic source-store commit.
@@ -702,36 +526,6 @@ export class ClipTimePitchRenderCacheCoordinator {
 }
 
 /** Load one immutable source into planar arrays through the store's chunk API. */
-export async function loadStoredSourceChannels(store, source, options = {}) {
-	if (!store?.readSourceChunks) throw new TypeError('The project store cannot read source chunks.');
-	const frameCount = positiveInteger(source.frameCount, 'source.frameCount');
-	const channelCount = integerRange(source.channelCount, 1, 2, 'source.channelCount');
-	const channels = Array.from({ length: channelCount }, () => new Float32Array(frameCount));
-	let offset = 0;
-	for await (const chunk of store.readSourceChunks(source.storageKey || source.id)) {
-		throwIfAborted(options.signal);
-		if (!Array.isArray(chunk.channels) || chunk.channels.length !== channelCount) {
-			throw cacheError('CORRUPT_SOURCE', 'A stored source chunk has an invalid channel count.');
-		}
-		const frames = positiveInteger(chunk.frames ?? chunk.channels[0]?.length, 'source chunk frames');
-		if (offset + frames > frameCount) throw cacheError('CORRUPT_SOURCE', 'Stored source chunks exceed their declared frame count.');
-		for (let channel = 0; channel < channelCount; channel += 1) {
-			if (!(chunk.channels[channel] instanceof Float32Array) || chunk.channels[channel].length !== frames) {
-				throw cacheError('CORRUPT_SOURCE', 'A stored source chunk contains invalid planar PCM.');
-			}
-			channels[channel].set(chunk.channels[channel], offset);
-		}
-		offset += frames;
-	}
-	if (offset !== frameCount) throw cacheError('CORRUPT_SOURCE', 'Stored source chunks do not match their declared frame count.');
-	return channels;
-}
-
-export function cacheSourceIdForKey(cacheKey) {
-	const match = /^audio-editor-time-pitch-v1:([0-9a-f]{64})$/.exec(String(cacheKey));
-	if (!match) throw new TypeError('A clip time-and-pitch cache key is required.');
-	return `${CLIP_TIME_PITCH_CACHE_PREFIX}-${match[1]}`;
-}
 
 function resolvedEntry(entry, request, stale) {
 	return Object.freeze({
@@ -761,62 +555,6 @@ function createCommittedEntry(plan, metadata) {
 	};
 }
 
-function normalizeLoadedChannels(value, plan) {
-	const channels = isAudioBufferLike(value)
-		? Array.from({ length: value.numberOfChannels }, (_, channel) => value.getChannelData(channel))
-		: value;
-	if (!Array.isArray(channels) || channels.length !== plan.channelCount) {
-		throw cacheError('SOURCE_CHANNEL_MISMATCH', 'Loaded source PCM does not match the V2 source channel count.');
-	}
-	return channels.map((channel, index) => {
-		if (!(channel instanceof Float32Array) || channel.length !== plan.sourceFrameCount
-			|| channel.byteOffset !== 0 || channel.byteLength !== channel.buffer.byteLength) {
-			throw cacheError('SOURCE_FRAME_MISMATCH', `Loaded source channel ${index} does not have the exact V2 source allocation.`);
-		}
-		return channel;
-	});
-}
-
-function validateRenderedChannels(channels, channelCount, frameCount) {
-	if (!Array.isArray(channels) || channels.length !== channelCount) {
-		throw cacheError('INVALID_RENDER_OUTPUT', 'StaffPad returned an invalid channel count.');
-	}
-	return channels.map((channel, index) => {
-		if (!(channel instanceof Float32Array) || channel.length !== frameCount
-			|| channel.byteOffset !== 0 || channel.byteLength !== channel.buffer.byteLength) {
-			throw cacheError('INVALID_RENDER_OUTPUT', `StaffPad returned an invalid channel ${index}.`);
-		}
-		return channel;
-	});
-}
-
-function decomposeSpeedRatio(value) {
-	let remaining = positiveFinite(value, 'clip.speedRatio');
-	const stages = [];
-	for (let index = 0; index < MAXIMUM_SEQUENTIAL_STAGES; index += 1) {
-		if (remaining > STAFFPAD_MAXIMUM_RATIO) {
-			stages.push(STAFFPAD_MAXIMUM_RATIO);
-			remaining /= STAFFPAD_MAXIMUM_RATIO;
-			continue;
-		}
-		if (remaining < STAFFPAD_MINIMUM_RATIO) {
-			stages.push(STAFFPAD_MINIMUM_RATIO);
-			remaining /= STAFFPAD_MINIMUM_RATIO;
-			continue;
-		}
-		stages.push(remaining);
-		return stages;
-	}
-	throw cacheError('SPEED_RATIO_LIMIT_EXCEEDED', 'The clip speed requires too many sequential StaffPad passes.');
-}
-
-async function hashCacheDescriptor(descriptor) {
-	if (!globalThis.crypto?.subtle) throw cacheError('HASH_UNAVAILABLE', 'SHA-256 is unavailable for clip render cache keys.');
-	const bytes = new TextEncoder().encode(stableSerialize(descriptor));
-	const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
-	const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
-	return `${CLIP_TIME_PITCH_CACHE_PREFIX}:${hash}`;
-}
 
 async function assertQuota(store, plan, chunkFrames, headroomBytes) {
 	if (typeof store.estimateStorage !== 'function') return;
@@ -836,39 +574,3 @@ async function assertQuota(store, plan, chunkFrames, headroomBytes) {
 	}
 }
 
-function normalizeCacheError(error) {
-	if (error instanceof ClipTimePitchCacheError) return error;
-	if (error?.name === 'AbortError' || error?.code === 'ABORT_ERR' || error?.code === 'ABORTED') return abortError();
-	if (error?.name === 'QuotaExceededError' || error?.code === 'QuotaExceededError'
-		|| error?.code === 'QUOTA_EXCEEDED' || error?.code === 22) {
-		return cacheError('QUOTA_EXCEEDED', 'Browser storage quota was exceeded before the clip render could be committed.', null, error);
-	}
-	return cacheError('RENDER_FAILED', error?.message || 'The StaffPad clip render failed.', null, error);
-}
-function cacheError(code, message, details = null, cause = null) {
-	return new ClipTimePitchCacheError(code, message, { details, cause });
-}
-function abortError() {
-	const error = new ClipTimePitchCacheError('ABORTED', 'The clip time-and-pitch render was cancelled.');
-	error.name = 'AbortError';
-	return error;
-}
-function throwIfAborted(signal) {
-	if (signal?.aborted) throw abortError();
-}
-function sourceRevision(source) {
-	const value = source.revision ?? source.opaqueExtensions?.revision ?? source.opaqueExtensions?.sourceRevision ?? 0;
-	return nonNegativeInteger(value, 'source revision');
-}
-function freezeTransform(transform) {
-	return Object.freeze({
-		preserveFormants: transform.preserveFormants,
-		durationRatio: transform.durationRatio,
-		keyframes: Object.freeze(transform.keyframes.map((keyframe) => Object.freeze({ ...keyframe }))),
-	});
-}
-function isAudioBufferLike(value) {
-	return Boolean(value && Number.isSafeInteger(value.numberOfChannels) && value.numberOfChannels > 0
-		&& Number.isSafeInteger(value.length) && value.length > 0
-		&& typeof value.getChannelData === 'function');
-}
