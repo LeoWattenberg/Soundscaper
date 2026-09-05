@@ -70,11 +70,12 @@ test('collapsing and rolling back a macro that committed nothing change nothing'
 });
 
 test('a macro longer than the history limit still collapses to its own opening', () => {
-	// The stack is bounded, so a long macro pushes the entry it opened with off
-	// the end. Carrying the opening project through the collapse rather than
-	// looking it up is what keeps one undo correct.
+	// The stack is bounded, so a macro longer than the whole limit pushes the
+	// entry it opened with — and everything under it — off the end. The depth
+	// then names a commit no slot holds any more, and clamps to the oldest entry
+	// left rather than settling the macro into a no-op.
 	let history = historyWith(['user-a']);
-	const depth = history.undoStack.length;
+	const depth = (history.dropped ?? 0) + history.undoStack.length;
 	const started = history.present;
 	for (let index = 0; index < AUDIO_EDITOR_HISTORY_LIMIT + 10; index += 1) {
 		history = executeEditorCommand(history, addTrack(`macro-${index}`));
@@ -82,7 +83,7 @@ test('a macro longer than the history limit still collapses to its own opening',
 	assert.equal(history.undoStack.length, AUDIO_EDITOR_HISTORY_LIMIT);
 
 	const collapsed = collapseEditorHistory(history, depth, { type: 'macro/run' });
-	assert.equal(collapsed.undoStack.length, depth + 1);
+	assert.equal(collapsed.undoStack.length, 1, 'nothing of the user\'s own history survived under the macro');
 	assert.notDeepEqual(trackNames(undoEditorCommand(collapsed).present), trackNames(started),
 		'the project the macro began from is already gone, and the entry says so honestly');
 });
