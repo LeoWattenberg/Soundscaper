@@ -144,7 +144,7 @@ export const DESKTOP_5B_TRANSITIVE_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/video-retime-ordinal-consumers.js',
 	'src/common/editor/video-source-characteristics-consumer.js',
 	'src/common/editor/video-retime-preview-executor.js',
-	'src/common/editor/ui/framescaper-native-live-render-bridge.js',
+	'src/common/editor/framescaper-native-live-render-role-v1.js',
 	'src/framescaper/editor-native-image-sequence-import.js',
 	'src/framescaper/editor-native-openfx-authoring.js',
 ]);
