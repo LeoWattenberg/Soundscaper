@@ -864,11 +864,6 @@
       "count": 1
     }
   },
-  "src/common/editor/ui/AudioEditorBootstrap.jsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1
-    }
-  },
   "src/common/editor/ui/AudioEditorMenuBar.jsx": {
     "no-restricted-syntax": {
       "count": 3

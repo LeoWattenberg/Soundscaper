@@ -4,13 +4,6 @@ import { reportStaleBuildCandidate } from '../../offline/stale-build-runtime.ts'
 import './audio-editor-design-system.css';
 import { DesignSystemProviders } from './DesignSystemRuntime.jsx';
 import AudioEditorWorkspace from './workspace/AudioEditorWorkspace.jsx';
-import DefaultAudioEditorWorkspace from './workspace/DefaultAudioEditorWorkspace.jsx';
-
-export default function AudioEditorApp(props) {
-	return <AudioEditorFrame copy={props.copy}>
-		<DefaultAudioEditorWorkspace {...props} />
-	</AudioEditorFrame>;
-}
 
 /** Presentation-only seam for a product-owned, already-constructed runtime. */
 export function BoundAudioEditorApp(props) {
