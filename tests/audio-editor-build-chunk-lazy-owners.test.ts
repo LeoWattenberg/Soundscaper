@@ -59,6 +59,37 @@ test('optional archive code and its ZIP vendor are placed by dynamic reachabilit
 	);
 });
 
+test('the export and delivery split keeps its implementation behind the export owner', () => {
+	// Splitting the export services into focused modules gave the new names no
+	// optional-export owner, so `editor-controller-core` claimed them and shipped
+	// render, delivery and staging code in an eagerly loaded chunk. Each is
+	// imported only from a service that is itself behind the lazy export owner.
+	for (const path of [
+		'src/common/editor/controller/bw64-render-project.ts',
+		'src/common/editor/controller/mastering-sequence-export-render.ts',
+		'src/common/editor/controller/persistent-audio-delivery-execution.ts',
+		'src/common/editor/controller/persistent-export-progress.ts',
+		'src/common/editor/controller/streaming-stem-archive-export.ts',
+		'src/common/editor/controller/video-export-original-loader.ts',
+		'src/common/editor/controller/video-export-staged-audio.ts',
+	]) {
+		assert.ok(EDITOR_OPTIONAL_EXPORT_CHUNK_TEST.test(path), `${path} must be an optional export module`);
+		assert.equal(chunkGroupForModulePath(path), 'editor-optional-export', `${path} belongs to the export owner`);
+	}
+});
+
+test('the scape split keeps its lazy-only modules behind the archive owner', () => {
+	// The same gap the aup4 split left: `scape-project.js` is the only importer of
+	// either module, and it is placed by dynamic reachability.
+	for (const path of [
+		'src/common/editor/scape-import-capacity.ts',
+		'src/common/editor/scape-project-admission.ts',
+	]) {
+		assert.ok(EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST.test(path), `${path} must be an archive implementation`);
+		assert.equal(chunkGroupForModulePath(path), null, `${path} must stay behind its lazy action`);
+	}
+});
+
 test('the aup4 split keeps its lazy-only modules behind the archive owner', () => {
 	// Splitting `aup4-profile.js` and its siblings into focused modules gave the
 	// new names no archive owner, so the broad editor-domain pattern claimed them
