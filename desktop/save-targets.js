@@ -10,6 +10,7 @@ import {
 	MAX_SAVE_SESSIONS,
 	MAX_SAVE_TARGETS,
 } from './constants.js';
+import { restorePublishedFileMode } from './save-publication-mode.js';
 import { SPACE_EXHAUSTED_MESSAGE, commitFailureMessage, isSpaceExhaustedError } from './save-space.js';
 import { validateDeclaredSize } from './validation.js';
 
@@ -339,6 +340,7 @@ export class AtomicSaveManager {
 		let handleClosed = false;
 		try {
 			await session.handle.sync();
+			await restorePublishedFileMode(session.handle, session.targetPath);
 			await session.handle.close();
 			handleClosed = true;
 			await this.#rename(session.temporaryPath, session.targetPath);
