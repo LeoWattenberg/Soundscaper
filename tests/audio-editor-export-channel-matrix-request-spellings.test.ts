@@ -43,7 +43,9 @@ test('opening and applying a mapping delivers the routing it already stated', ()
 		);
 		assert.deepEqual(
 			routing(applied),
-			routing(normalizeMediaChannelMapping(2, requested(value))),
+			// The normalizer declares its string default; at runtime it accepts every
+			// request spelling, which is exactly what this round trip pins.
+			routing(normalizeMediaChannelMapping(2, requested(value) as string)),
 			`${JSON.stringify(value)} must survive a round trip through the grid`,
 		);
 	}

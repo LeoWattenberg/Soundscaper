@@ -65,6 +65,7 @@ function createHarness(
 	const state: ClipTimePitchPlaybackState = {
 		playbackCacheGeneration: 0,
 		playbackCacheAbort: null,
+		playbackCacheRefreshAbort: null,
 		recordingStarting: false,
 		recorder: null,
 	};

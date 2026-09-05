@@ -32,13 +32,13 @@ test('a desktop compressed export chooses its target only when FFmpeg opens the 
 	}, plan, null, signal);
 
 	assert.ok(preparation.destination, 'the desktop route still prepares a direct destination');
-	assert.deepEqual(events, [], 'the native save dialog must not run before the render');
+	assert.equal(events.length, 0, 'the native save dialog must not run before the render');
 
 	const encoded = await encodeDirectCompressedStagedFile({
 		destination: preparation.destination,
 		plan,
 		stagedFile: new Blob([Uint8Array.of(0)], { type: 'audio/wav' }),
-		encodingSettings: plan.encoding,
+		encodingSettings: plan.encoding ?? {},
 		signal,
 		assertCurrent: () => undefined,
 		cleanupStagedFile: () => { events.push('staging:cleanup'); },

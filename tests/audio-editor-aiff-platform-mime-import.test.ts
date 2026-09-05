@@ -171,7 +171,7 @@ test('changed-content relink admits a platform-typed AIFF replacement for a cano
 	});
 });
 
-function aiffBytes(): Uint8Array {
+function aiffBytes(): Uint8Array<ArrayBuffer> {
 	const encoded = encodeAiff([
 		Float32Array.of(-1, -0.5, 0, 0.5, 0.75),
 		Float32Array.of(0.25, -0.25, 0.75, -0.75, 0),

@@ -55,7 +55,7 @@ test('a per-track clip ripple moves the take graph with the material', () => {
 });
 
 test('a clip removal that does not ripple leaves the take graph where it is', () => {
-	for (const rippleMode of ['none', 'clip']) {
+	for (const rippleMode of ['none', 'clip'] as const) {
 		const removed = applyEditorCommand(takeProject(), {
 			type: 'clip/remove-many', clipIds: ['clip-1'], rippleMode,
 		});

@@ -12,6 +12,13 @@ const OWNER = Object.freeze({ name: 'published-file-mode-owner' });
 const POSIX_ONLY = { skip: process.platform === 'win32' };
 const PAYLOAD = Uint8Array.of(1, 2, 3, 4);
 
+type ManagerOptions = ConstructorParameters<typeof AtomicSaveManager>[0];
+
+/** The manager reads its options off a JavaScript default, so the store goes through its constructor type. */
+function createManager(options: Readonly<Record<string, unknown>>): AtomicSaveManager {
+	return new AtomicSaveManager(options as unknown as ManagerOptions);
+}
+
 test('a published save takes the platform default mode, not the staging mode', POSIX_ONLY, async (context) => {
 	const root = await temporaryRoot(context);
 	const destination = join(root, 'export.wav');
@@ -55,7 +62,7 @@ test('the staging file stays owner-only while the save is in flight', POSIX_ONLY
 	const root = await temporaryRoot(context);
 	const destination = join(root, 'in-flight.wav');
 	const targets = new SaveTargetStore();
-	const manager = new AtomicSaveManager({ targets });
+	const manager = createManager({ targets });
 	context.after(() => manager.dispose());
 	const target = targets.registerPath(destination, { owner: OWNER, purpose: 'audio-pcm-mix' });
 	const { writeId } = await manager.begin({ owner: OWNER, targetId: target.id, size: PAYLOAD.byteLength });
@@ -75,7 +82,7 @@ test('the staging file stays owner-only while the save is in flight', POSIX_ONLY
 test('a save handle without chmod still finishes', POSIX_ONLY, async (context) => {
 	const root = await temporaryRoot(context);
 	const targets = new SaveTargetStore();
-	const manager = new AtomicSaveManager({
+	const manager = createManager({
 		targets,
 		openImpl: async () => ({ async sync() {}, async close() {} }),
 		renameImpl: async () => undefined,
@@ -93,7 +100,7 @@ test('a save handle without chmod still finishes', POSIX_ONLY, async (context) =
 
 async function publish(destination: string, bytes: Uint8Array): Promise<void> {
 	const targets = new SaveTargetStore();
-	const manager = new AtomicSaveManager({ targets });
+	const manager = createManager({ targets });
 	try {
 		const target = targets.registerPath(destination, { owner: OWNER, purpose: 'audio-pcm-mix' });
 		const { writeId } = await manager.begin({ owner: OWNER, targetId: target.id, size: bytes.byteLength });

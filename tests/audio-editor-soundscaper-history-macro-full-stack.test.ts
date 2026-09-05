@@ -18,6 +18,11 @@ import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 const NOW = '2026-09-05T09:00:00.000Z';
 const LIMIT = 4;
 
+/** The macro's own commit, typed the way the history receives it. */
+type MacroCommand = Parameters<typeof collapseSoundscaperProjectHistory>[2];
+const MACRO_RUN = { type: 'macro/run' } as unknown as MacroCommand;
+const NAMED_MACRO_RUN = { type: 'macro/run', name: 'Restoration' } as unknown as MacroCommand;
+
 /**
  * Where a macro opens, read the way the macro transaction reads it
  * (src/common/editor/controller/project-mutation-service.ts): a position in the
@@ -64,7 +69,7 @@ test('a macro that opens on a full undo stack still collapses to one entry', () 
 	for (const name of ['macro-1', 'macro-2']) history = commit(history, name);
 	assert.equal(history.undoStack.length, LIMIT, 'the macro pushed the oldest entries off the end');
 
-	const collapsed = collapseSoundscaperProjectHistory(history, depth, { type: 'macro/run', name: 'Restoration' });
+	const collapsed = collapseSoundscaperProjectHistory(history, depth, NAMED_MACRO_RUN);
 	assert.deepEqual(trackNames(collapsed), trackNames(history), 'collapsing changes the history, never the project');
 	assert.equal(collapsed.undoStack.length, LIMIT - 1, 'the two macro entries became one');
 	assert.deepEqual(collapsed.undoStack.at(-1)?.command, { type: 'macro/run', name: 'Restoration' });
@@ -106,8 +111,8 @@ test('a macro that fills the last free slot rolls back past its own steps', () =
 test('a macro that committed nothing still collapses and rolls back to nothing', () => {
 	const history = historyWith(['user-a', 'user-b', 'user-c', 'user-d']);
 	const depth = macroDepth(history);
-	assert.strictEqual(collapseSoundscaperProjectHistory(history, depth, { type: 'macro/run' }), history);
+	assert.strictEqual(collapseSoundscaperProjectHistory(history, depth, MACRO_RUN), history);
 	assert.strictEqual(rollbackSoundscaperProjectHistory(history, depth), history);
-	assert.throws(() => collapseSoundscaperProjectHistory(history, -1, { type: 'macro/run' }), /non-negative/u);
+	assert.throws(() => collapseSoundscaperProjectHistory(history, -1, MACRO_RUN), /non-negative/u);
 	assert.throws(() => rollbackSoundscaperProjectHistory(history, 1.5), /non-negative/u);
 });

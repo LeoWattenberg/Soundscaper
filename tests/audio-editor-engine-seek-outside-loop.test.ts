@@ -129,7 +129,7 @@ test('seeking past the loop end in StaffPad playback keeps the buffer offset ins
 	engine.setLoop({ enabled: true, startFrame: 0, endFrame: LOOP_END_FRAME });
 	await engine.playAtSpeed(2, {
 		preservePitch: true,
-		pitchPreserver: (channels: readonly Float32Array[]) => channels.map(() => new Float32Array(24_000)),
+		pitchPreserver: async (channels: readonly Float32Array[]) => channels.map(() => new Float32Array(24_000)),
 	});
 	assert.equal(engine.getState().playbackMode, 'staffpad');
 	context.currentTime = 0.02;
