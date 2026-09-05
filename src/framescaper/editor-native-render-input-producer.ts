@@ -16,6 +16,10 @@ import {
 import { canonicalMediaContentBlob } from '../common/editor/storage/media-content-digest.ts';
 import type { BlobLike } from '../common/editor/storage/media-records.ts';
 import {
+	isVideoExportTimingMap,
+	videoExportTimingMapEntries,
+} from '../common/editor/video-export-timing-map.ts';
+import {
 	createFramescaperNativeImageSequenceSourceResolver,
 } from '../common/editor/ui/framescaper-native-image-sequence-source-resolver.ts';
 import {
@@ -283,6 +287,22 @@ async function executeCarrier<Result>(
 	return result;
 }
 
+/**
+ * The presentation authority admits a timing index only through `instanceof
+ * Map`, and an acquired lease carries the authenticated timing map, which is
+ * deliberately not one. The web offline export normalizes the same value on
+ * the way in; without the same step here every keyed carrier render refused
+ * itself before it read a single frame.
+ */
+function plainTimingMap<Timing>(
+	value: ReadonlyMap<string, Timing>,
+): ReadonlyMap<string, Timing> {
+	if (!isVideoExportTimingMap(value)) return value;
+	return new Map(videoExportTimingMapEntries(
+		value as ReadonlyMap<string, never>,
+	) as readonly (readonly [string, Timing])[]);
+}
+
 interface PreparedCarrierRenderer {
 	readonly width: number;
 	readonly height: number;
@@ -314,7 +334,7 @@ async function prepareKeyedCarrier(
 	}
 	const blobs = await loadVideoBlobs(renderPlan, store, operation);
 	const presentation = createVideoKeyframeExportPresentationAuthority({
-		project: sourcePlan.project, timingBySourceId: timing.timingBySourceId,
+		project: sourcePlan.project, timingBySourceId: plainTimingMap(timing.timingBySourceId),
 	});
 	const assets = await sourcePlan.authenticate(
 		[...blobs].map(([sourceId, blob]) => Object.freeze({ sourceId, blob })),

@@ -492,3 +492,29 @@ test('a carrier source body that is missing, empty or not a Blob is refused alik
 		);
 	}
 });
+
+/*
+ * Regression: the acquired timing lease carries an authenticated timing map,
+ * which is deliberately not a `Map`, and the presentation authority admits its
+ * timing only through `instanceof Map`. Handing the lease's map straight over
+ * refused every keyed carrier render before it read a frame.
+ */
+test('a keyed carrier gets its authenticated timing past the presentation authority', async () => {
+	const { project, plan } = fixture();
+	const double = operationDouble(project);
+	const body = new Blob([Uint8Array.of(9, 9, 9, 9)]);
+
+	await assert.rejects(
+		() => streamCarrier(plan, project, store(async () => body), double.operation, {
+			...unusedPorts(), acquireTiming: acquireVideoExportTimingIndexes,
+		}, { write: () => undefined }),
+		(error: unknown) => {
+			assert.doesNotMatch(
+				String(error instanceof AggregateError ? error.errors[0] : error),
+				/presentation timing must be a ReadonlyMap/u,
+				'the authority must accept the timing the lease actually carries',
+			);
+			return true;
+		},
+	);
+});
