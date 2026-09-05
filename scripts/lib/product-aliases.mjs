@@ -40,7 +40,7 @@ export const PRODUCT_STAND_IN_ALIASES = Object.freeze([
 		desktopCodecRuntime: null,
 	},
 	{
-		find: /^\.\.\/framescaper-(?:finishing-menu|selected-visual-authoring-menu|video-proxy-application-menu)\.ts$/u,
+		find: /^(?:\.\/|\.\.\/)framescaper-(?:finishing-menu|selected-visual-authoring-menu|video-proxy-application-menu)\.ts$/u,
 		standIn: 'src/soundscaper/editor-framescaper-overlay-model.ts',
 		product: 'soundscaper',
 		desktopCodecRuntime: null,
@@ -120,12 +120,6 @@ export const PRODUCT_STAND_IN_ALIASES = Object.freeze([
 	{
 		find: /^\.\/editor-codec-runtime\.ts$/u,
 		standIn: 'src/common/editor/editor-codec-runtime.desktop.ts',
-		product: null,
-		desktopCodecRuntime: true,
-	},
-	{
-		find: /^\.\/OfflineRuntimePreferencePanel\.tsx$/u,
-		standIn: 'src/common/editor/ui/dialogs/OfflineRuntimePreferencePanel.desktop.tsx',
 		product: null,
 		desktopCodecRuntime: true,
 	},
