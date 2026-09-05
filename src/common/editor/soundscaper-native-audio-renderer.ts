@@ -5,7 +5,7 @@ import {
 	createNativeRealtimeClient,
 	type NativeRealtimeTransferredPort,
 } from './native-realtime-client.ts';
-import type { NativeAudioSessionOpenRequestV1 } from './ui/soundscaper-native-services-bridge.ts';
+import type { NativeAudioSessionOpenRequestV1 } from './native-audio-session-request-v1.ts';
 import { claimSoundscaperNativeAudioCapture } from './soundscaper-native-audio-capture.ts';
 import { nativeAudioDeviceId } from './controller/native-audio-inventory.ts';
 

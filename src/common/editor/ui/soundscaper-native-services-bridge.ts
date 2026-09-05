@@ -13,6 +13,9 @@
 import { resolveAudioEditorDesktopBridge } from '../file-service.js';
 
 import type { SoundscaperNativeServicesSnapshot } from './soundscaper-native-services-menu.ts';
+import type { NativeAudioSessionOpenRequestV1 } from '../native-audio-session-request-v1.ts';
+
+export type { NativeAudioSessionOpenRequestV1 } from '../native-audio-session-request-v1.ts';
 
 export interface NativeAudioAvailability {
 	readonly enabled: boolean;
@@ -125,18 +128,6 @@ export type NativePluginConsentAction = 'grant' | 'revoke' | 'add-standard-root'
 
 /** The quarantine's only exit, named by the clearance the store accepts. */
 export type NativePluginQuarantineClearance = 'rescan' | 're-enable';
-
-export interface NativeAudioSessionOpenRequestV1 {
-	readonly candidates: readonly Readonly<{
-		readonly backend: 'coreaudio' | 'wasapi' | 'asio' | 'pipewire' | 'alsa' | 'jack';
-		readonly deviceHandle: string;
-	}>[];
-	readonly direction: 'input' | 'output' | 'duplex';
-	readonly mode: 'shared' | 'exclusive';
-	readonly sampleRate: number;
-	readonly periodFrames: number;
-	readonly channelCount: number;
-}
 
 export interface NativeAudioSessionProjectionV1 {
 	readonly sessionId: string;
