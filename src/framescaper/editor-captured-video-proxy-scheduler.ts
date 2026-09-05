@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type {
-	FramescaperCaptureProxySaveLease,
 	FramescaperCapturedVideoProxyRequest,
 } from '../common/editor/controller/framescaper-capture-derivative-scheduler.ts';
+import type {
+	FramescaperCaptureProxySaveLease,
+} from '../common/editor/controller/framescaper-capture-proxy-quiescence.ts';
 import { createVideoProxyOriginalObserver } from '../common/editor/controller/video-proxy-original-observer.ts';
 import { VideoProxyClaimRepository } from '../common/editor/storage/video-proxy-claim-repository.ts';
 import { VideoProxyClaimStagingRepository } from '../common/editor/storage/video-proxy-claim-staging-repository.ts';

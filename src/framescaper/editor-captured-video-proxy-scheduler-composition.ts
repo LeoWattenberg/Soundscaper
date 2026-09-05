@@ -3,7 +3,7 @@
 import type {
 	FramescaperCapturedVideoProxyActiveUpdate,
 	FramescaperCaptureProxySaveLease,
-} from '../common/editor/controller/framescaper-capture-derivative-scheduler.ts';
+} from '../common/editor/controller/framescaper-capture-proxy-quiescence.ts';
 import {
 	createVideoProxyCandidateObserverForRuntime,
 	type VideoProxyCandidateCompositionOptions,

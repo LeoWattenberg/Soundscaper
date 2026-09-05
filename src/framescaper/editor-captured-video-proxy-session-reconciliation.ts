@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { FramescaperCapturedVideoProxyActiveUpdate } from '../common/editor/controller/framescaper-capture-derivative-scheduler.ts';
+import type {
+	FramescaperCapturedVideoProxyActiveUpdate,
+} from '../common/editor/controller/framescaper-capture-proxy-quiescence.ts';
 
 export interface CapturedVideoProxySessionController {
 	getSnapshot(): Readonly<{

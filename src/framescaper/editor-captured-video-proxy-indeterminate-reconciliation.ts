@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { FramescaperCaptureProxySaveLease } from '../common/editor/controller/framescaper-capture-derivative-scheduler.ts';
+import type {
+	FramescaperCaptureProxySaveLease,
+} from '../common/editor/controller/framescaper-capture-proxy-quiescence.ts';
 import {
 	cleanupCapturedVideoProxyClaims,
 	type CapturedVideoProxyClaimCleanup,

@@ -323,11 +323,6 @@
       "count": 2
     }
   },
-  "src/common/editor/controller/framescaper-capture-derivative-scheduler.ts": {
-    "preserve-caught-error": {
-      "count": 1
-    }
-  },
   "src/common/editor/controller/framescaper-capture-durable-session.ts": {
     "no-useless-assignment": {
       "count": 1
@@ -353,6 +348,11 @@
   },
   "src/common/editor/controller/framescaper-capture-project-write-authority.ts": {
     "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/framescaper-capture-proxy-quiescence.ts": {
+    "preserve-caught-error": {
       "count": 1
     }
   },

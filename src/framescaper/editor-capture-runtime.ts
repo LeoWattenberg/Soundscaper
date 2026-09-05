@@ -4,11 +4,12 @@ import { createFramescaperCaptureAppBinding } from
 	'../common/editor/controller/framescaper-capture-app-binding.ts';
 import { createFramescaperCaptureAdminInterlock } from
 	'../common/editor/controller/framescaper-capture-admin-interlock.ts';
+import { createFramescaperCaptureDerivativeScheduler } from
+	'../common/editor/controller/framescaper-capture-derivative-scheduler.ts';
 import {
-	createFramescaperCaptureDerivativeScheduler,
 	createFramescaperCaptureProxyActiveProjectSynchronizer,
 	createFramescaperCaptureProxySaveQuiescence,
-} from '../common/editor/controller/framescaper-capture-derivative-scheduler.ts';
+} from '../common/editor/controller/framescaper-capture-proxy-quiescence.ts';
 import { createFramescaperCaptureProjectWriteAuthority } from
 	'../common/editor/controller/framescaper-capture-project-write-authority.ts';
 
