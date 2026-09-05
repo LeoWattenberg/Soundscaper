@@ -274,8 +274,15 @@ stop() {
 
 seek(frame) {
 		this[ENGINE_ASSERT_ACTIVE]();
-		const nextFrame = clampFrame(frame, 0, this.playbackDurationFrames);
+		let nextFrame = clampFrame(frame, 0, this.playbackDurationFrames);
 		const wasPlaying = this.state === 'playing';
+		// Rescheduling playback from outside an enabled loop would date the next
+		// loop iteration before the context clock, so land on the loop start the
+		// way play() and setLoop() already do.
+		if (wasPlaying && this.loop.enabled && this.loop.endFrame > this.loop.startFrame
+			&& (nextFrame < this.loop.startFrame || nextFrame >= this.loop.endFrame)) {
+			nextFrame = this.loop.startFrame;
+		}
 		this[ENGINE_CANCEL_SCRUB]();
 		this[ENGINE_HALT_GRAPH]();
 		this.positionFrame = nextFrame;

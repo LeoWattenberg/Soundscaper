@@ -420,6 +420,14 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 		const durationSeconds = (this.loop.endFrame - this.loop.startFrame) / (this.sampleRate * this.playbackRate);
 		if (!(durationSeconds > 0)) return;
 		const horizon = this.context.currentTime + Math.max(0.25, this.meterInterval / 1000 * 4);
+		// Web Audio starts a past-dated source immediately from its offset, so an
+		// iteration whose start time has already passed would play stacked over the
+		// live one. Skip whole iterations forward, which keeps the loop grid aligned
+		// with the position readout.
+		if (this.loopScheduleTime < this.context.currentTime) {
+			const missed = Math.ceil((this.context.currentTime - this.loopScheduleTime) / durationSeconds);
+			this.loopScheduleTime += missed * durationSeconds;
+		}
 		let scheduledIterations = 0;
 		while (this.loopScheduleTime < horizon && scheduledIterations < 1_024) {
 			const graph = this.graph;
