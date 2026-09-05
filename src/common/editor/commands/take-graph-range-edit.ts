@@ -27,6 +27,35 @@ export function planTakeGraphRangeDelete(
 	trackRanges: ReadonlyMap<string, TakeGraphRange>,
 	ripple: boolean,
 ): (() => void) | null {
+	return planTakeGraphRangeShift(
+		project,
+		trackRanges,
+		(range) => (ripple ? range.startFrame - range.endFrame : 0),
+	);
+}
+
+/**
+ * The same rule for a range whose material is replaced rather than removed.
+ *
+ * A length-changing replacement — every Audacity effect that hands back a
+ * different number of frames — ripples the rest of the track by `delta`, so the
+ * take graph after the edited span has to travel the same distance. A group the
+ * replaced span runs through refuses for the delete's reason: trimming it would
+ * mean minting split identities nothing supplies.
+ */
+export function planTakeGraphRangeRipple(
+	project: DataRecord,
+	trackRanges: ReadonlyMap<string, TakeGraphRange>,
+	delta: number,
+): (() => void) | null {
+	return planTakeGraphRangeShift(project, trackRanges, () => delta);
+}
+
+function planTakeGraphRangeShift(
+	project: DataRecord,
+	trackRanges: ReadonlyMap<string, TakeGraphRange>,
+	deltaOf: (range: TakeGraphRange) => number,
+): (() => void) | null {
 	const groups = Array.isArray(project.takeGroups) ? project.takeGroups as readonly DataRecord[] : null;
 	if (!groups || groups.length === 0) return null;
 	let moved = false;
@@ -38,12 +67,13 @@ export function planTakeGraphRangeDelete(
 		if (endSample <= range.startFrame) return group;
 		if (startSample < range.endFrame) {
 			throw new RangeError(
-				'A range delete cannot trim an existing take graph without explicit split identities.',
+				'A range edit cannot trim an existing take graph without explicit split identities.',
 			);
 		}
-		if (!ripple) return group;
+		const delta = deltaOf(range);
+		if (delta === 0) return group;
 		moved = true;
-		return shiftGroup(group, range.startFrame - range.endFrame);
+		return shiftGroup(group, delta);
 	});
 	if (!moved) return null;
 	return () => { project.takeGroups = next; };

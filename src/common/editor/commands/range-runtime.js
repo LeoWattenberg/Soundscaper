@@ -41,7 +41,7 @@ import {
 	createTimelineAnnotationRippleOperations,
 	stageTimelineAnnotationRippleMutation,
 } from './timeline-annotation-ripple.ts';
-import { planTakeGraphRangeDelete } from './take-graph-range-edit.ts';
+import { planTakeGraphRangeDelete, planTakeGraphRangeRipple } from './take-graph-range-edit.ts';
 
 // foundation-edit-matrix: ripple
 // foundation-edit-matrix: range-delete
@@ -421,6 +421,11 @@ export function replaceRange(project, command) {
 	const deletedIds = new Set(track.clipIds);
 	const replacements = [];
 	const timelineDelta = source.frameCount - range.durationFrames;
+	const commitTakeGraph = planTakeGraphRangeRipple(
+		project,
+		new Map([[String(track.id), range]]),
+		timelineDelta,
+	);
 	for (const clip of originals) {
 		const startFrame = clip.timelineStartFrame;
 		const endFrame = clipEndFrame(clip);
@@ -472,6 +477,7 @@ export function replaceRange(project, command) {
 	project.clips = project.clips.filter((clip) => !deletedIds.has(clip.id));
 	project.clips.push(...nextTrackClips);
 	track.clipIds = nextTrackClips.map((clip) => clip.id);
+	commitTakeGraph?.();
 }
 
 export function punchReplace(project, command) {
