@@ -360,6 +360,8 @@ test('track transforms reject late preflight completion before persistence or co
 			assertActive() {},
 			startTask: (name) => ({
 				name,
+				scope: null,
+				abort() {},
 				generation: 1,
 				signal: new AbortController().signal,
 				assertCurrent() {},
@@ -429,6 +431,8 @@ test('mix render service publishes one prepared atomic command after source pers
 			assertActive() {},
 			startTask: (name) => ({
 				name,
+				scope: null,
+				abort() {},
 				generation: 1,
 				signal: new AbortController().signal,
 				assertCurrent() {},

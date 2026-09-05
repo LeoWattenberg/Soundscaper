@@ -89,6 +89,8 @@ function createResampleFixture(initialProject: ControllerProject) {
 			assertActive() { /* always active in this fixture */ },
 			startTask: (name) => ({
 				name,
+				scope: null,
+				abort() {},
 				generation: 1,
 				signal: new AbortController().signal,
 				assertCurrent() { /* always current in this fixture */ },

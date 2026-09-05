@@ -118,6 +118,8 @@ test('a lowered inspection capacity rejects before task creation or archive work
 				return {
 					name,
 					generation: startCalls,
+					scope: null,
+					abort() {},
 					signal: controller.signal,
 					assertCurrent() {},
 					finish() { finishCalls += 1; },

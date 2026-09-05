@@ -314,6 +314,8 @@ function runtime(project: ControllerProject, overrides: RuntimeOverrides = {}): 
 	let id = 0;
 	return {
 		lifetime: { assertActive() {}, startTask: () => ({
+			scope: null,
+			abort() {},
 			name: 'mix-render', generation: 1, signal: new AbortController().signal,
 			assertCurrent() {}, finish() {},
 		}) },

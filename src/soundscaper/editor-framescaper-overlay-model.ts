@@ -23,9 +23,8 @@ export function framescaperSelectedVisualAuthoringSurfaceId(_surface: never): st
 }
 
 const EMPTY_FINISHING_MENU_ITEMS = Object.freeze({
-	tracks: Object.freeze([]), effect: Object.freeze([]), analyze: Object.freeze([]),
-	mixer: Object.freeze([]), tools: Object.freeze([]),
-});
+	tracks: [], effect: [], analyze: [], mixer: [], tools: [],
+} as const);
 
 export function createFramescaperFinishingMenuItems(): Readonly<{
 	tracks: readonly [], effect: readonly [], analyze: readonly [],

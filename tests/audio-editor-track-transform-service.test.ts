@@ -109,6 +109,8 @@ function createTransformFixture(initialProject: ControllerProject) {
 			assertActive() { calls.activeAssertions += 1; },
 			startTask: (name) => ({
 				name,
+				scope: null,
+				abort() {},
 				generation: 1,
 				signal: new AbortController().signal,
 				assertCurrent() {

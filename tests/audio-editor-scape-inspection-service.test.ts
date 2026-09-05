@@ -104,6 +104,8 @@ test('inspection releases its task when caller option snapshotting throws', asyn
 		lifetime: {
 			startTask: (name) => ({
 				name,
+				scope: null,
+				abort() {},
 				generation: 1,
 				signal: taskController.signal,
 				assertCurrent() {},
