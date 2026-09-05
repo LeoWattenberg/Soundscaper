@@ -292,11 +292,15 @@
 		,
 		{ "path": "src/common/editor/folder-mixer-graph-v21.ts", "kind": "persisted-contract", "justification": "folder-mixer-graph-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/framescaper-native-live-render-role-v1.ts", "kind": "ipc-contract", "justification": "framescaper-native-live-render-role-v1.ts names which of a live render stage's two inputs a carrier chunk belongs to; the renderer bridge and the desktop main process both read it, so it is an independently versioned cross-process carrier contract." }
+		,
 		{ "path": "src/common/editor/mixer-graph-audibility-v21.ts", "kind": "persisted-contract", "justification": "mixer-graph-audibility-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/mixer-graph-surface-v21.ts", "kind": "persisted-contract", "justification": "mixer-graph-surface-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/mixer-graph-v21.ts", "kind": "persisted-contract", "justification": "mixer-graph-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/native-audio-session-request-v1.ts", "kind": "ipc-contract", "justification": "native-audio-session-request-v1.ts is the session a renderer asks the milestone-5A native audio tier to open, named on both sides of the preload bridge, so it is an independently versioned cross-process carrier contract." }
 		,
 		{ "path": "src/common/editor/native-media-evaluated-carrier-v1.ts", "kind": "ipc-contract", "justification": "native-media-evaluated-carrier-v1.ts is an independently versioned persisted or cross-process carrier contract." }
 		,
