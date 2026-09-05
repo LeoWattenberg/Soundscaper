@@ -21,50 +21,45 @@ export function MusicalTimelineControls({ project, snapshot, controller, copy, r
 	return <>
 		<label className="kw-audio-editor__tempo-control" data-action-id="playback-bpm">
 			<span>{copy.projectTempo}</span>
-			<input
-				type="number"
+			<AuthoritativeNumberField
 				min="1"
 				max="1000"
 				step="any"
 				value={rationalNumber(rootTempo, project?.tempo?.bpm || 120)}
 				disabled={disabled}
-				onChange={(event) => {
-					const bpm = Number(event.currentTarget.value);
-					if (Number.isFinite(bpm) && bpm >= 1 && bpm <= 1_000 && tempoEvents[0]?.id) {
-						run(() => controller.actions.project.updateTempoEvent(
-							tempoEvents[0].id,
-							{ bpm: approximatePositiveRational(bpm) },
-						));
-					}
-				}}
+				accepts={(bpm) => bpm >= 1 && bpm <= 1_000 && Boolean(tempoEvents[0]?.id)}
+				onCommit={(bpm) => run(() => controller.actions.project.updateTempoEvent(
+					tempoEvents[0].id,
+					{ bpm: approximatePositiveRational(bpm) },
+				))}
 			/>
 		</label>
 		<label className="kw-audio-editor__signature-control" data-action-id="playback-time-signature">
 			<span>{copy.timeSignature}</span>
 			<span className="kw-audio-editor__signature-fields">
-				<input
-					type="number"
+				<AuthoritativeNumberField
 					min="1"
 					max="1000"
-					aria-label={`${copy.timeSignature}: ${copy.numerator}`}
+					ariaLabel={`${copy.timeSignature}: ${copy.numerator}`}
 					value={rootSignature?.numerator || project?.tempo?.timeSignature?.numerator || 4}
 					disabled={disabled}
-					onChange={(event) => rootSignature?.id && run(() => controller.actions.project.updateSignatureEvent(
+					accepts={(numerator) => Number.isSafeInteger(numerator) && Boolean(rootSignature?.id)}
+					onCommit={(numerator) => run(() => controller.actions.project.updateSignatureEvent(
 						rootSignature.id,
-						{ numerator: Number(event.currentTarget.value) },
+						{ numerator },
 					))}
 				/>
 				<span aria-hidden="true">/</span>
-				<input
-					type="number"
+				<AuthoritativeNumberField
 					min="1"
 					max="4503599627370496"
-					aria-label={`${copy.timeSignature}: ${copy.denominator}`}
+					ariaLabel={`${copy.timeSignature}: ${copy.denominator}`}
 					value={rootSignature?.denominator || project?.tempo?.timeSignature?.denominator || 4}
 					disabled={disabled}
-					onChange={(event) => rootSignature?.id && run(() => controller.actions.project.updateSignatureEvent(
+					accepts={(denominator) => Number.isSafeInteger(denominator) && Boolean(rootSignature?.id)}
+					onCommit={(denominator) => run(() => controller.actions.project.updateSignatureEvent(
 						rootSignature.id,
-						{ denominator: Number(event.currentTarget.value) },
+						{ denominator },
 					))}
 				/>
 			</span>
@@ -137,6 +132,49 @@ export function MusicalTimelineControls({ project, snapshot, controller, copy, r
 			</div>
 		</AudacityToolbarFlyoutButton>
 	</>;
+}
+
+/**
+ * A toolbar field is retyped keystroke by keystroke, so committing every change
+ * event refused the empty string a Backspace leaves behind — React restored the
+ * old digit, and "Backspace, 3" over 4 read 43 — besides turning every
+ * intermediate digit into its own undo entry. The field therefore holds its own
+ * draft and re-adopts the project's value only while it is idle; a usable draft
+ * commits on blur or Enter, and Escape or an unusable one restores the project.
+ */
+function AuthoritativeNumberField({ value, accepts, onCommit, ariaLabel, min, max, step, disabled }) {
+	const inputRef = useRef(null);
+	useLayoutEffect(() => {
+		const input = inputRef.current;
+		if (input && input.ownerDocument?.activeElement !== input) input.value = String(value);
+	}, [value]);
+	const commitDraft = (input) => {
+		const draft = Number(input.value);
+		if (input.value.trim() === '' || !Number.isFinite(draft) || draft === value || !accepts(draft)) {
+			input.value = String(value);
+			return;
+		}
+		onCommit(draft);
+	};
+	return <input
+		ref={inputRef}
+		type="number"
+		min={min}
+		max={max}
+		step={step}
+		aria-label={ariaLabel}
+		defaultValue={value}
+		disabled={disabled}
+		onBlur={(event) => commitDraft(event.currentTarget)}
+		onKeyDown={(event) => {
+			if (event.key === 'Enter') {
+				event.preventDefault();
+				commitDraft(event.currentTarget);
+			} else if (event.key === 'Escape') {
+				event.currentTarget.value = String(value);
+			}
+		}}
+	/>;
 }
 
 function TempoEventForm({ event, index, mode, sampleRate, disabled, controller, copy, run }) {

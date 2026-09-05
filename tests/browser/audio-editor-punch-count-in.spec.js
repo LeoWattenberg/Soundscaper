@@ -82,7 +82,11 @@ test.describe('Soundscaper punch and count-in recording', () => {
 		await page.locator('[data-sidebar] [data-workspace-select]').selectOption('music');
 		await editor.getByRole('spinbutton', { name: 'Project tempo (BPM)', exact: true }).fill('120');
 		await editor.getByRole('spinbutton', { name: 'Time signature: numerator', exact: true }).fill('6');
-		await editor.getByRole('spinbutton', { name: 'Time signature: denominator', exact: true }).fill('8');
+		const signatureDenominator = editor
+			.getByRole('spinbutton', { name: 'Time signature: denominator', exact: true });
+		await signatureDenominator.fill('8');
+		// The toolbar fields commit their draft when focus leaves them.
+		await signatureDenominator.blur();
 
 		await chooseCommandAction(page, editor, 'Select', 'Select all');
 		const timecodes = editor.locator('[data-selection-toolbar] .timecode');

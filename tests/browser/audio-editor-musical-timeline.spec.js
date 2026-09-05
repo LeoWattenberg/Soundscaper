@@ -23,9 +23,12 @@ test.describe('musical timeline controls', () => {
 		const signatureDenominator = editor.getByRole('spinbutton', { name: 'Time signature: denominator', exact: true });
 		await expect(projectTempo).toBeVisible();
 		await expect(signatureNumerator).toBeVisible();
+		// The toolbar fields hold a draft while they are being typed in and commit
+		// when focus leaves them, so the last one has to be blurred explicitly.
 		await projectTempo.fill('33.333333333333336');
 		await signatureNumerator.fill('64');
 		await signatureDenominator.fill('64');
+		await signatureDenominator.blur();
 
 		const musicalTimelineButton = editor.getByRole('button', { name: 'Musical timeline', exact: true });
 		await musicalTimelineButton.focus();
