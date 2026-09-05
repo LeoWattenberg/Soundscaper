@@ -369,6 +369,7 @@ function createFixture(options: FixtureOptions) {
 		parametricEqGestures: new Map(),
 		videoEffectGestures: new Map(),
 		exportAbort: null,
+		nyquistAbort: null,
 		sampleEditAbort: null,
 		sampleEditMode: null,
 		sampleEditAvailable: false,

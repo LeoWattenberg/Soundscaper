@@ -97,6 +97,7 @@ export function createFixture(
 		parametricEqGestures: new Map([['old', {}]]),
 		videoEffectGestures: new Map([['old', {}]]),
 		exportAbort: new AbortController(),
+		nyquistAbort: null,
 		sampleEditAbort: new AbortController(),
 		sampleEditMode: 'pencil',
 		sampleEditAvailable: true,

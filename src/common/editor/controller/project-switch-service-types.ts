@@ -55,6 +55,7 @@ export interface ProjectSwitchState<
 	parametricEqGestures: Map<string, unknown>;
 	videoEffectGestures: Map<string, unknown>;
 	exportAbort: AbortController | null;
+	nyquistAbort: AbortController | null;
 	sampleEditAbort: AbortController | null;
 	sampleEditMode: unknown;
 	sampleEditAvailable: boolean;

@@ -310,7 +310,7 @@ function createFixture(options: Readonly<{
 		projectQueue: Promise.resolve(), projectLock: activeLock, readOnly: false,
 		history: { present: active }, selectedTrackId: null, selectedClipId: null,
 		clipboard: null, rackEffectGestures: new Map(), parametricEqGestures: new Map(),
-		videoEffectGestures: new Map(), exportAbort: null, sampleEditAbort: null,
+		videoEffectGestures: new Map(), exportAbort: null, nyquistAbort: null, sampleEditAbort: null,
 		sampleEditMode: null, sampleEditAvailable: false, audacityNoiseProfile: null,
 		audacityControlTrackId: null, analysisResult: null, analysisVisuals: null,
 		analysisReport: null, analysisProcessing: false,

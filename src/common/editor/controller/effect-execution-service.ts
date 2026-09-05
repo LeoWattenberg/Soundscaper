@@ -332,6 +332,15 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		state.nyquistAbort?.abort();
 		const abort = new AbortController();
 		state.nyquistAbort = abort;
+		// A Nyquist evaluation owns the project it started under, exactly as the
+		// selection-effect path does through assertSelectionEffectOwnership.
+		// Without the token its results commit into whichever project the editor
+		// switched to while the evaluator was still running.
+		const projectToken = captureNyquistProjectOwnership(runtime);
+		const assertNyquistCurrent = (): void => {
+			throwIfAborted(abort.signal);
+			if (projectToken) runtime.assertProject(projectToken);
+		};
 		state.audacityEffectProcessing = true;
 		state.nyquistResult = null;
 		setStatus(copy.nyquistProcessing || copy.audacityProcessing);
@@ -354,7 +363,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 							runTarget.clipIds,
 						)
 					: [];
-				throwIfAborted(abort.signal);
+				assertNyquistCurrent();
 				const maxOutputFrames = nyquistMaximumOutputFrames({
 					sampleRate,
 					inputFrames: channels[0]?.length || 0,
@@ -379,7 +388,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 					transferInput: true,
 					onProgress: updateTaskProgress,
 				});
-				throwIfAborted(abort.signal);
+				assertNyquistCurrent();
 				if (result?.type === 'audio') {
 					aggregateAudioBytes += nyquistAudioResultBytes(result);
 					if (aggregateAudioBytes > NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES) {
@@ -388,7 +397,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 				}
 				evaluations.push({ target: runTarget, result });
 			}
-			throwIfAborted(abort.signal);
+			assertNyquistCurrent();
 
 			const returnedResult = freezeNyquistResult(evaluations);
 			const audio = evaluations.filter(({ result }: RuntimeValue) => result?.type === 'audio');
@@ -401,7 +410,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 					sampleRate * 6,
 				);
 				if (previewChannels.length) await playNyquistPreview(previewChannels, sampleRate, abort.signal);
-				throwIfAborted(abort.signal);
+				assertNyquistCurrent();
 				state.nyquistResult = freezeNyquistResult(evaluations, { summarizeAudio: true });
 				if (!audio.length) setStatus(nyquistResultStatus(evaluations, copy), 'success');
 				return returnedResult;
@@ -412,19 +421,20 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 				await preflightStorage(replacements.reduce((sum: RuntimeValue, { result }: RuntimeValue) => (
 					sum + nyquistAudioResultBytes(result)
 				), 0), 'effect');
-				throwIfAborted(abort.signal);
+				assertNyquistCurrent();
 				await persistAudacityEffectResults(replacements.map(({ target, result }: RuntimeValue) => ({
 					target,
 					channels: result.channels,
 				})), null, {
 					allowIndependentLengths: true,
+					assertCurrent: assertNyquistCurrent,
 					effectName: request.name || copy.nyquistPrompt,
 					selectionDetails: audacityEffectSelectionDetails(selection, replacements.map(({ target }: RuntimeValue) => target)),
 					signal: abort.signal,
 				});
 			}
 			for (const { target, result } of audio.filter(({ target }: RuntimeValue) => !target)) {
-				throwIfAborted(abort.signal);
+				assertNyquistCurrent();
 				await persistNyquistGeneratedAudio(result.channels, {
 					name: request.name || copy.nyquistPrompt,
 					atFrame: request.atFrame,
@@ -432,7 +442,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 					signal: abort.signal,
 				});
 			}
-			throwIfAborted(abort.signal);
+			assertNyquistCurrent();
 			if (labels.length) persistNyquistLabels(labels, request.name);
 			state.nyquistResult = freezeNyquistResult(evaluations, { summarizeAudio: true });
 			setStatus(labels.length && !audio.length
@@ -456,6 +466,16 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		previewAudacityEffectFromController,
 		runNyquistEvaluation,
 	});
+}
+
+function captureNyquistProjectOwnership(runtime: SelectionEffectExecutionRuntime): EditorProjectToken | null {
+	try {
+		return runtime.captureProject();
+	} catch {
+		// A Nyquist prompt can run before any project is activated; there is no
+		// project ownership to assert in that case, only the abort signal.
+		return null;
+	}
 }
 
 interface SelectionEffectOwnership {

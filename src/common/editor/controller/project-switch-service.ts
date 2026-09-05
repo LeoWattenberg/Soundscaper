@@ -212,6 +212,8 @@ export function createProjectSwitchService<
 			runtime.cancelRecordingStart();
 			runtime.state.exportAbort?.abort();
 			runtime.state.exportAbort = null;
+			runtime.state.nyquistAbort?.abort();
+			runtime.state.nyquistAbort = null;
 			runtime.state.sampleEditAbort?.abort();
 			runtime.state.sampleEditMode = null;
 			runtime.state.sampleEditAvailable = false;
