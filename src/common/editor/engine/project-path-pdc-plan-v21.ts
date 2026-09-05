@@ -74,14 +74,14 @@ export function compileProjectPathPdcPlanV21(
 	const sampleRate = normalizeSampleRate(options.sampleRate ?? projectValue.sampleRate ?? DEFAULT_SAMPLE_RATE)
 	const tracks = normalizeAudioTracks(projectValue.tracks)
 	const graph = normalizeMixerGraphV21(projectValue.mixer)
-	const masterEffects = activeEffects(projectValue.master)
+	const master = projectValue.master
 	validateMixerGraphV21(graph, {
 		audioTracks: tracks,
-		masterEffects,
+		masterEffects: rackEffects(master),
 		masterChannels: Number(projectValue.masterChannels),
 		mixerNodeEffects: mixerNodeEffectsV21(graph),
 	})
-	const states = createVertexStates(graph, tracks, masterEffects, sampleRate)
+	const states = createVertexStates(graph, tracks, master, sampleRate)
 	const dependencies = createDependencies(graph, states)
 	const orderedVertices = topologicalOrder(states, dependencies)
 	const inputFrames = new Map<string, number>()
@@ -173,28 +173,42 @@ function normalizeAudioTracks(value: unknown): readonly (ProjectTrackV21 & {
 		const track = candidate as ProjectTrackV21
 		if (track.type !== 'audio') return []
 		if (typeof track.id !== 'string' || track.id.length === 0) throw new TypeError('PDC audio track needs an id')
-		return [{ ...track, id: track.id, effects: activeEffects(track) }]
+		return [{ ...track, id: track.id, effects: rackEffects(track) }]
 	}))
 }
 
-function activeEffects(host: ProjectEffectHostV21 | undefined): readonly EngineEffect[] {
-	if (host?.effectsActive === false || !Array.isArray(host?.effects)) return Object.freeze([])
+/**
+ * Every authored slot, whether or not the rack switch is on. A slot the switch
+ * silences still occupies its place in the rack, so a sidechain edge that
+ * addresses it stays resolvable and the plan keeps compiling; only the latency
+ * it contributes is gated, in createVertexState. Dropping the slots here made
+ * validateMixerGraphV21 report the edge as dangling and took play and export
+ * down with it.
+ */
+function rackEffects(host: ProjectEffectHostV21 | undefined): readonly EngineEffect[] {
+	if (!Array.isArray(host?.effects)) return Object.freeze([])
 	return Object.freeze(host.effects.filter((effect): effect is EngineEffect => (
 		Boolean(effect) && typeof effect === 'object'
 	)))
 }
 
-function stripEffects(strip: MixerStripV21): readonly EngineEffect[] {
-	if (!strip.effectsActive) return Object.freeze([])
-	return strip.effects as readonly unknown[] as readonly EngineEffect[]
+function rackActive(host: ProjectEffectHostV21 | undefined): boolean {
+	return host?.effectsActive !== false
 }
 
-function createVertexState(key: string, effects: readonly EngineEffect[], sampleRate: number): VertexState {
+function createVertexState(
+	key: string,
+	effects: readonly EngineEffect[],
+	active: boolean,
+	sampleRate: number,
+): VertexState {
 	let latency = 0
 	const prefixes = new Map<string, number>()
 	for (const effect of effects) {
 		if (typeof effect.id === 'string') prefixes.set(effect.id, latency)
-		if (effect.enabled !== false && effect.bypassed !== true) latency += effectLatencyFrames(effect, sampleRate)
+		if (active && effect.enabled !== false && effect.bypassed !== true) {
+			latency += effectLatencyFrames(effect, sampleRate)
+		}
 	}
 	return Object.freeze({
 		key,
@@ -206,23 +220,36 @@ function createVertexState(key: string, effects: readonly EngineEffect[], sample
 
 function createVertexStates(
 	graph: MixerGraphV21,
-	tracks: readonly { readonly id: string; readonly effects: readonly EngineEffect[] }[],
-	masterEffects: readonly EngineEffect[],
+	tracks: readonly (ProjectEffectHostV21 & {
+		readonly id: string
+		readonly effects: readonly EngineEffect[]
+	})[],
+	master: ProjectEffectHostV21 | undefined,
 	sampleRate: number,
 ): ReadonlyMap<string, VertexState> {
 	const states = new Map<string, VertexState>()
 	for (const track of tracks) {
-		states.set(`track:${track.id}`, createVertexState(`track:${track.id}`, track.effects, sampleRate))
+		states.set(`track:${track.id}`, createVertexState(
+			`track:${track.id}`,
+			track.effects,
+			rackActive(track),
+			sampleRate,
+		))
 	}
 	for (const node of [...graph.groups, ...graph.sends, ...graph.cues]) {
 		states.set(`mixer-node:${node.id}`, createVertexState(
 			`mixer-node:${node.id}`,
 			stripEffects(node),
+			node.effectsActive === true,
 			sampleRate,
 		))
 	}
-	states.set('master', createVertexState('master', masterEffects, sampleRate))
+	states.set('master', createVertexState('master', rackEffects(master), rackActive(master), sampleRate))
 	return states
+}
+
+function stripEffects(strip: MixerStripV21): readonly EngineEffect[] {
+	return strip.effects as readonly unknown[] as readonly EngineEffect[]
 }
 
 function endpointKey(endpoint: MixerEdgeV21['source']): string {
