@@ -29,7 +29,7 @@ const NOW = '2026-09-05T12:00:00.000Z';
 
 test('a locked track refuses a command that moved its take graph', () => {
 	const project = takeProject();
-	const projected = structuredClone(projectForCommandConsumers(project)) as ProjectionRecord;
+	const projected = structuredClone(projectForCommandConsumers(project)) as unknown as ProjectionRecord;
 	const admission = createTrackLockAdmission(project, projected);
 
 	const drifted = structuredClone(projected);
@@ -39,17 +39,17 @@ test('a locked track refuses a command that moved its take graph', () => {
 
 test('a locked track refuses a persisted result whose take graph moved', () => {
 	const project = takeProject();
-	const projected = structuredClone(projectForCommandConsumers(project)) as ProjectionRecord;
+	const projected = structuredClone(projectForCommandConsumers(project)) as unknown as ProjectionRecord;
 	const admission = createTrackLockAdmission(project, projected);
 
-	const drifted = structuredClone(project) as unknown as ProjectionRecord;
+	const drifted = structuredClone(project) as unknown as unknown as ProjectionRecord;
 	shiftFirstGroup(drifted, 64);
 	assert.throws(() => admission.assertPersistedResult(drifted), /Track vocals is locked\./u);
 });
 
 test('a take graph on another track is none of the locked track\'s business', () => {
 	const project = takeProject();
-	const projected = structuredClone(projectForCommandConsumers(project)) as ProjectionRecord;
+	const projected = structuredClone(projectForCommandConsumers(project)) as unknown as ProjectionRecord;
 	const admission = createTrackLockAdmission(project, projected);
 
 	const drifted = structuredClone(projected);
@@ -58,7 +58,7 @@ test('a take graph on another track is none of the locked track\'s business', ()
 	group.startSample = Number(group.startSample) + 64;
 	group.endSample = Number(group.endSample) + 64;
 	admission.afterCommand(drifted);
-	admission.assertPersistedResult(structuredClone(project) as unknown as ProjectionRecord);
+	admission.assertPersistedResult(structuredClone(project) as unknown as unknown as ProjectionRecord);
 });
 
 interface GroupRecord extends Record<string, unknown> {
