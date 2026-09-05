@@ -79,6 +79,12 @@ type Replay = () => void;
  * The runtime is loaded at startup only when a desktop bridge is present or the
  * durable presence probe finds capture state. A probe that fails loads rather
  * than assumes: the cost of a wrong negative is an unrecoverable capture.
+ *
+ * This binding does not use `controller/deferred-module-facade.ts`. Its load is
+ * not a plain delegation - it constructs the binding, initializes it, replays
+ * the journal and notifies the host - and its cold half answers with snapshots
+ * rather than deferring, so the two action maps below are annotated against
+ * their real interfaces, which is the same completeness the helper's tuples buy.
  */
 export function createDeferredFramescaperCaptureAppBinding(
 	options: FramescaperCaptureAppBindingOptions,

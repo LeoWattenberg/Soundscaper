@@ -1,21 +1,20 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type {
-	DawprojectOpenResult,
-	DawprojectServiceHelpers,
-	SaveDawprojectOptions,
-} from './dawproject-service.ts';
-import type {
-	NativeProjectFile,
-	NativeProjectServiceRuntime,
-	NativeSavedFile,
-} from './native-project-types.ts';
+import type { DawprojectServiceHelpers } from './dawproject-service.ts';
+import { createDeferredModuleFacade } from './deferred-module-facade.ts';
+import type { NativeProjectServiceRuntime } from './native-project-types.ts';
 
 type DawprojectModule = typeof import('./dawproject-service.ts');
+type DawprojectService = ReturnType<DawprojectModule['createDawprojectService']>;
 
 export type DawprojectModuleLoader = () => Promise<DawprojectModule>;
 
 const DEFAULT_LOADER: DawprojectModuleLoader = () => import('./dawproject-service.ts');
+
+const DEFERRED_DAWPROJECT_METHOD_NAMES = [
+	'openDawproject',
+	'saveDawproject',
+] as const satisfies readonly (keyof DawprojectService)[];
 
 /**
  * The DAWproject open and export actions, loaded when one of them is invoked.
@@ -36,23 +35,10 @@ export function createDeferredDawprojectService(
 	helpers: DawprojectServiceHelpers,
 	load: DawprojectModuleLoader = DEFAULT_LOADER,
 ) {
-	let pending: Promise<ReturnType<DawprojectModule['createDawprojectService']>> | null = null;
-	const service = (): Promise<ReturnType<DawprojectModule['createDawprojectService']>> => {
-		pending ??= Promise.resolve()
-			.then(load)
-			.then((module) => module.createDawprojectService(runtime, helpers));
-		return pending;
-	};
-
-	return Object.freeze({
-		openDawproject: async (file: NativeProjectFile): Promise<DawprojectOpenResult | undefined> => (
-			(await service()).openDawproject(file)
+	return createDeferredModuleFacade(
+		async (): Promise<DawprojectService> => (
+			(await load()).createDawprojectService(runtime, helpers)
 		),
-		saveDawproject: async (options: SaveDawprojectOptions = {}): Promise<NativeSavedFile & Readonly<{
-			fileName: string;
-			report: unknown;
-		}>> => (
-			(await service()).saveDawproject(options)
-		),
-	});
+		DEFERRED_DAWPROJECT_METHOD_NAMES,
+	);
 }

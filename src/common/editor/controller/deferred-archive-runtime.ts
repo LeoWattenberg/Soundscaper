@@ -39,6 +39,12 @@ const DEFAULT_LOADERS: DeferredArchiveModuleLoaders = Object.freeze({
 /**
  * Preserve the synchronous controller/action facade while keeping archive
  * parsers, writers, and their workers outside the product-ready graph.
+ *
+ * This is the one facade that cannot use `deferred-module-facade.ts`: it owns
+ * the `project-interchange-foundations` chunk the standalone transfer page
+ * loads, and that chunk is dependency-closed by test - the facade may carry
+ * erased types and dynamic implementation imports and nothing else, so its
+ * delegations stay written out here.
  */
 export function createDeferredArchiveRuntime(
 	loaders: Partial<DeferredArchiveModuleLoaders> = {},

@@ -5,6 +5,11 @@ export type SpectralEditAdmissionLoader = () => Promise<SpectralEditAdmissionMod
 
 const DEFAULT_LOADER: SpectralEditAdmissionLoader = () => import('../spectral-edit-admission.ts');
 
+/**
+ * A cached module load rather than a facade: the callers want the admission
+ * module itself, and they await it before branching on what it exports, so
+ * there is no method surface for `createDeferredModuleFacade` to stand in for.
+ */
 export function createDeferredSpectralEditAdmissionLoader(
 	loadModule: SpectralEditAdmissionLoader = DEFAULT_LOADER,
 ) {
