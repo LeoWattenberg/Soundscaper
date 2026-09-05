@@ -39,20 +39,32 @@ export const engineNativeEffectPdcControlMethods = {
 		if (atFrame <= currentFrame) throw new RangeError('A live PDC revision must be scheduled ahead of playback.')
 		const contextTime = context.currentTime
 			+ (atFrame - currentFrame) / (this.sampleRate * this.playbackRate)
-		let updatedPaths = 0
+		// Resolve the whole revision before any of it is scheduled: a delay that
+		// cannot carry its share must fault the swap outright rather than leave
+		// the graph half on the old plan and half on the new one.
+		const revisions: { readonly param: AudioParam; readonly seconds: number }[] = []
 		for (const [key, param] of delays) {
 			const frames = compensationFrames(request.plan, key)
 			if (!Number.isSafeInteger(frames) || frames < 0) {
 				throw new Error(`PDC plan omitted runtime path ${key}.`)
 			}
-			const seconds = frames / this.sampleRate
-			param.cancelScheduledValues?.(contextTime)
 			if (typeof param.setValueAtTime !== 'function') {
 				throw new Error('A live PDC delay does not expose sample-timed automation.')
 			}
-			param.setValueAtTime(seconds, contextTime)
-			updatedPaths += 1
+			const seconds = frames / this.sampleRate
+			// Web Audio clamps delayTime to the delay's construction-time maximum
+			// without erroring, so scheduling past it would land silently short
+			// while this commit still reported an exact swap.
+			if (typeof param.maxValue === 'number' && seconds > param.maxValue) {
+				throw new RangeError(`A live PDC revision exceeds the compensation delay built for path ${key}.`)
+			}
+			revisions.push({ param, seconds })
 		}
+		for (const { param, seconds } of revisions) {
+			param.cancelScheduledValues?.(contextTime)
+			param.setValueAtTime(seconds, contextTime)
+		}
+		const updatedPaths = revisions.length
 		return Object.freeze({
 			status: 'scheduled', atFrame, contextTime,
 			publicationDelayMs: Math.max(0, (contextTime - context.currentTime) * 1_000),

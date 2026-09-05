@@ -9,9 +9,21 @@ import type {
 import type { StripRef } from '../parameter-address.ts';
 import { addNode, connect, setParam, type AudioNodeArray } from './audio-node-utils.ts';
 import { clamp, DEFAULT_SAMPLE_RATE, positiveInteger } from './buffer-math.ts';
+import { NATIVE_EFFECT_LATENCY_MAX_SECONDS } from './native-effect-latency-v21.ts';
 import type { EngineTrack } from './types.ts';
 
 const MAXIMUM_COMPENSATION_SECONDS = 60;
+/**
+ * How far above its built compensation a retunable seam must still reach.
+ *
+ * Web Audio clamps `delayTime` to the `maxDelayTime` the node was constructed
+ * with, silently and without an error, so a delay a live PDC revision can retune
+ * has to be built for the whole range that revision may ask for — not for the
+ * frames the project happened to need when playback started. The range is the
+ * latency ledger's own admission bound: a hosted plug-in may claim up to that
+ * much delay mid-playback, on top of whatever the path already compensates.
+ */
+const RETUNABLE_COMPENSATION_HEADROOM_SECONDS = NATIVE_EFFECT_LATENCY_MAX_SECONDS;
 
 interface AudioTrackV21 extends EngineTrack {
 	readonly id: string;
@@ -98,7 +110,10 @@ export function applyEdgeCompensation(
 	if (seconds > MAXIMUM_COMPENSATION_SECONDS) {
 		throw new RangeError('V21 per-path delay compensation exceeds the runtime limit.');
 	}
-	const delay = addNode(nodes, context.createDelay(Math.max(1, seconds)));
+	const maximumSeconds = register
+		? Math.min(MAXIMUM_COMPENSATION_SECONDS, Math.max(1, seconds + RETUNABLE_COMPENSATION_HEADROOM_SECONDS))
+		: Math.max(1, seconds);
+	const delay = addNode(nodes, context.createDelay(maximumSeconds));
 	setParam(delay.delayTime, seconds, context.currentTime);
 	register?.(delay.delayTime);
 	connect(input, delay);
