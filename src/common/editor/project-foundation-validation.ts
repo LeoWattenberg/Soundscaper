@@ -21,6 +21,7 @@ import {
 	validateTempoInverseRationalClosure,
 } from './timeline-tempo-inverse.ts';
 import { assertHoldTempoMapWireKeys } from './musical-map-contract.ts';
+import { validateTakeGraphTrackMaterial } from './project-foundation-take-graph.ts';
 import { normalizeVideoTimingAssetReference } from './video-timing-asset-reference.ts';
 import { validateVideoTrackComposition } from './video-timeline.js';
 import { isVideoRetimeCurveProjectSchema } from './project-schema-version.ts';
@@ -102,6 +103,7 @@ export function validateProjectFoundation(
 		if (track.type === 'video') validateVideoTrackComposition(track, resolvedClipById);
 	}
 	validateDerivedAvLinks(project, media.clips, media.tracks);
+	validateTakeGraphTrackMaterial(project, media.tracks, media.clips, resolvedClipById);
 	return true;
 }
 
