@@ -78,7 +78,15 @@ export function reconcileSoundscaperFreezeRequirements(
 	}, projectContext(project));
 }
 
-/** Require persisted manifests to equal the product-owned reconciliation exactly. */
+/**
+ * Require persisted manifests to equal the product-owned reconciliation exactly.
+ *
+ * Canonical manifests are written as `native(freeze(manifest))`, and both passes append
+ * the rows they own, so a document that holds a frozen track and a hosted native plug-in
+ * reads `[...common, ...freeze, ...native]`. Reconciling the freeze half alone would move
+ * that native tail back ahead of the freeze rows, so both sides are compared in the same
+ * native-relocated frame; native drift stays with its own validator and message.
+ */
 export function validateSoundscaperFreezeRequirements(
 	projectValue: DataRecord,
 	label = 'Soundscaper project',
@@ -88,8 +96,12 @@ export function validateSoundscaperFreezeRequirements(
 		project.featureRequirements,
 		projectContext(project),
 	);
-	const reconciled = reconcileSoundscaperFreezeRequirements(project, manifest, label);
-	if (JSON.stringify(manifest) !== JSON.stringify(reconciled)) {
+	const observed = reconcileSoundscaperNativePluginRequirements(project, manifest);
+	const reconciled = reconcileSoundscaperNativePluginRequirements(
+		project,
+		reconcileSoundscaperFreezeRequirements(project, manifest, label),
+	);
+	if (JSON.stringify(observed) !== JSON.stringify(reconciled)) {
 		throw new RangeError(`${label} audio-freeze requirements are not in exact reconciled form.`);
 	}
 	return true;
