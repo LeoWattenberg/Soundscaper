@@ -4,6 +4,7 @@ import {
 	clipNeedsTimePitchRender as legacyClipNeedsTimePitchRender,
 } from '../clip-time-pitch-cache.js';
 import { estimatePcmRenderPublication } from '../publication-byte-estimates.ts';
+import { scaleSampleFrame } from '../timeline-time.ts';
 import {
 	createAddClipCommand,
 	createAddSourceCommand,
@@ -194,7 +195,7 @@ export function createClipTimePitchRenderService(
 			writerCommitted = true;
 			assertOwned(task, projectToken, fingerprint);
 			const nextSource = renderedSource(source, renderedSourceId, name, buffer);
-			const nextClip = renderedClip(clip, renderedSourceId, buffer.length);
+			const nextClip = renderedClip(clip, renderedSourceId, buffer, project.sampleRate);
 			dependencies.cacheSourceBuffer(renderedSourceId, buffer);
 			const peaks = await dependencies.generateWaveformPeaks(channels, task.signal);
 			assertOwned(task, projectToken, fingerprint);
@@ -264,19 +265,42 @@ function renderedSource(
 	};
 }
 
-function renderedClip(clip: RenderClip, sourceId: string, frameCount: number): RenderClip {
+/**
+ * Re-point one clip at its rendered replacement source.
+ *
+ * The rendered buffer carries the source's own rate, which need not be the
+ * project's, so the timeline extent has to be scaled out of buffer frames the
+ * way the import paths scale a decoded file; taking the frame count for it
+ * would shorten and re-pitch every clip whose source rate differs from the
+ * project's. The clip now spans the whole replacement from frame 0, so the
+ * edge trims — material the old source held outside the clip — have nothing
+ * left to point at.
+ */
+function renderedClip(
+	clip: RenderClip,
+	sourceId: string,
+	buffer: AudioBufferLike,
+	projectSampleRate: number,
+): RenderClip {
+	const frameCount = buffer.length;
+	const durationFrames = Math.max(
+		1,
+		scaleSampleFrame(frameCount, buffer.sampleRate, projectSampleRate, 'point'),
+	);
 	return {
 		...clip,
 		sourceId,
 		sourceStartFrame: 0,
 		sourceDurationFrames: frameCount,
-		durationFrames: frameCount,
+		durationFrames,
+		trimStartFrames: 0,
+		trimEndFrames: 0,
 		pitchCents: 0,
 		speedRatio: 1,
 		preserveFormants: false,
 		reversed: false,
-		fadeInFrames: Math.min(clip.fadeInFrames, frameCount),
-		fadeOutFrames: Math.min(clip.fadeOutFrames, frameCount),
+		fadeInFrames: Math.min(clip.fadeInFrames, durationFrames),
+		fadeOutFrames: Math.min(clip.fadeOutFrames, durationFrames),
 		renderCacheRevision: 0,
 	};
 }
