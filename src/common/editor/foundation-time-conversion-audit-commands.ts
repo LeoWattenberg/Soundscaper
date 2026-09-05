@@ -162,6 +162,12 @@ export const FOUNDATION_TIME_CONVERSION_COMMAND_SITES: readonly FoundationTimeCo
 		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
 	},
 	{
+		id: 'clip-time-pitch-render-extent',
+		file: 'src/common/editor/controller/clip-time-pitch-render-service.ts',
+		behavior: 'A rendered time-and-pitch clip point-rounds its output frame count out of the source rate into the project rate once, so the timeline extent it commits spans the same time the render produced.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'video-source-import-placement',
 		file: 'src/common/editor/controller/source-import.ts',
 		behavior: 'Metadata-only imported video duration encloses the probed source; exact timing-sidecar placement is delegated to its separately registered authority helper.',
