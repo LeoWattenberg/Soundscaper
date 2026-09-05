@@ -9,6 +9,7 @@ import {
 import { addClip } from './clip-basic-runtime.js';
 import { processTrackRange } from './range-runtime.js';
 import { resolveRangeSequenceGeometry } from './range-sequence-geometry.ts';
+import { planTakeGraphRangeRipple } from './take-graph-range-edit.ts';
 import { stageTimelineAnnotationInsertMutation } from './timeline-annotation-clipboard.ts';
 import {
 	assertUnusedClipId,
@@ -139,6 +140,11 @@ export function insertThreePointEdit(project, command) {
 		project,
 		insertionSpansBySequenceId(geometry),
 	);
+	// A take graph rides the opened lane the same way. The insert point is where
+	// the track's material parts, so a group from there on travels by the span's
+	// length and a group the point runs through refuses rather than being
+	// trimmed, in the range delete's own words.
+	const commitTakeGraph = stageTakeGraphInsertMutation(project, geometry, command, range);
 	for (const trackId of trackIdsOf(command)) {
 		const track = requireTrack(project, trackId);
 		const operationRange = geometry.trackRanges.get(trackId) ?? range;
@@ -154,6 +160,39 @@ export function insertThreePointEdit(project, command) {
 	}
 	placeEditedClips(project, command, range);
 	commitAnnotations();
+	commitTakeGraph?.();
+}
+
+/**
+ * The insert point each opened lane parts at, which its take graph answers to.
+ *
+ * The point is stated as an empty span so the shift planner reads it the way it
+ * reads a delete: a group ending at or before the point stays, a group starting
+ * at or after it travels by the opened length, and a group the point falls
+ * inside refuses. Only the lanes that actually carry a graph are named, so an
+ * edit that opens two sequences by conformed spans of different lengths is
+ * refused only when a take graph would have to answer to both at once.
+ */
+function stageTakeGraphInsertMutation(project, geometry, command, range) {
+	const groups = Array.isArray(project.takeGroups) ? project.takeGroups : [];
+	if (!groups.length) return null;
+	const graphTrackIds = new Set(groups.map((group) => String(group?.trackId)));
+	const insertionPoints = new Map();
+	let openedFrames = null;
+	for (const trackId of trackIdsOf(command)) {
+		if (!graphTrackIds.has(String(trackId))) continue;
+		const operationRange = geometry.trackRanges.get(trackId) ?? range;
+		if (!operationRange) continue;
+		if (openedFrames !== null && operationRange.durationFrames !== openedFrames) {
+			throw new RangeError('An insert cannot open one take graph by two different spans.');
+		}
+		openedFrames = operationRange.durationFrames;
+		insertionPoints.set(String(trackId), {
+			startFrame: operationRange.startFrame,
+			endFrame: operationRange.startFrame,
+		});
+	}
+	return openedFrames === null ? null : planTakeGraphRangeRipple(project, insertionPoints, openedFrames);
 }
 
 /** The span each fully opened sequence gains, which its annotations answer to. */

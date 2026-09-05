@@ -51,6 +51,41 @@ export function planTakeGraphRangeRipple(
 	return planTakeGraphRangeShift(project, trackRanges, () => delta);
 }
 
+/**
+ * The same rule for a range whose material outside it is discarded.
+ *
+ * `range/keep` trims every clip to the kept range and leaves what survives
+ * exactly where it was, so nothing travels. A take group outside that range
+ * loses the audio it was recorded against and goes with it, the way the graph
+ * of a removed track does. A group the kept range's boundary runs through
+ * refuses for the delete's reason: trimming it would mean splitting takes and
+ * comp regions and minting the identities for the halves.
+ */
+export function planTakeGraphRangeKeep(
+	project: DataRecord,
+	trackRanges: ReadonlyMap<string, TakeGraphRange>,
+): (() => void) | null {
+	const groups = Array.isArray(project.takeGroups) ? project.takeGroups as readonly DataRecord[] : null;
+	if (!groups || groups.length === 0) return null;
+	let dropped = false;
+	const next = groups.filter((group) => {
+		const range = trackRanges.get(String(group?.trackId));
+		if (!range) return true;
+		const startSample = Number(group.startSample);
+		const endSample = Number(group.endSample);
+		if (startSample >= range.startFrame && endSample <= range.endFrame) return true;
+		if (endSample > range.startFrame && startSample < range.endFrame) {
+			throw new RangeError(
+				'A range edit cannot trim an existing take graph without explicit split identities.',
+			);
+		}
+		dropped = true;
+		return false;
+	});
+	if (!dropped) return null;
+	return () => { project.takeGroups = next; };
+}
+
 function planTakeGraphRangeShift(
 	project: DataRecord,
 	trackRanges: ReadonlyMap<string, TakeGraphRange>,

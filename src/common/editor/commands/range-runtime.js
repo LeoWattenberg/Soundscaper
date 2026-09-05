@@ -41,7 +41,11 @@ import {
 	createTimelineAnnotationRippleOperations,
 	stageTimelineAnnotationRippleMutation,
 } from './timeline-annotation-ripple.ts';
-import { planTakeGraphRangeDelete, planTakeGraphRangeRipple } from './take-graph-range-edit.ts';
+import {
+	planTakeGraphRangeDelete,
+	planTakeGraphRangeKeep,
+	planTakeGraphRangeRipple,
+} from './take-graph-range-edit.ts';
 
 // foundation-edit-matrix: ripple
 // foundation-edit-matrix: range-delete
@@ -182,6 +186,14 @@ export function keepRange(project, command) {
 	const range = normalizeFrameRange(command.startFrame, command.endFrame, 'kept range');
 	const trackIds = command.trackIds || project.tracks.filter((track) => Array.isArray(track.clipIds)).map((track) => track.id);
 	const affectedClipIds = Array.isArray(command.clipIds) ? new Set(command.clipIds) : null;
+	// The kept range is what each edited track's take graph answers to: a group
+	// outside it loses its material, and a group its boundary runs through would
+	// have to be trimmed. Staged before the edit so the refusal lands before any
+	// clip moves, like the delete's own planner.
+	const commitTakeGraph = planTakeGraphRangeKeep(
+		project,
+		new Map(trackIds.map((trackId) => [String(trackId), range])),
+	);
 	for (const trackId of trackIds) {
 		const track = requireTrack(project, trackId);
 		if (!Array.isArray(track.clipIds)) continue;
@@ -205,6 +217,7 @@ export function keepRange(project, command) {
 				|| compareCodeUnits(left.id, right.id))
 			.map((clip) => clip.id);
 	}
+	commitTakeGraph?.();
 }
 
 export function prepareRangeDeleteCommand(project, options = {}, idFactory = createStableId) {
