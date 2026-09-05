@@ -139,10 +139,13 @@ function ownedPlan(
 function assertFallbackFreeDelivery(
 	delivery: ProductVideoExportProjectRequest['delivery'],
 ): Readonly<Record<string, unknown>> {
+	// What this refuses is a rendered compatibility fallback, which the two metadata
+	// records state on their own. The required source roots do not: a fresh track
+	// freeze publishes the derived source its substitution renders from as a root
+	// with no fallback metadata, and refusing that refused exporting any project
+	// with a frozen track.
 	if (dataProperty(delivery, 'audioRenderedFallback') !== null
-		|| dataProperty(delivery, 'videoRenderedFallback') !== null
-		|| !emptyArray(dataProperty(delivery, 'requiredAudioSourceIds'))
-		|| !emptyArray(dataProperty(delivery, 'requiredVideoSourceIds'))) {
+		|| dataProperty(delivery, 'videoRenderedFallback') !== null) {
 		throw new Error('Soundscaper baseline keyed video export refuses a rendered-fallback delivery projection.');
 	}
 	return dataRecord(dataProperty(delivery, 'project'), 'Soundscaper baseline delivery project');
@@ -346,10 +349,6 @@ function dataProperty(value: object, key: string): unknown {
 		throw new TypeError(`Soundscaper baseline video delivery.${key} must be an own data property.`);
 	}
 	return descriptor.value;
-}
-
-function emptyArray(value: unknown): boolean {
-	return Array.isArray(value) && value.length === 0;
 }
 
 function dataFunction(value: object, key: 'encodeOffline' | 'encodeOfflineToSink') {

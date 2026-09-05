@@ -119,7 +119,9 @@ test('audio fallback export selection rejects malformed or ambiguous delivery pr
 		{ ...valid, project: null },
 		{ ...valid, requiredAudioSourceIds: FALLBACK_SOURCE_ID },
 		{ ...valid, audioRenderedFallback: undefined },
-		{ ...valid, audioRenderedFallback: null, requiredAudioSourceIds: [FALLBACK_SOURCE_ID] },
+		// A root with no fallback metadata is a native substitution's derived source,
+		// so what makes it malformed is naming a source the delivery cannot supply.
+		{ ...valid, audioRenderedFallback: null, requiredAudioSourceIds: ['absent-audio'] },
 		{ ...valid, audioRenderedFallback: { ...metadata, schemaVersion: 2 } },
 		{ ...valid, audioRenderedFallback: { ...metadata, role: 'project-video-render-v1' } },
 		{ ...valid, audioRenderedFallback: { ...metadata, featureId: '' } },

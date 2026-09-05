@@ -159,8 +159,15 @@ export function assertAudioRenderedFallbackProjection(
 		throw new TypeError('Audio rendered-fallback delivery returned an invalid projection.');
 	}
 	if (metadata === null) {
-		if (requiredSourceIds.length !== 0) {
-			throw new TypeError('Inactive audio rendered-fallback delivery retained a source root.');
+		// A native substitution — a fresh track freeze — publishes the derived source
+		// it renders from as a required root while declaring no rendered fallback: the
+		// render reads that source out of the delivered project like any other. Only a
+		// root the delivered project cannot supply is evidence of a lost projection.
+		for (const sourceId of requiredSourceIds as readonly unknown[]) {
+			if (typeof sourceId !== 'string' || !sourceId) {
+				throw new TypeError('Inactive audio rendered-fallback delivery retained an invalid source root.');
+			}
+			audioSourceDescriptor(project, sourceId);
 		}
 		return;
 	}
