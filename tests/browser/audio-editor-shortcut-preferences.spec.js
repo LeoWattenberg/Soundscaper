@@ -52,7 +52,9 @@ test.describe('keyboard shortcut preferences', () => {
 		await expect(insert).not.toHaveAttribute('aria-disabled', 'true');
 		const insertShortcut = insert.locator('input');
 		await expect(insertShortcut).toBeEnabled();
-		await insertShortcut.fill('Alt+I');
+		// Alt+I is Audacity's Split labeled audio, so a free chord is what proves the
+		// row assignable rather than a conflict message.
+		await insertShortcut.fill('Alt+U');
 		await expect(insert.getByRole('button', { name: 'Assign', exact: true })).toBeEnabled();
 		await expect(insert.locator('[data-shortcut-disabled-reason]')).toHaveCount(0);
 
