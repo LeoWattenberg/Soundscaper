@@ -12,7 +12,7 @@ import {
 } from '../common/editor/video-motion-analysis-v27.ts';
 import type { VideoMotionAnalysisReferenceV1 } from '../common/editor/video-motion-model-v27.ts';
 import type { BlobLike } from '../common/editor/storage/media-records.ts';
-import type { VideoKeyframeOfflineRgbaPostprocessor } from '../common/editor/ui/video-keyframe-offline-rgba-renderer.ts';
+import type { VideoKeyframeOfflineRgbaPostprocessor } from '../common/editor/video-keyframe-offline-rgba-contract.ts';
 import {
 	createUnifiedExactRenderFinishingExportConsumerV13,
 	type UnifiedExactRenderRgbaFrameV13,

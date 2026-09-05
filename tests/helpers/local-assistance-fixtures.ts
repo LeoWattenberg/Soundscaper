@@ -7,10 +7,10 @@ import assert from 'node:assert/strict';
 import {
 	createLocalAssistanceSessionStore,
 } from '../../src/common/editor/ui/local-assistance-session-store.ts';
-import type { LocalAssistanceBridge } from '../../src/common/editor/ui/local-assistance-bridge.ts';
+import type { LocalAssistanceBridge } from '../../src/common/editor/assistance/local-assistance-bridge.ts';
 import type {
 	LocalAssistanceSelectedMediaPreparationPort,
-} from '../../src/common/editor/ui/local-assistance-preparation.ts';
+} from '../../src/common/editor/assistance/local-assistance-preparation.ts';
 
 export const JOB_ID = 'a'.repeat(40);
 export const INPUT_CLAIM_ID = 'b'.repeat(40);

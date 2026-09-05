@@ -4,9 +4,9 @@
  * Normalizes the prepared selected media a preparation port hands back.
  *
  * This is controller-owned validation rather than presentation, and it lives here because
- * editor core must stay independent of the `ui/` modules while both guided and Advanced
- * preparation need it. The UI preparation module re-exports it, and borrows the small
- * record primitives below, so its own callers are unaffected.
+ * editor core must stay independent of the presentation modules while both guided and
+ * Advanced preparation need it. `assistance/local-assistance-preparation.ts` re-exports
+ * it, and borrows the small record primitives below, so its own callers are unaffected.
  */
 
 import {
@@ -23,12 +23,12 @@ import {
 import type {
 	LocalAssistanceInputRole,
 	LocalAssistanceOutputRole,
-} from '../ui/local-assistance-bridge.ts';
+} from '../assistance/local-assistance-bridge.ts';
 import type {
 	LocalAssistancePreparedInput,
 	LocalAssistancePreparedMedia,
 	LocalAssistancePreparedOutput,
-} from '../ui/local-assistance-preparation.ts';
+} from '../assistance/local-assistance-preparation.ts';
 
 interface OperationSpec {
 	readonly inputs: readonly LocalAssistanceInputRole[];

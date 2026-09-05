@@ -18,7 +18,7 @@ import type {
 	LocalAssistanceModel,
 	LocalAssistanceOutputClaim,
 	LocalAssistanceProgress,
-} from './local-assistance-bridge.ts';
+} from '../assistance/local-assistance-bridge.ts';
 import {
 	assertLocalAssistanceShotDetectionReviewMode,
 	localAssistanceModelCompatible,
@@ -31,9 +31,9 @@ import {
 	type LocalAssistanceSelectedMediaPreparationPort,
 	type LocalAssistanceSelectedMediaSource,
 	type LocalAssistanceValidatedResultAcceptanceRequest,
-} from './local-assistance-preparation.ts';
+} from '../assistance/local-assistance-preparation.ts';
 import { deriveLocalAssistanceReviewAuthority } from './local-assistance-review-authority.ts';
-import { reviewLocalAssistanceOutput } from './local-assistance-result-review.ts';
+import { reviewLocalAssistanceOutput } from '../assistance/local-assistance-result-review.ts';
 import type {
 	LocalAssistanceSessionStore,
 	LocalAssistanceSnapshot,

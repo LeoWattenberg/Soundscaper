@@ -12,7 +12,7 @@ import {
 	createLocalAssistanceGuidedCleanupAcceptance,
 } from '../src/common/editor/controller/local-assistance-guided-cleanup-acceptance.ts';
 import type { LocalAssistanceTranscriptCleanupPreset } from
-	'../src/common/editor/ui/local-assistance-cleanup.ts';
+	'../src/common/editor/assistance/local-assistance-cleanup.ts';
 import {
 	resolveLocalAssistanceSelectedMediaAuthority,
 } from '../src/common/editor/controller/local-assistance-selected-media.ts';

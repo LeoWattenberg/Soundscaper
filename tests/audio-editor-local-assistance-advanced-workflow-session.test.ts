@@ -13,15 +13,15 @@ import type { AssistanceWorkflowProgressV1 } from
 	'../src/common/editor/assistance/workflow.ts';
 import type { AssistanceOperation } from '../src/common/editor/assistance/operation.ts';
 import type { LocalAssistanceBridge, LocalAssistanceModel } from
-	'../src/common/editor/ui/local-assistance-bridge.ts';
+	'../src/common/editor/assistance/local-assistance-bridge.ts';
 import type {
 	LocalAssistanceWorkflowBridge,
 	LocalAssistanceWorkflowCustodyBridge,
-} from '../src/common/editor/ui/local-assistance-workflow-bridge.ts';
+} from '../src/common/editor/assistance/local-assistance-workflow-bridge.ts';
 import { createLocalAssistanceAdvancedWorkflowSessionStore } from
 	'../src/common/editor/ui/local-assistance-advanced-session-store.ts';
 import type { LocalAssistanceSelectedMediaPreparationPort } from
-	'../src/common/editor/ui/local-assistance-preparation.ts';
+	'../src/common/editor/assistance/local-assistance-preparation.ts';
 
 const JOB_ID = 'a1'.repeat(20);
 const MODEL = Object.freeze({ modelId: 'speech-model', version: '1.0.0',

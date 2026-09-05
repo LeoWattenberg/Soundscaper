@@ -11,7 +11,7 @@ import { createLocalAssistanceSemanticIndexCustodyV1 } from
 	'../controller/local-assistance-semantic-index-custody.ts';
 import type { AssistanceDerivativeRepositoryPort } from
 	'../storage/deferred-assistance-derivative-repository.ts';
-import { resolveLocalAssistanceBridge } from './local-assistance-bridge.ts';
+import { resolveLocalAssistanceBridge } from '../assistance/local-assistance-bridge.ts';
 
 export function createLocalAssistanceSemanticSearchSourceV1(options: Readonly<{
 	readonly bridgeScope: unknown;

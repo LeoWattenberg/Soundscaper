@@ -6,8 +6,8 @@ import test from 'node:test';
 import React, { act } from 'react';
 
 import LocalAssistanceDialog from '../src/common/editor/ui/dialogs/LocalAssistanceDialog.tsx';
-import type { LocalAssistanceBridge } from '../src/common/editor/ui/local-assistance-bridge.ts';
-import type { LocalAssistanceSelectedMediaPreparationPort } from '../src/common/editor/ui/local-assistance-preparation.ts';
+import type { LocalAssistanceBridge } from '../src/common/editor/assistance/local-assistance-bridge.ts';
+import type { LocalAssistanceSelectedMediaPreparationPort } from '../src/common/editor/assistance/local-assistance-preparation.ts';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import {
 	installReactTestDom, reactProps, type ReactTestElement,

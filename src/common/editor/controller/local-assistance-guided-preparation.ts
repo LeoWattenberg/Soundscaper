@@ -17,10 +17,10 @@ import {
 	validateAssistanceWorkflowSettingsV1,
 	type AssistanceWorkflowSettingsV1,
 } from '../assistance/workflow-settings-v1.ts';
-import type { LocalAssistanceModel } from '../ui/local-assistance-bridge.ts';
-import type { LocalAssistanceWorkflowCustodyBridge } from '../ui/local-assistance-workflow-bridge.ts';
+import type { LocalAssistanceModel } from '../assistance/local-assistance-bridge.ts';
+import type { LocalAssistanceWorkflowCustodyBridge } from '../assistance/local-assistance-workflow-bridge.ts';
 import type { LocalAssistanceGuidedPreparationUnavailableReason } from
-	'../ui/local-assistance-preparation.ts';
+	'../assistance/local-assistance-preparation.ts';
 import { deriveLocalAssistanceGuidedReviewAuthority } from './local-assistance-guided-review-authority.ts';
 import {
 	prepareLocalAssistanceGuidedEditorialContext,
@@ -62,7 +62,7 @@ const AUDIO_OPERATIONS = new Set<AssistanceOperation>([
 ]);
 export type {
 	LocalAssistanceGuidedPreparationUnavailableReason,
-} from '../ui/local-assistance-preparation.ts';
+} from '../assistance/local-assistance-preparation.ts';
 export interface LocalAssistanceAggregateCustodyHandle {
 	readonly custody: AssistanceWorkflowCustodyClaimV1;
 	readonly workflowClaim: AssistanceWorkflowClaimV1;

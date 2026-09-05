@@ -36,7 +36,7 @@ import type { AssistanceDerivativeRecordV1 } from
 import type { AssistanceDerivativeRepositoryPort } from
 	'../storage/deferred-assistance-derivative-repository.ts';
 import type { LocalAssistanceGuidedReviewedResult } from
-	'../ui/local-assistance-guided-result-review.ts';
+	'../assistance/local-assistance-guided-result-review.ts';
 
 const MAXIMUM_JSON_BYTES = 64 * 1024 * 1024;
 

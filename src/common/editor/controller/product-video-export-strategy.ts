@@ -4,7 +4,7 @@ import type { FfmpegOutputSink } from '../ffmpeg-output-stream.ts';
 import type {
 	VideoKeyframeOfflineRgbaCompositor,
 	VideoKeyframeOfflineRgbaPostprocessor,
-} from '../ui/video-keyframe-offline-rgba-renderer.ts';
+} from '../video-keyframe-offline-rgba-contract.ts';
 import type {
 	BoundVideoSourceTimingView,
 	VideoSourceTimingView,

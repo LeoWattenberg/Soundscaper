@@ -3,7 +3,7 @@
 /** Closed Guided defaults. Optional/Advanced alternatives never substitute for these identities. */
 
 import type { AssistanceWorkflowSettingsV1 } from '../assistance/workflow-settings-v1.ts';
-import type { LocalAssistanceModel } from '../ui/local-assistance-bridge.ts';
+import type { LocalAssistanceModel } from '../assistance/local-assistance-bridge.ts';
 
 interface ExactGuidedModel {
 	readonly modelId: string;

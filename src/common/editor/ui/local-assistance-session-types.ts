@@ -12,18 +12,18 @@ import {
 	type LocalAssistanceOutputClaim,
 	type LocalAssistanceProgress,
 	type LocalAssistanceUnavailableReason,
-} from './local-assistance-bridge.ts';
+} from '../assistance/local-assistance-bridge.ts';
 import {
 	type LocalAssistanceSelectedMediaPreparationPort,
 	type LocalAssistanceSelectedMediaSource,
-} from './local-assistance-preparation.ts';
+} from '../assistance/local-assistance-preparation.ts';
 import {
 	type LocalAssistanceOutputReview,
-} from './local-assistance-result-review.ts';
+} from '../assistance/local-assistance-result-review.ts';
 import {
 	type LocalAssistanceTranscriptCleanupState,
 	type LocalAssistanceTranscriptCleanupPreset,
-} from './local-assistance-cleanup.ts';
+} from '../assistance/local-assistance-cleanup.ts';
 
 /**
  * The shape of a local assistance session as the surfaces see it.

@@ -5385,15 +5385,15 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/ui/local-assistance-result-review.ts"
+							"path": "src/common/editor/assistance/local-assistance-result-review.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/ui/local-assistance-shot-review.ts"
+							"path": "src/common/editor/assistance/local-assistance-shot-review.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/ui/local-assistance-cleanup.ts"
+							"path": "src/common/editor/assistance/local-assistance-cleanup.ts"
 						},
 						{
 							"kind": "implementation",

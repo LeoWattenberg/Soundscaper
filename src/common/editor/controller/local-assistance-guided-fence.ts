@@ -13,7 +13,7 @@ import type {
 	AssistanceWorkflowStageSpec,
 } from '../assistance/workflow.ts';
 import type { LocalAssistanceGuidedPreparationUnavailableReason } from
-	'../ui/local-assistance-preparation.ts';
+	'../assistance/local-assistance-preparation.ts';
 import type { LocalAssistanceGuidedPrimitiveFence } from
 	'./local-assistance-guided-transcript-context.ts';
 import { readProjectSchemaIdentity } from '../project-schema-identity.ts';

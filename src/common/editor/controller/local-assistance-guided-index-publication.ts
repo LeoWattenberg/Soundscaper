@@ -34,7 +34,7 @@ import type {
 } from '../storage/deferred-assistance-derivative-repository.ts';
 import type {
 	LocalAssistanceGuidedReviewedResult,
-} from '../ui/local-assistance-guided-result-review.ts';
+} from '../assistance/local-assistance-guided-result-review.ts';
 
 const MATRIX_MEDIA_TYPE = 'application/vnd.soundscaper.embedding-matrix-v1';
 const MAXIMUM_MATRIX_BYTES = 512 * 1024 * 1024;

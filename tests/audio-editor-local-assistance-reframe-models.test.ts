@@ -8,7 +8,7 @@ import {
 	localAssistanceModelTaskSlots,
 	localAssistanceOperationModelsAvailable,
 	localAssistanceSelectedModels,
-} from '../src/common/editor/ui/local-assistance-preparation.ts';
+} from '../src/common/editor/assistance/local-assistance-preparation.ts';
 
 const YUNET_MODEL = Object.freeze({
 	modelId: 'yunet-face-detection-2026may', version: '2026.5.0', task: 'face-detection',

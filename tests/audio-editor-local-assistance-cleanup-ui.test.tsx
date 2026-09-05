@@ -7,9 +7,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import type { AssistanceSelectionFence } from
 	'../src/common/editor/assistance/proposal-session.ts';
-import type { LocalAssistanceBridge } from '../src/common/editor/ui/local-assistance-bridge.ts';
+import type { LocalAssistanceBridge } from '../src/common/editor/assistance/local-assistance-bridge.ts';
 import type { LocalAssistanceSelectedMediaPreparationPort } from
-	'../src/common/editor/ui/local-assistance-preparation.ts';
+	'../src/common/editor/assistance/local-assistance-preparation.ts';
 import { createLocalAssistanceSessionStore } from
 	'../src/common/editor/ui/local-assistance-session-store.ts';
 import LocalAssistanceCleanupReview from

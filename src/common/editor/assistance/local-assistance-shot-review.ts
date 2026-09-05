@@ -6,7 +6,7 @@ import {
 	reviewAssistanceShotBoundariesV1,
 	type AssistanceShotBoundariesReviewV1,
 	type AssistanceShotBoundaryReviewV1,
-} from '../assistance/shot-boundaries-v1.ts';
+} from './shot-boundaries-v1.ts';
 
 export type LocalAssistanceShotBoundaryReview = AssistanceShotBoundaryReviewV1;
 

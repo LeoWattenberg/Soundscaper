@@ -4,7 +4,7 @@ import {
 	ASSISTANCE_TRANSCRIPT_CLEANUP_PRESETS,
 	type LocalAssistanceTranscriptCleanupPreset,
 	type LocalAssistanceTranscriptCleanupState,
-} from '../local-assistance-cleanup.ts';
+} from '../../assistance/local-assistance-cleanup.ts';
 
 type Copy = Readonly<Record<string, string | undefined>>;
 

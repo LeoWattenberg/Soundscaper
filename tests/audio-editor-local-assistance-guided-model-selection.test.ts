@@ -8,7 +8,7 @@ import { defaultAssistanceWorkflowSettingsV1 } from
 import { localAssistanceGuidedModelCandidates, localAssistanceGuidedModelMatches } from
 	'../src/common/editor/controller/local-assistance-guided-model-selection.ts';
 import type { LocalAssistanceModel } from
-	'../src/common/editor/ui/local-assistance-bridge.ts';
+	'../src/common/editor/assistance/local-assistance-bridge.ts';
 
 test('Guided Parakeet and Whisper preparation select one exact engine without substitution', () => {
 	const parakeetSettings = defaultAssistanceWorkflowSettingsV1('transcribe-captions');

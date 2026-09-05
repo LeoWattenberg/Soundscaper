@@ -8,11 +8,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type {
 	LocalAssistanceOutputClaim,
 	LocalAssistanceOutputRole,
-} from '../src/common/editor/ui/local-assistance-bridge.ts';
+} from '../src/common/editor/assistance/local-assistance-bridge.ts';
 import {
 	reviewLocalAssistanceOutput,
 	type LocalAssistanceOutputReview,
-} from '../src/common/editor/ui/local-assistance-result-review.ts';
+} from '../src/common/editor/assistance/local-assistance-result-review.ts';
 import { createAssistanceEmbeddingMatrixV1 } from
 	'../src/common/editor/assistance/binary-formats-v1.ts';
 import LocalAssistanceOutputReviewList from

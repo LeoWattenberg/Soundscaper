@@ -5,13 +5,13 @@
 import {
 	validateAssistanceSemanticSearchSession,
 	type AssistanceSemanticSearchSession,
-} from '../assistance/async-search-provider.ts';
+} from './async-search-provider.ts';
 import type {
 	AssistanceSemanticSearchProjectAuthorityV1,
 	AssistanceSemanticSearchSessionPortV1,
-} from '../assistance/semantic-search-runtime-v1.ts';
+} from './semantic-search-runtime-v1.ts';
 import { AssistanceSemanticSearchUnavailableError } from
-	'../assistance/semantic-search-runtime-v1.ts';
+	'./semantic-search-runtime-v1.ts';
 import {
 	PROJECT_SCHEMA_VERSION,
 	readProjectSchemaIdentity,

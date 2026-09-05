@@ -6,7 +6,7 @@ import test from 'node:test';
 import { encodeWav } from '../src/common/editor/wav.js';
 import {
 	reviewLocalAssistanceGuidedResult,
-} from '../src/common/editor/ui/local-assistance-guided-result-review.ts';
+} from '../src/common/editor/assistance/local-assistance-guided-result-review.ts';
 import type { AssistanceWorkflowV1 } from '../src/common/editor/assistance/workflow.ts';
 import { assistanceWorkflowFixture, WORKFLOW_JOB_ID } from './helpers/assistance-workflow-fixture.ts';
 

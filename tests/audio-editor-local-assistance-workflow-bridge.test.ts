@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { resolveLocalAssistanceBridge } from '../src/common/editor/ui/local-assistance-bridge.ts';
+import { resolveLocalAssistanceBridge } from '../src/common/editor/assistance/local-assistance-bridge.ts';
 import { bindLocalAssistancePreparedAudioWaveRelease } from
 	'../src/common/editor/controller/local-assistance-audio-spool-release.ts';
 import { assistanceWorkflowFixture, WORKFLOW_JOB_ID } from './helpers/assistance-workflow-fixture.ts';

@@ -4,7 +4,7 @@
 
 import type { AssistanceWorkflowStageSpec } from '../assistance/workflow.ts';
 import type { AssistanceWorkflowSettingsV1 } from '../assistance/workflow-settings-v1.ts';
-import type { LocalAssistanceModel } from '../ui/local-assistance-bridge.ts';
+import type { LocalAssistanceModel } from '../assistance/local-assistance-bridge.ts';
 import { localAssistanceGuidedModelCandidates } from './local-assistance-guided-model-selection.ts';
 
 export function selectLocalAssistanceGuidedStages(

@@ -4,11 +4,11 @@
 
 import React from 'react';
 
-import type { LocalAssistanceOutputClaim } from '../local-assistance-bridge.ts';
+import type { LocalAssistanceOutputClaim } from '../../assistance/local-assistance-bridge.ts';
 import type {
 	LocalAssistanceOutputReview,
 	LocalAssistanceSampleRangeReview,
-} from '../local-assistance-result-review.ts';
+} from '../../assistance/local-assistance-result-review.ts';
 
 type Copy = Readonly<Record<string, string | undefined>>;
 

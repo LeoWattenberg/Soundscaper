@@ -18,13 +18,13 @@ import {
 	serializeAssistanceWorkflowSettingsV1,
 	validateAssistanceWorkflowSettingsV1,
 } from '../assistance/workflow-settings-v1.ts';
-import type { LocalAssistanceModel } from '../ui/local-assistance-bridge.ts';
+import type { LocalAssistanceModel } from '../assistance/local-assistance-bridge.ts';
 import type { LocalAssistanceWorkflowCustodyBridge } from
-	'../ui/local-assistance-workflow-bridge.ts';
+	'../assistance/local-assistance-workflow-bridge.ts';
 import type {
 	LocalAssistancePreparedMedia,
 	LocalAssistanceSelectedMediaPreparationPort,
-} from '../ui/local-assistance-preparation.ts';
+} from '../assistance/local-assistance-preparation.ts';
 import { localAssistanceSelectedModels } from './local-assistance-model-selection.ts';
 import { normalizeLocalAssistancePreparedMedia } from './local-assistance-prepared-media.ts';
 import { createLocalAssistanceGuidedAggregateFenceV1 } from

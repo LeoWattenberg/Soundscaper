@@ -3,7 +3,7 @@
 /** Lazy semantic-search projection kept outside the product-ready graph. */
 
 import type { AssistanceSemanticSearchSessionPortV1 } from
-	'../assistance/semantic-search-runtime-v1.ts';
+	'./semantic-search-runtime-v1.ts';
 
 const METHODS = Object.freeze(['open', 'authorize', 'revoke', 'query', 'cancelQuery'] as const);
 

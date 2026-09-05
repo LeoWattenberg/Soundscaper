@@ -50,16 +50,18 @@ export const editorOptionalAssistanceModule = String.raw`local-assistance-[^\\/]
 /**
  * Assistance domain modules the eagerly loaded shell and controller genuinely share.
  *
- * Everything else under `assistance/` belongs to the lazy assistance owner. The
- * default has to be lazy: an eagerly owned module that imports one lazy sibling
- * makes the whole optional assistance chunk a static dependency of the shell, and
- * the product-ready startup graph blows its byte budget for a feature the user
- * has not opened. Adding a name here is a deliberate claim that eager code reads it.
+ * Everything else under `assistance/` belongs to the lazy assistance owner, except
+ * the semantic-search bridge, which `EDITOR_ASSISTANCE_SEMANTIC_SEARCH_RUNTIME_CHUNK_TEST`
+ * claims for its own lazy owner at a higher priority. The default has to be lazy: an
+ * eagerly owned module that imports one lazy sibling makes the whole optional assistance
+ * chunk a static dependency of the shell, and the product-ready startup graph blows its
+ * byte budget for a feature the user has not opened. Adding a name here is a deliberate
+ * claim that eager code reads it.
  */
 const editorEagerAssistanceModule = String.raw`(?:assistance-asset-command-v1|assistance-asset-reference-v1|operation|shots|transcript|transcript-scape-asset-extension-v1)`;
 export const editorOptionalSurfaceModule = String.raw`ui[\\/](?:AudacityEffectLayout\.jsx|ParametricEqEditor\.jsx|PrivacyPolicyRoute\.tsx|SoundActivationPreferences\.tsx|VideoDeliveryFields\.jsx|desktop-export-codec-model\.ts|export-(?:dialog-audio-codec-options\.ts|dialog-model\.js|preset-(?:actions\.js|model\.ts))|framescaper-(?:caption-file-interchange|finishing-dialog-model|native-services-dialog-model|visual-inspector-model)\.ts|local-assistance-(?!lazy-)(?!menu\.ts$)(?!review-authority\.ts$)[a-z\d-]+\.ts|local-model-manager-store\.ts|soundscaper-(?:production-dialog-model|routing-editor-model)\.ts|video-keyframe-(?:curve-transfer|dialog-model)\.ts|workspace[\\/](?:(?:FramescaperCaptureSources|RecordingSetupPanel|WebVcrPanel|WebVcrPreview|SoundscaperRoutingGraph(?:Inspector|View))\.tsx|soundscaper-routing-(?:folder-authority|graph-(?:candidates|gesture|layout))\.ts))`;
 export const EDITOR_ASSISTANCE_SEMANTIC_SEARCH_RUNTIME_CHUNK_TEST =
-	/src[\\/]common[\\/]editor[\\/]ui[\\/]local-assistance-semantic-search-(?:bridge|source)\.ts$/;
+	/src[\\/]common[\\/]editor[\\/](?:assistance[\\/]local-assistance-semantic-search-bridge|ui[\\/]local-assistance-semantic-search-source)\.ts$/;
 export const EDITOR_COPY_CHUNK_TEST =
 	/(?:src[\\/]common[\\/]i18n[\\/](?:catalogs|runtime|canonical-extras|(?!(?:site|site-sidebar)-copy\.js$)[^\\/]+-copy)|src[\\/]soundscaper[\\/]framescaper-capture-copy)\.js$/;
 

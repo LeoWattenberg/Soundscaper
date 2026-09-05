@@ -105,17 +105,27 @@ test('assistance domain modules default to the lazy owner, with a named eager ex
 	// optional assistance chunk into the product-ready startup graph and broke its byte
 	// budget three times over. Growing this list is a deliberate claim that eagerly
 	// loaded shell or controller code reads the module.
-	const eager = assistanceDomainModules()
+	// `local-assistance-semantic-search-bridge.ts` is the one lazy exception: it keeps its
+	// own dedicated lazy owner so indexed search stays apart from the rest of assistance,
+	// so it is named here and asserted lazy rather than eager.
+	const exceptions = assistanceDomainModules()
 		.filter((path) => chunkGroupForModulePath(path) !== 'editor-optional-assistance');
-	assert.deepEqual(eager, [
+	assert.deepEqual(exceptions, [
 		'src/common/editor/assistance/assistance-asset-command-v1.ts',
 		'src/common/editor/assistance/assistance-asset-reference-v1.ts',
+		'src/common/editor/assistance/local-assistance-semantic-search-bridge.ts',
 		'src/common/editor/assistance/operation.ts',
 		'src/common/editor/assistance/shots.ts',
 		'src/common/editor/assistance/transcript-scape-asset-extension-v1.ts',
 		'src/common/editor/assistance/transcript.ts',
 	]);
-	for (const path of eager) assert.equal(chunkGroupForModulePath(path), 'editor-domain');
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/assistance/local-assistance-semantic-search-bridge.ts'),
+		'editor-assistance-semantic-search-runtime',
+	);
+	for (const path of exceptions.filter((candidate) => !candidate.includes('semantic-search'))) {
+		assert.equal(chunkGroupForModulePath(path), 'editor-domain');
+	}
 });
 
 test('every local assistance controller module keeps the lazy assistance owner', () => {
@@ -187,7 +197,7 @@ test('the shell, controller, and storage groups keep the flat modules they name'
 		'editor-assistance-semantic-search-runtime',
 	);
 	assert.equal(
-		chunkGroupForModulePath('src/common/editor/ui/local-assistance-semantic-search-bridge.ts'),
+		chunkGroupForModulePath('src/common/editor/assistance/local-assistance-semantic-search-bridge.ts'),
 		'editor-assistance-semantic-search-runtime',
 	);
 	assert.equal(

@@ -2,7 +2,7 @@
 
 import type { ProductVideoExportStrategyEncodeRequest } from '../common/editor/controller/product-video-export-strategy.ts';
 import type { VideoKeyframeExportFrame } from '../common/editor/video-keyframe-export-frame-source.ts';
-import type { VideoKeyframeOfflineRgbaCompositor } from '../common/editor/ui/video-keyframe-offline-rgba-renderer.ts';
+import type { VideoKeyframeOfflineRgbaCompositor } from '../common/editor/video-keyframe-offline-rgba-contract.ts';
 import type { UnifiedExactRenderPlanV13 } from '../common/editor/unified-exact-render-plan.ts';
 import type { VideoSourceTimingView } from '../common/editor/video-source-timing-view.ts';
 import type { FramescaperProjectFinishing } from './editor-project-finishing.ts';

@@ -5,11 +5,11 @@
 import {
 	MAX_TRANSCRIPT_SEGMENTS,
 	MAX_TRANSCRIPT_WORDS_PER_SEGMENT,
-} from '../assistance/transcript.ts';
+} from './transcript.ts';
 import {
 	reviewAssistanceEmbeddingMatrixV1,
 	type ReviewedAssistanceEmbeddingMatrixV1,
-} from '../assistance/binary-formats-v1.ts';
+} from './binary-formats-v1.ts';
 import {
 	reviewAssistanceAudioTagsV1,
 	reviewAssistanceBeatGridV1,
@@ -19,7 +19,7 @@ import {
 	type AssistanceBeatGridV1,
 	type AssistanceEditorialProposalV1,
 	type AssistanceWordAlignmentV1,
-} from '../assistance/m7-semantic-results.ts';
+} from './m7-semantic-results.ts';
 import type { LocalAssistanceOutputClaim } from './local-assistance-bridge.ts';
 import {
 	reviewLocalAssistanceShotBoundaries,
@@ -34,7 +34,7 @@ import {
 	type AssistanceSaliencyResultV1,
 	type AssistanceSubjectResultV1,
 	type AssistanceVisualFrameAuthorityV1,
-} from '../assistance/visual-semantic-results-v1.ts';
+} from './visual-semantic-results-v1.ts';
 
 const MAXIMUM_REVIEW_BYTES = 8 * 1024 * 1024;
 const MAXIMUM_SAMPLE_RANGES = 100_000;

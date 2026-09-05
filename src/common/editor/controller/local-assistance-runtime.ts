@@ -46,7 +46,7 @@ import {
 } from './local-assistance-guided-editorial-acceptance.ts';
 import { validateAssistanceWorkflow } from '../assistance/workflow.ts';
 import type { LocalAssistanceGuidedWorkflowAcceptanceRequest } from
-	'../ui/local-assistance-preparation.ts';
+	'../assistance/local-assistance-preparation.ts';
 import type { DeferredLocalAssistanceRuntimeDependencies } from './deferred-local-assistance-runtime.ts';
 
 /** Compose the stateful selected-media and proposal-acceptance ports after invocation. */

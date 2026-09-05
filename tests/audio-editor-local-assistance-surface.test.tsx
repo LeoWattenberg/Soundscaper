@@ -9,12 +9,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { ASSISTANCE_OPERATIONS } from '../src/common/editor/assistance/operation.ts';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
-import { resolveLocalAssistanceBridge } from '../src/common/editor/ui/local-assistance-bridge.ts';
+import { resolveLocalAssistanceBridge } from '../src/common/editor/assistance/local-assistance-bridge.ts';
 import { createLocalAssistanceMenuItems } from '../src/common/editor/ui/local-assistance-menu.ts';
 import AudioEditorSearch from '../src/common/editor/ui/AudioEditorSearch.jsx';
 import {
 	type LocalAssistanceSelectedMediaPreparationPort,
-} from '../src/common/editor/ui/local-assistance-preparation.ts';
+} from '../src/common/editor/assistance/local-assistance-preparation.ts';
 import {
 	createLocalAssistanceSessionStore,
 	type LocalAssistanceSnapshot,

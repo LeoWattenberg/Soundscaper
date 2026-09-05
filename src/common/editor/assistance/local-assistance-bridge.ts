@@ -8,13 +8,13 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import {
 	normalizeAssistanceOperation,
 	type AssistanceOperation,
-} from '../assistance/operation.ts';
+} from './operation.ts';
 import {
 	validateAssistanceSelectionFence,
 	type AssistanceSelectionFence,
-} from '../assistance/proposal-session.ts';
+} from './proposal-session.ts';
 import type { AssistanceSemanticSearchSessionPortV1 } from
-	'../assistance/semantic-search-runtime-v1.ts';
+	'./semantic-search-runtime-v1.ts';
 import { releaseLocalAssistancePreparedAudioWave } from
 	'../controller/local-assistance-audio-spool-release.ts';
 import { lazyAssistanceWorkflowBridge } from './local-assistance-lazy-workflow-bridge.ts';

@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 
 import type {
 	LocalAssistanceGuidedReviewedResult,
-} from '../local-assistance-guided-result-review.ts';
+} from '../../assistance/local-assistance-guided-result-review.ts';
 import type { AssistanceOwnedHighlightProposalsV1 } from
 	'../../assistance/owned-video-highlight-transform-types-v1.ts';
 import type { AssistanceOwnedReframePathV1 } from

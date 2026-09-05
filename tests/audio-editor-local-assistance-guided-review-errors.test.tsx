@@ -9,7 +9,7 @@ import type { AssistanceOwnedHighlightProposalsV1 } from
 import LocalAssistanceGuidedReview from
 	'../src/common/editor/ui/dialogs/LocalAssistanceGuidedReview.tsx';
 import type { LocalAssistanceGuidedReviewedResult } from
-	'../src/common/editor/ui/local-assistance-guided-result-review.ts';
+	'../src/common/editor/assistance/local-assistance-guided-result-review.ts';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
 const CROP = Object.freeze({ left: 0.2, top: 0, right: 0.2, bottom: 0 });

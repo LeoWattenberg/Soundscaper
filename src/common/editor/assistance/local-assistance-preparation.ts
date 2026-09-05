@@ -6,18 +6,18 @@ import {
 	ASSISTANCE_OPERATIONS,
 	normalizeAssistanceOperation,
 	type AssistanceOperation,
-} from '../assistance/operation.ts';
+} from './operation.ts';
 import type {
 	AssistanceAdvancedWorkflowId,
 	AssistanceGuidedWorkflowId,
-} from '../assistance/workflow-recipes.ts';
+} from './workflow-recipes.ts';
 import type {
 	AssistanceWorkflowOutputClaimV1,
 	AssistanceWorkflowV1,
-} from '../assistance/workflow.ts';
-import type { AssistanceWorkflowSettingsV1 } from '../assistance/workflow-settings-v1.ts';
-import type { AssistanceSelectionFence } from '../assistance/proposal-session.ts';
-import type { LocalAssistanceShotDetectionMode } from '../assistance/shot-detection-mode.ts';
+} from './workflow.ts';
+import type { AssistanceWorkflowSettingsV1 } from './workflow-settings-v1.ts';
+import type { AssistanceSelectionFence } from './proposal-session.ts';
+import type { LocalAssistanceShotDetectionMode } from './shot-detection-mode.ts';
 import type {
 	LocalAssistanceInputRole,
 	LocalAssistanceModel,

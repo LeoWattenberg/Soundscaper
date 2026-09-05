@@ -24,7 +24,7 @@ import {
 } from '../assistance/workflow-review-authority-v1.ts';
 import type {
 	LocalAssistanceBridge,
-} from './local-assistance-bridge.ts';
+} from '../assistance/local-assistance-bridge.ts';
 import type { AssistanceOwnedHighlightProposalsV1 } from
 	'../assistance/owned-video-highlight-transform-types-v1.ts';
 import type { AssistanceOwnedReframePathV1 } from
@@ -49,15 +49,15 @@ import {
 	LOCAL_ASSISTANCE_GUIDED_PREPARATION_UNAVAILABLE_REASONS,
 	type LocalAssistanceGuidedPreparationUnavailableReason,
 	type LocalAssistanceSelectedMediaPreparationPort,
-} from './local-assistance-preparation.ts';
+} from '../assistance/local-assistance-preparation.ts';
 import type {
 	LocalAssistanceWorkflowOutcome,
 	LocalAssistanceWorkflowUnavailableReason,
-} from './local-assistance-workflow-bridge.ts';
+} from '../assistance/local-assistance-workflow-bridge.ts';
 import {
 	reviewLocalAssistanceGuidedResult,
 	type LocalAssistanceGuidedReviewedResult,
-} from './local-assistance-guided-result-review.ts';
+} from '../assistance/local-assistance-guided-result-review.ts';
 import { createLocalAssistanceGuidedCustodyReleaseTracker } from
 	'./local-assistance-guided-custody-release.ts';
 

@@ -11,7 +11,7 @@ import { createLocalAssistancePreparationRuntime } from
 import type { AssistanceWorkflowV1 } from
 	'../src/common/editor/assistance/workflow.ts';
 import type { LocalAssistanceGuidedReviewedResult } from
-	'../src/common/editor/ui/local-assistance-guided-result-review.ts';
+	'../src/common/editor/assistance/local-assistance-guided-result-review.ts';
 import { assistanceWorkflowFixture, WORKFLOW_JOB_ID } from
 	'./helpers/assistance-workflow-fixture.ts';
 

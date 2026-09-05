@@ -3,17 +3,17 @@
 /**
  * Derives semantic output authority from controller-owned prepared inputs.
  *
- * This lives beside the controllers that call it rather than under `ui/`: editor core must
- * stay independent of the presentation modules, and the guided path already keeps its own
- * review-authority derivation here. The UI re-exports it for the session stores.
+ * This lives beside the controllers that call it rather than in the assistance vocabulary:
+ * the guided path already keeps its own review-authority derivation here, and the session
+ * stores reach it through `assistance/local-assistance-result-review.ts`.
  */
 
 import { inspectWavBlobPcm } from '../wav-import.js';
 import { reviewAssistanceEditorialGenerationPlanV1 } from
 	'../assistance/editorial-generation-v1.ts';
 import { reviewAssistanceVisualFramePack } from '../assistance/visual-frame-pack-v2.ts';
-import type { LocalAssistancePreparedMedia } from '../ui/local-assistance-preparation.ts';
-import type { LocalAssistanceReviewAuthority } from '../ui/local-assistance-result-review.ts';
+import type { LocalAssistancePreparedMedia } from '../assistance/local-assistance-preparation.ts';
+import type { LocalAssistanceReviewAuthority } from '../assistance/local-assistance-result-review.ts';
 
 const OUTPUT_AUDIO_RATES = Object.freeze({
 	'speech-enhancement': 48_000,

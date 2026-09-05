@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	reviewLocalAssistanceShotBoundaries,
-} from '../src/common/editor/ui/local-assistance-shot-review.ts';
+} from '../src/common/editor/assistance/local-assistance-shot-review.ts';
 
 function result() {
 	return {

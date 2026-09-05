@@ -9,7 +9,7 @@ import {
 	LOCAL_ASSISTANCE_PROGRESS_PHASES,
 	type LocalAssistanceModel,
 	type LocalAssistanceUnavailableReason,
-} from './local-assistance-bridge.ts';
+} from '../assistance/local-assistance-bridge.ts';
 import {
 	assertLocalAssistanceShotDetectionReviewMode,
 	localAssistanceModelCompatible,
@@ -20,10 +20,10 @@ import {
 	normalizeLocalAssistanceSelectedMediaInventory,
 	type LocalAssistanceSelectedMediaSource,
 	type LocalAssistanceValidatedResultAcceptanceRequest,
-} from './local-assistance-preparation.ts';
+} from '../assistance/local-assistance-preparation.ts';
 import {
 	reviewLocalAssistanceOutput,
-} from './local-assistance-result-review.ts';
+} from '../assistance/local-assistance-result-review.ts';
 import { deriveLocalAssistanceReviewAuthority } from './local-assistance-review-authority.ts';
 import {
 	createLocalAssistanceTranscriptCleanupPreparation,
@@ -34,7 +34,7 @@ import {
 	normalizeLocalAssistanceTranscriptCleanupProposals,
 	type LocalAssistanceTranscriptCleanupPreset,
 	type LocalAssistanceTranscriptCleanupVoiceActivity,
-} from './local-assistance-cleanup.ts';
+} from '../assistance/local-assistance-cleanup.ts';
 
 export type * from './local-assistance-session-types.ts';
 import type {

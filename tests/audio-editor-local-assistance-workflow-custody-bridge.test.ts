@@ -12,7 +12,7 @@ import {
 } from '../src/common/editor/assistance/workflow-custody-v1.ts';
 import {
 	resolveLocalAssistanceWorkflowBridge,
-} from '../src/common/editor/ui/local-assistance-workflow-bridge.ts';
+} from '../src/common/editor/assistance/local-assistance-workflow-bridge.ts';
 import { bindLocalAssistancePreparedAudioWaveRelease } from
 	'../src/common/editor/controller/local-assistance-audio-spool-release.ts';
 import { WORKFLOW_JOB_ID } from './helpers/assistance-workflow-fixture.ts';

@@ -5,8 +5,8 @@
  *
  * Like prepared-media normalization, this is controller-owned policy rather than
  * presentation: Advanced workflow preparation reaches it from editor core, which must stay
- * independent of the `ui/` modules. The UI preparation module re-exports it for the
- * session stores that have always imported it from there.
+ * independent of the presentation modules. `assistance/local-assistance-preparation.ts`
+ * re-exports it for the session stores that have always imported it from there.
  */
 
 import type { AssistanceOperation } from '../assistance/operation.ts';
@@ -16,8 +16,8 @@ import {
 	normalizeLocalAssistanceShotDetectionMode,
 	type LocalAssistanceShotDetectionMode,
 } from '../assistance/shot-detection-mode.ts';
-import type { LocalAssistanceModel } from '../ui/local-assistance-bridge.ts';
-import type { LocalAssistanceModelTaskSlot } from '../ui/local-assistance-preparation.ts';
+import type { LocalAssistanceModel } from '../assistance/local-assistance-bridge.ts';
+import type { LocalAssistanceModelTaskSlot } from '../assistance/local-assistance-preparation.ts';
 
 const MODEL_TASK_SLOTS = Object.freeze({
 	'voice-activity-detection': modelTaskSlots(['voice-activity-detection']),

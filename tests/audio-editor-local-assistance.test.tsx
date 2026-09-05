@@ -9,12 +9,12 @@ import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import {
 	resolveLocalAssistanceBridge,
 	type LocalAssistanceBridge,
-} from '../src/common/editor/ui/local-assistance-bridge.ts';
+} from '../src/common/editor/assistance/local-assistance-bridge.ts';
 import {
 	localAssistanceModelTaskSlots,
 	type LocalAssistanceSelectedMediaPreparationPort,
 	type LocalAssistanceValidatedResultAcceptanceRequest,
-} from '../src/common/editor/ui/local-assistance-preparation.ts';
+} from '../src/common/editor/assistance/local-assistance-preparation.ts';
 import {
 	createLocalAssistanceSessionStore,
 	type LocalAssistanceSnapshot,

@@ -10,26 +10,26 @@ import {
 	type AssistanceGuidedWorkflowId,
 	type AssistanceWorkflowOutputClaimV1,
 	type AssistanceWorkflowV1,
-} from '../assistance/workflow.ts';
-import { assistanceWorkflowCustodySlotSpec } from '../assistance/workflow-custody-v1.ts';
+} from './workflow.ts';
+import { assistanceWorkflowCustodySlotSpec } from './workflow-custody-v1.ts';
 import {
 	reviewAssistanceOwnedAudioCutTransformResultV1,
-} from '../assistance/owned-audio-cut-transform-results-v1.ts';
+} from './owned-audio-cut-transform-results-v1.ts';
 import type {
 	AssistanceOwnedAudioCutTransformIdV1,
-} from '../assistance/owned-audio-cut-transform-types-v1.ts';
+} from './owned-audio-cut-transform-types-v1.ts';
 import {
 	reviewAssistanceOwnedVideoHighlightTransformResultV1,
-} from '../assistance/owned-video-highlight-transform-results-v1.ts';
+} from './owned-video-highlight-transform-results-v1.ts';
 import type {
 	AssistanceOwnedVideoHighlightTransformIdV1,
-} from '../assistance/owned-video-highlight-transform-types-v1.ts';
-import { reviewAssistanceEditorialProposalV1 } from '../assistance/m7-semantic-results.ts';
+} from './owned-video-highlight-transform-types-v1.ts';
+import { reviewAssistanceEditorialProposalV1 } from './m7-semantic-results.ts';
 import type {
 	AssistanceWorkflowReviewAuthorityV1,
-} from '../assistance/workflow-review-authority-v1.ts';
+} from './workflow-review-authority-v1.ts';
 import { validateAssistanceWorkflowReviewAuthorityV1 } from
-	'../assistance/workflow-review-authority-v1.ts';
+	'./workflow-review-authority-v1.ts';
 import type { LocalAssistanceOutputClaim } from './local-assistance-bridge.ts';
 import {
 	reviewLocalAssistanceOutput,

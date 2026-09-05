@@ -13,14 +13,14 @@ import {
 	type AssistanceWorkflowOutputClaimV1,
 	type AssistanceWorkflowProgressV1,
 	type AssistanceWorkflowV1,
-} from '../assistance/workflow.ts';
+} from './workflow.ts';
 import {
 	assistanceWorkflowCustodySlotSpec,
 	createAssistanceWorkflowCustodyClaimV1,
 	validateAssistanceWorkflowCustodyClaimV1,
 	workflowClaimFromCustodyV1,
 	type AssistanceWorkflowCustodyClaimV1,
-} from '../assistance/workflow-custody-v1.ts';
+} from './workflow-custody-v1.ts';
 import { releaseLocalAssistancePreparedAudioWave } from
 	'../controller/local-assistance-audio-spool-release.ts';
 

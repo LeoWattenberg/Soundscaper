@@ -18,7 +18,7 @@ import {
 } from '../src/common/editor/controller/local-assistance-selected-video.ts';
 import {
 	normalizeLocalAssistancePreparedMedia,
-} from '../src/common/editor/ui/local-assistance-preparation.ts';
+} from '../src/common/editor/assistance/local-assistance-preparation.ts';
 import {
 	registerVideoTimingIndex,
 	unregisterVideoTimingIndex,

@@ -935,7 +935,7 @@
       "count": 1
     }
   },
-  "src/common/editor/ui/local-assistance-semantic-search-bridge.ts": {
+  "src/common/editor/assistance/local-assistance-semantic-search-bridge.ts": {
     "no-control-regex": {
       "count": 1
     }

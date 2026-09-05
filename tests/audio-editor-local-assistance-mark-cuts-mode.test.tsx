@@ -6,12 +6,12 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
-import type { LocalAssistanceBridge } from '../src/common/editor/ui/local-assistance-bridge.ts';
+import type { LocalAssistanceBridge } from '../src/common/editor/assistance/local-assistance-bridge.ts';
 import {
 	localAssistanceModelCompatible,
 	localAssistanceModelTaskSlots,
 	type LocalAssistanceSelectedMediaPreparationPort,
-} from '../src/common/editor/ui/local-assistance-preparation.ts';
+} from '../src/common/editor/assistance/local-assistance-preparation.ts';
 import {
 	createLocalAssistanceSessionStore,
 	type LocalAssistanceSnapshot,

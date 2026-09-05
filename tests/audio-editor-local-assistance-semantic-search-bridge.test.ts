@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { resolveLocalAssistanceBridge } from
-	'../src/common/editor/ui/local-assistance-bridge.ts';
+	'../src/common/editor/assistance/local-assistance-bridge.ts';
 
 const NOW = Date.now();
 const PROJECT_IDENTITY = Object.freeze({ schemaFamily: 'framescaper' as const, schemaVersion: 1 as const });

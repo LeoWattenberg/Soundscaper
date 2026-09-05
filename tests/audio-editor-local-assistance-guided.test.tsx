@@ -25,12 +25,12 @@ import {
 } from '../src/common/editor/ui/local-assistance-guided-session-store.ts';
 import type {
 	LocalAssistanceGuidedReviewedResult,
-} from '../src/common/editor/ui/local-assistance-guided-result-review.ts';
-import type { LocalAssistanceWorkflowBridge } from '../src/common/editor/ui/local-assistance-workflow-bridge.ts';
-import type { LocalAssistanceBridge } from '../src/common/editor/ui/local-assistance-bridge.ts';
+} from '../src/common/editor/assistance/local-assistance-guided-result-review.ts';
+import type { LocalAssistanceWorkflowBridge } from '../src/common/editor/assistance/local-assistance-workflow-bridge.ts';
+import type { LocalAssistanceBridge } from '../src/common/editor/assistance/local-assistance-bridge.ts';
 import type {
 	LocalAssistanceSelectedMediaPreparationPort,
-} from '../src/common/editor/ui/local-assistance-preparation.ts';
+} from '../src/common/editor/assistance/local-assistance-preparation.ts';
 import type { LocalAssistanceSnapshot } from '../src/common/editor/ui/local-assistance-session-store.ts';
 import { digestMediaContent } from '../src/common/editor/storage/media-content-digest.ts';
 import { assistanceWorkflowFixture, WORKFLOW_JOB_ID } from './helpers/assistance-workflow-fixture.ts';

@@ -12,9 +12,9 @@ import type { AssistanceWorkflowSettingsV1 } from '../../assistance/workflow-set
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import LocalAssistanceCleanupReview from './LocalAssistanceCleanupReview.tsx';
 import LocalAssistanceGuidedPanel from './LocalAssistanceGuidedPanel.tsx';
-import type { LocalAssistanceTranscriptCleanupPreset } from '../local-assistance-cleanup.ts';
+import type { LocalAssistanceTranscriptCleanupPreset } from '../../assistance/local-assistance-cleanup.ts';
 import LocalAssistanceOutputReviewList from './LocalAssistanceOutputReview.tsx';
-import type { LocalAssistanceBridge } from '../local-assistance-bridge.ts';
+import type { LocalAssistanceBridge } from '../../assistance/local-assistance-bridge.ts';
 import { createLocalAssistanceAdvancedWorkflowSessionStore } from
 	'../local-assistance-advanced-session-store.ts';
 import {
@@ -24,7 +24,7 @@ import {
 	type LocalAssistanceGuidedSnapshot,
 } from '../local-assistance-guided-session-store.ts';
 import { localAssistanceModelCompatible, localAssistanceModelTaskSlots,
-	type LocalAssistanceSelectedMediaPreparationPort } from '../local-assistance-preparation.ts';
+	type LocalAssistanceSelectedMediaPreparationPort } from '../../assistance/local-assistance-preparation.ts';
 import {
 	type LocalAssistanceSnapshot,
 	type LocalAssistanceUiUnavailableReason,

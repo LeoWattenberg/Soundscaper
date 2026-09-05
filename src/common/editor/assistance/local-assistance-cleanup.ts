@@ -5,12 +5,12 @@
 import {
 	validateAssistanceSelectionFence,
 	type AssistanceSelectionFence,
-} from '../assistance/proposal-session.ts';
+} from './proposal-session.ts';
 import {
 	ASSISTANCE_TRANSCRIPT_CLEANUP_PRESETS,
 	normalizeAssistanceTranscriptCleanupPreset,
 	type AssistanceTranscriptCleanupPreset,
-} from '../assistance/transcript-cleanup-presets.ts';
+} from './transcript-cleanup-presets.ts';
 import type { LocalAssistanceModel } from './local-assistance-bridge.ts';
 import type {
 	LocalAssistanceOutputReview,

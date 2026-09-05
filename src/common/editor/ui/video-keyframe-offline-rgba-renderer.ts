@@ -6,6 +6,10 @@ import {
 	type VideoKeyframeExportFrame,
 	type VideoKeyframeExportFrameSource,
 } from '../video-keyframe-export-frame-source.ts';
+import type {
+	VideoKeyframeOfflineRgbaCompositor,
+	VideoKeyframeOfflineRgbaPostprocessor,
+} from '../video-keyframe-offline-rgba-contract.ts';
 import { VideoPreviewCompositor } from './video-preview-compositor.js';
 import {
 	planVideoKeyframeOfflineRgba,
@@ -15,6 +19,11 @@ import {
 	VideoKeyframeOfflineSourceCache,
 	type VideoKeyframeOfflineSourceResolver,
 } from './video-keyframe-offline-rgba-source.ts';
+
+export type {
+	VideoKeyframeOfflineRgbaCompositor,
+	VideoKeyframeOfflineRgbaPostprocessor,
+} from '../video-keyframe-offline-rgba-contract.ts';
 
 interface OfflineCanvas extends HTMLCanvasElement {
 	readonly width: number;
@@ -43,22 +52,6 @@ export interface VideoKeyframeOfflineRgbaRendererOptions {
 	readonly postprocess?: VideoKeyframeOfflineRgbaPostprocessor;
 }
 
-export type VideoKeyframeOfflineRgbaCompositor = (request: Readonly<{
-	readonly frame: VideoKeyframeExportFrame;
-	readonly layers: readonly Readonly<Record<string, unknown>>[];
-	readonly width: number;
-	readonly height: number;
-	readonly rgba: Uint8Array<ArrayBuffer>;
-	readonly signal: AbortSignal;
-}>) => PromiseLike<void> | void;
-
-export type VideoKeyframeOfflineRgbaPostprocessor = (request: Readonly<{
-	readonly frame: VideoKeyframeExportFrame;
-	readonly width: number;
-	readonly height: number;
-	readonly rgba: Uint8Array<ArrayBuffer>;
-	readonly signal: AbortSignal;
-}>) => PromiseLike<void> | void;
 
 interface NormalizedVideoKeyframeOfflineRgbaRendererOptions {
 	readonly frameSource: VideoKeyframeExportFrameSource;

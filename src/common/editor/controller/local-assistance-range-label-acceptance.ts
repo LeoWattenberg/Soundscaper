@@ -17,7 +17,7 @@ import { scaleSampleFrame } from '../timeline-time.ts';
 import type {
 	LocalAssistanceSpeakerTurnsReview,
 	LocalAssistanceVoiceActivityReview,
-} from '../ui/local-assistance-result-review.ts';
+} from '../assistance/local-assistance-result-review.ts';
 
 const REVIEW_SAMPLE_RATE = 16_000;
 const MAXIMUM_LABELS = 10_000;
