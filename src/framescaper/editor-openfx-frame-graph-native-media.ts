@@ -134,6 +134,9 @@ export function createFramescaperOpenFxFrameGraphNativeMedia(options: Readonly<{
 			}
 			const effects = nodes.filter(({ state }) => state.context === request.context
 				&& state.attachment.targetId === request.targetId);
+			if (request.primary === null && effects.filter(({ state }) => state.enabled).length > 1) {
+				throw new Error('Selected nativeMedia OpenFX chaining requires a primary plane when a target carries more than one enabled effect.');
+			}
 			let output = request.primary?.rgba ?? transparent(plan);
 			const dispositions: FramescaperOpenFxFrameDispositionNativeMedia[] = [];
 			for (const { state } of effects) {
