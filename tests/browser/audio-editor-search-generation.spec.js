@@ -321,7 +321,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		// them have to reach the same action once the dialog closes.
 		await row.locator('[data-shortcut-binding="0"]').fill('K');
 		await row.getByRole('button', { name: 'Add shortcut: Zoom toggle', exact: true }).click();
-		await row.locator('[data-shortcut-binding="1"]').fill('Alt+K');
+		// Alt+K is Audacity's Delete labeled audio, so the second chord has to be
+		// one no command owns.
+		await row.locator('[data-shortcut-binding="1"]').fill('Alt+Y');
 		await row.getByRole('button', { name: 'Assign', exact: true }).click();
 		await page.keyboard.press('Escape');
 		await expect(preferences).toBeHidden();
@@ -330,7 +332,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await timelinePanel.evaluate((element) => { element.tabIndex = -1; element.focus(); });
 		await page.keyboard.press('k');
 		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBeGreaterThan(normalWidth);
-		await page.keyboard.press('Alt+k');
+		await page.keyboard.press('Alt+y');
 		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBe(normalWidth);
 		await page.keyboard.press('k');
 		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBeGreaterThan(normalWidth);
