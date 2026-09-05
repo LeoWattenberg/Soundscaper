@@ -10,9 +10,11 @@ test('the workspace defers Local Assistance bridge resolution with its dialog', 
 		workspace,
 		/lazyEditorModule\(\(\) => import\('\.\.\/dialogs\/LocalAssistanceDialogSurface\.tsx'\)\)/u,
 	);
+	// The bridge moved to `assistance/` when the vocabulary left the presentation layer;
+	// this guard names the specifier, so it has to name the one the workspace could write.
 	assert.doesNotMatch(
 		workspace,
-		/import \{ resolveLocalAssistanceBridge \} from '\.\.\/local-assistance-bridge\.ts'/u,
+		/import \{ resolveLocalAssistanceBridge \} from '[^']*local-assistance-bridge\.ts'/u,
 	);
 	assert.match(workspace, /bridgeScope=\{fileService\.bridge\}/u);
 	assert.doesNotMatch(workspace, /const localAssistanceBridge =/u);
