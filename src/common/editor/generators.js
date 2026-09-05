@@ -1,5 +1,9 @@
 export const AUDIO_EDITOR_GENERATOR_TYPES = Object.freeze(['silence', 'tone', 'chirp', 'noise', 'dtmf']);
 const OSCILLATOR_WAVEFORMS = Object.freeze(['sine', 'square', 'sawtooth']);
+// One ceiling for every generated length. The DTMF dialog splits a total this
+// long into per-symbol tone and silence lengths, so those share the ceiling
+// rather than carrying a shorter one the dialog would let the user exceed.
+const MAX_GENERATOR_SECONDS = 24 * 60 * 60;
 
 const DTMF_FREQUENCIES = Object.freeze({
 	'1': [697, 1209], '2': [697, 1336], '3': [697, 1477], A: [697, 1633],
@@ -26,7 +30,7 @@ export function generateAudioEditorSignal(type, options = {}) {
 }
 
 function generateFixedDuration(type, options, sampleRate, channelCount) {
-	const durationSeconds = finiteInRange(options.durationSeconds ?? 1, 1 / sampleRate, 24 * 60 * 60, 'durationSeconds');
+	const durationSeconds = finiteInRange(options.durationSeconds ?? 1, 1 / sampleRate, MAX_GENERATOR_SECONDS, 'durationSeconds');
 	const frameCount = boundedFrameCount(durationSeconds, sampleRate);
 	if (type === 'silence') return allocate(channelCount, frameCount);
 	if (type === 'tone') {
@@ -127,8 +131,8 @@ function generateDtmf(options, sampleRate, channelCount) {
 	if (!sequence.length || [...sequence].some((symbol) => !DTMF_FREQUENCIES[symbol])) {
 		throw new RangeError('DTMF sequence contains an unsupported symbol.');
 	}
-	const toneSeconds = finiteInRange(options.toneSeconds ?? 0.1, 1 / sampleRate, 60, 'toneSeconds');
-	const silenceSeconds = finiteInRange(options.silenceSeconds ?? 0.05, 0, 60, 'silenceSeconds');
+	const toneSeconds = finiteInRange(options.toneSeconds ?? 0.1, 1 / sampleRate, MAX_GENERATOR_SECONDS, 'toneSeconds');
+	const silenceSeconds = finiteInRange(options.silenceSeconds ?? 0.05, 0, MAX_GENERATOR_SECONDS, 'silenceSeconds');
 	const amplitude = finiteInRange(options.amplitude ?? 0.8, 0, 1, 'amplitude');
 	const toneFrames = boundedFrameCount(toneSeconds, sampleRate);
 	const silenceFrames = Math.round(silenceSeconds * sampleRate);

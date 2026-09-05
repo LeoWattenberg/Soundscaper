@@ -386,13 +386,16 @@ function generatorDtmfSymbolCount(sequence) {
 	return Math.max(1, normalized.length);
 }
 
-function generatorDtmfDurations(totalSeconds, dutyPercent, symbolCount) {
+export function generatorDtmfDurations(totalSeconds, dutyPercent, symbolCount) {
 	const total = Number(totalSeconds);
 	const duty = Math.max(1, Math.min(100, Number(dutyPercent))) / 100;
 	const gaps = Math.max(0, symbolCount - 1);
 	const denominator = symbolCount + gaps * (1 - duty) / duty;
 	const toneSeconds = total / denominator;
-	const silenceSeconds = duty === 1 ? 0 : toneSeconds * (1 - duty) / duty;
+	// A single symbol has no gap to fill, so the whole total is tone and the
+	// duty cycle has nothing to divide; deriving a gap anyway reports a length
+	// that is never rendered and grows without bound as the duty cycle falls.
+	const silenceSeconds = duty === 1 || gaps === 0 ? 0 : toneSeconds * (1 - duty) / duty;
 	return {
 		totalSeconds: roundGeneratorNumber(total),
 		toneSeconds: roundGeneratorNumber(toneSeconds),
