@@ -339,6 +339,14 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 		animationFrameRef.current = requestAnimationFrame(renderPreviewFrame);
 	}, [renderPreviewFrame]);
 	requestProductVisualFrameRef.current = requestPreviewFrame;
+	// The compositor owns GPU resources that outlive every project revision, so
+	// its lifecycle effect requests frames through this render-stable seam.
+	// `requestPreviewFrame` changes identity with the project, and depending on
+	// it would dispose the render targets, the uploaded video textures and every
+	// compiled program after each edit, undo or redo.
+	const requestStablePreviewFrame = useCallback(() => {
+		requestProductVisualFrameRef.current();
+	}, []);
 	const registerVideoElement = useCallback((clipId, element) => {
 		const previousElement = videoElementsRef.current.get(clipId);
 		if (compositorRef.current && previousElement && previousElement !== element) {
@@ -390,7 +398,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 				},
 				onContextRestored: () => {
 					updateCompositorState('webgl');
-					requestPreviewFrame();
+					requestStablePreviewFrame();
 				},
 			});
 			updateCompositorState('webgl');
@@ -401,20 +409,20 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 		}
 		const retiredVideoElements = retiredVideoElementsRef.current;
 		const resizeObserver = typeof ResizeObserver === 'function'
-			? new ResizeObserver(requestPreviewFrame)
+			? new ResizeObserver(requestStablePreviewFrame)
 			: null;
 		resizeObserver?.observe(canvas);
-		if (!resizeObserver) window.addEventListener('resize', requestPreviewFrame);
+		if (!resizeObserver) window.addEventListener('resize', requestStablePreviewFrame);
 		return () => {
 			resizeObserver?.disconnect();
-			if (!resizeObserver) window.removeEventListener('resize', requestPreviewFrame);
+			if (!resizeObserver) window.removeEventListener('resize', requestStablePreviewFrame);
 			if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
 			animationFrameRef.current = 0;
 			compositorRef.current?.dispose();
 			compositorRef.current = null;
 			retiredVideoElements.length = 0;
 		};
-	}, [requestPreviewFrame, updateCompositorState, updateRenderIssue]);
+	}, [requestStablePreviewFrame, updateCompositorState, updateRenderIssue]);
 	useEffect(() => {
 		if (!isCurrentProjectSchemaIdentity(
 			canonicalProject, FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
