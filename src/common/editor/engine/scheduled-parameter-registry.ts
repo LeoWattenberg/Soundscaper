@@ -99,6 +99,7 @@ class RegisteredScheduledParameterTarget implements ScheduledParameterTarget {
 	#registry: ScheduledParameterRegistry;
 	#key: string;
 	#revision = 0;
+	#scheduledThroughTime: number | null = null;
 
 	constructor(
 		registry: ScheduledParameterRegistry,
@@ -166,7 +167,16 @@ class RegisteredScheduledParameterTarget implements ScheduledParameterTarget {
 		if (!bindings.length) return;
 		const latencySeconds = this.latencyFrames / options.contextSampleRate;
 		const scheduleStart = options.contextStartTime + latencySeconds;
-		for (const { param } of bindings) param.cancelScheduledValues?.(scheduleStart);
+		// Cancelling removes every event at or after scheduleStart, so a window
+		// that merely continues the last one — the next loop iteration, the next
+		// look-ahead chunk — would delete the closing ramp it starts from. Cancel
+		// only where this window really overlaps what was already written, within
+		// half a context frame so the boundary's float drift does not count.
+		if (this.#scheduledThroughTime === null
+			|| scheduleStart < this.#scheduledThroughTime - 0.5 / options.contextSampleRate) {
+			for (const { param } of bindings) param.cancelScheduledValues?.(scheduleStart);
+		}
+		let scheduledThroughTime = scheduleStart;
 		for (const event of events) {
 			const time = options.contextStartTime + (
 				latencySeconds
@@ -177,7 +187,9 @@ class RegisteredScheduledParameterTarget implements ScheduledParameterTarget {
 				if (event.kind === 'set') param.setValueAtTime(value, time);
 				else param.linearRampToValueAtTime(value, time);
 			}
+			scheduledThroughTime = time;
 		}
+		this.#scheduledThroughTime = scheduledThroughTime;
 	}
 
 	#assertActive(): void {
