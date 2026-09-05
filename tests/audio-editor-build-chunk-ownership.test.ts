@@ -46,8 +46,23 @@ const EDITOR_DIRECTORY = fileURLToPath(new URL('../src/common/editor/', import.m
 const ASSISTANCE_DIRECTORY = fileURLToPath(new URL('../src/common/editor/assistance/', import.meta.url));
 const EDITOR_UI_DIRECTORY = fileURLToPath(new URL('../src/common/editor/ui/', import.meta.url));
 const EDITOR_CONTROLLER_DIRECTORY = fileURLToPath(new URL('../src/common/editor/controller/', import.meta.url));
-/** The directories whose modules are all part of one product's boot path. */
-const EAGER_ROOTS = [EDITOR_DIRECTORY, ASSISTANCE_DIRECTORY, EDITOR_CONTROLLER_DIRECTORY, EDITOR_UI_DIRECTORY];
+const FRAMESCAPER_DIRECTORY = fileURLToPath(new URL('../src/framescaper/', import.meta.url));
+const SOUNDSCAPER_DIRECTORY = fileURLToPath(new URL('../src/soundscaper/', import.meta.url));
+/**
+ * The directories whose modules are all part of one product's boot path.
+ *
+ * The two product trees are here because that is where the sixty-one module
+ * capture regression lived: the shared editor subtrees were scanned, the trees
+ * that compose them into a product were not, so nothing saw it.
+ */
+const EAGER_ROOTS = [
+	EDITOR_DIRECTORY,
+	ASSISTANCE_DIRECTORY,
+	EDITOR_CONTROLLER_DIRECTORY,
+	EDITOR_UI_DIRECTORY,
+	FRAMESCAPER_DIRECTORY,
+	SOUNDSCAPER_DIRECTORY,
+];
 
 test('every shared flat editor domain module has an owning chunk group', () => {
 	const unowned = flatEditorModules()

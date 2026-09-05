@@ -44,7 +44,129 @@ export const EAGER_CHUNK_GROUPS: ReadonlySet<string> = new Set([
 ]);
 
 const WORKER_ENTRY_PATTERN = /new Worker\(\s*new URL\(\s*'(\.[^']+)'/gu;
-const STATIC_IMPORT_PATTERN = /^import\s+(?!type\b)([\s\S]*?)from\s+'(\.[^']+)'/gmu;
+// Both quote styles: `nyquist/plugin-registry.js` writes its specifiers with double
+// quotes, and while this pattern read single quotes only, every dependency that
+// eagerly owned module declares was invisible here.
+const STATIC_IMPORT_PATTERN = /^import\s+(?!type\b)([\s\S]*?)from\s+(?:'(\.[^']+)'|"(\.[^"]+)")/gmu;
+
+/**
+ * Unowned targets whose reachability placement has been reasoned about, and why.
+ *
+ * A module with no owner is placed by reachability, so an eagerly owned importer
+ * of one is normally a defect waiting to happen: a lazily imported dialog that
+ * also reads the leaf can take it into its own chunk, and the shell then
+ * statically imports that chunk. Each entry here is a claim that this cannot
+ * happen for that module, with the reason it cannot. `tests/audio-editor-build-
+ * chunk-unowned-targets.test.ts` fails when an entry gains an owner or vanishes.
+ *
+ * The two recurring reasons are worth stating once. A module the static site
+ * entry graph also imports cannot be given an editor owner at all: the initial
+ * graph is budgeted at ten requests and six modulepreloads, and an editor chunk
+ * inside it is the regression the transfer-page guards exist to catch. And a
+ * module reached only through a worker or AudioWorklet entry is not in the
+ * page's startup graph in the first place, whatever its importer's owner says -
+ * the entry module is its own bundle root.
+ */
+export const REACHABILITY_PLACED_TARGETS: ReadonlyMap<string, string> = new Map([
+	[
+		'src/common/i18n/locale.js',
+		'Site copy leaf: `src/common/site/BrandSidebar.jsx` reads it, so an editor owner would put an editor chunk in the initial graph.',
+	],
+	[
+		'src/common/i18n/locales.js',
+		'Site copy leaf: `src/common/site/route.js` builds its locale routes from it, so it stays outside every editor group.',
+	],
+	[
+		'src/common/offline/lazy-module.tsx',
+		'The shared React.lazy wrapper the site shell (`src/common/site/App.jsx`) mounts its routes with, so it is site-entry code the editor reuses.',
+	],
+	[
+		'src/common/offline/stale-build-runtime.ts',
+		'The stale-build check `src/main.jsx` runs before any product mounts, so it is in the initial graph before the editor asks for it.',
+	],
+	[
+		'src/common/offline/ffmpeg-runtime-public-policy.ts',
+		'A frozen table read from `config/ffmpeg-runtime-publication-policy.json` that the site-shared offline runtime slice owns; the editor facade only reads the same policy.',
+	],
+	[
+		'src/common/site/document-theme.js',
+		'Site chrome the workspace theme hook reuses so both worlds agree on one stored preference; `src/common/site/App.jsx` reaches it first.',
+	],
+	[
+		'src/common/site/privacy-policy-links.js',
+		'Site route table the editor privacy surface reuses; `src/common/site/privacy-policy.js` is in the initial graph.',
+	],
+	[
+		'src/common/product-identities.js',
+		'Product identity vocabulary shared with `src/common/site/route.js` and both product entries, so it belongs to no single product graph.',
+	],
+	[
+		'src/common/product-profiles.js',
+		'Product capability profiles shared with the site routes and the transfer pages, which is why they stay outside every editor group.',
+	],
+	[
+		'src/common/project-file-extensions.ts',
+		'Dependency-free suffix table shared by the site profiles, the transfer pages, the desktop shell and both editors; any owner adds a chunk to the ten-request initial graph.',
+	],
+	[
+		'src/common/editor/aup4-profile.js',
+		'AUP4 archive implementation, deliberately unowned, reached from the page only through the `aup4-worker.js` worker entry and the lazy file-menu archive actions.',
+	],
+	[
+		'src/common/editor/aup4-profile-values.js',
+		'AUP4 archive value tables re-exported by `aup4-profile.js`, on the same worker-entry and lazy-action side of the boundary.',
+	],
+	[
+		'src/common/editor/aup4-sanitization.js',
+		'AUP4 archive sanitization, reached only from the AUP4 worker entry and the lazy archive actions that own the conversion.',
+	],
+	[
+		'src/common/editor/aup4-opaque-persistence.ts',
+		'AUP4 opaque-node persistence, reached only from the AUP4 worker entry and the lazy archive actions that own the conversion.',
+	],
+	[
+		'src/common/editor/audacity-annotation-interchange.ts',
+		'Audacity annotation interchange for the archive readers, reached only from the AUP4 worker entry and the lazy legacy-conversion action.',
+	],
+	[
+		'src/common/editor/audacity-tempo-import.ts',
+		'Audacity tempo import for the archive readers, reached only from the AUP4 worker entry and the lazy legacy-conversion action.',
+	],
+	[
+		'src/common/editor/first-party-effects/bitcrusher/dsp.js',
+		'Bitcrusher DSP shared by the `bitcrusher-worklet.js` AudioWorklet entry, which the engine loads by URL as its own bundle root, and the lazy selection-effect runtime.',
+	],
+	[
+		'desktop/bundled-flac-stream.ts',
+		'Bundled desktop FLAC stream parser reached only through `browser-dedicated-audio-codec.ts` inside the dedicated audio worker entry.',
+	],
+	[
+		'desktop/bundled-mpeg-audio-stream.ts',
+		'Bundled desktop MPEG audio stream parser reached only through `browser-dedicated-audio-codec.ts` inside the dedicated audio worker entry.',
+	],
+	[
+		'desktop/bundled-opus-stream.ts',
+		'Bundled desktop Opus stream parser reached only through `browser-dedicated-audio-codec.ts` inside the dedicated audio worker entry.',
+	],
+	[
+		'desktop/bundled-vorbis-stream.ts',
+		'Bundled desktop Vorbis stream parser reached only through `browser-dedicated-audio-codec.ts` inside the dedicated audio worker entry.',
+	],
+	[
+		'desktop/bundled-wavpack-stream.ts',
+		'Bundled desktop WavPack stream parser reached only through `browser-dedicated-audio-codec.ts` inside the dedicated audio worker entry.',
+	],
+]);
+
+/** The relative specifiers one module's source imports for value, in source order. */
+export function staticRelativeImports(source: string): readonly string[] {
+	const specifiers: string[] = [];
+	for (const match of source.matchAll(STATIC_IMPORT_PATTERN)) {
+		if (importsOnlyTypes(match[1]!)) continue;
+		specifiers.push((match[2] ?? match[3])!);
+	}
+	return specifiers;
+}
 
 /** Every source module under one directory, recursively. */
 export function sourceModules(directory: string): readonly string[] {
@@ -54,8 +176,18 @@ export function sourceModules(directory: string): readonly string[] {
 		.sort();
 }
 
-/** The `importer [group] -> target [group]` crossings found under `roots`. */
-export function eagerImportsOfLazyOwners(roots: readonly string[]): readonly string[] {
+/**
+ * The `importer [group] -> target [group]` crossings found under `roots`.
+ *
+ * A target with no owner is reported as `[unowned]` rather than skipped: it is
+ * the half of the boundary reachability decides, so it is the half that fails
+ * silently. `reasoned` names the unowned targets whose placement has been argued
+ * through; pass an empty set to see the whole list.
+ */
+export function eagerImportsOfLazyOwners(
+	roots: readonly string[],
+	reasoned: ReadonlySet<string> = new Set(REACHABILITY_PLACED_TARGETS.keys()),
+): readonly string[] {
 	const modules = [...new Set(roots.flatMap((root) => sourceModules(root).map((path) => resolve(path))))];
 	// A module the runtime hands to `new Worker(new URL(...))` is its own bundle root, so it
 	// never joins the page's startup graph and may reach lazily owned code directly.
@@ -66,14 +198,14 @@ export function eagerImportsOfLazyOwners(roots: readonly string[]): readonly str
 		const path = relative(REPOSITORY_ROOT, absolute).split(sep).join('/');
 		const owner = ownerName(path);
 		if (owner === null || !EAGER_CHUNK_GROUPS.has(owner)) continue;
-		for (const match of readFileSync(absolute, 'utf8').matchAll(STATIC_IMPORT_PATTERN)) {
-			if (importsOnlyTypes(match[1]!)) continue;
-			const target = resolveRelativeModule(absolute, match[2]!);
+		for (const specifier of staticRelativeImports(readFileSync(absolute, 'utf8'))) {
+			const target = resolveRelativeModule(absolute, specifier);
 			if (!target) continue;
 			const targetPath = relative(REPOSITORY_ROOT, target).split(sep).join('/');
+			if (reasoned.has(targetPath)) continue;
 			const targetOwner = ownerName(targetPath);
-			if (targetOwner === null || EAGER_CHUNK_GROUPS.has(targetOwner)) continue;
-			crossings.push(`${path} [${owner}] -> ${targetPath} [${targetOwner}]`);
+			if (targetOwner !== null && EAGER_CHUNK_GROUPS.has(targetOwner)) continue;
+			crossings.push(`${path} [${owner}] -> ${targetPath} [${targetOwner ?? 'unowned'}]`);
 		}
 	}
 	return [...new Set(crossings)].sort();

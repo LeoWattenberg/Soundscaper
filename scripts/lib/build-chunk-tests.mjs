@@ -113,8 +113,8 @@ export const DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST = /(?:^|[\\/])vendo
 // The renderer/main video contract is a shared codec leaf. Reachability places
 // it in the Framescaper bootstrap and makes the desktop codec runtime import
 // that bootstrap back, so it needs the same non-recursive owner as codec leaves.
-export const EDITOR_CODEC_FOUNDATION_CHUNK_TEST = /(?:src[\\/]common[\\/]editor[\\/](?:wavpack[\\/]|staffpad[\\/]|parametric-eq[\\/](?:parameters|design|wasm-runtime|wasm-loader)\.js$)|desktop[\\/]desktop-video-codec-operation-contract\.ts$)/;
-export const EDITOR_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/](?:i18n[\\/]action-parity\.js|editor[\\/](?:audacity-effects[\\/](?:contracts|factory-preset-tables|factory-presets|live-capabilities|live-capability-policy)\.js|first-party-effects[\\/](?:bitcrusher|parametric-eq)[\\/]definition\.js|nyquist[\\/]plugin-registry\.js|reviewed-effects[\\/](?:errors|manifest|selection-effect-contract|utility-gain-package)\.ts)))$/;
+export const EDITOR_CODEC_FOUNDATION_CHUNK_TEST = /(?:src[\\/]common[\\/]editor[\\/](?:wavpack[\\/]|staffpad[\\/]|parametric-eq[\\/](?:parameters|design|wasm-runtime|wasm-loader)\.js$)|desktop[\\/]desktop-(?:video-codec-operation|audio-codec-(?:capability|operation))-contract\.ts$)/;
+export const EDITOR_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/](?:i18n[\\/]action-parity\.js|editor[\\/](?:audacity-effects[\\/](?:contracts|factory-preset-tables|factory-presets|live-capabilities|live-capability-policy|manifest)\.js|first-party-effects[\\/](?:bitcrusher|parametric-eq)[\\/]definition\.js|nyquist[\\/](?:plugin-parser|plugin-registry|plugins[\\/]catalog)\.js|reviewed-effects[\\/](?:errors|manifest|selection-effect-contract|utility-gain-package)\.ts)))$/;
 /**
  * Soundscaper family-v1 project and archive authority shared with transfer pages.
  *
@@ -297,5 +297,5 @@ export const PROJECT_INTERCHANGE_FOUNDATION_CHUNK_TEST = new RegExp(
 
 /** Flat editor modules and `assistance/` domain modules shared by the shell and dialogs. */
 export const EDITOR_DOMAIN_CHUNK_TEST = new RegExp(
-	`${editorPath}(?!${editorOptionalArchiveModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalCaptureFlatModule}\\.ts$)(?:[^\\\\/]+|(?:assistance|platform)[\\\\/][^\\\\/]+)\\.(?:[cm]?[jt]s)$`,
+	`${editorPath}(?!${editorOptionalArchiveModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalCaptureFlatModule}\\.ts$)(?:[^\\\\/]+|(?:assistance|design-system-adapters|platform)[\\\\/][^\\\\/]+)\\.(?:[cm]?[jt]s)$`,
 );
