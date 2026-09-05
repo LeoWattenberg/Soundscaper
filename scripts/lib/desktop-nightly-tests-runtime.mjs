@@ -9,23 +9,13 @@ import { startDesktopNightlyTestsProductSites } from './desktop-nightly-tests-pr
 import { resolveDesktopNightlyTestsStaticRequestFile, StaticRequestError } from './desktop-nightly-tests-static-route.mjs';
 import { pipeDesktopNightlyTestsStaticResponse } from './desktop-nightly-tests-static-response.mjs';
 import { runDesktopNightlyTestsMetricsPhase } from './desktop-nightly-tests-metrics.mjs';
+import { staticSiteContentType } from './static-site-content-types.mjs';
 import { PACKAGED_RUNTIME_ARTIFACT_PATHS, runDesktopNightlyTestsPackagedMetricsPhase } from './desktop-nightly-tests-packaged-runtime.mjs';
 
 const RESULT_KIND = 'soundscaper-desktop-nightly-tests';
 const PRODUCT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/u;
 const SOURCE_REVISION_PATTERN = /^[a-f\d]{40}$/u;
 const STATIC_HOST = '127.0.0.1';
-const MIME_TYPES = Object.freeze({
-	'.avif': 'image/avif', '.css': 'text/css; charset=utf-8',
-	'.gif': 'image/gif', '.html': 'text/html; charset=utf-8', '.ico': 'image/x-icon',
-	'.jpeg': 'image/jpeg', '.jpg': 'image/jpeg', '.js': 'text/javascript; charset=utf-8',
-	'.json': 'application/json; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
-	'.mp3': 'audio/mpeg', '.mp4': 'video/mp4', '.png': 'image/png', '.svg': 'image/svg+xml',
-	'.ttf': 'font/ttf', '.txt': 'text/plain; charset=utf-8', '.wasm': 'application/wasm',
-	'.wav': 'audio/wav', '.webm': 'video/webm',
-	'.webmanifest': 'application/manifest+json; charset=utf-8', '.webp': 'image/webp',
-	'.woff': 'font/woff', '.woff2': 'font/woff2', '.xml': 'application/xml; charset=utf-8',
-});
 
 export function resolveDesktopNightlyTestsOutputRoot({
 	platform = process.platform,
@@ -352,7 +342,7 @@ async function serveStaticRequest({ request, response, staticRoot }) {
 		const headers = {
 			'Cache-Control': cacheControlFor(file.relativePath),
 			'Content-Length': String(file.size),
-			'Content-Type': MIME_TYPES[extension] ?? 'application/octet-stream',
+			'Content-Type': staticSiteContentType(extension),
 			'X-Content-Type-Options': 'nosniff',
 			...(file.relativePath === 'service-worker.js' ? { 'Service-Worker-Allowed': '/' } : {}),
 		};

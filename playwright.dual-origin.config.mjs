@@ -13,10 +13,11 @@ const outputDir = process.env.PLAYWRIGHT_DUAL_ORIGIN_OUTPUT_DIR ?? 'test-results
 function pagesServer(productId, origin, readinessPath) {
 	const port = new URL(origin).port;
 	return {
-		command: 'node node_modules/wrangler/bin/wrangler.js pages dev '
-			+ `${fixtureRoot}/${productId} --ip 127.0.0.1 --port ${port} `
-			+ `--persist-to ${fixtureRoot}/state/${productId} --log-level=error `
-			+ '--show-interactive-dev-session=false',
+		// Plain Node serving with the site's `_headers` and `_redirects` applied.
+		// `wrangler pages dev` used to sit here and intermittently answered an
+		// already-served module chunk with an empty-message 500 on the CI runner.
+		command: 'node scripts/serve-pages-site.mjs '
+			+ `${fixtureRoot}/${productId} --host 127.0.0.1 --port ${port}`,
 		url: `${origin}${readinessPath}`,
 		reuseExistingServer: false,
 		timeout: 120_000,
