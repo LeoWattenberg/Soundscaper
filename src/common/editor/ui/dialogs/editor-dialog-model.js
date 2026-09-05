@@ -13,10 +13,32 @@ export function formatAup4CompatibilitySummary(report, copy) {
 }
 
 export const TRACK_RATE_DIALOG_MISSING_TRACK = Symbol('track-rate-dialog-missing-track');
+export const TRACK_RATE_DIALOG_INVALID_RATE = Symbol('track-rate-dialog-invalid-rate');
+
+const MINIMUM_TRACK_SAMPLE_RATE = 8_000;
+const MAXIMUM_TRACK_SAMPLE_RATE = 384_000;
+
+/**
+ * The rate field is free text, so an empty entry, `44,100` or `44.1` all reach
+ * the action as a number the controller normalizes to the editor default and
+ * then resamples the track to. Parsing returns null for anything outside the
+ * supported range so the dialog can refuse instead of converting a track to a
+ * rate that was never typed.
+ */
+export function parseTrackSampleRate(value) {
+	const text = String(value ?? '').trim();
+	if (!text) return null;
+	const sampleRate = Number(text);
+	if (!Number.isSafeInteger(sampleRate)) return null;
+	if (sampleRate < MINIMUM_TRACK_SAMPLE_RATE || sampleRate > MAXIMUM_TRACK_SAMPLE_RATE) return null;
+	return sampleRate;
+}
 
 export function applyTrackRateDialog({ trackId, value, run, setRate }) {
 	if (!trackId) return TRACK_RATE_DIALOG_MISSING_TRACK;
-	return run(() => setRate(trackId, Number(value)));
+	const sampleRate = parseTrackSampleRate(value);
+	if (sampleRate === null) return TRACK_RATE_DIALOG_INVALID_RATE;
+	return run(() => setRate(trackId, sampleRate));
 }
 
 export function aup4CompatibilityItems(report) {

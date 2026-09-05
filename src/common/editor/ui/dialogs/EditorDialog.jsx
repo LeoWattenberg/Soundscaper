@@ -21,7 +21,9 @@ import {
 	formatDeliveryReportSubject,
 	formatDeliveryReportSummary,
 	deliveryReportItems,
+	parseTrackSampleRate,
 	recordingOffsetSources,
+	TRACK_RATE_DIALOG_INVALID_RATE,
 	TRACK_RATE_DIALOG_MISSING_TRACK,
 } from './editor-dialog-model.js';
 
@@ -95,17 +97,20 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 	const submitRecordingOffset = () => runThenClose(() => sourceKey === 'global'
 		? controller.actions.recording.setLatencyOffset(value)
 		: controller.actions.recording.setSourceOffset(sourceKey, value));
+	// The rate field is free text the controller would normalize to the editor
+	// default and resample to, so an entry it cannot parse refuses here instead.
+	const trackSampleRate = parseTrackSampleRate(value);
 	const submitResample = () => {
 		const selectedTrackId = snapshot.selectedTrackId;
-		if (!selectedTrackId) return;
-		runThenClose(() => controller.actions.track.resample(selectedTrackId, Number(value)));
+		if (!selectedTrackId || trackSampleRate === null) return;
+		runThenClose(() => controller.actions.track.resample(selectedTrackId, trackSampleRate));
 	};
 	const submitTrackRate = () => runThenClose(
 		() => applyTrackRateDialog({ trackId, value,
 			run: (operation) => operation(),
 			setRate: controller.actions.track.setRate,
 		}),
-		(result) => result !== TRACK_RATE_DIALOG_MISSING_TRACK,
+		(result) => result !== TRACK_RATE_DIALOG_MISSING_TRACK && result !== TRACK_RATE_DIALOG_INVALID_RATE,
 	);
 	const confirmDeletion = () => {
 		if (type === 'delete' && snapshot.project?.id !== projectIdAtOpen.current) {
@@ -143,8 +148,8 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 			)}
 		</>;
 		if (type === 'recording-offset') return <>{dismiss()}{confirm(copy.save, submitRecordingOffset)}</>;
-		if (type === 'resample') return <>{dismiss()}{confirm(copy.resample, submitResample)}</>;
-		if (type === 'track-rate') return <>{dismiss()}{confirm(copy.save, submitTrackRate)}</>;
+		if (type === 'resample') return <>{dismiss()}{confirm(copy.resample, submitResample, trackSampleRate === null)}</>;
+		if (type === 'track-rate') return <>{dismiss()}{confirm(copy.save, submitTrackRate, trackSampleRate === null)}</>;
 		if (type === 'about') return confirm(copy.close, onClose);
 		if (type === 'aup4-compatibility') return confirm(copy.close, onClose);
 		if (type === 'delivery-report') return <>
