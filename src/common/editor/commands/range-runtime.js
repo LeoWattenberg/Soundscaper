@@ -349,12 +349,49 @@ export function collectAvLinkedClipIds(project, clipIds) {
 
 /** @returns {AudioEditorClipboardV2} */
 
+/**
+ * Replacing part of a track's material ends the A/V pairing it cuts.
+ *
+ * A linked audio and video clip have to stay one aligned pair across both lanes,
+ * but a range replacement and a punch-in edit one track only: the clip they cut
+ * becomes two survivors around foreign material, and a length-changing
+ * replacement carries the linked clips behind it away from their partners.
+ * Neither shape is a pair any more, and the commit validator refuses a link
+ * whose members no longer answer to each other, so both partners are unlinked.
+ * Splitting the video lane to keep two thirds of it linked would instead edit
+ * material the command never named.
+ */
+function detachAvLinksAcrossTrackRange(project, track, range, timelineDelta) {
+	const avLinkIds = new Set();
+	for (const clipId of track.clipIds) {
+		const clip = requireClip(project, clipId);
+		if (!clip.avLinkId || clipEndFrame(clip) <= range.startFrame) continue;
+		if (clip.timelineStartFrame < range.endFrame || timelineDelta !== 0) avLinkIds.add(clip.avLinkId);
+	}
+	if (!avLinkIds.size) return;
+	project.clips = project.clips.map((clip) => (
+		clip.avLinkId && avLinkIds.has(clip.avLinkId)
+			? normalizeClipForProject(project, { ...clip, avLinkId: null, id: clip.id })
+			: clip
+	));
+}
+
 export function preparePunchCommand(project, options = {}, idFactory = createStableId) {
-	const rangeCommand = prepareRangeDeleteCommand(project, {
-		startFrame: options.startFrame,
-		endFrame: options.endFrame,
-		trackIds: [options.trackId],
-	}, idFactory);
+	const range = normalizeFrameRange(options.startFrame, options.endFrame, 'punch range');
+	const track = requireTrack(project, options.trackId);
+	// The punch edits its own track at the range it was given, so its split
+	// identities answer to that range — not to the video-conformed span a range
+	// delete would spread across a whole lane group.
+	const splitClipIds = {};
+	const videoEffectIds = {};
+	for (const clipId of track.clipIds) {
+		const clip = requireClip(project, clipId);
+		if (clip.timelineStartFrame >= range.startFrame || clipEndFrame(clip) <= range.endFrame) continue;
+		const rightId = idFactory('clip');
+		splitClipIds[clip.id] = rightId;
+		const effectIds = prepareVideoEffectIds(clip, idFactory);
+		if (effectIds) videoEffectIds[rightId] = effectIds;
+	}
 	return {
 		type: 'punch/replace',
 		trackId: options.trackId,
@@ -364,8 +401,8 @@ export function preparePunchCommand(project, options = {}, idFactory = createSta
 		sourceStartFrame: options.sourceStartFrame ?? 0,
 		...(options.sourceDurationFrames == null ? {} : { sourceDurationFrames: options.sourceDurationFrames }),
 		clipId: options.clipId || idFactory('clip'),
-		splitClipIds: rangeCommand.splitClipIds,
-		videoEffectIds: rangeCommand.videoEffectIds,
+		splitClipIds,
+		videoEffectIds,
 	};
 }
 
@@ -417,10 +454,11 @@ export function replaceRange(project, command) {
 	const generatedClipIds = new Set();
 	reserveReplacementClipId(project, clipId, generatedClipIds);
 
+	const timelineDelta = source.frameCount - range.durationFrames;
+	detachAvLinksAcrossTrackRange(project, track, range, timelineDelta);
 	const originals = track.clipIds.map((id) => requireClip(project, id));
 	const deletedIds = new Set(track.clipIds);
 	const replacements = [];
-	const timelineDelta = source.frameCount - range.durationFrames;
 	const commitTakeGraph = planTakeGraphRangeRipple(
 		project,
 		new Map([[String(track.id), range]]),
@@ -483,6 +521,7 @@ export function replaceRange(project, command) {
 export function punchReplace(project, command) {
 	const range = normalizeFrameRange(command.startFrame, command.endFrame, 'punch range');
 	const track = requireTrack(project, command.trackId);
+	detachAvLinksAcrossTrackRange(project, track, range, 0);
 	processTrackRange(
 		project,
 		track,
