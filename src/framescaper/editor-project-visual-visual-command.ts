@@ -221,22 +221,24 @@ function applyClip(project: Record<string, unknown>, command: FramescaperVideoVi
 		Array.isArray(track.clipIds) && track.clipIds.includes(command.clipId)
 	));
 	const currentPlacement = current === null ? null : timelineIndex >= 0
-		? Object.freeze({ scope: 'timeline' as const, trackId: String(owner?.id) })
+		? Object.freeze({ scope: 'timeline' as const, trackId: ownedTrackId(owner) })
 		: Object.freeze({ scope: 'project-bin' as const });
+	// Every refusal is raised here, before the first write, so a rejected command
+	// leaves the caller's project exactly as it found it.
 	if (!same(current, command.expectedClip) || !same(currentPlacement, command.expectedPlacement)) {
 		throw new Error('The expected visual visual clip or placement is stale.');
 	}
 	assertUnlocked(owner, 'source');
+	const placement = command.placement;
+	const target = command.clip !== null && placement?.scope === 'timeline'
+		? videoTrack(tracks, placement.trackId)
+		: null;
 	if (timelineIndex >= 0) timeline.splice(timelineIndex, 1);
 	if (binIndex >= 0) binClips.splice(binIndex, 1);
 	for (const track of tracks) {
 		if (Array.isArray(track.clipIds)) track.clipIds = track.clipIds.filter((id) => id !== command.clipId);
 	}
-	const placement = command.placement;
-	if (command.clip !== null && placement?.scope === 'timeline') {
-		const target = tracks.find(({ id }) => id === placement.trackId);
-		if (!target || target.type !== 'video') throw new ReferenceError('A visual visual clip requires a video track.');
-		assertUnlocked(target, 'target');
+	if (target !== null) {
 		timeline.push(command.clip as unknown as Record<string, unknown>);
 		(target.clipIds as unknown[]).push(command.clipId);
 	} else if (command.clip !== null) {
@@ -244,6 +246,19 @@ function applyClip(project: Record<string, unknown>, command: FramescaperVideoVi
 	}
 	project.clips = timeline;
 	bin.clips = binClips;
+}
+
+/** A timeline clip no track owns has no track identifier, so no expectation may match it. */
+function ownedTrackId(owner: Record<string, unknown> | undefined): string | null {
+	return typeof owner?.id === 'string' ? owner.id : null;
+}
+
+function videoTrack(tracks: readonly Record<string, unknown>[], trackId: string): Record<string, unknown> {
+	const target = tracks.find(({ id }) => id === trackId);
+	if (!target || target.type !== 'video') throw new ReferenceError('A visual visual clip requires a video track.');
+	assertUnlocked(target, 'target');
+	if (!Array.isArray(target.clipIds)) throw new TypeError('A visual visual clip target track needs a clip list.');
+	return target;
 }
 
 function replaceById(
