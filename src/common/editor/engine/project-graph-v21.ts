@@ -69,6 +69,8 @@ interface StripTapsV21 {
 	readonly pre: AudioNode;
 	readonly post: AudioNode;
 	readonly width: number;
+	/** The declared width the post-fader tap actually carries: a panner widens a mono strip to stereo. */
+	readonly postWidth: number;
 }
 
 interface PreparedProjectV21 {
@@ -204,6 +206,7 @@ export function buildProjectGraphV21(
 			if (graph.groups.some(({ id }) => id === strip.id)) groupGainParams.set(strip.id, scheduledGain);
 			else sendGainParams.set(strip.id, scheduledGain);
 		}
+		let postWidth = strip.width;
 		if (includeTrackPan && !preservesAdmChannels && strip.width <= 2
 			&& typeof context.createStereoPanner === 'function') {
 			const panner = addNode(nodes, context.createStereoPanner());
@@ -211,6 +214,9 @@ export function buildProjectGraphV21(
 			registerStripParam(parameterRegistry, strip.ref, 'pan', panner.pan, latencyFrames);
 			connect(output, panner);
 			output = panner;
+			// A stereo panner always emits two channels, so from here on a mono
+			// strip is stereo however narrow it declares itself to be.
+			postWidth = 2;
 		} else {
 			parameterRegistry.registerSuspendedParameter(stripParameterDescriptor({
 				kind: 'strip', strip: strip.ref, parameterId: 'pan',
@@ -234,7 +240,7 @@ export function buildProjectGraphV21(
 		connect(output, vcaGain);
 		output = vcaGain;
 		const productionAnalysers = metering
-			? createStripMeterAnalyserBankV21(context, nodes, output, strip.ref, strip.width)
+			? createStripMeterAnalyserBankV21(context, nodes, output, strip.ref, postWidth)
 			: null;
 		if (productionAnalysers) {
 			productionStripAnalysersV21.set(strip.key, productionAnalysers);
@@ -250,7 +256,7 @@ export function buildProjectGraphV21(
 				else sendAnalysers.set(strip.id, analyser);
 			}
 		}
-		taps.set(strip.key, Object.freeze({ pre, post: output, width: strip.width }));
+		taps.set(strip.key, Object.freeze({ pre, post: output, width: strip.width, postWidth }));
 	}
 	for (const edge of graph.edges) {
 		const source = taps.get(endpointKey(edge.source));
@@ -261,14 +267,18 @@ export function buildProjectGraphV21(
 		registerEdgeParam(parameterRegistry, edge.id, level.gain, edgeLatency);
 		edgeGainParams.set(edge.id, { param: level.gain, latencyFrames: edgeLatency });
 		if (!edge.enabled || excludedTrackEdge(edge, onlyTrackId)) continue;
-		let output: AudioNode = edge.position === 'pre-fader' ? source.pre : source.post;
+		const preFader = edge.position === 'pre-fader';
+		let output: AudioNode = preFader ? source.pre : source.post;
+		const sourceWidth = preFader ? source.width : source.postWidth;
 		const destinationWidth = edgeDestinationWidth(edge, graph, tracks, trackWidths, project.masterChannels);
 		// The ADM router maps source channels onto bed channels itself, so a
 		// master-destined edge skips its own channel map rather than mapping twice.
 		const admTerminal = admProgrammeRouter && edge.destination.kind === 'master'
 			? admTerminalStrip(graph, edge.source)
 			: null;
-		if (!admTerminal) output = applyChannelMap(context, nodes, output, source.width, destinationWidth, edge);
+		if (!admTerminal) {
+			output = applyChannelMap(context, nodes, output, sourceWidth, destinationWidth, edge, source.width);
+		}
 		output = applyEdgeCompensation(
 			context, nodes, output, plan.edgeCompensationFrames.get(edge.id) ?? 0,
 			(param) => pathPdcDelayParamsV21.set(`edge:${edge.id}`, param),
@@ -280,7 +290,7 @@ export function buildProjectGraphV21(
 		connect(output, level);
 		output = level;
 		if (admTerminal && admProgrammeRouter) {
-			admProgrammeRouter.routeTerminal(admTerminal.kind, admTerminal.id, output, source.width);
+			admProgrammeRouter.routeTerminal(admTerminal.kind, admTerminal.id, output, sourceWidth);
 			continue;
 		}
 		connect(output, edgeDestinationInput(edge, mixerInputs, masterInput, outputInputs, sidechainInputs));

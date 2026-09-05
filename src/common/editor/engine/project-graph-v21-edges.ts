@@ -36,8 +36,9 @@ export function applyChannelMap(
 	sourceWidth: number,
 	destinationWidth: number,
 	edge: MixerEdgeV21,
+	declaredWidth: number = sourceWidth,
 ): AudioNode {
-	const map = edge.channelMap;
+	const map = pannedSourceChannelMap(edge.channelMap, sourceWidth, declaredWidth);
 	if (!map.length || (
 		map.length === destinationWidth
 		&& sourceWidth === destinationWidth
@@ -60,6 +61,25 @@ export function applyChannelMap(
 		if (sourceChannel >= 0) connect(splitter, merger, sourceChannel, destinationChannel);
 	}
 	return merger;
+}
+
+/**
+ * The map an edge applies once its source strip's panner has widened it.
+ *
+ * A mono strip declares one channel, so its persisted map spreads channel 0
+ * across the destination — `[0, 0]` for a stereo master. The stereo panner the
+ * strip still receives has already placed that channel across two, so reading
+ * channel 0 for both destinations would throw the pan away and, at hard right,
+ * mute the strip outright. The panner's own pair reads straight through
+ * instead; entries that select channel 0 for any wider destination keep it.
+ */
+function pannedSourceChannelMap(
+	map: readonly number[],
+	sourceWidth: number,
+	declaredWidth: number,
+): readonly number[] {
+	if (sourceWidth === declaredWidth) return map;
+	return map.map((source, destination) => (source === 0 && destination < sourceWidth ? destination : source));
 }
 
 export function applyEdgeCompensation(
