@@ -183,7 +183,7 @@ export function createClipPropertyService(
 		}
 		const durationFrames = changes.speedRatio == null
 			? clip.durationFrames
-			: Math.max(1, Math.round(clip.sourceDurationFrames / speedRatio));
+			: Math.max(1, Math.round(sourceTimelineFrames(project, clip) / speedRatio));
 		const command = prepareTransformClipsCommand(project, [{
 			clipId: clip.id,
 			trackId: track.id,
@@ -244,7 +244,7 @@ export function createClipPropertyService(
 							timelineStartFrame: item.timelineStartFrame + item.durationFrames - nextDurationFrames,
 						} : {}),
 						durationFrames: nextDurationFrames,
-						speedRatio: item.sourceDurationFrames / nextDurationFrames,
+						speedRatio: sourceTimelineFrames(project, item) / nextDurationFrames,
 						fadeInFrames: Math.min(item.fadeInFrames, nextDurationFrames),
 						fadeOutFrames: Math.min(item.fadeOutFrames, nextDurationFrames),
 						envelope: scaleEnvelope(item, nextDurationFrames),
@@ -263,7 +263,7 @@ export function createClipPropertyService(
 			changes: {
 				timelineStartFrame,
 				durationFrames,
-				speedRatio: clip.sourceDurationFrames / durationFrames,
+				speedRatio: sourceTimelineFrames(project, clip) / durationFrames,
 				fadeInFrames: Math.min(clip.fadeInFrames, durationFrames),
 				fadeOutFrames: Math.min(clip.fadeOutFrames, durationFrames),
 				envelope: scaleEnvelope(clip, durationFrames),
@@ -331,6 +331,19 @@ function findTimePitchClip(
 	clipId: string | null | undefined,
 ): TimePitchClip | null {
 	return (project.clips.find((clip) => clip.id === clipId) as TimePitchClip | undefined) ?? null;
+}
+
+// Sources keep the sample rate they were imported at, so a clip's source span
+// and its timeline span are counted in different rates. Speed ratio and timeline
+// duration both relate the two spans in seconds, matching the playback rate the
+// engine derives, so the source span has to reach the project rate first.
+function sourceTimelineFrames(project: ClipTransformProject, clip: TimePitchClip): number {
+	const source = project.sources.find((item) => item.id === clip.sourceId);
+	const sourceSampleRate = Number(source?.sampleRate);
+	const projectSampleRate = Number(project.sampleRate);
+	if (!(sourceSampleRate > 0) || !(projectSampleRate > 0)) return clip.sourceDurationFrames;
+	if (sourceSampleRate === projectSampleRate) return clip.sourceDurationFrames;
+	return clip.sourceDurationFrames * projectSampleRate / sourceSampleRate;
 }
 
 function findClipTrack(project: ClipTransformProject, clipId: string): ClipTransformTrack | null {

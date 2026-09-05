@@ -33,6 +33,8 @@ export interface ClipTransformClip extends Readonly<Record<string, unknown>> {
 export interface ClipTransformSource extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly frameCount: number;
+	// The rate the source was imported at, which need not be the project's.
+	readonly sampleRate?: number;
 }
 
 export interface ClipTransformTrack extends Readonly<Record<string, unknown>> {
