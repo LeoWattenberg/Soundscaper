@@ -221,9 +221,11 @@ export async function acquireFramescaperDesktopBodies(
 			if (semanticChunks) validateSemanticBytes(reference, concatenate(semanticChunks, body.byteLength));
 			if (activeWriter) {
 				const publication = await activeWriter.commitOwned({ signal });
-				assertPublication(publication, body);
-				publications.push(publication);
+				// The body is committed the moment commitOwned resolves, and abort() is a no-op on a
+				// committed writer: enrol the publication for rollback before anything can refuse it.
 				activeWriter = null;
+				publications.push(publication);
+				assertPublication(publication, body);
 			}
 		}
 	} catch (error) {

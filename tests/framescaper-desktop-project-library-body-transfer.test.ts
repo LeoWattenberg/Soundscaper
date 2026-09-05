@@ -505,8 +505,9 @@ test('acquisition refuses a publication that changed its descriptor', async () =
 		key === STILL_KEY ? { ...metadata, size: 1 } : metadata) });
 	await assert.rejects(acquire(setup), /framescaper-still publication changed its descriptor/u);
 	assert.deepEqual(setup.log.committed, BODY_KEYS.slice(0, 5));
-	assert.deepEqual(setup.log.aborted, [STILL_KEY]);
-	assert.deepEqual(setup.log.discarded, [...BODY_KEYS.slice(0, 4)].reverse());
+	// The refused publication is committed too, so it is discarded ahead of the bodies before it.
+	assert.deepEqual(setup.log.aborted, []);
+	assert.deepEqual(setup.log.discarded, [...BODY_KEYS.slice(0, 5)].reverse());
 });
 
 test('a rollback failure is reported as an aggregate error around the original refusal', async () => {

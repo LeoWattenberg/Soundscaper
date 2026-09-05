@@ -509,7 +509,6 @@ test('acquisition refuses bytes that fail the descriptor digest and rolls back w
 });
 
 test('acquisition refuses a publication that changed its descriptor', async () => {
-	// Only the timing body, published second, is misreported by its store.
 	const setup = await acquisitionSetup({
 		publicationMetadata: (key, metadata) => (
 			key === SOURCE_TIMING_KEY ? { ...metadata, size: 1 } : metadata
@@ -517,8 +516,9 @@ test('acquisition refuses a publication that changed its descriptor', async () =
 	});
 	await assert.rejects(acquire(setup), /video-timing publication changed its descriptor/u);
 	assert.deepEqual(setup.log.committed, [ORIGINAL_KEY, SOURCE_TIMING_KEY]);
-	assert.deepEqual(setup.log.discarded, [ORIGINAL_KEY]);
-	assert.deepEqual(setup.log.aborted, [SOURCE_TIMING_KEY]);
+	// The timing body, misreported by its store, is committed too: it rolls back ahead of the rest.
+	assert.deepEqual(setup.log.discarded, [SOURCE_TIMING_KEY, ORIGINAL_KEY]);
+	assert.deepEqual(setup.log.aborted, []);
 });
 
 test('a rollback failure is reported as an aggregate error around the original refusal', async () => {
