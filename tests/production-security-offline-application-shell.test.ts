@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const roadmapUrl = new URL('../roadmap.md', import.meta.url);
+const dialogsUrl = new URL('../src/common/editor/ui/dialogs/', import.meta.url);
 
 const EXPECTED_EVIDENCE = [
 	{ kind: 'document', path: 'public/_headers' },
@@ -46,8 +47,15 @@ test('the offline application shell explicitly excludes an FFmpeg runtime cache'
 		'src/common/offline/ffmpeg-runtime-cache.ts',
 		'src/common/offline/browser-runtime-store.ts',
 		'src/common/offline/browser-ffmpeg-runtime.ts',
-		'src/common/editor/ui/dialogs/OfflineRuntimePreferencePanel.tsx',
 	]) assert.equal(control.evidence.some(({ path }: { path: string }) => path === obsolete), false);
+	// The retired Web runtime installer left no surface behind: the control
+	// cites none, and the dialog tree ships none for it to cite.
+	assert.deepEqual(
+		control.evidence.filter(({ path }: { path: string }) => /offlineruntime/iu.test(path)),
+		[],
+	);
+	const dialogs = await readdir(dialogsUrl);
+	assert.deepEqual(dialogs.filter((entry) => /offlineruntime/iu.test(entry)), []);
 
 	assert.match(control.summary, /schema v2.*verified allowlist.*Soundscaper\/Framescaper/isu);
 	assert.match(control.summary, /4,?096.*25 MiB.*4 MiB per descriptor.*256 MiB.*SHA-256/isu);
