@@ -2,6 +2,16 @@
 
 import { AUDIO_EDITOR_HISTORY_LIMIT } from '../common/editor/history.js';
 import {
+	createEditorProjectHistory,
+	executeEditorProjectCommand,
+	redoEditorProjectCommand,
+	undoEditorProjectCommand,
+	validateEditorProjectHistory,
+	type EditorHistoryDocument,
+	type EditorProjectHistoryRevision,
+	type EditorProjectHistoryState,
+} from '../common/editor/project-history-mechanics.ts';
+import {
 	applyFramescaperProjectCommand,
 	snapshotFramescaperProjectCommand,
 	type FramescaperProjectCommand,
@@ -12,6 +22,15 @@ import {
 	validateFramescaperProject,
 	type FramescaperProject,
 } from './editor-project.ts';
+
+/**
+ * Undo history for the Framescaper baseline document.
+ *
+ * The stack mechanics are shared (src/common/editor/project-history-mechanics.ts);
+ * this module says what the baseline document is — how to validate, clone,
+ * snapshot and apply against a runtime profile — and which reading of the stored
+ * shape it keeps: an exact record, and a limit no larger than the shared one.
+ */
 
 export interface FramescaperProjectHistoryEntry {
 	readonly project: FramescaperProject;
@@ -25,41 +44,45 @@ export interface FramescaperProjectHistory {
 	readonly redoStack: readonly FramescaperProjectHistoryEntry[];
 }
 
+type Mechanics = EditorProjectHistoryRevision<FramescaperProjectCommand, FramescaperProjectCommandOptions>;
+
+const document = (project: FramescaperProject): EditorHistoryDocument => (
+	project as unknown as EditorHistoryDocument
+);
+
+const asHistory = (
+	state: EditorProjectHistoryState<FramescaperProjectCommand>,
+): FramescaperProjectHistory => state as unknown as FramescaperProjectHistory;
+
+function revisionFor(profile: unknown): Mechanics {
+	return {
+		label: 'Framescaper',
+		shape: 'exact',
+		maximumLimit: AUDIO_EDITOR_HISTORY_LIMIT,
+		validateProject: (project) => { validateFramescaperProject(profile, project); },
+		cloneProject: (project) => document(cloneFramescaperProject(profile, project)),
+		snapshotCommand: (command) => snapshotFramescaperProjectCommand(command),
+		applyCommand: (project, command, options) => document(
+			applyFramescaperProjectCommand(profile, project, command, options),
+		),
+	};
+}
+
 export function createFramescaperProjectHistory(
 	profile: unknown,
 	project: unknown,
 	options: Readonly<{ limit?: number }> = {},
 ): FramescaperProjectHistory {
-	validateFramescaperProject(profile, project);
-	return {
-		limit: historyLimit(options.limit ?? AUDIO_EDITOR_HISTORY_LIMIT),
-		present: cloneFramescaperProject(profile, project),
-		undoStack: [],
-		redoStack: [],
-	};
+	return asHistory(createEditorProjectHistory(
+		project, revisionFor(profile), AUDIO_EDITOR_HISTORY_LIMIT, options,
+	));
 }
 
 export function validateFramescaperProjectHistory(
 	profile: unknown,
 	history: unknown,
 ): history is FramescaperProjectHistory {
-	const candidate = exactRecord(history, ['limit', 'present', 'undoStack', 'redoStack'], 'history');
-	const limit = historyLimit(candidate.limit);
-	validateFramescaperProject(profile, candidate.present);
-	const projectId = String((candidate.present as FramescaperProject).id);
-	for (const [name, value] of [['undoStack', candidate.undoStack], ['redoStack', candidate.redoStack]] as const) {
-		if (!Array.isArray(value) || value.length > limit) {
-			throw new RangeError(`Framescaper ${name} exceeds its limit.`);
-		}
-		for (const entry of value) {
-			const item = exactRecord(entry, ['project', 'command'], 'history entry');
-			validateFramescaperProject(profile, item.project);
-			if ((item.project as FramescaperProject).id !== projectId) {
-				throw new RangeError('Every Framescaper history entry must belong to the present project.');
-			}
-			snapshotFramescaperProjectCommand(item.command);
-		}
-	}
+	validateEditorProjectHistory(history, revisionFor(profile));
 	return true;
 }
 
@@ -69,16 +92,7 @@ export function executeFramescaperProjectCommand(
 	command: unknown,
 	options: FramescaperProjectCommandOptions = {},
 ): FramescaperProjectHistory {
-	validateFramescaperProjectHistory(profile, history);
-	const current = history as FramescaperProjectHistory;
-	const normalized = snapshotFramescaperProjectCommand(command);
-	return {
-		limit: current.limit,
-		present: applyFramescaperProjectCommand(profile, current.present, normalized, options),
-		undoStack: [...current.undoStack, snapshotEntry(profile, current.present, normalized)]
-			.slice(-current.limit),
-		redoStack: [],
-	};
+	return asHistory(executeEditorProjectCommand(history, command, revisionFor(profile), options));
 }
 
 export function undoFramescaperProjectCommand(
@@ -86,7 +100,7 @@ export function undoFramescaperProjectCommand(
 	history: unknown,
 	options: FramescaperProjectCommandOptions = {},
 ): FramescaperProjectHistory {
-	return restore(profile, history, 'undo', options);
+	return asHistory(undoEditorProjectCommand(history, revisionFor(profile), options));
 }
 
 export function redoFramescaperProjectCommand(
@@ -94,73 +108,5 @@ export function redoFramescaperProjectCommand(
 	history: unknown,
 	options: FramescaperProjectCommandOptions = {},
 ): FramescaperProjectHistory {
-	return restore(profile, history, 'redo', options);
-}
-
-function restore(
-	profile: unknown,
-	history: unknown,
-	direction: 'undo' | 'redo',
-	options: FramescaperProjectCommandOptions,
-): FramescaperProjectHistory {
-	validateFramescaperProjectHistory(profile, history);
-	const current = history as FramescaperProjectHistory;
-	const source = direction === 'undo' ? current.undoStack : current.redoStack;
-	if (source.length === 0) return current;
-	const entry = source.at(-1)!;
-	const present = cloneFramescaperProject(profile, entry.project) as unknown as Record<string, unknown>;
-	const revision = Number(current.present.revision) + 1;
-	if (!Number.isSafeInteger(revision)) throw new RangeError('Framescaper revision overflowed.');
-	present.revision = revision;
-	present.updatedAt = timestamp(options.now);
-	validateFramescaperProject(profile, present);
-	const opposite = snapshotEntry(profile, current.present, entry.command);
-	return direction === 'undo' ? {
-		limit: current.limit,
-		present: present as unknown as FramescaperProject,
-		undoStack: current.undoStack.slice(0, -1),
-		redoStack: [...current.redoStack, opposite].slice(-current.limit),
-	} : {
-		limit: current.limit,
-		present: present as unknown as FramescaperProject,
-		undoStack: [...current.undoStack, opposite].slice(-current.limit),
-		redoStack: current.redoStack.slice(0, -1),
-	};
-}
-
-function snapshotEntry(
-	profile: unknown,
-	project: FramescaperProject,
-	command: FramescaperProjectCommand,
-): FramescaperProjectHistoryEntry {
-	return {
-		project: cloneFramescaperProject(profile, project),
-		command: snapshotFramescaperProjectCommand(command),
-	};
-}
-
-function historyLimit(value: unknown): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 1 || Number(value) > AUDIO_EDITOR_HISTORY_LIMIT) {
-		throw new RangeError(
-			`Framescaper history limit must be from 1 through ${String(AUDIO_EDITOR_HISTORY_LIMIT)}.`,
-		);
-	}
-	return Number(value);
-}
-
-function timestamp(value: Date | string | undefined): string {
-	const date = value === undefined ? new Date() : new Date(value);
-	if (Number.isNaN(date.getTime())) throw new RangeError('Framescaper history timestamp is invalid.');
-	return date.toISOString();
-}
-
-function exactRecord(value: unknown, fields: readonly string[], name: string): Record<string, unknown> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError(`Framescaper ${name} must be an object.`);
-	}
-	const keys = Reflect.ownKeys(value);
-	if (keys.length !== fields.length || keys.some((key) => (
-		typeof key !== 'string' || !fields.includes(key)
-	))) throw new TypeError(`Framescaper ${name} must be exact.`);
-	return value as Record<string, unknown>;
+	return asHistory(redoEditorProjectCommand(history, revisionFor(profile), options));
 }

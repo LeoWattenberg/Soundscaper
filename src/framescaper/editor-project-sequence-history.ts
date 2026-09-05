@@ -1,6 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { AUDIO_EDITOR_HISTORY_LIMIT } from '../common/editor/history.js';
+import {
+	cloneEditorProjectHistory,
+	createEditorProjectHistory,
+	executeEditorProjectCommand,
+	redoEditorProjectCommand,
+	undoEditorProjectCommand,
+	validateEditorProjectHistory,
+	type EditorHistoryDocument,
+	type EditorProjectHistoryRevision,
+	type EditorProjectHistoryState,
+} from '../common/editor/project-history-mechanics.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import { assertFramescaperProjectSequenceProfile } from './editor-domain-runtime-profile.ts';
 import {
@@ -14,6 +25,16 @@ import {
 } from './editor-project-sequence.ts';
 import type { FramescaperProjectCommandSequence } from './editor-project-sequence-subsequence.ts';
 
+/**
+ * Undo history for the Framescaper sequence document.
+ *
+ * The stack mechanics are shared (src/common/editor/project-history-mechanics.ts);
+ * this module says what the sequence document is and keeps the two readings the
+ * sequence document settled for itself: a stored history is read openly rather
+ * than as a closed record, and a command is carried by structural copy because
+ * the sequence command surface has no snapshot of its own.
+ */
+
 export interface FramescaperProjectHistoryEntrySequence {
 	readonly project: FramescaperProjectSequence;
 	readonly command: FramescaperProjectCommandSequence;
@@ -26,21 +47,49 @@ export interface FramescaperProjectHistorySequence {
 	readonly redoStack: readonly FramescaperProjectHistoryEntrySequence[];
 }
 
+type Mechanics = EditorProjectHistoryRevision<
+	FramescaperProjectCommandSequence, FramescaperProjectCommandOptionsSequence
+>;
+
+const document = (project: FramescaperProjectSequence): EditorHistoryDocument => (
+	project as unknown as EditorHistoryDocument
+);
+
+const asHistory = (
+	state: EditorProjectHistoryState<FramescaperProjectCommandSequence>,
+): FramescaperProjectHistorySequence => state as unknown as FramescaperProjectHistorySequence;
+
+/** A sequence command is inert data, so a structural copy is its whole snapshot. */
+function snapshotCommand(command: unknown): FramescaperProjectCommandSequence {
+	if (!command || typeof command !== 'object'
+		|| typeof (command as Readonly<{ type?: unknown }>).type !== 'string') {
+		throw new TypeError('Every Framescaper sequence history entry requires a command.');
+	}
+	return structuredClone(command) as FramescaperProjectCommandSequence;
+}
+
+function revisionFor(profile: EditorProjectRuntimeProfile | unknown): Mechanics {
+	return {
+		label: 'Framescaper sequence',
+		snapshotPushedProject: false,
+		validateProject: (project) => { validateFramescaperProjectSequence(profile, project); },
+		cloneProject: (project) => document(cloneFramescaperProjectSequence(profile, project)),
+		snapshotCommand,
+		applyCommand: (project, command, options) => document(
+			applyFramescaperProjectCommandSequence(profile, project, command, options),
+		),
+	};
+}
+
 export function createFramescaperProjectHistorySequence(
 	profile: EditorProjectRuntimeProfile | unknown,
 	project: FramescaperProjectSequence | unknown,
 	options: Readonly<{ limit?: number }> = {},
 ): FramescaperProjectHistorySequence {
 	assertFramescaperProjectSequenceProfile(profile);
-	validateFramescaperProjectSequence(profile, project);
-	const limit = options.limit ?? AUDIO_EDITOR_HISTORY_LIMIT;
-	if (!Number.isSafeInteger(limit) || limit < 1) throw new RangeError('sequence history limit must be a positive safe integer.');
-	return {
-		limit,
-		present: cloneFramescaperProjectSequence(profile, project),
-		undoStack: [],
-		redoStack: [],
-	};
+	return asHistory(createEditorProjectHistory(
+		project, revisionFor(profile), AUDIO_EDITOR_HISTORY_LIMIT, options,
+	));
 }
 
 export function validateFramescaperProjectHistorySequence(
@@ -48,29 +97,7 @@ export function validateFramescaperProjectHistorySequence(
 	history: FramescaperProjectHistorySequence | unknown,
 ): history is FramescaperProjectHistorySequence {
 	assertFramescaperProjectSequenceProfile(profile);
-	if (!history || typeof history !== 'object' || Array.isArray(history)) {
-		throw new TypeError('A Framescaper sequence project history is required.');
-	}
-	const value = history as Partial<FramescaperProjectHistorySequence>;
-	if (!Number.isSafeInteger(value.limit) || Number(value.limit) < 1) {
-		throw new RangeError('sequence history limit must be a positive safe integer.');
-	}
-	validateFramescaperProjectSequence(profile, value.present);
-	const projectId = value.present?.id;
-	for (const [name, stack] of [['undoStack', value.undoStack], ['redoStack', value.redoStack]] as const) {
-		if (!Array.isArray(stack)) throw new TypeError(`sequence history ${name} must be an array.`);
-		if (stack.length > Number(value.limit)) throw new RangeError(`sequence history ${name} exceeds its limit.`);
-		for (const [index, entry] of stack.entries()) {
-			if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
-				throw new TypeError(`sequence history ${name}[${String(index)}] must be an entry.`);
-			}
-			validateFramescaperProjectSequence(profile, entry.project);
-			if (entry.project.id !== projectId) throw new RangeError('Every sequence history snapshot must belong to the present project.');
-			if (!entry.command || typeof entry.command !== 'object' || typeof entry.command.type !== 'string') {
-				throw new TypeError('Every sequence history entry requires a command.');
-			}
-		}
-	}
+	validateEditorProjectHistory(history, revisionFor(profile));
 	return true;
 }
 
@@ -78,20 +105,8 @@ export function cloneFramescaperProjectHistorySequence(
 	profile: EditorProjectRuntimeProfile | unknown,
 	history: FramescaperProjectHistorySequence | unknown,
 ): FramescaperProjectHistorySequence {
-	validateFramescaperProjectHistorySequence(profile, history);
-	const valid = history as FramescaperProjectHistorySequence;
-	return {
-		limit: valid.limit,
-		present: cloneFramescaperProjectSequence(profile, valid.present),
-		undoStack: valid.undoStack.map((entry) => ({
-			project: cloneFramescaperProjectSequence(profile, entry.project),
-			command: structuredClone(entry.command),
-		})),
-		redoStack: valid.redoStack.map((entry) => ({
-			project: cloneFramescaperProjectSequence(profile, entry.project),
-			command: structuredClone(entry.command),
-		})),
-	};
+	assertFramescaperProjectSequenceProfile(profile);
+	return asHistory(cloneEditorProjectHistory(history, revisionFor(profile)));
 }
 
 export function executeFramescaperProjectCommandSequence(
@@ -100,15 +115,8 @@ export function executeFramescaperProjectCommandSequence(
 	command: FramescaperProjectCommandSequence,
 	options: FramescaperProjectCommandOptionsSequence = {},
 ): FramescaperProjectHistorySequence {
-	validateFramescaperProjectHistorySequence(profile, history);
-	const valid = history as FramescaperProjectHistorySequence;
-	const present = applyFramescaperProjectCommandSequence(profile, valid.present, command, options);
-	return {
-		limit: valid.limit,
-		present,
-		undoStack: [...valid.undoStack, { project: valid.present, command: structuredClone(command) }].slice(-valid.limit),
-		redoStack: [],
-	};
+	assertFramescaperProjectSequenceProfile(profile);
+	return asHistory(executeEditorProjectCommand(history, command, revisionFor(profile), options));
 }
 
 export function undoFramescaperProjectCommandSequence(
@@ -116,14 +124,8 @@ export function undoFramescaperProjectCommandSequence(
 	history: FramescaperProjectHistorySequence | unknown,
 	options: FramescaperProjectCommandOptionsSequence = {},
 ): FramescaperProjectHistorySequence {
-	validateFramescaperProjectHistorySequence(profile, history);
-	const valid = history as FramescaperProjectHistorySequence;
-	if (valid.undoStack.length === 0) return valid;
-	const entry = valid.undoStack.at(-1)!;
-	return restore(profile, valid, entry, valid.undoStack.slice(0, -1), [
-		...valid.redoStack,
-		{ project: valid.present, command: structuredClone(entry.command) },
-	].slice(-valid.limit), options);
+	assertFramescaperProjectSequenceProfile(profile);
+	return asHistory(undoEditorProjectCommand(history, revisionFor(profile), options));
 }
 
 export function redoFramescaperProjectCommandSequence(
@@ -131,33 +133,6 @@ export function redoFramescaperProjectCommandSequence(
 	history: FramescaperProjectHistorySequence | unknown,
 	options: FramescaperProjectCommandOptionsSequence = {},
 ): FramescaperProjectHistorySequence {
-	validateFramescaperProjectHistorySequence(profile, history);
-	const valid = history as FramescaperProjectHistorySequence;
-	if (valid.redoStack.length === 0) return valid;
-	const entry = valid.redoStack.at(-1)!;
-	return restore(profile, valid, entry, [
-		...valid.undoStack,
-		{ project: valid.present, command: structuredClone(entry.command) },
-	].slice(-valid.limit), valid.redoStack.slice(0, -1), options);
-}
-
-function restore(
-	profile: EditorProjectRuntimeProfile | unknown,
-	history: FramescaperProjectHistorySequence,
-	entry: FramescaperProjectHistoryEntrySequence,
-	undoStack: readonly FramescaperProjectHistoryEntrySequence[],
-	redoStack: readonly FramescaperProjectHistoryEntrySequence[],
-	options: FramescaperProjectCommandOptionsSequence,
-): FramescaperProjectHistorySequence {
-	const present = cloneFramescaperProjectSequence(profile, entry.project) as unknown as Record<string, unknown>;
-	present.revision = Number(history.present.revision) + 1;
-	present.updatedAt = timestamp(options.now);
-	validateFramescaperProjectSequence(profile, present);
-	return { limit: history.limit, present: present as FramescaperProjectSequence, undoStack, redoStack };
-}
-
-function timestamp(value: Date | string | undefined): string {
-	const date = value instanceof Date ? value : new Date(value ?? Date.now());
-	if (Number.isNaN(date.getTime())) throw new TypeError('A valid sequence history timestamp is required.');
-	return date.toISOString();
+	assertFramescaperProjectSequenceProfile(profile);
+	return asHistory(redoEditorProjectCommand(history, revisionFor(profile), options));
 }

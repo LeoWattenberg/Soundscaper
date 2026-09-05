@@ -2,10 +2,16 @@
 
 import { AUDIO_EDITOR_HISTORY_LIMIT } from '../common/editor/history.js';
 import {
-	readClosedDomainArray,
-	readClosedDomainField,
-	readClosedDomainRecord,
-} from '../common/editor/closed-domain-value.ts';
+	cloneEditorProjectHistory,
+	createEditorProjectHistory,
+	executeEditorProjectCommand,
+	redoEditorProjectCommand,
+	undoEditorProjectCommand,
+	validateEditorProjectHistory,
+	type EditorHistoryDocument,
+	type EditorProjectHistoryRevision,
+	type EditorProjectHistoryState,
+} from '../common/editor/project-history-mechanics.ts';
 import {
 	reconcileFramescaperProjectFeatureRequirementsRetime,
 } from './editor-project-feature-requirements-retime.ts';
@@ -27,6 +33,17 @@ import {
 	admitFramescaperProjectHistoryRetimeStructure,
 } from './editor-project-retime-history-admission.ts';
 
+/**
+ * Undo history for the Framescaper retime document.
+ *
+ * The stack mechanics are shared (src/common/editor/project-history-mechanics.ts);
+ * this module says what the retime document is — how to validate, snapshot and
+ * apply against a runtime profile, and how its feature requirements settle on a
+ * restored document — together with the two readings of the stored shape it
+ * keeps: the whole graph is bounded once before any per-entry work, and every
+ * record is then read closed, without accessors or inherited state.
+ */
+
 export interface FramescaperProjectHistoryEntryRetime {
 	readonly project: FramescaperProjectRetime;
 	readonly command: FramescaperProjectCommandRetime;
@@ -39,8 +56,42 @@ export interface FramescaperProjectHistoryRetime {
 	readonly redoStack: readonly FramescaperProjectHistoryEntryRetime[];
 }
 
-const HISTORY_FIELDS = Object.freeze(['limit', 'present', 'undoStack', 'redoStack']);
-const ENTRY_FIELDS = Object.freeze(['project', 'command']);
+type Mechanics = EditorProjectHistoryRevision<
+	FramescaperProjectCommandRetime, FramescaperProjectCommandOptionsRetime
+>;
+
+const asHistory = (
+	state: EditorProjectHistoryState<FramescaperProjectCommandRetime>,
+): FramescaperProjectHistoryRetime => state as unknown as FramescaperProjectHistoryRetime;
+
+/** A retime document is snapshotted by validating it either side of the copy. */
+function snapshotProject(
+	profile: FramescaperProjectRetimeProfile | unknown,
+	project: unknown,
+): EditorHistoryDocument {
+	validateFramescaperProjectRetime(profile, project);
+	const snapshot = structuredClone(project) as FramescaperProjectRetime;
+	validateFramescaperProjectRetime(profile, snapshot);
+	return snapshot as unknown as EditorHistoryDocument;
+}
+
+function revisionFor(profile: FramescaperProjectRetimeProfile | unknown): Mechanics {
+	return {
+		label: 'Framescaper retime',
+		shape: 'closed',
+		maximumLimit: AUDIO_EDITOR_HISTORY_LIMIT,
+		admitStructure: (history) => { admitFramescaperProjectHistoryRetimeStructure(history); },
+		validateProject: (project) => { validateFramescaperProjectRetime(profile, project); },
+		cloneProject: (project) => snapshotProject(profile, project),
+		snapshotCommand: (command) => snapshotFramescaperProjectCommandRetime(command),
+		applyCommand: (project, command, options) => (
+			applyFramescaperProjectCommandRetime(profile, project, command, options) as unknown as EditorHistoryDocument
+		),
+		reconcileRestoredProject: (project) => {
+			project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsRetime(profile, project);
+		},
+	};
+}
 
 export function createFramescaperProjectHistoryRetime(
 	profile: FramescaperProjectRetimeProfile | unknown,
@@ -48,13 +99,9 @@ export function createFramescaperProjectHistoryRetime(
 	options: Readonly<{ limit?: number }> = {},
 ): FramescaperProjectHistoryRetime {
 	assertFramescaperProjectRetimeProfile(profile);
-	validateFramescaperProjectRetime(profile, project);
-	return {
-		limit: historyLimit(options.limit ?? AUDIO_EDITOR_HISTORY_LIMIT),
-		present: snapshotProject(profile, project as FramescaperProjectRetime),
-		undoStack: [],
-		redoStack: [],
-	};
+	return asHistory(createEditorProjectHistory(
+		project, revisionFor(profile), AUDIO_EDITOR_HISTORY_LIMIT, options,
+	));
 }
 
 export function validateFramescaperProjectHistoryRetime(
@@ -62,26 +109,7 @@ export function validateFramescaperProjectHistoryRetime(
 	history: FramescaperProjectHistoryRetime | unknown,
 ): history is FramescaperProjectHistoryRetime {
 	assertFramescaperProjectRetimeProfile(profile);
-	admitFramescaperProjectHistoryRetimeStructure(history);
-	const value = readClosedDomainRecord(history, 'Framescaper retime project history', HISTORY_FIELDS);
-	const limit = historyLimit(readClosedDomainField(value, 'limit', 'Framescaper retime project history'));
-	const present = readClosedDomainField(value, 'present', 'Framescaper retime project history');
-	validateFramescaperProjectRetime(profile, present);
-	const projectId = (present as FramescaperProjectRetime).id;
-	validateStack(
-		profile,
-		readClosedDomainField(value, 'undoStack', 'Framescaper retime project history'),
-		'undoStack',
-		limit,
-		projectId,
-	);
-	validateStack(
-		profile,
-		readClosedDomainField(value, 'redoStack', 'Framescaper retime project history'),
-		'redoStack',
-		limit,
-		projectId,
-	);
+	validateEditorProjectHistory(history, revisionFor(profile));
 	return true;
 }
 
@@ -90,14 +118,7 @@ export function cloneFramescaperProjectHistoryRetime(
 	history: FramescaperProjectHistoryRetime | unknown,
 ): FramescaperProjectHistoryRetime {
 	assertFramescaperProjectRetimeProfile(profile);
-	validateFramescaperProjectHistoryRetime(profile, history);
-	const valid = history as FramescaperProjectHistoryRetime;
-	return {
-		limit: valid.limit,
-		present: snapshotProject(profile, valid.present),
-		undoStack: valid.undoStack.map((entry) => snapshotEntry(profile, entry)),
-		redoStack: valid.redoStack.map((entry) => snapshotEntry(profile, entry)),
-	};
+	return asHistory(cloneEditorProjectHistory(history, revisionFor(profile)));
 }
 
 export function executeFramescaperProjectCommandRetime(
@@ -107,19 +128,7 @@ export function executeFramescaperProjectCommandRetime(
 	options: FramescaperProjectCommandOptionsRetime = {},
 ): FramescaperProjectHistoryRetime {
 	assertFramescaperProjectRetimeProfile(profile);
-	validateFramescaperProjectHistoryRetime(profile, history);
-	const valid = history as FramescaperProjectHistoryRetime;
-	const normalized = snapshotFramescaperProjectCommandRetime(command);
-	const present = applyFramescaperProjectCommandRetime(profile, valid.present, normalized, options);
-	return {
-		limit: valid.limit,
-		present,
-		undoStack: [...valid.undoStack, {
-			project: snapshotProject(profile, valid.present),
-			command: normalized,
-		}].slice(-valid.limit),
-		redoStack: [],
-	};
+	return asHistory(executeEditorProjectCommand(history, command, revisionFor(profile), options));
 }
 
 export function undoFramescaperProjectCommandRetime(
@@ -128,17 +137,7 @@ export function undoFramescaperProjectCommandRetime(
 	options: FramescaperProjectCommandOptionsRetime = {},
 ): FramescaperProjectHistoryRetime {
 	assertFramescaperProjectRetimeProfile(profile);
-	validateFramescaperProjectHistoryRetime(profile, history);
-	const valid = history as FramescaperProjectHistoryRetime;
-	if (valid.undoStack.length === 0) return valid;
-	const entry = valid.undoStack.at(-1)!;
-	return restore(profile, valid, entry, valid.undoStack.slice(0, -1), [
-		...valid.redoStack,
-		{
-			project: snapshotProject(profile, valid.present),
-			command: snapshotFramescaperProjectCommandRetime(entry.command),
-		},
-	].slice(-valid.limit), options);
+	return asHistory(undoEditorProjectCommand(history, revisionFor(profile), options));
 }
 
 export function redoFramescaperProjectCommandRetime(
@@ -147,97 +146,5 @@ export function redoFramescaperProjectCommandRetime(
 	options: FramescaperProjectCommandOptionsRetime = {},
 ): FramescaperProjectHistoryRetime {
 	assertFramescaperProjectRetimeProfile(profile);
-	validateFramescaperProjectHistoryRetime(profile, history);
-	const valid = history as FramescaperProjectHistoryRetime;
-	if (valid.redoStack.length === 0) return valid;
-	const entry = valid.redoStack.at(-1)!;
-	return restore(profile, valid, entry, [
-		...valid.undoStack,
-		{
-			project: snapshotProject(profile, valid.present),
-			command: snapshotFramescaperProjectCommandRetime(entry.command),
-		},
-	].slice(-valid.limit), valid.redoStack.slice(0, -1), options);
-}
-
-function restore(
-	profile: FramescaperProjectRetimeProfile,
-	history: FramescaperProjectHistoryRetime,
-	entry: FramescaperProjectHistoryEntryRetime,
-	undoStack: readonly FramescaperProjectHistoryEntryRetime[],
-	redoStack: readonly FramescaperProjectHistoryEntryRetime[],
-	options: FramescaperProjectCommandOptionsRetime,
-): FramescaperProjectHistoryRetime {
-	const present = snapshotProject(profile, entry.project) as unknown as Record<string, unknown>;
-	const revision = history.present.revision + 1;
-	if (!Number.isSafeInteger(revision)) throw new RangeError('Framescaper retime project revision overflowed.');
-	present.revision = revision;
-	present.updatedAt = timestamp(options.now);
-	present.featureRequirements = reconcileFramescaperProjectFeatureRequirementsRetime(profile, present);
-	validateFramescaperProjectRetime(profile, present);
-	return {
-		limit: history.limit,
-		present: present as FramescaperProjectRetime,
-		undoStack,
-		redoStack,
-	};
-}
-
-function validateStack(
-	profile: FramescaperProjectRetimeProfile,
-	value: unknown,
-	name: 'undoStack' | 'redoStack',
-	limit: number,
-	projectId: string,
-): void {
-	const stack = readClosedDomainArray(value, `Framescaper retime history ${name}`, 0, limit);
-	for (const [index, item] of stack.entries()) {
-		const entryName = `Framescaper retime history ${name}[${String(index)}]`;
-		const entry = readClosedDomainRecord(item, entryName, ENTRY_FIELDS);
-		const project = readClosedDomainField(entry, 'project', entryName);
-		validateFramescaperProjectRetime(profile, project);
-		if ((project as FramescaperProjectRetime).id !== projectId) {
-			throw new RangeError('Every retime history snapshot must belong to the present project.');
-		}
-		snapshotFramescaperProjectCommandRetime(
-			readClosedDomainField(entry, 'command', entryName),
-		);
-	}
-}
-
-function snapshotEntry(
-	profile: FramescaperProjectRetimeProfile,
-	entry: FramescaperProjectHistoryEntryRetime,
-): FramescaperProjectHistoryEntryRetime {
-	return {
-		project: snapshotProject(profile, entry.project),
-		command: snapshotFramescaperProjectCommandRetime(entry.command),
-	};
-}
-
-
-function historyLimit(value: unknown): number {
-	if (typeof value !== 'number' || !Number.isSafeInteger(value)
-		|| value < 1 || value > AUDIO_EDITOR_HISTORY_LIMIT) {
-		throw new RangeError(
-			`retime history limit must be a safe integer from 1 through ${String(AUDIO_EDITOR_HISTORY_LIMIT)}.`,
-		);
-	}
-	return value;
-}
-
-function snapshotProject(
-	profile: FramescaperProjectRetimeProfile,
-	project: FramescaperProjectRetime,
-): FramescaperProjectRetime {
-	validateFramescaperProjectRetime(profile, project);
-	const snapshot = structuredClone(project) as FramescaperProjectRetime;
-	validateFramescaperProjectRetime(profile, snapshot);
-	return snapshot;
-}
-
-function timestamp(value: Date | string | undefined): string {
-	const date = value instanceof Date ? value : new Date(value ?? Date.now());
-	if (Number.isNaN(date.getTime())) throw new TypeError('A valid retime history timestamp is required.');
-	return date.toISOString();
+	return asHistory(redoEditorProjectCommand(history, revisionFor(profile), options));
 }

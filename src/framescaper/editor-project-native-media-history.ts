@@ -2,6 +2,16 @@
 
 import { AUDIO_EDITOR_HISTORY_LIMIT } from '../common/editor/history.js';
 import {
+	createEditorProjectHistory,
+	executeEditorProjectCommand,
+	redoEditorProjectCommand,
+	undoEditorProjectCommand,
+	validateEditorProjectHistory,
+	type EditorHistoryDocument,
+	type EditorProjectHistoryRevision,
+	type EditorProjectHistoryState,
+} from '../common/editor/project-history-mechanics.ts';
+import {
 	reconcileFramescaperProjectFeatureRequirementsNativeMedia,
 } from './editor-project-feature-requirements-native-media.ts';
 import {
@@ -17,6 +27,16 @@ import {
 } from './editor-project-native-media.ts';
 import { validateFramescaperProjectNativeMedia } from './editor-project-native-media-validation.ts';
 
+/**
+ * Undo history for the Framescaper nativeMedia document.
+ *
+ * The stack mechanics are shared (src/common/editor/project-history-mechanics.ts);
+ * this module says what the nativeMedia document is — how to validate, clone,
+ * snapshot and apply against a runtime profile, and how its feature requirements
+ * settle on a restored document — together with the reading of the stored shape
+ * it keeps: an exact record, and a limit no larger than the shared one.
+ */
+
 export interface FramescaperProjectHistoryEntryNativeMedia {
 	readonly project: FramescaperProjectNativeMedia;
 	readonly command: FramescaperProjectCommandNativeMedia;
@@ -29,19 +49,44 @@ export interface FramescaperProjectHistoryNativeMedia {
 	readonly redoStack: readonly FramescaperProjectHistoryEntryNativeMedia[];
 }
 
+type Mechanics = EditorProjectHistoryRevision<
+	FramescaperProjectCommandNativeMedia, FramescaperProjectCommandOptionsNativeMedia
+>;
+
+const document = (project: FramescaperProjectNativeMedia): EditorHistoryDocument => (
+	project as unknown as EditorHistoryDocument
+);
+
+const asHistory = (
+	state: EditorProjectHistoryState<FramescaperProjectCommandNativeMedia>,
+): FramescaperProjectHistoryNativeMedia => state as unknown as FramescaperProjectHistoryNativeMedia;
+
+function revisionFor(profile: unknown): Mechanics {
+	return {
+		label: 'Framescaper nativeMedia',
+		shape: 'exact',
+		maximumLimit: AUDIO_EDITOR_HISTORY_LIMIT,
+		validateProject: (project) => { validateFramescaperProjectNativeMedia(profile, project); },
+		cloneProject: (project) => document(cloneFramescaperProjectNativeMedia(profile, project)),
+		snapshotCommand: (command) => snapshotFramescaperProjectCommandNativeMedia(command),
+		applyCommand: (project, command, options) => document(
+			applyFramescaperProjectCommandNativeMedia(profile, project, command, options),
+		),
+		reconcileRestoredProject: (project) => {
+			project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsNativeMedia(profile, project);
+		},
+	};
+}
+
 export function createFramescaperProjectHistoryNativeMedia(
 	profile: unknown,
 	project: unknown,
 	options: Readonly<{ limit?: number }> = {},
 ): FramescaperProjectHistoryNativeMedia {
 	assertFramescaperProjectNativeMediaProfile(profile);
-	validateFramescaperProjectNativeMedia(profile, project);
-	return {
-		limit: historyLimit(options.limit ?? AUDIO_EDITOR_HISTORY_LIMIT),
-		present: cloneFramescaperProjectNativeMedia(profile, project),
-		undoStack: [],
-		redoStack: [],
-	};
+	return asHistory(createEditorProjectHistory(
+		project, revisionFor(profile), AUDIO_EDITOR_HISTORY_LIMIT, options,
+	));
 }
 
 export function validateFramescaperProjectHistoryNativeMedia(
@@ -49,21 +94,7 @@ export function validateFramescaperProjectHistoryNativeMedia(
 	history: unknown,
 ): history is FramescaperProjectHistoryNativeMedia {
 	assertFramescaperProjectNativeMediaProfile(profile);
-	const candidate = exactRecord(history, ['limit', 'present', 'undoStack', 'redoStack'], 'nativeMedia history');
-	const limit = historyLimit(candidate.limit);
-	validateFramescaperProjectNativeMedia(profile, candidate.present);
-	const projectId = String((candidate.present as FramescaperProjectNativeMedia).id);
-	for (const [name, value] of [['undoStack', candidate.undoStack], ['redoStack', candidate.redoStack]] as const) {
-		if (!Array.isArray(value) || value.length > limit) throw new RangeError(`nativeMedia ${name} exceeds its limit.`);
-		for (const entry of value) {
-			const item = exactRecord(entry, ['project', 'command'], 'nativeMedia history entry');
-			validateFramescaperProjectNativeMedia(profile, item.project);
-			if ((item.project as FramescaperProjectNativeMedia).id !== projectId) {
-				throw new RangeError('Every nativeMedia history entry must belong to the present project.');
-			}
-			snapshotFramescaperProjectCommandNativeMedia(item.command);
-		}
-	}
+	validateEditorProjectHistory(history, revisionFor(profile));
 	return true;
 }
 
@@ -73,15 +104,8 @@ export function executeFramescaperProjectCommandNativeMedia(
 	command: unknown,
 	options: FramescaperProjectCommandOptionsNativeMedia = {},
 ): FramescaperProjectHistoryNativeMedia {
-	validateFramescaperProjectHistoryNativeMedia(profile, history);
-	const current = history as FramescaperProjectHistoryNativeMedia;
-	const normalized = snapshotFramescaperProjectCommandNativeMedia(command);
-	return {
-		limit: current.limit,
-		present: applyFramescaperProjectCommandNativeMedia(profile, current.present, normalized, options),
-		undoStack: [...current.undoStack, snapshotEntry(profile, current.present, normalized)].slice(-current.limit),
-		redoStack: [],
-	};
+	assertFramescaperProjectNativeMediaProfile(profile);
+	return asHistory(executeEditorProjectCommand(history, command, revisionFor(profile), options));
 }
 
 export function undoFramescaperProjectCommandNativeMedia(
@@ -89,7 +113,8 @@ export function undoFramescaperProjectCommandNativeMedia(
 	history: unknown,
 	options: FramescaperProjectCommandOptionsNativeMedia = {},
 ): FramescaperProjectHistoryNativeMedia {
-	return restore(profile, history, 'undo', options);
+	assertFramescaperProjectNativeMediaProfile(profile);
+	return asHistory(undoEditorProjectCommand(history, revisionFor(profile), options));
 }
 
 export function redoFramescaperProjectCommandNativeMedia(
@@ -97,68 +122,6 @@ export function redoFramescaperProjectCommandNativeMedia(
 	history: unknown,
 	options: FramescaperProjectCommandOptionsNativeMedia = {},
 ): FramescaperProjectHistoryNativeMedia {
-	return restore(profile, history, 'redo', options);
-}
-
-function restore(
-	profile: unknown,
-	history: unknown,
-	direction: 'undo' | 'redo',
-	options: FramescaperProjectCommandOptionsNativeMedia,
-): FramescaperProjectHistoryNativeMedia {
-	validateFramescaperProjectHistoryNativeMedia(profile, history);
-	const current = history as FramescaperProjectHistoryNativeMedia;
-	const source = direction === 'undo' ? current.undoStack : current.redoStack;
-	if (source.length === 0) return current;
-	const entry = source.at(-1)!;
-	const present = cloneFramescaperProjectNativeMedia(profile, entry.project) as unknown as Record<string, unknown>;
-	const revision = Number(current.present.revision) + 1;
-	if (!Number.isSafeInteger(revision)) throw new RangeError('Framescaper nativeMedia revision overflowed.');
-	present.revision = revision;
-	present.updatedAt = timestamp(options.now);
-	present.featureRequirements = reconcileFramescaperProjectFeatureRequirementsNativeMedia(profile, present);
-	validateFramescaperProjectNativeMedia(profile, present);
-	const opposite = snapshotEntry(profile, current.present, entry.command);
-	return direction === 'undo' ? {
-		limit: current.limit, present: present as unknown as FramescaperProjectNativeMedia,
-		undoStack: current.undoStack.slice(0, -1),
-		redoStack: [...current.redoStack, opposite].slice(-current.limit),
-	} : {
-		limit: current.limit, present: present as unknown as FramescaperProjectNativeMedia,
-		undoStack: [...current.undoStack, opposite].slice(-current.limit),
-		redoStack: current.redoStack.slice(0, -1),
-	};
-}
-
-function snapshotEntry(
-	profile: unknown,
-	project: FramescaperProjectNativeMedia,
-	command: FramescaperProjectCommandNativeMedia,
-): FramescaperProjectHistoryEntryNativeMedia {
-	return {
-		project: cloneFramescaperProjectNativeMedia(profile, project),
-		command: snapshotFramescaperProjectCommandNativeMedia(command),
-	};
-}
-
-function historyLimit(value: unknown): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 1 || Number(value) > AUDIO_EDITOR_HISTORY_LIMIT) {
-		throw new RangeError(`Framescaper nativeMedia history limit must be from 1 through ${String(AUDIO_EDITOR_HISTORY_LIMIT)}.`);
-	}
-	return Number(value);
-}
-
-function timestamp(value: Date | string | undefined): string {
-	const date = value === undefined ? new Date() : new Date(value);
-	if (Number.isNaN(date.getTime())) throw new RangeError('Framescaper nativeMedia history timestamp is invalid.');
-	return date.toISOString();
-}
-
-function exactRecord(value: unknown, fields: readonly string[], name: string): Record<string, unknown> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be an object.`);
-	const keys = Reflect.ownKeys(value);
-	if (keys.length !== fields.length || keys.some((key) => typeof key !== 'string' || !fields.includes(key))) {
-		throw new TypeError(`${name} must be exact.`);
-	}
-	return value as Record<string, unknown>;
+	assertFramescaperProjectNativeMediaProfile(profile);
+	return asHistory(redoEditorProjectCommand(history, revisionFor(profile), options));
 }

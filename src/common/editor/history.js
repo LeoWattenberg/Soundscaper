@@ -1,5 +1,13 @@
 import { applyEditorCommand } from './commands.js';
 import { snapshotInertEditorCommand } from './commands/editor-command-snapshot.ts';
+import {
+	collapseEditorProjectHistory,
+	createEditorProjectHistory,
+	executeEditorProjectCommand,
+	redoEditorProjectCommand,
+	rollbackEditorProjectHistory,
+	undoEditorProjectCommand,
+} from './project-history-mechanics.ts';
 import { cloneProject, validateAudioEditorProject } from './project.js';
 
 export const AUDIO_EDITOR_HISTORY_LIMIT = 200;
@@ -16,68 +24,46 @@ export const AUDIO_EDITOR_HISTORY_LIMIT = 200;
  *   that shifts underneath it
  */
 
+/**
+ * The shared editor document, read by the mechanics every product's history uses.
+ *
+ * Two readings are this history's own. A stored history is taken as given rather
+ * than validated on every command, because the document validates itself as each
+ * command applies and as each snapshot is restored; and the outgoing document
+ * becomes an entry without being copied, because nothing here mutates a project
+ * in place.
+ */
+const AUDIO_EDITOR_REVISION = {
+	label: 'Audio editor',
+	tracksDropped: true,
+	validatesHistory: false,
+	snapshotPushedProject: false,
+	validateProject: (project) => { validateAudioEditorProject(project); },
+	cloneProject: (project) => cloneProject(project),
+	snapshotCommand: (command) => snapshotInertEditorCommand(command),
+	applyCommand: (project, command, options) => applyEditorCommand(project, command, options),
+};
+
+/** Keep whatever else a caller has hung on the history, and its identity when nothing moved. */
+function merged(history, next) {
+	return next === history ? history : { ...history, ...next };
+}
+
 /** @returns {AudioEditorHistory} */
 export function createEditorHistory(project, options = {}) {
-	validateAudioEditorProject(project);
-	const limit = options.limit ?? AUDIO_EDITOR_HISTORY_LIMIT;
-	if (!Number.isInteger(limit) || limit <= 0) throw new RangeError('History limit must be a positive integer.');
-	return {
-		limit,
-		present: cloneProject(project),
-		undoStack: [],
-		redoStack: [],
-		dropped: 0,
-	};
+	return createEditorProjectHistory(project, AUDIO_EDITOR_REVISION, AUDIO_EDITOR_HISTORY_LIMIT, options);
 }
 
 export function executeEditorCommand(history, command, options = {}) {
-	const nextProject = applyEditorCommand(history.present, command, options);
-	const pushed = [...history.undoStack, {
-		project: history.present,
-		command: snapshotInertEditorCommand(command),
-	}];
-	const undoStack = pushed.slice(-history.limit);
-	return {
-		...history,
-		present: nextProject,
-		undoStack,
-		redoStack: [],
-		dropped: droppedCount(history) + (pushed.length - undoStack.length),
-	};
+	return merged(history, executeEditorProjectCommand(history, command, AUDIO_EDITOR_REVISION, options));
 }
 
 export function undoEditorCommand(history, options = {}) {
-	if (!history.undoStack.length) return history;
-	const entry = history.undoStack[history.undoStack.length - 1];
-	const restored = restoreSnapshot(entry.project, history.present, options.now);
-	return {
-		...history,
-		present: restored,
-		undoStack: history.undoStack.slice(0, -1),
-		redoStack: [...history.redoStack, {
-			project: history.present,
-			command: snapshotInertEditorCommand(entry.command),
-		}].slice(-history.limit),
-		dropped: droppedCount(history),
-	};
+	return merged(history, undoEditorProjectCommand(history, AUDIO_EDITOR_REVISION, options));
 }
 
 export function redoEditorCommand(history, options = {}) {
-	if (!history.redoStack.length) return history;
-	const entry = history.redoStack[history.redoStack.length - 1];
-	const restored = restoreSnapshot(entry.project, history.present, options.now);
-	const pushed = [...history.undoStack, {
-		project: history.present,
-		command: snapshotInertEditorCommand(entry.command),
-	}];
-	const undoStack = pushed.slice(-history.limit);
-	return {
-		...history,
-		present: restored,
-		undoStack,
-		redoStack: history.redoStack.slice(0, -1),
-		dropped: droppedCount(history) + (pushed.length - undoStack.length),
-	};
+	return merged(history, redoEditorProjectCommand(history, AUDIO_EDITOR_REVISION, options));
 }
 
 /**
@@ -86,31 +72,16 @@ export function redoEditorCommand(history, options = {}) {
  * A macro is one action to the person who ran it, so it has to be one undo. It
  * cannot be planned as a single command up front: an effect step writes audio
  * asynchronously and only then knows what it produced. So the steps commit
- * normally and the range they added is replaced here by one entry holding the
- * project as it stood before the macro began — which is exactly what undo
- * restores, because undo restores a whole snapshot rather than inverting
- * commands.
+ * normally and the range they added is replaced by one entry holding the project
+ * as it stood before the macro began — which is exactly what undo restores,
+ * because undo restores a whole snapshot rather than inverting commands.
  *
- * The depth is where the macro started, counted in commits rather than slots.
- * Entries below it are the user's own history and are never touched. A macro on
- * a full stack pushes the entries below it off the bottom as it runs, so the
- * depth is turned back into an index by taking those dropped entries off it —
- * without that correction the opening entry would be looked up at a slot that
- * now holds a mid-macro snapshot, or past the end of the stack entirely.
+ * The depth is where the macro started, counted in commits rather than slots, so
+ * a macro that pushes the entries below it off the bounded stack still names the
+ * entry it opened with. The correction lives in the shared mechanics.
  */
 export function collapseEditorHistory(history, depth, command) {
-	const undoDepth = boundedDepth(history, depth);
-	if (history.undoStack.length <= undoDepth) return history;
-	const opening = history.undoStack[undoDepth];
-	return {
-		...history,
-		undoStack: [...history.undoStack.slice(0, undoDepth), {
-			project: opening.project,
-			command: snapshotInertEditorCommand(command),
-		}].slice(-history.limit),
-		redoStack: [],
-		dropped: droppedCount(history),
-	};
+	return merged(history, collapseEditorProjectHistory(history, depth, command, AUDIO_EDITOR_REVISION));
 }
 
 /**
@@ -122,45 +93,7 @@ export function collapseEditorHistory(history, depth, command) {
  * change rather than silently keeping stale state.
  */
 export function rollbackEditorHistory(history, depth, options = {}) {
-	const undoDepth = boundedDepth(history, depth);
-	if (history.undoStack.length <= undoDepth) return history;
-	const opening = history.undoStack[undoDepth];
-	return {
-		...history,
-		present: restoreSnapshot(opening.project, history.present, options.now),
-		undoStack: history.undoStack.slice(0, undoDepth),
-		redoStack: [],
-		dropped: droppedCount(history),
-	};
-}
-
-/**
- * Turn the depth a macro opened at into an index into the stack as it stands now.
- *
- * The depth counts commits, not slots: a macro's own steps push the entries
- * below it off the bottom once the history is full, so an index captured when
- * the macro began would name a mid-macro snapshot — or, on a stack that was
- * already full, name nothing at all and settle the macro into a no-op. Taking
- * the entries the limit has dropped since then back off keeps it naming the
- * entry the macro opened with. A macro longer than the whole limit has pushed
- * that entry off the end too, and clamps to the oldest one left.
- */
-function boundedDepth(history, depth) {
-	const undoDepth = Number(depth);
-	if (!Number.isInteger(undoDepth) || undoDepth < 0) {
-		throw new RangeError('A history depth must be a non-negative integer.');
-	}
-	const index = undoDepth - droppedCount(history);
-	return Math.min(Math.max(index, 0), history.undoStack.length);
-}
-
-/** A history written before the count existed simply has not dropped anything yet. */
-function droppedCount(history) {
-	const value = Number(history.dropped ?? 0);
-	if (!Number.isSafeInteger(value) || value < 0) {
-		throw new RangeError('A history dropped count must be a non-negative safe integer.');
-	}
-	return value;
+	return merged(history, rollbackEditorProjectHistory(history, depth, AUDIO_EDITOR_REVISION, options));
 }
 
 export function clearEditorHistory(history) {
@@ -173,12 +106,4 @@ export function canUndo(history) {
 
 export function canRedo(history) {
 	return history.redoStack.length > 0;
-}
-
-function restoreSnapshot(snapshot, current, now = new Date()) {
-	const restored = cloneProject(snapshot);
-	restored.revision = current.revision + 1;
-	restored.updatedAt = (now instanceof Date ? now : new Date(now)).toISOString();
-	validateAudioEditorProject(restored);
-	return restored;
 }
