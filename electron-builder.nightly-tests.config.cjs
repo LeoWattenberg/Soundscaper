@@ -19,6 +19,7 @@ module.exports = {
 		'desktop/nightly-tests-manifest.mjs',
 		'scripts/lib/desktop-nightly-tests-runtime.mjs',
 		'scripts/lib/desktop-nightly-tests-static-response.mjs',
+		'scripts/lib/static-site-content-types.mjs',
 		'scripts/lib/desktop-nightly-tests-product-sites.mjs',
 		'scripts/lib/desktop-nightly-tests-static-route.mjs',
 		'scripts/lib/desktop-nightly-tests-metrics.mjs',

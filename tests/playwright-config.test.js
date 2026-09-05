@@ -126,11 +126,12 @@ test('the dual-origin Playwright harness serves two reciprocal built Pages sites
 		[soundscaper, 'soundscaper', '4332'],
 		[framescaper, 'framescaper', '4333'],
 	]) {
-		assert.match(server.command, /^node node_modules\/wrangler\/bin\/wrangler\.js pages dev /u);
+		// Plain Node serving with the site's control files applied; wrangler's dev
+		// server used to sit here and intermittently 500'd an already-served chunk.
+		assert.match(server.command, /^node scripts\/serve-pages-site\.mjs /u);
 		assert.ok(server.command.includes(`.wrangler/dual-origin-browser/${product}`));
+		assert.ok(server.command.includes('--host 127.0.0.1'));
 		assert.ok(server.command.includes(`--port ${port}`));
-		assert.ok(server.command.includes(`--persist-to .wrangler/dual-origin-browser/state/${product}`));
-		assert.ok(server.command.includes('--show-interactive-dev-session=false'));
 		assert.equal(server.reuseExistingServer, false);
 	}
 
