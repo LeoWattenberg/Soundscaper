@@ -58,12 +58,13 @@ test('stale playback refreshes apply only while generation, project, and playbac
 
 	const refreshes = await harness.service.beginPlaybackCachePreparation(project);
 	assert.equal(refreshes.length, 1);
-	assert.ok(harness.state.playbackCacheAbort);
+	assert.ok(harness.state.playbackCacheRefreshAbort);
+	assert.equal(harness.state.playbackCacheAbort, null);
 	refresh.resolve(cacheEntry('fresh', { channels: [new Float32Array(4)] }));
 	await refreshes[0];
 	await new Promise<void>((resolve) => { setImmediate(resolve); });
 	assert.deepEqual(harness.appliedProjects, ['project']);
-	assert.equal(harness.state.playbackCacheAbort, null);
+	assert.equal(harness.state.playbackCacheRefreshAbort, null);
 
 	const staleRefresh = deferred<ClipTimePitchCacheEntry>();
 	harness.setResolvePlayback(() => Promise.resolve(cacheEntry('second-stale', {
@@ -71,7 +72,7 @@ test('stale playback refreshes apply only while generation, project, and playbac
 	})));
 	const staleRefreshes = await harness.service.beginPlaybackCachePreparation(project);
 	assert.equal(harness.service.cancelPlaybackCachePreparation(), true);
-	assert.equal(harness.state.playbackCacheAbort, null);
+	assert.equal(harness.state.playbackCacheRefreshAbort, null);
 	staleRefresh.resolve(cacheEntry('too-late', { channels: [new Float32Array(4)] }));
 	await assert.rejects(staleRefreshes[0]!, { name: 'AbortError' });
 	await Promise.resolve();
@@ -136,6 +137,7 @@ function createHarness(
 	const state: ClipTimePitchPlaybackState = {
 		playbackCacheGeneration: 0,
 		playbackCacheAbort: null,
+		playbackCacheRefreshAbort: null,
 		recordingStarting: false,
 		recorder: null,
 	};

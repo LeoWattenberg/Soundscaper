@@ -116,6 +116,7 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		recordingPoolSources: [] as unknown[],
 		inputMeters: {},
 		playbackCacheAbort: null,
+		playbackCacheRefreshAbort: null,
 		playbackCacheGeneration: 0,
 		playAtSpeedRate: 1,
 		playAtSpeedAbort: null,

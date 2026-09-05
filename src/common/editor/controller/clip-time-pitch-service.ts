@@ -47,7 +47,10 @@ export interface ClipTimePitchCachePort {
 
 export interface ClipTimePitchPlaybackState {
 	playbackCacheGeneration: number;
+	/** A preparation playback is still waiting on, so pressing play again cancels it. */
 	playbackCacheAbort: AbortController | null;
+	/** A refresh rendering behind playback that already started on a stale cache. */
+	playbackCacheRefreshAbort: AbortController | null;
 	recordingStarting: boolean;
 	recorder: unknown;
 }
@@ -289,6 +292,10 @@ export function createClipTimePitchCacheService<
 			assertOwned(projectToken, abort.signal);
 			if (refreshes.length) {
 				background = true;
+				if (generation === dependencies.state.playbackCacheGeneration) {
+					dependencies.state.playbackCacheAbort = null;
+					dependencies.state.playbackCacheRefreshAbort = abort;
+				}
 				void Promise.all(refreshes)
 					.then(async () => {
 						assertPreparationOwned(snapshot, projectToken, generation, abort.signal);
@@ -302,7 +309,7 @@ export function createClipTimePitchCacheService<
 					.catch(handlePlaybackCacheError)
 					.finally(() => {
 						if (generation === dependencies.state.playbackCacheGeneration) {
-							dependencies.state.playbackCacheAbort = null;
+							dependencies.state.playbackCacheRefreshAbort = null;
 						}
 					});
 			}
@@ -316,9 +323,11 @@ export function createClipTimePitchCacheService<
 
 	function cancelPlaybackCachePreparation(): boolean {
 		dependencies.state.playbackCacheGeneration += 1;
-		const active = dependencies.state.playbackCacheAbort;
+		const active = dependencies.state.playbackCacheAbort
+			?? dependencies.state.playbackCacheRefreshAbort;
 		active?.abort(new DOMException('Playback cache preparation was cancelled.', 'AbortError'));
 		dependencies.state.playbackCacheAbort = null;
+		dependencies.state.playbackCacheRefreshAbort = null;
 		return active !== null;
 	}
 
