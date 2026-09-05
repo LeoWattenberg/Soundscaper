@@ -19,8 +19,22 @@ import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { chunkGroupForModulePath } from '../../scripts/lib/build-chunk-groups.mjs';
+import { PRODUCT_BOOTSTRAPS } from '../../scripts/lib/startup-graph-budget.mjs';
 
 const REPOSITORY_ROOT = fileURLToPath(new URL('../../', import.meta.url));
+
+/**
+ * The modules a page runs before it can show anything, taken from the build's own list.
+ *
+ * `src/main.jsx` is what `index.html` loads. The two product bootstraps are the dynamic
+ * entries the site shell mounts a route with, and each is a graph root in its own right -
+ * they are the exact module ids the startup budgets are measured against, so they are read
+ * from `PRODUCT_BOOTSTRAPS` rather than restated here.
+ */
+const EAGER_ENTRY_MODULES: readonly string[] = [
+	'src/main.jsx',
+	...Object.values(PRODUCT_BOOTSTRAPS).map((moduleId) => moduleId.replace(/^\//u, '')),
+];
 
 export const EAGER_CHUNK_GROUPS: ReadonlySet<string> = new Set([
 	'editor-codec-foundations',
@@ -35,6 +49,17 @@ export const EAGER_CHUNK_GROUPS: ReadonlySet<string> = new Set([
 	'editor-storage-model',
 	'editor-timeline',
 	'framescaper-project-foundations',
+	// The four groups below are the rest of the two products' boot-time composition, split
+	// off their foundations for chunk size rather than to defer them. Each is reached
+	// statically from a product bootstrap while it builds its controller - the Framescaper
+	// bootstrap's static import of the timeline-image chunk is written into
+	// `assertFramescaperBootstrapChunkIsAcyclic` - so treating them as lazy said the boot
+	// graph contained neither the Soundscaper project foundations nor any Framescaper
+	// command, clipboard or timeline-image code, which is the opposite of what ships.
+	'framescaper-project-commands',
+	'framescaper-session-clipboard',
+	'framescaper-timeline-images',
+	'soundscaper-project-foundations',
 	// Owned apart from `editor-domain` so the standalone transfer pages can read the
 	// identity tuple without loading an editor chunk. These facades have no static
 	// editor dependencies, and the shell loads them at startup, so they are eager.
@@ -54,6 +79,7 @@ const STATIC_IMPORT_PATTERN = /^import\s+(?!type\b)([\s\S]*?)from\s+(?:'(\.[^']+
 // `export function`, `export const` and `export class` open a line in nearly every module
 // and a lazy clause would happily run from one of those to the `from` of a later statement.
 const RE_EXPORT_PATTERN = /^export\s+(?!type\b)(\*(?:\s+as\s+[\p{ID_Start}$_][\p{ID_Continue}$]*)?|\{[^}]*\})\s*from\s*(?:'(\.[^']+)'|"(\.[^"]+)")/gmu;
+const DYNAMIC_IMPORT_PATTERN = /\bimport\(\s*(?:'(\.[^']+)'|"(\.[^"]+)")/gu;
 
 /**
  * Unowned targets whose reachability placement has been reasoned about, and why.
@@ -162,7 +188,49 @@ export const REACHABILITY_PLACED_TARGETS: ReadonlyMap<string, string> = new Map(
 		'desktop/bundled-wavpack-stream.ts',
 		'Bundled desktop WavPack stream parser reached only through `browser-dedicated-audio-codec.ts` inside the dedicated audio worker entry.',
 	],
+	// The six leaves below became visible when the Framescaper command, clipboard and
+	// timeline-image groups were classified eager, which is what they are. Each is a shared
+	// leaf of the Framescaper bootstrap's own composition: `FRAMESCAPER_BOOTSTRAP_COMPOSITION_LEAVES`
+	// pins the property that makes their placement safe, so these reasons are measured
+	// rather than asserted.
+	[
+		'src/framescaper/editor-project-retime-runtime.ts',
+		'Retime runtime projection the finishing runtime and the eagerly composed retime export chain share; no dynamic import reaches it.',
+	],
+	[
+		'src/framescaper/editor-project-finishing-source-rebind.ts',
+		'Finishing half of the source rebind the timeline-image rebind extends, reached only from that eagerly composed module.',
+	],
+	[
+		'src/framescaper/editor-scape-asset-import-finishing.ts',
+		'Finishing asset import the eagerly composed timeline-image asset import extends, reached only from it and its finishing sibling.',
+	],
+	[
+		'src/framescaper/editor-scape-assets-finishing.ts',
+		'Finishing asset inventory the eagerly composed timeline-image asset inventory extends, reached only from it.',
+	],
+	[
+		'src/framescaper/selected-finishing-exact-frame-support.ts',
+		'Exact-frame support shared by the finishing execution and the eagerly composed timeline-image export execution; no dynamic import reaches it.',
+	],
 ]);
+
+/**
+ * The unowned Framescaper leaves whose placement rests on one measured fact.
+ *
+ * Each is reached only by modules the Framescaper bootstrap composes eagerly, and by no
+ * dynamic import anywhere in the tree, so no lazy entry can claim it and pull an eagerly
+ * owned importer's chunk in behind it. `tests/audio-editor-build-chunk-eager-reachability.test.ts`
+ * re-measures that on every run, which is what keeps the reasons above from decaying into
+ * a comment that used to be true.
+ */
+export const FRAMESCAPER_BOOTSTRAP_COMPOSITION_LEAVES: readonly string[] = [
+	'src/framescaper/editor-project-retime-runtime.ts',
+	'src/framescaper/editor-project-finishing-source-rebind.ts',
+	'src/framescaper/editor-scape-asset-import-finishing.ts',
+	'src/framescaper/editor-scape-assets-finishing.ts',
+	'src/framescaper/selected-finishing-exact-frame-support.ts',
+];
 
 /** The relative specifiers one module's source imports for value, in source order. */
 export function staticRelativeImports(source: string): readonly string[] {
@@ -205,12 +273,63 @@ export function sourceModules(directory: string): readonly string[] {
 }
 
 /**
+ * Every module the eager entries reach through static imports and re-exports alone.
+ *
+ * Ownership answers "which chunk is this module emitted into", never "is this module
+ * downloaded during boot". For a module with an owner the two coincide, because the owner
+ * is a named group the eager set classifies. For a module with no owner they do not: it is
+ * placed by reachability, so the only way to know whether it boots is to walk the graph the
+ * bundler walks. A dynamic import is deliberately not followed - that is the boundary this
+ * whole helper exists to police.
+ */
+export function eagerlyReachableModules(): ReadonlySet<string> {
+	if (eagerlyReachable) return eagerlyReachable;
+	const reached = new Set<string>();
+	const pending = EAGER_ENTRY_MODULES.map((path) => resolve(REPOSITORY_ROOT, path))
+		.filter((absolute) => existsSync(absolute));
+	for (const entry of pending) reached.add(entry);
+	while (pending.length > 0) {
+		const current = pending.pop()!;
+		for (const specifier of staticRelativeDependencies(readFileSync(current, 'utf8'))) {
+			const target = resolveRelativeModule(current, specifier);
+			if (!target || reached.has(target)) continue;
+			reached.add(target);
+			pending.push(target);
+		}
+	}
+	eagerlyReachable = reached;
+	return reached;
+}
+
+let eagerlyReachable: ReadonlySet<string> | null = null;
+
+/**
+ * Whether one module's code is downloaded during startup, by ownership or by reachability.
+ *
+ * An owned module answers from its group. An unowned one has to be walked to, because
+ * nothing about its filename says which side of the boundary it landed on.
+ */
+export function isEagerlyLoadedModule(path: string): boolean {
+	const owner = ownerName(path);
+	if (owner !== null) return EAGER_CHUNK_GROUPS.has(owner);
+	return eagerlyReachableModules().has(resolve(REPOSITORY_ROOT, path));
+}
+
+/**
  * The `importer [group] -> target [group]` crossings found under `roots`.
  *
  * A target with no owner is reported as `[unowned]` rather than skipped: it is
  * the half of the boundary reachability decides, so it is the half that fails
  * silently. `reasoned` names the unowned targets whose placement has been argued
  * through; pass an empty set to see the whole list.
+ *
+ * An importer with no owner counts as eager when the eager entries reach it statically.
+ * Skipping those was how `src/soundscaper/video-export-strategy.ts` could statically import
+ * the lazily owned export projection unseen: the strategy is composed while the Soundscaper
+ * controller is built, so the whole optional export chunk was a boot dependency, and the
+ * guard could not say so because the strategy itself has no owner. Between two unowned
+ * modules there is nothing to report - neither has a chunk of its own for the other to drag
+ * in, and reachability places them together.
  */
 export function eagerImportsOfLazyOwners(
 	roots: readonly string[],
@@ -225,7 +344,7 @@ export function eagerImportsOfLazyOwners(
 		if (workerEntries.has(absolute)) continue;
 		const path = relative(REPOSITORY_ROOT, absolute).split(sep).join('/');
 		const owner = ownerName(path);
-		if (owner === null || !EAGER_CHUNK_GROUPS.has(owner)) continue;
+		if (!isEagerlyLoadedModule(path)) continue;
 		for (const specifier of staticRelativeDependencies(readFileSync(absolute, 'utf8'))) {
 			const target = resolveRelativeModule(absolute, specifier);
 			if (!target) continue;
@@ -233,13 +352,22 @@ export function eagerImportsOfLazyOwners(
 			if (reasoned.has(targetPath)) continue;
 			const targetOwner = ownerName(targetPath);
 			if (targetOwner !== null && EAGER_CHUNK_GROUPS.has(targetOwner)) continue;
-			crossings.push(`${path} [${owner}] -> ${targetPath} [${targetOwner ?? 'unowned'}]`);
+			if (owner === null && targetOwner === null) continue;
+			crossings.push(`${path} [${owner ?? 'unowned, eagerly reachable'}] -> ${targetPath} [${targetOwner ?? 'unowned'}]`);
 		}
 	}
 	return [...new Set(crossings)].sort();
 }
 
-function resolveRelativeModule(fromPath: string, specifier: string): string | null {
+/** The relative specifiers one module's source reaches through `import(...)`, in source order. */
+export function dynamicRelativeImports(source: string): readonly string[] {
+	const specifiers: string[] = [];
+	for (const match of source.matchAll(DYNAMIC_IMPORT_PATTERN)) specifiers.push((match[1] ?? match[2])!);
+	return specifiers;
+}
+
+/** The module one relative specifier names, resolved the way the bundler resolves it. */
+export function resolveRelativeModule(fromPath: string, specifier: string): string | null {
 	const base = resolve(dirname(fromPath), specifier);
 	for (const candidate of [base, `${base}.ts`, `${base}.tsx`, `${base}.js`, `${base}.jsx`]) {
 		if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
