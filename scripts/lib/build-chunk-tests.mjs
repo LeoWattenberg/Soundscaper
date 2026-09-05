@@ -13,8 +13,8 @@
  */
 
 export const editorPath = String.raw`src[\\/]common[\\/]editor[\\/]`;
-const editorOptionalArchiveModule = String.raw`(?:aup-legacy(?:-block-budget|-conversion|-xml)?|aup4-(?:client|opaque-merge|opaque-persistence|profile-values|profile|sanitization|track-nodes)|audacity-(?:annotation-interchange|tempo-import)|dawproject-(?:archive|export(?:-context|-lanes)?|format|import(?:-maps|-project|-structure|-timeline)?|xml)|scape-(?:archive-(?:copy|layout(?:-witness)?|manifest|reader)|export-destination|import-capacity|import-transaction|project-admission|project-source-remap)|scape-project(?:-canonical-inspection|-timing-assets)?)`;
-const editorOptionalExecutionModule = String.raw`(?:analysis|browser-(?:dedicated-audio-worker-client|webcodecs-aac)|pffft|selection-effects-runtime|spectral-edit(?:-admission)?|video-(?:keyframe-mediabunny-execution|mediabunny-muxer))`;
+const editorOptionalArchiveModule = String.raw`(?:aup-legacy(?:-block-budget|-conversion|-xml)?|aup4-(?:client|opaque-merge|opaque-persistence|profile-values|profile|sanitization|time-signature|track-nodes)|audacity-(?:annotation-interchange|tempo-import)|dawproject-(?:archive|export(?:-context|-lanes)?|format|import(?:-maps|-project|-structure|-timeline)?|xml)|scape-(?:archive-(?:copy|layout(?:-witness)?|manifest|reader)|export-destination|import-capacity|import-transaction|project-admission|project-source-remap)|scape-project(?:-canonical-inspection|-timing-assets)?)`;
+const editorOptionalExecutionModule = String.raw`(?:analysis|browser-(?:dedicated-audio-worker-client|webcodecs-aac)|loudness-measurement-report|pffft|selection-effects-runtime|spectral-edit(?:-admission)?|video-(?:keyframe-mediabunny-execution|mediabunny-muxer))`;
 const editorOptionalExportControllerModule = String.raw`(?:audio-export-delivery-admission|audio-export-render-orchestration|audio-realtime-encoded-export|audio-rendered-fallback-export|bw64-render-project|delivery-conformance-action|desktop-audio-export-capability|direct-(?:aiff-export|audio-render-plan|broadcast-wave-export|bw64-export|bwf-export|compressed-export|compressed-plan|compressed-stem-archive-plan|export-dispatch|mp3-export|native-stem-archive-plan|offline-compressed-export|offline-pcm-export|pcm-export|stem-archive-export|video-export|video-plan-contract|wav-export)|export-service|mastering-sequence-export-render|persistent-audio-delivery-execution|persistent-export-progress|realtime-export-pcm-transform|rendered-audio-encoding|streaming-stem-archive-export|video-export-captions|video-export-original-loader|video-export-service|video-export-staged-audio|video-rendered-fallback-export)`;
 /**
  * Flat editor modules the lazy export slice alone renders through.
@@ -24,8 +24,16 @@ const editorOptionalExportControllerModule = String.raw`(?:audio-export-delivery
  * owner claims, so every byte of it sat in both products' startup graphs for an
  * export nobody had opened. A flat module is claimed by the domain group by
  * default, which is eager, so escaping that default takes a name here.
+ *
+ * The other four arrived the same way and were found the same way, by reading every
+ * importer rather than every chunk: `controller/export-service.ts` and
+ * `controller/delivery-conformance-action.ts` are the only value importers of
+ * `delivery-conformance.ts`, and `controller/video-export-service.ts` is the only one of
+ * the conversion inventory, the burn-in font loader and the encoder tier. Note that
+ * `video-burn-in-font-subsets.ts` is a different module the caption pipeline reads
+ * eagerly; the trailing `\.ts$` anchor is what keeps it out of this alternation.
  */
-const editorOptionalExportFlatModule = String.raw`(?:loudness-normalization-render)`;
+const editorOptionalExportFlatModule = String.raw`(?:delivery-conformance|delivery-video-conversion-inventory|loudness-normalization-render|video-burn-in-font|video-delivery-encoder-tier)`;
 export const editorOptionalControllerModule = String.raw`(?:analysis-service|cross-product-handoff-action|dawproject-service|${editorOptionalExportControllerModule})`;
 /**
  * The Framescaper capture and Web VCR implementation, loaded when a capture
