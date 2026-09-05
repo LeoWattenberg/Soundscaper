@@ -27,7 +27,7 @@ export interface CrossProductHandoffActionScope {
 	readonly store: unknown;
 	readonly fileService: Readonly<{
 		saveFile(request: Readonly<{
-			purpose: 'project' | 'report'; blob: Blob; suggestedName: string; mimeType: string;
+			purpose: 'project-copy' | 'report'; blob: Blob; suggestedName: string; mimeType: string;
 			signal: AbortSignal; useFileSystemAccess: boolean;
 		}>): PromiseLike<unknown> | unknown;
 	}>;
@@ -106,7 +106,7 @@ export async function saveCrossProductEditableCopy(
 	});
 	const reportBytes = encodeCrossProductHandoffReportSidecar(sidecar);
 	const saved = await scope.fileService.saveFile({
-		purpose: 'project',
+		purpose: 'project-copy',
 		blob: exported.blob,
 		suggestedName: suggestedFileName,
 		mimeType: SCAPE_MIME_TYPE,

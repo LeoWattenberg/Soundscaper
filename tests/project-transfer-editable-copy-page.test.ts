@@ -140,7 +140,7 @@ test('the desktop fallback saves the converted archive with the destination suff
 		fileService: { saveFile: (request) => {
 			calls.push(`save:${request.purpose}`);
 			savedRequests.push(request as unknown as Record<string, unknown>);
-			return request.purpose === 'project'
+			return request.purpose === 'project-copy'
 				? { cancelled: false, fileName: 'Desktop copy chosen.fscape' }
 				: { cancelled: false, fileName: request.suggestedName };
 		} },
@@ -158,7 +158,7 @@ test('the desktop fallback saves the converted archive with the destination suff
 			},
 		} as never),
 	});
-	assert.deepEqual(calls, ['assert', 'flush', 'export:desktop-source', 'save:project', 'save:report']);
+	assert.deepEqual(calls, ['assert', 'flush', 'export:desktop-source', 'save:project-copy', 'save:report']);
 	assert.equal(savedRequests[0]?.suggestedName, 'Desktop mix.fscape');
 	assert.equal(savedRequests[1]?.suggestedName, 'Desktop copy chosen.fscape.conversion-report.json');
 	const sidecar = JSON.parse(await (savedRequests[1]?.blob as Blob).text()) as {
@@ -186,7 +186,7 @@ test('the desktop fallback names a confirmed archive when its companion save is 
 		store: {},
 		fileService: { saveFile: (request) => {
 			calls.push(request.purpose);
-			if (request.purpose === 'project') {
+			if (request.purpose === 'project-copy') {
 				return { cancelled: false, fileName: 'Chosen partial.fscape' };
 			}
 			throw new Error('report picker failed');
@@ -213,7 +213,7 @@ test('the desktop fallback names a confirmed archive when its companion save is 
 		assert.match(String((error as Error).message), /Chosen partial\.fscape.*saved.*report.*not confirmed/iu);
 		return true;
 	});
-	assert.deepEqual(calls, ['project', 'report']);
+	assert.deepEqual(calls, ['project-copy', 'report']);
 });
 
 test('the desktop fallback propagates caller cancellation without saving or releasing ownership', async () => {

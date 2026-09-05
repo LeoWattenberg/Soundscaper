@@ -52,6 +52,12 @@ const SAVE_PURPOSES = Object.freeze({
 		defaultExtension: NATIVE_PROJECT_EXTENSION,
 		filters: [{ name: 'Scape project', extensions: [NATIVE_PROJECT_EXTENSION] }],
 	}),
+	// A cross-product handoff writes the *destination* family's project, so its
+	// panel has to admit every accepted suffix rather than the one this build saves.
+	'project-copy': Object.freeze({
+		defaultExtension: NATIVE_PROJECT_EXTENSION,
+		filters: [{ name: 'Scape projects', extensions: [...PROJECT_EXTENSIONS] }],
+	}),
 	aup4: Object.freeze({ defaultExtension: 'aup4', filters: [{ name: 'Audacity interchange', extensions: ['aup4'] }] }),
 	'audio-pcm-mix': Object.freeze({
 		defaultExtension: 'wav',
