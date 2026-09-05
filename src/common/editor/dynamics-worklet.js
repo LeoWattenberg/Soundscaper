@@ -8,7 +8,10 @@ export class DynamicsProcessor extends (globalThis.AudioWorkletProcessor || clas
 		this.params = settings.params || {};
 		this.envelope = this.type === 'gate' ? dbToGain(this.params.rangeDb ?? -80) : 1;
 		this.holdFrames = 0;
-		this.lookaheadFrames = Math.max(0, Math.round((this.params.lookahead || 0) * globalThis.sampleRate));
+		// The PDC plan compensates sibling paths by ceil(lookahead * sampleRate)
+		// (engine/effect-rack.ts effectLatencyFrames), so the ring must delay by
+		// exactly that many frames or a limited strip arrives ahead of its siblings.
+		this.lookaheadFrames = Math.max(0, Math.ceil((this.params.lookahead || 0) * globalThis.sampleRate));
 		this.rings = [];
 		this.writeIndex = 0;
 	}
