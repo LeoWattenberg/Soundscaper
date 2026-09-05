@@ -6,12 +6,26 @@ Both products depend on shared code in `src/common/`; the editor domain lives in
 
 New stateful editor coordination belongs in strict TypeScript under
 `src/common/editor/controller/`. Controllers may depend on editor domain and
-platform adapters, but must not import React UI. Production source must never
-import `tests/`. Within the editor, import the narrow owning module directly.
-`index.js` and `facade.ts` form the curated external facade; editor
-implementation modules may not import it. The former `app.js`/`index.js` cycle
-has been removed, and the architecture check prevents any cycle from returning
-while enforcing the core-to-UI boundary.
+platform adapters, but must not import React UI -- including for a type, which
+the rules now see. Domain vocabulary a controller needs therefore does not live
+in `ui/`: the local assistance types are in `src/common/editor/assistance/`, and
+a shape both a presentation module and editor core name gets its own contract
+module beside the domain rather than inside the surface that happens to use it.
+Production source must never import `tests/`. Within the editor, import the
+narrow owning module directly. `index.js` and `facade.ts` form the curated
+external facade; editor implementation modules may not import it. The former
+`app.js`/`index.js` cycle has been removed, and the architecture check prevents
+any cycle from returning while enforcing the core-to-UI boundary.
+
+The rules live in `.dependency-cruiser.cjs`, and `npm run check:architecture`
+cruises `src`, `desktop` and `native` -- all three, because `desktop/` is not
+only the Electron main process. It is also where the renderer/main contracts and
+the bundled stream parsers live, and browser code reads them. That boundary is
+one-way and enumerated: `src/` may import the eight shared desktop modules named
+at the top of the configuration and nothing else under `desktop/`, may not
+import any desktop module that imports `electron`, and may not name `electron`
+itself. `desktop/` and `native/` are held to the no-React and no-`tests/` rules
+alongside `src/`.
 
 Remaining large legacy modules and integration suites are ratcheted in
 `config/maintainability-allowlist.json`. Their limits capture the reviewed

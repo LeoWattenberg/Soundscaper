@@ -48,7 +48,7 @@
 		"typecheck:sources": "tsc -p tsconfig.json && tsc -p tsconfig.desktop-runtime.json --noEmit && npm run typecheck:javascript",
 		"typecheck:tests": "tsc -p tsconfig.tests.json && tsc -p tsconfig.tooling.json",
 		"typecheck:javascript": "node scripts/check-checked-javascript.mjs && tsc -p tsconfig.javascript.json",
-		"check:architecture": "dependency-cruiser src && node scripts/check-file-size.mjs",
+		"check:architecture": "dependency-cruiser src desktop native && node scripts/check-file-size.mjs",
 		"check:size:tighten": "node scripts/check-file-size.mjs --tighten",
 		"check:startup-graph:tighten": "node scripts/tighten-startup-graph.mjs",
 		"check:notices": "node scripts/check-third-party-notices.mjs",

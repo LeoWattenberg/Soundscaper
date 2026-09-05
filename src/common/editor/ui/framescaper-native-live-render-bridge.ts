@@ -1,15 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { NativeQueueInputFingerprintV1 } from '../native-queue-record.ts';
+import type { FramescaperNativeLiveRenderInputRoleV1 } from
+	'../framescaper-native-live-render-role-v1.ts';
+
+export type { FramescaperNativeLiveRenderInputRoleV1 } from
+	'../framescaper-native-live-render-role-v1.ts';
 
 export interface FramescaperNativeLiveRenderInputAudioV1 {
 	readonly role: 'staged-audio-mix';
 	readonly byteLength: number;
 }
-
-export type FramescaperNativeLiveRenderInputRoleV1 =
-	| 'evaluated-rgba-frame-pack'
-	| 'staged-audio-mix';
 
 export interface FramescaperNativeLiveRenderInputStageRequestV1 {
 	readonly liveRenderVersion: 1;

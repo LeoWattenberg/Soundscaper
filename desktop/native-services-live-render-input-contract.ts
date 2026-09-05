@@ -4,7 +4,8 @@
 
 import { nativeRgbaFramePackV1ByteLength } from '../src/common/editor/native-rgba-frame-pack-v1-contract.ts';
 import type { NativeQueueInputFingerprintV1 } from '../src/common/editor/native-queue-record.ts';
-import type { FramescaperNativeLiveRenderInputRoleV1 } from '../src/common/editor/ui/framescaper-native-live-render-bridge.ts';
+import type { FramescaperNativeLiveRenderInputRoleV1 } from
+	'../src/common/editor/framescaper-native-live-render-role-v1.ts';
 import {
 	nativeRenderInputClosedRecord,
 	nativeRenderInputDigestValue,
