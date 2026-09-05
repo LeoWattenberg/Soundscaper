@@ -246,6 +246,7 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 			respectMuteSolo: true,
 			effectAnalysis: true,
 			monitoring: true,
+			graph: this.projectGraphSelection ?? undefined,
 			parametricEqWasmModule: getParametricEqWasmModule(context),
 			onParametricEqError: (error) => this[ENGINE_EMIT_PARAMETRIC_EQ_ERROR](error),
 			},

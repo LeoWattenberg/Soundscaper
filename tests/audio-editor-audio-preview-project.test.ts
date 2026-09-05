@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createAudioPreviewProject } from '../src/common/editor/engine/audio-preview-project.ts';
+import { resolveProjectGraphSelection } from '../src/common/editor/engine/project-graph-selection.ts';
 
 test('audio preview projects are schema-less engine models, not persisted project generations', () => {
 	const project = createAudioPreviewProject({
@@ -26,5 +27,16 @@ test('audio preview projects are schema-less engine models, not persisted projec
 	assert.deepEqual(project.sources?.map(({ id }) => id), ['source']);
 	assert.deepEqual(project.clips?.map(({ id }) => id), ['clip']);
 	assert.deepEqual(project.tracks?.map(({ id }) => id), ['track']);
-	assert.deepEqual(project.mixer, { groups: [], sends: [], routes: {} });
+	// Routing is engine input, not document identity: the preview carries the
+	// production mixer surface so it compiles through the same graph builder as
+	// the playback it stands in for, while staying schema-less as a document.
+	assert.deepEqual(project.automationLanes, []);
+	assert.deepEqual(project.mixer?.groups, []);
+	assert.deepEqual(project.mixer?.sends, []);
+	assert.deepEqual(
+		(project.mixer as unknown as Readonly<{ edges: readonly { id: string }[] }>)
+			.edges.map(({ id }) => id),
+		['assignment:track:track:master', 'assignment:master:output:main'],
+	);
+	assert.equal(resolveProjectGraphSelection(project), 'v21');
 });

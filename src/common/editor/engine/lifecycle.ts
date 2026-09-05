@@ -28,6 +28,7 @@ import {
 	inheritTrackFolderMediaStateProjectionV12,
 	projectTrackFolderMediaStateV12,
 } from '../track-folder-media-runtime.ts';
+import { resolveProjectGraphSelection } from './project-graph-selection.ts';
 import { resolveRuntimeProjectProjection } from '../runtime-clip-projection.ts';
 import {
 	ENGINE_ASSERT_ACTIVE,
@@ -109,6 +110,7 @@ export function initializeEngineRuntime(
 	engine.chunkStreamClientFactory = chunkStreamClientFactory || (() => new ChunkStreamClient());
 	engine.chunkAudioNodeFactory = chunkAudioNodeFactory || createChunkStreamAudioNode;
 	engine.project = null;
+	engine.projectGraphSelection = null;
 	engine.sources = new Map();
 	engine.chunkSources = new Map();
 	engine.context = null;
@@ -283,6 +285,11 @@ loadProject(project, sourceBuffers = new Map(), options = {}) {
 			? inheritTrackFolderMediaStateProjectionV12(mediaProject, resolvedProject)
 			: resolvedProject;
 		this.project = runtimeProject || null;
+		// One builder per session. Resolved here, and only here, so a scheduler,
+		// a scrub and a render of this project can never disagree about it.
+		this.projectGraphSelection = runtimeProject
+			? options.graph ?? resolveProjectGraphSelection(runtimeProject)
+			: null;
 		if (this.context && runtimeProject) {
 			configureNativeSurroundDestination(this.context.destination, Number(runtimeProject.masterChannels) || 2);
 		}
@@ -460,6 +467,7 @@ async [ENGINE_DISPOSE_RESOURCES]() {
 		this[ENGINE_CANCEL_SCRUB]();
 		this[ENGINE_HALT_GRAPH]();
 		this.project = null;
+		this.projectGraphSelection = null;
 		this.sources.clear();
 		this.chunkSources.clear();
 		this.positionListeners.clear();

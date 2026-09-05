@@ -68,7 +68,9 @@ test('the render path in particular asks the predicate', () => {
 	// Named explicitly because these are the files where getting it wrong makes
 	// playback and export disagree, which is a defect rather than a gap.
 	for (const file of [
-		'src/common/editor/engine/project-graph.ts',
+		// project-graph.ts no longer asks it directly: the answer is resolved once
+		// per session and threaded in, and this module is where that resolution lives.
+		'src/common/editor/engine/project-graph-selection.ts',
 		'src/common/editor/engine/project-automation-scheduler-v21.ts',
 		'src/common/editor/engine/transport-scheduler.ts',
 		'src/common/editor/controller/effect-audio-service.ts',

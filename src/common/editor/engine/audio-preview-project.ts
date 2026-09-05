@@ -1,13 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createDefaultMixerGraphV21 } from '../mixer-graph-v21.ts';
 import {
 	createAudioClip,
 	createAudioMaster,
-	createAudioMixerBus,
 	createAudioSource,
 	createAudioTrack,
 } from '../project-media-factory.ts';
-import type { EngineMixerRoute, EngineProject } from './types.ts';
+import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
+import type { EngineProject } from './types.ts';
 
 type DataObject = Readonly<object>;
 
@@ -19,16 +20,18 @@ export interface AudioPreviewProjectOptions {
 	readonly clips: readonly DataObject[];
 	readonly tracks: readonly DataObject[];
 	readonly master?: DataObject;
-	readonly mixer?: Readonly<{
-		readonly groups?: readonly DataObject[];
-		readonly sends?: readonly DataObject[];
-		readonly routes?: Readonly<Record<string, EngineMixerRoute>>;
-	}>;
 }
 
 /**
  * Build an audio-only engine model for audition and render work. This object is
  * deliberately schema-less: it is transient engine input, never a saved project.
+ *
+ * It does carry the production routing surface — a default V21 mixer graph over
+ * its own tracks, and an empty automation-lane list — because a preview, an
+ * effect-macro step and the take-comp flatten that commits audio must compile
+ * through the same graph builder as the playback they stand in for. Routing is
+ * engine input; the schema tuple is document identity, and this is not a
+ * document.
  */
 export function createAudioPreviewProject(
 	options: AudioPreviewProjectOptions,
@@ -38,13 +41,7 @@ export function createAudioPreviewProject(
 		options.masterChannels ?? 2,
 		'preview project masterChannels',
 	);
-	const groups = (options.mixer?.groups ?? []).map((bus, index) => (
-		createAudioMixerBus(bus, 'group', index)
-	));
-	const sends = (options.mixer?.sends ?? []).map((bus, index) => (
-		createAudioMixerBus(bus, 'send', index)
-	));
-	return {
+	const media = {
 		title: String(options.title ?? 'Audio preview'),
 		sampleRate,
 		masterChannels,
@@ -52,12 +49,19 @@ export function createAudioPreviewProject(
 		clips: options.clips.map((clip) => createAudioClip({ ...clip, kind: 'audio' })),
 		tracks: options.tracks.map((track) => createAudioTrack({ ...track, type: 'audio' }, sampleRate)),
 		master: createAudioMaster(options.master),
-		mixer: {
-			groups,
-			sends,
-			routes: clone(options.mixer?.routes ?? {}),
-		},
 		loop: { enabled: false, startFrame: 0, endFrame: 0 },
+	};
+	const trackWidths = resolveTerminalChannelWidths(media as never, masterChannels).tracks;
+	return {
+		...media,
+		automationLanes: [],
+		mixer: createDefaultMixerGraphV21(
+			media.tracks.map((track) => {
+				const id = String((track as Readonly<{ id?: unknown }>).id);
+				return { id, channelCount: trackWidths.get(id) ?? masterChannels };
+			}),
+			masterChannels,
+		),
 	};
 }
 
@@ -66,10 +70,4 @@ function positiveSafeInteger(value: unknown, name: string): number {
 		throw new RangeError(`${name} must be a positive safe integer.`);
 	}
 	return Number(value);
-}
-
-function clone<Value>(value: Value): Value {
-	if (value === undefined || value === null) return value;
-	if (typeof structuredClone === 'function') return structuredClone(value);
-	return JSON.parse(JSON.stringify(value)) as Value;
 }

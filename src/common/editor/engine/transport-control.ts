@@ -358,6 +358,7 @@ async scrub(frame, { durationMs = DEFAULT_SCRUB_FRAME_MS } = {}) {
 			metering: false,
 			respectMuteSolo: true,
 			monitoring: true,
+			graph: this.projectGraphSelection ?? undefined,
 			parametricEqWasmModule: getParametricEqWasmModule(context),
 			onParametricEqError: (error) => this[ENGINE_EMIT_PARAMETRIC_EQ_ERROR](error),
 		});

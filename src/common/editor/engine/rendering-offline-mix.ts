@@ -83,6 +83,7 @@ export async function renderMix(this: EngineRuntimeHost, {
 			trackId,
 			includeMaster,
 			sampleRate: this.sampleRate,
+			graph: this.projectGraphSelection ?? undefined,
 		});
 		const requestedLength = requestedOutputFrames == null
 			? Math.max(1, toFrame - fromFrame + tailFrames)
@@ -135,6 +136,7 @@ export async function renderMix(this: EngineRuntimeHost, {
 				trackId,
 				includeMaster,
 				includeTrackPan,
+				graph: this.projectGraphSelection ?? undefined,
 				parametricEqWasmModule: getParametricEqWasmModule(context),
 				onParametricEqError: (error) => {
 					this[ENGINE_EMIT_PARAMETRIC_EQ_ERROR](error);

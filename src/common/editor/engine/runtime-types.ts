@@ -8,6 +8,7 @@ import type {
 	EnginePublicApi,
 } from './public-api.ts';
 import type { ProjectGraph } from './project-graph.ts';
+import type { ProjectGraphSelection } from './project-graph-selection.ts';
 import type { EngineChunkSource, EngineProject, EngineSourceResolver } from './types.ts';
 import {
 	ENGINE_ASSERT_ACTIVE,
@@ -93,6 +94,8 @@ export interface EngineRuntimeHost extends EnginePublicApi {
 	chunkStreamClientFactory: () => ChunkStreamClientLike & { dispose?(): void };
 	chunkAudioNodeFactory: ChunkAudioNodeFactory;
 	project: EngineProject | null;
+	/** The builder every graph in this session compiles through; null while empty. */
+	projectGraphSelection: ProjectGraphSelection | null;
 	sources: Map<unknown, AudioBuffer>;
 	chunkSources: Map<string, EngineChunkSource>;
 	context: EngineAudioContext | null;

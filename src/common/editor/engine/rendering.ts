@@ -138,6 +138,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 				trackId,
 				includeMaster,
 				sampleRate: context.sampleRate,
+				graph: this.projectGraphSelection ?? undefined,
 			});
 			capture = new globalThis.AudioWorkletNode(context, 'kw-audio-render-capture', {
 				numberOfInputs: 1,
@@ -163,6 +164,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 				trackId,
 				includeMaster,
 				includeTrackPan,
+				graph: this.projectGraphSelection ?? undefined,
 				parametricEqWasmModule: getParametricEqWasmModule(context),
 				onParametricEqError: (error) => {
 					this[ENGINE_EMIT_PARAMETRIC_EQ_ERROR](error);

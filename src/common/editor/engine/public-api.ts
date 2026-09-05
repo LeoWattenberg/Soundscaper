@@ -3,6 +3,7 @@
 import type { NormalizedLoop, PlanarPcm } from './buffer-math.ts';
 import type { DynamicsAnalysisWindow } from './dynamics-analysis-telemetry.ts';
 import type { EffectSpectrumMetadata } from './effect-rack.ts';
+import type { ProjectGraphSelection } from './project-graph-selection.ts';
 import type { AudioWarpRenderPathStatus } from '../audio-warp-runtime.ts';
 import type { SessionLoudnessHistorySnapshot } from '../production-audio/loudness-history-session.ts';
 import type { StripMeterSnapshot } from '../production-audio/strip-meter-session.ts';
@@ -38,6 +39,12 @@ export interface EngineLoadProjectOptions {
 	 * project is not a new measurement session the way opening a project is.
 	 */
 	readonly preserveLoudnessMeasurement?: boolean;
+	/**
+	 * Pins the audio graph builder for the whole session. Omitted, the engine
+	 * resolves it once from the loaded project and every scheduler, scrub and
+	 * render call in that session compiles through the answer.
+	 */
+	readonly graph?: ProjectGraphSelection;
 }
 
 export interface EngineOutputDeviceState {

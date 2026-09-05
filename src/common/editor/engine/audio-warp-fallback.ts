@@ -352,6 +352,7 @@ function exactGraphLatencyFrames(
 		trackId,
 		includeMaster,
 		sampleRate: engine.sampleRate,
+		graph: engine.projectGraphSelection ?? undefined,
 	});
 }
 

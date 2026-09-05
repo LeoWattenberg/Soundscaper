@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { connectSurroundMonitoring } from '../surround-monitoring.ts';
-import { hasProductionMixerProjectAuthority } from '../project-schema-version.ts';
 import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
 import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
 import { stripParameterDescriptor } from '../effect-parameter-descriptors.ts';
@@ -28,6 +27,10 @@ import {
 import { activeRackEffects } from './project-effects.ts';
 import { compileProjectPdcPlan } from './project-pdc-plan.ts';
 import {
+	resolveProjectGraphSelection,
+	type ProjectGraphSelection,
+} from './project-graph-selection.ts';
+import {
 	buildProjectGraphV21,
 	projectGraphLatencyFramesV21,
 } from './project-graph-v21.ts';
@@ -43,6 +46,8 @@ export interface ProjectGraphLatencyOptions {
 	readonly trackId?: unknown;
 	readonly includeMaster?: boolean;
 	readonly sampleRate?: number;
+	/** The session's builder. Omitted, the project's own shape decides. */
+	readonly graph?: ProjectGraphSelection;
 }
 
 export function projectGraphLatencyFrames(
@@ -51,9 +56,10 @@ export function projectGraphLatencyFrames(
 		trackId = null,
 		includeMaster = true,
 		sampleRate = project?.sampleRate || DEFAULT_SAMPLE_RATE,
+		graph = resolveProjectGraphSelection(project),
 	}: ProjectGraphLatencyOptions = {},
 ): number {
-	if (project && hasProductionMixerProjectAuthority(project)) {
+	if (project && graph === 'v21') {
 		return projectGraphLatencyFramesV21(project, { trackId, includeMaster, sampleRate });
 	}
 	return compileProjectPdcPlan(project, { trackId, includeMaster, sampleRate }).latencyFrames;
@@ -108,6 +114,8 @@ export interface BuildProjectGraphOptions {
 	readonly monitoring?: boolean;
 	readonly parametricEqWasmModule?: WebAssembly.Module | null;
 	readonly onParametricEqError?: EffectRackOptions['onParametricEqError'];
+	/** The session's builder. Omitted, the project's own shape decides. */
+	readonly graph?: ProjectGraphSelection;
 }
 
 /** Build track, mixer, and master nodes and return per-track clip inputs. */
@@ -125,9 +133,10 @@ export function buildProjectGraph(
 		monitoring = false,
 		parametricEqWasmModule = null,
 		onParametricEqError,
+		graph = resolveProjectGraphSelection(project),
 	}: BuildProjectGraphOptions = {},
 ): ProjectGraph {
-	if (hasProductionMixerProjectAuthority(project)) {
+	if (graph === 'v21') {
 		return buildProjectGraphV21(context, destination, project, {
 			metering, respectMuteSolo, trackId: onlyTrackId, includeMaster, includeTrackPan,
 			effectAnalysis, monitoring, parametricEqWasmModule, onParametricEqError,
