@@ -32,6 +32,8 @@ export interface SoundscaperProjectHistory {
 	readonly present: SoundscaperProject;
 	readonly undoStack: readonly SoundscaperProjectHistoryEntry[];
 	readonly redoStack: readonly SoundscaperProjectHistoryEntry[];
+	/** Entries the limit has pushed off the bottom, so a macro depth survives them. */
+	readonly dropped: number;
 }
 
 const asBaseline = (state: SoundscaperProductionHistoryState): SoundscaperProjectHistory => (

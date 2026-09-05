@@ -24,6 +24,13 @@ export interface MutationHistoryEntry<Project> {
 export interface MutationHistory<Project extends MutationProject> {
 	readonly present: Project;
 	readonly undoStack?: readonly MutationHistoryEntry<Project>[];
+	/**
+	 * How many entries the history's limit has already pushed off the bottom of
+	 * the undo stack, for a history that counts them. A macro opens at a position
+	 * in the whole sequence of commits rather than at an index into the stack,
+	 * because its own steps shift that stack once the history is full.
+	 */
+	readonly dropped?: number;
 }
 
 export interface MutationRecordingRouting {
@@ -206,7 +213,8 @@ export function createProjectMutationService<
 		if (!collapse || !rollback) {
 			throw new Error('This project runtime does not run macros.');
 		}
-		const depth = requireHistory().undoStack?.length ?? 0;
+		const opened = requireHistory();
+		const depth = (opened.dropped ?? 0) + (opened.undoStack?.length ?? 0);
 		openMacroTransactions += 1;
 		let settled = false;
 		const settle = (next: (history: History) => History): Project => {
