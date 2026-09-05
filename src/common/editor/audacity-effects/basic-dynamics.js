@@ -19,6 +19,18 @@ import { dbToLinear } from './basic-channel-math.js';
 
 export const RMS_WINDOW_SIZE = 100;
 
+/*
+ * LegacyCompressorBase::TwoBufferProcessPass1 seeds mLastLevel from the peak of
+ * the first buffer alone, so that a large spike near the start of the track
+ * cannot make the follower open on silence. EffectTwoPassSimpleMono::ProcessOne
+ * sizes that buffer as min(GetMaxBlockSize(), GetBestBlockSize(start)), and
+ * GetMaxBlockSize() is Sequence::sMaxDiskBlockSize (1048576 bytes) divided by
+ * the stored sample size, i.e. 262144 frames for float32 storage. Scanning the
+ * whole selection instead would let a peak arbitrarily far in seed the envelope
+ * at frame zero, ducking the head for a whole release time.
+ */
+export const LEGACY_COMPRESSOR_SEED_FRAMES = 262_144;
+
 export function applyLinkedDynamics(channels, sampleRate, settings) {
 	const frameCount = channels[0].length;
 	const envelope = new Float64Array(frameCount);
@@ -93,7 +105,10 @@ export function applyLegacyCompressorChannel(channel, sampleRate, settings) {
 	let rmsSum = 0;
 	let noiseCounter = RMS_WINDOW_SIZE;
 	let lastLevel = threshold;
-	for (const sample of channel) lastLevel = Math.max(lastLevel, Math.abs(sample));
+	const seedEnd = Math.min(channel.length, LEGACY_COMPRESSOR_SEED_FRAMES);
+	for (let index = 0; index < seedEnd; index += 1) {
+		lastLevel = Math.max(lastLevel, Math.abs(channel[index]));
+	}
 
 	for (let index = 0; index < channel.length; index += 1) {
 		let level;
