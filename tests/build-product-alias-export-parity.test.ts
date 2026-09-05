@@ -179,6 +179,28 @@ test('the alias table substitutes every spelling of a substituted module', () =>
 	assert.deepEqual(uncovered, [], uncovered.join('\n'));
 });
 
+test('no substitution row could have been mirrored in tsconfig paths instead', () => {
+	// TypeScript consults `paths` for non-relative specifiers only, so a row keyed
+	// on the specifier an importer wrote relative to itself can never be mirrored
+	// there — which is why tsc analyses every substituted module by its default
+	// target and why the parity tests above exist. A row that ever stops being
+	// relative is one tsc could see, and should be mirrored rather than guarded.
+	const relativePrefixes = ['^(?:\\.\\/|\\.\\.\\/)', '^\\.\\/', '^\\.\\.\\/'];
+	const nonRelative = PRODUCT_STAND_IN_ALIASES
+		.filter((row) => !relativePrefixes.some((prefix) => row.find.source.startsWith(prefix)))
+		.map((row) => row.find.source);
+	assert.deepEqual(nonRelative, [], nonRelative.join('\n'));
+
+	const tsconfig = JSON.parse(
+		readFileSync(resolve(repositoryRoot, 'tsconfig.base.json'), 'utf8'),
+	) as { compilerOptions: { paths: Record<string, unknown> } };
+	assert.deepEqual(
+		Object.keys(tsconfig.compilerOptions.paths).filter((key) => key.startsWith('.')),
+		[],
+		'tsconfig paths never matches a relative specifier, so it must not claim to',
+	);
+});
+
 test('every alias row substitutes a module some source file actually imports', () => {
 	const unused = PRODUCT_STAND_IN_ALIASES.filter((row) => !modules.some(
 		({ imports }) => imports.some((entry) => row.find.test(entry.specifier)),

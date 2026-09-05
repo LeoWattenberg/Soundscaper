@@ -106,9 +106,17 @@ export default defineConfig({
 		// File-targeted public aliases plus an app-internal deep component alias.
 		// Public deep subpath imports remain unsupported. The product substitution
 		// rows live in scripts/lib/product-aliases.mjs so the export-parity guard
-		// reads the same table this build resolves through; tsconfig.base.json
-		// "paths" mirrors only the design-system rows, so tsc, editors and tsx-run
-		// node tests see every module by its default (unsubstituted) target.
+		// reads the same table this build resolves through.
+		//
+		// Only the design-system rows are mirrored in tsconfig.base.json "paths",
+		// and the substitution rows cannot join them: `paths` is consulted for
+		// non-relative specifiers only, while every substitution row keys on the
+		// relative specifier its importer wrote, and one `paths` map could not
+		// answer two products' substitutions in opposite directions anyway. So
+		// tsc, editors, dependency-cruiser and tsx-run node tests all see the
+		// default (unsubstituted) target, and the stand-ins are analysed against
+		// no consumer. tests/build-product-alias-export-parity.test.ts is what
+		// stands in for the check the compiler cannot make.
 		alias: productResolveAliases({
 			productId,
 			desktopCodecComposition,
