@@ -5,6 +5,7 @@ import type {
 	EditorProjectToken,
 	EditorTaskScope,
 } from './lifecycle.ts';
+import { EDITOR_PROJECT_TASK_SCOPE } from './lifecycle.ts';
 import { PROJECT_BIN_LINKED_ORIGINAL_RELINK_TASK } from './project-bin-linked-original-relink-task.ts';
 
 export const PROJECT_BIN_LINKED_VIDEO_RELINK_TASK = PROJECT_BIN_LINKED_ORIGINAL_RELINK_TASK;
@@ -205,7 +206,9 @@ export function createProjectBinLinkedVideoRelinkService(
 		try {
 			assertNotDisposed(disposed);
 			assertChangedContentInvalidation(relinkOptions.changedContentProxyInvalidation);
-			task = dependencies.lifetime.startTask(PROJECT_BIN_LINKED_VIDEO_RELINK_TASK);
+			task = dependencies.lifetime.startTask(PROJECT_BIN_LINKED_VIDEO_RELINK_TASK, {
+				scope: EDITOR_PROJECT_TASK_SCOPE,
+			});
 			const activeTask = task;
 			const project = dependencies.getProject();
 			projectToken = dependencies.captureProject();

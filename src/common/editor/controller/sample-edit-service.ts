@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
+import { EDITOR_PROJECT_TASK_SCOPE, type EditorControllerLifetime } from './lifecycle.ts';
+
+/** The registry name a sample edit holds while it writes its immutable source. */
+export const SAMPLE_EDIT_TASK = 'sample-edit';
 
 /**
  * Transitional ports for the sample-edit workflow. Property names are explicit
@@ -8,6 +12,7 @@ import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
  * undefined runtime value while the legacy project model is narrowed.
  */
 export interface SampleEditServiceRuntime {
+	readonly lifetime: Pick<EditorControllerLifetime, 'startTask'>;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	readonly activeSelection: (...args: any[]) => any;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -149,8 +154,10 @@ export function createSampleEditService(runtime: SampleEditServiceRuntime) {
 		if (!sampleEditingAvailable(clip.id)) throw new Error(copy.sampleEditZoomRequired);
 		const projectAtStart = getProject();
 		const sourceId = createStableId('sample-edit');
-		const abort = new AbortController();
-		state.sampleEditAbort?.abort();
+		// startTask replaces any sample edit still in flight and enrols this one
+		// in the project scope, so a project switch cancels it without the switch
+		// having to know that sample editing exists.
+		const abort = runtime.lifetime.startTask(SAMPLE_EDIT_TASK, { scope: EDITOR_PROJECT_TASK_SCOPE });
 		state.sampleEditAbort = abort;
 		state.sampleEditProcessing = true;
 		publishDocumentSnapshot();
@@ -202,6 +209,7 @@ export function createSampleEditService(runtime: SampleEditServiceRuntime) {
 			}
 			throw error;
 		} finally {
+			abort.finish();
 			if (state.sampleEditAbort === abort) state.sampleEditAbort = null;
 			state.sampleEditProcessing = false;
 			publishDocumentSnapshot();

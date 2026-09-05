@@ -69,17 +69,40 @@ export class EditorProjectGeneration {
 	}
 }
 
-export interface EditorTaskScope {
+/**
+ * The scope every cancellable that belongs to the open project carries. A
+ * project switch cancels the scope instead of enumerating task names, so a new
+ * subsystem joins the teardown by tagging its task rather than by being
+ * remembered in a separate list.
+ */
+export const EDITOR_PROJECT_TASK_SCOPE = 'project' as const;
+
+/** The abort surface a service can hand to callers or park in controller state. */
+export interface EditorCancellableHandle {
+	readonly signal: AbortSignal;
+	abort(reason?: unknown): void;
+}
+
+export interface EditorTaskScope extends EditorCancellableHandle {
 	readonly name: string;
 	readonly generation: number;
-	readonly signal: AbortSignal;
+	readonly scope: string | null;
 	assertCurrent(): void;
 	finish(): void;
 }
 
+export interface EditorTaskOptions {
+	readonly scope?: string | null;
+}
+
 interface ActiveTask {
 	readonly generation: number;
+	readonly scope: string | null;
 	readonly controller: AbortController;
+}
+
+function supersededTaskError(): DOMException {
+	return new DOMException('The editor task was superseded.', 'AbortError');
 }
 
 /**
@@ -147,16 +170,17 @@ export class EditorControllerLifetime {
 		this.#phase = 'disposed';
 	}
 
-	startTask(name: string): EditorTaskScope {
+	startTask(name: string, options: EditorTaskOptions = {}): EditorTaskScope {
 		this.assertActive();
 		const normalizedName = String(name || '').trim();
 		if (!normalizedName) throw new TypeError('Editor task scopes require a name.');
+		const scope = String(options.scope ?? '').trim() || null;
 		this.cancelTask(normalizedName);
 		const generation = ++this.#taskGeneration;
 		const controller = new AbortController();
 		const abortFromLifetime = () => controller.abort(this.signal.reason || new EditorDisposedError());
 		this.signal.addEventListener('abort', abortFromLifetime, { once: true });
-		const task = { generation, controller };
+		const task = { generation, scope, controller };
 		this.#tasks.set(normalizedName, task);
 		let finished = false;
 		const finish = () => {
@@ -168,24 +192,45 @@ export class EditorControllerLifetime {
 		return Object.freeze({
 			name: normalizedName,
 			generation,
+			scope,
 			signal: controller.signal,
+			abort: (reason: unknown = supersededTaskError()) => {
+				if (this.#tasks.get(normalizedName) === task) this.#tasks.delete(normalizedName);
+				controller.abort(reason);
+			},
 			assertCurrent: () => {
 				this.assertActive();
 				if (controller.signal.aborted || this.#tasks.get(normalizedName) !== task) {
 					throw controller.signal.reason instanceof Error
 						? controller.signal.reason
-						: new DOMException('The editor task was superseded.', 'AbortError');
+						: supersededTaskError();
 				}
 			},
 			finish,
 		});
 	}
 
-	cancelTask(name: string, reason: unknown = new DOMException('The editor task was superseded.', 'AbortError')): void {
+	cancelTask(name: string, reason: unknown = supersededTaskError()): void {
 		const task = this.#tasks.get(name);
 		if (!task) return;
 		this.#tasks.delete(name);
 		task.controller.abort(reason);
+	}
+
+	/**
+	 * Cancels every task tagged with the given scope. Teardown asks the registry
+	 * what is outstanding instead of carrying its own inventory of task names.
+	 */
+	cancelScope(scope: string, reason: unknown = supersededTaskError()): void {
+		const normalizedScope = String(scope || '').trim();
+		if (!normalizedScope) return;
+		// A listener may start replacement work while the scope drains, so the
+		// registry is snapshotted before anything is aborted.
+		for (const [name, task] of [...this.#tasks]) {
+			if (task.scope !== normalizedScope) continue;
+			if (this.#tasks.get(name) === task) this.#tasks.delete(name);
+			task.controller.abort(reason);
+		}
 	}
 }
 

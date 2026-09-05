@@ -15,7 +15,7 @@ import type {
 	EditorProjectToken,
 	EditorTaskScope,
 } from './lifecycle.ts';
-import { isEditorDisposedError } from './lifecycle.ts';
+import { EDITOR_PROJECT_TASK_SCOPE, isEditorDisposedError } from './lifecycle.ts';
 
 export interface AnalysisRange {
 	readonly startFrame: number;
@@ -331,7 +331,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 	}
 
 	function begin(message: string): EditorTaskScope {
-		const task = lifetime.startTask('analysis');
+		const task = lifetime.startTask('analysis', { scope: EDITOR_PROJECT_TASK_SCOPE });
 		dependencies.setProcessing(true);
 		dependencies.setStatus(message);
 		dependencies.publish();

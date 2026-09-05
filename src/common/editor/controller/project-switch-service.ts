@@ -1,11 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { EditorLifetimeToken } from './lifecycle.ts';
-import {
-	PLAYBACK_PROJECT_APPLY_TASK,
-	createPlaybackProjectService,
-} from './playback-project-service.ts';
-import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from './project-bin-linked-video-relink-service.ts';
+import { EDITOR_PROJECT_TASK_SCOPE, type EditorLifetimeToken } from './lifecycle.ts';
+import { createPlaybackProjectService } from './playback-project-service.ts';
 import { SCAPE_OPEN_REQUEST_TASK } from './scape-open-request-service.ts';
 import { SCAPE_INSPECTION_TASK } from './scape-inspection-service.ts';
 import type { ScapeInspectionFence } from './scape-inspection-quiescence.ts';
@@ -200,21 +196,19 @@ export function createProjectSwitchService<
 		let activeLock: ProjectLifecycleLock | null = null;
 		let switchFailure: unknown | typeof NO_PROJECT_SWITCH_FAILURE = NO_PROJECT_SWITCH_FAILURE;
 		try {
-			runtime.lifetime.cancelTask(PLAYBACK_PROJECT_APPLY_TASK);
-			runtime.lifetime.cancelTask(PROJECT_BIN_LINKED_VIDEO_RELINK_TASK);
+			// Cancellation is a registry query, not an inventory: everything the
+			// open project owns carries the project scope, so a subsystem joins
+			// this teardown by tagging its task rather than by being listed here.
+			runtime.lifetime.cancelScope(EDITOR_PROJECT_TASK_SCOPE);
 			runtime.projectGeneration.invalidate();
 			runtime.state.rackEffectGestures.clear();
 			runtime.state.parametricEqGestures.clear();
 			runtime.state.videoEffectGestures.clear();
-			runtime.lifetime.cancelTask('analysis');
-			runtime.lifetime.cancelTask('native-project-save');
 			runtime.cancelTimedRecording({ publish: false, status: false });
 			runtime.cancelRecordingStart();
-			runtime.state.exportAbort?.abort();
 			runtime.state.exportAbort = null;
-			runtime.state.nyquistAbort?.abort();
 			runtime.state.nyquistAbort = null;
-			runtime.state.sampleEditAbort?.abort();
+			runtime.state.sampleEditAbort = null;
 			runtime.state.sampleEditMode = null;
 			runtime.state.sampleEditAvailable = false;
 			runtime.cancelPlaybackCachePreparation();

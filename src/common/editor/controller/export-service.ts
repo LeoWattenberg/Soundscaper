@@ -2,6 +2,7 @@
 import { admitBrowserExportBlob, prepareBrowserExportBlob } from '../browser-export-output.ts';
 import { isVideoExportRequestFormat } from '../video-export-request-format.ts';
 import { inheritTrackFolderMediaStateProjectionV12 } from '../track-folder-media-runtime.ts';
+import { EDITOR_PROJECT_TASK_SCOPE } from './lifecycle.ts';
 import { createExportRenderProject } from './export-render-project.ts';
 import { createBw64RenderProject } from './bw64-render-project.ts';
 import {
@@ -158,7 +159,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		}
 		const generation = ++state.exportGeneration;
 		const projectToken = projectGeneration.capture(canonicalProject.id);
-		const exportTask = lifetime.startTask('export');
+		const exportTask = lifetime.startTask('export', { scope: EDITOR_PROJECT_TASK_SCOPE });
 		const abort = Object.freeze({ signal: exportTask.signal, abort: () => lifetime.cancelTask('export') });
 		const assertExportCurrent = () => {
 			throwIfAborted(abort.signal);

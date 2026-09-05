@@ -22,6 +22,7 @@ import {
 	inheritTrackFolderMediaStateProjectionV12,
 	projectTrackFolderMediaStateV12,
 } from '../track-folder-media-runtime.ts';
+import { EDITOR_PROJECT_TASK_SCOPE, type EditorTaskOptions } from './lifecycle.ts';
 import { createProjectFeatureCompatibilityService } from './project-feature-compatibility-service.ts';
 import type { PreparedRequiredProjectSources } from './source-lifecycle-service.ts';
 
@@ -124,7 +125,7 @@ export interface ApplyCanonicalProjectOptions {
 export interface PlaybackProjectApplyServiceRuntime<Project extends object>
 	extends ApplyCanonicalProjectRuntime<Project> {
 	readonly lifetime: Readonly<{
-		startTask(name: string): Readonly<{
+		startTask(name: string, options?: EditorTaskOptions): Readonly<{
 			readonly signal: AbortSignal;
 			finish(): void;
 		}>;
@@ -252,7 +253,9 @@ export function createPlaybackProjectApplyService<Project extends object>(
 	return Object.freeze({ apply });
 
 	async function apply(project: Project): Promise<boolean> {
-		const task = runtime.lifetime.startTask(PLAYBACK_PROJECT_APPLY_TASK);
+		const task = runtime.lifetime.startTask(PLAYBACK_PROJECT_APPLY_TASK, {
+			scope: EDITOR_PROJECT_TASK_SCOPE,
+		});
 		try {
 			return await applyCanonicalProjectToPlaybackEngine(project, runtime, { signal: task.signal });
 		} finally {

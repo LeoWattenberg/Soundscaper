@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { EditorDisposedError, type EditorProjectToken, type EditorTaskScope } from './lifecycle.ts';
+import { EditorDisposedError, type EditorProjectToken, type EditorTaskOptions, type EditorTaskScope } from './lifecycle.ts';
 import type { NativeProjectDocument, NativeProjectServiceRuntime } from './native-project-types.ts';
 
 /** A started operation, paired with the project generation it began against. */
@@ -51,12 +51,16 @@ export function createNativeProjectOwnership(runtime: NativeProjectServiceRuntim
 		return activeProject;
 	}
 
-	function beginProjectTask(name: string, expectedProjectId?: string): ProjectTask {
+	function beginProjectTask(
+		name: string,
+		expectedProjectId?: string,
+		options: EditorTaskOptions = {},
+	): ProjectTask {
 		assertNotDisposed();
 		const project = requireProject();
 		if (expectedProjectId && project.id !== expectedProjectId) throw projectChangedError();
 		return {
-			task: runtime.lifetime.startTask(name),
+			task: runtime.lifetime.startTask(name, options),
 			projectToken: runtime.projectGeneration.capture(project.id),
 		};
 	}

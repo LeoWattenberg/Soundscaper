@@ -18,6 +18,7 @@ import {
 	createAddSourceCommand,
 	createReplaceClipSourceCommand,
 } from '../src/common/editor/commands.js';
+import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
 import { createSampleEditService } from '../src/common/editor/controller/sample-edit-service.ts';
 import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source-chunk-provider-registry.ts';
 import {
@@ -352,6 +353,7 @@ function sampleEditServiceFixture({ activationFailure, cleanupFailure = null }) 
 		async rollback() { events.push('backing-rollback'); },
 	};
 	const service = createSampleEditService({
+		lifetime: new EditorControllerLifetime(),
 		activeSelection: () => null,
 		async activateStoredSource() {
 			providers.set(derivedSourceId, {

@@ -3,11 +3,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { throwIfAborted } from '../src/common/editor/controller/app-helpers.ts';
-import { createSelectionEffectExecutionService } from '../src/common/editor/controller/effect-execution-service.ts';
 import {
+	NYQUIST_EVALUATION_TASK,
+	createSelectionEffectExecutionService,
+} from '../src/common/editor/controller/effect-execution-service.ts';
+import {
+	EDITOR_PROJECT_TASK_SCOPE,
 	EditorControllerLifetime,
 	EditorProjectGeneration,
 	type EditorProjectToken,
+	type EditorTaskScope,
 } from '../src/common/editor/controller/lifecycle.ts';
 import {
 	freezeNyquistResult,
@@ -21,7 +26,7 @@ import { createFixture, deferred, project } from './helpers/audio-editor-project
 
 interface NyquistHarnessState {
 	audacityEffectProcessing: boolean;
-	nyquistAbort: AbortController | null;
+	nyquistAbort: EditorTaskScope | null;
 	nyquistResult: unknown;
 	audacityControlTrackId: string | null;
 	lastAudacityEffect: unknown;
@@ -151,7 +156,9 @@ test('a Nyquist evaluation superseded before persistence never reaches the resul
 
 test('switching projects aborts an in-flight Nyquist evaluation', async () => {
 	const fixture = createFixture();
-	const nyquistAbort = new AbortController();
+	const nyquistAbort = fixture.lifetime.startTask(NYQUIST_EVALUATION_TASK, {
+		scope: EDITOR_PROJECT_TASK_SCOPE,
+	});
 	fixture.state.nyquistAbort = nyquistAbort;
 
 	await fixture.service.switchProject(project('next-project'));
@@ -164,7 +171,9 @@ test('reactivating the active project preserves an in-flight Nyquist evaluation'
 	const fixture = createFixture();
 	const activeProject = fixture.getProject();
 	assert.ok(activeProject);
-	const nyquistAbort = new AbortController();
+	const nyquistAbort = fixture.lifetime.startTask(NYQUIST_EVALUATION_TASK, {
+		scope: EDITOR_PROJECT_TASK_SCOPE,
+	});
 	fixture.state.nyquistAbort = nyquistAbort;
 
 	await fixture.service.switchProject(activeProject);

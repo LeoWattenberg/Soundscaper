@@ -5,6 +5,7 @@ import { createVisibleVideoTrackPredicate } from '../video-timeline.js';
 import { prepareBrowserExportBlob } from '../browser-export-output.ts';
 import { getVideoExportFormat } from '../video-export.js';
 import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
+import { EDITOR_PROJECT_TASK_SCOPE } from './lifecycle.ts';
 import { createExportRenderProject } from './export-render-project.ts';
 import { audioRenderedFallbackRenderSources } from './audio-rendered-fallback-export.ts';
 import {
@@ -113,7 +114,7 @@ export function createEditorVideoExportAction(
 		}
 		const generation = ++state.exportGeneration;
 		const projectToken = projectGeneration.capture(canonicalProject.id);
-		const exportTask = lifetime.startTask('export');
+		const exportTask = lifetime.startTask('export', { scope: EDITOR_PROJECT_TASK_SCOPE });
 		const abort = Object.freeze({
 			signal: exportTask.signal,
 			abort: () => lifetime.cancelTask('export'),

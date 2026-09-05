@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { EditorLifetimeToken } from './lifecycle.ts';
+import type { EditorCancellableHandle, EditorLifetimeToken } from './lifecycle.ts';
 import type { PlaybackProjectService } from './playback-project-service.ts';
 import type { ScapeInspectionQuiescence } from './scape-inspection-quiescence.ts';
 import type {
@@ -54,9 +54,9 @@ export interface ProjectSwitchState<
 	rackEffectGestures: Map<string, unknown>;
 	parametricEqGestures: Map<string, unknown>;
 	videoEffectGestures: Map<string, unknown>;
-	exportAbort: AbortController | null;
-	nyquistAbort: AbortController | null;
-	sampleEditAbort: AbortController | null;
+	exportAbort: EditorCancellableHandle | null;
+	nyquistAbort: EditorCancellableHandle | null;
+	sampleEditAbort: EditorCancellableHandle | null;
 	sampleEditMode: unknown;
 	sampleEditAvailable: boolean;
 	audacityNoiseProfile: unknown;
@@ -80,6 +80,7 @@ export interface ProjectSwitchLifetime {
 	assertActive(token: EditorLifetimeToken): void;
 	guard<Value>(value: PromiseLike<Value> | Value, token: EditorLifetimeToken): Promise<Value>;
 	cancelTask(name: string, reason?: unknown): void;
+	cancelScope(scope: string, reason?: unknown): void;
 }
 
 export interface ProjectSwitchSession<

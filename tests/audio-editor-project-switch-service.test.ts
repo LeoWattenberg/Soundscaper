@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { EDITOR_PROJECT_TASK_SCOPE } from '../src/common/editor/controller/lifecycle.ts';
 import { createProjectSaveService } from '../src/common/editor/controller/project-save-service.ts';
 import type { ProjectLifecycleLock } from '../src/common/editor/controller/project-lifecycle-types.ts';
 import { PLAYBACK_PROJECT_APPLY_TASK } from '../src/common/editor/controller/playback-project-service.ts';
@@ -12,9 +13,13 @@ import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-fea
 import { PROJECT_SCHEMA_VERSION } from '../src/common/editor/project-schema-identity.ts';
 import { createFixture, deferred, lock, project } from './helpers/audio-editor-project-switch-fixture.ts';
 
+// Project-owned work is cancelled by scope, not by name, so the fixture's stand-in
+// tasks have to join the scope the way their real services do.
+const PROJECT_SCOPED = { scope: EDITOR_PROJECT_TASK_SCOPE } as const;
+
 test('project activation resets scoped state and publishes only after sources are loaded', async () => {
 	const fixture = createFixture();
-	const nativeSave = fixture.lifetime.startTask('native-project-save'), playbackApply = fixture.lifetime.startTask(PLAYBACK_PROJECT_APPLY_TASK), linkedVideoRelink = fixture.lifetime.startTask(PROJECT_BIN_LINKED_VIDEO_RELINK_TASK);
+	const nativeSave = fixture.lifetime.startTask('native-project-save', PROJECT_SCOPED), playbackApply = fixture.lifetime.startTask(PLAYBACK_PROJECT_APPLY_TASK, PROJECT_SCOPED), linkedVideoRelink = fixture.lifetime.startTask(PROJECT_BIN_LINKED_VIDEO_RELINK_TASK, PROJECT_SCOPED);
 	playbackApply.signal.addEventListener('abort', () => { fixture.events.push('abort-playback-apply'); }, { once: true });
 	const next = project('next-project', [
 		{ id: 'labels', type: 'label' }, { id: 'audio', type: 'audio' },
@@ -58,9 +63,9 @@ test('reactivating the active project preserves playback and project-scoped task
 	fixture.projectGeneration.activate(activeProject.id);
 	const projectGeneration = fixture.projectGeneration.capture(activeProject.id);
 	const tasks = [
-		fixture.lifetime.startTask('native-project-save'),
-		fixture.lifetime.startTask(PLAYBACK_PROJECT_APPLY_TASK),
-		fixture.lifetime.startTask(PROJECT_BIN_LINKED_VIDEO_RELINK_TASK),
+		fixture.lifetime.startTask('native-project-save', PROJECT_SCOPED),
+		fixture.lifetime.startTask(PLAYBACK_PROJECT_APPLY_TASK, PROJECT_SCOPED),
+		fixture.lifetime.startTask(PROJECT_BIN_LINKED_VIDEO_RELINK_TASK, PROJECT_SCOPED),
 		fixture.lifetime.startTask(SCAPE_INSPECTION_TASK),
 		fixture.lifetime.startTask(SCAPE_OPEN_REQUEST_TASK),
 	];

@@ -1,8 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { EditorProjectToken, EditorTaskScope } from './lifecycle.ts';
+import {
+	EDITOR_PROJECT_TASK_SCOPE,
+	type EditorProjectToken,
+	type EditorTaskScope,
+} from './lifecycle.ts';
 
 const SELECTION_EFFECT_TASK = 'selection-effect-apply';
+/** The registry name a Nyquist evaluation holds while the evaluator runs. */
+export const NYQUIST_EVALUATION_TASK = 'nyquist-evaluation';
 
 export interface SelectionEffectExecutionRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -329,8 +335,12 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		if (!preview && editingBlocked()) return null;
 
 		cancelAudacityEffectPreview({ publish: false });
-		state.nyquistAbort?.abort();
-		const abort = new AbortController();
+		// startTask replaces any evaluation still running and enrols this one in
+		// the project scope, so a project switch cancels it without the switch
+		// having to name Nyquist.
+		const abort = runtime.lifetime.startTask(NYQUIST_EVALUATION_TASK, {
+			scope: EDITOR_PROJECT_TASK_SCOPE,
+		});
 		state.nyquistAbort = abort;
 		// A Nyquist evaluation owns the project it started under, exactly as the
 		// selection-effect path does through assertSelectionEffectOwnership.
@@ -456,6 +466,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 			}
 			throw error;
 		} finally {
+			abort.finish();
 			if (state.nyquistAbort === abort) state.nyquistAbort = null;
 			state.audacityEffectProcessing = false;
 			publishDocumentSnapshot();

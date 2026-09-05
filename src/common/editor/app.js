@@ -1040,7 +1040,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const { adjustAllTrackHeights } = viewStateService;
 	const sampleEditService = createSampleEditService({
-		activeSelection, activateStoredSource, canEditAudioSamplesAtZoom, commit, copy,
+		lifetime, activeSelection, activateStoredSource, canEditAudioSamplesAtZoom, commit, copy,
 		createAddSourceCommand, createPencilSampleEdits, createReplaceClipSourceCommand,
 		createSmoothSampleRange, createStableId, editingBlocked, findClip, findClipTrack,
 		findSource, getProject: () => project, peakCacheKey, persistImmutableSampleEdit,
@@ -1922,19 +1922,16 @@ export function createAudioEditorController(_root = null, options = {}) {
 			cancelTimedRecording({ publish: false, status: false });
 			cancelRecordingStart();
 			state.exportGeneration += 1;
-			state.exportAbort?.abort();
 			state.exportAbort = null;
 			projectSaveService.cancelScheduled();
 			globalThis.clearTimeout(state.sourceGcTimer);
 			state.sourceGcTimer = 0;
 			cancelPlaybackCachePreparation();
 			cancelPlayAtSpeedPreparation();
-			state.sampleEditAbort?.abort();
 			stopMetronome();
 			selectionEffectWorkerService.cancelWorkers();
 			state.audacityEffectWorker?.terminate();
 			state.audacityEffectWorker = null;
-			state.nyquistAbort?.abort();
 			state.nyquistAbort = null;
 			nyquistClient?.dispose();
 			cancelAudacityEffectPreview({ publish: false });

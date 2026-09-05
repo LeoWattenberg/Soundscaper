@@ -3,7 +3,18 @@
 import { isProjectFileName } from '../../project-file-extensions.ts';
 import { createDeferredDawprojectService } from './deferred-dawproject-service.ts';
 import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
-import type { EditorProjectToken, EditorTaskScope } from './lifecycle.ts';
+import {
+	EDITOR_PROJECT_TASK_SCOPE,
+	type EditorProjectToken,
+	type EditorTaskOptions,
+	type EditorTaskScope,
+} from './lifecycle.ts';
+
+/**
+ * A native save belongs to the project that started it: switching away must
+ * cancel it rather than let it write the old document under the new project.
+ */
+const PROJECT_SCOPED_TASK: EditorTaskOptions = Object.freeze({ scope: EDITOR_PROJECT_TASK_SCOPE });
 import { createNativeProjectOwnership, type ProjectTask } from './native-project-ownership.ts';
 import { nativeProjectProgressMessage, publishAup4OpenStatus } from './native-project-status.ts';
 import {
@@ -137,7 +148,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		const projectAtStart = requireProject();
 		if (runtime.state.readOnly && !options.saveCopy) throw new Error(runtime.copy.projectReadOnly);
 		if (runtime.state.readOnly && futureScapeArchive?.projectId === projectAtStart.id) {
-			const operation = beginProjectTask('native-project-save', projectAtStart.id);
+			const operation = beginProjectTask('native-project-save', projectAtStart.id, PROJECT_SCOPED_TASK);
 			try {
 				return await saveNativeScapeArchiveCopy(runtime, {
 					assertReady: () => assertOwnership(operation.task, operation.projectToken),
@@ -146,7 +157,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			} finally { operation.task.finish(); }
 		}
 		if (runtime.hasMissingTimelineSources(projectAtStart)) throw new Error(runtime.copy.missingSourcesPreventSave);
-		const operation = beginProjectTask('native-project-save', projectAtStart.id);
+		const operation = beginProjectTask('native-project-save', projectAtStart.id, PROJECT_SCOPED_TASK);
 		try {
 			const { fileName, prepared } = await beginNativeScapeSave(runtime, {
 				fallbackFileName: projectAtStart.title, options, signal: operation.task.signal,
@@ -274,7 +285,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			throw new Error(runtime.copy.missingSourcesPreventSave);
 		}
 		if (runtime.state.readOnly && !options.saveCopy) throw new Error(runtime.copy.projectReadOnly);
-		const operation = beginProjectTask('native-project-save', snapshot.id);
+		const operation = beginProjectTask('native-project-save', snapshot.id, PROJECT_SCOPED_TASK);
 		let fileHandle = options.fileHandle;
 		let saveTarget = options.saveTarget;
 		let activeClient: NativeAup4Client | null = null;
