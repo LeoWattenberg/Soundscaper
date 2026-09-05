@@ -260,9 +260,13 @@ export function createClipTimePitchCacheService<
 			assertOwned(projectToken, signal);
 			await materializeOwned(resolved, signal, projectToken);
 			if (resolved.stale && resolved.pending) {
-				refreshes.push(resolved.pending.then((entry) => (
+				const refresh = resolved.pending.then((entry) => (
 					materializeOwned(entry, signal, projectToken)
-				)));
+				));
+				// The caller only observes refreshes this loop returns, so a later
+				// iteration that throws would orphan the ones already queued.
+				refresh.catch(() => undefined);
+				refreshes.push(refresh);
 			}
 		}
 		return Object.freeze(refreshes);
