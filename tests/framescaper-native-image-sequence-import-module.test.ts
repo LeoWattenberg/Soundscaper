@@ -117,12 +117,13 @@ function harness(names: readonly string[] = ['shot.0001.png', 'shot.0002.png', '
 		complete: (): void => undefined,
 	};
 
+	/** The one counted picker hold; every selection override must route through it. */
+	const release = (): void => { releases += 1; state.onRelease(); };
 	const select = async (): Promise<FramescaperImageSequenceSelection | null> => {
 		order.push('select');
 		return {
 			sourceId: 'image-sequence-source', projectBinClipId: 'image-sequence-bin-clip',
-			name: 'Plate', frameRate: { ...RATE }, files: state.files,
-			release: () => { releases += 1; state.onRelease(); },
+			name: 'Plate', frameRate: { ...RATE }, files: state.files, release,
 		};
 	};
 
@@ -176,7 +177,7 @@ function harness(names: readonly string[] = ['shot.0001.png', 'shot.0002.png', '
 
 	return {
 		state, order, written, packs, publications, cleanups, requests, completions, commits, ports, run,
-		counts: () => ({ writers, discards, releases, capabilityCalls }),
+		release, counts: () => ({ writers, discards, releases, capabilityCalls }),
 	};
 }
 
@@ -449,7 +450,7 @@ test('a selection carrying an unexpected field is refused without releasing the 
 	const fixture = harness();
 	const selected = {
 		sourceId: 'image-sequence-source', projectBinClipId: 'bin', name: 'Plate',
-		frameRate: { ...RATE }, files: fixture.state.files, release: () => undefined,
+		frameRate: { ...RATE }, files: fixture.state.files, release: fixture.release,
 		directoryPath: '/tmp/plates',
 	};
 
@@ -457,14 +458,14 @@ test('a selection carrying an unexpected field is refused without releasing the 
 		() => fixture.run({ select: () => selected as never }),
 		/exact pathless record/u,
 	);
-	assert.equal(fixture.counts().releases, 0);
+	assert.equal(fixture.counts().releases, 0, 'the refused record never reached the counted hold');
 });
 
 test('a selection with an unusable file list, release capability or identifier is refused', async () => {
 	const fixture = harness();
 	const base = {
 		sourceId: 'image-sequence-source', projectBinClipId: 'bin', name: 'Plate',
-		frameRate: { ...RATE }, files: fixture.state.files, release: () => undefined,
+		frameRate: { ...RATE }, files: fixture.state.files, release: fixture.release,
 	};
 	const padded = [...fixture.state.files] as unknown as Data;
 	padded.directory = '/tmp/plates';
@@ -480,7 +481,7 @@ test('a selection with an unusable file list, release capability or identifier i
 	] as const) {
 		await assert.rejects(() => fixture.run({ select: () => selected as never }), expected);
 	}
-	assert.equal(fixture.counts().writers, 0);
+	assert.deepEqual(fixture.counts(), { writers: 0, discards: 0, releases: 0, capabilityCalls: 7 });
 });
 
 test('a selected file that names a path, an empty body or no stream factory is refused', async () => {
@@ -496,7 +497,7 @@ test('a selected file that names a path, an empty body or no stream factory is r
 		fixture.state.files = [file as never];
 		await assert.rejects(() => fixture.run(), expected);
 	}
-	assert.equal(fixture.counts().writers, 0);
+	assert.deepEqual(fixture.counts(), { writers: 0, discards: 0, releases: 0, capabilityCalls: 5 });
 });
 
 test('composition refuses ports that cannot admit, clean up, complete, select or commit', async () => {
