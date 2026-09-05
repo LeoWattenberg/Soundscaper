@@ -169,11 +169,11 @@ packets.
   (`src/common/editor/ui/workspace/workspace-application-menu-runtime.js:381-382`),
   but the handbook has only `framescaper/` and `soundscaper/` sections.
 - **The boot progress bar waits for an editor-bound element.**
-  `src/main.jsx:9-14` removes the first-paint progress bar only once
+  `src/main.jsx:15-20` removes the first-paint progress bar only once
   `[data-audio-editor-bound]` or `[role="alert"]` appears — emitted by the
   workspace view
-  (`src/common/editor/ui/workspace/AudioEditorWorkspaceView.jsx:105`) and the
-  error shell (`src/common/editor/ui/AudioEditorApp.jsx:44`). A Lightscaper
+  (`src/common/editor/ui/workspace/AudioEditorWorkspaceView.jsx:147`) and the
+  error shell (`src/common/editor/ui/AudioEditorApp.jsx:53`). A Lightscaper
   shell that renders neither leaves a permanent progress bar.
 
 ## Decisions
