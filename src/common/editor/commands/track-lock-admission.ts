@@ -229,8 +229,23 @@ function protectedTrackSnapshot(
 		labels,
 		groups: relatedMemberships(context.clips, clipIds, 'groupId'),
 		avLinks: relatedMemberships(context.clips, clipIds, 'avLinkId'),
+		takeGroups: takeGraphSnapshot(project, trackId),
 		sources: Object.freeze(sources),
 	});
+}
+
+/**
+ * A take group names its own track, so a locked track owns its take graph the
+ * way it owns its clips. Without it here the generic after-command check - the
+ * thing that keeps the lock closed against commands it has never heard of - was
+ * blind to any command that moved a locked track's graph as a side effect,
+ * which is precisely what the take-graph range planners do.
+ */
+function takeGraphSnapshot(project: DataRecord, trackId: string): SnapshotValue {
+	if (!Array.isArray(project.takeGroups)) return Object.freeze([]);
+	return Object.freeze(records(project.takeGroups, 'project.takeGroups')
+		.filter((group) => group.trackId === trackId)
+		.map((group) => snapshotRecord(group)));
 }
 
 function protectedTrackData(track: DataRecord): SnapshotValue {
