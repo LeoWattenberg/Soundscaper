@@ -5,6 +5,7 @@
 import { linkedAudioLocatorReferenceFromImportOptions } from './project-import-options.ts';
 import { scaleSampleFrame } from '../timeline-time.ts';
 import { admitAudioImportChannelCount } from './audio-import-channel-admission.ts';
+import { maintainedAiffMimeType } from './aiff-file-identity.ts';
 
 type LegacyPort = (...args: any[]) => any;
 
@@ -248,12 +249,9 @@ function linkedPcmFile(value: unknown): Readonly<{ name: string; mimeType: strin
 	const candidate = value as LinkedPcmFile;
 	const name = requiredIdentity(candidate.name, 'Linked PCM file name');
 	const lowerName = name.toLowerCase();
-	const fallbackMimeType = lowerName.endsWith('.aif') || lowerName.endsWith('.aiff')
-		? 'audio/aiff'
-		: lowerName.endsWith('.rf64') ? 'audio/rf64' : 'audio/wav';
-	const mimeType = candidate.type === '' || candidate.type === undefined
-		? fallbackMimeType
-		: candidate.type;
+	const fallbackMimeType = lowerName.endsWith('.rf64') ? 'audio/rf64' : 'audio/wav';
+	const mimeType = maintainedAiffMimeType({ name, type: candidate.type })
+		?? (candidate.type === '' || candidate.type === undefined ? fallbackMimeType : candidate.type);
 	if (!((/\.(?:aif|aiff)$/iu.test(name) && mimeType === 'audio/aiff')
 		|| (/\.rf64$/iu.test(name) && mimeType === 'audio/rf64')
 		|| (/\.wav$/iu.test(name) && mimeType === 'audio/wav'))) {

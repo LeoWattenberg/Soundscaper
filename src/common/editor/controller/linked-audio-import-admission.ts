@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { inspectAiffBlobPcm } from '../aiff-pcm-chunk-reader.ts';
+import { maintainedAiffMimeType } from './aiff-file-identity.ts';
 import type { LinkedOriginalImportLocatorReference } from './project-import-options.ts';
 import {
 	inspectWavContainerSignature,
@@ -8,11 +9,6 @@ import {
 } from './wav-import-routing.ts';
 
 type ImportOptions = Record<string, unknown>;
-
-interface LinkedAudioFile {
-	readonly name?: unknown;
-	readonly type?: unknown;
-}
 
 export interface LinkedAudioImportAdmissionOptions {
 	readonly importLinkedPcm: (
@@ -43,7 +39,7 @@ export function createLinkedAudioImportAdmission(options: LinkedAudioImportAdmis
 		let delegated = false;
 		try {
 			options.validateImportTimelineTrack(importOptions);
-			const admitted = isAiffFile(file)
+			const admitted = maintainedAiffMimeType(file)
 				? await inspectLinkedAiff(file, importOptions)
 				: await inspectLinkedWav(file, importOptions, options);
 			delegated = true;
@@ -112,11 +108,4 @@ async function inspectLinkedWav(
 		descriptor,
 		metadata: options.prepareWavImportMetadata(descriptor, importOptions),
 	});
-}
-
-function isAiffFile(value: unknown): boolean {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-	const file = value as LinkedAudioFile;
-	if (typeof file.name !== 'string' || !/\.(?:aif|aiff)$/iu.test(file.name)) return false;
-	return file.type === 'audio/aiff' || file.type === '' || file.type === undefined;
 }

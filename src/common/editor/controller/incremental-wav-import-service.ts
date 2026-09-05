@@ -72,9 +72,9 @@ export function createIncrementalPcmImporter(runtime: IncrementalPcmImportRuntim
 		const clipId = createStableId('clip');
 		const trackName = stripExtension(file.name) || `${copy.track} ${getProject().tracks.length + 1}`;
 		const sourceName = file.name;
-		const mimeType = file.type || (descriptor.container === 'aiff' || descriptor.container === 'aifc'
+		const mimeType = descriptor.container === 'aiff' || descriptor.container === 'aifc'
 			? 'audio/aiff'
-			: 'audio/wav');
+			: file.type || 'audio/wav';
 		const writer = createImportedAudioContentIdentityWriter(await store.beginSourceWrite(sourceId, {
 			name: sourceName,
 			mimeType,

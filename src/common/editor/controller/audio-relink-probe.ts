@@ -2,6 +2,7 @@
 
 import { inspectAiffBlobPcm } from '../aiff-pcm-chunk-reader.ts';
 import { inspectWavBlobPcm } from '../wav-import.js';
+import { maintainedAiffMimeType } from './aiff-file-identity.ts';
 
 interface AudioRelinkCandidateSource {
 	readonly mimeType: string;
@@ -51,7 +52,8 @@ function candidateKind(
 	mimeType: string,
 ): 'aiff' | 'wav' {
 	if (!(file instanceof Blob)) throw new TypeError('A linked audio replacement File is required.');
-	if ((file.type || mimeType) !== mimeType) {
+	const candidateType = maintainedAiffMimeType(file) ?? file.type;
+	if ((candidateType || mimeType) !== mimeType) {
 		throw new TypeError('The selected linked audio original does not match the source MIME type.');
 	}
 	const name = typeof file.name === 'string' ? file.name : '';
