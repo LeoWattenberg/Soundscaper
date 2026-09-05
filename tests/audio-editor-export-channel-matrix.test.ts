@@ -31,9 +31,13 @@ test('a stated mapping is read as routing, whichever spelling it uses', () => {
 			.map((row) => [...row]),
 		[[true], [true]],
 	);
-	// A bare array of output channels, and a bare input index inside one.
+	// A bare input index for an output channel, and a bare gain per input.
 	assert.deepEqual(
-		parseExportChannelMatrix([[0], [1]], 2).map((row) => [...row]),
+		parseExportChannelMatrix({ channels: [0, 1] }, 2).map((row) => [...row]),
+		[[true, false], [false, true]],
+	);
+	assert.deepEqual(
+		parseExportChannelMatrix([[1, 0], [0, 1]], 2).map((row) => [...row]),
 		[[true, false], [false, true]],
 	);
 	// A silent contribution is not a routing, so its cell stays clear.

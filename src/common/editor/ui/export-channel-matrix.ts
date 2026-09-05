@@ -118,16 +118,29 @@ function parseJson(text: string): unknown {
 	try { return JSON.parse(trimmed); } catch { return null; }
 }
 
+/**
+ * Read one output channel the way the export request reads it.
+ *
+ * The request accepts three spellings, and they mean different things: a bare
+ * integer is the single input feeding the output, a bare array is one gain per
+ * input channel, and a record states the feeding inputs one by one. Reading a
+ * bare array as a list of input indices instead would show the operator a grid
+ * that is not the mapping they hold, and applying it would deliver that grid.
+ */
 function readInputs(channel: unknown): readonly Readonly<{ channel: number; gain: number }>[] {
-	const inputs = Array.isArray(channel)
-		? channel
-		: Array.isArray((channel as DataRecord | null)?.inputs)
-			? (channel as Readonly<{ inputs: readonly unknown[] }>).inputs
-			: [];
+	if (typeof channel === 'number') {
+		return Number.isSafeInteger(channel) && channel >= 0 ? [{ channel, gain: 1 }] : [];
+	}
+	if (Array.isArray(channel)) {
+		return channel.flatMap((value, input) => {
+			const gain = Number(value);
+			return Number.isFinite(gain) ? [{ channel: input, gain }] : [];
+		});
+	}
+	const inputs = Array.isArray((channel as DataRecord | null)?.inputs)
+		? (channel as Readonly<{ inputs: readonly unknown[] }>).inputs
+		: [];
 	return inputs.flatMap((value) => {
-		if (typeof value === 'number') {
-			return Number.isSafeInteger(value) && value >= 0 ? [{ channel: value, gain: 1 }] : [];
-		}
 		const record = value as DataRecord | null;
 		const channelIndex = Number(record?.channel);
 		if (!Number.isSafeInteger(channelIndex) || channelIndex < 0) return [];
