@@ -29,7 +29,8 @@
   tree (`src/`, `desktop/` or `native/`) or carries the product in its filename,
   and to `common` otherwise — cross-product tests included, since neither product
   owns them. Run one shard locally with `npm test -- --shard=framescaper`. The
-  coverage thresholds live in `.c8rc.json` and are enforced once over the union
+  coverage thresholds live in `scripts/lib/coverage-gates.mjs` (`.c8rc.json`
+  only selects which files c8 instruments) and are enforced once over the union
   of what the shards recorded, so never weaken them per shard.
 - New controller/domain modules and their tests should be strict TypeScript.
   Keep imports at the owning module instead of adding broad barrel dependencies.
