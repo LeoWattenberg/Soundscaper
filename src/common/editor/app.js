@@ -141,6 +141,7 @@ import { deferredArchiveRuntime } from './controller/deferred-archive-runtime.ts
 import { deferredEffectRuntime } from './controller/deferred-effect-runtime.ts';
 import { connectProductNativeRenderInputAuthority } from './controller/product-native-render-input-authority.ts'; import { renderProductNativeAudioToSink } from './controller/product-native-render-audio-stream.ts';
 import { createDeferredAudioAnalysisService } from './controller/deferred-analysis-service.ts';
+import { resolveProductCompositionDecision } from './controller/product-composition-policy.ts'; import { createAbsentAnalysisService, createAbsentAudioGeneratorService, createAbsentEffectMacroService, createAbsentNyquistGeneratedAudioService, createAbsentNyquistHostService, createAbsentSelectionEffectExecutionService, createAbsentSelectionEffectWorkerService } from './controller/absent-audio-subsystems.ts';
 import { createEditorAnalysisVisuals } from './controller/analysis-visuals.ts';
 import { createGroupedEditorActions } from './controller/action-facade.ts';
 import { guardEditorControllerActions } from './controller/controller-action-guard.ts';
@@ -343,7 +344,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const locale = normalizeBcp47Locale(options.locale);
 	const product = productProfile(options.productId || options.product?.id || 'soundscaper');
 	const productId = product.id;
-	const capabilities = product.capabilities;
+	const capabilities = product.capabilities; const composition = resolveProductCompositionDecision(product), absentSubsystem = Object.freeze({ productName: product.name });
 	const preferenceSettingKey = `${productId}:audio-editor-preferences-v1`;
 	const recentProjectsSettingKey = `${productId}:audio-editor-recent-project-ids`;
 	const lastProjectSettingKey = `${productId}:last-project-id`;
@@ -733,7 +734,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		disposeRenderEngines: clipTimePitchCacheService.disposeRenderEngines, sourceBuffers, sourceChunkProviders, sourcePeaks, state, stopProjectBinPreview, stopRecording, store,
 		switchProject, ...(framescaperCaptureAdminInterlock ? { beginCaptureInterlockedAdminOperation: framescaperCaptureAdminInterlock.beginAdminOperation } : {}),
 	});
-	const analysisService = createDeferredAudioAnalysisService({
+	const analysisService = !composition.analysis ? createAbsentAnalysisService(absentSubsystem) : createDeferredAudioAnalysisService({
 		lifetime, copy, state,
 		captureProject: () => projectGeneration.capture(project?.id ?? null),
 		assertProject: (token) => projectGeneration.assertCurrent(token),
@@ -1247,7 +1248,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setStatus, snapAudioEditorFrameWithProject, state, synchronizeAutomaticSampleEditMode,
 		synchronizeMicrophoneMeterTarget: microphoneMeterService.synchronizeTarget, updatePlayhead, updateSelection,
 	});
-	const selectionEffectWorkerService = createSelectionEffectWorkerService({
+	const selectionEffectWorkerService = !composition.selectionEffectWorkers ? createAbsentSelectionEffectWorkerService(absentSubsystem) : createSelectionEffectWorkerService({
 		state,
 		copy,
 		captureProject: () => projectGeneration.capture(project.id),
@@ -1318,7 +1319,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setStatus,
 		publishDocumentSnapshot,
 	});
-	const nyquistHostService = createNyquistHostService({
+	const nyquistHostService = !composition.effects ? createAbsentNyquistHostService(absentSubsystem) : createNyquistHostService({
 		state,
 		copy,
 		locale,
@@ -1340,7 +1341,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setStatus,
 		publishDocumentSnapshot,
 	});
-	const nyquistGeneratedAudioService = createNyquistGeneratedAudioService({
+	const nyquistGeneratedAudioService = !composition.effects ? createAbsentNyquistGeneratedAudioService(absentSubsystem) : createNyquistGeneratedAudioService({
 		state,
 		copy,
 		sourceChunkFrames: SOURCE_CHUNK_FRAMES,
@@ -1370,7 +1371,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		sourcePeaks,
 		commit,
 	});
-	const effectMacroService = createEffectMacroService({
+	const effectMacroService = !composition.macros ? createAbsentEffectMacroService(absentSubsystem) : createEffectMacroService({
 		lifetime,
 		projectGeneration,
 		copy,
@@ -1399,7 +1400,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		applySelectedAudacityEffect,
 		previewAudacityEffectFromController,
 		runNyquistEvaluation: runNyquistEvaluationOperation,
-	} = createSelectionEffectExecutionService({
+	} = !composition.effects ? createAbsentSelectionEffectExecutionService(absentSubsystem) : createSelectionEffectExecutionService({
 		AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES, AUDIO_SELECTION_EFFECT_DEFINITIONS, NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES, abortError, lifetime, captureProject: () => projectGeneration.capture(project?.id ?? null), assertProject: (token) => projectGeneration.assertCurrent(token),
 		activeSelection, assertAudacityEffectOutput, audacityEffectMemoryError, audacityEffectSelectionDetails,
 		audacityEffectTarget, audacityEffectTargets, audacitySpectralEffectContext, bufferFromChannels,
@@ -1449,7 +1450,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		commit,
 		setStatus,
 	});
-	const audioGeneratorService = createAudioGeneratorService({
+	const audioGeneratorService = !composition.generators ? createAbsentAudioGeneratorService(absentSubsystem) : createAudioGeneratorService({
 		lifetime,
 		projectGeneration,
 		state,
