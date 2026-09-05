@@ -15,7 +15,17 @@
 export const editorPath = String.raw`src[\\/]common[\\/]editor[\\/]`;
 const editorOptionalArchiveModule = String.raw`(?:aup-legacy(?:-block-budget|-conversion|-xml)?|aup4-(?:client|opaque-merge|opaque-persistence|profile-values|profile|sanitization|track-nodes)|audacity-(?:annotation-interchange|tempo-import)|dawproject-(?:archive|export(?:-context|-lanes)?|format|import(?:-maps|-project|-structure|-timeline)?|xml)|scape-(?:archive-(?:copy|layout(?:-witness)?|manifest|reader)|export-destination|import-capacity|import-transaction|project-admission|project-source-remap)|scape-project(?:-canonical-inspection|-timing-assets)?)`;
 const editorOptionalExecutionModule = String.raw`(?:analysis|browser-(?:dedicated-audio-worker-client|webcodecs-aac)|pffft|selection-effects-runtime|spectral-edit(?:-admission)?|video-(?:keyframe-mediabunny-execution|mediabunny-muxer))`;
-const editorOptionalExportControllerModule = String.raw`(?:audio-export-delivery-admission|audio-export-render-orchestration|audio-realtime-encoded-export|audio-rendered-fallback-export|bw64-render-project|delivery-conformance-action|desktop-audio-export-capability|direct-(?:aiff-export|audio-render-plan|broadcast-wave-export|bw64-export|bwf-export|compressed-export|compressed-plan|compressed-stem-archive-plan|export-dispatch|mp3-export|native-stem-archive-plan|offline-compressed-export|offline-pcm-export|pcm-export|stem-archive-export|video-export|video-plan-contract|wav-export)|export-render-project|export-service|mastering-sequence-export-render|persistent-audio-delivery-execution|persistent-export-progress|realtime-export-pcm-transform|rendered-audio-encoding|streaming-stem-archive-export|video-export-captions|video-export-original-loader|video-export-service|video-export-staged-audio|video-rendered-fallback-export)`;
+const editorOptionalExportControllerModule = String.raw`(?:audio-export-delivery-admission|audio-export-render-orchestration|audio-realtime-encoded-export|audio-rendered-fallback-export|bw64-render-project|delivery-conformance-action|desktop-audio-export-capability|direct-(?:aiff-export|audio-render-plan|broadcast-wave-export|bw64-export|bwf-export|compressed-export|compressed-plan|compressed-stem-archive-plan|export-dispatch|mp3-export|native-stem-archive-plan|offline-compressed-export|offline-pcm-export|pcm-export|stem-archive-export|video-export|video-plan-contract|wav-export)|export-service|mastering-sequence-export-render|persistent-audio-delivery-execution|persistent-export-progress|realtime-export-pcm-transform|rendered-audio-encoding|streaming-stem-archive-export|video-export-captions|video-export-original-loader|video-export-service|video-export-staged-audio|video-rendered-fallback-export)`;
+/**
+ * Flat editor modules the lazy export slice alone renders through.
+ *
+ * `loudness-normalization-render.ts` is the case that named this: its only
+ * importer is `controller/rendered-audio-encoding.ts`, which the optional export
+ * owner claims, so every byte of it sat in both products' startup graphs for an
+ * export nobody had opened. A flat module is claimed by the domain group by
+ * default, which is eager, so escaping that default takes a name here.
+ */
+const editorOptionalExportFlatModule = String.raw`(?:loudness-normalization-render)`;
 export const editorOptionalControllerModule = String.raw`(?:analysis-service|cross-product-handoff-action|dawproject-service|${editorOptionalExportControllerModule})`;
 /**
  * The Framescaper capture and Web VCR implementation, loaded when a capture
@@ -72,7 +82,7 @@ export const EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST = new RegExp(
 
 /** Audio and video delivery execution isolated from the effect-runtime graph. */
 export const EDITOR_OPTIONAL_EXPORT_CHUNK_TEST = new RegExp(
-	`${editorPath}controller[\\\\/]${editorOptionalExportControllerModule}\\.ts$`,
+	`${editorPath}(?:controller[\\\\/]${editorOptionalExportControllerModule}|${editorOptionalExportFlatModule})\\.ts$`,
 );
 
 /** Capture and Web VCR implementation behind the deferred Framescaper capture runtime. */
