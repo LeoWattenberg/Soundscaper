@@ -32,6 +32,12 @@ export type EngineChunkSourceInput =
 
 export interface EngineLoadProjectOptions {
 	readonly chunkSources?: EngineChunkSourceInput;
+	/**
+	 * Keeps the running loudness measurement — its integrated reading and any manual
+	 * pause — across the load. `applyProject` sets it, because re-applying an edited
+	 * project is not a new measurement session the way opening a project is.
+	 */
+	readonly preserveLoudnessMeasurement?: boolean;
 }
 
 export interface EngineOutputDeviceState {

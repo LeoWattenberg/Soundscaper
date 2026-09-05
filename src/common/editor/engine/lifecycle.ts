@@ -316,10 +316,15 @@ loadProject(project, sourceBuffers = new Map(), options = {}) {
 		this.positionFrame = Math.min(this.positionFrame, this.playbackDurationFrames);
 		this.playEndFrame = this.playbackDurationFrames;
 		this.loop = normalizeLoop(runtimeProject?.loop, this.durationFrames);
-		this.loudnessMeasurementManuallyPaused = false;
+		// The graph stops here, so the meter always stops with it; `play()` re-arms it
+		// with the manual pause honoured. Retiring the measurement itself belongs to a
+		// genuinely new project, not to re-applying the edited one.
 		this.masterLoudnessMeter?.setRunning(false);
-		this.masterLoudnessMeter?.reset();
-		this.latestMasterLoudnessMeter = null;
+		if (!options.preserveLoudnessMeasurement) {
+			this.loudnessMeasurementManuallyPaused = false;
+			this.masterLoudnessMeter?.reset();
+			this.latestMasterLoudnessMeter = null;
+		}
 		this[ENGINE_SET_STATE](runtimeProject ? 'stopped' : 'empty');
 		this[ENGINE_EMIT_POSITION]();
 		return this;
@@ -330,7 +335,7 @@ applyProject(this: EngineRuntimeHost, project, sourceBuffers = this.sources, opt
 		const position = this.getPositionFrames();
 		const playbackRate = this.playbackRate;
 		const playbackMode = this.playbackMode;
-		this.loadProject(project, sourceBuffers, options);
+		this.loadProject(project, sourceBuffers, { ...options, preserveLoudnessMeasurement: true });
 		this.positionFrame = Math.min(position, this.playbackDurationFrames);
 		if (wasPlaying && playbackMode === 'naive') return this.playAtSpeed(playbackRate);
 		// A StaffPad mix belongs to the exact project snapshot that produced it.
