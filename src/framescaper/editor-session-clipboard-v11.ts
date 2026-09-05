@@ -81,7 +81,8 @@ export interface FramescaperFinishingClipboardPasteOptionsV11 {
 	readonly visual: FramescaperVisualClipboardPasteOptionsV8;
 	readonly presentationIdMap: ReadonlyMap<string, string>;
 	readonly processorStackIdMap: ReadonlyMap<string, string>;
-	readonly processorIdMap: ReadonlyMap<string, string>;
+	/** Processor identities are unique only within their stack, so each stack owns its own map. */
+	readonly processorIdMap: ReadonlyMap<string, ReadonlyMap<string, string>>;
 	readonly motionAnalysisIdMap: ReadonlyMap<string, string>;
 	readonly finishingPresetIdMap: ReadonlyMap<string, string>;
 	readonly captionTrackIdMap: ReadonlyMap<string, string>;
@@ -276,6 +277,7 @@ export function prepareFramescaperFinishingClipboardPasteV11(
 	const visual = prepareFramescaperVisualClipboardPasteV8(clipboard.visual, options.visual);
 	const used = new Map<ReadonlyMap<string, string>, Set<string>>();
 	for (const map of maps.owned) used.set(map, new Set());
+	const usedStacks = new Set<string>();
 	const reference = (source: string, candidates: readonly ReadonlyMap<string, string>[], name: string): string => {
 		for (const map of candidates) {
 			if (map.has(source)) return mapped(map, source, name);
@@ -298,18 +300,26 @@ export function prepareFramescaperFinishingClipboardPasteV11(
 			sourceId: reference(interpretation.sourceId, [maps.visualSources], 'interpreted source'),
 		})
 	));
-	const processorStacks = clipboard.processorStacks.map((stack) => normalizeVideoProcessorStackV1({
-		...stack,
-		id: fresh(maps.stacks, stack.id, 'processor stack'),
-		sourceId: reference(stack.sourceId, [maps.visualSources], 'processor source'),
-		processors: stack.processors.map((processor) => ({
-			...processor,
-			id: fresh(maps.processors, processor.id, 'video processor'),
-			...('analysisId' in processor ? {
-				analysisId: mapped(maps.analyses, processor.analysisId, 'processor analysis'),
-			} : {}),
-		})),
-	}));
+	const processorStacks = clipboard.processorStacks.map((stack) => {
+		const processors = maps.processors.get(stack.id);
+		if (processors === undefined) {
+			throw new ReferenceError(`V11 paste has no mapping for stack processors ${stack.id}.`);
+		}
+		usedStacks.add(stack.id);
+		if (!used.has(processors)) used.set(processors, new Set());
+		return normalizeVideoProcessorStackV1({
+			...stack,
+			id: fresh(maps.stacks, stack.id, 'processor stack'),
+			sourceId: reference(stack.sourceId, [maps.visualSources], 'processor source'),
+			processors: stack.processors.map((processor) => ({
+				...processor,
+				id: fresh(processors, processor.id, 'video processor'),
+				...('analysisId' in processor ? {
+					analysisId: mapped(maps.analyses, processor.analysisId, 'processor analysis'),
+				} : {}),
+			})),
+		});
+	});
 	const motionAnalyses = clipboard.motionAnalyses.map((analysis) => normalizeVideoMotionAnalysisReferenceV1({
 		...analysis,
 		id: fresh(maps.analyses, analysis.id, 'motion analysis'),
@@ -341,6 +351,10 @@ export function prepareFramescaperFinishingClipboardPasteV11(
 		sequenceId: reference(track.sequenceId, [], 'caption sequence'),
 	}));
 	for (const map of maps.owned) assertNoUnused(map, used.get(map)!, 'V11');
+	for (const [stackId, processors] of maps.processors) {
+		if (!usedStacks.has(stackId)) throw new RangeError(`V11 paste contains an unused allocation ${stackId}.`);
+		assertNoUnused(processors, used.get(processors)!, 'V11');
+	}
 	assertNoUnused(maps.references, used.get(maps.references)!, 'V11 project reference');
 	return deepFreeze({
 		visual, colorContexts, sourceColorInterpretations, visualPresentations,
@@ -356,7 +370,7 @@ interface ClipboardMaps {
 	readonly visualMasks: ReadonlyMap<string, string>;
 	readonly presentations: ReadonlyMap<string, string>;
 	readonly stacks: ReadonlyMap<string, string>;
-	readonly processors: ReadonlyMap<string, string>;
+	readonly processors: ReadonlyMap<string, ReadonlyMap<string, string>>;
 	readonly analyses: ReadonlyMap<string, string>;
 	readonly presets: ReadonlyMap<string, string>;
 	readonly captions: ReadonlyMap<string, string>;
@@ -372,7 +386,7 @@ function snapshotMaps(options: FramescaperFinishingClipboardPasteOptionsV11): Cl
 	const visualMasks = allocationMap(options?.visual?.maskMatteIdMap, 'visual.maskMatteIdMap');
 	const presentations = allocationMap(options?.presentationIdMap, 'presentationIdMap');
 	const stacks = allocationMap(options?.processorStackIdMap, 'processorStackIdMap');
-	const processors = allocationMap(options?.processorIdMap, 'processorIdMap');
+	const processors = nestedAllocationMap(options?.processorIdMap, 'processorIdMap');
 	const analyses = allocationMap(options?.motionAnalysisIdMap, 'motionAnalysisIdMap');
 	const presets = allocationMap(options?.finishingPresetIdMap, 'finishingPresetIdMap');
 	const captions = allocationMap(options?.captionTrackIdMap, 'captionTrackIdMap');
@@ -380,7 +394,7 @@ function snapshotMaps(options: FramescaperFinishingClipboardPasteOptionsV11): Cl
 	return {
 		visualSources, visualClips, visualAdjustments, visualPresets, visualMasks,
 		presentations, stacks, processors, analyses, presets, captions, references,
-		owned: [presentations, stacks, processors, analyses, presets, captions, references],
+		owned: [presentations, stacks, analyses, presets, captions, references],
 	};
 }
 
@@ -394,8 +408,8 @@ function ownerMaps(kind: VideoVisualPresentationV1['owner']['kind'], maps: Clipb
 function assertFreshAllocations(maps: ClipboardMaps): void {
 	const allOwned = [
 		maps.visualSources, maps.visualClips, maps.visualAdjustments, maps.visualPresets,
-		maps.visualMasks, maps.presentations, maps.stacks, maps.processors, maps.analyses,
-		maps.presets, maps.captions,
+		maps.visualMasks, maps.presentations, maps.stacks, ...maps.processors.values(),
+		maps.analyses, maps.presets, maps.captions,
 	];
 	const old = new Set([...allOwned, maps.references].flatMap((map) => [...map.keys()]));
 	const fresh = new Set<string>();
@@ -432,6 +446,19 @@ function allocationMap(value: unknown, name: string): ReadonlyMap<string, string
 		throw new TypeError(`V11 paste ${name} must be a bounded map.`);
 	}
 	return value as ReadonlyMap<string, string>;
+}
+
+function nestedAllocationMap(
+	value: unknown,
+	name: string,
+): ReadonlyMap<string, ReadonlyMap<string, string>> {
+	const outer = allocationMap(value, name) as ReadonlyMap<string, unknown>;
+	return new Map([...outer].map(
+		([key, inner]): readonly [string, ReadonlyMap<string, string>] => [
+			stableId(key, `V11 paste ${name} key`),
+			allocationMap(inner, `${name}.${key}`),
+		],
+	));
 }
 
 function assertNoUnused(

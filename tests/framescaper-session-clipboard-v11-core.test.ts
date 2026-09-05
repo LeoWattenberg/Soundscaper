@@ -188,7 +188,7 @@ function options(overrides: Data = {}): Data {
 			['presentation-generator', 'fresh-presentation-5'],
 		),
 		processorStackIdMap: map(['stack-1', 'fresh-stack']),
-		processorIdMap: map(['denoise-1', 'fresh-denoise'], ['temporal-1', 'fresh-temporal']),
+		processorIdMap: new Map([['stack-1', map(['denoise-1', 'fresh-denoise'], ['temporal-1', 'fresh-temporal'])]]),
 		motionAnalysisIdMap: map(['analysis-1', 'fresh-analysis']),
 		finishingPresetIdMap: map(['preset-1', 'fresh-preset']),
 		captionTrackIdMap: map(['caption-1', 'fresh-caption']),
@@ -417,7 +417,7 @@ test('a finishing paste refuses a presentation processor stack the carrier never
 	assert.throws(
 		() => paste(board, options({
 			presentationIdMap: map(['presentation-source', 'fresh-presentation-1']),
-			processorStackIdMap: map(), processorIdMap: map(), motionAnalysisIdMap: map(),
+			processorStackIdMap: map(), processorIdMap: new Map(), motionAnalysisIdMap: map(),
 			projectReferenceIdMap: map(
 				['main-sequence', 'destination-sequence'], ['video-source', 'video-source'],
 			),

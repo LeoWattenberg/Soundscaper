@@ -122,7 +122,7 @@ interface AllocationMaps {
 	readonly visualMasks: ReadonlyMap<string, string>;
 	readonly presentations: ReadonlyMap<string, string>;
 	readonly stacks: ReadonlyMap<string, string>;
-	readonly processors: ReadonlyMap<string, string>;
+	readonly processors: ReadonlyMap<string, ReadonlyMap<string, string>>;
 	readonly analyses: ReadonlyMap<string, string>;
 	readonly presets: ReadonlyMap<string, string>;
 	readonly captions: ReadonlyMap<string, string>;
@@ -145,7 +145,11 @@ function allocationMaps(
 		visualMasks: allocate(finishing.visual.maskMattes, 'mask-matte'),
 		presentations: allocate(finishing.visualPresentations, 'visual-presentation'),
 		stacks: allocate(finishing.processorStacks, 'processor-stack'),
-		processors: allocate(finishing.processorStacks.flatMap(({ processors }) => processors), 'video-processor'),
+		processors: new Map(finishing.processorStacks.map(
+			(stack): readonly [string, ReadonlyMap<string, string>] => [
+				stack.id, allocate(stack.processors, 'video-processor'),
+			],
+		)),
 		analyses: allocate(finishing.motionAnalyses, 'motion-analysis'),
 		presets: allocate(finishing.finishingPresets, 'finishing-preset'),
 		captions: allocate(finishing.captionTracks, 'caption-track'),
