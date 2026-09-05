@@ -59,6 +59,21 @@ test('optional archive code and its ZIP vendor are placed by dynamic reachabilit
 	);
 });
 
+test('the aup4 split keeps its lazy-only modules behind the archive owner', () => {
+	// Splitting `aup4-profile.js` and its siblings into focused modules gave the
+	// new names no archive owner, so the broad editor-domain pattern claimed them
+	// and placed archive code in an eagerly loaded chunk. Nothing eager imports
+	// them: they are reached only from `aup4-profile.js` and each other.
+	for (const path of [
+		'src/common/editor/aup4-opaque-merge.js',
+		'src/common/editor/aup4-profile-values.js',
+		'src/common/editor/aup4-track-nodes.js',
+	]) {
+		assert.ok(EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST.test(path), `${path} must be an archive implementation`);
+		assert.equal(chunkGroupForModulePath(path), null, `${path} must stay behind its lazy action`);
+	}
+});
+
 test('the DAWproject exchange stays behind its deferred controller facade', () => {
 	// Composing the service eagerly is what put the exchange reader, writer, XML
 	// parser and their ZIP container into the product-ready startup graph: the

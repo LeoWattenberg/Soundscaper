@@ -302,3 +302,17 @@ test('design-system foundations stay vendor-owned while components follow eager 
 	assert.equal(components.includeDependenciesRecursively, false);
 });
 
+test('an extracted live-capability helper is owned with the contracts that use it', () => {
+	// `live-capability-policy.js` was split out of `live-capabilities.js`, which the
+	// effect-contract chunk owns and the shell loads eagerly. Left unowned, the
+	// helper was placed in a chunk of its own and cost the startup graph a request
+	// for one module its owner already pulls in.
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/audacity-effects/live-capability-policy.js'),
+		chunkGroupForModulePath('src/common/editor/audacity-effects/live-capabilities.js'),
+	);
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/audacity-effects/live-capability-policy.js'),
+		'editor-effect-contracts',
+	);
+});

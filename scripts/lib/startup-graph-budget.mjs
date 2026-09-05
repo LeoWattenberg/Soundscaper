@@ -24,8 +24,17 @@ export const STARTUP_GRAPH_BUDGETS = Object.freeze({
 	// compact layout (chrome drawer, compact bar and its stylesheet) grew the
 	// shell a few kilobytes and landed 1,348 bytes over a ceiling the graph had
 	// already crept up to.
+	// Requests raised from 80 by the same reasoning. The ceiling had no slack at
+	// all: the graph sat at exactly 80 of 80, so the next chunk of any origin
+	// broke the build, and the file-splitting campaign the maintainability guard
+	// asks for adds chunks by construction. Two of the three requests that
+	// breached it were real defects and are fixed rather than absorbed here: an
+	// extracted `live-capability-policy` had no chunk owner and took a request of
+	// its own, and the `aup4-` split left three lazy-only archive modules owned by
+	// the eager editor domain. The third is the Labeled audio submenu's own
+	// footprint, which is genuine startup cost.
 	framescaper: Object.freeze({
-		requests: 80,
+		requests: 84,
 		rawBytes: 7_000_000,
 		brotliBytes: 1_650_000,
 	}),
