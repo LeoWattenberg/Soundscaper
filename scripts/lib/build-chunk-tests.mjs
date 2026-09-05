@@ -17,6 +17,17 @@ const editorOptionalArchiveModule = String.raw`(?:aup-legacy(?:-block-budget|-co
 const editorOptionalExecutionModule = String.raw`(?:analysis|browser-(?:dedicated-audio-worker-client|webcodecs-aac)|pffft|selection-effects-runtime|spectral-edit(?:-admission)?|video-(?:keyframe-mediabunny-execution|mediabunny-muxer))`;
 const editorOptionalExportControllerModule = String.raw`(?:audio-export-delivery-admission|audio-export-render-orchestration|audio-realtime-encoded-export|audio-rendered-fallback-export|bw64-render-project|delivery-conformance-action|desktop-audio-export-capability|direct-(?:aiff-export|audio-render-plan|broadcast-wave-export|bw64-export|bwf-export|compressed-export|compressed-plan|compressed-stem-archive-plan|export-dispatch|mp3-export|native-stem-archive-plan|offline-compressed-export|offline-pcm-export|pcm-export|stem-archive-export|video-export|video-plan-contract|wav-export)|export-render-project|export-service|mastering-sequence-export-render|persistent-audio-delivery-execution|persistent-export-progress|realtime-export-pcm-transform|rendered-audio-encoding|streaming-stem-archive-export|video-export-captions|video-export-original-loader|video-export-service|video-export-staged-audio|video-rendered-fallback-export)`;
 export const editorOptionalControllerModule = String.raw`(?:analysis-service|cross-product-handoff-action|dawproject-service|${editorOptionalExportControllerModule})`;
+/**
+ * The Framescaper capture and Web VCR implementation, loaded when a capture
+ * gesture, a desktop bridge or durable recovery state asks for it.
+ *
+ * Named rather than wildcarded because four capture modules stay eager: the
+ * admin interlock and the proxy ports are composed synchronously, the Web VCR
+ * UI snapshot builds the idle snapshot the deferred facade shows, and the
+ * session manifest is storage the eager repositories read.
+ */
+export const editorOptionalCaptureControllerModule = String.raw`(?:framescaper-browser-(?:audio-processor-recorder|audio-recorder|capture-preview|capture-source|recorder-factory|video-recorder)|framescaper-capture-(?!admin-interlock\.ts$|project-write-authority\.ts$|proxy-quiescence\.ts$)[a-z\d-]+|framescaper-web-vcr-(?!ui-snapshot\.ts$)[a-z\d-]+|web-vcr-(?:audio-monitor|recorder-factory|video-frame-crop))`;
+export const editorOptionalCaptureFlatModule = String.raw`(?:framescaper-capture-domain|web-vcr-domain|web-vcr-geometry)`;
 export const editorOptionalAssistanceModule = String.raw`local-assistance-[^\\/]+`;
 /**
  * Assistance domain modules the eagerly loaded shell and controller genuinely share.
@@ -62,6 +73,11 @@ export const EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST = new RegExp(
 /** Audio and video delivery execution isolated from the effect-runtime graph. */
 export const EDITOR_OPTIONAL_EXPORT_CHUNK_TEST = new RegExp(
 	`${editorPath}controller[\\\\/]${editorOptionalExportControllerModule}\\.ts$`,
+);
+
+/** Capture and Web VCR implementation behind the deferred Framescaper capture runtime. */
+export const EDITOR_OPTIONAL_CAPTURE_CHUNK_TEST = new RegExp(
+	`${editorPath}(?:controller[\\\\/]${editorOptionalCaptureControllerModule}|${editorOptionalCaptureFlatModule})\\.ts$`,
 );
 
 /** Stateful assistance workflows loaded only after their menu-owned dialog is invoked. */
@@ -281,5 +297,5 @@ export const PROJECT_INTERCHANGE_FOUNDATION_CHUNK_TEST = new RegExp(
 
 /** Flat editor modules and `assistance/` domain modules shared by the shell and dialogs. */
 export const EDITOR_DOMAIN_CHUNK_TEST = new RegExp(
-	`${editorPath}(?!${editorOptionalArchiveModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)$)(?:[^\\\\/]+|(?:assistance|platform)[\\\\/][^\\\\/]+)\\.(?:[cm]?[jt]s)$`,
+	`${editorPath}(?!${editorOptionalArchiveModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalCaptureFlatModule}\\.ts$)(?:[^\\\\/]+|(?:assistance|platform)[\\\\/][^\\\\/]+)\\.(?:[cm]?[jt]s)$`,
 );

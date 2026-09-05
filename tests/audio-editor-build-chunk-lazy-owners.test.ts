@@ -11,12 +11,14 @@ import {
 	EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST,
 	EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST,
 	EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST,
+	EDITOR_OPTIONAL_CAPTURE_CHUNK_TEST,
 	EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST,
 	EDITOR_OPTIONAL_EXPORT_CHUNK_TEST,
 	EDITOR_OPTIONAL_SURFACE_CHUNK_TEST,
 	EDITOR_PFFFT_RUNTIME_CHUNK_TEST,
 	EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST,
 } from '../scripts/lib/build-chunk-groups.mjs';
+import { sourceModules } from './helpers/eager-chunk-group-crossings.ts';
 import { flatEditorModules } from './helpers/editor-chunk-module-inventory.ts';
 
 /**
@@ -57,6 +59,51 @@ test('optional archive code and its ZIP vendor are placed by dynamic reachabilit
 		null,
 		'FFmpeg client code must stay behind its existing dynamic runtime import',
 	);
+});
+
+test('Framescaper capture and Web VCR stay behind their deferred product runtime', () => {
+	// The whole capture stack rode into every Framescaper boot through one static
+	// edge, editor-controller.ts -> editor-capture-runtime.ts, at 61 modules and
+	// 3.9% of the product-ready graph for a feature a capture gesture, a desktop
+	// bridge or durable recovery state has to ask for. The runtime is now a
+	// facade that imports the implementation dynamically, and the implementation
+	// has its own lazy owner so it stops riding inside eager controller chunks.
+	const implementation = sourceModules('src/common/editor/controller')
+		.map((path) => path.replace(/^.*?src[\\/]/u, 'src/').replaceAll('\\', '/'))
+		.filter((path) => /\/(?:framescaper-(?:browser|capture|web-vcr)-|web-vcr-)/u.test(path));
+	assert.ok(implementation.length >= 55, `the capture implementation must be found (${implementation.length})`);
+	const eager = new Set([
+		'src/common/editor/controller/framescaper-capture-admin-interlock.ts',
+		'src/common/editor/controller/framescaper-capture-project-write-authority.ts',
+		'src/common/editor/controller/framescaper-capture-proxy-quiescence.ts',
+		'src/common/editor/controller/framescaper-web-vcr-ui-snapshot.ts',
+	]);
+	for (const path of implementation) {
+		if (eager.has(path)) {
+			assert.equal(chunkGroupForModulePath(path), 'editor-controller-core', `${path} is composed synchronously`);
+			continue;
+		}
+		assert.ok(EDITOR_OPTIONAL_CAPTURE_CHUNK_TEST.test(path), `${path} must be capture implementation`);
+		assert.equal(chunkGroupForModulePath(path), 'editor-optional-capture', `${path} belongs to the capture owner`);
+	}
+	for (const path of [
+		'src/common/editor/framescaper-capture-domain.ts',
+		'src/common/editor/web-vcr-domain.ts',
+		'src/common/editor/web-vcr-geometry.ts',
+	]) assert.equal(chunkGroupForModulePath(path), 'editor-optional-capture', path);
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/framescaper-capture-session-manifest.ts'),
+		'editor-domain',
+		'the session manifest is storage the eager repositories read',
+	);
+	const group = chunkGroups.find((candidate) => candidate.name === 'editor-optional-capture');
+	assert.ok(group);
+	assert.equal(group.includeDependenciesRecursively, false);
+	assert.equal(group.minSize, 0);
+	const facade = readFileSync(new URL('../src/framescaper/editor-capture-runtime.ts', import.meta.url), 'utf8');
+	assert.match(facade, /import\('\.\/editor-capture-runtime-implementation\.ts'\)/u);
+	assert.doesNotMatch(facade, /^import\s+(?!type\b)[^\n]*framescaper-capture-app-binding\.ts'/mu);
+	assert.doesNotMatch(facade, /^import\s+(?!type\b)[^\n]*framescaper-capture-derivative-scheduler\.ts'/mu);
 });
 
 test('the export and delivery split keeps its implementation behind the export owner', () => {

@@ -21,6 +21,7 @@ import type { WebVcrUiSnapshot } from '../web-vcr-ui-model.ts';
 import { FramescaperCaptureSources } from './FramescaperCaptureSources.tsx';
 
 interface CaptureActions {
+	openSetup?(): unknown;
 	requestPreview?(roles: readonly CaptureSourceRole[]): unknown;
 	listDisplaySources?(): unknown;
 	selectDisplaySource?(sourceToken: string): unknown;
@@ -76,6 +77,10 @@ export default function RecordingSetupPanel({
 	const productId = snapshot.productId ?? 'framescaper';
 	const capture = snapshot.capture;
 	const actions = controller.actions.capture;
+	// Opening this surface is the gesture the deferred capture runtime loads on,
+	// whichever menu, toolbar control or shortcut opened it. The action is a
+	// no-op once the runtime is up, so repeating it on every mount is harmless.
+	useEffect(() => { void actions?.openSetup?.(); }, [actions]);
 	const [selectedRoles, setSelectedRoles] = useState<readonly CaptureSourceRole[]>(() => (
 		capture?.requestedRoles.length ? capture.requestedRoles : defaultSourceRoles(capture)
 	));
