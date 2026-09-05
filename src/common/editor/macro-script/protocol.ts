@@ -32,8 +32,8 @@ export const MACRO_MAX_VALUE_ITEMS = 4_096;
 export const MACRO_MAX_LOG_ENTRIES = 1_000;
 export const MACRO_MAX_LOG_BYTES = 256 * 1024;
 
-/** The three lines of wrapper a program's own source sits under. */
-export const MACRO_SOURCE_LINE_OFFSET = 3;
+/** The two lines of wrapper a program's own source sits under. */
+export const MACRO_SOURCE_LINE_OFFSET = 2;
 
 export type MacroValue =
 	| undefined | null | boolean | number | string
@@ -253,7 +253,7 @@ export function readMacroWorkerMessage(
 /**
  * The author's own line, with the wrapper's lines taken back off.
  *
- * A program is spliced into a fixed three-line prelude, so every line an engine
+ * A program is spliced under a fixed two-line wrapper, so every line an engine
  * reports is that much further down than the one the author is looking at.
  */
 export function authorLine(value: unknown): number | null {

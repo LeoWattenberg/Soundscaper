@@ -290,8 +290,24 @@ globalThis.__macroBoot = (main) => {
 	return booted;
 };
 
+/**
+ * The line of the program that failed, or nothing.
+ *
+ * A stack begins with the message, which can hold a colon-separated pair of its
+ * own — a timecode reads exactly like a position — so only the frames are read.
+ * The frame that matters is the program's own body: an error thrown by one of
+ * the API's helpers has that helper's line on top, and this file's lines are
+ * never the author's. Reporting no line is better than reporting someone
+ * else's, so a stack that never entered the program yields nothing.
+ */
 function lineOf(error) {
-	const stack = String((error && error.stack) || '');
-	const match = /:(\d+):\d+/u.exec(stack);
+	const frames = String((error && error.stack) || '')
+		.split('\n')
+		.map((entry) => entry.trim())
+		// Frames are `at name (url:line:column)` in V8 and `name@url:line:column`
+		// elsewhere; a message line matches neither.
+		.filter((entry) => /^(?:at\s|\S*@)/u.test(entry) && /:\d+:\d+\)?$/u.test(entry));
+	const frame = frames.find((entry) => entry.includes('__macroMain'));
+	const match = frame ? /:(\d+):\d+\)?$/u.exec(frame) : null;
 	return match ? Number(match[1]) : null;
 }

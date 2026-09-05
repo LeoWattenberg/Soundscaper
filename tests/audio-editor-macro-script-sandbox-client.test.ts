@@ -56,7 +56,8 @@ const call = (callId: number, method: string, args: readonly unknown[] = []) => 
 test('the program is the worker module\'s own body, under a fixed wrapper', () => {
 	const module = buildMacroSandboxModule('// prelude', 'await sound.select.all();');
 	const lines = module.split('\n');
-	assert.equal(lines[0], '// prelude');
+	assert.ok(lines.indexOf('// prelude') > MACRO_SOURCE_LINE_OFFSET,
+		'the prelude follows the program, so the wrapper stays as long as the offset says');
 	assert.equal(lines[MACRO_SOURCE_LINE_OFFSET], 'await sound.select.all();',
 		'the author\'s first line must sit exactly under the wrapper the offset names');
 	assert.match(module, /globalThis\.__macroBoot\(__macroMain\);/u);

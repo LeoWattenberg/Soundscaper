@@ -23,6 +23,7 @@ import {
 	type MacroLimits,
 	type MacroLogEntry,
 	type MacroValue,
+	authorLine,
 	normalizeMacroValue,
 	readMacroWorkerMessage,
 } from './protocol.ts';
@@ -71,18 +72,20 @@ export class MacroSandboxError extends Error {
 /**
  * The worker's module body.
  *
- * The three lines before the program are fixed, and `MACRO_SOURCE_LINE_OFFSET`
- * is the same three, so every line an engine reports maps back to the line the
- * author is looking at. Putting the program inside a function body also makes a
- * static `import` a syntax error the author sees on their own line, which is a
- * denial the engine performs for us.
+ * The program comes first, under the two fixed lines `MACRO_SOURCE_LINE_OFFSET`
+ * names, so every line an engine reports maps back to the line the author is
+ * looking at however long the prelude grows. The prelude follows and still runs
+ * first: the program is only a function body until `__macroBoot` calls it, on
+ * the last line. Putting the program inside a function body also makes a static
+ * `import` a syntax error the author sees on their own line, which is a denial
+ * the engine performs for us.
  */
 export function buildMacroSandboxModule(preludeSource: string, program: string): string {
-	return `${preludeSource}
-const __macroMain = async (sound) => {
+	return `const __macroMain = async (sound) => {
 "use strict";
 ${program}
 };
+${preludeSource}
 globalThis.__macroBoot(__macroMain);
 `;
 }
@@ -132,7 +135,7 @@ export function createMacroSandboxClient(runtime: MacroSandboxRuntime) {
 					// program never began running.
 					finish(() => reject(new MacroSandboxError(
 						String(event?.message || 'The macro could not be compiled.'),
-						{ line: authorLineOf(event?.lineno), code: 'MACRO_COMPILE_FAILED' },
+						{ line: authorLine(event?.lineno), code: 'MACRO_COMPILE_FAILED' },
 					)));
 				}) as (event: never) => void);
 
@@ -219,10 +222,4 @@ export function createMacroSandboxClient(runtime: MacroSandboxRuntime) {
 			});
 		}
 	}
-}
-
-function authorLineOf(value: unknown): number | null {
-	if (!Number.isInteger(value)) return null;
-	const line = Number(value) - 3;
-	return line > 0 ? line : null;
 }
