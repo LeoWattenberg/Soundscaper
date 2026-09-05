@@ -17,8 +17,9 @@ import { renderAndEncodeAudioExport, type ExportRenderSources } from './audio-ex
 import { createRealtimeEncodedAudioExport } from './audio-realtime-encoded-export.ts';
 import { directPcmContainerLabel, prepareDirectPcmExportDestination } from './direct-export-dispatch.ts';
 import {
-	commitDirectCompressedDestination, directCompressedStagingTemporaryBytes,
-	prepareDirectCompressedDestination, type DirectCompressedDestination,
+	commitDirectCompressedDestination, directCompressedCancellation,
+	directCompressedStagingTemporaryBytes, prepareDirectCompressedDestination,
+	type DirectCompressedDestination,
 } from './direct-compressed-export.ts';
 import { commitDirectPcmDestination, type DirectPcmDestination } from './direct-pcm-export.ts';
 import { commitPreparedDirectStemArchiveDestination, directStemArchiveTemporaryBytes, prepareDirectStemArchiveDestination, streamDirectStemArchive } from './direct-stem-archive-export.ts';
@@ -281,14 +282,25 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			let directOutput = null;
 			let stemConformance: readonly DeliveryConformanceFinding[] = [];
 			if (plan.mode === 'mix') {
-				const encoded = await renderAndEncode(
-					exportProject, plan, settings, abort.signal, exportRenderSources,
-					plan.outputs[0],
-					{ start: 0, end: 1 },
-					directCompressed ? null : pendingDirectDestination as DirectPcmDestination | null,
-					directCompressed ? pendingDirectDestination as DirectCompressedDestination : null,
-					assertExportCurrent,
-				);
+				let encoded: RuntimeValue;
+				try {
+					encoded = await renderAndEncode(
+						exportProject, plan, settings, abort.signal, exportRenderSources,
+						plan.outputs[0],
+						{ start: 0, end: 1 },
+						directCompressed ? null : pendingDirectDestination as DirectPcmDestination | null,
+						directCompressed ? pendingDirectDestination as DirectCompressedDestination : null,
+						assertExportCurrent,
+					);
+				} catch (error) {
+					// A desktop compressed target is chosen when FFmpeg opens the sink,
+					// so a dismissed save dialog arrives here rather than before the
+					// render, and ends the delivery instead of failing it.
+					const cancellation = directCompressed ? directCompressedCancellation(error) : null;
+					if (!cancellation) throw error;
+					pendingDirectDestination = null;
+					return cancellation;
+				}
 				// Registered the moment the render has staged something, because
 				// everything between here and publication can throw: conformance can
 				// fail the delivery, and a cancel can land during the reopen. Anything

@@ -13,6 +13,7 @@ export type { DirectCompressedFormat, DirectCompressedPlan } from './direct-comp
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
 export interface DirectCompressedFileService {
+	readonly isDesktop?: unknown;
 	readonly prepareSave?: (
 		request: Readonly<Record<string, unknown>>,
 	) => PromiseLike<unknown> | unknown;
@@ -84,15 +85,15 @@ export async function prepareDirectCompressedDestination(
 	const contract = captureContract(plan);
 	if (!contract || typeof fileService.prepareSave !== 'function') return emptyPreparation();
 	const settings = requestedSettings || {};
-	const prepared = await fileService.prepareSave({
-		purpose: 'audio',
-		suggestedName: contract.fileName,
-		mimeType: contract.mimeType,
-		target: settings.saveTarget,
-		types: contract.fileTypes,
-		useFileSystemAccess: settings.useFileSystemAccess !== false,
-		signal,
-	});
+	const prepare = () => fileService.prepareSave!(saveRequest(contract, settings, signal));
+	// A desktop save target expires fifteen minutes after the native dialog
+	// registers it and nothing renews it, so a target chosen before the render is
+	// spent by the render: a long compressed export used to finish encoding and
+	// then lose its destination. Desktop selection therefore waits for the sink
+	// open, exactly as the direct video route does. A browser handle does not
+	// expire, so that route keeps choosing up front.
+	if (fileService.isDesktop === true) return await preparedDestination(plan, contract, null, prepare);
+	const prepared = await prepare();
 	if (!prepared || typeof prepared !== 'object') {
 		throw new TypeError(`The prepared ${contract.label} destination is invalid.`);
 	}
@@ -109,14 +110,14 @@ export async function prepareDirectCompressedDestination(
 	}
 	const stream = prepared as PreparedCompressedStream;
 	assertPreparedStream(stream, contract.label);
-	const destination = directCompressedDestination(stream, plan, contract);
-	preparedContracts.set(destination, contract);
-	try {
-		assertPreparedPlan(destination, plan);
-	} catch (error) {
-		throw await abortWithPrimary(destination, error);
-	}
-	return Object.freeze({ cancelled: null, destination });
+	return await preparedDestination(plan, contract, stream, null);
+}
+
+/** Recover a late desktop chooser cancellation without reporting it as an encoding failure. */
+export function directCompressedCancellation(
+	error: unknown,
+): Readonly<Record<string, unknown>> | null {
+	return error instanceof DirectCompressedTargetCancelled ? error.result : null;
 }
 
 /** The direct route retains only the staged WAV, never a renderer-side encoded output Blob. */
@@ -208,10 +209,12 @@ export async function commitDirectCompressedDestination(
 }
 
 function directCompressedDestination(
-	prepared: PreparedCompressedStream,
+	initialPrepared: PreparedCompressedStream | null,
+	prepare: (() => Awaitable<unknown>) | null,
 	plan: DirectCompressedPlan,
 	contract: DirectCompressedContract,
 ): DirectCompressedDestination {
+	let prepared = initialPrepared;
 	let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
 	let exactByteLength: number | null = null;
 	let emittedByteLength = 0;
@@ -227,13 +230,20 @@ function directCompressedDestination(
 			}
 			exactByteLength = safeByteLength(value, `FFmpeg ${contract.label} stat`);
 			opening = true;
-			const writable = await prepared.createWritable(exactByteLength, 'exact');
-			if (!writable || typeof writable.getWriter !== 'function') {
-				throw new TypeError(`The prepared ${contract.label} destination is not writable.`);
+			try {
+				if (!prepared) {
+					prepared = await prepareLateCompressedTarget(prepare, contract.label);
+					assertPreparedStream(prepared, contract.label);
+				}
+				const writable = await prepared.createWritable(exactByteLength, 'exact');
+				if (!writable || typeof writable.getWriter !== 'function') {
+					throw new TypeError(`The prepared ${contract.label} destination is not writable.`);
+				}
+				writer = writable.getWriter();
+				assertSamePlan(contract, plan);
+			} finally {
+				opening = false;
 			}
-			writer = writable.getWriter();
-			opening = false;
-			assertSamePlan(contract, plan);
 		},
 		async write(chunk: Uint8Array): Promise<void> {
 			assertSamePlan(contract, plan);
@@ -252,7 +262,7 @@ function directCompressedDestination(
 		},
 		async close(): Promise<DirectCompressedDestination> {
 			assertSamePlan(contract, plan);
-			if (!writer || exactByteLength === null || closed || committed || abortPromise) {
+			if (!writer || !prepared || exactByteLength === null || closed || committed || abortPromise) {
 				throw new Error(`The direct ${contract.label} destination cannot be closed.`);
 			}
 			assertExactCounts(prepared, emittedByteLength, exactByteLength, contract.label);
@@ -264,13 +274,13 @@ function directCompressedDestination(
 		},
 		abort(reason?: unknown): Promise<void> {
 			if (committed) return Promise.resolve();
-			abortPromise ??= Promise.resolve().then(() => prepared.abort(reason)).then(() => undefined);
+			abortPromise ??= Promise.resolve().then(() => prepared?.abort(reason)).then(() => undefined);
 			return abortPromise;
 		},
-		bytesWritten(): number { return prepared.bytesWritten(); },
+		bytesWritten(): number { return prepared?.bytesWritten() ?? 0; },
 		exactByteLength(): number | null { return exactByteLength; },
 		async commit(): Promise<Readonly<Record<string, unknown>>> {
-			if (!closed || committed || abortPromise || exactByteLength === null) {
+			if (!prepared || !closed || committed || abortPromise || exactByteLength === null) {
 				throw new Error(`The direct ${contract.label} destination is not ready to commit.`);
 			}
 			assertExactCounts(prepared, emittedByteLength, exactByteLength, contract.label);
@@ -280,6 +290,57 @@ function directCompressedDestination(
 		},
 	});
 	return destination;
+}
+
+async function preparedDestination(
+	plan: DirectCompressedPlan,
+	contract: DirectCompressedContract,
+	prepared: PreparedCompressedStream | null,
+	prepare: (() => Awaitable<unknown>) | null,
+): Promise<DirectCompressedPreparation> {
+	const destination = directCompressedDestination(prepared, prepare, plan, contract);
+	preparedContracts.set(destination, contract);
+	try {
+		assertPreparedPlan(destination, plan);
+	} catch (error) {
+		throw await abortWithPrimary(destination, error);
+	}
+	return Object.freeze({ cancelled: null, destination });
+}
+
+async function prepareLateCompressedTarget(
+	prepare: (() => Awaitable<unknown>) | null,
+	label: string,
+): Promise<PreparedCompressedStream> {
+	if (!prepare) throw new Error(`The direct ${label} destination has no prepared target.`);
+	const selected = await prepare();
+	if (!selected || typeof selected !== 'object') {
+		throw new TypeError(`The prepared ${label} destination is invalid.`);
+	}
+	const mode = (selected as Readonly<{ mode?: unknown }>).mode;
+	if (mode === 'cancelled') {
+		throw new DirectCompressedTargetCancelled(selected as Readonly<Record<string, unknown>>);
+	}
+	if (mode !== 'stream') {
+		throw new TypeError(`Desktop direct ${label} preparation did not return a stream target.`);
+	}
+	return selected as PreparedCompressedStream;
+}
+
+function saveRequest(
+	contract: DirectCompressedContract,
+	settings: Readonly<Record<string, unknown>>,
+	signal: AbortSignal,
+): Readonly<Record<string, unknown>> {
+	return Object.freeze({
+		purpose: 'audio',
+		suggestedName: contract.fileName,
+		mimeType: contract.mimeType,
+		target: settings.saveTarget,
+		types: contract.fileTypes,
+		useFileSystemAccess: settings.useFileSystemAccess !== false,
+		signal,
+	});
 }
 
 function assertPreparedPlan(
@@ -380,4 +441,14 @@ function abortError(): Error {
 
 function emptyPreparation(): DirectCompressedPreparation {
 	return Object.freeze({ cancelled: null, destination: null });
+}
+
+class DirectCompressedTargetCancelled extends Error {
+	readonly result: Readonly<Record<string, unknown>>;
+
+	constructor(result: Readonly<Record<string, unknown>>) {
+		super('The compressed-audio save target selection was cancelled.');
+		this.name = 'DirectCompressedTargetCancelled';
+		this.result = result;
+	}
 }
