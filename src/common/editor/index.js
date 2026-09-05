@@ -85,7 +85,10 @@ export {
 	FfmpegVideoEncodingError,
 	createEditorFfmpeg,
 } from './ffmpeg.js';
-export { Aup4ClientError, Aup4WorkerClient, createAup4Client } from './aup4-client.js';
+// The AUP4 archive client is deliberately absent: it is optional archive implementation
+// with no chunk owner, and `controller/deferred-archive-runtime.ts` is the only production
+// reach into it, through a dynamic import. Re-exporting it from this eagerly owned barrel
+// put the whole archive chunk one static import away from the boot graph.
 export { StaffPadRenderClient } from './staffpad/client.js';
 export { WavPackCodecClient } from './wavpack/client.js';
 export { ChunkStreamClient } from './chunk-stream-client.js';

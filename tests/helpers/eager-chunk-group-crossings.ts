@@ -48,6 +48,12 @@ const WORKER_ENTRY_PATTERN = /new Worker\(\s*new URL\(\s*'(\.[^']+)'/gu;
 // quotes, and while this pattern read single quotes only, every dependency that
 // eagerly owned module declares was invisible here.
 const STATIC_IMPORT_PATTERN = /^import\s+(?!type\b)([\s\S]*?)from\s+(?:'(\.[^']+)'|"(\.[^"]+)")/gmu;
+// A barrel's re-exports are static dependencies exactly like its imports: `export { X }
+// from './x.ts'` puts `./x.ts` in the importer's chunk graph. The pattern spells the whole
+// re-export grammar out rather than reusing the lazy `[\s\S]*?` clause above, because
+// `export function`, `export const` and `export class` open a line in nearly every module
+// and a lazy clause would happily run from one of those to the `from` of a later statement.
+const RE_EXPORT_PATTERN = /^export\s+(?!type\b)(\*(?:\s+as\s+[\p{ID_Start}$_][\p{ID_Continue}$]*)?|\{[^}]*\})\s*from\s*(?:'(\.[^']+)'|"(\.[^"]+)")/gmu;
 
 /**
  * Unowned targets whose reachability placement has been reasoned about, and why.
@@ -160,8 +166,30 @@ export const REACHABILITY_PLACED_TARGETS: ReadonlyMap<string, string> = new Map(
 
 /** The relative specifiers one module's source imports for value, in source order. */
 export function staticRelativeImports(source: string): readonly string[] {
+	return matchedSpecifiers(source, STATIC_IMPORT_PATTERN);
+}
+
+/**
+ * The relative specifiers one module's source re-exports for value, in source order.
+ *
+ * `export { X } from './x.ts'` is a static dependency the guard used to be blind to, and a
+ * barrel is where it matters most: an eagerly owned barrel that re-exports a lazily owned
+ * panel makes that whole optional chunk a static dependency of the shell's chunk, so it is
+ * downloaded during boot for a dialog nobody opened. `export type { X } from` is not an
+ * edge, and neither is a clause whose every name is `type`-qualified.
+ */
+export function staticRelativeReexports(source: string): readonly string[] {
+	return matchedSpecifiers(source, RE_EXPORT_PATTERN);
+}
+
+/** Every relative specifier one module's source depends on statically, imports then re-exports. */
+export function staticRelativeDependencies(source: string): readonly string[] {
+	return [...staticRelativeImports(source), ...staticRelativeReexports(source)];
+}
+
+function matchedSpecifiers(source: string, pattern: RegExp): readonly string[] {
 	const specifiers: string[] = [];
-	for (const match of source.matchAll(STATIC_IMPORT_PATTERN)) {
+	for (const match of source.matchAll(pattern)) {
 		if (importsOnlyTypes(match[1]!)) continue;
 		specifiers.push((match[2] ?? match[3])!);
 	}
@@ -198,7 +226,7 @@ export function eagerImportsOfLazyOwners(
 		const path = relative(REPOSITORY_ROOT, absolute).split(sep).join('/');
 		const owner = ownerName(path);
 		if (owner === null || !EAGER_CHUNK_GROUPS.has(owner)) continue;
-		for (const specifier of staticRelativeImports(readFileSync(absolute, 'utf8'))) {
+		for (const specifier of staticRelativeDependencies(readFileSync(absolute, 'utf8'))) {
 			const target = resolveRelativeModule(absolute, specifier);
 			if (!target) continue;
 			const targetPath = relative(REPOSITORY_ROOT, target).split(sep).join('/');
