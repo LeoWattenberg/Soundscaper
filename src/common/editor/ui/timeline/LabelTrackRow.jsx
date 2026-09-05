@@ -21,6 +21,7 @@ export function LabelTrackRow({
 	verticalRulerWidth,
 	pixelsPerSecond,
 	sampleRate,
+	renderOriginX = 0,
 	selection,
 	timeSelection,
 	rangeSelected,
@@ -38,7 +39,7 @@ export function LabelTrackRow({
 	const addLabel = (event = null) => {
 		if (blocked) return;
 		const pointerFrame = event?.clientX != null && laneRef.current
-			? frameAtLabelClientX(event.clientX, laneRef.current, pixelsPerSecond, sampleRate)
+			? frameAtLabelClientX(event.clientX, laneRef.current, pixelsPerSecond, sampleRate, renderOriginX)
 			: null;
 		const startFrame = pointerFrame ?? selection?.startFrame ?? 0;
 		const endFrame = pointerFrame ?? selection?.endFrame ?? startFrame;
@@ -134,6 +135,7 @@ export function LabelTrackRow({
 						trackHeight={trackHeight}
 						pixelsPerSecond={pixelsPerSecond}
 						sampleRate={sampleRate}
+						renderOriginX={renderOriginX}
 						laneRef={laneRef}
 						selected={selectedLabelId === label.id}
 						editing={editingLabelId === label.id}
@@ -163,6 +165,7 @@ export function AudacityLabelMarker({
 	trackHeight,
 	pixelsPerSecond,
 	sampleRate,
+	renderOriginX = 0,
 	laneRef,
 	selected,
 	editing,
@@ -261,7 +264,7 @@ export function AudacityLabelMarker({
 					previewRange(startFrame, startFrame + duration);
 				}}
 				onRegionResize={blocked ? undefined : ({ side, clientX }) => {
-					const frame = frameAtLabelClientX(clientX, laneRef.current, pixelsPerSecond, sampleRate);
+					const frame = frameAtLabelClientX(clientX, laneRef.current, pixelsPerSecond, sampleRate, renderOriginX);
 					if (side === 'left') previewRange(frame, label.endFrame);
 					else previewRange(label.startFrame, frame);
 				}}
@@ -299,10 +302,15 @@ export function labelLaneContentX(frame, pixelsPerSecond, sampleRate) {
 	return CLIP_CONTENT_OFFSET + framesToSeconds(frame, { sampleRate }) * pixelsPerSecond;
 }
 
-/** The inverse of {@link labelLaneContentX} for a pointer over a label lane. */
-export function frameAtLabelClientX(clientX, lane, pixelsPerSecond, sampleRate) {
+/**
+ * The inverse of {@link labelLaneContentX} for a pointer over a label lane.
+ * The lane is drawn inside the scrolled surface, so past the scroll-surface cap
+ * its content carries the timeline's render origin and the pointer must shed it
+ * again — exactly as the shared lane hit-test does.
+ */
+export function frameAtLabelClientX(clientX, lane, pixelsPerSecond, sampleRate, renderOriginX = 0) {
 	if (!lane) return 0;
 	const rect = lane.getBoundingClientRect();
-	const contentX = clientX - rect.left - CLIP_CONTENT_OFFSET;
+	const contentX = clientX - rect.left - renderOriginX - CLIP_CONTENT_OFFSET;
 	return Math.max(0, Math.round(Math.max(0, contentX) / pixelsPerSecond * sampleRate));
 }

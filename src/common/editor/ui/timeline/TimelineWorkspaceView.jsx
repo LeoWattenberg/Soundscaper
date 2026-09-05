@@ -403,6 +403,7 @@ export function TimelineWorkspaceView({
 						verticalRulerWidth={verticalRulerWidth}
 						pixelsPerSecond={pixelsPerSecond}
 						sampleRate={sampleRate}
+						renderOriginX={renderOriginX}
 						renderViewportStartFrame={renderViewportStartFrame}
 						viewportDurationFrames={viewportDurationFrames}
 						waveformRulerState={waveformRulerState}

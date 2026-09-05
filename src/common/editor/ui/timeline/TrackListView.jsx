@@ -56,6 +56,7 @@ export function TrackListView({
 	verticalRulerWidth,
 	pixelsPerSecond,
 	sampleRate,
+	renderOriginX = 0,
 	renderViewportStartFrame,
 	viewportDurationFrames,
 	waveformRulerState,
@@ -137,6 +138,7 @@ export function TrackListView({
 					verticalRulerWidth={verticalRulerWidth}
 					pixelsPerSecond={pixelsPerSecond}
 					sampleRate={sampleRate}
+					renderOriginX={renderOriginX}
 					selection={documentSelection}
 					timeSelection={timeSelection}
 					rangeSelected={selectedTrackIds?.has(track.id) === true}
