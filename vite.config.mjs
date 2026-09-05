@@ -1,6 +1,4 @@
 // @ts-check
-import { resolve } from 'node:path';
-
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
@@ -9,6 +7,7 @@ import {
 	emitDesktopRendererProductPublicAssets,
 	enforceDesktopRendererProductIsolation,
 } from './scripts/lib/desktop-renderer-product-isolation.mjs';
+import { productResolveAliases } from './scripts/lib/product-aliases.mjs';
 import {
 	readProductReleaseLinesSync,
 	resolveProductApplicationVersion,
@@ -28,7 +27,6 @@ const productId = resolveBuiltProductId(process.env.SCAPE_PRODUCT);
 const applicationVersion = resolveProductApplicationVersion(
 	productId, readProductReleaseLinesSync(import.meta.dirname),
 );
-const vendoredDesignSystem = resolve(import.meta.dirname, 'vendor/audacity-design-system');
 const desktopCodecComposition = process.env.SCAPE_DESKTOP_CODEC_RUNTIME === 'main-process';
 
 /**
@@ -106,124 +104,16 @@ export default defineConfig({
 	],
 	resolve: {
 		// File-targeted public aliases plus an app-internal deep component alias.
-		// Public deep subpath imports remain unsupported. Mirrored in
-		// tsconfig.base.json "paths" for tsc, editors, and tsx-run node tests.
-		alias: [
-			...(productId === 'framescaper' ? [{
-				find: /^(?:\.\/|\.\.\/)soundscaper-workflow-product-runtime\.tsx$/u,
-				replacement: resolve(
-					import.meta.dirname,
-					'src/framescaper/editor-soundscaper-workflow-product-runtime.tsx',
-				),
-			}] : []),
-			...(productId === 'soundscaper' ? [
-				{
-					find: /^\.\/framescaper-capture-copy\.js$/u,
-					replacement: resolve(import.meta.dirname, 'src/soundscaper/framescaper-capture-copy.js'),
-				},
-				{
-					find: /^\.\.\/framescaper-(?:finishing-menu|selected-visual-authoring-menu|video-proxy-application-menu)\.ts$/u,
-					replacement: resolve(import.meta.dirname, 'src/soundscaper/editor-framescaper-overlay-model.ts'),
-				},
-				{
-					find: /^\.\/FramescaperCaptureRecordControl\.tsx$/u,
-					replacement: resolve(import.meta.dirname, 'src/soundscaper/editor-capture-toolbar-control.tsx'),
-				},
-				{
-					find: /^\.\/framescaper-video-proxy-pressure\.ts$/u,
-					replacement: resolve(
-						import.meta.dirname,
-						'src/soundscaper/editor-video-preview-product-runtime.ts',
-					),
-				},
-				{
-					find: /^\.\/video-preview-(?:external-display|freeze-capture)\.ts$/u,
-					replacement: resolve(
-						import.meta.dirname,
-						'src/soundscaper/editor-video-preview-product-runtime.ts',
-					),
-				},
-				{
-					find: /^\.\/application-menu-product-runtime\.js$/u,
-					replacement: resolve(
-						import.meta.dirname,
-						'src/soundscaper/editor-application-menu-product-runtime.js',
-					),
-				},
-				{
-					find: /^\.\/local-assistance-guided-framescaper-acceptance\.ts$/u,
-					replacement: resolve(
-						import.meta.dirname,
-						'src/soundscaper/local-assistance-deferred-publication.ts',
-					),
-				},
-				{
-					find: /^\.\.\/\.\.\/\.\.\/framescaper\/editor-local-assistance-(?:reframe|highlight)-publication\.ts$/u,
-					replacement: resolve(
-						import.meta.dirname,
-						'src/soundscaper/local-assistance-deferred-publication.ts',
-					),
-				},
-				{
-					find: /^\.\/workspace-product-application-menu-runtime\.ts$/u,
-					replacement: resolve(
-						import.meta.dirname,
-						'src/soundscaper/editor-workspace-application-menu-runtime.ts',
-					),
-				},
-				{
-					find: /^\.\/workspace-product-panel-runtime\.ts$/u,
-					replacement: resolve(
-						import.meta.dirname,
-						'src/soundscaper/editor-workspace-panel-runtime.ts',
-					),
-				},
-				{
-					find: /^\.\/workspace\/workspace-product-panel-runtime\.ts$/u,
-					replacement: resolve(
-						import.meta.dirname,
-						'src/soundscaper/editor-workspace-panel-runtime.ts',
-					),
-				},
-				{
-					find: /^\.\.\/workspace\/workspace-product-panel-runtime\.ts$/u,
-					replacement: resolve(
-						import.meta.dirname,
-						'src/soundscaper/editor-workspace-panel-runtime.ts',
-					),
-				},
-			] : []),
-			...(desktopCodecComposition ? [
-				...(productId === 'soundscaper' ? [{
-					find: /^\.\/cross-product-handoff-action-facade\.ts$/u,
-					replacement: resolve(
-						import.meta.dirname,
-						'src/soundscaper/editor-foreign-family-runtime.ts',
-					),
-				}, {
-					find: /^\.\.\/transfer\/transfer-page-entry\.ts$/u,
-					replacement: resolve(
-						import.meta.dirname,
-						'src/soundscaper/editor-foreign-family-runtime.ts',
-					),
-				}] : []),
-				{
-					find: /^\.\/editor-codec-runtime\.ts$/u,
-					replacement: resolve(import.meta.dirname, 'src/common/editor/editor-codec-runtime.desktop.ts'),
-				},
-				{
-					find: /^\.\/OfflineRuntimePreferencePanel\.tsx$/u,
-					replacement: resolve(import.meta.dirname, 'src/common/editor/ui/dialogs/OfflineRuntimePreferencePanel.desktop.tsx'),
-				},
-			] : []),
-			{
-				find: /^@soundscaper\/design-system\/(.+)$/u,
-				replacement: resolve(vendoredDesignSystem, 'components/src/$1'),
-			},
-			{ find: '@audacity-ui/components', replacement: resolve(vendoredDesignSystem, 'components/src/index.ts') },
-			{ find: '@audacity-ui/core', replacement: resolve(vendoredDesignSystem, 'core/src/index.ts') },
-			{ find: '@audacity-ui/tokens', replacement: resolve(vendoredDesignSystem, 'tokens/src/index.ts') },
-		],
+		// Public deep subpath imports remain unsupported. The product substitution
+		// rows live in scripts/lib/product-aliases.mjs so the export-parity guard
+		// reads the same table this build resolves through; tsconfig.base.json
+		// "paths" mirrors only the design-system rows, so tsc, editors and tsx-run
+		// node tests see every module by its default (unsubstituted) target.
+		alias: productResolveAliases({
+			productId,
+			desktopCodecComposition,
+			repositoryRoot: import.meta.dirname,
+		}),
 	},
 	envPrefix: ['VITE_', 'PUBLIC_'],
 	define: {

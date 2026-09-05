@@ -14,6 +14,7 @@ import {
 	workerChunkGroups,
 	WORKER_XML_VENDOR_CHUNK_TEST,
 } from '../scripts/lib/build-chunk-groups.mjs';
+import { productResolveAliases } from '../scripts/lib/product-aliases.mjs';
 import {
 	assistanceDomainModules,
 	flatEditorModules,
@@ -273,9 +274,13 @@ test('editor UI imports exact internal design-system modules', () => {
 	const broadImporters = sourceModules(EDITOR_UI_DIRECTORY)
 		.filter((path) => readFileSync(path, 'utf8').includes("from '@audacity-ui/components'"));
 	assert.deepEqual(broadImporters, [], 'broad design-system imports retain every component stylesheet');
-	const viteConfig = readFileSync(fileURLToPath(new URL('../vite.config.mjs', import.meta.url)), 'utf8');
+	const buildAliases = productResolveAliases({ productId: 'soundscaper', repositoryRoot: '/repository' });
 	const tsconfig = readFileSync(fileURLToPath(new URL('../tsconfig.base.json', import.meta.url)), 'utf8');
-	assert.match(viteConfig, /@soundscaper\\\/design-system/u);
+	assert.ok(
+		buildAliases.some((entry) => entry.find instanceof RegExp
+			&& entry.find.source.includes('@soundscaper\\/design-system')),
+		'the build resolves the deep design-system subpath alias',
+	);
 	assert.match(tsconfig, /"@soundscaper\/design-system\/\*"/u);
 });
 
