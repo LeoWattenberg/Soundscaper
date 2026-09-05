@@ -173,13 +173,16 @@ class PhaserLiveProcessor extends LiveProcessor {
 		for (let channel = 0; channel < output.length; channel += 1) {
 			const source = channelAt(input, channel);
 			const state = this.states[channel];
+			// Every channel after the first counter-phases its LFO, as the one-shot
+			// path does for Audacity's per-channel FrontRight instances.
+			const channelPhase = channel > 0 ? this.phase + Math.PI : this.phase;
 			for (let frame = 0; frame < frames; frame += 1) {
 				const dry = source?.[frame] || 0;
 				let sample = dry + state.feedback * this.params.feedbackPercent / 101;
 				const update = state.skip % 20 === 0;
 				state.skip += 1;
 				if (update) {
-					state.gain = (1 + Math.cos(state.skip * this.lfoStep + this.phase)) / 2;
+					state.gain = (1 + Math.cos(state.skip * this.lfoStep + channelPhase)) / 2;
 					state.gain = Math.expm1(state.gain * PHASER_LFO_SHAPE) / Math.expm1(PHASER_LFO_SHAPE);
 					state.gain = 1 - state.gain / 255 * this.params.depth;
 				}
@@ -212,11 +215,14 @@ class WahwahLiveProcessor extends LiveProcessor {
 		for (let channel = 0; channel < output.length; channel += 1) {
 			const source = channelAt(input, channel);
 			const state = this.states[channel];
+			// Every channel after the first counter-phases its LFO, as the one-shot
+			// path does for Audacity's per-channel FrontRight instances.
+			const channelPhase = channel > 0 ? this.phase + Math.PI : this.phase;
 			for (let frame = 0; frame < frames; frame += 1) {
 				const update = state.skip % 30 === 0;
 				state.skip += 1;
 				if (update) {
-					let center = (1 + Math.cos(state.skip * this.lfoStep + this.phase)) / 2;
+					let center = (1 + Math.cos(state.skip * this.lfoStep + channelPhase)) / 2;
 					center = center * this.depth * (1 - this.offset) + this.offset;
 					center = Math.exp((center - 1) * 6);
 					const omega = Math.PI * center;

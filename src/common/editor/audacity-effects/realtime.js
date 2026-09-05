@@ -166,7 +166,11 @@ export function applyAudacityPhaser(channels, sampleRate, params = {}) {
 	const phase = settings.phaseDegrees * Math.PI / 180;
 	const outputGain = dbToLinear(settings.outputGainDb);
 
-	return channels.map((input) => {
+	// Audacity builds one instance per channel and marks every channel after the
+	// first ChannelNameFrontRight, which offsets that instance's LFO by pi
+	// (PhaserBase::Instance::ProcessInitialize via MakeChannelMap).
+	return channels.map((input, channelIndex) => {
+		const channelPhase = channelIndex > 0 ? phase + Math.PI : phase;
 		const output = new Float32Array(input.length);
 		const old = new Float64Array(settings.stages);
 		let skipCount = 0;
@@ -178,7 +182,7 @@ export function applyAudacityPhaser(channels, sampleRate, params = {}) {
 			const updateLfo = skipCount % 20 === 0;
 			skipCount += 1;
 			if (updateLfo) {
-				allPassGain = (1 + Math.cos(skipCount * lfoStep + phase)) / 2;
+				allPassGain = (1 + Math.cos(skipCount * lfoStep + channelPhase)) / 2;
 				allPassGain = Math.expm1(allPassGain * PHASER_LFO_SHAPE) / Math.expm1(PHASER_LFO_SHAPE);
 				allPassGain = 1 - allPassGain / 255 * settings.depth;
 			}
@@ -253,7 +257,10 @@ export function applyAudacityWahwah(channels, sampleRate, params = {}) {
 	const frequencyOffset = settings.frequencyOffsetPercent / 100;
 	const outputGain = dbToLinear(settings.outputGainDb);
 
-	return channels.map((input) => {
+	// As with Phaser, Audacity's per-channel instances offset every channel after
+	// the first by pi (WahWahBase::Instance::ProcessInitialize).
+	return channels.map((input, channelIndex) => {
+		const channelPhase = channelIndex > 0 ? phase + Math.PI : phase;
 		const output = new Float32Array(input.length);
 		let skipCount = 0;
 		let previousInput = 0;
@@ -271,7 +278,7 @@ export function applyAudacityWahwah(channels, sampleRate, params = {}) {
 			const updateLfo = skipCount % 30 === 0;
 			skipCount += 1;
 			if (updateLfo) {
-				let center = (1 + Math.cos(skipCount * lfoStep + phase)) / 2;
+				let center = (1 + Math.cos(skipCount * lfoStep + channelPhase)) / 2;
 				center = center * depth * (1 - frequencyOffset) + frequencyOffset;
 				center = Math.exp((center - 1) * 6);
 				const omega = Math.PI * center;
