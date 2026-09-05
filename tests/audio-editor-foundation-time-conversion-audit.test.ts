@@ -31,7 +31,14 @@ import {
 } from 'typescript';
 
 const REPOSITORY_ROOT = new URL('../', import.meta.url);
-const EDITOR_ROOT = new URL('../src/common/editor/', import.meta.url);
+// The register claims every maintained conversion site, so the walk covers every
+// maintained tree that can import the shared time helpers: the shared editor and
+// both product trees under `src/`, the desktop main process, and the native hosts.
+const AUDIT_ROOTS: readonly URL[] = Object.freeze([
+	new URL('../src/', import.meta.url),
+	new URL('../desktop/', import.meta.url),
+	new URL('../native/', import.meta.url),
+]);
 const POLICY_ARGUMENT = Object.freeze<Record<string, number | FoundationTimeConversionPolicy>>({
 	roundRational: 2,
 	secondsToSampleFrame: 2,
@@ -107,7 +114,7 @@ test('raw sample-rate changes of basis cannot bypass shared timeline policy', as
 
 async function collectRawSampleRateChanges(): Promise<Map<string, string[]>> {
 	const result = new Map<string, string[]>();
-	for (const absoluteFile of await sourceFiles(new URL('.', EDITOR_ROOT).pathname)) {
+	for (const absoluteFile of await auditedSourceFiles()) {
 		const source = await readFile(absoluteFile, 'utf8');
 		const file = relative(new URL('.', REPOSITORY_ROOT).pathname, absoluteFile).replaceAll('\\', '/');
 		const parsed = createSourceFile(file, source, ScriptTarget.Latest, true, scriptKind(file));
@@ -130,7 +137,7 @@ async function collectRawSampleRateChanges(): Promise<Map<string, string[]>> {
 
 async function collectConversionSites(): Promise<Map<string, Map<string, Set<FoundationTimeConversionPolicy>>>> {
 	const result = new Map<string, Map<string, Set<FoundationTimeConversionPolicy>>>();
-	for (const absoluteFile of await sourceFiles(new URL('.', EDITOR_ROOT).pathname)) {
+	for (const absoluteFile of await auditedSourceFiles()) {
 		const source = await readFile(absoluteFile, 'utf8');
 		const file = relative(new URL('.', REPOSITORY_ROOT).pathname, absoluteFile).replaceAll('\\', '/');
 		const parsed = createSourceFile(file, source, ScriptTarget.Latest, true, scriptKind(file));
@@ -190,6 +197,12 @@ function expressionPolicies(expression: Expression | undefined): readonly Founda
 function assertPolicy(value: string): FoundationTimeConversionPolicy {
 	assert.ok(['point', 'enclosingStart', 'enclosingEnd', 'directional', 'exact'].includes(value));
 	return value as FoundationTimeConversionPolicy;
+}
+
+async function auditedSourceFiles(): Promise<string[]> {
+	const files: string[] = [];
+	for (const root of AUDIT_ROOTS) files.push(...await sourceFiles(new URL('.', root).pathname));
+	return files;
 }
 
 async function sourceFiles(directory: string): Promise<string[]> {

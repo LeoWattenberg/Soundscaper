@@ -5,6 +5,7 @@ import { FOUNDATION_RATE_CONVERSION_AUDIT_SITES } from './foundation-rate-conver
 import { deepFreezeAuditSites } from './foundation-audit-site-freeze.ts';
 import { FOUNDATION_TIME_CONVERSION_ASSISTANCE_SITES } from './foundation-time-conversion-audit-assistance.ts';
 import { FOUNDATION_TIME_CONVERSION_COMMAND_SITES } from './foundation-time-conversion-audit-commands.ts';
+import { FOUNDATION_TIME_CONVERSION_PRODUCT_SITES } from './foundation-time-conversion-audit-products.ts';
 
 export type FoundationTimeConversionPolicy = TimeRoundingPolicy | 'exact';
 
@@ -406,10 +407,18 @@ const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversion
 	},
 ]);
 
-/** Every maintained conversion site: the editor foundation plus the assistance slices. */
+/**
+ * Every maintained conversion site: the editor foundation, the command and
+ * assistance slices, and the product and desktop trees outside the editor.
+ *
+ * The paired audit test walks `src/`, `desktop/` and `native/`, so this claim is
+ * measured rather than asserted; a conversion introduced anywhere in a maintained
+ * tree fails the test until it is classified here.
+ */
 export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversionSite[] = Object.freeze([
 	...FOUNDATION_TIME_CONVERSION_EDITOR_SITES,
 	...FOUNDATION_TIME_CONVERSION_COMMAND_SITES,
 	...FOUNDATION_TIME_CONVERSION_ASSISTANCE_SITES,
+	...FOUNDATION_TIME_CONVERSION_PRODUCT_SITES,
 ]);
 
