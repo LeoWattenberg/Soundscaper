@@ -517,6 +517,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			chirp: () => openGenerator('chirp'),
 			dtmf: () => openGenerator('dtmf'),
 			noise: () => openGenerator('noise'),
+			morse: () => openGenerator('morse'),
 		},
 		help: { openDiagnostics: () => openSurface('local-diagnostics'),
 			openTutorials: () => ui.openExternal(documentationUrl(options.productId ?? 'soundscaper', 'tutorials')),

@@ -88,6 +88,7 @@ export const AUDACITY_ACTION_ALIASES = deepFreeze({
 	'chirp-generator': 'generator://chirp',
 	'dtmf-generator': 'generator://dtmf',
 	'noise-generator': 'generator://noise',
+	'morse-generator': 'local://morse-generator',
 	'repeat-generator': 'local://repeat-generator',
 	'rhythm-generator': 'nyquist:rhythmtrack',
 	'pluck-generator': 'nyquist:pluck',

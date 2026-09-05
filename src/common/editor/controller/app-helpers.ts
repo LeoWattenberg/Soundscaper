@@ -12,6 +12,7 @@ interface GeneratorCopy {
 	readonly chirpGenerator: string;
 	readonly noiseGenerator: string;
 	readonly dtmfGenerator: string;
+	readonly morseGenerator: string;
 }
 
 interface LabelExportResult {
@@ -128,6 +129,7 @@ export function generatorName(type: string, copy: GeneratorCopy): string {
 		chirp: copy.chirpGenerator,
 		noise: copy.noiseGenerator,
 		dtmf: copy.dtmfGenerator,
+		morse: copy.morseGenerator,
 	};
 	return names[type] || type;
 }

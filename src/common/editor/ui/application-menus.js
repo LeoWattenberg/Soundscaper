@@ -425,6 +425,7 @@ export default function createApplicationMenus({
 				{ id: 'chirp-generator', label: copy.chirpGenerator, disabled: editBlocked, onClick: () => actions.openGenerator('chirp') },
 				{ id: 'dtmf-generator', label: copy.dtmfGenerator, disabled: editBlocked, onClick: () => actions.openGenerator('dtmf') },
 				{ id: 'noise-generator', label: copy.noiseGenerator, disabled: editBlocked, onClick: () => actions.openGenerator('noise') },
+				{ id: 'morse-generator', label: copy.morseGenerator, disabled: editBlocked, onClick: () => actions.openGenerator('morse') },
 				{ id: 'nyquist-generators', label: copy.nyquist, items: nyquistItems('generate') },
 			],
 		},

@@ -84,6 +84,7 @@ function createFixture(overrides: Partial<AudioGeneratorServiceDependencies> = {
 			done: 'Done.',
 			dtmfGenerator: 'DTMF',
 			generatingAudio: 'Generating audio.',
+			morseGenerator: 'Morse code',
 			noiseGenerator: 'Noise',
 			silenceAudio: 'Silence',
 			silenceGenerator: 'Silence',

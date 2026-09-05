@@ -1,4 +1,10 @@
-export const AUDIO_EDITOR_GENERATOR_TYPES = Object.freeze(['silence', 'tone', 'chirp', 'noise', 'dtmf']);
+import {
+	encodeMorseCode,
+	morseCodeDotSeconds,
+	morseCodeKeying,
+} from './morse-code.ts';
+
+export const AUDIO_EDITOR_GENERATOR_TYPES = Object.freeze(['silence', 'tone', 'chirp', 'noise', 'dtmf', 'morse']);
 const OSCILLATOR_WAVEFORMS = Object.freeze(['sine', 'square', 'sawtooth']);
 // One ceiling for every generated length. The DTMF dialog splits a total this
 // long into per-symbol tone and silence lengths, so those share the ceiling
@@ -17,8 +23,8 @@ export function generateAudioEditorSignal(type, options = {}) {
 	if (!AUDIO_EDITOR_GENERATOR_TYPES.includes(type)) throw new RangeError(`Unsupported audio generator: ${type}.`);
 	const sampleRate = positiveInteger(options.sampleRate ?? 48_000, 'sampleRate');
 	const channelCount = integerInRange(options.channelCount ?? 1, 1, 32, 'channelCount');
-	const result = type === 'dtmf'
-		? generateDtmf(options, sampleRate, channelCount)
+	const result = type === 'dtmf' ? generateDtmf(options, sampleRate, channelCount)
+		: type === 'morse' ? generateMorse(options, sampleRate, channelCount)
 		: generateFixedDuration(type, options, sampleRate, channelCount);
 	return Object.freeze({
 		type,
@@ -153,6 +159,42 @@ function generateDtmf(options, sampleRate, channelCount) {
 			);
 		}
 		offset += toneFrames + silenceFrames;
+	}
+	return duplicateChannels(mono, channelCount);
+}
+
+function generateMorse(options, sampleRate, channelCount) {
+	const words = encodeMorseCode(options.text ?? 'SOS');
+	const wordsPerMinute = finiteInRange(options.wordsPerMinute ?? 20, 1, 120, 'wordsPerMinute');
+	const frequency = finiteInRange(options.frequency ?? 700, 0.01, sampleRate / 2, 'frequency');
+	const amplitude = finiteInRange(options.amplitude ?? 0.8, 0, 1, 'amplitude');
+	const segments = morseCodeKeying(words);
+	const dotSeconds = morseCodeDotSeconds(wordsPerMinute);
+	const totalUnits = segments.reduce((total, segment) => total + segment.units, 0);
+	if (totalUnits * dotSeconds > MAX_GENERATOR_SECONDS) throw new RangeError('Morse output is too long.');
+	const framesPerUnit = dotSeconds * sampleRate;
+	const frameCount = boundedFrameCount(totalUnits * dotSeconds, sampleRate);
+	const mono = new Float32Array(frameCount);
+	// Key every element through a raised-cosine edge. Switching a tone on and
+	// off abruptly spreads a click across the spectrum, which is the whole
+	// reason a keying envelope exists; a quarter of a dot bounds the shaping at
+	// speeds fast enough for five milliseconds to swallow the element.
+	const rampFrames = Math.round(Math.min(0.005, dotSeconds / 4) * sampleRate);
+	let unitOffset = 0;
+	for (const segment of segments) {
+		const start = Math.round(unitOffset * framesPerUnit);
+		unitOffset += segment.units;
+		if (!segment.tone) continue;
+		const end = Math.min(frameCount, Math.round(unitOffset * framesPerUnit));
+		const edgeFrames = Math.min(rampFrames, Math.floor((end - start) / 2));
+		for (let frame = start; frame < end; frame += 1) {
+			const ramp = edgeFrames
+				? Math.min(1, (frame - start + 1) / edgeFrames, (end - frame) / edgeFrames)
+				: 1;
+			mono[frame] = amplitude
+				* (0.5 - 0.5 * Math.cos(Math.PI * ramp))
+				* Math.sin(2 * Math.PI * frequency * (frame - start) / sampleRate);
+		}
 	}
 	return duplicateChannels(mono, channelCount);
 }

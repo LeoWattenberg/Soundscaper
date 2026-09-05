@@ -138,6 +138,7 @@ Product availability follows each product profile’s command filters. “—”
 | Metronome | `metronome` | — | Transport | Soundscaper, Framescaper | Audacity |
 | Minutes and seconds ruler | `minutes-seconds-ruler` | — | Timeline ruler | Soundscaper, Framescaper | Audacity |
 | Mix & Render | `mix-render` | Ctrl+Shift+M | Tracks | Soundscaper | Soundscaper local |
+| Morse code | `local://morse-generator` | — | Generate | Soundscaper | Soundscaper local |
 | Move item down | `track-view-item-move-down` | Ctrl+Down | Keyboard navigation | Soundscaper, Framescaper | Audacity |
 | Move item left | `track-view-item-move-left` | Ctrl+Left | Keyboard navigation | Soundscaper, Framescaper | Audacity |
 | Move item right | `track-view-item-move-right` | Ctrl+Right | Keyboard navigation | Soundscaper, Framescaper | Audacity |

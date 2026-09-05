@@ -375,6 +375,17 @@
 	max-width: 300px;
 }
 
+#kw-audio-editor-design-system .kw-audio-editor-generator__stack {
+	display: grid;
+	gap: 12px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-generator__morse-code {
+	overflow-wrap: anywhere;
+	font-family: var(--kw-editor-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+	letter-spacing: 0.06em;
+}
+
 #kw-audio-editor-design-system .kw-audio-editor-generator__card {
 	min-width: 0;
 }

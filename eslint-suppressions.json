@@ -892,9 +892,9 @@
       "count": 2
     }
   },
-  "src/common/editor/ui/dialogs/GeneratorDialog.jsx": {
+  "src/common/editor/ui/dialogs/GeneratorDialogFields.jsx": {
     "no-restricted-syntax": {
-      "count": 7
+      "count": 5
     }
   },
   "src/common/editor/ui/dialogs/PreferenceDropdownField.jsx": {

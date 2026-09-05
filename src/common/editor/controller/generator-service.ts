@@ -20,7 +20,7 @@ import {
 import type { AudioBufferLike } from './source-audio.ts';
 import { createLabeledAudioSilence } from './labeled-audio-silence.ts';
 
-export type AudioGeneratorType = 'silence' | 'tone' | 'chirp' | 'noise' | 'dtmf';
+export type AudioGeneratorType = 'silence' | 'tone' | 'chirp' | 'noise' | 'dtmf' | 'morse';
 
 export interface AudioGeneratorSelection {
 	readonly startFrame: number;
@@ -92,6 +92,7 @@ export interface AudioGeneratorCopy {
 	readonly done: string;
 	readonly dtmfGenerator: string;
 	readonly generatingAudio: string;
+	readonly morseGenerator: string;
 	readonly noiseGenerator: string;
 	readonly silenceAudio: string;
 	readonly silenceGenerator: string;

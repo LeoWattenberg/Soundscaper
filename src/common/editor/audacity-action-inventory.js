@@ -439,6 +439,7 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 		implemented('local://select-no-tracks', 'Select no tracks', ['Select > Tracks'], 'selection.selectNoTracks', { enableWhen: 'track-selected', source: null, origin: 'local' }),
 		implemented('local://mute-all', 'Mute all tracks', ['Tracks'], 'track.muteAll', { enableWhen: 'project-writable', source: null, origin: 'local', shortcut: 'Ctrl+U' }),
 		implemented('local://unmute-all', 'Unmute all tracks', ['Tracks'], 'track.unmuteAll', { enableWhen: 'project-writable', source: null, origin: 'local', shortcut: 'Ctrl+Shift+U' }),
+	implemented('local://morse-generator', 'Morse code', ['Generate'], 'generators.morse', { enableWhen: 'project-writable', source: null, origin: 'local' }),
 	implemented('local://repeat-generator', 'Repeat last generator', ['Generate'], 'generators.repeatLast', { enableWhen: 'repeatable-generator', source: null, origin: 'local' }),
 	implemented('local://repeat-analyzer', 'Repeat last analyzer', ['Analyze'], 'analysis.repeatLast', { enableWhen: 'repeatable-analyzer', source: null, origin: 'local' }),
 	disabled('local://silence-finder', 'Silence finder', ['Analyze'], DISABLED_REASONS.local, { source: null, origin: 'local' }),

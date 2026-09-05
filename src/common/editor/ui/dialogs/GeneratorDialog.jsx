@@ -1,18 +1,25 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
-import { Dropdown } from '@soundscaper/design-system/Dropdown';
-import { Knob } from '@soundscaper/design-system/Knob';
-import { LabeledRadio } from '@soundscaper/design-system/LabeledRadio';
-import { NumberStepper } from '@soundscaper/design-system/NumberStepper';
 import { PreferencePanel } from '@soundscaper/design-system/PreferencePanel';
 import { Separator } from '@soundscaper/design-system/Separator';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 
+import { summarizeMorseCode } from '../../morse-code.ts';
+import {
+	GeneratorKnob,
+	GeneratorNumberField,
+	GeneratorRadioGroup,
+	GeneratorSelect,
+} from './GeneratorDialogFields.jsx';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
+
+// Real hand-sent Morse runs from a beginner's five words per minute to about
+// sixty; the generator itself accepts more for scripted use.
+const MORSE_SPEED_RANGE = Object.freeze({ minimum: 5, maximum: 60 });
 
 export default function GeneratorDialog({ type, controller, copy, locale, run, onClose }) {
 	const [params, setParams] = useState(() => generatorDefaults(type));
@@ -21,9 +28,14 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 	const labels = generatorLayoutLabels(copy);
 	const waveformOptions = generatorWaveformOptions(copy);
 	const dtmfTiming = generatorDtmfTiming(params);
+	// A half-typed message must not break the preview, so the summary reports
+	// what cannot be sent instead of throwing the way the encoder does.
+	const morse = type === 'morse' ? summarizeMorseCode(params.text, params.wordsPerMinute) : null;
+	const unsendable = Boolean(morse && (morse.empty || morse.unsupported.length));
 	// The generate button sits in the shared footer, outside the form, so both
 	// it and an Enter press inside a field run this one handler.
 	const generate = () => {
+		if (unsendable) return;
 		const options = type === 'dtmf'
 			? { ...params, durationSeconds: dtmfTiming.totalSeconds, toneSeconds: dtmfTiming.toneSeconds, silenceSeconds: dtmfTiming.silenceSeconds }
 			: params;
@@ -107,7 +119,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 				className="audio-editor-dialog-footer"
 				rightContent={<>
 					<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
-					<Button variant="primary" onClick={generate}>{copy.generate}</Button>
+					<Button variant="primary" disabled={unsendable} onClick={generate}>{copy.generate}</Button>
 				</>}
 			/>}
 		>
@@ -179,6 +191,68 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 							</div>
 						)}
 
+						{type === 'morse' && (
+							<div className="kw-audio-editor-generator__stack" data-generator-layout="morse">
+								<div className="audio-editor-helped-field">
+									<label className="kw-audio-editor-dialog__field" data-generator-field="text">
+										<span>{copy.generatorMorseMessage}</span>
+										<TextInput value={params.text} onChange={(value) => update('text', value)} />
+									</label>
+									<EditorHelpTooltip
+										subject={copy.generatorMorseMessage}
+										description={labels.morseExplanation}
+										helpLabel={copy.helpMenu}
+										hook="generator-morse-message"
+									/>
+								</div>
+								<div role="group" aria-label={labels.morseKeying}>
+									<PreferencePanel title={labels.morseKeying} className="kw-audio-editor-generator__card">
+										<div className="kw-audio-editor-generator__ratio-control">
+											<GeneratorKnob
+												value={params.wordsPerMinute}
+												label={copy.generatorMorseSpeed}
+												minimum={MORSE_SPEED_RANGE.minimum}
+												maximum={MORSE_SPEED_RANGE.maximum}
+												onChange={(value) => update('wordsPerMinute', value)}
+											/>
+											<GeneratorNumberField
+												name="wordsPerMinute"
+												label={copy.generatorMorseSpeed}
+												value={params.wordsPerMinute}
+												min={MORSE_SPEED_RANGE.minimum}
+												max={MORSE_SPEED_RANGE.maximum}
+												step={1}
+												onChange={(value) => update('wordsPerMinute', value)}
+											/>
+										</div>
+										<Separator />
+										<dl className="kw-audio-editor-generator__timing-summary">
+											<div>
+												<dt>{labels.morseEncoding}</dt>
+												<dd className="kw-audio-editor-generator__morse-code">{morse.code || '\u2014'}</dd>
+											</div>
+											<div><dt>{labels.morseDotDuration}</dt><dd>{formatGeneratorSeconds(morse.dotSeconds, locale)}</dd></div>
+											{morse.unsupported.length > 0 && (
+												<div><dt>{labels.morseUnsupported}</dt><dd>{morse.unsupported.join(' ')}</dd></div>
+											)}
+										</dl>
+									</PreferencePanel>
+								</div>
+								<div className="kw-audio-editor-generator__pair">
+									{numberField('frequency', copy.generatorFrequency, { min: 0.01, max: 96_000, step: 1 })}
+									{numberField('amplitude', copy.generatorAmplitude, { min: 0, max: 1, step: 0.01 })}
+								</div>
+								<label className="kw-audio-editor-dialog__field" data-generator-field="durationSeconds">
+									<span>{copy.generatorDuration}</span>
+									<AudioEditorTimeCodeInput
+										label={copy.generatorDuration}
+										value={morse.durationSeconds}
+										disabled
+									/>
+								</label>
+							</div>
+						)}
+
 						{type === 'dtmf' && (
 							<div className="kw-audio-editor-generator__dtmf" data-generator-layout="dtmf">
 								<div role="group" aria-label={generatorLabel(type, copy)}>
@@ -229,8 +303,8 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 										<Separator />
 										<dl className="kw-audio-editor-generator__timing-summary">
 											<div><dt>{labels.dutyCycle}</dt><dd>{formatGeneratorNumber(dtmfTiming.dutyPercent, locale)}%</dd></div>
-											<div><dt>{copy.generatorToneDuration}</dt><dd>{formatGeneratorNumber(dtmfTiming.toneSeconds, locale)} s</dd></div>
-											<div><dt>{copy.generatorSilenceDuration}</dt><dd>{formatGeneratorNumber(dtmfTiming.silenceSeconds, locale)} s</dd></div>
+											<div><dt>{copy.generatorToneDuration}</dt><dd>{formatGeneratorSeconds(dtmfTiming.toneSeconds, locale)}</dd></div>
+											<div><dt>{copy.generatorSilenceDuration}</dt><dd>{formatGeneratorSeconds(dtmfTiming.silenceSeconds, locale)}</dd></div>
 										</dl>
 									</PreferencePanel>
 								</div>
@@ -239,129 +313,6 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 					</div>
 				</form>
 		</AudioEditorDialogShell>
-	);
-}
-
-function GeneratorNumberField({ name, label, ariaLabel = label, value, min, max, step, onChange }) {
-	const inputRef = useRef(null);
-	const valueRef = useRef(value);
-	const [draft, setDraft] = useState(() => String(value));
-	valueRef.current = value;
-	useEffect(() => {
-		const input = inputRef.current;
-		if (!input) return undefined;
-		input.setAttribute('aria-label', ariaLabel);
-		const handleBlur = () => {
-			setDraft((current) => current.trim() && Number.isFinite(Number(current)) ? current : String(valueRef.current));
-		};
-		input.addEventListener('blur', handleBlur);
-		return () => input.removeEventListener('blur', handleBlur);
-	}, [ariaLabel]);
-	useEffect(() => {
-		if (document.activeElement !== inputRef.current) setDraft(String(value));
-	}, [value]);
-	return (
-		<label className="kw-audio-editor-dialog__field" data-generator-field={name}>
-			<span>{label}</span>
-			<NumberStepper
-				ref={inputRef}
-				value={draft}
-				min={min}
-				max={max}
-				step={step}
-				width="100%"
-				onChange={(next) => {
-					setDraft(next);
-					if (next.trim() && Number.isFinite(Number(next))) onChange(Number(next));
-				}}
-			/>
-		</label>
-	);
-}
-
-function GeneratorSelect({ label, value, disabled = false, onChange, options }) {
-	const wrapperRef = useRef(null);
-	useEffect(() => {
-		wrapperRef.current?.querySelector('.dropdown__trigger')?.setAttribute('aria-label', label);
-	}, [label]);
-	return (
-		<div ref={wrapperRef} className="kw-audio-editor-dialog__field" data-generator-field={label} role="group" aria-label={label}>
-			<span>{label}</span>
-			<Dropdown
-				disabled={disabled}
-				value={value}
-				onChange={onChange}
-				options={options.map(([id, text]) => ({ value: id, label: text }))}
-				width="100%"
-			/>
-		</div>
-	);
-}
-
-function GeneratorRadioGroup({ label, value, onChange, options }) {
-	const groupRef = useRef(null);
-	useEffect(() => {
-		const radios = [...(groupRef.current?.querySelectorAll('[role="radio"]') || [])];
-		radios.forEach((radio, index) => {
-			radio.setAttribute('aria-label', options[index][1]);
-			radio.setAttribute('tabindex', options[index][0] === value ? '0' : '-1');
-		});
-	}, [options, value]);
-	const selectAndFocus = (nextValue) => {
-		onChange(nextValue);
-		queueMicrotask(() => groupRef.current?.querySelector(`[data-generator-radio-value="${nextValue}"] [role="radio"]`)?.focus());
-	};
-	return (
-		<div
-			ref={groupRef}
-			className="kw-audio-editor-generator__radio-group"
-			role="radiogroup"
-			aria-label={label}
-			onKeyDown={(event) => {
-				if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
-				event.preventDefault();
-				const currentIndex = Math.max(0, options.findIndex(([id]) => id === value));
-				const direction = ['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : -1;
-				const nextIndex = (currentIndex + direction + options.length) % options.length;
-				selectAndFocus(options[nextIndex][0]);
-			}}
-		>
-			{options.map(([id, text]) => (
-				<div
-					key={id}
-					className="kw-audio-editor-generator__radio-option"
-					data-generator-radio-value={id}
-					onClick={(event) => {
-						if (!event.target.closest('[role="radio"]')) selectAndFocus(id);
-					}}
-				>
-					<LabeledRadio label={text} name="generator-interpolation" value={id} checked={value === id} tabIndex={value === id ? 0 : -1} onChange={() => onChange(id)} />
-				</div>
-			))}
-		</div>
-	);
-}
-
-function GeneratorKnob({ value, label, onChange }) {
-	const wrapperRef = useRef(null);
-	useEffect(() => {
-		const knob = wrapperRef.current?.querySelector('.knob');
-		if (!knob) return undefined;
-		knob.setAttribute('type', 'button');
-		const handleKeyDown = (event) => {
-			if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
-			event.preventDefault();
-			if (event.key === 'Home') onChange(1);
-			else if (event.key === 'End') onChange(100);
-			else onChange(Math.max(1, Math.min(100, value + (['ArrowRight', 'ArrowUp'].includes(event.key) ? 1 : -1))));
-		};
-		knob.addEventListener('keydown', handleKeyDown);
-		return () => knob.removeEventListener('keydown', handleKeyDown);
-	}, [onChange, value]);
-	return (
-		<div ref={wrapperRef} className="kw-audio-editor-generator__knob">
-			<Knob value={value} min={1} max={100} step={1} label={label} mode="unipolar" onChange={onChange} />
-		</div>
 	);
 }
 
@@ -411,6 +362,17 @@ function formatGeneratorNumber(value, locale) {
 	return new Intl.NumberFormat(locale, { maximumFractionDigits: 3 }).format(value);
 }
 
+// The unit belongs to the locale, not to the markup: a hand-written " s" reads
+// as English in every language the catalog is translated into.
+function formatGeneratorSeconds(value, locale) {
+	return new Intl.NumberFormat(locale, {
+		maximumFractionDigits: 3,
+		style: 'unit',
+		unit: 'second',
+		unitDisplay: 'short',
+	}).format(value);
+}
+
 function generatorLayoutLabels(copy) {
 	return {
 		frequencySweep: copy.generatorFrequencySweep,
@@ -418,6 +380,11 @@ function generatorLayoutLabels(copy) {
 		toneSilenceRatio: copy.generatorToneSilenceRatio,
 		dutyCycle: copy.generatorDutyCycle,
 		dtmfExplanation: copy.generatorDtmfExplanation,
+		morseKeying: copy.generatorMorseKeying,
+		morseEncoding: copy.generatorMorseEncoding,
+		morseDotDuration: copy.generatorMorseDotDuration,
+		morseUnsupported: copy.generatorMorseUnsupported,
+		morseExplanation: copy.generatorMorseExplanation,
 	};
 }
 
@@ -434,9 +401,19 @@ function generatorDefaults(type) {
 		const durations = generatorDtmfDurations(30, 2 / 3 * 100, 3);
 		return { ...common, amplitude: 0.8, sequence: '123', toneSeconds: durations.toneSeconds, silenceSeconds: durations.silenceSeconds };
 	}
+	// Morse takes its length from the message and the sending speed, so the
+	// shared duration default would only describe a clip it never produces.
+	if (type === 'morse') return { amplitude: 0.8, frequency: 700, text: 'SOS', wordsPerMinute: 20 };
 	return { durationSeconds: 30 };
 }
 
 function generatorLabel(type, copy) {
-	return { silence: copy.silenceGenerator, tone: copy.toneGenerator, chirp: copy.chirpGenerator, noise: copy.noiseGenerator, dtmf: copy.dtmfGenerator }[type] || copy.generateMenu;
+	return {
+		silence: copy.silenceGenerator,
+		tone: copy.toneGenerator,
+		chirp: copy.chirpGenerator,
+		noise: copy.noiseGenerator,
+		dtmf: copy.dtmfGenerator,
+		morse: copy.morseGenerator,
+	}[type] || copy.generateMenu;
 }
