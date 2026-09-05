@@ -38,14 +38,14 @@ function trackNames(history: SharedHistory): readonly string[] {
 }
 
 function commit(history: SharedHistory, name: string): SharedHistory {
-	return executeEditorCommand(history, { type: 'track/add', track: { name } }) as SharedHistory;
+	return executeEditorCommand(history, { type: 'track/add', track: { name } }) as unknown as SharedHistory;
 }
 
 function historyWith(names: readonly string[]): SharedHistory {
 	let history = createEditorHistory(
 		createCurrentAudioEditorProject({ id: 'macro-bounded-project', title: 'Macro bounded' }),
 		{ limit: LIMIT },
-	) as SharedHistory;
+	) as unknown as SharedHistory;
 	for (const name of names) history = commit(history, name);
 	return history;
 }
@@ -62,12 +62,12 @@ test('a macro that opens on a full undo stack still collapses to one entry', () 
 
 	const collapsed = collapseEditorHistory(
 		history, depth, { type: 'macro/run', name: 'Restoration' },
-	) as SharedHistory;
+	) as unknown as SharedHistory;
 	assert.deepEqual(trackNames(collapsed), trackNames(history), 'collapsing changes the history, never the project');
 	assert.equal(collapsed.undoStack.length, LIMIT - 1, 'the two macro entries became one');
 	assert.deepEqual(collapsed.undoStack.at(-1)?.command, { type: 'macro/run', name: 'Restoration' });
 
-	const undone = undoEditorCommand(collapsed) as SharedHistory;
+	const undone = undoEditorCommand(collapsed) as unknown as SharedHistory;
 	assert.deepEqual(trackNames(undone), started, 'one undo reverts the whole macro');
 	assert.equal(undone.undoStack.length, LIMIT - 2, 'the user\'s own surviving history is untouched');
 });
@@ -80,7 +80,7 @@ test('a macro that opens on a full undo stack rolls back to the project it began
 	let history = before;
 	for (const name of ['macro-1', 'macro-2']) history = commit(history, name);
 
-	const rolled = rollbackEditorHistory(history, depth) as SharedHistory;
+	const rolled = rollbackEditorHistory(history, depth) as unknown as SharedHistory;
 	assert.deepEqual(trackNames(rolled), started, 'the work the macro applied is gone');
 	assert.equal(rolled.undoStack.length, LIMIT - 2, 'and so are the entries it committed');
 	assert.deepEqual(rolled.redoStack, []);
@@ -96,7 +96,7 @@ test('a macro that fills the last free slot rolls back past its own steps', () =
 	let history = before;
 	for (const name of ['macro-1', 'macro-2', 'macro-3']) history = commit(history, name);
 
-	const rolled = rollbackEditorHistory(history, depth) as SharedHistory;
+	const rolled = rollbackEditorHistory(history, depth) as unknown as SharedHistory;
 	assert.deepEqual(trackNames(rolled), started, 'rollback restores the pre-macro project, not a mid-macro one');
 	assert.equal(rolled.undoStack.length, LIMIT - 3);
 });
@@ -107,11 +107,11 @@ test('the history counts what the limit pushed off the bottom', () => {
 	assert.equal(before.dropped, 2, 'two commits no longer have a slot');
 	assert.equal(macroDepth(before), 6, 'the sequence still counts every commit');
 
-	const undone = undoEditorCommand(before) as SharedHistory;
+	const undone = undoEditorCommand(before) as unknown as SharedHistory;
 	assert.equal(undone.dropped, 2, 'undoing does not drop anything further');
 	assert.equal(macroDepth(undone), 5, 'an undo takes one commit back off the sequence');
 
-	const redone = redoEditorCommand(undone) as SharedHistory;
+	const redone = redoEditorCommand(undone) as unknown as SharedHistory;
 	assert.equal(redone.dropped, 2);
 	assert.equal(macroDepth(redone), 6, 'and redo puts it back');
 });
