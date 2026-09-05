@@ -449,6 +449,10 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 					name: request.name || copy.nyquistPrompt,
 					atFrame: request.atFrame,
 					trackId: request.trackId || target?.track?.id,
+					// The generator persistence owns the project this evaluation
+					// started under, not the one the editor happens to hold when
+					// the persistence begins.
+					assertCurrent: assertNyquistCurrent,
 					signal: abort.signal,
 				});
 			}

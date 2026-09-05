@@ -71,6 +71,13 @@ export interface PersistNyquistAudioOptions {
 	readonly name?: unknown;
 	readonly trackId?: string | null;
 	readonly atFrame?: unknown;
+	/**
+	 * The ownership assertion of the operation that produced this audio. A
+	 * Nyquist evaluation captures its project before the evaluator runs, so
+	 * threading its assertion here refuses a commit into a project the editor
+	 * switched to while the generator was still working.
+	 */
+	readonly assertCurrent?: (() => void) | null;
 }
 
 export interface NyquistGeneratedAudioServiceRuntime {
@@ -86,7 +93,11 @@ export interface NyquistGeneratedAudioServiceRuntime {
 		target: EffectTarget,
 		type: null,
 		channels: readonly Float32Array[],
-		options: Readonly<{ effectName: string; signal: AbortSignal | null }>,
+		options: Readonly<{
+			assertCurrent: () => void;
+			effectName: string;
+			signal: AbortSignal | null;
+		}>,
 	) => Promise<unknown>;
 	readonly matchAudacitySelectionChannels: (
 		channels: readonly Float32Array[],
@@ -131,8 +142,8 @@ export function createNyquistGeneratedAudioService(runtime: NyquistGeneratedAudi
 	): Promise<unknown> {
 		const signal = options.signal ?? null;
 		const project = runtime.getProject();
-		const projectToken = runtime.captureProject();
-		assertCurrent(runtime, projectToken, signal);
+		const assertOwnership = createOwnershipAssertion(runtime, signal, options.assertCurrent);
+		assertOwnership();
 		runtime.assertAudioOutput(channels);
 		if (!channels.length || !channels[0]?.length || channels.length > 2) {
 			throw new Error(runtime.copy.effectInvalidAudio);
@@ -145,9 +156,13 @@ export function createNyquistGeneratedAudioService(runtime: NyquistGeneratedAudi
 				replacementTarget,
 				null,
 				runtime.matchAudacitySelectionChannels(channels, replacementTarget.channelCount),
-				{ effectName: String(options.name || runtime.copy.nyquistPrompt), signal },
+				{
+					assertCurrent: assertOwnership,
+					effectName: String(options.name || runtime.copy.nyquistPrompt),
+					signal,
+				},
 			);
-			assertCurrent(runtime, projectToken, signal);
+			assertOwnership();
 			return result;
 		}
 		const frameCount = channels[0].length;
@@ -155,13 +170,13 @@ export function createNyquistGeneratedAudioService(runtime: NyquistGeneratedAudi
 			throw new Error(runtime.copy.effectChannelLengthsMismatch);
 		}
 		await runtime.preflightStorage(frameCount * channels.length * Float32Array.BYTES_PER_ELEMENT, 'effect');
-		assertCurrent(runtime, projectToken, signal);
+		assertOwnership();
 		const sourceId = runtime.createId('nyquist-generator');
 		const name = String(options.name || runtime.copy.nyquistPrompt);
 		const context = await runtime.getAudioContext();
-		assertCurrent(runtime, projectToken, signal);
+		assertOwnership();
 		const buffer = await runtime.bufferFromChannels(channels, sampleRate, context);
-		assertCurrent(runtime, projectToken, signal);
+		assertOwnership();
 		const writer = await runtime.store.beginSourceWrite(sourceId, {
 			name,
 			mimeType: 'audio/wav',
@@ -171,11 +186,11 @@ export function createNyquistGeneratedAudioService(runtime: NyquistGeneratedAudi
 		});
 		let analysisKey: string | null = null;
 		try {
-			assertCurrent(runtime, projectToken, signal);
+			assertOwnership();
 			await runtime.writeBuffer(writer, buffer, signal);
-			assertCurrent(runtime, projectToken, signal);
+			assertOwnership();
 			await writer.commit({ sampleRate, channelCount: channels.length });
-			assertCurrent(runtime, projectToken, signal);
+			assertOwnership();
 			const source = {
 				sampleRate,
 				sampleFormat: 'float32',
@@ -220,11 +235,11 @@ export function createNyquistGeneratedAudioService(runtime: NyquistGeneratedAudi
 			}));
 			runtime.cacheSourceBuffer(sourceId, buffer);
 			const peaks = await runtime.generateWaveformPeaks(channels, runtime.copy);
-			assertCurrent(runtime, projectToken, signal);
+			assertOwnership();
 			runtime.sourcePeaks.set(sourceId, peaks);
 			analysisKey = runtime.peakCacheKey(sourceId);
 			await runtime.store.saveAnalysis(analysisKey, peaks);
-			assertCurrent(runtime, projectToken, signal);
+			assertOwnership();
 			runtime.commit({ type: 'batch', commands }, {
 				selectTrackId: requireId(targetTrackId, 'track'),
 				selectClipId: selectedClipId,
@@ -244,17 +259,31 @@ export function createNyquistGeneratedAudioService(runtime: NyquistGeneratedAudi
 	return Object.freeze({ persistNyquistGeneratedAudio });
 }
 
-function assertCurrent(
+/**
+ * Builds the check every step of the persistence runs before it touches
+ * storage or the command stream.
+ *
+ * The caller's assertion comes first because it is the one anchored to the
+ * project the work was started under; the token captured here only reflects
+ * whichever project the editor holds at entry, so on its own it would happily
+ * re-anchor a superseded generator to the project that replaced it.
+ */
+function createOwnershipAssertion(
 	runtime: NyquistGeneratedAudioServiceRuntime,
-	projectToken: EditorProjectToken,
 	signal: AbortSignal | null,
-): void {
-	if (signal?.aborted) {
-		throw signal.reason instanceof Error
-			? signal.reason
-			: new DOMException('The operation was cancelled.', 'AbortError');
-	}
-	runtime.assertProject(projectToken);
+	callerAssertCurrent: (() => void) | null | undefined,
+): () => void {
+	const assertCaller = typeof callerAssertCurrent === 'function' ? callerAssertCurrent : null;
+	const projectToken: EditorProjectToken = runtime.captureProject();
+	return () => {
+		if (signal?.aborted) {
+			throw signal.reason instanceof Error
+				? signal.reason
+				: new DOMException('The operation was cancelled.', 'AbortError');
+		}
+		assertCaller?.();
+		runtime.assertProject(projectToken);
+	};
 }
 
 function findTrack(
