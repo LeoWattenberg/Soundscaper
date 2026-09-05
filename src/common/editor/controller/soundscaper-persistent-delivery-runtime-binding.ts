@@ -15,7 +15,7 @@ export interface SoundscaperPersistentDeliveryExportRuntime {
 			exportPlan: Readonly<Record<string, unknown>>;
 			destination: unknown;
 		}>) => PromiseLike<unknown>;
-		persistentAudioDeliveryAvailable: () => PromiseLike<boolean> | boolean;
+		persistentAudioDeliveryAvailable: () => boolean;
 		whenPersistentAudioDeliveryAvailable: () => PromiseLike<void>;
 	}>;
 	readonly getProject: () => Readonly<{

@@ -27,7 +27,7 @@ interface PersistentDeliveryWorkerBridge {
 }
 
 interface PersistentAudioExportExecutor {
-	persistentAudioDeliveryAvailable(): Awaitable<boolean>;
+	persistentAudioDeliveryAvailable(): boolean;
 	whenPersistentAudioDeliveryAvailable(): Awaitable<void>;
 	derivePersistentAudioDeliveryPlan(settings: Readonly<Record<string, unknown>>): PromiseLike<Readonly<{
 		settings: Readonly<Record<string, unknown>>;
@@ -90,7 +90,7 @@ export function createSoundscaperPersistentDeliveryWorker(
 
 	async function pump(startGeneration: number): Promise<void> {
 		while (!disposed && startGeneration === generation) {
-			if (!await runtime.exportService.persistentAudioDeliveryAvailable()) {
+			if (!runtime.exportService.persistentAudioDeliveryAvailable()) {
 				await runtime.exportService.whenPersistentAudioDeliveryAvailable();
 			}
 			if (disposed || startGeneration !== generation) return;

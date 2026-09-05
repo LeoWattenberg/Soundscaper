@@ -15,7 +15,7 @@ import { createSoundscaperPersistentDeliveryWorker } from './soundscaper-persist
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
 interface PersistentExportService {
-	persistentAudioDeliveryAvailable(): Awaitable<boolean>;
+	persistentAudioDeliveryAvailable(): boolean;
 	whenPersistentAudioDeliveryAvailable(): Awaitable<void>;
 	derivePersistentAudioDeliveryPlan(settings: Readonly<Record<string, unknown>>): PromiseLike<Readonly<{
 		settings: Readonly<Record<string, unknown>>;

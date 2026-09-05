@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createDeferredModuleFacade } from './deferred-module-facade.ts';
 import {
 	createExportSnapshotRenderer,
 	type ExportSnapshotRendererRuntime,
@@ -13,44 +14,58 @@ export type DeferredEditorExportLoader = () => Promise<DeferredEditorExportModul
 
 const DEFAULT_LOADER: DeferredEditorExportLoader = () => import('./export-service.ts');
 
-/** Keep shared snapshot rendering eager while loading delivery execution on demand. */
+const DEFERRED_EXPORT_METHOD_NAMES = [
+	'derivePersistentAudioDeliveryPlan',
+	'cancelPersistentAudioDelivery',
+	'executePersistentAudioDeliveryPlan',
+	'exportVideo',
+	'handleExportAction',
+] as const satisfies readonly (keyof EditorExportService)[];
+
+/**
+ * Keep shared snapshot rendering eager while loading delivery execution on demand.
+ *
+ * `persistentAudioDeliveryAvailable` stays synchronous, as it is on the real
+ * service, by answering from state this facade holds eagerly: until something
+ * has asked for the delivery module there is no export in flight, so delivery
+ * is available, and once the module has loaded the real predicate answers.
+ * The window in between - a load requested but not settled - reports busy,
+ * which is the conservative reading and matches what the service will say the
+ * moment it exists. Waiting is answered the same way, so a queue worker polling
+ * for an idle exporter never pulls the delivery slice into the boot path.
+ */
 export function createDeferredEditorExportService(
 	runtime: ExportSnapshotRendererRuntime & Readonly<Record<string, RuntimeValue>>,
 	loadModule: DeferredEditorExportLoader = DEFAULT_LOADER,
 ) {
 	const exportSnapshotRenderer = createExportSnapshotRenderer(runtime);
 	let servicePromise: Promise<EditorExportService> | null = null;
-	const loadService = () => {
+	let loadedService: EditorExportService | null = null;
+	const loadService = (): Promise<EditorExportService> => {
 		servicePromise ??= Promise.resolve()
 			.then(loadModule)
-			.then((module) => module.createEditorExportService({
-				...runtime,
-				exportSnapshotRenderer,
-			}));
+			.then((module) => {
+				const service = module.createEditorExportService({ ...runtime, exportSnapshotRenderer });
+				loadedService = service;
+				return service;
+			})
+			.catch((error: unknown) => {
+				servicePromise = null;
+				throw error;
+			});
 		return servicePromise;
 	};
-	return Object.freeze({
-		derivePersistentAudioDeliveryPlan: async (
-			...args: Parameters<EditorExportService['derivePersistentAudioDeliveryPlan']>
-		) => (await loadService()).derivePersistentAudioDeliveryPlan(...args),
-		cancelPersistentAudioDelivery: async (
-			...args: Parameters<EditorExportService['cancelPersistentAudioDelivery']>
-		) => (await loadService()).cancelPersistentAudioDelivery(...args),
-		persistentAudioDeliveryAvailable: async () => (
-			(await loadService()).persistentAudioDeliveryAvailable()
-		),
-		whenPersistentAudioDeliveryAvailable: async () => (
-			(await loadService()).whenPersistentAudioDeliveryAvailable()
-		),
-		executePersistentAudioDeliveryPlan: async (
-			...args: Parameters<EditorExportService['executePersistentAudioDeliveryPlan']>
-		) => (await loadService()).executePersistentAudioDeliveryPlan(...args),
-		exportVideo: async (...args: Parameters<EditorExportService['exportVideo']>) => (
-			(await loadService()).exportVideo(...args)
-		),
-		handleExportAction: async (...args: Parameters<EditorExportService['handleExportAction']>) => (
-			(await loadService()).handleExportAction(...args)
-		),
-		renderSnapshot: exportSnapshotRenderer.renderSnapshot,
+	return createDeferredModuleFacade(loadService, DEFERRED_EXPORT_METHOD_NAMES, {
+		eager: {
+			persistentAudioDeliveryAvailable: ((): boolean => (
+				loadedService ? loadedService.persistentAudioDeliveryAvailable() : servicePromise === null
+			)) satisfies EditorExportService['persistentAudioDeliveryAvailable'],
+			whenPersistentAudioDeliveryAvailable: (async (): Promise<void> => {
+				if (!servicePromise) return;
+				await (await loadService()).whenPersistentAudioDeliveryAvailable();
+			}) satisfies EditorExportService['whenPersistentAudioDeliveryAvailable'],
+			renderSnapshot: exportSnapshotRenderer.renderSnapshot satisfies
+				EditorExportService['renderSnapshot'],
+		},
 	});
 }
