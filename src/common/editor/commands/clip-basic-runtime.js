@@ -23,6 +23,7 @@ import {
 	sortTrack,
 	withoutImportedPitchPreset,
 } from './shared-runtime.js';
+import { planTakeGraphClipRipple } from './take-graph-range-edit.ts';
 
 // foundation-edit-matrix: move
 
@@ -65,6 +66,7 @@ export function removeClips(project, clipIds, rippleMode = 'none') {
 	}
 	project.clips = project.clips.filter((candidate) => !removedIds.has(candidate.id));
 	if (rippleMode !== 'track') return;
+	const commitTakeGraph = planTakeGraphClipRipple(project, takeGraphClipRemovals(removedByTrack));
 	for (const track of project.tracks) {
 		const removed = removedByTrack.get(track.id) || [];
 		if (!removed.length || !Array.isArray(track.clipIds)) continue;
@@ -79,6 +81,20 @@ export function removeClips(project, clipIds, rippleMode = 'none') {
 		}
 		sortTrack(project, track);
 	}
+	commitTakeGraph?.();
+}
+
+/** The spans each edited track is losing, which is what its take graph answers to. */
+function takeGraphClipRemovals(removedByTrack) {
+	const removals = new Map();
+	for (const [trackId, removed] of removedByTrack) {
+		if (!removed.length) continue;
+		removals.set(String(trackId), removed.map((clip) => ({
+			startFrame: clip.timelineStartFrame,
+			endFrame: clipEndFrame(clip),
+		})));
+	}
+	return removals;
 }
 
 export function updateClip(project, clipId, changes = {}) {

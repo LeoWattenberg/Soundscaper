@@ -49,6 +49,46 @@ export function planTakeGraphRangeDelete(
 	return () => { project.takeGroups = next; };
 }
 
+/**
+ * The same rule for a per-track clip ripple, which closes the gap a removed
+ * clip leaves rather than a selected range.
+ *
+ * A clip ripple moves every later clip on the edited track, so the take graph
+ * on that track has to travel the same distance for exactly the reason the
+ * range ripple does. The removals arrive per track as the spans the clips
+ * occupied, and a group is moved by the total length of the removals that ended
+ * at or before it — the rule the clips themselves follow.
+ */
+export function planTakeGraphClipRipple(
+	project: DataRecord,
+	trackRemovals: ReadonlyMap<string, readonly TakeGraphRange[]>,
+): (() => void) | null {
+	const groups = Array.isArray(project.takeGroups) ? project.takeGroups as readonly DataRecord[] : null;
+	if (!groups || groups.length === 0 || trackRemovals.size === 0) return null;
+	let moved = false;
+	const next = groups.map((group) => {
+		const removals = trackRemovals.get(String(group?.trackId));
+		if (!removals) return group;
+		const startSample = Number(group.startSample);
+		const endSample = Number(group.endSample);
+		let delta = 0;
+		for (const removal of removals) {
+			if (endSample <= removal.startFrame) continue;
+			if (startSample < removal.endFrame) {
+				throw new RangeError(
+					'A clip ripple cannot trim an existing take graph without explicit split identities.',
+				);
+			}
+			delta -= removal.endFrame - removal.startFrame;
+		}
+		if (delta === 0) return group;
+		moved = true;
+		return shiftGroup(group, delta);
+	});
+	if (!moved) return null;
+	return () => { project.takeGroups = next; };
+}
+
 function shiftGroup(group: DataRecord, delta: number): DataRecord {
 	return {
 		...group,
