@@ -13,6 +13,7 @@ import { dawprojectMediaReferences, parseDawprojectDocument } from '../dawprojec
 import { buildDawprojectProject, type DawprojectDecodedMediaInfo } from '../dawproject-import-project.ts';
 import { createCurrentAudioEditorProject } from '../project-current.ts';
 import { encodeWav } from '../wav.js';
+import { admitAudioImportChannelCount } from './audio-import-channel-admission.ts';
 import { decodeDawprojectAudioEntry } from './dawproject-audio-decode.ts';
 import { resolveDeliveredProject } from './interchange-export-action.ts';
 import type { EditorProjectToken, EditorTaskScope } from './lifecycle.ts';
@@ -117,6 +118,9 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 					media.set(reference.path, null);
 					continue;
 				}
+				// The same 1–32 channel admission every other import path enforces: a wider
+				// archive would persist a project the playback graph cannot open.
+				admitAudioImportChannelCount(audio.channels.length);
 				const frameCount = audio.channels[0]!.length;
 				decodedBytes += frameCount * audio.channels.length * Float32Array.BYTES_PER_ELEMENT;
 				const info = { frameCount, channelCount: audio.channels.length, sampleRate: audio.sampleRate };
