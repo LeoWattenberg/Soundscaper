@@ -5,6 +5,12 @@ import { redispatchPendingProjectsAfterReadRelease } from './file-associations.j
 import { registerSelectedReadCapability } from './read-selection-service.js';
 import { acceptsFile, validateFileChoice, validateSaveChoice } from './validation.js';
 
+// The two save purposes that name an operation of their own; everything else exports.
+const SAVE_DIALOG_TITLES = Object.freeze({
+	project: 'Save project',
+	aup4: 'Export Audacity interchange',
+});
+
 /**
  * The renderer's file surface: the two native choosers and the capability-scoped reads and
  * writes they hand out.
@@ -47,7 +53,7 @@ export function registerFileCapabilityIpc({
 			return saveTargets.registerPath(smokeFilePath, { owner, purpose: choice.purpose });
 		}
 		const result = await dialog.showSaveDialog(windowFor(), {
-			title: choice.purpose === 'project' ? 'Export Audacity interchange' : 'Export',
+			title: SAVE_DIALOG_TITLES[choice.purpose] ?? 'Export',
 			defaultPath: choice.suggestedName,
 			filters: choice.filters,
 		});
