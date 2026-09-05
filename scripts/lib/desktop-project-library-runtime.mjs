@@ -187,6 +187,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/project-runtime-profile.js',
 	'src/common/editor/project-schema-version.js',
 	'src/common/editor/project-audio-warp-validation.js',
+	'src/common/editor/project-foundation-take-graph.js',
 	'src/common/editor/project-foundation-validation.js',
 	'src/common/editor/project-hierarchy-document-validation.js',
 	'src/common/editor/project-track-lock-validation.js',
