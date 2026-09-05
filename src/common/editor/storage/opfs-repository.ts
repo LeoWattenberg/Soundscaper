@@ -14,7 +14,7 @@ import {
 	type StorageRecord,
 } from './media-records.ts';
 import { MediaAssetCleanupError } from './media-asset-cleanup-error.ts';
-import { OpfsSyncRepositoryBridge } from './opfs-sync-repository-bridge.ts';
+import { OpfsSyncRepositoryBridge, sharedReadable } from './opfs-sync-repository-bridge.ts';
 import type { OpfsSyncStoragePort } from './opfs-sync-worker-client.ts';
 import type { OpfsSyncOperationId } from './opfs-sync-worker-protocol.ts';
 import { syncBinaryWriter, syncPcmWriter } from './opfs-sync-writer-adapters.ts';
@@ -449,7 +449,7 @@ export class OpfsRepository {
 		if (!source.path) throw new Error('The requested local audio source is missing.');
 		let cached = this.#indexCache.get(source.path);
 		if (!cached) {
-			cached = parsePcmContainerIndex(file, {
+			cached = parsePcmContainerIndex(sharedReadable(file), {
 				expectedChannelCount: source.channelCount,
 				expectedSampleRate: source.sampleRate,
 				expectedChunkFrames: source.chunkFrames,

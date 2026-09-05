@@ -134,6 +134,14 @@ export class OpfsSyncRepositoryBridge {
 	}
 }
 
+/**
+ * A read view of the same bytes that no single caller's cancellation can reject, for reads whose
+ * result is shared between readers with independent lifetimes.
+ */
+export function sharedReadable(file: BlobLike): BlobLike {
+	return file instanceof OpfsSyncReadableBlob ? file.withoutSignal() : file;
+}
+
 class OpfsSyncReadableBlob implements BlobLike {
 	readonly type = '';
 
@@ -159,6 +167,13 @@ class OpfsSyncReadableBlob implements BlobLike {
 			end - start,
 			this.signal,
 		).withType(contentType);
+	}
+
+	withoutSignal(): BlobLike {
+		if (!this.signal) return this;
+		return new OpfsSyncReadableBlob(
+			this.client, this.operationId, this.path, this.fileSize, this.start, this.size,
+		);
 	}
 
 	async arrayBuffer(): Promise<ArrayBuffer> {
