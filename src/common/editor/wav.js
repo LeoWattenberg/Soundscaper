@@ -268,7 +268,11 @@ function prepareWavLayout({
 		: nonNegativeSafeInteger(trailingByteLength, 0, 'trailingByteLength');
 	const bextChunk = broadcast ? createRiffBextChunk(bext) : new Uint8Array(0);
 	const classicDataPadSize = dataSize & 1;
-	const classicRiffSize = 36n
+	const extensible = normalizedDepth === 20
+		|| broadcast && normalizedChannels > 2 && requested !== 'bw64';
+	const formatChunkByteLength = extensible ? 48 : 24;
+	const classicRiffSize = 12n
+		+ BigInt(formatChunkByteLength)
 		+ BigInt(bextChunk.byteLength)
 		+ BigInt(preDataChunk.byteLength)
 		+ BigInt(dataSize)
@@ -278,9 +282,6 @@ function prepareWavLayout({
 		? 'bw64'
 		: classicRiffSize <= BigInt(UINT32_MAX) ? 'riff' : 'rf64';
 	const dataPadSize = classicDataPadSize;
-	const extensible = normalizedDepth === 20
-		|| broadcast && normalizedChannels > 2 && container !== 'bw64';
-	const formatChunkByteLength = extensible ? 48 : 24;
 	const headerByteLength = 12 + (container === 'riff' ? 0 : 36)
 		+ bextChunk.byteLength + formatChunkByteLength + preDataChunk.byteLength + 8;
 	const byteLength = safeIntegerFromBigInt(
