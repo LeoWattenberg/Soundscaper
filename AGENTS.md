@@ -47,6 +47,13 @@
 - Production JavaScript chunks have a 500,000-byte ceiling. Preserve the
   semantic chunk groups in `vite.config.mjs`; split module ownership instead of
   weakening the build-output guard.
+- Startup graph ceilings live in `config/startup-graph-budgets.json`, and every
+  build prints its observed requests and bytes per graph and writes them to
+  `.startup-graph-report.json` beside the bundle. Run
+  `npm run check:startup-graph:tighten` after a build to claim a graph that
+  shrank; it lowers byte ceilings only, never requests, since splitting adds
+  chunks by construction. Raising a ceiling stays a deliberate edit with its
+  reason recorded in that file.
 - Browser tests live in `tests/browser/` and use `playwright.config.mjs`.
   Playwright runs Chromium headlessly and starts its own loopback preview server
   at `http://127.0.0.1:4322`; no IDE browser, graphical session, or separately

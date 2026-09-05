@@ -1,0 +1,32 @@
+{
+	"initial": {
+		"ceilings": {
+			"requests": 10,
+			"modulepreloads": 6,
+			"cssFiles": 2,
+			"rawBytes": 350000,
+			"brotliBytes": 100000
+		},
+		"reasons": {}
+	},
+	"soundscaper": {
+		"ceilings": {
+			"requests": 75,
+			"rawBytes": 6200000,
+			"brotliBytes": 1500000
+		},
+		"reasons": {}
+	},
+	"framescaper": {
+		"ceilings": {
+			"requests": 84,
+			"rawBytes": 7000000,
+			"brotliBytes": 1650000
+		},
+		"reasons": {
+			"rawBytes": "Raised from 6_700_000 by the project owner. Framescaper's graph had drifted to within 2,381 bytes of that ceiling, so the next commit of any size breached it regardless of what it contained: the compressor and limiter metering work grew the graph 6,729 bytes and tipped it over. A ceiling with 0.036% slack reports commit order rather than startup cost.",
+			"brotliBytes": "The brotli ceiling was raised from 1_600_000 for the same reason: the compact layout (chrome drawer, compact bar and its stylesheet) grew the shell a few kilobytes and landed 1,348 bytes over a ceiling the graph had already crept up to.",
+			"requests": "Requests raised from 80 by the same reasoning. The ceiling had no slack at all: the graph sat at exactly 80 of 80, so the next chunk of any origin broke the build, and the file-splitting campaign the maintainability guard asks for adds chunks by construction. Two of the three requests that breached it were real defects and are fixed rather than absorbed here: an extracted `live-capability-policy` had no chunk owner and took a request of its own, and the `aup4-` split left three lazy-only archive modules owned by the eager editor domain. The third is the Labeled audio submenu's own footprint, which is genuine startup cost."
+		}
+	}
+}

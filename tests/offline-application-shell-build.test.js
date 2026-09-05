@@ -13,6 +13,7 @@ import {
 	MAXIMUM_INSTALL_ASSET_BYTES,
 	MAXIMUM_INSTALL_ASSET_COUNT,
 } from '../scripts/lib/offline-application-shell.mjs';
+import { STARTUP_GRAPH_REPORT_FILE } from '../scripts/lib/startup-graph-budget.mjs';
 
 test('each product install core retains the approved request and byte ceilings', () => {
 	assert.equal(MAXIMUM_INSTALL_ASSET_COUNT, 128);
@@ -58,6 +59,7 @@ test('offline shell generation inventories exact route URLs and emits installabl
 	assert.equal(urls.includes('/service-worker.js'), false);
 	assert.equal(urls.includes('/framescaper/service-worker.js'), false);
 	assert.equal(urls.includes('/.offline-build-manifest.json'), false);
+	assert.equal(urls.includes(`/${STARTUP_GRAPH_REPORT_FILE}`), false);
 	assert.equal(await readFile(join(outputRoot, '.offline-build-manifest.json'), 'utf8').catch(() => null), null);
 
 	const soundWorker = audit.workers.soundscaper;
@@ -206,6 +208,7 @@ async function shellFixture(context, routes = ['en', 'embed/en']) {
 		fixtureFile(outputRoot, 'logo/logo-klein-schwarz.svg', '<svg viewBox="0 0 1 1" />'),
 		fixtureFile(outputRoot, 'logo/logo-klein-weiß.svg', '<svg viewBox="0 0 1 1" />'),
 		fixtureFile(outputRoot, '_headers', 'test headers'),
+		fixtureFile(outputRoot, STARTUP_GRAPH_REPORT_FILE, '{"product":"soundscaper","graphs":{}}'),
 		fixtureFile(outputRoot, '.offline-build-manifest.json', JSON.stringify({
 			'index.html': {
 				file: 'assets/application-abc.js',

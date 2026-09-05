@@ -1,11 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import {
 	PRODUCT_BOOTSTRAPS,
 	STARTUP_GRAPH_BUDGETS,
+	STARTUP_GRAPH_BUDGET_REASONS,
+	STARTUP_GRAPH_REPORT_FILE,
 	assertFramescaperBootstrapChunkIsAcyclic,
 	assertFramescaperProjectCommandChunkIsAcyclic,
 	assertProductGraphOwnership,
@@ -13,6 +19,8 @@ import {
 	assertTransferArchiveRuntimeDoesNotReachProductBootstrap,
 	collectStartupGraph,
 	enforceStartupGraphBudgets,
+	formatStartupGraphReport,
+	startupGraphReport,
 } from '../scripts/lib/startup-graph-budget.mjs';
 
 test('startup graph collection follows static imports and deduplicates CSS', () => {
@@ -164,6 +172,59 @@ test('approved graph ceilings remain hard limits', () => {
 		rawBytes: 7_000_000,
 		brotliBytes: 1_650_000,
 	});
+});
+
+test('the ceilings are read from the maintained budget configuration with their reasons', () => {
+	const configuration = JSON.parse(readFileSync(
+		new URL('../config/startup-graph-budgets.json', import.meta.url),
+		'utf8',
+	));
+	assert.deepEqual(Object.keys(configuration).sort(), ['framescaper', 'initial', 'soundscaper']);
+	for (const [graph, budget] of Object.entries(STARTUP_GRAPH_BUDGETS)) {
+		assert.deepEqual(budget, configuration[graph].ceilings, graph);
+	}
+	assert.match(configuration.framescaper.reasons.rawBytes, /Raised from 6_700_000 by the project owner\./u);
+	assert.match(configuration.framescaper.reasons.brotliBytes, /raised from 1_600_000 for the same reason/u);
+	assert.match(configuration.framescaper.reasons.requests, /Requests raised from 80 by the same reasoning\./u);
+	assert.deepEqual(STARTUP_GRAPH_BUDGET_REASONS.framescaper, configuration.framescaper.reasons);
+});
+
+test('every build reports the observed graph sizes rather than only breaking on them', () => {
+	const bundle = fixtureBundle();
+	addProductBootstrap(bundle, 'soundscaper');
+	const report = startupGraphReport('soundscaper', assertProductionStartupGraphs(bundle, 'soundscaper'));
+	assert.equal(report.product, 'soundscaper');
+	assert.deepEqual(Object.keys(report.graphs).sort(), ['initial', 'soundscaper']);
+	for (const observation of Object.values(report.graphs)) {
+		assert.deepEqual(Object.keys(observation).sort(), ['brotliBytes', 'rawBytes', 'requests']);
+		assert.ok(observation.requests > 0);
+		assert.ok(observation.rawBytes > 0);
+		assert.ok(observation.brotliBytes > 0);
+	}
+	const lines = formatStartupGraphReport(report);
+	assert.equal(lines.length, 2);
+	assert.match(lines.join('\n'), /startup graph initial: requests \d+\/10, rawBytes [\d,]+\/350,000/u);
+	assert.match(lines.join('\n'), /soundscaper: requests \d+\/75, rawBytes [\d,]+\/6,200,000 \([\d.]+% slack\)/u);
+});
+
+test('a build logs its observed graphs and writes them next to the bundle', async (context) => {
+	const logged = [];
+	context.mock.method(console, 'log', (line) => logged.push(String(line)));
+	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-startup-graph-'));
+	context.after(() => rm(directory, { recursive: true, force: true }));
+
+	const plugin = enforceStartupGraphBudgets('framescaper');
+	const bundle = fixtureBundle();
+	addProductBootstrap(bundle, 'framescaper');
+	plugin.generateBundle.handler({}, bundle);
+	assert.equal(logged.length, 2);
+	assert.ok(logged.some((line) => line.includes('framescaper: requests')), logged.join('\n'));
+
+	plugin.writeBundle({ dir: directory });
+	const written = JSON.parse(readFileSync(join(directory, STARTUP_GRAPH_REPORT_FILE), 'utf8'));
+	assert.equal(written.product, 'framescaper');
+	assert.deepEqual(Object.keys(written.graphs).sort(), ['framescaper', 'initial']);
+	assert.equal(written.graphs.framescaper.requests, 5);
 });
 
 test('production startup budgets inspect Vite final import-analysis output', () => {

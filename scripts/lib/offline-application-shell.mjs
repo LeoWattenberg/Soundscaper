@@ -20,6 +20,10 @@ export const MAXIMUM_INSTALL_ASSET_COUNT = 128;
 const BUILD_MANIFEST = '.offline-build-manifest.json';
 const STATIC_CONTROL_FILES = Object.freeze([
 	BUILD_MANIFEST,
+	// The observed startup-graph sizes the build writes beside the bundle
+	// (`STARTUP_GRAPH_REPORT_FILE`). It is a build diagnostic the tighten step
+	// reads, never part of the deployed application.
+	'.startup-graph-report.json',
 	'404.html',
 	'_headers',
 	'_redirects',

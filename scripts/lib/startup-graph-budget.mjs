@@ -1,44 +1,38 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { brotliCompressSync } from 'node:zlib';
 
-export const STARTUP_GRAPH_BUDGETS = Object.freeze({
-	initial: Object.freeze({
-		requests: 10,
-		modulepreloads: 6,
-		cssFiles: 2,
-		rawBytes: 350_000,
-		brotliBytes: 100_000,
-	}),
-	soundscaper: Object.freeze({
-		requests: 75,
-		rawBytes: 6_200_000,
-		brotliBytes: 1_500_000,
-	}),
-	// Raised from 6_700_000 by the project owner. Framescaper's graph had drifted
-	// to within 2,381 bytes of that ceiling, so the next commit of any size
-	// breached it regardless of what it contained: the compressor and limiter
-	// metering work grew the graph 6,729 bytes and tipped it over. A ceiling with
-	// 0.036% slack reports commit order rather than startup cost.
-	// The brotli ceiling was raised from 1_600_000 for the same reason: the
-	// compact layout (chrome drawer, compact bar and its stylesheet) grew the
-	// shell a few kilobytes and landed 1,348 bytes over a ceiling the graph had
-	// already crept up to.
-	// Requests raised from 80 by the same reasoning. The ceiling had no slack at
-	// all: the graph sat at exactly 80 of 80, so the next chunk of any origin
-	// broke the build, and the file-splitting campaign the maintainability guard
-	// asks for adds chunks by construction. Two of the three requests that
-	// breached it were real defects and are fixed rather than absorbed here: an
-	// extracted `live-capability-policy` had no chunk owner and took a request of
-	// its own, and the `aup4-` split left three lazy-only archive modules owned by
-	// the eager editor domain. The third is the Labeled audio submenu's own
-	// footprint, which is genuine startup cost.
-	framescaper: Object.freeze({
-		requests: 84,
-		rawBytes: 7_000_000,
-		brotliBytes: 1_650_000,
-	}),
-});
+/**
+ * The ceilings and the paragraphs that justify them live in
+ * `config/startup-graph-budgets.json`.
+ *
+ * They were constants here, which made every raise a source edit and left the
+ * reasons for the last three raises as a comment nobody could read from a build
+ * log. A configuration file is also what `scripts/tighten-startup-graph.mjs`
+ * writes back to when a graph shrinks and the byte ceiling can follow it down.
+ */
+export const STARTUP_GRAPH_BUDGET_CONFIGURATION_URL = new URL(
+	'../../config/startup-graph-budgets.json',
+	import.meta.url,
+);
+
+const budgetConfiguration = JSON.parse(readFileSync(STARTUP_GRAPH_BUDGET_CONFIGURATION_URL, 'utf8'));
+
+export const STARTUP_GRAPH_BUDGETS = Object.freeze(Object.fromEntries(
+	Object.entries(budgetConfiguration).map(([graph, { ceilings }]) => [graph, Object.freeze({ ...ceilings })]),
+));
+
+export const STARTUP_GRAPH_BUDGET_REASONS = Object.freeze(Object.fromEntries(
+	Object.entries(budgetConfiguration).map(([graph, { reasons }]) => [graph, Object.freeze({ ...reasons })]),
+));
+
+/** The observed graph sizes a build writes beside its bundle. */
+export const STARTUP_GRAPH_REPORT_FILE = '.startup-graph-report.json';
+
+/** The metrics a report carries: what a ceiling is set against, and nothing else. */
+export const STARTUP_GRAPH_REPORTED_METRICS = Object.freeze(['requests', 'rawBytes', 'brotliBytes']);
 
 export const PRODUCT_BOOTSTRAPS = Object.freeze({
 	soundscaper: '/src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx',
@@ -281,6 +275,56 @@ export function collectStartupGraph(bundle, roots) {
 	});
 }
 
+/**
+ * The observed size of each asserted graph, in the shape the tighten step reads.
+ *
+ * @param {string} product the product this build emits
+ * @param {Readonly<Record<string, ReturnType<typeof collectStartupGraph>>>} graphs
+ */
+export function startupGraphReport(product, graphs) {
+	return Object.freeze({
+		product: normalizeBudgetedProduct(product),
+		graphs: Object.freeze(Object.fromEntries(Object.entries(graphs).map(([label, graph]) => [
+			label,
+			Object.freeze(Object.fromEntries(STARTUP_GRAPH_REPORTED_METRICS.map((metric) => [metric, graph[metric]]))),
+		]))),
+	});
+}
+
+/**
+ * One line per graph, always printed, so a green build records what it cost.
+ *
+ * @param {ReturnType<typeof startupGraphReport>} report
+ * @returns {string[]}
+ */
+export function formatStartupGraphReport(report) {
+	return Object.entries(report.graphs).map(([label, observation]) => {
+		const budget = STARTUP_GRAPH_BUDGETS[label] ?? {};
+		const metrics = STARTUP_GRAPH_REPORTED_METRICS.map((metric) => {
+			const observed = observation[metric].toLocaleString('en-US');
+			const ceiling = budget[metric];
+			if (typeof ceiling !== 'number') return `${metric} ${observed}`;
+			const slack = metric === 'requests'
+				? ''
+				: ` (${(((ceiling - observation[metric]) / ceiling) * 100).toFixed(1)}% slack)`;
+			return `${metric} ${observed}/${ceiling.toLocaleString('en-US')}${slack}`;
+		});
+		return `startup graph ${label}: ${metrics.join(', ')}`;
+	});
+}
+
+/**
+ * @param {string} directory the directory the bundle was written to
+ * @param {ReturnType<typeof startupGraphReport>} report
+ * @returns {string} the path written
+ */
+export function writeStartupGraphReport(directory, report) {
+	const path = join(directory, STARTUP_GRAPH_REPORT_FILE);
+	mkdirSync(directory, { recursive: true });
+	writeFileSync(path, `${JSON.stringify(report, null, '\t')}\n`);
+	return path;
+}
+
 function assertBudget(label, graph, budget) {
 	const violations = [];
 	for (const [metric, ceiling] of Object.entries(budget)) {
@@ -323,14 +367,23 @@ function chunkOwnsModule(chunk, suffix) {
  */
 export function enforceStartupGraphBudgets(product) {
 	const builtProduct = normalizeBudgetedProduct(product);
+	let report = null;
 	return {
 		name: 'kw-enforce-startup-graph-budgets',
 		apply: 'build',
 		generateBundle: {
 			order: 'post',
 			handler(_options, bundle) {
-				assertProductionStartupGraphs(bundle, builtProduct);
+				report = startupGraphReport(builtProduct, assertProductionStartupGraphs(bundle, builtProduct));
+				for (const line of formatStartupGraphReport(report)) console.log(line);
 			},
+		},
+		// The observed sizes are written rather than emitted as a bundle asset: the
+		// offline shell precaches what the output directory holds, and this is a
+		// build diagnostic, so the shell excludes it as a control file.
+		writeBundle(options) {
+			if (!report || typeof options?.dir !== 'string') return;
+			writeStartupGraphReport(options.dir, report);
 		},
 	};
 }
