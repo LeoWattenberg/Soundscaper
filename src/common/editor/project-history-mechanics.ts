@@ -311,19 +311,39 @@ function settle<Command, Options extends EditorHistoryCommandOptions>(
 	};
 }
 
+/**
+ * Admit the history a command is about to change: the present document only.
+ *
+ * A stored history is validated whole where it enters the session — created,
+ * cloned, or read back from storage — and the entries behind the present
+ * document are snapshots this module wrote and never touches again. Walking all
+ * of them on every command instead made editing cost grow with how long the
+ * session had been open and with project size at once, at up to twice the
+ * history limit in full document validations per command. What is still checked
+ * is what the mechanics themselves rely on: the record's shape, its limit, its
+ * dropped count, the document being edited, and that both stacks are arrays
+ * within that limit.
+ */
 function admitCommandTarget<Command, Options extends EditorHistoryCommandOptions>(
 	history: unknown,
 	revision: Revision<Command, Options>,
 ): State<Command> {
-	if (revision.validatesHistory !== false) validateEditorProjectHistory(history, revision);
+	if (revision.validatesHistory === false) return history as State<Command>;
+	const value = readHistory(history, revision, false);
+	const limit = historyLimit(value.limit, revision);
+	droppedCount(value.dropped, revision);
+	revision.validateProject(value.present);
+	readStack(value.undoStack, 'undoStack', limit, revision);
+	readStack(value.redoStack, 'redoStack', limit, revision);
 	return history as State<Command>;
 }
 
 function readHistory<Command, Options extends EditorHistoryCommandOptions>(
 	history: unknown,
 	revision: Revision<Command, Options>,
+	admitStructure = true,
 ): Partial<State<Command>> {
-	revision.admitStructure?.(history);
+	if (admitStructure) revision.admitStructure?.(history);
 	const fields = revision.tracksDropped === true ? HISTORY_FIELDS_WITH_DROPPED : HISTORY_FIELDS;
 	if (revision.shape === 'closed') {
 		return readClosedDomainRecord(
@@ -344,9 +364,7 @@ function validateStack<Command, Options extends EditorHistoryCommandOptions>(
 	projectId: string,
 	revision: Revision<Command, Options>,
 ): void {
-	const stack = revision.shape === 'closed'
-		? readClosedDomainArray(value, `${revision.label} history ${name}`, 0, limit)
-		: boundedArray(value, name, limit, revision);
+	const stack = readStack(value, name, limit, revision);
 	for (const item of stack) {
 		const entry = readEntry(item, name, revision);
 		revision.validateProject(entry.project);
@@ -357,12 +375,16 @@ function validateStack<Command, Options extends EditorHistoryCommandOptions>(
 	}
 }
 
-function boundedArray<Command, Options extends EditorHistoryCommandOptions>(
+/** One stack, read as far as its own shape goes and no further. */
+function readStack<Command, Options extends EditorHistoryCommandOptions>(
 	value: unknown,
 	name: 'undoStack' | 'redoStack',
 	limit: number,
 	revision: Revision<Command, Options>,
 ): readonly unknown[] {
+	if (revision.shape === 'closed') {
+		return readClosedDomainArray(value, `${revision.label} history ${name}`, 0, limit);
+	}
 	if (!Array.isArray(value) || value.length > limit) {
 		throw new RangeError(`${revision.label} history ${name} is invalid.`);
 	}
