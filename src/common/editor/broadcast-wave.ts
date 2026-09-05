@@ -5,6 +5,7 @@ export const BEXT_MAX_PAYLOAD_BYTES = 64 * 1024;
 
 const UINT64_MAX = 0xffff_ffff_ffff_ffffn;
 const LOUDNESS_SENTINEL = 0x7fff;
+const LOUDNESS_MAXIMUM = 99.99;
 const OFFSETS = Object.freeze({
 	description: 0,
 	originator: 256,
@@ -119,6 +120,20 @@ const LOUDNESS_FIELDS = Object.freeze([
 	'maxMomentaryLoudness',
 	'maxShortTermLoudness',
 ] as const satisfies readonly BextLoudnessField[]);
+
+/**
+ * A measured loudness value as this field can carry it, or null when it cannot.
+ *
+ * Every loudness field is an int16 in 0.01 units with one escape, the 0x7fff
+ * "not measured" sentinel that null encodes as, so a measurement outside the
+ * field's range is reported as unmeasured rather than written as a number the
+ * reader would reject. Meters have floors — a true-peak floor of -120 dBTP is
+ * what digital silence reports — and a floor is not a measurement.
+ */
+export function bextLoudnessOrNull(value: unknown, field: BextLoudnessField): number | null {
+	if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+	return value < loudnessMinimum(field) || value > LOUDNESS_MAXIMUM ? null : value;
+}
 
 export function normalizeBextMetadata(
 	input: BextMetadataInput = {},
@@ -383,11 +398,15 @@ function normalizeLoudness(value: number | null, field: BextLoudnessField): numb
 	if (typeof value !== 'number' || !Number.isFinite(value)) {
 		throw new RangeError(`BEXT ${field} must be null or a finite number.`);
 	}
-	const minimum = field === 'loudnessRange' ? 0 : -99.99;
-	if (value < minimum || value > 99.99) {
+	const minimum = loudnessMinimum(field);
+	if (value < minimum || value > LOUDNESS_MAXIMUM) {
 		throw new RangeError(`BEXT ${field} must be between ${minimum.toFixed(2)} and 99.99.`);
 	}
 	return roundLoudness(value) / 100;
+}
+
+function loudnessMinimum(field: BextLoudnessField): number {
+	return field === 'loudnessRange' ? 0 : -LOUDNESS_MAXIMUM;
 }
 
 function roundLoudness(value: number): number {
