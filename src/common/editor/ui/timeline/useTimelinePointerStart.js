@@ -252,6 +252,13 @@ export function useTimelinePointerStart({
 		});
 		if (!event.target.closest('.clip-header') && !clipEditHandle && !edgeKind
 			&& slipSlideGesture === null) {
+			// A press in the clip body drags a time selection instead of picking
+			// the clip up, but it still moves the focus onto the track under the
+			// pointer. The lane's own click handler skips presses that land on a
+			// clip, so without this the range would be drawn on the clip's track
+			// while the previously focused track stayed selected — and the next
+			// edit would land there.
+			run(() => controller.actions.timeline.selectTrack(trackId));
 			run(() => controller.actions.timeline.selectClip(null));
 			const startFrame = frameAtClientX(event.clientX, lane);
 			pointerSession.current = { kind: 'selection', startFrame, startX: event.clientX, lane };

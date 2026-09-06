@@ -2,6 +2,8 @@ import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	chooseNestedCommandAction,
+	clickClipInterior,
+	clipByName,
 	collectClientErrors,
 	importFiles,
 	registerAudioEditorHooks,
@@ -52,6 +54,40 @@ test.describe('Soundscaper timeline selection rendering', () => {
 		await expect(bands).toHaveCount(3);
 		await chooseNestedCommandAction(page, editor, 'Select', ['Tracks', 'No tracks']);
 		await expect(bands).toHaveCount(0);
+		expect(errors).toEqual([]);
+	});
+
+	test('moves the focus onto the track of the clip the pointer presses', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA, toneB]);
+		const rows = editor.locator('.audio-editor-track-row');
+		await expect(rows).toHaveCount(3);
+
+		// Focus the empty starting track, so the press below has a wrong track to
+		// leave behind.
+		await rows.nth(0).locator('[data-track-lane]').click({ position: { x: 8, y: 8 } });
+		await expect(rows.nth(0).locator('[data-track-lane]')).toHaveAttribute('data-selected', 'true');
+
+		// A press in a clip body drags a time range rather than picking the clip
+		// up, and the range belongs to the pressed track: the focus has to follow
+		// the pointer or the next edit lands on the track that was focused before.
+		const clip = clipByName(editor, toneB.name);
+		await expect(rows.nth(2).locator('[data-clip-id]')).toHaveCount(1);
+		await clickClipInterior(page, clip, 0.5);
+		await expect(rows.nth(2).locator('[data-track-lane]')).toHaveAttribute('data-selected', 'true');
+		await expect(editor.locator('[data-track-lane][data-selected="true"]')).toHaveCount(1);
+
+		const clipBox = await clip.boundingBox();
+		expect(clipBox).not.toBeNull();
+		const dragY = clipBox.y + clipBox.height * 0.55;
+		await page.mouse.move(clipBox.x + clipBox.width * 0.3, dragY);
+		await page.mouse.down();
+		await page.mouse.move(clipBox.x + clipBox.width * 0.7, dragY, { steps: 4 });
+		await page.mouse.up();
+		const bands = editor.locator('[data-time-selection-overlay]');
+		await expect(bands).toHaveCount(1);
+		await expect(rows.nth(2).locator('[data-time-selection-overlay]')).toHaveCount(1);
 		expect(errors).toEqual([]);
 	});
 
