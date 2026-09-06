@@ -23,6 +23,7 @@
 		"**/*.d.ts",
 		"**/*.d.cts",
 		"**/*.d.mts",
-		"src/common/editor/**/native/**"
+		"src/common/editor/**/native/**",
+		"src/common/i18n/machine/**"
 	]
 }
