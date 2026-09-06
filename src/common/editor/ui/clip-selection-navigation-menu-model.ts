@@ -13,6 +13,8 @@ interface ClipSelectionNavigationMenuInput {
 	readonly copy: Readonly<Record<string, string>>;
 	readonly project: ClipSelectionNavigationMenuProject | null;
 	readonly selectedTrackId: string | null;
+	/** A drawn time range or a set of selected clips — either is a selection. */
+	readonly selectionActive: boolean;
 }
 
 interface ClipSelectionNavigationMenuActions {
@@ -58,12 +60,15 @@ export function createClipSelectionNavigationMenuModel(
 				item(ACTION_IDS.selectNextClip, input.copy.nextClip, clipNavigationBlocked, actions.selectNextClip),
 			]),
 		}),
+		// Both entries carry the playhead to an edge of the selection, so with
+		// nothing selected there is no edge to carry it to: they would silently
+		// seek to frame zero, which is not what "selection start" promises.
 		skip: Object.freeze({
 			id: 'menu-skip',
 			label: input.copy.skipTo,
 			items: Object.freeze([
-				item(ACTION_IDS.skipToSelectionStart, input.copy.selectionStart, !input.project, actions.skipToSelectionStart),
-				item(ACTION_IDS.skipToSelectionEnd, input.copy.selectionEnd, !input.project, actions.skipToSelectionEnd),
+				item(ACTION_IDS.skipToSelectionStart, input.copy.selectionStart, !input.project || !input.selectionActive, actions.skipToSelectionStart),
+				item(ACTION_IDS.skipToSelectionEnd, input.copy.selectionEnd, !input.project || !input.selectionActive, actions.skipToSelectionEnd),
 			]),
 		}),
 	});

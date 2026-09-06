@@ -2,6 +2,7 @@
 
 import { hasCoreEditingProjectAuthority, isActiveAudioEditorProjectSchema } from '../project-schema-version.ts';
 import { createClipSelectionNavigationService } from './clip-selection-navigation-service.ts';
+import { resolveSelectionRange } from '../selection-range.ts';
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Explicitly named legacy ports keep the migration seam typo-safe while project shapes are narrowed. */
 
@@ -333,7 +334,10 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 	}
 
 	async function selectAtZeroCrossings() {
-		const selection = activeSelection();
+		// Selected clips are a selection: the snap takes the range they span and
+		// leaves a drawn time range on the boundaries it found, so either way of
+		// selecting audio ends with edges that sit on zero crossings.
+		const selection = resolveSelectionRange(getProject(), { selectedClipId: state.selectedClipId });
 		if (!selection || state.analysisProcessing) return null;
 		const projectAtStart = getProject();
 		const generation = ++zeroCrossingGeneration;
@@ -357,6 +361,10 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 				type: 'selection/set',
 				startFrame: Math.min(startFrame, endFrame),
 				endFrame: Math.max(startFrame, endFrame),
+				// A clip selection becomes the time selection it described, on
+				// the tracks those clips sat on: the snapped edges are a range,
+				// and leaving the clip identifiers behind would claim both.
+				...(activeSelection() ? {} : { trackIds: selection.trackIds ?? [], clipIds: [] }),
 			});
 			setStatus(copy.zeroCrossingsAligned, 'success');
 			return next.selection;

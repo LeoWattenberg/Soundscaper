@@ -16,6 +16,7 @@ import type {
 	EditorTaskScope,
 } from './lifecycle.ts';
 import { EDITOR_PROJECT_TASK_SCOPE, isEditorDisposedError } from './lifecycle.ts';
+import { resolveSelectionRange } from '../selection-range.ts';
 
 export interface AnalysisRange {
 	readonly startFrame: number;
@@ -52,6 +53,8 @@ interface AnalysisProjectIdentity {
 	readonly id: string;
 	readonly revision: number;
 	readonly clips: readonly unknown[];
+	readonly tracks?: readonly unknown[];
+	readonly selection?: unknown;
 	readonly masterChannels?: number;
 	readonly metadata?: Readonly<{ readonly adm?: unknown }>;
 }
@@ -213,7 +216,9 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 		if (role !== 'foreground' && role !== 'background') throw new RangeError(copy.contrastRoleInvalid);
 		const projectToken = dependencies.captureProject();
 		const task = begin(copy.contrastAnalyzing);
-		const selection = dependencies.getActiveSelection();
+		// Selected clips are a selection: the measurement covers the range they
+		// span, the same range every other selection-driven command reads.
+		const selection = resolveSelectionRange(dependencies.getProject());
 		if (!selection) {
 			finish(task);
 			const error = new Error(copy.timeSelectionRequired);

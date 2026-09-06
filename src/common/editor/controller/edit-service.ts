@@ -4,6 +4,7 @@ import {
 	createLabeledAudioEditService,
 	isLabeledAudioEditAction,
 } from './labeled-audio-edit-service.ts';
+import { prepareSplitRangeIntoNewTrackCommand } from './split-into-new-track-plan.ts';
 
 export interface EditServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -51,6 +52,33 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 		const frame = engine.getPositionFrames();
 		if (typeof frame !== 'number' || !Number.isFinite(frame) || frame < 0) return undefined;
 		return Math.round(frame);
+	}
+
+	/**
+	 * The ranges a trim removes: everything on the given tracks that the kept
+	 * ranges leave over. The last kept range's tail runs to the end of the audio
+	 * those tracks hold, so a trim never has to ask the document how long it is.
+	 */
+	function discardedRanges(
+		kept: readonly RuntimeValue[],
+		trackIds: readonly string[],
+	): RuntimeValue[] {
+		const trackIdSet = new Set(trackIds);
+		const clipIds = getProject().tracks
+			.filter((track: RuntimeValue) => trackIdSet.has(track.id) && Array.isArray(track.clipIds))
+			.flatMap((track: RuntimeValue) => track.clipIds as string[]);
+		const endFrame = clipIds.reduce((furthest: number, clipId: string) => {
+			const clip = findClip(getProject(), clipId);
+			return clip ? Math.max(furthest, clip.timelineStartFrame + clip.durationFrames) : furthest;
+		}, 0);
+		const ranges: RuntimeValue[] = [];
+		let cursor = 0;
+		for (const range of kept) {
+			if (range.startFrame > cursor) ranges.push({ startFrame: cursor, endFrame: range.startFrame });
+			cursor = Math.max(cursor, range.endFrame);
+		}
+		if (endFrame > cursor) ranges.push({ startFrame: cursor, endFrame });
+		return ranges;
 	}
 
 	function handleEdit(action: string) {
@@ -179,6 +207,18 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 				return;
 			}
 			if (action === 'split-new-track') {
+				// A drawn range lifts what it covers onto a copy of every track it
+				// covers, the way upstream's own command does; a selected clip
+				// still parts at the playhead, which is what this editor has
+				// always done with one.
+				if (baseSelection) {
+					const plan = prepareSplitRangeIntoNewTrackCommand({
+						getProject, findClip, createStableId, createAddTrackCommand, prepareLinkedSplitCommand,
+					}, { startFrame: baseSelection.startFrame, endFrame: baseSelection.endFrame, trackIds });
+					if (!plan) return;
+					commit(plan.command, { selectTrackId: plan.selectTrackId, selectClipId: plan.selectClipId });
+					return;
+				}
 				const clip = state.selectedClipId ? findClip(getProject(), state.selectedClipId) : null;
 				const sourceTrack = clip ? findClipTrack(getProject(), clip.id) : null;
 				if (!clip || !sourceTrack) return;
@@ -212,8 +252,23 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 				commit({ type: 'clip/ungroup', clipIds: selectedClipIds });
 				return;
 			}
-			if (action === 'trim-outside-selection' && baseSelection) {
-				commit(prepareKeepRangeCommand(getProject(), { ...baseSelection, trackIds }));
+			if (action === 'trim-outside-selection') {
+				if (baseSelection) {
+					commit(prepareKeepRangeCommand(getProject(), { ...baseSelection, trackIds }));
+					return;
+				}
+				// Selected clips are a selection too, and they may be disjoint, so
+				// the trim keeps each of them rather than the span they bracket:
+				// what falls between two selected clips was not selected.
+				if (!editingSelection || editingSelection.kind !== 'clips') return;
+				const keptTrackIds = selectedClipTrackIds.length ? selectedClipTrackIds : trackIds;
+				const discarded = discardedRanges(editingSelection.ranges, keptTrackIds);
+				if (!discarded.length) return;
+				commit(prepareDisjointRangeDeleteCommand(getProject(), {
+					ranges: discarded,
+					trackIds: keptTrackIds,
+					rippleMode: 'none',
+				}));
 				return;
 			}
 			const deleteModes: Readonly<Record<string, string>> = {

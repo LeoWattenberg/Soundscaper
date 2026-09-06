@@ -144,7 +144,7 @@ export default function createApplicationMenus({
 		copy, actions,
 	});
 	const productItems = createApplicationMenuProductItems({ productId, capabilities, project, snapshot, editBlocked, copy, actions });
-	const clipSelectionNavigationMenus = createClipSelectionNavigationMenuModel({ project, selectedTrackId: snapshot.selectedTrackId ?? null, blocked, copy }, actions);
+	const clipSelectionNavigationMenus = createClipSelectionNavigationMenuModel({ project, selectedTrackId: snapshot.selectedTrackId ?? null, blocked, copy, selectionActive: editSelectionActive }, actions);
 	const structuralMenus = createTrackStructuralOperationMenuModel({ copy, editingBlocked: editBlocked,
 		hasTracks: Boolean(project?.tracks.length),
 		hasAlignmentTarget: Boolean(selectedTrack || project?.selection?.trackIds?.length),
@@ -152,12 +152,18 @@ export default function createApplicationMenus({
 	const analyzerBlocked = (blocked && !snapshot.analysisProcessing) || !project?.clips.length;
 	const importAnalysisMenuContext = { productId, copy, snapshot, editBlocked, blocked, analyzerBlocked, actionRuntime };
 	const effectLabels = new Map((snapshot.effects?.selectionTypes || []).map(({ type, label }) => [type, label]));
+	// A destructive effect processes the audio the selection names, so without
+	// a time range or a selected clip it has nothing to work on: opening it
+	// would only reach the dialog to refuse there.
 	const effectGroups = createEffectMenuEntries({
 		organization: preferences?.effects?.menuOrganization,
 		copy, effectLabels, productId, locale,
-		disabled: editBlocked || !selectedAudioTrack,
+		disabled: editBlocked || !selectedAudioTrack || !editSelectionActive,
 	}, actions.openSelectionEffect);
-	const nyquistItems = createNyquistPluginMenuItems({ editBlocked, blocked, selectedAudioTrack, frequencySelectionActive }, actions);
+	const nyquistItems = createNyquistPluginMenuItems({
+		editBlocked, blocked, selectedAudioTrack, frequencySelectionActive,
+		selectionActive: editSelectionActive,
+	}, actions);
 	const menus = applyAudacityParityToMenus([
 		{
 			id: 'file',
@@ -322,7 +328,7 @@ export default function createApplicationMenus({
 					id: 'remove-special',
 					label: copy.removeSpecial,
 					items: [
-						{ id: 'trim-audio-outside-selection', label: copy.trimOutsideSelection, disabled: editBlocked || !selectionActive, onClick: () => actions.executeEdit('trimOutsideSelection') },
+						{ id: 'trim-audio-outside-selection', label: copy.trimOutsideSelection, disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('trimOutsideSelection') },
 						{ id: 'silence-audio', label: copy.silenceAudio, disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('silenceSelection') },
 					],
 				},
@@ -331,9 +337,9 @@ export default function createApplicationMenus({
 					label: copy.clipBoundaries,
 					items: [
 						{ id: 'split', label: copy.split, shortcut: 'S', disabled: editBlocked || !splitAvailable, onClick: () => actions.executeEdit('split') },
-						{ id: 'split-into-new-track', label: copy.splitIntoNewTrack, disabled: editBlocked || !selectedClip, onClick: () => actions.executeEdit('splitIntoNewTrack') },
+						{ id: 'split-into-new-track', label: copy.splitIntoNewTrack, disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('splitIntoNewTrack') },
 						{ id: 'join', label: copy.joinClips, disabled: editBlocked || !multipleSelectedClips, onClick: () => actions.executeEdit('join') },
-						{ id: 'disjoin', label: copy.disjoinClips, disabled: editBlocked || !selectedClip, onClick: () => actions.executeEdit('disjoin') },
+						{ id: 'disjoin', label: copy.disjoinClips, disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('disjoin') },
 						{ id: 'group-clips', label: copy.groupClips, disabled: editBlocked || !multipleSelectedClips, onClick: () => actions.executeEdit('group') },
 						{ id: 'ungroup-clips', label: copy.ungroupClips, disabled: editBlocked || !groupedSelectedClips, onClick: () => actions.executeEdit('ungroup') },
 						...framescaperVideoTrimItems,
@@ -382,19 +388,19 @@ export default function createApplicationMenus({
 					items: [
 						{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.toggleLoopRegion, label: copy.loop, shortcut: productId === 'framescaper' ? undefined : 'L', checked: Boolean(project?.loop?.enabled), onClick: actions.toggleLoop },
 						{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.clearLoopRegion, label: copy.clearLoopRegion || copy.selectNone, disabled: !project?.loop?.enabled, onClick: actions.clearLoop },
-						{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.setLoopRegionToSelection, label: copy.loopToSelection || copy.loop, disabled: !selectionActive, onClick: actions.loopToSelection },
+						{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.setLoopRegionToSelection, label: copy.loopToSelection || copy.loop, disabled: !editSelectionActive, onClick: actions.loopToSelection },
 						{ id: 'set-selection-to-loop', label: copy.selectionToLoop, disabled: !project?.loop?.enabled, onClick: actions.selectionToLoop },
 						{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.setLoopRegionInOut, label: copy.setLoopInOut || copy.loopRegion, onClick: actions.setLoopInOut },
 						{ id: 'toggle-selection-follows-loop-region', label: copy.selectionFollowsLoop, checked: Boolean(snapshot.loopOptions?.selectionFollows), onClick: actions.toggleSelectionFollowsLoop },
 						],
 					},
-					{ id: 'zero-crossings', label: copy.zeroCrossings, shortcut: 'Z', disabled: editBlocked || !selectionActive, onClick: actions.zeroCross },
+					{ id: 'zero-crossings', label: copy.zeroCrossings, shortcut: 'Z', disabled: editBlocked || !editSelectionActive, onClick: actions.zeroCross },
 				],
 			},
 		createApplicationViewMenu({
 			capabilities, clipSelectionNavigationMenus, compactLayout, copy, desktopHost, divider, editBlocked,
 			effectsPanelOpen, preferences, productItems, project, projectBinEffectivelyOpen, selectedAudioTrack,
-			selectionActive, showArmControls, snapshot, uiFlags,
+			editSelectionActive, showArmControls, snapshot, uiFlags,
 		}, actions),
 		{
 			id: 'tracks',
@@ -450,7 +456,8 @@ export default function createApplicationMenus({
 				...effectGroups,
 				{ id: 'pitch-tempo', label: copy.pitchTempo, items: createPitchAndTempoApplicationMenuItems({
 					productId, capabilities, project, selectedClipId: selectedClip?.id ?? null,
-					selectedAudioTrack, editingBlocked: editBlocked, copy, effectLabels, actions,
+					selectedAudioTrack, editingBlocked: editBlocked, selectionActive: editSelectionActive,
+					copy, effectLabels, actions,
 				}) },
 				{
 					id: 'nyquist-effects',
@@ -479,7 +486,7 @@ export default function createApplicationMenus({
 				{ id: 'analysis', label: copy.analysisCommand, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('levels') },
 				{ id: 'plot-spectrum', label: copy.plotSpectrum, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('spectrum') },
 				{ id: 'find-clipping', label: copy.findClipping, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('clipping') },
-				{ id: 'contrast', label: copy.contrast, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('contrast') },
+				{ id: 'contrast', label: copy.contrast, disabled: analyzerBlocked || !editSelectionActive, onClick: () => actions.openAnalysis('contrast') },
 				{ id: 'ebu-r128-metrics', label: copy.meterTypeEbuR128, disabled: !project, onClick: actions.openEbuR128 },
 				{ id: 'measure-loudness', label: copy.measureLoudness, disabled: analyzerBlocked, onClick: actions.measureLoudness },
 				{ id: 'nyquist-analyzers', label: copy.nyquist, items: nyquistItems('analyze') },

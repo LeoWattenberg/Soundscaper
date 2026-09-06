@@ -9,6 +9,8 @@ export interface PitchTempoApplicationMenuInput {
 	readonly selectedClipId: string | null;
 	readonly selectedAudioTrack: unknown;
 	readonly editingBlocked: boolean;
+	/** A drawn time range or a set of selected clips — either is a selection. */
+	readonly selectionActive: boolean;
 	readonly copy: Readonly<Record<string, string>>;
 	readonly effectLabels: ReadonlyMap<string, string>;
 	readonly actions: Readonly<{
@@ -19,7 +21,9 @@ export interface PitchTempoApplicationMenuInput {
 
 /** Focused ownership for the near-limit Effect > Pitch and Tempo submenu. */
 export function createPitchAndTempoApplicationMenuItems(input: PitchTempoApplicationMenuInput) {
-	const effectDisabled = input.editingBlocked || !input.selectedAudioTrack;
+	// Every entry here rewrites the audio the selection names, so it withholds
+	// itself until there is one, the way the rest of the Effect menu does.
+	const effectDisabled = input.editingBlocked || !input.selectedAudioTrack || !input.selectionActive;
 	return Object.freeze([
 		...createAudioWarpApplicationMenuItems({
 			productId: input.productId,

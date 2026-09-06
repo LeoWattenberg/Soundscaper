@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
+import { resolveSelectionRange } from '../selection-range.ts';
 
 export interface TransportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -172,7 +173,7 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 		if (action === 'rewind') return engine.seek(engine.getPositionFrames() - projectSampleRate() * 5);
 		if (action === 'forward') return engine.seek(engine.getPositionFrames() + projectSampleRate() * 5);
 		if (action === 'loop') {
-			const selection = activeSelection();
+			const selection = resolveSelectionRange(getProject(), { selectedClipId: state.selectedClipId });
 			const enabled = !getProject()?.loop?.enabled;
 			const storedLoop = getProject().loop?.endFrame > getProject().loop?.startFrame
 				? getProject().loop
@@ -196,9 +197,15 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 	}
 
 	function setLoopRegionToSelection() {
-		const selection = activeSelection();
+		// Selected clips are a selection: the loop takes the range they span
+		// when no time range was drawn, rather than refusing the command.
+		const selection = resolveSelectionRange(getProject(), { selectedClipId: state.selectedClipId });
 		if (!selection) throw new Error(copy.timeSelectionRequired);
-		const next = commitLoopRange({ enabled: true, ...selection });
+		const next = commitLoopRange({
+			enabled: true,
+			startFrame: selection.startFrame,
+			endFrame: selection.endFrame,
+		});
 		engine.setLoop(next.loop);
 		return next.loop;
 	}
@@ -219,7 +226,7 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 	}
 
 	function setLoopRegionInOut() {
-		const selection = activeSelection();
+		const selection = resolveSelectionRange(getProject(), { selectedClipId: state.selectedClipId });
 		if (selection) return setLoopRegionToSelection();
 		const startFrame = normalizeTimelineFrame(engine.getPositionFrames());
 		const endFrame = projectDurationFrames(getProject());

@@ -5,6 +5,7 @@ import {
 	type RuntimeClipProject,
 	type RuntimePersistedClip,
 } from '../runtime-clip-projection.ts';
+import { resolveSelectionRange } from '../selection-range.ts';
 
 export interface ClipSelectionNavigationFrequencyRange {
 	readonly minimumFrequency: number;
@@ -131,10 +132,18 @@ export function createClipSelectionNavigationService<
 		}
 	}
 
+	/**
+	 * Carry the playhead to an edge of the selection, however it was made.
+	 *
+	 * Selected clips are a selection: without this the collapsed time range
+	 * would answer for them and both entries would seek to frame zero.
+	 */
 	function skipToSelectionBoundary(
 		boundary: 'startFrame' | 'endFrame',
 	): number | null {
-		const selection = dependencies.getProject()?.selection;
+		const selection = resolveSelectionRange(dependencies.getProject(), {
+			selectedClipId: dependencies.state.selectedClipId,
+		});
 		if (!selection) return null;
 		const frame = selectionFrame(selection[boundary], `selection.${boundary}`);
 		dependencies.seek(frame);

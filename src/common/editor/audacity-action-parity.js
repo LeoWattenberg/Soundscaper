@@ -137,9 +137,13 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		'history-can-redo': Boolean(snapshot.history?.canRedo),
 		selection: hasSelection,
 		'time-selection': timeSelection,
+		// What every command that acts on "the selection" asks: a drawn time
+		// range or a set of selected clips. Selecting a clip leaves the time
+		// range collapsed on frame zero, so a predicate that reads only the
+		// range withholds the command from half the ways of selecting audio.
+		'time-or-clip-selection': timeSelection || selectedClips.length > 0,
 		'audio-selection': audioSelection,
 		'audio-selection-or-clip': audioSelection || Boolean(selectedClip),
-		'editable-selection': editable && audioSelection,
 		'editable-selection-or-clip': editable && (audioSelection || Boolean(selectedClip)),
 		'playing-or-editable-clip-or-project-cursor': playing || (projectOpened && (!selectedClip || editable)),
 		'clipboard-and-project-writable': projectWritable && Boolean(snapshot.history?.hasClipboard),

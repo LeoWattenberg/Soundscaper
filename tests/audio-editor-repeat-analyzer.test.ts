@@ -136,6 +136,7 @@ test('immersive analyzer commands refuse before rendering an unsupported loudnes
 		assertProject: (token) => projectGeneration.assertCurrent(token),
 		getProject: () => ({
 			id: 'immersive-analysis-project', revision: 1, clips: [{}], masterChannels: 9,
+			tracks: [], selection: { startFrame: 0, endFrame: 4, trackIds: [], clipIds: [] },
 		}),
 		getSelectedTrackId: () => 'track-1',
 		getRange: () => ({ startFrame: 0, endFrame: 4 }),

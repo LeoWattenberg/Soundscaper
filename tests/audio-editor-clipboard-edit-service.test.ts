@@ -213,6 +213,49 @@ test('disjoin removes only bounded silence and commits its splits atomically', a
 	assert.deepEqual(fixture.commits[0]?.selection, { selectClipId: 'clip-a' });
 });
 
+test('detach at silences scans the drawn time range when one replaces the clip selection', async () => {
+	const fixture = createFixture(project({
+		tracks: [
+			{ id: 'track-a', name: 'Audio', type: 'audio', clipIds: ['clip-a'] },
+			{ id: 'track-b', name: 'Other', type: 'audio', clipIds: ['clip-b'] },
+		],
+		clips: [
+			{
+				id: 'clip-a', sourceId: 'source-a', kind: 'audio', title: 'Audio',
+				timelineStartFrame: 0, sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100,
+			},
+			{
+				id: 'clip-b', sourceId: 'source-a', kind: 'audio', title: 'Other',
+				timelineStartFrame: 0, sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100,
+			},
+		],
+		selection: { startFrame: 0, endFrame: 50, trackIds: ['track-a'], clipIds: [] },
+	}));
+	const samples = new Float32Array(100).fill(1);
+	samples.fill(0, 10, 30);
+	samples.fill(0, 60, 80);
+	fixture.sourceBuffers.set('source-a', {
+		sampleRate: 1_000,
+		numberOfChannels: 1,
+		getChannelData: () => samples,
+	});
+	fixture.state.selectedClipId = null;
+	const service = createClipboardEditService(fixture.dependencies);
+
+	await service.disjoinSelectedClip();
+
+	const batch = fixture.commits[0]?.command;
+	assert.equal(batch?.type, 'batch');
+	if (batch?.type !== 'batch') return;
+	// Only the silence inside the range, and only on the track the range names.
+	assert.deepEqual(batch.commands.map((command) => command.type), ['clip/split', 'clip/split', 'clip/remove']);
+	assert.deepEqual(
+		batch.commands.slice(0, 2).map((command) => command.type === 'clip/split' ? command.clipId : null),
+		['clip-a', 'clip-a'],
+	);
+	assert.deepEqual(batch.commands.slice(0, 2).map((command) => command.type === 'clip/split' ? command.atFrame : null), [30, 10]);
+});
+
 test('labelled detach scans only the regions its labels cover', async () => {
 	const fixture = createFixture();
 	const samples = new Float32Array(100).fill(1);

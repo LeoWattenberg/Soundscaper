@@ -5,6 +5,7 @@ import { createAudacityClipPitchActionRuntime, createAudacityToolActionRuntime }
 import { advanceAudacityTrackSelection, audacityToggledTrackSelection, audacityTrackRangeSelection } from './audacity-track-selection.ts';
 import { documentationUrl } from './documentation-links.ts';
 import { createTransportActionGroup } from './audacity-action-runtime-transport.js';
+import { resolveSelectionRange } from './selection-range.ts';
 const STAFFPAD_EFFECT_TYPES = Object.freeze({
 	changePitch: 'audacity-change-pitch',
 	changeTempo: 'audacity-change-tempo',
@@ -373,9 +374,11 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			...controllerActions.timeline,
 			zoomDefault: () => controllerActions.timeline.setZoom(120),
 			zoomSelection: () => {
-				const selection = project()?.selection;
+				// Selected clips are a selection: the zoom frames the range they
+				// span rather than falling back to the whole project.
+				const selection = resolveSelectionRange(project(), { selectedClipId: selectedClipId() });
 				const sampleRate = project()?.sampleRate || 48_000;
-				if (!selection || selection.endFrame <= selection.startFrame) return controllerActions.timeline.zoomFit();
+				if (!selection) return controllerActions.timeline.zoomFit();
 				return controllerActions.timeline.setZoom(960 / ((selection.endFrame - selection.startFrame) / sampleRate));
 			},
 			zoomToggle: () => {

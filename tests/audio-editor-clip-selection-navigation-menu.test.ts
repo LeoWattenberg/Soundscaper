@@ -57,16 +57,29 @@ test('menu model disables navigation only when its exact state prerequisite is a
 		copy: copyValues() as Readonly<Record<string, string>>,
 		project: { tracks: [{ id: 'track-a', type: 'audio', clipIds: [] }], clips: [], selection: { trackIds: [] } },
 		selectedTrackId: null,
+		selectionActive: true,
 	}, actions as never);
 	assert.equal(empty.selectNoTracks.disabled, true);
 	assert.ok(empty.audioClips.items.every(({ disabled }) => disabled));
 	assert.ok(empty.skip.items.every(({ disabled }) => !disabled));
+
+	// Both skip entries name an edge of the selection, so with nothing selected
+	// there is no edge to carry the playhead to.
+	const unselected = createClipSelectionNavigationMenuModel({
+		blocked: false,
+		copy: copyValues() as Readonly<Record<string, string>>,
+		project: { tracks: [{ id: 'track-a', type: 'audio', clipIds: [] }], clips: [], selection: { trackIds: [] } },
+		selectedTrackId: null,
+		selectionActive: false,
+	}, actions as never);
+	assert.ok(unselected.skip.items.every(({ disabled }) => disabled));
 
 	const closed = createClipSelectionNavigationMenuModel({
 		blocked: false,
 		copy: copyValues() as Readonly<Record<string, string>>,
 		project: null,
 		selectedTrackId: null,
+		selectionActive: true,
 	}, actions as never);
 	assert.ok(closed.skip.items.every(({ disabled }) => disabled));
 });

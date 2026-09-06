@@ -22,7 +22,7 @@ export function createApplicationViewMenu(context, actions) {
 	const {
 		capabilities, clipSelectionNavigationMenus, compactLayout, copy, desktopHost, divider, editBlocked,
 		effectsPanelOpen, preferences, productItems, project, projectBinEffectivelyOpen, selectedAudioTrack,
-		selectionActive, showArmControls, snapshot, uiFlags,
+		editSelectionActive, showArmControls, snapshot, uiFlags,
 	} = context;
 	return {
 		id: 'view',
@@ -93,7 +93,7 @@ export function createApplicationViewMenu(context, actions) {
 					{ id: 'zoom-in', label: copy.zoomIn, shortcut: 'Ctrl+1', onClick: actions.zoomIn },
 					{ id: 'zoom-default', label: copy.zoomNormal, shortcut: 'Ctrl+2', onClick: actions.zoomDefault },
 					{ id: 'zoom-out', label: copy.zoomOut, shortcut: 'Ctrl+3', onClick: actions.zoomOut },
-					{ id: 'zoom-to-selection', label: copy.zoomSelection, disabled: !selectionActive, onClick: actions.zoomSelection },
+					{ id: 'zoom-to-selection', label: copy.zoomSelection, disabled: !editSelectionActive, onClick: actions.zoomSelection },
 					{ id: 'zoom-toggle', label: copy.zoomToggle, onClick: actions.zoomToggle },
 					{ id: 'zoom-fit', label: copy.zoomFit, shortcut: 'Ctrl+0', onClick: actions.zoomFit },
 					{ id: 'fit-height', label: copy.fitHeight, onClick: actions.fitHeight },

@@ -86,8 +86,21 @@ test('the complete enableWhen vocabulary evaluates from runtime state', () => {
 	assert.equal(evaluateAudacityActionEnablement('silence-audio-selection', clipOnlyContext), true);
 	assert.equal(evaluateAudacityActionEnablement('effect://builtin/processors', clipOnlyContext), true);
 	assert.equal(evaluateAudacityActionEnablement('repeat-last-effect', clipOnlyContext), true);
-	assert.equal(evaluateAudacityActionEnablement('trim-audio-outside-selection', clipOnlyContext), false);
-	assert.equal(evaluateAudacityActionEnablement('zero-cross', clipOnlyContext), false);
+	assert.equal(evaluateAudacityActionEnablement('trim-audio-outside-selection', clipOnlyContext), true);
+	assert.equal(evaluateAudacityActionEnablement('zero-cross', clipOnlyContext), true);
+	assert.equal(evaluateAudacityActionEnablement('zoom-to-selection', clipOnlyContext), true);
+	assert.equal(evaluateAudacityActionEnablement('set-loop-region-to-selection', clipOnlyContext), true);
+	assert.equal(evaluateAudacityActionEnablement('skip-to-selection-start', clipOnlyContext), true);
+	const unselectedContext = structuredClone(clipOnlyContext);
+	unselectedContext.snapshot.selectedClipId = null;
+	unselectedContext.snapshot.project.selection.clipIds = [];
+	for (const id of [
+		'trim-audio-outside-selection', 'zero-cross', 'zoom-to-selection',
+		'set-loop-region-to-selection', 'skip-to-selection-start', 'skip-to-selection-end',
+		'contrast-analyzer',
+	]) {
+		assert.equal(evaluateAudacityActionEnablement(id, unselectedContext), false, id);
+	}
 	assert.throws(() => evaluateAudacityEnableWhen('not-a-predicate', context), /Unknown Audacity/);
 });
 

@@ -10,17 +10,21 @@ import { listNyquistPlugins } from '../nyquist/plugin-registry.js';
  * rather than write, and the legacy category additionally withholds spectral
  * plugins until a frequency range is selected. Keeping that table beside the
  * registry leaves the menu tree with one call per submenu.
+ *
+ * Everything but a generator reads the audio the selection names — a drawn time
+ * range or the selected clips — and the evaluation refuses outright when the
+ * selection resolves to nothing, so the entry withholds itself instead.
  */
 export function createNyquistPluginMenuItems(
-	{ editBlocked, blocked, selectedAudioTrack, frequencySelectionActive },
+	{ editBlocked, blocked, selectedAudioTrack, frequencySelectionActive, selectionActive },
 	actions,
 ) {
 	const plugins = listNyquistPlugins();
 	const disabled = (plugin) => {
-		if (plugin.category === 'legacy') return editBlocked || !selectedAudioTrack || (plugin.spectral && !frequencySelectionActive);
+		if (plugin.category === 'legacy') return editBlocked || !selectedAudioTrack || !selectionActive || (plugin.spectral && !frequencySelectionActive);
 		if (plugin.category === 'generate') return editBlocked;
-		if (plugin.category === 'analyze') return blocked || !selectedAudioTrack;
-		return editBlocked || !selectedAudioTrack;
+		if (plugin.category === 'analyze') return blocked || !selectedAudioTrack || !selectionActive;
+		return editBlocked || !selectedAudioTrack || !selectionActive;
 	};
 	return (category) => plugins
 		.filter((plugin) => plugin.category === category)

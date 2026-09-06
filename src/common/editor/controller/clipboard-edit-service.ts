@@ -367,19 +367,59 @@ export function createClipboardEditService(
 		) as AudioEditorCommand;
 	}
 
+	/**
+	 * Detach at silences in whatever the document has selected.
+	 *
+	 * Upstream reads the time selection first and the selected clips otherwise
+	 * (`doGlobalSplitIntoNewTrack` and its neighbours in
+	 * `trackeditactionscontroller.cpp` all share that shape), so a drawn range
+	 * scans every clip it touches within its own bounds, and a clip selection
+	 * scans those clips end to end.
+	 */
 	async function disjoinSelectedClip(): Promise<void> {
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return;
 		const project = dependencies.getProject();
-		const clip = findClip(project, dependencies.state.selectedClipId);
-		const buffer = clip ? dependencies.sourceBuffers.get(clip.sourceId) : null;
-		if (!clip || !buffer) return;
-		const commands = detachCommandsForClip(clip, findClipSilenceRegions(clip, buffer));
+		const selection = project.selection;
+		const region = selection && selection.endFrame > selection.startFrame
+			? { startFrame: selection.startFrame, endFrame: selection.endFrame }
+			: null;
+		const clips = disjoinTargetClips(project, region);
+		const commands: AudioEditorCommand[] = [];
+		for (const clip of clips) {
+			const buffer = dependencies.sourceBuffers.get(clip.sourceId);
+			if (!buffer) continue;
+			commands.push(...detachCommandsForClip(clip, findClipSilenceRegions(clip, buffer, region)));
+		}
 		if (!commands.length) {
 			dependencies.setStatus(dependencies.copy.noSilencesFound, 'info');
 			return;
 		}
-		dependencies.commit({ type: 'batch', commands }, { selectClipId: clip.id });
+		dependencies.commit({ type: 'batch', commands }, { selectClipId: clips[0]?.id ?? null });
+	}
+
+	/** The clips a detach scans: those a range touches, else the selected ones. */
+	function disjoinTargetClips(
+		project: ClipboardEditProject,
+		region: Readonly<{ startFrame: number; endFrame: number }> | null,
+	): readonly ClipboardEditClip[] {
+		if (!region) {
+			const clipIds = project.selection?.clipIds?.length
+				? project.selection.clipIds
+				: dependencies.state.selectedClipId ? [dependencies.state.selectedClipId] : [];
+			return clipIds
+				.map((clipId) => findClip(project, clipId))
+				.filter((clip): clip is ClipboardEditClip => clip !== null);
+		}
+		const requested = project.selection?.trackIds?.length ? new Set(project.selection.trackIds) : null;
+		return project.tracks
+			.filter(isMediaTrack)
+			.filter((track) => !requested || requested.has(track.id))
+			.flatMap((track) => track.clipIds)
+			.map((clipId) => findClip(project, clipId))
+			.filter((clip): clip is ClipboardEditClip => clip !== null
+				&& clip.timelineStartFrame < region.endFrame
+				&& clip.timelineStartFrame + clip.durationFrames > region.startFrame);
 	}
 
 	/**

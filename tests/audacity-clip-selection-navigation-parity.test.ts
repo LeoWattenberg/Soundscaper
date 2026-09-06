@@ -18,8 +18,8 @@ const DEFINITIONS = Object.freeze([
 	['select-cursor-to-next-clip-boundary', 'selection.selectCursorToNextClipBoundary', 'project-has-audio', 'Select > Audio clips'],
 	['select-previous-clip', 'selection.selectPreviousClip', 'project-has-audio', 'Select > Audio clips'],
 	['select-next-clip', 'selection.selectNextClip', 'project-has-audio', 'Select > Audio clips'],
-	['skip-to-selection-start', 'selection.skipToSelectionStart', 'project-opened', 'View > Skip to'],
-	['skip-to-selection-end', 'selection.skipToSelectionEnd', 'project-opened', 'View > Skip to'],
+	['skip-to-selection-start', 'selection.skipToSelectionStart', 'time-or-clip-selection', 'View > Skip to'],
+	['skip-to-selection-end', 'selection.skipToSelectionEnd', 'time-or-clip-selection', 'View > Skip to'],
 	['select-no-tracks', 'selection.selectNoTracks', 'track-selected', 'Select > Tracks'],
 ] as const);
 
