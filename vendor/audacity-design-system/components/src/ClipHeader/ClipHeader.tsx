@@ -94,6 +94,11 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
   const [renameDraft, setRenameDraft] = React.useState(name);
   const renameInputRef = React.useRef<HTMLInputElement>(null);
   const consumedRenameRequestRef = React.useRef<number | undefined>(undefined);
+  // The callback a rename commits through is the one that existed when the
+  // rename began. A host that withdraws onRename while the editor is busy
+  // must not turn a rename the user already started into a silent no-op: the
+  // captured callback is called and the host decides whether to refuse it.
+  const renameCommitRef = React.useRef<((newName: string) => void) | undefined>(undefined);
 
   React.useEffect(() => {
     if (isRenaming) {
@@ -116,22 +121,27 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
       onRenameFinished?.();
       return;
     }
+    renameCommitRef.current = onRename;
     setRenameDraft(name);
     setIsRenaming(true);
   }, [name, onRename, onRenameFinished, renameRequestId]);
 
   const startRename = () => {
     if (!onRename) return;
+    renameCommitRef.current = onRename;
     setRenameDraft(name);
     setIsRenaming(true);
   };
   const commitRename = () => {
     const next = renameDraft.trim();
-    if (next && next !== name) onRename?.(next);
+    const commit = renameCommitRef.current ?? onRename;
+    if (next && next !== name) commit?.(next);
+    renameCommitRef.current = undefined;
     setIsRenaming(false);
     onRenameFinished?.();
   };
   const cancelRename = () => {
+    renameCommitRef.current = undefined;
     setRenameDraft(name);
     setIsRenaming(false);
     onRenameFinished?.();
