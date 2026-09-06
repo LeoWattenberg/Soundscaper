@@ -152,6 +152,67 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 			if (['input', 'change'].includes(event.type)) fixture.settings.channelMatrix = this.value;
 		},
 	});
+	// The reworked Export audio dialog offers the channel mapping as radios and
+	// edits a custom matrix in its own dialog; the smoke ticks "custom", opens
+	// the editor, widens it to sixteen outputs, clears every route and applies.
+	fixture.channelMatrices = [];
+	fixture.mappingEditor = null;
+	const customMappingRadio = element({ click: () => {
+		fixture.settings.channelMapping = 'custom';
+		fixture.selectionHistory.push(['channelMapping', 'custom']);
+	} });
+	const editMappingButton = element({ click: () => {
+		fixture.mappingEditor = { outputs: 2, matrix: [[true, false], [false, true]] };
+		outputsInput.value = '2';
+	} });
+	const widenMatrix = (editor) => {
+		for (const row of editor.matrix) while (row.length < editor.outputs) row.push(false);
+	};
+	const outputsInput = element({
+		value: '2',
+		dispatch(event) {
+			const editor = fixture.mappingEditor;
+			if (!editor || !['input', 'change'].includes(event.type)) return;
+			const outputs = Number(this.value);
+			if (Number.isInteger(outputs) && outputs >= 1 && outputs <= 32) {
+				editor.outputs = outputs;
+				widenMatrix(editor);
+			}
+		},
+	});
+	const mappingCell = (input, output) => ({
+		getAttribute: (name) => (name === 'aria-checked' ? String(Boolean(fixture.mappingEditor?.matrix[input]?.[output])) : null),
+		click: () => {
+			const editor = fixture.mappingEditor;
+			if (editor) editor.matrix[input][output] = !editor.matrix[input][output];
+		},
+	});
+	const applyMappingButton = element({ click: () => {
+		const editor = fixture.mappingEditor;
+		if (!editor) return;
+		const routes = editor.matrix.reduce((count, row) => count + row.slice(0, editor.outputs).filter(Boolean).length, 0);
+		fixture.channelMatrices.push({ outputs: editor.outputs, routes });
+		fixture.settings.channelMatrix = JSON.stringify(editor.matrix.map((row) => row.slice(0, editor.outputs)));
+		fixture.mappingEditor = null;
+	} });
+	const mappingEditor = element({
+		query(selector) {
+			if (selector === '[data-export-channel-mapping-field="outputs"] input') return outputsInput;
+			if (selector === '[data-export-channel-mapping-action="apply"] button') return applyMappingButton;
+			return null;
+		},
+		queryAll(selector) {
+			const editor = fixture.mappingEditor;
+			if (!editor) return [];
+			if (selector === 'tbody tr:first-child [data-export-channel-mapping-cell]') {
+				return Array.from({ length: editor.outputs }, (_, output) => mappingCell(0, output));
+			}
+			if (selector.includes('[data-export-channel-mapping-cell]')) {
+				return editor.matrix.flatMap((row, input) => row.slice(0, editor.outputs).map((_, output) => mappingCell(input, output)));
+			}
+			return [];
+		},
+	});
 	const download = element({ hidden: true });
 	const progressOutput = element({ textContent: '0%' });
 	const metadataControls = fixture.metadataFields.map((_, index) => element({
@@ -372,6 +433,8 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 	const dialog = element({
 		query(selector) {
 			if (selector in fields) return fields[selector];
+			if (selector === '[data-export-channel-option="custom"] input') return customMappingRadio;
+			if (selector === '[data-export-channel-action="edit-mapping"] button') return editMappingButton;
 			if (selector === 'textarea') return matrix;
 			if (selector === '[data-export-download]') return download;
 			if (selector === '[data-export-progress] output') {
@@ -403,6 +466,7 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 			if (selector === '.kw-audio-editor__project-tab-new') return newProject;
 			if (selector === '[data-export-dialog]') return fixture.dialogOpen && !fixture.metadataOpen ? dialog : null;
 			if (selector === '[data-export-metadata-dialog]') return fixture.metadataOpen ? metadata : null;
+			if (selector === '[data-export-channel-mapping]') return fixture.mappingEditor ? mappingEditor : null;
 			return null;
 		},
 		querySelectorAll(selector) {
@@ -414,6 +478,7 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 	Object.defineProperty(input, 'files', { configurable: true, writable: true, value: [] });
 	Object.defineProperty(sampleRateInput, 'value', { configurable: true, writable: true, value: '48000' });
 	Object.defineProperty(matrix, 'value', { configurable: true, writable: true, value: '' });
+	Object.defineProperty(outputsInput, 'value', { configurable: true, writable: true, value: '2' });
 	return scope;
 }
 

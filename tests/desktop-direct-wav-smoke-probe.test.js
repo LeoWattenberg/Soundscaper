@@ -349,8 +349,12 @@ test('renderer smoke is self-contained and drives import, completed export, and 
 	assert.equal(scope.document.fixture.settings.channelMapping, 2);
 	assert.equal(scope.document.fixture.settings.dither, 0);
 	assert.deepEqual(scope.document.fixture.selectionHistory, [
-		['bitDepth', 0], ['channelMapping', 3], ['dither', 0], ['format', 3], ['bitDepth', 0],
-		['format', 1], ['bitDepth', 0], ['channelMapping', 3], ['format', 2], ['bitDepth', 0], ['dither', 0],
+		['bitDepth', 0], ['channelMapping', 'custom'], ['dither', 0], ['format', 3], ['bitDepth', 0],
+		['format', 1], ['bitDepth', 0], ['channelMapping', 'custom'], ['format', 2], ['bitDepth', 0], ['dither', 0],
+	]);
+	// WAV and BWF each author the silent sixteen-output mapping in the editor.
+	assert.deepEqual(scope.document.fixture.channelMatrices, [
+		{ outputs: 16, routes: 0 }, { outputs: 16, routes: 0 },
 	]);
 	assert.deepEqual(scope.document.fixture.bextAtStart[3], {
 		description: 'Soundscaper packaged BWF smoke', originator: 'Soundscaper',
