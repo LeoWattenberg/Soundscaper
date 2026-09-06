@@ -3,6 +3,11 @@
 import { createHash } from 'node:crypto';
 
 import {
+	handleShareTargetSubmission,
+	isShareTargetSubmission,
+	shareTargetFunctionSources,
+} from './offline-share-target-worker.mjs';
+import {
 	activateOfflineShell,
 	handleApplicationShellFetch,
 	installOfflineShell,
@@ -32,6 +37,9 @@ export async function handleOfflineShellFetch({
 	origin,
 	cryptoImpl = globalThis.crypto,
 }) {
+	if (isShareTargetSubmission(request, origin, configuration)) {
+		return handleShareTargetSubmission({ configuration, cacheStorage, request, cryptoImpl });
+	}
 	if (request.method !== 'GET') return fetchImpl(request);
 	const shellResponse = await handleApplicationShellFetch({
 		configuration,
@@ -44,7 +52,7 @@ export async function handleOfflineShellFetch({
 	return shellResponse ?? fetchImpl(request);
 }
 
-function attachOfflineServiceWorker(scope, configuration) {
+export function attachOfflineServiceWorker(scope, configuration) {
 	scope.addEventListener('install', (event) => {
 		event.waitUntil(installOfflineShell({
 			configuration,
@@ -61,7 +69,13 @@ function attachOfflineServiceWorker(scope, configuration) {
 		}));
 	});
 	scope.addEventListener('fetch', (event) => {
-		if (event.request.method !== 'GET') return;
+		// A share submission is the one request that is answered without being a
+		// GET, because on a static host this worker is the only thing behind the
+		// manifest's share-target path. Every other non-GET request is still
+		// declined outright rather than routed: the alternative is an editor
+		// that intercepts its own origin's POSTs.
+		const shared = isShareTargetSubmission(event.request, scope.location.origin, configuration);
+		if (!shared && event.request.method !== 'GET') return;
 		event.respondWith(handleOfflineShellFetch({
 			configuration,
 			cacheStorage: scope.caches,
@@ -77,6 +91,7 @@ function serviceWorkerTemplate() {
 'use strict';
 const OFFLINE_SHELL = ${CONFIGURATION_TOKEN};
 ${offlineShellFunctionSources()}
+${shareTargetFunctionSources()}
 ${handleOfflineShellFetch.toString()}
 ${attachOfflineServiceWorker.toString()}
 attachOfflineServiceWorker(globalThis, OFFLINE_SHELL);

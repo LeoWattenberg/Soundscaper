@@ -10,6 +10,11 @@
  * shell then imports the entry that imported the shell — which is a cycle the
  * startup-graph budget refuses outright.
  *
+ * A share sheet's files are collected from here for the same two reasons. The
+ * service worker has already stashed them, so nothing is lost by collecting
+ * them at mount rather than at boot; and `share-target-launch.ts` would drag
+ * the same cycle into the entry chunk if the entry imported it.
+ *
  * The batch is handed on whole, in the flat list the launch resolved, to the
  * same entry point a dropped batch takes. Re-deriving the projects/media split
  * here would fork the routing: a launched `.aup3`, `.dawproject` or label file
@@ -24,6 +29,7 @@ import {
 	subscribeLaunchedFiles,
 	type LaunchedFiles,
 } from '../../../offline/file-handler-launch.ts';
+import { collectSharedFiles } from '../../../offline/share-target-launch.ts';
 
 export interface LaunchedFileImportsInput {
 	/** Waited on before the files are routed, because a launch beats the controller to readiness. */
@@ -37,6 +43,8 @@ export interface LaunchedFileImportsInput {
 	readonly subscribe?: (handler: (launch: LaunchedFiles) => unknown) => () => void;
 	/** Injectable for tests; claims the browser launch queue otherwise. */
 	readonly claim?: (options: Readonly<{ desktop: boolean }>) => unknown;
+	/** Injectable for tests; collects the share sheet's stashed files otherwise. */
+	readonly collect?: (options: Readonly<{ desktop: boolean }>) => unknown;
 }
 
 export function useLaunchedFileImports({
@@ -46,6 +54,7 @@ export function useLaunchedFileImports({
 	desktop = false,
 	subscribe = subscribeLaunchedFiles,
 	claim = installFileHandlerLaunchConsumer,
+	collect = collectSharedFiles,
 }: LaunchedFileImportsInput): void {
 	// The routed import is rebuilt whenever the open project or the project bin
 	// changes; the subscription is not, so a launch in flight is never handed to
@@ -56,6 +65,11 @@ export function useLaunchedFileImports({
 		// Claiming is idempotent, so a remount re-subscribes without disturbing the
 		// consumer the first mount installed.
 		claim({ desktop });
+		// Collecting is idempotent too: the token is stripped from the address
+		// before the first collection reads a byte, so a remount finds nothing
+		// left to replay. The files land in the same buffer a launch does, which
+		// is drained by the subscription installed just below.
+		void Promise.resolve(collect({ desktop })).catch(onError);
 		const unsubscribe = subscribe(async (launch: LaunchedFiles) => {
 			const files = [...(launch?.files ?? [])];
 			if (files.length === 0) return;
@@ -72,5 +86,5 @@ export function useLaunchedFileImports({
 		// A launch that arrives while nothing is subscribed goes back to the
 		// buffer, so tearing this down between renders costs nothing but delay.
 		return unsubscribe;
-	}, [claim, controller, desktop, onError, subscribe]);
+	}, [claim, collect, controller, desktop, onError, subscribe]);
 }

@@ -121,6 +121,31 @@ export function installFileHandlerLaunchConsumer(
 }
 
 /**
+ * Splits one resolved batch the way a launch is split, and delivers it.
+ *
+ * The operating system hands this editor files through more than one door - a
+ * file handler the person double-clicked, and a share sheet whose files the
+ * service worker stashed - and both are the same thing once the files are
+ * resolved: a batch the system chose, arriving before any view can act on it.
+ * They therefore go through this one buffer, so that whoever drains it drains
+ * both and routes them identically. A second delivery path would be a second
+ * routing to keep in step.
+ */
+export function deliverLaunchedFiles(
+	files: readonly File[],
+	deliver: LaunchedFilesHandler = enqueueLaunchedFiles,
+): unknown {
+	const projects: File[] = [];
+	const imports: File[] = [];
+	for (const file of files) (isProjectFileName(file.name) ? projects : imports).push(file);
+	return deliver(Object.freeze({
+		files: Object.freeze([...files]),
+		projects: Object.freeze(projects),
+		imports: Object.freeze(imports),
+	}));
+}
+
+/**
  * Holds a launch until something can act on it.
  *
  * The default delivery target, because the consumer is installed while the
@@ -163,20 +188,12 @@ async function routeLaunch(
 	const handles = launchHandles(params);
 	if (handles.length === 0) return;
 	const files: File[] = [];
-	const projects: File[] = [];
-	const imports: File[] = [];
 	for (const handle of handles) {
 		const file = await resolveLaunchedFile(handle, onError);
-		if (file === null) continue;
-		files.push(file);
-		(isProjectFileName(file.name) ? projects : imports).push(file);
+		if (file !== null) files.push(file);
 	}
 	if (files.length === 0) return;
-	await deliver(Object.freeze({
-		files: Object.freeze(files),
-		projects: Object.freeze(projects),
-		imports: Object.freeze(imports),
-	}));
+	await deliverLaunchedFiles(files, deliver);
 }
 
 function launchHandles(params: FileHandlerLaunchParams): readonly unknown[] {
