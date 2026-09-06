@@ -100,6 +100,9 @@ jobs:
           # limit and dies with "Ineffective mark-compacts near heap limit"
           # before it reports a single rule. The ubuntu-24.04 runner has 16 GiB.
           NODE_OPTIONS: --max-old-space-size=8192
+          # Hidden maps beside `dist/`, as in quality.yml, so the Chromium browser
+          # shards below can record coverage of the built site for `coverage`.
+          SCAPE_BUILD_SOURCE_MAPS: '1'
 
       - name: Measure the built transfer documents against the build just made
         # The same step quality.yml runs in its `build` job, for the same
@@ -136,6 +139,22 @@ jobs:
           name: verified-framescaper-site-build
           path: .wrangler/browser-products/framescaper/
           include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Upload the website build's source maps
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verified-site-source-maps
+          path: dist-source-maps/
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Upload the Framescaper website build's source maps
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verified-framescaper-site-source-maps
+          path: .wrangler/browser-products/framescaper-source-maps/
           if-no-files-found: error
           retention-days: 1
 
@@ -226,7 +245,9 @@ jobs:
   coverage:
     name: Coverage
     if: github.event_name != 'workflow_run'
-    needs: tests
+    # The Chromium browser shards upload coverage of their own, and the floors
+    # are scored over the union of what the site ran and what the Node shards ran.
+    needs: [tests, browser]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -311,8 +332,29 @@ jobs:
           name: verified-framescaper-site-build
           path: .wrangler/browser-products/framescaper
 
+      # Beside each site rather than inside it, as in quality.yml: the sites are
+      # digest-verified file by file, so nothing may be added within them.
+      - name: Download the website build's source maps
+        if: matrix.project == 'chromium'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: verified-site-source-maps
+          path: .wrangler/browser-products/soundscaper-source-maps
+
+      - name: Download the Framescaper website build's source maps
+        if: matrix.project == 'chromium'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: verified-framescaper-site-source-maps
+          path: .wrangler/browser-products/framescaper-source-maps
+
       - name: Run browser workflows against the existing build
         run: npm run test:browser:built -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/3
+        env:
+          # Chromium is the only engine whose V8 coverage Playwright can read, so
+          # it is the only one that records; the floors in config/coverage-gates.json
+          # are set from the union that includes these runs.
+          SCAPE_BROWSER_COVERAGE: ${{ matrix.project == 'chromium' && '1' || '' }}
 
       - name: Run the reciprocal-origin editable-copy workflow
         if: matrix.project == 'chromium' && matrix.shard == 1
@@ -323,6 +365,19 @@ jobs:
         # rides one shard rather than earning a job or running three times.
         if: matrix.project == 'chromium' && matrix.shard == 1
         run: npm run test:docs:browser
+
+      - name: Compact the shard's browser coverage
+        if: matrix.project == 'chromium'
+        run: npm run coverage:compact:browser -- coverage/shards/browser-chromium-${{ matrix.shard }}.json
+
+      - name: Upload the shard's browser coverage
+        if: matrix.project == 'chromium'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-shard-browser-chromium-${{ matrix.shard }}
+          path: coverage/shards/browser-chromium-${{ matrix.shard }}.json
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Upload browser diagnostics
         if: always()
