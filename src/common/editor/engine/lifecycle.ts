@@ -140,6 +140,8 @@ export function initializeEngineRuntime(
 	engine.scrubTimer = null;
 	engine.scrubNextAt = 0;
 	engine.scrubGeneration = 0;
+	engine.playRequestSequence = 0;
+	engine.pendingPlayRequest = 0;
 	engine.scrubbing = false;
 	engine.meterInterval = Math.max(16, Number(meterInterval) || DEFAULT_METER_INTERVAL);
 	// The scrub audition frame is a wall-clock throttle, so a caller that needs to observe it
@@ -339,6 +341,10 @@ loadProject(project, sourceBuffers = new Map(), options = {}) {
 
 applyProject(this: EngineRuntimeHost, project, sourceBuffers = this.sources, options = {}) {
 		const wasPlaying = this.state === 'playing';
+		// A play() still waiting on its audio context or worklets loses its scrub
+		// generation to the reload below and returns quietly, so it is reissued
+		// over the reloaded project rather than dropped.
+		const playRequested = this.pendingPlayRequest !== 0;
 		const position = this.getPositionFrames();
 		const playbackRate = this.playbackRate;
 		const playbackMode = this.playbackMode;
@@ -348,6 +354,7 @@ applyProject(this: EngineRuntimeHost, project, sourceBuffers = this.sources, opt
 		// A StaffPad mix belongs to the exact project snapshot that produced it.
 		// Stop instead of silently resuming that stale PCM or falling back to 1x.
 		if (wasPlaying && playbackMode !== 'staffpad') return this.play();
+		if (!wasPlaying && playRequested) return this.play();
 		this[ENGINE_EMIT_POSITION]();
 		return Promise.resolve();
 	},

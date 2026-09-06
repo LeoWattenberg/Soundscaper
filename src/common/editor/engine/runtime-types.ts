@@ -125,6 +125,9 @@ export interface EngineRuntimeHost extends EnginePublicApi {
 	scrubTimer: ReturnType<typeof globalThis.setTimeout> | null;
 	scrubNextAt: number;
 	scrubGeneration: number;
+	/** Sequence of play() requests; pendingPlayRequest names the one still in flight, 0 when none. */
+	playRequestSequence: number;
+	pendingPlayRequest: number;
 	scrubbing: boolean;
 	meterInterval: number;
 	monotonicNow: (() => number) | null;

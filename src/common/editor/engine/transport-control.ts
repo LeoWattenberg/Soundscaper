@@ -84,35 +84,46 @@ async play() {
 		if (this.state === 'playing') return;
 		this[ENGINE_CANCEL_SCRUB]();
 		const generation = this.scrubGeneration;
-		this.playbackRate = 1;
-		this.preparedSpeedPlayback = null;
-		const context = await this.getAudioContext();
-		if (!playbackRequestIsCurrent(this, generation)) return;
-		if (this.positionFrame >= this.playbackDurationFrames) this.positionFrame = 0;
-		if (this.loop.enabled && (this.positionFrame < this.loop.startFrame || this.positionFrame >= this.loop.endFrame)) this.positionFrame = this.loop.startFrame;
-		if (projectHasAuthoredAudioWarp(this.project)
-			&& this.getAudioWarpRenderStatus().path === 'exact-offline') {
-			// Bounded exact windows exist over authored content only, never over
-			// the silent extended editor timeline.
-			if (this.positionFrame >= this.durationFrames) this.positionFrame = 0;
-			await prepareExactAudioWarpPlayback(
-				this,
-				this.positionFrame,
-				this.loop.enabled ? this.loop.endFrame : this.durationFrames,
-			);
+		// The request stays marked while this method is suspended. A project
+		// reload in that window replaces the generation above and this method
+		// returns quietly, so applyProject() reads the mark and reissues the
+		// request over the reloaded project: a Play pressed while the editor was
+		// still settling its sources used to do nothing at all.
+		const request = ++this.playRequestSequence;
+		this.pendingPlayRequest = request;
+		try {
+			this.playbackRate = 1;
+			this.preparedSpeedPlayback = null;
+			const context = await this.getAudioContext();
 			if (!playbackRequestIsCurrent(this, generation)) return;
-			this.playbackMode = 'audio-warp-exact';
+			if (this.positionFrame >= this.playbackDurationFrames) this.positionFrame = 0;
+			if (this.loop.enabled && (this.positionFrame < this.loop.startFrame || this.positionFrame >= this.loop.endFrame)) this.positionFrame = this.loop.startFrame;
+			if (projectHasAuthoredAudioWarp(this.project)
+				&& this.getAudioWarpRenderStatus().path === 'exact-offline') {
+				// Bounded exact windows exist over authored content only, never over
+				// the silent extended editor timeline.
+				if (this.positionFrame >= this.durationFrames) this.positionFrame = 0;
+				await prepareExactAudioWarpPlayback(
+					this,
+					this.positionFrame,
+					this.loop.enabled ? this.loop.endFrame : this.durationFrames,
+				);
+				if (!playbackRequestIsCurrent(this, generation)) return;
+				this.playbackMode = 'audio-warp-exact';
+				await this[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
+				if (!playbackRequestIsCurrent(this, generation)) return;
+				await this[ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this.positionFrame, context.currentTime);
+				return;
+			}
+			this.playbackMode = 'normal';
+			await ensureProjectWorklets(context, this.project);
+			if (!playbackRequestIsCurrent(this, generation)) return;
 			await this[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
 			if (!playbackRequestIsCurrent(this, generation)) return;
-			await this[ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this.positionFrame, context.currentTime);
-			return;
+			await this[ENGINE_SCHEDULE_PLAYBACK](this.positionFrame, context.currentTime);
+		} finally {
+			if (this.pendingPlayRequest === request) this.pendingPlayRequest = 0;
 		}
-		this.playbackMode = 'normal';
-		await ensureProjectWorklets(context, this.project);
-		if (!playbackRequestIsCurrent(this, generation)) return;
-		await this[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
-		if (!playbackRequestIsCurrent(this, generation)) return;
-		await this[ENGINE_SCHEDULE_PLAYBACK](this.positionFrame, context.currentTime);
 	},
 
 async playAtSpeed(rate, {
