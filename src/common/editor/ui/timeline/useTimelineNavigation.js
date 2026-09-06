@@ -132,7 +132,6 @@ export function useTimelineNavigation({
 		const panelStyle = event.currentTarget.closest('.audio-editor-timeline-panel')?.style;
 		panelStyle?.setProperty('--timeline-scroll-x', `${nextScrollX}px`);
 		panelStyle?.setProperty('--timeline-render-origin-x', `${renderOriginX}px`);
-		panelStyle?.setProperty('--timeline-viewport-origin-x', `${nextScrollX}px`);
 		setScrollX(nextScrollX);
 	}, [timelineWidth, viewportWidth]);
 

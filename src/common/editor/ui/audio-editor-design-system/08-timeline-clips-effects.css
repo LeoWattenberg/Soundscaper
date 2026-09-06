@@ -214,10 +214,14 @@
 	background: #c44f59;
 }
 
+/* The lane clips rather than hides its overflow: `clip` keeps the same painted
+   bounds without making the lane a scroll container, so the vertical scale
+   inside it sticks to the timeline's scrollport instead of to a box that never
+   scrolls. */
 #kw-audio-editor-design-system .audio-editor-track-lane {
 	position: absolute;
 	top: 0;
-	overflow: hidden;
+	overflow: clip;
 	background-color: transparent;
 	outline: none;
 }
@@ -226,14 +230,15 @@
 	background-color: color-mix(in srgb, var(--kw-editor-accent) 7%, transparent);
 }
 
+/* The scale rides the horizontal scroll on the compositor, pinned by its sticky
+   offset to the right edge of the lane viewport. A transform driven by a scroll
+   listener would place it a frame late and visibly shudder against the sticky
+   track headers beside it. */
 #kw-audio-editor-design-system .audio-editor-vertical-ruler {
 	position: sticky;
 	z-index: 8;
-	top: 0;
-	bottom: 0;
-	left: var(--timeline-viewport-width, 1px);
+	left: calc(var(--track-panel-width, 0px) + var(--timeline-viewport-width, 1px));
 	width: var(--vertical-ruler-width, 40px);
-	transform: translateX(var(--timeline-scroll-x, 0));
 	overflow: hidden;
 	background: color-mix(in srgb, var(--kw-editor-stage-raised) 92%, transparent);
 	border-left: 1px solid var(--kw-editor-stage-line);

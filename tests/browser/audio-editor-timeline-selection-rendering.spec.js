@@ -139,11 +139,21 @@ test.describe('Soundscaper timeline selection rendering', () => {
 			const ruler = root.querySelector('.audio-editor-ruler-row');
 			const lastRow = [...root.querySelectorAll('.audio-editor-track-row')].at(-1);
 			const listTop = list.getBoundingClientRect().top;
+			const surface = document.createElement('div');
+			surface.style.background = 'var(--kw-editor-stage-raised)';
+			root.append(surface);
+			const raised = getComputedStyle(surface).backgroundColor;
+			surface.remove();
+			const scrollStyle = getComputedStyle(scroll);
+			const stops = [...scrollStyle.backgroundImage.matchAll(/([\d.]+)px/g)].map((stop) => Number(stop[1]));
 			return {
 				listHeight: list.getBoundingClientRect().height,
 				available: scroll.clientHeight - ruler.getBoundingClientRect().height,
 				rowsHeight: lastRow.getBoundingClientRect().bottom - listTop,
-				sidebarWidth: Number.parseFloat(getComputedStyle(list, '::before').width),
+				columnImage: scrollStyle.backgroundImage,
+				columnAttachment: scrollStyle.backgroundAttachment,
+				columnWidth: stops[1],
+				raised,
 				headerWidth: root.querySelector('[data-track-header]').getBoundingClientRect().width,
 			};
 		});
@@ -152,22 +162,94 @@ test.describe('Soundscaper timeline selection rendering', () => {
 		// bottom of that space rather than stopping at the last track.
 		expect(geometry.rowsHeight).toBeLessThan(geometry.available - 1);
 		expect(geometry.listHeight).toBeGreaterThanOrEqual(geometry.available - 1);
-		expect(Math.abs(geometry.sidebarWidth - geometry.headerWidth)).toBeLessThanOrEqual(1);
+
+		// The scrolling viewport paints the column itself, in the same surface as
+		// the headers above it and exactly as wide, so it covers the empty space to
+		// the bottom of the viewport.
+		expect(geometry.columnImage).toContain(geometry.raised);
+		expect(Math.abs(geometry.columnWidth - geometry.headerWidth)).toBeLessThanOrEqual(1);
 
 		// The column stands in for the sticky headers above it, so it has to stay
 		// at the left edge of the viewport once the timeline scrolls sideways.
+		// Belonging to the viewport rather than to the scrolled surface is what
+		// keeps it there: a scroll listener moving it would always answer a frame
+		// late and shudder against the headers it continues.
+		expect(geometry.columnAttachment).toBe('scroll');
 		const timeline = editor.locator('[data-timeline]');
-		await timeline.evaluate((element) => {
-			element.scrollLeft = 240;
-			element.dispatchEvent(new Event('scroll', { bubbles: true }));
-		});
+		await timeline.evaluate((element) => { element.scrollLeft = 240; });
 		await expect.poll(() => timeline.evaluate((element) => element.scrollLeft)).toBe(240);
-		await expect.poll(() => editor.evaluate((root) => {
-			const list = root.querySelector('[data-track-list]');
+		const scrolled = await editor.evaluate((root) => {
+			const scroll = root.querySelector('[data-timeline]');
 			const header = root.querySelector('[data-track-header]');
-			const shift = new DOMMatrixReadOnly(getComputedStyle(list, '::before').transform).m41;
-			return Math.round(list.getBoundingClientRect().left + shift - header.getBoundingClientRect().left);
-		})).toBe(0);
+			return {
+				columnImage: getComputedStyle(scroll).backgroundImage,
+				headerOffset: Math.round(
+					header.getBoundingClientRect().left - scroll.getBoundingClientRect().left,
+				),
+			};
+		});
+		expect(scrolled.columnImage).toBe(geometry.columnImage);
+		expect(scrolled.headerOffset).toBe(0);
+		expect(errors).toEqual([]);
+	});
+
+	test('pins the vertical scale to the right edge of the lane viewport', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		// Zoom in far enough that the timeline has somewhere to scroll to.
+		for (let press = 0; press < 6; press += 1) await page.keyboard.press('Control+1');
+		const timeline = editor.locator('[data-timeline]');
+		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth - element.clientWidth))
+			.toBeGreaterThan(400);
+
+		const readScale = () => editor.evaluate((root) => {
+			const scroll = root.querySelector('[data-timeline]');
+			const scale = root.querySelector('.audio-editor-vertical-ruler');
+			const corner = root.querySelector('.audio-editor-ruler-scale-corner');
+			const port = scroll.getBoundingClientRect();
+			return {
+				scrollLeft: Math.round(scroll.scrollLeft),
+				// The scale hangs off the right edge of the viewport by a fixed
+				// amount, and its corner sits squarely above it, at every offset.
+				fromViewportRight: Math.round(port.right - scale.getBoundingClientRect().right),
+				cornerOffset: Math.round(
+					corner.getBoundingClientRect().left - scale.getBoundingClientRect().left,
+				),
+				// Sticky layout holds the scale in place on the compositor. A
+				// transform fed by a scroll listener would arrive a frame late and
+				// jitter against the sticky headers on the other side of the lane.
+				transform: getComputedStyle(scale).transform,
+			};
+		});
+
+		const atRest = await readScale();
+		expect(atRest.transform).toBe('none');
+		expect(atRest.cornerOffset).toBe(0);
+		for (const offset of [240, 900]) {
+			await timeline.evaluate((element, left) => { element.scrollLeft = left; }, offset);
+			await expect.poll(() => timeline.evaluate((element) => element.scrollLeft)).toBe(offset);
+			const scrolled = await readScale();
+			expect(scrolled.fromViewportRight).toBe(atRest.fromViewportRight);
+			expect(scrolled.cornerOffset).toBe(0);
+			expect(scrolled.transform).toBe('none');
+		}
+
+		// Scrolling down must not carry the scales with it: each one belongs to the
+		// track beside it, not to the top of the viewport.
+		for (let press = 0; press < 6; press += 1) {
+			await chooseNestedCommandAction(page, editor, 'View', ['Zoom', 'Increase all track heights']);
+		}
+		await expect.poll(() => timeline.evaluate((element) => element.scrollHeight - element.clientHeight))
+			.toBeGreaterThan(100);
+		await timeline.evaluate((element) => { element.scrollTop = 100; });
+		const rows = await editor.evaluate((root) => [...root.querySelectorAll('.audio-editor-track-row')]
+			.map((row) => Math.round(
+				row.querySelector('.audio-editor-vertical-ruler').getBoundingClientRect().top
+					- row.getBoundingClientRect().top,
+			)));
+		expect(rows.length).toBeGreaterThan(0);
+		expect(rows).toEqual(rows.map(() => 0));
 		expect(errors).toEqual([]);
 	});
 });

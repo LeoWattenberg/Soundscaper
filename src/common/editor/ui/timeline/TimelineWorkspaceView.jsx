@@ -195,10 +195,6 @@ export function TimelineWorkspaceView({
 				'--timeline-viewport-width': `${viewportWidth}px`,
 				'--timeline-scroll-x': `${scrollX}px`,
 				'--timeline-render-origin-x': `${renderOriginX}px`,
-				// Where the scrollport's left edge sits inside the scrolled
-				// surface, so content that stands in for a sticky element can
-				// follow the horizontal scroll.
-				'--timeline-viewport-origin-x': `${contentScrollX + renderOriginX}px`,
 				'--vertical-ruler-width': `${verticalRulerWidth}px`,
 			}}
 		>

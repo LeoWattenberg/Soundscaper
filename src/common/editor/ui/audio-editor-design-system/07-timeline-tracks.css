@@ -8,11 +8,12 @@
 	border-left: 1px solid var(--kw-editor-stage-line);
 }
 
+/* The stage colour and the header column's surface are painted by the scrolling
+   viewport itself, so the scrolled surface stays transparent over them. */
 #kw-audio-editor-design-system .audio-editor-timeline-inner {
 	position: relative;
 	min-width: 100%;
 	min-height: 100%;
-	background-color: var(--kw-editor-stage);
 }
 
 #kw-audio-editor-design-system .audio-editor-ruler-row {
@@ -91,7 +92,6 @@
 	top: 0;
 	height: 34px;
 	flex: 0 0 auto;
-	transform: translateX(var(--timeline-scroll-x, 0));
 	background: var(--kw-editor-stage-raised);
 	border-bottom: 1px solid var(--kw-editor-stage-line);
 	border-left: 1px solid var(--kw-editor-stage-line);
@@ -104,19 +104,13 @@
 }
 
 /* The header column keeps its surface below the last track, all the way to the
-   bottom of the viewport, and rides the horizontal scroll with the sticky
-   headers it continues. */
-#kw-audio-editor-design-system .audio-editor-track-list::before {
-	position: absolute;
-	z-index: -1;
-	top: 0;
-	bottom: 0;
-	left: 0;
-	width: var(--audio-editor-track-sidebar-width);
-	background: var(--kw-editor-stage-raised);
-	border-right: 1px solid var(--kw-editor-stage-line);
-	content: '';
-	transform: translateX(var(--timeline-viewport-origin-x, 0px));
+   bottom of the viewport. Painting it into the scrollport's own background holds
+   it exactly in step with the sticky headers it continues, where a listener
+   moving it on every scroll would always answer a frame late. */
+#kw-audio-editor-design-system .audio-editor-timeline-scroll {
+	background-image: linear-gradient(to right, var(--kw-editor-stage-raised) 0 var(--track-panel-width, 0px),
+		var(--kw-editor-stage-line) var(--track-panel-width, 0px) calc(var(--track-panel-width, 0px) + 1px), transparent 0);
+	background-repeat: no-repeat;
 }
 
 /* Rows and lanes are transparent so the timeline grid canvas shows through.
