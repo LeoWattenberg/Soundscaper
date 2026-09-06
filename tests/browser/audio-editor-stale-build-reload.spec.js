@@ -69,8 +69,10 @@ test.describe('Stale build reload prompt', () => {
 		await expect(prompt).toBeVisible();
 		await prompt.getByRole('button', { name: 'Reload', exact: true }).click();
 
+		// The reload is the navigation this poll waits for, so an evaluate that
+		// dies with the old document is "not yet", not a failure.
 		await expect
-			.poll(() => page.evaluate(() => window.staleBuildProbeMarker === undefined), { timeout: 15_000 })
+			.poll(() => page.evaluate(() => window.staleBuildProbeMarker === undefined).catch(() => false), { timeout: 15_000 })
 			.toBe(true);
 		await expect(page.locator('[data-audio-editor]')).toBeVisible();
 	});
