@@ -30,7 +30,6 @@ const SELECTION_DEPENDENT_COMMANDS = Object.freeze([
 	'change-pitch',
 	'nyquist:tremolo',
 	'nyquist:clipfix',
-	'contrast',
 ]);
 
 interface MenuItem {
@@ -59,7 +58,9 @@ test('a selected track alone still reaches the commands that only need one', () 
 	const withoutSelection = enablement('none');
 	// These act on the track or the playhead, not on a selected region, so a
 	// selection gate would withhold them from the only state they work in.
-	for (const id of ['realtime-effects', 'split', 'mix-render', 'resample', 'silence-generator', 'select-all']) {
+	// Contrast belongs here too: the entry opens the panel that holds the
+	// measurements already taken, and only measuring needs a selection.
+	for (const id of ['realtime-effects', 'split', 'mix-render', 'resample', 'silence-generator', 'select-all', 'contrast']) {
 		assert.equal(withoutSelection.get(id), true, id);
 	}
 });

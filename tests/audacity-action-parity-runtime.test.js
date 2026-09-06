@@ -97,7 +97,6 @@ test('the complete enableWhen vocabulary evaluates from runtime state', () => {
 	for (const id of [
 		'trim-audio-outside-selection', 'zero-cross', 'zoom-to-selection',
 		'set-loop-region-to-selection', 'skip-to-selection-start', 'skip-to-selection-end',
-		'contrast-analyzer',
 	]) {
 		assert.equal(evaluateAudacityActionEnablement(id, unselectedContext), false, id);
 	}

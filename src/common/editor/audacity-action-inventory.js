@@ -399,7 +399,7 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 	implemented('generator://chirp', 'Chirp', ['Generate'], 'generators.chirp', { enableWhen: 'project-writable', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Chirp effect action' }),
 	implemented('generator://dtmf', 'DTMF tones', ['Generate'], 'generators.dtmf', { enableWhen: 'project-writable', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic DTMF effect action' }),
 	implemented('generator://noise', 'Noise', ['Generate'], 'generators.noise', { enableWhen: 'project-writable', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Noise effect action' }),
-	implemented('contrast-analyzer', 'Contrast', ['Analyze'], 'analysis.contrast', { enableWhen: 'audio-selection-or-clip' }),
+	implemented('contrast-analyzer', 'Contrast', ['Analyze'], 'analysis.contrast', { enableWhen: 'project-has-audio' }),
 	implemented('plot-spectrum', 'Plot spectrum', ['Analyze'], 'analysis.plotSpectrum', { enableWhen: 'project-has-audio' }),
 	implemented('find-clipping', 'Find clipping', ['Analyze'], 'analysis.findClipping', { enableWhen: 'project-has-audio', source: UPSTREAM.builtinEffects, upstreamAction: 'dynamic Find Clipping effect action' }),
 
