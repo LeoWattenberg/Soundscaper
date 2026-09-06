@@ -136,21 +136,21 @@ measured in.
 
 `sound.project.tracks()` returns an array of tracks in timeline order:
 
-```js
-{ id: 'track-…', name: 'Voice', kind: 'audio', index: 0, muted: false, solo: false }
+```json
+{ "id": "track-…", "name": "Voice", "kind": "audio", "index": 0, "muted": false, "solo": false }
 ```
 
 `sound.project.clips(trackId)` returns the clips on one track, or on every track
 when `trackId` is omitted:
 
-```js
-{ id: 'clip-…', name: 'Take 1', startFrame: 0, durationFrames: 480000 }
+```json
+{ "id": "clip-…", "name": "Take 1", "startFrame": 0, "durationFrames": 480000 }
 ```
 
 `sound.project.selection()` returns the current selection:
 
-```js
-{ startFrame: 0, endFrame: 96000, trackIds: ['track-…'] }
+```json
+{ "startFrame": 0, "endFrame": 96000, "trackIds": ["track-…"] }
 ```
 
 ### `sound.select`
@@ -297,10 +297,10 @@ clip, so it can cover 128 clips before the budget runs out.
 ## Errors
 
 A call the editor refuses rejects its promise with an `Error` whose `message`
-says why and whose `code` names the kind of refusal. `MACRO_UNKNOWN_METHOD`
-means the program asked for something outside the API, such as an export;
-`MACRO_CALL_FAILED` means the editor tried and could not, such as an effect over
-an empty selection. A program may catch these and carry on:
+says why: a command outside the vocabulary, an effect over an empty selection,
+a parameter out of range. The error also carries a `code`, which is
+`MACRO_CALL_FAILED` unless the editor supplied a more specific one. A program
+may catch these and carry on:
 
 ```js
 try {
@@ -309,6 +309,9 @@ try {
   sound.log.warn(`refused: ${error.message}`);
 }
 ```
+
+That program completes, and its log reads *refused: Unsupported macro command:
+ExportWav.*
 
 An error the program does not catch ends the run, rolls the project back, and is
 shown in the pane with the line it came from. A program that will not compile is
@@ -438,16 +441,26 @@ yourself need no review.
 
 ## Examples
 
-Fade in every clip on the focused track:
+Fade in every clip on the first track that has any. Click that track's header
+before running, so the effect lands on the track the program is reading:
 
 ```js
-const tracks = await sound.project.tracks();
-const [track] = tracks;
-for (const clip of await sound.project.clips(track.id)) {
+let target = null;
+let clips = [];
+for (const track of await sound.project.tracks()) {
+  clips = await sound.project.clips(track.id);
+  if (clips.length) {
+    target = track;
+    break;
+  }
+}
+sound.assert(target, 'There are no clips to fade.');
+for (const clip of clips) {
   await sound.select.frames(clip.startFrame, clip.startFrame + clip.durationFrames, {
-    trackIds: [track.id],
+    trackIds: [target.id],
   });
   await sound.effect('audacity-fade-in');
+  sound.log.info(`Faded in ${clip.name} on ${target.name}`);
 }
 ```
 
@@ -470,3 +483,12 @@ const { sampleRate } = await sound.project.snapshot();
 sound.assert((endFrame - startFrame) / sampleRate >= 30, 'Select at least thirty seconds.');
 await sound.runSaved('Episode finish');
 ```
+
+## About this page
+
+Every program on this page, from the one-line snippets to the worked examples,
+is run against each build of Soundscaper by the browser suite
+(`tests/browser/handbook-macro-program-examples.spec.js`), which reads the
+programs out of this page's own text. A program that stops completing, or stops
+producing what this page says it produces, fails the build until the page or the
+editor is corrected.

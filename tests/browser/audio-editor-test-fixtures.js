@@ -85,6 +85,8 @@ export const toneA = createWavFixture({ name: 'browser-tone-a.wav', frequency: 3
 export const toneB = createWavFixture({ name: 'browser-tone-b.wav', frequency: 660 });
 export const monoTone = createWavFixture({ name: 'browser-mono-tone.wav', frequency: 440, channelCount: 1 });
 export const longTone = createWavFixture({ name: 'browser-long-tone.wav', frequency: 220, duration: 8, channelCount: 1 });
+// Long enough for a program to insist on a thirty-second selection.
+export const halfMinuteTone = createWavFixture({ name: 'browser-half-minute-tone.wav', frequency: 220, duration: 32, channelCount: 1 });
 export const asymmetricStereoTone = createWavFixture({
 	name: 'browser-asymmetric-stereo-tone.wav',
 	frequency: 275,
