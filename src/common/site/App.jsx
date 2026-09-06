@@ -21,8 +21,9 @@ const PrivacyPolicyRoute = lazyEditorModule(() => import('../editor/ui/PrivacyPo
 export default function App({ route }) {
 	const { desktop, direction, embedded, locale, productId } = route;
 	const copy = bundledSiteCopyForLocale(locale);
-	// Narrow screens fold the introduction away by default so the editor keeps
-	// its room; wide screens always show it and never render the toggle.
+	// The introduction starts folded at every width: a visitor came for the
+	// editor, and the heading above it says which one this is without spending
+	// the fold on prose they can open when they want it.
 	const [introExpanded, setIntroExpanded] = useState(false);
 	const intro = productId === 'framescaper' ? {
 		eyebrow: copy.framescaperEyebrow,

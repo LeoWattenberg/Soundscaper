@@ -171,7 +171,7 @@ test.describe('compact layout', () => {
 		expect(timelineBox.y + timelineBox.height).toBeLessThanOrEqual(390);
 	});
 
-	test('the site introduction folds away on narrow screens and stays open on wide ones', async ({ page }) => {
+	test('the site introduction starts folded at every width and opens from its own toggle', async ({ page }) => {
 		await page.setViewportSize(PHONE_PORTRAIT);
 		const editor = await bootEditor(page, '/en/');
 		await waitForResponsiveEditorLayout(editor);
@@ -186,9 +186,16 @@ test.describe('compact layout', () => {
 		await expect(body).toBeVisible();
 		await expect(intro.getByRole('button', { name: 'Hide introduction', exact: true })).toBeVisible();
 
+		// The wide layout folds it too, and keeps the heading that names the
+		// product — only the prose below it waits to be asked for.
 		await page.setViewportSize({ width: 1280, height: 800 });
 		await waitForResponsiveEditorLayout(editor);
-		await expect(intro.getByRole('button', { name: /introduction$/u })).toBeHidden();
+		await waitForResponsiveEditorLayout(await bootEditor(page, '/en/'));
+		await expect(intro).toHaveAttribute('data-expanded', 'false');
+		await expect(body).toBeHidden();
+		await expect(intro.locator('h1')).toBeVisible();
+		await expect(intro.getByRole('button', { name: 'Show introduction', exact: true })).toBeVisible();
+		await intro.getByRole('button', { name: 'Show introduction', exact: true }).click();
 		await expect(body).toBeVisible();
 	});
 
