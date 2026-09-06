@@ -12,7 +12,8 @@
 import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import {
 	applyManagedSdrGradeStackLinearPixelV1,
-	applyManagedSdrLinearGradeStackPixelV1,
+	applyPreparedManagedSdrGradeStackLinearChannelsV1,
+	prepareManagedSdrGradeStackV1,
 	decodeManagedSdrOutputPixelV1,
 	defaultVideoSourceColorInterpretationV1,
 	type ParsedCubeLutV1,
@@ -112,13 +113,12 @@ export function managedVisualFrame(
 	const grades = presentations.flatMap(({ grade }) => grade ? [grade] : []);
 	const bodies = grades.map(({ lut }) => lut ? luts.get(lut.sha256) : undefined);
 	const pixels = new Uint8Array(frame.pixels.byteLength);
+	const prepared = prepareManagedSdrGradeStackV1({ interpretation, grades, luts: bodies });
 	for (let offset = 0; offset < pixels.length; offset += 4) {
 		if (offset % (frame.width * 4) === 0) throwIfAborted(signal);
-		const output = applyManagedSdrGradeStackLinearPixelV1({
-			rgba: [frame.pixels[offset]! / 255, frame.pixels[offset + 1]! / 255,
-				frame.pixels[offset + 2]! / 255, frame.pixels[offset + 3]! / 255],
-			interpretation, grades, luts: bodies,
-		});
+		const output = applyPreparedManagedSdrGradeStackLinearChannelsV1(prepared,
+			frame.pixels[offset]! / 255, frame.pixels[offset + 1]! / 255,
+			frame.pixels[offset + 2]! / 255, frame.pixels[offset + 3]! / 255);
 		for (let channel = 0; channel < 4; channel += 1) {
 			pixels[offset + channel] = Math.round(output[channel]! * 255);
 		}
@@ -279,13 +279,12 @@ function gradeLinearStraightFrame(
 ): UnifiedExactRenderVisualRgbaV13 {
 	const bodies = grades.map(({ lut }) => lut ? luts.get(lut.sha256) : undefined);
 	const pixels = new Uint8Array(frame.pixels.byteLength);
+	const prepared = prepareManagedSdrGradeStackV1({ decoding: 'linear', grades, luts: bodies });
 	for (let offset = 0; offset < pixels.length; offset += 4) {
 		if (offset % (frame.width * 4) === 0) throwIfAborted(signal);
-		const output = applyManagedSdrLinearGradeStackPixelV1({
-			rgba: [frame.pixels[offset]! / 255, frame.pixels[offset + 1]! / 255,
-				frame.pixels[offset + 2]! / 255, frame.pixels[offset + 3]! / 255],
-			grades, luts: bodies,
-		});
+		const output = applyPreparedManagedSdrGradeStackLinearChannelsV1(prepared,
+			frame.pixels[offset]! / 255, frame.pixels[offset + 1]! / 255,
+			frame.pixels[offset + 2]! / 255, frame.pixels[offset + 3]! / 255);
 		for (let channel = 0; channel < 4; channel += 1) {
 			pixels[offset + channel] = Math.round(output[channel]! * 255);
 		}

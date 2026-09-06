@@ -3,7 +3,7 @@
 /** Linear Rec.709/D65 premultiplied working buffers for exact V13 picture composition. */
 
 import {
-	encodeManagedSdrLinearPixelV1,
+	encodeManagedSdrLinearChannelsV1,
 	type VideoColorOutputSpaceV1,
 } from './video-color-management-v27.ts';
 import type { VideoClipCompositionBlendMode } from './video-clip-composition.ts';
@@ -184,12 +184,12 @@ export function encodeUnifiedExactLinearFrameV13(
 	}
 	for (let offset = 0; offset < pixels.length; offset += 4) {
 		const alpha = clamp(frame.pixels[offset + 3]!);
-		const encoded = encodeManagedSdrLinearPixelV1([
+		const encoded = encodeManagedSdrLinearChannelsV1(
 			alpha > 1e-12 ? frame.pixels[offset]! / alpha : 0,
 			alpha > 1e-12 ? frame.pixels[offset + 1]! / alpha : 0,
 			alpha > 1e-12 ? frame.pixels[offset + 2]! / alpha : 0,
-			alpha,
-		], outputSpace);
+			alpha, outputSpace,
+		);
 		for (let channel = 0; channel < 4; channel += 1) {
 			pixels[offset + channel] = Math.round(encoded[channel]! * 255);
 		}

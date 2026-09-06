@@ -204,6 +204,105 @@ export function applyManagedSdrGradeStackPixelV1(request: Readonly<{
 	return encodeManagedSdrLinearPixelV1(linear, request.outputSpace);
 }
 
+/**
+ * One grade stack, admitted and normalized once for a whole frame.
+ *
+ * Validating an interpretation and every grade is the right contract for a
+ * single pixel and ruinous for a frame: a 720p preview repeated those
+ * structural checks 921,600 times and blocked the main thread for seconds per
+ * frame. A frame loop prepares its stack once and applies it per pixel. The
+ * per-pixel entry points prepare a stack for their one pixel, so both paths
+ * refuse the same inputs and return the same values.
+ */
+export interface PreparedManagedSdrGradeStackV1 {
+	readonly decoding: 'file' | 'canvas-readback' | 'linear';
+	readonly transfer: 'srgb' | 'bt709';
+	readonly limitedRange: boolean;
+	readonly grades: readonly Readonly<{
+		readonly grade: VideoColorGradeV1;
+		readonly lut: ParsedCubeLutV1 | null;
+	}>[];
+}
+
+/** Admit a source interpretation and normalize a grade stack for one frame. */
+export function prepareManagedSdrGradeStackV1(request: Readonly<{
+	readonly decoding?: 'file' | 'canvas-readback' | 'linear';
+	readonly interpretation?: unknown;
+	readonly grades: readonly unknown[];
+	readonly luts?: readonly (ParsedCubeLutV1 | undefined)[];
+}>): PreparedManagedSdrGradeStackV1 {
+	const decoding = request?.decoding ?? 'file';
+	let transfer: 'srgb' | 'bt709' = 'srgb';
+	let limitedRange = false;
+	if (decoding !== 'linear') {
+		const interpretation = normalizeVideoSourceColorInterpretationV1(request?.interpretation);
+		assertManagedSdr(interpretation);
+		// Readback pixels already carry the canvas space, so only a file
+		// interpretation names the transfer and range they decode through.
+		if (decoding === 'file') {
+			transfer = interpretation.transfer;
+			limitedRange = interpretation.range === 'limited';
+		}
+	}
+	if (!Array.isArray(request?.grades) || request.grades.length > 64) {
+		throw new RangeError('The managed SDR grade stack exceeds its bound.');
+	}
+	if (request.luts !== undefined && (!Array.isArray(request.luts)
+		|| request.luts.length !== request.grades.length)) {
+		throw new RangeError('The managed SDR grade stack LUT bodies must align with its grades.');
+	}
+	return Object.freeze({
+		decoding,
+		transfer,
+		limitedRange,
+		grades: Object.freeze(request.grades.map((value, index) => {
+			const grade = normalizeVideoColorGradeV1(value);
+			return Object.freeze({
+				grade,
+				lut: grade.lut === null ? null : requireCubeLutBody(grade.lut, request.luts?.[index]),
+			});
+		})),
+	});
+}
+
+/** Decode and grade one pixel through the stack prepared for its frame. */
+export function applyPreparedManagedSdrGradeStackLinearPixelV1(
+	prepared: PreparedManagedSdrGradeStackV1,
+	rgbaValue: readonly number[],
+): LinearRgbaV1 {
+	const rgba = rgbaTuple(rgbaValue);
+	return applyPreparedManagedSdrGradeStackLinearChannelsV1(prepared, rgba[0], rgba[1], rgba[2], rgba[3]);
+}
+
+/**
+ * The same pixel, given as four channels.
+ *
+ * A frame loop already holds its channels as numbers, and reading them back out
+ * of a fresh four-element array - shape, indices, and own enumerable data
+ * properties - is the single largest remaining cost per pixel. Each channel
+ * still has to be a finite number within the unit range.
+ */
+export function applyPreparedManagedSdrGradeStackLinearChannelsV1(
+	prepared: PreparedManagedSdrGradeStackV1,
+	redValue: number,
+	greenValue: number,
+	blueValue: number,
+	alphaValue: number,
+): LinearRgbaV1 {
+	const channel = (value: number, index: number): number => bounded(
+		value, 0, 1, `managed SDR RGBA channel ${String(index)}`,
+	);
+	const decode = (value: number): number => (prepared.decoding === 'linear' ? value : decodeTransfer(
+		prepared.limitedRange ? limitedToFull(value) : value, prepared.transfer,
+	));
+	let linear = [
+		decode(channel(redValue, 0)), decode(channel(greenValue, 1)), decode(channel(blueValue, 2)),
+	];
+	const alpha = channel(alphaValue, 3);
+	for (const { grade, lut } of prepared.grades) linear = applyGrade(linear, grade, lut);
+	return Object.freeze([clamp(linear[0]!), clamp(linear[1]!), clamp(linear[2]!), alpha]);
+}
+
 /** Decode and grade into straight-alpha linear Rec.709/D65 without encoding. */
 export function applyManagedSdrGradeStackLinearPixelV1(request: Readonly<{
 	readonly rgba: readonly number[];
@@ -211,22 +310,11 @@ export function applyManagedSdrGradeStackLinearPixelV1(request: Readonly<{
 	readonly grades: readonly unknown[];
 	readonly luts?: readonly (ParsedCubeLutV1 | undefined)[];
 }>): LinearRgbaV1 {
-	const interpretation = normalizeVideoSourceColorInterpretationV1(request?.interpretation);
-	assertManagedSdr(interpretation);
-	const rgba = rgbaTuple(request?.rgba);
-	const encoded = [rgba[0], rgba[1], rgba[2]].map((channel) => (
-		interpretation.range === 'limited' ? limitedToFull(channel) : channel
-	));
-	return applyManagedSdrLinearGradeStackPixelV1({
-		rgba: [
-			decodeTransfer(encoded[0]!, interpretation.transfer),
-			decodeTransfer(encoded[1]!, interpretation.transfer),
-			decodeTransfer(encoded[2]!, interpretation.transfer),
-			rgba[3],
-		],
-		grades: request.grades,
-		...(request.luts === undefined ? {} : { luts: request.luts }),
-	});
+	return applyPreparedManagedSdrGradeStackLinearPixelV1(prepareManagedSdrGradeStackV1({
+		interpretation: request?.interpretation,
+		grades: request?.grades,
+		...(request?.luts === undefined ? {} : { luts: request.luts }),
+	}), request?.rgba);
 }
 
 /**
@@ -249,19 +337,12 @@ export function applyManagedSdrCanvasReadbackGradeStackLinearPixelV1(request: Re
 	readonly grades: readonly unknown[];
 	readonly luts?: readonly (ParsedCubeLutV1 | undefined)[];
 }>): LinearRgbaV1 {
-	const interpretation = normalizeVideoSourceColorInterpretationV1(request?.interpretation);
-	assertManagedSdr(interpretation);
-	const rgba = rgbaTuple(request?.rgba);
-	return applyManagedSdrLinearGradeStackPixelV1({
-		rgba: [
-			decodeTransfer(rgba[0], 'srgb'),
-			decodeTransfer(rgba[1], 'srgb'),
-			decodeTransfer(rgba[2], 'srgb'),
-			rgba[3],
-		],
-		grades: request.grades,
-		...(request.luts === undefined ? {} : { luts: request.luts }),
-	});
+	return applyPreparedManagedSdrGradeStackLinearPixelV1(prepareManagedSdrGradeStackV1({
+		decoding: 'canvas-readback',
+		interpretation: request?.interpretation,
+		grades: request?.grades,
+		...(request?.luts === undefined ? {} : { luts: request.luts }),
+	}), request?.rgba);
 }
 
 /** Apply grades to an already-decoded straight-alpha linear working pixel. */
@@ -270,23 +351,11 @@ export function applyManagedSdrLinearGradeStackPixelV1(request: Readonly<{
 	readonly grades: readonly unknown[];
 	readonly luts?: readonly (ParsedCubeLutV1 | undefined)[];
 }>): LinearRgbaV1 {
-	if (!Array.isArray(request?.grades) || request.grades.length > 64) {
-		throw new RangeError('The managed SDR grade stack exceeds its bound.');
-	}
-	if (request.luts !== undefined && (!Array.isArray(request.luts)
-		|| request.luts.length !== request.grades.length)) {
-		throw new RangeError('The managed SDR grade stack LUT bodies must align with its grades.');
-	}
-	const grades = request.grades.map((value, index) => {
-		const grade = normalizeVideoColorGradeV1(value);
-		const lut = grade.lut === null ? null
-			: requireCubeLutBody(grade.lut, request.luts?.[index]);
-		return Object.freeze({ grade, lut });
-	});
-	const rgba = rgbaTuple(request?.rgba);
-	let linear = [rgba[0], rgba[1], rgba[2]];
-	for (const { grade, lut } of grades) linear = applyGrade(linear, grade, lut);
-	return Object.freeze([clamp(linear[0]!), clamp(linear[1]!), clamp(linear[2]!), rgba[3]]);
+	return applyPreparedManagedSdrGradeStackLinearPixelV1(prepareManagedSdrGradeStackV1({
+		decoding: 'linear',
+		grades: request?.grades,
+		...(request?.luts === undefined ? {} : { luts: request.luts }),
+	}), request?.rgba);
 }
 
 /** Decode one output-space-encoded pixel back into straight linear Rec.709/D65. */
@@ -314,11 +383,25 @@ export function encodeManagedSdrLinearPixelV1(
 	outputSpace: VideoColorOutputSpaceV1,
 ): LinearRgbaV1 {
 	const rgba = rgbaTuple(rgbaValue);
+	return encodeManagedSdrLinearChannelsV1(rgba[0], rgba[1], rgba[2], rgba[3], outputSpace);
+}
+
+/** The same encode, for a frame loop that already holds its channels as numbers. */
+export function encodeManagedSdrLinearChannelsV1(
+	redValue: number,
+	greenValue: number,
+	blueValue: number,
+	alphaValue: number,
+	outputSpace: VideoColorOutputSpaceV1,
+): LinearRgbaV1 {
+	const channel = (value: number, index: number): number => bounded(
+		value, 0, 1, `managed SDR RGBA channel ${String(index)}`,
+	);
 	return Object.freeze([
-		encodeOutput(rgba[0], outputSpace),
-		encodeOutput(rgba[1], outputSpace),
-		encodeOutput(rgba[2], outputSpace),
-		rgba[3],
+		encodeOutput(channel(redValue, 0), outputSpace),
+		encodeOutput(channel(greenValue, 1), outputSpace),
+		encodeOutput(channel(blueValue, 2), outputSpace),
+		channel(alphaValue, 3),
 	]);
 }
 

@@ -184,6 +184,28 @@ test('an encoded frame decodes through its interpretation and a limited range li
 	assert.ok(Object.isFrozen(full), 'a graded frame is published frozen');
 });
 
+test('a frame admits its grade stack once, however many pixels it carries', () => {
+	// Admitting the interpretation and normalizing every grade per pixel is what
+	// made a single preview frame block the main thread for seconds; that work
+	// belongs to the frame, so its cost must not scale with the pixel count.
+	const stackReads = (width: number, height: number): number => {
+		let reads = 0;
+		const grades: VideoColorGradeV1[] = [];
+		Object.defineProperty(grades, '0', {
+			get() { reads += 1; return grade(); },
+			enumerable: true,
+			configurable: true,
+		});
+		grades.length = 1;
+		const frame = { width, height, pixels: new Uint8Array(width * height * 4) };
+		gradeEncodedFrame(frame, interpretation(), grades, new Map(), live);
+		return reads;
+	};
+
+	assert.equal(stackReads(64, 64), stackReads(2, 2),
+		'a 1024-times larger frame must not read its grade stack 1024 times more often');
+});
+
 test('a clip-owned enabled grade reaches its visual while a disabled or foreign presentation does not', () => {
 	const black = grade({ gain: [0, 0, 0] });
 	const finishing = finishingNode({

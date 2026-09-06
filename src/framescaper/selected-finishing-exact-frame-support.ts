@@ -4,9 +4,11 @@
 
 import {
 	applyManagedSdrGradeStackLinearPixelV1,
-	applyManagedSdrLinearGradeStackPixelV1,
+	applyPreparedManagedSdrGradeStackLinearChannelsV1,
 	defaultVideoSourceColorInterpretationV1,
+	prepareManagedSdrGradeStackV1,
 	type ParsedCubeLutV1,
+	type PreparedManagedSdrGradeStackV1,
 	type VideoColorGradeV1,
 	type VideoSourceColorInterpretationV1,
 } from '../common/editor/video-color-management-v27.ts';
@@ -66,12 +68,12 @@ export function gradeEncodedFrame(
 ): UnifiedExactRenderRgbaFrameV13 {
 	const pixels = new Uint8Array(frame.pixels.length);
 	const bodies = grades.map(({ lut }) => lut ? luts.get(lut.sha256) : undefined);
+	// One admission and normalization for the frame; the stack is the same for
+	// every pixel in it, and repeating that work per pixel costs seconds.
+	const prepared = prepareManagedSdrGradeStackV1({ interpretation, grades, luts: bodies });
 	for (let offset = 0; offset < pixels.length; offset += 4) {
 		if (offset % (frame.width * 4) === 0) throwIfAborted(signal);
-		const value = applyManagedSdrGradeStackLinearPixelV1({
-			rgba: channels(frame.pixels, offset), interpretation, grades, luts: bodies,
-		});
-		writeChannels(pixels, offset, value);
+		writeChannels(pixels, offset, gradeChannels(prepared, frame.pixels, offset));
 	}
 	return Object.freeze({ width: frame.width, height: frame.height, pixels });
 }
@@ -84,11 +86,10 @@ export function gradeLinearFrame(
 ): UnifiedExactRenderRgbaFrameV13 {
 	const pixels = new Uint8Array(frame.pixels.length);
 	const bodies = grades.map(({ lut }) => lut ? luts.get(lut.sha256) : undefined);
+	const prepared = prepareManagedSdrGradeStackV1({ decoding: 'linear', grades, luts: bodies });
 	for (let offset = 0; offset < pixels.length; offset += 4) {
 		if (offset % (frame.width * 4) === 0) throwIfAborted(signal);
-		writeChannels(pixels, offset, applyManagedSdrLinearGradeStackPixelV1({
-			rgba: channels(frame.pixels, offset), grades, luts: bodies,
-		}));
+		writeChannels(pixels, offset, gradeChannels(prepared, frame.pixels, offset));
 	}
 	return Object.freeze({ width: frame.width, height: frame.height, pixels });
 }
@@ -227,9 +228,14 @@ export function requiredInterpretation(
 	return result;
 }
 
-function channels(value: Uint8Array, offset: number): readonly [number, number, number, number] {
-	return [value[offset]! / 255, value[offset + 1]! / 255,
-		value[offset + 2]! / 255, value[offset + 3]! / 255];
+function gradeChannels(
+	prepared: PreparedManagedSdrGradeStackV1,
+	pixels: Uint8Array,
+	offset: number,
+): readonly number[] {
+	return applyPreparedManagedSdrGradeStackLinearChannelsV1(prepared,
+		pixels[offset]! / 255, pixels[offset + 1]! / 255,
+		pixels[offset + 2]! / 255, pixels[offset + 3]! / 255);
 }
 
 function writeChannels(target: Uint8Array, offset: number, value: readonly number[]): void {
