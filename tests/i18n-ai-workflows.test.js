@@ -103,7 +103,12 @@ test('an answer must carry exactly the requested keys with acceptable strings', 
 	rejects({ locale: 'fr', translations: { bandNumber: 'Bande {number}', stop: 'Arrêter', extra: 'x' } }, /Unexpected keys: extra/u);
 	rejects({ locale: 'fr', translations: { bandNumber: 'Bande {number}', stop: 42 } }, /"stop" must be a string/u);
 	rejects({ locale: 'fr', translations: { bandNumber: 'Bande {number}', stop: '  ' } }, /"stop" must not be empty/u);
-	rejects({ locale: 'fr', translations: { bandNumber: 'Bande {number}', stop: 'Arrêter…' } }, /ellipsis/u);
+	assert.deepEqual(
+		validateTranslationResponse({ locale: 'fr', translations: { bandNumber: 'Bande {number}', stop: 'Enregistrer sous…' } }, { targetLocale: 'fr', messages }).stop,
+		'Enregistrer sous',
+	);
+	assert.equal(validateTranslationResponse({ locale: 'fr', translations: { bandNumber: 'Bande {number}', stop: 'Arrêter... ' } }, { targetLocale: 'fr', messages }).stop, 'Arrêter');
+	rejects({ locale: 'fr', translations: { bandNumber: 'Bande {number}', stop: '…' } }, /must not be empty/u);
 	rejects({ locale: 'fr', translations: { bandNumber: 'Bande {numéro}', stop: 'Arrêter' } }, /"bandNumber" must keep the placeholders/u);
 	rejects({ locale: 'fr', translations: { bandNumber: 'Bande {number}', stop: 'Arrêter\nmaintenant' } }, /one line/u);
 	rejects({ locale: 'fr', translations: { bandNumber: 'Bande {number}', stop: 'A'.repeat(200) } }, /far longer/u);

@@ -6,7 +6,8 @@ import { expect } from '@playwright/test';
  * Every workspace panel header ends in a "…" menu button whose menu moves the
  * panel between docks or closes it. Specs drive both through these helpers
  * rather than reaching for the retired dock <select> and × button. The item
- * labels accept both catalog locales because some specs boot at /de/.
+ * labels accept both bundled catalog locales because some specs boot at /de/;
+ * a spec on a machine-translated route passes that route's catalog instead.
  */
 const DOCK_MENU_LABELS = Object.freeze({
 	left: /^(?:Left|Links)$/u,
@@ -35,10 +36,14 @@ export async function openWorkspacePanelMenu(editor, panelId) {
 	return menu;
 }
 
-/** Close a panel through its overflow menu and wait for it to leave the workspace. */
-export async function closeWorkspacePanel(editor, panelId) {
+/**
+ * Close a panel through its overflow menu and wait for it to leave the
+ * workspace. `copy` is the catalog of the route under test when it is neither
+ * English nor German.
+ */
+export async function closeWorkspacePanel(editor, panelId, copy = null) {
 	const menu = await openWorkspacePanelMenu(editor, panelId);
-	await menu.getByRole('menuitem', { name: CLOSE_MENU_LABEL }).click();
+	await menu.getByRole('menuitem', copy ? { name: copy.close, exact: true } : { name: CLOSE_MENU_LABEL }).click();
 	await expect(editor.locator(`[data-workspace-panel="${panelId}"]`)).toBeHidden();
 }
 
@@ -46,11 +51,12 @@ export async function closeWorkspacePanel(editor, panelId) {
  * Move a panel to another dock through its overflow menu. The panel re-mounts
  * in the target dock, and focus must follow it onto the re-mounted menu button.
  */
-export async function dockWorkspacePanel(editor, panelId, dock) {
+export async function dockWorkspacePanel(editor, panelId, dock, copy = null) {
 	const label = DOCK_MENU_LABELS[dock];
 	if (!label) throw new Error(`Unknown workspace dock: ${dock}`);
 	const menu = await openWorkspacePanelMenu(editor, panelId);
-	await menu.getByRole('menuitem', { name: label }).click();
+	const localized = copy?.[`dock${dock.charAt(0).toUpperCase()}${dock.slice(1)}`];
+	await menu.getByRole('menuitem', localized ? { name: localized, exact: true } : { name: label }).click();
 	const moved = editor.locator(`[data-panel-dock="${dock}"] [data-workspace-panel="${panelId}"]`);
 	await expect(moved).toBeVisible();
 	await expect(workspacePanelMenuButton(moved)).toBeFocused();

@@ -17,6 +17,8 @@ import test from 'node:test';
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
+import { LOCALE_BY_TAG } from '../src/common/i18n/locales.js';
+import { MACHINE_CATALOG_LOCALES } from '../src/common/i18n/machine/index.js';
 import BrandSidebar from '../src/common/site/BrandSidebar.jsx';
 import { PRIVACY_POLICY_REQUEST_EVENT } from '../src/common/site/privacy-policy-links.js';
 import { installReactTestDom, reactProps, type ReactTestElement } from './helpers/react-test-dom.ts';
@@ -134,6 +136,21 @@ function harness(options: HarnessOptions = {}) {
 
 type Harness = ReturnType<typeof harness>;
 
+/**
+ * The locales the picker offers before any manifest answers: the two bundled
+ * catalogs plus every locale a committed machine catalog serves, in the order
+ * the picker sorts their names for an English visitor. Manifest-named extras
+ * join the same ordering.
+ */
+function expectedLocaleOptions(extra: Readonly<Record<string, string>> = {}): string[] {
+	const names = new Map<string, string>();
+	for (const tag of ['en', 'de', ...MACHINE_CATALOG_LOCALES]) names.set(tag, LOCALE_BY_TAG[tag]!.nativeName);
+	for (const [tag, name] of Object.entries(extra)) names.set(tag, name);
+	return [...names.entries()]
+		.sort(([, left], [, right]) => left.localeCompare(right, 'en'))
+		.map(([tag]) => tag);
+}
+
 function optionValues(select: ReactTestElement): string[] {
 	return select.querySelectorAll('option').map((option) => option.value);
 }
@@ -163,7 +180,9 @@ test('the sidebar offers the built product\'s workspaces and both installed lang
 		const workspaces = context.dom.one('[data-workspace-select]');
 		assert.deepEqual(optionValues(workspaces), ['modern', 'audacity', 'music', 'classic']);
 		assert.ok(workspaces.hasAttribute('disabled'), 'an unbound editor offers a live workspace picker');
-		assert.deepEqual(optionValues(context.dom.one('[data-locale-select]')), ['de', 'en']);
+		const locales = optionValues(context.dom.one('[data-locale-select]'));
+		assert.deepEqual(locales, expectedLocaleOptions());
+		assert.ok(locales.includes('de') && locales.includes('en'), 'both bundled catalogs are offered');
 	} finally {
 		await context.close();
 	}
@@ -280,7 +299,8 @@ test('opening the picker names the locales the translation manifest declares eli
 			locales: {
 				fr: { eligible: true, name: '  Français  ' },
 				// Declared but not deployed, ineligible, and not a descriptor at all:
-				// none of the three may reach the picker.
+				// none of the three may reach the picker through the manifest (a
+				// committed machine catalog offers its locale on its own).
 				kl: { eligible: true, name: 'Kalaallisut' },
 				ja: { eligible: false, name: '日本語' },
 				ko: { eligible: true },
@@ -297,7 +317,8 @@ test('opening the picker names the locales the translation manifest declares eli
 		assert.equal(context.requests.length, 1);
 		assert.match(context.requests[0]!, /\/latest\.json$/u);
 		const picker = context.dom.one('[data-locale-select]');
-		assert.deepEqual(optionValues(picker), ['de', 'en', 'fr']);
+		assert.deepEqual(optionValues(picker), expectedLocaleOptions({ fr: 'Français' }));
+		assert.ok(!optionValues(picker).includes('kl'));
 		assert.ok(optionNames(picker).includes('Français'), 'the manifest name reaches the picker untrimmed');
 	} finally {
 		await context.close();
@@ -314,7 +335,7 @@ test('a refused manifest leaves the shipped languages alone', async () => {
 			await settle();
 		});
 		assert.equal(context.requests.length, 1);
-		assert.deepEqual(optionValues(context.dom.one('[data-locale-select]')), ['de', 'en']);
+		assert.deepEqual(optionValues(context.dom.one('[data-locale-select]')), expectedLocaleOptions());
 	} finally {
 		await context.close();
 	}

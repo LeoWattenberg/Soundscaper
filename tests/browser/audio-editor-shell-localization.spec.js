@@ -267,7 +267,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(fileMenu).toHaveAttribute('aria-expanded', 'true');
 		await expect(editor.locator('.audio-editor-timeline-scroll')).toHaveCSS('direction', 'ltr');
 		await expect(editor.locator('.audio-editor-track-controls').first()).toHaveCSS('direction', 'rtl');
-		await importFiles(editor, [monoTone]);
+		await importFiles(editor, [monoTone], { timeout: 20_000, copy: machineCopy('ar') });
 		const playhead = editor.locator('[data-playhead]');
 		await playhead.focus();
 		await playhead.press('ArrowRight');

@@ -156,10 +156,12 @@ export async function readDownloadBytes(page, link) {
 	return downloadBytes(download);
 }
 
+/** Import files through the hidden input; `options.copy` names the route's catalog off the bundled locales. */
 export async function importFiles(editor, files, options = { timeout: 20_000 }) {
-	if (await editor.locator('[data-workspace-panel="project-bin"]').isVisible()) await closeWorkspacePanel(editor, 'project-bin');
+	const { copy = null, ...expectation } = options;
+	if (await editor.locator('[data-workspace-panel="project-bin"]').isVisible()) await closeWorkspacePanel(editor, 'project-bin', copy);
 	await editor.locator('[data-import-input]').setInputFiles(files);
-	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', options);
+	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', expectation);
 }
 
 export function trackNameText(editor) {

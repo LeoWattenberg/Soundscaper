@@ -8,6 +8,7 @@
 // the runtime applies before it shows a machine translation.
 
 import { asInvalidModelOutput } from '../docs-ai/generation.mjs';
+import { stripEllipses } from '../lib/audacity-qt-conversion.mjs';
 import {
 	acceptableMachineTranslation,
 	protectedTokens,
@@ -68,9 +69,11 @@ export function validateTranslationResponse(response, { targetLocale, messages }
 			const source = messages[key];
 			const raw = translations[key];
 			if (typeof raw !== 'string') throw new Error(`"${key}" must be a string.`);
-			const translation = raw.trim();
+			// A model follows its language's convention of a trailing ellipsis on a
+			// command that opens a dialog; the catalogs omit ellipses by policy, so
+			// it is removed the way the Audacity converter removes theirs.
+			const translation = stripEllipses(raw);
 			if (!translation) throw new Error(`"${key}" must not be empty.`);
-			if (/…|\.\.\./u.test(translation)) throw new Error(`"${key}" must not contain an ellipsis.`);
 			if (source.split('\n').length !== translation.split('\n').length) {
 				throw new Error(source.includes('\n') ? `"${key}" must keep the line breaks of its English.` : `"${key}" must stay on one line.`);
 			}
