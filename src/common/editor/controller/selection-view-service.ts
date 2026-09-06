@@ -156,7 +156,28 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		return applySelectionRange(startFrame, endFrame, details, false);
 	}
 
-	function applySelectionRange(startFrame: any, endFrame: any, details: any, snap: boolean) {
+	/**
+	 * Carry the playhead to the start of a new time selection, so pressing play
+	 * plays the selection from its beginning.
+	 *
+	 * Only a range does this: clearing the selection collapses it onto frame zero
+	 * and must leave the playhead where the click that cleared it put it. Nor does
+	 * a transport already running move — a selection drawn or a macro run during
+	 * playback would otherwise restart it somewhere else.
+	 */
+	function carryPlayheadToSelectionStart(startFrame: number, endFrame: number) {
+		if (endFrame <= startFrame) return;
+		if (engine.getState?.().state === 'playing') return;
+		engine.seek(startFrame);
+	}
+
+	function applySelectionRange(
+		startFrame: any,
+		endFrame: any,
+		details: any,
+		snap: boolean,
+		carryPlayhead = true,
+	) {
 		const project = getProject();
 		if (!Number.isFinite(Number(startFrame)) || !Number.isFinite(Number(endFrame))) {
 			throw new TypeError(copy.selectionFramesFinite);
@@ -175,7 +196,9 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		const command: any = { type: 'selection/set', startFrame: start, endFrame: end };
 		if (Object.keys(details).length) Object.assign(command, details, { clipIds: [] });
 		Object.assign(command, clearedAnnotationSelectionDetails(project));
-		return updateSelection(command);
+		const next = updateSelection(command);
+		if (carryPlayhead) carryPlayheadToSelectionStart(start, end);
+		return next;
 	}
 
 	function clearDurableAnnotationSelection(project: any) {
@@ -198,12 +221,23 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		if (!project) return null;
 		const selection = project.selection || { startFrame: 0, endFrame: 0 };
 		const trackIds = project.tracks.map((track: any) => track.id);
-		const next = setSelection(selection.startFrame, selection.endFrame, { trackIds });
+		// Widening the selection's track scope leaves its time range exactly as it
+		// was, so it is not a new time selection and does not move the playhead.
+		const next = applySelectionRange(selection.startFrame, selection.endFrame, { trackIds }, true, false);
 		if (!state.selectedTrackId && trackIds.length) {
 			state.selectedTrackId = trackIds[0];
 			synchronizeMicrophoneMeterTarget();
 		}
 		return next.selection;
+	}
+
+	/**
+	 * These commands read the playhead to place one endpoint of the selection, so
+	 * the selection they make must not then move it: the next such command would
+	 * measure from an anchor its predecessor had already shifted.
+	 */
+	function setPlayheadAnchoredSelection(startFrame: any, endFrame: any) {
+		return applySelectionRange(startFrame, endFrame, {}, true, false);
 	}
 
 	function selectLeftOfPlaybackPosition(requestedStartFrame: any = null) {
@@ -212,7 +246,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 			? (activeSelection()?.startFrame ?? 0)
 			: normalizeTimelineFrame(requestedStartFrame);
 		if (startFrame >= playbackFrame) startFrame = 0;
-		return setSelection(startFrame, playbackFrame).selection;
+		return setPlayheadAnchoredSelection(startFrame, playbackFrame).selection;
 	}
 
 	function selectRightOfPlaybackPosition(requestedEndFrame: any = null) {
@@ -222,19 +256,19 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 			? (activeSelection()?.endFrame ?? projectDurationFrames(project))
 			: normalizeTimelineFrame(requestedEndFrame);
 		if (endFrame <= playbackFrame) endFrame = projectDurationFrames(project);
-		return setSelection(playbackFrame, endFrame).selection;
+		return setPlayheadAnchoredSelection(playbackFrame, endFrame).selection;
 	}
 
 	function selectTrackStartToCursor() {
 		const range = selectedTracksTimeRange();
-		return setSelection(range?.startFrame ?? 0, normalizeTimelineFrame(engine.getPositionFrames())).selection;
+		return setPlayheadAnchoredSelection(range?.startFrame ?? 0, normalizeTimelineFrame(engine.getPositionFrames())).selection;
 	}
 
 	function selectCursorToTrackEnd() {
 		const range = selectedTracksTimeRange();
 		const playbackFrame = normalizeTimelineFrame(engine.getPositionFrames());
 		return range && range.endFrame > playbackFrame
-			? setSelection(playbackFrame, range.endFrame).selection
+			? setPlayheadAnchoredSelection(playbackFrame, range.endFrame).selection
 			: selectTrackStartToCursor();
 	}
 

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { ChunkStreamClientLike, ChunkAudioNodeFactory } from './clip-scheduler.ts';
-import type { NormalizedLoop, PlanarPcm, PreparedSpeedPlayback } from './buffer-math.ts';
+import type { NormalizedLoop, NormalizedPlayRange, PlanarPcm, PreparedSpeedPlayback } from './buffer-math.ts';
 import type {
 	EngineAudioContext,
 	EngineMeterSnapshot,
@@ -120,6 +120,8 @@ export interface EngineRuntimeHost extends EnginePublicApi {
 	audioWarpPlaybackPreparation: AudioWarpPlaybackPreparation | null;
 	state: string;
 	loop: NormalizedLoop;
+	/** Bounds the run that was started with it; null once playback leaves. */
+	playRange: NormalizedPlayRange | null;
 	graph: ProjectGraph | null;
 	ticker: ReturnType<typeof globalThis.setInterval> | null;
 	scrubTimer: ReturnType<typeof globalThis.setTimeout> | null;

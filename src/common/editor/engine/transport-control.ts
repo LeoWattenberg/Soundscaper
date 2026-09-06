@@ -16,6 +16,7 @@ import {
 	DEFAULT_SAMPLE_RATE,
 	normalizeLoop,
 	normalizePlayAtSpeedRate,
+	normalizePlayRange,
 	normalizePreparedSpeedPlayback,
 	positiveInteger,
 } from './buffer-math.ts';
@@ -220,6 +221,9 @@ async playAtSpeed(rate, {
 async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFrame) {
 		this[ENGINE_ASSERT_ACTIVE]();
 		if (!this.project) throw new Error('Load an audio editor project before playback.');
+		// Recording and the other clocked starts run to their own end, never to
+		// the end of whatever bounded the last thing that was played.
+		this.playRange = null;
 		this[ENGINE_CANCEL_SCRUB]();
 		const generation = this.scrubGeneration;
 		this.playbackRate = 1;
@@ -266,6 +270,9 @@ pause() {
 		this[ENGINE_ASSERT_ACTIVE]();
 		this[ENGINE_CANCEL_SCRUB]();
 		if (this.state !== 'playing') return;
+		// Pausing ends the run the range was set for. Resuming is a fresh start
+		// that says for itself what bounds it, so nothing inherits this one.
+		this.playRange = null;
 		this.positionFrame = this.getPositionFrames();
 		this[ENGINE_HALT_GRAPH]();
 		this.masterLoudnessMeter?.setRunning(false);
@@ -279,6 +286,9 @@ stop() {
 		this[ENGINE_HALT_GRAPH]();
 		this.masterLoudnessMeter?.setRunning(false);
 		this.positionFrame = 0;
+		// The range bounded the run that just ended; whatever starts next says
+		// for itself whether it is bounded.
+		this.playRange = null;
 		this[ENGINE_SET_STATE](this.project ? 'stopped' : 'empty');
 		this[ENGINE_EMIT_POSITION]();
 	},
@@ -445,6 +455,20 @@ setLoop(loopOrEnabled, startFrame, endFrame) {
 		return { ...this.loop };
 	},
 
+/**
+ * Bound the next run of playback to a range, or clear the bound with null.
+ *
+ * The range binds when playback is scheduled, so it is set on a transport that
+ * is about to start rather than on one already running. Leaving playback
+ * retires it, which is what keeps a recording or a preview from inheriting the
+ * selection that bounded the last run.
+ */
+setPlayRange(range) {
+		this[ENGINE_ASSERT_ACTIVE]();
+		this.playRange = normalizePlayRange(range, this.playbackDurationFrames);
+		return this.playRange ? { ...this.playRange } : null;
+	},
+
 getPositionFrames() {
 		if (this.state !== 'playing' || !this.context) return this.positionFrame;
 		if (this.context.currentTime <= this.playbackStartTime) return this.playbackStartFrame;
@@ -512,6 +536,7 @@ subscribeParametricEqErrors(listener) {
 	| 'scrub'
 	| 'endScrub'
 	| 'setLoop'
+	| 'setPlayRange'
 	| 'getPositionFrames'
 	| 'getState'
 	| 'subscribePosition'

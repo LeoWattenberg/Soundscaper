@@ -156,10 +156,12 @@ export function useTimelinePointerFinish({
 			Math.abs(event.clientX - session.startX) / pixelsPerSecond,
 			{ sampleRate },
 		) * Math.sign(event.clientX - session.startX);
-		if (Math.hypot(event.clientX - session.startX, event.clientY - session.startY) < 3) {
-			run(() => controller.actions.transport.seek(frameAtClientX(event.clientX, session.lane)));
-			return;
-		}
+		// Every session that reaches here began on a clip — its header, its trim or
+		// stretch handles, or a whole-clip modifier gesture. A press that never
+		// moved is a click that selects the clip, which pointer-down has already
+		// done, so there is nothing left to commit and the playhead stays where it
+		// is: picking a clip is not a request to move the transport.
+		if (Math.hypot(event.clientX - session.startX, event.clientY - session.startY) < 3) return;
 		const clip = project.clips.find((item) => item.id === session.clipId);
 		if (!clip) return;
 		if (session.kind === 'move') {

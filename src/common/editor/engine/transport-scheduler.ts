@@ -20,6 +20,7 @@ import { scheduleExactWarpPlayback } from './audio-warp-playback-scheduler.ts';
 import {
 	clampFrame,
 	DEFAULT_SAMPLE_RATE,
+	playRangeStopFrame,
 } from './buffer-math.ts';
 import {
 	scheduleProjectClips,
@@ -182,7 +183,9 @@ async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFra
 			source.loopStart = outputFrameAt(this.loop.startFrame) / prepared.sampleRate;
 			source.loopEnd = outputFrameAt(this.loop.endFrame) / prepared.sampleRate;
 		}
-		this.playEndFrame = Math.max(frame, this.loop.enabled ? this.loop.endFrame : this.playbackDurationFrames);
+		this.playEndFrame = Math.max(frame, this.loop.enabled
+			? this.loop.endFrame
+			: playRangeStopFrame(this.playRange, frame, this.playbackDurationFrames));
 		this.playbackStartFrame = frame;
 		this.positionFrame = frame;
 		this.playbackStartTime = scheduledTime;
@@ -230,8 +233,10 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 			await this[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
 		}
 		this[ENGINE_HALT_GRAPH]();
-		const loopEnd = this.loop.enabled ? this.loop.endFrame : this.playbackDurationFrames;
-		this.playEndFrame = Math.max(fromFrame, loopEnd);
+		const stopFrame = this.loop.enabled
+			? this.loop.endFrame
+			: playRangeStopFrame(this.playRange, fromFrame, this.playbackDurationFrames);
+		this.playEndFrame = Math.max(fromFrame, stopFrame);
 		this.playbackStartFrame = fromFrame;
 		this.positionFrame = fromFrame;
 		const playbackDestination = playbackOutputDestination(
@@ -406,7 +411,12 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 				return;
 			}
 			if (frame < this.playEndFrame) return;
-			this.positionFrame = this.playbackDurationFrames;
+			// A bounded run leaves the playhead on the boundary it stopped at, so
+			// pressing play again replays the selection instead of the silence
+			// between it and the end of the timeline. The range belonged to this
+			// run and retires with it.
+			this.positionFrame = Math.min(this.playbackDurationFrames, this.playEndFrame);
+			this.playRange = null;
 			this[ENGINE_HALT_GRAPH]();
 			this.masterLoudnessMeter?.setRunning(false);
 			this[ENGINE_SET_STATE]('stopped');

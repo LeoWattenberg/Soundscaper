@@ -110,6 +110,7 @@ function createTransportFixture() {
 		recordStarts: 0,
 		recordStops: 0,
 		seeks: [] as number[],
+		playRanges: [] as unknown[],
 		selections: [] as number[][],
 		statuses: [] as unknown[][],
 		previewStops: 0,
@@ -118,9 +119,16 @@ function createTransportFixture() {
 		loops: [] as unknown[],
 		metronomeSchedules: [] as unknown[],
 	};
+	let positionFrame = 40;
+	let playRange: { startFrame: number; endFrame: number } | null = null;
 	const engine = {
 		getState: () => playbackState,
-		getPositionFrames: () => 40,
+		getPositionFrames: () => positionFrame,
+		setPlayRange: (range: { startFrame: number; endFrame: number } | null) => {
+			calls.playRanges.push(range ? { ...range } : null);
+			playRange = range ? { ...range } : null;
+			return playRange;
+		},
 		pause: () => { calls.pauses += 1; return 'paused'; },
 		play: () => { calls.plays += 1; return 'played'; },
 		playAtSpeed: async (rate: number, options: unknown) => {
@@ -219,6 +227,8 @@ function createTransportFixture() {
 		setMissingSources(value: boolean) { missingSources = value; },
 		setBeginPreparation(value: typeof beginPreparation) { beginPreparation = value; },
 		setAudioContext(value: unknown) { audioContext = value; },
+		setPositionFrame(value: number) { positionFrame = value; },
+		playRange: () => playRange,
 	};
 }
 
@@ -317,7 +327,9 @@ test('transport dispatch coordinates preview, playback, seeking, stop, loop, and
 	assert.equal(await fixture.service.handleTransport('jump-end'), 1_200);
 	assert.equal(await fixture.service.handleTransport('rewind'), -239_960);
 	assert.equal(await fixture.service.handleTransport('forward'), 240_040);
-	assert.deepEqual(fixture.calls.seeks, [0, 1_200, -239_960, 240_040]);
+	// The play at line 314 above bound the run to the active selection and put
+	// the playhead, which sat past its end, back on its start.
+	assert.deepEqual(fixture.calls.seeks, [10, 0, 1_200, -239_960, 240_040]);
 
 	fixture.state.timedRecording = true;
 	assert.equal(await fixture.service.handleTransport('stop'), 'timed-cancelled');
@@ -332,6 +344,59 @@ test('transport dispatch coordinates preview, playback, seeking, stop, loop, and
 	await fixture.service.handleTransport('loop');
 	assert.equal(fixture.project().loop?.enabled, true);
 	assert.equal(fixture.calls.loops.length, 1);
+});
+
+test('play binds the run to the time selection and starts it at the selection', async () => {
+	const fixture = createTransportFixture();
+
+	fixture.setPositionFrame(40);
+	assert.equal(await fixture.service.handleTransport('play'), 'played');
+
+	assert.deepEqual(fixture.calls.playRanges, [{ startFrame: 10, endFrame: 30 }]);
+	assert.deepEqual(fixture.calls.seeks, [10], 'a playhead past the selection is put back on its start');
+});
+
+test('a playhead inside the selection keeps its place and still stops at the selection end', async () => {
+	const fixture = createTransportFixture();
+
+	fixture.setPositionFrame(20);
+	assert.equal(await fixture.service.handleTransport('play'), 'played');
+
+	assert.deepEqual(fixture.calls.playRanges, [{ startFrame: 10, endFrame: 30 }]);
+	assert.deepEqual(fixture.calls.seeks, [], 'playback resumes from where the playhead was left');
+});
+
+test('play clears the bound when there is no time selection to play', async () => {
+	const fixture = createTransportFixture();
+	fixture.setProject({ ...fixture.project(), selection: null });
+
+	assert.equal(await fixture.service.handleTransport('play'), 'played');
+
+	assert.deepEqual(fixture.calls.playRanges, [null]);
+	assert.deepEqual(fixture.calls.seeks, []);
+});
+
+test('an enabled loop region owns the transport instead of the time selection', async () => {
+	const fixture = createTransportFixture();
+	fixture.setProject({
+		...fixture.project(),
+		loop: { enabled: true, startFrame: 100, endFrame: 400 },
+	});
+
+	assert.equal(await fixture.service.handleTransport('play'), 'played');
+
+	assert.deepEqual(fixture.calls.playRanges, [null]);
+	assert.deepEqual(fixture.calls.seeks, []);
+});
+
+test('play-at-speed binds the run to the time selection the same way', async () => {
+	const fixture = createTransportFixture();
+	fixture.setPositionFrame(40);
+
+	assert.equal(await fixture.service.handlePlayAtSpeed(1.5), true);
+
+	assert.deepEqual(fixture.calls.playRanges, [{ startFrame: 10, endFrame: 30 }]);
+	assert.deepEqual(fixture.calls.seeks, [10]);
 });
 
 test('loop region commands validate ranges and optionally keep selection synchronized', () => {

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { NormalizedLoop, PlanarPcm } from './buffer-math.ts';
+import type { NormalizedLoop, NormalizedPlayRange, PlanarPcm } from './buffer-math.ts';
 import type { DynamicsAnalysisWindow } from './dynamics-analysis-telemetry.ts';
 import type { EffectSpectrumMetadata } from './effect-rack.ts';
 import type { ProjectGraphSelection } from './project-graph-selection.ts';
@@ -213,6 +213,8 @@ export interface EnginePublicApi {
 	scrub(frame: number, options?: EngineScrubOptions): Promise<number>;
 	endScrub(): number;
 	setLoop(loopOrEnabled: EngineLoop | boolean, startFrame?: number, endFrame?: number): NormalizedLoop;
+	/** Bound the next run of playback to a range, or clear the bound with null. */
+	setPlayRange(range: Readonly<{ startFrame: number; endFrame: number }> | null): NormalizedPlayRange | null;
 	getPositionFrames(): number;
 	getState(): EngineStateSnapshot;
 	commitNativeEffectPdcRevision(request: EngineNativeEffectPdcRevision): EngineNativeEffectPdcCommit;

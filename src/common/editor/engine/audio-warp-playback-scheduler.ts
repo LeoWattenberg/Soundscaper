@@ -8,7 +8,7 @@ import {
 	releaseTransientNodes,
 } from './audio-node-utils.ts';
 import { prepareExactAudioWarpPlayback } from './audio-warp-fallback.ts';
-import { clampFrame } from './buffer-math.ts';
+import { clampFrame, playRangeStopFrame } from './buffer-math.ts';
 import { createAnalyser } from './effect-rack.ts';
 import { playbackOutputDestination } from './playback-output.ts';
 import type { ProjectGraph } from './project-graph.ts';
@@ -60,7 +60,9 @@ export async function scheduleExactWarpPlayback(
 	}
 	const graph = exactGraph(nodes, masterAnalyser);
 	engine.graph = graph;
-	engine.playEndFrame = engine.loop.enabled ? engine.loop.endFrame : engine.durationFrames;
+	engine.playEndFrame = engine.loop.enabled
+		? engine.loop.endFrame
+		: playRangeStopFrame(engine.playRange, frame, engine.durationFrames);
 	engine.playbackStartFrame = frame;
 	engine.positionFrame = frame;
 	engine.playbackStartTime = scheduledTime;

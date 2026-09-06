@@ -72,6 +72,7 @@ function createFixture(options: { readonly timelineDurationFrames?: number } = {
 	const handledErrors: unknown[] = [];
 	const playheads: unknown[] = [];
 	const seeks: number[] = [];
+	let transportState = 'stopped';
 	const state: Record<string, unknown> = {
 		analysisProcessing: false,
 		selectedTrackId: 'track-a',
@@ -108,7 +109,11 @@ function createFixture(options: { readonly timelineDurationFrames?: number } = {
 			zeroCrossingsAligned: 'Aligned.',
 		},
 		editorTimelineDurationFrames: () => options.timelineDurationFrames ?? 100,
-		engine: { getPositionFrames: () => 20, seek: (frame: number) => { seeks.push(frame); } },
+		engine: {
+			getPositionFrames: () => 20,
+			getState: () => ({ state: transportState }),
+			seek: (frame: number) => { seeks.push(frame); },
+		},
 		findClip: (value, clipId) => value.clips.find((clip: { id: string }) => clip.id === clipId) || null,
 		findClipTrack: (value, clipId) => value.tracks.find((track: { clipIds?: string[] }) => track.clipIds?.includes(clipId)) || null,
 		findNearestAudioZeroCrossing: (_channels, frame) => frame,
@@ -160,6 +165,7 @@ function createFixture(options: { readonly timelineDurationFrames?: number } = {
 		project: () => project,
 		snappedFrames,
 		useSnapGrid(step: number) { snapFrame = (frame) => Math.round(frame / step) * step; },
+		setTransportState(value: string) { transportState = value; },
 		updateProject(changes: Partial<TestProject>) {
 			project = { ...project, ...changes };
 		},
@@ -432,6 +438,54 @@ test('selection range commands derive audio and label bounds around the playhead
 	fixture.state.selectedTrackId = null;
 	assert.equal(fixture.service.selectedTracksTimeRange(), null);
 	assert.equal(fixture.service.selectTrackStartToEnd(), null);
+});
+
+test('a new time selection carries the playhead to its start', () => {
+	const fixture = createFixture();
+
+	fixture.service.setSelection(60, 40);
+
+	assert.deepEqual(fixture.seeks, [40], 'the playhead lands on the selection start, however it was drawn');
+});
+
+test('an exact selection carries the playhead the same way a snapped one does', () => {
+	const fixture = createFixture();
+
+	fixture.service.setExactSelection(37, 62);
+
+	assert.deepEqual(fixture.seeks, [37]);
+});
+
+test('clearing the selection leaves the playhead where the click that cleared it put it', () => {
+	const fixture = createFixture();
+
+	fixture.service.setSelection(0, 0, { trackIds: [], frequencyRange: null });
+
+	assert.deepEqual(fixture.seeks, [], 'a collapsed selection is not a time selection');
+});
+
+test('a selection made during playback does not restart the transport somewhere else', () => {
+	const fixture = createFixture();
+	fixture.setTransportState('playing');
+
+	fixture.service.setSelection(40, 60);
+
+	assert.deepEqual(fixture.seeks, []);
+});
+
+test('selections anchored on the playhead do not move the anchor they measured from', () => {
+	const fixture = createFixture();
+	fixture.updateProject({
+		selection: { startFrame: 10, endFrame: 30, trackIds: ['track-a', 'labels'], clipIds: [] },
+	});
+
+	fixture.service.selectLeftOfPlaybackPosition();
+	fixture.service.selectRightOfPlaybackPosition();
+	fixture.service.selectTrackStartToCursor();
+	fixture.service.selectCursorToTrackEnd();
+	fixture.service.selectAllTracks();
+
+	assert.deepEqual(fixture.seeks, []);
 });
 
 test('snap settings, legacy frame clamping, and zoom remain bounded', () => {

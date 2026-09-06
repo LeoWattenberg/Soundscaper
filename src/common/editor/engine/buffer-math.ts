@@ -78,6 +78,42 @@ export interface NormalizedLoop {
 	readonly endFrame: number;
 }
 
+/**
+ * A bounded run of playback: where it starts and where it stops. A time
+ * selection becomes one, so playing a selection stops at its end instead of
+ * running on to the end of the timeline.
+ */
+export interface NormalizedPlayRange {
+	readonly startFrame: number;
+	readonly endFrame: number;
+}
+
+export function normalizePlayRange(
+	value: unknown,
+	durationFrames: number,
+): NormalizedPlayRange | null {
+	if (!value || typeof value !== 'object') return null;
+	const candidate = value as { startFrame?: unknown; endFrame?: unknown };
+	const startFrame = clampFrame(candidate.startFrame, 0, durationFrames);
+	const endFrame = clampFrame(candidate.endFrame, 0, durationFrames);
+	return endFrame > startFrame ? { startFrame, endFrame } : null;
+}
+
+/**
+ * Where a run starting at `fromFrame` ends. A play range that the run can still
+ * reach bounds it; one it has already passed does not, so pressing play with the
+ * playhead beyond the selection plays the rest of the timeline rather than
+ * stopping on the spot.
+ */
+export function playRangeStopFrame(
+	range: NormalizedPlayRange | null,
+	fromFrame: number,
+	durationFrames: number,
+): number {
+	if (!range || range.endFrame <= fromFrame) return durationFrames;
+	return Math.min(range.endFrame, durationFrames);
+}
+
 export function normalizeLoop(value: unknown, durationFrames: number): NormalizedLoop {
 	const candidate = value && typeof value === 'object'
 		? value as { enabled?: unknown; startFrame?: unknown; endFrame?: unknown }

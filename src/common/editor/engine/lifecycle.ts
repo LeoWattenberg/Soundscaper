@@ -135,6 +135,7 @@ export function initializeEngineRuntime(
 	engine.audioWarpPlaybackPreparation = null;
 	engine.state = 'empty';
 	engine.loop = { enabled: false, startFrame: 0, endFrame: 0 };
+	engine.playRange = null;
 	engine.graph = null;
 	engine.ticker = null;
 	engine.scrubTimer = null;
@@ -325,6 +326,7 @@ loadProject(project, sourceBuffers = new Map(), options = {}) {
 		this.positionFrame = Math.min(this.positionFrame, this.playbackDurationFrames);
 		this.playEndFrame = this.playbackDurationFrames;
 		this.loop = normalizeLoop(runtimeProject?.loop, this.durationFrames);
+		this.playRange = null;
 		// The graph stops here, so the meter always stops with it; `play()` re-arms it
 		// with the manual pause honoured. Retiring the measurement itself belongs to a
 		// genuinely new project, not to re-applying the edited one.

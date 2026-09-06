@@ -41,6 +41,7 @@ export const ENGINE_PUBLIC_METHOD_NAMES = [
 	'scrub',
 	'endScrub',
 	'setLoop',
+	'setPlayRange',
 	'getPositionFrames',
 	'sampleRate',
 	'getState',

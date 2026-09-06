@@ -89,6 +89,7 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 			await beginPlaybackCachePreparation(snapshot, { abortController: abort });
 			throwIfAborted(abort.signal);
 			if (snapshot !== getProject()) throw abortError();
+			bindPlaybackToSelection();
 			if (typeof engine.playAtSpeed !== 'function') return engine.play();
 			await engine.playAtSpeed(rate, {
 				preservePitch,
@@ -108,6 +109,29 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 				publishDocumentSnapshot();
 			}
 		}
+	}
+
+	/**
+	 * Bind the run of playback that is about to start to the active time
+	 * selection: it stops at the selection's end instead of running on to the end
+	 * of the timeline, and a playhead outside the selection is put back on its
+	 * start. A playhead the user left inside the selection keeps its place, so
+	 * playback resumes from there and still stops at the selection's end.
+	 *
+	 * An enabled loop region owns the transport instead — it already bounds
+	 * playback, and repeats it.
+	 */
+	function bindPlaybackToSelection() {
+		if (typeof engine.setPlayRange !== 'function') return null;
+		const selection = getProject()?.loop?.enabled ? null : activeSelection();
+		const range = engine.setPlayRange(selection && {
+			startFrame: selection.startFrame,
+			endFrame: selection.endFrame,
+		});
+		if (!range) return null;
+		const position = engine.getPositionFrames();
+		if (position < range.startFrame || position >= range.endFrame) engine.seek(range.startFrame);
+		return range;
 	}
 
 	async function handleTransport(action: RuntimeValue) {
@@ -134,6 +158,7 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 			const snapshot = getProject();
 			await beginPlaybackCachePreparation(snapshot);
 			if (snapshot !== getProject()) return;
+			bindPlaybackToSelection();
 			return engine.play();
 		}
 		if (action === 'stop') {
