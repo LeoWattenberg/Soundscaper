@@ -32,8 +32,8 @@ const INSTALLED_PRODUCTS = Object.freeze(['soundscaper', 'framescaper']);
 const MANIFEST_FIELDS = Object.freeze([
 	'id', 'name', 'short_name', 'description', 'lang', 'dir', 'start_url', 'scope',
 	'display', 'display_override', 'orientation', 'categories',
-	'background_color', 'theme_color', 'icons',
-	'launch_handler', 'file_handlers', 'shortcuts',
+	'background_color', 'theme_color', 'icons', 'screenshots',
+	'launch_handler', 'file_handlers', 'share_target', 'shortcuts',
 ]);
 
 /** The category vocabulary the manifest registry names; anything else is invented. */
@@ -283,6 +283,33 @@ test('each product handles the media it edits, taken from the suffixes its impor
 	);
 });
 
+test('the share target takes exactly the media its file handler opens, at a path in scope', async (context) => {
+	for (const productId of INSTALLED_PRODUCTS) {
+		const { manifest } = await productShell(context, productId);
+		const share = manifest.share_target;
+		// A share carries files, and only a multipart POST can carry them.
+		assert.equal(share.method, 'POST', productId);
+		assert.equal(share.enctype, 'multipart/form-data', productId);
+		assert.equal(share.action, `${manifest.scope}share-target`, productId);
+		const action = new URL(share.action, `https://${productId}.test/manifest-${productId}.webmanifest`);
+		assert.equal(action.origin, `https://${productId}.test`, productId);
+		assert.ok(action.pathname.startsWith(manifest.scope), `${productId} shares to ${action.pathname}`);
+		assert.deepEqual(Object.keys(share.params), ['files'], productId);
+		const [files] = share.params.files;
+		assert.deepEqual(share.params.files.length, 1, productId);
+		// The worker reads the files out of this field, so its name is contract.
+		assert.equal(files.name, 'media', productId);
+		// Accepting a share the editor cannot open would put this product in a
+		// share sheet that refuses the file, so the list is the media handler's.
+		const media = manifest.file_handlers.at(-1);
+		assert.deepEqual(files.accept, Object.keys(media.accept), productId);
+		assert.ok(files.accept.length > 0, productId);
+		for (const type of files.accept) assert.match(type, /^(?:audio|video)\/[a-z0-9.+-]+$/u, `${productId} ${type}`);
+	}
+	const { manifest: audioOnly } = await productShell(context, 'soundscaper');
+	assert.equal(audioOnly.share_target.params.files[0].accept.some((type) => type.startsWith('video/')), false);
+});
+
 test('every manifest action, shortcut and icon resolves inside the product scope', async (context) => {
 	for (const productId of INSTALLED_PRODUCTS) {
 		const { manifest } = await productShell(context, productId);
@@ -429,6 +456,9 @@ async function shellFixture(context, routes = ['en', 'embed/en']) {
 		fixtureFile(outputRoot, 'assets/framescaper-core.js', 'export const framescaper = 1;'),
 		fixtureFile(outputRoot, 'assets/optional-dialog.js', 'export const optional = 1;'),
 		fixtureFile(outputRoot, 'assets/application-abc.js.map', '{}'),
+		...['soundscaper', 'framescaper'].flatMap((productId) => ['wide', 'narrow'].map((formFactor) => (
+			fixtureFile(outputRoot, `install-screenshots/${productId}-${formFactor}.png`, `${productId} ${formFactor}`)
+		))),
 		fixtureFile(outputRoot, 'logo/framescaper-icon.svg', '<svg viewBox="0 0 1 1" />'),
 		fixtureFile(outputRoot, 'logo/logo-klein-schwarz.svg', '<svg viewBox="0 0 1 1" />'),
 		fixtureFile(outputRoot, 'logo/logo-klein-weiß.svg', '<svg viewBox="0 0 1 1" />'),

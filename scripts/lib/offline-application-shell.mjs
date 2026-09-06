@@ -12,8 +12,10 @@ import {
 } from './offline-service-worker.mjs';
 import {
 	ICON_SIZES,
+	INSTALL_SCREENSHOT_DIRECTORY,
 	MANIFEST_ICON_SIZES,
 	productIconNames,
+	productScreenshotNames,
 	productWebManifest,
 } from './product-web-manifest.mjs';
 import { webBuildRouting } from './product-web-routing.mjs';
@@ -141,6 +143,8 @@ async function removeUnservedProductArtifacts(outputRoot, routing) {
 			`manifest-${productId}.webmanifest`,
 			...PRODUCT_EXCLUSIVE_PUBLIC_ARTIFACTS[productId],
 			...productIconNames(productId).map((name) => `offline-icons/${name}.png`),
+			...productScreenshotNames(productId)
+				.map((name) => `${INSTALL_SCREENSHOT_DIRECTORY}/${name}.png`),
 		]) await unlink(resolve(outputRoot, relativePath)).catch((error) => {
 			if (error?.code !== 'ENOENT') throw error;
 		});
@@ -156,6 +160,15 @@ function productInstallUrls({ assets, buildManifest, productId, worker }) {
 		worker.fallbacks.embedded,
 		`/manifest-${productId}.webmanifest`,
 		...productIconNames(productId).map((name) => `/offline-icons/${name}.png`),
+		// The install dialog reads these over the network, so precaching them buys
+		// nothing at install time. They are in the core for the second install: a
+		// visitor who declined the prompt, kept using the editor offline, and is
+		// offered it again gets the dialog with the screenshots rather than the
+		// bare mini-bar. They are also install assets a recapture can grow without
+		// touching the build, so holding them to this list's byte ceiling is what
+		// stops a careless one from pushing the shell past it.
+		...productScreenshotNames(productId)
+			.map((name) => `/${INSTALL_SCREENSHOT_DIRECTORY}/${name}.png`),
 	]);
 	if (worker.root) urls.add('/');
 	for (const logo of PRODUCT_INSTALL_ARTIFACTS[productId].logos) urls.add(logo);

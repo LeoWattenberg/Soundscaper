@@ -280,6 +280,8 @@ test('the zone browser cache TTL excuses no-cache on either product origin, and 
 			'/',
 			'/embed/en/',
 			'/en/',
+			'/install-screenshots/soundscaper-narrow.png',
+			'/install-screenshots/soundscaper-wide.png',
 			'/logo/logo-klein-schwarz.svg',
 			'/logo/logo-klein-weiß.svg',
 			'/manifest-soundscaper.webmanifest',

@@ -52,10 +52,14 @@ const PRODUCT_PENDING_INSTALL_ARTWORK = Object.freeze({
 	soundscaper: Object.freeze([
 		'/offline-icons/soundscaper-maskable-192.png',
 		'/offline-icons/soundscaper-maskable-512.png',
+		'/install-screenshots/soundscaper-narrow.png',
+		'/install-screenshots/soundscaper-wide.png',
 	]),
 	framescaper: Object.freeze([
 		'/offline-icons/framescaper-maskable-192.png',
 		'/offline-icons/framescaper-maskable-512.png',
+		'/install-screenshots/framescaper-narrow.png',
+		'/install-screenshots/framescaper-wide.png',
 	]),
 });
 

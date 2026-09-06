@@ -138,6 +138,8 @@ test('a Framescaper deployment audits its own origin and its own root routes', a
 		'/assets/site-entry-AbCd1234.js',
 		'/embed/en/',
 		'/en/',
+		'/install-screenshots/framescaper-narrow.png',
+		'/install-screenshots/framescaper-wide.png',
 		'/logo/framescaper-icon.svg',
 		'/manifest-framescaper.webmanifest',
 		'/offline-icons/framescaper-180.png',
