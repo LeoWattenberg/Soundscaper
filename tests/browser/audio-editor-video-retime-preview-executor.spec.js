@@ -2,7 +2,8 @@
 
 import { createHash } from 'node:crypto';
 
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './audio-editor-test-fixtures.js';
 
 import {
 	createVideoRetimePreviewOrdinalRgb,

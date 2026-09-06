@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
 import {
 	assertAccessibleBasics,
@@ -16,7 +16,7 @@ import {
 	openNestedCommandMenu,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
-import { toneA } from './audio-editor-test-fixtures.js';
+import { test, toneA } from './audio-editor-test-fixtures.js';
 
 test.describe('Soundscaper native production workflows', () => {
 	registerAudioEditorHooks();

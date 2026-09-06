@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './audio-editor-test-fixtures.js';
 
 import { PROJECT_SCHEMA_VERSION } from '../../src/common/editor/project-schema-version.ts';
 import {

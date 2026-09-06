@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './audio-editor-test-fixtures.js';
 
 import { validateVideoTimingAssetBytes } from '../../src/common/editor/video-timing-asset.ts';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';

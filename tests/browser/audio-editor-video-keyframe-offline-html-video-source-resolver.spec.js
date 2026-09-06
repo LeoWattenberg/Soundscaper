@@ -3,7 +3,8 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './audio-editor-test-fixtures.js';
 import { transform } from 'esbuild';
 
 import {

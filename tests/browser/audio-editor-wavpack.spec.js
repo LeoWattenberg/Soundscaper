@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './audio-editor-test-fixtures.js';
 import {
 	SOUNDSCAPER_DATABASE_NAME,
 	SOUNDSCAPER_OPFS_DIRECTORY_NAME,

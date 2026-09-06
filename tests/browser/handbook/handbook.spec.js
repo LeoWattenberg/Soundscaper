@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../audio-editor-test-fixtures.js';
 
 import { handbookPlan } from '../../../scripts/lib/product-web-routing.mjs';
 

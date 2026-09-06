@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './audio-editor-test-fixtures.js';
 
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';

@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './audio-editor-test-fixtures.js';
 import { readFile } from 'node:fs/promises';
 import { buildVideoFfmpegArgs } from '../../src/common/editor/video-ffmpeg.js';
 import {

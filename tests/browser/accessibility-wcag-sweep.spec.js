@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
 import accessibilityBaseline from '../../config/accessibility-wcag-baseline.json' with { type: 'json' };
-import { AxeBuilder, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
+import { AxeBuilder, test, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
 import { bootEditor } from './audio-editor-test-helpers.js';
 import { settleFiniteAnimations } from './helpers/settle-finite-animations.js';
 
