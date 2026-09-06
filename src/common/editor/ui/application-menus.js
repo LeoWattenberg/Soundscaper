@@ -16,6 +16,7 @@ import { createImportAnalysisToolMenuItems, createRepeatAnalyzerMenuItem, create
 import { createPitchAndTempoApplicationMenuItems } from './pitch-tempo-application-menu.ts';
 import { createLabeledAudioApplicationMenuItems } from './labeled-audio-application-menu.ts';
 import { createPrivacyPolicyMenuItem } from './privacy-policy-menu.ts';
+import { createInstallApplicationMenuItem } from './install-application-menu.ts';
 import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
 import { selectLabeledAudioRegions } from '../labeled-audio-regions.ts';
 import { createVisibleVideoTrackPredicate } from '../video-track-visibility.js';
@@ -496,6 +497,12 @@ export default function createApplicationMenus({
 				createPrivacyPolicyMenuItem(copy, actions.privacyPolicy),
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.support, label: copy.support, onClick: actions.support },
 				{ id: 'diagnostics', label: copy.diagnostics, onClick: actions.openDiagnostics },
+				createInstallApplicationMenuItem({
+					productId,
+					copy,
+					available: () => actions.installAvailable?.() === true,
+					install: () => actions.installApplication?.(),
+				}),
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.revertFactory, label: copy.revertFactorySettings, onClick: actions.revertFactorySettings },
 				divider(),
 				{ id: 'debug-storage', label: copy.debugStorage, checked: uiFlags.storagePanel, onClick: actions.toggleStoragePanel },

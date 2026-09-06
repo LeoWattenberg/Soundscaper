@@ -1,5 +1,7 @@
 import { otherProductId, productProfile } from '../../../products.js';
+import { applicationInstallPromptCapture } from '../../../offline/install-prompt.ts';
 import { documentationUrl } from '../../documentation-links.ts';
+import { INSTALL_APPLICATION_MENU_ITEM_ID } from '../install-application-menu.ts';
 import { moveAudioEditorTrackBlock, trackSourceRate } from '../application-menu-model.js';
 import createApplicationMenus from '../application-menus.js';
 import { createDesktopHostMenuItems } from '../desktop-host-menu.ts';
@@ -84,13 +86,17 @@ export function createWorkspaceApplicationMenus({
 		run,
 		openSurface,
 	});
+	// The browser hands over its install offer whenever it decides the app is
+	// installable, which is long after the first menus were built, so the Help
+	// entry reads the shared capture at menu-open time instead of a snapshot.
+	const installPrompt = applicationInstallPromptCapture();
 	const desktopHost = createDesktopHostMenuItems(fileService.isDesktop !== true
 		|| desktopHostRuntime === null || desktopHostRuntime === undefined ? null : {
 		...desktopHostRuntime,
 		copy,
 		productName: copy.title,
 	});
-	return createApplicationMenus({
+	const menus = createApplicationMenus({
 			productId,
 			aboutLabel,
 			capabilities,
@@ -115,6 +121,8 @@ export function createWorkspaceApplicationMenus({
 			actionRuntime: parityRuntime.actions,
 			actions: {
 				openDiagnostics: () => openSurface('local-diagnostics'),
+				installAvailable: () => installPrompt.available(),
+				installApplication: () => run(() => installPrompt.prompt()),
 				openLocalModels: fileService.isDesktop ? () => openSurface('local-models') : undefined,
 				openLocalAssistance: fileService.isDesktop ? () => openSurface('local-assistance') : undefined,
 				openLocalAssistanceIndexedSearch: fileService.isDesktop && project
@@ -384,4 +392,22 @@ export function createWorkspaceApplicationMenus({
 					about: () => setDialog('about'),
 				},
 		});
+	return fileService.isDesktop ? withoutInstallApplicationEntry(menus) : menus;
+}
+
+/**
+ * Help without the install entry, for a build that is already installed.
+ *
+ * `beforeinstallprompt` is a browser event that Electron never fires, so the
+ * shared entry would sit in the desktop Help menu greyed for good, explaining
+ * that the browser has not offered to install an application the person is
+ * running from their own machine. In a browser the entry stays visible and
+ * disabled, because there the explanation is true and a row that vanishes is
+ * harder to find again than one that is plainly unavailable.
+ */
+function withoutInstallApplicationEntry(menus) {
+	return menus.map((menu) => (menu.id !== 'help' ? menu : {
+		...menu,
+		items: menu.items.filter((item) => item.id !== INSTALL_APPLICATION_MENU_ITEM_ID),
+	}));
 }

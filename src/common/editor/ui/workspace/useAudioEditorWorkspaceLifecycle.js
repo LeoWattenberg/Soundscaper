@@ -21,6 +21,7 @@ export function useAudioEditorWorkspaceLifecycle({
 	product,
 	productId,
 	recordingMeterSettings,
+	setDialog,
 	setPlaybackMeterSettings,
 	setRecordingMeterSettings,
 }) {
@@ -28,6 +29,7 @@ export function useAudioEditorWorkspaceLifecycle({
 	const [localError, setLocalError] = useState('');
 	const [desktopEnvironment, setDesktopEnvironment] = useState(null);
 	const requestedProjectOpenedRef = useRef(false);
+	const launchIntentTakenRef = useRef(false);
 	useEffect(() => {
 		setParityUi(parityRuntime.uiController.getSnapshot());
 		const unsubscribe = parityRuntime.uiController.subscribe(() => {
@@ -76,6 +78,21 @@ export function useAudioEditorWorkspaceLifecycle({
 			.then(() => controller.actions.project.openById(projectId))
 			.catch(onError);
 	}, [controller, onError]);
+	const openLaunchedProjectPicker = useCallback(
+		() => openWorkspaceProjectPicker({ controller, onError, setDialog }),
+		[controller, onError, setDialog],
+	);
+	useEffect(() => {
+		// A jump-list shortcut is a one-shot instruction carried in the address
+		// the system opened, so it is taken once per document and never replayed.
+		if (launchIntentTakenRef.current) return;
+		launchIntentTakenRef.current = true;
+		startWorkspaceLaunchIntent({
+			controller,
+			onError,
+			openProjectPicker: openLaunchedProjectPicker,
+		});
+	}, [controller, onError, openLaunchedProjectPicker]);
 
 	const run = useCallback((action) => {
 		setLocalError('');
@@ -152,4 +169,82 @@ export function useAudioEditorWorkspaceLifecycle({
 		return () => { active = false; };
 	}, [fileService, onError]);
 	return { desktopEnvironment, desktopHostRuntime, localError, onError, parityUi, run, uiFlags };
+}
+
+/**
+ * The stored-project picker, opened for a person who asked for it before the
+ * editor existed.
+ *
+ * The dialog itself can be shown at once - it is where they will wait - while
+ * the listing behind it has to hold for the controller the shortcut outran.
+ */
+export function openWorkspaceProjectPicker({ controller, onError, setDialog }) {
+	setDialog?.('projects');
+	void Promise.resolve(controller.ready)
+		.then(() => controller.actions.project.list())
+		.catch(onError);
+}
+
+/** Rewrites the address of the open document without adding a history entry. */
+function replaceDocumentAddress(address) {
+	globalThis.history?.replaceState?.(globalThis.history.state ?? null, '', address);
+}
+
+/**
+ * The jump-list shortcut this document was opened from, consumed.
+ *
+ * The manifest's shortcuts are plain URLs - `?launch=new-project` and
+ * `?launch=open-project` - so the instruction survives in the address bar after
+ * it has been carried out, and a refresh would repeat it. It is therefore taken
+ * rather than read: the parameter is stripped with `replaceState` on the way
+ * out, which keeps the session-history entry and leaves an address that reloads
+ * into the editor rather than into the shortcut again.
+ *
+ * The parameter is cleared whatever it says. A shortcut pinned by an older
+ * install can name something this build no longer offers, and the person who
+ * clicked it wanted the editor either way.
+ */
+export function takeWorkspaceLaunchIntent(
+	href = globalThis.location?.href,
+	replaceAddress = replaceDocumentAddress,
+) {
+	if (!href) return null;
+	const url = new URL(href, 'http://localhost/');
+	const intent = url.searchParams.get('launch');
+	if (intent === null) return null;
+	url.searchParams.delete('launch');
+	try {
+		replaceAddress(`${url.pathname}${url.search}${url.hash}`);
+	} catch {
+		// Tidying the address bar is a courtesy; a history the document may not
+		// rewrite must not cost the person the action they asked for.
+	}
+	return intent;
+}
+
+/**
+ * Carries out the shortcut the editor was launched from.
+ *
+ * `launch_handler` is `navigate-existing`, so a second click navigates the open
+ * window to the shortcut URL rather than opening another one. That navigation
+ * loads a document, which is why this runs at startup and needs nothing to
+ * survive between launches.
+ *
+ * Both actions wait for the controller, because the shortcut arrives in the
+ * address the editor booted from and the boot is not finished yet.
+ */
+export function startWorkspaceLaunchIntent({
+	controller,
+	href = globalThis.location?.href,
+	onError,
+	openProjectPicker,
+	replaceAddress = replaceDocumentAddress,
+}) {
+	const intent = takeWorkspaceLaunchIntent(href, replaceAddress);
+	if (intent === 'new-project') {
+		void Promise.resolve(controller.ready)
+			.then(() => controller.actions.project.create())
+			.catch(onError);
+	} else if (intent === 'open-project') openProjectPicker();
+	return intent;
 }

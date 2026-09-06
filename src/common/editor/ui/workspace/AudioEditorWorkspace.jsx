@@ -17,6 +17,7 @@ import { useWorkspaceToolbarDocking } from './useWorkspaceToolbarDocking.js';
 import { useAudioEditorWorkspaceLifecycle } from './useAudioEditorWorkspaceLifecycle.js';
 import { useDesktopEditorBridge } from './useDesktopEditorBridge.js';
 import { useScapeOpenDecisionContinuation } from './useScapeOpenDecisionContinuation.ts';
+import { useLaunchedFileImports } from './useLaunchedFileImports.ts';
 import { useWorkspaceParityRequests } from './useWorkspaceParityRequests.js';
 import { useWorkspaceSearchRuntime } from './useWorkspaceSearchRuntime.js'; import { useWorkspaceAssistanceSearchRuntime } from './useWorkspaceAssistanceSearchRuntime.js';
 import { useSoundscaperWorkflowWorkspace } from '../soundscaper-workflow-product-runtime.tsx';
@@ -121,6 +122,7 @@ export default function AudioEditorWorkspace({
 		product,
 		productId,
 		recordingMeterSettings,
+		setDialog,
 		setPlaybackMeterSettings,
 		setRecordingMeterSettings,
 	});
@@ -235,6 +237,11 @@ export default function AudioEditorWorkspace({
 		for (const file of routed.labels) await controller.actions.labels.importFile(file);
 		return files.length;
 	}, [controller, openProjectFile, projectBinEffectivelyOpen]);
+	// The operating system launches this editor with the files a person
+	// double-clicked, and they take the routing a dropped batch already has.
+	useLaunchedFileImports({
+		controller, importFiles: importRoutedFiles, onError, desktop: fileService.isDesktop,
+	});
 	const openDesktopFiles = useCallback(async (purpose, multiple = false, importOptions = {}) => {
 		const descriptors = await fileService.chooseFiles({ purpose, multiple });
 		if (purpose === 'project') {
