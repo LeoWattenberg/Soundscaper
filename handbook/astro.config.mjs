@@ -71,6 +71,7 @@ export default defineConfig({
 						{ label: 'Audio effects', link: '/reference/generated/audio-effects/' },
 						{ label: 'Video effects', link: '/reference/generated/video-effects/' },
 						{ label: 'Nyquist plug-ins', link: '/reference/generated/nyquist-plugins/' },
+						{ label: 'Macro programs', link: '/reference/macro-programs/' },
 						{ label: 'Local assistance', link: '/reference/generated/local-assistance/' },
 						{ label: 'Workspaces and panels', link: '/reference/generated/workspaces/' },
 						{ label: 'Project and label files', link: '/reference/generated/project-files/' },

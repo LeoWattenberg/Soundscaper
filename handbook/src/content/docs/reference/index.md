@@ -23,3 +23,7 @@ Use this section to answer questions such as:
 
 Generated pages include their source provenance and are checked for drift in
 the repository quality gate.
+
+[Macro programs](/reference/macro-programs/) is the one page here written by
+hand. It documents the JavaScript API a macro program runs against, and its
+claims are the ones the editor's own tests hold the sandbox to.
