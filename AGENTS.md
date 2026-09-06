@@ -69,6 +69,16 @@
 - If port 4322 is occupied, set `PLAYWRIGHT_PORT` for the command (for example,
   `PLAYWRIGHT_PORT=4323 npm run test:browser`). Inspect failed-run diagnostics in
   `test-results/`, but do not edit or commit that generated directory.
+- Chromium browser runs can record coverage of the built site. Build with
+  `SCAPE_BUILD_SOURCE_MAPS=1 npm run pretest:browser` — the maps are `hidden` and
+  land in a sibling `<output directory>-source-maps/`, so the built sites and
+  `dist/` keep exactly the bytes they had — then run with
+  `SCAPE_BROWSER_COVERAGE=1 npx playwright test --project=chromium`, which writes
+  one raw V8 profile per test into `coverage/v8-browser/`. Compact them with
+  `npm run coverage:compact:browser -- coverage/shards/browser-chromium-local.json`.
+  A local browser-only shard is not the union the floors are scored against, so
+  run `npm run coverage:tighten` only after CI has merged the Node and Chromium
+  shards, never against one shard on its own.
 - Preserve AGPL and third-party notices, pinned source hashes, and the StaffPad
   reproducibility/audit workflow.
 - Markdown blocks fenced by `<!-- policy-narrative:… -->` comments are derived

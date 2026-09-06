@@ -72,6 +72,12 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'scripts/lib/m4-production-parity-video-fixture.mjs', destination: 'scripts/lib/m4-production-parity-video-fixture.mjs', kind: 'file', label: 'M4 production parity video fixture' },
 	{ source: 'scripts/lib/m4b2-keyframe-parity-metrics.mjs', destination: 'scripts/lib/m4b2-keyframe-parity-metrics.mjs', kind: 'file', label: 'M4B2 keyframe parity metrics' },
 	{ source: 'scripts/lib/strict-json-snapshot.mjs', destination: 'scripts/lib/strict-json-snapshot.mjs', kind: 'file', label: 'strict JSON snapshot helper' },
+	// The browser suite's shared `test` object carries the Chromium coverage
+	// collector, so every spec reaches these three whether or not the packaged
+	// run records anything — an unresolved import here would abort the suite.
+	{ source: 'scripts/lib/browser-coverage-profile.mjs', destination: 'scripts/lib/browser-coverage-profile.mjs', kind: 'file', label: 'browser coverage profile writer' },
+	{ source: 'scripts/lib/browser-product-site-plan.mjs', destination: 'scripts/lib/browser-product-site-plan.mjs', kind: 'file', label: 'browser product site plan' },
+	{ source: 'scripts/lib/build-source-map-relocation.mjs', destination: 'scripts/lib/build-source-map-relocation.mjs', kind: 'file', label: 'build source-map relocation' },
 	{ source: 'config/accessibility-wcag-baseline.json', destination: 'config/accessibility-wcag-baseline.json', kind: 'file', label: 'WCAG 2.2 AA baseline' },
 	{ source: 'config/quality-budgets.json', destination: 'config/quality-budgets.json', kind: 'file', label: 'quality budget register' },
 	{ source: 'playwright.nightly-metrics.config.mjs', destination: 'playwright.nightly-metrics.config.mjs', kind: 'file', label: 'nightly metrics Playwright config' },

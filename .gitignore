@@ -1,6 +1,9 @@
 node_modules
 .claude/worktrees/
 dist/
+# Hidden source maps from a SCAPE_BUILD_SOURCE_MAPS=1 build; a coverage input,
+# never part of a deployed site.
+dist-source-maps/
 .astro/
 .wrangler/
 test-results/

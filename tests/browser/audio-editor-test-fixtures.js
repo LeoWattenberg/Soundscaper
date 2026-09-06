@@ -1,4 +1,7 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
+// The suite's `test` carries the Chromium coverage collector, so every spec
+// that imports it from here records without an edit of its own.
+import { test } from './helpers/browser-coverage-fixture.js';
 import AxeBuilder from '@axe-core/playwright';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';

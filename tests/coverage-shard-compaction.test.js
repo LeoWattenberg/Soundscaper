@@ -8,6 +8,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test, { after } from 'node:test';
 
+import { browserCoverageProfile } from '../scripts/lib/browser-coverage-profile.mjs';
 import { compactV8Coverage, coverageUrlFilter } from '../scripts/lib/v8-coverage-compaction.mjs';
 
 const REPOSITORY_ROOT = resolve(import.meta.dirname, '..');
@@ -120,6 +121,69 @@ test('the merged coverage gate refuses to score a shard that never reported', ()
 	assert.match(outcome.stderr, /missing usable coverage for: framescaper, soundscaper/u);
 });
 
+// A Chromium shard records the bundled chunk the page actually ran, not the
+// sources it was built from, so the whole chain has to hold for a browser
+// profile to be worth anything: compaction has to keep an entry addressed by a
+// built file, and the report has to put its ranges back on `src/`. The gate
+// passes `--exclude-after-remap` for exactly this, because the chunk's own path
+// is not one any include pattern names.
+test('a browser shard reports on the sources its bundled chunk was built from', () => {
+	const root = makeWorkspace();
+	mkdirSync(join(root, 'src'));
+	writeFileSync(join(root, 'src/measured.mjs'), MEASURED_MODULE);
+	const chunkPath = join(root, 'built/assets/app-abc123.js');
+	mkdirSync(join(root, 'built/assets'), { recursive: true });
+	const chunk = `${BUNDLER_BANNER}${MEASURED_MODULE}`;
+	writeFileSync(chunkPath, chunk);
+
+	const temporaryDirectory = join(root, 'v8-browser');
+	mkdirSync(temporaryDirectory);
+	writeProfile(temporaryDirectory, 'one-test.json', browserCoverageProfile(
+		[{
+			url: 'http://127.0.0.1:4322/assets/app-abc123.js',
+			scriptId: '1',
+			source: chunk,
+			// Everything after the banner ran once, which is every line of the
+			// module the chunk was built from.
+			functions: [{
+				functionName: '',
+				isBlockCoverage: true,
+				ranges: [{ startOffset: BUNDLER_BANNER.length, endOffset: chunk.length, count: 1 }],
+			}],
+		}],
+		() => ({ path: chunkPath, sourceMap: bundledSourceMap(root) }),
+	));
+
+	const shards = join(root, 'shards');
+	mkdirSync(shards);
+	writeFileSync(join(shards, 'browser-chromium-1.json'), JSON.stringify(compactV8Coverage(temporaryDirectory, root)));
+
+	const summary = report(root, shards, ['--exclude-after-remap']);
+	assert.deepEqual(
+		Object.keys(summary).filter((path) => path !== 'total'),
+		[join(root, 'src/measured.mjs')],
+		'the built chunk must never be reported as a file of its own',
+	);
+	assert.equal(summary.total.lines.covered, summary.total.lines.total);
+	assert.ok(summary.total.lines.total > 0, 'the fixture must actually record coverage');
+});
+
+const BUNDLER_BANNER = '/* bundled */\n';
+
+// One generated line per source line, offset by the banner. Each segment is
+// base64 VLQ: `AAAA` is (column 0, source 0, line 0, column 0) and `AACA` the
+// same with the source line advanced by one.
+function bundledSourceMap(root) {
+	const sourceLines = MEASURED_MODULE.replace(/\n$/u, '').split('\n');
+	return {
+		version: 3,
+		sources: [pathToFileURL(join(root, 'src/measured.mjs')).href],
+		sourcesContent: [MEASURED_MODULE],
+		names: [],
+		mappings: ['', 'AAAA', ...sourceLines.slice(1).map(() => 'AACA')].join(';'),
+	};
+}
+
 const MEASURED_MODULE = [
 	'export function classify(value) {',
 	'\tif (value > 0) return "positive";',
@@ -129,18 +193,22 @@ const MEASURED_MODULE = [
 	'',
 ].join('\n');
 
-function summarize(root, temporaryDirectory) {
+function summarize(root, temporaryDirectory, extraArguments) {
+	return report(root, temporaryDirectory, extraArguments).total;
+}
+
+function report(root, temporaryDirectory, extraArguments = ['--merge-async']) {
 	const reportDirectory = join(root, `report-${temporaryDirectory.split('/').pop()}`);
 	execFileSync(C8, [
 		'report',
 		`--temp-directory=${temporaryDirectory}`,
 		`--report-dir=${reportDirectory}`,
-		'--merge-async',
+		...extraArguments,
 		'--reporter=json-summary',
 		'--all',
 		'--include=src/**/*.mjs',
 	], { cwd: root });
-	return JSON.parse(readFileSync(join(reportDirectory, 'coverage-summary.json'), 'utf8')).total;
+	return JSON.parse(readFileSync(join(reportDirectory, 'coverage-summary.json'), 'utf8'));
 }
 
 function profileFor(url, ranges) {

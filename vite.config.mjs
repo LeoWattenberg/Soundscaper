@@ -4,6 +4,10 @@ import { defineConfig } from 'vite';
 
 import { chunkGroups, workerChunkGroups } from './scripts/lib/build-chunk-groups.mjs';
 import {
+	buildSourceMapsRequested,
+	relocateBuildSourceMaps,
+} from './scripts/lib/build-source-map-relocation.mjs';
+import {
 	emitDesktopRendererProductPublicAssets,
 	enforceDesktopRendererProductIsolation,
 } from './scripts/lib/desktop-renderer-product-isolation.mjs';
@@ -28,6 +32,11 @@ const applicationVersion = resolveProductApplicationVersion(
 	productId, readProductReleaseLinesSync(import.meta.dirname),
 );
 const desktopCodecComposition = process.env.SCAPE_DESKTOP_CODEC_RUNTIME === 'main-process';
+// Off by default, and `hidden` when asked for: the emitted JavaScript never gains
+// a `sourceMappingURL` comment, and the plugin below moves the maps out of the
+// output directory, so a build with SCAPE_BUILD_SOURCE_MAPS=1 ships the same
+// bytes as one without it. Only the browser coverage run sets the variable.
+const buildSourceMaps = buildSourceMapsRequested(process.env);
 
 /**
  * The one product this build emits, named by SCAPE_PRODUCT.
@@ -101,6 +110,7 @@ export default defineConfig({
 			? [emitDesktopRendererProductPublicAssets(import.meta.dirname, productId)]
 			: []),
 		...(desktopCodecComposition ? [enforceDesktopRendererProductIsolation(productId)] : []),
+		...(buildSourceMaps ? [relocateBuildSourceMaps()] : []),
 	],
 	resolve: {
 		// File-targeted public aliases plus an app-internal deep component alias.
@@ -144,6 +154,7 @@ export default defineConfig({
 	build: {
 		manifest: '.offline-build-manifest.json',
 		assetsInlineLimit: 0,
+		sourcemap: buildSourceMaps ? 'hidden' : false,
 		rolldownOptions: {
 			output: {
 				codeSplitting: {

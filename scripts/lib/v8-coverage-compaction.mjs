@@ -12,6 +12,14 @@ import { mergeProcessCovs } from '@bcoe/v8-coverage';
 // merges the range data the way `c8 report` would and keeps one copy of each
 // source map, which is what makes a shard's coverage small enough to hand to the
 // job that checks the thresholds over the union.
+//
+// A Chromium browser shard writes profiles of the same shape into
+// `coverage/v8-browser`, one per test, addressed by the built chunk each script
+// was served as and carrying that chunk's map (see
+// `scripts/lib/browser-coverage-profile.mjs`). Nothing here has to know the
+// difference: a built chunk lives under the repository root like any source, so
+// the filter admits it, and merging ranges and de-duplicating maps is the same
+// work. The report is what remaps a chunk onto the sources it was built from.
 const MERGE_BATCH_SIZE = 32;
 
 export function compactV8Coverage(temporaryDirectory, repositoryRoot) {

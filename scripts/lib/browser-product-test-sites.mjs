@@ -2,15 +2,28 @@
 
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { cp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { access, cp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
+import { sourceMapDirectoryFor } from './build-source-map-relocation.mjs';
+import {
+	assertPlan,
+	assertSite,
+	ordinaryBrowserProductSitePlan,
+	siteFor,
+} from './browser-product-site-plan.mjs';
 import { checkBuildChunks } from '../check-build-chunks.mjs';
 
-export const BROWSER_PRODUCT_FIXTURE_ROOT = '.wrangler/browser-products';
+// Re-exported so the builder stays the one import a caller needs for a whole
+// browser-site workflow, plan included.
+export {
+	BROWSER_PRODUCT_FIXTURE_ROOT,
+	ordinaryBrowserProductSitePlan,
+	vitePreviewServer,
+} from './browser-product-site-plan.mjs';
+
 export const BROWSER_PRODUCT_EVIDENCE = '.browser-product-build.json';
 
-const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper']);
 const REQUIRED_PRODUCT_FILES = Object.freeze([
 	'en/index.html',
 	'_headers',
@@ -22,47 +35,6 @@ const repositoryRoot = resolve(import.meta.dirname, '../..');
 const vite = resolve(repositoryRoot, 'node_modules/vite/bin/vite.js');
 const routeGenerator = resolve(repositoryRoot, 'scripts/generate-static-routes.mjs');
 const offlineShellGenerator = resolve(repositoryRoot, 'scripts/generate-offline-application-shell.mjs');
-
-/**
- * The two production-shaped origins used by the ordinary browser suite.
- *
- * Soundscaper keeps PLAYWRIGHT_PORT for compatibility with focused local runs.
- * Framescaper defaults to the following port, but can be moved independently
- * when two neighboring ports are not available.
- */
-export function ordinaryBrowserProductSitePlan(environment = process.env) {
-	const soundscaperPort = browserPort(environment.PLAYWRIGHT_PORT, 4322, 'PLAYWRIGHT_PORT');
-	const framescaperPort = browserPort(
-		environment.PLAYWRIGHT_FRAMESCAPER_PORT,
-		soundscaperPort + 1,
-		'PLAYWRIGHT_FRAMESCAPER_PORT',
-	);
-	if (soundscaperPort === framescaperPort) {
-		throw new Error('The Soundscaper and Framescaper Playwright origins must use different ports.');
-	}
-	return productSitePlan({
-		fixtureRoot: BROWSER_PRODUCT_FIXTURE_ROOT,
-		soundscaperOrigin: `http://127.0.0.1:${String(soundscaperPort)}`,
-		framescaperOrigin: `http://127.0.0.1:${String(framescaperPort)}`,
-	});
-}
-
-/** A Vite production-preview descriptor safe to put directly in Playwright config. */
-export function vitePreviewServer(site, readinessPath = '/en/') {
-	assertSite(site);
-	if (typeof readinessPath !== 'string' || !readinessPath.startsWith('/')) {
-		throw new TypeError('A browser-product readiness path must be absolute.');
-	}
-	const port = new URL(site.origin).port;
-	return {
-		command: 'node node_modules/vite/bin/vite.js preview '
-			+ `--outDir ${site.outputDirectory} --host 127.0.0.1 --port ${port} `
-			+ '--strictPort --logLevel error',
-		url: `${site.origin}${readinessPath}`,
-		reuseExistingServer: false,
-		timeout: 120_000,
-	};
-}
 
 /** Build and verify one product without changing the deployable Soundscaper dist/. */
 export async function buildBrowserProductSite(site) {
@@ -106,6 +78,7 @@ export async function prepareOrdinaryBrowserProductSites(
 	if (source === destination) throw new Error('The deployable Soundscaper build cannot be localized in place.');
 	await rm(destination, { recursive: true, force: true });
 	await cp(source, destination, { recursive: true, force: true, errorOnExist: false });
+	await copyBuildSourceMaps(source, destination);
 	await recordBrowserProductSiteEvidence(soundscaper);
 	await verifyBrowserProductSite(soundscaper);
 }
@@ -149,65 +122,6 @@ export async function verifyBrowserProductSite(site) {
 	return evidence;
 }
 
-function productSitePlan({ fixtureRoot, soundscaperOrigin, framescaperOrigin }) {
-	const origins = Object.freeze({
-		soundscaper: browserOrigin(soundscaperOrigin, 'Soundscaper browser origin'),
-		framescaper: browserOrigin(framescaperOrigin, 'Framescaper browser origin'),
-	});
-	const sites = PRODUCT_IDS.map((productId) => Object.freeze({
-		productId,
-		origin: origins[productId],
-		peerOrigin: origins[productId === 'soundscaper' ? 'framescaper' : 'soundscaper'],
-		outputDirectory: `${fixtureRoot}/${productId}`,
-	}));
-	return Object.freeze({ fixtureRoot, sites: Object.freeze(sites) });
-}
-
-function browserPort(value, fallback, variable) {
-	const port = value === undefined || value === '' ? fallback : Number(value);
-	if (!Number.isSafeInteger(port) || port < 1024 || port > 65_535) {
-		throw new Error(`${variable} must be an integer port from 1024 through 65535.`);
-	}
-	return port;
-}
-
-function browserOrigin(value, label) {
-	const url = new URL(value);
-	if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1'
-		|| !url.port || url.pathname !== '/' || url.search || url.hash) {
-		throw new Error(`${label} must be an http://127.0.0.1:<port> origin.`);
-	}
-	return url.origin;
-}
-
-function assertPlan(plan) {
-	if (!plan || !Array.isArray(plan.sites) || plan.sites.length !== PRODUCT_IDS.length) {
-		throw new TypeError('A browser-product site plan must contain both products.');
-	}
-	for (const site of plan.sites) assertSite(site);
-}
-
-function assertSite(site) {
-	if (!site || !PRODUCT_IDS.includes(site.productId)) {
-		throw new TypeError('A browser-product site descriptor has an invalid product id.');
-	}
-	browserOrigin(site.origin, `${site.productId} browser origin`);
-	browserOrigin(site.peerOrigin, `${site.productId} peer browser origin`);
-	for (const value of [site.outputDirectory]) {
-		if (typeof value !== 'string'
-			|| !/^\.wrangler\/[A-Za-z0-9_./-]+$/u.test(value)
-			|| value.split('/').includes('..')) {
-			throw new TypeError(`The ${site.productId} browser fixture path is invalid.`);
-		}
-	}
-}
-
-function siteFor(plan, productId) {
-	const site = plan.sites.find((candidate) => candidate.productId === productId);
-	if (!site) throw new Error(`The browser-product site plan omits ${productId}.`);
-	return site;
-}
-
 function cleanBuildEnvironment(site) {
 	const environment = { ...process.env };
 	for (const key of [
@@ -218,6 +132,11 @@ function cleanBuildEnvironment(site) {
 	]) delete environment[key];
 	return {
 		...environment,
+		// Hidden maps, written beside the site rather than inside it, are what
+		// lets the Chromium coverage run read a bundled chunk back onto `src/`.
+		// They cost a little build time and change none of the built bytes, so
+		// the test sites always carry them.
+		SCAPE_BUILD_SOURCE_MAPS: '1',
 		SCAPE_PRODUCT: site.productId,
 		[site.productId === 'soundscaper' ? 'SOUNDSCAPER_SITE' : 'FRAMESCAPER_SITE']: site.origin,
 		PUBLIC_TRANSFER_PEER_ORIGIN: site.peerOrigin,
@@ -242,6 +161,25 @@ export async function recordBrowserProductSiteEvidence(site) {
 		`${JSON.stringify(evidence, null, 2)}\n`,
 		'utf8',
 	);
+}
+
+/**
+ * Carry a copied build's maps along with it.
+ *
+ * The Soundscaper test site is a copy of the deployable build, and CI downloads
+ * that build's maps separately, so the copy only moves maps that are actually
+ * there — and never clears maps another step has already put in place.
+ */
+async function copyBuildSourceMaps(source, destination) {
+	const from = sourceMapDirectoryFor(source);
+	try {
+		await access(from);
+	} catch {
+		return;
+	}
+	const to = sourceMapDirectoryFor(destination);
+	await rm(to, { recursive: true, force: true });
+	await cp(from, to, { recursive: true, force: true, errorOnExist: false });
 }
 
 function requiredProductFiles(productId) {
