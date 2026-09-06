@@ -19,6 +19,7 @@ import {
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
+import { machineCopy } from './helpers/machine-copy.js';
 
 test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
@@ -233,7 +234,9 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await page.goto('/embed/fr/');
 		await expect(page.locator('[data-audio-editor]')).toHaveCount(0);
-		await expect(page.getByRole('status')).toHaveText('Loading project');
+		// The loading status is site copy: English at first paint, then the
+		// machine translation once the locale's chunk has arrived.
+		await expect(page.getByRole('status')).toHaveText(machineCopy('fr').loading);
 		releasePackResponse();
 		let editor = await waitForEditor(page);
 		await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
@@ -244,8 +247,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(page.locator('html')).toHaveAttribute('lang', 'ar');
 		await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
 		await expect(editor.getByRole('button', { name: 'تشغيل', exact: true })).toBeVisible();
-		const fileMenu = editor.getByRole('menuitem', { name: 'File', exact: true });
-		const editMenu = editor.getByRole('menuitem', { name: 'Edit', exact: true });
+		// Machine-translated Arabic where the catalog carries it; Audacity's pack
+		// in this fixture covers only `play`.
+		const fileMenu = editor.getByRole('menuitem', { name: machineCopy('ar').fileMenu, exact: true });
+		const editMenu = editor.getByRole('menuitem', { name: machineCopy('ar').editMenu, exact: true });
 		const [fileBox, editBox] = await Promise.all([fileMenu.boundingBox(), editMenu.boundingBox()]);
 		expect(fileBox).not.toBeNull();
 		expect(editBox).not.toBeNull();
@@ -255,7 +260,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editMenu).toBeFocused();
 		await editMenu.press('Enter');
 		await expect(editMenu).toHaveAttribute('aria-expanded', 'true');
-		const editLeaf = editor.locator('.kw-audio-editor__application-menu').getByRole('menuitem', { name: /^Undo\b/ });
+		const editLeaf = editor.locator('.kw-audio-editor__application-menu').getByRole('menuitem', { name: new RegExp(`^${escapeRegex(machineCopy('ar').undo)}\\b`) });
 		await editLeaf.focus();
 		await editLeaf.press('ArrowRight');
 		await expect(fileMenu).toHaveAttribute('aria-expanded', 'true');

@@ -35,6 +35,8 @@
 		"docs:content:check": "node scripts/check-handbook-content.mjs",
 		"docs:ai:draft": "node scripts/docs-ai.mjs draft",
 		"docs:translate": "node scripts/docs-ai.mjs translate",
+		"i18n:translate": "node scripts/i18n-ai.mjs translate",
+		"i18n:check": "node scripts/i18n-ai.mjs check",
 		"docs:build": "npm run build --workspace @soundscaper/handbook",
 		"docs:check": "npm run docs:reference:check && npm run docs:content:check && npm run docs:build",
 		"docs:preview": "npm run preview --workspace @soundscaper/handbook --",

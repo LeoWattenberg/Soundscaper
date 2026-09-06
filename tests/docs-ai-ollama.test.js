@@ -44,6 +44,7 @@ test('Ollama requests pin the installed digest identity and bounded generation o
 	assert.equal(body.model, 'qwen3:27b');
 	assert.equal(body.stream, false);
 	assert.equal(body.format, 'json');
+	assert.equal(body.think, false);
 	assert.equal(body.options.temperature, 0.1);
 	assert.equal(body.options.seed, 0);
 	assert.equal(requests.filter((request) => request.input.endsWith('/api/tags')).length, 1);

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { bundledSiteCopyForLocale } from '../i18n/site-copy.js';
 import { localeLanguage } from '../i18n/locale.js';
 import { DEFAULT_LOCALE_TAGS, getLocaleDescriptor, ROUTE_LOCALES } from '../i18n/locales.js';
+import { MACHINE_CATALOG_LOCALES } from '../i18n/machine/index.js';
+import { useSiteCopy } from './use-site-copy.js';
 import { otherProductId, productIdentity } from '../product-identities.js';
 import { productHref } from '../product-web-links.js';
 import { createApplicationReadyScheduler } from './application-ready-scheduler.js';
@@ -21,7 +22,7 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 	const localeDescriptor = getLocaleDescriptor(locale);
 	if (!localeDescriptor) throw new Error(`Unknown editor locale: ${locale}`);
 	const chromeLocale = localeLanguage(localeDescriptor.locale) === 'de' ? 'de' : 'en';
-	const catalog = bundledSiteCopyForLocale(localeDescriptor.locale);
+	const catalog = useSiteCopy(localeDescriptor.locale);
 	const copy = sidebarCopy(catalog);
 	const [collapsed, setCollapsed] = useState(() => storedCollapsed(productId));
 	const [theme, setTheme] = useState(() => document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
@@ -29,7 +30,7 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 	const [eligibleNames, setEligibleNames] = useState(new Map());
 	const requestTranslationManifestRef = useRef(() => {});
 	const localeOptions = useMemo(() => {
-		const localeTags = new Set([...DEFAULT_LOCALE_TAGS, localeDescriptor.locale, ...eligibleNames.keys()]);
+		const localeTags = new Set([...DEFAULT_LOCALE_TAGS, ...MACHINE_CATALOG_LOCALES, localeDescriptor.locale, ...eligibleNames.keys()]);
 		return ROUTE_LOCALES
 			.filter(({ locale: routeLocale }) => localeTags.has(routeLocale))
 			.map((descriptor) => ({ ...descriptor, name: eligibleNames.get(descriptor.locale) || descriptor.nativeName }))

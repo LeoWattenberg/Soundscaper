@@ -6,6 +6,7 @@ import { lazyEditorModule } from '../offline/lazy-module.tsx';
 import BrandSidebar from './BrandSidebar.jsx';
 import StaleBuildDialog from './StaleBuildDialog.jsx';
 import { applyDocumentTheme } from './document-theme.js';
+import { useSiteCopy } from './use-site-copy.js';
 import './site.css';
 
 // Vite replaces this value with a literal before Rolldown constructs the module
@@ -20,7 +21,7 @@ const PrivacyPolicyRoute = lazyEditorModule(() => import('../editor/ui/PrivacyPo
 
 export default function App({ route }) {
 	const { desktop, direction, embedded, locale, productId } = route;
-	const copy = bundledSiteCopyForLocale(locale);
+	const copy = useSiteCopy(locale);
 	// The introduction starts folded at every width: a visitor came for the
 	// editor, and the heading above it says which one this is without spending
 	// the fold on prose they can open when they want it.
@@ -90,9 +91,14 @@ export default function App({ route }) {
 
 export function applyDocumentRoute(route) {
 	const root = document.documentElement;
-	document.querySelector('[data-initial-load-progress]')?.setAttribute(
-		'aria-label', bundledSiteCopyForLocale(route.locale).loading,
-	);
+	// A document generated for this locale already labels its progress bar,
+	// machine translation included; only a template served for another locale
+	// (the development server, the origin root) needs the bundled label.
+	if (root.lang !== route.locale) {
+		document.querySelector('[data-initial-load-progress]')?.setAttribute(
+			'aria-label', bundledSiteCopyForLocale(route.locale).loading,
+		);
+	}
 	root.lang = route.locale;
 	root.dir = route.direction;
 	root.dataset.product = route.productId;

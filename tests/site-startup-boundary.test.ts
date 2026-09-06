@@ -2,6 +2,8 @@
 
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
@@ -31,13 +33,52 @@ test('site copy is a strict localized subset of the complete editor catalogs', (
 test('the site entry owns no editor CSS or complete catalog edge', async () => {
 	const app = await source('src/common/site/App.jsx');
 	const sidebar = await source('src/common/site/BrandSidebar.jsx');
+	const siteCopy = await source('src/common/site/use-site-copy.js');
 	const editor = await source('src/common/editor/ui/AudioEditorApp.jsx');
 	assert.doesNotMatch(app, /i18n\/catalogs\.js|audio-editor-design-system\.css/u);
 	assert.doesNotMatch(sidebar, /i18n\/catalogs\.js/u);
 	assert.match(app, /bundledSiteCopyForLocale/u);
-	assert.match(sidebar, /bundledSiteCopyForLocale/u);
+	assert.match(app, /useSiteCopy\(locale\)/u);
+	assert.match(sidebar, /useSiteCopy\(/u);
+	assert.match(siteCopy, /bundledSiteCopyForLocale\(locale\)/u);
+	assert.match(siteCopy, /SITE_COPY_BY_LOCALE\.en/u);
 	assert.match(editor, /audio-editor-design-system\.css/u);
 });
+
+// The complete catalogs must stay out of the static entry graph however they
+// are reached: an indirect edge through the machine-catalog layer would carry
+// every copy module into a graph budgeted at ten requests.
+test('the static closure of the site shell never reaches the complete catalogs', async () => {
+	const closure = await staticClosure([
+		'src/common/site/App.jsx',
+		'src/common/site/BrandSidebar.jsx',
+		'src/common/site/use-site-copy.js',
+	]);
+	assert.ok(closure.has(resolve(fileURLToPath(ROOT), 'src/common/i18n/machine-catalog.js')));
+	assert.ok(closure.has(resolve(fileURLToPath(ROOT), 'src/common/i18n/machine/index.js')));
+	assert.ok(!closure.has(resolve(fileURLToPath(ROOT), 'src/common/i18n/catalogs.js')));
+	for (const path of closure) assert.doesNotMatch(path, /src\/common\/i18n\/(?!site-copy\.js|site-sidebar-copy\.js)[^/]*-copy\.js$|canonical-extras/u, path);
+});
+
+async function staticClosure(roots: readonly string[]): Promise<ReadonlySet<string>> {
+	const pending = roots.map((path) => resolve(fileURLToPath(ROOT), path));
+	const seen = new Set<string>();
+	while (pending.length) {
+		const path = pending.pop() as string;
+		if (seen.has(path)) continue;
+		seen.add(path);
+		let text: string;
+		try {
+			text = await readFile(path, 'utf8');
+		} catch {
+			continue;
+		}
+		for (const match of text.matchAll(/^(?:import|export)\b[^'"\n]*?\bfrom\s+['"](\.{1,2}\/[^'"]+)['"]/gmu)) {
+			pending.push(resolve(dirname(path), match[1]));
+		}
+	}
+	return seen;
+}
 
 test('route application localizes the initial-load progressbar before the editor mounts', async () => {
 	const app = await source('src/common/site/App.jsx');

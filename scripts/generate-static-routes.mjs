@@ -3,8 +3,9 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
-import { bundledCopyForLocale } from '../src/common/i18n/catalogs.js';
+import { ENGLISH_COPY, bundledCopyForLocale } from '../src/common/i18n/catalogs.js';
 import { ROUTE_LOCALES } from '../src/common/i18n/locales.js';
+import { machineCatalogLocale } from '../src/common/i18n/machine-catalog.js';
 import { productProfile } from '../src/common/products.js';
 import { privacyPolicyContent, privacyPolicyPath } from '../src/common/site/privacy-policy.js';
 import {
@@ -14,6 +15,7 @@ import {
 	TRANSFER_ROUTES,
 } from '../src/common/transfer/transfer-routes.js';
 
+import { assessMachineCatalog, listMachineCatalogLocales, readMachineCatalog } from './i18n-ai/catalog.mjs';
 import { productWebManifest } from './lib/product-web-manifest.mjs';
 import {
 	composeProductHeaders,
@@ -45,6 +47,7 @@ if (!rootPlan) throw new Error(`Web build ${routing.productId} has no document p
  */
 const LIGHT_THEME_COLOR = '#ffffff';
 const DARK_THEME_COLOR = manifestThemeColor();
+const machineCopy = await currentMachineCopy();
 let routeCount = 0;
 
 for (const plan of routing.plans) {
@@ -192,9 +195,29 @@ async function resolveTransferPageAssets(root) {
 	};
 }
 
+/**
+ * The machine translations that are current against the English copy, per
+ * catalog locale, so a locale's static document carries its own description
+ * and loading text rather than the English ones. Audacity's reviewed strings
+ * are resolved at runtime and never reach the static document.
+ */
+async function currentMachineCopy() {
+	const copies = new Map();
+	for (const locale of await listMachineCatalogLocales()) {
+		copies.set(locale, assessMachineCatalog(await readMachineCatalog(locale), ENGLISH_COPY).current);
+	}
+	return copies;
+}
+
+function copyForLocale(locale) {
+	const bundled = bundledCopyForLocale(locale);
+	const catalogLocale = machineCatalogLocale(locale, Object.fromEntries(machineCopy));
+	return catalogLocale ? { ...bundled, ...machineCopy.get(catalogLocale) } : bundled;
+}
+
 function routeDocument(html, { descriptor, plan, route, embedded }) {
 	const productId = plan.productId;
-	const copy = bundledCopyForLocale(descriptor.locale);
+	const copy = copyForLocale(descriptor.locale);
 	const description = productId === 'framescaper' ? copy.framescaperMetaDescription : copy.metaDescription;
 	const alternates = ROUTE_LOCALES.map(({ locale }) => {
 		const href = new URL(documentRoute(plan, locale, embedded), site).href;
@@ -238,7 +261,7 @@ function rootDocument(html, plan) {
 }
 
 function productDocument(html, productId, descriptor) {
-	const loading = escapeHtml(bundledCopyForLocale(descriptor.locale).loading);
+	const loading = escapeHtml(copyForLocale(descriptor.locale).loading);
 	return html
 		.replace(/<html\b[^>]*>/iu, `<html lang="${escapeHtml(descriptor.locale)}" dir="${descriptor.direction}" data-product="${productId}">`)
 		.replace(/<title>[^<]*<\/title>/iu, `<title>${escapeHtml(productProfile(productId).name)}</title>`)

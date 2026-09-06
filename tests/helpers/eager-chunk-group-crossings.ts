@@ -109,6 +109,14 @@ export const REACHABILITY_PLACED_TARGETS: ReadonlyMap<string, string> = new Map(
 		'Site copy leaf: `src/common/site/route.js` builds its locale routes from it, so it stays outside every editor group.',
 	],
 	[
+		'src/common/i18n/machine-catalog.js',
+		'Site copy leaf: `src/common/site/use-site-copy.js` swaps the machine-translated site strings in through it, so an editor owner would put an editor chunk in the initial graph.',
+	],
+	[
+		'src/common/i18n/machine/index.js',
+		'Site copy leaf: the generated loader index `src/common/site/BrandSidebar.jsx` lists machine locales from; every catalog behind it is its own lazy chunk.',
+	],
+	[
 		'src/common/offline/lazy-module.tsx',
 		'The shared React.lazy wrapper the site shell (`src/common/site/App.jsx`) mounts its routes with, so it is site-entry code the editor reuses.',
 	],

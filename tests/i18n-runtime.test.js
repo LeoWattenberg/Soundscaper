@@ -157,7 +157,7 @@ test('verifies a remote catalog before resolving it', async () => {
 		if (String(url).endsWith('latest.json')) return response(encodeJson(manifest));
 		return response(pack);
 	};
-	const copy = await resolveCatalog('fr', { baseUrl: BASE_URL, fetchImpl, cryptoImpl: webcrypto });
+	const copy = await resolveCatalog('fr', { baseUrl: BASE_URL, fetchImpl, cryptoImpl: webcrypto, machineLoaders: {} });
 	assert.equal(copy.fileMenu, 'Fichier');
 	assert.equal(copy.editMenu, ENGLISH_COPY.editMenu);
 });
@@ -206,6 +206,7 @@ test('falls back without constructing a partial catalog on corruption or R2 fail
 	const offline = await resolveCatalog('fr', {
 		baseUrl: BASE_URL,
 		fetchImpl: async () => { throw new Error('R2 unavailable'); },
+		machineLoaders: {},
 	});
 	assert.equal(offline.fileMenu, ENGLISH_COPY.fileMenu);
 });
@@ -242,6 +243,7 @@ test('timeout remains active while a response body stalls', async () => {
 	const prefix = new TextEncoder().encode('{"schemaVersion":1,"locales":');
 	const copy = await resolveCatalog('fr', {
 		baseUrl: BASE_URL,
+		machineLoaders: {},
 		timeoutMs: 5,
 		fetchImpl: async (_url, options) => new Response(new ReadableStream({
 			start(controller) {

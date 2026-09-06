@@ -1,5 +1,8 @@
 import { ENGLISH_COPY, GERMAN_COPY } from './catalogs.js';
 import { localeLanguage, normalizeBcp47Locale } from './locale.js';
+import { loadMachineCatalog, sameNamedPlaceholders } from './machine-catalog.js';
+import { isModuleLoadFailure } from '../offline/stale-build.ts';
+import { reportStaleBuildCandidate } from '../offline/stale-build-runtime.ts';
 
 export const TRANSLATION_SCHEMA_VERSION = 1;
 export const DEFAULT_TRANSLATIONS_BASE_URL = (
@@ -66,32 +69,66 @@ export async function loadTranslationPack(locale, descriptor, options = {}) {
 }
 
 /**
- * Resolve copy before the editor controller is constructed. A failed or
- * unavailable remote catalog deliberately returns the complete bundled copy;
- * an existing controller is never updated in place.
+ * Resolve copy before the editor controller is constructed, from the layers
+ * that serve the locale: the bundled catalogs, the machine translations this
+ * repository generates, and Audacity's reviewed pack. The two remote-ish
+ * layers load together and fail apart, so an unreachable manifest still
+ * yields the machine translations and a missing machine chunk still yields
+ * Audacity's strings. A layer that fails is reported through `onFallback`
+ * and left out; an existing controller is never updated in place.
  */
 export async function resolveCatalog(locale, options = {}) {
 	const normalizedLocale = normalizeLocale(locale);
-	const bundled = bundledCatalogForLocale(normalizedLocale);
 	if (normalizedLocale === 'en') {
 		return Object.freeze({ ...ENGLISH_COPY });
 	}
+	const [machine, messages] = await Promise.all([
+		resolveMachineMessages(normalizedLocale, options),
+		resolveAudacityMessages(normalizedLocale, options),
+	]);
+	return mergeCatalog(normalizedLocale, messages, { machine });
+}
+
+/**
+ * Compose a catalog from its layers, lowest priority first: English, the
+ * bundled German catalog for German locales, the machine translations, and
+ * Audacity's reviewed messages, which override any key they carry.
+ */
+export function mergeCatalog(locale, messages = {}, layers = {}) {
+	const bundled = bundledCatalogForLocale(locale);
+	const validatedMessages = validateMessages(messages || {});
+	return Object.freeze({
+		...ENGLISH_COPY,
+		...(bundled === GERMAN_COPY ? GERMAN_COPY : {}),
+		...(layers.machine || {}),
+		...validatedMessages,
+	});
+}
+
+async function resolveMachineMessages(locale, options) {
+	// The bundled German catalog is complete; nothing machine-made belongs under it.
+	if (bundledCatalogForLocale(locale) === GERMAN_COPY) return null;
 	try {
-		const manifest = options.manifest || await loadTranslationManifest(options);
-		const descriptor = manifest.locales[normalizedLocale];
-		if (!descriptor?.eligible) return Object.freeze({ ...bundled });
-		const messages = await loadTranslationPack(normalizedLocale, descriptor, options);
-		return mergeCatalog(normalizedLocale, messages);
+		return await loadMachineCatalog(locale, { loaders: options.machineLoaders, englishCopy: ENGLISH_COPY });
 	} catch (error) {
+		// A chunk a retired deploy took away is the stale-build prompt's case;
+		// the locale falls back to English either way.
+		if (isModuleLoadFailure(error)) (options.reportStaleBuildCandidate ?? reportStaleBuildCandidate)(error);
 		options.onFallback?.(error);
-		return Object.freeze({ ...bundled });
+		return null;
 	}
 }
 
-export function mergeCatalog(locale, messages = {}) {
-	const bundled = bundledCatalogForLocale(locale);
-	const validatedMessages = validateMessages(messages);
-	return Object.freeze({ ...ENGLISH_COPY, ...(bundled === GERMAN_COPY ? GERMAN_COPY : {}), ...validatedMessages });
+async function resolveAudacityMessages(locale, options) {
+	try {
+		const manifest = options.manifest || await loadTranslationManifest(options);
+		const descriptor = manifest.locales[locale];
+		if (!descriptor?.eligible) return null;
+		return await loadTranslationPack(locale, descriptor, options);
+	} catch (error) {
+		options.onFallback?.(error);
+		return null;
+	}
 }
 
 function validateManifest(manifest, baseUrl) {
@@ -234,11 +271,4 @@ function normalizeBaseUrl(candidate) {
 
 function isPlainObject(value) {
 	return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
-}
-
-function sameNamedPlaceholders(source, translation) {
-	const collect = (value) => [...String(value).matchAll(/\{[A-Za-z][A-Za-z0-9_]*\}/gu)].map(([placeholder]) => placeholder).sort();
-	const left = collect(source);
-	const right = collect(translation);
-	return left.length === right.length && left.every((placeholder, index) => placeholder === right[index]);
 }

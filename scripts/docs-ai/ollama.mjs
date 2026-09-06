@@ -67,6 +67,9 @@ export function createOllamaClient(options) {
 				prompt,
 				stream: false,
 				format: 'json',
+				// A thinking-capable model otherwise answers a JSON-constrained request
+				// inside its thinking channel and leaves the response empty.
+				think: false,
 				keep_alive: '5m',
 				options: {
 					temperature: runtime.temperature,
@@ -79,6 +82,9 @@ export function createOllamaClient(options) {
 		if (!response.ok) throw new Error(`Ollama generation returned HTTP ${response.status}.`);
 		const payload = assertJsonObject(await response.json(), 'Ollama generation response');
 		if (typeof payload.response !== 'string') throw new Error('Ollama generation response is missing response text.');
+		if (payload.done_reason === 'length') {
+			throw new InvalidModelOutputError('The model output was cut off at the generation limit; answer with less text.');
+		}
 		try {
 			return assertJsonObject(JSON.parse(payload.response), 'Model response');
 		} catch (error) {
