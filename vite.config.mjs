@@ -118,15 +118,9 @@ export default defineConfig({
 		// rows live in scripts/lib/product-aliases.mjs so the export-parity guard
 		// reads the same table this build resolves through.
 		//
-		// Only the design-system rows are mirrored in tsconfig.base.json "paths",
-		// and the substitution rows cannot join them: `paths` is consulted for
-		// non-relative specifiers only, while every substitution row keys on the
-		// relative specifier its importer wrote, and one `paths` map could not
-		// answer two products' substitutions in opposite directions anyway. So
-		// tsc, editors, dependency-cruiser and tsx-run node tests all see the
-		// default (unsubstituted) target, and the stand-ins are analysed against
-		// no consumer. tests/build-product-alias-export-parity.test.ts is what
-		// stands in for the check the compiler cannot make.
+		// Relative substitutions cannot be represented by tsconfig paths. The
+		// production compiler host resolves this same table for all four builds
+		// during typecheck:products, checking consumers against their real adapters.
 		alias: productResolveAliases({
 			productId,
 			desktopCodecComposition,

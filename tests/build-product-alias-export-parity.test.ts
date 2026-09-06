@@ -15,15 +15,12 @@ import {
  * The product split is a build-time specifier rewrite: a Soundscaper build
  * resolves `../framescaper-finishing-menu.ts` to a Soundscaper stand-in, and a
  * Framescaper build resolves `./soundscaper-workflow-product-runtime.tsx` to a
- * Framescaper one. No compiler sees that substitution — tsconfig `paths` carries
- * only the design-system rows, and dependency-cruiser resolves through the same
- * tsconfig — so a name the stand-in does not export is not a type error, not a
- * lint error and not a cruiser violation. It is `undefined` at runtime in one
- * product's bundle, found by whichever browser spec happens to touch the
- * surface.
+ * Framescaper one. The product composition compiler now checks the substituted
+ * TypeScript graph. These tests also cover unchecked JavaScript consumers and
+ * alternate import spellings across the entire source tree.
  *
- * These tests read the table the build itself resolves through and close that
- * gap statically: every name any source file imports across a substituted seam
+ * These tests read the table the build itself resolves through: every name any
+ * source file imports across a substituted seam
  * must exist on both sides of it, and every spelling of a substituted module
  * must actually be substituted.
  */
@@ -44,6 +41,11 @@ interface ModuleImport {
 	readonly names: readonly string[];
 	/** A namespace or bare import names nothing, so parity cannot be checked. */
 	readonly opaque: boolean;
+	/**
+	 * `import type` is erased before the bundler resolves anything, so no alias
+	 * row ever applies to it. A stand-in borrows its seam's contract this way.
+	 */
+	readonly typeOnly: boolean;
 }
 
 interface SourceModule {
@@ -87,14 +89,14 @@ function importedNames(clause: string): { names: string[], opaque: boolean } {
 function moduleImports(text: string): ModuleImport[] {
 	const imports: ModuleImport[] = [];
 	for (const [, clause = '', specifier = ''] of text.matchAll(STATIC_IMPORT)) {
-		imports.push({ specifier, ...importedNames(clause) });
+		imports.push({ specifier, typeOnly: /^type\s/u.test(clause), ...importedNames(clause) });
 	}
 	for (const [, specifier = ''] of text.matchAll(BARE_IMPORT)) {
-		imports.push({ specifier, names: [], opaque: true });
+		imports.push({ specifier, names: [], opaque: true, typeOnly: false });
 	}
 	for (const [, destructured, specifier = ''] of text.matchAll(DYNAMIC_IMPORT)) {
-		if (destructured === undefined) imports.push({ specifier, names: [], opaque: true });
-		else imports.push({ specifier, ...importedNames(`{${destructured}}`) });
+		if (destructured === undefined) imports.push({ specifier, names: [], opaque: true, typeOnly: false });
+		else imports.push({ specifier, typeOnly: false, ...importedNames(`{${destructured}}`) });
 	}
 	return imports;
 }
@@ -160,13 +162,13 @@ test('the alias table substitutes every spelling of a substituted module', () =>
 		const substituted = new Set<string>();
 		for (const { file, imports } of modules) {
 			for (const entry of imports) {
-				if (!rows.some((row) => row.find.test(entry.specifier))) continue;
+				if (entry.typeOnly || !rows.some((row) => row.find.test(entry.specifier))) continue;
 				substituted.add(resolve(dirname(file), entry.specifier));
 			}
 		}
 		for (const { file, imports } of modules) {
 			for (const entry of imports) {
-				if (!entry.specifier.startsWith('.')) continue;
+				if (entry.typeOnly || !entry.specifier.startsWith('.')) continue;
 				const target = resolve(dirname(file), entry.specifier);
 				if (!substituted.has(target) || rows.some((row) => row.find.test(entry.specifier))) continue;
 				uncovered.push(

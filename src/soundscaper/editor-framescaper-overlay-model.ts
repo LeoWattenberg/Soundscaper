@@ -1,38 +1,21 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/**
- * Soundscaper has no Framescaper finishing surfaces at all, so the surface
- * union the real menu module derives from its own inventory is empty here.
- */
-export type FramescaperFinishingSurface = never;
+import type * as Finishing from '../common/editor/ui/framescaper-finishing-menu.ts';
+import type * as Authoring from '../common/editor/ui/framescaper-selected-visual-authoring-menu.ts';
+import type * as Proxy from '../common/editor/ui/framescaper-video-proxy-application-menu.ts';
 
-export function framescaperFinishingSurface(_surfaceId: unknown): null {
-	return null;
-}
+// An unavailable implementation still implements the complete consumer contract.
+// These type-only imports never bring Framescaper features into the browser graph.
+export type FramescaperFinishingSurface = Finishing.FramescaperFinishingSurface;
 
-export function framescaperFinishingSurfaceId(_surface: FramescaperFinishingSurface): string {
-	return '';
-}
-
-export function framescaperSelectedVisualAuthoringSurface(_surfaceId: unknown): null {
-	return null;
-}
-
-export function framescaperSelectedVisualAuthoringSurfaceId(_surface: never): string {
-	return '';
-}
+export const framescaperFinishingSurface: typeof Finishing.framescaperFinishingSurface = () => null;
+export const framescaperFinishingSurfaceId: typeof Finishing.framescaperFinishingSurfaceId = () => '';
+export const framescaperSelectedVisualAuthoringSurface: typeof Authoring.framescaperSelectedVisualAuthoringSurface = () => null;
+export const framescaperSelectedVisualAuthoringSurfaceId: typeof Authoring.framescaperSelectedVisualAuthoringSurfaceId = () => '';
 
 const EMPTY_FINISHING_MENU_ITEMS = Object.freeze({
 	tracks: [], effect: [], analyze: [], mixer: [], tools: [],
 } as const);
 
-export function createFramescaperFinishingMenuItems(): Readonly<{
-	tracks: readonly [], effect: readonly [], analyze: readonly [],
-	mixer: readonly [], tools: readonly [],
-}> {
-	return EMPTY_FINISHING_MENU_ITEMS;
-}
-
-export function createFramescaperVideoProxyApplicationMenuItems(): readonly [] {
-	return Object.freeze([]);
-}
+export const createFramescaperFinishingMenuItems: typeof Finishing.createFramescaperFinishingMenuItems = () => EMPTY_FINISHING_MENU_ITEMS;
+export const createFramescaperVideoProxyApplicationMenuItems: typeof Proxy.createFramescaperVideoProxyApplicationMenuItems = () => Object.freeze([]);

@@ -61,3 +61,11 @@ and remaining vendor code. Keep a module in the narrowest owning group and
 verify the resulting dependency DAG before changing those priorities. The build
 fails when any emitted JavaScript chunk exceeds 500,000 bytes; split ownership
 instead of raising that ceiling.
+
+Product module substitutions are checked by `npm run typecheck:products`, which
+runs TypeScript over Soundscaper and Framescaper in both browser and desktop
+compositions. Its compiler host reads the same ordered alias table as Vite; this
+checks arguments and results at the actual consumer, including dynamic imports.
+Disabled implementations retain their owning module's type contract through
+explicit type-only imports. The ordinary source check still checks the default
+graph, and export-parity tests guard substitution coverage.
