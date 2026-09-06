@@ -1,18 +1,296 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/**
- * The types the editor action facade and its extracted groups share.
- *
- * They live apart from `action-facade.ts` so a group module can describe the runtime it
- * reads without importing the composition root that assembles every group.
- */
-export interface EditorActionRuntime {
-	// The runtime composition root is JavaScript while it is being decomposed.
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	readonly [name: string]: any;
+// User command payloads still cross legacy JavaScript handlers. The assembly
+// itself is closed: there is no arbitrary-name index signature on its scope.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type RuntimeValue = any;
+export type RuntimeAction = (...args: RuntimeValue[]) => RuntimeValue;
+
+export const EDITOR_ACTION_FUNCTION_NAMES = [
+	'activatePanelTabPreference',
+	'addEffect',
+	'addLabel',
+	'addLabelTrack',
+	'addTrack',
+	'addVideoClipEffect',
+	'addVideoTrackPair',
+	'adjustAllTrackHeights',
+	'adjustTrackHeight',
+	'applyAudacityEffectFromController',
+	'applyEffectPreset',
+	'applyProjectBinReplacement',
+	'applySamplePencil',
+	'applySpectralSelection',
+	'assertProjectHandoffAllowed',
+	'beginMacroTransaction',
+	'beginParametricEqGesture',
+	'beginRackEffectGesture',
+	'beginVideoEffectGesture',
+	'bypassVideoClipEffect',
+	'canRelinkLinkedAudio',
+	'canRelinkLinkedVideo',
+	'cancelAudacityEffectPreview',
+	'cancelEffectMacro',
+	'cancelNyquistEvaluation',
+	'cancelParametricEqGesture',
+	'cancelPlaybackCachePreparation',
+	'cancelProjectBinReplacement',
+	'cancelRackEffectGesture',
+	'cancelSampleEdit',
+	'cancelTimedRecording',
+	'cancelVideoEffectGesture',
+	'captureRackNoiseProfileFromController',
+	'captureSelectedNoiseProfile',
+	'claimProjectLock',
+	'classifyLinkedAudioRelink',
+	'classifyLinkedVideoRelink',
+	'cleanupDerivativeCache',
+	'cleanupDisposableStorage',
+	'clearLocalData',
+	'clearLoopRegion',
+	'clearRecentProjects',
+	'closeProjectTab',
+	'commit',
+	'commitParametricEqGesture',
+	'commitRackEffectGesture',
+	'commitVideoEffectGesture',
+	'configureDisplayInput',
+	'continueLoudnessMeasurement',
+	'copyEffectStack',
+	'createStableId',
+	'createWorkspacePreference',
+	'currentAudacityEffectParams',
+	'deleteEffectPreset',
+	'deleteProject',
+	'deleteWorkspacePreference',
+	'discardTakeCycleRecording',
+	'disjoinSelectedClip',
+	'dismissAup4CompatibilitySummary',
+	'duplicateProject',
+	'duplicateTrack',
+	'exportEffectPreset',
+	'exportLabels',
+	'exportVideo',
+	'findClip',
+	'findTrack',
+	'flushProject',
+	'generateSelectionSilence',
+	'generateSignal',
+	'getClipVisualData',
+	'getProject',
+	'getProjectBinClipVisualData',
+	'getVideoSourceVisualData',
+	'getVisibleClips',
+	'handleClipAction',
+	'handleEdit',
+	'handleError',
+	'handleExportAction',
+	'handlePlayAtSpeed',
+	'handleTransport',
+	'hasMissingTimelineSources',
+	'importEffectPresets',
+	'importFiles',
+	'importLabelFile',
+	'inspectScape',
+	'listAudioEditorEffectPresets',
+	'listProjects',
+	'makeStereoTrack',
+	'mixAndRenderTracks',
+	'moveClips',
+	'moveClipsToNewTrack',
+	'moveClipsToProjectBin',
+	'movePanelPreference',
+	'moveToolbarPreference',
+	'moveTrack',
+	'newProject',
+	'normalizePlaybackFrame',
+	'openAudacityProject',
+	'openAup4',
+	'openDawproject',
+	'openProject',
+	'openScape',
+	'openScapeFile',
+	'overwriteClips',
+	'pasteEffectStack',
+	'pauseLoudnessMeasurement',
+	'persistSetting',
+	'placeProjectBinClip',
+	'playPauseProjectBinClip',
+	'prepareProjectBinReplacement',
+	'prepareProjectHandoff',
+	'previewAudacityEffectFromController',
+	'previewParametricEq',
+	'previewRackEffect',
+	'previewVideoEffectGesture',
+	'projectBinInstanceCount',
+	'projectSampleRate',
+	'publishDocumentSnapshot',
+	'recoverTakeCycleRecording',
+	'refreshAudioDevices',
+	'refreshRecordingInputs',
+	'refreshStorageUsage',
+	'releaseInputs',
+	'releaseVideoSourceVisual',
+	'relinkLinkedAudio',
+	'relinkLinkedVideo',
+	'reloadVideoSourceVisual',
+	'removeProjectBinClip',
+	'removeProjectBinSource',
+	'removeVideoClipEffect',
+	'renameProject',
+	'renameProjectBinClip',
+	'renderClipPitchSpeed',
+	'reorderTrack',
+	'reorderVideoClipEffect',
+	'repeatLastAudacityEffect',
+	'repeatLastGenerator',
+	'reportVideoPreviewPressure',
+	'requestInputAccess',
+	'requestStoragePersistence',
+	'requestWaveformPcmWindow',
+	'resampleClip',
+	'resampleTrack',
+	'resetClipPitchSpeed',
+	'resetLoudnessMeasurement',
+	'resizeTrackHeight',
+	'revertFactorySettings',
+	'runEffectMacro',
+	'runNyquistEvaluation',
+	'saveAup4',
+	'saveDawproject',
+	'saveEffectPreset',
+	'saveNow',
+	'saveScape',
+	'scheduleTimedRecording',
+	'selectAllTracks',
+	'selectAtZeroCrossings',
+	'selectClip',
+	'selectCursorToTrackEnd',
+	'selectLeftOfPlaybackPosition',
+	'selectProjectBinInstances',
+	'selectRightOfPlaybackPosition',
+	'selectTrack',
+	'selectTrackStartToCursor',
+	'selectTrackStartToEnd',
+	'sessionTab',
+	'setAllTracksView',
+	'setAudacityControlTrack',
+	'setAudacityEffectParamsFromController',
+	'setAudacityEffectType',
+	'setAudioOutputDevice',
+	'setAutoFitTrackHeight',
+	'setClipTimePitch',
+	'setExactSelection',
+	'setLatencyOffset',
+	'setLoopRegion',
+	'setLoopRegionInOut',
+	'setLoopRegionToSelection',
+	'setMicrophoneMetering',
+	'setMonitoring',
+	'setPanelDockExtentPreference',
+	'setPanelFrameSizePreference',
+	'setPanelPreference',
+	'setPanelVisibilityPreference',
+	'setPlayAtSpeedRate',
+	'setPreferredInputChannelCount',
+	'setPreferredInputDevice',
+	'setProjectBinClipColor',
+	'setRecordingInputGain',
+	'setRecordingSourceLatency',
+	'setRecordingTrackInput',
+	'setRetainInputs',
+	'setSampleEditMode',
+	'setSelection',
+	'setSelectionToLoopRegion',
+	'setShortcutPreference',
+	'setSnapSettings',
+	'setStatus',
+	'setTimelineView',
+	'setTimelineViewportWidth',
+	'setToolbarButtonPreference',
+	'setTrackDisplayMode',
+	'setTrackRate',
+	'setVisibleTrackHeights',
+	'setWorkspacePreference',
+	'setZoom',
+	'smoothSelectedSamples',
+	'snapTimelineFrame',
+	'splitAtFrame',
+	'splitStereoTrack',
+	'startRecording',
+	'startRecordingOnNewTrack',
+	'startTakeCycleRecording',
+	'stopProjectBinPreview',
+	'stopRecording',
+	'stretchClip',
+	'swapTrackChannels',
+	'switchProject',
+	'timelineDurationFrames',
+	'toggleLeadInRecording',
+	'toggleMetronome',
+	'togglePanelPreference',
+	'togglePinnedPlayhead',
+	'toggleRecordingPause',
+	'toggleRmsWaveform',
+	'toggleRulerPlayback',
+	'toggleSelectionFollowsLoop',
+	'toggleStretchToTempo',
+	'toggleToolbarPreference',
+	'toggleUpdateWhilePlaying',
+	'toggleVerticalRulers',
+	'toggleVideoClipEffect',
+	'trimClips',
+	'updatePreferences',
+	'updateRackEffect',
+	'updateVideoClipEffect',
+	'updateWorkspacePreference',
+	'updateZoom',
+] as const;
+
+export interface EditorActionResources {
+	readonly AUDIO_EDITOR_DEFAULT_SHORTCUTS: RuntimeValue;
+	readonly analysisService: RuntimeValue;
+	readonly audioWarpService: RuntimeValue;
+	readonly capabilities: RuntimeValue;
+	readonly copy: RuntimeValue;
+	readonly effectSelectionService: RuntimeValue;
+	readonly engine: RuntimeValue;
+	readonly ffmpeg: RuntimeValue;
+	readonly fileService: RuntimeValue;
+	readonly product: RuntimeValue;
+	readonly regularIntervalAnnotationController: RuntimeValue;
+	readonly selectionViewService: RuntimeValue;
+	readonly sequenceTimingService: RuntimeValue;
+	readonly soundActivationPolicyService: RuntimeValue;
+	readonly sourceMonitorService: RuntimeValue;
+	readonly state: RuntimeValue;
+	readonly store: RuntimeValue;
+	readonly takeCompService: RuntimeValue;
+	readonly taskProgress: RuntimeValue;
+	readonly timelineAnnotationService: RuntimeValue;
+	readonly trackFolderService: RuntimeValue;
+	readonly trackStructuralOperations: RuntimeValue;
+	readonly videoEditService: RuntimeValue;
+	readonly videoNavigationService: RuntimeValue;
+	readonly videoSourceReprobeService: RuntimeValue;
+	readonly videoTrimServices: RuntimeValue;
+	readonly framescaperCaptureActions?: RuntimeValue;
+	readonly framescaperWebVcrActions?: RuntimeValue;
+	readonly productSequenceActions?: unknown;
+	readonly productId?: string;
+	readonly locale?: string;
+	readonly macroScriptStartedAt?: () => string;
+	readonly onMacroScriptLog?: RuntimeAction;
 }
 
-export type RuntimeValue = EditorActionRuntime[string];
+export type EditorActionRuntime = EditorActionResources & Readonly<
+	Record<typeof EDITOR_ACTION_FUNCTION_NAMES[number], RuntimeAction>
+>;
+export type RestrictToCapability = (capability: string, action: RuntimeAction) => RuntimeAction;
 
-/** Wrap an action so it refuses to run unless the product declares the named capability. */
-export type RestrictToCapability = (capability: RuntimeValue, action: RuntimeValue) => RuntimeValue;
+/** Fail at assembly, with the missing port's name, rather than on a later menu action. */
+export function assertEditorActionFunctions(scope: EditorActionRuntime): void {
+	for (const name of EDITOR_ACTION_FUNCTION_NAMES) {
+		if (typeof scope[name] !== 'function') throw new TypeError(`Missing editor action dependency: ${name}.`);
+	}
+}

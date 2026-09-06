@@ -40,5 +40,5 @@ test('controller instances never share mutable collections', () => {
 	first.audacityEffectTouchedParams.set('amplify', new Set(['gain']));
 	assert.equal(second.missingSourceIds.size, 0);
 	assert.equal(second.audacityEffectTouchedParams.size, 0);
-	assert.notEqual(first.saveQueue, second.saveQueue);
+	assert.notEqual(first.missingSourceIds, second.missingSourceIds);
 });

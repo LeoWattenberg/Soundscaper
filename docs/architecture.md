@@ -12,7 +12,16 @@ in `ui/`: the local assistance types are in `src/common/editor/assistance/`, and
 a shape both a presentation module and editor core name gets its own contract
 module beside the domain rather than inside the surface that happens to use it.
 Production source must never import `tests/`. Within the editor, import the
-narrow owning module directly. `index.js` and `facade.ts` form the curated
+narrow owning module directly. The active document has one typed history owner
+(`controller/document-state.ts`); its project accessor derives from that
+history. Autosave owns its queue and timers, reports save status through its
+publish port, and exposes a drain port rather than sharing mutable queue fields
+with unrelated services. The action assembly has a closed dependency inventory
+and checks missing callable ports during construction. Its public facade
+preserves inferred action signatures instead of asserting an unrelated
+controller shape. Legacy command payloads remain a staged typing boundary.
+
+`index.js` and `facade.ts` form the curated
 external facade; editor implementation modules may not import it. The former
 `app.js`/`index.js` cycle has been removed, and the architecture check prevents
 any cycle from returning while enforcing the core-to-UI boundary.
@@ -69,3 +78,9 @@ checks arguments and results at the actual consumer, including dynamic imports.
 Disabled implementations retain their owning module's type contract through
 explicit type-only imports. The ordinary source check still checks the default
 graph, and export-parity tests guard substitution coverage.
+
+Autosave retains an immutable document generation during its debounce and only
+materializes the snapshot when saving starts. Preparation and persistence share
+one failure boundary. Controller history compaction memoizes immutable past
+snapshots with weak keys; the present is always recomputed because clipboard
+roots can change without a document edit.

@@ -20,7 +20,6 @@ test('project saves serialize queued snapshots and only publish the newest gener
 		saveGeneration: 0,
 		pendingSaveSnapshots: new Set<TestProject>(),
 		saveQueue: Promise.resolve<unknown>(undefined),
-		saveState: 'saved',
 	};
 	const timers = new Map<number, () => void>();
 	const saved: number[] = [];
@@ -28,6 +27,7 @@ test('project saves serialize queued snapshots and only publish the newest gener
 		protectedLinkedOriginalSourceReferences?: readonly ProjectLinkedOriginalSourceReference[];
 	}>> = [];
 	const marked: number[] = [];
+	const published: string[] = [];
 	let nextTimer = 1;
 	const service = createProjectSaveService({
 		state,
@@ -44,7 +44,7 @@ test('project saves serialize queued snapshots and only publish the newest gener
 		isCurrentProject: (projectId) => project.id === projectId,
 		hasSessionTab: () => true,
 		markProjectSaved: () => { marked.push(project.revision); },
-		publish: () => undefined,
+		publish: (saveState) => { published.push(saveState); },
 		garbageCollect: async () => undefined,
 		refreshStorageUsage: async () => undefined,
 		handleError: () => undefined,
@@ -66,7 +66,7 @@ test('project saves serialize queued snapshots and only publish the newest gener
 	assert.deepEqual(saved, [2]);
 	assert.equal(Object.hasOwn(saveOptions[0] ?? {}, 'protectedLinkedOriginalSourceReferences'), false);
 	assert.deepEqual(marked, [2]);
-	assert.equal(state.saveState, 'saved');
+	assert.deepEqual(published, ['saving', 'saving', 'saved']);
 	assert.equal(state.pendingSaveSnapshots.size, 0);
 });
 
@@ -78,7 +78,6 @@ test('clean projects do not emit equal-revision explicit or terminal saves', asy
 		saveGeneration: 0,
 		pendingSaveSnapshots: new Set<TestProject>(),
 		saveQueue: Promise.resolve<unknown>(undefined),
-		saveState: 'saved',
 	};
 	const service = createProjectSaveService({
 		state,
@@ -116,7 +115,6 @@ test('an exact snapshot flush persists selection state after an older save marks
 		saveGeneration: 0,
 		pendingSaveSnapshots: new Set<TestProject>(),
 		saveQueue: Promise.resolve<unknown>(undefined),
-		saveState: 'saved',
 	};
 	const timers = new Map<number, () => void>();
 	const saved: number[] = [];
@@ -163,7 +161,6 @@ test('autosaves collect immutable deduplicated kindful roots when the queued wri
 		saveGeneration: 0,
 		pendingSaveSnapshots: new Set<TestProject>(),
 		saveQueue: queueGate as Promise<unknown>,
-		saveState: 'saved',
 	};
 	const timers = new Map<number, () => void>();
 	let roots: ProjectLinkedOriginalSourceReference[] = [
@@ -239,7 +236,6 @@ test('terminal project flush waits behind queued work and rejects later autosave
 		saveGeneration: 0,
 		pendingSaveSnapshots: new Set<TestProject>(),
 		saveQueue: Promise.resolve<unknown>(undefined),
-		saveState: 'saved',
 	};
 	const timers = new Map<number, () => void>();
 	const writes: Array<{ snapshot: TestProject; resolve: () => void }> = [];
@@ -292,7 +288,6 @@ test('suspended project saves cancel timers and reject new work behind a stable 
 		saveGeneration: 0,
 		pendingSaveSnapshots: new Set<TestProject>(),
 		saveQueue: Promise.resolve<unknown>(undefined),
-		saveState: 'saved',
 	};
 	const timers = new Map<number, () => void>();
 	const writes: Array<{ snapshot: TestProject; resolve: () => void }> = [];
@@ -356,7 +351,6 @@ test('project-scoped save suspension drains an enqueued callback and leaves unre
 		saveGeneration: 0,
 		pendingSaveSnapshots: new Set<TestProject>(),
 		saveQueue: Promise.resolve<unknown>(undefined),
-		saveState: 'saved',
 	};
 	const timers = new Map<number, () => void>();
 	const writes: Array<{ resolve(): void }> = [];

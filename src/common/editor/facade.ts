@@ -2,11 +2,7 @@
 
 import { createAudioEditorController as createControllerRuntime } from './app.js';
 import { createProjectStore as createProjectStoreRuntime } from './storage.js';
-import type {
-	EditorController,
-	EditorControllerOptions,
-	EditorProjectStore,
-} from './types.ts';
+import type { EditorControllerOptions } from './types.ts';
 
 export {
 	createPlatformCapabilitiesSnapshot,
@@ -23,16 +19,14 @@ export {
 export type CreateEditorController = (
 	root?: Element | null,
 	options?: EditorControllerOptions,
-) => EditorController;
+) => ReturnType<typeof createControllerRuntime>;
 
-export type CreateEditorProjectStore = (
-	options?: Readonly<Record<string, unknown>>,
-) => EditorProjectStore;
+export type CreateEditorProjectStore = typeof createProjectStoreRuntime;
 
-/** Typed public controller entry point; implementation details stay in app.js. */
-export const createAudioEditorController = createControllerRuntime as CreateEditorController;
+/** Preserve the implementation's inferred contract through the public entry. */
+export const createAudioEditorController: CreateEditorController = createControllerRuntime;
 export const createEditorController = createAudioEditorController;
 
 /** Typed public storage entry point; backend and repository details stay private. */
-export const createProjectStore = createProjectStoreRuntime as CreateEditorProjectStore;
+export const createProjectStore: CreateEditorProjectStore = createProjectStoreRuntime;
 export const createEditorProjectStore = createProjectStore;

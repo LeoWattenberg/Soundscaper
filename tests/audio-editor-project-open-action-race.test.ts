@@ -66,7 +66,7 @@ function createRuntime(options: Readonly<{
 			if (name === 'AUDIO_EDITOR_DEFAULT_SHORTCUTS') return {};
 			return callable;
 		},
-	}) as EditorActionRuntime;
+	}) as unknown as EditorActionRuntime;
 }
 
 const projectBId = 'project-b';

@@ -16,16 +16,18 @@ export interface ProjectFlushOptions {
 
 export type ProjectSnapshotPreparationPurpose = 'project-save' | 'scape-save';
 
+export type ProjectSaveStatus = 'saving' | 'saved' | 'dirty';
+
 export interface ProjectSaveState<Project extends ProjectSaveSnapshot> {
 	autosaveTimer: number;
 	saveGeneration: number;
 	pendingSaveSnapshots: Set<Project>;
 	saveQueue: Promise<unknown>;
-	saveState: string;
 }
 
 export interface ProjectSaveServiceDependencies<Project extends ProjectSaveSnapshot> {
-	readonly state: ProjectSaveState<Project>;
+	/** Legacy injection for deterministic fixtures; production saves own their state. */
+	readonly state?: ProjectSaveState<Project>;
 	readonly getProject: () => Project | null;
 	readonly hasHistory: () => boolean;
 	readonly hasUnsavedProjectChanges?: () => boolean;
@@ -46,7 +48,8 @@ export interface ProjectSaveServiceDependencies<Project extends ProjectSaveSnaps
 	readonly isCurrentProject: (projectId: string) => boolean;
 	readonly hasSessionTab: (projectId: string) => boolean;
 	readonly markProjectSaved: (projectId: string) => void;
-	readonly publish: () => void;
+	/** Report the active document's save status; its presentation belongs to the controller. */
+	readonly publish: (saveState: ProjectSaveStatus) => void;
 	readonly garbageCollect: () => Promise<unknown>;
 	readonly refreshStorageUsage: () => Promise<unknown>;
 	readonly handleError: (error: unknown) => void;
@@ -72,9 +75,7 @@ interface ProjectSaveAdmissionGate {
 export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	dependencies: ProjectSaveServiceDependencies<Project>,
 ) {
-	const {
-		state,
-	} = dependencies;
+	const state = dependencies.state ?? createProjectSaveState<Project>();
 	const scheduleTimer = dependencies.scheduleTimer || ((callback, delayMs) => Number(globalThis.setTimeout(callback, delayMs)));
 	const clearTimer = dependencies.clearTimer || ((handle) => globalThis.clearTimeout(handle));
 	const autosaveDelayMs = dependencies.autosaveDelayMs ?? 500;
@@ -111,15 +112,15 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		cancelScheduled();
 		state.saveGeneration += 1;
 		const generation = state.saveGeneration;
-		const snapshot = dependencies.cloneProject(project);
+		// Documents are replaced by commands. Retain this immutable generation;
+		// cloning on every edit would defeat the debounce for large projects.
 		const projectSaveEpoch = currentProjectSaveEpoch(project.id);
-		state.saveState = 'saving';
-		dependencies.publish();
+		dependencies.publish('saving');
 		scheduledProjectId = project.id;
 		state.autosaveTimer = scheduleTimer(() => {
 			state.autosaveTimer = 0;
 			scheduledProjectId = null;
-			void enqueueSaveSnapshot(snapshot, generation, projectSaveEpoch, 'project-save').catch(() => undefined);
+			void enqueueSaveSnapshot(project, generation, projectSaveEpoch, 'project-save', true).catch(() => undefined);
 		}, autosaveDelayMs);
 		return true;
 	}
@@ -230,10 +231,11 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		generation: number,
 		projectSaveEpoch: number,
 		preparationPurpose: ProjectSnapshotPreparationPurpose,
+		materialize = false,
 	): Promise<unknown> {
 		const operation = state.saveQueue
 			.catch(() => undefined)
-			.then(() => saveSnapshot(snapshot, generation, projectSaveEpoch, preparationPurpose));
+			.then(() => saveSnapshot(snapshot, generation, projectSaveEpoch, preparationPurpose, materialize));
 		state.saveQueue = operation;
 		return operation;
 	}
@@ -243,23 +245,20 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		generation: number,
 		projectSaveEpoch: number,
 		preparationPurpose: ProjectSnapshotPreparationPurpose,
+		materialize: boolean,
 	): Promise<void> {
 		if (!ownsProjectSaveEpoch(snapshotValue.id, projectSaveEpoch)) return;
-		let snapshot: Project;
+		let snapshot = snapshotValue;
 		try {
+			if (materialize) snapshot = dependencies.cloneProject(snapshotValue);
 			snapshot = dependencies.prepareSnapshot
-				? await dependencies.prepareSnapshot(snapshotValue, preparationPurpose)
-				: snapshotValue;
-		} catch (error) {
+				? await dependencies.prepareSnapshot(snapshot, preparationPurpose)
+				: snapshot;
 			if (!ownsProjectSaveEpoch(snapshotValue.id, projectSaveEpoch)) return;
-			throw error;
-		}
-		if (!ownsProjectSaveEpoch(snapshotValue.id, projectSaveEpoch)) return;
-		if (!snapshot || snapshot.id !== snapshotValue.id) {
-			throw new Error('Project save preparation changed the project identity.');
-		}
-		state.pendingSaveSnapshots.add(snapshot);
-		try {
+			if (!snapshot || snapshot.id !== snapshotValue.id) {
+				throw new Error('Project save preparation changed the project identity.');
+			}
+			state.pendingSaveSnapshots.add(snapshot);
 			const protectedLinkedOriginalSourceReferences = dependencies.collectProtectedLinkedOriginalSourceReferences
 				? projectProtectedLinkedOriginalSourceReferences({
 					protectedLinkedOriginalSourceReferences: [
@@ -289,15 +288,15 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 			if (!ownsProjectSaveEpoch(snapshot.id, projectSaveEpoch)) return;
 			if (dependencies.isCurrentProject(snapshot.id) && generation === state.saveGeneration) {
 				if (dependencies.hasSessionTab(snapshot.id)) dependencies.markProjectSaved(snapshot.id);
-				state.saveState = 'saved';
-				dependencies.publish();
+				dependencies.publish('saved');
 			}
 			await dependencies.garbageCollect();
 			await dependencies.refreshStorageUsage();
 		} catch (error) {
-			if (!ownsProjectSaveEpoch(snapshot.id, projectSaveEpoch)) return;
-			state.saveState = 'dirty';
-			dependencies.publish();
+			if (!ownsProjectSaveEpoch(snapshotValue.id, projectSaveEpoch)) return;
+			if (dependencies.isCurrentProject(snapshotValue.id) && generation === state.saveGeneration) {
+				dependencies.publish('dirty');
+			}
 			dependencies.handleError(error);
 			throw error;
 		} finally {
@@ -312,4 +311,13 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	function ownsProjectSaveEpoch(projectId: string, epoch: number): boolean {
 		return currentProjectSaveEpoch(projectId) === epoch;
 	}
+}
+
+function createProjectSaveState<Project extends ProjectSaveSnapshot>(): ProjectSaveState<Project> {
+	return {
+		autosaveTimer: 0,
+		saveGeneration: 0,
+		pendingSaveSnapshots: new Set(),
+		saveQueue: Promise.resolve(),
+	};
 }

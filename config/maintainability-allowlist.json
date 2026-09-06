@@ -5,7 +5,7 @@
 	"warnLines": 550,
 	"allow": {
 		"src/common/editor/app.js": {
-			"maxLines": 2899,
+			"maxLines": 2876,
 			"reason": "Legacy JavaScript composition root retained while its typed services and ports complete staged migration."
 		},
 		"src/common/editor/nyquist/plugins/catalog.js": {

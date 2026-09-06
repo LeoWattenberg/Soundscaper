@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { EditorActions } from '../types.ts';
 import type { EditorActionRuntime, RuntimeValue } from './action-facade-runtime.ts';
+import { assertEditorActionFunctions } from './action-facade-runtime.ts';
 import {
 	createRecordingActionFacade,
 	createRecordingPreferenceActionFacade,
@@ -27,8 +27,8 @@ import {
 
 export type { EditorActionRuntime } from './action-facade-runtime.ts';
 
-export function createGroupedEditorActions(scope: EditorActionRuntime): EditorActions;
-export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeValue {
+export function createGroupedEditorActions(scope: EditorActionRuntime) {
+	assertEditorActionFunctions(scope);
 	const {
 	addEffect, addLabel, addLabelTrack, addTrack, addVideoTrackPair, adjustAllTrackHeights, adjustTrackHeight,
 	analysisService, applyAudacityEffectFromController, applyProjectBinReplacement, applySamplePencil,

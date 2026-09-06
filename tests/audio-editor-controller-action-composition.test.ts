@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { register } from 'node:module';
 import test from 'node:test';
+import { validateSoundscaperProject } from '../src/soundscaper/editor-project-validation.ts';
 
 const assetLoader = `
 	export async function resolve(specifier, context, nextResolve) {
@@ -77,7 +78,7 @@ test('real controller accepts one reviewed transcript into storage and one undo 
 	const controller = createController([], store, projectRuntime);
 	try {
 		await controller.ready;
-		const trackId = controller.project.tracks[0].id as string;
+		const trackId = currentProject(controller).tracks[0].id as string;
 		controller.actions.edit.commit({
 			type: 'batch',
 			commands: [{
@@ -103,7 +104,7 @@ test('real controller accepts one reviewed transcript into storage and one undo 
 		const prepared = await controller.selectedMediaPreparation.prepareSelectedMedia({
 			sourceId: 'assistance-source', operation: 'speech-recognition',
 		});
-		const revisionBeforeAcceptance = controller.project.revision as number;
+		const revisionBeforeAcceptance = currentProject(controller).revision as number;
 		await controller.selectedMediaPreparation.acceptValidatedResult?.({
 			sourceId: 'assistance-source', operation: 'speech-recognition',
 			selectionFence: prepared.selectionFence,
@@ -126,14 +127,15 @@ test('real controller accepts one reviewed transcript into storage and one undo 
 			}],
 		});
 
-		assert.equal(controller.project.revision, revisionBeforeAcceptance + 1);
-		assert.equal(controller.project.assistanceAssets.length, 1);
-		const reference = controller.project.assistanceAssets[0];
+		assert.equal(currentProject(controller).revision, revisionBeforeAcceptance + 1);
+		assert.equal(currentProject(controller).assistanceAssets.length, 1);
+		const reference = currentProject(controller).assistanceAssets[0];
 		assert.equal(reference.sourceId, 'assistance-source');
-		const transcriptTrack = controller.project.tracks.find((track: Readonly<{ type: string }>) => (
+		const transcriptTrack = currentProject(controller).tracks.find((track: Readonly<{ type: string }>) => (
 			track.type === 'label'
 		));
-		assert.equal(transcriptTrack?.labels[0]?.title, 'Accepted words');
+		assert.ok(Array.isArray(transcriptTrack?.labels));
+		assert.equal(transcriptTrack.labels[0]?.title, 'Accepted words');
 		assert.equal(transcriptTrack?.labels[0]?.startFrame, 0);
 		assert.equal(transcriptTrack?.labels[0]?.endFrame, 24_000);
 		assert.equal((await store.getMediaAssetMetadata(reference.body.storageKey))?.sha256,
@@ -141,12 +143,12 @@ test('real controller accepts one reviewed transcript into storage and one undo 
 		assert.ok(await store.loadMediaAsset(reference.body.storageKey));
 
 		controller.actions.edit.undo();
-		assert.deepEqual(controller.project.assistanceAssets, []);
-		assert.equal(controller.project.tracks.some((track: Readonly<{ type: string }>) => (
+		assert.deepEqual(currentProject(controller).assistanceAssets, []);
+		assert.equal(currentProject(controller).tracks.some((track: Readonly<{ type: string }>) => (
 			track.type === 'label'
 		)), false);
 		controller.actions.edit.redo();
-		assert.equal(controller.project.assistanceAssets.length, 1);
+		assert.equal(currentProject(controller).assistanceAssets.length, 1);
 	} finally {
 		await controller.dispose();
 	}
@@ -158,7 +160,7 @@ test('real controller exposes reviewed Parakeet cleanup as one explicit undoable
 	const controller = createController([], store, projectRuntime);
 	try {
 		await controller.ready;
-		const trackId = controller.project.tracks[0].id as string;
+		const trackId = currentProject(controller).tracks[0].id as string;
 		controller.actions.edit.commit({
 			type: 'batch',
 			commands: [{
@@ -204,19 +206,19 @@ test('real controller exposes reviewed Parakeet cleanup as one explicit undoable
 		assert.deepEqual(cleanup?.proposals.map(({ kind, text }: { kind: string; text: string }) => (
 			{ kind, text }
 		)), [{ kind: 'filler', text: 'um' }]);
-		const revisionBeforeCleanup = controller.project.revision as number;
+		const revisionBeforeCleanup = currentProject(controller).revision as number;
 		await controller.selectedMediaPreparation.acceptTranscriptCleanup?.([
 			cleanup!.proposals[0]!.id,
 		]);
 
-		assert.equal(controller.project.revision, revisionBeforeCleanup + 1);
-		assert.equal(controller.project.clips.find(({ id }: { id: string }) => id === 'cleanup-clip')
+		assert.equal(currentProject(controller).revision, revisionBeforeCleanup + 1);
+		assert.equal(currentProject(controller).clips.find(({ id }: { id: string }) => id === 'cleanup-clip')
 			?.durationFrames, 43_200);
 		controller.actions.edit.undo();
-		assert.equal(controller.project.clips.find(({ id }: { id: string }) => id === 'cleanup-clip')
+		assert.equal(currentProject(controller).clips.find(({ id }: { id: string }) => id === 'cleanup-clip')
 			?.durationFrames, 48_000);
 		controller.actions.edit.redo();
-		assert.equal(controller.project.clips.find(({ id }: { id: string }) => id === 'cleanup-clip')
+		assert.equal(currentProject(controller).clips.find(({ id }: { id: string }) => id === 'cleanup-clip')
 			?.durationFrames, 43_200);
 	} finally {
 		await controller.dispose();
@@ -331,4 +333,10 @@ function recordingSetupVisible(snapshot: unknown): boolean {
 	const setup = (panels as Readonly<Record<string, unknown>>)['recording-setup'];
 	return Boolean(setup && typeof setup === 'object'
 		&& (setup as Readonly<{ visible?: unknown }>).visible === true);
+}
+
+function currentProject(controller: ReturnType<typeof createAudioEditorController>) {
+	const project = controller.project;
+	assert.ok(validateSoundscaperProject(project));
+	return project;
 }

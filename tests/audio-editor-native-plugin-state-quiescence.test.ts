@@ -56,7 +56,7 @@ test('project persistence writes the post-capture snapshot, never the scheduled 
 	const saved: Project[] = [];
 	const state = {
 		autosaveTimer: 0, saveGeneration: 0, pendingSaveSnapshots: new Set<Project>(),
-		saveQueue: Promise.resolve<unknown>(undefined), saveState: 'dirty',
+		saveQueue: Promise.resolve<unknown>(undefined),
 	};
 	const service = createProjectSaveService({
 		state, getProject: () => project, hasHistory: () => true, isReadOnly: () => false,

@@ -12,7 +12,7 @@ import {
 	type EffectMacroLibraryServiceRuntime,
 } from './effect-macro-library-service.ts';
 
-type RuntimeAction = (...args: never[]) => unknown;
+type RuntimeAction = (...args: unknown[]) => unknown;
 type RestrictedAction = (capability: string, action: RuntimeAction) => RuntimeAction;
 
 export interface EffectLibraryActionScope {
@@ -129,9 +129,9 @@ export function createEffectMacroActions(
 	let sandbox: Sandbox | null = null;
 	const group = Object.freeze({
 		run: restricted('audioMacros', program.runMacroProgram as unknown as RuntimeAction),
-		cancel: restricted('audioMacros', ((...args: never[]) => {
+		cancel: restricted('audioMacros', ((...args: unknown[]) => {
 			sandbox?.cancelMacroSandbox();
-			return (program.cancelMacroProgram as (...values: never[]) => unknown)(...args);
+			return (program.cancelMacroProgram as (...values: unknown[]) => unknown)(...args);
 		}) as RuntimeAction),
 		runScript: restricted('audioMacros', (async (request: unknown) => {
 			const { name, source } = readScriptRequest(request, scope);

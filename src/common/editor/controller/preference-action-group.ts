@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-type RuntimeAction = (...args: never[]) => unknown;
+type RuntimeAction = (...args: unknown[]) => unknown;
 
 /**
  * The preferences action group.

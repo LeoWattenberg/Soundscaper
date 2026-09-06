@@ -34,7 +34,7 @@ test('controller action facade exposes frozen optional Framescaper capture actio
 			if (name === 'AUDIO_EDITOR_DEFAULT_SHORTCUTS') return {};
 			return callable;
 		},
-	}) as EditorActionRuntime;
+	}) as unknown as EditorActionRuntime;
 	const capture = createGroupedEditorActions(runtime).capture;
 	const start = capture.start, stop = capture.stop;
 	if (typeof start !== 'function' || typeof stop !== 'function') {

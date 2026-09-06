@@ -22,7 +22,6 @@ test('a clean prepared save boundary captures and writes the current external st
 		saveGeneration: 0,
 		pendingSaveSnapshots: new Set<PreparedProject>(),
 		saveQueue: Promise.resolve<unknown>(undefined),
-		saveState: 'saved',
 	};
 	const service = createProjectSaveService({
 		state,
@@ -67,7 +66,6 @@ test('terminal flush prepares a clean project when it owns a snapshot preparer',
 		saveGeneration: 0,
 		pendingSaveSnapshots: new Set<TestProject>(),
 		saveQueue: Promise.resolve<unknown>(undefined),
-		saveState: 'saved',
 	};
 	const service = createProjectSaveService({
 		state,

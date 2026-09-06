@@ -60,10 +60,10 @@ test('project actions dispatch stable-ID musical map commands', () => {
 		},
 	});
 	const actions = createGroupedEditorActions(runtime).project;
-	const invoke = (name: string, ...args: unknown[]) => {
+	const invoke = (name: keyof typeof actions, ...args: unknown[]) => {
 		const action = actions[name];
 		if (typeof action !== 'function') throw new TypeError(`Missing project action: ${name}.`);
-		return action(...args);
+		return Reflect.apply(action, undefined, args) as unknown;
 	};
 	invoke('setTempoMapMode', 'sampleLocked');
 	invoke('addTempoEvent', { samplePosition: 96_000, bpm: { num: 90, den: 1 } });
@@ -254,10 +254,10 @@ test('controller action facade exposes the complete native timeline annotation w
 		},
 	});
 	const actions = createGroupedEditorActions(runtime).timelineAnnotations;
-	const invoke = (name: string, ...args: unknown[]) => {
+	const invoke = (name: keyof typeof actions, ...args: unknown[]) => {
 		const action = actions[name];
 		if (typeof action !== 'function') throw new TypeError(`Missing timeline annotation action: ${name}.`);
-		return action(...args);
+		return Reflect.apply(action, undefined, args) as unknown;
 	};
 
 	invoke('createMarkerAtPlayhead', { anchor: 'musical' });

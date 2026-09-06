@@ -93,7 +93,7 @@ test('a rejected publication admission leaves no save effects and the queued suc
 	const errors: unknown[] = [];
 	let garbageCollections = 0;
 	let storageRefreshes = 0;
-	let publications = 0;
+	const publications: string[] = [];
 	const service = createProjectSaveService({
 		state,
 		getProject: () => project,
@@ -117,7 +117,7 @@ test('a rejected publication admission leaves no save effects and the queued suc
 		isCurrentProject: (projectId) => project.id === projectId,
 		hasSessionTab: () => true,
 		markProjectSaved: (projectId) => { marked.push(projectId); },
-		publish: () => { publications += 1; },
+		publish: (saveState) => { publications.push(saveState); },
 		garbageCollect: async () => { garbageCollections += 1; },
 		refreshStorageUsage: async () => { storageRefreshes += 1; },
 		handleError: (error) => { errors.push(error); },
@@ -140,8 +140,7 @@ test('a rejected publication admission leaves no save effects and the queued suc
 	assert.deepEqual(marked, []);
 	assert.equal(garbageCollections, 0);
 	assert.equal(storageRefreshes, 0);
-	assert.equal(state.saveState, 'dirty');
-	assert.equal(publications, 1);
+	assert.deepEqual(publications, ['dirty']);
 	assert.deepEqual(errors, [denied]);
 	assert.equal(service.pendingSnapshots.has(snapshots[0] as TestProject), false);
 	assert.equal(service.pendingSnapshots.has(snapshots[1] as TestProject), true);
@@ -153,8 +152,7 @@ test('a rejected publication admission leaves no save effects and the queued suc
 	assert.deepEqual(marked, ['project']);
 	assert.equal(garbageCollections, 1);
 	assert.equal(storageRefreshes, 1);
-	assert.equal(state.saveState, 'saved');
-	assert.equal(publications, 2);
+	assert.deepEqual(publications, ['dirty', 'saved']);
 	assert.deepEqual(errors, [denied]);
 	assert.equal(service.pendingSnapshots.size, 0);
 });
@@ -173,7 +171,6 @@ function saveState() {
 		saveGeneration: 0,
 		pendingSaveSnapshots: new Set<TestProject>(),
 		saveQueue: Promise.resolve<unknown>(undefined),
-		saveState: 'saved',
 	};
 }
 

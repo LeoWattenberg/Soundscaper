@@ -237,6 +237,7 @@ test('discarding an active tab retires an admitted autosave before activating it
 	const publications: Project[] = [];
 	const errors: unknown[] = [];
 	const events: string[] = [];
+	const published: string[] = [];
 	let nextTimer = 1;
 	let project: Project | null = origin;
 	const saveState = {
@@ -244,7 +245,6 @@ test('discarding an active tab retires an admitted autosave before activating it
 		saveGeneration: 0,
 		pendingSaveSnapshots: new Set<Project>(),
 		saveQueue: Promise.resolve<unknown>(undefined),
-		saveState: 'saved',
 	};
 	const projectSaveService = createProjectSaveService<Project>({
 		state: saveState,
@@ -269,7 +269,7 @@ test('discarding an active tab retires an admitted autosave before activating it
 		isCurrentProject: (projectId) => project?.id === projectId,
 		hasSessionTab: (projectId) => fixture.tabs.has(projectId),
 		markProjectSaved: (projectId) => { fixture.tabs.get(projectId)!.dirty = false; },
-		publish: () => undefined,
+		publish: (saveState) => { published.push(saveState); },
 		garbageCollect: async () => undefined,
 		refreshStorageUsage: async () => undefined,
 		handleError: (error) => { errors.push(error); },
@@ -289,7 +289,6 @@ test('discarding an active tab retires an admitted autosave before activating it
 			assert.equal(options.skipFlush, true);
 			events.push(`switch:${value.id}`);
 			project = value;
-			saveState.saveState = 'saved';
 		},
 	};
 
@@ -306,7 +305,7 @@ test('discarding an active tab retires an admitted autosave before activating it
 		await projectSaveService.drain();
 		assert.deepEqual(publications, []);
 		assert.deepEqual(errors, []);
-		assert.equal(saveState.saveState, 'saved');
+		assert.deepEqual(published, ['saving'], 'a retired stale save reports nothing after its project is closed');
 		assert.ok(events.indexOf('admission:released') < events.indexOf(`switch:${successor.id}`));
 		assert.equal(project?.id, successor.id);
 	} finally {
@@ -334,7 +333,6 @@ test('local reset closes save admission synchronously and drains an admitted aut
 		saveGeneration: 0,
 		pendingSaveSnapshots: new Set<Project>(),
 		saveQueue: Promise.resolve<unknown>(undefined),
-		saveState: 'dirty',
 	};
 	const projectSaveService = createProjectSaveService<Project>({
 		state: saveState,

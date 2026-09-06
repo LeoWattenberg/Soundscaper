@@ -88,7 +88,7 @@ test('controller exposes disabled canonical policy and rolls back rejected durab
 			}
 			return saveSetting(key, value);
 		};
-		await assert.rejects(actions.setThresholdDb(-24), /authoritative settings unavailable/u);
+		await assert.rejects(async () => actions.setThresholdDb(-24), /authoritative settings unavailable/u);
 		const rolledBack = controller.getSnapshot().recordingInputs.soundActivation;
 		assert.equal(rolledBack.preferences.thresholdDb, -40);
 		assert.equal(rolledBack.preferenceMutationBlocked, false);
@@ -286,7 +286,7 @@ test('scheduled and routed capture report guarded, isolated source state through
 function soundActivationActions(controller: ReturnType<typeof createAudioEditorController>) {
 	const group = controller.actions.recording.soundActivation;
 	if (!group || typeof group !== 'object') throw new TypeError('Sound activation actions are unavailable.');
-	for (const name of ['setEnabled', 'setThresholdDb', 'setHysteresisDb', 'setHoldMilliseconds']) {
+	for (const name of ['setEnabled', 'setThresholdDb', 'setHysteresisDb', 'setHoldMilliseconds'] as const) {
 		if (typeof group[name] !== 'function') throw new TypeError(`Missing sound activation action ${name}.`);
 	}
 	return group;

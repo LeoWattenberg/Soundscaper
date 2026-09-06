@@ -49,7 +49,7 @@ test('controller timeline facade exposes every clip-selection navigation action'
 			if (name === 'AUDIO_EDITOR_DEFAULT_SHORTCUTS') return {};
 			return callable;
 		},
-	}) as EditorActionRuntime;
+	}) as unknown as EditorActionRuntime;
 
 	const timeline = createGroupedEditorActions(runtime).timeline;
 	for (const name of ACTIONS) {

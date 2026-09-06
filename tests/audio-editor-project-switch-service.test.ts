@@ -140,7 +140,6 @@ test('project switch waits for a suspended origin save and flushes its edit befo
 		saveGeneration: 0,
 		pendingSaveSnapshots: new Set<FixtureProject>(),
 		saveQueue: Promise.resolve<unknown>(undefined),
-		saveState: 'dirty',
 	};
 	const saves = createProjectSaveService<FixtureProject>({
 		state: saveState,

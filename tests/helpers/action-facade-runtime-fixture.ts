@@ -39,5 +39,5 @@ export function createActionFacadeRuntime(capability = true): EditorActionRuntim
 			return callable;
 		},
 	});
-	return runtime as EditorActionRuntime;
+	return runtime as unknown as EditorActionRuntime;
 }

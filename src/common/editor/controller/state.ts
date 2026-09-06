@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorControllerPhase } from './lifecycle.ts';
+import { createControllerDocumentState, type ControllerDocumentState } from './document-state.ts';
+import type { ControllerRuntimeHistory, ControllerRuntimeProject } from './project-runtime.ts';
 import { createLocalDiagnosticsErrorJournal } from '../local-diagnostics-error-journal.ts';
 import { createInitialEffectMacroLibrary } from './effect-macro-library-service.ts';
 import { createInitialMacroScriptLibrary } from './macro-script-library-service.ts';
@@ -8,6 +10,7 @@ import { createInitialStorageCapacitySnapshot } from './storage-capacity-service
 import type { TakeCyclePendingOpenRecovery } from './take-cycle-capture-orchestrator.ts';
 
 export interface EditorControllerStateOptions<Preferences, RecordingRouting, EffectPresets> {
+	readonly document?: ControllerDocumentState<ControllerRuntimeProject, ControllerRuntimeHistory>;
 	readonly preferences: Preferences;
 	readonly recordingRouting: RecordingRouting;
 	readonly effectPresets: EffectPresets;
@@ -27,6 +30,7 @@ export interface EditorControllerStateOptions<Preferences, RecordingRouting, Eff
  * deterministic state model without booting storage, workers, or Web Audio.
  */
 export function createEditorControllerState<Preferences, RecordingRouting, EffectPresets>({
+	document = createControllerDocumentState(),
 	preferences,
 	recordingRouting,
 	effectPresets,
@@ -41,7 +45,8 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 }: EditorControllerStateOptions<Preferences, RecordingRouting, EffectPresets>) {
 	return {
 		localDiagnostics: createLocalDiagnosticsErrorJournal(),
-		history: null,
+		get history() { return document.history; },
+		set history(value) { document.history = value; },
 		preferences,
 		preferencesReadOnly: false,
 		selectedTrackId: null,
@@ -62,11 +67,7 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		takeCycleRecoveryInspecting: false,
 		projectLock: null,
 		projectLockRetryTimer: 0,
-		autosaveTimer: 0,
 		sourceGcTimer: 0,
-		saveGeneration: 0,
-		pendingSaveSnapshots: new Set<unknown>(),
-		saveQueue: Promise.resolve(),
 		recorder: null,
 		recordingKind: null as 'ordinary' | 'take-cycle' | null,
 		recordingWriter: null,
