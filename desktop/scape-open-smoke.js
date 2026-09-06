@@ -193,11 +193,35 @@ export async function runScapeOpenRendererSmoke(scope, plan) {
 	const now = () => scope.Date?.now?.() ?? Date.now();
 	const delay = (milliseconds) => new Promise((resolve) => scope.setTimeout(resolve, milliseconds));
 	const deadline = now() + 45_000;
+	let chooserAnswers = 0;
 	while (true) {
+		// A fresh smoke profile is a first launch, so the workspace chooser opens
+		// over the editor as a dialog of its own. Answering it with the default
+		// workspace is what the other packaged smokes do; the answer needs a
+		// render turn to take the dialog down, so the scan below waits for the
+		// next pass, and a chooser that will not go is reported by name.
+		const chooser = document.querySelectorAll('[data-workspace-onboarding-option="modern"]')[0];
+		if (chooser && chooserAnswers < 40) {
+			chooserAnswers += 1;
+			chooser.click?.();
+			await delay(25);
+			continue;
+		}
 		const alerts = document.querySelectorAll('[role="alert"], [role="alertdialog"]');
 		const dialogs = document.querySelectorAll('[role="dialog"], [role="alertdialog"]');
 		if (alerts.length || dialogs.length) {
-			throw new Error('Packaged Scape-open UI exposed an alert or dialog');
+			// Name what was exposed: a first-launch chooser and a stale-build prompt
+			// are both dialogs, and a bare "exposed a dialog" tells them apart only
+			// after a second packaged run.
+			const exposed = [...alerts, ...dialogs].slice(0, 3).map((element) => {
+				const role = element.getAttribute?.('role') ?? 'dialog';
+				const label = element.getAttribute?.('aria-label')
+					|| element.querySelector?.('h1, h2, h3, [role="heading"]')?.textContent
+					|| element.textContent
+					|| '';
+				return `${role}: ${String(label).replace(/\s+/gu, ' ').trim().slice(0, 120)}`;
+			});
+			throw new Error(`Packaged Scape-open UI exposed an alert or dialog (${exposed.join('; ')})`);
 		}
 		const roots = document.querySelectorAll('[data-audio-editor][data-audio-editor-bound="true"]');
 		if (roots.length === 1) {

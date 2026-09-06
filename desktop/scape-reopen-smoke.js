@@ -261,7 +261,10 @@ export async function runScapeReopenRendererSmoke(scope, plan) {
 		const alerts = document.querySelectorAll('[role="alert"], [role="alertdialog"]');
 		const dialogs = document.querySelectorAll('[role="dialog"], [role="alertdialog"]');
 		if (alerts.length || dialogs.length) {
-			throw new Error('Packaged Scape persisted-reopen UI exposed an alert or dialog');
+			const exposed = [...alerts, ...dialogs].slice(0, 3).map((element) => (
+				`${element.getAttribute?.('role') ?? 'dialog'}: ${String(element.getAttribute?.('aria-label') || element.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 120)}`
+			));
+			throw new Error(`Packaged Scape persisted-reopen UI exposed an alert or dialog (${exposed.join('; ')})`);
 		}
 	};
 	const nextAnimationFrame = () => new Promise((resolve) => scope.requestAnimationFrame(resolve));
@@ -347,7 +350,19 @@ export async function runScapeReopenRendererSmoke(scope, plan) {
 	const delay = (milliseconds) => new Promise((resolve) => scope.setTimeout(resolve, milliseconds));
 	const deadline = now() + 45_000;
 	let zoomInClicks = 0;
+	let chooserAnswers = 0;
 	while (true) {
+		// A fresh smoke profile is a first launch, so the workspace chooser opens
+		// over the editor; it is answered with the default workspace, as the
+		// other packaged smokes do, and given a render turn before the UI is
+		// judged clean. A chooser that will not go is reported by name below.
+		const chooser = document.querySelectorAll('[data-workspace-onboarding-option="modern"]')[0];
+		if (chooser && chooserAnswers < 40) {
+			chooserAnswers += 1;
+			chooser.click?.();
+			await delay(25);
+			continue;
+		}
 		assertCleanUi();
 		const roots = document.querySelectorAll('[data-audio-editor][data-audio-editor-bound="true"]');
 		if (roots.length === 1) {
