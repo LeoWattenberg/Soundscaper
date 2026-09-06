@@ -10,8 +10,10 @@
 
 export const MACHINE_CATALOG_LOCALES = Object.freeze([
 	'ar',
+	'es',
 ]);
 
 export const MACHINE_CATALOG_LOADERS = Object.freeze({
 	ar: () => import('./ar.json'),
+	es: () => import('./es.json'),
 });
