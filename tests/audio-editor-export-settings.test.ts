@@ -6,6 +6,7 @@ import { normalizeEditorExportSettings } from '../src/common/editor/controller/e
 test('export settings normalize formats, codec controls, and project defaults deterministically', () => {
 	assert.deepEqual(normalizeEditorExportSettings({}, 48_000), {
 		mode: 'mix',
+		chapterSource: 'labels',
 		range: 'project',
 		format: 'wav',
 		binaural: false,
@@ -53,12 +54,20 @@ test('unknown values cannot escape the supported export inventory', () => {
 		bitDepth: 12,
 		quality: 'not-a-number',
 		compressionLevel: 'not-a-number',
+		chapterSource: 'timestamps',
 	}, 96_000);
 	assert.equal(value.mode, 'mix');
 	assert.equal(value.range, 'project');
 	assert.equal(value.format, 'wav');
 	assert.equal(value.bitDepth, 24);
 	assert.equal(value.sampleRate, 96_000);
+	// A split cuts on something a project actually holds, so an unrecognized
+	// source is the labels rather than a third kind of chapter nothing reads.
+	assert.equal(value.chapterSource, 'labels');
+	assert.equal(
+		normalizeEditorExportSettings({ mode: 'chapters', chapterSource: 'markers' }, 48_000).chapterSource,
+		'markers',
+	);
 });
 
 test('BW64 export is mix-only and carries broadcast and ADM metadata', () => {
