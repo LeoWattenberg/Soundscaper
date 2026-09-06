@@ -31,6 +31,10 @@ test('c8 discovers every maintained JavaScript and TypeScript production source'
 		'**/*.d.cts',
 		'**/*.d.mts',
 		'src/common/editor/**/native/**',
+		// Generated machine-translation catalogs and their loader index carry no
+		// logic, and the test runner's loader rewrites the index's JSON imports,
+		// which left every loader counted twice — once covered, once not.
+		'src/common/i18n/machine/**',
 	]);
 	for (const metric of ['lines', 'branches', 'functions']) assert.equal(config[metric], undefined);
 });
