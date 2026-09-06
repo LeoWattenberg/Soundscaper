@@ -154,7 +154,8 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 	});
 	// The reworked Export audio dialog offers the channel mapping as radios and
 	// edits a custom matrix in its own dialog; the smoke ticks "custom", opens
-	// the editor, widens it to sixteen outputs, clears every route and applies.
+	// the editor, widens it to sixteen outputs, routes input 0 to every output
+	// and nothing else, and applies.
 	fixture.channelMatrices = [];
 	fixture.mappingEditor = null;
 	const customMappingRadio = element({ click: () => {
@@ -199,6 +200,14 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 		query(selector) {
 			if (selector === '[data-export-channel-mapping-field="outputs"] input') return outputsInput;
 			if (selector === '[data-export-channel-mapping-action="apply"] button') return applyMappingButton;
+			const cell = /\[data-export-channel-mapping-cell="(\d+)-(\d+)"\]/u.exec(selector);
+			if (cell && fixture.mappingEditor) {
+				const input = Number(cell[1]);
+				const output = Number(cell[2]);
+				return input < fixture.mappingEditor.matrix.length && output < fixture.mappingEditor.outputs
+					? mappingCell(input, output)
+					: null;
+			}
 			return null;
 		},
 		queryAll(selector) {
@@ -207,6 +216,7 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 			if (selector === 'tbody tr:first-child [data-export-channel-mapping-cell]') {
 				return Array.from({ length: editor.outputs }, (_, output) => mappingCell(0, output));
 			}
+			if (selector === 'tbody tr') return editor.matrix.map(() => element({}));
 			if (selector.includes('[data-export-channel-mapping-cell]')) {
 				return editor.matrix.flatMap((row, input) => row.slice(0, editor.outputs).map((_, output) => mappingCell(input, output)));
 			}

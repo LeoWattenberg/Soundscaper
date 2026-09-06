@@ -125,9 +125,12 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		await delay(25);
 	};
 	// The Export audio dialog offers the channel mapping as radios and edits a
-	// custom matrix in a dialog of its own: sixteen outputs with no input routed
-	// is the silent sixteen-channel mapping the expected file sizes assume.
-	const authorSilentChannelMapping = async (dialog, label) => {
+	// custom matrix in a dialog of its own. Sixteen outputs each fed by input 0
+	// is what the JSON `[0, 0, ...]` the dialog used to accept meant - a bare
+	// integer names the one input feeding an output - and it is the audible
+	// sixteen-channel mapping the expected file sizes and the nonzero-payload
+	// evidence assume.
+	const authorInputZeroChannelMapping = async (dialog, label) => {
 		const custom = await waitFor(
 			() => dialog.querySelector('[data-export-channel-option="custom"] input'),
 			`${label} custom channel mapping option`,
@@ -152,13 +155,19 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 			() => (editor.querySelectorAll('tbody tr:first-child [data-export-channel-mapping-cell]').length === 16 ? editor : null),
 			`${label} sixteen channel mapping outputs`,
 		);
-		const cells = editor.querySelectorAll(
-			'[data-export-channel-mapping-cell] [role="checkbox"], [data-export-channel-mapping-cell] input[type="checkbox"]',
-		);
-		for (const cell of cells) {
-			if (cell.getAttribute('aria-checked') === 'true' || cell.checked === true) {
-				cell.click();
-				await delay(25);
+		const rows = editor.querySelectorAll('tbody tr');
+		for (let input = 0; input < rows.length; input += 1) {
+			for (let output = 0; output < 16; output += 1) {
+				const cell = editor.querySelector(
+					`[data-export-channel-mapping-cell="${input}-${output}"] [role="checkbox"], `
+					+ `[data-export-channel-mapping-cell="${input}-${output}"] input[type="checkbox"]`,
+				);
+				if (!cell) throw new Error(`Packaged direct WAV ${label} channel mapping cell ${input}-${output} is unavailable`);
+				const checked = cell.getAttribute('aria-checked') === 'true' || cell.checked === true;
+				if (checked !== (input === 0)) {
+					cell.click();
+					await delay(25);
+				}
 			}
 		}
 		const apply = await waitFor(
@@ -278,7 +287,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 	setValue(sampleRate, '384000');
 	await delay(25);
 	if (sampleRate.value !== '384000') throw new Error('Packaged direct WAV sample rate did not update');
-	await authorSilentChannelMapping(dialog, 'WAV');
+	await authorInputZeroChannelMapping(dialog, 'WAV');
 	await choose(dialog, '[data-export-field="dither"]', 0, 'None');
 	await delay(25);
 
@@ -353,7 +362,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 			'BWF sample rate',
 		);
 		if (bwfSampleRate.value !== '384000') throw new Error('Packaged direct BWF sample rate did not persist');
-		await authorSilentChannelMapping(dialog, 'BWF');
+		await authorInputZeroChannelMapping(dialog, 'BWF');
 		const bwfFooter = [...dialog.querySelectorAll('.audio-editor-dialog-footer button')];
 		if (bwfFooter.length < 2) throw new Error('Packaged direct BWF export footer is incomplete');
 		bwfFooter[0].click();
