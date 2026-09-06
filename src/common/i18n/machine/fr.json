@@ -1796,6 +1796,7 @@
 		"saveEffectPresetAs": ["Save as new preset","Enregistrer sous un nouveau preset"],
 		"saveName": ["Save name","Enregistrer le nom"],
 		"saveProject": ["Save project","Enregistrer le projet"],
+		"saveProjectAs": ["Save project as","Enregistrer le projet sous"],
 		"saveScape": ["Export project file ({projectExtension})","Exporter le fichier du projet ({projectExtension})"],
 		"scapeCollisionMessage": ["A project named “{title}” has the same ID.","Un projet nommé « {title} » possède le même identifiant."],
 		"scapeCollisionTitle": ["Project already exists","Le projet existe déjà"],
