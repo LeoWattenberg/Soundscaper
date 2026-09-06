@@ -465,11 +465,19 @@ async function stalledStage(
 	if (!contents || typeof contents.executeJavaScript !== 'function' || contents.isDestroyed?.()) return null;
 	let timer = null;
 	try {
+		// The stage names what stalled; the editor's status line and the export
+		// progress say whether a render was starved or a step never fired.
 		const stage = await Promise.race([
-			contents.executeJavaScript(`globalThis[${JSON.stringify(stageKey)}] ?? null`, true),
+			contents.executeJavaScript(`(() => {
+				const stage = globalThis[${JSON.stringify(stageKey)}] ?? null;
+				if (typeof stage !== 'string' || !stage) return null;
+				const status = String(document.querySelector('[data-status]')?.textContent || '').replace(/\\s+/gu, ' ').trim();
+				const progress = document.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow') ?? null;
+				return stage + (status ? ' (status: ' + status.slice(0, 160) + ')' : '') + (progress !== null ? ' (progress: ' + progress + ')' : '');
+			})()`, true),
 			new Promise((resolve) => { timer = schedule(() => resolve(null), budgetMs); }),
 		]);
-		return typeof stage === 'string' && stage ? stage.slice(0, 128) : null;
+		return typeof stage === 'string' && stage ? stage.slice(0, 400) : null;
 	} catch {
 		return null;
 	} finally {

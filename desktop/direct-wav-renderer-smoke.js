@@ -43,7 +43,16 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		while (true) {
 			const value = read();
 			if (value) return value;
-			if (Date.now() >= deadline) throw new Error(`Packaged direct WAV smoke timed out waiting for ${label}`);
+			if (Date.now() >= deadline) {
+				// Name what the editor was showing when the stage stalled: the status
+				// line and the export progress tell a starved render from a hang.
+				const status = String(document.querySelector('[data-status]')?.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 200);
+				const progress = document.querySelector('[data-export-progress]')?.getAttribute('data-export-progress')
+					?? document.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')
+					?? null;
+				throw new Error(`Packaged direct WAV smoke timed out waiting for ${label}`
+					+ `${status ? ` (status: ${status})` : ''}${progress !== null ? ` (progress: ${String(progress)})` : ''}`);
+			}
 			await delay(25);
 		}
 	};
@@ -113,6 +122,54 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 			return values[index] ?? null;
 		}, `${field} options`);
 		option.click();
+		await delay(25);
+	};
+	// The Export audio dialog offers the channel mapping as radios and edits a
+	// custom matrix in a dialog of its own: sixteen outputs with no input routed
+	// is the silent sixteen-channel mapping the expected file sizes assume.
+	const authorSilentChannelMapping = async (dialog, label) => {
+		const custom = await waitFor(
+			() => dialog.querySelector('[data-export-channel-option="custom"] input'),
+			`${label} custom channel mapping option`,
+		);
+		custom.click();
+		await delay(25);
+		const edit = await waitFor(
+			() => dialog.querySelector('[data-export-channel-action="edit-mapping"] button'),
+			`${label} channel mapping editor button`,
+		);
+		edit.click();
+		const editor = await waitFor(
+			() => document.querySelector('[data-export-channel-mapping]'),
+			`${label} channel mapping editor`,
+		);
+		const outputs = await waitFor(
+			() => editor.querySelector('[data-export-channel-mapping-field="outputs"] input'),
+			`${label} channel mapping outputs`,
+		);
+		await commitValue(outputs, '16', `${label} channel mapping outputs`);
+		await waitFor(
+			() => (editor.querySelectorAll('tbody tr:first-child [data-export-channel-mapping-cell]').length === 16 ? editor : null),
+			`${label} sixteen channel mapping outputs`,
+		);
+		const cells = editor.querySelectorAll(
+			'[data-export-channel-mapping-cell] [role="checkbox"], [data-export-channel-mapping-cell] input[type="checkbox"]',
+		);
+		for (const cell of cells) {
+			if (cell.getAttribute('aria-checked') === 'true' || cell.checked === true) {
+				cell.click();
+				await delay(25);
+			}
+		}
+		const apply = await waitFor(
+			() => editor.querySelector('[data-export-channel-mapping-action="apply"] button'),
+			`${label} channel mapping apply`,
+		);
+		apply.click();
+		await waitFor(
+			() => (document.querySelector('[data-export-channel-mapping]') ? null : dialog),
+			`${label} channel mapping editor close`,
+		);
 		await delay(25);
 	};
 	const createFixture = ({
@@ -221,10 +278,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 	setValue(sampleRate, '384000');
 	await delay(25);
 	if (sampleRate.value !== '384000') throw new Error('Packaged direct WAV sample rate did not update');
-	await choose(dialog, '[data-export-field="channelMapping"]', 3, 'Custom channel mapping');
-	const matrix = await waitFor(() => dialog.querySelector('textarea'), 'custom channel matrix');
-	setValue(matrix, JSON.stringify(Array.from({ length: 16 }, () => 0)));
-	await delay(25);
+	await authorSilentChannelMapping(dialog, 'WAV');
 	await choose(dialog, '[data-export-field="dither"]', 0, 'None');
 	await delay(25);
 
@@ -299,10 +353,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 			'BWF sample rate',
 		);
 		if (bwfSampleRate.value !== '384000') throw new Error('Packaged direct BWF sample rate did not persist');
-		await choose(dialog, '[data-export-field="channelMapping"]', 3, 'Custom channel mapping');
-		const bwfMatrix = await waitFor(() => dialog.querySelector('textarea'), 'BWF custom channel matrix');
-		setValue(bwfMatrix, JSON.stringify(Array.from({ length: 16 }, () => 0)));
-		await delay(25);
+		await authorSilentChannelMapping(dialog, 'BWF');
 		const bwfFooter = [...dialog.querySelectorAll('.audio-editor-dialog-footer button')];
 		if (bwfFooter.length < 2) throw new Error('Packaged direct BWF export footer is incomplete');
 		bwfFooter[0].click();
