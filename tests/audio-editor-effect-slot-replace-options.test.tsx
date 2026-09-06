@@ -49,7 +49,7 @@ test('both effect-slot call sites offer the whole Soundscaper registry', async (
 		assert.match(
 			source,
 			new RegExp(`replaceEffectOptions\\s*=\\s*useMemo\\(\\s*\\n?\\s*\\(\\)\\s*=>\\s*${
-				registry.replace(/[()]/gu, '\\$&')
+				escapeRegExp(registry)
 			}`, 'u'),
 			`${path} must build the swap list from the effect registry`,
 		);
@@ -83,3 +83,7 @@ test('every offered replacement resolves back to a real effect type', () => {
 		}
 	}
 });
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+}

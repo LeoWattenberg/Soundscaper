@@ -138,6 +138,19 @@ test('directory documents canonicalise to a trailing slash and index.html folds 
 	});
 });
 
+// A doubled leading slash used to survive into the canonicalising redirect, so
+// `//en` answered `Location: //en/` — a protocol-relative URL a browser follows
+// to the host `en` rather than to this site's own `/en/`.
+test('a canonicalising redirect stays on this origin however the request doubles its slashes', async () => {
+	await withSite(async (baseURL) => {
+		for (const path of ['//en', '///en', '/%2f%2fen']) {
+			const response = await rawHttpRequest(baseURL, path);
+			assert.equal(response.statusCode, 308, path);
+			assert.equal(response.headers.location, '/en/', path);
+		}
+	});
+});
+
 test('unknown paths serve the 404 document with a 404 status, and bad requests are refused', async () => {
 	await withSite(async (baseURL) => {
 		const missing = await fetch(`${baseURL}/nowhere/`);

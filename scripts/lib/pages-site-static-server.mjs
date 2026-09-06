@@ -117,7 +117,8 @@ async function respond(site, request, response) {
 		}
 		const document = await resolveDocument(site.root, pathname);
 		if (document.canonicalPath) {
-			response.writeHead(308, { Location: `${canonicalRawPath(rawPath, document.canonicalPath)}${search}` });
+			const location = sameOriginLocation(`${canonicalRawPath(rawPath, document.canonicalPath)}${search}`);
+			response.writeHead(308, { Location: location });
 			response.end();
 			return;
 		}
@@ -184,8 +185,18 @@ async function resolveDocument(root, pathname) {
 	}
 	const file = await fileAt(root, relativePath);
 	if (file) return { file };
-	if (await fileAt(root, `${relativePath}/index.html`)) return { canonicalPath: `${pathname}/` };
+	if (await fileAt(root, `${relativePath}/index.html`)) return { canonicalPath: `/${relativePath}/` };
 	return { file: null };
+}
+
+// A canonicalising redirect only ever moves within this site, so its Location
+// must be a path on this origin. `//host` and `/\host` are protocol-relative
+// URLs that browsers follow off-origin, so only a single leading slash passes.
+function sameOriginLocation(location) {
+	if (!location.startsWith('/') || location.startsWith('//') || location.startsWith('/\\')) {
+		throw new RequestError(400, 'Invalid URL path');
+	}
+	return location;
 }
 
 function canonicalRawPath(rawPath, canonicalPath) {
