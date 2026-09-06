@@ -1,46 +1,18 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /*
- * The composition, finishing, native-media and timeline-image project
- * histories are four copies of one design, so they are tested as one: each
- * case runs against every family, and a divergence in any of them fails here
- * rather than in whichever product surface happens to notice first.
+ * The timeline-image project history is the last surviving copy of a design
+ * that once had four: the composition, finishing and native-media histories
+ * were removed as orphans. The cases still run against a table so that a
+ * second family can be added back the way the first is covered.
  */
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	FRAMESCAPER_COMPOSITION_PROJECT_RUNTIME_PROFILE,
-	FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE,
-	FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
 	FRAMESCAPER_TIMELINE_IMAGE_PROJECT_RUNTIME_PROFILE,
 } from '../src/framescaper/editor-domain-runtime-profile.ts';
-import { createFramescaperProjectComposition } from '../src/framescaper/editor-project-composition.ts';
-import {
-	cloneFramescaperProjectHistoryComposition,
-	createFramescaperProjectHistoryComposition,
-	executeFramescaperProjectCommandComposition,
-	redoFramescaperProjectCommandComposition,
-	undoFramescaperProjectCommandComposition,
-	validateFramescaperProjectHistoryComposition,
-} from '../src/framescaper/editor-project-composition-history.ts';
-import { createFramescaperProjectFinishing } from '../src/framescaper/editor-project-finishing.ts';
-import {
-	createFramescaperProjectHistoryFinishing,
-	executeFramescaperProjectCommandFinishing,
-	redoFramescaperProjectCommandFinishing,
-	undoFramescaperProjectCommandFinishing,
-	validateFramescaperProjectHistoryFinishing,
-} from '../src/framescaper/editor-project-finishing-history.ts';
-import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
-import {
-	createFramescaperProjectHistoryNativeMedia,
-	executeFramescaperProjectCommandNativeMedia,
-	redoFramescaperProjectCommandNativeMedia,
-	undoFramescaperProjectCommandNativeMedia,
-	validateFramescaperProjectHistoryNativeMedia,
-} from '../src/framescaper/editor-project-native-media-history.ts';
 import { createFramescaperProjectTimelineImage } from '../src/framescaper/editor-project-timeline-image.ts';
 import {
 	createFramescaperProjectHistoryTimelineImage,
@@ -55,7 +27,6 @@ type Data = Record<string, unknown>;
 interface HistoryFamily {
 	readonly name: string;
 	readonly profile: unknown;
-	readonly clone: ((profile: unknown, history: unknown) => Data) | null;
 	createProject(): Data;
 	create(profile: unknown, project: unknown, options?: Readonly<{ limit?: number }>): Data;
 	validate(profile: unknown, history: unknown): boolean;
@@ -69,48 +40,8 @@ const AT = (day: number) => Object.freeze({ now: new Date(`2026-01-0${String(day
 
 const FAMILIES: readonly HistoryFamily[] = Object.freeze([
 	{
-		name: 'composition',
-		profile: FRAMESCAPER_COMPOSITION_PROJECT_RUNTIME_PROFILE,
-		clone: cloneFramescaperProjectHistoryComposition as unknown as HistoryFamily['clone'],
-		createProject: () => createFramescaperProjectComposition(
-			FRAMESCAPER_COMPOSITION_PROJECT_RUNTIME_PROFILE, {} as never,
-		) as unknown as Data,
-		create: createFramescaperProjectHistoryComposition as unknown as HistoryFamily['create'],
-		validate: validateFramescaperProjectHistoryComposition as unknown as HistoryFamily['validate'],
-		execute: executeFramescaperProjectCommandComposition as unknown as HistoryFamily['execute'],
-		undo: undoFramescaperProjectCommandComposition as unknown as HistoryFamily['undo'],
-		redo: redoFramescaperProjectCommandComposition as unknown as HistoryFamily['redo'],
-	},
-	{
-		name: 'finishing',
-		profile: FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE,
-		clone: null,
-		createProject: () => createFramescaperProjectFinishing(
-			FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE, {} as never,
-		) as unknown as Data,
-		create: createFramescaperProjectHistoryFinishing as unknown as HistoryFamily['create'],
-		validate: validateFramescaperProjectHistoryFinishing as unknown as HistoryFamily['validate'],
-		execute: executeFramescaperProjectCommandFinishing as unknown as HistoryFamily['execute'],
-		undo: undoFramescaperProjectCommandFinishing as unknown as HistoryFamily['undo'],
-		redo: redoFramescaperProjectCommandFinishing as unknown as HistoryFamily['redo'],
-	},
-	{
-		name: 'native media',
-		profile: FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
-		clone: null,
-		createProject: () => createFramescaperProjectNativeMedia(
-			FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE, {} as never,
-		) as unknown as Data,
-		create: createFramescaperProjectHistoryNativeMedia as unknown as HistoryFamily['create'],
-		validate: validateFramescaperProjectHistoryNativeMedia as unknown as HistoryFamily['validate'],
-		execute: executeFramescaperProjectCommandNativeMedia as unknown as HistoryFamily['execute'],
-		undo: undoFramescaperProjectCommandNativeMedia as unknown as HistoryFamily['undo'],
-		redo: redoFramescaperProjectCommandNativeMedia as unknown as HistoryFamily['redo'],
-	},
-	{
 		name: 'timeline image',
 		profile: FRAMESCAPER_TIMELINE_IMAGE_PROJECT_RUNTIME_PROFILE,
-		clone: null,
 		createProject: () => createFramescaperProjectTimelineImage(
 			FRAMESCAPER_TIMELINE_IMAGE_PROJECT_RUNTIME_PROFILE, {} as never,
 		) as unknown as Data,
@@ -301,19 +232,4 @@ test('a restored present is defaulted to the current clock when no timestamp is 
 		const updatedAt = String((undone.present as Data).updatedAt);
 		assert.ok(updatedAt >= before, `${family.name}: ${updatedAt} is not after ${before}`);
 	}
-});
-
-test('cloning a composition history reproduces it without sharing structure', () => {
-	const family = FAMILIES[0];
-	const clone = family.clone;
-	assert.ok(clone, 'the composition family clones its history');
-	const executed = family.execute(family.profile, fresh(family), RENAME, AT(1));
-
-	const copy = clone(family.profile, executed);
-
-	assert.deepEqual(copy, executed);
-	assert.notEqual(copy, executed);
-	assert.notEqual(copy.present, executed.present);
-	assert.notEqual((copy.undoStack as readonly Data[])[0], (executed.undoStack as readonly Data[])[0]);
-	assert.throws(() => clone(family.profile, {}), TypeError);
 });
