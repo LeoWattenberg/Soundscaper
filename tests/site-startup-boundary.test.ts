@@ -73,12 +73,34 @@ async function staticClosure(roots: readonly string[]): Promise<ReadonlySet<stri
 		} catch {
 			continue;
 		}
-		for (const match of text.matchAll(/^(?:import|export)\b[^'"\n]*?\bfrom\s+['"](\.{1,2}\/[^'"]+)['"]/gmu)) {
-			pending.push(resolve(dirname(path), match[1]));
-		}
+		for (const specifier of staticRelativeSpecifiers(text)) pending.push(resolve(dirname(path), specifier));
 	}
 	return seen;
 }
+
+/**
+ * Every relative module a file imports or re-exports statically, however the
+ * clause is laid out. Dynamic `import()` is a lazy edge and is left out.
+ */
+function staticRelativeSpecifiers(text: string): readonly string[] {
+	const specifiers = new Set<string>();
+	for (const match of text.matchAll(/\bfrom\s*['"](\.{1,2}\/[^'"]+)['"]/gu)) specifiers.add(match[1]);
+	for (const match of text.matchAll(/\bimport\s*['"](\.{1,2}\/[^'"]+)['"]/gu)) specifiers.add(match[1]);
+	return [...specifiers];
+}
+
+test('the closure walk follows multi-line import clauses, bare imports and re-exports, not lazy imports', () => {
+	assert.deepEqual(staticRelativeSpecifiers([
+		"import {",
+		"\tENGLISH_COPY,",
+		"} from '../i18n/catalogs.js';",
+		"import './site.css';",
+		"export * from './x.js';",
+		"export { a } from \"./y.js\";",
+		"const lazy = () => import('./lazy.js');",
+		"import React from 'react';",
+	].join('\n')), ['../i18n/catalogs.js', './x.js', './y.js', './site.css']);
+});
 
 test('route application localizes the initial-load progressbar before the editor mounts', async () => {
 	const app = await source('src/common/site/App.jsx');

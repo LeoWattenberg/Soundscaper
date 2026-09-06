@@ -62,9 +62,9 @@ export async function translateLocale(options) {
 	const batchCharacters = options.batchCharacters ?? DEFAULT_BATCH_CHARACTERS;
 	const log = options.log ?? (() => {});
 	const existing = await readMachineCatalog(locale, directory);
-	const assessment = assessMachineCatalog(existing, englishCopy, { promptVersion: MACHINE_TRANSLATION_PROMPT_VERSION });
 	const excluded = new Set(options.excludedKeys ?? MACHINE_TRANSLATION_EXCLUDED_KEYS);
-	const pending = assessment.pending.filter((key) => !excluded.has(key) && (!options.keys || options.keys.includes(key)));
+	const assessment = assessMachineCatalog(existing, englishCopy, { promptVersion: MACHINE_TRANSLATION_PROMPT_VERSION, excludedKeys: excluded });
+	const pending = assessment.pending.filter((key) => !options.keys || options.keys.includes(key));
 	const summary = {
 		locale,
 		retained: Object.keys(assessment.current).length,
@@ -75,7 +75,15 @@ export async function translateLocale(options) {
 		requests: 0,
 		cached: 0,
 	};
+	const entries = Object.fromEntries(Object.entries(assessment.current)
+		.filter(([key]) => !excluded.has(key))
+		.map(([key, translation]) => [key, [englishCopy[key], translation]]));
 	if (!pending.length) {
+		// Nothing for the model, but the file may still carry entries that no
+		// longer belong: orphans of deleted English keys, or excluded keys.
+		if (existing && Object.keys(existing.entries).some((key) => !Object.hasOwn(entries, key))) {
+			await writeMachineCatalog({ locale, provenance: existing.provenance, entries }, directory);
+		}
 		await writeMachineCatalogIndex(directory);
 		return summary;
 	}
@@ -85,9 +93,10 @@ export async function translateLocale(options) {
 		modelDigest: modelIdentity.digest,
 		promptVersion: MACHINE_TRANSLATION_PROMPT_VERSION,
 	};
-	const entries = Object.fromEntries(Object.entries(assessment.current)
-		.filter(([key]) => !excluded.has(key))
-		.map(([key, translation]) => [key, [englishCopy[key], translation]]));
+	// A regeneration forced by a new prompt keeps the old provenance until its
+	// last batch has landed, so an interrupted run still reads as outdated and
+	// resumes instead of passing off two prompts' output as one.
+	const interimProvenance = assessment.outdated && existing ? existing.provenance : provenance;
 	const context = {
 		locale,
 		targetLanguage: targetLanguageName(locale),
@@ -106,7 +115,7 @@ export async function translateLocale(options) {
 		summary.translated += Object.keys(result.translations).length;
 		summary.skipped.push(...result.skipped);
 		handled += keys.length;
-		await writeMachineCatalog({ locale, provenance, entries }, directory);
+		await writeMachineCatalog({ locale, provenance: handled === pending.length ? provenance : interimProvenance, entries }, directory);
 		await writeMachineCatalogIndex(directory);
 		log(`${locale}: ${handled}/${pending.length} pending keys handled (${summary.translated} translated, ${summary.skipped.length} skipped)`);
 	}
@@ -177,6 +186,9 @@ async function translateBatch(context, keys) {
 		// both mean this batch is too much for the model, so it is halved.
 		// Any other failure is the endpoint's and stops the run.
 		if (!(error instanceof InvalidModelOutputError) && !isTimeout(error)) throw error;
+		// A single key that still outruns the timeout is not too much text; the
+		// endpoint has stopped answering, and the run must stop with it.
+		if (isTimeout(error) && keys.length === 1) throw error;
 		context.summary.requests += error instanceof InvalidModelOutputError ? 3 : 1;
 		if (keys.length === 1) return { translations: {}, skipped: [{ key: keys[0], reason: error.message }] };
 		const middle = Math.ceil(keys.length / 2);
@@ -230,7 +242,10 @@ export async function checkLocales(options) {
 	for (const locale of options.locales) {
 		try {
 			const catalog = await readMachineCatalog(locale, directory);
-			const assessment = assessMachineCatalog(catalog, englishCopy, { promptVersion: MACHINE_TRANSLATION_PROMPT_VERSION });
+			const assessment = assessMachineCatalog(catalog, englishCopy, {
+				promptVersion: MACHINE_TRANSLATION_PROMPT_VERSION,
+				excludedKeys: options.excludedKeys ?? MACHINE_TRANSLATION_EXCLUDED_KEYS,
+			});
 			reports.push({
 				locale,
 				present: catalog !== null,

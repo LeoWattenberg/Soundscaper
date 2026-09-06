@@ -330,3 +330,81 @@ test('the command line translates with an injected client and reports per locale
 	assert.match(out.at(-1), /^fr: 2 current, 0 stale, \d+ missing, 0 orphaned \(qwen3\.8:latest\)\n$/u);
 	assert.match(err.join(''), /^fr: translating with aya-expanse:32b\n/u);
 });
+
+test('check and translate agree that an excluded key is neither missing nor pending', async () => {
+	const { directory } = await scratch();
+	const english = { ...ENGLISH, nyquistPromptDefault: '; Enter a Nyquist expression.\n(mult *track* 0.5)' };
+	await writeMachineCatalog({
+		locale: 'fr',
+		provenance: PROVENANCE,
+		entries: Object.fromEntries(Object.keys(ENGLISH).map((key) => [key, [ENGLISH[key], `fr:${ENGLISH[key]}`]])),
+	}, directory);
+	const [report] = await checkLocales({ locales: ['fr'], directory, englishCopy: english });
+	assert.equal(report.missing, 0);
+	assert.equal(report.current, 5);
+	const summary = await translateLocale({ locale: 'fr', client: fakeClient(() => { throw new Error('must not be asked'); }), directory, englishCopy: english, germanCopy: GERMAN });
+	assert.equal(summary.pending, 0);
+});
+
+test('orphans and excluded entries are dropped even when nothing is pending, under the existing provenance', async () => {
+	const { directory } = await scratch();
+	const provenance = { ...PROVENANCE, model: 'older-model' };
+	await writeMachineCatalog({
+		locale: 'fr',
+		provenance,
+		entries: {
+			...Object.fromEntries(Object.keys(ENGLISH).map((key) => [key, [ENGLISH[key], `fr:${ENGLISH[key]}`]])),
+			retired: ['Retired', 'Retraité'],
+		},
+	}, directory);
+	const summary = await translateLocale({ locale: 'fr', client: fakeClient(() => { throw new Error('must not be asked'); }), directory, englishCopy: ENGLISH, germanCopy: GERMAN });
+	assert.equal(summary.orphaned, 1);
+	assert.equal(summary.requests, 0);
+	const catalog = await readMachineCatalog('fr', directory);
+	assert.deepEqual(Object.keys(catalog.entries), Object.keys(ENGLISH).sort());
+	assert.deepEqual(catalog.provenance, provenance);
+	const [report] = await checkLocales({ locales: ['fr'], directory, englishCopy: ENGLISH });
+	assert.equal(report.orphaned, 0);
+});
+
+test('an interrupted regeneration under a new prompt stays outdated until its last batch lands', async () => {
+	const { directory, cacheDirectory } = await scratch();
+	const old = { ...PROVENANCE, promptVersion: 'i18n-machine-v0' };
+	await writeMachineCatalog({
+		locale: 'fr',
+		provenance: old,
+		entries: Object.fromEntries(Object.keys(ENGLISH).map((key) => [key, [ENGLISH[key], `old:${ENGLISH[key]}`]])),
+	}, directory);
+	const failing = fakeClient((packet, count) => {
+		if (count === 2) throw new Error('Ollama generation returned HTTP 500.');
+		return frenchAnswer(packet);
+	});
+	await assert.rejects(
+		() => translateLocale({ locale: 'fr', client: failing, cacheDirectory, directory, englishCopy: ENGLISH, germanCopy: GERMAN, batchSize: 2 }),
+		/HTTP 500/u,
+	);
+	let catalog = await readMachineCatalog('fr', directory);
+	assert.deepEqual(catalog.provenance, old);
+	assert.equal(catalog.entries.addTrack[1], 'Ajouter une piste');
+	assert.equal(catalog.entries.zoomIn[1], 'old:Zoom in');
+	assert.equal((await checkLocales({ locales: ['fr'], directory, englishCopy: ENGLISH }))[0].outdated, true);
+
+	const summary = await translateLocale({ locale: 'fr', client: fakeClient(frenchAnswer), cacheDirectory, directory, englishCopy: ENGLISH, germanCopy: GERMAN, batchSize: 2 });
+	assert.equal(summary.pending, 5);
+	assert.equal(summary.cached, 1);
+	catalog = await readMachineCatalog('fr', directory);
+	assert.equal(catalog.provenance.promptVersion, 'i18n-machine-v1');
+	assert.equal(catalog.entries.zoomIn[1], 'Zoom avant');
+	assert.equal((await checkLocales({ locales: ['fr'], directory, englishCopy: ENGLISH }))[0].outdated, false);
+});
+
+test('a single key that still times out stops the run instead of being skipped', async () => {
+	const { directory, cacheDirectory } = await scratch();
+	const client = fakeClient(() => { throw new DOMException('The operation was aborted due to timeout', 'TimeoutError'); });
+	await assert.rejects(
+		() => translateLocale({ locale: 'fr', client, cacheDirectory, directory, englishCopy: ENGLISH, germanCopy: GERMAN, batchSize: 4 }),
+		{ name: 'TimeoutError' },
+	);
+	assert.equal(client.requests.length, 3);
+	assert.equal(await readMachineCatalog('fr', directory), null);
+});

@@ -260,7 +260,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editMenu).toBeFocused();
 		await editMenu.press('Enter');
 		await expect(editMenu).toHaveAttribute('aria-expanded', 'true');
-		const editLeaf = editor.locator('.kw-audio-editor__application-menu').getByRole('menuitem', { name: new RegExp(`^${escapeRegex(machineCopy('ar').undo)}\\b`) });
+		// A lookahead rather than \b: an Arabic label has no ASCII word boundary.
+		const editLeaf = editor.locator('.kw-audio-editor__application-menu').getByRole('menuitem', { name: new RegExp(`^${escapeRegex(machineCopy('ar').undo)}(?=\\s|$)`, 'u') });
 		await editLeaf.focus();
 		await editLeaf.press('ArrowRight');
 		await expect(fileMenu).toHaveAttribute('aria-expanded', 'true');

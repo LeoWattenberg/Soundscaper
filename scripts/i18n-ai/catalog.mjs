@@ -110,9 +110,12 @@ function assertProvenance(provenance, locale) {
  * `current` may be shown; `stale` were translated from an English string that
  * has since changed; `orphaned` no longer have an English key; `missing` are
  * English keys the catalog does not carry. Pending work is stale plus missing.
+ * Keys in `options.excludedKeys` are never translated, so they are neither
+ * missing nor pending, and translate and check agree on what is left to do.
  */
 export function assessMachineCatalog(catalog, englishCopy, options = {}) {
 	const entries = catalog?.entries ?? {};
+	const excluded = new Set(options.excludedKeys ?? []);
 	// A catalog written under an earlier prompt is shown as it is, but every
 	// entry is regenerated: a tightened prompt must reach the committed files.
 	const outdated = Boolean(catalog) && typeof options.promptVersion === 'string'
@@ -125,8 +128,8 @@ export function assessMachineCatalog(catalog, englishCopy, options = {}) {
 		else if (entry[0] !== englishCopy[key]) stale.push(key);
 		else current[key] = entry[1];
 	}
-	const missing = Object.keys(englishCopy).filter((key) => !Object.hasOwn(entries, key)).sort(compareCodeUnits);
-	const pending = outdated ? Object.keys(englishCopy) : [...stale, ...missing];
+	const missing = Object.keys(englishCopy).filter((key) => !excluded.has(key) && !Object.hasOwn(entries, key)).sort(compareCodeUnits);
+	const pending = (outdated ? Object.keys(englishCopy).filter((key) => !excluded.has(key)) : [...stale, ...missing]);
 	return Object.freeze({
 		current: Object.freeze(current),
 		stale: Object.freeze(stale.sort(compareCodeUnits)),
