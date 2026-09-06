@@ -1,32 +1,86 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { readFileSync } from 'node:fs';
 import { isAbsolute, relative, sep } from 'node:path';
 
-const COVERAGE_METRICS = Object.freeze(['lines', 'branches', 'functions']);
+export const COVERAGE_METRICS = Object.freeze(['lines', 'branches', 'functions']);
 
-export const COVERAGE_SCOPES = Object.freeze([
-	coverageScope('editor', 'Editor', { lines: 80, branches: 70, functions: 80 }),
-	coverageScope('desktop', 'Desktop', { lines: 80, branches: 70, functions: 85 }),
-	coverageScope('framescaper', 'Framescaper', { lines: 46, branches: 65, functions: 55 }),
-	coverageScope('soundscaper', 'Soundscaper', { lines: 60, branches: 68, functions: 80 }),
-	coverageScope('common-transfer', 'Common transfer', { lines: 90, branches: 80, functions: 90 }),
-	coverageScope('common-site', 'Common site', { lines: 50, branches: 80, functions: 70 }),
-	coverageScope('common-i18n', 'Common i18n', { lines: 95, branches: 75, functions: 85 }),
-	coverageScope('common-offline', 'Common offline', { lines: 85, branches: 70, functions: 90 }),
-	coverageScope('shared-root', 'Shared root', { lines: 85, branches: 85, functions: 80 }),
+/**
+ * The floors and the sentences that justify them live in
+ * `config/coverage-gates.json`.
+ *
+ * They were literals in this module, which made every floor a source edit and
+ * left no room to say why a scope is held where it is. A configuration file is
+ * also what `scripts/tighten-coverage-gates.mjs` writes back to when a scope
+ * has gained coverage and its floor can follow it up.
+ */
+export const COVERAGE_GATE_CONFIGURATION_URL = new URL(
+	'../../config/coverage-gates.json',
+	import.meta.url,
+);
+
+/**
+ * The production trees, most specific first: the first matching prefix owns the
+ * file. The editor's controller, command and engine trees are matched ahead of
+ * the wider editor scope so that the code deciding what an edit does carries its
+ * own branch floor instead of averaging into the tree it steers.
+ */
+const COVERAGE_SCOPE_PREFIXES = Object.freeze([
+	Object.freeze(['src/common/editor/controller/', 'editor-core']),
+	Object.freeze(['src/common/editor/commands/', 'editor-core']),
+	Object.freeze(['src/common/editor/engine/', 'editor-core']),
+	Object.freeze(['src/common/editor/', 'editor']),
+	Object.freeze(['desktop/', 'desktop']),
+	Object.freeze(['src/framescaper/', 'framescaper']),
+	Object.freeze(['src/soundscaper/', 'soundscaper']),
+	Object.freeze(['src/common/transfer/', 'common-transfer']),
+	Object.freeze(['src/common/site/', 'common-site']),
+	Object.freeze(['src/common/i18n/', 'common-i18n']),
+	Object.freeze(['src/common/offline/', 'common-offline']),
+	Object.freeze(['src/common/', 'shared-root']),
 ]);
+
+export const COVERAGE_SCOPES = loadCoverageScopes(COVERAGE_GATE_CONFIGURATION_URL);
+
+/**
+ * @param {URL | string} configurationUrl
+ * @returns {readonly { id: string, label: string, thresholds: Record<string, number>, reason: string }[]}
+ */
+export function loadCoverageScopes(configurationUrl) {
+	return parseCoverageGateConfiguration(JSON.parse(readFileSync(configurationUrl, 'utf8')));
+}
+
+/**
+ * Admitted strictly: a floor that cannot be read is a gate that enforces
+ * nothing, and a scope the classifier never produces is a floor nobody applies.
+ *
+ * @param {unknown} configuration
+ */
+export function parseCoverageGateConfiguration(configuration) {
+	const scopes = configuration?.scopes;
+	if (!Array.isArray(scopes) || scopes.length === 0) {
+		throw new TypeError('The coverage gate configuration must list the scopes the gate enforces.');
+	}
+	const parsed = scopes.map((scope) => coverageScope(scope));
+	const budgeted = new Set(parsed.map(({ id }) => id));
+	if (budgeted.size !== parsed.length) {
+		throw new RangeError('The coverage gate configuration budgets a scope twice.');
+	}
+	const classified = new Set(COVERAGE_SCOPE_PREFIXES.map(([, id]) => id));
+	for (const id of classified) {
+		if (!budgeted.has(id)) throw new RangeError(`The coverage gate configuration has no floors for scope ${id}.`);
+	}
+	for (const { id } of parsed) {
+		if (!classified.has(id)) throw new RangeError(`The coverage gate configuration budgets an unreachable scope: ${id}.`);
+	}
+	return Object.freeze(parsed);
+}
 
 export function classifyProductionCoveragePath(path) {
 	const normalized = normalizePath(path);
-	if (normalized.startsWith('src/common/editor/')) return 'editor';
-	if (normalized.startsWith('desktop/')) return 'desktop';
-	if (normalized.startsWith('src/framescaper/')) return 'framescaper';
-	if (normalized.startsWith('src/soundscaper/')) return 'soundscaper';
-	if (normalized.startsWith('src/common/transfer/')) return 'common-transfer';
-	if (normalized.startsWith('src/common/site/')) return 'common-site';
-	if (normalized.startsWith('src/common/i18n/')) return 'common-i18n';
-	if (normalized.startsWith('src/common/offline/')) return 'common-offline';
-	if (normalized.startsWith('src/common/')) return 'shared-root';
+	for (const [prefix, scopeId] of COVERAGE_SCOPE_PREFIXES) {
+		if (normalized.startsWith(prefix)) return scopeId;
+	}
 	if (/^src\/[^/]+\.(?:[cm]?[jt]sx?)$/u.test(normalized)) return 'shared-root';
 	return null;
 }
@@ -90,8 +144,22 @@ export function formatCoverageScopes(scopes) {
 	return `${rows.join('\n')}\n`;
 }
 
-function coverageScope(id, label, thresholds) {
-	return Object.freeze({ id, label, thresholds: Object.freeze(thresholds) });
+function coverageScope(scope) {
+	const { id, label, thresholds, reason } = scope ?? {};
+	if (typeof id !== 'string' || id === '') throw new TypeError('Every coverage scope needs an id.');
+	if (typeof label !== 'string' || label === '') throw new TypeError(`Coverage scope ${id} has no label.`);
+	if (typeof reason !== 'string' || reason.trim() === '') {
+		throw new TypeError(`Coverage scope ${id} records no reason for its floors.`);
+	}
+	const floors = {};
+	for (const metric of COVERAGE_METRICS) {
+		const floor = thresholds?.[metric];
+		if (typeof floor !== 'number' || !Number.isFinite(floor) || floor < 0 || floor > 100) {
+			throw new TypeError(`Coverage scope ${id} has no valid ${metric} floor.`);
+		}
+		floors[metric] = floor;
+	}
+	return Object.freeze({ id, label, thresholds: Object.freeze(floors), reason });
 }
 
 function emptyScopeSummary({ id, label, thresholds }) {

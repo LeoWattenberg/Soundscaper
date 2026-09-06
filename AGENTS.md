@@ -29,9 +29,12 @@
   tree (`src/`, `desktop/` or `native/`) or carries the product in its filename,
   and to `common` otherwise — cross-product tests included, since neither product
   owns them. Run one shard locally with `npm test -- --shard=framescaper`. The
-  coverage thresholds live in `scripts/lib/coverage-gates.mjs` (`.c8rc.json`
-  only selects which files c8 instruments) and are enforced once over the union
-  of what the shards recorded, so never weaken them per shard.
+  coverage floors live in `config/coverage-gates.json` (`.c8rc.json` only
+  selects which files c8 instruments) and are enforced once over the union of
+  what the shards recorded, so never weaken them per shard. They ratchet: run
+  `npm run coverage:tighten` after a shard run to raise a floor to the coverage
+  a scope has gained; lowering one stays a deliberate edit with its reason
+  recorded in that file.
 - New controller/domain modules and their tests should be strict TypeScript.
   Keep imports at the owning module instead of adding broad barrel dependencies.
 - TypeScript linting is type-aware: await, catch, return, or explicitly `void`

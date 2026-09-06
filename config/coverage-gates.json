@@ -1,0 +1,105 @@
+{
+	"schemaVersion": 1,
+	"scopes": [
+		{
+			"id": "editor",
+			"label": "Editor",
+			"thresholds": {
+				"lines": 83,
+				"branches": 79,
+				"functions": 83
+			},
+			"reason": "Everything under src/common/editor/ that is not controller, command or engine code: models, workers, storage, effects and import/export, where an unexercised branch corrupts a user's project."
+		},
+		{
+			"id": "editor-core",
+			"label": "Editor core",
+			"thresholds": {
+				"lines": 90,
+				"branches": 80,
+				"functions": 95
+			},
+			"reason": "The controller, command and engine trees decide what every edit does, so they hold their own branch floor instead of averaging into the far larger editor scope."
+		},
+		{
+			"id": "desktop",
+			"label": "Desktop",
+			"thresholds": {
+				"lines": 85,
+				"branches": 74,
+				"functions": 90
+			},
+			"reason": "The desktop main process and its helpers reach the real filesystem and the native runtime, so an untested branch there escapes the browser sandbox."
+		},
+		{
+			"id": "framescaper",
+			"label": "Framescaper",
+			"thresholds": {
+				"lines": 67,
+				"branches": 70,
+				"functions": 69
+			},
+			"reason": "Framescaper's own tree, still growing feature-first; the floor tracks what the ratchet has claimed rather than an aspiration."
+		},
+		{
+			"id": "soundscaper",
+			"label": "Soundscaper",
+			"thresholds": {
+				"lines": 73,
+				"branches": 70,
+				"functions": 81
+			},
+			"reason": "Soundscaper's own tree: thin product wiring over the shared editor, so its floor is set by what that wiring actually exercises."
+		},
+		{
+			"id": "common-transfer",
+			"label": "Common transfer",
+			"thresholds": {
+				"lines": 93,
+				"branches": 81,
+				"functions": 96
+			},
+			"reason": "Project archives and session transfer are the durable interchange surface; a regression here is a file a user can no longer open."
+		},
+		{
+			"id": "common-site",
+			"label": "Common site",
+			"thresholds": {
+				"lines": 53,
+				"branches": 86,
+				"functions": 82
+			},
+			"reason": "The marketing and documentation site is mostly presentational markup, so its line floor is low while its branches stay covered."
+		},
+		{
+			"id": "common-i18n",
+			"label": "Common i18n",
+			"thresholds": {
+				"lines": 98,
+				"branches": 80,
+				"functions": 90
+			},
+			"reason": "Catalog loading and message resolution are small, pure and exhaustively testable, so they are held near total line coverage."
+		},
+		{
+			"id": "common-offline",
+			"label": "Common offline",
+			"thresholds": {
+				"lines": 91,
+				"branches": 73,
+				"functions": 95
+			},
+			"reason": "The offline shell and its caches decide whether a returning user has an application at all, and its failure paths are hard to observe in production."
+		},
+		{
+			"id": "shared-root",
+			"label": "Shared root",
+			"thresholds": {
+				"lines": 92,
+				"branches": 92,
+				"functions": 95
+			},
+			"reason": "The small shared modules at the root of src/ and src/common/ are depended on by both products, so every branch of them is cheap to cover and expensive to break."
+		}
+	]
+}

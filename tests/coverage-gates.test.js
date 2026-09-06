@@ -6,9 +6,11 @@ import { resolve } from 'node:path';
 import test from 'node:test';
 
 import {
+	COVERAGE_GATE_CONFIGURATION_URL,
 	COVERAGE_SCOPES,
 	analyzeCoverageSummary,
 	classifyProductionCoveragePath,
+	parseCoverageGateConfiguration,
 } from '../scripts/lib/coverage-gates.mjs';
 
 const REPOSITORY_ROOT = resolve('/workspace');
@@ -46,6 +48,10 @@ test('the full Node gate records raw coverage before applying the scope-aware ch
 test('every maintained production tree has its own coverage scope', () => {
 	assert.equal(classifyProductionCoveragePath('src/common/editor/domain.ts'), 'editor');
 	assert.equal(classifyProductionCoveragePath('src/common/editor/ui/Dialog.tsx'), 'editor');
+	assert.equal(classifyProductionCoveragePath('src/common/editor/controller/transport.ts'), 'editor-core');
+	assert.equal(classifyProductionCoveragePath('src/common/editor/commands/select.ts'), 'editor-core');
+	assert.equal(classifyProductionCoveragePath('src/common/editor/engine/mixdown.ts'), 'editor-core');
+	assert.equal(classifyProductionCoveragePath('src/common/editor/controllers/legacy.ts'), 'editor');
 	assert.equal(classifyProductionCoveragePath('desktop/main.mjs'), 'desktop');
 	assert.equal(classifyProductionCoveragePath('src/framescaper/model.ts'), 'framescaper');
 	assert.equal(classifyProductionCoveragePath('src/soundscaper/model.ts'), 'soundscaper');
@@ -58,44 +64,110 @@ test('every maintained production tree has its own coverage scope', () => {
 	assert.equal(classifyProductionCoveragePath('src/unknown-product/model.ts'), null);
 });
 
-test('the established editor threshold and conservative new thresholds are explicit', () => {
+test('the ratcheted floors are the ones the gate enforces', () => {
 	assert.deepEqual(
 		Object.fromEntries(COVERAGE_SCOPES.map(({ id, thresholds }) => [id, thresholds])),
 		{
-			editor: { lines: 80, branches: 70, functions: 80 },
-			desktop: { lines: 80, branches: 70, functions: 85 },
-			framescaper: { lines: 46, branches: 65, functions: 55 },
-			soundscaper: { lines: 60, branches: 68, functions: 80 },
-			'common-transfer': { lines: 90, branches: 80, functions: 90 },
-			'common-site': { lines: 50, branches: 80, functions: 70 },
-			'common-i18n': { lines: 95, branches: 75, functions: 85 },
-			'common-offline': { lines: 85, branches: 70, functions: 90 },
-			'shared-root': { lines: 85, branches: 85, functions: 80 },
+			editor: { lines: 83, branches: 79, functions: 83 },
+			'editor-core': { lines: 90, branches: 80, functions: 95 },
+			desktop: { lines: 85, branches: 74, functions: 90 },
+			framescaper: { lines: 67, branches: 70, functions: 69 },
+			soundscaper: { lines: 73, branches: 70, functions: 81 },
+			'common-transfer': { lines: 93, branches: 81, functions: 96 },
+			'common-site': { lines: 53, branches: 86, functions: 82 },
+			'common-i18n': { lines: 98, branches: 80, functions: 90 },
+			'common-offline': { lines: 91, branches: 73, functions: 95 },
+			'shared-root': { lines: 92, branches: 92, functions: 95 },
 		},
 	);
 });
 
+test('the floors are read from the maintained coverage configuration with their reasons', () => {
+	const configuration = JSON.parse(readFileSync(COVERAGE_GATE_CONFIGURATION_URL, 'utf8'));
+	assert.equal(
+		COVERAGE_GATE_CONFIGURATION_URL.pathname.endsWith('/config/coverage-gates.json'),
+		true,
+	);
+	assert.deepEqual(
+		configuration.scopes.map(({ id, label, thresholds }) => ({ id, label, thresholds })),
+		COVERAGE_SCOPES.map(({ id, label, thresholds }) => ({ id, label, thresholds })),
+	);
+	for (const { id, reason } of COVERAGE_SCOPES) {
+		assert.equal(typeof reason, 'string', id);
+		assert.ok(reason.trim().length > 40, id);
+	}
+});
+
+test('a configuration the classifier cannot fill, or that names no reason, is refused', () => {
+	const configuration = JSON.parse(readFileSync(COVERAGE_GATE_CONFIGURATION_URL, 'utf8'));
+	assert.throws(() => parseCoverageGateConfiguration({ scopes: [] }), /must list the scopes/u);
+	assert.throws(
+		() => parseCoverageGateConfiguration({
+			scopes: configuration.scopes.filter(({ id }) => id !== 'editor-core'),
+		}),
+		/no floors for scope editor-core/u,
+	);
+	assert.throws(
+		() => parseCoverageGateConfiguration({
+			scopes: [...configuration.scopes, { ...configuration.scopes[0], id: 'lightscaper' }],
+		}),
+		/unreachable scope: lightscaper/u,
+	);
+	assert.throws(
+		() => parseCoverageGateConfiguration({
+			scopes: configuration.scopes.map((scope) => ({ ...scope, reason: ' ' })),
+		}),
+		/records no reason/u,
+	);
+	assert.throws(
+		() => parseCoverageGateConfiguration({
+			scopes: configuration.scopes.map((scope) => ({
+				...scope,
+				thresholds: { ...scope.thresholds, branches: '80' },
+			})),
+		}),
+		/no valid branches floor/u,
+	);
+});
+
 test('a strong scope cannot conceal an editor regression', () => {
+	const floor = scopeThresholds('editor').lines;
 	const summary = passingSummary();
 	delete summary[file('src/common/editor/ui/Dialog.tsx')];
-	summary[file('src/common/editor/model.ts')] = measured(79, 100);
-	summary[file('src/common/editor/model.ts')].functions.covered = 100;
+	summary[file('src/common/editor/model.ts')] = measured(100, 100);
+	summary[file('src/common/editor/model.ts')].lines.covered = floor - 1;
 
 	const result = analyzeCoverageSummary(summary, REPOSITORY_ROOT);
 
 	assert.deepEqual(result.failures, [
-		'Editor lines coverage is 79.00% (79/100), below the 80% threshold.',
+		`Editor lines coverage is ${(floor - 1).toFixed(2)}% (${floor - 1}/100), below the ${floor}% threshold.`,
 	]);
 });
 
-for (const { id, label, path, threshold } of [
-	{ id: 'common-transfer', label: 'Common transfer', path: 'src/common/transfer/session.ts', threshold: 90 },
-	{ id: 'common-site', label: 'Common site', path: 'src/common/site/route.js', threshold: 50 },
-	{ id: 'common-i18n', label: 'Common i18n', path: 'src/common/i18n/runtime.js', threshold: 95 },
-	{ id: 'common-offline', label: 'Common offline', path: 'src/common/offline/application-shell.ts', threshold: 85 },
-	{ id: 'shared-root', label: 'Shared root', path: 'src/common/url.ts', threshold: 85 },
+test('the editor core trees are gated apart from the editor tree that steers them', () => {
+	const summary = passingSummary();
+	const floor = scopeThresholds('editor-core').branches;
+	delete summary[file('src/common/editor/commands/select.ts')];
+	delete summary[file('src/common/editor/engine/mixdown.ts')];
+	summary[file('src/common/editor/controller/transport.ts')].branches.covered = floor - 1;
+
+	const result = analyzeCoverageSummary(summary, REPOSITORY_ROOT);
+
+	assert.deepEqual(result.failures, [
+		`Editor core branches coverage is ${(floor - 1).toFixed(2)}% `
+		+ `(${floor - 1}/100), below the ${floor}% threshold.`,
+	]);
+});
+
+for (const { id, label, path } of [
+	{ id: 'common-transfer', label: 'Common transfer', path: 'src/common/transfer/session.ts' },
+	{ id: 'common-site', label: 'Common site', path: 'src/common/site/route.js' },
+	{ id: 'common-i18n', label: 'Common i18n', path: 'src/common/i18n/runtime.js' },
+	{ id: 'common-offline', label: 'Common offline', path: 'src/common/offline/application-shell.ts' },
+	{ id: 'shared-root', label: 'Shared root', path: 'src/common/url.ts' },
 ]) {
 	test(`${id} coverage cannot be masked by another common area`, () => {
+		const threshold = scopeThresholds(id).lines;
 		const summary = passingSummary();
 		summary[file(path)].lines.covered = threshold - 1;
 
@@ -126,6 +198,9 @@ function passingSummary() {
 		total: measured(100, 100),
 		[file('src/common/editor/model.ts')]: measured(100, 100),
 		[file('src/common/editor/ui/Dialog.tsx')]: measured(100, 100),
+		[file('src/common/editor/controller/transport.ts')]: measured(100, 100),
+		[file('src/common/editor/commands/select.ts')]: measured(100, 100),
+		[file('src/common/editor/engine/mixdown.ts')]: measured(100, 100),
 		[file('desktop/main.mjs')]: measured(100, 100),
 		[file('src/framescaper/model.ts')]: measured(100, 100),
 		[file('src/soundscaper/model.ts')]: measured(100, 100),
@@ -135,6 +210,12 @@ function passingSummary() {
 		[file('src/common/offline/application-shell.ts')]: measured(100, 100),
 		[file('src/common/url.ts')]: measured(100, 100),
 	};
+}
+
+function scopeThresholds(id) {
+	const scope = COVERAGE_SCOPES.find((candidate) => candidate.id === id);
+	assert.ok(scope, `no coverage scope ${id}`);
+	return scope.thresholds;
 }
 
 function measured(covered, total) {
