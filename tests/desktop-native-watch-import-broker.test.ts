@@ -8,6 +8,7 @@ import {
 	FramescaperNativeWatchImportBroker,
 	type FramescaperNativeWatchImportBrokerOptions,
 } from '../desktop/native-services-watch-import-broker.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 const DIGEST = 'a'.repeat(64);
 const LOCATOR_ID = 'b'.repeat(32);
@@ -210,7 +211,7 @@ function createFixture(overrides: Partial<FramescaperNativeWatchImportBrokerOpti
 		set imported(value: ImportedState | null) { imported = value; },
 		set afterImportedInspection(value: () => void) { afterImportedInspection = value; },
 		async locatorCreated(count = 1) {
-			for (let attempt = 0; attempt < 20 && created < count; attempt += 1) await Promise.resolve();
+			await waitFor(() => created >= count, `${count} created watch locators`);
 			assert.equal(created, count);
 		},
 	};

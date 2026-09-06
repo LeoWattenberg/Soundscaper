@@ -13,6 +13,7 @@ import type {
 	TakeCycleLiveLaneCapture,
 } from '../src/common/editor/controller/take-cycle-live-capture-session.ts';
 import type { RecordingControllerFactoryOptions } from '../src/common/editor/controller/recording-transaction-types.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 test('routed cycle capture pre-registers per-track groups then resamples into exact loop-grid spans', async () => {
 	const fixture = captureFixture({ captureSampleRate: 44_100 });
@@ -186,7 +187,7 @@ test('capture refuses the first pass beyond its admitted V17 identity capacity',
 	const result = await service.stop();
 	assert.equal(result.lanes[0]?.status, 'failed');
 	assert.match(String(result.lanes[0]?.error), /exceeds the V17 take\/comp identity capacity/u);
-	await waitFor(() => fixture.releaseCalls() === 1);
+	await waitFor(() => fixture.releaseCalls() === 1, 'the capture to release its route');
 	assert.equal(fixture.lanes.get('track-a')?.discardCalls, 1);
 	assert.equal(fixture.events.includes('finalize'), false);
 });
@@ -281,7 +282,7 @@ test('a stale chunk callback stops capture and discards exact durable lanes with
 	fixture.switchProject('project-next');
 
 	await assert.rejects(fixture.recorderOptions[0]!.onChunk(chunk(0, 4, 0.25, -0.25)), { name: 'AbortError' });
-	await waitFor(() => fixture.releaseCalls() === 1);
+	await waitFor(() => fixture.releaseCalls() === 1, 'the capture to release its route');
 
 	assert.deepEqual([...fixture.lanes.values()].map(({ discardCalls }) => discardCalls), [1, 1]);
 	assert.equal(fixture.events.includes('finalize'), false);
@@ -586,9 +587,4 @@ function deferred<T>() {
 		reject = rejectPromise;
 	});
 	return { promise, resolve, reject };
-}
-
-async function waitFor(predicate: () => boolean): Promise<void> {
-	for (let attempt = 0; attempt < 100 && !predicate(); attempt += 1) await Promise.resolve();
-	assert.equal(predicate(), true, 'condition did not settle');
 }

@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import { createProjectSaveService } from '../src/common/editor/controller/project-save-service.ts';
 import { estimateProjectRevisionPublication } from '../src/common/editor/project-publication-admission.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 interface TestProject {
 	readonly schemaVersion: 9;
@@ -58,7 +59,7 @@ test('project saves serialize admission immediately before each queued write', a
 	const firstProject = project;
 	const first = service.flushProject();
 	assert.ok(first);
-	await waitFor(() => admissions.length === 1);
+	await waitFor(() => admissions.length === 1, 'the first publication admission');
 	assert.equal(admissions[0]?.bytes, projectPublicationBytes(firstProject));
 	assert.deepEqual(events, ['admit:1']);
 
@@ -71,7 +72,7 @@ test('project saves serialize admission immediately before each queued write', a
 	assert.deepEqual(events, ['admit:1']);
 
 	admissions[0]?.gate.resolve();
-	await waitFor(() => admissions.length === 2);
+	await waitFor(() => admissions.length === 2, 'the second publication admission');
 	assert.equal(admissions[1]?.bytes, projectPublicationBytes(secondProject));
 	assert.deepEqual(events, ['admit:1', 'save:1', 'admit:2']);
 
@@ -124,7 +125,7 @@ test('a rejected publication admission leaves no save effects and the queued suc
 
 	const first = service.flushProject();
 	assert.ok(first);
-	await waitFor(() => admissions.length === 1);
+	await waitFor(() => admissions.length === 1, 'the first publication admission');
 	project = testProject(2, 'Recovering revision');
 	const second = service.flushProject();
 	assert.ok(second);
@@ -132,7 +133,7 @@ test('a rejected publication admission leaves no save effects and the queued suc
 	const rejected = assert.rejects(first, (error) => error === denied);
 	admissions[0]?.gate.reject(denied);
 	await rejected;
-	await waitFor(() => admissions.length === 2);
+	await waitFor(() => admissions.length === 2, 'the second publication admission');
 
 	assert.deepEqual(saved, []);
 	assert.deepEqual(persisted, []);
@@ -188,12 +189,4 @@ function deferred(): Deferred {
 		resolve: () => { resolve?.(); },
 		reject: (error) => { reject?.(error); },
 	};
-}
-
-async function waitFor(predicate: () => boolean): Promise<void> {
-	for (let attempt = 0; attempt < 30; attempt += 1) {
-		if (predicate()) return;
-		await Promise.resolve();
-	}
-	assert.fail('Condition was not met before the microtask queue settled.');
 }

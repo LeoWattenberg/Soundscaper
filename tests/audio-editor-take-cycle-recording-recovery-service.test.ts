@@ -19,6 +19,7 @@ import {
 } from '../src/common/editor/take-cycle-recovery-envelope.ts';
 import type { TakeMediaPublicationBinding } from '../src/common/editor/take-media-recovery-journal.ts';
 import { TakeCycleRecoveryEnvelopeRepository } from '../src/common/editor/storage/take-cycle-recovery-envelope-repository.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 test('restart before media commit cleans every exact stage receipt and removes its envelope', async () => {
 	const fixture = await recoveryFixture({ envelope: stagedEnvelope() });
@@ -145,7 +146,7 @@ test('cancellation after cleanup leaves an idempotently recoverable envelope', a
 		{ currentGeneration: 7, decision: 'discard' },
 		{ signal: abort.signal },
 	);
-	await until(() => fixture.events.includes('cleanup-published:media-a'));
+	await waitFor(() => fixture.events.includes('cleanup-published:media-a'), 'the published media cleanup');
 	abort.abort(new DOMException('Recovery cancelled.', 'AbortError'));
 	pending.resolve();
 	await assert.rejects(operation, /Recovery cancelled/u);
@@ -358,9 +359,4 @@ function deferred<Value>() {
 	let resolve!: (value: Value) => void;
 	const promise = new Promise<Value>((settle) => { resolve = settle; });
 	return { promise, resolve };
-}
-
-async function until(predicate: () => boolean): Promise<void> {
-	for (let attempt = 0; attempt < 20 && !predicate(); attempt += 1) await Promise.resolve();
-	assert.equal(predicate(), true, 'expected asynchronous checkpoint was not reached');
 }

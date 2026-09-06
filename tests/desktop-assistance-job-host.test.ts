@@ -18,6 +18,7 @@ import {
 	HELPER_CANCELLATION_BUDGET_MS,
 	helperJobSubcontractVersion,
 } from '../desktop/helper-contract.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 const JOB_ID = 'ab'.repeat(20);
 const REQUEST = Object.freeze({
@@ -52,10 +53,7 @@ function harness(overrides = {}) {
 }
 
 async function ready(channel: FakeChannel): Promise<void> {
-	for (let attempt = 0; attempt < 10 && channel.sent.length === 0; attempt += 1) {
-		await new Promise((resolve) => { setImmediate(resolve); });
-	}
-	assert.ok(channel.sent.length > 0, 'the assistance helper handshake must admit its job');
+	await waitFor(() => channel.sent.length > 0, 'the assistance helper handshake to admit its job');
 }
 
 test('assistance uses the shared control-v1 envelope and its speech subcontract', async () => {
@@ -96,9 +94,7 @@ test('concurrent assistance jobs queue without losing either admitted identity',
 	assert.equal((channel.sent[0] as { jobId?: string }).jobId, JOB_ID);
 	channel.emit({ contractVersion: 1, type: 'result', jobId: JOB_ID, result: STATUS });
 	assert.deepEqual(await first.completed, STATUS);
-	for (let attempt = 0; attempt < 10 && channel.sent.length < 2; attempt += 1) {
-		await new Promise((resolve) => { setImmediate(resolve); });
-	}
+	await waitFor(() => channel.sent.length >= 2, 'the queued second job to be sent');
 	assert.equal((channel.sent[1] as { jobId?: string }).jobId, secondId);
 	channel.emit({ contractVersion: 1, type: 'result', jobId: secondId, result: STATUS });
 	assert.deepEqual(await second.completed, STATUS);

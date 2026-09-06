@@ -8,6 +8,7 @@ import { startFramescaperNativeServicesRuntime } from '../desktop/native-service
 import type { NativeQueueCapacityV1 } from '../src/common/editor/native-queue-admission.ts';
 import { createNativeQueueRecordV2, type NativeQueueRecordV2 } from '../src/common/editor/native-queue-record.ts';
 import { nativeQueueKeyedPlanV7 } from './helpers/native-queue-plan-fixture.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 test('the durable dispatcher reparses V7-V12, limits concurrency, runs the pool, publishes, and completes', async () => {
 	let now = 1_000;
@@ -187,7 +188,8 @@ test('deferred work waits for an explicit wake and hardware reservations stay ex
 		await firstStarted;
 		const callsBeforeWake = capacityCalls;
 		const explicitlyWoken = dispatcher.dispatch([records[1]!]);
-		await waitFor(() => capacityCalls > callsBeforeWake);
+		await waitFor(() => capacityCalls > callsBeforeWake,
+			'the woken dispatcher to ask for capacity again');
 		assert.equal(runtime.queue.read(records[1]!.jobId)?.state, 'queued');
 		releaseFirst();
 		await Promise.all([draining, explicitlyWoken]);
@@ -373,12 +375,4 @@ function capacity(overrides: Partial<NativeQueueCapacityV1> = {}): NativeQueueCa
 		busyHardwareBackends: [],
 		...overrides,
 	};
-}
-
-async function waitFor(predicate: () => boolean): Promise<void> {
-	for (let attempt = 0; attempt < 20; attempt += 1) {
-		if (predicate()) return;
-		await new Promise<void>((resolve) => setImmediate(resolve));
-	}
-	assert.fail('Timed out waiting for the native queue dispatcher.');
 }

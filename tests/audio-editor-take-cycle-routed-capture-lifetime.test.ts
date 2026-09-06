@@ -9,6 +9,7 @@ import {
 } from '../src/common/editor/controller/take-cycle-routed-capture-service.ts';
 import type { TakeCycleLiveCaptureSession } from '../src/common/editor/controller/take-cycle-live-capture-session.ts';
 import type { RecordingControllerFactoryOptions } from '../src/common/editor/controller/recording-transaction-types.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 test('take-cycle input and recorder lifetime loss discards the captured prefix without publication', async (context) => {
 	const scenarios = [
@@ -29,7 +30,7 @@ test('take-cycle input and recorder lifetime loss discards the captured prefix w
 
 		try {
 			scenario.interrupt(fixture);
-			await waitFor(() => fixture.releaseCalls() === 1);
+			await waitFor(() => fixture.releaseCalls() === 1, 'the interrupted capture to release its route');
 			assert.equal(service.active, false);
 			const result = await service.stop();
 
@@ -181,9 +182,4 @@ function captureFixture() {
 			for (const listener of [...contextListeners]) listener();
 		},
 	};
-}
-
-async function waitFor(predicate: () => boolean): Promise<void> {
-	for (let attempt = 0; attempt < 100 && !predicate(); attempt += 1) await Promise.resolve();
-	assert.equal(predicate(), true, 'capture interruption did not settle');
 }

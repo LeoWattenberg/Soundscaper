@@ -20,6 +20,7 @@ import type {
 	AssistancePowerEtiquettePort,
 	AssistancePowerObservation,
 } from '../desktop/assistance-power-etiquette-v1.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 const GIB = 1024 ** 3;
 const JOB_ID = 'ab'.repeat(20);
@@ -302,11 +303,7 @@ function typed(code: AssistanceRuntimeFamilyError['code']) {
 }
 
 async function until(predicate: () => boolean): Promise<void> {
-	for (let attempt = 0; attempt < 100; attempt += 1) {
-		if (predicate()) return;
-		await new Promise((resolve) => { setTimeout(resolve, 1); });
-	}
-	assert.fail('The runtime-family test condition was not reached.');
+	await waitFor(predicate, 'the runtime-family test condition');
 }
 
 async function within<T>(promise: Promise<T>, milliseconds: number): Promise<T> {

@@ -19,6 +19,7 @@ import { createFramescaperProjectUnifiedExactRenderPlanNativeMedia } from '../sr
 import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
 import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
 import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 test('graceful V3 shutdown leaves active atomic work recoverable instead of cancelling it', async (t) => {
 	const root = await mkdtemp(join(tmpdir(), 'framescaper-v3-shutdown-'));
@@ -234,11 +235,13 @@ test('a rich-plan proxy restarts without waiting for renderer carrier regenerati
 	});
 	try {
 		await second.ready;
-		await waitFor(() => second.queue.read(record.jobId)?.state === 'running');
+		await waitFor(() => second.queue.read(record.jobId)?.state === 'running',
+			'the recovered job to resume running');
 		await didStart;
 		assert.equal(second.queue.read(record.jobId)?.lastFailureCode, null);
 		release();
-		await waitFor(() => second.queue.read(record.jobId)?.state === 'completed');
+		await waitFor(() => second.queue.read(record.jobId)?.state === 'completed',
+			'the recovered job to complete');
 	} finally {
 		release?.();
 		await second.close();
@@ -304,7 +307,7 @@ test('active early-prepare carrier controls clean custody, while root reauthoriz
 			await didEnter;
 			await runtime.controller.control({ jobId: record.jobId, action });
 			release();
-			await waitFor(() => removed.includes(record.jobId));
+			await waitFor(() => removed.includes(record.jobId), 'the abandoned job to be removed');
 			assert.equal(runtime.queue.read(record.jobId)?.state,
 				action === 'pause' ? 'paused' : 'cancelled');
 		} finally { release?.(); await runtime.close(); }
@@ -469,12 +472,4 @@ function renderQueueCapabilities() {
 		...NATIVE_MEDIA_CAPABILITY_IDS.renderQueue,
 		buildSupported: true, probeSucceeded: true, selfTestPassed: true, userEnabled: true,
 	}] });
-}
-
-async function waitFor(predicate: () => boolean): Promise<void> {
-	for (let attempt = 0; attempt < 40; attempt += 1) {
-		if (predicate()) return;
-		await new Promise<void>((resolve) => setImmediate(resolve));
-	}
-	assert.fail('Timed out waiting for the V3 queue state.');
 }

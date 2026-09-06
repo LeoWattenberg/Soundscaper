@@ -8,6 +8,7 @@ import {
 } from '../desktop/assistance-runtime-family-helper-process.ts';
 import type { AssistanceRuntimeFamilyThreadPort } from '../desktop/assistance-runtime-family-thread-worker.ts';
 import { validateAssistanceRuntimeFamilyDescriptorV1 } from '../desktop/assistance-runtime-family-process-protocol.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 const JOB_ID = '1'.repeat(40);
 const SHA = '2'.repeat(64);
@@ -217,9 +218,5 @@ test('llama.cpp editorial jobs use the utility-owned terminateable CLI worker in
 });
 
 async function until(predicate: () => boolean): Promise<void> {
-	for (let attempt = 0; attempt < 100; attempt += 1) {
-		if (predicate()) return;
-		await new Promise((resolve) => { setTimeout(resolve, 1); });
-	}
-	assert.fail('The helper-process condition was not reached.');
+	await waitFor(predicate, 'the helper-process condition');
 }

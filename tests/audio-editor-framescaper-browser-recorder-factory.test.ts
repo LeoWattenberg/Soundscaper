@@ -7,6 +7,7 @@ import {
 	createFramescaperBrowserRecorderFactory,
 } from '../src/common/editor/controller/framescaper-browser-recorder-factory.ts';
 import type { CapturePacket } from '../src/common/editor/framescaper-capture-domain.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 test('browser recorder factory retains the video encoder actual MIME type', async () => {
 	const packets: CapturePacket[] = [];
@@ -43,11 +44,11 @@ test('browser recorder factory packetizes actual PCM and marks pause input gaps 
 	});
 	recorder.start(100_000);
 	processor.push(audioData(0, [0.25, -0.5]));
-	await eventually(() => packets.length === 1);
+	await waitFor(() => packets.length === 1, 'the first captured packet');
 	assert.equal(await recorder.pause(), true);
 	assert.equal(await recorder.resume(), true);
 	processor.push(audioData(20, [0.75]));
-	await eventually(() => packets.length === 2);
+	await waitFor(() => packets.length === 2, 'both captured packets');
 	await recorder.stop();
 	assert.equal(packets[0]?.kind, 'pcm-audio');
 	assert.equal(packets[0]?.presentationTimeUs, 100_000);
@@ -177,11 +178,6 @@ function audioData(frameStart: number, samples: readonly number[]) {
 		copyTo(destination: Float32Array) { destination.set(samples); },
 		close() {},
 	};
-}
-
-async function eventually(predicate: () => boolean) {
-	for (let attempt = 0; attempt < 100 && !predicate(); attempt += 1) await new Promise(setImmediate);
-	assert.equal(predicate(), true);
 }
 
 function deferred() {

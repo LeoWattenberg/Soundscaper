@@ -16,6 +16,7 @@ import {
 	type ExternalFfmpegVideoSpawn,
 } from '../desktop/external-ffmpeg-video-operation-service.ts';
 import type { ExternalFfmpegVideoVerifier } from '../desktop/external-ffmpeg-video-verified-capabilities.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 const HASH_A = 'a'.repeat(64);
 const HASH_B = 'b'.repeat(64);
@@ -65,7 +66,7 @@ test('video service owns shell-free argv, streams with backpressure, and retains
 			operationId: session.operationId, role: 'video', offset: 0,
 			bytes: new Uint8Array(32),
 		});
-		await waitFor(() => releaseWrite.current !== null);
+		await waitFor(() => releaseWrite.current !== null, 'the pending input write');
 		assert.equal(await pending(writing), true);
 		releaseWrite.current?.();
 		await writing;
@@ -140,7 +141,7 @@ test('video service reserves an input offset while process startup is still pend
 		});
 		const concurrentOutcome = concurrent.then(() => 'resolved', () => 'rejected');
 		const executing = fixture.service.execute(fixture.owner, session.operationId);
-		await waitFor(() => callbacks.length === 1);
+		await waitFor(() => callbacks.length === 1, 'the first progress callback');
 		callbacks.shift()?.();
 		await first;
 		await new Promise<void>((resolve) => setImmediate(resolve));
@@ -200,7 +201,7 @@ test('video service reserves input close while its private stream is finishing',
 		const closing = fixture.service.closeInput(fixture.owner, {
 			operationId: session.operationId, role: 'video', offset: 32,
 		});
-		await waitFor(() => finishInput.current !== null);
+		await waitFor(() => finishInput.current !== null, 'the input stream to finish');
 		await assert.rejects(() => fixture.service.closeInput(fixture.owner, {
 			operationId: session.operationId, role: 'video', offset: 32,
 		}), /drift|closed/u);
@@ -314,7 +315,7 @@ test('post-spawn private-pipe setup failure terminates the admitted child tree',
 	try {
 		const session = await fixture.service.begin(fixture.owner, PLAN);
 		await assert.rejects(() => fixture.service.execute(fixture.owner, session.operationId), /private input pipe/u);
-		await waitFor(() => killed > 0);
+		await waitFor(() => killed > 0, 'the child process to be killed');
 	} finally {
 		await fixture.service.dispose();
 		await rm(root, { recursive: true, force: true });
@@ -394,7 +395,7 @@ test('an identical rescan admission cannot inherit in-flight verification author
 	});
 	try {
 		const first = fixture.service.capabilities();
-		await waitFor(() => calls === 1);
+		await waitFor(() => calls === 1, 'the first verifier call');
 		fixture.setAdmission(Object.freeze({ ...fixture.admission }));
 		release();
 		assert.equal((await first).formats.mp4.available, false);
@@ -447,7 +448,7 @@ test('service disposal aborts and drains an in-flight real verification child', 
 		const capabilities = assert.rejects(fixture.service.capabilities(), /abort|stopped/iu);
 		await spawned;
 		const disposal = fixture.service.dispose();
-		await waitFor(() => killed > 0);
+		await waitFor(() => killed > 0, 'the child process to be killed');
 		assert.equal(await pending(disposal), true);
 		child.current?.emit('close', null, 'SIGTERM');
 		await disposal;
@@ -471,9 +472,9 @@ test('service disposal is a barrier for running child termination and scratch cl
 	try {
 		const session = await fixture.service.begin(fixture.owner, PLAN);
 		const executionRejected = assert.rejects(fixture.service.execute(fixture.owner, session.operationId), /cancelled/iu);
-		await waitFor(() => child.current !== null);
+		await waitFor(() => child.current !== null, 'the spawned child process');
 		const disposal = fixture.service.dispose();
-		await waitFor(() => killed > 0);
+		await waitFor(() => killed > 0, 'the child process to be killed');
 		assert.equal(await pending(disposal), true);
 		child.current?.emit('close', null, 'SIGTERM');
 		await disposal;
@@ -581,14 +582,6 @@ function fakeChild(video: Writable, audio: Writable | null, omitPrivatePipes = f
 
 async function pending(promise: Promise<unknown>): Promise<boolean> {
 	return Promise.race([promise.then(() => false, () => false), Promise.resolve(true)]);
-}
-
-async function waitFor(predicate: () => boolean | Promise<boolean>): Promise<void> {
-	for (let attempt = 0; attempt < 100; attempt += 1) {
-		if (await predicate()) return;
-		await new Promise<void>((resolve) => setImmediate(resolve));
-	}
-	throw new Error('Timed out waiting for test process state.');
 }
 
 function minimalMp4(): Uint8Array {

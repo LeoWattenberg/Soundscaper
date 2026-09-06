@@ -47,6 +47,7 @@ import {
 	validateSoundscaperDesktopCatalogSnapshot,
 } from '../src/soundscaper/desktop-project-library-renderer-contract.ts'
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts'
+import { waitFor } from './helpers/async-test-control.ts'
 
 test('Soundscaper desktop baseline freezes the exact family-qualified v1 identity', () => {
 	assert.equal(
@@ -179,9 +180,9 @@ test('Soundscaper main reports a writer-lease loss exactly once', async (context
 	const database = new DatabaseSync(createSoundscaperDesktopProjectLibraryPaths(root).databasePath)
 	database.prepare('UPDATE library_lease SET lease_id = ? WHERE singleton = 1').run('f'.repeat(48))
 	database.close()
-	for (let attempt = 0; attempt < 50 && losses.length === 0; attempt += 1) {
-		await new Promise((resolve) => setTimeout(resolve, 2))
-	}
+	await waitFor(() => losses.length > 0, 'the stolen lease to be reported lost', {
+		turns: 50, delayMs: 2,
+	})
 	assert.equal(main.snapshot().fenced, true)
 	assert.equal(losses.length, 1)
 	await main.close()

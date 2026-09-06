@@ -14,6 +14,7 @@ import { FramescaperNativeProjectAuthority } from '../desktop/native-services-pr
 import type { NativeQueueCapacityV1 } from '../src/common/editor/native-queue-admission.ts';
 import { createNativeQueueRecordV2 } from '../src/common/editor/native-queue-record.ts';
 import { nativeQueueKeyedPlanV7 } from './helpers/native-queue-plan-fixture.ts';
+import { settle, waitFor } from './helpers/async-test-control.ts';
 
 test('the main-owned runtime composes one fenced database and truthful controller', async () => {
 	let mediaEnabled = false;
@@ -203,7 +204,7 @@ test('enabling Native Media wakes qualified recovered work once per preference t
 		assert.equal(await second.controller.setPreference({
 			preference: 'native-media', enabled: true,
 		}), true);
-		await flushImmediate();
+		await settle();
 		assert.equal(second.queue.read(later.jobId)?.state, 'queued');
 		assert.deepEqual(executed, [recovered.jobId]);
 
@@ -231,7 +232,7 @@ test('enabling Native Media wakes qualified recovered work once per preference t
 		assert.equal(await second.controller.setPreference({
 			preference: 'native-media', enabled: true,
 		}), true);
-		await waitFor(() => errors.length === 1);
+		await waitFor(() => errors.length === 1, 'the reported runtime error');
 		assert.match(String(errors[0]), /dispatcher is disposed/u);
 		assert.equal(second.queue.read(deferred.jobId)?.state, 'queued');
 	} finally {
@@ -430,19 +431,7 @@ async function waitForQueueState(
 	jobId: string,
 	state: string,
 ): Promise<void> {
-	await waitFor(() => runtime.queue.read(jobId)?.state === state);
-}
-
-async function waitFor(predicate: () => boolean): Promise<void> {
-	for (let attempt = 0; attempt < 20; attempt += 1) {
-		if (predicate()) return;
-		await flushImmediate();
-	}
-	assert.fail('Timed out waiting for the native-services runtime state.');
-}
-
-async function flushImmediate(): Promise<void> {
-	await new Promise<void>((resolve) => setImmediate(resolve));
+	await waitFor(() => runtime.queue.read(jobId)?.state === state, `the ${jobId} job to be ${state}`);
 }
 
 function queueCapacity(): NativeQueueCapacityV1 {

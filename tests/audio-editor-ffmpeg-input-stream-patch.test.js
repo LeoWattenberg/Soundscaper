@@ -6,6 +6,8 @@ import { resolve } from 'node:path';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 
+import { waitFor } from './helpers/async-test-control.ts';
+
 const packageRoot = resolve('node_modules/@ffmpeg/ffmpeg/dist/esm');
 const patchPath = resolve('patches/npm/@ffmpeg+ffmpeg+0.12.15.patch');
 const HEADER_INTS = 8;
@@ -79,7 +81,7 @@ test('the patched FFmpeg class exposes a bounded backpressured input stream', as
 		await assert.rejects(stream.write(new Uint8Array(4097)), /bounded stream capacity/u);
 		await stream.write(source);
 		source.fill(255);
-		await eventually(() => Atomics.load(control, USED_BYTES) === 4096);
+		await waitFor(() => Atomics.load(control, USED_BYTES) === 4096, 'the filled input ring buffer');
 		assert.deepEqual([...bytes.slice(0, 16)], [...expected.slice(0, 16)]);
 		const tail = stream.write(Uint8Array.of(1, 2, 3));
 		await assert.rejects(stream.write(Uint8Array.of(4)), /active write/u);
@@ -129,9 +131,9 @@ test('the patched FFmpeg class exposes a bounded backpressured input stream', as
 			/held creation aborted fixture/u,
 		);
 		workers[0].releaseHeld();
-		await eventually(() => workers[0].messages.some(({ type, data }) => (
+		await waitFor(() => workers[0].messages.some(({ type, data }) => (
 			type === 'DELETE_INPUT_STREAM' && data.path === '/held.rgba'
-		)));
+		)), 'the deletion of the held input stream');
 
 		const messagesBeforeDuplicate = workers[0].messages.length;
 		await assert.rejects(ffmpeg.createInputStream('/duplicate.rgba', 4096), /duplicate fixture/u);
@@ -152,7 +154,8 @@ test('the patched FFmpeg class exposes a bounded backpressured input stream', as
 		const partialWrite = aborted.write(Uint8Array.of(1, 2, 3, 4), {
 			signal: writeAbort.signal,
 		});
-		await eventually(() => Atomics.load(abortedControl, USED_BYTES) === 4096);
+		await waitFor(() => Atomics.load(abortedControl, USED_BYTES) === 4096,
+			'the filled input ring buffer of the aborted read');
 		writeAbort.abort(new DOMException('write aborted fixture', 'AbortError'));
 		await assert.rejects(partialWrite, /write aborted fixture/u);
 		assert.equal(Atomics.load(abortedControl, STATE), ABORTED);
@@ -280,14 +283,6 @@ test('the patched worker exposes the ring as a fail-closed character device', as
 		fixture.restore();
 	}
 });
-
-async function eventually(predicate) {
-	for (let attempt = 0; attempt < 100; attempt += 1) {
-		if (predicate()) return;
-		await new Promise((resolveAttempt) => setImmediate(resolveAttempt));
-	}
-	throw new Error('Timed out waiting for input-stream state.');
-}
 
 async function loadWorkerFixture() {
 	const originalSelf = globalThis.self;

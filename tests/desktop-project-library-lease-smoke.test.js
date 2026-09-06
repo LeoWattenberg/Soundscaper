@@ -13,6 +13,7 @@ import {
 	terminateDesktopProjectLibraryLeaseSmokeRenderer,
 } from '../desktop/project-library-lease-smoke.js';
 import { attachDesktopMainWindowRecovery } from '../desktop/main-window-recovery.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 test('lease smoke keeps fault paths in main and records catalog descriptor evidence', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'scape-lease-smoke-'));
@@ -65,7 +66,7 @@ test('lease smoke keeps fault paths in main and records catalog descriptor evide
 			return { status: 'committed', document };
 		},
 	});
-	await waitFor(control.ready);
+	await waitForFile(control.ready);
 	await writeFile(control.start, '', { flag: 'wx' });
 	const payload = await pending;
 
@@ -111,7 +112,7 @@ test('renderer execution retains the product identity that selects the packaged 
 			return { status: 'committed', document: '{}' };
 		},
 	});
-	await waitFor(control.ready);
+	await waitForFile(control.ready);
 	await writeFile(control.start, '', { flag: 'wx' });
 	await pending;
 	assert.match(executed, /"productId":"framescaper"/u);
@@ -158,7 +159,7 @@ test('the crash checkpoint ignores publications the plan never drove', async (co
 			return { status: 'committed', document };
 		},
 	});
-	await waitFor(control.ready);
+	await waitForFile(control.ready);
 	await writeFile(control.start, '', { flag: 'wx' });
 
 	assert.equal(await pending, null);
@@ -193,7 +194,7 @@ test('the staged renderer crash leaves reload ownership to application recovery'
 			return { status: 'committed', document };
 		},
 	});
-	await waitFor(control.ready);
+	await waitForFile(control.ready);
 	await writeFile(control.start, '', { flag: 'wx' });
 	assert.equal(await pending, null);
 	assert.equal(crashes, 1);
@@ -257,7 +258,7 @@ test('the staged crash composes with one cleanup-gated application reload', asyn
 	assert.equal(webContents.listenerCount('render-process-gone'), 1);
 
 	const pending = session.rendererReady(webContents);
-	await waitFor(control.ready);
+	await waitForFile(control.ready);
 	await writeFile(control.start, '', { flag: 'wx' });
 	assert.equal(await pending, null);
 	assert.equal(cleanupCalls, 1);
@@ -310,9 +311,8 @@ function leaseSession({ action, control, document, productId = 'soundscaper' }) 
 	});
 }
 
-async function waitFor(path) {
-	for (let attempt = 0; attempt < 100; attempt += 1) {
-		try { await access(path); return; } catch { await new Promise((resolve) => setTimeout(resolve, 5)); }
-	}
-	throw new Error(`Timed out waiting for ${path}`);
+async function waitForFile(path) {
+	await waitFor(async () => {
+		try { await access(path); return true; } catch { return false; }
+	}, `the file ${path}`, { turns: 100, delayMs: 5 });
 }

@@ -9,6 +9,7 @@ import {
 	type EffectWorkerState,
 } from '../src/common/editor/controller/selection-effect-worker-service.ts';
 import { planSpectralEditJobAdmission } from '../src/common/editor/spectral-edit-admission.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 class FakeWorker implements EffectWorkerLike {
 	onmessage: ((event: Readonly<{ data: unknown }>) => void) | null = null;
@@ -35,9 +36,7 @@ class FakeWorker implements EffectWorkerLike {
  * threw on a property of undefined.
  */
 async function firstSpectralWorker(workers: readonly FakeWorker[]): Promise<FakeWorker> {
-	for (let attempt = 0; attempt < 200 && workers.length === 0; attempt += 1) {
-		await new Promise((resolve) => { setTimeout(resolve, 0); });
-	}
+	await waitFor(() => workers.length > 0, 'the worker the spectral run creates');
 	const worker = workers[0];
 	assert.ok(worker, 'the spectral run created its worker');
 	return worker;

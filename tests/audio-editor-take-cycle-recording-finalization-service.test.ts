@@ -21,6 +21,7 @@ import type {
 } from '../src/common/editor/take-cycle-recovery-envelope.ts';
 import type { TakeMediaPublicationBinding } from '../src/common/editor/take-media-recovery-journal.ts';
 import { TakeCycleRecoveryEnvelopeRepository } from '../src/common/editor/storage/take-cycle-recovery-envelope-repository.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 const SHA_A = 'ab'.repeat(32);
 const SHA_B = 'cd'.repeat(32);
@@ -239,7 +240,7 @@ test('cancellation and project switching retain one exact envelope for restart r
 	const abort = new AbortController();
 	const cancelled = serviceFixture({ stageMedia: async () => pending.promise });
 	const operation = cancelled.service.finalize(request(), { signal: abort.signal });
-	await until(() => cancelled.events.includes('stage:take-a-1'));
+	await waitFor(() => cancelled.events.includes('stage:take-a-1'), 'the cancelled take stage event');
 	abort.abort(new DOMException('Cycle finalization cancelled.', 'AbortError'));
 	pending.resolve();
 	await assert.rejects(operation, /Cycle finalization cancelled/u);
@@ -447,9 +448,4 @@ function deferred<Value>() {
 	let resolve!: (value: Value) => void;
 	const promise = new Promise<Value>((settle) => { resolve = settle; });
 	return { promise, resolve };
-}
-
-async function until(predicate: () => boolean): Promise<void> {
-	for (let attempt = 0; attempt < 20 && !predicate(); attempt += 1) await Promise.resolve();
-	assert.equal(predicate(), true, 'expected asynchronous checkpoint was not reached');
 }

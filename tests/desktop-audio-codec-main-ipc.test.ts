@@ -9,6 +9,7 @@ import {
 	type DesktopAudioCodecMainIpcService,
 } from '../desktop/desktop-audio-codec-main-ipc.ts';
 import type { DesktopAudioCodecCapabilityQuery } from '../desktop/desktop-audio-codec-capability-contract.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 const CHANNELS = Object.freeze({
 	desktopAudioCodecExecute: 'soundscaper:v1:codecs:audio:execute',
@@ -272,9 +273,5 @@ function deferred<Value>() {
 }
 
 async function until(predicate: () => boolean): Promise<void> {
-	for (let attempt = 0; attempt < 100; attempt += 1) {
-		if (predicate()) return;
-		await new Promise<void>((resolve) => { setImmediate(resolve); });
-	}
-	throw new Error('Condition was not reached.');
+	await waitFor(predicate, 'the codec main-process condition');
 }

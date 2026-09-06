@@ -14,6 +14,7 @@ import {
 	MockAudioWorkletNode,
 	createProject,
 } from './helpers/audio-editor-runtime-harness.js';
+import { waitFor } from './helpers/async-test-control.ts';
 
 test('recording worklet emits bounded transferable chunks and monitor output', () => {
 	const processor = new StreamingRecorderProcessor({ processorOptions: { channelCount: 1, chunkFrames: 128, monitor: true } });
@@ -222,9 +223,7 @@ test('engine primes independent long-source clips concurrently with one worklet 
 	try {
 		engine.loadProject(project, new Map(), { chunkSources: providers });
 		const playback = engine.play();
-		for (let attempt = 0; attempt < 10 && handles.length < 2; attempt += 1) {
-			await new Promise((resolve) => setImmediate(resolve));
-		}
+		await waitFor(() => handles.length >= 2, 'both long-source chunk streams to open');
 		assert.equal(handles.length, 2, 'all long-source streams open before any one finishes priming');
 		assert.equal(
 			context.audioWorkletModules.filter((url) => url.endsWith('/chunk-stream-worklet.js')).length,

@@ -13,6 +13,7 @@ import {
 	EMPTY_ZIP32_LAYOUT,
 	extendZip32Layout,
 } from '../src/common/editor/controller/zip32.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 class MemorySink implements SequentialZip32Sink<Uint8Array> {
 	readonly chunks: Uint8Array[] = [];
@@ -98,7 +99,7 @@ test('sequential ZIP32 streams apply sink backpressure and reject overlapping ad
 	});
 	const archive = await createSequentialZip32Archive(sink);
 	const firstAdd = archive.add('first.raw', input);
-	await waitFor(() => activeWrites === 1);
+	await waitFor(() => activeWrites === 1, 'the first sink write to begin');
 	assert.equal(readCount, 1);
 	await assert.rejects(
 		() => archive.add('overlap.raw', Uint8Array.of(3)),
@@ -137,7 +138,7 @@ test('sequential ZIP32 streams slice byte inputs and await each sink write', asy
 	});
 	const archive = await createSequentialZip32Archive(sink);
 	const addition = archive.add('bounded.raw', input);
-	await waitFor(() => writeStarted);
+	await waitFor(() => writeStarted, 'the queued entry write to begin');
 	assert.equal(sliceCount, 1);
 	firstWrite.resolve();
 	await addition;
@@ -182,7 +183,7 @@ test('sequential ZIP32 streams cancel a pending Blob read and abort the sink', a
 	const archive = await createSequentialZip32Archive(sink);
 	const abort = new AbortController();
 	const addition = archive.add('pending.raw', input, abort.signal);
-	await waitFor(() => readStarted);
+	await waitFor(() => readStarted, 'the entry body read to begin');
 	abort.abort();
 	await assert.rejects(addition, { name: 'AbortError' });
 	assert.equal(cancelled, true);
@@ -279,7 +280,7 @@ test('aborting ZIP32 finalization aborts promptly and never publishes the sink',
 	await archive.add('entry.raw', Uint8Array.of(1));
 	blockWrites = true;
 	const finishing = archive.finish();
-	await waitFor(() => blockedWriteStarted);
+	await waitFor(() => blockedWriteStarted, 'the blocked write to begin');
 	await archive.abort();
 	assert.equal(abortCount, 1);
 	assert.equal(closeCount, 0);
@@ -333,14 +334,6 @@ function deferred<Value>(): {
 	let resolve!: (value: Value) => void;
 	const promise = new Promise<Value>((accept) => { resolve = accept; });
 	return { promise, resolve };
-}
-
-async function waitFor(predicate: () => boolean): Promise<void> {
-	for (let attempt = 0; attempt < 100; attempt += 1) {
-		if (predicate()) return;
-		await new Promise<void>((resolve) => { setImmediate(resolve); });
-	}
-	throw new Error('Timed out waiting for asynchronous test state.');
 }
 
 function concatenate(chunks: readonly Uint8Array[]): Uint8Array {

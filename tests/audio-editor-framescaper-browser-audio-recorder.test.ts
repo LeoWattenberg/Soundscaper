@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
 	createFramescaperBrowserAudioRecorder,
 } from '../src/common/editor/controller/framescaper-browser-audio-recorder.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 interface ReadResult {
 	readonly done: boolean;
@@ -119,7 +120,7 @@ test('track processor is preferred and emits bounded planar chunks in the actual
 	assert.deepEqual(harness.construction(), { track: recorder.track, maxBufferSize: 32 });
 	const data = audioData(130);
 	harness.reader.push(data);
-	await waitUntil(() => chunks.length === 2);
+	await waitFor(() => chunks.length === 2, 'both recorded chunks');
 	assert.deepEqual(chunks.map((chunk) => ({ frameStart: chunk.frameStart, frames: chunk.frames })), [
 		{ frameStart: 0, frames: 128 },
 		{ frameStart: 128, frames: 2 },
@@ -148,15 +149,15 @@ test('processor pause excludes samples while preserving monotonic input frame ga
 	recorder.start();
 	const before = audioData(2);
 	harness.reader.push(before);
-	await waitUntil(() => chunks.length === 1);
+	await waitFor(() => chunks.length === 1, 'the first recorded chunk');
 	assert.equal(recorder.pause(), true);
 	const paused = audioData(3);
 	harness.reader.push(paused);
-	await waitUntil(() => paused.closeCalls === 1);
+	await waitFor(() => paused.closeCalls === 1, 'the paused frame to be closed');
 	assert.equal(recorder.resume(), true);
 	const after = audioData(2);
 	harness.reader.push(after);
-	await waitUntil(() => chunks.length === 2);
+	await waitFor(() => chunks.length === 2, 'the chunk recorded after resuming');
 	assert.deepEqual(chunks.map(({ frameStart, frames }) => ({ frameStart, frames })), [
 		{ frameStart: 0, frames: 2 },
 		{ frameStart: 5, frames: 2 },
@@ -191,7 +192,7 @@ test('processor bounds and serializes pending writes, surfacing fatal backpressu
 	const second = audioData(2);
 	harness.reader.push(first);
 	harness.reader.push(second);
-	await waitUntil(() => errors.length === 1);
+	await waitFor(() => errors.length === 1, 'the reported recorder failure');
 	assert.deepEqual(calls, [0]);
 	assert.deepEqual(pressure, [2]);
 	assert.match(String(errors[0]), /could not keep up/i);
@@ -216,7 +217,7 @@ test('AudioData format mismatch is reported and the frame is closed exactly once
 	recorder.start();
 	const mismatch = audioData(2, 1);
 	harness.reader.push(mismatch);
-	await waitUntil(() => errors.length === 1);
+	await waitFor(() => errors.length === 1, 'the reported recorder failure');
 	assert.match(String(errors[0]), /actual format/i);
 	assert.equal(mismatch.closeCalls, 1);
 	await assert.rejects(recorder.stop(), /actual format/i);
@@ -236,7 +237,7 @@ test('asynchronous PCM sink failures stop processor reads and report exactly onc
 	recorder.start();
 	const data = audioData(2);
 	harness.reader.push(data);
-	await waitUntil(() => recorder.state === 'failed');
+	await waitFor(() => recorder.state === 'failed', 'the recorder to reach its failed state');
 	assert.deepEqual(errors, [failure]);
 	assert.equal(data.closeCalls, 1);
 	await assert.rejects(recorder.stop(), failure);
@@ -379,11 +380,3 @@ test('reader cancellation failure is surfaced without skipping exact release', a
 	assert.equal(harness.reader.releaseCalls, 1);
 	assert.equal(errors.length, 1);
 });
-
-async function waitUntil(predicate: () => boolean): Promise<void> {
-	for (let attempt = 0; attempt < 100; attempt += 1) {
-		if (predicate()) return;
-		await new Promise<void>((resolve) => { setImmediate(resolve); });
-	}
-	throw new Error('Timed out waiting for the recorder test condition.');
-}

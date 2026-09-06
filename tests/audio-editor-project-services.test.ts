@@ -6,6 +6,7 @@ import { createProjectSaveService } from '../src/common/editor/controller/projec
 import { createProjectSessionService } from '../src/common/editor/controller/project-session-service.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import type { ProjectLinkedOriginalSourceReference } from '../src/common/editor/storage/project-publication-options.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 interface TestProject {
 	readonly id: string;
@@ -269,14 +270,14 @@ test('terminal project flush waits behind queued work and rejects later autosave
 
 	service.scheduleAutosave();
 	timers.get(state.autosaveTimer)?.();
-	await waitFor(() => writes.length === 1);
+	await waitFor(() => writes.length === 1, 'the first persisted write');
 	assert.equal(writes[0]?.snapshot.revision, 1);
 	project = { id: 'project', revision: 2 };
 	const terminal = service.terminalFlush();
 	await Promise.resolve();
 	assert.equal(writes.length, 1);
 	writes[0]?.resolve();
-	await waitFor(() => writes.length === 2);
+	await waitFor(() => writes.length === 2, 'the second persisted write');
 	assert.equal(writes[1]?.snapshot.revision, 2);
 	writes[1]?.resolve();
 	await terminal;
@@ -324,7 +325,7 @@ test('suspended project saves cancel timers and reject new work behind a stable 
 	assert.equal(timers.has(state.autosaveTimer), true);
 	const queued = service.flushProject();
 	assert.ok(queued);
-	await waitFor(() => writes.length === 1);
+	await waitFor(() => writes.length === 1, 'the first persisted write');
 	project = { id: 'project', revision: 2 };
 	assert.equal(service.scheduleAutosave(), true);
 	assert.equal(timers.has(state.autosaveTimer), true);
@@ -390,7 +391,7 @@ test('project-scoped save suspension drains an enqueued callback and leaves unre
 	service.suspendProject('origin');
 	let drained = false;
 	const drain = service.drain().then(() => { drained = true; });
-	await waitFor(() => writes.length === 1);
+	await waitFor(() => writes.length === 1, 'the first persisted write');
 	assert.equal(drained, false, 'a callback enqueued before suspension belongs to the stable drain');
 	writes[0]?.resolve();
 	await drain;
@@ -411,7 +412,7 @@ test('project-scoped save suspension drains an enqueued callback and leaves unre
 	await Promise.resolve();
 	assert.equal(flushSettled, false, 'the first nested release does not admit an explicit save');
 	assert.equal(service.resumeProject('origin'), true);
-	await waitFor(() => writes.length === 2);
+	await waitFor(() => writes.length === 2, 'the second persisted write');
 	assert.equal(flushSettled, false);
 	writes[1]?.resolve();
 	await suspendedFlush;
@@ -523,14 +524,6 @@ test('project session service deduplicates legacy recents and persists active UI
 		'soundscaper:last', 'last-project-id', 'soundscaper:recent', 'audio-editor-recent-project-ids',
 	]);
 });
-
-async function waitFor(predicate: () => boolean): Promise<void> {
-	for (let attempt = 0; attempt < 20; attempt += 1) {
-		if (predicate()) return;
-		await Promise.resolve();
-	}
-	assert.fail('Condition was not met before the microtask queue settled.');
-}
 
 function preferenceFixture(activeId = 'default') {
 	return {

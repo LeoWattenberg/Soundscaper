@@ -6,6 +6,8 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
 
+import { waitFor } from './helpers/async-test-control.ts';
+
 test('the dedicated sandbox sink verifies and presents one exact SDR RGBA frame', async () => {
 	const source = await readFile(new URL('../desktop/external-display-sink-preload.cjs', import.meta.url), 'utf8');
 	const listeners = new Map();
@@ -50,9 +52,9 @@ test('the dedicated sandbox sink verifies and presents one exact SDR RGBA frame'
 		version: 1, type: 'frame', sequence: 1, evaluationFingerprint: 'ab'.repeat(32),
 		width: 2, height: 1, dynamicRange: 'sdr', rgbaSha256: sha256, rgba,
 	} });
-	for (let attempt = 0; attempt < 20 && draws.length === 0; attempt += 1) {
-		await new Promise((resolve) => setTimeout(resolve, 5));
-	}
+	await waitFor(() => draws.length > 0, 'the presented frame to be drawn', {
+		turns: 20, delayMs: 5,
+	});
 	assert.equal(draws.length, 1);
 	assert.equal(draws[0].image.width, 2);
 	assert.deepEqual(JSON.parse(JSON.stringify(acknowledgements)), [
@@ -103,9 +105,9 @@ test('the dedicated sink admits a frame larger than one 16 MiB data-plane chunk'
 		version: 1, type: 'frame', sequence: 2, evaluationFingerprint: 'cd'.repeat(32),
 		width, height, dynamicRange: 'sdr', rgbaSha256: sha256, rgba,
 	} });
-	for (let attempt = 0; attempt < 100 && draws.length === 0; attempt += 1) {
-		await new Promise((resolve) => setTimeout(resolve, 5));
-	}
+	await waitFor(() => draws.length > 0, 'the presented frame to be drawn', {
+		turns: 100, delayMs: 5,
+	});
 	assert.equal(draws.length, 1);
 	assert.equal(draws[0].bytes.byteLength, rgba.byteLength);
 	assert.equal(acknowledgements[0].sequence, 2);

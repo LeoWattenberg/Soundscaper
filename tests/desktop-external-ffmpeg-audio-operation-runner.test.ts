@@ -15,6 +15,7 @@ import {
 	type ExternalFfmpegAudioOperationContract,
 } from '../desktop/external-ffmpeg-audio-operation-runner.ts';
 import { externalFfmpegExecutablePairClosureSha256 } from '../desktop/external-ffmpeg-node-runtime.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 interface Operation {
 	readonly codec: 'opus';
@@ -233,7 +234,7 @@ test('the runner is single-flight until the active process has exited and cleanu
 		spawn: () => child,
 	});
 	const first = runner.execute({ operation: { codec: 'opus' }, input: Uint8Array.of(1) });
-	await until(() => outputPath !== '');
+	await waitFor(() => outputPath !== '', 'the operation to name its output path');
 	assert.deepEqual(await runner.execute({
 		operation: { codec: 'opus' }, input: Uint8Array.of(2),
 	}), unavailable('busy'));
@@ -259,7 +260,7 @@ test('AbortSignal cancellation escalates from TERM to KILL and still removes scr
 	const running = runner.execute({
 		operation: { codec: 'opus' }, input: Uint8Array.of(1), signal: controller.signal,
 	});
-	await until(() => scratchDirectory !== '');
+	await waitFor(() => scratchDirectory !== '', 'the operation to claim its scratch directory');
 	controller.abort();
 	assert.deepEqual(await running, unavailable('cancelled'));
 	assert.deepEqual(child.kills, ['SIGTERM', 'SIGKILL']);
@@ -441,12 +442,4 @@ async function assertRemoved(path: string): Promise<void> {
 	await assert.rejects(access(path), (error: unknown) => (
 		Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')
 	));
-}
-
-async function until(condition: () => boolean): Promise<void> {
-	for (let attempt = 0; attempt < 100; attempt += 1) {
-		if (condition()) return;
-		await new Promise<void>((resolve) => { setTimeout(resolve, 1); });
-	}
-	throw new Error('Timed out waiting for the test condition.');
 }

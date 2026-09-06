@@ -7,6 +7,7 @@ import {
 	createAssistanceRuntimeFamilyElectronSpawns,
 	type AssistanceRuntimeFamilyElectronChild,
 } from '../desktop/assistance-runtime-family-electron-spawn.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 const JOB_ID = '1'.repeat(40);
 const SHA = '2'.repeat(64);
@@ -78,7 +79,8 @@ function harness(overrides: Record<string, unknown> = {}) {
 
 async function spawnReady(rig: ReturnType<typeof harness>) {
 	const spawning = rig.spawns['onnxruntime-node'](descriptor());
-	await until(() => rig.children.length === 1 && rig.children[0]!.sent.length === 1);
+	await waitFor(() => rig.children.length === 1 && rig.children[0]!.sent.length === 1,
+		'the spawned child to receive its descriptor');
 	const child = rig.children[0]!;
 	assert.deepEqual(child.sent[0], { protocolVersion: 1, type: 'initialize', descriptor: descriptor() });
 	child.emit('spawn');
@@ -156,7 +158,7 @@ test('malformed or stale child messages kill the family process and reject activ
 test('handshake mismatch and timeout never expose a process to the family router', async () => {
 	const mismatch = harness();
 	const wrong = mismatch.spawns['onnxruntime-node'](descriptor());
-	await until(() => mismatch.children.length === 1);
+	await waitFor(() => mismatch.children.length === 1, 'the mismatched runtime child to spawn');
 	mismatch.children[0]!.emit('message', {
 		protocolVersion: 1, type: 'ready', familyId: 'whisper-cpp', runtimeVersion: 'v1.9.3',
 	});
@@ -177,14 +179,6 @@ test('process termination resolves on Electron exit and forwards one normalized 
 	assert.deepEqual(exits, [0]);
 	assert.equal(child.kills, 1);
 });
-
-async function until(predicate: () => boolean): Promise<void> {
-	for (let attempt = 0; attempt < 100; attempt += 1) {
-		if (predicate()) return;
-		await new Promise((resolve) => { setTimeout(resolve, 1); });
-	}
-	assert.fail('The Electron spawn condition was not reached.');
-}
 
 test('the spawned inference process is dropped to background priority as soon as it exists', async () => {
 	const priorities: number[] = [];

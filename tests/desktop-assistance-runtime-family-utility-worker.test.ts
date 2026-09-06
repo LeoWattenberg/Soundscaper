@@ -8,6 +8,7 @@ import {
 	type AssistanceRuntimeFamilyInnerWorker,
 } from '../desktop/assistance-runtime-family-utility-worker.ts';
 import { validateAssistanceRuntimeFamilyDescriptorV1 } from '../desktop/assistance-runtime-family-process-protocol.ts';
+import { waitFor } from './helpers/async-test-control.ts';
 
 const JOB_ID = '1'.repeat(40);
 const SHA = '2'.repeat(64);
@@ -75,7 +76,8 @@ function harness() {
 
 async function initialize(rig: ReturnType<typeof harness>): Promise<void> {
 	rig.worker.handleMessage({ protocolVersion: 1, type: 'initialize', descriptor: descriptor() });
-	await until(() => rig.messages.length === 1 || rig.exits.length > 0);
+	await waitFor(() => rig.messages.length === 1 || rig.exits.length > 0,
+		'the utility worker to answer or exit');
 	assert.deepEqual(rig.messages[0], {
 		protocolVersion: 1, type: 'ready', familyId: 'onnxruntime-node', runtimeVersion: '1.29.0',
 	});
@@ -95,7 +97,7 @@ test('the utility process authenticates once, then runs one family-bound worker 
 		task: 'shot-detection', outputs: [{ claimId: '4'.repeat(40), role: 'shot-boundaries',
 			mediaType: 'application/vnd.soundscaper.shot-boundaries+json', byteLength: 10, sha256: SHA }] };
 	rig.workers[0]!.resolve(result);
-	await until(() => rig.messages.length === 3);
+	await waitFor(() => rig.messages.length === 3, 'all three utility-worker messages');
 	assert.deepEqual(rig.messages[2], {
 		protocolVersion: 1, type: 'result', jobId: JOB_ID,
 		familyId: 'onnxruntime-node', task: 'shot-detection', result,
@@ -108,7 +110,7 @@ test('terminate-worker acknowledges only after the per-job worker terminates', a
 	await initialize(rig);
 	rig.worker.handleMessage({ protocolVersion: 1, type: 'job', request: request() });
 	rig.worker.handleMessage({ protocolVersion: 1, type: 'terminate-worker', jobId: JOB_ID });
-	await until(() => rig.messages.length === 2);
+	await waitFor(() => rig.messages.length === 2, 'both utility-worker messages');
 	assert.equal(rig.workers[0]!.terminations, 1);
 	assert.deepEqual(rig.messages[1], {
 		protocolVersion: 1, type: 'worker-terminated', jobId: JOB_ID,
@@ -131,15 +133,7 @@ test('foreign, concurrent, malformed, or pre-initialize work fails the containin
 		(rig: ReturnType<typeof harness>) => rig.worker.handleMessage({ protocolVersion: 1, type: 'shell' }),
 	]) {
 		const rig = harness(); action(rig);
-		await until(() => rig.exits.length > 0);
+		await waitFor(() => rig.exits.length > 0, 'the utility worker to exit');
 		assert.deepEqual(rig.exits, [1]);
 	}
 });
-
-async function until(predicate: () => boolean): Promise<void> {
-	for (let attempt = 0; attempt < 100; attempt += 1) {
-		if (predicate()) return;
-		await new Promise((resolve) => { setTimeout(resolve, 1); });
-	}
-	assert.fail('The utility-worker condition was not reached.');
-}
