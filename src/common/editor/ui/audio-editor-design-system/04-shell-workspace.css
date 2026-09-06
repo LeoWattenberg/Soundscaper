@@ -309,3 +309,25 @@
 	flex: 1 1 auto;
 	flex-direction: column;
 }
+
+/* One surface that could not be drawn says so in its own place, in the same
+   words the root boundary uses, and leaves the rest of the editor standing. */
+#kw-audio-editor-design-system .audio-editor-surface-error {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+	margin: 8px;
+	padding: 10px 12px;
+	color: var(--kw-editor-danger);
+	background: var(--kw-editor-danger-bg);
+	border: 1px solid var(--kw-editor-danger-line);
+	border-radius: 6px;
+	font-size: 12px;
+	line-height: 1.4;
+	overflow-wrap: anywhere;
+}
+
+#kw-audio-editor-design-system .audio-editor-surface-error p {
+	margin: 0;
+}

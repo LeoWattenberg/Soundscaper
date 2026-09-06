@@ -10,6 +10,7 @@ import {
 } from '../edit-blocking.ts';
 import { loadPlaybackMeterSettings, loadRecordingMeterSettings } from '../meter-settings.ts';
 import AudioEditorWorkspaceView from './AudioEditorWorkspaceView.jsx';
+import { resolveWorkspaceRuntimeProjection } from './workspace-runtime-projection.ts';
 import { withDesktopProjectReadDescriptor } from './desktop-project-file-routing.ts';
 import { workspacePreferencesPage } from './workspace-preferences-routing.ts';
 import { useTimelineNavigation } from './useTimelineNavigation.js';
@@ -92,9 +93,12 @@ export default function AudioEditorWorkspace({
 		toolbarDragRef,
 	} = useWorkspaceToolbarDocking(editorRef);
 	const project = snapshot.project;
-	const runtimeProject = useMemo(() => (
-		project && projectForRuntimeConsumers ? projectForRuntimeConsumers(project) : null
+	// Resolved above every surface boundary, so a document the projection
+	// refuses becomes a value here and fails under the timeline's own boundary.
+	const projection = useMemo(() => resolveWorkspaceRuntimeProjection(
+		project, { projectForRuntimeConsumers, projectDurationFrames },
 	), [project, projectForRuntimeConsumers]);
+	const { runtimeProject, durationFrames } = projection;
 	const preferences = snapshot.preferences;
 	const { chromeDrawer, compactLayout, isCompact, isProjectBinCompact } = useWorkspaceCompactLayout({ layoutPreference: preferences?.appearance?.layout });
 	useWorkspaceThemePreference(preferences?.appearance?.theme, productId);
@@ -280,7 +284,6 @@ export default function AudioEditorWorkspace({
 		});
 	}, [controller, run, setActiveSurface, snapshot.selectedTrackId]);
 
-	const durationFrames = project ? projectDurationFrames(runtimeProject ?? project) : 0;
 	const statusMessage = localError || snapshot.status?.message || copy.ready;
 	const statusState = localError ? 'error' : snapshot.status?.state || 'info';
 	const aup4Compatibility = snapshot.aup4Compatibility;

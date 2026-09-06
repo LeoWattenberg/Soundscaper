@@ -9,6 +9,7 @@ import { framescaperSelectedVisualAuthoringSurface } from '../framescaper-select
 import { resolveLocalModelManagerBridge } from '../local-model-manager-bridge.ts';
 import { resolveSoundscaperMasteringSequenceCopy } from '../soundscaper-workflow-product-runtime.tsx';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
+import EditorSurfaceBoundary from '../EditorSurfaceBoundary.jsx';
 
 const AudioEditorEffectsOverlay = lazyEditorModule(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
 const AudioEditorMacroManagerDialog = lazyEditorModule(() => import('../inspector/AudioEditorMacroManagerDialog.jsx'));
@@ -102,7 +103,9 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		&& isCurrentProjectSchemaIdentity(snapshot.project, FRAMESCAPER_PROJECT_SCHEMA_FAMILY);
 	const framescaperProxyProject = productId === 'framescaper'
 		&& isCurrentProjectSchemaIdentity(snapshot.project, FRAMESCAPER_PROJECT_SCHEMA_FAMILY);
-	return <>
+	// A dialog that cannot draw the document shows the refusal in the dialog
+	// layer; the workspace behind it stays.
+	return <EditorSurfaceBoundary copy={copy} surface="dialogs" resetKey={snapshot.project}>
 			{productId === 'soundscaper' && activeSurface === 'mastering-sequences'
 				&& SoundscaperMasteringSequenceDialog && (
 				<div data-editor-surface="mastering-sequences">
@@ -550,5 +553,5 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 					onSettle={settleScapeOpenDecision}
 				/>
 			)}
-	</>;
+	</EditorSurfaceBoundary>;
 }

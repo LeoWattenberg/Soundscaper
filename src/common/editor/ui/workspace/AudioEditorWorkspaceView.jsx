@@ -21,6 +21,7 @@ import { WORKSPACE_DOCK_IDS, workspaceDockLabel } from './workspace-panel-model.
 import { handleWorkspaceKeyboard } from '../workspace-shortcuts.ts';
 import { TrackAutomationRuntimeProvider } from '../soundscaper-workflow-product-runtime.tsx';
 import { useSplitToolShortcut } from '../timeline/useSplitToolShortcut.ts';
+import EditorSurfaceBoundary from '../EditorSurfaceBoundary.jsx';
 
 const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.webm,.wv';
 const AUDIO_EDITOR_IMPORT_FILE_ACCEPT = `${AUDIO_EDITOR_AUDIO_FILE_ACCEPT},.txt,.srt,.vtt,text/plain,text/vtt,application/x-subrip`;
@@ -163,6 +164,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 			})}
 			onContextMenu={(event) => event.preventDefault()}
 		>
+			<EditorSurfaceBoundary copy={copy} surface="menubar" resetKey={project}>
 			<AudioEditorMenuBar
 				assistanceSearch={assistanceSearchRuntime.assistanceSearch}
 				onAssistanceSearchClose={assistanceSearchRuntime.closeAssistanceSearch}
@@ -190,6 +192,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 					onNew={() => run(() => controller.actions.project.create())}
 				/>}
 			/>
+			</EditorSurfaceBoundary>
 
 			<input
 				ref={aup4InputRef}

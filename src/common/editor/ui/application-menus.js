@@ -39,7 +39,16 @@ import { createNyquistPluginMenuItems } from './nyquist-plugin-menu-items.js';
  */
 export function edlExportableVideoTracks(project) {
 	if (!project?.tracks) return [];
-	const projected = projectTrackFolderMediaStateV12(project);
+	let projected;
+	try {
+		projected = projectTrackFolderMediaStateV12(project);
+	} catch {
+		// The menus are built above every surface boundary, so a hierarchy the
+		// projection refuses must not throw here: it would take the whole editor
+		// down for one greyed-out entry. The timeline draws the same document
+		// under its own boundary and shows the refusal in place.
+		return [];
+	}
 	const tracks = projected.tracks ?? [];
 	const composes = createVisibleVideoTrackPredicate(tracks);
 	return tracks.filter((track) => track.type === 'video' && composes(track));

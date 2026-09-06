@@ -2,6 +2,7 @@ import type { EditorController, EditorSnapshot } from '../../types.ts';
 import type { TrackAutomationRuntime } from '../../track-automation-runtime.ts';
 import type { TrackFreezeRuntime } from '../../track-freeze-runtime.ts';
 import TimelineController from './TimelineController.jsx';
+import EditorSurfaceBoundary from '../EditorSurfaceBoundary.jsx';
 
 export interface TrackHeaderDrawer {
 	readonly isOpen: boolean;
@@ -94,18 +95,23 @@ export default function AudioEditorTimeline({
 		capabilities,
 	};
 
+	// The timeline re-derives the runtime projection it draws from, so a
+	// document the projection refuses fails here, under a boundary the size of
+	// the timeline, rather than at the root where it would blank the editor.
 	return (
-		<TimelineController
-			controller={controller}
-			snapshot={snapshot}
-			runtimeProject={runtimeProject}
-			locale={locale}
-			copy={copy}
-			geometry={geometry}
-			selection={selection}
-			preview={preview}
-			navigation={navigation}
-			actions={actions}
-		/>
+		<EditorSurfaceBoundary copy={copy} surface="timeline" resetKey={snapshot.project}>
+			<TimelineController
+				controller={controller}
+				snapshot={snapshot}
+				runtimeProject={runtimeProject}
+				locale={locale}
+				copy={copy}
+				geometry={geometry}
+				selection={selection}
+				preview={preview}
+				navigation={navigation}
+				actions={actions}
+			/>
+		</EditorSurfaceBoundary>
 	);
 }

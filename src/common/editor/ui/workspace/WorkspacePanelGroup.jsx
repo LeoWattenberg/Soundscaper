@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 
 import WorkspacePanelContent from './WorkspacePanelContent.jsx';
 import WorkspacePanelHeader from './WorkspacePanelHeader.jsx';
+import EditorSurfaceBoundary from '../EditorSurfaceBoundary.jsx';
 import {
 	ANALYZER_PANEL_ID_SET,
 	FLOATING_PANEL_MIN_HEIGHT,
@@ -209,12 +210,14 @@ export default function WorkspacePanelGroup({
 				hidden={grouped && !active}
 				tabIndex={active && panelId === 'source-monitor' ? 0 : undefined}
 			>
-				<WorkspacePanelContent
-					{...contentProps}
-					panelId={panelId}
-					panelActive={active}
-					dock={dock}
-				/>
+				<EditorSurfaceBoundary copy={copy} surface={`panel:${panelId}`} resetKey={contentProps.snapshot?.project}>
+					<WorkspacePanelContent
+						{...contentProps}
+						panelId={panelId}
+						panelActive={active}
+						dock={dock}
+					/>
+				</EditorSurfaceBoundary>
 			</div>;
 		})}
 		{dropPreview && <div
