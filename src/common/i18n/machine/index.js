@@ -18,6 +18,7 @@ export const MACHINE_CATALOG_LOCALES = Object.freeze([
 	'ro',
 	'ru',
 	'tr',
+	'uk',
 ]);
 
 export const MACHINE_CATALOG_LOADERS = Object.freeze({
@@ -30,4 +31,5 @@ export const MACHINE_CATALOG_LOADERS = Object.freeze({
 	ro: () => import('./ro.json'),
 	ru: () => import('./ru.json'),
 	tr: () => import('./tr.json'),
+	uk: () => import('./uk.json'),
 });
