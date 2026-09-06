@@ -33,6 +33,7 @@ function scope(options: Readonly<{
 	refuseWrites?: boolean;
 	refuseReads?: boolean;
 	refuseStorage?: boolean;
+	refuseMedia?: boolean;
 }> = {}) {
 	const written: Record<string, string> = {};
 	const localStorage = {
@@ -52,7 +53,10 @@ function scope(options: Readonly<{
 				if (options.refuseStorage) throw new DOMException('The operation is insecure.', 'SecurityError');
 				return localStorage;
 			},
-			matchMedia: (query: string) => ({ matches: query.includes('dark') && options.prefersDark === true }),
+			matchMedia: (query: string) => {
+				if (options.refuseMedia) throw new DOMException('The operation is insecure.', 'SecurityError');
+				return { matches: query.includes('dark') && options.prefersDark === true };
+			},
 		},
 	};
 }
@@ -116,4 +120,18 @@ test('storing a chosen theme reports refusal rather than throwing', () => {
 	const refusing = scope({ refuseWrites: true });
 	assert.equal(storeDocumentTheme('soundscaper', 'dark', refusing.scope as never), false);
 	assert.deepEqual(refusing.written, {});
+});
+
+test('a browser that refuses the media query at all is painted light rather than left unpainted', () => {
+	// `matchMedia` throws behind some privacy settings, and the system
+	// preference is the last thing consulted. Losing it must cost the visitor a
+	// light document, not an unpainted one on which no palette rule matches.
+	const element = root();
+	const { scope: refusing } = scope({ prefersDark: true, refuseMedia: true });
+
+	const theme = applyDocumentTheme(element as unknown as HTMLElement, 'soundscaper', refusing as never);
+
+	assert.equal(theme, 'light');
+	assert.equal(element.dataset.theme, 'light');
+	assert.equal(element.style.colorScheme, 'light');
 });

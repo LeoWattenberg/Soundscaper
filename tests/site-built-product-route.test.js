@@ -21,6 +21,14 @@ test('the Soundscaper build never revives Framescaper from its retired path pref
 	assert.deepEqual(resolveWebRoute('/', 'soundscaper'), { productId: 'soundscaper', locale: 'en', embedded: false });
 });
 
+test('a pathname the shell never supplied still resolves the default route', () => {
+	// The offline shell hands the resolver whatever `location` it was revived
+	// with, and a document restored without one has no pathname at all. That is
+	// the default locale's route, not a crash before the editor ever mounts.
+	assert.deepEqual(resolveWebRoute(undefined, 'soundscaper'), { productId: 'soundscaper', locale: 'en', embedded: false });
+	assert.deepEqual(resolveWebRoute('', 'framescaper'), { productId: 'framescaper', locale: 'en', embedded: false });
+});
+
 test('privacy paths retain their locale and select the dialog-only route', () => {
 	assert.deepEqual(resolveWebRoute('/privacy/en/', 'soundscaper'), {
 		productId: 'soundscaper', locale: 'en', embedded: false, privacyPolicy: true,
@@ -98,4 +106,17 @@ test('a Framescaper bundle resolves its own product without a path segment', asy
 	} finally {
 		delete globalThis.__SCAPE_PRODUCT__;
 	}
+});
+
+test('a locale no build serves falls back to English without losing the route', async () => {
+	// The committed locale list is what the static routes are generated from, so
+	// a path naming anything else reached this build by hand or by a stale link.
+	const route = await resolveApplicationRoute({ location: { pathname: '/kl/' } });
+	assert.deepEqual(route, {
+		productId: 'soundscaper',
+		locale: 'en',
+		direction: 'ltr',
+		embedded: false,
+		desktop: false,
+	});
 });

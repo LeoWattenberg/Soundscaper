@@ -156,6 +156,33 @@ test('the privacy route names the launch after the product while the document ti
 	]);
 });
 
+test('an embedded desktop route marks the root for both and labels the boot progress', (context) => {
+	// The desktop shell and the embed both boot through this rewrite, and the
+	// progress element is the only thing on screen until the editor binds, so it
+	// has to be named in the locale the route asked for rather than in English.
+	const document = installDocument(context);
+	const progress = document.createElement('div');
+	progress.setAttribute('data-initial-load-progress', '');
+	document.body.append(progress);
+
+	applyDocumentRoute({ productId: 'soundscaper', locale: 'de', direction: 'ltr', embedded: true, desktop: true });
+
+	assert.equal(progress.getAttribute('aria-label'), 'Projekt wird geladen');
+	assert.equal(document.documentElement.lang, 'de');
+	assert.equal(document.documentElement.dataset.embedded, 'true');
+	assert.equal(document.documentElement.dataset.desktop, 'true');
+});
+
+test('a standalone browser route clears the marks a cached embedded document arrived with', (context) => {
+	const document = installDocument(context);
+	Object.assign(document.documentElement.dataset, { embedded: 'true', desktop: 'true' });
+
+	applyDocumentRoute(route('soundscaper'));
+
+	assert.equal(document.documentElement.dataset.embedded, undefined);
+	assert.equal(document.documentElement.dataset.desktop, undefined);
+});
+
 function route(productId) {
 	return { productId, locale: 'en', direction: 'ltr', embedded: false, desktop: false };
 }
