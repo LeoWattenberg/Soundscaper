@@ -14,6 +14,7 @@ import {
 	TRANSFER_ROUTES,
 } from '../src/common/transfer/transfer-routes.js';
 
+import { productWebManifest } from './lib/product-web-manifest.mjs';
 import {
 	composeProductHeaders,
 	documentRoute,
@@ -28,6 +29,22 @@ const routing = webBuildRouting();
 const site = routing.site;
 const rootPlan = routing.plans.find(({ root }) => root);
 if (!rootPlan) throw new Error(`Web build ${routing.productId} has no document plan at the origin root.`);
+
+/**
+ * The colour the browser paints its own chrome with around this document.
+ *
+ * The manifest declares one too, but a browser only reads `theme_color` once it
+ * has fetched and parsed the manifest - which is after the first paint - and
+ * iOS never reads it at all, so the head has to carry the colour as well. It is
+ * a pair rather than the manifest's single value because the document has two
+ * appearances: `src/common/site/site.css` paints `--color-surface` behind every
+ * route, white under the light theme and near-black under the dark one, and one
+ * flat dark value would draw a seam above a light window. Neither value is
+ * product-specific, so `updateProductHead` in `src/common/site/App.jsx` has
+ * nothing to rewrite when a live document moves between products.
+ */
+const LIGHT_THEME_COLOR = '#ffffff';
+const DARK_THEME_COLOR = manifestThemeColor();
 let routeCount = 0;
 
 for (const plan of routing.plans) {
@@ -240,10 +257,57 @@ function productIcons(productId) {
 		].join('\n\t\t');
 }
 
+/**
+ * The dark chrome colour, read out of the generator that writes
+ * `manifest-<product>.webmanifest` rather than written a second time beside it:
+ * the head and the manifest describe the same window, and two literals could
+ * drift apart without either being obviously wrong. Only `theme_color` is taken
+ * from the result - the manifest file itself is written by
+ * `scripts/lib/offline-application-shell.mjs`, which owns the icons and
+ * categories this call has no reason to fill in.
+ */
+function manifestThemeColor() {
+	const profile = productProfile(routing.productId);
+	const { theme_color: color } = productWebManifest({
+		id: routing.productId,
+		name: profile.name,
+		description: profile.description,
+		startUrl: rootPlan.startUrl,
+		scope: rootPlan.scope,
+		categories: [],
+		media: [],
+	});
+	if (!/^#[0-9a-f]{6}$/iu.test(String(color))) {
+		throw new Error(`The ${routing.productId} manifest theme colour is not a hex colour a head meta can carry: ${String(color)}.`);
+	}
+	return color;
+}
+
+/**
+ * The half of installing a product that lives in the document head.
+ *
+ * The manifest link and the touch icon are what a browser installs from; the
+ * metas are what a browser reads before the manifest arrives, and what iOS
+ * reads instead of it. iOS honours neither `display: standalone` nor
+ * `short_name`, so without these tags a home-screen launch opens in a browser
+ * tab and names itself after whatever `<title>` the installed document carried -
+ * on the privacy route that is not the product's name. Every tag is marked with
+ * a `data-` attribute, because `updateProductHead` in `src/common/site/App.jsx`
+ * rewrites this head per product at runtime and finds the tags by it; of the
+ * ones added here only the application title differs between products.
+ */
 function productInstallHead(productId) {
 	return [
 		`<link rel="manifest" href="/manifest-${productId}.webmanifest" data-product-manifest />`,
 		`<link rel="apple-touch-icon" sizes="180x180" href="/offline-icons/${productId}-180.png" data-product-install-icon />`,
+		`<meta name="theme-color" media="(prefers-color-scheme: light)" content="${LIGHT_THEME_COLOR}" data-product-theme-color />`,
+		`<meta name="theme-color" media="(prefers-color-scheme: dark)" content="${DARK_THEME_COLOR}" data-product-theme-color />`,
+		'<meta name="apple-mobile-web-app-capable" content="yes" data-product-install-standalone />',
+		// `black-translucent` draws the page under the status bar, which needs
+		// `viewport-fit=cover` and safe-area insets no route lays out for;
+		// `default` leaves the bar sitting on the theme colour above the page.
+		'<meta name="apple-mobile-web-app-status-bar-style" content="default" data-product-install-status-bar />',
+		`<meta name="apple-mobile-web-app-title" content="${escapeHtml(productProfile(productId).name)}" data-product-install-title />`,
 	].join('\n\t\t');
 }
 

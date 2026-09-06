@@ -256,7 +256,10 @@ async function createWindow() {
 		minWidth: 900,
 		minHeight: 600,
 		show: false,
-		backgroundColor: '#1b1b1b',
+		// The dark surface the editor actually paints (site.css --color-surface under
+		// data-theme="dark"), so the frame the window shows before first paint does
+		// not seam against the page. The web manifest declares the same value.
+		backgroundColor: '#14100d',
 		webPreferences: {
 			preload: resolve(__dirname, 'preload.mjs'),
 			additionalArguments: [`--soundscaper-product=${PRODUCT_ID}`, ...(SOAK_DEBUG_ENABLED ? [SOAK_DEBUG_FLAG] : [])],

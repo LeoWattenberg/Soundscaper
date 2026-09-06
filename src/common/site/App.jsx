@@ -119,6 +119,17 @@ function updateProductHead(productId, privacyPolicy) {
 		href: `/offline-icons/${productId}-180.png`,
 		'data-product-install-icon': '',
 	});
+	// iOS names a home-screen launch after this meta rather than after the
+	// manifest, which it does not read, so a document served as one product and
+	// booted as the other would install under the other product's name. It is
+	// the only per-product tag among the install metas: the theme colours and
+	// the Apple capability tags say the same thing for both products and are
+	// deliberately left alone.
+	updateSingleProductMeta('meta[data-product-install-title]', {
+		name: 'apple-mobile-web-app-title',
+		content: productName,
+		'data-product-install-title': '',
+	});
 	const icons = productId === 'framescaper'
 		? [{ href: '/logo/framescaper-icon.svg' }]
 		: [
@@ -145,9 +156,25 @@ function updateProductHead(productId, privacyPolicy) {
 }
 
 function updateSingleProductLink(selector, attributes) {
+	updateSingleProductTag('link', selector, attributes);
+}
+
+function updateSingleProductMeta(selector, attributes) {
+	updateSingleProductTag('meta', selector, attributes);
+}
+
+/**
+ * Create or correct the one head tag a `data-` selector names.
+ *
+ * The selector is what the generated document marks its own tag with, so a
+ * document served for one product is corrected in place rather than gaining a
+ * second tag beside the one it arrived with; any duplicate a document does
+ * carry is dropped, because a browser reading two of these reads the first.
+ */
+function updateSingleProductTag(tagName, selector, attributes) {
 	const existing = [...document.querySelectorAll(selector)];
-	const link = existing.shift() || document.createElement('link');
+	const element = existing.shift() || document.createElement(tagName);
 	for (const duplicate of existing) duplicate.remove();
-	for (const [name, value] of Object.entries(attributes)) link.setAttribute(name, value);
-	if (!link.isConnected) document.head.append(link);
+	for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+	if (!element.isConnected) document.head.append(element);
 }

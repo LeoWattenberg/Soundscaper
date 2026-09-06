@@ -12,7 +12,7 @@ import {
 	privacyPolicyUrl,
 } from './privacy-policy-links.js';
 
-const TRANSLATIONS_BASE_URL = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
+const TRANSLATIONS_BASE_URL = import.meta.env?.PUBLIC_TRANSLATIONS_BASE_URL
 	|| 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
 
 export default function BrandSidebar({ locale, productId = 'soundscaper' }) {

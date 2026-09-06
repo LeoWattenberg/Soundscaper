@@ -141,6 +141,8 @@ test('a Framescaper deployment audits its own origin and its own root routes', a
 		'/logo/framescaper-icon.svg',
 		'/manifest-framescaper.webmanifest',
 		'/offline-icons/framescaper-180.png',
+		'/offline-icons/framescaper-maskable-192.png',
+		'/offline-icons/framescaper-maskable-512.png',
 		'/offline-shell.json',
 		'/service-worker.js',
 	]);

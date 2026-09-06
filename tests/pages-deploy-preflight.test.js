@@ -284,6 +284,8 @@ test('the zone browser cache TTL excuses no-cache on either product origin, and 
 			'/logo/logo-klein-weiß.svg',
 			'/manifest-soundscaper.webmanifest',
 			'/offline-icons/soundscaper-180.png',
+			'/offline-icons/soundscaper-maskable-192.png',
+			'/offline-icons/soundscaper-maskable-512.png',
 		],
 		'the documents and the installed artwork are the routes that name no lifetime of their own',
 	);

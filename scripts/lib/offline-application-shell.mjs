@@ -10,6 +10,12 @@ import {
 	offlineServiceWorkerTemplateSha256,
 	renderOfflineServiceWorker,
 } from './offline-service-worker.mjs';
+import {
+	ICON_SIZES,
+	MANIFEST_ICON_SIZES,
+	productIconNames,
+	productWebManifest,
+} from './product-web-manifest.mjs';
 import { webBuildRouting } from './product-web-routing.mjs';
 
 const MAXIMUM_ASSET_BYTES = 25 * 1024 * 1024;
@@ -39,18 +45,34 @@ const PRODUCT_INSTALL_ARTIFACTS = Object.freeze({
 		description: 'Local-first video effects and compositing editor',
 		logos: Object.freeze(['/logo/framescaper-icon.svg']),
 		source: 'public/logo/framescaper-icon.svg',
+		// Chosen from the standard manifest category vocabulary, which names no
+		// video category; `photo` is the one it files moving-image work under.
+		categories: Object.freeze(['photo', 'productivity', 'utilities']),
+		media: Object.freeze(['audio', 'video']),
 	}),
 	soundscaper: Object.freeze({
 		name: 'Soundscaper',
 		description: 'Local-first multitrack audio editor',
 		logos: Object.freeze(['/logo/logo-klein-schwarz.svg', '/logo/logo-klein-weiß.svg']),
 		source: 'public/logo/logo-klein-schwarz.svg',
+		categories: Object.freeze(['music', 'productivity', 'utilities']),
+		media: Object.freeze(['audio']),
 	}),
 });
 const PRODUCT_EXCLUSIVE_PUBLIC_ARTIFACTS = Object.freeze({
 	framescaper: Object.freeze(['logo/framescaper-icon.svg']),
 	soundscaper: Object.freeze([]),
 });
+
+/**
+ * Android crops a maskable icon to whatever shape the launcher draws, so the
+ * artwork keeps to the middle 80% and the plate behind it is opaque to the
+ * edges. The plate is the light surface for the same reason the manifest's
+ * `background_color` is: the Soundscaper mark is solid black and would vanish
+ * into a dark one.
+ */
+const MASKABLE_ICON_SAFE_ZONE = 0.8;
+const MASKABLE_ICON_BACKGROUND = '#ffffff';
 
 export async function generateOfflineApplicationShell({ outputRoot, repositoryRoot, environment = process.env }) {
 	const root = resolve(outputRoot);
@@ -118,7 +140,7 @@ async function removeUnservedProductArtifacts(outputRoot, routing) {
 		for (const relativePath of [
 			`manifest-${productId}.webmanifest`,
 			...PRODUCT_EXCLUSIVE_PUBLIC_ARTIFACTS[productId],
-			...[180, 192, 512].map((size) => `offline-icons/${productId}-${String(size)}.png`),
+			...productIconNames(productId).map((name) => `offline-icons/${name}.png`),
 		]) await unlink(resolve(outputRoot, relativePath)).catch((error) => {
 			if (error?.code !== 'ENOENT') throw error;
 		});
@@ -133,9 +155,7 @@ function productInstallUrls({ assets, buildManifest, productId, worker }) {
 		worker.fallbacks.standard,
 		worker.fallbacks.embedded,
 		`/manifest-${productId}.webmanifest`,
-		`/offline-icons/${productId}-180.png`,
-		`/offline-icons/${productId}-192.png`,
-		`/offline-icons/${productId}-512.png`,
+		...productIconNames(productId).map((name) => `/offline-icons/${name}.png`),
 	]);
 	if (worker.root) urls.add('/');
 	for (const logo of PRODUCT_INSTALL_ARTIFACTS[productId].logos) urls.add(logo);
@@ -275,41 +295,34 @@ async function generateProductArtifacts({ outputRoot, repositoryRoot, routing })
 		source: resolve(repositoryRoot, PRODUCT_INSTALL_ARTIFACTS[plan.productId].source),
 	}));
 	for (const product of products) {
-		for (const size of [180, 192, 512]) {
-			const output = resolve(outputRoot, `offline-icons/${product.id}-${size}.png`);
-			await mkdir(dirname(output), { recursive: true });
-			await writeFile(output, await renderSquarePng(product.source, size));
+		for (const size of ICON_SIZES) {
+			await writeIcon(outputRoot, `${product.id}-${size}`, await renderSquarePng(product.source, size));
 		}
-		const manifest = {
-			id: `/${product.id}`,
-			name: product.name,
-			short_name: product.name,
-			description: product.description,
-			lang: 'en',
-			dir: 'ltr',
-			start_url: product.startUrl,
-			scope: product.scope,
-			display: 'standalone',
-			background_color: '#1b1b1b',
-			theme_color: '#1b1b1b',
-			icons: [192, 512].map((size) => ({
-				src: `offline-icons/${product.id}-${size}.png`,
-				sizes: `${size}x${size}`,
-				type: 'image/png',
-				purpose: 'any',
-			})),
-		};
+		for (const size of MANIFEST_ICON_SIZES) {
+			// A maskable raster is a poor `any` icon and an `any` raster is a poor
+			// maskable one, so this is a second file rather than a relabelling.
+			await writeIcon(outputRoot, `${product.id}-maskable-${size}`, await renderSquarePng(product.source, size, {
+				safeZone: MASKABLE_ICON_SAFE_ZONE,
+				background: MASKABLE_ICON_BACKGROUND,
+			}));
+		}
 		await writeFile(
 			resolve(outputRoot, `manifest-${product.id}.webmanifest`),
-			`${JSON.stringify(manifest, null, 2)}\n`,
+			`${JSON.stringify(productWebManifest(product), null, 2)}\n`,
 			'utf8',
 		);
 	}
 }
 
-async function renderSquarePng(sourcePath, size) {
+async function writeIcon(outputRoot, name, bytes) {
+	const output = resolve(outputRoot, `offline-icons/${name}.png`);
+	await mkdir(dirname(output), { recursive: true });
+	await writeFile(output, bytes);
+}
+
+async function renderSquarePng(sourcePath, size, options = {}) {
 	const source = await readFile(sourcePath, 'utf8');
-	const squareSource = createSquareOfflineIconSvg(source, size, sourcePath);
+	const squareSource = createSquareOfflineIconSvg(source, size, sourcePath, options);
 	const rendered = new Resvg(squareSource, {
 		fitTo: { mode: 'width', value: size },
 		font: { loadSystemFonts: false },
@@ -320,7 +333,21 @@ async function renderSquarePng(sourcePath, size) {
 	return rendered.asPng();
 }
 
-export function createSquareOfflineIconSvg(source, size, sourcePath = 'offline icon source') {
+/**
+ * One square SVG for one raster.
+ *
+ * `safeZone` is the fraction of the square the artwork may occupy, which is how
+ * the same source becomes a maskable icon: the viewBox grows around the drawing
+ * instead of the drawing being redrawn, so there is one renderer and one
+ * geometry. A `background` paints an opaque plate over that whole square, which
+ * a maskable icon needs and an `any` icon must not have.
+ */
+export function createSquareOfflineIconSvg(source, size, sourcePath = 'offline icon source', options = {}) {
+	const safeZone = options.safeZone ?? 1;
+	const background = options.background ?? null;
+	if (!(safeZone > 0) || safeZone > 1) {
+		throw new Error(`Offline icon safe zone must fall in (0, 1]: ${String(safeZone)}`);
+	}
 	const rootTag = source.match(/<svg\b[^>]*>/u)?.[0];
 	const viewBox = rootTag?.match(/(?:^|\s)viewBox="([^"]+)"/u)?.[1]
 		?.trim().split(/\s+/u).map(Number);
@@ -328,13 +355,21 @@ export function createSquareOfflineIconSvg(source, size, sourcePath = 'offline i
 		throw new Error(`Offline icon source has no finite SVG viewBox: ${sourcePath}`);
 	}
 	const [x, y, width, height] = viewBox;
-	const side = Math.max(width, height);
-	const squareViewBox = [x - ((side - width) / 2), y - ((side - height) / 2), side, side].join(' ');
+	const side = Math.max(width, height) / safeZone;
+	const originX = x - ((side - width) / 2);
+	const originY = y - ((side - height) / 2);
+	const squareViewBox = [originX, originY, side, side].join(' ');
 	const squareRoot = rootTag
 		.replace(/(^|\s)width="[^"]*"/u, (_match, separator) => `${separator}width="${String(size)}"`)
 		.replace(/(^|\s)height="[^"]*"/u, (_match, separator) => `${separator}height="${String(size)}"`)
 		.replace(/(^|\s)viewBox="[^"]*"/u, (_match, separator) => `${separator}viewBox="${squareViewBox}"`);
-	return source.replace(/<text\b[\s\S]*?<\/text>/gu, '').replace(rootTag, squareRoot);
+	// The plate is the first child, so every mark in the source paints over it.
+	const plate = background === null
+		? ''
+		: `<rect x="${originX}" y="${originY}" width="${side}" height="${side}" fill="${background}" />`;
+	return source
+		.replace(/<text\b[\s\S]*?<\/text>/gu, '')
+		.replace(rootTag, () => `${squareRoot}${plate}`);
 }
 
 async function walk(directory) {

@@ -31,6 +31,35 @@ const PRODUCT_INSTALL_ARTWORK = Object.freeze({
 });
 
 /**
+ * Install artwork a product starts serving with the build that introduces it.
+ *
+ * The pre-deploy gate reads the deployment that is already live — the
+ * predecessor of the build in hand — so a file this build is the first to emit
+ * cannot be required of it. Requiring it there would fail the only deploy that
+ * could ever publish it, and nothing would clear the failure. These paths are
+ * therefore audited after publication and only there, by the same fail-closed
+ * verifier, exactly as a retired route is.
+ *
+ * Move an entry into `PRODUCT_INSTALL_ARTWORK` once a deployment carrying it is
+ * live: from then on the predecessor has it too, and the stricter pre-deploy
+ * requirement is the one that belongs.
+ *
+ * `includePending` therefore follows `includeRetired` by default. Both describe
+ * the build being deployed rather than its predecessor, and every caller that
+ * audits one audits the other.
+ */
+const PRODUCT_PENDING_INSTALL_ARTWORK = Object.freeze({
+	soundscaper: Object.freeze([
+		'/offline-icons/soundscaper-maskable-192.png',
+		'/offline-icons/soundscaper-maskable-512.png',
+	]),
+	framescaper: Object.freeze([
+		'/offline-icons/framescaper-maskable-192.png',
+		'/offline-icons/framescaper-maskable-512.png',
+	]),
+});
+
+/**
  * Base paths a deployment served for a product before that product moved to an
  * origin of its own, keyed by the product the deployment belongs to.
  *
@@ -170,7 +199,12 @@ export async function preflightPagesDeployment({
  * must not redirect; a `redirected` descriptor must answer a permanent redirect
  * to the named absolute URL and must not serve a document.
  */
-export function pagesCachePolicyDescriptors({ routing = webBuildRouting(), assetPath, includeRetired = true }) {
+export function pagesCachePolicyDescriptors({
+	routing = webBuildRouting(),
+	assetPath,
+	includeRetired = true,
+	includePending = includeRetired,
+}) {
 	assert(typeof assetPath === 'string' && /^\/assets\/[\w.-]+$/u.test(assetPath),
 		'Pages cache-policy asset path must name one emitted asset.');
 	const noCache = [];
@@ -178,7 +212,10 @@ export function pagesCachePolicyDescriptors({ routing = webBuildRouting(), asset
 		if (plan.root) noCache.push('/');
 		noCache.push(`${plan.basePath}/en/`, `${plan.basePath}/embed/en/`);
 	}
-	for (const plan of routing.plans) noCache.push(...PRODUCT_INSTALL_ARTWORK[plan.productId]);
+	for (const plan of routing.plans) {
+		noCache.push(...PRODUCT_INSTALL_ARTWORK[plan.productId]);
+		if (includePending) noCache.push(...PRODUCT_PENDING_INSTALL_ARTWORK[plan.productId]);
+	}
 	const descriptors = [
 		...noCache.map((path) => served(path, 'no-cache')),
 		served('/offline-shell.json', 'no-store'),
@@ -197,6 +234,7 @@ export async function verifyLivePagesCachePolicy({
 	coldStart = false,
 	fetchImpl = fetch,
 	includeRetired = true,
+	includePending = includeRetired,
 }) {
 	const auditOrigin = normalizedOrigin(origin, 'Pages cache-policy origin');
 	const token = auditToken();
@@ -212,7 +250,7 @@ export async function verifyLivePagesCachePolicy({
 		+ 'Remove it from the deploy job: it exists only for the first deployment an origin ever receives, '
 		+ 'and while it is set an origin that vanished would be mistaken for one that was never deployed.');
 	const assetPath = await liveImmutableAssetPath(fetchImpl, auditOrigin, token);
-	const descriptors = pagesCachePolicyDescriptors({ routing, assetPath, includeRetired });
+	const descriptors = pagesCachePolicyDescriptors({ routing, assetPath, includeRetired, includePending });
 	for (const descriptor of descriptors) {
 		const url = auditUrl(descriptor.path, auditOrigin, token);
 		if (descriptor.expectation === 'redirected') {
