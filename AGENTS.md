@@ -96,3 +96,4 @@
   pins. `--check` verifies without writing.
 - Use tabs in existing JavaScript/JSX sources and keep changes narrowly scoped.
 - Make atomic commits.
+- When committing, explicitly select your own files to avoid sweeping up someone else's changes.
