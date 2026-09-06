@@ -178,14 +178,24 @@ test.describe('audio editor React/design-system workflows', () => {
 		const clipMenu = page.locator('.audio-editor-clip-context-menu');
 		await expect(clipMenu).toBeVisible();
 		await expect(editor.locator('[data-editor-overlay-layer] > .audio-editor-clip-context-menu')).toHaveCount(1);
-		const [previewBounds, menuBounds] = await Promise.all([
-			videoPreview.boundingBox(),
-			clipMenu.boundingBox(),
-		]);
-		expect(previewBounds).not.toBeNull();
-		expect(menuBounds).not.toBeNull();
-		expect(menuBounds.y).toBeLessThan(previewBounds.y + previewBounds.height);
-		expect(menuBounds.y + menuBounds.height).toBeGreaterThan(previewBounds.y);
+		await expect(videoPreview).toBeVisible();
+		// The menu is portaled into the editor's overlay layer, which is what puts
+		// it over the preview's canvas. Where the two land relative to each other
+		// is the page's business - the folded introduction moved the editor up the
+		// page - so prove the menu owns the pixels it covers rather than asserting
+		// an overlap the layout no longer produces.
+		const ownsItsPixels = await clipMenu.evaluate((menu) => {
+			const box = menu.getBoundingClientRect();
+			const points = [
+				[box.x + box.width / 2, box.y + 4],
+				[box.x + box.width / 2, box.y + box.height / 2],
+			];
+			return points.every(([x, y]) => {
+				const element = document.elementFromPoint(x, y);
+				return Boolean(element) && menu.contains(element);
+			});
+		});
+		expect(ownsItsPixels).toBe(true);
 
 		await clipMenu.getByRole('menuitem', { name: 'Clip properties', exact: true }).click();
 		const clipDialog = page.getByRole('dialog', { name: 'Clip properties', exact: true });

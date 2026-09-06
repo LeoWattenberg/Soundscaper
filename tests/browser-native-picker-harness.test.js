@@ -18,6 +18,7 @@ const CASES = Object.freeze({
 	'audio-editor-export-session.spec.js': [
 		'streams aligned WAV stems into a local ZIP archive',
 		'splits the mix into one file per label and archives the chapters',
+		'splits several imported tracks into one archived chapter per label',
 		'renders a local WAV mix when OfflineAudioContext is available',
 		'falls back to bounded realtime WAV rendering without OfflineAudioContext',
 		'validates export choices and cancels a realtime render',

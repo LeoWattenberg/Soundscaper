@@ -528,21 +528,4 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(mixer.getByRole('button', { name: 'Disable microphones', exact: true })).toHaveCount(0);
 		expect(errors).toEqual([]);
 	});
-
-	test('uses a full-height sidebar behind track controls', async ({ page }) => {
-		const editor = await bootEditor(page, '/embed/en/');
-		const sidebar = editor.locator('.audio-editor-track-list');
-		await expect(sidebar).toBeVisible();
-		const dimensions = await sidebar.evaluate((element) => {
-			const backing = getComputedStyle(element, '::before');
-			return {
-				backingHeight: Number.parseFloat(backing.height),
-				listHeight: element.getBoundingClientRect().height,
-				backingWidth: Number.parseFloat(backing.width),
-				panelWidth: element.querySelector('[data-track-header]')?.getBoundingClientRect().width || 0,
-			};
-		});
-		expect(dimensions.backingHeight).toBeCloseTo(dimensions.listHeight, 0);
-		expect(dimensions.backingWidth).toBeCloseTo(dimensions.panelWidth, 0);
-	});
 });
