@@ -22,6 +22,13 @@ const BW64_COMPLETION_TIMEOUT_MS = Math.ceil(BW64_FRAME_COUNT / SAMPLE_RATE * 4_
 const RETAINED_PREFIX_BYTES = 2 * 1024;
 const RETAINED_SUFFIX_BYTES = 8 * 1024;
 
+// These exports render in realtime against a budget derived from the media
+// length, and any coverage instrumentation slows the render: the BW64 test ran
+// 45% longer under binary block coverage and missed its budget on the CI
+// runner under counted coverage. The paths they exercise are covered by the
+// Node export suites, so this file opts out of collection.
+test.use({ browserCoverage: false });
+
 test.describe('direct native PCM File System Access publication', () => {
 	registerAudioEditorHooks();
 

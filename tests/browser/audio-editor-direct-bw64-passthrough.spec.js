@@ -24,6 +24,13 @@ const PREFIX_BYTES = 2 * 1024;
 const SUFFIX_BYTES = 4 * 1024;
 const UINT32_SENTINEL = 0xffff_ffff;
 
+// These exports render in realtime against a budget derived from the media
+// length, and any coverage instrumentation slows the render: the BW64 test ran
+// 45% longer under binary block coverage and missed its budget on the CI
+// runner under counted coverage. The paths they exercise are covered by the
+// Node export suites, so this file opts out of collection.
+test.use({ browserCoverage: false });
+
 test.describe('direct pristine BW64 passthrough publication', () => {
 	registerAudioEditorHooks();
 

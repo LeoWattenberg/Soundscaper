@@ -173,15 +173,39 @@ export function createBrowserCoverageCollector({
 		(sites ?? []).map((site) => [site.origin, resolve(repositoryRoot, site.outputDirectory)]),
 	);
 	const started = new Set();
+	const recorders = new Map();
 	const pending = [];
 
 	function start(page) {
-		if (started.has(page) || !page.coverage) return;
+		if (started.has(page) || typeof page.context !== 'function') return;
 		started.add(page);
 		// The page event fires while Playwright is still building the fixture, so
 		// the promise is banked rather than awaited: `settle` is what the test
 		// waits on before it navigates, and `collect` before it stops.
-		pending.push(page.coverage.startJSCoverage({ resetOnNavigation: false }));
+		pending.push(startRecording(page).catch((error) => {
+			started.delete(page);
+			if (!page.isClosed()) throw error;
+		}));
+	}
+
+	async function startRecording(page) {
+		const session = await page.context().newCDPSession(page);
+		const recorder = { session, taken: [] };
+		recorders.set(page, recorder);
+		// Binary block coverage straight from the profiler: `callCount: false`
+		// records whether a block ran, not how often, which is all a line and
+		// branch report needs and far cheaper than Playwright's counted coverage.
+		// The realtime BW64 export spec missed its budget on the runner under the
+		// counted kind. Coverage of a document that navigates away is taken as its
+		// contexts clear, the way Playwright keeps coverage across navigations.
+		await session.send('Profiler.enable');
+		await session.send('Runtime.enable');
+		session.on('Runtime.executionContextsCleared', () => {
+			pending.push(session.send('Profiler.takePreciseCoverage')
+				.then(({ result }) => { recorder.taken.push(...result); })
+				.catch(() => {}));
+		});
+		await session.send('Profiler.startPreciseCoverage', { callCount: false, detailed: true });
 	}
 
 	async function resolveScript(url) {
@@ -215,9 +239,13 @@ export function createBrowserCoverageCollector({
 			await settle();
 			const entries = [];
 			for (const page of started) {
+				const recorder = recorders.get(page);
+				recorders.delete(page);
+				if (!recorder) continue;
+				entries.push(...recorder.taken);
 				if (page.isClosed()) continue;
 				try {
-					entries.push(...await page.coverage.stopJSCoverage());
+					entries.push(...await stopRecording(recorder.session));
 				} catch (error) {
 					// A page the test closed on its way out has nothing left to
 					// report; anything else is a real failure to record.
@@ -241,6 +269,14 @@ export function createBrowserCoverageCollector({
 			return file;
 		},
 	};
+}
+
+async function stopRecording(session) {
+	const { result } = await session.send('Profiler.takePreciseCoverage');
+	await session.send('Profiler.stopPreciseCoverage');
+	await session.send('Profiler.disable');
+	await session.detach();
+	return result;
 }
 
 async function readSourceMap(chunk) {

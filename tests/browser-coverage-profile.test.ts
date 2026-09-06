@@ -198,30 +198,47 @@ test('a test that ran nothing the build serves writes no profile', async () => {
 
 interface FakePage {
 	started: boolean;
+	sent: [string, unknown][];
 	isClosed: () => boolean;
-	coverage: {
-		startJSCoverage: (options: { resetOnNavigation: boolean }) => Promise<void>;
-		stopJSCoverage: () => Promise<{ url: string, scriptId: string, source: string, functions: unknown[] }[]>;
-	};
+	context: () => { newCDPSession: (page: FakePage) => Promise<FakeSession> };
+}
+
+interface FakeSession {
+	send: (method: string, params?: unknown) => Promise<unknown>;
+	on: (event: string, listener: () => void) => void;
+	detach: () => Promise<void>;
 }
 
 function fakePage(url: string): FakePage {
 	const page: FakePage = {
 		started: false,
+		sent: [],
 		isClosed: () => false,
-		coverage: {
-			startJSCoverage: (options) => {
-				assert.deepEqual(options, { resetOnNavigation: false }, 'coverage must survive a navigation');
-				page.started = true;
-				return Promise.resolve();
+		context: () => ({
+			newCDPSession: (target) => {
+				assert.equal(target, page, 'the session belongs to the page it records');
+				const session: FakeSession = {
+					send: (method, params) => {
+						page.sent.push([method, params]);
+						if (method === 'Profiler.startPreciseCoverage') {
+							assert.deepEqual(params, { callCount: false, detailed: true }, 'binary block coverage');
+							page.started = true;
+						}
+						if (method === 'Profiler.takePreciseCoverage') {
+							return Promise.resolve({ result: [{
+								url,
+								scriptId: '1',
+								functions: [{ functionName: '', isBlockCoverage: true, ranges: [{ startOffset: 0, endOffset: 41, count: 1 }] }],
+							}] });
+						}
+						return Promise.resolve({});
+					},
+					on: () => {},
+					detach: () => Promise.resolve(),
+				};
+				return Promise.resolve(session);
 			},
-			stopJSCoverage: () => Promise.resolve([{
-				url,
-				scriptId: '1',
-				source: CHUNK,
-				functions: [{ functionName: '', isBlockCoverage: true, ranges: [{ startOffset: 0, endOffset: 41, count: 1 }] }],
-			}]),
-		},
+		}),
 	};
 	return page;
 }

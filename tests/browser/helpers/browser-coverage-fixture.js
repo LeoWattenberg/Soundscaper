@@ -30,8 +30,13 @@ function browserProductSites() {
 }
 
 export const test = base.extend({
-	context: async ({ context, browserName }, use, testInfo) => {
-		if (!collectsBrowserCoverage(browserName)) {
+	// A spec whose budget is bound by realtime work can switch collection off
+	// with `test.use({ browserCoverage: false })`: even binary block coverage
+	// slows a page, and a test that races a render clock is not the place to
+	// pay for it.
+	browserCoverage: [true, { option: true }],
+	context: async ({ context, browserName, browserCoverage }, use, testInfo) => {
+		if (!browserCoverage || !collectsBrowserCoverage(browserName)) {
 			await use(context);
 			return;
 		}

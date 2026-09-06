@@ -76,6 +76,8 @@
   `SCAPE_BROWSER_COVERAGE=1 npx playwright test --project=chromium`, which writes
   one raw V8 profile per test into `coverage/v8-browser/`. Compact them with
   `npm run coverage:compact:browser -- coverage/shards/browser-chromium-local.json`.
+  A spec whose budget is bound by realtime work opts out of collection with
+  `test.use({ browserCoverage: false })`.
   A local browser-only shard is not the union the floors are scored against, so
   run `npm run coverage:tighten` only after CI has merged the Node and Chromium
   shards, never against one shard on its own.
