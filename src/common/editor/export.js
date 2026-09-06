@@ -213,10 +213,13 @@ export function createExportPlan(project, options = {}) {
 	}
 	const sampleRate = encoding.sampleRate;
 	const requestedRange = resolveExportRange(runtimeProject, options.range || 'project');
-	// A chapter delivery reads the labels inside the requested range and writes
-	// one file per chapter; the range the rest of the plan describes is then the
-	// span those chapters actually cover, not the range they were selected from.
-	const chapters = mode === 'chapters' ? resolveExportChapters(runtimeProject, requestedRange) : null;
+	// A chapter delivery reads the labels or markers inside the requested range
+	// and writes one file per chapter; the range the rest of the plan describes
+	// is then the span those chapters actually cover, not the range they were
+	// selected from.
+	const chapters = mode === 'chapters'
+		? resolveExportChapters(runtimeProject, requestedRange, options.chapterSource ?? 'labels')
+		: null;
 	const range = chapters
 		? normalizeFrameRange(chapters[0].startFrame, chapters[chapters.length - 1].endFrame, 'export chapters')
 		: requestedRange;

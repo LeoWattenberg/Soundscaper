@@ -31,6 +31,8 @@ export interface EditorExportFrameRange {
 
 export interface EditorExportSettings {
 	readonly mode: 'mix' | 'stems' | 'chapters';
+	/** What a chapter split cuts on; meaningful only when the mode is chapters. */
+	readonly chapterSource: 'labels' | 'markers';
 	readonly range: 'project' | 'selection' | 'loop' | EditorExportFrameRange;
 	readonly format: EditorExportFormat;
 	readonly bitDepth: 16 | 20 | 24 | 32;
@@ -84,6 +86,7 @@ export function normalizeEditorExportSettings(
 		mode: format === 'bw64' || (value.mode !== 'stems' && value.mode !== 'chapters')
 			? 'mix'
 			: value.mode,
+		chapterSource: value.chapterSource === 'markers' ? 'markers' : 'labels',
 		range: normalizeExportRange(value.range),
 		format,
 		bitDepth,

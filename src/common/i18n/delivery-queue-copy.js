@@ -68,8 +68,9 @@ const DELIVERY_QUEUE_COPY_ENTRIES = Object.freeze([
 	// separately and keeps the vocabulary above.
 	['exportOutputStems', 'Individual stems (split by tracks)', 'Einzelspuren (nach Spuren getrennt)'],
 	['exportOutputChapters', 'Chapters (split by labels)', 'Kapitel (nach Beschriftungen getrennt)'],
+	['exportOutputMarkerChapters', 'Chapters (split by markers)', 'Kapitel (nach Markern getrennt)'],
 	['exportOutputLoop', 'In/Out (looping region)', 'In/Out (Loop-Bereich)'],
-	['exportOutputNoLabels', 'Add labels to split the export into chapters.', 'Füge Beschriftungen hinzu, um den Export in Kapitel zu teilen.'],
+	['exportOutputNoLabels', 'Add labels or markers to split the export into chapters.', 'Füge Beschriftungen oder Marker hinzu, um den Export in Kapitel zu teilen.'],
 ]);
 
 export const DELIVERY_QUEUE_COPY_BY_LOCALE = Object.freeze({

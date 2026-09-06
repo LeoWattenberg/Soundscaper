@@ -80,6 +80,7 @@ export function createExportDialogRequest(settings, options = {}) {
 	}
 	return {
 		mode: settings.format === 'bw64' ? 'mix' : settings.mode,
+		...(settings.mode === 'chapters' ? { chapterSource: settings.chapterSource === 'markers' ? 'markers' : 'labels' } : {}),
 		range: settings.range,
 		format: settings.format,
 		...(['bwf', 'bw64'].includes(settings.format) ? { bext: options.bext ?? settings.bext } : {}),

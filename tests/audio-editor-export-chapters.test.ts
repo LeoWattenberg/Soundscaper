@@ -52,6 +52,37 @@ function annotatedProject(annotations: readonly Record<string, unknown>[]) {
 	});
 }
 
+function annotatedAndLabelledProject(
+	annotations: readonly Record<string, unknown>[],
+	labels: readonly Record<string, unknown>[],
+) {
+	const created = createCurrentAudioEditorProject({
+		id: 'both-project',
+		title: 'Both',
+		now: NOW,
+		sampleRate: SAMPLE_RATE,
+		tracks: [{ type: 'audio', id: 'music', name: 'Music' }],
+	});
+	return createCurrentAudioEditorProject({
+		id: 'both-project',
+		title: 'Both',
+		now: NOW,
+		sampleRate: SAMPLE_RATE,
+		tracks: [
+			{ type: 'audio', id: 'music', name: 'Music' },
+			{ type: 'label', id: 'labels', name: 'Chapters', labels },
+		],
+		timelineAnnotations: annotations.map((annotation) => ({
+			sequenceId: created.primarySequenceId,
+			color: 'auto',
+			batchId: null,
+			opaqueExtensions: {},
+			anchor: 'sample',
+			...annotation,
+		})),
+	});
+}
+
 const RANGE = Object.freeze({ startFrame: 0, endFrame: 10 * SAMPLE_RATE });
 
 /** The parts of a chapter's own plan that carry its broadcast position. */
@@ -101,7 +132,7 @@ test('labels that share a name still deliver distinct files', () => {
 	assert.deepEqual(chapters.map(({ name }) => name), ['Take', 'Take-2', 'chapter-3']);
 });
 
-test('maintained timeline annotations are the chapter source when the project carries them', () => {
+test('a marker split reads the maintained timeline annotations', () => {
 	const project = annotatedProject([
 		{ id: 'm1', kind: 'marker', name: 'Cue', positionFrame: SAMPLE_RATE },
 		{
@@ -109,23 +140,56 @@ test('maintained timeline annotations are the chapter source when the project ca
 			startFrame: 5 * SAMPLE_RATE, endFrame: 6 * SAMPLE_RATE,
 		},
 	]);
-	assert.equal(exportChapterCount(project), 2);
+	assert.equal(exportChapterCount(project, 'markers'), 2);
 	assert.deepEqual(
-		resolveExportChapters(project, RANGE).map(({ name, startFrame, endFrame }) => ({ name, startFrame, endFrame })),
+		resolveExportChapters(project, RANGE, 'markers')
+			.map(({ name, startFrame, endFrame }) => ({ name, startFrame, endFrame })),
 		[
 			{ name: 'Cue', startFrame: SAMPLE_RATE, endFrame: 5 * SAMPLE_RATE },
 			{ name: 'Bridge', startFrame: 5 * SAMPLE_RATE, endFrame: 6 * SAMPLE_RATE },
 		],
 	);
+	// The markers are not labels: a label split of this project has nothing to cut on.
+	assert.equal(exportChapterCount(project, 'labels'), 0);
+	assert.throws(() => resolveExportChapters(project, RANGE, 'labels'), /at least one label/u);
+});
+
+test('each split reads only its own source when the project carries both', () => {
+	// The label runs to one second and the marker sits inside it, so both splits
+	// have a chapter inside the span the project delivers over.
+	const project = annotatedAndLabelledProject(
+		[{ id: 'm1', kind: 'marker', name: 'Cue', positionFrame: SAMPLE_RATE / 2 }],
+		[{ id: 'l1', title: 'Intro', startFrame: 0, endFrame: SAMPLE_RATE }],
+	);
+	assert.equal(exportChapterCount(project, 'labels'), 1);
+	assert.equal(exportChapterCount(project, 'markers'), 1);
+	assert.deepEqual(resolveExportChapters(project, RANGE, 'labels').map(({ name }) => name), ['Intro']);
+	assert.deepEqual(resolveExportChapters(project, RANGE, 'markers').map(({ name }) => name), ['Cue']);
+	// The plan follows the source the delivery names, and reads labels unless told otherwise.
+	const labels = createExportPlan(project, { mode: 'chapters', format: 'wav', date: '2026-09-04' });
+	const markers = createExportPlan(project, {
+		mode: 'chapters', chapterSource: 'markers', format: 'wav', date: '2026-09-04',
+	});
+	assert.deepEqual(labels.outputs.map(({ fileName }) => fileName), ['01-Intro.wav']);
+	assert.deepEqual(markers.outputs.map(({ fileName }) => fileName), ['01-Cue.wav']);
+	assert.throws(() => resolveExportChapters(project, RANGE, 'cues' as never), /labels or markers/u);
 });
 
 test('a project with no labels cannot deliver chapters, and says so rather than delivering one file', () => {
 	const project = labelledProject([]);
 	assert.equal(exportChapterCount(project), 0);
+	assert.equal(exportChapterCount(project, 'markers'), 0);
 	assert.throws(() => resolveExportChapters(project, RANGE), /at least one label/u);
+	assert.throws(() => resolveExportChapters(project, RANGE, 'markers'), /at least one marker/u);
 	assert.throws(
 		() => createExportPlan(project, { mode: 'chapters', format: 'wav', range: RANGE, date: '2026-09-04' }),
 		/at least one label/u,
+	);
+	assert.throws(
+		() => createExportPlan(project, {
+			mode: 'chapters', chapterSource: 'markers', format: 'wav', range: RANGE, date: '2026-09-04',
+		}),
+		/at least one marker/u,
 	);
 });
 
@@ -261,10 +325,12 @@ test('a marker past the last clip is not counted, because the delivery clips it 
 		}],
 	});
 	// A chapter split is always delivered over the whole project, which ends with
-	// the last clip, so offering the option here would offer a refusal.
-	assert.equal(exportChapterCount(project), 0);
+	// the last clip, so offering the marker split here would offer a refusal.
+	assert.equal(exportChapterCount(project, 'markers'), 0);
 	assert.throws(
-		() => createExportPlan(project, { mode: 'chapters', format: 'wav', date: '2026-09-04' }),
-		/No label falls inside the delivered range/u,
+		() => createExportPlan(project, {
+			mode: 'chapters', chapterSource: 'markers', format: 'wav', date: '2026-09-04',
+		}),
+		/No marker falls inside the delivered range/u,
 	);
 });

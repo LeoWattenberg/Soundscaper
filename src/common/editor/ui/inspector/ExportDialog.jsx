@@ -131,7 +131,8 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 			? []
 			: projectMasteringSequences ?? []
 	), [projectMasteringSequences, settings.format, settings.mode]);
-	const chapterCount = useMemo(() => exportChapterCount(snapshot.project), [snapshot.project]);
+	const labelChapterCount = useMemo(() => exportChapterCount(snapshot.project, 'labels'), [snapshot.project]);
+	const markerChapterCount = useMemo(() => exportChapterCount(snapshot.project, 'markers'), [snapshot.project]);
 	// A picture delivery is one file whatever the audio dialog last held, so the
 	// control shows the span it delivers rather than a form it cannot.
 	const outputValue = exportDialogOutputValue(videoFormat ? { ...settings, mode: 'mix' } : settings);
@@ -139,13 +140,16 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	const outputOptions = exportDialogOutputOptions(copy, {
 		hasSelection,
 		hasLoop,
-		chapterCount,
+		labelChapterCount,
+		markerChapterCount,
 		singleFileOnly,
 		masteringSequences,
 	});
-	// A chapter split greys out for two reasons, and only the missing labels are
-	// one the user can answer, so only that one says what to do about it.
-	const outputNoLabelsHint = exportDialogOutputNoLabelsHint(copy, { chapterCount, singleFileOnly });
+	// A chapter split greys out for two reasons, and only the missing labels or
+	// markers are one the user can answer, so only that one says what to do.
+	const outputNoLabelsHint = exportDialogOutputNoLabelsHint(copy, {
+		labelChapterCount, markerChapterCount, singleFileOnly,
+	});
 	const chooseOutput = (value) => setSettings((current) => normalizeExportDialogAudioSettings(
 		{ ...current, ...exportDialogOutputSettings(value) }, desktop, projectChannelCount,
 	));
@@ -181,12 +185,14 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	}, [hasSelection, settings.range]);
 
 	useEffect(() => {
-		// The labels are what a chapter delivery splits on; once the project has
-		// none, the dialog would otherwise keep offering a delivery that refuses.
-		if (settings.mode === 'chapters' && chapterCount < 1) {
+		// The labels or markers are what a chapter delivery splits on; once the
+		// project has none of the chosen kind, the dialog would otherwise keep
+		// offering a delivery that refuses.
+		const chosenCount = settings.chapterSource === 'markers' ? markerChapterCount : labelChapterCount;
+		if (settings.mode === 'chapters' && chosenCount < 1) {
 			setSettings((current) => ({ ...current, mode: 'mix' }));
 		}
-	}, [chapterCount, settings.mode]);
+	}, [labelChapterCount, markerChapterCount, settings.chapterSource, settings.mode]);
 
 	useEffect(() => {
 		// A sequence chosen and then made undeliverable — a stem mode, an ADM

@@ -7,13 +7,17 @@
  * and a range (the project, the selection, the loop) — whose answers only make
  * sense in a few combinations. Here they are one choice, so every option names a
  * whole delivery: the project as one mix, one file per track, one file per
- * label, or one of the sub-ranges the timeline already has.
+ * label, one file per marker, or one of the sub-ranges the timeline already has.
  */
 
 type DataRecord = Readonly<Record<string, unknown>>;
 
+export type ExportDialogChapterSource = 'labels' | 'markers';
+
 export interface ExportDialogOutputSettings {
 	readonly mode: 'mix' | 'stems' | 'chapters';
+	/** What a chapter split cuts on. Labels and markers are different tools, so the split names its own. */
+	readonly chapterSource: ExportDialogChapterSource;
 	readonly range: 'project' | 'selection' | 'loop';
 	readonly masteringSequenceId: string;
 }
@@ -27,7 +31,10 @@ export interface ExportDialogOutputOption {
 export interface ExportDialogOutputContext {
 	readonly hasSelection: boolean;
 	readonly hasLoop: boolean;
-	readonly chapterCount: number;
+	/** Chapters a label split would deliver: the labels on the first populated label track. */
+	readonly labelChapterCount: number;
+	/** Chapters a marker split would deliver: the markers and named regions on the timeline. */
+	readonly markerChapterCount: number;
 	/** BW64 carries one authored programme, so it delivers one file over one range. */
 	readonly singleFileOnly: boolean;
 	readonly masteringSequences: readonly Readonly<{
@@ -38,32 +45,44 @@ export interface ExportDialogOutputContext {
 }
 
 const MASTERING_SEQUENCE_PREFIX = 'mastering-sequence:';
+const LABEL_CHAPTERS = 'chapters';
+const MARKER_CHAPTERS = 'marker-chapters';
 
 /** The option the dialog's current settings are already on. */
 export function exportDialogOutputValue(settings: DataRecord): string {
 	const sequenceId = settings.masteringSequenceId;
 	if (typeof sequenceId === 'string' && sequenceId !== '') return `${MASTERING_SEQUENCE_PREFIX}${sequenceId}`;
 	if (settings.mode === 'stems') return 'stems';
-	if (settings.mode === 'chapters') return 'chapters';
+	if (settings.mode === 'chapters') return settings.chapterSource === 'markers' ? MARKER_CHAPTERS : LABEL_CHAPTERS;
 	if (settings.range === 'selection') return 'selection';
 	if (settings.range === 'loop') return 'loop';
 	return 'project';
 }
 
-/** The form, span, and sequence one chosen option means, stated together. */
+/** The form, span, sequence, and chapter source one chosen option means, stated together. */
 export function exportDialogOutputSettings(value: string): ExportDialogOutputSettings {
 	if (value.startsWith(MASTERING_SEQUENCE_PREFIX)) {
 		return Object.freeze({
 			mode: 'mix',
+			chapterSource: 'labels',
 			range: 'project',
 			masteringSequenceId: value.slice(MASTERING_SEQUENCE_PREFIX.length),
 		});
 	}
-	if (value === 'stems' || value === 'chapters') {
-		return Object.freeze({ mode: value, range: 'project', masteringSequenceId: '' });
+	if (value === 'stems') {
+		return Object.freeze({ mode: 'stems', chapterSource: 'labels', range: 'project', masteringSequenceId: '' });
+	}
+	if (value === LABEL_CHAPTERS || value === MARKER_CHAPTERS) {
+		return Object.freeze({
+			mode: 'chapters',
+			chapterSource: value === MARKER_CHAPTERS ? 'markers' : 'labels',
+			range: 'project',
+			masteringSequenceId: '',
+		});
 	}
 	return Object.freeze({
 		mode: 'mix',
+		chapterSource: 'labels',
 		range: value === 'selection' || value === 'loop' ? value : 'project',
 		masteringSequenceId: '',
 	});
@@ -100,9 +119,14 @@ export function exportDialogOutputOptions(
 			disabled: !context.hasLoop,
 		},
 		{
-			value: 'chapters',
+			value: LABEL_CHAPTERS,
 			label: text('exportOutputChapters', 'Chapters (split by labels)'),
-			disabled: context.singleFileOnly || context.chapterCount < 1,
+			disabled: context.singleFileOnly || context.labelChapterCount < 1,
+		},
+		{
+			value: MARKER_CHAPTERS,
+			label: text('exportOutputMarkerChapters', 'Chapters (split by markers)'),
+			disabled: context.singleFileOnly || context.markerChapterCount < 1,
 		},
 		{
 			value: 'selection',
@@ -118,19 +142,19 @@ export function exportDialogOutputOptions(
 }
 
 /**
- * The sentence that says how to make a chapter delivery available again.
+ * Why neither chapter split is offered, when the project itself is the reason.
  *
- * The option greys out for two reasons. A single-file format refuses the split
- * whatever the project holds, so only a project without labels is told to add
- * some: the same words under a BW64 delivery would name a remedy that changes
- * nothing.
+ * A single-file format refuses both splits whatever the project carries, so
+ * only a project with nothing to cut on is told what would change that.
  */
 export function exportDialogOutputNoLabelsHint(
 	copy: DataRecord,
-	context: Pick<ExportDialogOutputContext, 'chapterCount' | 'singleFileOnly'>,
+	context: Pick<ExportDialogOutputContext, 'labelChapterCount' | 'markerChapterCount' | 'singleFileOnly'>,
 ): string | null {
-	const missingLabels = !context.singleFileOnly && context.chapterCount < 1;
-	if (!missingLabels) return null;
+	const nothingToSplitOn = !context.singleFileOnly
+		&& context.labelChapterCount < 1
+		&& context.markerChapterCount < 1;
+	if (!nothingToSplitOn) return null;
 	const hint = copy.exportOutputNoLabels;
-	return typeof hint === 'string' ? hint : 'Add labels to split the export into chapters.';
+	return typeof hint === 'string' ? hint : 'Add labels or markers to split the export into chapters.';
 }

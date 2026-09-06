@@ -101,10 +101,11 @@ export const PROJECT_GUIDES = Object.freeze([
 			marker('Part one'),
 			cursor(0.5, { where: 'where the second part begins' }),
 			marker('Part two'),
-			exportAudio({ format: 'MP3', extension: 'zip', mode: 'Chapters (split by labels)' }, { why: 'Each chapter becomes an MP3 inside the archive, numbered in order and named after its marker.' }),
+			exportAudio({ format: 'MP3', extension: 'zip', mode: 'Chapters (split by markers)' }, { why: 'Each chapter becomes an MP3 inside the archive, numbered in order and named after its marker.' }),
 		],
 		tips: [
 			'A named region exports exactly its own span, so use regions instead of markers when the parts have gaps between them.',
+			'Labels on a label track split the same way: choose **Chapters (split by labels)** to cut on those instead of on the markers.',
 			'To split by tracks rather than by markers, see [Export each track as its own file](guide:export-each-track-as-its-own-file).',
 		],
 	},

@@ -9,6 +9,15 @@ import {
 
 type DataRecord = Readonly<Record<string, unknown>>;
 
+/**
+ * Where a chapter delivery reads its boundaries from.
+ *
+ * A project can carry both: markers and named regions on the timeline, and
+ * labels on a label track. They are different tools used for different things,
+ * so a split names the one it cuts on rather than guessing between them.
+ */
+export type ExportChapterSource = 'labels' | 'markers';
+
 /** One delivered chapter: a named span the project's labels put a boundary on. */
 export interface ExportChapter {
 	readonly name: string;
@@ -29,24 +38,27 @@ interface ExportChapterRange {
 }
 
 /**
- * The chapters a label-split delivery writes.
+ * The chapters a split delivery writes.
  *
- * The boundaries are the project's own labels, read from whichever surface the
- * project keeps them on: the maintained timeline annotations when the schema
- * carries them, and the first populated label track otherwise. A region label
- * delivers exactly its own span; a point label opens a chapter that runs to the
- * next label, or to the end of the delivered range — and no further than the
- * end of a region it was dropped inside, whose tail is already delivered under
- * the region's own name. Everything is then clipped to that range, so a chapter
- * never promises audio the delivery is not rendering.
+ * The boundaries come from the source the delivery names: the first populated
+ * label track for a label split, the maintained timeline annotations for a
+ * marker split. A region delivers exactly its own span; a point boundary opens
+ * a chapter that runs to the next boundary, or to the end of the delivered
+ * range — and no further than the end of a region it was dropped inside, whose
+ * tail is already delivered under the region's own name. Everything is then
+ * clipped to that range, so a chapter never promises audio the delivery is not
+ * rendering.
  */
 export function resolveExportChapters(
 	projectValue: unknown,
 	range: ExportChapterRange,
+	source: ExportChapterSource = 'labels',
 ): readonly ExportChapter[] {
-	const boundaries = chapterBoundaries(projectValue);
+	const boundaries = chapterBoundaries(projectValue, chapterSource(source));
 	if (boundaries.length === 0) {
-		throw new RangeError('A chapter delivery needs at least one label to split on; this project has none.');
+		throw new RangeError(source === 'markers'
+			? 'A chapter delivery needs at least one marker to split on; this project has none.'
+			: 'A chapter delivery needs at least one label to split on; this project has none.');
 	}
 	const chapters: ExportChapter[] = [];
 	const used = new Set<string>();
@@ -68,30 +80,38 @@ export function resolveExportChapters(
 		}));
 	}
 	if (chapters.length === 0) {
-		throw new RangeError('No label falls inside the delivered range, so there is no chapter to write.');
+		throw new RangeError(source === 'markers'
+			? 'No marker falls inside the delivered range, so there is no chapter to write.'
+			: 'No label falls inside the delivered range, so there is no chapter to write.');
 	}
 	return Object.freeze(chapters);
 }
 
 /**
- * How many chapters a label split would deliver, without refusing.
+ * How many chapters a split on one source would deliver, without refusing.
  *
  * The dialog asks this to decide whether the option is offerable at all, so it
- * answers with the files the delivery would actually write: the labels resolved
- * over the very span the export cuts them from, not the labels alone. A project
- * that cannot answer — a shape the annotation projection rejects, or one whose
- * labels all fall outside that span — is reported as having none rather than
- * failing the surface that asked.
+ * answers with the files the delivery would actually write: the boundaries
+ * resolved over the very span the export cuts them from, not the boundaries
+ * alone. A project that cannot answer — a shape the annotation projection
+ * rejects, or one whose boundaries all fall outside that span — is reported as
+ * having none rather than failing the surface that asked.
  */
-export function exportChapterCount(projectValue: unknown): number {
+export function exportChapterCount(projectValue: unknown, source: ExportChapterSource = 'labels'): number {
 	try {
+		const resolved = chapterSource(source);
 		const range = chapterDeliveryRange(projectValue);
 		return range === null
-			? chapterBoundaries(projectValue).length
-			: resolveExportChapters(projectValue, range).length;
+			? chapterBoundaries(projectValue, resolved).length
+			: resolveExportChapters(projectValue, range, resolved).length;
 	} catch {
 		return 0;
 	}
+}
+
+function chapterSource(value: unknown): ExportChapterSource {
+	if (value === 'labels' || value === 'markers') return value;
+	throw new RangeError('A chapter split reads labels or markers.');
 }
 
 /**
@@ -117,10 +137,9 @@ function chapterDeliveryRange(projectValue: unknown): ExportChapterRange | null 
 	}
 }
 
-function chapterBoundaries(projectValue: unknown): readonly ChapterBoundary[] {
+function chapterBoundaries(projectValue: unknown, source: ExportChapterSource): readonly ChapterBoundary[] {
 	const project = dataRecord(projectValue);
-	const annotations = annotationBoundaries(project);
-	const boundaries = annotations.length > 0 ? annotations : labelTrackBoundaries(project);
+	const boundaries = source === 'markers' ? annotationBoundaries(project) : labelTrackBoundaries(project);
 	return Object.freeze([...boundaries].sort((left, right) => (
 		left.startFrame - right.startFrame || left.endFrame - right.endFrame
 	)));

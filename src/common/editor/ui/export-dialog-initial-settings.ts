@@ -15,6 +15,7 @@ export function createExportDialogInitialSettings(projectValue: unknown) {
 	const metadata = dataRecord(project.metadata);
 	return {
 		mode: 'mix',
+		chapterSource: 'labels',
 		range: 'project',
 		format: 'wav',
 		sampleFormat: 'int24',

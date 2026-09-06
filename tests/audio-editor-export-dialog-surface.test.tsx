@@ -24,6 +24,7 @@ test('the dialog asks what is delivered once, and the answer states both form an
 		await fixture.chooseOutput(ENGLISH_COPY.exportOutputChapters);
 		await fixture.startExport();
 		assert.equal(fixture.requests[1]?.mode, 'chapters');
+		assert.equal(fixture.requests[1]?.chapterSource, 'labels');
 		assert.equal(fixture.requests[1]?.range, 'project');
 
 		await fixture.chooseOutput(ENGLISH_COPY.exportOutputLoop);
@@ -35,6 +36,22 @@ test('the dialog asks what is delivered once, and the answer states both form an
 		await fixture.startExport();
 		assert.equal(fixture.requests[3]?.mode, 'mix');
 		assert.equal(fixture.requests[3]?.range, 'project');
+	} finally {
+		await fixture.unmount();
+	}
+});
+
+test('a project with labels and no markers is offered the label split alone', async () => {
+	const fixture = await mountedExportDialog();
+	try {
+		assert.deepEqual(
+			await fixture.outputOptionLabels(),
+			[
+				ENGLISH_COPY.entireProject, ENGLISH_COPY.exportOutputStems,
+				ENGLISH_COPY.exportOutputLoop, ENGLISH_COPY.exportOutputChapters,
+			],
+			'the label track has a label and the timeline has no marker, so only the label split is deliverable',
+		);
 	} finally {
 		await fixture.unmount();
 	}

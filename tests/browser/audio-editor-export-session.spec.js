@@ -82,8 +82,8 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		const exportDialog = await openExportDialog(page, editor);
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'WAV');
-		await chooseDropdown(page, exportDialog.locator('[data-export-field="output"]'), 'Chapters (split by labels)');
-		// A chapter delivers exactly the span its label names, so there is no tail.
+		await chooseDropdown(page, exportDialog.locator('[data-export-field="output"]'), 'Chapters (split by markers)');
+		// A chapter delivers exactly the span its marker names, so there is no tail.
 		await expect(exportDialog.locator('[data-export-field="tails"]')).toHaveCount(0);
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 
