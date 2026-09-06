@@ -8,6 +8,10 @@
 // these files through scripts/i18n-ai/catalog.mjs; the test runner's tsx
 // loader resolves the attribute-free imports.
 
-export const MACHINE_CATALOG_LOCALES = Object.freeze([]);
+export const MACHINE_CATALOG_LOCALES = Object.freeze([
+	'ar',
+]);
 
-export const MACHINE_CATALOG_LOADERS = Object.freeze({});
+export const MACHINE_CATALOG_LOADERS = Object.freeze({
+	ar: () => import('./ar.json'),
+});
