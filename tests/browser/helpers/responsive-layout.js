@@ -37,15 +37,24 @@ export async function openTrackHeaderDrawer(editor) {
 	return true;
 }
 
+/**
+ * A surface a browser reports as fractionally outside its viewport is still
+ * inside it. Layout, transforms and device pixel ratios all round, and a box
+ * has come back at x = -0.043 on a phone viewport that draws correctly; the
+ * check is for a surface that has left the screen, so it admits less than half
+ * a pixel either way.
+ */
+const VIEWPORT_SUBPIXEL_TOLERANCE = 0.5;
+
 export async function expectSurfaceWithinViewport(surface, page) {
 	const box = await surface.boundingBox();
 	expect(box).not.toBeNull();
 	const viewport = page.viewportSize();
 	expect(viewport).not.toBeNull();
-	expect(box.x).toBeGreaterThanOrEqual(0);
-	expect(box.y).toBeGreaterThanOrEqual(0);
-	expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
-	expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+	expect(box.x).toBeGreaterThanOrEqual(-VIEWPORT_SUBPIXEL_TOLERANCE);
+	expect(box.y).toBeGreaterThanOrEqual(-VIEWPORT_SUBPIXEL_TOLERANCE);
+	expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + VIEWPORT_SUBPIXEL_TOLERANCE);
+	expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + VIEWPORT_SUBPIXEL_TOLERANCE);
 }
 
 export async function waitForResponsiveEditorLayout(editor) {

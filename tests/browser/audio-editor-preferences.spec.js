@@ -88,7 +88,9 @@ test("the Effects page rearranges the Effect menu the way Audacity's does", asyn
 	await menubar.getByRole('menuitem', { name: 'Effect', exact: true }).click();
 	menu = page.getByRole('menu', { name: 'Effect', exact: true });
 	await expect(menu.getByRole('menuitem', { name: /^Volume and compression/u })).toHaveCount(0);
-	await expect(menu.getByRole('menuitem', { name: 'Amplify', exact: true })).toBeVisible();
+	const amplify = menu.getByRole('menuitem', { name: /^Amplify(?: —|$)/u });
+	await expect(amplify).toBeVisible();
+	await expect(amplify).toBeDisabled();
 	await page.keyboard.press('Escape');
 });
 

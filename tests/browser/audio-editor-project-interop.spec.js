@@ -111,6 +111,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(analysisPanel.locator('[data-analysis-spectrogram]')).toBeVisible();
 		await closeWorkspacePanel(editor, 'analysis');
 		await expect(analysisPanel).toHaveCount(0);
+		await clipByName(editor, toneB.name).click({ position: { x: 24, y: 10 } });
 
 		for (const [command, panelId] of [
 			['Plot spectrum', 'spectrum'],

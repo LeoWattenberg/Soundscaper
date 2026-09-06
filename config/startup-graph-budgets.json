@@ -4,16 +4,16 @@
 			"requests": 10,
 			"modulepreloads": 6,
 			"cssFiles": 2,
-			"rawBytes": 350000,
-			"brotliBytes": 100000
+			"rawBytes": 255350,
+			"brotliBytes": 70250
 		},
 		"reasons": {}
 	},
 	"soundscaper": {
 		"ceilings": {
 			"requests": 75,
-			"rawBytes": 6200000,
-			"brotliBytes": 1500000
+			"rawBytes": 6063088,
+			"brotliBytes": 1448095
 		},
 		"reasons": {}
 	},

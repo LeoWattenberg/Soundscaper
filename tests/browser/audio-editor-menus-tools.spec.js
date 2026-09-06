@@ -612,9 +612,15 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(getMenuItem(fileMenu, 'Import').locator('.context-menu-item-shortcut'))
 			.toHaveText('Ctrl+Shift+I');
 		await page.keyboard.press('Escape');
+		// Closing the menu returns focus to the menubar, and a chord that lands
+		// there while it is still closing goes to the menubar instead of the
+		// editor, so nothing opens a file chooser.
+		await expect(fileMenu).toBeHidden();
 		await closeWorkspacePanel(editor, 'project-bin');
 
-		await editor.locator('.kw-audio-editor__keyboard-help').focus();
+		const keyboardHelp = editor.locator('.kw-audio-editor__keyboard-help');
+		await keyboardHelp.focus();
+		await expect(keyboardHelp).toBeFocused();
 		const chooserPromise = page.waitForEvent('filechooser');
 		await page.keyboard.press('Control+Shift+i');
 		await (await chooserPromise).setFiles(toneA);

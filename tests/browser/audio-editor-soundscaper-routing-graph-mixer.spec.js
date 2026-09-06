@@ -53,6 +53,10 @@ test.describe('Soundscaper mixer routing graph', () => {
 		const groupKey = await group.getAttribute('data-routing-node');
 		expect(groupKey).toBeTruthy();
 		await graph.locator('[data-routing-source="master"]').press('Enter');
+		// Arming a source is a state change the graph announces. Pressing the
+		// destination before it lands leaves the second press with nothing to
+		// complete, and no cycle is attempted for the alert to report.
+		await expect(graph.locator('.kw-routing-graph__status')).toContainText('Choose a destination');
 		await graph.locator(`[data-routing-destination="${groupKey}"]`).press('Enter');
 		await expect(graph.getByRole('alert')).toContainText('routing cycle');
 		await expect(graph.locator('[data-routing-edge]')).toHaveCount(edgesBefore + 2);
