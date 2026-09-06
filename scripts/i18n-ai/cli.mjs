@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 
 import { createOllamaClient } from '../docs-ai/ollama.mjs';
 import { COMMITTED_LOCALE_TAGS } from '../../src/common/i18n/locales.js';
+import { createAnswersClient, readAnswers, writeTranslationPackets } from './answers.mjs';
 import { assertMachineCatalogLocale, listMachineCatalogLocales } from './catalog.mjs';
 import {
 	DEFAULT_BATCH_SIZE,
@@ -14,16 +15,20 @@ import {
 } from './workflows.mjs';
 
 const HELP = `Usage:
-  node scripts/i18n-ai.mjs translate (--locale fr[,es] | --all) [--model MODEL] [--batch-size ${DEFAULT_BATCH_SIZE}] [--glossary SNAPSHOT_DIR | --no-glossary] [--keys key1,key2]
+  node scripts/i18n-ai.mjs translate (--locale fr[,es] | --all) [--model MODEL] [--batch-size ${DEFAULT_BATCH_SIZE}] [--glossary SNAPSHOT_DIR | --no-glossary] [--keys key1,key2] [--answers DIR]
+  node scripts/i18n-ai.mjs packets (--locale fr[,es] | --all) --output DIR [--batch-size ${DEFAULT_BATCH_SIZE}] [--glossary SNAPSHOT_DIR | --no-glossary] [--keys key1,key2]
   node scripts/i18n-ai.mjs check [--locale fr[,es]] [--strict]
 
 translate writes src/common/i18n/machine/<locale>.json for every key the current English copy has and the
-catalog lacks or holds a stale translation of, then regenerates the loader index. check reports each catalog
-against the current English copy; --strict fails when anything is stale, missing, orphaned or invalid.`;
+catalog lacks or holds a stale translation of, then regenerates the loader index. With --answers DIR the
+answers under DIR/<locale>/*.json stand in for the model and are held to the same rules. packets writes the
+closed packets such a run would send, one file per batch under DIR/<locale>/, for another translator to
+answer. check reports each catalog against the current English copy; --strict fails when anything is stale,
+missing, orphaned or invalid.`;
 
 export function parseCliArguments(argv) {
 	const [command, ...rest] = argv;
-	if (!['translate', 'check'].includes(command)) throw new Error(HELP);
+	if (!['translate', 'packets', 'check'].includes(command)) throw new Error(HELP);
 	const options = { command, all: false, strict: false, glossary: 'published' };
 	for (let index = 0; index < rest.length; index += 1) {
 		const argument = rest[index];
@@ -40,11 +45,14 @@ export function parseCliArguments(argv) {
 		else if (argument === '--glossary') options.glossary = value;
 		else if (argument === '--keys') options.keys = value.split(',').map((key) => key.trim()).filter(Boolean);
 		else if (argument === '--cache-dir') options.cacheDirectory = value;
+		else if (argument === '--answers') options.answers = value;
+		else if (argument === '--output') options.output = value;
 		else throw new Error(`Unknown option ${argument}.\n\n${HELP}`);
 	}
-	if (options.command === 'translate' && !options.all && !options.locales?.length) {
-		throw new Error(`translate needs --locale or --all.\n\n${HELP}`);
+	if (options.command !== 'check' && !options.all && !options.locales?.length) {
+		throw new Error(`${options.command} needs --locale or --all.\n\n${HELP}`);
 	}
+	if (options.command === 'packets' && !options.output) throw new Error(`packets needs --output.\n\n${HELP}`);
 	if (options.all && options.locales) throw new Error('--all and --locale cannot be combined.');
 	return options;
 }
@@ -90,17 +98,42 @@ export async function runCli(argv, io = {}) {
 	}
 
 	const locales = options.all ? machineTranslatableLocales() : options.locales.map(assertMachineCatalogLocale);
+	if (options.command === 'packets') {
+		const results = [];
+		for (const locale of locales) {
+			const glossary = await resolveGlossary(locale, options, { env, stderr, fetchImpl: io.fetchImpl });
+			const result = await writeTranslationPackets({
+				locale,
+				outputDirectory: resolve(options.output),
+				glossary,
+				batchSize: options.batchSize,
+				keys: options.keys,
+				directory: io.directory,
+			});
+			results.push(result);
+			stdout.write(`${locale}: ${result.pending} pending keys in ${result.batches} packets under ${resolve(options.output, locale)}\n`);
+		}
+		return results;
+	}
 	const cacheDirectory = resolve(options.cacheDirectory ?? env.DOCS_AI_CACHE_DIR ?? '.docs-ai-cache');
 	const summaries = [];
 	for (const locale of locales) {
-		const model = options.model ?? env.OLLAMA_I18N_MODEL ?? defaultModelForLocale(locale);
-		const client = io.client ?? createOllamaClient({ role: 'translate', model, env });
-		stderr.write(`${locale}: translating with ${model}\n`);
+		let client = io.client;
+		let model = options.model ?? env.OLLAMA_I18N_MODEL ?? defaultModelForLocale(locale);
+		if (!client && options.answers) {
+			const answers = await readAnswers(resolve(options.answers), locale);
+			model = options.model ?? 'external';
+			client = createAnswersClient({ locale, answers, model });
+			stderr.write(`${locale}: replaying ${answers.size} answers from ${resolve(options.answers, locale)} as ${model}\n`);
+		} else {
+			client ??= createOllamaClient({ role: 'translate', model, env });
+			stderr.write(`${locale}: translating with ${model}\n`);
+		}
 		const glossary = await resolveGlossary(locale, options, { env, stderr, fetchImpl: io.fetchImpl });
 		const summary = await translateLocale({
 			locale,
 			client,
-			cacheDirectory,
+			cacheDirectory: options.answers ? undefined : cacheDirectory,
 			glossary,
 			batchSize: options.batchSize,
 			keys: options.keys,

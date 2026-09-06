@@ -34,6 +34,18 @@ OLLAMA_URL=http://<windows-host-ip>:11434 OLLAMA_DOCS_TIMEOUT_MS=600000 npm run 
 
 `--all` covers every committed route locale that no bundled human catalog serves. Add `--model MODEL` to pick an installed model, `--batch-size N` (default 30, and about 1,500 characters of key names and English per request) to change how many keys one request carries, `--keys a,b` to limit a run, and `--glossary DIR` to read the Audacity strings from a snapshot made by `manage-audacity-translation-release.mjs snapshot` instead of the public manifest, or `--no-glossary` to send none. The catalog and the loader index are rewritten after every batch, so an interrupted run resumes where it stopped, and every answer is cached under `.docs-ai-cache/` by the exact packet it came from.
 
+## Translating elsewhere
+
+The model does not have to be local. `packets` writes the closed requests a run would send for a locale's pending keys, one JSON file per batch, so another translator — a person, a hosted model, an agent — can answer them; `--answers` replays those answers through the same validation, halving and provenance as a live model, so the resulting catalog is held to exactly what the local model's is:
+
+```sh
+npm run i18n:translate -- packets --locale tr --output /tmp/packets
+# answer each /tmp/packets/tr/NNN.json as /tmp/answers/tr/NNN.json: {"locale":"tr","translations":{...}}
+npm run i18n:translate -- --locale tr --answers /tmp/answers --model claude-sonnet-5
+```
+
+`npm run i18n:translate` runs the tool's `translate` command, so the first line is really `node scripts/i18n-ai.mjs packets …`. An answer file is either the packet answer shape or a bare key-to-text object; files under a locale merge in name order, so a later file corrects an earlier one. `--model` names the translator in the catalog's provenance. Keys an answer gets wrong are skipped and named, exactly as with a live model; answer them again in a further file and rerun.
+
 Report each catalog against the current English copy:
 
 ```sh
