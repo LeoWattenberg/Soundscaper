@@ -1,6 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { readClosedDomainArray, readClosedDomainRecord } from './closed-domain-value.ts';
+import {
+	admitCommandTarget,
+	droppedCount,
+	historyLimit,
+	playheadPosition,
+	readHistory,
+	timestamp,
+	validateStack,
+} from './project-history-admission.ts';
 
 /**
  * One implementation of the undo stack, for every document a product edits.
@@ -14,6 +22,12 @@ import { readClosedDomainArray, readClosedDomainRecord } from './closed-domain-v
  *
  * A revision descriptor is cheap to build, so a product that threads a runtime
  * profile through its validators builds one per call around that profile.
+ *
+ * An entry carries where the playhead was as well as the document, because
+ * undoing an edit should hand the person the timeline as they left it — the
+ * cursor included — the way Audacity restores the selected region with each of
+ * its own undo states. Reading a stored history back lives next door, in
+ * project-history-admission.ts.
  */
 
 /** A document, read only as far as the mechanics themselves read it. */
@@ -21,11 +35,25 @@ export type EditorHistoryDocument = Record<string, unknown>;
 
 export interface EditorHistoryCommandOptions {
 	readonly now?: Date | string;
+	/**
+	 * Where the playhead sits as this command runs, for a history that keeps it.
+	 *
+	 * Undo restores the document the person was working on *and* the playhead
+	 * they left before the action, so every command records where it was. A
+	 * caller that does not know simply leaves it out, and undo then restores the
+	 * document without moving the playhead.
+	 */
+	readonly playheadFrame?: number;
 }
 
 export interface EditorProjectHistoryEntry<Command> {
 	readonly project: EditorHistoryDocument;
 	readonly command: Command;
+	/**
+	 * Where the playhead sat before the command this entry undoes, present only
+	 * where the product tracks it and the caller knew the position.
+	 */
+	readonly playheadFrame?: number;
 }
 
 export interface EditorProjectHistoryState<Command> {
@@ -43,6 +71,12 @@ export interface EditorProjectHistoryState<Command> {
 	 * from under an index as soon as the history is full.
 	 */
 	readonly dropped?: number;
+	/**
+	 * Where the playhead belongs for `present`, present only where the product
+	 * tracks it: the position an undo or redo restored, and otherwise the
+	 * position the last command was run from.
+	 */
+	readonly playheadFrame?: number;
 }
 
 /**
@@ -66,6 +100,8 @@ export interface EditorProjectHistoryRevision<
 	readonly maximumLimit?: number;
 	/** Whether the state carries the dropped count that macro depths need. */
 	readonly tracksDropped?: boolean;
+	/** Whether the state and its entries carry the playhead undo restores. */
+	readonly tracksPlayhead?: boolean;
 	/** Whether a command that returns the present document unchanged is dropped. */
 	readonly suppressNoOpCommands?: boolean;
 	/** Whether the outgoing document is cloned as it becomes an entry (default true). */
@@ -87,10 +123,6 @@ type Revision<Command, Options extends EditorHistoryCommandOptions>
 type State<Command> = EditorProjectHistoryState<Command>;
 type Entry<Command> = EditorProjectHistoryEntry<Command>;
 
-const HISTORY_FIELDS = Object.freeze(['limit', 'present', 'undoStack', 'redoStack']);
-const HISTORY_FIELDS_WITH_DROPPED = Object.freeze([...HISTORY_FIELDS, 'dropped']);
-const ENTRY_FIELDS = Object.freeze(['project', 'command']);
-
 export function createEditorProjectHistory<Command, Options extends EditorHistoryCommandOptions>(
 	project: unknown,
 	revision: Revision<Command, Options>,
@@ -105,6 +137,7 @@ export function createEditorProjectHistory<Command, Options extends EditorHistor
 		undoStack: [],
 		redoStack: [],
 		dropped: 0,
+		playheadFrame: undefined,
 	});
 }
 
@@ -116,6 +149,7 @@ export function validateEditorProjectHistory<Command, Options extends EditorHist
 	const value = readHistory(history, revision);
 	const limit = historyLimit(value.limit, revision);
 	droppedCount(value.dropped, revision);
+	playheadPosition(value.playheadFrame, revision);
 	revision.validateProject(value.present);
 	const projectId = String((value.present as EditorHistoryDocument).id);
 	validateStack(value.undoStack, 'undoStack', limit, projectId, revision);
@@ -135,6 +169,7 @@ export function cloneEditorProjectHistory<Command, Options extends EditorHistory
 		undoStack: valid.undoStack.map((entry) => cloneEntry(entry, revision)),
 		redoStack: valid.redoStack.map((entry) => cloneEntry(entry, revision)),
 		dropped: droppedCount(valid.dropped, revision),
+		playheadFrame: playheadPosition(valid.playheadFrame, revision),
 	});
 }
 
@@ -148,7 +183,8 @@ export function executeEditorProjectCommand<Command, Options extends EditorHisto
 	const normalized = revision.snapshotCommand(command);
 	const present = revision.applyCommand(valid.present, normalized, options);
 	if (revision.suppressNoOpCommands === true && present === valid.present) return valid;
-	const pushed = [...valid.undoStack, pushedEntry(valid.present, normalized, revision)];
+	const playheadFrame = livePlayhead(valid, options, revision);
+	const pushed = [...valid.undoStack, pushedEntry(valid.present, normalized, revision, playheadFrame)];
 	const undoStack = pushed.slice(-valid.limit);
 	return settle(revision, {
 		limit: valid.limit,
@@ -156,6 +192,7 @@ export function executeEditorProjectCommand<Command, Options extends EditorHisto
 		undoStack,
 		redoStack: [],
 		dropped: droppedCount(valid.dropped, revision) + (pushed.length - undoStack.length),
+		playheadFrame,
 	});
 }
 
@@ -169,7 +206,10 @@ export function undoEditorProjectCommand<Command, Options extends EditorHistoryC
 	const entry = valid.undoStack.at(-1)!;
 	const redoStack = [
 		...valid.redoStack,
-		pushedEntry(valid.present, revision.snapshotCommand(entry.command), revision),
+		pushedEntry(
+			valid.present, revision.snapshotCommand(entry.command), revision,
+			livePlayhead(valid, options, revision),
+		),
 	].slice(-valid.limit);
 	return restore(valid, entry, valid.undoStack.slice(0, -1), redoStack, revision, options);
 }
@@ -184,7 +224,10 @@ export function redoEditorProjectCommand<Command, Options extends EditorHistoryC
 	const entry = valid.redoStack.at(-1)!;
 	const pushed = [
 		...valid.undoStack,
-		pushedEntry(valid.present, revision.snapshotCommand(entry.command), revision),
+		pushedEntry(
+			valid.present, revision.snapshotCommand(entry.command), revision,
+			livePlayhead(valid, options, revision),
+		),
 	];
 	const undoStack = pushed.slice(-valid.limit);
 	return restore(valid, entry, undoStack, valid.redoStack.slice(0, -1), revision, options,
@@ -215,10 +258,14 @@ export function collapseEditorProjectHistory<Command, Options extends EditorHist
 		present: valid.present,
 		undoStack: [
 			...valid.undoStack.slice(0, undoDepth),
-			{ project: opening.project, command: revision.snapshotCommand(command) },
+			entryOf(
+				opening.project, revision.snapshotCommand(command),
+				playheadPosition(opening.playheadFrame, revision), revision,
+			),
 		].slice(-valid.limit),
 		redoStack: [],
 		dropped: droppedCount(valid.dropped, revision),
+		playheadFrame: playheadPosition(valid.playheadFrame, revision),
 	});
 }
 
@@ -275,7 +322,14 @@ function restore<Command, Options extends EditorHistoryCommandOptions>(
 	present.updatedAt = timestamp(options.now, revision);
 	revision.reconcileRestoredProject?.(present);
 	revision.validateProject(present);
-	return settle(revision, { limit: history.limit, present, undoStack, redoStack, dropped });
+	return settle(revision, {
+		limit: history.limit,
+		present,
+		undoStack,
+		redoStack,
+		dropped,
+		playheadFrame: playheadPosition(entry.playheadFrame, revision),
+	});
 }
 
 /** The document a stack entry keeps, cloned unless the product keeps the live one. */
@@ -283,168 +337,67 @@ function pushedEntry<Command, Options extends EditorHistoryCommandOptions>(
 	project: EditorHistoryDocument,
 	command: Command,
 	revision: Revision<Command, Options>,
+	playheadFrame: number | undefined,
 ): Entry<Command> {
-	return {
-		project: revision.snapshotPushedProject === false ? project : revision.cloneProject(project),
+	return entryOf(
+		revision.snapshotPushedProject === false ? project : revision.cloneProject(project),
 		command,
-	};
+		playheadFrame,
+		revision,
+	);
+}
+
+/** One entry, shaped by whether this product's entries carry a playhead at all. */
+function entryOf<Command, Options extends EditorHistoryCommandOptions>(
+	project: EditorHistoryDocument,
+	command: Command,
+	playheadFrame: number | undefined,
+	revision: Revision<Command, Options>,
+): Entry<Command> {
+	if (revision.tracksPlayhead !== true) return { project, command };
+	return { project, command, playheadFrame };
 }
 
 function cloneEntry<Command, Options extends EditorHistoryCommandOptions>(
 	entry: Entry<Command>,
 	revision: Revision<Command, Options>,
 ): Entry<Command> {
-	return { project: revision.cloneProject(entry.project), command: revision.snapshotCommand(entry.command) };
+	return entryOf(
+		revision.cloneProject(entry.project),
+		revision.snapshotCommand(entry.command),
+		playheadPosition(entry.playheadFrame, revision),
+		revision,
+	);
 }
 
-/** Drop the dropped count from a state whose product does not carry one. */
+/** Keep only the state fields this product's history carries. */
 function settle<Command, Options extends EditorHistoryCommandOptions>(
 	revision: Revision<Command, Options>,
 	state: State<Command> & Readonly<{ dropped: number }>,
 ): State<Command> {
-	if (revision.tracksDropped === true) return state;
-	return {
+	const settled: Record<string, unknown> = {
 		limit: state.limit,
 		present: state.present,
 		undoStack: state.undoStack,
 		redoStack: state.redoStack,
 	};
+	if (revision.tracksDropped === true) settled.dropped = state.dropped;
+	if (revision.tracksPlayhead === true) settled.playheadFrame = state.playheadFrame;
+	return settled as unknown as State<Command>;
 }
 
 /**
- * Admit the history a command is about to change: the present document only.
+ * Where the playhead is right now, as this command was told it.
  *
- * A stored history is validated whole where it enters the session — created,
- * cloned, or read back from storage — and the entries behind the present
- * document are snapshots this module wrote and never touches again. Walking all
- * of them on every command instead made editing cost grow with how long the
- * session had been open and with project size at once, at up to twice the
- * history limit in full document validations per command. What is still checked
- * is what the mechanics themselves rely on: the record's shape, its limit, its
- * dropped count, the document being edited, and that both stacks are arrays
- * within that limit.
+ * A caller that did not say falls back to the position the history already
+ * carries, so a command issued from somewhere that cannot see the transport does
+ * not erase what undo would otherwise put back.
  */
-function admitCommandTarget<Command, Options extends EditorHistoryCommandOptions>(
-	history: unknown,
+function livePlayhead<Command, Options extends EditorHistoryCommandOptions>(
+	history: State<Command>,
+	options: Options,
 	revision: Revision<Command, Options>,
-): State<Command> {
-	if (revision.validatesHistory === false) return history as State<Command>;
-	const value = readHistory(history, revision, false);
-	const limit = historyLimit(value.limit, revision);
-	droppedCount(value.dropped, revision);
-	revision.validateProject(value.present);
-	readStack(value.undoStack, 'undoStack', limit, revision);
-	readStack(value.redoStack, 'redoStack', limit, revision);
-	return history as State<Command>;
-}
-
-function readHistory<Command, Options extends EditorHistoryCommandOptions>(
-	history: unknown,
-	revision: Revision<Command, Options>,
-	admitStructure = true,
-): Partial<State<Command>> {
-	if (admitStructure) revision.admitStructure?.(history);
-	const fields = revision.tracksDropped === true ? HISTORY_FIELDS_WITH_DROPPED : HISTORY_FIELDS;
-	if (revision.shape === 'closed') {
-		return readClosedDomainRecord(
-			history, `${revision.label} history`, fields,
-		) as unknown as Partial<State<Command>>;
-	}
-	if (!history || typeof history !== 'object' || Array.isArray(history)) {
-		throw new TypeError(`A ${revision.label} history is required.`);
-	}
-	if (revision.shape === 'exact') assertExactFields(history, fields, `${revision.label} history`);
-	return history as Partial<State<Command>>;
-}
-
-function validateStack<Command, Options extends EditorHistoryCommandOptions>(
-	value: unknown,
-	name: 'undoStack' | 'redoStack',
-	limit: number,
-	projectId: string,
-	revision: Revision<Command, Options>,
-): void {
-	const stack = readStack(value, name, limit, revision);
-	for (const item of stack) {
-		const entry = readEntry(item, name, revision);
-		revision.validateProject(entry.project);
-		if (entry.project.id !== projectId) {
-			throw new RangeError(`Every ${revision.label} history snapshot must have the present project ID.`);
-		}
-		revision.snapshotCommand(entry.command);
-	}
-}
-
-/** One stack, read as far as its own shape goes and no further. */
-function readStack<Command, Options extends EditorHistoryCommandOptions>(
-	value: unknown,
-	name: 'undoStack' | 'redoStack',
-	limit: number,
-	revision: Revision<Command, Options>,
-): readonly unknown[] {
-	if (revision.shape === 'closed') {
-		return readClosedDomainArray(value, `${revision.label} history ${name}`, 0, limit);
-	}
-	if (!Array.isArray(value) || value.length > limit) {
-		throw new RangeError(`${revision.label} history ${name} is invalid.`);
-	}
-	return value as readonly unknown[];
-}
-
-function readEntry<Command, Options extends EditorHistoryCommandOptions>(
-	value: unknown,
-	name: 'undoStack' | 'redoStack',
-	revision: Revision<Command, Options>,
-): Entry<Command> {
-	const entryName = `${revision.label} history ${name} entry`;
-	if (revision.shape === 'closed') {
-		return readClosedDomainRecord(value, entryName, ENTRY_FIELDS) as unknown as Entry<Command>;
-	}
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError(`${entryName} is invalid.`);
-	}
-	if (revision.shape === 'exact') assertExactFields(value, ENTRY_FIELDS, entryName);
-	return value as Entry<Command>;
-}
-
-function assertExactFields(value: object, fields: readonly string[], name: string): void {
-	const keys = Reflect.ownKeys(value);
-	if (keys.length !== fields.length || keys.some((key) => typeof key !== 'string' || !fields.includes(key))) {
-		throw new TypeError(`${name} must be exact.`);
-	}
-}
-
-function historyLimit<Command, Options extends EditorHistoryCommandOptions>(
-	value: unknown,
-	revision: Revision<Command, Options>,
-): number {
-	const maximum = revision.maximumLimit;
-	if (!Number.isSafeInteger(value) || Number(value) < 1
-		|| (maximum !== undefined && Number(value) > maximum)) {
-		throw new RangeError(maximum === undefined
-			? `A ${revision.label} history limit must be a positive safe integer.`
-			: `A ${revision.label} history limit must be from 1 through ${String(maximum)}.`);
-	}
-	return Number(value);
-}
-
-/** A history written before the count existed simply has not dropped anything yet. */
-function droppedCount<Command, Options extends EditorHistoryCommandOptions>(
-	value: unknown,
-	revision: Revision<Command, Options>,
-): number {
-	if (value === undefined) return 0;
-	if (!Number.isSafeInteger(value) || Number(value) < 0) {
-		throw new RangeError(`A ${revision.label} history dropped count must be a non-negative safe integer.`);
-	}
-	return Number(value);
-}
-
-function timestamp<Command, Options extends EditorHistoryCommandOptions>(
-	value: Date | string | undefined,
-	revision: Revision<Command, Options>,
-): string {
-	const date = value instanceof Date ? value : new Date(value ?? Date.now());
-	if (Number.isNaN(date.getTime())) throw new TypeError(`A valid ${revision.label} history timestamp is required.`);
-	return date.toISOString();
+): number | undefined {
+	return playheadPosition(options.playheadFrame, revision)
+		?? playheadPosition(history.playheadFrame, revision);
 }

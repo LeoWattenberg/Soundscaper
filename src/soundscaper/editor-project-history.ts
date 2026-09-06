@@ -25,6 +25,8 @@ import { validateSoundscaperProject } from './editor-project-validation.ts';
 export interface SoundscaperProjectHistoryEntry {
 	readonly project: SoundscaperProject;
 	readonly command: SoundscaperProjectCommand;
+	/** Where the playhead sat before the command this entry undoes. */
+	readonly playheadFrame?: number;
 }
 
 export interface SoundscaperProjectHistory {
@@ -34,6 +36,8 @@ export interface SoundscaperProjectHistory {
 	readonly redoStack: readonly SoundscaperProjectHistoryEntry[];
 	/** Entries the limit has pushed off the bottom, so a macro depth survives them. */
 	readonly dropped: number;
+	/** Where the playhead belongs for the present document, once a caller says. */
+	readonly playheadFrame?: number;
 }
 
 const asBaseline = (state: SoundscaperProductionHistoryState): SoundscaperProjectHistory => (

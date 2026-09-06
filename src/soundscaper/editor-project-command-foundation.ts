@@ -42,6 +42,8 @@ import { validateSoundscaperProject } from './editor-project-validation.ts';
 
 export interface SoundscaperProjectCommandOptions {
 	readonly now?: Date | string;
+	/** Where the playhead sits as this command runs, so undo can put it back. */
+	readonly playheadFrame?: number;
 }
 
 const PRODUCTION_HANDLERS = createAudioProductionRuntimeHandlers();

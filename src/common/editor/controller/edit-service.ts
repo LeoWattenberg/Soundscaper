@@ -28,26 +28,37 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 		state, undoEditorCommand,
 	} = runtime;
 	const executeLabeledAudioEdit = createLabeledAudioEditService(runtime);
+
+	/**
+	 * Undo or redo, document and playhead together.
+	 *
+	 * The stack keeps the position each command was run from, so stepping back
+	 * hands the person the timeline as they left it — the same cursor, not just
+	 * the same audio. Where the playhead is now goes onto the stack in exchange,
+	 * so stepping forward again restores that in turn.
+	 */
+	function travel(step: RuntimeValue) {
+		state.videoEffectGestures.clear();
+		const previousHistory = state.history;
+		state.history = step(previousHistory, { playheadFrame: playheadFrame() });
+		if (state.history === previousHistory) return;
+		projectChanged({ restorePlayheadFrame: state.history.playheadFrame });
+	}
+
+	/** Where the transport's playhead sits, for a runtime that has a transport. */
+	function playheadFrame(): number | undefined {
+		if (typeof engine?.getPositionFrames !== 'function') return undefined;
+		const frame = engine.getPositionFrames();
+		if (typeof frame !== 'number' || !Number.isFinite(frame) || frame < 0) return undefined;
+		return Math.round(frame);
+	}
+
 	function handleEdit(action: string) {
 		if (!state.history || editingBlocked()) return;
 		if (isLabeledAudioEditAction(action)) return executeLabeledAudioEdit(action);
 		try {
-			if (action === 'undo') {
-				state.videoEffectGestures.clear();
-				const previousHistory = state.history;
-				state.history = undoEditorCommand(previousHistory);
-				if (state.history === previousHistory) return;
-				projectChanged();
-				return;
-			}
-			if (action === 'redo') {
-				state.videoEffectGestures.clear();
-				const previousHistory = state.history;
-				state.history = redoEditorCommand(previousHistory);
-				if (state.history === previousHistory) return;
-				projectChanged();
-				return;
-			}
+			if (action === 'undo') return travel(undoEditorCommand);
+			if (action === 'redo') return travel(redoEditorCommand);
 			const audioTrackIds = getProject().tracks.filter((track: RuntimeValue) => Array.isArray(track.clipIds)).map((track: RuntimeValue) => track.id);
 			const selectedTrack = findTrack(getProject(), state.selectedTrackId);
 			const baseSelection = activeSelection();

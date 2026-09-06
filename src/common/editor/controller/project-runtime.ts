@@ -43,6 +43,23 @@ export interface ControllerRuntimeHistory {
 	readonly present: ControllerRuntimeProject;
 	readonly undoStack: readonly unknown[];
 	readonly redoStack: readonly unknown[];
+	/**
+	 * Where the playhead belongs for the present document, for a history that
+	 * keeps it: undo and redo restore it alongside the document.
+	 */
+	readonly playheadFrame?: number;
+}
+
+/**
+ * What a command is told about the moment it runs.
+ *
+ * The playhead travels with the command because undo restores the position the
+ * person left as well as the document, and only the controller can see where
+ * the transport actually is.
+ */
+export interface ControllerRuntimeCommandOptions extends Readonly<Record<string, unknown>> {
+	readonly now?: Date | string;
+	readonly playheadFrame?: number;
 }
 
 export interface ControllerTrackDuplicateEffectMapping {
@@ -103,7 +120,7 @@ export interface ControllerProjectRuntime {
 	readonly executeCommand: (
 		history: ControllerRuntimeHistory,
 		command: AudioEditorCommand,
-		options?: Readonly<{ now?: Date | string }>,
+		options?: ControllerRuntimeCommandOptions,
 	) => ControllerRuntimeHistory;
 	readonly applyCommand: (
 		project: unknown,
@@ -130,11 +147,11 @@ export interface ControllerProjectRuntime {
 	) => ControllerRuntimeHistory;
 	readonly undo: (
 		history: ControllerRuntimeHistory,
-		options?: Readonly<{ now?: Date | string }>,
+		options?: ControllerRuntimeCommandOptions,
 	) => ControllerRuntimeHistory;
 	readonly redo: (
 		history: ControllerRuntimeHistory,
-		options?: Readonly<{ now?: Date | string }>,
+		options?: ControllerRuntimeCommandOptions,
 	) => ControllerRuntimeHistory;
 	readonly canUndo: (history: ControllerRuntimeHistory) => boolean;
 	readonly canRedo: (history: ControllerRuntimeHistory) => boolean;

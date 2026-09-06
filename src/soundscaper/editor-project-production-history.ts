@@ -39,11 +39,15 @@ export interface SoundscaperProductionHistoryRevision {
 
 export interface SoundscaperProductionCommandOptions {
 	readonly now?: Date | string;
+	/** Where the playhead sits as this command runs, so undo can put it back. */
+	readonly playheadFrame?: number;
 }
 
 export interface SoundscaperProductionHistoryEntry {
 	readonly project: Record<string, unknown>;
 	readonly command: AudioEditorCommand;
+	/** Where the playhead sat before the command this entry undoes. */
+	readonly playheadFrame?: number;
 }
 
 export interface SoundscaperProductionHistoryState {
@@ -61,6 +65,8 @@ export interface SoundscaperProductionHistoryState {
 	 * from under an index as soon as the history is full.
 	 */
 	readonly dropped: number;
+	/** Where the playhead belongs for the present document, once a caller says. */
+	readonly playheadFrame?: number;
 }
 
 type Mechanics = EditorProjectHistoryRevision<AudioEditorCommand, SoundscaperProductionCommandOptions>;
@@ -70,6 +76,7 @@ function mechanics(revision: SoundscaperProductionHistoryRevision): Mechanics {
 	return {
 		label: revision.label,
 		tracksDropped: true,
+		tracksPlayhead: true,
 		suppressNoOpCommands: true,
 		validateProject: (project) => { revision.validateProject(project); },
 		cloneProject: (project) => revision.cloneProject(project),

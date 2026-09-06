@@ -22,6 +22,9 @@ export const AUDIO_EDITOR_HISTORY_LIMIT = 200;
  *   bottom of the undo stack over this history's life, so a macro depth stays a
  *   position in the whole sequence of commits rather than an index into a stack
  *   that shifts underneath it
+ * @property {number|undefined} playheadFrame where the playhead belongs for the
+ *   present document: each entry carries the position the command was run from,
+ *   so undo puts the playhead back where it was before the action it undid
  */
 
 /**
@@ -36,6 +39,7 @@ export const AUDIO_EDITOR_HISTORY_LIMIT = 200;
 const AUDIO_EDITOR_REVISION = {
 	label: 'Audio editor',
 	tracksDropped: true,
+	tracksPlayhead: true,
 	validatesHistory: false,
 	snapshotPushedProject: false,
 	validateProject: (project) => { validateAudioEditorProject(project); },

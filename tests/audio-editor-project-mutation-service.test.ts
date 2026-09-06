@@ -329,12 +329,16 @@ interface FixtureOverrides {
 	readonly selectedClipId?: string | null;
 	readonly routing?: TestRouting;
 	readonly playing?: boolean;
+	readonly playheadFrame?: () => number | null | undefined;
+	readonly seekPlayhead?: (frame: number) => number | null | undefined;
 	readonly hasTimePitch?: boolean;
 	readonly getProject?: () => TestProject | null;
 	readonly setProject?: (project: TestProject | null) => void;
 	readonly getHistory?: () => TestHistory;
 	readonly setHistory?: (history: TestHistory) => void;
-	readonly executeHistory?: (history: TestHistory, command: AudioEditorCommand) => TestHistory;
+	readonly executeHistory?: (
+		history: TestHistory, command: AudioEditorCommand, options?: Readonly<{ playheadFrame?: number }>,
+	) => TestHistory;
 	readonly applyCommand?: (project: TestProject, command: AudioEditorCommand) => TestProject;
 	readonly synchronizeHistory?: (history: TestHistory) => TestHistory;
 	readonly compact?: () => void;
@@ -422,6 +426,8 @@ function mutationFixture(overrides: FixtureOverrides = {}) {
 		synchronizeMicrophoneMeterTarget: () => undefined,
 		synchronizeAnnotationFocus: overrides.synchronizeAnnotationFocus || (() => undefined),
 		getPlaybackState: () => overrides.playing ? 'playing' : 'stopped',
+		...(overrides.playheadFrame ? { getPlayheadFrame: overrides.playheadFrame } : {}),
+		...(overrides.seekPlayhead ? { seekPlayhead: overrides.seekPlayhead } : {}),
 		projectHasTimePitchClips: () => overrides.hasTimePitch || false,
 		beginPlaybackCachePreparation: overrides.beginPlaybackPreparation || (async () => undefined),
 		applyProjectToPlaybackEngine: overrides.applyPlayback || (async () => undefined),
@@ -432,6 +438,77 @@ function mutationFixture(overrides: FixtureOverrides = {}) {
 	});
 	return { service, state };
 }
+
+test('a restored document takes the playhead with it, again after the load when the seek clamped short', async () => {
+	// The transport still holds the document as it stood before the restore, so
+	// undoing a delete that shortened the timeline past the playhead clamps the
+	// first seek to the shorter end.
+	let playheadFrame = 30_000;
+	let durationFrames = 30_000;
+	const seeks: number[] = [];
+	const fixture = mutationFixture({
+		playheadFrame: () => playheadFrame,
+		seekPlayhead: (frame) => {
+			seeks.push(frame);
+			playheadFrame = Math.min(frame, durationFrames);
+			return playheadFrame;
+		},
+		applyPlayback: async () => { durationFrames = 60_000; },
+		executeHistory: (value, command) => ({ present: projectFixture(2), undo: [...value.undo, command.type] }),
+	});
+
+	fixture.service.projectChanged({ restorePlayheadFrame: 50_000 });
+	assert.deepEqual(seeks, [50_000]);
+	assert.equal(playheadFrame, 30_000, 'the seek lands short of the position the undo restored');
+
+	await settleMicrotasks();
+	assert.deepEqual(seeks, [50_000, 50_000], 'the restored document is loaded, so the position is asked for again');
+	assert.equal(playheadFrame, 50_000);
+});
+
+test('a playhead that moved after the short seek is left where it is', async () => {
+	let playheadFrame = 30_000;
+	const seeks: number[] = [];
+	const fixture = mutationFixture({
+		playheadFrame: () => playheadFrame,
+		seekPlayhead: (frame) => { seeks.push(frame); return 30_000; },
+		applyPlayback: async () => { playheadFrame = 44_100; },
+	});
+
+	fixture.service.projectChanged({ restorePlayheadFrame: 50_000 });
+	await settleMicrotasks();
+
+	assert.deepEqual(seeks, [50_000], 'playback has moved on and is not yanked backwards');
+});
+
+test('every command records the playhead it was run from', () => {
+	const moments: unknown[] = [];
+	const fixture = mutationFixture({
+		playheadFrame: () => 48_000.4,
+		executeHistory: (value, command, options) => {
+			moments.push(options);
+			return { present: projectFixture(2), undo: [...value.undo, command.type] };
+		},
+	});
+
+	fixture.service.commit({ type: 'project/rename', title: 'Changed' });
+
+	assert.deepEqual(moments, [{ playheadFrame: 48_000 }]);
+});
+
+test('a runtime without a transport commits without a playhead', () => {
+	const moments: unknown[] = [];
+	const fixture = mutationFixture({
+		executeHistory: (value, command, options) => {
+			moments.push(options);
+			return { present: projectFixture(2), undo: [...value.undo, command.type] };
+		},
+	});
+
+	fixture.service.commit({ type: 'project/rename', title: 'Changed' });
+
+	assert.deepEqual(moments, [{}]);
+});
 
 function projectFixture(revision: number): TestProject {
 	return {

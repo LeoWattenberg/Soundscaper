@@ -698,6 +698,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		synchronizeMicrophoneMeterTarget,
 		synchronizeAnnotationFocus: () => timelineAnnotationService.synchronizeFocus(false),
 		getPlaybackState: () => engine.getState().state,
+		getPlayheadFrame: () => engine.getPositionFrames(),
+		seekPlayhead: (frame) => engine.seek(frame),
 		projectHasTimePitchClips,
 		beginPlaybackCachePreparation,
 		applyProjectToPlaybackEngine,

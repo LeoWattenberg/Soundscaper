@@ -73,6 +73,11 @@ interface ProjectSavePort {
 	flushProject(options?: ProjectFlushOptions): PromiseLike<unknown> | unknown;
 }
 
+/** What a command is told about the moment it runs. */
+export interface EditorCommandMoment {
+	readonly playheadFrame?: number;
+}
+
 export interface CommitSelection {
 	readonly selectTrackId?: string | null;
 	readonly selectClipId?: string | null;
@@ -80,6 +85,11 @@ export interface CommitSelection {
 
 export interface ProjectChangedOptions {
 	readonly skipPlaybackEngine?: boolean;
+	/**
+	 * Where the playhead belongs for the document that just replaced the present
+	 * one, when an undo or a redo restored a position along with it.
+	 */
+	readonly restorePlayheadFrame?: number;
 }
 
 export interface ProjectMutationServiceDependencies<
@@ -100,7 +110,9 @@ export interface ProjectMutationServiceDependencies<
 	readonly setProject: (project: Project | null) => void;
 	readonly getHistory: () => History | null;
 	readonly setHistory: (history: History) => void;
-	readonly executeEditorCommand: (history: History, command: AudioEditorCommand) => History;
+	readonly executeEditorCommand: (
+		history: History, command: AudioEditorCommand, options?: EditorCommandMoment,
+	) => History;
 	readonly applyEditorCommand: (project: Project, command: AudioEditorCommand) => Project;
 	/**
 	 * Present only for a product that runs macros. Everything else is fenced out
@@ -122,6 +134,17 @@ export interface ProjectMutationServiceDependencies<
 	readonly synchronizeMicrophoneMeterTarget: () => void;
 	readonly synchronizeAnnotationFocus: () => void;
 	readonly getPlaybackState: () => string;
+	/**
+	 * Where the transport's playhead sits right now, for a runtime that has one.
+	 *
+	 * Every command carries the position it was run from into the undo stack, so
+	 * undoing puts the playhead back where the person left it as well as the
+	 * document. A runtime without a transport leaves this out and its history
+	 * simply keeps no position.
+	 */
+	readonly getPlayheadFrame?: () => number | null | undefined;
+	/** Move the transport's playhead, answering where it actually landed. */
+	readonly seekPlayhead?: (frame: number) => number | null | undefined;
 	readonly projectHasTimePitchClips: (project: Project) => boolean;
 	readonly beginPlaybackCachePreparation: (project: Project) => PromiseLike<unknown>;
 	readonly applyProjectToPlaybackEngine: (project: Project) => PromiseLike<unknown>;
@@ -171,6 +194,7 @@ export function createProjectMutationService<
 	>,
 ): Readonly<ProjectMutationService<Project>> {
 	let openMacroTransactions = 0;
+	let pendingPlayheadRestore: Readonly<{ frame: number; landed: unknown }> | null = null;
 
 	return Object.freeze({
 		commit,
@@ -191,7 +215,7 @@ export function createProjectMutationService<
 		assertWritable();
 		assertEditorCommandCapabilities(command, dependencies.capabilities, dependencies.productName);
 		const history = requireHistory();
-		const nextHistory = dependencies.executeEditorCommand(history, command);
+		const nextHistory = dependencies.executeEditorCommand(history, command, commandMoment());
 		dependencies.setHistory(nextHistory);
 		dependencies.state.history = nextHistory;
 		dependencies.setProject(nextHistory.present);
@@ -286,6 +310,7 @@ export function createProjectMutationService<
 		}
 		dependencies.synchronizeMicrophoneMeterTarget();
 		dependencies.synchronizeAnnotationFocus();
+		restorePlayhead(options.restorePlayheadFrame);
 		if (settling && !options.skipPlaybackEngine) queuePlaybackProject(project);
 		dependencies.publisher.publishProjectState();
 		if (settling) dependencies.saves.scheduleAutosave();
@@ -326,7 +351,46 @@ export function createProjectMutationService<
 			await dependencies.applyProjectToPlaybackEngine(project);
 			dependencies.lifetime.assertActive(lifetimeToken);
 			dependencies.assertProject(projectToken);
+			settlePlayheadRestore();
 		}
+	}
+
+	/**
+	 * Put the playhead back where the restored document left it.
+	 *
+	 * The transport still holds the document as it stood before the restore, so a
+	 * position past that document's end clamps short — undoing a delete that
+	 * shortened the timeline past the playhead is exactly that case. Where the
+	 * seek lands short, it is asked again once the restored document is loaded.
+	 */
+	function restorePlayhead(frame: number | undefined): void {
+		pendingPlayheadRestore = null;
+		if (frame === undefined || !dependencies.seekPlayhead) return;
+		const landed = dependencies.seekPlayhead(frame);
+		if (landed === frame) return;
+		pendingPlayheadRestore = { frame, landed };
+	}
+
+	/** Ask again after the load, unless something else has moved the playhead since. */
+	function settlePlayheadRestore(): void {
+		const pending = pendingPlayheadRestore;
+		pendingPlayheadRestore = null;
+		if (!pending || !dependencies.seekPlayhead) return;
+		if (dependencies.getPlayheadFrame?.() !== pending.landed) return;
+		dependencies.seekPlayhead(pending.frame);
+	}
+
+	/**
+	 * Where the playhead is as this command runs, when the runtime can say.
+	 *
+	 * A position that is not a usable frame is left out rather than passed on:
+	 * the history would reject it, and a command is the wrong place to fail over
+	 * a transport reading.
+	 */
+	function commandMoment(): EditorCommandMoment {
+		const frame = dependencies.getPlayheadFrame?.();
+		if (typeof frame !== 'number' || !Number.isFinite(frame) || frame < 0) return {};
+		return { playheadFrame: Math.round(frame) };
 	}
 
 	function assertWritable(): void {
