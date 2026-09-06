@@ -5,9 +5,9 @@
 			"id": "editor",
 			"label": "Editor",
 			"thresholds": {
-				"lines": 83,
+				"lines": 96,
 				"branches": 79,
-				"functions": 83
+				"functions": 85
 			},
 			"reason": "Everything under src/common/editor/ that is not controller, command or engine code: models, workers, storage, effects and import/export, where an unexercised branch corrupts a user's project."
 		},
@@ -15,7 +15,7 @@
 			"id": "editor-core",
 			"label": "Editor core",
 			"thresholds": {
-				"lines": 90,
+				"lines": 96,
 				"branches": 80,
 				"functions": 95
 			},
@@ -35,9 +35,9 @@
 			"id": "framescaper",
 			"label": "Framescaper",
 			"thresholds": {
-				"lines": 67,
+				"lines": 95,
 				"branches": 70,
-				"functions": 69
+				"functions": 70
 			},
 			"reason": "Framescaper's own tree, still growing feature-first; the floor tracks what the ratchet has claimed rather than an aspiration."
 		},
@@ -45,9 +45,9 @@
 			"id": "soundscaper",
 			"label": "Soundscaper",
 			"thresholds": {
-				"lines": 73,
+				"lines": 98,
 				"branches": 70,
-				"functions": 81
+				"functions": 83
 			},
 			"reason": "Soundscaper's own tree: thin product wiring over the shared editor, so its floor is set by what that wiring actually exercises."
 		},
@@ -65,9 +65,9 @@
 			"id": "common-site",
 			"label": "Common site",
 			"thresholds": {
-				"lines": 53,
-				"branches": 86,
-				"functions": 82
+				"lines": 99,
+				"branches": 88,
+				"functions": 88
 			},
 			"reason": "The marketing and documentation site is mostly presentational markup, so its line floor is low while its branches stay covered."
 		},
@@ -85,7 +85,7 @@
 			"id": "common-offline",
 			"label": "Common offline",
 			"thresholds": {
-				"lines": 91,
+				"lines": 93,
 				"branches": 73,
 				"functions": 95
 			},
@@ -95,9 +95,9 @@
 			"id": "shared-root",
 			"label": "Shared root",
 			"thresholds": {
-				"lines": 92,
-				"branches": 92,
-				"functions": 95
+				"lines": 99,
+				"branches": 93,
+				"functions": 99
 			},
 			"reason": "The small shared modules at the root of src/ and src/common/ are depended on by both products, so every branch of them is cheap to cover and expensive to break."
 		}
