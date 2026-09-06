@@ -26,9 +26,10 @@ change can be reviewed without loading the complete storage implementation:
 
 - Change the IndexedDB version, store names, indexes, or keys only in
   `indexeddb-backend.ts`, with schema tests.
-- Pre-current databases are not migrated: a version bump wipes the stores and
-  recreates the current schema. Nobody relies on stored data surviving an
-  upgrade until a release promises otherwise.
+- Version 1 is the first shipped browser schema. Append future upgrades to
+  `EDITOR_STORAGE_MIGRATIONS`; never drop or recreate stores carrying baseline
+  user data. Cover preservation of existing projects and media references in
+  upgrade tests, and abort the upgrade transaction on migration failure.
 - Preserve project snapshots and source/media record shapes within a database
   version. These records are durable user data, not implementation details.
 - Preserve the OPFS directory and path formats. Existing projects refer to those
