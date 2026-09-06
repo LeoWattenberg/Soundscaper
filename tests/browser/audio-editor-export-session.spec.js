@@ -18,6 +18,7 @@ import {
 	closeEffectsPanel,
 	closeWorkspacePanel,
 	collectClientErrors,
+	commitInput,
 	disableNativeSavePicker,
 	disableOfflineAudio,
 	downloadBytes,
@@ -36,6 +37,7 @@ import {
 	seekOnRuler,
 	setDocumentTheme,
 	showToolbarButton,
+	trackNameText,
 	waitForEditor,
 	waitForResponsiveEditorLayout,
 } from './audio-editor-test-helpers.js';
@@ -98,6 +100,44 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(archive.signature).toEqual([0x50, 0x4b, 0x03, 0x04]);
 		expect([...new Set(archive.entries)]).toEqual(['01-chapter-1.wav', '02-chapter-2.wav']);
 		expect(downloads[0].suggestedFilename()).toMatch(/-chapters-.*\.zip$/u);
+		expect(errors).toEqual([]);
+	});
+
+	test('splits several imported tracks into one archived chapter per label', async ({ page }) => {
+		await disableNativeSavePicker(page);
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [longTone, toneA, toneB]);
+
+		await chooseCommandAction(page, editor, 'Edit', 'Manage labels');
+		const labels = editor.locator('[data-workspace-panel="labels"]');
+		await expect(labels).toBeVisible();
+		const known = new Set();
+		// The first label creates the track that carries it, so the chapters come
+		// from a label track rather than from the maintained timeline annotations
+		// the sibling case covers.
+		await addManagedLabel(labels, known, { title: 'Intro', start: '0.000', end: '0.400' });
+		await expect(editor.locator('[data-label-track]')).toHaveCount(1);
+		await addManagedLabel(labels, known, { title: 'Outro', start: '0.400', end: '1.200' });
+		await closeWorkspacePanel(editor, 'labels');
+		const trackOrder = await trackNameText(editor).allTextContents();
+
+		const exportDialog = await openExportDialog(page, editor);
+		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'WAV');
+		await chooseDropdown(page, exportDialog.locator('[data-export-field="output"]'), 'Chapters (split by labels)');
+		const started = page.waitForEvent('download');
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
+		await expect(exportDialog.locator('[data-export-download]')).toBeVisible({ timeout: 20_000 });
+		const download = await started;
+		expect(download.suggestedFilename()).toMatch(/-chapters-.*\.zip$/u);
+
+		const entries = readZipCentralDirectory(await downloadBytes(download));
+		expect(entries.map(({ name }) => name)).toEqual(['01-Intro.wav', '02-Outro.wav']);
+		// Each chapter holds the span its own label names: the second is twice the
+		// first, which the whole mix written twice would not be.
+		expect(entries[1].byteLength).toBeGreaterThan(entries[0].byteLength * 1.8);
+		// A delivery reads the project; it must not reorder the document it read.
+		expect(await trackNameText(editor).allTextContents()).toEqual(trackOrder);
 		expect(errors).toEqual([]);
 	});
 
@@ -579,3 +619,47 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 });
+
+/**
+ * Add one label through the label manager and give it a title and a span.
+ *
+ * A label track keeps its labels in time order, so a new label lands wherever
+ * the playhead put it rather than at the end of the list. The row is therefore
+ * found by the identity that is new since the last call, which survives the
+ * re-sort each edit performs.
+ */
+async function addManagedLabel(panel, known, { title, start, end }) {
+	const rows = panel.locator('[data-labels-panel-list] [data-label-id]');
+	await panel.getByRole('button', { name: 'New label', exact: true }).click();
+	await expect(rows).toHaveCount(known.size + 1);
+	const ids = await rows.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-label-id')));
+	const id = ids.find((candidate) => !known.has(candidate));
+	expect(id).toBeTruthy();
+	known.add(id);
+	const row = panel.locator(`[data-label-id="${id}"]`);
+	await commitInput(row.getByRole('textbox', { name: /^Label title:/ }), title);
+	// The end moves first: a start pushed past the end the label still has would
+	// be refused.
+	await commitInput(row.locator('[data-timecode-direct-entry]').nth(1), end);
+	await commitInput(row.locator('[data-timecode-direct-entry]').nth(0), start);
+}
+
+/** The archive's own index: entry names and sizes in the order it lists them. */
+function readZipCentralDirectory(bytes) {
+	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+	let end = bytes.byteLength - 22;
+	while (end >= 0 && view.getUint32(end, true) !== 0x0605_4b50) end -= 1;
+	if (end < 0) throw new Error('The archive has no end-of-central-directory record.');
+	const entries = [];
+	let at = view.getUint32(end + 16, true);
+	for (let index = view.getUint16(end + 10, true); index > 0; index -= 1) {
+		if (view.getUint32(at, true) !== 0x0201_4b50) throw new Error('The archive central directory is malformed.');
+		const nameLength = view.getUint16(at + 28, true);
+		entries.push({
+			name: new TextDecoder('utf-8').decode(bytes.subarray(at + 46, at + 46 + nameLength)),
+			byteLength: view.getUint32(at + 24, true),
+		});
+		at += 46 + nameLength + view.getUint16(at + 30, true) + view.getUint16(at + 32, true);
+	}
+	return entries;
+}
