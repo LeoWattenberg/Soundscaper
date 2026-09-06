@@ -177,9 +177,25 @@ test.describe('audio warp and transient workflow', () => {
 		await expect(runtimeStatus).toHaveText('Runtime: exact offline fallback (realtime acceleration unavailable).');
 		await expect(runtimeStatus).not.toContainText('scalar');
 		await page.keyboard.press('Escape');
+		// The fixture is a quarter of a second long, so playback is over before a
+		// round trip can sample the transport. Latch the playing state in the page
+		// and read the latch instead of racing the clip.
+		await page.evaluate(() => {
+			const transport = document.querySelector('[data-audio-editor] [data-transport="play"]');
+			globalThis.__audioWarpPlaybackSeen = false;
+			const observe = () => {
+				const playing = [...transport.querySelectorAll('button')]
+					.some((button) => button.getAttribute('aria-label') === 'Pause');
+				if (playing) globalThis.__audioWarpPlaybackSeen = true;
+			};
+			observe();
+			new MutationObserver(observe).observe(transport, {
+				attributes: true, childList: true, subtree: true,
+			});
+		});
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
 		await expect.poll(() => page.evaluate(() => globalThis.__audioWarpOfflineRenders)).toBeGreaterThan(0);
-		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+		await expect.poll(() => page.evaluate(() => globalThis.__audioWarpPlaybackSeen)).toBe(true);
 	});
 
 	test('Framescaper holds a Soundscaper v1 warp project opaquely without exposing audio-warp authoring', async ({ page }) => {
