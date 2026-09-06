@@ -17,7 +17,7 @@ import test from 'node:test';
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
-import { LOCALE_BY_TAG } from '../src/common/i18n/locales.js';
+import { LOCALE_BY_TAG, ROUTE_LOCALES } from '../src/common/i18n/locales.js';
 import { MACHINE_CATALOG_LOCALES } from '../src/common/i18n/machine/index.js';
 import BrandSidebar from '../src/common/site/BrandSidebar.jsx';
 import { PRIVACY_POLICY_REQUEST_EVENT } from '../src/common/site/privacy-policy-links.js';
@@ -144,7 +144,10 @@ type Harness = ReturnType<typeof harness>;
  */
 function expectedLocaleOptions(extra: Readonly<Record<string, string>> = {}): string[] {
 	const names = new Map<string, string>();
-	for (const tag of ['en', 'de', ...MACHINE_CATALOG_LOCALES]) names.set(tag, LOCALE_BY_TAG[tag]!.nativeName);
+	const routed = new Set(ROUTE_LOCALES.map((descriptor: { locale: string }) => descriptor.locale));
+	for (const tag of ['en', 'de', ...MACHINE_CATALOG_LOCALES]) {
+		if (routed.has(tag)) names.set(tag, LOCALE_BY_TAG[tag]!.nativeName);
+	}
 	for (const [tag, name] of Object.entries(extra)) names.set(tag, name);
 	return [...names.entries()]
 		.sort(([, left], [, right]) => left.localeCompare(right, 'en'))

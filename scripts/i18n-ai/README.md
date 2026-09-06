@@ -11,6 +11,10 @@ So a key Audacity's translators have covered always shows their wording, and eve
 
 The tool is optional authoring tooling: it is not used by documentation builds, CI, or deterministic reference generation, and it never contacts anything but the configured Ollama server and, for the glossary, the public translation manifest. Generated files are ordinary working-tree changes: review them and use Git to keep or revert them.
 
+## Routes
+
+A locale is reachable once it has a route: `COMMITTED_LOCALE_TAGS` in `src/common/i18n/locales.js` lists every locale the static build publishes, the sidebar and preferences offer, and the desktop packages. A machine catalog earns its locale that route, so adding a language means generating its catalog and listing its tag there. Audacity's pack no longer has to meet the eligibility threshold for a committed route: the desktop translation snapshot and the release stage check skip locales a machine catalog serves.
+
 ## Staleness
 
 Each entry records the English it was translated from:

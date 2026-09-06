@@ -72,31 +72,46 @@ export const AUDACITY_LOCALE_SUPERSET = deepFreeze([
 export const DEFAULT_LOCALE_TAGS = Object.freeze(['en', 'de']);
 
 /**
- * Locales whose mapping coverage has passed the release threshold and whose
- * standalone/embed routes are included in this Pages deployment.
+ * Locales whose standalone/embed routes are included in this Pages
+ * deployment: every locale a bundled machine catalog serves (see
+ * `./machine/index.js`), plus the locales whose Audacity mapping coverage
+ * passed the release threshold before machine catalogs existed.
  *
- * This list is generated from the checked-in Qt mapping audit. A newly
- * eligible upstream locale remains pending until this list is updated and a
- * normal static deployment publishes its route.
+ * A locale earns its route from the machine catalog, so adding one means
+ * generating the catalog (`npm run i18n:translate`) and listing the tag here;
+ * a normal static deployment then publishes the route. Audacity's reviewed
+ * strings still override the machine ones wherever its pack carries them.
  */
 export const COMMITTED_LOCALE_TAGS = Object.freeze([
 	'en',
 	'de',
 	'ar',
+	'cs',
+	'el',
 	'en-GB',
 	'es',
+	'fa',
 	'fi',
 	'fr',
 	'gl',
+	'he',
+	'hi',
 	'hy',
+	'id',
+	'it',
 	'ja',
 	'ko',
+	'nl',
 	'pl',
+	'pt-BR',
+	'pt-PT',
 	'ro',
 	'ru',
 	'tr',
 	'uk',
+	'vi',
 	'zh-CN',
+	'zh-TW',
 ]);
 
 export const AUDACITY_TO_BCP47 = deepFreeze(Object.fromEntries(

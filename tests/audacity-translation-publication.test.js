@@ -30,13 +30,16 @@ test('historical rollback packs use current canonical keys and named placeholder
 });
 
 test('stage verification requires every committed non-default route to remain eligible', () => {
-	assert.doesNotThrow(() => validateCommittedRouteEligibility({ fr: { eligible: true } }, ['en', 'de', 'fr']));
+	assert.doesNotThrow(() => validateCommittedRouteEligibility({ fr: { eligible: true } }, ['en', 'de', 'fr'], []));
+	// A locale a machine catalog serves keeps its route whatever the pack says.
+	assert.doesNotThrow(() => validateCommittedRouteEligibility({ fr: { eligible: false } }, ['en', 'de', 'fr'], ['fr']));
+	assert.doesNotThrow(() => validateCommittedRouteEligibility({}, ['en', 'de', 'fr'], ['fr']));
 	assert.throws(
-		() => validateCommittedRouteEligibility({ fr: { eligible: false } }, ['en', 'de', 'fr']),
+		() => validateCommittedRouteEligibility({ fr: { eligible: false } }, ['en', 'de', 'fr'], []),
 		/Committed locale route fr/u,
 	);
 	assert.throws(
-		() => validateCommittedRouteEligibility({}, ['en', 'de', 'fr']),
+		() => validateCommittedRouteEligibility({}, ['en', 'de', 'fr'], []),
 		/Committed locale route fr/u,
 	);
 });

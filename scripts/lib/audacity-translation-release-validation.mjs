@@ -17,6 +17,7 @@ import {
 } from '../../src/common/i18n/audacity-qt-mapping.js';
 import { ENGLISH_COPY } from '../../src/common/i18n/catalogs.js';
 import { COMMITTED_LOCALE_TAGS, LOCALE_BY_TAG } from '../../src/common/i18n/locales.js';
+import { MACHINE_CATALOG_LOCALES } from '../../src/common/i18n/machine/index.js';
 import { canonicalJsonDocument as canonicalJson } from './canonical-json.mjs';
 import { safeRelativePath } from './r2-client.mjs';
 import {
@@ -364,9 +365,14 @@ export async function validateStage(rootOption, expectedReleaseId) {
 	};
 }
 
-export function validateCommittedRouteEligibility(locales, committedLocales = COMMITTED_LOCALE_TAGS) {
+/**
+ * A committed route must stay complete: either Audacity's pack meets the
+ * eligibility threshold or a bundled machine catalog serves the locale, in
+ * which case the release owes it nothing.
+ */
+export function validateCommittedRouteEligibility(locales, committedLocales = COMMITTED_LOCALE_TAGS, machineLocales = MACHINE_CATALOG_LOCALES) {
 	for (const locale of committedLocales) {
-		if (locale === 'en' || locale === 'de') continue;
+		if (locale === 'en' || locale === 'de' || machineLocales.includes(locale)) continue;
 		assert(locales[locale]?.eligible === true,
 			`Committed locale route ${locale} is missing or no longer meets the eligibility threshold`);
 	}

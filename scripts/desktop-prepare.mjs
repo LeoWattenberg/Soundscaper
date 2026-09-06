@@ -14,6 +14,7 @@ import { dirname, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { COMMITTED_LOCALE_TAGS } from '../src/common/i18n/locales.js';
+import { MACHINE_CATALOG_LOCALES } from '../src/common/i18n/machine/index.js';
 import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import { stageAssistanceNativeRuntimePayload } from '../desktop/assistance-native-runtime-payload.mjs';
 import { generateDesktopIcon } from './desktop-icons.mjs';
@@ -323,7 +324,11 @@ async function stageTranslations() {
 		'Desktop translation latest.json has an unsupported shape.');
 	assert(latest.locales && typeof latest.locales === 'object' && !Array.isArray(latest.locales),
 		'Desktop translation latest.json has no locale descriptors.');
+	// A committed route is complete when Audacity's pack meets the threshold or
+	// a bundled machine catalog serves the locale; the snapshot only has to
+	// carry the former.
 	for (const locale of COMMITTED_LOCALE_TAGS) {
+		if (MACHINE_CATALOG_LOCALES.includes(locale)) continue;
 		assert(latest.locales[locale]?.eligible === true,
 			`Released translation snapshot does not provide committed locale ${locale}.`);
 	}
