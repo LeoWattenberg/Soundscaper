@@ -345,7 +345,7 @@ function reviewShotEdges(value: unknown, video: ReviewedVideo): readonly number[
 	if (value === null) return Object.freeze([]);
 	const shots = reviewAssistanceShotBoundariesV1(value);
 	if (shots.timescale !== video.timescale
-		|| shots.sourceFrameCount !== video.authority.last.sourceFrame + 1) {
+		|| shots.sourceFrameCount < video.authority.last.sourceFrame) {
 		throw new RangeError('Highlight shots disagree with exact source-time authority.');
 	}
 	return Object.freeze(shots.boundaries.map((boundary) => {
