@@ -133,7 +133,7 @@ export interface RecordingSessionServiceRuntime {
 		snapshot: RecordingFinalizationSnapshot & { readonly entries: readonly unknown[] },
 	) => MaybePromise<void>;
 	readonly abortError?: () => Error;
-	readonly addTrack?: (options: Readonly<{ armed: true }>) => string | null;
+	readonly addTrack?: (options: Readonly<{ armed: true }>) => string | null | undefined;
 	readonly stopProjectBinPreview?: () => MaybePromise<unknown>;
 	readonly cancelTimedRecording?: () => MaybePromise<unknown>;
 	readonly releaseUnretainedRecordingInputs?: (

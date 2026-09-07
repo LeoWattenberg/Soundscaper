@@ -113,7 +113,7 @@ export interface RecordingCompositionDependencies {
 	readonly setProject: (project: TakeCycleProject) => void;
 	readonly projectSampleRate: () => number;
 	readonly assignPreferredInputToTrack: (trackId: string) => boolean;
-	readonly addTrack: (options: Readonly<{ armed: true }>) => string | null;
+	readonly addTrack: (options: Readonly<{ armed: true }>) => string | null | undefined;
 	readonly commit: (
 		command: Readonly<{ readonly type: 'batch'; readonly commands: readonly unknown[] }>,
 		selection: Readonly<{ readonly selectTrackId?: string; readonly selectClipId?: string }>,
