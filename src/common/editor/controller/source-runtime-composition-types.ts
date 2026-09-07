@@ -15,9 +15,7 @@ import type { SourceChunkProviderRegistry } from './source-chunk-provider-regist
 import type { generateStoredWaveformPeaks, generateWaveformPeaks } from './waveform-analysis.ts';
 
 /** The document shape the visual, time-pitch and playback services read. */
-export type SourceRuntimeProject =
-	& ProjectVisualProject
-	& ReturnType<ClipTimePitchCacheServiceDependencies['getProject']>;
+export type SourceRuntimeProject = ProjectVisualProject;
 
 export type SourceRuntimeCompositionState = ClipTimePitchPlaybackState & {
 	missingSourceIds: Set<string>;

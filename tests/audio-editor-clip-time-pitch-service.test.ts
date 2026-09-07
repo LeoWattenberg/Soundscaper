@@ -31,6 +31,19 @@ test('committed cache preparation retains the semantic clip inventory and materi
 	]), [['pitched', 'source']]);
 });
 
+test('canonical clips need no transient coordinates when deciding whether caches are needed', async () => {
+	const harness = createHarness(projectFixture());
+	const canonical = {
+		id: 'project', schemaVersion: 17,
+		tracks: [{ id: 'track', clipIds: ['plain'] }],
+		sources: [{ id: 'source' }],
+		clips: [{ id: 'plain', sourceId: 'source' }],
+	};
+	assert.equal(harness.service.projectHasTimePitchClips(canonical), false);
+	assert.deepEqual(await harness.service.prepareCommittedTimePitchCaches(canonical), []);
+	assert.deepEqual(harness.cache.retained, ['plain']);
+});
+
 test('late committed preparation cannot attach buffers after a project switch', async () => {
 	const project = projectFixture();
 	const gate = deferred<ClipTimePitchCacheEntry>();

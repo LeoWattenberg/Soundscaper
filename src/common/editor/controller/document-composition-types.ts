@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { ClipTransformProject } from './clip-domain-types.ts';
 import type { MacroTransactionMetadata } from './macro-transaction-metadata.ts';
 
 import type { EnginePublicApi } from '../engine/public-api.ts';
@@ -30,7 +31,8 @@ import type {
 } from './project-session-selection-service.ts';
 import type { ProjectViewProject, ProjectViewState } from './project-view-service.ts';
 import type { createRegularIntervalAnnotationController } from './regular-interval-annotation-controller.ts';
-import type { SourceRuntimeComposition, SourceRuntimeProject } from './source-runtime-composition.ts';
+import type { ProjectVisualProject } from './project-visual-types.ts';
+import type { SourceRuntimeComposition } from './source-runtime-composition.ts';
 import type { TimelineAnnotationControllerState } from './timeline-annotation-service.ts';
 import type { TrackDuplicationProject } from './track-duplication-service.ts';
 import type { RecordingRouting } from './track-service.ts';
@@ -38,7 +40,8 @@ import type { RecordingRouting } from './track-service.ts';
 /** One document shape that satisfies every persistence and mutation service's constraint. */
 export type DocumentProject =
 	& ControllerRuntimeProject
-	& SourceRuntimeProject
+	& Pick<ClipTransformProject, 'title' | 'sampleRate' | 'selection'>
+	& ProjectVisualProject
 	& MutationProject
 	& RetentionProject
 	& ProjectSaveSnapshot
@@ -92,13 +95,13 @@ export interface DocumentCompositionDependencies {
 	readonly copy: DocumentCompositionCopy;
 	readonly lifetime: EditorControllerLifetime;
 	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
-	/** The product runtime's document and history operations; each keeps the shape of what it is given, which every consumer assumes. */
+	/** Product operations act on the admitted document and its history. */
 	readonly projectRuntime: Readonly<{
-		readonly cloneProject: <Project>(project: Project) => Project;
-		readonly applyCommand: <Project>(project: Project, command: AudioEditorCommand) => Project;
-		readonly executeCommand: <History>(history: History, command: unknown, options?: EditorCommandMoment) => History;
-		readonly collapseHistory?: <History>(history: History, depth: number, command: MacroTransactionMetadata) => History;
-		readonly rollbackHistory?: <History>(history: History, depth: number) => History;
+		readonly cloneProject: (project: DocumentProject) => DocumentProject;
+		readonly applyCommand: (project: DocumentProject, command: AudioEditorCommand) => DocumentProject;
+		readonly executeCommand: (history: DocumentHistory, command: unknown, options?: EditorCommandMoment) => DocumentHistory;
+		readonly collapseHistory?: (history: DocumentHistory, depth: number, command: MacroTransactionMetadata) => DocumentHistory;
+		readonly rollbackHistory?: (history: DocumentHistory, depth: number) => DocumentHistory;
 		readonly prepareTrackDuplicateCarrier: ControllerProjectRuntime['prepareTrackDuplicateCarrier'];
 	}>;
 	readonly product: Readonly<{ readonly id: string; readonly name: string }>;

@@ -100,7 +100,7 @@ export interface EffectsCompositionDependencies {
 	readonly projectRuntime: Readonly<{
 		readonly assistanceAssetCommands: boolean;
 		/** Validate and normalise a document; the result keeps the document's shape. */
-		readonly cloneProject: <Project>(project: Project) => Project;
+		readonly cloneProject: EffectAudioServiceRuntime['cloneProject'] & EffectMacroServiceRuntime['cloneProject'];
 	}>;
 	readonly store: EffectsCompositionStore;
 	readonly engine: EffectsCompositionEngine;

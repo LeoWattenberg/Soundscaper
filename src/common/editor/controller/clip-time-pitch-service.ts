@@ -6,11 +6,7 @@ import {
 import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
 import { throwIfAborted } from './app-helpers.ts';
 import type { AudioBufferLike } from './source-audio.ts';
-import type {
-	ClipTransformClip,
-	ClipTransformProject,
-	ClipTransformSource,
-} from './clip-domain-types.ts';
+import type { ProjectVisualClip, ProjectVisualProject, ProjectVisualSource } from './project-visual-types.ts';
 import type {
 	EditorControllerLifetime,
 	EditorProjectToken,
@@ -28,13 +24,13 @@ export interface ClipTimePitchCacheEntry extends Readonly<Record<string, unknown
 export interface ClipTimePitchCachePort {
 	retainClipIds?(clipIds: readonly string[]): void;
 	prepareCommittedOutput(
-		clip: ClipTransformClip,
-		source: ClipTransformSource,
+		clip: ProjectVisualClip,
+		source: ProjectVisualSource,
 		options?: Readonly<{ signal?: AbortSignal | null }>,
 	): Promise<ClipTimePitchCacheEntry>;
 	resolveForPlayback(
-		clip: ClipTransformClip,
-		source: ClipTransformSource,
+		clip: ProjectVisualClip,
+		source: ProjectVisualSource,
 		options?: Readonly<{ signal?: AbortSignal | null }>,
 	): Promise<ClipTimePitchCacheEntry>;
 	getCommitted?(cacheKey: string): ClipTimePitchCacheEntry | undefined;
@@ -62,8 +58,8 @@ export interface ClipTimePitchRenderEngine {
 }
 
 export interface ClipTimePitchPair {
-	readonly clip: ClipTransformClip;
-	readonly source: ClipTransformSource;
+	readonly clip: ProjectVisualClip;
+	readonly source: ProjectVisualSource;
 }
 
 export interface ClipTimePitchCacheServiceDependencies<
@@ -74,7 +70,7 @@ export interface ClipTimePitchCacheServiceDependencies<
 	readonly cache: ClipTimePitchCachePort;
 	readonly sourceResolver: unknown;
 	readonly sourceChunkProviders: ReadonlyMap<string, unknown>;
-	getProject(): ClipTransformProject;
+	getProject(): ProjectVisualProject;
 	captureProject(projectId: string): EditorProjectToken;
 	assertProject(token: EditorProjectToken): void;
 	createBufferFromChannels(
@@ -82,7 +78,7 @@ export interface ClipTimePitchCacheServiceDependencies<
 		sampleRate: number,
 	): Promise<AudioBufferLike>;
 	createRenderEngine(options: Readonly<{ sourceResolver: unknown }>): RenderEngine;
-	applyProjectToPlaybackEngine(project: ClipTransformProject): Promise<unknown>;
+	applyProjectToPlaybackEngine(project: ProjectVisualProject): Promise<unknown>;
 	getPlaybackState(): string;
 	handleError(error: unknown): void;
 }
@@ -90,8 +86,8 @@ export interface ClipTimePitchCacheServiceDependencies<
 export interface ClipTimePitchCacheService<
 	RenderEngine extends ClipTimePitchRenderEngine = ClipTimePitchRenderEngine,
 > {
-	projectTimePitchPairs(project: ClipTransformProject | null | undefined): readonly ClipTimePitchPair[];
-	projectHasTimePitchClips(project: ClipTransformProject | null | undefined): boolean;
+	projectTimePitchPairs(project: ProjectVisualProject | null | undefined): readonly ClipTimePitchPair[];
+	projectHasTimePitchClips(project: ProjectVisualProject | null | undefined): boolean;
 	createCacheAwareRenderEngine(): RenderEngine;
 	disposeRenderEngines(): Promise<void>;
 	materializeTimePitchCacheEntry(
@@ -99,15 +95,15 @@ export interface ClipTimePitchCacheService<
 		signal?: AbortSignal | null,
 	): Promise<ClipTimePitchCacheEntry>;
 	prepareCommittedTimePitchCaches(
-		project: ClipTransformProject,
+		project: ProjectVisualProject,
 		signal?: AbortSignal | null,
 	): Promise<readonly ClipTimePitchCacheEntry[]>;
 	preparePlaybackTimePitchCaches(
-		project: ClipTransformProject,
+		project: ProjectVisualProject,
 		signal: AbortSignal,
 	): Promise<readonly Promise<ClipTimePitchCacheEntry>[]>;
 	beginPlaybackCachePreparation(
-		project: ClipTransformProject,
+		project: ProjectVisualProject,
 		options?: Readonly<{ abortController?: AbortController | null }>,
 	): Promise<readonly Promise<ClipTimePitchCacheEntry>[]>;
 	cancelPlaybackCachePreparation(): boolean;
@@ -132,7 +128,7 @@ export function createClipTimePitchCacheService<
 	});
 
 	function projectTimePitchPairs(
-		snapshot: ClipTransformProject | null | undefined,
+		snapshot: ProjectVisualProject | null | undefined,
 	): readonly ClipTimePitchPair[] {
 		if (!snapshot || !hasCoreEditingProjectAuthority(snapshot)) return Object.freeze([]);
 		const pairs: ClipTimePitchPair[] = [];
@@ -145,7 +141,7 @@ export function createClipTimePitchCacheService<
 	}
 
 	function projectHasTimePitchClips(
-		snapshot: ClipTransformProject | null | undefined,
+		snapshot: ProjectVisualProject | null | undefined,
 	): boolean {
 		return projectTimePitchPairs(snapshot).length > 0;
 	}
@@ -225,7 +221,7 @@ export function createClipTimePitchCacheService<
 	}
 
 	async function prepareCommittedTimePitchCaches(
-		snapshot: ClipTransformProject,
+		snapshot: ProjectVisualProject,
 		signal: AbortSignal | null = null,
 	): Promise<readonly ClipTimePitchCacheEntry[]> {
 		dependencies.lifetime.assertActive();
@@ -242,7 +238,7 @@ export function createClipTimePitchCacheService<
 	}
 
 	async function preparePlaybackTimePitchCaches(
-		snapshot: ClipTransformProject,
+		snapshot: ProjectVisualProject,
 		signal: AbortSignal,
 	): Promise<readonly Promise<ClipTimePitchCacheEntry>[]> {
 		dependencies.lifetime.assertActive();
@@ -251,7 +247,7 @@ export function createClipTimePitchCacheService<
 	}
 
 	async function preparePlaybackOwned(
-		snapshot: ClipTransformProject,
+		snapshot: ProjectVisualProject,
 		signal: AbortSignal,
 		projectToken: EditorProjectToken,
 	): Promise<readonly Promise<ClipTimePitchCacheEntry>[]> {
@@ -276,7 +272,7 @@ export function createClipTimePitchCacheService<
 	}
 
 	async function beginPlaybackCachePreparation(
-		snapshot: ClipTransformProject,
+		snapshot: ProjectVisualProject,
 		options: Readonly<{ abortController?: AbortController | null }> = {},
 	): Promise<readonly Promise<ClipTimePitchCacheEntry>[]> {
 		dependencies.lifetime.assertActive();
@@ -338,7 +334,7 @@ export function createClipTimePitchCacheService<
 	}
 
 	function assertPreparationOwned(
-		snapshot: ClipTransformProject,
+		snapshot: ProjectVisualProject,
 		projectToken: EditorProjectToken,
 		generation: number,
 		signal: AbortSignal,
@@ -355,12 +351,12 @@ export function createClipTimePitchCacheService<
 	}
 }
 
-function findSource(project: ClipTransformProject, sourceId: string): ClipTransformSource | null {
+function findSource(project: ProjectVisualProject, sourceId: string): ProjectVisualSource | null {
 	return project.sources.find((source) => source.id === sourceId) ?? null;
 }
 
-function clipNeedsTimePitchRender(clip: ClipTransformClip): boolean {
-	return (legacyClipNeedsTimePitchRender as (clip: ClipTransformClip) => boolean)(clip);
+function clipNeedsTimePitchRender(clip: ProjectVisualClip): boolean {
+	return (legacyClipNeedsTimePitchRender as (clip: ProjectVisualClip) => boolean)(clip);
 }
 
 function isAbortError(error: unknown): boolean {

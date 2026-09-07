@@ -7,7 +7,6 @@ import type { ExportSnapshotRendererRuntime } from './export-snapshot-renderer.t
 import type { EditorControllerLifetime, EditorProjectGeneration } from './lifecycle.ts';
 import type { MicrophoneMeterService } from './microphone-meter-service.ts';
 import type { MixRenderServiceDependencies } from './mix-render-service.ts';
-import type { AudioEditorCommand } from '../commands/protocol.ts';
 import type { ControllerRecordingState } from './recording-state.ts';
 import type { TakeCompCompositionDependencies } from './take-comp-composition.ts';
 import type { EditorTaskProgressCoordinator } from './task-progress.ts';
@@ -77,8 +76,8 @@ export interface TrackAudioCompositionDependencies {
 	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
 	/** The product runtime's document operations; both keep the document's shape. */
 	readonly projectRuntime: Readonly<{
-		readonly cloneProject: <Project>(project: Project) => Project;
-		readonly applyCommand: <Project>(project: Project, command: AudioEditorCommand) => Project;
+		readonly cloneProject: (project: TrackAudioCompositionProject) => TrackAudioCompositionProject;
+		readonly applyCommand: NonNullable<MixRenderServiceDependencies['previewCommand']>;
 	}>;
 	/** The controller's raw options, which the export service still reads product hooks from. */
 	readonly controllerOptions: ExportSnapshotRendererRuntime['options'];
