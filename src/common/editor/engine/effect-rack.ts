@@ -23,6 +23,11 @@ import {
 	releaseDynamicsAnalysisTelemetry,
 } from './dynamics-analysis-telemetry.ts';
 import {
+	attachEffectProcessorErrorPort,
+	effectProcessorErrorContext,
+	releaseEffectProcessorErrorPort,
+} from './effect-processor-error-port.ts';
+import {
 	getAudacityPffftWasmModule,
 	isAudacityWorkletLoaded,
 	isDynamicsWorkletLoaded,
@@ -84,6 +89,7 @@ export interface EffectRackOptions {
 	readonly effectChannelCount?: unknown;
 	readonly parametricEqWasmModule?: WebAssembly.Module | null;
 	readonly parametricEqChannelCount?: unknown;
+	/** Receives every worklet-borne processor failure the rack builds, EQ or live. */
 	readonly onParametricEqError?: (error: Readonly<UnknownRecord>) => void;
 	readonly parameterRegistry?: ScheduledParameterRegistry;
 	readonly baseParameterLatencyFrames?: unknown;
@@ -94,19 +100,6 @@ export interface EffectMessageGraph {
 	readonly effectNodes?: ReadonlyMap<string, AudioNode>;
 	readonly effectMessageSequences?: Map<string, number>;
 }
-
-interface ParametricEqPortRegistration {
-	readonly handler: (event: MessageEvent<unknown>) => void;
-	readonly processorErrorHandler: () => void;
-}
-
-interface ProcessorEventHooks {
-	addEventListener?(type: string, listener: () => void): void;
-	removeEventListener?(type: string, listener: () => void): void;
-	onprocessorerror?: (() => void) | null;
-}
-
-const parametricEqPortMessageHandlers = new WeakMap<AudioWorkletNode, ParametricEqPortRegistration>();
 
 export function effectRackLatencyFrames(
 	effects: readonly EngineEffect[] | null | undefined,
@@ -232,6 +225,16 @@ export function applyEffect(
 		}
 		registerEffectNode(effect, processor, options);
 		attachDynamicsAnalysisTelemetry(processor);
+		if (typeof options.onParametricEqError === 'function') {
+			attachEffectProcessorErrorPort(processor, options.onParametricEqError, effectProcessorErrorContext(
+				options,
+				effect.id,
+				{
+					fallbackMessage: 'The real-time effect processor failed.',
+					processorErrorMessage: 'The real-time effect AudioWorklet processor failed.',
+				},
+			));
+		}
 		return processor;
 	}
 	if (type === BITCRUSHER_EFFECT_TYPE) {
@@ -336,35 +339,15 @@ function registerEffectGraphNodes(
 	outputAnalyser: SpectrumAnalyserNode | null,
 	options: EffectRackOptions,
 ): void {
-	if (typeof options.onParametricEqError === 'function' && processor.port) {
-		const scope = typeof options.scope === 'string' ? options.scope : null;
-		const targetId = scope === 'master' || options.targetId == null ? null : String(options.targetId);
-		const effectId = typeof effect?.id === 'string' && effect.id ? effect.id : null;
-		const handler = ({ data }: MessageEvent<unknown>): void => {
-			if (!data || typeof data !== 'object' || !('type' in data) || data.type !== 'error') return;
-			const details = data as UnknownRecord;
-			const message = typeof details.message === 'string' && details.message
-				? details.message
-				: 'The parametric EQ processor failed.';
-			options.onParametricEqError?.(Object.freeze({
-				...details,
-				type: 'error',
-				message,
-				scope,
-				targetId,
-				effectId,
-			}));
-		};
-		const processorErrorHandler = (): void => handler(new MessageEvent('message', {
-			data: { type: 'error', message: 'The parametric EQ AudioWorklet processor failed.' },
-		}));
-		processor.port.onmessage = handler;
-		processor.port.start?.();
-		const hooks = processor as unknown as ProcessorEventHooks;
-		if (typeof hooks.addEventListener === 'function') {
-			hooks.addEventListener('processorerror', processorErrorHandler);
-		} else hooks.onprocessorerror = processorErrorHandler;
-		parametricEqPortMessageHandlers.set(processor, { handler, processorErrorHandler });
+	if (typeof options.onParametricEqError === 'function') {
+		attachEffectProcessorErrorPort(processor, options.onParametricEqError, effectProcessorErrorContext(
+			options,
+			effect?.id,
+			{
+				fallbackMessage: 'The parametric EQ processor failed.',
+				processorErrorMessage: 'The parametric EQ AudioWorklet processor failed.',
+			},
+		));
 	}
 	const key = registerEffectNode(effect, processor, options);
 	if (!key || !options.effectAnalysers || !inputAnalyser || !outputAnalyser) return;
@@ -456,16 +439,7 @@ export function safeMessageSequence(value: unknown, name: string): number {
 }
 
 export function disposeEffectNodeBindings(node: AudioNode): void {
-	const worklet = node as AudioWorkletNode;
-	releaseDynamicsAnalysisTelemetry(worklet);
-	const registration = parametricEqPortMessageHandlers.get(worklet);
-	if (registration?.handler && worklet.port?.onmessage === registration.handler) worklet.port.onmessage = null;
-	if (registration?.processorErrorHandler) {
-		const hooks = worklet as unknown as ProcessorEventHooks;
-		if (typeof hooks.removeEventListener === 'function') {
-			hooks.removeEventListener('processorerror', registration.processorErrorHandler);
-		} else if (hooks.onprocessorerror === registration.processorErrorHandler) hooks.onprocessorerror = null;
-	}
-	if (registration) parametricEqPortMessageHandlers.delete(worklet);
+	releaseDynamicsAnalysisTelemetry(node as AudioWorkletNode);
+	releaseEffectProcessorErrorPort(node);
 }
 
