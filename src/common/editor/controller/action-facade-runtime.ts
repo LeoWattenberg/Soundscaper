@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { AnalysisActions } from './analysis-composition.ts';
+
 // User command payloads still cross legacy JavaScript handlers. The assembly
 // itself is closed: there is no arbitrary-name index signature on its scope.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -249,7 +251,7 @@ export const EDITOR_ACTION_FUNCTION_NAMES = [
 
 export interface EditorActionResources {
 	readonly AUDIO_EDITOR_DEFAULT_SHORTCUTS: RuntimeValue;
-	readonly analysisService: RuntimeValue;
+	readonly analysisService: AnalysisActions;
 	readonly audioWarpService: RuntimeValue;
 	readonly capabilities: RuntimeValue;
 	readonly copy: RuntimeValue;

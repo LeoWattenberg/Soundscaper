@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { EditorActionRuntime, RuntimeValue } from './action-facade-runtime.ts';
+import type { EditorActionRuntime, RuntimeAction, RuntimeValue } from './action-facade-runtime.ts';
 import { assertEditorActionFunctions } from './action-facade-runtime.ts';
 import {
 	createRecordingActionFacade,
@@ -70,7 +70,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 	timelineAnnotationService, regularIntervalAnnotationController, trackFolderService, trackStructuralOperations,
 	audioWarpService, takeCompService, videoNavigationService,
 	} = scope;
-	const restricted = (capability: RuntimeValue, action: RuntimeValue) => (...args: RuntimeValue) => {
+	const restricted = <Action extends RuntimeAction>(capability: string, action: Action) => (...args: Parameters<Action>): ReturnType<Action> => {
 		if (!capabilities[capability]) {
 			throw new RangeError(`${product.name} does not support ${capability}.`);
 		}

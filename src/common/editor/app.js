@@ -91,9 +91,8 @@ import { EDITOR_PROJECT_CHANGED_CODE, EditorControllerLifetime, EditorProjectGen
 import { deferredArchiveRuntime } from './controller/deferred-archive-runtime.ts';
 import { deferredEffectRuntime } from './controller/deferred-effect-runtime.ts';
 import { connectProductNativeRenderInputAuthority } from './controller/product-native-render-input-authority.ts'; import { renderProductNativeAudioToSink } from './controller/product-native-render-audio-stream.ts';
-import { createDeferredAudioAnalysisService } from './controller/deferred-analysis-service.ts';
-import { resolveProductCompositionDecision } from './controller/product-composition-policy.ts'; import { createAbsentAnalysisService } from './controller/absent-audio-subsystems.ts';
-import { createEditorAnalysisVisuals } from './controller/analysis-visuals.ts';
+import { createAnalysisComposition } from './controller/analysis-composition.ts';
+import { resolveProductCompositionDecision } from './controller/product-composition-policy.ts';
 import { createGroupedEditorActions } from './controller/action-facade.ts';
 import { guardEditorControllerActions } from './controller/controller-action-guard.ts';
 import { productActionRuntime } from './controller/product-action-runtime.ts'; import { createScapeProjectFileService } from './controller/scape-project-file-service.ts'; import { bindSoundscaperPersistentDeliveryRuntime } from './controller/soundscaper-persistent-delivery-runtime-binding.ts';
@@ -163,9 +162,6 @@ import { createImportComposition } from './controller/import-composition.ts';
 import { createSourceRuntimeComposition } from './controller/source-runtime-composition.ts';
 
 import { calculateAudioEditorMetronomeSchedule } from './controller/transport-model.ts';
-import {
-	analyzeChannelsInWorker,
-} from './controller/waveform-analysis.ts';
 
 export { calculateAudioEditorMetronomeSchedule } from './controller/transport-model.ts';
 
@@ -427,34 +423,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 		disposeRenderEngines: sources.timePitchCaches.disposeRenderEngines, sourceBuffers, sourceChunkProviders, sourcePeaks, state, stopProjectBinPreview, stopRecording, store,
 		switchProject, ...(framescaperCaptureAdminInterlock ? { beginCaptureInterlockedAdminOperation: framescaperCaptureAdminInterlock.beginAdminOperation } : {}),
 	});
-	const analysisService = !composition.analysis ? createAbsentAnalysisService(absentSubsystem) : createDeferredAudioAnalysisService({
-		lifetime, copy, state,
-		captureProject: () => projectGeneration.capture(documentState.project?.id ?? null),
-		assertProject: (token) => projectGeneration.assertCurrent(token),
-		getProject: () => documentState.project,
-		getSelectedTrackId: () => state.selectedTrackId,
-		getRange: analysisRange,
-		getActiveSelection: activeSelection,
-		getSpectrumWindowSize: () => state.preferences?.spectrogram?.windowSize ?? 2_048,
-		getContrastSelections: () => state.contrastSelections,
-		setContrastSelections: (value) => { state.contrastSelections = value; },
-		loadAnalysis: (key) => store.loadAnalysis(key),
-		saveAnalysis: (key, value) => store.saveAnalysis(key, value),
-		renderAudio: renderAnalysisAudio,
-		analyzeChannels: (channels, sampleRate, signal, analysisOptions) => analyzeChannelsInWorker(channels, sampleRate, copy, 65_536, signal, analysisOptions),
-		createVisuals: createEditorAnalysisVisuals,
-		showAnalysis,
-		setProcessing: (processing) => { state.analysisProcessing = processing; },
-		setStatus,
-		publish: publishDocumentSnapshot,
-		handleError,
-	});
-	const progressAnalysisService = Object.freeze({
-		...analysisService,
-		run: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.run(...args)),
-		plotSpectrum: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.plotSpectrum(...args)),
-		findClipping: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.findClipping(...args)),
-		captureContrast: (...args) => taskProgress.run('analysis', copy.contrastAnalyzing, () => analysisService.captureContrast(...args)), repeatLast: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.repeatLast(...args)), measureLoudness: (...args) => taskProgress.run('analysis', copy.measuringLoudness, () => analysisService.measureLoudness(...args)),
+	const analysisService = createAnalysisComposition({
+		enabled: composition.analysis, productName: product.name, state, copy, lifetime, projectGeneration, store, taskProgress,
+		getProject: () => documentState.project, getActiveSelection: activeSelection, projectDurationFrames,
+		cloneProject: projectRuntime.cloneProject, projectSampleRate: () => projectSampleRate(), sourceBuffers, hasMissingTimelineSources,
+		renderSnapshot: (...args) => renderSnapshot(...args), showAnalysis, setStatus, publish: publishDocumentSnapshot, handleError,
 	});
 	const unsubscribeParametricEqErrors = typeof engine.subscribeParametricEqErrors === 'function'
 		? engine.subscribeParametricEqErrors((error) => handleError(error))
@@ -750,7 +723,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const actions = guardEditorControllerActions(createGroupedEditorActions({
 		AUDIO_EDITOR_DEFAULT_SHORTCUTS, addEffect, addLabel, addLabelTrack,
 		addTrack, addVideoClipEffect, addVideoTrackPair, adjustAllTrackHeights,
-		adjustTrackHeight, analysisService: progressAnalysisService, applyAudacityEffectFromController, applyEffectPreset,
+		adjustTrackHeight, analysisService, applyAudacityEffectFromController, applyEffectPreset,
 		applyProjectBinReplacement, applySamplePencil, applySpectralSelection, beginParametricEqGesture,
 		beginRackEffectGesture, beginVideoEffectGesture, bypassVideoClipEffect, cancelAudacityEffectPreview,
 		cancelEffectMacro: effects.macro.cancelEffectMacro, cancelNyquistEvaluation, cancelParametricEqGesture, cancelPlaybackCachePreparation, cancelProjectBinReplacement,
@@ -1294,35 +1267,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function renderDryTrackRange(...args) { return effects.audio.renderDryTrackRange(...args); }
 	function cancelNyquistEvaluation(...args) { return effects.nyquistHost.cancelNyquistEvaluation(...args); }
 	function runNyquistEvaluation(...args) { return effects.runNyquistEvaluation(...args); }
-
-	function analysisRange() {
-		const selection = activeSelection();
-		return Object.freeze({
-			startFrame: selection?.startFrame ?? 0,
-			endFrame: selection?.endFrame ?? projectDurationFrames(documentState.project),
-		});
-	}
-
-	async function renderAnalysisAudio(scope, range, signal = null) {
-		if (hasMissingTimelineSources()) throw new Error(copy.localSourcesMissing);
-		let snapshot = projectRuntime.cloneProject(documentState.project);
-		if (scope === 'track') {
-			const selectedTrack = findTrack(snapshot, state.selectedTrackId);
-			if (!selectedTrack || selectedTrack.type !== 'audio') throw new Error(copy.audioTrackRequired);
-			for (const track of snapshot.tracks) {
-				if (track.type !== 'audio') continue;
-				track.mute = track.id !== selectedTrack.id;
-				track.solo = false;
-			}
-			snapshot.master = { gain: 1, effects: [] };
-		} else if (scope !== 'master') throw new RangeError(copy.analysisScopeInvalid);
-		return renderSnapshot(snapshot, {
-			startFrame: range.startFrame,
-			endFrame: range.endFrame,
-			includeTail: false,
-			preRollFrames: Math.min(range.startFrame, projectSampleRate() * 10),
-		}, sourceBuffers, signal);
-	}
 
 	async function startRecordingOnNewTrack(options = {}) {
 		return recording.session.startRecordingOnNewTrack(options);

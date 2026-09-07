@@ -73,6 +73,13 @@ entries rather than `unknown`, and the recording route and routing types are
 declared once at the routing module that normalises them and derived from
 there by the capture and track services.
 
+Analysis is composed in `controller/analysis-composition.ts`. It keeps report
+execution lazy and cancellation eager, owns progress and result publication,
+and uses `controller/analysis-renderer.ts` to isolate track analysis on a
+detached document. Its action contract reaches the public action tree through
+a capability wrapper that preserves argument and return types. Worker results
+are checked before they enter the report service.
+
 `index.js` and `facade.ts` form the curated
 external facade; editor implementation modules may not import it. The former
 `app.js`/`index.js` cycle has been removed, and the architecture check prevents
