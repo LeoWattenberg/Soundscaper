@@ -55,8 +55,8 @@ export interface EffectResultCopy {
 	readonly effectTrackLengthsMismatch?: string | null;
 }
 
-export interface EffectResultAudioContext {
-	createBuffer?(channelCount: number, length: number, sampleRate: number): AudioBufferLike;
+export interface EffectResultAudioContext<Buffer extends AudioBufferLike = AudioBufferLike> {
+	createBuffer?(channelCount: number, length: number, sampleRate: number): Buffer;
 }
 
 export interface EffectResultSource extends CommandObject {
@@ -121,22 +121,22 @@ interface PasteOptions {
 	readonly mode: ClipboardPasteMode;
 }
 
-export interface SelectionEffectResultRuntime {
+export interface SelectionEffectResultRuntime<Buffer extends AudioBufferLike = AudioBufferLike> {
 	readonly SOURCE_CHUNK_FRAMES: number;
 	readonly assertAudacityEffectOutput: (channels: Float32Array[]) => unknown;
 	readonly audioSelectionEffectLabel: (type: string | null, copy: EffectResultCopy) => string;
 	readonly bufferFromChannels: (
 		channels: Float32Array[],
 		sampleRate: number,
-		context: EffectResultAudioContext,
+		context: EffectResultAudioContext<Buffer>,
 		copy: EffectResultCopy,
-	) => Promise<AudioBufferLike>;
-	readonly cacheSourceBuffer: (sourceId: string, buffer: AudioBufferLike) => unknown;
+	) => Promise<Buffer>;
+	readonly cacheSourceBuffer: (sourceId: string, buffer: Buffer) => unknown;
 	readonly commit: (command: AudioEditorCommand, options: EffectResultCommitOptions) => unknown;
 	readonly copy: EffectResultCopy;
 	readonly createStableId: (prefix: 'audacity-effect') => string;
 	readonly engine: Readonly<{
-		getAudioContext(options: Readonly<{ resume: false }>): Promise<EffectResultAudioContext>;
+		getAudioContext(options: Readonly<{ resume: false }>): Promise<EffectResultAudioContext<Buffer>>;
 	}>;
 	readonly generateWaveformPeaks: (
 		channels: Float32Array[],
@@ -189,21 +189,21 @@ interface SilentEffectResultEntry extends EffectResultEntryBase {
 	readonly replacement: null;
 }
 
-interface PersistedEffectResultEntry extends EffectResultEntryBase {
-	readonly buffer: AudioBufferLike;
+interface PersistedEffectResultEntry<Buffer extends AudioBufferLike = AudioBufferLike> extends EffectResultEntryBase {
+	readonly buffer: Buffer;
 	readonly source: EffectResultSource;
 	readonly sourceId: string;
 	readonly sourceName: string;
 	readonly replacement: RangeReplacementCommand | null;
 }
 
-type EffectResultEntry = SilentEffectResultEntry | PersistedEffectResultEntry;
-type ExactClipEffectResultEntry = EffectResultEntry & Readonly<{
+type EffectResultEntry<Buffer extends AudioBufferLike = AudioBufferLike> = SilentEffectResultEntry | PersistedEffectResultEntry<Buffer>;
+type ExactClipEffectResultEntry<Buffer extends AudioBufferLike = AudioBufferLike> = EffectResultEntry<Buffer> & Readonly<{
 	target: EffectTarget & Readonly<{ clipId: string }>;
 }>;
 
-export function createSelectionEffectResultService(
-	runtime: SelectionEffectResultRuntime,
+export function createSelectionEffectResultService<Buffer extends AudioBufferLike>(
+	runtime: SelectionEffectResultRuntime<Buffer>,
 ): Readonly<SelectionEffectResultService> {
 	const {
 		SOURCE_CHUNK_FRAMES, assertAudacityEffectOutput, audioSelectionEffectLabel, bufferFromChannels,
@@ -234,7 +234,7 @@ export function createSelectionEffectResultService(
 		const context = await engine.getAudioContext({ resume: false });
 		assertOperationCurrent();
 		const effectName = options.effectName || audioSelectionEffectLabel(type, copy);
-		const entries: EffectResultEntry[] = [];
+		const entries: EffectResultEntry<Buffer>[] = [];
 		for (const result of uncheckedResults as unknown[]) {
 			assertOperationCurrent();
 			const candidate = (result || {}) as Readonly<{
@@ -315,7 +315,7 @@ export function createSelectionEffectResultService(
 			? Math.max(...entries.map((entry) => entry.frameCount))
 			: firstEntry.frameCount;
 
-		const persistedEntries: PersistedEffectResultEntry[] = [];
+		const persistedEntries: PersistedEffectResultEntry<Buffer>[] = [];
 		try {
 			for (const entry of entries) {
 				assertOperationCurrent();
@@ -437,7 +437,7 @@ export function createSelectionEffectResultService(
 	return Object.freeze({ persistAudacityEffectResults, prepareSilentAudacityRippleCommand });
 }
 
-function isPersistedEntry(entry: EffectResultEntry): entry is PersistedEffectResultEntry {
+function isPersistedEntry<Buffer extends AudioBufferLike>(entry: EffectResultEntry<Buffer>): entry is PersistedEffectResultEntry<Buffer> {
 	return entry.buffer !== null;
 }
 
@@ -445,11 +445,11 @@ function isCommand(command: AudioEditorCommand | null): command is AudioEditorCo
 	return Boolean(command);
 }
 
-function getExactClipEntries(entries: EffectResultEntry[]): ExactClipEffectResultEntry[] | null {
+function getExactClipEntries<Buffer extends AudioBufferLike>(entries: EffectResultEntry<Buffer>[]): ExactClipEffectResultEntry<Buffer>[] | null {
 	return entries.every(isExactClipEntry) ? entries : null;
 }
 
-function isExactClipEntry(entry: EffectResultEntry): entry is ExactClipEffectResultEntry {
+function isExactClipEntry<Buffer extends AudioBufferLike>(entry: EffectResultEntry<Buffer>): entry is ExactClipEffectResultEntry<Buffer> {
 	return Boolean(entry.target.clipId);
 }
 

@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createControllerProjectQueries, createCommandProjectReader } from '../src/common/editor/controller/controller-project-queries.ts';
+import { createControllerProjectQueries, createCommandProjectReader, createResolvedCommandProjectReader } from '../src/common/editor/controller/controller-project-queries.ts';
 
 function fixture(project: Readonly<Record<string, unknown>> | null) {
 	return createControllerProjectQueries({ getProject: () => project, projectSampleRate: () => 48000 });
@@ -47,4 +47,24 @@ void test('command readers require activation and retain the projection owner re
 	const frame: number = reader().resolvedFrame;
 	assert.equal(frame, 42);
 	assert.equal(reads, 1);
+});
+
+void test('resolved command readers retain product fields and resolve musical timing once', () => {
+	const project = { id: 'musical', schemaVersion: 17, sampleRate: 48_000,
+		clips: [{ id: 'clip', kind: 'audio', sourceId: 'source', anchor: 'musical',
+			musicalStartBeat: 2, musicalExtent: 'beat', musicalDurationBeats: 2,
+			sourceStartFrame: 0, sourceDurationFrames: 48_000,
+		}], tracks: [],
+		tempoMap: { mode: 'musical' as const, events: [{ beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }] },
+	};
+	const read = createResolvedCommandProjectReader(() => project, (value) => ({ ...value, productField: 'retained' }));
+	const resolved = read();
+	const start: number = resolved.clips[0].timelineStartFrame;
+	const field: string = resolved.productField;
+	assert.deepEqual([start, field], [48_000, 'retained']);
+	assert.equal(Object.hasOwn(project.clips[0], 'timelineStartFrame'), false);
+	const readAgain = createResolvedCommandProjectReader(() => project, () => resolved);
+	assert.equal(readAgain(), resolved);
+	const closed = createResolvedCommandProjectReader(() => null, () => project);
+	assert.throws(closed, /open project/u);
 });

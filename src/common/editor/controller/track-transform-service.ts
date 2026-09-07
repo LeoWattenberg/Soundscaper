@@ -300,7 +300,7 @@ export function createTrackTransformService(
 		if (!partner) throw new Error(dependencies.copy.compatibleMonoTrackRequired
 			|| dependencies.copy.monoTrackRequired || dependencies.copy.audioTrackRequired);
 		const partnerIndex = project.tracks.findIndex((candidate) => candidate.id === partner.id);
-		const clips = [...track.clipIds, ...partner.clipIds]
+		const clips = [...(track.clipIds ?? []), ...(partner.clipIds ?? [])]
 			.map((clipId) => findControllerClip(project, clipId))
 			.filter((clip): clip is ControllerClip => Boolean(clip));
 		const startFrame = clips.length ? Math.min(...clips.map((clip) => clip.timelineStartFrame)) : 0;
@@ -503,7 +503,7 @@ export function createTrackTransformService(
 }
 
 function trackClips(project: ControllerProject, track: ControllerTrack): ControllerClip[] {
-	return track.clipIds.map((clipId) => findControllerClip(project, clipId))
+	return (track.clipIds ?? []).map((clipId) => findControllerClip(project, clipId))
 		.filter((clip): clip is ControllerClip => Boolean(clip));
 }
 

@@ -88,7 +88,7 @@ export interface ControllerTrackDuplicateCarrier {
 	readonly effectIds: readonly Readonly<ControllerTrackDuplicateEffectMapping>[];
 }
 
-export interface ControllerEditSessionClipboardCarrier extends Readonly<Record<string, unknown>> {
+export interface ControllerEditSessionClipboardCarrier {
 	readonly descriptor: AudioEditorClipboard;
 	readonly sources?: readonly Readonly<{ readonly id: string }>[];
 	readonly originProjectId?: string;
@@ -98,6 +98,7 @@ export interface ControllerProjectRuntime<
 	Project extends ControllerRuntimeProject = ControllerRuntimeProject,
 	History extends ControllerRuntimeHistory<Project> = ControllerRuntimeHistory<Project>,
 	LoadedProject = Project,
+	ConsumerProject = Project,
 > {
 	/** Whether this exact product command owner accepts assistance-asset compounds. */
 	readonly assistanceAssetCommands: boolean;
@@ -111,9 +112,9 @@ export interface ControllerProjectRuntime<
 		readonly intrinsicReadOnly?: boolean;
 		readonly reason?: string | null;
 	}>;
-	readonly projectForCommandConsumers: (project: unknown) => Project;
-	readonly projectForRuntimeConsumers: (project: unknown) => Project;
-	readonly projectForEditClipboardConsumers?: (project: unknown) => Project;
+	readonly projectForCommandConsumers: (project: unknown) => ConsumerProject;
+	readonly projectForRuntimeConsumers: (project: unknown) => ConsumerProject;
+	readonly projectForEditClipboardConsumers?: (project: unknown) => Readonly<Record<string, unknown>>;
 	readonly prepareEditClipboardDescriptor: (
 		project: unknown,
 		descriptor: AudioEditorClipboard,
@@ -238,8 +239,9 @@ export type ControllerProjectRuntimeInput<
 	Project extends ControllerRuntimeProject = ControllerRuntimeProject,
 	History extends ControllerRuntimeHistory<Project> = ControllerRuntimeHistory<Project>,
 	LoadedProject = Project,
-> = Omit<ControllerProjectRuntime<Project, History, LoadedProject>, 'prepareTrackDuplicateCarrier'>
-	& Partial<Pick<ControllerProjectRuntime<Project, History, LoadedProject>, 'prepareTrackDuplicateCarrier'>>;
+	ConsumerProject = Project,
+> = Omit<ControllerProjectRuntime<Project, History, LoadedProject, ConsumerProject>, 'prepareTrackDuplicateCarrier'>
+	& Partial<Pick<ControllerProjectRuntime<Project, History, LoadedProject, ConsumerProject>, 'prepareTrackDuplicateCarrier'>>;
 
 type DefaultedRuntimeMethod = 'prepareTrackDuplicateCarrier' | 'projectForEditClipboardConsumers'
 	| 'createEditSessionClipboard' | 'prepareEditClipboardPasteCommand';

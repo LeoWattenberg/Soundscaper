@@ -60,7 +60,7 @@ import {
 	bufferFromChannels,
 	serializeAudacityNoiseProfile,
 	writeBuffer,
-	type AudioBufferLike,
+	type RenderedAudio,
 } from './source-audio.ts';
 import { generateWaveformPeaks, peakCacheKey } from './waveform-analysis.ts';
 
@@ -77,8 +77,8 @@ export type {
 const NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES = 128 * 1024 * 1024;
 
 type EffectControls = ReturnType<typeof createEffectControlsService>;
-type EffectAudio = ReturnType<typeof createEffectAudioService<AudioBufferLike>>;
-type EffectMacro = ReturnType<typeof createEffectMacroService<AudioBufferLike>>;
+type EffectAudio = ReturnType<typeof createEffectAudioService<RenderedAudio>>;
+type EffectMacro = ReturnType<typeof createEffectMacroService<RenderedAudio>>;
 type SelectionEffectResult = ReturnType<typeof createSelectionEffectResultService>;
 
 /**
@@ -118,7 +118,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 	const selection = createEffectSelectionService({
 		state,
 		copy,
-		getProject: requireProject,
+		getProject: dependencies.getCommandProject,
 		activeSelection: dependencies.activeSelection,
 		resolveEditingSelection,
 		audacitySelectionChannelCount,
@@ -139,7 +139,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 		applySelectedAudacityEffect: () => execution.applySelectedAudacityEffect(),
 		captureRackNoiseProfile: (...args) => audio.captureRackNoiseProfile(...args),
 	});
-	const audio: EffectAudio = createEffectAudioService<AudioBufferLike>({
+	const audio: EffectAudio = createEffectAudioService<RenderedAudio>({
 		lifetime: dependencies.lifetime,
 		...(dependencies.projectRuntime.assistanceAssetCommands ? {
 			assistanceStore: store,
@@ -180,7 +180,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 		setStatus: dependencies.setStatus,
 		publishDocumentSnapshot: dependencies.publishDocumentSnapshot,
 	});
-	const result: SelectionEffectResult = createSelectionEffectResultService({
+	const result: SelectionEffectResult = createSelectionEffectResultService<AudioBuffer>({
 		SOURCE_CHUNK_FRAMES,
 		assertAudacityEffectOutput,
 		audioSelectionEffectLabel,
@@ -230,7 +230,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 		})
 		: createAbsentNyquistHostService(absentSubsystem);
 	const nyquistGenerated = dependencies.composition.effects
-		? createNyquistGeneratedAudioService({
+		? createNyquistGeneratedAudioService<AudioBuffer>({
 			state,
 			copy,
 			sourceChunkFrames: SOURCE_CHUNK_FRAMES,
@@ -273,7 +273,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 		setStatus: dependencies.setStatus,
 	});
 	const macro = dependencies.composition.macros
-		? createEffectMacroService<AudioBufferLike>({
+		? createEffectMacroService<RenderedAudio>({
 			lifetime: dependencies.lifetime,
 			projectGeneration: dependencies.projectGeneration,
 			copy,

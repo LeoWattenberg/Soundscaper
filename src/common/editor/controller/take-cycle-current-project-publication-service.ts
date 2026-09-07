@@ -1,21 +1,20 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { applyEditorCommand } from '../commands.js';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
-import type { AudioEditorProjectV17 } from '../project-v17-validation.ts';
+import { applyDefaultTakeCycleProjectCommand, type TakeCycleProjectDocument } from './take-cycle-project-document.ts';
 import { serializeScapeProjectDocument } from '../scape-project-document.ts';
 import type { TakeCyclePublishedProject } from './take-cycle-recording-repository-composition.ts';
 
 export interface TakeCyclePublicationHistory {
 	readonly limit: number;
-	readonly present: AudioEditorProjectV17;
+	readonly present: TakeCycleProjectDocument;
 	readonly undoStack: readonly Readonly<{
-		readonly project: AudioEditorProjectV17;
-		readonly command: AudioEditorCommand;
+		readonly project: TakeCycleProjectDocument;
+		readonly command?: unknown;
 	}>[];
 	readonly redoStack: readonly Readonly<{
-		readonly project: AudioEditorProjectV17;
-		readonly command: AudioEditorCommand;
+		readonly project: TakeCycleProjectDocument;
+		readonly command?: unknown;
 	}>[];
 }
 
@@ -37,16 +36,16 @@ export interface TakeCyclePublicationSession {
 export interface TakeCycleCurrentProjectPublicationDependencies {
 	readonly session: TakeCyclePublicationSession;
 	readonly applyProjectCommand?: (
-		project: AudioEditorProjectV17,
+		project: TakeCycleProjectDocument,
 		command: AudioEditorCommand,
 		options?: Readonly<{ readonly now?: Date | string }>,
-	) => AudioEditorProjectV17;
-	getActiveProject(): AudioEditorProjectV17 | null;
+	) => TakeCycleProjectDocument;
+	getActiveProject(): TakeCycleProjectDocument | null;
 	getActiveHistory(): TakeCyclePublicationHistory | null;
-	setActiveProject(project: AudioEditorProjectV17): void;
+	setActiveProject(project: TakeCycleProjectDocument): void;
 	setActiveHistory(history: TakeCyclePublicationHistory): void;
 	isActiveProject(projectId: string): boolean;
-	synchronizeProject(project: AudioEditorProjectV17): PromiseLike<void> | void;
+	synchronizeProject(project: TakeCycleProjectDocument): PromiseLike<void> | void;
 }
 
 export interface TakeCycleCurrentProjectPublicationService {
@@ -89,7 +88,7 @@ export function createTakeCycleCurrentProjectPublicationService(
 				base,
 				target,
 				publication.command,
-				dependencies.applyProjectCommand ?? applyEditorCommand,
+				dependencies.applyProjectCommand ?? applyDefaultTakeCycleProjectCommand,
 			);
 			nextHistory = Object.freeze({
 				...capture.history,
@@ -132,8 +131,8 @@ export function createTakeCycleCurrentProjectPublicationService(
 }
 
 function assertCommandTarget(
-	base: AudioEditorProjectV17,
-	target: AudioEditorProjectV17,
+	base: TakeCycleProjectDocument,
+	target: TakeCycleProjectDocument,
 	command: AudioEditorCommand,
 	applyProjectCommand: NonNullable<TakeCycleCurrentProjectPublicationDependencies['applyProjectCommand']>,
 ): void {
@@ -146,8 +145,8 @@ function assertCommandTarget(
 function sameProject(left: unknown, right: unknown): boolean {
 	if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
 	try {
-		return serializeScapeProjectDocument(left as AudioEditorProjectV17)
-			=== serializeScapeProjectDocument(right as AudioEditorProjectV17);
+		return serializeScapeProjectDocument(left)
+			=== serializeScapeProjectDocument(right);
 	} catch {
 		return false;
 	}

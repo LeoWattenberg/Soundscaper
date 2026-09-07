@@ -15,14 +15,12 @@ type MaybePromise<Value> = PromiseLike<Value> | Value;
 export interface FramescaperCapturedVideoProxyActiveUpdate {
 	readonly projectId: string;
 	readonly project: Readonly<Record<string, unknown>>;
-	readonly history: Readonly<Record<string, unknown>>;
+	readonly history: unknown;
 }
 
 export interface FramescaperCaptureProxyActiveProjectSyncOptions {
 	getActiveProject(): Readonly<Record<string, unknown>> | null;
-	setActiveProject(project: Readonly<Record<string, unknown>>): void;
-	setActiveHistory(history: Readonly<Record<string, unknown>>): void;
-	applyProjectToPlaybackEngine(project: Readonly<Record<string, unknown>>): MaybePromise<unknown>;
+	installActiveProject(update: FramescaperCapturedVideoProxyActiveUpdate): MaybePromise<unknown>;
 	publishProjectState(): void;
 }
 
@@ -98,8 +96,7 @@ export function createFramescaperCaptureProxyActiveProjectSynchronizer(
 	options: FramescaperCaptureProxyActiveProjectSyncOptions,
 ): (update: FramescaperCapturedVideoProxyActiveUpdate) => Promise<boolean> {
 	for (const field of [
-		'getActiveProject', 'setActiveProject', 'setActiveHistory',
-		'applyProjectToPlaybackEngine', 'publishProjectState',
+		'getActiveProject', 'installActiveProject', 'publishProjectState',
 	] as const) {
 		if (typeof options?.[field] !== 'function') {
 			throw new TypeError(`Captured proxy active synchronization requires ${field}.`);
@@ -108,13 +105,7 @@ export function createFramescaperCaptureProxyActiveProjectSynchronizer(
 	return async (update) => {
 		const active = options.getActiveProject();
 		if (!active || active.id !== update.projectId) return false;
-		const present = (update.history as Readonly<{ readonly present?: unknown }>).present;
-		if (present !== update.project) {
-			throw new Error('Captured proxy active synchronization requires one installed project/history identity.');
-		}
-		options.setActiveProject(update.project);
-		options.setActiveHistory(update.history);
-		await options.applyProjectToPlaybackEngine(update.project);
+		await options.installActiveProject(update);
 		options.publishProjectState();
 		return true;
 	};

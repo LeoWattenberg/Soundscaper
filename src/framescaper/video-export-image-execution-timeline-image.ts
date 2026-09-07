@@ -305,7 +305,7 @@ function visibleImageClips(
 	const sequence = project.sequences.find(({ id }) => id === project.primarySequenceId);
 	if (!sequence) throw new ReferenceError('The timelineImage image export primary sequence is unavailable.');
 	const sequenceTrackIds = new Set(sequence.trackIds);
-	const tracks = project.tracks.filter(({ id, type }) => type === 'video' && sequenceTrackIds.has(id));
+	const tracks = project.tracks.filter(track => track.type === 'video').filter(({ id }) => sequenceTrackIds.has(id));
 	const soloed = tracks.some(({ solo }) => solo === true);
 	const visibleTrackIds = new Set(tracks.filter((track) => (
 		soloed ? track.solo === true : track.hidden !== true

@@ -17,11 +17,8 @@ import type { generateWaveformPeaks } from './waveform-analysis.ts';
 
 /** The document shape every track and audio-production service reads. */
 export type TrackAudioCompositionProject =
-	& ReturnType<DerivedAudioCompositionDependencies['getProject']>
-	& ReturnType<EditorTrackServiceDependencies['getProject']>
 	& ReturnType<TakeCompCompositionDependencies['getProject']>
-	& ReturnType<AudioWarpControllerCompositionDependencies['getProject']>
-	& ReturnType<MixRenderServiceDependencies['getProject']>;
+	& ReturnType<AudioWarpControllerCompositionDependencies['getProject']>;
 
 export type TrackAudioCompositionState = Pick<ControllerRecordingState,
 	| 'preferredInputChannelCount' | 'preferredInputDeviceId' | 'recordingDevices' | 'recordingPoolSources'
@@ -78,7 +75,7 @@ export interface TrackAudioCompositionDependencies {
 	/** The product runtime's document operations; both keep the document's shape. */
 	readonly projectRuntime: Readonly<{
 		readonly cloneProject: (project: TrackAudioCompositionProject) => TrackAudioCompositionProject;
-		readonly applyCommand: NonNullable<MixRenderServiceDependencies['previewCommand']>;
+		readonly applyCommand: (project: TrackAudioCompositionProject, command: AudioEditorCommand) => ReturnType<NonNullable<MixRenderServiceDependencies['previewCommand']>>;
 	}>;
 	/** The controller's raw options, which the export service still reads product hooks from. */
 	readonly controllerOptions: ExportSnapshotRendererRuntime['options'];
@@ -100,6 +97,7 @@ export interface TrackAudioCompositionDependencies {
 	readonly createPreviewEngine: TakeCompCompositionDependencies['createPreviewEngine'];
 	readonly prepareCommittedTimePitchCaches: MixRenderServiceDependencies['prepareCommittedTimePitchCaches'] & ExportSnapshotRendererRuntime['prepareCommittedTimePitchCaches'];
 	readonly getProject: () => TrackAudioCompositionProject | null;
+	readonly getCommandProject: DerivedAudioCompositionDependencies['getProject'];
 	readonly editingBlocked: () => boolean;
 	readonly commit:
 		& DerivedAudioCompositionDependencies['commit']

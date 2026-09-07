@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { brandRuntimeProjectProjection, type RuntimeClipProject } from
+import { brandRuntimeProjectProjection, type RuntimeClipProject, type RuntimeProjectProjection } from
 	'../common/editor/runtime-clip-projection.ts';
 import {
 	framescaperProjectForCommandConsumersAssistance,
@@ -13,10 +13,13 @@ import { framescaperProjectRetimeFoundationFinishing } from './editor-project-fi
 import { framescaperProjectFinishingFoundationShapeNativeMedia } from './editor-project-native-media-foundation.ts';
 import { framescaperProjectCompositionFoundationRetime } from './editor-project-retime-validation.ts';
 import { framescaperProjectForAuthoredFoundationSequence } from './editor-project-sequence-runtime.ts';
-import { validateFramescaperProject } from './editor-project.ts';
+import { validateFramescaperProject, type FramescaperProject } from './editor-project.ts';
 
 type DataRecord = Record<string, unknown>;
 
+export function framescaperProjectForRuntimeConsumers(
+	profile: unknown, project: unknown,
+): RuntimeProjectProjection<FramescaperProject>;
 export function framescaperProjectForRuntimeConsumers(
 	profile: unknown,
 	project: unknown,
@@ -24,6 +27,9 @@ export function framescaperProjectForRuntimeConsumers(
 	return projectForConsumers(profile, project, 'runtime');
 }
 
+export function framescaperProjectForCommandConsumers(
+	profile: unknown, project: unknown,
+): RuntimeProjectProjection<FramescaperProject>;
 export function framescaperProjectForCommandConsumers(
 	profile: unknown,
 	project: unknown,

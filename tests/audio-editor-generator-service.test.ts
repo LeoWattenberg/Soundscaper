@@ -391,3 +391,28 @@ void test('generator persistence retains the selected effect owner target fields
 	await service.generateSelectionSilence();
 	assert.equal(persisted, true);
 });
+
+for (const operation of ['tone', 'labeled-silence'] as const) {
+	void test(`${operation} uses authored musical clip bounds`, async () => {
+		const musical = { ...project('project-a', null), schemaVersion: 17,
+			primarySequenceId: 'main', sequences: [{ id: 'main', trackIds: ['track-a'], rate: { num: 25, den: 1 } }],
+			tempoMap: { mode: 'musical' as const, events: [{ beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }] },
+			clips: [{ id: 'existing-clip', sourceId: 'existing-source', kind: 'audio',
+				anchor: 'musical', musicalStartBeat: 2, musicalExtent: 'beat', musicalDurationBeats: 2,
+				sourceStartFrame: 0, sourceDurationFrames: 1_000,
+			}],
+		};
+		const fixture = createFixture({ getProject: () => musical });
+		const service = createAudioGeneratorService(fixture.dependencies);
+		if (operation === 'tone') {
+			await service.generateSignal('tone', { atFrame: 1_100, durationSeconds: 0.1, frequency: 100 });
+			const command = fixture.commits[0]?.command;
+			assert.equal(command?.type, 'batch');
+			assert.ok(command?.type === 'batch');
+			assert.deepEqual(command.commands.map(({ type }) => type), ['source/add', 'track/add', 'clip/add']);
+		} else {
+			assert.equal(await service.generateLabeledSilence([{ startFrame: 1_100, endFrame: 1_200 }], ['track-a']), true);
+			assert.equal(fixture.commits.length, 1);
+		}
+	});
+}

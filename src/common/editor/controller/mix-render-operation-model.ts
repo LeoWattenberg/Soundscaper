@@ -17,7 +17,7 @@ export function assertMixRenderPreflight(
 	const locked = targetTracks.find((track) => track.locked === true);
 	if (locked) throw new Error(`Mix and Render cannot replace locked track ${locked.name}.`);
 	for (const track of targetTracks) {
-		for (const clipId of track.clipIds) {
+		for (const clipId of (track.clipIds ?? [])) {
 			const clip = findControllerClip(project, clipId);
 			if (clip?.avLinkId) {
 				throw new Error('Mix and Render cannot replace a track containing linked A/V clips.');

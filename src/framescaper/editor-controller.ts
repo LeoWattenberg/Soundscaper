@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { ControllerOptions } from '../common/editor/controller/controller-options.ts';
 import { createAudioEditorController } from '../common/editor/app.js';
 import { createProductNativeRenderInputAuthorityBinding } from
 	'../common/editor/controller/product-native-render-input-authority.ts';
@@ -54,8 +55,8 @@ const PRESENTATION_FIELDS = ['locale', 'copy', 'fileService'] as const;
 
 export interface FramescaperAudioEditorControllerPresentation {
 	readonly locale?: string;
-	readonly copy?: Readonly<Record<string, unknown>>;
-	readonly fileService?: unknown;
+	readonly copy?: ControllerOptions['copy'];
+	readonly fileService?: ControllerOptions['fileService'];
 }
 
 /** Bind the complete Framescaper 1.0 product runtime. */
@@ -115,7 +116,6 @@ export function createFramescaperAudioEditorController(
 		headless: true,
 		productId: 'framescaper',
 		framescaperCaptureRuntime: FRAMESCAPER_EDITOR_CAPTURE_RUNTIME,
-		framescaperCaptureRouteSchemaVersion: 1,
 		store: environment.controllerStore,
 		sessionController,
 		acquireProjectLock: environment.runtime.acquireProjectLock,
@@ -136,8 +136,8 @@ export function createFramescaperAudioEditorController(
 			sourceId: string,
 			pressure: Parameters<FramescaperVideoProxyActionRuntime['reportPreviewPressure']>[1],
 		) => proxyActions?.reportPreviewPressure(sourceId, pressure),
-		createFramescaperCaptureProxyScheduler: (composition: Readonly<Record<string, unknown>>) => {
-			const base = composition as unknown as FramescaperCapturedVideoProxyRuntimeComposition;
+		createFramescaperCaptureProxyScheduler: (composition) => {
+			const base = composition;
 			const candidateObserver = createFramescaperNativeProResProxyCandidateObserver({
 				profile: environment.runtime.profile,
 				getProject: () => controller?.project ?? null,
@@ -236,5 +236,13 @@ function snapshotPresentation(value: unknown): FramescaperAudioEditorControllerP
 		|| Array.isArray(output.copy))) {
 		throw new TypeError('Framescaper controller copy must be an object.');
 	}
+	if (output.copy !== undefined) {
+		for (const descriptor of Object.values(Object.getOwnPropertyDescriptors(output.copy))) {
+			if (!Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'string') {
+				throw new TypeError('Controller copy entries must be strings in data properties.');
+			}
+		}
+	}
+
 	return output as FramescaperAudioEditorControllerPresentation;
 }

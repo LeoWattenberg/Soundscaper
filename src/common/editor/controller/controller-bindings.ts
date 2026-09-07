@@ -38,7 +38,7 @@ export interface ControllerBindingServices<RenderEngine extends ClipTimePitchRen
 	readonly projectAdminService: () => ReturnType<typeof createProjectAdminService>;
 	readonly projectBootstrapService: () => ReturnType<typeof createProjectBootstrapComposition>;
 	readonly projectLockService: () => ReturnType<typeof createProjectLockService>;
-	readonly projectSwitchService: () => ReturnType<typeof createProjectSwitchService<DocumentProject, DocumentHistory>>;
+	readonly projectSwitchService: () => ReturnType<typeof createProjectSwitchService<DocumentProject, DocumentHistory, unknown, unknown>>;
 	readonly recording: () => ReturnType<typeof createRecordingComposition>;
 	readonly sources: () => ReturnType<typeof createSourceRuntimeComposition<RenderEngine>>;
 	readonly storageCapacityService: () => ReturnType<typeof createControllerStorageCapacityService>;

@@ -8,7 +8,7 @@ import { createAddTrackCommand, createAddSourceCommand, createAddClipCommand } f
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 
 void test('controller clip stretching reads resolved timing and preserves authored musical coordinates', async () => {
-	const controller = createAudioEditorController({ headless: true,
+	const controller = createAudioEditorController(null, { headless: true,
 		store: createProjectStore({ indexedDB: null, preferOpfs: false }),
 	});
 	try {
@@ -35,6 +35,36 @@ void test('controller clip stretching reads resolved timing and preserves author
 		const persisted = after.clips.find(clip => clip.id === 'musical-clip');
 		assert.equal(persisted?.anchor, 'musical');
 		assert.deepEqual(persisted?.musicalDurationBeats, { num: 4, den: 1 });
+	} finally {
+		await controller.dispose();
+	}
+});
+
+void test('controller spectral selection uses resolved musical clip bounds', async () => {
+	const controller = createAudioEditorController(null, { headless: true,
+		store: createProjectStore({ indexedDB: null, preferOpfs: false }),
+	});
+	try {
+		await controller.ready;
+		controller.actions.edit.commit({ type: 'batch', commands: [
+			createAddTrackCommand({ id: 'spectral-track', name: 'Musical' }),
+			createAddSourceCommand({ id: 'spectral-source', frameCount: 96_000,
+				channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000 }),
+			createAddClipCommand('spectral-track', { id: 'spectral-clip', sourceId: 'spectral-source',
+				sourceStartFrame: 0, sourceDurationFrames: 96_000,
+				anchor: 'musical', musicalStartBeat: 2, musicalExtent: 'beat', musicalDurationBeats: 2,
+			}),
+		] });
+		controller.actions.timeline.selectClip('spectral-clip');
+		const before = controller.project;
+		assert.ok(before);
+		const clip = resolveRuntimeProjectProjection(before).clips.find(clip => clip.id === 'spectral-clip');
+		assert.ok(clip);
+		const selection = controller.actions.spectral.boxSelect({ minimumFrequency: 100, maximumFrequency: 1000 });
+		assert.ok(selection);
+		assert.equal(selection.startFrame, clip.timelineStartFrame);
+		assert.equal(selection.endFrame, clip.timelineEndFrame);
+		assert.deepEqual(selection.frequencyRange, { minimumFrequency: 100, maximumFrequency: 1000 });
 	} finally {
 		await controller.dispose();
 	}

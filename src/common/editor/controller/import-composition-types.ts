@@ -12,7 +12,6 @@ import type { EditorControllerLifetime, EditorProjectGeneration } from './lifecy
 import type { createLinkedPcmImporter } from './linked-wav-import-service.ts';
 import type { ProjectBinServiceDependencies } from './project-bin-service.ts';
 import type { ProjectChangedOptions } from './project-mutation-service.ts';
-import type { ProjectSwitchOptions } from './project-switch-service-types.ts';
 import type { ProjectVisualService } from './project-visual-types.ts';
 import type { bufferFromChannels } from './source-audio.ts';
 import type { publishImportedVideo } from './source-import-video-publication.ts';
@@ -124,7 +123,7 @@ export interface ImportCompositionDependencies {
 	readonly restoreActiveDocument: ProjectBinServiceDependencies['restoreActiveDocument'];
 	readonly switchProject: (
 		project: ImportCompositionProject,
-		options?: ProjectSwitchOptions<ReturnType<ProjectBinServiceDependencies['captureActiveDocument']>['history']>,
+		options?: Readonly<{ save?: boolean }>,
 	) => Promise<void>;
 	readonly projectChanged: (options?: ProjectChangedOptions) => void;
 	readonly warnEnvelope: () => void;

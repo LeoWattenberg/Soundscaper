@@ -15,7 +15,7 @@ import {
 	type TakeCyclePublicationSession,
 } from '../src/common/editor/controller/take-cycle-current-project-publication-service.ts';
 import type { TakeCyclePublishedProject } from '../src/common/editor/controller/take-cycle-recording-repository-composition.ts';
-import { applyEditorCommand } from '../src/common/editor/commands.js';
+import { applyDefaultTakeCycleProjectCommand, type TakeCycleProjectDocument } from '../src/common/editor/controller/take-cycle-project-document.ts';
 
 const NOW = '2026-08-12T12:00:00.000Z';
 
@@ -40,7 +40,7 @@ test('live CAS publication delegates its exact target assertion to product comma
 	const fixture = publicationFixture({
 		applyProjectCommand(project, command, options) {
 			applyCount += 1;
-			return applyEditorCommand(project, command, options);
+			return applyDefaultTakeCycleProjectCommand(project, command, options);
 		},
 	});
 	await fixture.publish(livePublication(fixture.base));
@@ -81,7 +81,7 @@ test('restart recovery accepts an already exact target but refuses stale base au
 });
 
 function publicationFixture(options: Readonly<{
-	readonly applyProjectCommand?: typeof applyEditorCommand;
+	readonly applyProjectCommand?: typeof applyDefaultTakeCycleProjectCommand;
 }> = {}) {
 	const base = createAudioEditorProjectV17({
 		id: 'project-cycle', title: 'Cycle', now: NOW,
@@ -91,9 +91,9 @@ function publicationFixture(options: Readonly<{
 	});
 	const session = createAudioEditorSessionController();
 	session.openProject(base, { history: createEditorHistory(base), dirty: true });
-	let project = base;
+	let project: TakeCycleProjectDocument = base;
 	let history = session.getProjectHistory(base.id) as TakeCyclePublicationHistory;
-	const synchronized: typeof base[] = [];
+	const synchronized: TakeCycleProjectDocument[] = [];
 	const service = createTakeCycleCurrentProjectPublicationService({
 		...options,
 		getActiveProject: () => project,
@@ -118,7 +118,7 @@ function livePublication(base: ReturnType<typeof createAudioEditorProjectV17>): 
 	return Object.freeze({
 		reason: 'finalize' as const,
 		base,
-		target: applyEditorCommand(base, command, { now: NOW }),
+		target: applyDefaultTakeCycleProjectCommand(base, command, { now: NOW }),
 		command,
 	});
 }

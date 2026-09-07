@@ -174,6 +174,7 @@ export function createProjectBinService(
 		const project = dependencies.getProject();
 		const binClip = findProjectBinClip(project, binClipId);
 		if (!binClip) throw new Error(dependencies.copy.audioClipNotFound);
+		if (binClip.kind === 'image') throw new Error('Image items require their image placement action.');
 		const itemClips = hasProjectBinMediaAuthority(project)
 			? projectBinClips(project).filter((clip) => clip.binItemId === binClip.binItemId)
 			: [binClip];

@@ -77,7 +77,7 @@ export function createMixRenderPlan(
 	memoryLimitBytes: number,
 	requestedOutputChannelCount?: number,
 ): MixRenderPlan | null {
-	const clips = targetTracks.flatMap((track) => track.clipIds
+	const clips = targetTracks.flatMap((track) => (track.clipIds ?? [])
 		.map((clipId) => findControllerClip(project, clipId))
 		.filter((clip): clip is NonNullable<typeof clip> => Boolean(clip)));
 	if (!targetTracks.length || !clips.length) return null;
@@ -136,7 +136,7 @@ export function createMixRenderSnapshot(
 		.map((track) => targetIds.has(track.id)
 			? { ...track, mute: false, solo: false, ...(renderEffects ? {} : { effects: [] }) }
 			: { ...track, gain: 0, pan: 0, mute: false, solo: false, effects: [], envelope: [] });
-	const clipIds = new Set(snapshot.tracks.flatMap((track) => track.clipIds));
+	const clipIds = new Set(snapshot.tracks.flatMap((track) => (track.clipIds ?? [])));
 	snapshot.clips = snapshot.clips.filter((clip) => clipIds.has(clip.id));
 	const sourceIds = new Set(snapshot.clips.map((clip) => clip.sourceId));
 	snapshot.sources = snapshot.sources.filter((source) => sourceIds.has(source.id));
@@ -178,7 +178,7 @@ export function mixRenderBusIds(
 ): Set<string> {
 	const ids = new Set<string>();
 	for (const trackId of targetIds) {
-		const route = project.mixer.routes[trackId];
+		const route = project.mixer.routes?.[trackId];
 		if (route?.groupId) ids.add(route.groupId);
 		for (const [sendId, gain] of Object.entries(route?.sends || {})) {
 			if (Number(gain) > 0) ids.add(sendId);
@@ -213,7 +213,7 @@ export function mixRenderOutputChannelCount(
 	isFixedStereoEffect: (type: string) => boolean,
 ): number {
 	if (isSoundscaperProductionProject(project)) return mixRenderPlannedOutputChannelCount(project);
-	const allSourcesMono = targetTracks.every((track) => track.clipIds.every((clipId) => {
+	const allSourcesMono = targetTracks.every((track) => (track.clipIds ?? []).every((clipId) => {
 		const clip = findControllerClip(project, clipId);
 		return findControllerSource(project, clip?.sourceId)?.channelCount === 1;
 	}));
@@ -225,7 +225,7 @@ export function mixRenderOutputChannelCount(
 		.flatMap((track) => track.effectsActive === false ? [] : track.effects || [])
 		.concat(buses.flatMap((bus) => bus.effectsActive === false ? [] : bus.effects || []))
 		.filter((effect) => effect.enabled !== false && effect.bypassed !== true);
-	if (effects.some((effect) => isFixedStereoEffect(effect.type))) return 2;
+	if (effects.some((effect) => typeof effect.type === 'string' && isFixedStereoEffect(effect.type))) return 2;
 	if (rendered.numberOfChannels < 2) return 1;
 	const left = rendered.getChannelData(0);
 	const right = rendered.getChannelData(1);
@@ -269,7 +269,7 @@ export function prepareMixRenderCommit(
 		if (!isSoundscaperProductionProject(project)) resetChanges.envelope = [];
 		commands.push(
 			...v21StripLaneRemovalCommands(project, trackId),
-			...bottomTrack.clipIds.map((clipIdToRemove): AudioEditorCommand => ({
+			...(bottomTrack.clipIds ?? []).map((clipIdToRemove): AudioEditorCommand => ({
 				type: 'clip/remove', clipId: clipIdToRemove,
 			})),
 			...(bottomTrack.effects || []).map((effect): AudioEditorCommand => ({

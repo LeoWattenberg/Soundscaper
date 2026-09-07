@@ -1,20 +1,25 @@
+// @ts-check
 import { createCaptureComposition } from './controller/capture-composition.ts';
+import { createFramescaperCaptureDocumentPorts, createFramescaperCaptureProxyDocumentInstaller } from './controller/framescaper-capture-document-ports.ts';
 import { startController } from './controller/controller-startup.ts';
 import { createControllerResources } from './controller/controller-resources.ts';
+import { bindSessionHistoryAdmission } from './controller/session-history-admission.ts';
 import { createControllerDisposal } from './controller/controller-disposal.ts';
 import { createControllerBindings } from './controller/controller-bindings.ts';
-import { createControllerDocumentState } from './controller/document-state.ts';
+import { createControllerDocumentState, createControllerDocumentCheckpoints } from './controller/document-state.ts';
 import { createEffectsComposition } from './controller/effects-composition.ts';
 import { createClipVideoComposition } from './controller/clip-video-composition.ts';
 import { createTrackAudioComposition } from './controller/track-audio-composition.ts';
+import { loadNativeEditableProject } from './controller/native-project-admission.ts';
+import { createControllerTimers } from './controller/controller-timers.ts';
+import { createRecordingCapturePoolBinding } from './controller/recording-capture-pool-binding.ts';
+import { adaptFramescaperRecordingControllerFactory } from './controller/framescaper-recording-factory-adapter.ts';
 import { createRecordingComposition } from './controller/recording-composition.ts';
 import {
 	AUDIO_EDITOR_DEFAULT_PIXELS_PER_SECOND,
 	AUDIO_EDITOR_MAX_PIXELS_PER_SECOND,
 } from './timeline-zoom-limits.ts';
-import {
-	createAddTrackCommand,
-} from './commands.js';
+import { createAddTrackCommand } from './commands.js';
 import { createAudioEditorEffectPresets, listAudioEditorEffectPresets } from './effect-presets.js';
 import { audioSelectionEffectTypes } from './effects.js';
 import { createControllerPresentationState } from './controller/presentation-state.ts';
@@ -40,10 +45,7 @@ import { productProfile } from '../products.js';
 import { assertPlayAtSpeedStaffPadMemorySafe } from './engine.js';
 import {
 	RECORDING_INPUT_GAIN_DEFAULT,
-	createRecordingCapturePool,
 	createRecordingController,
-	requestDisplayInput,
-	requestHardwareInput,
 } from './recording.js';
 import {
 	RECORDING_DEFAULT_DEVICE_ID,
@@ -62,7 +64,7 @@ import { resolveProductCompositionDecision } from './controller/product-composit
 import { createControllerActionComposition } from './controller/controller-action-composition.ts';
 import { productActionRuntime } from './controller/product-action-runtime.ts'; import { createScapeProjectFileService } from './controller/scape-project-file-service.ts'; import { bindSoundscaperPersistentDeliveryRuntime } from './controller/soundscaper-persistent-delivery-runtime-binding.ts';
 
-import { createControllerProjectQueries } from './controller/controller-project-queries.ts';
+import { createControllerProjectQueries, createResolvedCommandProjectReader } from './controller/controller-project-queries.ts';
 import { createPreferencesComposition } from './controller/preferences-composition.ts';
 import { createControllerSoundActivationPolicy } from './controller/sound-activation-controller-composition.ts';
 import { createDocumentComposition } from './controller/document-composition.ts';
@@ -111,7 +113,7 @@ import { createSourceRuntimeComposition } from './controller/source-runtime-comp
 import { calculateAudioEditorMetronomeSchedule } from './controller/transport-model.ts';
 
 export { calculateAudioEditorMetronomeSchedule } from './controller/transport-model.ts';
-/** @param {Element | null} [_root] */
+/** @param {Element | null} [_root] @param {import("./controller/controller-options.ts").ControllerOptions} [options] */
 export function createAudioEditorController(_root = null, options = {}) {
 	/** @type {ReturnType<typeof createControllerBindings<import('./engine/public-api.ts').EnginePublicApi>>} */
 	const bindings = createControllerBindings({
@@ -137,7 +139,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 		tracks: () => tracks,
 		viewStateService: () => viewStateService,
 	});
-	// Resolve service dependencies at invocation while preserving their owning types.
 	const lifetime = new EditorControllerLifetime();
 	const projectGeneration = new EditorProjectGeneration();
 	const projectRuntime = resolveControllerProjectRuntime(options.projectRuntime);
@@ -149,20 +150,20 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const capabilities = product.capabilities; const composition = resolveProductCompositionDecision(product), absentSubsystem = Object.freeze({ productName: product.name });
 	const recentProjectsSettingKey = `${productId}:audio-editor-recent-project-ids`;
 	const lastProjectSettingKey = `${productId}:last-project-id`;
+	/** @param {string} name */
 	const productSettingKey = (name) => productId === 'soundscaper' ? name : `${productId}:${name}`;
 	const {
 		fileService, store, sourceBuffers, mixRenderMemoryLimitBytes, sourceChunkProviders, sourcePeaks,
-		stagedProjectBinSourceIds, sessionController, engine, renderEngineFactory, clipTimePitchCache,
+		stagedProjectBinSourceIds, sessionController: rawSessionController, engine, renderEngineFactory, clipTimePitchCache,
 		clipTimePitchSourceResolver, ffmpeg, nyquistClient, nyquistEvaluator, playAtSpeedPitchPreserver,
 	} = createControllerResources(options, {
 		copy, onPosition: updatePlayhead, onMeter: bindings.updateMeters, onState: bindings.updateTransportState,
 		setStatus: bindings.setStatus, updateExportProgress: bindings.updateExportProgress,
 	});
+	const sessionController = bindSessionHistoryAdmission(rawSessionController, (value) => projectRuntime.createHistory(value).present);
 	const currentTimeMs = typeof options.now === 'function' ? options.now : () => Date.now();
-	const scheduleTimer = typeof options.setTimeout === 'function' ? options.setTimeout : globalThis.setTimeout.bind(globalThis);
-	const clearScheduledTimer = typeof options.clearTimeout === 'function' ? options.clearTimeout : globalThis.clearTimeout.bind(globalThis);
-	const scheduleInterval = typeof options.setInterval === 'function' ? options.setInterval : globalThis.setInterval.bind(globalThis);
-	const clearScheduledInterval = typeof options.clearInterval === 'function' ? options.clearInterval : globalThis.clearInterval.bind(globalThis);
+	const { scheduleTimer, clearScheduledTimer, scheduleInterval, clearScheduledInterval } = createControllerTimers(options);
+	/** @type {import('./controller/document-state.ts').ControllerDocumentState<import('./controller/document-composition-types.ts').DocumentProject, import('./controller/document-composition-types.ts').DocumentHistory>} */
 	const documentState = createControllerDocumentState();
 	const { activeSelection, normalizeExportSettings } = createControllerProjectQueries({ getProject: () => documentState.project, projectSampleRate: () => projectSampleRate() });
 	const state = createEditorControllerState({ document: documentState,
@@ -195,10 +196,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const playbackProjectService = options.playbackProjectService
 		|| createPlaybackProjectService(product.capabilities, product.id);
-	let videoNavigationService = null, framescaperCapture = null;
+	/** @type {ReturnType<typeof createClipVideoComposition>['videoNavigation'] | null} */
+	let videoNavigationService = null;
+	/** @type {ReturnType<typeof import('./controller/framescaper-capture-app-binding.ts').createFramescaperCaptureAppBinding> | null} */
+	let framescaperCapture = null;
 	const framescaperCaptureRuntime = options.framescaperCaptureRuntime ?? null;
 	const framescaperCaptureAdminInterlock = framescaperCaptureRuntime?.createAdminInterlock() ?? null;
 	const mediaDevices = options.mediaDevices || globalThis.navigator?.mediaDevices;
+	/** @type {Parameters<typeof createSnapshotComposition>[0]['document']} */
 	const documentSnapshotRuntime = {
 		state, product, productId, capabilities, locale, projectForPlayback: (candidate) => playbackProjectService.projectForPlayback(candidate).project,
 		getCurrentProject: () => state.history?.present ?? null,
@@ -225,6 +230,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		document: documentSnapshotRuntime, telemetry: state, audioDevices: state, engine, mediaDevices, copy,
 		videoEffectGestures: state.videoEffectGestures, videoEffectGestureKey: bindings.videoEffectGestureKey,
 	});
+	/** @type {((value: number) => void) | null} */
 	let persistentExportProgressObserver = null;
 	const taskProgress = createEditorTaskProgressCoordinator({ onChange: (progress) => {
 		state.taskProgress = progress; if (progress?.kind === 'export' && typeof progress.value === 'number') persistentExportProgressObserver?.(progress.value); publishTelemetrySnapshot();
@@ -236,14 +242,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		onWarning: (error) => bindings.handleError(error),
 	});
 	const persistSetting = settingPersistence.persist;
-	const recordingCapturePool = options.recordingCapturePool || createRecordingCapturePool({
-		requestHardwareInput: (captureOptions) => requestHardwareInput({
-			...captureOptions,
-			deviceId: captureOptions.deviceId === RECORDING_DEFAULT_DEVICE_ID ? undefined : captureOptions.deviceId,
-			mediaDevices,
-		}),
-		requestDisplayInput: (captureOptions) => requestDisplayInput({ ...captureOptions, mediaDevices }),
-		onChange: bindings.handleRecordingPoolChange,
+	const recordingCapturePool = createRecordingCapturePoolBinding({
+		pool: options.recordingCapturePool, mediaDevices, onChange: bindings.handleRecordingPoolChange,
 	});
 	const recordingControllerFactory = options.recordingControllerFactory || createRecordingController;
 	const acquireLock = options.acquireProjectLock || acquireProjectLock;
@@ -269,7 +269,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		},
 	});
 	let removeDeviceChangeListener = () => {};
-	const getCommandProject = () => projectRuntime.projectForCommandConsumers(documentState.project);
+	const getCommandProject = createResolvedCommandProjectReader(() => documentState.project, (project) => projectRuntime.projectForCommandConsumers(project));
+	/** @type {ReturnType<typeof createSourceRuntimeComposition<import('./engine/public-api.ts').EnginePublicApi>>} */
 	const sources = createSourceRuntimeComposition({
 		state, copy, lifetime, projectGeneration, store, engine, sourceBuffers, sourceChunkProviders, sourcePeaks,
 		timePitchCache: clipTimePitchCache, sourceResolver: clipTimePitchSourceResolver, createRenderEngine: (renderOptions) => renderEngineFactory(renderOptions),
@@ -420,7 +421,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		projectFileExtension: product.projectFileExtension, currentProjectSchemaFamily: product.id,
 		initialAup4Client: options.aup4Client || null,
 		aup4Options: options.aup4 || {}, adaptAudacityProject: options.adaptAudacityProject,
-		prepareAudacityProjectExport: options.prepareAudacityProjectExport, loadProject: projectRuntime.loadProject,
+		prepareAudacityProjectExport: options.prepareAudacityProjectExport, loadProject: (value) => loadNativeEditableProject(projectRuntime, value),
 		importScapeProject: options.scapeProjectRuntime?.importScapeProject || deferredArchiveRuntime.importScapeProject,
 		exportScapeProject: options.scapeProjectRuntime?.exportScapeProject || deferredArchiveRuntime.exportScapeProject,
 		copyFutureScapeArchive: options.scapeProjectRuntime?.copyScapeArchive,
@@ -436,7 +437,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			createScheduler: options.createFramescaperCaptureProxyScheduler, runtime: ffmpeg,
 			helperTimingProbe: fileService.helperTimingProbe,
 			saves: { getActiveProjectId: () => documentState.project?.id ?? null, hasUnsavedProjectChanges: () => Boolean(documentState.project && bindings.sessionTab(documentState.project.id)?.dirty), saves: doc.saves },
-			activeProject: { getActiveProject: () => documentState.project, setActiveProject: (value) => { documentState.project = value; }, setActiveHistory: (value) => { state.history = value; }, applyProjectToPlaybackEngine: bindings.applyProjectToPlaybackEngine, publishProjectState: bindings.publishProjectState },
+			activeProject: { getActiveProject: () => documentState.project, installActiveProject: createFramescaperCaptureProxyDocumentInstaller({ runtime: projectRuntime, setHistory: value => { state.history = value; }, synchronizeProject: bindings.applyProjectToPlaybackEngine }), publishProjectState: bindings.publishProjectState },
 		},
 		derivatives: {
 			getOriginProject: async (projectId) => bindings.sessionTab(projectId)?.history?.present ?? store.loadProject(projectId), store,
@@ -449,21 +450,21 @@ export function createAudioEditorController(_root = null, options = {}) {
 			getActiveLock: () => state.projectLock, acquireProjectLock: (projectId) => acquireLock(projectId),
 		},
 		app: {
-			productId, adminInterlock: framescaperCaptureAdminInterlock,
+			productId,
 			schemaFamily: 'framescaper', schemaVersion: 1,
 			isDesktop: Boolean(fileService.isDesktop), embedded: globalThis.document?.documentElement?.dataset?.embedded === 'true',
-			store, sessionController, projectRuntime, mediaDevices,
-			getActiveProject: () => documentState.project, getActiveHistory: () => state.history,
-			getActivePlayheadFrame: () => state.positionFrame,
-			setActiveProject: (value) => { documentState.project = value; }, setActiveHistory: (value) => { state.history = value; },
-			synchronizeProject: async (value) => { await bindings.applyProjectToPlaybackEngine(value); bindings.publishProjectState(); },
-			prepareCaptureStart: bindings.flushProject,
+			store, mediaDevices, getActivePlayheadFrame: () => state.positionFrame,
+			...createFramescaperCaptureDocumentPorts({ adminInterlock: framescaperCaptureAdminInterlock, session: sessionController, runtime: projectRuntime,
+				getProject: () => documentState.project, getHistory: () => state.history,
+				setProject: value => { documentState.project = value; }, setHistory: value => { state.history = value; },
+				synchronizeProject: async value => { await bindings.applyProjectToPlaybackEngine(value); bindings.publishProjectState(); } }),
+			prepareCaptureStart: async () => { await bindings.flushProject(); },
 			getAudioContext: () => engine.getAudioContext({ resume: false }),
 			createStream: options.createStream, MediaRecorder: options.MediaRecorder,
 			MediaStreamTrackProcessor: options.MediaStreamTrackProcessor,
-			recordingControllerFactory: options.recordingControllerFactory, AudioWorkletNode: options.AudioWorkletNode,
+			recordingControllerFactory: adaptFramescaperRecordingControllerFactory(options.recordingControllerFactory), AudioWorkletNode: options.AudioWorkletNode,
 			helperTimingProbe: fileService.helperTimingProbe, ffmpeg,
-			desktopBridge: globalThis.framescaperCaptureDesktop?.v1 ?? null, webVcrBridge: globalThis.framescaperWebVcr?.v1 ?? null, webVcrEnabled: product.applicationFeatures?.framescaperWebVcr === true, showWebVcrPanel: () => preferencesService.setPanelVisibility('web-vcr', true), hideWebVcrPanel: () => preferencesService.setPanelVisibility('web-vcr', false),
+			desktopBridge: globalThis.framescaperCaptureDesktop?.v1 ?? null, webVcrBridge: globalThis.framescaperWebVcr?.v1 ?? null, webVcrEnabled: product.applicationFeatures?.framescaperWebVcr === true, showWebVcrPanel: () => { void preferencesService.setPanelVisibility('web-vcr', true).catch(bindings.handleError); }, hideWebVcrPanel: () => { void preferencesService.setPanelVisibility('web-vcr', false).catch(bindings.handleError); },
 			createId: createStableId, now: currentTimeMs,
 			onWarning: bindings.handleError, onChange: publishDocumentSnapshot,
 		},
@@ -524,7 +525,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			normalizeExportSettings, toggleExport: bindings.toggleExport, updateExportProgress: bindings.updateExportProgress, setPersistentExportProgressObserver: (observer) => { persistentExportProgressObserver = observer; },
 		},
 		createRenderEngine: bindings.createCacheAwareRenderEngine, createPreviewEngine: (previewOptions) => renderEngineFactory(previewOptions), prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches,
-		getProject: () => documentState.project, editingBlocked, commit: bindings.commit, setStatus: bindings.setStatus, publishDocumentSnapshot, publishProjectState: bindings.publishProjectState, handleError: bindings.handleError, preflightStorage: bindings.preflightStorage,
+		getProject: () => documentState.project, getCommandProject, editingBlocked, commit: bindings.commit, setStatus: bindings.setStatus, publishDocumentSnapshot, publishProjectState: bindings.publishProjectState, handleError: bindings.handleError, preflightStorage: bindings.preflightStorage,
 		projectSampleRate, projectDurationFrames, editorTimelineDurationFrames, normalizeTimelineFrame, persistSetting, productSettingKey, activeSelection,
 		activateStoredSource: bindings.activateStoredSource, cacheSourceBuffer: bindings.cacheSourceBuffer, retireSourceChunkProvider: sources.sourceLifecycle.retireSourceChunkProvider, renderDryTrackRange: bindings.renderDryTrackRange,
 		hasMissingTimelineSources: bindings.hasMissingTimelineSources, updatePlayhead, updateSelection: bindings.updateSelection, synchronizeAutomaticSampleEditMode: bindings.synchronizeAutomaticSampleEditMode, updateRecordingDeviceRows: bindings.updateRecordingDeviceRows, persistRecordingRouting: bindings.persistRecordingRouting,
@@ -537,7 +538,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	bindSoundscaperPersistentDeliveryRuntime(options, { exportService: tracks.export, getProject: () => documentState.project, getSaveState: () => state.saveState, captureProjectGeneration: () => projectGeneration.capture(documentState.project?.id ?? null), assertProjectGeneration: (token) => projectGeneration.assertCurrent(token), deliveryReport: () => state.deliveryReport ?? null, cancelExport: cancelPersistentAudioDelivery, publishDocumentSnapshot });
 	const effects = createEffectsComposition({
 		state, copy, locale, composition, absentSubsystem, lifetime, projectGeneration, projectRuntime, store, engine, sourceBuffers, sourcePeaks,
-		taskProgress, nyquistEvaluator, getProject: () => documentState.project, activeSelection, selectedTracksTimeRange: bindings.selectedTracksTimeRange, editingBlocked, setSelection: bindings.setSelection,
+		taskProgress, nyquistEvaluator, getProject: () => documentState.project, getCommandProject, activeSelection, selectedTracksTimeRange: bindings.selectedTracksTimeRange, editingBlocked, setSelection: bindings.setSelection,
 		persistSetting, publishDocumentSnapshot, setStatus: bindings.setStatus, preflightStorage: bindings.preflightStorage, renderSnapshot, prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches,
 		createRenderEngine: bindings.createCacheAwareRenderEngine, commit: bindings.commit, cacheSourceBuffer: bindings.cacheSourceBuffer, snapTimelineFrame: bindings.snapTimelineFrame, projectDurationFrames, projectSampleRate, handleError: bindings.handleError,
 	});
@@ -557,8 +558,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getProject: () => documentState.project, editingBlocked, commit: bindings.commit, updateSelection: bindings.updateSelection, setStatus: bindings.setStatus, publishDocumentSnapshot, handleError: bindings.handleError, preflightStorage: bindings.preflightStorage, projectSampleRate,
 		activateStoredSource: bindings.activateStoredSource, invalidateSourceRuntime: sources.sourceLifecycle.invalidateSourceRuntime, retireSourceChunkProvider: sources.sourceLifecycle.retireSourceChunkProvider,
 		retireTimelinePlayback, cacheSourceBuffer: bindings.cacheSourceBuffer,
-		captureActiveDocument: () => ({ history: state.history, project: documentState.project }),
-		restoreActiveDocument: (snapshot) => { state.history = snapshot.history; documentState.project = snapshot.project; },
+		...createControllerDocumentCheckpoints(documentState),
 		switchProject: bindings.switchProject, projectChanged: bindings.projectChanged, warnEnvelope,
 	});
 	const recording = createRecordingComposition({
@@ -613,7 +613,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleStretchToTempo: clips.clipProperty.toggleStretchToTempo,
 		toggleToolbarPreference,
 		selectionViewService: tracks.selectionView, sequenceTimingService: clips.sequenceTiming, timelineAnnotationService: doc.timelineAnnotation, regularIntervalAnnotationController: doc.regularIntervalAnnotation, trackFolderService: doc.trackFolder, trackStructuralOperations: tracks.track.structuralOperations, soundActivationPolicyService,
-		audioWarpService: tracks.audioWarp, sourceMonitorService: clips.sourceMonitor, takeCompService: tracks.takeComp, taskProgress, videoTrimServices: clips.videoTrim, videoEditService: clips.videoEdit, videoNavigationService, videoSourceReprobeService: clips.videoSourceReprobe, framescaperCaptureActions: framescaperCapture ? { ...framescaperCapture.actions, openSetup: () => { framescaperCapture.actions.openSetup(); preferencesService.setPanelVisibility('recording-setup', true); } } : undefined, framescaperWebVcrActions: framescaperCapture?.webVcrActions, ...productActionRuntime(options),
+		audioWarpService: tracks.audioWarp, sourceMonitorService: clips.sourceMonitor, takeCompService: tracks.takeComp, taskProgress, videoTrimServices: clips.videoTrim, videoEditService: clips.videoEdit, videoNavigationService, videoSourceReprobeService: clips.videoSourceReprobe, framescaperCaptureActions: framescaperCapture ? { ...framescaperCapture.actions, openSetup: () => { framescaperCapture.actions.openSetup(); void preferencesService.setPanelVisibility('recording-setup', true).catch(bindings.handleError); } } : undefined, framescaperWebVcrActions: framescaperCapture?.webVcrActions, ...productActionRuntime(options),
 		updateWorkspacePreference,
 	}, () => lifetime.assertActive());
 	const dispose = createControllerDisposal({
@@ -670,7 +670,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function publishDocumentSnapshot({ force = false } = {}) { documentChannel.publish({ force }); }
 	function publishTelemetrySnapshot() { telemetryChannel.publish(); }
-	async function reloadVideoSourceVisual(sourceId) { const source = findSource(documentState.project, sourceId); if (!source || source.kind !== 'video') throw new ReferenceError(`Video source ${String(sourceId)} is missing.`); await bindings.revokeVideoVisual(source.id); return bindings.activateVideoSource(source); }
+	async function reloadVideoSourceVisual(/** @type {string} */ sourceId) { const source = findSource(documentState.project, sourceId); if (!source || source.kind !== 'video') throw new ReferenceError(`Video source ${String(sourceId)} is missing.`); await bindings.revokeVideoVisual(source.id); return bindings.activateVideoSource(source); }
 
 	function pauseLoudnessMeasurement(kind = 'playback') { return microphoneMeterService.pauseLoudnessMeasurement(kind); }
 	function continueLoudnessMeasurement(kind = 'playback') { return microphoneMeterService.continueLoudnessMeasurement(kind); }

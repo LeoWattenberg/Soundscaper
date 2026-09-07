@@ -44,7 +44,7 @@ export const editorOptionalControllerModule = String.raw`(?:analysis-service|cro
  * UI snapshot builds the idle snapshot the deferred facade shows, and the
  * session manifest is storage the eager repositories read.
  */
-export const editorOptionalCaptureControllerModule = String.raw`(?:framescaper-browser-(?:audio-processor-recorder|audio-recorder|capture-preview|capture-source|recorder-factory|video-recorder)|framescaper-capture-(?!admin-interlock\.ts$|project-write-authority\.ts$|proxy-quiescence\.ts$)[a-z\d-]+|framescaper-web-vcr-(?!ui-snapshot\.ts$)[a-z\d-]+|web-vcr-(?:audio-monitor|recorder-factory|video-frame-crop))`;
+export const editorOptionalCaptureControllerModule = String.raw`(?:framescaper-browser-(?:audio-processor-recorder|audio-recorder|capture-preview|capture-source|recorder-factory|video-recorder)|framescaper-capture-(?!admin-interlock\.ts$|document-ports\.ts$|project-admission\.ts$|project-write-authority\.ts$|proxy-quiescence\.ts$)[a-z\d-]+|framescaper-web-vcr-(?!ui-snapshot\.ts$)[a-z\d-]+|web-vcr-(?:audio-monitor|recorder-factory|video-frame-crop))`;
 export const editorOptionalCaptureFlatModule = String.raw`(?:framescaper-capture-domain|web-vcr-domain|web-vcr-geometry)`;
 export const editorOptionalAssistanceModule = String.raw`local-assistance-[^\\/]+`;
 /**

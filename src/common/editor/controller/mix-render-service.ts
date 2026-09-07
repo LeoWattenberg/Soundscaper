@@ -6,6 +6,7 @@ import {
 	isSoundscaperProductionProject,
 } from '../project-schema-version.ts';
 
+import type { EngineSourceBufferInput } from '../engine/public-api.ts';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
 import type { DerivedSourceService } from './derived-source-service.ts';
 import type {
@@ -78,7 +79,7 @@ interface StreamingSourceWriter {
 }
 
 interface MixRenderEngine {
-	loadProject(project: ControllerProject, sourceBuffers: unknown): void;
+	loadProject(project: ControllerProject, sourceBuffers: EngineSourceBufferInput): void;
 	renderMixToSink(options: Readonly<Record<string, unknown>>): Promise<Readonly<{
 		sampleRate?: unknown;
 		channelCount?: unknown;
@@ -97,7 +98,7 @@ export interface MixRenderServiceDependencies {
 	readonly copy: MixRenderCopy;
 	readonly derivedSources: DerivedSourceService;
 	readonly store: Pick<SourceStoragePort, 'beginSourceWrite'>;
-	readonly sourceBuffers: unknown;
+	readonly sourceBuffers: EngineSourceBufferInput;
 	readonly sourceChunkFrames: number;
 	readonly memoryLimitBytes: number;
 	getProject(): ControllerProject;

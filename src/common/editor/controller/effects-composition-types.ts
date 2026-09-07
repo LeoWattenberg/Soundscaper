@@ -2,7 +2,7 @@
 
 import type { DeferredNyquistClient } from './deferred-effect-runtime.ts';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
-import type { EnginePublicApi } from '../engine/public-api.ts';
+import type { EnginePublicApi, EngineSourceBufferInput } from '../engine/public-api.ts';
 import type { AssistanceDerivativeRepositoryPort } from '../storage/deferred-assistance-derivative-repository.ts';
 import type { AbsentSubsystemContext } from './absent-audio-subsystems.ts';
 import type { EffectAudioProject, EffectAudioServiceRuntime } from './effect-audio-service.ts';
@@ -28,12 +28,11 @@ import type {
 } from './rack-effect-service.ts';
 import type { SelectionEffectWorkerServiceRuntime } from './selection-effect-worker-service.ts';
 import type { EditorTaskProgressCoordinator } from './task-progress.ts';
-import type { AudioBufferLike } from './source-audio.ts';
+import type { RenderedAudio } from './source-audio.ts';
 import type { generateWaveformPeaks } from './waveform-analysis.ts';
 
 /** The document shape every effect service reads; the controller supplies its current project. */
 export type EffectsCompositionProject =
-	& EffectSelectionProject
 	& EffectAudioProject
 	& NyquistHostProject
 	& NyquistGeneratedAudioProject
@@ -105,11 +104,12 @@ export interface EffectsCompositionDependencies {
 	}>;
 	readonly store: EffectsCompositionStore;
 	readonly engine: EffectsCompositionEngine;
-	readonly sourceBuffers: NyquistGeneratedAudioServiceRuntime['sourceBuffers'];
+	readonly sourceBuffers: EngineSourceBufferInput & NyquistGeneratedAudioServiceRuntime['sourceBuffers'];
 	readonly sourcePeaks: NyquistGeneratedAudioServiceRuntime['sourcePeaks'];
 	readonly taskProgress: Pick<EditorTaskProgressCoordinator, 'run' | 'updateActive'>;
 	readonly nyquistEvaluator: DeferredNyquistClient['evaluate'];
 	readonly getProject: () => EffectsCompositionProject | null;
+	readonly getCommandProject: () => EffectSelectionProject;
 	readonly activeSelection: () => EffectSelection | null;
 	readonly selectedTracksTimeRange: EffectSelectionServiceRuntime['selectedTracksTimeRange'];
 	readonly editingBlocked: () => boolean;
@@ -123,15 +123,15 @@ export interface EffectsCompositionDependencies {
 		options: Readonly<Record<string, unknown>>,
 		sourceMap?: unknown,
 		signal?: AbortSignal | null,
-	) => Promise<AudioBufferLike>;
+	) => Promise<RenderedAudio>;
 	readonly prepareCommittedTimePitchCaches: EffectAudioServiceRuntime['prepareCommittedTimePitchCaches'];
-	readonly createRenderEngine: EffectAudioServiceRuntime<AudioBufferLike>['createRenderEngine'];
+	readonly createRenderEngine: EffectAudioServiceRuntime<RenderedAudio>['createRenderEngine'];
 	readonly commit: (
 		command: AudioEditorCommand | Readonly<Record<string, unknown>>,
 		selection?: Readonly<{ readonly selectTrackId?: string | null; readonly selectClipId?: string | null }>,
 		options?: RackEffectCommitOptions,
 	) => EffectsCompositionProject;
-	readonly cacheSourceBuffer: (sourceId: string, buffer: unknown) => unknown;
+	readonly cacheSourceBuffer: (sourceId: string, buffer: AudioBuffer) => unknown;
 	readonly snapTimelineFrame: (frame: unknown) => number;
 	readonly projectDurationFrames: (project: EffectsCompositionProject | null) => number;
 	readonly projectSampleRate: () => number;

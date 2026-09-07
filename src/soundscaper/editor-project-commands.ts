@@ -69,14 +69,13 @@ export type SoundscaperProjectCommand =
 
 const MASTERING_HANDLERS = createMasteringSequenceRuntimeHandlers();
 
-export function snapshotSoundscaperProjectCommand(
-	command: SoundscaperProjectCommand,
-): SoundscaperProjectCommand {
+export function snapshotSoundscaperProjectCommand(value: unknown): SoundscaperProjectCommand {
+	const command = snapshotInertEditorCommand(value, 'Soundscaper command');
 	if (hasAssistanceAssetUpsertCommandTypeV1(command)) {
 		return snapshotAssistanceAssetUpsertCommandV1(command);
 	}
 	return snapshotNativePluginStateCommand(command)
-		?? snapshotInertEditorCommand(command as AudioEditorCommand, 'Soundscaper command');
+		?? command;
 }
 
 export function applySoundscaperProjectCommand(
@@ -265,13 +264,9 @@ function assertRestoredEffectIdentity(
 }
 
 /** The shared command projection consumers read, gated on exact baseline authority. */
-export function soundscaperProjectForCommandConsumers(
-	projectValue: SoundscaperProject | unknown,
-): Record<string, unknown> {
-	validateSoundscaperProject(projectValue);
-	return projectForCommandConsumers(
-		projectValue as SoundscaperProject & Record<string, unknown>,
-	) as Record<string, unknown>;
+export function soundscaperProjectForCommandConsumers(projectValue: unknown) {
+	if (!validateSoundscaperProject(projectValue)) throw new TypeError('Invalid Soundscaper project.');
+	return projectForCommandConsumers(projectValue);
 }
 
 function commandTouchesMasteringSequences(command: AudioEditorCommand): boolean {

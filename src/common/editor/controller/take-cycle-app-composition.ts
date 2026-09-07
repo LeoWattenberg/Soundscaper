@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AudioEditorProjectV17 } from '../project-v17-validation.ts';
+import { createTakeCompDocumentGroupsV17 } from '../take-comp-document-v17.ts';
+import type { TakeCycleProjectDocument } from './take-cycle-project-document.ts';
 import type { TakeCycleRoutedCaptureProject } from './take-cycle-routed-capture-validation.ts';
 import type { ProjectRepositoryPort } from '../storage/project-repository.ts';
 import type { RawPcmSpoolRepository } from '../storage/raw-pcm-spool-repository.ts';
@@ -43,7 +44,7 @@ interface TakeCycleAppSource {
 	readonly storageKey?: string;
 }
 
-type TakeCycleAppProject = AudioEditorProjectV17 & TakeCycleRoutedCaptureProject;
+type TakeCycleAppProject = TakeCycleProjectDocument;
 
 type RoutedRuntimePorts = Pick<TakeCycleRoutedCaptureRuntime,
 	'capturePool' | 'engine' | 'sourceChunkFrames' | 'streamAudioChannelCount'
@@ -76,8 +77,8 @@ export interface TakeCycleAppCompositionDependencies {
 	preflightRecording(bytes: number): Promise<void>;
 	releaseInputs(): void;
 	activateStoredSource(source: TakeCycleAppSource, metadata: unknown): PromiseLike<unknown> | unknown;
-	publishProject(project: AudioEditorProjectV17): PromiseLike<void> | void;
-	synchronizeProject(project: AudioEditorProjectV17): PromiseLike<void> | void;
+	publishProject(project: TakeCycleProjectDocument): PromiseLike<void> | void;
+	synchronizeProject(project: TakeCycleProjectDocument): PromiseLike<void> | void;
 	now(): Date | string;
 }
 
@@ -91,7 +92,7 @@ export function createTakeCycleAppComposition(
 		...(dependencies.applyProjectCommand ? { applyProjectCommand: dependencies.applyProjectCommand } : {}),
 		getActiveProject: dependencies.getProject,
 		getActiveHistory: () => dependencies.state.history,
-		setActiveProject: (project) => dependencies.setProject(appProject(project)),
+		setActiveProject: (project) => dependencies.setProject(project),
 		setActiveHistory: (history) => { dependencies.state.history = history; },
 		isActiveProject: (projectId) => dependencies.getProject()?.id === projectId,
 		synchronizeProject: async (project) => {
@@ -139,10 +140,10 @@ export function createTakeCycleAppComposition(
 		},
 	});
 
-	function requireProject(): TakeCycleAppProject {
+	function requireProject(): TakeCycleAppProject & TakeCycleRoutedCaptureProject {
 		const project = dependencies.getProject();
 		if (!project) throw staleProjectError();
-		return project;
+		return appProject(project);
 	}
 
 	async function activateCommittedSource(mediaId: string): Promise<void> {
@@ -180,10 +181,8 @@ function unavailableComposition(): Readonly<TakeCycleProductionComposition> {
 	});
 }
 
-function appProject(project: AudioEditorProjectV17): TakeCycleAppProject {
-	const candidate = project as unknown as Partial<TakeCycleRoutedCaptureProject>;
-	if (!candidate.loop || !Array.isArray(candidate.sequences)) throw staleProjectError();
-	return project as TakeCycleAppProject;
+function appProject(project: TakeCycleProjectDocument): TakeCycleAppProject & TakeCycleRoutedCaptureProject {
+	return { ...project, takeGroups: createTakeCompDocumentGroupsV17(project.takeGroups, project) };
 }
 
 function staleProjectError(): Error {

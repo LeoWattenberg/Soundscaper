@@ -18,6 +18,7 @@ import { findNearestAudioZeroCrossing } from '../zero-crossing.js';
 import { abortError, normalizeProjectSampleRate, throwIfAborted } from './app-helpers.ts';
 import { createAudioWarpControllerComposition } from './audio-warp-composition.ts';
 import { createDeferredEditorExportService } from './deferred-export-service.ts';
+import { createDocumentCommandPreview } from './document-command-preview.ts';
 import { createDerivedAudioComposition } from './derived-audio-composition.ts';
 import { createMixRenderService } from './mix-render-service.ts';
 import { createSelectionViewService } from './selection-view-service.ts';
@@ -81,7 +82,7 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 		sourceBuffers: dependencies.sourceBuffers,
 		sourcePeaks: dependencies.sourcePeaks,
 		sourceChunkFrames: dependencies.sourceChunkFrames,
-		getProject: requireProject,
+		getProject: dependencies.getCommandProject,
 		getSelectedTrackId: () => state.selectedTrackId,
 		getSelectedClipId: () => state.selectedClipId,
 		editingBlocked: dependencies.editingBlocked,
@@ -110,7 +111,7 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 		lifetime,
 		copy,
 		trackColors: dependencies.trackColors,
-		getProject: requireProject,
+		getProject: dependencies.getCommandProject,
 		getSelectedTrackId: () => state.selectedTrackId,
 		editingBlocked: dependencies.editingBlocked,
 		createId: createStableId,
@@ -220,6 +221,9 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 		setAnalysisProcessing: (processing) => { state.analysisProcessing = processing; },
 		publish: dependencies.publishDocumentSnapshot,
 	});
+	const mixPreview = createDocumentCommandPreview(
+		requireProject, dependencies.getCommandProject, dependencies.projectRuntime.applyCommand,
+	);
 	const mixRender: MixRender = createMixRenderService({
 		lifetime,
 		copy,
@@ -228,7 +232,7 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 		sourceBuffers: dependencies.sourceBuffers,
 		sourceChunkFrames: dependencies.sourceChunkFrames,
 		memoryLimitBytes: dependencies.mixRenderMemoryLimitBytes,
-		getProject: requireProject,
+		getProject: mixPreview.getProject,
 		getSelectedTrackId: () => state.selectedTrackId,
 		getSelectedClipId: () => state.selectedClipId,
 		editingBlocked: dependencies.editingBlocked,
@@ -250,7 +254,7 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 		createStreamingWriter: createCoalescingSourceWriter,
 		prepareCommittedTimePitchCaches: dependencies.prepareCommittedTimePitchCaches,
 		activateStoredSource: dependencies.activateStoredSource,
-		previewCommand: (candidate, command) => dependencies.projectRuntime.applyCommand(candidate, command),
+		previewCommand: mixPreview.previewCommand,
 	});
 	const selectionView = createSelectionViewService({
 		DEFAULT_PIXELS_PER_SECOND: dependencies.defaultPixelsPerSecond,

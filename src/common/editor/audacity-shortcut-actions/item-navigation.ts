@@ -6,6 +6,7 @@ import {
 	audacityTimelinePixelFrames,
 	audacityTimelineStepFrame,
 } from '../audacity-action-runtime-helpers.ts';
+import { clipTrimSourceFrameCount } from '../controller/clip-trim-source-frame-count.ts';
 import type { AudioEditorCommand, CommandObject } from '../commands/protocol.ts';
 import type {
 	ControllerClip,
@@ -177,6 +178,7 @@ function resizeClip(
 ): unknown {
 	const source = project.sources.find((candidate) => candidate.id === clip.sourceId);
 	if (!source) return null;
+	const sourceFrameCount = clipTrimSourceFrameCount(source);
 	const minimumDurationFrames = audacityTimelinePixelFrames(
 		project.sampleRate,
 		controller.getSnapshot().timeline?.pixelsPerSecond,
@@ -188,7 +190,7 @@ function resizeClip(
 	const requestedDelta = action.startsWith('track-view-item-extend-') ? step : -step;
 	if (left) {
 		const sourceExtension = clip.reversed
-			? source.frameCount - clip.sourceStartFrame - sourceDurationFrames
+			? sourceFrameCount - clip.sourceStartFrame - sourceDurationFrames
 			: clip.sourceStartFrame;
 		const timelineExtension = Math.floor(sourceExtension / sourceFramesPerTimelineFrame);
 		const delta = Math.max(
@@ -203,7 +205,7 @@ function resizeClip(
 	}
 	const sourceExtension = clip.reversed
 		? clip.sourceStartFrame
-		: source.frameCount - clip.sourceStartFrame - sourceDurationFrames;
+		: sourceFrameCount - clip.sourceStartFrame - sourceDurationFrames;
 	const maximumGrowth = Math.max(0, Math.floor(sourceExtension / sourceFramesPerTimelineFrame));
 	const delta = Math.max(
 		-Math.max(0, clip.durationFrames - minimumDurationFrames),

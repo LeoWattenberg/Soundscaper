@@ -18,6 +18,8 @@ register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.
 
 const { createAudioEditorController } = await import('../src/common/editor/app.js');
 const { createProjectStore } = await import('../src/common/editor/storage.js');
+const { createAudioEditorFileService } = await import('../src/common/editor/file-service.js');
+const { createAudioEditorEngine } = await import('../src/common/editor/engine.js');
 const { createSoundscaperProjectRuntimeSelection } = await import(
 	'../src/soundscaper/editor-project-runtime-selection.ts'
 );
@@ -230,13 +232,10 @@ test('real Framescaper capture open action reveals Recording Setup without openi
 		headless: true,
 		productId: 'framescaper',
 		framescaperCaptureRuntime: FRAMESCAPER_EDITOR_CAPTURE_RUNTIME,
-		framescaperCaptureRouteSchemaVersion: 19,
 		copy: COPY,
 		store: createProjectStore({ indexedDB: null, preferOpfs: false }),
 		engine: createMemoryEngine(),
-		ffmpeg: { dispose() {} },
-		clipTimePitchCache: createMemoryTimePitchCache(),
-		fileService: { isDesktop: false },
+		fileService: createAudioEditorFileService(),
 	});
 	try {
 		await controller.ready;
@@ -279,61 +278,26 @@ function createController(
 			projectRuntime,
 			sessionController: projectRuntime.createSessionController(),
 		} : {}),
-		ffmpeg: { dispose() {} },
-		clipTimePitchCache: createMemoryTimePitchCache(),
 		fileService: {
-			isDesktop: false,
-			saveFile(request: Readonly<Record<string, unknown>>) {
+			...createAudioEditorFileService(),
+			async saveFile(request: Readonly<Record<string, unknown>> = {}) {
 				saves.push(request);
-				return { cancelled: false };
+				return { method: 'test', fileName: 'test-output', size: 0 };
 			},
 		},
 	});
 }
 
 function createMemoryRenderEngine() {
-	const render = (options: Readonly<Record<string, unknown>>) => {
-		const startFrame = Number(options.startFrame);
-		const endFrame = Number(options.endFrame);
-		const channel = new Float32Array(endFrame - startFrame);
-		return {
-			numberOfChannels: 1,
-			length: channel.length,
-			sampleRate: 48_000,
-			duration: channel.length / 48_000,
-			getChannelData: () => channel,
-		};
-	};
-	return {
-		loadProject() {},
-		setSourceResolver() {},
-		async renderTrack(_trackId: string, options: Readonly<Record<string, unknown>>) { return render(options); },
-		async renderMix(options: Readonly<Record<string, unknown>>) { return render(options); },
-		async dispose() {},
-	};
+	return createAudioEditorEngine({ audioContextFactory: null, offlineAudioContextFactory: null,
+		softwareRenderer: ({ startFrame, endFrame, sampleRate }) => ({
+			channels: [new Float32Array(Number(endFrame) - Number(startFrame))], sampleRate,
+		}),
+	});
 }
 
 function createMemoryEngine() {
-	return {
-		loadProject() {},
-		async applyProject() {},
-		setSourceResolver() {},
-		getPositionFrames() { return 0; },
-		getState() { return { state: 'stopped', loop: { enabled: false } }; },
-		stop() {},
-		seek(frame: number) { return frame; },
-		async getAudioContext() { return null; },
-		async dispose() {},
-	};
-}
-
-function createMemoryTimePitchCache() {
-	return {
-		createEngineSourceResolver() { return null; },
-		retainClipIds() {},
-		getProtectedSourceIds() { return new Set<string>(); },
-		dispose() {},
-	};
+	return createAudioEditorEngine({ audioContextFactory: null, offlineAudioContextFactory: null });
 }
 
 function recordingSetupVisible(snapshot: unknown): boolean {

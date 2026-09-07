@@ -32,7 +32,7 @@ const RATE = { num: 24, den: 1 };
 
 test('mixed ripple conforms one range for unlinked audio and video lanes', () => {
 	const project = mixedProject();
-	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project);
 	const command = prepareRangeDeleteCommand(runtime, {
 		startFrame: 0,
 		endFrame: 800,
@@ -52,7 +52,7 @@ test('mixed ripple conforms one range for unlinked audio and video lanes', () =>
 test('sub-frame mixed ripple is one no-op even when the range intersects clips', () => {
 	const project = mixedProject({ sequenceStartFrame: 0, audioStartFrame: 0, frameCount: 1 });
 	const before = structuredClone(project);
-	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project);
 	const command = prepareRangeDeleteCommand(runtime, {
 		startFrame: 0,
 		endFrame: 800,
@@ -79,8 +79,8 @@ test('grouped video move reuses one frame delta instead of rounding each absolut
 		sources: [source], clips,
 		tracks: [createVideoTrack({ id: 'video-track', clipIds: ['video-1', 'video-2'] })],
 	});
-	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
-	const runtimeClips = runtime.clips as Array<Record<string, number | string>>;
+	const runtime = projectForCommand(project);
+	const runtimeClips = runtime.clips;
 	const command = prepareTransformClipsCommand(runtime, runtimeClips.map((clip) => ({
 		clipId: String(clip.id),
 		trackId: 'video-track',
@@ -118,7 +118,7 @@ test('mixed grouped move gives unlinked audio the video operation delta', () => 
 			createAudioTrack({ id: 'audio-track', clipIds: ['audio'] }, 44_100),
 		],
 	});
-	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project);
 	const command = prepareTransformClipsCommand(runtime, [
 		{ clipId: 'video', trackId: 'video-track', changes: { timelineStartFrame: 2_756 } },
 		{ clipId: 'audio', trackId: 'audio-track', changes: { timelineStartFrame: 2_756 } },
@@ -204,7 +204,7 @@ test('mixed roll conforms both audio boundaries to the video edit point', () => 
 			createAudioTrack({ id: 'audio-track', clipIds: ['audio-1', 'audio-2'] }, 44_100),
 		],
 	});
-	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project);
 	const command = prepareTransformClipsCommand(runtime, [
 		{ clipId: 'video-1', trackId: 'video-track', changes: { durationFrames: 4_675, sourceDurationFrames: 3 } },
 		{ clipId: 'video-2', trackId: 'video-track', changes: {
@@ -264,7 +264,7 @@ test('sample edits retain exact musical authority when its reduced denominator e
 
 test('video split uses one conformed sequence boundary for both halves', () => {
 	const project = splitProject(false);
-	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project);
 	let nextId = 0;
 	const command = prepareLinkedSplitCommand(runtime, 'video', 2_759, (prefix) => (
 		`${prefix}-split-${String(nextId++)}`
@@ -289,7 +289,7 @@ test('video split uses one conformed sequence boundary for both halves', () => {
 
 test('linked split reuses the video-conformed boundary for both A/V pairs', () => {
 	const project = splitProject(true);
-	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project);
 	let nextId = 0;
 	const command = prepareLinkedSplitCommand(runtime, 'audio', 2_759, (prefix) => (
 		`${prefix}-split-${String(nextId++)}`
@@ -323,7 +323,7 @@ test('linked split reuses the video-conformed boundary for both A/V pairs', () =
 
 test('video overwrite cuts inactive material at the active clip conformed boundaries', () => {
 	const project = overwriteProject();
-	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project);
 	let nextId = 0;
 	const command = prepareTransformClipsCommand(runtime, [{
 		clipId: 'moving', trackId: 'video-track', changes: { timelineStartFrame: 2_759 },
@@ -333,7 +333,7 @@ test('video overwrite cuts inactive material at the active clip conformed bounda
 
 test('single-clip overwrite cuts inactive material at the active clip conformed boundaries', () => {
 	const project = overwriteProject();
-	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project);
 	let nextId = 0;
 	const command = prepareOverwriteClipCommand(runtime, 'moving', {
 		trackId: 'video-track', changes: { timelineStartFrame: 2_759 },
@@ -343,7 +343,7 @@ test('single-clip overwrite cuts inactive material at the active clip conformed 
 
 test('video overwrite propagates its conformed cut through an inactive linked A/V pair', () => {
 	const project = overwriteProject(true);
-	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project);
 	let nextId = 0;
 	const command = prepareTransformClipsCommand(runtime, [{
 		clipId: 'moving', trackId: 'video-track', changes: { timelineStartFrame: 2_759 },
@@ -379,7 +379,7 @@ test('video overwrite propagates its conformed cut through an inactive linked A/
 test('video move controllers adopt the destination sequence and preserve frame extent', () => {
 	for (const controller of ['move', 'transform-many']) {
 		const project = crossSequenceProject();
-		const runtime = projectForCommand(project as unknown as Record<string, unknown>);
+		const runtime = projectForCommand(project);
 		const command = controller === 'move'
 			? { type: 'batch', commands: [
 				{ type: 'clip/move', clipId: 'video', trackId: 'track-30', timelineStartFrame: 5_000 },

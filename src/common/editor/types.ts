@@ -222,17 +222,7 @@ export interface EditorTelemetrySnapshot {
 	readonly [metric: string]: unknown;
 }
 
-export interface EditorControllerOptions {
-	readonly productId?: string;
-	readonly locale?: string;
-	readonly headless?: boolean;
-	readonly copy?: Readonly<Record<string, string>>;
-	readonly store?: unknown;
-	readonly engine?: unknown;
-	readonly ffmpeg?: unknown;
-	readonly fileService?: unknown;
-	readonly [option: string]: unknown;
-}
+export type EditorControllerOptions = import('./controller/controller-options.ts').ControllerOptions;
 
 export interface EditorProjectStore {
 	getStatus(): EditorStoreStatus;

@@ -1,9 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AudioEditorProjectV17 } from '../project-v17-validation.ts';
+import type { TakeCycleProjectDocument } from './take-cycle-project-document.ts';
 import type { EditorControllerLifetime, EditorProjectGeneration } from './lifecycle.ts';
 import type { MicrophoneMeterService } from './microphone-meter-service.ts';
-import type { ControllerProjectRuntime } from './project-runtime.ts';
 import type { ProjectFlushOptions } from './project-save-service.ts';
 import type { RecordedAudioSource } from './recording-finalization-types.ts';
 import type { ControllerRecordingState } from './recording-state.ts';
@@ -88,7 +87,10 @@ export interface RecordingCompositionDependencies {
 	readonly state: RecordingCompositionState;
 	readonly lifetime: Pick<EditorControllerLifetime, 'capture' | 'assertActive' | 'startTask' | 'cancelTask'>;
 	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
-	readonly projectRuntime: Pick<ControllerProjectRuntime, 'applyCommand' | 'cloneProject'>;
+	readonly projectRuntime: Readonly<{
+		cloneProject(project: unknown): unknown;
+		applyCommand: NonNullable<TakeCycleAppCompositionDependencies['applyProjectCommand']>;
+	}>;
 	readonly session: TakeCycleAppCompositionDependencies['session'];
 	readonly store: RecordingCompositionStore;
 	readonly engine: RecordingCompositionEngine;
@@ -125,7 +127,7 @@ export interface RecordingCompositionDependencies {
 	readonly beginPlaybackCachePreparation: (
 		project: RecordingProject | TakeCycleRoutedCaptureProject,
 	) => Promise<unknown>;
-	readonly applyProjectToPlaybackEngine: (project: AudioEditorProjectV17) => PromiseLike<unknown> | unknown;
+	readonly applyProjectToPlaybackEngine: (project: TakeCycleProjectDocument) => PromiseLike<unknown> | unknown;
 	readonly flushProject: (options: ProjectFlushOptions) => PromiseLike<unknown> | unknown;
 	readonly stopProjectBinPreview: () => PromiseLike<unknown> | unknown;
 	readonly persistSetting: (

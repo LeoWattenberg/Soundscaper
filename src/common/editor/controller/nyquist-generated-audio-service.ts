@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { RuntimePersistedClip } from '../runtime-clip-projection.ts';
+import { projectForRuntimeConsumers } from '../project-current-runtime.ts';
 import type { AudioBufferContext } from './source-audio.ts';
 import {
 	createAddClipCommand,
@@ -14,24 +16,18 @@ export interface NyquistGeneratedTrack extends Readonly<Record<string, unknown>>
 	readonly id: string;
 	readonly name: string;
 	readonly type: 'audio' | 'video' | 'label';
-	readonly clipIds: readonly string[];
+	readonly clipIds?: readonly string[];
 }
 
-export interface NyquistGeneratedClip extends Readonly<Record<string, unknown>> {
+export interface NyquistGeneratedClip extends RuntimePersistedClip {
 	readonly id: string;
-	readonly kind?: 'audio' | 'video';
+	readonly kind?: 'audio' | 'video' | 'image';
 	readonly sourceId: string;
-	readonly title: string;
-	readonly timelineStartFrame: number;
-	readonly sourceStartFrame: number;
-	readonly sourceDurationFrames: number;
-	readonly durationFrames: number;
 }
 
 export interface NyquistGeneratedAudioProject extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly schemaVersion: number;
-	readonly title: string;
 	readonly sampleRate: number;
 	readonly tracks: readonly NyquistGeneratedTrack[];
 	readonly clips: readonly NyquistGeneratedClip[];
@@ -82,7 +78,7 @@ export interface PersistNyquistAudioOptions {
 	readonly assertCurrent?: (() => void) | null;
 }
 
-export interface NyquistGeneratedAudioServiceRuntime {
+export interface NyquistGeneratedAudioServiceRuntime<Buffer extends NyquistGeneratedAudioBuffer = NyquistGeneratedAudioBuffer> {
 	readonly state: NyquistGeneratedAudioState;
 	readonly copy: NyquistGeneratedCopy;
 	readonly sourceChunkFrames: number;
@@ -109,12 +105,12 @@ export interface NyquistGeneratedAudioServiceRuntime {
 	readonly projectSampleRate: () => number;
 	readonly preflightStorage: (bytes: number, kind: 'effect') => Promise<unknown>;
 	readonly createId: (prefix: string) => string;
-	readonly getAudioContext: () => Promise<AudioBufferContext>;
+	readonly getAudioContext: () => Promise<AudioBufferContext<Buffer>>;
 	readonly bufferFromChannels: (
 		channels: readonly Float32Array[],
 		sampleRate: number,
-		context: AudioBufferContext,
-	) => Promise<NyquistGeneratedAudioBuffer>;
+		context: AudioBufferContext<Buffer>,
+	) => Promise<Buffer>;
 	readonly store: NyquistGeneratedStore;
 	readonly writeBuffer: (
 		writer: NyquistSourceWriter,
@@ -123,7 +119,7 @@ export interface NyquistGeneratedAudioServiceRuntime {
 	) => Promise<unknown>;
 	readonly snapTimelineFrame: (frame: unknown) => number;
 	readonly getPositionFrames: () => number;
-	readonly cacheSourceBuffer: (sourceId: string, buffer: NyquistGeneratedAudioBuffer) => void;
+	readonly cacheSourceBuffer: (sourceId: string, buffer: Buffer) => void;
 	readonly generateWaveformPeaks: (
 		channels: readonly Float32Array[],
 		copy: NyquistGeneratedCopy,
@@ -137,13 +133,14 @@ export interface NyquistGeneratedAudioServiceRuntime {
 	) => void;
 }
 
-export function createNyquistGeneratedAudioService(runtime: NyquistGeneratedAudioServiceRuntime) {
+export function createNyquistGeneratedAudioService<Buffer extends NyquistGeneratedAudioBuffer>(runtime: NyquistGeneratedAudioServiceRuntime<Buffer>) {
 	async function persistNyquistGeneratedAudio(
 		channels: readonly Float32Array[],
 		options: PersistNyquistAudioOptions = {},
 	): Promise<unknown> {
 		const signal = options.signal ?? null;
-		const project = runtime.getProject();
+		const persistedProject = runtime.getProject();
+		const project = projectForRuntimeConsumers(persistedProject);
 		const assertOwnership = createOwnershipAssertion(runtime, signal, options.assertCurrent);
 		assertOwnership();
 		runtime.assertAudioOutput(channels);
@@ -215,10 +212,9 @@ export function createNyquistGeneratedAudioService(runtime: NyquistGeneratedAudi
 			const endFrame = startFrame + frameCount;
 			const commands: AudioEditorCommand[] = [createAddSourceCommand(source)];
 			let targetTrackId = targetTrack?.id ?? null;
-			if (!targetTrack || targetTrack.clipIds.some((clipId) => {
-				const clip = findClip(project, clipId);
-				return Boolean(clip && clip.timelineStartFrame < endFrame
-					&& clip.timelineStartFrame + clip.durationFrames > startFrame);
+			if (!targetTrack || targetTrack.clipIds?.some((clipId) => {
+				const clip = project.clips.find((candidate) => candidate.id === clipId);
+				return Boolean(clip && clip.timelineStartFrame < endFrame && clip.timelineEndFrame > startFrame);
 			})) {
 				targetTrackId = runtime.createId('track');
 				commands.push(createAddTrackCommand({
@@ -271,7 +267,7 @@ export function createNyquistGeneratedAudioService(runtime: NyquistGeneratedAudi
  * re-anchor a superseded generator to the project that replaced it.
  */
 function createOwnershipAssertion(
-	runtime: NyquistGeneratedAudioServiceRuntime,
+	runtime: Pick<NyquistGeneratedAudioServiceRuntime, 'captureProject' | 'assertProject'>,
 	signal: AbortSignal | null,
 	callerAssertCurrent: (() => void) | null | undefined,
 ): () => void {
@@ -293,10 +289,6 @@ function findTrack(
 	trackId: string | null | undefined,
 ): NyquistGeneratedTrack | null {
 	return project.tracks.find((track) => track.id === trackId) ?? null;
-}
-
-function findClip(project: NyquistGeneratedAudioProject, clipId: string): NyquistGeneratedClip | null {
-	return project.clips.find((clip) => clip.id === clipId) ?? null;
 }
 
 function requireId(value: string | null, name: string): string {

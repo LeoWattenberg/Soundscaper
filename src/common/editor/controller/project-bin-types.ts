@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { RuntimePersistedClip, RuntimeClipProject } from '../runtime-clip-projection.ts';
 import type { CommandObject } from '../commands/protocol.ts';
 
-export type ProjectBinMediaKind = 'audio' | 'video';
+export type ProjectBinMediaKind = 'audio' | 'video' | 'image';
 
 export interface ProjectBinVideoEffect extends CommandObject {
 	readonly id?: string;
@@ -14,16 +15,16 @@ export interface ProjectBinVideoEffect extends CommandObject {
  * spread into a command; naming the fields used here keeps the service from
  * becoming a second, loosely typed project schema.
  */
-export interface ProjectBinClip {
+export interface ProjectBinClip extends RuntimePersistedClip {
 	readonly id: string;
 	readonly sourceId: string;
-	readonly title: string;
+	readonly title?: string;
 	readonly kind?: ProjectBinMediaKind;
 	readonly binItemId?: string | null;
-	readonly timelineStartFrame: number;
-	readonly sourceStartFrame: number;
-	readonly sourceDurationFrames: number;
-	readonly durationFrames: number;
+	readonly timelineStartFrame?: number;
+	readonly sourceStartFrame?: number;
+	readonly sourceDurationFrames?: number;
+	readonly durationFrames?: number;
 	readonly groupId?: string | null;
 	readonly avLinkId?: string | null;
 	readonly videoEffects?: readonly ProjectBinVideoEffect[];
@@ -33,7 +34,8 @@ export interface ProjectBinSource {
 	readonly id: string;
 	readonly kind?: ProjectBinMediaKind;
 	readonly sampleRate?: number;
-	readonly frameCount: number;
+	readonly frameCount?: number;
+	readonly sampleFrameCount?: number;
 	readonly channelCount?: number;
 }
 
@@ -41,7 +43,7 @@ export interface ProjectBinTrack {
 	readonly id: string;
 	readonly type: 'audio' | 'video' | 'label';
 	readonly name?: string;
-	readonly clipIds: readonly string[];
+	readonly clipIds?: readonly string[];
 	readonly laneGroupId?: string | null;
 }
 
@@ -49,7 +51,7 @@ export interface ProjectBinSelection {
 	readonly clipIds?: readonly string[];
 }
 
-export interface ProjectBinProject {
+export interface ProjectBinProject extends RuntimeClipProject {
 	readonly schemaVersion: number;
 	readonly id: string;
 	readonly revision: number;
@@ -131,9 +133,9 @@ export function findProjectBinClipTrack(
 	project: ProjectBinProject,
 	clipId: string,
 ): ProjectBinTrack | null {
-	return project.tracks.find((track) => track.clipIds.includes(clipId)) ?? null;
+	return project.tracks.find((track) => track.clipIds?.includes(clipId)) ?? null;
 }
 
 export function projectBinMediaKind(clip: ProjectBinClip): ProjectBinMediaKind {
-	return clip.kind === 'video' ? 'video' : 'audio';
+	return clip.kind ?? 'audio';
 }

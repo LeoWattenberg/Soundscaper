@@ -62,7 +62,7 @@ interface MacroProject {
 	readonly schemaVersion?: number;
 	readonly tracks: readonly Readonly<Record<string, unknown>>[];
 	readonly master: Readonly<Record<string, unknown>>;
-	readonly mixer: Readonly<Record<string, unknown>>;
+	readonly mixer: object;
 }
 
 interface MutableMacroProject extends Record<string, unknown> {

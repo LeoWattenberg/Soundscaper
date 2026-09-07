@@ -6,6 +6,7 @@
  */
 
 import { createAddClipCommand, createAddSourceCommand } from '../commands/factories.ts';
+import { projectForAudioGeneratorCommands } from './generator-project-view.ts';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
 import { prepareDisjointRangeDeleteCommand } from '../commands/range-runtime.js';
 import { generateAudioEditorSignal } from '../generators.js';
@@ -62,7 +63,8 @@ export function createLabeledAudioSilence<Context, Target extends AudioGenerator
 		let writer: AudioGeneratorWriter | null = null;
 		let sourceId: string | null = null;
 		try {
-			const project = owned.project;
+			const persistedProject = owned.project;
+			const project = projectForAudioGeneratorCommands(persistedProject, dependencies.getCommandProject);
 			const requested = new Set(trackIds);
 			const targets = project.tracks.filter((track) => requested.has(track.id) && track.type === 'audio');
 			// Upstream silences samples, so a labelled region over a track that
@@ -126,7 +128,7 @@ export function createLabeledAudioSilence<Context, Target extends AudioGenerator
 			dependencies.sourcePeaks.set(sourceId, peaks);
 			await dependencies.store.saveAnalysis(dependencies.peakCacheKey(sourceId), peaks);
 			ownership.assert(owned);
-			const commandProject = dependencies.getCommandProject?.() ?? project;
+			const commandProject = project;
 			dependencies.commit({
 				type: 'batch',
 				commands: [

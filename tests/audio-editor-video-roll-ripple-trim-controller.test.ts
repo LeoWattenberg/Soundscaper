@@ -26,6 +26,7 @@ register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.
 
 const { createAudioEditorController } = await import('../src/common/editor/app.js');
 const { createProjectStore } = await import('../src/common/editor/storage.js');
+const { createAudioEditorEngine } = await import('../src/common/editor/engine.js');
 
 const REQUEST = Object.freeze({
 	mode: 'ripple',
@@ -50,7 +51,6 @@ test('composed Framescaper actions preserve ordinary trim and commit roll/ripple
 		productId: 'framescaper',
 		store,
 		engine: createTestEngine(),
-		ffmpeg: { dispose() {} },
 	});
 
 	try {
@@ -89,7 +89,6 @@ test('the real Soundscaper facade capability-rejects roll/ripple while retaining
 		headless: true,
 		productId: 'soundscaper',
 		engine: createTestEngine(),
-		ffmpeg: { dispose() {} },
 	});
 	try {
 		await controller.ready;
@@ -141,18 +140,5 @@ function record(value: unknown, name: string): Readonly<Record<string, unknown>>
 }
 
 function createTestEngine() {
-	let positionFrame = 0;
-	return {
-		loadProject() {},
-		async applyProject() {},
-		getPositionFrames: () => positionFrame,
-		getState: () => ({ state: 'stopped', loop: { enabled: false } }),
-		stop() {},
-		play() {},
-		pause() {},
-		seek(frame: number) { positionFrame = frame; return positionFrame; },
-		setLoop() {},
-		setSourceResolver() { return this; },
-		async dispose() {},
-	};
+	return createAudioEditorEngine({ audioContextFactory: null, offlineAudioContextFactory: null });
 }

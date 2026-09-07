@@ -20,6 +20,7 @@ import type { AudioEditorProjectStoreOptions } from '../common/editor/storage/pr
 import type { AudioEditorProjectStore } from '../common/editor/storage.js';
 import {
 	applySoundscaperProjectCommand,
+	snapshotSoundscaperProjectCommand,
 	soundscaperProjectForCommandConsumers,
 	type SoundscaperProjectCommand,
 } from './editor-project-commands.ts';
@@ -83,8 +84,8 @@ export interface SoundscaperProjectRuntimeSelection {
 	readonly createSessionController: () => ReturnType<typeof createAudioEditorSessionController>;
 	readonly createProjectStore: (options?: AudioEditorProjectStoreOptions) => AudioEditorProjectStore;
 	readonly acquireProjectLock: typeof acquireProjectLock;
-	readonly projectForCommandConsumers: ControllerProjectRuntime['projectForCommandConsumers'];
-	readonly projectForRuntimeConsumers: ControllerProjectRuntime['projectForRuntimeConsumers'];
+	readonly projectForCommandConsumers: (project: unknown) => ReturnType<typeof projectForConsumers>;
+	readonly projectForRuntimeConsumers: (project: unknown) => ReturnType<typeof projectForConsumers>;
 	readonly prepareEditClipboardDescriptor: ControllerProjectRuntime['prepareEditClipboardDescriptor'];
 	readonly prepareTrackDuplicateCarrier: ControllerProjectRuntime['prepareTrackDuplicateCarrier'];
 	readonly applyCommand: (
@@ -93,21 +94,21 @@ export interface SoundscaperProjectRuntimeSelection {
 		options?: Readonly<{ now?: Date | string }>,
 	) => SoundscaperProject & ControllerRuntimeProject;
 	readonly executeCommand: (
-		history: SoundscaperProjectHistorySelection,
-		command: SoundscaperProjectCommand,
+		history: unknown,
+		command: unknown,
 		options?: Readonly<{ now?: Date | string }>,
 	) => SoundscaperProjectHistory & ControllerRuntimeHistory;
-	readonly collapseHistory: NonNullable<ControllerProjectRuntime['collapseHistory']>;
-	readonly rollbackHistory: NonNullable<ControllerProjectRuntime['rollbackHistory']>;
-	readonly undo: ControllerProjectRuntime['undo'];
-	readonly redo: ControllerProjectRuntime['redo'];
+	readonly collapseHistory: typeof collapseSoundscaperProjectHistory;
+	readonly rollbackHistory: typeof rollbackSoundscaperProjectHistory;
+	readonly undo: typeof undoSoundscaperProjectCommand;
+	readonly redo: typeof redoSoundscaperProjectCommand;
 	readonly canUndo: ControllerProjectRuntime['canUndo'];
 	readonly canRedo: ControllerProjectRuntime['canRedo'];
 }
 
 /** Select baseline document, command, history, session, and storage authority. */
 export function createSoundscaperProjectRuntimeSelection(): Readonly<SoundscaperProjectRuntimeSelection> {
-	const selection = {
+	const selection: SoundscaperProjectRuntimeSelection = {
 		assistanceAssetCommands: true as const,
 		runtimeProfile: SOUNDSCAPER_PROJECT_RUNTIME_PROFILE,
 		storageProfile: SOUNDSCAPER_PROJECT_STORAGE_PROFILE,
@@ -137,24 +138,24 @@ export function createSoundscaperProjectRuntimeSelection(): Readonly<Soundscaper
 			applySoundscaperProjectCommand(project, command, options) as SoundscaperProject & ControllerRuntimeProject
 		),
 		executeCommand: (
-			history: SoundscaperProjectHistorySelection,
-			command: SoundscaperProjectCommand,
+			history: unknown,
+			command: unknown,
 			options = {},
 		) => executeSoundscaperProjectCommand(
-			writableHistory(history), command, options,
+			writableHistory(history), snapshotSoundscaperProjectCommand(command), options,
 		) as SoundscaperProjectHistory & ControllerRuntimeHistory,
-		collapseHistory: ((history, depth, command) => collapseSoundscaperProjectHistory(
-			writableHistory(history as SoundscaperProjectHistorySelection), depth, command,
-		)) as NonNullable<ControllerProjectRuntime['collapseHistory']>,
-		rollbackHistory: ((history, depth, options = {}) => rollbackSoundscaperProjectHistory(
-			writableHistory(history as SoundscaperProjectHistorySelection), depth, options,
-		)) as NonNullable<ControllerProjectRuntime['rollbackHistory']>,
-		undo: (history: SoundscaperProjectHistorySelection, options = {}) => (
+		collapseHistory: (history, depth, command) => collapseSoundscaperProjectHistory(
+			writableHistory(history), depth, command,
+		),
+		rollbackHistory: (history, depth, options = {}) => rollbackSoundscaperProjectHistory(
+			writableHistory(history), depth, options,
+		),
+		undo: (history: unknown, options = {}) => (
 			undoSoundscaperProjectCommand(
 				writableHistory(history), options,
 			) as SoundscaperProjectHistory & ControllerRuntimeHistory
 		),
-		redo: (history: SoundscaperProjectHistorySelection, options = {}) => (
+		redo: (history: unknown, options = {}) => (
 			redoSoundscaperProjectCommand(
 				writableHistory(history), options,
 			) as SoundscaperProjectHistory & ControllerRuntimeHistory
@@ -170,23 +171,21 @@ export function createSoundscaperProjectRuntimeSelection(): Readonly<Soundscaper
 			profiledLockOptions(options),
 		),
 	};
-	return Object.freeze(selection) as unknown as Readonly<SoundscaperProjectRuntimeSelection>;
+	return Object.freeze(selection);
 }
 
 function projectForConsumers(
 	project: unknown,
 	kind: 'command' | 'runtime',
-): ControllerRuntimeProject {
+) {
 	if (!isCurrentProjectSchemaIdentity(project, SOUNDSCAPER_PROJECT_SCHEMA_FAMILY)) {
 		return createSoundscaperOpaqueCustodyConsumerProject(project);
 	}
 	if (kind === 'command') {
-		return soundscaperProjectForCommandConsumers(project) as ControllerRuntimeProject;
+		return soundscaperProjectForCommandConsumers(project);
 	}
-	validateSoundscaperProject(project);
-	return resolveRuntimeProjectProjection(
-		project as SoundscaperProject,
-	) as unknown as ControllerRuntimeProject;
+	if (!validateSoundscaperProject(project)) throw new TypeError('Invalid Soundscaper project.');
+	return resolveRuntimeProjectProjection(project);
 }
 
 function createHistory(
@@ -208,13 +207,18 @@ function createHistory(
 	});
 }
 
-function writableHistory(
-	history: SoundscaperProjectHistorySelection,
-): SoundscaperProjectHistory {
-	if (!isCurrentProjectSchemaIdentity(history.present, SOUNDSCAPER_PROJECT_SCHEMA_FAMILY)) {
+function writableHistory(history: unknown): SoundscaperProjectHistory {
+	const descriptor = history && typeof history === 'object'
+		? Object.getOwnPropertyDescriptor(history, 'present') : undefined;
+	if (!descriptor || !Object.hasOwn(descriptor, 'value') || !descriptor.enumerable) {
+		throw new TypeError('Selected history must contain an own present data property.');
+	}
+	const present: unknown = descriptor.value;
+	if (!isCurrentProjectSchemaIdentity(present, SOUNDSCAPER_PROJECT_SCHEMA_FAMILY)) {
 		throw new Error('Opaque Soundscaper project custody is read-only.');
 	}
-	return history as SoundscaperProjectHistory;
+	if (!validateSoundscaperProjectHistory(history)) throw new TypeError('Invalid Soundscaper history.');
+	return history;
 }
 
 function createSelectedSession(): ReturnType<typeof createAudioEditorSessionController> {

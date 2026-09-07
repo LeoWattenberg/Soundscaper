@@ -164,6 +164,15 @@ test('a non-string locale and a non-object copy are refused after the field surv
 	);
 });
 
+test('presentation copy refuses non-string and accessor entries without invoking them', async () => {
+	let reads = 0;
+	const accessor = Object.defineProperty({}, 'title', { enumerable: true, get() { reads += 1; return 'title'; } });
+	for (const copy of [{ title: 3 }, accessor]) {
+		await assert.rejects(controllerWith({ copy }), /copy entries must be strings/u);
+	}
+	assert.equal(reads, 0);
+});
+
 test('the supplied locale and copy reach the controller snapshot', async () => {
 	const controller = await controllerWith({ locale: 'de', copy: { ready: 'Bereit' } });
 

@@ -112,6 +112,7 @@ export interface NativeSourceWriter {
 }
 
 export interface NativeProjectStore {
+	loadProject?(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): NativeAwaitable<unknown>;
 	estimateStorage(): Promise<Readonly<Partial<NativeStorageEstimate>>>;
 	beginSourceWrite(sourceId: string, metadata: Readonly<{
 		name: string;

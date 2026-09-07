@@ -21,7 +21,7 @@ import type { ControllerEditSessionClipboardCarrier } from './project-runtime.ts
 export interface ClipboardEditClip extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly sourceId: string;
-	readonly kind?: 'audio' | 'video';
+	readonly kind?: 'audio' | 'video' | 'image';
 	readonly title?: string;
 	readonly timelineStartFrame: number;
 	readonly sourceStartFrame: number;
@@ -45,7 +45,7 @@ export interface ClipboardEditLabelTrack extends Readonly<Record<string, unknown
 	readonly id: string;
 	readonly name: string;
 	readonly type: 'label';
-	readonly labels: readonly Readonly<Record<string, unknown>>[];
+	readonly labels: readonly object[];
 }
 
 export type ClipboardEditTrack = ClipboardEditMediaTrack | ClipboardEditLabelTrack;

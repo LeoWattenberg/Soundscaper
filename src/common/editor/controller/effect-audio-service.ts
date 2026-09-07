@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { projectForRuntimeConsumers } from '../project-current-runtime.ts';
 import { hasCoreEditingProjectAuthority, hasProductionMixerProjectAuthority } from '../project-schema-version.ts';
 import type {
-	EffectAudioClip,
 	EffectAudioEffect,
 	EffectAudioProject,
 	EffectAudioServiceRuntime,
@@ -190,10 +190,11 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 		requestedTrackId: string | null = runtime.state.selectedTrackId,
 	): Promise<void> {
 		if (runtime.editingBlocked()) return;
-		const project = runtime.getProject();
+		const persistedProject = runtime.getProject();
+		const project = projectForRuntimeConsumers(persistedProject);
 		const selectionTarget = runtime.audacityEffectTarget(requestedTrackId);
 		const selection = runtime.activeSelection();
-		const selectedClip = findClip(project, runtime.state.selectedClipId);
+		const selectedClip = project.clips.find((clip) => clip.id === runtime.state.selectedClipId);
 		const startFrame = selection?.startFrame ?? selectedClip?.timelineStartFrame;
 		const endFrame = selection?.endFrame
 			?? (selectedClip ? selectedClip.timelineStartFrame + selectedClip.durationFrames : null);
@@ -396,9 +397,6 @@ function findMutableTrack(
 	return project.tracks.find((track) => track.id === trackId) ?? null;
 }
 
-function findClip(project: EffectAudioProject, clipId: string | null): EffectAudioClip | null {
-	return project.clips.find((clip) => clip.id === clipId) ?? null;
-}
 
 function requireTrackId(trackId: string | null): string {
 	if (!trackId) throw new TypeError('A track id is required.');

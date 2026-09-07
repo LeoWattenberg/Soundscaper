@@ -108,6 +108,8 @@ export interface RecordingSoundActivationPort {
 }
 
 export interface RecordingControllerFactoryOptions {
+	readonly chunkFrames?: number;
+	readonly maxPendingChunks?: number;
 	readonly context: RecordingAudioContext;
 	readonly stream: RecordingMediaStream;
 	readonly channelCount: number;

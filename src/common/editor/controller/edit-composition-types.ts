@@ -9,7 +9,7 @@ import type { AudioGeneratorServiceDependencies } from './generator-service.ts';
 import type { LabelServiceDependencies } from './label-service.ts';
 import type { EditorControllerLifetime, EditorProjectGeneration } from './lifecycle.ts';
 import type { ProjectChangedOptions } from './project-mutation-service.ts';
-import type { ControllerProjectRuntime, ControllerRuntimeHistory } from './project-runtime.ts';
+import type { ControllerProjectRuntime, ControllerRuntimeHistory, ControllerRuntimeCommandOptions, ControllerEditClipboardRuntimeBindings } from './project-runtime.ts';
 import type { bufferFromChannels } from './source-audio.ts';
 import type { EditorTaskProgressCoordinator } from './task-progress.ts';
 import type { generateWaveformPeaks } from './waveform-analysis.ts';
@@ -24,12 +24,12 @@ export type EditCommandProject =
 	& ReturnType<ClipboardEditServiceDependencies['getProject']>
 	& ReturnType<NonNullable<AudioGeneratorServiceDependencies['getCommandProject']>>;
 
-export type EditCompositionState =
+export type EditCompositionState<History extends ControllerRuntimeHistory = ControllerRuntimeHistory> =
 	& LabelServiceDependencies['state']
 	& ClipboardEditServiceDependencies['state']
 	& AudioGeneratorServiceDependencies['state']
 	& {
-		history: ControllerRuntimeHistory | null;
+		history: History | null;
 		videoEffectGestures: Map<string, unknown>;
 	};
 
@@ -45,12 +45,19 @@ export type EditCompositionCopy =
 		readonly labeledAudioRequired: string;
 	}>;
 
-export interface EditCompositionDependencies {
-	readonly state: EditCompositionState;
+export interface EditCompositionRuntime<History extends ControllerRuntimeHistory> extends ControllerEditClipboardRuntimeBindings {
+	readonly prepareEditClipboardDescriptor: ControllerProjectRuntime['prepareEditClipboardDescriptor'];
+	readonly projectForEditClipboardConsumers?: (project: EditCompositionProject) => Readonly<Record<string, unknown>>;
+	readonly undo: (history: History, options?: ControllerRuntimeCommandOptions) => History;
+	readonly redo: (history: History, options?: ControllerRuntimeCommandOptions) => History;
+}
+
+export interface EditCompositionDependencies<History extends ControllerRuntimeHistory = ControllerRuntimeHistory> {
+	readonly state: EditCompositionState<History>;
 	readonly copy: EditCompositionCopy;
 	readonly lifetime: EditorControllerLifetime;
 	readonly projectGeneration: EditorProjectGeneration;
-	readonly projectRuntime: Readonly<ControllerProjectRuntime>;
+	readonly projectRuntime: Readonly<EditCompositionRuntime<History>>;
 	/** Whether this product composes generators; without them the domain gets a refusing stand-in. */
 	readonly composition: Readonly<{ readonly generators: boolean }>;
 	readonly absentSubsystem: AbsentSubsystemContext;

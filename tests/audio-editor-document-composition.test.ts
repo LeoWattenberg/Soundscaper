@@ -5,23 +5,26 @@ import test from 'node:test';
 import {
 	COPY,
 	createAudioEditorController,
-	createMemoryClipTimePitchCache,
-	createMemoryEngine,
 	createProjectStore,
 } from './helpers/audio-editor-controller-harness.js';
+import { ClipTimePitchRenderCacheCoordinator } from '../src/common/editor/clip-time-pitch-cache.js';
+import { createAudioEditorEngine } from '../src/common/editor/engine.js';
 import { createAudioClip, createAudioSource } from '../src/common/editor/project-media-factory.ts';
 
 test('document composition retains project-bin clips across edits, undo and redo', async () => {
 	let retained = new Set<string>();
+	const store = createProjectStore({ indexedDB: null, preferOpfs: false });
+	const clipTimePitchCache = new ClipTimePitchRenderCacheCoordinator({ store });
+	const retainClipIds = clipTimePitchCache.retainClipIds.bind(clipTimePitchCache);
+	clipTimePitchCache.retainClipIds = (ids: ReadonlySet<string>) => {
+		retained = new Set(ids);
+		return retainClipIds(ids);
+	};
 	const controller = createAudioEditorController(null, {
 		headless: true, copy: COPY,
-		store: createProjectStore({ indexedDB: null, preferOpfs: false }),
-		engine: createMemoryEngine(),
-		ffmpeg: { dispose() {} },
-		clipTimePitchCache: {
-			...createMemoryClipTimePitchCache(),
-			retainClipIds(ids: ReadonlySet<string>) { retained = new Set(ids); },
-		},
+		store,
+		engine: createAudioEditorEngine({ audioContextFactory: null, offlineAudioContextFactory: null }),
+		clipTimePitchCache,
 	});
 	try {
 		await controller.ready;

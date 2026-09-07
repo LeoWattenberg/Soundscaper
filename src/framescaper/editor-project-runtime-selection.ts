@@ -3,6 +3,8 @@
 import type { AudioEditorClipboard, AudioEditorCommand } from '../common/editor/commands/protocol.ts';
 import { AUDIO_EDITOR_HISTORY_LIMIT } from '../common/editor/history.js';
 import { acquireProjectLock } from '../common/editor/project-lock.js';
+import type { ControllerRuntimeHistory } from '../common/editor/controller/project-runtime.ts';
+import type { ProjectLifecycleLock } from '../common/editor/controller/project-lifecycle-types.ts';
 import { createOpaqueProjectConsumer } from '../common/editor/project-opaque-consumer.ts';
 import {
 	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
@@ -16,6 +18,7 @@ import {
 } from './editor-project-feature-requirements.ts';
 import {
 	applyFramescaperProjectCommand,
+	snapshotFramescaperProjectCommand,
 	prepareFramescaperVideoTransitionAllocations,
 	type FramescaperProjectCommand,
 } from './editor-project-commands.ts';
@@ -59,7 +62,7 @@ import {
 	type FramescaperSessionClipboardV13,
 } from './editor-session-clipboard-v13.ts';
 
-type LockFactory = (projectId: string, options?: Record<string, unknown>) => Promise<unknown>;
+type LockFactory = (projectId: string, options?: Record<string, unknown>) => Promise<ProjectLifecycleLock>;
 type SessionFactory = () => ReturnType<typeof createAudioEditorSessionController>;
 interface FramescaperOpaqueCustodyHistory {
 	readonly limit: number;
@@ -81,8 +84,8 @@ export interface EditorProjectRuntimeSelection {
 	readonly cloneProject: (project: unknown) => FramescaperProject;
 	readonly loadProject: (project: unknown) => ReturnType<typeof loadFramescaperProject>;
 	readonly validateProject: (project: unknown) => project is FramescaperProject;
-	readonly projectForCommandConsumers: (project: unknown) => Readonly<Record<string, unknown>>;
-	readonly projectForRuntimeConsumers: (project: unknown) => Readonly<Record<string, unknown>>;
+	readonly projectForCommandConsumers: (project: unknown) => ReturnType<typeof projectForConsumers>;
+	readonly projectForRuntimeConsumers: (project: unknown) => ReturnType<typeof projectForConsumers>;
 	readonly projectForEditClipboardConsumers: (project: unknown) => Readonly<Record<string, unknown>>;
 	readonly createSessionClipboard: (
 		project: unknown,
@@ -120,20 +123,20 @@ export interface EditorProjectRuntimeSelection {
 		options?: Readonly<{ now?: Date | string }>,
 	) => FramescaperProject;
 	readonly executeCommand: (
-		history: FramescaperProjectHistorySelection,
-		command: FramescaperProjectCommand,
+		history: unknown,
+		command: unknown,
 		options?: Readonly<{ now?: Date | string }>,
 	) => FramescaperProjectHistory;
 	readonly undo: (
-		history: FramescaperProjectHistorySelection,
+		history: unknown,
 		options?: Readonly<{ now?: Date | string }>,
 	) => FramescaperProjectHistory;
 	readonly redo: (
-		history: FramescaperProjectHistorySelection,
+		history: unknown,
 		options?: Readonly<{ now?: Date | string }>,
 	) => FramescaperProjectHistory;
-	readonly canUndo: (history: FramescaperProjectHistorySelection) => boolean;
-	readonly canRedo: (history: FramescaperProjectHistorySelection) => boolean;
+	readonly canUndo: (history: ControllerRuntimeHistory) => boolean;
+	readonly canRedo: (history: ControllerRuntimeHistory) => boolean;
 	readonly createSessionController: SessionFactory;
 	readonly createProjectStore: (options?: AudioEditorProjectStoreOptions) => unknown;
 	readonly acquireProjectLock: LockFactory;
@@ -191,21 +194,21 @@ export function createEditorProjectRuntimeSelection(
 			options,
 		),
 		executeCommand: (history, command, options = {}) => {
-			const writable = writableHistory(history);
+			const writable = writableHistory(profile, history);
 			return executeFramescaperProjectCommand(
 				profile,
 				writable,
 				prepareFramescaperVideoTransitionAllocations(
-					profile, writable.present, command, createStableId,
+					profile, writable.present, snapshotFramescaperProjectCommand(command), createStableId,
 				),
 				options,
 			);
 		},
 		undo: (history, options = {}) => undoFramescaperProjectCommand(
-			profile, writableHistory(history), options,
+			profile, writableHistory(profile, history), options,
 		),
 		redo: (history, options = {}) => redoFramescaperProjectCommand(
-			profile, writableHistory(history), options,
+			profile, writableHistory(profile, history), options,
 		),
 		canUndo: (history) => history.undoStack.length > 0,
 		canRedo: (history) => history.redoStack.length > 0,
@@ -274,7 +277,7 @@ function projectForConsumers(
 	profile: unknown,
 	project: unknown,
 	kind: 'runtime' | 'command',
-): Readonly<Record<string, unknown>> {
+) {
 	const classification = classifyProjectSchemaIdentity(project, FRAMESCAPER_PROJECT_SCHEMA_FAMILY);
 	if (classification.disposition !== 'current') return createOpaqueCustodyConsumer(project);
 	return kind === 'runtime'
@@ -293,14 +296,18 @@ function createHistory(profile: unknown, project: unknown): FramescaperProjectHi
 	});
 }
 
-function writableHistory(history: FramescaperProjectHistorySelection): FramescaperProjectHistory {
-	if (classifyProjectSchemaIdentity(
-		history.present,
-		FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
-	).disposition !== 'current') {
+function writableHistory(profile: unknown, history: unknown): FramescaperProjectHistory {
+	const descriptor = history && typeof history === 'object'
+		? Object.getOwnPropertyDescriptor(history, 'present') : undefined;
+	if (!descriptor || !Object.hasOwn(descriptor, 'value') || !descriptor.enumerable) {
+		throw new TypeError('Selected history must contain an own present data property.');
+	}
+	const present: unknown = descriptor.value;
+	if (classifyProjectSchemaIdentity(present, FRAMESCAPER_PROJECT_SCHEMA_FAMILY).disposition !== 'current') {
 		throw new Error('Opaque Framescaper project custody is read-only.');
 	}
-	return history as FramescaperProjectHistory;
+	if (!validateFramescaperProjectHistory(profile, history)) throw new TypeError('Invalid Framescaper history.');
+	return history;
 }
 
 function createOpaqueCustodyConsumer(value: unknown) {

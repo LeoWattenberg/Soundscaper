@@ -27,3 +27,25 @@ export function createControllerDocumentState<
 		},
 	});
 }
+
+/** Restore only checkpoints minted by this owner, through its single history authority. */
+export function createControllerDocumentCheckpoints<History extends { readonly present: { readonly id: string } }>(
+	state: { history: History | null },
+) {
+	const histories = new WeakMap<object, History>();
+	return Object.freeze({
+		captureActiveDocument(): Readonly<{ history: History; project: History['present'] }> {
+			const history = state.history;
+			if (!history) throw new Error('A document checkpoint requires an open project.');
+			const checkpoint = Object.freeze({ history, project: history.present });
+			histories.set(checkpoint, history);
+			return checkpoint;
+		},
+		restoreActiveDocument(checkpoint: object): void {
+			const history = histories.get(checkpoint);
+			if (!history) throw new TypeError('Unknown document checkpoint.');
+			if (state.history?.present.id !== history.present.id) throw new Error('Checkpoint project changed.');
+			state.history = history;
+		},
+	});
+}

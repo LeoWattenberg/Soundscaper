@@ -12,10 +12,12 @@ import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
 import type { MixRenderOperationCommit } from './mix-render-commit.ts';
 import type { ControllerProject } from './track-domain-types.ts';
 
+type RoutingProject = Readonly<Record<string, unknown>>;
+
 export type MixRenderCommandPreview = (
 	project: ControllerProject,
 	command: AudioEditorCommand,
-) => ControllerProject;
+) => RoutingProject;
 
 /** Restate production sibling routes after all new clips have established their exact widths. */
 export function preserveProductionMixRenderRouting(
@@ -54,7 +56,7 @@ export function preserveProductionMixRenderRouting(
 
 function restateRoutes(
 	originalProject: ControllerProject,
-	project: ControllerProject,
+	project: RoutingProject,
 	staged: MixerGraphV21,
 	original: MixerGraphV21,
 	copies: readonly Readonly<{ readonly sourceTrackId: string; readonly targetTrackId: string }>[],

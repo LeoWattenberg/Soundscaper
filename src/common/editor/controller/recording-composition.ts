@@ -57,7 +57,6 @@ import type {
 	RecordingCompositionEngine,
 	RecordingCompositionProject,
 } from './recording-composition-types.ts';
-import type { AudioEditorProjectV17 } from '../project-v17-validation.ts';
 
 export type {
 	RecordingCompositionCopy,
@@ -261,10 +260,10 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		activateStoredSource: (source, metadata) => (
 			dependencies.activateStoredSource(source, metadata, { requireChunkStream: true })
 		),
-		// The product runtime edits its own document family; the take cycle is
-		// typed against the audio schema it produces, which every family embeds.
+		// The selected product runtime owns validation and commands; durable
+		// publication preserves its document family and schema.
 		applyProjectCommand: (project, command, options) => (
-			dependencies.projectRuntime.applyCommand(project, command, options) as AudioEditorProjectV17
+			dependencies.projectRuntime.applyCommand(project, command, options)
 		),
 		validateProject: (project) => { dependencies.projectRuntime.cloneProject(project); },
 		publishProject: () => { dependencies.retention.retainLiveClipIds(); dependencies.publishProjectState(); },

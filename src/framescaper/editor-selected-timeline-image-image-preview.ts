@@ -263,7 +263,7 @@ function imageClipContexts(project: FramescaperProjectTimelineImage): readonly O
 	const sequence = project.sequences.find(({ id }) => id === project.primarySequenceId);
 	if (!sequence) throw new ReferenceError('The selected timelineImage primary sequence is unavailable.');
 	const sequenceTrackIds = new Set(sequence.trackIds);
-	const videoTracks = project.tracks.filter(({ type, id }) => type === 'video' && sequenceTrackIds.has(id));
+	const videoTracks = project.tracks.filter(track => track.type === 'video').filter(({ id }) => sequenceTrackIds.has(id));
 	const soloed = videoTracks.some((track) => track.solo === true);
 	const visible = new Set(videoTracks.filter((track) => (
 		soloed ? track.solo === true : track.hidden !== true

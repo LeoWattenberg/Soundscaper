@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { EngineEnvelopePoint } from '../engine/types.ts';
 import type { AudioBufferLike } from './source-audio.ts';
 
 export interface ControllerEffect extends Readonly<Record<string, unknown>> {
 	readonly id: string;
-	readonly type: string;
+	readonly type?: string;
 	readonly enabled?: boolean;
 	readonly bypassed?: boolean;
 	readonly context?: Readonly<Record<string, unknown>> | null;
@@ -13,7 +14,7 @@ export interface ControllerEffect extends Readonly<Record<string, unknown>> {
 export interface ControllerClip extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly sourceId: string;
-	readonly title: string;
+	readonly title?: string;
 	readonly timelineStartFrame: number;
 	readonly sourceStartFrame: number;
 	readonly sourceDurationFrames: number;
@@ -35,11 +36,17 @@ export interface ControllerSource extends Readonly<Record<string, unknown>> {
 	readonly chunkFrames?: number;
 }
 
+/** Media inventory includes visual sources; PCM consumers narrow through findControllerSource. */
+export interface ControllerSourceInventory extends Partial<ControllerSource> {
+	readonly id: string;
+	readonly kind?: unknown;
+}
+
 export interface ControllerTrack extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly name: string;
 	readonly type: 'audio' | 'video' | 'label';
-	readonly clipIds: readonly string[];
+	readonly clipIds?: readonly string[];
 	readonly locked?: boolean;
 	readonly laneGroupId?: string | null;
 	readonly effects?: readonly ControllerEffect[];
@@ -49,7 +56,7 @@ export interface ControllerTrack extends Readonly<Record<string, unknown>> {
 	readonly mute?: boolean;
 	readonly solo?: boolean;
 	readonly armed?: boolean;
-	readonly envelope?: readonly Readonly<Record<string, unknown>>[];
+	readonly envelope?: readonly EngineEnvelopePoint[];
 }
 
 export interface ControllerMixerBus extends Readonly<Record<string, unknown>> {
@@ -67,7 +74,7 @@ export interface ControllerMixerRoute extends Readonly<Record<string, unknown>> 
 export interface ControllerMixer {
 	readonly groups: readonly ControllerMixerBus[];
 	readonly sends: readonly ControllerMixerBus[];
-	readonly routes: Readonly<Record<string, ControllerMixerRoute>>;
+	readonly routes?: Readonly<Record<string, ControllerMixerRoute>>;
 }
 
 export interface ControllerSelection extends Readonly<Record<string, unknown>> {
@@ -85,7 +92,7 @@ export interface ControllerProject extends Readonly<Record<string, unknown>> {
 	readonly sampleRate: number;
 	readonly tracks: readonly ControllerTrack[];
 	readonly clips: readonly ControllerClip[];
-	readonly sources: readonly ControllerSource[];
+	readonly sources: readonly ControllerSourceInventory[];
 	readonly selection?: ControllerSelection | null;
 	readonly mixer: ControllerMixer;
 }
@@ -97,7 +104,7 @@ export interface MutableControllerProject extends Record<string, unknown> {
 	sampleRate: number;
 	tracks: ControllerTrack[];
 	clips: ControllerClip[];
-	sources: ControllerSource[];
+	sources: ControllerSourceInventory[];
 	selection: ControllerSelection | null;
 	mixer: {
 		groups: ControllerMixerBus[];
@@ -141,10 +148,21 @@ export function findControllerClip(
 }
 
 export function findControllerSource(
-	project: ControllerProject,
+	project: Readonly<{ sources: readonly ControllerSourceInventory[] }>,
 	sourceId: string | null | undefined,
 ): ControllerSource | null {
-	return project.sources.find((source) => source.id === sourceId) ?? null;
+	const source = project.sources.find((candidate) => candidate.id === sourceId);
+	return source && isControllerPcmSource(source) ? source : null;
+}
+
+function isControllerPcmSource(source: ControllerSourceInventory): source is ControllerSource {
+	return (source.kind === undefined || source.kind === 'audio')
+		&& typeof source.storageKey === 'string' && typeof source.name === 'string'
+		&& typeof source.mimeType === 'string'
+		&& typeof source.frameCount === 'number' && Number.isSafeInteger(source.frameCount) && source.frameCount >= 0
+		&& typeof source.channelCount === 'number' && Number.isSafeInteger(source.channelCount) && source.channelCount > 0
+		&& typeof source.sampleRate === 'number' && Number.isFinite(source.sampleRate) && source.sampleRate > 0
+		&& typeof source.originalSampleRate === 'number' && Number.isFinite(source.originalSampleRate) && source.originalSampleRate >= 0;
 }
 
 export function findControllerClipTrack<Track extends Readonly<{ id: string; clipIds?: readonly string[] }>>(

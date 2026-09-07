@@ -110,7 +110,7 @@ function prepareCombinedOutput(
 		commands.push(
 			...freezeRemovalCommands(project, bottomTrack),
 			...v21StripLaneRemovalCommands(project, trackId),
-			...bottomTrack.clipIds.map((clipIdToRemove): AudioEditorCommand => ({
+			...(bottomTrack.clipIds ?? []).map((clipIdToRemove): AudioEditorCommand => ({
 				type: 'clip/remove', clipId: clipIdToRemove,
 			})),
 			...(bottomTrack.effects ?? []).map((effect): AudioEditorCommand => ({
@@ -159,7 +159,7 @@ function addDirectLegacyRouteCommand(
 	trackId: string,
 	commands: AudioEditorCommand[],
 ): void {
-	const route = project.mixer.routes[trackId];
+	const route = project.mixer.routes?.[trackId];
 	if (!route?.groupId && !Object.keys(route?.sends ?? {}).length) return;
 	commands.push({
 		type: 'mixer/route-update',
@@ -193,7 +193,7 @@ function prepareIndividualOutput(
 		commands.push(
 			...freezeRemovalCommands(project, target),
 			...v21StripLaneRemovalCommands(project, target.id),
-			...target.clipIds.map((clipIdToRemove): AudioEditorCommand => ({
+			...(target.clipIds ?? []).map((clipIdToRemove): AudioEditorCommand => ({
 				type: 'clip/remove', clipId: clipIdToRemove,
 			})),
 			...(target.effects ?? []).map((effect): AudioEditorCommand => ({
@@ -214,7 +214,7 @@ function prepareIndividualOutput(
 		if (isSoundscaperProductionProject(project)) {
 			routingCopies.push({ sourceTrackId: target.id, targetTrackId: trackId });
 		} else {
-			const route = project.mixer.routes[target.id] ?? { groupId: null, sends: {} };
+			const route = project.mixer.routes?.[target.id] ?? { groupId: null, sends: {} };
 			commands.push({
 				type: 'mixer/route-update', trackId,
 				changes: { groupId: route.groupId ?? null, sends: { ...(route.sends ?? {}) } },

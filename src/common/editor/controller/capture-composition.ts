@@ -7,6 +7,7 @@ import type {
 	FramescaperCaptureDerivativeSchedulerOptions,
 } from './framescaper-capture-derivative-scheduler.ts';
 import type { createFramescaperCaptureProjectWriteAuthority } from './framescaper-capture-project-write-authority.ts';
+import type { VideoProxyCandidateRuntime, VideoProxyCandidateCompositionOptions } from './video-proxy-candidate-composition.ts';
 import type {
 	createFramescaperCaptureProxyActiveProjectSynchronizer,
 	createFramescaperCaptureProxySaveQuiescence,
@@ -25,8 +26,8 @@ export type CaptureProxyScheduler = NonNullable<FramescaperCaptureDerivativeSche
 };
 
 export interface CaptureProxyCompositionPorts {
-	readonly runtime: unknown;
-	readonly helperTimingProbe: unknown;
+	readonly runtime: VideoProxyCandidateRuntime | null | undefined;
+	readonly helperTimingProbe: VideoProxyCandidateCompositionOptions['helperTimingProbe'];
 	readonly quiesceProjectSaves: ReturnType<typeof createFramescaperCaptureProxySaveQuiescence>;
 	readonly synchronizeActiveProject: ReturnType<typeof createFramescaperCaptureProxyActiveProjectSynchronizer>;
 }
@@ -39,8 +40,8 @@ export interface CaptureCompositionDependencies {
 		'createVideoFrameExtractor' | 'videoThumbnailTimes' | 'scheduleProxy'>;
 	readonly proxy: Readonly<{
 		createScheduler?: (ports: CaptureProxyCompositionPorts) => CaptureProxyScheduler;
-		runtime: unknown;
-		helperTimingProbe: unknown;
+		runtime: CaptureProxyCompositionPorts['runtime'];
+		helperTimingProbe: CaptureProxyCompositionPorts['helperTimingProbe'];
 		saves: Parameters<typeof createFramescaperCaptureProxySaveQuiescence>[0];
 		activeProject: Parameters<typeof createFramescaperCaptureProxyActiveProjectSynchronizer>[0];
 	}>;

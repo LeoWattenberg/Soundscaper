@@ -358,6 +358,14 @@ export async function canonicalizeBuffer(
 		: resampleBuffer(downmixed, targetSampleRate, context, copy);
 }
 
+export function bufferFromChannels(
+	channels: readonly Float32Array[], sampleRate: number,
+	context: AudioBufferContext<AudioBuffer>, copy: AudioCopy,
+): Promise<AudioBuffer>;
+export function bufferFromChannels(
+	channels: readonly Float32Array[], sampleRate: number,
+	context: AudioBufferContext | null | undefined, copy: AudioCopy,
+): Promise<AudioBufferLike>;
 export async function bufferFromChannels(
 	channels: readonly Float32Array[],
 	sampleRate: number,

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { TakeCycleProjectDocument } from '../../src/common/editor/controller/take-cycle-project-document.ts';
 import type { AudioEditorProjectCurrent } from '../../src/common/editor/project-current.ts';
 import type { AudioEditorCommand } from '../../src/common/editor/commands/protocol.ts';
 import {
@@ -82,7 +83,7 @@ export async function createCycleProducedTakeFixture(
 		lifetime.markReady();
 		const generation = new EditorProjectGeneration();
 		generation.activate(base.id);
-		let history = createEditorHistory(base);
+		let history = createEditorHistory<TakeCycleProjectDocument>(base);
 		const publication = (value: TakeCyclePublishedProject): void => {
 			if (!value.command) {
 				history = createEditorHistory(value.target);

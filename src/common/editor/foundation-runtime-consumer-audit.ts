@@ -1,16 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export type FoundationRuntimeConsumerSurface =
-	| 'playback'
-	| 'preview'
-	| 'composition'
-	| 'transition'
-	| 'audio-export'
-	| 'video-export'
-	| 'interchange'
-	| 'navigation'
-	| 'timeline'
-	| 'waveform';
+import type { FoundationRuntimeConsumerSurface } from './foundation-runtime-consumer-evidence.ts';
+export { FOUNDATION_RUNTIME_CONSUMER_SURFACES } from './foundation-runtime-consumer-evidence.ts';
+export type { FoundationRuntimeConsumerSurface, FoundationRuntimeConsumerEvidence } from './foundation-runtime-consumer-evidence.ts';
 
 export interface FoundationRuntimeProjectionBoundary {
 	readonly boundary: string;
@@ -18,17 +10,6 @@ export interface FoundationRuntimeProjectionBoundary {
 	readonly root: boolean;
 	readonly delegate: string | null;
 	readonly guardsBrand: boolean;
-}
-
-export interface FoundationRuntimeConsumerEvidence {
-	readonly id: string;
-	readonly surface: FoundationRuntimeConsumerSurface;
-	readonly file: string;
-	readonly entryPoint: string;
-	readonly inputIdentifier: string;
-	readonly projectedIdentifier: string | null;
-	readonly boundary: string;
-	readonly evidence: string;
 }
 
 export interface FoundationRuntimeShieldedOwner {
@@ -49,6 +30,14 @@ export interface FoundationRuntimeProjectionImporterExclusion {
 
 /** Projection adapters admitted by the WP-0.2 shield audit. */
 export const FOUNDATION_RUNTIME_PROJECTION_BOUNDARIES: readonly FoundationRuntimeProjectionBoundary[] = deepFreeze([
+	{ boundary: 'resolveRuntimeClipProjection', file: 'src/common/editor/runtime-clip-projection.ts', root: true, delegate: null, guardsBrand: false },
+	{ boundary: 'resolveProjectBinAudioPreviewClip', file: 'src/common/editor/controller/project-bin-runtime.ts', root: false, delegate: 'resolveRuntimeClipProjection', guardsBrand: false },
+	{ boundary: 'projectBinReplacementShortensClip', file: 'src/common/editor/controller/project-bin-runtime.ts', root: false, delegate: 'resolveRuntimeClipProjection', guardsBrand: false },
+	{
+		boundary: 'projectForAudioGeneratorCommands',
+		file: 'src/common/editor/controller/generator-project-view.ts',
+		root: false, delegate: 'projectForRuntimeConsumers', guardsBrand: false,
+	},
 	{
 		boundary: 'resolveRuntimeProjectProjection',
 		file: 'src/common/editor/runtime-clip-projection.ts',
@@ -109,6 +98,9 @@ export const FOUNDATION_RUNTIME_PROJECTION_BOUNDARIES: readonly FoundationRuntim
 
 /** Files that own the raw-project boundary for every WP-0.2 consumer surface. */
 export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShieldedOwner[] = deepFreeze([
+	{ file: 'src/common/editor/controller/project-bin-runtime.ts', surfaces: ['preview', 'composition'] },
+	{ file: 'src/common/editor/controller/project-bin-preview-service.ts', surfaces: ['preview'] },
+	{ file: 'src/common/editor/controller/project-bin-replacement-service.ts', surfaces: ['composition'] },
 	{ file: 'src/common/editor/engine/lifecycle.ts', surfaces: ['playback'] },
 	{ file: 'src/common/editor/export.js', surfaces: ['audio-export'] },
 	{ file: 'src/common/editor/aup4-export.js', surfaces: ['interchange'] },
@@ -116,6 +108,11 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/timeline-annotation-riff-interchange.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/controller/interchange-export-action.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/controller/nyquist-host-service.ts', surfaces: ['interchange'] },
+	{ file: 'src/common/editor/controller/generator-service.ts', surfaces: ['composition'] },
+	{ file: 'src/common/editor/controller/labeled-audio-silence.ts', surfaces: ['composition'] },
+	{ file: 'src/common/editor/controller/controller-project-queries.ts', surfaces: ['composition'] },
+	{ file: 'src/common/editor/controller/effect-audio-service.ts', surfaces: ['audio-export'] },
+	{ file: 'src/common/editor/controller/nyquist-generated-audio-service.ts', surfaces: ['composition'] },
 	{ file: 'src/common/editor/video-export.js', surfaces: ['video-export'] },
 	{ file: 'src/common/editor/video-keyframe-export-inventory.ts', surfaces: ['video-export'] },
 	{ file: 'src/common/editor/ui/video-keyframe-offline-video-export.ts', surfaces: ['video-export'] },
@@ -130,6 +127,10 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 /** Exact non-consumer readers co-located with a shield owner. No wildcard exclusions are admitted. */
 export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRuntimeTimingReaderExclusion[] = deepFreeze([
 	{
+		file: 'src/common/editor/controller/labeled-audio-silence.ts', entryPoint: 'coveredSpans',
+		reason: 'Private downstream helper receives the resolved AudioGeneratorProject from generateLabeledSilence; its caller crosses projectForAudioGeneratorCommands before planning spans.',
+	},
+	{
 		file: 'src/common/editor/video-export.js',
 		entryPoint: 'firstVisibleTimelineVideo',
 		reason: 'Private downstream helper; every call passes the runtimeProject captured by a registered video-export boundary.',
@@ -143,6 +144,7 @@ export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRun
 
 /** Non-shield importers discovered beside the owned consumer and boundary files. */
 export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly FoundationRuntimeProjectionImporterExclusion[] = deepFreeze([
+	{ file: 'src/common/editor/controller/project-bin-types.ts', reason: 'The bin declares authored clip and project input ports through type-only imports; it does not read transient clip coordinates.' },
 	{
 		file: 'src/common/editor/audio-warp-clip-authority.ts',
 		reason: 'Warp authoring snapshots resolved clip geometry into immutable stale-edit authority; it is a persisted edit adapter rather than a runtime media consumer.',
@@ -254,274 +256,6 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 	{
 		file: 'src/common/editor/quality/m3-longform-editorial-workload.ts',
 		reason: 'The deterministic qualification oracle resolves final clip positions only to compare persisted edit results against independently tracked expected coordinates; it is test workload construction rather than a runtime media consumer.',
-	},
-]);
-
-/**
- * Maintained WP-0.2 inventory of the shielded runtime consumer entry points.
- * The paired AST audit proves each entry point crosses its named projection
- * boundary before reading any persisted/resolved clip timing field.
- */
-export const FOUNDATION_RUNTIME_CONSUMER_SURFACES: readonly FoundationRuntimeConsumerEvidence[] = deepFreeze([
-	{
-		id: 'aup4-annotation-flattening',
-		surface: 'interchange',
-		file: 'src/common/editor/aup4-annotation-interchange.ts',
-		entryPoint: 'flattenAup4TimelineAnnotations',
-		inputIdentifier: 'projectValue',
-		projectedIdentifier: 'project',
-		boundary: 'projectForRuntimeConsumers',
-		evidence: 'AUP4 annotation flattening projects the current document before sorting annotations and reading resolved marker or region endpoints.',
-	},
-	{
-		id: 'riff-annotation-export',
-		surface: 'interchange',
-		file: 'src/common/editor/timeline-annotation-riff-interchange.ts',
-		entryPoint: 'createRiffAnnotationExport',
-		inputIdentifier: 'projectValue',
-		projectedIdentifier: 'project',
-		boundary: 'projectForRuntimeConsumers',
-		evidence: 'RIFF cue and region export projects the current document before resolving annotations or maintained musical labels into bounded sample offsets.',
-	},
-	{
-		id: 'aup4-export-plan',
-		surface: 'interchange',
-		file: 'src/common/editor/aup4-export.js',
-		entryPoint: 'createAup4ExportPlan',
-		inputIdentifier: 'project',
-		projectedIdentifier: 'project',
-		boundary: 'projectForRuntimeConsumers',
-		evidence: 'AUP4 planning projects current documents before overlap, clip placement, label serialization, and tempo-map flattening read resolved timing.',
-	},
-	{
-		id: 'interchange-export-delivery',
-		surface: 'interchange',
-		file: 'src/common/editor/controller/interchange-export-action.ts',
-		entryPoint: 'resolveDeliveredProject',
-		inputIdentifier: 'mediaProject',
-		projectedIdentifier: 'project',
-		boundary: 'projectForRuntimeConsumers',
-		evidence: 'EDL, OTIO, and FCPXML describe the render, so the delivered document crosses the folder projection and then this boundary before any profile reads a clip position, which a persisted video or musical clip states in frames or beats rather than samples.',
-	},
-	{
-		id: 'nyquist-host-properties',
-		surface: 'interchange',
-		file: 'src/common/editor/controller/nyquist-host-service.ts',
-		entryPoint: 'nyquistHostProperties',
-		inputIdentifier: 'persistedProject',
-		projectedIdentifier: 'project',
-		boundary: 'projectForRuntimeConsumers',
-		evidence: 'Nyquist host properties project the current document before exposing clip ranges and resolve PROJECT TEMPO from the map event active at evaluation start.',
-	},
-	{
-		id: 'engine-project-load',
-		surface: 'playback',
-		file: 'src/common/editor/engine/lifecycle.ts',
-		entryPoint: 'loadProject',
-		inputIdentifier: 'mediaProject',
-		projectedIdentifier: 'resolvedProject',
-		boundary: 'resolveRuntimeProjectProjection',
-		evidence: 'The engine stores, sizes, seeks, and schedules only the transient resolved project derived from the folder media projection at loadProject entry.',
-	},
-	{
-		id: 'engine-project-apply',
-		surface: 'playback',
-		file: 'src/common/editor/engine/lifecycle.ts',
-		entryPoint: 'applyProject',
-		inputIdentifier: 'project',
-		projectedIdentifier: null,
-		boundary: 'loadProject',
-		evidence: 'Playback reapply delegates the raw project to loadProject before any clip timing is consumed or retained by the engine.',
-	},
-	{
-		id: 'single-picture-preview',
-		surface: 'preview',
-		file: 'src/common/editor/video-timeline.js',
-		entryPoint: 'resolveActiveVideoClip',
-		inputIdentifier: 'project',
-		projectedIdentifier: 'project',
-		boundary: 'runtimeProject',
-		evidence: 'Single-picture preview replaces its project argument with the branded projection before resolving active layers.',
-	},
-	{
-		id: 'video-composition-intervals',
-		surface: 'composition',
-		file: 'src/common/editor/video-timeline.js',
-		entryPoint: 'resolveVideoCompositionIntervals',
-		inputIdentifier: 'project',
-		projectedIdentifier: 'project',
-		boundary: 'runtimeProject',
-		evidence: 'Composition interval boundaries and source maps are derived only after replacing the persisted project with its projection.',
-	},
-	{
-		id: 'video-layer-transitions',
-		surface: 'transition',
-		file: 'src/common/editor/video-timeline.js',
-		entryPoint: 'resolveActiveVideoLayers',
-		inputIdentifier: 'project',
-		projectedIdentifier: 'project',
-		boundary: 'runtimeProject',
-		evidence: 'Layer overlap and transition opacity receive projected clip endpoints because projection is the entry operation.',
-	},
-	{
-		id: 'legacy-video-segments',
-		surface: 'composition',
-		file: 'src/common/editor/video-timeline.js',
-		entryPoint: 'resolveVideoTimelineSegments',
-		inputIdentifier: 'project',
-		projectedIdentifier: 'project',
-		boundary: 'runtimeProject',
-		evidence: 'The compatibility segment API replaces its project before deriving clip boundaries and delegates active frames to projection-backed preview.',
-	},
-	{
-		id: 'video-timeline-duration',
-		surface: 'navigation',
-		file: 'src/common/editor/video-timeline.js',
-		entryPoint: 'videoTimelineDurationFrames',
-		inputIdentifier: 'project',
-		projectedIdentifier: 'project',
-		boundary: 'runtimeProject',
-		evidence: 'Video timeline end navigation replaces the document with its projection before comparing resolved clip endpoints.',
-	},
-	{
-		id: 'audio-export-plan',
-		surface: 'audio-export',
-		file: 'src/common/editor/export.js',
-		entryPoint: 'createExportPlan',
-		inputIdentifier: 'project',
-		projectedIdentifier: 'runtimeProject',
-		boundary: 'projectForRuntimeConsumers',
-		evidence: 'Audio range, marker, tail, render-admission, and stem planning share one projection captured at export-plan entry.',
-	},
-	{
-		id: 'audio-export-range',
-		surface: 'audio-export',
-		file: 'src/common/editor/export.js',
-		entryPoint: 'resolveExportRange',
-		inputIdentifier: 'project',
-		projectedIdentifier: null,
-		boundary: 'projectDurationFrames',
-		evidence: 'Whole-project audio ranges delegate their endpoint to the projection-backed duration boundary; selection and loop remain sample-authoritative.',
-	},
-	{
-		id: 'video-export-plan',
-		surface: 'video-export',
-		file: 'src/common/editor/video-export.js',
-		entryPoint: 'createVideoExportPlan',
-		inputIdentifier: 'project',
-		projectedIdentifier: 'runtimeProject',
-		boundary: 'ensureRuntimeProject',
-		evidence: 'Video range and composition planning use one branded project projection created before the first timing field read.',
-	},
-	{
-		id: 'video-export-canvas',
-		surface: 'video-export',
-		file: 'src/common/editor/video-export.js',
-		entryPoint: 'resolveVideoExportCanvas',
-		inputIdentifier: 'project',
-		projectedIdentifier: 'runtimeProject',
-		boundary: 'ensureRuntimeProject',
-		evidence: 'Automatic export canvas and nominal-rate selection inspect the earliest visible clip only after runtime projection.',
-	},
-	{
-		id: 'exact-video-export-canvas',
-		surface: 'video-export',
-		file: 'src/common/editor/video-export.js',
-		entryPoint: 'resolveExactVideoExportCanvas',
-		inputIdentifier: 'project',
-		projectedIdentifier: 'runtimeProject',
-		boundary: 'ensureRuntimeProject',
-		evidence: 'Exact export canvas geometry and rational nominal-rate authority inspect the earliest visible clip only after runtime projection.',
-	},
-	{
-		id: 'video-export-range',
-		surface: 'video-export',
-		file: 'src/common/editor/video-export.js',
-		entryPoint: 'resolveVideoExportRange',
-		inputIdentifier: 'project',
-		projectedIdentifier: 'runtimeProject',
-		boundary: 'ensureRuntimeProject',
-		evidence: 'Shared exact and legacy video export range authority resolves project duration and authored selection or loop state from one runtime projection.',
-	},
-	{
-		id: 'offline-keyframe-video-export-assembly',
-		surface: 'video-export',
-		file: 'src/common/editor/ui/video-keyframe-offline-video-export.ts',
-		entryPoint: 'executeOfflineVideo',
-		inputIdentifier: 'project',
-		projectedIdentifier: 'runtimeProject',
-		boundary: 'projectForRuntimeConsumers',
-		evidence: 'Dormant exact video export captures a visible-source runtime plan before presentation authority, browser media, WebGL, or encoded delivery consume timeline geometry.',
-	},
-	{
-		id: 'video-keyframe-export-inventory',
-		surface: 'video-export',
-		file: 'src/common/editor/video-keyframe-export-inventory.ts',
-		entryPoint: 'createVideoKeyframeExportInventory',
-		inputIdentifier: 'project',
-		projectedIdentifier: 'runtimeProject',
-		boundary: 'exportRuntimeProject',
-		evidence: 'The shared keyed-export inventory applies exact folder media state and one branded runtime timing projection before selecting and detaching visible range-intersecting occurrences and sources.',
-	},
-	{
-		id: 'project-duration-navigation',
-		surface: 'navigation',
-		file: 'src/common/editor/project.js',
-		entryPoint: 'projectDurationFrames',
-		inputIdentifier: 'project',
-		projectedIdentifier: 'runtimeProject',
-		boundary: 'projectForRuntimeConsumers',
-		evidence: 'Project and label duration navigation derives its maximum endpoint from resolved clips and projected musical labels.',
-	},
-	{
-		id: 'editor-timeline-duration-navigation',
-		surface: 'navigation',
-		file: 'src/common/editor/project.js',
-		entryPoint: 'editorTimelineDurationFrames',
-		inputIdentifier: 'project',
-		projectedIdentifier: null,
-		boundary: 'projectDurationFrames',
-		evidence: 'Editor navigation delegates document duration to the projection-backed project duration boundary before applying viewport headroom.',
-	},
-	{
-		id: 'clip-selection-navigation',
-		surface: 'navigation',
-		file: 'src/common/editor/controller/clip-selection-navigation-service.ts',
-		entryPoint: 'projectedAudioClips',
-		inputIdentifier: 'project',
-		projectedIdentifier: 'projection',
-		boundary: 'resolveRuntimeProjectProjection',
-		evidence: 'Clip-boundary and adjacent-clip navigation collect audio candidates only after resolving musical and sequence-backed clip timing at the owned service boundary.',
-	},
-	{
-		id: 'timeline-viewport',
-		surface: 'timeline',
-		file: 'src/common/editor/ui/timeline/useTimelineViewportModel.js',
-		entryPoint: 'useTimelineViewportModel',
-		inputIdentifier: 'persistedProject',
-		projectedIdentifier: 'project',
-		boundary: 'resolveRuntimeProjectProjection',
-		evidence: 'The viewport memoizes a projection from the snapshot document before layout, hit-testing, or track rendering consumes clips.',
-	},
-	{
-		id: 'framescaper-edit-control-menus',
-		surface: 'timeline',
-		file: 'src/common/editor/ui/framescaper-edit-control-menu-model.ts',
-		entryPoint: 'projectForLinkedControls',
-		inputIdentifier: 'project',
-		projectedIdentifier: null,
-		boundary: 'projectForRuntimeConsumers',
-		evidence: 'Framescaper linked-audio menu admission crosses the shared runtime projection boundary after removing only V19’s validated-empty unavailable annotation carrier.',
-	},
-	{
-		id: 'waveform-visible-clips',
-		surface: 'waveform',
-		file: 'src/common/editor/controller/project-visual-service.ts',
-		entryPoint: 'getVisibleClips',
-		inputIdentifier: 'project',
-		projectedIdentifier: 'runtimeProject',
-		boundary: 'resolveRuntimeProjectProjection',
-		evidence: 'Waveform visual preparation filters and maps the resolved clip array, so musical and frame-backed placement never leak through.',
 	},
 ]);
 

@@ -18,16 +18,15 @@ register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.
 const { createAudioEditorController } = await import('../src/common/editor/app.js');
 const { createCurrentAudioEditorProject } = await import('../src/common/editor/project-current.ts');
 const { createProjectStore } = await import('../src/common/editor/storage.js');
+const { createAudioEditorEngine } = await import('../src/common/editor/engine.js');
 
 test('real controller composes every clip-selection navigation action', async () => {
-	const engine = createMemoryEngine();
+	const engine = createAudioEditorEngine({ audioContextFactory: null, offlineAudioContextFactory: null });
 	const store = createProjectStore({ indexedDB: null, preferOpfs: false });
 	const controller = createAudioEditorController(null, {
 		headless: true,
 		store,
 		engine,
-		ffmpeg: { dispose() {} },
-		clipTimePitchCache: createMemoryTimePitchCache(),
 		copy: {
 			ready: 'Ready', untitledProject: 'Untitled', track: 'Track',
 			projectSaving: 'Saving', projectSaved: 'Saved', storage: 'Storage',
@@ -54,9 +53,9 @@ test('real controller composes every clip-selection navigation action', async ()
 		assert.equal(controller.getSnapshot().selectedClipId, 'right-clip');
 
 		assert.equal(timeline.skipToSelectionStart(), 40);
-		assert.equal(engine.positionFrame, 40);
+		assert.equal(engine.getPositionFrames(), 40);
 		assert.equal(timeline.skipToSelectionEnd(), 50);
-		assert.equal(engine.positionFrame, 50);
+		assert.equal(engine.getPositionFrames(), 50);
 		timeline.selectNoTracks();
 		assert.deepEqual(controller.getSnapshot().project?.selection?.trackIds, []);
 		assert.equal(controller.getSnapshot().selectedTrackId, null);
@@ -97,28 +96,4 @@ function selection(controller: ReturnType<typeof createAudioEditorController>): 
 	assert.ok(typeof startFrame === 'number');
 	assert.ok(typeof endFrame === 'number');
 	return [startFrame, endFrame];
-}
-
-function createMemoryEngine() {
-	return {
-		positionFrame: 0,
-		loadProject() {},
-		async applyProject() {},
-		setSourceResolver() {},
-		getPositionFrames() { return this.positionFrame; },
-		getState() { return { state: 'stopped', loop: { enabled: false } }; },
-		stop() {},
-		seek(frame: number) { this.positionFrame = frame; return frame; },
-		async getAudioContext() { return null; },
-		async dispose() {},
-	};
-}
-
-function createMemoryTimePitchCache() {
-	return {
-		createEngineSourceResolver() { return null; },
-		retainClipIds() {},
-		getProtectedSourceIds() { return new Set<string>(); },
-		dispose() {},
-	};
 }

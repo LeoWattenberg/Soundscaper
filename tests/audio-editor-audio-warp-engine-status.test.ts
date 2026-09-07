@@ -176,8 +176,8 @@ test('stateful or opaque effect graphs refuse exact windows before offline rende
 			audioWarpRealtimeAcceleration: false,
 			softwareRenderer: () => { renders += 1; return { channels: [new Float32Array(4)], sampleRate: 48_000 }; },
 		});
-		const project = structuredClone(warpProject());
-		(project.master as { effects: unknown[] }).effects = [{ id: `effect-${type}`, type, enabled: true, params: {} }];
+		const persisted = structuredClone(warpProject());
+		const project = { ...persisted, master: { ...persisted.master, effects: [{ id: `effect-${type}`, type, enabled: true, params: {} }] } };
 		engine.loadProject(project);
 		await assert.rejects(engine.renderMixRealtime({ onChunk() {} }), /cannot reset.*processor/iu);
 		assert.equal(renders, 0, `${type} refuses before offline graph work`);

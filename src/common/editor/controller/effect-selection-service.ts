@@ -26,7 +26,6 @@ export interface EffectSelectionClip extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly kind?: 'audio' | 'video' | 'image';
 	readonly sourceId: string;
-	readonly title: string;
 	readonly timelineStartFrame: number;
 	readonly sourceStartFrame: number;
 	readonly sourceDurationFrames: number;
@@ -48,17 +47,11 @@ export interface EffectSelectionTrack extends Readonly<Record<string, unknown>> 
 export interface EffectSelectionProject extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly schemaVersion: number;
-	readonly title: string;
 	readonly sampleRate: number;
 	readonly tracks: readonly EffectSelectionTrack[];
 	readonly clips: readonly EffectSelectionClip[];
 	readonly selection?: EffectSelection | null;
-	readonly master: Readonly<{ readonly effects: readonly unknown[] }>;
-	readonly mixer: Readonly<{
-		readonly groups: readonly unknown[];
-		readonly sends: readonly unknown[];
-		readonly routes: Readonly<Record<string, unknown>>;
-	}>;
+
 }
 
 export interface EffectTarget {

@@ -171,7 +171,7 @@ test('every projection or runtime-wrapper importer is an owned boundary or one e
 		const source = createSourceFile(file, sourceText, ScriptTarget.Latest, true, scriptKind(file));
 		if (source.statements.some((statement) => isImportDeclaration(statement)
 			&& isStringLiteral(statement.moduleSpecifier)
-			&& /(?:runtime-clip-projection|project-current-runtime)\.ts$/u.test(statement.moduleSpecifier.text))) {
+			&& /(?:runtime-clip-projection|project-current-runtime|generator-project-view|project-bin-runtime)\.ts$/u.test(statement.moduleSpecifier.text))) {
 			discovered.push(file);
 		}
 	}
@@ -201,12 +201,17 @@ test('offline exact export assembly and inventory own reviewed runtime boundarie
 	]);
 });
 
-test('registered projection boundaries terminate at the branded clip resolver', async () => {
+test('registered projection boundaries terminate at the owned clip and project resolvers', async () => {
 	const roots = FOUNDATION_RUNTIME_PROJECTION_BOUNDARIES.filter(({ root }) => root);
-	assert.deepEqual(roots.map(({ boundary }) => boundary), ['resolveRuntimeProjectProjection']);
+	assert.deepEqual(roots.map(({ boundary }) => boundary), ['resolveRuntimeClipProjection', 'resolveRuntimeProjectProjection']);
 	for (const boundary of FOUNDATION_RUNTIME_PROJECTION_BOUNDARIES) {
 		const source = await parsedSource(boundary.file);
 		const implementation = findFunction(source, boundary.boundary);
+		if (boundary.root && boundary.boundary === 'resolveRuntimeClipProjection') {
+			assert.equal(findCalls(implementation, 'resolveVideoCoordinates').length, 1);
+			assert.equal(findCalls(implementation, 'resolveAudioOrLegacyCoordinates').length, 1);
+			continue;
+		}
 		if (boundary.root) {
 			assert.ok(findCalls(implementation, 'resolveRuntimeClipProjection').length >= 2);
 			assert.ok(findCalls(implementation, 'brandRuntimeProjectProjection').length === 1);

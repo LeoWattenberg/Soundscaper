@@ -18,47 +18,16 @@ import {
 	type EditorTaskScope,
 } from './lifecycle.ts';
 import type { AudioBufferLike } from './source-audio.ts';
+import { projectForAudioGeneratorCommands, type AudioGeneratorSelection, type AudioGeneratorTrack,
+	type AudioGeneratorClip, type AudioGeneratorProject, type AudioGeneratorDocument } from './generator-project-view.ts';
 import { createLabeledAudioSilence } from './labeled-audio-silence.ts';
 
 export type AudioGeneratorType = 'silence' | 'tone' | 'chirp' | 'noise' | 'dtmf' | 'morse';
 
-export interface AudioGeneratorSelection {
-	readonly startFrame: number;
-	readonly endFrame: number;
-	readonly trackIds?: readonly string[];
-}
-
-export interface AudioGeneratorTrack extends Readonly<Record<string, unknown>> {
-	readonly id: string;
-	readonly type: 'audio' | 'video' | 'label';
-	readonly clipIds?: readonly string[];
-}
-
-export interface AudioGeneratorClip extends Readonly<Record<string, unknown>> {
-	readonly id: string;
-	readonly sourceId: string;
-	readonly timelineStartFrame: number;
-	readonly sourceStartFrame: number;
-	readonly sourceDurationFrames: number;
-	readonly durationFrames: number;
-}
-
-export interface AudioGeneratorSource extends Readonly<Record<string, unknown>> {
-	readonly id: string;
-	readonly channelCount: number;
-}
-
-export interface AudioGeneratorProject {
-	readonly id: string;
-	readonly schemaVersion: number;
-	readonly title: string;
-	readonly sampleRate: number;
-	readonly masterChannels?: number;
-	readonly selection?: AudioGeneratorSelection | null;
-	readonly tracks: readonly AudioGeneratorTrack[];
-	readonly clips: readonly AudioGeneratorClip[];
-	readonly sources: readonly AudioGeneratorSource[];
-}
+export type {
+	AudioGeneratorSelection, AudioGeneratorTrack, AudioGeneratorClip, AudioGeneratorSource,
+	AudioGeneratorProject, AudioGeneratorDocument,
+} from './generator-project-view.ts';
 
 export interface AudioGeneratorOptions extends Readonly<Record<string, unknown>> {
 	readonly atFrame?: unknown;
@@ -123,7 +92,7 @@ interface CommitSelection {
 interface PersistEffectOptions {
 	readonly effectName: string;
 	readonly signal: AbortSignal;
-	readonly project: AudioGeneratorProject;
+	readonly project: AudioGeneratorDocument;
 	assertCurrent(): void;
 }
 
@@ -141,13 +110,13 @@ export interface AudioGeneratorServiceDependencies<Context = unknown, Target ext
 		delete(sourceId: string): unknown;
 	}>;
 	readonly sourceChunkFrames: number;
-	getProject(): AudioGeneratorProject;
+	getProject(): AudioGeneratorDocument;
 	getCommandProject?(): AudioGeneratorProject;
 	editingBlocked(): boolean;
 	getPositionFrames(): number;
 	snapFrame(value: unknown): number;
 	trackChannelCount(
-		project: AudioGeneratorProject,
+		project: AudioGeneratorDocument,
 		track: AudioGeneratorTrack | null,
 		fallback: number,
 	): number;
@@ -195,7 +164,7 @@ export interface GeneratedSignal {
 
 export interface OperationOwnership {
 	readonly generation: number;
-	readonly project: AudioGeneratorProject;
+	readonly project: AudioGeneratorDocument;
 	readonly projectToken: EditorProjectToken;
 	readonly task: EditorTaskScope;
 }
@@ -371,7 +340,7 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 	}
 
 	function prepareGeneratorCommand(
-		project: AudioGeneratorProject,
+		persistedProject: AudioGeneratorDocument,
 		selection: AudioGeneratorSelection | null,
 		targetTrack: AudioGeneratorTrack | null,
 		frameCount: number,
@@ -379,6 +348,7 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 		name: string,
 		options: AudioGeneratorOptions,
 	): Readonly<{ command: AudioEditorCommand; trackId: string; clipId: string }> {
+		const project = projectForAudioGeneratorCommands(persistedProject, dependencies.getCommandProject);
 		if (selection && targetTrack?.type === 'audio') {
 			const replacement = prepareLegacyRangeReplacementCommand(project, {
 				trackId: targetTrack.id,
@@ -456,13 +426,13 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 	}
 }
 
-function activeSelection(project: AudioGeneratorProject): AudioGeneratorSelection | null {
+function activeSelection(project: AudioGeneratorDocument): AudioGeneratorSelection | null {
 	const selection = project.selection;
 	return selection && selection.endFrame > selection.startFrame ? selection : null;
 }
 
 function findTrack(
-	project: AudioGeneratorProject,
+	project: AudioGeneratorDocument,
 	trackId: string | null | undefined,
 ): AudioGeneratorTrack | null {
 	return project.tracks.find((track) => track.id === trackId) ?? null;

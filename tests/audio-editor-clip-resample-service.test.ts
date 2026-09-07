@@ -9,6 +9,7 @@ import {
 	resampledClipCommands,
 	type ClipResampleServiceDependencies,
 } from '../src/common/editor/controller/clip-resample-service.ts';
+import { findControllerSource } from '../src/common/editor/controller/track-domain-types.ts';
 import type {
 	ControllerClip,
 	ControllerProject,
@@ -105,9 +106,10 @@ function createResampleFixture(initialProject: ControllerProject) {
 			done: 'Done',
 		},
 		derivedSources: {
-			uniqueClipSources: (clips) => project.sources.filter(
-				(source) => clips.some((clip) => clip.sourceId === source.id),
-			),
+			uniqueClipSources: (clips) => project.sources.flatMap((source) => {
+				const audio = findControllerSource(project, source.id);
+				return audio && clips.some((clip) => clip.sourceId === source.id) ? [audio] : [];
+			}),
 			async sourceChannelsForEdit(source) {
 				return Array.from({ length: source.channelCount }, () => Float32Array.of(1, 2, 3, 4));
 			},

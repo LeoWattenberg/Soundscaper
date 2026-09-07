@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { resolveProjectBinAudioPreviewClip } from './project-bin-runtime.ts';
 import { hasProjectBinMediaAuthority } from '../project-schema-version.ts';
 
 import type {
@@ -83,6 +84,7 @@ export function createProjectBinPreviewService(
 		const project = dependencies.getProject();
 		const clip = findProjectBinClip(project, clipId);
 		if (!clip) throw new Error(dependencies.copy.audioClipNotFound);
+		if (clip.kind === 'image') throw new Error('Image items do not support transport preview.');
 		const itemClips = hasProjectBinMediaAuthority(project)
 			? projectBinClips(project).filter((candidate) => candidate.binItemId === clip.binItemId)
 			: [clip];
@@ -119,7 +121,7 @@ export function createProjectBinPreviewService(
 			previewEngine.setSourceResolver?.(dependencies.sourceResolver);
 			const previewTrackId = dependencies.createId('project-bin-preview-track');
 			const previewClip = {
-				...audioClip,
+				...resolveProjectBinAudioPreviewClip(project, audioClip),
 				id: dependencies.createId('project-bin-preview-clip'),
 				timelineStartFrame: 0,
 				groupId: null,

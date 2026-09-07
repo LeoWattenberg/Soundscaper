@@ -3,6 +3,10 @@
 import assert from 'node:assert/strict';
 import { register } from 'node:module';
 import test from 'node:test';
+import { createAudioEditorEngine } from '../src/common/editor/engine.js';
+import type { EngineAudioContext } from '../src/common/editor/engine/public-api.ts';
+import type { RecordingControllerFactoryOptions } from '../src/common/editor/controller/recording-transaction-types.ts';
+import { MockAudioContext } from './helpers/mock-audio-context.js';
 
 import type {
 	EditorRecordingActions,
@@ -42,14 +46,7 @@ interface MockStream {
 	getVideoTracks(): MockTrack[];
 }
 
-interface CreatedRecorder {
-	readonly stream: MockStream;
-	readonly channelCount: number;
-	readonly onChunk: (chunk: Readonly<{
-		readonly frameStart: number;
-		readonly frames: number;
-		readonly channels: readonly Float32Array[];
-	}>) => Promise<void>;
+interface CreatedRecorder extends Pick<RecordingControllerFactoryOptions, 'stream' | 'channelCount' | 'onChunk'> {
 	startOptions?: Readonly<{ readonly startFrame?: number; readonly stopFrame?: number }>;
 }
 
@@ -58,7 +55,6 @@ test('controller exposes disabled canonical policy and rolls back rejected durab
 	const controller = createAudioEditorController(null, {
 		store,
 		engine: createRecordingEngine(),
-		ffmpeg: { dispose() {} },
 	});
 
 	try {
@@ -127,7 +123,6 @@ test('legacy capture freezes policy settings and blocks mutation through active 
 	const controller = createAudioEditorController(null, {
 		store,
 		engine: createRecordingEngine(),
-		ffmpeg: { dispose() {} },
 		recordingCapturePool: pool,
 		recordingControllerFactory: createRecordingControllerFactory(created),
 	});
@@ -210,7 +205,6 @@ test('scheduled and routed capture report guarded, isolated source state through
 	const controller = createAudioEditorController(null, {
 		store,
 		engine: createRecordingEngine(),
-		ffmpeg: { dispose() {} },
 		recordingCapturePool: pool,
 		recordingControllerFactory: createRecordingControllerFactory(created),
 		now: () => now,
@@ -300,7 +294,8 @@ function deferred<Value>() {
 }
 
 function createRecordingControllerFactory(created: CreatedRecorder[]) {
-	return async (value: CreatedRecorder) => {
+	return async (options: RecordingControllerFactoryOptions) => {
+		const value: CreatedRecorder = { ...options };
 		created.push(value);
 		let state = 'ready';
 		return {
@@ -329,6 +324,9 @@ function createCapturePool({
 	const open = new Map<string, MockStream>();
 	let openDisplay: MockStream | null = null;
 	return {
+		get size() { return open.size + (openDisplay ? 1 : 0); },
+		get hasInputs() { return open.size > 0 || openDisplay !== null; },
+		async replaceDisplay() { throw new Error('Display replacement is not configured in this fixture.'); },
 		async acquireHardware(deviceId: string) {
 			const configured = hardware[deviceId];
 			const stream = await (open.get(deviceId) ?? (
@@ -349,9 +347,9 @@ function createCapturePool({
 			...[...open].map(([deviceId, stream]) => ({
 				key: `device:${deviceId}`, kind: 'device', deviceId,
 				channelCount: stream.getAudioTracks()[0]?.getSettings().channelCount ?? 1,
-				state: 'open',
+				state: 'open' as const,
 			})),
-			...(openDisplay ? [{ key: 'display', kind: 'display', channelCount: 1, state: 'open' }] : []),
+			...(openDisplay ? [{ key: 'display', kind: 'display', channelCount: 1, state: 'open' as const }] : []),
 		],
 		releaseHardware(deviceId: string) {
 			const stream = open.get(deviceId);
@@ -367,52 +365,33 @@ function createCapturePool({
 			return true;
 		},
 		releaseAll() {
+			const count = open.size + (openDisplay ? 1 : 0);
 			for (const stream of open.values()) stopStream(stream);
 			open.clear();
 			if (openDisplay) stopStream(openDisplay);
 			openDisplay = null;
+			return count;
 		},
-		dispose() { this.releaseAll(); },
+		dispose() { return this.releaseAll(); },
 	};
 }
 
 function createRecordingEngine() {
 	const listeners = new Map<string, () => void>();
-	const context = {
-		sampleRate: 48_000, currentTime: 4, baseLatency: 0, outputLatency: 0, state: 'running',
-		async resume() { this.state = 'running'; },
+	const context = Object.assign(new MockAudioContext({ sampleRate: 48_000 }), {
+		currentTime: 4, baseLatency: 0, outputLatency: 0,
 		addEventListener(type: string, listener: () => void) { listeners.set(type, listener); },
 		removeEventListener(type: string, listener: () => void) {
 			if (listeners.get(type) === listener) listeners.delete(type);
 		},
 		createMediaStreamSource() { return { connect() {}, disconnect() {} }; },
 		createChannelSplitter() { return { connect() {}, disconnect() {} }; },
-		createAnalyser() {
-			return {
-				fftSize: 256, smoothingTimeConstant: 0, connect() {}, disconnect() {},
-				getFloatTimeDomainData(target: Float32Array) { target.fill(0); },
-			};
-		},
-		createBuffer(channelCount: number, frameCount: number, sampleRate: number) {
-			const channels = Array.from({ length: channelCount }, () => new Float32Array(frameCount));
-			return {
-				numberOfChannels: channelCount, length: frameCount, sampleRate,
-				getChannelData: (channel: number) => channels[channel],
-				copyToChannel: (values: Float32Array, channel: number, offset = 0) => channels[channel]?.set(values, offset),
-			};
-		},
-	};
-	let state = 'stopped';
-	let positionFrame = 0;
-	return {
-		setSourceResolver() {}, loadProject() {}, async applyProject() {},
-		getPositionFrames: () => positionFrame,
-		getState: () => ({ state, loop: { enabled: false } }),
-		getAudioContext: async () => context,
-		setLoop() {}, seek(frame: number) { positionFrame = Math.max(0, Math.round(frame)); },
-		async playAt() { state = 'playing'; }, play() { state = 'playing'; },
-		pause() { state = 'paused'; }, stop() { state = 'stopped'; }, async dispose() {},
-	};
+	});
+	// Only the browser API is simulated; the controller receives the complete real engine.
+	return createAudioEditorEngine({
+		audioContextFactory: () => context as unknown as EngineAudioContext,
+		offlineAudioContextFactory: null,
+	});
 }
 
 function createMockTrack(kind: string, settings: Readonly<Record<string, unknown>> = {}): MockTrack {

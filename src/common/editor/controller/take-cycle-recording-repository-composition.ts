@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { applyEditorCommand } from '../commands.js';
 import type { AudioEditorCommand, CommandObject } from '../commands/protocol.ts';
 import { createAudioSource } from '../project-media-factory.ts';
-import { validateAudioEditorProjectV17, type AudioEditorProjectV17 } from '../project-v17-validation.ts';
+import { validateAudioEditorProjectV17 } from '../project-v17-validation.ts';
+import { applyDefaultTakeCycleProjectCommand, type TakeCycleProjectDocument } from './take-cycle-project-document.ts';
 import { createScapeDigest, digestScapeBytes, scapeHex } from '../scape-archive-media.ts';
 import { parseScapeProjectDocument, serializeScapeProjectDocument } from '../scape-project-document.ts';
-import type { TakeCompDocumentGroup } from '../take-comp-document-v17.ts';
+import { createTakeCompDocumentGroupsV17, type TakeCompDocumentGroup } from '../take-comp-document-v17.ts';
 import { normalizeCompRegionId } from '../take-comp-domain.ts';
 import type {
 	TakeCycleProjectPublicationEvidence,
@@ -52,8 +52,8 @@ export interface TakeCycleSourceDescription {
 }
 export interface TakeCyclePublishedProject {
 	readonly reason: 'finalize' | 'recovery';
-	readonly base: AudioEditorProjectV17;
-	readonly target: AudioEditorProjectV17;
+	readonly base: TakeCycleProjectDocument;
+	readonly target: TakeCycleProjectDocument;
 	readonly command: AudioEditorCommand | null;
 }
 export interface TakeCycleRecordingRepositoryDependencies {
@@ -73,8 +73,8 @@ export interface TakeCycleRecordingRepositoryDependencies {
 	describeSource(operation: TakeCycleStageReceiptOperation): MaybePromise<TakeCycleSourceDescription>;
 	readPassChunks(operation: TakeCyclePassOperation): MaybePromise<AsyncIterable<readonly Float32Array[]>>;
 	createCompRegionId(operation: TakeCycleProjectPreparationOperation): string;
-	applyProjectCommand?(project: AudioEditorProjectV17, command: AudioEditorCommand,
-		options?: Readonly<{ readonly now?: Date | string }>): AudioEditorProjectV17;
+	applyProjectCommand?(project: TakeCycleProjectDocument, command: AudioEditorCommand,
+		options?: Readonly<{ readonly now?: Date | string }>): TakeCycleProjectDocument;
 	validateProject?(project: unknown): void;
 	now?(): Date | string;
 	onStageReceipt?(receipt: AudioSourceStageReceipt): void;
@@ -93,8 +93,8 @@ interface PreparedSource {
 }
 
 interface PreparedProject {
-	readonly base: AudioEditorProjectV17;
-	readonly target: AudioEditorProjectV17;
+	readonly base: TakeCycleProjectDocument;
+	readonly target: TakeCycleProjectDocument;
 	readonly command: AudioEditorCommand;
 	readonly sources: ReadonlyMap<string, PreparedSource>;
 }
@@ -280,7 +280,7 @@ export function createTakeCycleRecordingRepositoryComposition(
 	): Promise<TakeCycleProjectPublicationEvidence> {
 		const targetValue = parseScapeProjectDocument(envelope.targetProjectDocument);
 		validateProject(targetValue);
-		const target = targetValue as AudioEditorProjectV17;
+		const target = targetValue as TakeCycleProjectDocument;
 		const current = await loadProject(envelope.projectFence.projectId);
 		const currentEvidence = projectEvidence(current);
 		if (sameEvidence(currentEvidence, envelope, 'target')) {
@@ -320,7 +320,7 @@ export function createTakeCycleRecordingRepositoryComposition(
 			if (!dependencies.publishCurrentProject) return;
 			validateProject(targetValue);
 			const prepared = preparedProjects.get(targetSha256);
-			let base: AudioEditorProjectV17;
+			let base: TakeCycleProjectDocument;
 			let command: AudioEditorCommand | null;
 			if (prepared && documentDigest(serializeScapeProjectDocument(prepared.base)) === envelope.projectFence.baseSha256) {
 				base = prepared.base;
@@ -333,28 +333,28 @@ export function createTakeCycleRecordingRepositoryComposition(
 					throw new Error('Exact take cycle base revision is unavailable for current-project publication.');
 				}
 				validateProject(baseValue);
-				base = baseValue as AudioEditorProjectV17;
+				base = baseValue as TakeCycleProjectDocument;
 				command = null;
 			}
 			await dependencies.publishCurrentProject(Object.freeze({
-				reason, base, target: targetValue as AudioEditorProjectV17, command,
+				reason, base, target: targetValue as TakeCycleProjectDocument, command,
 			}));
 		} finally {
 			preparedProjects.delete(targetSha256);
 		}
 	}
 
-	async function loadProject(projectId: string, signal?: AbortSignal): Promise<AudioEditorProjectV17> {
+	async function loadProject(projectId: string, signal?: AbortSignal): Promise<TakeCycleProjectDocument> {
 		const value = await dependencies.projects.load(projectId, signal ? { signal } : {});
 		if (!value) throw new Error(`Take cycle project ${projectId} is not durably available.`);
 		validateProject(value);
-		return value as AudioEditorProjectV17;
+		return value as TakeCycleProjectDocument;
 	}
 
-	function applyProjectCommand(base: AudioEditorProjectV17, command: AudioEditorCommand,
-		options: Readonly<{ readonly now?: Date | string }>): AudioEditorProjectV17 {
+	function applyProjectCommand(base: TakeCycleProjectDocument, command: AudioEditorCommand,
+		options: Readonly<{ readonly now?: Date | string }>): TakeCycleProjectDocument {
 		return dependencies.applyProjectCommand?.(base, command, options)
-			?? applyEditorCommand(base, command, options);
+			?? applyDefaultTakeCycleProjectCommand(base, command, options);
 	}
 
 	function validateProject(value: unknown): void {
@@ -397,7 +397,7 @@ export function createTakeCycleRecordingRepositoryComposition(
 }
 
 function projectCommand(
-	base: AudioEditorProjectV17,
+	base: TakeCycleProjectDocument,
 	operation: TakeCycleProjectPreparationOperation,
 	target: TakeCycleLaneTarget,
 	sources: readonly PreparedSource[],
@@ -432,7 +432,7 @@ function projectCommand(
 		endSample: pass.timelineEndSample,
 		sourceStartSample: 0,
 	}));
-	const existing = base.takeGroups.find(({ id }) => id === operation.plan.groupId);
+	const existing = createTakeCompDocumentGroupsV17(base.takeGroups, base).find(({ id }) => id === operation.plan.groupId);
 	let group: TakeCompDocumentGroup;
 	let groupCommand: AudioEditorCommand;
 	if (existing) {

@@ -8,6 +8,7 @@ import {
 	createTrackTransformService,
 	type TrackTransformServiceDependencies,
 } from '../src/common/editor/controller/track-transform-service.ts';
+import { findControllerSource } from '../src/common/editor/controller/track-domain-types.ts';
 import type {
 	ControllerClip,
 	ControllerProject,
@@ -137,7 +138,10 @@ function createTransformFixture(initialProject: ControllerProject) {
 		derivedSources: {
 			uniqueClipSources(clips) {
 				const ids = new Set(clips.map((clip) => clip.sourceId));
-				return project.sources.filter((source) => ids.has(source.id));
+				return project.sources.flatMap((source) => {
+					const audio = findControllerSource(project, source.id);
+					return audio && ids.has(source.id) ? [audio] : [];
+				});
 			},
 			async sourceChannelsForEdit(source) {
 				return Array.from({ length: source.channelCount }, (_, channel) => Float32Array.of(

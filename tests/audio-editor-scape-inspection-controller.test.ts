@@ -21,6 +21,7 @@ const assetLoader = `
 register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.url);
 
 const { createAudioEditorController } = await import('../src/common/editor/app.js');
+const { createAudioEditorEngine } = await import('../src/common/editor/engine.js');
 const { createProjectStore } = await import('../src/common/editor/storage.js');
 const {
 	ScapeInspectionSettlementTimeoutError,
@@ -40,7 +41,6 @@ test('public Scape inspection is lifetime-owned and closes its reader on disposa
 		headless: true,
 		locale: 'en',
 		engine: createTestEngine(),
-		ffmpeg: { dispose() {} },
 	});
 
 	try {
@@ -93,7 +93,6 @@ test('controller disposal joins every Scape inspection generation through gated 
 		locale: 'en',
 		store,
 		engine: createTestEngine(() => { events.push('engine-dispose'); }),
-		ffmpeg: { dispose() {} },
 		mediaDevices: {
 			addEventListener() { deviceListeners += 1; },
 			removeEventListener() { deviceListeners -= 1; },
@@ -187,7 +186,6 @@ test('reader close failure rejects inspection and disposal after remaining teard
 		locale: 'en',
 		store,
 		engine: createTestEngine(() => { events.push('engine-dispose'); }),
-		ffmpeg: { dispose() {} },
 	});
 	let pending: Promise<unknown> | null = null;
 
@@ -273,7 +271,6 @@ test('controller disposal completes teardown after a non-settling inspection dea
 		locale: 'en',
 		store,
 		engine: createTestEngine(() => { events.push('engine-dispose'); }),
-		ffmpeg: { dispose() {} },
 		scapeInspectionQuiescenceOptions: quiescenceOptions,
 	});
 
@@ -321,15 +318,10 @@ test('controller disposal completes teardown after a non-settling inspection dea
 });
 
 function createTestEngine(onDispose: () => void = () => undefined) {
-	return {
-		setSourceResolver() { return this; },
-		loadProject() {},
-		async applyProject() {},
-		getState() { return { state: 'stopped', loop: { enabled: false } }; },
-		getPositionFrames() { return 0; },
-		stop() {},
-		async dispose() { onDispose(); },
-	};
+	const engine = createAudioEditorEngine({ audioContextFactory: null, offlineAudioContextFactory: null });
+	const dispose = engine.dispose.bind(engine);
+	engine.dispose = async () => { onDispose(); await dispose(); };
+	return engine;
 }
 
 function createObservedStore(events: string[], name: string) {

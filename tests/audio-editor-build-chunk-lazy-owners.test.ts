@@ -77,6 +77,8 @@ test('Framescaper capture and Web VCR stay behind their deferred product runtime
 		'src/common/editor/controller/framescaper-capture-admin-interlock.ts',
 		'src/common/editor/controller/framescaper-capture-project-write-authority.ts',
 		'src/common/editor/controller/framescaper-capture-proxy-quiescence.ts',
+		'src/common/editor/controller/framescaper-capture-document-ports.ts',
+		'src/common/editor/controller/framescaper-capture-project-admission.ts',
 		'src/common/editor/controller/framescaper-web-vcr-ui-snapshot.ts',
 	]);
 	for (const path of implementation) {

@@ -119,7 +119,7 @@ function narrowMedia(
 			delete result.envelope;
 			return result as unknown as ControllerTrack;
 		});
-	const clipIds = new Set(snapshot.tracks.flatMap((track) => track.clipIds));
+	const clipIds = new Set(snapshot.tracks.flatMap((track) => (track.clipIds ?? [])));
 	snapshot.clips = snapshot.clips.filter((clip) => clipIds.has(clip.id));
 	const sourceIds = new Set(snapshot.clips.map((clip) => clip.sourceId));
 	snapshot.sources = snapshot.sources.filter((source) => sourceIds.has(source.id));

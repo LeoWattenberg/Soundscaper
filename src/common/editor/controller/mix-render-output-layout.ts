@@ -87,7 +87,7 @@ export function nonemptyAudioTargets(
 	project: ControllerProject,
 	targetTracks: readonly ControllerTrack[],
 ): ControllerTrack[] {
-	return targetTracks.filter((track) => track.type === 'audio' && track.clipIds.some((clipId) => (
+	return targetTracks.filter((track) => track.type === 'audio' && (track.clipIds ?? []).some((clipId) => (
 		findControllerClip(project, clipId) !== null
 	)));
 }
@@ -101,7 +101,7 @@ function productionMasterChannelCount(project: ControllerProject): number {
 }
 
 function trackSourcesAreMono(project: ControllerProject, track: ControllerTrack): boolean {
-	return track.clipIds.every((clipId) => {
+	return (track.clipIds ?? []).every((clipId) => {
 		const clip = findControllerClip(project, clipId);
 		return !clip || findControllerSource(project, clip.sourceId)?.channelCount === 1;
 	});
@@ -113,7 +113,7 @@ function routedMixerStrips(
 ): readonly ControllerMixerStrip[] {
 	const ids = new Set<string>();
 	for (const track of targets) {
-		const route = project.mixer.routes[track.id];
+		const route = project.mixer.routes?.[track.id];
 		if (route?.groupId) ids.add(route.groupId);
 		for (const [sendId, gain] of Object.entries(route?.sends ?? {})) {
 			if (Number(gain) > 0) ids.add(sendId);
@@ -132,7 +132,7 @@ function activeEffects(
 }
 
 function effectExpandsStereo(effect: ControllerEffect): boolean {
-	const type = effect.type.toLowerCase();
+	const type = (effect.type ?? '').toLowerCase();
 	return BUILTIN_STEREO_EXPANDING_EFFECTS.has(type) || isAudacityRackEffectType(type);
 }
 

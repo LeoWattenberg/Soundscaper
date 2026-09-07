@@ -15,6 +15,7 @@ import {
 	projectBinClips,
 	projectBinMediaKind,
 	type ProjectBinClip,
+	type ProjectBinMediaKind,
 	type ProjectBinCopy,
 	type ProjectBinDocumentSnapshot,
 	type ProjectBinImportResult,
@@ -24,7 +25,7 @@ import {
 	type ProjectBinReplacementShortfallMode,
 	type ProjectBinSource,
 } from './project-bin-types.ts';
-import { scaleSampleFrame } from '../timeline-time.ts';
+import { projectBinReplacementShortensClip } from './project-bin-runtime.ts';
 
 const PROJECT_BIN_REPLACEMENT_TASK = 'project-bin-replacement';
 
@@ -111,6 +112,7 @@ export function createProjectBinReplacementService(
 		const baseProject = baseDocument.project;
 		const target = findProjectBinClip(baseProject, clipId);
 		if (!target) throw new Error(dependencies.copy.audioClipNotFound);
+		if (target.kind === 'image') throw new Error('Image items require their image replacement action.');
 		const projectToken = dependencies.captureProject();
 		const task = dependencies.lifetime.startTask(PROJECT_BIN_REPLACEMENT_TASK);
 		let restored = false;
@@ -163,11 +165,7 @@ export function createProjectBinReplacementService(
 				const oldSource = findProjectBinSource(baseProject, clip.sourceId);
 				const newSource = newSourceByOldId.get(clip.sourceId);
 				if (!oldSource || !newSource) return true;
-				const newRate = Math.max(1, newSource.sampleRate || baseProject.sampleRate);
-				const oldRate = Math.max(1, oldSource.sampleRate || baseProject.sampleRate);
-				const start = scaleSampleFrame(clip.sourceStartFrame, oldRate, newRate, 'point');
-				const duration = scaleSampleFrame(clip.sourceDurationFrames, oldRate, newRate, 'point');
-				return start + duration > newSource.frameCount;
+				return projectBinReplacementShortensClip(baseProject, clip, oldSource, newSource);
 			}).map((clip) => clip.id);
 			assertCurrent(task, projectToken);
 			const token = dependencies.createId('project-bin-replacement');
@@ -304,8 +302,8 @@ export function createProjectBinReplacementService(
 }
 
 function requireImportedKind(
-	clips: ReadonlyMap<'audio' | 'video', ProjectBinClip>,
-	kind: 'audio' | 'video',
+	clips: ReadonlyMap<ProjectBinMediaKind, ProjectBinClip>,
+	kind: ProjectBinMediaKind,
 ): ProjectBinClip {
 	const clip = clips.get(kind);
 	if (!clip) throw new Error(`The imported Project Bin item is missing its ${kind} clip.`);

@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { projectForRuntimeConsumers } from '../project-current-runtime.ts';
+import type { RuntimeClipProject } from '../runtime-clip-projection.ts';
 import { normalizeEditorExportSettings } from './export-settings.ts';
 import type { EffectSelection } from './effect-selection-service.ts';
 
@@ -22,6 +24,20 @@ export function createCommandProjectReader<Project extends object, Projection>(
 		if (projection == null) throw new TypeError('The project runtime did not produce a command projection.');
 		return projection;
 	};
+}
+
+/** Product command hooks retain their fields; controller readers always get resolved timing. */
+export function createResolvedCommandProjectReader<Project extends object, Projection extends RuntimeClipProject>(
+	getProject: () => Project | null,
+	projectForCommandConsumers: (project: Project) => Projection,
+) {
+	const readProjection = createCommandProjectReader(getProject, projectForCommandConsumers);
+	return readResolvedCommandProject;
+
+	function readResolvedCommandProject() {
+		const projection = readProjection();
+		return projectForRuntimeConsumers(projection);
+	}
 }
 
 /** Read only admitted selection fields; opaque documents remain unchanged. */

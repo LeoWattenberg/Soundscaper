@@ -20,7 +20,7 @@ import type { EditCompositionDependencies, EditCompositionProject } from './edit
 import { createEditorEditService } from './edit-service.ts';
 import { createAudioGeneratorService, type AudioGeneratorService } from './generator-service.ts';
 import { createLabelService } from './label-service.ts';
-import { bindControllerEditClipboardRuntime } from './project-runtime.ts';
+import { bindControllerEditClipboardRuntime, type ControllerRuntimeHistory } from './project-runtime.ts';
 import { bufferFromChannels, writeBuffer } from './source-audio.ts';
 import { generateWaveformPeaks, peakCacheKey } from './waveform-analysis.ts';
 
@@ -39,7 +39,7 @@ export type {
  * generators are a refusing stand-in when the product does not compose them,
  * so the labeled-audio silence edit refuses the same way the menu does.
  */
-export function createEditComposition(dependencies: EditCompositionDependencies) {
+export function createEditComposition<History extends ControllerRuntimeHistory>(dependencies: EditCompositionDependencies<History>) {
 	const { state, copy, lifetime, projectGeneration, projectRuntime, engine, taskProgress } = dependencies;
 	const requireProject = (): EditCompositionProject => {
 		const project = dependencies.getProject();
@@ -114,7 +114,7 @@ export function createEditComposition(dependencies: EditCompositionDependencies)
 	/** The Edit menu's clipboard reads the product's own clipboard projection, not the raw command projection. */
 	const clipboardProject = (commandProject: unknown) => (
 		projectRuntime.projectForEditClipboardConsumers
-			? projectRuntime.projectForEditClipboardConsumers(dependencies.getProject())
+			? projectRuntime.projectForEditClipboardConsumers(requireProject())
 			: commandProject
 	);
 	const handleEdit = createEditorEditService({

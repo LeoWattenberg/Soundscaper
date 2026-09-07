@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { ControllerOptions } from '../common/editor/controller/controller-options.ts';
 import { createAudioEditorController } from '../common/editor/app.js';
 import { importSoundscaperAudacityProject } from './editor-audacity-project-import.ts';
 import {
@@ -44,8 +45,8 @@ const PRESENTATION_FIELDS = ['locale', 'copy', 'fileService'] as const;
 
 export interface SoundscaperAudioEditorControllerPresentation {
 	readonly locale?: string;
-	readonly copy?: Readonly<Record<string, unknown>>;
-	readonly fileService?: unknown;
+	readonly copy?: ControllerOptions['copy'];
+	readonly fileService?: ControllerOptions['fileService'];
 }
 
 type CommonAudioEditorController = ReturnType<typeof createAudioEditorController>;
@@ -309,5 +310,13 @@ function snapshotPresentation(value: unknown): SoundscaperAudioEditorControllerP
 	)) {
 		throw new TypeError('Soundscaper baseline controller copy must be an object.');
 	}
+	if (output.copy !== undefined) {
+		for (const descriptor of Object.values(Object.getOwnPropertyDescriptors(output.copy))) {
+			if (!Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'string') {
+				throw new TypeError('Controller copy entries must be strings in data properties.');
+			}
+		}
+	}
+
 	return output as SoundscaperAudioEditorControllerPresentation;
 }

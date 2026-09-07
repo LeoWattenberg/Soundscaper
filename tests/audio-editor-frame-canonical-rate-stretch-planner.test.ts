@@ -357,7 +357,7 @@ function fixture(options: FixtureOptions = {}) {
 		sequences: [{ id: 'main', rate, trackIds: tracks.map(({ id }) => String(id)) }],
 		primarySequenceId: 'main', clips, tracks, sources,
 	});
-	const project = projectForCommand(persisted as unknown as Record<string, unknown>);
+	const project = projectForCommand(persisted);
 	assert.equal(isRuntimeProjectProjection(project), true);
 	const view: VideoSourceTimingView = options.vfr
 		? Object.freeze({ kind: 'vfr', reference: VFR_PUBLICATION.reference, index: VFR_INDEX })

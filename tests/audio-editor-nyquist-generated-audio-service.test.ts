@@ -105,6 +105,7 @@ function createHarness(options: Readonly<{ selection?: boolean; deferAnalysis?: 
 		service,
 		sourceBuffers,
 		sourcePeaks,
+		updateProject(changes: Partial<NyquistGeneratedAudioProject>) { project = { ...project, ...changes }; },
 		switchProject() {
 			project = { ...project, id: 'project-b' };
 			projectGeneration.invalidate();
@@ -184,3 +185,23 @@ test('an already-aborted generator signal fails before allocating storage', asyn
 	);
 	assert.equal(harness.beginWrites, 0);
 });
+
+for (const [atFrame, needsTrack] of [[1_100, true], [2_000, false]] as const) {
+	void test(`generator output checks musical clip overlap at frame ${String(atFrame)}`, async () => {
+		const harness = createHarness();
+		harness.updateProject({
+			schemaVersion: 17,
+			tempoMap: { mode: 'musical', events: [{ beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }] },
+			tracks: [{ id: 'track-a', name: 'Track', type: 'audio', clipIds: ['authored'] }],
+			clips: [{ id: 'authored', kind: 'audio', sourceId: 'existing', title: 'Authored',
+				anchor: 'musical', musicalStartBeat: 2, musicalExtent: 'beat', musicalDurationBeats: 2,
+				sourceStartFrame: 0, sourceDurationFrames: 1_000,
+			}],
+		});
+		await harness.service.persistNyquistGeneratedAudio([new Float32Array(100)], { atFrame });
+		assert.equal(harness.commands.length, 1);
+		const command = harness.commands[0] as { commands: readonly { type: string }[] };
+		assert.deepEqual(command.commands.map(({ type }) => type),
+			needsTrack ? ['source/add', 'track/add', 'clip/add'] : ['source/add', 'clip/add']);
+	});
+}

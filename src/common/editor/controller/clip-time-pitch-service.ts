@@ -5,6 +5,7 @@ import {
 } from '../clip-time-pitch-cache.js';
 import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
 import { throwIfAborted } from './app-helpers.ts';
+import { admitTimePitchCacheProject } from './time-pitch-cache-project-admission.ts';
 import type { AudioBufferLike } from './source-audio.ts';
 import type { ProjectVisualClip, ProjectVisualProject, ProjectVisualSource } from './project-visual-types.ts';
 import type {
@@ -95,7 +96,7 @@ export interface ClipTimePitchCacheService<
 		signal?: AbortSignal | null,
 	): Promise<ClipTimePitchCacheEntry>;
 	prepareCommittedTimePitchCaches(
-		project: ProjectVisualProject,
+		project: unknown,
 		signal?: AbortSignal | null,
 	): Promise<readonly ClipTimePitchCacheEntry[]>;
 	preparePlaybackTimePitchCaches(
@@ -103,7 +104,7 @@ export interface ClipTimePitchCacheService<
 		signal: AbortSignal,
 	): Promise<readonly Promise<ClipTimePitchCacheEntry>[]>;
 	beginPlaybackCachePreparation(
-		project: ProjectVisualProject,
+		project: unknown,
 		options?: Readonly<{ abortController?: AbortController | null }>,
 	): Promise<readonly Promise<ClipTimePitchCacheEntry>[]>;
 	cancelPlaybackCachePreparation(): boolean;
@@ -221,10 +222,11 @@ export function createClipTimePitchCacheService<
 	}
 
 	async function prepareCommittedTimePitchCaches(
-		snapshot: ProjectVisualProject,
+		input: unknown,
 		signal: AbortSignal | null = null,
 	): Promise<readonly ClipTimePitchCacheEntry[]> {
 		dependencies.lifetime.assertActive();
+		const snapshot = admitTimePitchCacheProject(input);
 		const projectToken = dependencies.captureProject(snapshot.id);
 		dependencies.cache.retainClipIds?.(snapshot.clips.map((clip) => clip.id));
 		const entries: ClipTimePitchCacheEntry[] = [];
@@ -272,10 +274,11 @@ export function createClipTimePitchCacheService<
 	}
 
 	async function beginPlaybackCachePreparation(
-		snapshot: ProjectVisualProject,
+		input: unknown,
 		options: Readonly<{ abortController?: AbortController | null }> = {},
 	): Promise<readonly Promise<ClipTimePitchCacheEntry>[]> {
 		dependencies.lifetime.assertActive();
+		const snapshot = admitTimePitchCacheProject(input);
 		cancelPlaybackCachePreparation();
 		const abort = options.abortController ?? new AbortController();
 		const generation = ++dependencies.state.playbackCacheGeneration;

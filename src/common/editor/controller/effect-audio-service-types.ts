@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { EngineClip, EngineEnvelopePoint, EngineProject } from '../engine/types.ts';
+import type { EngineSourceBufferInput } from '../engine/public-api.ts';
+import type { ProjectVisualSource } from './project-visual-types.ts';
 import type { PersistEffectResultOptions, SelectionEffectResult } from './effect-result-service.ts';
 import type {
 	EffectSelection,
@@ -28,25 +31,20 @@ export interface EffectAudioTrack extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly name: string;
 	readonly type: 'audio' | 'video' | 'label';
-	readonly clipIds: readonly string[];
+	readonly clipIds?: readonly string[];
 	readonly effects?: readonly EffectAudioEffect[];
 	readonly gain?: number;
 	readonly pan?: number;
 	readonly mute?: boolean;
 	readonly solo?: boolean;
-	readonly envelope?: readonly unknown[];
+	readonly envelope?: readonly EngineEnvelopePoint[];
 	readonly spectrogram?: Readonly<{ readonly windowSize?: number }>;
 }
 
-export interface EffectAudioClip extends Readonly<Record<string, unknown>> {
+export interface EffectAudioClip extends EngineClip {
 	readonly id: string;
-	readonly kind?: 'audio' | 'video';
+	readonly kind?: 'audio' | 'video' | 'image';
 	readonly sourceId: string;
-	readonly title: string;
-	readonly timelineStartFrame: number;
-	readonly sourceStartFrame: number;
-	readonly sourceDurationFrames: number;
-	readonly durationFrames: number;
 }
 
 export interface EffectAudioProject extends Readonly<Record<string, unknown>> {
@@ -56,9 +54,10 @@ export interface EffectAudioProject extends Readonly<Record<string, unknown>> {
 	readonly masterChannels: number;
 	readonly tracks: readonly EffectAudioTrack[];
 	readonly clips: readonly EffectAudioClip[];
+	readonly sources: readonly ProjectVisualSource[];
 	readonly selection?: EffectSelection | null;
 	readonly master: Readonly<{ readonly gain?: number; readonly effects: readonly EffectAudioEffect[] }>;
-	readonly mixer: Readonly<Record<string, unknown>>;
+	readonly mixer: NonNullable<EngineProject['mixer']>;
 }
 
 export interface MutableEffectAudioTrack extends Record<string, unknown> {
@@ -71,7 +70,7 @@ export interface MutableEffectAudioTrack extends Record<string, unknown> {
 	pan: number;
 	mute: boolean;
 	solo: boolean;
-	envelope?: unknown[];
+	envelope?: EngineEnvelopePoint[];
 }
 
 export interface MutableEffectAudioProject extends Record<string, unknown> {
@@ -81,6 +80,7 @@ export interface MutableEffectAudioProject extends Record<string, unknown> {
 	masterChannels: number;
 	tracks: MutableEffectAudioTrack[];
 	clips: EffectAudioClip[];
+	sources: ProjectVisualSource[];
 	selection: EffectSelection | null;
 	master: { gain?: number; effects: EffectAudioEffect[] };
 	mixer: Record<string, unknown>;
@@ -104,7 +104,7 @@ export interface EffectAudioBuffer {
 }
 
 interface EffectAudioRenderEngine<Buffer> {
-	loadProject(project: EffectAudioProject, sourceBuffers: unknown): void;
+	loadProject(project: EffectAudioProject, sourceBuffers: EngineSourceBufferInput): void;
 	renderTrack(trackId: string, options: Readonly<Record<string, unknown>>): Promise<Buffer>;
 	renderMix(options: Readonly<Record<string, unknown>>): Promise<Buffer>;
 	dispose(): Promise<void> | void;
@@ -179,7 +179,7 @@ export interface EffectAudioServiceRuntime<Buffer = EffectAudioBuffer> {
 	) => Promise<Buffer>;
 	readonly prepareCommittedTimePitchCaches: (project: EffectAudioProject) => Promise<unknown>;
 	readonly createRenderEngine: () => EffectAudioRenderEngine<Buffer>;
-	readonly sourceBuffers: unknown;
+	readonly sourceBuffers: EngineSourceBufferInput;
 	readonly audioBufferChannels: (buffer: Buffer) => readonly Float32Array[];
 	readonly matchAudacitySelectionChannels: (
 		channels: readonly Float32Array[],

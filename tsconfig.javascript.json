@@ -7,10 +7,12 @@
 		"tsBuildInfoFile": "./node_modules/.cache/typescript/javascript.tsbuildinfo",
 		"types": ["node", "vite/client"]
 	},
+	"include": ["src/vite-env.d.ts"],
 	"files": [
 		"desktop/display-capture.js",
 		"desktop/plugin-binary-authentication.mjs",
 		"src/common/editor/analysis-worker.js",
+		"src/common/editor/app.js",
 		"src/common/editor/parametric-eq/wasm-loader.js",
 		"src/common/editor/parametric-eq/worker.js",
 		"src/common/editor/pffft-wasm-loader.js",

@@ -36,12 +36,15 @@ import {
 import type { ProjectHierarchyDocument } from '../project-hierarchy-document-validation.ts';
 import { isAudioWarpProjectSchema } from '../project-schema-version.ts';
 import type { RationalInput } from '../timeline-time.ts';
+import type { ProjectVisualSource, ProjectVisualClip } from './project-visual-types.ts';
 import type { EditorControllerLifetime } from './lifecycle.ts';
 
-export type AudioWarpAuthoringProject = ProjectHierarchyDocument & (
-	| Readonly<{ readonly schemaVersion: 17; readonly schemaFamily?: never }>
-	| Readonly<{ readonly schemaFamily: 'soundscaper' | 'framescaper'; readonly schemaVersion: 1 }>
-);
+export type AudioWarpAuthoringProject = {
+	readonly [Key in keyof ProjectHierarchyDocument]: Key extends 'sources' ? readonly (ProjectVisualSource & Readonly<{ name?: string }>)[]
+		: Key extends 'clips' ? readonly ProjectVisualClip[]
+			: Key extends 'projectBin' ? Readonly<{ clips: readonly ProjectVisualClip[] }>
+				: ProjectHierarchyDocument[Key];
+};
 
 export interface PreparedAudioWarpClipEdit {
 	readonly clipId: string;

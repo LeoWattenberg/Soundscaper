@@ -44,6 +44,28 @@ test('canonical clips need no transient coordinates when deciding whether caches
 	assert.deepEqual(harness.cache.retained, ['plain']);
 });
 
+test('committed cache preparation rejects malformed inventories before changing retained clips', async () => {
+	const harness = createHarness(projectFixture());
+	for (const snapshot of [null, {}, { ...projectFixture(), sources: [{ id: 'bad', kind: 3 }] },
+		{ ...projectFixture(), clips: [{ id: 'bad' }] }]) {
+		await assert.rejects(harness.service.prepareCommittedTimePitchCaches(snapshot), /cache project inventory/);
+	}
+	assert.deepEqual(harness.cache.retained, []);
+	assert.deepEqual(harness.cache.prepared, []);
+});
+
+test('invalid playback preparation preserves the active cache owner and generation', async () => {
+	const harness = createHarness(projectFixture());
+	const active = new AbortController();
+	harness.state.playbackCacheAbort = active;
+	const generation = harness.state.playbackCacheGeneration;
+	await assert.rejects(harness.service.beginPlaybackCachePreparation({}), /cache project inventory/);
+	assert.equal(active.signal.aborted, false);
+	assert.equal(harness.state.playbackCacheAbort, active);
+	assert.equal(harness.state.playbackCacheGeneration, generation);
+	assert.deepEqual(harness.cache.prepared, []);
+});
+
 test('late committed preparation cannot attach buffers after a project switch', async () => {
 	const project = projectFixture();
 	const gate = deferred<ClipTimePitchCacheEntry>();

@@ -46,7 +46,7 @@ export interface VideoSourceReprobeStore extends VideoTimingMediaStore {
 export interface VideoSourceReprobeDependencies {
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive'>;
 	readonly store: VideoSourceReprobeStore;
-	readonly ffmpeg: DataRecord;
+	readonly ffmpeg: Parameters<typeof createFfmpegVideoTimingProbe>[0];
 	/** The native helper probe, ordered ahead of the wasm probe when present. */
 	readonly helperTimingProbe?: VideoTimingProbePort | null;
 	getProject(): DataRecord;

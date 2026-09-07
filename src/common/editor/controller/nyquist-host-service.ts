@@ -20,8 +20,9 @@ interface NyquistTempoMap extends Omit<HoldTempoMap, 'events'> {
 }
 
 export interface NyquistHostProject extends Readonly<Record<string, unknown>>, Pick<EffectSelectionProject,
-	'id' | 'schemaVersion' | 'title' | 'sampleRate' | 'tracks' | 'selection'
+	'id' | 'schemaVersion' | 'sampleRate' | 'tracks' | 'selection'
 > {
+	readonly title: string;
 	readonly clips: readonly (RuntimePersistedClip & Readonly<{ id: string }>)[];
 	readonly tempo?: number | Readonly<{ readonly bpm?: number }>;
 	readonly tempoMap?: NyquistTempoMap;
