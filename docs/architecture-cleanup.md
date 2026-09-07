@@ -39,6 +39,40 @@ Completed controller changes:
 - The root has shrunk from 1,372 to 737 lines across these passes; its size ceiling
   has been ratcheted down.
 
+Further boundary cleanup:
+
+- Analysis cache reads admit unknown stored data and recompute malformed results.
+- Video visual activation validates stored bodies and derivative metadata before
+  creating object URLs; failed admission releases resources already acquired.
+- Source reads preserve the destination audio buffer type through storage, and
+  the real store is checked against the source-runtime composition contract.
+- Snapshot ports use the preview and macro records their owners publish. Meter
+  interfaces have a focused owner and share the recording track contract.
+- The default native archive copier binds the active product family. Real archive
+  tests cover unchanged future Soundscaper and foreign-family Framescaper copies.
+- Checked action composition connects the deferred owner bindings to the public
+  facade, preserves explicit overrides, and fences retained callbacks on disposal.
+  Project switching retains the document/history types its owner requires.
+- Project administration uses explicit project, history, session, save and source
+  cleanup contracts. Its shared fixture satisfies them without a runtime cast.
+  Capture-origin guards have a separate checked binding that reads the current
+  capture owner and preserves denial before administration starts.
+- Session mutations retain their result fields through source retirement; a
+  compile-time regression checks the real session against the administration port.
+  Settings persistence keeps the owning policy and value types through assembly.
+- Deferred source bindings retain the concrete render engine, including its
+  offline and streaming operations. Recording accepts the track owner's
+  `undefined` result when it declines to create a track, without starting capture.
+- Capture accepts native browser track capabilities and settings without requiring
+  DOM interfaces to have dictionary index signatures. Snapshot admission still
+  validates and clones those values before publishing them.
+- Current Framescaper documents inherit their declared identity, selection and
+  track fields directly. Redundant `Omit` operations no longer erase them through
+  an inherited index signature. Image-sequence import names both supported
+  document owners instead of relying on that erased contract.
+- The root now has 704 lines, with its size ceiling ratcheted to match. This is
+  still an unchecked composition root; these fixes do not close that remaining item.
+
 Remaining controller work:
 
 - Check the composition root itself rather than relying on unchecked JavaScript
@@ -87,3 +121,20 @@ After preserving selected runtime contracts in `ca506dfaa`, the final Node run
 passed 16,279 tests with 24 skipped, and all four product type checks passed.
 Full repository lint passed again; the final contract edits do not change emitted
 runtime behavior. Concurrent capture work remains owned by its separate task.
+
+Validation of the subsequent boundary repairs through `15ea401af`:
+
+- The final full Node run passes: 16,338 passed, 24 skipped, no failures.
+- Full repository lint completed, followed by changed-file lint for the final
+  declarations and fixtures. All four product compositions, source, test and
+  tooling TypeScript checks pass. The JavaScript root remains outside that check.
+- Architecture, supply-chain and notice audits, documentation checks, and the
+  production build pass. The largest JavaScript chunk is 492,049 bytes; startup
+  graphs remain within their budgets and have no byte ceiling to tighten.
+- The full browser suite passed across Chromium, Firefox and WebKit: 1,237 passed,
+  101 skipped, no failures. After rebuilding for the later administration binding,
+  all 45 project-interoperability and capture workflows passed across those browsers.
+- The final Framescaper declaration repairs emit no runtime changes. Their 53
+  project/image-sequence tests and 17 affected media/capture fixture tests pass.
+- The root's size ceiling is ratcheted to 704 lines. Coverage floors, startup
+  budgets and chunk ceilings were not weakened.
