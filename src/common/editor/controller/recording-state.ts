@@ -21,6 +21,11 @@ export interface ControllerRecordingDevice {
 	readonly status?: string;
 }
 
+export interface ControllerAudioDevice extends ControllerRecordingDevice {
+	readonly groupId?: string;
+	readonly isDefault?: boolean;
+}
+
 export interface ControllerRecordingRouting {
 	readonly routes: Readonly<Record<string, RecordingRoute>>;
 	readonly offsets: Readonly<Record<string, number>>;
@@ -68,8 +73,8 @@ export interface ControllerRecordingState<Routing = ControllerRecordingRouting> 
 	recordingRouting: Routing;
 	recordingDevices: ControllerRecordingDevice[];
 	recordingEnumeratedDeviceIds: Set<string>;
-	audioInputDevices: unknown[];
-	audioOutputDevices: unknown[];
+	audioInputDevices: readonly ControllerAudioDevice[];
+	audioOutputDevices: readonly ControllerAudioDevice[];
 	audioInputAccess: boolean;
 	preferredInputDeviceId: string;
 	preferredInputChannelCount: number;

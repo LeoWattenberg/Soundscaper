@@ -10,10 +10,13 @@ import { createLocalDiagnosticsErrorJournal } from '../local-diagnostics-error-j
 import { createInitialEffectMacroLibrary } from './effect-macro-library-service.ts';
 import { createInitialMacroScriptLibrary } from './macro-script-library-service.ts';
 import { createInitialStorageCapacitySnapshot } from './storage-capacity-service.ts';
-import type { TakeCyclePendingOpenRecovery } from './take-cycle-capture-orchestrator.ts';
+import { createDeliveryPresetState } from '../delivery-preset-store.ts';
+import type { ControllerWorkspaceState } from './workspace-state-types.ts';
 
-export interface EditorControllerStateOptions<Preferences, RecordingRouting, EffectPresets> {
-	readonly document?: ControllerDocumentState<ControllerRuntimeProject, ControllerRuntimeHistory>;
+export interface EditorControllerStateOptions<Preferences, RecordingRouting, EffectPresets,
+	Project = ControllerRuntimeProject, History extends { readonly present: Project } = ControllerRuntimeHistory & { readonly present: Project },
+> {
+	readonly document?: ControllerDocumentState<Project, History>;
 	readonly recording?: ControllerRecordingState<RecordingRouting>;
 	readonly transport?: ControllerTransportState;
 	readonly preferences: Preferences;
@@ -34,8 +37,10 @@ export interface EditorControllerStateOptions<Preferences, RecordingRouting, Eff
  * of the composition root makes additions visible in review and gives tests a
  * deterministic state model without booting storage, workers, or Web Audio.
  */
-export function createEditorControllerState<Preferences, RecordingRouting, EffectPresets>({
-	document = createControllerDocumentState(),
+export function createEditorControllerState<Preferences, RecordingRouting, EffectPresets,
+	Project = ControllerRuntimeProject, History extends { readonly present: Project } = ControllerRuntimeHistory & { readonly present: Project },
+>({
+	document = createControllerDocumentState<Project, History>(),
 	preferences,
 	recordingRouting,
 	effectPresets,
@@ -49,8 +54,8 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 	preferredInputDeviceId,
 	recording = createControllerRecordingState({ recordingRouting, recordingInputGain, preferredInputDeviceId }),
 	transport = createControllerTransportState(),
-}: EditorControllerStateOptions<Preferences, RecordingRouting, EffectPresets>) {
-	return exposeOwnedFields(exposeOwnedFields({
+}: EditorControllerStateOptions<Preferences, RecordingRouting, EffectPresets, Project, History>) {
+	const workspace: ControllerWorkspaceState<Preferences, EffectPresets, History> = {
 		localDiagnostics: createLocalDiagnosticsErrorJournal(),
 		get history() { return document.history; },
 		set history(value) { document.history = value; },
@@ -70,7 +75,7 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		timelineView: 'waveform',
 		readOnly: false,
 		writeAuthorityGeneration: 0,
-		takeCycleRecovery: null as TakeCyclePendingOpenRecovery | null,
+		takeCycleRecovery: null,
 		takeCycleRecoveryInspecting: false,
 		projectLock: null,
 		projectLockRetryTimer: 0,
@@ -88,10 +93,11 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		audacityEffectTouchedParams: new Map<string, Set<string>>(),
 		effectPresets,
 		effectMacros: createInitialEffectMacroLibrary(),
+		deliveryPresets: createDeliveryPresetState(),
 		macroScripts: createInitialMacroScriptLibrary(),
-		rackEffectGestures: new Map<string, unknown>(),
-		parametricEqGestures: new Map<string, unknown>(),
-		videoEffectGestures: new Map<string, unknown>(),
+		rackEffectGestures: new Map(),
+		parametricEqGestures: new Map(),
+		videoEffectGestures: new Map(),
 		audacityControlTrackId: null,
 		audacityNoiseProfile: null,
 		audacityEffectProcessing: false,
@@ -105,7 +111,7 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		nyquistResult: null,
 		spectralWorker: null,
 		phase,
-		projects: [] as unknown[],
+		projects: [],
 		recentProjectIds: [] as string[],
 		status: { message: readyMessage, state: 'info' },
 		saveState: 'saved',
@@ -126,5 +132,6 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		showRms: false,
 		showVerticalRulers: true,
 		disposed: false,
-	}, recording), transport);
+	};
+	return exposeOwnedFields(exposeOwnedFields(workspace, recording), transport);
 }

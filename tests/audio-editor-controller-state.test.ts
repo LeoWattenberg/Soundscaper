@@ -31,6 +31,7 @@ test('controller state initializes deterministic composition-root defaults', () 
 	assert.equal(state.recordingInputGain, 1);
 	assert.equal(state.preferredInputDeviceId, 'default');
 	assert.equal(state.selectedAnnotationId, null);
+	assert.deepEqual(state.deliveryPresets, { schemaVersion: 1, presets: [] });
 });
 
 test('controller instances never share mutable collections', () => {
@@ -41,4 +42,20 @@ test('controller instances never share mutable collections', () => {
 	assert.equal(second.missingSourceIds.size, 0);
 	assert.equal(second.audacityEffectTouchedParams.size, 0);
 	assert.notEqual(first.missingSourceIds, second.missingSourceIds);
+});
+
+test('controller state preserves the supplied document history contract', async () => {
+	const { createControllerDocumentState } = await import('../src/common/editor/controller/document-state.ts');
+	const history = { present: { id: 'project', title: 'Original' }, origin: 'retained-session' };
+	const document = createControllerDocumentState<typeof history.present, typeof history>();
+	const state = createEditorControllerState({
+		document, preferences: {}, recordingRouting: {}, effectPresets: {},
+		initialEffectType: 'amplify', phase: 'booting', readyMessage: 'Ready', mobile: false,
+		defaultPixelsPerSecond: 120, timelineMinimumSeconds: 30,
+		recordingInputGain: 1, preferredInputDeviceId: 'default',
+	});
+	state.history = history;
+	document.project = { id: 'project', title: 'Updated' };
+	assert.equal(state.history.origin, 'retained-session');
+	assert.equal(state.history.present.title, 'Updated');
 });
