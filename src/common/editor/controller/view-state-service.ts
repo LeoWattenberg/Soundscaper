@@ -1,30 +1,65 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- Explicit legacy ports keep the view-state composition seam typo-safe. */
+import type { ControllerTransportMeters, ControllerTransportState } from './transport-state.ts';
 
-type LegacyPort = (...args: any[]) => any;
-
-export interface ViewStateServiceRuntime {
-	readonly MAX_PIXELS_PER_SECOND: number;
-	readonly commit: LegacyPort;
-	readonly copy: any;
-	readonly editingBlocked: LegacyPort;
-	readonly editorTimelineDurationFrames: LegacyPort;
-	readonly findTrack: LegacyPort;
-	readonly getMicrophoneMeterSession: LegacyPort;
-	readonly getProject: LegacyPort;
-	readonly getRoutedInputLoudnessMeter: LegacyPort;
-	readonly projectDurationFrames: LegacyPort;
-	readonly projectSampleRate: LegacyPort;
-	readonly publishProjectState: LegacyPort;
-	readonly publishTelemetrySnapshot: LegacyPort;
-	readonly sampleEditingAvailable: LegacyPort;
-	readonly state: any;
-	readonly stopMicrophoneMetering: LegacyPort;
-	readonly syncMetronome: LegacyPort;
+export interface ViewStateTrack {
+	readonly id: string;
+	readonly height?: number;
 }
 
-export function createViewStateService(runtime: ViewStateServiceRuntime) {
+/** What the timeline view reads from the active document. */
+export interface ViewStateProject {
+	readonly tracks: readonly ViewStateTrack[];
+}
+
+export interface ViewStateServiceState extends Pick<ControllerTransportState,
+	| 'durationFrames' | 'meters' | 'positionFrame' | 'transportState'
+> {
+	pixelsPerSecond: number;
+	timelineViewportWidth: number;
+	autoFitTrackHeight: boolean;
+	visibleTrackHeights: Record<string, number>;
+	sampleEditMode: unknown;
+	inputLoudnessMeasurementExplicitlyRunning: boolean;
+	readonly inputLoudnessMeasurementManuallyPaused: boolean;
+	readonly microphoneMetering: boolean;
+	readonly recorder: unknown;
+	readonly recordingPreviews: readonly Readonly<{ readonly startFrame: number; readonly frames: number }>[];
+}
+
+export interface ViewStateLoudnessMeter {
+	setRunning(running: boolean): void;
+	requestSnapshot?(): void;
+}
+
+export interface ViewStateServiceRuntime<Project extends ViewStateProject = ViewStateProject> {
+	readonly MAX_PIXELS_PER_SECOND: number;
+	readonly commit: (
+		command: Readonly<{ readonly type: 'batch'; readonly commands: readonly unknown[] }>,
+		selection?: Readonly<{ readonly selectTrackId?: unknown }>,
+	) => unknown;
+	readonly copy: Readonly<{ readonly trackNotFound: string }>;
+	readonly editingBlocked: () => boolean;
+	readonly editorTimelineDurationFrames: (project: Project | null, sampleRate: number) => number;
+	readonly findTrack: (project: Project | null, trackId: unknown) => ViewStateTrack | null | undefined;
+	readonly getMicrophoneMeterSession: () => Readonly<{ readonly loudnessMeter?: ViewStateLoudnessMeter | null }> | null;
+	readonly getProject: () => Project | null;
+	readonly getRoutedInputLoudnessMeter: () => Pick<ViewStateLoudnessMeter, 'setRunning'> | null;
+	readonly projectDurationFrames: (project: Project | null) => number;
+	readonly projectSampleRate: () => number;
+	readonly publishProjectState: () => void;
+	readonly publishTelemetrySnapshot: () => void;
+	readonly sampleEditingAvailable: () => boolean;
+	readonly state: ViewStateServiceState;
+	readonly stopMicrophoneMetering: (
+		options: Readonly<{ readonly releaseInput: boolean; readonly preserveReading: boolean }>,
+	) => unknown;
+	readonly syncMetronome: () => unknown;
+}
+
+export function createViewStateService<Project extends ViewStateProject = ViewStateProject>(
+	runtime: ViewStateServiceRuntime<Project>,
+) {
 	const {
 		MAX_PIXELS_PER_SECOND, commit, copy, editingBlocked,
 		editorTimelineDurationFrames, findTrack, getMicrophoneMeterSession, getProject,
@@ -33,12 +68,12 @@ export function createViewStateService(runtime: ViewStateServiceRuntime) {
 		stopMicrophoneMetering, syncMetronome,
 	} = runtime;
 
-	function updatePlayhead(frame: any = 0, duration: any = projectDurationFrames(getProject())) {
+	function updatePlayhead(frame: unknown = 0, duration: unknown = projectDurationFrames(getProject())) {
 		let nextFrame = Math.max(0, Math.round(Number(frame) || 0));
 		let nextDuration = Math.max(0, Math.round(Number(duration) || 0));
 		// The transport duration is fixed while recording. Keep preview and
 		// playhead coordinates in the same project-time space.
-		const recordingEndFrame = state.recordingPreviews.reduce((end: number, preview: any) => (
+		const recordingEndFrame = state.recordingPreviews.reduce((end, preview) => (
 			Math.max(end, preview.startFrame + preview.frames)
 		), 0);
 		if (state.recorder && recordingEndFrame > 0) {
@@ -50,8 +85,8 @@ export function createViewStateService(runtime: ViewStateServiceRuntime) {
 		publishTelemetrySnapshot();
 	}
 
-	function updateTransportState(value: any) {
-		const nextTransportState = value || 'stopped';
+	function updateTransportState(value: unknown) {
+		const nextTransportState = typeof value === 'string' && value ? value : 'stopped';
 		if (nextTransportState !== state.transportState && nextTransportState !== 'recording') {
 			state.inputLoudnessMeasurementExplicitlyRunning = false;
 		}
@@ -61,7 +96,7 @@ export function createViewStateService(runtime: ViewStateServiceRuntime) {
 		const microphoneMeterSession = getMicrophoneMeterSession();
 		microphoneMeterSession?.loudnessMeter?.setRunning(shouldMeasure);
 		getRoutedInputLoudnessMeter()?.setRunning(shouldMeasure);
-		microphoneMeterSession?.loudnessMeter?.requestSnapshot();
+		microphoneMeterSession?.loudnessMeter?.requestSnapshot?.();
 		if (state.transportState !== 'recording'
 			&& !state.microphoneMetering
 			&& !state.recorder
@@ -72,7 +107,7 @@ export function createViewStateService(runtime: ViewStateServiceRuntime) {
 		publishTelemetrySnapshot();
 	}
 
-	function updateMeters(meters: any) {
+	function updateMeters(meters: ControllerTransportMeters | null | undefined) {
 		state.meters = meters || { tracks: {}, master: null };
 		publishTelemetrySnapshot();
 	}
@@ -83,7 +118,7 @@ export function createViewStateService(runtime: ViewStateServiceRuntime) {
 	 * — the mouse wheel, which honours Audacity's zoom precision — moves by that
 	 * instead.
 	 */
-	function updateZoom(action: any, requestedViewportWidth: any, requestedFactor?: any) {
+	function updateZoom(action: unknown, requestedViewportWidth: unknown, requestedFactor?: unknown) {
 		const project = getProject();
 		if (action === 'fit') {
 			const viewport = Math.max(320, Number(requestedViewportWidth) || state.timelineViewportWidth || 960);
@@ -109,7 +144,7 @@ export function createViewStateService(runtime: ViewStateServiceRuntime) {
 		return state.pixelsPerSecond;
 	}
 
-	function setTimelineViewportWidth(width: any) {
+	function setTimelineViewportWidth(width: unknown) {
 		const nextWidth = Math.max(0, Number(width) || 0);
 		if (nextWidth === state.timelineViewportWidth) return nextWidth;
 		state.timelineViewportWidth = nextWidth;
@@ -117,22 +152,22 @@ export function createViewStateService(runtime: ViewStateServiceRuntime) {
 		return nextWidth;
 	}
 
-	function setAutoFitTrackHeight(enabled: any) {
+	function setAutoFitTrackHeight(enabled: unknown) {
 		state.autoFitTrackHeight = Boolean(enabled);
 		publishProjectState();
 		return state.autoFitTrackHeight;
 	}
 
-	function setVisibleTrackHeights(heights: any = {}) {
+	function setVisibleTrackHeights(heights: Readonly<Record<string, unknown>> = {}) {
 		const project = getProject();
 		state.visibleTrackHeights = Object.fromEntries(Object.entries(heights)
-			.filter(([trackId, height]) => project?.tracks.some((track: any) => track.id === trackId)
+			.filter(([trackId, height]) => project?.tracks.some((track) => track.id === trackId)
 				&& Number.isFinite(Number(height)))
 			.map(([trackId, height]) => [trackId, Math.max(40, Math.round(Number(height)))]));
 		return state.visibleTrackHeights;
 	}
 
-	function adjustTrackHeight(trackId: any, delta: any) {
+	function adjustTrackHeight(trackId: unknown, delta: number) {
 		const project = getProject();
 		const track = findTrack(project, trackId);
 		if (!track) throw new Error(copy.trackNotFound);
@@ -140,10 +175,10 @@ export function createViewStateService(runtime: ViewStateServiceRuntime) {
 		return resizeTrackHeight(track.id, currentHeight + delta, state.visibleTrackHeights);
 	}
 
-	function adjustAllTrackHeights(delta: any) {
+	function adjustAllTrackHeights(delta: number) {
 		if (editingBlocked()) return null;
 		const project = getProject();
-		const commands = project.tracks.map((track: any) => {
+		const commands = (project?.tracks ?? []).map((track) => {
 			const currentHeight = state.visibleTrackHeights[track.id] ?? track.height ?? 114;
 			return {
 				type: 'track/update',
@@ -157,13 +192,13 @@ export function createViewStateService(runtime: ViewStateServiceRuntime) {
 		return project;
 	}
 
-	function resizeTrackHeight(trackId: any, requestedHeight: any, fittedHeights: any = {}) {
+	function resizeTrackHeight(trackId: unknown, requestedHeight: unknown, fittedHeights: Readonly<Record<string, unknown>> = {}) {
 		if (editingBlocked()) return null;
 		const project = getProject();
 		const selectedTrack = findTrack(project, trackId);
-		if (!selectedTrack) throw new Error(copy.trackNotFound);
+		if (!project || !selectedTrack) throw new Error(copy.trackNotFound);
 		const commands = project.tracks
-			.map((track: any) => {
+			.map((track) => {
 				const value = track.id === trackId ? requestedHeight : fittedHeights[track.id];
 				const height = Math.max(40, Math.round(Number(value) || track.height || 114));
 				return height === track.height ? null : {

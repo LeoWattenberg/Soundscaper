@@ -2,11 +2,9 @@
 
 import type { EditorControllerPhase } from './lifecycle.ts';
 import { createControllerDocumentState, type ControllerDocumentState } from './document-state.ts';
-import {
-	createControllerRecordingState,
-	exposeOwnedFields,
-	type ControllerRecordingState,
-} from './recording-state.ts';
+import { exposeOwnedFields } from './owned-state.ts';
+import { createControllerRecordingState, type ControllerRecordingState } from './recording-state.ts';
+import { createControllerTransportState, type ControllerTransportState } from './transport-state.ts';
 import type { ControllerRuntimeHistory, ControllerRuntimeProject } from './project-runtime.ts';
 import { createLocalDiagnosticsErrorJournal } from '../local-diagnostics-error-journal.ts';
 import { createInitialEffectMacroLibrary } from './effect-macro-library-service.ts';
@@ -17,6 +15,7 @@ import type { TakeCyclePendingOpenRecovery } from './take-cycle-capture-orchestr
 export interface EditorControllerStateOptions<Preferences, RecordingRouting, EffectPresets> {
 	readonly document?: ControllerDocumentState<ControllerRuntimeProject, ControllerRuntimeHistory>;
 	readonly recording?: ControllerRecordingState<RecordingRouting>;
+	readonly transport?: ControllerTransportState;
 	readonly preferences: Preferences;
 	readonly recordingRouting: RecordingRouting;
 	readonly effectPresets: EffectPresets;
@@ -49,8 +48,9 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 	recordingInputGain,
 	preferredInputDeviceId,
 	recording = createControllerRecordingState({ recordingRouting, recordingInputGain, preferredInputDeviceId }),
+	transport = createControllerTransportState(),
 }: EditorControllerStateOptions<Preferences, RecordingRouting, EffectPresets>) {
-	return exposeOwnedFields({
+	return exposeOwnedFields(exposeOwnedFields({
 		localDiagnostics: createLocalDiagnosticsErrorJournal(),
 		get history() { return document.history; },
 		set history(value) { document.history = value; },
@@ -77,12 +77,6 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		sourceGcTimer: 0,
 		importing: false,
 		projectBinPreview: null,
-		playbackCacheAbort: null,
-		playbackCacheRefreshAbort: null,
-		playbackCacheGeneration: 0,
-		playAtSpeedRate: 1,
-		playAtSpeedAbort: null,
-		playAtSpeedGeneration: 0,
 		exportAbort: null,
 		exportGeneration: 0,
 		outputUrl: null,
@@ -131,18 +125,6 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		exportOutput: null,
 		showRms: false,
 		showVerticalRulers: true,
-		updateDisplayWhilePlaying: true,
-		pinnedPlayhead: false,
-		playbackOnRulerClick: true,
-		metronomeEnabled: false,
-		selectionFollowsLoop: false,
-		metronomeTimer: 0,
-		metronomeAnchor: null,
-		metronomePending: [],
-		positionFrame: 0,
-		durationFrames: 0,
-		transportState: 'stopped',
-		meters: { tracks: {}, master: null },
 		disposed: false,
-	}, recording);
+	}, recording), transport);
 }

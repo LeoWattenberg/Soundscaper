@@ -2,10 +2,8 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
-	createControllerRecordingState,
-	exposeOwnedFields,
-} from '../src/common/editor/controller/recording-state.ts';
+import { exposeOwnedFields } from '../src/common/editor/controller/owned-state.ts';
+import { createControllerRecordingState } from '../src/common/editor/controller/recording-state.ts';
 import { createEditorControllerState } from '../src/common/editor/controller/state.ts';
 
 function createState(recording = createControllerRecordingState({

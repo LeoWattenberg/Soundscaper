@@ -1,15 +1,26 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { EngineAudioContext } from '../engine/public-api.ts';
 import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
 import { resolveSelectionRange } from '../selection-range.ts';
+import type {
+	TransportLoopCommand,
+	TransportProject,
+	TransportSelection,
+	TransportServiceRuntime,
+} from './transport-service-types.ts';
 
-export interface TransportServiceRuntime {
-	// Legacy JavaScript ports are narrowed as their owning services migrate.
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	readonly [name: string]: any;
-}
-
-type RuntimeValue = TransportServiceRuntime[string];
+export type {
+	TransportCommand,
+	TransportCopy,
+	TransportEngine,
+	TransportLoop,
+	TransportLoopCommand,
+	TransportProject,
+	TransportSelection,
+	TransportServiceRuntime,
+	TransportServiceState,
+} from './transport-service-types.ts';
 
 /** Wake often enough that every pulse is queued well before the audio clock reaches it. */
 const METRONOME_TICK_MS = 25;
@@ -19,7 +30,9 @@ const METRONOME_RESYNC_SECONDS = 0.25;
 /** A tempo map cannot legitimately pack more pulses than this into one lookahead. */
 const METRONOME_MAXIMUM_PULSES_PER_TICK = 64;
 
-export function createEditorTransportService(runtime: TransportServiceRuntime) {
+export function createEditorTransportService<Project extends TransportProject = TransportProject>(
+	runtime: TransportServiceRuntime<Project>,
+) {
 	const {
 		AUDIO_EDITOR_SAMPLE_RATE, abortError, activeSelection, assertPlayAtSpeedStaffPadMemorySafe,
 		beginPlaybackCachePreparation, calculateAudioEditorMetronomeSchedule, cancelPlaybackCachePreparation, cancelTimedRecording,
@@ -30,7 +43,14 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 		stopProjectBinPreview, stopRecording, throwIfAborted,
 	} = runtime;
 	let metronomeSchedulerGeneration = 0;
-	function setPlayAtSpeedRate(value: RuntimeValue) {
+
+	function requireProject(): Project {
+		const project = getProject();
+		if (!project) throw new Error('The transport requires an open project.');
+		return project;
+	}
+
+	function setPlayAtSpeedRate(value: unknown) {
 		const rate = Number(value);
 		if (!Number.isFinite(rate) || rate < 0.5 || rate > 2) {
 			throw new RangeError('Playback speed must be between 0.5 and 2.');
@@ -40,7 +60,7 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 		return rate;
 	}
 
-	function cancelPlayAtSpeedPreparation({ status = false }: RuntimeValue = {}) {
+	function cancelPlayAtSpeedPreparation({ status = false }: Readonly<{ readonly status?: boolean }> = {}) {
 		const active = state.playAtSpeedAbort;
 		state.playAtSpeedGeneration += 1;
 		state.playAtSpeedAbort = null;
@@ -58,7 +78,7 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 		return engine.stop();
 	}
 
-	async function handlePlayAtSpeed(requestedRate: RuntimeValue = state.playAtSpeedRate) {
+	async function handlePlayAtSpeed(requestedRate: unknown = state.playAtSpeedRate) {
 		if (state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder) return false;
 		if (hasMissingTimelineSources()) throw new Error(copy.localSourcesMissing);
 		const rate = setPlayAtSpeedRate(requestedRate);
@@ -135,7 +155,7 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 		return range;
 	}
 
-	async function handleTransport(action: RuntimeValue) {
+	async function handleTransport(action: string) {
 		if ((state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder)
 			&& action !== 'stop' && action !== 'record') return;
 		if ((action === 'play' || action === 'record') && state.projectBinPreview) {
@@ -173,11 +193,10 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 		if (action === 'rewind') return engine.seek(engine.getPositionFrames() - projectSampleRate() * 5);
 		if (action === 'forward') return engine.seek(engine.getPositionFrames() + projectSampleRate() * 5);
 		if (action === 'loop') {
-			const selection = resolveSelectionRange(getProject(), { selectedClipId: state.selectedClipId });
-			const enabled = !getProject()?.loop?.enabled;
-			const storedLoop = getProject().loop?.endFrame > getProject().loop?.startFrame
-				? getProject().loop
-				: null;
+			const project = requireProject();
+			const selection = resolveSelectionRange(project, { selectedClipId: state.selectedClipId });
+			const enabled = !project.loop?.enabled;
+			const storedLoop = project.loop && project.loop.endFrame > project.loop.startFrame ? project.loop : null;
 			const range = storedLoop || selection || {
 				startFrame: 0,
 				endFrame: Math.max(1, Math.round(projectSampleRate() * 4)),
@@ -190,7 +209,7 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 	}
 
 	function clearLoopRegion() {
-		const current = getProject().loop || { startFrame: 0, endFrame: 0 };
+		const current = requireProject().loop || { startFrame: 0, endFrame: 0 };
 		const next = commit({ type: 'loop/set', enabled: false, ...current });
 		engine.setLoop(next.loop);
 		return next.loop;
@@ -210,7 +229,7 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 		return next.loop;
 	}
 
-	function setLoopRegion(startFrame: RuntimeValue, endFrame: RuntimeValue) {
+	function setLoopRegion(startFrame: number, endFrame: number) {
 		const start = normalizeTimelineFrame(Math.min(startFrame, endFrame));
 		const end = normalizeTimelineFrame(Math.max(startFrame, endFrame));
 		if (end <= start) throw new Error(copy.timeSelectionRequired);
@@ -220,7 +239,7 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 	}
 
 	function setSelectionToLoopRegion() {
-		const loop = getProject().loop;
+		const loop = requireProject().loop;
 		if (!loop?.enabled || loop.endFrame <= loop.startFrame) throw new Error(copy.timeSelectionRequired);
 		return setSelection(loop.startFrame, loop.endFrame);
 	}
@@ -239,16 +258,16 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 	function toggleSelectionFollowsLoop() {
 		state.selectionFollowsLoop = !state.selectionFollowsLoop;
 		void persistSetting(productSettingKey('selection-follows-loop'), state.selectionFollowsLoop);
-		if (state.selectionFollowsLoop && getProject().loop?.enabled) setSelectionToLoopRegion();
+		if (state.selectionFollowsLoop && getProject()?.loop?.enabled) setSelectionToLoopRegion();
 		else publishDocumentSnapshot();
 		return state.selectionFollowsLoop;
 	}
 
-	function commitLoopRange(range: RuntimeValue) {
-		const loopCommand = { type: 'loop/set', ...range };
+	function commitLoopRange(range: Readonly<{ readonly enabled: boolean; readonly startFrame: number; readonly endFrame: number }>) {
+		const loopCommand: TransportLoopCommand = { type: 'loop/set', ...range };
 		if (!range.enabled || !state.selectionFollowsLoop) return commit(loopCommand);
-		const project = getProject();
-		const selection = project.selection || {};
+		const project = requireProject();
+		const selection: Partial<TransportSelection> = project.selection ?? {};
 		return commit({
 			type: 'batch',
 			commands: [loopCommand, {
@@ -299,8 +318,9 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 		if (!metronomeSchedulerIsCurrent(generation)) return;
 		try {
 			const context = await engine.getAudioContext?.({ resume: false });
+			// A test or headless context may lack the oscillator API; the guard is runtime, not type.
 			if (metronomeSchedulerIsCurrent(generation)
-				&& context?.createOscillator && context?.createGain && context.destination) {
+				&& typeof context?.createOscillator === 'function' && typeof context?.createGain === 'function' && context.destination) {
 				scheduleMetronomeWindow(context);
 			}
 		} catch {
@@ -319,7 +339,7 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 		return generation === metronomeSchedulerGeneration && metronomeRunning();
 	}
 
-	function scheduleMetronomeWindow(context: RuntimeValue) {
+	function scheduleMetronomeWindow(context: EngineAudioContext) {
 		const project = getProject();
 		const sampleRate = projectSampleRate();
 		const playbackRate = state.transportState === 'playing'
@@ -364,7 +384,7 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 		}
 	}
 
-	function emitMetronomeClick(context: RuntimeValue, when: number, accent: string) {
+	function emitMetronomeClick(context: EngineAudioContext, when: number, accent: string) {
 		const oscillator = context.createOscillator();
 		const gain = context.createGain();
 		// A click queued inside the lookahead has not sounded yet, so stopping the
@@ -383,7 +403,7 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 		oscillator.start(when);
 		oscillator.stop(when + 0.04);
 		oscillator.onended = () => {
-			state.metronomePending = (state.metronomePending ?? []).filter((pending: RuntimeValue) => pending !== oscillator);
+			state.metronomePending = (state.metronomePending ?? []).filter((pending) => pending !== oscillator);
 			try { oscillator.disconnect(); } catch { /* Already disconnected. */ }
 			try { gain.disconnect(); } catch { /* Already disconnected. */ }
 		};
@@ -400,23 +420,26 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 		state.metronomePending = [];
 	}
 
-	function normalizeTimelineFrame(value: RuntimeValue) {
-		const maximum = getProject() ? projectDurationFrames(getProject()) : 0;
+	function normalizeTimelineFrame(value: unknown) {
+		const project = getProject();
+		const maximum = project ? projectDurationFrames(project) : 0;
 		const frame = Number(value);
 		if (!Number.isFinite(frame)) throw new TypeError(copy.timelineFramesFinite);
 		return Math.max(0, Math.min(maximum, Math.round(frame)));
 	}
 
-	function normalizePlaybackFrame(value: RuntimeValue) {
-		const maximum = getProject() ? editorTimelineDurationFrames(getProject(), projectSampleRate()) : 0;
+	function normalizePlaybackFrame(value: unknown) {
+		const project = getProject();
+		const maximum = project ? editorTimelineDurationFrames(project, projectSampleRate()) : 0;
 		const frame = Number(value);
 		if (!Number.isFinite(frame)) throw new TypeError(copy.timelineFramesFinite);
 		return Math.max(0, Math.min(maximum, Math.round(frame)));
 	}
 
 	function projectSampleRate() {
-		return Number.isSafeInteger(getProject()?.sampleRate) && getProject().sampleRate > 0
-			? getProject().sampleRate
+		const sampleRate = getProject()?.sampleRate;
+		return sampleRate !== undefined && Number.isSafeInteger(sampleRate) && sampleRate > 0
+			? sampleRate
 			: AUDIO_EDITOR_SAMPLE_RATE;
 	}
 	return Object.freeze({

@@ -214,7 +214,6 @@ import { createClipTransformService } from './controller/clip-transform-service.
 import { createClipPropertyService } from './controller/clip-property-service.ts';
 import { createClipTimePitchCacheService } from './controller/clip-time-pitch-service.ts';
 import { createClipTimePitchRenderService } from './controller/clip-time-pitch-render-service.ts';
-import { createViewStateService } from './controller/view-state-service.ts';
 
 import {
 	abortError,
@@ -278,7 +277,7 @@ import {
 	writeBuffer,
 } from './controller/source-audio.ts';
 import { createEditorControllerState } from './controller/state.ts';
-import { createEditorTransportService } from './controller/transport-service.ts';
+import { createTransportComposition } from './controller/transport-composition.ts';
 import { createImportVideoFile } from './controller/source-import.ts';
 import { createProjectImportService } from './controller/project-import-service.ts';
 import { createProjectAdminService } from './controller/project-admin-service.ts';
@@ -942,6 +941,15 @@ export function createAudioEditorController(_root = null, options = {}) {
 			publishDocumentSnapshot();
 			return getSnapshot();
 		});
+	const transportComposition = createTransportComposition({
+		state, engine, copy, sampleRate: AUDIO_EDITOR_SAMPLE_RATE, maximumPixelsPerSecond: MAX_PIXELS_PER_SECOND, microphoneMeter: microphoneMeterService,
+		abortError, activeSelection, assertPlayAtSpeedStaffPadMemorySafe, beginPlaybackCachePreparation, calculateAudioEditorMetronomeSchedule,
+		cancelPlaybackCachePreparation, cancelTimedRecording, commit, editingBlocked, editorTimelineDurationFrames, findTrack, formatPlaybackRate,
+		hasMissingTimelineSources, persistSetting, playAtSpeedPitchPreserver, productSettingKey, getProject: () => documentState.project,
+		projectDurationFrames, publishDocumentSnapshot, publishProjectState, publishTelemetrySnapshot, sampleEditingAvailable, setSelection, setStatus,
+		startRecording, stopProjectBinPreview, stopRecording, throwIfAborted,
+	});
+	const viewStateService = transportComposition.view;
 	const {
 		setPlayAtSpeedRate,
 		cancelPlayAtSpeedPreparation, retireTimelinePlayback,
@@ -954,20 +962,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setLoopRegionInOut,
 		toggleSelectionFollowsLoop,
 		toggleMetronome,
-		syncMetronome,
 		stopMetronome,
 		normalizeTimelineFrame,
 		normalizePlaybackFrame,
 		projectSampleRate,
-	} = createEditorTransportService({
-		AUDIO_EDITOR_SAMPLE_RATE, abortError, activeSelection, assertPlayAtSpeedStaffPadMemorySafe,
-		beginPlaybackCachePreparation, calculateAudioEditorMetronomeSchedule, cancelPlaybackCachePreparation, cancelTimedRecording,
-		commit, copy, editorTimelineDurationFrames, engine,
-		formatPlaybackRate, hasMissingTimelineSources, persistSetting, playAtSpeedPitchPreserver,
-		productSettingKey, getProject: () => documentState.project, projectDurationFrames, publishDocumentSnapshot,
-		setSelection, setStatus, startRecording, state,
-		stopProjectBinPreview, stopRecording, throwIfAborted,
-	});
+	} = transportComposition.transport;
 	const sequenceTimingService = createSequenceTimingService({
 		lifetime, getProject: () => documentState.project, editingBlocked, commit, publishProjectState,
 		getPositionFrames: () => engine.getPositionFrames(),
@@ -1012,16 +1011,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 		assertProject: (token) => projectGeneration.assertCurrent(token),
 		createAudioEditorVideoFrameExtractor,
 		activateVideoSource: (source, options) => activateVideoSource(source, options),
-	});
-	const viewStateService = createViewStateService({
-		MAX_PIXELS_PER_SECOND, commit, copy, editingBlocked,
-		editorTimelineDurationFrames, findTrack,
-		getMicrophoneMeterSession: microphoneMeterService.getSession,
-		getProject: () => documentState.project,
-		getRoutedInputLoudnessMeter: microphoneMeterService.getRoutedLoudnessMeter,
-		projectDurationFrames, projectSampleRate, publishProjectState,
-		publishTelemetrySnapshot, sampleEditingAvailable, state,
-		stopMicrophoneMetering, syncMetronome,
 	});
 	const { adjustAllTrackHeights } = viewStateService;
 	const sampleEditService = createSampleEditService({
@@ -2120,7 +2109,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function continueLoudnessMeasurement(kind = 'playback') { return microphoneMeterService.continueLoudnessMeasurement(kind); }
 	function resetLoudnessMeasurement(kind = 'playback') { return microphoneMeterService.resetLoudnessMeasurement(kind); }
 	async function setMicrophoneMetering(enabled) { return microphoneMeterService.setMicrophoneMetering(enabled); }
-	function stopMicrophoneMetering(options = {}) { return microphoneMeterService.stopMicrophoneMetering(options); }
 	function synchronizeMicrophoneMeterTarget() { return microphoneMeterService.synchronizeTarget(); }
 
 	function setRecordingInputGain(value) { return recording.setRecordingInputGain(value); }

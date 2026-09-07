@@ -26,7 +26,7 @@ function createRuntime() {
 			if (name === 'publishDocumentSnapshot') return () => { publishes += 1; };
 			return callable;
 		},
-	}) as TransportServiceRuntime;
+	}) as unknown as TransportServiceRuntime;
 	return { runtime, state, publishes: () => publishes };
 }
 
@@ -139,7 +139,7 @@ function createTransportFixture() {
 		setLoop: (loop: unknown) => { calls.loops.push(loop); },
 		getAudioContext: async () => audioContext,
 	};
-	const runtime: TransportServiceRuntime = {
+	const runtime = {
 		AUDIO_EDITOR_SAMPLE_RATE: 44_100,
 		abortError: () => Object.assign(new Error('Aborted'), { name: 'AbortError' }),
 		activeSelection: () => project.selection,
@@ -215,7 +215,7 @@ function createTransportFixture() {
 		throwIfAborted: (signal: AbortSignal) => {
 			if (signal.aborted) throw Object.assign(new Error('Aborted'), { name: 'AbortError' });
 		},
-	};
+	} as unknown as TransportServiceRuntime;
 	return {
 		service: createEditorTransportService(runtime),
 		state,

@@ -38,13 +38,13 @@ function createFixture() {
 		autoFitTrackHeight: true,
 		visibleTrackHeights: {} as Record<string, number>,
 	};
-	const runtime: ViewStateServiceRuntime = {
+	const runtime = {
 		MAX_PIXELS_PER_SECOND: 48_000,
-		commit: (command) => { commands.push(command); return project; },
+		commit: (command: unknown) => { commands.push(command); return project; },
 		copy: { trackNotFound: 'Track not found.' },
 		editingBlocked: () => blocked,
 		editorTimelineDurationFrames: () => 48_000,
-		findTrack: (value, id) => value.tracks.find((track: { id: string }) => track.id === id),
+		findTrack: (value: typeof project, id: unknown) => value.tracks.find((track) => track.id === id),
 		getMicrophoneMeterSession: () => ({
 			loudnessMeter: {
 				setRunning: (running: boolean) => { meterCalls.push(running); },
@@ -63,7 +63,7 @@ function createFixture() {
 		state,
 		stopMicrophoneMetering: () => { microphoneStops += 1; },
 		syncMetronome: () => { metronomeSynchronizations += 1; },
-	};
+	} as unknown as ViewStateServiceRuntime;
 	return {
 		service: createViewStateService(runtime),
 		state,

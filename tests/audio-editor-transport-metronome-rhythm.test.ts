@@ -113,7 +113,7 @@ async function runMetronome(options: MetronomeRun): Promise<readonly number[]> {
 		transportState: 'playing',
 		disposed: false,
 	};
-	const runtime: TransportServiceRuntime = {
+	const runtime = {
 		AUDIO_EDITOR_SAMPLE_RATE: SAMPLE_RATE,
 		calculateAudioEditorMetronomeSchedule,
 		getProject: () => project,
@@ -128,7 +128,7 @@ async function runMetronome(options: MetronomeRun): Promise<readonly number[]> {
 			getPositionFrames: () => Math.round(clock * SAMPLE_RATE),
 			getAudioContext: async () => context,
 		},
-	};
+	} as unknown as TransportServiceRuntime;
 
 	const realSetTimeout = globalThis.setTimeout;
 	const realClearTimeout = globalThis.clearTimeout;

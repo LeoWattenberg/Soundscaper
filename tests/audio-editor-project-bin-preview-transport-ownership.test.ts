@@ -116,7 +116,7 @@ function ownershipFixture() {
 		setStatus: () => undefined,
 		state,
 		throwIfAborted,
-	} as TransportServiceRuntime);
+	} as unknown as TransportServiceRuntime);
 	const previewEngine: ProjectBinPreviewEngine = {
 		loadProject: () => undefined,
 		play: async () => { previewPlays += 1; },
