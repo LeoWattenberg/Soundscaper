@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { ClipTimePitchRenderCacheCoordinator } from '../src/common/editor/clip-time-pitch-cache.js';
 import { createControllerResources } from '../src/common/editor/controller/controller-resources.ts';
 
 const callbacks = {
@@ -18,6 +19,7 @@ test('controller resources give workers owned PCM without detaching resident cha
 			length: 2, numberOfChannels: 1, sampleRate: 48_000,
 			getChannelData: () => samples,
 		});
+		assert.ok(resources.clipTimePitchCache instanceof ClipTimePitchRenderCacheCoordinator);
 		const channels: Float32Array[] = await resources.clipTimePitchCache.loadSourceChannels({
 			id: 'source', frameCount: 2, channelCount: 1,
 		});
@@ -26,7 +28,7 @@ test('controller resources give workers owned PCM without detaching resident cha
 		structuredClone(channels, { transfer: channels.map(channel => channel.buffer) });
 		assert.deepEqual([...samples], [0.25, -0.5]);
 	} finally {
-		await resources.clipTimePitchCache.dispose();
+		await resources.clipTimePitchCache.dispose?.();
 		await resources.engine.dispose();
 		resources.ffmpeg.dispose();
 		resources.nyquistClient?.dispose();
@@ -41,7 +43,7 @@ test('injected Nyquist evaluation does not construct a second client', async () 
 		assert.equal(resources.nyquistClient, null);
 		assert.equal(resources.nyquistEvaluator, evaluate);
 	} finally {
-		await resources.clipTimePitchCache.dispose();
+		await resources.clipTimePitchCache.dispose?.();
 		await resources.engine.dispose();
 		resources.ffmpeg.dispose();
 		await resources.store.close();

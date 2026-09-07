@@ -18,6 +18,13 @@ import { deferredEffectRuntime, type DeferredNyquistClient } from './deferred-ef
 type ControllerCodecRuntime = ReturnType<typeof createEditorCodecRuntime>
 	& Readonly<{ probeVideoTiming?: VideoTimingProbePort['probe'] }>;
 
+/** Inject cache capabilities without depending on the coordinator's private storage and workers. */
+export type ControllerTimePitchCache = Pick<ClipTimePitchRenderCacheCoordinator,
+	'createEngineSourceResolver' | 'prepareCommittedOutput' | 'resolveForPlayback' | 'loadCommittedChannels'
+> & Partial<Pick<ClipTimePitchRenderCacheCoordinator,
+	'retainClipIds' | 'getCommitted' | 'attachAudioBuffer' | 'getProtectedSourceIds' | 'clear' | 'dispose'
+>>;
+
 export interface ControllerResourceOptions {
 	readonly fileService?: ReturnType<typeof createAudioEditorFileService>;
 	readonly store?: ReturnType<typeof createProjectStore>;
@@ -26,7 +33,7 @@ export interface ControllerResourceOptions {
 	readonly sessionController?: ReturnType<typeof createAudioEditorSessionController>;
 	readonly engine?: EnginePublicApi;
 	readonly engineFactory?: typeof createAudioEditorEngine;
-	readonly clipTimePitchCache?: ClipTimePitchRenderCacheCoordinator;
+	readonly clipTimePitchCache?: ControllerTimePitchCache;
 	readonly staffPadRenderClient?: Pick<StaffPadRenderClient, 'render'>;
 	readonly clipTimePitchMaximumResidentChannelBytes?: number;
 	readonly ffmpeg?: ControllerCodecRuntime;
