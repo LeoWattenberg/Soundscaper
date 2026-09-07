@@ -10171,7 +10171,7 @@
 				},
 				{
 					"id": "macro-program-inherited-connect-src",
-					"exposure": "A blob-URL worker inherits the creating document's policy and cannot be given a tighter one, so on the web the worker keeps connect-src 'self' plus the two first-party CDNs. There is no same-origin write endpoint in this repository, so exfiltration is narrow rather than absent. The desktop policy is 'self' blob: and closes it.",
+					"exposure": "A blob-URL worker inherits the creating document's policy and cannot be given a tighter one, so on the web the worker keeps connect-src 'self' plus the first-party CDN. There is no same-origin write endpoint in this repository, so exfiltration is narrow rather than absent. The desktop policy is 'self' blob: and closes it.",
 					"requiredControl": "Run the macro worker under a policy of its own, or keep the web origin free of any endpoint a macro could write to.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": [

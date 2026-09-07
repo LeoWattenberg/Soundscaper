@@ -20,7 +20,7 @@
 			"description": "Versioned optional non-codec assets fetched from assets.soundscaper.org rather than bundled into Pages. The checked-in FFmpeg WebAssembly publication manifests and audit scripts are retained legacy tooling only; the production browser does not import, package, publish, or fetch that runtime.",
 			"artifactStatus": "distributed",
 			"noticeDeliveryStatus": "blocked",
-			"evidence": ["scripts/manage-audacity-translation-release.mjs", "config/ffmpeg-runtime-manifest.json", "scripts/lib/ffmpeg-runtime-manifest.mjs"]
+			"evidence": ["config/ffmpeg-runtime-manifest.json", "scripts/lib/ffmpeg-runtime-manifest.mjs"]
 		},
 		{
 			"id": "electron-renderer",
@@ -31,7 +31,7 @@
 		},
 		{
 			"id": "electron-runtime-assets",
-			"description": "Translation and separately admitted runtime assets staged beside the Electron renderer, including exact reviewed libFLAC, libopus/libogg, libvorbis/libogg, WavPack, mpg123, LAME, and TwoLAME WebAssembly audio providers. Their runtime manifest authenticates each WASM file and its complete transitive JavaScript module closure before fresh supervised utility-process execution. Desktop targets whose assistance manifest row is built also stage the exact manifest-authenticated sherpa-onnx 1.13.5 local-assistance Node and native runtime. Application-supplied FFmpeg/libav, FFmpeg WebAssembly, and unqualified bundled WebM/AV1 payloads are excluded. Electron's separately inventoried alternate framework libffmpeg remains part of the Electron shell.",
+			"description": "Separately admitted runtime assets staged beside the Electron renderer, including exact reviewed libFLAC, libopus/libogg, libvorbis/libogg, WavPack, mpg123, LAME, and TwoLAME WebAssembly audio providers. Their runtime manifest authenticates each WASM file and its complete transitive JavaScript module closure before fresh supervised utility-process execution. Desktop targets whose assistance manifest row is built also stage the exact manifest-authenticated sherpa-onnx 1.13.5 local-assistance Node and native runtime. Application-supplied FFmpeg/libav, FFmpeg WebAssembly, and unqualified bundled WebM/AV1 payloads are excluded. Electron's separately inventoried alternate framework libffmpeg remains part of the Electron shell.",
 			"artifactStatus": "distributed",
 			"noticeDeliveryStatus": "implemented",
 			"evidence": ["config/assistance-native-runtime-manifest.json", "desktop/assistance-native-runtime-payload.mjs", "scripts/lib/desktop-codec-policy.mjs", "scripts/lib/desktop-bundled-audio-runtime.mjs", "scripts/lib/desktop-bundled-audio-codec-runtime-closure.mjs", "scripts/lib/desktop-bundled-codec-notices.mjs", "desktop/bundled-audio-codec-runtime-payload.mjs", "scripts/desktop-prepare.mjs", "scripts/desktop-before-pack.mjs", "scripts/desktop-after-pack.mjs", "tests/assistance-native-runtime-payload.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-bundled-audio-codec-runtime-payload.test.js", "tests/desktop-bundled-codec-notices.test.js", "electron-builder.config.cjs"]
@@ -296,8 +296,9 @@
 		{
 			"id": "audacity-translation-packs",
 			"status": "documented",
-			"artifactSurfaces": ["web-runtime-assets", "electron-runtime-assets"],
-			"evidence": ["THIRD_PARTY_LICENSES.md", "scripts/manage-audacity-translation-release.mjs"]
+			"description": "Audacity's reviewed translation strings are committed per-locale JSON catalogs converted from Audacity's upstream Qt TS catalogs, carrying inline provenance, and bundled into the renderer alongside the machine catalogs.",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"evidence": ["THIRD_PARTY_LICENSES.md", "src/common/i18n/audacity/NOTICE.md", "scripts/lib/audacity-committed-layer.mjs"]
 		},
 		{
 			"id": "staffpad-wasm",

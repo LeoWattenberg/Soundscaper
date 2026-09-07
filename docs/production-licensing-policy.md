@@ -78,11 +78,11 @@ The matrix treats these as separate distributions:
 - optional versioned web runtime assets, including FFmpeg;
 - the desktop-specific Electron renderer, whose composition excludes the Web
   FFmpeg wrapper and core;
-- translation and separately admitted runtime assets staged beside that
-  renderer, including exact reviewed libFLAC, libopus/libogg,
-  libvorbis/libogg, WavPack, mpg123, LAME, and TwoLAME WebAssembly audio
-  providers but excluding application-supplied FFmpeg/libav, FFmpeg
-  WebAssembly, and unqualified WebM/AV1 payloads;
+- separately admitted runtime assets staged beside that renderer, including
+  exact reviewed libFLAC, libopus/libogg, libvorbis/libogg, WavPack, mpg123,
+  LAME, and TwoLAME WebAssembly audio providers but excluding
+  application-supplied FFmpeg/libav, FFmpeg WebAssembly, and unqualified
+  WebM/AV1 payloads;
 - the Electron shell with embedded Chromium and Node.js, including Electron's
   exact alternate framework libffmpeg for the selected target; and
 - public desktop packages and their release/source archive set.
@@ -117,11 +117,14 @@ the work:
 - npm packages use the lock path, exact version, resolved archive/integrity
   evidence where present, package license files, and an upstream source link;
 - translated or adapted sources retain upstream project, revision, source
-  paths, authorship and modification notices;
+  paths, authorship and modification notices; Audacity's reviewed translation
+  strings are one such source, committed as one JSON catalog per locale under
+  `src/common/i18n/audacity/`, each carrying that provenance and a
+  modification notice inline;
 - generated WebAssembly retains source manifests, license hashes, toolchain,
   build flags, artifact hashes, and a reproducible audit command;
-- remotely downloaded translations or runtimes retain versioned manifests,
-  hashes, upstream source and license material; and
+- remotely downloaded runtimes retain versioned manifests, hashes, upstream
+  source and license material; and
 - Electron packages retain Electron and Chromium notices in addition to the
   application notice set. The alternate Electron framework libffmpeg also has
   one exact five-target manifest covering Electron version, release archive,
