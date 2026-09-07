@@ -85,7 +85,7 @@ test('a live Audacity effect failure reports the rack that fell silent', async (
 	try {
 		const processor = await liveEffectProcessor(noiseReduction('denoise'), (error) => { errors.push(error); });
 		processor.port.onmessage?.(messageEvent({ type: 'status', status: 'ready' }));
-		assert.deepEqual(errors, []);
+		assert.equal(errors.length, 0);
 
 		processor.port.onmessage?.(messageEvent({
 			type: 'error',
@@ -140,7 +140,7 @@ test('reporting live effect failures leaves the dynamics reading path intact', a
 		const reading = readDynamicsAnalysisTelemetry(processor as unknown as AudioNode);
 		assert.equal(reading?.sequence, 3);
 		assert.equal(reading?.reductionDb, -4);
-		assert.deepEqual(errors, []);
+		assert.equal(errors.length, 0);
 	} finally {
 		restoreWorkletNode(previousAudioWorkletNode);
 	}
@@ -150,7 +150,7 @@ test('a live effect failure during an offline render rejects instead of exportin
 	const previousAudioWorkletNode = globalThis.AudioWorkletNode;
 	installWorkletNode(MockAudioWorkletNode);
 	class FailingLiveEffectOfflineContext extends MockOfflineAudioContext {
-		async startRendering(): Promise<unknown> {
+		async startRendering() {
 			for (const node of this.workletNodes) {
 				if (node.name !== 'kw-audacity-live-effect' || node.readinessProbe) continue;
 				node.port.onmessage?.(messageEvent({ type: 'error', message: PROFILE_FAILURE }));
