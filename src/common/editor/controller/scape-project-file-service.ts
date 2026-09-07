@@ -25,12 +25,12 @@ import {
 } from './scape-open-request-service.ts';
 
 export interface ScapeProjectInspection extends ScapeOpenInspection {
-	readonly id: string;
-	readonly title: string;
+	readonly id: unknown;
+	readonly title: unknown;
 	readonly schemaFamily: ProjectSchemaFamily;
 	readonly schemaVersion: number;
 	readonly readOnly: boolean;
-	readonly reason: 'foreign-family' | 'newer-schema' | null;
+	readonly reason: string | null;
 	readonly manifest: ScapeManifest;
 	readonly featureRequirementsCompatibility: ProjectFeatureRequirementsReport | null;
 }

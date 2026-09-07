@@ -489,7 +489,7 @@ export async function importScapeProject(input, store, options = {}) {
  *   canonicalProjectDigest?: boolean, loadProject?: (project: unknown) => { project: Record<string, unknown>, readOnly: boolean },
  *   currentProjectSchemaFamily?: import('./project-schema-identity.ts').ProjectSchemaFamily,
  *   currentProjectSchemaVersion?: number,
- *   projectFeatureCompatibility?: { evaluate: (project: unknown) => unknown },
+ *   projectFeatureCompatibility?: { evaluate: (project: unknown) => import('./project-feature-requirement-types.ts').ProjectFeatureRequirementsReport | null },
  *   projectAssetExtension?: import('./scape-project-asset-extension.ts').ScapeProjectAssetExtension,
  * }} options
  * @param {{ retain?: (settlement: PromiseLike<unknown>) => void }} retention
@@ -530,9 +530,9 @@ export async function inspectScapeProject(input, store = null, options = {}, ret
 			id: loaded.project.id,
 			title: loaded.project.title,
 			schemaFamily: loaded.identity.schemaFamily,
-			schemaVersion: loaded.project.schemaVersion,
+			schemaVersion: loaded.identity.schemaVersion,
 			readOnly: loaded.readOnly,
-			reason: loaded.reason,
+			reason: loaded.reason ?? null,
 			exists: Boolean(existing),
 			manifest,
 			featureRequirementsCompatibility,

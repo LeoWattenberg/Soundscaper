@@ -10,6 +10,7 @@ import {
 	type ProjectSchemaFamily,
 } from '../src/common/editor/project-schema-identity.ts';
 import { copyFutureScapeArchive } from '../src/common/editor/scape-archive-copy.ts';
+import type { ScapeProjectInspection } from '../src/common/editor/controller/scape-project-file-service.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 import {
 	prepareScapeExport,
@@ -171,8 +172,9 @@ test('inspection validates manifest/root identity and makes known foreign and fu
 	assert.equal(foreign.reason, 'foreign-family');
 	assert.equal(foreignStoreReads, 0);
 
-	const future = await archiveFor({ ...baselineProject('soundscaper'), schemaVersion: 2 });
-	const futureInspection = await inspectScapeProject(future, null, {
+	const futureTitle = { futurePresentation: 'opaque title' };
+	const future = await archiveFor({ ...baselineProject('soundscaper'), schemaVersion: 2, title: futureTitle });
+	const futureInspection: ScapeProjectInspection = await inspectScapeProject(future, null, {
 		currentProjectSchemaFamily: 'soundscaper',
 		loadProject: () => { throw new Error('future project domain was traversed'); },
 	});
@@ -180,6 +182,7 @@ test('inspection validates manifest/root identity and makes known foreign and fu
 	assert.equal(futureInspection.schemaVersion, 2);
 	assert.equal(futureInspection.readOnly, true);
 	assert.equal(futureInspection.reason, 'newer-schema');
+	assert.deepEqual(futureInspection.title, futureTitle);
 });
 
 test('foreign and future archive copies preserve exact bytes and return the identity tuple', async () => {
