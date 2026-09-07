@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { LinkedOriginalBinding } from './linked-original-binding.ts';
+import type { LinkedAudioOriginalBinding, LinkedOriginalBinding } from './linked-original-binding.ts';
 import {
 	LinkedOriginalLifecycleCoordinator,
 	type LocalStoreClearAdmission,
@@ -245,7 +245,7 @@ export class LinkedOriginalStoreService {
 		source: LinkedAudioOriginalSource,
 		locatorId: string,
 		options: BindLinkedOriginalOptions = {},
-	): Promise<LinkedOriginalBinding> {
+	): Promise<LinkedAudioOriginalBinding> {
 		this.#assertAudioSource(source);
 		const { resolver, lifecycle } = this.#audioOwnership();
 		return lifecycle.bind(
@@ -260,7 +260,7 @@ export class LinkedOriginalStoreService {
 		source: LinkedAudioOriginalSource,
 		locatorId: string,
 		options: RelinkLinkedAudioOriginalOptions,
-	): Promise<LinkedOriginalBinding> {
+	): Promise<LinkedAudioOriginalBinding> {
 		this.#assertAudioSource(source);
 		const { resolver, lifecycle } = this.#audioOwnership();
 		return lifecycle.bind(

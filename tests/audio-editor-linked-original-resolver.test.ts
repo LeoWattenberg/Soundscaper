@@ -31,7 +31,8 @@ test('linked audio resolution binds exact canonical geometry to one pathless WAV
 		expectedSnapshot: body,
 	});
 	assert.equal(binding.schemaVersion, 2);
-	assert.equal(binding.kind, 'audio');
+	const audioKind: 'audio' = binding.kind;
+	assert.equal(audioKind, 'audio');
 	assert.equal(binding.byteLength, body.size);
 	assert.deepEqual(binding.sourceShape, sourceShape());
 	assert.equal('path' in binding, false);

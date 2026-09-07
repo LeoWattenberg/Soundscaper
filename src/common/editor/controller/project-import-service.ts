@@ -191,9 +191,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		const { kind, locatorId, locatorRevision } = reference;
 		const locator = Object.freeze({ locatorId, locatorRevision });
 		if (kind === 'video') return releaseLinkedVideoLocator(locator);
-		const released = typeof store.releaseLinkedOriginalLocator === 'function'
-			? await store.releaseLinkedOriginalLocator({ ...reference, kind: 'audio' })
-			: await store.releaseLinkedAudioOriginalLocator(locator);
+		const released = await store.releaseLinkedOriginalLocator({ ...reference, kind: 'audio' });
 		if (released === false) throw new Error('The unused linked-audio locator was not released.');
 	}
 	async function releaseLinkedVideoLocator(reference: RuntimeValue) {

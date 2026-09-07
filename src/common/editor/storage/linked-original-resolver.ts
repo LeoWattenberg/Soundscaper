@@ -5,6 +5,8 @@ import {
 	normalizeLinkedOriginalBindingInput,
 	type LinkedAudioOriginalSourceShape,
 	type LinkedOriginalBinding,
+	type LinkedAudioOriginalBinding,
+	type LinkedVideoOriginalBindingV2,
 	type LinkedOriginalBindingInput,
 	type LinkedOriginalKind,
 	type LinkedVideoOriginalSourceShape,
@@ -136,6 +138,15 @@ export class LinkedOriginalResolver {
 		this.#port = port;
 	}
 
+	bind(
+		projectId: string, source: LinkedAudioOriginalSource, locatorId: string, options?: BindLinkedOriginalOptions,
+	): Promise<LinkedAudioOriginalBinding>;
+	bind(
+		projectId: string, source: LinkedVideoOriginalSourceV2, locatorId: string, options?: BindLinkedOriginalOptions,
+	): Promise<LinkedVideoOriginalBindingV2>;
+	bind(
+		projectId: string, source: LinkedOriginalSource, locatorId: string, options?: BindLinkedOriginalOptions,
+	): Promise<LinkedOriginalBinding>;
 	async bind(
 		projectId: string,
 		source: LinkedOriginalSource,

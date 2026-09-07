@@ -66,7 +66,6 @@ export type ImportCompositionStore =
 	& Pick<ConsolidateMediaStore, 'unlinkLinkedVideoOriginal'>
 	& Pick<LinkedOriginalStoreService, 'saveLinkedVideoDerivative'>
 	& Readonly<{
-		releaseLinkedAudioOriginalLocator(reference: Readonly<{ locatorId: string; locatorRevision: string }>): PromiseLike<boolean>;
 		bindLinkedVideoOriginal(
 			...args: Parameters<LinkedOriginalStoreService['bindVideo']>
 		): ReturnType<LinkedOriginalStoreService['bindVideo']>;
