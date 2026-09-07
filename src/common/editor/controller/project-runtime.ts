@@ -200,10 +200,28 @@ const DEFAULT_RUNTIME = Object.freeze({
 	canRedo,
 }) as unknown as ControllerProjectRuntime;
 
+/** Admission checks callable ports; selected products retain their own result models. */
+export type ControllerProjectRuntimeSelection = {
+	readonly [Name in typeof METHOD_NAMES[number] | 'loadProject']: (...args: never[]) => unknown;
+};
+
+/** Keep only admitted runtime ports, retaining the selected owners' signatures. */
+export type ControllerProjectRuntimeSnapshot<Runtime extends ControllerProjectRuntimeSelection> =
+	unknown extends Runtime ? Readonly<ControllerProjectRuntime> : Readonly<
+		Omit<ControllerProjectRuntime, keyof Runtime>
+		& Pick<Runtime, Extract<keyof ControllerProjectRuntime, keyof Runtime>>
+	>;
+
+/** A typed host retains its document model through runtime admission. */
+export function resolveControllerProjectRuntime<Runtime extends ControllerProjectRuntimeSelection>(
+	value: Runtime,
+): ControllerProjectRuntimeSnapshot<Runtime>;
+export function resolveControllerProjectRuntime(value?: unknown): Readonly<ControllerProjectRuntime>;
+
 /** Snapshot either the unchanged V17 owner or one complete selected runtime. */
 export function resolveControllerProjectRuntime(
-	value?: ControllerProjectRuntime | unknown,
-): Readonly<ControllerProjectRuntime> {
+	value?: unknown,
+): Readonly<object> {
 	if (value === undefined) return DEFAULT_RUNTIME;
 	if (value === null || (typeof value !== 'object' && typeof value !== 'function')) {
 		throw new TypeError('A complete controller project runtime is required.');

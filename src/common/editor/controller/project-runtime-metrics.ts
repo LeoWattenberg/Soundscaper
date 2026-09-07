@@ -4,27 +4,26 @@ import {
 	editorTimelineDurationFrames as currentEditorTimelineDurationFrames,
 	projectDurationFrames as currentProjectDurationFrames,
 } from '../project.js';
-import type { ControllerProjectRuntime, ControllerRuntimeProject } from './project-runtime.ts';
 
 type ProjectMetricInput = Parameters<typeof currentProjectDurationFrames>[0];
 
 export interface ControllerProjectRuntimeMetrics {
-	readonly projectDurationFrames: (project: ControllerRuntimeProject) => number;
+	readonly projectDurationFrames: (project: unknown) => number;
 	readonly editorTimelineDurationFrames: (
-		project: ControllerRuntimeProject,
+		project: unknown,
 		sampleRate?: number,
 	) => number;
 }
 
 /** Keep shared view metrics behind the same selected transient runtime boundary. */
 export function createControllerProjectRuntimeMetrics(
-	runtime: Pick<ControllerProjectRuntime, 'projectForRuntimeConsumers'>,
+	runtime: Readonly<{ projectForRuntimeConsumers(project: unknown): unknown }>,
 ): Readonly<ControllerProjectRuntimeMetrics> {
 	return Object.freeze({
-		projectDurationFrames: (project: ControllerRuntimeProject) => currentProjectDurationFrames(
+		projectDurationFrames: (project: unknown) => currentProjectDurationFrames(
 			runtime.projectForRuntimeConsumers(project) as unknown as ProjectMetricInput,
 		),
-		editorTimelineDurationFrames: (project: ControllerRuntimeProject, sampleRate?: number) => (
+		editorTimelineDurationFrames: (project: unknown, sampleRate?: number) => (
 			currentEditorTimelineDurationFrames(
 				runtime.projectForRuntimeConsumers(project) as unknown as ProjectMetricInput,
 				sampleRate,

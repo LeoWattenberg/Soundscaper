@@ -30,6 +30,8 @@ test('controller runtime snapshots Framescaper v1 authority with baseline projec
 	const project = runtime.createProject({
 		id: 'selected-runtime', title: 'Selected runtime', now: '2026-08-13T12:00:00.000Z',
 	});
+	const family: 'framescaper' = project.schemaFamily;
+	assert.equal(family, 'framescaper');
 	const history = runtime.createHistory(project);
 	assert.equal(project.schemaFamily, 'framescaper');
 	assert.equal(project.schemaVersion, 1);
@@ -53,4 +55,18 @@ test('controller runtime refuses partial callback collections', () => {
 	assert.throws(() => resolveControllerProjectRuntime({
 		createProject: () => ({}),
 	}), /complete.*runtime|cloneProject/iu);
+});
+
+test('runtime admission preserves selected method results without publishing unrelated host fields', () => {
+	const selected = {
+		...resolveControllerProjectRuntime(),
+		createProject: () => ({ id: 'typed-project', schemaVersion: 17, title: 'Typed project' }),
+		hostSecret: 'outside the runtime contract',
+	};
+	const runtime = resolveControllerProjectRuntime(selected);
+	const title: string = runtime.createProject().title;
+	assert.equal(title, 'Typed project');
+	assert.equal(runtime.createProject, selected.createProject);
+	assert.equal(Object.hasOwn(runtime, 'hostSecret'), false);
+	assert.equal(Object.isFrozen(runtime), true);
 });
