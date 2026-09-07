@@ -506,8 +506,10 @@ function trimCommand(
 	return { type: 'clip/trim', clipId, ...changes } as Extract<AudioEditorCommand, { readonly type: 'clip/trim' }>;
 }
 
-function timelineTracks(project: ClipTransformProject): ClipTransformTrack[] {
-	return project.tracks.filter((track) => Array.isArray(track.clipIds));
+function timelineTracks(project: ClipTransformProject) {
+	return project.tracks.filter((track): track is ClipTransformTrack & { readonly clipIds: readonly string[] } => (
+		track.type !== 'label' && Array.isArray(track.clipIds)
+	));
 }
 
 function findClip(project: ClipTransformProject, clipId: string | null | undefined): ClipTransformClip | null {
@@ -519,7 +521,7 @@ function findTrack(project: ClipTransformProject, trackId: string | null | undef
 }
 
 function findClipTrack(project: ClipTransformProject, clipId: string): ClipTransformTrack | null {
-	return project.tracks.find((track) => track.clipIds.includes(clipId)) ?? null;
+	return project.tracks.find((track) => track.type !== 'label' && track.clipIds?.includes(clipId)) ?? null;
 }
 
 function findSource(project: ClipTransformProject, sourceId: string): ClipTransformSource | null {

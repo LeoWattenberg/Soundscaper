@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isAudioMediaKind } from '../audio-media-kind.ts';
+
 import {
 	clipNeedsTimePitchRender as legacyClipNeedsTimePitchRender,
 } from '../clip-time-pitch-cache.js';
@@ -336,15 +338,15 @@ function findRenderClip(
 	project: ClipTransformProject,
 	clipId: string | null | undefined,
 ): RenderClip | null {
-	return (project.clips.find((clip) => clip.id === clipId) as RenderClip | undefined) ?? null;
+	return (project.clips.find((clip) => clip.id === clipId && isAudioMediaKind(clip.kind)) as RenderClip | undefined) ?? null;
 }
 
 function findRenderSource(project: ClipTransformProject, sourceId: string): RenderSource | null {
-	return (project.sources.find((source) => source.id === sourceId) as RenderSource | undefined) ?? null;
+	return (project.sources.find((source) => source.id === sourceId && isAudioMediaKind(source.kind)) as RenderSource | undefined) ?? null;
 }
 
 function findClipTrack(project: ClipTransformProject, clipId: string): ClipTransformTrack | null {
-	return project.tracks.find((track) => track.clipIds.includes(clipId)) ?? null;
+	return project.tracks.find((track) => track.type !== 'label' && track.clipIds?.includes(clipId)) ?? null;
 }
 
 function clipNeedsTimePitchRender(clip: RenderClip): boolean {

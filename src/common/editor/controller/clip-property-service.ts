@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isAudioMediaKind } from '../audio-media-kind.ts';
+
 import {
 	collectClipTransformIds as collectLegacyClipTransformIds,
 } from '../commands/clip-basic-runtime.js';
@@ -330,7 +332,7 @@ function findTimePitchClip(
 	project: ClipTransformProject,
 	clipId: string | null | undefined,
 ): TimePitchClip | null {
-	return (project.clips.find((clip) => clip.id === clipId) as TimePitchClip | undefined) ?? null;
+	return (project.clips.find((clip) => clip.id === clipId && isAudioMediaKind(clip.kind)) as TimePitchClip | undefined) ?? null;
 }
 
 // Sources keep the sample rate they were imported at, so a clip's source span
@@ -347,7 +349,7 @@ function sourceTimelineFrames(project: ClipTransformProject, clip: TimePitchClip
 }
 
 function findClipTrack(project: ClipTransformProject, clipId: string): ClipTransformTrack | null {
-	return project.tracks.find((track) => track.clipIds.includes(clipId)) ?? null;
+	return project.tracks.find((track) => track.type !== 'label' && track.clipIds?.includes(clipId)) ?? null;
 }
 
 function isTimePitchClip(value: TimePitchClip | null): value is TimePitchClip {

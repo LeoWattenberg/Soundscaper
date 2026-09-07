@@ -348,3 +348,24 @@ function deferred<Value>() {
 	const promise = new Promise<Value>((accept) => { resolve = accept; });
 	return { promise, resolve };
 }
+
+for (const kind of ['video', 'image'] as const) {
+	void test(`audio properties refuse a ${kind} clip before committing or analyzing it`, async () => {
+		const project = projectFixture({ clips: [{ ...clipFixture(), kind }] });
+		const harness = createHarness(project);
+		await harness.service.handleClipAction('reverse', 'active');
+		await harness.service.handleClipAction('normalize-peak', 'active');
+		assert.throws(() => harness.service.setClipTimePitch('active', { pitchCents: 100 }), /Audio clip not found/u);
+		assert.deepEqual(harness.commits, []);
+		assert.deepEqual(harness.analysisSignals, []);
+	});
+}
+
+void test('audio property edits find their track after a label track without a clip inventory', () => {
+	const original = projectFixture();
+	const harness = createHarness(projectFixture({ tracks: [
+		{ id: 'labels', name: 'Labels', type: 'label' }, ...original.tracks,
+	] }));
+	harness.service.setClipTimePitch('active', { pitchCents: 100 });
+	assert.equal(harness.commits.length, 1);
+});

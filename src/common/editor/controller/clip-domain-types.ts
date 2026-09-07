@@ -2,7 +2,7 @@
 
 import type { CommandObject } from '../commands/protocol.ts';
 
-export type ClipMediaKind = 'audio' | 'video';
+export type ClipMediaKind = 'audio' | 'video' | 'image';
 
 export interface ClipTransformEnvelopePoint extends Readonly<Record<string, unknown>> {
 	readonly frame: number;
@@ -41,7 +41,7 @@ export interface ClipTransformTrack extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly name: string;
 	readonly type: 'audio' | 'video' | 'label';
-	readonly clipIds: readonly string[];
+	readonly clipIds?: readonly string[];
 	readonly laneGroupId?: string | null;
 	readonly height?: number;
 	readonly channelCount?: number;

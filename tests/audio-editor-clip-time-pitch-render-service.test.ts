@@ -310,3 +310,20 @@ function deferred<Value>() {
 	const promise = new Promise<Value>((accept) => { resolve = accept; });
 	return { promise, resolve };
 }
+
+for (const kind of ['video', 'image'] as const) {
+	void test(`audio render refuses a ${kind} clip before preparing or writing PCM`, async () => {
+		const harness = createHarness(projectFixture({ clips: [{ ...clipFixture(), kind }] }));
+		await assert.rejects(harness.service.renderClipPitchSpeed('clip'), /Audio clip not found/u);
+		assert.deepEqual(harness.writerEvents, []);
+		assert.deepEqual(harness.commits, []);
+	});
+}
+
+void test('audio render finds its media track after a label track without clips', async () => {
+	const original = projectFixture();
+	const harness = createHarness(projectFixture({ tracks: [
+		{ id: 'labels', name: 'Labels', type: 'label' }, ...original.tracks,
+	] }));
+	assert.equal(await harness.service.renderClipPitchSpeed('clip'), 'clip');
+});
