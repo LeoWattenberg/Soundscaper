@@ -24,7 +24,7 @@ export interface EffectSelection {
 
 export interface EffectSelectionClip extends Readonly<Record<string, unknown>> {
 	readonly id: string;
-	readonly kind?: 'audio' | 'video';
+	readonly kind?: 'audio' | 'video' | 'image';
 	readonly sourceId: string;
 	readonly title: string;
 	readonly timelineStartFrame: number;
@@ -37,7 +37,7 @@ export interface EffectSelectionTrack extends Readonly<Record<string, unknown>> 
 	readonly id: string;
 	readonly name: string;
 	readonly type: 'audio' | 'video' | 'label';
-	readonly clipIds: readonly string[];
+	readonly clipIds?: readonly string[];
 	readonly spectrogram?: Readonly<{
 		readonly minimumFrequency?: number;
 		readonly maximumFrequency?: number;
@@ -155,12 +155,12 @@ export function createEffectSelectionService(runtime: EffectSelectionServiceRunt
 		const selectedClip = editingSelection?.kind === 'clips'
 			? editingSelection.clipIds
 				.map((clipId) => findClip(project, clipId))
-				.find((clip) => clip !== null && clip.kind !== 'video'
+				.find((clip) => clip !== null && clip.kind === 'audio'
 					&& (!requestedTrackId || findClipTrack(project, clip.id)?.id === requestedTrackId)) ?? null
 			: null;
 		const selectedClipTrack = selectedClip ? findClipTrack(project, selectedClip.id) : null;
 		const track = findTrack(project, requestedTrackId) ?? selectedClipTrack;
-		if (!track) return null;
+		if (track?.type !== 'audio') return null;
 		const selection = runtime.activeSelection();
 		const trackClip = selectedClipTrack?.id === track.id ? selectedClip : null;
 		const startFrame = selection?.startFrame ?? trackClip?.timelineStartFrame;
@@ -191,7 +191,7 @@ export function createEffectSelectionService(runtime: EffectSelectionServiceRunt
 			return editingSelection.clipIds.map((clipId): EffectTarget | null => {
 				const clip = findClip(project, clipId);
 				const track = clip ? findClipTrack(project, clip.id) : null;
-				if (!clip || clip.kind === 'video' || track?.type !== 'audio') return null;
+				if (!clip || clip.kind !== 'audio' || track?.type !== 'audio') return null;
 				const startFrame = clip.timelineStartFrame;
 				const endFrame = clip.timelineStartFrame + clip.durationFrames;
 				const channelCount = runtime.audacitySelectionChannelCount(project, track.id, startFrame, endFrame)
@@ -374,7 +374,7 @@ function findClip(project: EffectSelectionProject, clipId: string | null | undef
 }
 
 function findClipTrack(project: EffectSelectionProject, clipId: string): EffectSelectionTrack | null {
-	return project.tracks.find((track) => track.clipIds.includes(clipId)) ?? null;
+	return project.tracks.find((track) => track.clipIds?.includes(clipId)) ?? null;
 }
 
 function isEffectTarget(value: EffectTarget | null): value is EffectTarget {

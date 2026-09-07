@@ -73,6 +73,7 @@ function createHarness(options: Readonly<{ genericRangeErrors?: boolean }> = {})
 		commits,
 		service,
 		state,
+		getProject: () => project,
 		setBlocked(value: boolean) { blocked = value; },
 		setProject(next: EffectSelectionProject) { project = next; },
 	};
@@ -92,6 +93,19 @@ test('clip selection resolves one exact target without widening its range', () =
 		channelCount: 2,
 		hasAudio: true,
 	});
+});
+
+test('effect targeting skips label inventories and refuses image clips', () => {
+	const harness = createHarness();
+	const project = harness.getProject();
+	harness.setProject({ ...project, tracks: [
+		{ id: 'labels', name: 'Cues', type: 'label', labels: [] }, ...project.tracks,
+	] });
+	assert.equal(harness.service.audacityEffectTarget()?.clipId, 'clip-a');
+	assert.equal(harness.service.audacityEffectTargets()[0]?.clipId, 'clip-a');
+	harness.setProject({ ...harness.getProject(), clips: project.clips.map(clip => ({ ...clip, kind: 'image' })) });
+	assert.equal(harness.service.audacityEffectTarget(), null);
+	assert.deepEqual(harness.service.audacityEffectTargets(), []);
 });
 
 test('clip-derived targets and selection details work without an explicit track or range', () => {
