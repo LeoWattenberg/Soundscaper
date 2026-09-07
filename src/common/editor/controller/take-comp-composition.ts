@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudioEditorCommand } from '../commands/protocol.ts';
-import type { AudioEditorProjectV17 } from '../project-v17.ts';
+import { readTakeCompProjectGroups, type TakeCompProject } from './take-comp-project.ts';
 import type { TakePromotionRequest } from '../take-comp-domain.ts';
 import type { EngineChunkSourceInput, EngineSourceBufferInput } from '../engine/public-api.ts';
 import type { EngineSourceResolver } from '../engine/types.ts';
@@ -23,7 +23,7 @@ export interface TakeCompCompositionDependencies {
 	readonly sourceChunkProviders: EngineChunkSourceInput;
 	readonly sourceResolver?: EngineSourceResolver | null;
 	readonly derivedSources: DerivedSourceService;
-	getProject(): AudioEditorProjectV17;
+	getProject(): TakeCompProject;
 	editingBlocked(): boolean;
 	commit(command: AudioEditorCommand): unknown;
 	createId(prefix: string): string;
@@ -69,8 +69,8 @@ export function createTakeCompControllerComposition(dependencies: TakeCompCompos
 	});
 }
 
-function requireGroup(project: AudioEditorProjectV17, groupId: string) {
-	const group = project.takeGroups.find((candidate) => candidate.id === groupId);
+function requireGroup(project: TakeCompProject, groupId: string) {
+	const group = readTakeCompProjectGroups(project).find((candidate) => candidate.id === groupId);
 	if (!group) throw new ReferenceError(`Unknown take group: ${groupId}.`);
 	return group;
 }

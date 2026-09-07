@@ -3,7 +3,7 @@
 import type { CommandObject } from '../commands/protocol.ts';
 import { createAudioPreviewProject } from '../engine/audio-preview-project.ts';
 import { createAudioClip, createAudioSource } from '../project-media-factory.ts';
-import type { AudioEditorProjectV17 } from '../project-v17.ts';
+import { readTakeCompProjectGroups, type TakeCompProject } from './take-comp-project.ts';
 import type { TakeCompDocumentGroup, TakeCompDocumentTake } from '../take-comp-document-v17.ts';
 import type { TakeCompFlattenTakeSegment } from '../take-comp-domain.ts';
 import type { EngineChunkSourceInput, EngineSourceBufferInput } from '../engine/public-api.ts';
@@ -30,7 +30,7 @@ export interface TakeCompFlattenServiceDependencies {
 	readonly derivedSources: Pick<DerivedSourceService, 'persistRenderedMixSource' | 'rollbackDerivedSources'>;
 	readonly sourceBuffers: EngineSourceBufferInput;
 	readonly sourceChunkProviders: EngineChunkSourceInput;
-	getProject(): AudioEditorProjectV17;
+	getProject(): TakeCompProject;
 	editingBlocked(): boolean;
 	captureProject(): EditorProjectToken;
 	assertProject(token: EditorProjectToken): void;
@@ -45,7 +45,7 @@ export interface TakeCompFlattenServiceDependencies {
 	): Promise<AudioBufferLike>;
 	renderPublication?(
 		preparation: PreparedTakeCompFlatten,
-		context: Readonly<{ readonly project: AudioEditorProjectV17; readonly signal: AbortSignal }>,
+		context: Readonly<{ readonly project: TakeCompProject; readonly signal: AbortSignal }>,
 	): Promise<TakeCompFlattenPublication>;
 	setStatus?(message: string, state?: string): void;
 }
@@ -94,7 +94,7 @@ export function createTakeCompFlattenService(dependencies: TakeCompFlattenServic
 	}
 
 	async function renderPublication(
-		project: AudioEditorProjectV17,
+		project: TakeCompProject,
 		group: TakeCompDocumentGroup,
 		preparation: PreparedTakeCompFlatten,
 		ownership: Readonly<{ project: EditorProjectToken; task: EditorTaskScope }>,
@@ -144,7 +144,7 @@ export function createTakeCompFlattenService(dependencies: TakeCompFlattenServic
 }
 
 function flattenRenderProject(
-	project: AudioEditorProjectV17,
+	project: TakeCompProject,
 	group: TakeCompDocumentGroup,
 	preparation: PreparedTakeCompFlatten,
 	createId: (prefix: string) => string,
@@ -199,8 +199,8 @@ function flattenSegmentClip(
 	};
 }
 
-function requireWritableGroup(project: AudioEditorProjectV17, groupId: string): TakeCompDocumentGroup {
-	const group = project.takeGroups.find((candidate) => candidate.id === groupId);
+function requireWritableGroup(project: TakeCompProject, groupId: string): TakeCompDocumentGroup {
+	const group = readTakeCompProjectGroups(project).find((candidate) => candidate.id === groupId);
 	if (!group) throw new ReferenceError(`Unknown take group: ${groupId}.`);
 	const track = project.tracks.find((candidate) => candidate.id === group.trackId);
 	if (!track) throw new ReferenceError(`Unknown take group track: ${group.trackId}.`);

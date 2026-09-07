@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createAudioPreviewProject } from '../engine/audio-preview-project.ts';
-import type { AudioEditorProjectV17 } from '../project-v17.ts';
+import { readTakeCompProjectGroups, type TakeCompProject } from './take-comp-project.ts';
 import type { TakeCompDocumentGroup, TakeCompDocumentTake } from '../take-comp-document-v17.ts';
 import type { EngineChunkSourceInput, EngineSourceBufferInput } from '../engine/public-api.ts';
 import type { EngineProject, EngineSourceResolver } from '../engine/types.ts';
@@ -39,7 +39,7 @@ export interface TakeCompPreviewDependencies {
 	createId(prefix: string): string;
 	captureProject(): EditorProjectToken;
 	assertProject(token: EditorProjectToken): void;
-	getProject(): AudioEditorProjectV17;
+	getProject(): TakeCompProject;
 	stopPlayback(): void;
 }
 
@@ -187,7 +187,7 @@ export function createTakeCompPreviewService(
 }
 
 function previewProject(
-	project: AudioEditorProjectV17,
+	project: TakeCompProject,
 	group: TakeCompDocumentGroup,
 	takes: readonly TakeCompDocumentTake[],
 	createId: (prefix: string) => string,
@@ -226,8 +226,8 @@ function previewProject(
 	});
 }
 
-function requireGroup(project: AudioEditorProjectV17, groupId: string): TakeCompDocumentGroup {
-	const group = project.takeGroups.find((candidate) => candidate.id === groupId);
+function requireGroup(project: TakeCompProject, groupId: string): TakeCompDocumentGroup {
+	const group = readTakeCompProjectGroups(project).find((candidate) => candidate.id === groupId);
 	if (!group) throw new ReferenceError(`Unknown take group: ${groupId}.`);
 	return group;
 }

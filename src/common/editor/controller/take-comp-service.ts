@@ -22,8 +22,8 @@ import {
 } from '../take-comp-domain.ts';
 import {
 	validateAudioEditorProjectV17,
-	type AudioEditorProjectV17,
 } from '../project-v17-validation.ts';
+import { readTakeCompProjectGroups, type TakeCompProject } from './take-comp-project.ts';
 import { isTakeCompProjectSchema } from '../project-schema-version.ts';
 import type { EditorControllerLifetime } from './lifecycle.ts';
 
@@ -46,7 +46,7 @@ export interface TakeCompFlattenPublication {
 
 export interface TakeCompServiceDependencies {
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive'>;
-	getProject(): AudioEditorProjectV17;
+	getProject(): TakeCompProject;
 	editingBlocked(): boolean;
 	commit(command: AudioEditorCommand): unknown;
 }
@@ -190,32 +190,29 @@ export function createTakeCompService(
 		return requireGroup(validProject(), groupId);
 	}
 
-	function writableProject(): AudioEditorProjectV17 {
+	function writableProject(): TakeCompProject {
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) throw new RangeError('Editing is blocked.');
 		return validProject();
 	}
 
-	function validProject(): AudioEditorProjectV17 {
+	function validProject(): TakeCompProject {
 		const project = dependencies.getProject();
-		const schemaVersion = (project as unknown as Readonly<Record<string, unknown>>).schemaVersion;
+		const schemaVersion = project.schemaVersion;
 		if (!isTakeCompProjectSchema(project)) {
 			throw new RangeError(`Take comps require the current project authority, received ${String(schemaVersion)}.`);
 		}
 		if (schemaVersion === 17) validateAudioEditorProjectV17(project);
-		else createTakeCompDocumentGroupsV17(
-			(project as unknown as Readonly<Record<string, unknown>>).takeGroups,
-			project as unknown as Readonly<Record<string, unknown>>,
-		);
+		else readTakeCompProjectGroups(project);
 		return project;
 	}
 }
 
-function canonicalGroups(project: AudioEditorProjectV17): readonly TakeCompDocumentGroup[] {
-	return createTakeCompDocumentGroupsV17(project.takeGroups, project as unknown as Record<string, unknown>);
+function canonicalGroups(project: TakeCompProject): readonly TakeCompDocumentGroup[] {
+	return readTakeCompProjectGroups(project);
 }
 
-function requireGroup(project: AudioEditorProjectV17, groupIdValue: string): TakeCompDocumentGroup {
+function requireGroup(project: TakeCompProject, groupIdValue: string): TakeCompDocumentGroup {
 	const groupId = normalizeTakeCompGroupId(groupIdValue);
 	const groups = canonicalGroups(project);
 	const index = groupIndex(groups, groupId);
@@ -228,7 +225,7 @@ function groupIndex(groups: readonly TakeCompDocumentGroup[], groupId: string): 
 	return index;
 }
 
-function assertTrackWritable(project: AudioEditorProjectV17, trackId: string): void {
+function assertTrackWritable(project: TakeCompProject, trackId: string): void {
 	const track = project.tracks.find((candidate) => candidate.id === trackId);
 	if (!track) throw new ReferenceError(`Unknown take group track: ${trackId}.`);
 	if (track.locked === true) throw new RangeError(`Track ${trackId} is locked.`);
