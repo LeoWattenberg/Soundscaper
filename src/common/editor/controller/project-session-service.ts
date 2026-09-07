@@ -14,7 +14,10 @@ export interface ProjectSessionTab {
 	readonly [key: string]: unknown;
 }
 
-export interface ProjectSessionServiceDependencies<Project extends ProjectSessionSelectionProject> {
+export interface ProjectSessionServiceDependencies<
+	Project extends ProjectSessionSelectionProject,
+	Tab extends ProjectSessionTab = ProjectSessionTab,
+> {
 	readonly productId: string;
 	readonly recentProjectsSettingKey: string;
 	readonly lastProjectSettingKey: string;
@@ -24,15 +27,18 @@ export interface ProjectSessionServiceDependencies<Project extends ProjectSessio
 	readonly state: ProjectSessionSelectionState;
 	readonly findTrack: ProjectSessionSelectionServiceDependencies<Project>['findTrack'];
 	readonly findClip: ProjectSessionSelectionServiceDependencies<Project>['findClip'];
-	readonly getTabs: () => ProjectSessionTab[];
+	readonly getTabs: () => readonly Tab[];
 	readonly updateProjectMetadata: (projectId: string, metadata: Record<string, unknown>) => void;
 	readonly loadSetting: (key: string, fallback: unknown) => Promise<unknown>;
 	readonly persistSetting: (key: string, value: unknown) => Promise<unknown>;
 	readonly publish: () => void;
 }
 
-export function createProjectSessionService<Project extends ProjectSessionSelectionProject>(
-	dependencies: ProjectSessionServiceDependencies<Project>,
+export function createProjectSessionService<
+	Project extends ProjectSessionSelectionProject,
+	Tab extends ProjectSessionTab = ProjectSessionTab,
+>(
+	dependencies: ProjectSessionServiceDependencies<Project, Tab>,
 ) {
 	const projectSelection = createProjectSessionSelectionService(dependencies);
 	return Object.freeze({
@@ -44,7 +50,7 @@ export function createProjectSessionService<Project extends ProjectSessionSelect
 		clearRecentProjects,
 	});
 
-	function sessionTab(projectId: string | null | undefined): ProjectSessionTab | null {
+	function sessionTab(projectId: string | null | undefined): Tab | null {
 		if (!projectId) return null;
 		return dependencies.getTabs().find((tab) => tab.projectId === projectId) || null;
 	}

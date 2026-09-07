@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { RECORDING_DISPLAY_ROUTE_LABEL } from '../recording-routing.js';
 import type { RecordingPreview } from './recording-model.ts';
 import type {
 	RecordedAudioSource,
@@ -49,11 +50,22 @@ function requireRoute(value: unknown): RecordingRoute {
 	if (!isObject(value) || (value.kind !== 'device' && value.kind !== 'display')) {
 		throw new TypeError('The routed recording route is invalid.');
 	}
+	const channelStart = requireNumber(value.channelStart, 'route channel start');
+	const channelCount = requireNumber(value.channelCount, 'route channel count');
+	if (value.kind === 'display') {
+		return Object.freeze({
+			kind: 'display',
+			channelStart,
+			channelCount,
+			label: typeof value.label === 'string' ? value.label : RECORDING_DISPLAY_ROUTE_LABEL,
+		});
+	}
 	return Object.freeze({
-		kind: value.kind,
+		kind: 'device',
 		deviceId: String(value.deviceId || ''),
-		channelStart: requireNumber(value.channelStart, 'route channel start'),
-		channelCount: requireNumber(value.channelCount, 'route channel count'),
+		deviceLabel: String(value.deviceLabel || ''),
+		channelStart,
+		channelCount,
 	});
 }
 

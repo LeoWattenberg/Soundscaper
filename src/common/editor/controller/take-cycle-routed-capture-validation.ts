@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { RECORDING_DISPLAY_ROUTE_LABEL } from '../recording-routing.js';
 import type { EngineLoop } from '../engine/types.ts';
 import { TAKE_COMP_MAXIMUM_ENTITIES } from '../take-comp-domain.ts';
 import { TAKE_CYCLE_CAPTURE_MAXIMUM_CHUNK_BYTES } from './take-cycle-capture-spool.ts';
@@ -82,12 +83,22 @@ export function snapshotTakeCycleRoutedRoutes(
 		if (route.kind !== 'device' && route.kind !== 'display') {
 			throw new TypeError(`Take cycle route ${track.id} kind is invalid.`);
 		}
-		routes[track.id] = Object.freeze({
-			kind: route.kind,
-			deviceId: typeof route.deviceId === 'string' ? route.deviceId : '',
-			channelStart: nonNegativeTakeCycleRoutedInteger(route.channelStart, 'route channel start'),
-			channelCount: positiveTakeCycleRoutedInteger(route.channelCount, 64, 'route channel count'),
-		});
+		const channelStart = nonNegativeTakeCycleRoutedInteger(route.channelStart, 'route channel start');
+		const channelCount = positiveTakeCycleRoutedInteger(route.channelCount, 64, 'route channel count');
+		routes[track.id] = Object.freeze(route.kind === 'display'
+			? {
+				kind: 'display' as const,
+				channelStart,
+				channelCount,
+				label: typeof route.label === 'string' ? route.label : RECORDING_DISPLAY_ROUTE_LABEL,
+			}
+			: {
+				kind: 'device' as const,
+				deviceId: typeof route.deviceId === 'string' ? route.deviceId : '',
+				deviceLabel: typeof route.deviceLabel === 'string' ? route.deviceLabel : '',
+				channelStart,
+				channelCount,
+			});
 	}
 	return Object.freeze(routes);
 }

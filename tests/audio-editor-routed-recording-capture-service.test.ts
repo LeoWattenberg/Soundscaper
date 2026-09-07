@@ -22,7 +22,7 @@ test('routed source planning is pure, stable, and requests display permission fi
 	];
 	const plan = planRoutedRecordingSources(tracks, {
 		hardware: { kind: 'device', deviceId: 'mic', channelStart: 0, channelCount: 1 },
-		display: { kind: 'display', deviceId: '', channelStart: 0, channelCount: 2 },
+		display: { kind: 'display', channelStart: 0, channelCount: 2 },
 	}, (route) => route.kind === 'display' ? 'display' : `device:${route.deviceId}`);
 
 	assert.deepEqual(plan.groups.map(({ sourceKey }) => sourceKey), ['display', 'device:mic']);
@@ -40,7 +40,7 @@ test('routed capture checks ownership after the permission batch and leaves no s
 	});
 	fixture.state.recordingRouting = {
 		routes: {
-			'track-1': { kind: 'display', deviceId: '', channelStart: 0, channelCount: 2 },
+			'track-1': { kind: 'display', channelStart: 0, channelCount: 2 },
 			'track-2': { kind: 'device', deviceId: 'mic', channelStart: 0, channelCount: 1 },
 		},
 		offsets: {},
@@ -174,7 +174,7 @@ test('routed display capture supports ranges, channel fallback, meters, and time
 	const fixture = createRecordingCaptureFixture({ selection: { startFrame: 30, endFrame: 90 } });
 	fixture.state.recordingRouting = {
 		routes: {
-			'track-1': { kind: 'display', deviceId: '', channelStart: 0, channelCount: 2 },
+			'track-1': { kind: 'display', channelStart: 0, channelCount: 2 },
 		},
 		offsets: {},
 	};

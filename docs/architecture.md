@@ -59,7 +59,19 @@ the Edit-menu dispatcher; the latter builds project import, video import and
 the project bin, binding the two importers through a closure because each
 normalises through the other. The project and video import services still take
 untyped runtimes, so the copy and store members they read are named at the
-composition boundary rather than derived.
+composition boundary rather than derived. The source runtime follows in
+`controller/source-runtime-composition.ts`: the visual data clips and video
+sources present, the committed and playback time-pitch caches, the stored
+source lifecycle with its waveform PCM windows, and the step that applies a
+document to the playback engine. The document itself follows in
+`controller/document-composition.ts`: session tabs and their selection memory,
+saves and autosave, source retention across the undo history, the view
+publisher, timeline annotations, track folders, the mutation service that
+commits every command, and track duplication. Its history type is the product
+runtime's history instantiated with the document, so the stacks are typed
+entries rather than `unknown`, and the recording route and routing types are
+declared once at the routing module that normalises them and derived from
+there by the capture and track services.
 
 `index.js` and `facade.ts` form the curated
 external facade; editor implementation modules may not import it. The former

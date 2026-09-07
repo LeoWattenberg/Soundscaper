@@ -95,7 +95,7 @@ async function appFixture() {
 		trackName: () => 'Vocal',
 		getRoutes: () => state.recordingRouting.routes,
 		soundActivationEnabled: () => false,
-		recordingRouteSourceKey: ({ deviceId }) => `device:${String(deviceId)}`,
+		recordingRouteSourceKey: (route) => route.kind === 'display' ? 'display' : `device:${route.deviceId}`,
 		createId(prefix) {
 			const next = (ids.get(prefix) ?? 0) + 1;
 			ids.set(prefix, next);

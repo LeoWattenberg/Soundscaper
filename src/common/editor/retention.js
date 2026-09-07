@@ -326,6 +326,11 @@ export function collectHistorySourceIds(history, target = new Set()) {
  * Remove metadata that no clip in this snapshot can reach. Extra ids are only
  * useful for the live project (for example, a cut clipboard); saved snapshots
  * do not persist editor-session state.
+ *
+ * @template Project
+ * @param {Project} project
+ * @param {{ preserveSourceIds?: Iterable<string> }} [options]
+ * @returns {Project}
  */
 export function compactProjectSourceMetadata(project, { preserveSourceIds = [] } = {}) {
 	if (!project || !Array.isArray(project.sources) || !Array.isArray(project.clips)) return project;

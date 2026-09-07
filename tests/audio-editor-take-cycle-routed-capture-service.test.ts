@@ -514,7 +514,7 @@ function captureFixture(options: FixtureOptions = {}) {
 		}])),
 		activeSelection: () => selection.current,
 		soundActivationEnabled: () => soundActivation.current,
-		recordingRouteSourceKey: (route) => `device:${route.deviceId}`,
+		recordingRouteSourceKey: (route) => route.kind === 'display' ? 'display' : `device:${route.deviceId}`,
 		streamAudioChannelCount: () => trackIds.length,
 		recordingStreamIsLive: () => true,
 		createRecorder: async (factoryOptions) => {

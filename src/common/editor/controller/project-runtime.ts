@@ -39,10 +39,14 @@ export interface ControllerRuntimeProject extends Record<string, unknown> {
 	readonly schemaVersion: number;
 }
 
-export interface ControllerRuntimeHistory {
-	readonly present: ControllerRuntimeProject;
-	readonly undoStack: readonly unknown[];
-	readonly redoStack: readonly unknown[];
+export interface ControllerRuntimeHistoryEntry<Project extends ControllerRuntimeProject = ControllerRuntimeProject> {
+	readonly project: Project;
+}
+
+export interface ControllerRuntimeHistory<Project extends ControllerRuntimeProject = ControllerRuntimeProject> {
+	readonly present: Project;
+	readonly undoStack: readonly ControllerRuntimeHistoryEntry<Project>[];
+	readonly redoStack: readonly ControllerRuntimeHistoryEntry<Project>[];
 	/**
 	 * Where the playhead belongs for the present document, for a history that
 	 * keeps it: undo and redo restore it alongside the document.

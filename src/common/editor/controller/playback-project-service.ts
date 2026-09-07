@@ -83,17 +83,17 @@ interface PlaybackEngineState {
 	readonly playbackMode?: unknown;
 }
 
-interface PlaybackProjectEngine<Project extends object> {
+interface PlaybackProjectEngine<Project extends object, Buffer> {
 	getState(): PlaybackEngineState;
 	stop(): PromiseLike<unknown> | unknown;
 	applyProject(
 		project: Project,
-		sourceBuffers: ReadonlyMap<unknown, unknown>,
-		options: Readonly<{ chunkSources: ReadonlyMap<unknown, unknown> }>,
+		sourceBuffers: ReadonlyMap<string, Buffer>,
+		options: Readonly<{ chunkSources: ReadonlyMap<string, unknown> }>,
 	): PromiseLike<unknown> | unknown;
 }
 
-export interface ApplyCanonicalProjectRuntime<Project extends object> {
+export interface ApplyCanonicalProjectRuntime<Project extends object, Buffer = unknown> {
 	readonly projectForPlayback: (project: Project) => PlaybackProjectProjection<Project>;
 	readonly getCurrentProject: () => Project | null;
 	readonly ensureProjectSourcesAvailable: (
@@ -104,7 +104,7 @@ export interface ApplyCanonicalProjectRuntime<Project extends object> {
 			readonly requiredVideoSourceIds: readonly string[];
 			readonly signal?: AbortSignal;
 		}>,
-	) => PromiseLike<ReadonlyMap<string, unknown>> | ReadonlyMap<string, unknown>;
+	) => PromiseLike<ReadonlyMap<string, Buffer>> | ReadonlyMap<string, Buffer>;
 	readonly prepareRequiredProjectSources: (
 		project: Project,
 		options: Readonly<{
@@ -112,9 +112,9 @@ export interface ApplyCanonicalProjectRuntime<Project extends object> {
 			readonly signal?: AbortSignal;
 		}>,
 	) => PromiseLike<PreparedRequiredProjectSources> | PreparedRequiredProjectSources;
-	readonly sourceBuffers: ReadonlyMap<string, unknown>;
+	readonly sourceBuffers: ReadonlyMap<string, Buffer>;
 	readonly sourceChunkProviders: ReadonlyMap<string, unknown>;
-	readonly engine: PlaybackProjectEngine<Project>;
+	readonly engine: PlaybackProjectEngine<Project, Buffer>;
 	readonly setReadyStatus: () => void;
 }
 
@@ -122,8 +122,8 @@ export interface ApplyCanonicalProjectOptions {
 	readonly signal?: AbortSignal;
 }
 
-export interface PlaybackProjectApplyServiceRuntime<Project extends object>
-	extends ApplyCanonicalProjectRuntime<Project> {
+export interface PlaybackProjectApplyServiceRuntime<Project extends object, Buffer = unknown>
+	extends ApplyCanonicalProjectRuntime<Project, Buffer> {
 	readonly lifetime: Readonly<{
 		startTask(name: string, options?: EditorTaskOptions): Readonly<{
 			readonly signal: AbortSignal;
@@ -247,8 +247,8 @@ export function createPlaybackProjectService(
 }
 
 /** Own each playback reapply as one replaceable controller-lifetime task. */
-export function createPlaybackProjectApplyService<Project extends object>(
-	runtime: PlaybackProjectApplyServiceRuntime<Project>,
+export function createPlaybackProjectApplyService<Project extends object, Buffer = unknown>(
+	runtime: PlaybackProjectApplyServiceRuntime<Project, Buffer>,
 ) {
 	return Object.freeze({ apply });
 

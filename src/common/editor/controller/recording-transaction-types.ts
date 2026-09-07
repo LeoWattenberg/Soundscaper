@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { RecordingRoute } from '../recording-routing.js';
 import type {
 	RecordingCaptureControllerLike,
 	RecordingControllerLike,
@@ -39,12 +40,8 @@ export interface RecordingProject extends Readonly<Record<string, unknown>> {
 	readonly signatureMap?: unknown;
 }
 
-export interface RecordingRoute {
-	readonly kind: 'device' | 'display';
-	readonly deviceId: string;
-	readonly channelStart: number;
-	readonly channelCount: number;
-}
+/** The routes the routing module normalises; display routes carry no device. */
+export type { RecordingRoute };
 
 export interface RecordingMediaTrack {
 	readonly readyState?: string;

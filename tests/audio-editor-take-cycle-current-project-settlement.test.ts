@@ -228,7 +228,7 @@ test('selection clear settles through the production current-project cycle path 
 			} | undefined ?? null,
 			trackName: () => 'Vocal', getRoutes: () => state.recordingRouting.routes,
 			soundActivationEnabled: () => false,
-			recordingRouteSourceKey: ({ deviceId }) => `device:${deviceId}`,
+			recordingRouteSourceKey: (route) => route.kind === 'display' ? 'display' : `device:${route.deviceId}`,
 			createId: (prefix) => nextId(ids, prefix), createRecordingName: () => 'Cycle take',
 			preflightRecording: async () => undefined, releaseInputs: () => undefined,
 			activateStoredSource: async () => undefined, publishProject: () => undefined,

@@ -251,7 +251,7 @@ function productionComposition(
 			}),
 			activeSelection: () => null,
 			soundActivationEnabled: () => false,
-			recordingRouteSourceKey: ({ deviceId }) => `device:${deviceId}`,
+			recordingRouteSourceKey: (route) => route.kind === 'display' ? 'display' : `device:${route.deviceId}`,
 			streamAudioChannelCount: () => 1,
 			recordingStreamIsLive: () => true,
 			createRecorder: async (options) => {

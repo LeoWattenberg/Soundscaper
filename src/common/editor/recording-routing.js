@@ -1,4 +1,18 @@
+/**
+ * A recording route as this module normalises it: hardware input routes name
+ * a device, display routes capture the desktop or a tab and have none.
+ *
+ * The labels are what normalisation adds for display; routes built elsewhere may omit them.
+ *
+ * @typedef {Readonly<{ kind: 'display', channelStart: number, channelCount: number, label?: string }>} DisplayRecordingRoute
+ * @typedef {Readonly<{ kind: 'device', deviceId: string, deviceLabel?: string, channelStart: number, channelCount: number }>} DeviceRecordingRoute
+ * @typedef {DisplayRecordingRoute | DeviceRecordingRoute} RecordingRoute
+ * @typedef {Readonly<{ routes: Readonly<Record<string, RecordingRoute>>, offsets: Readonly<Record<string, number>> }>} RecordingRouting
+ */
+
 export const RECORDING_DISPLAY_SOURCE_KEY = 'display';
+/** What a display route is called when the capture did not name it. */
+export const RECORDING_DISPLAY_ROUTE_LABEL = 'Desktop / tab audio';
 export const RECORDING_DEFAULT_DEVICE_ID = 'default';
 export const RECORDING_ROUTING_SETTING_PREFIX = 'recording-input-routing-v1:';
 
@@ -12,6 +26,11 @@ export function recordingRouteSourceKey(route) {
 	return normalized.kind === 'display' ? RECORDING_DISPLAY_SOURCE_KEY : `device:${normalized.deviceId}`;
 }
 
+/**
+ * @param {unknown} route
+ * @param {{ readonly type?: string } | null} [track]
+ * @returns {RecordingRoute}
+ */
 export function normalizeRecordingRoute(route, track = null) {
 	if (!route || typeof route !== 'object' || Array.isArray(route)) throw new TypeError('A recording route must be an object.');
 	if (track != null && track.type === 'label') throw new TypeError('An audio track is required for recording input routing.');
@@ -21,7 +40,7 @@ export function normalizeRecordingRoute(route, track = null) {
 			kind: 'display',
 			channelStart: 0,
 			channelCount,
-			label: String(route.label || 'Desktop / tab audio'),
+			label: String(route.label || RECORDING_DISPLAY_ROUTE_LABEL),
 		});
 	}
 	if (route.kind !== 'device') throw new RangeError(`Unsupported recording route kind: ${route.kind}.`);
@@ -40,10 +59,16 @@ export function normalizeRecordingRoute(route, track = null) {
 	});
 }
 
+/**
+ * @param {{ routes?: Readonly<Record<string, unknown>> | null, offsets?: Readonly<Record<string, unknown>> | null } | null | undefined} [value]
+ * @param {readonly { readonly id: string, readonly type?: string }[] | null | undefined} [tracks]
+ * @returns {RecordingRouting}
+ */
 export function normalizeRecordingRouting(value = {}, tracks = []) {
 	const audioTracks = new Map((tracks || [])
 		.filter((track) => track?.type !== 'label')
 		.map((track) => [track.id, track]));
+	/** @type {Record<string, RecordingRoute>} */
 	const routes = {};
 	for (const [trackId, route] of Object.entries(value?.routes || {})) {
 		const track = audioTracks.get(trackId);
@@ -59,6 +84,7 @@ export function normalizeRecordingRouting(value = {}, tracks = []) {
 			// Stale or malformed local routes must not make a project unreadable.
 		}
 	}
+	/** @type {Record<string, number>} */
 	const offsets = {};
 	for (const [sourceKey, offset] of Object.entries(value?.offsets || {})) {
 		if (!sourceKey) continue;

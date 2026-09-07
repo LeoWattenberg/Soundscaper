@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { RecordingRoute, RecordingRouting } from '../recording-routing.js';
 import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
 
 import {
@@ -9,7 +10,6 @@ import {
 } from '../commands/factories.ts';
 import type { AudioEditorCommand, CommandObject } from '../commands/protocol.ts';
 import type { EditorControllerLifetime } from './lifecycle.ts';
-import type { RecordingRoute as CaptureRecordingRoute } from './recording-transaction-types.ts';
 import {
 	createTrackStructuralOperationService,
 	type TrackStructuralOperationService,
@@ -57,13 +57,8 @@ export interface LabelCreateOptions extends Record<string, unknown> {
 	readonly endFrame?: number;
 }
 
-/** A stored recording route, plus the device label the track header shows for it. */
-export type RecordingRoute = CaptureRecordingRoute & Readonly<{ readonly deviceLabel?: string }>;
-
-export interface RecordingRouting {
-	readonly routes: Readonly<Record<string, RecordingRoute>>;
-	readonly offsets: Readonly<Record<string, number>>;
-}
+/** The routes and routing the routing module normalises; consumers here read what it produces. */
+export type { RecordingRoute, RecordingRouting };
 
 interface RecordingDevice {
 	readonly deviceId: string;

@@ -170,7 +170,7 @@ test('routed input sessions gate independently and controller disposal cancels e
 	});
 	fixture.state.recordingRouting = {
 		routes: {
-			'track-1': { kind: 'display', deviceId: '', channelStart: 0, channelCount: 1 },
+			'track-1': { kind: 'display', channelStart: 0, channelCount: 1 },
 			'track-2': { kind: 'device', deviceId: 'mic', channelStart: 0, channelCount: 1 },
 		},
 		offsets: {},
