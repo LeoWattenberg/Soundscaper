@@ -17,7 +17,7 @@ Two languages are written and reviewed for this editor directly. The rest are ma
 | العربية | `ar` | `/ar/` | Right to left | Machine translated, with Audacity's reviewed strings |
 | Čeština | `cs` | `/cs/` | Left to right | Machine translated, with Audacity's reviewed strings |
 | Deutsch | `de` | `/de/` | Left to right | Written for this editor |
-| Ελληνικά | `el` | `/el/` | Left to right | Audacity's reviewed strings over English |
+| Ελληνικά | `el` | `/el/` | Left to right | Machine translated, with Audacity's reviewed strings |
 | English | `en` | `/en/` | Left to right | Written for this editor |
 | English (UK) | `en-GB` | `/en-GB/` | Left to right | Audacity's reviewed strings over English |
 | Español | `es` | `/es/` | Left to right | Machine translated, with Audacity's reviewed strings |
@@ -25,7 +25,7 @@ Two languages are written and reviewed for this editor directly. The rest are ma
 | Suomi | `fi` | `/fi/` | Left to right | Machine translated, with Audacity's reviewed strings |
 | Français | `fr` | `/fr/` | Left to right | Machine translated, with Audacity's reviewed strings |
 | Galego | `gl` | `/gl/` | Left to right | Machine translated, with Audacity's reviewed strings |
-| עברית | `he` | `/he/` | Right to left | Audacity's reviewed strings over English |
+| עברית | `he` | `/he/` | Right to left | Machine translated, with Audacity's reviewed strings |
 | हिन्दी | `hi` | `/hi/` | Left to right | Audacity's reviewed strings over English |
 | Հայերեն | `hy` | `/hy/` | Left to right | Machine translated, with Audacity's reviewed strings |
 | Bahasa Indonesia | `id` | `/id/` | Left to right | Audacity's reviewed strings over English |
