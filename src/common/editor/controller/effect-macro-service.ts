@@ -90,11 +90,12 @@ interface MacroCopy {
 	readonly untitledMacro: string;
 }
 
-interface MacroRenderBuffer {
+/** The default rendered-buffer shape; the service only hands it to `audioBufferChannels`. */
+export interface MacroRenderBuffer {
 	readonly [property: string]: unknown;
 }
 
-export interface EffectMacroServiceRuntime {
+export interface EffectMacroServiceRuntime<Buffer = MacroRenderBuffer> {
 	readonly lifetime: Pick<EditorControllerLifetime, 'startTask' | 'cancelTask'>;
 	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
 	readonly copy: MacroCopy;
@@ -103,7 +104,7 @@ export interface EffectMacroServiceRuntime {
 	readonly audacityEffectTarget: (trackId?: string | null) => EffectTarget | null;
 	readonly editingBlocked: () => boolean;
 	readonly materializeRackEffect: (
-		effect: EffectMacroRequestEffect,
+		effect: EffectMacroRequestEffect & Readonly<{ readonly type: string }>,
 		scope: 'track',
 		trackId: string,
 		options: Readonly<{ forceEnabled: true; requireNoiseProfile: true }>,
@@ -131,7 +132,7 @@ export interface EffectMacroServiceRuntime {
 		project: unknown,
 		options: Readonly<Record<string, unknown>>,
 		sourceBuffers?: ReadonlyMap<string, unknown>,
-	) => Promise<MacroRenderBuffer>;
+	) => Promise<Buffer>;
 	readonly projectFrameCount: () => number;
 	readonly renderDryTrackRange: (
 		trackId: string,
@@ -149,7 +150,7 @@ export interface EffectMacroServiceRuntime {
 		context: Readonly<Record<string, unknown>>;
 	}>) => Promise<Readonly<{ channels: readonly Float32Array[] }>>;
 	readonly createAudioBuffer: (channels: readonly Float32Array[]) => Promise<unknown>;
-	readonly audioBufferChannels: (buffer: MacroRenderBuffer) => readonly Float32Array[];
+	readonly audioBufferChannels: (buffer: Buffer) => readonly Float32Array[];
 	readonly matchAudacitySelectionChannels: (
 		channels: readonly Float32Array[],
 		channelCount: number,
@@ -163,7 +164,7 @@ export interface EffectMacroServiceRuntime {
 	readonly handleError: (error: unknown) => void;
 }
 
-export function createEffectMacroService(runtime: EffectMacroServiceRuntime) {
+export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: EffectMacroServiceRuntime<Buffer>) {
 	let running = false;
 
 	async function runEffectMacro(request: EffectMacroRequest = {}): Promise<true | null> {
@@ -243,7 +244,7 @@ export function createEffectMacroService(runtime: EffectMacroServiceRuntime) {
 		if (!isRealtimeEffectMacroStepType(effect.type)) {
 			return normalizeEffectMacroStep(effect) as unknown as MaterializedMacroEffect;
 		}
-		return runtime.materializeRackEffect(effect, 'track', trackId, {
+		return runtime.materializeRackEffect({ ...effect, type: effect.type }, 'track', trackId, {
 			forceEnabled: true,
 			requireNoiseProfile: true,
 		});
@@ -420,19 +421,19 @@ interface EffectMacroOwnership {
 	readonly project: EditorProjectToken;
 }
 
-function captureOwnership(runtime: EffectMacroServiceRuntime, projectId: string): EffectMacroOwnership {
+function captureOwnership<Buffer>(runtime: EffectMacroServiceRuntime<Buffer>, projectId: string): EffectMacroOwnership {
 	return {
 		task: runtime.lifetime.startTask(EFFECT_MACRO_TASK),
 		project: runtime.projectGeneration.capture(projectId),
 	};
 }
 
-function assertOwnership(runtime: EffectMacroServiceRuntime, ownership: EffectMacroOwnership): void {
+function assertOwnership<Buffer>(runtime: EffectMacroServiceRuntime<Buffer>, ownership: EffectMacroOwnership): void {
 	ownership.task.assertCurrent();
 	runtime.projectGeneration.assertCurrent(ownership.project);
 }
 
-function ownershipIsCurrent(runtime: EffectMacroServiceRuntime, ownership: EffectMacroOwnership): boolean {
+function ownershipIsCurrent<Buffer>(runtime: EffectMacroServiceRuntime<Buffer>, ownership: EffectMacroOwnership): boolean {
 	return taskIsCurrent(ownership.task) && projectIsCurrent(runtime, ownership.project);
 }
 
@@ -445,7 +446,7 @@ function taskIsCurrent(task: EditorTaskScope): boolean {
 	}
 }
 
-function projectIsCurrent(runtime: EffectMacroServiceRuntime, token: EditorProjectToken): boolean {
+function projectIsCurrent<Buffer>(runtime: EffectMacroServiceRuntime<Buffer>, token: EditorProjectToken): boolean {
 	try {
 		runtime.projectGeneration.assertCurrent(token);
 		return true;

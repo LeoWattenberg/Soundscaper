@@ -34,7 +34,14 @@ owns the playhead, transport state, meters, play-at-speed and playback-cache
 preparation, the metronome and the playback display toggles, and
 `controller/transport-composition.ts` builds the transport and view-state
 services, whose runtimes are now declared rather than `any`-indexed and generic
-over the document shape the root supplies.
+over the document shape the root supplies. Effects follow in
+`controller/effects-composition.ts`: selection, controls, audio and spectral
+processing, Nyquist hosting and generated audio, macros, the selection-effect
+worker, rack effects and the result writer are built from one contract, with
+the product's absent-subsystem stand-ins chosen there. The audio and macro
+services are generic over the rendered buffer they hand to the channel helper,
+so the root instantiates them with the engine's real buffer while tests keep
+their small fakes.
 
 `index.js` and `facade.ts` form the curated
 external facade; editor implementation modules may not import it. The former

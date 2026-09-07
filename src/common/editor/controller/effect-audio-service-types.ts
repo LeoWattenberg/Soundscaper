@@ -93,15 +93,20 @@ export interface EffectAudioState {
 	audacityNoiseProfile: unknown;
 }
 
-interface EffectAudioBuffer {
+/**
+ * The default rendered-buffer shape. The service never reads a buffer itself;
+ * it hands whatever `renderSnapshot` produced to `audioBufferChannels`, so the
+ * runtime chooses the type and a real engine's `AudioBuffer` satisfies it.
+ */
+export interface EffectAudioBuffer {
 	readonly channels?: readonly Float32Array[];
 	readonly [property: string]: unknown;
 }
 
-interface EffectAudioRenderEngine {
+interface EffectAudioRenderEngine<Buffer> {
 	loadProject(project: EffectAudioProject, sourceBuffers: unknown): void;
-	renderTrack(trackId: string, options: Readonly<Record<string, unknown>>): Promise<EffectAudioBuffer>;
-	renderMix(options: Readonly<Record<string, unknown>>): Promise<EffectAudioBuffer>;
+	renderTrack(trackId: string, options: Readonly<Record<string, unknown>>): Promise<Buffer>;
+	renderMix(options: Readonly<Record<string, unknown>>): Promise<Buffer>;
 	dispose(): Promise<void> | void;
 }
 
@@ -128,7 +133,7 @@ interface NoiseProfileWorkerResult {
 	readonly profile: unknown;
 }
 
-export interface EffectAudioServiceRuntime {
+export interface EffectAudioServiceRuntime<Buffer = EffectAudioBuffer> {
 	readonly lifetime: Readonly<{ startTask(name: string): EditorTaskScope }>;
 	readonly captureProject: () => EditorProjectToken;
 	readonly assertProject: (token: EditorProjectToken) => void;
@@ -171,11 +176,11 @@ export interface EffectAudioServiceRuntime {
 		options: Readonly<Record<string, unknown>>,
 		sourceMap?: unknown,
 		signal?: AbortSignal | null,
-	) => Promise<EffectAudioBuffer>;
+	) => Promise<Buffer>;
 	readonly prepareCommittedTimePitchCaches: (project: EffectAudioProject) => Promise<unknown>;
-	readonly createRenderEngine: () => EffectAudioRenderEngine;
+	readonly createRenderEngine: () => EffectAudioRenderEngine<Buffer>;
 	readonly sourceBuffers: unknown;
-	readonly audioBufferChannels: (buffer: EffectAudioBuffer) => readonly Float32Array[];
+	readonly audioBufferChannels: (buffer: Buffer) => readonly Float32Array[];
 	readonly matchAudacitySelectionChannels: (
 		channels: readonly Float32Array[],
 		channelCount: number,

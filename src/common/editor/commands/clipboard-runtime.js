@@ -211,6 +211,7 @@ export function createClipboardDescriptor(project, options = {}) {
 	return normalizeAudioEditorClipboardDescriptor(descriptor);
 }
 
+/** @returns {Extract<import('./protocol.ts').AudioEditorCommand, { readonly type: 'clipboard/paste' }>} */
 export function preparePasteCommand(clipboard, options = {}, idFactory = createStableId) {
 	const normalizedClipboard = normalizeAudioEditorClipboardDescriptor(clipboard);
 	const mode = options.mode || 'reject';

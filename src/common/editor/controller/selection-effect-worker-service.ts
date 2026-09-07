@@ -37,7 +37,7 @@ export interface SelectionEffectWorkerRequest extends Readonly<Record<string, un
 	readonly effectType?: string;
 	readonly channels: Float32Array[];
 	readonly sampleRate: number;
-	readonly params: unknown;
+	readonly params: Readonly<Record<string, unknown>> | undefined;
 	readonly context?: SelectionEffectWorkerContext;
 	readonly wasmModule?: unknown;
 }
@@ -75,13 +75,13 @@ export interface SelectionEffectWorkerServiceRuntime {
 	readonly captureNoiseProfile: (
 		channels: Float32Array[],
 		sampleRate: number,
-		params: unknown,
+		params: Readonly<Record<string, unknown>> | undefined,
 	) => PromiseLike<unknown> | unknown;
 	readonly applySelectionEffect: (
 		effectType: string,
 		channels: Float32Array[],
 		sampleRate: number,
-		params: unknown,
+		params: Readonly<Record<string, unknown>> | undefined,
 		context: SelectionEffectWorkerContext & Readonly<{ wasmModule?: unknown }>,
 	) => Promise<Float32Array[]>;
 	readonly applyReviewedSelectionEffect?: (

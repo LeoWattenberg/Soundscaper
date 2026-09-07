@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { AudioBufferContext } from './source-audio.ts';
 import { createAddLabelCommand, createAddLabelTrackCommand } from '../commands/factories.ts';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
 import { projectForRuntimeConsumers } from '../project-current-runtime.ts';
@@ -24,15 +25,16 @@ export interface NyquistHostProject extends EffectSelectionProject {
 
 export interface NyquistPreviewSource {
 	buffer: unknown;
-	onended: (() => void) | null;
-	onerror: (() => void) | null;
+	/** Assigned, never invoked here: the node calls it with an event this host ignores. */
+	onended: ((event: never) => unknown) | null;
+	onerror?: ((event: never) => unknown) | null;
 	connect(destination: unknown): void;
 	start(): void;
 	stop(): void;
 	disconnect?(): void;
 }
 
-interface NyquistAudioContext {
+interface NyquistAudioContext extends AudioBufferContext {
 	readonly destination: unknown;
 	resume?(): Promise<unknown> | unknown;
 	createBufferSource(): NyquistPreviewSource;

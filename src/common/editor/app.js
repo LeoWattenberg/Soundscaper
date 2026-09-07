@@ -1,5 +1,6 @@
 import { createHistorySourceCompactor } from './history-source-compaction.ts';
 import { createControllerDocumentState } from './controller/document-state.ts';
+import { createEffectsComposition } from './controller/effects-composition.ts';
 import { AUDIO_DEVICE_PREFERENCES_SETTING_KEY, createRecordingComposition } from './controller/recording-composition.ts';
 import { findNearestAudioZeroCrossing } from './zero-crossing.js';
 import {
@@ -18,9 +19,7 @@ import {
 	prepareGroupClipsCommand,
 	prepareKeepRangeCommand,
 	prepareLinkedSplitCommand,
-	preparePasteCommand,
 	prepareRangeDeleteCommand,
-	prepareRangeReplacementCommand,
 	resolveEditingSelection,
 } from './commands.js';
 import {
@@ -35,7 +34,6 @@ import {
 	audioSelectionEffectLabel,
 	audioSelectionEffectTypes,
 	isAudacityRackEffectType,
-	normalizeAudioSelectionEffectParams,
 	rackTailFrames,
 } from './effects.js';
 import { createExportPlan } from './export.js';
@@ -80,10 +78,6 @@ import {
 	persistImmutableSampleEdit,
 } from './sample-edit.js';
 import { SCAPE_MIME_TYPE } from './scape-project-format.ts';
-import {
-	estimateAudioSelectionEffectOutputFrames,
-	estimateAudioSelectionEffectPeakBytes,
-} from './selection-effects.js';
 import { createAudioEditorSessionController } from './session.js';
 import { snapAudioEditorFrameWithProject } from './snap-grid.js';
 import {
@@ -101,18 +95,8 @@ import { productProfile } from '../products.js';
 import { withProjectFileExtension } from '../project-file-extensions.ts';
 import {
 	AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
-	assertAudacityEffectOutput,
-	estimateAudacityEffectPeakBytes,
 } from './audacity-effects/contracts.js';
-import {
-	audacitySelectionChannelCount,
-	matchAudacitySelectionChannels,
-} from './audacity-selection.js';
-import {
-	assertPlayAtSpeedStaffPadMemorySafe,
-	createAudioEditorEngine,
-	effectRackLatencyFrames, isAudioEditorEngineSupported,
-} from './engine.js';
+import { assertPlayAtSpeedStaffPadMemorySafe, createAudioEditorEngine, isAudioEditorEngineSupported } from './engine.js';
 import {
 	RECORDING_INPUT_GAIN_DEFAULT,
 	createRecordingCapturePool,
@@ -140,7 +124,7 @@ import { deferredArchiveRuntime } from './controller/deferred-archive-runtime.ts
 import { deferredEffectRuntime } from './controller/deferred-effect-runtime.ts';
 import { connectProductNativeRenderInputAuthority } from './controller/product-native-render-input-authority.ts'; import { renderProductNativeAudioToSink } from './controller/product-native-render-audio-stream.ts';
 import { createDeferredAudioAnalysisService } from './controller/deferred-analysis-service.ts';
-import { resolveProductCompositionDecision } from './controller/product-composition-policy.ts'; import { createAbsentAnalysisService, createAbsentAudioGeneratorService, createAbsentEffectMacroService, createAbsentNyquistGeneratedAudioService, createAbsentNyquistHostService, createAbsentSelectionEffectExecutionService, createAbsentSelectionEffectWorkerService } from './controller/absent-audio-subsystems.ts';
+import { resolveProductCompositionDecision } from './controller/product-composition-policy.ts'; import { createAbsentAnalysisService, createAbsentAudioGeneratorService } from './controller/absent-audio-subsystems.ts';
 import { createEditorAnalysisVisuals } from './controller/analysis-visuals.ts';
 import { createGroupedEditorActions } from './controller/action-facade.ts';
 import { guardEditorControllerActions } from './controller/controller-action-guard.ts';
@@ -150,15 +134,12 @@ import { createLabelService } from './controller/label-service.ts';
 import { createClipboardEditService } from './controller/clipboard-edit-service.ts';
 import { createAudioGeneratorService } from './controller/generator-service.ts';
 import { createRegularIntervalAnnotationController } from './controller/regular-interval-annotation-controller.ts';
-import { createSelectionEffectResultService } from './controller/effect-result-service.ts';
-import { createSelectionEffectExecutionService } from './controller/effect-execution-service.ts';
-import { createEffectControlsService } from './controller/effect-controls-service.ts';
-import { createEffectSelectionService } from './controller/effect-selection-service.ts';
-import { createEffectMacroService } from './controller/effect-macro-service.ts';
-import { createEffectAudioService } from './controller/effect-audio-service.ts';
-import { createSelectionEffectWorkerService } from './controller/selection-effect-worker-service.ts';
-import { createNyquistHostService } from './controller/nyquist-host-service.ts';
-import { createNyquistGeneratedAudioService } from './controller/nyquist-generated-audio-service.ts';
+
+
+
+
+
+
 import { createDeferredEditorExportService } from './controller/deferred-export-service.ts';
 import { normalizeEditorExportSettings } from './controller/export-settings.ts';
 import {
@@ -185,7 +166,6 @@ import {
 } from './controller/playback-project-service.ts';
 
 import { createMicrophoneMeterService } from './controller/microphone-meter-service.ts';
-
 
 
 import { createSampleEditService } from './controller/sample-edit-service.ts';
@@ -234,15 +214,6 @@ import {
 	throwIfAborted,
 } from './controller/app-helpers.ts';
 import {
-	audacityEffectMemoryError,
-	freezeNyquistResult,
-	mixNyquistPreviewChannels,
-	normalizeNyquistRole,
-	nyquistAudioResultBytes,
-	nyquistMaximumOutputFrames,
-	nyquistResultStatus,
-} from './controller/nyquist-audio.ts';
-import {
 	normalizeAudioDevicePreferences,
 	normalizeLatencyOffset,
 	recordingPreviewSnapshot,
@@ -271,7 +242,6 @@ import {
 	readStoredAudioBuffer,
 	resampleBuffer,
 	resampleChannelsWindowedSinc,
-	serializeAudacityNoiseProfile,
 	sourceAudioBufferBytes,
 	sourcePcmBytes,
 	writeBuffer,
@@ -286,7 +256,7 @@ import { createProjectBinService } from './controller/project-bin-service.ts';
 import { admitChangedContentVideoCandidate } from './controller/video-relink-probe.ts';
 import { digestMediaContent } from './storage/media-content-digest.ts';
 import { createProjectVisualService } from './controller/project-visual-service.ts';
-import { createRackEffectService } from './controller/rack-effect-service.ts';
+
 import { createVideoEffectService } from './controller/video-effect-service.ts';
 import {
 	createTemporaryFileSink,
@@ -310,7 +280,6 @@ export { calculateAudioEditorMetronomeSchedule } from './controller/transport-mo
 
 const DEFAULT_PIXELS_PER_SECOND = AUDIO_EDITOR_DEFAULT_PIXELS_PER_SECOND;
 const MAX_PIXELS_PER_SECOND = AUDIO_EDITOR_MAX_PIXELS_PER_SECOND;
-const NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES = 128 * 1024 * 1024;
 const MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES = 262_144;
 const MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES = 32;
 const PROJECT_LOCK_RETRY_MAX_MS = 30_000;
@@ -758,7 +727,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		publishProjectState,
 		setStatus,
 		handleError,
-		invalidateRecordingAuthority: invalidateTakeCycleRecording, revokeWriteAuthority: () => rackEffectService.revokeWriteAuthority(),
+		invalidateRecordingAuthority: invalidateTakeCycleRecording, revokeWriteAuthority: () => effects.rack.revokeWriteAuthority(),
 		copy,
 		retryMaximumMs: PROJECT_LOCK_RETRY_MAX_MS,
 		currentTimeMs: Date.now,
@@ -1207,180 +1176,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setStatus, snapAudioEditorFrameWithProject, state, synchronizeAutomaticSampleEditMode,
 		synchronizeMicrophoneMeterTarget: microphoneMeterService.synchronizeTarget, updatePlayhead, updateSelection,
 	});
-	const selectionEffectWorkerService = !composition.selectionEffectWorkers ? createAbsentSelectionEffectWorkerService(absentSubsystem) : createSelectionEffectWorkerService({
-		state,
-		copy,
-		captureProject: () => projectGeneration.capture(documentState.project.id),
-		assertProject: (token) => projectGeneration.assertCurrent(token),
-		loadParametricEqWasmModule: deferredEffectRuntime.loadParametricEqWasmModule,
-		initializePffft: deferredEffectRuntime.initializePffft,
-		captureNoiseProfile: deferredEffectRuntime.captureAudacityNoiseProfile,
-		applySelectionEffect: deferredEffectRuntime.applyAudioSelectionEffectAsync,
-		applySpectralGain: deferredEffectRuntime.applySpectralGain,
-		onProgress: (value) => taskProgress.updateActive(value),
-	});
-	const effectSelectionService = createEffectSelectionService({
-		state,
-		copy,
-		getProject: () => documentState.project,
-		activeSelection,
-		resolveEditingSelection,
-		audacitySelectionChannelCount,
-		audioTrackChannelCount,
-		selectedTracksTimeRange,
-		projectSampleRate,
-		editingBlocked,
-		setSelection: (...args) => setSelection(...args),
-	});
-	const effectControlsService = createEffectControlsService({
-		state,
-		copy,
-		createId: createStableId,
-		getProject: () => documentState.project,
-		persistSetting,
-		publishDocumentSnapshot,
-		setStatus,
-		applySelectedAudacityEffect: () => applySelectedAudacityEffect(),
-		captureRackNoiseProfile: (...args) => effectAudioService.captureRackNoiseProfile(...args),
-	});
-	const effectAudioService = createEffectAudioService({
-		lifetime, ...(projectRuntime.assistanceAssetCommands ? { assistanceStore: store, assistanceVideoStore: store, assistanceDerivativeRepository: store.assistanceDerivativeRepository } : {}),
-		captureProject: () => projectGeneration.capture(documentState.project.id),
-		assertProject: (token) => projectGeneration.assertCurrent(token),
-		state,
-		copy,
-		memoryLimitBytes: AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
-		getProject: () => documentState.project,
-		activeSelection,
-		audacityEffectTarget: (...args) => effectSelectionService.audacityEffectTarget(...args),
-		audacityEffectTargets: (...args) => effectSelectionService.audacityEffectTargets(...args),
-		audacityEffectSelectionDetails: (...args) => effectSelectionService.audacityEffectSelectionDetails(...args),
-		editingBlocked,
-		projectSampleRate,
-		currentAudacityEffectParams: (...args) => effectControlsService.currentAudacityEffectParams(...args),
-		estimateAudacityEffectPeakBytes,
-		audacityEffectMemoryError: () => audacityEffectMemoryError(copy),
-		preflightStorage,
-		createId: createStableId,
-		cloneProject: projectRuntime.cloneProject,
-		audacitySelectionChannelCount,
-		renderSnapshot,
-		prepareCommittedTimePitchCaches,
-		createRenderEngine: createCacheAwareRenderEngine,
-		sourceBuffers,
-		audioBufferChannels,
-		matchAudacitySelectionChannels,
-		runSelectionEffectWorker: (...args) => selectionEffectWorkerService.runSelectionEffectWorker(...args),
-		runSpectralEditWorker: (...args) => selectionEffectWorkerService.runSpectralEditWorker(...args),
-		serializeNoiseProfile: serializeAudacityNoiseProfile,
-		commit,
-		persistAudacityEffectResults: (...args) => persistAudacityEffectResults(...args),
-		setStatus,
-		publishDocumentSnapshot,
-	});
-	const nyquistHostService = !composition.effects ? createAbsentNyquistHostService(absentSubsystem) : createNyquistHostService({
-		state,
-		copy,
-		locale,
-		getProject: () => documentState.project,
-		captureProject: () => projectGeneration.capture(documentState.project.id),
-		assertProject: (token) => projectGeneration.assertCurrent(token),
-		activeSelection,
-		projectSampleRate,
-		getPositionFrames: () => engine.getPositionFrames(),
-		getAudioContext: () => engine.getAudioContext({ resume: true }),
-		pauseTransport: () => engine.pause(),
-		assertAudioOutput: assertAudacityEffectOutput,
-		bufferFromChannels: (channels, sampleRate, context) => (
-			bufferFromChannels(channels, sampleRate, context, copy)
-		),
-		cancelAudacityEffectPreview: (...args) => effectControlsService.cancelAudacityEffectPreview(...args),
-		createId: createStableId,
-		commit,
-		setStatus,
-		publishDocumentSnapshot,
-	});
-	const nyquistGeneratedAudioService = !composition.effects ? createAbsentNyquistGeneratedAudioService(absentSubsystem) : createNyquistGeneratedAudioService({
-		state,
-		copy,
-		sourceChunkFrames: SOURCE_CHUNK_FRAMES,
-		getProject: () => documentState.project,
-		captureProject: () => projectGeneration.capture(documentState.project.id),
-		assertProject: (token) => projectGeneration.assertCurrent(token),
-		activeSelection,
-		audacityEffectTarget: (...args) => effectSelectionService.audacityEffectTarget(...args),
-		persistAudacityEffectResult: (...args) => persistAudacityEffectResult(...args),
-		matchAudacitySelectionChannels,
-		assertAudioOutput: assertAudacityEffectOutput,
-		projectSampleRate,
-		preflightStorage,
-		createId: createStableId,
-		getAudioContext: () => engine.getAudioContext({ resume: false }),
-		bufferFromChannels: (channels, sampleRate, context) => (
-			bufferFromChannels(channels, sampleRate, context, copy)
-		),
-		store,
-		writeBuffer,
-		snapTimelineFrame,
-		getPositionFrames: () => engine.getPositionFrames(),
-		cacheSourceBuffer,
-		generateWaveformPeaks,
-		peakCacheKey,
-		sourceBuffers,
-		sourcePeaks,
-		commit,
-	});
-	const effectMacroService = !composition.macros ? createAbsentEffectMacroService(absentSubsystem) : createEffectMacroService({
-		lifetime,
-		projectGeneration,
-		copy,
-		memoryLimitBytes: AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
-		getProject: () => documentState.project,
-		audacityEffectTarget: (...args) => effectSelectionService.audacityEffectTarget(...args),
-		editingBlocked,
-		materializeRackEffect: (...args) => materializeRackEffect(...args),
-		projectSampleRate,
-		effectRackLatencyFrames,
-		isAudacityRackEffectType,
-		estimateAudacityEffectPeakBytes,
-		audacityEffectMemoryError: () => audacityEffectMemoryError(copy),
-		setProcessing: (value) => { state.audacityEffectProcessing = value; },
-		setStatus, publishDocumentSnapshot, preflightStorage,
-		cloneProject: projectRuntime.cloneProject,
-		renderSnapshot, renderDryTrackRange, runSelectionEffectWorker,
-		projectFrameCount: () => projectDurationFrames(documentState.project),
-		createAudioBuffer: async (channels) => bufferFromChannels([...channels], projectSampleRate(), await engine.getAudioContext({ resume: false }), copy),
-		audioBufferChannels,
-		matchAudacitySelectionChannels,
-		persistAudacityEffectResult: (...args) => persistAudacityEffectResult(...args),
-		handleError,
-	});
-	const {
-		applySelectedAudacityEffect,
-		previewAudacityEffectFromController,
-		runNyquistEvaluation: runNyquistEvaluationOperation,
-	} = !composition.effects ? createAbsentSelectionEffectExecutionService(absentSubsystem) : createSelectionEffectExecutionService({
-		AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES, AUDIO_SELECTION_EFFECT_DEFINITIONS, NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES, abortError, lifetime, captureProject: () => projectGeneration.capture(documentState.project?.id ?? null), assertProject: (token) => projectGeneration.assertCurrent(token),
-		activeSelection, assertAudacityEffectOutput, audacityEffectMemoryError, audacityEffectSelectionDetails,
-		audacityEffectTarget, audacityEffectTargets, audacitySpectralEffectContext, bufferFromChannels,
-		cancelAudacityEffectPreview, copy, currentAudacityEffectParams, editingBlocked,
-		engine, estimateAudioSelectionEffectOutputFrames, estimateAudioSelectionEffectPeakBytes, freezeNyquistResult,
-		mixNyquistPreviewChannels, normalizeAudioSelectionEffectParams, normalizeNyquistRole, nyquistAudioResultBytes,
-		nyquistEvaluator, nyquistHostProperties, nyquistMaximumOutputFrames, nyquistResultStatus,
-		persistAudacityEffectResults: (...args) => persistAudacityEffectResults(...args),
-		persistNyquistGeneratedAudio, persistNyquistLabels, playNyquistPreview,
-		preflightStorage, getProject: () => documentState.project, projectDurationFrames, projectSampleRate,
-		publishDocumentSnapshot, renderDryTrackRange, resolveInteractiveAudacityParams, runSelectionEffectWorker,
-		setAudacityControlTrack, setAudacityEffectParamsFromController, setAudacityEffectType, setStatus,
-		state, throwIfAborted, updateTaskProgress: (value) => taskProgress.updateActive(value),
-	});
-	const { persistAudacityEffectResults } = createSelectionEffectResultService({
-		SOURCE_CHUNK_FRAMES, assertAudacityEffectOutput, audioSelectionEffectLabel, bufferFromChannels,
-		cacheSourceBuffer, commit, copy, createStableId,
-		engine, generateWaveformPeaks, peakCacheKey, preparePasteCommand,
-		prepareRangeDeleteCommand, prepareRangeReplacementCommand, getProject: () => documentState.project, projectSampleRate,
-		sourceBuffers, sourcePeaks, state, store,
-		throwIfAborted, writeBuffer,
+	const effects = createEffectsComposition({
+		state, copy, locale, composition, absentSubsystem, lifetime, projectGeneration, projectRuntime, store, engine, sourceBuffers, sourcePeaks,
+		taskProgress, nyquistEvaluator, getProject: () => documentState.project, activeSelection, selectedTracksTimeRange, editingBlocked, setSelection,
+		persistSetting, publishDocumentSnapshot, setStatus, preflightStorage, renderSnapshot, prepareCommittedTimePitchCaches,
+		createRenderEngine: createCacheAwareRenderEngine, commit, cacheSourceBuffer, snapTimelineFrame, projectDurationFrames, projectSampleRate, handleError,
 	});
 	const labelService = createLabelService({
 		lifetime,
@@ -1423,9 +1223,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getPositionFrames: () => engine.getPositionFrames(),
 		snapFrame: snapTimelineFrame,
 		trackChannelCount: audioTrackChannelCount,
-		effectTargets: audacityEffectTargets,
+		effectTargets: (...args) => effects.selection.audacityEffectTargets(...args),
 		persistEffectResults: (results, type, scope) => (
-			persistAudacityEffectResults(results, type, scope)
+			effects.result.persistAudacityEffectResults(results, type, scope)
 		),
 		preflightStorage,
 		getAudioContext: () => engine.getAudioContext({ resume: false }),
@@ -1523,12 +1323,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 		assertProject: (token) => projectGeneration.assertCurrent(token),
 		editingBlocked, commit, publishDocumentSnapshot,
 	});
-	const rackEffectService = createRackEffectService({
-		state, copy, engine, getProject: () => documentState.project,
-		captureProject: () => projectGeneration.capture(documentState.project?.id ?? null),
-		assertProject: (token) => projectGeneration.assertCurrent(token),
-		editingBlocked, commit, handleError, publishDocumentSnapshot, setStatus,
-	});
 	const recording = createRecordingComposition({
 		state, lifetime, projectGeneration, projectRuntime, session: sessionController, store, engine, copy, locale, mediaDevices,
 		capturePool: recordingCapturePool, createRecorder: recordingControllerFactory, microphoneMeter: microphoneMeterService,
@@ -1545,7 +1339,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		adjustTrackHeight, analysisService: progressAnalysisService, applyAudacityEffectFromController, applyEffectPreset,
 		applyProjectBinReplacement, applySamplePencil, applySpectralSelection, beginParametricEqGesture,
 		beginRackEffectGesture, beginVideoEffectGesture, bypassVideoClipEffect, cancelAudacityEffectPreview,
-		cancelEffectMacro: effectMacroService.cancelEffectMacro, cancelNyquistEvaluation, cancelParametricEqGesture, cancelPlaybackCachePreparation, cancelProjectBinReplacement,
+		cancelEffectMacro: effects.macro.cancelEffectMacro, cancelNyquistEvaluation, cancelParametricEqGesture, cancelPlaybackCachePreparation, cancelProjectBinReplacement,
 		cancelRackEffectGesture, cancelSampleEdit, cancelTimedRecording, cancelVideoEffectGesture,
 		capabilities, captureRackNoiseProfileFromController, captureSelectedNoiseProfile, claimProjectLock,
 		clearLocalData, clearLoopRegion, clearRecentProjects, closeProjectTab,
@@ -1564,7 +1358,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		moveToolbarPreference, moveTrack, newProject, normalizePlaybackFrame,
 		openAudacityProject, openAup4, openProject, openScape, openScapeFile, overwriteClips, openDawproject: (file) => taskProgress.run('project-io', copy.importing, () => nativeProjectService.openDawproject(file)), saveDawproject: (saveOptions) => taskProgress.run('project-io', copy.dawprojectSaving, () => nativeProjectService.saveDawproject(saveOptions)),
 		pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip, playPauseProjectBinClip,
-		prepareProjectBinReplacement, prepareProjectHandoff, assertProjectHandoffAllowed: () => { if (documentState.project) framescaperCapture?.assertOriginHandoffAllowed(documentState.project.id); projectAdminService.assertProjectHandoffAllowed(); }, previewAudacityEffectFromController, previewParametricEq,
+		prepareProjectBinReplacement, prepareProjectHandoff, assertProjectHandoffAllowed: () => { if (documentState.project) framescaperCapture?.assertOriginHandoffAllowed(documentState.project.id); projectAdminService.assertProjectHandoffAllowed(); }, previewAudacityEffectFromController: effects.execution.previewAudacityEffectFromController, previewParametricEq,
 		previewRackEffect, previewVideoEffectGesture, product, productId: product.id, locale: options.locale, macroScriptStartedAt: () => new Date().toISOString(), getProject: () => documentState.project, projectSampleRate, beginMacroTransaction: () => projectMutationService.beginMacroTransaction(), timelineDurationFrames: () => projectDurationFrames(documentState.project),
 		projectBinInstanceCount, refreshAudioDevices, refreshRecordingInputs, refreshStorageUsage, releaseInputs, releaseVideoSourceVisual: revokeVideoVisual, reloadVideoSourceVisual, reportVideoPreviewPressure: options.reportProductVideoPreviewPressure || (() => undefined), canRelinkLinkedAudio: projectBinService.canRelinkLinkedAudio, classifyLinkedAudioRelink: projectBinService.classifyLinkedAudioRelink, relinkLinkedAudio: projectBinService.relinkLinkedAudio, canRelinkLinkedVideo: projectBinService.canRelinkLinkedVideo, classifyLinkedVideoRelink: projectBinService.classifyLinkedVideoRelink, relinkLinkedVideo: projectBinService.relinkLinkedVideo,
 		removeProjectBinClip, removeProjectBinSource, removeVideoClipEffect, renameProject,
@@ -1582,7 +1376,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setPlayAtSpeedRate, setPreferredInputChannelCount, setPreferredInputDevice, setProjectBinClipColor,
 		setRecordingInputGain, setRecordingSourceLatency, setRecordingTrackInput, setRetainInputs,
 		setExactSelection: selectionViewService.setExactSelection, setSampleEditMode, setSelection, setSelectionToLoopRegion, setShortcutPreference,
-		setSnapSettings, effectSelectionService, setTimelineView, setTimelineViewportWidth,
+		setSnapSettings, effectSelectionService: effects.selection, setTimelineView, setTimelineViewportWidth,
 		setToolbarButtonPreference, setTrackDisplayMode, setTrackRate,
 		setVisibleTrackHeights, setWorkspacePreference, setZoom, smoothSelectedSamples,
 		snapTimelineFrame, splitAtFrame, splitStereoTrack, startRecording, startTakeCycleRecording: () => recording.session.startTakeCycleRecording(),
@@ -1621,7 +1415,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getTelemetrySnapshot, subscribeTelemetry: (listener) => telemetryChannel.subscribe(listener),
 		getLocalDiagnosticsSnapshot: state.localDiagnostics.snapshot, recordLocalDiagnosticError: state.localDiagnostics.record,
 		getClipVisualData,
-		getProjectBinClipVisualData, selectedMediaPreparation: effectAudioService.selectedMediaPreparation,
+		getProjectBinClipVisualData, selectedMediaPreparation: effects.audio.selectedMediaPreparation,
 		actions,
 		dispose() {
 			if (disposePromise) return disposePromise;
@@ -1658,7 +1452,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			cancelPlaybackCachePreparation();
 			cancelPlayAtSpeedPreparation();
 			stopMetronome();
-			selectionEffectWorkerService.cancelWorkers();
+			effects.worker.cancelWorkers();
 			state.audacityEffectWorker?.terminate();
 			state.audacityEffectWorker = null;
 			state.nyquistAbort = null;
@@ -2255,177 +2049,37 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return videoEffectService.cancelVideoEffectGesture(clipId, effectId);
 	}
 
-	function addEffect(request = {}) {
-		return rackEffectService.addEffect(request);
-	}
-
-	function updateRackEffect(scope, trackId, effectId, changes = {}, options = {}) {
-		return rackEffectService.updateRackEffect(scope, trackId, effectId, changes, options);
-	}
-
-	function beginRackEffectGesture(scope, targetId, effectId) {
-		return rackEffectService.beginRackEffectGesture(scope, targetId, effectId);
-	}
-
-	function previewRackEffect(scope, targetId, effectId, params) {
-		return rackEffectService.previewRackEffect(scope, targetId, effectId, params);
-	}
-
-	function commitRackEffectGesture(scope, targetId, effectId, params) {
-		return rackEffectService.commitRackEffectGesture(scope, targetId, effectId, params);
-	}
-
-	function cancelRackEffectGesture(scope, targetId, effectId) {
-		return rackEffectService.cancelRackEffectGesture(scope, targetId, effectId);
-	}
-
-	function beginParametricEqGesture(scope, targetId, effectId) {
-		return rackEffectService.beginParametricEqGesture(scope, targetId, effectId);
-	}
-
-	function previewParametricEq(scope, targetId, effectId, params) {
-		return rackEffectService.previewParametricEq(scope, targetId, effectId, params);
-	}
-
-	function commitParametricEqGesture(scope, targetId, effectId, params) {
-		return rackEffectService.commitParametricEqGesture(scope, targetId, effectId, params);
-	}
-
-	function cancelParametricEqGesture(scope, targetId, effectId) {
-		return rackEffectService.cancelParametricEqGesture(scope, targetId, effectId);
-	}
-
-	function copyEffectStack(scope, trackId = state.selectedTrackId) {
-		return rackEffectService.copyEffectStack(scope, trackId);
-	}
-
-	function pasteEffectStack(scope, trackId = state.selectedTrackId) {
-		return rackEffectService.pasteEffectStack(scope, trackId);
-	}
-
-	function materializeRackEffect(effect, scope, trackId, options = {}) {
-		return rackEffectService.materializeRackEffect(effect, scope, trackId, options);
-	}
-
-	function runEffectMacro(...args) {
-		return taskProgress.run('effect', copy.macroProcessing || copy.audacityProcessing, () => effectMacroService.runEffectMacro(...args));
-	}
-
-	function currentAudacityEffectParams(...args) {
-		return effectControlsService.currentAudacityEffectParams(...args);
-	}
-
-	function setAudacityEffectType(...args) {
-		return effectControlsService.setAudacityEffectType(...args);
-	}
-
-	function setAudacityEffectParamsFromController(...args) {
-		return effectControlsService.setAudacityEffectParamsFromController(...args);
-	}
-
-	function setAudacityControlTrack(...args) {
-		return effectControlsService.setAudacityControlTrack(...args);
-	}
-
-	function applyEffectPreset(...args) {
-		return effectControlsService.applyEffectPreset(...args);
-	}
-
-	function saveEffectPreset(...args) {
-		return effectControlsService.saveEffectPreset(...args);
-	}
-
-	function deleteEffectPreset(...args) {
-		return effectControlsService.deleteEffectPreset(...args);
-	}
-
-	function importEffectPresets(...args) {
-		return effectControlsService.importEffectPresets(...args);
-	}
-
-	function exportEffectPreset(...args) {
-		return effectControlsService.exportEffectPreset(...args);
-	}
-
-	function applyAudacityEffectFromController(...args) {
-		return taskProgress.run('effect', copy.audacityProcessing, () => effectControlsService.applyAudacityEffectFromController(...args));
-	}
-
-	function cancelAudacityEffectPreview(...args) {
-		return effectControlsService.cancelAudacityEffectPreview(...args);
-	}
-
-	function repeatLastAudacityEffect(...args) {
-		return taskProgress.run('effect', copy.audacityProcessing, () => effectControlsService.repeatLastAudacityEffect(...args));
-	}
-
-	function captureRackNoiseProfileFromController(...args) {
-		return effectControlsService.captureRackNoiseProfileFromController(...args);
-	}
-
-	function resolveInteractiveAudacityParams(...args) {
-		return effectControlsService.resolveInteractiveAudacityParams(...args);
-	}
-
-	function audacityEffectTarget(...args) {
-		return effectSelectionService.audacityEffectTarget(...args);
-	}
-
-	function audacityEffectTargets(...args) {
-		return effectSelectionService.audacityEffectTargets(...args);
-	}
-
-	function audacityEffectSelectionDetails(...args) {
-		return effectSelectionService.audacityEffectSelectionDetails(...args);
-	}
-
-	function audacitySpectralEffectContext(...args) {
-		return effectSelectionService.audacitySpectralEffectContext(...args);
-	}
-
-	function applySpectralSelection(...args) {
-		return taskProgress.run('effect', copy.spectralProcessing || copy.audacityProcessing, () => effectAudioService.applySpectralSelection(...args));
-	}
-
-	function captureSelectedNoiseProfile(...args) {
-		return taskProgress.run('effect', copy.audacityProcessing, () => effectAudioService.captureSelectedNoiseProfile(...args));
-	}
-
-	function renderDryTrackRange(...args) {
-		return effectAudioService.renderDryTrackRange(...args);
-	}
-
-	function cancelNyquistEvaluation(...args) {
-		return nyquistHostService.cancelNyquistEvaluation(...args);
-	}
-
-	function runNyquistEvaluation(...args) {
-		return taskProgress.run('effect', copy.nyquistProcessing || copy.audacityProcessing, () => runNyquistEvaluationOperation(...args));
-	}
-
-	function nyquistHostProperties(...args) {
-		return nyquistHostService.nyquistHostProperties(...args);
-	}
-
-	function playNyquistPreview(...args) {
-		return nyquistHostService.playNyquistPreview(...args);
-	}
-
-	function persistNyquistGeneratedAudio(...args) {
-		return nyquistGeneratedAudioService.persistNyquistGeneratedAudio(...args);
-	}
-
-	function persistNyquistLabels(...args) {
-		return nyquistHostService.persistNyquistLabels(...args);
-	}
-
-	async function persistAudacityEffectResult(target, type, channels, options = {}) {
-		return persistAudacityEffectResults([{ target, channels }], type, options);
-	}
-
-	function runSelectionEffectWorker(...args) {
-		return selectionEffectWorkerService.runSelectionEffectWorker(...args);
-	}
+	function addEffect(...args) { return effects.rack.addEffect(...args); }
+	function updateRackEffect(...args) { return effects.rack.updateRackEffect(...args); }
+	function beginRackEffectGesture(...args) { return effects.rack.beginRackEffectGesture(...args); }
+	function previewRackEffect(...args) { return effects.rack.previewRackEffect(...args); }
+	function commitRackEffectGesture(...args) { return effects.rack.commitRackEffectGesture(...args); }
+	function cancelRackEffectGesture(...args) { return effects.rack.cancelRackEffectGesture(...args); }
+	function beginParametricEqGesture(...args) { return effects.rack.beginParametricEqGesture(...args); }
+	function previewParametricEq(...args) { return effects.rack.previewParametricEq(...args); }
+	function commitParametricEqGesture(...args) { return effects.rack.commitParametricEqGesture(...args); }
+	function cancelParametricEqGesture(...args) { return effects.rack.cancelParametricEqGesture(...args); }
+	function copyEffectStack(...args) { return effects.rack.copyEffectStack(...args); }
+	function pasteEffectStack(...args) { return effects.rack.pasteEffectStack(...args); }
+	function runEffectMacro(...args) { return effects.runEffectMacro(...args); }
+	function currentAudacityEffectParams(...args) { return effects.controls.currentAudacityEffectParams(...args); }
+	function setAudacityEffectType(...args) { return effects.controls.setAudacityEffectType(...args); }
+	function setAudacityEffectParamsFromController(...args) { return effects.controls.setAudacityEffectParamsFromController(...args); }
+	function setAudacityControlTrack(...args) { return effects.controls.setAudacityControlTrack(...args); }
+	function applyEffectPreset(...args) { return effects.controls.applyEffectPreset(...args); }
+	function saveEffectPreset(...args) { return effects.controls.saveEffectPreset(...args); }
+	function deleteEffectPreset(...args) { return effects.controls.deleteEffectPreset(...args); }
+	function importEffectPresets(...args) { return effects.controls.importEffectPresets(...args); }
+	function exportEffectPreset(...args) { return effects.controls.exportEffectPreset(...args); }
+	function applyAudacityEffectFromController(...args) { return effects.applyAudacityEffectFromController(...args); }
+	function cancelAudacityEffectPreview(...args) { return effects.controls.cancelAudacityEffectPreview(...args); }
+	function repeatLastAudacityEffect(...args) { return effects.repeatLastAudacityEffect(...args); }
+	function captureRackNoiseProfileFromController(...args) { return effects.controls.captureRackNoiseProfileFromController(...args); }
+	function applySpectralSelection(...args) { return effects.applySpectralSelection(...args); }
+	function captureSelectedNoiseProfile(...args) { return effects.captureSelectedNoiseProfile(...args); }
+	function renderDryTrackRange(...args) { return effects.audio.renderDryTrackRange(...args); }
+	function cancelNyquistEvaluation(...args) { return effects.nyquistHost.cancelNyquistEvaluation(...args); }
+	function runNyquistEvaluation(...args) { return effects.runNyquistEvaluation(...args); }
 
 	function analysisRange() {
 		const selection = activeSelection();

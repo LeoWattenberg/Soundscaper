@@ -323,7 +323,7 @@ test('clipboard V6 carries bounded keyframes, trims copied views, and remaps pas
 		atFrame: 10 * FRAME_SAMPLES, mode: 'reject', project: commandProject,
 	}, stableIds());
 	const pasted = apply(base, command);
-	const pastedId = Object.values(command.clipIds)[0];
+	const pastedId = Object.values(command.clipIds ?? {})[0];
 	assert.ok(pastedId);
 	const result = timelineClip(pasted, pastedId);
 	assert.deepEqual(domain(result), domainValue(10, 2, 6));

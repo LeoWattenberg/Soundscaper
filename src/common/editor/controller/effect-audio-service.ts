@@ -9,6 +9,7 @@ import type {
 	EffectAudioTrack,
 	MutableEffectAudioProject,
 	MutableEffectAudioTrack,
+	EffectAudioBuffer,
 } from './effect-audio-service-types.ts';
 import type { EffectTarget } from './effect-selection-service.ts';
 import type { EditorProjectToken, EditorTaskScope } from './lifecycle.ts';
@@ -32,7 +33,7 @@ export type * from './effect-audio-service-types.ts';
 const NOISE_PROFILE_TASK = 'selection-effect-noise-profile';
 const SPECTRAL_EFFECT_TASK = 'selection-effect-spectral';
 
-export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
+export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: EffectAudioServiceRuntime<Buffer>) {
 	async function renderDryTrackRange(
 		trackId: string,
 		startFrame: number,
@@ -354,22 +355,22 @@ interface ProcessingOwnership {
 	readonly project: EditorProjectToken;
 }
 
-function beginOwnership(runtime: EffectAudioServiceRuntime, taskName: string): ProcessingOwnership {
+function beginOwnership<Buffer>(runtime: EffectAudioServiceRuntime<Buffer>, taskName: string): ProcessingOwnership {
 	return { task: runtime.lifetime.startTask(taskName), project: runtime.captureProject() };
 }
 
-function assertOwnership(runtime: EffectAudioServiceRuntime, ownership: ProcessingOwnership): void {
+function assertOwnership<Buffer>(runtime: EffectAudioServiceRuntime<Buffer>, ownership: ProcessingOwnership): void {
 	ownership.task.assertCurrent();
 	runtime.assertProject(ownership.project);
 }
 
-function beginProcessing(runtime: EffectAudioServiceRuntime, status: string): void {
+function beginProcessing<Buffer>(runtime: EffectAudioServiceRuntime<Buffer>, status: string): void {
 	runtime.state.audacityEffectProcessing = true;
 	runtime.setStatus(status);
 	runtime.publishDocumentSnapshot();
 }
 
-function finishProcessing(runtime: EffectAudioServiceRuntime, ownership: ProcessingOwnership): void {
+function finishProcessing<Buffer>(runtime: EffectAudioServiceRuntime<Buffer>, ownership: ProcessingOwnership): void {
 	const taskCurrent = taskIsCurrent(ownership.task);
 	if (taskCurrent) runtime.state.audacityEffectProcessing = false;
 	if (taskCurrent && projectIsCurrent(runtime, ownership.project)) runtime.publishDocumentSnapshot();
@@ -380,7 +381,7 @@ function taskIsCurrent(task: EditorTaskScope): boolean {
 	try { task.assertCurrent(); return true; } catch { return false; }
 }
 
-function projectIsCurrent(runtime: EffectAudioServiceRuntime, token: EditorProjectToken): boolean {
+function projectIsCurrent<Buffer>(runtime: EffectAudioServiceRuntime<Buffer>, token: EditorProjectToken): boolean {
 	try { runtime.assertProject(token); return true; } catch { return false; }
 }
 

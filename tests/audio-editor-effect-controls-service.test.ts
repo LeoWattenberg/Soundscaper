@@ -66,7 +66,7 @@ function createHarness(options: HarnessOptions = {}) {
 		getProject: () => ({
 			id: 'project-a',
 			tracks: [{
-				id: 'track-a', type: 'audio', effects: [{ id: 'effect-a', type: 'audacity-noise-reduction' }],
+				id: 'track-a', type: 'audio', effects: [{ id: 'effect-a', type: 'audacity-noise-reduction', params: {} }],
 			}],
 			master: { effects: [] },
 		}),
@@ -157,7 +157,7 @@ test('repeat and rack profile adapters preserve public action behavior', async (
 	assert.equal(harness.state.audacityEffectParams['audacity-amplify']?.gainDb, -2);
 	assert.equal(await harness.service.captureRackNoiseProfileFromController('track', 'track-a', 'effect-a'), true);
 	assert.deepEqual(harness.captured, {
-		effect: { id: 'effect-a', type: 'audacity-noise-reduction' }, scope: 'track', trackId: 'track-a',
+		effect: { id: 'effect-a', type: 'audacity-noise-reduction', params: {} }, scope: 'track', trackId: 'track-a',
 	});
 });
 

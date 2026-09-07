@@ -2,28 +2,29 @@
 
 // The composition root must build only the audio subsystems the product profile
 // says the product has. These tests watch the seven gated factories through a
-// module resolve hook that redirects app.js's own imports to counting shims, so
-// "not composed" is measured at the factory rather than inferred from a refusal.
+// module resolve hook that redirects the imports made by app.js and by its
+// domain composition modules to counting shims, so "not composed" is measured
+// at the factory rather than inferred from a refusal.
 
 import assert from 'node:assert/strict';
 import { register } from 'node:module';
 import test from 'node:test';
 
-/** app.js specifier → the factory export the composition root calls from it. */
+/** Module path under src/common/editor → the factory export the composition calls from it. */
 const GATED_FACTORIES = Object.freeze({
-	'./controller/deferred-analysis-service.ts': 'createDeferredAudioAnalysisService',
-	'./controller/selection-effect-worker-service.ts': 'createSelectionEffectWorkerService',
-	'./controller/nyquist-host-service.ts': 'createNyquistHostService',
-	'./controller/nyquist-generated-audio-service.ts': 'createNyquistGeneratedAudioService',
-	'./controller/effect-macro-service.ts': 'createEffectMacroService',
-	'./controller/effect-execution-service.ts': 'createSelectionEffectExecutionService',
-	'./controller/generator-service.ts': 'createAudioGeneratorService',
+	'controller/deferred-analysis-service.ts': 'createDeferredAudioAnalysisService',
+	'controller/selection-effect-worker-service.ts': 'createSelectionEffectWorkerService',
+	'controller/nyquist-host-service.ts': 'createNyquistHostService',
+	'controller/nyquist-generated-audio-service.ts': 'createNyquistGeneratedAudioService',
+	'controller/effect-macro-service.ts': 'createEffectMacroService',
+	'controller/effect-execution-service.ts': 'createSelectionEffectExecutionService',
+	'controller/generator-service.ts': 'createAudioGeneratorService',
 });
 
 const RECORDER = '__soundscaperComposedFactories';
 
-const shims = Object.fromEntries(Object.entries(GATED_FACTORIES).map(([specifier, factory]) => {
-	const real = new URL(`../src/common/editor/${specifier.slice(2)}`, import.meta.url).href;
+const shims = Object.fromEntries(Object.entries(GATED_FACTORIES).map(([path, factory]) => {
+	const real = new URL(`../src/common/editor/${path}`, import.meta.url).href;
 	const source = `
 		import { ${factory} as real } from ${JSON.stringify(real)};
 		export function ${factory}(...args) {
@@ -31,20 +32,24 @@ const shims = Object.fromEntries(Object.entries(GATED_FACTORIES).map(([specifier
 			return real(...args);
 		}
 	`;
-	return [specifier, `data:text/javascript,${encodeURIComponent(source)}`];
+	return [path, `data:text/javascript,${encodeURIComponent(source)}`];
 }));
 
 const hook = `
 	const shims = ${JSON.stringify(shims)};
 	export async function resolve(specifier, context, nextResolve) {
-		const parent = String(context.parentURL ?? '');
-		if (parent.endsWith('/src/common/editor/app.js') && Object.hasOwn(shims, specifier)) {
-			return { url: shims[specifier], shortCircuit: true, format: 'module' };
-		}
 		if (specifier === '@ffmpeg/core?url' || specifier === '@ffmpeg/core/wasm?url') {
 			return { url: 'data:text/javascript,export default "mock-ffmpeg-asset"', shortCircuit: true };
 		}
-		return nextResolve(specifier, context);
+		const resolved = await nextResolve(specifier, context);
+		const parent = String(context.parentURL ?? '');
+		const composing = parent.endsWith('/src/common/editor/app.js')
+			|| (parent.includes('/src/common/editor/controller/') && parent.endsWith('-composition.ts'));
+		const gated = composing
+			? Object.keys(shims).find((path) => String(resolved.url).endsWith('/src/common/editor/' + path))
+			: undefined;
+		if (gated) return { url: shims[gated], shortCircuit: true, format: 'module' };
+		return resolved;
 	}
 `;
 

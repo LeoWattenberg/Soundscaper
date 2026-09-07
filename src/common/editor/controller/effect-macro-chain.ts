@@ -49,7 +49,8 @@ interface SelectionEffectDefinition {
 	readonly requiresStaffPad?: boolean;
 }
 
-interface MacroRenderBuffer {
+/** The default rendered-buffer shape; the chain only hands it to `audioBufferChannels`. */
+export interface MacroRenderBuffer {
 	readonly [property: string]: unknown;
 }
 
@@ -59,7 +60,7 @@ interface ChainCopy {
 	readonly noiseProfileMissing: string;
 }
 
-export interface EffectMacroChainRuntime {
+export interface EffectMacroChainRuntime<Buffer = MacroRenderBuffer> {
 	readonly copy: ChainCopy;
 	readonly sampleRate: number;
 	readonly assertCurrent: () => void;
@@ -84,8 +85,8 @@ export interface EffectMacroChainRuntime {
 		project: unknown,
 		range: Readonly<Record<string, unknown>>,
 		sourceBuffers: ReadonlyMap<string, unknown>,
-	) => Promise<MacroRenderBuffer>;
-	readonly audioBufferChannels: (buffer: MacroRenderBuffer) => readonly Float32Array[];
+	) => Promise<Buffer>;
+	readonly audioBufferChannels: (buffer: Buffer) => readonly Float32Array[];
 	readonly matchSelectionChannels: (
 		channels: readonly Float32Array[],
 		channelCount: number,
@@ -118,7 +119,7 @@ export function effectMacroChainIsRealtime(steps: readonly EffectMacroChainStep[
 	return steps.every((step) => isRealtimeEffectMacroStepType(step.type));
 }
 
-export function createEffectMacroChainRunner(runtime: EffectMacroChainRuntime) {
+export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime: EffectMacroChainRuntime<Buffer>) {
 	/**
 	 * Apply one offline step to the audio the chain currently holds. The audio
 	 * around the selection still comes from the project: a later step replaces

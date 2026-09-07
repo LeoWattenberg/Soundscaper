@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { AudioBufferContext } from './source-audio.ts';
 import {
 	createAddClipCommand,
 	createAddSourceCommand,
@@ -44,6 +45,7 @@ export interface NyquistGeneratedAudioState {
 interface NyquistGeneratedAudioBuffer {
 	readonly numberOfChannels: number;
 	readonly length: number;
+	readonly sampleRate: number;
 	getChannelData(index: number): Float32Array;
 }
 
@@ -107,11 +109,11 @@ export interface NyquistGeneratedAudioServiceRuntime {
 	readonly projectSampleRate: () => number;
 	readonly preflightStorage: (bytes: number, kind: 'effect') => Promise<unknown>;
 	readonly createId: (prefix: string) => string;
-	readonly getAudioContext: () => Promise<unknown>;
+	readonly getAudioContext: () => Promise<AudioBufferContext>;
 	readonly bufferFromChannels: (
 		channels: readonly Float32Array[],
 		sampleRate: number,
-		context: unknown,
+		context: AudioBufferContext,
 	) => Promise<NyquistGeneratedAudioBuffer>;
 	readonly store: NyquistGeneratedStore;
 	readonly writeBuffer: (

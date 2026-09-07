@@ -220,6 +220,7 @@ export function keepRange(project, command) {
 	commitTakeGraph?.();
 }
 
+/** @returns {import('./protocol.ts').AudioEditorCommand} */
 export function prepareRangeDeleteCommand(project, options = {}, idFactory = createStableId) {
 	const rippleMode = options.rippleMode || (options.ripple ? 'track' : 'none');
 	if (!['none', 'clip', 'track'].includes(rippleMode)) throw new RangeError(`Unsupported ripple mode: ${rippleMode}.`);
@@ -425,6 +426,7 @@ export function preparePunchCommand(project, options = {}, idFactory = createSta
  * later material on that track ripples by outputFrames - inputFrames.
  */
 
+/** @returns {Extract<import('./protocol.ts').AudioEditorCommand, { readonly type: 'range/replace' }>} */
 export function prepareRangeReplacementCommand(project, options = {}, idFactory = createStableId) {
 	const range = normalizeFrameRange(options.startFrame, options.endFrame, 'replacement range');
 	const track = requireTrack(project, options.trackId);

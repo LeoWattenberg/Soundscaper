@@ -190,9 +190,10 @@ function createGeneratedAudioHarness(options: GeneratedAudioHarnessOptions = {})
 		preflightStorage: async () => undefined,
 		createId: (prefix) => `${prefix}-${++id}`,
 		getAudioContext: async () => ({}),
-		bufferFromChannels: async (channels) => ({
+		bufferFromChannels: async (channels, sampleRate) => ({
 			numberOfChannels: channels.length,
 			length: channels[0]?.length ?? 0,
+			sampleRate,
 			getChannelData: (index: number) => channels[index]!,
 		}),
 		store: {

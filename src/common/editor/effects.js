@@ -161,6 +161,11 @@ export function audioSelectionEffectDefinition(type) {
 	return definition;
 }
 
+/**
+ * @param {string | null | undefined} type
+ * @param {string | object} [copyOrLocale]
+ * @returns {string}
+ */
 export function audioSelectionEffectLabel(type, copyOrLocale = 'en') {
 	if (type === REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE) return REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_LABEL;
 	return ownMapValue(AUDACITY_EFFECT_DEFINITIONS, type)

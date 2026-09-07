@@ -17,7 +17,7 @@ export interface AudioBufferLike {
 	copyToChannel?(source: Float32Array, channelNumber: number, startInChannel?: number): void;
 }
 
-interface AudioBufferContext {
+export interface AudioBufferContext {
 	createBuffer?(channelCount: number, length: number, sampleRate: number): AudioBufferLike;
 }
 
@@ -447,10 +447,12 @@ export function scaleClipEnvelope(clip: ClipEnvelope, durationFrames: number): C
 	})).filter((point, index, points) => index === 0 || point.frame > points[index - 1]!.frame);
 }
 
-export function serializeAudacityNoiseProfile(profile: AudacityNoiseProfile | null | undefined) {
-	if (!profile) return null;
+/** A profile arrives as an opaque worker result; anything that is not an object serialises to null. */
+export function serializeAudacityNoiseProfile(profile: unknown) {
+	if (!profile || typeof profile !== 'object') return null;
+	const { meanPowers } = profile as AudacityNoiseProfile;
 	return {
 		...profile,
-		meanPowers: Array.from(profile.meanPowers || []),
+		meanPowers: Array.from(meanPowers || []),
 	};
 }

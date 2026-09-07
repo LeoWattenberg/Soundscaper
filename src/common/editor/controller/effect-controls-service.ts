@@ -60,6 +60,9 @@ export interface EffectControlsState {
 export interface EffectControlRackEffect extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly type: string;
+	readonly params: Readonly<Record<string, unknown>>;
+	readonly enabled?: boolean;
+	readonly context?: Readonly<Record<string, unknown>> | null;
 }
 
 interface EffectControlTrack {
