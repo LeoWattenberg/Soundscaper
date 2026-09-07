@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { RiffAnnotationImportProject } from '../timeline-annotation-riff-interchange.ts';
 import type { EnginePublicApi } from '../engine/public-api.ts';
 import type { LinkedOriginalStoreService } from '../storage/linked-original-store-service.ts';
 import type { createFfmpegVideoTimingProbe } from '../video-timing-probe.ts';
@@ -20,7 +21,7 @@ import type { ChangedContentVideoCandidateRuntime } from './video-relink-probe.t
 import type { VideoSourceReprobeDependencies } from './video-source-reprobe-service.ts';
 import type { generateWaveformPeaks } from './waveform-analysis.ts';
 
-export type ImportCompositionProject = ReturnType<ProjectBinServiceDependencies['getProject']>;
+export type ImportCompositionProject = ReturnType<ProjectBinServiceDependencies['getProject']> & RiffAnnotationImportProject;
 
 export type ImportCompositionState = {
 	selectedTrackId: string | null;
@@ -65,6 +66,7 @@ export type ImportCompositionStore =
 	& Pick<ConsolidateMediaStore, 'unlinkLinkedVideoOriginal'>
 	& Pick<LinkedOriginalStoreService, 'saveLinkedVideoDerivative'>
 	& Readonly<{
+		releaseLinkedAudioOriginalLocator(reference: Readonly<{ locatorId: string; locatorRevision: string }>): PromiseLike<boolean>;
 		bindLinkedVideoOriginal(
 			...args: Parameters<LinkedOriginalStoreService['bindVideo']>
 		): ReturnType<LinkedOriginalStoreService['bindVideo']>;
@@ -78,10 +80,10 @@ export type ImportCompositionEngine = Pick<EnginePublicApi,
 
 /** The codec runtime as the import paths use it; CFR conforming is a desktop-only optional. */
 export type ImportCompositionFfmpeg =
-	& ChangedContentVideoCandidateRuntime['ffmpeg']
+	& Omit<ChangedContentVideoCandidateRuntime['ffmpeg'], 'decode'>
 	& Parameters<typeof createFfmpegVideoTimingProbe>[0]
 	& Readonly<{
-		decode(file: Blob, options: Readonly<Record<string, unknown>>): PromiseLike<unknown>;
+		decode(file: Blob, options: Readonly<Record<string, unknown>>): PromiseLike<Readonly<{ channels: readonly Float32Array[]; sampleRate: number }>>;
 		conformVideoToCfr?(file: Blob, options: Readonly<Record<string, unknown>>): PromiseLike<Blob>;
 	}>;
 
@@ -102,7 +104,7 @@ export interface ImportCompositionDependencies {
 	/** Shared with project retention so staged bin imports stay live until they settle. */
 	readonly protectedSourceIds: ProjectBinServiceDependencies['protectedSourceIds'];
 	readonly trackColors: readonly string[];
-	readonly taskProgress: Pick<EditorTaskProgressCoordinator, 'run' | 'updateActive'>;
+	readonly taskProgress: Pick<EditorTaskProgressCoordinator, 'begin' | 'run' | 'updateActive'>;
 	readonly projectVisual: Pick<ProjectVisualService, 'getProjectBinClipVisualData' | 'activateVideoSource' | 'revokeVideoVisual'>;
 	readonly createPreviewEngine: ProjectBinServiceDependencies['createPreviewEngine'];
 	readonly getProject: () => ImportCompositionProject | null;

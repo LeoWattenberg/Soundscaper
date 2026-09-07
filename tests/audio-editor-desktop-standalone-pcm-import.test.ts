@@ -8,7 +8,7 @@ import { streamAiffBlobPcm } from '../src/common/editor/aiff-pcm-chunk-reader.ts
 import {
 	createProjectImportService,
 	type ProjectImportRuntime,
-} from '../src/common/editor/controller/project-import-service.ts';
+} from './helpers/project-import-runtime-fixture.ts';
 import { DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER } from '../src/common/editor/desktop-main-audio-codec-runtime-marker.ts';
 import { inspectWavBlobPcm, streamWavBlobPcm } from '../src/common/editor/wav-import.js';
 

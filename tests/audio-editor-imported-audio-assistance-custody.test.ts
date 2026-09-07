@@ -23,7 +23,7 @@ import {
 import {
 	createProjectImportService,
 	type ProjectImportRuntime,
-} from '../src/common/editor/controller/project-import-service.ts';
+} from './helpers/project-import-runtime-fixture.ts';
 
 const JOB_ID = '01'.repeat(20);
 

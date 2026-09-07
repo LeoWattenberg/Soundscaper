@@ -1,9 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type {
-	ProjectImportRuntime,
-} from '../src/common/editor/controller/project-import-service.ts';
-
 export interface TestFile {
 	readonly name: string;
 	readonly type?: string;
@@ -140,7 +136,7 @@ export function createFixture() {
 		sources: [{ sourceId: 'structured-source', channels: [Float32Array.of(1, 2, 3, 4, 5)] }],
 		warnings: ['converted'],
 	};
-	const runtime: ProjectImportRuntime = {
+	const runtime = {
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES: 32,
 		SOURCE_CHUNK_FRAMES: 65_536,
 		activateStoredSource: async (source: { id: string }) => {
@@ -184,6 +180,8 @@ export function createFixture() {
 			structuredProjectRequired: 'Structured project required.',
 			importedSourceDescriptorMissing: 'Missing {source}.',
 			importedSourcePcmInvalid: 'Invalid {source}.',
+			bextMetadataImportWarning: '',
+			bextSpotOutOfRangeWarning: '',
 		},
 		createAddClipCommand: (trackId: string, clip: unknown) => ({ type: 'clip/add', trackId, clip }),
 		createAddSourceCommand: (source: unknown) => ({ type: 'source/add', source }),
@@ -258,6 +256,7 @@ export function createFixture() {
 		store: {
 			beginSourceWrite: async () => writer(),
 			saveAnalysis: async () => { calls.push('save-analysis'); },
+			deleteAnalysis: undefined as undefined | ((key: string) => Promise<void>),
 			deleteSource: async (sourceId: string) => { deletedSources.push(sourceId); },
 			saveProject: async () => { calls.push('save-project'); },
 			deleteProject: async (projectId: string) => { calls.push(`delete-project:${projectId}`); },

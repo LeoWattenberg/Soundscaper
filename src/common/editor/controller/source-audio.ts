@@ -359,7 +359,7 @@ export async function canonicalizeBuffer(
 }
 
 export async function bufferFromChannels(
-	channels: Float32Array[],
+	channels: readonly Float32Array[],
 	sampleRate: number,
 	context: AudioBufferContext | null | undefined,
 	copy: AudioCopy,

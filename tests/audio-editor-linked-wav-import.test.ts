@@ -8,7 +8,7 @@ import { createLinkedPcmImporter } from '../src/common/editor/controller/linked-
 import {
 	createProjectImportService,
 	type ProjectImportRuntime,
-} from '../src/common/editor/controller/project-import-service.ts';
+} from './helpers/project-import-runtime-fixture.ts';
 import { inspectWavBlobPcm } from '../src/common/editor/wav-import.js';
 import { encodeWav } from '../src/common/editor/wav.js';
 

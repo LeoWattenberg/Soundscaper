@@ -11,7 +11,7 @@ import {
 import {
 	createProjectImportService,
 	type ProjectImportRuntime,
-} from '../src/common/editor/controller/project-import-service.ts';
+} from './helpers/project-import-runtime-fixture.ts';
 
 test('the main-audio renderer runtime carries the exact desktop import marker', () => {
 	const runtime = createDesktopAudioCodecRuntime({

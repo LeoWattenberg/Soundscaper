@@ -25,7 +25,6 @@ import type { ImportCompositionDependencies } from './import-composition-types.t
 import { createProjectBinService } from './project-bin-service.ts';
 import { createProjectImportService } from './project-import-service.ts';
 import {
-	SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES,
 	audioBufferChannels,
 	bufferFromChannels,
 	canonicalizeBuffer,
@@ -66,7 +65,6 @@ export function createImportComposition(dependencies: ImportCompositionDependenc
 	let importVideoFile: ImportVideoFile | null = null;
 
 	const projectImport = createProjectImportService({
-		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES,
 		SOURCE_CHUNK_FRAMES: dependencies.sourceChunkFrames,
 		activateStoredSource: dependencies.activateStoredSource,
 		audioBufferChannels,
@@ -109,7 +107,6 @@ export function createImportComposition(dependencies: ImportCompositionDependenc
 		publishDocumentSnapshot: dependencies.publishDocumentSnapshot,
 		setStatus: dependencies.setStatus,
 		sourceBuffers: dependencies.sourceBuffers,
-		sourceChunkProviders: dependencies.sourceChunkProviders,
 		sourcePcmBytes,
 		sourcePeaks: dependencies.sourcePeaks,
 		state,

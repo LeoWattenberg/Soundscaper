@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createProjectImportService,
 	type ProjectImportRuntime,
-} from '../src/common/editor/controller/project-import-service.ts';
+} from './helpers/project-import-runtime-fixture.ts';
 import {
 	createSourceLifecycleService,
 	type SourceLifecycleServiceRuntime,

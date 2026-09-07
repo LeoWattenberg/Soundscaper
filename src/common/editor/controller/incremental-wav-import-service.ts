@@ -2,6 +2,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- This focused seam narrows legacy project-import ports without changing their public JavaScript contract. */
 
+import type { sourcePcmBytes } from './source-audio.ts';
 import { scaleSampleFrame } from '../timeline-time.ts';
 import { admitAudioImportChannelCount } from './audio-import-channel-admission.ts';
 import {
@@ -26,7 +27,7 @@ export interface IncrementalPcmImportRuntime {
 	readonly reportProgress: (value: number) => void;
 	readonly retireSourceChunkProvider: (sourceId: string) => PromiseLike<void> | void;
 	readonly sourceBuffers: Readonly<{ delete(sourceId: string): unknown }>;
-	readonly sourcePcmBytes: (source: unknown) => number;
+	readonly sourcePcmBytes: typeof sourcePcmBytes;
 	readonly sourcePeaks: Readonly<{ delete(sourceId: string): unknown }>;
 	readonly store: Readonly<{
 		beginSourceWrite(sourceId: string, metadata: Record<string, unknown>): Promise<any>;

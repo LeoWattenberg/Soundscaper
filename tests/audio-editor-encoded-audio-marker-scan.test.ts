@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { scanEncodedAudioMarkers } from '../src/common/editor/encoded-audio-marker-scan.ts';
-import { createProjectImportService } from '../src/common/editor/controller/project-import-service.ts';
+import { createProjectImportService } from './helpers/project-import-runtime-fixture.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { createRiffMarkerChunks } from '../src/common/editor/riff-markers.ts';
 import {

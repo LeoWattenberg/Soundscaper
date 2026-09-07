@@ -7,7 +7,7 @@ import { decodeLegacyAupProject } from '../src/common/editor/aup-legacy.js';
 import {
 	createProjectImportService,
 	type ProjectImportRuntime,
-} from '../src/common/editor/controller/project-import-service.ts';
+} from './helpers/project-import-runtime-fixture.ts';
 
 const LEGACY_AUP_MAXIMUM_XML_BYTES = 16 * 1024 * 1024;
 

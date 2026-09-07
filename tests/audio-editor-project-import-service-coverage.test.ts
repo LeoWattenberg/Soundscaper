@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	createProjectImportService,
-} from '../src/common/editor/controller/project-import-service.ts';
+} from './helpers/project-import-runtime-fixture.ts';
 import {
 	bextMetadata,
 	commandOfType,

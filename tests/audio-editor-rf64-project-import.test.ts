@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createProjectImportService } from '../src/common/editor/controller/project-import-service.ts';
+import { createProjectImportService } from './helpers/project-import-runtime-fixture.ts';
 
 interface RoutingFixture {
 	readonly calls: string[];

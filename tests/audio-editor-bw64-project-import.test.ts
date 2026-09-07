@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { applyEditorCommand } from '../src/common/editor/commands.js';
-import { createProjectImportService, type ProjectImportRuntime } from '../src/common/editor/controller/project-import-service.ts';
+import { createProjectImportService, type ProjectImportRuntime } from './helpers/project-import-runtime-fixture.ts';
 import {
 	createCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';

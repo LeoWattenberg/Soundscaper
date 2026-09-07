@@ -104,7 +104,8 @@ export function isLegacyBlockFile(file: NamedFile | null | undefined): boolean {
 	return /\.au$/i.test(String(file?.name || '').trim());
 }
 
-export function isWavFile(file: NamedFile | null | undefined): boolean {
+export function isWavFile(value: unknown): boolean {
+	const file = value && typeof value === 'object' ? value as NamedFile : null;
 	const mimeType = String(file?.type || '').trim().toLowerCase();
 	return /\.(?:wav|wave|rf64|bw64)$/i.test(String(file?.name || '').trim())
 		|| [

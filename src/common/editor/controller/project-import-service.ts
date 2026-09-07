@@ -38,13 +38,14 @@ import {
 } from '../timeline-annotation-riff-interchange.ts';
 import { scaleSampleFrame } from '../timeline-time.ts';
 
-export interface ProjectImportRuntime {
-	// Legacy JavaScript ports are narrowed as their owning services migrate.
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	readonly [name: string]: any;
-}
+import type { AudioEditorCommand } from '../commands/protocol.ts';
+import type { ProjectImportRuntime } from './project-import-runtime.ts';
+import type { EditorTaskProgressHandle } from './task-progress.ts';
+export type { ProjectImportRuntime } from './project-import-runtime.ts';
 
-type RuntimeValue = ProjectImportRuntime[string];
+// Internal payloads are narrowed independently from the dependency contract.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type RuntimeValue = any;
 
 export function createProjectImportService(runtime: ProjectImportRuntime) {
 	const {
@@ -62,11 +63,11 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		streamWavBlobPcm, stripExtension, switchProject, warnEnvelope,
 		writeBuffer, taskProgress,
 	} = runtime;
-	let activeImportProgress: RuntimeValue = null;
+	let activeImportProgress: EditorTaskProgressHandle | null = null;
 	const importResultWithWarnings = createImportResultWithWarnings(copy);
 	const importIncrementalPcm = createIncrementalPcmImporter({
 		SOURCE_CHUNK_FRAMES, activateStoredSource, commit, copy, createStableId,
-		getProject, importResultWithWarnings, preflightStorage,
+		getProject: requireProject, importResultWithWarnings, preflightStorage,
 		prepareImportedMediaCommand, projectSampleRate,
 		reportProgress: (value) => { activeImportProgress?.update?.(value); },
 		retireSourceChunkProvider, sourceBuffers, sourcePcmBytes, sourcePeaks, store,
@@ -74,7 +75,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	});
 	const importLinkedPcm = createLinkedPcmImporter({
 		SOURCE_CHUNK_FRAMES, activateStoredSource, assertProject, captureProject,
-		commit, copy, createStableId, getProject, importResultWithWarnings,
+		commit, copy, createStableId, getProject: requireProject, importResultWithWarnings,
 		peakCacheKey, prepareImportedMediaCommand, projectSampleRate, sourceBuffers,
 		retireSourceChunkProvider, sourcePeaks, store, stripExtension, warnEnvelope,
 	});
@@ -191,7 +192,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		const locator = Object.freeze({ locatorId, locatorRevision });
 		if (kind === 'video') return releaseLinkedVideoLocator(locator);
 		const released = typeof store.releaseLinkedOriginalLocator === 'function'
-			? await store.releaseLinkedOriginalLocator(reference)
+			? await store.releaseLinkedOriginalLocator({ ...reference, kind: 'audio' })
 			: await store.releaseLinkedAudioOriginalLocator(locator);
 		if (released === false) throw new Error('The unused linked-audio locator was not released.');
 	}
@@ -236,7 +237,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	function importFilePlacement(importOptions: RuntimeValue, fileIndex: RuntimeValue) {
 		if (importOptions.destination !== 'timeline' || !importOptions.trackId) return importOptions;
 		if (fileIndex === 0) return importOptions;
-		const targetTrackIndex = getProject().tracks.findIndex((track: RuntimeValue) => track.id === importOptions.trackId);
+		const targetTrackIndex = requireProject().tracks.findIndex((track: RuntimeValue) => track.id === importOptions.trackId);
 		return freezeImportOptions({
 			...importOptions,
 			trackId: null,
@@ -263,13 +264,13 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		const markerImport = wavMarkers.length
 			? importOptions.destination === 'project-bin'
 				? { annotations: [], report: createOmittedRiffAnnotationImportReport(wavMarkers, 'project-bin') }
-				: createRiffAnnotationImport(getProject(), wavMarkers, {
+				: createRiffAnnotationImport(requireProject(), wavMarkers, {
 					sourceSampleRate,
 					timelineStartFrame: importOptions.timelineStartFrame,
 					idFactory: createStableId,
 				})
 			: null;
-		const commands = [];
+		const commands: AudioEditorCommand[] = [];
 		if (projectBext || projectIxml || projectCart || projectAdm) commands.push({ type: 'metadata/update', changes: {
 			...(projectBext ? { bext: projectBext } : {}),
 			...(projectIxml ? { ixml: projectIxml } : {}),
@@ -280,7 +281,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		if (importOptions.destination === 'project-bin') {
 			commands.push({ type: 'project-bin/add', clip });
 			return {
-				command: { type: 'batch', commands },
+				command: { type: 'batch' as const, commands },
 				selection: {},
 				result: Object.freeze({
 					destination: 'project-bin',
@@ -314,7 +315,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		}));
 		if (markerImport) commands.push(...markerImport.annotations.map(createAddTimelineAnnotationCommand));
 		return {
-			command: { type: 'batch', commands },
+			command: { type: 'batch' as const, commands },
 			selection: { selectTrackId: trackId, selectClipId: clip.id },
 			result: Object.freeze({
 				destination: 'timeline',
@@ -358,7 +359,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		const hasProjectToken = typeof captureProject === 'function' && typeof assertProject === 'function';
 		const startingProjectToken = hasProjectToken ? captureProject() : null;
 		const assertImportProjectCurrent = () => {
-			try { if (hasProjectToken) assertProject(startingProjectToken); }
+			try { if (startingProjectToken) assertProject?.(startingProjectToken); }
 			catch (error) { throw new Error('The project changed during audio import.', { cause: error }); }
 			if ((getProject()?.id ?? null) !== startingProjectId) throw new Error('The project changed during audio import.');
 		};
@@ -417,7 +418,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			decodeWithWebAudio: (encoded: ArrayBuffer, decodedSampleRate: number | null) => (
 				engine.decodeAudioData(encoded, { sampleRate: decodedSampleRate })
 			),
-			decodeWithCodec: (input, settings) => ffmpeg.decode(input, settings),
+			decodeWithCodec: async (input, settings) => ffmpeg.decode(input, settings),
 			bufferFromChannels: (channels, sampleRate, audioContext) => (
 				bufferFromChannels(channels, sampleRate, audioContext, copy)
 			),
@@ -430,7 +431,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		await preflightStorage(canonical.length * canonical.numberOfChannels * Float32Array.BYTES_PER_ELEMENT, 'import');
 		assertImportProjectCurrent();
 		const sourceId = createStableId('source'), clipId = createStableId('clip');
-		const trackName = stripExtension(file.name) || `${copy.track} ${getProject().tracks.length + 1}`;
+		const trackName = stripExtension(file.name) || `${copy.track} ${requireProject().tracks.length + 1}`;
 		const sourceName = file.name;
 		const mimeType = file.type || 'audio/wav';
 		const writer = createImportedAudioContentIdentityWriter(await store.beginSourceWrite(sourceId, {
@@ -513,6 +514,12 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		}
 		warnEnvelope();
 		return importResultWithWarnings(importedResult, wavMetadata.warnings);
+	}
+
+	function requireProject() {
+		const project = getProject();
+		if (!project) throw new Error('Audio import requires an open project.');
+		return project;
 	}
 
 	function prepareWavImportMetadata(descriptor: RuntimeValue, importOptions: RuntimeValue) {
