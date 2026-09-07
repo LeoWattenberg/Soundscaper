@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { RuntimePersistedClip } from '../runtime-clip-projection.ts';
 import type { AudioBufferContext } from './source-audio.ts';
 import { createAddLabelCommand, createAddLabelTrackCommand } from '../commands/factories.ts';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
@@ -18,7 +19,10 @@ interface NyquistTempoMap extends Omit<HoldTempoMap, 'events'> {
 	readonly events: readonly (HoldTempoEvent & { readonly id?: string })[];
 }
 
-export interface NyquistHostProject extends EffectSelectionProject {
+export interface NyquistHostProject extends Readonly<Record<string, unknown>>, Pick<EffectSelectionProject,
+	'id' | 'schemaVersion' | 'title' | 'sampleRate' | 'tracks' | 'selection'
+> {
+	readonly clips: readonly (RuntimePersistedClip & Readonly<{ id: string }>)[];
 	readonly tempo?: number | Readonly<{ readonly bpm?: number }>;
 	readonly tempoMap?: NyquistTempoMap;
 }

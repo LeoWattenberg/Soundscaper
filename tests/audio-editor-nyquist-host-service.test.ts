@@ -159,7 +159,7 @@ test('Nyquist host properties project musical clips and expose the tempo active 
 		},
 		clips: [{
 			id: 'clip-a', kind: 'audio', sourceId: 'source-a', title: 'Clip',
-			timelineStartFrame: 100, durationFrames: 400,
+			durationFrames: 400,
 			sourceStartFrame: 0, sourceDurationFrames: 400,
 			anchor: 'musical', musicalStartBeat: { num: 5, den: 1 },
 			musicalExtent: 'fixedSamples',

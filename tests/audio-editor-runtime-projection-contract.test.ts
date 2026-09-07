@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { projectForCommand } from '../src/common/editor/command-project-view.ts';
-import { projectForRuntimeConsumers } from '../src/common/editor/project-current-runtime.ts';
+import { projectForCommandConsumers, projectForRuntimeConsumers } from '../src/common/editor/project-current-runtime.ts';
 import { resolveRuntimeClipProjection, resolveRuntimeProjectProjection, type RuntimeClipProject, type RuntimePersistedClip } from '../src/common/editor/runtime-clip-projection.ts';
 
 void test('runtime projection retains named document fields while replacing persisted coordinates', () => {
@@ -102,4 +102,18 @@ void test('command projection preserves source identity and supplies only the vi
 		}
 	}
 	assert.equal(Object.hasOwn(video, 'frameCount'), false);
+});
+
+void test('command consumer facade retains owner fields and nullable passthrough', () => {
+	const project = { id: 'facade', title: 'Owner title', schemaVersion: 17, sampleRate: 48_000,
+		sources: [], clips: [], tracks: [], projectBin: { clips: [] },
+	};
+	const view = projectForCommandConsumers(project);
+	const id: string = view.id;
+	const title: string = view.title;
+	assert.deepEqual([id, title], ['facade', 'Owner title']);
+	assert.equal(projectForCommandConsumers(null), null);
+	assert.equal(projectForCommandConsumers(undefined), undefined);
+	const legacy = { id: 'legacy', schemaVersion: 2 };
+	assert.equal(projectForCommandConsumers(legacy), legacy);
 });

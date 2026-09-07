@@ -18,7 +18,7 @@ import { reconcileVideoSourceCharacteristicsV14 } from './source-characteristics
 import {
 	isRuntimeProjectProjection,
 	resolveRuntimeProjectProjection,
-	type RuntimeClipProject,
+	type RuntimeClipProject, type RuntimeProjectProjection,
 } from './runtime-clip-projection.ts';
 
 type DataRecord = Record<string, unknown>;
@@ -27,7 +27,8 @@ type DataRecord = Record<string, unknown>;
 export { isFoundationProjectSchema } from './project-schema-version.ts';
 
 /** Resolve authoritative project timing into the transient coordinates shared consumers expect. */
-export function projectForRuntimeConsumers<Project extends RuntimeClipProject>(project: Project) {
+export function projectForRuntimeConsumers<Project extends RuntimeClipProject>(project: Project): RuntimeProjectProjection<Project>;
+export function projectForRuntimeConsumers(project: RuntimeClipProject): RuntimeClipProject {
 	return isRuntimeProjectProjection(project)
 		? project
 		: resolveRuntimeProjectProjection(project);

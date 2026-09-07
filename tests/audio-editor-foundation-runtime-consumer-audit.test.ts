@@ -314,7 +314,7 @@ function findFunction(source: SourceFile, name: string): FunctionLikeDeclaration
 	let match: FunctionLikeDeclaration | null = null;
 	visit(source, (node) => {
 		if (match) return;
-		if ((isFunctionDeclaration(node) || isMethodDeclaration(node)) && node.name && node.name.getText(source) === name) {
+		if ((isFunctionDeclaration(node) || isMethodDeclaration(node)) && node.body && node.name && node.name.getText(source) === name) {
 			match = node;
 		}
 	});
