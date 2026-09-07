@@ -23,15 +23,29 @@ Completed controller changes:
   their public signatures behind an arbitrary-value facade.
 - Macro frequency selection now writes the canonical frequency fields and
   preserves an edge omitted from the macro request.
-- The root has shrunk from 1,372 to 981 lines in this pass; its size ceiling
+- Resource creation, startup, native project operations, project bootstrap,
+  lock/switch assembly, and optional product capture have focused checked owners.
+  Tests cover startup disposal races, PCM transfer ownership, native-operation
+  progress cleanup, capture absence, and shared project-lock ownership.
+- Audio import has a closed, named dependency contract. Partial fault-injection
+  fixtures are admitted only through a test helper, outside the production graph.
+- Workspace state preserves document/history types and declares mutable fields
+  using their owners' contracts; delivery presets are initialized before bootstrap.
+- Document and cache input contracts no longer require transient clip coordinates.
+  Mutation, effect, and mix-render ports use their consumers' actual signatures.
+- Runtime admission preserves typed hosts' selected method results, including
+  product family identity, while publishing only the supported runtime ports.
+  Unknown host input retains the existing compatibility contract.
+- The root has shrunk from 1,372 to 737 lines across these passes; its size ceiling
   has been ratcheted down.
 
 Remaining controller work:
 
-- Extract remaining resource, project lifecycle, and product capture assembly
-  into focused checked modules.
-- Remove remaining arbitrary-value import dependency contracts, and check the
-  composition root itself rather than relying on unchecked JavaScript callers.
+- Check the composition root itself rather than relying on unchecked JavaScript
+  callers. Its remaining connections still expose mismatches between minimum
+  project identity, canonical documents, and transient projections, as well as
+  storage and host callback contracts. The extracted owners do not establish that
+  the root supplies all of these contracts correctly.
 - Keep document/history, recording, transport, and disposal authority with their
   owners; verify cancellation and source-retirement ordering across failures.
 - Re-run the relevant validation after the remaining root and dependency work.
@@ -52,3 +66,24 @@ Validation of commits `0bfa84f2e` and `a49368dd8`:
 - Fresh Node and Chromium coverage profiles pass every existing coverage floor:
   95.48% lines, 80.51% branches, and 89.38% functions overall. Coverage floors
   were not changed.
+
+Validation of the next extraction pass (`f1455d696` through `d974e6ad0`):
+
+- The full static gate and changed-file lint pass. All four product compositions
+  are checked; this does not imply that the JavaScript composition root is checked.
+- The full Node suite passes: 16,262 passed and 24 skipped.
+- The full Chromium suite passes: 436 passed, 10 skipped, and no failures. Both
+  browser products were rebuilt with hidden source maps. The previously
+  intermittent frozen-video preview workflow passed in this full run.
+- Production chunks remain under 500,000 bytes (largest: 492,017 bytes).
+  Startup graphs remain within their existing budgets; there was no byte ceiling
+  to tighten. The root's maintained size ceiling is now 737 lines.
+- A fresh coverage-enabled Node run passed 16,272 tests with 24 skipped (including
+  concurrent changes). Its profiles and only this Chromium run's profiles pass
+  every coverage floor: 95.46% lines, 80.52% branches, and 89.41% functions overall.
+  No coverage floors were changed.
+
+After preserving selected runtime contracts in `ca506dfaa`, the final Node run
+passed 16,279 tests with 24 skipped, and all four product type checks passed.
+Full repository lint passed again; the final contract edits do not change emitted
+runtime behavior. Concurrent capture work remains owned by its separate task.
