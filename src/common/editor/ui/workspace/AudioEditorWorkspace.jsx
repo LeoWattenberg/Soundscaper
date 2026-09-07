@@ -51,7 +51,10 @@ export default function AudioEditorWorkspace({
 	const capabilities = product.capabilities;
 	const aboutLabel = productId === 'framescaper' ? copy.aboutFramescaper : copy.aboutEditor;
 	const editorThemeVariables = useAudioEditorThemeVariables();
-	const parityRuntime = useMemo(() => createAudacityActionRuntime(controller, { productId }), [controller, productId]);
+	const parityRuntime = useMemo(
+		() => createAudacityActionRuntime(controller, { productId, locale }),
+		[controller, productId, locale],
+	);
 	const snapshot = useAudioEditorSnapshot(controller);
 	const [activeSurface, setActiveSurface] = useTakeCycleRecoverySurface(productId, snapshot.takeCycleRecovery);
 	usePrivacyPolicySurface(productId, initialSurface, setActiveSurface); useWorkspaceOnboardingSurface({ productId, phase: snapshot.phase, initialSurface, takeCycleRecovery: snapshot.takeCycleRecovery, activeSurface, setActiveSurface });
