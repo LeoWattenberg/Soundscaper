@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { DocumentProject } from './document-composition-types.ts';
+import type { DocumentProject, DocumentHistory } from './document-composition-types.ts';
 import type { TakeCycleOpenRecoveryAppPort } from './take-cycle-open-recovery-app-port.ts';
 import type { FramescaperVideoProxyActionRuntime } from '../framescaper-video-proxy-action-runtime-registry.ts';
 import type { createPreferencesComposition } from './preferences-composition.ts';
@@ -246,7 +246,7 @@ export interface EditorActionFunctions {
 	readonly stopRecording: ReturnType<typeof createRecordingComposition>['session']['stopRecording'];
 	readonly stretchClip: ReturnType<typeof createClipVideoComposition>['clipProperty']['stretchClip'];
 	readonly swapTrackChannels: ReturnType<typeof createTrackAudioComposition>['swapTrackChannels'];
-	readonly switchProject: ReturnType<typeof createProjectSwitchService>['switchProject'];
+	readonly switchProject: ReturnType<typeof createProjectSwitchService<DocumentProject, DocumentHistory>>['switchProject'];
 	readonly timelineDurationFrames: () => number;
 	readonly toggleLeadInRecording: ReturnType<typeof createRecordingComposition>['session']['toggleLeadInRecording'];
 	readonly toggleMetronome: ReturnType<typeof createTransportComposition>['transport']['toggleMetronome'];

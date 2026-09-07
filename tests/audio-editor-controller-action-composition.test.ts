@@ -250,6 +250,20 @@ test('real Framescaper capture open action reveals Recording Setup without openi
 	}
 });
 
+test('composed owner actions retain the lifetime fence without exposing internal bindings', async () => {
+	const controller = createController([]);
+	try {
+		await controller.ready;
+		const rename = controller.actions.project.rename;
+		await rename('Owned action');
+		assert.equal(controller.project?.title, 'Owned action');
+		assert.equal('bootstrap' in controller.actions, false);
+		assert.equal('getSnapshot' in controller.actions, false);
+		await controller.dispose();
+		assert.throws(() => rename('Too late'), /disposed/u);
+	} finally { await controller.dispose(); }
+});
+
 function createController(
 	saves: Array<Readonly<Record<string, unknown>>>,
 	store = createProjectStore({ indexedDB: null, preferOpfs: false }),
