@@ -302,8 +302,12 @@ export function joinClips(project, clipIds) {
 	const last = clips.at(-1);
 	const joinedDurationFrames = clipEndFrame(last) - first.timelineStartFrame;
 	const joinedSourceDurationFrames = clips.reduce((sum, clip) => sum + (clip.sourceDurationFrames ?? clip.durationFrames), 0);
+	// A reversed run reads its source backwards, so source starts fall as the
+	// timeline advances and the joined window begins at the last clip's anchor.
+	const joinedSourceStartFrame = first.reversed ? last.sourceStartFrame : first.sourceStartFrame;
 	let joined = normalizeClipForProject(project, {
 		...first,
+		sourceStartFrame: joinedSourceStartFrame,
 		durationFrames: joinedDurationFrames,
 		sourceDurationFrames: joinedSourceDurationFrames,
 		trimEndFrames: last.trimEndFrames,
