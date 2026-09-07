@@ -44,7 +44,7 @@ function fixture() {
 	const render = createAnalysisRenderer({
 		getProject: () => project,
 		getSelectedTrackId: () => 'vox',
-		cloneProject: structuredClone,
+		cloneProject: (value: AnalysisProjectFixture) => structuredClone(value),
 		projectSampleRate: () => 48000,
 		hasMissingTimelineSources: () => false,
 		sourceBuffers: buffers,
