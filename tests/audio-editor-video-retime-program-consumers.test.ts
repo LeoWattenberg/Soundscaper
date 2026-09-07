@@ -245,6 +245,34 @@ test('the selected product resolver caches by document identity and absent route
 	}), undefined);
 });
 
+test('a failed retime bridge refresh cannot cache the previous document state under the new identity', () => {
+	let current = reverseProject('2026-08-23T18:06:00.000Z');
+	let failRefresh = false;
+	let factoryCalls = 0;
+	const resolve = createVideoRetimeProgramStateResolver({
+		getProject: () => current,
+		projectRuntime: {
+			projectForCommandConsumers: project => framescaperProjectForCommandConsumersRetime(PROFILE, project),
+			projectForRuntimeConsumers: project => framescaperProjectForRuntimeConsumersRetime(PROFILE, project),
+		},
+		createBridge: (owner, authority) => {
+			factoryCalls += 1;
+			if (failRefresh) throw new Error('Bridge refresh failed');
+			return createVideoRetimeProgramOrdinalBridge(owner, authority);
+		},
+	});
+	assert.ok(resolve);
+	const first = resolve();
+	current = reverseProject('2026-08-23T18:07:00.000Z');
+	failRefresh = true;
+	assert.throws(resolve, /Bridge refresh failed/u);
+	failRefresh = false;
+	const second = resolve();
+	assert.notEqual(second, first);
+	assert.equal(resolve(), second);
+	assert.equal(factoryCalls, 3);
+});
+
 function assertConsumers(project: unknown, sample: number, expected: number, name: string): void {
 	assertSelectedConsumers(selectedState(project), sample, expected, name);
 }

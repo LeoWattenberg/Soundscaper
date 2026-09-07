@@ -12,8 +12,8 @@ type BridgeFactory = (
 export interface VideoRetimeProgramStateResolverDependencies {
 	readonly getProject: () => unknown;
 	readonly projectRuntime: Readonly<{
-		readonly projectForCommandConsumers: (project: unknown) => unknown;
-		readonly projectForRuntimeConsumers: (project: unknown) => unknown;
+		readonly projectForCommandConsumers: (project: DataRecord) => unknown;
+		readonly projectForRuntimeConsumers: (project: DataRecord) => unknown;
 	}>;
 	readonly createBridge?: BridgeFactory;
 }
@@ -30,9 +30,9 @@ export function createVideoRetimeProgramStateResolver(
 		const currentProject = dependencies.getProject();
 		if (!currentProject) throw new Error('A current project is required for exact video retime addressing.');
 		if (state === null || ownerProject !== currentProject) {
-			ownerProject = currentProject;
+			const owner = record(currentProject, 'video retime owner project');
 			const project = record(
-				dependencies.projectRuntime.projectForCommandConsumers(currentProject),
+				dependencies.projectRuntime.projectForCommandConsumers(owner),
 				'video retime command project',
 			);
 			state = Object.freeze({
@@ -40,11 +40,12 @@ export function createVideoRetimeProgramStateResolver(
 				bridge: createBridge(
 					project,
 					record(
-						dependencies.projectRuntime.projectForRuntimeConsumers(currentProject),
+						dependencies.projectRuntime.projectForRuntimeConsumers(owner),
 						'video retime runtime project',
 					),
 				),
 			});
+			ownerProject = currentProject;
 		}
 		return state;
 	};
