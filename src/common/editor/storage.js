@@ -51,7 +51,9 @@ export class AudioEditorProjectStore {
 		this.preferOpfs = preferOpfs;
 		this.revisionLimit = Math.max(2, Math.floor(revisionLimit));
 		this.maximumProjectDocumentBytes = maximumProjectDocumentBytes;
+		/** @type {import('./storage/status.ts').EditorStoreBackend} */
 		this.backend = indexedDB ? 'indexeddb' : 'memory';
+		/** @type {import('./storage/status.ts').EditorStoreState} */
 		this.storeState = indexedDB ? 'opening' : 'memory-ephemeral';
 		this.degradedReason = indexedDB ? null : 'indexeddb-unavailable';
 		this.closed = false;

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { VideoTimingProbePort } from '../video-timing-probe.ts';
 import type { StaffPadRenderClient } from '../staffpad/client.js';
 import { createAudioEditorEngine } from '../engine.js';
 import type { EngineMeterSnapshot, EnginePitchPreserver, EnginePublicApi } from '../engine/public-api.ts';
@@ -14,6 +15,9 @@ import { audioBufferChannels, normalizeByteLimit, type createStoredChunkProvider
 import { SourceChunkProviderRegistry } from './source-chunk-provider-registry.ts';
 import { deferredEffectRuntime, type DeferredNyquistClient } from './deferred-effect-runtime.ts';
 
+type ControllerCodecRuntime = ReturnType<typeof createEditorCodecRuntime>
+	& Readonly<{ probeVideoTiming?: VideoTimingProbePort['probe'] }>;
+
 export interface ControllerResourceOptions {
 	readonly fileService?: ReturnType<typeof createAudioEditorFileService>;
 	readonly store?: ReturnType<typeof createProjectStore>;
@@ -25,7 +29,7 @@ export interface ControllerResourceOptions {
 	readonly clipTimePitchCache?: ClipTimePitchRenderCacheCoordinator;
 	readonly staffPadRenderClient?: Pick<StaffPadRenderClient, 'render'>;
 	readonly clipTimePitchMaximumResidentChannelBytes?: number;
-	readonly ffmpeg?: ReturnType<typeof createEditorCodecRuntime>;
+	readonly ffmpeg?: ControllerCodecRuntime;
 	readonly nyquistEvaluator?: DeferredNyquistClient['evaluate'];
 	readonly nyquistClientOptions?: Parameters<typeof deferredEffectRuntime.createNyquistClient>[0];
 	readonly playAtSpeedPitchPreserver?: EnginePitchPreserver;
@@ -73,7 +77,7 @@ export function createControllerResources(options: ControllerResourceOptions, ca
 	});
 	const clipTimePitchSourceResolver = clipTimePitchCache.createEngineSourceResolver();
 	engine.setSourceResolver?.(clipTimePitchSourceResolver);
-	const ffmpeg = options.ffmpeg || createEditorCodecRuntime({
+	const ffmpeg: ControllerCodecRuntime = options.ffmpeg || createEditorCodecRuntime({
 		onLoading: () => callbacks.setStatus(callbacks.copy.ffmpegLoading),
 		onProgress: callbacks.updateExportProgress, fileService,
 	});
