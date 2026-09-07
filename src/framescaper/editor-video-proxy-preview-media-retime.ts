@@ -4,6 +4,7 @@ import type {
 	ProjectVideoPreviewMedia,
 	ProjectVideoPreviewMediaRequest,
 } from '../common/editor/controller/project-visual-service.ts';
+import type { ProjectVisualSource } from '../common/editor/controller/project-visual-types.ts';
 import { digestMediaContent } from '../common/editor/storage/media-content-digest.ts';
 import {
 	VIDEO_TIMING_ASSET_ENCODING,
@@ -59,7 +60,7 @@ export interface FramescaperVideoProxyOriginalStoreRetime {
 	): PromiseLike<unknown>;
 	resolveLinkedVideoOriginal?(
 		projectId: string,
-		source: Readonly<Record<string, unknown>>,
+		source: ProjectVisualSource,
 		options?: Readonly<{ signal?: AbortSignal }>,
 	): PromiseLike<Readonly<{ readonly blob: unknown }> | null>;
 }
@@ -252,7 +253,7 @@ function originalTiming(request: Readonly<ProjectVideoPreviewMediaRequest>) {
 }
 
 function proxyTiming(
-	source: Readonly<Record<string, unknown>>,
+	source: Readonly<{ readonly frameRate?: unknown }>,
 	attachment: Readonly<VideoProxyAttachmentV18>,
 	index: VideoTimingIndex,
 ) {

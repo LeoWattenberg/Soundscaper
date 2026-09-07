@@ -127,7 +127,7 @@ interface PersistEffectOptions {
 	assertCurrent(): void;
 }
 
-export interface AudioGeneratorServiceDependencies {
+export interface AudioGeneratorServiceDependencies<Context = unknown> {
 	readonly lifetime: EditorControllerLifetime;
 	readonly projectGeneration: EditorProjectGeneration;
 	readonly state: AudioGeneratorState;
@@ -161,11 +161,11 @@ export interface AudioGeneratorServiceDependencies {
 		options: PersistEffectOptions,
 	): Promise<unknown>;
 	preflightStorage(bytes: number, operation: 'effect'): Promise<unknown>;
-	getAudioContext(): Promise<unknown>;
+	getAudioContext(): Promise<Context>;
 	createBuffer(
 		channels: readonly Float32Array[],
 		sampleRate: number,
-		context: unknown,
+		context: Context,
 	): Promise<AudioBufferLike>;
 	writeBuffer(writer: AudioGeneratorWriter, buffer: AudioBufferLike, signal: AbortSignal): Promise<unknown>;
 	cacheSourceBuffer(sourceId: string, buffer: AudioBufferLike): unknown;
@@ -200,8 +200,8 @@ export interface OperationOwnership {
 	readonly task: EditorTaskScope;
 }
 
-export function createAudioGeneratorService(
-	dependencies: AudioGeneratorServiceDependencies,
+export function createAudioGeneratorService<Context>(
+	dependencies: AudioGeneratorServiceDependencies<Context>,
 ): Readonly<AudioGeneratorService> {
 	let operationGeneration = 0;
 

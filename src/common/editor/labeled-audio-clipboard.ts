@@ -16,6 +16,7 @@
  */
 
 import { normalizeAudioEditorClipboardDescriptor } from './commands/clipboard-codec.ts';
+import type { AudioEditorClipboard } from './commands/protocol-values.ts';
 import type { LabeledAudioRegion } from './labeled-audio-regions.ts';
 
 type DataRecord = Record<string, unknown>;
@@ -35,7 +36,7 @@ export function createLabeledAudioClipboardDescriptor(
 	regions: readonly LabeledAudioRegion[],
 	trackIds: readonly string[],
 	createDescriptor: LabeledAudioClipboardFactory,
-): unknown {
+): AudioEditorClipboard | null {
 	const spans = regions.filter((region) => region.endFrame > region.startFrame);
 	if (spans.length === 0 || trackIds.length === 0) return null;
 	const originFrame = spans[0]!.startFrame;
@@ -69,8 +70,8 @@ export function createLabeledAudioClipboardDescriptor(
 }
 
 export interface LabeledAudioClipboardPortRuntime {
-	readonly projectForEditClipboardConsumers?: (project: unknown) => unknown;
-	readonly prepareEditClipboardDescriptor: (project: unknown, descriptor: unknown) => unknown;
+	projectForEditClipboardConsumers?(project: unknown): unknown;
+	prepareEditClipboardDescriptor(project: unknown, descriptor: AudioEditorClipboard): AudioEditorClipboard;
 }
 
 export interface LabeledAudioClipboardPortOptions {
@@ -81,7 +82,7 @@ export interface LabeledAudioClipboardPortOptions {
 }
 
 export interface LabeledAudioClipboardPort {
-	create(regions: readonly LabeledAudioRegion[], trackIds: readonly string[]): unknown;
+	create(regions: readonly LabeledAudioRegion[], trackIds: readonly string[]): AudioEditorClipboard | null;
 }
 
 /**

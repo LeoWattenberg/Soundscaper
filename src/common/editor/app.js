@@ -10,15 +10,7 @@ import {
 } from './timeline-zoom-limits.ts';
 import {
 	createAddClipCommand,
-	createAddSourceCommand,
 	createAddTrackCommand,
-	createClipboardDescriptor,
-	prepareDisjointRangeDeleteCommand,
-	prepareGroupClipsCommand,
-	prepareKeepRangeCommand,
-	prepareLinkedSplitCommand,
-	prepareRangeDeleteCommand,
-	resolveEditingSelection,
 } from './commands.js';
 import {
 	ClipTimePitchRenderCacheCoordinator,
@@ -52,12 +44,11 @@ import {
 	EDITOR_TIMELINE_MINIMUM_SECONDS,
 	createStableId,
 	findClip,
-	findClipTrack,
 	findSource,
 	findTrack,
 	projectEnvelope,
 } from './project.js';
-import { AUDIO_EDITOR_TRACK_COLORS, audioTrackChannelCount } from './project-audio-factory.js';
+import { AUDIO_EDITOR_TRACK_COLORS } from './project-audio-factory.js';
 import { verifyProjectFallbackIntegrity } from './project-fallback-integrity.ts';
 import {
 	compactProjectSourceMetadata,
@@ -69,7 +60,6 @@ import { createAudioEditorSessionController } from './session.js';
 import {
 	audioEditorVideoThumbnailTimes,
 	createAudioEditorVideoFrameExtractor,
-	isAudioEditorVideoFile,
 } from './video-media.js';
 import {
 	VIDEO_EFFECT_DEFINITIONS,
@@ -81,7 +71,7 @@ import { withProjectFileExtension } from '../project-file-extensions.ts';
 import {
 	AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
 } from './audacity-effects/contracts.js';
-import { assertPlayAtSpeedStaffPadMemorySafe, createAudioEditorEngine, isAudioEditorEngineSupported } from './engine.js';
+import { assertPlayAtSpeedStaffPadMemorySafe, createAudioEditorEngine } from './engine.js';
 import {
 	RECORDING_INPUT_GAIN_DEFAULT,
 	createRecordingCapturePool,
@@ -96,11 +86,9 @@ import {
 	normalizeRecordingRouting,
 	recordingRoutingSettingKey,
 } from './recording-routing.js';
-import { createEditorCodecRuntime } from './editor-codec-runtime.ts'; import { inspectEncodedAudioSampleRate } from './audio-file-metadata.js';
-import { createSourceBufferCache } from './source-buffer-cache.js'; import { createEbuR128MeterNode } from './ebu-r128-node.js';
+import { createEditorCodecRuntime } from './editor-codec-runtime.ts'; import { createSourceBufferCache } from './source-buffer-cache.js'; import { createEbuR128MeterNode } from './ebu-r128-node.js';
 import { acquireProjectLock } from './project-lock.js';
 import { createProjectStore } from './storage.js';
-import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 import { ENGLISH_COPY } from '../i18n/catalogs.js';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
 import { EDITOR_PROJECT_CHANGED_CODE, EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from './controller/lifecycle.ts';
@@ -108,15 +96,11 @@ import { deferredArchiveRuntime } from './controller/deferred-archive-runtime.ts
 import { deferredEffectRuntime } from './controller/deferred-effect-runtime.ts';
 import { connectProductNativeRenderInputAuthority } from './controller/product-native-render-input-authority.ts'; import { renderProductNativeAudioToSink } from './controller/product-native-render-audio-stream.ts';
 import { createDeferredAudioAnalysisService } from './controller/deferred-analysis-service.ts';
-import { resolveProductCompositionDecision } from './controller/product-composition-policy.ts'; import { createAbsentAnalysisService, createAbsentAudioGeneratorService } from './controller/absent-audio-subsystems.ts';
+import { resolveProductCompositionDecision } from './controller/product-composition-policy.ts'; import { createAbsentAnalysisService } from './controller/absent-audio-subsystems.ts';
 import { createEditorAnalysisVisuals } from './controller/analysis-visuals.ts';
 import { createGroupedEditorActions } from './controller/action-facade.ts';
 import { guardEditorControllerActions } from './controller/controller-action-guard.ts';
 import { productActionRuntime } from './controller/product-action-runtime.ts'; import { createScapeProjectFileService } from './controller/scape-project-file-service.ts'; import { bindSoundscaperPersistentDeliveryRuntime } from './controller/soundscaper-persistent-delivery-runtime-binding.ts';
-import { createEditorEditService } from './controller/edit-service.ts'; import { createLabeledAudioClipboardPort } from './labeled-audio-clipboard.ts';
-import { createLabelService } from './controller/label-service.ts';
-import { createClipboardEditService } from './controller/clipboard-edit-service.ts';
-import { createAudioGeneratorService } from './controller/generator-service.ts';
 import { createRegularIntervalAnnotationController } from './controller/regular-interval-annotation-controller.ts';
 
 
@@ -138,7 +122,7 @@ import { createProjectSessionService } from './controller/project-session-servic
 import { createProjectBootstrapService } from './controller/project-bootstrap-service.ts'; import { resolveStartupProjectId } from './startup-preferences.ts';
 import { createProjectLockService } from './controller/project-lock-service.ts';
 import { createProjectSwitchService } from './controller/project-switch-service.ts';
-import { bindControllerEditClipboardRuntime, resolveControllerProjectRuntime } from './controller/project-runtime.ts';
+import { resolveControllerProjectRuntime } from './controller/project-runtime.ts';
 import { createControllerProjectRuntimeMetrics } from './controller/project-runtime-metrics.ts';
 import { SourceChunkProviderRegistry } from './controller/source-chunk-provider-registry.ts';
 import {
@@ -167,17 +151,11 @@ import {
 	aup4ReportHasMissingPcm,
 	classifyMobile,
 	ensureAup4FileName,
-	formatLegacyAupWarning,
 	formatBytes,
 	formatPlaybackRate,
 	historyEntrySummary,
-	isLegacyAupFile,
-	isLegacyBlockFile,
-	isWavFile,
 	normalizeAup4CompatibilityReport,
 	normalizeProjectSampleRate,
-	saveLabelExport,
-	stripExtension,
 	throwIfAborted,
 } from './controller/app-helpers.ts';
 import {
@@ -201,24 +179,18 @@ import {
 	SOURCE_CHUNK_FRAMES,
 	audioBufferChannels,
 	bufferFromChannels,
-	canonicalizeBuffer,
 	createStoredChunkProvider,
 	isStreamableStoredSource,
 	normalizeByteLimit,
 	readStoredAudioBuffer,
 	sourceAudioBufferBytes,
 	sourcePcmBytes,
-	writeBuffer,
 } from './controller/source-audio.ts';
 import { createEditorControllerState } from './controller/state.ts';
 import { createTransportComposition } from './controller/transport-composition.ts';
-import { createImportVideoFile } from './controller/source-import.ts';
-import { createProjectImportService } from './controller/project-import-service.ts';
 import { createProjectAdminService } from './controller/project-admin-service.ts';
-import { fitAudioBufferToFrames } from './controller/audio-buffer-frame-fit.ts';
-import { createProjectBinService } from './controller/project-bin-service.ts';
-import { admitChangedContentVideoCandidate } from './controller/video-relink-probe.ts';
-import { digestMediaContent } from './storage/media-content-digest.ts';
+import { createEditComposition } from './controller/edit-composition.ts';
+import { createImportComposition } from './controller/import-composition.ts';
 import { createProjectVisualService } from './controller/project-visual-service.ts';
 
 import { calculateAudioEditorMetronomeSchedule } from './controller/transport-model.ts';
@@ -934,140 +906,25 @@ export function createAudioEditorController(_root = null, options = {}) {
 		persistSetting, publishDocumentSnapshot, setStatus, preflightStorage, renderSnapshot, prepareCommittedTimePitchCaches,
 		createRenderEngine: createCacheAwareRenderEngine, commit, cacheSourceBuffer, snapTimelineFrame, projectDurationFrames, projectSampleRate, handleError,
 	});
-	const labelService = createLabelService({
-		lifetime,
-		projectGeneration,
-		state,
-		copy,
-		getProject: () => documentState.project,
-		editingBlocked,
-		createId: createStableId,
-		commit,
-		setStatus,
-		publish: publishDocumentSnapshot,
-		saveExport: (result) => saveLabelExport(result, options.saveLabelFile, fileService),
-	});
-	const clipboardEditService = createClipboardEditService({
-		lifetime, state, copy,
-		session: sessionController,
-		sourceBuffers,
-		getProject: getCommandProject,
-		editingBlocked,
-		getPositionFrames: () => engine.getPositionFrames(),
-		normalizeFrame: normalizeTimelineFrame,
-		snapFrame: snapTimelineFrame,
-		createId: createStableId,
-		...bindControllerEditClipboardRuntime(projectRuntime, () => documentState.project),
-		commit,
-		setStatus,
-	});
-	const audioGeneratorService = !composition.generators ? createAbsentAudioGeneratorService(absentSubsystem) : createAudioGeneratorService({
-		lifetime,
-		projectGeneration,
-		state,
-		copy,
-		store,
-		sourceBuffers,
-		sourcePeaks,
-		sourceChunkFrames: SOURCE_CHUNK_FRAMES,
-		getProject: () => documentState.project, getCommandProject,
-		editingBlocked,
-		getPositionFrames: () => engine.getPositionFrames(),
-		snapFrame: snapTimelineFrame,
-		trackChannelCount: audioTrackChannelCount,
+	const edits = createEditComposition({
+		state, copy, lifetime, projectGeneration, projectRuntime, composition, absentSubsystem, session: sessionController, store, engine,
+		sourceBuffers, sourcePeaks, sourceChunkFrames: SOURCE_CHUNK_FRAMES, taskProgress, saveLabelFile: options.saveLabelFile, fileService,
 		effectTargets: (...args) => effects.selection.audacityEffectTargets(...args),
-		persistEffectResults: (results, type, scope) => (
-			effects.result.persistAudacityEffectResults(results, type, scope)
-		),
-		preflightStorage,
-		getAudioContext: () => engine.getAudioContext({ resume: false }),
-		createBuffer: (channels, sampleRate, context) => (
-			bufferFromChannels([...channels], sampleRate, context, copy)
-		),
-		writeBuffer,
-		cacheSourceBuffer,
-		generatePeaks: (channels) => generateWaveformPeaks([...channels], copy),
-		peakCacheKey,
-		createId: createStableId,
-		commit,
-		setStatus,
-		publish: publishDocumentSnapshot,
+		persistEffectResults: (results, type, scope) => effects.result.persistAudacityEffectResults(results, type, scope),
+		getProject: () => documentState.project, getCommandProject, editingBlocked, commit, setStatus, publishDocumentSnapshot, handleError, preflightStorage,
+		normalizeTimelineFrame, snapTimelineFrame, activeSelection, cacheSourceBuffer, projectChanged, garbageCollectSources, compactLiveSourceState,
 	});
-	const handleEdit = createEditorEditService({
-		activeSelection, commit, commitSplitAtFrames: clipboardEditService.commitSplitAtFrames, compactLiveSourceState,
-		copy, createAddTrackCommand, createClipboardDescriptor: (commandProject, descriptorOptions) => projectRuntime.prepareEditClipboardDescriptor(documentState.project, createClipboardDescriptor(projectRuntime.projectForEditClipboardConsumers ? projectRuntime.projectForEditClipboardConsumers(documentState.project) : commandProject, descriptorOptions)), createStableId, labeledClipboard: createLabeledAudioClipboardPort({ getProject: () => documentState.project, getCommandProject, projectRuntime, createDescriptor: createClipboardDescriptor }), disjoinLabeledRegions: clipboardEditService.disjoinLabeledRegions, generateLabeledSilence: (regions, trackIds) => taskProgress.run('generate', copy.generatingAudio, () => audioGeneratorService.generateLabeledSilence(regions, trackIds)),
-		editingBlocked, engine, findClip, findClipTrack,
-		findTrack, garbageCollectSources, handleError, normalizeTimelineFrame,
-		prepareControllerPaste: clipboardEditService.prepareControllerPaste, prepareDisjointRangeDeleteCommand, prepareGroupClipsCommand, prepareKeepRangeCommand,
-		prepareLinkedSplitCommand, prepareRangeDeleteCommand, getProject: getCommandProject, projectChanged,
-		publishDocumentSnapshot, redoEditorCommand: projectRuntime.redo, resolveEditingSelection, setSessionClipboard: clipboardEditService.setSessionClipboard,
-		state, undoEditorCommand: projectRuntime.undo,
-	});
-	const {
-		importFile,
-		importFiles,
-		normalizeImportOptions,
-		normalizeImportTimelineStartFrame,
-	} = createProjectImportService({
-		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES, SOURCE_CHUNK_FRAMES, activateStoredSource, audioBufferChannels,
-		bufferFromChannels, cacheSourceBuffer, canonicalizeBuffer, commit,
-		convertLegacyAupToProject: deferredArchiveRuntime.convertLegacyAupToProject, copy, createAddClipCommand, createAddSourceCommand,
-		createAddTrackCommand, createStableId, decodeLegacyAupProject: deferredArchiveRuntime.decodeLegacyAupProject,
-		editingBlocked, engine, ffmpeg, findTrack,
-		formatLegacyAupWarning, generateWaveformPeaks, handleError, importVideoFile: (...args) => importVideoFile(...args),
-		inspectEncodedAudioSampleRate, inspectWavBlobPcm, isAudioEditorVideoFile, isAudioEditorEngineSupported,
-		isLegacyAupFile, isLegacyBlockFile, isWavFile,
-		peakCacheKey, preflightStorage, getProject: () => documentState.project, captureProject: () => projectGeneration.capture(documentState.project?.id ?? null), assertProject: (token) => projectGeneration.assertCurrent(token), projectSampleRate, retireSourceChunkProvider: sourceLifecycleService.retireSourceChunkProvider,
-		publishDocumentSnapshot, setStatus, sourceBuffers, sourceChunkProviders,
-		sourcePcmBytes, sourcePeaks, state, store,
-		streamWavBlobPcm, stripExtension, switchProject, warnEnvelope,
-		writeBuffer, taskProgress,
-	});
-	const importVideoFile = createImportVideoFile({
-		SOURCE_CHUNK_FRAMES, activateVideoSource, audioBufferChannels, audioEditorVideoThumbnailTimes,
-		bufferFromChannels, cacheSourceBuffer, canonicalizeBuffer, commit,
-		copy, createAddClipCommand, createAddSourceCommand, createAddTrackCommand,
-		createAudioEditorVideoFrameExtractor, createStableId, engine, ffmpeg, helperTimingProbe: fileService.helperTimingProbe,
-		findTrack, fitAudioBufferToFrames, generateWaveformPeaks, inspectEncodedAudioSampleRate,
-		normalizeImportOptions, peakCacheKey, preflightStorage, getProject: () => documentState.project, captureProject: () => projectGeneration.capture(documentState.project?.id ?? null), assertProject: (token) => projectGeneration.assertCurrent(token),
-		projectSampleRate, revokeVideoVisual, sourceBuffers, sourcePeaks,
-		store, stripExtension, warnEnvelope, writeBuffer,
-	});
-	const projectBinService = createProjectBinService({
-		lifetime, copy, trackColors: AUDIO_EDITOR_TRACK_COLORS, protectedSourceIds: stagedProjectBinSourceIds,
-		playbackEngine: engine, retireTimelinePlayback, sourceBuffers, sourceChunkProviders, sourcePeaks,
-		missingSourceIds: state.missingSourceIds,
-		sourceResolver: clipTimePitchSourceResolver, store, activateVideoSource,
+	const imports = createImportComposition({
+		state, copy, lifetime, projectGeneration, store, engine, ffmpeg, helperTimingProbe: fileService.helperTimingProbe,
+		sourceBuffers, sourceChunkProviders, sourcePeaks, sourceResolver: clipTimePitchSourceResolver, sourceChunkFrames: SOURCE_CHUNK_FRAMES,
+		protectedSourceIds: stagedProjectBinSourceIds, trackColors: AUDIO_EDITOR_TRACK_COLORS, taskProgress, projectVisual: projectVisualService,
 		createPreviewEngine: (previewOptions) => renderEngineFactory(previewOptions),
-		createId: createStableId,
-		captureProject: () => projectGeneration.capture(documentState.project?.id ?? null),
-		assertProject: (token) => projectGeneration.assertCurrent(token),
-		getProject: () => documentState.project,
-		getSelectedClipId: () => state.selectedClipId,
-		getSelectedTrackId: () => state.selectedTrackId,
-		setSelectedClipId: (clipId) => { state.selectedClipId = clipId; },
-		setSelectedTrackId: (trackId) => { state.selectedTrackId = trackId; },
-		getPreview: () => state.projectBinPreview,
-		setPreview: (preview) => { state.projectBinPreview = preview; },
-		editingBlocked, commit, updateSelection,
-		getPositionFrames: () => engine.getPositionFrames(),
-		normalizeTimelineStartFrame: normalizeImportTimelineStartFrame,
-		getVisualData: getProjectBinClipVisualData,
+		getProject: () => documentState.project, editingBlocked, commit, updateSelection, setStatus, publishDocumentSnapshot, handleError, preflightStorage, projectSampleRate,
+		activateStoredSource, invalidateSourceRuntime: sourceLifecycleService.invalidateSourceRuntime, retireSourceChunkProvider: sourceLifecycleService.retireSourceChunkProvider,
+		retireTimelinePlayback, cacheSourceBuffer,
 		captureActiveDocument: () => ({ history: state.history, project: documentState.project }),
-		restoreActiveDocument: (snapshot) => {
-			state.history = snapshot.history;
-			documentState.project = snapshot.project;
-		},
-		setImporting: (importing) => { state.importing = importing; },
-		importProjectBinFile: async (file, { signal }) => {
-			throwIfAborted(signal);
-			const result = await importFile(file, normalizeImportOptions({ destination: 'project-bin' }));
-			throwIfAborted(signal);
-			return result;
-		},
-		activateStoredSource, invalidateSourceRuntime: sourceLifecycleService.invalidateSourceRuntime, projectChanged, publish: publishDocumentSnapshot, retireSourceChunkProvider: sourceLifecycleService.retireSourceChunkProvider, revokeVideoVisual,
-		digestMediaContent, deleteVideoDerivative: (sourceId) => store.deleteVideoDerivative(sourceId),
-		admitChangedContentVideoCandidate: (file, source, probeOptions) => admitChangedContentVideoCandidate(file, source, { createAudioEditorVideoFrameExtractor, engine, ffmpeg }, probeOptions),
+		restoreActiveDocument: (snapshot) => { state.history = snapshot.history; documentState.project = snapshot.project; },
+		switchProject, projectChanged, warnEnvelope,
 	});
 	const recording = createRecordingComposition({
 		state, lifetime, projectGeneration, projectRuntime, session: sessionController, store, engine, copy, locale, mediaDevices,
@@ -1096,9 +953,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		duplicateProject, duplicateTrack, engine, exportEffectPreset,
 		exportLabels, exportVideo, ffmpeg, fileService, findClip, findTrack,
 		flushProject, generateSelectionSilence, generateSignal, repeatLastGenerator, getClipVisualData,
-		getProjectBinClipVisualData, getVideoSourceVisualData: projectVisualService.getVideoSourceVisualData, getVisibleClips, handleClipAction, handleEdit,
+		getProjectBinClipVisualData, getVideoSourceVisualData: projectVisualService.getVideoSourceVisualData, getVisibleClips, handleClipAction, handleEdit: edits.handleEdit,
 		handleExportAction, handlePlayAtSpeed, handleTransport, hasMissingTimelineSources,
-		importEffectPresets, importFiles, importLabelFile, inspectScape,
+		importEffectPresets, importFiles: imports.importFiles, importLabelFile, inspectScape,
 		listAudioEditorEffectPresets, listProjects, makeStereoTrack, mixAndRenderTracks,
 		moveClips, moveClipsToNewTrack, moveClipsToProjectBin, movePanelPreference, activatePanelTabPreference,
 		moveToolbarPreference, moveTrack, newProject, normalizePlaybackFrame,
@@ -1106,7 +963,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip, playPauseProjectBinClip,
 		prepareProjectBinReplacement, prepareProjectHandoff, assertProjectHandoffAllowed: () => { if (documentState.project) framescaperCapture?.assertOriginHandoffAllowed(documentState.project.id); projectAdminService.assertProjectHandoffAllowed(); }, previewAudacityEffectFromController: effects.execution.previewAudacityEffectFromController, previewParametricEq,
 		previewRackEffect, previewVideoEffectGesture, product, productId: product.id, locale: options.locale, macroScriptStartedAt: () => new Date().toISOString(), getProject: () => documentState.project, projectSampleRate, beginMacroTransaction: () => projectMutationService.beginMacroTransaction(), timelineDurationFrames: () => projectDurationFrames(documentState.project),
-		projectBinInstanceCount, refreshAudioDevices, refreshRecordingInputs, refreshStorageUsage, releaseInputs, releaseVideoSourceVisual: revokeVideoVisual, reloadVideoSourceVisual, reportVideoPreviewPressure: options.reportProductVideoPreviewPressure || (() => undefined), canRelinkLinkedAudio: projectBinService.canRelinkLinkedAudio, classifyLinkedAudioRelink: projectBinService.classifyLinkedAudioRelink, relinkLinkedAudio: projectBinService.relinkLinkedAudio, canRelinkLinkedVideo: projectBinService.canRelinkLinkedVideo, classifyLinkedVideoRelink: projectBinService.classifyLinkedVideoRelink, relinkLinkedVideo: projectBinService.relinkLinkedVideo,
+		projectBinInstanceCount, refreshAudioDevices, refreshRecordingInputs, refreshStorageUsage, releaseInputs, releaseVideoSourceVisual: revokeVideoVisual, reloadVideoSourceVisual, reportVideoPreviewPressure: options.reportProductVideoPreviewPressure || (() => undefined), canRelinkLinkedAudio: imports.projectBin.canRelinkLinkedAudio, classifyLinkedAudioRelink: imports.projectBin.classifyLinkedAudioRelink, relinkLinkedAudio: imports.projectBin.relinkLinkedAudio, canRelinkLinkedVideo: imports.projectBin.canRelinkLinkedVideo, classifyLinkedVideoRelink: imports.projectBin.classifyLinkedVideoRelink, relinkLinkedVideo: imports.projectBin.relinkLinkedVideo,
 		removeProjectBinClip, removeProjectBinSource, removeVideoClipEffect, renameProject,
 		renameProjectBinClip, renderClipPitchSpeed, reorderTrack, reorderVideoClipEffect,
 		repeatLastAudacityEffect, requestInputAccess, requestStoragePersistence: storageCapacityService.requestStoragePersistence, requestWaveformPcmWindow, resampleClip, resampleTrack,
@@ -1215,7 +1072,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			await cleanup(() => releaseProjectLock());
 			if (state.outputUrl) URL.revokeObjectURL(state.outputUrl);
 			await cleanup(() => Promise.resolve(state.outputCleanup?.()));
-			await cleanup(() => projectBinService.dispose(), true);
+			await cleanup(() => imports.projectBin.dispose(), true);
 			tracks.audioWarp.dispose(); await cleanup(() => tracks.takeComp.dispose(), true);
 			await cleanup(() => clipTimePitchCacheService.disposeRenderEngines(), true);
 			await cleanup(() => Promise.resolve(ffmpeg.dispose()));
@@ -1389,52 +1246,19 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return projectAdminService.clearLocalData();
 	}
 
-	function moveClipsToProjectBin(clipId = state.selectedClipId) {
-		return projectBinService.moveClipsToProjectBin(clipId);
-	}
-
-	function placeProjectBinClip(binClipId, placement = {}) {
-		return projectBinService.placeProjectBinClip(binClipId, placement);
-	}
-
-	function renameProjectBinClip(clipId, requestedName) {
-		return projectBinService.renameProjectBinClip(clipId, requestedName);
-	}
-
-	function removeProjectBinClip(clipId) {
-		return projectBinService.removeProjectBinClip(clipId);
-	}
-
-	function setProjectBinClipColor(clipId, color) {
-		return projectBinService.setProjectBinClipColor(clipId, color);
-	}
-
-	function projectBinInstanceCount(clipId) { return projectBinService.projectBinInstanceCount(clipId); }
-	function selectProjectBinInstances(clipId) { return projectBinService.selectProjectBinInstances(clipId); }
-
-	function removeProjectBinSource(clipId) {
-		return projectBinService.removeProjectBinSource(clipId);
-	}
-
-	async function prepareProjectBinReplacement(clipId, file) {
-		return projectBinService.prepareProjectBinReplacement(clipId, file);
-	}
-
-	function applyProjectBinReplacement(token, shortfallMode = 'keep-spacing') {
-		return projectBinService.applyProjectBinReplacement(token, shortfallMode);
-	}
-
-	async function cancelProjectBinReplacement(token) {
-		return projectBinService.cancelProjectBinReplacement(token);
-	}
-
-	async function playPauseProjectBinClip(clipId) {
-		return projectBinService.playPauseProjectBinClip(clipId);
-	}
-
-	async function stopProjectBinPreview({ dispose = false } = {}) {
-		return projectBinService.stopProjectBinPreview({ dispose });
-	}
+	function moveClipsToProjectBin(clipId = state.selectedClipId) { return imports.projectBin.moveClipsToProjectBin(clipId); }
+	function placeProjectBinClip(binClipId, placement = {}) { return imports.projectBin.placeProjectBinClip(binClipId, placement); }
+	function renameProjectBinClip(clipId, requestedName) { return imports.projectBin.renameProjectBinClip(clipId, requestedName); }
+	function removeProjectBinClip(clipId) { return imports.projectBin.removeProjectBinClip(clipId); }
+	function setProjectBinClipColor(clipId, color) { return imports.projectBin.setProjectBinClipColor(clipId, color); }
+	function projectBinInstanceCount(clipId) { return imports.projectBin.projectBinInstanceCount(clipId); }
+	function selectProjectBinInstances(clipId) { return imports.projectBin.selectProjectBinInstances(clipId); }
+	function removeProjectBinSource(clipId) { return imports.projectBin.removeProjectBinSource(clipId); }
+	async function prepareProjectBinReplacement(clipId, file) { return imports.projectBin.prepareProjectBinReplacement(clipId, file); }
+	function applyProjectBinReplacement(token, shortfallMode = 'keep-spacing') { return imports.projectBin.applyProjectBinReplacement(token, shortfallMode); }
+	async function cancelProjectBinReplacement(token) { return imports.projectBin.cancelProjectBinReplacement(token); }
+	async function playPauseProjectBinClip(clipId) { return imports.projectBin.playPauseProjectBinClip(clipId); }
+	async function stopProjectBinPreview({ dispose = false } = {}) { return imports.projectBin.stopProjectBinPreview({ dispose }); }
 
 	function mixAndRenderTracks(...args) { return tracks.mixAndRenderTracks(...args); }
 	function resampleTrack(...args) { return tracks.resampleTrack(...args); }
@@ -1443,30 +1267,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function splitStereoTrack(...args) { return tracks.splitStereoTrack(...args); }
 	function makeStereoTrack(...args) { return tracks.makeStereoTrack(...args); }
 	function addLabel(trackId, labelOptions = {}) { return tracks.track.addLabel(trackId, labelOptions); }
-	async function importLabelFile(...args) {
-		return labelService.importLabelFile(...args);
-	}
-	async function exportLabels(...args) {
-		return labelService.exportLabels(...args);
-	}
-
-	function splitAtFrame(...args) {
-		return clipboardEditService.splitAtFrame(...args);
-	}
-
-	async function disjoinSelectedClip(...args) {
-		return clipboardEditService.disjoinSelectedClip(...args);
-	}
-
-	async function generateSelectionSilence(...args) {
-		return taskProgress.run('generate', copy.generatingAudio, () => audioGeneratorService.generateSelectionSilence(...args));
-	}
-
-	async function generateSignal(...args) {
-		return taskProgress.run('generate', copy.generatingAudio, () => audioGeneratorService.generateSignal(...args));
-	}
-
-	async function repeatLastGenerator(...args) { return taskProgress.run('generate', copy.generatingAudio, () => audioGeneratorService.repeatLast(...args)); }
+	async function importLabelFile(...args) { return edits.labels.importLabelFile(...args); }
+	async function exportLabels(...args) { return edits.labels.exportLabels(...args); }
+	function splitAtFrame(...args) { return edits.clipboard.splitAtFrame(...args); }
+	async function disjoinSelectedClip(...args) { return edits.clipboard.disjoinSelectedClip(...args); }
+	async function generateSelectionSilence(...args) { return edits.generateSelectionSilence(...args); }
+	async function generateSignal(...args) { return edits.generateSignal(...args); }
+	async function repeatLastGenerator(...args) { return edits.repeatLastGenerator(...args); }
 
 	function selectTrack(trackId) { return tracks.selectionView.selectTrack(trackId); }
 	function selectClip(clipId, options = {}) { return tracks.selectionView.selectClip(clipId, options); }

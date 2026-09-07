@@ -51,7 +51,15 @@ needs is a compile error at the composition rather than a runtime gap. Tracks
 and audio production follow in `controller/track-audio-composition.ts`: the
 derived-source rewrites, the track service and its action adapter, the
 deferred export service whose snapshot renderer the other renders read
-through, take comping, audio warp, mix-and-render and the selection view.
+through, take comping, audio warp, mix-and-render and the selection view. Editing and import follow in
+`controller/edit-composition.ts` and `controller/import-composition.ts`: the
+former builds label import and export, the clipboard edits, the audio
+generators (a refusing stand-in when the product does not compose them) and
+the Edit-menu dispatcher; the latter builds project import, video import and
+the project bin, binding the two importers through a closure because each
+normalises through the other. The project and video import services still take
+untyped runtimes, so the copy and store members they read are named at the
+composition boundary rather than derived.
 
 `index.js` and `facade.ts` form the curated
 external facade; editor implementation modules may not import it. The former

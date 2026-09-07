@@ -11,12 +11,16 @@ import type { VideoTimingIndex } from '../video-timing-asset.ts';
  * is still the right thing to do.
  */
 
-export interface ProjectVisualSource extends Readonly<Record<string, unknown>> {
+export interface ProjectVisualSource {
 	readonly id: string;
 	readonly kind?: string;
 	readonly storageKey?: string;
 	readonly contentSha256?: string;
 	readonly timingAsset?: unknown;
+	/** Video sources also carry the timing decision, proxy attachment and frame rate the preview resolvers read. */
+	readonly timingDecision?: unknown;
+	readonly proxyAttachment?: unknown;
+	readonly frameRate?: unknown;
 }
 
 export interface ProjectVisualClip extends Readonly<Record<string, unknown>> {

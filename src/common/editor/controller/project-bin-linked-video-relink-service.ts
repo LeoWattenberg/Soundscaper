@@ -27,6 +27,10 @@ interface ProjectBinLinkedVideoRelinkSource {
 	readonly id: string;
 	readonly kind?: string;
 	readonly hasAudio?: boolean;
+	readonly width?: number;
+	readonly height?: number;
+	readonly sampleFrameCount?: number;
+	readonly sampleRate?: number;
 }
 
 interface ProjectBinLinkedVideoRelinkClip {

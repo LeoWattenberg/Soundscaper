@@ -78,18 +78,24 @@ test('point labels alone leave nothing to copy', () => {
 test('the port reads the edit clipboard projection and carries the session descriptor', () => {
 	const document = project();
 	const seen: unknown[] = [];
+	const prepared: unknown[] = [];
 	const port = createLabeledAudioClipboardPort({
 		getProject: () => document,
 		getCommandProject: () => { throw new Error('the projection wins over the command project'); },
 		projectRuntime: {
 			projectForEditClipboardConsumers: (value) => { seen.push(value); return value; },
-			prepareEditClipboardDescriptor: (_value, descriptor) => ({ carried: descriptor }),
+			prepareEditClipboardDescriptor: (_value, descriptor) => {
+				const carried = { ...descriptor };
+				prepared.push(carried);
+				return carried;
+			},
 		},
 		createDescriptor: createClipboardDescriptor,
 	});
 
-	const carried = port.create([{ startFrame: 0, endFrame: 1_000 }], ['track']) as { carried: unknown };
+	const descriptor = port.create([{ startFrame: 0, endFrame: 1_000 }], ['track']);
 	assert.deepEqual(seen, [document]);
-	assert.equal(typeof carried.carried, 'object');
+	assert.equal(typeof descriptor, 'object');
+	assert.equal(descriptor, prepared[0]);
 	assert.equal(port.create([], ['track']), null);
 });

@@ -19,7 +19,6 @@ interface LabelExportResult {
 	readonly text: string;
 	readonly mimeType: string;
 	readonly fileName: string;
-	readonly [key: string]: unknown;
 }
 
 interface LabelFileService {
