@@ -1,6 +1,7 @@
 import { createHistorySourceCompactor } from './history-source-compaction.ts';
 import { createControllerDocumentState } from './controller/document-state.ts';
 import { createEffectsComposition } from './controller/effects-composition.ts';
+import { createClipVideoComposition } from './controller/clip-video-composition.ts';
 import { AUDIO_DEVICE_PREFERENCES_SETTING_KEY, createRecordingComposition } from './controller/recording-composition.ts';
 import { findNearestAudioZeroCrossing } from './zero-crossing.js';
 import {
@@ -14,7 +15,6 @@ import {
 	createAddSourceCommand,
 	createAddTrackCommand,
 	createClipboardDescriptor,
-	createReplaceClipSourceCommand,
 	prepareDisjointRangeDeleteCommand,
 	prepareGroupClipsCommand,
 	prepareKeepRangeCommand,
@@ -71,12 +71,6 @@ import {
 	editorHistoryProjects,
 	evictUnreferencedSourceCaches,
 } from './retention.js';
-import {
-	canEditAudioSamplesAtZoom,
-	createPencilSampleEdits,
-	createSmoothSampleRange,
-	persistImmutableSampleEdit,
-} from './sample-edit.js';
 import { SCAPE_MIME_TYPE } from './scape-project-format.ts';
 import { createAudioEditorSessionController } from './session.js';
 import { snapAudioEditorFrameWithProject } from './snap-grid.js';
@@ -138,8 +132,6 @@ import { createRegularIntervalAnnotationController } from './controller/regular-
 
 
 
-
-
 import { createDeferredEditorExportService } from './controller/deferred-export-service.ts';
 import { normalizeEditorExportSettings } from './controller/export-settings.ts';
 import {
@@ -168,7 +160,6 @@ import {
 import { createMicrophoneMeterService } from './controller/microphone-meter-service.ts';
 
 
-import { createSampleEditService } from './controller/sample-edit-service.ts';
 import { createSelectionViewService } from './controller/selection-view-service.ts';
 import { createSourceLifecycleService } from './controller/source-lifecycle-service.ts';
 import { createDerivedAudioComposition } from './controller/derived-audio-composition.ts';
@@ -176,24 +167,19 @@ import { createMixRenderService } from './controller/mix-render-service.ts';
 import { createNativeProjectService } from './controller/native-project-service.ts'; import { createDawprojectAudioDecoder } from './controller/dawproject-audio-decode.ts'; import { applicationVersion } from './application-version.ts';
 import { createTrackActionAdapter } from './controller/track-action-adapter.ts';
 import { createTimelineAnnotationService } from './controller/timeline-annotation-service.ts';
-import { createSequenceTimingService } from './controller/sequence-timing-service.ts';
-import { createVideoSourceReprobeService } from './controller/video-source-reprobe-service.ts';
-import { createSourceMonitorService } from './controller/source-monitor-service.ts';
-import { createVideoEditService } from './controller/video-edit-service.ts';
-import { createVideoRetimeProgramStateResolver } from './controller/video-retime-program-state.ts';
-import { createVideoNavigationService } from './controller/video-navigation-service.ts';
-import { createVideoTrimServices } from './controller/video-trim-composition.ts';
-import { prepareThreePointEditCommand } from './commands/three-point-edit-runtime.js';
+
+
+
+
+
 import { createTrackFolderService } from './controller/track-folder-service.ts';
 import { createTakeCompControllerComposition } from './controller/take-comp-composition.ts';
 
 import { createTakeCycleOpenRecoveryAppPort } from './controller/take-cycle-open-recovery-app-port.ts';
 import { createAudioWarpControllerComposition } from './controller/audio-warp-composition.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
-import { createClipTransformService } from './controller/clip-transform-service.ts';
-import { createClipPropertyService } from './controller/clip-property-service.ts';
+
 import { createClipTimePitchCacheService } from './controller/clip-time-pitch-service.ts';
-import { createClipTimePitchRenderService } from './controller/clip-time-pitch-render-service.ts';
 
 import {
 	abortError,
@@ -257,7 +243,6 @@ import { admitChangedContentVideoCandidate } from './controller/video-relink-pro
 import { digestMediaContent } from './storage/media-content-digest.ts';
 import { createProjectVisualService } from './controller/project-visual-service.ts';
 
-import { createVideoEffectService } from './controller/video-effect-service.ts';
 import {
 	createTemporaryFileSink,
 	stemProject,
@@ -936,115 +921,19 @@ export function createAudioEditorController(_root = null, options = {}) {
 		normalizePlaybackFrame,
 		projectSampleRate,
 	} = transportComposition.transport;
-	const sequenceTimingService = createSequenceTimingService({
-		lifetime, getProject: () => documentState.project, editingBlocked, commit, publishProjectState,
-		getPositionFrames: () => engine.getPositionFrames(),
-		seek: (frame) => engine.seek(normalizePlaybackFrame(frame)),
-	});
-	const sourceMonitorService = createSourceMonitorService({ lifetime, getProject: getCommandProject, publishProjectState });
-	const getVideoRetimeProgramState = createVideoRetimeProgramStateResolver({ getProject: () => documentState.project, projectRuntime, createBridge: options.createProductVideoRetimeProgramOrdinalBridge });
-	const videoEditService = createVideoEditService({
-		lifetime, getProject: getCommandProject, editingBlocked, commit, publishProjectState,
-		getSelectedTrackId: () => state.selectedTrackId,
-		prepareThreePointEditCommand: (commandProject, options) => (
-			prepareThreePointEditCommand(commandProject, options, createStableId)
-		),
-		getPositionFrames: () => engine.getPositionFrames(), getVideoRetimeProgramState,
-		sourceMonitor: sourceMonitorService,
-	});
-	videoNavigationService = createVideoNavigationService({
-		lifetime, getProject: getCommandProject, getProjectIdentity: () => documentState.project,
-		getTargets: () => videoEditService.targets(), getPositionFrames: () => engine.getPositionFrames(),
-		now: typeof options.monotonicNow === 'function' ? options.monotonicNow : () => globalThis.performance?.now?.() ?? currentTimeMs(),
-		setInterval: scheduleInterval, clearInterval: clearScheduledInterval,
-		scrub: async (frame) => {
-			cancelPlaybackCachePreparation(); cancelPlayAtSpeedPreparation(); engine.pause();
-			const previewStop = stopProjectBinPreview();
-			const target = normalizePlaybackFrame(frame);
-			const result = hasMissingTimelineSources() || typeof engine.scrub !== 'function'
-				? engine.seek(target)
-				: engine.scrub(target);
-			await previewStop;
-			return result;
-		},
-		seek: (frame) => engine.seek(normalizePlaybackFrame(frame)), endScrub: () => engine.endScrub?.(),
-		publish: publishDocumentSnapshot, handleError,
-	});
-	const videoTrimServices = createVideoTrimServices({
-		lifetime, getProject: getCommandProject, editingBlocked, commit,
-		copy, label: sequenceTimingService.label, setStatus,
-	});
-	const videoSourceReprobeService = createVideoSourceReprobeService({
-		lifetime, store, ffmpeg, helperTimingProbe: fileService.helperTimingProbe, getProject: () => documentState.project, editingBlocked, commit, publishProjectState,
-		captureProject: (projectId) => projectGeneration.capture(projectId),
-		assertProject: (token) => projectGeneration.assertCurrent(token),
-		createAudioEditorVideoFrameExtractor,
-		activateVideoSource: (source, options) => activateVideoSource(source, options),
-	});
 	const { adjustAllTrackHeights } = viewStateService;
-	const sampleEditService = createSampleEditService({
-		lifetime, activeSelection, activateStoredSource, canEditAudioSamplesAtZoom, commit, copy,
-		createAddSourceCommand, createPencilSampleEdits, createReplaceClipSourceCommand,
-		createSmoothSampleRange, createStableId, editingBlocked, findClip, findClipTrack,
-		findSource, getProject: () => documentState.project, peakCacheKey, persistImmutableSampleEdit,
-		preflightStorage, projectSampleRate, publishDocumentSnapshot, setStatus,
-		retireSourceChunkProvider: sourceLifecycleService.retireSourceChunkProvider, sourceBuffers, sourcePeaks, state, store, throwIfAborted,
+	const clips = createClipVideoComposition({
+		state, copy, lifetime, projectGeneration, projectRuntime, store, engine, ffmpeg, helperTimingProbe: fileService.helperTimingProbe,
+		sourceBuffers, sourcePeaks, sourceChunkFrames: SOURCE_CHUNK_FRAMES, taskProgress, currentTimeMs, monotonicNow: options.monotonicNow,
+		setInterval: scheduleInterval, clearInterval: clearScheduledInterval, createVideoRetimeProgramOrdinalBridge: options.createProductVideoRetimeProgramOrdinalBridge,
+		prepareCommittedOutput: (clip, source, prepareOptions) => clipTimePitchCache.prepareCommittedOutput(clip, source, prepareOptions),
+		materializeTimePitchCacheEntry: (entry, signal) => clipTimePitchCacheService.materializeTimePitchCacheEntry(entry, signal),
+		retireSourceChunkProvider: sourceLifecycleService.retireSourceChunkProvider,
+		getProject: () => documentState.project, getCommandProject, editingBlocked, commit, publishProjectState, publishDocumentSnapshot, setStatus, handleError,
+		normalizePlaybackFrame, cancelPlaybackCachePreparation, cancelPlayAtSpeedPreparation, stopProjectBinPreview, hasMissingTimelineSources,
+		activateVideoSource, activateStoredSource, activeSelection, snapTimelineFrame, preflightStorage, projectSampleRate, cacheSourceBuffer,
 	});
-	const clipTransformService = createClipTransformService({
-		lifetime,
-		copy,
-		getProject: getCommandProject,
-		getSelectedClipId: () => state.selectedClipId,
-		editingBlocked,
-		createId: createStableId,
-		snapTimelineFrame,
-		activeSelection,
-		commit,
-	});
-	const clipPropertyService = createClipPropertyService({
-		lifetime,
-		copy,
-		sourceBuffers,
-		getProject: () => documentState.project,
-		getSelectedClipId: () => state.selectedClipId,
-		editingBlocked,
-		captureProject: () => projectGeneration.capture(documentState.project?.id ?? null),
-		assertProject: (token) => projectGeneration.assertCurrent(token),
-		analyzeChannels: (channels, sampleRate, signal) => (
-			analyzeChannelsInWorker([...channels], sampleRate, copy, 65_536, signal)
-		),
-		createId: createStableId,
-		commit,
-	});
-	const clipTimePitchRenderService = createClipTimePitchRenderService({
-		lifetime,
-		copy,
-		store,
-		sourceBuffers,
-		sourcePeaks,
-		sourceChunkFrames: SOURCE_CHUNK_FRAMES,
-		getProject: () => documentState.project,
-		getSelectedClipId: () => state.selectedClipId,
-		editingBlocked,
-		captureProject: () => projectGeneration.capture(documentState.project?.id ?? null),
-		assertProject: (token) => projectGeneration.assertCurrent(token),
-		prepareCommittedOutput: (clip, source, { signal }) => (
-			clipTimePitchCache.prepareCommittedOutput(clip, source, { signal, onProgress: (value) => taskProgress.updateActive(value) })
-		),
-		materializeEntry: (entry, signal) => (
-			clipTimePitchCacheService.materializeTimePitchCacheEntry(entry, signal)
-		),
-		preflightStorage,
-		createId: createStableId,
-		writeBuffer,
-		generateWaveformPeaks: (channels, _signal) => generateWaveformPeaks([...channels], copy),
-		peakCacheKey,
-		cacheSourceBuffer,
-		commit,
-		setProcessing: (processing) => { state.audacityEffectProcessing = processing; },
-		setStatus,
-		publish: publishDocumentSnapshot,
-	});
+	videoNavigationService = clips.videoNavigation;
 	let trackService;
 	const derivedAudio = createDerivedAudioComposition({
 		lifetime, copy, store, retireSourceChunkProvider: sourceLifecycleService.retireSourceChunkProvider, sourceBuffers, sourcePeaks,
@@ -1317,12 +1206,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 		digestMediaContent, deleteVideoDerivative: (sourceId) => store.deleteVideoDerivative(sourceId),
 		admitChangedContentVideoCandidate: (file, source, probeOptions) => admitChangedContentVideoCandidate(file, source, { createAudioEditorVideoFrameExtractor, engine, ffmpeg }, probeOptions),
 	});
-	const videoEffectService = createVideoEffectService({
-		state, copy, getProject: () => documentState.project,
-		captureProject: () => projectGeneration.capture(documentState.project?.id ?? null),
-		assertProject: (token) => projectGeneration.assertCurrent(token),
-		editingBlocked, commit, publishDocumentSnapshot,
-	});
 	const recording = createRecordingComposition({
 		state, lifetime, projectGeneration, projectRuntime, session: sessionController, store, engine, copy, locale, mediaDevices,
 		capturePool: recordingCapturePool, createRecorder: recordingControllerFactory, microphoneMeter: microphoneMeterService,
@@ -1385,10 +1268,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleLeadInRecording, toggleMetronome, togglePanelPreference, togglePinnedPlayhead,
 		toggleRecordingPause, toggleRmsWaveform, toggleRulerPlayback, toggleSelectionFollowsLoop,
 		recoverTakeCycleRecording: (pending) => takeCycleOpenRecovery.resolve(pending, 'recover'), discardTakeCycleRecording: (pending) => takeCycleOpenRecovery.resolve(pending, 'discard'),
-		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
+		toggleStretchToTempo: clips.clipProperty.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
-		selectionViewService, sequenceTimingService, timelineAnnotationService, regularIntervalAnnotationController, trackFolderService, trackStructuralOperations: trackService.structuralOperations, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
-		audioWarpService, sourceMonitorService, takeCompService, taskProgress, videoTrimServices, videoEditService, videoNavigationService, videoSourceReprobeService, framescaperCaptureActions: framescaperCapture ? { ...framescaperCapture.actions, openSetup: () => { framescaperCapture.actions.openSetup(); preferencesService.setPanelVisibility('recording-setup', true); } } : undefined, framescaperWebVcrActions: framescaperCapture?.webVcrActions, ...productActionRuntime(options),
+		selectionViewService, sequenceTimingService: clips.sequenceTiming, timelineAnnotationService, regularIntervalAnnotationController, trackFolderService, trackStructuralOperations: trackService.structuralOperations, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
+		audioWarpService, sourceMonitorService: clips.sourceMonitor, takeCompService, taskProgress, videoTrimServices: clips.videoTrim, videoEditService: clips.videoEdit, videoNavigationService, videoSourceReprobeService: clips.videoSourceReprobe, framescaperCaptureActions: framescaperCapture ? { ...framescaperCapture.actions, openSetup: () => { framescaperCapture.actions.openSetup(); preferencesService.setPanelVisibility('recording-setup', true); } } : undefined, framescaperWebVcrActions: framescaperCapture?.webVcrActions, ...productActionRuntime(options),
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}), () => lifetime.assertActive());
 	let disposePromise = null;
@@ -1818,29 +1701,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return selectionViewService.setZoom(pixelsPerSecond);
 	}
 
-	function sampleEditingAvailable(clipId = state.selectedClipId) {
-		return sampleEditService.sampleEditingAvailable(clipId);
-	}
-
-	function synchronizeAutomaticSampleEditMode() {
-		return sampleEditService.synchronizeAutomaticSampleEditMode();
-	}
-
-	function setSampleEditMode(mode = null) {
-		return sampleEditService.setSampleEditMode(mode);
-	}
-
-	function cancelSampleEdit() {
-		return sampleEditService.cancelSampleEdit();
-	}
-
-	function applySamplePencil(options = {}) {
-		return taskProgress.run('sample-edit', copy.sampleEditSaving, () => sampleEditService.applySamplePencil(options));
-	}
-
-	function smoothSelectedSamples(options = {}) {
-		return taskProgress.run('sample-edit', copy.sampleEditSaving, () => sampleEditService.smoothSelectedSamples(options));
-	}
+	function sampleEditingAvailable(clipId = state.selectedClipId) { return clips.sampleEdit.sampleEditingAvailable(clipId); }
+	function synchronizeAutomaticSampleEditMode() { return clips.sampleEdit.synchronizeAutomaticSampleEditMode(); }
+	function setSampleEditMode(mode = null) { return clips.sampleEdit.setSampleEditMode(mode); }
+	function cancelSampleEdit() { return clips.sampleEdit.cancelSampleEdit(); }
+	function applySamplePencil(options = {}) { return clips.applySamplePencil(options); }
+	function smoothSelectedSamples(options = {}) { return clips.smoothSelectedSamples(options); }
 
 	async function loadRecordingRouting(currentProject = documentState.project) {
 		return recording.routing.loadRecordingRouting(currentProject);
@@ -1956,30 +1822,15 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return trackDuplicationService.duplicateTrack(...args);
 	}
 
-	function handleClipAction(...args) {
-		return clipPropertyService.handleClipAction(...args);
-	}
-
-	function moveClips(...args) { return clipTransformService.moveClips(...args); }
-	function moveClipsToNewTrack(...args) { return clipTransformService.moveClipsToNewTrack(...args); }
-	function trimClips(...args) { return clipTransformService.trimClips(...args); }
-	function overwriteClips(...args) { return clipTransformService.overwriteClips(...args); }
-
-	function setClipTimePitch(...args) {
-		return clipPropertyService.setClipTimePitch(...args);
-	}
-
-	function stretchClip(...args) {
-		return clipPropertyService.stretchClip(...args);
-	}
-
-	function resetClipPitchSpeed(...args) {
-		return clipPropertyService.resetClipPitchSpeed(...args);
-	}
-
-	function renderClipPitchSpeed(...args) {
-		return taskProgress.run('render', copy.rendering, () => clipTimePitchRenderService.renderClipPitchSpeed(...args));
-	}
+	function handleClipAction(...args) { return clips.clipProperty.handleClipAction(...args); }
+	function moveClips(...args) { return clips.clipTransform.moveClips(...args); }
+	function moveClipsToNewTrack(...args) { return clips.clipTransform.moveClipsToNewTrack(...args); }
+	function trimClips(...args) { return clips.clipTransform.trimClips(...args); }
+	function overwriteClips(...args) { return clips.clipTransform.overwriteClips(...args); }
+	function setClipTimePitch(...args) { return clips.clipProperty.setClipTimePitch(...args); }
+	function stretchClip(...args) { return clips.clipProperty.stretchClip(...args); }
+	function resetClipPitchSpeed(...args) { return clips.clipProperty.resetClipPitchSpeed(...args); }
+	function renderClipPitchSpeed(...args) { return clips.renderClipPitchSpeed(...args); }
 
 	function projectHasTimePitchClips(...args) {
 		return clipTimePitchCacheService.projectHasTimePitchClips(...args);
@@ -2005,50 +1856,17 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return clipTimePitchCacheService.cancelPlaybackCachePreparation(...args);
 	}
 
-	function videoEffectGestureKey(clipId, effectId) {
-		return videoEffectService.videoEffectGestureKey(clipId, effectId);
-	}
-
-	function addVideoClipEffect(clipId = state.selectedClipId, type, options = {}) {
-		return videoEffectService.addVideoClipEffect(clipId, type, options);
-	}
-
-	function updateVideoClipEffect(clipId, effectId, changes = {}) {
-		return videoEffectService.updateVideoClipEffect(clipId, effectId, changes);
-	}
-
-	function toggleVideoClipEffect(clipId, effectId, enabled = undefined) {
-		return videoEffectService.toggleVideoClipEffect(clipId, effectId, enabled);
-	}
-
-	function bypassVideoClipEffect(clipId, effectId, bypassed = true) {
-		return videoEffectService.bypassVideoClipEffect(clipId, effectId, bypassed);
-	}
-
-	function reorderVideoClipEffect(clipId, effectId, toIndex) {
-		return videoEffectService.reorderVideoClipEffect(clipId, effectId, toIndex);
-	}
-
-	function removeVideoClipEffect(clipId, effectId) {
-		return videoEffectService.removeVideoClipEffect(clipId, effectId);
-	}
-
-	function beginVideoEffectGesture(clipId, effectId) {
-		return videoEffectService.beginVideoEffectGesture(clipId, effectId);
-	}
-
-	function previewVideoEffectGesture(clipId, effectId, params = {}) {
-		return videoEffectService.previewVideoEffectGesture(clipId, effectId, params);
-	}
-
-	function commitVideoEffectGesture(clipId, effectId, params = {}) {
-		return videoEffectService.commitVideoEffectGesture(clipId, effectId, params);
-	}
-
-	function cancelVideoEffectGesture(clipId, effectId) {
-		return videoEffectService.cancelVideoEffectGesture(clipId, effectId);
-	}
-
+	function videoEffectGestureKey(clipId, effectId) { return clips.videoEffect.videoEffectGestureKey(clipId, effectId); }
+	function addVideoClipEffect(clipId = state.selectedClipId, type, options = {}) { return clips.videoEffect.addVideoClipEffect(clipId, type, options); }
+	function updateVideoClipEffect(clipId, effectId, changes = {}) { return clips.videoEffect.updateVideoClipEffect(clipId, effectId, changes); }
+	function toggleVideoClipEffect(clipId, effectId, enabled = undefined) { return clips.videoEffect.toggleVideoClipEffect(clipId, effectId, enabled); }
+	function bypassVideoClipEffect(clipId, effectId, bypassed = true) { return clips.videoEffect.bypassVideoClipEffect(clipId, effectId, bypassed); }
+	function reorderVideoClipEffect(clipId, effectId, toIndex) { return clips.videoEffect.reorderVideoClipEffect(clipId, effectId, toIndex); }
+	function removeVideoClipEffect(clipId, effectId) { return clips.videoEffect.removeVideoClipEffect(clipId, effectId); }
+	function beginVideoEffectGesture(clipId, effectId) { return clips.videoEffect.beginVideoEffectGesture(clipId, effectId); }
+	function previewVideoEffectGesture(clipId, effectId, params = {}) { return clips.videoEffect.previewVideoEffectGesture(clipId, effectId, params); }
+	function commitVideoEffectGesture(clipId, effectId, params = {}) { return clips.videoEffect.commitVideoEffectGesture(clipId, effectId, params); }
+	function cancelVideoEffectGesture(clipId, effectId) { return clips.videoEffect.cancelVideoEffectGesture(clipId, effectId); }
 	function addEffect(...args) { return effects.rack.addEffect(...args); }
 	function updateRackEffect(...args) { return effects.rack.updateRackEffect(...args); }
 	function beginRackEffectGesture(...args) { return effects.rack.beginRackEffectGesture(...args); }

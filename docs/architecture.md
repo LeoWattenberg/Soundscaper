@@ -41,7 +41,13 @@ worker, rack effects and the result writer are built from one contract, with
 the product's absent-subsystem stand-ins chosen there. The audio and macro
 services are generic over the rendered buffer they hand to the channel helper,
 so the root instantiates them with the engine's real buffer while tests keep
-their small fakes.
+their small fakes. Clips and video follow in
+`controller/clip-video-composition.ts`: sequence timing, the source monitor
+and three-point edits, JKL navigation, the frame-canonical trims, source
+reprobing, sample editing, clip transforms and properties, the committed
+time-pitch render and video clip effects. Its dependency contract is derived
+from the services' own declared dependencies, so a change to what a service
+needs is a compile error at the composition rather than a runtime gap.
 
 `index.js` and `facade.ts` form the curated
 external facade; editor implementation modules may not import it. The former

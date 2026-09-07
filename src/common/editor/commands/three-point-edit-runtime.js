@@ -48,7 +48,10 @@ function affectedTrackIds(project, placements, ripples) {
 	return lanes.length ? lanes : targeted;
 }
 
-/** Prepare a replay-safe three-point edit: every generated ID is allocated here. */
+/**
+ * Prepare a replay-safe three-point edit: every generated ID is allocated here.
+ * @returns {import('./protocol.ts').AudioEditorCommand}
+ */
 export function prepareThreePointEditCommand(project, options = {}, idFactory = createStableId) {
 	const mode = options.mode === 'insert' ? 'insert' : 'overwrite';
 	const range = normalizeFrameRange(options.startFrame, options.endFrame, 'edit range');
