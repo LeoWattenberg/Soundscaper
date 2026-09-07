@@ -17,12 +17,13 @@ import type { createProjectLockService } from './project-lock-service.ts';
 import type { createProjectSwitchService } from './project-switch-service.ts';
 import type { createRecordingComposition } from './recording-composition.ts';
 import type { createSourceRuntimeComposition } from './source-runtime-composition.ts';
+import type { ClipTimePitchRenderEngine } from './clip-time-pitch-service.ts';
 import type { createControllerStorageCapacityService } from './storage-capacity-runtime.ts';
 import type { createTrackAudioComposition } from './track-audio-composition.ts';
 import type { createTransportComposition } from './transport-composition.ts';
 import { deferControllerMethods, deferAsyncControllerMethods } from './deferred-controller-methods.ts';
 
-export interface ControllerBindingServices {
+export interface ControllerBindingServices<RenderEngine extends ClipTimePitchRenderEngine = ClipTimePitchRenderEngine> {
 	readonly clips: () => ReturnType<typeof createClipVideoComposition>;
 	readonly doc: () => ReturnType<typeof createDocumentComposition>;
 	readonly documentChannel: () => ReturnType<typeof createSnapshotComposition>['document'];
@@ -39,7 +40,7 @@ export interface ControllerBindingServices {
 	readonly projectLockService: () => ReturnType<typeof createProjectLockService>;
 	readonly projectSwitchService: () => ReturnType<typeof createProjectSwitchService<DocumentProject, DocumentHistory>>;
 	readonly recording: () => ReturnType<typeof createRecordingComposition>;
-	readonly sources: () => ReturnType<typeof createSourceRuntimeComposition>;
+	readonly sources: () => ReturnType<typeof createSourceRuntimeComposition<RenderEngine>>;
 	readonly storageCapacityService: () => ReturnType<typeof createControllerStorageCapacityService>;
 	readonly telemetryChannel: () => ReturnType<typeof createSnapshotComposition>['telemetry'];
 	readonly tracks: () => ReturnType<typeof createTrackAudioComposition>;
@@ -47,7 +48,7 @@ export interface ControllerBindingServices {
 }
 
 /** Resolve each service at invocation; construction never reads an uninitialized owner. */
-export function createControllerBindings(services: ControllerBindingServices) {
+export function createControllerBindings<RenderEngine extends ClipTimePitchRenderEngine>(services: ControllerBindingServices<RenderEngine>) {
 	const { load: loadPreferences } = deferControllerMethods(() => services.preferences(), ['load']);
 	const { switchProject } = deferControllerMethods(() => services.projectSwitchService(), ['switchProject']);
 	const { moveClipsToProjectBin, placeProjectBinClip, applyProjectBinReplacement } = deferControllerMethods(() => services.imports().projectBin, ['moveClipsToProjectBin', 'placeProjectBinClip', 'applyProjectBinReplacement']);

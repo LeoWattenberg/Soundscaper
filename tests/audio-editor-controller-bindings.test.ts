@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createControllerBindings } from '../src/common/editor/controller/controller-bindings.ts';
 import { createControllerPresentationState } from '../src/common/editor/controller/presentation-state.ts';
+import type { createSourceRuntimeComposition } from '../src/common/editor/controller/source-runtime-composition.ts';
+import type { EnginePublicApi } from '../src/common/editor/engine/public-api.ts';
 
 test('controller binding construction leaves unrelated owners uninitialized', () => {
 	let reads = 0;
@@ -25,7 +27,8 @@ test('controller binding construction leaves unrelated owners uninitialized', ()
 		presentationState: () => { reads += 1; return presentation; },
 		projectAdminService: unavailable, projectBootstrapService: unavailable,
 		projectLockService: unavailable, projectSwitchService: unavailable, recording: unavailable,
-		sources: unavailable, storageCapacityService: unavailable, telemetryChannel: unavailable,
+		sources: (): ReturnType<typeof createSourceRuntimeComposition<EnginePublicApi>> => unavailable(),
+		storageCapacityService: unavailable, telemetryChannel: unavailable,
 		tracks: unavailable, viewStateService: unavailable,
 	});
 	assert.equal(reads, 0);
@@ -33,5 +36,7 @@ test('controller binding construction leaves unrelated owners uninitialized', ()
 	assert.deepEqual(state.status, { message: 'Imported', state: 'info' });
 	assert.equal(reads, 1);
 	assert.equal(publishes, 1);
+	const createRenderEngine = bindings.createCacheAwareRenderEngine satisfies () => EnginePublicApi;
+	assert.throws(createRenderEngine, /An unrelated service was read/);
 	assert.ok(Object.isFrozen(bindings));
 });
