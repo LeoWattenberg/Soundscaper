@@ -15,7 +15,8 @@ import {
 	inspectVerifiedZip,
 } from './lib/verified-zip.mjs';
 import { encodeCanonicalJson } from './lib/audacity-qt-values.mjs';
-import { AUDACITY_LAYER_DIRECTORY, buildAudacityLayer, writeAudacityLayer } from './lib/audacity-committed-layer.mjs';
+import { buildAudacityLayer, writeAudacityLayer } from './lib/audacity-committed-layer.mjs';
+import { TRANSLATION_CATALOG_DIRECTORY } from './i18n-ai/catalog.mjs';
 
 export { DEFAULT_TRANSLATION_ARCHIVE_LIMITS, TranslationArtifactError, inspectVerifiedZip };
 export {
@@ -34,11 +35,9 @@ export {
 } from './lib/audacity-qt-conversion.mjs';
 export { encodeCanonicalJson } from './lib/audacity-qt-values.mjs';
 export {
-	AUDACITY_LAYER_DIRECTORY,
-	AUDACITY_LAYER_SCHEMA_VERSION,
 	AUDACITY_TRANSLATION_MODIFICATION_NOTICE,
 	buildAudacityLayer,
-	readAudacityCatalog,
+	mergeAudacityMessages,
 	writeAudacityLayer,
 } from './lib/audacity-committed-layer.mjs';
 
@@ -48,7 +47,7 @@ async function runCli(argv) {
 	return runCommit(parseFlags(rest));
 }
 
-/** Convert one verified artifact into the committed layer under src/common/i18n/audacity/. */
+/** Merge one verified artifact's reviewed strings into the catalogs under src/common/i18n/translations/. */
 async function runCommit(flags) {
 	const required = [
 		'archive',
@@ -76,10 +75,11 @@ async function runCommit(flags) {
 			workflowUrl: flags['source-workflow-url'],
 		},
 	});
-	const locales = await writeAudacityLayer(layer, flags.output ? path.resolve(flags.output) : AUDACITY_LAYER_DIRECTORY);
+	const { summaries } = await writeAudacityLayer(layer, flags.output ? path.resolve(flags.output) : TRANSLATION_CATALOG_DIRECTORY);
 	process.stdout.write(`${encodeCanonicalJson({
-		locales,
-		messages: Object.fromEntries(locales.map((locale) => [locale, Object.keys(layer.catalogs.get(locale).messages).length])),
+		locales: [...layer.messagesByLocale.keys()],
+		messages: Object.fromEntries([...layer.messagesByLocale].map(([locale, messages]) => [locale, Object.keys(messages).length])),
+		changed: summaries.filter((summary) => summary.written || summary.removed).map((summary) => summary.locale),
 		headSha: layer.provenance.headSha,
 		artifactId: layer.provenance.artifactId,
 	})}\n`);

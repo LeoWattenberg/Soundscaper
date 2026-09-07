@@ -17,7 +17,7 @@ import {
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
-import { audacityCopy } from './helpers/audacity-copy.js';
+import { localeCopy } from './helpers/locale-copy.js';
 import { GERMAN_COPY } from '../../src/common/i18n/catalogs.js';
 import { formatOptionsLabel } from '../../src/common/editor/ui/localization-template.ts';
 
@@ -204,18 +204,18 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.goto('/embed/fr/');
 		let editor = await waitForEditor(page);
 		// The editor's own status is machine-translated French once the layers have resolved.
-		await expect(editor.locator('[data-status]')).toHaveText(audacityCopy('fr').ready);
+		await expect(editor.locator('[data-status]')).toHaveText(localeCopy('fr').ready);
 		await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
 		await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
-		await expect(editor.getByRole('button', { name: audacityCopy('fr').play, exact: true })).toBeVisible();
+		await expect(editor.getByRole('button', { name: localeCopy('fr').play, exact: true })).toBeVisible();
 
 		editor = await bootEditor(page, '/embed/ar/');
 		await expect(page.locator('html')).toHaveAttribute('lang', 'ar');
 		await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-		await expect(editor.getByRole('button', { name: audacityCopy('ar').play, exact: true })).toBeVisible();
+		await expect(editor.getByRole('button', { name: localeCopy('ar').play, exact: true })).toBeVisible();
 		// Audacity's reviewed Arabic pack covers the File/Edit menu labels and undo.
-		const fileMenu = editor.getByRole('menuitem', { name: audacityCopy('ar').fileMenu, exact: true });
-		const editMenu = editor.getByRole('menuitem', { name: audacityCopy('ar').editMenu, exact: true });
+		const fileMenu = editor.getByRole('menuitem', { name: localeCopy('ar').fileMenu, exact: true });
+		const editMenu = editor.getByRole('menuitem', { name: localeCopy('ar').editMenu, exact: true });
 		const [fileBox, editBox] = await Promise.all([fileMenu.boundingBox(), editMenu.boundingBox()]);
 		expect(fileBox).not.toBeNull();
 		expect(editBox).not.toBeNull();
@@ -226,13 +226,13 @@ test.describe('audio editor React/design-system workflows', () => {
 		await editMenu.press('Enter');
 		await expect(editMenu).toHaveAttribute('aria-expanded', 'true');
 		// A lookahead rather than \b: an Arabic label has no ASCII word boundary.
-		const editLeaf = editor.locator('.kw-audio-editor__application-menu').getByRole('menuitem', { name: new RegExp(`^${escapeRegex(audacityCopy('ar').undo)}(?=\\s|$)`, 'u') });
+		const editLeaf = editor.locator('.kw-audio-editor__application-menu').getByRole('menuitem', { name: new RegExp(`^${escapeRegex(localeCopy('ar').undo)}(?=\\s|$)`, 'u') });
 		await editLeaf.focus();
 		await editLeaf.press('ArrowRight');
 		await expect(fileMenu).toHaveAttribute('aria-expanded', 'true');
 		await expect(editor.locator('.audio-editor-timeline-scroll')).toHaveCSS('direction', 'ltr');
 		await expect(editor.locator('.audio-editor-track-controls').first()).toHaveCSS('direction', 'rtl');
-		await importFiles(editor, [monoTone], { timeout: 20_000, copy: audacityCopy('ar') });
+		await importFiles(editor, [monoTone], { timeout: 20_000, copy: localeCopy('ar') });
 		const playhead = editor.locator('[data-playhead]');
 		await playhead.focus();
 		await playhead.press('ArrowRight');
@@ -240,7 +240,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	});
 
 	test('overlays verified Audacity German copy on the complete bundled fallback', async ({ page }) => {
-		const copy = audacityCopy('de');
+		const copy = localeCopy('de');
 		const editor = await bootEditor(page, '/embed/de/');
 		// Audacity's reviewed German pack overrides `play`; keys it leaves
 		// untouched keep showing the complete bundled German fallback.

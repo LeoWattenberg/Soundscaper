@@ -18,8 +18,7 @@ import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
 import { LOCALE_BY_TAG, ROUTE_LOCALES } from '../src/common/i18n/locales.js';
-import { AUDACITY_CATALOG_LOCALES } from '../src/common/i18n/audacity/index.js';
-import { MACHINE_CATALOG_LOCALES } from '../src/common/i18n/machine/index.js';
+import { TRANSLATION_CATALOG_LOCALES } from '../src/common/i18n/translations/index.js';
 import BrandSidebar from '../src/common/site/BrandSidebar.jsx';
 import { PRIVACY_POLICY_REQUEST_EVENT } from '../src/common/site/privacy-policy-links.js';
 import { installReactTestDom, reactProps, type ReactTestElement } from './helpers/react-test-dom.ts';
@@ -139,13 +138,13 @@ type Harness = ReturnType<typeof harness>;
 
 /**
  * The locales the picker offers: the two bundled catalogs plus every routed
- * locale a committed machine or Audacity catalog serves, in the order the
- * picker sorts their native names for an English visitor.
+ * locale a committed translation catalog serves, in the order the picker
+ * sorts their native names for an English visitor.
  */
 function expectedLocaleOptions(): string[] {
 	const names = new Map<string, string>();
 	const routed = new Set(ROUTE_LOCALES.map((descriptor: { locale: string }) => descriptor.locale));
-	for (const tag of ['en', 'de', ...MACHINE_CATALOG_LOCALES, ...AUDACITY_CATALOG_LOCALES]) {
+	for (const tag of ['en', 'de', ...TRANSLATION_CATALOG_LOCALES]) {
 		if (routed.has(tag)) names.set(tag, LOCALE_BY_TAG[tag]!.nativeName);
 	}
 	return [...names.entries()]

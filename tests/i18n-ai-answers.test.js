@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { createAnswersClient, readAnswers, writeTranslationPackets } from '../scripts/i18n-ai/answers.mjs';
-import { readMachineCatalog, writeMachineCatalog } from '../scripts/i18n-ai/catalog.mjs';
+import { readTranslationCatalog, writeTranslationCatalog } from '../scripts/i18n-ai/catalog.mjs';
 import { parseCliArguments, runCli } from '../scripts/i18n-ai/cli.mjs';
 import { translateLocale } from '../scripts/i18n-ai/workflows.mjs';
 
@@ -21,7 +21,7 @@ async function scratch() {
 
 test('packets are the closed requests a run would send for the pending keys, one file per batch', async () => {
 	const directory = await scratch();
-	await writeMachineCatalog({ locale: 'fr', provenance: PROVENANCE, entries: { stop: ['Stop', 'Arrêter'] } }, directory);
+	await writeTranslationCatalog({ locale: 'fr', provenance: { machine: PROVENANCE }, entries: { stop: ['machine', 'Stop', 'Arrêter'] } }, directory);
 	const result = await writeTranslationPackets({
 		locale: 'fr',
 		directory,
@@ -83,13 +83,13 @@ test('replaying answers writes a catalog under the same rules and skips only the
 	assert.deepEqual([...summary.skipped].map(({ key }) => key), ['bandNumber', 'zoomIn']);
 	assert.match(summary.skipped[0].reason, /placeholders/u);
 	assert.match(summary.skipped[1].reason, /No answer/u);
-	const catalog = await readMachineCatalog('fr', directory);
+	const catalog = await readTranslationCatalog('fr', directory);
 	assert.deepEqual(catalog.entries, {
-		addTrack: ['Add track', 'Ajouter une piste'],
-		fileMenu: ['File', 'Fichier'],
-		stop: ['Stop', 'Arrêter'],
+		addTrack: ['machine', 'Add track', 'Ajouter une piste'],
+		fileMenu: ['machine', 'File', 'Fichier'],
+		stop: ['machine', 'Stop', 'Arrêter'],
 	});
-	assert.equal(catalog.provenance.model, 'claude-sonnet-5');
+	assert.equal(catalog.provenance.machine.model, 'claude-sonnet-5');
 });
 
 test('the command line exports packets and replays answers for a locale', async () => {
@@ -108,5 +108,5 @@ test('the command line exports packets and replays answers for a locale', async 
 	const [summary] = await runCli(['translate', '--locale', 'fr', '--answers', join(directory, 'answers'), '--model', 'claude-sonnet-5', '--no-glossary', '--keys', 'fileMenu,stop'], io);
 	assert.equal(summary.translated, 2);
 	assert.match(err.join(''), /fr: replaying 2 answers from .* as claude-sonnet-5/u);
-	assert.equal((await readMachineCatalog('fr', directory)).provenance.model, 'claude-sonnet-5');
+	assert.equal((await readTranslationCatalog('fr', directory)).provenance.machine.model, 'claude-sonnet-5');
 });

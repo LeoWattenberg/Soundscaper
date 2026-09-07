@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { readMachineCatalog, writeMachineCatalog } from '../scripts/i18n-ai/catalog.mjs';
+import { readTranslationCatalog, writeTranslationCatalog } from '../scripts/i18n-ai/catalog.mjs';
 import { machineTranslatableLocales, parseCliArguments, runCli } from '../scripts/i18n-ai/cli.mjs';
 import {
 	MACHINE_TRANSLATION_SYSTEM_PROMPT,
@@ -140,14 +140,14 @@ test('a first run translates every key in sorted batches and writes the catalog 
 	assert.deepEqual(packets[0].glossary, [{ english: 'Stop', translation: 'Arrêter' }]);
 	assert.equal(packets[0].targetLanguage, 'French');
 	assert.equal(client.requests[0].system, MACHINE_TRANSLATION_SYSTEM_PROMPT);
-	const catalog = await readMachineCatalog('fr', directory);
-	assert.deepEqual(catalog.provenance, PROVENANCE);
+	const catalog = await readTranslationCatalog('fr', directory);
+	assert.deepEqual(catalog.provenance, { machine: PROVENANCE });
 	assert.deepEqual(catalog.entries, {
-		addTrack: ['Add track', 'Ajouter une piste'],
-		bandNumber: ['Band {number}', 'Bande {number}'],
-		fileMenu: ['File', 'Fichier'],
-		stop: ['Stop', 'Arrêter'],
-		zoomIn: ['Zoom in', 'Zoom avant'],
+		addTrack: ['machine', 'Add track', 'Ajouter une piste'],
+		bandNumber: ['machine', 'Band {number}', 'Bande {number}'],
+		fileMenu: ['machine', 'File', 'Fichier'],
+		stop: ['machine', 'Stop', 'Arrêter'],
+		zoomIn: ['machine', 'Zoom in', 'Zoom avant'],
 	});
 	assert.match(await readFile(join(directory, 'index.js'), 'utf8'), /fr: \(\) => import\('\.\/fr\.json'/u);
 	assert.equal(lines.length, 3);
@@ -156,14 +156,14 @@ test('a first run translates every key in sorted batches and writes the catalog 
 
 test('a later run sends only stale and missing keys, keeps current ones, drops orphans and reuses the cache', async () => {
 	const { directory, cacheDirectory } = await scratch();
-	await writeMachineCatalog({
+	await writeTranslationCatalog({
 		locale: 'fr',
-		provenance: PROVENANCE,
+		provenance: { machine: PROVENANCE },
 		entries: {
-			addTrack: ['Add track', 'Ajouter une piste'],
-			fileMenu: ['File (old)', 'Fichier (vieux)'],
-			retired: ['Retired', 'Retraité'],
-			stop: ['Stop', 'Arrêter'],
+			addTrack: ['machine', 'Add track', 'Ajouter une piste'],
+			fileMenu: ['machine', 'File (old)', 'Fichier (vieux)'],
+			retired: ['machine', 'Retired', 'Retraité'],
+			stop: ['machine', 'Stop', 'Arrêter'],
 		},
 	}, directory);
 	const client = fakeClient(frenchAnswer);
@@ -172,11 +172,11 @@ test('a later run sends only stale and missing keys, keeps current ones, drops o
 		locale: 'fr', retained: 2, orphaned: 1, pending: 3, translated: 3, skipped: [], requests: 1, cached: 0,
 	});
 	assert.deepEqual(Object.keys(JSON.parse(client.requests[0].prompt).messages), ['bandNumber', 'fileMenu', 'zoomIn']);
-	const catalog = await readMachineCatalog('fr', directory);
+	const catalog = await readTranslationCatalog('fr', directory);
 	assert.deepEqual(Object.keys(catalog.entries), ['addTrack', 'bandNumber', 'fileMenu', 'stop', 'zoomIn']);
-	assert.deepEqual(catalog.entries.fileMenu, ['File', 'Fichier']);
+	assert.deepEqual(catalog.entries.fileMenu, ['machine', 'File', 'Fichier']);
 
-	await writeMachineCatalog({ locale: 'fr', provenance: PROVENANCE, entries: { addTrack: ['Add track', 'Ajouter une piste'], stop: ['Stop', 'Arrêter'] } }, directory);
+	await writeTranslationCatalog({ locale: 'fr', provenance: { machine: PROVENANCE }, entries: { addTrack: ['machine', 'Add track', 'Ajouter une piste'], stop: ['machine', 'Stop', 'Arrêter'] } }, directory);
 	const replay = await translateLocale({ locale: 'fr', client, cacheDirectory, directory, englishCopy: ENGLISH, germanCopy: GERMAN, batchSize: 10 });
 	assert.equal(replay.cached, 1);
 	assert.equal(replay.requests, 0);
@@ -200,7 +200,7 @@ test('a batch the model cannot answer is retried with feedback, then split until
 	assert.deepEqual([...summary.skipped].map(({ key }) => key), ['bandNumber']);
 	assert.match(summary.skipped[0].reason, /placeholders/u);
 	assert.match(client.requests[1].prompt, /Previous response failed validation: "bandNumber" must keep the placeholders/u);
-	const catalog = await readMachineCatalog('fr', directory);
+	const catalog = await readTranslationCatalog('fr', directory);
 	assert.deepEqual(Object.keys(catalog.entries), ['addTrack', 'fileMenu', 'stop', 'zoomIn']);
 });
 
@@ -214,35 +214,72 @@ test('endpoint failures stop the run and leave the batches already written', asy
 		() => translateLocale({ locale: 'fr', client, cacheDirectory, directory, englishCopy: ENGLISH, germanCopy: GERMAN, batchSize: 2 }),
 		/HTTP 500/u,
 	);
-	const catalog = await readMachineCatalog('fr', directory);
+	const catalog = await readTranslationCatalog('fr', directory);
 	assert.deepEqual(Object.keys(catalog.entries), ['addTrack', 'bandNumber']);
 });
 
-test('the glossary is the committed Audacity catalog for the locale, keyed to what differs from English', async () => {
+const AUDACITY = {
+	repository: 'audacity/audacity', headSha: 'a'.repeat(40), runId: 1, artifactId: 2, workflowUrl: 'https://github.com/audacity/audacity/actions/runs/1',
+	archiveName: 'Audacity_locale_1.zip', archiveSha256: 'b'.repeat(64), archiveByteLength: 3, licenseSpdx: 'GPL-3.0-only',
+	upstreamProjectUrl: 'https://github.com/audacity/audacity', upstreamLicenseUrl: 'https://github.com/audacity/audacity/blob/a/LICENSE.txt',
+	modificationNotice: 'converted', mappingVersion: 2, mappingSha256: 'c'.repeat(64),
+};
+
+test('the glossary is the Audacity entries of the locale\'s own catalog, keyed to what differs from English', async () => {
 	const { directory } = await scratch();
-	const { writeFile } = await import('node:fs/promises');
-	const provenance = {
-		repository: 'audacity/audacity', headSha: 'a'.repeat(40), runId: 1, artifactId: 2, workflowUrl: 'https://github.com/audacity/audacity/actions/runs/1',
-		archiveName: 'Audacity_locale_1.zip', archiveSha256: 'b'.repeat(64), archiveByteLength: 3, licenseSpdx: 'GPL-3.0-only',
-		upstreamProjectUrl: 'https://github.com/audacity/audacity', upstreamLicenseUrl: 'https://github.com/audacity/audacity/blob/a/LICENSE.txt',
-		modificationNotice: 'converted', mappingVersion: 2, mappingSha256: 'c'.repeat(64),
-	};
-	await writeFile(join(directory, 'fr.json'), JSON.stringify({ schemaVersion: 1, locale: 'fr', provenance, messages: { stop: 'Arrêter', zoomIn: 'Zoom in' } }));
-	assert.deepEqual(await loadGlossary({ locale: 'fr', audacityDirectory: directory, englishCopy: ENGLISH }), [{ key: 'stop', english: 'Stop', translation: 'Arrêter' }]);
-	assert.deepEqual(await loadGlossary({ locale: 'pl', audacityDirectory: directory, englishCopy: ENGLISH }), []);
-	assert.ok((await loadGlossary({ locale: 'fr', englishCopy: { ...ENGLISH, ...Object.fromEntries(['play', 'stop'].map((key) => [key, key])) } })).length >= 1, 'the committed layer serves the real glossary');
+	await writeTranslationCatalog({
+		locale: 'fr',
+		provenance: { audacity: AUDACITY, machine: PROVENANCE },
+		entries: { addTrack: ['machine', 'Add track', 'Ajouter une piste'], fileMenu: ['human', 'File', 'Fichier'], stop: ['audacity', 'Stop', 'Arrêter'], zoomIn: ['audacity', 'Zoom in', 'Zoom in'] },
+	}, directory);
+	assert.deepEqual(await loadGlossary({ locale: 'fr', directory, englishCopy: ENGLISH }), [{ key: 'stop', english: 'Stop', translation: 'Arrêter' }]);
+	assert.deepEqual(await loadGlossary({ locale: 'pl', directory, englishCopy: ENGLISH }), []);
+	assert.ok((await loadGlossary({ locale: 'fr', englishCopy: { ...ENGLISH, ...Object.fromEntries(['play', 'stop'].map((key) => [key, key])) } })).length >= 1, 'the committed catalog serves the real glossary');
+});
+
+test('human and Audacity entries survive a machine run untouched, and a stale human entry waits for a person', async () => {
+	const { directory, cacheDirectory } = await scratch();
+	await writeTranslationCatalog({
+		locale: 'fr',
+		provenance: { audacity: AUDACITY, machine: { ...PROVENANCE, model: 'older-model' } },
+		entries: {
+			addTrack: ['audacity', 'Add track', 'Ajouter une piste (Audacity)'],
+			bandNumber: ['human', 'Band {number} (old)', 'Bande {number} (à la main)'],
+			fileMenu: ['human', 'File', 'Fichier (à la main)'],
+			stop: ['audacity', 'Stop (old)', 'Arrêter (Audacity)'],
+			zoomIn: ['machine', 'Zoom in (old)', 'Zoom avant (vieux)'],
+		},
+	}, directory);
+	const client = fakeClient(frenchAnswer);
+	const summary = await translateLocale({ locale: 'fr', client, cacheDirectory, directory, englishCopy: ENGLISH, germanCopy: GERMAN, batchSize: 10 });
+	assert.deepEqual({ ...summary, skipped: [...summary.skipped] }, {
+		locale: 'fr', retained: 2, orphaned: 0, pending: 2, translated: 2, skipped: [], requests: 1, cached: 0,
+	});
+	assert.deepEqual(Object.keys(JSON.parse(client.requests[0].prompt).messages), ['stop', 'zoomIn']);
+	const catalog = await readTranslationCatalog('fr', directory);
+	assert.deepEqual(catalog.entries, {
+		addTrack: ['audacity', 'Add track', 'Ajouter une piste (Audacity)'],
+		bandNumber: ['human', 'Band {number} (old)', 'Bande {number} (à la main)'],
+		fileMenu: ['human', 'File', 'Fichier (à la main)'],
+		stop: ['machine', 'Stop', 'Arrêter'],
+		zoomIn: ['machine', 'Zoom in', 'Zoom avant'],
+	});
+	assert.deepEqual(catalog.provenance, { machine: PROVENANCE, audacity: AUDACITY });
+	const [report] = await checkLocales({ locales: ['fr'], directory, englishCopy: ENGLISH });
+	assert.deepEqual(report.origins, { machine: 2, audacity: 1, human: 1 });
+	assert.equal(report.stale, 1);
 });
 
 test('check reports each catalog against the English copy and names an invalid file', async () => {
 	const { directory } = await scratch();
-	await writeMachineCatalog({ locale: 'fr', provenance: PROVENANCE, entries: { addTrack: ['Add track', 'Ajouter une piste'], fileMenu: ['File (old)', 'Fichier'], gone: ['Gone', 'Parti'] } }, directory);
+	await writeTranslationCatalog({ locale: 'fr', provenance: { machine: PROVENANCE }, entries: { addTrack: ['machine', 'Add track', 'Ajouter une piste'], fileMenu: ['machine', 'File (old)', 'Fichier'], gone: ['machine', 'Gone', 'Parti'] } }, directory);
 	const { writeFile } = await import('node:fs/promises');
-	await writeFile(join(directory, 'es.json'), '{"schemaVersion":1,"locale":"es","provenance":{},"entries":{}}\n');
+	await writeFile(join(directory, 'es.json'), '{"schemaVersion":2,"locale":"es","provenance":{},"entries":{"a":["A","a"]}}\n');
 	const reports = await checkLocales({ locales: ['fr', 'es', 'pl'], directory, englishCopy: ENGLISH });
-	assert.deepEqual(reports[0], { locale: 'fr', present: true, model: 'qwen3.8:latest', current: 1, stale: 1, missing: 3, orphaned: 1, outdated: false, invalid: null });
+	assert.deepEqual(reports[0], { locale: 'fr', present: true, model: 'qwen3.8:latest', current: 1, origins: { machine: 1, audacity: 0, human: 0 }, stale: 1, missing: 3, orphaned: 1, outdated: false, invalid: null });
 	assert.equal(reports[1].locale, 'es');
-	assert.match(reports[1].invalid, /provenance/u);
-	assert.deepEqual(reports[2], { locale: 'pl', present: false, model: null, current: 0, stale: 0, missing: 5, orphaned: 0, outdated: false, invalid: null });
+	assert.match(reports[1].invalid, /triple/u);
+	assert.deepEqual(reports[2], { locale: 'pl', present: false, model: null, current: 0, origins: { machine: 0, audacity: 0, human: 0 }, stale: 0, missing: 5, orphaned: 0, outdated: false, invalid: null });
 });
 
 test('batches are bounded by key count and by the characters the answer has to echo', () => {
@@ -271,10 +308,10 @@ test('keys whose English is code stay untranslated, and an outdated prompt regen
 	const { directory, cacheDirectory } = await scratch();
 	const english = { ...ENGLISH, nyquistPromptDefault: '; Enter a Nyquist expression.\n(mult *track* 0.5)' };
 	assert.deepEqual([...MACHINE_TRANSLATION_EXCLUDED_KEYS], ['nyquistPromptDefault']);
-	await writeMachineCatalog({
+	await writeTranslationCatalog({
 		locale: 'fr',
-		provenance: { ...PROVENANCE, promptVersion: 'i18n-machine-v0' },
-		entries: { nyquistPromptDefault: [english.nyquistPromptDefault, '; Saisissez une expression Nyquist.\n(mult *track* 0.5)'], stop: ['Stop', 'Arrêter'] },
+		provenance: { machine: { ...PROVENANCE, promptVersion: 'i18n-machine-v0' } },
+		entries: { nyquistPromptDefault: ['machine', english.nyquistPromptDefault, '; Saisissez une expression Nyquist.\n(mult *track* 0.5)'], stop: ['machine', 'Stop', 'Arrêter'] },
 	}, directory);
 	const client = fakeClient(frenchAnswer);
 	const summary = await translateLocale({ locale: 'fr', client, cacheDirectory, directory, englishCopy: english, germanCopy: GERMAN, batchSize: 10 });
@@ -282,10 +319,10 @@ test('keys whose English is code stay untranslated, and an outdated prompt regen
 	assert.equal(summary.translated, 5);
 	const packet = JSON.parse(client.requests[0].prompt);
 	assert.deepEqual(Object.keys(packet.messages), ['addTrack', 'bandNumber', 'fileMenu', 'stop', 'zoomIn']);
-	const catalog = await readMachineCatalog('fr', directory);
-	assert.equal(catalog.provenance.promptVersion, 'i18n-machine-v1');
+	const catalog = await readTranslationCatalog('fr', directory);
+	assert.equal(catalog.provenance.machine.promptVersion, 'i18n-machine-v1');
 	assert.ok(!Object.hasOwn(catalog.entries, 'nyquistPromptDefault'));
-	assert.deepEqual(catalog.entries.stop, ['Stop', 'Arrêter']);
+	assert.deepEqual(catalog.entries.stop, ['machine', 'Stop', 'Arrêter']);
 });
 
 test('the default model is Aya where it speaks the language and the general model elsewhere', () => {
@@ -326,17 +363,17 @@ test('the command line translates with an injected client and reports per locale
 	assert.match(out.join(''), /^fr: translated 2, retained 0, skipped 0, dropped 0 orphaned \(1 requests, 0 cached\)\n$/u);
 	const reports = await runCli(['check', '--locale', 'fr'], { directory, stdout: { write: (text) => out.push(text) }, env: {} });
 	assert.equal(reports[0].current, 2);
-	assert.match(out.at(-1), /^fr: 2 current, 0 stale, \d+ missing, 0 orphaned \(qwen3\.8:latest\)\n$/u);
+	assert.match(out.at(-1), /^fr: 2 current \(2 machine\), 0 stale, \d+ missing, 0 orphaned \(qwen3\.8:latest\)\n$/u);
 	assert.match(err.join(''), /^fr: translating with aya-expanse:32b\n/u);
 });
 
 test('check and translate agree that an excluded key is neither missing nor pending', async () => {
 	const { directory } = await scratch();
 	const english = { ...ENGLISH, nyquistPromptDefault: '; Enter a Nyquist expression.\n(mult *track* 0.5)' };
-	await writeMachineCatalog({
+	await writeTranslationCatalog({
 		locale: 'fr',
-		provenance: PROVENANCE,
-		entries: Object.fromEntries(Object.keys(ENGLISH).map((key) => [key, [ENGLISH[key], `fr:${ENGLISH[key]}`]])),
+		provenance: { machine: PROVENANCE },
+		entries: Object.fromEntries(Object.keys(ENGLISH).map((key) => [key, ['machine', ENGLISH[key], `fr:${ENGLISH[key]}`]])),
 	}, directory);
 	const [report] = await checkLocales({ locales: ['fr'], directory, englishCopy: english });
 	assert.equal(report.missing, 0);
@@ -348,20 +385,20 @@ test('check and translate agree that an excluded key is neither missing nor pend
 test('orphans and excluded entries are dropped even when nothing is pending, under the existing provenance', async () => {
 	const { directory } = await scratch();
 	const provenance = { ...PROVENANCE, model: 'older-model' };
-	await writeMachineCatalog({
+	await writeTranslationCatalog({
 		locale: 'fr',
-		provenance,
+		provenance: { machine: provenance },
 		entries: {
-			...Object.fromEntries(Object.keys(ENGLISH).map((key) => [key, [ENGLISH[key], `fr:${ENGLISH[key]}`]])),
-			retired: ['Retired', 'Retraité'],
+			...Object.fromEntries(Object.keys(ENGLISH).map((key) => [key, ['machine', ENGLISH[key], `fr:${ENGLISH[key]}`]])),
+			retired: ['machine', 'Retired', 'Retraité'],
 		},
 	}, directory);
 	const summary = await translateLocale({ locale: 'fr', client: fakeClient(() => { throw new Error('must not be asked'); }), directory, englishCopy: ENGLISH, germanCopy: GERMAN });
 	assert.equal(summary.orphaned, 1);
 	assert.equal(summary.requests, 0);
-	const catalog = await readMachineCatalog('fr', directory);
+	const catalog = await readTranslationCatalog('fr', directory);
 	assert.deepEqual(Object.keys(catalog.entries), Object.keys(ENGLISH).sort());
-	assert.deepEqual(catalog.provenance, provenance);
+	assert.deepEqual(catalog.provenance, { machine: provenance });
 	const [report] = await checkLocales({ locales: ['fr'], directory, englishCopy: ENGLISH });
 	assert.equal(report.orphaned, 0);
 });
@@ -369,10 +406,10 @@ test('orphans and excluded entries are dropped even when nothing is pending, und
 test('an interrupted regeneration under a new prompt stays outdated until its last batch lands', async () => {
 	const { directory, cacheDirectory } = await scratch();
 	const old = { ...PROVENANCE, promptVersion: 'i18n-machine-v0' };
-	await writeMachineCatalog({
+	await writeTranslationCatalog({
 		locale: 'fr',
-		provenance: old,
-		entries: Object.fromEntries(Object.keys(ENGLISH).map((key) => [key, [ENGLISH[key], `old:${ENGLISH[key]}`]])),
+		provenance: { machine: old },
+		entries: Object.fromEntries(Object.keys(ENGLISH).map((key) => [key, ['machine', ENGLISH[key], `old:${ENGLISH[key]}`]])),
 	}, directory);
 	const failing = fakeClient((packet, count) => {
 		if (count === 2) throw new Error('Ollama generation returned HTTP 500.');
@@ -382,18 +419,18 @@ test('an interrupted regeneration under a new prompt stays outdated until its la
 		() => translateLocale({ locale: 'fr', client: failing, cacheDirectory, directory, englishCopy: ENGLISH, germanCopy: GERMAN, batchSize: 2 }),
 		/HTTP 500/u,
 	);
-	let catalog = await readMachineCatalog('fr', directory);
-	assert.deepEqual(catalog.provenance, old);
-	assert.equal(catalog.entries.addTrack[1], 'Ajouter une piste');
-	assert.equal(catalog.entries.zoomIn[1], 'old:Zoom in');
+	let catalog = await readTranslationCatalog('fr', directory);
+	assert.deepEqual(catalog.provenance, { machine: old });
+	assert.equal(catalog.entries.addTrack[2], 'Ajouter une piste');
+	assert.equal(catalog.entries.zoomIn[2], 'old:Zoom in');
 	assert.equal((await checkLocales({ locales: ['fr'], directory, englishCopy: ENGLISH }))[0].outdated, true);
 
 	const summary = await translateLocale({ locale: 'fr', client: fakeClient(frenchAnswer), cacheDirectory, directory, englishCopy: ENGLISH, germanCopy: GERMAN, batchSize: 2 });
 	assert.equal(summary.pending, 5);
 	assert.equal(summary.cached, 1);
-	catalog = await readMachineCatalog('fr', directory);
-	assert.equal(catalog.provenance.promptVersion, 'i18n-machine-v1');
-	assert.equal(catalog.entries.zoomIn[1], 'Zoom avant');
+	catalog = await readTranslationCatalog('fr', directory);
+	assert.equal(catalog.provenance.machine.promptVersion, 'i18n-machine-v1');
+	assert.equal(catalog.entries.zoomIn[2], 'Zoom avant');
 	assert.equal((await checkLocales({ locales: ['fr'], directory, englishCopy: ENGLISH }))[0].outdated, false);
 });
 
@@ -405,5 +442,5 @@ test('a single key that still times out stops the run instead of being skipped',
 		{ name: 'TimeoutError' },
 	);
 	assert.equal(client.requests.length, 3);
-	assert.equal(await readMachineCatalog('fr', directory), null);
+	assert.equal(await readTranslationCatalog('fr', directory), null);
 });

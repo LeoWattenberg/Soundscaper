@@ -61,21 +61,21 @@ jobs:
             --source-license "$RUNNER_TEMP/audacity-source/LICENSE.txt"
 
       - name: Hold the layer to the runtime's rules
-        run: node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/i18n-audacity-catalog.test.js
+        run: node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/i18n-translation-catalog.test.js
 
       - name: Commit the layer when it changed
         id: commit
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- src/common/i18n/audacity; then
+          if git diff --quiet -- src/common/i18n/translations; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "The committed Audacity layer already matches artifact $AUDACITY_TRANSLATION_ARTIFACT_ID."
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- src/common/i18n/audacity
+          git add -- src/common/i18n/translations
           git commit -F - <<EOF_MESSAGE
           chore(i18n): sync Audacity translations from artifact $AUDACITY_TRANSLATION_ARTIFACT_ID
 

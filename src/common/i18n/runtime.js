@@ -1,7 +1,6 @@
 import { ENGLISH_COPY, GERMAN_COPY } from './catalogs.js';
 import { localeLanguage, normalizeBcp47Locale } from './locale.js';
-import { loadAudacityCatalog } from './audacity-catalog.js';
-import { loadMachineCatalog, sameNamedPlaceholders } from './machine-catalog.js';
+import { loadTranslationCatalog, sameNamedPlaceholders } from './translation-catalog.js';
 import { isModuleLoadFailure } from '../offline/stale-build.ts';
 import { reportStaleBuildCandidate } from '../offline/stale-build-runtime.ts';
 
@@ -20,69 +19,46 @@ export function bundledCatalogForLocale(locale = 'en') {
 }
 
 /**
- * Resolve copy before the editor controller is constructed, from the layers
- * that serve the locale: the bundled catalogs, the machine translations this
- * repository generates, and Audacity's reviewed strings, both committed and
- * lazy-imported. The two lazy layers load together and fail apart, so a
- * missing chunk of one still yields the other. A layer that fails is
- * reported through `onFallback` and left out; an existing controller is
- * never updated in place.
+ * Resolve copy before the editor controller is constructed: the bundled
+ * catalogs, then the locale's committed translation catalog — machine
+ * translations, Audacity's reviewed strings and hand-written entries in one
+ * lazy chunk. A chunk that fails to load is reported through `onFallback`
+ * (and to the stale-build prompt when a retired deploy took it away) and left
+ * out; an existing controller is never updated in place.
  */
 export async function resolveCatalog(locale, options = {}) {
 	const normalizedLocale = normalizeLocale(locale);
 	if (normalizedLocale === 'en') {
 		return Object.freeze({ ...ENGLISH_COPY });
 	}
-	const [machine, messages] = await Promise.all([
-		resolveMachineMessages(normalizedLocale, options),
-		resolveAudacityMessages(normalizedLocale, options),
-	]);
-	return mergeCatalog(normalizedLocale, messages, { machine });
+	let translations = null;
+	try {
+		translations = await loadTranslationCatalog(normalizedLocale, { loaders: options.translationLoaders, englishCopy: ENGLISH_COPY });
+	} catch (error) {
+		if (isModuleLoadFailure(error)) (options.reportStaleBuildCandidate ?? reportStaleBuildCandidate)(error);
+		options.onFallback?.(error);
+	}
+	return mergeCatalog(normalizedLocale, translations);
 }
 
 /**
  * Compose a catalog from its layers, lowest priority first: English, the
- * bundled German catalog for German locales, the machine translations, and
- * Audacity's reviewed messages, which override any key they carry.
+ * bundled German catalog for German locales, and the locale's translations.
  */
-export function mergeCatalog(locale, messages = {}, layers = {}) {
+export function mergeCatalog(locale, translations = {}) {
 	const bundled = bundledCatalogForLocale(locale);
-	const validatedMessages = validateMessages(messages || {});
 	return Object.freeze({
 		...ENGLISH_COPY,
 		...(bundled === GERMAN_COPY ? GERMAN_COPY : {}),
-		...(layers.machine || {}),
-		...validatedMessages,
+		...validateMessages(translations || {}),
 	});
-}
-
-async function resolveMachineMessages(locale, options) {
-	// The bundled German catalog is complete; nothing machine-made belongs under it.
-	if (bundledCatalogForLocale(locale) === GERMAN_COPY) return null;
-	return resolveLazyLayer(options, () => loadMachineCatalog(locale, { loaders: options.machineLoaders, englishCopy: ENGLISH_COPY }));
-}
-
-async function resolveAudacityMessages(locale, options) {
-	return resolveLazyLayer(options, () => loadAudacityCatalog(locale, { loaders: options.audacityLoaders, englishCopy: ENGLISH_COPY }));
-}
-
-async function resolveLazyLayer(options, load) {
-	try {
-		return await load();
-	} catch (error) {
-		// A chunk a retired deploy took away is the stale-build prompt's case;
-		// the layer falls away either way.
-		if (isModuleLoadFailure(error)) (options.reportStaleBuildCandidate ?? reportStaleBuildCandidate)(error);
-		options.onFallback?.(error);
-		return null;
-	}
 }
 
 function validateMessages(messages) {
 	if (!isPlainObject(messages)) throw new Error('Translation messages must be an object.');
 	const result = {};
 	for (const [key, value] of Object.entries(messages)) {
-		if (!COPY_KEYS.has(key)) throw new Error(`Translation pack contains an unknown key: ${key}.`);
+		if (!COPY_KEYS.has(key)) throw new Error(`Translation catalog contains an unknown key: ${key}.`);
 		if (typeof value !== 'string' || !value.trim()) throw new Error(`Translation value for ${key} must be a non-empty string.`);
 		if (ELLIPSIS_PATTERN.test(value)) throw new Error(`Translation value for ${key} contains an ellipsis.`);
 		if (!sameNamedPlaceholders(ENGLISH_COPY[key], value)) {

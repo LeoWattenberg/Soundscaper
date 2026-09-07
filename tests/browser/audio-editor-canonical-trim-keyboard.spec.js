@@ -4,7 +4,7 @@ import { chooseTrackMenuAction } from './helpers/track-menu.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { FRAMESCAPER_DATABASE_NAME, SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { evaluateWithTransientBrowserRetry } from './helpers/transient-evaluation-retry.js';
-import { audacityCopy } from './helpers/audacity-copy.js';
+import { localeCopy } from './helpers/locale-copy.js';
 
 // The workflow reads a Framescaper timeline and, for the legacy fallback, a
 // Soundscaper project it imports at /de/ — each from its own product database.
@@ -68,9 +68,9 @@ test.describe('Framescaper canonical clip-focus trim keyboard routing', () => {
 		await audioGroup.press('Shift+ArrowLeft');
 		await expect.poll(() => persistedTimeline(page, projectId)).toEqual(finalTrimStep.after);
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'info');
-		await clickHistory(editor, audacityCopy('de').undo);
+		await clickHistory(editor, localeCopy('de').undo);
 		await expect.poll(() => persistedTimeline(page, projectId)).toEqual(finalTrimStep.before);
-		await clickHistory(editor, audacityCopy('de').redo);
+		await clickHistory(editor, localeCopy('de').redo);
 		await expect.poll(() => persistedTimeline(page, projectId)).toEqual(finalTrimStep.after);
 
 		// Lock the video companion, not the focused audio. A legacy fallback would
@@ -92,7 +92,7 @@ test.describe('Framescaper canonical clip-focus trim keyboard routing', () => {
 		await audioGroup.press('Control+Shift+ArrowRight');
 		await expect.poll(() => persistedTimeline(page, projectId)).toEqual(locked);
 		// There was no keyboard history entry: one Undo removes the lock itself.
-		await clickHistory(editor, audacityCopy('de').undo);
+		await clickHistory(editor, localeCopy('de').undo);
 		await expect.poll(() => persistedTimeline(page, projectId)).toEqual(current);
 
 		await page.goto('/de/');
@@ -160,9 +160,9 @@ async function assertCanonicalKeyboardStep(page, editor, projectId, audioGroup, 
 		expect(after.audio.sourceDurationFrames).toBe(beforeAudio.sourceDurationFrames);
 		await expect(editor.locator('[data-status]')).toContainText('×');
 	}
-	await clickHistory(editor, audacityCopy('de').undo);
+	await clickHistory(editor, localeCopy('de').undo);
 	await expect.poll(() => persistedTimeline(page, projectId)).toEqual(before);
-	await clickHistory(editor, audacityCopy('de').redo);
+	await clickHistory(editor, localeCopy('de').redo);
 	await expect.poll(() => persistedTimeline(page, projectId)).toEqual(after);
 	return { before, after };
 }

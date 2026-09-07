@@ -1,20 +1,20 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-// The committed Audacity translation layer: Audacity's reviewed Qt TS messages
-// for the reviewed catalog keys, converted once per upstream artifact into one
-// JSON catalog per locale under src/common/i18n/audacity/, beside a generated
-// loader index, the upstream licence and a notice naming the exact source. The
-// runtime lazy-imports a locale's catalog the way it imports the machine
-// catalogs and lays it over them, so every reviewed string is shown wherever
-// Audacity has one. The files are deterministic for a given artifact and
-// mapping, so the weekly sync can regenerate them and commit only real changes.
+// Merging Audacity's reviewed strings into the translation catalogs. One
+// upstream artifact is verified and converted, and for every locale its
+// reviewed strings become `audacity` entries of that locale's catalog under
+// src/common/i18n/translations/, replacing machine entries and older
+// Audacity entries but never a human one; Audacity entries the artifact no
+// longer carries are removed. The notice and licence beside the catalogs
+// name the exact source. The result is deterministic for a given artifact,
+// mapping and English copy, so the weekly sync commits only real changes.
 
-import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { AUDACITY_QT_MAPPING, AUDACITY_QT_MAPPING_VERSION } from '../../src/common/i18n/audacity-qt-mapping.js';
+import { ENGLISH_COPY } from '../../src/common/i18n/catalogs.js';
 import { LOCALE_BY_TAG } from '../../src/common/i18n/locales.js';
 import { asBytes, readAudacityQtCatalogsFromZip } from './audacity-qt-catalog.mjs';
 import {
@@ -24,18 +24,18 @@ import {
 } from './audacity-qt-conversion.mjs';
 import { encodeCanonicalJson, fail, sha256 } from './audacity-qt-values.mjs';
 import { compareCodeUnits } from './canonical-json.mjs';
+import {
+	TRANSLATION_CATALOG_DIRECTORY,
+	listTranslationCatalogLocales,
+	readTranslationCatalog,
+	writeTranslationCatalog,
+	writeTranslationCatalogIndex,
+} from '../i18n-ai/catalog.mjs';
 
-export const AUDACITY_LAYER_SCHEMA_VERSION = 1;
-export const AUDACITY_LAYER_DIRECTORY = fileURLToPath(new URL('../../src/common/i18n/audacity/', import.meta.url));
-export const AUDACITY_LAYER_INDEX_FILE = 'index.js';
 export const AUDACITY_LAYER_NOTICE_FILE = 'NOTICE.md';
 export const AUDACITY_LAYER_LICENSE_FILE = 'LICENSE.txt';
 export const AUDACITY_TRANSLATION_MODIFICATION_NOTICE = 'Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.';
 const MAX_LICENSE_BYTES = 2 * 1024 * 1024;
-const PROVENANCE_FIELDS = Object.freeze([
-	'repository', 'headSha', 'runId', 'artifactId', 'workflowUrl', 'archiveName', 'archiveSha256', 'archiveByteLength',
-	'licenseSpdx', 'upstreamProjectUrl', 'upstreamLicenseUrl', 'modificationNotice', 'mappingVersion', 'mappingSha256',
-]);
 
 /** Verify the upstream artifact and convert every locale that carries a reviewed string. */
 export function buildAudacityLayer(options) {
@@ -67,7 +67,7 @@ export function buildAudacityLayer(options) {
 		mappingVersion: AUDACITY_QT_MAPPING_VERSION,
 		mappingSha256,
 	});
-	const layerCatalogs = new Map();
+	const messagesByLocale = new Map();
 	const audit = {};
 	const unknownLocales = [];
 	for (const [locale, catalog] of [...catalogs].sort(([left], [right]) => compareCodeUnits(left, right))) {
@@ -83,15 +83,9 @@ export function buildAudacityLayer(options) {
 		const messages = Object.fromEntries(Object.entries(result.messages)
 			.map(([key, value]) => [key, value.trim()])
 			.filter(([, value]) => value.length > 0));
-		if (!Object.keys(messages).length) continue;
-		layerCatalogs.set(locale, Object.freeze({
-			schemaVersion: AUDACITY_LAYER_SCHEMA_VERSION,
-			locale,
-			provenance,
-			messages,
-		}));
+		if (Object.keys(messages).length) messagesByLocale.set(locale, Object.freeze(messages));
 	}
-	return Object.freeze({ catalogs: layerCatalogs, provenance, audit: Object.freeze(audit), unknownLocales: Object.freeze(unknownLocales), licenseBytes });
+	return Object.freeze({ messagesByLocale, provenance, audit: Object.freeze(audit), unknownLocales: Object.freeze(unknownLocales), licenseBytes });
 }
 
 export function validateLayerSource(source) {
@@ -113,60 +107,66 @@ export function validateLayerSource(source) {
 	return { ...source };
 }
 
-/** Structural validity of one committed catalog file. */
-export function assertAudacityCatalogFile(catalog, locale) {
-	if (!catalog || typeof catalog !== 'object' || Array.isArray(catalog)) fail('LAYER_SHAPE', `Audacity catalog ${locale} must be an object.`);
-	if (catalog.schemaVersion !== AUDACITY_LAYER_SCHEMA_VERSION) fail('LAYER_SCHEMA', `Audacity catalog ${locale} has an unsupported schema.`);
-	if (catalog.locale !== locale || !LOCALE_BY_TAG[locale]) fail('LAYER_LOCALE', `Audacity catalog ${locale} declares locale ${catalog.locale}.`);
-	if (!catalog.provenance || typeof catalog.provenance !== 'object') fail('LAYER_PROVENANCE', `Audacity catalog ${locale} has no provenance.`);
-	for (const field of PROVENANCE_FIELDS) {
-		if (catalog.provenance[field] === undefined || catalog.provenance[field] === null || catalog.provenance[field] === '') {
-			fail('LAYER_PROVENANCE', `Audacity catalog ${locale} provenance is missing ${field}.`);
+/**
+ * Merge the converted strings into the catalogs: an `audacity` entry for
+ * every reviewed string whose key the English copy still has, written over
+ * machine and older Audacity entries but never over a human one; Audacity
+ * entries the artifact no longer carries are dropped. Returns what changed.
+ */
+export function mergeAudacityMessages(catalog, locale, messages, provenance, englishCopy = ENGLISH_COPY) {
+	const entries = { ...(catalog?.entries ?? {}) };
+	const summary = { locale, written: 0, kept: 0, removed: 0, humanKept: 0 };
+	for (const [key, entry] of Object.entries(entries)) {
+		if (entry[0] === 'audacity' && !Object.hasOwn(messages, key)) {
+			delete entries[key];
+			summary.removed += 1;
 		}
 	}
-	if (catalog.provenance.licenseSpdx !== 'GPL-3.0-only') fail('LAYER_LICENSE', `Audacity catalog ${locale} must record the GPL-3.0-only licence.`);
-	if (!catalog.messages || typeof catalog.messages !== 'object' || Array.isArray(catalog.messages)) fail('LAYER_MESSAGES', `Audacity catalog ${locale} messages must be an object.`);
-	const keys = Object.keys(catalog.messages);
-	if (!keys.length) fail('LAYER_EMPTY', `Audacity catalog ${locale} carries no messages.`);
-	const sorted = [...keys].sort(compareCodeUnits);
-	if (keys.some((key, index) => key !== sorted[index])) fail('LAYER_ORDER', `Audacity catalog ${locale} messages are not sorted.`);
-	for (const [key, value] of Object.entries(catalog.messages)) {
-		if (typeof value !== 'string' || !value.trim() || value !== value.trim()) fail('LAYER_VALUE', `Audacity catalog ${locale} message ${key} is not a trimmed non-empty string.`);
-		if (/…|\.\.\./u.test(value)) fail('LAYER_ELLIPSIS', `Audacity catalog ${locale} message ${key} contains an ellipsis.`);
+	for (const [key, translation] of Object.entries(messages).sort(([left], [right]) => compareCodeUnits(left, right))) {
+		if (!Object.hasOwn(englishCopy, key)) continue;
+		const existing = entries[key];
+		if (existing?.[0] === 'human') {
+			summary.humanKept += 1;
+			continue;
+		}
+		const next = ['audacity', englishCopy[key], translation];
+		if (existing && existing[0] === next[0] && existing[1] === next[1] && existing[2] === next[2]) summary.kept += 1;
+		else summary.written += 1;
+		entries[key] = next;
 	}
-	return catalog;
+	return {
+		catalog: { locale, provenance: { ...(catalog?.provenance ?? {}), audacity: provenance }, entries },
+		summary,
+	};
 }
 
-/** One message per line, keys in code-unit order, provenance on one line. */
-export function serializeAudacityCatalog(catalog) {
-	const keys = Object.keys(catalog.messages).sort(compareCodeUnits);
-	const provenance = Object.fromEntries(PROVENANCE_FIELDS.map((field) => [field, catalog.provenance[field]]));
-	return `{\n\t"schemaVersion": ${AUDACITY_LAYER_SCHEMA_VERSION},\n\t"locale": ${JSON.stringify(catalog.locale)},\n\t"provenance": ${JSON.stringify(provenance)},\n\t"messages": {\n${keys.map((key) => `\t\t${JSON.stringify(key)}: ${JSON.stringify(catalog.messages[key])}`).join(',\n')}\n\t}\n}\n`;
-}
-
-export function renderAudacityLayerIndex(locales) {
-	const list = locales.map((locale) => `\t'${locale}',`).join('\n');
-	const loaders = locales.map((locale) => `\t${propertyKey(locale)}: () => import('./${locale}.json'),`).join('\n');
-	return [
-		'/* SPDX-License-Identifier: AGPL-3.0-only */',
-		'',
-		'// Generated by scripts/audacity-qt-translations.mjs from the catalogs beside',
-		"// this file; do not edit by hand. Each loader is a lazy JSON chunk of Audacity's",
-		'// reviewed strings for one locale, laid over the machine catalog at runtime.',
-		'// The imports carry no type attribute on purpose: Vite bundles a JSON module',
-		'// into a JavaScript chunk, which the browser would refuse under a JSON attribute.',
-		'',
-		locales.length ? `export const AUDACITY_CATALOG_LOCALES = Object.freeze([\n${list}\n]);` : 'export const AUDACITY_CATALOG_LOCALES = Object.freeze([]);',
-		'',
-		locales.length ? `export const AUDACITY_CATALOG_LOADERS = Object.freeze({\n${loaders}\n});` : 'export const AUDACITY_CATALOG_LOADERS = Object.freeze({});',
-		'',
-	].join('\n');
+/** Write the layer into the catalogs, the index, the notice and the licence. */
+export async function writeAudacityLayer(layer, directory = TRANSLATION_CATALOG_DIRECTORY, { englishCopy = ENGLISH_COPY } = {}) {
+	const summaries = [];
+	const touched = new Set(layer.messagesByLocale.keys());
+	// Locales the artifact no longer covers lose their Audacity entries too.
+	for (const locale of await listTranslationCatalogLocales(directory)) {
+		if (!touched.has(locale)) {
+			const catalog = await readTranslationCatalog(locale, directory);
+			if (catalog && Object.values(catalog.entries).some(([origin]) => origin === 'audacity')) touched.add(locale);
+		}
+	}
+	for (const locale of [...touched].sort(compareCodeUnits)) {
+		const catalog = await readTranslationCatalog(locale, directory);
+		const { catalog: merged, summary } = mergeAudacityMessages(catalog, locale, layer.messagesByLocale.get(locale) ?? {}, layer.provenance, englishCopy);
+		await writeTranslationCatalog(merged, directory);
+		summaries.push(summary);
+	}
+	const locales = await writeTranslationCatalogIndex(directory);
+	await writeAtomically(join(directory, AUDACITY_LAYER_NOTICE_FILE), renderAudacityLayerNotice(layer.provenance, [...layer.messagesByLocale.keys()].sort(compareCodeUnits)));
+	await writeAtomically(join(directory, AUDACITY_LAYER_LICENSE_FILE), Buffer.from(layer.licenseBytes));
+	return { locales, summaries };
 }
 
 export function renderAudacityLayerNotice(provenance, locales) {
 	return `# Audacity translations
 
-The JSON catalogs in this directory carry translations from the Audacity project, converted from the Qt TS catalogs Audacity publishes for its translators' reviewed work. They are used under the GNU General Public License version 3 (\`${provenance.licenseSpdx}\`), whose text is in \`LICENSE.txt\` beside this file, and combined with this AGPL-3.0-only application under section 13 of both licences. The Audacity-derived strings remain governed by the GPLv3.
+The \`audacity\` entries of the JSON catalogs in this directory carry translations from the Audacity project, converted from the Qt TS catalogs Audacity publishes for its translators' reviewed work. They are used under the GNU General Public License version 3 (\`${provenance.licenseSpdx}\`), whose text is in \`LICENSE.txt\` beside this file, and combined with this AGPL-3.0-only application under section 13 of both licences. The Audacity-derived strings remain governed by the GPLv3; the \`machine\` and \`human\` entries beside them are this project's own.
 
 - upstream project: <${provenance.upstreamProjectUrl}>
 - upstream licence and notices: <${provenance.upstreamLicenseUrl}>
@@ -176,58 +176,10 @@ The JSON catalogs in this directory carry translations from the Audacity project
 
 Modification notice: ${provenance.modificationNotice}
 
-Locales carried: ${locales.join(', ')}.
+Locales with Audacity entries: ${locales.join(', ')}.
 
-Generated by \`scripts/audacity-qt-translations.mjs\`; do not edit these files by hand. The complete record of third-party material is in \`THIRD_PARTY_LICENSES.md\` at the repository root.
+Written by \`scripts/audacity-qt-translations.mjs\`; do not edit the \`audacity\` entries by hand. The complete record of third-party material is in \`THIRD_PARTY_LICENSES.md\` at the repository root.
 `;
-}
-
-export async function listAudacityLayerLocales(directory = AUDACITY_LAYER_DIRECTORY) {
-	let names;
-	try {
-		names = await readdir(directory);
-	} catch (error) {
-		if (error?.code === 'ENOENT') return [];
-		throw error;
-	}
-	return names.filter((name) => name.endsWith('.json')).map((name) => name.slice(0, -'.json'.length)).sort(compareCodeUnits);
-}
-
-export async function readAudacityCatalog(locale, directory = AUDACITY_LAYER_DIRECTORY) {
-	if (!LOCALE_BY_TAG[locale]) fail('LAYER_LOCALE', `Unknown locale for an Audacity catalog: ${locale}`);
-	let raw;
-	try {
-		raw = await readFile(join(directory, `${locale}.json`), 'utf8');
-	} catch (error) {
-		if (error?.code === 'ENOENT') return null;
-		throw error;
-	}
-	let catalog;
-	try {
-		catalog = JSON.parse(raw);
-	} catch (error) {
-		throw new Error(`Audacity catalog ${locale} is not valid JSON.`, { cause: error });
-	}
-	return assertAudacityCatalogFile(catalog, locale);
-}
-
-/** Write the layer: every catalog, the index, the notice and the licence; retire files no longer produced. */
-export async function writeAudacityLayer(layer, directory = AUDACITY_LAYER_DIRECTORY) {
-	const locales = [...layer.catalogs.keys()].sort(compareCodeUnits);
-	for (const locale of locales) assertAudacityCatalogFile(layer.catalogs.get(locale), locale);
-	await mkdir(directory, { recursive: true });
-	for (const previous of await listAudacityLayerLocales(directory)) {
-		if (!layer.catalogs.has(previous)) await rm(join(directory, `${previous}.json`), { force: true });
-	}
-	for (const locale of locales) await writeAtomically(join(directory, `${locale}.json`), serializeAudacityCatalog(layer.catalogs.get(locale)));
-	await writeAtomically(join(directory, AUDACITY_LAYER_INDEX_FILE), renderAudacityLayerIndex(locales));
-	await writeAtomically(join(directory, AUDACITY_LAYER_NOTICE_FILE), renderAudacityLayerNotice(layer.provenance, locales));
-	await writeAtomically(join(directory, AUDACITY_LAYER_LICENSE_FILE), Buffer.from(layer.licenseBytes));
-	return locales;
-}
-
-function propertyKey(locale) {
-	return /^[A-Za-z_$][A-Za-z0-9_$]*$/u.test(locale) ? locale : `'${locale}'`;
 }
 
 async function writeAtomically(path, content) {

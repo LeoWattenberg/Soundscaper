@@ -10,10 +10,10 @@
 import { asInvalidModelOutput } from '../docs-ai/generation.mjs';
 import { stripEllipses } from '../lib/audacity-qt-conversion.mjs';
 import {
-	acceptableMachineTranslation,
+	acceptableTranslation,
 	protectedTokens,
 	sameNamedPlaceholders,
-} from '../../src/common/i18n/machine-catalog.js';
+} from '../../src/common/i18n/translation-catalog.js';
 
 export const MACHINE_TRANSLATION_PROMPT_VERSION = 'i18n-machine-v1';
 
@@ -80,7 +80,7 @@ export function validateTranslationResponse(response, { targetLocale, messages }
 			if (!sameNamedPlaceholders(source, translation)) throw new Error(`"${key}" must keep the placeholders of ${JSON.stringify(source)}.`);
 			const tokens = protectedTokens(source).filter((token) => !translation.includes(token));
 			if (tokens.length) throw new Error(`"${key}" must keep ${tokens.join(', ')} unchanged.`);
-			if (!acceptableMachineTranslation(source, translation)) throw new Error(`"${key}" is not an acceptable translation of ${JSON.stringify(source)}.`);
+			if (!acceptableTranslation(source, translation)) throw new Error(`"${key}" is not an acceptable translation of ${JSON.stringify(source)}.`);
 			if (translation.length > Math.max(source.length * MAXIMUM_TRANSLATION_GROWTH, source.length + 40)) {
 				throw new Error(`"${key}" is far longer than its English.`);
 			}

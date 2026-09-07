@@ -5,7 +5,7 @@ import { dirname, resolve } from 'node:path';
 
 import { ENGLISH_COPY, bundledCopyForLocale } from '../src/common/i18n/catalogs.js';
 import { ROUTE_LOCALES } from '../src/common/i18n/locales.js';
-import { machineCatalogLocale } from '../src/common/i18n/machine-catalog.js';
+import { translationCatalogLocale } from '../src/common/i18n/translation-catalog.js';
 import { productProfile } from '../src/common/products.js';
 import { privacyPolicyContent, privacyPolicyPath } from '../src/common/site/privacy-policy.js';
 import {
@@ -15,7 +15,7 @@ import {
 	TRANSFER_ROUTES,
 } from '../src/common/transfer/transfer-routes.js';
 
-import { assessMachineCatalog, listMachineCatalogLocales, readMachineCatalog } from './i18n-ai/catalog.mjs';
+import { assessTranslationCatalog, listTranslationCatalogLocales, readTranslationCatalog } from './i18n-ai/catalog.mjs';
 import { productWebManifest } from './lib/product-web-manifest.mjs';
 import {
 	composeProductHeaders,
@@ -47,7 +47,7 @@ if (!rootPlan) throw new Error(`Web build ${routing.productId} has no document p
  */
 const LIGHT_THEME_COLOR = '#ffffff';
 const DARK_THEME_COLOR = manifestThemeColor();
-const machineCopy = await currentMachineCopy();
+const translatedCopy = await currentTranslatedCopy();
 let routeCount = 0;
 
 for (const plan of routing.plans) {
@@ -196,23 +196,22 @@ async function resolveTransferPageAssets(root) {
 }
 
 /**
- * The machine translations that are current against the English copy, per
- * catalog locale, so a locale's static document carries its own description
- * and loading text rather than the English ones. Audacity's reviewed strings
- * are resolved at runtime and never reach the static document.
+ * The translations that are current against the English copy, per catalog
+ * locale, so a locale's static document carries its own description and
+ * loading text rather than the English ones.
  */
-async function currentMachineCopy() {
+async function currentTranslatedCopy() {
 	const copies = new Map();
-	for (const locale of await listMachineCatalogLocales()) {
-		copies.set(locale, assessMachineCatalog(await readMachineCatalog(locale), ENGLISH_COPY).current);
+	for (const locale of await listTranslationCatalogLocales()) {
+		copies.set(locale, assessTranslationCatalog(await readTranslationCatalog(locale), ENGLISH_COPY).current);
 	}
 	return copies;
 }
 
 function copyForLocale(locale) {
 	const bundled = bundledCopyForLocale(locale);
-	const catalogLocale = machineCatalogLocale(locale, Object.fromEntries(machineCopy));
-	return catalogLocale ? { ...bundled, ...machineCopy.get(catalogLocale) } : bundled;
+	const catalogLocale = translationCatalogLocale(locale, Object.fromEntries(translatedCopy));
+	return catalogLocale ? { ...bundled, ...translatedCopy.get(catalogLocale) } : bundled;
 }
 
 function routeDocument(html, { descriptor, plan, route, embedded }) {

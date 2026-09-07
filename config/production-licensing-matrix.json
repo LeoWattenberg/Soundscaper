@@ -298,7 +298,7 @@
 			"status": "documented",
 			"description": "Audacity's reviewed translation strings are committed per-locale JSON catalogs converted from Audacity's upstream Qt TS catalogs, carrying inline provenance, and bundled into the renderer alongside the machine catalogs.",
 			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
-			"evidence": ["THIRD_PARTY_LICENSES.md", "src/common/i18n/audacity/NOTICE.md", "scripts/lib/audacity-committed-layer.mjs"]
+			"evidence": ["THIRD_PARTY_LICENSES.md", "src/common/i18n/translations/NOTICE.md", "scripts/lib/audacity-committed-layer.mjs"]
 		},
 		{
 			"id": "staffpad-wasm",

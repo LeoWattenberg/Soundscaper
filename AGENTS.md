@@ -15,14 +15,16 @@
   `test-results/`, or `node_modules/` content.
 - Keep FFmpeg runtime assets out of the Pages bundle; production assets are
   versioned under `https://assets.soundscaper.org/runtime/ffmpeg/`.
-- Locales other than English and German are served by generated machine
-  translations in `src/common/i18n/machine/` (JSON catalogs and their loader
-  index), which Audacity's reviewed strings in `src/common/i18n/audacity/`
-  (GPL-3.0 content the weekly sync workflow commits, with its notice) override
-  at runtime. Edit English copy freely: a machine entry whose English changed
-  retires itself until `npm run i18n:translate -- --all` regenerates it
-  against a local Ollama (see `scripts/i18n-ai/README.md`). Never hand-edit
-  either directory.
+- Locales other than English and German are served by one committed catalog
+  per locale in `src/common/i18n/translations/`, where every entry is tagged
+  `machine` (generated), `audacity` (GPL-3.0 strings the weekly sync
+  workflow commits, with their notice) or `human` (hand-written). Automatic
+  writers replace `machine` and `audacity` entries and never a `human` one;
+  to fix a string by hand, change its tag to `human`. Edit English copy
+  freely: an entry whose English changed retires itself until
+  `npm run i18n:translate -- --all` or the sync writes it again (see
+  `scripts/i18n-ai/README.md`). Never edit `machine` or `audacity` entries
+  or the loader index by hand.
 - `npm run check` is the canonical non-browser gate. During development and task
   handoff, lint added and modified lintable files with `npm run lint:changed`;
   the complete repository lint is an authoritative CI/pre-merge gate and is

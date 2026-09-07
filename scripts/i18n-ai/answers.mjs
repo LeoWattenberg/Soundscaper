@@ -14,10 +14,10 @@ import { join } from 'node:path';
 import { InvalidModelOutputError } from '../docs-ai/generation.mjs';
 import { ENGLISH_COPY, GERMAN_COPY } from '../../src/common/i18n/catalogs.js';
 import {
-	MACHINE_CATALOG_DIRECTORY,
-	assertMachineCatalogLocale,
-	assessMachineCatalog,
-	readMachineCatalog,
+	TRANSLATION_CATALOG_DIRECTORY,
+	assertMachineTranslatableLocale,
+	assessTranslationCatalog,
+	readTranslationCatalog,
 } from './catalog.mjs';
 import { MACHINE_TRANSLATION_PROMPT_VERSION, targetLanguageName, translationPacket } from './prompt.mjs';
 import {
@@ -29,12 +29,12 @@ import {
 
 /** Write one packet file per batch of a locale's pending keys; returns what was written. */
 export async function writeTranslationPackets(options) {
-	const locale = assertMachineCatalogLocale(options.locale);
+	const locale = assertMachineTranslatableLocale(options.locale);
 	const englishCopy = options.englishCopy ?? ENGLISH_COPY;
 	const germanCopy = options.germanCopy ?? GERMAN_COPY;
 	const excluded = new Set(options.excludedKeys ?? MACHINE_TRANSLATION_EXCLUDED_KEYS);
-	const existing = await readMachineCatalog(locale, options.directory ?? MACHINE_CATALOG_DIRECTORY);
-	const assessment = assessMachineCatalog(existing, englishCopy, { promptVersion: MACHINE_TRANSLATION_PROMPT_VERSION, excludedKeys: excluded });
+	const existing = await readTranslationCatalog(locale, options.directory ?? TRANSLATION_CATALOG_DIRECTORY);
+	const assessment = assessTranslationCatalog(existing, englishCopy, { promptVersion: MACHINE_TRANSLATION_PROMPT_VERSION, excludedKeys: excluded });
 	const pending = assessment.pending.filter((key) => !options.keys || options.keys.includes(key));
 	const outputDirectory = join(options.outputDirectory, locale);
 	await mkdir(outputDirectory, { recursive: true });

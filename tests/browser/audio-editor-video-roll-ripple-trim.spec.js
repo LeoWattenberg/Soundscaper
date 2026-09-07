@@ -8,7 +8,7 @@ import {
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
-import { audacityCopy } from './helpers/audacity-copy.js';
+import { localeCopy } from './helpers/locale-copy.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
@@ -68,12 +68,12 @@ test.describe('Framescaper frame-canonical roll and ripple trim qualification', 
 			);
 			assertContiguousLinkedPresentation(expected);
 
-			await clickHistory(editor, audacityCopy('de').undo);
+			await clickHistory(editor, localeCopy('de').undo);
 			await expectPersistedTimeline(page, projectId, baseline);
 			if (index === 0) {
-				await clickHistory(editor, audacityCopy('de').redo);
+				await clickHistory(editor, localeCopy('de').redo);
 				await expectPersistedTimeline(page, projectId, expected);
-				await clickHistory(editor, audacityCopy('de').undo);
+				await clickHistory(editor, localeCopy('de').undo);
 				await expectPersistedTimeline(page, projectId, baseline);
 			}
 			await selectVideoClip(editor, active.id);
@@ -85,7 +85,7 @@ test.describe('Framescaper frame-canonical roll and ripple trim qualification', 
 		await expect(editor.locator('[data-status]')).toContainText(
 			expectedGermanStatus(baseline, active, 'roll', 'left', 2),
 		);
-		await clickHistory(editor, audacityCopy('de').undo);
+		await clickHistory(editor, localeCopy('de').undo);
 		await expectPersistedTimeline(page, projectId, baseline);
 		await selectVideoClip(editor, active.id);
 
@@ -103,7 +103,7 @@ test.describe('Framescaper frame-canonical roll and ripple trim qualification', 
 		await expect(editor.locator('[data-status]')).toContainText(
 			expectedGermanStatus(baseline, active, 'ripple', 'right', -2),
 		);
-		await clickHistory(editor, audacityCopy('de').undo);
+		await clickHistory(editor, localeCopy('de').undo);
 		await expectPersistedTimeline(page, projectId, baseline);
 		await selectVideoClip(editor, active.id);
 
@@ -126,7 +126,7 @@ test.describe('Framescaper frame-canonical roll and ripple trim qualification', 
 				baseline.sequence.rate,
 			)} getrimmt.`,
 		);
-		await clickHistory(editor, audacityCopy('de').undo);
+		await clickHistory(editor, localeCopy('de').undo);
 		await expectPersistedTimeline(page, projectId, baseline);
 		await selectVideoClip(editor, active.id);
 

@@ -1,0 +1,38 @@
+{
+	"schemaVersion": 2,
+	"locale": "eu",
+	"provenance": {
+		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
+	},
+	"entries": {
+		"addEffect": ["audacity","Add effect","Gehitu efektua"],
+		"clipping": ["audacity","Clipping","Asetasun-distortsioa"],
+		"copy": ["audacity","Copy","Kopiatu"],
+		"cut": ["audacity","Cut","Ebaki"],
+		"delay": ["audacity","Delay","Atzerapena"],
+		"duplicateAudio": ["audacity","Duplicate","Bikoiztu"],
+		"effectParamFrequency": ["audacity","Frequency","Maiztasuna"],
+		"effectParamRatio": ["audacity","Ratio","Erlazioa"],
+		"gain": ["audacity","Gain","Irabazia"],
+		"generatorFrequency": ["audacity","Frequency (Hz)","Maiztasuna (Hz)"],
+		"generatorPink": ["audacity","Pink","Arrosa"],
+		"generatorWhite": ["audacity","White","Zuria"],
+		"level": ["audacity","Level","Maila"],
+		"metadataComments": ["audacity","Comments","Iruzkinak"],
+		"metadataTagColumn": ["audacity","Tag","Etiketa"],
+		"metadataYear": ["audacity","Year","Urtea"],
+		"pan": ["audacity","Pan","Panoramika"],
+		"panelHistory": ["audacity","History","Historia"],
+		"pause": ["audacity","Pause","Pausatu"],
+		"play": ["audacity","Play","Erreproduzitu"],
+		"preferences": ["audacity","Preferences","Hobespenak"],
+		"project": ["audacity","Project","Egitasmoa"],
+		"projectSaving": ["audacity","Saving project","Proiektua gordetzen"],
+		"redo": ["audacity","Redo","Berregin"],
+		"reverse": ["audacity","Reverse","Atzekoz aurrera jarri"],
+		"spectralGain": ["audacity","Gain (dB)","Irabazia (dB)"],
+		"stop": ["audacity","Stop","Gelditu"],
+		"theme": ["audacity","Theme","Gaia"],
+		"undo": ["audacity","Undo","Desegin"]
+	}
+}

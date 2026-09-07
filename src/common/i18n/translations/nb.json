@@ -1,0 +1,38 @@
+{
+	"schemaVersion": 2,
+	"locale": "nb",
+	"provenance": {
+		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
+	},
+	"entries": {
+		"addEffect": ["audacity","Add effect","Legg til effekt"],
+		"clipping": ["audacity","Clipping","Klipping"],
+		"copy": ["audacity","Copy","Kopier"],
+		"cut": ["audacity","Cut","Klipp ut"],
+		"delay": ["audacity","Delay","Forsinkelse"],
+		"duplicateAudio": ["audacity","Duplicate","Dupliser"],
+		"effectParamFrequency": ["audacity","Frequency","Frekvens"],
+		"effectParamRatio": ["audacity","Ratio","Forhold"],
+		"gain": ["audacity","Gain","Sporvolum"],
+		"generatorFrequency": ["audacity","Frequency (Hz)","Frekvens (Hz)"],
+		"generatorPink": ["audacity","Pink","Rosa"],
+		"generatorWhite": ["audacity","White","Hvit"],
+		"level": ["audacity","Level","Nivå"],
+		"metadataComments": ["audacity","Comments","Kommentarer"],
+		"metadataTagColumn": ["audacity","Tag","Tagg"],
+		"metadataYear": ["audacity","Year","År"],
+		"pan": ["audacity","Pan","Panorering"],
+		"panelHistory": ["audacity","History","Historie"],
+		"pause": ["audacity","Pause","Pause"],
+		"play": ["audacity","Play","Spill av"],
+		"preferences": ["audacity","Preferences","Innstillinger"],
+		"project": ["audacity","Project","Prosjekt"],
+		"projectSaving": ["audacity","Saving project","Lagrer prosjekt"],
+		"redo": ["audacity","Redo","Gjør om"],
+		"reverse": ["audacity","Reverse","Baklengs"],
+		"spectralGain": ["audacity","Gain (dB)","Forsterking (dB):"],
+		"stop": ["audacity","Stop","Stopp"],
+		"theme": ["audacity","Theme","Tema"],
+		"undo": ["audacity","Undo","Angre"]
+	}
+}

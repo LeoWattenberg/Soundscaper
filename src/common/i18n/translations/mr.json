@@ -1,0 +1,36 @@
+{
+	"schemaVersion": 2,
+	"locale": "mr",
+	"provenance": {
+		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
+	},
+	"entries": {
+		"clipping": ["audacity","Clipping","कात्रण"],
+		"copy": ["audacity","Copy","प्रत तयार करा."],
+		"cut": ["audacity","Cut","काढून टाका"],
+		"delay": ["audacity","Delay","विलंबता"],
+		"duplicateAudio": ["audacity","Duplicate","हुबेहूब प्रत"],
+		"effectParamFrequency": ["audacity","Frequency","वारंवारता"],
+		"effectParamRatio": ["audacity","Ratio","गुणोत्तर"],
+		"gain": ["audacity","Gain","मिळवा"],
+		"generatorFrequency": ["audacity","Frequency (Hz)","वारंवारता (Hz)"],
+		"generatorPink": ["audacity","Pink","गुलाबी"],
+		"generatorWhite": ["audacity","White","पांढरा"],
+		"level": ["audacity","Level","स्तर"],
+		"metadataComments": ["audacity","Comments","टिप्पण्या"],
+		"metadataTagColumn": ["audacity","Tag","टॅग"],
+		"metadataYear": ["audacity","Year","वर्ष"],
+		"pan": ["audacity","Pan","पॅन"],
+		"panelHistory": ["audacity","History","इतिहास"],
+		"pause": ["audacity","Pause","विराम द्या."],
+		"play": ["audacity","Play","वाजवा"],
+		"preferences": ["audacity","Preferences","प्राधान्ये"],
+		"project": ["audacity","Project","प्रकल्प"],
+		"redo": ["audacity","Redo","पुन्हा करा"],
+		"reverse": ["audacity","Reverse","उलटे"],
+		"spectralGain": ["audacity","Gain (dB)","मिळवा(dB)"],
+		"stop": ["audacity","Stop","थांबा"],
+		"theme": ["audacity","Theme","संकल्पना"],
+		"undo": ["audacity","Undo","पूर्ववत करा"]
+	}
+}

@@ -1,0 +1,39 @@
+{
+	"schemaVersion": 2,
+	"locale": "be",
+	"provenance": {
+		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
+	},
+	"entries": {
+		"applyEffectPreset": ["audacity","Apply preset","Ужыць набор налад"],
+		"clearLoopRegion": ["audacity","Clear loop region","Адключыць зацыкленае прайграванне"],
+		"clipping": ["audacity","Clipping","Перагрузка"],
+		"copy": ["audacity","Copy","Скапіяваць"],
+		"cut": ["audacity","Cut","Выразаць"],
+		"delay": ["audacity","Delay","Дылэй"],
+		"duplicateAudio": ["audacity","Duplicate","Прадубляваць"],
+		"effectParamRatio": ["audacity","Ratio","Суадносіны"],
+		"gain": ["audacity","Gain","Гучнасць"],
+		"generatorFrequency": ["audacity","Frequency (Hz)","Частата (Гц)"],
+		"loopToSelection": ["audacity","Set loop region to selection","Вылучыць зацыклены адрэзак"],
+		"metadataComments": ["audacity","Comments","Каментары"],
+		"metadataTagColumn": ["audacity","Tag","Поле"],
+		"metadataYear": ["audacity","Year","Год"],
+		"metronome": ["audacity","Metronome","Метраном"],
+		"pan": ["audacity","Pan","Панарамаванне"],
+		"pause": ["audacity","Pause","Прыпыніць"],
+		"play": ["audacity","Play","Прайграць"],
+		"redo": ["audacity","Redo","Узнавіць<br style=\"\">"],
+		"repeatLastEffect": ["audacity","Repeat last effect","Паўтарыць апошні эфект"],
+		"reverse": ["audacity","Reverse","Рэвёрс"],
+		"selectAll": ["audacity","All","Вылучыць усё"],
+		"splitIntoNewTrack": ["audacity","Split into new track","Раздзяліць на новую дарожку"],
+		"statusBar": ["audacity","Status bar","Панэль стану"],
+		"stop": ["audacity","Stop","Спыніць"],
+		"theme": ["audacity","Theme","Тэма"],
+		"timecode": ["audacity","Timecode","Тайм-код"],
+		"undo": ["audacity","Undo","Адрабіць<br style=\"\">"],
+		"zoomIn": ["audacity","Zoom in","Наблізіць"],
+		"zoomOut": ["audacity","Zoom out","Аддаліць"]
+	}
+}

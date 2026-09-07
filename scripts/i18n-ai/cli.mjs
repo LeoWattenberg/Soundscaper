@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { createOllamaClient } from '../docs-ai/ollama.mjs';
 import { COMMITTED_LOCALE_TAGS } from '../../src/common/i18n/locales.js';
 import { createAnswersClient, readAnswers, writeTranslationPackets } from './answers.mjs';
-import { assertMachineCatalogLocale, listMachineCatalogLocales } from './catalog.mjs';
+import { assertMachineTranslatableLocale, listTranslationCatalogLocales } from './catalog.mjs';
 import {
 	DEFAULT_BATCH_SIZE,
 	checkLocales,
@@ -19,8 +19,9 @@ const HELP = `Usage:
   node scripts/i18n-ai.mjs packets (--locale fr[,es] | --all) --output DIR [--batch-size ${DEFAULT_BATCH_SIZE}] [--no-glossary] [--keys key1,key2]
   node scripts/i18n-ai.mjs check [--locale fr[,es]] [--strict]
 
-translate writes src/common/i18n/machine/<locale>.json for every key the current English copy has and the
-catalog lacks or holds a stale translation of, then regenerates the loader index. With --answers DIR the
+translate writes machine entries into src/common/i18n/translations/<locale>.json for every key the current
+English copy has and the catalog lacks or holds a stale automatic entry for (a human entry is never touched),
+then regenerates the loader index. With --answers DIR the
 answers under DIR/<locale>/*.json stand in for the model and are held to the same rules. packets writes the
 closed packets such a run would send, one file per batch under DIR/<locale>/, for another translator to
 answer. check reports each catalog against the current English copy; --strict fails when anything is stale,
@@ -60,7 +61,7 @@ export function parseCliArguments(argv) {
 export function machineTranslatableLocales(locales = COMMITTED_LOCALE_TAGS) {
 	return locales.filter((locale) => {
 		try {
-			assertMachineCatalogLocale(locale);
+			assertMachineTranslatableLocale(locale);
 			return true;
 		} catch {
 			return false;
@@ -74,7 +75,7 @@ export async function runCli(argv, io = {}) {
 	const stderr = io.stderr ?? process.stderr;
 	const options = parseCliArguments(argv);
 	if (options.command === 'check') {
-		const locales = options.locales ?? await listMachineCatalogLocales(io.directory);
+		const locales = options.locales ?? await listTranslationCatalogLocales(io.directory);
 		const reports = await checkLocales({ locales, directory: io.directory });
 		let failed = false;
 		for (const report of reports) {
@@ -90,17 +91,18 @@ export async function runCli(argv, io = {}) {
 			}
 			const pending = report.stale + report.missing + report.orphaned + (report.outdated ? 1 : 0);
 			if (options.strict && pending > 0) failed = true;
-			stdout.write(`${report.locale}: ${report.current} current, ${report.stale} stale, ${report.missing} missing, ${report.orphaned} orphaned${report.outdated ? ', prompt outdated' : ''} (${report.model})\n`);
+			const origins = Object.entries(report.origins).filter(([, count]) => count > 0).map(([origin, count]) => `${count} ${origin}`).join(', ');
+			stdout.write(`${report.locale}: ${report.current} current (${origins}), ${report.stale} stale, ${report.missing} missing, ${report.orphaned} orphaned${report.outdated ? ', prompt outdated' : ''}${report.model ? ` (${report.model})` : ''}\n`);
 		}
 		if (failed) process.exitCode = 1;
 		return reports;
 	}
 
-	const locales = options.all ? machineTranslatableLocales() : options.locales.map(assertMachineCatalogLocale);
+	const locales = options.all ? machineTranslatableLocales() : options.locales.map(assertMachineTranslatableLocale);
 	if (options.command === 'packets') {
 		const results = [];
 		for (const locale of locales) {
-			const glossary = await resolveGlossary(locale, { ...options, audacityDirectory: io.audacityDirectory }, { stderr });
+			const glossary = await resolveGlossary(locale, { ...options, directory: io.directory }, { stderr });
 			const result = await writeTranslationPackets({
 				locale,
 				outputDirectory: resolve(options.output),
@@ -128,7 +130,7 @@ export async function runCli(argv, io = {}) {
 			client ??= createOllamaClient({ role: 'translate', model, env });
 			stderr.write(`${locale}: translating with ${model}\n`);
 		}
-		const glossary = await resolveGlossary(locale, { ...options, audacityDirectory: io.audacityDirectory }, { stderr });
+		const glossary = await resolveGlossary(locale, { ...options, directory: io.directory }, { stderr });
 		const summary = await translateLocale({
 			locale,
 			client,
@@ -148,7 +150,7 @@ export async function runCli(argv, io = {}) {
 
 async function resolveGlossary(locale, options, { stderr }) {
 	if (!options.glossary) return [];
-	const glossary = await loadGlossary({ locale, audacityDirectory: options.audacityDirectory });
+	const glossary = await loadGlossary({ locale, directory: options.directory });
 	stderr.write(`${locale}: glossary of ${glossary.length} Audacity-reviewed strings\n`);
 	return glossary;
 }

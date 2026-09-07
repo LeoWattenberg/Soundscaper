@@ -16,10 +16,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import { stageAssistanceNativeRuntimePayload } from '../desktop/assistance-native-runtime-payload.mjs';
 import { generateDesktopIcon } from './desktop-icons.mjs';
-import {
-	listAudacityLayerLocales,
-	readAudacityCatalog,
-} from './lib/audacity-committed-layer.mjs';
+import { listTranslationCatalogLocales, readTranslationCatalog } from './i18n-ai/catalog.mjs';
 import { stageDesktopBundledCodecNotices } from './lib/desktop-bundled-codec-notices.mjs';
 import {
 	prepareDesktopOsAudioCodecNativeRelease,
@@ -295,7 +292,7 @@ async function stageNativeAddons(release) {
 }
 
 /**
- * Audacity's reviewed strings are committed source under src/common/i18n/audacity/
+ * Audacity's reviewed strings are committed source under src/common/i18n/translations/
  * that Vite bundles into the renderer exactly like the machine catalogs, so the
  * package stages no translation resource tree and fetches nothing while it is
  * built. The stage manifest still records which upstream translation state the
@@ -303,25 +300,26 @@ async function stageNativeAddons(release) {
  * reviewed key mapping its strings were converted from.
  */
 async function describeCommittedTranslations() {
-	const locales = await listAudacityLayerLocales();
-	assert(locales.length > 0, 'The committed Audacity translation layer carries no catalogs.');
+	const locales = await listTranslationCatalogLocales();
+	assert(locales.length > 0, 'The committed translation catalogs are missing.');
 	let provenance = null;
+	const audacityLocales = [];
 	for (const locale of locales) {
 		// Reading each catalog also holds it to the layer's own shape rules, so a
 		// hand-edited or half-synced layer fails preparation rather than shipping.
-		const catalog = await readAudacityCatalog(locale);
-		assert(catalog !== null, `Committed Audacity catalog ${locale} is missing.`);
-		const { headSha, artifactId, mappingSha256 } = catalog.provenance;
+		const catalog = await readTranslationCatalog(locale);
+		assert(catalog !== null, `Committed translation catalog ${locale} is missing.`);
+		if (!catalog.provenance.audacity) continue;
+		audacityLocales.push(locale);
+		const { headSha, artifactId, mappingSha256 } = catalog.provenance.audacity;
 		if (provenance === null) provenance = { headSha, artifactId, mappingSha256 };
 		else {
-			// One sync writes every catalog from one upstream artifact, so a locale
-			// that disagrees means the layer was not written by one conversion.
-			assert(provenance.headSha === headSha && provenance.artifactId === artifactId
-				&& provenance.mappingSha256 === mappingSha256,
-			`Committed Audacity catalog ${locale} came from a different upstream artifact.`);
+			assert(provenance.headSha === headSha && provenance.artifactId === artifactId && provenance.mappingSha256 === mappingSha256,
+				`Committed translation catalog ${locale} carries Audacity strings from a different sync than the others.`);
 		}
 	}
-	return { ...provenance, locales };
+	assert(provenance !== null, 'No committed translation catalog carries Audacity strings.');
+	return { ...provenance, locales: audacityLocales };
 }
 
 async function buildRenderer() {

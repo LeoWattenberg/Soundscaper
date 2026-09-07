@@ -12,7 +12,7 @@ import {
 	FRAMESCAPER_DATABASE_NAME,
 	FRAMESCAPER_OPFS_DIRECTORY_NAME,
 } from './helpers/editor-databases.js';
-import { audacityCopy } from './helpers/audacity-copy.js';
+import { localeCopy } from './helpers/locale-copy.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
@@ -81,12 +81,12 @@ test.describe('Framescaper frame-canonical slip and slide qualification', () => 
 			);
 			assertContiguousLinkedPresentation(expected);
 
-			await clickHistory(editor, audacityCopy('de').undo);
+			await clickHistory(editor, localeCopy('de').undo);
 			await expectPersistedTimeline(page, projectId, baseline);
 			if (index === 0) {
-				await clickHistory(editor, audacityCopy('de').redo);
+				await clickHistory(editor, localeCopy('de').redo);
 				await expectPersistedTimeline(page, projectId, expected);
-				await clickHistory(editor, audacityCopy('de').undo);
+				await clickHistory(editor, localeCopy('de').undo);
 				await expectPersistedTimeline(page, projectId, baseline);
 			}
 			await selectVideoClip(editor, active.id);
@@ -111,7 +111,7 @@ test.describe('Framescaper frame-canonical slip and slide qualification', () => 
 		await expect(editor.locator('[data-status]')).toContainText(
 			expectedGermanStatus(baseline, slipped, active.id, 'slip', -1),
 		);
-		await clickHistory(editor, audacityCopy('de').undo);
+		await clickHistory(editor, localeCopy('de').undo);
 		await expectPersistedTimeline(page, projectId, baseline);
 		await selectVideoClip(editor, active.id);
 
@@ -127,7 +127,7 @@ test.describe('Framescaper frame-canonical slip and slide qualification', () => 
 		await expect(editor.locator('[data-status]')).toContainText(
 			expectedGermanStatus(baseline, slid, active.id, 'slide', 1),
 		);
-		await clickHistory(editor, audacityCopy('de').undo);
+		await clickHistory(editor, localeCopy('de').undo);
 		await expectPersistedTimeline(page, projectId, baseline);
 		await selectVideoClip(editor, active.id);
 

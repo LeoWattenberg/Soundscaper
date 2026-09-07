@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { localeLanguage } from '../i18n/locale.js';
 import { DEFAULT_LOCALE_TAGS, getLocaleDescriptor, ROUTE_LOCALES } from '../i18n/locales.js';
-import { AUDACITY_CATALOG_LOCALES } from '../i18n/audacity/index.js';
-import { MACHINE_CATALOG_LOCALES } from '../i18n/machine/index.js';
+import { TRANSLATION_CATALOG_LOCALES } from '../i18n/translations/index.js';
 import { useSiteCopy } from './use-site-copy.js';
 import { otherProductId, productIdentity } from '../product-identities.js';
 import { productHref } from '../product-web-links.js';
@@ -24,10 +23,10 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 	const [collapsed, setCollapsed] = useState(() => storedCollapsed(productId));
 	const [theme, setTheme] = useState(() => document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
 	const [workspace, setWorkspace] = useState({ activeId: profile.defaultWorkspace, workspaces: [] });
-	// Every routed locale a bundled, machine or committed Audacity catalog
-	// serves is offered; nothing is fetched to know that.
+	// Every routed locale a bundled or committed translation catalog serves is
+	// offered; nothing is fetched to know that.
 	const localeOptions = useMemo(() => {
-		const localeTags = new Set([...DEFAULT_LOCALE_TAGS, ...MACHINE_CATALOG_LOCALES, ...AUDACITY_CATALOG_LOCALES, localeDescriptor.locale]);
+		const localeTags = new Set([...DEFAULT_LOCALE_TAGS, ...TRANSLATION_CATALOG_LOCALES, localeDescriptor.locale]);
 		return ROUTE_LOCALES
 			.filter(({ locale: routeLocale }) => localeTags.has(routeLocale))
 			.map((descriptor) => ({ ...descriptor, name: descriptor.nativeName }))

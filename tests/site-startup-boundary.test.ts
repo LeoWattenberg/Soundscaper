@@ -46,16 +46,16 @@ test('the site entry owns no editor CSS or complete catalog edge', async () => {
 });
 
 // The complete catalogs must stay out of the static entry graph however they
-// are reached: an indirect edge through the machine-catalog layer would carry
-// every copy module into a graph budgeted at ten requests.
+// are reached: an indirect edge through the translation-catalog layer would
+// carry every copy module into a graph budgeted at ten requests.
 test('the static closure of the site shell never reaches the complete catalogs', async () => {
 	const closure = await staticClosure([
 		'src/common/site/App.jsx',
 		'src/common/site/BrandSidebar.jsx',
 		'src/common/site/use-site-copy.js',
 	]);
-	assert.ok(closure.has(resolve(fileURLToPath(ROOT), 'src/common/i18n/machine-catalog.js')));
-	assert.ok(closure.has(resolve(fileURLToPath(ROOT), 'src/common/i18n/machine/index.js')));
+	assert.ok(closure.has(resolve(fileURLToPath(ROOT), 'src/common/i18n/translation-catalog.js')));
+	assert.ok(closure.has(resolve(fileURLToPath(ROOT), 'src/common/i18n/translations/index.js')));
 	assert.ok(!closure.has(resolve(fileURLToPath(ROOT), 'src/common/i18n/catalogs.js')));
 	for (const path of closure) assert.doesNotMatch(path, /src\/common\/i18n\/(?!site-copy\.js|site-sidebar-copy\.js)[^/]*-copy\.js$|canonical-extras/u, path);
 });

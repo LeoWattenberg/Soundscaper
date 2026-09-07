@@ -20,6 +20,7 @@ import { renderCapabilityReference } from './docs-reference/capabilities.mjs';
 import { renderCommandReference } from './docs-reference/commands.mjs';
 import { renderFormatReference } from './docs-reference/formats.mjs';
 import { renderLanguageReference } from './docs-reference/languages.mjs';
+import { listTranslationCatalogLocales, readTranslationCatalog } from '../i18n-ai/catalog.mjs';
 import { renderNyquistReference } from './docs-reference/nyquist.mjs';
 import { renderPlatformReference } from './docs-reference/platforms.mjs';
 import { renderProjectFileReference } from './docs-reference/project-files.mjs';
@@ -70,8 +71,6 @@ const RUNTIME_MODULES = Object.freeze({
 	labels: 'src/common/editor/label-io.js',
 	liveEffects: 'src/common/editor/audacity-effects/live-capabilities.js',
 	locales: 'src/common/i18n/locales.js',
-	machineCatalogs: 'src/common/i18n/machine/index.js',
-	audacityCatalogs: 'src/common/i18n/audacity/index.js',
 	media: 'src/common/editor/media-export.js',
 	nyquist: 'src/common/editor/nyquist/plugin-registry.js',
 	panels: 'src/common/editor/ui/workspace/workspace-panel-model.ts',
@@ -102,6 +101,7 @@ async function readJson(repositoryRoot, relativePath) {
 export async function loadReferenceSources(repositoryRoot) {
 	const names = Object.keys(RUNTIME_MODULES);
 	const loaded = await Promise.all(names.map((name) => import(moduleUrl(repositoryRoot, RUNTIME_MODULES[name]))));
+	const translationOrigins = await translationOriginsByLocale();
 	const configurationNames = Object.keys(RUNTIME_CONFIGURATION);
 	const configurations = await Promise.all(
 		configurationNames.map((name) => readJson(repositoryRoot, RUNTIME_CONFIGURATION[name])),
@@ -118,7 +118,23 @@ export async function loadReferenceSources(repositoryRoot) {
 			mac: packaging.mac.target,
 			linux: packaging.linux.target,
 		}),
+		translationOrigins,
 	});
+}
+
+/**
+ * Which origins each committed translation catalog carries, so the languages
+ * page can say where a locale's strings come from without loading the
+ * catalogs into the bundle graph.
+ */
+async function translationOriginsByLocale() {
+	const origins = { machine: [], audacity: [], human: [] };
+	for (const locale of await listTranslationCatalogLocales()) {
+		const catalog = await readTranslationCatalog(locale);
+		const present = new Set(Object.values(catalog.entries).map(([origin]) => origin));
+		for (const origin of Object.keys(origins)) if (present.has(origin)) origins[origin].push(locale);
+	}
+	return Object.freeze(Object.fromEntries(Object.entries(origins).map(([origin, locales]) => [origin, Object.freeze(locales)])));
 }
 
 /** Resolve reviewed English copy, or report that the identifier has none. */
@@ -165,7 +181,7 @@ function audioEffectInputs(sources, productProfiles) {
 
 export function renderReferenceDocuments(sources) {
 	const {
-		actions, assistance, assistanceOperations, audacityCatalogs, copy, exportSettings, labels, locales, machineCatalogs, media,
+		actions, assistance, assistanceOperations, copy, exportSettings, labels, locales, media, translationOrigins,
 		modelCatalog, nyquist, packageTargets, panels, productionCapabilities, products, projectFiles,
 		scapeFormat, video, videoEffects, workspaces,
 	} = sources;
@@ -228,8 +244,8 @@ export function renderReferenceDocuments(sources) {
 		['languages.md', renderLanguageReference({
 			routeLocales: locales.ROUTE_LOCALES,
 			bundledLocaleTags: locales.DEFAULT_LOCALE_TAGS,
-			machineLocaleTags: machineCatalogs.MACHINE_CATALOG_LOCALES,
-			audacityLocaleTags: audacityCatalogs.AUDACITY_CATALOG_LOCALES,
+			machineLocaleTags: translationOrigins.machine,
+			audacityLocaleTags: translationOrigins.audacity,
 			localePath: locales.localePath,
 		})],
 		['platforms.md', renderPlatformReference({

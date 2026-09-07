@@ -1,127 +1,149 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
-import { currentMachineEntries } from '../src/common/i18n/machine-catalog.js';
-import { MACHINE_CATALOG_LOADERS, MACHINE_CATALOG_LOCALES } from '../src/common/i18n/machine/index.js';
 import {
-	MACHINE_CATALOG_DIRECTORY,
-	assertMachineCatalogFile,
-	assertMachineCatalogLocale,
-	assessMachineCatalog,
-	listMachineCatalogLocales,
-	readMachineCatalog,
-	renderMachineCatalogIndex,
-	serializeMachineCatalog,
-	writeMachineCatalog,
-	writeMachineCatalogIndex,
+	assertMachineTranslatableLocale,
+	assertTranslationCatalogFile,
+	assertTranslationCatalogLocale,
+	assessTranslationCatalog,
+	listTranslationCatalogLocales,
+	readTranslationCatalog,
+	renderTranslationCatalogIndex,
+	serializeTranslationCatalog,
+	writeTranslationCatalog,
+	writeTranslationCatalogIndex,
 } from '../scripts/i18n-ai/catalog.mjs';
 
-const PROVENANCE = { model: 'qwen3.8:latest', modelDigest: 'sha256:test', promptVersion: 'i18n-machine-v1' };
+const MACHINE = { model: 'qwen3.8:latest', modelDigest: 'sha256:test', promptVersion: 'i18n-machine-v1' };
+const AUDACITY = {
+	repository: 'audacity/audacity', headSha: 'b'.repeat(40), runId: 1, artifactId: 2, workflowUrl: 'https://github.com/audacity/audacity/actions/runs/1',
+	archiveName: 'Audacity_locale_1.zip', archiveSha256: 'a'.repeat(64), archiveByteLength: 3, licenseSpdx: 'GPL-3.0-only',
+	upstreamProjectUrl: 'https://github.com/audacity/audacity', upstreamLicenseUrl: 'https://github.com/audacity/audacity/blob/x/LICENSE.txt',
+	modificationNotice: 'converted', mappingVersion: 2, mappingSha256: 'c'.repeat(64),
+};
 
-test('every committed machine catalog is well formed and listed exactly once in the index', async (t) => {
-	const locales = await listMachineCatalogLocales();
-	assert.deepEqual(locales, [...MACHINE_CATALOG_LOCALES]);
-	assert.deepEqual(Object.keys(MACHINE_CATALOG_LOADERS), locales);
-	assert.equal(await readFile(join(MACHINE_CATALOG_DIRECTORY, 'index.js'), 'utf8'), renderMachineCatalogIndex(locales));
-	for (const locale of locales) {
-		const catalog = await readMachineCatalog(locale);
-		assert.ok(catalog, locale);
-		assert.equal(await readFile(join(MACHINE_CATALOG_DIRECTORY, `${locale}.json`), 'utf8'), serializeMachineCatalog(catalog), `${locale} is serialised canonically`);
-		const loaded = await MACHINE_CATALOG_LOADERS[locale]();
-		assert.deepEqual(loaded.default, catalog, `${locale} loader`);
-		const assessment = assessMachineCatalog(catalog, ENGLISH_COPY);
-		const shown = currentMachineEntries(catalog, ENGLISH_COPY, { locale });
-		assert.deepEqual(Object.keys(shown), Object.keys(assessment.current), `${locale} runtime and generator agree`);
-		t.diagnostic(`${locale}: ${Object.keys(assessment.current).length} current, ${assessment.stale.length} stale, ${assessment.missing.length} missing, ${assessment.orphaned.length} orphaned`);
-	}
+test('a catalog serves any known canonical locale; the machine translator only those without a bundled human catalog', () => {
+	assert.equal(assertTranslationCatalogLocale('fr'), 'fr');
+	assert.equal(assertTranslationCatalogLocale('en-GB'), 'en-GB');
+	assert.equal(assertTranslationCatalogLocale('de'), 'de');
+	assert.throws(() => assertTranslationCatalogLocale('fr_FR'), /Unknown or non-canonical/u);
+	assert.throws(() => assertTranslationCatalogLocale('tlh'), /Unknown or non-canonical/u);
+	assert.throws(() => assertTranslationCatalogLocale('../fr'), /Unknown or non-canonical/u);
+	assert.equal(assertMachineTranslatableLocale('fr'), 'fr');
+	assert.equal(assertMachineTranslatableLocale('zh-CN'), 'zh-CN');
+	assert.equal(assertMachineTranslatableLocale('sr-Latn-BA'), 'sr-Latn-BA');
+	assert.throws(() => assertMachineTranslatableLocale('en'), /bundled human catalog/u);
+	assert.throws(() => assertMachineTranslatableLocale('en-GB'), /bundled human catalog/u);
+	assert.throws(() => assertMachineTranslatableLocale('de'), /bundled human catalog/u);
+	assert.throws(() => assertMachineTranslatableLocale('fr_FR'), /Unknown or non-canonical/u);
 });
 
-test('a machine catalog serves a known locale that no bundled human catalog covers', () => {
-	assert.equal(assertMachineCatalogLocale('fr'), 'fr');
-	assert.equal(assertMachineCatalogLocale('zh-CN'), 'zh-CN');
-	assert.equal(assertMachineCatalogLocale('sr-Latn-BA'), 'sr-Latn-BA');
-	assert.throws(() => assertMachineCatalogLocale('en'), /bundled human catalog/u);
-	assert.throws(() => assertMachineCatalogLocale('en-GB'), /bundled human catalog/u);
-	assert.throws(() => assertMachineCatalogLocale('de'), /bundled human catalog/u);
-	assert.throws(() => assertMachineCatalogLocale('fr_FR'), /Unknown or non-canonical/u);
-	assert.throws(() => assertMachineCatalogLocale('tlh'), /Unknown or non-canonical/u);
-	assert.throws(() => assertMachineCatalogLocale('../fr'), /Unknown or non-canonical/u);
-});
-
-test('assessment sorts entries into current, stale, orphaned and missing', () => {
-	const english = { a: 'A', b: 'B', c: 'C' };
-	const assessment = assessMachineCatalog({ entries: { a: ['A', 'a'], b: ['B (old)', 'b'], z: ['Z', 'z'] } }, english);
-	assert.deepEqual(assessment.current, { a: 'a' });
-	assert.deepEqual([...assessment.stale], ['b']);
+test('assessment sorts entries into current, stale, orphaned and missing, and owes only automatic work', () => {
+	const english = { a: 'A', b: 'B', c: 'C', d: 'D', e: 'E' };
+	const assessment = assessTranslationCatalog({
+		entries: {
+			a: ['machine', 'A', 'a'],
+			b: ['audacity', 'B (old)', 'b'],
+			d: ['human', 'D (old)', 'd'],
+			e: ['human', 'E', 'e'],
+			z: ['machine', 'Z', 'z'],
+		},
+	}, english);
+	assert.deepEqual(assessment.current, { a: 'a', e: 'e' });
+	assert.deepEqual(assessment.origins, { a: 'machine', e: 'human' });
+	assert.deepEqual([...assessment.stale], ['b', 'd']);
 	assert.deepEqual([...assessment.orphaned], ['z']);
 	assert.deepEqual([...assessment.missing], ['c']);
-	assert.deepEqual([...assessment.pending], ['b', 'c']);
-	assert.deepEqual([...assessMachineCatalog(null, english).pending], ['a', 'b', 'c']);
+	assert.deepEqual([...assessment.pending], ['b', 'c'], 'a stale human entry waits for a person');
 	assert.equal(assessment.outdated, false);
-	const outdated = assessMachineCatalog({ provenance: { promptVersion: 'i18n-machine-v0' }, entries: { a: ['A', 'a'] } }, english, { promptVersion: 'i18n-machine-v1' });
+	assert.deepEqual([...assessTranslationCatalog(null, english).pending], ['a', 'b', 'c', 'd', 'e']);
+	assert.deepEqual([...assessTranslationCatalog(null, english, { excludedKeys: ['e'] }).missing], ['a', 'b', 'c', 'd']);
+	const outdated = assessTranslationCatalog({
+		provenance: { machine: { promptVersion: 'i18n-machine-v0' } },
+		entries: { a: ['machine', 'A', 'a'], b: ['audacity', 'B', 'b'], e: ['human', 'E', 'e'] },
+	}, english, { promptVersion: 'i18n-machine-v1' });
 	assert.equal(outdated.outdated, true);
-	assert.deepEqual(outdated.current, { a: 'a' });
-	assert.deepEqual([...outdated.pending], ['a', 'b', 'c']);
-	assert.equal(assessMachineCatalog(null, english, { promptVersion: 'i18n-machine-v1' }).outdated, false);
+	assert.deepEqual(outdated.current, { a: 'a', b: 'b', e: 'e' });
+	assert.deepEqual([...outdated.pending], ['a', 'b', 'c', 'd'], 'an outdated prompt owes every automatic entry, never a human one');
+	assert.equal(assessTranslationCatalog({ provenance: { audacity: AUDACITY }, entries: { b: ['audacity', 'B', 'b'] } }, english, { promptVersion: 'i18n-machine-v1' }).outdated, false);
+	assert.equal(assessTranslationCatalog(null, english, { promptVersion: 'i18n-machine-v1' }).outdated, false);
 });
 
-test('serialisation is canonical: one sorted entry per line with the provenance fields only', () => {
-	const text = serializeMachineCatalog({
+test('serialisation is canonical: one sorted triple per line, one provenance record per origin present', () => {
+	const text = serializeTranslationCatalog({
 		locale: 'fr',
-		provenance: { ...PROVENANCE, extra: 'dropped' },
-		entries: { zoomIn: ['Zoom in', 'Zoom avant'], addTrack: ['Add track', 'Ajouter une piste'] },
+		provenance: { audacity: { ...AUDACITY, extra: 'dropped' }, machine: { ...MACHINE, extra: 'dropped' } },
+		entries: { zoomIn: ['machine', 'Zoom in', 'Zoom avant'], addTrack: ['audacity', 'Add track', 'Ajouter une piste'], play: ['human', 'Play', 'Lecture'] },
 	});
 	assert.equal(text, [
 		'{',
-		'\t"schemaVersion": 1,',
+		'\t"schemaVersion": 2,',
 		'\t"locale": "fr",',
-		'\t"provenance": {"model":"qwen3.8:latest","modelDigest":"sha256:test","promptVersion":"i18n-machine-v1"},',
+		'\t"provenance": {',
+		`\t\t"machine": ${JSON.stringify(MACHINE)},`,
+		`\t\t"audacity": ${JSON.stringify(AUDACITY)}`,
+		'\t},',
 		'\t"entries": {',
-		'\t\t"addTrack": ["Add track","Ajouter une piste"],',
-		'\t\t"zoomIn": ["Zoom in","Zoom avant"]',
+		'\t\t"addTrack": ["audacity","Add track","Ajouter une piste"],',
+		'\t\t"play": ["human","Play","Lecture"],',
+		'\t\t"zoomIn": ["machine","Zoom in","Zoom avant"]',
 		'\t}',
 		'}',
 		'',
 	].join('\n'));
 	const parsed = JSON.parse(text);
 	assert.deepEqual(Object.keys(parsed), ['schemaVersion', 'locale', 'provenance', 'entries']);
-	assertMachineCatalogFile(parsed, 'fr');
+	assertTranslationCatalogFile(parsed, 'fr');
+	assert.match(serializeTranslationCatalog({ locale: 'fr', entries: { a: ['human', 'A', 'a'] } }), /"provenance": \{\},/u);
 });
 
-test('a catalog file is refused when its shape, order or entries are wrong', () => {
-	const valid = { schemaVersion: 1, locale: 'fr', provenance: PROVENANCE, entries: { a: ['A', 'a'] } };
-	assertMachineCatalogFile(valid, 'fr');
-	assert.throws(() => assertMachineCatalogFile({ ...valid, schemaVersion: 2 }, 'fr'), /schema/u);
-	assert.throws(() => assertMachineCatalogFile({ ...valid, locale: 'es' }, 'fr'), /declares locale/u);
-	assert.throws(() => assertMachineCatalogFile({ ...valid, provenance: { model: 'x' } }, 'fr'), /provenance/u);
-	assert.throws(() => assertMachineCatalogFile({ ...valid, entries: { b: ['B', 'b'], a: ['A', 'a'] } }, 'fr'), /sorted/u);
-	assert.throws(() => assertMachineCatalogFile({ ...valid, entries: { a: ['A'] } }, 'fr'), /pair/u);
-	assert.throws(() => assertMachineCatalogFile({ ...valid, entries: { a: ['A {n}', 'a'] } }, 'fr'), /acceptable/u);
-	assert.throws(() => assertMachineCatalogFile({ ...valid, entries: { a: ['A', 'a…'] } }, 'fr'), /acceptable/u);
-	assert.throws(() => assertMachineCatalogFile({ ...valid, locale: 'de' }, 'de'), /bundled human catalog/u);
+test('a catalog file is refused when its shape, order, provenance or entries are wrong', () => {
+	const valid = { schemaVersion: 2, locale: 'fr', provenance: { machine: MACHINE }, entries: { a: ['machine', 'A', 'a'], h: ['human', 'H', 'h'] } };
+	assertTranslationCatalogFile(valid, 'fr');
+	assertTranslationCatalogFile({ ...valid, provenance: {}, entries: { h: ['human', 'H', 'h'] } }, 'fr');
+	assert.throws(() => assertTranslationCatalogFile({ ...valid, schemaVersion: 1 }, 'fr'), /schema/u);
+	assert.throws(() => assertTranslationCatalogFile({ ...valid, locale: 'es' }, 'fr'), /declares locale/u);
+	assert.throws(() => assertTranslationCatalogFile({ ...valid, provenance: {} }, 'fr'), /machine provenance/u);
+	assert.throws(() => assertTranslationCatalogFile({ ...valid, provenance: { machine: { model: 'x' } } }, 'fr'), /missing modelDigest/u);
+	assert.throws(() => assertTranslationCatalogFile({ ...valid, provenance: { machine: MACHINE, audacity: AUDACITY } }, 'fr'), /audacity provenance without audacity entries/u);
+	assert.throws(() => assertTranslationCatalogFile({ ...valid, provenance: { machine: MACHINE, elsewhere: {} } }, 'fr'), /unknown origin/u);
+	assert.throws(() => assertTranslationCatalogFile({ ...valid, entries: { a: valid.entries.a, b: ['audacity', 'B', 'b'], h: valid.entries.h } }, 'fr'), /Audacity provenance is missing/u);
+	assert.throws(() => assertTranslationCatalogFile({ ...valid, provenance: { audacity: { ...AUDACITY, licenseSpdx: 'MIT' } }, entries: { b: ['audacity', 'B', 'b'] } }, 'fr'), /GPL-3\.0-only/u);
+	assert.throws(() => assertTranslationCatalogFile({ ...valid, entries: { h: ['human', 'H', 'h'], a: ['machine', 'A', 'a'] } }, 'fr'), /sorted/u);
+	assert.throws(() => assertTranslationCatalogFile({ ...valid, entries: { a: ['A', 'a'] } }, 'fr'), /triple/u);
+	assert.throws(() => assertTranslationCatalogFile({ ...valid, entries: { a: ['elsewhere', 'A', 'a'] } }, 'fr'), /triple/u);
+	assert.throws(() => assertTranslationCatalogFile({ ...valid, entries: { a: ['machine', 'A {n}', 'a'] } }, 'fr'), /acceptable/u);
+	assert.throws(() => assertTranslationCatalogFile({ ...valid, entries: { a: ['machine', 'A', 'a…'] } }, 'fr'), /acceptable/u);
+	assert.throws(() => assertTranslationCatalogFile({ ...valid, entries: {} }, 'fr'), /no entries/u);
+	assert.throws(() => assertTranslationCatalogFile({ ...valid, locale: 'tlh' }, 'tlh'), /Unknown or non-canonical/u);
 });
 
 test('writing a catalog and its index round-trips through the reader and the loader shape', async () => {
-	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-machine-catalog-'));
-	assert.deepEqual(await listMachineCatalogLocales(directory), []);
-	assert.equal(await readMachineCatalog('fr', directory), null);
-	await writeMachineCatalog({ locale: 'fr', provenance: PROVENANCE, entries: { b: ['B', 'b'], a: ['A', 'a'] } }, directory);
-	await writeMachineCatalog({ locale: 'zh-CN', provenance: PROVENANCE, entries: { a: ['A', '甲'] } }, directory);
-	assert.deepEqual(await writeMachineCatalogIndex(directory), ['fr', 'zh-CN']);
-	assert.deepEqual(await listMachineCatalogLocales(directory), ['fr', 'zh-CN']);
-	const catalog = await readMachineCatalog('fr', directory);
+	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-translation-catalog-'));
+	assert.deepEqual(await listTranslationCatalogLocales(directory), []);
+	assert.equal(await readTranslationCatalog('fr', directory), null);
+	await writeTranslationCatalog({ locale: 'fr', provenance: { machine: MACHINE, audacity: AUDACITY }, entries: { b: ['machine', 'B', 'b'], a: ['human', 'A', 'a'] } }, directory);
+	await writeTranslationCatalog({ locale: 'zh-CN', provenance: { machine: MACHINE }, entries: { a: ['machine', 'A', '甲'] } }, directory);
+	await writeTranslationCatalog({ locale: 'en-GB', provenance: { audacity: AUDACITY }, entries: { a: ['audacity', 'A', 'A (UK)'] } }, directory);
+	assert.deepEqual(await writeTranslationCatalogIndex(directory), ['en-GB', 'fr', 'zh-CN']);
+	assert.deepEqual(await listTranslationCatalogLocales(directory), ['en-GB', 'fr', 'zh-CN']);
+	const catalog = await readTranslationCatalog('fr', directory);
 	assert.deepEqual(Object.keys(catalog.entries), ['a', 'b']);
+	assert.deepEqual(Object.keys(catalog.provenance), ['machine'], 'provenance follows the origins present');
 	const index = await readFile(join(directory, 'index.js'), 'utf8');
+	assert.equal(index, renderTranslationCatalogIndex(['en-GB', 'fr', 'zh-CN']));
 	assert.match(index, /fr: \(\) => import\('\.\/fr\.json'\),/u);
 	assert.doesNotMatch(index, /with: \{ type/u);
 	assert.match(index, /'zh-CN': \(\) => import\('\.\/zh-CN\.json'/u);
-	assert.equal(renderMachineCatalogIndex([]), await readFile(join(MACHINE_CATALOG_DIRECTORY, 'index.js'), 'utf8').then((text) => (MACHINE_CATALOG_LOCALES.length ? renderMachineCatalogIndex([]) : text)));
-	await assert.rejects(() => writeMachineCatalog({ locale: 'fr', provenance: PROVENANCE, entries: { a: ['A', ''] } }, directory), /acceptable/u);
-	await assert.rejects(() => writeMachineCatalog({ locale: 'de', provenance: PROVENANCE, entries: {} }, directory), /bundled human catalog/u);
+	assert.match(renderTranslationCatalogIndex([]), /TRANSLATION_CATALOG_LOADERS = Object\.freeze\(\{\}\)/u);
+	await writeTranslationCatalog({ locale: 'zh-CN', provenance: { machine: MACHINE }, entries: {} }, directory);
+	assert.deepEqual(await writeTranslationCatalogIndex(directory), ['en-GB', 'fr'], 'a catalog with nothing left is removed');
+	assert.deepEqual((await readdir(directory)).sort(), ['en-GB.json', 'fr.json', 'index.js']);
+	await assert.rejects(() => writeTranslationCatalog({ locale: 'fr', provenance: { machine: MACHINE }, entries: { a: ['machine', 'A', ''] } }, directory), /acceptable/u);
+	await assert.rejects(() => writeTranslationCatalog({ locale: 'tlh', provenance: { machine: MACHINE }, entries: { a: ['machine', 'A', 'a'] } }, directory), /Unknown or non-canonical/u);
 });

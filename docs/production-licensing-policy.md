@@ -119,7 +119,7 @@ the work:
 - translated or adapted sources retain upstream project, revision, source
   paths, authorship and modification notices; Audacity's reviewed translation
   strings are one such source, committed as one JSON catalog per locale under
-  `src/common/i18n/audacity/`, each carrying that provenance and a
+  `src/common/i18n/translations/`, each carrying that provenance and a
   modification notice inline;
 - generated WebAssembly retains source manifests, license hashes, toolchain,
   build flags, artifact hashes, and a reproducible audit command;

@@ -14,15 +14,14 @@ import { InvalidModelOutputError, generateValidated } from '../docs-ai/generatio
 import { readCache, writeCache } from '../docs-ai/cache.mjs';
 import { sha256 } from '../docs-ai/provenance.mjs';
 import { ENGLISH_COPY, GERMAN_COPY } from '../../src/common/i18n/catalogs.js';
-import { readAudacityCatalog } from '../lib/audacity-committed-layer.mjs';
 import { compareCodeUnits } from '../lib/canonical-json.mjs';
 import {
-	MACHINE_CATALOG_DIRECTORY,
-	assertMachineCatalogLocale,
-	assessMachineCatalog,
-	readMachineCatalog,
-	writeMachineCatalog,
-	writeMachineCatalogIndex,
+	TRANSLATION_CATALOG_DIRECTORY,
+	assertMachineTranslatableLocale,
+	assessTranslationCatalog,
+	readTranslationCatalog,
+	writeTranslationCatalog,
+	writeTranslationCatalogIndex,
 } from './catalog.mjs';
 import {
 	MACHINE_TRANSLATION_PROMPT_VERSION,
@@ -54,16 +53,16 @@ export function defaultModelForLocale(locale) {
 }
 
 export async function translateLocale(options) {
-	const locale = assertMachineCatalogLocale(options.locale);
+	const locale = assertMachineTranslatableLocale(options.locale);
 	const englishCopy = options.englishCopy ?? ENGLISH_COPY;
 	const germanCopy = options.germanCopy ?? GERMAN_COPY;
-	const directory = options.directory ?? MACHINE_CATALOG_DIRECTORY;
+	const directory = options.directory ?? TRANSLATION_CATALOG_DIRECTORY;
 	const batchSize = validateBatchSize(options.batchSize ?? DEFAULT_BATCH_SIZE);
 	const batchCharacters = options.batchCharacters ?? DEFAULT_BATCH_CHARACTERS;
 	const log = options.log ?? (() => {});
-	const existing = await readMachineCatalog(locale, directory);
+	const existing = await readTranslationCatalog(locale, directory);
 	const excluded = new Set(options.excludedKeys ?? MACHINE_TRANSLATION_EXCLUDED_KEYS);
-	const assessment = assessMachineCatalog(existing, englishCopy, { promptVersion: MACHINE_TRANSLATION_PROMPT_VERSION, excludedKeys: excluded });
+	const assessment = assessTranslationCatalog(existing, englishCopy, { promptVersion: MACHINE_TRANSLATION_PROMPT_VERSION, excludedKeys: excluded });
 	const pending = assessment.pending.filter((key) => !options.keys || options.keys.includes(key));
 	const summary = {
 		locale,
@@ -75,28 +74,34 @@ export async function translateLocale(options) {
 		requests: 0,
 		cached: 0,
 	};
-	const entries = Object.fromEntries(Object.entries(assessment.current)
-		.filter(([key]) => !excluded.has(key))
-		.map(([key, translation]) => [key, [englishCopy[key], translation]]));
+	// Every entry that still belongs is kept as it is: current entries of any
+	// origin, and stale or excluded human entries, which are a person's to
+	// change. Stale automatic entries and orphans of deleted English keys go.
+	const entries = {};
+	for (const [key, entry] of Object.entries(existing?.entries ?? {})) {
+		if (!Object.hasOwn(englishCopy, key)) continue;
+		const human = entry[0] === 'human';
+		if (excluded.has(key) && !human) continue;
+		if (Object.hasOwn(assessment.current, key) || human) entries[key] = entry;
+	}
 	if (!pending.length) {
-		// Nothing for the model, but the file may still carry entries that no
-		// longer belong: orphans of deleted English keys, or excluded keys.
 		if (existing && Object.keys(existing.entries).some((key) => !Object.hasOwn(entries, key))) {
-			await writeMachineCatalog({ locale, provenance: existing.provenance, entries }, directory);
+			await writeTranslationCatalog({ locale, provenance: existing.provenance, entries }, directory);
 		}
-		await writeMachineCatalogIndex(directory);
+		await writeTranslationCatalogIndex(directory);
 		return summary;
 	}
 	const modelIdentity = await options.client.identity();
-	const provenance = {
+	const machineProvenance = {
 		model: modelIdentity.model,
 		modelDigest: modelIdentity.digest,
 		promptVersion: MACHINE_TRANSLATION_PROMPT_VERSION,
 	};
+	const provenance = { ...(existing?.provenance ?? {}), machine: machineProvenance };
 	// A regeneration forced by a new prompt keeps the old provenance until its
 	// last batch has landed, so an interrupted run still reads as outdated and
 	// resumes instead of passing off two prompts' output as one.
-	const interimProvenance = assessment.outdated && existing ? existing.provenance : provenance;
+	const interimProvenance = assessment.outdated && existing?.provenance?.machine ? existing.provenance : provenance;
 	const context = {
 		locale,
 		targetLanguage: targetLanguageName(locale),
@@ -111,12 +116,12 @@ export async function translateLocale(options) {
 	let handled = 0;
 	for (const keys of batches(pending, englishCopy, batchSize, batchCharacters)) {
 		const result = await translateBatch(context, keys);
-		for (const [key, translation] of Object.entries(result.translations)) entries[key] = [englishCopy[key], translation];
+		for (const [key, translation] of Object.entries(result.translations)) entries[key] = ['machine', englishCopy[key], translation];
 		summary.translated += Object.keys(result.translations).length;
 		summary.skipped.push(...result.skipped);
 		handled += keys.length;
-		await writeMachineCatalog({ locale, provenance: handled === pending.length ? provenance : interimProvenance, entries }, directory);
-		await writeMachineCatalogIndex(directory);
+		await writeTranslationCatalog({ locale, provenance: handled === pending.length ? provenance : interimProvenance, entries }, directory);
+		await writeTranslationCatalogIndex(directory);
 		log(`${locale}: ${handled}/${pending.length} pending keys handled (${summary.translated} translated, ${summary.skipped.length} skipped)`);
 	}
 	return summary;
@@ -203,37 +208,39 @@ async function translateBatch(context, keys) {
 
 /**
  * The Audacity-reviewed strings for a locale, as glossary rows the packet
- * carries, read from the committed Audacity layer beside the machine catalogs.
+ * carries: the catalog's own `audacity` entries.
  */
 export async function loadGlossary(options) {
 	const locale = options.locale;
 	const englishCopy = options.englishCopy ?? ENGLISH_COPY;
-	const catalog = await readAudacityCatalog(locale, options.audacityDirectory);
-	const messages = catalog?.messages;
-	if (!messages) return [];
-	return Object.keys(messages)
-		.filter((key) => Object.hasOwn(englishCopy, key) && messages[key] !== englishCopy[key])
-		.sort(compareCodeUnits)
-		.map((key) => ({ key, english: englishCopy[key], translation: messages[key] }));
+	const catalog = await readTranslationCatalog(locale, options.directory ?? TRANSLATION_CATALOG_DIRECTORY);
+	if (!catalog) return [];
+	return Object.entries(catalog.entries)
+		.filter(([key, [origin, , translation]]) => origin === 'audacity' && Object.hasOwn(englishCopy, key) && translation !== englishCopy[key])
+		.map(([key, [, , translation]]) => ({ key, english: englishCopy[key], translation }))
+		.sort((left, right) => compareCodeUnits(left.key, right.key));
 }
 
 /** The state of each locale's catalog against the current English copy. */
 export async function checkLocales(options) {
 	const englishCopy = options.englishCopy ?? ENGLISH_COPY;
-	const directory = options.directory ?? MACHINE_CATALOG_DIRECTORY;
+	const directory = options.directory ?? TRANSLATION_CATALOG_DIRECTORY;
 	const reports = [];
 	for (const locale of options.locales) {
 		try {
-			const catalog = await readMachineCatalog(locale, directory);
-			const assessment = assessMachineCatalog(catalog, englishCopy, {
+			const catalog = await readTranslationCatalog(locale, directory);
+			const assessment = assessTranslationCatalog(catalog, englishCopy, {
 				promptVersion: MACHINE_TRANSLATION_PROMPT_VERSION,
 				excludedKeys: options.excludedKeys ?? MACHINE_TRANSLATION_EXCLUDED_KEYS,
 			});
+			const origins = { machine: 0, audacity: 0, human: 0 };
+			for (const origin of Object.values(assessment.origins)) origins[origin] += 1;
 			reports.push({
 				locale,
 				present: catalog !== null,
-				model: catalog?.provenance.model ?? null,
+				model: catalog?.provenance.machine?.model ?? null,
 				current: Object.keys(assessment.current).length,
+				origins,
 				stale: assessment.stale.length,
 				missing: assessment.missing.length,
 				orphaned: assessment.orphaned.length,
@@ -241,7 +248,7 @@ export async function checkLocales(options) {
 				invalid: null,
 			});
 		} catch (error) {
-			reports.push({ locale, present: true, model: null, current: 0, stale: 0, missing: 0, orphaned: 0, outdated: false, invalid: error.message });
+			reports.push({ locale, present: true, model: null, current: 0, origins: { machine: 0, audacity: 0, human: 0 }, stale: 0, missing: 0, orphaned: 0, outdated: false, invalid: error.message });
 		}
 	}
 	return reports;
