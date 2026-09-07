@@ -18,9 +18,11 @@ import type { createInitialStorageCapacitySnapshot } from './storage-capacity-se
 import type { EditorTaskProgress } from './task-progress.ts';
 import type { TakeCyclePendingOpenRecovery } from './take-cycle-capture-orchestrator.ts';
 import type { VideoEffectServiceRuntime } from './video-effect-service.ts';
+import type { AudioEditorClipboard } from '../commands/protocol.ts';
+import type { ExportActionState } from './export-action-group.ts';
 
 /** Mutable workspace slots retain their owners' contracts after initialization. */
-export interface ControllerWorkspaceState<Preferences, EffectPresets, History = ControllerRuntimeHistory> {
+export interface ControllerWorkspaceState<Preferences, EffectPresets, History = ControllerRuntimeHistory> extends ExportActionState {
 	localDiagnostics: ReturnType<typeof createLocalDiagnosticsErrorJournal>;
 	history: History | null;
 	preferences: Preferences;
@@ -28,7 +30,7 @@ export interface ControllerWorkspaceState<Preferences, EffectPresets, History = 
 	selectedTrackId: string | null;
 	selectedClipId: string | null;
 	selectedAnnotationId: string | null;
-	clipboard: unknown;
+	clipboard: AudioEditorClipboard | null;
 	visibleTrackHeights: Record<string, number>;
 	timelineView: ProjectViewState['timelineView'];
 	takeCycleRecovery: TakeCyclePendingOpenRecovery | null;

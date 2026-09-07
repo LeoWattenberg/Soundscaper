@@ -4,6 +4,15 @@ import { createDeliveryPresetService } from './delivery-preset-service.ts';
 import { createDeliveryQueueService } from './delivery-queue-service.ts';
 import { saveCurrentDeliveryReport } from './delivery-report-action.ts';
 import { exportProjectEdl, exportProjectFcpxml, exportProjectOtio } from './interchange-export-action.ts';
+import type { DeliveryQueue } from '../delivery-queue.ts';
+
+/** Delivery owns these optional workspace slots; reports remain inert domain data. */
+export interface ExportActionState {
+	deliveryReport?: unknown;
+	deliveryPresets?: unknown;
+	deliveryQueue?: DeliveryQueue;
+	videoDeliveryPreviewCanvas?: object | null;
+}
 
 /**
  * The export action group.
@@ -15,7 +24,7 @@ import { exportProjectEdl, exportProjectFcpxml, exportProjectOtio } from './inte
 
 export interface ExportActionGroupRuntime {
 	readonly handleExportAction: (action: string, settings?: unknown) => Promise<unknown> | unknown;
-	readonly state: Record<string, unknown>;
+	readonly state: ExportActionState;
 	readonly productName?: string | null;
 	readonly getProjectTitle?: () => string | null;
 	readonly fileService?: { saveFile?: (request: Readonly<Record<string, unknown>>) => unknown } | null;

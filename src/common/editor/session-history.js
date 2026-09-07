@@ -2,6 +2,7 @@
 
 import { AUDIO_EDITOR_HISTORY_LIMIT } from './history.js';
 
+/** @template Value @param {Value} value @returns {Value} */
 export function clone(value) {
 	if (value === undefined || value === null) return value;
 	if (typeof structuredClone === 'function') return structuredClone(value);

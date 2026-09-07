@@ -17,9 +17,10 @@ import type { createEditorTaskProgressCoordinator } from './task-progress.ts';
 import type { EffectMacroLibraryServiceRuntime } from './effect-macro-library-service.ts';
 import type { MacroScriptLibraryServiceRuntime } from './macro-script-library-service.ts';
 import type { TrimMediaFfmpegHost } from './trim-media-service.ts';
+import type { ExportActionState } from './export-action-group.ts';
 
 type MacroState = EffectMacroLibraryServiceRuntime['state'] & MacroScriptLibraryServiceRuntime['state'];
-interface EditorActionState extends Record<string, unknown>, MacroState {
+interface EditorActionState extends MacroState, ExportActionState {
 	audacityEffectType: string;
 	effectPresets: unknown;
 	selectedTrackId: string | null;
@@ -69,4 +70,3 @@ export interface EditorActionResources {
 	readonly macroScriptStartedAt?: () => string;
 	readonly onMacroScriptLog?: (entry: Readonly<{ level: 'info' | 'warn' | 'error'; text: string; at: number }>) => void;
 }
-

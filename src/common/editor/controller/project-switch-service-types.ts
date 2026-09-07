@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { AudioEditorClipboard } from '../commands/protocol.ts';
+
 import type { EditorCancellableHandle, EditorLifetimeToken } from './lifecycle.ts';
 import type { PlaybackProjectService } from './playback-project-service.ts';
 import type { ScapeInspectionQuiescence } from './scape-inspection-quiescence.ts';
@@ -50,7 +52,7 @@ export interface ProjectSwitchState<
 	history: History | null;
 	selectedTrackId: string | null;
 	selectedClipId: string | null;
-	clipboard: unknown;
+	clipboard: AudioEditorClipboard | null;
 	rackEffectGestures: Map<string, unknown>;
 	parametricEqGestures: Map<string, unknown>;
 	videoEffectGestures: Map<string, unknown>;
@@ -104,7 +106,7 @@ export interface ProjectSwitchSession<
 	updateProjectMetadata(projectId: string, metadata: Readonly<Record<string, unknown>>): void;
 	setProjectReadOnly(projectId: string, update: ProjectReadOnlyUpdate): void;
 	getProjectHistory(projectId: string): History;
-	clipboardForProject(projectId: string): Readonly<{ descriptor: unknown }> | null;
+	clipboardForProject(projectId: string): Readonly<{ descriptor: AudioEditorClipboard }> | null;
 	markProjectSaved(projectId: string): void;
 }
 

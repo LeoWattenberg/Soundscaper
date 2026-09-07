@@ -25,7 +25,7 @@ import {
 
 interface InterchangeRuntime {
 	readonly getProject: () => Readonly<Record<string, unknown>> | null | undefined;
-	readonly state: Record<string, unknown>;
+	readonly state: { deliveryReport?: unknown };
 	readonly fileService?: { saveFile?: (request: Readonly<Record<string, unknown>>) => unknown } | null;
 	readonly publishDocumentSnapshot?: () => void;
 	readonly sequenceId?: string;

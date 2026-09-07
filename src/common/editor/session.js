@@ -104,6 +104,7 @@ function releasedBetween(before, after) {
 export function createAudioEditorSessionController(options = {}) {
 	let tabs = [];
 	let activeProjectId = null;
+	/** @type {import('./session-clipboard-codec.ts').AudioEditorSessionClipboard | null} */
 	let clipboard = null;
 	let disposed = false;
 	let snapshotCache = null;

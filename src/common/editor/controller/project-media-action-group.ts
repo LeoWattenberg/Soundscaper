@@ -36,7 +36,7 @@ import {
 } from './trim-media-service.ts';
 
 export interface ProjectMediaActionRuntime {
-	readonly state: Record<string, unknown>;
+	readonly state: { deliveryReport?: unknown };
 	readonly getProject: () => Readonly<Record<string, unknown>> | null | undefined;
 	readonly store: ConsolidateMediaStore | null | undefined;
 	readonly publishDocumentSnapshot?: () => void;

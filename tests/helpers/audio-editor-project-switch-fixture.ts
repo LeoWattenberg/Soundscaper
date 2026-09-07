@@ -141,7 +141,7 @@ export function createFixture(
 			if (tab) tabs.set(projectId, { ...tab, readOnly: update.readOnly, readOnlyReason: update.reason });
 		},
 		getProjectHistory(projectId: string) { const history = tabs.get(projectId)?.history; if (!history) throw new Error(`Missing session history for ${projectId}.`); return history; },
-		clipboardForProject() { return { descriptor: { type: 'clip' } }; },
+		clipboardForProject() { return { descriptor: { schemaVersion: 1 as const, sampleRate: 48_000, durationFrames: 0, tracks: [] } }; },
 		markProjectSaved(projectId: string) { events.push(`marked-saved:${projectId}`); },
 	};
 	const runtime = {
