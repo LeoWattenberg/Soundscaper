@@ -268,6 +268,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			setSelection,
 			setExactSelection,
 			clearSelection: () => setSelection(0, 0, { trackIds: [], frequencyRange: null }),
+			selectAll: () => selectionViewService.selectAll(),
 			selectAllTracks,
 			selectLeftOfPlayback: selectLeftOfPlaybackPosition,
 			selectRightOfPlayback: selectRightOfPlaybackPosition,

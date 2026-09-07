@@ -217,6 +217,28 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		return hasActiveTimelineAnnotations(project) && project.selection?.annotationIds?.length ? { annotationIds: [] } : {};
 	}
 
+	/**
+	 * Audacity's own `Select All`: the whole project's time range *and* every
+	 * track (`DoSelectTimeAndTracks(project, true, true)`). The track-only
+	 * variant below is a separate upstream command, `SelAllTracks`, and the two
+	 * are not interchangeable — a macro opening with `SelectAll` hands the steps
+	 * after it the whole project, not whatever range happened to be selected.
+	 *
+	 * The range ends at the content, not at the timeline's visible extent, which
+	 * deliberately runs past it so there is somewhere to drag to.
+	 */
+	function selectAll() {
+		const project = getProject();
+		if (!project) return null;
+		const trackIds = project.tracks.map((track: any) => track.id);
+		const next = applySelectionRange(0, projectDurationFrames(project), { trackIds }, false);
+		if (!state.selectedTrackId && trackIds.length) {
+			state.selectedTrackId = trackIds[0];
+			synchronizeMicrophoneMeterTarget();
+		}
+		return next.selection;
+	}
+
 	function selectAllTracks() {
 		const project = getProject();
 		if (!project) return null;
@@ -411,6 +433,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 
 	return Object.freeze({
 		clipNavigation,
+		selectAll,
 		selectAllTracks,
 		selectAtZeroCrossings,
 		selectClip,

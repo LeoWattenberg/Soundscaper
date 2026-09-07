@@ -27,7 +27,7 @@ function createHarness(selection: MacroCommandSelection = { startFrame: 200, end
 	const service = createMacroCommandService({
 		getActions: () => ({
 			edit: { cut: () => { ran.push('edit.cut'); } },
-			timeline: { selectAllTracks: () => { ran.push('timeline.selectAllTracks'); } },
+			timeline: { selectAll: () => { ran.push('timeline.selectAll'); } },
 			track: { addMono: () => { ran.push('track.addMono'); } },
 		}),
 		getProject: () => project,
@@ -128,7 +128,7 @@ test('a bare command runs the editor action it names', () => {
 	harness.run('SelectAll');
 	harness.run('Cut');
 	harness.run('NewMonoTrack');
-	assert.deepEqual(harness.ran, ['timeline.selectAllTracks', 'edit.cut', 'track.addMono']);
+	assert.deepEqual(harness.ran, ['timeline.selectAll', 'edit.cut', 'track.addMono']);
 	assert.deepEqual(harness.applied, [], 'a bare command sets no selection of its own');
 });
 

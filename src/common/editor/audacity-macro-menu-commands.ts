@@ -40,7 +40,8 @@ export interface AudacityMacroMenuCommand {
 
 export const AUDACITY_MACRO_MENU_COMMANDS: readonly AudacityMacroMenuCommand[] = Object.freeze([
 	// Selection
-	{ command: 'SelectAll', path: 'timeline.selectAllTracks' },
+	{ command: 'SelectAll', path: 'timeline.selectAll' },
+	{ command: 'SelAllTracks', path: 'timeline.selectAllTracks' },
 	{ command: 'SelectNone', path: 'timeline.clearSelection' },
 	{ command: 'SelCursorStoredCursor', path: 'timeline.selectTrackStartToCursor' },
 	{ command: 'SelTrackStartToEnd', path: 'timeline.selectTrackStartToEnd' },
