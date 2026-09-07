@@ -38,7 +38,7 @@ const METHOD_NAMES = [
  * long before a transaction could open — so a runtime without these is complete,
  * and one with them keeps them rather than having them snapshotted away.
  */
-const OPTIONAL_METHOD_NAMES = ['collapseHistory', 'rollbackHistory'] as const;
+const OPTIONAL_METHOD_NAMES = ['collapseHistory', 'rollbackHistory', 'validateProject'] as const;
 
 export interface ControllerRuntimeProject extends Record<string, unknown> {
 	readonly id: string;
@@ -103,6 +103,8 @@ export interface ControllerProjectRuntime<
 	readonly assistanceAssetCommands: boolean;
 	readonly createProject: (options?: Readonly<Record<string, unknown>>) => Project;
 	readonly cloneProject: (project: unknown) => Project;
+	/** Validate an existing object without replacing its identity. */
+	readonly validateProject?: (project: unknown) => project is Project;
 	readonly loadProject: (project: unknown) => Readonly<{
 		readonly project: LoadedProject;
 		readonly readOnly: boolean;
@@ -180,6 +182,7 @@ const DEFAULT_RUNTIME = Object.freeze({
 	assistanceAssetCommands: false,
 	createProject: createCurrentAudioEditorProject,
 	cloneProject,
+	validateProject: validateAudioEditorProjectV17,
 	loadProject: loadCurrentAudioEditorProject,
 	projectForCommandConsumers,
 	projectForRuntimeConsumers,

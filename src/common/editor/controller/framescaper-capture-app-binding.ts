@@ -4,6 +4,7 @@ import {
 	normalizeFramescaperCaptureSessionManifest,
 	type FramescaperCaptureSessionManifestV1,
 } from '../framescaper-capture-session-manifest.ts';
+import { admitFramescaperCaptureProject as routeProject, type FramescaperCaptureAppProject } from './framescaper-capture-project-admission.ts';
 import { serializeScapeProjectDocument } from '../scape-project-document.ts';
 import { normalizeRational, roundRational } from '../timeline-time.ts';
 import {
@@ -37,6 +38,8 @@ import {
 	readProjectSchemaIdentity,
 } from '../project-schema-identity.ts';
 
+export type { FramescaperCaptureAppProject } from './framescaper-capture-project-admission.ts';
+
 type PassThroughOptions = Pick<FramescaperCaptureAppCompositionOptions,
 	'mediaDevices' | 'createStream' | 'MediaRecorder' | 'MediaStreamTrackProcessor'
 	| 'MediaStreamTrackGenerator' | 'VideoFrame'
@@ -47,24 +50,8 @@ type PassThroughOptions = Pick<FramescaperCaptureAppCompositionOptions,
 	| 'recordRetryableRecovery' | 'scheduleDerivatives' | 'onWarning' | 'onChange'
 >;
 
-export interface FramescaperCaptureAppProject extends Record<string, unknown> {
-	readonly id: string;
-	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
-	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
-	readonly revision: number;
-	readonly updatedAt?: unknown;
-	readonly sampleRate: number;
-	readonly primarySequenceId: string;
-	readonly sequences: readonly (Readonly<Record<string, unknown>> & {
-		readonly id: string;
-		readonly rate: Readonly<{ readonly num: number; readonly den: number }>;
-		readonly trackIds: readonly string[];
-	})[];
-}
-
 export interface FramescaperCaptureAppHistory {
 	readonly present: FramescaperCaptureAppProject;
-	readonly [key: string]: unknown;
 }
 
 export interface FramescaperCaptureAppProjectRepository {
@@ -78,15 +65,21 @@ export interface FramescaperCaptureAppProjectRepository {
 	): PromiseLike<FramescaperCaptureAppProject | null> | FramescaperCaptureAppProject | null;
 }
 
+/** Repository results remain untrusted until capture route admission. */
+export interface FramescaperCaptureStoredProjectRepository {
+	load(projectId: string, options?: Readonly<{ revision?: number }>): unknown;
+	saveIfCurrent?(expected: FramescaperCaptureAppProject, project: FramescaperCaptureAppProject): unknown;
+}
+
 export interface FramescaperCaptureAppBindingStore extends FramescaperCaptureAppStore {
-	readonly projectRepository?: FramescaperCaptureAppProjectRepository | null;
+	readonly projectRepository?: FramescaperCaptureStoredProjectRepository | null;
 	loadProject?(
 		projectId: string,
 		options?: Readonly<{ readonly revision?: number }>,
-	): PromiseLike<FramescaperCaptureAppProject | null> | FramescaperCaptureAppProject | null;
+	): unknown;
 	saveProject?(
 		project: FramescaperCaptureAppProject,
-	): PromiseLike<FramescaperCaptureAppProject> | FramescaperCaptureAppProject;
+	): unknown;
 	listProjects(): PromiseLike<readonly Readonly<{ readonly id: string }>[]> |
 		readonly Readonly<{ readonly id: string }>[];
 }
@@ -213,9 +206,16 @@ export function createFramescaperCaptureAppProjectRepository(
 			|| typeof repository.saveIfCurrent !== 'function') {
 			throw new TypeError('Framescaper web capture requires exact project repository CAS.');
 		}
+		const saveIfCurrent = repository.saveIfCurrent;
 		const adapter: FramescaperCaptureAppProjectRepository = {
-			load: (projectId, loadOptions) => repository.load(projectId, loadOptions),
-			saveIfCurrent: (expected, project) => repository.saveIfCurrent(expected, project),
+			async load(projectId, loadOptions) {
+				const stored = await repository.load(projectId, loadOptions);
+				return stored === null ? null : routeProject(stored, projectId);
+			},
+			async saveIfCurrent(expected, project) {
+				const saved = await saveIfCurrent.call(repository, expected, project);
+				return saved === null ? null : routeProject(saved, project.id);
+			},
 		};
 		return Object.freeze(adapter);
 	}
@@ -223,18 +223,21 @@ export function createFramescaperCaptureAppProjectRepository(
 		throw new TypeError('Framescaper desktop capture requires authoritative project storage.');
 	}
 	const adapter: FramescaperCaptureAppProjectRepository = {
-		load: (projectId, loadOptions) => store.loadProject!(projectId, loadOptions),
+		async load(projectId, loadOptions) {
+			const stored = await store.loadProject!(projectId, loadOptions);
+			return stored === null ? null : routeProject(stored, projectId);
+		},
 		async saveIfCurrent(expected, project) {
 			if (expected.id !== project.id) {
 				throw new Error('Framescaper desktop capture CAS cannot change project identity.');
 			}
-			const current = await store.loadProject!(expected.id);
-			if (!current || !sameProject(current, expected)) return null;
+			const stored = await store.loadProject!(expected.id);
+			if (stored === null || !sameProject(routeProject(stored, expected.id), expected)) return null;
 			const saved = await store.saveProject!(project);
 			if (!sameProject(saved, project)) {
 				throw new Error('Framescaper desktop capture acknowledgement changed the project target.');
 			}
-			return saved;
+			return routeProject(saved, project.id);
 		},
 	};
 	return Object.freeze(adapter);
@@ -297,22 +300,6 @@ function captureOrigin(options: FramescaperCaptureAppBindingOptions) {
 			destination: 'both' as const,
 		}),
 	});
-}
-
-function routeProject(value: unknown): FramescaperCaptureAppProject {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError('Framescaper capture requires an exact route project.');
-	}
-	assertCurrentFramescaperIdentity(value, 'capture project');
-	const project = value as Partial<FramescaperCaptureAppProject>;
-	stableId(project.id, 'Framescaper capture project ID');
-	nonNegativeInteger(project.revision, 'Framescaper capture project revision');
-	positiveInteger(project.sampleRate, 'Framescaper capture project sample rate');
-	stableId(project.primarySequenceId, 'Framescaper capture primary sequence ID');
-	if (!Array.isArray(project.sequences) || !project.sequences.length) {
-		throw new TypeError('Framescaper capture project requires sequences.');
-	}
-	return project as FramescaperCaptureAppProject;
 }
 
 function projectSequence(project: FramescaperCaptureAppProject, sequenceId: string) {
@@ -494,12 +481,6 @@ function stableId(value: unknown, name: string): string {
 function nonNegativeInteger(value: unknown, name: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 0) throw new RangeError(`${name} is invalid.`);
 	return Number(value);
-}
-
-function positiveInteger(value: unknown, name: string): number {
-	const integer = nonNegativeInteger(value, name);
-	if (integer < 1) throw new RangeError(`${name} is invalid.`);
-	return integer;
 }
 
 function assertBindingOptions(options: FramescaperCaptureAppBindingOptions): void {

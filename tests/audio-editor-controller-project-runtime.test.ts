@@ -111,3 +111,14 @@ void test('runtime admission guarantees fallbacks for omitted optional host hook
 	});
 	assert.deepEqual(carrier, { sourceTrackId: 'track-a', effectIds: [] });
 });
+
+void test('runtime selection retains the product validator for identity-preserving admission', () => {
+	const selected = createEditorProjectRuntimeSelection(FRAMESCAPER_PROJECT_RUNTIME_PROFILE);
+	const runtime = resolveControllerProjectRuntime(selected);
+	assert.equal(runtime.validateProject, selected.validateProject);
+	const project: unknown = selected.createProject({ id: 'validated' });
+	assert.equal(runtime.validateProject(project), true);
+	if (!runtime.validateProject(project)) assert.fail('Expected an admitted Framescaper project.');
+	const title: string = project.title;
+	assert.equal(title, selected.createProject({ id: 'validated' }).title);
+});

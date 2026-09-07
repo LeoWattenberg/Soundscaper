@@ -20,13 +20,13 @@ export function bindSessionHistoryAdmission<
 		...methods,
 		captureProjectHistory(projectId: string): Readonly<{ history: AdmittedHistory<Project>; token: object }> {
 			const capture = captureProjectHistory.call(session, projectId);
-			const history = admitHistory(capture.history, projectId, admitProject);
+			const history = admitControllerSessionHistory(capture.history, projectId, admitProject);
 			return Object.freeze({ history, token: capture.token });
 		},
 	});
 }
 
-function admitHistory<Project extends ControllerRuntimeProject>(
+export function admitControllerSessionHistory<Project extends ControllerRuntimeProject>(
 	value: unknown,
 	projectId: string,
 	admitProject: (value: unknown) => Project,
