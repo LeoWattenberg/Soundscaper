@@ -112,7 +112,7 @@ export function createDerivedSourceService(
 		assertOwned(token);
 		const sourceId = dependencies.createId(idPrefix);
 		const source = createDerivedSource(
-			{ ...template, chunkFrames: template.chunkFrames || dependencies.sourceChunkFrames },
+			{ ...template, chunkFrames: dependencies.sourceChunkFrames },
 			channels,
 			sourceId,
 			name,
@@ -169,7 +169,7 @@ export function createDerivedSourceService(
 				sampleRate: source.sampleRate,
 				channelCount: source.channelCount,
 				chunkFrames: source.chunkFrames,
-			}), Number(source.chunkFrames));
+			}), dependencies.sourceChunkFrames);
 			assertOwned(token);
 			await dependencies.writeBuffer(writer, buffer);
 			assertOwned(token);
