@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "uk",
 	"provenance": {
-		"machine": {"model":"claude-sonnet-5","modelDigest":"sha256:f96c93bb0fd338a3af97b27210f8c3c473167e4673e15d5a223c2702f2ee8578","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:34496b6a60a5ad494d4e4526ed35f15b50f38d187576c97f8f6d13b958d65829","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
 	},
 	"entries": {
@@ -1545,6 +1545,7 @@
 		"playAtSpeedPreparing": ["machine","Preparing StaffPad playback.","Підготовка відтворення StaffPad."],
 		"playAtSpeedPreservePitch": ["machine","Preserve pitch","Зберігати висоту тону"],
 		"playAtSpeedStaffPad": ["machine","Preserve pitch with StaffPad","Зберігати висоту тону за допомогою StaffPad"],
+		"playSelection": ["machine","Play selection","Відтворити виділене"],
 		"playbackMeterSettings": ["machine","Playback meter settings","Налаштування індикатора рівня відтворення"],
 		"playbackOnRulerClick": ["machine","Click timeline ruler to start playback","Клацніть по лінійці часової шкали, щоб почати відтворення"],
 		"playbackSpeed": ["machine","Playback speed","Швидкість відтворення"],

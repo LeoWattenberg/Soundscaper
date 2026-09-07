@@ -110,7 +110,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 			await beginPlaybackCachePreparation(snapshot, { abortController: abort });
 			throwIfAborted(abort.signal);
 			if (snapshot !== getProject()) throw abortError();
-			bindPlaybackToSelection();
+			engine.setPlayRange?.(null);
 			if (typeof engine.playAtSpeed !== 'function') return engine.play();
 			await engine.playAtSpeed(rate, {
 				preservePitch,
@@ -133,7 +133,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 	}
 
 	/**
-	 * Bind the run of playback that is about to start to the active time
+	 * Bind an explicit selection-only run to the active time
 	 * selection: it stops at the selection's end instead of running on to the end
 	 * of the timeline, and a playhead outside the selection is put back on its
 	 * start. A playhead the user left inside the selection keeps its place, so
@@ -158,15 +158,17 @@ export function createEditorTransportService<Project extends TransportProject = 
 	async function handleTransport(action: string) {
 		if ((state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder)
 			&& action !== 'stop' && action !== 'record') return;
-		if ((action === 'play' || action === 'record') && state.projectBinPreview) {
+		if ((action === 'play' || action === 'play-selection' || action === 'record') && state.projectBinPreview) {
 			await stopProjectBinPreview();
 		}
-		if (hasMissingTimelineSources() && action === 'play') throw new Error(copy.localSourcesMissing);
-		if (action === 'play') {
+		if (hasMissingTimelineSources() && (action === 'play' || action === 'play-selection')) {
+			throw new Error(copy.localSourcesMissing);
+		}
+		if (action === 'play' || action === 'play-selection') {
 			// The transport has a single play control. Once the speed slider leaves the
 			// neutral rate that control owns play-at-speed instead: it starts, pauses and
 			// cancels the rate-changed playback, so no separate command is needed.
-			if (state.playAtSpeedRate !== 1) return handlePlayAtSpeed();
+			if (action === 'play' && state.playAtSpeedRate !== 1) return handlePlayAtSpeed();
 			cancelPlayAtSpeedPreparation();
 			if (engine.getState().state === 'playing') {
 				cancelPlaybackCachePreparation();
@@ -177,9 +179,11 @@ export function createEditorTransportService<Project extends TransportProject = 
 				return;
 			}
 			const snapshot = getProject();
+			if (action === 'play-selection' && !activeSelection()) throw new Error(copy.timeSelectionRequired);
 			await beginPlaybackCachePreparation(snapshot);
 			if (snapshot !== getProject()) return;
-			bindPlaybackToSelection();
+			if (action === 'play-selection') bindPlaybackToSelection();
+			else engine.setPlayRange?.(null);
 			return engine.play();
 		}
 		if (action === 'stop') {

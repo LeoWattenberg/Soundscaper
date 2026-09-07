@@ -184,6 +184,7 @@ Product availability follows each product profile’s command filters. “—”
 | Play | `action://playback/play` | P | Transport | Soundscaper, Framescaper | Audacity |
 | Play at speed | `local://play-at-speed` | — | Transport; Transport toolbar | Soundscaper, Framescaper | Soundscaper local |
 | Play repeats | `repeat` | — | Transport | Soundscaper, Framescaper | Audacity |
+| Play selection | `action://playback/play-selection` | — | Transport | Soundscaper, Framescaper | Audacity |
 | Play/Pause from cursor | `action://playback/toggle-play-from-cursor` | Shift+Space | Transport | Soundscaper, Framescaper | Audacity |
 | Play/Stop | `action://playback/toggle-play-stop` | Space | Transport | Soundscaper, Framescaper | Audacity |
 | Playback controls | `toggle-transport` | — | View > Toolbars | Soundscaper, Framescaper | Audacity |

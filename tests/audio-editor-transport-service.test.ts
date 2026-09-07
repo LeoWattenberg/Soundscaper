@@ -327,9 +327,7 @@ test('transport dispatch coordinates preview, playback, seeking, stop, loop, and
 	assert.equal(await fixture.service.handleTransport('jump-end'), 1_200);
 	assert.equal(await fixture.service.handleTransport('rewind'), -239_960);
 	assert.equal(await fixture.service.handleTransport('forward'), 240_040);
-	// The play at line 314 above bound the run to the active selection and put
-	// the playhead, which sat past its end, back on its start.
-	assert.deepEqual(fixture.calls.seeks, [10, 0, 1_200, -239_960, 240_040]);
+	assert.deepEqual(fixture.calls.seeks, [0, 1_200, -239_960, 240_040]);
 
 	fixture.state.timedRecording = true;
 	assert.equal(await fixture.service.handleTransport('stop'), 'timed-cancelled');
@@ -346,24 +344,32 @@ test('transport dispatch coordinates preview, playback, seeking, stop, loop, and
 	assert.equal(fixture.calls.loops.length, 1);
 });
 
-test('play binds the run to the time selection and starts it at the selection', async () => {
+test('play ignores the time selection and continues from the playhead', async () => {
 	const fixture = createTransportFixture();
 
 	fixture.setPositionFrame(40);
 	assert.equal(await fixture.service.handleTransport('play'), 'played');
 
-	assert.deepEqual(fixture.calls.playRanges, [{ startFrame: 10, endFrame: 30 }]);
-	assert.deepEqual(fixture.calls.seeks, [10], 'a playhead past the selection is put back on its start');
+	assert.deepEqual(fixture.calls.playRanges, [null]);
+	assert.deepEqual(fixture.calls.seeks, [], 'ordinary playback keeps the live playhead');
 });
 
-test('a playhead inside the selection keeps its place and still stops at the selection end', async () => {
+test('play selection bounds the run and starts it at the selection', async () => {
 	const fixture = createTransportFixture();
 
-	fixture.setPositionFrame(20);
-	assert.equal(await fixture.service.handleTransport('play'), 'played');
+	fixture.setPositionFrame(40);
+	assert.equal(await fixture.service.handleTransport('play-selection'), 'played');
 
 	assert.deepEqual(fixture.calls.playRanges, [{ startFrame: 10, endFrame: 30 }]);
-	assert.deepEqual(fixture.calls.seeks, [], 'playback resumes from where the playhead was left');
+	assert.deepEqual(fixture.calls.seeks, [10]);
+});
+
+test('play selection requires a time selection', async () => {
+	const fixture = createTransportFixture();
+	fixture.setProject({ ...fixture.project(), selection: null });
+
+	await assert.rejects(fixture.service.handleTransport('play-selection'), /Select time/u);
+	assert.deepEqual(fixture.calls.playRanges, []);
 });
 
 test('play clears the bound when there is no time selection to play', async () => {
@@ -389,14 +395,14 @@ test('an enabled loop region owns the transport instead of the time selection', 
 	assert.deepEqual(fixture.calls.seeks, []);
 });
 
-test('play-at-speed binds the run to the time selection the same way', async () => {
+test('play-at-speed ignores the time selection', async () => {
 	const fixture = createTransportFixture();
 	fixture.setPositionFrame(40);
 
 	assert.equal(await fixture.service.handlePlayAtSpeed(1.5), true);
 
-	assert.deepEqual(fixture.calls.playRanges, [{ startFrame: 10, endFrame: 30 }]);
-	assert.deepEqual(fixture.calls.seeks, [10]);
+	assert.deepEqual(fixture.calls.playRanges, [null]);
+	assert.deepEqual(fixture.calls.seeks, []);
 });
 
 test('loop region commands validate ranges and optionally keep selection synchronized', () => {

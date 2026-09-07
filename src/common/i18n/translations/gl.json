@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "gl",
 	"provenance": {
-		"machine": {"model":"claude-sonnet-5","modelDigest":"sha256:4f76583a16345194f74edb44473e89eeb9cf75f0aec0ef73764edc73e0a2b867","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:1827edc701de74370d80453dbba172b2e9f555fc9002aa758442c6b08a0c2ec3","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
 	},
 	"entries": {
@@ -1545,6 +1545,7 @@
 		"playAtSpeedPreparing": ["machine","Preparing StaffPad playback.","Preparando a reprodución con StaffPad."],
 		"playAtSpeedPreservePitch": ["machine","Preserve pitch","Conservar o ton"],
 		"playAtSpeedStaffPad": ["machine","Preserve pitch with StaffPad","Conservar o ton con StaffPad"],
+		"playSelection": ["machine","Play selection","Reproducir selección"],
 		"playbackMeterSettings": ["machine","Playback meter settings","Configuración do medidor de reprodución"],
 		"playbackOnRulerClick": ["machine","Click timeline ruler to start playback","Preme na regra da liña de tempo para iniciar a reprodución"],
 		"playbackSpeed": ["machine","Playback speed","Velocidade de reprodución"],

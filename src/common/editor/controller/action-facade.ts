@@ -209,6 +209,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 		}),
 		transport: Object.freeze({
 			playPause: yieldProgramPlayhead(() => handleTransport('play')),
+			playSelection: yieldProgramPlayhead(() => handleTransport('play-selection')),
 			playAtSpeed: yieldProgramPlayhead((rate: RuntimeValue = state.playAtSpeedRate) => handlePlayAtSpeed(rate)),
 			setPlayAtSpeedRate,
 			stop: yieldProgramPlayhead(() => handleTransport('stop')),

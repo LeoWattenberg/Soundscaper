@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "hy",
 	"provenance": {
-		"machine": {"model":"claude-sonnet-5","modelDigest":"sha256:48aeed6b2c83c106b489274eb7171a4b50ef25cf9058bdd25f8e0eb75b14b743","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:ef4c2dbdd89aee57e09cbaf47c23e9ffc4e32e967fb766afe13d7334ea91692d","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
 	},
 	"entries": {
@@ -1545,6 +1545,7 @@
 		"playAtSpeedPreparing": ["machine","Preparing StaffPad playback.","Պատրաստվում է StaffPad նվագարկումը։"],
 		"playAtSpeedPreservePitch": ["machine","Preserve pitch","Պահպանել հնչյան բարձրությունը"],
 		"playAtSpeedStaffPad": ["machine","Preserve pitch with StaffPad","Պահպանել հնչյան բարձրությունը StaffPad-ով"],
+		"playSelection": ["machine","Play selection","Նվագարկել ընտրությունը"],
 		"playbackMeterSettings": ["machine","Playback meter settings","Նվագարկման մակարդակաչափի կարգավորումներ"],
 		"playbackOnRulerClick": ["machine","Click timeline ruler to start playback","Սեղմեք ժամանակագծի քանոնի վրա՝ նվագարկումը սկսելու համար"],
 		"playbackSpeed": ["machine","Playback speed","Նվագարկման արագություն"],

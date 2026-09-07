@@ -11,7 +11,9 @@ import TransportToolbarGroup, {
 	TRANSPORT_BUTTON_IDS,
 	transportToolbarButtonsVisible,
 } from '../src/common/editor/ui/toolbar/TransportToolbarGroup.jsx';
-import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+import { PlaySpeedFlyout } from '../src/common/editor/ui/toolbar/AudioEditorTransportControls.jsx';
+import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
+import { ThemeProvider } from '../vendor/audacity-design-system/components/src/ThemeProvider/ThemeProvider.tsx';
 
 // The .jsx modules compile against the global React the browser build provides.
 (globalThis as unknown as { React: unknown }).React = React;
@@ -98,4 +100,28 @@ test('transportToolbarButtonsVisible honours the requested subset and the record
 	assert.equal(visible(['record'], { capabilities: { audioRecording: true }, isToolbarButtonVisible: () => false }), false);
 	assert.equal(visible(['record'], { framescaperCaptureRecordVisible: true, captureRecordRequired: true, isToolbarButtonVisible: () => false }), true);
 	assert.equal(visible([]), false);
+});
+
+test('the play dropdown separates selection playback from its speed controls', () => {
+	const markup = renderToStaticMarkup(
+		<ThemeProvider>
+			<PlaySpeedFlyout
+				copy={ENGLISH_COPY}
+				snapshot={{ ...snapshot, selection: { startFrame: 10, endFrame: 20 } }}
+				blocked={false}
+				controller={{
+					actions: { transport: { playSelection: () => undefined }, preferences: { update: () => undefined } },
+					getTelemetrySnapshot: () => ({ transportState: 'stopped' }),
+					subscribeTelemetry: () => () => undefined,
+				}}
+				run={() => undefined}
+			/>
+		</ThemeProvider>,
+	);
+
+	const selection = markup.indexOf(`>${ENGLISH_COPY.playSelection}<`);
+	const divider = markup.indexOf('role="separator"');
+	const pitch = markup.indexOf(`>${ENGLISH_COPY.playAtSpeedPreservePitch}<`);
+	assert.ok(selection >= 0 && selection < divider && divider < pitch);
+	assert.equal(GERMAN_COPY.playSelection, 'Auswahl abspielen');
 });

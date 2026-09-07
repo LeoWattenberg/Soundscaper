@@ -47,17 +47,18 @@ export function TelemetryPlayTransportControl({ copy, snapshot, blocked, control
 		pressed={playing}
 		onClick={() => run(() => controller.actions.transport.playPause())}
 	>
-		{() => <PlaySpeedFlyout
+		{({ close }) => <PlaySpeedFlyout
 			copy={copy}
 			snapshot={snapshot}
 			blocked={blocked}
 			controller={controller}
 			run={run}
+			close={close}
 		/>}
 	</AudioEditorSplitButton></span>;
 }
 
-export function PlaySpeedFlyout({ copy, snapshot, blocked, controller, run }) {
+export function PlaySpeedFlyout({ copy, snapshot, blocked, controller, run, close = () => undefined }) {
 	const transportState = useAudioEditorTelemetrySelector(
 		controller,
 		(telemetry) => telemetry.transportState,
@@ -67,6 +68,15 @@ export function PlaySpeedFlyout({ copy, snapshot, blocked, controller, run }) {
 	const preservePitch = snapshot.playbackOptions?.mode === 'staffpad';
 	return (
 		<div className="kw-audio-editor__split-button-options" data-play-at-speed>
+			<ContextMenuItem
+				label={copy.playSelection}
+				disabled={blocked || transportState === 'playing' || !snapshot.selection}
+				onClick={() => {
+					close();
+					run(() => controller.actions.transport.playSelection());
+				}}
+			/>
+			<ContextMenuItem isDivider />
 			<ContextMenuItem
 				label={copy.playAtSpeedPreservePitch}
 				checked={preservePitch}

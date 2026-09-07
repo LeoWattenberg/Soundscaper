@@ -241,7 +241,7 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 	implemented('action://playback/play', 'Play', ['Transport'], 'transport.playPause', { shortcut: 'Space', enableWhen: 'project-opened', source: UPSTREAM.playback, upstreamAction: 'action://playback/toggle-play-pause' }),
 	implemented('action://playback/toggle-play-stop', 'Play/Stop', ['Transport'], 'transport.playStop', { enableWhen: 'project-opened', source: UPSTREAM.playback }),
 	implemented('action://playback/toggle-play-from-cursor', 'Play/Pause from cursor', ['Transport'], 'transport.playFromCursor', { enableWhen: 'project-opened', source: UPSTREAM.playback }),
-	disabled('action://playback/play-selection', 'Play selection', ['Transport'], DISABLED_REASONS.pending, { source: UPSTREAM.playback }),
+	implemented('action://playback/play-selection', 'Play selection', ['Transport'], 'transport.playSelection', { enableWhen: 'time-selection', source: UPSTREAM.playback }),
 	implemented('local://play-at-speed', 'Play at speed', ['Transport', 'Transport toolbar'], 'transport.playAtSpeed', { enableWhen: 'project-opened', source: null, origin: 'local' }),
 	implemented('action://playback/pause', 'Pause', ['Transport'], 'transport.pause', { enableWhen: 'playing', source: UPSTREAM.playback }),
 	implemented('action://playback/stop', 'Stop', ['Transport'], 'transport.stop', { enableWhen: 'playing-or-recording', source: UPSTREAM.playback }),

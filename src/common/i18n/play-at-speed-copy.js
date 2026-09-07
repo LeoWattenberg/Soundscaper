@@ -10,6 +10,7 @@
  */
 const PLAY_AT_SPEED_COPY_ENTRIES = Object.freeze([
 	['playAtSpeed', 'Play at speed', 'Mit Geschwindigkeit abspielen'],
+	['playSelection', 'Play selection', 'Auswahl abspielen'],
 	['cancelPlayAtSpeed', 'Cancel play at speed', 'Wiedergabe mit Geschwindigkeit abbrechen'],
 	['pausePlayAtSpeed', 'Pause play at speed', 'Wiedergabe mit Geschwindigkeit pausieren'],
 	['playbackSpeed', 'Playback speed', 'Wiedergabegeschwindigkeit'],
