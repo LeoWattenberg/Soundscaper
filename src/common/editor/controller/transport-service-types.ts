@@ -78,7 +78,7 @@ export interface TransportServiceRuntime<Project extends TransportProject = Tran
 		playbackRate: number,
 	) => unknown;
 	readonly beginPlaybackCachePreparation: (
-		project: Project | null,
+		project: Project,
 		options?: Readonly<{ readonly abortController?: AbortController }>,
 	) => Promise<unknown>;
 	readonly calculateAudioEditorMetronomeSchedule: typeof calculateAudioEditorMetronomeSchedule;

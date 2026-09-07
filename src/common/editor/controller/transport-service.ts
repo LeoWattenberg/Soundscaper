@@ -100,7 +100,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 			projectSampleRate(),
 			rate,
 		);
-		const snapshot = getProject();
+		const snapshot = requireProject();
 		const generation = ++state.playAtSpeedGeneration;
 		const abort = new AbortController();
 		state.playAtSpeedAbort = abort;
@@ -178,7 +178,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 				cancelPlaybackCachePreparation();
 				return;
 			}
-			const snapshot = getProject();
+			const snapshot = requireProject();
 			if (action === 'play-selection' && !activeSelection()) throw new Error(copy.timeSelectionRequired);
 			await beginPlaybackCachePreparation(snapshot);
 			if (snapshot !== getProject()) return;

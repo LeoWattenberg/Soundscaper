@@ -23,16 +23,17 @@ export type TransportCompositionState = TransportServiceState & ViewStateService
 
 export type TransportCompositionCopy = TransportCopy & ViewStateServiceRuntime['copy'];
 
-type TransportPorts = Omit<TransportServiceRuntime<TransportCompositionProject>,
+type TransportPorts<Project extends TransportCompositionProject> = Omit<TransportServiceRuntime<Project>,
 	| 'AUDIO_EDITOR_SAMPLE_RATE' | 'copy' | 'engine' | 'state'
 >;
-type ViewPorts = Omit<ViewStateServiceRuntime<TransportCompositionProject>,
+type ViewPorts<Project extends TransportCompositionProject> = Omit<ViewStateServiceRuntime<Project>,
 	| 'MAX_PIXELS_PER_SECOND' | 'copy' | 'getMicrophoneMeterSession' | 'getProject' | 'getRoutedInputLoudnessMeter'
 	| 'projectDurationFrames' | 'projectSampleRate' | 'state' | 'stopMicrophoneMetering' | 'syncMetronome'
 	| 'editorTimelineDurationFrames' | 'commit'
 >;
 
-export interface TransportCompositionDependencies extends TransportPorts, ViewPorts {
+export interface TransportCompositionDependencies<Project extends TransportCompositionProject = TransportCompositionProject>
+	extends TransportPorts<Project>, ViewPorts<Project> {
 	readonly state: TransportCompositionState;
 	readonly engine: TransportEngine;
 	readonly copy: TransportCompositionCopy;
@@ -48,9 +49,11 @@ export interface TransportCompositionDependencies extends TransportPorts, ViewPo
  * timeline's zoom and track heights. The view resynchronises the metronome
  * through the transport, which is the only edge between them.
  */
-export function createTransportComposition(dependencies: TransportCompositionDependencies) {
+export function createTransportComposition<Project extends TransportCompositionProject>(
+	dependencies: TransportCompositionDependencies<Project>,
+) {
 	const { state, engine, copy, microphoneMeter } = dependencies;
-	const transport = createEditorTransportService<TransportCompositionProject>({
+	const transport = createEditorTransportService<Project>({
 		AUDIO_EDITOR_SAMPLE_RATE: dependencies.sampleRate,
 		abortError: dependencies.abortError,
 		activeSelection: dependencies.activeSelection,
@@ -79,7 +82,7 @@ export function createTransportComposition(dependencies: TransportCompositionDep
 		stopRecording: dependencies.stopRecording,
 		throwIfAborted: dependencies.throwIfAborted,
 	});
-	const view = createViewStateService<TransportCompositionProject>({
+	const view = createViewStateService<Project>({
 		MAX_PIXELS_PER_SECOND: dependencies.maximumPixelsPerSecond,
 		commit: dependencies.commit,
 		copy,
