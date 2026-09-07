@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-interface TakeSourceReference extends Readonly<Record<string, unknown>> {
+interface TakeSourceReference {
 	readonly sourceId?: unknown;
 }
 
-interface TakeGroupSourceReference extends Readonly<Record<string, unknown>> {
+interface TakeGroupSourceReference {
 	readonly takes?: readonly TakeSourceReference[];
 }
 

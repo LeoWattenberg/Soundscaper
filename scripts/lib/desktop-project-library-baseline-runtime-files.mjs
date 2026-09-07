@@ -23,6 +23,7 @@ export const DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES = Object.freeze([
 	'src/framescaper/desktop-project-library-body-contract.js',
 	'src/framescaper/desktop-project-library-core-body-transfer.js',
 	'src/common/editor/project-schema-identity.js',
+	'src/common/editor/project-document-body-types.js',
 	'src/common/editor/scape-archive-zip-profile.js',
 	'src/common/editor/scape-export-estimate.js',
 	'src/common/editor/scape-export-plan.js',

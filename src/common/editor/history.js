@@ -13,11 +13,12 @@ import { cloneProject, validateAudioEditorProject } from './project.js';
 export const AUDIO_EDITOR_HISTORY_LIMIT = 200;
 
 /**
+ * @template [Project=Object]
  * @typedef {Object} AudioEditorHistory
  * @property {number} limit
- * @property {Object} present
- * @property {Array<{project: Object, command: Object}>} undoStack
- * @property {Array<{project: Object, command: Object}>} redoStack
+ * @property {Project} present
+ * @property {Array<{project: Project, command: Object}>} undoStack
+ * @property {Array<{project: Project, command: Object}>} redoStack
  * @property {number} dropped how many entries the limit has pushed off the
  *   bottom of the undo stack over this history's life, so a macro depth stays a
  *   position in the whole sequence of commits rather than an index into a stack
@@ -53,7 +54,7 @@ function merged(history, next) {
 	return next === history ? history : { ...history, ...next };
 }
 
-/** @returns {AudioEditorHistory} */
+/** @template Project @param {Project} project @returns {AudioEditorHistory<Project>} */
 export function createEditorHistory(project, options = {}) {
 	return createEditorProjectHistory(project, AUDIO_EDITOR_REVISION, AUDIO_EDITOR_HISTORY_LIMIT, options);
 }

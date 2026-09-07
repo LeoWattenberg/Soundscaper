@@ -14,7 +14,7 @@ export interface DuplicableTrack extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly name: string;
 	readonly type: string;
-	readonly clipIds: readonly string[];
+	readonly clipIds?: readonly string[];
 	readonly effects?: readonly DuplicableEffect[];
 }
 
@@ -95,7 +95,7 @@ export function createTrackDuplicationService(dependencies: TrackDuplicationServ
 			productionDuplicate,
 		}];
 		let selectedClipId: string | null = null;
-		for (const clipId of track.clipIds) {
+		for (const clipId of track.clipIds ?? []) {
 			const clip = dependencies.findClip(project, clipId);
 			if (!clip) continue;
 			const nextClipId = dependencies.createId('clip');

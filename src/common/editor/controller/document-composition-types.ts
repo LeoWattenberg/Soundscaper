@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { ClipTransformProject } from './clip-domain-types.ts';
+import type { ProjectDocumentBody } from '../project-document-body-types.ts';
 import type { MacroTransactionMetadata } from './macro-transaction-metadata.ts';
 
 import type { EnginePublicApi } from '../engine/public-api.ts';
@@ -40,7 +40,7 @@ import type { RecordingRouting } from './track-service.ts';
 /** One document shape that satisfies every persistence and mutation service's constraint. */
 export type DocumentProject =
 	& ControllerRuntimeProject
-	& Pick<ClipTransformProject, 'title' | 'sampleRate' | 'selection'>
+	& ProjectDocumentBody
 	& ProjectVisualProject
 	& MutationProject
 	& RetentionProject
@@ -51,7 +51,7 @@ export type DocumentProject =
 	& ReturnType<Parameters<typeof createRegularIntervalAnnotationController>[0]['getProject']>;
 
 /** The product runtime's history, as the mutation and retention services read it. */
-export type DocumentHistory = ControllerRuntimeHistory<DocumentProject>;
+export type DocumentHistory = ControllerRuntimeHistory<DocumentProject> & { readonly limit: number };
 
 /** A session tab as the session controller keeps it; the persistence services read its dirty flag and history. */
 export type DocumentSessionTab = ProjectSessionTab & {

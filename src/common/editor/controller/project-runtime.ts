@@ -5,6 +5,7 @@ import type { MacroTransactionMetadata } from './macro-transaction-metadata.ts';
 import type { AudioEditorClipboard, AudioEditorCommand } from '../commands/protocol.ts';
 import { applyEditorCommand } from '../commands.js';
 import {
+	AUDIO_EDITOR_HISTORY_LIMIT,
 	canRedo,
 	canUndo,
 	collapseEditorHistory,
@@ -20,6 +21,9 @@ import {
 	loadCurrentAudioEditorProject,
 } from '../project-current.ts';
 import { projectForCommandConsumers, projectForRuntimeConsumers } from '../project-current-runtime.ts';
+import { createOpaqueProjectConsumer } from '../project-opaque-consumer.ts';
+import { validateAudioEditorProjectV17 } from '../project-v17-validation.ts';
+import { AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION } from '../project-schema-version.ts';
 
 const METHOD_NAMES = [
 	'createProject', 'cloneProject', 'projectForCommandConsumers',
@@ -63,7 +67,7 @@ export interface ControllerRuntimeHistory<Project extends ControllerRuntimeProje
  * person left as well as the document, and only the controller can see where
  * the transport actually is.
  */
-export interface ControllerRuntimeCommandOptions extends Readonly<Record<string, unknown>> {
+export interface ControllerRuntimeCommandOptions {
 	readonly now?: Date | string;
 	readonly playheadFrame?: number;
 }
@@ -90,20 +94,24 @@ export interface ControllerEditSessionClipboardCarrier extends Readonly<Record<s
 	readonly originProjectId?: string;
 }
 
-export interface ControllerProjectRuntime {
+export interface ControllerProjectRuntime<
+	Project extends ControllerRuntimeProject = ControllerRuntimeProject,
+	History extends ControllerRuntimeHistory<Project> = ControllerRuntimeHistory<Project>,
+	LoadedProject = Project,
+> {
 	/** Whether this exact product command owner accepts assistance-asset compounds. */
 	readonly assistanceAssetCommands: boolean;
-	readonly createProject: (options?: Readonly<Record<string, unknown>>) => ControllerRuntimeProject;
-	readonly cloneProject: (project: unknown) => ControllerRuntimeProject;
+	readonly createProject: (options?: Readonly<Record<string, unknown>>) => Project;
+	readonly cloneProject: (project: unknown) => Project;
 	readonly loadProject: (project: unknown) => Readonly<{
-		readonly project: ControllerRuntimeProject;
+		readonly project: LoadedProject;
 		readonly readOnly: boolean;
 		readonly intrinsicReadOnly?: boolean;
 		readonly reason?: string | null;
 	}>;
-	readonly projectForCommandConsumers: (project: unknown) => ControllerRuntimeProject;
-	readonly projectForRuntimeConsumers: (project: unknown) => ControllerRuntimeProject;
-	readonly projectForEditClipboardConsumers?: (project: unknown) => ControllerRuntimeProject;
+	readonly projectForCommandConsumers: (project: unknown) => Project;
+	readonly projectForRuntimeConsumers: (project: unknown) => Project;
+	readonly projectForEditClipboardConsumers?: (project: unknown) => Project;
 	readonly prepareEditClipboardDescriptor: (
 		project: unknown,
 		descriptor: AudioEditorClipboard,
@@ -122,17 +130,17 @@ export interface ControllerProjectRuntime {
 		project: unknown,
 		request: Readonly<ControllerTrackDuplicateRequest>,
 	) => Readonly<ControllerTrackDuplicateCarrier>;
-	readonly createHistory: (project: unknown) => ControllerRuntimeHistory;
+	readonly createHistory: (project: unknown) => History;
 	readonly executeCommand: (
-		history: ControllerRuntimeHistory,
+		history: History,
 		command: unknown,
 		options?: ControllerRuntimeCommandOptions,
-	) => ControllerRuntimeHistory;
+	) => History;
 	readonly applyCommand: (
 		project: unknown,
 		command: AudioEditorCommand,
 		options?: Readonly<{ now?: Date | string }>,
-	) => ControllerRuntimeProject;
+	) => Project;
 	/**
 	 * Fold everything a macro committed since a depth into one undo entry.
 	 *
@@ -141,26 +149,26 @@ export interface ControllerProjectRuntime {
 	 * open a macro transaction.
 	 */
 	readonly collapseHistory?: (
-		history: ControllerRuntimeHistory,
+		history: History,
 		depth: number,
 		command: MacroTransactionMetadata,
-	) => ControllerRuntimeHistory;
+	) => History;
 	/** Put a failed macro's project back and drop what it committed. */
 	readonly rollbackHistory?: (
-		history: ControllerRuntimeHistory,
+		history: History,
 		depth: number,
 		options?: Readonly<{ now?: Date | string }>,
-	) => ControllerRuntimeHistory;
+	) => History;
 	readonly undo: (
-		history: ControllerRuntimeHistory,
+		history: History,
 		options?: ControllerRuntimeCommandOptions,
-	) => ControllerRuntimeHistory;
+	) => History;
 	readonly redo: (
-		history: ControllerRuntimeHistory,
+		history: History,
 		options?: ControllerRuntimeCommandOptions,
-	) => ControllerRuntimeHistory;
-	readonly canUndo: (history: ControllerRuntimeHistory) => boolean;
-	readonly canRedo: (history: ControllerRuntimeHistory) => boolean;
+	) => History;
+	readonly canUndo: (history: History) => boolean;
+	readonly canRedo: (history: History) => boolean;
 }
 
 export type ControllerEditClipboardRuntimeBindings = Readonly<Pick<
@@ -187,9 +195,12 @@ const DEFAULT_RUNTIME = Object.freeze({
 		sourceTrackId: request.sourceTrackId,
 		effectIds: request.effectIds,
 	}),
-	createHistory: createEditorHistory,
+	createHistory: createDefaultControllerHistory,
 	executeCommand: executeEditorCommand,
-	applyCommand: applyEditorCommand,
+	applyCommand: (project: unknown, command: AudioEditorCommand, options?: Readonly<{ now?: Date | string }>) => {
+		if (!validateAudioEditorProjectV17(project)) throw new TypeError('Expected a current audio editor project.');
+		return applyEditorCommand(project, command, options);
+	},
 	collapseHistory: collapseEditorHistory,
 	rollbackHistory: rollbackEditorHistory,
 	undo: undoEditorCommand,
@@ -197,6 +208,22 @@ const DEFAULT_RUNTIME = Object.freeze({
 	canUndo,
 	canRedo,
 });
+
+function createDefaultControllerHistory(project: unknown) {
+	const descriptor = typeof project === 'object' && project !== null
+		? Object.getOwnPropertyDescriptor(project, 'schemaVersion') : undefined;
+	const version: unknown = descriptor && 'value' in descriptor ? descriptor.value : undefined;
+	if (typeof version === 'number' && Number.isSafeInteger(version) && version > AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION) {
+		return Object.freeze({
+			limit: AUDIO_EDITOR_HISTORY_LIMIT,
+			present: createOpaqueProjectConsumer(project, { schemaVersion: version }),
+			undoStack: Object.freeze([]), redoStack: Object.freeze([]),
+			dropped: 0, playheadFrame: undefined,
+		});
+	}
+	if (!validateAudioEditorProjectV17(project)) throw new TypeError('Expected a current audio editor project.');
+	return createEditorHistory(project);
+}
 
 /** Admission checks callable ports; selected products retain their own result models. */
 export type ControllerProjectRuntimeSelection = {
@@ -216,6 +243,9 @@ export function resolveControllerProjectRuntime(): typeof DEFAULT_RUNTIME;
 export function resolveControllerProjectRuntime<Runtime extends ControllerProjectRuntimeSelection>(
 	value: Runtime,
 ): ControllerProjectRuntimeSnapshot<Runtime>;
+export function resolveControllerProjectRuntime<Runtime extends ControllerProjectRuntimeSelection>(
+	value: Runtime | undefined,
+): ControllerProjectRuntimeSnapshot<Runtime> | typeof DEFAULT_RUNTIME;
 export function resolveControllerProjectRuntime(value?: unknown): Readonly<ControllerProjectRuntime>;
 
 /** Snapshot either the unchanged V17 owner or one complete selected runtime. */

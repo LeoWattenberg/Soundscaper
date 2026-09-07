@@ -13,7 +13,7 @@ import {
 	type MasteringSequenceV23,
 } from '../common/editor/mastering-sequence.ts';
 import type { MixerGraphV21 } from '../common/editor/mixer-graph-v21.ts';
-import type { ProjectHierarchyDocument } from '../common/editor/project-hierarchy-document-validation.ts';
+import type { ProjectDocumentBody } from '../common/editor/project-document-body-types.ts';
 import {
 	PROJECT_SCHEMA_VERSION,
 	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
@@ -43,7 +43,7 @@ export const SOUNDSCAPER_PROJECT_FIELDS = Object.freeze([
 	'assistanceAssets',
 ] as const);
 
-export interface SoundscaperProject extends ProjectHierarchyDocument {
+export interface SoundscaperProject extends ProjectDocumentBody {
 	readonly schemaFamily: typeof SOUNDSCAPER_PROJECT_SCHEMA_FAMILY;
 	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly automationLanes: readonly AutomationLaneV21[];

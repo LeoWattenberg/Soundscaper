@@ -3,7 +3,7 @@
 import type { AudioEditorClipboard, AudioEditorCommand } from '../common/editor/commands/protocol.ts';
 import { AUDIO_EDITOR_HISTORY_LIMIT } from '../common/editor/history.js';
 import { acquireProjectLock } from '../common/editor/project-lock.js';
-import { createAudioEditorProjectV17 } from '../common/editor/project-v17.ts';
+import { createOpaqueProjectConsumer } from '../common/editor/project-opaque-consumer.ts';
 import {
 	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
 	classifyProjectSchemaIdentity,
@@ -63,7 +63,7 @@ type LockFactory = (projectId: string, options?: Record<string, unknown>) => Pro
 type SessionFactory = () => ReturnType<typeof createAudioEditorSessionController>;
 interface FramescaperOpaqueCustodyHistory {
 	readonly limit: number;
-	readonly present: Readonly<Record<string, unknown>>;
+	readonly present: ReturnType<typeof createOpaqueCustodyConsumer>;
 	readonly undoStack: readonly never[];
 	readonly redoStack: readonly never[];
 }
@@ -303,42 +303,9 @@ function writableHistory(history: FramescaperProjectHistorySelection): Framescap
 	return history as FramescaperProjectHistory;
 }
 
-function createOpaqueCustodyConsumer(value: unknown): Readonly<Record<string, unknown>> {
+function createOpaqueCustodyConsumer(value: unknown) {
 	const classification = classifyProjectSchemaIdentity(value, FRAMESCAPER_PROJECT_SCHEMA_FAMILY);
-	const project = value as object;
-	const id = envelopeString(project, 'id', 'foreign-project');
-	const title = envelopeString(project, 'title', 'Read-only project');
-	const sampleRate = envelopeSampleRate(project);
-	const shell = createAudioEditorProjectV17({
-		id,
-		title,
-		sampleRate,
-		now: '1970-01-01T00:00:00.000Z',
-		updatedAt: '1970-01-01T00:00:00.000Z',
-		sources: [], clips: [], tracks: [],
-	}) as unknown as Record<string, unknown>;
-	shell.schemaFamily = classification.identity.schemaFamily;
-	shell.schemaVersion = classification.identity.schemaVersion;
-	shell.sources = Object.freeze([]);
-	shell.clips = Object.freeze([]);
-	shell.tracks = Object.freeze([]);
-	shell.automationLanes = Object.freeze([]);
-	return Object.freeze(shell);
-}
-
-function envelopeString(value: object, field: string, fallback: string): string {
-	const descriptor = Object.getOwnPropertyDescriptor(value, field);
-	return descriptor?.enumerable && Object.hasOwn(descriptor, 'value')
-		&& typeof descriptor.value === 'string' && descriptor.value.trim()
-		? descriptor.value : fallback;
-}
-
-function envelopeSampleRate(value: object): number {
-	const descriptor = Object.getOwnPropertyDescriptor(value, 'sampleRate');
-	return descriptor?.enumerable && Object.hasOwn(descriptor, 'value')
-		&& Number.isSafeInteger(descriptor.value)
-		&& Number(descriptor.value) >= 8_000 && Number(descriptor.value) <= 384_000
-		? Number(descriptor.value) : 48_000;
+	return createOpaqueProjectConsumer(value, classification.identity);
 }
 
 function profiledLockOptions(value: Record<string, unknown>): Record<string, unknown> {

@@ -7,6 +7,7 @@ import {
 	createMediaSource,
 	createMediaTrack,
 } from '../project-media-factory.ts';
+import type { MediaTrackLeaf } from '../project-media-types.ts';
 import { createStableId } from '../stable-id.js';
 import { createVideoEffect } from '../video-effects.js';
 import type { TimelineAnnotationV11 } from '../timeline-annotation.ts';
@@ -46,7 +47,7 @@ export function createAddSourceCommand(options: CommandFactoryValue): CommandFor
 	return { type: 'source/add', source: normalizeSourceValue(options) };
 }
 
-export function createAddTrackCommand(options: CommandFactoryValue = {}): CommandFor<'track/add'> {
+export function createAddTrackCommand(options: CommandFactoryValue = {}): CommandFor<'track/add'> & { readonly track: MediaTrackLeaf } {
 	return { type: 'track/add', track: normalizeTrackValue(options) };
 }
 
@@ -337,9 +338,9 @@ function normalizeSourceValue(value: CommandFactoryValue): CommandObject {
 	return createMediaSource(value) as CommandObject;
 }
 
-function normalizeTrackValue(value: CommandFactoryValue): CommandObject {
+function normalizeTrackValue(value: CommandFactoryValue): MediaTrackLeaf {
 	const { audioFreeze: _audioFreeze, ...addableTrack } = value;
-	return createMediaTrack(addableTrack) as CommandObject;
+	return createMediaTrack(addableTrack);
 }
 
 function normalizeClipValue(value: CommandFactoryValue): CommandObject {

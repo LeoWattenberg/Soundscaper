@@ -27,6 +27,20 @@ test('controller runtime keeps the current V17 owner as the exact default', () =
 	assert.equal(runtime.projectForRuntimeConsumers(project).schemaVersion, 17);
 });
 
+test('default runtime admits future history as an inert view and refuses edits', () => {
+	const runtime = resolveControllerProjectRuntime();
+	const stored = { id: 'future', schemaVersion: 999, title: 'Future project',
+		get tracks(): never { throw new Error('Opaque tracks were read'); },
+	};
+	const history = runtime.createHistory(stored);
+	assert.equal(history.present.id, 'future');
+	assert.equal(history.present.schemaVersion, 999);
+	assert.deepEqual(history.present.tracks, []);
+	assert.deepEqual(history.present.sources, []);
+	assert.equal(runtime.canUndo(history), false);
+	assert.throws(() => runtime.applyCommand(history.present, { type: 'project/rename', title: 'Changed' }));
+});
+
 test('controller runtime snapshots Framescaper v1 authority with baseline project admission', () => {
 	const selected = createEditorProjectRuntimeSelection(FRAMESCAPER_PROJECT_RUNTIME_PROFILE);
 	const runtime = resolveControllerProjectRuntime(selected);

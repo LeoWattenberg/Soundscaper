@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { ProjectDocumentBody } from './project-document-body-types.ts';
 import { validateFolderBusesV13 } from './folder-bus-v13.ts';
 import { validateProjectAudioWarpRuntimeAuthority } from './project-audio-warp-validation.ts';
 import {
 	validateProjectHierarchyDocument,
-	type ProjectHierarchyDocument,
 	type ProjectHierarchyDocumentValidationOptions,
 } from './project-hierarchy-document-validation.ts';
 import { AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION } from './project-schema-version.ts';
@@ -19,7 +19,7 @@ export { AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION } from './project-schema-versio
 
 export type AudioEditorProjectV17ValidationOptions = ProjectHierarchyDocumentValidationOptions;
 
-export interface AudioEditorProjectV17 extends ProjectHierarchyDocument {
+export interface AudioEditorProjectV17 extends ProjectDocumentBody {
 	readonly schemaVersion: 17;
 	readonly takeGroups: readonly TakeCompDocumentGroup[];
 }

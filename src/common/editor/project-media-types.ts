@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { PersistedAudioEffect } from './persisted-audio-effect-validation.ts';
+
 import type { BreakpointMap, Rational, RationalRate } from './timeline-time.ts';
 import type { VideoTimingAssetReference } from './video-timing-asset-reference.ts';
 
@@ -140,7 +142,7 @@ export interface AudioTrackLeaf {
 	readonly spectrogram: Readonly<Record<string, unknown>>;
 	readonly envelope: readonly Readonly<{ readonly frame: number; readonly value: number }>[];
 	readonly effectsActive: boolean;
-	readonly effects: readonly Readonly<Record<string, unknown>>[];
+	readonly effects: readonly PersistedAudioEffect[];
 	readonly clipIds: readonly string[];
 	readonly collapsed: boolean;
 	readonly height: number;

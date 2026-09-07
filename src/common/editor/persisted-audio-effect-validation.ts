@@ -1,5 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+/** The persisted fields admitted without loading an executable effect registry. */
+export interface PersistedAudioEffect extends Readonly<Record<string, unknown>> {
+	readonly id: string;
+	readonly type: string;
+	readonly enabled: boolean;
+	readonly params: Readonly<Record<string, unknown>>;
+}
+
 const PARAMETRIC_EQ_ALIASES: ReadonlySet<string> = new Set([
 	'eq',
 	'parametric-eq',
