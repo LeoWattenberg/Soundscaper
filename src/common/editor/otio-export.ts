@@ -9,6 +9,7 @@ import {
 } from './delivery-report.ts';
 import { type SequenceRationalRate } from './sequence-timecode.ts';
 import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
+import { roundRational } from './timeline-time.ts';
 import {
 	interchangeClipTimeEffect,
 	reportInterchangeAnnotationOmission,
@@ -270,11 +271,7 @@ function buildClip(
 ): Record<string, unknown> {
 	const sourceId = String(clip.sourceId ?? '');
 	const source = context.sourceById.get(sourceId);
-	const sourceStart = toTimebase(
-		nonNegativeInteger(clip.sourceStartFrame ?? 0, 'clip.sourceStartFrame'),
-		walk,
-		context,
-	);
+	const sourceStart = sourceStartInTimebase(clip, source, walk, context);
 
 	if (clip.transition != null && String(clip.transition)) {
 		// The EDL profile reports this; a project exported to OTIO instead must
@@ -343,6 +340,61 @@ function buildClip(
 			},
 		},
 	};
+}
+
+/**
+ * A clip's source in-point, on the track's own timebase.
+ *
+ * `sourceStartFrame` is not one domain. A legacy clip counts sample frames, so
+ * it crosses to the timebase the same way the timeline coordinates do. A
+ * current document's video clip states a frame on its *source's* own grid,
+ * which is neither samples nor necessarily the sequence rate, so it is rebased
+ * between the two frame grids instead. Sending the second through the first
+ * divides the in-point by roughly sampleRate/frameRate, which collapses every
+ * real trim to the head of the media — a discarded edit that reads in the file
+ * like an edit nobody made.
+ */
+function sourceStartInTimebase(
+	clip: Readonly<Record<string, unknown>>,
+	source: Readonly<Record<string, unknown>> | undefined,
+	walk: TrackWalk,
+	context: {
+		sampleRate: number;
+		sequenceRate: SequenceRationalRate;
+		draft: Draft;
+	},
+): number {
+	const stated = nonNegativeInteger(clip.sourceStartFrame ?? 0, 'clip.sourceStartFrame');
+	if (walk.kind === 'Audio' || !Object.hasOwn(clip, 'sourceInFrame')) {
+		return toTimebase(stated, walk, context);
+	}
+	const sourceRate = exactRate(source?.frameRate);
+	if (!sourceRate) {
+		// Guessing a rate would write a wrong in-point that looks deliberate.
+		addDeliveryReportItem(context.draft, {
+			code: 'otio.source-rate-unresolved',
+			disposition: 'converted',
+			severity: 'warning',
+			scope: { kind: 'clip', id: String(clip.id) },
+			data: { sourceId: String(clip.sourceId ?? ''), sourceStartFrame: stated },
+			message: 'The source states no exact frame rate; the in-point is emitted on the sequence grid unchanged.',
+		});
+		return stated;
+	}
+	return roundRational(
+		BigInt(stated) * BigInt(context.sequenceRate.num) * BigInt(sourceRate.den),
+		BigInt(context.sequenceRate.den) * BigInt(sourceRate.num),
+		'point',
+	);
+}
+
+function exactRate(value: unknown): SequenceRationalRate | null {
+	if (!value || typeof value !== 'object') return null;
+	const rate = value as Readonly<Record<string, unknown>>;
+	const num = Number(rate.num);
+	const den = Number(rate.den);
+	if (!Number.isSafeInteger(num) || !Number.isSafeInteger(den) || num <= 0 || den <= 0) return null;
+	return { num, den };
 }
 
 /** Nested sequences are named, never inlined: a silent flatten is unrecoverable. */
