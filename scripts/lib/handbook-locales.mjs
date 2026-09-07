@@ -43,6 +43,11 @@ export function handbookLocaleSegment(locale) {
 	return locale.toLowerCase();
 }
 
+/** The locale a directory or route segment names, or null when it names no language. */
+export function handbookLocaleForSegment(segment) {
+	return LOCALE_BY_SEGMENT.get(segment) ?? null;
+}
+
 /**
  * The locale a content file belongs to, from its path under the content root.
  *

@@ -6,6 +6,7 @@ import rehypeAccessibleTables from './src/plugins/rehype-accessible-tables.mjs';
 import rehypeHandbookBase from './src/plugins/rehype-handbook-base.mjs';
 import rehypeHandbookHeadingIds from './src/plugins/rehype-handbook-heading-ids.mjs';
 import rehypeVerdictTables from './src/plugins/rehype-verdict-tables.mjs';
+import { chromeLabel, chromeRecord } from '../scripts/lib/handbook-chrome.mjs';
 import { starlightLocaleConfig } from '../scripts/lib/handbook-locales.mjs';
 import { handbookPlan } from '../scripts/lib/product-web-routing.mjs';
 import { SOUNDSCAPER_GUIDE_GROUPS } from './guides/soundscaper.mjs';
@@ -26,7 +27,12 @@ export default defineConfig({
 	integrations: [
 		sitemap(),
 		starlight({
-			title: 'Soundscaper Handbook',
+			// The site's own copy and the sidebar headings are the only navigation
+			// a page title does not translate on its own, so they come from
+			// `scripts/lib/handbook-chrome.mjs` with whatever each language has.
+			title: chromeRecord('site.title'),
+			// Starlight takes one site description rather than one per language;
+			// the description a reader sees is the page's own frontmatter.
 			description: 'Guides and reference documentation for Soundscaper and Framescaper.',
 			editLink: {
 				baseUrl: 'https://github.com/LeoWattenberg/Soundscaper/edit/main/handbook/',
@@ -46,41 +52,41 @@ export default defineConfig({
 				},
 			],
 			sidebar: [
-				{ label: 'Start here', items: [{ autogenerate: { directory: 'start' } }] },
-				{ label: 'Soundscaper', items: [{ autogenerate: { directory: 'soundscaper' } }] },
-				{ label: 'Tutorials', items: [{ autogenerate: { directory: 'tutorials' } }] },
+				{ ...chromeLabel('sidebar.start'), items: [{ autogenerate: { directory: 'start' } }] },
+				{ ...chromeLabel('sidebar.soundscaper'), items: [{ autogenerate: { directory: 'soundscaper' } }] },
+				{ ...chromeLabel('sidebar.tutorials'), items: [{ autogenerate: { directory: 'tutorials' } }] },
 				// One sidebar group per guide category, built from the same catalog
 				// the pages are generated from, so a new category needs no edit here.
 				{
-					label: 'How-to guides',
+					...chromeLabel('sidebar.guides'),
 					items: [
-						{ label: 'All guides', link: '/guides/' },
+						{ ...chromeLabel('sidebar.guides.all'), link: '/guides/' },
 						...SOUNDSCAPER_GUIDE_GROUPS.map((group) => ({
-							label: group.title,
+							...chromeLabel(`sidebar.guides.${group.slug}`),
 							collapsed: true,
 							items: [{ autogenerate: { directory: `guides/${group.slug}` } }],
 						})),
 					],
 				},
-				{ label: 'Framescaper', items: [{ autogenerate: { directory: 'framescaper' } }] },
-				{ label: 'Projects and data', items: [{ autogenerate: { directory: 'projects-and-data' } }] },
-				{ label: 'Help', items: [{ autogenerate: { directory: 'help' } }] },
+				{ ...chromeLabel('sidebar.framescaper'), items: [{ autogenerate: { directory: 'framescaper' } }] },
+				{ ...chromeLabel('sidebar.projects-and-data'), items: [{ autogenerate: { directory: 'projects-and-data' } }] },
+				{ ...chromeLabel('sidebar.help'), items: [{ autogenerate: { directory: 'help' } }] },
 				{
-					label: 'Reference',
+					...chromeLabel('sidebar.reference'),
 					items: [
-						{ label: 'Overview', link: '/reference/' },
-						{ label: 'Commands and shortcuts', link: '/reference/generated/commands/' },
-						{ label: 'Export formats', link: '/reference/generated/formats/' },
-						{ label: 'Product capabilities', link: '/reference/generated/product-capabilities/' },
-						{ label: 'Audio effects', link: '/reference/generated/audio-effects/' },
-						{ label: 'Video effects', link: '/reference/generated/video-effects/' },
-						{ label: 'Nyquist plug-ins', link: '/reference/generated/nyquist-plugins/' },
-						{ label: 'Macro programs', link: '/reference/macro-programs/' },
-						{ label: 'Local assistance', link: '/reference/generated/local-assistance/' },
-						{ label: 'Workspaces and panels', link: '/reference/generated/workspaces/' },
-						{ label: 'Project and label files', link: '/reference/generated/project-files/' },
-						{ label: 'Languages', link: '/reference/generated/languages/' },
-						{ label: 'Platforms and packages', link: '/reference/generated/platforms/' },
+						{ ...chromeLabel('sidebar.reference.overview'), link: '/reference/' },
+						{ ...chromeLabel('sidebar.reference.commands'), link: '/reference/generated/commands/' },
+						{ ...chromeLabel('sidebar.reference.formats'), link: '/reference/generated/formats/' },
+						{ ...chromeLabel('sidebar.reference.product-capabilities'), link: '/reference/generated/product-capabilities/' },
+						{ ...chromeLabel('sidebar.reference.audio-effects'), link: '/reference/generated/audio-effects/' },
+						{ ...chromeLabel('sidebar.reference.video-effects'), link: '/reference/generated/video-effects/' },
+						{ ...chromeLabel('sidebar.reference.nyquist-plugins'), link: '/reference/generated/nyquist-plugins/' },
+						{ ...chromeLabel('sidebar.reference.macro-programs'), link: '/reference/macro-programs/' },
+						{ ...chromeLabel('sidebar.reference.local-assistance'), link: '/reference/generated/local-assistance/' },
+						{ ...chromeLabel('sidebar.reference.workspaces'), link: '/reference/generated/workspaces/' },
+						{ ...chromeLabel('sidebar.reference.project-files'), link: '/reference/generated/project-files/' },
+						{ ...chromeLabel('sidebar.reference.languages'), link: '/reference/generated/languages/' },
+						{ ...chromeLabel('sidebar.reference.platforms'), link: '/reference/generated/platforms/' },
 					],
 				},
 			],

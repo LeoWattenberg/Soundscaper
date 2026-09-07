@@ -16,6 +16,7 @@
 import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { assessChromeCatalog, readChromeCatalog } from '../lib/handbook-chrome.mjs';
 import {
 	HANDBOOK_CONTENT_DIRECTORY,
 	HANDBOOK_SOURCE_LOCALE,
@@ -144,12 +145,19 @@ export async function checkHandbook(options = {}) {
 			counts[state.status] += 1;
 			if (state.status === 'invalid') invalid.push({ page, reason: state.reason });
 		}
+		const navigation = assessChromeCatalog(readChromeCatalog(locale, options.chromeDirectory));
 		reports.push({
 			locale,
 			pages: pages.length,
 			...counts,
 			invalidPages: invalid,
 			orphaned: await listOrphanedTranslations(locale, root),
+			navigation: {
+				labels: navigation.current.length + navigation.pending.length,
+				current: navigation.current.length,
+				pending: navigation.pending.length,
+				orphaned: navigation.orphaned.length,
+			},
 		});
 	}
 	return reports;

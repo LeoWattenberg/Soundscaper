@@ -2,6 +2,7 @@ import { resolve } from 'node:path';
 
 import { docsAiRuntimeOptions } from './config.mjs';
 import { checkHandbook, pruneOrphanedTranslations, translateHandbook } from './handbook.mjs';
+import { translateChrome } from './chrome.mjs';
 import { handbookTranslationLocales } from '../lib/handbook-locales.mjs';
 import { createOllamaClient } from './ollama.mjs';
 import { checkDraft, checkTranslation, draftDocument, translateDocument } from './workflows.mjs';
@@ -127,8 +128,9 @@ async function runHandbookCommand(options, { env, stdout }) {
 		const reports = await checkHandbook({ locales });
 		for (const report of reports) {
 			const pending = report.stale + report.missing + report.invalid;
-			if (options.strict && (pending > 0 || report.orphaned.length > 0)) process.exitCode = 1;
-			stdout.write(`${report.locale}: ${report.current}/${report.pages} current, ${report.stale} stale, ${report.missing} missing, ${report.invalid} invalid${report.orphaned.length ? `, ${report.orphaned.length} orphaned` : ''}\n`);
+			const navigationPending = report.navigation.pending + report.navigation.orphaned;
+			if (options.strict && (pending > 0 || navigationPending > 0 || report.orphaned.length > 0)) process.exitCode = 1;
+			stdout.write(`${report.locale}: ${report.current}/${report.pages} current, ${report.stale} stale, ${report.missing} missing, ${report.invalid} invalid${report.orphaned.length ? `, ${report.orphaned.length} orphaned` : ''}; navigation ${report.navigation.current}/${report.navigation.labels}\n`);
 			for (const { page, reason } of report.invalidPages) stdout.write(`  ${report.locale}/${page}: ${reason}\n`);
 		}
 		if (!reports.length) stdout.write('No language has handbook pages yet.\n');
@@ -151,9 +153,13 @@ async function runHandbookCommand(options, { env, stdout }) {
 			maxChunkChars: runtime.maxChunkChars,
 			log: (line) => stdout.write(`${line}\n`),
 		});
-		summaries.push(summary);
-		stdout.write(`${locale}: ${summary.translated} translated, ${summary.current} already current, ${summary.skipped.length} skipped of ${summary.pages} pages\n`);
+		// The navigation is a few dozen short strings and belongs to the same
+		// language, so one run leaves nothing behind in English by accident.
+		const navigation = await translateChrome({ locale, client, cacheDirectory: cacheDirectory(env) });
+		summaries.push({ ...summary, navigation });
+		stdout.write(`${locale}: ${summary.translated} translated, ${summary.current} already current, ${summary.skipped.length} skipped of ${summary.pages} pages; navigation ${navigation.translated} translated, ${navigation.current} already current\n`);
 		for (const { page, reason } of summary.skipped) stdout.write(`  ${locale}/${page}: ${reason}\n`);
+		for (const { keys, reason } of navigation.skipped) stdout.write(`  ${locale} navigation ${keys.join(', ')}: ${reason}\n`);
 		for (const page of summary.orphaned) stdout.write(`  ${locale}/${page} no longer exists in English; --prune removes it\n`);
 	}
 	return summaries;

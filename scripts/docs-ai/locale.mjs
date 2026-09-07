@@ -100,7 +100,8 @@ function languageOf(locale) {
 	return new Intl.Locale(locale).language;
 }
 
-function displayName(locale) {
+/** The English name of a language: a model reads a name better than a tag. */
+export function targetLanguageName(locale) {
 	try {
 		return new Intl.DisplayNames(['en'], { type: 'language' }).of(locale) || locale;
 	} catch {
@@ -118,7 +119,7 @@ export function assertLocale(markdown, locale) {
 		const expected = count(text, script);
 		const latin = count(text, LATIN_PATTERN);
 		if (expected === 0 || latin > expected * COMPETING_STOPWORD_RATIO) {
-			throw new Error(`Model response does not appear to use the expected ${displayName(locale)} locale.`);
+			throw new Error(`Model response does not appear to use the expected ${targetLanguageName(locale)} locale.`);
 		}
 		return;
 	}
@@ -128,6 +129,6 @@ export function assertLocale(markdown, locale) {
 		? Math.max(...Object.keys(STOPWORDS).filter((other) => other !== 'en').map((other) => tally(words, other)))
 		: tally(words, 'en');
 	if (competing >= MINIMUM_COMPETING_STOPWORDS && competing > expected * COMPETING_STOPWORD_RATIO) {
-		throw new Error(`Model response does not appear to use the expected ${displayName(locale)} locale.`);
+		throw new Error(`Model response does not appear to use the expected ${targetLanguageName(locale)} locale.`);
 	}
 }
