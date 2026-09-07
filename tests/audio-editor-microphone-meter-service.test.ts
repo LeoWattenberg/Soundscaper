@@ -316,6 +316,7 @@ function fakeLoudnessMeter() {
 		requestSnapshot: () => undefined,
 		reset() { this.resetCount += 1; },
 		snapshot: () => snapshotValue,
+		push: () => undefined,
 		dispose: () => undefined,
 	};
 }

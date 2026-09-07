@@ -225,9 +225,15 @@ export interface RoutedTrackRoute {
 	readonly sourceKey: string;
 }
 
+/**
+ * The meter a routed capture feeds and the microphone meter service runs,
+ * resets and reads: one object serves both, so one contract describes it.
+ */
 export interface RoutedInputLoudnessMeter {
 	push(channels: readonly Float32Array[], publish: (reading: Readonly<{ readonly dbfs?: number }>) => void): void;
 	snapshot(): unknown;
+	setRunning(running: boolean): void;
+	reset(): void;
 }
 
 export interface RecordingCaptureMessages {

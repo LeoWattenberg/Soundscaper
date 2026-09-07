@@ -299,6 +299,8 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 		createLoudnessMeter: options.createLoudnessMeter ?? (() => ({
 			push: (_channels, publish) => publish({ dbfs: -12 }),
 			snapshot: () => ({ dbfs: -60 }),
+			setRunning: () => undefined,
+			reset: () => undefined,
 		})),
 		getLoudnessMeter: () => ({ meter: loudnessMeter, key: loudnessMeterKey }),
 		setLoudnessMeter: (meter, key) => {

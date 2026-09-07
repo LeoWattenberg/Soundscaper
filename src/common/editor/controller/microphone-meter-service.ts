@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { soundscaperNativeAudioCaptureSource } from '../soundscaper-native-audio-capture.ts';
+import type { RoutedInputLoudnessMeter } from './recording-transaction-types.ts';
 
 export interface RecordingDeviceRoute {
 	readonly kind: 'device';
@@ -133,9 +134,9 @@ export interface MicrophoneMeterDependencies {
 
 export interface MicrophoneMeterService {
 	getSession(): MicrophoneMeterSession | null;
-	getRoutedLoudnessMeter(): InputLoudnessMeter | null;
+	getRoutedLoudnessMeter(): RoutedInputLoudnessMeter | null;
 	getRoutedLoudnessMeterKey(): string | null;
-	setRoutedLoudnessMeter(meter: InputLoudnessMeter | null, key?: string | null): void;
+	setRoutedLoudnessMeter(meter: RoutedInputLoudnessMeter | null, key?: string | null): void;
 	clearRoutedLoudnessMeter(): void;
 	getRoute(): RecordingDeviceRoute;
 	getRouteKey(route?: RecordingDeviceRoute): string;
@@ -163,7 +164,7 @@ export function createMicrophoneMeterService(
 	let startPromise: Promise<boolean> | null = null;
 	let generation = 0;
 	let targetKey: string | null = null;
-	let routedLoudnessMeter: InputLoudnessMeter | null = null;
+	let routedLoudnessMeter: RoutedInputLoudnessMeter | null = null;
 	let routedLoudnessMeterKey: string | null = null;
 
 	return Object.freeze({
@@ -190,7 +191,7 @@ export function createMicrophoneMeterService(
 		dispose,
 	});
 
-	function setRoutedLoudnessMeter(meter: InputLoudnessMeter | null, key: string | null = null): void {
+	function setRoutedLoudnessMeter(meter: RoutedInputLoudnessMeter | null, key: string | null = null): void {
 		routedLoudnessMeter = meter;
 		routedLoudnessMeterKey = meter ? key : null;
 	}

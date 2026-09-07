@@ -209,6 +209,8 @@ test('routed capture preserves a delayed full-scale loudness reading', async () 
 		createLoudnessMeter: () => ({
 			push: (_channels, publish) => { publishLoudness = publish; },
 			snapshot: () => ({ dbfs: -60 }),
+			setRunning: () => undefined,
+			reset: () => undefined,
 		}),
 	});
 	fixture.state.recordingRouting = {

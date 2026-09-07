@@ -28,11 +28,11 @@ interface AudioCopy {
 	readonly audioBufferUnsupported: string;
 }
 
-interface WritablePcmSource {
+export interface WritablePcmSource<Metadata = unknown, AbortResult = unknown> {
 	readonly framesWritten?: unknown;
 	write(channels: Float32Array[]): Promise<unknown> | unknown;
-	commit(metadata?: Record<string, unknown>): Promise<unknown> | unknown;
-	abort(reason?: unknown): Promise<unknown> | unknown;
+	commit(metadata?: Record<string, unknown>): Promise<Metadata> | Metadata;
+	abort(reason?: unknown): AbortResult;
 }
 
 export interface StoredAudioSource {
@@ -96,7 +96,9 @@ export async function writeBuffer(
 	throwIfAborted(signal);
 }
 
-export function createCoalescingSourceWriter(writer: WritablePcmSource) {
+export function createCoalescingSourceWriter<Metadata = unknown, AbortResult = unknown>(
+	writer: WritablePcmSource<Metadata, AbortResult>,
+) {
 	if (!writer || typeof writer.write !== 'function' || typeof writer.commit !== 'function' || typeof writer.abort !== 'function') {
 		throw new TypeError('A writable PCM source is required.');
 	}
@@ -104,7 +106,7 @@ export function createCoalescingSourceWriter(writer: WritablePcmSource) {
 		chunkFrames: SOURCE_CHUNK_FRAMES,
 		onChunk: (channels: Float32Array[]) => writer.write(channels),
 	});
-	let commitPromise: Promise<unknown> | null = null;
+	let commitPromise: Promise<Metadata> | null = null;
 	return Object.freeze({
 		get framesWritten(): number {
 			const storedFrames = Number(writer.framesWritten);
@@ -116,12 +118,12 @@ export function createCoalescingSourceWriter(writer: WritablePcmSource) {
 		write(channels: Float32Array[]): Promise<unknown> {
 			return coalescer.write(channels);
 		},
-		commit(metadata: Record<string, unknown> = {}): Promise<unknown> {
+		commit(metadata: Record<string, unknown> = {}): Promise<Metadata> {
 			const pending = commitPromise ||= coalescer.finalize()
 				.then(() => writer.commit({ ...metadata, chunkFrames: SOURCE_CHUNK_FRAMES }));
 			return pending;
 		},
-		abort(reason?: unknown): Promise<unknown> | unknown {
+		abort(reason?: unknown): AbortResult {
 			coalescer.abort(reason);
 			return writer.abort();
 		},

@@ -87,7 +87,7 @@ function createFixture(options: FixtureOptions = {}) {
 			? route
 			: deviceRoute('default');
 	};
-	const runtime: RecordingInputCoordinationRuntime = {
+	const runtime: RecordingInputCoordinationRuntime<unknown> = {
 		state,
 		captureOperation: () => ({ assertCurrent: options.assertCurrent ?? (() => undefined) }),
 		capturePool: {

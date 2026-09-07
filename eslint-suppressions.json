@@ -164,11 +164,6 @@
       "count": 2
     }
   },
-  "src/common/editor/app.js": {
-    "no-unused-vars": {
-      "count": 1
-    }
-  },
   "src/common/editor/assistance/async-search-provider.ts": {
     "no-control-regex": {
       "count": 1
@@ -185,6 +180,11 @@
     },
     "no-useless-escape": {
       "count": 16
+    }
+  },
+  "src/common/editor/assistance/local-assistance-semantic-search-bridge.ts": {
+    "no-control-regex": {
+      "count": 1
     }
   },
   "src/common/editor/assistance/m7-semantic-results.ts": {
@@ -932,11 +932,6 @@
   },
   "src/common/editor/ui/inspector/inspector-controls.jsx": {
     "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "src/common/editor/assistance/local-assistance-semantic-search-bridge.ts": {
-    "no-control-regex": {
       "count": 1
     }
   },

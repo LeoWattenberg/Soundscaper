@@ -1,5 +1,6 @@
 import { createHistorySourceCompactor } from './history-source-compaction.ts';
 import { createControllerDocumentState } from './controller/document-state.ts';
+import { AUDIO_DEVICE_PREFERENCES_SETTING_KEY, createRecordingComposition } from './controller/recording-composition.ts';
 import { findNearestAudioZeroCrossing } from './zero-crossing.js';
 import {
 	AUDIO_EDITOR_DEFAULT_PIXELS_PER_SECOND,
@@ -18,7 +19,6 @@ import {
 	prepareKeepRangeCommand,
 	prepareLinkedSplitCommand,
 	preparePasteCommand,
-	preparePunchCommand,
 	prepareRangeDeleteCommand,
 	prepareRangeReplacementCommand,
 	resolveEditingSelection,
@@ -114,7 +114,6 @@ import {
 	effectRackLatencyFrames, isAudioEditorEngineSupported,
 } from './engine.js';
 import {
-	RECORDING_CHANNEL_COUNT_MAXIMUM,
 	RECORDING_INPUT_GAIN_DEFAULT,
 	createRecordingCapturePool,
 	createRecordingController,
@@ -126,14 +125,12 @@ import {
 	RECORDING_DEFAULT_DEVICE_ID,
 	RECORDING_DISPLAY_SOURCE_KEY,
 	normalizeRecordingRouting,
-	recordingRouteSourceKey,
 	recordingRoutingSettingKey,
-	setRecordingSourceOffset,
 	setRecordingTrackRoute,
 } from './recording-routing.js';
 import { createEditorCodecRuntime } from './editor-codec-runtime.ts'; import { inspectEncodedAudioSampleRate } from './audio-file-metadata.js';
 import { createSourceBufferCache } from './source-buffer-cache.js'; import { createEbuR128MeterNode } from './ebu-r128-node.js';
-import { createEbuR128Meter } from './ebu-r128.js'; import { acquireProjectLock } from './project-lock.js';
+import { acquireProjectLock } from './project-lock.js';
 import { createProjectStore } from './storage.js'; import { createWavStreamEncoder, encodeWav } from './wav.js';
 import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 import { ENGLISH_COPY } from '../i18n/catalogs.js';
@@ -186,17 +183,11 @@ import {
 	createPlaybackProjectApplyService,
 	createPlaybackProjectService,
 } from './controller/playback-project-service.ts';
-import { createRecordingRoutingService } from './controller/recording-routing-service.ts';
-import { createRecordingInputCoordinationService } from './controller/recording-input-coordination-service.ts';
+
 import { createMicrophoneMeterService } from './controller/microphone-meter-service.ts';
-import {
-	createRecordingSessionService,
-	createRoutedRecordingController as createCoordinatedRoutedRecordingController,
-} from './controller/recording-session-service.ts';
-import { createLegacyRecordingCaptureService } from './controller/legacy-recording-capture-service.ts';
-import { createRoutedRecordingCaptureService } from './controller/routed-recording-capture-service.ts';
-import { createLegacyRecordingFinalization } from './controller/legacy-recording-finalization.ts';
-import { createRoutedRecordingFinalization } from './controller/routed-recording-finalization.ts';
+
+
+
 import { createSampleEditService } from './controller/sample-edit-service.ts';
 import { createSelectionViewService } from './controller/selection-view-service.ts';
 import { createSourceLifecycleService } from './controller/source-lifecycle-service.ts';
@@ -215,9 +206,8 @@ import { createVideoTrimServices } from './controller/video-trim-composition.ts'
 import { prepareThreePointEditCommand } from './commands/three-point-edit-runtime.js';
 import { createTrackFolderService } from './controller/track-folder-service.ts';
 import { createTakeCompControllerComposition } from './controller/take-comp-composition.ts';
-import { createTakeCycleAppComposition } from './controller/take-cycle-app-composition.ts';
-import { createTakeCycleRecordingAppSession } from './controller/take-cycle-recording-app-session.ts';
-import { createTakeCycleOpenRecoveryAppPort, createTakeCycleOpenRecoveryCoordinator } from './controller/take-cycle-open-recovery-app-port.ts';
+
+import { createTakeCycleOpenRecoveryAppPort } from './controller/take-cycle-open-recovery-app-port.ts';
 import { createAudioWarpControllerComposition } from './controller/audio-warp-composition.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
 import { createClipTransformService } from './controller/clip-transform-service.ts';
@@ -225,8 +215,7 @@ import { createClipPropertyService } from './controller/clip-property-service.ts
 import { createClipTimePitchCacheService } from './controller/clip-time-pitch-service.ts';
 import { createClipTimePitchRenderService } from './controller/clip-time-pitch-render-service.ts';
 import { createViewStateService } from './controller/view-state-service.ts';
-import { createTimedRecordingService } from './controller/timed-recording-service.ts';
-import { createTimedRecordingInputService } from './controller/timed-recording-input-service.ts';
+
 import {
 	abortError,
 	aup4ReportHasMissingPcm,
@@ -255,16 +244,9 @@ import {
 	nyquistResultStatus,
 } from './controller/nyquist-audio.ts';
 import {
-	appendRecordingPreview,
-	createRecordingPreview,
 	normalizeAudioDevicePreferences,
 	normalizeLatencyOffset,
-	normalizePreferredInputDeviceId,
-	normalizePreferredOutputDeviceId,
-	normalizeTimedRecordingStart,
 	recordingPreviewSnapshot,
-	recordingStreamIsLive,
-	scaleRecordingFrames,
 	streamAudioChannelCount,
 } from './controller/recording-model.ts';
 import { createSettingPersistence } from './controller/setting-persistence.ts';
@@ -330,12 +312,9 @@ export { calculateAudioEditorMetronomeSchedule } from './controller/transport-mo
 const DEFAULT_PIXELS_PER_SECOND = AUDIO_EDITOR_DEFAULT_PIXELS_PER_SECOND;
 const MAX_PIXELS_PER_SECOND = AUDIO_EDITOR_MAX_PIXELS_PER_SECOND;
 const NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES = 128 * 1024 * 1024;
-const LIVE_RECORDING_WAVEFORM_PUBLISH_INTERVAL_MS = 80;
 const MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES = 262_144;
 const MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES = 32;
-const MAXIMUM_TIMER_DELAY_MS = 2_147_000_000;
 const PROJECT_LOCK_RETRY_MAX_MS = 30_000;
-const AUDIO_DEVICE_PREFERENCES_SETTING_KEY = 'audio-device-preferences-v1';
 
 /** @param {Element | null} [_root] */
 export function createAudioEditorController(_root = null, options = {}) {
@@ -1109,20 +1088,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 		publish: publishDocumentSnapshot,
 	});
 	let trackService;
-	const recordingRoutingService = createRecordingRoutingService({
-		AUDIO_DEVICE_PREFERENCES_SETTING_KEY, RECORDING_CHANNEL_COUNT_MAXIMUM, RECORDING_DEFAULT_DEVICE_ID,
-		RECORDING_DISPLAY_SOURCE_KEY,
-		assignPreferredInputToTrack: (...args) => trackService.assignPreferredInputToTrack(...args),
-		engine,
-		getMicrophoneMeterSession: microphoneMeterService.getSession,
-		invalidateMicrophoneMeter: microphoneMeterService.invalidate,
-		mediaDevices, microphoneMeterDeviceId: microphoneMeterService.getDeviceId, normalizePreferredInputDeviceId,
-		normalizePreferredOutputDeviceId, normalizeRecordingRouting, persistSetting,
-		productSettingKey, getProject: () => documentState.project, projectSampleRate,
-		publishDocumentSnapshot, recordingCapturePool, recordingRouteSourceKey,
-		recordingRoutingSettingKey, setRecordingSourceOffset, setRecordingTrackInput,
-		state, stopMicrophoneMetering, store, updatePreferences,
-	});
 	const derivedAudio = createDerivedAudioComposition({
 		lifetime, copy, store, retireSourceChunkProvider: sourceLifecycleService.retireSourceChunkProvider, sourceBuffers, sourcePeaks,
 		sourceChunkFrames: SOURCE_CHUNK_FRAMES,
@@ -1575,246 +1540,15 @@ export function createAudioEditorController(_root = null, options = {}) {
 		assertProject: (token) => projectGeneration.assertCurrent(token),
 		editingBlocked, commit, handleError, publishDocumentSnapshot, setStatus,
 	});
-	const recordingCaptureRuntime = {
-		state, soundActivation: soundActivationPolicyService,
-		engine,
-		capturePool: recordingCapturePool,
-		defaultDeviceId: RECORDING_DEFAULT_DEVICE_ID,
-		sourceChunkFrames: SOURCE_CHUNK_FRAMES,
-		messages: {
-			armTrack: copy.armTrackForRecording,
-			preparedInputClosed: copy.recordingPreparedInputClosed,
-			recording: copy.recording,
-			recordingLabel: copy.recordingLabel,
-			timedRecordingPast: copy.timedRecordingPast,
-			assignInput: copy.recordingAssignInput,
-			noInputsAvailable: copy.recordingNoInputsAvailable,
-		},
-		getProject: () => documentState.project,
-		findTrack: (targetProject, trackId) => findTrack(targetProject, trackId) || null,
-		projectSampleRate: (targetProject) => Number.isSafeInteger(targetProject.sampleRate)
-			&& targetProject.sampleRate > 0 ? targetProject.sampleRate : AUDIO_EDITOR_SAMPLE_RATE,
-		activeSelection: (targetProject) => {
-			const selection = targetProject.selection;
-			return selection && selection.endFrame > selection.startFrame ? selection : null;
-		},
-		beginPlaybackCachePreparation,
-		currentTimeMs,
-		createStableId,
-		createRecordingName: () => `${copy.recordingLabel} ${new Date().toLocaleTimeString(locale)}`,
-		openSourceWriter: async (sourceId, metadata) => createCoalescingSourceWriter(
-			await store.beginSourceWrite(sourceId, metadata),
-		),
-		createPreview: createRecordingPreview,
-		createPreviewResampler: createStreamingWindowedSincResampler,
-		appendPreview: appendRecordingPreview,
-		scaleFrames: scaleRecordingFrames,
-		streamAudioChannelCount,
-		recordingStreamIsLive,
-		createRecorder: recordingControllerFactory,
-		preflightStorage,
-		startMicrophoneMetering: () => microphoneMeterService.startMicrophoneMetering({ force: true }),
-		syncRecordingPoolSnapshot,
-		releaseUnretainedRecordingInputs,
-		publishDocumentSnapshot,
-		publishRecordingPreview,
-		updatePlayhead,
-		stopRecording,
-		finalizeRecording,
-		handleError,
-		setStatus,
-		updateTransportState,
-	};
-	const legacyRecordingCapture = createLegacyRecordingCaptureService(recordingCaptureRuntime);
-	const routedRecordingCapture = createRoutedRecordingCaptureService({
-		...recordingCaptureRuntime,
-		recordingRouteSourceKey,
-		createRoutedController: createCoordinatedRoutedRecordingController,
-		createLoudnessMeter: createEbuR128Meter,
-		getLoudnessMeter: () => ({
-			meter: microphoneMeterService.getRoutedLoudnessMeter(),
-			key: microphoneMeterService.getRoutedLoudnessMeterKey(),
-		}),
-		setLoudnessMeter: microphoneMeterService.setRoutedLoudnessMeter,
-	});
-	const recordingFinalizationRuntime = {
-		sourceChunkFrames: SOURCE_CHUNK_FRAMES,
-		captureProjectScope: () => {
-			const capturedProject = documentState.project;
-			if (!capturedProject) throw abortError();
-			const token = projectGeneration.capture(capturedProject.id);
-			return Object.freeze({
-				project: capturedProject,
-				projectId: capturedProject.id,
-				assertCurrent: () => {
-					projectGeneration.assertCurrent(token);
-					if (documentState.project !== capturedProject) throw abortError();
-				},
-			});
-		},
-		projectSampleRate: (targetProject) => Number.isSafeInteger(targetProject.sampleRate)
-			&& targetProject.sampleRate > 0 ? targetProject.sampleRate : AUDIO_EDITOR_SAMPLE_RATE,
-		pauseTransport: () => engine.pause(),
-		disposeRecorder: async (recorder) => { await recorder.dispose?.({ stopTracks: false }); },
-		appendPreview: appendRecordingPreview,
-		scaleFrames: scaleRecordingFrames,
-		createStableId,
-		createAddSourceCommand,
-		preparePunchCommand,
-		activateStoredSource,
-		commitBatch: (targetProject, commands, selection) => {
-			if (targetProject !== documentState.project) throw abortError();
-			commit({ type: 'batch', commands }, selection);
-		},
-		setStatusDone: () => setStatus(copy.done, 'success'),
-		deactivateSource: async (sourceId) => {
-			sourceBuffers.delete(sourceId);
-			sourceChunkProviders.delete(sourceId);
-			engine.setChunkSources(sourceChunkProviders);
-			await sourceChunkProviders.drain();
-			sourcePeaks.delete(sourceId);
-		},
-		deleteStoredSource: (sourceId) => store.deleteSource(sourceId),
-	};
-	const legacyRecordingFinalization = createLegacyRecordingFinalization(recordingFinalizationRuntime);
-	const routedRecordingFinalization = createRoutedRecordingFinalization({
-		...recordingFinalizationRuntime,
-		setRouteHealth: (trackId, health) => { state.recordingRouteHealth[trackId] = health; },
-		deleteSourceAnalysis: (sourceId) => Promise.resolve(
-			store.deleteAnalysis?.(peakCacheKey(sourceId)),
-		),
-	});
-	const takeCycleRecording = createTakeCycleAppComposition({ lifetime, store, session: sessionController, projectGeneration, state, recording: recordingCaptureRuntime, getProject: () => documentState.project, setProject: (value) => { documentState.project = value; }, activeSelection,
-		findAudioSource: (value, mediaId) => findSource(value, mediaId), trackName: (value, trackId) => findTrack(value, trackId)?.name || copy.recordingLabel, getRoutes: () => state.recordingRouting.routes,
-		soundActivationEnabled: () => soundActivationPolicyService.getSnapshot().preferences.enabled, recordingRouteSourceKey, createId: createStableId, createRecordingName: (name) => `${name} ${new Date().toLocaleTimeString(locale)}`,
-		preflightRecording: (bytes) => preflightStorage(bytes, 'recording'), releaseInputs: releaseUnretainedRecordingInputs, activateStoredSource: (source, metadata) => activateStoredSource(source, metadata, { requireChunkStream: true }), applyProjectCommand: projectRuntime.applyCommand, validateProject: (value) => { projectRuntime.cloneProject(value); },
-		publishProject: () => { projectRetentionService.retainLiveClipIds(); publishProjectState(); }, synchronizeProject: async (value) => { await applyProjectToPlaybackEngine(value); publishProjectState(); }, now: () => new Date(currentTimeMs()) });
-	takeCycleOpenRecoveryBinding.bind(createTakeCycleOpenRecoveryCoordinator({ state, inspect: takeCycleRecording.inspectOpenRecovery, recover: takeCycleRecording.recoverOnOpen, getCurrentProjectId: () => documentState.project?.id ?? null, isDisposed: () => state.disposed, isCurrentProjectWritable: () => Boolean(documentState.project && state.projectLock && !state.readOnly && !state.projectLock.readOnly), publish: publishDocumentSnapshot }));
-	const takeCycleRecordingSession = createTakeCycleRecordingAppSession({ cycle: takeCycleRecording, prepareCurrentProject: flushProject, recordingMessage: copy.recording, setTransportState: updateTransportState, setStatus });
-	let timedRecordingService;
-	const recordingSessionService = createRecordingSessionService({
-		state,
-		getProjectId: () => documentState.project?.id || null,
-		abortError,
-		addTrack: (trackOptions) => addTrack(trackOptions),
-		stopProjectBinPreview,
-		cancelTimedRecording: () => timedRecordingService.cancelTimedRecording(),
-		beginRecording: (recordingOptions, scope) => {
-			const route = recordingOptions.trackId
-				? state.recordingRouting.routes[recordingOptions.trackId]
-				: null;
-			const routed = route && (
-				route.kind === 'display'
-				|| route.deviceId !== RECORDING_DEFAULT_DEVICE_ID
-				|| route.channelStart > 0
-				|| route.channelCount !== 2
-			);
-			return recordingOptions.trackId && !routed
-				? legacyRecordingCapture.capture(recordingOptions, scope)
-				: routedRecordingCapture.capture(recordingOptions, scope);
-		},
-		beginTakeCycleRecording: takeCycleRecordingSession.begin,
-		performLegacyFinalization: legacyRecordingFinalization.finalize,
-		performRoutedFinalization: routedRecordingFinalization.finalize,
-		releaseUnretainedRecordingInputs,
-		retainInputs: () => state.preferences.recording.retainInputs,
-		playTransport: () => engine.play(),
-		pauseTransport: () => engine.pause(),
-		getTransportState: () => engine.getState().state,
-		updateTransportState,
-		persistLeadIn: (enabled) => persistSetting('recording-lead-in', enabled),
-		publishDocumentSnapshot,
-		publishTelemetrySnapshot,
-		syncRecordingPoolSnapshot, resetSoundActivationSources: soundActivationPolicyService.resetSources,
-		handleError,
-	});
-	const timedRecordingInputService = createTimedRecordingInputService({
-		getProject: () => documentState.project,
-		findTrack: (targetProject, trackId) => findTrack(targetProject, trackId) || null,
-		projectSampleRate: (targetProject) => Number.isSafeInteger(targetProject.sampleRate)
-			&& targetProject.sampleRate > 0 ? targetProject.sampleRate : AUDIO_EDITOR_SAMPLE_RATE,
-		getPreferredInputChannelCount: () => state.preferredInputChannelCount,
-		getRecordingRoutes: () => state.recordingRouting.routes,
-		setRecordingRouteHealth: (trackId, health) => {
-			state.recordingRouteHealth[trackId] = health;
-		},
-		capturePool: recordingCapturePool,
-		defaultDeviceId: RECORDING_DEFAULT_DEVICE_ID,
-		recordingRouteSourceKey,
-		streamAudioChannelCount,
-		recordingStreamIsLive,
-		messages: {
-			armTrack: copy.armTrackForRecording,
-			assignInput: copy.recordingAssignInput,
-			preparedInputClosed: copy.recordingPreparedInputClosed,
-			assignedInputsUnavailable: copy.timedRecordingAssignedInputsUnavailable,
-		},
-	});
-	timedRecordingService = createTimedRecordingService({
-		state,
-		getProjectId: () => documentState.project?.id || null,
-		normalizeStartTime: normalizeTimedRecordingStart,
-		currentTimeMs,
-		prepareInputs: timedRecordingInputService.prepareTimedRecordingInputs,
-		prepareContext: async () => {
-			const context = await engine.getAudioContext();
-			await context.resume();
-		},
-		startRecording: recordingSessionService.startRecording,
-		cancelRecordingStart: recordingSessionService.cancelRecordingStart,
-		finalizeRecording: recordingSessionService.finalizeRecording,
-		activatePreparedRecording: activatePreparedTimedRecording,
-		scheduleTimer,
-		clearTimer: clearScheduledTimer,
-		maximumTimerDelayMs: MAXIMUM_TIMER_DELAY_MS,
-		retainInputs: () => state.preferences.recording.retainInputs,
-		releaseUnretainedRecordingInputs,
-		syncRecordingPoolSnapshot,
-		publishDocumentSnapshot,
-		setStatus,
-		handleError,
-		abortError,
-		formatScheduledTime: (value) => new Date(value).toLocaleString(locale),
-		messages: {
-			projectReadOnly: copy.projectReadOnly,
-			past: copy.timedRecordingPast,
-			preparing: copy.timedRecordingPreparing,
-			missed: copy.timedRecordingMissed || copy.timedRecordingPast,
-			scheduled: (time) => copy.timedRecordingScheduled.replace('{time}', time),
-			cancelled: copy.timedRecordingCancelled,
-		},
-	});
-	const recordingInputCoordinationService = createRecordingInputCoordinationService({
-		state,
-		capturePool: recordingCapturePool,
-		captureOperation: () => {
-			const lifetimeToken = lifetime.capture();
-			const targetProject = documentState.project;
-			const projectToken = targetProject
-				? projectGeneration.capture(targetProject.id)
-				: null;
-			return Object.freeze({
-				assertCurrent() {
-					lifetime.assertActive(lifetimeToken);
-					if (projectToken) projectGeneration.assertCurrent(projectToken);
-					if (documentState.project !== targetProject) throw abortError();
-				},
-			});
-		},
-		meter: microphoneMeterService,
-		routing: {
-			persistRecordingRouting: recordingRoutingService.persistRecordingRouting,
-			releaseUnretainedRecordingInputs: recordingRoutingService.releaseUnretainedRecordingInputs,
-			syncRecordingPoolSnapshot: recordingRoutingService.syncRecordingPoolSnapshot,
-			updateRecordingDeviceRows: recordingRoutingService.updateRecordingDeviceRows,
-		},
-		cancelTimedRecording: timedRecordingService.cancelTimedRecording,
-		getTrack: (trackId) => findTrack(documentState.project, trackId) || null,
-		projectSampleRate,
-		publishDocumentSnapshot,
-		recordingRouteSourceKey,
-		setRecordingTrackRoute,
-		streamAudioChannelCount,
+	const recording = createRecordingComposition({
+		state, lifetime, projectGeneration, projectRuntime, session: sessionController, store, engine, copy, locale, mediaDevices,
+		capturePool: recordingCapturePool, createRecorder: recordingControllerFactory, microphoneMeter: microphoneMeterService,
+		soundActivation: soundActivationPolicyService, openRecovery: takeCycleOpenRecoveryBinding, retention: projectRetentionService,
+		sourceBuffers, sourceChunkProviders, sourcePeaks, currentTimeMs, scheduleTimer, clearTimer: clearScheduledTimer, productSettingKey,
+		getProject: () => documentState.project, setProject: (value) => { documentState.project = value; }, projectSampleRate,
+		assignPreferredInputToTrack, addTrack, commit, activateStoredSource, beginPlaybackCachePreparation, applyProjectToPlaybackEngine,
+		flushProject, stopProjectBinPreview, persistSetting, updatePreferences, preflightStorage, publishDocumentSnapshot,
+		publishTelemetrySnapshot, publishProjectState, updatePlayhead, updateTransportState, setStatus, handleError,
 	});
 	const actions = guardEditorControllerActions(createGroupedEditorActions({
 		AUDIO_EDITOR_DEFAULT_SHORTCUTS, addEffect, addLabel, addLabelTrack,
@@ -1862,7 +1596,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setSnapSettings, effectSelectionService, setTimelineView, setTimelineViewportWidth,
 		setToolbarButtonPreference, setTrackDisplayMode, setTrackRate,
 		setVisibleTrackHeights, setWorkspacePreference, setZoom, smoothSelectedSamples,
-		snapTimelineFrame, splitAtFrame, splitStereoTrack, startRecording, startTakeCycleRecording: () => recordingSessionService.startTakeCycleRecording(),
+		snapTimelineFrame, splitAtFrame, splitStereoTrack, startRecording, startTakeCycleRecording: () => recording.session.startTakeCycleRecording(),
 		startRecordingOnNewTrack, state, stopProjectBinPreview, stopRecording, cleanupDisposableStorage: storageCapacityService.cleanupDisposableStorage, cleanupDerivativeCache: storageCapacityService.cleanupDerivativeCache,
 		store, stretchClip, swapTrackChannels, switchProject, persistSetting, publishDocumentSnapshot, handleError,
 		toggleLeadInRecording, toggleMetronome, togglePanelPreference, togglePinnedPlayhead,
@@ -1981,12 +1715,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function getSnapshot() { return documentChannel.get(); }
 	function getTelemetrySnapshot() { return telemetryChannel.get(); }
 	function publishDocumentSnapshot({ force = false } = {}) { documentChannel.publish({ force }); }
-	function publishRecordingPreview() {
-		const now = globalThis.performance?.now?.() ?? Date.now();
-		if (now - state.recordingPreviewLastPublishedAt < LIVE_RECORDING_WAVEFORM_PUBLISH_INTERVAL_MS) return;
-		state.recordingPreviewLastPublishedAt = now;
-		publishDocumentSnapshot();
-	}
 	function publishTelemetrySnapshot() { telemetryChannel.publish(); }
 	function buildDocumentSnapshot() { return createEditorDocumentSnapshot(documentSnapshotRuntime); }
 	function projectWithVideoEffectGestures(currentProject) {
@@ -2332,69 +2060,61 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function loadRecordingRouting(currentProject = documentState.project) {
-		return recordingRoutingService.loadRecordingRouting(currentProject);
+		return recording.routing.loadRecordingRouting(currentProject);
 	}
 
 	function persistRecordingRouting() {
-		return recordingRoutingService.persistRecordingRouting();
+		return recording.routing.persistRecordingRouting();
 	}
 
 	async function requestInputAccess() {
-		return recordingRoutingService.requestInputAccess();
+		return recording.routing.requestInputAccess();
 	}
 
 	async function refreshRecordingInputs({ probe = true } = {}) {
-		return recordingRoutingService.refreshRecordingInputs({ probe });
+		return recording.routing.refreshRecordingInputs({ probe });
 	}
 
 	async function refreshAudioDevices({ probe = true, publish = true, nativeInventory = null } = {}) {
-		return recordingRoutingService.refreshAudioDevices({ probe, publish, nativeInventory });
+		return recording.routing.refreshAudioDevices({ probe, publish, nativeInventory });
 	}
 
 	async function setPreferredInputDevice(deviceId) {
-		return recordingRoutingService.setPreferredInputDevice(deviceId);
+		return recording.routing.setPreferredInputDevice(deviceId);
 	}
 
 	async function configureDisplayInput() {
-		return recordingRoutingService.configureDisplayInput();
+		return recording.routing.configureDisplayInput();
 	}
 
 	async function setPreferredInputChannelCount(channelCount) {
-		return recordingRoutingService.setPreferredInputChannelCount(channelCount);
+		return recording.routing.setPreferredInputChannelCount(channelCount);
 	}
 
 	async function setAudioOutputDevice(deviceId) {
-		return recordingRoutingService.setAudioOutputDevice(deviceId);
+		return recording.routing.setAudioOutputDevice(deviceId);
 	}
 
 	function updateRecordingDeviceRows(discovered = state.recordingDevices) {
-		return recordingRoutingService.updateRecordingDeviceRows(discovered);
+		return recording.routing.updateRecordingDeviceRows(discovered);
 	}
 
 	async function setRecordingTrackInput(trackId, route) {
-		return recordingInputCoordinationService.setRecordingTrackInput(trackId, route);
+		return recording.inputs.setRecordingTrackInput(trackId, route);
 	}
 
 	async function setRecordingSourceLatency(sourceKey, value) {
-		return recordingRoutingService.setRecordingSourceLatency(sourceKey, value);
+		return recording.routing.setRecordingSourceLatency(sourceKey, value);
 	}
 
 	async function setRetainInputs(enabled) {
-		return recordingRoutingService.setRetainInputs(enabled);
+		return recording.routing.setRetainInputs(enabled);
 	}
 
-	function releaseInputs() { return recordingRoutingService.releaseInputs(); }
-	function releaseUnretainedRecordingInputs({ force = false } = {}) { return recordingRoutingService.releaseUnretainedRecordingInputs({ force }); }
-	function syncRecordingPoolSnapshot() { return recordingRoutingService.syncRecordingPoolSnapshot(); }
-	function handleRecordingPoolChange(sources) { return recordingInputCoordinationService.handleRecordingPoolChange(sources); }
-
-	function setMonitoring(enabled) {
-		state.monitoring = Boolean(enabled);
-		state.recorder?.setMonitoring(state.monitoring);
-		void persistSetting('input-monitor', state.monitoring);
-		publishDocumentSnapshot();
-		return state.monitoring;
-	}
+	function releaseInputs() { return recording.routing.releaseInputs(); }
+	function syncRecordingPoolSnapshot() { return recording.syncRecordingPoolSnapshot(); }
+	function handleRecordingPoolChange(sources) { return recording.inputs.handleRecordingPoolChange(sources); }
+	function setMonitoring(enabled) { return recording.setMonitoring(enabled); }
 
 	function pauseLoudnessMeasurement(kind = 'playback') { return microphoneMeterService.pauseLoudnessMeasurement(kind); }
 	function continueLoudnessMeasurement(kind = 'playback') { return microphoneMeterService.continueLoudnessMeasurement(kind); }
@@ -2403,16 +2123,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function stopMicrophoneMetering(options = {}) { return microphoneMeterService.stopMicrophoneMetering(options); }
 	function synchronizeMicrophoneMeterTarget() { return microphoneMeterService.synchronizeTarget(); }
 
-	function setRecordingInputGain(value) {
-		return microphoneMeterService.setRecordingInputGain(value, normalizeRecordingInputGain);
-	}
-
-	function setLatencyOffset(value) {
-		state.latencyOffsetMs = normalizeLatencyOffset(value);
-		void persistSetting('recording-latency-offset-ms', state.latencyOffsetMs);
-		publishDocumentSnapshot();
-		return state.latencyOffsetMs;
-	}
+	function setRecordingInputGain(value) { return recording.setRecordingInputGain(value); }
+	function setLatencyOffset(value) { return recording.setLatencyOffset(value); }
 
 	function commit(...args) {
 		return projectMutationService.commit(...args);
@@ -2424,10 +2136,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function projectChanged(...args) {
 		return projectMutationService.projectChanged(...args);
-	}
-
-	function scheduleAutosave(...args) {
-		return projectMutationService.scheduleAutosave(...args);
 	}
 
 	function saveNow(...args) {
@@ -2761,49 +2469,38 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function startRecordingOnNewTrack(options = {}) {
-		return recordingSessionService.startRecordingOnNewTrack(options);
+		return recording.session.startRecordingOnNewTrack(options);
 	}
 
 	function toggleRecordingPause() {
-		return recordingSessionService.toggleRecordingPause();
+		return recording.session.toggleRecordingPause();
 	}
 
 	function toggleLeadInRecording() {
-		return recordingSessionService.toggleLeadInRecording();
+		return recording.session.toggleLeadInRecording();
 	}
 
 	async function scheduleTimedRecording(startTime, options = {}) {
-		return timedRecordingService.scheduleTimedRecording(startTime, options);
-	}
-
-	async function activatePreparedTimedRecording(_scheduled, scope) {
-		await engine.play();
-		try { scope.assertCurrent(); } catch (error) { engine.stop(); throw error; }
-		for (const entry of state.recordingEntries || []) state.recordingRouteHealth[entry.trackId] = 'recording';
-		setStatus(copy.recording); updateTransportState('recording');
-		publishDocumentSnapshot();
+		return recording.timed.scheduleTimedRecording(startTime, options);
 	}
 
 	function cancelTimedRecording(options = {}) {
-		return timedRecordingService.cancelTimedRecording(options);
+		return recording.timed.cancelTimedRecording(options);
 	}
 
 	function cancelRecordingStart() {
-		return recordingSessionService.cancelRecordingStart();
+		return recording.session.cancelRecordingStart();
 	}
 
 	function startRecording(options = {}) {
-		return recordingSessionService.startRecording(options);
+		return recording.session.startRecording(options);
 	}
-	async function invalidateTakeCycleRecording(reason) { state.recordingStartGeneration += 1; takeCycleRecording.cancel(reason); await stopRecording().catch(handleError); }
+	function invalidateTakeCycleRecording(reason) { return recording.invalidateTakeCycleRecording(reason); }
 
 	async function stopRecording() {
-		return recordingSessionService.stopRecording();
+		return recording.session.stopRecording();
 	}
 
-	function finalizeRecording() {
-		return recordingSessionService.finalizeRecording();
-	}
 
 	function editingBlocked() {
 		return selectAudioEditorControllerEditBlock(state).blocked

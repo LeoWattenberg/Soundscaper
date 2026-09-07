@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { RecordingMediaStream } from './recording-transaction-types.ts';
 import type {
 	MicrophoneMeterSession,
 	RecordingDeviceRoute,
@@ -55,12 +56,12 @@ export interface RecordingInputCoordinationState {
 	timedRecordingPreparing: boolean;
 }
 
-interface RecordingInputCapturePool {
-	acquireDisplay(): Promise<unknown>;
+interface RecordingInputCapturePool<Stream> {
+	acquireDisplay(): Promise<Stream>;
 	acquireHardware(
 		deviceId: string,
 		options: Readonly<{ channelCount: number; sampleRate: number }>,
-	): Promise<unknown>;
+	): Promise<Stream>;
 }
 
 interface RecordingInputOperationScope {
@@ -88,9 +89,9 @@ interface RecordingRoutingCoordinationPort {
 	updateRecordingDeviceRows(): void;
 }
 
-export interface RecordingInputCoordinationRuntime {
+export interface RecordingInputCoordinationRuntime<Stream = RecordingMediaStream> {
 	readonly state: RecordingInputCoordinationState;
-	readonly capturePool: RecordingInputCapturePool;
+	readonly capturePool: RecordingInputCapturePool<Stream>;
 	readonly captureOperation: () => RecordingInputOperationScope;
 	readonly meter: RecordingInputMeterPort;
 	readonly routing: RecordingRoutingCoordinationPort;
@@ -104,7 +105,7 @@ export interface RecordingInputCoordinationRuntime {
 		track: RecordingInputTrack | null,
 		route: RecordingInputRoute | null,
 	) => RecordingInputRouting;
-	readonly streamAudioChannelCount: (stream: unknown) => number;
+	readonly streamAudioChannelCount: (stream: Stream) => number;
 }
 
 export interface RecordingInputCoordinationService {
@@ -123,8 +124,8 @@ export interface RecordingInputCoordinationService {
  * Persistence, pool retention, and meter-session ownership remain in their
  * focused services and are consumed only through the narrow ports above.
  */
-export function createRecordingInputCoordinationService(
-	runtime: RecordingInputCoordinationRuntime,
+export function createRecordingInputCoordinationService<Stream = RecordingMediaStream>(
+	runtime: RecordingInputCoordinationRuntime<Stream>,
 ): Readonly<RecordingInputCoordinationService> {
 	const { state } = runtime;
 	const trackOperationGenerations = new Map<string, number>();

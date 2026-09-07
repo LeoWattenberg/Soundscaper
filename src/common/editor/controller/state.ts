@@ -2,6 +2,11 @@
 
 import type { EditorControllerPhase } from './lifecycle.ts';
 import { createControllerDocumentState, type ControllerDocumentState } from './document-state.ts';
+import {
+	createControllerRecordingState,
+	exposeOwnedFields,
+	type ControllerRecordingState,
+} from './recording-state.ts';
 import type { ControllerRuntimeHistory, ControllerRuntimeProject } from './project-runtime.ts';
 import { createLocalDiagnosticsErrorJournal } from '../local-diagnostics-error-journal.ts';
 import { createInitialEffectMacroLibrary } from './effect-macro-library-service.ts';
@@ -11,6 +16,7 @@ import type { TakeCyclePendingOpenRecovery } from './take-cycle-capture-orchestr
 
 export interface EditorControllerStateOptions<Preferences, RecordingRouting, EffectPresets> {
 	readonly document?: ControllerDocumentState<ControllerRuntimeProject, ControllerRuntimeHistory>;
+	readonly recording?: ControllerRecordingState<RecordingRouting>;
 	readonly preferences: Preferences;
 	readonly recordingRouting: RecordingRouting;
 	readonly effectPresets: EffectPresets;
@@ -42,8 +48,9 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 	timelineMinimumSeconds,
 	recordingInputGain,
 	preferredInputDeviceId,
+	recording = createControllerRecordingState({ recordingRouting, recordingInputGain, preferredInputDeviceId }),
 }: EditorControllerStateOptions<Preferences, RecordingRouting, EffectPresets>) {
-	return {
+	return exposeOwnedFields({
 		localDiagnostics: createLocalDiagnosticsErrorJournal(),
 		get history() { return document.history; },
 		set history(value) { document.history = value; },
@@ -68,54 +75,8 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		projectLock: null,
 		projectLockRetryTimer: 0,
 		sourceGcTimer: 0,
-		recorder: null,
-		recordingKind: null as 'ordinary' | 'take-cycle' | null,
-		recordingWriter: null,
-		recordingStream: null,
-		recordingStarting: false,
-		recordingStartGeneration: 0,
-		recordingStartPromise: null,
-		timedRecording: null,
-		timedRecordingTimer: null,
-		timedRecordingGeneration: 0,
-		timedRecordingPreparing: false,
-		timedRecordingCancelling: false,
-		recordingPaused: false,
-		recordingInputGain,
-		leadInRecording: false,
 		importing: false,
 		projectBinPreview: null,
-		recordingSourceId: null,
-		recordingStartFrame: 0,
-		recordingSourceOffsetFrames: 0,
-		recordingSampleRate: null,
-		recordingTrackId: null,
-		recordingSelection: null,
-		recordingResampler: null,
-		recordingPreview: null,
-		recordingPreviews: [] as unknown[],
-		recordingEntries: null,
-		recordingPreviewLastPublishedAt: 0,
-		recordingCleanup: null,
-		recordingFinishing: false,
-		recordingFinalizePromise: null,
-		recordingFatalError: null,
-		recordingDiscardRequested: false,
-		recordingReleaseAfterStop: false,
-		recordingRouting,
-		recordingDevices: [] as unknown[],
-		recordingEnumeratedDeviceIds: new Set<string>(),
-		audioInputDevices: [] as unknown[],
-		audioOutputDevices: [] as unknown[],
-		audioInputAccess: false,
-		preferredInputDeviceId,
-		preferredInputChannelCount: 1,
-		preferredOutputDeviceId: '',
-		activeOutputDeviceId: '',
-		audioOutputStatus: 'default',
-		recordingRouteHealth: {},
-		recordingPoolSources: [] as unknown[],
-		inputMeters: {},
 		playbackCacheAbort: null,
 		playbackCacheRefreshAbort: null,
 		playbackCacheGeneration: 0,
@@ -168,9 +129,6 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		taskProgress: null,
 		exportProgress: 0,
 		exportOutput: null,
-		monitoring: false,
-		microphoneMetering: false,
-		latencyOffsetMs: 0,
 		showRms: false,
 		showVerticalRulers: true,
 		updateDisplayWhilePlaying: true,
@@ -185,10 +143,6 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		durationFrames: 0,
 		transportState: 'stopped',
 		meters: { tracks: {}, master: null },
-		inputMeterDb: -60,
-		inputMeter: null,
-		inputLoudnessMeasurementManuallyPaused: false,
-		inputLoudnessMeasurementExplicitlyRunning: false,
 		disposed: false,
-	};
+	}, recording);
 }
