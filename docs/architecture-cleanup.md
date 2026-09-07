@@ -207,3 +207,30 @@ Validation of the take-comp boundary repair (`0eef18d43`):
   concurrent repetitions pass, as does the rebuilt three-browser workflow above.
 - The root remains 694 lines and unchecked. No coverage floors, startup budgets,
   or chunk ceilings were weakened; unrelated capture changes remain separate.
+
+Further root-connection repairs (`66f59a1ff` through `7e309715b`):
+
+- Visual lookup admits label tracks without a clip inventory. A regression first
+  reproduced a `clipIds.includes` crash when a label track preceded the owning
+  audio track, then passed after optional inventory handling. A compile-time
+  assertion now checks the canonical V17 document against the visual port.
+- Recording writer results remain unknown until finalization validates their
+  source metadata. Admission happens after the rollback inventory records the
+  storage commit, so malformed metadata cannot publish a source or evade cleanup.
+  Both legacy and routed finalization have failure regressions.
+- Linked-original binding retains the admitted source kind through the resolver
+  and store. Import cleanup uses the actual kind-aware release method; its
+  obsolete mandatory audio-specific alias and fallback are removed.
+- A compile-time regression supplies the concrete project store to the complete
+  recording and import composition contracts. This caught both the incorrect
+  binding union and the nonexistent mandatory release method.
+- The full Node run passed 16,384 tests with 24 skipped; all 60 focused recording,
+  label, device and project workflows passed across rebuilt Chromium, Firefox
+  and WebKit sites. The final locator-alias removal also passed the seven import
+  service tests, test/tooling type checks and all four product compositions.
+- Full repository lint, changed-file lint, architecture checks, the production
+  build and supply-chain/notice audits pass. Startup and chunk budgets remain
+  unchanged, with the largest production chunk at 492,049 bytes.
+- The controller root remains unchecked. The outstanding authority distinction
+  between raw stored documents, admitted editable documents, and transient
+  consumer projections must be completed before closing the original finding.
