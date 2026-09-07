@@ -62,7 +62,7 @@ import { resolveProductCompositionDecision } from './controller/product-composit
 import { createControllerActionComposition } from './controller/controller-action-composition.ts';
 import { productActionRuntime } from './controller/product-action-runtime.ts'; import { createScapeProjectFileService } from './controller/scape-project-file-service.ts'; import { bindSoundscaperPersistentDeliveryRuntime } from './controller/soundscaper-persistent-delivery-runtime-binding.ts';
 
-import { normalizeEditorExportSettings } from './controller/export-settings.ts';
+import { createControllerProjectQueries } from './controller/controller-project-queries.ts';
 import { createPreferencesComposition } from './controller/preferences-composition.ts';
 import { createControllerSoundActivationPolicy } from './controller/sound-activation-controller-composition.ts';
 import { createDocumentComposition } from './controller/document-composition.ts';
@@ -111,9 +111,9 @@ import { createSourceRuntimeComposition } from './controller/source-runtime-comp
 import { calculateAudioEditorMetronomeSchedule } from './controller/transport-model.ts';
 
 export { calculateAudioEditorMetronomeSchedule } from './controller/transport-model.ts';
-
 /** @param {Element | null} [_root] */
 export function createAudioEditorController(_root = null, options = {}) {
+	/** @type {ReturnType<typeof createControllerBindings<import('./engine/public-api.ts').EnginePublicApi>>} */
 	const bindings = createControllerBindings({
 		clips: () => clips,
 		doc: () => doc,
@@ -164,6 +164,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const scheduleInterval = typeof options.setInterval === 'function' ? options.setInterval : globalThis.setInterval.bind(globalThis);
 	const clearScheduledInterval = typeof options.clearInterval === 'function' ? options.clearInterval : globalThis.clearInterval.bind(globalThis);
 	const documentState = createControllerDocumentState();
+	const { activeSelection, normalizeExportSettings } = createControllerProjectQueries({ getProject: () => documentState.project, projectSampleRate: () => projectSampleRate() });
 	const state = createEditorControllerState({ document: documentState,
 		preferences: createAudioEditorPreferencesV1({ workspace: { activeId: product.defaultWorkspace } }),
 		recordingRouting: normalizeRecordingRouting(),
@@ -658,8 +659,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		},
 		get headless() { return true; },
 		getSnapshot: bindings.getSnapshot, captureProjectGeneration: projectGeneration.capture.bind(projectGeneration), assertProjectGeneration: projectGeneration.assertCurrent.bind(projectGeneration),
-		subscribe: (listener) => documentChannel.subscribe(listener),
-		getTelemetrySnapshot: bindings.getTelemetrySnapshot, subscribeTelemetry: (listener) => telemetryChannel.subscribe(listener),
+		subscribe: documentChannel.subscribe,
+		getTelemetrySnapshot: bindings.getTelemetrySnapshot, subscribeTelemetry: telemetryChannel.subscribe,
 		getLocalDiagnosticsSnapshot: state.localDiagnostics.snapshot, recordLocalDiagnosticError: state.localDiagnostics.record,
 		getClipVisualData: bindings.getClipVisualData,
 		getProjectBinClipVisualData: bindings.getProjectBinClipVisualData, selectedMediaPreparation: effects.audio.selectedMediaPreparation,
@@ -684,19 +685,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return viewStateService.updatePlayhead(frame, duration);
 	}
 
-	function normalizeExportSettings(value = {}) {
-		return normalizeEditorExportSettings(value, projectSampleRate(), documentState.project.metadata?.tags || {});
-	}
-
 	function warnEnvelope() {
 		const envelope = projectEnvelope(documentState.project, { mobile: state.mobile });
 		if (!envelope.supported) bindings.setStatus(copy.capacityWarning
 			.replace('{trackCount}', String(envelope.limits.trackCount))
 			.replace('{stereoMinutes}', String(envelope.limits.stereoMinutes)));
-	}
-
-	function activeSelection() {
-		const selection = documentState.project?.selection;
-		return selection && selection.endFrame > selection.startFrame ? selection : null;
 	}
 }
