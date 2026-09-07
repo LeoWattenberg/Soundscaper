@@ -148,7 +148,7 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 		const endFrame = target?.endFrame ?? selection?.endFrame ?? startFrame;
 		const track = target?.track ?? null;
 		const clips = track?.clipIds
-			.map((clipId) => project.clips.find((clip) => clip.id === clipId) ?? null)
+			?.map((clipId) => project.clips.find((clip) => clip.id === clipId) ?? null)
 			.filter(isPresent)
 			.map((clip) => [
 				clip.timelineStartFrame / sampleRate,
