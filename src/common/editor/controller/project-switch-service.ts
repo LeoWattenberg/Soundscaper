@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { EDITOR_PROJECT_TASK_SCOPE, type EditorLifetimeToken } from './lifecycle.ts';
+import { isActiveProjectSwitchInput, prepareProjectSwitchHistory } from './project-switch-input.ts';
 import { createPlaybackProjectService } from './playback-project-service.ts';
 import { SCAPE_OPEN_REQUEST_TASK } from './scape-open-request-service.ts';
 import { SCAPE_INSPECTION_TASK } from './scape-inspection-service.ts';
@@ -35,7 +36,8 @@ export function createProjectSwitchService<
 	Project extends ProjectLifecycleProject,
 	History extends ProjectLifecycleHistory<Project>,
 	Buffer = unknown,
->(runtime: ProjectSwitchServiceRuntime<Project, History, Buffer>) {
+	Input = Project,
+>(runtime: ProjectSwitchServiceRuntime<Project, History, Buffer, Input>) {
 	const playbackProjects = runtime.playbackProjectService
 		?? createPlaybackProjectService(runtime.productCapabilities), openRecovery = runtime.openRecovery ?? createImmediateTakeCycleOpenRecoveryProjectPort();
 	let pendingProjectSwitches = 0;
@@ -85,13 +87,12 @@ export function createProjectSwitchService<
 	}
 
 	function switchProject(
-		nextProject: Project,
+		nextProject: Project | Input,
 		options: ProjectSwitchOptions<History> = {},
 	): Promise<void> {
 		const token = runtime.lifetime.capture();
 		if (options.adoptSessionRevision !== true
-			&& pendingProjectSwitches === 0 && readyProjectId === nextProject.id
-			&& runtime.getProject()?.id === nextProject.id) {
+			&& pendingProjectSwitches === 0 && isActiveProjectSwitchInput(nextProject, readyProjectId, runtime.getProject()?.id)) {
 			runtime.lifetime.assertActive(token);
 			return Promise.resolve();
 		}
@@ -111,14 +112,13 @@ export function createProjectSwitchService<
 	}
 
 	async function performProjectSwitch(
-		nextProject: Project,
+		nextProject: Project | Input,
 		options: ProjectSwitchOptions<History> = {},
 		token: EditorLifetimeToken = runtime.lifetime.capture(),
 	): Promise<void> {
 		runtime.lifetime.assertActive(token);
 		if (options.adoptSessionRevision !== true
-			&& pendingProjectSwitches === 0 && readyProjectId === nextProject.id
-			&& runtime.getProject()?.id === nextProject.id) return;
+			&& pendingProjectSwitches === 0 && isActiveProjectSwitchInput(nextProject, readyProjectId, runtime.getProject()?.id)) return;
 		const fence = beginScapeInspectionFence();
 		pendingProjectSwitches += 1;
 		try {
@@ -132,23 +132,17 @@ export function createProjectSwitchService<
 	}
 
 	async function performProjectSwitchUnderFence(
-		nextProject: Project,
+		nextProject: Project | Input,
 		options: ProjectSwitchOptions<History>,
 		token: EditorLifetimeToken,
 	): Promise<void> {
 		if (options.adoptSessionRevision !== true
-			&& readyProjectId === nextProject.id && runtime.getProject()?.id === nextProject.id) return;
+			&& isActiveProjectSwitchInput(nextProject, readyProjectId, runtime.getProject()?.id)) return;
 		const guard = <Value>(value: PromiseLike<Value> | Value) => runtime.lifetime.guard(value, token);
-		const projectId = nextProject.id;
-		const existingCapture = runtime.sessionTab(projectId)
-			? runtime.session.captureProjectHistory(projectId)
-			: null;
-		const activationHistory = existingCapture?.history
-			?? (options.history ? structuredClone(options.history) : runtime.createHistory(nextProject));
-		const activationProject = activationHistory.present;
-		if (activationProject.id !== projectId) {
-			throw new RangeError('Project activation history must belong to the requested project.');
-		}
+		const { projectId, existingCapture, activationHistory, activationProject } = prepareProjectSwitchHistory(
+			nextProject, options.history, runtime.createHistory,
+			(id) => runtime.sessionTab(id) ? runtime.session.captureProjectHistory(id) : null,
+		);
 		const fallbackAdmission = await guard(runtime.verifyProjectFallbackIntegrity(activationProject, {
 			signal: runtime.lifetime.signal,
 		}));

@@ -112,6 +112,7 @@ export interface ProjectSwitchServiceRuntime<
 	Project extends ProjectLifecycleProject,
 	History extends ProjectLifecycleHistory<Project>,
 	Buffer = unknown,
+	Input = Project,
 > {
 	readonly state: ProjectSwitchState<Project, History>;
 	readonly productCapabilities: Readonly<Record<string, unknown>>;
@@ -137,10 +138,10 @@ export interface ProjectSwitchServiceRuntime<
 		armed: true;
 		height: 300;
 	}>) => Readonly<{ readonly track: Project['tracks'][number] }>;
-	readonly createHistory: (project: Project) => History;
+	readonly createHistory: (project: Project | Input) => History;
 	readonly executeCommand: (history: History, command: unknown) => History;
 	readonly loadProject: (value: unknown) => Readonly<{
-		project: Project;
+		project: Input;
 		readOnly: boolean;
 		intrinsicReadOnly?: boolean;
 		reason?: string | null;
