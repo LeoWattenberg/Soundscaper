@@ -12,6 +12,7 @@ import {
 	FRAMESCAPER_DATABASE_NAME,
 	FRAMESCAPER_OPFS_DIRECTORY_NAME,
 } from './helpers/editor-databases.js';
+import { audacityCopy } from './helpers/audacity-copy.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
@@ -79,11 +80,11 @@ test.describe('Framescaper frame-canonical uniform rate-stretch qualification', 
 				sequenceTimecode(row.target, baseline.sequence.rate),
 			);
 			await expectVideoRateBadge(editor, active.id, expected, timing);
-			await clickHistory(editor, 'Rückgängig');
+			await clickHistory(editor, audacityCopy('de').undo);
 			await expectPersistedTimeline(page, projectId, baseline);
-			await clickHistory(editor, 'Wiederholen');
+			await clickHistory(editor, audacityCopy('de').redo);
 			await expectPersistedTimeline(page, projectId, expected);
-			await clickHistory(editor, 'Rückgängig');
+			await clickHistory(editor, audacityCopy('de').undo);
 			await expectPersistedTimeline(page, projectId, baseline);
 			await selectVideoClip(editor, active.id);
 		}
@@ -109,7 +110,7 @@ test.describe('Framescaper frame-canonical uniform rate-stretch qualification', 
 			const expected = applyRateStretch(baseline, active.id, row.edge, row.target);
 			await expectPersistedTimeline(page, projectId, expected);
 			assertRateStretchInvariants(baseline, expected, active.id, row.edge, row.target);
-			await clickHistory(editor, 'Rückgängig');
+			await clickHistory(editor, audacityCopy('de').undo);
 			await expectPersistedTimeline(page, projectId, baseline);
 			await selectVideoClip(editor, active.id);
 		}

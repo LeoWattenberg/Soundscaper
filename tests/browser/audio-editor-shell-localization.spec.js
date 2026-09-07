@@ -17,7 +17,6 @@ import {
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
-import { machineCopy } from './helpers/machine-copy.js';
 import { audacityCopy } from './helpers/audacity-copy.js';
 import { GERMAN_COPY } from '../../src/common/i18n/catalogs.js';
 import { formatOptionsLabel } from '../../src/common/editor/ui/localization-template.ts';
@@ -203,11 +202,9 @@ test.describe('audio editor React/design-system workflows', () => {
 
 	test('loads verified LTR and RTL catalogs before binding the editor', async ({ page }) => {
 		await page.goto('/embed/fr/');
-		await expect(page.locator('[data-audio-editor]')).toHaveCount(0);
-		// The loading status is site copy: English at first paint, then the
-		// machine translation once the locale's chunk has arrived.
-		await expect(page.getByRole('status')).toHaveText(machineCopy('fr').loading);
 		let editor = await waitForEditor(page);
+		// The editor's own status is machine-translated French once the layers have resolved.
+		await expect(editor.locator('[data-status]')).toHaveText(audacityCopy('fr').ready);
 		await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
 		await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
 		await expect(editor.getByRole('button', { name: audacityCopy('fr').play, exact: true })).toBeVisible();
