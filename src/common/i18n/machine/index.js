@@ -10,6 +10,7 @@
 
 export const MACHINE_CATALOG_LOCALES = Object.freeze([
 	'ar',
+	'cs',
 	'es',
 	'fi',
 	'fr',
@@ -29,6 +30,7 @@ export const MACHINE_CATALOG_LOCALES = Object.freeze([
 
 export const MACHINE_CATALOG_LOADERS = Object.freeze({
 	ar: () => import('./ar.json'),
+	cs: () => import('./cs.json'),
 	es: () => import('./es.json'),
 	fi: () => import('./fi.json'),
 	fr: () => import('./fr.json'),
