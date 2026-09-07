@@ -99,3 +99,15 @@ void test('a dynamically retrieved host does not acquire the default runtime res
 		resolveControllerProjectRuntime(Reflect.get(host, String('runtime')));
 	assert.equal(selected.createProject().title, 123);
 });
+
+void test('runtime admission guarantees fallbacks for omitted optional host hooks', () => {
+	const { prepareTrackDuplicateCarrier: _carrier, ...required } = resolveControllerProjectRuntime();
+	const selected: typeof required & {
+		prepareTrackDuplicateCarrier?: typeof _carrier;
+	} = required;
+	const runtime = resolveControllerProjectRuntime(selected);
+	const carrier = runtime.prepareTrackDuplicateCarrier(null, {
+		sourceTrackId: 'track-a', targetTrackId: 'track-b', effectIds: [],
+	});
+	assert.deepEqual(carrier, { sourceTrackId: 'track-a', effectIds: [] });
+});

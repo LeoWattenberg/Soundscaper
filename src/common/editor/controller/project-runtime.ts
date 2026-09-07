@@ -230,11 +230,29 @@ export type ControllerProjectRuntimeSelection = {
 	readonly [Name in typeof METHOD_NAMES[number] | 'loadProject']: (...args: never[]) => unknown;
 };
 
+/** A host may omit hooks whose implementation is supplied during admission. */
+export type ControllerProjectRuntimeInput<
+	Project extends ControllerRuntimeProject = ControllerRuntimeProject,
+	History extends ControllerRuntimeHistory<Project> = ControllerRuntimeHistory<Project>,
+	LoadedProject = Project,
+> = Omit<ControllerProjectRuntime<Project, History, LoadedProject>, 'prepareTrackDuplicateCarrier'>
+	& Partial<Pick<ControllerProjectRuntime<Project, History, LoadedProject>, 'prepareTrackDuplicateCarrier'>>;
+
+type DefaultedRuntimeMethod = 'prepareTrackDuplicateCarrier' | 'projectForEditClipboardConsumers'
+	| 'createEditSessionClipboard' | 'prepareEditClipboardPasteCommand';
+
+type AdmittedRuntimeMethods<Runtime> = {
+	readonly [Name in DefaultedRuntimeMethod]-?: Name extends keyof Runtime
+		? Exclude<Runtime[Name], undefined> | (undefined extends Runtime[Name] ? typeof DEFAULT_RUNTIME[Name] : never)
+		: typeof DEFAULT_RUNTIME[Name];
+};
+
 /** Keep only admitted runtime ports, retaining the selected owners' signatures. */
 export type ControllerProjectRuntimeSnapshot<Runtime extends ControllerProjectRuntimeSelection> =
 	unknown extends Runtime ? Readonly<ControllerProjectRuntime> : Readonly<
-		Omit<ControllerProjectRuntime, keyof Runtime>
-		& Pick<Runtime, Extract<keyof ControllerProjectRuntime, keyof Runtime>>
+		Omit<ControllerProjectRuntime, keyof Runtime | DefaultedRuntimeMethod>
+		& Pick<Runtime, Exclude<Extract<keyof ControllerProjectRuntime, keyof Runtime>, DefaultedRuntimeMethod>>
+		& AdmittedRuntimeMethods<Runtime>
 	>;
 
 export function resolveControllerProjectRuntime(): typeof DEFAULT_RUNTIME;
