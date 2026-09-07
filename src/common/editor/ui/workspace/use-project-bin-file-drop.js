@@ -33,17 +33,22 @@ export function useProjectBinFileDrop({ blocked, onFiles }) {
 		resetDropState,
 		dropHandlers: {
 			onDragEnter: (event) => {
-				if (blocked || !isFileDrag(event.dataTransfer)) return;
+				if (!isFileDrag(event.dataTransfer)) return;
+				// Cancelling comes before the block check, as it does on drop: an element
+				// whose dragenter/dragover is not cancelled is not a drop target at all,
+				// and the browser navigates to the dropped file instead.
 				event.preventDefault();
 				event.stopPropagation();
+				if (blocked) return;
 				dragDepthRef.current += 1;
 				setDropActive(true);
 			},
 			onDragOver: (event) => {
-				if (blocked || !isFileDrag(event.dataTransfer)) return;
+				if (!isFileDrag(event.dataTransfer)) return;
 				event.preventDefault();
 				event.stopPropagation();
-				event.dataTransfer.dropEffect = 'copy';
+				event.dataTransfer.dropEffect = blocked ? 'none' : 'copy';
+				if (blocked) return;
 				setDropActive(true);
 			},
 			onDragLeave: (event) => {
