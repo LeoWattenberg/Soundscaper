@@ -219,7 +219,7 @@ function imageClipsForBindings(
 	descriptor: AudioEditorClipboard,
 ): readonly FramescaperImageClipV1[] {
 	const selected = new Set(bindings.map(({ clipId }) => clipId));
-	const clips = project.clips.filter((clip): clip is FramescaperImageClipV1 => (
+	const clips = project.clips.filter((clip): clip is typeof clip & FramescaperImageClipV1 => (
 		clip.kind === 'image' && selected.has(String(clip.id))
 	)).map(normalizeFramescaperImageClipV1);
 	const descriptorByKey = new Map(descriptor.tracks.flatMap((track) => track.clips.map((clip) => [
@@ -244,6 +244,7 @@ function bindDescriptorClips(
 	for (const descriptorTrack of descriptor.tracks) {
 		const track = trackById.get(descriptorTrack.sourceTrackId);
 		if (!track) throw new ReferenceError(`V13 descriptor track ${descriptorTrack.sourceTrackId} is missing.`);
+		if (track.type === 'label') throw new ReferenceError(`V13 descriptor track ${descriptorTrack.sourceTrackId} has no media clip inventory.`);
 		const candidates = [...track.clipIds].sort((left, right) => right.length - left.length);
 		for (const descriptorClip of descriptorTrack.clips) {
 			const key = String(descriptorClip.key);

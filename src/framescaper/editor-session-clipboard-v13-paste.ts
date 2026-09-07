@@ -97,7 +97,7 @@ export function prepareFramescaperSessionClipboardPasteV13(
 		foundationCommand,
 	);
 	const occupied = collectProjectIdentities(project);
-	const targetSources = project.sources.filter((source): source is FramescaperImageSourceV1 => (
+	const targetSources = project.sources.filter((source): source is typeof source & FramescaperImageSourceV1 => (
 		source.kind === 'image'
 	)).map(normalizeFramescaperImageSourceV1);
 	const sourceCommands: FramescaperProjectCommandTimelineImage[] = [];

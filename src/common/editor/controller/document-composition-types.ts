@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { MediaSourceLeaf, MediaClipLeaf } from '../project-media-types.ts';
+import type { FramescaperImageSourceV1, FramescaperImageClipV1 } from '../timeline-image-model.ts';
 import type { ProjectDocumentBody } from '../project-document-body-types.ts';
 import type { MacroTransactionMetadata } from './macro-transaction-metadata.ts';
 
@@ -40,7 +42,10 @@ import type { RecordingRouting } from './track-service.ts';
 /** One document shape that satisfies every persistence and mutation service's constraint. */
 export type DocumentProject =
 	& ControllerRuntimeProject
-	& ProjectDocumentBody
+	& ProjectDocumentBody<
+		MediaSourceLeaf | (FramescaperImageSourceV1 & Readonly<Record<string, unknown>>),
+		MediaClipLeaf | (FramescaperImageClipV1 & Readonly<Record<string, unknown>>)
+	>
 	& ProjectVisualProject
 	& MutationProject
 	& RetentionProject

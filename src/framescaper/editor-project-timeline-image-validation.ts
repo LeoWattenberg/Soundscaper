@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { ProjectFeatureRequirementsManifest } from '../common/editor/project-feature-requirements.ts';
+import type { ProjectDocumentBody, ProjectDocumentSelection } from '../common/editor/project-document-body-types.ts';
+import type { MediaSourceLeaf, MediaClipLeaf, MediaTrackLeaf } from '../common/editor/project-media-types.ts';
+import type { ProjectHierarchySequence } from '../common/editor/project-hierarchy-document-validation.ts';
+import type { FramescaperProfessionalVideoSourceProfessionalMedia } from './editor-project-professional-media-validation.ts';
 import {
 	normalizeFramescaperImageClipV1,
 	normalizeFramescaperImageSourceV1,
@@ -11,43 +14,32 @@ import {
 	validateFramescaperProjectFeatureRequirementsTimelineImage,
 } from './editor-project-feature-requirements-timeline-image.ts';
 import { assertFramescaperProjectTimelineImageProfile } from './editor-domain-runtime-profile.ts';
-import { validateFramescaperProjectNativeMedia, type FramescaperProjectNativeMedia } from './editor-project-native-media.ts';
+import { validateFramescaperProjectNativeMedia } from './editor-project-native-media.ts';
 import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from './editor-domain-runtime-profile.ts';
 import { framescaperProjectNativeMediaFoundationShapeTimelineImage } from './editor-project-timeline-image-foundation.ts';
 
 export const FRAMESCAPER_PROJECT_TIMELINE_IMAGE_SCHEMA_VERSION = 1 as const;
 
 export type FramescaperImageOrInheritedClipTimelineImage =
-	| Readonly<Record<string, unknown>>
-	| FramescaperImageClipV1;
+	| MediaClipLeaf
+	| (FramescaperImageClipV1 & Readonly<Record<string, unknown>>);
 
-export interface FramescaperProjectTimelineImage extends Omit<FramescaperProjectNativeMedia,
-	'schemaVersion' | 'featureRequirements' | 'sources' | 'clips'> {
+type FramescaperTimelineSource =
+	| (Extract<MediaSourceLeaf, { kind: 'video' }> & FramescaperProfessionalVideoSourceProfessionalMedia)
+	| Extract<MediaSourceLeaf, { kind: 'audio' }>
+	| (FramescaperImageSourceV1 & Readonly<Record<string, unknown>>);
+
+/** Shared body fields survive the extensible wire without claiming a legacy schema identity. */
+export interface FramescaperProjectTimelineImage extends ProjectDocumentBody<
+	FramescaperTimelineSource, FramescaperImageOrInheritedClipTimelineImage
+> {
 	readonly schemaFamily: 'framescaper';
 	readonly schemaVersion: 1;
-	readonly id: string;
-	readonly title: string;
-	readonly revision: number;
-	readonly sampleRate: number;
-	readonly featureRequirements: ProjectFeatureRequirementsManifest;
-	readonly sources: readonly (FramescaperProjectNativeMedia['sources'][number] | FramescaperImageSourceV1)[];
-	readonly clips: readonly FramescaperImageOrInheritedClipTimelineImage[];
-	readonly tracks: readonly (Readonly<Record<string, unknown>> & Readonly<{
-		id: string;
-		type: string;
-		locked: boolean;
-		clipIds: readonly string[];
-	}>)[];
-	readonly projectBin: Readonly<Record<string, unknown>> & Readonly<{
-		clips: readonly FramescaperImageOrInheritedClipTimelineImage[];
-	}>;
-	readonly selection: Readonly<Record<string, unknown>> & Readonly<{ clipIds: readonly string[] }>;
-	readonly sequences: readonly (Readonly<Record<string, unknown>> & Readonly<{
-		id: string;
+	readonly tracks: readonly (MediaTrackLeaf & { readonly locked: boolean })[];
+	readonly selection: ProjectDocumentSelection & Readonly<{ clipIds: readonly string[] }>;
+	readonly sequences: readonly (ProjectHierarchySequence & Readonly<{
 		rate: Readonly<{ num: number; den: number }>;
-		trackIds: readonly string[];
 	}>)[];
-	readonly primarySequenceId: string;
 }
 
 export const FRAMESCAPER_TIMELINE_IMAGE_PROJECT_FIELDS = Object.freeze([

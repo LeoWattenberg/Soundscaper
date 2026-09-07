@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { createAddTrackCommand } from '../src/common/editor/commands/factories.ts';
 import { FRAMESCAPER_IMAGE_ASSET_MIME_TYPE } from '../src/common/editor/timeline-image-model.ts';
 import {
 	FRAMESCAPER_TIMELINE_IMAGE_PROJECT_RUNTIME_PROFILE as PROFILE,
@@ -353,6 +354,15 @@ test('a v13 clipboard requires source metadata for every descriptor-owned source
 	refuse(
 		{ ...board, sources: (board.sources as Data[]).filter(({ id }) => id !== 'video-source') },
 		/Session clipboard source metadata is missing for video-source\./u,
+	);
+});
+
+test('a label track cannot masquerade as the owner of copied image media', () => {
+	const project = applyFramescaperProjectCommandTimelineImage(PROFILE, imageProject(),
+		createAddTrackCommand({ type: 'label', id: 'labels', name: 'Labels' }));
+	assert.throws(
+		() => copy(project, descriptorFor(project, [descriptorClip(IMAGE_KEY, 'image-source')], 'labels')),
+		{ name: 'ReferenceError', message: /has no media clip inventory/ },
 	);
 });
 
