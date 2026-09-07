@@ -44,6 +44,12 @@ export interface FoundationTimeConversionSite {
  */
 const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'otio-video-source-in-point',
+		file: 'src/common/editor/otio-export.ts',
+		behavior: 'Frame-authoritative video source in-points are rebased from the exact source grid to the OTIO sequence grid with nearest-point rounding.',
+		conversions: [{ helper: 'roundRational', policies: ['point'] }],
+	},
+	{
 		id: 'audacity-live-capability-windows',
 		file: 'src/common/editor/audacity-effects/live-capabilities.js',
 		behavior: 'Declared fade and pause windows resolve their seconds as nearest sample instants, matching the live effect graph that consumes them.',
