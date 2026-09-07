@@ -21,7 +21,7 @@ Two languages are written and reviewed for this editor directly. The rest are ma
 | English | `en` | `/en/` | Left to right | Written for this editor |
 | English (UK) | `en-GB` | `/en-GB/` | Left to right | Audacity's reviewed strings over English |
 | Español | `es` | `/es/` | Left to right | Machine translated, with Audacity's reviewed strings |
-| فارسی | `fa` | `/fa/` | Right to left | Audacity's reviewed strings over English |
+| فارسی | `fa` | `/fa/` | Right to left | Machine translated, with Audacity's reviewed strings |
 | Suomi | `fi` | `/fi/` | Left to right | Machine translated, with Audacity's reviewed strings |
 | Français | `fr` | `/fr/` | Left to right | Machine translated, with Audacity's reviewed strings |
 | Galego | `gl` | `/gl/` | Left to right | Machine translated, with Audacity's reviewed strings |
