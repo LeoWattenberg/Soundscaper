@@ -91,7 +91,7 @@ export interface AnalysisDependencies {
 	getSpectrumWindowSize(): number;
 	getContrastSelections(): Readonly<{ foreground: ContrastSelection | null; background: ContrastSelection | null }>;
 	setContrastSelections(value: Readonly<{ foreground: ContrastSelection | null; background: ContrastSelection | null }>): void;
-	loadAnalysis(key: string): Promise<StoredAnalysis | null>;
+	loadAnalysis(key: string): Promise<unknown>;
 	saveAnalysis(key: string, value: StoredAnalysis): Promise<unknown>;
 	renderAudio(scope: string, range: AnalysisRange, signal: AbortSignal): Promise<AnalysisAudioBuffer>;
 	analyzeChannels(
@@ -156,7 +156,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 		].join(':');
 		try {
 			assertAnalysisChannelAdmission(project);
-			const cached = await dependencies.loadAnalysis(key);
+			const cached = readStoredAnalysis(await dependencies.loadAnalysis(key));
 			assertCurrent(task, projectToken);
 			if (cached?.result) {
 				dependencies.showAnalysis(cached.result, cached.visuals, cached.report || levelsReport(scope, range));
@@ -430,4 +430,14 @@ function normalizeSpectrumSize(value: unknown): number {
 
 function isAbortError(error: unknown): boolean {
 	return typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError';
+}
+
+/** Cache records are shared with other analysis kinds and may predate this schema. */
+function readStoredAnalysis(value: unknown): StoredAnalysis | null {
+	if (!isRecord(value) || !isRecord(value.result)) return null;
+	return { result: value.result, visuals: value.visuals, report: value.report };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
