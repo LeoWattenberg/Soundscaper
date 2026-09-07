@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createControllerProjectQueries } from '../src/common/editor/controller/controller-project-queries.ts';
+import { createControllerProjectQueries, createCommandProjectReader } from '../src/common/editor/controller/controller-project-queries.ts';
 
 function fixture(project: Readonly<Record<string, unknown>> | null) {
 	return createControllerProjectQueries({ getProject: () => project, projectSampleRate: () => 48000 });
@@ -32,4 +32,19 @@ void test('export defaults work before activation and preserve explicit metadata
 	const explicit = { title: 'Export title' };
 	assert.equal(queries.normalizeExportSettings({ metadata: explicit }).metadata, explicit);
 	assert.deepEqual(fixture({ metadata: 17 }).normalizeExportSettings().metadata, {});
+});
+
+void test('command readers require activation and retain the projection owner result type', () => {
+	let project: { id: string } | null = null;
+	let reads = 0;
+	const reader = createCommandProjectReader(() => project, value => {
+		reads += 1;
+		return { ...value, resolvedFrame: 42 };
+	});
+	assert.throws(reader, /open project/u);
+	assert.equal(reads, 0);
+	project = { id: 'activated' };
+	const frame: number = reader().resolvedFrame;
+	assert.equal(frame, 42);
+	assert.equal(reads, 1);
 });

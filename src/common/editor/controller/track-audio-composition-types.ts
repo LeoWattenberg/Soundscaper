@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { AudioEditorCommand } from '../commands/protocol.ts';
 import type { EnginePublicApi } from '../engine/public-api.ts';
 import type { AudioWarpControllerCompositionDependencies } from './audio-warp-composition.ts';
 import type { DerivedAudioCompositionDependencies } from './derived-audio-composition.ts';
@@ -123,8 +124,8 @@ export interface TrackAudioCompositionDependencies {
 	readonly retireSourceChunkProvider: DerivedAudioCompositionDependencies['retireSourceChunkProvider'];
 	readonly renderDryTrackRange: DerivedAudioCompositionDependencies['renderDryTrackRange'];
 	readonly hasMissingTimelineSources: () => boolean;
-	readonly updatePlayhead: (frame?: unknown, duration?: unknown) => unknown;
-	readonly updateSelection: (...args: unknown[]) => unknown;
+	readonly updatePlayhead: (frame?: number, duration?: number) => unknown;
+	readonly updateSelection: (command: AudioEditorCommand) => unknown;
 	readonly synchronizeAutomaticSampleEditMode: () => unknown;
 	readonly updateRecordingDeviceRows: TrackRecordingRoutingPort['updateDeviceRows'];
 	readonly persistRecordingRouting: TrackRecordingRoutingPort['persistRouting'];

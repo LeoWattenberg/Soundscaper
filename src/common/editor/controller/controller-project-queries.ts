@@ -10,6 +10,20 @@ export interface ControllerProjectQueryDependencies {
 	readonly projectSampleRate: () => number;
 }
 
+/** Resolve command coordinates only after a document has been activated. */
+export function createCommandProjectReader<Project extends object, Projection>(
+	getProject: () => Project | null,
+	projectForCommandConsumers: (project: Project) => Projection,
+): () => NonNullable<Projection> {
+	return () => {
+		const project = getProject();
+		if (!project) throw new Error('Clip editing requires an open project.');
+		const projection = projectForCommandConsumers(project);
+		if (projection == null) throw new TypeError('The project runtime did not produce a command projection.');
+		return projection;
+	};
+}
+
 /** Read only admitted selection fields; opaque documents remain unchanged. */
 export function createControllerProjectQueries(dependencies: ControllerProjectQueryDependencies) {
 	return Object.freeze({

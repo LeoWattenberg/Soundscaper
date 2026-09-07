@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { DeferredNyquistClient } from './deferred-effect-runtime.ts';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
 import type { EnginePublicApi } from '../engine/public-api.ts';
 import type { AssistanceDerivativeRepositoryPort } from '../storage/deferred-assistance-derivative-repository.ts';
@@ -107,7 +108,7 @@ export interface EffectsCompositionDependencies {
 	readonly sourceBuffers: NyquistGeneratedAudioServiceRuntime['sourceBuffers'];
 	readonly sourcePeaks: NyquistGeneratedAudioServiceRuntime['sourcePeaks'];
 	readonly taskProgress: Pick<EditorTaskProgressCoordinator, 'run' | 'updateActive'>;
-	readonly nyquistEvaluator: (request: unknown, options?: unknown) => Promise<unknown>;
+	readonly nyquistEvaluator: DeferredNyquistClient['evaluate'];
 	readonly getProject: () => EffectsCompositionProject | null;
 	readonly activeSelection: () => EffectSelection | null;
 	readonly selectedTracksTimeRange: EffectSelectionServiceRuntime['selectedTracksTimeRange'];
