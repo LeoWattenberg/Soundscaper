@@ -4,13 +4,20 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	audacityXmlAttribute,
-	audacityXmlChildren,
+	audacityXmlAttribute as readXmlAttribute,
+	audacityXmlChildren as readXmlChildren,
 	createAudacityXmlNode,
 } from '../src/common/editor/audacity-binary-xml.js';
 import { createAup4ProjectTree } from '../src/common/editor/aup4-profile.js';
 
 type XmlNode = ReturnType<typeof createAudacityXmlNode>;
+
+// Admit the legacy JavaScript XML helpers at this test boundary. Their inferred
+// optional-argument types otherwise accept only the null/undefined defaults.
+const audacityXmlChildren = readXmlChildren as unknown as (node: unknown, name: string) => XmlNode[];
+const audacityXmlAttribute = readXmlAttribute as unknown as (
+	node: unknown, name: string, fallback?: unknown,
+) => unknown;
 
 const importedWaveTrack = () => ({ kind: 'node' as const, node: createAudacityXmlNode('wavetrack') });
 
