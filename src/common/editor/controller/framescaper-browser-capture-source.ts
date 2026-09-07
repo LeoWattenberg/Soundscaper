@@ -25,8 +25,8 @@ export interface BrowserCaptureTrack {
 	readonly id?: string;
 	readonly kind: string;
 	readonly label?: string;
-	getCapabilities?(): Readonly<Record<string, unknown>>;
-	getSettings?(): Readonly<Record<string, unknown>>;
+	getCapabilities?(): unknown;
+	getSettings?(): Readonly<MediaTrackSettings> | Readonly<Record<string, unknown>>;
 	stop(): void;
 }
 

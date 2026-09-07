@@ -237,3 +237,25 @@ test('video MIME selection is capability based and preserves the recorder defaul
 	assert.equal(selectFramescaperVideoMimeType({ isTypeSupported: () => false }), '');
 	assert.equal(selectFramescaperVideoMimeType(null), null);
 });
+
+test('capture snapshots accept browser settings and capabilities without index signatures', async () => {
+	const settings: MediaTrackSettings = { deviceId: 'camera', width: 1280, height: 720 };
+	const capabilities: MediaTrackCapabilities = { width: { min: 320, max: 1920 } };
+	let stops = 0;
+	const camera = { id: 'camera', kind: 'video', getSettings: () => settings,
+		getCapabilities: () => capabilities, stop() { stops += 1; } };
+	const cameraStream = { getTracks: () => [camera], getVideoTracks: () => [camera], getAudioTracks: () => [] };
+	const port = createBrowserFramescaperCaptureSourcePort({
+		mediaDevices: { getUserMedia: async () => cameraStream },
+		consumeUserAction: () => true, createStream: () => cameraStream,
+	});
+	const lease = await port.openPreview({ signal: new AbortController().signal,
+		userActionGeneration: 1, roles: ['camera'] });
+	try {
+		assert.deepEqual(lease.sources[0]?.settings, settings);
+		assert.deepEqual(lease.sources[0]?.capabilities, capabilities);
+		assert.notEqual(lease.sources[0]?.settings, settings);
+		assert.equal(Object.isFrozen(lease.sources[0]?.settings), true);
+	} finally { await lease.dispose(); }
+	assert.equal(stops, 1);
+});
