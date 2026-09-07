@@ -103,6 +103,7 @@ import {
 import { createEditorControllerState } from './controller/state.ts';
 import { createTransportComposition } from './controller/transport-composition.ts';
 import { createProjectAdminService } from './controller/project-admin-service.ts';
+import { bindProjectAdministrationActions } from './controller/project-admin-action-binding.ts';
 import { createEditComposition } from './controller/edit-composition.ts';
 import { createImportComposition } from './controller/import-composition.ts';
 import { createSourceRuntimeComposition } from './controller/source-runtime-composition.ts';
@@ -312,6 +313,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		disposeRenderEngines: sources.timePitchCaches.disposeRenderEngines, sourceBuffers, sourceChunkProviders, sourcePeaks, state, stopProjectBinPreview: bindings.stopProjectBinPreview, stopRecording: bindings.stopRecording, store,
 		switchProject: bindings.switchProject, ...(framescaperCaptureAdminInterlock ? { beginCaptureInterlockedAdminOperation: framescaperCaptureAdminInterlock.beginAdminOperation } : {}),
 	});
+	const { prepareProjectHandoff, assertProjectHandoffAllowed, closeProjectTab, deleteProject, clearLocalData } =
+		bindProjectAdministrationActions(projectAdminService, () => documentState.project, () => framescaperCapture);
 	const analysisService = createAnalysisComposition({
 		enabled: composition.analysis, productName: product.name, state, copy, lifetime, projectGeneration, store, taskProgress,
 		getProject: () => documentState.project, getActiveSelection: activeSelection, projectDurationFrames,
@@ -589,7 +592,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		moveToolbarPreference, moveTrack, normalizePlaybackFrame,
 		openScapeFile, openDawproject: (file) => taskProgress.run('project-io', copy.importing, () => nativeProjectService.openDawproject(file)), saveDawproject: (saveOptions) => taskProgress.run('project-io', copy.dawprojectSaving, () => nativeProjectService.saveDawproject(saveOptions)),
 		pauseLoudnessMeasurement,
-		prepareProjectHandoff, assertProjectHandoffAllowed: () => { if (documentState.project) framescaperCapture?.assertOriginHandoffAllowed(documentState.project.id); projectAdminService.assertProjectHandoffAllowed(); }, previewAudacityEffectFromController: effects.execution.previewAudacityEffectFromController,
+		prepareProjectHandoff, assertProjectHandoffAllowed, previewAudacityEffectFromController: effects.execution.previewAudacityEffectFromController,
 		product, productId: product.id, locale: options.locale, macroScriptStartedAt: () => new Date().toISOString(), getProject: () => documentState.project, projectSampleRate, beginMacroTransaction: () => doc.mutation.beginMacroTransaction(), timelineDurationFrames: () => projectDurationFrames(documentState.project),
 		releaseVideoSourceVisual: bindings.revokeVideoVisual, reloadVideoSourceVisual, reportVideoPreviewPressure: options.reportProductVideoPreviewPressure || (() => undefined), canRelinkLinkedAudio: imports.projectBin.canRelinkLinkedAudio, classifyLinkedAudioRelink: imports.projectBin.classifyLinkedAudioRelink, relinkLinkedAudio: imports.projectBin.relinkLinkedAudio, canRelinkLinkedVideo: imports.projectBin.canRelinkLinkedVideo, classifyLinkedVideoRelink: imports.projectBin.classifyLinkedVideoRelink, relinkLinkedVideo: imports.projectBin.relinkLinkedVideo,
 		reorderTrack,
@@ -670,27 +673,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 	async function reloadVideoSourceVisual(sourceId) { const source = findSource(documentState.project, sourceId); if (!source || source.kind !== 'video') throw new ReferenceError(`Video source ${String(sourceId)} is missing.`); await bindings.revokeVideoVisual(source.id); return bindings.activateVideoSource(source); }
 
 	async function persistSetting(key, value, { policy = 'best-effort' } = {}) { return settingPersistence.persist(key, value, { policy }); }
-
-	async function prepareProjectHandoff(expected) {
-		if (documentState.project) framescaperCapture?.assertOriginHandoffAllowed(documentState.project.id);
-		return projectAdminService.prepareProjectHandoff(expected);
-	}
-
-	async function closeProjectTab(projectId = documentState.project?.id, closeOptions = {}) {
-		if (projectId) framescaperCapture?.assertOriginCloseAllowed(projectId);
-		return projectAdminService.closeProjectTab(projectId, closeOptions);
-	}
-
-	async function deleteProject() {
-		if (documentState.project) framescaperCapture?.assertOriginDeleteAllowed(documentState.project.id);
-		return projectAdminService.deleteProject();
-	}
-
-	async function clearLocalData() {
-		const origin = framescaperCapture?.originSnapshot().origin;
-		if (origin) framescaperCapture.assertOriginDeleteAllowed(origin.projectId);
-		return projectAdminService.clearLocalData();
-	}
 
 	function pauseLoudnessMeasurement(kind = 'playback') { return microphoneMeterService.pauseLoudnessMeasurement(kind); }
 	function continueLoudnessMeasurement(kind = 'playback') { return microphoneMeterService.continueLoudnessMeasurement(kind); }
