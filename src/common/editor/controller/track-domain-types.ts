@@ -147,9 +147,9 @@ export function findControllerSource(
 	return project.sources.find((source) => source.id === sourceId) ?? null;
 }
 
-export function findControllerClipTrack(
-	project: ControllerProject,
+export function findControllerClipTrack<Track extends Readonly<{ id: string; clipIds?: readonly string[] }>>(
+	project: Readonly<{ tracks: readonly Track[] }>,
 	clipId: string | null | undefined,
-): ControllerTrack | null {
-	return project.tracks.find((track) => track.clipIds.includes(clipId ?? '')) ?? null;
+): Track | null {
+	return project.tracks.find((track) => track.clipIds?.includes(clipId ?? '')) ?? null;
 }
