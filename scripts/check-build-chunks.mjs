@@ -11,10 +11,21 @@ const buildDirectory = join(root, 'dist');
 const javaScriptChunkPattern = /\.(?:c|m)?js$/u;
 const fontAssetPattern = /\.(?:otf|ttf|woff2?)$/iu;
 const woff2AssetPattern = /\.woff2$/iu;
+/**
+ * The fonts no browser loads.
+ *
+ * Caption burn-in stages these into the shipped FFmpeg, whose FreeType reads
+ * WOFF and refuses WOFF2 — measured, not assumed (see
+ * `src/common/editor/video-burn-in-font.ts`). Everything a browser fetches is
+ * still WOFF2, so the exemption names the encoder's own four files rather than
+ * opening the format up for the bundle.
+ */
+const encoderFontPattern = /(?:^|\/)inter-(?:latin|latin-ext|cyrillic|cyrillic-ext)-600-normal(?:-[\w-]+)?\.woff$/u;
 
 export const MAX_JAVASCRIPT_CHUNK_BYTES = 500_000;
 export const MAX_FONT_ASSET_COUNT = 21;
 export const MAX_FONT_ASSET_BYTES = 600_000;
+export const MAX_ENCODER_FONT_ASSET_COUNT = 4;
 
 export function findOversizedJavaScriptChunks(records, maximumBytes = MAX_JAVASCRIPT_CHUNK_BYTES) {
 	return records
@@ -28,14 +39,20 @@ export function findFontInventoryProblems(
 	maximumBytes = MAX_FONT_ASSET_BYTES,
 ) {
 	const fontRecords = records.filter(({ path }) => fontAssetPattern.test(path));
+	const encoderRecords = fontRecords.filter(({ path }) => encoderFontPattern.test(path));
 	const problems = fontRecords
-		.filter(({ path }) => !woff2AssetPattern.test(path))
+		.filter(({ path }) => !woff2AssetPattern.test(path) && !encoderFontPattern.test(path))
 		.map(({ path }) => `${path}: emitted fonts must be WOFF2`)
 		.sort();
 	const woff2Records = fontRecords.filter(({ path }) => woff2AssetPattern.test(path));
 	const totalBytes = woff2Records.reduce((sum, { size }) => sum + size, 0);
 	if (woff2Records.length > maximumCount) {
 		problems.push(`font count ${woff2Records.length} exceeds ${maximumCount}`);
+	}
+	if (encoderRecords.length > MAX_ENCODER_FONT_ASSET_COUNT) {
+		problems.push(
+			`caption burn-in font count ${encoderRecords.length} exceeds ${MAX_ENCODER_FONT_ASSET_COUNT}`,
+		);
 	}
 	if (totalBytes > maximumBytes) problems.push(`font bytes ${totalBytes} exceed ${maximumBytes}`);
 	return problems;

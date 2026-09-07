@@ -317,7 +317,7 @@ function prepareVideoBlobs(
 			if (!(font instanceof Blob)) {
 				throw new TypeError(`A burned-in delivery needs its ${subsetId} font staged with it.`);
 			}
-			const fileName = `burn-in-font-${subsetId}.woff2`;
+			const fileName = `burn-in-font-${subsetId}.woff`;
 			blobs.push({ name: fileName, data: font });
 			assets.push({ kind: 'burn-in-font', fileName, fontSubset: subsetId });
 		}
