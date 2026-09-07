@@ -73,6 +73,39 @@ Further boundary cleanup:
 - The root now has 704 lines, with its size ceiling ratcheted to match. This is
   still an unchecked composition root; these fixes do not close that remaining item.
 
+Additional controller boundary repairs:
+
+- Startup admits non-empty string project pointers before storage reads and falls
+  back to the legacy Soundscaper pointer only when the product pointer is invalid.
+  Bootstrap forwards stored documents to admission without assuming a track inventory.
+- The default runtime keeps its actual owner signatures. Runtime projection types
+  preserve declared document fields even when the wire carries an index signature;
+  Nyquist no longer casts a transient projection back to the full persisted model.
+- Native Scape opening accepts unnamed blobs, archive manifests retain their owner's
+  type, and unavailable storage estimates stay absent in portable codec options.
+- DAWproject export reads sliceable storage media in chunks without requiring native
+  Blob methods or copying an entire video container. Reads check cancellation and
+  short bodies. The reader belongs to the optional archive chunk group.
+- Native render-input leases have a checked composition owner and join project-scope
+  cancellation. Currentness is checked around rendering and each streamed sink chunk;
+  tests cover replacement, disposal, revision changes, and consumer cleanup.
+- Prepared source ownership preserves distinct buffer/provider types. Stored buffer
+  reads, source staging, and activation retain the buffer type through handoff; the
+  real source composition is checked to prepare native AudioBuffers for the engine.
+- Selection queries validate opaque document input and retain valid selection identity;
+  export settings can be normalized before project activation. Deferred root bindings
+  now explicitly derive their engine signatures from the binding owner.
+- Preview resources distinguish ordinary effect sources from optional EQ analysis and
+  audition capabilities, preserving the owning receiver when those methods exist.
+- Exact video preview rendering now serializes compositor use and queues the latest
+  frame when a seek arrives during a render. A deterministic regression reproduces
+  the dropped redraw that left the evaluated sample at zero after the timecode moved.
+- Take authoring, audition, and flattening share only the media fields they read.
+  Both products use the same validated take-graph admission; Framescaper documents
+  no longer have to satisfy a Soundscaper V17 persistence type at those boundaries.
+- The root is now 694 lines. Its remaining unchecked document and host connections
+  still keep the controller finding open.
+
 Remaining controller work:
 
 - Check the composition root itself rather than relying on unchecked JavaScript
@@ -138,3 +171,39 @@ Validation of the subsequent boundary repairs through `15ea401af`:
   project/image-sequence tests and 17 affected media/capture fixture tests pass.
 - The root's size ceiling is ratcheted to 704 lines. Coverage floors, startup
   budgets and chunk ceilings were not weakened.
+
+Validation of the following controller pass through `f0b8c54ef`:
+
+- The full static gate passes. Final source, test and tooling type checks pass,
+  including all four product compositions; full and changed-file lint pass.
+- The full Node run passes: 16,378 passed, 24 skipped, no failures.
+- The production build passes with the existing chunk and startup ceilings.
+- The full three-browser run, built before the exact-preview fix, recorded 1,234
+  passes, 101 skips, two failures and one dependent test not run. The failures
+  were the frozen-video redraw race and a WebKit project-reopen readiness assertion.
+- Rebuilt sites containing the preview fix pass all nine applicable visual-preview
+  tests across Chromium, Firefox and WebKit (three skipped). Four concurrent
+  Chromium repetitions of the frozen-video workflow pass. All 57 focused project
+  and effect workflows pass against those rebuilt sites.
+- The original intermittent frozen-preview finding now has a deterministic
+  scheduling regression and a runtime fix; the earlier no-change reruns above
+  remain historical validation, not the evidence for that fix.
+
+Validation of the take-comp boundary repair (`0eef18d43`):
+
+- The full Node suite passes: 16,380 passed, 24 skipped, no failures. The new
+  product-contract test first failed type checking with the actual Framescaper
+  document, then passed with the shared media contract. Future-schema and
+  malformed take-graph refusals remain covered.
+- All four product compositions and source, test and tooling type checks pass.
+  Full repository lint, changed-file lint, architecture checks, and the production
+  build pass.
+- Rebuilt Soundscaper and Framescaper sites pass all 15 take-comp and product
+  lifecycle workflows across Chromium, Firefox and WebKit. This includes audition,
+  comp editing, flattened PCM publication, and opaque foreign-project handling.
+- The WebKit reopen failure reproduced in two of three runs before the test fix
+  (`a1b31a3cf`). Reload now reuses the established editor-startup readiness helper,
+  rather than treating React mounting as completed project startup. All three
+  concurrent repetitions pass, as does the rebuilt three-browser workflow above.
+- The root remains 694 lines and unchecked. No coverage floors, startup budgets,
+  or chunk ceilings were weakened; unrelated capture changes remain separate.
