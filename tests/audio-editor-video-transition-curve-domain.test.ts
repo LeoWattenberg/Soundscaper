@@ -27,7 +27,7 @@ const OVERLAP_SAMPLES = OVERLAP_FRAMES * SAMPLES_PER_FRAME;
 
 test('a sequence-authored dissolve fades across the whole sample-domain overlap', () => {
 	const layers = resolveActiveVideoLayers(sequenceProject(), OVERLAP_START_SAMPLE + OVERLAP_SAMPLES / 2);
-	assert.deepEqual(layers.at(-1).clips.map(({ clipId, role, opacity }) => ({ clipId, role, opacity })), [
+	assert.deepEqual(lastLayer(layers).clips.map(({ clipId, role, opacity }) => ({ clipId, role, opacity })), [
 		{ clipId: 'outgoing', role: 'outgoing', opacity: 0.5 },
 		{ clipId: 'incoming', role: 'incoming', opacity: 0.5 },
 	]);
@@ -37,15 +37,15 @@ test('the sequence-authored dissolve is a ramp rather than an immediate cut', ()
 	const project = sequenceProject();
 	const weights = [0.25, 0.5, 0.75].map((fraction) => {
 		const frame = OVERLAP_START_SAMPLE + (OVERLAP_SAMPLES * fraction);
-		const [clip] = resolveActiveVideoLayers(project, frame).at(-1).clips.filter(({ role }) => (
+		const [clip] = lastLayer(resolveActiveVideoLayers(project, frame)).clips.filter(({ role }) => (
 			role === 'incoming'
 		));
 		return clip.opacity;
 	});
 	assert.deepEqual(weights, [0.25, 0.5, 0.75]);
 	// One sequence frame into a one-second overlap the incoming picture is barely present.
-	const [early] = resolveActiveVideoLayers(project, OVERLAP_START_SAMPLE + SAMPLES_PER_FRAME)
-		.at(-1).clips.filter(({ role }) => role === 'incoming');
+	const [early] = lastLayer(resolveActiveVideoLayers(project, OVERLAP_START_SAMPLE + SAMPLES_PER_FRAME))
+		.clips.filter(({ role }) => role === 'incoming');
 	assert.equal(early.opacity, 1 / OVERLAP_FRAMES);
 });
 
@@ -55,7 +55,7 @@ test('composition intervals carry the same ramp across a range inside the overla
 		endFrame: OVERLAP_START_SAMPLE + ((OVERLAP_SAMPLES * 3) / 4),
 	});
 	assert.equal(intervals.length, 1);
-	assert.deepEqual(intervals[0].layers.at(-1).clips.map(({ clipId, opacityStart, opacityEnd }) => ({
+	assert.deepEqual(lastLayer(intervals[0].layers).clips.map(({ clipId, opacityStart, opacityEnd }) => ({
 		clipId, opacityStart, opacityEnd,
 	})), [
 		{ clipId: 'outgoing', opacityStart: 0.75, opacityEnd: 0.25 },
@@ -66,7 +66,7 @@ test('composition intervals carry the same ramp across a range inside the overla
 test('a legacy project whose overlap already matches the curve domain is unchanged', () => {
 	// Here the timeline frames are the curve's own frames, so rescaling must be a no-op.
 	const layers = resolveActiveVideoLayers(legacyProject(), 70);
-	assert.deepEqual(layers.at(-1).clips.map(({ clipId, opacity }) => ({ clipId, opacity })), [
+	assert.deepEqual(lastLayer(layers).clips.map(({ clipId, opacity }) => ({ clipId, opacity })), [
 		{ clipId: 'outgoing', opacity: 0.75 },
 		{ clipId: 'incoming', opacity: 0.25 },
 	]);
@@ -161,4 +161,14 @@ function legacyClip(options: Readonly<{ id: string; timelineStartFrame: number }
 		sourceStartFrame: 0,
 		sourceDurationFrames: 100,
 	};
+}
+
+/** Assert presence and retain unknown observed values for the equality checks. */
+function lastLayer(layers: readonly Readonly<{ clips: readonly Readonly<{
+	clipId?: unknown; role?: unknown; opacity?: unknown;
+	opacityStart?: unknown; opacityEnd?: unknown;
+}>[] }>[]) {
+	const layer = layers.at(-1);
+	assert.ok(layer, 'The overlap must contain a video layer.');
+	return layer;
 }
