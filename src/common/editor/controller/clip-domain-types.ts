@@ -17,11 +17,11 @@ export interface ClipTransformClip extends Readonly<Record<string, unknown>> {
 	readonly sourceStartFrame: number;
 	readonly sourceDurationFrames: number;
 	readonly durationFrames: number;
-	readonly trimStartFrames: number;
-	readonly trimEndFrames: number;
-	readonly fadeInFrames: number;
-	readonly fadeOutFrames: number;
-	readonly reversed: boolean;
+	readonly trimStartFrames?: number;
+	readonly trimEndFrames?: number;
+	readonly fadeInFrames?: number;
+	readonly fadeOutFrames?: number;
+	readonly reversed?: boolean;
 	readonly inverted?: boolean;
 	readonly envelope?: readonly ClipTransformEnvelopePoint[];
 	readonly groupId?: string | null;
@@ -32,7 +32,8 @@ export interface ClipTransformClip extends Readonly<Record<string, unknown>> {
 
 export interface ClipTransformSource extends Readonly<Record<string, unknown>> {
 	readonly id: string;
-	readonly frameCount: number;
+	readonly frameCount?: number;
+	readonly sampleFrameCount?: number;
 	// The rate the source was imported at, which need not be the project's.
 	readonly sampleRate?: number;
 }

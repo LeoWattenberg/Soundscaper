@@ -233,6 +233,21 @@ test('current drops redirect across a media lane and invalid destinations fail b
 	assert.deepEqual(invalid.commits, []);
 });
 
+test('video trims use sampleFrameCount and do not create audio fade fields', () => {
+	const clip = { ...clipFixture({ id: 'video', kind: 'video', durationFrames: 200 }),
+		fadeInFrames: undefined, fadeOutFrames: undefined, reversed: undefined,
+	};
+	const harness = createHarness(projectFixture({
+		sources: [{ id: 'source', kind: 'video', sampleFrameCount: 4_000 }],
+		tracks: [{ id: 'video-track', name: 'Video', type: 'video', clipIds: [clip.id] }], clips: [clip],
+	}));
+	harness.service.trimClips(clip.id, { durationFrames: 150 });
+	const command = harness.commits[0]?.command;
+	assert.equal(command?.type, 'clip/trim');
+	assert.equal(Object.hasOwn(command ?? {}, 'fadeInFrames'), false);
+	assert.equal(Object.hasOwn(command ?? {}, 'fadeOutFrames'), false);
+});
+
 test('trim paths cover no-op, direct metadata, left edges, bounds, and invalid frames', () => {
 	const project = projectFixture({
 		tracks: [{ id: 'track-a', name: 'A', type: 'audio', clipIds: ['active'] }],

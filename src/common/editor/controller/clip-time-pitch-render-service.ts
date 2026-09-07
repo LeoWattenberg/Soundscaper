@@ -50,6 +50,9 @@ export interface ClipTimePitchRenderStore {
 }
 
 interface RenderClip extends ClipTransformClip {
+	readonly fadeInFrames: number;
+	readonly fadeOutFrames: number;
+	readonly reversed: boolean;
 	readonly pitchCents: number;
 	readonly speedRatio: number;
 	readonly preserveFormants: boolean;

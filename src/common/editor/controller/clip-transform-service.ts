@@ -1,18 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { clipTrimSourceFrameCount } from './clip-trim-source-frame-count.ts';
 import { hasProjectBinMediaAuthority } from '../project-schema-version.ts';
 
 import {
-	collectClipTransformIds as collectLegacyClipTransformIds,
-	collectClipTrimIds as collectLegacyClipTrimIds,
-} from '../commands/clip-basic-runtime.js';
-import {
-	prepareOverwriteClipCommand as prepareLegacyOverwriteClipCommand,
-	prepareTransformClipsCommand as prepareLegacyTransformClipsCommand,
-} from '../commands/clip-transform-runtime.js';
+	collectClipTransformIds, collectClipTrimIds, prepareOverwriteClipCommand,
+	prepareTransformClipsCommand, trimCommand, type PreparedTransform,
+} from './clip-transform-command-adapter.ts';
 import { createAddTrackCommand } from '../commands/factories.ts';
 import { resolveAudioWarpEditFrame } from '../audio-warp-clip-edit.ts';
-import type { AudioEditorCommand, CommandObject } from '../commands/protocol.ts';
+import type { AudioEditorCommand } from '../commands/protocol.ts';
 import type {
 	ClipTransformClip,
 	ClipTransformProject,
@@ -40,11 +37,7 @@ interface CommitSelection {
 	readonly selectClipId?: string | null;
 }
 
-interface PreparedTransform {
-	readonly clipId: string;
-	readonly trackId?: string;
-	readonly changes: CommandObject;
-}
+
 
 export interface ClipTransformServiceDependencies {
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive'>;
@@ -343,7 +336,7 @@ export function createClipTransformService(
 				if (!source) throw new Error(dependencies.copy.audioClipNotFound);
 				const sourceFramesPerTimelineFrame = item.sourceDurationFrames / item.durationFrames;
 				const sourceExtension = item.reversed
-					? source.frameCount - item.sourceStartFrame - item.sourceDurationFrames
+					? clipTrimSourceFrameCount(source) - item.sourceStartFrame - item.sourceDurationFrames
 					: item.sourceStartFrame;
 				const timelineExtension = Math.floor(sourceExtension / sourceFramesPerTimelineFrame);
 				lowerBound = Math.max(lowerBound, -Math.min(item.timelineStartFrame, timelineExtension));
@@ -357,7 +350,7 @@ export function createClipTransformService(
 				const sourceFramesPerTimelineFrame = item.sourceDurationFrames / item.durationFrames;
 				const sourceExtension = item.reversed
 					? item.sourceStartFrame
-					: source.frameCount - item.sourceStartFrame - item.sourceDurationFrames;
+					: clipTrimSourceFrameCount(source) - item.sourceStartFrame - item.sourceDurationFrames;
 				lowerBound = Math.max(lowerBound, Math.min(item.durationFrames, minimumDurationFrames) - item.durationFrames);
 				upperBound = Math.min(upperBound, Math.floor(sourceExtension / sourceFramesPerTimelineFrame));
 			}
@@ -375,11 +368,11 @@ export function createClipTransformService(
 			const durationFrames = trimsLeft ? item.durationFrames - deltaFrames : item.durationFrames + deltaFrames;
 			const sourceExtension = trimsLeft
 				? (item.reversed
-					? source.frameCount - item.sourceStartFrame - item.sourceDurationFrames
+					? clipTrimSourceFrameCount(source) - item.sourceStartFrame - item.sourceDurationFrames
 					: item.sourceStartFrame)
 				: (item.reversed
 					? item.sourceStartFrame
-					: source.frameCount - item.sourceStartFrame - item.sourceDurationFrames);
+					: clipTrimSourceFrameCount(source) - item.sourceStartFrame - item.sourceDurationFrames);
 			const nextSourceDurationFrames = Math.max(1, Math.min(
 				item.sourceDurationFrames + sourceExtension,
 				Math.round(item.sourceDurationFrames * durationFrames / item.durationFrames),
@@ -398,12 +391,14 @@ export function createClipTransformService(
 								? item.sourceStartFrame + removedSourceFrames
 								: item.sourceStartFrame,
 						sourceDurationFrames: nextSourceDurationFrames,
-						trimStartFrames: Math.max(0, item.trimStartFrames + (trimsSourceStart ? removedSourceFrames : 0)),
-						trimEndFrames: Math.max(0, item.trimEndFrames + (trimsSourceStart ? 0 : removedSourceFrames)),
+						trimStartFrames: Math.max(0, (item.trimStartFrames ?? 0) + (trimsSourceStart ? removedSourceFrames : 0)),
+						trimEndFrames: Math.max(0, (item.trimEndFrames ?? 0) + (trimsSourceStart ? 0 : removedSourceFrames)),
 					}),
 					durationFrames,
-					fadeInFrames: Math.min(item.fadeInFrames, durationFrames),
-					fadeOutFrames: Math.min(item.fadeOutFrames, durationFrames),
+					...(item.kind === 'video' || item.kind === 'image' ? {} : {
+						fadeInFrames: Math.min(item.fadeInFrames ?? 0, durationFrames),
+						fadeOutFrames: Math.min(item.fadeOutFrames ?? 0, durationFrames),
+					}),
 				},
 			};
 		});
@@ -499,13 +494,6 @@ function warpEditableTrimDelta(
 	));
 }
 
-function trimCommand(
-	clipId: string,
-	changes: CommandObject,
-): Extract<AudioEditorCommand, { readonly type: 'clip/trim' }> {
-	return { type: 'clip/trim', clipId, ...changes } as Extract<AudioEditorCommand, { readonly type: 'clip/trim' }>;
-}
-
 function timelineTracks(project: ClipTransformProject) {
 	return project.tracks.filter((track): track is ClipTransformTrack & { readonly clipIds: readonly string[] } => (
 		track.type !== 'label' && Array.isArray(track.clipIds)
@@ -534,55 +522,4 @@ function isClip(value: ClipTransformClip | null): value is ClipTransformClip {
 
 function isString(value: string | undefined): value is string {
 	return typeof value === 'string';
-}
-
-function collectClipTransformIds(project: ClipTransformProject, activeClipId: string): string[] {
-	return (collectLegacyClipTransformIds as (
-		project: ClipTransformProject,
-		activeClipId: string,
-	) => string[])(project, activeClipId);
-}
-
-function collectClipTrimIds(
-	project: ClipTransformProject,
-	activeClipId: string,
-	edge: 'left' | 'right',
-): string[] {
-	return (collectLegacyClipTrimIds as (
-		project: ClipTransformProject,
-		activeClipId: string,
-		edge: 'left' | 'right',
-	) => string[])(project, activeClipId, edge);
-}
-
-function prepareTransformClipsCommand(
-	project: ClipTransformProject,
-	transforms: readonly PreparedTransform[],
-	options: Readonly<{ overwrite?: boolean }>,
-	idFactory: (prefix: string) => string,
-): Extract<AudioEditorCommand, { readonly type: 'clip/transform-many' }> {
-	return (prepareLegacyTransformClipsCommand as unknown as (
-		project: ClipTransformProject,
-		transforms: readonly PreparedTransform[],
-		options: Readonly<{ overwrite?: boolean }>,
-		idFactory: (prefix: string) => string,
-	) => Extract<AudioEditorCommand, { readonly type: 'clip/transform-many' }>)(
-		project, transforms, options, idFactory,
-	);
-}
-
-function prepareOverwriteClipCommand(
-	project: ClipTransformProject,
-	clipId: string,
-	options: Readonly<{ trackId?: string | null; changes?: CommandObject }>,
-	idFactory: (prefix: string) => string,
-): Extract<AudioEditorCommand, { readonly type: 'clip/overwrite' }> {
-	return (prepareLegacyOverwriteClipCommand as (
-		project: ClipTransformProject,
-		clipId: string,
-		options: Readonly<{ trackId?: string | null; changes?: CommandObject }>,
-		idFactory: (prefix: string) => string,
-	) => Extract<AudioEditorCommand, { readonly type: 'clip/overwrite' }>)(
-		project, clipId, options, idFactory,
-	);
 }

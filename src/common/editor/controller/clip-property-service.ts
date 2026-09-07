@@ -53,6 +53,9 @@ interface CommitSelection {
 }
 
 interface TimePitchClip extends ClipTransformClip {
+	readonly fadeInFrames: number;
+	readonly fadeOutFrames: number;
+	readonly reversed: boolean;
 	readonly gain: number;
 	readonly inverted: boolean;
 	readonly pitchCents: number;
