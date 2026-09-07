@@ -6,7 +6,7 @@ import type { KeyValueRepository } from './key-value-repository.ts';
 import type { MediaRepository } from './media-repository.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
 import type { PcmRepository } from './pcm-repository.ts';
-import type { SourceReadOptions, SourceReadRepository } from './source-read-repository.ts';
+import type { AudioContextLike, DestinationAudioBuffer, SourceReadOptions, SourceReadRepository } from './source-read-repository.ts';
 import type { SourceRecordRepository } from './source-record-repository.ts';
 import type { SourceDeletionRepository } from './source-deletion-repository.ts';
 import type {
@@ -143,7 +143,7 @@ export class SourceRepository {
 		return this.#options.reader.releaseSessions();
 	}
 
-	loadAudioBuffer(sourceId: string, audioContext: BaseAudioContext) {
+	loadAudioBuffer<Buffer extends DestinationAudioBuffer>(sourceId: string, audioContext: AudioContextLike<Buffer>) {
 		return this.#options.reader.loadAudioBuffer(sourceId, audioContext);
 	}
 

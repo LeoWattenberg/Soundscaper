@@ -17,7 +17,7 @@ interface WaveformSource {
 }
 
 interface StoredPcmChunk {
-	readonly channels: Float32Array[];
+	readonly channels: readonly Float32Array[];
 	readonly frames: number;
 }
 

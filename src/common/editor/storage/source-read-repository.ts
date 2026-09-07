@@ -22,13 +22,13 @@ export interface SourcePcmReadSession {
 	release(): Promise<void>;
 }
 
-interface DestinationAudioBuffer {
+export interface DestinationAudioBuffer {
 	copyToChannel?(source: Float32Array, channel: number, offset?: number): void;
 	getChannelData(channel: number): Float32Array;
 }
 
-interface AudioContextLike {
-	createBuffer(channelCount: number, frameCount: number, sampleRate: number): DestinationAudioBuffer;
+export interface AudioContextLike<Buffer extends DestinationAudioBuffer = DestinationAudioBuffer> {
+	createBuffer?(channelCount: number, frameCount: number, sampleRate: number): Buffer;
 }
 
 export interface SourceReadRepositoryOptions {
@@ -201,7 +201,7 @@ export class SourceReadRepository {
 		return result;
 	}
 
-	async loadAudioBuffer(sourceId: string, audioContext: AudioContextLike): Promise<DestinationAudioBuffer> {
+	async loadAudioBuffer<Buffer extends DestinationAudioBuffer>(sourceId: string, audioContext: AudioContextLike<Buffer>): Promise<Buffer> {
 		if (!audioContext?.createBuffer) throw new TypeError('An AudioContext is required to load a source.');
 		const source = await this.getMetadata(sourceId);
 		if (!source) throw new Error('The requested audio source could not be found.');

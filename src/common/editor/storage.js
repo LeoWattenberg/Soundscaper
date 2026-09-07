@@ -181,7 +181,7 @@ export class AudioEditorProjectStore {
 		return this.settingsRepository.put(key, value);
 	}
 
-	async loadSetting(key, fallback = null) {
+	async loadSetting(key, /** @type {unknown} */ fallback = null) {
 		const value = await this.settingsRepository.get(key);
 		return value === undefined ? fallback : value;
 	}
@@ -409,6 +409,7 @@ export class AudioEditorProjectStore {
 		return this.sourceRepository.openReadSession(sourceId, options);
 	}
 
+	/** @template {import("./storage/source-read-repository.ts").DestinationAudioBuffer} Buffer @param {string} sourceId @param {import("./storage/source-read-repository.ts").AudioContextLike<Buffer>} audioContext */
 	async loadSourceAudioBuffer(sourceId, audioContext) {
 		return this.sourceRepository.loadAudioBuffer(sourceId, audioContext);
 	}
