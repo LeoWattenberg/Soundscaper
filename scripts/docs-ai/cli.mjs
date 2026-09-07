@@ -139,6 +139,10 @@ async function runHandbookCommand(options, { env, stdout }) {
 	const runtime = docsAiRuntimeOptions({ env });
 	const pages = options.pages?.split(',').map((page) => page.trim()).filter(Boolean);
 	const summaries = [];
+	if (!locales.length) {
+		stdout.write('No language has handbook pages yet; name one with --locale to start it.\n');
+		return summaries;
+	}
 	for (const locale of locales) {
 		if (options.prune) {
 			const pruned = await pruneOrphanedTranslations(locale);
