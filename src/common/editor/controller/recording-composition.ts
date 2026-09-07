@@ -23,6 +23,7 @@ import {
 	type RecordingInputRoute,
 } from './recording-input-coordination-service.ts';
 import {
+	AUDIO_DEVICE_PREFERENCES_SETTING_KEY,
 	appendRecordingPreview,
 	createRecordingPreview,
 	normalizeLatencyOffset,
@@ -67,7 +68,7 @@ export type {
 	RecordingCompositionStore,
 } from './recording-composition-types.ts';
 
-export const AUDIO_DEVICE_PREFERENCES_SETTING_KEY = 'audio-device-preferences-v1';
+export { AUDIO_DEVICE_PREFERENCES_SETTING_KEY } from './recording-model.ts';
 const LIVE_RECORDING_WAVEFORM_PUBLISH_INTERVAL_MS = 80;
 const MAXIMUM_TIMER_DELAY_MS = 2_147_000_000;
 

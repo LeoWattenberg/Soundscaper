@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createProjectBootstrapComposition } from '../src/common/editor/controller/project-bootstrap-composition.ts';
 
 import {
 	EditorControllerLifetime,
@@ -182,6 +183,7 @@ function createFixture(options: Readonly<{
 		},
 	};
 	return {
+		runtime,
 		deviceChange() { deviceListener?.(); },
 		errors,
 		events,
@@ -488,4 +490,20 @@ test('a named startup project that no longer exists starts a new project', async
 	await fixture.service.bootstrap(fixture.lifetime.capture());
 	assert.equal(fixture.events.includes('load-project:deleted-project'), true);
 	assert.equal(fixture.events.includes('new-project'), true);
+});
+
+
+test('bootstrap composition applies saved device settings and the current startup preference', async () => {
+	const fixture = createFixture();
+	fixture.setLastProject('previous', { id: 'previous', tracks: [] });
+	fixture.settings.set('recording-input-gain', 0.25);
+	const service = createProjectBootstrapComposition({
+		...fixture.runtime,
+		lifetime: fixture.lifetime,
+		getStartupPreferences: () => ({ mode: 'new-project' }),
+	});
+	await service.bootstrap(fixture.lifetime.capture());
+	assert.equal(fixture.state.recordingInputGain, 0.25);
+	assert.ok(fixture.events.includes('new-project'));
+	assert.ok(!fixture.events.includes('load-project:previous'));
 });

@@ -118,7 +118,7 @@ export const PRODUCT_STAND_IN_ALIASES = Object.freeze([
 		desktopCodecRuntime: true,
 	},
 	{
-		find: /^\.\/editor-codec-runtime\.ts$/u,
+		find: /^\.\.\/editor-codec-runtime\.ts$/u,
 		standIn: 'src/common/editor/editor-codec-runtime.desktop.ts',
 		product: null,
 		desktopCodecRuntime: true,

@@ -69,6 +69,8 @@ export function scaleRecordingFrames(
 	return scaleSampleFrame(frames, inputRate, outputRate, 'point');
 }
 
+export const AUDIO_DEVICE_PREFERENCES_SETTING_KEY = 'audio-device-preferences-v1';
+
 export function normalizeAudioDevicePreferences(value: unknown): Readonly<AudioDevicePreferences> {
 	const source = value && typeof value === 'object' && !Array.isArray(value)
 		? value as Readonly<Record<string, unknown>>

@@ -138,7 +138,7 @@ test('legacy capture freezes policy settings and blocks mutation through active 
 		await actions.setEnabled(true);
 		await actions.setThresholdDb(-32);
 		await actions.setHoldMilliseconds(125);
-		const trackId = controller.getSnapshot().project.tracks[0].id;
+		const trackId = firstProjectTrackId(controller);
 		await controller.actions.recording.start({ trackId });
 
 		const active = controller.getSnapshot().recordingInputs.soundActivation;
@@ -177,7 +177,7 @@ test('legacy capture freezes policy settings and blocks mutation through active 
 		await controller.actions.project.create({ title: 'Replacement project' });
 		assert.deepEqual(controller.getSnapshot().recordingInputs.soundActivation.sources, []);
 
-		const replacementTrackId = controller.getSnapshot().project.tracks[0].id;
+		const replacementTrackId = firstProjectTrackId(controller);
 		await controller.actions.recording.start({ trackId: replacementTrackId });
 		assert.equal(controller.getSnapshot().recordingInputs.soundActivation.sources.length, 1);
 		await controller.dispose();
@@ -222,7 +222,7 @@ test('scheduled and routed capture report guarded, isolated source state through
 		await controller.ready;
 		const actions = soundActivationActions(controller);
 		await actions.setEnabled(true);
-		const firstTrackId = controller.getSnapshot().project.tracks[0].id;
+		const firstTrackId = firstProjectTrackId(controller);
 		await controller.actions.recording.setTrackInput(firstTrackId, {
 			kind: 'device', deviceId: 'mic-2', channelStart: 0, channelCount: 1,
 		});
@@ -445,4 +445,14 @@ function createMockStream(tracks: MockTrack[]): MockStream {
 
 function stopStream(stream: MockStream): void {
 	for (const track of stream.getTracks()) track.stop();
+}
+
+
+function firstProjectTrackId(controller: ReturnType<typeof createAudioEditorController>): string {
+	const tracks = controller.getSnapshot().project?.tracks;
+	assert.ok(Array.isArray(tracks));
+	const track: unknown = tracks[0];
+	assert.ok(track && typeof track === 'object' && 'id' in track);
+	assert.ok(typeof track.id === 'string');
+	return track.id;
 }

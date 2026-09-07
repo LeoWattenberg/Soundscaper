@@ -70,6 +70,7 @@ test('composed Framescaper trim actions preview and commit one canonical V15 his
 		const committed = trim.commit(REQUEST);
 		assert.deepEqual(committed, preview);
 		const snapshot = controller.getSnapshot();
+		assert.ok(snapshot.project, 'The trim retains its active project.');
 		assert.deepEqual(snapshot.history.undoEntries, [{
 			type: 'clip/transform-many',
 			commandCount: 1,
@@ -97,6 +98,7 @@ test('composed Framescaper trim actions preview and commit one canonical V15 his
 
 		controller.actions.edit.undo();
 		const undone = controller.getSnapshot();
+		assert.ok(undone.project, 'Undo retains its active project.');
 		assert.deepEqual(resolvedEndpoints(undone.project), [
 			['persisted-timeline-video', 0, 48_000],
 			['persisted-timeline-audio', 0, 48_000],

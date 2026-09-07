@@ -58,7 +58,7 @@ test('real controller composes every clip-selection navigation action', async ()
 		assert.equal(timeline.skipToSelectionEnd(), 50);
 		assert.equal(engine.positionFrame, 50);
 		timeline.selectNoTracks();
-		assert.deepEqual(controller.getSnapshot().project.selection.trackIds, []);
+		assert.deepEqual(controller.getSnapshot().project?.selection?.trackIds, []);
 		assert.equal(controller.getSnapshot().selectedTrackId, null);
 	} finally {
 		await controller.dispose();
@@ -91,7 +91,11 @@ function clip(id: string, timelineStartFrame: number, durationFrames: number) {
 }
 
 function selection(controller: ReturnType<typeof createAudioEditorController>): [number, number] {
-	const { startFrame, endFrame } = controller.getSnapshot().project.selection;
+	const selected = controller.getSnapshot().project?.selection;
+	assert.ok(selected, 'The controller has an active project selection.');
+	const { startFrame, endFrame } = selected;
+	assert.ok(typeof startFrame === 'number');
+	assert.ok(typeof endFrame === 'number');
 	return [startFrame, endFrame];
 }
 

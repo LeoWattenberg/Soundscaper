@@ -269,6 +269,7 @@ export function createFixture(
 		clearSourceCaches: async () => { events.push('clear-source-caches'); sourceChunkProviders.clear(); await sourceChunkProviders.drain(); },
 	} satisfies ProjectSwitchServiceRuntime<TestProject, TestHistory>;
 	return {
+		runtime,
 		assignedTracks,
 		createdProjects,
 		events,
