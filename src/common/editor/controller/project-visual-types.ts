@@ -34,7 +34,7 @@ export interface ProjectVisualClip extends Readonly<Record<string, unknown>> {
 
 export interface ProjectVisualTrack extends Readonly<Record<string, unknown>> {
 	readonly id: string;
-	readonly clipIds: readonly string[];
+	readonly clipIds?: readonly string[];
 }
 
 export interface ProjectVisualProject extends Readonly<Record<string, unknown>> {

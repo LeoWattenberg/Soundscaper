@@ -445,7 +445,7 @@ function findSource(project: ProjectVisualProject, sourceId: string): ProjectVis
 	return project.sources.find((source) => source.id === sourceId) ?? null;
 }
 function findClipTrack(project: ProjectVisualProject, clipId: string): ProjectVisualTrack | null {
-	return project.tracks.find((track) => track.clipIds.includes(clipId)) ?? null;
+	return project.tracks.find((track) => track.clipIds?.includes(clipId)) ?? null;
 }
 
 function requireVisualBlob(value: unknown): Blob {
