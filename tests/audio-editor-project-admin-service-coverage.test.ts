@@ -25,6 +25,7 @@ test('project administration lists, renames, duplicates, and clears recents', as
 	fixture.state.readOnly = false;
 
 	const duplicated = await service.duplicateProject(null);
+	assert.ok(duplicated);
 	assert.equal(duplicated.title, 'Project A copy');
 	assert.equal(fixture.calls.includes('persist:routing:copy:[object Object]'), true);
 	assert.deepEqual(await service.clearRecentProjects(), []);

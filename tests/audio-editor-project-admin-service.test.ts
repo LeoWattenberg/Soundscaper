@@ -42,11 +42,12 @@ function createFixture() {
 		missingSourceIds: new Set<string>(),
 		disposed: false,
 		sourceGcTimer: 0,
-		history: {},
+		history: { present: project } as { present: Project } | null,
 		projects: [],
+		selectedTrackId: null, selectedClipId: null, selectedAnnotationId: null,
 	};
 	const noop = () => undefined;
-	const runtime: ProjectAdminServiceRuntime = {
+	const runtime: ProjectAdminServiceRuntime<Project> = {
 		cancelPlaybackCachePreparation: noop,
 		clearScheduledTimer: noop,
 		clearWaveformPcmWindows: noop,
@@ -75,7 +76,8 @@ function createFixture() {
 		newProject: async () => undefined,
 		openProject: async () => { openCalls += 1; },
 		persistSetting: async () => undefined,
-		projectSaveService: { cancelScheduled: noop, pendingSnapshots: [] },
+		projectSaveService: { pendingSnapshots: [], suspend: noop, resume: noop,
+			suspendProject: noop, resumeProject: noop, retireProjectSaves: noop, drain: noop },
 		projectGeneration: { activate: noop, invalidate: noop },
 		projectMaintenanceRuntime: {
 			async reconcileAndCollectStorageRoots(request: unknown) {
@@ -102,6 +104,8 @@ function createFixture() {
 			closeProject: () => ({ closed: false }),
 			clearClipboard: noop,
 			markProjectSaved: noop,
+			captureProjectHistory: () => { throw new Error("No project tab in maintenance fixture."); },
+			beginProjectActivation: () => { throw new Error("No project tab in maintenance fixture."); },
 		},
 		sessionTab: () => null,
 		setProject: (value) => { project = value; },
@@ -112,6 +116,7 @@ function createFixture() {
 		stopProjectBinPreview: async () => undefined,
 		stopRecording: async () => undefined,
 		store: {
+			saveProject: noop, deleteProject: noop, clear: noop,
 			async duplicateProject() {
 				duplicateCalls += 1;
 				return { id: 'copy', title: 'Copy', revision: 1 };
@@ -280,7 +285,7 @@ test('discarding an active tab retires an admitted autosave before activating it
 		},
 		clearTimer: (handle) => { timers.delete(handle); },
 	});
-	const runtime: ProjectAdminServiceRuntime = {
+	const runtime: ProjectAdminServiceRuntime<Project> = {
 		...fixture.runtime,
 		getProject: () => project,
 		setProject: (value: Project | null) => { project = value; },
@@ -375,7 +380,7 @@ test('local reset closes save admission synchronously and drains an admitted aut
 	assert.equal(projectSaveService.scheduleAutosave(), true);
 	assert.equal(timers.size, 1);
 
-	const runtime: ProjectAdminServiceRuntime = {
+	const runtime: ProjectAdminServiceRuntime<Project> = {
 		...fixture.runtime,
 		getProject: () => project,
 		setProject: (value: Project | null) => { project = value; },
@@ -390,7 +395,7 @@ test('local reset closes save admission synchronously and drains an admitted aut
 		},
 		async newProject() {
 			project = replacement;
-			fixture.state.history = {};
+			fixture.state.history = { present: replacement };
 			catalog.set(replacement.id, replacement);
 		},
 	};
@@ -418,7 +423,7 @@ test('concurrent local resets share one clear and one replacement project', asyn
 	const clearGate = deferred();
 	let clearCalls = 0;
 	let replacementCalls = 0;
-	const runtime: ProjectAdminServiceRuntime = {
+	const runtime: ProjectAdminServiceRuntime<Project> = {
 		...fixture.runtime,
 		store: {
 			...fixture.runtime.store,
@@ -431,7 +436,7 @@ test('concurrent local resets share one clear and one replacement project', asyn
 		async newProject() {
 			replacementCalls += 1;
 			fixture.setProject({ id: 'replacement', title: 'Replacement', revision: 0 });
-			fixture.state.history = {};
+			fixture.state.history = { present: { id: 'replacement', title: 'Replacement', revision: 0 } };
 		},
 	};
 	const service = createProjectAdminService(runtime);
@@ -459,7 +464,7 @@ test('only the newest overlapping garbage collection owns the follow-up timer', 
 	const timers = new Map<number, Readonly<{ callback: () => void; delay: number }>>();
 	let pruneCalls = 0;
 	let nextTimer = 10;
-	const runtime: ProjectAdminServiceRuntime = {
+	const runtime: ProjectAdminServiceRuntime<Project> = {
 		...fixture.runtime,
 		clearScheduledTimer: (handle: number) => { timers.delete(handle); },
 		scheduleTimer(callback: () => void, delay: number) {

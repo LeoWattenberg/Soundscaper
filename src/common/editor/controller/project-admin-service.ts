@@ -1,79 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- Explicit legacy ports keep the project-administration composition seam typo-safe. */
-
-import type {
-	FramescaperCaptureAdminInterlockLease,
-	FramescaperCaptureAdminOperationRequest,
-} from './framescaper-capture-admin-interlock.ts';
-
-type LegacyPort = (...args: any[]) => any;
-
-interface SourceChunkProviderMap extends Map<string, any> {
-	drain?(): PromiseLike<void> | void;
-}
-
-export interface ProjectAdminServiceRuntime {
-	readonly beginCaptureInterlockedAdminOperation?: (
-		request: Readonly<FramescaperCaptureAdminOperationRequest>,
-	) => Readonly<FramescaperCaptureAdminInterlockLease>;
-	readonly cancelPlaybackCachePreparation: LegacyPort;
-	readonly clearScheduledTimer: LegacyPort;
-	readonly clearWaveformPcmWindows: LegacyPort;
-	readonly clipTimePitchCache: any;
-	readonly commit: LegacyPort;
-	readonly copy: any;
-	readonly currentTimeMs: LegacyPort;
-	readonly disposeRenderEngines: () => PromiseLike<void> | void;
-	readonly editorHistoryProjects: LegacyPort;
-	readonly engine: any;
-	readonly evictUnreferencedSourceCaches: LegacyPort;
-	readonly flushProject: LegacyPort;
-	readonly getProject: LegacyPort;
-	readonly handleError: LegacyPort;
-	readonly liveSessionClipIds: LegacyPort;
-	readonly liveSessionLinkedOriginalSourceReferences: LegacyPort;
-	readonly liveSessionSourceIds: LegacyPort;
-	readonly newProject: LegacyPort;
-	readonly openProject: LegacyPort;
-	readonly persistSetting: LegacyPort;
-	readonly projectSaveService: any;
-	readonly projectGeneration: Readonly<{
-		activate(projectId: string): unknown;
-		invalidate(): void;
-	}>;
-	readonly projectMaintenanceRuntime?: Readonly<{
-		reconcileAndCollectStorageRoots(request: Readonly<{
-			currentProject: unknown;
-			pendingSaveSnapshots: unknown;
-		}>): PromiseLike<Readonly<{ storageRoots: readonly string[] }>>;
-	}>;
-	readonly projectSessionService: any;
-	readonly publishDocumentSnapshot: LegacyPort;
-	readonly recordingRoutingSettingKey: LegacyPort;
-	readonly releaseProjectLock: LegacyPort;
-	readonly revokeVideoVisuals: LegacyPort;
-	readonly saveNow: LegacyPort;
-	readonly scheduleTimer: LegacyPort;
-	readonly sessionController: any;
-	readonly sessionTab: LegacyPort;
-	readonly setProject: LegacyPort;
-	readonly sourceBuffers: any;
-	readonly sourceChunkProviders: SourceChunkProviderMap;
-	readonly sourcePeaks: Map<string, any>;
-	readonly state: any;
-	readonly stopProjectBinPreview: (options: Readonly<{ dispose: true }>) => PromiseLike<unknown> | unknown;
-	readonly stopRecording: LegacyPort;
-	readonly store: any;
-	readonly switchProject: LegacyPort;
-}
+import type { FramescaperCaptureAdminInterlockLease } from './framescaper-capture-admin-interlock.ts';
+import type { AdminProject, AdminHistory, AdminSessionTab, AdminCloseOptions, ProjectAdminServiceRuntime } from './project-admin-runtime.ts';
+export type { ProjectAdminServiceRuntime } from './project-admin-runtime.ts';
 
 export interface ProjectHandoffExpectation {
 	readonly projectId: string;
 	readonly revision: number;
 }
 
-export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
+export function createProjectAdminService<
+	Project extends AdminProject = AdminProject, History extends AdminHistory<Project> = AdminHistory<Project>,
+>(runtime: ProjectAdminServiceRuntime<Project, History>) {
 	const {
 		beginCaptureInterlockedAdminOperation,
 		cancelPlaybackCachePreparation, clearScheduledTimer, clearWaveformPcmWindows,
@@ -155,7 +93,8 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		return projectSessionService.clearRecentProjects();
 	}
 
-	async function closeProjectTab(projectId: any = getProject()?.id, closeOptions: any = {}) {
+	async function closeProjectTab(projectId: string | undefined = getProject()?.id, closeOptions: AdminCloseOptions = {}) {
+		if (!projectId) throw new Error(copy.projectNotFound);
 		const project = getProject();
 		const tab = sessionTab(projectId);
 		if (!tab) throw new Error(copy.projectNotFound);
@@ -165,7 +104,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 	}
 
 	async function closeProjectTabReserved(
-		project: any, tab: any, projectId: any, closeOptions: any,
+		project: Project | null, tab: AdminSessionTab<Project, History>, projectId: string, closeOptions: AdminCloseOptions,
 		interlock: Readonly<FramescaperCaptureAdminInterlockLease> | undefined,
 	) {
 		const active = project?.id === projectId;
@@ -183,7 +122,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 			}
 			if (active) {
 				const tabs = sessionController.getSnapshot().tabs;
-				const index = tabs.findIndex((candidate: any) => candidate.projectId === projectId);
+				const index = tabs.findIndex((candidate) => candidate.projectId === projectId);
 				if (index < 0) throw new Error(copy.projectNotFound);
 				const nextTab = tabs[index + 1] ?? tabs[index - 1] ?? null;
 				if (nextTab) {
@@ -218,14 +157,14 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		}
 	}
 
-	async function renameProject(requestedTitle: any) {
+	async function renameProject(requestedTitle: unknown) {
 		if (state.readOnly) return;
 		if (requestedTitle == null) throw new TypeError(copy.projectTitleRequired);
 		const title = String(requestedTitle).trim();
 		if (title) commit({ type: 'project/rename', title });
 	}
 
-	async function duplicateProject(requestedTitle: any) {
+	async function duplicateProject(requestedTitle: unknown) {
 		if (recoveryBlocked()) return null;
 		const project = getProject();
 		if (!project) return;
@@ -253,7 +192,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 	}
 
 	async function deleteProjectReserved(
-		project: any,
+		project: Project,
 		interlock: Readonly<FramescaperCaptureAdminInterlockLease> | undefined,
 	) {
 		await stopRecording();
@@ -388,7 +327,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 
 	function sessionHistoryProjects() {
 		return sessionController.getSnapshot().tabs
-			.flatMap((tab: any) => editorHistoryProjects(tab.history));
+			.flatMap((tab) => editorHistoryProjects(tab.history));
 	}
 
 	function clearLocalData(): Promise<void> {

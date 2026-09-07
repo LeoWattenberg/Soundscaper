@@ -350,7 +350,8 @@ test('source garbage collection protects live state and schedules the next pass'
 	assert.equal(service.sessionHistoryProjects().length, 1);
 
 	const noPrune = createFixture();
-	noPrune.runtime.store.pruneUnreferencedSources = undefined;
-	await createProjectAdminService(noPrune.runtime).garbageCollectSources();
+	await createProjectAdminService({ ...noPrune.runtime,
+		store: { ...noPrune.runtime.store, pruneUnreferencedSources: undefined },
+	}).garbageCollectSources();
 	assert.equal(noPrune.calls.includes('prune'), false);
 });

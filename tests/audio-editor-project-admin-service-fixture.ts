@@ -86,10 +86,10 @@ export function createFixture() {
 		missingSourceIds: new Set(['deleted']),
 		disposed: false,
 		sourceGcTimer: 7,
-		history: {},
+		history: { present: project } as { present: Project } | null,
 		projects: [] as readonly Project[],
-		selectedTrackId: 'track',
-		selectedClipId: 'clip',
+		selectedTrackId: 'track' as string | null,
+		selectedClipId: 'clip' as string | null,
 		selectedAnnotationId: 'annotation' as string | null,
 	};
 	const projectSaveService = {
@@ -101,7 +101,7 @@ export function createFixture() {
 			calls.push('flush-save-admitted');
 			return Promise.resolve();
 		},
-		pendingSnapshots: [{ id: 'pending' }],
+		pendingSnapshots: [{ id: 'pending', title: 'Pending', revision: 1 }],
 		retireProjectSaves: (projectId: string) => { calls.push(`retire-save:${projectId}`); },
 		resume: () => {
 			calls.push('resume-save');
@@ -166,6 +166,7 @@ export function createFixture() {
 		markProjectSaved: (projectId: string) => { calls.push(`marked:${projectId}`); },
 	};
 	const store = {
+		preservesProjectsOnClear: () => false,
 		async duplicateProject(_projectId: string, options: { title: string }) {
 			calls.push(`duplicate:${options.title}`);
 			return { id: 'copy', title: options.title, revision: 1 };
@@ -222,8 +223,11 @@ export function createFixture() {
 			Object.freeze({ kind: 'video' as const, sourceId: 'live' }),
 		]),
 		liveSessionSourceIds: () => new Set<string>(['live']),
-		newProject: async () => { calls.push('new-project'); },
-		openProject: async (value: Project) => { calls.push(`open:${value.id}`); },
+		newProject: async (_options?: Readonly<{ skipFlush?: boolean }>) => { calls.push('new-project'); },
+		openProject: async (value: unknown) => {
+			assert.ok(value && typeof value === 'object' && 'id' in value);
+			calls.push(`open:${String(value.id)}`);
+		},
 		persistSetting: async (key: string, value: unknown) => { calls.push(`persist:${key}:${String(value)}`); },
 		projectSaveService,
 		projectGeneration: {
@@ -271,9 +275,7 @@ export function createFixture() {
 			project = value;
 			state.selectedAnnotationId = null;
 		},
-	} as ProjectAdminServiceRuntime & {
-		readonly projectGeneration: Readonly<{ activate(projectId: string): void; invalidate(): void }>;
-	};
+	} satisfies ProjectAdminServiceRuntime<Project>;
 	return {
 		calls,
 		project: () => project,
