@@ -42,6 +42,6 @@ Two languages are written and reviewed for this editor directly. The rest are ma
 | Українська | `uk` | `/uk/` | Left to right | Machine translated, with Audacity's reviewed strings |
 | Tiếng Việt | `vi` | `/vi/` | Left to right | Machine translated, with Audacity's reviewed strings |
 | 简体中文 | `zh-CN` | `/zh-CN/` | Left to right | Machine translated, with Audacity's reviewed strings |
-| 繁體中文（台灣） | `zh-TW` | `/zh-TW/` | Left to right | Audacity's reviewed strings over English |
+| 繁體中文（台灣） | `zh-TW` | `/zh-TW/` | Left to right | Machine translated, with Audacity's reviewed strings |
 
 An embedded view without the surrounding site uses the same tags under `/embed/en/`.
