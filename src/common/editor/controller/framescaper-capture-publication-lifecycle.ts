@@ -159,11 +159,16 @@ function assertEvidenceIdentity(
 	}
 }
 
+/**
+ * A live finalization records no decision, so any recovery retry may resume it; only a
+ * decision already recorded pins the retry that is allowed to continue the publication.
+ */
 function assertFinalizationIntent(
 	manifest: FramescaperCaptureSessionManifestV1,
 	provenance: FramescaperCaptureRecoveryProvenance,
 ): void {
-	if (manifest.recoveryDecision !== recoveryDecision(provenance)) {
+	const decided = manifest.recoveryDecision;
+	if (decided !== null && decided !== recoveryDecision(provenance)) {
 		throw new Error('Capture recovery decision changed before publication retry.');
 	}
 }
