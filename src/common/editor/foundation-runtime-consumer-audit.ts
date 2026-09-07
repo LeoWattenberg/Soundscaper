@@ -144,6 +144,7 @@ export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRun
 
 /** Non-shield importers discovered beside the owned consumer and boundary files. */
 export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly FoundationRuntimeProjectionImporterExclusion[] = deepFreeze([
+	{ file: 'src/common/editor/controller/controller-options.ts', reason: 'Controller options use type-only projection imports to declare selected product consumer ports; this module executes no timing reads.' },
 	{ file: 'src/common/editor/controller/project-bin-types.ts', reason: 'The bin declares authored clip and project input ports through type-only imports; it does not read transient clip coordinates.' },
 	{
 		file: 'src/common/editor/audio-warp-clip-authority.ts',

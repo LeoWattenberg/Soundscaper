@@ -72,7 +72,7 @@ export const FOUNDATION_RATE_CONVERSION_AUDIT_SITES: readonly FoundationTimeConv
 	},
 	{
 		id: 'project-bin-replacement-rate-conform',
-		file: 'src/common/editor/controller/project-bin-replacement-service.ts',
+		file: 'src/common/editor/controller/project-bin-runtime.ts',
 		behavior: 'Replacement admission maps source starts and extents from the prior media rate into the candidate rate under point rounding before checking for shortened clips.',
 		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
 	},
