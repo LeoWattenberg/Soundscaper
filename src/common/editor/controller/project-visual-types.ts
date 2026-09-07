@@ -57,7 +57,7 @@ export interface ProjectVisualStore {
 	loadMediaAsset(
 		sourceId: string,
 		options?: Readonly<{ signal?: AbortSignal }>,
-	): Promise<Blob | null>;
+	): Promise<unknown>;
 	leaseLinkedVideoOriginalPlayback?(
 		projectId: string,
 		source: ProjectVisualSource,
@@ -67,15 +67,15 @@ export interface ProjectVisualStore {
 		projectId: string,
 		source: ProjectVisualSource,
 		options?: Readonly<{ signal?: AbortSignal }>,
-	): Promise<Readonly<{ readonly blob: Blob; readonly binding: unknown }> | null>;
-	listVideoDerivatives(sourceId: string): Promise<readonly VideoDerivative[]>;
-	loadVideoDerivative(sourceId: string, derivative: VideoDerivative): Promise<Blob | null>;
+	): Promise<Readonly<{ readonly blob: unknown; readonly binding: unknown }> | null>;
+	listVideoDerivatives(sourceId: string): Promise<readonly unknown[]>;
+	loadVideoDerivative(sourceId: string, derivative: VideoDerivative): Promise<unknown>;
 	listLinkedVideoDerivatives?(
 		projectId: string, source: ProjectVisualSource, binding: unknown,
-	): Promise<readonly VideoDerivative[]>;
+	): Promise<readonly unknown[]>;
 	loadLinkedVideoDerivative?(
 		projectId: string, source: ProjectVisualSource, binding: unknown, derivative: VideoDerivative,
-	): Promise<Blob | null>;
+	): Promise<unknown>;
 }
 
 export interface ObjectUrlPort {

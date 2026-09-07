@@ -18,6 +18,7 @@ import type {
 	ProjectVisualServiceDependencies,
 	ProjectVisualSource,
 	ProjectVisualTrack,
+	VideoDerivative,
 	VideoSourceVisualData,
 	VideoThumbnail,
 	VideoVisual,
@@ -183,7 +184,7 @@ export function createProjectVisualService(
 				throw new Error('The original video file is missing.');
 			}
 			const mediaUrl = linkedPlaybackLease?.mediaUrl
-				?? (mediaBlob ? dependencies.url.createObjectURL(mediaBlob) : null);
+				?? (mediaBlob ? dependencies.url.createObjectURL(requireVisualBlob(mediaBlob)) : null);
 			if (mediaBlob && mediaUrl) ownedUrls.push(mediaUrl);
 			let posterUrl: string | null = null;
 			const thumbnails: VideoThumbnail[] = [];
@@ -203,7 +204,8 @@ export function createProjectVisualService(
 			if (!isActivationCurrent(source.id, operation, project, projectToken)) {
 				return cleanupLate(ownedUrls, linkedPlaybackLease);
 			}
-			for (const derivative of derivatives) {
+			for (const storedDerivative of derivatives) {
+				const derivative = readVideoDerivative(storedDerivative);
 				const blob = linkedDerivativeAccess
 					? await linkedDerivativeAccess.load.call(
 						dependencies.store, linkedDerivativeAccess.projectId,
@@ -215,7 +217,7 @@ export function createProjectVisualService(
 					return cleanupLate(ownedUrls, linkedPlaybackLease);
 				}
 				if (!blob) continue;
-				const url = dependencies.url.createObjectURL(blob);
+				const url = dependencies.url.createObjectURL(requireVisualBlob(blob));
 				if (!url) continue;
 				if (derivative.type === 'poster') {
 					ownedUrls.push(url);
@@ -444,4 +446,27 @@ function findSource(project: ProjectVisualProject, sourceId: string): ProjectVis
 }
 function findClipTrack(project: ProjectVisualProject, clipId: string): ProjectVisualTrack | null {
 	return project.tracks.find((track) => track.clipIds.includes(clipId)) ?? null;
+}
+
+function requireVisualBlob(value: unknown): Blob {
+	if (!(value instanceof Blob)) throw new TypeError('Stored video media must be a Blob.');
+	return value;
+}
+
+function readVideoDerivative(value: unknown): VideoDerivative {
+	if (typeof value !== 'object' || value === null || Array.isArray(value)
+		|| !('type' in value) || typeof value.type !== 'string') {
+		throw new TypeError('Stored video derivative metadata is invalid.');
+	}
+	const optionalNumber = (key: 'timestamp' | 'width' | 'height'): number | undefined => {
+		if (!(key in value)) return undefined;
+		const field: unknown = Reflect.get(value, key);
+		if (field === undefined) return undefined;
+		if (typeof field !== 'number' || !Number.isFinite(field)) {
+			throw new TypeError(`Stored video derivative ${key} is invalid.`);
+		}
+		return field;
+	};
+	return { ...value, type: value.type, timestamp: optionalNumber('timestamp'),
+		width: optionalNumber('width'), height: optionalNumber('height') };
 }

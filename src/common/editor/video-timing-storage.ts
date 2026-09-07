@@ -109,7 +109,7 @@ export async function publishVideoTimingAsset(
 }
 
 export async function loadVideoTimingAsset(
-	store: Pick<VideoTimingMediaStore, 'loadMediaAsset'>,
+	store: Readonly<{ loadMediaAsset(storageKey: string, options?: Readonly<{ signal?: AbortSignal }>): PromiseLike<unknown> }>,
 	value: unknown,
 	options: Readonly<{ signal?: AbortSignal; sourceSha256?: string }> = {},
 ): Promise<Readonly<{
