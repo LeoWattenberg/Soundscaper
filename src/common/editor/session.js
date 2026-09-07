@@ -149,7 +149,8 @@ export function createAudioEditorSessionController(options = {}) {
 		activationReservations.publish(listeners, snapshot);
 	}
 
-	function finishMutation(beforeCounts, reason, result = {}) {
+	/** @template {object} Result @param {Map<string, number>} beforeCounts @param {string} reason @param {Result} result */
+	function finishMutation(beforeCounts, reason, result) {
 		const afterCounts = countsFor(tabs, clipboard);
 		const releasedSourceIds = releasedBetween(beforeCounts, afterCounts);
 		publish();
