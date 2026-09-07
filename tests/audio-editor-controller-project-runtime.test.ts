@@ -74,3 +74,14 @@ test('runtime admission preserves selected method results without publishing unr
 	assert.equal(Object.hasOwn(runtime, 'hostSecret'), false);
 	assert.equal(Object.isFrozen(runtime), true);
 });
+
+void test('a dynamically retrieved host does not acquire the default runtime result model', () => {
+	const host = { runtime: { ...resolveControllerProjectRuntime(),
+		createProject: () => ({ id: 'dynamic', schemaVersion: 17, title: 123 }),
+	} };
+	// Reflect.get mirrors an unchecked JavaScript host: only no-argument admission
+	// establishes the default owner; a dynamic input must keep the compatibility port.
+	const selected: import('../src/common/editor/controller/project-runtime.ts').ControllerProjectRuntime =
+		resolveControllerProjectRuntime(Reflect.get(host, String('runtime')));
+	assert.equal(selected.createProject().title, 123);
+});

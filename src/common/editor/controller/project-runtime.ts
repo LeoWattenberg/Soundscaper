@@ -211,7 +211,6 @@ export type ControllerProjectRuntimeSnapshot<Runtime extends ControllerProjectRu
 	>;
 
 export function resolveControllerProjectRuntime(): typeof DEFAULT_RUNTIME;
-export function resolveControllerProjectRuntime(value: undefined): typeof DEFAULT_RUNTIME;
 
 /** A typed host retains its document model through runtime admission. */
 export function resolveControllerProjectRuntime<Runtime extends ControllerProjectRuntimeSelection>(
