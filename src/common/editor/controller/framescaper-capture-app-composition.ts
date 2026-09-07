@@ -90,9 +90,9 @@ type CaptureManifestRepositories = Pick<FramescaperCaptureSessionManifestReposit
 	| 'loadCreation' | 'listProjectCreations' | 'listCreations' | 'publishCreation'
 	| 'replaceCreation' | 'removeCreation'>;
 export interface FramescaperCaptureAppStore extends FramescaperCaptureCanonicalStore {
-	readonly encodedCaptureSpoolRepository?: EncodedCaptureRepositories;
-	readonly rawPcmSpoolRepository?: RawPcmCaptureRepositories;
-	readonly framescaperCaptureManifestRepository?: CaptureManifestRepositories;
+	readonly encodedCaptureSpoolRepository?: EncodedCaptureRepositories | null;
+	readonly rawPcmSpoolRepository?: RawPcmCaptureRepositories | null;
+	readonly framescaperCaptureManifestRepository?: CaptureManifestRepositories | null;
 }
 export interface FramescaperCapturePublicationContext {
 	readonly recordStartFrame: number;
@@ -474,9 +474,9 @@ function withWebVcrPageAudio(
 
 function hasCaptureRepositories(
 	store: FramescaperCaptureAppStore | null | undefined,
-): store is FramescaperCaptureAppStore & Required<Pick<FramescaperCaptureAppStore,
-	'encodedCaptureSpoolRepository' | 'rawPcmSpoolRepository' | 'framescaperCaptureManifestRepository'
->> {
+): store is FramescaperCaptureAppStore & {
+	readonly [Key in 'encodedCaptureSpoolRepository' | 'rawPcmSpoolRepository' | 'framescaperCaptureManifestRepository']: NonNullable<FramescaperCaptureAppStore[Key]>
+} {
 	return Boolean(store
 		&& methods(store.encodedCaptureSpoolRepository,
 			['create', 'load', 'append', 'reconcileAppend', 'seal', 'delete', 'read',
