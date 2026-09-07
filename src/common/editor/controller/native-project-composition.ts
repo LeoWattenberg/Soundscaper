@@ -6,6 +6,7 @@ import { SCAPE_MIME_TYPE } from '../scape-project-format.ts';
 import { loadStoredSourceChannels } from '../clip-time-pitch-cache-channels.js';
 import { applicationVersion } from '../application-version.ts';
 import { aup4ReportHasMissingPcm, ensureAup4FileName, normalizeAup4CompatibilityReport } from './app-helpers.ts';
+import type { ProjectSchemaFamily } from '../project-schema-identity.ts';
 import { deferredArchiveRuntime } from './deferred-archive-runtime.ts';
 import { createNativeProjectService, type NativeProjectServiceRuntime } from './native-project-service.ts';
 import type { EditorTaskProgressCoordinator } from './task-progress.ts';
@@ -17,7 +18,9 @@ type DefaultPort =
 	| 'normalizeCompatibilityReport' | 'reportHasMissingPcm' | 'sourceChunkFrames'
 	| 'scapeMimeType' | 'applicationVersion';
 
-export type NativeProjectCompositionDependencies = Omit<NativeProjectServiceRuntime, DefaultPort | 'taskProgress' | 'copy'> & Readonly<{
+export type NativeProjectCompositionDependencies = Omit<NativeProjectServiceRuntime, DefaultPort | 'taskProgress' | 'copy' | 'copyFutureScapeArchive'> & Readonly<{
+	currentProjectSchemaFamily: ProjectSchemaFamily;
+	copyFutureScapeArchive?: NativeProjectServiceRuntime['copyFutureScapeArchive'];
 	taskProgress: EditorTaskProgressCoordinator;
 	copy: NativeProjectServiceRuntime['copy'] & Readonly<{ projectSaving: string }>;
 }>;
@@ -26,6 +29,11 @@ export type NativeProjectCompositionDependencies = Omit<NativeProjectServiceRunt
 export function createNativeProjectComposition(dependencies: NativeProjectCompositionDependencies) {
 	const service = createNativeProjectService({
 		...dependencies,
+		copyFutureScapeArchive: dependencies.copyFutureScapeArchive ?? ((input, write, options) => (
+			deferredArchiveRuntime.copyFutureScapeArchive(input, write, {
+				...options, currentProjectSchemaFamily: dependencies.currentProjectSchemaFamily,
+			})
+		)),
 		createStableId, ensureAup4FileName, ensureProjectFileName: withProjectFileExtension,
 		sourcePcmBytes, loadStoredSourceChannels,
 		requestAup4FileHandle: deferredArchiveRuntime.requestAup4FileHandle,

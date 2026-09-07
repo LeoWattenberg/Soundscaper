@@ -18,7 +18,7 @@ test('native project composition retains the injected archive client and dispose
 	};
 	const taskProgress = createEditorTaskProgressCoordinator();
 	const service = createNativeProjectComposition({
-		...fixture.runtime, initialAup4Client: client, taskProgress,
+		...fixture.runtime, currentProjectSchemaFamily: 'soundscaper', initialAup4Client: client, taskProgress,
 		copy: { ...fixture.runtime.copy, projectSaving: 'Saving' },
 	});
 	assert.equal(initializations, 0);
@@ -36,7 +36,7 @@ test('failed native file admission settles its foreground progress task', async 
 	const kinds: unknown[] = [];
 	const taskProgress = createEditorTaskProgressCoordinator({ onChange: value => { kinds.push(value?.kind ?? null); } });
 	const service = createNativeProjectComposition({
-		...fixture.runtime, taskProgress, copy: { ...fixture.runtime.copy, projectSaving: 'Saving' },
+		...fixture.runtime, currentProjectSchemaFamily: 'soundscaper', taskProgress, copy: { ...fixture.runtime.copy, projectSaving: 'Saving' },
 	});
 	await assert.rejects(service.openScape(nativeFile('invalid.txt')), /Choose a Scape project file/u);
 	assert.equal(kinds[0], 'project-io');
