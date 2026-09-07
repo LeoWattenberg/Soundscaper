@@ -492,11 +492,14 @@ function sameReferenceApartFromRebind(
 		&& JSON.stringify(left.modelArtifactSha256s) === JSON.stringify(right.modelArtifactSha256s);
 }
 
+// Body grouping reorders equal-body references, so identity is compared by ID.
 function sameAssetCollection(
 	left: readonly Readonly<AssistanceTranscriptAssetReferenceV1>[],
 	right: readonly Readonly<AssistanceTranscriptAssetReferenceV1>[],
 ): boolean {
-	return JSON.stringify(left) === JSON.stringify(right);
+	const byId = new Map(left.map((asset) => [asset.id, JSON.stringify(asset)]));
+	return left.length === right.length
+		&& right.every((asset) => byId.get(asset.id) === JSON.stringify(asset));
 }
 
 function assertStoredMetadata(
