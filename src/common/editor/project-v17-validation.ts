@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { ProjectDocumentBody } from './project-document-body-types.ts';
+import type { ProjectDocumentBody, ProjectDocumentLegacyMixer } from './project-document-body-types.ts';
 import { validateFolderBusesV13 } from './folder-bus-v13.ts';
 import { validateProjectAudioWarpRuntimeAuthority } from './project-audio-warp-validation.ts';
 import {
@@ -21,6 +21,7 @@ export type AudioEditorProjectV17ValidationOptions = ProjectHierarchyDocumentVal
 
 export interface AudioEditorProjectV17 extends ProjectDocumentBody {
 	readonly schemaVersion: 17;
+	readonly mixer: ProjectDocumentLegacyMixer;
 	readonly takeGroups: readonly TakeCompDocumentGroup[];
 }
 

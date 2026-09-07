@@ -26,9 +26,17 @@ export interface ProjectDocumentMaster extends Readonly<Record<string, unknown>>
 }
 
 export interface ProjectDocumentMixer {
-	readonly groups: readonly Readonly<{ id: string; gain: number; mute: boolean; solo: boolean }>[];
-	readonly sends: readonly Readonly<{ id: string; gain: number; mute: boolean; solo: boolean }>[];
-	readonly cues?: readonly Readonly<{ id: string; gain: number; mute: boolean; solo: boolean }>[];
+	readonly groups: readonly Readonly<{ id: string; name: string; gain: number; mute: boolean; solo: boolean }>[];
+	readonly sends: readonly Readonly<{ id: string; name: string; gain: number; mute: boolean; solo: boolean }>[];
+	readonly cues?: readonly Readonly<{ id: string; name: string; gain: number; mute: boolean; solo: boolean }>[];
+}
+
+/** Legacy documents validate direct track routes; graph-based products own their edges. */
+export interface ProjectDocumentLegacyMixer extends ProjectDocumentMixer {
+	readonly routes: Readonly<Record<string, Readonly<{
+		groupId: string | null;
+		sends: Readonly<Record<string, number>>;
+	}>>>;
 }
 
 /** Preserve declared fields through the extensible wire's index signature. */

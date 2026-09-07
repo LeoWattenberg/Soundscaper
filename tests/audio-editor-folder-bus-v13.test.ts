@@ -70,14 +70,14 @@ test('only a top-level folder holding audio owns a bus, and nested audio routes 
 	]);
 	assert.deepEqual([...ownership.folderIds].sort(), ['band', 'drums', 'picture']);
 
-	const mixer = project.mixer as { groups: Record<string, unknown>[]; routes: Record<string, unknown> };
+	const mixer = project.mixer;
 	const groups = mixer.groups;
 	assert.deepEqual(groups.map(({ id }) => id), ['band']);
 	assert.equal(groups[0].name, 'Band');
 	assert.equal(groups[0].mute, false);
 	assert.equal(groups[0].solo, false);
 
-	const routes = mixer.routes as Record<string, { groupId: string | null }>;
+	const routes = mixer.routes;
 	assert.equal(routes.kick.groupId, 'band');
 	assert.equal(routes.bass.groupId, 'band');
 	assert.equal(routes.vocals?.groupId ?? null, null);
@@ -86,7 +86,7 @@ test('only a top-level folder holding audio owns a bus, and nested audio routes 
 
 test('a video-only top-level folder owns no bus and authors no route', () => {
 	const project = mixedProject();
-	const groupIds = ((project.mixer as { groups: { id: string }[] }).groups).map(({ id }) => id);
+	const groupIds = project.mixer.groups.map(({ id }) => id);
 	assert.equal(groupIds.includes('picture'), false);
 	assert.equal(groupIds.includes('drums'), false);
 	assert.equal(validateCurrentAudioEditorProject(project), true);

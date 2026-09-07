@@ -88,10 +88,7 @@ test('rename, collapse toggle, move, and removal ride the folder-aware commands'
 	const folder = fixture.project.trackFolders.find(({ id }) => id === 'band');
 	assert.equal(folder?.name, 'Rhythm');
 	assert.equal(folder?.collapsed, false);
-	const mixer = fixture.project.mixer as {
-		routes: Record<string, { groupId: string | null }>;
-		groups: readonly { id: string; name: string }[];
-	};
+	const mixer = fixture.project.mixer;
 	assert.equal(mixer.routes.bass.groupId, 'band');
 	assert.equal(mixer.groups[0]?.name, 'Rhythm');
 

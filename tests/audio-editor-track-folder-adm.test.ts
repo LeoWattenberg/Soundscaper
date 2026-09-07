@@ -89,8 +89,7 @@ test('ownership-neutral folder edits stay available on an authored programme', (
 		createUpdateTrackFolderCommand('music', { name: 'Score', collapsed: true }),
 		{ now: NOW },
 	);
-	const bus = (renamed.mixer as { groups: readonly { id: string; name: string }[] })
-		.groups.find(({ id }) => id === 'music');
+	const bus = renamed.mixer.groups.find(({ id }) => id === 'music');
 	assert.equal(bus?.name, 'Score');
 	assert.equal(validateCurrentAudioEditorProject(renamed), true);
 
