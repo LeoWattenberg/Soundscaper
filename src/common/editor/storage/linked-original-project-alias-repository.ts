@@ -3,7 +3,6 @@
 import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	legacyLinkedVideoOriginalBindingFromLinkedOriginal,
-	LINKED_ORIGINAL_BINDING_SCHEMA_VERSION,
 	normalizeLinkedOriginalBinding,
 	type LinkedOriginalBinding,
 	type LinkedOriginalKind,
@@ -13,6 +12,11 @@ import {
 	deleteMemoryLinkedOriginalPairs,
 	publishMemoryLinkedOriginalPairs,
 } from './linked-original-pair-writer.ts';
+import {
+	projectOriginalSources,
+	type ProjectOriginalSource,
+	type ProjectOriginalSources,
+} from './linked-original-project-source-shape.ts';
 import {
 	LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
 	linkedOriginalProvisionalRootPairPublication,
@@ -41,40 +45,12 @@ export interface LinkedOriginalProjectAliasRepositoryOptions {
 	readonly managedKinds?: readonly LinkedOriginalKind[];
 }
 
-interface ProjectOriginalSource {
-	readonly kind: LinkedOriginalKind;
-	readonly id: string;
-	readonly storageKey: string;
-	readonly mimeType: string;
-	readonly sourceShape: LinkedOriginalBinding['sourceShape'];
-}
-
 interface BindingInventory {
 	readonly bindings: readonly LinkedOriginalBinding[];
 	readonly bindingKeys: ReadonlySet<string>;
 	readonly bindingTokens: ReadonlySet<string>;
 	readonly recordCount: number;
 }
-
-const COMMON_SOURCE_FIELDS = Object.freeze([
-	'id',
-	'kind',
-	'storageKey',
-	'mimeType',
-] as const);
-const AUDIO_SOURCE_SHAPE_FIELDS = Object.freeze([
-	'frameCount',
-	'channelCount',
-	'sampleRate',
-	'originalSampleRate',
-	'sampleFormat',
-	'chunkFrames',
-] as const);
-const VALIDATION_LOCATOR_ID = 'locator_validation_token';
-const VALIDATION_LOCATOR_REVISION = 'snapshot_validation_token';
-const VALIDATION_BINDING_TOKEN = 'binding_validation_token';
-const VALIDATION_DIGEST = '0'.repeat(64);
-const VALIDATION_INSTANT = '1970-01-01T00:00:00.000Z';
 
 /** Atomic, pathless binding aliases used when one local project is duplicated. */
 export class LinkedOriginalProjectAliasRepository {
@@ -126,7 +102,7 @@ export class LinkedOriginalProjectAliasRepository {
 		if (sourceProjectId === destinationProjectId) {
 			throw new Error('Linked original alias source and destination projects must differ.');
 		}
-		const sources = projectSources(
+		const sources = projectOriginalSources(
 			sourcesValue,
 			sourceProjectId,
 			this.#managedKinds,
@@ -252,14 +228,18 @@ export class LinkedOriginalProjectAliasRepository {
 		inventory: BindingInventory,
 		sourceProjectId: string,
 		destinationProjectId: string,
-		sources: ReadonlyMap<string, ProjectOriginalSource>,
+		sources: ProjectOriginalSources,
 	): readonly LinkedOriginalBinding[] {
 		if (inventory.bindings.some(({ projectId: owner }) => owner === destinationProjectId)) {
 			throw new Error('The linked original alias destination already contains a binding.');
 		}
-		const sourceBindings = inventory.bindings
-			.filter((binding) => binding.projectId === sourceProjectId && sources.has(binding.sourceId))
+		const projectBindings = inventory.bindings
+			.filter((binding) => binding.projectId === sourceProjectId)
 			.sort((left, right) => compareCodeUnits(left.sourceId, right.sourceId));
+		if (projectBindings.some((binding) => sources.unbindable.has(binding.sourceId))) {
+			throw new Error('A linked original binding exists for a source that no longer matches it.');
+		}
+		const sourceBindings = projectBindings.filter(({ sourceId }) => sources.sources.has(sourceId));
 		if (sourceBindings.some((binding) => inventory.bindingKeys.has(
 			linkedOriginalBindingKey(destinationProjectId, binding.sourceId),
 		))) {
@@ -268,7 +248,9 @@ export class LinkedOriginalProjectAliasRepository {
 		if (inventory.recordCount + sourceBindings.length > this.#maximumInventoryRecords) {
 			throw new RangeError('Linked original alias prospective rows exceed the record limit.');
 		}
-		for (const binding of sourceBindings) assertSourceMatches(binding, sources.get(binding.sourceId));
+		for (const binding of sourceBindings) {
+			assertSourceMatches(binding, sources.sources.get(binding.sourceId));
+		}
 		const usedTokens = new Set(inventory.bindingTokens);
 		const aliases = sourceBindings.map((binding) => {
 			const bindingToken = this.#createBindingToken();
@@ -290,90 +272,6 @@ export class LinkedOriginalProjectAliasRepository {
 		});
 		return Object.freeze(aliases);
 	}
-}
-
-function projectSources(
-	value: unknown,
-	projectId: string,
-	managedKindsValue: ReadonlySet<LinkedOriginalKind>,
-	maximumSources: number,
-): ReadonlyMap<string, ProjectOriginalSource> {
-	if (!Array.isArray(value)) throw new TypeError('Linked original project sources must be an array.');
-	if (value.length > maximumSources) {
-		throw new RangeError('Linked original project sources exceed the record limit.');
-	}
-	const sources = new Map<string, ProjectOriginalSource>();
-	for (const candidate of value) {
-		const source = projectSource(candidate, projectId, managedKindsValue);
-		if (sources.has(source.id)) {
-			throw new Error('Linked original project sources contain a duplicate source identity.');
-		}
-		sources.set(source.id, source);
-	}
-	return sources;
-}
-
-function projectSource(
-	value: unknown,
-	projectId: string,
-	managedKindsValue: ReadonlySet<LinkedOriginalKind>,
-): ProjectOriginalSource {
-	const source = plainRecord(value, 'project source');
-	const fields = Object.fromEntries(COMMON_SOURCE_FIELDS.map((field) => [field, dataField(source, field)]));
-	if ((fields.kind !== 'audio' && fields.kind !== 'video') || !managedKindsValue.has(fields.kind)) {
-		throw new TypeError('A linked original project source kind is not managed by this repository.');
-	}
-	const sourceShape = fields.kind === 'audio'
-		? Object.fromEntries(AUDIO_SOURCE_SHAPE_FIELDS.map((field) => [field, dataField(source, field)]))
-		: projectVideoSourceShape(source);
-	const binding = normalizeLinkedOriginalBinding({
-		schemaVersion: LINKED_ORIGINAL_BINDING_SCHEMA_VERSION,
-		kind: fields.kind,
-		projectId,
-		sourceId: fields.id,
-		storageKey: fields.storageKey,
-		locatorId: VALIDATION_LOCATOR_ID,
-		locatorRevision: VALIDATION_LOCATOR_REVISION,
-		mimeType: fields.mimeType,
-		byteLength: 1,
-		sha256: VALIDATION_DIGEST,
-		sourceShape,
-		bindingToken: VALIDATION_BINDING_TOKEN,
-		boundAt: VALIDATION_INSTANT,
-	});
-	return Object.freeze({
-		kind: binding.kind,
-		id: binding.sourceId,
-		storageKey: binding.storageKey,
-		mimeType: binding.mimeType,
-		sourceShape: binding.sourceShape,
-	});
-}
-
-function projectVideoSourceShape(source: Record<string, unknown>): Readonly<Record<string, unknown>> {
-	const rate = dataField(source, 'frameRate');
-	const sampleFrameCount = optionalDataField(source, 'sampleFrameCount');
-	const frameCount = sampleFrameCount === undefined
-		? dataField(source, 'frameCount')
-		: sampleFrameCount;
-	const frameRate = typeof rate === 'number'
-		? rate
-		: rationalFrameRate(rate);
-	return Object.freeze({
-		frameCount,
-		sampleRate: dataField(source, 'sampleRate'),
-		width: dataField(source, 'width'),
-		height: dataField(source, 'height'),
-		frameRate,
-		videoCodec: dataField(source, 'videoCodec'),
-		audioCodec: dataField(source, 'audioCodec'),
-		hasAudio: dataField(source, 'hasAudio'),
-	});
-}
-
-function rationalFrameRate(value: unknown): number {
-	const rational = plainRecord(value, 'video source frame rate');
-	return Number(dataField(rational, 'num')) / Number(dataField(rational, 'den'));
 }
 
 function assertSourceMatches(
@@ -541,34 +439,6 @@ function sameBinding(left: LinkedOriginalBinding, right: LinkedOriginalBinding):
 function projectId(value: unknown): string {
 	linkedOriginalBindingKey(value, 'project-alias-validation-source');
 	return value as string;
-}
-
-function plainRecord(value: unknown, label: string): Record<string, unknown> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError(`A linked original ${label} must be an object.`);
-	}
-	const prototype = Object.getPrototypeOf(value) as unknown;
-	if (prototype !== Object.prototype && prototype !== null) {
-		throw new TypeError(`A linked original ${label} must be a plain object.`);
-	}
-	return value as Record<string, unknown>;
-}
-
-function dataField(record: Record<string, unknown>, field: string): unknown {
-	const descriptor = Object.getOwnPropertyDescriptor(record, field);
-	if (!descriptor || !descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
-		throw new TypeError(`Linked original project source ${field} must be an enumerable data field.`);
-	}
-	return descriptor.value;
-}
-
-function optionalDataField(record: Record<string, unknown>, field: string): unknown {
-	const descriptor = Object.getOwnPropertyDescriptor(record, field);
-	if (!descriptor) return undefined;
-	if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
-		throw new TypeError(`Linked original project source ${field} must be an enumerable data field.`);
-	}
-	return descriptor.value;
 }
 
 function inventoryLimit(value: unknown, maximum: number, label: string): number {
