@@ -507,3 +507,18 @@ test('bootstrap composition applies saved device settings and the current startu
 	assert.ok(fixture.events.includes('new-project'));
 	assert.ok(!fixture.events.includes('load-project:previous'));
 });
+
+void test('bootstrap forwards opaque stored documents to admission without requiring tracks', async () => {
+	const fixture = createFixture();
+	const saved = Object.freeze({ id: 'future', schemaFamily: 'future-product', schemaVersion: 999 });
+	let opened: unknown;
+	const service = createProjectBootstrapComposition({
+		...fixture.runtime, lifetime: fixture.lifetime, getStartupPreferences: () => undefined,
+		loadRecentProjectState: async () => saved.id,
+		store: { ...fixture.runtime.store, loadProject: async (): Promise<unknown> => saved },
+		openProject: async (project: unknown) => { opened = project; fixture.state.readOnly = true; },
+	});
+	await service.bootstrap(fixture.lifetime.capture());
+	assert.equal(opened, saved);
+	assert.ok(!fixture.events.includes('save-now'));
+});

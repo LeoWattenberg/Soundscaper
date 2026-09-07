@@ -4,7 +4,6 @@ import { RECORDING_INPUT_GAIN_DEFAULT, normalizeRecordingInputGain } from '../re
 import { resolveStartupProjectId } from '../startup-preferences.ts';
 import { isEditorDisposedError, type EditorControllerLifetime } from './lifecycle.ts';
 import { createProjectBootstrapService, type ProjectBootstrapServiceRuntime } from './project-bootstrap-service.ts';
-import type { ProjectLifecycleProject } from './project-lifecycle-types.ts';
 import {
 	AUDIO_DEVICE_PREFERENCES_SETTING_KEY,
 	normalizeAudioDevicePreferences,
@@ -16,14 +15,14 @@ type DefaultPort =
 	| 'audioDevicePreferencesSettingKey' | 'recordingInputGainDefault'
 	| 'normalizeRecordingInputGain' | 'normalizeLatencyOffset' | 'normalizeAudioDevicePreferences';
 
-export type ProjectBootstrapCompositionDependencies<Project extends ProjectLifecycleProject, Preferences, EffectPresets> =
+export type ProjectBootstrapCompositionDependencies<Project, Preferences, EffectPresets> =
 	Omit<ProjectBootstrapServiceRuntime<Project, Preferences, EffectPresets>, DefaultPort> & Readonly<{
 		lifetime: EditorControllerLifetime;
 		getStartupPreferences(): Parameters<typeof resolveStartupProjectId>[0];
 	}>;
 
 /** Bind bootstrap normalization and cancellation to their owning policies. */
-export function createProjectBootstrapComposition<Project extends ProjectLifecycleProject, Preferences, EffectPresets>(
+export function createProjectBootstrapComposition<Project, Preferences, EffectPresets>(
 	dependencies: ProjectBootstrapCompositionDependencies<Project, Preferences, EffectPresets>,
 ) {
 	const { lifetime } = dependencies;

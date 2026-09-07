@@ -68,7 +68,7 @@ export function createProjectSessionService<
 		projectSelection.restore(project, metadata);
 	}
 
-	async function loadRecentProjectState(guard: ProjectSessionGuard): Promise<unknown> {
+	async function loadRecentProjectState(guard: ProjectSessionGuard): Promise<string | null> {
 		let storedRecentProjectIds = await guard(dependencies.loadSetting(dependencies.recentProjectsSettingKey, null));
 		if (!storedRecentProjectIds && dependencies.productId === 'soundscaper') {
 			storedRecentProjectIds = await guard(dependencies.loadSetting('audio-editor-recent-project-ids', []));
@@ -79,9 +79,9 @@ export function createProjectSessionService<
 				typeof projectId === 'string' && Boolean(projectId)
 			)))]
 			: []);
-		let lastProjectId = await guard(dependencies.loadSetting(dependencies.lastProjectSettingKey, null));
+		let lastProjectId = admittedProjectId(await guard(dependencies.loadSetting(dependencies.lastProjectSettingKey, null)));
 		if (!lastProjectId && dependencies.productId === 'soundscaper') {
-			lastProjectId = await guard(dependencies.loadSetting('last-project-id', null));
+			lastProjectId = admittedProjectId(await guard(dependencies.loadSetting('last-project-id', null)));
 		}
 		return lastProjectId;
 	}
@@ -113,4 +113,8 @@ export function createProjectSessionService<
 		dependencies.publish();
 		return recentProjectIds;
 	}
+}
+
+function admittedProjectId(value: unknown): string | null {
+	return typeof value === 'string' && value.length > 0 ? value : null;
 }

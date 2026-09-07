@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorLifetimeToken } from './lifecycle.ts';
-import type { ProjectLifecycleProject } from './project-lifecycle-types.ts';
+import type { ProjectSessionGuard } from './project-session-service.ts';
 import { DELIVERY_PRESETS_SETTING_KEY } from './delivery-preset-service.ts';
 import {
 	createDeliveryPresetState,
@@ -46,7 +46,7 @@ export interface ProjectBootstrapState<Preferences, EffectPresets> {
 	takeCycleRecoveryInspecting?: boolean;
 }
 
-export interface ProjectBootstrapStore<Project extends ProjectLifecycleProject> {
+export interface ProjectBootstrapStore<Project> {
 	ready(): PromiseLike<unknown> | unknown;
 	reconcileLinkedOriginalLocators?(): PromiseLike<unknown> | unknown;
 	reconcileLinkedVideoOriginalLocators?(): PromiseLike<unknown> | unknown;
@@ -65,7 +65,7 @@ export interface ProjectBootstrapMediaDevices {
 }
 
 export interface ProjectBootstrapServiceRuntime<
-	Project extends ProjectLifecycleProject,
+	Project,
 	Preferences,
 	EffectPresets,
 > {
@@ -95,9 +95,7 @@ export interface ProjectBootstrapServiceRuntime<
 		publish?: false;
 	}>) => PromiseLike<unknown> | unknown;
 	readonly setRemoveDeviceChangeListener: (remove: () => void) => void;
-	readonly loadRecentProjectState: <Value>(
-		guard: (value: PromiseLike<Value> | Value) => Promise<Value>,
-	) => Promise<string | null>;
+	readonly loadRecentProjectState: (guard: ProjectSessionGuard) => Promise<string | null>;
 	/**
 	 * Audacity's General > Program start preference, resolved against the
 	 * project the previous session left open. Absent, the last session is
@@ -134,7 +132,7 @@ export interface ProjectBootstrapServiceRuntime<
  * Resources are registered only after their preceding async work is guarded.
  */
 export function createProjectBootstrapService<
-	Project extends ProjectLifecycleProject,
+	Project,
 	Preferences,
 	EffectPresets,
 >(runtime: ProjectBootstrapServiceRuntime<Project, Preferences, EffectPresets>) {

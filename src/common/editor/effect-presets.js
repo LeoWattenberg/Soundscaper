@@ -10,6 +10,7 @@ import {
 
 export const AUDIO_EDITOR_EFFECT_PRESETS_SCHEMA_VERSION = 1;
 
+/** @param {unknown} [value] */
 export function createAudioEditorEffectPresets(value = {}) {
 	const source = value && typeof value === 'object' ? value : {};
 	if (source.schemaVersion != null && source.schemaVersion !== AUDIO_EDITOR_EFFECT_PRESETS_SCHEMA_VERSION) {
