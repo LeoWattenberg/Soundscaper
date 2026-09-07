@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { EngineParametricEqPreview } from '../engine/public-api.ts';
 import type { EditorActionRuntime } from './action-facade-runtime.ts';
 import type { AudioEditorCommandPayloads } from '../commands/protocol.ts';
 import { assertEditorActionFunctions } from './action-facade-runtime.ts';
@@ -434,10 +435,14 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			auditionParametricEq: (...args: Parameters<NonNullable<typeof engine.auditionParametricEq>>) => engine.auditionParametricEq?.(...args) ?? false,
 			readParametricEqSpectrum: (...args: Parameters<NonNullable<typeof engine.readParametricEqSpectrum>>) => engine.readParametricEqSpectrum?.(...args) ?? null,
 			readDynamicsAnalysis: (...args: Parameters<NonNullable<typeof engine.readDynamicsAnalysis>>) => engine.readDynamicsAnalysis?.(...args) ?? null,
-			readSelectionParametricEqSpectrum: (which: Parameters<NonNullable<NonNullable<typeof state.audacityPreviewSource>['readSpectrum']>>[0], target: Float32Array) => state.audacityPreviewSource?.readSpectrum?.(which, target) ?? null,
+			readSelectionParametricEqSpectrum: (...args: Parameters<EngineParametricEqPreview['readSpectrum']>) => {
+				const source = state.audacityPreviewSource;
+				return source && 'readSpectrum' in source ? source.readSpectrum?.(...args) ?? null : null;
+			},
 			auditionSelectionParametricEq: (bandId: string | number | null) => {
 				state.audacityPreviewAuditionBandId = bandId == null ? null : String(bandId);
-				return state.audacityPreviewSource?.audition?.(state.audacityPreviewAuditionBandId) ?? false;
+				const source = state.audacityPreviewSource;
+				return source && 'audition' in source ? source.audition?.(state.audacityPreviewAuditionBandId) ?? false : false;
 			},
 			remove: restricted('audioEffects', (scope: AudioEditorCommandPayloads['effect/remove']['scope'], trackId: string | null, effectId: string) => commit({ type: 'effect/remove', scope, trackId, busId: trackId, effectId })),
 			reorder: restricted('audioEffects', (scope: AudioEditorCommandPayloads['effect/remove']['scope'], trackId: string | null, effectId: string, toIndex: number) => commit({ type: 'effect/reorder', scope, trackId, busId: trackId, effectId, toIndex })),

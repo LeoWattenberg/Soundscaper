@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { EffectControlPreviewSource } from './effect-controls-service.ts';
 import type { AnalysisActions } from './analysis-composition.ts';
 import type { EnginePublicApi, EngineParametricEqPreview } from '../engine/public-api.ts';
 import type { createEditorCodecRuntime } from '../editor-codec-runtime.ts';
@@ -22,7 +23,7 @@ interface EditorActionState extends Record<string, unknown>, MacroState {
 	audacityEffectType: string;
 	effectPresets: unknown;
 	selectedTrackId: string | null;
-	audacityPreviewSource: Partial<Pick<EngineParametricEqPreview, 'readSpectrum' | 'audition'>> | null;
+	audacityPreviewSource: EffectControlPreviewSource | Partial<Pick<EngineParametricEqPreview, 'readSpectrum' | 'audition'>> | null;
 	audacityPreviewAuditionBandId: string | number | null;
 	readonly recentProjectIds: readonly string[];
 	readonly projects: readonly Readonly<{ id: string }>[];
