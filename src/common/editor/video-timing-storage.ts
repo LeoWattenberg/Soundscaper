@@ -32,7 +32,7 @@ export interface VideoTimingMediaStore {
 			signal?: AbortSignal;
 		}>,
 	): PromiseLike<OwnedMediaAssetWriter>;
-	loadMediaAsset(storageKey: string, options?: Readonly<{ signal?: AbortSignal }>): PromiseLike<Blob | null>;
+	loadMediaAsset(storageKey: string, options?: Readonly<{ signal?: AbortSignal }>): PromiseLike<unknown>;
 }
 
 export async function publishVideoTimingAsset(

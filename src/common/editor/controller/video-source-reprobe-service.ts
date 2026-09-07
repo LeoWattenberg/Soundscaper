@@ -7,7 +7,7 @@ import {
 } from '../video-source-upgrade.ts';
 import { createFfmpegVideoTimingProbe, probeVideoTiming, type VideoTimingProbePort } from '../video-timing-probe.ts';
 import { createContainerVideoTimingProbe } from '../video-timing-demux.ts';
-import { digestMediaContent } from '../storage/media-content-digest.ts';
+import { canonicalMediaContentBlob, digestMediaContent } from '../storage/media-content-digest.ts';
 import { publishVideoTimingAsset, type VideoTimingMediaStore } from '../video-timing-storage.ts';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
 import type { EditorControllerLifetime } from './lifecycle.ts';
@@ -23,6 +23,7 @@ import type { EditorControllerLifetime } from './lifecycle.ts';
  */
 
 type DataRecord = Readonly<Record<string, unknown>>;
+type VideoSource = DataRecord & Readonly<{ id: string; kind: 'video' }>;
 
 interface FrameExtractorMetadata {
 	readonly width: number;
@@ -37,9 +38,9 @@ interface FrameExtractor {
 export interface VideoSourceReprobeStore extends VideoTimingMediaStore {
 	resolveLinkedVideoOriginal?(
 		projectId: string,
-		source: DataRecord,
+		source: VideoSource,
 		options?: Readonly<{ signal?: AbortSignal }>,
-	): PromiseLike<Readonly<{ blob?: Blob | null }> | null>;
+	): PromiseLike<Readonly<{ blob?: unknown }> | null>;
 }
 
 export interface VideoSourceReprobeDependencies {
@@ -55,7 +56,7 @@ export interface VideoSourceReprobeDependencies {
 	commit(command: AudioEditorCommand): unknown;
 	publishProjectState(): void;
 	createAudioEditorVideoFrameExtractor(media: Blob): PromiseLike<FrameExtractor> | FrameExtractor;
-	activateVideoSource(source: DataRecord, options?: Readonly<{ signal?: AbortSignal }>): PromiseLike<unknown>;
+	activateVideoSource(source: VideoSource, options?: Readonly<{ signal?: AbortSignal }>): PromiseLike<unknown>;
 }
 
 export interface VideoSourceReprobeResult {
@@ -154,18 +155,18 @@ export function createVideoSourceReprobeService(
 async function loadSourceMedia(
 	dependencies: VideoSourceReprobeDependencies,
 	project: DataRecord,
-	source: DataRecord,
+	source: VideoSource,
 	signal?: AbortSignal,
 ): Promise<Blob> {
 	const storageKey = String(source.storageKey || source.id);
 	const stored = await dependencies.store.loadMediaAsset(storageKey, { signal });
-	if (stored) return stored;
+	if (stored) return canonicalMediaContentBlob(stored);
 	const projectId = typeof project.id === 'string' ? project.id : null;
 	const resolve = dependencies.store.resolveLinkedVideoOriginal;
 	const linked = projectId && resolve
 		? await resolve.call(dependencies.store, projectId, source, { signal })
 		: null;
-	if (linked?.blob) return linked.blob;
+	if (linked?.blob) return canonicalMediaContentBlob(linked.blob);
 	// A linked original leased for playback alone exposes a URL and no bytes; a
 	// probe needs bytes, so the upgrade says so instead of guessing from a URL.
 	throw new VideoSourceUpgradeRefusedError(
@@ -202,17 +203,21 @@ function allProjectClips(project: DataRecord): readonly unknown[] {
 	return [...timeline, ...bin];
 }
 
-function requireVideoSource(project: DataRecord, sourceId: string): DataRecord {
+function requireVideoSource(project: DataRecord, sourceId: string): VideoSource {
 	const source = findVideoSource(project, sourceId);
 	if (!source) throw new ReferenceError(`Unknown video source: ${sourceId}.`);
 	return source;
 }
 
-function findVideoSource(project: DataRecord, sourceId: string): DataRecord | null {
+function findVideoSource(project: DataRecord, sourceId: string): VideoSource | null {
 	const sources = Array.isArray(project?.sources) ? project.sources : [];
 	const source = sources.find((candidate) => isRecord(candidate)
 		&& candidate.id === sourceId && candidate.kind === 'video');
-	return isRecord(source) ? source : null;
+	return isVideoSource(source) ? source : null;
+}
+
+function isVideoSource(value: unknown): value is VideoSource {
+	return isRecord(value) && typeof value.id === 'string' && value.kind === 'video';
 }
 
 function isRecord(value: unknown): value is DataRecord {

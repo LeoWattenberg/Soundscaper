@@ -251,3 +251,19 @@ test('an unknown or non-video source is a reference error, not a refusal', async
 	const { service } = await harness();
 	await assert.rejects(service.reprobe('missing-source'), ReferenceError);
 });
+
+void test('re-probe hashes and decodes the same canonical bytes from a Blob subclass', async () => {
+	let overrideReads = 0;
+	class MisleadingMedia extends Blob {
+		override slice(): Blob {
+			overrideReads += 1;
+			return new Blob([new Uint8Array(MEDIA_BYTES.length)]);
+		}
+	}
+	const { service, commands } = await harness({
+		media: new MisleadingMedia([MEDIA_BYTES], { type: 'video/mp4' }),
+	});
+	await service.reprobe('video-source');
+	assert.equal(commands.length, 1);
+	assert.equal(overrideReads, 0);
+});
