@@ -19,9 +19,6 @@ import type { generateWaveformPeaks } from './waveform-analysis.ts';
 
 /** The document identity the clip services read; the command projection is supplied separately. */
 export type ClipVideoCompositionProject =
-	& ReturnType<ClipTransformServiceDependencies['getProject']>
-	& ReturnType<ClipPropertyServiceDependencies['getProject']>
-	& ReturnType<ClipTimePitchRenderServiceDependencies['getProject']>
 	& ReturnType<VideoSourceReprobeDependencies['getProject']>
 	& NonNullable<ReturnType<VideoEffectServiceRuntime['getProject']>>;
 
@@ -30,6 +27,8 @@ export type ClipVideoCommandProject =
 	& ReturnType<SourceMonitorServiceDependencies['getProject']>
 	& ReturnType<VideoEditServiceDependencies['getProject']>
 	& ReturnType<VideoNavigationServiceDependencies['getProject']>
+	& ReturnType<ClipPropertyServiceDependencies['getProject']>
+	& ReturnType<ClipTimePitchRenderServiceDependencies['getProject']>
 	& ReturnType<ClipTransformServiceDependencies['getProject']>;
 
 export type ClipVideoCompositionState = VideoEffectServiceRuntime['state'] & {

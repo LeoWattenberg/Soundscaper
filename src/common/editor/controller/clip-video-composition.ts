@@ -48,7 +48,8 @@ type ClipTimePitchRender = ReturnType<typeof createClipTimePitchRenderService>;
  * three-point video edits, JKL navigation, the frame-canonical trims, video
  * source reprobing, sample editing, clip transforms and properties, the
  * committed time-pitch render, and video clip effects. The edit and navigation
- * services read the command projection; the rest read the document identity.
+ * services, including audio properties and time-pitch rendering, read resolved
+ * command coordinates; persistence and source re-probing read the document.
  */
 export function createClipVideoComposition(dependencies: ClipVideoCompositionDependencies) {
 	const { state, copy, engine, lifetime, taskProgress } = dependencies;
@@ -188,7 +189,7 @@ export function createClipVideoComposition(dependencies: ClipVideoCompositionDep
 		lifetime,
 		copy,
 		sourceBuffers: dependencies.sourceBuffers,
-		getProject: requireProject,
+		getProject: dependencies.getCommandProject,
 		getSelectedClipId: () => state.selectedClipId,
 		editingBlocked: dependencies.editingBlocked,
 		captureProject,
@@ -206,7 +207,7 @@ export function createClipVideoComposition(dependencies: ClipVideoCompositionDep
 		sourceBuffers: dependencies.sourceBuffers,
 		sourcePeaks: dependencies.sourcePeaks,
 		sourceChunkFrames: dependencies.sourceChunkFrames,
-		getProject: requireProject,
+		getProject: dependencies.getCommandProject,
 		getSelectedClipId: () => state.selectedClipId,
 		editingBlocked: dependencies.editingBlocked,
 		captureProject,
