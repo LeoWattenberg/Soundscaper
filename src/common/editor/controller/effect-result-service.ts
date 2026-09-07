@@ -19,7 +19,7 @@ export interface EffectResultProject {
 
 export interface SelectionEffectResult {
 	readonly target: EffectTarget;
-	readonly channels: Float32Array[];
+	readonly channels: readonly Float32Array[];
 }
 
 export interface EffectResultSelectionDetails {

@@ -370,3 +370,24 @@ test('repeat generator replays the last successful closed request', async () => 
 		type: 'tone', options: { durationSeconds: 0.01, frequency: 220 },
 	});
 });
+
+void test('generator persistence retains the selected effect owner target fields', async () => {
+	const activeProject = project('project-a', null);
+	const fixture = createFixture({ getProject: () => activeProject });
+	const target = { channelCount: 1, durationFrames: 4, origin: 'selected-track' };
+	let persisted = false;
+	const service = createAudioGeneratorService({
+		...fixture.dependencies,
+		effectTargets: () => [target],
+		persistEffectResults: (results: readonly Readonly<{
+			target: typeof target; channels: readonly Float32Array[];
+		}>[]) => {
+			assert.equal(results[0]?.target.origin, 'selected-track');
+			assert.equal(results[0]?.target, target);
+			persisted = true;
+			return Promise.resolve();
+		},
+	});
+	await service.generateSelectionSilence();
+	assert.equal(persisted, true);
+});

@@ -67,7 +67,7 @@ export interface AudioGeneratorOptions extends Readonly<Record<string, unknown>>
 	readonly trackId?: string | null;
 }
 
-export interface AudioGeneratorEffectTarget extends Readonly<Record<string, unknown>> {
+export interface AudioGeneratorEffectTarget {
 	readonly channelCount: number;
 	readonly durationFrames: number;
 }
@@ -127,7 +127,7 @@ interface PersistEffectOptions {
 	assertCurrent(): void;
 }
 
-export interface AudioGeneratorServiceDependencies<Context = unknown> {
+export interface AudioGeneratorServiceDependencies<Context = unknown, Target extends AudioGeneratorEffectTarget = AudioGeneratorEffectTarget> {
 	readonly lifetime: EditorControllerLifetime;
 	readonly projectGeneration: EditorProjectGeneration;
 	readonly state: AudioGeneratorState;
@@ -151,10 +151,10 @@ export interface AudioGeneratorServiceDependencies<Context = unknown> {
 		track: AudioGeneratorTrack | null,
 		fallback: number,
 	): number;
-	effectTargets(): readonly AudioGeneratorEffectTarget[];
+	effectTargets(): readonly Target[];
 	persistEffectResults(
 		results: readonly Readonly<{
-			target: AudioGeneratorEffectTarget;
+			target: Target;
 			channels: readonly Float32Array[];
 		}>[],
 		type: null,
@@ -200,8 +200,8 @@ export interface OperationOwnership {
 	readonly task: EditorTaskScope;
 }
 
-export function createAudioGeneratorService<Context>(
-	dependencies: AudioGeneratorServiceDependencies<Context>,
+export function createAudioGeneratorService<Context, Target extends AudioGeneratorEffectTarget>(
+	dependencies: AudioGeneratorServiceDependencies<Context, Target>,
 ): Readonly<AudioGeneratorService> {
 	let operationGeneration = 0;
 

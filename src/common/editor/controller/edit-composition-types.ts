@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { EffectTarget } from './effect-selection-service.ts';
 import type { EnginePublicApi } from '../engine/public-api.ts';
 import type { AbsentSubsystemContext } from './absent-audio-subsystems.ts';
 import type { saveLabelExport } from './app-helpers.ts';
@@ -66,8 +67,8 @@ export interface EditCompositionDependencies {
 	readonly saveLabelFile: Parameters<typeof saveLabelExport>[1];
 	readonly fileService: Parameters<typeof saveLabelExport>[2];
 	/** Generated audio lands through the effect pipeline's target selection and result persistence. */
-	readonly effectTargets: AudioGeneratorServiceDependencies['effectTargets'];
-	readonly persistEffectResults: AudioGeneratorServiceDependencies['persistEffectResults'];
+	readonly effectTargets: AudioGeneratorServiceDependencies<unknown, EffectTarget>['effectTargets'];
+	readonly persistEffectResults: AudioGeneratorServiceDependencies<unknown, EffectTarget>['persistEffectResults'];
 	readonly getProject: () => EditCompositionProject | null;
 	readonly getCommandProject: () => EditCommandProject;
 	readonly editingBlocked: () => boolean;

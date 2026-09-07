@@ -12,6 +12,7 @@ import { generateAudioEditorSignal } from '../generators.js';
 import { normalizeProjectSampleRate } from './app-helpers.ts';
 import type {
 	AudioGeneratorClip,
+	AudioGeneratorEffectTarget,
 	AudioGeneratorProject,
 	AudioGeneratorServiceDependencies,
 	AudioGeneratorTrack,
@@ -35,8 +36,8 @@ export interface LabeledAudioSilence {
 	): Promise<boolean>;
 }
 
-export function createLabeledAudioSilence(
-	dependencies: AudioGeneratorServiceDependencies,
+export function createLabeledAudioSilence<Context, Target extends AudioGeneratorEffectTarget>(
+	dependencies: AudioGeneratorServiceDependencies<Context, Target>,
 	ownership: LabeledAudioSilenceOwnership,
 ): Readonly<LabeledAudioSilence> {
 	return Object.freeze({ generateLabeledSilence });
