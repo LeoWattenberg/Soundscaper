@@ -54,7 +54,7 @@ export interface RuntimePersistedClip extends Readonly<Record<string, unknown>> 
 	readonly sourceFrameCount?: unknown;
 }
 
-export interface RuntimeClipProjection extends Readonly<Record<string, unknown>> {
+interface RuntimeClipCoordinates {
 	readonly timelineStartFrame: number;
 	readonly timelineEndFrame: number;
 	readonly durationFrames: number;
@@ -63,8 +63,18 @@ export interface RuntimeClipProjection extends Readonly<Record<string, unknown>>
 	readonly sourceDurationFrames: number;
 	readonly sequenceStartFrame: number | null;
 	readonly sequenceEndFrame: number | null;
+}
+
+export interface RuntimeClipProjection extends RuntimeClipCoordinates, Readonly<Record<string, unknown>> {
 	readonly coordinateDomain: 'resolved-samples';
 }
+
+type ResolvedCoordinateKey = keyof RuntimeClipCoordinates | 'coordinateDomain';
+
+/** Coordinates are replaced; the clip's identity and other owner fields survive. */
+export type ResolvedRuntimeClip<Clip extends RuntimePersistedClip> = {
+	[Key in keyof Clip as Key extends ResolvedCoordinateKey ? never : Key]: Clip[Key];
+} & RuntimeClipProjection;
 
 // Remap each declared key: Omit's Exclude<keyof Project, ...> erases named
 // members when the document also carries a string index signature.
@@ -72,7 +82,7 @@ export type RuntimeProjectProjection<Project extends RuntimeClipProject> = {
 	[Key in keyof Project as Key extends 'clips' | 'tracks' | 'projectBin' | 'timelineAnnotations'
 		? never : Key]: Project[Key];
 } & Readonly<{
-	clips: readonly RuntimeClipProjection[];
+	clips: readonly ResolvedRuntimeClip<NonNullable<Project['clips']>[number]>[];
 	tracks: readonly Readonly<Record<string, unknown>>[];
 	projectBin: Readonly<Record<string, unknown>> & { readonly clips: readonly RuntimeClipProjection[] };
 	timelineAnnotations?: readonly RuntimeTimelineAnnotationProjection[];
@@ -117,11 +127,11 @@ export function brandRuntimeProjectProjection<Project extends RuntimeClipProject
 }
 
 /** Resolve one persisted clip into the only timing surface runtime consumers read. */
-export function resolveRuntimeClipProjection(
+export function resolveRuntimeClipProjection<Clip extends RuntimePersistedClip>(
 	project: RuntimeClipProject,
-	clip: RuntimePersistedClip,
+	clip: Clip,
 	context?: RuntimeProjectionContext,
-): RuntimeClipProjection {
+): ResolvedRuntimeClip<Clip> {
 	const resolveBeatFrame = context === undefined
 		? directBeatFrameResolver
 		: internalProjectionContext(context).resolveBeatFrame;
@@ -131,11 +141,12 @@ export function resolveRuntimeClipProjection(
 	const resolved = clip.kind === 'video' && usesFoundationCoordinates(project, clip)
 		? resolveVideoCoordinates(project, clip, sampleRate)
 		: resolveAudioOrLegacyCoordinates(project, clip, sampleRate, resolveBeatFrame);
-	return Object.freeze({
+	const projection: RuntimeClipProjection = Object.freeze({
 		...clip,
 		...resolved,
 		coordinateDomain: 'resolved-samples',
-	}) as RuntimeClipProjection;
+	});
+	return projection as ResolvedRuntimeClip<Clip>;
 }
 
 /** Clone a document into a transient runtime-only project projection. */
@@ -262,7 +273,7 @@ function resolveAudioOrLegacyCoordinates(
 	clip: RuntimePersistedClip,
 	sampleRate: number,
 	resolveBeatFrame: BeatFrameResolver,
-): Omit<RuntimeClipProjection, 'coordinateDomain'> {
+): RuntimeClipCoordinates {
 	let timelineStartFrame: number;
 	let timelineEndFrame: number;
 	if (clip.anchor === 'musical') {
@@ -337,7 +348,7 @@ function resolveVideoCoordinates(
 	project: RuntimeClipProject,
 	clip: RuntimePersistedClip,
 	sampleRate: number,
-): Omit<RuntimeClipProjection, 'coordinateDomain'> {
+): RuntimeClipCoordinates {
 	const sequence = projectSequence(project, String(clip.sequenceId ?? project.primarySequenceId ?? ''));
 	const rate = rationalRate(sequence.rate, 'sequence.rate');
 	const sequenceStartFrame = nonNegativeSafeInteger(clip.sequenceStartFrame, 'clip.sequenceStartFrame');
