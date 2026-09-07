@@ -378,7 +378,7 @@ test('controller action facade routes Scape file opens through continuation owne
 	const open = actions.project.openScapeFile;
 	if (typeof open !== 'function') throw new TypeError('Scape file open must be callable.');
 	const file = new Blob(['scape']);
-	const choose = () => 'cancel';
+	const choose = () => 'cancel' as const;
 
 	assert.equal(await open(file, choose), expected);
 	assert.deepEqual(calls, [[file, choose]]);
@@ -436,3 +436,19 @@ test('controller action facade keeps linked-audio eligibility and relink pathles
 		['relink', 'bin-audio', file, locator, target],
 	]);
 });
+
+// Compiled without invocation: public groups must retain their owning contracts.
+export function checkActionContracts(actions: ReturnType<typeof createGroupedEditorActions>): void {
+	actions.video.navigation.shuttleForward();
+	actions.video.sourceMonitor.seek(120);
+	// @ts-expect-error Video actions must reject unknown method names.
+	actions.video.navigation.missing();
+	// @ts-expect-error Source-monitor frame arguments must stay numeric.
+	actions.video.sourceMonitor.seek('120');
+	// @ts-expect-error Macro programs take structured requests.
+	void actions.macros.run('macro');
+	// @ts-expect-error Sequence frame snapping only accepts supported modes.
+	actions.sequences.snapSample(120, 'invalid');
+	// @ts-expect-error Mixer buses use the command protocol's bus kinds.
+	actions.mixer.addBus('invalid');
+}

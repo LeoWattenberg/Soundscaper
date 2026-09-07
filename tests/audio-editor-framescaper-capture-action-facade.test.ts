@@ -40,7 +40,7 @@ test('controller action facade exposes frozen optional Framescaper capture actio
 	if (typeof start !== 'function' || typeof stop !== 'function') {
 		throw new TypeError('The capture action facade is unavailable.');
 	}
-	start(); stop();
+	void start(); void stop();
 	assert.deepEqual(calls, ['start', 'stop']);
 	assert.equal(Object.isFrozen(capture), true);
 });

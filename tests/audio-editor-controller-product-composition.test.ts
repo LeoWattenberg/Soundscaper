@@ -95,7 +95,7 @@ test('Framescaper actions for an absent domain stay callable and refuse', async 
 			() => controller.actions.generators.generate('tone', {}),
 			() => controller.actions.generators.repeatLast(),
 			() => controller.actions.nyquist.evaluate({}),
-			() => controller.actions.macros.run('macro'),
+			() => controller.actions.macros.run({ name: 'macro' }),
 			() => controller.actions.macros.cancel(),
 		];
 		for (const call of refusals) {

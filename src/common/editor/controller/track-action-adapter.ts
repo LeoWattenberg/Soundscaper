@@ -28,7 +28,7 @@ export interface TrackActionAdapter {
 	addLabelTrack(options?: TrackCreateOptions): string | null;
 	reorderTrack(trackId: string, requestedIndex: unknown): string | null;
 	moveTrack(trackId: string | null, direction: TrackMoveDirection): string | null;
-	setTrackDisplayMode(trackId: string, displayMode: string): unknown;
+	setTrackDisplayMode(trackId: string | null, displayMode: string): unknown;
 	setTrackRate(trackId?: string | null, requestedSampleRate?: unknown): Promise<string | null>;
 }
 
@@ -44,7 +44,7 @@ export function createTrackActionAdapter(
 		addLabelTrack: (options: TrackCreateOptions = {}) => service.addLabelTrack(options),
 		reorderTrack: (trackId: string, requestedIndex: unknown) => service.reorderTrack(trackId, requestedIndex),
 		moveTrack: (trackId: string | null, direction: TrackMoveDirection) => service.moveTrack(trackId, direction),
-		setTrackDisplayMode: (trackId: string, displayMode: string) => service.setTrackDisplayMode(trackId, displayMode),
+		setTrackDisplayMode: (trackId: string | null, displayMode: string) => service.setTrackDisplayMode(trackId, displayMode),
 		setTrackRate: (
 			trackId: string | null = dependencies.getSelectedTrackId(),
 			requestedSampleRate: unknown = dependencies.projectSampleRate(),

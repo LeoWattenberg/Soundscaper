@@ -3,39 +3,38 @@
 import type { SoundActivationPolicyService } from './sound-activation-policy-service.ts';
 import { DEFAULT_SOUND_ACTIVATION_PREFERENCES } from '../sound-activation-preferences.ts';
 
-type RuntimeAction = (...args: unknown[]) => unknown;
-type RestrictedAction = (capability: string, action: RuntimeAction) => RuntimeAction;
+import type { EditorActionFunctions } from './editor-action-functions.ts';
+import type { RestrictToCapability } from './action-facade-runtime.ts';
 
-export interface RecordingActionScope {
-	readonly startRecording: RuntimeAction;
-	readonly startRecordingOnNewTrack: RuntimeAction;
-	readonly startTakeCycleRecording: RuntimeAction;
-	readonly recoverTakeCycleRecording: RuntimeAction;
-	readonly discardTakeCycleRecording: RuntimeAction;
-	readonly scheduleTimedRecording: RuntimeAction;
-	readonly cancelTimedRecording: RuntimeAction;
-	readonly toggleRecordingPause: RuntimeAction;
-	readonly stopRecording: RuntimeAction;
-	readonly toggleLeadInRecording: RuntimeAction;
-	readonly setMonitoring: RuntimeAction;
-	readonly setMicrophoneMetering: RuntimeAction;
-	readonly setRecordingInputGain: RuntimeAction;
-	readonly setLatencyOffset: RuntimeAction;
-	readonly requestInputAccess: RuntimeAction;
-	readonly refreshRecordingInputs: RuntimeAction;
-	readonly setRecordingTrackInput: RuntimeAction;
-	readonly setRecordingSourceLatency: RuntimeAction;
-	readonly setRetainInputs: RuntimeAction;
-	readonly releaseInputs: RuntimeAction;
-	readonly soundActivationPolicyService: SoundActivationPolicyService;
-	readonly updatePreferences: RuntimeAction;
-	readonly revertFactorySettings: RuntimeAction;
-}
+export type RecordingActionScope = Pick<EditorActionFunctions,
+	 'startRecording'
+	| 'startRecordingOnNewTrack'
+	| 'startTakeCycleRecording'
+	| 'recoverTakeCycleRecording'
+	| 'discardTakeCycleRecording'
+	| 'scheduleTimedRecording'
+	| 'cancelTimedRecording'
+	| 'toggleRecordingPause'
+	| 'stopRecording'
+	| 'toggleLeadInRecording'
+	| 'setMonitoring'
+	| 'setMicrophoneMetering'
+	| 'setRecordingInputGain'
+	| 'setLatencyOffset'
+	| 'requestInputAccess'
+	| 'refreshRecordingInputs'
+	| 'setRecordingTrackInput'
+	| 'setRecordingSourceLatency'
+	| 'setRetainInputs'
+	| 'releaseInputs'
+	| 'updatePreferences'
+	| 'revertFactorySettings'
+> & { readonly soundActivationPolicyService: SoundActivationPolicyService };
 
 /** Assemble the recording action group without growing the legacy facade. */
 export function createRecordingActionFacade(
 	scope: RecordingActionScope,
-	restricted: RestrictedAction,
+	restricted: RestrictToCapability,
 ) {
 	const soundActivation = scope.soundActivationPolicyService;
 	return Object.freeze({
@@ -58,7 +57,7 @@ export function createRecordingActionFacade(
 		requestInputAccess: restricted('audioRecording', scope.requestInputAccess),
 		refreshInputs: restricted('audioRecording', scope.refreshRecordingInputs),
 		setTrackInput: restricted('audioRecording', scope.setRecordingTrackInput),
-		clearTrackInput: restricted('audioRecording', (trackId) => (
+		clearTrackInput: restricted('audioRecording', (trackId: Parameters<RecordingActionScope['setRecordingTrackInput']>[0]) => (
 			scope.setRecordingTrackInput(trackId, null)
 		)),
 		setSourceOffset: restricted('audioRecording', scope.setRecordingSourceLatency),
@@ -76,7 +75,7 @@ export function createRecordingActionFacade(
 /** Keep generic preference actions from bypassing recording-policy ownership. */
 export function createRecordingPreferenceActionFacade(
 	scope: RecordingActionScope,
-	restricted: RestrictedAction,
+	restricted: RestrictToCapability,
 ) {
 	const soundActivation = scope.soundActivationPolicyService;
 	const guardedFactoryReset = restricted('audioRecording', () => {

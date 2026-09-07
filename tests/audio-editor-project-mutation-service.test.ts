@@ -3,7 +3,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import type { MacroTransactionMetadata } from '../src/common/editor/controller/macro-transaction-metadata.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
+import { snapshotInertEditorCommand } from '../src/common/editor/commands/editor-command-snapshot.ts';
 import {
 	createProjectMutationService,
 	type MutationHistory,
@@ -84,10 +86,10 @@ test('a macro transaction defers the per-step work and settles into one entry', 
 	fixture.service.commit({ type: 'project/rename', title: 'Two' });
 	assert.deepEqual(events, ['publish', 'publish'], 'no compaction or autosave while the macro runs');
 
-	transaction.commit({ type: 'macro/run' } as unknown as AudioEditorCommand);
+	transaction.commit({ type: 'macro/run' });
 	assert.deepEqual(events.slice(2), ['compact', 'publish', 'autosave'], 'settling does it once');
 	assert.deepEqual(history.undo, ['macro']);
-	assert.throws(() => transaction.commit({ type: 'macro/run' } as unknown as AudioEditorCommand), /settles exactly once/u);
+	assert.throws(() => transaction.commit({ type: 'macro/run' }), /settles exactly once/u);
 });
 
 test('a rolled-back macro transaction settles the same way and cannot also commit', () => {
@@ -104,7 +106,7 @@ test('a rolled-back macro transaction settles the same way and cannot also commi
 	fixture.service.commit({ type: 'project/rename', title: 'One' });
 	transaction.rollback();
 	assert.deepEqual(history.undo, []);
-	assert.throws(() => transaction.commit({ type: 'macro/run' } as unknown as AudioEditorCommand), /settles exactly once/u);
+	assert.throws(() => transaction.commit({ type: 'macro/run' }), /settles exactly once/u);
 });
 
 test('a runtime that cannot fold history refuses to open a macro transaction', () => {
@@ -321,7 +323,7 @@ test('save aliases delegate to the single serialized project save service', asyn
 
 interface FixtureOverrides {
 	readonly macroHistory?: false;
-	readonly collapseHistory?: (history: TestHistory, depth: number, command: AudioEditorCommand) => TestHistory;
+	readonly collapseHistory?: (history: TestHistory, depth: number, command: MacroTransactionMetadata) => TestHistory;
 	readonly rollbackHistory?: (history: TestHistory, depth: number) => TestHistory;
 	readonly project?: TestProject;
 	readonly readOnly?: boolean;
@@ -399,7 +401,7 @@ function mutationFixture(overrides: FixtureOverrides = {}) {
 		setProject,
 		getHistory,
 		setHistory,
-		executeEditorCommand: overrides.executeHistory || ((value) => value),
+		executeEditorCommand: (value, command, options) => overrides.executeHistory?.(value, snapshotInertEditorCommand(command), options) ?? value,
 		applyEditorCommand: overrides.applyCommand || ((value) => value),
 		...(overrides.macroHistory === false ? {} : {
 			collapseEditorHistory: overrides.collapseHistory

@@ -247,8 +247,9 @@ test('scheduled and routed capture report guarded, isolated source state through
 		await controller.actions.recording.setRetainInputs(true);
 
 		const secondTrackId = controller.actions.track.add({ armed: true });
+		assert.ok(secondTrackId);
 		await controller.actions.recording.setTrackInput(firstTrackId, {
-			kind: 'display', deviceId: '', channelStart: 0, channelCount: 1,
+			kind: 'display', channelStart: 0, channelCount: 1,
 		});
 		await controller.actions.recording.setTrackInput(secondTrackId, {
 			kind: 'device', deviceId: 'mic-2', channelStart: 0, channelCount: 1,

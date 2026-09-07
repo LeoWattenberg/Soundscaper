@@ -49,7 +49,7 @@ test('Framescaper video navigation actions share one capability-gated service', 
 	if (typeof navigation !== 'object' || navigation === null) {
 		throw new TypeError('The video navigation action group is unavailable.');
 	}
-	for (const name of ['view', 'shuttleBackward', 'shuttleStop', 'shuttleForward', 'previousEdit', 'nextEdit']) {
+	for (const name of ['view', 'shuttleBackward', 'shuttleStop', 'shuttleForward', 'previousEdit', 'nextEdit'] as const) {
 		const action = navigation[name];
 		if (typeof action !== 'function') throw new TypeError(`Missing video navigation action: ${name}.`);
 		action();
@@ -92,7 +92,7 @@ test('ordinary transport retires Framescaper shuttle without touching Soundscape
 		});
 		const playPause = createGroupedEditorActions(runtime).transport.playPause;
 		if (typeof playPause !== 'function') throw new TypeError('The play action is unavailable.');
-		playPause();
+		void playPause();
 		return calls;
 	};
 	assert.deepEqual(run(true), ['shuttle-stop', 'play']);

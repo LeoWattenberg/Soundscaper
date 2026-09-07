@@ -12,11 +12,11 @@ test('recording cycle actions expose the pinned nested contract and exact author
 	const calls: unknown[][] = [];
 	const scope = cycleScope(calls);
 	const actions = createRecordingActionFacade(scope, (_capability, action) => action);
-	const authority = Object.freeze({ recoveryToken: 'exact-token' });
+	const authority = recoveryAuthority();
 
-	actions.cycle.start();
-	actions.cycle.recover(authority);
-	actions.cycle.discard(authority);
+	void actions.cycle.start();
+	void actions.cycle.recover(authority);
+	void actions.cycle.discard(authority);
 	assert.deepEqual(calls, [['start'], ['recover', authority], ['discard', authority]]);
 	assert.equal(Object.isFrozen(actions.cycle), true);
 });
@@ -28,8 +28,8 @@ test('recording cycle actions enforce takeComp capability before controller muta
 		return action(...args);
 	});
 	assert.throws(() => actions.cycle.start(), /unsupported takeComp/u);
-	assert.throws(() => actions.cycle.recover({}), /unsupported takeComp/u);
-	assert.throws(() => actions.cycle.discard({}), /unsupported takeComp/u);
+	assert.throws(() => actions.cycle.recover(recoveryAuthority()), /unsupported takeComp/u);
+	assert.throws(() => actions.cycle.discard(recoveryAuthority()), /unsupported takeComp/u);
 	assert.deepEqual(calls, []);
 });
 
@@ -42,4 +42,9 @@ function cycleScope(calls: unknown[][]): RecordingActionScope {
 			setEnabled() {}, setThresholdDb() {}, setHysteresisDb() {}, setHoldMilliseconds() {},
 		} as never,
 	} as unknown as RecordingActionScope;
+}
+
+function recoveryAuthority() {
+	return Object.freeze({ kind: 'take-cycle-pending-open-recovery' as const, projectId: 'project',
+		publicationGeneration: 1, recoveryToken: 'exact-token', draftCount: 1, requiresDecision: true as const });
 }

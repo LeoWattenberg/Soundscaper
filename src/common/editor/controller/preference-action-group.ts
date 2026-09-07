@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { createPreferencesComposition } from './preferences-composition.ts';
+
 type RuntimeAction = (...args: unknown[]) => unknown;
+type PreferenceActions = ReturnType<typeof createPreferencesComposition>['actions'];
 
 /**
  * The preferences action group.
@@ -10,25 +13,10 @@ type RuntimeAction = (...args: unknown[]) => unknown;
  * the facade sits at the maintainability ceiling where each one costs a split.
  */
 
-export interface PreferenceActionScope {
+export interface PreferenceActionScope extends PreferenceActions {
 	readonly AUDIO_EDITOR_DEFAULT_SHORTCUTS: unknown;
 	readonly updatePreferences: (changes: unknown) => unknown;
 	readonly setTimelineView: (view: unknown) => unknown;
-	readonly setWorkspacePreference: RuntimeAction;
-	readonly toggleToolbarPreference: RuntimeAction;
-	readonly moveToolbarPreference: RuntimeAction;
-	readonly setToolbarButtonPreference: RuntimeAction;
-	readonly togglePanelPreference: RuntimeAction;
-	readonly setPanelPreference: RuntimeAction;
-	readonly setPanelVisibilityPreference: RuntimeAction;
-	readonly setPanelFrameSizePreference: RuntimeAction;
-	readonly setPanelDockExtentPreference: RuntimeAction;
-	readonly movePanelPreference: RuntimeAction;
-	readonly activatePanelTabPreference: RuntimeAction;
-	readonly setShortcutPreference: RuntimeAction;
-	readonly createWorkspacePreference: RuntimeAction;
-	readonly updateWorkspacePreference: RuntimeAction;
-	readonly deleteWorkspacePreference: RuntimeAction;
 }
 
 /** The recording facade owns the two entries that also revert recording state. */

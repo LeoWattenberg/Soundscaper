@@ -121,7 +121,7 @@ export interface EditorTrackService {
 	addLabelTrack(options?: TrackCreateOptions): string | null;
 	reorderTrack(trackId: string, requestedIndex: unknown): string | null;
 	moveTrack(trackId: string | null, direction: TrackMoveDirection): string | null;
-	setTrackDisplayMode(trackId: string, displayMode: string): unknown;
+	setTrackDisplayMode(trackId: string | null, displayMode: string): unknown;
 	setTrackRate(trackId?: string | null, requestedSampleRate?: unknown): Promise<string | null>;
 	addLabel(trackId?: string | null, options?: LabelCreateOptions): string | null;
 }
@@ -293,7 +293,7 @@ export function createEditorTrackService(
 		return destination < 0 ? trackId : reorderTrack(trackId, destination);
 	}
 
-	function setTrackDisplayMode(trackId: string, displayMode: string): unknown {
+	function setTrackDisplayMode(trackId: string | null, displayMode: string): unknown {
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return null;
 		const project = dependencies.getProject();

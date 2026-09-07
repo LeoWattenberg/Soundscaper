@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { EditorActionRuntime, RuntimeAction, RuntimeValue } from './action-facade-runtime.ts';
+import type { EditorActionRuntime } from './action-facade-runtime.ts';
+import type { AudioEditorCommandPayloads } from '../commands/protocol.ts';
 import { assertEditorActionFunctions } from './action-facade-runtime.ts';
 import {
 	createRecordingActionFacade,
 	createRecordingPreferenceActionFacade,
-	type RecordingActionScope,
 } from './recording-action-facade.ts';
 import { createProjectOwnedFeatureActionFacades } from './project-owned-feature-action-facades.ts';
 import { createTimelineAnnotationActionFacade } from './timeline-annotation-action-facade.ts';
@@ -15,14 +15,12 @@ import { createExportActionGroup } from './export-action-group.ts';
 import { createProjectMediaActionGroup } from './project-media-action-group.ts';
 import {
 	createPreferenceActionGroup,
-	type PreferenceActionScope,
 } from './preference-action-group.ts';
 import { createStoredProjectOpenActions } from './stored-project-open-actions.ts';
 import { createCrossProductHandoffActionFacade } from './cross-product-handoff-action-facade.ts';
 import {
 	createEffectMacroActions,
 	createEffectPresetActions,
-	type EffectLibraryActionScope,
 } from './effect-library-action-groups.ts';
 
 export type { EditorActionRuntime } from './action-facade-runtime.ts';
@@ -70,33 +68,33 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 	timelineAnnotationService, regularIntervalAnnotationController, trackFolderService, trackStructuralOperations,
 	audioWarpService, takeCompService, videoNavigationService,
 	} = scope;
-	const restricted = <Action extends RuntimeAction>(capability: string, action: Action) => (...args: Parameters<Action>): ReturnType<Action> => {
+	const restricted = <Args extends unknown[], Result>(capability: string, action: (...args: Args) => Result) => (...args: Args): Result => {
 		if (!capabilities[capability]) {
 			throw new RangeError(`${product.name} does not support ${capability}.`);
 		}
 		return action(...args);
 	};
-	const effectLibraryScope = scope as EffectLibraryActionScope;
+	const effectLibraryScope = scope;
 	const storedProjectOpenActions = createStoredProjectOpenActions({
 		copy, state, store, sessionTab, switchProject, openProject,
 	});
-	const yieldProgramPlayhead = (operation: RuntimeValue) => (...args: RuntimeValue) => {
+	const yieldProgramPlayhead = <Args extends unknown[], Result>(operation: (...args: Args) => Result) => (...args: Args): Result => {
 		if (capabilities.videoCompositing) videoNavigationService.shuttleStop();
 		return operation(...args);
 	};
 	const recordingPreferences = createRecordingPreferenceActionFacade(
-		scope as RecordingActionScope,
+		scope,
 		restricted,
 	);
-	const sequenceExtensions = snapshotProductActionExtensions<RuntimeValue>(scope, 'productSequenceActions', [
+	const sequenceExtensions = snapshotProductActionExtensions<(...args: unknown[]) => unknown>(scope, 'productSequenceActions', [
 		'label', 'setActive', 'stepFrame', 'seekLabel',
 	]);
-	const crossProductHandoffActions = createCrossProductHandoffActionFacade(scope as never);
+	const crossProductHandoffActions = createCrossProductHandoffActionFacade({ ...scope, copy: { projectSaved: copy.projectSaved, projectSaving: copy.projectSaving } });
 	const macros = createEffectMacroActions(effectLibraryScope, restricted);
 	const actions = Object.freeze({
 		project: Object.freeze({
-			create: (projectOptions: RuntimeValue) => newProject(projectOptions),
-			open: (value: RuntimeValue) => openProject(value),
+			create: (...args: Parameters<typeof newProject>) => newProject(...args),
+			open: (...args: Parameters<typeof openProject>) => openProject(...args),
 			openRecent: storedProjectOpenActions.openRecent,
 			clearRecent: clearRecentProjects,
 			openAudacityProject,
@@ -116,31 +114,31 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			prepareHandoff: prepareProjectHandoff,
 			...crossProductHandoffActions,
 			claimLock: claimProjectLock,
-			rename: (title: RuntimeValue) => renameProject(title),
-			duplicate: (title: RuntimeValue) => duplicateProject(title),
+			rename: (...args: Parameters<typeof renameProject>) => renameProject(...args),
+			duplicate: (...args: Parameters<typeof duplicateProject>) => duplicateProject(...args),
 			remove: deleteProject,
 			clear: clearLocalData,
 			importFiles,
-			setTempo: (bpm: RuntimeValue) => commit({ type: 'tempo/set', bpm }),
-			setTimeSignature: (numerator: RuntimeValue, denominator: RuntimeValue) => commit({ type: 'tempo/set', numerator, denominator }),
-			setTempoMapMode: (mode: RuntimeValue) => commit({ type: 'tempo-map/mode-set', mode }),
-			addTempoEvent: (event: RuntimeValue) => commit({
+			setTempo: (bpm: number) => commit({ type: 'tempo/set', bpm }),
+			setTimeSignature: (numerator: number, denominator: number) => commit({ type: 'tempo/set', numerator, denominator }),
+			setTempoMapMode: (mode: AudioEditorCommandPayloads['tempo-map/mode-set']['mode']) => commit({ type: 'tempo-map/mode-set', mode }),
+			addTempoEvent: (event: Omit<AudioEditorCommandPayloads['tempo-event/add']['event'], 'id'> & { readonly id?: string }) => commit({
 				type: 'tempo-event/add',
 				event: { ...structuredClone(event), id: event?.id || createStableId('tempo') },
 			}),
-			updateTempoEvent: (eventId: RuntimeValue, changes: RuntimeValue) => commit({
+			updateTempoEvent: (eventId: string, changes: AudioEditorCommandPayloads['tempo-event/update']['changes']) => commit({
 				type: 'tempo-event/update', eventId, changes: structuredClone(changes),
 			}),
-			removeTempoEvent: (eventId: RuntimeValue) => commit({ type: 'tempo-event/remove', eventId }),
-			addSignatureEvent: (event: RuntimeValue) => commit({
+			removeTempoEvent: (eventId: string) => commit({ type: 'tempo-event/remove', eventId }),
+			addSignatureEvent: (event: Omit<AudioEditorCommandPayloads['signature-event/add']['event'], 'id'> & { readonly id?: string }) => commit({
 				type: 'signature-event/add',
 				event: { ...structuredClone(event), id: event?.id || createStableId('signature') },
 			}),
-			updateSignatureEvent: (eventId: RuntimeValue, changes: RuntimeValue) => commit({
+			updateSignatureEvent: (eventId: string, changes: AudioEditorCommandPayloads['signature-event/update']['changes']) => commit({
 				type: 'signature-event/update', eventId, changes: structuredClone(changes),
 			}),
-			removeSignatureEvent: (eventId: RuntimeValue) => commit({ type: 'signature-event/remove', eventId }),
-			setTimeDisplay: (format: RuntimeValue) => commit({ type: 'time-display/set', format }),
+			removeSignatureEvent: (eventId: string) => commit({ type: 'signature-event/remove', eventId }),
+			setTimeDisplay: (format: AudioEditorCommandPayloads['time-display/set']['format']) => commit({ type: 'time-display/set', format }),
 		}),
 		projectBin: Object.freeze({
 			moveFromTimeline: moveClipsToProjectBin,
@@ -210,11 +208,11 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 		transport: Object.freeze({
 			playPause: yieldProgramPlayhead(() => handleTransport('play')),
 			playSelection: yieldProgramPlayhead(() => handleTransport('play-selection')),
-			playAtSpeed: yieldProgramPlayhead((rate: RuntimeValue = state.playAtSpeedRate) => handlePlayAtSpeed(rate)),
+			playAtSpeed: yieldProgramPlayhead((rate: number = state.playAtSpeedRate) => handlePlayAtSpeed(rate)),
 			setPlayAtSpeedRate,
 			stop: yieldProgramPlayhead(() => handleTransport('stop')),
-			seek: yieldProgramPlayhead((frame: RuntimeValue) => engine.seek(normalizePlaybackFrame(frame))),
-			scrub: yieldProgramPlayhead((frame: RuntimeValue) => {
+			seek: yieldProgramPlayhead((frame: number) => engine.seek(normalizePlaybackFrame(frame))),
+			scrub: yieldProgramPlayhead((frame: number) => {
 				if (state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder) {
 					return engine.getPositionFrames();
 				}
@@ -237,7 +235,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			toggleSelectionFollowsLoop: toggleSelectionFollowsLoop,
 			toggleMetronome,
 		}),
-		recording: createRecordingActionFacade(scope as RecordingActionScope, restricted),
+		recording: createRecordingActionFacade(scope, restricted),
 		capture: Object.freeze({ ...framescaperCaptureActions }), webVcr: Object.freeze({ ...framescaperWebVcrActions }),
 		metering: Object.freeze({
 			pause: pauseLoudnessMeasurement,
@@ -251,7 +249,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			setPreferredInputChannelCount,
 			configureDisplayInput,
 			setOutput: setAudioOutputDevice,
-			setPlaybackGain: (gain: RuntimeValue) => {
+			setPlaybackGain: (gain: number) => {
 				const value = engine.setPlaybackGain(Number(gain));
 				publishDocumentSnapshot();
 				return value;
@@ -277,7 +275,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			selectCursorToTrackEnd,
 			selectTrackStartToEnd,
 			setSnap: setSnapSettings,
-			snapFrame: (frame: RuntimeValue, overrides: RuntimeValue) => snapTimelineFrame(frame, overrides),
+			snapFrame: (...args: Parameters<typeof snapTimelineFrame>) => snapTimelineFrame(...args),
 			zeroCross: selectAtZeroCrossings,
 			setView: setTimelineView,
 			setAllTracksView: setAllTracksView,
@@ -288,9 +286,9 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			toggleRulerPlayback,
 			setViewportWidth: setTimelineViewportWidth,
 			setZoom,
-			zoomIn: (factor: RuntimeValue) => updateZoom('in', undefined, factor),
-			zoomOut: (factor: RuntimeValue) => updateZoom('out', undefined, factor),
-			zoomFit: (viewportWidth: RuntimeValue) => updateZoom('fit', viewportWidth),
+			zoomIn: (factor?: number) => updateZoom('in', undefined, factor),
+			zoomOut: (factor?: number) => updateZoom('out', undefined, factor),
+			zoomFit: (viewportWidth: number) => updateZoom('fit', viewportWidth),
 			fitHeight: () => setAutoFitTrackHeight(true),
 			resizeTrackHeight,
 			setVisibleTrackHeights,
@@ -303,31 +301,27 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			restricted, createId: createStableId,
 		}),
 		sequences: Object.freeze({
-			view: (sequenceId: RuntimeValue) => sequenceTimingService.view(sequenceId),
-			update: restricted('sequenceTiming', yieldProgramPlayhead((sequenceId: RuntimeValue, changes: RuntimeValue) => (
+			view: (...args: Parameters<typeof sequenceTimingService.view>) => sequenceTimingService.view(...args),
+			update: restricted('sequenceTiming', yieldProgramPlayhead((sequenceId: string, changes: Readonly<Record<string, unknown>>) => (
 				sequenceTimingService.update(sequenceId, structuredClone(changes))
 			))),
-			label: (sample: RuntimeValue, sequenceId: RuntimeValue) => sequenceTimingService.label(sample, sequenceId),
-			playheadLabel: (sequenceId: RuntimeValue) => sequenceTimingService.playheadLabel(sequenceId),
-			snapSample: (sample: RuntimeValue, mode: RuntimeValue, sequenceId: RuntimeValue) => (
-				sequenceTimingService.snapSample(sample, mode, sequenceId)
-			),
-			stepPlayhead: yieldProgramPlayhead((frameDelta: RuntimeValue, sequenceId: RuntimeValue) => (
-				sequenceTimingService.stepPlayhead(frameDelta, sequenceId)
-			)),
-			seekLabel: yieldProgramPlayhead((label: RuntimeValue, sequenceId: RuntimeValue) => sequenceTimingService.seekLabel(label, sequenceId)),
+			label: (...args: Parameters<typeof sequenceTimingService.label>) => sequenceTimingService.label(...args),
+			playheadLabel: (...args: Parameters<typeof sequenceTimingService.playheadLabel>) => sequenceTimingService.playheadLabel(...args),
+			snapSample: (...args: Parameters<typeof sequenceTimingService.snapSample>) => sequenceTimingService.snapSample(...args),
+			stepPlayhead: yieldProgramPlayhead((...args: Parameters<typeof sequenceTimingService.stepPlayhead>) => sequenceTimingService.stepPlayhead(...args)),
+			seekLabel: yieldProgramPlayhead((...args: Parameters<typeof sequenceTimingService.seekLabel>) => sequenceTimingService.seekLabel(...args)),
 			...sequenceExtensions,
 		}),
 		trackFolders: Object.freeze({
-			create: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.createFolder(...args)),
-			rename: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.renameFolder(...args)),
-			update: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.updateFolder(...args)),
-			toggleCollapsed: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.toggleCollapsed(...args)),
-			remove: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.removeFolder(...args)),
-			moveNode: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.moveNode(...args)),
-			wrapSelection: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.wrapTracksIntoFolder(...args)),
-			select: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.selectFolder(...args)),
-			selectedFolderId: (...args: RuntimeValue) => trackFolderService.selectedFolderId(...args),
+			create: restricted('trackFolders', (...args: Parameters<typeof trackFolderService.createFolder>) => trackFolderService.createFolder(...args)),
+			rename: restricted('trackFolders', (...args: Parameters<typeof trackFolderService.renameFolder>) => trackFolderService.renameFolder(...args)),
+			update: restricted('trackFolders', (...args: Parameters<typeof trackFolderService.updateFolder>) => trackFolderService.updateFolder(...args)),
+			toggleCollapsed: restricted('trackFolders', (...args: Parameters<typeof trackFolderService.toggleCollapsed>) => trackFolderService.toggleCollapsed(...args)),
+			remove: restricted('trackFolders', (...args: Parameters<typeof trackFolderService.removeFolder>) => trackFolderService.removeFolder(...args)),
+			moveNode: restricted('trackFolders', (...args: Parameters<typeof trackFolderService.moveNode>) => trackFolderService.moveNode(...args)),
+			wrapSelection: restricted('trackFolders', (...args: Parameters<typeof trackFolderService.wrapTracksIntoFolder>) => trackFolderService.wrapTracksIntoFolder(...args)),
+			select: restricted('trackFolders', (...args: Parameters<typeof trackFolderService.selectFolder>) => trackFolderService.selectFolder(...args)),
+			selectedFolderId: (...args: Parameters<typeof trackFolderService.selectedFolderId>) => trackFolderService.selectedFolderId(...args),
 		}),
 		...createProjectOwnedFeatureActionFacades({ capabilities, product, audioWarpService, takeCompService }),
 		sampleEdit: Object.freeze({
@@ -337,10 +331,10 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			cancel: cancelSampleEdit,
 		}),
 		spectral: Object.freeze({
-			boxSelect: restricted('audioSpectralEditing', (...args: RuntimeValue) => effectSelectionService.setSpectralBoxSelection(...args)),
-			brushSelect: restricted('audioSpectralEditing', (...args: RuntimeValue) => effectSelectionService.setSpectralBrushSelection(...args)),
+			boxSelect: restricted('audioSpectralEditing', (...args: Parameters<typeof effectSelectionService.setSpectralBoxSelection>) => effectSelectionService.setSpectralBoxSelection(...args)),
+			brushSelect: restricted('audioSpectralEditing', (...args: Parameters<typeof effectSelectionService.setSpectralBrushSelection>) => effectSelectionService.setSpectralBrushSelection(...args)),
 			delete: restricted('audioSpectralEditing', () => applySpectralSelection(-Infinity)),
-			amplify: restricted('audioSpectralEditing', (gainDb: RuntimeValue = 6) => applySpectralSelection(gainDb)),
+			amplify: restricted('audioSpectralEditing', (gainDb: number = 6) => applySpectralSelection(gainDb)),
 		}),
 		track: Object.freeze({
 			add: addTrack,
@@ -350,65 +344,65 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			addMono: addTrack,
 			addStereo: addTrack,
 			addLabel: addLabelTrack, ...trackStructuralOperations,
-			update: (trackId: RuntimeValue, changes: RuntimeValue) => commit({ type: 'track/update', trackId, changes }, { selectTrackId: trackId }),
+			update: (trackId: string | null, changes: Readonly<Record<string, unknown>>) => commit({ type: 'track/update', trackId, changes }, { selectTrackId: trackId }),
 			reorder: reorderTrack,
-			moveUp: (trackId: RuntimeValue = state.selectedTrackId) => moveTrack(trackId, 'up'),
-			moveDown: (trackId: RuntimeValue = state.selectedTrackId) => moveTrack(trackId, 'down'),
-			moveTop: (trackId: RuntimeValue = state.selectedTrackId) => moveTrack(trackId, 'top'),
-			moveBottom: (trackId: RuntimeValue = state.selectedTrackId) => moveTrack(trackId, 'bottom'),
+			moveUp: (trackId: string | null = state.selectedTrackId) => moveTrack(trackId, 'up'),
+			moveDown: (trackId: string | null = state.selectedTrackId) => moveTrack(trackId, 'down'),
+			moveTop: (trackId: string | null = state.selectedTrackId) => moveTrack(trackId, 'top'),
+			moveBottom: (trackId: string | null = state.selectedTrackId) => moveTrack(trackId, 'bottom'),
 			makeStereo: restricted('audioEffects', makeStereoTrack),
 			swapChannels: restricted('audioEffects', swapTrackChannels),
-			splitStereoLR: restricted('audioEffects', (trackId: RuntimeValue = state.selectedTrackId) => splitStereoTrack(trackId, true)),
-			splitStereoCenter: restricted('audioEffects', (trackId: RuntimeValue = state.selectedTrackId) => splitStereoTrack(trackId, false)),
-			decreaseHeight: (trackId: RuntimeValue = state.selectedTrackId) => adjustTrackHeight(trackId, -16),
-			increaseHeight: (trackId: RuntimeValue = state.selectedTrackId) => adjustTrackHeight(trackId, 16),
+			splitStereoLR: restricted('audioEffects', (trackId: string | null = state.selectedTrackId) => splitStereoTrack(trackId, true)),
+			splitStereoCenter: restricted('audioEffects', (trackId: string | null = state.selectedTrackId) => splitStereoTrack(trackId, false)),
+			decreaseHeight: (trackId: string | null = state.selectedTrackId) => adjustTrackHeight(trackId, -16),
+			increaseHeight: (trackId: string | null = state.selectedTrackId) => adjustTrackHeight(trackId, 16),
 			decreaseAllHeights: () => adjustAllTrackHeights(-16),
 			increaseAllHeights: () => adjustAllTrackHeights(16),
 			setDisplayMode: setTrackDisplayMode,
 			setRate: restricted('audioEffects', setTrackRate),
-			setWaveformView: (trackId: RuntimeValue = state.selectedTrackId) => setTrackDisplayMode(trackId, 'waveform'),
-			setSpectrogramView: restricted('audioSpectralEditing', (trackId: RuntimeValue = state.selectedTrackId) => setTrackDisplayMode(trackId, 'spectrogram')),
-			setMultiView: restricted('audioSpectralEditing', (trackId: RuntimeValue = state.selectedTrackId) => setTrackDisplayMode(trackId, 'multiview')),
+			setWaveformView: (trackId: string | null = state.selectedTrackId) => setTrackDisplayMode(trackId, 'waveform'),
+			setSpectrogramView: restricted('audioSpectralEditing', (trackId: string | null = state.selectedTrackId) => setTrackDisplayMode(trackId, 'spectrogram')),
+			setMultiView: restricted('audioSpectralEditing', (trackId: string | null = state.selectedTrackId) => setTrackDisplayMode(trackId, 'multiview')),
 			mixAndRender: restricted('audioEffects', mixAndRenderTracks),
 			resample: restricted('audioEffects', resampleTrack),
-			duplicate: (trackId: RuntimeValue) => duplicateTrack(findTrack(getProject(), trackId)),
-			remove: (trackId: RuntimeValue) => commit({ type: 'track/remove', trackId }),
+			duplicate: (trackId: string | null) => duplicateTrack(findTrack(getProject(), trackId)),
+			remove: (trackId: string | null) => commit({ type: 'track/remove', trackId }),
 		}),
 		mixer: Object.freeze({
-			addBus: (busType: RuntimeValue, options: RuntimeValue = {}) => {
+			addBus: (busType: AudioEditorCommandPayloads['mixer/bus-add']['busType'], options: Readonly<Record<string, unknown>> = {}) => {
 				const id = options.id || createStableId(`${busType}-bus`);
 				commit({ type: 'mixer/bus-add', busType, bus: { ...options, id } });
 				return id;
 			},
-			updateBus: (busType: RuntimeValue, busId: RuntimeValue, changes: RuntimeValue) => commit({ type: 'mixer/bus-update', busType, busId, changes }),
-			removeBus: (busType: RuntimeValue, busId: RuntimeValue) => commit({ type: 'mixer/bus-remove', busType, busId }),
-			setRoute: (trackId: RuntimeValue, changes: RuntimeValue) => commit({ type: 'mixer/route-update', trackId, changes }),
-			setSend: (trackId: RuntimeValue, sendId: RuntimeValue, gain: RuntimeValue) => commit({
+			updateBus: (busType: AudioEditorCommandPayloads['mixer/bus-add']['busType'], busId: string, changes: Readonly<Record<string, unknown>>) => commit({ type: 'mixer/bus-update', busType, busId, changes }),
+			removeBus: (busType: AudioEditorCommandPayloads['mixer/bus-add']['busType'], busId: string) => commit({ type: 'mixer/bus-remove', busType, busId }),
+			setRoute: (trackId: string | null, changes: Readonly<Record<string, unknown>>) => commit({ type: 'mixer/route-update', trackId, changes }),
+			setSend: (trackId: string | null, sendId: string, gain: number) => commit({
 				type: 'mixer/route-update', trackId, changes: { sends: { [sendId]: gain } },
 			}),
-			updateMaster: (changes: RuntimeValue) => commit({ type: 'master/update', changes }),
+			updateMaster: (changes: Readonly<Record<string, unknown>>) => commit({ type: 'master/update', changes }),
 		}),
 		generators: Object.freeze({
 			generate: restricted('audioGenerators', generateSignal), repeatLast: restricted('audioGenerators', repeatLastGenerator),
 		}),
 		nyquist: Object.freeze({
-			evaluate: restricted('audioEffects', (request: RuntimeValue) => runNyquistEvaluation(request)),
-			preview: restricted('audioEffects', (request: RuntimeValue) => runNyquistEvaluation({ ...request, preview: true })),
+			evaluate: restricted('audioEffects', (...args: Parameters<typeof runNyquistEvaluation>) => runNyquistEvaluation(...args)),
+			preview: restricted('audioEffects', (request: Readonly<Record<string, unknown>>) => runNyquistEvaluation({ ...request, preview: true })),
 			cancel: cancelNyquistEvaluation,
 		}),
 		labels: Object.freeze({
 			add: addLabel,
-			update: (trackId: RuntimeValue, labelId: RuntimeValue, changes: RuntimeValue) => commit({ type: 'label/update', trackId, labelId, changes }),
-			remove: (trackId: RuntimeValue, labelId: RuntimeValue) => commit({ type: 'label/remove', trackId, labelId }),
+			update: (trackId: string | null, labelId: string, changes: Readonly<Record<string, unknown>>) => commit({ type: 'label/update', trackId, labelId, changes }),
+			remove: (trackId: string | null, labelId: string) => commit({ type: 'label/remove', trackId, labelId }),
 			importFile: importLabelFile,
 			export: exportLabels,
 		}),
 		metadata: Object.freeze({
-			update: (changes: RuntimeValue) => commit({ type: 'metadata/update', changes }),
+			update: (changes: Readonly<Record<string, unknown>>) => commit({ type: 'metadata/update', changes }),
 		}),
-		preferences: createPreferenceActionGroup(scope as PreferenceActionScope, recordingPreferences),
+		preferences: createPreferenceActionGroup(scope, recordingPreferences),
 		clip: Object.freeze({
-			update: (clipId: RuntimeValue, changes: RuntimeValue) => commit({ type: 'clip/update', clipId, changes }, { selectClipId: clipId }),
+			update: (clipId: string, changes: Readonly<Record<string, unknown>>) => commit({ type: 'clip/update', clipId, changes }, { selectClipId: clipId }),
 			setTimePitch: restricted('audioEffects', setClipTimePitch),
 			stretch: restricted('audioEffects', stretchClip),
 			toggleStretchToTempo: restricted('audioEffects', toggleStretchToTempo),
@@ -419,11 +413,11 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			moveToNewTrack: moveClipsToNewTrack,
 			trim: trimClips,
 			overwrite: overwriteClips,
-			remove: (clipId: RuntimeValue) => commit({ type: 'clip/remove', clipId }),
-			reverse: restricted('audioEffects', (clipId: RuntimeValue) => handleClipAction('reverse', clipId)),
-			invert: restricted('audioEffects', (clipId: RuntimeValue) => handleClipAction('invert', clipId)),
-			normalizePeak: restricted('audioEffects', (clipId: RuntimeValue) => handleClipAction('normalize-peak', clipId)),
-			normalizeLoudness: restricted('audioEffects', (clipId: RuntimeValue) => handleClipAction('normalize-lufs', clipId)),
+			remove: (clipId: string) => commit({ type: 'clip/remove', clipId }),
+			reverse: restricted('audioEffects', (clipId: string) => handleClipAction('reverse', clipId)),
+			invert: restricted('audioEffects', (clipId: string) => handleClipAction('invert', clipId)),
+			normalizePeak: restricted('audioEffects', (clipId: string) => handleClipAction('normalize-peak', clipId)),
+			normalizeLoudness: restricted('audioEffects', (clipId: string) => handleClipAction('normalize-lufs', clipId)),
 		}),
 		effects: Object.freeze({
 			add: restricted('audioEffects', addEffect),
@@ -436,19 +430,19 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			previewParametricEq: restricted('audioEffects', previewParametricEq),
 			commitParametricEqGesture: restricted('audioEffects', commitParametricEqGesture),
 			cancelParametricEqGesture: restricted('audioEffects', cancelParametricEqGesture),
-			auditionParametricEq: (scope: RuntimeValue, trackId: RuntimeValue, effectId: RuntimeValue, bandId: RuntimeValue) => engine.auditionParametricEq?.(scope, trackId, effectId, bandId) ?? false,
-			readParametricEqSpectrum: (scope: RuntimeValue, trackId: RuntimeValue, effectId: RuntimeValue, which: RuntimeValue, target: RuntimeValue) => engine.readParametricEqSpectrum?.(scope, trackId, effectId, which, target) ?? null,
-			readDynamicsAnalysis: (scope: RuntimeValue, trackId: RuntimeValue, effectId: RuntimeValue) => engine.readDynamicsAnalysis?.(scope, trackId, effectId) ?? null,
-			readSelectionParametricEqSpectrum: (which: RuntimeValue, target: RuntimeValue) => state.audacityPreviewSource?.readSpectrum?.(which, target) ?? null,
-			auditionSelectionParametricEq: (bandId: RuntimeValue) => {
+			auditionParametricEq: (...args: Parameters<NonNullable<typeof engine.auditionParametricEq>>) => engine.auditionParametricEq?.(...args) ?? false,
+			readParametricEqSpectrum: (...args: Parameters<NonNullable<typeof engine.readParametricEqSpectrum>>) => engine.readParametricEqSpectrum?.(...args) ?? null,
+			readDynamicsAnalysis: (...args: Parameters<NonNullable<typeof engine.readDynamicsAnalysis>>) => engine.readDynamicsAnalysis?.(...args) ?? null,
+			readSelectionParametricEqSpectrum: (which: Parameters<NonNullable<NonNullable<typeof state.audacityPreviewSource>['readSpectrum']>>[0], target: Float32Array) => state.audacityPreviewSource?.readSpectrum?.(which, target) ?? null,
+			auditionSelectionParametricEq: (bandId: string | number | null) => {
 				state.audacityPreviewAuditionBandId = bandId == null ? null : String(bandId);
 				return state.audacityPreviewSource?.audition?.(state.audacityPreviewAuditionBandId) ?? false;
 			},
-			remove: restricted('audioEffects', (scope: RuntimeValue, trackId: RuntimeValue, effectId: RuntimeValue) => commit({ type: 'effect/remove', scope, trackId, busId: trackId, effectId })),
-			reorder: restricted('audioEffects', (scope: RuntimeValue, trackId: RuntimeValue, effectId: RuntimeValue, toIndex: RuntimeValue) => commit({ type: 'effect/reorder', scope, trackId, busId: trackId, effectId, toIndex })),
+			remove: restricted('audioEffects', (scope: AudioEditorCommandPayloads['effect/remove']['scope'], trackId: string | null, effectId: string) => commit({ type: 'effect/remove', scope, trackId, busId: trackId, effectId })),
+			reorder: restricted('audioEffects', (scope: AudioEditorCommandPayloads['effect/remove']['scope'], trackId: string | null, effectId: string, toIndex: number) => commit({ type: 'effect/reorder', scope, trackId, busId: trackId, effectId, toIndex })),
 			copyStack: restricted('audioEffects', copyEffectStack),
 			pasteStack: restricted('audioEffects', pasteEffectStack),
-			setMasterGain: (gain: RuntimeValue) => commit({ type: 'master/update', changes: { gain: Math.max(0, Math.min(4, Number(gain))) } }),
+			setMasterGain: (gain: number) => commit({ type: 'master/update', changes: { gain: Math.max(0, Math.min(4, Number(gain))) } }),
 			setSelectionType: restricted('audioEffects', setAudacityEffectType),
 			setSelectionParams: restricted('audioEffects', setAudacityEffectParamsFromController),
 			setControlTrack: restricted('audioEffects', setAudacityControlTrack),
@@ -475,6 +469,6 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 	});
 	// A macro's bare commands walk this tree, and it does not exist until the
 	// groups that make it up have all been built.
-	macros.bindEditorActions(actions as unknown as Readonly<Record<string, unknown>>);
+	macros.bindEditorActions(actions);
 	return actions;
 }

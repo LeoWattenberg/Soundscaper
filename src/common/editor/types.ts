@@ -1,3 +1,4 @@
+import type { createGroupedEditorActions } from './controller/action-facade.ts';
 import type { EditorControllerPhase } from './controller/lifecycle.ts';
 import type { StorageCapacitySnapshot } from './controller/storage-capacity-service.ts';
 import type { EditorStoreStatus } from './storage/status.ts';
@@ -178,57 +179,11 @@ export interface EditorActionTree {
 	readonly [action: string]: EditorAction | EditorActionTree;
 }
 
-export interface EditorSoundActivationActions extends EditorActionTree {
-	readonly setEnabled: EditorAction;
-	readonly setThresholdDb: EditorAction;
-	readonly setHysteresisDb: EditorAction;
-	readonly setHoldMilliseconds: EditorAction;
-}
-
-export interface EditorTakeCycleRecordingActions extends EditorActionTree {
-	readonly start: EditorAction;
-	readonly recover: EditorAction;
-	readonly discard: EditorAction;
-}
-
-export interface EditorRecordingActions extends EditorActionTree {
-	readonly soundActivation: EditorSoundActivationActions;
-	readonly cycle: EditorTakeCycleRecordingActions;
-}
-
-export interface EditorActions extends EditorActionTree {
-	readonly project: EditorActionTree;
-	readonly projectBin: EditorActionTree;
-	readonly video: EditorActionTree;
-	readonly edit: EditorActionTree;
-	readonly transport: EditorActionTree;
-	readonly recording: EditorRecordingActions;
-	readonly capture: EditorActionTree;
-	readonly webVcr: EditorActionTree;
-	readonly metering: EditorActionTree;
-	readonly audioDevices: EditorActionTree;
-	readonly audioWarp: EditorActionTree;
-	readonly storage: EditorActionTree;
-	readonly timeline: EditorActionTree;
-	readonly timelineAnnotations: EditorActionTree;
-	readonly sequences: EditorActionTree;
-	readonly trackFolders: EditorActionTree;
-	readonly takeComp: EditorActionTree;
-	readonly sampleEdit: EditorActionTree;
-	readonly spectral: EditorActionTree;
-	readonly track: EditorActionTree;
-	readonly mixer: EditorActionTree;
-	readonly generators: EditorActionTree;
-	readonly nyquist: EditorActionTree;
-	readonly labels: EditorActionTree;
-	readonly metadata: EditorActionTree;
-	readonly preferences: EditorActionTree;
-	readonly clip: EditorActionTree;
-	readonly effects: EditorActionTree;
-	readonly macros: EditorActionTree;
-	readonly analysis: EditorActionTree;
-	readonly export: EditorActionTree;
-}
+/** Public action contracts follow the owning implementation, including result types. */
+export type EditorActions = ReturnType<typeof createGroupedEditorActions>;
+export type EditorRecordingActions = EditorActions['recording'];
+export type EditorSoundActivationActions = EditorRecordingActions['soundActivation'];
+export type EditorTakeCycleRecordingActions = EditorRecordingActions['cycle'];
 
 export interface EditorRecordingInputSnapshot extends Readonly<Record<string, unknown>> {
 	readonly soundActivation: SoundActivationPolicySnapshot;

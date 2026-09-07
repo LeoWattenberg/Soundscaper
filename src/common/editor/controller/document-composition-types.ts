@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { MacroTransactionMetadata } from './macro-transaction-metadata.ts';
+
 import type { EnginePublicApi } from '../engine/public-api.ts';
 import type { EditorCommandCapabilities } from './command-capability-policy.ts';
 import type { EditorControllerLifetime, EditorProjectGeneration } from './lifecycle.ts';
@@ -94,8 +96,8 @@ export interface DocumentCompositionDependencies {
 	readonly projectRuntime: Readonly<{
 		readonly cloneProject: <Project>(project: Project) => Project;
 		readonly applyCommand: <Project>(project: Project, command: AudioEditorCommand) => Project;
-		readonly executeCommand: <History>(history: History, command: AudioEditorCommand, options?: EditorCommandMoment) => History;
-		readonly collapseHistory?: <History>(history: History, depth: number, command: AudioEditorCommand) => History;
+		readonly executeCommand: <History>(history: History, command: unknown, options?: EditorCommandMoment) => History;
+		readonly collapseHistory?: <History>(history: History, depth: number, command: MacroTransactionMetadata) => History;
 		readonly rollbackHistory?: <History>(history: History, depth: number) => History;
 		readonly prepareTrackDuplicateCarrier: ControllerProjectRuntime['prepareTrackDuplicateCarrier'];
 	}>;

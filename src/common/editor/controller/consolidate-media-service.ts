@@ -37,7 +37,7 @@ export interface ConsolidateMediaStore {
 	getLinkedOriginalBinding(
 		projectId: string,
 		sourceId: string,
-	): Promise<Readonly<Record<string, unknown>> | null>;
+	): Promise<unknown>;
 	resolveLinkedAudioOriginal(
 		projectId: string,
 		source: unknown,
@@ -78,7 +78,7 @@ interface BlobLike {
 export interface MediaAssetWriterLike {
 	readonly maximumChunkBytes: number;
 	write(bytes: Uint8Array, options?: Readonly<{ signal?: AbortSignal }>): Promise<void>;
-	commit(options?: Readonly<{ signal?: AbortSignal }>): Promise<Readonly<Record<string, unknown>>>;
+	commit(options?: Readonly<{ signal?: AbortSignal }>): Promise<unknown>;
 	abort(): Promise<void>;
 }
 

@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { MacroTransactionMetadata } from './macro-transaction-metadata.ts';
+
 import type { AudioEditorCommand } from '../commands/protocol.ts';
 import type { ProjectFlushOptions } from './project-save-service.ts';
 import {
@@ -111,7 +113,7 @@ export interface ProjectMutationServiceDependencies<
 	readonly getHistory: () => History | null;
 	readonly setHistory: (history: History) => void;
 	readonly executeEditorCommand: (
-		history: History, command: AudioEditorCommand, options?: EditorCommandMoment,
+		history: History, command: unknown, options?: EditorCommandMoment,
 	) => History;
 	readonly applyEditorCommand: (project: Project, command: AudioEditorCommand) => Project;
 	/**
@@ -119,7 +121,7 @@ export interface ProjectMutationServiceDependencies<
 	 * by the `audioMacros` capability long before a transaction could be opened.
 	 */
 	readonly collapseEditorHistory?: (
-		history: History, depth: number, command: AudioEditorCommand,
+		history: History, depth: number, command: MacroTransactionMetadata,
 	) => History;
 	readonly rollbackEditorHistory?: (history: History, depth: number) => History;
 	readonly retention: ProjectRetentionPort<History>;
@@ -166,12 +168,12 @@ export interface ProjectMutationServiceDependencies<
 export interface MacroTransaction<Project> {
 	/** Where in the undo stack the macro began. */
 	readonly depth: number;
-	commit(command: AudioEditorCommand): Project;
+	commit(command: MacroTransactionMetadata): Project;
 	rollback(): Project;
 }
 
 export interface ProjectMutationService<Project extends MutationProject> {
-	commit(command: AudioEditorCommand, selection?: CommitSelection, options?: ProjectChangedOptions): Project;
+	commit(command: unknown, selection?: CommitSelection, options?: ProjectChangedOptions): Project;
 	beginMacroTransaction(): MacroTransaction<Project>;
 	updateSelection(command: AudioEditorCommand): Project;
 	projectChanged(options?: ProjectChangedOptions): void;
@@ -207,7 +209,7 @@ export function createProjectMutationService<
 	});
 
 	function commit(
-		command: AudioEditorCommand,
+		command: unknown,
 		selection: CommitSelection = {},
 		options: ProjectChangedOptions = {},
 	): Project {
@@ -254,7 +256,7 @@ export function createProjectMutationService<
 		};
 		return Object.freeze({
 			depth,
-			commit: (command: AudioEditorCommand) => settle((history) => collapse(history, depth, command)),
+			commit: (command: MacroTransactionMetadata) => settle((history) => collapse(history, depth, command)),
 			rollback: () => settle((history) => rollback(history, depth)),
 		});
 	}

@@ -1,3 +1,5 @@
+import { createControllerDisposal } from './controller/controller-disposal.ts';
+import { deferControllerMethods, deferAsyncControllerMethods } from './controller/deferred-controller-methods.ts';
 import { createControllerDocumentState } from './controller/document-state.ts';
 import { createEffectsComposition } from './controller/effects-composition.ts';
 import { createClipVideoComposition } from './controller/clip-video-composition.ts';
@@ -15,28 +17,11 @@ import {
 	loadStoredSourceChannels,
 } from './clip-time-pitch-cache.js';
 import { createAudioEditorEffectPresets, listAudioEditorEffectPresets } from './effect-presets.js';
-import {
-	AUDIO_SELECTION_EFFECT_DEFINITIONS,
-	audioEffectLabel,
-	audioEffectTypes,
-	audioSelectionEffectLabel,
-	audioSelectionEffectTypes,
-} from './effects.js';
+import { audioSelectionEffectTypes } from './effects.js';
 import { createControllerPresentationState } from './controller/presentation-state.ts';
 import { selectAudioEditorControllerEditBlock } from './edit-blocking.ts';
 import { createAudioEditorFileService } from './file-service.js';
-import {
-	AUDIO_EDITOR_DEFAULT_SHORTCUTS,
-	applyAudioEditorWorkspace,
-	createAudioEditorPreferencesV1,
-	createCustomAudioEditorWorkspace,
-	deleteCustomAudioEditorWorkspace,
-	findAudioEditorShortcutConflicts,
-	loadAudioEditorPreferencesV1,
-	normalizeAudioEditorShortcut,
-	updateAudioEditorPreferencesV1,
-	updateCustomAudioEditorWorkspace,
-} from './preferences.js';
+import { AUDIO_EDITOR_DEFAULT_SHORTCUTS, createAudioEditorPreferencesV1 } from './preferences.js';
 import {
 	AUDIO_EDITOR_SAMPLE_RATE,
 	EDITOR_TIMELINE_MINIMUM_SECONDS,
@@ -58,10 +43,7 @@ import {
 	audioEditorVideoThumbnailTimes,
 	createAudioEditorVideoFrameExtractor,
 } from './video-media.js';
-import {
-	VIDEO_EFFECT_DEFINITIONS,
-	VIDEO_EFFECT_TYPES,
-} from './video-effects.js';
+
 import { productProfile } from '../products.js';
 import { withProjectFileExtension } from '../project-file-extensions.ts';
 import {
@@ -78,7 +60,6 @@ import {
 } from './recording.js';
 import {
 	RECORDING_DEFAULT_DEVICE_ID,
-	RECORDING_DISPLAY_SOURCE_KEY,
 	normalizeRecordingRouting,
 	recordingRoutingSettingKey,
 } from './recording-routing.js';
@@ -87,7 +68,7 @@ import { acquireProjectLock } from './project-lock.js';
 import { createProjectStore } from './storage.js';
 import { ENGLISH_COPY } from '../i18n/catalogs.js';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
-import { EDITOR_PROJECT_CHANGED_CODE, EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from './controller/lifecycle.ts';
+import { EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from './controller/lifecycle.ts';
 import { deferredArchiveRuntime } from './controller/deferred-archive-runtime.ts';
 import { deferredEffectRuntime } from './controller/deferred-effect-runtime.ts';
 import { connectProductNativeRenderInputAuthority } from './controller/product-native-render-input-authority.ts'; import { renderProductNativeAudioToSink } from './controller/product-native-render-audio-stream.ts';
@@ -98,11 +79,7 @@ import { guardEditorControllerActions } from './controller/controller-action-gua
 import { productActionRuntime } from './controller/product-action-runtime.ts'; import { createScapeProjectFileService } from './controller/scape-project-file-service.ts'; import { bindSoundscaperPersistentDeliveryRuntime } from './controller/soundscaper-persistent-delivery-runtime-binding.ts';
 
 import { normalizeEditorExportSettings } from './controller/export-settings.ts';
-import {
-	createEditorPreferenceActionDelegates,
-	createEditorPreferencesService,
-} from './controller/preferences-service.ts';
-import { applyLoadedPreferenceSession } from './controller/preference-session-defaults.ts';
+import { createPreferencesComposition } from './controller/preferences-composition.ts';
 import { createControllerSoundActivationPolicy } from './controller/sound-activation-controller-composition.ts';
 import { createDocumentComposition } from './controller/document-composition.ts';
 import { createProjectBootstrapService } from './controller/project-bootstrap-service.ts'; import { resolveStartupProjectId } from './startup-preferences.ts';
@@ -140,13 +117,7 @@ import {
 } from './controller/recording-model.ts';
 import { createSettingPersistence } from './controller/setting-persistence.ts';
 import { createControllerStorageCapacityService } from './controller/storage-capacity-runtime.ts';
-import { createEditorDocumentSnapshot, createSelectionEffectTypeSnapshot } from './controller/document-snapshot.ts';
-import {
-	applyVideoEffectGesturePreviews,
-	createAudioDeviceSnapshot,
-	createEditorTelemetrySnapshot,
-} from './controller/snapshot-model.ts';
-import { createSnapshotChannel } from './controller/snapshot-channel.ts';
+import { createSnapshotComposition } from './controller/snapshot-composition.ts';
 import { createEditorTaskProgressCoordinator } from './controller/task-progress.ts';
 import {
 	SOURCE_CHUNK_FRAMES,
@@ -171,6 +142,56 @@ const PROJECT_LOCK_RETRY_MAX_MS = 30_000;
 
 /** @param {Element | null} [_root] */
 export function createAudioEditorController(_root = null, options = {}) {
+	const { bootstrap } = deferAsyncControllerMethods(() => projectBootstrapService, ['bootstrap']);
+	const { openProject } = deferAsyncControllerMethods(() => projectSwitchService, ['openProject']);
+	const { claimProjectLock } = deferAsyncControllerMethods(() => projectLockService, ['claimProjectLock']);
+	const { loadProjectSources } = deferAsyncControllerMethods(() => sources.sourceLifecycle, ['loadProjectSources']);
+	const { listProjects, clearRecentProjects, renameProject, duplicateProject, garbageCollectSources } = deferAsyncControllerMethods(() => projectAdminService, ['listProjects', 'clearRecentProjects', 'renameProject', 'duplicateProject', 'garbageCollectSources']);
+	const { prepareProjectBinReplacement, cancelProjectBinReplacement, playPauseProjectBinClip } = deferAsyncControllerMethods(() => imports.projectBin, ['prepareProjectBinReplacement', 'cancelProjectBinReplacement', 'playPauseProjectBinClip']);
+	const { importLabelFile, exportLabels } = deferAsyncControllerMethods(() => edits.labels, ['importLabelFile', 'exportLabels']);
+	const { disjoinSelectedClip } = deferAsyncControllerMethods(() => edits.clipboard, ['disjoinSelectedClip']);
+	const { generateSelectionSilence, generateSignal, repeatLastGenerator } = deferAsyncControllerMethods(() => edits, ['generateSelectionSilence', 'generateSignal', 'repeatLastGenerator']);
+	const { requestInputAccess, setPreferredInputDevice, configureDisplayInput, setPreferredInputChannelCount, setAudioOutputDevice, setRecordingSourceLatency, setRetainInputs } = deferAsyncControllerMethods(() => recording.routing, ['requestInputAccess', 'setPreferredInputDevice', 'configureDisplayInput', 'setPreferredInputChannelCount', 'setAudioOutputDevice', 'setRecordingSourceLatency', 'setRetainInputs']);
+	const { setRecordingTrackInput } = deferAsyncControllerMethods(() => recording.inputs, ['setRecordingTrackInput']);
+	const { setMicrophoneMetering } = deferAsyncControllerMethods(() => microphoneMeterService, ['setMicrophoneMetering']);
+	const { apply: applyProjectToPlaybackEngine } = deferAsyncControllerMethods(() => sources.playbackApply, ['apply']);
+	const { stopRecording } = deferAsyncControllerMethods(() => recording.session, ['stopRecording']);
+	// Resolve service dependencies at invocation while preserving their owning types.
+	const { get: getSnapshot } = deferControllerMethods(() => documentChannel, ['get']);
+	const { get: getTelemetrySnapshot } = deferControllerMethods(() => telemetryChannel, ['get']);
+	const { getClipVisualData, getProjectBinClipVisualData, revokeVideoVisuals, revokeVideoVisual, activateVideoSource, hasMissingTimelineSources, getVisibleClips } = deferControllerMethods(() => sources.projectVisual, ['getClipVisualData', 'getProjectBinClipVisualData', 'revokeVideoVisuals', 'revokeVideoVisual', 'activateVideoSource', 'hasMissingTimelineSources', 'getVisibleClips']);
+	const { update: updatePreferences, revertFactorySettings } = deferControllerMethods(() => preferencesService, ['update', 'revertFactorySettings']);
+	const { sessionTab, persistActiveSessionUiState } = deferControllerMethods(() => doc.session, ['sessionTab', 'persistActiveSessionUiState']);
+	const { dismissAup4CompatibilitySummary } = deferControllerMethods(() => nativeProjectService, ['dismissAup4CompatibilitySummary']);
+	const { cacheSourceBuffer, clearWaveformPcmWindows } = deferControllerMethods(() => sources.sourceLifecycle, ['cacheSourceBuffer', 'clearWaveformPcmWindows']);
+	const { renameProjectBinClip, removeProjectBinClip, setProjectBinClipColor, projectBinInstanceCount, selectProjectBinInstances, removeProjectBinSource } = deferControllerMethods(() => imports.projectBin, ['renameProjectBinClip', 'removeProjectBinClip', 'setProjectBinClipColor', 'projectBinInstanceCount', 'selectProjectBinInstances', 'removeProjectBinSource']);
+	const { mixAndRenderTracks, resampleTrack, resampleClip, swapTrackChannels, splitStereoTrack, makeStereoTrack } = deferControllerMethods(() => tracks, ['mixAndRenderTracks', 'resampleTrack', 'resampleClip', 'swapTrackChannels', 'splitStereoTrack', 'makeStereoTrack']);
+	const { splitAtFrame } = deferControllerMethods(() => edits.clipboard, ['splitAtFrame']);
+	const { selectTrack, selectAllTracks, selectTrackStartToCursor, selectCursorToTrackEnd, selectTrackStartToEnd, selectedTracksTimeRange, toggleRmsWaveform, toggleVerticalRulers, toggleUpdateWhilePlaying, togglePinnedPlayhead, toggleRulerPlayback, selectAtZeroCrossings, setZoom } = deferControllerMethods(() => tracks.selectionView, ['selectTrack', 'selectAllTracks', 'selectTrackStartToCursor', 'selectCursorToTrackEnd', 'selectTrackStartToEnd', 'selectedTracksTimeRange', 'toggleRmsWaveform', 'toggleVerticalRulers', 'toggleUpdateWhilePlaying', 'togglePinnedPlayhead', 'toggleRulerPlayback', 'selectAtZeroCrossings', 'setZoom']);
+	const { synchronizeAutomaticSampleEditMode, cancelSampleEdit } = deferControllerMethods(() => clips.sampleEdit, ['synchronizeAutomaticSampleEditMode', 'cancelSampleEdit']);
+	const { persistRecordingRouting, releaseInputs } = deferControllerMethods(() => recording.routing, ['persistRecordingRouting', 'releaseInputs']);
+	const { syncRecordingPoolSnapshot, setMonitoring, setRecordingInputGain, setLatencyOffset, invalidateTakeCycleRecording } = deferControllerMethods(() => recording, ['syncRecordingPoolSnapshot', 'setMonitoring', 'setRecordingInputGain', 'setLatencyOffset', 'invalidateTakeCycleRecording']);
+	const { handleRecordingPoolChange } = deferControllerMethods(() => recording.inputs, ['handleRecordingPoolChange']);
+	const { synchronizeTarget: synchronizeMicrophoneMeterTarget } = deferControllerMethods(() => microphoneMeterService, ['synchronizeTarget']);
+	const { commit, updateSelection, projectChanged, saveNow, flushProject } = deferControllerMethods(() => doc.mutation, ['commit', 'updateSelection', 'projectChanged', 'saveNow', 'flushProject']);
+	const { compactLiveSourceState, liveSessionSourceIds, liveSessionClipIds } = deferControllerMethods(() => doc.retention, ['compactLiveSourceState', 'liveSessionSourceIds', 'liveSessionClipIds']);
+	const { publishProjectState, setTimelineView, setAllTracksView } = deferControllerMethods(() => doc.view, ['publishProjectState', 'setTimelineView', 'setAllTracksView']);
+	const { duplicateTrack } = deferControllerMethods(() => doc.trackDuplication, ['duplicateTrack']);
+	const { handleClipAction, setClipTimePitch, stretchClip, resetClipPitchSpeed } = deferControllerMethods(() => clips.clipProperty, ['handleClipAction', 'setClipTimePitch', 'stretchClip', 'resetClipPitchSpeed']);
+	const { moveClips, moveClipsToNewTrack, trimClips, overwriteClips } = deferControllerMethods(() => clips.clipTransform, ['moveClips', 'moveClipsToNewTrack', 'trimClips', 'overwriteClips']);
+	const { renderClipPitchSpeed } = deferControllerMethods(() => clips, ['renderClipPitchSpeed']);
+	const { createCacheAwareRenderEngine, prepareCommittedTimePitchCaches, beginPlaybackCachePreparation, cancelPlaybackCachePreparation } = deferControllerMethods(() => sources.timePitchCaches, ['createCacheAwareRenderEngine', 'prepareCommittedTimePitchCaches', 'beginPlaybackCachePreparation', 'cancelPlaybackCachePreparation']);
+	const { videoEffectGestureKey, reorderVideoClipEffect, removeVideoClipEffect, beginVideoEffectGesture, cancelVideoEffectGesture } = deferControllerMethods(() => clips.videoEffect, ['videoEffectGestureKey', 'reorderVideoClipEffect', 'removeVideoClipEffect', 'beginVideoEffectGesture', 'cancelVideoEffectGesture']);
+	const { addEffect, updateRackEffect, beginRackEffectGesture, previewRackEffect, commitRackEffectGesture, cancelRackEffectGesture, beginParametricEqGesture, previewParametricEq, commitParametricEqGesture, cancelParametricEqGesture, copyEffectStack, pasteEffectStack } = deferControllerMethods(() => effects.rack, ['addEffect', 'updateRackEffect', 'beginRackEffectGesture', 'previewRackEffect', 'commitRackEffectGesture', 'cancelRackEffectGesture', 'beginParametricEqGesture', 'previewParametricEq', 'commitParametricEqGesture', 'cancelParametricEqGesture', 'copyEffectStack', 'pasteEffectStack']);
+	const { runEffectMacro, applyAudacityEffectFromController, repeatLastAudacityEffect, applySpectralSelection, captureSelectedNoiseProfile, runNyquistEvaluation } = deferControllerMethods(() => effects, ['runEffectMacro', 'applyAudacityEffectFromController', 'repeatLastAudacityEffect', 'applySpectralSelection', 'captureSelectedNoiseProfile', 'runNyquistEvaluation']);
+	const { currentAudacityEffectParams, setAudacityEffectType, setAudacityEffectParamsFromController, setAudacityControlTrack, applyEffectPreset, saveEffectPreset, deleteEffectPreset, importEffectPresets, exportEffectPreset, cancelAudacityEffectPreview, captureRackNoiseProfileFromController } = deferControllerMethods(() => effects.controls, ['currentAudacityEffectParams', 'setAudacityEffectType', 'setAudacityEffectParamsFromController', 'setAudacityControlTrack', 'applyEffectPreset', 'saveEffectPreset', 'deleteEffectPreset', 'importEffectPresets', 'exportEffectPreset', 'cancelAudacityEffectPreview', 'captureRackNoiseProfileFromController']);
+	const { renderDryTrackRange } = deferControllerMethods(() => effects.audio, ['renderDryTrackRange']);
+	const { cancelNyquistEvaluation } = deferControllerMethods(() => effects.nyquistHost, ['cancelNyquistEvaluation']);
+	const { toggleRecordingPause, toggleLeadInRecording, cancelRecordingStart } = deferControllerMethods(() => recording.session, ['toggleRecordingPause', 'toggleLeadInRecording', 'cancelRecordingStart']);
+	const { updateTransportState, updateMeters, updateZoom, setTimelineViewportWidth, setAutoFitTrackHeight, adjustTrackHeight } = deferControllerMethods(() => viewStateService, ['updateTransportState', 'updateMeters', 'updateZoom', 'setTimelineViewportWidth', 'setAutoFitTrackHeight', 'adjustTrackHeight']);
+	const { toggleExport, updateExportProgress, showAnalysis, setStatus, handleError } = deferControllerMethods(() => presentationState, ['toggleExport', 'updateExportProgress', 'showAnalysis', 'setStatus', 'handleError']);
+	const { refreshStorageUsage, estimateStorageForPreflight, preflightStorage } = deferControllerMethods(() => storageCapacityService, ['refreshStorageUsage', 'estimateStorageForPreflight', 'preflightStorage']);
+
 	const lifetime = new EditorControllerLifetime();
 	const projectGeneration = new EditorProjectGeneration();
 	const projectRuntime = resolveControllerProjectRuntime(options.projectRuntime);
@@ -180,7 +201,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const product = productProfile(options.productId || options.product?.id || 'soundscaper');
 	const productId = product.id;
 	const capabilities = product.capabilities; const composition = resolveProductCompositionDecision(product), absentSubsystem = Object.freeze({ productName: product.name });
-	const preferenceSettingKey = `${productId}:audio-editor-preferences-v1`;
 	const recentProjectsSettingKey = `${productId}:audio-editor-recent-project-ids`;
 	const lastProjectSettingKey = `${productId}:last-project-id`;
 	const productSettingKey = (name) => productId === 'soundscaper' ? name : `${productId}:${name}`;
@@ -276,13 +296,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 	let videoNavigationService = null, framescaperCapture = null;
 	const framescaperCaptureRuntime = options.framescaperCaptureRuntime ?? null;
 	const framescaperCaptureAdminInterlock = framescaperCaptureRuntime?.createAdminInterlock() ?? null;
+	const mediaDevices = options.mediaDevices || globalThis.navigator?.mediaDevices;
 	const documentSnapshotRuntime = {
 		state, product, productId, capabilities, locale, projectForPlayback: (candidate) => playbackProjectService.projectForPlayback(candidate).project,
-		getCurrentProject: () => projectWithVideoEffectGestures(state.history?.present ?? null),
+		getCurrentProject: () => state.history?.present ?? null,
 		getProjectTabs: () => sessionController.getSnapshot().tabs,
 		getCurrentTabMetadata: (projectId) => sessionTab(projectId)?.metadata || {},
 		recordingPreviewSnapshot,
-		getAudioDevicesSnapshot: audioDevicesSnapshot, getSoundActivationSnapshot: soundActivationPolicyService.getSnapshot,
+		getSoundActivationSnapshot: soundActivationPolicyService.getSnapshot,
 		sampleEditingAvailable,
 		canUndo: projectRuntime.canUndo,
 		canRedo: projectRuntime.canRedo,
@@ -294,27 +315,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 			ephemeral: false,
 			degradedReason: null,
 		},
-		getRackEffectTypes: () => audioEffectTypes().map((type) => Object.freeze({
-			type,
-			label: audioEffectLabel(type, copy),
-		})),
-		getVideoEffectTypes: () => VIDEO_EFFECT_TYPES.map((type) => VIDEO_EFFECT_DEFINITIONS[type]),
 		getVideoNavigationSnapshot: () => !state.disposed && documentState.project && capabilities.videoCompositing && videoNavigationService ? videoNavigationService.view() : null,
 		getFramescaperCaptureSnapshot: () => framescaperCapture?.snapshot ?? null, getFramescaperWebVcrSnapshot: () => framescaperCapture?.webVcrSnapshot ?? null,
-		getSelectionEffectTypes: () => audioSelectionEffectTypes().map((type) => createSelectionEffectTypeSnapshot(
-			type, audioSelectionEffectLabel(type, copy), AUDIO_SELECTION_EFFECT_DEFINITIONS[type],
-		)),
 		getSelectionEffectParams: currentAudacityEffectParams,
-		getSelectionEffectDefinition: () => AUDIO_SELECTION_EFFECT_DEFINITIONS[state.audacityEffectType] || null,
-		getEffectPresets: () => listAudioEditorEffectPresets(state.effectPresets, state.audacityEffectType),
 	};
-	const documentChannel = createSnapshotChannel({
-		build: buildDocumentSnapshot,
-		canPublish: () => !state.disposed,
-	});
-	const telemetryChannel = createSnapshotChannel({
-		build: buildTelemetrySnapshot,
-		canPublish: () => !state.disposed,
+	const { document: documentChannel, telemetry: telemetryChannel } = createSnapshotComposition({
+		document: documentSnapshotRuntime, telemetry: state, audioDevices: state, engine, mediaDevices, copy,
+		videoEffectGestures: state.videoEffectGestures, videoEffectGestureKey,
 	});
 	let persistentExportProgressObserver = null;
 	const taskProgress = createEditorTaskProgressCoordinator({ onChange: (progress) => {
@@ -326,7 +333,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 		isInactive: () => state.disposed,
 		onWarning: (error) => handleError(error),
 	});
-	const mediaDevices = options.mediaDevices || globalThis.navigator?.mediaDevices;
 	const recordingCapturePool = options.recordingCapturePool || createRecordingCapturePool({
 		requestHardwareInput: (captureOptions) => requestHardwareInput({
 			...captureOptions,
@@ -367,36 +373,16 @@ export function createAudioEditorController(_root = null, options = {}) {
 		playbackProjects: playbackProjectService, resolveProductVideoPreviewMedia: options.resolveProductVideoPreviewMedia, projectDurationFrames,
 		getProject: () => documentState.project, publishDocumentSnapshot, setStatus, handleError,
 	});
-	const preferencesService = createEditorPreferencesService({
-		productId,
-		preferenceSettingKey,
-		defaultWorkspace: product.defaultWorkspace,
-		newerSchemaMessage: copy.preferencesNewerSchema,
-		shortcutActionRequired: copy.shortcutActionRequired,
-		shortcutConflict: copy.shortcutConflict,
-		getPreferences: () => state.preferences,
-		setPreferences: (preferences) => { state.preferences = preferences; },
-		getReadOnly: () => state.preferencesReadOnly,
-		setReadOnly: (readOnly) => { state.preferencesReadOnly = readOnly; },
-		loadSetting: (key, fallback) => store.loadSetting(key, fallback),
-		persistSetting: (key, value) => persistSetting(key, value),
-		persistSettingRequired: (key, value) => persistSetting(key, value, { policy: 'required' }),
-		publish: publishDocumentSnapshot,
-		loadPreferences: loadAudioEditorPreferencesV1,
-		createPreferences: (activeId) => createAudioEditorPreferencesV1({ workspace: { activeId } }),
-		applyWorkspace: applyAudioEditorWorkspace,
-		updatePreferences: updateAudioEditorPreferencesV1,
-		normalizeShortcut: normalizeAudioEditorShortcut,
-		findShortcutConflicts: findAudioEditorShortcutConflicts,
-		createWorkspace: createCustomAudioEditorWorkspace,
-		updateWorkspace: updateCustomAudioEditorWorkspace,
-		deleteWorkspace: deleteCustomAudioEditorWorkspace,
+	const preferences = createPreferencesComposition({
+		productId, defaultWorkspace: product.defaultWorkspace, state, lifetime, copy,
+		loadSetting: (key, fallback) => store.loadSetting(key, fallback), persistSetting, publish: publishDocumentSnapshot,
 	});
+	const preferencesService = preferences.service;
 	const {
 		activatePanelTabPreference, createWorkspacePreference, deleteWorkspacePreference, movePanelPreference, moveToolbarPreference,
 		setPanelDockExtentPreference, setPanelFrameSizePreference, setPanelPreference, setPanelVisibilityPreference, setShortcutPreference, setToolbarButtonPreference, setWorkspacePreference,
 		togglePanelPreference, toggleToolbarPreference, updateWorkspacePreference,
-	} = createEditorPreferenceActionDelegates(preferencesService, createStableId);
+	} = preferences.actions;
 	const doc = createDocumentComposition({
 		state, copy, lifetime, projectGeneration, projectRuntime, product, capabilities, session: sessionController, store, engine, sourceBuffers, sourcePeaks,
 		timePitchCache: clipTimePitchCache, protectedSourceIds: stagedProjectBinSourceIds, maximumPixelsPerSecond: MAX_PIXELS_PER_SECOND,
@@ -778,7 +764,29 @@ export function createAudioEditorController(_root = null, options = {}) {
 		audioWarpService: tracks.audioWarp, sourceMonitorService: clips.sourceMonitor, takeCompService: tracks.takeComp, taskProgress, videoTrimServices: clips.videoTrim, videoEditService: clips.videoEdit, videoNavigationService, videoSourceReprobeService: clips.videoSourceReprobe, framescaperCaptureActions: framescaperCapture ? { ...framescaperCapture.actions, openSetup: () => { framescaperCapture.actions.openSetup(); preferencesService.setPanelVisibility('recording-setup', true); } } : undefined, framescaperWebVcrActions: framescaperCapture?.webVcrActions, ...productActionRuntime(options),
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}), () => lifetime.assertActive());
-	let disposePromise = null;
+	const dispose = createControllerDisposal({
+		lifetime, state, clearDiagnostics: () => state.localDiagnostics.clear(), clearTaskProgress: taskProgress.clear,
+		closeInspections: () => scapeInspectionQuiescence.close(lifetime.signal.reason), drainInspections: () => scapeInspectionQuiescence.drain(),
+		publish: () => publishDocumentSnapshot({ force: true }), clearDocumentChannel: documentChannel.clear, clearTelemetryChannel: telemetryChannel.clear,
+		removeDeviceChangeListener: () => { removeDeviceChangeListener(); removeDeviceChangeListener = () => {}; },
+		disposeCapture: () => framescaperCapture?.dispose(), disposeCaptureProxy: () => framescaperCaptureProxyScheduler?.dispose?.(),
+		disposeOpenRecovery: () => takeCycleOpenRecovery.dispose(), invalidateProject: () => projectGeneration.invalidate(),
+		disposeVisuals: sources.projectVisual.dispose, unsubscribeEngineErrors: unsubscribeParametricEqErrors,
+		cancelTimedRecording: () => cancelTimedRecording({ publish: false, status: false }), cancelRecordingStart,
+		cancelScheduledSave: doc.saves.cancelScheduled, clearSourceGcTimer: () => globalThis.clearTimeout(state.sourceGcTimer),
+		cancelPlaybackPreparation: cancelPlaybackCachePreparation, cancelPlayAtSpeedPreparation, stopMetronome,
+		cancelEffectWorkers: effects.worker.cancelWorkers, disposeNyquist: () => nyquistClient?.dispose(),
+		cancelEffectPreview: () => cancelAudacityEffectPreview({ publish: false }), disposeMicrophoneMeter: microphoneMeterService.dispose,
+		terminalFlush: doc.saves.terminalFlush, stopRecording, disposeCapturePool: () => recordingCapturePool.dispose?.(),
+		releaseProjectLock, revokeOutputUrl: (url) => URL.revokeObjectURL(url), disposeProjectBin: imports.projectBin.dispose,
+		disposeAudioWarp: tracks.audioWarp.dispose, disposeTakeComp: tracks.takeComp.dispose,
+		disposeRenderEngines: sources.timePitchCaches.disposeRenderEngines, disposeCodec: () => ffmpeg.dispose(),
+		disposeNativeProject: nativeProjectService.dispose, disposeTimePitchCache: () => clipTimePitchCache.dispose?.(),
+		disposeSession: () => sessionController.dispose?.(), disposeEngine: () => engine.dispose(),
+		clearSourceBuffers: () => sourceBuffers.clear(), clearSourceProviders: () => sourceChunkProviders.clear(),
+		drainSourceProviders: () => sourceChunkProviders.drain(), clearSourcePeaks: () => sourcePeaks.clear(),
+		clearWaveformCaches: sources.clearWaveformPcmCaches, closeStore: () => store.close?.(),
+	});
 	if (options.productNativeRenderInputAuthority) connectProductNativeRenderInputAuthority(options.productNativeRenderInputAuthority, () => {
 		const currentProject = documentState.project; if (!currentProject) throw new Error('A current project is required for native render-input production.');
 		const projectToken = projectGeneration.capture(currentProject.id), snapshot = projectRuntime.cloneProject(currentProject), task = lifetime.startTask('product-native-render-input'), assertCurrent = () => { task.assertCurrent(); projectGeneration.assertCurrent(projectToken); if (documentState.project !== currentProject) throw abortError(); };
@@ -804,132 +812,18 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getClipVisualData,
 		getProjectBinClipVisualData, selectedMediaPreparation: effects.audio.selectedMediaPreparation,
 		actions,
-		dispose() {
-			if (disposePromise) return disposePromise;
-			lifetime.beginDisposal();
-			scapeInspectionQuiescence.close(lifetime.signal.reason);
-			taskProgress.clear();
-			state.disposed = true; state.localDiagnostics.clear();
-			state.phase = lifetime.phase;
-			publishDocumentSnapshot({ force: true });
-			disposePromise = disposeController();
-			return disposePromise;
-		},
+		dispose,
 	};
 
-	async function disposeController() {
-		let disposalError = null, sourceRetirementError = null;
-		const cleanup = async (operation, fencesSourceRetirement = false) => {
-			try { await operation(); } catch (error) { disposalError ||= error; if (fencesSourceRetirement) sourceRetirementError ||= error; }
-		};
-		try {
-			removeDeviceChangeListener();
-			removeDeviceChangeListener = () => {};
-			await cleanup(() => Promise.all([framescaperCapture?.dispose(), framescaperCaptureProxyScheduler?.dispose?.()]), true);
-			takeCycleOpenRecovery.dispose(); projectGeneration.invalidate();
-			const visualDisposal = sources.projectVisual.dispose(), scapeInspectionDrain = scapeInspectionQuiescence.drain();
-			unsubscribeParametricEqErrors();
-			cancelTimedRecording({ publish: false, status: false });
-			cancelRecordingStart();
-			state.exportGeneration += 1;
-			state.exportAbort = null;
-			doc.saves.cancelScheduled();
-			globalThis.clearTimeout(state.sourceGcTimer);
-			state.sourceGcTimer = 0;
-			cancelPlaybackCachePreparation();
-			cancelPlayAtSpeedPreparation();
-			stopMetronome();
-			effects.worker.cancelWorkers();
-			state.audacityEffectWorker?.terminate();
-			state.audacityEffectWorker = null;
-			state.nyquistAbort = null;
-			nyquistClient?.dispose();
-			cancelAudacityEffectPreview({ publish: false });
-			state.spectralWorker?.terminate();
-			state.spectralWorker = null;
-			microphoneMeterService.dispose();
-			await cleanup(() => scapeInspectionDrain);
-			await cleanup(() => state.projectQueue);
-			await cleanup(() => doc.saves.terminalFlush());
-			await cleanup(() => stopRecording().catch((error) => { if (error?.code !== EDITOR_PROJECT_CHANGED_CODE) throw error; }));
-			await cleanup(() => Promise.resolve(recordingCapturePool.dispose?.()));
-			await cleanup(() => releaseProjectLock());
-			if (state.outputUrl) URL.revokeObjectURL(state.outputUrl);
-			await cleanup(() => Promise.resolve(state.outputCleanup?.()));
-			await cleanup(() => imports.projectBin.dispose(), true);
-			tracks.audioWarp.dispose(); await cleanup(() => tracks.takeComp.dispose(), true);
-			await cleanup(() => sources.timePitchCaches.disposeRenderEngines(), true);
-			await cleanup(() => Promise.resolve(ffmpeg.dispose()));
-			await cleanup(() => nativeProjectService.dispose());
-			await cleanup(() => Promise.resolve(clipTimePitchCache.dispose?.()), true);
-			await cleanup(() => Promise.resolve(sessionController.dispose?.()));
-			await cleanup(() => Promise.resolve(engine.dispose()), true);
-			if (!sourceRetirementError) {
-				sourceBuffers.clear(); sourceChunkProviders.clear();
-				await cleanup(() => sourceChunkProviders.drain(), true); sourcePeaks.clear();
-			}
-			sources.clearWaveformPcmCaches();
-			await cleanup(() => visualDisposal);
-			if (!sourceRetirementError) await cleanup(() => Promise.resolve(store.close?.()));
-		} finally {
-			lifetime.finishDisposal();
-			state.phase = lifetime.phase;
-			publishDocumentSnapshot({ force: true });
-			documentChannel.clear();
-			telemetryChannel.clear();
-		}
-		if (disposalError) throw disposalError;
-	}
-
-	function getSnapshot() { return documentChannel.get(); }
-	function getTelemetrySnapshot() { return telemetryChannel.get(); }
 	function publishDocumentSnapshot({ force = false } = {}) { documentChannel.publish({ force }); }
 	function publishTelemetrySnapshot() { telemetryChannel.publish(); }
-	function buildDocumentSnapshot() { return createEditorDocumentSnapshot(documentSnapshotRuntime); }
-	function projectWithVideoEffectGestures(currentProject) {
-		return applyVideoEffectGesturePreviews(
-			currentProject,
-			state.videoEffectGestures,
-			videoEffectGestureKey,
-		);
-	}
-	function buildTelemetrySnapshot() { return createEditorTelemetrySnapshot(state, engine); }
-	function audioDevicesSnapshot() {
-		return createAudioDeviceSnapshot(
-			state,
-			engine,
-			mediaDevices,
-			RECORDING_DEFAULT_DEVICE_ID,
-			RECORDING_DISPLAY_SOURCE_KEY,
-		);
-	}
-	function getClipVisualData(...args) { return sources.projectVisual.getClipVisualData(...args); }
-	function getProjectBinClipVisualData(...args) { return sources.projectVisual.getProjectBinClipVisualData(...args); }
-	function revokeVideoVisuals() { return sources.projectVisual.revokeVideoVisuals(); }
-	function revokeVideoVisual(...args) { return sources.projectVisual.revokeVideoVisual(...args); }
-	function activateVideoSource(...args) { return sources.projectVisual.activateVideoSource(...args); } async function reloadVideoSourceVisual(sourceId) { const source = findSource(documentState.project, sourceId); if (!source || source.kind !== 'video') throw new ReferenceError(`Video source ${String(sourceId)} is missing.`); await revokeVideoVisual(source.id); return activateVideoSource(source); }
-	function hasMissingTimelineSources(...args) { return sources.projectVisual.hasMissingTimelineSources(...args); }
-	function getVisibleClips(...args) { return sources.projectVisual.getVisibleClips(...args); }
-	async function loadPreferences(token = lifetime.capture()) { return applyLoadedPreferenceSession(await preferencesService.load((value) => lifetime.guard(value, token)), state); }
+	async function reloadVideoSourceVisual(sourceId) { const source = findSource(documentState.project, sourceId); if (!source || source.kind !== 'video') throw new ReferenceError(`Video source ${String(sourceId)} is missing.`); await revokeVideoVisual(source.id); return activateVideoSource(source); }
+
+	function loadPreferences(token) { return preferences.load(token); }
 	async function persistSetting(key, value, { policy = 'best-effort' } = {}) { return settingPersistence.persist(key, value, { policy }); }
-	function updatePreferences(patch) { return preferencesService.update(patch); }
-	function revertFactorySettings() { return preferencesService.revertFactorySettings(); }
-	function sessionTab(projectId) {
-		return doc.session.sessionTab(projectId);
-	}
-	function persistActiveSessionUiState() {
-		return doc.session.persistActiveSessionUiState();
-	}
-	async function bootstrap(token) {
-		return projectBootstrapService.bootstrap(token);
-	}
 
 	async function newProject(options = {}) {
 		return projectSwitchService.newProject(options);
-	}
-
-	async function openProject(value) {
-		return projectSwitchService.openProject(value);
 	}
 
 	function switchProject(nextProject, options = {}) {
@@ -938,10 +832,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	async function releaseProjectLock(lock = state.projectLock) {
 		return projectLockService.releaseProjectLock(lock);
-	}
-
-	async function claimProjectLock() {
-		return projectLockService.claimProjectLock();
 	}
 
 	async function openScape(file, openOptions = {}) {
@@ -960,32 +850,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return taskProgress.run('project-io', copy.aup4Saving, () => nativeProjectService.saveAup4(options));
 	}
 
-	function dismissAup4CompatibilitySummary() {
-		return nativeProjectService.dismissAup4CompatibilitySummary();
-	}
-
-	function cacheSourceBuffer(sourceId, buffer) {
-		return sources.sourceLifecycle.cacheSourceBuffer(sourceId, buffer);
-	}
-
 	async function requestWaveformPcmWindow(clipId, options = {}) {
 		return sources.sourceLifecycle.requestWaveformPcmWindow(clipId, options);
 	}
 
-	function clearWaveformPcmWindows() {
-		return sources.sourceLifecycle.clearWaveformPcmWindows();
-	}
-
-	async function loadProjectSources(project, options) {
-		return sources.sourceLifecycle.loadProjectSources(project, options);
-	}
-
 	async function activateStoredSource(source, metadata, activationOptions = {}) {
 		return sources.sourceLifecycle.activateStoredSource(source, metadata, activationOptions);
-	}
-
-	async function listProjects() {
-		return projectAdminService.listProjects();
 	}
 
 	async function prepareProjectHandoff(expected) {
@@ -993,30 +863,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return projectAdminService.prepareProjectHandoff(expected);
 	}
 
-	async function clearRecentProjects() {
-		return projectAdminService.clearRecentProjects();
-	}
-
 	async function closeProjectTab(projectId = documentState.project?.id, closeOptions = {}) {
 		if (projectId) framescaperCapture?.assertOriginCloseAllowed(projectId);
 		return projectAdminService.closeProjectTab(projectId, closeOptions);
 	}
 
-	async function renameProject(requestedTitle) {
-		return projectAdminService.renameProject(requestedTitle);
-	}
-
-	async function duplicateProject(requestedTitle) {
-		return projectAdminService.duplicateProject(requestedTitle);
-	}
-
 	async function deleteProject() {
 		if (documentState.project) framescaperCapture?.assertOriginDeleteAllowed(documentState.project.id);
 		return projectAdminService.deleteProject();
-	}
-
-	async function garbageCollectSources() {
-		return projectAdminService.garbageCollectSources();
 	}
 
 	async function clearLocalData() {
@@ -1027,70 +881,29 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function moveClipsToProjectBin(clipId = state.selectedClipId) { return imports.projectBin.moveClipsToProjectBin(clipId); }
 	function placeProjectBinClip(binClipId, placement = {}) { return imports.projectBin.placeProjectBinClip(binClipId, placement); }
-	function renameProjectBinClip(clipId, requestedName) { return imports.projectBin.renameProjectBinClip(clipId, requestedName); }
-	function removeProjectBinClip(clipId) { return imports.projectBin.removeProjectBinClip(clipId); }
-	function setProjectBinClipColor(clipId, color) { return imports.projectBin.setProjectBinClipColor(clipId, color); }
-	function projectBinInstanceCount(clipId) { return imports.projectBin.projectBinInstanceCount(clipId); }
-	function selectProjectBinInstances(clipId) { return imports.projectBin.selectProjectBinInstances(clipId); }
-	function removeProjectBinSource(clipId) { return imports.projectBin.removeProjectBinSource(clipId); }
-	async function prepareProjectBinReplacement(clipId, file) { return imports.projectBin.prepareProjectBinReplacement(clipId, file); }
 	function applyProjectBinReplacement(token, shortfallMode = 'keep-spacing') { return imports.projectBin.applyProjectBinReplacement(token, shortfallMode); }
-	async function cancelProjectBinReplacement(token) { return imports.projectBin.cancelProjectBinReplacement(token); }
-	async function playPauseProjectBinClip(clipId) { return imports.projectBin.playPauseProjectBinClip(clipId); }
 	async function stopProjectBinPreview({ dispose = false } = {}) { return imports.projectBin.stopProjectBinPreview({ dispose }); }
 
-	function mixAndRenderTracks(...args) { return tracks.mixAndRenderTracks(...args); }
-	function resampleTrack(...args) { return tracks.resampleTrack(...args); }
-	function resampleClip(...args) { return tracks.resampleClip(...args); }
-	function swapTrackChannels(...args) { return tracks.swapTrackChannels(...args); }
-	function splitStereoTrack(...args) { return tracks.splitStereoTrack(...args); }
-	function makeStereoTrack(...args) { return tracks.makeStereoTrack(...args); }
 	function addLabel(trackId, labelOptions = {}) { return tracks.track.addLabel(trackId, labelOptions); }
-	async function importLabelFile(...args) { return edits.labels.importLabelFile(...args); }
-	async function exportLabels(...args) { return edits.labels.exportLabels(...args); }
-	function splitAtFrame(...args) { return edits.clipboard.splitAtFrame(...args); }
-	async function disjoinSelectedClip(...args) { return edits.clipboard.disjoinSelectedClip(...args); }
-	async function generateSelectionSilence(...args) { return edits.generateSelectionSilence(...args); }
-	async function generateSignal(...args) { return edits.generateSignal(...args); }
-	async function repeatLastGenerator(...args) { return edits.repeatLastGenerator(...args); }
 
-	function selectTrack(trackId) { return tracks.selectionView.selectTrack(trackId); }
 	function selectClip(clipId, options = {}) { return tracks.selectionView.selectClip(clipId, options); }
 	function setSelection(startFrame, endFrame, details = {}) { return tracks.selectionView.setSelection(startFrame, endFrame, details); }
-	function selectAllTracks() { return tracks.selectionView.selectAllTracks(); }
+
 	function selectLeftOfPlaybackPosition(requestedStartFrame = null) { return tracks.selectionView.selectLeftOfPlaybackPosition(requestedStartFrame); }
 	function selectRightOfPlaybackPosition(requestedEndFrame = null) { return tracks.selectionView.selectRightOfPlaybackPosition(requestedEndFrame); }
-	function selectTrackStartToCursor() { return tracks.selectionView.selectTrackStartToCursor(); }
-	function selectCursorToTrackEnd() { return tracks.selectionView.selectCursorToTrackEnd(); }
-	function selectTrackStartToEnd() { return tracks.selectionView.selectTrackStartToEnd(); }
-	function selectedTracksTimeRange() { return tracks.selectionView.selectedTracksTimeRange(); }
-	function toggleRmsWaveform() { return tracks.selectionView.toggleRmsWaveform(); }
-	function toggleVerticalRulers() { return tracks.selectionView.toggleVerticalRulers(); }
-	function toggleUpdateWhilePlaying() { return tracks.selectionView.toggleUpdateWhilePlaying(); }
-	function togglePinnedPlayhead() { return tracks.selectionView.togglePinnedPlayhead(); }
-	function toggleRulerPlayback() { return tracks.selectionView.toggleRulerPlayback(); }
-	function selectAtZeroCrossings() { return tracks.selectionView.selectAtZeroCrossings(); }
+
 	function setSnapSettings(settings = {}) { return tracks.selectionView.setSnapSettings(settings); }
 	function snapTimelineFrame(value, overrides = {}) { return tracks.selectionView.snapTimelineFrame(value, overrides); }
-	function setZoom(pixelsPerSecond) { return tracks.selectionView.setZoom(pixelsPerSecond); }
 
 	function sampleEditingAvailable(clipId = state.selectedClipId) { return clips.sampleEdit.sampleEditingAvailable(clipId); }
-	function synchronizeAutomaticSampleEditMode() { return clips.sampleEdit.synchronizeAutomaticSampleEditMode(); }
+
 	function setSampleEditMode(mode = null) { return clips.sampleEdit.setSampleEditMode(mode); }
-	function cancelSampleEdit() { return clips.sampleEdit.cancelSampleEdit(); }
+
 	function applySamplePencil(options = {}) { return clips.applySamplePencil(options); }
 	function smoothSelectedSamples(options = {}) { return clips.smoothSelectedSamples(options); }
 
 	async function loadRecordingRouting(currentProject = documentState.project) {
 		return recording.routing.loadRecordingRouting(currentProject);
-	}
-
-	function persistRecordingRouting() {
-		return recording.routing.persistRecordingRouting();
-	}
-
-	async function requestInputAccess() {
-		return recording.routing.requestInputAccess();
 	}
 
 	async function refreshRecordingInputs({ probe = true } = {}) {
@@ -1101,183 +914,24 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return recording.routing.refreshAudioDevices({ probe, publish, nativeInventory });
 	}
 
-	async function setPreferredInputDevice(deviceId) {
-		return recording.routing.setPreferredInputDevice(deviceId);
-	}
-
-	async function configureDisplayInput() {
-		return recording.routing.configureDisplayInput();
-	}
-
-	async function setPreferredInputChannelCount(channelCount) {
-		return recording.routing.setPreferredInputChannelCount(channelCount);
-	}
-
-	async function setAudioOutputDevice(deviceId) {
-		return recording.routing.setAudioOutputDevice(deviceId);
-	}
-
 	function updateRecordingDeviceRows(discovered = state.recordingDevices) {
 		return recording.routing.updateRecordingDeviceRows(discovered);
 	}
 
-	async function setRecordingTrackInput(trackId, route) {
-		return recording.inputs.setRecordingTrackInput(trackId, route);
-	}
-
-	async function setRecordingSourceLatency(sourceKey, value) {
-		return recording.routing.setRecordingSourceLatency(sourceKey, value);
-	}
-
-	async function setRetainInputs(enabled) {
-		return recording.routing.setRetainInputs(enabled);
-	}
-
-	function releaseInputs() { return recording.routing.releaseInputs(); }
-	function syncRecordingPoolSnapshot() { return recording.syncRecordingPoolSnapshot(); }
-	function handleRecordingPoolChange(sources) { return recording.inputs.handleRecordingPoolChange(sources); }
-	function setMonitoring(enabled) { return recording.setMonitoring(enabled); }
-
 	function pauseLoudnessMeasurement(kind = 'playback') { return microphoneMeterService.pauseLoudnessMeasurement(kind); }
 	function continueLoudnessMeasurement(kind = 'playback') { return microphoneMeterService.continueLoudnessMeasurement(kind); }
 	function resetLoudnessMeasurement(kind = 'playback') { return microphoneMeterService.resetLoudnessMeasurement(kind); }
-	async function setMicrophoneMetering(enabled) { return microphoneMeterService.setMicrophoneMetering(enabled); }
-	function synchronizeMicrophoneMeterTarget() { return microphoneMeterService.synchronizeTarget(); }
 
-	function setRecordingInputGain(value) { return recording.setRecordingInputGain(value); }
-	function setLatencyOffset(value) { return recording.setLatencyOffset(value); }
-
-	function commit(...args) {
-		return doc.mutation.commit(...args);
-	}
-
-	function updateSelection(...args) {
-		return doc.mutation.updateSelection(...args);
-	}
-
-	function projectChanged(...args) {
-		return doc.mutation.projectChanged(...args);
-	}
-
-	function saveNow(...args) {
-		return doc.mutation.saveNow(...args);
-	}
-
-	function flushProject(...args) {
-		return doc.mutation.flushProject(...args);
-	}
-
-	function compactLiveSourceState(...args) {
-		return doc.retention.compactLiveSourceState(...args);
-	}
-
-	function liveSessionSourceIds() {
-		return doc.retention.liveSessionSourceIds();
-	}
-
-	function liveSessionClipIds() {
-		return doc.retention.liveSessionClipIds();
-	}
-
-	function publishProjectState() {
-		return doc.view.publishProjectState();
-	}
-
-	function setTimelineView(...args) {
-		return doc.view.setTimelineView(...args);
-	}
-
-	function setAllTracksView(...args) {
-		return doc.view.setAllTracksView(...args);
-	}
-
-	function duplicateTrack(...args) {
-		return doc.trackDuplication.duplicateTrack(...args);
-	}
-
-	function handleClipAction(...args) { return clips.clipProperty.handleClipAction(...args); }
-	function moveClips(...args) { return clips.clipTransform.moveClips(...args); }
-	function moveClipsToNewTrack(...args) { return clips.clipTransform.moveClipsToNewTrack(...args); }
-	function trimClips(...args) { return clips.clipTransform.trimClips(...args); }
-	function overwriteClips(...args) { return clips.clipTransform.overwriteClips(...args); }
-	function setClipTimePitch(...args) { return clips.clipProperty.setClipTimePitch(...args); }
-	function stretchClip(...args) { return clips.clipProperty.stretchClip(...args); }
-	function resetClipPitchSpeed(...args) { return clips.clipProperty.resetClipPitchSpeed(...args); }
-	function renderClipPitchSpeed(...args) { return clips.renderClipPitchSpeed(...args); }
-
-	function createCacheAwareRenderEngine(...args) {
-		return sources.timePitchCaches.createCacheAwareRenderEngine(...args);
-	}
-
-	function prepareCommittedTimePitchCaches(...args) {
-		return sources.timePitchCaches.prepareCommittedTimePitchCaches(...args);
-	}
-
-	async function applyProjectToPlaybackEngine(snapshot) {
-		return sources.playbackApply.apply(snapshot);
-	}
-
-	function beginPlaybackCachePreparation(...args) {
-		return sources.timePitchCaches.beginPlaybackCachePreparation(...args);
-	}
-
-	function cancelPlaybackCachePreparation(...args) {
-		return sources.timePitchCaches.cancelPlaybackCachePreparation(...args);
-	}
-
-	function videoEffectGestureKey(clipId, effectId) { return clips.videoEffect.videoEffectGestureKey(clipId, effectId); }
 	function addVideoClipEffect(clipId = state.selectedClipId, type, options = {}) { return clips.videoEffect.addVideoClipEffect(clipId, type, options); }
 	function updateVideoClipEffect(clipId, effectId, changes = {}) { return clips.videoEffect.updateVideoClipEffect(clipId, effectId, changes); }
 	function toggleVideoClipEffect(clipId, effectId, enabled = undefined) { return clips.videoEffect.toggleVideoClipEffect(clipId, effectId, enabled); }
 	function bypassVideoClipEffect(clipId, effectId, bypassed = true) { return clips.videoEffect.bypassVideoClipEffect(clipId, effectId, bypassed); }
-	function reorderVideoClipEffect(clipId, effectId, toIndex) { return clips.videoEffect.reorderVideoClipEffect(clipId, effectId, toIndex); }
-	function removeVideoClipEffect(clipId, effectId) { return clips.videoEffect.removeVideoClipEffect(clipId, effectId); }
-	function beginVideoEffectGesture(clipId, effectId) { return clips.videoEffect.beginVideoEffectGesture(clipId, effectId); }
+
 	function previewVideoEffectGesture(clipId, effectId, params = {}) { return clips.videoEffect.previewVideoEffectGesture(clipId, effectId, params); }
 	function commitVideoEffectGesture(clipId, effectId, params = {}) { return clips.videoEffect.commitVideoEffectGesture(clipId, effectId, params); }
-	function cancelVideoEffectGesture(clipId, effectId) { return clips.videoEffect.cancelVideoEffectGesture(clipId, effectId); }
-	function addEffect(...args) { return effects.rack.addEffect(...args); }
-	function updateRackEffect(...args) { return effects.rack.updateRackEffect(...args); }
-	function beginRackEffectGesture(...args) { return effects.rack.beginRackEffectGesture(...args); }
-	function previewRackEffect(...args) { return effects.rack.previewRackEffect(...args); }
-	function commitRackEffectGesture(...args) { return effects.rack.commitRackEffectGesture(...args); }
-	function cancelRackEffectGesture(...args) { return effects.rack.cancelRackEffectGesture(...args); }
-	function beginParametricEqGesture(...args) { return effects.rack.beginParametricEqGesture(...args); }
-	function previewParametricEq(...args) { return effects.rack.previewParametricEq(...args); }
-	function commitParametricEqGesture(...args) { return effects.rack.commitParametricEqGesture(...args); }
-	function cancelParametricEqGesture(...args) { return effects.rack.cancelParametricEqGesture(...args); }
-	function copyEffectStack(...args) { return effects.rack.copyEffectStack(...args); }
-	function pasteEffectStack(...args) { return effects.rack.pasteEffectStack(...args); }
-	function runEffectMacro(...args) { return effects.runEffectMacro(...args); }
-	function currentAudacityEffectParams(...args) { return effects.controls.currentAudacityEffectParams(...args); }
-	function setAudacityEffectType(...args) { return effects.controls.setAudacityEffectType(...args); }
-	function setAudacityEffectParamsFromController(...args) { return effects.controls.setAudacityEffectParamsFromController(...args); }
-	function setAudacityControlTrack(...args) { return effects.controls.setAudacityControlTrack(...args); }
-	function applyEffectPreset(...args) { return effects.controls.applyEffectPreset(...args); }
-	function saveEffectPreset(...args) { return effects.controls.saveEffectPreset(...args); }
-	function deleteEffectPreset(...args) { return effects.controls.deleteEffectPreset(...args); }
-	function importEffectPresets(...args) { return effects.controls.importEffectPresets(...args); }
-	function exportEffectPreset(...args) { return effects.controls.exportEffectPreset(...args); }
-	function applyAudacityEffectFromController(...args) { return effects.applyAudacityEffectFromController(...args); }
-	function cancelAudacityEffectPreview(...args) { return effects.controls.cancelAudacityEffectPreview(...args); }
-	function repeatLastAudacityEffect(...args) { return effects.repeatLastAudacityEffect(...args); }
-	function captureRackNoiseProfileFromController(...args) { return effects.controls.captureRackNoiseProfileFromController(...args); }
-	function applySpectralSelection(...args) { return effects.applySpectralSelection(...args); }
-	function captureSelectedNoiseProfile(...args) { return effects.captureSelectedNoiseProfile(...args); }
-	function renderDryTrackRange(...args) { return effects.audio.renderDryTrackRange(...args); }
-	function cancelNyquistEvaluation(...args) { return effects.nyquistHost.cancelNyquistEvaluation(...args); }
-	function runNyquistEvaluation(...args) { return effects.runNyquistEvaluation(...args); }
 
 	async function startRecordingOnNewTrack(options = {}) {
 		return recording.session.startRecordingOnNewTrack(options);
-	}
-
-	function toggleRecordingPause() {
-		return recording.session.toggleRecordingPause();
-	}
-
-	function toggleLeadInRecording() {
-		return recording.session.toggleLeadInRecording();
 	}
 
 	async function scheduleTimedRecording(startTime, options = {}) {
@@ -1288,17 +942,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return recording.timed.cancelTimedRecording(options);
 	}
 
-	function cancelRecordingStart() {
-		return recording.session.cancelRecordingStart();
-	}
-
 	function startRecording(options = {}) {
 		return recording.session.startRecording(options);
-	}
-	function invalidateTakeCycleRecording(reason) { return recording.invalidateTakeCycleRecording(reason); }
-
-	async function stopRecording() {
-		return recording.session.stopRecording();
 	}
 
 	function editingBlocked() {
@@ -1310,32 +955,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return viewStateService.updatePlayhead(frame, duration);
 	}
 
-	function updateTransportState(value) {
-		return viewStateService.updateTransportState(value);
-	}
-
-	function updateMeters(meters) {
-		return viewStateService.updateMeters(meters);
-	}
-
-	function updateZoom(action, requestedViewportWidth, requestedFactor) {
-		return viewStateService.updateZoom(action, requestedViewportWidth, requestedFactor);
-	}
-
-	function setTimelineViewportWidth(width) {
-		return viewStateService.setTimelineViewportWidth(width);
-	}
-
-	function setAutoFitTrackHeight(enabled) {
-		return viewStateService.setAutoFitTrackHeight(enabled);
-	}
-
 	function setVisibleTrackHeights(heights = {}) {
 		return viewStateService.setVisibleTrackHeights(heights);
-	}
-
-	function adjustTrackHeight(trackId, delta) {
-		return viewStateService.adjustTrackHeight(trackId, delta);
 	}
 
 	function resizeTrackHeight(trackId, requestedHeight, fittedHeights = {}) {
@@ -1346,24 +967,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return normalizeEditorExportSettings(value, projectSampleRate(), documentState.project.metadata?.tags || {});
 	}
 
-	function toggleExport(...args) { return presentationState.toggleExport(...args); }
-	function updateExportProgress(...args) { return presentationState.updateExportProgress(...args); }
-	function showAnalysis(...args) { return presentationState.showAnalysis(...args); }
-	function setStatus(...args) { return presentationState.setStatus(...args); }
-	function handleError(...args) { return presentationState.handleError(...args); }
-
 	function warnEnvelope() {
 		const envelope = projectEnvelope(documentState.project, { mobile: state.mobile });
 		if (!envelope.supported) setStatus(copy.capacityWarning
 			.replace('{trackCount}', String(envelope.limits.trackCount))
 			.replace('{stereoMinutes}', String(envelope.limits.stereoMinutes)));
 	}
-
-	function refreshStorageUsage() { return storageCapacityService.refreshStorageUsage(); }
-	function estimateStorageForPreflight(requiredBytes, operation, signal) {
-		return storageCapacityService.estimateStorageForPreflight(requiredBytes, operation, signal);
-	}
-	function preflightStorage(requiredBytes, operation) { return storageCapacityService.preflightStorage(requiredBytes, operation); }
 
 	function activeSelection() {
 		const selection = documentState.project?.selection;

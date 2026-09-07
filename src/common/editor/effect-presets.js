@@ -24,6 +24,8 @@ export function createAudioEditorEffectPresets(value = {}) {
  * The presets on offer for an effect: what this project has saved first, then
  * the presets Audacity ships. Upstream's preset bar is ordered the same way,
  * so the entries a user wrote stay at the top of the list they grow.
+ * @param {unknown} state
+ * @param {string | null} [effectType]
  */
 export function listAudioEditorEffectPresets(state, effectType = null) {
 	const normalized = createAudioEditorEffectPresets(state);

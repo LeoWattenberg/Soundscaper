@@ -192,6 +192,7 @@ export function isAudacityRackEffectType(type) {
 	return AUDACITY_RACK_EFFECT_TYPE_SET.has(type);
 }
 
+/** @param {string} type @param {string | object} [copyOrLocale] */
 export function audioEffectLabel(type, copyOrLocale = 'en') {
 	if (isAudacityRackEffectType(type)) return audacityEffectLabel(type, copyOrLocale);
 	if (!ownMapValue(AUDIO_EFFECT_DEFINITIONS, type)) throw new RangeError(`Unsupported audio effect: ${type}.`);

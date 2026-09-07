@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { MacroTransactionMetadata } from './macro-transaction-metadata.ts';
+
 /**
  * Running a macro whose steps are not all effects.
  *
@@ -36,7 +38,7 @@ export interface MacroProgramServiceRuntime {
 	readonly cancelEffectMacro: () => boolean;
 	readonly runMacroCommand: (step: MacroCommandStep) => void;
 	readonly beginMacroTransaction: () => Readonly<{
-		commit(command: Readonly<Record<string, unknown>>): unknown;
+		commit(command: MacroTransactionMetadata): unknown;
 		rollback(): unknown;
 	}>;
 	readonly isRunnableMacroCommand: (command: string) => boolean;

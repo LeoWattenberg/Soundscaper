@@ -1,52 +1,41 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-type RuntimeAction = (...args: readonly unknown[]) => unknown;
-type RestrictedAction = (capability: string, action: RuntimeAction) => RuntimeAction;
+import type { createTimelineAnnotationService } from './timeline-annotation-service.ts';
+import type { createRegularIntervalAnnotationController } from './regular-interval-annotation-controller.ts';
+import type { RestrictToCapability } from './action-facade-runtime.ts';
+
+type Service = ReturnType<typeof createTimelineAnnotationService>;
 
 export interface TimelineAnnotationActionFacadeDependencies {
-	readonly service: Readonly<Record<string, unknown>>;
-	readonly regularInterval: RuntimeAction;
-	readonly restricted: RestrictedAction;
+	readonly service: Service;
+	readonly regularInterval: ReturnType<typeof createRegularIntervalAnnotationController>['create'];
+	readonly restricted: RestrictToCapability;
 	createId(prefix: string): string;
 }
 
-/** Keep the large annotation action family outside the shared root facade. */
-export function createTimelineAnnotationActionFacade(
-	dependencies: TimelineAnnotationActionFacadeDependencies,
-) {
-	const restricted = (name: string): RuntimeAction => dependencies.restricted(
-		'timelineAnnotations',
-		(...args) => action(dependencies.service, name)(...args),
-	);
+/** Keep annotation commands typed from their owner through their menu-facing API. */
+export function createTimelineAnnotationActionFacade(d: TimelineAnnotationActionFacadeDependencies) {
+	const { service, restricted } = d;
 	return Object.freeze({
-		createMarkerAtPlayhead: restricted('createMarker'),
-		createRegionFromSelection: restricted('createRegion'),
-		focus: restricted('focusAnnotation'),
-		clearFocus: restricted('clearFocus'),
-		select: restricted('selectAnnotation'),
-		selectMany: restricted('selectAnnotations'),
-		toggle: restricted('toggleAnnotation'),
-		rename: restricted('renameAnnotations'),
-		setColor: restricted('setAnnotationColor'),
-		move: restricted('moveAnnotations'),
-		resize: restricted('resizeAnnotation'),
-		convert: restricted('convertAnnotation'),
-		batch: dependencies.restricted('timelineAnnotations', (
-			annotationIds: unknown,
-			batchId: unknown = dependencies.createId('annotation-batch')
-		) => action(dependencies.service, 'setAnnotationBatch')(annotationIds, batchId)),
-		unbatch: dependencies.restricted('timelineAnnotations', (annotationIds: unknown) => (
-			action(dependencies.service, 'setAnnotationBatch')(annotationIds, null)
-		)),
-		remove: restricted('removeAnnotations'),
-		previous: restricted('navigatePreviousAnnotation'),
-		next: restricted('navigateNextAnnotation'),
-		regularInterval: dependencies.restricted('timelineAnnotations', dependencies.regularInterval),
+		createMarkerAtPlayhead: restricted('timelineAnnotations', service.createMarker),
+		createRegionFromSelection: restricted('timelineAnnotations', service.createRegion),
+		focus: restricted('timelineAnnotations', service.focusAnnotation),
+		clearFocus: restricted('timelineAnnotations', service.clearFocus),
+		select: restricted('timelineAnnotations', service.selectAnnotation),
+		selectMany: restricted('timelineAnnotations', service.selectAnnotations),
+		toggle: restricted('timelineAnnotations', service.toggleAnnotation),
+		rename: restricted('timelineAnnotations', service.renameAnnotations),
+		setColor: restricted('timelineAnnotations', service.setAnnotationColor),
+		move: restricted('timelineAnnotations', service.moveAnnotations),
+		resize: restricted('timelineAnnotations', service.resizeAnnotation),
+		convert: restricted('timelineAnnotations', service.convertAnnotation),
+		batch: restricted('timelineAnnotations', (
+			annotationIds: Parameters<Service['setAnnotationBatch']>[0], batchId: Parameters<Service['setAnnotationBatch']>[1] = d.createId('annotation-batch'),
+		) => service.setAnnotationBatch(annotationIds, batchId)),
+		unbatch: restricted('timelineAnnotations', (annotationIds: Parameters<Service['setAnnotationBatch']>[0]) => service.setAnnotationBatch(annotationIds, null)),
+		remove: restricted('timelineAnnotations', service.removeAnnotations),
+		previous: restricted('timelineAnnotations', service.navigatePreviousAnnotation),
+		next: restricted('timelineAnnotations', service.navigateNextAnnotation),
+		regularInterval: restricted('timelineAnnotations', d.regularInterval),
 	});
-}
-
-function action(service: Readonly<Record<string, unknown>>, name: string): RuntimeAction {
-	const candidate = service[name];
-	if (typeof candidate !== 'function') throw new TypeError(`Missing timeline annotation action: ${name}.`);
-	return (...args) => Reflect.apply(candidate, service, args);
 }

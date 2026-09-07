@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { MacroTransactionMetadata } from './macro-transaction-metadata.ts';
+
 /**
  * What a macro program is allowed to ask for.
  *
@@ -15,7 +17,7 @@
  * project that was open when it started.
  */
 
-import { createMacroCommandStep } from '../macro-command-steps.ts';
+import { createMacroCommandStep, normalizeMacroCommandStep, type MacroCommandStep } from '../macro-command-steps.ts';
 import type { MacroValue } from '../macro-script/protocol.ts';
 
 export interface MacroScriptTrack extends Readonly<Record<string, unknown>> {
@@ -28,7 +30,7 @@ export interface MacroScriptHostRuntime {
 	readonly runEffectMacro: (
 		request: Readonly<{ name: string; effects: readonly Readonly<Record<string, unknown>>[] }>,
 	) => Promise<unknown>;
-	readonly runMacroCommand: (step: Readonly<Record<string, unknown>>) => void;
+	readonly runMacroCommand: (step: ReturnType<typeof createMacroCommandStep>) => void;
 	readonly setExactSelection: (
 		startFrame: number, endFrame: number, details?: Readonly<Record<string, unknown>>,
 	) => unknown;
@@ -36,7 +38,7 @@ export interface MacroScriptHostRuntime {
 		id: string; name: string; effects: readonly Readonly<Record<string, unknown>>[];
 	}>[];
 	readonly beginMacroTransaction: () => Readonly<{
-		commit(command: Readonly<Record<string, unknown>>): unknown;
+		commit(command: MacroTransactionMetadata): unknown;
 		rollback(): unknown;
 	}>;
 }
@@ -191,16 +193,16 @@ function runCommand(
 
 /** A saved macro's steps, split the way the sequencer splits them. */
 function splitRuns(steps: readonly Readonly<Record<string, unknown>>[]): readonly Readonly<{
-	command?: Readonly<Record<string, unknown>>;
+	command?: MacroCommandStep;
 	effects: readonly Readonly<Record<string, unknown>>[];
 }>[] {
-	const runs: { command?: Readonly<Record<string, unknown>>; effects: Readonly<Record<string, unknown>>[] }[] = [];
+	const runs: { command?: MacroCommandStep; effects: Readonly<Record<string, unknown>>[] }[] = [];
 	let buffered: Readonly<Record<string, unknown>>[] = [];
 	for (const step of steps) {
 		if (step.kind === 'command') {
 			if (buffered.length) runs.push({ effects: buffered });
 			buffered = [];
-			runs.push({ command: step, effects: [] });
+			runs.push({ command: normalizeMacroCommandStep(step), effects: [] });
 			continue;
 		}
 		buffered.push(step);

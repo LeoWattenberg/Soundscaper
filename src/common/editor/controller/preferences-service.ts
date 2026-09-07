@@ -307,38 +307,38 @@ export function createEditorPreferencesService<Preferences extends EditorPrefere
 	}
 }
 
-export interface EditorPreferenceActionSource {
-	readonly setWorkspace: (workspaceId: string) => unknown;
-	readonly toggleToolbar: (toolbarId: string) => unknown;
-	readonly moveToolbar: (toolbarId: string, requestedIndex: unknown) => unknown;
-	readonly setToolbarButton: (buttonId: string, visible: unknown) => unknown;
-	readonly togglePanel: (panelId: string) => unknown;
-	readonly setPanel: (panelId: string, changes?: unknown) => unknown;
-	readonly setPanelVisibility: (panelId: string, visible: boolean) => unknown;
-	readonly setPanelFrameSize: (panelId: string, size: number) => unknown;
-	readonly setPanelDockExtent: (dock: WorkspacePanelDock, changes: WorkspacePanelDockExtent) => unknown;
+export interface EditorPreferenceActionSource<Result = unknown> {
+	readonly setWorkspace: (workspaceId: string) => Result;
+	readonly toggleToolbar: (toolbarId: string) => Result;
+	readonly moveToolbar: (toolbarId: string, requestedIndex: unknown) => Result;
+	readonly setToolbarButton: (buttonId: string, visible: boolean) => Result;
+	readonly togglePanel: (panelId: string) => Result;
+	readonly setPanel: (panelId: string, changes?: Record<string, unknown>) => Result;
+	readonly setPanelVisibility: (panelId: string, visible: boolean) => Result;
+	readonly setPanelFrameSize: (panelId: string, size: number) => Result;
+	readonly setPanelDockExtent: (dock: WorkspacePanelDock, changes: WorkspacePanelDockExtent) => Result;
 	readonly movePanel: {
-		(panelId: string, placement: WorkspacePanelPlacement): unknown;
-		(panelId: string, dock: unknown, requestedIndex: unknown): unknown;
+		(panelId: string, placement: WorkspacePanelPlacement): Result;
+		(panelId: string, dock: unknown, requestedIndex: unknown): Result;
 	};
-	readonly activatePanelTab: (panelId: string) => unknown;
-	readonly setShortcut: (actionId: string, bindings: unknown) => unknown;
-	readonly createWorkspace: (name: unknown, workspaceId: string) => unknown;
-	readonly updateWorkspace: (workspaceId: string, changes?: unknown) => unknown;
-	readonly deleteWorkspace: (workspaceId: string) => unknown;
+	readonly activatePanelTab: (panelId: string) => Result;
+	readonly setShortcut: (actionId: string, bindings: string | string[]) => Result;
+	readonly createWorkspace: (name: unknown, workspaceId: string) => Result;
+	readonly updateWorkspace: (workspaceId: string, changes?: unknown) => Result;
+	readonly deleteWorkspace: (workspaceId: string) => Result;
 }
 
 /**
  * Names the preference service surface the way editor actions expose it, so the composition
  * root binds one delegate factory instead of a wrapper per preference action.
  */
-export function createEditorPreferenceActionDelegates(
-	preferences: EditorPreferenceActionSource,
+export function createEditorPreferenceActionDelegates<Result>(
+	preferences: EditorPreferenceActionSource<Result>,
 	createId: (prefix: string) => string,
 ) {
-	function movePanelPreference(panelId: string, placement: WorkspacePanelPlacement): unknown;
-	function movePanelPreference(panelId: string, dock: unknown, requestedIndex: unknown): unknown;
-	function movePanelPreference(panelId: string, placementOrDock: unknown, requestedIndex?: unknown): unknown {
+	function movePanelPreference(panelId: string, placement: WorkspacePanelPlacement): Result;
+	function movePanelPreference(panelId: string, dock: unknown, requestedIndex: unknown): Result;
+	function movePanelPreference(panelId: string, placementOrDock: unknown, requestedIndex?: unknown): Result {
 		return placementOrDock !== null && typeof placementOrDock === 'object'
 			? preferences.movePanel(panelId, placementOrDock as WorkspacePanelPlacement)
 			: preferences.movePanel(panelId, placementOrDock, requestedIndex);
@@ -347,15 +347,15 @@ export function createEditorPreferenceActionDelegates(
 		setWorkspacePreference: (workspaceId: string) => preferences.setWorkspace(workspaceId),
 		toggleToolbarPreference: (toolbarId: string) => preferences.toggleToolbar(toolbarId),
 		moveToolbarPreference: (toolbarId: string, requestedIndex: unknown) => preferences.moveToolbar(toolbarId, requestedIndex),
-		setToolbarButtonPreference: (buttonId: string, visible: unknown) => preferences.setToolbarButton(buttonId, visible),
+		setToolbarButtonPreference: (buttonId: string, visible: boolean) => preferences.setToolbarButton(buttonId, visible),
 		togglePanelPreference: (panelId: string) => preferences.togglePanel(panelId),
-		setPanelPreference: (panelId: string, changes: unknown = {}) => preferences.setPanel(panelId, changes),
+		setPanelPreference: (panelId: string, changes: Record<string, unknown> = {}) => preferences.setPanel(panelId, changes),
 		setPanelVisibilityPreference: (panelId: string, visible: boolean) => preferences.setPanelVisibility(panelId, visible),
 		setPanelFrameSizePreference: (panelId: string, size: number) => preferences.setPanelFrameSize(panelId, size),
 		setPanelDockExtentPreference: (dock: WorkspacePanelDock, changes: WorkspacePanelDockExtent) => preferences.setPanelDockExtent(dock, changes),
 		movePanelPreference,
 		activatePanelTabPreference: (panelId: string) => preferences.activatePanelTab(panelId),
-		setShortcutPreference: (actionId: string, bindings: unknown) => preferences.setShortcut(actionId, bindings),
+		setShortcutPreference: (actionId: string, bindings: string | string[]) => preferences.setShortcut(actionId, bindings),
 		createWorkspacePreference: (name: unknown, workspaceId: string = createId('workspace')) => preferences.createWorkspace(name, workspaceId),
 		updateWorkspacePreference: (workspaceId: string, changes: unknown = {}) => preferences.updateWorkspace(workspaceId, changes),
 		deleteWorkspacePreference: (workspaceId: string) => preferences.deleteWorkspace(workspaceId),

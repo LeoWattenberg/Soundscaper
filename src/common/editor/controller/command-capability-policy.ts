@@ -34,7 +34,7 @@ const MAXIMUM_CAPABILITY_INSPECTION_NODES = 100_000;
  * construct protocol commands directly instead of invoking a feature action.
  */
 export function assertEditorCommandCapabilities(
-	command: AudioEditorCommand | null | undefined,
+	command: unknown,
 	capabilities: EditorCommandCapabilities,
 	productName: string,
 ): void {

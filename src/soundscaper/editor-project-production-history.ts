@@ -142,7 +142,7 @@ export function redoSoundscaperProductionCommand(
 export function collapseSoundscaperProductionHistory(
 	history: SoundscaperProductionHistoryState | unknown,
 	depth: number,
-	command: AudioEditorCommand,
+	command: unknown,
 	revision: SoundscaperProductionHistoryRevision,
 ): SoundscaperProductionHistoryState {
 	return asProduction(collapseEditorProjectHistory(history, depth, command, mechanics(revision)));

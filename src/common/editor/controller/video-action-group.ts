@@ -3,7 +3,6 @@
 import type {
 	EditorActionRuntime,
 	RestrictToCapability,
-	RuntimeValue,
 } from './action-facade-runtime.ts';
 import { createVideoTrimActionFacade } from './video-trim-action-facade.ts';
 
@@ -17,7 +16,7 @@ import { createVideoTrimActionFacade } from './video-trim-action-facade.ts';
 export function createVideoActionGroup(
 	scope: EditorActionRuntime,
 	restricted: RestrictToCapability,
-): RuntimeValue {
+) {
 	const {
 		addVideoClipEffect, beginVideoEffectGesture, bypassVideoClipEffect, cancelVideoEffectGesture, capabilities,
 		commit, commitVideoEffectGesture, copy, createStableId, exportVideo, getClipVisualData,
@@ -27,12 +26,12 @@ export function createVideoActionGroup(
 		updateVideoClipEffect, videoEditService, videoNavigationService, videoSourceReprobeService,
 		videoTrimServices,
 	} = scope;
-	const videoNavigationMessage = (template: RuntimeValue, values: Readonly<Record<string, RuntimeValue>>) => (
+	const videoNavigationMessage = (template: unknown, values: Readonly<Record<string, unknown>>) => (
 		Object.entries(values).reduce((message, [key, value]) => (
 			message.replace(`{${key}}`, String(value))
 		), String(template))
 	);
-	const reportVideoShuttle = (operation: RuntimeValue) => {
+	const reportVideoShuttle = (operation: typeof videoNavigationService.shuttleStop) => {
 		const view = operation();
 		const timecode = sequenceTimingService.label(view.positionFrame, view.sequenceId);
 		const message = view.rate === 0
@@ -86,44 +85,40 @@ export function createVideoActionGroup(
 			cancel: restricted('videoEffects', cancelVideoEffectGesture),
 		}),
 		// Three-point editing from the Project Bin into the targeted lanes.
-		targets: (sequenceId: RuntimeValue) => videoEditService.targets(sequenceId),
-		toggleTarget: (trackId: RuntimeValue, sequenceId: RuntimeValue) => (
-			videoEditService.toggleTarget(trackId, sequenceId)
-		),
+		targets: (...args: Parameters<typeof videoEditService.targets>) => videoEditService.targets(...args),
+		toggleTarget: (...args: Parameters<typeof videoEditService.toggleTarget>) => videoEditService.toggleTarget(...args),
 		clearTargets: () => videoEditService.clearTargets(),
-		insert: (request: RuntimeValue) => videoEditService.insert(request),
-		overwrite: (request: RuntimeValue) => videoEditService.overwrite(request),
+		insert: (...args: Parameters<typeof videoEditService.insert>) => videoEditService.insert(...args),
+		overwrite: (...args: Parameters<typeof videoEditService.overwrite>) => videoEditService.overwrite(...args),
 		// Replace and match-frame are both defined against the frame under the
 		// program playhead.
-		replace: (request: RuntimeValue) => videoEditService.replace(request),
-		matchFrame: (request: RuntimeValue) => videoEditService.matchFrame(request),
-		sourceTimecodeAtSample: (sample: RuntimeValue, sequenceId: RuntimeValue) => videoEditService.sourceTimecodeAtSample(sample, sequenceId),
+		replace: (...args: Parameters<typeof videoEditService.replace>) => videoEditService.replace(...args),
+		matchFrame: (...args: Parameters<typeof videoEditService.matchFrame>) => videoEditService.matchFrame(...args),
+		sourceTimecodeAtSample: (...args: Parameters<typeof videoEditService.sourceTimecodeAtSample>) => videoEditService.sourceTimecodeAtSample(...args),
 		// One video source on its own frame grid supplies marks without persistence.
 		sourceMonitor: Object.freeze({
 			view: () => sourceMonitorService.view(),
-			open: (binItemId: RuntimeValue, options: RuntimeValue) => (
-				sourceMonitorService.open(binItemId, options)
-			),
+			open: (...args: Parameters<typeof sourceMonitorService.open>) => sourceMonitorService.open(...args),
 			close: () => sourceMonitorService.close(),
-			seek: (frame: RuntimeValue) => sourceMonitorService.seek(frame),
-			step: (frameDelta: RuntimeValue) => sourceMonitorService.step(frameDelta),
-			markIn: (frame: RuntimeValue) => sourceMonitorService.markIn(frame),
-			markOut: (frame: RuntimeValue) => sourceMonitorService.markOut(frame),
+			seek: (...args: Parameters<typeof sourceMonitorService.seek>) => sourceMonitorService.seek(...args),
+			step: (...args: Parameters<typeof sourceMonitorService.step>) => sourceMonitorService.step(...args),
+			markIn: (...args: Parameters<typeof sourceMonitorService.markIn>) => sourceMonitorService.markIn(...args),
+			markOut: (...args: Parameters<typeof sourceMonitorService.markOut>) => sourceMonitorService.markOut(...args),
 			clearMarks: () => sourceMonitorService.clearMarks(),
 		}),
 		// Re-read an already-imported source: the same bytes, probed again by
 		// the current build, with every edit cut against the old grid conformed.
-		reprobeSource: (sourceId: RuntimeValue, options: RuntimeValue) => (
+		reprobeSource: (sourceId: Parameters<typeof videoSourceReprobeService.reprobe>[0], options?: Parameters<typeof videoSourceReprobeService.reprobe>[1]) => (
 			taskProgress?.run
 				? taskProgress.run('probe', copy.probingVideoSource, () => videoSourceReprobeService.reprobe(sourceId, options))
 				: videoSourceReprobeService.reprobe(sourceId, options)
 		),
-		link: (videoClipId: RuntimeValue, audioClipId: RuntimeValue) => commit({
+		link: (videoClipId: string, audioClipId: string) => commit({
 			type: 'clip/link-av',
 			videoClipId,
 			audioClipId,
 			avLinkId: createStableId('av-link'),
 		}),
-		unlink: (clipId: RuntimeValue) => commit({ type: 'clip/unlink-av', clipId }),
+		unlink: (clipId: string) => commit({ type: 'clip/unlink-av', clipId }),
 	});
 }

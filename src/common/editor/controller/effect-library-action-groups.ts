@@ -9,46 +9,34 @@ import { createMacroScriptHost } from './macro-script-host.ts';
 import { createMacroScriptLibraryService } from './macro-script-library-service.ts';
 import {
 	createEffectMacroLibraryService,
-	type EffectMacroLibraryServiceRuntime,
 } from './effect-macro-library-service.ts';
 
-type RuntimeAction = (...args: unknown[]) => unknown;
-type RestrictedAction = (capability: string, action: RuntimeAction) => RuntimeAction;
+import type { EditorActionFunctions } from './editor-action-functions.ts';
+import type { EditorActionResources } from './editor-action-resources.ts';
+import type { RestrictToCapability } from './action-facade-runtime.ts';
 
-export interface EffectLibraryActionScope {
-	readonly state: Readonly<Record<string, unknown>>;
-	readonly createStableId: (prefix: string) => string;
-	readonly persistSetting: RuntimeAction;
-	readonly publishDocumentSnapshot: () => void;
-	readonly handleError: (error: unknown) => void;
-	readonly listAudioEditorEffectPresets: RuntimeAction;
-	readonly applyEffectPreset: RuntimeAction;
-	readonly saveEffectPreset: RuntimeAction;
-	readonly currentAudacityEffectParams: RuntimeAction;
-	readonly deleteEffectPreset: RuntimeAction;
-	readonly importEffectPresets: RuntimeAction;
-	readonly exportEffectPreset: RuntimeAction;
-	readonly runEffectMacro: RuntimeAction;
-	readonly cancelEffectMacro: RuntimeAction;
-	readonly getProject: () => unknown;
-	readonly projectSampleRate: () => number;
-	readonly timelineDurationFrames: () => number;
-	readonly setExactSelection: (
-		startFrame: number, endFrame: number, details?: Readonly<Record<string, unknown>>,
-	) => unknown;
-	readonly beginMacroTransaction: () => Readonly<{
-		commit(command: Readonly<Record<string, unknown>>): unknown;
-		rollback(): unknown;
-	}>;
-	readonly copy: Readonly<Record<string, string>>;
-	readonly productId?: string;
-	readonly locale?: string;
-	readonly onMacroScriptLog?: (entry: Readonly<{
-		readonly level: 'info' | 'warn' | 'error'; readonly text: string; readonly at: number;
-	}>) => void;
-	readonly macroScriptStartedAt?: () => string;
+export type EffectLibraryActionScope = Pick<EditorActionFunctions,
+	 'createStableId'
+	| 'persistSetting'
+	| 'publishDocumentSnapshot'
+	| 'handleError'
+	| 'listAudioEditorEffectPresets'
+	| 'applyEffectPreset'
+	| 'saveEffectPreset'
+	| 'currentAudacityEffectParams'
+	| 'deleteEffectPreset'
+	| 'importEffectPresets'
+	| 'exportEffectPreset'
+	| 'runEffectMacro'
+	| 'cancelEffectMacro'
+	| 'getProject'
+	| 'projectSampleRate'
+	| 'timelineDurationFrames'
+	| 'setExactSelection'
+	| 'beginMacroTransaction'
+> & Pick<EditorActionResources, 'state' | 'copy' | 'productId' | 'locale' | 'onMacroScriptLog' | 'macroScriptStartedAt'> & {
 	readonly getEditorActions?: () => Readonly<Record<string, unknown>> | null;
-}
+};
 
 /**
  * The two saved-effect libraries an editor session accumulates: presets, which
@@ -59,18 +47,18 @@ export interface EffectLibraryActionScope {
  */
 export function createEffectPresetActions(
 	scope: EffectLibraryActionScope,
-	restricted: RestrictedAction,
+	restricted: RestrictToCapability,
 ) {
 	const { state } = scope;
 	return Object.freeze({
-		list: (effectType: unknown = state.audacityEffectType) => (
-			scope.listAudioEditorEffectPresets(state.effectPresets as never, effectType as never)
+		list: (effectType: string = state.audacityEffectType) => (
+			scope.listAudioEditorEffectPresets(state.effectPresets, effectType)
 		),
 		apply: restricted('audioEffects', scope.applyEffectPreset),
 		save: restricted('audioEffects', scope.saveEffectPreset),
-		saveAs: restricted('audioEffects', ((name: unknown, params: unknown = scope.currentAudacityEffectParams()) => (
-			scope.saveEffectPreset({ name, params } as never)
-		)) as RuntimeAction),
+		saveAs: restricted('audioEffects', ((name: string, params: Readonly<Record<string, unknown>> = scope.currentAudacityEffectParams()) => (
+			scope.saveEffectPreset({ name, params })
+		))),
 		delete: restricted('audioEffects', scope.deleteEffectPreset),
 		import: restricted('audioEffects', scope.importEffectPresets),
 		export: restricted('audioEffects', scope.exportEffectPreset),
@@ -80,7 +68,7 @@ export function createEffectPresetActions(
 /** The macro runner and the saved macro library behind the macro manager. */
 export function createEffectMacroActions(
 	scope: EffectLibraryActionScope,
-	restricted: RestrictedAction,
+	restricted: RestrictToCapability,
 ) {
 	const library = createEffectMacroLibraryService({
 		state: scope.state,
@@ -88,7 +76,7 @@ export function createEffectMacroActions(
 		persistSetting: scope.persistSetting,
 		publishDocumentSnapshot: scope.publishDocumentSnapshot,
 		handleError: scope.handleError,
-	} as unknown as EffectMacroLibraryServiceRuntime);
+	});
 	// The sequencer owns the order of a macro's steps; the effect runner keeps its
 	// job of turning one run of effects into audio, and the command service keeps
 	// Audacity's selection arithmetic.
@@ -96,15 +84,19 @@ export function createEffectMacroActions(
 	// groups are built while it is still being assembled.
 	let actions: Readonly<Record<string, unknown>> | null = null;
 	const commands = createMacroCommandService({
-		getProject: scope.getProject as () => never,
+		getProject: () => {
+			const project = scope.getProject();
+			if (!project) throw new Error('A project is required to run a macro.');
+			return project;
+		},
 		projectSampleRate: scope.projectSampleRate,
 		timelineDurationFrames: scope.timelineDurationFrames,
 		setExactSelection: scope.setExactSelection,
 		getActions: () => actions ?? scope.getEditorActions?.() ?? null,
 	});
 	const program = createMacroProgramService({
-		runEffectMacro: scope.runEffectMacro as never,
-		cancelEffectMacro: scope.cancelEffectMacro as unknown as () => boolean,
+		runEffectMacro: scope.runEffectMacro,
+		cancelEffectMacro: scope.cancelEffectMacro,
 		runMacroCommand: commands.runMacroCommand,
 		beginMacroTransaction: scope.beginMacroTransaction,
 		isRunnableMacroCommand,
@@ -116,23 +108,23 @@ export function createEffectMacroActions(
 		persistSetting: scope.persistSetting,
 		publishDocumentSnapshot: scope.publishDocumentSnapshot,
 		handleError: scope.handleError,
-	} as never);
+	});
 	const scriptHost = createMacroScriptHost({
-		getProject: scope.getProject as () => never,
+		getProject: scope.getProject,
 		projectSampleRate: scope.projectSampleRate,
-		runEffectMacro: scope.runEffectMacro as never,
-		runMacroCommand: commands.runMacroCommand as never,
+		runEffectMacro: scope.runEffectMacro,
+		runMacroCommand: commands.runMacroCommand,
 		setExactSelection: scope.setExactSelection,
-		listSavedMacros: () => library.list() as never,
+		listSavedMacros: () => library.list(),
 		beginMacroTransaction: scope.beginMacroTransaction,
 	});
 	let sandbox: Sandbox | null = null;
 	const group = Object.freeze({
-		run: restricted('audioMacros', program.runMacroProgram as unknown as RuntimeAction),
-		cancel: restricted('audioMacros', ((...args: unknown[]) => {
+		run: restricted('audioMacros', program.runMacroProgram),
+		cancel: restricted('audioMacros', (() => {
 			sandbox?.cancelMacroSandbox();
-			return (program.cancelMacroProgram as (...values: unknown[]) => unknown)(...args);
-		}) as RuntimeAction),
+			return program.cancelMacroProgram();
+		})),
 		runScript: restricted('audioMacros', (async (request: unknown) => {
 			const { name, source } = readScriptRequest(request, scope);
 			// The gate is on the bytes, not on the record the manager happens to hold,
@@ -163,22 +155,22 @@ export function createEffectMacroActions(
 					}
 				},
 			});
-		}) as RuntimeAction),
+		})),
 		scripts: Object.freeze({
 			list: restricted('audioMacros', () => scripts.list()),
-			save: restricted('audioMacros', ((script: unknown) => scripts.save(script)) as RuntimeAction),
-			delete: restricted('audioMacros', ((scriptId: unknown) => scripts.delete(scriptId as string)) as RuntimeAction),
+			save: restricted('audioMacros', ((script: unknown) => scripts.save(script))),
+			delete: restricted('audioMacros', ((scriptId: string) => scripts.delete(scriptId))),
 			// Importing stores text and nothing else; enabling it is a separate act.
-			import: restricted('audioMacros', ((text: unknown, origin?: unknown) => scripts.import(text, origin)) as RuntimeAction),
-			export: restricted('audioMacros', ((scriptId: unknown) => scripts.export(scriptId as string)) as RuntimeAction),
-			trust: restricted('audioMacros', ((scriptId: unknown) => scripts.trust(scriptId as string)) as RuntimeAction),
+			import: restricted('audioMacros', ((text: unknown, origin?: unknown) => scripts.import(text, origin))),
+			export: restricted('audioMacros', ((scriptId: string) => scripts.export(scriptId))),
+			trust: restricted('audioMacros', ((scriptId: string) => scripts.trust(scriptId))),
 			blocked: (source: unknown) => scripts.blocked(String(source ?? '')),
 			flush: () => scripts.flush(),
 		}),
 		library: Object.freeze({
 			list: restricted('audioMacros', () => library.list()),
-			save: restricted('audioMacros', ((macro: unknown) => library.save(macro)) as RuntimeAction),
-			delete: restricted('audioMacros', ((macroId: unknown) => library.delete(macroId as string)) as RuntimeAction),
+			save: restricted('audioMacros', ((macro: unknown) => library.save(macro))),
+			delete: restricted('audioMacros', ((macroId: string) => library.delete(macroId))),
 			flush: () => library.flush(),
 		}),
 		/** Lets the facade hand back the assembled tree these commands walk. */

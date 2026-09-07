@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { MacroTransactionMetadata } from './macro-transaction-metadata.ts';
+
 import type { AudioEditorClipboard, AudioEditorCommand } from '../commands/protocol.ts';
 import { applyEditorCommand } from '../commands.js';
 import {
@@ -123,7 +125,7 @@ export interface ControllerProjectRuntime {
 	readonly createHistory: (project: unknown) => ControllerRuntimeHistory;
 	readonly executeCommand: (
 		history: ControllerRuntimeHistory,
-		command: AudioEditorCommand,
+		command: unknown,
 		options?: ControllerRuntimeCommandOptions,
 	) => ControllerRuntimeHistory;
 	readonly applyCommand: (
@@ -141,7 +143,7 @@ export interface ControllerProjectRuntime {
 	readonly collapseHistory?: (
 		history: ControllerRuntimeHistory,
 		depth: number,
-		command: AudioEditorCommand,
+		command: MacroTransactionMetadata,
 	) => ControllerRuntimeHistory;
 	/** Put a failed macro's project back and drop what it committed. */
 	readonly rollbackHistory?: (

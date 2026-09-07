@@ -22,10 +22,9 @@ test('initial activation and later engine reapplies share the transient playback
 	assert.ok(taskOwner?.groups?.body, 'playback reapplies must have a replaceable task owner');
 	assert.match(taskOwner.groups.body, /lifetime.*projectForPlayback: dependencies\.playbackProjects\.projectForPlayback/su);
 	assert.match(taskOwner.groups.body, /ensureProjectSourcesAvailable.*prepareRequiredProjectSources.*sourceBuffers.*sourceChunkProviders.*engine/su);
-	const applyOwner = app.match(/function applyProjectToPlaybackEngine\(snapshot\) \{(?<body>[\s\S]*?)\n\t\}/u);
-	assert.ok(applyOwner?.groups?.body, 'the playback reapply owner must remain a focused function');
-	assert.match(applyOwner.groups.body, /sources\.playbackApply\.apply\(snapshot\)/u);
-	assert.doesNotMatch(applyOwner.groups.body, /engine\.applyProject/u);
+	assert.match(app,
+		/const \{ apply: applyProjectToPlaybackEngine \} = deferAsyncControllerMethods\(\(\) => sources\.playbackApply, \['apply'\]\);/u,
+		'the public playback reapply must defer to its replaceable task owner');
 	assert.match(app, /loadProjectSources, prepareRequiredProjectSources: sources\.sourceLifecycle\.prepareRequiredProjectSources/iu);
 	assert.match(app, /loadEngineProject:.*preparedSources\?\.sourceBuffers.*chunkSources: preparedSources\?\.chunkSources \?\? sourceChunkProviders/su);
 });

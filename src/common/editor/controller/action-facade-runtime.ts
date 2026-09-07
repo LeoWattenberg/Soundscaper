@@ -1,12 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AnalysisActions } from './analysis-composition.ts';
-
-// User command payloads still cross legacy JavaScript handlers. The assembly
-// itself is closed: there is no arbitrary-name index signature on its scope.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type RuntimeValue = any;
-export type RuntimeAction = (...args: RuntimeValue[]) => RuntimeValue;
+import type { EditorActionFunctions } from './editor-action-functions.ts';
+import type { EditorActionResources } from './editor-action-resources.ts';
+export type { EditorActionResources } from './editor-action-resources.ts';
 
 export const EDITOR_ACTION_FUNCTION_NAMES = [
 	'activatePanelTabPreference',
@@ -247,48 +243,13 @@ export const EDITOR_ACTION_FUNCTION_NAMES = [
 	'updateVideoClipEffect',
 	'updateWorkspacePreference',
 	'updateZoom',
-] as const;
+] as const satisfies readonly (keyof EditorActionFunctions)[];
 
-export interface EditorActionResources {
-	readonly AUDIO_EDITOR_DEFAULT_SHORTCUTS: RuntimeValue;
-	readonly analysisService: AnalysisActions;
-	readonly audioWarpService: RuntimeValue;
-	readonly capabilities: RuntimeValue;
-	readonly copy: RuntimeValue;
-	readonly effectSelectionService: RuntimeValue;
-	readonly engine: RuntimeValue;
-	readonly ffmpeg: RuntimeValue;
-	readonly fileService: RuntimeValue;
-	readonly product: RuntimeValue;
-	readonly regularIntervalAnnotationController: RuntimeValue;
-	readonly selectionViewService: RuntimeValue;
-	readonly sequenceTimingService: RuntimeValue;
-	readonly soundActivationPolicyService: RuntimeValue;
-	readonly sourceMonitorService: RuntimeValue;
-	readonly state: RuntimeValue;
-	readonly store: RuntimeValue;
-	readonly takeCompService: RuntimeValue;
-	readonly taskProgress: RuntimeValue;
-	readonly timelineAnnotationService: RuntimeValue;
-	readonly trackFolderService: RuntimeValue;
-	readonly trackStructuralOperations: RuntimeValue;
-	readonly videoEditService: RuntimeValue;
-	readonly videoNavigationService: RuntimeValue;
-	readonly videoSourceReprobeService: RuntimeValue;
-	readonly videoTrimServices: RuntimeValue;
-	readonly framescaperCaptureActions?: RuntimeValue;
-	readonly framescaperWebVcrActions?: RuntimeValue;
-	readonly productSequenceActions?: unknown;
-	readonly productId?: string;
-	readonly locale?: string;
-	readonly macroScriptStartedAt?: () => string;
-	readonly onMacroScriptLog?: RuntimeAction;
-}
 
-export type EditorActionRuntime = EditorActionResources & Readonly<
-	Record<typeof EDITOR_ACTION_FUNCTION_NAMES[number], RuntimeAction>
->;
-export type RestrictToCapability = (capability: string, action: RuntimeAction) => RuntimeAction;
+export type EditorActionRuntime = EditorActionResources & EditorActionFunctions;
+export type RestrictToCapability = <Args extends unknown[], Result>(
+	capability: string, action: (...args: Args) => Result,
+) => (...args: Args) => Result;
 
 /** Fail at assembly, with the missing port's name, rather than on a later menu action. */
 export function assertEditorActionFunctions(scope: EditorActionRuntime): void {

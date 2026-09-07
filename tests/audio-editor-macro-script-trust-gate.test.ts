@@ -54,7 +54,7 @@ function createMacroActions(): MacroScriptActions {
 		setExactSelection: () => undefined,
 		beginMacroTransaction: () => ({ commit: () => undefined, rollback: () => undefined }),
 	} as unknown as EffectLibraryActionScope,
-	(_capability: string, action: (...args: unknown[]) => unknown) => action,
+	(_capability, action) => action,
 	) as unknown as MacroScriptActions;
 }
 
