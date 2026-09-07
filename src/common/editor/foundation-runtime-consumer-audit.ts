@@ -244,6 +244,10 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 		reason: 'The command projection adapter explicitly converts between persisted authority and the runtime command surface.',
 	},
 	{
+		file: 'src/common/editor/command-project-view.ts',
+		reason: 'The command view owner constructs resolved timing and video sample-count aliases while preserving the remaining authored fields; persistence reconciliation belongs to project-command-projection.',
+	},
+	{
 		file: 'src/common/editor/project-foundation-validation.ts',
 		reason: 'Foundation validation intentionally resolves authoritative wire coordinates to prove bounds and derived equality.',
 	},

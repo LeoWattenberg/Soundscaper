@@ -1,9 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	brandRuntimeProjectProjection,
 	resolveRuntimeClipProjection,
-	resolveRuntimeProjectProjection,
 } from './runtime-clip-projection.ts';
 import {
 	isTimelineAnnotationProjectSchema,
@@ -40,22 +38,7 @@ interface ConformedBoundaryDelta {
 
 type ConformedOperationDeltas = Map<number, ConformedBoundaryDelta>;
 
-/** Supply command implementations with legacy-shaped, transient resolved coordinates. */
-export function projectForCommand(project: DataRecord): DataRecord {
-	const runtime = resolveRuntimeProjectProjection(project);
-	const projected = {
-		...runtime,
-		sources: project.sources instanceof Array ? project.sources.map((value) => {
-			const source = record(value, 'source');
-			return source.kind === 'video' ? { ...source, frameCount: source.sampleFrameCount } : source;
-		}) : [],
-		projectBin: {
-			...record(project.projectBin, 'project.projectBin'),
-			clips: projectBinClips(project).map((clip) => resolveRuntimeClipProjection(project, clip)),
-		},
-	};
-	return brandRuntimeProjectProjection(projected);
-}
+export { projectForCommand } from './command-project-view.ts';
 
 /** Convert a command's resolved-sample mutations back to one authoritative domain per coordinate. */
 export function reconcileProjectCommandResult(draft: DataRecord, persistedBase: DataRecord): void {

@@ -9,9 +9,9 @@ import {
 	isSourceCharacteristicsProjectSchema,
 } from './project-schema-version.ts';
 import {
-	projectForCommand,
 	reconcileProjectCommandResult,
 } from './project-command-projection.ts';
+import { projectForCommand } from './command-project-view.ts';
 import { reconcileVideoKeyframeCarriersAfterCommand } from './commands/video-keyframe-command-reconcile.ts';
 import { validateAudioEditorProjectV17 } from './project-v17-validation.ts';
 import { reconcileVideoSourceCharacteristicsV14 } from './source-characteristics-v14.ts';
@@ -34,9 +34,9 @@ export function projectForRuntimeConsumers<Project extends RuntimeClipProject>(p
 }
 
 /** Project the active authoring generation into the transient shape command consumers expect. */
-export function projectForCommandConsumers<Project extends DataRecord | null | undefined>(project: Project): Project {
+export function projectForCommandConsumers<Project extends DataRecord | null | undefined>(project: Project) {
 	return isFoundationProjectAuthority(project)
-		? projectForCommand(project) as Project
+		? projectForCommand(project)
 		: project;
 }
 

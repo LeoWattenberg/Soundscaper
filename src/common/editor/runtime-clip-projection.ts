@@ -76,6 +76,19 @@ export type ResolvedRuntimeClip<Clip extends RuntimePersistedClip> = {
 	[Key in keyof Clip as Key extends ResolvedCoordinateKey ? never : Key]: Clip[Key];
 } & RuntimeClipProjection;
 
+type ResolvedRuntimeLabel<Label> = Label extends { readonly anchor: 'musical' } ? {
+	[Key in keyof Label as Key extends 'startFrame' | 'endFrame' | 'coordinateDomain' ? never : Key]: Label[Key];
+} & Readonly<{ startFrame: number; endFrame: number; coordinateDomain: 'resolved-samples' }> : Label;
+
+/** Only musical label coordinates change; media track ownership remains intact. */
+export type ResolvedRuntimeTrack<Track> = Track extends { readonly type: 'label'; readonly labels: readonly (infer Label)[] } ? {
+	[Key in keyof Track as Key extends 'labels' ? never : Key]: Track[Key];
+} & Readonly<{ labels: readonly ResolvedRuntimeLabel<Label>[] }> : Track;
+
+type ResolvedRuntimeBin<Bin extends RuntimeClipProject['projectBin']> = {
+	[Key in keyof NonNullable<Bin> as Key extends 'clips' ? never : Key]: NonNullable<Bin>[Key];
+} & Readonly<{ clips: readonly ResolvedRuntimeClip<NonNullable<NonNullable<Bin>['clips']>[number]>[] }>;
+
 // Remap each declared key: Omit's Exclude<keyof Project, ...> erases named
 // members when the document also carries a string index signature.
 export type RuntimeProjectProjection<Project extends RuntimeClipProject> = {
@@ -83,8 +96,8 @@ export type RuntimeProjectProjection<Project extends RuntimeClipProject> = {
 		? never : Key]: Project[Key];
 } & Readonly<{
 	clips: readonly ResolvedRuntimeClip<NonNullable<Project['clips']>[number]>[];
-	tracks: readonly Readonly<Record<string, unknown>>[];
-	projectBin: Readonly<Record<string, unknown>> & { readonly clips: readonly RuntimeClipProjection[] };
+	tracks: readonly ResolvedRuntimeTrack<NonNullable<Project['tracks']>[number] & object>[];
+	projectBin: ResolvedRuntimeBin<Project['projectBin']>;
 	timelineAnnotations?: readonly RuntimeTimelineAnnotationProjection[];
 	runtimeProjectionVersion: typeof RUNTIME_CLIP_PROJECTION_VERSION;
 }>;

@@ -3,7 +3,7 @@
 import {
 	preparePersistedProjectCommandDraft,
 } from '../common/editor/project-current-runtime.ts';
-import { projectForCommand } from '../common/editor/project-command-projection.ts';
+import { projectForCommand } from '../common/editor/command-project-view.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import { normalizeVideoProxyAttachmentV18 } from '../common/editor/video-proxy-attachment-v18.ts';
 import {
@@ -115,13 +115,8 @@ export function framescaperProjectForCommandConsumersSequence(
 ): FramescaperProjectRuntimeFoundationV17 {
 	assertFramescaperProjectSequenceProfile(profile);
 	validateFramescaperProjectSequence(profile, project);
-	const foundation: Record<string, unknown> = {
-		...(project as FramescaperProjectSequence),
-		schemaVersion: 17,
-	};
-	delete foundation.schemaFamily;
-	const projection = projectForCommand(foundation);
-	return projection as FramescaperProjectRuntimeFoundationV17;
+	const { schemaFamily: _schemaFamily, ...body } = project as FramescaperProjectSequence;
+	return projectForCommand({ ...body, schemaVersion: 17 as const });
 }
 
 /** Reconcile one command draft while retaining exact source attachment authority. */
