@@ -37,6 +37,13 @@ English ones. Deleting the directory withdraws the language again.
 `npm run docs:translate:handbook -- --locale fr` and `npm run docs:translate:check`
 are the same commands.
 
+A page is sent to the model in chunks of about 6000 characters, and a chunk that
+outruns the request timeout is not retried smaller: the page is named as skipped
+and the run carries on. If a language skips many pages that way, give the model
+more time or less text at once - `OLLAMA_DOCS_TIMEOUT_MS=300000` or
+`OLLAMA_DOCS_CHUNK_CHARS=3000` - and run the command again; everything already
+written is kept.
+
 Translate one page on its own:
 
 ```sh
