@@ -237,6 +237,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		isInactive: () => state.disposed,
 		onWarning: (error) => bindings.handleError(error),
 	});
+	const persistSetting = settingPersistence.persist;
 	const recordingCapturePool = options.recordingCapturePool || createRecordingCapturePool({
 		requestHardwareInput: (captureOptions) => requestHardwareInput({
 			...captureOptions,
@@ -671,8 +672,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function publishDocumentSnapshot({ force = false } = {}) { documentChannel.publish({ force }); }
 	function publishTelemetrySnapshot() { telemetryChannel.publish(); }
 	async function reloadVideoSourceVisual(sourceId) { const source = findSource(documentState.project, sourceId); if (!source || source.kind !== 'video') throw new ReferenceError(`Video source ${String(sourceId)} is missing.`); await bindings.revokeVideoVisual(source.id); return bindings.activateVideoSource(source); }
-
-	async function persistSetting(key, value, { policy = 'best-effort' } = {}) { return settingPersistence.persist(key, value, { policy }); }
 
 	function pauseLoudnessMeasurement(kind = 'playback') { return microphoneMeterService.pauseLoudnessMeasurement(kind); }
 	function continueLoudnessMeasurement(kind = 'playback') { return microphoneMeterService.continueLoudnessMeasurement(kind); }
