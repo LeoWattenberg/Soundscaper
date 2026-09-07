@@ -35,7 +35,7 @@ Two languages are written and reviewed for this editor directly. The rest are ma
 | Nederlands | `nl` | `/nl/` | Left to right | Machine translated, with Audacity's reviewed strings |
 | Polski | `pl` | `/pl/` | Left to right | Machine translated, with Audacity's reviewed strings |
 | Português (Brasil) | `pt-BR` | `/pt-BR/` | Left to right | Machine translated, with Audacity's reviewed strings |
-| Português (Portugal) | `pt-PT` | `/pt-PT/` | Left to right | Audacity's reviewed strings over English |
+| Português (Portugal) | `pt-PT` | `/pt-PT/` | Left to right | Machine translated, with Audacity's reviewed strings |
 | Română | `ro` | `/ro/` | Left to right | Machine translated, with Audacity's reviewed strings |
 | Русский | `ru` | `/ru/` | Left to right | Machine translated, with Audacity's reviewed strings |
 | Türkçe | `tr` | `/tr/` | Left to right | Machine translated, with Audacity's reviewed strings |
