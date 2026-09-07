@@ -186,6 +186,17 @@ export class ChunkStreamPlaybackProcessor extends ProcessorBase {
 	}
 
 	#enqueue(message) {
+		if (this.ended || !this.queue) {
+			if (this.streamId && message.packetId != null) {
+				this.#post({
+					type: 'packet-consumed',
+					streamId: this.streamId,
+					packetId: message.packetId,
+					status: 'dropped-late',
+				});
+			}
+			return;
+		}
 		this.queue.enqueue(message);
 		this.#maybePrime();
 	}
