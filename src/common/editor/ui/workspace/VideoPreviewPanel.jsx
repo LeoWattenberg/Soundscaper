@@ -37,6 +37,7 @@ import {
 	shouldHideVideoPreviewIdentityFallback,
 } from './video-preview-fallback.ts';
 import { publishEvaluatedVideoPreviewFrame } from './video-preview-external-display.ts';
+import { createExactPreviewRenderCoordinator } from '../../controller/exact-preview-render-coordinator.ts';
 import { shouldRenderExactProductVideoPreview } from './video-preview-exact-render-policy.ts';
 import { bindFramescaperPreviewFreezeCapture } from './video-preview-freeze-capture.ts';
 import { resolveRegisteredVideoRetimePreview } from './video-preview-retime.ts';
@@ -66,7 +67,9 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 		transportState: 'stopped',
 	});
 	const animationFrameRef = useRef(0);
-	const exactRenderActiveRef = useRef(false);
+	const [exactRenders] = useState(() => createExactPreviewRenderCoordinator(() => {
+		if (compositorRef.current) requestProductVisualFrameRef.current();
+	}));
 	const requestProductVisualFrameRef = useRef(() => {});
 	const freezeCaptureProjectRef = useRef(null);
 	const freezeEvaluatedFrameRef = useRef(null);
@@ -225,6 +228,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	}, []);
 	const renderPreviewFrame = useCallback(function renderPreviewFrameCallback() {
 		animationFrameRef.current = 0;
+		if (exactRenders.deferWhileActive()) return;
 		const compositor = compositorRef.current;
 		const playhead = playheadRef.current;
 		let timelineFrame = playhead.positionFrame;
@@ -309,22 +313,14 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			const visualSession = visualSessionRef.current;
 			const productFrame = visualSession?.resolve(timelineFrame) ?? null;
 			if (shouldRenderExactProductVideoPreview(visualSession, playhead.transportState)) {
-				if (exactRenderActiveRef.current) return;
-				exactRenderActiveRef.current = true;
-				void visualSession.renderExact({
-					timelineSample: timelineFrame, mediaLayers: compositorLayersRef.current,
-				}).then((result) => {
-					if (visualSessionRef.current === visualSession) {
-						publishProductFrame(result.frame, result.layers, true, result.renderedEffectIds,
-							result.openFxDispositions, result.reportsOpenFxDegradation);
-					}
-				}).catch((error) => {
-					if (visualSessionRef.current === visualSession) failProductFrame(error);
-				}).finally(() => {
-					exactRenderActiveRef.current = false;
-					if (visualSessionRef.current !== visualSession && !animationFrameRef.current) {
-						animationFrameRef.current = requestAnimationFrame(renderPreviewFrameCallback);
-					}
+				void exactRenders.run({
+					render: () => visualSession.renderExact({
+						timelineSample: timelineFrame, mediaLayers: compositorLayersRef.current,
+					}),
+					isCurrent: () => visualSessionRef.current === visualSession && compositorRef.current === compositor,
+					publish: (result) => publishProductFrame(result.frame, result.layers, true, result.renderedEffectIds,
+						result.openFxDispositions, result.reportsOpenFxDegradation),
+					onError: failProductFrame,
 				});
 				return;
 			}
@@ -332,7 +328,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 				compositorLayersRef.current, productFrame,
 			), Boolean(visualSession));
 		} catch (error) { failProductFrame(error); }
-	}, [controller, project, updateCompositorState, updateOpenFxIssue, updateRenderIssue, updateVisualPreviewFrame,
+	}, [exactRenders, controller, project, updateCompositorState, updateOpenFxIssue, updateRenderIssue, updateVisualPreviewFrame,
 		videoEffectBypass, visualSessionRef]);
 	const requestPreviewFrame = useCallback(() => {
 		if (animationFrameRef.current) return;
