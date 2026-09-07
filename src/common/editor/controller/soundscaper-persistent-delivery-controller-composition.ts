@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { EditorProjectToken } from './lifecycle.ts';
+
 import type { DeliveryReport } from '../delivery-report.ts';
 import type { SoundscaperDeliveryProjectIdentityV1 } from '../soundscaper-delivery-contract-v1.ts';
 import {
@@ -31,8 +33,8 @@ export interface SoundscaperPersistentDeliveryControllerRuntime {
 	readonly exportService: PersistentExportService;
 	readonly getProject: () => Readonly<{ id?: unknown; revision?: unknown; title?: unknown }> | null | undefined;
 	readonly getSaveState: () => unknown;
-	readonly captureProjectGeneration: () => unknown;
-	readonly assertProjectGeneration: (token: unknown) => void;
+	readonly captureProjectGeneration: () => EditorProjectToken;
+	readonly assertProjectGeneration: (token: EditorProjectToken) => void;
 	readonly deliveryReport: () => DeliveryReport | null;
 	readonly cancelExport?: () => Awaitable<unknown>;
 	readonly publishDocumentSnapshot?: () => void;

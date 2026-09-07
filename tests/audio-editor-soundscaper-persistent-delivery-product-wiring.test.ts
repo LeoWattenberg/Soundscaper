@@ -3,13 +3,16 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { createDeliveryReport, sealDeliveryReport } from '../src/common/editor/delivery-report.ts';
 
 import {
 	bindSoundscaperPersistentDeliveryRuntime,
+	type SoundscaperPersistentDeliveryExportRuntime,
 } from '../src/common/editor/controller/soundscaper-persistent-delivery-runtime-binding.ts';
 
 test('the closed common export seam binds one immutable Soundscaper delivery runtime', () => {
-	let received: unknown = null;
+	const received: SoundscaperPersistentDeliveryExportRuntime[] = [];
+	let workspaceReport: unknown = null;
 	const runtime = {
 		exportService: {
 			derivePersistentAudioDeliveryPlan: async () => ({ settings: {}, exportPlan: {} }),
@@ -21,14 +24,19 @@ test('the closed common export seam binds one immutable Soundscaper delivery run
 		getSaveState: () => 'saved',
 		captureProjectGeneration: () => Object.freeze({ generation: 1, projectId: 'project' }),
 		assertProjectGeneration: () => undefined,
-		deliveryReport: () => null,
+		deliveryReport: () => workspaceReport,
 		cancelExport: () => undefined,
 		publishDocumentSnapshot: () => undefined,
 	};
 	bindSoundscaperPersistentDeliveryRuntime({
-		bindSoundscaperPersistentDeliveryRuntime: (value: unknown) => { received = value; },
+		bindSoundscaperPersistentDeliveryRuntime: (value: SoundscaperPersistentDeliveryExportRuntime) => { received.push(value); },
 	}, runtime);
-	assert.ok(received && Object.isFrozen(received));
+	const admitted = received[0];
+	assert.ok(admitted && Object.isFrozen(admitted));
+	workspaceReport = { format: 'aup4', items: [], counts: {} };
+	assert.equal(admitted.deliveryReport(), null);
+	workspaceReport = sealDeliveryReport(createDeliveryReport({ format: 'wav' }));
+	assert.equal(admitted.deliveryReport(), workspaceReport);
 	assert.throws(() => bindSoundscaperPersistentDeliveryRuntime(Object.defineProperty({},
 		'bindSoundscaperPersistentDeliveryRuntime', { enumerable: true, get: () => () => undefined }), runtime),
 	/own function/iu);

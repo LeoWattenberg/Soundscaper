@@ -147,6 +147,39 @@ export function isDispositionReport(value: unknown): value is {
 	return Array.isArray(record.items) && Boolean(record.counts) && typeof record.counts === 'object';
 }
 
+/** Admit a sealed delivery artifact separately from the workspace's other reports. */
+export function isDeliveryReport(value: unknown): value is DeliveryReport {
+	if (!isRecord(value) || value.schemaVersion !== 1 || value.format !== 'delivery'
+		|| value.direction !== 'export' || value.draft === true) return false;
+	const subject = value.subject;
+	if (!isRecord(subject) || typeof subject.format !== 'string' || !subject.format
+		|| !(subject.container === null || typeof subject.container === 'string')
+		|| !(subject.codec === null || typeof subject.codec === 'string')
+		|| !(subject.lossless === null || typeof subject.lossless === 'boolean')) return false;
+	for (const number of [subject.sampleRate, subject.channelCount]) {
+		if (number !== null && (typeof number !== 'number' || !Number.isFinite(number))) return false;
+	}
+	const items = value.items;
+	const recordedCounts = value.counts;
+	if (!Array.isArray(items) || !items.every(isDeliveryItem) || !isRecord(recordedCounts)) return false;
+	const counts = { preserved: 0, converted: 0, missing: 0, omitted: 0 };
+	for (const item of items) counts[item.disposition] += 1;
+	return DELIVERY_DISPOSITIONS.every(disposition => recordedCounts[disposition] === counts[disposition]);
+}
+
+function isDeliveryItem(value: unknown): value is DeliveryReportItem {
+	return isRecord(value) && typeof value.code === 'string'
+		&& (value.severity === 'info' || value.severity === 'warning' || value.severity === 'error')
+		&& (value.disposition === 'preserved' || value.disposition === 'converted'
+			|| value.disposition === 'missing' || value.disposition === 'omitted')
+		&& isRecord(value.scope) && isRecord(value.data)
+		&& (value.message === undefined || typeof value.message === 'string');
+}
+
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+	return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
 function numberOrNull(value: unknown): number | null {
 	return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }

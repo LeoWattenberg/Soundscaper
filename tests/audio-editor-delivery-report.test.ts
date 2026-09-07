@@ -8,6 +8,7 @@ import {
 	addDeliveryReportItem,
 	createDeliveryReport,
 	sealDeliveryReport,
+	isDeliveryReport,
 } from '../src/common/editor/delivery-report.ts';
 import {
 	countUnreportedDeliveryConversions,
@@ -249,4 +250,18 @@ test('an AIFF delivery reports flattened regions and notes while writing its poi
 		false,
 		'WAV keeps region lengths and notes in its adtl chunks',
 	);
+});
+
+void test('persistent delivery admission accepts complete sealed reports and rejects unrelated workspace reports', () => {
+	const draft = createDeliveryReport({ format: 'wav', sampleRate: 48_000, channelCount: 2 });
+	addDeliveryReportItem(draft, { code: 'audio', disposition: 'preserved', severity: 'info' });
+	const report = sealDeliveryReport(draft);
+	assert.equal(isDeliveryReport(report), true);
+	assert.equal(isDeliveryReport(structuredClone(report)), true);
+	for (const value of [null, draft, { ...report, format: 'aup4' },
+		{ ...report, direction: 'import' }, { ...report, subject: { format: 'wav' } },
+		{ ...report, items: [{ code: 'invalid' }] },
+		{ ...report, counts: { ...report.counts, preserved: 99 } }]) {
+		assert.equal(isDeliveryReport(value), false);
+	}
 });

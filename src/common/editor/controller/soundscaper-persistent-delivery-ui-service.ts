@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { EditorProjectToken } from './lifecycle.ts';
+
 import type { DeliveryBatch, DeliveryBatchMember } from '../delivery-batch.ts';
 import {
 	createDeliveryBatchReport,
@@ -85,8 +87,8 @@ export interface SoundscaperPersistentDeliveryUiRuntime {
 		id?: unknown; revision?: unknown; title?: unknown;
 	}> | null | undefined;
 	readonly getSaveState: () => unknown;
-	readonly captureProjectGeneration: () => unknown;
-	readonly assertProjectGeneration: (token: unknown) => void;
+	readonly captureProjectGeneration: () => EditorProjectToken;
+	readonly assertProjectGeneration: (token: EditorProjectToken) => void;
 	readonly describeMember: (member: DeliveryBatchMember) => PromiseLike<Readonly<{
 		settings: Readonly<Record<string, unknown>>;
 		exportPlan: Readonly<Record<string, unknown>>;
