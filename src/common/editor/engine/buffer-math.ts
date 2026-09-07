@@ -158,23 +158,7 @@ export function assertPlayAtSpeedStaffPadMemorySafe(
 	), { code: 'PLAY_AT_SPEED_STAFFPAD_MEMORY_LIMIT' });
 }
 
-export type PlanarPcm = Readonly<{
-	channels: readonly (Float32Array | ArrayLike<number>)[];
-}>;
-
-export function audioBufferChannels(buffer: AudioBuffer | PlanarPcm): Float32Array[] {
-	if ('channels' in buffer && Array.isArray(buffer.channels)) {
-		return buffer.channels.map((channel) => channel instanceof Float32Array
-			? channel
-			: new Float32Array(channel));
-	}
-	const audioBuffer = buffer as AudioBuffer;
-	const channelCount = nonNegativeInteger(audioBuffer.numberOfChannels, 0);
-	if (!channelCount || typeof audioBuffer.getChannelData !== 'function') {
-		throw new TypeError('Pitch-preserving playback requires rendered PCM channels.');
-	}
-	return Array.from({ length: channelCount }, (_, channel) => audioBuffer.getChannelData(channel));
-}
+export { audioBufferChannels, type PlanarPcm } from '../rendered-audio-channels.ts';
 
 export interface PreparedSpeedPlayback {
 	readonly channels: readonly Float32Array[];

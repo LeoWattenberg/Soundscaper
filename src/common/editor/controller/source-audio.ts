@@ -435,9 +435,7 @@ export async function createAudioBuffer(
 	return buffer;
 }
 
-export function audioBufferChannels(buffer: AudioBufferLike): Float32Array[] {
-	return Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel));
-}
+export { audioBufferChannels, type RenderedAudio } from '../rendered-audio-channels.ts';
 
 export function scaleClipEnvelope(clip: ClipEnvelope, durationFrames: number): ClipEnvelopePoint[] {
 	const ratio = durationFrames / Math.max(1, clip.durationFrames);
