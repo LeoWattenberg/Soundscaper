@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	assertLocale,
 	assertModelMarkdown,
 	assertProtectionTokenParity,
 	assertStructuralParity,
@@ -93,18 +92,6 @@ test('protected Markdown is split into bounded paragraph-aware chunks', () => {
 	assert.ok(chunks.length > 2);
 	assert.ok(chunks.every((chunk) => chunk.length <= 180));
 	assert.equal(chunks.join(''), protectedDocument.markdown);
-});
-
-test('locale checks accept German prose and reject an English response', () => {
-	assert.doesNotThrow(() => assertLocale(
-		'Dies ist eine deutsche Anleitung für das Projekt und die Datei wird lokal gespeichert.',
-		'de',
-	));
-	assert.throws(
-		() => assertLocale('This is an English guide and the project is stored locally with the file.', 'de'),
-		/expected German/u,
-	);
-	assert.throws(() => assertLocale('Text', 'fr'), /unsupported locale/iu);
 });
 
 test('model Markdown validation rejects frontmatter, control bytes, and unclosed fences', () => {

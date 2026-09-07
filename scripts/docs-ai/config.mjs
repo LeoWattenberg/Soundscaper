@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 
+import { defaultModelForLocale } from '../lib/translation-models.mjs';
+
 const DEFAULT_MODEL = 'qwen3.8:latest';
 const DEFAULT_PORT = 11434;
 
@@ -105,11 +107,18 @@ export async function resolveOllamaUrl(options = {}) {
 	throw new Error(`Ollama is not reachable. Tried ${failures.join('; ')}. Set OLLAMA_URL explicitly if needed.`);
 }
 
+/**
+ * The model a role runs on. A translation names the locale it is for, and the
+ * default follows the language rather than the tool: Aya Expanse translates
+ * the languages it speaks and the general model covers the rest, exactly as
+ * the editor's own string catalogs are translated.
+ */
 export function resolveRoleModel(role, options = {}) {
 	if (options.override) return options.override;
 	const env = options.env ?? process.env;
 	const roleVariable = `OLLAMA_DOCS_${role.toUpperCase()}_MODEL`;
-	return env[roleVariable] ?? env.OLLAMA_MODEL ?? DEFAULT_MODEL;
+	const fallback = options.locale ? defaultModelForLocale(options.locale) : DEFAULT_MODEL;
+	return env[roleVariable] ?? env.OLLAMA_MODEL ?? fallback;
 }
 
 export function docsAiRuntimeOptions(options = {}) {

@@ -84,7 +84,7 @@ export async function runCli(argv, io = {}) {
 		if (result.status !== 'current') process.exitCode = 1;
 		return result;
 	}
-	const client = createOllamaClient({ role: 'translate', model: options.model, env });
+	const client = createOllamaClient({ role: 'translate', model: options.model, locale: targetLocale, env });
 	const runtime = docsAiRuntimeOptions({ env });
 	const result = await translateDocument({
 		sourcePath,

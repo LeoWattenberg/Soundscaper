@@ -21,6 +21,7 @@ export function createOllamaClient(options) {
 	const requestedModel = resolveRoleModel(options.role, {
 		env: options.env,
 		override: options.model,
+		locale: options.locale,
 	});
 	let endpointPromise;
 	let identityPromise;

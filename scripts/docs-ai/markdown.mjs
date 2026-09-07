@@ -207,27 +207,14 @@ export function assertStructuralParity(source, target) {
 	);
 }
 
-const LOCALE_WORDS = {
-	de: new Set(['aber', 'auf', 'das', 'dem', 'den', 'der', 'die', 'ein', 'eine', 'für', 'ist', 'mit', 'nicht', 'oder', 'sie', 'sind', 'und', 'werden', 'wird', 'zu']),
-	en: new Set(['and', 'are', 'for', 'from', 'is', 'not', 'or', 'the', 'this', 'to', 'with', 'will']),
-};
-
-function proseWords(markdown) {
+/**
+ * A page's prose with every protected structure removed.
+ *
+ * Code, links, URLs, identifiers and file extensions survive translation
+ * unchanged by construction, so counting them when deciding which language a
+ * page is written in would only dilute the answer.
+ */
+export function proseText(markdown) {
 	const protectedDocument = protectMarkdown(markdown);
-	return protectedDocument.markdown
-		.replace(TOKEN_PATTERN, ' ')
-		.toLocaleLowerCase('en')
-		.match(/\p{L}+/gu) ?? [];
-}
-
-export function assertLocale(markdown, locale) {
-	if (!Object.hasOwn(LOCALE_WORDS, locale)) throw new Error(`Unsupported locale: ${locale}. Supported locales are en and de.`);
-	const words = proseWords(markdown);
-	if (words.length < 8) return;
-	const expected = words.filter((word) => LOCALE_WORDS[locale].has(word)).length;
-	const competingLocale = locale === 'de' ? 'en' : 'de';
-	const competing = words.filter((word) => LOCALE_WORDS[competingLocale].has(word)).length;
-	if (competing >= 3 && competing > expected * 2) {
-		throw new Error(`Model response does not appear to use the expected ${locale === 'de' ? 'German' : 'English'} locale.`);
-	}
+	return protectedDocument.markdown.replace(TOKEN_PATTERN, ' ');
 }

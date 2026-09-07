@@ -5,8 +5,8 @@ import { dirname, resolve } from 'node:path';
 import { readCache, writeCache } from './cache.mjs';
 import { parseTranslatableFrontmatter, replaceTranslatableFrontmatter } from './frontmatter.mjs';
 import { asInvalidModelOutput, generateValidated } from './generation.mjs';
+import { assertDocumentationLocale, assertLocale } from './locale.mjs';
 import {
-	assertLocale,
 	assertModelMarkdown,
 	assertProtectionTokenParity,
 	assertStructuralParity,
@@ -306,7 +306,8 @@ async function translateFrontmatter({ frontmatter, sourceHash, targetLocale, cli
 
 export async function translateDocument(options) {
 	if (resolve(options.sourcePath) === resolve(options.targetPath)) throw new Error('Translation source and target paths must differ.');
-	if (options.targetLocale !== 'de') throw new Error('The future translation workflow currently supports target locale "de".');
+	const targetLocale = assertDocumentationLocale(options.targetLocale);
+	if (targetLocale === 'en') throw new Error('A translation target locale must differ from the English source.');
 	const source = await readFile(options.sourcePath, 'utf8');
 	const { frontmatter, body } = splitFrontmatter(source);
 	if (!frontmatter) throw new Error('A Starlight Markdown translation requires YAML frontmatter.');
@@ -317,7 +318,7 @@ export async function translateDocument(options) {
 	const translatedFrontmatter = await translateFrontmatter({
 		frontmatter,
 		sourceHash,
-		targetLocale: options.targetLocale,
+		targetLocale,
 		client: options.client,
 		modelIdentity,
 		cacheDirectory: options.cacheDirectory,
@@ -328,7 +329,7 @@ export async function translateDocument(options) {
 			chunk,
 			chunkIndex,
 			sourceHash,
-			targetLocale: options.targetLocale,
+			targetLocale,
 			client: options.client,
 			modelIdentity,
 			cacheDirectory: options.cacheDirectory,
@@ -336,7 +337,7 @@ export async function translateDocument(options) {
 	}
 	const restoredBody = restoreMarkdown(translatedChunks.join(''), protectedDocument.tokens);
 	const bareDocument = `${translatedFrontmatter}${restoredBody}`;
-	assertLocale(restoredBody, options.targetLocale);
+	assertLocale(restoredBody, targetLocale);
 	assertStructuralParity(`${translatedFrontmatter}${body}`, bareDocument);
 	const provenance = createProvenance({
 		operation: 'translate',
@@ -346,7 +347,7 @@ export async function translateDocument(options) {
 		source,
 		factPacketSha256: sourceHash,
 		sourceLocale: 'en',
-		targetLocale: options.targetLocale,
+		targetLocale,
 	});
 	const document = embedProvenance(bareDocument, provenance);
 	if (options.mode !== 'stdout') await writeDocument(options.targetPath, document);
