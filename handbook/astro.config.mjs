@@ -4,6 +4,7 @@ import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
 import rehypeAccessibleTables from './src/plugins/rehype-accessible-tables.mjs';
 import rehypeHandbookBase from './src/plugins/rehype-handbook-base.mjs';
+import rehypeHandbookHeadingIds from './src/plugins/rehype-handbook-heading-ids.mjs';
 import rehypeVerdictTables from './src/plugins/rehype-verdict-tables.mjs';
 import { starlightLocaleConfig } from '../scripts/lib/handbook-locales.mjs';
 import { handbookPlan } from '../scripts/lib/product-web-routing.mjs';
@@ -18,7 +19,9 @@ export default defineConfig({
 	base: handbookPlan('soundscaper').basePath,
 	output: 'static',
 	markdown: {
-		processor: unified({ rehypePlugins: [rehypeAccessibleTables, rehypeVerdictTables, rehypeHandbookBase] }),
+		processor: unified({
+			rehypePlugins: [rehypeHandbookHeadingIds, rehypeAccessibleTables, rehypeVerdictTables, rehypeHandbookBase],
+		}),
 	},
 	integrations: [
 		sitemap(),

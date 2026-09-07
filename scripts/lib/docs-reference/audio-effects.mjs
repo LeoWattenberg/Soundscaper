@@ -235,7 +235,10 @@ export function renderAudioEffectReference(context) {
 			selectionOnly.map((effect) => [effect.label, `\`${effect.type}\``, effect.selectionOnlyReason]),
 		),
 		'',
-		'## Parameters',
+		// A guide links to this section from thirty pages. An id derived from the
+		// heading text would change with the heading in every translation, so it is
+		// written out and travels through the translator as protected text.
+		'## Parameters {#parameters}',
 		'',
 		'Defaults and limits come from the same definitions the editor validates against, so a value outside a listed range is refused rather than clamped. Each parameter is named the way the editor names it.',
 		'',

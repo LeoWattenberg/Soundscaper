@@ -90,3 +90,84 @@ test('a frontmatter link that carries the base still has to name a page that exi
 	const report = await auditHandbookContent(root);
 	assert.deepEqual(report.errors, ['index.md: unresolved route /docs/guide/']);
 });
+
+/**
+ * A translated page is the English page's links in another language. Its body
+ * links stay base-free and language-free, because the build transform supplies
+ * both from the page's own path; its frontmatter links are data no transform
+ * ever sees, so they have to carry the language as well as the base or a hero
+ * action drops the reader back into English.
+ */
+test('a translation carries the language in its frontmatter links and not in its body links', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-handbook-locale-'));
+	context.after(async () => { await rm(root, { recursive: true, force: true }); });
+	await mkdir(join(root, 'fr', 'guides'), { recursive: true });
+	await mkdir(join(root, 'guides'), { recursive: true });
+	const page = (title, links) => [
+		'---', `title: ${title}`, 'description: A page.', 'hero:', '  actions:',
+		'    - text: Read', `      link: ${links.hero}`, '---', '', `[Guide](${links.body})`, '',
+	].join('\n');
+	await writeFile(join(root, 'guides', 'index.md'), page('Guides', { hero: '/docs/', body: '/' }));
+	await writeFile(join(root, 'index.md'), page('Home', { hero: '/docs/guides/', body: '/guides/' }));
+	await writeFile(join(root, 'fr', 'guides', 'index.md'), page('Guides', { hero: '/docs/fr/', body: '/' }));
+	await writeFile(join(root, 'fr', 'index.md'), page('Accueil', { hero: '/docs/guides/', body: '/docs/fr/guides/' }));
+
+	const report = await auditHandbookContent(root);
+
+	assert.deepEqual(report.locales, ['en', 'fr']);
+	assert.deepEqual(report.errors, [
+		'fr/index.md: body link /docs/fr/guides/ must omit the /docs base',
+		'fr/index.md: frontmatter link /docs/guides/ must carry the /docs/fr base',
+	]);
+});
+
+test('a translation of a page that no longer exists in English is reported', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-handbook-orphan-'));
+	context.after(async () => { await rm(root, { recursive: true, force: true }); });
+	await mkdir(join(root, 'fr'), { recursive: true });
+	const page = ['---', 'title: Page', 'description: A page.', '---', '', 'Body.', ''].join('\n');
+	await writeFile(join(root, 'index.md'), page);
+	await writeFile(join(root, 'fr', 'index.md'), page);
+	await writeFile(join(root, 'fr', 'retired.md'), page);
+
+	const report = await auditHandbookContent(root);
+
+	assert.deepEqual(report.errors, ['fr/retired.md: translates a page that no longer exists in English']);
+});
+
+/**
+ * Astro derives a heading's id from its text, and a translated heading has
+ * different text. A link's destination is protected during translation and
+ * keeps the English id, so an anchor into a translated heading names an id
+ * that no longer exists. Writing the id out is what survives the translation,
+ * so an anchor may only name a heading that does.
+ */
+test('an anchor may only name a heading whose id is written out', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-handbook-anchor-'));
+	context.after(async () => { await rm(root, { recursive: true, force: true }); });
+	await mkdir(join(root, 'fr'), { recursive: true });
+	await writeFile(join(root, 'reference.md'), [
+		'---', 'title: Reference', 'description: A page.', '---', '',
+		'## Parameters {#parameters}', '', 'Text.', '', '## Limits', '', 'Text.', '',
+	].join('\n'));
+	await writeFile(join(root, 'index.md'), [
+		'---', 'title: Home', 'description: A page.', '---', '',
+		'[Parameters](/reference/#parameters)', '', '[Limits](/reference/#limits)', '',
+		'[Missing](/reference/#nothing)', '',
+	].join('\n'));
+	await writeFile(join(root, 'fr', 'reference.md'), [
+		'---', 'title: Référence', 'description: Une page.', '---', '',
+		'## Paramètres {#parameters}', '', 'Texte.', '',
+	].join('\n'));
+	await writeFile(join(root, 'fr', 'index.md'), [
+		'---', 'title: Accueil', 'description: Une page.', '---', '',
+		'[Paramètres](/reference/#parameters)', '',
+	].join('\n'));
+
+	const report = await auditHandbookContent(root);
+
+	assert.deepEqual(report.errors, [
+		'index.md: anchor /reference/#limits names a heading whose id comes from its text; write it out as {#limits}',
+		'index.md: unresolved anchor /reference/#nothing',
+	]);
+});

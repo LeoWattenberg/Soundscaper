@@ -82,7 +82,7 @@ These effects cannot be a realtime insert, because each one needs more of the se
 | Sliding Stretch | `audacity-sliding-stretch` | This effect requires render-ahead selection processing. |
 | Truncate Silence | `audacity-truncate-silence` | The effect removes time and cannot be a one-in/one-out insert. |
 
-## Parameters
+## Parameters {#parameters}
 
 Defaults and limits come from the same definitions the editor validates against, so a value outside a listed range is refused rather than clamped. Each parameter is named the way the editor names it.
 

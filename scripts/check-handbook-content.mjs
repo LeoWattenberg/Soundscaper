@@ -5,5 +5,5 @@ if (report.errors.length) {
 	for (const error of report.errors) console.error(error);
 	process.exitCode = 1;
 } else {
-	console.log(`Checked ${report.pages} handbook pages.`);
+	console.log(`Checked ${report.pages} handbook pages in ${report.locales.length} language(s): ${report.locales.join(', ')}.`);
 }

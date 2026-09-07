@@ -317,7 +317,7 @@ An error the program does not catch ends the run, rolls the project back, and is
 shown in the pane with the line it came from. A program that will not compile is
 reported the same way before anything runs.
 
-## Effects a program can apply
+## Effects a program can apply {#effects-a-program-can-apply}
 
 These are the effect IDs `sound.effect` and `sound.effects` accept, with the
 parameter keys each one takes and their defaults. Ranges and units are in the
@@ -372,7 +372,7 @@ Two effects need something a program cannot supply. Noise Reduction needs a
 noise profile captured in the effect's own dialog, and Auto Duck needs a control
 track below the focused one.
 
-## Commands a program can run
+## Commands a program can run {#commands-a-program-can-run}
 
 `sound.command` accepts the Audacity macro command names below. They are the
 same names a step-list macro can hold, so a program and a step list have exactly
@@ -411,7 +411,7 @@ importing, exporting and preferences are absent because a program's reach is the
 one project that was open when it started. Commands that only open a dialog or
 change the view are absent because they change nothing in the project.
 
-## Sharing programs
+## Sharing programs {#sharing-programs}
 
 **Export program** writes the selected program as a `.soundscapemacro` file, and
 **Import program** reads one. The file is JSON rather than a bare `.js` file, so
