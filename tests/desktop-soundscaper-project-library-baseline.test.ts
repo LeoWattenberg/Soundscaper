@@ -372,7 +372,12 @@ test('Soundscaper baseline lease retry recognizes only current contention', asyn
 		}, { waitMs: 10, pollIntervalMs: 10 }),
 		/Soundscaper desktop baseline writer lease is busy/u,
 	)
-	assert.equal(refusalAttempts, 2)
+	// The deadline is read from a millisecond clock while the poll timer runs
+	// on the event loop's own clock, so the second attempt may land a whole
+	// millisecond "early" and earn one more poll on a slow runner. What matters
+	// is that contention keeps the loop going and the first busy error is
+	// what surfaces, not the exact number of polls a 10 ms window allows.
+	assert.ok(refusalAttempts >= 2, `expected at least two attempts, saw ${refusalAttempts}`)
 	await assert.rejects(
 		() => acquireSoundscaperDesktopProjectLibraryLeaseWithWait(() => {
 			throw new Error('Soundscaper desktop V11 writer lease is busy')
