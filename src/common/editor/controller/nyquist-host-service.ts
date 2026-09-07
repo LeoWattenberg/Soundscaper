@@ -140,7 +140,7 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 		request: NyquistHostRequest,
 	): NyquistHostProperties {
 		const persistedProject = runtime.getProject();
-		const project = projectForRuntimeConsumers(persistedProject) as NyquistHostProject;
+		const project = projectForRuntimeConsumers(persistedProject);
 		const sampleRate = runtime.projectSampleRate();
 		const selection = runtime.activeSelection();
 		const frequencyRange = selection?.frequencyRange;
@@ -283,7 +283,7 @@ function throwIfAborted(signal: AbortSignal | null): void {
 	throw signal.reason instanceof Error ? signal.reason : new DOMException('The operation was cancelled.', 'AbortError');
 }
 
-function projectTempo(project: NyquistHostProject, frame: number, sampleRate: number): number {
+function projectTempo(project: Pick<NyquistHostProject, 'tempo' | 'tempoMap'>, frame: number, sampleRate: number): number {
 	if (project.tempoMap?.events.length) {
 		const evaluationBeat = sampleFrameToBeat(frame, project.tempoMap, sampleRate);
 		let active = project.tempoMap.events[0];

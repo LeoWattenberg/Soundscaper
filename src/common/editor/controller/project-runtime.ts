@@ -174,9 +174,7 @@ const DEFAULT_RUNTIME = Object.freeze({
 	cloneProject,
 	loadProject: loadCurrentAudioEditorProject,
 	projectForCommandConsumers,
-	projectForRuntimeConsumers: (project: ControllerRuntimeProject) => (
-		projectForRuntimeConsumers(project as never) as ControllerRuntimeProject
-	),
+	projectForRuntimeConsumers,
 	projectForEditClipboardConsumers: projectForCommandConsumers,
 	prepareEditClipboardDescriptor: (_project: unknown, descriptor: AudioEditorClipboard) => descriptor,
 	createEditSessionClipboard: (_project: unknown, descriptor: AudioEditorClipboard) => ({ descriptor }),
@@ -198,7 +196,7 @@ const DEFAULT_RUNTIME = Object.freeze({
 	redo: redoEditorCommand,
 	canUndo,
 	canRedo,
-}) as unknown as ControllerProjectRuntime;
+});
 
 /** Admission checks callable ports; selected products retain their own result models. */
 export type ControllerProjectRuntimeSelection = {
@@ -211,6 +209,9 @@ export type ControllerProjectRuntimeSnapshot<Runtime extends ControllerProjectRu
 		Omit<ControllerProjectRuntime, keyof Runtime>
 		& Pick<Runtime, Extract<keyof ControllerProjectRuntime, keyof Runtime>>
 	>;
+
+export function resolveControllerProjectRuntime(): typeof DEFAULT_RUNTIME;
+export function resolveControllerProjectRuntime(value: undefined): typeof DEFAULT_RUNTIME;
 
 /** A typed host retains its document model through runtime admission. */
 export function resolveControllerProjectRuntime<Runtime extends ControllerProjectRuntimeSelection>(
@@ -273,12 +274,12 @@ export function resolveControllerProjectRuntime(
 			throw new TypeError(`Controller project runtime ${name} must be a method.`);
 		} else snapshot[name] = descriptor.value;
 	}
-	return Object.freeze(snapshot) as unknown as ControllerProjectRuntime;
+	return Object.freeze(snapshot);
 }
 
 /** Bind clipboard product hooks to the canonical project hidden behind common consumers. */
 export function bindControllerEditClipboardRuntime(
-	runtime: Readonly<ControllerProjectRuntime>,
+	runtime: ControllerEditClipboardRuntimeBindings,
 	getProject: () => unknown,
 ): ControllerEditClipboardRuntimeBindings {
 	const createClipboard = runtime.createEditSessionClipboard;

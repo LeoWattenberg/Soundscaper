@@ -27,7 +27,7 @@ type DataRecord = Record<string, unknown>;
 export { isFoundationProjectSchema } from './project-schema-version.ts';
 
 /** Resolve authoritative project timing into the transient coordinates shared consumers expect. */
-export function projectForRuntimeConsumers(project: RuntimeClipProject): RuntimeClipProject {
+export function projectForRuntimeConsumers<Project extends RuntimeClipProject>(project: Project) {
 	return isRuntimeProjectProjection(project)
 		? project
 		: resolveRuntimeProjectProjection(project);

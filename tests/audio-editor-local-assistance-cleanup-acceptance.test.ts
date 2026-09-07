@@ -258,7 +258,7 @@ test('Guided cleanup refuses unknown choices and stale aggregate authority', asy
 });
 
 function runtimeClips(project: AudioEditorProjectCurrent) {
-	return resolveRuntimeProjectProjection(project as never).clips;
+	return resolveRuntimeProjectProjection(project).clips;
 }
 
 function programmeEnd(project: AudioEditorProjectCurrent, kind: 'audio' | 'video' = 'audio'): number {

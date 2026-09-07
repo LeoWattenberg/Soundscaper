@@ -66,10 +66,12 @@ export interface RuntimeClipProjection extends Readonly<Record<string, unknown>>
 	readonly coordinateDomain: 'resolved-samples';
 }
 
-export type RuntimeProjectProjection<Project extends RuntimeClipProject> = Omit<
-	Project,
-	'clips' | 'tracks' | 'projectBin' | 'timelineAnnotations'
-> & Readonly<{
+// Remap each declared key: Omit's Exclude<keyof Project, ...> erases named
+// members when the document also carries a string index signature.
+export type RuntimeProjectProjection<Project extends RuntimeClipProject> = {
+	[Key in keyof Project as Key extends 'clips' | 'tracks' | 'projectBin' | 'timelineAnnotations'
+		? never : Key]: Project[Key];
+} & Readonly<{
 	clips: readonly RuntimeClipProjection[];
 	tracks: readonly Readonly<Record<string, unknown>>[];
 	projectBin: Readonly<Record<string, unknown>> & { readonly clips: readonly RuntimeClipProjection[] };
@@ -143,7 +145,7 @@ export function resolveRuntimeProjectProjection<Project extends RuntimeClipProje
 	if (!project || typeof project !== 'object') throw new TypeError('A project is required for runtime projection.');
 	if (!Array.isArray(project.clips)) throw new TypeError('project.clips must be an array.');
 	const context = createRuntimeProjectionContext();
-	const projection = Object.freeze({
+	const projection: RuntimeClipProject = Object.freeze({
 		...project,
 		clips: Object.freeze(project.clips.map((clip) => resolveRuntimeClipProjection(project, clip, context))),
 		tracks: Object.freeze((Array.isArray(project.tracks) ? project.tracks : []).map((track) => (
@@ -160,8 +162,10 @@ export function resolveRuntimeProjectProjection<Project extends RuntimeClipProje
 			),
 		} : {}),
 		runtimeProjectionVersion: RUNTIME_CLIP_PROJECTION_VERSION,
-	}) as RuntimeProjectProjection<Project>;
-	return brandRuntimeProjectProjection(projection);
+	});
+	// The spread retains every non-projected key; the shape check below verifies
+	// the replacement fields before this owner publishes the generic relationship.
+	return brandRuntimeProjectProjection(projection) as RuntimeProjectProjection<Project>;
 }
 
 function assertRuntimeProjectProjectionShape(project: RuntimeClipProject): void {
