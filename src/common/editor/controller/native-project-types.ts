@@ -38,11 +38,18 @@ export interface NativeProjectVideoSource {
 	readonly storageKey?: string;
 	readonly name: string;
 	readonly mimeType: string;
-	readonly frameCount: number;
 	readonly sampleRate: number;
 }
 
-export type NativeProjectSource = NativeProjectAudioSource | NativeProjectVideoSource;
+export interface NativeProjectImageSource {
+	readonly kind: 'image';
+	readonly id: string;
+	readonly storageKey?: string;
+	readonly name: string;
+	readonly mimeType: string;
+}
+
+export type NativeProjectSource = NativeProjectAudioSource | NativeProjectVideoSource | NativeProjectImageSource;
 
 export interface NativeProjectClip {
 	readonly id: string;

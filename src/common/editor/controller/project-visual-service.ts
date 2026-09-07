@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isAudioMediaKind } from '../audio-media-kind.ts';
 import { hasProjectBinMediaAuthority } from '../project-schema-version.ts';
 
 import {
@@ -11,6 +12,7 @@ import { registerVideoTimingIndex, unregisterVideoTimingIndex } from '../video-s
 export type * from './project-visual-types.ts';
 import type {
 	ClipVisualData,
+	TimelineSourceInventory,
 	LinkedVideoPlaybackLease,
 	ProjectVisualClip,
 	ProjectVisualProject,
@@ -297,7 +299,7 @@ export function createProjectVisualService(
 	}
 
 	function hasMissingTimelineSources(
-		project: ProjectVisualProject | null = dependencies.getProject(),
+		project: TimelineSourceInventory | null = dependencies.getProject(),
 		options: Readonly<{ audioOnly?: boolean; excludedSourceIds?: ReadonlySet<string> }> = {},
 	): boolean {
 		if (!dependencies.missingSourceIds.size) return false;
@@ -305,7 +307,7 @@ export function createProjectVisualService(
 			? new Map((project?.sources || []).map((source) => [source.id, source]))
 			: null;
 		return (project?.clips || []).some((clip) => (
-			(!options.audioOnly || (clip.kind !== 'video' && sourceById?.get(clip.sourceId)?.kind !== 'video'))
+			(!options.audioOnly || (isAudioMediaKind(clip.kind) && isAudioMediaKind(sourceById?.get(clip.sourceId)?.kind)))
 			&& !options.excludedSourceIds?.has(clip.sourceId)
 			&& dependencies.missingSourceIds.has(clip.sourceId)
 		));

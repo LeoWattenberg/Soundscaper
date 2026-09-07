@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isAudioMediaKind } from '../audio-media-kind.ts';
+
 import { isProjectFileName } from '../../project-file-extensions.ts';
 import { createDeferredDawprojectService } from './deferred-dawproject-service.ts';
 import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
@@ -323,8 +325,8 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			assertOwnership(operation.task, operation.projectToken);
 			nativeId = sanitizeNativeId(runtime.createStableId('aup4-export'));
 			const referencedSources = snapshot.sources.filter((source): source is NativeProjectAudioSource => (
-				source.kind !== 'video'
-				&& snapshot.clips.some((clip) => clip.kind !== 'video' && clip.sourceId === source.id)
+				isAudioMediaKind(source.kind)
+				&& snapshot.clips.some((clip) => isAudioMediaKind(clip.kind) && clip.sourceId === source.id)
 			));
 			const sourceBytes = referencedSources.reduce((total, source) => total + runtime.sourcePcmBytes(source), 0);
 			const workingBytes = referencedSources.reduce((maximum, source) => (
@@ -387,7 +389,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		operation: ProjectTask,
 	): Promise<void> {
 		const source = project.sources.find((candidate): candidate is NativeProjectAudioSource => (
-			candidate.kind !== 'video' && candidate.id === sourceAudio.sourceId
+			isAudioMediaKind(candidate.kind) && candidate.id === sourceAudio.sourceId
 		));
 		if (!source) return;
 		const writer = await runtime.store.beginSourceWrite(source.id, {

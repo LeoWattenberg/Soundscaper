@@ -11,6 +11,12 @@ import type { VideoTimingIndex } from '../video-timing-asset.ts';
  * is still the right thing to do.
  */
 
+/** Missing-source checks need only timeline references and source kinds. */
+export interface TimelineSourceInventory {
+	readonly sources: readonly Readonly<{ id: string; kind?: unknown }>[];
+	readonly clips: readonly Readonly<{ sourceId: string; kind?: unknown }>[];
+}
+
 export interface ProjectVisualSource {
 	readonly id: string;
 	readonly kind?: string;
@@ -171,7 +177,7 @@ export interface ProjectVisualService {
 	projectBinClips(project?: ProjectVisualProject | null): readonly ProjectVisualClip[];
 	allProjectClips(project?: ProjectVisualProject | null): readonly ProjectVisualClip[];
 	hasMissingTimelineSources(
-		project?: ProjectVisualProject | null,
+		project?: TimelineSourceInventory | null,
 		options?: Readonly<{ audioOnly?: boolean; excludedSourceIds?: ReadonlySet<string> }>,
 	): boolean;
 	getVisibleClips(options?: Readonly<{
