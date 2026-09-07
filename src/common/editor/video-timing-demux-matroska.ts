@@ -123,7 +123,9 @@ async function scan(
 	while (offset < end) {
 		throwIfAborted(signal);
 		const element = await readElementHeader(reader, offset, end);
-		if (element === null) return offset === end || state.blocks.length > 0;
+		// A header that cannot be parsed at all is the end of what this element
+		// holds; one that names a body the source does not contain throws instead.
+		if (element === null) return true;
 		if (!await readElement(reader, element, state, signal)) return false;
 		if (element.unknownSize) {
 			// The rest of the source is this element's content, so the same forward
@@ -215,7 +217,13 @@ async function readElementHeader(
 	const unknownSize = size.value === unknownSizeValue(size.length);
 	if (unknownSize) return { id: Number(id.value), body, end, unknownSize };
 	const declaredEnd = body + Number(size.value);
-	if (!Number.isSafeInteger(declaredEnd) || declaredEnd < body || declaredEnd > end) return null;
+	if (!Number.isSafeInteger(declaredEnd) || declaredEnd < body) return null;
+	// The header read fine and states a body that runs past what is there: the
+	// source was cut inside this element, so the blocks read so far are an
+	// incomplete index rather than a shorter complete one.
+	if (declaredEnd > end) {
+		throw new RangeError('The video container ended inside a structure it declared.');
+	}
 	return { id: Number(id.value), body, end: declaredEnd, unknownSize };
 }
 
