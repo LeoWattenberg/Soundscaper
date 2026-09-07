@@ -20,7 +20,7 @@ export interface MacroCommandSelection {
 	readonly startFrame: number;
 	readonly endFrame: number;
 	readonly trackIds?: readonly string[];
-	readonly frequencyRange?: Readonly<{ low: number; high: number }> | null;
+	readonly frequencyRange?: Readonly<{ minimumFrequency: number; maximumFrequency: number }> | null;
 }
 
 export interface MacroCommandProject extends Readonly<Record<string, unknown>> {
@@ -157,11 +157,11 @@ export function createMacroCommandService(runtime: MacroCommandServiceRuntime) {
 	function frequencyRange(
 		params: Readonly<Record<string, unknown>>,
 		selection: MacroCommandSelection,
-	): Readonly<{ low: number; high: number }> {
-		const current = selection.frequencyRange ?? { low: 0, high: 0 };
+	): Readonly<{ minimumFrequency: number; maximumFrequency: number }> {
+		const current = selection.frequencyRange ?? { minimumFrequency: 0, maximumFrequency: 0 };
 		return {
-			low: has(params, 'low') ? number(params.low) : current.low,
-			high: has(params, 'high') ? number(params.high) : current.high,
+			minimumFrequency: has(params, 'low') ? number(params.low) : current.minimumFrequency,
+			maximumFrequency: has(params, 'high') ? number(params.high) : current.maximumFrequency,
 		};
 	}
 

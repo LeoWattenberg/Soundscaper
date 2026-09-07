@@ -100,15 +100,15 @@ test('a track range is set, widened, or taken back out', () => {
 
 test('a frequency range keeps the edge it was not given', () => {
 	const harness = createHarness({
-		startFrame: 0, endFrame: 10, frequencyRange: { low: 100, high: 8_000 },
+		startFrame: 0, endFrame: 10, frequencyRange: { minimumFrequency: 100, maximumFrequency: 8_000 },
 	});
 	harness.run('SelectFrequencies', { low: 200 });
 	assert.deepEqual(harness.applied[0]?.[2],
-		{ trackIds: [], frequencyRange: { low: 200, high: 8_000 } });
+		{ trackIds: [], frequencyRange: { minimumFrequency: 200, maximumFrequency: 8_000 } });
 
 	const fresh = createHarness({ startFrame: 0, endFrame: 10 });
 	fresh.run('SelectFrequencies', { high: 4_000 });
-	assert.deepEqual(fresh.applied[0]?.[2], { trackIds: [], frequencyRange: { low: 0, high: 4_000 } });
+	assert.deepEqual(fresh.applied[0]?.[2], { trackIds: [], frequencyRange: { minimumFrequency: 0, maximumFrequency: 4_000 } });
 });
 
 test('Select applies time, frequency and track parameters together', () => {
@@ -116,7 +116,7 @@ test('Select applies time, frequency and track parameters together', () => {
 	harness.run('Select', { start: 1, end: 2, high: 5_000, low: 50, track: 2, trackCount: 1 });
 	assert.deepEqual(harness.applied[0], [100, 200, {
 		trackIds: ['track-c'],
-		frequencyRange: { low: 50, high: 5_000 },
+		frequencyRange: { minimumFrequency: 50, maximumFrequency: 5_000 },
 	}]);
 });
 
