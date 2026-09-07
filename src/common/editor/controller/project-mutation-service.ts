@@ -240,13 +240,24 @@ export function createProjectMutationService<
 			throw new Error('This project runtime does not run macros.');
 		}
 		const opened = requireHistory();
+		const openedProject = dependencies.captureProject(requireProject().id);
 		const depth = (opened.dropped ?? 0) + (opened.undoStack?.length ?? 0);
 		openMacroTransactions += 1;
 		let settled = false;
 		const settle = (next: (history: History) => History): Project => {
-			if (settled) throw new Error('A macro transaction settles exactly once.');
+			const reentered = settled;
 			settled = true;
-			openMacroTransactions = Math.max(0, openMacroTransactions - 1);
+			if (!reentered) openMacroTransactions = Math.max(0, openMacroTransactions - 1);
+			// The depth is a position in the history the macro opened against, and
+			// there is one history slot for whichever project is active. Settling
+			// after a project switch would therefore collapse or revert the project
+			// that is open now — and autosave the loss — so the fence is asserted
+			// before anything is read or written. It is asserted ahead of the second
+			// settlement too: both macro callers roll back in the catch that a
+			// refused commit lands in, and that rollback has to be refused for the
+			// same reason rather than reported as an internal double settlement.
+			dependencies.assertProject(openedProject);
+			if (reentered) throw new Error('A macro transaction settles exactly once.');
 			const nextHistory = next(requireHistory());
 			dependencies.setHistory(nextHistory);
 			dependencies.state.history = nextHistory;
