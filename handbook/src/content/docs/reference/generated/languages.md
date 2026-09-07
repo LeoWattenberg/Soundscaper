@@ -26,7 +26,7 @@ Two languages are written and reviewed for this editor directly. The rest are ma
 | Français | `fr` | `/fr/` | Left to right | Machine translated, with Audacity's reviewed strings |
 | Galego | `gl` | `/gl/` | Left to right | Machine translated, with Audacity's reviewed strings |
 | עברית | `he` | `/he/` | Right to left | Machine translated, with Audacity's reviewed strings |
-| हिन्दी | `hi` | `/hi/` | Left to right | Audacity's reviewed strings over English |
+| हिन्दी | `hi` | `/hi/` | Left to right | Machine translated, with Audacity's reviewed strings |
 | Հայերեն | `hy` | `/hy/` | Left to right | Machine translated, with Audacity's reviewed strings |
 | Bahasa Indonesia | `id` | `/id/` | Left to right | Audacity's reviewed strings over English |
 | Italiano | `it` | `/it/` | Left to right | Machine translated, with Audacity's reviewed strings |
