@@ -5,7 +5,8 @@ import type {
 	EditorProjectGeneration,
 } from './lifecycle.ts';
 import type { EditorTaskProgressCoordinator } from './task-progress.ts';
-import type { ScapeArchiveByteSource } from '../scape-archive-byte-source.ts';
+import type { ScapeProjectInput } from '../scape-project-input.ts';
+import type { ScapeManifest } from '../scape-archive-envelope.ts';
 import type { ProjectFileExtension } from '../../project-file-extensions.ts';
 import type { ProjectFlushOptions } from './project-save-service.ts';
 
@@ -89,7 +90,9 @@ export interface NativeProjectCopy {
 }
 
 export type NativeProjectFile = Blob & Readonly<{ name: string }>;
-export type NativeScapeProjectFile = NativeProjectFile | ScapeArchiveByteSource;
+export type NativeScapeProjectFile = ScapeProjectInput;
+/** Archive owners may publish the standard manifest or a compatible extension record. */
+export type NativeScapeManifest = Readonly<ScapeManifest> | Readonly<Record<string, unknown>>;
 
 export interface NativeSourceWriter {
 	write(channels: readonly Float32Array[]): NativeAwaitable<unknown>;
@@ -101,7 +104,7 @@ export interface NativeSourceWriter {
 }
 
 export interface NativeProjectStore {
-	estimateStorage(): Promise<Readonly<{ usage?: number; quota?: number }>>;
+	estimateStorage(): Promise<Readonly<Partial<NativeStorageEstimate>>>;
 	beginSourceWrite(sourceId: string, metadata: Readonly<{
 		name: string;
 		mimeType: string;
@@ -268,13 +271,13 @@ export interface ScapeImportResult extends Readonly<Record<string, unknown>> {
 	readonly project: NativeProjectDocument;
 	readonly readOnly: boolean;
 	readonly reason?: string | null;
-	readonly manifest: Readonly<Record<string, unknown>>;
+	readonly manifest: NativeScapeManifest;
 }
 
 export interface ScapeExportResult {
 	readonly blob: Blob | null;
 	readonly byteLength?: number;
-	readonly manifest: Readonly<Record<string, unknown>>;
+	readonly manifest: NativeScapeManifest;
 }
 
 export interface NativeSessionTab {

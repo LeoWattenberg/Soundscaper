@@ -35,6 +35,7 @@ import type {
 	NativeProjectDocument, NativeProjectFile, NativeScapeProjectFile,
 	NativeProjectServiceRuntime,
 	NativeSavedFile,
+	NativeScapeManifest,
 	OpenScapeOptions,
 	SaveAup4Options,
 	SaveScapeOptions,
@@ -109,7 +110,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		file: NativeScapeProjectFile,
 		options: OpenScapeOptions = {},
 	): Promise<ScapeImportResult | null> {
-		if (!file || (file instanceof Blob && !isProjectFileName(String(file.name || '')))) {
+		if (!file || (file instanceof Blob && 'name' in file && !isProjectFileName(String(file.name || '')))) {
 			throw new TypeError('Choose a Scape project file.');
 		}
 		if (runtime.editingBlocked()) return null;
@@ -143,7 +144,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 	}
 
 	async function saveScape(options: SaveScapeOptions = {}): Promise<(NativeSavedFile & {
-		readonly manifest: Readonly<Record<string, unknown>>;
+		readonly manifest: NativeScapeManifest;
 	}) | Readonly<{ cancelled: true }>> {
 		const projectAtStart = requireProject();
 		if (runtime.state.readOnly && !options.saveCopy) throw new Error(runtime.copy.projectReadOnly);
@@ -473,14 +474,14 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 
 	function portableOptions(
 		workingBytes: number,
-		storage: Readonly<{ usage?: number; quota?: number }>,
+		storage: Awaited<ReturnType<NativeProjectServiceRuntime['store']['estimateStorage']>>,
 		onProgress: (progress: NativeProgress) => void,
 	): Aup4PortableOptions {
 		return {
 			mobile: runtime.state.mobile,
 			opfs: environment?.opfs,
-			quota: storage.quota,
-			usage: storage.usage,
+			quota: storage.quota ?? undefined,
+			usage: storage.usage ?? undefined,
 			workingBytes,
 			onProgress,
 		};

@@ -9,6 +9,7 @@ import type {
 	NativeProjectFileType,
 	NativeProjectServiceRuntime,
 	NativeSavedFile,
+	NativeScapeManifest,
 	SaveScapeOptions,
 	ScapeExportResult,
 } from './native-project-types.ts';
@@ -112,7 +113,7 @@ export async function publishNativeScape(
 export interface NativeRetainedScapeArchive {
 	readonly projectId: string;
 	readonly archive: Blob;
-	readonly manifest: Readonly<Record<string, unknown>>;
+	readonly manifest: NativeScapeManifest;
 }
 
 /** Orchestrate the unchanged-copy save of a retained future-schema archive. */
@@ -127,7 +128,7 @@ export async function saveNativeScapeArchiveCopy(
 		retained: NativeRetainedScapeArchive;
 		signal: AbortSignal;
 	}>,
-): Promise<(NativeSavedFile & { readonly manifest: Readonly<Record<string, unknown>> })
+): Promise<(NativeSavedFile & { readonly manifest: NativeScapeManifest })
 | Readonly<{ cancelled: true }>> {
 	// The bytes are copied unchanged; only the name follows the saving product.
 	const { fileName, prepared } = await beginNativeScapeSave(runtime, {
