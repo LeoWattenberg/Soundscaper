@@ -363,18 +363,25 @@ test('project file reference distinguishes the legacy suffix from an unclaimed o
 	assert.doesNotMatch(rendered, /Lightscaper/u);
 });
 
-test('language reference marks which translations are written here', () => {
+test('language reference says where each translation comes from', () => {
 	const rendered = renderLanguageReference({
 		routeLocales: [
 			{ locale: 'de', nativeName: 'Deutsch', direction: 'ltr' },
 			{ locale: 'ar', nativeName: 'العربية', direction: 'rtl' },
+			{ locale: 'en-GB', nativeName: 'English (UK)', direction: 'ltr' },
+			{ locale: 'tlh', nativeName: 'Klingon', direction: 'ltr' },
 		],
 		bundledLocaleTags: ['en', 'de'],
+		machineLocaleTags: ['ar'],
+		audacityLocaleTags: ['ar', 'en-GB'],
 		localePath: (locale, options) => (options?.embedded ? `/embed/${locale}/` : `/${locale}/`),
 	});
 
 	assert.match(rendered, /\| Deutsch \| `de` \| `\/de\/` \| Left to right \| Written for this editor \|/u);
-	assert.match(rendered, /\| `ar` \| `\/ar\/` \| Right to left \| Audacity translation release \|/u);
+	assert.match(rendered, /\| `ar` \| `\/ar\/` \| Right to left \| Machine translated, with Audacity's reviewed strings \|/u);
+	assert.match(rendered, /\| `en-GB` \| `\/en-GB\/` \| Left to right \| Audacity's reviewed strings over English \|/u);
+	assert.match(rendered, /\| `tlh` \| `\/tlh\/` \| Left to right \| English \|/u);
+	assert.doesNotMatch(rendered, /translation release/u);
 	assert.match(rendered, /`\/embed\/en\/`/u);
 });
 

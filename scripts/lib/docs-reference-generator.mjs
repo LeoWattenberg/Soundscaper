@@ -70,6 +70,8 @@ const RUNTIME_MODULES = Object.freeze({
 	labels: 'src/common/editor/label-io.js',
 	liveEffects: 'src/common/editor/audacity-effects/live-capabilities.js',
 	locales: 'src/common/i18n/locales.js',
+	machineCatalogs: 'src/common/i18n/machine/index.js',
+	audacityCatalogs: 'src/common/i18n/audacity/index.js',
 	media: 'src/common/editor/media-export.js',
 	nyquist: 'src/common/editor/nyquist/plugin-registry.js',
 	panels: 'src/common/editor/ui/workspace/workspace-panel-model.ts',
@@ -163,7 +165,7 @@ function audioEffectInputs(sources, productProfiles) {
 
 export function renderReferenceDocuments(sources) {
 	const {
-		actions, assistance, assistanceOperations, copy, exportSettings, labels, locales, media,
+		actions, assistance, assistanceOperations, audacityCatalogs, copy, exportSettings, labels, locales, machineCatalogs, media,
 		modelCatalog, nyquist, packageTargets, panels, productionCapabilities, products, projectFiles,
 		scapeFormat, video, videoEffects, workspaces,
 	} = sources;
@@ -226,6 +228,8 @@ export function renderReferenceDocuments(sources) {
 		['languages.md', renderLanguageReference({
 			routeLocales: locales.ROUTE_LOCALES,
 			bundledLocaleTags: locales.DEFAULT_LOCALE_TAGS,
+			machineLocaleTags: machineCatalogs.MACHINE_CATALOG_LOCALES,
+			audacityLocaleTags: audacityCatalogs.AUDACITY_CATALOG_LOCALES,
 			localePath: locales.localePath,
 		})],
 		['platforms.md', renderPlatformReference({

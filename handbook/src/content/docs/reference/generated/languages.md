@@ -10,26 +10,38 @@ sidebar:
 
 The editor is served at one route per language. A language that is not listed here falls back to English.
 
-Two languages are written and reviewed for this editor directly. The rest reuse the Audacity translation release for the wording Audacity already has, which is why their coverage follows what upstream translators have done rather than what this editor has added.
+Two languages are written and reviewed for this editor directly. The rest are machine translated from the English copy, and wherever Audacity's translators have reviewed the same command name, their wording is shown instead. English variants carry only Audacity's reviewed strings over English.
 
 | Language | Tag | Route | Writing direction | Source |
 | --- | --- | --- | --- | --- |
-| العربية | `ar` | `/ar/` | Right to left | Audacity translation release |
+| العربية | `ar` | `/ar/` | Right to left | Machine translated, with Audacity's reviewed strings |
+| Čeština | `cs` | `/cs/` | Left to right | Machine translated, with Audacity's reviewed strings |
 | Deutsch | `de` | `/de/` | Left to right | Written for this editor |
+| Ελληνικά | `el` | `/el/` | Left to right | Audacity's reviewed strings over English |
 | English | `en` | `/en/` | Left to right | Written for this editor |
-| English (UK) | `en-GB` | `/en-GB/` | Left to right | Audacity translation release |
-| Español | `es` | `/es/` | Left to right | Audacity translation release |
-| Suomi | `fi` | `/fi/` | Left to right | Audacity translation release |
-| Français | `fr` | `/fr/` | Left to right | Audacity translation release |
-| Galego | `gl` | `/gl/` | Left to right | Audacity translation release |
-| Հայերեն | `hy` | `/hy/` | Left to right | Audacity translation release |
-| 日本語 | `ja` | `/ja/` | Left to right | Audacity translation release |
-| 한국어 | `ko` | `/ko/` | Left to right | Audacity translation release |
-| Polski | `pl` | `/pl/` | Left to right | Audacity translation release |
-| Română | `ro` | `/ro/` | Left to right | Audacity translation release |
-| Русский | `ru` | `/ru/` | Left to right | Audacity translation release |
-| Türkçe | `tr` | `/tr/` | Left to right | Audacity translation release |
-| Українська | `uk` | `/uk/` | Left to right | Audacity translation release |
-| 简体中文 | `zh-CN` | `/zh-CN/` | Left to right | Audacity translation release |
+| English (UK) | `en-GB` | `/en-GB/` | Left to right | Audacity's reviewed strings over English |
+| Español | `es` | `/es/` | Left to right | Machine translated, with Audacity's reviewed strings |
+| فارسی | `fa` | `/fa/` | Right to left | Audacity's reviewed strings over English |
+| Suomi | `fi` | `/fi/` | Left to right | Machine translated, with Audacity's reviewed strings |
+| Français | `fr` | `/fr/` | Left to right | Machine translated, with Audacity's reviewed strings |
+| Galego | `gl` | `/gl/` | Left to right | Machine translated, with Audacity's reviewed strings |
+| עברית | `he` | `/he/` | Right to left | Audacity's reviewed strings over English |
+| हिन्दी | `hi` | `/hi/` | Left to right | Audacity's reviewed strings over English |
+| Հայերեն | `hy` | `/hy/` | Left to right | Machine translated, with Audacity's reviewed strings |
+| Bahasa Indonesia | `id` | `/id/` | Left to right | Audacity's reviewed strings over English |
+| Italiano | `it` | `/it/` | Left to right | Machine translated, with Audacity's reviewed strings |
+| 日本語 | `ja` | `/ja/` | Left to right | Machine translated, with Audacity's reviewed strings |
+| 한국어 | `ko` | `/ko/` | Left to right | Machine translated, with Audacity's reviewed strings |
+| Nederlands | `nl` | `/nl/` | Left to right | Machine translated, with Audacity's reviewed strings |
+| Polski | `pl` | `/pl/` | Left to right | Machine translated, with Audacity's reviewed strings |
+| Português (Brasil) | `pt-BR` | `/pt-BR/` | Left to right | Audacity's reviewed strings over English |
+| Português (Portugal) | `pt-PT` | `/pt-PT/` | Left to right | Audacity's reviewed strings over English |
+| Română | `ro` | `/ro/` | Left to right | Machine translated, with Audacity's reviewed strings |
+| Русский | `ru` | `/ru/` | Left to right | Machine translated, with Audacity's reviewed strings |
+| Türkçe | `tr` | `/tr/` | Left to right | Machine translated, with Audacity's reviewed strings |
+| Українська | `uk` | `/uk/` | Left to right | Machine translated, with Audacity's reviewed strings |
+| Tiếng Việt | `vi` | `/vi/` | Left to right | Machine translated, with Audacity's reviewed strings |
+| 简体中文 | `zh-CN` | `/zh-CN/` | Left to right | Machine translated, with Audacity's reviewed strings |
+| 繁體中文（台灣） | `zh-TW` | `/zh-TW/` | Left to right | Audacity's reviewed strings over English |
 
 An embedded view without the surrounding site uses the same tags under `/embed/en/`.
