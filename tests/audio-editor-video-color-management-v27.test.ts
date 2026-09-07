@@ -246,12 +246,13 @@ test('cube LUT comment parsing preserves hashes inside quoted titles', () => {
 });
 
 test('a verified cube LUT body is applied with deterministic trilinear sampling', () => {
+	// Identity in the .cube format's own entry order: red varies fastest.
 	const body = [
 		'LUT_3D_SIZE 2',
 		'DOMAIN_MIN 0 0 0',
 		'DOMAIN_MAX 1 1 1',
-		'0 0 0', '0 0 1', '0 1 0', '0 1 1',
-		'1 0 0', '1 0 1', '1 1 0', '1 1 1',
+		'0 0 0', '1 0 0', '0 1 0', '1 1 0',
+		'0 0 1', '1 0 1', '0 1 1', '1 1 1',
 	].join('\n');
 	const lut = parseCubeLutV1(body);
 	const grade = normalizeVideoColorGradeV1({

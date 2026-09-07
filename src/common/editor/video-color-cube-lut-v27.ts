@@ -153,6 +153,12 @@ export function sampleCubeLut(lut: ParsedCubeLutV1, input: readonly number[]): n
 	return output;
 }
 
+/**
+ * Resolve one lattice scalar. The Adobe/Iridas .cube format stores entries
+ * with red varying fastest and blue slowest, and `parseCubeLutV1` keeps the
+ * file's order, so lattice point (r, g, b) lives at flat entry
+ * `b * size ** 2 + g * size + r`.
+ */
 function lutValue(
 	lut: ParsedCubeLutV1,
 	red: number,
@@ -160,7 +166,7 @@ function lutValue(
 	blue: number,
 	channel: number,
 ): number {
-	return lut.values[((red * lut.size + green) * lut.size + blue) * 3 + channel]!;
+	return lut.values[((blue * lut.size + green) * lut.size + red) * 3 + channel]!;
 }
 
 function mix(left: number, right: number, amount: number): number {
