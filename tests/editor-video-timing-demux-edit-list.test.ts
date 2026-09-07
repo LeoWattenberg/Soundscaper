@@ -116,7 +116,7 @@ function ascii(value: string): Uint8Array {
 	return Uint8Array.from(value, (character) => character.charCodeAt(0));
 }
 
-function bytes(...parts: readonly Uint8Array[]): Uint8Array {
+function bytes(...parts: readonly Uint8Array[]): Uint8Array<ArrayBuffer> {
 	const result = new Uint8Array(parts.reduce((length, part) => length + part.byteLength, 0));
 	let offset = 0;
 	for (const part of parts) { result.set(part, offset); offset += part.byteLength; }
