@@ -2,6 +2,8 @@
 
 import { projectFeatureAffectedObjects } from '../project-feature-affected-objects.ts';
 import type { ProjectFeatureRequirementsReport } from '../project-feature-requirements.ts';
+import type { MacroScriptRecord } from '../macro-script-library.ts';
+import type { ProjectBinPreview } from './project-bin-types.ts';
 import type { EditorStoreStatus } from '../storage/status.ts';
 import type { StorageCapacitySnapshot } from './storage-capacity-service.ts';
 import { createDocumentMasteringSequenceSnapshot } from './document-mastering-sequence-snapshot.ts';
@@ -94,7 +96,7 @@ export interface EditorDocumentSnapshotState {
 	readonly selectedClipId: string | null;
 	readonly selectedAnnotationId: string | null;
 	readonly transportState: string;
-	readonly projectBinPreview: Readonly<Record<string, unknown>> | null;
+	readonly projectBinPreview: Readonly<ProjectBinPreview> | null;
 	readonly playAtSpeedRate: number;
 	readonly playAtSpeedAbort: unknown;
 	readonly readOnly: boolean;
@@ -154,7 +156,7 @@ export interface EditorDocumentSnapshotState {
 	readonly audacityPreviewSource: unknown;
 	readonly effectPresets: unknown;
 	readonly effectMacros: EffectMacroLibraryState;
-	readonly macroScripts?: Readonly<{ scripts: readonly Readonly<Record<string, unknown>>[] }>;
+	readonly macroScripts?: Readonly<{ scripts: readonly MacroScriptRecord[] }>;
 	readonly nyquistAbort: unknown;
 	readonly nyquistResult: unknown;
 	readonly monitoring: boolean;

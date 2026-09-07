@@ -9,7 +9,7 @@ import { scaleSampleFrame } from '../timeline-time.ts';
 const LIVE_RECORDING_WAVEFORM_BUCKET_FRAMES = 64;
 const LIVE_RECORDING_WAVEFORM_MAXIMUM_BUCKETS = 2_048;
 
-interface AudioTrackLike {
+export interface AudioTrackLike {
 	readonly readyState?: string;
 	getSettings?(): Readonly<{ channelCount?: number }>;
 }
