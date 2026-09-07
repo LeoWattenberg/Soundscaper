@@ -123,8 +123,12 @@ export function scheduleClipGain(
 	scheduleGainAutomation(fadeInParam, fadeInAt, segmentStart, segmentEnd, startTime, sampleRate, [
 		0, fadeIn, ...crossfadeInRanges.flat(),
 	]);
+	// A crossfade-out range that ends before the clip does steps straight back to
+	// unity, so the boundary one frame past its end keeps that jump from being
+	// stretched into a long ramp across whatever is left of the clip.
 	scheduleGainAutomation(fadeOutParam, fadeOutAt, segmentStart, segmentEnd, startTime, sampleRate, [
-		duration - fadeOut, duration, ...crossfadeOutRanges.flat(),
+		duration - fadeOut, duration,
+		...crossfadeOutRanges.flatMap(([start, end]) => [start, end, end + 1]),
 	]);
 }
 
