@@ -18,7 +18,7 @@ export interface FramescaperCaptureDerivativeSource extends Readonly<Record<stri
 export interface FramescaperCaptureDerivativeProject extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly revision: number;
-	readonly sources: readonly FramescaperCaptureDerivativeSource[];
+	readonly sources: readonly unknown[];
 }
 
 export interface FramescaperCapturedVideoProxyRequest {
@@ -71,7 +71,7 @@ export interface FramescaperCaptureVideoFrameExtractor {
 
 export interface FramescaperCaptureDerivativeStore {
 	getSourceMetadata(storageKey: string): MaybePromise<unknown | null>;
-	loadMediaAsset(storageKey: string): MaybePromise<Blob | null>;
+	loadMediaAsset(storageKey: string): MaybePromise<unknown>;
 	saveVideoDerivative(
 		sourceId: string,
 		input: FramescaperCaptureVideoDerivativeInput,
@@ -82,7 +82,7 @@ export interface FramescaperCaptureDerivativeSchedulerOptions {
 	/** Resolve the retained origin by ID even when another project is active. */
 	readonly getOriginProject: (
 		projectId: string,
-	) => MaybePromise<FramescaperCaptureDerivativeProject | null>;
+	) => MaybePromise<unknown>;
 	readonly store: FramescaperCaptureDerivativeStore;
 	readonly activateStoredSource: (
 		source: FramescaperCaptureDerivativeSource,
@@ -369,14 +369,15 @@ function captureSourceIds(request: FramescaperCaptureDerivativeRequest): readonl
 }
 
 function normalizeOriginProject(
-	value: FramescaperCaptureDerivativeProject | null,
+	value: unknown,
 	expectedId: string,
 ): FramescaperCaptureDerivativeProject {
-	if (!value || typeof value !== 'object' || value.id !== expectedId
+	if (!isRecord(value) || value.id !== expectedId
+		|| typeof value.revision !== 'number' || !Number.isSafeInteger(value.revision) || value.revision < 0
 		|| !Array.isArray(value.sources)) {
 		throw new ReferenceError(`Committed origin project ${expectedId} is unavailable.`);
 	}
-	return value;
+	return { id: expectedId, revision: value.revision, sources: value.sources };
 }
 
 function ownedProjectSource(
@@ -384,7 +385,7 @@ function ownedProjectSource(
 	sourceId: string,
 	failures: unknown[],
 ): FramescaperCaptureDerivativeSource | null {
-	const matches = project.sources.filter((source) => source?.id === sourceId);
+	const matches = project.sources.filter((source): source is Record<string, unknown> => isRecord(source) && source.id === sourceId);
 	if (matches.length !== 1) {
 		failures.push(derivativeError(
 			`${sourceId} project ownership`,
@@ -393,14 +394,23 @@ function ownedProjectSource(
 		return null;
 	}
 	const source = matches[0]!;
-	if (source.kind !== 'audio' && source.kind !== 'video') {
+	if (!isCapturedSource(source)) {
 		failures.push(derivativeError(
 			`${sourceId} source kind`,
-			new TypeError(`Committed capture source ${sourceId} has an invalid kind.`),
+			new TypeError(`Committed capture source ${sourceId} has invalid source metadata.`),
 		));
 		return null;
 	}
 	return source;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isCapturedSource(value: Record<string, unknown>): value is FramescaperCaptureDerivativeSource {
+	return typeof value.id === 'string' && (value.kind === 'audio' || value.kind === 'video')
+		&& (value.storageKey === undefined || typeof value.storageKey === 'string');
 }
 
 function sourceStorageKey(source: FramescaperCaptureDerivativeSource): string {

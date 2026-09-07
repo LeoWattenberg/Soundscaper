@@ -133,11 +133,44 @@ function createFixture(options: FixtureOptions = {}) {
 		calls,
 		captures,
 		request,
+		project, schedulerOptions,
 		saved,
 		schedule: createFramescaperCaptureDerivativeScheduler(schedulerOptions),
 		video,
 	};
 }
+
+test('capture derivative admission rejects malformed origin revisions before media work', async () => {
+	const fixture = createFixture({ proxy: 'absent' });
+	const schedule = createFramescaperCaptureDerivativeScheduler({
+		...fixture.schedulerOptions,
+		getOriginProject: () => ({ ...fixture.project, revision: Number.NaN }),
+	});
+	await assert.rejects(schedule(fixture.request), AggregateError);
+	assert.deepEqual(fixture.calls, []);
+});
+
+test('capture derivative admission ignores unrelated media in an opaque repository result', async () => {
+	const fixture = createFixture({ proxy: 'absent' });
+	const stored: unknown = { ...fixture.project, sources: [null, { id: 'picture', kind: 'image' }, ...fixture.project.sources] };
+	const schedule = createFramescaperCaptureDerivativeScheduler({
+		...fixture.schedulerOptions, getOriginProject: () => stored,
+	});
+	await schedule(fixture.request);
+	assert.ok(fixture.calls.includes('extractor:create'));
+	assert.ok(fixture.calls.some(call => call.startsWith('activate:microphone-source:')));
+});
+
+test('capture derivative admission checks a stored media body before browser decoding', async () => {
+	const fixture = createFixture({ proxy: 'absent' });
+	const retained: unknown = { size: 10, type: 'video/webm' };
+	const schedule = createFramescaperCaptureDerivativeScheduler({
+		...fixture.schedulerOptions,
+		store: { ...fixture.schedulerOptions.store, loadMediaAsset: () => retained },
+	});
+	await assert.rejects(schedule(fixture.request), AggregateError);
+	assert.equal(fixture.calls.includes('extractor:create'), false);
+});
 
 test('capture derivatives activate audio peaks and create retained-video poster and filmstrip records', async () => {
 	const fixture = createFixture({ proxy: 'success' });
