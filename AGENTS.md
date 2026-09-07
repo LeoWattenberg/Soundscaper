@@ -25,6 +25,15 @@
   `npm run i18n:translate -- --all` or the sync writes it again (see
   `scripts/i18n-ai/README.md`). Never edit `machine` or `audacity` entries
   or the loader index by hand.
+- The handbook is translated the same way and by the same models. English pages
+  are the source at `handbook/src/content/docs/`; a language is a directory of
+  the same tree beside them, named with the lowercased tag, and having one is
+  what publishes the language. `npm run docs:translate:handbook -- --locale fr`
+  writes what a language owes and `npm run docs:translate:check` reports it
+  (see `scripts/docs-ai/README.md`). Write body links base-free and
+  language-free, write a linked heading's id out as `{#the-id}`, and add a new
+  language to `HANDBOOK_LANGUAGES` in
+  `src/common/editor/documentation-links.ts` so the editor links into it.
 - `npm run check` is the canonical non-browser gate. During development and task
   handoff, lint added and modified lintable files with `npm run lint:changed`;
   the complete repository lint is an authoritative CI/pre-merge gate and is

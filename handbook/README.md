@@ -36,16 +36,53 @@ write draft files by default, record provenance, and never run in CI or a
 Cloudflare build. Review their Git diff and revert output that is not suitable
 for publication.
 
+## Languages
+
+The English pages are the source, and a language is a directory of the same
+tree beside them: `src/content/docs/fr/` is the French handbook.
+`scripts/lib/handbook-locales.mjs` reads which languages exist from those
+directories, so translating a language's first pages is what publishes it and
+deleting the directory withdraws it. Starlight fills a page a language has not
+reached yet with the English one, so a language may be published while its
+translation is still being written.
+
+A directory is the lowercased tag - `pt-br`, not `pt-BR`. Astro lowercases the
+slug it derives from a content path and Starlight reads the language out of
+that slug, so a directory named `pt-BR` builds a duplicate English page tree
+under a language that does not exist.
+
+Translations are written by a local model:
+
+```sh
+npm run docs:translate:handbook -- --locale fr
+npm run docs:translate:check
+```
+
+See `scripts/docs-ai/README.md`. The navigation the site is configured with -
+the site title and the sidebar headings - is not part of any page, so it lives
+in `scripts/lib/handbook-chrome.mjs` and one catalog per language under
+`handbook/i18n/`; the same run translates it. Everything else in the sidebar is
+a page's own frontmatter title and translates with the page.
+
 ## Authoring links
 
 Write internal links root-absolute and base-free: `[Project files](/projects-and-data/project-files/)`.
-`src/plugins/rehype-handbook-base.mjs` supplies the base at build time, and
-`scripts/check-handbook-content.mjs` resolves the base-free target against the
-page tree so a link to a page that does not exist fails the check.
+`src/plugins/rehype-handbook-base.mjs` supplies the base and the page's own
+language at build time, and `scripts/check-handbook-content.mjs` resolves the
+base-free target against the page tree so a link to a page that does not exist
+fails the check.
 
 Frontmatter is the exception. A hero action's `link` is data read by a Starlight
 component rather than Markdown a transform ever sees, so it has to carry the
-base itself. The same content check enforces that in the opposite direction.
+base itself, and a translated page's has to carry the language too. The same
+content check enforces that in the opposite direction, and the translator
+writes the language in when it translates the page.
+
+A heading that is linked to has to write its id out as `## Sharing programs
+{#sharing-programs}`. Astro otherwise derives the id from the heading text,
+which changes when the heading is translated, while a link destination is
+protected during translation and keeps the English id. The content check
+refuses an anchor that names a heading without a written-out id.
 
 ## Deployment
 
