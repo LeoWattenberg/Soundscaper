@@ -15,6 +15,8 @@ import {
 	DAWPROJECT_PROJECT_ENTRY,
 	normalizeEntryPath,
 } from './dawproject-format.ts';
+import { createArchiveMediaReader } from './archive-media-reader.ts';
+import type { BlobLike } from './storage/media-records.ts';
 import { DAWPROJECT_XML_LIMITS } from './dawproject-xml.ts';
 
 /**
@@ -33,7 +35,7 @@ import { DAWPROJECT_XML_LIMITS } from './dawproject-xml.ts';
 
 export interface DawprojectArchiveFile {
 	readonly path: string;
-	readonly blob: Blob;
+	readonly blob: BlobLike;
 }
 
 export interface DawprojectArchiveInput {
@@ -97,7 +99,7 @@ export async function writeDawprojectArchive(
 		await writer.add(DAWPROJECT_PROJECT_ENTRY, new TextReader(input.projectXml), { signal });
 		for (const file of input.files) {
 			throwIfAborted(signal);
-			await writer.add(normalizeEntryPath(file.path), new BlobReader(file.blob), { level: 0, signal });
+			await writer.add(normalizeEntryPath(file.path), createArchiveMediaReader(file.blob, signal), { level: 0, signal });
 		}
 	} catch (error) {
 		await writer.close().catch(() => undefined);

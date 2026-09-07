@@ -42,6 +42,7 @@ test('optional archive code and its ZIP vendor are placed by dynamic reachabilit
 		'src/common/editor/aup-legacy.js',
 		'src/common/editor/aup4-client.js',
 		'src/common/editor/dawproject-archive.ts',
+		'src/common/editor/archive-media-reader.ts',
 		'src/common/editor/dawproject-export.ts',
 		'src/common/editor/dawproject-import.ts',
 		'src/common/editor/dawproject-xml.ts',

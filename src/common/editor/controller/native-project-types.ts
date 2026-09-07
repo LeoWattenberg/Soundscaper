@@ -5,6 +5,7 @@ import type {
 	EditorProjectGeneration,
 } from './lifecycle.ts';
 import type { EditorTaskProgressCoordinator } from './task-progress.ts';
+import type { BlobLike } from '../storage/media-records.ts';
 import type { ScapeProjectInput } from '../scape-project-input.ts';
 import type { ScapeManifest } from '../scape-archive-envelope.ts';
 import type { ProjectFileExtension } from '../../project-file-extensions.ts';
@@ -114,7 +115,7 @@ export interface NativeProjectStore {
 	}>): Promise<NativeSourceWriter>;
 	deleteSource(sourceId: string): PromiseLike<unknown> | unknown;
 	/** The immutable original container of a video source, when the store keeps one. */
-	loadMediaAsset?(storageKey: string): Promise<Blob | null>;
+	loadMediaAsset?(storageKey: string): Promise<BlobLike | null>;
 }
 
 export interface NativeFileSaveRequest {

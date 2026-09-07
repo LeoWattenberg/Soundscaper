@@ -16,6 +16,8 @@ import { encodeWav } from '../wav.js';
 import { admitAudioImportChannelCount } from './audio-import-channel-admission.ts';
 import { decodeDawprojectAudioEntry } from './dawproject-audio-decode.ts';
 import { resolveDeliveredProject } from './interchange-export-action.ts';
+import type { BlobLike } from '../storage/media-records.ts';
+
 import type { EditorProjectToken, EditorTaskScope } from './lifecycle.ts';
 import type {
 	Aup4DecodedSource,
@@ -199,7 +201,7 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 			// Publish before the save dialog: a cancelled save keeps the report.
 			runtime.state.deliveryReport = exported.report;
 			runtime.publishDocumentSnapshot();
-			const files: { path: string; blob: Blob }[] = [];
+			const files: { path: string; blob: BlobLike }[] = [];
 			for (const [index, entry] of exported.media.entries()) {
 				assertReady();
 				const source = snapshot.sources.find((candidate) => candidate.id === entry.sourceId);
@@ -231,7 +233,7 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 		}
 	}
 
-	async function mediaBlob(source: NativeProjectDocument['sources'][number], kind: 'audio' | 'video'): Promise<Blob> {
+	async function mediaBlob(source: NativeProjectDocument['sources'][number], kind: 'audio' | 'video'): Promise<BlobLike> {
 		const unavailable = (): Error => new Error(
 			runtime.copy.sourcePcmUnavailable.replace('{source}', source.name || source.id),
 		);
