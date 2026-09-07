@@ -34,7 +34,8 @@ const NO_PROJECT_SWITCH_FAILURE = Symbol('no-project-switch-failure');
 export function createProjectSwitchService<
 	Project extends ProjectLifecycleProject,
 	History extends ProjectLifecycleHistory<Project>,
->(runtime: ProjectSwitchServiceRuntime<Project, History>) {
+	Buffer = unknown,
+>(runtime: ProjectSwitchServiceRuntime<Project, History, Buffer>) {
 	const playbackProjects = runtime.playbackProjectService
 		?? createPlaybackProjectService(runtime.productCapabilities), openRecovery = runtime.openRecovery ?? createImmediateTakeCycleOpenRecoveryProjectPort();
 	let pendingProjectSwitches = 0;

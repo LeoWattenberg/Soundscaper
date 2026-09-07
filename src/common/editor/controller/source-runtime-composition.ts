@@ -106,7 +106,7 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 		getPlaybackState: () => engine.getState().state,
 		handleError: dependencies.handleError,
 	});
-	const sourceLifecycle = createSourceLifecycleService({
+	const sourceLifecycle = createSourceLifecycleService<AudioBuffer>({
 		MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES,
 		MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES,
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES,
@@ -128,7 +128,7 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 		legacyPeakCacheKey,
 		peakCacheKey,
 		publishDocumentSnapshot: dependencies.publishDocumentSnapshot,
-		readStoredAudioBuffer,
+		readStoredAudioBuffer: (store, source, context) => readStoredAudioBuffer<AudioBuffer>(store, source, context),
 		readWaveformPcmWindow,
 		setStatus: dependencies.setStatus,
 		sourceAudioBufferBytes,

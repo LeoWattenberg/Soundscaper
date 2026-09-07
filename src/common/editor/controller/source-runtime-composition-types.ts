@@ -34,7 +34,7 @@ export type SourceRuntimeCompositionCopy =
  */
 export type SourceRuntimeCompositionStore =
 	& ProjectVisualServiceDependencies['store']
-	& Parameters<typeof readStoredAudioBuffer>[0]
+	& Parameters<typeof readStoredAudioBuffer<AudioBuffer>>[0]
 	& Parameters<typeof createStoredChunkProvider>[0]
 	& Parameters<typeof generateStoredWaveformPeaks>[0]
 	& Readonly<{

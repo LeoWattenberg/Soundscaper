@@ -7,16 +7,16 @@ import type { ProjectLifecycleHistory, ProjectLifecycleProject } from './project
 type LockPort = 'acquireProjectLock' | 'releaseProjectLock' | 'watchProjectLockLoss' | 'scheduleProjectLockRecovery';
 
 export interface ProjectLifecycleCompositionDependencies<
-	Project extends ProjectLifecycleProject, History extends ProjectLifecycleHistory<Project>,
+	Project extends ProjectLifecycleProject, History extends ProjectLifecycleHistory<Project>, Buffer = unknown,
 > {
 	readonly locking: ProjectLockServiceRuntime;
-	readonly projects: Omit<ProjectSwitchServiceRuntime<Project, History>, LockPort>;
+	readonly projects: Omit<ProjectSwitchServiceRuntime<Project, History, Buffer>, LockPort>;
 }
 
 /** Every activation acquires, watches, and releases leases through one owner. */
 export function createProjectLifecycleComposition<
-	Project extends ProjectLifecycleProject, History extends ProjectLifecycleHistory<Project>,
->(dependencies: ProjectLifecycleCompositionDependencies<Project, History>) {
+	Project extends ProjectLifecycleProject, History extends ProjectLifecycleHistory<Project>, Buffer = unknown,
+>(dependencies: ProjectLifecycleCompositionDependencies<Project, History, Buffer>) {
 	const locking = createProjectLockService(dependencies.locking);
 	const projects = createProjectSwitchService({
 		...dependencies.projects,

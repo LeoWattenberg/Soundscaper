@@ -23,7 +23,7 @@ interface SourceChunkProviderRegistryPort extends Map<string, any> {
 	drain?(): PromiseLike<void> | void;
 }
 
-export interface SourceLifecycleServiceRuntime {
+export interface SourceLifecycleServiceRuntime<Buffer = unknown> {
 	readonly MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES: number;
 	readonly MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES: number;
 	readonly SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES: number;
@@ -45,7 +45,7 @@ export interface SourceLifecycleServiceRuntime {
 	readonly legacyPeakCacheKey: LegacyPort;
 	readonly peakCacheKey: LegacyPort;
 	readonly publishDocumentSnapshot: LegacyPort;
-	readonly readStoredAudioBuffer: LegacyPort;
+	readonly readStoredAudioBuffer: (...args: any[]) => PromiseLike<Buffer | null> | Buffer | null;
 	readonly readWaveformPcmWindow: LegacyPort;
 	readonly setStatus: LegacyPort;
 	readonly sourceAudioBufferBytes: LegacyPort;
@@ -113,7 +113,7 @@ import {
 	sourceIdSet,
 } from './required-source-admission.ts';
 
-export function createSourceLifecycleService(runtime: SourceLifecycleServiceRuntime) {
+export function createSourceLifecycleService<Buffer>(runtime: SourceLifecycleServiceRuntime<Buffer>) {
 	const {
 		MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES, MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES,
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES, activateVideoSource, allProjectClips,
@@ -134,7 +134,7 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		createStoredChunkProvider, engine, isStreamableStoredSource, sourceChunkProviders, store,
 	});
 
-	function cacheSourceBuffer(sourceId: string, buffer: any) {
+	function cacheSourceBuffer(sourceId: string, buffer: Buffer) {
 		if (!buffer || sourceAudioBufferBytes(buffer) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES) {
 			sourceBuffers.delete(sourceId);
 			return false;
@@ -243,7 +243,7 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		for (const sourceId of excludedSourceIds) usedSourceIds.delete(sourceId);
 		for (const sourceId of requiredSourceIds) usedSourceIds.add(sourceId);
 		for (const sourceId of requiredVideoSourceIds) usedSourceIds.add(sourceId);
-		const transientBuffers = new Map<string, any>();
+		const transientBuffers = new Map<string, Buffer>();
 		if (!usedSourceIds.size) return transientBuffers;
 		throwIfSourceLoadAborted(options.signal);
 		let context: any = null;
@@ -288,6 +288,7 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 						options.signal,
 					);
 					throwIfSourceLoadAborted(options.signal);
+					if (buffer == null) throw new Error(`Required rendered fallback source ${source.id} is unavailable.`);
 					assertRequiredSourceBuffer(source, buffer);
 					forgetChunkProvider(source.id);
 					sourceBuffers.delete(source.id);
@@ -338,9 +339,9 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 	async function prepareRequiredProjectSources(
 		project: any,
 		options: SourceLifecycleLoadOptions,
-	): Promise<PreparedRequiredProjectSources> {
+	): Promise<PreparedRequiredProjectSources<Buffer>> {
 		const requiredSourceIds = requiredAudioSourceIdSet(project, options);
-		const prepared = new Map<string, PreparedProjectSourceEntry>();
+		const prepared = new Map<string, PreparedProjectSourceEntry<Buffer>>();
 		const ownership = createPreparedProjectSources({
 			prepared,
 			signal: options.signal,
@@ -377,6 +378,7 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 					options.signal,
 				);
 				throwIfSourceLoadAborted(options.signal);
+				if (buffer == null) throw new Error(`Required rendered fallback source ${source.id} is unavailable.`);
 				assertRequiredSourceBuffer(source, buffer);
 				prepared.set(source.id, Object.freeze({ kind: 'buffer', value: buffer }));
 			}
@@ -430,7 +432,7 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 			.map((clip: any) => clip.sourceId));
 		for (const sourceId of excludedAudioSourceIds) usedSourceIds.delete(sourceId);
 		for (const sourceId of requiredSourceIds) usedSourceIds.add(sourceId);
-		const transientBuffers = new Map<string, any>();
+		const transientBuffers = new Map<string, Buffer>();
 		throwIfSourceLoadAborted(options.signal);
 		for (const source of (snapshot?.sources || []).filter((candidate: any) => (
 			requiredVideoSourceIds.has(candidate.id)
@@ -468,6 +470,7 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 					options.signal,
 				);
 				throwIfSourceLoadAborted(options.signal);
+				if (buffer == null) throw new Error(`Required rendered fallback source ${source.id} is unavailable.`);
 				assertRequiredSourceBuffer(source, buffer);
 				forgetChunkProvider(source.id);
 				sourceBuffers.delete(source.id);

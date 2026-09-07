@@ -1,60 +1,59 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export interface PreparedProjectSourceInputs {
-	readonly sourceBuffers: ReadonlyMap<string, unknown>;
-	readonly chunkSources: ReadonlyMap<string, unknown>;
+export interface PreparedProjectSourceInputs<Buffer = unknown, Provider = unknown> {
+	readonly sourceBuffers: ReadonlyMap<string, Buffer>;
+	readonly chunkSources: ReadonlyMap<string, Provider>;
 }
 
-export interface PreparedRequiredProjectSources {
+export interface PreparedRequiredProjectSources<Buffer = unknown, Provider = unknown> {
 	commit<Result>(
-		apply: (inputs: PreparedProjectSourceInputs) => PromiseLike<Result> | Result,
+		apply: (inputs: PreparedProjectSourceInputs<Buffer, Provider>) => PromiseLike<Result> | Result,
 		options?: Readonly<{
 			assertCurrent?: () => void;
 			retireApplied?: () => PromiseLike<void> | void;
-			transientBuffers?: ReadonlyMap<string, unknown>;
+			transientBuffers?: ReadonlyMap<string, Buffer>;
 		}>,
 	): Promise<Result>;
 	discard(): PromiseLike<void> | void;
 }
 
-export interface PreparedProjectSourceEntry {
-	readonly kind: 'buffer' | 'provider';
-	readonly value: unknown;
-}
+export type PreparedProjectSourceEntry<Buffer = unknown, Provider = unknown> =
+	| Readonly<{ kind: 'buffer'; value: Buffer }>
+	| Readonly<{ kind: 'provider'; value: Provider }>;
 
-interface SourceBufferCachePort extends Iterable<readonly [string, unknown]> {
+interface SourceBufferCachePort<Buffer> extends Iterable<readonly [string, Buffer]> {
 	delete(sourceId: string): unknown;
 }
 
-interface SourceChunkProviderMap extends Iterable<readonly [string, unknown]> {
+interface SourceChunkProviderMap<Provider> extends Iterable<readonly [string, Provider]> {
 	delete(sourceId: string): unknown;
 	drain?(): PromiseLike<void> | void;
-	set(sourceId: string, provider: unknown): unknown;
+	set(sourceId: string, provider: Provider): unknown;
 }
 
-export interface PreparedProjectSourcesOptions {
-	readonly prepared: Map<string, PreparedProjectSourceEntry>;
+export interface PreparedProjectSourcesOptions<Buffer = unknown, Provider = unknown> {
+	readonly prepared: Map<string, PreparedProjectSourceEntry<Buffer, Provider>>;
 	readonly signal?: AbortSignal;
-	readonly sourceBuffers: SourceBufferCachePort;
-	readonly sourceChunkProviders: SourceChunkProviderMap;
-	readonly cacheSourceBuffer: (sourceId: string, buffer: unknown) => unknown;
+	readonly sourceBuffers: SourceBufferCachePort<Buffer>;
+	readonly sourceChunkProviders: SourceChunkProviderMap<Provider>;
+	readonly cacheSourceBuffer: (sourceId: string, buffer: Buffer) => unknown;
 	readonly throwIfAborted: (signal?: AbortSignal) => void;
 }
 
 /** Own staged source providers until one atomic engine/public-cache handoff. */
-export function createPreparedProjectSources(
-	options: PreparedProjectSourcesOptions,
-): PreparedRequiredProjectSources {
+export function createPreparedProjectSources<Buffer, Provider>(
+	options: PreparedProjectSourcesOptions<Buffer, Provider>,
+): PreparedRequiredProjectSources<Buffer, Provider> {
 	let state: 'prepared' | 'committing' | 'committed' | 'discarded' = 'prepared';
 	let cleanupPromise: Promise<void> | null = null;
 	return Object.freeze({ commit, discard });
 
 	async function commit<Result>(
-		apply: (inputs: PreparedProjectSourceInputs) => PromiseLike<Result> | Result,
+		apply: (inputs: PreparedProjectSourceInputs<Buffer, Provider>) => PromiseLike<Result> | Result,
 		commitOptions: Readonly<{
 			assertCurrent?: () => void;
 			retireApplied?: () => PromiseLike<void> | void;
-			transientBuffers?: ReadonlyMap<string, unknown>;
+			transientBuffers?: ReadonlyMap<string, Buffer>;
 		}> = {},
 	): Promise<Result> {
 		if (state !== 'prepared') throw new Error(`The required source preparation is already ${state}.`);
@@ -72,11 +71,11 @@ export function createPreparedProjectSources(
 		let applyStarted = false;
 		try {
 			options.throwIfAborted(options.signal);
-			const preparedBuffers = new Map<string, unknown>(options.sourceBuffers);
+			const preparedBuffers = new Map<string, Buffer>(options.sourceBuffers);
 			for (const [sourceId, buffer] of commitOptions.transientBuffers ?? []) {
 				preparedBuffers.set(sourceId, buffer);
 			}
-			const preparedProviders = new Map<string, unknown>(options.sourceChunkProviders);
+			const preparedProviders = new Map<string, Provider>(options.sourceChunkProviders);
 			for (const [sourceId, entry] of options.prepared) {
 				preparedBuffers.delete(sourceId);
 				preparedProviders.delete(sourceId);

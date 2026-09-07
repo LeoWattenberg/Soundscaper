@@ -279,7 +279,7 @@ function createRequiredSourceFixture(options: RequiredSourceFixtureOptions = {})
 	const statuses: string[] = [];
 	const missingSourceIds = new Set<string>();
 	let bufferReads = 0;
-	const runtime: SourceLifecycleServiceRuntime = {
+	const runtime: SourceLifecycleServiceRuntime<Readonly<Record<string, unknown>>> = {
 		MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES: 2,
 		MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES: 100,
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES: 16,

@@ -17,8 +17,8 @@ export interface AudioBufferLike {
 	copyToChannel?(source: Float32Array, channelNumber: number, startInChannel?: number): void;
 }
 
-export interface AudioBufferContext {
-	createBuffer?(channelCount: number, length: number, sampleRate: number): AudioBufferLike;
+export interface AudioBufferContext<Buffer = AudioBufferLike> {
+	createBuffer?(channelCount: number, length: number, sampleRate: number): Buffer;
 }
 
 interface AudioCopy {
@@ -130,11 +130,11 @@ export function createCoalescingSourceWriter<Metadata = unknown, AbortResult = u
 	});
 }
 
-export async function readStoredAudioBuffer(
-	store: { loadSourceAudioBuffer(sourceId: string, context: AudioBufferContext): Promise<AudioBufferLike | null> },
+export async function readStoredAudioBuffer<Buffer = AudioBufferLike>(
+	store: { loadSourceAudioBuffer(sourceId: string, context: AudioBufferContext<Buffer>): Promise<Buffer | null> },
 	source: Pick<StoredAudioSource, 'id' | 'storageKey'>,
-	context: AudioBufferContext | null | undefined,
-): Promise<AudioBufferLike | null> {
+	context: AudioBufferContext<Buffer> | null | undefined,
+): Promise<Buffer | null> {
 	if (!context?.createBuffer) return null;
 	return store.loadSourceAudioBuffer(source.storageKey || source.id, context);
 }

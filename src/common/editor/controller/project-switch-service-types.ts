@@ -111,6 +111,7 @@ export interface ProjectSwitchSession<
 export interface ProjectSwitchServiceRuntime<
 	Project extends ProjectLifecycleProject,
 	History extends ProjectLifecycleHistory<Project>,
+	Buffer = unknown,
 > {
 	readonly state: ProjectSwitchState<Project, History>;
 	readonly productCapabilities: Readonly<Record<string, unknown>>;
@@ -182,17 +183,17 @@ export interface ProjectSwitchServiceRuntime<
 		readonly requiredAudioSourceIds?: readonly string[];
 		readonly requiredVideoSourceIds?: readonly string[];
 		readonly signal?: AbortSignal;
-	}>) => PromiseLike<ReadonlyMap<string, unknown>> | ReadonlyMap<string, unknown>;
+	}>) => PromiseLike<ReadonlyMap<string, Buffer>> | ReadonlyMap<string, Buffer>;
 	readonly prepareRequiredProjectSources: (project: Project, options: Readonly<{
 		readonly requiredAudioSourceIds: readonly string[];
 		readonly signal?: AbortSignal;
-	}>) => PromiseLike<PreparedRequiredProjectSources> | PreparedRequiredProjectSources;
+	}>) => PromiseLike<PreparedRequiredProjectSources<Buffer>> | PreparedRequiredProjectSources<Buffer>;
 	readonly retainLiveClipIds: () => void;
 	readonly evictUnreferencedSourceCaches: () => void;
 	readonly loadEngineProject: (
 		project: Project,
-		transientSourceBuffers?: unknown,
-		preparedSources?: PreparedProjectSourceInputs,
+		transientSourceBuffers?: ReadonlyMap<string, Buffer>,
+		preparedSources?: PreparedProjectSourceInputs<Buffer>,
 	) => PromiseLike<unknown> | unknown;
 	readonly openRecovery?: Readonly<TakeCycleOpenRecoveryProjectPort>;
 	readonly recordOpenedProject: (projectId: string, guard: ProjectSwitchGuard) => Promise<unknown>;
