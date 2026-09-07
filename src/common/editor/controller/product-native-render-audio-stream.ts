@@ -1,29 +1,30 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { EngineRenderToSinkOptions } from '../engine/public-api.ts';
 import type { ProductNativeRenderInputOperation } from './product-native-render-input-authority.ts';
 
 type Sink = Parameters<NonNullable<ProductNativeRenderInputOperation['renderAudioToSink']>>[2];
 type Result = Awaited<ReturnType<NonNullable<ProductNativeRenderInputOperation['renderAudioToSink']>>>;
 
-interface RenderEngine {
-	loadProject(project: Readonly<Record<string, unknown>>, sourceBuffers: unknown): void;
-	renderMixToSink(options: Readonly<Record<string, unknown>>): Promise<Result>;
+interface RenderEngine<Buffers> {
+	loadProject(project: Readonly<Record<string, unknown>>, sourceBuffers: Buffers): void;
+	renderMixToSink(options: EngineRenderToSinkOptions): Promise<Result>;
 	dispose(): PromiseLike<unknown> | unknown;
 }
 
-export interface ProductNativeRenderAudioStreamDependencies {
-	readonly sourceBuffers: unknown;
+export interface ProductNativeRenderAudioStreamDependencies<Buffers = unknown> {
+	readonly sourceBuffers: Buffers;
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
-	readonly createRenderEngine: () => RenderEngine;
+	readonly createRenderEngine: () => RenderEngine<Buffers>;
 	readonly prepareCommittedTimePitchCaches: (
 		project: Readonly<Record<string, unknown>>, signal: AbortSignal,
 	) => PromiseLike<unknown>;
 }
 
 /** Stream exact project PCM through the common bounded sink engine. */
-export async function renderProductNativeAudioToSink(
-	dependencies: ProductNativeRenderAudioStreamDependencies,
+export async function renderProductNativeAudioToSink<Buffers>(
+	dependencies: ProductNativeRenderAudioStreamDependencies<Buffers>,
 	project: Readonly<Record<string, unknown>>,
 	range: Readonly<Record<string, unknown>>,
 	sink: Sink,
@@ -43,7 +44,12 @@ export async function renderProductNativeAudioToSink(
 	try {
 		engine.loadProject(project, dependencies.sourceBuffers);
 		const result = await engine.renderMixToSink({
-			...range, sink, signal: dependencies.signal,
+			...range, signal: dependencies.signal,
+			sink: async (channels, metadata) => {
+				dependencies.assertCurrent();
+				await sink(channels, metadata);
+				dependencies.assertCurrent();
+			},
 			maximumPendingChunks: 2, backpressureHighWaterChunks: 1,
 		});
 		dependencies.assertCurrent();

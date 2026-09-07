@@ -56,7 +56,7 @@ import { ENGLISH_COPY } from '../i18n/catalogs.js';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
 import { EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from './controller/lifecycle.ts';
 import { deferredArchiveRuntime } from './controller/deferred-archive-runtime.ts';
-import { connectProductNativeRenderInputAuthority } from './controller/product-native-render-input-authority.ts'; import { renderProductNativeAudioToSink } from './controller/product-native-render-audio-stream.ts';
+import { connectControllerNativeRenderInput } from './controller/native-render-input-composition.ts';
 import { createAnalysisComposition } from './controller/analysis-composition.ts';
 import { resolveProductCompositionDecision } from './controller/product-composition-policy.ts';
 import { createControllerActionComposition } from './controller/controller-action-composition.ts';
@@ -111,9 +111,6 @@ import { createSourceRuntimeComposition } from './controller/source-runtime-comp
 import { calculateAudioEditorMetronomeSchedule } from './controller/transport-model.ts';
 
 export { calculateAudioEditorMetronomeSchedule } from './controller/transport-model.ts';
-
-const DEFAULT_PIXELS_PER_SECOND = AUDIO_EDITOR_DEFAULT_PIXELS_PER_SECOND;
-const MAX_PIXELS_PER_SECOND = AUDIO_EDITOR_MAX_PIXELS_PER_SECOND;
 
 /** @param {Element | null} [_root] */
 export function createAudioEditorController(_root = null, options = {}) {
@@ -175,7 +172,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		phase: lifetime.phase,
 		readyMessage: copy.ready,
 		mobile: classifyMobile(),
-		defaultPixelsPerSecond: DEFAULT_PIXELS_PER_SECOND,
+		defaultPixelsPerSecond: AUDIO_EDITOR_DEFAULT_PIXELS_PER_SECOND,
 		timelineMinimumSeconds: EDITOR_TIMELINE_MINIMUM_SECONDS,
 		recordingInputGain: RECORDING_INPUT_GAIN_DEFAULT,
 		preferredInputDeviceId: RECORDING_DEFAULT_DEVICE_ID,
@@ -290,7 +287,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	} = preferences.actions;
 	const doc = createDocumentComposition({
 		state, copy, lifetime, projectGeneration, projectRuntime, product, capabilities, session: sessionController, store, engine, sourceBuffers, sourcePeaks,
-		timePitchCache: clipTimePitchCache, protectedSourceIds: stagedProjectBinSourceIds, maximumPixelsPerSecond: MAX_PIXELS_PER_SECOND,
+		timePitchCache: clipTimePitchCache, protectedSourceIds: stagedProjectBinSourceIds, maximumPixelsPerSecond: AUDIO_EDITOR_MAX_PIXELS_PER_SECOND,
 		settingKeys: { recentProjects: recentProjectsSettingKey, lastProject: lastProjectSettingKey }, scheduleTimer, clearTimer: clearScheduledTimer,
 		prepareProjectSnapshot: options.prepareProjectSnapshot, sources,
 		getProject: () => documentState.project, setProject: (value) => { documentState.project = value; },
@@ -478,7 +475,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		startMicrophoneMeter: () => bindings.setMicrophoneMetering(true), handleError: bindings.handleError,
 	});
 	const transportComposition = createTransportComposition({
-		state, engine, copy, sampleRate: AUDIO_EDITOR_SAMPLE_RATE, maximumPixelsPerSecond: MAX_PIXELS_PER_SECOND, microphoneMeter: microphoneMeterService,
+		state, engine, copy, sampleRate: AUDIO_EDITOR_SAMPLE_RATE, maximumPixelsPerSecond: AUDIO_EDITOR_MAX_PIXELS_PER_SECOND, microphoneMeter: microphoneMeterService,
 		abortError, activeSelection, assertPlayAtSpeedStaffPadMemorySafe, beginPlaybackCachePreparation: bindings.beginPlaybackCachePreparation, calculateAudioEditorMetronomeSchedule,
 		cancelPlaybackCachePreparation: bindings.cancelPlaybackCachePreparation, cancelTimedRecording: bindings.cancelTimedRecording, commit: bindings.commit, editingBlocked, editorTimelineDurationFrames, findTrack, formatPlaybackRate,
 		hasMissingTimelineSources: bindings.hasMissingTimelineSources, persistSetting, playAtSpeedPitchPreserver, productSettingKey, getProject: () => documentState.project,
@@ -519,7 +516,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const tracks = createTrackAudioComposition({
 		state, copy, lifetime, projectGeneration, projectRuntime, controllerOptions: options, store, engine, sourceBuffers, sourceChunkProviders, sourcePeaks,
 		sourceResolver: clipTimePitchSourceResolver, sourceChunkFrames: SOURCE_CHUNK_FRAMES, mixRenderMemoryLimitBytes,
-		defaultPixelsPerSecond: DEFAULT_PIXELS_PER_SECOND, maximumPixelsPerSecond: MAX_PIXELS_PER_SECOND, trackColors: AUDIO_EDITOR_TRACK_COLORS,
+		defaultPixelsPerSecond: AUDIO_EDITOR_DEFAULT_PIXELS_PER_SECOND, maximumPixelsPerSecond: AUDIO_EDITOR_MAX_PIXELS_PER_SECOND, trackColors: AUDIO_EDITOR_TRACK_COLORS,
 		taskProgress, microphoneMeter: microphoneMeterService,
 		export: {
 			ffmpeg, fileService, playbackProjects: playbackProjectService, productName: product.name, prepareProjectForExport: options.prepareProjectForExport,
@@ -641,10 +638,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 		drainSourceProviders: () => sourceChunkProviders.drain(), clearSourcePeaks: () => sourcePeaks.clear(),
 		clearWaveformCaches: sources.clearWaveformPcmCaches, closeStore: () => store.close?.(),
 	});
-	if (options.productNativeRenderInputAuthority) connectProductNativeRenderInputAuthority(options.productNativeRenderInputAuthority, () => {
-		const currentProject = documentState.project; if (!currentProject) throw new Error('A current project is required for native render-input production.');
-		const projectToken = projectGeneration.capture(currentProject.id), snapshot = projectRuntime.cloneProject(currentProject), task = lifetime.startTask('product-native-render-input'), assertCurrent = () => { task.assertCurrent(); projectGeneration.assertCurrent(projectToken); if (documentState.project !== currentProject) throw abortError(); };
-		return Object.freeze({ project: snapshot, signal: task.signal, assertCurrent, finish: task.finish, renderAudio: async (renderProject, range) => { assertCurrent(); const rendered = await renderSnapshot(renderProject, range, sourceBuffers, task.signal); assertCurrent(); return rendered; }, renderAudioToSink: (renderProject, range, sink) => renderProductNativeAudioToSink({ sourceBuffers, signal: task.signal, assertCurrent, createRenderEngine: bindings.createCacheAwareRenderEngine, prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches }, renderProject, range, sink) }); });
+	if (options.productNativeRenderInputAuthority) connectControllerNativeRenderInput(options.productNativeRenderInputAuthority, {
+		lifetime, projectGeneration, getProject: () => documentState.project, cloneProject: projectRuntime.cloneProject,
+		sourceBuffers, renderSnapshot, createRenderEngine: bindings.createCacheAwareRenderEngine,
+		prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches,
+	});
 
 	return {
 		ready,
