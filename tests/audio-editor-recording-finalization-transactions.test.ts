@@ -53,6 +53,31 @@ function createWriter(framesWritten = 100) {
 	return { writer, aborts: () => aborts, commits: () => commits };
 }
 
+test('legacy finalization rolls back a committed source with malformed metadata', async () => {
+	const fixture = createRuntime();
+	const { writer } = createWriter();
+	const invalidWriter = { ...writer, commit: async () => ({ channelCount: 1 }) };
+	await assert.rejects(
+		createLegacyRecordingFinalization(fixture.common).finalize(createSnapshot({ writer: invalidWriter })),
+		/recording source metadata/iu,
+	);
+	assert.deepEqual(fixture.commits, []);
+	assert.deepEqual(fixture.deleted, ['source-1']);
+});
+
+test('routed finalization rolls back committed sources with malformed metadata', async () => {
+	const fixture = createRuntime();
+	const { writer } = createWriter();
+	const invalidWriter = { ...writer, commit: async () => ({ name: 'Take', channelCount: -1 }) };
+	const entries = [createRoutedEntry(invalidWriter)];
+	await assert.rejects(
+		createRoutedRecordingFinalization(fixture.routed).finalize({ ...createSnapshot(), entries }),
+		/recording source metadata/iu,
+	);
+	assert.deepEqual(fixture.commits, []);
+	assert.deepEqual(fixture.deleted, ['source-1']);
+});
+
 function deferred() {
 	let resolve: () => void = () => undefined;
 	const promise = new Promise<void>((complete) => { resolve = complete; });

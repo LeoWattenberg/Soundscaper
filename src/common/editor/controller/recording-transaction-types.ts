@@ -80,7 +80,7 @@ export interface RecordingSourceMetadata extends Readonly<Record<string, unknown
 export interface RecordingSourceWriter {
 	readonly framesWritten: number;
 	write(channels: readonly Float32Array[]): MaybePromise<unknown>;
-	commit(metadata?: Readonly<Record<string, unknown>>): Promise<RecordingSourceMetadata>;
+	commit(metadata?: Readonly<Record<string, unknown>>): Promise<unknown>;
 	abort(reason?: unknown): Promise<unknown>;
 }
 

@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { readRecordingSourceMetadata } from './recording-source-metadata.ts';
+
 import type { RecordingPreview } from './recording-model.ts';
 import type {
 	LegacyRecordingFinalizationTransaction,
@@ -103,8 +105,9 @@ export function createLegacyRecordingFinalization(runtime: RecordingFinalization
 			}
 			const projectRate = runtime.projectSampleRate(projectScope.project);
 			const sampleRate = transaction.sampleRate || projectRate;
-			const metadata = await transaction.writer.commit({ sampleRate });
+			const storedMetadata = await transaction.writer.commit({ sampleRate });
 			sourceCommitted = true;
+			const metadata = readRecordingSourceMetadata(storedMetadata);
 			projectScope.assertCurrent();
 			const source: RecordedAudioSource = Object.freeze({
 				sampleRate,

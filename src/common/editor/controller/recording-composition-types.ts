@@ -12,7 +12,6 @@ import type {
 	RecordingControllerFactory,
 	RecordingEnginePort,
 	RecordingProject,
-	RecordingSourceMetadata,
 } from './recording-transaction-types.ts';
 import type { SoundActivationPolicyService } from './sound-activation-policy-service.ts';
 import type { WritablePcmSource } from './source-audio.ts';
@@ -56,7 +55,7 @@ export type RecordingCompositionStore = TakeCycleAppCompositionDependencies['sto
 	beginSourceWrite(
 		sourceId: string,
 		metadata: Readonly<Record<string, unknown>>,
-	): Promise<WritablePcmSource<RecordingSourceMetadata, Promise<unknown>>>;
+	): Promise<WritablePcmSource<unknown, Promise<unknown>>>;
 	deleteSource(sourceId: string): Promise<unknown>;
 	deleteAnalysis?(key: string): PromiseLike<unknown> | unknown;
 }>;

@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { readRecordingSourceMetadata } from './recording-source-metadata.ts';
+
 import { RECORDING_DISPLAY_ROUTE_LABEL } from '../recording-routing.js';
 import type { RecordingPreview } from './recording-model.ts';
 import type {
@@ -145,11 +147,12 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 					runtime.setRouteHealth(entry.trackId, 'skipped');
 					continue;
 				}
-				const metadata = await entry.writer.commit({
+				const storedMetadata = await entry.writer.commit({
 					sampleRate: entry.sampleRate,
 					channelCount: entry.route.channelCount,
 				});
 				committedEntries.push(entry);
+				const metadata = readRecordingSourceMetadata(storedMetadata);
 				projectScope.assertCurrent();
 				const source: RecordedAudioSource = Object.freeze({
 					sampleRate: entry.sampleRate,
