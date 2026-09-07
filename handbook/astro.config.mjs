@@ -5,6 +5,7 @@ import { defineConfig } from 'astro/config';
 import rehypeAccessibleTables from './src/plugins/rehype-accessible-tables.mjs';
 import rehypeHandbookBase from './src/plugins/rehype-handbook-base.mjs';
 import rehypeVerdictTables from './src/plugins/rehype-verdict-tables.mjs';
+import { starlightLocaleConfig } from '../scripts/lib/handbook-locales.mjs';
 import { handbookPlan } from '../scripts/lib/product-web-routing.mjs';
 import { SOUNDSCAPER_GUIDE_GROUPS } from './guides/soundscaper.mjs';
 
@@ -28,12 +29,12 @@ export default defineConfig({
 				baseUrl: 'https://github.com/LeoWattenberg/Soundscaper/edit/main/handbook/',
 			},
 			lastUpdated: true,
-			locales: {
-				root: {
-					label: 'English',
-					lang: 'en',
-				},
-			},
+			// Which languages exist is decided by the content tree itself; see
+			// `scripts/lib/handbook-locales.mjs`. English is the `root` entry, so
+			// its pages keep the bare base path and stand in for any page a
+			// language has not been translated yet.
+			defaultLocale: 'root',
+			locales: starlightLocaleConfig(),
 			social: [
 				{
 					icon: 'github',
