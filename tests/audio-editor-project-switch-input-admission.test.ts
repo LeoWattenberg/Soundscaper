@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createProjectSwitchService } from '../src/common/editor/controller/project-switch-service.ts';
+import { createProjectSwitchService, type ProjectSwitchServiceRuntime } from '../src/common/editor/controller/project-switch-service.ts';
 import { createFixture, project } from './helpers/audio-editor-project-switch-fixture.ts';
 
 test('activation uses the admitted history instead of traversing the stored input', async () => {
@@ -48,4 +48,16 @@ test('admission rejects a history belonging to a different declared project', as
 	});
 	await assert.rejects(service.openProject({}), /history must belong to the requested project/);
 	assert.equal(fixture.getProject(), previous);
+});
+
+test('create-only storage acknowledges publication without replacing the admitted document', async () => {
+	const fixture = createFixture();
+	const createProjectIfAbsent: NonNullable<ProjectSwitchServiceRuntime<ReturnType<typeof project>, ReturnType<typeof fixture.runtime.createHistory>>['createProjectIfAbsent']>
+		= value => ({ id: value.id });
+	const service = createProjectSwitchService({ ...fixture.runtime, createProjectIfAbsent });
+	const input = project('created-project');
+	await service.switchProject(input, { save: true });
+	assert.equal(fixture.getProject()?.title, input.title);
+	assert.deepEqual(fixture.getProject()?.tracks, input.tracks);
+	assert.ok(fixture.events.includes(`marked-saved:${input.id}`));
 });

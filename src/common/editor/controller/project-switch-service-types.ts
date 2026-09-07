@@ -204,7 +204,7 @@ export interface ProjectSwitchServiceRuntime<
 		projectId: string,
 		isCurrentWritable: () => boolean,
 	) => PromiseLike<unknown> | unknown;
-	readonly createProjectIfAbsent?: (project: Project) => PromiseLike<Project | null> | Project | null;
+	readonly createProjectIfAbsent?: (project: Project) => PromiseLike<Pick<Project, 'id'> | null> | Pick<Project, 'id'> | null;
 	readonly saveProject: (project: Project) => Promise<unknown>;
 	readonly listProjects: () => Promise<readonly unknown[]>;
 	readonly synchronizeMicrophoneMeterTarget: () => void;
