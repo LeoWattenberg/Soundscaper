@@ -350,7 +350,6 @@ test('desktop entry points enforce absence without consuming the browser FFmpeg 
 	]);
 	const platformValidation = releaseAssets.indexOf('validateDesktopRuntimeManifests(manifests');
 	const packagePreflight = releaseAssets.indexOf('validateDesktopReleasePackageInventory(packageFiles');
-	const sourceFetch = releaseAssets.indexOf('await fetchVerified(');
 	for (const [name, source] of Object.entries({ prepare, beforePack, afterPack, releaseAssets })) {
 		assert.doesNotMatch(source, /from ['"]\.\/lib\/ffmpeg-runtime-manifest\.mjs['"]/u, name);
 	}
@@ -358,13 +357,13 @@ test('desktop entry points enforce absence without consuming the browser FFmpeg 
 	assert.doesNotMatch(prepare, /PUBLIC_FFMPEG_CORE_BASE_URL:\s*/u);
 	assert.doesNotMatch(releaseAssets, /ffmpeg-corresponding-source|ffmpeg-runtime-manifest\.json/iu);
 	assert.ok(
-		platformValidation >= 0 && sourceFetch >= 0 && platformValidation < sourceFetch,
-		'public desktop release validates every runtime manifest before network fetches',
+		platformValidation >= 0 && packagePreflight >= 0 && platformValidation < packagePreflight,
+		'public desktop release validates every runtime manifest before its package inventory',
 	);
-	assert.ok(
-		packagePreflight >= 0 && sourceFetch >= 0 && packagePreflight < sourceFetch,
-		'public desktop release validates its Soundscaper package inventory before network fetches',
-	);
+	// The Audacity corresponding source is committed in this repository, so
+	// release assembly no longer downloads anything at all.
+	assert.doesNotMatch(releaseAssets, /\bfetch\(/u,
+		'public desktop release assembly makes no network request');
 	assert.match(builderConfig, /beforePack: ['"]\.\/scripts\/desktop-before-pack\.mjs['"]/u);
 	assert.match(builderConfig, /from: ['"]\.desktop-build\/licenses\/THIRD_PARTY_LICENSES\.md['"]/u);
 	assert.match(packageMetadata.scripts['audit:ci'], /audit:ffmpeg-runtime/u);

@@ -218,25 +218,19 @@ test('endpoint failures stop the run and leave the batches already written', asy
 	assert.deepEqual(Object.keys(catalog.entries), ['addTrack', 'bandNumber']);
 });
 
-test('the glossary is the Audacity-reviewed pack for the locale, and reports which keys differ from English', async () => {
-	const pack = new TextEncoder().encode(JSON.stringify({ schemaVersion: 1, locale: 'fr', messages: { stop: 'Arrêter', zoomIn: 'Zoom in' } }));
-	const { createHash } = await import('node:crypto');
-	const sha256 = createHash('sha256').update(pack).digest('hex');
-	const manifest = { schemaVersion: 1, locales: { fr: { eligible: true, path: `packs/${sha256}.json`, sha256, byteLength: pack.byteLength } } };
-	const fetchImpl = async (url) => new Response(String(url).endsWith('latest.json') ? JSON.stringify(manifest) : pack, { status: 200 });
-	const glossary = await loadGlossary({ locale: 'fr', baseUrl: 'https://translations.example.test/runtime/translations/audacity/4/', fetchImpl, englishCopy: ENGLISH });
-	assert.deepEqual(glossary, [{ key: 'stop', english: 'Stop', translation: 'Arrêter' }]);
-	manifest.locales.fr.eligible = false;
-	assert.deepEqual(await loadGlossary({ locale: 'fr', baseUrl: 'https://translations.example.test/runtime/translations/audacity/4/', fetchImpl, englishCopy: ENGLISH }), glossary);
-	manifest.locales.fr.eligible = true;
-	assert.deepEqual(await loadGlossary({ locale: 'pl', baseUrl: 'https://translations.example.test/runtime/translations/audacity/4/', fetchImpl, englishCopy: ENGLISH }), []);
-
+test('the glossary is the committed Audacity catalog for the locale, keyed to what differs from English', async () => {
 	const { directory } = await scratch();
-	const { mkdir, writeFile } = await import('node:fs/promises');
-	await mkdir(join(directory, 'packs'), { recursive: true });
-	await writeFile(join(directory, 'latest.json'), JSON.stringify(manifest));
-	await writeFile(join(directory, `packs/${sha256}.json`), pack);
-	assert.deepEqual(await loadGlossary({ locale: 'fr', snapshotDirectory: directory, englishCopy: ENGLISH }), [{ key: 'stop', english: 'Stop', translation: 'Arrêter' }]);
+	const { writeFile } = await import('node:fs/promises');
+	const provenance = {
+		repository: 'audacity/audacity', headSha: 'a'.repeat(40), runId: 1, artifactId: 2, workflowUrl: 'https://github.com/audacity/audacity/actions/runs/1',
+		archiveName: 'Audacity_locale_1.zip', archiveSha256: 'b'.repeat(64), archiveByteLength: 3, licenseSpdx: 'GPL-3.0-only',
+		upstreamProjectUrl: 'https://github.com/audacity/audacity', upstreamLicenseUrl: 'https://github.com/audacity/audacity/blob/a/LICENSE.txt',
+		modificationNotice: 'converted', mappingVersion: 2, mappingSha256: 'c'.repeat(64),
+	};
+	await writeFile(join(directory, 'fr.json'), JSON.stringify({ schemaVersion: 1, locale: 'fr', provenance, messages: { stop: 'Arrêter', zoomIn: 'Zoom in' } }));
+	assert.deepEqual(await loadGlossary({ locale: 'fr', audacityDirectory: directory, englishCopy: ENGLISH }), [{ key: 'stop', english: 'Stop', translation: 'Arrêter' }]);
+	assert.deepEqual(await loadGlossary({ locale: 'pl', audacityDirectory: directory, englishCopy: ENGLISH }), []);
+	assert.ok((await loadGlossary({ locale: 'fr', englishCopy: { ...ENGLISH, ...Object.fromEntries(['play', 'stop'].map((key) => [key, key])) } })).length >= 1, 'the committed layer serves the real glossary');
 });
 
 test('check reports each catalog against the English copy and names an invalid file', async () => {
@@ -305,10 +299,10 @@ test('the default model is Aya where it speaks the language and the general mode
 
 test('the command line parses both commands and refuses contradictory options', () => {
 	assert.deepEqual(parseCliArguments(['translate', '--locale', 'fr,es', '--model', 'aya-expanse:32b', '--batch-size', '20', '--no-glossary', '--keys', 'a,b']), {
-		command: 'translate', all: false, strict: false, glossary: 'none', locales: ['fr', 'es'], model: 'aya-expanse:32b', batchSize: 20, keys: ['a', 'b'],
+		command: 'translate', all: false, strict: false, glossary: false, locales: ['fr', 'es'], model: 'aya-expanse:32b', batchSize: 20, keys: ['a', 'b'],
 	});
-	assert.deepEqual(parseCliArguments(['translate', '--all', '--glossary', 'snapshot']), { command: 'translate', all: true, strict: false, glossary: 'snapshot' });
-	assert.deepEqual(parseCliArguments(['check', '--strict']), { command: 'check', all: false, strict: true, glossary: 'published' });
+	assert.deepEqual(parseCliArguments(['translate', '--all']), { command: 'translate', all: true, strict: false, glossary: true });
+	assert.deepEqual(parseCliArguments(['check', '--strict']), { command: 'check', all: false, strict: true, glossary: true });
 	assert.throws(() => parseCliArguments(['translate']), /needs --locale or --all/u);
 	assert.throws(() => parseCliArguments(['translate', '--all', '--locale', 'fr']), /cannot be combined/u);
 	assert.throws(() => parseCliArguments(['translate', '--locale']), /Missing value/u);

@@ -1,4 +1,4 @@
-import { expect, longTone, test, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
+import { expect, longTone, test } from './audio-editor-test-fixtures.js';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -185,17 +185,7 @@ async function launchCycleContext(userDataDir, baseURL) {
 		serviceWorkers: 'block',
 	});
 	await installCycleBrowserPorts(context);
-	await serveCanonicalTranslations(context);
 	return context;
-}
-
-async function serveCanonicalTranslations(context) {
-	await context.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-		status: 200,
-		contentType: 'application/json',
-		headers: { 'Access-Control-Allow-Origin': '*' },
-		body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-	}));
 }
 
 async function installCycleBrowserPorts(context) {

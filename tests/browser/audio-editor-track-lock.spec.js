@@ -1,4 +1,4 @@
-import { expect, test, toneA, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
+import { expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	clipByName,
@@ -17,15 +17,6 @@ import {
 const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 
 test.describe('persisted shared track locking', () => {
-	test.beforeEach(async ({ page }) => {
-		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: { 'Access-Control-Allow-Origin': '*' },
-			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-		}));
-	});
-
 	test('Soundscaper lock survives undo, redo, reload, and the Framescaper handoff fence', async ({ page }) => {
 		test.setTimeout(120_000);
 		const editor = await bootEditor(page, '/en/');

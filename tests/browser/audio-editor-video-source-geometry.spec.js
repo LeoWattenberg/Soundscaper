@@ -15,21 +15,11 @@ import {
 } from './helpers/durable-media-storage-capability.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
-const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 const ROTATED_ANAMORPHIC = videoSourceGeometryMedia.find(
 	({ id }) => id === 'geometry-rotated-anamorphic-mp4-v1',
 );
 
 test.describe('3B-2b source display geometry qualification', () => {
-	test.beforeEach(async ({ page }) => {
-		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: { 'Access-Control-Allow-Origin': '*' },
-			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-		}));
-	});
-
 	test('the probe reports coded geometry and each engine resolves its own residual', async ({
 		browserName,
 		page,

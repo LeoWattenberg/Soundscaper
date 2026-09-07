@@ -11,7 +11,6 @@ import {
 import { createUnreportedVideoSourceCharacteristicsV25 } from '../../src/common/editor/video-source-professional-characteristics-v25.ts';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
-const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 const EXACT_FRAME_COUNT = CFR.presentationTicks.length;
 // What an ingest whose probe never ran would have written: no reading at all,
@@ -22,15 +21,6 @@ const FABRICATED_FRAME_COUNT = Math.round(
 );
 
 test.describe('3B-2c re-import upgrade qualification', () => {
-	test.beforeEach(async ({ page }) => {
-		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: { 'Access-Control-Allow-Origin': '*' },
-			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-		}));
-	});
-
 	test('a source imported without a probe is re-read into exact timing', async ({ page }) => {
 		test.setTimeout(120_000);
 

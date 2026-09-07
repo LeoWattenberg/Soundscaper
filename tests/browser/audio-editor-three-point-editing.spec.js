@@ -10,20 +10,10 @@ import {
 } from './helpers/durable-media-storage-capability.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
-const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 const SOURCE_FRAMES = CFR.presentationTicks.length;
 
 test.describe('3B-3a three-point editing qualification', () => {
-	test.beforeEach(async ({ page }) => {
-		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: { 'Access-Control-Allow-Origin': '*' },
-			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-		}));
-	});
-
 	test('a bin item overwrites and inserts into the targeted lane', async ({ page }) => {
 		test.setTimeout(120_000);
 

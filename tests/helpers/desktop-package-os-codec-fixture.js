@@ -11,6 +11,14 @@ import {
 } from '../../scripts/lib/soundscaper-professional-native-notices.mjs';
 
 const REVISION = 'a'.repeat(40);
+// The committed Audacity layer ships inside the renderer bundle, so the runtime
+// manifest carries its provenance rather than any staged translation files.
+const TRANSLATIONS = Object.freeze({
+	headSha: 'b'.repeat(40),
+	artifactId: 4321,
+	mappingSha256: 'c'.repeat(64),
+	locales: Object.freeze(['de', 'fr']),
+});
 
 export async function osCodecPackageTree(context, target) {
 	const root = await mkdtemp(join(tmpdir(), 'desktop-package-os-codec-'));
@@ -55,7 +63,7 @@ export async function osCodecPackageTree(context, target) {
 		},
 		assistanceNativeRuntime: { target, status: 'unsupported', payload: null },
 		framescaperNativeHosts: null,
-		translations: {},
+		translations: TRANSLATIONS,
 	};
 	const runtimeManifestPath = join(root, 'runtime-manifest.json');
 	const fixture = { resourcesRoot, runtimeManifest, runtimeManifestPath, payloads };

@@ -141,7 +141,7 @@
   },
   "scripts/desktop-prepare.mjs": {
     "preserve-caught-error": {
-      "count": 3
+      "count": 1
     }
   },
   "scripts/desktop-release-assets.mjs": {

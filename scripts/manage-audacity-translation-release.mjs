@@ -1,49 +1,30 @@
 #!/usr/bin/env node
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-// The translation release workflow's command line. Each command is implemented
-// in its own module beside this one; this file only routes to them.
+// Finds the newest reviewed Audacity translation artifact and writes it, with
+// its licence and metadata, to a directory for the converter. The converted
+// strings are committed source (see scripts/audacity-qt-translations.mjs
+// commit), so the publication commands this file once routed to are gone.
 
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { PUBLIC_ROOT, parseArgs, rejectUnknownOptions, requiredOption } from './lib/audacity-translation-release-values.mjs';
-import { validateStage } from './lib/audacity-translation-release-validation.mjs';
-import { discover, snapshot, verifyPublication } from './lib/audacity-translation-release-discovery.mjs';
-import { publish, rollback } from './lib/audacity-translation-release-publication.mjs';
+import { parseArgs } from './lib/audacity-translation-release-values.mjs';
+import { discover } from './lib/audacity-translation-release-discovery.mjs';
 
 export {
 	validateAudacityArtifactResult,
 	validateAudacityWorkflowRun,
-	validateCommittedRouteEligibility,
-	validateHistoricalPack,
 } from './lib/audacity-translation-release-validation.mjs';
-export { promotePointer } from './lib/audacity-translation-release-publication.mjs';
-
-async function verifyStage(options) {
-	rejectUnknownOptions(options, ['root']);
-	const release = await validateStage(requiredOption(options, 'root'));
-	console.log(`Verified staged release ${release.releaseId}: ${release.files.length} immutable objects`);
-}
 
 function usage() {
 	console.error(`Usage:
-  node scripts/manage-audacity-translation-release.mjs discover --output <directory> [--max-age-hours 24] [--github-env <file>] [--github-output <file>]
-  node scripts/manage-audacity-translation-release.mjs snapshot --output <directory> [--base-url ${PUBLIC_ROOT}]
-  node scripts/manage-audacity-translation-release.mjs verify-stage --root <directory>
-  node scripts/manage-audacity-translation-release.mjs verify-publication --root <directory> --expected-tool-revision <sha> [--public-base-url ${PUBLIC_ROOT}]
-  node scripts/manage-audacity-translation-release.mjs publish --root <directory> [--public-base-url ${PUBLIC_ROOT}]
-  node scripts/manage-audacity-translation-release.mjs rollback --release-id <artifact-id> [--public-base-url ${PUBLIC_ROOT}]`);
+  node scripts/manage-audacity-translation-release.mjs discover --output <directory> [--max-age-hours 24] [--github-env <file>] [--github-output <file>]`);
 }
 
 async function runCli(argv) {
 	const { command, options } = parseArgs(argv);
 	if (command === 'discover') await discover(options);
-	else if (command === 'snapshot') await snapshot(options);
-	else if (command === 'verify-stage') await verifyStage(options);
-	else if (command === 'verify-publication') await verifyPublication(options);
-	else if (command === 'publish') await publish(options);
-	else if (command === 'rollback') await rollback(options);
 	else {
 		usage();
 		process.exitCode = 2;
@@ -57,7 +38,7 @@ function isMainModule() {
 
 if (isMainModule()) {
 	runCli(process.argv.slice(2)).catch((error) => {
-		console.error(`Translation release error: ${error.message}`);
+		console.error(`Translation discovery error: ${error.message}`);
 		process.exitCode = 1;
 	});
 }

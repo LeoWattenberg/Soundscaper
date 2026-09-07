@@ -33,7 +33,7 @@ test('the embedded package-content manifest binds the exact installed resource c
 		targetId: 'linux-x64',
 	});
 	assert.equal(written.status, 'installed-resource-closure-audited');
-	assert.equal(written.fileCount, 14);
+	assert.equal(written.fileCount, 13);
 	const audit = await auditExtractedDesktopPackageContent({
 		extractedRoot: fixture.extractedRoot,
 		runtimeManifestBytes: await readFile(fixture.runtimeManifestPath),
@@ -42,10 +42,37 @@ test('the embedded package-content manifest binds the exact installed resource c
 	});
 	assert.equal(audit.contentManifestSha256, written.contentManifestSha256);
 	assert.equal(audit.sourceRevision, REVISION);
-	assert.equal(audit.fileCount, 14);
+	assert.equal(audit.fileCount, 13);
 	assert.match(audit.installedClosureSha256, /^[a-f\d]{64}$/u);
 	assert.match(audit.resourcesPath, /usr\/lib\/soundscaper\/resources$/u);
 });
+test('package-content authority requires the committed Audacity layer provenance', async (context) => {
+	const provenance = {
+		headSha: 'b'.repeat(40), artifactId: 4321, mappingSha256: 'c'.repeat(64), locales: ['de', 'fr'],
+	};
+	for (const translations of [
+		{},
+		{ ...provenance, headSha: '' },
+		{ ...provenance, artifactId: 0 },
+		{ ...provenance, mappingSha256: 'not-a-digest' },
+		{ ...provenance, locales: [] },
+		{ ...provenance, locales: ['de', 7] },
+		// The strings ship inside the renderer bundle, so the retired descriptor
+		// of a staged pack is not provenance and must not be accepted as any.
+		{ latest: { path: 'latest.json', byteLength: 1, sha256: '0'.repeat(64) } },
+	]) {
+		const fixture = await packageTree(context);
+		fixture.runtimeManifest.translations = translations;
+		await writeJson(fixture.runtimeManifestPath, fixture.runtimeManifest);
+		await assert.rejects(writeDesktopPackageContentManifest({
+			resourcesRoot: fixture.resourcesRoot,
+			runtimeManifestPath: fixture.runtimeManifestPath,
+			productId: 'soundscaper',
+			targetId: 'linux-x64',
+		}), /Audacity translation provenance/iu);
+	}
+});
+
 test('Stable Soundscaper admits no legacy native-addon manifest or helper payload', async (context) => {
 	const stable = await packageTree(context);
 	await rm(join(stable.resourcesRoot, 'runtime/native/linux-x64'), { recursive: true });
@@ -59,7 +86,7 @@ test('Stable Soundscaper admits no legacy native-addon manifest or helper payloa
 		resourcesRoot: stable.resourcesRoot, runtimeManifestPath: stable.runtimeManifestPath,
 		productId: 'soundscaper', targetId: 'linux-x64',
 	}, stableNotices.dependencies);
-	assert.equal(written.fileCount, 17);
+	assert.equal(written.fileCount, 16);
 
 	const missingNotices = await packageTree(context);
 	await rm(join(missingNotices.resourcesRoot, 'runtime/native/linux-x64'), { recursive: true });

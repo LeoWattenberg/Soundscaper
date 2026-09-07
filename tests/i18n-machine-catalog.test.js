@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { createHash, webcrypto } from 'node:crypto';
 import test from 'node:test';
 
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
@@ -15,7 +14,9 @@ import {
 import { MACHINE_CATALOG_LOADERS, MACHINE_CATALOG_LOCALES } from '../src/common/i18n/machine/index.js';
 import { mergeCatalog, resolveCatalog } from '../src/common/i18n/runtime.js';
 
-const BASE_URL = 'https://translations.example.test/runtime/translations/audacity/4/';
+function audacity(locale, messages) {
+	return { schemaVersion: 1, locale, provenance: {}, messages };
+}
 
 function catalog(locale, entries) {
 	return { schemaVersion: 1, locale, provenance: { model: 'test', modelDigest: 'sha256:test', promptVersion: 'i18n-machine-v1' }, entries };
@@ -129,14 +130,8 @@ test('machine strings sit above the bundled copy and below Audacity', () => {
 	assert.throws(() => mergeCatalog('fr', { openProject: 'Open…' }, { machine: {} }), /ellipsis/u);
 });
 
-test('resolving a locale loads the machine layer and the Audacity pack together', async () => {
-	const pack = encodeJson({ schemaVersion: 1, locale: 'fr', messages: { fileMenu: 'Fichier (Audacity)' } });
-	const sha256 = createHash('sha256').update(pack).digest('hex');
-	const manifest = {
-		schemaVersion: 1,
-		locales: { fr: { eligible: true, path: `packs/${sha256}.json`, sha256, byteLength: pack.byteLength } },
-	};
-	const fetchImpl = async (url) => (String(url).endsWith('latest.json') ? response(encodeJson(manifest)) : response(pack));
+test('resolving a locale loads the machine layer and the Audacity layer together', async () => {
+	const audacityLoaders = { fr: async () => audacity('fr', { fileMenu: 'Fichier (Audacity)' }) };
 	const machineLoaders = {
 		fr: async () => catalog('fr', {
 			fileMenu: [ENGLISH_COPY.fileMenu, 'Fichier (machine)'],
@@ -144,38 +139,29 @@ test('resolving a locale loads the machine layer and the Audacity pack together'
 			viewMenu: ['View (old)', 'Affichage (stale)'],
 		}),
 	};
-	const copy = await resolveCatalog('fr', { baseUrl: BASE_URL, fetchImpl, cryptoImpl: webcrypto, machineLoaders });
+	const copy = await resolveCatalog('fr', { machineLoaders, audacityLoaders });
 	assert.equal(copy.fileMenu, 'Fichier (Audacity)');
 	assert.equal(copy.editMenu, 'Édition (machine)');
 	assert.equal(copy.viewMenu, ENGLISH_COPY.viewMenu);
 	assert.ok(Object.isFrozen(copy));
 });
 
-test('each layer fails on its own: no manifest keeps the machine layer, a retired chunk keeps Audacity and is reported', async () => {
+test('each layer fails on its own: no Audacity chunk keeps the machine layer, a retired machine chunk keeps Audacity and is reported', async () => {
 	const fallbacks = [];
 	const machineLoaders = { fr: async () => catalog('fr', { editMenu: [ENGLISH_COPY.editMenu, 'Édition (machine)'] }) };
 	const offline = await resolveCatalog('fr', {
-		baseUrl: BASE_URL,
-		fetchImpl: async () => { throw new Error('R2 unavailable'); },
 		machineLoaders,
+		audacityLoaders: { fr: async () => { throw new Error('chunk unavailable'); } },
 		onFallback: (error) => fallbacks.push(error.message),
 	});
 	assert.equal(offline.editMenu, 'Édition (machine)');
 	assert.equal(offline.fileMenu, ENGLISH_COPY.fileMenu);
-	assert.deepEqual(fallbacks, ['R2 unavailable']);
+	assert.deepEqual(fallbacks, ['chunk unavailable']);
 
-	const pack = encodeJson({ schemaVersion: 1, locale: 'fr', messages: { fileMenu: 'Fichier (Audacity)' } });
-	const sha256 = createHash('sha256').update(pack).digest('hex');
-	const manifest = {
-		schemaVersion: 1,
-		locales: { fr: { eligible: true, path: `packs/${sha256}.json`, sha256, byteLength: pack.byteLength } },
-	};
 	fallbacks.length = 0;
 	const staleCandidates = [];
 	const retired = await resolveCatalog('fr', {
-		baseUrl: BASE_URL,
-		fetchImpl: async (url) => (String(url).endsWith('latest.json') ? response(encodeJson(manifest)) : response(pack)),
-		cryptoImpl: webcrypto,
+		audacityLoaders: { fr: async () => audacity('fr', { fileMenu: 'Fichier (Audacity)' }) },
 		machineLoaders: { fr: async () => { throw new TypeError('Failed to fetch dynamically imported module: https://example.test/assets/fr-abc.js'); } },
 		onFallback: (error) => fallbacks.push(error.message),
 		reportStaleBuildCandidate: (error) => staleCandidates.push(error.message),
@@ -187,8 +173,7 @@ test('each layer fails on its own: no manifest keeps the machine layer, a retire
 
 	staleCandidates.length = 0;
 	await resolveCatalog('fr', {
-		baseUrl: BASE_URL,
-		fetchImpl: async () => { throw new Error('offline'); },
+		audacityLoaders: {},
 		machineLoaders: { fr: async () => { throw new Error('Unsupported machine catalog schema.'); } },
 		onFallback: () => {},
 		reportStaleBuildCandidate: (error) => staleCandidates.push(error.message),
@@ -202,20 +187,9 @@ test('German and exact English never consult the machine layer', async () => {
 		de: async () => { loads += 1; return catalog('de', { fileMenu: [ENGLISH_COPY.fileMenu, 'Nein'] }); },
 		en: async () => { loads += 1; return catalog('en', { fileMenu: [ENGLISH_COPY.fileMenu, 'Nope'] }); },
 	};
-	const german = await resolveCatalog('de-AT', { baseUrl: BASE_URL, fetchImpl: async () => { throw new Error('offline'); }, machineLoaders });
+	const german = await resolveCatalog('de-AT', { machineLoaders, audacityLoaders: {} });
 	assert.equal(german.fileMenu, GERMAN_COPY.fileMenu);
-	const english = await resolveCatalog('en', { fetchImpl: async () => { throw new Error('must not fetch'); }, machineLoaders });
+	const english = await resolveCatalog('en', { machineLoaders, audacityLoaders: {} });
 	assert.equal(english.fileMenu, ENGLISH_COPY.fileMenu);
 	assert.equal(loads, 0);
 });
-
-function encodeJson(value) {
-	return new TextEncoder().encode(JSON.stringify(value));
-}
-
-function response(bytes, status = 200) {
-	return new Response(bytes, {
-		status,
-		headers: { 'content-length': String(bytes.byteLength), 'content-type': 'application/json' },
-	});
-}

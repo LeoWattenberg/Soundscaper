@@ -63,7 +63,7 @@ export const editorOptionalSurfaceModule = String.raw`ui[\\/](?:AudacityEffectLa
 export const EDITOR_ASSISTANCE_SEMANTIC_SEARCH_RUNTIME_CHUNK_TEST =
 	/src[\\/]common[\\/]editor[\\/](?:assistance[\\/]local-assistance-semantic-search-bridge|ui[\\/]local-assistance-semantic-search-source)\.ts$/;
 export const EDITOR_COPY_CHUNK_TEST =
-	/(?:src[\\/]common[\\/]i18n[\\/](?:catalogs|runtime|canonical-extras|(?!(?:site|site-sidebar)-copy\.js$)[^\\/]+-copy)|src[\\/]soundscaper[\\/]framescaper-capture-copy)\.js$/;
+	/(?:src[\\/]common[\\/]i18n[\\/](?:catalogs|runtime|audacity-catalog|canonical-extras|(?!(?:site|site-sidebar)-copy\.js$)[^\\/]+-copy)|src[\\/]soundscaper[\\/]framescaper-capture-copy)\.js$/;
 
 /** Archive/interchange implementation modules owned only by lazy file-menu actions. */
 export const EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST = new RegExp(

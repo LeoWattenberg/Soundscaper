@@ -58,8 +58,8 @@ test('both shipped policies keep the shape a sandboxed macro worker depends on',
 });
 
 test('the desktop shell reaches no network beyond its own origin', () => {
-	// The web worker inherits connect-src from the document and keeps the two
-	// first-party CDNs; the desktop one has nowhere to go at all. That asymmetry
+	// The web worker inherits connect-src from the document and keeps the
+	// first-party CDN; the desktop one has nowhere to go at all. That asymmetry
 	// is recorded in the threat model, so it is pinned rather than assumed.
 	assert.deepEqual(
 		directives(securityHeaders({ html: '' })['Content-Security-Policy']).get('connect-src'),

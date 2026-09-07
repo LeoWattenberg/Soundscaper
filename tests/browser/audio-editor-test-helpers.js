@@ -2,10 +2,7 @@ import { readFile } from 'node:fs/promises';
 
 import {
 	AxeBuilder,
-	createHash,
 	expect,
-	test,
-	TRANSLATIONS_ROOT,
 } from './audio-editor-test-fixtures.js';
 import { projectFileExtensionForProduct } from '../../src/common/project-file-extensions.ts';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
@@ -53,16 +50,12 @@ export async function chooseExportProjectFileAction(page, editor) {
 	await chooseFileAction(page, editor, exportProjectFileAction(productId || 'soundscaper'));
 }
 
-export function registerAudioEditorHooks() {
-	test.beforeEach(async ({ page }) => {
-		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: { 'Access-Control-Allow-Origin': '*' },
-			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-		}));
-	});
-}
+/**
+ * No-op: Audacity's reviewed strings are committed source lazy-imported like
+ * the machine catalogs, so there is no translations network call left to
+ * stub. Kept so existing callers need no change.
+ */
+export function registerAudioEditorHooks() {}
 
 export async function bootEditor(page, path) {
 	await seedWorkspaceOnboardingComplete(page);
@@ -71,44 +64,6 @@ export async function bootEditor(page, path) {
 	const decline = page.getByRole('button', { name: /^(Decline|Ablehnen)$/ });
 	if (await decline.isVisible()) await decline.click();
 	return editor;
-}
-
-export async function serveTranslationFixture(page, locales, { waitForPack } = {}) {
-	await page.unroute(`${TRANSLATIONS_ROOT}/**`);
-	const packs = new Map();
-	const descriptors = {};
-	for (const [locale, fixture] of Object.entries(locales)) {
-		const bytes = Buffer.from(JSON.stringify({ schemaVersion: 1, locale, messages: fixture.messages }));
-		const sha256 = createHash('sha256').update(bytes).digest('hex');
-		const path = `packs/${sha256}.json`;
-		packs.set(path, bytes);
-		descriptors[locale] = {
-			name: fixture.name,
-			direction: fixture.direction,
-			eligible: true,
-			coverage: 1,
-			path,
-			sha256,
-			byteLength: bytes.byteLength,
-		};
-	}
-	const manifest = Buffer.from(JSON.stringify({ schemaVersion: 1, locales: descriptors }));
-	await page.route(`${TRANSLATIONS_ROOT}/**`, async (route) => {
-		const url = new URL(route.request().url());
-		const relativePath = url.pathname.slice(new URL(`${TRANSLATIONS_ROOT}/`).pathname.length);
-		const body = relativePath === 'latest.json' ? manifest : packs.get(relativePath);
-		if (!body) return route.fulfill({ status: 404, body: 'Not found' });
-		if (relativePath !== 'latest.json') await waitForPack?.(relativePath);
-		return route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: {
-				'Access-Control-Allow-Origin': '*',
-				'Content-Length': String(body.byteLength),
-			},
-			body,
-		});
-	});
 }
 
 export async function waitForEditor(page) {

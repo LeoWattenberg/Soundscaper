@@ -39,9 +39,6 @@ concurrency:
   # cannot cancel or replace them even when both resolve to the default branch.
   cancel-in-progress: ${{ github.event_name == 'workflow_run' }}
 
-env:
-  PUBLIC_TRANSLATIONS_BASE_URL: https://translations.soundscaper.org/runtime/translations/audacity/4
-
 jobs:
   quality:
     if: github.event_name != 'workflow_run'

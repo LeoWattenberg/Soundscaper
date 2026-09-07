@@ -94,7 +94,7 @@ test('replaying answers writes a catalog under the same rules and skips only the
 
 test('the command line exports packets and replays answers for a locale', async () => {
 	const directory = await scratch();
-	assert.deepEqual(parseCliArguments(['packets', '--locale', 'fr', '--output', 'out']), { command: 'packets', all: false, strict: false, glossary: 'published', locales: ['fr'], output: 'out' });
+	assert.deepEqual(parseCliArguments(['packets', '--locale', 'fr', '--output', 'out']), { command: 'packets', all: false, strict: false, glossary: true, locales: ['fr'], output: 'out' });
 	assert.throws(() => parseCliArguments(['packets', '--locale', 'fr']), /needs --output/u);
 	assert.throws(() => parseCliArguments(['packets']), /needs --locale or --all/u);
 	assert.equal(parseCliArguments(['translate', '--locale', 'fr', '--answers', 'answers']).answers, 'answers');

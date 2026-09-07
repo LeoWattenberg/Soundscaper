@@ -3,7 +3,7 @@
 import { expect } from '@playwright/test';
 
 import accessibilityBaseline from '../../config/accessibility-wcag-baseline.json' with { type: 'json' };
-import { AxeBuilder, test, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
+import { AxeBuilder, test } from './audio-editor-test-fixtures.js';
 import { bootEditor } from './audio-editor-test-helpers.js';
 import { settleFiniteAnimations } from './helpers/settle-finite-animations.js';
 
@@ -32,12 +32,6 @@ test('the maintained routes match the recorded WCAG 2.2 AA baseline', async ({ p
 	// carries it; Firefox and WebKit keep their own per-feature axe assertions.
 	test.skip(browserName !== 'chromium', 'The recorded baseline is measured on Chromium.');
 	test.setTimeout(300_000);
-	await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-		status: 200,
-		contentType: 'application/json',
-		headers: { 'Access-Control-Allow-Origin': '*' },
-		body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-	}));
 
 	const sweeps = [];
 	for (const route of ROUTES) {

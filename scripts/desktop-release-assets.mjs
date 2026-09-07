@@ -27,7 +27,6 @@ export { validateSoundscaperStableProfessionalNativeSummary };
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_ASSET_ROOT = resolve(ROOT, 'release/desktop');
-const TRANSLATION_BASE_URL = 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
 const RELEASE_PRODUCTS = Object.freeze(['soundscaper', 'framescaper']);
 const RELEASE_TARGETS = Object.freeze([
 	'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
@@ -73,24 +72,23 @@ export async function main(args = process.argv.slice(2)) {
 		return { name, bytes, value: parseJson(bytes, name) };
 	}));
 	validateDesktopRuntimeManifests(manifests, productIds, expectedVersions, { stableSoundscaper });
+	// Every native build compiles the committed Audacity layer into its own
+	// renderer, so a release must never be assembled from packages built off
+	// different upstream translation state or a different reviewed key mapping.
 	const canonical = manifests[0].value;
 	for (const manifest of manifests.slice(1)) {
-		assert(manifest.value.translations?.releaseId === canonical.translations?.releaseId,
-			`${manifest.name} has a different translation release.`);
+		assert(manifest.value.translations?.headSha === canonical.translations?.headSha
+			&& manifest.value.translations?.mappingSha256 === canonical.translations?.mappingSha256,
+			`${manifest.name} carries a different Audacity translation state.`);
 	}
 	validateDesktopReleasePackageInventory(packageFiles,
 		expectedVersions,
 		productIds,
 	);
 	validateDesktopReleaseInputInventory(packageFiles, expectedVersions, productIds);
-	const translationSource = canonical.translations?.source?.archive;
-	const translationSourceName = desktopTranslationSourceName(canonical.translations?.releaseId, translationSource);
-	await fetchVerified(
-		new URL(translationSource.path, TRANSLATION_BASE_URL),
-		resolve(assetRoot, translationSourceName),
-		translationSource,
-		'translation source archive',
-	);
+	// The Audacity corresponding source is no longer downloaded into the release:
+	// the reviewed strings are committed in this repository and the shipped
+	// NOTICE names the exact upstream commit and artifact they came from.
 	await writeFile(resolve(assetRoot, 'Soundscaper-AGPL-3.0.txt'), await readFile(resolve(ROOT, 'LICENSE')), { flag: 'wx' });
 	await writeFile(resolve(assetRoot, 'THIRD_PARTY_LICENSES.md'), await readFile(resolve(ROOT, 'THIRD_PARTY_LICENSES.md')), { flag: 'wx' });
 	for (const applicationVersion of new Set(expectedVersions.values())) {
@@ -254,16 +252,6 @@ export function regularDesktopReleaseFileNames(entries) {
 	return entries.map(({ name }) => name).sort();
 }
 
-export function desktopTranslationSourceName(releaseId, descriptor) {
-	const normalizedId = String(releaseId ?? '');
-	assert(/^[1-9][0-9]*$/u.test(normalizedId), 'Translation release ID is invalid.');
-	validateDescriptor(descriptor, 'translation source archive', 32 * 1024 * 1024);
-	assert(!descriptor.path.includes('%') && descriptor.path.startsWith(`releases/${normalizedId}/source/`)
-		&& descriptor.path.endsWith('.zip'),
-		'Translation source archive path does not match its release.');
-	return `Audacity-translations-${normalizedId}-source.zip`;
-}
-
 export function validateDesktopRuntimeManifests(
 	manifests, productIds = RELEASE_PRODUCTS, expectedVersions, options = {},
 ) {
@@ -359,68 +347,6 @@ export function validateDesktopNativeAddonSummary(manifest, targetId, options = 
 		? summary.payload !== null && summary.blockedBy === null
 		: summary.payload === null && typeof summary.blockedBy === 'string' && summary.blockedBy.trim().length >= 8,
 	`${manifest.name} records a native addon payload status that disagrees with its payload.`);
-}
-
-async function fetchVerified(url, output, descriptor, label) {
-	const bytes = await fetchBytes(url, descriptor.byteLength, label);
-	assert(bytes.byteLength === descriptor.byteLength, `${label} byte length does not match its descriptor.`);
-	assert(sha256(bytes) === descriptor.sha256, `${label} digest does not match its descriptor.`);
-	await writeFile(output, bytes, { flag: 'wx' });
-}
-
-async function fetchBytes(url, maximumBytes, label) {
-	return retry(async () => fetchBytesOnce(url, maximumBytes, label), label);
-}
-
-async function fetchBytesOnce(url, maximumBytes, label) {
-	const response = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(60_000) });
-	assert(response.ok, `${label} request returned HTTP ${response.status}.`);
-	const declaredLength = Number(response.headers.get('content-length'));
-	assert(!Number.isFinite(declaredLength) || declaredLength <= maximumBytes, `${label} declares too many bytes.`);
-	const reader = response.body?.getReader();
-	assert(reader, `${label} response has no body.`);
-	const chunks = [];
-	let byteLength = 0;
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) break;
-		byteLength += value.byteLength;
-		assert(byteLength <= maximumBytes, `${label} exceeds ${maximumBytes} bytes.`);
-		chunks.push(value);
-	}
-	assert(byteLength > 0, `${label} is empty.`);
-	const result = Buffer.allocUnsafe(byteLength);
-	let offset = 0;
-	for (const chunk of chunks) {
-		result.set(chunk, offset);
-		offset += chunk.byteLength;
-	}
-	return result;
-}
-
-async function retry(operation, label, attempts = 3) {
-	let lastError;
-	for (let attempt = 1; attempt <= attempts; attempt += 1) {
-		try {
-			return await operation();
-		} catch (error) {
-			lastError = error;
-			if (attempt === attempts) break;
-			console.warn(`${label} attempt ${attempt} failed; retrying: ${error.message}`);
-			await new Promise((resolvePromise) => setTimeout(resolvePromise, attempt * 1_000));
-		}
-	}
-	throw lastError;
-}
-
-function validateDescriptor(descriptor, label, maximumBytes) {
-	assert(descriptor && typeof descriptor.path === 'string' && !descriptor.path.startsWith('/')
-		&& !descriptor.path.includes('\\') && !descriptor.path.split('/').includes('..'), `${label} path is invalid.`);
-	assert(/^[a-f\d]{64}$/u.test(descriptor.sha256), `${label} digest is invalid.`);
-	assert(Number.isSafeInteger(descriptor.byteLength) && descriptor.byteLength > 0 && descriptor.byteLength <= maximumBytes,
-		`${label} byte length is invalid.`);
-	const url = new URL(descriptor.path, TRANSLATION_BASE_URL);
-	assert(url.origin === new URL(TRANSLATION_BASE_URL).origin, `${label} leaves the translation origin.`);
 }
 
 function parseJson(bytes, label) {

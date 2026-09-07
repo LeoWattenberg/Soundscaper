@@ -4,7 +4,6 @@ import {
 	monoTone,
 	test,
 	toneA,
-	TRANSLATIONS_ROOT,
 } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
@@ -14,12 +13,14 @@ import {
 	escapeRegex,
 	importFiles,
 	registerAudioEditorHooks,
-	serveTranslationFixture,
 	trackNameText,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { machineCopy } from './helpers/machine-copy.js';
+import { audacityCopy } from './helpers/audacity-copy.js';
+import { GERMAN_COPY } from '../../src/common/i18n/catalogs.js';
+import { formatOptionsLabel } from '../../src/common/editor/ui/localization-template.ts';
 
 test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
@@ -55,30 +56,6 @@ test.describe('audio editor React/design-system workflows', () => {
 		releaseCss();
 		await waitForEditor(page);
 		await expect(page.locator('[data-audio-editor]')).toBeVisible();
-	});
-
-	test('defers translation discovery until idle or locale-selector interaction', async ({ page }) => {
-		let manifestRequests = 0;
-		page.on('request', (request) => {
-			if (request.url() === `${TRANSLATIONS_ROOT}/latest.json`) manifestRequests += 1;
-		});
-		await page.addInitScript(() => {
-			Object.defineProperties(window, {
-				requestIdleCallback: { configurable: true, value: () => 1 },
-				cancelIdleCallback: { configurable: true, value: () => {} },
-			});
-		});
-
-		await page.goto('/en/');
-		await waitForEditor(page);
-		expect(manifestRequests).toBe(0);
-
-		const selector = page.locator('[data-locale-select]');
-		await selector.focus();
-		await expect.poll(() => manifestRequests).toBe(1);
-		await selector.dispatchEvent('pointerdown');
-		await page.waitForTimeout(50);
-		expect(manifestRequests).toBe(1);
 	});
 
 	test('fails closed when durable Soundscaper v1 project storage is unavailable', async ({ page }) => {
@@ -225,32 +202,23 @@ test.describe('audio editor React/design-system workflows', () => {
 	});
 
 	test('loads verified LTR and RTL catalogs before binding the editor', async ({ page }) => {
-		let releasePackResponse;
-		const packResponseGate = new Promise((resolve) => { releasePackResponse = resolve; });
-		await serveTranslationFixture(page, {
-			fr: { name: 'Français', direction: 'ltr', messages: { play: 'Lecture' } },
-			ar: { name: 'العربية', direction: 'rtl', messages: { play: 'تشغيل' } },
-		}, { waitForPack: () => packResponseGate });
-
 		await page.goto('/embed/fr/');
 		await expect(page.locator('[data-audio-editor]')).toHaveCount(0);
 		// The loading status is site copy: English at first paint, then the
 		// machine translation once the locale's chunk has arrived.
 		await expect(page.getByRole('status')).toHaveText(machineCopy('fr').loading);
-		releasePackResponse();
 		let editor = await waitForEditor(page);
 		await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
 		await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
-		await expect(editor.getByRole('button', { name: 'Lecture', exact: true })).toBeVisible();
+		await expect(editor.getByRole('button', { name: audacityCopy('fr').play, exact: true })).toBeVisible();
 
 		editor = await bootEditor(page, '/embed/ar/');
 		await expect(page.locator('html')).toHaveAttribute('lang', 'ar');
 		await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-		await expect(editor.getByRole('button', { name: 'تشغيل', exact: true })).toBeVisible();
-		// Machine-translated Arabic where the catalog carries it; Audacity's pack
-		// in this fixture covers only `play`.
-		const fileMenu = editor.getByRole('menuitem', { name: machineCopy('ar').fileMenu, exact: true });
-		const editMenu = editor.getByRole('menuitem', { name: machineCopy('ar').editMenu, exact: true });
+		await expect(editor.getByRole('button', { name: audacityCopy('ar').play, exact: true })).toBeVisible();
+		// Audacity's reviewed Arabic pack covers the File/Edit menu labels and undo.
+		const fileMenu = editor.getByRole('menuitem', { name: audacityCopy('ar').fileMenu, exact: true });
+		const editMenu = editor.getByRole('menuitem', { name: audacityCopy('ar').editMenu, exact: true });
 		const [fileBox, editBox] = await Promise.all([fileMenu.boundingBox(), editMenu.boundingBox()]);
 		expect(fileBox).not.toBeNull();
 		expect(editBox).not.toBeNull();
@@ -261,13 +229,13 @@ test.describe('audio editor React/design-system workflows', () => {
 		await editMenu.press('Enter');
 		await expect(editMenu).toHaveAttribute('aria-expanded', 'true');
 		// A lookahead rather than \b: an Arabic label has no ASCII word boundary.
-		const editLeaf = editor.locator('.kw-audio-editor__application-menu').getByRole('menuitem', { name: new RegExp(`^${escapeRegex(machineCopy('ar').undo)}(?=\\s|$)`, 'u') });
+		const editLeaf = editor.locator('.kw-audio-editor__application-menu').getByRole('menuitem', { name: new RegExp(`^${escapeRegex(audacityCopy('ar').undo)}(?=\\s|$)`, 'u') });
 		await editLeaf.focus();
 		await editLeaf.press('ArrowRight');
 		await expect(fileMenu).toHaveAttribute('aria-expanded', 'true');
 		await expect(editor.locator('.audio-editor-timeline-scroll')).toHaveCSS('direction', 'ltr');
 		await expect(editor.locator('.audio-editor-track-controls').first()).toHaveCSS('direction', 'rtl');
-		await importFiles(editor, [monoTone], { timeout: 20_000, copy: machineCopy('ar') });
+		await importFiles(editor, [monoTone], { timeout: 20_000, copy: audacityCopy('ar') });
 		const playhead = editor.locator('[data-playhead]');
 		await playhead.focus();
 		await playhead.press('ArrowRight');
@@ -275,15 +243,14 @@ test.describe('audio editor React/design-system workflows', () => {
 	});
 
 	test('overlays verified Audacity German copy on the complete bundled fallback', async ({ page }) => {
-		await serveTranslationFixture(page, {
-			de: { name: 'Deutsch', direction: 'ltr', messages: { play: 'Audacity-Wiedergabe' } },
-		});
-
+		const copy = audacityCopy('de');
 		const editor = await bootEditor(page, '/embed/de/');
-		await expect(editor.getByRole('button', { name: 'Audacity-Wiedergabe', exact: true })).toBeVisible();
-		await expect(editor.getByRole('button', { name: 'Optionen für Audacity-Wiedergabe', exact: true })).toBeVisible();
-		await expect(editor.getByRole('button', { name: 'Optionen für Spektrogramm', exact: true })).toBeVisible();
-		await expect(editor.getByRole('button', { name: 'Vollbild', exact: true })).toBeVisible();
+		// Audacity's reviewed German pack overrides `play`; keys it leaves
+		// untouched keep showing the complete bundled German fallback.
+		await expect(editor.getByRole('button', { name: copy.play, exact: true })).toBeVisible();
+		await expect(editor.getByRole('button', { name: formatOptionsLabel(GERMAN_COPY, copy.play), exact: true })).toBeVisible();
+		await expect(editor.getByRole('button', { name: formatOptionsLabel(GERMAN_COPY, GERMAN_COPY.spectrogramView), exact: true })).toBeVisible();
+		await expect(editor.getByRole('button', { name: GERMAN_COPY.fullscreen, exact: true })).toBeVisible();
 	});
 
 	test('shows localized Flyout tooltips only while an editor button is hovered', async ({ page }) => {
@@ -305,14 +272,11 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(tooltip).toHaveCount(0);
 	});
 
-	test('standalone locale selector only navigates to committed eligible routes', async ({ page }) => {
-		await serveTranslationFixture(page, {
-			fr: { name: 'Français', direction: 'ltr', messages: { play: 'Lecture' } },
-			ar: { name: 'العربية', direction: 'rtl', messages: { play: 'تشغيل' } },
-		});
+	test('standalone locale selector lists committed locales', async ({ page }) => {
 		await page.goto('/en/');
 		const selector = page.locator('[data-locale-select]');
 		await expect(selector.locator('option[value="fr"]')).toHaveText('Français');
+		await expect(selector.locator('option[value="ar"]')).toHaveText('العربية');
 		await selector.selectOption('fr');
 		await page.waitForURL('**/fr/');
 		await expect(page.locator('[data-audio-editor]')).toHaveAttribute('data-audio-editor-bound', 'true');
@@ -326,9 +290,6 @@ test.describe('audio editor React/design-system workflows', () => {
 	});
 
 	test('keeps persisted project names stable when the URL locale changes', async ({ page }) => {
-		await serveTranslationFixture(page, {
-			fr: { name: 'Français', direction: 'ltr', messages: { play: 'Lecture', untitledProject: 'Projet sans titre' } },
-		});
 		let editor = await bootEditor(page, '/embed/en/');
 		const trackName = trackNameText(editor).first();
 		await trackName.dblclick();

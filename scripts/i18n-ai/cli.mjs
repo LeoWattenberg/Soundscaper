@@ -15,8 +15,8 @@ import {
 } from './workflows.mjs';
 
 const HELP = `Usage:
-  node scripts/i18n-ai.mjs translate (--locale fr[,es] | --all) [--model MODEL] [--batch-size ${DEFAULT_BATCH_SIZE}] [--glossary SNAPSHOT_DIR | --no-glossary] [--keys key1,key2] [--answers DIR]
-  node scripts/i18n-ai.mjs packets (--locale fr[,es] | --all) --output DIR [--batch-size ${DEFAULT_BATCH_SIZE}] [--glossary SNAPSHOT_DIR | --no-glossary] [--keys key1,key2]
+  node scripts/i18n-ai.mjs translate (--locale fr[,es] | --all) [--model MODEL] [--batch-size ${DEFAULT_BATCH_SIZE}] [--no-glossary] [--keys key1,key2] [--answers DIR]
+  node scripts/i18n-ai.mjs packets (--locale fr[,es] | --all) --output DIR [--batch-size ${DEFAULT_BATCH_SIZE}] [--no-glossary] [--keys key1,key2]
   node scripts/i18n-ai.mjs check [--locale fr[,es]] [--strict]
 
 translate writes src/common/i18n/machine/<locale>.json for every key the current English copy has and the
@@ -29,12 +29,12 @@ missing, orphaned or invalid.`;
 export function parseCliArguments(argv) {
 	const [command, ...rest] = argv;
 	if (!['translate', 'packets', 'check'].includes(command)) throw new Error(HELP);
-	const options = { command, all: false, strict: false, glossary: 'published' };
+	const options = { command, all: false, strict: false, glossary: true };
 	for (let index = 0; index < rest.length; index += 1) {
 		const argument = rest[index];
 		if (argument === '--all') { options.all = true; continue; }
 		if (argument === '--strict') { options.strict = true; continue; }
-		if (argument === '--no-glossary') { options.glossary = 'none'; continue; }
+		if (argument === '--no-glossary') { options.glossary = false; continue; }
 		if (!argument.startsWith('--')) throw new Error(`Unexpected argument: ${argument}\n\n${HELP}`);
 		const value = rest[index + 1];
 		if (value === undefined || value.startsWith('--')) throw new Error(`Missing value for ${argument}.`);
@@ -42,7 +42,6 @@ export function parseCliArguments(argv) {
 		if (argument === '--locale') options.locales = value.split(',').map((locale) => locale.trim()).filter(Boolean);
 		else if (argument === '--model') options.model = value;
 		else if (argument === '--batch-size') options.batchSize = Number(value);
-		else if (argument === '--glossary') options.glossary = value;
 		else if (argument === '--keys') options.keys = value.split(',').map((key) => key.trim()).filter(Boolean);
 		else if (argument === '--cache-dir') options.cacheDirectory = value;
 		else if (argument === '--answers') options.answers = value;
@@ -101,7 +100,7 @@ export async function runCli(argv, io = {}) {
 	if (options.command === 'packets') {
 		const results = [];
 		for (const locale of locales) {
-			const glossary = await resolveGlossary(locale, options, { env, stderr, fetchImpl: io.fetchImpl });
+			const glossary = await resolveGlossary(locale, { ...options, audacityDirectory: io.audacityDirectory }, { stderr });
 			const result = await writeTranslationPackets({
 				locale,
 				outputDirectory: resolve(options.output),
@@ -129,7 +128,7 @@ export async function runCli(argv, io = {}) {
 			client ??= createOllamaClient({ role: 'translate', model, env });
 			stderr.write(`${locale}: translating with ${model}\n`);
 		}
-		const glossary = await resolveGlossary(locale, options, { env, stderr, fetchImpl: io.fetchImpl });
+		const glossary = await resolveGlossary(locale, { ...options, audacityDirectory: io.audacityDirectory }, { stderr });
 		const summary = await translateLocale({
 			locale,
 			client,
@@ -147,19 +146,11 @@ export async function runCli(argv, io = {}) {
 	return summaries;
 }
 
-async function resolveGlossary(locale, options, { env, stderr, fetchImpl }) {
-	if (options.glossary === 'none') return [];
-	try {
-		const glossary = options.glossary === 'published'
-			? await loadGlossary({ locale, baseUrl: env.PUBLIC_TRANSLATIONS_BASE_URL, fetchImpl })
-			: await loadGlossary({ locale, snapshotDirectory: resolve(options.glossary) });
-		stderr.write(`${locale}: glossary of ${glossary.length} Audacity-reviewed strings\n`);
-		return glossary;
-	} catch (error) {
-		if (options.glossary !== 'published') throw error;
-		stderr.write(`${locale}: continuing without a glossary (${error.message})\n`);
-		return [];
-	}
+async function resolveGlossary(locale, options, { stderr }) {
+	if (!options.glossary) return [];
+	const glossary = await loadGlossary({ locale, audacityDirectory: options.audacityDirectory });
+	stderr.write(`${locale}: glossary of ${glossary.length} Audacity-reviewed strings\n`);
+	return glossary;
 }
 
 export { HELP };

@@ -28,14 +28,17 @@ test('workflows reference scripts and modules that exist in the checkout', async
 	}
 });
 
-test('the translation sync workflow reads the committed locale tags from their owning module', async () => {
+test('the translation sync workflow commits the converted layer and asks for the quality gate', async () => {
 	const workflow = await readFile(new URL('sync-audacity-translations.yml', WORKFLOW_ROOT), 'utf8');
-	const specifier = /import \{ COMMITTED_LOCALE_TAGS \} from '(?<path>[^']+)'/u.exec(workflow)?.groups?.path;
 
-	assert.ok(specifier, 'the prepare job must derive --exposed-locales from the committed locale module');
-	const module = await import(new URL(specifier.replace(/^\.{1,2}\//u, ''), ROOT).href);
-	assert.ok(Array.isArray(module.COMMITTED_LOCALE_TAGS) && module.COMMITTED_LOCALE_TAGS.includes('en'),
-		`${specifier} must export the committed locale tags the staged release is verified against`);
+	assert.match(workflow, /node scripts\/audacity-qt-translations\.mjs commit\b/u,
+		'the convert step must write the committed Audacity layer into the checkout');
+	const push = workflow.indexOf('git push origin HEAD:main');
+	const dispatch = workflow.indexOf('gh workflow run quality.yml');
+	assert.ok(push > 0, 'the commit step must publish the converted layer on main');
+	// A push made with the workflow token starts no push-triggered run, so the
+	// gate has to be dispatched explicitly on what was just pushed.
+	assert.ok(dispatch > push, 'the quality gate must be dispatched after the push');
 });
 
 test('the translation discovery request authenticates with the workflow token', async () => {

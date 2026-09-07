@@ -1,17 +1,6 @@
 import { expect } from '@playwright/test';
 import { test } from './audio-editor-test-fixtures.js';
 
-const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
-
-test.beforeEach(async ({ page }) => {
-	await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-		status: 200,
-		contentType: 'application/json',
-		headers: { 'Access-Control-Allow-Origin': '*' },
-		body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-	}));
-});
-
 test('the public privacy URL renders only the Soundscaper policy dialog', async ({ page }) => {
 	await page.goto('/privacy/');
 	const dialog = page.getByRole('dialog', { name: 'Privacy Policy', exact: true });

@@ -35,6 +35,7 @@ test('c8 discovers every maintained JavaScript and TypeScript production source'
 		// logic, and the test runner's loader rewrites the index's JSON imports,
 		// which left every loader counted twice — once covered, once not.
 		'src/common/i18n/machine/**',
+		'src/common/i18n/audacity/**',
 	]);
 	for (const metric of ['lines', 'branches', 'functions']) assert.equal(config[metric], undefined);
 });

@@ -2,7 +2,7 @@
 
 import { createHash } from 'node:crypto';
 
-import { expect, test, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
+import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	assertNoSeriousAxeViolations,
 	bootEditor,
@@ -38,12 +38,6 @@ test.describe('Framescaper v1 exact visual preview', () => {
 
 	test.beforeEach(async ({ page }) => {
 		page.setDefaultTimeout(VISUAL_READINESS_TIMEOUT);
-		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: { 'Access-Control-Allow-Origin': '*' },
-			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-		}));
 	});
 
 	test('menu-authored generator, preset, presentation, and mask change pixels, reopen, and reach video export', async ({
@@ -336,12 +330,6 @@ test.describe('Framescaper v1 exact visual preview', () => {
 test.describe('Framescaper v1 visual state without WebGL2', () => {
 	test.beforeEach(async ({ page }) => {
 		page.setDefaultTimeout(VISUAL_READINESS_TIMEOUT);
-		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: { 'Access-Control-Allow-Origin': '*' },
-			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-		}));
 	});
 
 	test('resolves the visual session state in the DOM fallback tier', async ({ page }) => {

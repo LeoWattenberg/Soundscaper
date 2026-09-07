@@ -1,4 +1,4 @@
-import { expect, test, toneA, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
+import { expect, test, toneA } from './audio-editor-test-fixtures.js';
 import { bootEditor, closeWorkspacePanel, importFiles, waitForEditor } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
@@ -11,15 +11,6 @@ const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
 
 test.describe('Framescaper canonical clip-focus trim keyboard routing', () => {
-	test.beforeEach(async ({ page }) => {
-		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: { 'Access-Control-Allow-Origin': '*' },
-			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-		}));
-	});
-
 	test('uses local TrackNew chords for one-frame linked A/V trims and fixed-seconds legacy audio', async ({ page }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(240_000);

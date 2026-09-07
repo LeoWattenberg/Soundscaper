@@ -14,7 +14,7 @@ import { InvalidModelOutputError, generateValidated } from '../docs-ai/generatio
 import { readCache, writeCache } from '../docs-ai/cache.mjs';
 import { sha256 } from '../docs-ai/provenance.mjs';
 import { ENGLISH_COPY, GERMAN_COPY } from '../../src/common/i18n/catalogs.js';
-import { loadTranslationManifest, loadTranslationPack } from '../../src/common/i18n/runtime.js';
+import { readAudacityCatalog } from '../lib/audacity-committed-layer.mjs';
 import { compareCodeUnits } from '../lib/canonical-json.mjs';
 import {
 	MACHINE_CATALOG_DIRECTORY,
@@ -201,37 +201,20 @@ async function translateBatch(context, keys) {
 	}
 }
 
-/** The Audacity-reviewed strings for a locale, as glossary rows the packet carries. */
+/**
+ * The Audacity-reviewed strings for a locale, as glossary rows the packet
+ * carries, read from the committed Audacity layer beside the machine catalogs.
+ */
 export async function loadGlossary(options) {
 	const locale = options.locale;
 	const englishCopy = options.englishCopy ?? ENGLISH_COPY;
-	const messages = options.snapshotDirectory
-		? await snapshotMessages(options.snapshotDirectory, locale)
-		: await publishedMessages(locale, options);
+	const catalog = await readAudacityCatalog(locale, options.audacityDirectory);
+	const messages = catalog?.messages;
 	if (!messages) return [];
 	return Object.keys(messages)
 		.filter((key) => Object.hasOwn(englishCopy, key) && messages[key] !== englishCopy[key])
 		.sort(compareCodeUnits)
 		.map((key) => ({ key, english: englishCopy[key], translation: messages[key] }));
-}
-
-// Eligibility gates the runtime override layer on completeness; every string
-// in a pack is reviewed, so the glossary reads a pack whatever the flag says.
-async function publishedMessages(locale, options) {
-	const manifest = await loadTranslationManifest({ baseUrl: options.baseUrl, fetchImpl: options.fetchImpl, timeoutMs: options.timeoutMs });
-	const descriptor = manifest.locales[locale];
-	if (!descriptor) return null;
-	return loadTranslationPack(locale, descriptor, { baseUrl: options.baseUrl, fetchImpl: options.fetchImpl, timeoutMs: options.timeoutMs });
-}
-
-async function snapshotMessages(directory, locale) {
-	const { readFile } = await import('node:fs/promises');
-	const { join } = await import('node:path');
-	const latest = JSON.parse(await readFile(join(directory, 'latest.json'), 'utf8'));
-	const descriptor = latest?.locales?.[locale];
-	if (!descriptor || typeof descriptor.path !== 'string' || !descriptor.path.startsWith('packs/')) return null;
-	const pack = JSON.parse(await readFile(join(directory, descriptor.path), 'utf8'));
-	return pack?.messages ?? null;
 }
 
 /** The state of each locale's catalog against the current English copy. */

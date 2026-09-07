@@ -10,14 +10,16 @@ import {
 	stat,
 	writeFile,
 } from 'node:fs/promises';
-import { dirname, resolve, sep } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { COMMITTED_LOCALE_TAGS } from '../src/common/i18n/locales.js';
-import { MACHINE_CATALOG_LOCALES } from '../src/common/i18n/machine/index.js';
 import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import { stageAssistanceNativeRuntimePayload } from '../desktop/assistance-native-runtime-payload.mjs';
 import { generateDesktopIcon } from './desktop-icons.mjs';
+import {
+	listAudacityLayerLocales,
+	readAudacityCatalog,
+} from './lib/audacity-committed-layer.mjs';
 import { stageDesktopBundledCodecNotices } from './lib/desktop-bundled-codec-notices.mjs';
 import {
 	prepareDesktopOsAudioCodecNativeRelease,
@@ -72,14 +74,11 @@ const RUNTIME_ROOT = resolve(BUILD_ROOT, 'runtime');
 const DESKTOP_RUNTIME_ROOT = resolve(BUILD_ROOT, 'desktop-runtime');
 const DESKTOP_LICENSE_ROOT = resolve(BUILD_ROOT, 'licenses');
 const DESKTOP_NOTICE_PATH = resolve(DESKTOP_LICENSE_ROOT, 'THIRD_PARTY_LICENSES.md');
-const TRANSLATION_ROOT = resolve(RUNTIME_ROOT, 'translations/audacity/4');
-const DEFAULT_TRANSLATIONS_URL = 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
 // The assistance and native services validate their catalogs and payloads
 // against these shipped registers. Executable payloads stay outside the asar;
 // only their authenticated pins live inside it.
 const PRODUCT_ID = resolveDesktopProductId(process.env.SCAPE_PRODUCT);
 const PRODUCT_NAME = PRODUCT_ID === 'framescaper' ? 'Framescaper' : 'Soundscaper';
-const APP_SCHEME = PRODUCT_ID === 'framescaper' ? 'framescaper-app' : 'soundscaper-app';
 const SOURCE_REVISION = /^(?:[a-f\d]{40}|[a-f\d]{64})$/u;
 const DESKTOP_STAGE_TARGETS = new Set([
 	'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
@@ -181,7 +180,7 @@ async function main() {
 			release: framescaperNativeHostRelease,
 			outputRoot: RUNTIME_ROOT,
 		});
-	const translations = await stageTranslations();
+	const translations = await describeCommittedTranslations();
 	const desktopNotices = await stageDesktopNotices({
 		nativeTarget, productMetadata, soundscaperProfessionalNativeRelease,
 	});
@@ -295,98 +294,34 @@ async function stageNativeAddons(release) {
 	});
 }
 
-async function stageTranslations() {
-	const localSource = process.env.SOUNDSCAPER_DESKTOP_TRANSLATIONS_SOURCE?.trim();
-	await mkdir(dirname(TRANSLATION_ROOT), { recursive: true });
-	if (localSource) {
-		const source = resolve(ROOT, localSource);
-		assert(source !== TRANSLATION_ROOT, 'Translation snapshot source cannot be the generated destination.');
-		await cp(source, TRANSLATION_ROOT, { recursive: true, errorOnExist: true, force: false });
-	} else {
-		await retry(async () => {
-			await rm(TRANSLATION_ROOT, { recursive: true, force: true });
-			await run(process.execPath, [
-				resolve(ROOT, 'scripts/manage-audacity-translation-release.mjs'),
-				'snapshot',
-				'--output', TRANSLATION_ROOT,
-				'--base-url', translationBaseUrl().href,
-			]);
-		}, 'public translation snapshot');
-	}
-
-	let latest;
-	try {
-		latest = parseJson(await readFile(resolve(TRANSLATION_ROOT, 'latest.json')), 'desktop translation latest.json');
-	} catch (error) {
-		throw new Error(`No compatible released translation snapshot was staged. Publish a release for the current reviewed mapping, or set SOUNDSCAPER_DESKTOP_TRANSLATIONS_SOURCE to a complete verified snapshot. ${error.message}`);
-	}
-	assert(latest.schemaVersion === 1 && typeof latest.releaseId === 'string',
-		'Desktop translation latest.json has an unsupported shape.');
-	assert(latest.locales && typeof latest.locales === 'object' && !Array.isArray(latest.locales),
-		'Desktop translation latest.json has no locale descriptors.');
-	// A committed route is complete when Audacity's pack meets the threshold or
-	// a bundled machine catalog serves the locale; the snapshot only has to
-	// carry the former.
-	for (const locale of COMMITTED_LOCALE_TAGS) {
-		if (MACHINE_CATALOG_LOCALES.includes(locale)) continue;
-		assert(latest.locales[locale]?.eligible === true,
-			`Released translation snapshot does not provide committed locale ${locale}.`);
-	}
-	await verifyTranslationPacks(latest);
-
-	const manifestBytes = await ensureTranslationObject(latest.manifest, 'translation release manifest', localSource);
-	const manifest = parseJson(manifestBytes, 'translation release manifest');
-	assert(String(manifest.artifactId) === latest.releaseId,
-		'Translation release manifest does not match latest.json.');
-	await ensureTranslationObject(manifest.audit, 'translation audit', localSource);
-	await ensureTranslationObject(manifest.source?.license, 'translation source license', localSource);
-
-	return {
-		releaseId: latest.releaseId,
-		latest: descriptorForBytes('latest.json', await readFile(resolve(TRANSLATION_ROOT, 'latest.json'))),
-		manifest: latest.manifest,
-		source: latest.source,
-	};
-}
-
-async function verifyTranslationPacks(latest) {
-	const checked = new Set();
-	for (const [locale, descriptor] of Object.entries(latest.locales)) {
-		validateDescriptor(descriptor, `translation pack ${locale}`, 2 * 1024 * 1024);
-		if (checked.has(descriptor.path)) continue;
-		const bytes = await readFile(safeGeneratedPath(TRANSLATION_ROOT, descriptor.path));
-		assert(bytes.byteLength === descriptor.byteLength && sha256(bytes) === descriptor.sha256,
-			`Staged translation pack ${locale} does not match latest.json.`);
-		checked.add(descriptor.path);
-	}
-}
-
-async function ensureTranslationObject(descriptor, label, localSource) {
-	validateDescriptor(descriptor, label, 32 * 1024 * 1024);
-	const output = safeGeneratedPath(TRANSLATION_ROOT, descriptor.path);
-	try {
-		const bytes = await readFile(output);
-		verifyDescriptor(bytes, descriptor, label);
-		return bytes;
-	} catch (error) {
-		if (localSource) {
-			throw new Error(`SOUNDSCAPER_DESKTOP_TRANSLATIONS_SOURCE is incomplete: ${label} ${descriptor.path} is missing or invalid. ${error.message}`);
+/**
+ * Audacity's reviewed strings are committed source under src/common/i18n/audacity/
+ * that Vite bundles into the renderer exactly like the machine catalogs, so the
+ * package stages no translation resource tree and fetches nothing while it is
+ * built. The stage manifest still records which upstream translation state the
+ * build carries, so a package can be traced back to the exact artifact and
+ * reviewed key mapping its strings were converted from.
+ */
+async function describeCommittedTranslations() {
+	const locales = await listAudacityLayerLocales();
+	assert(locales.length > 0, 'The committed Audacity translation layer carries no catalogs.');
+	let provenance = null;
+	for (const locale of locales) {
+		// Reading each catalog also holds it to the layer's own shape rules, so a
+		// hand-edited or half-synced layer fails preparation rather than shipping.
+		const catalog = await readAudacityCatalog(locale);
+		assert(catalog !== null, `Committed Audacity catalog ${locale} is missing.`);
+		const { headSha, artifactId, mappingSha256 } = catalog.provenance;
+		if (provenance === null) provenance = { headSha, artifactId, mappingSha256 };
+		else {
+			// One sync writes every catalog from one upstream artifact, so a locale
+			// that disagrees means the layer was not written by one conversion.
+			assert(provenance.headSha === headSha && provenance.artifactId === artifactId
+				&& provenance.mappingSha256 === mappingSha256,
+			`Committed Audacity catalog ${locale} came from a different upstream artifact.`);
 		}
 	}
-
-	const baseUrl = translationBaseUrl();
-	const url = new URL(descriptor.path, baseUrl);
-	assert(url.origin === baseUrl.origin && url.pathname.startsWith(baseUrl.pathname),
-		`${label} path leaves the translation release root.`);
-	const bytes = await retry(async () => {
-		const response = await fetch(url, { signal: AbortSignal.timeout(30_000), cache: 'no-store' });
-		assert(response.ok, `${label} request returned HTTP ${response.status}.`);
-		return Buffer.from(await response.arrayBuffer());
-	}, label);
-	verifyDescriptor(bytes, descriptor, label);
-	await mkdir(dirname(output), { recursive: true });
-	await writeFile(output, bytes, { flag: 'wx' });
-	return bytes;
+	return { ...provenance, locales };
 }
 
 async function buildRenderer() {
@@ -398,7 +333,6 @@ async function buildRenderer() {
 			...environment,
 			SCAPE_PRODUCT: PRODUCT_ID,
 			SCAPE_DESKTOP_CODEC_RUNTIME: 'main-process',
-			PUBLIC_TRANSLATIONS_BASE_URL: `${APP_SCHEME}://bundle/runtime/translations/audacity/4/`,
 		},
 	});
 	await auditDesktopRendererCodecComposition({ root: RENDERER_ROOT });
@@ -455,36 +389,6 @@ async function stageApplication(
 	return desktopRuntime;
 }
 
-function translationBaseUrl() {
-	const url = new URL(process.env.PUBLIC_TRANSLATIONS_BASE_URL || DEFAULT_TRANSLATIONS_URL);
-	assert(url.protocol === 'https:', 'Desktop translation staging requires an HTTPS release root.');
-	url.pathname = `${url.pathname.replace(/\/+$/u, '')}/`;
-	url.search = '';
-	url.hash = '';
-	return url;
-}
-
-function validateDescriptor(descriptor, label, maximumBytes) {
-	assert(descriptor && typeof descriptor === 'object' && !Array.isArray(descriptor), `${label} descriptor is missing.`);
-	assert(typeof descriptor.path === 'string' && descriptor.path.length > 0, `${label} path is missing.`);
-	assert(/^[a-f\d]{64}$/u.test(descriptor.sha256), `${label} digest is invalid.`);
-	assert(Number.isSafeInteger(descriptor.byteLength) && descriptor.byteLength > 0 && descriptor.byteLength <= maximumBytes,
-		`${label} byte length is invalid.`);
-}
-
-function verifyDescriptor(bytes, descriptor, label) {
-	assert(bytes.byteLength === descriptor.byteLength, `${label} byte length does not match its descriptor.`);
-	assert(sha256(bytes) === descriptor.sha256, `${label} digest does not match its descriptor.`);
-}
-
-function safeGeneratedPath(root, relativePath) {
-	assert(typeof relativePath === 'string' && !relativePath.includes('\\') && !relativePath.startsWith('/'),
-		`Unsafe generated relative path: ${relativePath}`);
-	const output = resolve(root, relativePath);
-	assert(output.startsWith(`${resolve(root)}${sep}`), `Generated path escapes its root: ${relativePath}`);
-	return output;
-}
-
 function descriptorForBytes(path, bytes) {
 	return { path, byteLength: bytes.byteLength, sha256: sha256(bytes) };
 }
@@ -529,21 +433,6 @@ function run(command, args, options = {}) {
 			else reject(new Error(`${command} exited with ${signal ? `signal ${signal}` : `code ${code}`}.`));
 		});
 	});
-}
-
-async function retry(operation, label, attempts = 3) {
-	let lastError;
-	for (let attempt = 1; attempt <= attempts; attempt += 1) {
-		try {
-			return await operation();
-		} catch (error) {
-			lastError = error;
-			if (attempt === attempts) break;
-			console.warn(`${label} attempt ${attempt} failed; retrying: ${error.message}`);
-			await new Promise((resolvePromise) => setTimeout(resolvePromise, attempt * 1_000));
-		}
-	}
-	throw lastError;
 }
 
 function assert(condition, message) {

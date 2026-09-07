@@ -6,7 +6,6 @@ import {
 	test,
 	toneA,
 	toneB,
-	TRANSLATIONS_ROOT,
 } from '../audio-editor-test-fixtures.js';
 import {
 	bootEditor,
@@ -23,13 +22,6 @@ const SOUNDSCAPER_ORIGIN = 'http://127.0.0.1:4332';
 const FRAMESCAPER_ORIGIN = 'http://127.0.0.1:4333';
 
 test('the built product origins exchange independent editable copies in both directions', async ({ context }) => {
-	await context.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-		status: 200,
-		contentType: 'application/json',
-		headers: { 'Access-Control-Allow-Origin': '*' },
-		body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-	}));
-
 	await assertTransferResponsePolicies(context.request);
 	await exerciseEditableCopy(context, {
 		sourceOrigin: SOUNDSCAPER_ORIGIN,

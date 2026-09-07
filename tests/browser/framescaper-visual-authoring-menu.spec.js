@@ -3,10 +3,7 @@ import { test } from './audio-editor-test-fixtures.js';
 
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 
-const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
-
 test('Framescaper v1 owns visual authoring only through existing menus', async ({ page }) => {
-	await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({ status: 404, body: '' }));
 	await page.goto(resolveBrowserProductTestUrl('/framescaper/en/'));
 	const editor = page.locator('[data-audio-editor]');
 	await expect(editor).toBeVisible();

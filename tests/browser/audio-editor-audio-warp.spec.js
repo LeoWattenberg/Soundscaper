@@ -1,4 +1,4 @@
-import { expect, test, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
+import { expect, test } from './audio-editor-test-fixtures.js';
 
 import {
 	createAudioClip,
@@ -132,12 +132,6 @@ test.describe('audio warp and transient workflow', () => {
 		let exact;
 		try {
 			const fallbackPage = await fallbackContext.newPage();
-			await fallbackPage.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				headers: { 'Access-Control-Allow-Origin': '*' },
-				body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-			}));
 			await installWarpCapture(fallbackPage);
 			await stubStorageEstimate(fallbackPage, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
 			exact = await captureProductionWarpPlayback(fallbackPage, 'fallback');

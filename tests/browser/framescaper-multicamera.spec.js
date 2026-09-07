@@ -1,4 +1,4 @@
-import { expect, test, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
+import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	assertAccessibleBasics,
 	assertNoSeriousAxeViolations,
@@ -14,15 +14,6 @@ const MULTICAMERA_REQUIREMENT_ID = 'framescaper.multicamera';
 const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 
 test.describe('Framescaper selected-web multicamera workflow', () => {
-	test.beforeEach(async ({ page }) => {
-		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: { 'Access-Control-Allow-Origin': '*' },
-			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-		}));
-	});
-
 	test('creates, switches, saves, and reopens an exact Framescaper-v1 camera group from Tracks', async ({ page, browserName }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit',
 			'Playwright WebKit rejects the IndexedDB Blob write that persists imported A/V sources.');

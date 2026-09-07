@@ -3,7 +3,6 @@ import { expect } from '@playwright/test';
 // that imports it from here records without an edit of its own.
 import { test } from './helpers/browser-coverage-fixture.js';
 import AxeBuilder from '@axe-core/playwright';
-import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import initSqlJs from 'sql.js';
 import { createAup3Fixture } from '../aup3-fixture.js';
@@ -106,8 +105,6 @@ export const captionLabels = {
 		'',
 	].join('\n')),
 };
-export const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
-
 let aup4FixtureSql;
 export async function createAup4MissingEffectFixture() {
 	const SQL = await (aup4FixtureSql ||= initSqlJs());
@@ -195,7 +192,6 @@ export {
 	expect,
 	test,
 	AxeBuilder,
-	createHash,
 	readFile,
 	initSqlJs,
 	createAup3Fixture,

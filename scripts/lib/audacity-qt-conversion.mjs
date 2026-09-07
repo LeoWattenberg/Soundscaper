@@ -17,7 +17,6 @@ import {
 	sortRecord,
 } from './audacity-qt-values.mjs';
 
-export const AUDACITY_TRANSLATION_ELIGIBILITY = 0.79;
 export const ELLIPSIS_PATTERN = /\u2026|\.{3}/u;
 const ELLIPSES_GLOBAL_PATTERN = /\u2026|\.{3}/gu;
 const ALLOWED_TRANSFORMS = new Set(['stripEllipsis', 'stripMnemonic']);

@@ -13,7 +13,6 @@ import { DESKTOP_CODEC_POLICY } from '../scripts/lib/desktop-codec-policy.mjs';
 import {
 	desktopReleaseTargetPackageInventory,
 	desktopReleaseRuntimeManifestNames,
-	desktopTranslationSourceName,
 	parseDesktopReleaseAssetArguments,
 	regularDesktopReleaseFileNames,
 	validateSoundscaperStableProfessionalNativeSummary,
@@ -295,22 +294,18 @@ test('release roots reject symbolic or non-regular entries', () => {
 	}]), /not a regular file.*THIRD_PARTY_LICENSES/iu);
 });
 
-test('translation source output is bound to a positive release ID and release path', () => {
-	const descriptor = {
-		path: 'releases/123/source/audacity-translations.zip',
-		byteLength: 1,
-		sha256: '0'.repeat(64),
-	};
-	assert.equal(desktopTranslationSourceName('123', descriptor), 'Audacity-translations-123-source.zip');
-	assert.throws(() => desktopTranslationSourceName('../../../escape', descriptor), /release ID is invalid/iu);
-	assert.throws(
-		() => desktopTranslationSourceName('124', descriptor),
-		/path does not match its release/iu,
+test('release assembly binds one Audacity translation state across every target', async () => {
+	const source = await readFile(
+		resolve(import.meta.dirname, '../scripts/desktop-release-assets.mjs'), 'utf8',
 	);
-	assert.throws(() => desktopTranslationSourceName('123', {
-		...descriptor,
-		path: 'releases/123/source/%2e%2e/%2e%2e/999/source/evil.zip',
-	}), /path does not match its release/iu);
+	// Each native build compiles the committed layer into its own renderer, so
+	// the five per-target manifests must agree on the upstream commit and the
+	// reviewed key mapping the strings were converted with.
+	assert.match(source, /translations\?\.headSha === canonical\.translations\?\.headSha/u);
+	assert.match(source, /translations\?\.mappingSha256 === canonical\.translations\?\.mappingSha256/u);
+	// The Audacity corresponding source is committed here now, so release
+	// assembly downloads nothing.
+	assert.doesNotMatch(source, /translations\.soundscaper\.org|\bfetch\(/u);
 });
 
 test('desktop preview workflow retains only the no-FFmpeg stage manifest', async () => {

@@ -11,6 +11,15 @@ import {
 } from '../../scripts/lib/soundscaper-professional-native-notices.mjs';
 
 const REVISION = 'a'.repeat(40);
+// Audacity's reviewed strings are committed source bundled into the renderer,
+// so the manifest records only which upstream state they came from; there is no
+// translation resource tree in the package to stage or verify.
+const TRANSLATIONS = Object.freeze({
+	headSha: 'b'.repeat(40),
+	artifactId: 4321,
+	mappingSha256: 'c'.repeat(64),
+	locales: Object.freeze(['de', 'fr']),
+});
 
 export async function packageTree(context) {
 	const root = await mkdtemp(join(tmpdir(), 'desktop-package-content-'));
@@ -41,7 +50,6 @@ export async function packageTree(context) {
 		'runtime/native/soundscaper-professional-host/linux-x64/runtime/ld-linux-x86-64.so.2':
 			Buffer.from('authenticated runtime loader'),
 		'runtime/assistance/test/node_modules/runtime/native.node': Buffer.from('authenticated assistance payload'),
-		'runtime/translations/audacity/4/latest.json': Buffer.from('authenticated translations'),
 	};
 	for (const [path, bytes] of Object.entries(payloads)) {
 		await mkdir(dirname(join(resourcesRoot, path)), { recursive: true });
@@ -120,7 +128,7 @@ export async function packageTree(context) {
 			},
 		},
 		framescaperNativeHosts: null,
-		translations: { latest: { path: 'latest.json', ...descriptor('runtime/translations/audacity/4/latest.json') } },
+		translations: TRANSLATIONS,
 	};
 	const runtimeManifestPath = join(root, 'runtime-manifest.json');
 	await writeFile(runtimeManifestPath, `${JSON.stringify(runtimeManifest, null, 2)}\n`);

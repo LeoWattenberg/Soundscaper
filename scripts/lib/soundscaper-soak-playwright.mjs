@@ -15,7 +15,6 @@ import { SOAK_DEBUG_OUTPUT_DIRECTORY_PREFIX } from '../../desktop/soak-debug-dia
 import { createSoundscaperSoakWorkflowDriver } from './soundscaper-soak-workflows.mjs';
 
 const REPOSITORY_ROOT = resolve(import.meta.dirname, '../..');
-const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 
 export async function openSoundscaperSoakSession(options) {
 	if (options?.target === 'browser') return openBrowserSession(options);
@@ -41,12 +40,6 @@ async function openBrowserSession(options) {
 		browser = await chromium.launch({ headless: true, args: ['--enable-gpu'] });
 		const context = await browser.newContext({ acceptDownloads: true, serviceWorkers: 'block' });
 		await prepareSoundscaperSoakContext(context);
-		await context.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: { 'Access-Control-Allow-Origin': '*' },
-			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-		}));
 		const editorUrl = `http://127.0.0.1:${String(port)}/embed/en/`;
 		let page = await openBrowserPage(context, editorUrl);
 		return await createSoundscaperSoakPageSession({

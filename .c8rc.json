@@ -24,6 +24,7 @@
 		"**/*.d.cts",
 		"**/*.d.mts",
 		"src/common/editor/**/native/**",
-		"src/common/i18n/machine/**"
+		"src/common/i18n/machine/**",
+		"src/common/i18n/audacity/**"
 	]
 }

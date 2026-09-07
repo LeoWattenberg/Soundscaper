@@ -1,4 +1,4 @@
-import { expect, test, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
+import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	chooseNestedCommandAction,
@@ -14,15 +14,6 @@ const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const PERSISTENCE_TIMEOUT = { timeout: 15_000 };
 
 test.describe('Framescaper linked audio menus and video visibility controls', () => {
-	test.beforeEach(async ({ page }) => {
-		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: { 'Access-Control-Allow-Origin': '*' },
-			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-		}));
-	});
-
 	test('links audio and shows or hides the selected video through application menus', async ({ page }) => {
 		test.setTimeout(120_000);
 		await page.setViewportSize({ width: 1_440, height: 1_100 });

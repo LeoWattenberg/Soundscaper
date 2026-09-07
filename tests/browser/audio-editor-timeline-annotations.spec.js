@@ -6,7 +6,6 @@ import {
 	expect,
 	test,
 	toneA,
-	TRANSLATIONS_ROOT,
 } from './audio-editor-test-fixtures.js';
 import {
 	assertNoSeriousAxeViolations,
@@ -212,7 +211,6 @@ test.describe('native timeline annotations', () => {
 		try {
 			const framesPage = await browser.newPage({ baseURL, serviceWorkers: 'block' });
 			openedPages.push(framesPage);
-			await routeTranslations(framesPage);
 			const frameErrors = collectClientErrors(framesPage);
 			const framescaper = await bootEditor(framesPage, '/framescaper/embed/en/');
 			await openScapeArchive(framescaper, outbound, 'timeline-annotations.sscape');
@@ -229,7 +227,6 @@ test.describe('native timeline annotations', () => {
 				.toHaveCount(0);
 			const homePage = await browser.newPage({ baseURL, serviceWorkers: 'block' });
 			openedPages.push(homePage);
-			await routeTranslations(homePage);
 			const homeErrors = collectClientErrors(homePage);
 			const home = await bootEditor(homePage, '/embed/en/');
 			await openScapeArchive(home, outbound, 'timeline-annotations-return.sscape');
@@ -325,11 +322,3 @@ async function openScapeArchive(editor, archive, name) {
 	});
 }
 
-async function routeTranslations(page) {
-	await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-		status: 200,
-		contentType: 'application/json',
-		headers: { 'Access-Control-Allow-Origin': '*' },
-		body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-	}));
-}

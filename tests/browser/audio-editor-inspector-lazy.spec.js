@@ -1,7 +1,6 @@
 import { expect } from '@playwright/test';
 import { test } from './audio-editor-test-fixtures.js';
 
-const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 const INSPECTOR_FEATURE_CHUNKS = Object.freeze([
 	'AnalysisPanel',
 	'AudioEditorEffectsOverlay',
@@ -12,15 +11,6 @@ const INSPECTOR_FEATURE_CHUNKS = Object.freeze([
 ]);
 
 test.describe('Inspector lazy feature boundaries', () => {
-	test.beforeEach(async ({ page }) => {
-		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: { 'Access-Control-Allow-Origin': '*' },
-			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-		}));
-	});
-
 	test('opening Analysis loads its entry without preloading sibling Inspector features', async ({ page }) => {
 		const requestedScripts = collectRequestedScripts(page);
 		const editor = await bootEditorWithTone(page);

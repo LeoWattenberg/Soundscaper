@@ -33,6 +33,15 @@ import {
 const executeFile = promisify(execFile);
 const PROJECT_ROOT = resolve(import.meta.dirname, '../..');
 const TARGET_ID = 'linux-x64';
+// Audacity's reviewed strings are compiled into the renderer bundle inside
+// app.asar, so the package stages no translation tree; the runtime manifest
+// records which upstream artifact and reviewed mapping they came from.
+const TRANSLATIONS = Object.freeze({
+	headSha: 'b'.repeat(40),
+	artifactId: 4321,
+	mappingSha256: 'c'.repeat(64),
+	locales: Object.freeze(['de', 'fr']),
+});
 
 export async function createSoundscaperLinuxPackageFixture({
 	applicationVersion,
@@ -57,12 +66,6 @@ export async function createSoundscaperLinuxPackageFixture({
 		target: TARGET_ID,
 		targetSource: 'declared',
 	});
-	const translationBytes = Buffer.from(`${JSON.stringify({
-		schemaVersion: 1,
-		releaseId: '1',
-		locales: {},
-	}, null, 2)}\n`);
-	const translation = descriptor(translationBytes);
 	const runtimeManifest = {
 		schemaVersion: 1,
 		productId: 'soundscaper',
@@ -82,10 +85,7 @@ export async function createSoundscaperLinuxPackageFixture({
 		osAudioCodecNative: null,
 		soundscaperProfessionalNative: professionalNativePayloadStageSummary(professionalRelease),
 		framescaperNativeHosts: null,
-		translations: {
-			releaseId: '1',
-			latest: { path: 'latest.json', ...translation },
-		},
+		translations: TRANSLATIONS,
 	};
 	const manifestName = 'runtime-manifest-soundscaper-linux-x64.json';
 	const runtimeManifestPath = join(packageRoot, manifestName);
@@ -107,10 +107,6 @@ export async function createSoundscaperLinuxPackageFixture({
 		outputRoot: professionalNativePayloadOutputRoot(join(resourcesRoot, 'runtime'), professionalRelease),
 	});
 	await stageAssistanceFiles(resourcesRoot, runtimeManifest.assistanceNativeRuntime);
-	await writeBytes(
-		join(resourcesRoot, 'runtime/translations/audacity/4/latest.json'),
-		translationBytes,
-	);
 	const executable = linuxExecutableHeader();
 	await writeBytes(join(applicationRoot, 'soundscaper'), executable);
 	await chmod(join(applicationRoot, 'soundscaper'), 0o755);

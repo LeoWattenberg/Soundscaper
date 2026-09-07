@@ -10,8 +10,8 @@ import { auditComposedHeaders, documentRoute, webBuildRouting } from './lib/prod
 const outputRoot = resolve('dist');
 const routing = webBuildRouting();
 const site = routing.site;
-const translationsBaseUrl = new URL(process.env.PUBLIC_TRANSLATIONS_BASE_URL
-	|| 'https://translations.soundscaper.org/runtime/translations/audacity/4/');
+// Translations ship inside the bundle; the CSP must not admit a translation origin.
+const RETIRED_TRANSLATIONS_ORIGIN = 'https://translations.soundscaper.org';
 let routeCount = 0;
 
 for (const plan of routing.plans) {
@@ -25,7 +25,7 @@ const headers = readFileSync(resolve(outputRoot, '_headers'), 'utf8');
 auditComposedHeaders(headers, routing);
 verifyTranslationCsp(headers);
 console.log(
-	`Verified ${routeCount} localized ${routing.productId} routes, its Cloudflare rules and the translation CSP.`,
+	`Verified ${routeCount} localized ${routing.productId} routes, its Cloudflare rules and the translation-free CSP.`,
 );
 
 function verifyRoute(plan, descriptor) {
@@ -73,11 +73,9 @@ function verifyTranslationCsp(headers) {
 	const directives = policies[0].split(';').map((directive) => directive.trim().split(/\s+/u)).filter((parts) => parts[0]);
 	const connectSources = directives.find(([name]) => name === 'connect-src');
 	assert(connectSources, 'Content-Security-Policy has no connect-src directive');
-	const origin = translationsBaseUrl.origin;
-	assert(connectSources.slice(1).filter((source) => source === origin).length === 1,
-		`connect-src must contain ${origin} exactly once`);
+	assert(connectSources.slice(1).includes("'self'"), "connect-src must admit 'self'");
 	for (const [name, ...sources] of directives) {
-		if (name !== 'connect-src') assert(!sources.includes(origin), `${origin} must not appear in CSP ${name}`);
+		assert(!sources.includes(RETIRED_TRANSLATIONS_ORIGIN), `${RETIRED_TRANSLATIONS_ORIGIN} must not appear in CSP ${name}`);
 	}
 }
 

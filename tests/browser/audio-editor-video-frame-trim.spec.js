@@ -1,4 +1,4 @@
-import { expect, test, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
+import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	getMenuItem,
@@ -13,15 +13,6 @@ const TRIM_LEFT = 'Trim left edge to playhead';
 const TRIM_RIGHT = 'Trim right edge to playhead';
 
 test.describe('Framescaper frame-canonical edge trim integration', () => {
-	test.beforeEach(async ({ page }) => {
-		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: { 'Access-Control-Allow-Origin': '*' },
-			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-		}));
-	});
-
 	test('menus and a pointer handle trim one linked A/V pair on the sequence frame grid', async ({ page }) => {
 		test.setTimeout(180_000);
 		await page.setViewportSize({ width: 1_440, height: 1_100 });

@@ -2,8 +2,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 // The Audacity Qt translation tooling's command line and public surface. Reading
-// the catalogs, converting reviewed messages, and assembling a release are each
-// implemented in their own module beside this one.
+// the catalogs, converting reviewed messages, and writing the committed layer
+// are each implemented in their own module beside this one.
 
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
@@ -14,11 +14,8 @@ import {
 	TranslationArtifactError,
 	inspectVerifiedZip,
 } from './lib/verified-zip.mjs';
-import {
-	loadPreviousRelease,
-	prepareAudacityTranslationRelease,
-} from './lib/audacity-qt-release-build.mjs';
 import { encodeCanonicalJson } from './lib/audacity-qt-values.mjs';
+import { AUDACITY_LAYER_DIRECTORY, buildAudacityLayer, writeAudacityLayer } from './lib/audacity-committed-layer.mjs';
 
 export { DEFAULT_TRANSLATION_ARCHIVE_LIMITS, TranslationArtifactError, inspectVerifiedZip };
 export {
@@ -28,7 +25,6 @@ export {
 	readAudacityQtCatalogsFromZip,
 } from './lib/audacity-qt-catalog.mjs';
 export {
-	AUDACITY_TRANSLATION_ELIGIBILITY,
 	auditQtMappingCandidates,
 	convertQtCatalog,
 	extractPlaceholders,
@@ -36,22 +32,26 @@ export {
 	validateAudacityQtMapping,
 	validateMappingAgainstSourceCatalog,
 } from './lib/audacity-qt-conversion.mjs';
-export {
-	AUDACITY_TRANSLATION_MODIFICATION_NOTICE,
-	TRANSLATION_PACK_SCHEMA_VERSION,
-	TRANSLATION_RELEASE_SCHEMA_VERSION,
-	buildAudacityTranslationRelease,
-	prepareAudacityTranslationRelease,
-} from './lib/audacity-qt-release-build.mjs';
 export { encodeCanonicalJson } from './lib/audacity-qt-values.mjs';
+export {
+	AUDACITY_LAYER_DIRECTORY,
+	AUDACITY_LAYER_SCHEMA_VERSION,
+	AUDACITY_TRANSLATION_MODIFICATION_NOTICE,
+	buildAudacityLayer,
+	readAudacityCatalog,
+	writeAudacityLayer,
+} from './lib/audacity-committed-layer.mjs';
 
 async function runCli(argv) {
 	const [command, ...rest] = argv;
-	if (command !== 'prepare') throw usageError();
-	const flags = parseFlags(rest);
+	if (command !== 'commit') throw usageError();
+	return runCommit(parseFlags(rest));
+}
+
+/** Convert one verified artifact into the committed layer under src/common/i18n/audacity/. */
+async function runCommit(flags) {
 	const required = [
 		'archive',
-		'output',
 		'artifact-id',
 		'source-run-id',
 		'source-head-sha',
@@ -59,19 +59,12 @@ async function runCli(argv) {
 		'source-sha256',
 		'source-byte-length',
 		'source-license',
-		'tool-revision',
-		'converted-at',
 	];
 	for (const flag of required) if (!flags[flag]) throw usageError(`Missing --${flag}.`);
 	const archivePath = path.resolve(flags.archive);
-	const licensePath = path.resolve(flags['source-license']);
-	const previousRelease = flags['previous-root'] ? await loadPreviousRelease(path.resolve(flags['previous-root'])) : undefined;
-	const release = await prepareAudacityTranslationRelease({
+	const layer = buildAudacityLayer({
 		archiveBytes: await readFile(archivePath),
-		licenseBytes: await readFile(licensePath),
-		outputDirectory: flags.output,
-		exposedLocales: flags['exposed-locales'] ? flags['exposed-locales'].split(',').filter(Boolean) : ['en', 'de'],
-		previousRelease,
+		licenseBytes: await readFile(path.resolve(flags['source-license'])),
 		source: {
 			artifactId: Number(flags['artifact-id']),
 			archiveName: path.basename(archivePath),
@@ -82,20 +75,15 @@ async function runCli(argv) {
 			headSha: flags['source-head-sha'],
 			workflowUrl: flags['source-workflow-url'],
 		},
-		conversion: {
-			toolRevision: flags['tool-revision'],
-			convertedAt: flags['converted-at'],
-		},
 	});
-	process.stdout.write(encodeCanonicalJson({
-		manifestPath: release.manifestPath,
-		normalizedContentSha256: release.manifest.normalizedContentSha256,
-		eligibleLocales: release.manifest.eligibleLocales,
-		pendingLocales: release.manifest.pendingLocales,
-		retainedLocales: release.manifest.retainedLocales,
-	}));
+	const locales = await writeAudacityLayer(layer, flags.output ? path.resolve(flags.output) : AUDACITY_LAYER_DIRECTORY);
+	process.stdout.write(`${encodeCanonicalJson({
+		locales,
+		messages: Object.fromEntries(locales.map((locale) => [locale, Object.keys(layer.catalogs.get(locale).messages).length])),
+		headSha: layer.provenance.headSha,
+		artifactId: layer.provenance.artifactId,
+	})}\n`);
 }
-
 
 function parseFlags(args) {
 	const flags = {};
@@ -113,7 +101,7 @@ function parseFlags(args) {
 function usageError(detail = '') {
 	return new TranslationArtifactError(
 		'CLI_USAGE',
-		`${detail ? `${detail}\n` : ''}Usage: node scripts/audacity-qt-translations.mjs prepare --archive <zip> --output <dir> --artifact-id <id> --source-run-id <id> --source-head-sha <sha> --source-workflow-url <url> --source-sha256 <sha> --source-byte-length <bytes> --source-license <file> --tool-revision <sha> --converted-at <ISO timestamp> [--previous-root <dir>] [--exposed-locales en,de]`,
+		`${detail ? `${detail}\n` : ''}Usage: node scripts/audacity-qt-translations.mjs commit --archive <zip> --artifact-id <id> --source-run-id <id> --source-head-sha <sha> --source-workflow-url <url> --source-sha256 <sha> --source-byte-length <bytes> --source-license <file> [--output <dir>]`,
 	);
 }
 
@@ -125,7 +113,7 @@ function isMainModule() {
 
 if (isMainModule()) {
 	runCli(process.argv.slice(2)).catch((error) => {
-		const code = error?.code || 'TRANSLATION_PREPARE_FAILED';
+		const code = error?.code || 'TRANSLATION_COMMIT_FAILED';
 		process.stderr.write(`${code}: ${error?.message || error}\n`);
 		process.exitCode = 1;
 	});

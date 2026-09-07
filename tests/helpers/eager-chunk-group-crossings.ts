@@ -117,6 +117,10 @@ export const REACHABILITY_PLACED_TARGETS: ReadonlyMap<string, string> = new Map(
 		'Site copy leaf: the generated loader index `src/common/site/BrandSidebar.jsx` lists machine locales from; every catalog behind it is its own lazy chunk.',
 	],
 	[
+		'src/common/i18n/audacity/index.js',
+		'Site copy leaf: the generated loader index `src/common/site/BrandSidebar.jsx` lists Audacity-served locales from; every catalog behind it is its own lazy chunk.',
+	],
+	[
 		'src/common/offline/lazy-module.tsx',
 		'The shared React.lazy wrapper the site shell (`src/common/site/App.jsx`) mounts its routes with, so it is site-entry code the editor reuses.',
 	],

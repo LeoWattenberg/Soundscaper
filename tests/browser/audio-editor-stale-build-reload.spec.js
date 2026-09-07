@@ -1,22 +1,12 @@
 import { expect } from '@playwright/test';
 import { test } from './audio-editor-test-fixtures.js';
 
-const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 const RETIRED_INVENTORY = Object.freeze({
 	schemaVersion: 2,
 	assets: [Object.freeze({ url: '/assets/site-entry-RETIRED.js', byteLength: 1, sha256: 'a'.repeat(64) })],
 });
 
 test.describe('Stale build reload prompt', () => {
-	test.beforeEach(async ({ page }) => {
-		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: { 'Access-Control-Allow-Origin': '*' },
-			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-		}));
-	});
-
 	test('a retired chunk prompts to reload and leaves the editor usable when cancelled', async ({ page }) => {
 		await publishNewerRelease(page);
 		await retireChunk(page, 'ExportDialog');

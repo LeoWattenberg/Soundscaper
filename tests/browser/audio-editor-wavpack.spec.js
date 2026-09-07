@@ -8,7 +8,6 @@ import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
 
 const DATABASE_NAME = SOUNDSCAPER_DATABASE_NAME;
 const DATABASE_VERSION = 1;
-const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 const fixture = createWavFixture({
 	name: 'browser-wavpack-persistence.wav',
 	frequency: 293.66,
@@ -18,15 +17,6 @@ const fixture = createWavFixture({
 });
 
 test.describe('adaptive WavPack PCM persistence', () => {
-	test.beforeEach(async ({ page }) => {
-		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: { 'Access-Control-Allow-Origin': '*' },
-			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-		}));
-	});
-
 	test('persists, reloads, edits, and reads legacy PCM', async ({ page }) => {
 		test.setTimeout(60_000);
 		let editor = await bootEditor(page);

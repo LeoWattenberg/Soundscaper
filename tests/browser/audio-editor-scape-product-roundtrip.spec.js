@@ -14,7 +14,6 @@ import {
 	expect,
 	test,
 	toneA,
-	TRANSLATIONS_ROOT,
 } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
@@ -175,12 +174,6 @@ test.describe('exact selected-schema cross-product Scape handoffs', () => {
 
 async function openProductRuntime(browser, baseURL, productId) {
 	const page = await browser.newPage({ baseURL, serviceWorkers: 'block' });
-	await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-		status: 200,
-		contentType: 'application/json',
-		headers: { 'Access-Control-Allow-Origin': '*' },
-		body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-	}));
 	await disableDirectScapeSave(page);
 	const editor = await bootEditor(page, PRODUCT_PATHS[productId]);
 	return { editor, page };

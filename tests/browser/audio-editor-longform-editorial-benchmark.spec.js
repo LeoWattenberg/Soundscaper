@@ -14,7 +14,6 @@ import {
 	bootEditor,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
-import { TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
 import { deterministicAvMedia } from './fixtures/deterministic-av-media.js';
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import {
@@ -31,16 +30,6 @@ const SAMPLE_RATE = 48_000;
 const VIDEO_FRAME_SAMPLES = 1_600;
 const PIXELS_PER_SECOND = 120;
 const CLIP_CONTENT_OFFSET = 12;
-
-test.beforeEach(async ({ page }) => {
-	if (process.env.SOUNDSCAPER_PACKAGED_RUNTIME_METRICS === '1') return;
-	await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-		status: 200,
-		contentType: 'application/json',
-		headers: { 'Access-Control-Allow-Origin': '*' },
-		body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-	}));
-});
 
 test('collects the opt-in two-hour editorial diagnostic without qualifying the host', async ({
 	page,

@@ -9,7 +9,7 @@
  * those is a side effect on a global - stored preferences, a dispatched window
  * event, a navigation. They are exercised here through the real component
  * rather than through the browser suite, which mounts the editor and cannot
- * observe a refused storage or a manifest that never answers.
+ * observe a refused storage.
  */
 
 import assert from 'node:assert/strict';
@@ -18,6 +18,7 @@ import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
 import { LOCALE_BY_TAG, ROUTE_LOCALES } from '../src/common/i18n/locales.js';
+import { AUDACITY_CATALOG_LOCALES } from '../src/common/i18n/audacity/index.js';
 import { MACHINE_CATALOG_LOCALES } from '../src/common/i18n/machine/index.js';
 import BrandSidebar from '../src/common/site/BrandSidebar.jsx';
 import { PRIVACY_POLICY_REQUEST_EVENT } from '../src/common/site/privacy-policy-links.js';
@@ -32,7 +33,7 @@ interface HarnessOptions {
 	readonly manifest?: { readonly locales?: Readonly<Record<string, ManifestLocale>> } | null;
 }
 
-/** Two turns settle the manifest promise chain the language picker starts. */
+/** Two turns settle any promise chain a handler starts. */
 const settle = async (): Promise<void> => {
 	for (let turn = 0; turn < 8; turn += 1) await Promise.resolve();
 };
@@ -137,18 +138,16 @@ function harness(options: HarnessOptions = {}) {
 type Harness = ReturnType<typeof harness>;
 
 /**
- * The locales the picker offers before any manifest answers: the two bundled
- * catalogs plus every locale a committed machine catalog serves, in the order
- * the picker sorts their names for an English visitor. Manifest-named extras
- * join the same ordering.
+ * The locales the picker offers: the two bundled catalogs plus every routed
+ * locale a committed machine or Audacity catalog serves, in the order the
+ * picker sorts their native names for an English visitor.
  */
-function expectedLocaleOptions(extra: Readonly<Record<string, string>> = {}): string[] {
+function expectedLocaleOptions(): string[] {
 	const names = new Map<string, string>();
 	const routed = new Set(ROUTE_LOCALES.map((descriptor: { locale: string }) => descriptor.locale));
-	for (const tag of ['en', 'de', ...MACHINE_CATALOG_LOCALES]) {
+	for (const tag of ['en', 'de', ...MACHINE_CATALOG_LOCALES, ...AUDACITY_CATALOG_LOCALES]) {
 		if (routed.has(tag)) names.set(tag, LOCALE_BY_TAG[tag]!.nativeName);
 	}
-	for (const [tag, name] of Object.entries(extra)) names.set(tag, name);
 	return [...names.entries()]
 		.sort(([, left], [, right]) => left.localeCompare(right, 'en'))
 		.map(([tag]) => tag);
@@ -296,49 +295,22 @@ test('the language picker navigates to a served locale and ignores anything else
 	}
 });
 
-test('opening the picker names the locales the translation manifest declares eligible', async () => {
-	const context = harness({
-		manifest: {
-			locales: {
-				fr: { eligible: true, name: '  Français  ' },
-				// Declared but not deployed, ineligible, and not a descriptor at all:
-				// none of the three may reach the picker through the manifest (a
-				// committed machine catalog offers its locale on its own).
-				kl: { eligible: true, name: 'Kalaallisut' },
-				ja: { eligible: false, name: '日本語' },
-				ko: { eligible: true },
-			},
-		},
-	});
-	try {
-		await context.render();
-		const locales = context.dom.one('[data-locale-select]');
-		await act(async () => {
-			reactProps(locales).onFocus?.({});
-			await settle();
-		});
-		assert.equal(context.requests.length, 1);
-		assert.match(context.requests[0]!, /\/latest\.json$/u);
-		const picker = context.dom.one('[data-locale-select]');
-		assert.deepEqual(optionValues(picker), expectedLocaleOptions({ fr: 'Français' }));
-		assert.ok(!optionValues(picker).includes('kl'));
-		assert.ok(optionNames(picker).includes('Français'), 'the manifest name reaches the picker untrimmed');
-	} finally {
-		await context.close();
-	}
-});
-
-test('a refused manifest leaves the shipped languages alone', async () => {
+test('the picker offers every routed locale a committed catalog serves without fetching anything', async () => {
 	const context = harness({ manifest: null });
 	try {
 		await context.render();
-		const locales = context.dom.one('[data-locale-select]');
+		const picker = context.dom.one('[data-locale-select]');
 		await act(async () => {
-			reactProps(locales).onPointerDown?.({});
+			reactProps(picker).onFocus?.({});
+			reactProps(picker).onPointerDown?.({});
 			await settle();
 		});
-		assert.equal(context.requests.length, 1);
-		assert.deepEqual(optionValues(context.dom.one('[data-locale-select]')), expectedLocaleOptions());
+		assert.equal(context.requests.length, 0);
+		const values = optionValues(context.dom.one('[data-locale-select]'));
+		assert.deepEqual(values, expectedLocaleOptions());
+		assert.ok(values.includes('fr') && values.includes('ar'), 'machine-served locales are offered');
+		assert.ok(values.length >= 20, 'every routed locale with a catalog is offered');
+		assert.ok(optionNames(context.dom.one('[data-locale-select]')).includes('Français'));
 	} finally {
 		await context.close();
 	}

@@ -1,20 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { localeLanguage } from '../i18n/locale.js';
 import { DEFAULT_LOCALE_TAGS, getLocaleDescriptor, ROUTE_LOCALES } from '../i18n/locales.js';
+import { AUDACITY_CATALOG_LOCALES } from '../i18n/audacity/index.js';
 import { MACHINE_CATALOG_LOCALES } from '../i18n/machine/index.js';
 import { useSiteCopy } from './use-site-copy.js';
 import { otherProductId, productIdentity } from '../product-identities.js';
 import { productHref } from '../product-web-links.js';
-import { createApplicationReadyScheduler } from './application-ready-scheduler.js';
 import { storeDocumentTheme } from './document-theme.js';
 import {
 	PRIVACY_POLICY_REQUEST_EVENT,
 	privacyPolicyUrl,
 } from './privacy-policy-links.js';
-
-const TRANSLATIONS_BASE_URL = import.meta.env?.PUBLIC_TRANSLATIONS_BASE_URL
-	|| 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
 
 export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 	const profile = productIdentity(productId);
@@ -27,15 +24,15 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 	const [collapsed, setCollapsed] = useState(() => storedCollapsed(productId));
 	const [theme, setTheme] = useState(() => document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
 	const [workspace, setWorkspace] = useState({ activeId: profile.defaultWorkspace, workspaces: [] });
-	const [eligibleNames, setEligibleNames] = useState(new Map());
-	const requestTranslationManifestRef = useRef(() => {});
+	// Every routed locale a bundled, machine or committed Audacity catalog
+	// serves is offered; nothing is fetched to know that.
 	const localeOptions = useMemo(() => {
-		const localeTags = new Set([...DEFAULT_LOCALE_TAGS, ...MACHINE_CATALOG_LOCALES, localeDescriptor.locale, ...eligibleNames.keys()]);
+		const localeTags = new Set([...DEFAULT_LOCALE_TAGS, ...MACHINE_CATALOG_LOCALES, ...AUDACITY_CATALOG_LOCALES, localeDescriptor.locale]);
 		return ROUTE_LOCALES
 			.filter(({ locale: routeLocale }) => localeTags.has(routeLocale))
-			.map((descriptor) => ({ ...descriptor, name: eligibleNames.get(descriptor.locale) || descriptor.nativeName }))
+			.map((descriptor) => ({ ...descriptor, name: descriptor.nativeName }))
 			.sort((left, right) => left.name.localeCompare(right.name, localeDescriptor.locale));
-	}, [eligibleNames, localeDescriptor.locale]);
+	}, [localeDescriptor.locale]);
 
 	useEffect(() => {
 		const handleWorkspaceState = (event) => {
@@ -53,42 +50,6 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 			window.removeEventListener('soundscaper:workspace-state', handleWorkspaceState);
 		};
 	}, [productId, profile.defaultWorkspace]);
-
-	useEffect(() => {
-		const controller = new AbortController();
-		let timeout = null;
-		const scheduler = createApplicationReadyScheduler({
-			task: () => {
-				timeout = window.setTimeout(() => controller.abort(), 5_000);
-				fetch(`${TRANSLATIONS_BASE_URL.replace(/\/+$/u, '')}/latest.json`, { cache: 'default', signal: controller.signal })
-					.then((response) => {
-						if (!response.ok) throw new Error(`Translation manifest request failed (${response.status})`);
-						return response.json();
-					})
-					.then((manifest) => {
-						const routeLocaleTags = new Set(ROUTE_LOCALES.map(({ locale: routeLocale }) => routeLocale));
-						const locales = manifest && typeof manifest.locales === 'object' && !Array.isArray(manifest.locales) ? manifest.locales : {};
-						const names = new Map();
-						for (const [tag, descriptor] of Object.entries(locales)) {
-							if (!routeLocaleTags.has(tag) || !descriptor || typeof descriptor !== 'object' || descriptor.eligible !== true) continue;
-							if (typeof descriptor.name === 'string' && descriptor.name.trim()) names.set(tag, descriptor.name.trim());
-						}
-						setEligibleNames(names);
-					})
-					.catch(() => {})
-					.finally(() => {
-						if (timeout !== null) window.clearTimeout(timeout);
-					});
-			},
-		});
-		requestTranslationManifestRef.current = scheduler.request;
-		return () => {
-			requestTranslationManifestRef.current = () => {};
-			scheduler.dispose();
-			if (timeout !== null) window.clearTimeout(timeout);
-			controller.abort();
-		};
-	}, []);
 
 	const toggleCollapsed = () => {
 		const next = !collapsed;
@@ -112,7 +73,6 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 			window.location.assign(productHref(productId, event.target.value));
 		}
 	};
-	const requestTranslationManifest = () => { requestTranslationManifestRef.current(); };
 	const openPrivacyPolicy = (event) => {
 		if (event.button > 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 		if (!document.querySelector('[data-audio-editor-bound="true"]')) return;
@@ -157,7 +117,7 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 						</button>
 						<label className="language-picker">
 							<span>{copy.language}</span>
-							<select data-locale-select aria-label={copy.language} value={localeDescriptor.locale} onFocus={requestTranslationManifest} onPointerDown={requestTranslationManifest} onChange={selectLocale}>
+							<select data-locale-select aria-label={copy.language} value={localeDescriptor.locale} onChange={selectLocale}>
 								{localeOptions.map(({ locale: optionLocale, name }) => <option key={optionLocale} value={optionLocale}>{name}</option>)}
 							</select>
 						</label>

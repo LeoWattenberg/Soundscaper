@@ -9,17 +9,10 @@ import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const DATABASE_VERSION = 1;
-const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
 
 test.describe('dedicated OPFS storage worker', () => {
-	test.beforeEach(async ({ context, page }) => {
-		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: { 'Access-Control-Allow-Origin': '*' },
-			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-		}));
+	test.beforeEach(async ({ context }) => {
 		await context.addInitScript(() => {
 			globalThis.__opfsMainThreadFallbacks = { createWritable: 0, getFile: 0 };
 			const prototype = globalThis.FileSystemFileHandle?.prototype;
@@ -74,12 +67,6 @@ test.describe('dedicated OPFS storage worker', () => {
 		expect(await mainThreadFallbacks(page)).toEqual({ createWritable: 0, getFile: 0 });
 
 		const secondPage = await context.newPage();
-		await secondPage.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: { 'Access-Control-Allow-Origin': '*' },
-			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-		}));
 		await secondPage.goto(resolveBrowserProductTestUrl('/framescaper/en/'));
 		const second = await waitForVideoEditor(secondPage);
 		await expectPersistedPreviewClip(secondPage, second);

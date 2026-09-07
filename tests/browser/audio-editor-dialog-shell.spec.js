@@ -2,18 +2,7 @@ import { expect } from '@playwright/test';
 import { test } from './audio-editor-test-fixtures.js';
 import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
 
-const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
-
 test.describe('shared audio editor dialog behavior', () => {
-	test.beforeEach(async ({ page }) => {
-		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: { 'Access-Control-Allow-Origin': '*' },
-			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-		}));
-	});
-
 	test('traps modal focus and supports Escape and outside dismissal', async ({ page }) => {
 		const editor = await bootEditor(page);
 		const { restoreTarget, queuedFrames } = await chooseCommandWithHeldInitialFocus(page, editor, 'Edit', 'Preferences');

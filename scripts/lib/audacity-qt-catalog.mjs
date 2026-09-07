@@ -170,7 +170,13 @@ export function readAudacityQtCatalogsFromZip(archiveBytes, options = {}) {
 		if (!match || entry.name.includes('/')) fail('QT_CATALOG_NAME', `Unexpected Qt TS catalog path ${entry.name}.`);
 		const fileLocale = normalizeQtLocale(match[1]);
 		const locale = AUDACITY_TO_BCP47[match[1]] || fileLocale;
-		if (catalogs.has(locale)) fail('QT_CATALOG_LOCALE_DUPLICATE', `Duplicate normalized Qt locale ${locale}.`);
+		const code = String(match[1]).replaceAll('_', '-');
+		if (catalogs.has(locale)) {
+			// Upstream ships a legacy alias beside the canonical tag (tl beside fil);
+			// the file named by the canonical tag wins and the alias is left alone.
+			if (catalogs.get(locale).code === locale) continue;
+			if (code !== locale) fail('QT_CATALOG_LOCALE_DUPLICATE', `Duplicate normalized Qt locale ${locale}.`);
+		}
 		const catalog = parseQtTs(archive.readEntry(entry.name), { fileName: entry.name });
 		const declaredLocale = normalizeQtLocale(catalog.language);
 		if (baseLanguage(locale) !== baseLanguage(declaredLocale)) {
@@ -180,7 +186,7 @@ export function readAudacityQtCatalogsFromZip(archiveBytes, options = {}) {
 		if (fileTokenHasRegionOrScript && !match[1].includes('@') && fileLocale !== declaredLocale) {
 			fail('QT_CATALOG_LANGUAGE', `${entry.name} declares mismatched locale ${catalog.language}.`);
 		}
-		catalogs.set(locale, Object.freeze({ ...catalog, archivePath: entry.name, locale }));
+		catalogs.set(locale, Object.freeze({ ...catalog, archivePath: entry.name, locale, code }));
 	}
 	return Object.freeze({ archive, catalogs });
 }

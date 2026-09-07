@@ -18,7 +18,6 @@ import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { packagedRuntimeEnvironmentFingerprint } from './helpers/packaged-runtime-environment.js';
 import { waitForPreviewFrameSample } from './helpers/preview-frame-sampling.js';
 
-const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 const WARMUP_TRIAL_COUNT = 1;
 const MEASURED_TRIAL_COUNT = 5;
 const MEASURED_FRAMES_PER_TRIAL = 121;
@@ -204,12 +203,6 @@ async function startPreviewBenchmarkPlayback(editor) {
 }
 
 async function installBenchmarkRoutes(page) {
-	await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-		status: 200,
-		contentType: 'application/json',
-		headers: { 'Access-Control-Allow-Origin': '*' },
-		body: JSON.stringify({ schemaVersion: 1, locales: {} }),
-	}));
 	await page.addInitScript(() => {
 		globalThis.__soundscaperPreviewFrameTimes = [];
 		globalThis.__soundscaperMeasurePreviewFrames = false;

@@ -68,6 +68,6 @@ test('every guarded desktop staging copy disables overwrite', async () => {
 	const optionBlocks = [...source.matchAll(/\bcp\([^;]*?\{([^}]*errorOnExist: true[^}]*)\}\)/gu)]
 		.map((match) => match[1]);
 
-	assert.equal(optionBlocks.length, 3);
+	assert.equal(optionBlocks.length, 2);
 	assert.ok(optionBlocks.every((options) => /\bforce: false\b/u.test(options)));
 });

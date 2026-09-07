@@ -4,16 +4,7 @@ import { test } from './audio-editor-test-fixtures.js';
 import { chooseFileAction } from './audio-editor-test-helpers.js';
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
-const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
-
 test.describe('Soundscaper product surface', () => {
-	test.beforeEach(async ({ page }) => {
-		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
-			status: 404,
-			body: '',
-		}));
-	});
-
 	test('keeps the first-paint progress bar until the editor is ready', async ({ page }) => {
 		let releaseEntryChunk;
 		let entryChunkIntercepted = false;
