@@ -28,8 +28,7 @@ export const FRAMESCAPER_ASSISTANCE_PROJECT_FIELDS = Object.freeze([
 	'assistanceAssets',
 ] as const);
 
-export interface FramescaperProjectAssistance extends Omit<FramescaperProjectTimelineImage,
-	'schemaVersion' | 'featureRequirements'> {
+export interface FramescaperProjectAssistance extends FramescaperProjectTimelineImage {
 	readonly schemaFamily: 'framescaper';
 	readonly schemaVersion: 1;
 	readonly featureRequirements: FramescaperProjectTimelineImage['featureRequirements'];

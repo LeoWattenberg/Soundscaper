@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { assertAudioVideoClipRecord } from './helpers/audio-video-clip-record.ts';
 
 import {
 	createClipboardDescriptor,
@@ -83,7 +84,7 @@ test('Project Bin add, move, and placement preserve detached composition ownersh
 		type: 'project-bin/move-from-timeline', clipIds: ['video-clip'],
 	});
 	const binned = moved.projectBin.clips.find(({ id }) => id === 'video-clip');
-	assert.ok(binned);
+	assertAudioVideoClipRecord(binned);
 	assert.deepEqual(binned.videoComposition, authoredComposition());
 	assert.notStrictEqual(binned.videoComposition, project.clips[0]?.videoComposition);
 
@@ -98,7 +99,7 @@ test('Project Bin add, move, and placement preserve detached composition ownersh
 	assert.notStrictEqual(placedClip.videoComposition, binned.videoComposition);
 	assert.notStrictEqual(
 		placedClip.videoComposition,
-		placed.projectBin.clips.find(({ id }) => id === 'video-clip')?.videoComposition,
+		binClip(placed, 'video-clip').videoComposition,
 	);
 
 	const commandComposition = structuredClone(authoredComposition());
@@ -112,7 +113,7 @@ test('Project Bin add, move, and placement preserve detached composition ownersh
 		},
 	});
 	const addedClip = added.projectBin.clips.find(({ id }) => id === 'added-bin-video');
-	assert.ok(addedClip);
+	assertAudioVideoClipRecord(addedClip);
 	assert.deepEqual(addedClip.videoComposition, commandComposition);
 	assert.notStrictEqual(addedClip.videoComposition, commandComposition);
 });
@@ -283,6 +284,12 @@ function apply(project: BaselineCompositionProject, command: unknown): BaselineC
 
 function clip(project: BaselineCompositionProject, id: string): Readonly<Record<string, unknown>> {
 	const result = project.clips.find((candidate) => candidate.id === id);
-	assert.ok(result);
+	assertAudioVideoClipRecord(result);
+	return result;
+}
+
+function binClip(project: BaselineCompositionProject, id: string): Readonly<Record<string, unknown>> {
+	const result = project.projectBin.clips.find((candidate) => candidate.id === id);
+	assertAudioVideoClipRecord(result);
 	return result;
 }

@@ -28,7 +28,7 @@ export const FRAMESCAPER_PROJECT_FIELDS = Object.freeze([
 	...FRAMESCAPER_ASSISTANCE_PROJECT_FIELDS,
 ] as const);
 
-export interface FramescaperProject extends Omit<FramescaperProjectAssistance, 'schemaVersion'> {
+export interface FramescaperProject extends FramescaperProjectAssistance {
 	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
 	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 }

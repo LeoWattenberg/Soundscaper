@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { assertAudioVideoClipRecord } from './helpers/audio-video-clip-record.ts';
 
 import {
 	preparePunchCommand,
@@ -169,7 +170,9 @@ test('source replacement and reprobe preserve composition while refreshing sourc
 		changes: { width: 1_280, height: 720 },
 		clips: [{ clipId: 'left', sourceInFrame: 0, sourceFrameCount: 20 }],
 	});
-	assert.equal(reprobed.sources.find(({ id }) => id === 'video-source-b')?.width, 1_280);
+	const reprobedSource = reprobed.sources.find(({ id }) => id === 'video-source-b');
+	assert.ok(reprobedSource && 'width' in reprobedSource);
+	assert.equal(reprobedSource.width, 1_280);
 	assertOwnedComposition(reprobed, 'left', composition(1), compositionOf(replaced, 'left'));
 
 	const audioReplaced = apply(base, {
@@ -345,7 +348,7 @@ test('multicamera switching preserves output composition through persisted and p
 	const playback = createFramescaperPlaybackProjectService(PROFILE)
 		.projectForPlayback(switched).project;
 	const output = playback.clips.find(({ id }) => id === 'output');
-	assert.ok(output);
+	assertAudioVideoClipRecord(output);
 	assert.equal(output.sourceId, 'video-source-b');
 	assert.deepEqual(output.videoComposition, composition(1));
 	assert.notStrictEqual(output.videoComposition, timelineClip(switched, 'output').videoComposition);
@@ -495,13 +498,13 @@ function stableIds(): (prefix?: string) => string {
 
 function timelineClip(project: BaselineCompositionProject, id: string): Readonly<Record<string, unknown>> {
 	const result = project.clips.find((candidate) => candidate.id === id);
-	assert.ok(result, `Missing timeline clip ${id}.`);
+	assertAudioVideoClipRecord(result, `Missing timeline clip ${id}.`);
 	return result;
 }
 
 function binClip(project: BaselineCompositionProject, id: string): Readonly<Record<string, unknown>> {
 	const result = project.projectBin.clips.find((candidate) => candidate.id === id);
-	assert.ok(result, `Missing Project Bin clip ${id}.`);
+	assertAudioVideoClipRecord(result, `Missing Project Bin clip ${id}.`);
 	return result;
 }
 

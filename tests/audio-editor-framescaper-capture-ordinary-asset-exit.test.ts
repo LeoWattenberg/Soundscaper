@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { assertAudioVideoClipRecord } from './helpers/audio-video-clip-record.ts';
 
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
@@ -106,8 +107,12 @@ test('capture-published assets traverse ordinary relink, edit, Scape, and delive
 	assert.equal(validateFramescaperProject(PROFILE, edited), true);
 	assert.equal(edited.clips.length, 4, 'the ordinary linked split creates two aligned A/V pairs');
 	assert.deepEqual(edited.sources, published.sources, 'an occurrence edit does not rewrite capture assets');
-	assert.equal(edited.clips.find(({ id }) => id === 'camera-right')?.avLinkId, 'capture-right-av-link');
-	assert.equal(edited.clips.find(({ id }) => id === 'microphone-right')?.avLinkId, 'capture-right-av-link');
+	const cameraRight = edited.clips.find(({ id }) => id === 'camera-right');
+	const microphoneRight = edited.clips.find(({ id }) => id === 'microphone-right');
+	assertAudioVideoClipRecord(cameraRight);
+	assertAudioVideoClipRecord(microphoneRight);
+	assert.equal(cameraRight.avLinkId, 'capture-right-av-link');
+	assert.equal(microphoneRight.avLinkId, 'capture-right-av-link');
 
 	const runtime = createFramescaperScapeNativeRuntime(PROFILE);
 	const exported = await runtime.exportScapeProject(edited, fixture.store);

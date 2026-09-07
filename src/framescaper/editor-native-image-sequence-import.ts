@@ -45,9 +45,11 @@ import {
 import { assertFramescaperProjectIdentity } from './editor-project-identity.ts';
 import { assertFramescaperProjectRuntimeProfile } from './editor-project-runtime-profile.ts';
 import type { FramescaperProject } from './editor-project.ts';
+import type { FramescaperProjectNativeMedia } from './editor-project-native-media-validation.ts';
 
 type Awaitable<Value> = Value | PromiseLike<Value>;
-type CandidateProject = FramescaperProject;
+// Both the current editor and the native-media owner admit projects to this importer.
+type CandidateProject = FramescaperProject | FramescaperProjectNativeMedia;
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
 const REQUIRED_PROJECT_CAPABILITIES = Object.freeze([
