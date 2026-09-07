@@ -165,7 +165,7 @@ export async function draftDocument(options) {
 		source: rawFacts,
 		targetLocale: 'en',
 	});
-	let response = await readCache(options.cacheDirectory, identity);
+	let response = options.cacheDirectory ? await readCache(options.cacheDirectory, identity) : null;
 	let markdown;
 	if (!response) {
 		const generated = await generateValidated({
@@ -181,7 +181,7 @@ export async function draftDocument(options) {
 		});
 		response = generated.response;
 		markdown = generated.value;
-		await writeCache(options.cacheDirectory, identity, response);
+		if (options.cacheDirectory) await writeCache(options.cacheDirectory, identity, response);
 	} else {
 		markdown = validateDraftResponse(response, factIds);
 	}
@@ -213,7 +213,7 @@ async function translateChunk({ chunk, chunkIndex, sourceHash, targetLocale, cli
 		documentSourceSha256: sourceHash,
 		chunkIndex,
 	});
-	let response = await readCache(cacheDirectory, identity);
+	let response = cacheDirectory ? await readCache(cacheDirectory, identity) : null;
 	let translated;
 	const validate = (candidate) => validateModelOutput(() => {
 		const candidateMarkdown = validateModelMarkdown(candidate, targetLocale, { allowProtectionTokens: true });
@@ -230,7 +230,7 @@ async function translateChunk({ chunk, chunkIndex, sourceHash, targetLocale, cli
 		});
 		response = generated.response;
 		translated = generated.value;
-		await writeCache(cacheDirectory, identity, response);
+		if (cacheDirectory) await writeCache(cacheDirectory, identity, response);
 	} else {
 		translated = validate(response);
 	}
@@ -282,7 +282,7 @@ async function translateFrontmatter({ frontmatter, sourceHash, targetLocale, cli
 		targetLocale,
 		documentSourceSha256: sourceHash,
 	});
-	let response = await readCache(cacheDirectory, identity);
+	let response = cacheDirectory ? await readCache(cacheDirectory, identity) : null;
 	let translatedFrontmatter;
 	const validate = (candidate) => validateModelOutput(() => {
 		const translatedFields = validateTranslatedFrontmatter(candidate, sourceFields, protectedFields, targetLocale);
@@ -297,7 +297,7 @@ async function translateFrontmatter({ frontmatter, sourceHash, targetLocale, cli
 		});
 		response = generated.response;
 		translatedFrontmatter = generated.value;
-		await writeCache(cacheDirectory, identity, response);
+		if (cacheDirectory) await writeCache(cacheDirectory, identity, response);
 	} else {
 		translatedFrontmatter = validate(response);
 	}

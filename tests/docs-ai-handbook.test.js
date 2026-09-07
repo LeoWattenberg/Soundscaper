@@ -154,3 +154,35 @@ test('English is the source and cannot be a translation target', async (context)
 		/English pages are the source/u,
 	);
 });
+
+/**
+ * The cache is an optimisation, not a dependency. A run that is given no cache
+ * directory used to fail on every page with a message about a path argument,
+ * which reads as a hundred broken pages rather than one missing option.
+ */
+test('a run works without an answer cache', async (context) => {
+	const root = await tree(context, { 'index.md': PAGE('Home') });
+
+	const summary = await translateHandbook({ locale: 'fr', root, client: frenchClient() });
+
+	assert.deepEqual(summary.skipped, []);
+	assert.equal(summary.translated, 1);
+	assert.match(await readFile(join(root, 'fr', 'index.md'), 'utf8'), /Le contenu de la page/u);
+});
+
+/** A run may be pointed at single pages, so one page can be redone on its own. */
+test('a run may be limited to named pages', async (context) => {
+	const root = await tree(context, { 'index.md': PAGE('Home'), 'guides/index.md': PAGE('Guides') });
+
+	const summary = await translateHandbook({
+		locale: 'fr',
+		root,
+		client: frenchClient(),
+		cacheDirectory,
+		pages: ['index.md'],
+	});
+
+	assert.equal(summary.pages, 1);
+	assert.equal(summary.translated, 1);
+	await assert.rejects(readFile(join(root, 'fr', 'guides', 'index.md'), 'utf8'));
+});
