@@ -340,11 +340,19 @@ function nativeSpectrogramWindowType(spectrogram = {}) {
 }
 
 export function trackChannelCount(project, track) {
+	let resolvedSource = false;
 	for (const clipId of track.clipIds || []) {
 		const clip = project.clips?.find((candidate) => candidate.id === clipId);
 		const source = project.sources?.find((candidate) => candidate.id === clip?.sourceId);
-		if (Number(source?.channelCount) > 1) return 2;
+		if (!source) continue;
+		resolvedSource = true;
+		if (Number(source.channelCount) > 1) return 2;
 	}
+	// The channel count an import recorded only decides the shape while nothing
+	// on the track resolves: once every clip is mono audio the export registers
+	// no channel-1 sample blocks, so a second wave track would carry a sequence
+	// that declares samples it has no blocks for.
+	if (resolvedSource) return 1;
 	const importedChannels = track.opaqueExtensions?.aup4WaveTracks?.length;
 	if (Number.isSafeInteger(importedChannels) && importedChannels > 1) return 2;
 	return 1;
