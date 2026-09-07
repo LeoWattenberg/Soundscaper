@@ -46,6 +46,7 @@ import {
 	inspectFramescaperCapturePcmTimeline,
 	writeFramescaperCapturePcmTimeline,
 } from './framescaper-capture-canonical-pcm.ts';
+import { loadRetainedCaptureVideoBody } from './framescaper-capture-retained-media.ts';
 import { framescaperCapturePublicationName } from './framescaper-capture-publication-name.ts';
 
 type EncodedSpoolPublicationPort = Pick<EncodedCaptureSpoolRepository, 'load' | 'read'>;
@@ -195,7 +196,7 @@ async function publishEncodedVideo(
 	});
 	let timingPublication: OwnedMediaAssetPublication | null = null;
 	try {
-		const retainedBody = await loadRetainedVideoBody(
+		const retainedBody = await loadRetainedCaptureVideoBody(
 			options.store,
 			storage.sourceId,
 			material.byteLength,
@@ -301,21 +302,6 @@ async function publishVideoBody(
 		}
 		throw error;
 	}
-}
-
-async function loadRetainedVideoBody(
-	store: FramescaperCaptureCanonicalStore,
-	storageKey: string,
-	expectedBytes: number,
-	signal: AbortSignal | null,
-): Promise<Blob> {
-	throwIfAborted(signal);
-	const body = await store.loadMediaAsset(storageKey, signal ? { signal } : {});
-	throwIfAborted(signal);
-	if (!body || body.size !== expectedBytes) {
-		throw new Error('The retained capture media body is missing or truncated before probing.');
-	}
-	return body;
 }
 
 async function publishCanonicalTiming(
