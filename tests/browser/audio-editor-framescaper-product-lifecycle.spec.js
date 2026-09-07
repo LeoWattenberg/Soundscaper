@@ -8,6 +8,7 @@ import {
 	getMenuItem,
 	importFiles,
 	openNestedCommandMenu,
+	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
@@ -57,8 +58,7 @@ test.describe('Framescaper v1 product lifecycle', () => {
 		await expect.poll(() => storedKeyframeState(page, projectId)).toMatchObject({ curveCount: 1 });
 
 		await page.reload();
-		editor = page.locator('[data-audio-editor]');
-		await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
+		editor = await waitForEditor(page);
 		await expect(editor).toHaveAttribute('data-product', 'framescaper');
 		await expect(editor).toHaveAttribute('data-project-id', projectId);
 		await expect.poll(() => storedKeyframeState(page, projectId)).toMatchObject({
