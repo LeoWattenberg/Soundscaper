@@ -68,7 +68,7 @@ test('track service prepares stable atomic track commands and moves linked lanes
 		snapTimelineFrame: (frame) => frame,
 		setTimelineView() {},
 		recording: {
-			getRouting: () => ({ routes: {} }),
+			getRouting: () => ({ routes: {}, offsets: {} }),
 			setRouting() {},
 			getPreferredDeviceId: () => 'default',
 			getPreferredChannelCount: () => 1,

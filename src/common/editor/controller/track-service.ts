@@ -9,6 +9,7 @@ import {
 } from '../commands/factories.ts';
 import type { AudioEditorCommand, CommandObject } from '../commands/protocol.ts';
 import type { EditorControllerLifetime } from './lifecycle.ts';
+import type { RecordingRoute as CaptureRecordingRoute } from './recording-transaction-types.ts';
 import {
 	createTrackStructuralOperationService,
 	type TrackStructuralOperationService,
@@ -56,16 +57,12 @@ export interface LabelCreateOptions extends Record<string, unknown> {
 	readonly endFrame?: number;
 }
 
-export interface RecordingRoute extends Readonly<Record<string, unknown>> {
-	readonly kind: 'device' | 'display';
-	readonly deviceId?: string;
-	readonly deviceLabel?: string;
-	readonly channelStart: number;
-	readonly channelCount: number;
-}
+/** A stored recording route, plus the device label the track header shows for it. */
+export type RecordingRoute = CaptureRecordingRoute & Readonly<{ readonly deviceLabel?: string }>;
 
-export interface RecordingRouting extends Readonly<Record<string, unknown>> {
+export interface RecordingRouting {
 	readonly routes: Readonly<Record<string, RecordingRoute>>;
+	readonly offsets: Readonly<Record<string, number>>;
 }
 
 interface RecordingDevice {

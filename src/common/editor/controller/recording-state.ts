@@ -13,6 +13,14 @@ import type {
 } from './recording-transaction-types.ts';
 import type { TimedRecordingDescriptor } from './timed-recording-service.ts';
 
+/** One row of the recording device inventory the routing service enumerates. */
+export interface ControllerRecordingDevice {
+	readonly deviceId: string;
+	readonly label?: string;
+	readonly channelCount?: number;
+	readonly status?: string;
+}
+
 export interface ControllerRecordingRouting {
 	readonly routes: Readonly<Record<string, RecordingRoute>>;
 	readonly offsets: Readonly<Record<string, number>>;
@@ -58,7 +66,7 @@ export interface ControllerRecordingState<Routing = ControllerRecordingRouting> 
 	recordingDiscardRequested: boolean;
 	recordingReleaseAfterStop: boolean;
 	recordingRouting: Routing;
-	recordingDevices: unknown[];
+	recordingDevices: ControllerRecordingDevice[];
 	recordingEnumeratedDeviceIds: Set<string>;
 	audioInputDevices: unknown[];
 	audioOutputDevices: unknown[];

@@ -47,7 +47,11 @@ and three-point edits, JKL navigation, the frame-canonical trims, source
 reprobing, sample editing, clip transforms and properties, the committed
 time-pitch render and video clip effects. Its dependency contract is derived
 from the services' own declared dependencies, so a change to what a service
-needs is a compile error at the composition rather than a runtime gap.
+needs is a compile error at the composition rather than a runtime gap. Tracks
+and audio production follow in `controller/track-audio-composition.ts`: the
+derived-source rewrites, the track service and its action adapter, the
+deferred export service whose snapshot renderer the other renders read
+through, take comping, audio warp, mix-and-render and the selection view.
 
 `index.js` and `facade.ts` form the curated
 external facade; editor implementation modules may not import it. The former
