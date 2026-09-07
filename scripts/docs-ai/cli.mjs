@@ -1,32 +1,40 @@
 import { resolve } from 'node:path';
 
 import { docsAiRuntimeOptions } from './config.mjs';
+import { checkHandbook, pruneOrphanedTranslations, translateHandbook } from './handbook.mjs';
+import { handbookTranslationLocales } from '../lib/handbook-locales.mjs';
 import { createOllamaClient } from './ollama.mjs';
 import { checkDraft, checkTranslation, draftDocument, translateDocument } from './workflows.mjs';
 
 const HELP = `Usage:
   node scripts/docs-ai.mjs draft --facts FACTS.json --output PAGE.md [--model MODEL] [--stdout] [--check]
   node scripts/docs-ai.mjs translate --source PAGE.md --target PAGE.de.md --locale de [--model MODEL] [--stdout] [--check]
+  node scripts/docs-ai.mjs handbook (--locale fr[,es] | --all) [--model MODEL] [--pages a.md,b.md] [--prune]
+  node scripts/docs-ai.mjs handbook --check [--locale fr[,es]] [--strict]
+
+handbook translates every English page a language is missing or has fallen behind on into
+handbook/src/content/docs/<language>/, one page at a time, and skips a page the model cannot
+answer acceptably rather than stopping the language for it. Writing a language's first page is
+what publishes it, and --all means every language that already has pages. --prune removes the
+translations of English pages that no longer exist. --check reports what each language owes
+without contacting Ollama; --strict then fails when anything is stale, missing or invalid.
 
 Generation writes the output file by default. --stdout prints instead of writing.
 --check validates an existing output without contacting Ollama or changing files.`;
 
+/** Options that stand alone; everything else names a value. */
+const FLAGS = Object.freeze(['--stdout', '--check', '--all', '--prune', '--strict']);
+
 export function parseCliArguments(argv) {
 	const [command, ...rest] = argv;
-	if (!['draft', 'translate'].includes(command)) throw new Error(HELP);
-	const options = { command, mode: 'write' };
-	let requestedStdout = false;
-	let requestedCheck = false;
+	if (!['draft', 'translate', 'handbook'].includes(command)) throw new Error(HELP);
+	const options = { command, mode: 'write', all: false, prune: false, strict: false };
 	for (let index = 0; index < rest.length; index += 1) {
 		const argument = rest[index];
-		if (argument === '--stdout') {
-			requestedStdout = true;
-			options.mode = 'stdout';
-			continue;
-		}
-		if (argument === '--check') {
-			requestedCheck = true;
-			options.mode = 'check';
+		if (FLAGS.includes(argument)) {
+			if (argument === '--stdout') options.mode = 'stdout';
+			else if (argument === '--check') options.mode = 'check';
+			else options[argument.slice(2)] = true;
 			continue;
 		}
 		if (!argument.startsWith('--')) throw new Error(`Unexpected argument: ${argument}\n\n${HELP}`);
@@ -36,8 +44,19 @@ export function parseCliArguments(argv) {
 		options[key] = value;
 		index += 1;
 	}
-	if (requestedStdout && requestedCheck) throw new Error('--stdout and --check cannot be combined.');
+	if (argv.includes('--stdout') && argv.includes('--check')) throw new Error('--stdout and --check cannot be combined.');
+	if (options.command === 'handbook') {
+		if (options.mode === 'stdout') throw new Error('handbook writes the pages it translates and has no --stdout mode.');
+		if (options.all && options.locale) throw new Error('--all and --locale cannot be combined.');
+		if (options.mode !== 'check' && !options.all && !options.locale) throw new Error(`handbook needs --locale or --all.\n\n${HELP}`);
+	}
 	return options;
+}
+
+/** The languages a handbook command acts on: those named, or those that already have pages. */
+function handbookLocales(options) {
+	if (options.locale) return options.locale.split(',').map((locale) => locale.trim()).filter(Boolean);
+	return handbookTranslationLocales();
 }
 
 function required(options, key) {
@@ -75,6 +94,8 @@ export async function runCli(argv, io = {}) {
 		return result;
 	}
 
+	if (options.command === 'handbook') return runHandbookCommand(options, { env, stdout });
+
 	const sourcePath = required(options, 'source');
 	const targetPath = required(options, 'target');
 	const targetLocale = required(options, 'locale');
@@ -98,6 +119,44 @@ export async function runCli(argv, io = {}) {
 	if (options.mode === 'stdout') stdout.write(result.document);
 	else stdout.write(`Translated ${sourcePath} -> ${targetPath} with ${result.provenance.model}@${result.provenance.modelDigest}.\n`);
 	return result;
+}
+
+async function runHandbookCommand(options, { env, stdout }) {
+	const locales = handbookLocales(options);
+	if (options.mode === 'check') {
+		const reports = await checkHandbook({ locales });
+		for (const report of reports) {
+			const pending = report.stale + report.missing + report.invalid;
+			if (options.strict && (pending > 0 || report.orphaned.length > 0)) process.exitCode = 1;
+			stdout.write(`${report.locale}: ${report.current}/${report.pages} current, ${report.stale} stale, ${report.missing} missing, ${report.invalid} invalid${report.orphaned.length ? `, ${report.orphaned.length} orphaned` : ''}\n`);
+			for (const { page, reason } of report.invalidPages) stdout.write(`  ${report.locale}/${page}: ${reason}\n`);
+		}
+		if (!reports.length) stdout.write('No language has handbook pages yet.\n');
+		return reports;
+	}
+	const runtime = docsAiRuntimeOptions({ env });
+	const pages = options.pages?.split(',').map((page) => page.trim()).filter(Boolean);
+	const summaries = [];
+	for (const locale of locales) {
+		if (options.prune) {
+			const pruned = await pruneOrphanedTranslations(locale);
+			for (const page of pruned) stdout.write(`${locale}: removed ${page}, which no longer exists in English\n`);
+		}
+		const client = createOllamaClient({ role: 'translate', model: options.model, locale, env });
+		const summary = await translateHandbook({
+			locale,
+			pages,
+			client,
+			cacheDirectory: cacheDirectory(env),
+			maxChunkChars: runtime.maxChunkChars,
+			log: (line) => stdout.write(`${line}\n`),
+		});
+		summaries.push(summary);
+		stdout.write(`${locale}: ${summary.translated} translated, ${summary.current} already current, ${summary.skipped.length} skipped of ${summary.pages} pages\n`);
+		for (const { page, reason } of summary.skipped) stdout.write(`  ${locale}/${page}: ${reason}\n`);
+		for (const page of summary.orphaned) stdout.write(`  ${locale}/${page} no longer exists in English; --prune removes it\n`);
+	}
+	return summaries;
 }
 
 export { HELP };

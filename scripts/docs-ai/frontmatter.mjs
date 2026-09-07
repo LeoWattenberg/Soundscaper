@@ -1,3 +1,26 @@
+import { handbookLocaleRoute } from '../lib/handbook-locales.mjs';
+import { handbookPlan } from '../lib/product-web-routing.mjs';
+
+/**
+ * A frontmatter link is data a Starlight component reads, so no Markdown
+ * transform ever supplies the handbook's base path or the page's language for
+ * it the way one does for a body link. A translated page therefore has to
+ * carry both itself, or a hero action drops the reader back into English.
+ */
+const HANDBOOK_BASE = handbookPlan('soundscaper').basePath;
+const FRONTMATTER_LINK_LINE = /^(\s+link:\s*)(\S+)([^\S\r\n]*)$/gmu;
+
+/** Point a page's frontmatter links at the language the page is written in. */
+export function localizeFrontmatterLinks(frontmatter, locale) {
+	const route = handbookLocaleRoute(locale);
+	const prefix = route === '/' ? HANDBOOK_BASE : `${HANDBOOK_BASE}${route.replace(/\/$/u, '')}`;
+	return frontmatter.replace(FRONTMATTER_LINK_LINE, (line, key, value, trailing) => {
+		if (value !== HANDBOOK_BASE && !value.startsWith(`${HANDBOOK_BASE}/`)) return line;
+		if (value === prefix || value.startsWith(`${prefix}/`)) return line;
+		return `${key}${prefix}${value.slice(HANDBOOK_BASE.length)}${trailing}`;
+	});
+}
+
 function decodeYamlString(rawValue, key) {
 	const value = rawValue.trim();
 	if (!value || value === '|' || value === '>') {

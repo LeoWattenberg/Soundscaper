@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
 
 import { readCache, writeCache } from './cache.mjs';
-import { parseTranslatableFrontmatter, replaceTranslatableFrontmatter } from './frontmatter.mjs';
+import { localizeFrontmatterLinks, parseTranslatableFrontmatter, replaceTranslatableFrontmatter } from './frontmatter.mjs';
 import { asInvalidModelOutput, generateValidated } from './generation.mjs';
 import { assertDocumentationLocale, assertLocale } from './locale.mjs';
 import {
@@ -336,9 +336,13 @@ export async function translateDocument(options) {
 		}));
 	}
 	const restoredBody = restoreMarkdown(translatedChunks.join(''), protectedDocument.tokens);
-	const bareDocument = `${translatedFrontmatter}${restoredBody}`;
+	// A hero action's link is data no Markdown transform ever sees, so the page
+	// carries the language in it itself or the reader leaves the language they
+	// are reading the moment they follow one.
+	const localizedFrontmatter = localizeFrontmatterLinks(translatedFrontmatter, targetLocale);
+	const bareDocument = `${localizedFrontmatter}${restoredBody}`;
 	assertLocale(restoredBody, targetLocale);
-	assertStructuralParity(`${translatedFrontmatter}${body}`, bareDocument);
+	assertStructuralParity(`${localizedFrontmatter}${body}`, bareDocument);
 	const provenance = createProvenance({
 		operation: 'translate',
 		model: modelIdentity.model,
@@ -370,7 +374,10 @@ export async function checkTranslation(options) {
 	const targetParts = splitFrontmatter(target);
 	const sourceFields = parseTranslatableFrontmatter(sourceParts.frontmatter);
 	const targetFields = parseTranslatableFrontmatter(targetParts.frontmatter);
-	const expectedSourceFrontmatter = replaceTranslatableFrontmatter(sourceParts.frontmatter, targetFields);
+	const expectedSourceFrontmatter = localizeFrontmatterLinks(
+		replaceTranslatableFrontmatter(sourceParts.frontmatter, targetFields),
+		provenance.targetLocale,
+	);
 	assertStructuralParity(`${expectedSourceFrontmatter}${sourceParts.body}`, target);
 	if (sourceFields.description === undefined && targetFields.description !== undefined) {
 		throw new Error('Translation added a frontmatter description.');
