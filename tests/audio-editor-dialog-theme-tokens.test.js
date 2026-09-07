@@ -96,3 +96,10 @@ test('an unchecked checkbox is outlined, because its fill matches a dark surface
 	assert.ok(rule, 'the editor outlines the package checkbox');
 	assert.match(rule[1], /border:\s*1px solid var\(--kw-editor-checkbox-border\)/u);
 });
+
+test('an unchecked context-menu toggle is outlined in dark flyouts', async () => {
+	const css = await readFile(new URL('01-tokens-base.css', DESIGN_SYSTEM_STYLES), 'utf8');
+	const rule = /#kw-audio-editor-design-system \.context-menu-item-checkmark\s*\{([^}]*)\}/u.exec(css);
+	assert.ok(rule, 'the editor outlines context-menu toggle cells');
+	assert.match(rule[1], /border:\s*1px solid var\(--kw-editor-checkbox-border\)/u);
+});

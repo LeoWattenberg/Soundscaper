@@ -246,6 +246,14 @@
 	border: 1px solid var(--kw-editor-checkbox-border);
 }
 
+/* ContextMenuItem uses its own checkmark cell instead of Checkbox, including
+ * toggles in transport flyouts such as Preserve pitch. Give that empty cell
+ * the same visible boundary. */
+#kw-audio-editor-design-system .context-menu-item-checkmark {
+	border: 1px solid var(--kw-editor-checkbox-border);
+	border-radius: 2px;
+}
+
 #kw-audio-editor-design-system .kw-audio-editor__button-tooltip {
 	/* The package's Flyout selector is scoped as an adjacent sibling during the
 	 * Vite build, while this tooltip lives inside the editor. Keep it out of
