@@ -185,7 +185,7 @@ export function createClipTransformService(
 				selection, movesClipSelection, deltaFrames,
 			);
 		}
-		const trackDelta = audioTracks.length - activeTrackIndex;
+		const trackDelta = audioTracks.length - Math.min(...sourceTrackIndices);
 		const newTrackCount = Math.max(...sourceTrackIndices) + trackDelta - audioTracks.length + 1;
 		const newTrackCommands = Array.from({ length: newTrackCount }, (_, index) => createAddTrackCommand({
 			type: 'audio',
