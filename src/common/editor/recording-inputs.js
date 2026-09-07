@@ -28,7 +28,10 @@ export async function requestMicrophone(constraints = { audio: true }) {
 	return mediaDevices.getUserMedia.call(mediaDevices, constraints);
 }
 
-/** Request exact hardware input without browser speech processing. */
+/**
+ * Request exact hardware input without browser speech processing.
+ * @param {import('./recording-input-options.ts').HardwareRecordingInputOptions} [options]
+ */
 export async function requestHardwareInput({
 	deviceId,
 	channelCount = 2,
@@ -58,7 +61,10 @@ export async function requestHardwareInput({
 	return mediaDevices.getUserMedia.call(mediaDevices, { audio });
 }
 
-/** Request tab/window/system audio while retaining its required video track. */
+/**
+ * Request tab/window/system audio while retaining its required video track.
+ * @param {import('./recording-input-options.ts').DisplayRecordingInputOptions} [options]
+ */
 export async function requestDisplayInput({
 	audioConstraints = true,
 	videoConstraints = true,
