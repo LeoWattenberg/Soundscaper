@@ -29,8 +29,13 @@ import {
 	applyFramescaperProjectCommand,
 	type FramescaperProjectCommand,
 } from '../src/framescaper/editor-project-commands.ts';
-import type { FramescaperProjectComposition } from '../src/framescaper/editor-project-composition.ts';
+import {
+	createFramescaperProjectComposition,
+	type FramescaperProjectComposition,
+} from '../src/framescaper/editor-project-composition.ts';
+import { applyFramescaperProjectCommandComposition } from '../src/framescaper/editor-project-composition-commands.ts';
 import { createFramescaperProject, type FramescaperProject } from '../src/framescaper/editor-project.ts';
+import { FRAMESCAPER_COMPOSITION_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
 
 const CREATED = '2026-08-13T14:00:00.000Z';
 const EDITED = '2026-08-13T14:01:00.000Z';
@@ -160,6 +165,19 @@ test('clipboard V6 copy and paste carry detached video composition and baseline 
 	const command = preparePasteCommand(descriptor, {
 		atFrame: 48_000, mode: 'reject', project: commandProject,
 	}, (prefix = 'id') => `${prefix}-${String(nextId++)}`);
+	try {
+		applyFramescaperProjectCommandComposition(
+			FRAMESCAPER_COMPOSITION_PROJECT_RUNTIME_PROFILE,
+			createFramescaperProjectComposition(
+				FRAMESCAPER_COMPOSITION_PROJECT_RUNTIME_PROFILE, projectOptions() as never,
+			),
+			command as never,
+			{ now: EDITED },
+		);
+	} catch (error) {
+		assert.doesNotMatch(String(error), /requires V\d+ recopy/u,
+			'a current V6 clipboard must pass the composition currency guard');
+	}
 	const pasted = apply(project, command);
 	const pastedClipId = (command.clipIds as Record<string, string>)['video-clip:0:48000'];
 	assert.ok(pastedClipId);
@@ -237,7 +255,13 @@ test('clipboard V5 and V6 require composition only on video while V1 through V4 
 });
 
 function projectFixture(): BaselineCompositionProject {
-	return createFramescaperProject(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, {
+	return createFramescaperProject(
+		FRAMESCAPER_PROJECT_RUNTIME_PROFILE, projectOptions() as never,
+	) as BaselineCompositionProject;
+}
+
+function projectOptions(): Record<string, unknown> {
+	return {
 		id: 'composition-edit-preservation', title: 'Composition edit preservation', now: CREATED,
 		sources: [createVideoSource({
 			id: 'video-source', name: 'Video', storageKey: 'video-source', mimeType: 'video/mp4',
@@ -258,7 +282,7 @@ function projectFixture(): BaselineCompositionProject {
 			id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'],
 		}],
 		primarySequenceId: 'main-sequence',
-	}) as BaselineCompositionProject;
+	};
 }
 
 function authoredComposition() {

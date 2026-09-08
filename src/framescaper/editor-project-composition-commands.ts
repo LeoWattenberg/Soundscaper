@@ -7,6 +7,7 @@ import {
 	type VideoClipComposition,
 } from '../common/editor/video-clip-composition.ts';
 import {
+	AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION,
 	normalizeAudioEditorClipboardDescriptor,
 } from '../common/editor/commands/clipboard-codec.ts';
 import { snapshotInertEditorCommand } from '../common/editor/commands/editor-command-snapshot.ts';
@@ -202,9 +203,11 @@ function assertCurrentVideoClipboardComposition(command: FramescaperProjectComma
 		const clipboard = normalizeAudioEditorClipboardDescriptor(
 			dataProperty(candidate, 'clipboard', 'Framescaper composition clipboard paste'),
 		);
-		if (clipboard.schemaVersion !== 5
+		if (clipboard.schemaVersion !== AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION
 			&& clipboard.tracks.some((track) => track.sourceTrackType === 'video')) {
-			throw new RangeError('Framescaper composition video clipboard content requires V5 recopy.');
+			throw new RangeError(
+				`Framescaper composition video clipboard content requires V${String(AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION)} recopy.`,
+			);
 		}
 	}
 }
