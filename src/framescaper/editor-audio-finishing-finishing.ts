@@ -70,7 +70,9 @@ function validateAutomation(
 	mixer: MixerGraphV21,
 	lanes: readonly AutomationLaneV21[],
 ): void {
-	const tracks = new Map(records(project.tracks, 'project.tracks').map((track) => [id(track, 'track'), track]));
+	const tracks = new Map(records(project.tracks, 'project.tracks')
+		.filter(({ type }) => type === 'audio')
+		.map((track) => [id(track, 'audio track'), track]));
 	const nodes = new Map([...mixer.groups, ...mixer.sends, ...mixer.cues].map((node) => [node.id, node]));
 	const edges = new Set(mixer.edges.map((edge) => edge.id));
 	for (const lane of lanes) {
