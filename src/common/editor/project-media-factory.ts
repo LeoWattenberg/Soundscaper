@@ -357,10 +357,8 @@ export function createProjectBin(
 		...clone(bin),
 		clips: clips.map((candidate) => {
 			const clip = object(candidate, 'projectBin clip');
-			return {
-				...createMediaClip(clip, contextForClip(clip)),
-				binItemId: clip.binItemId || clip.id,
-			};
+			const created = createMediaClip(clip, contextForClip(clip));
+			return { ...created, binItemId: clip.binItemId || created.id };
 		}),
 	};
 }

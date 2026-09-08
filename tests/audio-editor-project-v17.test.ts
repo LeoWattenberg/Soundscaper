@@ -84,6 +84,16 @@ test('foundation audio clips reject trims outside their source range', () => {
 	}
 });
 
+test('current project creation assigns generated bin clip identities', () => {
+	const projectOptions = options([]);
+	projectOptions.projectBin = { clips: [{
+		kind: 'audio', sourceId: 'source-a', durationFrames: 100,
+	}] };
+
+	const project = createCurrentAudioEditorProject(projectOptions);
+	assert.equal(project.projectBin.clips[0]?.binItemId, project.projectBin.clips[0]?.id);
+});
+
 function options(takeGroups: readonly unknown[] = [group()]): Record<string, unknown> {
 	return {
 		id: 'take-comp-project', title: 'Take comp project', now: NOW,

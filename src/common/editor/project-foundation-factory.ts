@@ -104,7 +104,8 @@ export function createProjectFoundation(
 		: dataRecord(input.projectBin, 'project.projectBin');
 	const binClips = arrayOr(projectBinInput.clips, []).map((value) => {
 		const clip = dataRecord(value, 'projectBin clip');
-		return { ...createMediaClip(clip, contextFor(clip)), binItemId: clip.binItemId || clip.id };
+		const created = createMediaClip(clip, contextFor(clip));
+		return { ...created, binItemId: clip.binItemId || created.id };
 	});
 	const graph = { sources, clips, tracks };
 	const featureRequirements = normalizeProjectFeatureRequirements(

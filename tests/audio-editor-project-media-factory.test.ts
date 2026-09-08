@@ -134,6 +134,13 @@ test('current media leaves accumulate extension, musical, and rational video aut
 	);
 	const bin = createProjectBin({ clips: [{ ...videoClip, binItemId: 'bin-item' }] }, () => context);
 	assert.equal(bin.clips[0]?.binItemId, 'bin-item');
+	const generatedBin = createProjectBin({ clips: [{
+		kind: 'video', sourceId: 'video-source',
+		sequenceStartFrame: 0, sequenceFrameCount: 1,
+		sourceInFrame: 0, sourceFrameCount: 1,
+	}] }, () => context);
+	assert.equal(generatedBin.clips[0]?.binItemId, generatedBin.clips[0]?.id);
+	assert.equal(typeof generatedBin.clips[0]?.binItemId, 'string');
 	assert.deepEqual(createCurrentLabel({
 		id: 'marker',
 		anchor: 'musical',
