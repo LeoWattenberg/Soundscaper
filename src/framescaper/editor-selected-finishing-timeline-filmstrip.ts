@@ -177,13 +177,17 @@ async function loadFilmstripImage(url: string, signal: AbortSignal): Promise<HTM
 	image.decoding = 'async';
 	image.src = url;
 	const decoded = image.decode();
+	let rejectAbort!: (reason?: unknown) => void;
+	const onAbort = () => {
+		image.src = '';
+		rejectAbort(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+	};
 	const aborted = new Promise<never>((_resolve, reject) => {
-		signal.addEventListener('abort', () => {
-			image.src = '';
-			reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
-		}, { once: true });
+		rejectAbort = reject;
+		signal.addEventListener('abort', onAbort, { once: true });
 	});
-	await Promise.race([decoded, aborted]);
+	try { await Promise.race([decoded, aborted]); }
+	finally { signal.removeEventListener('abort', onAbort); }
 	throwIfAborted(signal);
 	return image;
 }

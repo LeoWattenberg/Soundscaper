@@ -411,8 +411,23 @@ test('the shipped decode refuses to run without a browser image runtime', async 
 
 test('the shipped decode scales an object URL down through an image element and a canvas', async (t) => {
 	const dom = installDom(t, { bitmap: { width: 200, height: 50 } });
+	const controller = new AbortController();
+	const signal = controller.signal;
+	const add = signal.addEventListener.bind(signal);
+	const remove = signal.removeEventListener.bind(signal);
+	let abortListeners = 0;
+	Object.defineProperties(signal, {
+		addEventListener: { value: (...args: Parameters<AbortSignal['addEventListener']>) => {
+			if (args[0] === 'abort') abortListeners += 1;
+			return add(...args);
+		} },
+		removeEventListener: { value: (...args: Parameters<AbortSignal['removeEventListener']>) => {
+			if (args[0] === 'abort') abortListeners -= 1;
+			return remove(...args);
+		} },
+	});
 
-	const rendered = await cells();
+	const rendered = await cells({ signal });
 
 	assert.deepEqual(
 		rendered.map(({ key, width, height }) => ({ key, width, height })),
@@ -431,6 +446,7 @@ test('the shipped decode scales an object URL down through an image element and 
 		[[WIDTH, HEIGHT], [64, 16], [64, 16]],
 	);
 	assert.equal(dom.canvases[1]!.clears, 1, 'the plate canvas is cleared when its cell is released');
+	assert.equal(abortListeners, 0, 'a completed image decode releases its abort listener');
 });
 
 test('cancelling while the plate image decodes rejects with the caller reason and drops the load', async (t) => {
