@@ -127,7 +127,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	// chapter split, an ADM programme, or a sub-range of the project.
 	const projectMasteringSequences = snapshot.masteringSequences?.sequences;
 	const masteringSequences = useMemo(() => (
-		settings.mode !== 'mix' || settings.format === 'bw64'
+		settings.mode !== 'mix' || settings.format === 'bw64' || isVideoExportDialogFormat(settings.format)
 			? []
 			: projectMasteringSequences ?? []
 	), [projectMasteringSequences, settings.format, settings.mode]);

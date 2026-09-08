@@ -185,7 +185,24 @@ test('a finished export starts its own download exactly once', async () => {
 
 interface ExportDialogFixtureOptions {
 	readonly labels?: readonly Readonly<Record<string, unknown>>[];
+	readonly masteringSequences?: readonly Readonly<Record<string, unknown>>[];
+	readonly video?: boolean;
 }
+
+test('a video format clears an audio mastering sequence selection', async () => {
+	const sequenceName = 'Album side A';
+	const fixture = await mountedExportDialog({
+		masteringSequences: [{ id: 'sequence-a', name: sequenceName, deliverable: true }],
+		video: true,
+	});
+	try {
+		await fixture.chooseOutput(sequenceName);
+		await fixture.chooseFormat(ENGLISH_COPY.videoExportMp4);
+		assert.equal((await fixture.outputOptionLabels()).includes(sequenceName), false);
+	} finally {
+		await fixture.unmount();
+	}
+});
 
 test("Opus delivery offers Audacity's VBR modes and states the chosen one", async () => {
 	const fixture = await mountedExportDialog();
@@ -257,7 +274,7 @@ async function mountedExportDialog(options: ExportDialogFixtureOptions = {}) {
 	const root = createRoot(dom.container as unknown as Element);
 	const project = exportProject(options.labels ?? [
 		{ id: 'one', title: 'Intro', startFrame: 0, endFrame: SAMPLE_RATE },
-	]);
+	], options.video === true);
 	const render = async (output: Readonly<Record<string, unknown>> | null = null) => {
 		await act(async () => root.render(<ExportDialog
 			isOpen
@@ -271,7 +288,7 @@ async function mountedExportDialog(options: ExportDialogFixtureOptions = {}) {
 				exporting: false,
 				export: { progress: 0, output },
 				selection: null,
-				masteringSequences: { sequences: [] },
+				masteringSequences: { sequences: options.masteringSequences ?? [] },
 				project,
 			}}
 			copy={ENGLISH_COPY}
@@ -377,7 +394,7 @@ async function mountedExportDialog(options: ExportDialogFixtureOptions = {}) {
 	};
 }
 
-function exportProject(labels: readonly Readonly<Record<string, unknown>>[]) {
+function exportProject(labels: readonly Readonly<Record<string, unknown>>[], video: boolean) {
 	return {
 		id: 'export-surface',
 		revision: 1,
@@ -385,10 +402,11 @@ function exportProject(labels: readonly Readonly<Record<string, unknown>>[]) {
 		sampleRate: SAMPLE_RATE,
 		masterChannels: 2,
 		metadata: {},
-		clips: [{ id: 'clip', kind: 'audio' }],
+		clips: [{ id: 'clip', kind: 'audio' }, ...(video ? [{ id: 'video-clip', kind: 'video' }] : [])],
 		tracks: [
 			{ id: 'track', type: 'audio', clipIds: ['clip'] },
 			{ id: 'labels', type: 'label', labels },
+			...(video ? [{ id: 'video-track', type: 'video', clipIds: ['video-clip'] }] : []),
 		],
 		loop: { enabled: true, startFrame: 0, endFrame: SAMPLE_RATE },
 	};
