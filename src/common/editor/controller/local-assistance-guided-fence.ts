@@ -119,10 +119,10 @@ function sourceRangeInventory(
 		const kind = [...kinds][0];
 		if (kind !== 'audio' && kind !== 'video') unavailable('selected-media-unavailable');
 		for (const occurrence of occurrences) assertForwardOccurrence(occurrence, kind);
-		const placementOffsets = occurrences.map((occurrence) => (
+		const placementOffsets = kind === 'audio' ? occurrences.map((occurrence) => (
 			integer(occurrence.timelineStartFrame, 0, 'occurrence timeline start')
 				- integer(occurrence.sourceStartFrame, 0, 'occurrence source start')
-		));
+		)) : [0];
 		if (placementOffsets.some((offset) => !Number.isSafeInteger(offset))
 			|| new Set(placementOffsets).size !== 1) unavailable('timing-authority-unavailable');
 		const matchingSources = sources.filter(({ id }) => id === primitive.sourceId);

@@ -264,7 +264,11 @@ function projectFor(kind: 'audio' | 'video') {
 		revision: 4, sampleRate: 48_000, assistanceAssets: Object.freeze([]),
 		clips: Object.freeze([{ id: 'clip-a', kind, sourceId: 'source-a',
 			sequenceId: 'sequence-main', avLinkId: null, reversed: false, speedRatio: 1,
-			stretchToTempo: false, warpMap: null, retimeMap: null }]),
+			stretchToTempo: false, warpMap: null, retimeMap: null,
+			...(kind === 'audio' ? {
+				timelineStartFrame: 0, durationFrames: 100,
+				sourceStartFrame: 0, sourceDurationFrames: 100,
+			} : {}) }]),
 		sources: Object.freeze([{ id: 'source-a', kind, contentSha256: SOURCE_SHA256,
 			sampleRate: 48_000 }]),
 	});
