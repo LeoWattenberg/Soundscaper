@@ -47,6 +47,27 @@ test('live CAS publication delegates its exact target assertion to product comma
 	assert.equal(applyCount, 1);
 });
 
+test('live CAS publication counts history entries trimmed from a full undo stack', async () => {
+	const fixture = publicationFixture();
+	const fullHistory = {
+		...fixture.session.getProjectHistory(fixture.base.id),
+		limit: 2,
+		dropped: 0,
+		undoStack: [
+			{ project: fixture.base, command: { type: 'project/rename', title: 'Earlier 1' } },
+			{ project: fixture.base, command: { type: 'project/rename', title: 'Earlier 2' } },
+		],
+	} as unknown as TakeCyclePublicationHistory;
+	fixture.session.updateProjectHistory(fixture.base.id, fullHistory, { dirty: true });
+	fixture.history = fullHistory;
+
+	await fixture.publish(livePublication(fixture.base));
+
+	const history = fixture.session.getSnapshot().tabs[0]!.history;
+	assert.equal(history.undoStack.length, 2);
+	assert.equal(history.dropped, 1);
+});
+
 test('restart recovery replaces an exact base without inventing undo history', async () => {
 	const fixture = publicationFixture();
 	const publication = livePublication(fixture.base);

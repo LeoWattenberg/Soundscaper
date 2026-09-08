@@ -7,6 +7,7 @@ import type { TakeCyclePublishedProject } from './take-cycle-recording-repositor
 
 export interface TakeCyclePublicationHistory {
 	readonly limit: number;
+	readonly dropped?: number;
 	readonly present: TakeCycleProjectDocument;
 	readonly undoStack: readonly Readonly<{
 		readonly project: TakeCycleProjectDocument;
@@ -90,14 +91,17 @@ export function createTakeCycleCurrentProjectPublicationService(
 				publication.command,
 				dependencies.applyProjectCommand ?? applyDefaultTakeCycleProjectCommand,
 			);
+			const pushed = [
+				...capture.history.undoStack,
+				Object.freeze({ project: base, command: publication.command }),
+			];
+			const undoStack = pushed.slice(-capture.history.limit);
 			nextHistory = Object.freeze({
 				...capture.history,
 				present: target,
-				undoStack: Object.freeze([
-					...capture.history.undoStack,
-					Object.freeze({ project: base, command: publication.command }),
-				].slice(-capture.history.limit)),
+				undoStack: Object.freeze(undoStack),
 				redoStack: Object.freeze([]),
+				dropped: (capture.history.dropped ?? 0) + pushed.length - undoStack.length,
 			});
 		} else if (atBase) {
 			nextHistory = Object.freeze({
