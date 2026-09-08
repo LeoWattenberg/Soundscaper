@@ -73,6 +73,15 @@ test('runtime maps canonical normalized input and locks browser mutation to host
 		{ type: 'mouseDown', x: 960, y: 270, button: 'left', clickCount: 1, modifiers: ['shift'] },
 		{ type: 'keyDown', keyCode: 'Enter', isAutoRepeat: false, modifiers: [] },
 	]);
+	for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) {
+		await harness.value.dispatch(OWNER, {
+			...reference, kind: 'key-input', action: 'down', key, code: key,
+			repeat: false, modifiers: [],
+		});
+	}
+	assert.deepEqual(harness.windows[0]?.input.slice(-4), ['Up', 'Down', 'Left', 'Right'].map((keyCode) => ({
+		type: 'keyDown', keyCode, isAutoRepeat: false, modifiers: [],
+	})));
 	await harness.value.dispatch(OWNER, {
 		...reference, kind: 'key-input', action: 'down', key: 'a', code: 'KeyA', repeat: false, modifiers: [],
 	});

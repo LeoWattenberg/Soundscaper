@@ -12,6 +12,12 @@ import type {
 } from './framescaper-web-vcr-target-observer.ts';
 
 type EventListener = (...args: unknown[]) => void;
+const ELECTRON_KEY_CODES: Readonly<Record<string, string>> = Object.freeze({
+	ArrowUp: 'Up',
+	ArrowDown: 'Down',
+	ArrowLeft: 'Left',
+	ArrowRight: 'Right',
+});
 
 export interface FramescaperWebVcrElectronWindow extends FramescaperWebVcrGuestContent {
 	readonly webContents: Readonly<{
@@ -63,7 +69,7 @@ function framescaperWebVcrInputEvent(
 ): Readonly<Record<string, unknown>> {
 	if (command.kind === 'key-input') return Object.freeze({
 		type: command.action === 'down' ? 'keyDown' : 'keyUp',
-		keyCode: command.key,
+		keyCode: ELECTRON_KEY_CODES[command.key] ?? command.key,
 		isAutoRepeat: command.repeat,
 		modifiers: command.modifiers,
 	});
