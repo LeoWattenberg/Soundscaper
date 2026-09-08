@@ -98,6 +98,7 @@ test('capability latency and tail functions are pure and parameter-aware', () =>
 	assert.equal(audacityLiveEffectLatencyFrames('audacity-click-removal', SAMPLE_RATE), 8_191);
 	assert.equal(audacityLiveEffectLatencyFrames('audacity-click-removal', SAMPLE_RATE, { threshold: 0 }), 0);
 	assert.equal(audacityLiveEffectLatencyFrames('audacity-filter-curve-eq', SAMPLE_RATE, { filterLength: 255 }), 255);
+	assert.equal(audacityLiveEffectLatencyFrames('audacity-filter-curve-eq', SAMPLE_RATE, { filterLength: 257 }), 255);
 	assert.equal(audacityLiveEffectTailFrames('audacity-filter-curve-eq', SAMPLE_RATE, { filterLength: 255 }), 127);
 	assert.equal(audacityLiveEffectTailFrames('audacity-echo', SAMPLE_RATE, { delaySeconds: 0.01, decay: 0.5 }), 4_800);
 });
@@ -244,6 +245,14 @@ test('partitioned live equalizers reproduce centered one-shot FIR output after d
 		}],
 		['audacity-graphic-eq', {
 			filterLength: 255,
+			gains: Array.from({ length: 31 }, (_, index) => index < 15 ? 3 : -3),
+		}],
+		['audacity-filter-curve-eq', {
+			filterLength: 257,
+			points: [{ frequency: 20, gain: 6 }, { frequency: 20_000, gain: -6 }],
+		}],
+		['audacity-graphic-eq', {
+			filterLength: 257,
 			gains: Array.from({ length: 31 }, (_, index) => index < 15 ? 3 : -3),
 		}],
 	];

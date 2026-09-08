@@ -76,7 +76,8 @@ function liveLatencyFrames(type, sampleRate, params) {
 	}
 	if (type === 'audacity-filter-curve-eq' || type === 'audacity-graphic-eq') {
 		const delay = (settings.filterLength - 1) / 2;
-		return (Math.floor(delay / EQ_PARTITION_SIZE) + 2) * EQ_PARTITION_SIZE - 1;
+		return Math.ceil((delay + EQ_PARTITION_SIZE) / EQ_PARTITION_SIZE)
+			* EQ_PARTITION_SIZE - 1;
 	}
 	if (type === 'audacity-noise-reduction') {
 		const attackBlocks = 1 + Math.floor(0.02 * sampleRate / NOISE_HOP_SIZE);
