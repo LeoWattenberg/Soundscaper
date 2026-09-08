@@ -230,6 +230,67 @@ test('project lease probes the owner before reclaiming a live or abandoned lease
 	legacyOwner.release();
 });
 
+test('a takeover during lease arbitration cannot resurrect the displaced owner', async (context) => {
+	const values = new Map();
+	const channels = new Map();
+	const originalUuid = Object.getOwnPropertyDescriptor(globalThis.crypto, 'randomUUID');
+	const owners = ['owner-a', 'owner-z'];
+	Object.defineProperty(globalThis.crypto, 'randomUUID', {
+		configurable: true, value: () => owners.shift(),
+	});
+	context.after(() => {
+		if (originalUuid) Object.defineProperty(globalThis.crypto, 'randomUUID', originalUuid);
+		else delete globalThis.crypto.randomUUID;
+	});
+	const storage = {
+		getItem: (key) => values.get(key) ?? null,
+		setItem: (key, value) => values.set(key, value),
+		removeItem: (key) => values.delete(key),
+	};
+	class FakeBroadcastChannel {
+		constructor(name) {
+			this.name = name;
+			const peers = channels.get(name) ?? new Set();
+			peers.add(this);
+			channels.set(name, peers);
+		}
+		postMessage(data) {
+			for (const peer of [...channels.get(this.name)]) {
+				if (peer !== this) peer.onmessage?.({ data });
+			}
+		}
+		close() { channels.get(this.name)?.delete(this); }
+	}
+	let releaseArbitration;
+	let victimHeartbeats = 0;
+	const listeners = new Map();
+	const victim = acquireProjectLock('arbitration-takeover', {
+		navigator: {}, localStorage: storage, BroadcastChannel: FakeBroadcastChannel,
+		setTimeout: (callback) => { releaseArbitration = callback; return 1; },
+		setInterval: () => { victimHeartbeats += 1; return 1; }, clearInterval: () => {},
+		lifecycleTarget: {
+			addEventListener: (type, listener) => listeners.set(type, listener),
+			removeEventListener: (type, listener) => {
+				if (listeners.get(type) === listener) listeners.delete(type);
+			},
+		},
+		now: () => 100,
+	});
+	await Promise.resolve();
+	const replacement = await acquireProjectLock('arbitration-takeover', {
+		navigator: {}, localStorage: storage, BroadcastChannel: FakeBroadcastChannel,
+		setTimeout: (callback) => { callback(); return 1; },
+		setInterval: () => 2, clearInterval: () => {}, now: () => 101, force: true,
+	});
+	releaseArbitration();
+	const displaced = await victim;
+
+	assert.equal(displaced.readOnly, true);
+	assert.equal(victimHeartbeats, 0);
+	assert.equal(listeners.has('pagehide'), false);
+	replacement.release();
+});
+
 test('an expired project lease is reclaimed without letting its former owner remove the replacement', async () => {
 	const values = new Map();
 	const storage = {

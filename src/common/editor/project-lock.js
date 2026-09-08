@@ -209,6 +209,7 @@ async function acquireLease(projectId, lockName, options) {
 	let heartbeat = 0;
 	let released = false;
 	let resolveLost;
+	const lost = new Promise((resolve) => { resolveLost = resolve; });
 
 	if (!storage) return { projectId, readOnly: false, method: 'unavailable', retryAt: null, release() {} };
 	const existing = readLease(storage, key);
@@ -267,6 +268,11 @@ async function acquireLease(projectId, lockName, options) {
 		}
 		writeLease(storage, key, owner, now());
 	}
+	if (released) {
+		channel?.close();
+		return { projectId, readOnly: true, method: 'lease',
+			retryAt: readLease(storage, key)?.expiresAt ?? now() + LEASE_DURATION_MS, release() {} };
+	}
 
 	if (typeof setIntervalFn === 'function') {
 			heartbeat = setIntervalFn(() => {
@@ -286,7 +292,7 @@ async function acquireLease(projectId, lockName, options) {
 		readOnly: false,
 		method: 'lease',
 		retryAt: null,
-		lost: new Promise((resolve) => { resolveLost = resolve; }),
+		lost,
 		release: releaseLease,
 	};
 
