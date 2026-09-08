@@ -86,6 +86,7 @@ export function createWavStreamEncoder(options) {
 		preDataChunks: options?.preDataChunks,
 		trailingByteLength: callerTrailingChunk.byteLength + metadataChunk.byteLength,
 		bext: options?.bext,
+		channelMask: options?.channelMask,
 	});
 	if (layout.container === 'rf64' && collect) {
 		throw new Error('RF64 output requires streaming with collect: false.');

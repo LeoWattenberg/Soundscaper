@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { measureBextLoudness } from '../src/common/editor/broadcast-loudness.ts';
 import { createRiffInfoChunk, parseRiffInfo } from '../src/common/editor/riff-info.ts';
-import { createWavHeader } from '../src/common/editor/wav.js';
+import { createWavHeader, encodeWav } from '../src/common/editor/wav.js';
 
 test('BWF multichannel headers use WAVE_FORMAT_EXTENSIBLE PCM and a speaker mask', () => {
 	const bytes = createWavHeader({ sampleRate: 48_000, channelCount: 6, totalFrames: 1, bitDepth: 24, bext: {} });
@@ -13,6 +13,14 @@ test('BWF multichannel headers use WAVE_FORMAT_EXTENSIBLE PCM and a speaker mask
 	assert.equal(view.getUint32(format + 4, true), 40);
 	assert.equal(view.getUint16(format + 8, true), 0xfffe);
 	assert.equal(view.getUint32(format + 28, true), 0x3f);
+});
+
+test('streamed WAV encoding preserves an explicit speaker mask', () => {
+	const channelMask = 0x60f;
+	const channels = Array.from({ length: 6 }, () => new Float32Array(1));
+	const bytes = encodeWav(channels, { bitDepth: 24, bext: {}, channelMask });
+	const format = find(bytes, 'fmt ');
+	assert.equal(new DataView(bytes.buffer).getUint32(format + 28, true), channelMask);
 });
 
 test('RIFF INFO carries common descriptive metadata without flattening unknown fields', () => {
