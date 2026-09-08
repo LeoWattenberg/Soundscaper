@@ -120,21 +120,35 @@ test('JavaScript runtime responses reject non-UTF-8 charsets and extra MIME para
 });
 
 test('WebAssembly runtime responses retain their exact parameter-free MIME requirement', async () => {
-	const fixture = runtimeFixture({
-		runtimeContentType: (name) => name.endsWith('.wasm')
-			? 'application/wasm; charset=utf-8'
-			: 'text/javascript',
-	});
+	const fixture = runtimeFixture();
+	let cancelled = false;
+	const fetchImpl: typeof fetch = async (input, init) => {
+		const response = await fixture.fetch(input, init);
+		const url = String(input instanceof Request ? input.url : input);
+		if (!url.endsWith('/ffmpeg-core.wasm')) return response;
+		const bytes = new Uint8Array(await response.arrayBuffer());
+		return new Response(new ReadableStream<Uint8Array>({
+			start(controller) { controller.enqueue(bytes); },
+			cancel() { cancelled = true; },
+		}), {
+			status: 200,
+			headers: {
+				'content-length': String(bytes.byteLength),
+				'content-type': 'application/wasm; charset=utf-8',
+			},
+		});
+	};
 	const store = new MemoryRuntimeStore(previousRelease());
 
 	await assert.rejects(
 		() => installLatestFfmpegRuntime({
 			pointerUrl: `${RUNTIME_ROOT}latest.json`,
-			fetchImpl: fixture.fetch,
+			fetchImpl,
 			store,
 		}),
 		/ffmpeg-core\.wasm Content-Type does not match/u,
 	);
+	assert.equal(cancelled, true);
 	assert.equal(store.active?.releaseId, '0'.repeat(64));
 });
 

@@ -127,7 +127,12 @@ export async function installLatestFfmpegRuntime(
 		for (const file of release.files) {
 			throwIfAborted(signal);
 			const response = await fetchRuntime(fetchImpl, new URL(file.url), signal, file.name);
-			validateRuntimeResponseHeaders(response, file);
+			try {
+				validateRuntimeResponseHeaders(response, file);
+			} catch (error) {
+				await response.body?.cancel(error).catch(() => undefined);
+				throw error;
+			}
 			await stageVerifiedRuntimeFile(transaction, file, response, {
 				signal,
 				onChunk: (byteLength) => {
@@ -174,9 +179,14 @@ async function fetchRuntime(
 		throwIfAborted(signal);
 		throw error;
 	}
-	throwIfAborted(signal);
-	if (!(response instanceof Response)) throw new TypeError(`${label} fetch did not return a Response.`);
-	if (!response.ok || response.status !== 200) throw new Error(`${label} request failed (${response.status}).`);
+	try {
+		throwIfAborted(signal);
+		if (!(response instanceof Response)) throw new TypeError(`${label} fetch did not return a Response.`);
+		if (!response.ok || response.status !== 200) throw new Error(`${label} request failed (${response.status}).`);
+	} catch (error) {
+		if (response instanceof Response) await response.body?.cancel(error).catch(() => undefined);
+		throw error;
+	}
 	return response;
 }
 
@@ -303,18 +313,23 @@ async function readBoundedResponse(response: Response, options: Readonly<{
 	readonly maximumBytes: number;
 	readonly signal?: AbortSignal;
 }>): Promise<Uint8Array> {
-	const declaredLength = response.headers.get('content-length');
-	if (declaredLength !== null && !hasEncodedWireRepresentation(response)) {
-		if (!/^\d+$/u.test(declaredLength)) throw new Error(`${options.label} has an invalid Content-Length.`);
-		const parsed = Number(declaredLength);
-		if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > options.maximumBytes) {
-			throw new Error(`${options.label} Content-Length is outside its byte limit.`);
+	try {
+		const declaredLength = response.headers.get('content-length');
+		if (declaredLength !== null && !hasEncodedWireRepresentation(response)) {
+			if (!/^\d+$/u.test(declaredLength)) throw new Error(`${options.label} has an invalid Content-Length.`);
+			const parsed = Number(declaredLength);
+			if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > options.maximumBytes) {
+				throw new Error(`${options.label} Content-Length is outside its byte limit.`);
+			}
+			if (options.expectedBytes !== undefined && parsed !== options.expectedBytes) {
+				throw new Error(`${options.label} Content-Length does not match its verified byte length.`);
+			}
 		}
-		if (options.expectedBytes !== undefined && parsed !== options.expectedBytes) {
-			throw new Error(`${options.label} Content-Length does not match its verified byte length.`);
-		}
+		if (!response.body) throw new Error(`${options.label} response has no readable body.`);
+	} catch (error) {
+		await response.body?.cancel(error).catch(() => undefined);
+		throw error;
 	}
-	if (!response.body) throw new Error(`${options.label} response has no readable body.`);
 	const reader = response.body.getReader();
 	const chunks: Uint8Array[] = [];
 	const digest = options.expectedSha256 ? sha256.create() : null;
