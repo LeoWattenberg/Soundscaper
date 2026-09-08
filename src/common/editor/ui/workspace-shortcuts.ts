@@ -6,7 +6,7 @@ import {
 	resolveAudacityActionId,
 } from '../audacity-action-parity.js';
 import { audacityShortcutCommandUnassignable } from '../audacity-shortcut-command-inventory.ts';
-import { normalizeAudioEditorShortcut } from '../preferences.js';
+import { audioEditorShortcutParts, normalizeAudioEditorShortcut } from '../preferences.js';
 import { keyboardShortcutEventKey } from './keyboard-shortcut-key.ts';
 import type { FocusEvent as ReactFocusEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 
@@ -204,13 +204,15 @@ export function matchesAudioEditorShortcutBinding(
 	event: Pick<KeyboardEventLike, 'altKey' | 'code' | 'ctrlKey' | 'key' | 'metaKey' | 'shiftKey'>,
 	candidate: string,
 ): boolean {
-	const eventKeyValue = keyboardShortcutEventKey(event);
+	const parts = audioEditorShortcutParts(candidate);
+	const configuredKey = parts.key;
+	const eventKeyValue = configuredKey === '+' && event.key === '+'
+		? event.key
+		: keyboardShortcutEventKey(event);
 	const eventKey = eventKeyValue === ' '
 		? 'Space'
 		: eventKeyValue.length === 1 ? eventKeyValue.toUpperCase() : eventKeyValue;
-	const parts = normalizeAudioEditorShortcut(candidate).split('+');
-	const configuredKey = parts.pop();
-	const modifiers = new Set(parts);
+	const modifiers = new Set(parts.modifiers);
 	if (!configuredKey || normalizeAudioEditorShortcut(configuredKey).toLowerCase()
 		!== normalizeAudioEditorShortcut(eventKey).toLowerCase()) return false;
 	if (event.altKey !== modifiers.has('Alt') || event.shiftKey !== modifiers.has('Shift')) return false;

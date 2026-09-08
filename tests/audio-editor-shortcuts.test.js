@@ -20,6 +20,7 @@ import {
 	AUDACITY_SHORTCUT_BINDINGS_BY_ACTION,
 	AUDIO_EDITOR_SUPPLEMENTAL_SHORTCUT_BINDINGS_BY_ACTION,
 } from '../src/common/editor/audacity-shortcut-bindings.ts';
+import { matchesAudioEditorShortcutBinding } from '../src/common/editor/ui/workspace-shortcuts.ts';
 
 test('default editor shortcuts use the complete mapped Audacity profile', () => {
 	assert.equal(AUDIO_EDITOR_DEFAULT_SHORTCUTS['zoom-default'][0], 'Ctrl+2');
@@ -139,6 +140,17 @@ test('shortcut normalization understands every Audacity key spelling', () => {
 	assert.equal(normalizeAudioEditorShortcut('PgUp'), 'PageUp');
 	assert.equal(normalizeAudioEditorShortcut('PgDown'), 'PageDown');
 	assert.equal(normalizeAudioEditorShortcut('NUMPAD_ENTER'), 'NumpadEnter');
+	assert.equal(normalizeAudioEditorShortcut('Ctrl++'), 'Ctrl++');
+	assert.equal(normalizeAudioEditorShortcut('Ctrl+Shift++'), 'Ctrl+Shift++');
+	assert.equal(normalizeAudioEditorShortcut('+'), '+');
+	assert.equal(matchesAudioEditorShortcutBinding({
+		altKey: false,
+		code: 'Equal',
+		ctrlKey: true,
+		key: '+',
+		metaKey: false,
+		shiftKey: true,
+	}, 'Ctrl+Shift++'), true);
 });
 
 test('legacy shortcut action IDs migrate to the canonical runtime registry IDs', () => {

@@ -28,6 +28,7 @@ import {
 	migrateAudioEditorShortcutDefaults,
 } from './shortcut-default-migration.ts';
 import {
+	audioEditorShortcutParts,
 	audioEditorShortcutConflictKey,
 	collectAudioEditorShortcutConflicts,
 	normalizeAudioEditorShortcut,
@@ -46,6 +47,7 @@ export {
 	AUDIO_EDITOR_BUILT_IN_WORKSPACES,
 	AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION,
 	AUDIO_EDITOR_WORKSPACE_PRESETS,
+	audioEditorShortcutParts,
 	audioEditorShortcutConflictKey,
 	normalizeAudioEditorShortcut,
 };

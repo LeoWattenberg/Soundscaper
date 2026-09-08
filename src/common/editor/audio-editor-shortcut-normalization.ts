@@ -7,6 +7,11 @@ export interface AudioEditorShortcutConflict {
 	readonly actionIds: string[];
 }
 
+export interface AudioEditorShortcutParts {
+	readonly key: string;
+	readonly modifiers: readonly string[];
+}
+
 const KEY_ALIASES: ReadonlyMap<string, string> = new Map([
 	['control', 'Ctrl'], ['ctrl', 'Ctrl'], ['cmd', 'Meta'], ['command', 'Meta'], ['meta', 'Meta'],
 	['option', 'Alt'], ['alt', 'Alt'], ['shift', 'Shift'], ['spacebar', 'Space'], [' ', 'Space'],
@@ -21,22 +26,37 @@ export function normalizeAudioEditorShortcut(binding: string): string {
 		throw new TypeError('shortcut binding must be a non-empty string.');
 	}
 	const value = binding.trim();
-	const parts = value.split('+').map((part) => part.trim()).filter(Boolean);
-	const key = parts.pop() || value;
+	const { key, modifiers: parts } = splitShortcut(value);
 	const modifiers = new Set(parts.map((part) => KEY_ALIASES.get(part.toLowerCase()) || part));
 	const ordered = ['Ctrl', 'Meta', 'Alt', 'Shift'].filter((modifier) => modifiers.has(modifier));
 	const normalizedKey = KEY_ALIASES.get(key.toLowerCase()) || (key.length === 1 ? key.toUpperCase() : key);
 	return [...ordered, normalizedKey].join('+');
 }
 
+export function audioEditorShortcutParts(binding: string): AudioEditorShortcutParts {
+	const normalized = normalizeAudioEditorShortcut(binding);
+	const parts = splitShortcut(normalized);
+	return Object.freeze({ key: parts.key, modifiers: Object.freeze(parts.modifiers) });
+}
+
 export function audioEditorShortcutConflictKey(binding: string): string {
-	const parts = normalizeAudioEditorShortcut(binding).toLowerCase().split('+');
-	const key = parts.pop() || '';
-	const modifiers = new Set(parts);
+	const parts = audioEditorShortcutParts(binding);
+	const key = parts.key.toLowerCase();
+	const modifiers = new Set(parts.modifiers.map((modifier) => modifier.toLowerCase()));
 	if (modifiers.has('ctrl') !== modifiers.has('meta')) {
 		return ['primary', ...['alt', 'shift'].filter((modifier) => modifiers.has(modifier)), key].join('+');
 	}
-	return [...parts, key].join('+');
+	return [...modifiers, key].join('+');
+}
+
+function splitShortcut(value: string): { key: string; modifiers: string[] } {
+	const plusKey = value.endsWith('+');
+	const parts = (plusKey ? value.slice(0, -1) : value)
+		.split('+')
+		.map((part) => part.trim())
+		.filter(Boolean);
+	const key = plusKey ? '+' : parts.pop() || value;
+	return { key, modifiers: parts };
 }
 
 export function collectAudioEditorShortcutConflicts(
