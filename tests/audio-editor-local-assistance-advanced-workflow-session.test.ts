@@ -12,6 +12,7 @@ import {
 import type { AssistanceWorkflowProgressV1 } from
 	'../src/common/editor/assistance/workflow.ts';
 import type { AssistanceOperation } from '../src/common/editor/assistance/operation.ts';
+import { localAssistanceTranscriptCleanupEligible } from '../src/common/editor/assistance/local-assistance-cleanup.ts';
 import type { LocalAssistanceBridge, LocalAssistanceModel } from
 	'../src/common/editor/assistance/local-assistance-bridge.ts';
 import type {
@@ -26,6 +27,7 @@ import type { LocalAssistanceSelectedMediaPreparationPort } from
 const JOB_ID = 'a1'.repeat(20);
 const MODEL = Object.freeze({ modelId: 'speech-model', version: '1.0.0',
 	task: 'speech-recognition', artifactSha256s: Object.freeze(['1b'.repeat(32)]) });
+const PARAKEET = Object.freeze({ ...MODEL, modelId: 'parakeet-tdt-0.6b-v3' });
 const TRANSCRIPT = Object.freeze({ language: 'en', segments: Object.freeze([Object.freeze({
 	startSeconds: 0, endSeconds: 1, text: 'Workflow review.', words: Object.freeze([]), speaker: null,
 })]) });
@@ -81,6 +83,33 @@ test('Advanced acceptance preserves reviewed output when aggregate authority is 
 	await store.accept();
 	assert.equal(store.getSnapshot().phase, 'accepted');
 	assert.equal(fixture.accepted.length, 1);
+	await store.dispose();
+});
+
+test('Advanced Parakeet review exposes and applies transcript cleanup', async () => {
+	const fixture = advancedFixture(undefined, { model: PARAKEET });
+	const store = createLocalAssistanceAdvancedWorkflowSessionStore(fixture);
+	await store.load();
+	store.selectSource('source-a');
+	store.selectOperation('speech-recognition');
+	store.selectModel(PARAKEET.modelId);
+	await store.run();
+	const completed = store.getSnapshot();
+	assert.equal(completed.phase, 'completed', completed.error ?? 'Advanced workflow did not complete.');
+	assert.equal(localAssistanceTranscriptCleanupEligible({
+		operation: completed.result!.operation,
+		selectionFence: {} as never,
+		models: completed.models.filter(({ modelId }) => completed.selectedModelIds.includes(modelId)),
+		outputs: completed.result!.outputs,
+	}), true);
+	assert.equal(store.getSnapshot().canPrepareTranscriptCleanup, true);
+
+	await store.prepareTranscriptCleanup('balanced');
+	assert.equal(store.getSnapshot().cleanup?.phase, 'review');
+	store.setTranscriptCleanupProposalSelected('filler-0-12000', true);
+	await store.acceptTranscriptCleanup();
+	assert.equal(store.getSnapshot().cleanup?.phase, 'accepted');
+	assert.deepEqual(fixture.cleanupAccepted, [['filler-0-12000']]);
 	await store.dispose();
 });
 
@@ -190,6 +219,7 @@ function advancedFixture(
 ) {
 	const calls: string[] = [];
 	const accepted: unknown[] = [];
+	const cleanupAccepted: string[][] = [];
 	const operation = options.operation ?? 'speech-recognition';
 	const model = options.model ?? MODEL;
 	const outputRole = options.outputRole ?? 'transcript';
@@ -253,7 +283,9 @@ function advancedFixture(
 		schemaVersion: 1, revision: 2,
 		clips: Object.freeze([{ id: 'clip-a', kind: 'audio', sourceId: 'source-a',
 			sequenceId: 'main', avLinkId: null, reversed: false, speedRatio: 1,
-			pitchCents: 0, stretchToTempo: false, warpMap: null }]),
+			pitchCents: 0, stretchToTempo: false, warpMap: null,
+			timelineStartFrame: 0, durationFrames: 48_000,
+			sourceStartFrame: 0, sourceDurationFrames: 48_000 }]),
 		sources: Object.freeze([{ id: 'source-a', kind: 'audio', sampleRate: 48_000 }]),
 		assistanceAssets: Object.freeze([]) });
 	const fence = Object.freeze({ projectId: 'project-a', schemaFamily: 'soundscaper' as const,
@@ -287,9 +319,20 @@ function advancedFixture(
 			aggregateChecks.push(String(workflow.workflowId));
 			if (!aggregateCurrent) throw new DOMException('aggregate fence is stale', 'AbortError');
 		},
+		prepareTranscriptCleanup: async () => ({
+			operation: 'speech-recognition', phase: 'review', fence,
+			proposals: [{
+				id: 'filler-0-12000', kind: 'filler', startFrame: 0, endFrame: 12_000, text: 'um',
+			}],
+		}),
+		acceptTranscriptCleanup: async (proposalIds: readonly string[]) => {
+			cleanupAccepted.push([...proposalIds]);
+		},
+		rejectTranscriptCleanup: async () => undefined,
+		cancelTranscriptCleanup: async () => undefined,
 	});
 	const preparation: LocalAssistanceSelectedMediaPreparationPort = preparationValue;
-	return { bridge, preparation, calls, accepted, aggregateChecks,
+	return { bridge, preparation, calls, accepted, cleanupAccepted, aggregateChecks,
 		get aggregateCurrent() { return aggregateCurrent; },
 		set aggregateCurrent(value: boolean) { aggregateCurrent = value; },
 		get operationCalls() { return operationCalls; } };

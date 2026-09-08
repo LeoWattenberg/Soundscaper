@@ -34,11 +34,19 @@ import {
 } from '../assistance/local-assistance-preparation.ts';
 import { deriveLocalAssistanceReviewAuthority } from './local-assistance-review-authority.ts';
 import { reviewLocalAssistanceOutput } from '../assistance/local-assistance-result-review.ts';
+import {
+	localAssistanceCleanupVoiceActivity,
+	type LocalAssistanceTranscriptCleanupVoiceActivity,
+} from '../assistance/local-assistance-cleanup.ts';
 import type {
 	LocalAssistanceSessionStore,
 	LocalAssistanceSnapshot,
 	LocalAssistanceUiUnavailableReason,
 } from './local-assistance-session-store.ts';
+import {
+	createLocalAssistanceTranscriptCleanupStore,
+	type LocalAssistanceTranscriptCleanupStore,
+} from './local-assistance-transcript-cleanup-store.ts';
 
 interface Options {
 	readonly bridge: LocalAssistanceBridge | null;
@@ -58,6 +66,7 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 ): LocalAssistanceSessionStore {
 	const listeners = new Set<() => void>();
 	let pendingAcceptance: LocalAssistanceValidatedResultAcceptanceRequest | null = null;
+	let reviewedVoiceActivity: LocalAssistanceTranscriptCleanupVoiceActivity | null = null;
 	let pendingWorkflow: AssistanceWorkflowV1 | null = null;
 	let snapshot = freezeSnapshot({ phase: 'idle', sources: EMPTY_SOURCES, models: EMPTY_MODELS,
 		selectedSourceId: null, selectedOperation: null, shotDetectionMode: 'fast',
@@ -72,6 +81,7 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 	let lastProgressPhase = -1;
 	let running: Promise<void> | null = null;
 	let disposed = false;
+	let cleanupStore: LocalAssistanceTranscriptCleanupStore | null = null;
 
 	const workflow = options.bridge?.workflow ?? null;
 	const emit = (): void => listeners.forEach((listener) => listener());
@@ -80,9 +90,19 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 			&& ADVANCED_PROJECT_ACCEPTANCE_OPERATIONS.has(pendingAcceptance.operation)
 			&& pendingWorkflow !== null
 			&& typeof options.preparation?.assertCurrentWorkflowFence === 'function'
-			&& typeof options.preparation?.acceptValidatedResult === 'function');
+			&& typeof options.preparation?.acceptValidatedResult === 'function',
+		cleanupStore?.available() ?? false);
 		emit();
 	};
+	cleanupStore = createLocalAssistanceTranscriptCleanupStore({
+		preparation: options.preparation,
+		snapshot: () => snapshot,
+		acceptance: () => pendingAcceptance,
+		clearAcceptance: () => { pendingAcceptance = null; pendingWorkflow = null; },
+		voiceActivity: () => reviewedVoiceActivity,
+		update,
+		disposed: () => disposed,
+	});
 	const connect = (): (() => void) => {
 		if (!progressDisconnect && workflow) {
 			progressDisconnect = workflow.onProgress((progress) => {
@@ -100,6 +120,8 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 		if (disposed) return;
 		pendingAcceptance = null;
 		pendingWorkflow = null;
+		reviewedVoiceActivity = null;
+		cleanupStore.discard();
 		if (!options.preparation) return unavailableSelection();
 		if (!workflow?.custody || !workflow.readOutput
 			|| typeof options.preparation.prepareAdvancedWorkflow !== 'function') {
@@ -132,6 +154,8 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 		}
 		pendingAcceptance = null;
 		pendingWorkflow = null;
+		reviewedVoiceActivity = null;
+		cleanupStore.discard();
 		update({ phase: 'ready', selectedSourceId: sourceId, selectedOperation: null,
 			shotDetectionMode: 'fast', selectedModelIds: EMPTY_MODEL_IDS, consent: false,
 			progress: null, result: null, unavailableReason: null, error: null, cleanup: null });
@@ -143,6 +167,7 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 		}
 		pendingAcceptance = null;
 		pendingWorkflow = null;
+		cleanupStore.discard();
 		const available = localAssistanceOperationModelsAvailable(operation, snapshot.models,
 			operation === 'shot-detection' ? 'fast' : undefined);
 		update({ phase: available ? 'ready' : 'unavailable', selectedOperation: operation,
@@ -156,6 +181,7 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 		}
 		pendingAcceptance = null;
 		pendingWorkflow = null;
+		cleanupStore.discard();
 		const available = localAssistanceOperationModelsAvailable('shot-detection', snapshot.models, mode);
 		update({ phase: available ? 'ready' : 'unavailable', shotDetectionMode: mode,
 			selectedModelIds: EMPTY_MODEL_IDS, consent: false, progress: null, result: null,
@@ -170,6 +196,7 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 		}
 		pendingAcceptance = null;
 		pendingWorkflow = null;
+		cleanupStore.discard();
 		update({ phase: 'ready', selectedModelIds: selectModelIds(snapshot, model), consent: false,
 			progress: null, result: null, unavailableReason: null, error: null });
 	};
@@ -277,6 +304,9 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 		} else if (completed && acceptance) {
 			pendingAcceptance = acceptance;
 			pendingWorkflow = preparedWorkflow;
+			if (acceptance.operation === 'voice-activity-detection') {
+				reviewedVoiceActivity = localAssistanceCleanupVoiceActivity(acceptance);
+			}
 			update({ phase: 'completed', progress: null, result: completed,
 				unavailableReason: null, error: null });
 		} else {
@@ -317,15 +347,13 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 				error: error instanceof Error ? error.message : 'The proposal could not be accepted.' });
 		}
 	};
-	const unsupportedCleanup = async (): Promise<never> => {
-		throw new Error('Primitive Advanced review does not expose Guided transcript cleanup.');
-	};
 	const dispose = async (): Promise<void> => {
 		disposed = true;
 		pendingAcceptance = null;
 		pendingWorkflow = null;
 		cancelRequested = true;
 		controller?.abort(new AdvancedCancelledError());
+		await cleanupStore.dispose();
 		if (activeJobId && workflow) await workflow.cancel(activeJobId).catch(() => undefined);
 		await running;
 		progressDisconnect?.();
@@ -335,9 +363,10 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 	return Object.freeze({ getSnapshot: () => snapshot,
 		subscribe(listener: () => void) { listeners.add(listener); return () => listeners.delete(listener); },
 		connect, load, selectSource, selectOperation, selectShotDetectionMode, selectModel, setConsent,
-		run, cancel, accept, prepareTranscriptCleanup: unsupportedCleanup,
-		setTranscriptCleanupProposalSelected() { throw new Error('Advanced cleanup review is unavailable.'); },
-		acceptTranscriptCleanup: unsupportedCleanup, rejectTranscriptCleanup: unsupportedCleanup, dispose });
+		run, cancel, accept, prepareTranscriptCleanup: cleanupStore.prepare,
+		setTranscriptCleanupProposalSelected: cleanupStore.setSelected,
+		acceptTranscriptCleanup: cleanupStore.accept,
+		rejectTranscriptCleanup: cleanupStore.reject, dispose });
 }
 
 type PreparedOutcome = Readonly<{ outcome: 'prepared'; workflow: AssistanceWorkflowV1;
@@ -424,6 +453,7 @@ function freezeSnapshot(
 	value: Omit<LocalAssistanceSnapshot,
 		'canRun' | 'canCancel' | 'canReview' | 'canAccept' | 'canPrepareTranscriptCleanup'>,
 	acceptanceAvailable: boolean,
+	cleanupAvailable = false,
 ): LocalAssistanceSnapshot {
 	const source = selectedSource(value);
 	const mode = value.selectedOperation === 'shot-detection' ? value.shotDetectionMode : undefined;
@@ -437,7 +467,8 @@ function freezeSnapshot(
 		canReview: value.phase === 'completed' && Boolean(value.result?.outputs.length),
 		canAccept: value.phase === 'completed' && Boolean(value.result?.outputs.length)
 			&& acceptanceAvailable,
-		canPrepareTranscriptCleanup: false });
+		canPrepareTranscriptCleanup: value.phase === 'completed'
+			&& Boolean(value.result?.outputs.length) && cleanupAvailable && value.cleanup == null });
 }
 
 function selectedSource(value: Pick<LocalAssistanceSnapshot, 'sources' | 'selectedSourceId'>) {
