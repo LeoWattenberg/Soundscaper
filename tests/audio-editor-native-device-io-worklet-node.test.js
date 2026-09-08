@@ -63,6 +63,28 @@ test('the renderer requires revocation before attaching a newer device generatio
 	assert.equal(handle.attach({ postMessage() {}, close() {} }, { generation: 2 }), 2);
 });
 
+test('a failed port transfer does not consume the device generation', async () => {
+	const handle = await createNativeDeviceIoWorkletNode(context(), {
+		AudioWorkletNode: FakeAudioWorkletNode,
+		direction: 'output', channelCount: 2, periodFrames: 128, queueCapacity: 4,
+	});
+	const postMessage = handle.node.port.postMessage;
+	let fail = true;
+	handle.node.port.postMessage = function(message, transfer = []) {
+		if (fail && message.type === 'native-device-attach') {
+			fail = false;
+			throw new DOMException('The port was already transferred.', 'DataCloneError');
+		}
+		return postMessage.call(this, message, transfer);
+	};
+
+	assert.throws(
+		() => handle.attach({ postMessage() {}, close() {} }, { generation: 1 }),
+		/DataCloneError|already transferred/iu,
+	);
+	assert.equal(handle.attach({ postMessage() {}, close() {} }, { generation: 1 }), 1);
+});
+
 function context() {
 	return { audioWorklet: { addModule: async () => undefined } };
 }

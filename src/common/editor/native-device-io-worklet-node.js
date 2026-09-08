@@ -62,9 +62,12 @@ export async function createNativeDeviceIoWorkletNode(context, options) {
 			if (!port || typeof port.postMessage !== 'function') throw new TypeError('A transferred native device port is required.');
 			if (attached) throw new Error('Revoke the attached native device generation before replacing it.');
 			if (!Number.isSafeInteger(config.generation) || config.generation <= generation) throw new RangeError('The device generation must increase.');
-			generation = config.generation;
+			const nextGeneration = config.generation;
+			node.port.postMessage({ type: NATIVE_DEVICE_IO_CONTROL.attach, generation: nextGeneration }, [port]);
+			// Spend a generation only after the transfer has left this thread, so a
+			// structured-clone failure can be retried with the same offer.
+			generation = nextGeneration;
 			attached = true;
-			node.port.postMessage({ type: NATIVE_DEVICE_IO_CONTROL.attach, generation }, [port]);
 			return generation;
 		},
 		revoke(reason = 'cancelled') {
