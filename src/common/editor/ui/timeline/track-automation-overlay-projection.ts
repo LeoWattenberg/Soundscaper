@@ -10,9 +10,9 @@ import type { HoldTempoMap } from '../../timeline-time.ts';
 import {
 	automationValueToNormalizedV21,
 } from '../../track-automation-targets-v21.ts';
+import { CLIP_HEADER_HEIGHT } from './geometry.ts';
 
 const CLIP_CONTENT_OFFSET = 12;
-const CLIP_HEADER_HEIGHT = 20;
 const SAMPLE_SPACING_PIXELS = 2;
 
 export interface TrackAutomationOverlayClipV21 {

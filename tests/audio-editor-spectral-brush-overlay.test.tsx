@@ -3,8 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import React, { act } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 import { SpectralBrushOverlay } from '../src/common/editor/ui/timeline/SpectralBrushOverlay.jsx';
+import { SpectralSelectionOverlay } from '../src/common/editor/ui/timeline/SpectralSelectionOverlay.jsx';
 import { spectrogramFrequencyAtFraction } from '../src/common/editor/ui/timeline/geometry.ts';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
@@ -39,6 +41,10 @@ test('spectral brush normalizes the persisted log scale before mapping frequency
 			stopPropagation() {},
 		}));
 
+		const brush = dom.one('[data-spectral-brush]');
+		const brushStyle = brush.style as unknown as { top?: string; height?: string };
+		assert.equal(brushStyle.top, '20px');
+		assert.equal(brushStyle.height, '80px');
 		assert.equal(commits.length, 1);
 		assert.equal(
 			commits[0]?.centerFrequency,
@@ -50,5 +56,36 @@ test('spectral brush normalizes the persisted log scale before mapping frequency
 		if (priorReact) Object.defineProperty(globalThis, 'React', priorReact);
 		else Reflect.deleteProperty(globalThis, 'React');
 		dom.restore();
+	}
+});
+
+test('spectral selection covers the clip body below its header', () => {
+	const runtimeGlobal = globalThis as typeof globalThis & { React?: typeof React };
+	const priorReact = Object.getOwnPropertyDescriptor(globalThis, 'React');
+	runtimeGlobal.React = React;
+	try {
+		const markup = renderToStaticMarkup(<SpectralSelectionOverlay
+			selection={{
+				startFrame: 0,
+				endFrame: 48_000,
+				frequencyRange: { minimumFrequency: 0, maximumFrequency: 24_000 },
+			}}
+			track={{ spectrogram: { scale: 'linear', minimumFrequency: 0, maximumFrequency: 24_000 } }}
+			displayMode="spectrogram"
+			trackHeight={120}
+			windowWidth={400}
+			overscanStartFrame={0}
+			pixelsPerSecond={100}
+			sampleRate={48_000}
+			maximumFrame={48_000}
+			disabled={false}
+			copy={{}}
+			onCommit={() => undefined}
+		/>);
+
+		assert.match(markup, /data-spectral-selection="true" style="[^"]*top:20px;[^"]*height:100px/);
+	} finally {
+		if (priorReact) Object.defineProperty(globalThis, 'React', priorReact);
+		else Reflect.deleteProperty(globalThis, 'React');
 	}
 });

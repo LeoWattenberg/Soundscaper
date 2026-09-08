@@ -6,6 +6,7 @@ export const DEFAULT_WAVEFORM_RULER_STATE = Object.freeze({
 	format: 'linear-db' as const,
 	zoom: 0,
 });
+export const CLIP_HEADER_HEIGHT = 20;
 export const MAXIMUM_WAVEFORM_VERTICAL_ZOOM = 8;
 export const MINIMUM_TRACK_HEIGHT = 40;
 export const DEFAULT_TRACK_HEIGHT = 114;

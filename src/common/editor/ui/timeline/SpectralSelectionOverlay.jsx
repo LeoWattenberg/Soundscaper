@@ -3,6 +3,7 @@ import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
 import {
+	CLIP_HEADER_HEIGHT,
 	normalizeSpectrogramScale,
 	spectralSelectionState,
 	spectrogramFrequencyAtFraction,
@@ -34,7 +35,9 @@ export function SpectralSelectionOverlay({
 		Math.min(sampleRate / 2, Number(track.spectrogram?.maximumFrequency) || sampleRate / 2),
 	);
 	const scale = normalizeSpectrogramScale(track.spectrogram?.scale);
-	const spectralHeight = displayMode === 'multiview' ? Math.max(1, Math.floor(trackHeight / 2)) : trackHeight;
+	const spectralHeight = displayMode === 'multiview'
+		? Math.max(1, Math.floor((trackHeight - CLIP_HEADER_HEIGHT) / 2))
+		: Math.max(1, trackHeight - CLIP_HEADER_HEIGHT);
 
 	useEffect(() => {
 		if (dragRef.current) return;
@@ -79,7 +82,11 @@ export function SpectralSelectionOverlay({
 			else next.endFrame = clamp(frame, next.startFrame + 1, maximumFrame);
 		} else {
 			if (!drag.laneRect) return;
-			const verticalFraction = 1 - clamp((event.clientY - drag.laneRect.top) / spectralHeight, 0, 1);
+			const verticalFraction = 1 - clamp(
+				(event.clientY - drag.laneRect.top - CLIP_HEADER_HEIGHT) / spectralHeight,
+				0,
+				1,
+			);
 			const frequency = Math.round(spectrogramFrequencyAtFraction(verticalFraction, scale, displayMinimum, displayMaximum));
 			if (drag.kind === 'minimum-frequency') {
 				next.minimumFrequency = clamp(frequency, 0, next.maximumFrequency - 1);
@@ -149,7 +156,7 @@ export function SpectralSelectionOverlay({
 	if (right <= left) return null;
 	const lowFraction = spectrogramFrequencyFraction(preview.minimumFrequency, scale, displayMinimum, displayMaximum);
 	const highFraction = spectrogramFrequencyFraction(preview.maximumFrequency, scale, displayMinimum, displayMaximum);
-	const top = (1 - highFraction) * spectralHeight;
+	const top = CLIP_HEADER_HEIGHT + (1 - highFraction) * spectralHeight;
 	const height = Math.max(2, (highFraction - lowFraction) * spectralHeight);
 	const timeMaximumSeconds = framesToSeconds(maximumFrame, { sampleRate });
 	const handleProps = (kind) => ({

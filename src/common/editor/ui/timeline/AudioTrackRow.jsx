@@ -9,6 +9,7 @@ import { AutomaticCrossfadeOverlays } from './TrackOverlapOverlays.jsx';
 import { AudacityWaveformCanvases } from './TimelineCanvasRenderer.jsx';
 import { SpectralBrushOverlay } from './SpectralBrushOverlay.jsx';
 import { SpectralSelectionOverlay } from './SpectralSelectionOverlay.jsx';
+import { CLIP_HEADER_HEIGHT } from './geometry.ts';
 import { createSpectrogramCanvasOptions } from './spectrogram-canvas-options.ts';
 import { timelineContentLeft } from './timeline-scroll-space.ts';
 import { clipGroups, focusFirst } from './timeline-navigation.js';
@@ -16,8 +17,6 @@ import { renderAmplitudeRulers } from './track-row-helpers.jsx';
 import { useAudioTrackRowNavigation } from './useAudioTrackRowNavigation.js';
 import { useAudioTrackRowViewModel } from './useAudioTrackRowViewModel.js';
 import { resolveAudioEditorColor, TimeSelectionOverlay } from './TimelineOverlayComponents.jsx';
-
-const CLIP_HEADER_HEIGHT = 20;
 
 export function AudioTrackRow({
 	controller,
