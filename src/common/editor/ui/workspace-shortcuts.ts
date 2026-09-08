@@ -177,7 +177,7 @@ function normalizedProjectZoomEvent(event: KeyboardEventLike, actionId: string):
 	if (actionId === 'zoom-in' && (event.key === '+' || event.code === 'NumpadAdd')) {
 		return { ...event, code: 'Equal', key: '=', shiftKey: false };
 	}
-	if (actionId === 'zoom-out' && event.code === 'NumpadSubtract') {
+	if (actionId === 'zoom-out' && (event.key === '_' || event.code === 'NumpadSubtract')) {
 		return { ...event, code: 'Minus', key: '-', shiftKey: false };
 	}
 	return event;
