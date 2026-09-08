@@ -227,7 +227,8 @@ test('play-at-speed ignores the time selection', async () => {
 
 test('loop region commands validate ranges and optionally keep selection synchronized', () => {
 	const fixture = createTransportFixture();
-	assert.deepEqual(fixture.service.clearLoopRegion(), { enabled: false, startFrame: 0, endFrame: 0 });
+	fixture.setProject({ ...fixture.project(), loop: { enabled: true, startFrame: 100, endFrame: 400 } });
+	assert.deepEqual(fixture.service.clearLoopRegion(), { enabled: false, startFrame: 100, endFrame: 400 });
 	assert.deepEqual(fixture.service.setLoopRegionToSelection(), { enabled: true, startFrame: 10, endFrame: 30 });
 	assert.deepEqual(fixture.service.setLoopRegion(80, 20), { enabled: true, startFrame: 20, endFrame: 80 });
 	assert.throws(() => fixture.service.setLoopRegion(20, 20), /Select time/u);
