@@ -75,6 +75,23 @@ test('Auto Duck uses the first control channel, a 100-sample RMS window, and dB 
 	assert.throws(() => applyAudacityAutoDuck(input, 100, params), /control channel/i);
 });
 
+test('Auto Duck detects control audio inside its leading fade window', () => {
+	const program = [new Float32Array(1_000).fill(1)];
+	const control = [new Float32Array(1_000)];
+	control[0].fill(1, 0, 200);
+	const output = applyAudacityAutoDuck(program, 1_000, {
+		duckAmountDb: -12,
+		innerFadeDown: 0,
+		innerFadeUp: 0,
+		outerFadeDown: 0.3,
+		outerFadeUp: 0.3,
+		thresholdDb: -20,
+		maximumPause: 0.05,
+	}, control);
+
+	assert.ok(output[0][200] < 1, 'early control audio must create a duck region');
+});
+
 test('current Compressor derives one gain-reduction envelope from the linked channel maximum', () => {
 	const input = [floats(0.1, 1, 0.1), floats(0.1, 0.1, 0.1)];
 	const before = snapshot(input);

@@ -207,7 +207,7 @@ export class AutoDuckLiveProcessor extends LiveProcessor {
 			this.rmsWindow[this.rmsPosition] = square;
 			this.rmsSum += square;
 			this.rmsPosition = (this.rmsPosition + 1) % RMS_WINDOW_SIZE;
-			if (absoluteFrame >= this.outerDown) this.#updateRegion(this.rmsSum > this.thresholdPower, absoluteFrame);
+			this.#updateRegion(this.rmsSum > this.thresholdPower, absoluteFrame);
 
 			const logicalFrame = absoluteFrame - this.delayFrames;
 			if (logicalFrame < 0) {

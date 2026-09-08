@@ -73,9 +73,8 @@ export function applyAudacityAutoDuck(
 
 	const outerFadeDownFrames = timeToFrames(settings.outerFadeDown, sampleRate);
 	const outerFadeUpFrames = timeToFrames(settings.outerFadeUp, sampleRate);
-	const scanStart = outerFadeDownFrames;
-	const scanEnd = frameCount - outerFadeUpFrames;
-	if (scanEnd <= scanStart) return output;
+	const scanStart = 0;
+	const scanEnd = frameCount;
 
 	const maximumPause = Math.max(
 		settings.maximumPause,
@@ -450,4 +449,3 @@ function validateControlAudio(channels, minimumLength) {
 function effectParams(type, params) {
 	return normalizeAudacityEffectParams(type, params);
 }
-
