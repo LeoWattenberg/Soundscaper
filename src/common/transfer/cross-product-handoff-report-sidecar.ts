@@ -217,6 +217,7 @@ export function boundCrossProductHandoffArchiveFileName(value: unknown): string 
 		stem += character;
 		stemBytes += bytes;
 	}
+	stem = stem.replace(TRAILING_FILE_NAME_CHARACTERS, '');
 	if (!stem) stem = 'project';
 	return `${stem}${extension}`;
 }

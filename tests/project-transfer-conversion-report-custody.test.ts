@@ -212,6 +212,13 @@ test('archive/report companion names stay paired inside a 255-byte UTF-8 filenam
 		() => crossProductHandoffReportSidecarFileName(`${'x'.repeat(250)}.fscape`),
 		/filename budget|bounded/iu,
 	);
+	for (const separator of [' ', '.']) {
+		const once = boundCrossProductHandoffArchiveFileName(
+			`${'A'.repeat(224)}${separator}${'B'.repeat(24)}.fscape`,
+		);
+		assert.equal(boundCrossProductHandoffArchiveFileName(once), once);
+		assert.doesNotThrow(() => crossProductHandoffReportSidecarFileName(once));
+	}
 });
 
 test('protocol v2 requires a nullable sidecar and refuses a sidecar that does not bind its payload', () => {
