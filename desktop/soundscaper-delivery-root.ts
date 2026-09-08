@@ -339,11 +339,11 @@ export async function syncSoundscaperDeliveryRootDirectory(
 			root.rootPath,
 			constants.O_RDONLY | (constants.O_DIRECTORY ?? 0) | (constants.O_NOFOLLOW ?? 0),
 		);
-		assertFence('directory-open');
 	} catch (error) {
 		throw new Error('Soundscaper delivery cannot establish a destination-directory durability barrier.', { cause: error });
 	}
 	try {
+		assertFence('directory-open');
 		const details = await handle.stat({ bigint: true });
 		assertFence('directory-stat');
 		if (!details.isDirectory()
@@ -370,12 +370,12 @@ export async function inspectDeliveryFile(
 			await rootFile(root, name, assertFence),
 			constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0),
 		);
-		assertFence('inspect-open');
 	} catch (error) {
 		if (hasCode(error, 'ENOENT')) return null;
 		throw error;
 	}
 	try {
+		assertFence('inspect-open');
 		const before = await handle.stat({ bigint: true });
 		assertFence('inspect-stat-before');
 		if (!before.isFile()) throw new Error('A Soundscaper delivery artifact must be a regular file.');
