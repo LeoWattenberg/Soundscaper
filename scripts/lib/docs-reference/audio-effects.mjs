@@ -31,6 +31,8 @@ const CATEGORY_LABELS = Object.freeze({
  * rather than guessed from the identifier.
  */
 const LOCAL_EFFECT_CATEGORIES = Object.freeze({
+	deesser: 'repair',
+	'multiband-compressor': 'volume',
 	highpass: 'eq',
 	lowpass: 'eq',
 	eq: 'eq',

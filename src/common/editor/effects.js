@@ -16,6 +16,7 @@ import {
 	REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE,
 } from './reviewed-effects/selection-effect-contract.ts';
 import { projectEffectTailFramesV21 } from './project-effect-tail-v21.ts';
+import { DEESSER_EFFECT_DEFINITION, MULTIBAND_COMPRESSOR_EFFECT_DEFINITION } from './first-party-effects/dynamics/definition.ts';
 import {
 	BITCRUSHER_EFFECT_DEFINITION, BITCRUSHER_EFFECT_TYPE,
 } from './first-party-effects/bitcrusher/definition.js';
@@ -46,6 +47,8 @@ export { PARAMETRIC_EQ_BAND_TYPES, PARAMETRIC_EQ_MAXIMUM_BANDS, PARAMETRIC_EQ_SL
  */
 
 export const AUDIO_EFFECT_DEFINITIONS = Object.freeze({
+	deesser: DEESSER_EFFECT_DEFINITION,
+	'multiband-compressor': MULTIBAND_COMPRESSOR_EFFECT_DEFINITION,
 	highpass: {
 		defaults: { frequency: 80, q: 0.707 },
 		ranges: {
@@ -137,6 +140,8 @@ export const AUDIO_RACK_EFFECT_DEFINITIONS = Object.freeze({
 
 /** All effects which can be previewed and destructively applied to a selection. */
 export const AUDIO_SELECTION_EFFECT_DEFINITIONS = Object.freeze({
+	deesser: DEESSER_EFFECT_DEFINITION,
+	'multiband-compressor': MULTIBAND_COMPRESSOR_EFFECT_DEFINITION,
 	...AUDACITY_EFFECT_DEFINITIONS,
 	eq: Object.freeze({
 		...AUDIO_EFFECT_DEFINITIONS.eq,

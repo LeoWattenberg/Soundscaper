@@ -3,6 +3,17 @@ import { canonicalCopyValue } from '../../i18n/canonical-extras.js';
 import DynamicsActivityPanel, { supportsDynamicsActivity } from './DynamicsActivityPanel.jsx';
 
 const EFFECT_LAYOUTS = Object.freeze({
+	deesser: [
+		{ titleKey: 'effectCardDeesser', names: ['frequency', 'threshold', 'reduction'], knobs: true, wide: true },
+		{ titleKey: 'effectCardTiming', names: ['attack', 'release'], knobs: true, wide: true },
+	],
+	'multiband-compressor': [
+		{ titleKey: 'effectCardCrossovers', names: ['lowCrossover', 'highCrossover'], knobs: true, wide: true },
+		{ titleKey: 'effectCardLowBand', names: ['lowThreshold', 'lowRatio', 'lowGain'], knobs: true, wide: true },
+		{ titleKey: 'effectCardMidBand', names: ['midThreshold', 'midRatio', 'midGain'], knobs: true, wide: true },
+		{ titleKey: 'effectCardHighBand', names: ['highThreshold', 'highRatio', 'highGain'], knobs: true, wide: true },
+		{ titleKey: 'effectCardTiming', names: ['attack', 'release'], knobs: true, wide: true },
+	],
 	'audacity-amplify': [
 		{ titleKey: 'effectCardAmplification', names: ['gainDb', 'allowClipping'], wide: true },
 	],

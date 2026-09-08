@@ -27,6 +27,7 @@ Audio effects are registered by Soundscaper. Effects whose ID begins with `audac
 | Click Removal | `audacity-click-removal` | Noise and repair | Yes | Yes | — |
 | Compressor | `compressor` | Volume and dynamics | Yes | No | — |
 | Compressor (Audacity) | `audacity-compressor` | Volume and dynamics | Yes | Yes | — |
+| De-esser | `deesser` | Noise and repair | Yes | Yes | — |
 | Delay | `delay` | Delay and reverb | Yes | No | — |
 | Distortion | `audacity-distortion` | Special | Yes | Yes | — |
 | Echo | `audacity-echo` | Delay and reverb | Yes | Yes | — |
@@ -43,6 +44,7 @@ Audio effects are registered by Soundscaper. Effects whose ID begins with `audac
 | Limiter (Audacity) | `audacity-limiter` | Volume and dynamics | Yes | Yes | — |
 | Loudness Normalization | `audacity-loudness-normalization` | Volume and dynamics | No | Yes | — |
 | Low-pass filter | `lowpass` | EQ and filters | Yes | No | — |
+| Multiband compressor | `multiband-compressor` | Volume and dynamics | Yes | Yes | — |
 | Noise Reduction | `audacity-noise-reduction` | Noise and repair | Yes | Yes | Needs a captured noise profile |
 | Normalize | `audacity-normalize` | Volume and dynamics | No | Yes | — |
 | Paulstretch | `audacity-paulstretch` | Special | No | Yes | Changes the selection length |
@@ -130,6 +132,11 @@ Defaults and limits come from the same definitions the editor validates against,
 | Compressor (Audacity) | `audacity-compressor` | Lookahead | 1 | 0 to 1000 | ms |
 | Compressor (Audacity) | `audacity-compressor` | Attack | 30 | 0 to 200 | ms |
 | Compressor (Audacity) | `audacity-compressor` | Release | 150 | 0 to 1000 | ms |
+| De-esser | `deesser` | Frequency | 6000 | 1000 to 16000 | Hz |
+| De-esser | `deesser` | Threshold | -30 | -60 to 0 | dB |
+| De-esser | `deesser` | Maximum reduction | 9 | 0 to 24 | dB |
+| De-esser | `deesser` | Attack | 0.001 | 0.0001 to 0.1 | s |
+| De-esser | `deesser` | Release | 0.08 | 0.01 to 1 | s |
 | Delay | `delay` | Delay time | 0.25 | 0.001 to 5 | s |
 | Delay | `delay` | Feedback | 0.3 | 0 to 0.95 | ratio |
 | Delay | `delay` | Mix | 0.2 | 0 to 1 | ratio |
@@ -182,6 +189,19 @@ Defaults and limits come from the same definitions the editor validates against,
 | Loudness Normalization | `audacity-loudness-normalization` | Treat mono as dual-mono | On | On or off | — |
 | Low-pass filter | `lowpass` | Frequency | 18000 | 10 to 24000 | Hz |
 | Low-pass filter | `lowpass` | Q | 0.707 | 0.1 to 30 | Q |
+| Multiband compressor | `multiband-compressor` | Low crossover | 250 | 40 to 2000 | Hz |
+| Multiband compressor | `multiband-compressor` | High crossover | 4000 | 2500 to 16000 | Hz |
+| Multiband compressor | `multiband-compressor` | Low threshold | -24 | -60 to 0 | dB |
+| Multiband compressor | `multiband-compressor` | Low ratio | 2 | 1 to 20 | :1 |
+| Multiband compressor | `multiband-compressor` | Low gain | 0 | -12 to 12 | dB |
+| Multiband compressor | `multiband-compressor` | Mid threshold | -24 | -60 to 0 | dB |
+| Multiband compressor | `multiband-compressor` | Mid ratio | 2 | 1 to 20 | :1 |
+| Multiband compressor | `multiband-compressor` | Mid gain | 0 | -12 to 12 | dB |
+| Multiband compressor | `multiband-compressor` | High threshold | -24 | -60 to 0 | dB |
+| Multiband compressor | `multiband-compressor` | High ratio | 2 | 1 to 20 | :1 |
+| Multiband compressor | `multiband-compressor` | High gain | 0 | -12 to 12 | dB |
+| Multiband compressor | `multiband-compressor` | Attack | 0.01 | 0.0001 to 0.1 | s |
+| Multiband compressor | `multiband-compressor` | Release | 0.15 | 0.01 to 1 | s |
 | Noise Reduction | `audacity-noise-reduction` | Noise reduction | 6 | 0 to 48 | dB |
 | Noise Reduction | `audacity-noise-reduction` | Sensitivity | 6 | 0.01 to 24 | — |
 | Noise Reduction | `audacity-noise-reduction` | Frequency smoothing | 6 | 0 to 12 | bands |

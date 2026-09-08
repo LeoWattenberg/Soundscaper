@@ -11,6 +11,7 @@ import {
 	estimateReviewedUtilityGainOutputFrames, estimateReviewedUtilityGainPeakBytes,
 } from './reviewed-effects/selection-effect-contract.ts';
 import { BITCRUSHER_EFFECT_TYPE } from './first-party-effects/bitcrusher/definition.js';
+import { isBandDynamicsEffect } from './first-party-effects/dynamics/definition.ts';
 
 const FLOAT32_BYTES = Float32Array.BYTES_PER_ELEMENT;
 const MEMORY_ESTIMATE_OVERHEAD_BYTES = 2 * 1024 ** 2;
@@ -19,7 +20,7 @@ export function estimateAudioSelectionEffectOutputFrames(type, inputFrames, para
 	if (type === REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE) {
 		return estimateReviewedUtilityGainOutputFrames(inputFrames, params);
 	}
-	if (type === BITCRUSHER_EFFECT_TYPE) {
+	if (type === BITCRUSHER_EFFECT_TYPE || isBandDynamicsEffect(type)) {
 		const bitcrusherFrames = positiveInteger(inputFrames, 'inputFrames');
 		normalizeAudioSelectionEffectParams(type, params);
 		return bitcrusherFrames;
@@ -34,7 +35,7 @@ export function estimateAudioSelectionEffectPeakBytes(type, inputFrames, params 
 	if (type === REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE) {
 		return estimateReviewedUtilityGainPeakBytes(inputFrames, params, options.channelCount ?? 2);
 	}
-	if (type === BITCRUSHER_EFFECT_TYPE) {
+	if (type === BITCRUSHER_EFFECT_TYPE || isBandDynamicsEffect(type)) {
 		// One input copy, one output copy, and a few doubles of per-channel state.
 		const bitcrusherFrames = positiveInteger(inputFrames, 'inputFrames');
 		const bitcrusherChannels = positiveInteger(options.channelCount ?? 2, 'channelCount', 32);

@@ -38,7 +38,7 @@ import type {
 } from './runtime-types.ts';
 
 /** Rack effects whose processors accept a live parameter frame over their port. */
-const CONFIGURABLE_RACK_EFFECT_TYPES = new Set(['delay', 'bitcrusher']);
+const CONFIGURABLE_RACK_EFFECT_TYPES = new Set(['delay', 'bitcrusher', 'deesser', 'multiband-compressor']);
 
 export const engineEffectControlMethods = {
 configureRackEffect(scope, targetId, effectId, params, options = {}) {

@@ -232,6 +232,8 @@ export function audacityParameterPresentation(effectType: string, name: string):
 	if (sliderParameters[effectType]?.includes(name)) return 'slider';
 	if ([
 		'bitcrusher',
+		'deesser',
+		'multiband-compressor',
 		'audacity-auto-duck',
 		'audacity-bass-treble',
 		'audacity-compressor',

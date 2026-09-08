@@ -10,6 +10,7 @@ import { stageDesktopBundledAudioRuntime } from './desktop-bundled-audio-runtime
 import { DESKTOP_EXTERNAL_FFMPEG_RUNTIME_FILES } from './desktop-external-ffmpeg-runtime-files.mjs';
 import { DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES } from './desktop-project-library-baseline-runtime-files.mjs';
 import { DESKTOP_SOUNDSCAPER_RUNTIME_FILES } from './desktop-soundscaper-runtime-files.mjs';
+import { DESKTOP_EFFECT_RUNTIME_FILES } from './desktop-effect-runtime-files.mjs';
 import {
 	assertNoTypeScriptImportSpecifiers,
 	assertStagedDesktopImportsResolve,
@@ -269,8 +270,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/effect-macro-steps.js',
 	'src/common/editor/effect-parameter-descriptors.js',
 	'src/common/editor/effects.js',
-	'src/common/editor/first-party-effects/bitcrusher/definition.js',
-	'src/common/editor/first-party-effects/parametric-eq/definition.js',
+	...DESKTOP_EFFECT_RUNTIME_FILES,
 	'src/common/editor/folder-mixer-graph-v21.js',
 	'src/common/editor/inert-json-snapshot.js',
 	'src/common/editor/interpolation-curve-math.js',

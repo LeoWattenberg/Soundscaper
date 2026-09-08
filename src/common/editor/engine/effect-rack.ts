@@ -45,6 +45,8 @@ import {
 } from './effect-rack-node-registry.ts';
 import { isParametricEqType } from './project-effects.ts';
 import { BITCRUSHER_EFFECT_TYPE, createBitcrusherEffectNode } from './bitcrusher-node.ts';
+import { isBandDynamicsEffect } from '../first-party-effects/dynamics/definition.ts';
+import { createBandDynamicsNode } from './band-dynamics-node.ts';
 import type { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import type { EngineEffect, UnknownRecord } from './types.ts';
 import { effectSupportsExplicitSidechain } from '../effect-explicit-sidechain-capability.ts';
@@ -242,6 +244,19 @@ export function applyEffect(
 		const processor = addNode(nodes, createBitcrusherEffectNode(context, audioWorkletNodeConstructor(), params, width));
 		connect(input, processor);
 		registerEffectNode(effect, processor, options);
+		return processor;
+	}
+	if (isBandDynamicsEffect(type)) {
+		const width = clamp(positiveInteger(options.effectChannelCount, 2), 1, 32);
+		const processor = addNode(nodes, createBandDynamicsNode(context, audioWorkletNodeConstructor(), type, params, width));
+		connect(input, processor);
+		registerEffectNode(effect, processor, options);
+		if (typeof options.onParametricEqError === 'function') {
+			attachEffectProcessorErrorPort(processor, options.onParametricEqError, effectProcessorErrorContext(
+				options, effect.id, { fallbackMessage: 'The dynamics processor failed.',
+					processorErrorMessage: 'The dynamics AudioWorklet processor failed.' },
+			));
+		}
 		return processor;
 	}
 	if ((type === 'limiter' || type === 'gate') && explicitSidechainCapable
@@ -442,4 +457,3 @@ export function disposeEffectNodeBindings(node: AudioNode): void {
 	releaseDynamicsAnalysisTelemetry(node as AudioWorkletNode);
 	releaseEffectProcessorErrorPort(node);
 }
-

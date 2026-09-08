@@ -134,7 +134,7 @@ export const DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST = /(?:^|[\\/])vendo
 // it in the Framescaper bootstrap and makes the desktop codec runtime import
 // that bootstrap back, so it needs the same non-recursive owner as codec leaves.
 export const EDITOR_CODEC_FOUNDATION_CHUNK_TEST = /(?:src[\\/]common[\\/]editor[\\/](?:wavpack[\\/]|staffpad[\\/]|parametric-eq[\\/](?:parameters|design|wasm-runtime|wasm-loader)\.js$)|desktop[\\/]desktop-(?:video-codec-operation|audio-codec-(?:capability|operation))-contract\.ts$)/;
-export const EDITOR_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/](?:i18n[\\/]action-parity\.js|editor[\\/](?:audacity-effects[\\/](?:contracts|factory-preset-tables|factory-presets|live-capabilities|live-capability-policy|manifest)\.js|first-party-effects[\\/](?:bitcrusher|parametric-eq)[\\/]definition\.js|nyquist[\\/](?:plugin-parser|plugin-registry|plugins[\\/]catalog)\.js|reviewed-effects[\\/](?:errors|manifest|selection-effect-contract|utility-gain-package)\.ts)))$/;
+export const EDITOR_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/](?:i18n[\\/]action-parity\.js|editor[\\/](?:audacity-effects[\\/](?:contracts|factory-preset-tables|factory-presets|live-capabilities|live-capability-policy|manifest)\.js|first-party-effects[\\/](?:(?:bitcrusher|parametric-eq)[\\/]definition\.js|dynamics[\\/]definition\.ts)|nyquist[\\/](?:plugin-parser|plugin-registry|plugins[\\/]catalog)\.js|reviewed-effects[\\/](?:errors|manifest|selection-effect-contract|utility-gain-package)\.ts)))$/;
 /**
  * Soundscaper family-v1 project and archive authority shared with transfer pages.
  *

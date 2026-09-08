@@ -42,7 +42,7 @@ import {
 
 		await openRackPicker(effectsPanel, 'track');
 		const picker = page.getByRole('menu', { name: 'Choose an effect' });
-		await expect(picker.getByRole('menuitem')).toHaveCount(23);
+		await expect(picker.getByRole('menuitem')).toHaveCount(25);
 		await expect(picker.getByRole('menuitem', { name: 'Invert' })).toHaveCount(1);
 		await expect(picker.getByRole('menuitem', { name: 'Bitcrusher' })).toHaveCount(1);
 		await expect(picker.getByRole('menuitem', { name: 'Paulstretch' })).toHaveCount(0);
@@ -647,22 +647,7 @@ import {
 		await importFiles(editor, [monoTone]);
 		await chooseCommandAction(page, editor, 'Select', 'Select all');
 
-		const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
-		await menubar.getByRole('menuitem', { name: 'Effect', exact: true }).click();
-		const effectMenu = page.getByRole('menu', { name: 'Effect', exact: true });
-		await expect(effectMenu).toBeVisible();
-		const distortion = effectMenu
-			.getByRole('menuitem', { name: /^Distortion and modulation(?:\s|$)/i })
-			.first();
-		await expect(distortion).toBeVisible();
-		await distortion.focus();
-		await page.keyboard.press('ArrowRight');
-		const bitcrusher = distortion.getByRole('menu')
-			.getByRole('menuitem', { name: /^Bitcrusher(?:\s|$)/i })
-			.first();
-		await expect(bitcrusher).toBeVisible();
-		await bitcrusher.focus();
-		await page.keyboard.press('Enter');
+		await chooseNestedCommandAction(page, editor, 'Effect', ['Distortion and modulation', 'Bitcrusher']);
 
 		const effectDialog = page.getByRole('dialog', { name: 'Apply effect', exact: true });
 		await expect(effectDialog).toBeVisible();

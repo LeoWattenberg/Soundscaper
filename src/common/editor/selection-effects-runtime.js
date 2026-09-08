@@ -15,10 +15,18 @@ import {
 } from './reviewed-effects/selection-effect.ts';
 import { applyBitcrusher } from './first-party-effects/bitcrusher/dsp.js';
 import { BITCRUSHER_EFFECT_TYPE } from './first-party-effects/bitcrusher/definition.js';
+import { isBandDynamicsEffect } from './first-party-effects/dynamics/definition.ts';
+import { applyDeesser } from './first-party-effects/deesser/dsp.ts';
+import { applyMultibandCompressor } from './first-party-effects/multiband-compressor/dsp.ts';
 
 export async function applyAudioSelectionEffectAsync(type, channels, sampleRate, params = {}, context = {}) {
 	if (!AUDIO_SELECTION_EFFECT_DEFINITIONS[type]) {
 		throw new RangeError(`Unsupported selection effect: ${type}.`);
+	}
+	if (isBandDynamicsEffect(type)) {
+		const apply = type === 'deesser' ? applyDeesser : applyMultibandCompressor;
+		return assertAudacityEffectOutput(apply(assertAudacityEffectOutput(channels), sampleRate,
+			normalizeAudioSelectionEffectParams(type, params)));
 	}
 	if (type === REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE) {
 		return applyReviewedUtilityGainSelection(channels, sampleRate, params);

@@ -344,7 +344,7 @@ test('parametric EQ accepts zero through twelve uniquely identified bands and va
 test('selection effect registry adds canonical EQ, the bitcrusher, and the release-reviewed Utility Gain package', () => {
 	assert.deepEqual(
 		audioSelectionEffectTypes(),
-		[...audacityEffectTypes(), 'eq', 'bitcrusher', 'reviewed-utility-gain'],
+		['deesser', 'multiband-compressor', ...audacityEffectTypes(), 'eq', 'bitcrusher', 'reviewed-utility-gain'],
 	);
 	assert.equal(AUDIO_SELECTION_EFFECT_DEFINITIONS.eq.maximumBands, 12);
 	assert.equal(AUDIO_SELECTION_EFFECT_DEFINITIONS.eq.preRollSeconds, 10);
