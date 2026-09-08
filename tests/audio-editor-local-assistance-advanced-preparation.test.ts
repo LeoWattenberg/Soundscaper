@@ -147,6 +147,7 @@ function preparationFixture(operation: 'speech-enhancement' | 'source-separation
 		schemaVersion: 1, revision: 7,
 		clips: Object.freeze([{ id: 'clip-a', kind: 'audio', sourceId: 'source-a',
 			sequenceId: 'sequence-main', avLinkId: null, reversed: false, speedRatio: 1,
+			timelineStartFrame: 0, sourceStartFrame: 0,
 			pitchCents: 0, stretchToTempo: false, warpMap: null }]),
 		sources: Object.freeze([{ id: 'source-a', kind: 'audio', contentSha256: SOURCE_SHA256,
 			sampleRate: 48_000 }]), assistanceAssets: Object.freeze([]) });
