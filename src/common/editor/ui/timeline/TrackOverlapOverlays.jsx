@@ -91,7 +91,8 @@ export function createCrossfadeOverlays(clips, overscanStartFrame, pixelsPerSeco
 			if (endFrame <= startFrame) continue;
 			overlays.push({
 				id: `${left.id}:${right.id}:${startFrame}:${endFrame}`,
-				left: (startFrame - overscanStartFrame) / sampleRate * pixelsPerSecond,
+				left: CLIP_CONTENT_OFFSET
+					+ (startFrame - overscanStartFrame) / sampleRate * pixelsPerSecond,
 				width: Math.max(2, (endFrame - startFrame) / sampleRate * pixelsPerSecond),
 				label: `Automatic crossfade between ${left.name || left.id} and ${right.name || right.id}`,
 			});
