@@ -57,6 +57,12 @@ export interface FramescaperVideoFinishingAssetLoadRequestFinishing {
 	readonly assertCurrent: () => void;
 }
 
+export type FramescaperVideoExportFinishingPostprocessorFinishing =
+	VideoKeyframeOfflineRgbaPostprocessor & Readonly<{
+		/** Diagnostic count of full-canvas frames retained for temporal processing. */
+		retainedTemporalFrameCount(): number;
+	}>;
+
 interface FrameOccurrence {
 	readonly clipId: string;
 	readonly sourceFrame: number;
@@ -70,7 +76,7 @@ const MAXIMUM_TEMPORAL_CACHE_FRAMES = 17;
 /** Load digest-bound finishing assets, then create one export-owned post-compositor. */
 export async function createFramescaperVideoExportFinishingFinishing(
 	request: FramescaperVideoExportFinishingRequestFinishing,
-): Promise<VideoKeyframeOfflineRgbaPostprocessor> {
+): Promise<FramescaperVideoExportFinishingPostprocessorFinishing> {
 	assertReady(request);
 	if (!(request.timingViewsBySourceId instanceof Map)) {
 		throw new TypeError('Selected finishing export requires raw authenticated source timing views.');
@@ -93,11 +99,24 @@ export async function createFramescaperVideoExportFinishingFinishing(
 	const sourceIdByNodeId = new Map(exactPlan.sources.map(({ nodeId, sourceId }) => [nodeId, sourceId]));
 	const assets = await loadFramescaperVideoExportFinishingAssetsFinishing(request, finishing);
 	const temporalCache = new Map<string, Map<number, UnifiedExactRenderRgbaFrameV13>>();
-	return async ({ frame, width, height, rgba, signal }) => {
+	let activeClipId: string | null = null;
+	const releaseTemporalCache = () => {
+		for (const cache of temporalCache.values()) {
+			for (const frame of cache.values()) frame.pixels.fill(0);
+		}
+		temporalCache.clear();
+	};
+	const postprocess: VideoKeyframeOfflineRgbaPostprocessor = async ({ frame, width, height, rgba, signal }) => {
 		assertSameSignal(request.signal, signal);
 		assertReady(request);
 		const occurrence = exactOccurrence(frame.layers, clips, sourceIdByNodeId, finishing);
-		if (occurrence === null) return;
+		if (occurrence === null) {
+			releaseTemporalCache();
+			activeClipId = null;
+			return;
+		}
+		if (activeClipId !== null && activeClipId !== occurrence.clipId) releaseTemporalCache();
+		activeClipId = occurrence.clipId;
 		const input = Object.freeze({ width, height, pixels: rgba.slice() });
 		const cache = temporalCache.get(occurrence.clipId) ?? new Map();
 		if (!temporalCache.has(occurrence.clipId)) temporalCache.set(occurrence.clipId, cache);
@@ -127,6 +146,10 @@ export async function createFramescaperVideoExportFinishingFinishing(
 		cache.set(occurrence.sourceFrame, input);
 		while (cache.size > MAXIMUM_TEMPORAL_CACHE_FRAMES) cache.delete(cache.keys().next().value!);
 	};
+	return Object.assign(postprocess, {
+		retainedTemporalFrameCount: () => [...temporalCache.values()]
+			.reduce((count, cache) => count + cache.size, 0),
+	});
 }
 
 function renderAuthority(request: FramescaperVideoExportFinishingRequestFinishing) {

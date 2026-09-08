@@ -289,6 +289,26 @@ test('a composite of two clips sharing one source color context resolves from th
 		'a shared color context resolves the composite from its first occurrence alone');
 });
 
+test('the temporal frame cache releases the previous clip when export advances', async () => {
+	const signal = new AbortController().signal;
+	const run = await postprocessor({
+		signal, options: compositeOptions(),
+		timingViewsBySourceId: timingViews(['video-source', 'video-source-b']),
+	});
+	const diagnostics = run as unknown as { retainedTemporalFrameCount(): number };
+	for (let sourceFrame = 0; sourceFrame < 10; sourceFrame += 1) {
+		await process(run, { frame: { layers: [{ clips: [occurrence({
+			presentationDescriptor: { drawableSourceFrame: sourceFrame, outerCell: sourceFrame },
+		})] }] } }, signal);
+	}
+	assert.equal(diagnostics.retainedTemporalFrameCount(), 10);
+
+	await process(run, { frame: { layers: [{ clips: [occurrence({
+		clipId: 'video-clip-b', sourceId: 'video-source-b',
+	})] }] } }, signal);
+	assert.equal(diagnostics.retainedTemporalFrameCount(), 1);
+});
+
 test('a composite whose clips own an enabled presentation demands per-layer execution', async () => {
 	const signal = new AbortController().signal;
 	const composite = compositeOptions();
