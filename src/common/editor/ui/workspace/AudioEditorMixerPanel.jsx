@@ -362,12 +362,12 @@ function sendLevelAddress(project, trackId, sendId) {
 	return edge ? { kind: 'edge', edgeId: edge.id, parameterId: 'level' } : null;
 }
 
-function linearMixerGainToDb(gain, floor = -60) {
+export function linearMixerGainToDb(gain, floor = -60) {
 	const value = Number(gain);
 	return value > 0 ? Math.max(floor, Math.min(12, 20 * Math.log10(value))) : floor;
 }
 
-function mixerDbToLinearGain(db, offValue = Number.NEGATIVE_INFINITY) {
+export function mixerDbToLinearGain(db, offValue = -60) {
 	const value = Number(db);
 	return value <= offValue ? 0 : Math.min(4, 10 ** (value / 20));
 }
