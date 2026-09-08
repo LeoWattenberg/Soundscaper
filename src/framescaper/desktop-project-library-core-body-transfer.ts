@@ -285,15 +285,17 @@ function bodyReferences(project: FramescaperProject, projectSha256: string): rea
 		if (raw.kind !== 'video') continue;
 		const source = raw as Readonly<Record<string, unknown>>;
 		const sourceName = text(source.name, 'video source name');
-		appendReference(references, identityByKey, {
-			kind: 'video-original', encoding: 'framescaper-video-original-v1',
-			storageKey: text(source.storageKey, 'video source storage key'),
-			mimeType: text(source.mimeType, 'video source MIME type'),
-			byteLength: null,
-			sha256: typeof source.contentSha256 === 'string' && DIGEST.test(source.contentSha256)
-				? source.contentSha256 : null,
-			name: sourceName, required: false, timing: null,
-		});
+		if (source.imageSequence == null) {
+			appendReference(references, identityByKey, {
+				kind: 'video-original', encoding: 'framescaper-video-original-v1',
+				storageKey: text(source.storageKey, 'video source storage key'),
+				mimeType: text(source.mimeType, 'video source MIME type'),
+				byteLength: null,
+				sha256: typeof source.contentSha256 === 'string' && DIGEST.test(source.contentSha256)
+					? source.contentSha256 : null,
+				name: sourceName, required: false, timing: null,
+			});
+		}
 		if (source.timingAsset != null) {
 			appendReference(references, identityByKey, timingReference(
 				normalizeVideoTimingAssetReference(source.timingAsset), `${sourceName}.scti`,

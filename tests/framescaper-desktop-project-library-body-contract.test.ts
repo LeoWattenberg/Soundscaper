@@ -365,11 +365,11 @@ test('two transcript assets that disagree about one transcript body are refused'
 	})), new RegExp(`Transcript body ${TRANSCRIPT_KEY} has conflicting references`, 'u'));
 });
 
-test('the core body project drops image-sequence sources and leaves the original project untouched', () => {
+test('the core body project retains image-sequence proxy ownership and leaves the original untouched', () => {
 	const sequence = imageSequenceSource();
 	const project = projectOf({ sources: [videoSource(), sequence, stillSource('still-a', STILL_SHA256)] });
 	const core = coreBodyProject(project) as unknown as { readonly sources: readonly Data[] };
-	assert.deepEqual(core.sources.map((source) => source.id), ['video-source']);
+	assert.deepEqual(core.sources.map((source) => source.id), ['video-source', 'sequence-source', 'still-a']);
 	assert.equal((project.sources as unknown as readonly Data[]).length, 3);
 	assert.notEqual(core.sources[0], (project.sources as unknown as readonly Data[])[0]);
 });

@@ -158,9 +158,7 @@ export function validateFramescaperDesktopBodies(
 
 /** V12 owns ordinary originals/proxies/timing; baseline owns sequence inventory and pack bodies. */
 export function framescaperDesktopCoreBodyProject(project: FramescaperProject): FramescaperProject {
-	const foundation = structuredClone(project) as unknown as Record<string, unknown>;
-	foundation.sources = (foundation.sources as Record<string, unknown>[]).filter((source) => source.imageSequence === null);
-	return foundation as unknown as FramescaperProject;
+	return structuredClone(project);
 }
 
 export function collectFramescaperDesktopExtensionBodyReferences(

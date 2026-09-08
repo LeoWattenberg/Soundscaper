@@ -217,6 +217,17 @@ test('preflight skips an unretained original but refuses an unretained proxy', a
 	);
 });
 
+test('an image-sequence source retains only its managed proxy bodies in the core inventory', async () => {
+	const prepared = await prepareBodies(
+		projectOf(videoSource({ imageSequence: {}, timingAsset: null })),
+		PROJECT_SHA256,
+		assetStore(retainedAssets()),
+	);
+
+	assert.deepEqual(prepared.map(({ descriptor }) => descriptor.kind), ['video-proxy', 'video-timing']);
+	assert.deepEqual(prepared.map(({ descriptor }) => descriptor.storageKey), [PROXY_KEY, PROXY_TIMING_KEY]);
+});
+
 test('preflight refuses an original the project never bound to a content digest', async () => {
 	const source = videoSource({ contentSha256: 'not-a-digest', proxyAttachment: null, timingAsset: null });
 	await assert.rejects(
