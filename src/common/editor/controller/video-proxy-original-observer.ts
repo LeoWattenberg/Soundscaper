@@ -30,6 +30,11 @@
  */
 
 import type { VideoProxyOriginalObservationRequest } from '../video-proxy-relationship.ts';
+import {
+	currentLinkedVideoOriginalGeneration,
+	linkedVideoOriginalGenerationToken,
+	rememberLinkedVideoOriginalGeneration,
+} from './linked-video-original-generation.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
@@ -77,12 +82,6 @@ export interface VideoProxyOriginalObserverLease {
 	release(): Awaitable<void>;
 }
 
-interface LinkedBinding {
-	readonly bindingToken?: unknown;
-	readonly locatorRevision?: unknown;
-	readonly locatorId?: unknown;
-}
-
 /** One `observeOriginal` port over the project store. */
 export function createVideoProxyOriginalObserver(
 	dependencies: VideoProxyOriginalObserverDependencies,
@@ -114,7 +113,10 @@ export function createVideoProxyOriginalObserver(
 			if (linked?.blob) {
 				blob = linked.blob;
 				authority = 'linked';
-				generationToken = linkedGenerationToken(storageKey, source, linked.binding);
+				generationToken = linkedVideoOriginalGenerationToken(
+					storageKey, source.contentSha256, linked.binding,
+				);
+				rememberLinkedVideoOriginalGeneration(store, projectId, sourceId, generationToken);
 			}
 		}
 		if (!blob) {
@@ -144,6 +146,11 @@ export function createVideoProxyOriginalObserver(
 				if (key !== fingerprint.storageKey || String(current.contentSha256) !== fingerprint.sha256) {
 					throw abortError(`The original video for source ${sourceId} changed.`);
 				}
+				if (fingerprint.authority === 'linked'
+					&& currentLinkedVideoOriginalGeneration(store, projectId, sourceId)
+						!== fingerprint.generationToken) {
+					throw abortError(`The original video for source ${sourceId} changed.`);
+				}
 			},
 			release() {
 				// Nothing is pinned open: the store answered a Blob, and dropping the
@@ -154,25 +161,6 @@ export function createVideoProxyOriginalObserver(
 			},
 		});
 	};
-}
-
-function linkedGenerationToken(
-	storageKey: string,
-	source: VideoProxyOriginalSource,
-	binding: unknown,
-): string {
-	// A linked original's bytes live outside the project, so its digest alone
-	// cannot say whether it is still the same file the user pointed at. The
-	// binding token and locator revision are what relink moves, and they are
-	// therefore what a proxy's currentness has to hang from.
-	const record = (binding && typeof binding === 'object' ? binding : {}) as LinkedBinding;
-	const token = typeof record.bindingToken === 'string' && record.bindingToken
-		? record.bindingToken
-		: String(source.contentSha256 ?? storageKey);
-	const revision = typeof record.locatorRevision === 'string' && record.locatorRevision
-		? record.locatorRevision
-		: '0';
-	return `linked:${token}:${revision}`;
 }
 
 function requireVideoSource(

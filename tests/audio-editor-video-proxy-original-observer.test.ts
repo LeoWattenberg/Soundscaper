@@ -7,6 +7,8 @@ import {
 	createVideoProxyOriginalObserver,
 	type VideoProxyOriginalStore,
 } from '../src/common/editor/controller/video-proxy-original-observer.ts';
+import { rememberLinkedVideoOriginalGeneration } from
+	'../src/common/editor/controller/linked-video-original-generation.ts';
 
 const PROJECT_ID = 'project-1';
 const SOURCE_ID = 'source-1';
@@ -79,6 +81,24 @@ test('a linked original hangs its generation from the binding relink moves', asy
 	// cannot say whether it is still the file the user pointed at; the binding
 	// and its revision can, and they are what relink replaces.
 	assert.equal(lease.fingerprint.generationToken, 'linked:binding-7:rev-3');
+});
+
+test('a linked lease refuses a binding generation published after it opened', async () => {
+	const store: VideoProxyOriginalStore = {
+		loadMediaAsset: () => Promise.resolve(null),
+		resolveLinkedVideoOriginal: () => Promise.resolve({
+			blob: LINKED,
+			binding: { bindingToken: 'binding-7', locatorRevision: 'rev-3' },
+		}),
+	};
+	const lease = await createVideoProxyOriginalObserver({ store, getProject: () => project() })(request());
+	lease.assertCurrent();
+
+	rememberLinkedVideoOriginalGeneration(store, PROJECT_ID, SOURCE_ID, 'linked:binding-8:rev-4');
+
+	assert.throws(() => lease.assertCurrent(), (error: Error) => (
+		error.name === 'AbortError' && /changed/u.test(error.message)
+	));
 });
 
 test('a source that changed under the lease refuses rather than answering for the new one', async () => {

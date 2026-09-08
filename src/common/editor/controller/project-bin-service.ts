@@ -44,6 +44,10 @@ import {
 	type ProjectBinLinkedVideoRelinkDependencies,
 	type ProjectBinLinkedVideoRelinkService,
 } from './project-bin-linked-video-relink-service.ts';
+import {
+	linkedVideoOriginalGenerationToken,
+	rememberLinkedVideoOriginalGeneration,
+} from './linked-video-original-generation.ts';
 
 type SelectionCommand = Extract<AudioEditorCommand, { readonly type: 'selection/set' }>;
 
@@ -423,7 +427,14 @@ function videoRelinkDependencies(
 		stopTimelinePlayback: () => dependencies.playbackEngine.stop(),
 		stopProjectBinPreview: () => preview.stopProjectBinPreview(),
 		revokeVideoVisual: dependencies.revokeVideoVisual,
-		relinkLinkedVideoOriginal: (...args) => dependencies.store.relinkLinkedVideoOriginal(...args),
+		relinkLinkedVideoOriginal: async (...args) => {
+			const binding = await dependencies.store.relinkLinkedVideoOriginal(...args);
+			rememberLinkedVideoOriginalGeneration(
+				dependencies.store, args[0], args[1].id,
+				linkedVideoOriginalGenerationToken(args[1].id, null, binding),
+			);
+			return binding;
+		},
 		releaseLinkedVideoOriginalLocator: (...args) => dependencies.store.releaseLinkedVideoOriginalLocator(...args),
 		activateVideoSource: dependencies.activateVideoSource,
 		digestContent: dependencies.digestMediaContent,
