@@ -324,7 +324,7 @@ export function ParametricEqEditor({
 	const finishOutputGain = (event) => {
 		const gesture = outputGestureRef.current;
 		if (!gesture) return;
-		event?.currentTarget?.releasePointerCapture?.(event.pointerId);
+		if (Number.isInteger(event?.pointerId) && event.currentTarget?.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
 		const latest = pendingPreviewRef.current || gesture.latest;
 		outputGestureRef.current = null;
 		if (previewFrameRef.current) cancelAnimationFrame(previewFrameRef.current);
@@ -509,7 +509,7 @@ export function ParametricEqEditor({
 							&& !outputGestureRef.current) beginOutputGain();
 				}} onKeyUp={(event) => {
 					if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) finishOutputGain();
-				}} onBlur={finishOutputGain} />
+				}} onBlur={() => finishOutputGain()} />
 					<ParametricEqNumericInput disabled={disabled} min={MIN_GAIN} max={MAX_GAIN} step="0.1" value={draft.outputGain} onCommit={(value) => {
 						if (parameterAutomation?.performAtomic('outputGain', null, value)) return;
 						const next = normalizeParametricEqParams({ ...draft, outputGain: value }, effectId);

@@ -98,6 +98,38 @@ test('keyboard focus alone does not begin an output-gain automation gesture', as
 	}
 });
 
+test('output-gain blur finishes a keyboard gesture without releasing a pointer', async () => {
+	const fixture = await mountedEq();
+	const committed: Record<string, unknown>[] = [];
+	try {
+		await fixture.render({ captureAvailable() { return false; } }, () => undefined, (value) => {
+			committed.push(value);
+		});
+		let output = fixture.dom.one('.audio-editor-parametric-eq__output');
+		let slider = output.querySelectorAll('input').find(({ type }) => type === 'range');
+		assert.ok(slider);
+		await act(async () => reactProps(slider!).onKeyDown?.({ key: 'ArrowRight' }));
+		slider = fixture.dom.one('.audio-editor-parametric-eq__output')
+			.querySelectorAll('input').find(({ type }) => type === 'range');
+		assert.ok(slider);
+		await act(async () => reactProps(slider!).onChange?.({ currentTarget: { value: '1' } }));
+		output = fixture.dom.one('.audio-editor-parametric-eq__output');
+		slider = output.querySelectorAll('input').find(({ type }) => type === 'range');
+		assert.ok(slider);
+		await act(async () => reactProps(slider).onBlur?.({
+			currentTarget: {
+				releasePointerCapture() {
+					throw new DOMException('No active pointer.', 'NotFoundError');
+				},
+			},
+		}));
+		assert.equal(committed.length, 1);
+		assert.equal(committed[0]?.outputGain, 1);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 test('the EQ graph installs a non-passive native wheel listener', async () => {
 	const fixture = await mountedEq();
 	const original = ReactTestElement.prototype.addEventListener;
