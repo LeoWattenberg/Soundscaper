@@ -155,6 +155,7 @@ test('multicamera menu is Framescaper-only and fail-closed for stale or blocked 
 	for (const candidate of [
 		{ ...project(), schemaVersion: 2 },
 		{ ...project(), selection: { clipIds: [] } },
+		{ ...project(), selection: { clipIds: ['output-clip', 'another-clip'] } },
 	]) {
 		const menu = createFramescaperMulticameraMenuItems({
 			productId: 'framescaper', project: candidate, editingBlocked: false, copy: COPY,

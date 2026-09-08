@@ -221,7 +221,8 @@ function existingFence(project: DataRecord, group: DataRecord) {
 
 function selectedVideoClip(project: DataRecord): DataRecord | null {
 	const selection = record(project.selection);
-	const selectedId = Array.isArray(selection?.clipIds) ? string(selection.clipIds[0]) : null;
+	const clipIds = Array.isArray(selection?.clipIds) ? selection.clipIds : [];
+	const selectedId = clipIds.length === 1 ? string(clipIds[0]) : null;
 	if (!selectedId) return null;
 	return records(project.clips).find(({ id, kind }) => id === selectedId && kind === 'video') ?? null;
 }
