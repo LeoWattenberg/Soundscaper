@@ -2,7 +2,8 @@
 
 export const APPLICATION_READY_EVENT = 'scape:application-ready';
 export const APPLICATION_READY_SELECTOR =
-	'[data-audio-editor-bound="true"], [data-privacy-policy-dialog="true"], [role="alert"]';
+	'[data-audio-editor-bound="true"], [data-privacy-policy-dialog="true"], '
+	+ '[data-stale-build-overlay], [role="alert"], [role="alertdialog"]';
 
 /** @typedef {{
  * addEventListener: (type: string, listener: EventListener) => void,

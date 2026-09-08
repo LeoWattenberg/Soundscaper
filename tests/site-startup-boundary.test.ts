@@ -142,6 +142,8 @@ test('feature CSS is imported only by its owning editor surface', async () => {
 
 test('application-ready scheduling waits for readiness, idles once, and supports an immediate request', () => {
 	assert.match(APPLICATION_READY_SELECTOR, /\[data-privacy-policy-dialog="true"\]/u);
+	assert.match(APPLICATION_READY_SELECTOR, /\[data-stale-build-overlay\]/u);
+	assert.match(APPLICATION_READY_SELECTOR, /\[role="alertdialog"\]/u);
 	const first = schedulerFixture(false);
 	const deferred = createApplicationReadyScheduler(first.options);
 	assert.equal(first.tasks, 0);
