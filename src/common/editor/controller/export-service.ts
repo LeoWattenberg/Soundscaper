@@ -25,6 +25,7 @@ import {
 import { commitDirectPcmDestination, type DirectPcmDestination } from './direct-pcm-export.ts';
 import { commitPreparedDirectStemArchiveDestination, directStemArchiveTemporaryBytes, prepareDirectStemArchiveDestination, streamDirectStemArchive } from './direct-stem-archive-export.ts';
 import { createEditorVideoExportAction } from './video-export-service.ts';
+import { createExportOperationAvailability } from './export-operation-availability.ts';
 import { createExportSnapshotRenderer } from './export-snapshot-renderer.ts';
 import { streamStemArchiveExport } from './streaming-stem-archive-export.ts';
 import { assertDesktopAudioExportCapability } from './desktop-audio-export-capability.ts';
@@ -73,17 +74,16 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		stemProject, store, throwIfAborted, toggleExport,
 		updateExportProgress, taskProgress, verifyProjectFallbackIntegrity,
 	} = runtime;
-	const persistentIdleWaiters = new Set<() => void>();
-	const persistentAudioDeliveryAvailable = () => !audioExportPreparing && exportOwner === null;
+	const persistentAvailability = createExportOperationAvailability(
+		() => !state.exportAbort && !audioExportPreparing && exportOwner === null,
+	);
+	const persistentAudioDeliveryAvailable = persistentAvailability.available;
 	const releaseExportOwner = (owner: 'direct' | 'persistent') => {
 		if (exportOwner !== owner) return;
 		exportOwner = null;
-		for (const resolve of persistentIdleWaiters) resolve();
-		persistentIdleWaiters.clear();
+		persistentAvailability.notifyIfAvailable();
 	};
-	const whenPersistentAudioDeliveryAvailable = () => persistentAudioDeliveryAvailable()
-		? Promise.resolve()
-		: new Promise<void>((resolve) => { persistentIdleWaiters.add(resolve); });
+	const whenPersistentAudioDeliveryAvailable = persistentAvailability.whenAvailable;
 	const reportExportProgress = (value: RuntimeValue) => {
 		updateExportProgress(value);
 		reportPersistentProgress(value);
@@ -98,7 +98,11 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 	if (typeof runtime.setPersistentExportProgressObserver === 'function') {
 		runtime.setPersistentExportProgressObserver(reportPersistentProgress);
 	} else suppliedExportSnapshotRenderer?.observeExportProgress?.(reportPersistentProgress);
-	const exportVideo = createEditorVideoExportAction(runtime, renderSnapshot);
+	const videoExportAction = createEditorVideoExportAction(runtime, renderSnapshot);
+	const exportVideo = async (request: RuntimeValue = {}) => {
+		try { return await videoExportAction(request); }
+		finally { persistentAvailability.notifyIfAvailable(); }
+	};
 	const renderRealtimeEncoded = createRealtimeEncodedAudioExport({
 		applyMediaChannelMapping, copy, createAiffStreamEncoder, createCacheAwareRenderEngine,
 		createStableId, createStreamingWindowedSincResampler, createTemporaryFileSink,
@@ -113,11 +117,13 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 	) {
 		if (action === 'cancel') {
 			if (exportOwner !== null && exportOwner !== executionOwner) return;
+			if (exportOwner === null && executionOwner === 'persistent' && state.exportAbort) return;
 			state.exportGeneration += 1;
 			state.exportAbort?.abort();
 			state.exportAbort = null;
 			toggleExport(false);
 			publishDocumentSnapshot();
+			persistentAvailability.notifyIfAvailable();
 			return;
 		}
 		if (isVideoExportRequestFormat(requestedSettings?.format)) {
