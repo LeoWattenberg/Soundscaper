@@ -64,16 +64,16 @@ const REVIEW = Object.freeze({
 	})]),
 });
 
-function cleanupProject(linked: boolean) {
+function cleanupProject(linked: boolean, durationFrames = DURATION_FRAMES) {
 	const audioSource = createAudioSource({
 		id: 'audio-source', name: 'Dialogue', storageKey: 'audio-source',
-		contentSha256: SOURCE_SHA256, frameCount: DURATION_FRAMES,
+		contentSha256: SOURCE_SHA256, frameCount: durationFrames,
 		channelCount: 1, sampleRate: SAMPLE_RATE,
 	});
 	const audioClip = createAudioClip({
 		id: 'audio-clip', sourceId: audioSource.id, title: 'Dialogue',
-		timelineStartFrame: 0, durationFrames: DURATION_FRAMES,
-		sourceStartFrame: 0, sourceDurationFrames: DURATION_FRAMES,
+		timelineStartFrame: 0, durationFrames,
+		sourceStartFrame: 0, sourceDurationFrames: durationFrames,
 		...(linked ? { avLinkId: 'camera-link' } : {}),
 	});
 	const sources: Record<string, unknown>[] = [audioSource];
@@ -86,7 +86,7 @@ function cleanupProject(linked: boolean) {
 	if (linked) {
 		const videoSource = createVideoSource({
 			id: 'video-source', name: 'Camera', storageKey: 'video-source',
-			mimeType: 'video/mp4', sampleFrameCount: DURATION_FRAMES, sourceFrameCount: 60,
+			mimeType: 'video/mp4', sampleFrameCount: durationFrames, sourceFrameCount: 60,
 			frameRate: RATE, width: 1_920, height: 1_080, videoCodec: 'h264',
 		});
 		const videoClip = createVideoClip({
@@ -111,7 +111,7 @@ function cleanupProject(linked: boolean) {
 		sequences: [{ id: 'main-sequence', rate: RATE, trackIds }],
 		primarySequenceId: 'main-sequence',
 		selection: {
-			startFrame: 0, endFrame: DURATION_FRAMES,
+			startFrame: 0, endFrame: durationFrames,
 			clipIds: ['audio-clip'], trackIds: ['audio-track'],
 		},
 	});
@@ -122,9 +122,11 @@ class CleanupFixture {
 	commitCount = 0;
 	committed: AudioEditorCommand[] = [];
 	fenceOverride: ((fence: AssistanceSelectionFence) => AssistanceSelectionFence) | null = null;
+	readonly durationFrames: number;
 
-	constructor(linked = false) {
-		this.history = createEditorHistory(cleanupProject(linked)) as ReturnType<
+	constructor(linked = false, durationFrames = DURATION_FRAMES) {
+		this.durationFrames = durationFrames;
+		this.history = createEditorHistory(cleanupProject(linked, durationFrames)) as ReturnType<
 			typeof createEditorHistory
 		> & { present: AudioEditorProjectCurrent };
 	}
@@ -138,7 +140,7 @@ class CleanupFixture {
 			getSelectedClipId: () => 'audio-clip',
 			captureProject: () => this.history.present,
 			assertProject: (token) => { assert.equal(token, this.history.present); },
-			renderDryTrackRange: async () => [new Float32Array(DURATION_FRAMES)],
+			renderDryTrackRange: async () => [new Float32Array(this.durationFrames)],
 		});
 		return this.fenceOverride
 			? Object.freeze({ ...authority, fence: this.fenceOverride(authority.fence) })
@@ -341,6 +343,26 @@ test('only same-fence reviewed VAD can add silence cleanup proposals', () => {
 			...authority.fence, timingAuthoritySha256: '56'.repeat(32),
 		})),
 	}), /no longer matches/iu);
+});
+
+test('reviewed VAD tail silence clamps to a selection whose resampling rounds up', async () => {
+	const durationFrames = DURATION_FRAMES + 2;
+	const fixture = new CleanupFixture(false, durationFrames);
+	const authority = fixture.currentAuthority();
+	const voiceActivity = Object.freeze({
+		...reviewedVad(authority.fence),
+		review: Object.freeze({
+			kind: 'voice-activity' as const,
+			sampleRate: 16_000,
+			segments: Object.freeze([Object.freeze({ startSample: 0, sampleCount: 8_000 })]),
+		}),
+	});
+
+	const session = fixture.createSession({ voiceActivity });
+	const silence = session.snapshot().proposals.find(({ kind }) => kind === 'silence');
+	assert.ok(silence);
+	assert.equal(silence.endFrame, durationFrames);
+	await session.accept([silence.id]);
 });
 
 test('cleanup presets use exact reviewed-VAD thresholds and padding', () => {

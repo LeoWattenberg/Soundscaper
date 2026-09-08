@@ -459,12 +459,18 @@ function voiceActivityProposals(
 		minimumFrames: selected.minimumSilenceSamples,
 		paddingFrames: selected.speechPaddingSamples,
 	}).flatMap((proposal) => {
-		const startFrame = safeAdd(authority.sourceStartFrame, Number(scaleSampleFrame(
-			proposal.startFrame, VAD_SAMPLE_RATE, authority.sampleRate, 'enclosingEnd',
-		)));
-		const endFrame = safeAdd(authority.sourceStartFrame, Number(scaleSampleFrame(
-			proposal.endFrame, VAD_SAMPLE_RATE, authority.sampleRate, 'enclosingStart',
-		)));
+		const startFrame = Math.min(authority.sourceEndFrame, safeAdd(
+			authority.sourceStartFrame,
+			Number(scaleSampleFrame(
+				proposal.startFrame, VAD_SAMPLE_RATE, authority.sampleRate, 'enclosingEnd',
+			)),
+		));
+		const endFrame = Math.min(authority.sourceEndFrame, safeAdd(
+			authority.sourceStartFrame,
+			Number(scaleSampleFrame(
+				proposal.endFrame, VAD_SAMPLE_RATE, authority.sampleRate, 'enclosingStart',
+			)),
+		));
 		return endFrame > startFrame ? [Object.freeze({
 			...proposal,
 			id: `vad-silence-${String(startFrame)}-${String(endFrame)}`,
