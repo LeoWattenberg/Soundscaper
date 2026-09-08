@@ -94,6 +94,41 @@ test('a live generation rejects replacement without closing or corrupting its pa
 	assert.equal(active.posted.at(-1).kind, 'audio');
 });
 
+test('a revoked device generation resets capture credits before reattachment', async (context) => {
+	const original = globalThis.AudioWorkletProcessor;
+	class ProcessorBase {
+		constructor() {
+			this.port = { posted: [], postMessage(value) { this.posted.push(value); }, start() {}, onmessage: null };
+		}
+	}
+	globalThis.AudioWorkletProcessor = ProcessorBase;
+	context.after(() => { globalThis.AudioWorkletProcessor = original; });
+	const { NativeDeviceIoProcessor } = await import(
+		`../src/common/editor/native-device-io-worklet.js?reattach=${String(Date.now())}`
+	);
+	const processor = new NativeDeviceIoProcessor({ processorOptions: {
+		direction: 'input', channelCount: 2, periodFrames: 128, queueCapacity: 2,
+	} });
+	const firstPeer = messagePort();
+	processor.port.onmessage({
+		data: { type: 'native-device-attach', generation: 1 }, ports: [firstPeer],
+	});
+	const firstCredit = firstPeer.posted.find((message) => message.kind === 'capture-credit');
+	firstPeer.onmessage({ data: { ...firstCredit, kind: 'audio', status: 'ok', framesTransferred: 128 } });
+	processor.port.onmessage({ data: { type: 'native-device-revoke' }, ports: [] });
+
+	const secondPeer = messagePort();
+	processor.port.onmessage({
+		data: { type: 'native-device-attach', generation: 2 }, ports: [secondPeer],
+	});
+	const credits = secondPeer.posted.filter((message) => message.kind === 'capture-credit');
+	assert.deepEqual(credits.map(({ sequence }) => sequence), [0, 1]);
+	secondPeer.onmessage({ data: {
+		...credits[0], kind: 'audio', status: 'ok', framesTransferred: 128,
+	} });
+	assert.notEqual(processor.port.posted.at(-1).reason, 'malformed-message');
+});
+
 test('capture silence before attachment does not report phantom frame loss', async (context) => {
 	const original = globalThis.AudioWorkletProcessor;
 	class ProcessorBase {

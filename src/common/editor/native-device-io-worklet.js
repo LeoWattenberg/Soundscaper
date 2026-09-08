@@ -204,6 +204,21 @@ export class NativeDeviceIoProcessor extends ProcessorBase {
 	#close(reason) {
 		const peer = this.portPeer;
 		this.portPeer = null;
+		this.outputSequence = 0;
+		this.captureSequence = 0;
+		this.captureReceived = 0;
+		this.outputFrame = 0;
+		this.captureFrame = 0;
+		this.outputPacket = null;
+		this.outputOffset = 0;
+		this.capturePacket = null;
+		this.captureOffset = 0;
+		this.captureQueue.length = 0;
+		this.captureBusy.clear();
+		this.outputBusy.clear();
+		this.outputFree = this.direction === 'input' ? [] : Array.from(
+			{ length: this.queueCapacity }, (_, id) => packet(id, this.channelCount, this.periodFrames),
+		);
 		if (!peer) return;
 		this.#failCalibration(reason === 'cancelled' ? 'cancelled' : 'device-loss');
 		try { peer.postMessage({ protocolVersion: 1, kind: 'close', reason }); } catch { /* lost */ }
