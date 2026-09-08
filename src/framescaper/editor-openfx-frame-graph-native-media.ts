@@ -194,7 +194,11 @@ export function createFramescaperOpenFxFrameGraphNativeMedia(options: Readonly<{
 			});
 		} finally { active = false; }
 	}
-	return Object.freeze({ apply, retainedReplayKeyCount: () => consumed.size });
+	const graph = { apply } as FramescaperOpenFxFrameGraphNativeMedia;
+	Object.defineProperty(graph, 'retainedReplayKeyCount', {
+		value: () => consumed.size,
+	});
+	return Object.freeze(graph);
 }
 
 function admittedPlan(value: unknown): UnifiedExactRenderPlanV14 {
