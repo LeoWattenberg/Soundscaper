@@ -10,6 +10,7 @@ import {
 	synchronizeVideoPreviewCompositorLayers,
 } from '../src/common/editor/ui/workspace/video-preview-compositor-pool.js';
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../src/common/editor/video-clip-composition.ts';
+import { compileInterpolationCurve } from '../src/common/editor/interpolation-curve.ts';
 import { createVideoEffect } from '../src/common/editor/video-effects.js';
 import { createVideoKeyframeRenderStateProvider } from '../src/common/editor/video-keyframe-render-state-provider.ts';
 import { isVideoKeyframePreviewStateError } from '../src/common/editor/video-keyframe-preview-state.ts';
@@ -198,6 +199,65 @@ test('preview pool resolves keyed composition and effects at the live sample, no
 	assert.equal(targetLayers[0].entries[0].opacity, 0.2);
 	assert.equal(targetLayers[0].entries[0].intervalProgress, 0);
 	assert.ok(Math.abs(targetLayers[0].entries[0].effects[0].params.brightness + 0.6) < 1e-12);
+});
+
+test('preview pool fallback evaluates the authored transition curve for keyed clips', () => {
+	const outgoing = { ...keyframedClip([]), id: 'outgoing', timelineStartFrame: 0 };
+	const incoming = { ...keyframedClip([]), id: 'incoming', timelineStartFrame: 5 };
+	const source = { id: 'source', width: 640, height: 360 };
+	const timeline = {
+		clipStateById: new Map([
+			['outgoing', { available: true }],
+			['incoming', { available: true }],
+		]),
+		intervals: [{
+			kind: 'composition',
+			timelineStartFrame: 5,
+			timelineEndFrame: 10,
+			layers: [{
+				trackId: 'video-track',
+				track: {
+					id: 'video-track',
+					videoTransitions: [{
+						outgoingClipId: outgoing.id,
+						incomingClipId: incoming.id,
+						curve: compileInterpolationCurve({
+							anchors: [
+								{ position: { num: 0, den: 1 }, value: 0 },
+								{ position: { num: 5, den: 1 }, value: 1 },
+							],
+							segments: [{ kind: 'hold' }],
+						}),
+					}],
+				},
+				clips: [
+					{ clipId: outgoing.id, role: 'outgoing', clip: outgoing, source },
+					{ clipId: incoming.id, role: 'incoming', clip: incoming, source },
+				],
+			}],
+		}],
+		keyframeStateProvider: createVideoKeyframeRenderStateProvider(),
+		renderCanvas: { width: 1_280, height: 720 },
+	};
+	const layerPool = [];
+	primeVideoPreviewCompositorPool(layerPool, 1);
+	const targetLayers = [];
+
+	synchronizeVideoPreviewCompositorLayers(
+		targetLayers,
+		layerPool,
+		timeline,
+		7,
+		new Map([
+			['outgoing', { readyState: 4, videoWidth: 640, videoHeight: 360 }],
+			['incoming', { readyState: 4, videoWidth: 640, videoHeight: 360 }],
+		]),
+		effectBypass(),
+		new Map(),
+	);
+
+	assert.equal(targetLayers[0].entries[0].opacity, 0.7);
+	assert.equal(targetLayers[0].entries[1].opacity, 0);
 });
 
 test('invalid keyed state fails before pooled preview entries are mutated', () => {

@@ -2,6 +2,8 @@
 
 import { resolveVideoKeyframePreviewState } from '../../video-keyframe-preview-state.ts';
 import { resolveVideoSourceDisplaySize } from '../../video-source-presentation.ts';
+import { resolveVideoTransitionPreviewOpacity } from '../../video-transition-preview-opacity.js';
+import { videoTransition } from '../../video-timeline-internals.js';
 import { applyVideoPreviewDisplaySize } from './video-preview-display-size.ts';
 
 const EMPTY_VIDEO_EFFECT_STACK = Object.freeze([]);
@@ -228,25 +230,16 @@ function resolveKeyframeStates(interval, timeline, timelineFrame) {
 
 function previewTransitionWeight(layer, clip, timelineFrame, timeline) {
 	if (clip.role === 'single' || layer.clips.length === 1) return 1;
-	if (typeof timeline.resolveTransitionWeight === 'function') {
-		const exact = timeline.resolveTransitionWeight(clip.clipId, timelineFrame);
-		if (exact !== null && exact !== undefined) {
-			if (!Number.isFinite(exact) || exact < 0 || exact > 1) {
-				throw new RangeError('An exact video transition weight must be between zero and one.');
-			}
-			return exact;
-		}
-	}
 	const outgoing = layer.clips.find((candidate) => candidate.role === 'outgoing');
 	const incoming = layer.clips.find((candidate) => candidate.role === 'incoming');
 	if (!outgoing || !incoming) throw new RangeError('A preview transition requires outgoing and incoming clips.');
-	const start = Number(incoming.clip?.timelineStartFrame);
-	const end = Number(outgoing.clip?.timelineStartFrame) + Number(outgoing.clip?.durationFrames);
-	if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || end <= start) {
-		throw new RangeError('A preview transition requires an exact positive sample interval.');
-	}
-	const progress = Math.max(0, Math.min(1, (timelineFrame - start) / (end - start)));
-	return clip.role === 'outgoing' ? 1 - progress : progress;
+	return resolveVideoTransitionPreviewOpacity(
+		timeline,
+		videoTransition(layer.track, outgoing.clip, incoming.clip),
+		clip.clip,
+		clip.role,
+		timelineFrame,
+	);
 }
 
 export { EMPTY_VIDEO_EFFECT_STACK };
