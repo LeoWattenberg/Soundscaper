@@ -295,9 +295,14 @@ export function createFramescaperWebVcrRuntimeV1(
 			} catch { return false; }
 		},
 		revokeOwner(ownerValue: object): boolean {
-			if (disposed || !current || current.owner !== ownerValue) return false;
-			revokeCurrent();
-			return true;
+			if (disposed) return false;
+			if (current?.owner === ownerValue) {
+				revokeCurrent();
+				return true;
+			}
+			const captureRevoked = captureAuthority.revokeOwner(ownerValue);
+			const hostRevoked = host.revokeOwner(ownerValue);
+			return captureRevoked || hostRevoked;
 		},
 		dispose(): void {
 			if (disposed) return;

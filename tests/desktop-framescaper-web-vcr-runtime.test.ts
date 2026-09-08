@@ -11,6 +11,7 @@ import {
 } from './desktop-framescaper-web-vcr-runtime-fixture.ts';
 
 const OWNER = Object.freeze(Object.create(null)) as object;
+const SECOND_OWNER = Object.freeze(Object.create(null)) as object;
 const RECORDING_TOKEN = 'e'.repeat(32);
 
 test('runtime stays roadmap-gated unless enabled and opens an exact isolated guest', async () => {
@@ -468,6 +469,18 @@ test('closing a hidden active guest defers destruction until finalization reache
 	assert.equal(harness.snapshots.at(-1)?.phase, 'closed');
 	assert.equal(harness.snapshots.at(-1)?.generation, opened.generation);
 	assert.throws(() => harness.value.prepareCapture(OWNER, reference), /stale|session/iu);
+});
+
+test('revoking a closed owner releases its retained host lifecycle record', async () => {
+	const harness = runtime();
+	const first = await harness.value.open(OWNER, { resolution: '1080p' });
+	await harness.value.dispatch(OWNER, { ...referenceFor(first), kind: 'close-session' });
+	const second = await harness.value.open(SECOND_OWNER, { resolution: '1080p' });
+
+	assert.equal(harness.value.revokeOwner(OWNER), true);
+	assert.equal(harness.value.revokeOwner(OWNER), false);
+	const reloaded = await harness.value.dispatch(SECOND_OWNER, { ...referenceFor(second), kind: 'reload' });
+	assert.equal(reloaded.kind, 'snapshot');
 });
 
 test('a failed guest cannot mint a raw capture grant', async () => {
