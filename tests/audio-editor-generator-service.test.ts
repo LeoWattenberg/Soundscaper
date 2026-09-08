@@ -211,6 +211,20 @@ test('selection silence without a time selection uses scoped effect persistence'
 	activeProject = project('unused');
 });
 
+test('blocked clip-target silence returns before allocating or persisting work', async () => {
+	const fixture = createFixture({
+		editingBlocked: () => true,
+		getProject: () => project('project-a', null),
+		effectTargets: () => [{ channelCount: 2, durationFrames: 4 }],
+	});
+	const service = createAudioGeneratorService(fixture.dependencies);
+
+	assert.equal(await service.generateSelectionSilence(), null);
+	assert.deepEqual(fixture.preflights, []);
+	assert.deepEqual(fixture.commits, []);
+	assert.equal(fixture.publishes(), 0);
+});
+
 test('selection silence accepts the project document committed by its own persistence transaction', async () => {
 	let activeProject = project('project-a', null);
 	const fixture = createFixture({

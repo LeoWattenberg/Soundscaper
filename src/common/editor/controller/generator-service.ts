@@ -195,6 +195,7 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 
 	async function generateSelectionSilence(): Promise<true | string | null> {
 		dependencies.lifetime.assertActive();
+		if (dependencies.editingBlocked()) return null;
 		const currentProject = dependencies.getProject();
 		const selection = activeSelection(currentProject);
 		if (selection) {
