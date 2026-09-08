@@ -25,7 +25,7 @@ test('product release lines select versions without an admission state machine',
 		soundscaper[soundscaper.applicationVersionChannel].version);
 	assert.equal(resolveProductApplicationVersion('framescaper', RELEASE_LINES), '1.0.0-rc.1');
 	assert.equal(expectedProductReleaseTag('soundscaper', RELEASE_LINES, 'candidate'),
-		'soundscaper-v1.0.0-rc.1');
+		`soundscaper-v${soundscaper.candidate.version}`);
 	assert.equal(expectedProductReleaseTag('soundscaper', RELEASE_LINES, 'stable'),
 		'v1.0.0');
 	assert.equal(RELEASE_LINES.products.framescaper.releaseChannel, 'deferred');

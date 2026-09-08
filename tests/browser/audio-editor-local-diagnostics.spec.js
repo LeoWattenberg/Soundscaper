@@ -1,4 +1,5 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
+import { resolveProductApplicationVersion } from '../../scripts/lib/product-release-lines.mjs';
 import {
 	bootEditor,
 	chooseCommandAction,
@@ -58,7 +59,7 @@ test.describe('local diagnostic reports', () => {
 			expect(report.kind).toBe('soundscaper-local-diagnostics');
 			expect(report.schemaVersion).toBe(1);
 			expect(report.product).toEqual({ id: productId });
-			expect(report.versions.application).toBe('1.0.0-rc.1');
+			expect(report.versions.application).toBe(resolveProductApplicationVersion(productId));
 			expect(report.environment.kind).toBe('browser');
 			expect(report.errors.recent.length).toBeLessThanOrEqual(32);
 			expect(text).not.toMatch(/"(?:title|path|message|stack|transcript|media|sources|clips)"/u);
