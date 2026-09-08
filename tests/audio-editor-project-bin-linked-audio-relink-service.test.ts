@@ -7,6 +7,7 @@ import {
 	PROJECT_BIN_LINKED_AUDIO_RELINK_TASK,
 } from '../src/common/editor/controller/project-bin-linked-audio-relink-service.ts';
 import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from '../src/common/editor/controller/project-bin-linked-video-relink-service.ts';
+import { EDITOR_PROJECT_TASK_SCOPE } from '../src/common/editor/controller/lifecycle.ts';
 import {
 	audioFile,
 	createHarness,
@@ -22,6 +23,37 @@ import {
 test('linked audio and video relinks share the existing replaceable task identity', () => {
 	assert.equal(PROJECT_BIN_LINKED_AUDIO_RELINK_TASK, PROJECT_BIN_LINKED_VIDEO_RELINK_TASK);
 	assert.equal(PROJECT_BIN_LINKED_VIDEO_RELINK_TASK, 'project-bin-linked-video-relink');
+});
+
+test('project-scope cancellation promptly aborts a linked-audio relink', async () => {
+	const capturedSignal = deferred<AbortSignal>();
+	const releaseRelink = deferred<void>();
+	const fixture = createHarness({
+		relink: async (_projectId, _source, _locatorId, options) => {
+			capturedSignal.resolve(options.signal);
+			await releaseRelink.promise;
+			options.signal.throwIfAborted();
+			return replacementBinding({
+				locatorId: FIRST_LOCATOR.locatorId,
+				locatorRevision: FIRST_LOCATOR.locatorRevision,
+			});
+		},
+	});
+	const relinking = fixture.service.relinkLinkedAudio(
+		'bin-audio', audioFile(), FIRST_LOCATOR,
+	);
+	const relinkSignal = await capturedSignal.promise;
+
+	fixture.lifetime.cancelScope(EDITOR_PROJECT_TASK_SCOPE);
+
+	const aborted = relinkSignal.aborted;
+	releaseRelink.resolve();
+	if (aborted) {
+		await assert.rejects(relinking, (error) => error instanceof Error && error.name === 'AbortError');
+	} else {
+		await relinking;
+	}
+	assert.equal(aborted, true);
 });
 
 test('linked-audio eligibility is binding-backed and project-generation fenced', async (context) => {

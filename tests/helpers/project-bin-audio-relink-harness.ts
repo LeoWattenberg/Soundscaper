@@ -146,6 +146,7 @@ export function createHarness(options: HarnessOptions = {}) {
 			) => rawService.relinkLinkedAudio(clipId, file, locator, target, relinkOptions),
 		}),
 		rawService,
+		lifetime,
 		project,
 		target,
 		missingSourceIds,
