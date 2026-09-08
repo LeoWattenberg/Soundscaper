@@ -8,6 +8,7 @@ import { join, resolve } from 'node:path';
 import test from 'node:test';
 
 import {
+	MAXIMUM_SCAN_ENTRIES,
 	SCANNABLE_PLUGIN_FORMATS,
 	createNativePluginScanJobRunner,
 } from '../desktop/native-helper-scan-job.js';
@@ -189,6 +190,29 @@ test('a cancelled scan stops early and keeps what it already inspected', async (
 	const result = await handle.completion;
 	assert.ok(result.entries.length > 0, 'the scan must have demonstrably started');
 	assert.ok(result.entries.length < candidates.length, 'cancellation must stop the scan early');
+});
+
+test('an oversized root still inspects the first bounded candidate set', async () => {
+	const candidates = Array.from(
+		{ length: MAXIMUM_SCAN_ENTRIES + 1 },
+		(_, index) => `/roots/${String(index)}.scapefx`,
+	);
+	let inspected = 0;
+	const addon = fakeAddon(candidates);
+	const result = await runner({
+		...addon,
+		inspectPluginCandidate: (...args) => {
+			inspected += 1;
+			return addon.inspectPluginCandidate(...args);
+		},
+	})({
+		grant: { rootPath: '/roots', format: 'fixture', identity: { dev: 1, ino: 2 } },
+		onProgress: () => {},
+	}).completion;
+
+	assert.equal(result.status, 'root-oversized');
+	assert.equal(result.entries.length, MAXIMUM_SCAN_ENTRIES);
+	assert.equal(inspected, MAXIMUM_SCAN_ENTRIES);
 });
 
 test('the helper announces scanning and routes a scan job to the scan runner', async () => {

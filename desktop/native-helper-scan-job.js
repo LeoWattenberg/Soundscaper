@@ -53,7 +53,8 @@ export function createNativePluginScanJobRunner({ loadAddon, addonPath, addonSha
 				return refusal(format, 'root-unreadable', error instanceof Error ? error.message : String(error));
 			}
 			const entries = [];
-			let oversized = candidates.length > MAXIMUM_SCAN_ENTRIES;
+			const truncatedRoot = candidates.length > MAXIMUM_SCAN_ENTRIES;
+			let entryBudgetExhausted = false;
 			for (const [index, path] of candidates.slice(0, MAXIMUM_SCAN_ENTRIES).entries()) {
 				if (cancelled) break;
 				// Announced BEFORE the dangerous call, never after: a crash during
@@ -64,12 +65,13 @@ export function createNativePluginScanJobRunner({ loadAddon, addonPath, addonSha
 					identity: digest.identity, byteLength: digest.byteLength, sha256: digest.sha256, resourcePolicy,
 				}), digest);
 				for (const inspection of inspections) {
-					if (entries.length >= MAXIMUM_SCAN_ENTRIES) { oversized = true; break; }
+					if (entries.length >= MAXIMUM_SCAN_ENTRIES) { entryBudgetExhausted = true; break; }
 					entries.push(describeEntry(path, digest, inspection));
 				}
-				if (oversized) break;
+				if (entryBudgetExhausted) break;
 				await new Promise((resolve) => { setTimeout(resolve, 0); });
 			}
+			const oversized = truncatedRoot || entryBudgetExhausted;
 			return Object.freeze({
 				format,
 				status: oversized ? 'root-oversized' : 'scanned',
