@@ -206,13 +206,15 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			const storage = await runtime.store.estimateStorage();
 			assertOwnership(operation.task, operation.projectToken);
 			const opened = await activeClient.openFile(nativeId, file, portableOptions(file.size, storage, (progress) => {
-				updateNativeProjectProgress(progress, runtime.copy.importing, operation.task, operation.projectToken);
+				updateNativeProjectProgress(progress, runtime.copy.importing, operation.task,
+					operation.projectToken, { start: 0, end: 0.3 });
 			}));
 			assertOwnership(operation.task, operation.projectToken);
 			const decoded = await activeClient.decode(nativeId, {
 				title: file.name,
 				onProgress: (progress) => {
-					updateNativeProjectProgress(progress, runtime.copy.importing, operation.task, operation.projectToken);
+					updateNativeProjectProgress(progress, runtime.copy.importing, operation.task,
+						operation.projectToken, { start: 0.3, end: 1 });
 				},
 			});
 			assertOwnership(operation.task, operation.projectToken);
@@ -468,9 +470,10 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		prefix: string,
 		task?: EditorTaskScope,
 		projectToken?: EditorProjectToken,
+		range: Readonly<{ start: number; end: number }> = { start: 0, end: 1 },
 	): void {
 		if (task && projectToken) assertOwnership(task, projectToken);
-		runtime.taskProgress?.setActivePhase(prefix, { start: 0, end: 1, value: progress.value });
+		runtime.taskProgress?.setActivePhase(prefix, { ...range, value: progress.value });
 		runtime.setStatus(nativeProjectProgressMessage(progress, prefix));
 	}
 
