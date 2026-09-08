@@ -25,7 +25,9 @@ export const DOCUMENTATION_BASE_URL = 'https://soundscaper.org/docs';
  * under `handbook/src/content/docs`, so a language cannot be published without
  * the editor learning to link into it.
  */
-export const HANDBOOK_LANGUAGES: readonly string[] = Object.freeze([]);
+export const HANDBOOK_LANGUAGES: readonly string[] = Object.freeze([
+	'de', 'ar', 'cs', 'el', 'en-gb', 'es', 'fa',
+]);
 
 export type DocumentationDestination = 'manual' | 'tutorials';
 
