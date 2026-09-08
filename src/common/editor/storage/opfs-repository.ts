@@ -207,7 +207,9 @@ export class OpfsRepository {
 					const writer = await this.#sync.openWriter(
 						directory, 'media-asset-chunk-write', path, signal,
 					);
-					return writer ? syncBinaryWriter(path, writer, signal) : null;
+					return writer
+						? syncBinaryWriter(path, writer, () => this.deletePath(path), signal)
+						: null;
 				},
 			};
 		}

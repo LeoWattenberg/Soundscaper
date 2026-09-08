@@ -6,7 +6,10 @@ import test from 'node:test';
 import { crc32, PCM_ENCODING_RAW_F32LE } from '../src/common/editor/wavpack/index.js';
 import { OpfsRepository } from '../src/common/editor/storage/opfs-repository.ts';
 import { OpfsSyncRepositoryBridge } from '../src/common/editor/storage/opfs-sync-repository-bridge.ts';
-import { syncPcmWriter } from '../src/common/editor/storage/opfs-sync-writer-adapters.ts';
+import {
+	syncBinaryWriter,
+	syncPcmWriter,
+} from '../src/common/editor/storage/opfs-sync-writer-adapters.ts';
 import type {
 	OpfsSyncReadResult,
 	OpfsSyncStoragePort,
@@ -264,6 +267,25 @@ test('PCM writer abort remains available after container close fails', async () 
 	});
 	await assert.rejects(pcm.close(), failure);
 	await pcm.abort();
+
+	assert.equal(aborts, 1);
+	assert.equal(removals, 1);
+});
+
+test('sync binary writer abort removes its staged path after close', async () => {
+	let aborts = 0;
+	let removals = 0;
+	const writer: OpfsSyncWriter = {
+		async write() {},
+		async close() {},
+		async abort() { aborts += 1; },
+	};
+	const binary = syncBinaryWriter(
+		'staged.blob', writer, async () => { removals += 1; },
+	);
+	await binary.write(Uint8Array.of(1, 2, 3));
+	await binary.close();
+	await binary.abort();
 
 	assert.equal(aborts, 1);
 	assert.equal(removals, 1);

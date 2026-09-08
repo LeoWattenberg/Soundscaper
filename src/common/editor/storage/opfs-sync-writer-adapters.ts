@@ -43,6 +43,7 @@ const ContainerWriter = PcmContainerWriter as unknown as ContainerWriterConstruc
 export function syncBinaryWriter(
 	path: string,
 	writer: OpfsSyncWriter,
+	remove: () => Promise<void>,
 	defaultSignal?: AbortSignal,
 ): Readonly<{
 	path: string;
@@ -50,11 +51,14 @@ export function syncBinaryWriter(
 	close(options?: Readonly<{ signal?: AbortSignal }>): Promise<void>;
 	abort(): Promise<void>;
 }> {
+	let removal: Promise<void> | null = null;
 	return {
 		path,
 		write: (bytes, options = {}) => writer.write(bytes, options.signal ?? defaultSignal),
 		close: (options = {}) => writer.close(options.signal ?? defaultSignal),
-		abort: () => writer.abort(),
+		abort: async () => {
+			try { await writer.abort(); } finally { await (removal ??= remove()); }
+		},
 	};
 }
 
