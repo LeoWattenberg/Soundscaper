@@ -428,6 +428,7 @@ export function AudioEditorMacroManagerDialog({
 					<section className="audio-editor-macro-manager__detail">
 						{selectedScript ? (
 							<MacroScriptPanel
+								key={selectedScript.id}
 								controller={controller}
 								copy={{ ...managerCopy }}
 								script={selectedScript}

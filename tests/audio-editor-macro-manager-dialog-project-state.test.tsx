@@ -460,3 +460,35 @@ test('a file that is not a macro program is refused by name rather than stored',
 		await fixture.cleanup();
 	}
 });
+
+test('selecting another program discards the previous program run state', async () => {
+	const fixture = await mountedMacroManagerFixture();
+	try {
+		await fixture.render(macroSnapshot('project-a'));
+		await act(async () => {
+			fixture.scripts.save({ name: 'Program A', source: 'await sound.select.all();' });
+			fixture.scripts.save({ name: 'Program B', source: 'await sound.select.none();' });
+			await Promise.resolve();
+		});
+		await click(fixture.program('Program A'));
+		await click(fixture.button(MANAGER_COPY.runProgram));
+		assert.equal(fixture.buttonLabels().includes(MANAGER_COPY.cancelRun), true);
+
+		await click(fixture.program('Program B'));
+		assert.equal(fixture.buttonLabels().includes(MANAGER_COPY.cancelRun), false);
+		assert.equal(fixture.buttonLabels().includes(MANAGER_COPY.runProgram), true);
+		assert.equal(fixture.find('[data-macro-script-log]')?.getAttribute('data-outcome'), 'idle');
+
+		await act(async () => {
+			fixture.scriptRuns[0]?.settlement.resolve({
+				log: [{ level: 'info', text: 'Program A output', at: 1 }],
+			});
+			await fixture.scriptRuns[0]?.settlement.promise;
+			await Promise.resolve();
+		});
+		assert.doesNotMatch(fixture.text(), /Program A output|Program applied/u);
+	} finally {
+		fixture.settlePending();
+		await fixture.cleanup();
+	}
+});
