@@ -9,6 +9,7 @@ import {
 	linearToDb,
 	meterPercent,
 	normalizeSpectrogramScale,
+	normalizeWaveformRulerFormat,
 	normalizeWaveformRulerState,
 	secondsDeltaToFrames,
 	spectrogramFrequencyAtFraction,
@@ -38,8 +39,9 @@ test('timeline frame, meter, and height geometry keeps existing bounds', () => {
 	assert.equal(trackOptionalControlsHeight({ type: 'audio' }, true, true), 48);
 	assert.equal(trackVisualHeight({ type: 'video', height: 80 }, true), 80);
 	assert.deepEqual(normalizeWaveformRulerState({ format: 'linear-amp', zoom: 2 }), {
-		format: 'linear-db', zoom: 2,
+		format: 'linear-amp', zoom: 2,
 	});
+	assert.equal(normalizeWaveformRulerFormat('unsupported'), 'linear-db');
 });
 
 test('compatible media tracks resolve linked A/V lanes without crossing groups', () => {
