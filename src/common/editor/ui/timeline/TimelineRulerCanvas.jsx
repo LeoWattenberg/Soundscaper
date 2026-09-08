@@ -28,6 +28,7 @@ export function TimelineRulerCanvas({
 	timelineWidth,
 	viewportWidth,
 }) {
+	const hasLoopRegion = displayedLoop.endFrame > displayedLoop.startFrame;
 	const shared = {
 		height: markerLaneVisible ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined,
 		pixelsPerSecond,
@@ -37,8 +38,8 @@ export function TimelineRulerCanvas({
 		timeSelection,
 		sampleRate,
 		loopRegionEnabled: loopPreview ? true : Boolean(project.loop?.enabled),
-		loopRegionStart: framesToSeconds(displayedLoop.startFrame || 0, { sampleRate }),
-		loopRegionEnd: framesToSeconds(displayedLoop.endFrame || 0, { sampleRate }),
+		loopRegionStart: hasLoopRegion ? framesToSeconds(displayedLoop.startFrame, { sampleRate }) : null,
+		loopRegionEnd: hasLoopRegion ? framesToSeconds(displayedLoop.endFrame, { sampleRate }) : null,
 		onLoopRegionEnabledToggle: () => run(() => controller.actions.transport.toggleLoop()),
 	};
 	if (rulerScale.kind === 'timecode') {
