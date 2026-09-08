@@ -66,6 +66,24 @@ test('active audio-authoring authority requires a complete internal project or v
 	}
 });
 
+test('foundation audio clips reject trims outside their source range', () => {
+	for (const [field, value, message] of [
+		['trimStartFrames', 1, /invalid leading trim range/iu],
+		['trimEndFrames', 901, /invalid trailing trim range/iu],
+	] as const) {
+		const projectOptions = options([]);
+		projectOptions.clips = [createAudioClip({
+			id: `clip-${field}`, sourceId: 'source-a', timelineStartFrame: 0,
+			durationFrames: 100, sourceStartFrame: 0, sourceDurationFrames: 100,
+			[field]: value,
+		})];
+		projectOptions.tracks = [createAudioTrack({
+			id: 'track-a', name: 'Vocal', clipIds: [`clip-${field}`],
+		})];
+		assert.throws(() => createAudioEditorProjectV17(projectOptions), message);
+	}
+});
+
 function options(takeGroups: readonly unknown[] = [group()]): Record<string, unknown> {
 	return {
 		id: 'take-comp-project', title: 'Take comp project', now: NOW,

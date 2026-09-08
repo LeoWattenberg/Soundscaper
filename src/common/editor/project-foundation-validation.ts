@@ -304,6 +304,12 @@ function validateFoundationClip(
 		const sourceStart = projectSafeInteger(clip.sourceStartFrame, 0, `${prefix}.sourceStartFrame`);
 		const sourceDuration = projectSafeInteger(clip.sourceDurationFrames, 1, `${prefix}.sourceDurationFrames`);
 		if (sourceStart + sourceDuration > Number(source.frameCount)) throw new RangeError(`${prefix} exceeds source bounds.`);
+		const trimStart = Number(clip.trimStartFrames);
+		const trimEnd = Number(clip.trimEndFrames);
+		if (trimStart > sourceStart) throw new RangeError(`${prefix} has an invalid leading trim range.`);
+		if (sourceStart + sourceDuration + trimEnd > Number(source.frameCount)) {
+			throw new RangeError(`${prefix} has an invalid trailing trim range.`);
+		}
 		if (isVideoRetimeCurveProjectSchema(project) && clip.retimeMap != null) {
 			throw new RangeError(`${prefix}.retimeMap is supported only on video clips.`);
 		}
