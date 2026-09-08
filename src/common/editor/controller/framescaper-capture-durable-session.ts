@@ -11,6 +11,7 @@ import {
 } from '../framescaper-capture-session-manifest.ts';
 import type { FramescaperCaptureSessionManifestRepository } from '../storage/framescaper-capture-session-manifest-repository.ts';
 import { withCaptureSessionOperationLock } from '../storage/capture-spool-operation-lock.ts';
+import { discardedFramescaperCaptureManifest } from './framescaper-capture-discard-transition.ts';
 import { packetTiming, sameManifest, sameManifestEvidence, timestamp } from './framescaper-capture-durable-manifest.ts';
 import {
 	acknowledgeCaptureAppend,
@@ -353,17 +354,10 @@ class DurableSession implements FramescaperCaptureDurableSession {
 			this.#assertSynchronized();
 			await this.#refreshStorage(this.#manifest.state === 'discarded');
 			if (this.#manifest.state === 'capturing') await this.#seal();
-			if (this.#manifest.state === 'sealed') {
-				const discarded = normalizeFramescaperCaptureSessionManifest({
-					...this.#manifest,
-					state: 'discarded',
-					recoveryDecision: 'delete',
-					updatedAt: this.#updatedAt(),
-				});
-				await this.#replaceManifest(discarded);
-			}
+			const discarded = discardedFramescaperCaptureManifest(this.#manifest, this.#updatedAt());
+			if (discarded) await this.#replaceManifest(discarded);
 			if (this.#manifest.state !== 'discarded' || this.#manifest.recoveryDecision !== 'delete') {
-				throw new Error('Only an undecided sealed capture session can be deleted.');
+				throw new Error('Only an undecided sealed or finalizing capture session can be deleted.');
 			}
 			await this.#refreshStorage(true);
 			for (const stream of this.#manifest.streams) {
