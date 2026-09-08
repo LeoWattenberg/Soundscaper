@@ -102,7 +102,8 @@ export function createAssistanceEmbeddingMatrixV1(
 			if (typeof value !== 'number' || !Number.isFinite(value)) {
 				throw new RangeError(`Embedding row ${String(rowIndex)} contains a non-finite value.`);
 			}
-			row[column] = value === 0 ? 0 : Math.fround(value);
+			const rounded = Math.fround(value);
+			row[column] = rounded === 0 ? 0 : rounded;
 		}
 		assertNormalized(row, rowIndex);
 		for (const value of row) {

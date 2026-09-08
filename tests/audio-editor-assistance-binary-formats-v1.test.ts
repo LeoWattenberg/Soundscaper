@@ -35,6 +35,14 @@ test('embedding matrix v1 round-trips deterministic normalized Float32 rows', ()
 	assert.deepEqual([...reviewed.vector(0)], [1, 0, 0]);
 });
 
+test('embedding matrix v1 canonicalizes values that underflow to negative zero', () => {
+	const reviewed = reviewAssistanceEmbeddingMatrixV1(createAssistanceEmbeddingMatrixV1({
+		dimensions: 2,
+		vectors: [[1, -1e-46]],
+	}));
+	assert.equal(Object.is(reviewed.vector(0)[1], -0), false);
+});
+
 test('embedding matrix v1 refuses malformed geometry, non-finite, and non-normalized rows', () => {
 	assert.throws(() => createAssistanceEmbeddingMatrixV1({ dimensions: 2, vectors: [[1]] }),
 		/dimension/iu);
