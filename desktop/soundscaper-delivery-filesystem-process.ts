@@ -22,6 +22,8 @@ const VERSION = 1;
 const HEADER_BYTES = 16;
 const MAXIMUM_CONTROL_BYTES = 64 * 1024;
 const MAXIMUM_CHUNK_BYTES = 4 * 1024 * 1024;
+const CONTROL_REQUEST_TIMEOUT_MS = 30_000;
+const FILESYSTEM_REQUEST_TIMEOUT_MS = 120_000;
 const ERROR = 0xff;
 
 const OP = Object.freeze({
@@ -36,6 +38,8 @@ type SpawnProcess = typeof spawn;
 export interface SoundscaperDeliveryFilesystemProcessOptions {
 	readonly executablePath: string;
 	readonly spawnProcess?: SpawnProcess;
+	/** Test seam; production uses opcode-specific bounded deadlines. */
+	readonly requestTimeoutMs?: number;
 }
 
 export class SoundscaperDeliveryFilesystemProcessError extends Error {
@@ -60,9 +64,10 @@ export function createSoundscaperDeliveryFilesystemProcessAuthority(
 		throw new TypeError('Soundscaper delivery filesystem helper requires an absolute executable path.');
 	}
 	const spawnProcess = options.spawnProcess ?? spawn;
+	const requestTimeoutMs = optionalRequestTimeout(options.requestTimeoutMs);
 	const authority: SoundscaperDeliveryFilesystemAuthority = {
 		async open(value) {
-			const peer = startPeer(spawnProcess, options.executablePath, []);
+			const peer = startPeer(spawnProcess, options.executablePath, [], requestTimeoutMs);
 			try {
 				const ready = exactRecord(await peer.request(OP.init, json({
 					schemaVersion: 1,
@@ -105,7 +110,7 @@ export function createSoundscaperDeliveryFilesystemProcessAuthority(
 			}
 		},
 		async removeRecovered(root, recoveryToken, expected, fence) {
-			const peer = startPeer(spawnProcess, options.executablePath, ['--recover']);
+			const peer = startPeer(spawnProcess, options.executablePath, ['--recover'], requestTimeoutMs);
 			try {
 				const response = exactRecord(await peer.request(OP.recover, json({
 					schemaVersion: 1, action: 'remove', rootPath: root.rootPath,
@@ -129,7 +134,7 @@ export function createSoundscaperDeliveryFilesystemProcessAuthority(
 			} finally { await peer.close(); }
 		},
 		async inspectFinal(root, finalName, fence) {
-			const peer = startPeer(spawnProcess, options.executablePath, ['--inspect-final']);
+			const peer = startPeer(spawnProcess, options.executablePath, ['--inspect-final'], requestTimeoutMs);
 			try {
 				const response = exactRecord(await peer.request(OP.inspectFinal, json({
 					schemaVersion: 1, rootPath: root.rootPath, finalName,
@@ -327,28 +332,51 @@ interface Frame { readonly opcode: number; readonly requestId: number; readonly 
 class FramedPeer {
 	readonly #child: ChildProcessWithoutNullStreams;
 	readonly #reader: FrameReader;
+	readonly #requestTimeoutMs: number | null;
 	#requestId = 0;
 	#closed = false;
 	#failed = false;
 
-	constructor(child: ChildProcessWithoutNullStreams) {
+	constructor(child: ChildProcessWithoutNullStreams, requestTimeoutMs: number | null) {
 		this.#child = child;
 		this.#reader = new FrameReader(child.stdout);
+		this.#requestTimeoutMs = requestTimeoutMs;
 		child.once('error', (error) => { this.#failed = true; this.#reader.fail(error); });
 	}
 
 	async request(opcode: number, payload: Buffer, expectedOpcode: number): Promise<unknown> {
 		if (this.#closed) throw new Error('Soundscaper delivery filesystem helper is closed.');
+		if (this.#failed) throw new Error('Soundscaper delivery filesystem helper has failed.');
 		if (payload.byteLength > (opcode === OP.data ? MAXIMUM_CHUNK_BYTES : MAXIMUM_CONTROL_BYTES)) {
 			throw new RangeError('Soundscaper delivery filesystem helper payload is too large.');
 		}
 		const requestId = ++this.#requestId;
-		await writeFrame(this.#child, { opcode, requestId, payload });
-		const response = await this.#reader.read();
+		const response = await this.#exchangeWithDeadline(opcode, { opcode, requestId, payload });
 		if (response.requestId !== requestId) throw new Error('Soundscaper delivery helper response lost synchronization.');
 		if (response.opcode === ERROR) throw decodeProcessError(response.payload);
 		if (response.opcode !== expectedOpcode) throw new Error('Soundscaper delivery helper returned the wrong response.');
 		return response.payload.byteLength ? parseJson(response.payload) : Object.freeze({});
+	}
+
+	async #exchangeWithDeadline(opcode: number, frame: Frame): Promise<Frame> {
+		const exchange = (async () => {
+			await writeFrame(this.#child, frame);
+			return this.#reader.read();
+		})();
+		const timeoutMs = this.#requestTimeoutMs ?? requestTimeoutForOpcode(opcode);
+		let timer: ReturnType<typeof setTimeout> | null = null;
+		const deadline = new Promise<never>((_resolve, reject) => {
+			timer = setTimeout(() => {
+				const error = new Error(`Soundscaper delivery filesystem helper request timed out after ${timeoutMs} ms.`);
+				this.#failed = true;
+				this.#reader.fail(error);
+				try { this.#child.kill('SIGKILL'); } catch { /* process never spawned */ }
+				reject(error);
+			}, timeoutMs);
+			timer.unref?.();
+		});
+		try { return await Promise.race([exchange, deadline]); }
+		finally { if (timer !== null) clearTimeout(timer); }
 	}
 
 	async close(): Promise<void> {
@@ -420,7 +448,12 @@ class FrameReader {
 	}
 }
 
-function startPeer(spawnProcess: SpawnProcess, executablePath: string, args: string[]): FramedPeer {
+function startPeer(
+	spawnProcess: SpawnProcess,
+	executablePath: string,
+	args: string[],
+	requestTimeoutMs: number | null,
+): FramedPeer {
 	const child = spawnProcess(executablePath, args, {
 		stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true,
 	});
@@ -429,7 +462,20 @@ function startPeer(spawnProcess: SpawnProcess, executablePath: string, args: str
 		stderrBytes += chunk.byteLength;
 		if (stderrBytes > MAXIMUM_CONTROL_BYTES) child.stderr.destroy();
 	});
-	return new FramedPeer(child);
+	return new FramedPeer(child, requestTimeoutMs);
+}
+
+function requestTimeoutForOpcode(opcode: number): number {
+	return opcode === OP.data || opcode === OP.patch || opcode === OP.seal || opcode === OP.publish
+		? FILESYSTEM_REQUEST_TIMEOUT_MS : CONTROL_REQUEST_TIMEOUT_MS;
+}
+
+function optionalRequestTimeout(value: number | undefined): number | null {
+	if (value === undefined) return null;
+	if (!Number.isSafeInteger(value) || value < 1 || value > FILESYSTEM_REQUEST_TIMEOUT_MS) {
+		throw new RangeError('Soundscaper delivery filesystem request timeout is invalid.');
+	}
+	return value;
 }
 
 async function writeFrame(child: ChildProcessWithoutNullStreams, frame: Frame): Promise<void> {

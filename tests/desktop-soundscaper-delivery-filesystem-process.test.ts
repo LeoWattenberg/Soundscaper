@@ -166,6 +166,23 @@ test('SDF1 destroys helper stdout immediately when its response bound is exceede
 	assert.equal(outputDestroys, 1);
 });
 
+test('SDF1 kills a helper that stops acknowledging a data request', async () => {
+	const helper = new FakeHelper(undefined, 'missing', 0x02);
+	const authority = createSoundscaperDeliveryFilesystemProcessAuthority({
+		executablePath: '/installed/soundscaper_delivery_fs',
+		spawnProcess: helper.spawn as never,
+		requestTimeoutMs: 10,
+	});
+	const session = await authority.open({
+		root: ROOT, reference: '2'.repeat(48), finalName: 'master.wav',
+		maximumBytes: 4, finalPrefixByteLength: 0, fence: () => undefined,
+	});
+
+	await assert.rejects(session.write(0, new Uint8Array([1])), /timed out/iu);
+	assert.equal(helper.killed, true);
+	await session.abandon();
+});
+
 class FakeHelper {
 	readonly opcodes: number[] = [];
 	readonly output = new PassThrough();
@@ -173,13 +190,16 @@ class FakeHelper {
 	readonly child = new EventEmitter() as EventEmitter & Record<string, unknown>;
 	readonly failCode: string | undefined;
 	readonly recoveryStatus: string;
+	readonly stallOpcode: number | undefined;
 	data = Buffer.alloc(0);
 	exited = false;
+	killed = false;
 	lastJson: Record<string, unknown> = {};
 
-	constructor(failCode?: string, recoveryStatus = 'missing') {
+	constructor(failCode?: string, recoveryStatus = 'missing', stallOpcode?: number) {
 		this.failCode = failCode;
 		this.recoveryStatus = recoveryStatus;
+		this.stallOpcode = stallOpcode;
 		const input = new Writable({ write: (chunk, _encoding, done) => {
 			try { this.#request(Buffer.from(chunk)); done(); } catch (error) { done(error as Error); }
 		} });
@@ -187,7 +207,7 @@ class FakeHelper {
 		Object.assign(this.child, {
 			stdin: input, stdout: this.output, stderr: this.error,
 			exitCode: null, signalCode: null,
-			kill: () => { this.#exit(); return true; },
+			kill: () => { this.killed = true; this.#exit(); return true; },
 		});
 	}
 
@@ -200,6 +220,7 @@ class FakeHelper {
 		const length = frame.readUInt32BE(12);
 		const payload = frame.subarray(16, 16 + length);
 		this.opcodes.push(opcode);
+		if (opcode === this.stallOpcode) return;
 		if (opcode !== 0x02 && opcode !== 0x06 && payload.byteLength) {
 			this.lastJson = JSON.parse(payload.toString()) as Record<string, unknown>;
 		}
