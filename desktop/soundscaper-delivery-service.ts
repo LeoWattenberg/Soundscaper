@@ -59,7 +59,7 @@ export type {
 	SoundscaperDeliveryClaim, SoundscaperDeliveryEvent, SoundscaperDeliveryPersistedState,
 	SoundscaperDeliverySummary, SoundscaperDeliveryVisibleState,
 } from './soundscaper-delivery-service-contract.ts';
-const TERMINAL = new Set<SoundscaperDeliveryPersistedState>(['completed', 'cancelled', 'stale']);
+const TERMINAL = new Set<SoundscaperDeliveryPersistedState>(['completed', 'cancelled', 'failed', 'stale']);
 
 export class SoundscaperDeliveryService {
 	readonly #database: DatabaseSync;
@@ -426,7 +426,7 @@ export class SoundscaperDeliveryService {
 
 	async cancel(jobId: string): Promise<void> {
 		const row = this.#row(jobId);
-		if (TERMINAL.has(row.state) || row.state === 'failed') throw new Error('The delivery job is already settled.');
+		if (TERMINAL.has(row.state)) throw new Error('The delivery job is already settled.');
 		await this.#abortRowWrite(row);
 		if (!await this.#removePartial(this.#row(jobId))) return;
 		this.#state(jobId, 'cancelled', null);

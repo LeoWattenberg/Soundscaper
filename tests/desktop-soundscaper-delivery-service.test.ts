@@ -425,8 +425,14 @@ test('cancel, fail, and reauthorization retire only their exact native sessions'
 	assert.deepEqual(await readdir(fixture.privateStagingRoot), []);
 	const reauthorized = await staged(3);
 	await service.revokeRoot(grant.grantId);
+	const failedAfterRevocation = service.list().entries.find(({ jobId }) => jobId === failed.jobId);
+	assert.equal(failedAfterRevocation?.state, 'failed');
+	assert.equal(failedAfterRevocation?.lastFailureCode, 'render-failed');
 	assert.deepEqual(await readdir(fixture.privateStagingRoot), []);
 	await service.reauthorizeRoot(grant.grantId, fixture.outputRoot);
+	const failedAfterReauthorization = service.list().entries.find(({ jobId }) => jobId === failed.jobId);
+	assert.equal(failedAfterReauthorization?.state, 'failed');
+	assert.equal(failedAfterReauthorization?.lastFailureCode, 'render-failed');
 	assert.equal(service.list().entries.find(({ jobId }) => jobId === reauthorized.jobId)?.state, 'waiting-for-project');
 	assert.deepEqual(await readdir(fixture.outputRoot), []);
 	await service.close();
