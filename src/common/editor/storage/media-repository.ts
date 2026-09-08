@@ -11,6 +11,7 @@ import {
 } from './derivative-cache-policy.ts';
 import { MediaAssetLoadRepository, type MediaAssetLoadOptions } from './media-asset-load-repository.ts';
 import { MediaAssetLifecycleCoordinator, type MediaAssetMaintenance } from './media-asset-lifecycle-coordinator.ts';
+import { MediaAssetWriteAdmission } from './media-asset-write-admission.ts';
 import { canonicalMediaContentBlob, digestMediaContent } from './media-content-digest.ts';
 import { freshVerifiedMediaContentDigest } from './media-content-provenance.ts';
 import {
@@ -83,36 +84,60 @@ export class MediaRepository {
 		throwIfAborted(signal);
 		const id = nonEmptyString(sourceId, 'A media source id is required.');
 		const blob = canonicalMediaContentBlob(input);
-		const previous = await this.getAssetMetadata(id);
-		throwIfAborted(signal);
-		if (previous) throw immutableMediaAssetError(id);
-		const sha256 = (await digestMediaContent(blob, { signal })).toLowerCase();
-		throwIfAborted(signal);
-		const provenance = freshVerifiedMediaContentDigest(sha256);
-		const storedFile = await this.#opfs.writeBlob(`media-${id}`, blob, { signal });
-		const record: StorageRecord = {
-			...binaryMetadata(metadata),
-			sourceId: id,
-			...provenance,
-			storage: storedFile ? 'opfs' : 'indexeddb-blob',
-			path: storedFile?.path,
-			blob: storedFile ? undefined : blob,
-			size: blob.size,
-			mimeType: String(metadata.mimeType || blob.type || ''),
-			name: String(metadata.name || fileField(input, 'name') || ''),
-			lastModified: nonNegativeInteger(metadata.lastModified ?? fileField(input, 'lastModified'), 0),
-			committedAt: new Date().toISOString(),
-			pendingProjectUntil: new Date(Date.now() + PENDING_SOURCE_RETENTION_MS).toISOString(),
-		};
+		const admission = new MediaAssetWriteAdmission(this.#assetLifecycle, signal);
+		let storedFile: { path: string } | null = null;
+		let published = false;
 		try {
+			const previous = await this.getAssetMetadata(id);
+			admission.throwIfCancelled();
+			if (previous) throw immutableMediaAssetError(id);
+			const sha256 = (await digestMediaContent(blob, { signal: admission.signal })).toLowerCase();
+			admission.throwIfCancelled();
+			const provenance = freshVerifiedMediaContentDigest(sha256);
+			storedFile = await this.#opfs.writeBlob(`media-${id}`, blob, { signal: admission.signal });
+			if (storedFile) admission.setIdentity({ path: storedFile.path });
+			admission.bindWriterAbort(async () => {
+				if (storedFile && !published) await this.#opfs.deletePath(storedFile.path);
+			});
+			admission.throwIfCancelled();
+			const record: StorageRecord = {
+				...binaryMetadata(metadata),
+				sourceId: id,
+				...provenance,
+				storage: storedFile ? 'opfs' : 'indexeddb-blob',
+				path: storedFile?.path,
+				blob: storedFile ? undefined : blob,
+				size: blob.size,
+				mimeType: String(metadata.mimeType || blob.type || ''),
+				name: String(metadata.name || fileField(input, 'name') || ''),
+				lastModified: nonNegativeInteger(metadata.lastModified ?? fileField(input, 'lastModified'), 0),
+				committedAt: new Date().toISOString(),
+				pendingProjectUntil: new Date(Date.now() + PENDING_SOURCE_RETENTION_MS).toISOString(),
+			};
 			const database = await this.#port.database();
-			throwIfAborted(signal);
-			await publishImmutableMediaAsset(this.#port, record, database, signal);
+			admission.throwIfCancelled();
+			await publishImmutableMediaAsset(this.#port, record, database, admission.signal);
+			published = true;
+			admission.complete();
+			return mediaAssetMetadata(record);
 		} catch (error) {
-			if (storedFile) await this.#opfs.deletePath(storedFile.path);
+			let cleanupError: unknown;
+			try {
+				if (storedFile) await this.#opfs.deletePath(storedFile.path);
+			} catch (failure) {
+				cleanupError = failure;
+			}
+			if (cleanupError !== undefined) {
+				admission.failCleanup(cleanupError);
+				throw new AggregateError(
+					[error, cleanupError], 'Media asset write and cleanup both failed.', { cause: error },
+				);
+			}
+			admission.complete();
 			throw error;
+		} finally {
+			admission.release();
 		}
-		return mediaAssetMetadata(record);
 	}
 
 	loadAsset(sourceId: string, options: MediaAssetLoadOptions = {}): Promise<BlobLike | null> {
