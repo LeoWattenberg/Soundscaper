@@ -428,6 +428,18 @@ test('an imported program is stored unreviewed and has no Run button until it is
 		assert.equal(fixture.scripts.list()[0]!.trust, 'imported-trusted');
 		assert.equal(fixture.buttonLabels().includes(MANAGER_COPY.runProgram), true);
 		assert.equal(fixture.review(), null);
+
+		await changeFile(fixture.importScriptInput(), new File([JSON.stringify({
+			schemaVersion: 1,
+			kind: 'script',
+			engine: 'soundscaper-macro-js/1',
+			name: 'Second program',
+			source: 'await sound.select.none();',
+		})], 'second.soundscapemacro'));
+		const secondReview = fixture.find('[role="checkbox"]');
+		assert.ok(secondReview, 'a second unreviewed program shows a fresh review gate');
+		assert.equal(secondReview.getAttribute('aria-checked'), 'false');
+		assert.equal(reactProps(fixture.button(MANAGER_COPY.enableProgram)).disabled, true);
 	} finally {
 		fixture.settlePending();
 		await fixture.cleanup();
