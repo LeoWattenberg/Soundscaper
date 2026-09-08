@@ -38,6 +38,47 @@ test('the EQ point drag cannot capture the Q lane that its XY gesture does not e
 	}
 });
 
+test('an automated EQ axis preserves and commits the other dragged axis', async () => {
+	const fixture = await mountedEq();
+	const released: Array<readonly [string, string, number]> = [];
+	const committed: Record<string, unknown>[] = [];
+	try {
+		await fixture.render({
+			captureAvailable(parameterId: string) { return parameterId === 'frequency'; },
+			begin() {},
+			preview() {},
+			release(parameterId: string, elementId: string, value: number) {
+				released.push([parameterId, elementId, value]);
+			},
+		}, () => undefined, (value) => { committed.push(value); });
+		let handle = fixture.dom.one('.audio-editor-parametric-eq__handle');
+		await act(async () => reactProps(handle).onPointerDown?.({
+			button: 0, clientX: 100, clientY: 100, pointerId: 2,
+			preventDefault() {}, stopPropagation() {},
+			currentTarget: { setPointerCapture() {} },
+		}));
+		handle = fixture.dom.one('.audio-editor-parametric-eq__handle');
+		await act(async () => reactProps(handle).onPointerMove?.({
+			clientX: 500, clientY: 40, shiftKey: false,
+			altKey: false, ctrlKey: false, metaKey: false,
+			currentTarget: handle,
+		}));
+		handle = fixture.dom.one('.audio-editor-parametric-eq__handle');
+		await act(async () => reactProps(handle).onPointerUp?.({
+			pointerId: 2, currentTarget: { releasePointerCapture() {} },
+		}));
+
+		assert.equal(released.length, 1);
+		assert.equal(released[0]?.[0], 'frequency');
+		assert.equal(committed.length, 1);
+		const bands = committed[0]?.bands as Array<Record<string, unknown>>;
+		assert.notEqual(bands[0]?.gain, 3);
+		assert.equal(bands[0]?.frequency, 1_000);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 test('keyboard focus alone does not begin an output-gain automation gesture', async () => {
 	const fixture = await mountedEq();
 	const calls: string[] = [];
@@ -81,7 +122,11 @@ async function mountedEq() {
 	const root = createRoot(dom.container as unknown as Element);
 	return {
 		dom,
-		render: async (parameterAutomation: Readonly<Record<string, unknown>>, onGestureBegin: () => void) => {
+		render: async (
+			parameterAutomation: Readonly<Record<string, unknown>>,
+			onGestureBegin: () => void,
+			onCommit?: (value: Record<string, unknown>) => void,
+		) => {
 			await act(async () => root.render(<ParametricEqEditor
 				params={{
 					outputGain: 0,
@@ -93,7 +138,7 @@ async function mountedEq() {
 				effectId="eq"
 				onGestureBegin={onGestureBegin}
 				onPreview={undefined}
-				onCommit={undefined}
+				onCommit={onCommit}
 				onCancel={undefined}
 				onAudition={undefined}
 				readSpectrum={undefined}

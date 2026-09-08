@@ -247,7 +247,10 @@ export function ParametricEqEditor({
 		if (drag.automationParameter) {
 			const value = latest.bands.find((band) => band.id === drag.bandId)?.[drag.automationParameter];
 			if (Number.isFinite(value)) parameterAutomation?.release(drag.automationParameter, drag.bandId, value);
-			setDraft(drag.start);
+			const released = normalizeParametricEqParams({ ...latest,
+				bands: latest.bands.map((band) => band.id === drag.bandId ? { ...band, [drag.automationParameter]: drag.startBand[drag.automationParameter] } : band),
+			}, effectId);
+			onGestureBegin?.(drag.start); commit(released);
 		} else commit(latest);
 	};
 
