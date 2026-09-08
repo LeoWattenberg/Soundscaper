@@ -61,6 +61,9 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 			durationFrames,
 		};
 		let params = normalizeAudioSelectionEffectParams(type, currentAudacityEffectParams());
+		const resolveFromFullSelection = type === 'audacity-amplify'
+			&& !state.audacityEffectTouchedParams.get(type)?.has('gainDb')
+			&& durationFrames < fullTarget.durationFrames;
 		if (definition.requiresNoiseProfile && !state.audacityNoiseProfile) throw new Error(copy.noiseProfileMissing);
 		if (definition.requiresControlTrack && !state.audacityControlTrackId) throw new Error(copy.autoDuckControlTrack);
 		const contextFrames = definition.preRollSeconds
@@ -69,7 +72,8 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 			? sampleRate
 			: definition.requiresContext ? 128 : 0;
 		const afterContextFrames = definition.preRollSeconds ? 0 : contextFrames;
-		const estimatedPeakBytes = estimateAudioSelectionEffectPeakBytes(type, durationFrames, params, {
+		const estimatedPeakBytes = estimateAudioSelectionEffectPeakBytes(type,
+			resolveFromFullSelection ? fullTarget.durationFrames : durationFrames, params, {
 			channelCount: target.channelCount,
 			controlChannelCount: definition.requiresControlTrack ? 2 : undefined,
 			sampleRate,
@@ -82,9 +86,14 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		setStatus(copy.audacityPreviewProcessing || copy.audacityProcessing);
 		publishDocumentSnapshot();
 		try {
+			const fullSelectionChannels = resolveFromFullSelection
+				? await renderDryTrackRange(fullTarget.track.id, fullTarget.startFrame, fullTarget.endFrame,
+					fullTarget.channelCount, fullTarget.clipIds)
+				: null;
+			requireCurrentPreview();
 			const channels = await renderDryTrackRange(target.track.id, target.startFrame, target.endFrame, target.channelCount, target.clipIds);
 			requireCurrentPreview();
-			params = resolveInteractiveAudacityParams(type, params, channels);
+			params = resolveInteractiveAudacityParams(type, params, fullSelectionChannels ?? channels);
 			if (type === 'eq') {
 				engine.pause();
 				const context = await engine.getAudioContext({ resume: true });
