@@ -284,7 +284,18 @@ globalThis.__macroBoot = (main) => {
 		globalThis.console = console;
 		try {
 			await main(createApi());
-			if (logDropped) log('warn', [`${logDropped} further messages were dropped.`]);
+			if (logDropped) {
+				post({
+					protocolVersion: 1,
+					type: 'log',
+					runId,
+					entries: [{
+						level: 'warn',
+						text: `${logDropped} further messages were dropped.`,
+						at: clock,
+					}],
+				});
+			}
 			post({ protocolVersion: 1, type: 'done', runId, calls: nextCallId });
 		} catch (error) {
 			post({

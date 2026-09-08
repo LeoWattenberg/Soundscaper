@@ -23,6 +23,7 @@ interface PostedMessage {
 	readonly callId?: number;
 	readonly method?: string;
 	readonly args?: readonly unknown[];
+	readonly entries?: readonly { readonly level: string; readonly text: string }[];
 }
 
 /**
@@ -30,7 +31,10 @@ interface PostedMessage {
  * compiled as one module under one filename, so every stack frame carries the
  * line the browser would report.
  */
-async function runMacroProgram(program: string): Promise<PostedMessage[]> {
+async function runMacroProgram(
+	program: string,
+	limits: Readonly<Record<string, number>> = {},
+): Promise<PostedMessage[]> {
 	const posted: PostedMessage[] = [];
 	const listeners = new Map<string, (event: unknown) => void>();
 	const context = vm.createContext({
@@ -49,7 +53,7 @@ async function runMacroProgram(program: string): Promise<PostedMessage[]> {
 	const booted = vm.runInContext('globalThis.__macroBoot()', context) as Promise<void>;
 	listeners.get('message')?.({
 		data: {
-			type: 'begin', runId: 'run-1', env: { seed: 'seed' }, limits: {},
+			type: 'begin', runId: 'run-1', env: { seed: 'seed' }, limits,
 		},
 	});
 	await booted;
@@ -99,6 +103,25 @@ test('a throw from the program\'s own helper reports a line the author wrote', a
 	assert.equal(failure.message, 'stop here');
 	const line = authorLine(failure.line);
 	assert.ok(line !== null && line >= 1 && line <= 3, `expected an author line, saw ${String(line)}`);
+});
+
+test('a dropped-log notice bypasses the exhausted macro log budget', async () => {
+	const posted = await runMacroProgram([
+		"sound.log.info('one');",
+		"sound.log.info('two');",
+		"sound.log.info('three');",
+		"sound.log.info('four');",
+		"sound.log.info('five');",
+	].join('\n'), { maxLogEntries: 3, maxLogBytes: 262_144 });
+	const logs = posted.filter(({ type }) => type === 'log');
+
+	assert.deepEqual(logs.flatMap(({ entries }) => entries?.map(({ text }) => text) ?? []), [
+		'one',
+		'two',
+		'three',
+		'2 further messages were dropped.',
+	]);
+	assert.ok(posted.indexOf(logs.at(-1)!) < posted.findIndex(({ type }) => type === 'done'));
 });
 
 test('an uncloneable editor call does not consume call or in-flight capacity', async () => {
