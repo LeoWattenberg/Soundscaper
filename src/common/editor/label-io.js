@@ -327,7 +327,7 @@ function normalizeLabels(labels, context) {
 			throw labelError('A label title exceeds the configured limit.', 'TITLE_LIMIT', { index, limit: context.maxTitleChars, actual: title.length });
 		}
 		return { ...label, startFrame, endFrame, title };
-	});
+	}).sort((left, right) => left.startFrame - right.startFrame || left.endFrame - right.endFrame);
 }
 
 function serializeTxt(labels, context) {
@@ -364,12 +364,10 @@ function serializeTimed(labels, context, format) {
 }
 
 function serializePodcastJson(labels, context) {
-	const chapters = [...labels]
-		.sort((left, right) => left.startFrame - right.startFrame)
-		.map((label) => ({
-			startTime: Math.round(label.startFrame / context.sampleRate * 1000) / 1000,
-			title: label.title,
-		}));
+	const chapters = labels.map((label) => ({
+		startTime: Math.round(label.startFrame / context.sampleRate * 1000) / 1000,
+		title: label.title,
+	}));
 	const text = `${JSON.stringify({ version: '1.2.0', chapters }, null, 2)}\n`
 		.replaceAll('\n', context.lineEnding);
 	return withEncodingOptions(text, context);

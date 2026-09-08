@@ -151,6 +151,20 @@ test('SubRip serialization uses millisecond rounding and round-trips ranges', ()
 	]);
 });
 
+test('timed serialization orders cues chronologically across input groups', () => {
+	const labels = [
+		{ id: 'later', title: 'Later', startFrame: 88_200, endFrame: 88_200 },
+		{ id: 'earlier', title: 'Earlier', startFrame: 0, endFrame: 44_100 },
+	];
+	for (const [serialize, parse] of [
+		[serializeSubRipLabels, parseSubRipLabels],
+		[serializeWebVttLabels, parseWebVttLabels],
+	]) {
+		assert.deepEqual(parse(serialize(labels, { sampleRate: 44_100 })).labels
+			.map(({ title }) => title), ['Earlier', 'Later']);
+	}
+});
+
 test('timed serialization gives an unnamed label a distinct cue payload line', () => {
 	const labels = [
 		{ id: 'empty', title: '', startFrame: 0, endFrame: 1_000 },
