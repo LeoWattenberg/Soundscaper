@@ -226,6 +226,15 @@ test('repeating a rate change is idempotent and a commensurable round trip resto
 	assert.equal(validateCurrentAudioEditorProject(restored), true);
 });
 
+test('current projects reject duplicate media kinds within one Project Bin item', () => {
+	const valid = project();
+	const binVideo = valid.projectBin.clips.find(({ id }) => id === 'bin-video')!;
+	assert.throws(() => validateCurrentAudioEditorProject({
+		...valid,
+		projectBin: { clips: [...valid.projectBin.clips, { ...binVideo, id: 'bin-video-2' }] },
+	}), /at most one audio and one video clip/iu);
+});
+
 function project(): ReturnType<typeof createCurrentAudioEditorProject> {
 	const video = createVideoSource({
 		id: 'video-source', frameCount: SAMPLE_RATE, sampleRate: SAMPLE_RATE,

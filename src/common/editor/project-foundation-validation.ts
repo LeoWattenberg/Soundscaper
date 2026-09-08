@@ -132,8 +132,13 @@ function validateFoundationBinItems(project: ProjectDataRecord, clips: readonly 
 		byItem.set(id, entries);
 	}
 	for (const [id, entries] of byItem) {
-		const audio = entries.find(({ kind }) => kind === 'audio');
-		const video = entries.find(({ kind }) => kind === 'video');
+		const audioClips = entries.filter(({ kind }) => kind === 'audio');
+		const videoClips = entries.filter(({ kind }) => kind === 'video');
+		if (entries.length > 2 || audioClips.length > 1 || videoClips.length > 1) {
+			throw new RangeError(`Project Bin item ${id} can contain at most one audio and one video clip.`);
+		}
+		const audio = audioClips[0];
+		const video = videoClips[0];
 		if (!audio || !video) continue;
 		if (audio.musicalExtent !== 'fixedSamples') {
 			throw new RangeError(`Project Bin item ${id} audio must use a fixed-sample extent to retain video duration.`);
