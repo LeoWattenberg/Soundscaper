@@ -313,6 +313,22 @@ test('the workspace routes a share through the import a launch and a drop alread
 	assert.deepEqual(workspace.errors, []);
 });
 
+test('the workspace surfaces a share collection refusal', async (t) => {
+	const workspace = await mountedWorkspace({
+		collect: ({ onError }) => {
+			onError(new Error('The files were larger than a share may carry.'));
+			return { status: 'refused', files: [] };
+		},
+	});
+	t.after(workspace.cleanup);
+
+	await workspace.mount();
+	await workspace.settle();
+
+	assert.equal(workspace.errors.length, 1);
+	assert.match(String((workspace.errors[0] as Error).message), /larger than a share may carry/u);
+});
+
 test('a desktop workspace still asks, and is answered, without a share', async (t) => {
 	const workspace = await mountedWorkspace({ desktop: true, collect: () => undefined });
 	t.after(workspace.cleanup);
@@ -331,7 +347,10 @@ function LaunchedFileImportsHarness(input: LaunchedFileImportsInput): null {
 
 /** A mounted stand-in for the workspace: the hook, its routed import and its error sink. */
 async function mountedWorkspace(options: Readonly<{
-	collect: (options: Readonly<{ desktop: boolean }>) => unknown;
+	collect: (options: Readonly<{
+		desktop: boolean;
+		onError: (error: unknown) => void;
+	}>) => unknown;
 	desktop?: boolean;
 }>) {
 	const dom = installReactTestDom();
@@ -357,7 +376,7 @@ async function mountedWorkspace(options: Readonly<{
 					onError: (error: unknown) => { errors.push(error); },
 					desktop: options.desktop ?? false,
 					claim: () => undefined,
-					collect: (input: Readonly<{ desktop: boolean }>) => {
+					collect: (input) => {
 						collects.push(input.desktop);
 						return options.collect(input);
 					},

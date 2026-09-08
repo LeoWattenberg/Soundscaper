@@ -44,7 +44,10 @@ export interface LaunchedFileImportsInput {
 	/** Injectable for tests; claims the browser launch queue otherwise. */
 	readonly claim?: (options: Readonly<{ desktop: boolean }>) => unknown;
 	/** Injectable for tests; collects the share sheet's stashed files otherwise. */
-	readonly collect?: (options: Readonly<{ desktop: boolean }>) => unknown;
+	readonly collect?: (options: Readonly<{
+		desktop: boolean;
+		onError: (error: unknown) => void;
+	}>) => unknown;
 }
 
 export function useLaunchedFileImports({
@@ -69,7 +72,7 @@ export function useLaunchedFileImports({
 		// before the first collection reads a byte, so a remount finds nothing
 		// left to replay. The files land in the same buffer a launch does, which
 		// is drained by the subscription installed just below.
-		void Promise.resolve(collect({ desktop })).catch(onError);
+		void Promise.resolve(collect({ desktop, onError })).catch(onError);
 		const unsubscribe = subscribe(async (launch: LaunchedFiles) => {
 			const files = [...(launch?.files ?? [])];
 			if (files.length === 0) return;
