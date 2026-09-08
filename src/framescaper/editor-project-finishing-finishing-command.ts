@@ -152,6 +152,16 @@ export function isFramescaperOwnedFinishingCommandTypeFinishing(type: string): b
 	return TYPES.has(type);
 }
 
+export function equalFramescaperOwnedFinishingCollectionValues(
+	type: string,
+	left: unknown,
+	right: unknown,
+): boolean {
+	const commandSpec = COLLECTION_SPECS[type as CollectionCommandType];
+	if (!commandSpec) throw new RangeError('A Framescaper finishing collection command type is required.');
+	return same(optionalNormalized(left, commandSpec), optionalNormalized(right, commandSpec));
+}
+
 export function snapshotFramescaperOwnedFinishingCommandFinishing(
 	value: unknown,
 ): FramescaperOwnedFinishingCommandFinishing {

@@ -13,6 +13,7 @@ import {
 	readProjectSchemaIdentity,
 } from '../project-schema-identity.ts';
 import {
+	equalFramescaperOwnedFinishingCollectionValues,
 	snapshotFramescaperOwnedFinishingCommand,
 	type FramescaperOwnedFinishingCommand,
 } from '../../../framescaper/editor-project-finishing-finishing-command.ts';
@@ -248,7 +249,7 @@ function collectionCommands(
 	return ids.flatMap((id) => {
 		const expected = current.get(id) ?? null;
 		const replacement = draft.get(id) ?? null;
-		if (same(expected, replacement)) return [];
+		if (equalFramescaperOwnedFinishingCollectionValues(entry.type, expected, replacement)) return [];
 		return [snapshotFramescaperOwnedFinishingCommand({
 			type: entry.type,
 			[entry.idField]: id,
@@ -320,10 +321,6 @@ function projectRecord(value: unknown): Record<string, unknown> {
 function positiveInteger(value: unknown, name: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 1) throw new RangeError(`${name} must be positive.`);
 	return Number(value);
-}
-
-function same(left: unknown, right: unknown): boolean {
-	return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function record(value: unknown, name: string): Record<string, unknown> {
