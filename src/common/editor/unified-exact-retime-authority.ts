@@ -133,7 +133,7 @@ function assertRetimeAuthority(
 			endOutputFrame: videoRetimeExportOutputBoundary(activeEnd, cadence),
 		}, clipStartSample, clipEndSample, deferredRows)
 		: curveRows(clip, cadence, activeStart, activeEnd, topologyIntervalIndex, context, deferredRows);
-	if (expected.rows.length < 1 || expected.rows.length !== intent.intersections.length) {
+	if (expected.rows.length !== intent.intersections.length) {
 		throw new RangeError('Unified retime intersections do not exactly cover their active ordinal authority.');
 	}
 	for (let index = 0; index < expected.rows.length; index += 1) {
