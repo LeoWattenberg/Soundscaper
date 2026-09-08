@@ -22,6 +22,10 @@ test('only selected V28 encoded and image-sequence exports can require renderer 
 	assert.equal(nativeQueueRecordRequiresRendererCarrier(imageSequence), true);
 	assert.equal(nativeQueueRecordRequiresRendererCarrier(proxy), false,
 		'a rich project plan does not turn original-source proxy work into a carrier consumer');
+	const refusedPlan = Object.freeze({ ...encoded, planPayload: '{}' });
+	assert.doesNotThrow(() => nativeQueueRecordRequiresRendererCarrier(refusedPlan));
+	assert.equal(nativeQueueRecordRequiresRendererCarrier(refusedPlan), false,
+		'cleanup classification is total even after plan admission has refused a row');
 });
 
 test('running carrier pause is atomic and generic resume/retry cannot consume an absent stage', () => {

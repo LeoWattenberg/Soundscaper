@@ -12,6 +12,8 @@ import {
 	type NativeQueueCapacityV1,
 } from '../src/common/editor/native-queue-admission.ts';
 import { fingerprintNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
+import { assertUnifiedExactRenderPlanWithDeferredTimingReferences } from
+	'../src/common/editor/unified-exact-render-plan.ts';
 import type { FramescaperNativeServicesLease } from './native-services-database.ts';
 import type {
 	NativeMediaHelperPoolJobKind,
@@ -252,13 +254,14 @@ export class FramescaperNativeMediaQueueDispatcherV3 {
 				try { await prepared.cleanup(outcome); settled = true; }
 				catch (error) { this.#options.onError?.(error, record); }
 			}
-			const durable = this.#options.queue.read(record.jobId);
-			if (!settled && outcome !== 'succeeded' && durable?.state !== 'needs-authorization'
-				&& recordRequiresCarrier(record)
-				&& this.#options.removeInactiveCarrier) {
-				try { await this.#options.removeInactiveCarrier(record); }
-				catch (error) { this.#options.onError?.(error, record); }
-			}
+			try {
+				const durable = this.#options.queue.read(record.jobId);
+				if (!settled && outcome !== 'succeeded' && durable?.state !== 'needs-authorization'
+					&& recordRequiresCarrier(record)
+					&& this.#options.removeInactiveCarrier) {
+					await this.#options.removeInactiveCarrier(record);
+				}
+			} catch (error) { this.#options.onError?.(error, record); }
 		}
 	}
 
@@ -317,9 +320,14 @@ function assertQueuePlan(record: NativeQueueRecordV3): void {
 		|| fingerprint.sha256 !== record.planFingerprint || fingerprint.canonical !== record.planPayload) {
 		throw new Error('A queued native media plan no longer matches its exact durable fingerprint.');
 	}
-	const envelope = createNativeMediaPlanEnvelopeV2(plan);
-	if (envelope.planVersion !== 14 || envelope.fingerprint !== record.planFingerprint) {
-		throw new Error('Selected native queue V3 dispatch requires exact envelope V2 plan V14.');
+	try {
+		const envelope = createNativeMediaPlanEnvelopeV2(plan);
+		if (envelope.planVersion !== 14 || envelope.fingerprint !== record.planFingerprint) {
+			throw new Error('Selected native queue V3 dispatch requires exact envelope V2 plan V14.');
+		}
+	} catch (error) {
+		assertUnifiedExactRenderPlanWithDeferredTimingReferences(plan);
+		if (plan.version !== 14) throw error;
 	}
 }
 

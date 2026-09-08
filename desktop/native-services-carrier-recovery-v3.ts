@@ -6,6 +6,8 @@ import { createNativeMediaPlanEnvelopeV2 } from '../src/common/editor/native-med
 import { nativeMediaV14RequiresEvaluatedCarrier } from '../src/common/editor/native-media-v14-render-family.ts';
 import type { NativeQueueRecordV3 } from '../src/common/editor/native-queue-record-v3.ts';
 import type { NativeQueueTransitionV1 } from '../src/common/editor/native-queue-state-machine.ts';
+import { assertUnifiedExactRenderPlanWithDeferredTimingReferences } from
+	'../src/common/editor/unified-exact-render-plan.ts';
 
 export const FRAMESCAPER_NATIVE_QUEUE_RENDERER_ACTIONS = Object.freeze([
 	'pause', 'resume', 'cancel', 'retry',
@@ -17,8 +19,18 @@ export type FramescaperNativeQueueRendererAction =
 export function nativeQueueRecordRequiresRendererCarrier(record: NativeQueueRecordV3): boolean {
 	if ((record.taskKind !== 'encoded-export' && record.taskKind !== 'image-sequence-export')
 		|| record.planVersion !== 14) return false;
-	const envelope = createNativeMediaPlanEnvelopeV2(JSON.parse(record.planPayload) as unknown);
-	return envelope.planVersion === 14 && nativeMediaV14RequiresEvaluatedCarrier(envelope.plan);
+	try {
+		const plan = JSON.parse(record.planPayload) as unknown;
+		try {
+			const envelope = createNativeMediaPlanEnvelopeV2(plan);
+			return envelope.planVersion === 14 && nativeMediaV14RequiresEvaluatedCarrier(envelope.plan);
+		} catch {
+			assertUnifiedExactRenderPlanWithDeferredTimingReferences(plan);
+			return plan.version === 14 && nativeMediaV14RequiresEvaluatedCarrier(plan);
+		}
+	} catch {
+		return false;
+	}
 }
 
 export function framescaperNativeQueueControlTransitionV3(
