@@ -266,6 +266,16 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 		evidence: 'Shared exact and legacy video export range authority resolves project duration and authored selection or loop state from one runtime projection.',
 	},
 	{
+		id: 'video-caption-cues',
+		surface: 'video-export',
+		file: 'src/common/editor/video-caption-cues.ts',
+		entryPoint: 'resolveVideoCaptionCues',
+		inputIdentifier: 'project',
+		projectedIdentifier: null,
+		boundary: 'ensureRuntimeProject',
+		evidence: 'Caption delivery resolves the folder-media project before reading label coordinates, so musical annotations are clipped and rebased from runtime frame authority.',
+	},
+	{
 		id: 'offline-keyframe-video-export-assembly',
 		surface: 'video-export',
 		file: 'src/common/editor/ui/video-keyframe-offline-video-export.ts',

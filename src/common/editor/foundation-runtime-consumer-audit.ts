@@ -67,6 +67,13 @@ export const FOUNDATION_RUNTIME_PROJECTION_BOUNDARIES: readonly FoundationRuntim
 		guardsBrand: true,
 	},
 	{
+		boundary: 'ensureRuntimeProject',
+		file: 'src/common/editor/video-caption-cues.ts',
+		root: false,
+		delegate: 'resolveRuntimeProjectProjection',
+		guardsBrand: true,
+	},
+	{
 		boundary: 'createVideoKeyframeExportInventory',
 		file: 'src/common/editor/video-keyframe-export-inventory.ts',
 		root: false,
@@ -114,6 +121,7 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/controller/effect-audio-service.ts', surfaces: ['audio-export'] },
 	{ file: 'src/common/editor/controller/nyquist-generated-audio-service.ts', surfaces: ['composition'] },
 	{ file: 'src/common/editor/video-export.js', surfaces: ['video-export'] },
+	{ file: 'src/common/editor/video-caption-cues.ts', surfaces: ['video-export'] },
 	{ file: 'src/common/editor/video-keyframe-export-inventory.ts', surfaces: ['video-export'] },
 	{ file: 'src/common/editor/ui/video-keyframe-offline-video-export.ts', surfaces: ['video-export'] },
 	{ file: 'src/common/editor/video-timeline.js', surfaces: ['preview', 'composition', 'transition', 'navigation'] },
@@ -144,6 +152,10 @@ export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRun
 
 /** Non-shield importers discovered beside the owned consumer and boundary files. */
 export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly FoundationRuntimeProjectionImporterExclusion[] = deepFreeze([
+	{
+		file: 'src/common/editor/video-keyframe-export-frame-source.ts',
+		reason: 'The immutable export snapshot preserves an existing runtime-projection brand after inheriting exact folder media state; projection and timing consumption remain owned by the upstream keyed-export inventory.',
+	},
 	{ file: 'src/common/editor/controller/controller-options.ts', reason: 'Controller options use type-only projection imports to declare selected product consumer ports; this module executes no timing reads.' },
 	{ file: 'src/common/editor/controller/project-bin-types.ts', reason: 'The bin declares authored clip and project input ports through type-only imports; it does not read transient clip coordinates.' },
 	{
