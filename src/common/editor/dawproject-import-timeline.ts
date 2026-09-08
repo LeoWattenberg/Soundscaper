@@ -348,7 +348,10 @@ function visitWarps(
 	let end = window.end;
 	if (end === null) {
 		const fileDuration = numberAttribute(content, 'duration');
-		const localEnd = fileDuration === null ? localStart : warpInverse(warps, contentUnit === 'seconds' ? fileDuration : fileDuration);
+		const contentDuration = fileDuration === null || contentUnit === 'seconds' ? fileDuration
+			: resolver.beatAtFrame(warpScope.originFrame + Math.round(fileDuration * resolver.sampleRate))
+				- warpScope.originBeat;
+		const localEnd = contentDuration === null ? localStart : warpInverse(warps, contentDuration);
 		end = Math.max(window.start + 1, frameOf(warpScope, localEnd, resolver));
 	}
 	const localEnd = localTimeOf(warpScope, end, resolver);

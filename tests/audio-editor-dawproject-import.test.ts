@@ -197,6 +197,13 @@ test('seconds-valued audio keeps a seconds source offset inside a beats clip', (
 	assert.equal((plan.project.clips as Array<{ sourceStartFrame: number }>)[0]?.sourceStartFrame, 44_100);
 });
 
+test('open-ended beats-content warps convert the audio duration to beats', () => {
+	const plan = importBeatTimeline(`<Clip time="0"><Warps timeUnit="beats" contentTimeUnit="beats">
+<Audio duration="4" channels="1" sampleRate="44100"><File path="audio/a.wav"/></Audio>
+<Warp time="0" contentTime="0"/><Warp time="8" contentTime="4"/></Warps></Clip>`);
+	assert.equal((plan.project.clips as Array<{ durationFrames: number }>)[0]?.durationFrames, 352_800);
+});
+
 test('channels become tracks with gain, pan, mute and solo, and the notes track is reported not imported', () => {
 	const plan = importBitwig();
 	const tracks = plan.project.tracks as Record<string, unknown>[];
