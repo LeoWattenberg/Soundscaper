@@ -31,6 +31,15 @@ test('the nightly runtime carries the browser-native container fixture dependenc
 	assert.equal(staged.has('mediabunny'), true);
 });
 
+test('the nightly payload carries the data file its release-line reader opens at runtime', async () => {
+	const input = 'config/product-release-lines.json';
+	assert.ok(isStagedInput(input), `NIGHTLY_TEST_PAYLOAD_INPUTS is missing ${input}`);
+	const packaged = packagedPathOf(input);
+	const filter = await readPackagedPayloadFilter();
+	assert.ok(packaged !== null && filter.some(pattern => matchesGlob(packaged, pattern)),
+		'the nightly-tests extraResources filter must retain the release-line data');
+});
+
 test('the nightly test payload satisfies every import its browser specs reach', async () => {
 	const browserTests = (await collectTestFiles(BROWSER_TESTS))
 		.filter((path) => isStagedInput(relative(REPOSITORY_ROOT, path)));

@@ -1,13 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 
 import {
 	DOCUMENTATION_BASE_URL,
 	HANDBOOK_LANGUAGES,
 	documentationUrl,
 } from '../src/common/editor/documentation-links.ts';
-import { handbookLocaleSegment, handbookTranslationLocales } from '../scripts/lib/handbook-locales.mjs';
+import { handbookLocaleForPath, handbookLocaleSegment } from '../scripts/lib/handbook-locales.mjs';
 import { handbookPlan } from '../scripts/lib/product-web-routing.mjs';
+import { COMMITTED_LOCALE_TAGS } from '../src/common/i18n/locales.js';
 
 test('documentation links route each product to its own manual and first-project guide', () => {
 	assert.equal(DOCUMENTATION_BASE_URL, 'https://soundscaper.org/docs');
@@ -40,13 +42,22 @@ test('documentation links reject unknown products and destinations', () => {
 });
 
 /**
- * The handbook publishes a language by having a directory of pages for it, and
+ * The handbook publishes a language by including a directory of pages for it, and
  * a link into a language it does not publish is a 404 rather than a fallback.
  * The editor cannot read the content tree, so it carries the list; this is what
  * stops a language being published without the editor learning to link into it.
  */
 test('the editor knows exactly the languages the handbook publishes', () => {
-	assert.deepEqual([...HANDBOOK_LANGUAGES], handbookTranslationLocales().map(handbookLocaleSegment));
+	// The index includes staged additions, but excludes translation drafts that
+	// are not part of the checkout CI builds and publishes. Never register links
+	// to untracked drafts: a clean checkout would ship those links without pages.
+	const prefix = 'handbook/src/content/docs/';
+	const files = execFileSync('git', ['ls-files', '--cached', '-z', '--', prefix], {
+		cwd: new URL('..', import.meta.url), encoding: 'utf8',
+	}).split('\0').filter(Boolean);
+	const published = new Set(files.map(path => handbookLocaleForPath(path.slice(prefix.length))));
+	const locales = COMMITTED_LOCALE_TAGS.filter(locale => locale !== 'en' && published.has(locale));
+	assert.deepEqual([...HANDBOOK_LANGUAGES], locales.map(handbookLocaleSegment));
 });
 
 test('a reader is taken to the handbook in the language they are reading', () => {

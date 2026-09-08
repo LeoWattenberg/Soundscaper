@@ -69,6 +69,8 @@ export async function createFixture(context) {
 		['scripts/lib/strict-json-snapshot.mjs', 'export const snapshot = true;\n'],
 		['scripts/lib/browser-coverage-profile.mjs', 'export const browserCoverage = true;\n'],
 		['scripts/lib/browser-product-site-plan.mjs', 'export const sitePlan = true;\n'],
+		['scripts/lib/product-release-lines.mjs', await readFile(new URL('../../scripts/lib/product-release-lines.mjs', import.meta.url), 'utf8')],
+		['config/product-release-lines.json', await readFile(new URL('../../config/product-release-lines.json', import.meta.url), 'utf8')],
 		['scripts/lib/build-source-map-relocation.mjs', 'export const relocation = true;\n'],
 		['.wrangler/browser-products/soundscaper/en/index.html', '<p>Soundscaper fixture</p>'],
 		['.wrangler/browser-products/framescaper/en/index.html', '<p>Framescaper fixture</p>'],

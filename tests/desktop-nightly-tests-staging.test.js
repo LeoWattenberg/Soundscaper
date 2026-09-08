@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { access, lstat, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 
 import { prepareDesktopNightlyTests } from '../scripts/desktop-nightly-tests-prepare.mjs';
@@ -60,6 +61,11 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 	});
 
 	assert.equal(result.outputRoot, fixture.outputRoot);
+	const releaseReader = await import(pathToFileURL(join(fixture.outputRoot, 'scripts/lib/product-release-lines.mjs')).href);
+	const releaseLines = await readJson(join(fixture.outputRoot, 'config/product-release-lines.json'));
+	const soundscaper = releaseLines.products.soundscaper;
+	assert.equal(releaseReader.resolveProductApplicationVersion('soundscaper'),
+		soundscaper[soundscaper.applicationVersionChannel].version);
 	assert.deepEqual(NIGHTLY_TEST_RUNTIME_PACKAGE_ROOTS, [
 		'@axe-core/playwright',
 		'@echogarden/pffft-wasm',

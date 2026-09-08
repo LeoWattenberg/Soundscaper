@@ -77,6 +77,8 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	// run records anything — an unresolved import here would abort the suite.
 	{ source: 'scripts/lib/browser-coverage-profile.mjs', destination: 'scripts/lib/browser-coverage-profile.mjs', kind: 'file', label: 'browser coverage profile writer' },
 	{ source: 'scripts/lib/browser-product-site-plan.mjs', destination: 'scripts/lib/browser-product-site-plan.mjs', kind: 'file', label: 'browser product site plan' },
+	{ source: 'scripts/lib/product-release-lines.mjs', destination: 'scripts/lib/product-release-lines.mjs', kind: 'file', label: 'product release-line reader' },
+	{ source: 'config/product-release-lines.json', destination: 'config/product-release-lines.json', kind: 'file', label: 'product release lines' },
 	{ source: 'scripts/lib/build-source-map-relocation.mjs', destination: 'scripts/lib/build-source-map-relocation.mjs', kind: 'file', label: 'build source-map relocation' },
 	{ source: 'config/accessibility-wcag-baseline.json', destination: 'config/accessibility-wcag-baseline.json', kind: 'file', label: 'WCAG 2.2 AA baseline' },
 	{ source: 'config/quality-budgets.json', destination: 'config/quality-budgets.json', kind: 'file', label: 'quality budget register' },
@@ -452,4 +454,3 @@ function normalizeTargetValue(value, label) {
 function assertPackageName(name) {
 	if (typeof name !== 'string' || !PACKAGE_NAME.test(name)) throw new Error(`Unsafe runtime package name: ${String(name)}`);
 }
-
