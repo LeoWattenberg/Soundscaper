@@ -14,6 +14,7 @@ import {
 	normalizeFramescaperSessionClipboardV11,
 	prepareFramescaperFinishingClipboardPasteV11,
 } from '../src/framescaper/editor-session-clipboard-v11.ts';
+import { selectFramescaperClipboardGraphV11 } from '../src/framescaper/editor-session-clipboard-v11-selection.ts';
 import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 type Data = Record<string, unknown>;
@@ -237,6 +238,34 @@ test('a finishing-only copy accepts the multicamera origin the session wrapper r
 	assert.equal(fragment.originProjectId, multicamera.id);
 	assert.deepEqual(fragment.captionTracks, []);
 	assert.deepEqual(fragment.finishingPresets, []);
+});
+
+test('a V11 selection closes generator sources before selecting their presentations', () => {
+	const clip = {
+		kind: 'generator', id: 'outer-clip', sourceId: 'outer',
+	};
+	const selection = selectFramescaperClipboardGraphV11({
+		tracks: [{ id: 'video-track', clipIds: ['outer-clip'] }],
+		clips: [clip],
+		sources: [
+		{ kind: 'generator', id: 'outer', generator: {
+			kind: 'external-generator', bindingId: 'binding',
+			inputs: [{ name: 'input', sourceRef: 'inner' }],
+		} },
+		{ kind: 'generator', id: 'inner', generator: { kind: 'solid' } },
+		],
+		videoVisualPresentations: [presentation('inner-presentation', { kind: 'generator', id: 'inner' }, {
+			opacity: 0.4, processorStackId: 'inner-stack',
+		})],
+		videoMaskMattes: [],
+		videoProcessorStacks: [{ id: 'inner-stack', sourceId: 'inner', processors: [] }],
+		videoMotionAnalyses: [], videoFreezeFallbacks: [], videoColorContexts: [],
+		videoSourceColorInterpretations: [],
+	} as never, descriptor({ sampleRate: 48_000, clips: [clip] }) as never);
+
+	assert.deepEqual(selection.visual.sources.map(({ id }) => id), ['outer', 'inner']);
+	assert.deepEqual(selection.visualPresentations.map(({ id }) => id), ['inner-presentation']);
+	assert.deepEqual(selection.processorStacks.map(({ id }) => id), ['inner-stack']);
 });
 
 test('a session clipboard refuses a profile the finishing runtime does not admit', () => {

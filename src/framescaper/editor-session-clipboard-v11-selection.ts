@@ -72,18 +72,26 @@ export function selectFramescaperClipboardGraphV11(
 	for (const clip of clips) {
 		if (selectedClipIds.has(id(clip, 'clip'))) selectedSourceIds.add(idRef(clip.sourceId, 'clip source'));
 	}
-	const presentations = selectPresentations(project.videoVisualPresentations, selectedClipIds, selectedSourceIds);
-	const maskIds = new Set(presentations.flatMap(({ maskMatteIds }) => maskMatteIds));
-	const masks = (project.videoMaskMattes as readonly VideoMaskMatteGraphV1[])
-		.filter(({ id: maskId }) => maskIds.has(maskId));
-	for (const mask of masks) for (const input of mask.inputs) selectedSourceIds.add(input.sourceRef);
-	const stackIds = new Set(presentations.flatMap(({ processorStackId }) => (
-		processorStackId === null ? [] : [processorStackId]
-	)));
-	const stacks = project.videoProcessorStacks.filter(({ id: stackId }) => stackIds.has(stackId));
-	for (const stack of stacks) selectedSourceIds.add(stack.sourceId);
-	closeVisualGeneratorSources(sourceById, selectedSourceIds);
+	let presentations: readonly VideoVisualPresentationV1[] = [];
+	let masks: readonly VideoMaskMatteGraphV1[] = [];
+	let stacks: readonly VideoProcessorStackV1[] = [];
+	let previousSourceCount = -1;
+	while (previousSourceCount !== selectedSourceIds.size) {
+		previousSourceCount = selectedSourceIds.size;
+		closeVisualGeneratorSources(sourceById, selectedSourceIds);
+		presentations = selectPresentations(project.videoVisualPresentations, selectedClipIds, selectedSourceIds);
+		const maskIds = new Set(presentations.flatMap(({ maskMatteIds }) => maskMatteIds));
+		masks = (project.videoMaskMattes as readonly VideoMaskMatteGraphV1[])
+			.filter(({ id: maskId }) => maskIds.has(maskId));
+		for (const mask of masks) for (const input of mask.inputs) selectedSourceIds.add(input.sourceRef);
+		const stackIds = new Set(presentations.flatMap(({ processorStackId }) => (
+			processorStackId === null ? [] : [processorStackId]
+		)));
+		stacks = project.videoProcessorStacks.filter(({ id: stackId }) => stackIds.has(stackId));
+		for (const stack of stacks) selectedSourceIds.add(stack.sourceId);
+	}
 	assertTransportableSourceClosure(sourceById, selectedSourceIds, descriptor);
+	const stackIds = new Set(stacks.map(({ id: stackId }) => stackId));
 	const analyses = project.videoMotionAnalyses.filter(({ processorStackId }) => stackIds.has(processorStackId));
 	const visualSources = sources.filter((source): source is DataRecord & VisualSource => (
 		selectedSourceIds.has(id(source, 'source')) && isVisual(source)
