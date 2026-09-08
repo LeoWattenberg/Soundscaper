@@ -66,29 +66,23 @@ export function resolveExportLoudnessNormalization(options, { mode, admMetadata,
 }
 
 export function selectExportOfflineRenderAdmission({
-	project, mode, outputs, range, tailFrames, channelCount,
+	project, mode, outputs, range, chapters, tailFrames, channelCount,
 }) {
-	const common = {
-		project,
-		rangeStartFrame: range.startFrame,
-		requestedRenderFrames: Math.max(1, range.durationFrames + tailFrames),
-		...(channelCount == null ? {} : { channelCount }),
-	};
+	const ranges = mode === 'chapters' && chapters?.length ? chapters : [range];
 	const targets = deliversMasterMix(mode)
 		? [{ trackId: null, includeMaster: true }]
 		: outputs.map(({ trackId }) => ({ trackId, includeMaster: false }));
-	return targets.reduce((selected, target) => {
-		const candidate = planExportOfflineRenderStrategyAdmission({ ...common, ...target });
-		return selected == null || candidate.peakUsefulBinaryBytes > selected.peakUsefulBinaryBytes
-			? candidate
-			: selected;
-	}, null);
-}
-
-/** The chapter whose own render is the largest one this delivery performs. */
-export function longestChapterRange(chapters) {
-	return chapters.reduce(
-		(longest, chapter) => (chapter.durationFrames > longest.durationFrames ? chapter : longest),
-		chapters[0],
-	);
+	return ranges.flatMap((renderRange) => targets.map((target) => ({ renderRange, target })))
+		.reduce((selected, { renderRange, target }) => {
+			const candidate = planExportOfflineRenderStrategyAdmission({
+				project,
+				rangeStartFrame: renderRange.startFrame,
+				requestedRenderFrames: Math.max(1, renderRange.durationFrames + tailFrames),
+				...(channelCount == null ? {} : { channelCount }),
+				...target,
+			});
+			return selected == null || candidate.peakUsefulBinaryBytes > selected.peakUsefulBinaryBytes
+				? candidate
+				: selected;
+		}, null);
 }

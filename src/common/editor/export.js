@@ -27,7 +27,6 @@ import { resolveMasteringSequenceExport } from './mastering-sequence-export.ts';
 import {
 	assertSoundscaperEffectChannelSafety,
 	deliversMasterMix,
-	longestChapterRange,
 	resolveExportLoudnessNormalization,
 	selectExportOfflineRenderAdmission,
 } from './export-plan-admission.js';
@@ -373,9 +372,8 @@ export function createExportPlan(project, options = {}) {
 				outputs,
 				range: masteringSequence
 					? { startFrame: masteringSequence.sourceRange.startFrame, durationFrames: masteringSequence.longestRenderFrames }
-					: chapters
-						? longestChapterRange(chapters)
-						: range,
+					: range,
+				chapters,
 				tailFrames,
 				channelCount: adm?.channelCount,
 			}),

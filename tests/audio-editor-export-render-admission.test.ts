@@ -9,6 +9,7 @@ import {
 import {
 	planExportOfflineRenderStrategyAdmission,
 } from '../src/common/editor/export-render-admission.ts';
+import { selectExportOfflineRenderAdmission } from '../src/common/editor/export-plan-admission.js';
 
 const MIB = 1024 * 1024;
 
@@ -65,6 +66,30 @@ test('export strategy admission charges pre-roll and graph-latency crop coexiste
 	assert.equal(result.outputAdmission?.contextOutput.bytes, 9_344);
 	assert.equal(result.outputAdmission?.cropOutput.bytes, 960);
 	assert.equal(result.peakUsefulBinaryBytes, 10_304);
+});
+
+test('chapter export admission selects the largest modeled render working set', () => {
+	const chapters = [
+		{ startFrame: 0, endFrame: 1_000, durationFrames: 1_000 },
+		{ startFrame: 500, endFrame: 1_400, durationFrames: 900 },
+	];
+	const selected = selectExportOfflineRenderAdmission({
+		project: projectFixture(),
+		mode: 'chapters',
+		outputs: [],
+		range: chapters[0],
+		chapters,
+		tailFrames: 0,
+		channelCount: undefined,
+	});
+	const expected = planExportOfflineRenderStrategyAdmission({
+		project: projectFixture(),
+		rangeStartFrame: chapters[1].startFrame,
+		requestedRenderFrames: chapters[1].durationFrames,
+	});
+
+	assert.equal(selected?.peakUsefulBinaryBytes, expected.peakUsefulBinaryBytes);
+	assert.equal(selected?.geometry.captureOffsetFrames, 500);
 });
 
 test('export strategy admission clamps pre-roll to the engine audio duration', () => {
