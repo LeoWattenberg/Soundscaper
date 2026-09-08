@@ -126,6 +126,7 @@ test('video track keeps an image clip visible at its drag-preview position', () 
 			sampleRate={48_000}
 			timelineWidth={500}
 			verticalRulerWidth={0}
+			timeSelection={null}
 			rangeSelected={false}
 			selectedTrackId={null}
 			selectedClipId={null}
@@ -137,9 +138,10 @@ test('video track keeps an image clip visible at its drag-preview position', () 
 				timelineStartFrame: 48_000,
 				previews: [{ clipId: clip.id, trackId: 'video-track', timelineStartFrame: 48_000 }],
 			}}
+			projectBinDragPreview={null}
 			blocked={false}
 			copy={{ trackMenu: 'Track menu', editTarget: 'Target' }}
-			run={(action) => action()}
+			run={(action: () => unknown) => action()}
 			onMenu={() => undefined}
 			onOpenClipMenu={() => undefined}
 			onFocusTimelineRuler={() => undefined}

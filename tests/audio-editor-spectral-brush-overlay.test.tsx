@@ -6,6 +6,7 @@ import React, { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { SpectralBrushOverlay } from '../src/common/editor/ui/timeline/SpectralBrushOverlay.jsx';
+import type { SpectralBrushSelectionRequest } from '../src/common/editor/ui/timeline/spectral-brush-model.ts';
 import { SpectralSelectionOverlay } from '../src/common/editor/ui/timeline/SpectralSelectionOverlay.jsx';
 import { spectrogramFrequencyAtFraction } from '../src/common/editor/ui/timeline/geometry.ts';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
@@ -32,7 +33,7 @@ test('spectral brush normalizes the persisted log scale before mapping frequency
 			sampleRate={48_000}
 			disabled={false}
 			copy={{ spectralBrush: 'Spectral brush' }}
-			onCommit={(selection) => commits.push(selection)}
+			onCommit={(selection: SpectralBrushSelectionRequest) => commits.push(selection)}
 		/>));
 
 		await act(async () => reactProps(dom.one('[data-spectral-brush]')).onKeyDown({
