@@ -11,7 +11,8 @@ import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 } from '../src/common/editor/project-schema-version.ts';
 
-function createFixture(options: { readonly timelineDurationFrames?: number } = {}) {
+function createFixture(options: { readonly timelineDurationFrames?: number;
+	readonly clampZeroCrossing?: boolean } = {}) {
 	type TestProject = {
 		id: string;
 		schemaFamily?: string;
@@ -116,7 +117,8 @@ function createFixture(options: { readonly timelineDurationFrames?: number } = {
 		},
 		findClip: (value, clipId) => value.clips.find((clip: { id: string }) => clip.id === clipId) || null,
 		findClipTrack: (value, clipId) => value.tracks.find((track: { clipIds?: string[] }) => track.clipIds?.includes(clipId)) || null,
-		findNearestAudioZeroCrossing: (_channels, frame) => frame,
+		findNearestAudioZeroCrossing: (channels, frame) => options.clampZeroCrossing
+			? Math.max(0, Math.min(channels[0]!.length - 1, Math.round(frame))) : frame,
 		findTrack: (value, trackId) => value.tracks.find((track: { id: string }) => track.id === trackId),
 		getProject: () => project,
 		handleError: (error) => { handledErrors.push(error); },
@@ -531,4 +533,15 @@ test('zero-crossing alignment commits success and reports render failures', asyn
 	assert.deepEqual(failed.handledErrors, [failure]);
 	failed.state.analysisProcessing = true;
 	assert.equal(await failed.service.selectAtZeroCrossings(), null);
+});
+
+test('zero-crossing alignment leaves an edge beyond real audio unchanged', async () => {
+	const fixture = createFixture({ clampZeroCrossing: true });
+	fixture.updateProject({ selection: {
+		startFrame: 80, endFrame: 500, trackIds: ['track-a'], clipIds: [],
+	} });
+	const pending = fixture.service.selectAtZeroCrossings();
+	fixture.resolveRender({});
+	assert.equal((await pending)?.endFrame, 500);
+	assert.equal(fixture.project().selection?.endFrame, 500);
 });

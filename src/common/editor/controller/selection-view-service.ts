@@ -366,6 +366,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		const radius = Math.max(1, Math.round(projectSampleRate() * 0.01));
 		const renderStart = Math.max(0, selection.startFrame - radius);
 		const renderEnd = Math.min(projectDurationFrames(projectAtStart), selection.endFrame + radius);
+		if (renderEnd <= renderStart) return null;
 		state.analysisProcessing = true;
 		publishDocumentSnapshot();
 		try {
@@ -377,8 +378,13 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 			});
 			if (getProject() !== projectAtStart) return null;
 			const channels = audioBufferChannels(rendered);
-			const startFrame = renderStart + findNearestAudioZeroCrossing(channels, selection.startFrame - renderStart, { maximumDistance: radius });
-			const endFrame = renderStart + findNearestAudioZeroCrossing(channels, selection.endFrame - renderStart, { maximumDistance: radius });
+			const snapEdge = (frame: number) => frame < renderStart || frame >= renderEnd
+				? frame
+				: renderStart + findNearestAudioZeroCrossing(
+					channels, frame - renderStart, { maximumDistance: radius },
+				);
+			const startFrame = snapEdge(selection.startFrame);
+			const endFrame = snapEdge(selection.endFrame);
 			const next = commit({
 				type: 'selection/set',
 				startFrame: Math.min(startFrame, endFrame),
