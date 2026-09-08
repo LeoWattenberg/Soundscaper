@@ -68,6 +68,11 @@ test('AAC metadata maps only fields the MP4 muxer can state exactly', () => {
 		title: 'Complete file', artist: 'Soundscaper', trackNumber: 2,
 		date: new Date('2026-01-01T00:00:00.000Z'), comment: 'Browser generated',
 	});
+	assert.deepEqual(browserAacMetadataTags({
+		date: '2026-05-01', year: '2026',
+	}), {
+		date: new Date('2026-05-01T00:00:00.000Z'),
+	});
 	assert.throws(
 		() => browserAacMetadataTags({ copyright: 'Example' }),
 		/metadata fields: copyright/iu,

@@ -41,7 +41,8 @@ export function browserAacMetadataTags(
 			: new Date(dateValue);
 		if (!Number.isFinite(date.getTime())) throw new RangeError('AAC metadata date is invalid.');
 		tags.date = date;
-		consumed.add(metadata.date === undefined ? 'year' : 'date');
+		consumed.add('date');
+		consumed.add('year');
 	}
 	const unsupported = Object.keys(metadata).filter((key) => !consumed.has(key));
 	if (unsupported.length > 0) throw new BrowserAacMetadataUnsupportedError(unsupported);
