@@ -1,5 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	isRuntimeProjectProjection,
+	resolveRuntimeProjectProjection,
+} from './runtime-clip-projection.ts';
+import {
+	inheritTrackFolderMediaStateProjectionV12,
+	projectTrackFolderMediaStateV12,
+} from './track-folder-media-runtime.ts';
+
 /**
  * The cues a video delivery carries, taken from a label track.
  *
@@ -49,7 +58,7 @@ export function resolveVideoCaptionCues(
 	project: unknown,
 	options: Readonly<{ trackId: unknown } & CaptionRange>,
 ): readonly VideoCaptionCue[] {
-	const track = captionTrack(project, options.trackId);
+	const track = captionTrack(ensureRuntimeProject(project), options.trackId);
 	const { startFrame, endFrame } = options;
 	if (!Number.isSafeInteger(startFrame) || !Number.isSafeInteger(endFrame) || endFrame < startFrame) {
 		throw new RangeError('A caption range must be an ordered pair of sample frames.');
@@ -59,7 +68,9 @@ export function resolveVideoCaptionCues(
 		const labelStart = frame(label.startFrame, 'label.startFrame');
 		const labelEnd = frame(label.endFrame ?? label.startFrame, 'label.endFrame');
 		if (labelEnd < labelStart) throw new RangeError('A caption label cannot end before it starts.');
-		if (labelEnd < startFrame || labelStart > endFrame) continue;
+		if (labelStart === labelEnd) {
+			if (labelStart < startFrame || labelStart >= endFrame) continue;
+		} else if (labelEnd <= startFrame || labelStart >= endFrame) continue;
 		cues.push(Object.freeze({
 			startFrame: Math.max(labelStart, startFrame) - startFrame,
 			endFrame: Math.min(labelEnd, endFrame) - startFrame,
@@ -68,6 +79,16 @@ export function resolveVideoCaptionCues(
 	}
 	cues.sort((left, right) => left.startFrame - right.startFrame || left.endFrame - right.endFrame);
 	return Object.freeze(cues);
+}
+
+function ensureRuntimeProject(project: unknown): object {
+	if (!isRecord(project)) throw new TypeError('A caption project must be an object.');
+	const mediaProject = projectTrackFolderMediaStateV12(project);
+	if (isRuntimeProjectProjection(mediaProject)) return mediaProject;
+	return inheritTrackFolderMediaStateProjectionV12(
+		mediaProject,
+		resolveRuntimeProjectProjection(mediaProject),
+	);
 }
 
 /** The label track a delivery names, refusing anything that is not one. */

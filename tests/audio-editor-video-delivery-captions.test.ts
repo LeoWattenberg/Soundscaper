@@ -61,6 +61,48 @@ test('cues are clipped to the delivered range and rebased onto it', () => {
 	]);
 });
 
+test('caption cues resolve musical labels from the canonical export project', () => {
+	const value = project();
+	Object.assign(value, {
+		tempoMap: {
+			mode: 'musical',
+			events: [{ id: 'tempo-root', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }],
+		},
+	});
+	(value.tracks[1] as unknown as { labels: unknown[] }).labels = [{
+		id: 'musical',
+		anchor: 'musical',
+		startBeat: { num: 0, den: 1 },
+		endBeat: { num: 2, den: 1 },
+		title: 'musical cue',
+	}];
+
+	assert.equal(createVideoExportPlan(value, {
+		format: 'mp4',
+		captions: { trackId: 'labels-1' },
+	}).captions.cueCount, 1);
+	assert.deepEqual(resolveVideoCaptionCues(value, {
+		trackId: 'labels-1', startFrame: 0, endFrame: 2_000,
+	}), [{ startFrame: 0, endFrame: 1_000, title: 'musical cue' }]);
+});
+
+test('caption range boundaries exclude touching intervals but retain interior points', () => {
+	const value = project();
+	(value.tracks[1] as unknown as { labels: unknown[] }).labels = [
+		{ id: 'before', startFrame: 0, endFrame: 200, title: 'before' },
+		{ id: 'point', startFrame: 200, endFrame: 200, title: 'point' },
+		{ id: 'middle', startFrame: 300, endFrame: 500, title: 'middle' },
+		{ id: 'after', startFrame: 800, endFrame: 1_000, title: 'after' },
+	];
+
+	assert.deepEqual(resolveVideoCaptionCues(value, {
+		trackId: 'labels-1', startFrame: 200, endFrame: 800,
+	}), [
+		{ startFrame: 0, endFrame: 0, title: 'point' },
+		{ startFrame: 100, endFrame: 300, title: 'middle' },
+	]);
+});
+
 test('an unusable caption request is a typed refusal at plan build', () => {
 	assert.throws(() => exportPlan({ captions: { trackId: 'missing' } }), /No track missing/u);
 	assert.throws(() => exportPlan({ captions: { trackId: 'track-1' } }), /is not a label track/u);
