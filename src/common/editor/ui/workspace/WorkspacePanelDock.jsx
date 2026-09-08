@@ -283,6 +283,7 @@ export default function WorkspacePanelDock({
 		}
 		const element = event.target.closest?.('[data-workspace-panel-group]');
 		if (!element || event.target.closest?.('[role="menu"]')) return;
+		if (dock === 'bottom') return;
 		const panelGroup = groups.find((group) => group.id === element.dataset.workspacePanelGroup);
 		if (!panelGroup) return;
 		const bounds = element.getBoundingClientRect();

@@ -153,6 +153,39 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(after.height).toBeCloseTo(before.height - 16, 0);
 	});
 
+	test('ignores horizontal edge drags on bottom-docked panel groups', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const mixerPanel = editor.locator('[data-workspace-panel="mixer"]');
+		if (!await mixerPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
+		await dockWorkspacePanel(editor, 'metadata', 'bottom');
+		const bottomDock = editor.locator('[data-panel-dock="bottom"]');
+		await expect(bottomDock.locator('[data-workspace-panel-group]')).toHaveCount(2);
+		await page.waitForTimeout(250);
+		const initialDockBounds = await bottomDock.boundingBox();
+		const initialMixerBounds = await mixerPanel.boundingBox();
+		expect(initialDockBounds).not.toBeNull();
+		expect(initialMixerBounds).not.toBeNull();
+		const initialSize = await mixerPanel.getAttribute('data-workspace-panel-size');
+
+		await page.mouse.move(
+			initialMixerBounds.x + initialMixerBounds.width - 6,
+			initialMixerBounds.y + initialMixerBounds.height / 2,
+		);
+		await page.mouse.down();
+		await page.mouse.move(
+			initialMixerBounds.x + initialMixerBounds.width + 194,
+			initialMixerBounds.y + initialMixerBounds.height / 2,
+			{ steps: 5 },
+		);
+		await page.mouse.up();
+
+		await expect(mixerPanel).toHaveAttribute('data-workspace-panel-size', initialSize);
+		await expect.poll(async () => Math.abs(
+			((await bottomDock.boundingBox())?.height || 0) - initialDockBounds.height,
+		)).toBeLessThan(2);
+	});
+
 	test('resizes editor dialogs live with mouse and remains keyboard accessible', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
