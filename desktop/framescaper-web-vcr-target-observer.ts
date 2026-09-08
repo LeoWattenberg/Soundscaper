@@ -94,7 +94,11 @@ export function createFramescaperWebVcrTargetObserverV1(
 	let lastSequence = 0;
 	let mainFrameId: string | null = null;
 	let mainExecutionContextId: number | null = null;
-	const isolatedContexts = new Map<number, string>();
+	let mainExecutionContextNavigationGeneration: number | null = null;
+	const isolatedContexts = new Map<number, Readonly<{
+		frameId: string;
+		navigationGeneration: number;
+	}>>();
 
 	const receive = (_event: unknown, method: string, parametersValue: unknown): void => {
 		if (disposed) return;
@@ -105,20 +109,34 @@ export function createFramescaperWebVcrTargetObserverV1(
 				const auxiliary = record(context.auxData);
 				if (context.name !== ISOLATED_WORLD || typeof auxiliary.frameId !== 'string') return;
 				const contextId = positiveInteger(context.id, 'Web VCR execution context');
-				isolatedContexts.set(contextId, auxiliary.frameId);
-				if (auxiliary.frameId === mainFrameId) mainExecutionContextId = contextId;
+				const contextNavigationGeneration = positiveInteger(
+					options.navigationGeneration(),
+					'Web VCR navigation generation',
+				);
+				isolatedContexts.set(contextId, Object.freeze({
+					frameId: auxiliary.frameId,
+					navigationGeneration: contextNavigationGeneration,
+				}));
+				if (auxiliary.frameId === mainFrameId) {
+					mainExecutionContextId = contextId;
+					mainExecutionContextNavigationGeneration = contextNavigationGeneration;
+				}
 				return;
 			}
 			if (method === 'Runtime.executionContextDestroyed') {
 				const contextId = Number(record(parametersValue).executionContextId);
 				if (!Number.isSafeInteger(contextId) || contextId <= 0) return;
 				isolatedContexts.delete(contextId);
-				if (mainExecutionContextId === contextId) mainExecutionContextId = null;
+				if (mainExecutionContextId === contextId) {
+					mainExecutionContextId = null;
+					mainExecutionContextNavigationGeneration = null;
+				}
 				return;
 			}
 			if (method === 'Runtime.executionContextsCleared') {
 				isolatedContexts.clear();
 				mainExecutionContextId = null;
+				mainExecutionContextNavigationGeneration = null;
 				return;
 			}
 			if (method === 'Page.frameNavigated') {
@@ -126,8 +144,9 @@ export function createFramescaperWebVcrTargetObserverV1(
 				if (typeof frame.id === 'string' && typeof frame.parentId !== 'string') {
 					mainFrameId = frame.id;
 					mainExecutionContextId = null;
-					for (const [contextId, frameId] of isolatedContexts) {
-						if (frameId === mainFrameId) isolatedContexts.delete(contextId);
+					mainExecutionContextNavigationGeneration = null;
+					for (const [contextId, context] of isolatedContexts) {
+						if (context.frameId === mainFrameId) isolatedContexts.delete(contextId);
 					}
 				}
 				return;
@@ -141,16 +160,14 @@ export function createFramescaperWebVcrTargetObserverV1(
 			if (parameters.name !== FRAMESCAPER_WEB_VCR_TARGET_BINDING) return;
 			const contextId = positiveInteger(parameters.executionContextId, 'Web VCR binding context');
 			if (contextId !== mainExecutionContextId) return;
+			if (mainExecutionContextNavigationGeneration === null) return;
 			if (typeof parameters.payload !== 'string' || parameters.payload.length > MAX_BINDING_PAYLOAD) {
 				throw new TypeError('Web VCR target binding payload exceeds its bound.');
 			}
 			const observation = validateFramescaperWebVcrTargetObservationV1(
 				JSON.parse(parameters.payload) as unknown,
 			);
-			const navigationGeneration = positiveInteger(
-				options.navigationGeneration(),
-				'Web VCR navigation generation',
-			);
+			const navigationGeneration = mainExecutionContextNavigationGeneration;
 			if (navigationGeneration !== lastNavigationGeneration) {
 				lastNavigationGeneration = navigationGeneration;
 				lastSequence = 0;
@@ -205,8 +222,11 @@ export function createFramescaperWebVcrTargetObserverV1(
 				mainFrameId = mainFrameIdFromTree(
 					await options.debuggerPort.sendCommand('Page.getFrameTree'),
 				);
-				for (const [contextId, frameId] of isolatedContexts) {
-					if (frameId === mainFrameId) mainExecutionContextId = contextId;
+				for (const [contextId, context] of isolatedContexts) {
+					if (context.frameId === mainFrameId) {
+						mainExecutionContextId = contextId;
+						mainExecutionContextNavigationGeneration = context.navigationGeneration;
+					}
 				}
 				await options.debuggerPort.sendCommand('Runtime.addBinding', {
 					name: FRAMESCAPER_WEB_VCR_TARGET_BINDING,

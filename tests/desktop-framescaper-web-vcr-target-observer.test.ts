@@ -143,9 +143,25 @@ test('observer installs only a fixed isolated-world binding and maps targets to 
 	navigationGeneration = 4;
 	for (const listener of listeners) listener({}, 'Runtime.bindingCalled', {
 		name: FRAMESCAPER_WEB_VCR_TARGET_BINDING,
-		payload: JSON.stringify(observationPayload(1)), executionContextId: 11,
+		payload: JSON.stringify(observationPayload(3)), executionContextId: 11,
 	});
-	assert.equal(observations.length, 2, 'a new navigation resets the isolated-world sequence');
+	assert.equal((observations[1] as { navigationGeneration: number }).navigationGeneration, 3,
+		'a queued observation keeps the generation of the document that produced it');
+	for (const listener of listeners) listener({}, 'Page.frameNavigated', {
+		frame: { id: 'main-frame' },
+	});
+	for (const listener of listeners) listener({}, 'Runtime.executionContextCreated', {
+		context: {
+			id: 33, name: 'framescaper-web-vcr-target-v1',
+			auxData: { frameId: 'main-frame' },
+		},
+	});
+	for (const listener of listeners) listener({}, 'Runtime.bindingCalled', {
+		name: FRAMESCAPER_WEB_VCR_TARGET_BINDING,
+		payload: JSON.stringify(observationPayload(1)), executionContextId: 33,
+	});
+	assert.equal(observations.length, 3, 'a new document resets the isolated-world sequence');
+	assert.equal((observations[2] as { navigationGeneration: number }).navigationGeneration, 4);
 	const clipped = observationPayload(2);
 	clipped.candidates[0] = {
 		...clipped.candidates[0],
@@ -154,9 +170,9 @@ test('observer installs only a fixed isolated-world binding and maps targets to 
 	};
 	for (const listener of listeners) listener({}, 'Runtime.bindingCalled', {
 		name: FRAMESCAPER_WEB_VCR_TARGET_BINDING,
-		payload: JSON.stringify(clipped), executionContextId: 11,
+		payload: JSON.stringify(clipped), executionContextId: 33,
 	});
-	assert.deepEqual((observations[2] as {
+	assert.deepEqual((observations[3] as {
 		selection: { kind: string; target: { aperture: unknown; generation: number } };
 		targets: unknown;
 	}), {
@@ -180,9 +196,9 @@ test('observer installs only a fixed isolated-world binding and maps targets to 
 	};
 	for (const listener of listeners) listener({}, 'Runtime.bindingCalled', {
 		name: FRAMESCAPER_WEB_VCR_TARGET_BINDING,
-		payload: JSON.stringify(exactEnded), executionContextId: 11,
+		payload: JSON.stringify(exactEnded), executionContextId: 33,
 	});
-	assert.deepEqual((observations[3] as { endedTarget: unknown }).endedTarget, {
+	assert.deepEqual((observations[4] as { endedTarget: unknown }).endedTarget, {
 		targetId: 'd'.repeat(32), generation: 2, endedRecordingToken: 'e'.repeat(32),
 	});
 	observer.dispose();
