@@ -118,6 +118,26 @@ test('an already-cancelled import reports its files as cancelled', async () => {
 	}
 });
 
+test('an import cancelled after decoding still reports every prepared file', async () => {
+	const controller = new AbortController();
+	const result = await run({
+		files: [file('first.png'), file('second.png')],
+		signal: controller.signal,
+		decode: async () => {
+			controller.abort();
+			return {
+				recognizedFormat: 'png', canonicalMimeType: 'image/png', notices: [],
+				publication: { durationTicks: '1000000' },
+			};
+		},
+	});
+
+	assert.deepEqual((result.files as Data[]).map(({ fileName, status }) => ({ fileName, status })), [
+		{ fileName: 'first.png', status: 'cancelled' },
+		{ fileName: 'second.png', status: 'cancelled' },
+	]);
+});
+
 test('an import returns the project alongside its per-file results', async () => {
 	const result = await run({
 		files: [file()],

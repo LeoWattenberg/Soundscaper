@@ -125,6 +125,13 @@ export async function importFramescaperTimelineImagesTimelineImage(
 		}
 	}
 	if (prepared.length === 0 || request.signal?.aborted) {
+		if (request.signal?.aborted) {
+			for (const item of prepared) {
+				results.push(fileResult(
+					item.fileName, 'cancelled', null, null, [], 'Import cancelled.',
+				));
+			}
+		}
 		return Object.freeze({ project: request.project, files: orderedResults(request.files, results) });
 	}
 	const placement = createFramescaperImageBatchPlacementTimelineImage(request.project, {
