@@ -443,6 +443,7 @@ test('the requested backend is forwarded and defaults to the supported preferenc
 	await apply(built);
 
 	assert.deepEqual(port.calls.map(({ requestedBackend }) => requestedBackend), ['cuda', 'supported-preferred']);
+	assert.equal(built.retainedReplayKeyCount(), 0);
 	await assert.rejects(() => apply(built, { requestedBackend: 'vulkan' }), /frame checkpoint is invalid/u);
 });
 

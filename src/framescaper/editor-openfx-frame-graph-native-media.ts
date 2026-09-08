@@ -78,6 +78,8 @@ export interface FramescaperOpenFxFrameDispositionNativeMedia {
 }
 
 export interface FramescaperOpenFxFrameGraphNativeMedia {
+	/** Diagnostic size of the replay-protection inventory retained by this graph. */
+	retainedReplayKeyCount(): number;
 	apply(request: Readonly<{
 		readonly context: OfxContext;
 		readonly targetId: string;
@@ -117,6 +119,7 @@ export function createFramescaperOpenFxFrameGraphNativeMedia(options: Readonly<{
 		throw new TypeError('Selected nativeMedia OpenFX frozen recovery must be a function.');
 	}
 	const nodes = plan.nodes.filter((node): node is UnifiedExactRenderOpenFxNode => node.kind === 'openfx');
+	const tracksReplay = options.allowRepeatedFrames !== true;
 	const consumed = new Set<string>();
 	let active = false;
 
@@ -129,7 +132,7 @@ export function createFramescaperOpenFxFrameGraphNativeMedia(options: Readonly<{
 			options.assertCurrent();
 			const request = checkpoint(requestValue, plan);
 			const replayKey = `${request.context}\0${request.targetId}\0${String(request.outputOrdinal)}`;
-			if (options.allowRepeatedFrames !== true && consumed.has(replayKey)) {
+			if (tracksReplay && consumed.has(replayKey)) {
 				throw new Error('Selected nativeMedia OpenFX frame ordinal replay is forbidden.');
 			}
 			const effects = nodes.filter(({ state }) => state.context === request.context
@@ -183,7 +186,7 @@ export function createFramescaperOpenFxFrameGraphNativeMedia(options: Readonly<{
 					state, request.outputOrdinal, result.mode, result.reportsDegradation, null, false,
 				));
 			}
-			consumed.add(replayKey);
+			if (tracksReplay) consumed.add(replayKey);
 			return Object.freeze({
 				frame: cloneFrame(output),
 				dispositions: Object.freeze(dispositions),
@@ -191,7 +194,7 @@ export function createFramescaperOpenFxFrameGraphNativeMedia(options: Readonly<{
 			});
 		} finally { active = false; }
 	}
-	return Object.freeze({ apply });
+	return Object.freeze({ apply, retainedReplayKeyCount: () => consumed.size });
 }
 
 function admittedPlan(value: unknown): UnifiedExactRenderPlanV14 {
