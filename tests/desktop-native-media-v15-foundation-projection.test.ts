@@ -9,6 +9,7 @@ import {
 } from '../desktop/native-media-v15-foundation-projection.ts';
 import { createNativeMediaPlanEnvelopeV3 } from '../src/common/editor/native-media-plan-envelope-v3.ts';
 import { createFramescaperNativeRenderPlanAuthorityNativeMedia } from '../src/framescaper/editor-native-render-plan-authority.ts';
+import { createFramescaperCompanionAudioProjectScopeV15 } from '../src/framescaper/editor-project-companion-audio-scope.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanV15 } from '../src/framescaper/editor-project-unified-render-delivery.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanNativeMedia } from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
 import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
@@ -17,6 +18,15 @@ import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 const PROFILE = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
 const SHA_A = 'aa'.repeat(32);
+
+test('a companion-audio scope retains the complete empty selection contract', () => {
+	const project = createFramescaperProjectNativeMedia(PROFILE, framescaperV20Options());
+	const scope = createFramescaperCompanionAudioProjectScopeV15(project, 'main-sequence');
+
+	assert.deepEqual(scope.project.selection, {
+		startFrame: 0, endFrame: 0, trackIds: [], clipIds: [], annotationIds: [], frequencyRange: null,
+	});
+});
 
 test('artifact-free V15 projects to a separately fingerprinted exact V14 verification foundation', () => {
 	const project = createFramescaperProjectNativeMedia(PROFILE, framescaperV20Options());

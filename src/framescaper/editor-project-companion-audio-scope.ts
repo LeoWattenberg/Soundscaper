@@ -87,7 +87,9 @@ export function createFramescaperCompanionAudioProjectScopeV15(
 	}];
 	scoped.projectBin = { ...record(scoped.projectBin, 'Framescaper Project Bin'), clips: [] };
 	scoped.trackFolders = [];
-	scoped.selection = { startFrame: 0, endFrame: 0, trackIds: [], clipIds: [], frequencyRange: null };
+	scoped.selection = {
+		startFrame: 0, endFrame: 0, trackIds: [], clipIds: [], annotationIds: [], frequencyRange: null,
+	};
 	if (Array.isArray(scoped.timelineAnnotations)) {
 		scoped.timelineAnnotations = records(scoped.timelineAnnotations, 'timeline annotations')
 			.filter((annotation) => annotation.sequenceId === sequenceId);
