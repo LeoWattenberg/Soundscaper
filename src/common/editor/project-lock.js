@@ -73,7 +73,8 @@ function navigatorLockResult(projectId, lockName, attempt, options, force = fals
 	let resolveLost;
 	const lost = new Promise((resolve) => { resolveLost = resolve; });
 	const owner = createOwner();
-	const BroadcastChannelClass = options.BroadcastChannel ?? globalThis.BroadcastChannel;
+	const BroadcastChannelClass = Object.hasOwn(options, 'BroadcastChannel')
+		? options.BroadcastChannel : globalThis.BroadcastChannel;
 	let channel = null;
 	try {
 		channel = BroadcastChannelClass ? new BroadcastChannelClass(lockName) : null;
@@ -197,7 +198,8 @@ function requestQueuedNavigatorLock(lockName, locks) {
 
 async function acquireLease(projectId, lockName, options) {
 	const storage = options.localStorage ?? safeLocalStorage();
-	const BroadcastChannelClass = options.BroadcastChannel ?? globalThis.BroadcastChannel;
+	const BroadcastChannelClass = Object.hasOwn(options, 'BroadcastChannel')
+		? options.BroadcastChannel : globalThis.BroadcastChannel;
 	const now = options.now ?? (() => Date.now());
 	const setIntervalFn = options.setInterval ?? globalThis.setInterval;
 	const clearIntervalFn = options.clearInterval ?? globalThis.clearInterval;

@@ -82,6 +82,40 @@ test('a forced navigator lock invalidates the previous holder and takes ownershi
 	await lock.finished;
 });
 
+test('an explicit null BroadcastChannel disables the platform channel', async (context) => {
+	const originalChannel = Object.getOwnPropertyDescriptor(globalThis, 'BroadcastChannel');
+	let constructions = 0;
+	class SpyBroadcastChannel {
+		constructor() { constructions += 1; throw new Error('channel must stay disabled'); }
+	}
+	Object.defineProperty(globalThis, 'BroadcastChannel', {
+		configurable: true, value: SpyBroadcastChannel,
+	});
+	context.after(() => {
+		if (originalChannel) Object.defineProperty(globalThis, 'BroadcastChannel', originalChannel);
+		else delete globalThis.BroadcastChannel;
+	});
+	const values = new Map();
+	const lease = await acquireProjectLock('channel-disabled-lease', {
+		navigator: {}, BroadcastChannel: null,
+		localStorage: {
+			getItem: (key) => values.get(key) ?? null,
+			setItem: (key, value) => values.set(key, value),
+			removeItem: (key) => values.delete(key),
+		},
+		setInterval: () => 1, clearInterval: () => {}, now: () => 100,
+	});
+	const navigatorLock = await acquireProjectLock('channel-disabled-navigator', {
+		navigator: { locks: { request: (_name, _options, next) => next({}) } },
+		BroadcastChannel: null,
+	});
+
+	assert.equal(constructions, 0);
+	lease.release();
+	navigatorLock.release();
+	await navigatorLock.finished;
+});
+
 test('a forced fallback lease replaces the previous owner immediately', async () => {
 	const values = new Map();
 	const storage = {
