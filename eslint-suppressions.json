@@ -104,11 +104,6 @@
       "count": 1
     }
   },
-  "desktop/soundscaper-delivery-filesystem-process.ts": {
-    "no-unused-private-class-members": {
-      "count": 1
-    }
-  },
   "desktop/soundscaper-delivery-main-ipc.ts": {
     "no-control-regex": {
       "count": 1

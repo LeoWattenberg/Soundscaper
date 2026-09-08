@@ -2,7 +2,20 @@
 
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { isAbsolute } from 'node:path';
-import type { Readable } from 'node:stream';
+
+import {
+	awaitDeliveryFilesystemRequest,
+	deliveryFilesystemRequestTimeout,
+	optionalDeliveryFilesystemRequestTimeout,
+} from './soundscaper-delivery-filesystem-deadline.ts';
+import {
+	DELIVERY_FILESYSTEM_HEADER_BYTES as HEADER_BYTES,
+	DELIVERY_FILESYSTEM_MAGIC as MAGIC,
+	DELIVERY_FILESYSTEM_MAXIMUM_CONTROL_BYTES as MAXIMUM_CONTROL_BYTES,
+	DELIVERY_FILESYSTEM_VERSION as VERSION,
+	DeliveryFilesystemFrameReader,
+	type DeliveryFilesystemFrame as Frame,
+} from './soundscaper-delivery-filesystem-frame-reader.ts';
 
 import {
 	SoundscaperDeliveryFilesystemUnavailableError,
@@ -17,13 +30,7 @@ import {
 	type SoundscaperDeliveryRoot,
 } from './soundscaper-delivery-root.ts';
 
-const MAGIC = Buffer.from('SDF1');
-const VERSION = 1;
-const HEADER_BYTES = 16;
-const MAXIMUM_CONTROL_BYTES = 64 * 1024;
 const MAXIMUM_CHUNK_BYTES = 4 * 1024 * 1024;
-const CONTROL_REQUEST_TIMEOUT_MS = 30_000;
-const FILESYSTEM_REQUEST_TIMEOUT_MS = 120_000;
 const ERROR = 0xff;
 
 const OP = Object.freeze({
@@ -64,7 +71,7 @@ export function createSoundscaperDeliveryFilesystemProcessAuthority(
 		throw new TypeError('Soundscaper delivery filesystem helper requires an absolute executable path.');
 	}
 	const spawnProcess = options.spawnProcess ?? spawn;
-	const requestTimeoutMs = optionalRequestTimeout(options.requestTimeoutMs);
+	const requestTimeoutMs = optionalDeliveryFilesystemRequestTimeout(options.requestTimeoutMs);
 	const authority: SoundscaperDeliveryFilesystemAuthority = {
 		async open(value) {
 			const peer = startPeer(spawnProcess, options.executablePath, [], requestTimeoutMs);
@@ -327,11 +334,9 @@ class ProcessSession implements SoundscaperDeliveryFilesystemSession {
 	}
 }
 
-interface Frame { readonly opcode: number; readonly requestId: number; readonly payload: Buffer }
-
 class FramedPeer {
 	readonly #child: ChildProcessWithoutNullStreams;
-	readonly #reader: FrameReader;
+	readonly #reader: DeliveryFilesystemFrameReader;
 	readonly #requestTimeoutMs: number | null;
 	#requestId = 0;
 	#closed = false;
@@ -339,7 +344,7 @@ class FramedPeer {
 
 	constructor(child: ChildProcessWithoutNullStreams, requestTimeoutMs: number | null) {
 		this.#child = child;
-		this.#reader = new FrameReader(child.stdout);
+		this.#reader = new DeliveryFilesystemFrameReader(child.stdout);
 		this.#requestTimeoutMs = requestTimeoutMs;
 		child.once('error', (error) => { this.#failed = true; this.#reader.fail(error); });
 	}
@@ -351,32 +356,26 @@ class FramedPeer {
 			throw new RangeError('Soundscaper delivery filesystem helper payload is too large.');
 		}
 		const requestId = ++this.#requestId;
-		const response = await this.#exchangeWithDeadline(opcode, { opcode, requestId, payload });
+		const exchange = (async () => {
+			await writeFrame(this.#child, { opcode, requestId, payload });
+			return this.#reader.read();
+		})();
+		const response = await awaitDeliveryFilesystemRequest(
+			exchange,
+			deliveryFilesystemRequestTimeout(
+				opcode === OP.data || opcode === OP.patch || opcode === OP.seal || opcode === OP.publish,
+				this.#requestTimeoutMs,
+			),
+			(error) => {
+				this.#failed = true;
+				this.#reader.fail(error);
+				try { this.#child.kill('SIGKILL'); } catch { /* process never spawned */ }
+			},
+		);
 		if (response.requestId !== requestId) throw new Error('Soundscaper delivery helper response lost synchronization.');
 		if (response.opcode === ERROR) throw decodeProcessError(response.payload);
 		if (response.opcode !== expectedOpcode) throw new Error('Soundscaper delivery helper returned the wrong response.');
 		return response.payload.byteLength ? parseJson(response.payload) : Object.freeze({});
-	}
-
-	async #exchangeWithDeadline(opcode: number, frame: Frame): Promise<Frame> {
-		const exchange = (async () => {
-			await writeFrame(this.#child, frame);
-			return this.#reader.read();
-		})();
-		const timeoutMs = this.#requestTimeoutMs ?? requestTimeoutForOpcode(opcode);
-		let timer: ReturnType<typeof setTimeout> | null = null;
-		const deadline = new Promise<never>((_resolve, reject) => {
-			timer = setTimeout(() => {
-				const error = new Error(`Soundscaper delivery filesystem helper request timed out after ${timeoutMs} ms.`);
-				this.#failed = true;
-				this.#reader.fail(error);
-				try { this.#child.kill('SIGKILL'); } catch { /* process never spawned */ }
-				reject(error);
-			}, timeoutMs);
-			timer.unref?.();
-		});
-		try { return await Promise.race([exchange, deadline]); }
-		finally { if (timer !== null) clearTimeout(timer); }
 	}
 
 	async close(): Promise<void> {
@@ -397,57 +396,6 @@ class FramedPeer {
 	}
 }
 
-class FrameReader {
-	readonly #stream: Readable;
-	#buffer = Buffer.alloc(0);
-	#waiting: (() => void) | null = null;
-	#error: Error | null = null;
-
-	constructor(stream: Readable) {
-		this.#stream = stream;
-		stream.on('data', (chunk: Buffer) => {
-			if (this.#error !== null) return;
-			const bytes = Buffer.from(chunk);
-			if (this.#buffer.byteLength + bytes.byteLength > MAXIMUM_CONTROL_BYTES + HEADER_BYTES) {
-				this.#error = new Error('Soundscaper delivery helper exceeded its response bound.');
-				stream.destroy();
-			} else this.#buffer = Buffer.concat([this.#buffer, bytes]);
-			this.#waiting?.();
-		});
-		stream.on('end', () => { this.#error ??= new Error('Soundscaper delivery helper closed unexpectedly.'); this.#waiting?.(); });
-		stream.on('error', (error) => { this.#error = error; this.#waiting?.(); });
-	}
-
-	fail(error: Error): void {
-		this.#error = error;
-		this.#waiting?.();
-	}
-
-	async read(): Promise<Frame> {
-		while (this.#buffer.byteLength < HEADER_BYTES) await this.#more();
-		const header = this.#buffer.subarray(0, HEADER_BYTES);
-		if (!header.subarray(0, 4).equals(MAGIC) || header[4] !== VERSION || header[6] !== 0 || header[7] !== 0) {
-			throw new Error('Soundscaper delivery helper returned a malformed frame header.');
-		}
-		const length = header.readUInt32BE(12);
-		if (length > MAXIMUM_CONTROL_BYTES) throw new Error('Soundscaper delivery helper response is too large.');
-		while (this.#buffer.byteLength < HEADER_BYTES + length) await this.#more();
-		const frame = Object.freeze({
-			opcode: header[5]!, requestId: header.readUInt32BE(8),
-			payload: Buffer.from(this.#buffer.subarray(HEADER_BYTES, HEADER_BYTES + length)),
-		});
-		this.#buffer = this.#buffer.subarray(HEADER_BYTES + length);
-		return frame;
-	}
-
-	async #more(): Promise<void> {
-		if (this.#error) throw this.#error;
-		await new Promise<void>((resolve) => { this.#waiting = resolve; });
-		this.#waiting = null;
-		if (this.#error) throw this.#error;
-	}
-}
-
 function startPeer(
 	spawnProcess: SpawnProcess,
 	executablePath: string,
@@ -463,19 +411,6 @@ function startPeer(
 		if (stderrBytes > MAXIMUM_CONTROL_BYTES) child.stderr.destroy();
 	});
 	return new FramedPeer(child, requestTimeoutMs);
-}
-
-function requestTimeoutForOpcode(opcode: number): number {
-	return opcode === OP.data || opcode === OP.patch || opcode === OP.seal || opcode === OP.publish
-		? FILESYSTEM_REQUEST_TIMEOUT_MS : CONTROL_REQUEST_TIMEOUT_MS;
-}
-
-function optionalRequestTimeout(value: number | undefined): number | null {
-	if (value === undefined) return null;
-	if (!Number.isSafeInteger(value) || value < 1 || value > FILESYSTEM_REQUEST_TIMEOUT_MS) {
-		throw new RangeError('Soundscaper delivery filesystem request timeout is invalid.');
-	}
-	return value;
 }
 
 async function writeFrame(child: ChildProcessWithoutNullStreams, frame: Frame): Promise<void> {
