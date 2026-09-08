@@ -114,7 +114,7 @@ const EDITORIAL_CANDIDATE_FIELDS = Object.freeze([
 const CANDIDATE_ID = /^[\p{L}\p{N}][\p{L}\p{N}._:-]{0,127}$/u;
 const URI_OR_PATH = /(?:\b(?:data|file|https?|javascript):|(?:^|\s)(?:\/|\.\.\/|[a-z]:[\\/]))/iu;
 const MARKUP = /(?:<[^>]*>|```|\[[^\]]*\]\([^)]*\))/u;
-const CONTROL_OR_CODE = /[\u0000-\u001f\u007f`{}\\]/u;
+const CONTROL_OR_CODE = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}`{}\\]/u;
 const AUTHORED_TIMING = /(?:^|\s)(?:(?:\d{1,2}:)?\d{1,2}:\d{2}(?:[.,]\d{1,3})?|frame\s+\d+|\d+(?:\.\d+)?\s*(?:frames?|hours?|milliseconds?|minutes?|ms|seconds?))(?=$|[\s,.;)])/iu;
 const EXECUTABLE_TEXT = /(?:#!|\$\(|<\?(?:php|xml)|\b(?:bash|cmd(?:\.exe)?|powershell|sh)\s+-c\b)/iu;
 

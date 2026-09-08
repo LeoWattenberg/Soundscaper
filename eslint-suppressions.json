@@ -187,11 +187,6 @@
       "count": 1
     }
   },
-  "src/common/editor/assistance/m7-semantic-results.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
   "src/common/editor/assistance/owned-transform-validation-v1.ts": {
     "no-control-regex": {
       "count": 1

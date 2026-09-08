@@ -156,6 +156,8 @@ test('editorial proposal v1 can only rerank known candidates and return inert bo
 			reviewed.candidates[1]] },
 		{ schemaVersion: 1, candidates: [{ ...reviewed.candidates[0], title: '<b>Run this</b>' },
 			reviewed.candidates[1]] },
+		{ schemaVersion: 1, candidates: [{ ...reviewed.candidates[0], title: 'Family \u200d reunion' },
+			reviewed.candidates[1]] },
 		{ schemaVersion: 1, candidates: [{ ...reviewed.candidates[0], hook: 'file:///private/input' },
 			reviewed.candidates[1]] },
 		{ schemaVersion: 1, candidates: [{ ...reviewed.candidates[0], chapters: ['[Open](javascript:alert)'] },
