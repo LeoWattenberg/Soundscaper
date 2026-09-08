@@ -102,25 +102,35 @@ function removeBus(
 		throw new ReferenceError(`Unknown ${kind} mixer node: ${command.busId}.`);
 	}
 	const widths = resolveTerminalChannelWidths(project as never, project.masterChannels).tracks;
-	const reroutedTracks = new Map<string, boolean>();
+	const reroutedSources = new Map<string, Readonly<{
+		readonly source:
+			| Readonly<{ readonly kind: 'track'; readonly id: string }>
+			| Readonly<{ readonly kind: 'mixer-node'; readonly id: string }>;
+		readonly enabled: boolean;
+	}>>();
 	for (const edge of graph.edges) {
-		if (edge.kind === 'assignment' && edge.source.kind === 'track'
-			&& edge.destination.kind === 'mixer-node' && edge.destination.id === command.busId) {
-			reroutedTracks.set(
-				edge.source.id,
-				(reroutedTracks.get(edge.source.id) ?? false) || edge.enabled,
-			);
-		}
+		if (edge.kind !== 'assignment' || edge.destination.kind !== 'mixer-node'
+			|| edge.destination.id !== command.busId
+			|| (edge.source.kind !== 'track' && edge.source.kind !== 'mixer-node')) continue;
+		const key = `${edge.source.kind}:${edge.source.id}`;
+		const prior = reroutedSources.get(key);
+		reroutedSources.set(key, Object.freeze({
+			source: edge.source,
+			enabled: (prior?.enabled ?? false) || edge.enabled,
+		}));
 	}
 	const edges = graph.edges.filter((edge) => !edgeTouchesNode(edge, command.busId));
-	for (const [trackId, enabled] of reroutedTracks) {
-		const fallback = trackAssignment(
-			trackId,
-			{ kind: 'master' },
-			widths.get(trackId) ?? project.masterChannels,
-			project.masterChannels,
-			enabled,
-		);
+	const nodes = new Map([...graph.groups, ...graph.sends, ...graph.cues].map((node) => [node.id, node]));
+	for (const { source, enabled } of reroutedSources.values()) {
+		const fallback = source.kind === 'track'
+			? trackAssignment(
+				source.id,
+				{ kind: 'master' },
+				widths.get(source.id) ?? project.masterChannels,
+				project.masterChannels,
+				enabled,
+			)
+			: { ...nodeAssignment(nodes.get(source.id)!, project.masterChannels), enabled };
 		if (!edges.some(({ id }) => id === fallback.id)) edges.push(fallback);
 	}
 	return normalizeMixerGraphV21({

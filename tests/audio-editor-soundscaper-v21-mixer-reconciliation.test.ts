@@ -44,6 +44,40 @@ test('an authored group assignment survives unrelated commands', () => {
 	assert.deepEqual(trackEdges(renamed), ['assignment:track:voice:mixer-node:dialogue']);
 });
 
+test('removing a group reroutes upstream mixer nodes to master', () => {
+	const project = createSoundscaperProject({
+		id: 'nested-groups', title: 'Nested groups', now: NOW,
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
+		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
+		primarySequenceId: 'main-sequence',
+	});
+	const grouped = applySoundscaperProjectCommand(project, {
+		type: 'batch', commands: [
+			{ type: 'mixer/bus-add', busType: 'group', bus: { id: 'stems', name: 'Stems' } },
+			{ type: 'mixer/bus-add', busType: 'group', bus: { id: 'dialogue', name: 'Dialogue' } },
+			{ type: 'mixer/route-update', trackId: 'voice', changes: { groupId: 'stems' } },
+		],
+	} as AudioEditorCommand);
+	const nested = applySoundscaperProjectCommand(grouped, {
+		type: 'mixer-graph/set', expected: grouped.mixer,
+		mixer: {
+			...grouped.mixer,
+			edges: grouped.mixer.edges.map((edge) => edge.id === 'assignment:mixer-node:stems:master'
+				? {
+					...edge,
+					id: 'assignment:mixer-node:stems:mixer-node:dialogue',
+					destination: { kind: 'mixer-node', id: 'dialogue' },
+				}
+				: edge),
+		},
+	} as unknown as AudioEditorCommand);
+
+	const removed = applySoundscaperProjectCommand(nested, {
+		type: 'mixer/bus-remove', busType: 'group', busId: 'dialogue',
+	} as AudioEditorCommand);
+	assert.ok(removed.mixer.edges.some(({ id }) => id === 'assignment:mixer-node:stems:master'));
+});
+
 test('narrowing the master restates every product-authored assignment map', () => {
 	// An ADM bed change rewrites masterChannels, and a bus feeding master keeps its own
 	// map, so a stale map used to survive and the graph could no longer be built.
