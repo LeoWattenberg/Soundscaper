@@ -6,9 +6,14 @@ import {
 	preparePeakPyramidWaveformWindow,
 } from '../../design-system-adapters.js';
 import { envelopeFramesToDesignPoints } from '../../automation.js';
+import type { AudioWarpRuntimeProject } from '../../audio-warp-runtime.ts';
 import { audacityWaveformMode } from '../../audacity-waveform-renderer.js';
 import { createWaveformPreviewCacheKey } from '../waveform-preview-cache.ts';
-import { pcmWindowCoversProjectedClip, type PcmPreviewWindow } from './preview.ts';
+import {
+	pcmWindowCoversProjectedClip,
+	projectedClipVisibleSourceSamples,
+	type PcmPreviewWindow,
+} from './preview.ts';
 import {
 	prepareAudioWarpPeakPyramidWaveformWindow,
 	prepareAudioWarpWaveformWindow,
@@ -125,7 +130,7 @@ export interface TimelineClipViewModelOptions {
 		pixelsPerSecond: number;
 		sampleRate: number;
 	}>;
-	readonly project?: Readonly<Record<string, unknown>> | null;
+	readonly project?: (AudioWarpRuntimeProject & Readonly<Record<string, unknown>>) | null;
 	readonly selection: Readonly<{
 		selectedClipIds: Set<string> | string | null | undefined;
 	}>;
@@ -210,13 +215,12 @@ export function createTimelineClipViewModel({
 		waveform: EMPTY_DESIGN_SYSTEM_WAVEFORM,
 	};
 	const waveformBuffer = visual?.buffer || null;
-	const waveformPcmWindow = pcmWindowCoversProjectedClip(visual?.pcmWindow, clip)
+	const waveformPcmWindow = pcmWindowCoversProjectedClip(visual?.pcmWindow, clip, project)
 		? visual?.pcmWindow || null
 		: null;
 	const waveformPeaks = allowPeakPyramid ? visual?.peaks : null;
 	const isWarped = clip.warpMap != null;
-	const visibleSourceSamples = (clip.waveformEndFrame - clip.waveformStartFrame)
-		* sourceDurationFrames / clip.durationFrames;
+	const visibleSourceSamples = projectedClipVisibleSourceSamples(clip, project);
 	const pixelWidth = output.duration * pixelsPerSecond;
 	const usePeakPyramid = Boolean(waveformPeaks && visibleSourceSamples > 0
 		&& audacityWaveformMode(pixelWidth / visibleSourceSamples) === 'summary');

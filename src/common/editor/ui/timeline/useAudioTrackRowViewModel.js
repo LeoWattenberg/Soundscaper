@@ -12,6 +12,7 @@ import { createAudioTrackRowClipViewModels } from './audio-track-row-view-model.
 import { createCrossfadeOverlays } from './TrackOverlapOverlays.jsx';
 import {
 	pcmWindowCoversProjectedClip,
+	projectedClipVisibleSourceSamples,
 	recordingPreviewId,
 } from './preview.ts';
 import { useAudioTrackEnvelope } from './useAudioTrackEnvelope.js';
@@ -82,10 +83,8 @@ export function useAudioTrackRowViewModel({
 			if (clip.isRecordingPreview) continue;
 			const visual = controller.getClipVisualData(clip.id)
 				|| controller.getProjectBinClipVisualData?.(clip.projectBinClipId || clip.id);
-			if (!visual?.available || visual.buffer || pcmWindowCoversProjectedClip(visual.pcmWindow, clip)) continue;
-			const sourceDurationFrames = clip.sourceDurationFrames || clip.durationFrames;
-			const visibleSourceSamples = (clip.waveformEndFrame - clip.waveformStartFrame)
-				* sourceDurationFrames / clip.durationFrames;
+			if (!visual?.available || visual.buffer || pcmWindowCoversProjectedClip(visual.pcmWindow, clip, project)) continue;
+			const visibleSourceSamples = projectedClipVisibleSourceSamples(clip, project);
 			const pixelWidth = (clip.waveformEndFrame - clip.waveformStartFrame) / sampleRate * pixelsPerSecond;
 			if (!(visibleSourceSamples > 0) || !(pixelWidth > 0)
 				|| (clip.warpMap == null
@@ -95,7 +94,7 @@ export function useAudioTrackRowViewModel({
 				endFrame: clip.waveformEndFrame,
 			}));
 		}
-	}, [controller, pixelsPerSecond, projection.clips, run, sampleRate]);
+	}, [controller, pixelsPerSecond, project, projection.clips, run, sampleRate]);
 
 	const windowLeft = framesToSeconds(projection.overscanStartFrame, { sampleRate }) * pixelsPerSecond;
 	const windowFrames = Math.max(1, projection.overscanEndFrame - projection.overscanStartFrame);

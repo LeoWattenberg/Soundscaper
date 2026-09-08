@@ -1,5 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	audioWarpSourceRange,
+	type AudioWarpRuntimeProject,
+} from '../../audio-warp-runtime.ts';
 import { framesToSeconds } from '../../design-system-adapters.js';
 
 const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
@@ -166,11 +170,50 @@ export function pcmWindowCoversProjectedClip(
 	window: PcmPreviewWindow | null | undefined,
 	clip: Pick<
 		ProjectedPreviewClip,
-		'durationFrames' | 'sourceDurationFrames' | 'sourceStartFrame' | 'waveformStartFrame' | 'waveformEndFrame' | 'reversed'
-	>,
+		'id' | 'timelineStartFrame' | 'durationFrames' | 'sourceDurationFrames' | 'sourceStartFrame'
+		| 'waveformStartFrame' | 'waveformEndFrame' | 'reversed'
+	> & Readonly<{
+		kind?: unknown;
+		anchor?: unknown;
+		warpMap?: unknown;
+	}>,
+	project: AudioWarpRuntimeProject | null | undefined = null,
 ): boolean {
 	if (!window?.channels?.length) return false;
+	const range = projectedClipSourceRange(clip, project);
+	if (range === null) return false;
+	return window.startFrame <= Math.floor(range.startFrame)
+		&& window.endFrame >= Math.ceil(range.endFrame);
+}
+
+export function projectedClipVisibleSourceSamples(
+	clip: Parameters<typeof pcmWindowCoversProjectedClip>[1],
+	project: AudioWarpRuntimeProject | null | undefined = null,
+): number {
+	const range = projectedClipSourceRange(clip, project);
+	return range === null ? 0 : range.endFrame - range.startFrame;
+}
+
+function projectedClipSourceRange(
+	clip: Parameters<typeof pcmWindowCoversProjectedClip>[1],
+	project: AudioWarpRuntimeProject | null | undefined,
+): Readonly<{ startFrame: number; endFrame: number }> | null {
 	const sourceDurationFrames = clip.sourceDurationFrames || clip.durationFrames;
+	if (clip.warpMap != null) {
+		if (!project) return null;
+		try {
+			return audioWarpSourceRange(project, {
+				...clip,
+				sourceStartFrame: clip.sourceStartFrame ?? 0,
+				sourceDurationFrames,
+			}, {
+				startFrame: clip.waveformStartFrame,
+				endFrame: clip.waveformEndFrame,
+			});
+		} catch {
+			return null;
+		}
+	}
 	const sourceFramesPerTimelineFrame = sourceDurationFrames / clip.durationFrames;
 	const visualStart = clip.waveformStartFrame * sourceFramesPerTimelineFrame;
 	const visualEnd = clip.waveformEndFrame * sourceFramesPerTimelineFrame;
@@ -181,6 +224,8 @@ export function pcmWindowCoversProjectedClip(
 	const absoluteEnd = sourceStartFrame + (clip.reversed
 		? sourceDurationFrames - visualStart
 		: visualEnd);
-	return window.startFrame <= Math.floor(Math.min(absoluteStart, absoluteEnd))
-		&& window.endFrame >= Math.ceil(Math.max(absoluteStart, absoluteEnd));
+	return Object.freeze({
+		startFrame: Math.min(absoluteStart, absoluteEnd),
+		endFrame: Math.max(absoluteStart, absoluteEnd),
+	});
 }

@@ -60,6 +60,47 @@ test('the clip projection carries the pitch shift the header badge is drawn from
 	}).pitchCents, 0);
 });
 
+test('warped clip projection consumes its warp-fetched partial PCM window', () => {
+	const project = {
+		sampleRate: 48_000,
+		tempoMap: {
+			mode: 'musical' as const,
+			events: [{ id: 'tempo', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }],
+		},
+	};
+	const warpedClip = {
+		...clip,
+		kind: 'audio',
+		anchor: 'sample',
+		waveformEndFrame: 50,
+		warpMap: {
+			feature: 'audio-warp' as const,
+			points: [
+				{ outer: 0, source: 0, mode: 'forward' as const },
+				{ outer: 50, source: 10, mode: 'forward' as const },
+				{ outer: 100, source: 100, mode: 'forward' as const },
+			],
+		},
+	};
+	const pcmWindow = {
+		channels: [Float32Array.from({ length: 12 }, (_, index) => index / 12)],
+		startFrame: 0,
+		endFrame: 12,
+	};
+	const viewModel = createTimelineClipViewModel({
+		...base,
+		project,
+		clip: warpedClip,
+		controller: {
+			...controller,
+			getClipVisualData: () => ({ source, buffer: null, pcmWindow, peaks: null }),
+		},
+	});
+
+	assert.ok(viewModel.audacityWaveform);
+	assert.equal(viewModel.waveformError, undefined);
+});
+
 test('timeline waveform plans survive equivalent snapshots and drag previews, then refresh after commit', () => {
 	const cache = new Map();
 	const initial = createTimelineClipViewModel({ ...base, cache });

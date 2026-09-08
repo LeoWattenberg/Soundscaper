@@ -64,6 +64,11 @@ export interface AudioWarpSourceWindowOptions {
 	readonly paddingFrames?: number;
 }
 
+export interface AudioWarpSourceRangeOptions {
+	readonly startFrame: number;
+	readonly endFrame: number;
+}
+
 export interface AudioWarpRenderPathOptions {
 	readonly realtimeAcceleration: boolean;
 	readonly exactOfflineAvailable?: boolean;
@@ -204,11 +209,11 @@ export function buildAudioWarpRuntimeSegments(
 	return Object.freeze(segments);
 }
 
-/** Resolve one visible clip window to the bounded PCM source window it needs. */
-export function audioWarpSourceWindowRange(
+/** Resolve one clip-relative timeline window to its exact source extent. */
+export function audioWarpSourceRange(
 	projectValue: AudioWarpRuntimeProject,
 	clipValue: AudioWarpRuntimeClip,
-	options: Readonly<AudioWarpSourceWindowOptions>,
+	options: Readonly<AudioWarpSourceRangeOptions>,
 ): Readonly<{ startFrame: number; endFrame: number }> {
 	const evaluator = createAudioWarpRuntimeEvaluator(projectValue, clipValue);
 	const clipDuration = positiveSafeInteger(clipValue.durationFrames, 'audio warp clip duration');
@@ -217,14 +222,6 @@ export function audioWarpSourceWindowRange(
 	if (endFrame <= startFrame || endFrame > clipDuration) {
 		throw new RangeError('Audio warp source windows must be positive and remain within the clip extent.');
 	}
-	const sourceFrameCount = nonNegativeSafeInteger(
-		options.sourceFrameCount,
-		'audio warp source frame count',
-	);
-	const paddingFrames = nonNegativeSafeInteger(
-		options.paddingFrames ?? 2,
-		'audio warp source window padding',
-	);
 	const timelineStart = safeAdd(
 		nonNegativeSafeInteger(clipValue.timelineStartFrame, 'audio warp clip start'),
 		startFrame,
@@ -238,8 +235,29 @@ export function audioWarpSourceWindowRange(
 	const mappedStart = rationalNumber(evaluator.sourceAtTimelineFrame(timelineStart));
 	const mappedEnd = rationalNumber(evaluator.sourceAtTimelineFrame(timelineEnd));
 	return Object.freeze({
-		startFrame: Math.max(0, Math.floor(Math.min(mappedStart, mappedEnd)) - paddingFrames),
-		endFrame: Math.min(sourceFrameCount, Math.ceil(Math.max(mappedStart, mappedEnd)) + paddingFrames),
+		startFrame: Math.min(mappedStart, mappedEnd),
+		endFrame: Math.max(mappedStart, mappedEnd),
+	});
+}
+
+/** Resolve one visible clip window to the bounded PCM source window it needs. */
+export function audioWarpSourceWindowRange(
+	projectValue: AudioWarpRuntimeProject,
+	clipValue: AudioWarpRuntimeClip,
+	options: Readonly<AudioWarpSourceWindowOptions>,
+): Readonly<{ startFrame: number; endFrame: number }> {
+	const range = audioWarpSourceRange(projectValue, clipValue, options);
+	const sourceFrameCount = nonNegativeSafeInteger(
+		options.sourceFrameCount,
+		'audio warp source frame count',
+	);
+	const paddingFrames = nonNegativeSafeInteger(
+		options.paddingFrames ?? 2,
+		'audio warp source window padding',
+	);
+	return Object.freeze({
+		startFrame: Math.max(0, Math.floor(range.startFrame) - paddingFrames),
+		endFrame: Math.min(sourceFrameCount, Math.ceil(range.endFrame) + paddingFrames),
 	});
 }
 
