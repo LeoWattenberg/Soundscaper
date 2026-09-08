@@ -134,11 +134,10 @@ test('cancelling while a direct video caption sidecar saves cannot publish stale
 		},
 	});
 	const exporting = fixture.exportVideo();
-	await sidecarStarted.promise;
+	await assertCaptionSidecarStarted(sidecarStarted.promise, exporting, fixture.errors);
 	fixture.state.exportAbort?.abort();
 	releaseSidecar.resolve();
 	const result = await exporting;
-
 	assert.equal(result?.method, 'desktop', 'the already committed direct file remains the caller result');
 	assert.equal(fixture.state.exportOutput, null, 'the cancelled task cannot republish success state');
 	assert.equal(fixture.statuses.some(([status]) => status === 'Done'), false);
@@ -157,10 +156,9 @@ test('cancelling while a browser video caption sidecar saves retires its pending
 		},
 	});
 	const exporting = fixture.exportVideo();
-	await sidecarStarted.promise;
+	await assertCaptionSidecarStarted(sidecarStarted.promise, exporting, fixture.errors);
 	fixture.state.exportAbort?.abort();
 	releaseSidecar.resolve();
-
 	assert.equal(await exporting, null);
 	assert.equal(fixture.state.exportOutput, null);
 	assert.equal(fixture.state.outputUrl, null);
@@ -168,7 +166,6 @@ test('cancelling while a browser video caption sidecar saves retires its pending
 	assert.equal(fixture.events.filter((event) => event === 'download-cleanup').length, 1);
 	assert.equal(fixture.statuses.some(([status]) => status === 'Done'), false);
 });
-
 test('direct video rejects plan drift and count disagreement with one rollback and no commit', async (context) => {
 	const drift = createDesktopFixture({
 		afterOpen(plan) { plan.mimeType = 'video/webm'; },
@@ -202,7 +199,6 @@ test('direct video rejects plan drift and count disagreement with one rollback a
 		}));
 	}
 });
-
 test('direct video declines stale, aliased, and underspecified plans before target preparation', async () => {
 	for (const invalidPlan of ['legacy', 'alias', 'underspecified'] as const) {
 		const fixture = createDesktopFixture({ invalidPlan });
@@ -213,7 +209,6 @@ test('direct video declines stale, aliased, and underspecified plans before targ
 		assertOrder(fixture.events, ['plan', 'encode-bytes', 'download']);
 	}
 });
-
 test('direct video write and close failures roll back once and aggregate cleanup failure', async () => {
 	for (const failure of ['write', 'close'] as const) {
 		const primary = new Error(`${failure} failed`);
@@ -541,8 +536,8 @@ function project(fallback: boolean) {
 			{ id: 'caption-track', type: 'label', labels: [{ startFrame: 0, endFrame: 24_000, title: 'Caption' }] },
 		],
 		clips: [
-			{ id: videoClipId, kind: 'video', sourceId: videoId },
-			{ id: 'audio-clip', kind: 'audio', sourceId: 'audio-source' },
+			{ id: videoClipId, kind: 'video', sourceId: videoId, timelineStartFrame: 0, durationFrames: 48_000, sourceStartFrame: 0 },
+			{ id: 'audio-clip', kind: 'audio', sourceId: 'audio-source', timelineStartFrame: 0, durationFrames: 48_000, sourceStartFrame: 0 },
 		],
 		sources: [
 			{ id: 'original-video', storageKey: 'original-video-storage', opaqueExtensions: { byteLength: 3 } },
@@ -555,6 +550,11 @@ function deferred<Value>() {
 	let resolve!: (value: Value | PromiseLike<Value>) => void;
 	const promise = new Promise<Value>((accept) => { resolve = accept; });
 	return { promise, resolve };
+}
+
+async function assertCaptionSidecarStarted(started: Promise<void>, exporting: Promise<unknown>, errors: unknown[]) {
+	const didStart = await Promise.race([started.then(() => true), exporting.then(() => false)]);
+	assert.equal(didStart, true, String(errors[0]));
 }
 
 function renderedFallbackProjection(projected: ReturnType<typeof project>) {
