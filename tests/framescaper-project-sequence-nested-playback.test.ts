@@ -321,6 +321,18 @@ test('materialization refuses an occurrence that lands between two primary frame
 	});
 });
 
+test('materialization preserves sample-exact audio between primary video frames', () => {
+	const playback = materialize(nestedProject({
+		audioClip: {
+			timelineStartFrame: 1_000, durationFrames: 47_000,
+			sourceDurationFrames: 47_000,
+		},
+	}));
+
+	assert.equal(audio(playback).timelineStartFrame, 1_000);
+	assert.equal(audio(playback).durationFrames, 47_000);
+});
+
 test('materialization refuses video material that does not divide onto the source frame grid', () => {
 	assert.throws(() => materialize(nestedProject({
 		videoClip: { sourceFrameCount: 3 },

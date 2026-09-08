@@ -139,24 +139,31 @@ function materializeClipOccurrence(
 	const sourceClip = byClipId.get(occurrence.clipId);
 	const sourceTrack = byTrackId.get(occurrence.trackId);
 	if (!sourceClip || !sourceTrack) throw new ReferenceError('A flattened nested occurrence lost its source clip or track.');
-	const sequenceStartFrame = exactSafeInteger(occurrence.startFrame, 'primary-sequence start');
-	const sequenceEndFrame = exactSafeInteger(occurrence.endFrame, 'primary-sequence end');
-	if (sequenceEndFrame <= sequenceStartFrame) throw new RangeError('A nested playback occurrence must have positive duration.');
 	const identity = occurrenceIdentity(occurrence);
 	const clipId = `${ID_PREFIX}-clip-${identity}`;
 	const transientTrackId = `${ID_PREFIX}-track-${trackOccurrenceIdentity(occurrence)}`;
-	const clip = occurrence.kind === 'video'
-		? materializeVideoClip(sourceClip, occurrence, project.primarySequenceId, clipId, sequenceStartFrame, sequenceEndFrame)
-		: materializeAudioClip(
+	let clip: Readonly<Record<string, unknown>>;
+	if (occurrence.kind === 'video') {
+		const sequenceStartFrame = exactSafeInteger(occurrence.startFrame, 'primary-sequence start');
+		const sequenceEndFrame = exactSafeInteger(occurrence.endFrame, 'primary-sequence end');
+		if (sequenceEndFrame <= sequenceStartFrame) {
+			throw new RangeError('A nested playback occurrence must have positive duration.');
+		}
+		clip = materializeVideoClip(
+			sourceClip, occurrence, project.primarySequenceId, clipId, sequenceStartFrame, sequenceEndFrame,
+		);
+	} else {
+		clip = materializeAudioClip(
 			project,
 			sourceClip,
 			occurrence,
 			primary,
 			bySequenceId,
 			clipId,
-			sequenceStartFrame,
-			sequenceEndFrame,
+			occurrence.startFrame,
+			occurrence.endFrame,
 		);
+	}
 	return Object.freeze({
 		occurrence,
 		clip,
@@ -268,8 +275,8 @@ function materializeAudioClip(
 	primary: Readonly<Record<string, unknown>>,
 	bySequenceId: ReadonlyMap<string, Readonly<Record<string, unknown>>>,
 	clipId: string,
-	sequenceStartFrame: number,
-	sequenceEndFrame: number,
+	sequenceStartFrame: FramescaperFlattenedSequenceClipSequence['startFrame'],
+	sequenceEndFrame: FramescaperFlattenedSequenceClipSequence['endFrame'],
 ): Readonly<Record<string, unknown>> {
 	if (source.warpMap !== null) {
 		throw new RangeError('Nested playback cannot materialize a warped audio occurrence exactly.');
@@ -278,17 +285,20 @@ function materializeAudioClip(
 	if (!leafSequence) throw new ReferenceError('A flattened audio occurrence lost its leaf sequence.');
 	const sampleRate = positiveSafeInteger(project.sampleRate, 'project sample rate');
 	const timelineStartFrame = sequenceFrameToSample(
-		{ numerator: BigInt(sequenceStartFrame), denominator: 1n },
+		sequenceStartFrame,
 		primary,
 		sampleRate,
 		'primary audio start',
 	);
 	const timelineEndFrame = sequenceFrameToSample(
-		{ numerator: BigInt(sequenceEndFrame), denominator: 1n },
+		sequenceEndFrame,
 		primary,
 		sampleRate,
 		'primary audio end',
 	);
+	if (timelineEndFrame <= timelineStartFrame) {
+		throw new RangeError('A nested playback occurrence must have positive duration.');
+	}
 	const leafStartSample = sequenceFrameToSample(
 		occurrence.leafStartFrame,
 		leafSequence,
