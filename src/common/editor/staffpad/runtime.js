@@ -211,9 +211,9 @@ export async function renderStaffPad(request, runtime, hooks = {}) {
 						const length = visibleEnd - visibleStart;
 						await accumulator.append(output, sourceStart, length);
 						visibleFrames += length;
-						onProgress(Math.min(1, visibleFrames / normalized.outputFrames));
 					}
 					renderCursor = blockEnd;
+					onProgress(Math.min(1, renderCursor / targetRenderFrames));
 				}
 			} else {
 				const required = session.requiredInput();
