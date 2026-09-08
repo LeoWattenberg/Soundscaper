@@ -143,7 +143,8 @@ export function project(): FixtureProject {
 		sources: [{ id: 'voice-source', kind: 'audio', contentSha256: SOURCE_SHA256 }],
 		clips: [{ id: 'voice-clip', kind: 'audio', sourceId: 'voice-source', sequenceId: 'main-sequence',
 			avLinkId: null, reversed: false, speedRatio: 1, pitchCents: 0,
-			stretchToTempo: false, warpMap: null }],
+			stretchToTempo: false, warpMap: null,
+			timelineStartFrame: 0, sourceStartFrame: 0 }],
 		tracks: [{ id: 'voice-track', type: 'audio', clipIds: ['voice-clip'] }],
 	};
 }

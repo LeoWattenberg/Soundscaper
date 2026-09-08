@@ -56,6 +56,7 @@ test('enhancement preparation binds exact media, model, settings, recipe, and ca
 		slotId: 'primary-audio', mediaKind: 'audio', sourceId: 'voice-source',
 		sourceSha256: SOURCE_SHA256, sourceSampleRate: 48_000, occurrenceIds: ['voice-clip'],
 		sourceStartFrame: 24_000, sourceEndFrame: 72_000,
+		timelinePlacementOffsetFrames: 0,
 		linkMembershipSha256: '12'.repeat(32), timingAuthoritySha256: '34'.repeat(32),
 		retimeKind: 'identity',
 	}]);
@@ -447,7 +448,8 @@ test('Make Highlights adds Qwen only after explicit editorial rerank opt-in', as
 			sequenceId: 'main-sequence', avLinkId: 'linked-av', reversed: false, speedRatio: 1 },
 		{ id: 'audio-clip', kind: 'audio', sourceId: 'audio-source',
 			sequenceId: 'main-sequence', avLinkId: 'linked-av', reversed: false, speedRatio: 1,
-			pitchCents: 0, stretchToTempo: false, warpMap: null }],
+			pitchCents: 0, stretchToTempo: false, warpMap: null,
+			timelineStartFrame: 0, sourceStartFrame: 0 }],
 	};
 	const linkMembershipSha256 = '12'.repeat(32);
 	const videoFence = {
