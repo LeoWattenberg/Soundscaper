@@ -5,6 +5,7 @@ import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import '../audio-editor-design-system/25-spectral-brush.css';
 
+import { normalizeSpectrogramScale } from './geometry.ts';
 import { planSpectralBrushGesture } from './spectral-brush-model.ts';
 
 export function SpectralBrushOverlay({
@@ -40,7 +41,7 @@ export function SpectralBrushOverlay({
 		sampleRate,
 		minimumFrequency,
 		maximumFrequency,
-		scale: track.spectrogram?.scale || 'mel',
+		scale: normalizeSpectrogramScale(track.spectrogram?.scale),
 	});
 	const stopEvent = (event) => {
 		event.preventDefault();
