@@ -108,15 +108,16 @@ export async function publishLocalAssistanceGuidedIndex(
 		|| embedding.rowCount !== matrix.rowCount || embedding.dimensions !== matrix.dimensions) {
 		throw new Error('The Guided index embedding matrix disagrees with its reviewed descriptor.');
 	}
+	const sourceId = String(semantic.sourceId);
+	const sourceRange = workflow.fence.sourceRanges.find((range) => range.sourceId === sourceId);
+	if (!sourceRange) {
+		throw new Error('The Guided index source changed after aggregate-fence review.');
+	}
 	const rows = workflow.workflowId === 'index-transcript'
-		? searchRows(semantic.rows, 'transcript')
+		? searchRows(semantic.rows, 'transcript', sourceRange.timelinePlacementOffsetFrames ?? 0)
 		: searchRows(record(semantic.rows, 'video index rows').visual, 'visual');
 	const ocr = workflow.workflowId === 'index-video'
 		? searchRows(record(semantic.rows, 'video index rows').ocr, 'OCR') : Object.freeze([]);
-	const sourceId = String(semantic.sourceId);
-	if (!workflow.fence.sourceRanges.some((range) => range.sourceId === sourceId)) {
-		throw new Error('The Guided index source changed after aggregate-fence review.');
-	}
 	const bytes = createAssistanceSemanticDerivativeBundleV1({
 		provider: workflow.workflowId === 'index-transcript' ? 'transcript' : 'visual',
 		schemaFamily: workflow.fence.schemaFamily, schemaVersion: workflow.fence.schemaVersion,
@@ -236,12 +237,16 @@ async function assertCurrentFence(
 	}
 }
 
-function searchRows(value: unknown, label: string) {
+function searchRows(value: unknown, label: string, timelineOffset = 0) {
 	if (!Array.isArray(value)) throw new TypeError(`The ${label} search rows are invalid.`);
 	return Object.freeze(value.map((candidate) => {
 		const row = record(candidate, `${label} search row`);
+		const timelineFrame = Number(row.timelineFrame) + timelineOffset;
+		if (!Number.isSafeInteger(timelineFrame) || timelineFrame < 0) {
+			throw new RangeError(`The ${label} search row timeline frame is invalid.`);
+		}
 		return Object.freeze({ resultId: String(row.resultId),
-			timelineFrame: Number(row.timelineFrame), label: String(row.label) });
+			timelineFrame, label: String(row.label) });
 	}));
 }
 

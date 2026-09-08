@@ -31,7 +31,7 @@ const SHOTS = Object.freeze({ schemaVersion: 1, detector: 'ffmpeg-scdet', timesc
 
 test('accepting a transcript index atomically publishes its reviewed matrix and rows as disposable custody',
 	async () => {
-		const workflow = transcriptWorkflow();
+		const workflow = transcriptWorkflow(432_000);
 		const repository = derivativeRepository();
 		const result = await publishLocalAssistanceGuidedIndex({
 			workflow, review: transcriptReview(workflow), selectedChoiceIds: ['transcript-index'],
@@ -49,7 +49,7 @@ test('accepting a transcript index atomically publishes its reviewed matrix and 
 		const bundle = reviewAssistanceSemanticDerivativeBundleV1(records[0]!.bytes);
 		assert.equal(bundle.provider, 'transcript');
 		assert.deepEqual(bundle.rows, [{
-			resultId: 'transcript:0', timelineFrame: 100, label: 'one two words',
+			resultId: 'transcript:0', timelineFrame: 432_100, label: 'one two words',
 		}]);
 		assert.deepEqual(bundle.matrix.vector(0), new Float32Array([1, 0]));
 	});
@@ -170,11 +170,11 @@ test('video index publication leaves neither batch row after first-row aggregate
 	assert.equal(values.size, 0);
 });
 
-function transcriptWorkflow(): AssistanceWorkflowV1 {
+function transcriptWorkflow(timelinePlacementOffsetFrames = 0): AssistanceWorkflowV1 {
 	const stageIds = ['chunk-transcript', 'embed-transcript', 'publish-transcript-index'];
 	const models = [{ bindingVersion: 1 as const, stageId: 'embed-transcript', slotId: 'text-embedder',
 		modelId: 'nomic-embed-text-v1.5', version: '1.5.0', artifactSha256s: ['78'.repeat(32)] }];
-	return assistanceWorkflowFixture({ workflowId: 'index-transcript', stageIds, models,
+	const workflow = assistanceWorkflowFixture({ workflowId: 'index-transcript', stageIds, models,
 		inputs: [
 			claim('input', 'chunk-transcript', 'transcript', 1),
 			claim('input', 'embed-transcript', 'text-chunks', 2),
@@ -187,6 +187,9 @@ function transcriptWorkflow(): AssistanceWorkflowV1 {
 			claim('output', 'publish-transcript-index', 'transcript-index', 7),
 		],
 	});
+	return { ...workflow, fence: { ...workflow.fence, sourceRanges: workflow.fence.sourceRanges.map((range) => ({
+		...range, timelinePlacementOffsetFrames,
+	})) } };
 }
 
 function transcriptReview(workflow: AssistanceWorkflowV1): LocalAssistanceGuidedReviewedResult {

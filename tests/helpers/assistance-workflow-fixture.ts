@@ -47,6 +47,7 @@ export function assistanceWorkflowFixture(
 			sourceSha256: '12'.repeat(32), sourceSampleRate: 48_000,
 			occurrenceIds: ['occurrence-a'],
 			sourceStartFrame: 0, sourceEndFrame: 96_000,
+			timelinePlacementOffsetFrames: 0,
 			linkMembershipSha256: '34'.repeat(32), timingAuthoritySha256: '56'.repeat(32),
 			retimeKind: 'identity' as const,
 		}],

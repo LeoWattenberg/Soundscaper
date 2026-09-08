@@ -47,6 +47,7 @@ test('transcript index publication reconstructs exact live aggregate authority a
 		assert.deepEqual(await resolver.resolveCurrentFence(
 			workflow, new AbortController().signal,
 		), workflow.fence);
+		assert.equal(workflow.fence.sourceRanges[0]?.timelinePlacementOffsetFrames, 432_000);
 		assert.deepEqual(state.loads, [STORAGE_KEY]);
 		assert.deepEqual(state.preparations, [],
 			'publication authority must not render selected audio');
@@ -97,9 +98,10 @@ test('a single-source aggregate retains the complete linked A/V occurrence autho
 		clips: [
 			{ id: 'audio-occurrence', kind: 'audio', sourceId: 'source-a',
 				sequenceId: 'sequence-a', avLinkId: 'link-a', reversed: false, speedRatio: 1,
-				stretchToTempo: false, warpMap: null },
+				stretchToTempo: false, warpMap: null, timelineStartFrame: 0, sourceStartFrame: 0 },
 			{ id: 'video-occurrence', kind: 'video', sourceId: 'source-video',
-				sequenceId: 'sequence-a', avLinkId: 'link-a', reversed: false, speedRatio: 1 },
+				sequenceId: 'sequence-a', avLinkId: 'link-a', reversed: false, speedRatio: 1,
+				timelineStartFrame: 0, sourceStartFrame: 0 },
 		],
 		tracks: [], assistanceAssets: [],
 	};
@@ -119,7 +121,8 @@ test('video index publication reauthenticates the external original and exact vi
 		primarySequenceId: 'sequence-a', subsequences: [], multicameraGroups: [],
 		sources: [{ id: 'source-a', kind: 'video', contentSha256: SOURCE_SHA256 }],
 		clips: [{ id: 'occurrence-a', kind: 'video', sourceId: 'source-a',
-			sequenceId: 'sequence-a', avLinkId: null, reversed: false, speedRatio: 1 }],
+			sequenceId: 'sequence-a', avLinkId: null, reversed: false, speedRatio: 1,
+			timelineStartFrame: 0, sourceStartFrame: 0 }],
 		tracks: [{ id: 'track-a', type: 'video', clipIds: ['occurrence-a'] }],
 		assistanceAssets: [],
 	};
@@ -243,7 +246,8 @@ function fixture() {
 			contentSha256: SOURCE_SHA256 }],
 		clips: [{ id: 'occurrence-a', kind: 'audio', sourceId: 'source-a',
 			sequenceId: 'sequence-a', avLinkId: null, reversed: false, speedRatio: 1,
-			stretchToTempo: false, warpMap: null }],
+			stretchToTempo: false, warpMap: null,
+			timelineStartFrame: 432_000, sourceStartFrame: 0 }],
 		tracks: [{ id: 'track-a', type: 'audio', clipIds: ['occurrence-a'] }],
 		assistanceAssets: [{ id: 'transcript-a', kind: 'transcript-v1', sourceId: 'source-a',
 			sourceSha256: SOURCE_SHA256, sourceStartFrame: 0, sourceEndFrame: 96_000,

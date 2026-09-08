@@ -20,6 +20,7 @@ export interface AssistanceWorkflowSourceRangeV1 {
 	readonly occurrenceIds: readonly string[];
 	readonly sourceStartFrame: number;
 	readonly sourceEndFrame: number;
+	readonly timelinePlacementOffsetFrames?: number;
 	readonly linkMembershipSha256: string;
 	readonly timingAuthoritySha256: string;
 	readonly retimeKind: 'identity' | 'monotonic-forward';
@@ -95,7 +96,9 @@ function validateSourceRange(
 	value: unknown,
 	allOccurrences: Set<string>,
 ): AssistanceWorkflowSourceRangeV1 {
-	const record = exactRecord(value, RANGE_KEYS, 'assistance workflow source range');
+	const record = exactRecord(value, RANGE_KEYS, 'assistance workflow source range', [
+		'timelinePlacementOffsetFrames',
+	]);
 	const sourceStartFrame = nonNegativeInteger(record.sourceStartFrame, 'source start frame');
 	const sourceEndFrame = nonNegativeInteger(record.sourceEndFrame, 'source end frame');
 	if (sourceEndFrame <= sourceStartFrame) {
@@ -128,6 +131,12 @@ function validateSourceRange(
 		occurrenceIds: Object.freeze(occurrences),
 		sourceStartFrame,
 		sourceEndFrame,
+		...(record.timelinePlacementOffsetFrames === undefined ? {} : {
+			timelinePlacementOffsetFrames: boundedInteger(
+				record.timelinePlacementOffsetFrames, Number.MIN_SAFE_INTEGER,
+				Number.MAX_SAFE_INTEGER, 'timeline placement offset',
+			),
+		}),
 		linkMembershipSha256: digest(record.linkMembershipSha256, 'link membership'),
 		timingAuthoritySha256: digest(record.timingAuthoritySha256, 'timing authority'),
 		retimeKind: enumValue(
@@ -146,13 +155,20 @@ function compareSourceRanges(left: AssistanceWorkflowSourceRangeV1, right: Assis
 	return compareCodeUnits(leftKey, rightKey);
 }
 
-function exactRecord(value: unknown, keys: readonly string[], label: string): Record<string, unknown> {
+function exactRecord(
+	value: unknown,
+	keys: readonly string[],
+	label: string,
+	optionalKeys: readonly string[] = [],
+): Record<string, unknown> {
 	if (!value || typeof value !== 'object' || Array.isArray(value) || ArrayBuffer.isView(value)) {
 		throw new TypeError(`The ${label} must be a plain record.`);
 	}
 	const record = value as Record<string, unknown>;
 	const present = Object.keys(record);
-	if (present.length !== keys.length || present.some((key) => !keys.includes(key))) {
+	if (present.length < keys.length || present.length > keys.length + optionalKeys.length
+		|| present.some((key) => !keys.includes(key) && !optionalKeys.includes(key))
+		|| keys.some((key) => !Object.hasOwn(record, key))) {
 		throw new TypeError(`The ${label} schema keys are invalid.`);
 	}
 	return record;

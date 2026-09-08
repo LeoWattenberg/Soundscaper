@@ -119,6 +119,12 @@ function sourceRangeInventory(
 		const kind = [...kinds][0];
 		if (kind !== 'audio' && kind !== 'video') unavailable('selected-media-unavailable');
 		for (const occurrence of occurrences) assertForwardOccurrence(occurrence, kind);
+		const placementOffsets = occurrences.map((occurrence) => (
+			integer(occurrence.timelineStartFrame, 0, 'occurrence timeline start')
+				- integer(occurrence.sourceStartFrame, 0, 'occurrence source start')
+		));
+		if (placementOffsets.some((offset) => !Number.isSafeInteger(offset))
+			|| new Set(placementOffsets).size !== 1) unavailable('timing-authority-unavailable');
 		const matchingSources = sources.filter(({ id }) => id === primitive.sourceId);
 		if (matchingSources.length !== 1 || matchingSources[0]!.kind !== kind
 			|| liveSource(matchingSources[0]!)) unavailable('source-custody-unavailable');
@@ -141,6 +147,7 @@ function sourceRangeInventory(
 				.map(({ id }) => identifier(id, 'occurrence ID')).sort()),
 			sourceStartFrame: primitive.sourceStartFrame,
 			sourceEndFrame: primitive.sourceEndFrame,
+			timelinePlacementOffsetFrames: placementOffsets[0]!,
 			linkMembershipSha256: digest(primitive.linkMembershipSha256),
 			timingAuthoritySha256: digest(primitive.timingAuthoritySha256),
 			retimeKind: occurrences.some(({ retimeMap }) => retimeMap != null)
