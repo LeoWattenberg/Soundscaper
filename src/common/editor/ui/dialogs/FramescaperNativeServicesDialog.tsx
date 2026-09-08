@@ -269,7 +269,7 @@ function WatchPanel({ copy, snapshot, busy, perform, context, lifecycleMethods }
 	const [importMode, setImportMode] = useState<'link' | 'copy'>('link');
 	const [generateProxies, setGenerateProxies] = useState(false);
 	const roots = snapshot.services.roots.filter((root) => !root.revoked);
-	const grantId = selectedRootId || roots[0]?.grantId || '';
+	const grantId = roots.find((root) => root.grantId === selectedRootId)?.grantId ?? roots[0]?.grantId ?? '';
 	const canCreate = lifecycleMethods.includes('createWatch')
 		&& context.projectId !== null && grantId !== '';
 	const create = (): void => {
