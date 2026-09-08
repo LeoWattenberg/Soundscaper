@@ -2,6 +2,11 @@
 
 import { createFramescaperCaptureAdminInterlock } from
 	'../common/editor/controller/framescaper-capture-admin-interlock.ts';
+import { adaptFramescaperRecordingControllerFactory } from '../common/editor/controller/framescaper-recording-factory-adapter.ts';
+import {
+	createFramescaperCaptureDocumentPorts,
+	createFramescaperCaptureProxyDocumentInstaller,
+} from '../common/editor/controller/framescaper-capture-document-ports.ts';
 import type {
 	FramescaperCaptureDerivativeScheduler,
 	FramescaperCaptureDerivativeSchedulerOptions,
@@ -37,6 +42,9 @@ export function createDeferredFramescaperCaptureRuntime(load: FramescaperCapture
 		return implementation;
 	};
 	return Object.freeze({
+		adaptRecordingControllerFactory: adaptFramescaperRecordingControllerFactory,
+		createDocumentPorts: createFramescaperCaptureDocumentPorts,
+		createProxyDocumentInstaller: createFramescaperCaptureProxyDocumentInstaller,
 		createAdminInterlock: createFramescaperCaptureAdminInterlock,
 		createAppBinding: (
 			options: Parameters<typeof createDeferredFramescaperCaptureAppBinding>[0],

@@ -1,6 +1,5 @@
 // @ts-check
 import { createCaptureComposition } from './controller/capture-composition.ts';
-import { createFramescaperCaptureDocumentPorts, createFramescaperCaptureProxyDocumentInstaller } from './controller/framescaper-capture-document-ports.ts';
 import { startController } from './controller/controller-startup.ts';
 import { createControllerResources } from './controller/controller-resources.ts';
 import { bindSessionHistoryAdmission } from './controller/session-history-admission.ts';
@@ -13,7 +12,6 @@ import { createTrackAudioComposition } from './controller/track-audio-compositio
 import { loadNativeEditableProject } from './controller/native-project-admission.ts';
 import { createControllerTimers } from './controller/controller-timers.ts';
 import { createRecordingCapturePoolBinding } from './controller/recording-capture-pool-binding.ts';
-import { adaptFramescaperRecordingControllerFactory } from './controller/framescaper-recording-factory-adapter.ts';
 import { createRecordingComposition } from './controller/recording-composition.ts';
 import {
 	AUDIO_EDITOR_DEFAULT_PIXELS_PER_SECOND,
@@ -432,12 +430,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 		sourceBuffers,
 		decodeAudioFile: createDawprojectAudioDecoder({ engine, ffmpeg, copy }), product,
 	});
-	const captureComposition = createCaptureComposition(framescaperCaptureRuntime, () => ({
+	const captureComposition = createCaptureComposition(framescaperCaptureRuntime, captureRuntime => ({
 		proxy: {
 			createScheduler: options.createFramescaperCaptureProxyScheduler, runtime: ffmpeg,
 			helperTimingProbe: fileService.helperTimingProbe,
 			saves: { getActiveProjectId: () => documentState.project?.id ?? null, hasUnsavedProjectChanges: () => Boolean(documentState.project && bindings.sessionTab(documentState.project.id)?.dirty), saves: doc.saves },
-			activeProject: { getActiveProject: () => documentState.project, installActiveProject: createFramescaperCaptureProxyDocumentInstaller({ runtime: projectRuntime, setHistory: value => { state.history = value; }, synchronizeProject: bindings.applyProjectToPlaybackEngine }), publishProjectState: bindings.publishProjectState },
+			activeProject: { getActiveProject: () => documentState.project, installActiveProject: captureRuntime.createProxyDocumentInstaller({ runtime: projectRuntime, setHistory: value => { state.history = value; }, synchronizeProject: bindings.applyProjectToPlaybackEngine }), publishProjectState: bindings.publishProjectState },
 		},
 		derivatives: {
 			getOriginProject: async (projectId) => bindings.sessionTab(projectId)?.history?.present ?? store.loadProject(projectId), store,
@@ -454,7 +452,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			schemaFamily: 'framescaper', schemaVersion: 1,
 			isDesktop: Boolean(fileService.isDesktop), embedded: globalThis.document?.documentElement?.dataset?.embedded === 'true',
 			store, mediaDevices, getActivePlayheadFrame: () => state.positionFrame,
-			...createFramescaperCaptureDocumentPorts({ adminInterlock: framescaperCaptureAdminInterlock, session: sessionController, runtime: projectRuntime,
+			...captureRuntime.createDocumentPorts({ adminInterlock: framescaperCaptureAdminInterlock, session: sessionController, runtime: projectRuntime,
 				getProject: () => documentState.project, getHistory: () => state.history,
 				setProject: value => { documentState.project = value; }, setHistory: value => { state.history = value; },
 				synchronizeProject: async value => { await bindings.applyProjectToPlaybackEngine(value); bindings.publishProjectState(); } }),
@@ -462,7 +460,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			getAudioContext: () => engine.getAudioContext({ resume: false }),
 			createStream: options.createStream, MediaRecorder: options.MediaRecorder,
 			MediaStreamTrackProcessor: options.MediaStreamTrackProcessor,
-			recordingControllerFactory: adaptFramescaperRecordingControllerFactory(options.recordingControllerFactory), AudioWorkletNode: options.AudioWorkletNode,
+			recordingControllerFactory: captureRuntime.adaptRecordingControllerFactory(options.recordingControllerFactory), AudioWorkletNode: options.AudioWorkletNode,
 			helperTimingProbe: fileService.helperTimingProbe, ffmpeg,
 			desktopBridge: globalThis.framescaperCaptureDesktop?.v1 ?? null, webVcrBridge: globalThis.framescaperWebVcr?.v1 ?? null, webVcrEnabled: product.applicationFeatures?.framescaperWebVcr === true, showWebVcrPanel: () => { void preferencesService.setPanelVisibility('web-vcr', true).catch(bindings.handleError); }, hideWebVcrPanel: () => { void preferencesService.setPanelVisibility('web-vcr', false).catch(bindings.handleError); },
 			createId: createStableId, now: currentTimeMs,

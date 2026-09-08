@@ -2,6 +2,11 @@
 
 import { audioEditorVideoThumbnailTimes, createAudioEditorVideoFrameExtractor } from '../video-media.js';
 import type { FramescaperCaptureAppBindingOptions } from './framescaper-capture-app-binding.ts';
+import type { adaptFramescaperRecordingControllerFactory } from './framescaper-recording-factory-adapter.ts';
+import type {
+	createFramescaperCaptureDocumentPorts,
+	createFramescaperCaptureProxyDocumentInstaller,
+} from './framescaper-capture-document-ports.ts';
 import type {
 	FramescaperCaptureDerivativeScheduler,
 	FramescaperCaptureDerivativeSchedulerOptions,
@@ -14,6 +19,9 @@ import type {
 } from './framescaper-capture-proxy-quiescence.ts';
 
 export interface CaptureCompositionRuntime<Binding> {
+	adaptRecordingControllerFactory: typeof adaptFramescaperRecordingControllerFactory;
+	createDocumentPorts: typeof createFramescaperCaptureDocumentPorts;
+	createProxyDocumentInstaller: typeof createFramescaperCaptureProxyDocumentInstaller;
 	createAppBinding(options: FramescaperCaptureAppBindingOptions): Binding;
 	createDerivativeScheduler(options: FramescaperCaptureDerivativeSchedulerOptions): FramescaperCaptureDerivativeScheduler;
 	createProjectWriteAuthority: typeof createFramescaperCaptureProjectWriteAuthority;
@@ -50,10 +58,10 @@ export interface CaptureCompositionDependencies {
 /** Keep product capture admission, derivative work, and proxy save fences together. */
 export function createCaptureComposition<Binding>(
 	runtime: CaptureCompositionRuntime<Binding> | null,
-	getDependencies: () => CaptureCompositionDependencies,
+	getDependencies: (runtime: CaptureCompositionRuntime<Binding>) => CaptureCompositionDependencies,
 ) {
 	if (!runtime) return Object.freeze({ binding: null, proxyScheduler: null });
-	const dependencies = getDependencies();
+	const dependencies = getDependencies(runtime);
 	const proxyScheduler = dependencies.proxy.createScheduler?.({
 		runtime: dependencies.proxy.runtime, helperTimingProbe: dependencies.proxy.helperTimingProbe,
 		quiesceProjectSaves: runtime.createProxySaveQuiescence(dependencies.proxy.saves),
