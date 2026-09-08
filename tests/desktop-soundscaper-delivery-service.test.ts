@@ -402,7 +402,6 @@ test('cancel, fail, and reauthorization retire only their exact native sessions'
 	const fixture = await createFixture(context);
 	const service = await fixture.start();
 	const grant = await service.authorizeRoot(fixture.outputRoot);
-
 	async function staged(index: number) {
 		const queuedDescription = descriptionFor(grant.grantId);
 		const queued = await service.enqueue(queuedDescription, null, admission(queuedDescription));
@@ -414,7 +413,6 @@ test('cancel, fail, and reauthorization retire only their exact native sessions'
 		assert.deepEqual(await readdir(fixture.outputRoot), []);
 		return { claim: claim!, jobId: queued.jobId };
 	}
-
 	const cancelled = await staged(1);
 	await service.cancel(cancelled.jobId);
 	assert.equal(service.list().entries.find(({ jobId }) => jobId === cancelled.jobId)?.state, 'cancelled');
@@ -425,14 +423,12 @@ test('cancel, fail, and reauthorization retire only their exact native sessions'
 	assert.deepEqual(await readdir(fixture.privateStagingRoot), []);
 	const reauthorized = await staged(3);
 	await service.revokeRoot(grant.grantId);
-	const failedAfterRevocation = service.list().entries.find(({ jobId }) => jobId === failed.jobId);
-	assert.equal(failedAfterRevocation?.state, 'failed');
-	assert.equal(failedAfterRevocation?.lastFailureCode, 'render-failed');
+	assert.equal(service.list().entries.find(({ jobId }) => jobId === failed.jobId)?.state, 'failed');
+	assert.equal(service.list().entries.find(({ jobId }) => jobId === failed.jobId)?.lastFailureCode, 'render-failed');
 	assert.deepEqual(await readdir(fixture.privateStagingRoot), []);
 	await service.reauthorizeRoot(grant.grantId, fixture.outputRoot);
-	const failedAfterReauthorization = service.list().entries.find(({ jobId }) => jobId === failed.jobId);
-	assert.equal(failedAfterReauthorization?.state, 'failed');
-	assert.equal(failedAfterReauthorization?.lastFailureCode, 'render-failed');
+	assert.equal(service.list().entries.find(({ jobId }) => jobId === failed.jobId)?.state, 'failed');
+	assert.equal(service.list().entries.find(({ jobId }) => jobId === failed.jobId)?.lastFailureCode, 'render-failed');
 	assert.equal(service.list().entries.find(({ jobId }) => jobId === reauthorized.jobId)?.state, 'waiting-for-project');
 	assert.deepEqual(await readdir(fixture.outputRoot), []);
 	await service.close();

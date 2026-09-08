@@ -55,6 +55,18 @@ export {
 } from './native-media-host-process.ts';
 export const NATIVE_MEDIA_PROXY_RECIPE_ID = 'framescaper-native-prores-proxy-mov-v1';
 
+/** Project a private spool inspection onto the closed reserved-stream completion wire. */
+export function nativeMediaReservedOutputCompletion(
+	output: Pick<HelperDataPlaneOutputReservation, 'streamId'>,
+	inspection: Readonly<{ readonly byteLength: number; readonly sha256: string }>,
+) {
+	return Object.freeze({
+		streamId: output.streamId,
+		byteLength: inspection.byteLength,
+		sha256: inspection.sha256,
+	});
+}
+
 export interface NativeMediaHostSourceInvocation {
 	readonly path: string | null;
 	readonly sha256: string | null;
@@ -355,11 +367,7 @@ export class NativeMediaHelperJobRunner {
 					}
 					result = await sendHelperDataPlaneReservedFile({
 						reservation: output,
-						completion: {
-							streamId: output.streamId,
-							byteLength: inspected.byteLength,
-							sha256: inspected.sha256,
-						},
+						completion: nativeMediaReservedOutputCompletion(output, inspected),
 						port: ports.at(-1)!, path: decodeOutputPath!, signal,
 					});
 				}

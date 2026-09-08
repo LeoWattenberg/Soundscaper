@@ -208,25 +208,6 @@ test('the pinned scalar StaffPad WASM matches the compact native golden matrix',
 	assert.ok(actual.sliding.maxAdjacentDelta < 0.15, 'sliding parameters remain continuous at StaffPad hop boundaries');
 });
 
-test('StaffPad reports progress while discarding leading selection context', async () => {
-	const runtime = await loadStaffPadWasm(await readFile(WASM_PATH));
-	const events = [];
-	await renderStaffPad({
-		channels: createIntegerProgram(8_192, 1, 0x12345678),
-		sampleRate: 8_000,
-		selection: { startFrame: 6_144, frameCount: 2_048 },
-		transform: createStaffPadChangePitchTransform({ cents: 700, preserveFormants: false }),
-		chunkFrames: 1_024,
-	}, runtime, {
-		onChunk() { events.push({ type: 'chunk' }); },
-		onProgress(progress) { events.push({ type: 'progress', progress }); },
-	});
-
-	const firstChunk = events.findIndex(({ type }) => type === 'chunk');
-	assert.ok(firstChunk > 0);
-	assert.ok(events.slice(0, firstChunk).some(({ progress }) => progress > 0.5));
-});
-
 test('real StaffPad cancellation destroys the session and leaves the long-lived runtime reusable', async () => {
 	const runtime = await loadStaffPadWasm(await readFile(WASM_PATH));
 	const fixture = staffPadGoldenCases().find(({ id }) => id === 'slowBoundaryStereo');

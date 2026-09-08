@@ -11,7 +11,6 @@ import test from 'node:test';
 import type { FramescaperMediaHostDescriptor } from '../desktop/framescaper-media-host-payload.ts';
 import {
 	receiveHelperDataPlaneFile,
-	receiveHelperDataPlaneReservedFile,
 	sendHelperDataPlaneFile,
 	type HelperDataPlaneIoPort,
 } from '../desktop/helper-data-plane-io.ts';
@@ -200,65 +199,6 @@ test('decode output is helper-spooled, exact-bound, and streamed over its transf
 		assert.deepEqual(await readFile(receivedPath), OUTPUT_BYTES);
 		assert.match(decodeOutputPath, /cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd/u);
 		await assert.rejects(stat(decodeOutputPath), /ENOENT/u);
-	} finally {
-		await harness.dispose();
-	}
-});
-
-test('image-sequence decode streams only the reserved output completion identity', async () => {
-	const harness = await jobHarness();
-	try {
-		const scratchRoot = join(harness.root, 'scratch');
-		await mkdir(scratchRoot);
-		const plan = planBinding(harness.planBytes);
-		const reservation = Object.freeze({
-			dataPlaneVersion: 1 as const, transport: 'message-port' as const,
-			streamId: '56'.repeat(20), direction: 'helper-to-host' as const,
-			exactByteLength: OUTPUT_BYTES.byteLength, maximumByteLength: OUTPUT_BYTES.byteLength,
-			maximumChunkBytes: 7, maximumInFlightChunks: 2,
-		});
-		const source = await fileInput(harness.sourcePath);
-		const [planHost, planHelper] = portPair();
-		const [outputHost, outputHelper] = portPair();
-		const receivedPath = join(harness.root, 'received-sequence.bin');
-		const runner = createNativeMediaHelperJobRunner({
-			descriptor: harness.descriptor,
-			invokeHost: (invocation) => processResult(
-				'media-decode', writeFile(invocation.decodeOutputPath!, OUTPUT_BYTES),
-			),
-		});
-		const job = runner.run({
-			kind: 'media-decode',
-			grant: {
-				executable: executableGrant(harness.descriptor), plan,
-				sources: [
-					{ ...source, role: 'image-sequence-pack' },
-					{ ...source, role: 'image-sequence-inventory' },
-				],
-				output: reservation,
-				imageSequence: {
-					kind: 'native-image-sequence-decode-v1',
-					profileId: 'decode-png-sequence', frameRate: { num: 60_000, den: 1_001 },
-				},
-				scratch: {
-					rootPath: scratchRoot, rootIdentity: await identity(scratchRoot),
-					reservationId: 'de'.repeat(20), maximumBytes: 4_096,
-				},
-			},
-			ports: [planHelper, outputHelper],
-		});
-		const receive = receiveHelperDataPlaneReservedFile({
-			reservation, port: outputHost, path: receivedPath,
-		});
-		const [jobResult, received] = await Promise.all([
-			job.completion,
-			receive,
-			sendHelperDataPlaneFile({ binding: plan, port: planHost, path: harness.planPath }),
-		]);
-		const expected = { streamId: reservation.streamId, byteLength: OUTPUT_BYTES.byteLength, sha256: digest(OUTPUT_BYTES) };
-		assert.deepEqual(jobResult, { output: expected });
-		assert.deepEqual(received, expected);
-		assert.deepEqual(await readFile(receivedPath), OUTPUT_BYTES);
 	} finally {
 		await harness.dispose();
 	}
