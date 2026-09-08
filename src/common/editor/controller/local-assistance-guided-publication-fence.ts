@@ -121,15 +121,24 @@ export function createLocalAssistanceGuidedPublicationFenceResolver(
 	): Promise<readonly AssistanceSelectionFence[]> {
 		const result: AssistanceSelectionFence[] = [];
 		for (const range of workflow.fence.sourceRanges) {
-			const operation = range.mediaKind === 'audio'
-				? 'voice-activity-detection' as const : 'shot-detection' as const;
-			const mode = range.mediaKind === 'video' ? videoMode(workflow) : null;
+			if (range.mediaKind === 'audio') {
+				const fence = validateAssistanceSelectionFence(dependencies.currentSelectionFence());
+				if (fence.sourceId !== range.sourceId) {
+					throw new Error('The current workflow audio source authority is unavailable.');
+				}
+				assertSelectedFence(fence, range.mediaKind);
+				result.push(fence);
+				signal.throwIfAborted();
+				continue;
+			}
+			const operation = 'shot-detection' as const;
+			const mode = videoMode(workflow);
 			const prepared = dataRecord(await dependencies.selected.prepareSelectedMedia({
 				sourceId: range.sourceId, operation,
-				...(mode === null ? {} : { shotDetectionMode: mode }), signal,
+				shotDetectionMode: mode, signal,
 			}), 'current workflow source preparation');
 			if (prepared.sourceId !== range.sourceId || prepared.operation !== operation
-				|| (mode !== null && prepared.shotDetectionMode !== mode)) {
+				|| prepared.shotDetectionMode !== mode) {
 				throw new Error('The current workflow preparation changed source or mode authority.');
 			}
 			const fence = validateAssistanceSelectionFence(prepared.selectionFence);

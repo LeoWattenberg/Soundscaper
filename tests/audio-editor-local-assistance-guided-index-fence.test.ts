@@ -48,6 +48,8 @@ test('transcript index publication reconstructs exact live aggregate authority a
 			workflow, new AbortController().signal,
 		), workflow.fence);
 		assert.deepEqual(state.loads, [STORAGE_KEY]);
+		assert.deepEqual(state.preparations, [],
+			'publication authority must not render selected audio');
 		assert.equal(state.assertions >= 2, true);
 	});
 
@@ -255,9 +257,10 @@ function fixture() {
 		body: Uint8Array | null;
 		stale: boolean;
 		loads: string[];
+		preparations: unknown[];
 		assertions: number;
 		dependencies: Parameters<typeof createLocalAssistanceGuidedPublicationFenceResolver>[0];
-	} = { project, body: TRANSCRIPT, stale: false, loads: [], assertions: 0,
+	} = { project, body: TRANSCRIPT, stale: false, loads: [], preparations: [], assertions: 0,
 		dependencies: null as never };
 	state.dependencies = {
 		getProject: () => state.project,
@@ -274,8 +277,11 @@ function fixture() {
 		selected: {
 			listSelectedMedia: async () => ({ sources: [{ sourceId: 'source-a',
 				mediaKind: 'audio' }] }),
-			prepareSelectedMedia: async (request) => ({ sourceId: 'source-a',
-				operation: request.operation, selectionFence: PRIMITIVE_FENCE }),
+			prepareSelectedMedia: async (request) => {
+				state.preparations.push(request);
+				return { sourceId: 'source-a', operation: request.operation,
+					selectionFence: PRIMITIVE_FENCE };
+			},
 		},
 	};
 	return state;
