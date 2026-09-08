@@ -87,7 +87,11 @@ export function createTransferView(document: Document, title: string, summary: s
 		const pending = pendingConfirmation;
 		pendingConfirmation = null;
 		confirmation.replaceChildren();
-		pending?.cancel();
+		if (pending) {
+			pending.cancel();
+			status.textContent = 'Nothing was sent.';
+			status.dataset.tone = 'info';
+		}
 	};
 
 	const busy = (value: boolean): void => {
@@ -203,7 +207,6 @@ export function createTransferView(document: Document, title: string, summary: s
 			cancel.addEventListener('click', () => {
 				if (pendingConfirmation !== request) return;
 				dismissConfirmation();
-				view.status('Nothing was sent.');
 			});
 			accept.addEventListener('click', () => {
 				if (pendingConfirmation !== request) return;

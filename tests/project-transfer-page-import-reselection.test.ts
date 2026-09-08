@@ -75,3 +75,22 @@ test('an empty selection neither imports nor leaves a stale value behind', async
 	assert.deepEqual(runs, []);
 	assert.equal(input.value, '');
 });
+
+test('a report says when it cancels a pending transfer confirmation', () => {
+	const document = new FakeDocument();
+	const view = createTransferView(document as unknown as Document, 'Send', 'Summary');
+	let cancellations = 0;
+	view.confirm({
+		heading: 'Send one project?',
+		lines: ['Interview cut'],
+		confirmLabel: 'Yes, send it',
+		cancelLabel: 'Cancel',
+		confirm: async () => undefined,
+		cancel: () => { cancellations += 1; },
+	});
+
+	view.report({ rows: [], summary: 'One archive downloaded.', complete: true });
+
+	assert.equal(cancellations, 1);
+	assert.match(document.statusText(), /nothing was sent/iu);
+});
