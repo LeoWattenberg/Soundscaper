@@ -190,7 +190,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 			cancelPlaybackCachePreparation();
 			cancelPlayAtSpeedPreparation();
 			if (state.timedRecording || state.timedRecordingPreparing) return cancelTimedRecording();
-			return state.recorder ? stopRecording() : engine.stop();
+			return state.recorder || state.recordingStarting ? stopRecording() : engine.stop();
 		}
 		if (action === 'jump-start') return engine.seek(0);
 		if (action === 'jump-end') return engine.seek(editorTimelineDurationFrames(getProject(), projectSampleRate()));

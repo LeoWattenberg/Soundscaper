@@ -154,6 +154,9 @@ test('transport dispatch coordinates preview, playback, seeking, stop, loop, and
 	assert.equal(await fixture.service.handleTransport('record'), 'recording-stopped');
 	fixture.state.recorder = null;
 	assert.equal(await fixture.service.handleTransport('stop'), 'stopped');
+	fixture.state.recordingStarting = true;
+	assert.equal(await fixture.service.handleTransport('stop'), 'recording-stopped');
+	fixture.state.recordingStarting = false;
 	assert.equal(await fixture.service.handleTransport('record'), 'recording-started');
 
 	await fixture.service.handleTransport('loop');
