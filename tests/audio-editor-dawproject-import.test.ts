@@ -132,6 +132,16 @@ function importSeconds() {
 	});
 }
 
+function importBeatTimeline(content: string) {
+	const document = parseDawprojectDocument(`<Project version="1.0"><Application name="x" version="1"/>
+<Transport><Tempo unit="bpm" value="120"/></Transport><Structure><Track contentType="audio" id="t">
+<Channel role="regular" id="c"/></Track></Structure><Arrangement><Lanes timeUnit="beats"><Lanes track="t">
+<Clips>${content}</Clips></Lanes></Lanes></Arrangement></Project>`);
+	return buildDawprojectProject(document, { media: new Map([['audio/a.wav', {
+		frameCount: 1_323_000, channelCount: 1, sampleRate: 44_100,
+	}]]), createStableId: ids() });
+}
+
 function codes(plan: ReturnType<typeof buildDawprojectProject>): string[] {
 	return plan.report.items.map((item) => item.code);
 }
@@ -178,6 +188,13 @@ test('a beats arrangement resolves through the imported tempo map, tempo change 
 	assert.equal(clip?.title, 'Drumfunk');
 	assert.ok(codes(plan).includes('dawproject.speed-change-converted'));
 	assert.equal(codes(plan).includes('dawproject.clip-extent-converted'), false, 'a loop region equal to the clip is not a loop');
+});
+
+test('seconds-valued audio keeps a seconds source offset inside a beats clip', () => {
+	const plan = importBeatTimeline(`<Clip time="8" duration="4" contentTimeUnit="beats" playStart="2">
+<Audio timeUnit="seconds" duration="30" channels="1" sampleRate="44100">
+<File path="audio/a.wav"/></Audio></Clip>`);
+	assert.equal((plan.project.clips as Array<{ sourceStartFrame: number }>)[0]?.sourceStartFrame, 44_100);
 });
 
 test('channels become tracks with gain, pan, mute and solo, and the notes track is reported not imported', () => {

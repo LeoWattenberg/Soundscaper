@@ -393,9 +393,7 @@ function visitAudio(
 		contentSpanSeconds = warped.contentSpanSeconds;
 		if (end === null) end = window.start + 1;
 	} else {
-		sourceOffsetSeconds = audioUnit === 'seconds'
-			? localTimeOf(scope, window.start, resolver)
-			: (window.start - scope.originFrame) / resolver.sampleRate;
+		sourceOffsetSeconds = (window.start - scope.originFrame) / resolver.sampleRate;
 		if (end === null) {
 			const remaining = Math.max(0, (fileDuration ?? 0) - sourceOffsetSeconds);
 			end = window.start + Math.max(1, Math.round(remaining * resolver.sampleRate));
