@@ -120,9 +120,22 @@ function conformReprobedSource(
 				binding.start, binding.end,
 			),
 		}));
+		const segments = snapshot.retimeMap.segments.map((segment) => (
+			segment.mode === 'ramp-forward' || segment.mode === 'ramp-reverse'
+				? Object.freeze({
+					...segment,
+					startVelocity: scaleRational(segment.startVelocity, oldRate, newRate),
+					endVelocity: scaleRational(segment.endVelocity, oldRate, newRate),
+				})
+				: segment
+		));
 		return Object.freeze({
 			id: snapshot.id,
-			retimeMap: Object.freeze({ ...snapshot.retimeMap, points: Object.freeze(points) }),
+			retimeMap: Object.freeze({
+				...snapshot.retimeMap,
+				points: Object.freeze(points),
+				segments: Object.freeze(segments),
+			}),
 		});
 	}));
 }
