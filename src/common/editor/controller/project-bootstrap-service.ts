@@ -18,6 +18,7 @@ import {
 	createInitialMacroScriptLibrary,
 	type MacroScriptLibraryState,
 } from './macro-script-library-service.ts';
+import { macroScriptLibrarySchemaIsAhead } from '../macro-script-library.ts';
 
 export interface ProjectBootstrapState<Preferences, EffectPresets> {
 	preferences: Preferences;
@@ -25,6 +26,7 @@ export interface ProjectBootstrapState<Preferences, EffectPresets> {
 	effectMacros: EffectMacroLibraryState;
 	effectMacrosReadOnly?: boolean;
 	macroScripts: MacroScriptLibraryState;
+	macroScriptsReadOnly?: boolean;
 	deliveryPresets: DeliveryPresetState;
 	monitoring: boolean;
 	microphoneMetering: boolean;
@@ -193,7 +195,12 @@ export function createProjectBootstrapService<
 			const storedScripts = await guard(
 				runtime.store.loadSetting(MACRO_SCRIPT_LIBRARY_SETTING_KEY, null),
 			);
-			runtime.state.macroScripts = createInitialMacroScriptLibrary(storedScripts || {});
+			if (macroScriptLibrarySchemaIsAhead(storedScripts)) {
+				runtime.state.macroScripts = createInitialMacroScriptLibrary();
+				runtime.state.macroScriptsReadOnly = true;
+			} else {
+				runtime.state.macroScripts = createInitialMacroScriptLibrary(storedScripts || {});
+			}
 		} catch (error) {
 			if (runtime.isDisposedError(error)) throw error;
 			runtime.state.macroScripts = createInitialMacroScriptLibrary();

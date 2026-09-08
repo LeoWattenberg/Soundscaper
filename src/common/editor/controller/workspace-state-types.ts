@@ -43,6 +43,7 @@ export interface ControllerWorkspaceState<Preferences, EffectPresets, History = 
 	missingSourceIds: Set<string>;
 	effectMacros: ReturnType<typeof createInitialEffectMacroLibrary>;
 	macroScripts: ReturnType<typeof createInitialMacroScriptLibrary>;
+	macroScriptsReadOnly?: boolean;
 	videoEffectGestures: VideoEffectServiceRuntime['state']['videoEffectGestures'];
 	lastGeneratorRequest: AudioGeneratorServiceDependencies['state']['lastGeneratorRequest'];
 	nyquistResult: unknown;

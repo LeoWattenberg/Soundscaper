@@ -55,6 +55,13 @@ export function createMacroScriptLibrary(value: unknown = {}): MacroScriptLibrar
 	return freezeLibrary(scripts);
 }
 
+export function macroScriptLibrarySchemaIsAhead(value: unknown): boolean {
+	const source = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+	return typeof source.schemaVersion === 'number'
+		&& Number.isFinite(source.schemaVersion)
+		&& source.schemaVersion > MACRO_SCRIPT_LIBRARY_SCHEMA_VERSION;
+}
+
 export function listMacroScripts(state: unknown): readonly MacroScriptRecord[] {
 	return createMacroScriptLibrary(state).scripts;
 }

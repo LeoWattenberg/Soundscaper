@@ -136,3 +136,26 @@ test('a program the user wrote here exports as a file that will not run itself',
 	assert.equal(JSON.parse(service.export(saved.id)).kind, 'script');
 	assert.throws(() => service.export('missing'), /does not exist/u);
 });
+
+test('a newer macro script library cannot be overwritten', async () => {
+	const { createMacroScriptLibraryService } = await import(
+		'../src/common/editor/controller/macro-script-library-service.ts'
+	);
+	let writes = 0;
+	const state = { macroScripts: createMacroScriptLibrary(), macroScriptsReadOnly: true };
+	const service = createMacroScriptLibraryService({
+		state,
+		createId: () => 'macro-script-1',
+		persistSetting: async () => { writes += 1; },
+		publishDocumentSnapshot: () => {},
+		handleError: (error: unknown) => { throw error; },
+	} as never);
+
+	assert.equal(service.readOnly(), true);
+	assert.throws(() => service.save({ name: 'New', source: 'sound.project.save();' }),
+		/read-only/iu);
+	assert.throws(() => service.trust('macro-script-1'), /read-only/iu);
+	assert.throws(() => service.delete('macro-script-1'), /read-only/iu);
+	await service.flush();
+	assert.equal(writes, 0);
+});

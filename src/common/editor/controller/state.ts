@@ -95,6 +95,7 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		effectMacros: createInitialEffectMacroLibrary(),
 		deliveryPresets: createDeliveryPresetState(),
 		macroScripts: createInitialMacroScriptLibrary(),
+		macroScriptsReadOnly: false,
 		rackEffectGestures: new Map(),
 		parametricEqGestures: new Map(),
 		videoEffectGestures: new Map(),

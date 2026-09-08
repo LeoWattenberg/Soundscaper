@@ -17,7 +17,10 @@ import {
 	EFFECT_MACRO_LIBRARY_SETTING_KEY,
 	createInitialEffectMacroLibrary,
 } from '../src/common/editor/controller/effect-macro-library-service.ts';
-import { createInitialMacroScriptLibrary } from '../src/common/editor/controller/macro-script-library-service.ts';
+import {
+	MACRO_SCRIPT_LIBRARY_SETTING_KEY,
+	createInitialMacroScriptLibrary,
+} from '../src/common/editor/controller/macro-script-library-service.ts';
 import {
 	createDeliveryPresetState,
 	saveDeliveryPresetToState,
@@ -78,6 +81,7 @@ function createFixture(options: Readonly<{
 		// Bootstrap withholds writes for a library it could not read, so the
 		// fixture starts with the writable state the flag is toggled from.
 		effectMacrosReadOnly: false,
+		macroScriptsReadOnly: false,
 		monitoring: false,
 		microphoneMetering: false,
 		recordingInputGain: 0,
@@ -288,6 +292,20 @@ test('a macro library written by a newer build is kept, not emptied and overwrit
 
 	assert.deepEqual(fixture.state.effectMacros, createInitialEffectMacroLibrary());
 	assert.equal(fixture.state.effectMacrosReadOnly, true);
+});
+
+test('a macro script library written by a newer build becomes read-only', async () => {
+	const fixture = createFixture();
+	fixture.settings.set(MACRO_SCRIPT_LIBRARY_SETTING_KEY, {
+		schemaVersion: 99,
+		scripts: [{ id: 'script-a', name: 'From the future', source: 'sound.project.save();',
+			trust: 'authored', trustedSource: null, origin: null }],
+	});
+
+	await fixture.service.bootstrap(fixture.lifetime.capture());
+
+	assert.deepEqual(fixture.state.macroScripts, createInitialMacroScriptLibrary());
+	assert.equal(fixture.state.macroScriptsReadOnly, true);
 });
 
 test('bootstrap applies settings before opening the saved project', async () => {

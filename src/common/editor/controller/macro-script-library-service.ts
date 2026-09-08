@@ -17,7 +17,10 @@ export type { MacroScriptLibraryState, MacroScriptRecord };
 export const MACRO_SCRIPT_LIBRARY_SETTING_KEY = 'audio-editor-macro-scripts-v1';
 
 export interface MacroScriptLibraryServiceRuntime {
-	readonly state: { macroScripts: MacroScriptLibraryState };
+	readonly state: {
+		macroScripts: MacroScriptLibraryState;
+		macroScriptsReadOnly?: boolean;
+	};
 	readonly createId: (prefix: string) => string;
 	readonly persistSetting: (
 		key: string, value: MacroScriptLibraryState, options: Readonly<{ policy: 'required' }>,
@@ -37,13 +40,25 @@ export function createMacroScriptLibraryService(runtime: MacroScriptLibraryServi
 	let pending: MacroScriptLibraryState | null = null;
 	let writing: Promise<void> | null = null;
 
-	return Object.freeze({ list, save, delete: remove, trust, import: importFile, export: exportFile, blocked, flush });
+	return Object.freeze({ list, readOnly: isReadOnly, save, delete: remove, trust,
+		import: importFile, export: exportFile, blocked, flush });
+
+	function isReadOnly(): boolean {
+		return runtime.state.macroScriptsReadOnly === true;
+	}
+
+	function assertWritable(): void {
+		if (isReadOnly()) {
+			throw new RangeError('The macro script library is read-only: a newer build wrote it.');
+		}
+	}
 
 	function list(): readonly MacroScriptRecord[] {
 		return listMacroScripts(runtime.state.macroScripts);
 	}
 
 	function save(script: unknown): MacroScriptRecord {
+		assertWritable();
 		const result = saveMacroScript(runtime.state.macroScripts, {
 			script,
 			idFactory: (prefix) => runtime.createId(prefix),
@@ -76,6 +91,7 @@ export function createMacroScriptLibraryService(runtime: MacroScriptLibraryServi
 	}
 
 	function trust(scriptId: string): MacroScriptRecord {
+		assertWritable();
 		commit(trustMacroScript(runtime.state.macroScripts, scriptId));
 		const script = list().find((candidate) => candidate.id === String(scriptId ?? ''));
 		if (!script) throw new ReferenceError(`Macro program ${String(scriptId)} does not exist.`);
@@ -88,6 +104,7 @@ export function createMacroScriptLibraryService(runtime: MacroScriptLibraryServi
 	}
 
 	function remove(scriptId: string): true {
+		assertWritable();
 		commit(deleteMacroScript(runtime.state.macroScripts, scriptId));
 		return true;
 	}
