@@ -28,6 +28,10 @@ interface TimelineMediaProject {
 
 const VISUAL_CLIP_KINDS: readonly unknown[] = Object.freeze(['video', 'still', 'generator', 'image']);
 
+export function isVisualTimelineClipKind(kind: unknown): boolean {
+	return VISUAL_CLIP_KINDS.includes(kind);
+}
+
 /**
  * Whether the timeline holds audio an export would render.
  *
@@ -41,7 +45,7 @@ export function projectHasTimelineAudio(project: TimelineMediaProject | null | u
 
 /** Whether the timeline holds picture a visual export would compose. */
 export function projectHasTimelineVideo(project: TimelineMediaProject | null | undefined): boolean {
-	return holdsClipKind(project, (kind) => VISUAL_CLIP_KINDS.includes(kind), 'video');
+	return holdsClipKind(project, isVisualTimelineClipKind, 'video');
 }
 
 function holdsClipKind(

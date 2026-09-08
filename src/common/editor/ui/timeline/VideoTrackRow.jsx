@@ -3,6 +3,7 @@ import { GhostButton } from '@soundscaper/design-system/GhostButton';
 import { Icon } from '@soundscaper/design-system/Icon';
 
 import { framesToSeconds, projectClipsToViewport } from '../../design-system-adapters.js';
+import { isVisualTimelineClipKind } from '../timeline-media-presence.ts';
 import { AutomaticCrossfadeOverlays, createVideoOverlapPresentation } from './TrackOverlapOverlays.jsx';
 import { TimeSelectionOverlay } from './TimelineOverlayComponents.jsx';
 import { TrackNameEditor } from './TrackControls.jsx';
@@ -63,11 +64,13 @@ export function VideoTrackRow({
 			for (const preview of previews) {
 				if (track.id !== preview.trackId) continue;
 				const draggedClip = clipLookup.get(preview.clipId);
-				if (draggedClip?.kind === 'video') projected.push({ ...draggedClip, ...preview });
+				if (draggedClip && isVisualTimelineClipKind(draggedClip.kind)) {
+					projected.push({ ...draggedClip, ...preview });
+				}
 			}
 		}
 		for (const preview of projectBinDragPreview?.previews || (projectBinDragPreview ? [projectBinDragPreview] : [])) {
-			if (preview.trackId !== track.id || preview.clip?.kind !== 'video') continue;
+			if (preview.trackId !== track.id || !isVisualTimelineClipKind(preview.clip?.kind)) continue;
 			projected.push({
 				...preview.clip,
 				timelineStartFrame: preview.timelineStartFrame,
