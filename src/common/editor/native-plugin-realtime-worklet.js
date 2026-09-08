@@ -104,6 +104,7 @@ export class NativePluginRealtimeProcessor extends ProcessorBase {
 					bypassed: message.bypassed === true, atContextFrame: message.atContextFrame,
 				};
 			} else {
+				this.pendingBypass = null;
 				this.bypassed = message.bypassed === true;
 				if (this.bypassed) this.#discardTimeline();
 			}

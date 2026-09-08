@@ -58,3 +58,20 @@ test('native plug-in worklet closes instead of silently remapping a changed inpu
 		type === NATIVE_PLUGIN_CONTROL.fault && reason === 'topology-mismatch'
 	)), true);
 });
+
+test('an immediate bypass instruction supersedes a pending scheduled one', (context) => {
+	const priorFrame = globalThis.currentFrame;
+	context.after(() => { globalThis.currentFrame = priorFrame; });
+	const processor = new NativePluginRealtimeProcessor({ processorOptions: {
+		instanceId: 'bypass-1', inputChannelCount: 1, outputChannelCount: 1, queueCapacity: 4,
+	} });
+	processor.port.onmessage({ data: {
+		type: NATIVE_PLUGIN_CONTROL.bypass, bypassed: true, atContextFrame: 128,
+	}, ports: [] });
+	processor.port.onmessage({ data: {
+		type: NATIVE_PLUGIN_CONTROL.bypass, bypassed: false,
+	}, ports: [] });
+	globalThis.currentFrame = 128;
+	processor.process([[new Float32Array(128).fill(1)]], [[new Float32Array(128)]]);
+	assert.equal(processor.bypassed, false);
+});
