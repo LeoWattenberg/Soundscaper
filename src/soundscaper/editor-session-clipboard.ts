@@ -100,7 +100,7 @@ export function prepareSoundscaperTrackDuplicateCarrierV8(
 		|| !sameStrings(request.effectIds.map(({ sourceId }) => sourceId), clipboard.effectIds)) {
 		throw new RangeError('Soundscaper clipboard V8 source effects changed; recopy the track.')
 	}
-	const occupiedEffectIds = new Set(project.tracks.flatMap((track) => (
+	const occupiedEffectIds = new Set(project.tracks.filter(({ type }) => type === 'audio').flatMap((track) => (
 		trackEffectIds(track, `project track ${track.id}`)
 	)))
 	for (const { targetId } of request.effectIds) {
