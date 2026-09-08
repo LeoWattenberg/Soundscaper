@@ -163,3 +163,28 @@ test('OPFS sync worker client propagates cancellation and terminal worker failur
 	await assert.rejects(failed, /worker crashed/u);
 	assert.equal(worker.terminated, 1);
 });
+
+test('OPFS sync worker client reclaims a writer returned after its open was cancelled', async () => {
+	const worker = new FakeWorker((message) => (
+		message.type === 'initialize'
+			? { type: 'result', result: { supported: true } }
+			: null
+	));
+	const client = new OpfsSyncWorkerClient({ workerFactory: () => worker });
+	await client.initialize({} as FileSystemDirectoryHandle);
+	const abort = new AbortController();
+	const pending = client.openWriter('media-asset-chunk-write', 'late-writer.blob', abort.signal);
+	const open = worker.posted.at(-1)!;
+	abort.abort(new Error('stop open writer'));
+	await assert.rejects(pending, /stop open writer|cancelled/iu);
+
+	worker.emit('message', {
+		data: { id: open.id, type: 'result', result: { writerId: 'writer-late' } },
+	});
+	assert.deepEqual(worker.posted.at(-1), {
+		id: worker.posted.at(-1)?.id,
+		type: 'abort-writer',
+		writerId: 'writer-late',
+	});
+	client.close();
+});

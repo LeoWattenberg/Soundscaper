@@ -78,6 +78,7 @@ export class OpfsSyncWorkerClient implements OpfsSyncStoragePort {
 	readonly #workerName: string;
 	readonly #workerFactory: (workerName: string) => OpfsWorkerLike;
 	readonly #broker: WorkerRequestBroker;
+	readonly #pendingWriterOpens = new Map<string, string>();
 	#worker: OpfsWorkerLike | null = null;
 	#initializePromise: Promise<boolean> | null = null;
 	#supported = false;
@@ -131,9 +132,11 @@ export class OpfsSyncWorkerClient implements OpfsSyncStoragePort {
 		if (!operationId.endsWith('-write')) throw new TypeError('An OPFS write operation id is required.');
 		const path = normalizeOpfsWorkerPath(pathValue);
 		this.#assertSupported();
+		const requestId = createWorkerRequestId('opfs', nextRequestId++);
+		if (!signal?.aborted) this.#pendingWriterOpens.set(requestId, path);
 		const result = await this.#request<WorkerOpenResult>({
 			type: 'open-writer', operationId, path,
-		}, signal);
+		}, signal, [], requestId);
 		const writerId = typeof result?.writerId === 'string' && result.writerId ? result.writerId : null;
 		if (!writerId) throw new Error('OPFS worker returned an invalid writer identity.');
 		let state: 'open' | 'closed' | 'aborted' = 'open';
@@ -189,6 +192,7 @@ export class OpfsSyncWorkerClient implements OpfsSyncStoragePort {
 		this.#closed = true;
 		this.#supported = false;
 		this.#broker.dispose(new Error('OPFS synchronous worker is closed.'));
+		this.#pendingWriterOpens.clear();
 		this.#terminateWorker();
 	}
 
@@ -224,10 +228,11 @@ export class OpfsSyncWorkerClient implements OpfsSyncStoragePort {
 		message: Record<string, unknown>,
 		signal?: AbortSignal,
 		transfer: readonly Transferable[] = [],
+		requestId?: string,
 	): Promise<Result> {
 		const worker = this.#worker;
 		if (!worker) return Promise.reject(new Error('OPFS synchronous worker is unavailable.'));
-		const id = createWorkerRequestId('opfs', nextRequestId++);
+		const id = requestId ?? createWorkerRequestId('opfs', nextRequestId++);
 		return this.#broker.request<Result>({
 			id,
 			signal,
@@ -243,18 +248,39 @@ export class OpfsSyncWorkerClient implements OpfsSyncStoragePort {
 		if (worker !== this.#worker || !value || typeof value !== 'object') return;
 		const response = value as WorkerResponse;
 		if (typeof response.id !== 'string') return;
-		if (response.type === 'result') this.#broker.resolve(response.id, response.result);
-		else if (response.type === 'error') this.#broker.reject(
-			response.id,
-			deserializeOpfsWorkerError(response.error),
-		);
-		else this.#broker.reject(response.id, new Error('OPFS worker returned an invalid response.'));
+		if (response.type === 'result') {
+			if (this.#broker.resolve(response.id, response.result)) {
+				this.#pendingWriterOpens.delete(response.id);
+			} else this.#reclaimLateWriterOpen(worker, response.id, response.result);
+		} else if (response.type === 'error') {
+			this.#pendingWriterOpens.delete(response.id);
+			this.#broker.reject(response.id, deserializeOpfsWorkerError(response.error));
+		}
+		else {
+			this.#pendingWriterOpens.delete(response.id);
+			this.#broker.reject(response.id, new Error('OPFS worker returned an invalid response.'));
+		}
+	}
+
+	#reclaimLateWriterOpen(worker: OpfsWorkerLike, requestId: string, value: unknown): void {
+		if (!this.#pendingWriterOpens.delete(requestId)) return;
+		const result = value && typeof value === 'object' ? value as WorkerOpenResult : null;
+		const writerId = typeof result?.writerId === 'string' && result.writerId ? result.writerId : null;
+		if (!writerId) return;
+		try {
+			worker.postMessage({
+				id: createWorkerRequestId('opfs', nextRequestId++),
+				type: 'abort-writer',
+				writerId,
+			});
+		} catch { /* Late writer reclamation is best effort. */ }
 	}
 
 	#failWorker(worker: OpfsWorkerLike, error: unknown): void {
 		if (worker !== this.#worker) return;
 		this.#supported = false;
 		this.#broker.rejectAll(error);
+		this.#pendingWriterOpens.clear();
 		this.#terminateWorker();
 	}
 
