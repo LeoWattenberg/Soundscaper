@@ -207,6 +207,7 @@ export function createFramescaperWebVcrController(
 			return;
 		}
 		if (activeCapturePhase() === 'previewing') await capture().actions.release();
+		else if (activeCapturePhase() === 'failed') capture().actions.resetFailure();
 		const reference = sessionReference();
 		if (reference) await bridge?.dispose(reference);
 		options.adapter.select('devices');
@@ -505,6 +506,7 @@ export function createFramescaperWebVcrController(
 			hostRecoveryRequested = false;
 			try { await bridge?.dispose(reference); } catch (error) { warn(error); }
 		}
+		if (activeCapturePhase() !== 'inactive') { recoveryObserved = true; return; }
 		options.adapter.select('devices');
 		modeActive = false;
 		host = null;
