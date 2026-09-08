@@ -172,6 +172,31 @@ test('active navigation attempts recover and target identity freezes until exact
 	assert.equal(await harness.value.setCaptureState(OWNER, { ...reference, state: 'preparing', recordingToken: RECORDING_TOKEN }), false);
 });
 
+test('identical idle target observations do not emit redundant snapshots', async () => {
+	const harness = runtime();
+	const opened = await harness.value.open(OWNER, { resolution: '1080p' });
+	const firstTarget = target('9', 'playing', { x: 0.1, y: 0.2, width: 0.8, height: 0.6 });
+	const observation = {
+		navigationGeneration: opened.navigation.generation,
+		selection: { kind: 'target' as const, target: firstTarget, visibleArea: 100 },
+		targets: [targetIdentity(firstTarget)],
+		endedTarget: null,
+	};
+	harness.observe(observation);
+	const afterFirst = harness.snapshots.length;
+
+	harness.observe(observation);
+	assert.equal(harness.snapshots.length, afterFirst);
+
+	const movedTarget = target('9', 'playing', { x: 0.2, y: 0.2, width: 0.7, height: 0.6 });
+	harness.observe({
+		...observation,
+		selection: { kind: 'target', target: movedTarget, visibleArea: 90 },
+		targets: [targetIdentity(movedTarget)],
+	});
+	assert.equal(harness.snapshots.length, afterFirst + 1);
+});
+
 test('a changed active target enters recovery and Electron positional navigation does not double bump', async () => {
 	const harness = runtime();
 	const opened = await harness.value.open(OWNER, { resolution: '1080p' });

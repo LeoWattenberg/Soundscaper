@@ -54,6 +54,8 @@ export function applyFramescaperWebVcrTargetObservationV1(
 		}
 		return retained ? 'ignored' : 'target-lost';
 	}
+	const previousTarget = state.target;
+	const previousEndedRecordingToken = state.targetEndedRecordingToken;
 	if (ended && state.target?.targetId === ended.targetId
 		&& state.target.generation === ended.generation) {
 		state.target = Object.freeze({ ...state.target, mediaState: 'ended' });
@@ -62,7 +64,24 @@ export function applyFramescaperWebVcrTargetObservationV1(
 		state.target = observation.selection.kind === 'target' ? observation.selection.target : null;
 		state.targetEndedRecordingToken = null;
 	}
-	return 'changed';
+	return sameObservedTarget(previousTarget, state.target)
+		&& previousEndedRecordingToken === state.targetEndedRecordingToken ? 'ignored' : 'changed';
+}
+
+function sameObservedTarget(
+	left: FramescaperWebVcrRuntimeSessionV1['target'],
+	right: FramescaperWebVcrRuntimeSessionV1['target'],
+): boolean {
+	return left === null ? right === null : right !== null
+		&& left.targetId === right.targetId
+		&& left.generation === right.generation
+		&& left.mediaState === right.mediaState
+		&& left.aperture.x === right.aperture.x
+		&& left.aperture.y === right.aperture.y
+		&& left.aperture.width === right.aperture.width
+		&& left.aperture.height === right.aperture.height
+		&& left.intrinsicSize.width === right.intrinsicSize.width
+		&& left.intrinsicSize.height === right.intrinsicSize.height;
 }
 
 export async function transitionFramescaperWebVcrCaptureStateV1(
