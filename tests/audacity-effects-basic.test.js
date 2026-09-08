@@ -289,6 +289,15 @@ test('Truncate Silence finds silence linked across channels and crossfades centr
 	});
 	assert.equal(linked[0].length, input[0].length);
 	closeTo(linked[0], input[0]);
+
+	const independent = applyAudacityTruncateSilence(secondChannelBreaksSilence, 10, {
+		...common,
+		action: 'truncate',
+		independent: true,
+	});
+	assert.equal(independent[0].length, 7);
+	assert.equal(independent[1].length, 7);
+	assert.notDeepEqual(independent, linked);
 	unchanged(input, before);
 });
 

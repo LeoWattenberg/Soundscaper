@@ -340,6 +340,26 @@ export function applyAudacityTruncateSilence(
 	const minimumFrames = Math.max(1, Math.trunc(
 		Math.max(settings.minimumSilence, 0.001) * sampleRate,
 	));
+	if (settings.independent) {
+		const outputs = channels.map((channel) => truncateSilenceChannels(
+			[channel],
+			sampleRate,
+			settings,
+			threshold,
+			minimumFrames,
+		)[0]);
+		const outputFrames = Math.max(...outputs.map((channel) => channel.length));
+		return outputs.map((channel) => {
+			if (channel.length === outputFrames) return channel;
+			const padded = new Float32Array(outputFrames);
+			padded.set(channel);
+			return padded;
+		});
+	}
+	return truncateSilenceChannels(channels, sampleRate, settings, threshold, minimumFrames);
+}
+
+function truncateSilenceChannels(channels, sampleRate, settings, threshold, minimumFrames) {
 	const regions = findLinkedSilentRegions(channels, threshold, minimumFrames);
 	let output = cloneChannels(channels);
 
