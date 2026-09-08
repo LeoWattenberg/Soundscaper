@@ -59,6 +59,22 @@ test('frame source maps output indices exactly and evaluates shared keyed state 
 	assert.throws(() => source.frame(3), /outside the range/u);
 });
 
+test('frame source keeps runtime clip identity stable across frame queries', () => {
+	const project = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
+	(project.clips[0] as unknown as Record<string, unknown>).videoKeyframes = opacityKeyframes();
+	const source = createVideoKeyframeExportFrameSource({
+		project: runtimeProject(project),
+		canvas: { width: 320, height: 180, frameRate: 3 },
+		startFrame: 0,
+		endFrame: 48_000,
+	});
+	const clipAt = (index: number) => (source.frame(index).layers[0] as {
+		clips: readonly [{ clip: Readonly<Record<string, unknown>> }];
+	}).clips[0].clip;
+
+	assert.strictEqual(clipAt(0), clipAt(1));
+});
+
 test('frame source retains wide exact frame positions and static composition parity', () => {
 	const project = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
 	const runtime = runtimeProject(project);
