@@ -60,6 +60,7 @@ export default function MacroScriptPanel({ controller, copy, script, blocked, on
 
 	return (
 		<MacroScriptEditor
+			key={script.id}
 			copy={copy}
 			script={script}
 			log={log}

@@ -269,6 +269,13 @@ export async function mountedMacroManagerFixture(initialDraft: MacroEntry = {
 			assert.ok(input, 'Missing macro name input.');
 			return input;
 		},
+		scriptNameInput: () => {
+			const input = dom.container.querySelectorAll('label').find((label) => (
+				label.textContent.includes('Program name')
+			))?.querySelector('input');
+			assert.ok(input, 'Missing program name input.');
+			return input;
+		},
 		render: async (snapshot: ReturnType<typeof macroSnapshot>) => {
 			currentProject = snapshot.project;
 			await act(async () => root.render(<Host snapshot={snapshot} />));

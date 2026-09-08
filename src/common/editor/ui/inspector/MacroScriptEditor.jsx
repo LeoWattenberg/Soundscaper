@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { Checkbox } from '@soundscaper/design-system/Checkbox';
 import { TextInput } from '@soundscaper/design-system/TextInput';
@@ -32,8 +32,18 @@ export default function MacroScriptEditor({
 	runnable = true,
 }) {
 	const sourceRef = useRef(null);
+	const nameFocusedRef = useRef(false);
+	const [nameDraft, setNameDraft] = useState(script.name || '');
 	const [tabEscapes, setTabEscapes] = useState(false);
 	const [reviewed, setReviewed] = useState(false);
+	useEffect(() => {
+		if (!nameFocusedRef.current) setNameDraft(script.name || '');
+	}, [script.name]);
+	const finishName = () => {
+		nameFocusedRef.current = false;
+		if (String(nameDraft).trim()) onChange({ ...script, name: nameDraft });
+		else setNameDraft(script.name || '');
+	};
 
 	const handleKeyDown = (event) => {
 		if (event.key === 'Escape') {
@@ -59,8 +69,10 @@ export default function MacroScriptEditor({
 			<label className="audio-editor-field">
 				<span>{copy.programName}</span>
 				<TextInput
-					value={script.name || ''}
-					onChange={(name) => onChange({ ...script, name })}
+					value={nameDraft}
+					onFocus={() => { nameFocusedRef.current = true; }}
+					onChange={setNameDraft}
+					onBlur={finishName}
 					width="100%"
 				/>
 			</label>

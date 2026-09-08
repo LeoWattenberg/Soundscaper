@@ -409,6 +409,11 @@ test('an imported program is stored unreviewed and has no Run button until it is
 		assert.equal(fixture.scriptRuns.length, 0, 'importing never runs anything');
 		assert.equal(fixture.selectedMacroName(), null);
 		assert.equal(fixture.button(ENGLISH_COPY.runMacro).hasAttribute('disabled'), true);
+		const scriptName = fixture.scriptNameInput();
+		await act(async () => { reactProps(scriptName).onFocus?.(); });
+		await changeText(scriptName, '');
+		assert.equal(fixture.scripts.list()[0]?.name, 'Sweep');
+		assert.equal(fixture.scriptNameInput().value, '');
 
 		// The gate sits under the source it is about, and it is the only control
 		// offered — the acknowledgement has to be ticked before it does anything.
