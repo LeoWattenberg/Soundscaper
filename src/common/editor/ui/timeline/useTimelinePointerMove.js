@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
+import { fadeDurationAtPointer, fadeField } from './clip-fade-geometry.ts';
 import { createClipTrimPreview } from './interaction-helpers.js';
 import { compatibleMediaTrack, MINIMUM_TRACK_HEIGHT } from './geometry.ts';
 import { NEW_AUDIO_TRACK_DROP_TARGET } from './constants.ts';
@@ -50,6 +51,10 @@ export function useTimelinePointerMove({
 		trackAtClientY,
 	} = hitTesting;
 	const { run } = menuActions;
+	const fadePreviewFrame = useRef(null);
+	useEffect(() => () => {
+		if (fadePreviewFrame.current !== null) cancelAnimationFrame(fadePreviewFrame.current);
+	}, []);
 	const splitToolGuidelineRuntimeRef = useRef(
 		/** @type {typeof import('./split-tool-guideline.ts') | null} */ (null),
 	);
@@ -146,6 +151,18 @@ export function useTimelinePointerMove({
 			return;
 		}
 		const session = pointerSession.current;
+		if (session?.kind === 'fade') {
+			if (session.pointerId !== event.pointerId) return;
+			const value = fadeDurationAtPointer(session.edge, session.initial, session.startX, event.clientX,
+				session.pixelsPerSecond, sampleRate, session.original.durationFrames);
+			session.preview = { clipId: session.clipId, trackId: session.trackId, [fadeField(session.edge)]: value };
+			if (fadePreviewFrame.current === null) fadePreviewFrame.current = requestAnimationFrame(() => {
+				fadePreviewFrame.current = null;
+				if (pointerSession.current === session) setClipDragPreview(session.preview);
+			});
+			event.preventDefault();
+			return;
+		}
 		const runtime = splitToolGuidelineRuntimeRef.current;
 		const lane = runtime ? runtime.resolveSplitToolPointerLane(
 			event.target, event.clientY, scrollRef.current,

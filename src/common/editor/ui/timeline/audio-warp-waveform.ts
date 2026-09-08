@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { fadeEnvelope } from '../../design-system-adapters/validation.ts';
+
 import {
 	createAudioWarpRuntimeEvaluator,
 	type AudioWarpRuntimeClip,
@@ -250,20 +252,6 @@ function renderChannel(
 		rms[columnIndex] = count ? Math.sqrt(squareSum / count) : 0;
 	}
 	return { minimum, maximum, rms };
-}
-
-function fadeEnvelope(
-	frame: number,
-	durationFrames: number,
-	fadeInFrames: number,
-	fadeOutFrames: number,
-): number {
-	const fadeIn = fadeInFrames ? Math.max(0, Math.min(1, frame / fadeInFrames)) : 1;
-	const fadeOutStart = durationFrames - fadeOutFrames;
-	const fadeOut = fadeOutFrames && frame > fadeOutStart
-		? Math.max(0, Math.min(1, (durationFrames - frame) / fadeOutFrames))
-		: 1;
-	return Math.min(fadeIn, fadeOut);
 }
 
 function validateChannels(channels: readonly NumericChannel[]): number {

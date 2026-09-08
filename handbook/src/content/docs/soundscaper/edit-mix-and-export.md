@@ -14,6 +14,28 @@ whether later material stays in place or moves to close the removed region.
 Use track folders, clip groups, and the Project Bin to keep larger projects
 organized.
 
+### Adjust clip fades {#clip-fades}
+
+Select an audio clip to reveal small triangular handles along the top of its
+waveform, directly below the clip header.
+Drag the left triangle inward for a fade-in, or the right triangle inward for
+a fade-out. The waveform changes as you drag, and the area above the fade
+curve becomes darker. The triangles follow the fade boundaries; dragging one
+back to its corner removes that fade. Only the clip you drag is changed, even
+when several clips are selected.
+
+The handles disappear when you deselect the clip, but the faded waveform and
+shading remain. These fades preserve the original audio and stay adjustable
+after saving and reopening the project. Release to commit a fade, or press
+**Escape** while dragging to cancel. **Undo** reverses one complete drag.
+Playback and export use the committed fade settings.
+
+With a selected clip focused, press **Tab** to reach its fade handles. Arrow
+keys adjust the duration by 10 milliseconds, or 100 milliseconds with
+**Shift**. **Home** removes the fade; **End** extends it across the clip.
+For numeric entry, choose **Edit → Audio clips → Clip properties** and
+use **Fading**.
+
 ## Build the mix
 
 Use track gain, pan, mute, and solo controls to balance the project. The Mixer

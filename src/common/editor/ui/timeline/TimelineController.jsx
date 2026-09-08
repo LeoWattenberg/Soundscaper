@@ -87,6 +87,7 @@ export default function TimelineController({
 	const pointerFinish = useTimelinePointerFinish({
 		controller,
 		snapshot,
+		mutationsBlocked,
 		splitToolActive,
 		onRevealProjectBin,
 		state,

@@ -36,3 +36,9 @@ test('waveform cache keys invalidate on source revision, clip revision, or sourc
 	}));
 	assert.notEqual(key, createWaveformPreviewCacheKey({ ...base, sourceWindow: { startFrame: 21, endFrame: 120 } }));
 });
+
+test('uncommitted fade previews invalidate the waveform cache without a clip revision change', () => {
+	const key = createWaveformPreviewCacheKey(base);
+	assert.notEqual(key, createWaveformPreviewCacheKey({ ...base, clip: { ...base.clip, fadeInFrames: 30 } }));
+	assert.notEqual(key, createWaveformPreviewCacheKey({ ...base, clip: { ...base.clip, fadeOutFrames: 50 } }));
+});

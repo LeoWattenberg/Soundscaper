@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 
 import { collectClipTransformIds, collectClipTrimIds } from '../../commands.js';
+import { fadeField } from './clip-fade-geometry.ts';
 import {
 	MINIMUM_TRACK_HEIGHT,
 	trackOptionalControlsHeight,
@@ -51,6 +52,30 @@ export function useTimelinePointerStart({
 	const onPointerDown = useCallback((event) => {
 		if (event.target.closest?.('[data-timeline-annotation-interactive]')) return;
 		if (event.target.closest?.('[data-track-automation-interactive]')) return;
+		if (pointerSession.current?.kind === 'fade') {
+			event.preventDefault();
+			event.stopPropagation();
+			return;
+		}
+		const fadeHandle = event.target.closest?.('[data-clip-fade-handle]');
+		if (fadeHandle) {
+			if (event.button !== 0 || mutationsBlocked || pointerSession.current) return;
+			const clipId = fadeHandle.closest('[data-clip-id]')?.dataset.clipId;
+			const clip = project.clips.find(item => item.id === clipId);
+			if (clip?.kind !== 'audio') return;
+			const edge = fadeHandle.dataset.clipFadeHandle;
+			pointerSession.current = {
+				kind: 'fade', edge, clipId, original: { ...clip }, startX: event.clientX,
+				pixelsPerSecond: Math.max(pixelsPerSecond, 48 * sampleRate / clip.durationFrames),
+				initial: clip[fadeField(edge)] ?? 0, pointerId: event.pointerId,
+				trackId: fadeHandle.closest('[data-track-lane]')?.dataset.trackId,
+			};
+			fadeHandle.focus({ preventScroll: true });
+			event.preventDefault();
+			event.stopPropagation();
+			event.currentTarget.setPointerCapture?.(event.pointerId);
+			return;
+		}
 		if (event.pointerType === 'touch') {
 			touchPointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
 			if (touchPointers.current.size === 2) {

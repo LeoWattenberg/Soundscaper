@@ -6,6 +6,7 @@ import { editorTimelineDurationFrames } from '../../project.js';
 import { TrackControls } from './TrackControls.jsx';
 import { TrackAutomationOverlay } from '../soundscaper-workflow-product-runtime.tsx';
 import { AutomaticCrossfadeOverlays } from './TrackOverlapOverlays.jsx';
+import { ClipFadeOverlays } from './ClipFadeOverlays.tsx';
 import { AudacityWaveformCanvases } from './TimelineCanvasRenderer.jsx';
 import { SpectralBrushOverlay } from './SpectralBrushOverlay.jsx';
 import { SpectralSelectionOverlay } from './SpectralSelectionOverlay.jsx';
@@ -228,6 +229,13 @@ export function AudioTrackRow({
 					}}
 					onKeyDownCapture={(event) => {
 						if (!event.target.matches?.('[data-clip-id][role="group"]')) return;
+						const fadeHandle = event.target.querySelector('[data-clip-fade-handle]:not(:disabled)');
+						if (event.key === 'Tab' && !event.shiftKey && fadeHandle) {
+							event.preventDefault();
+							event.stopPropagation();
+							fadeHandle.focus();
+							return;
+						}
 						if (event.key === 'Enter') {
 							event.preventDefault();
 							event.stopPropagation();
@@ -330,6 +338,17 @@ export function AudioTrackRow({
 						spectrogramOptions={spectrogramOptions}
 					/>
 					<AutomaticCrossfadeOverlays overlays={crossfadeOverlays} />
+					<ClipFadeOverlays rootRef={trackWindowRef} clips={projection.clips}
+						selectedIds={selectedClipIdSet.size ? selectedClipIdSet : new Set([selectedClipId])}
+						startFrame={projection.overscanStartFrame} endFrame={projection.overscanEndFrame}
+						pixelsPerSecond={pixelsPerSecond} sampleRate={sampleRate} blocked={blocked} copy={copy}
+						onTabOut={(id) => {
+							const clips = clipGroups(trackWindowRef.current);
+							const index = clips.findIndex(clip => clip.dataset.clipId === id);
+							if (clips[index + 1]) focusFirst(clips[index + 1]);
+							else onFocusTrackRuler(trackIndex);
+						}}
+						onChange={(id, changes) => run(() => controller.actions.clip.update(id, changes))} />
 					{automationTarget && <TrackAutomationOverlay
 						controller={controller}
 						target={automationTarget}

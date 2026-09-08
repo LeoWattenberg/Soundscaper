@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
+import { fadeDurationAtPointer, fadeField } from './clip-fade-geometry.ts';
 import {
 	commitTimelineRateStretchPointer,
 	usesFrameCanonicalTimelineRateStretch,
@@ -19,6 +20,7 @@ import { commitTimelineTrimPointer } from './trim-pointer-routing.ts';
 export function useTimelinePointerFinish({
 	controller,
 	snapshot,
+	mutationsBlocked = false,
 	splitToolActive,
 	onRevealProjectBin,
 	state,
@@ -52,6 +54,7 @@ export function useTimelinePointerFinish({
 
 	const finishPointerSession = useCallback((event, cancelled = false) => {
 		const session = pointerSession.current;
+		if (session?.kind === 'fade' && event.pointerId !== session.pointerId) return;
 		pointerSession.current = null;
 		setDraggingClipIds(null);
 		setProjectBinDropActive(false);
@@ -84,6 +87,17 @@ export function useTimelinePointerFinish({
 			return;
 		}
 		if (!session || cancelled || pinchSession.current || !project) return;
+		if (session.kind === 'fade') {
+			const clip = project.clips.find(item => item.id === session.clipId);
+			const field = fadeField(session.edge);
+			if (!clip || mutationsBlocked || clip.durationFrames !== session.original.durationFrames
+				|| clip.timelineStartFrame !== session.original.timelineStartFrame
+				|| (clip[field] ?? 0) !== session.initial) return;
+			const value = fadeDurationAtPointer(session.edge, session.initial, session.startX, event.clientX,
+				session.pixelsPerSecond, sampleRate, clip.durationFrames);
+			if (value !== session.initial) run(() => controller.actions.clip.update(clip.id, { [field]: value }));
+			return;
+		}
 		if (session.kind === 'move' && session.slipSlideMode) {
 			const currentPointerSample = frameAtClientX(event.clientX, session.lane);
 			commitTimelineSlipSlidePointer({
@@ -208,7 +222,7 @@ export function useTimelinePointerFinish({
 				}),
 			});
 		}
-	}, [controller, frameAtClientX, isOverOutputDock, onRevealProjectBin, pixelsPerSecond, project, run, sampleRate, setProjectBinDropActive, snapshot.capabilities?.videoCompositing, snapshot.timeline?.playbackOnRulerClick, splitToolActive, trackAtClientY, transportState]);
+	}, [controller, frameAtClientX, isOverOutputDock, mutationsBlocked, onRevealProjectBin, pixelsPerSecond, project, run, sampleRate, setProjectBinDropActive, snapshot.capabilities?.videoCompositing, snapshot.timeline?.playbackOnRulerClick, splitToolActive, trackAtClientY, transportState]);
 
 	const finishTouch = useCallback((event) => {
 		touchPointers.current.delete(event.pointerId);
@@ -241,11 +255,16 @@ export function useTimelinePointerFinish({
 				&& (event.pointerType === 'mouse' || event.pointerId === 0);
 			finishPointerSession(event, !publishMousePencil);
 		};
+		const cancelLostFadeCapture = (event) => {
+			if (pointerSession.current?.kind === 'fade') finishPointerSession(event, true);
+		};
 		globalThis.addEventListener('pointerup', finishOutsideTimeline, true);
 		globalThis.addEventListener('pointercancel', cancelOutsideTimeline, true);
+		globalThis.addEventListener('lostpointercapture', cancelLostFadeCapture, true);
 		return () => {
 			globalThis.removeEventListener('pointerup', finishOutsideTimeline, true);
 			globalThis.removeEventListener('pointercancel', cancelOutsideTimeline, true);
+			globalThis.removeEventListener('lostpointercapture', cancelLostFadeCapture, true);
 		};
 	}, [finishPointerSession, finishTouch]);
 

@@ -9,6 +9,24 @@ import {
 } from '../src/common/editor/ui/timeline/audio-warp-waveform.ts';
 import { WAVEFORM_PEAKS_VERSION } from '../src/common/editor/waveform-peak-contract.ts';
 
+test('overlapping fades on warped clips match the multiplied playback envelope', () => {
+	const project = { sampleRate: 4, tempoMap: { mode: 'musical' as const,
+		events: [{ beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }] } };
+	const clip = {
+		id: 'clip', kind: 'audio', anchor: 'sample', timelineStartFrame: 0,
+		durationFrames: 4, sourceStartFrame: 0, sourceDurationFrames: 4,
+		gain: 1, fadeInFrames: 4, fadeOutFrames: 4,
+		warpMap: { feature: 'audio-warp' as const, points: [
+			{ outer: 0, source: 0, mode: 'forward' as const },
+			{ outer: 4, source: 4, mode: 'forward' as const },
+		] },
+	};
+	const prepared = prepareAudioWarpWaveformWindow(project, clip, [new Float32Array(4).fill(1)],
+		{ startFrame: 0, endFrame: 4, pixelWidth: 4, maxSamples: 4, sourceFrameOffset: 0 });
+	const channel = prepared.rendering?.channels[0] as { maximum: Float32Array };
+	assert.equal(Math.max(...channel.maximum), 0.25);
+});
+
 test('warped waveform columns consume the shared source map instead of linear clip stretch', () => {
 	const project = {
 		sampleRate: 4,
