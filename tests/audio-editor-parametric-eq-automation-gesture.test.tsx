@@ -98,6 +98,31 @@ test('keyboard focus alone does not begin an output-gain automation gesture', as
 	}
 });
 
+test('the EQ graph installs a non-passive native wheel listener', async () => {
+	const fixture = await mountedEq();
+	const original = ReactTestElement.prototype.addEventListener;
+	const registrations: Array<Readonly<{ target: ReactTestElement; type: string; options: unknown }>> = [];
+	Object.defineProperty(ReactTestElement.prototype, 'addEventListener', {
+		configurable: true,
+		value(this: ReactTestElement, type: string, _listener: EventListener, options: unknown) {
+			registrations.push({ target: this, type, options });
+		},
+	});
+	try {
+		await fixture.render({}, () => undefined);
+		assert.equal(registrations.some(({ target, type, options }) => (
+			target.getAttribute('class') === 'audio-editor-parametric-eq__graph'
+			&& type === 'wheel'
+			&& (options as AddEventListenerOptions)?.passive === false
+		)), true);
+	} finally {
+		Object.defineProperty(ReactTestElement.prototype, 'addEventListener', {
+			configurable: true, value: original,
+		});
+		await fixture.cleanup();
+	}
+});
+
 async function mountedEq() {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { ParametricEqNumericInput } from './ParametricEqNumericInput.jsx';
+import { useNonPassiveWheel } from './useNonPassiveWheel.js';
 import {
 	ParametricEqWasmRuntime,
 	loadParametricEqWasmModule,
@@ -56,6 +57,7 @@ export function ParametricEqEditor({
 	const dragRef = useRef(null);
 	const previewFrameRef = useRef(0);
 	const pendingPreviewRef = useRef(null);
+	const graphRef = useRef(null);
 	const inputCanvasRef = useRef(null);
 	const outputCanvasRef = useRef(null);
 	const auditionCallbackRef = useRef(onAudition);
@@ -64,7 +66,6 @@ export function ParametricEqEditor({
 	const outputGestureRef = useRef(null);
 	auditionCallbackRef.current = onAudition;
 	cancelCallbackRef.current = onCancel;
-
 	useEffect(() => {
 		if (dragRef.current || outputGestureRef.current) return;
 		setDraft(normalized);
@@ -72,7 +73,6 @@ export function ParametricEqEditor({
 			? current
 			: normalized.bands[0]?.id || null);
 	}, [normalized]);
-
 	useEffect(() => () => {
 		if (previewFrameRef.current) cancelAnimationFrame(previewFrameRef.current);
 		const gesture = dragRef.current || outputGestureRef.current;
@@ -82,7 +82,6 @@ export function ParametricEqEditor({
 		if (gesture) cancelCallbackRef.current?.(gesture.start);
 		auditionCallbackRef.current?.(null);
 	}, []);
-
 	useEffect(() => {
 		if (!readSpectrum || (!showInput && !showOutput)) {
 			drawSpectrumCanvas(inputCanvasRef.current, { input: null, output: null, sampleRate });
@@ -109,7 +108,6 @@ export function ParametricEqEditor({
 		animationFrame = requestAnimationFrame(draw);
 		return () => cancelAnimationFrame(animationFrame);
 	}, [readSpectrum, sampleRate, showInput, showOutput]);
-
 	const effectiveMaximum = Math.max(MIN_FREQUENCY, Math.min(MAX_FREQUENCY, sampleRate * 0.49));
 	const frequencies = useMemo(() => Float64Array.from({ length: 320 }, (_, index) => (
 		MIN_FREQUENCY * (effectiveMaximum / MIN_FREQUENCY) ** (index / 319)
@@ -142,7 +140,6 @@ export function ParametricEqEditor({
 	}).join(' '), [response]);
 	const selectedIndex = draft.bands.findIndex((band) => band.id === selectedId);
 	const selectedBand = selectedIndex >= 0 ? draft.bands[selectedIndex] : null;
-
 	const queuePreview = (next) => {
 		pendingPreviewRef.current = next;
 		if (!onPreview || previewFrameRef.current) return;
@@ -153,7 +150,6 @@ export function ParametricEqEditor({
 			if (pending) onPreview(pending);
 		});
 	};
-
 	const replaceBand = (bandId, changes, { preview = false } = {}) => {
 		const next = normalizeParametricEqParams({
 			...draft,
@@ -383,8 +379,10 @@ export function ParametricEqEditor({
 		commit(next, true);
 	};
 
-	const handleBandWheel = (event, band) => {
-		if (disabled || !bandUsesQ(band.type)) return;
+	const handleBandWheel = (event) => {
+		const handle = event.target?.closest?.('.audio-editor-parametric-eq__handle');
+		const band = handle ? draft.bands[Number(handle.getAttribute('data-band-index'))] : null;
+		if (!band || disabled || !bandUsesQ(band.type)) return;
 		event.preventDefault();
 		setSelectedId(band.id);
 		const factor = 2 ** (-Math.sign(event.deltaY) * (event.shiftKey ? 1 / 48 : 1 / 12));
@@ -392,12 +390,14 @@ export function ParametricEqEditor({
 		const next = replaceBand(band.id, { q: clamp(band.q * factor, MIN_Q, MAX_Q) });
 		commit(next, true);
 	};
+	useNonPassiveWheel(graphRef, handleBandWheel);
 
 	return (
 		<div className="audio-editor-parametric-eq" data-parametric-eq onKeyDown={(event) => {
 			if (event.key === 'Escape') cancelGesture();
 		}}>
 			<div
+				ref={graphRef}
 				className="audio-editor-parametric-eq__graph"
 				dir="ltr"
 				onDoubleClick={addBand}
@@ -429,6 +429,7 @@ export function ParametricEqEditor({
 							type="button"
 							key={band.id}
 							className="audio-editor-parametric-eq__handle"
+							data-band-index={index}
 							data-selected={band.id === selectedId ? 'true' : 'false'}
 							data-enabled={band.enabled ? 'true' : 'false'}
 							data-nyquist-limited={nyquistLimited ? 'true' : 'false'}
@@ -443,7 +444,6 @@ export function ParametricEqEditor({
 							onPointerUp={finishDrag}
 							onPointerCancel={cancelGesture}
 							onKeyDown={(event) => handleBandKeyDown(event, band)}
-							onWheel={(event) => handleBandWheel(event, band)}
 						>{index + 1}</button>
 					);
 				})}
