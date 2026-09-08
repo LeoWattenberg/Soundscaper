@@ -657,7 +657,9 @@ import {
 		await expect(distortion).toBeVisible();
 		await distortion.focus();
 		await page.keyboard.press('ArrowRight');
-		const bitcrusher = distortion.getByRole('menu').getByRole('menuitem', { name: /bitcrusher/i }).first();
+		const bitcrusher = distortion.getByRole('menu')
+			.getByRole('menuitem', { name: /^Bitcrusher(?:\s|$)/i })
+			.first();
 		await expect(bitcrusher).toBeVisible();
 		await bitcrusher.focus();
 		await page.keyboard.press('Enter');
