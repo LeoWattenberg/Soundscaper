@@ -179,10 +179,10 @@ export function AudioEditorMacroManagerDialog({
 	// A macro the library no longer holds cannot be edited, so the manager opens
 	// on the first saved macro instead of on a draft with nowhere to save to.
 	useEffect(() => {
-		if (!isOpen) return;
+		if (!isOpen || selectedScriptId) return;
 		if (draft && macros.some((macro) => macro.id === draft.id)) return;
 		onDraftChange?.(macros[0] || null);
-	}, [draft, isOpen, macros, onDraftChange]);
+	}, [draft, isOpen, macros, onDraftChange, selectedScriptId]);
 
 	const showMessage = (value, state = 'info') => {
 		setMessage(value);
