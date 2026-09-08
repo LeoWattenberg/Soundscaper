@@ -169,6 +169,35 @@ test('derivative inventory stops at its initial boundary while producers append 
 	database.close();
 });
 
+test('derivative inventory reaches its initial boundary after a lower key is inserted', async () => {
+	const indexedDB = instrumentedIndexedDB();
+	const databaseName = uniqueDatabaseName('derivative-lower-insert');
+	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
+	const initialRecords = MAX_INDEXEDDB_CURSOR_PAGE_SIZE + 1;
+	for (let index = 0; index < initialRecords; index += 1) {
+		indexedDB.seedRecord(databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME, cacheRecord(index));
+	}
+	const cursorRequests = indexedDB.stats.cursorRequests;
+	const recordRequest = cursorRequests.push.bind(cursorRequests);
+	let inserted = false;
+	cursorRequests.push = (...requests: CursorStats[]) => {
+		const length = recordRequest(...requests);
+		if (requests.some(({ store }) => store === DERIVATIVE_CACHE_ENTRY_STORE_NAME) && !inserted) {
+			inserted = true;
+			indexedDB.seedRecord(databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME, {
+				...cacheRecord(10_000), key: 'cache-0063-inserted',
+			});
+		}
+		return length;
+	};
+
+	const inventory = await readDerivativeCacheInventory(database);
+
+	assert.equal(inventory.some(({ key }) => key === 'cache-0064'), true);
+	assert.equal(indexedDB.stats.activeTransactions, 0);
+	database.close();
+});
+
 test('IndexedDB derivative cleanup inventories large Blob caches in bounded fresh pages', async () => {
 	const indexedDB = instrumentedIndexedDB();
 	const databaseName = uniqueDatabaseName('derivative-bounded-inventory');

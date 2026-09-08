@@ -30,14 +30,14 @@ export async function* readDerivativeCacheInventoryPages(
 	if (!boundary) return;
 	let afterPrimaryKey: IDBValidKey | undefined;
 	let remainingRecords = boundary.maximumRecords;
-	while (remainingRecords > 0) {
+	while (true) {
 		const page = await transact(database, storeName, 'readonly', (stores) => {
 			const store = stores[storeName];
 			if (!store) throw new Error(`Derivative cache inventory store ${storeName} is unavailable.`);
 			return readCursorPage<DerivativeCacheInventoryRecord>(store, {
 				afterPrimaryKey,
 				maximumPrimaryKey: boundary.maximumPrimaryKey,
-				limit: Math.min(DERIVATIVE_CACHE_INVENTORY_PAGE_SIZE, remainingRecords),
+				limit: Math.max(1, Math.min(DERIVATIVE_CACHE_INVENTORY_PAGE_SIZE, remainingRecords)),
 				project: projectDerivativeCacheInventoryRecord,
 			});
 		});
