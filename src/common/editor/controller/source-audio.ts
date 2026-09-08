@@ -338,16 +338,15 @@ export async function canonicalizeBuffer(
 		const left = new Float32Array(input.length);
 		const right = new Float32Array(input.length);
 		const sourceChannels = Array.from({ length: input.numberOfChannels }, (_, channel) => input.getChannelData(channel));
-		const normalization = 1 + Math.max(0, input.numberOfChannels - 2) * 0.5;
+		const relatedGain = Math.SQRT1_2 * 0.5;
 		for (let frame = 0; frame < input.length; frame += 1) {
 			left[frame] = sourceChannels[0]![frame]!;
 			right[frame] = sourceChannels[1]?.[frame] ?? sourceChannels[0]![frame]!;
 			for (let channel = 2; channel < sourceChannels.length; channel += 1) {
-				if (channel % 2 === 0) left[frame] += sourceChannels[channel]![frame]! * 0.5;
-				else right[frame] += sourceChannels[channel]![frame]! * 0.5;
+				const sample = sourceChannels[channel]![frame]! * relatedGain;
+				left[frame] += sample;
+				right[frame] += sample;
 			}
-			left[frame] /= normalization;
-			right[frame] /= normalization;
 		}
 		channels = [left, right];
 	}
