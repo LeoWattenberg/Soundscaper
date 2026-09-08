@@ -28,6 +28,7 @@ const MAXIMUM_PROJECT_ID_LENGTH = 256;
 const MAXIMUM_TITLE_LENGTH = 512;
 const MAXIMUM_FILE_NAME_LENGTH = 255;
 const MAXIMUM_REASON_LENGTH = 512;
+const TEXT_ENCODER = new TextEncoder();
 const ENTRY_FIELDS = new Set([
 	'bytes', 'byteLength', 'conversionReportSidecar', 'fileName', 'mimeType', 'projectId', 'title',
 ]);
@@ -552,7 +553,17 @@ export function admittedProjectTransferTitle(value: unknown): string | null {
 
 export function projectTransferFileName(title: string, projectId: string): string {
 	const stem = title.replace(/[^\p{L}\p{N} ._-]/gu, ' ').replace(/\s+/gu, ' ').trim().replace(/[. ]+$/u, '');
-	const base = (stem || projectId).slice(0, MAXIMUM_FILE_NAME_LENGTH - PROJECT_TRANSFER_ENTRY_EXTENSION.length);
+	const maximumBaseBytes = MAXIMUM_FILE_NAME_LENGTH
+		- TEXT_ENCODER.encode(PROJECT_TRANSFER_ENTRY_EXTENSION).byteLength;
+	let base = '';
+	let baseBytes = 0;
+	for (const character of stem || projectId) {
+		const characterBytes = TEXT_ENCODER.encode(character).byteLength;
+		if (baseBytes + characterBytes > maximumBaseBytes) break;
+		base += character;
+		baseBytes += characterBytes;
+	}
+	base = base.replace(/[. ]+$/u, '') || 'project';
 	return `${base}${PROJECT_TRANSFER_ENTRY_EXTENSION}`;
 }
 

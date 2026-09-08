@@ -254,6 +254,13 @@ const AWKWARD_TITLES: readonly [string, string, string] = Object.freeze([
 	'2024.09.01 «cut»...',
 ]);
 
+test('project transfer archive names fit their UTF-8 byte budget', () => {
+	const fileName = projectTransferFileName('会議録音'.repeat(75), 'project-1');
+	assert.ok(new TextEncoder().encode(fileName).byteLength <= 255);
+	assert.ok(fileName.endsWith('.scape'));
+	assert.doesNotMatch(fileName, /[\uD800-\uDFFF]/u);
+});
+
 test('the sending page labels every row with the title, not the sanitized file name', async () => {
 	// The page-level counterpart to the transport test's cross-report check. The
 	// rows every other test in this file reads are staged from `Interview cut`,
