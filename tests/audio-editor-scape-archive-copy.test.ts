@@ -10,6 +10,10 @@ import {
 	createAudioSource,
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
+import {
+	ASSISTANCE_TRANSCRIPT_SCAPE_KIND_V1,
+	createAssistanceTranscriptScapeProjectAssetExtensionV1,
+} from '../src/common/editor/assistance/transcript-scape-asset-extension-v1.ts';
 import { SOUNDSCAPER_PROJECT_SCHEMA_FAMILY } from '../src/common/editor/project-schema-identity.ts';
 import { copyFutureScapeArchive } from '../src/common/editor/scape-archive-copy.ts';
 import { createScapeArchiveByteSource } from '../src/common/editor/scape-archive-byte-source.ts';
@@ -40,6 +44,20 @@ test('a future Soundscaper v2 archive copies byte-for-byte from Blob and byte-so
 		read: ({ offset, length }) => original.subarray(offset, offset + length),
 	}));
 	assert.deepEqual(fromByteSource.bytes, original, 'the byte-source copy must be the exact original bytes');
+});
+
+test('a future archive copies product extension asset kinds byte-for-byte', async (context) => {
+	const future = await rewriteScapeManifest(
+		await futureArchive(context),
+		(manifest: { assets: Array<{ kind: string }> }) => {
+			manifest.assets[0]!.kind = ASSISTANCE_TRANSCRIPT_SCAPE_KIND_V1;
+		},
+	);
+	const original = new Uint8Array(await future.arrayBuffer());
+	const copied = await collectCopy(future, {
+		projectAssetExtension: createAssistanceTranscriptScapeProjectAssetExtensionV1(),
+	});
+	assert.deepEqual(copied.bytes, original);
 });
 
 test('current-schema and mismatched or unknown-format archives refuse the unchanged copy', async (context) => {
@@ -131,9 +149,13 @@ async function currentArchive(context: TestContext): Promise<Blob> {
 	return exported.blob;
 }
 
-async function collectCopy(input: Blob | ReturnType<typeof createScapeArchiveByteSource>) {
+async function collectCopy(
+	input: Blob | ReturnType<typeof createScapeArchiveByteSource>,
+	additionalOptions: Readonly<Record<string, unknown>> = {},
+) {
 	const chunks: Uint8Array[] = [];
 	const result = await copyFutureScapeArchive(input, (bytes) => { chunks.push(bytes); }, {
+		...additionalOptions,
 		currentProjectSchemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
 	});
 	const bytes = new Uint8Array(result.byteLength);

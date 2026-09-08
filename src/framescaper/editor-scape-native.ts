@@ -78,6 +78,7 @@ export function createFramescaperScapeNativeRuntime(profile: unknown) {
 		) => copyFutureScapeArchive(input, write, {
 			...options,
 			currentProjectSchemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+			projectAssetExtension,
 		}),
 	});
 }

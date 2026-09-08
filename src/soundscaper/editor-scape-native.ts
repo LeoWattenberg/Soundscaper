@@ -83,6 +83,7 @@ export function createSoundscaperScapeNativeRuntime() {
 		) => copyFutureScapeArchive(input, write, {
 			...options,
 			currentProjectSchemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+			projectAssetExtension,
 		}),
 	});
 }

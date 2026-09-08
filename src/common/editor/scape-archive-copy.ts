@@ -17,6 +17,7 @@ import {
 	type ProjectSchemaIdentity,
 } from './project-schema-identity.ts';
 import { parseOpaqueScapeProjectDocument } from './scape-project-document.ts';
+import type { ScapeProjectAssetExtension } from './scape-project-asset-extension.ts';
 import { withScapeProjectInput, type ScapeProjectInput } from './scape-project-input.ts';
 
 const TEXT_ENCODER = new TextEncoder();
@@ -24,6 +25,7 @@ const TEXT_ENCODER = new TextEncoder();
 export interface ScapeArchiveCopyOptions {
 	readonly archiveLimits?: Partial<ScapeArchiveLimits>;
 	readonly currentProjectSchemaFamily: ProjectSchemaFamily;
+	readonly projectAssetExtension?: ScapeProjectAssetExtension;
 	readonly signal?: AbortSignal;
 }
 
@@ -56,6 +58,7 @@ export async function copyFutureScapeArchive(
 			entries,
 			options.archiveLimits || {},
 			signal,
+			options.projectAssetExtension?.assetKinds,
 		);
 		verifyScapeAssetBytes(TEXT_ENCODER.encode(projectText), manifest.project, 'project document');
 		return opaqueProjectIdentity(manifest.project, projectText, options.currentProjectSchemaFamily);
