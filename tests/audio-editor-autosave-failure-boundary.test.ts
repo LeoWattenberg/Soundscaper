@@ -79,6 +79,26 @@ for (const failure of ['clone', 'prepare', 'identity'] as const) {
 	});
 }
 
+for (const maintenance of ['garbageCollect', 'refreshStorageUsage'] as const) {
+	test(`a successful save stays saved when ${maintenance} fails`, async () => {
+		const error = new Error(`${maintenance} failed`);
+		const runtime = fixture({
+			garbageCollect: async () => {
+				if (maintenance === 'garbageCollect') throw error;
+			},
+			refreshStorageUsage: async () => {
+				if (maintenance === 'refreshStorageUsage') throw error;
+			},
+		});
+
+		await runtime.service.flushProject();
+
+		assert.deepEqual(runtime.writes, [{ id: 'project', revision: 0 }]);
+		assert.deepEqual(runtime.publications, ['saved']);
+		assert.deepEqual(runtime.errors, [error]);
+	});
+}
+
 test('autosave defers cloning until the debounce settles and writes only the latest edit', async () => {
 	const runtime = fixture();
 	for (let revision = 1; revision <= 100; revision += 1) {

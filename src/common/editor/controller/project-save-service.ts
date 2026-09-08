@@ -290,8 +290,16 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 				if (dependencies.hasSessionTab(snapshot.id)) dependencies.markProjectSaved(snapshot.id);
 				dependencies.publish('saved');
 			}
-			await dependencies.garbageCollect();
-			await dependencies.refreshStorageUsage();
+			try {
+				await dependencies.garbageCollect();
+			} catch (maintenanceError) {
+				dependencies.handleError(maintenanceError);
+			}
+			try {
+				await dependencies.refreshStorageUsage();
+			} catch (maintenanceError) {
+				dependencies.handleError(maintenanceError);
+			}
 		} catch (error) {
 			if (!ownsProjectSaveEpoch(snapshotValue.id, projectSaveEpoch)) return;
 			if (dependencies.isCurrentProject(snapshotValue.id) && generation === state.saveGeneration) {
