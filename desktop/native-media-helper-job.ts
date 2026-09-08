@@ -355,7 +355,11 @@ export class NativeMediaHelperJobRunner {
 					}
 					result = await sendHelperDataPlaneReservedFile({
 						reservation: output,
-						completion: { streamId: output.streamId, ...inspected },
+						completion: {
+							streamId: output.streamId,
+							byteLength: inspected.byteLength,
+							sha256: inspected.sha256,
+						},
 						port: ports.at(-1)!, path: decodeOutputPath!, signal,
 					});
 				}
