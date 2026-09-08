@@ -15,6 +15,7 @@ import {
 } from './editor-project-transitions-validation.ts';
 import { isFramescaperOwnedVisualCommandTypeVisual } from './editor-project-visual-visual-command.ts';
 import {
+	applyFramescaperProjectCommandFinishing,
 	snapshotFramescaperProjectCommandFinishing,
 	type FramescaperProjectCommandBatchFinishing,
 	type FramescaperProjectCommandFinishing,
@@ -39,7 +40,58 @@ export function prepareFramescaperVideoTransitionAllocationsFinishing(
 	if (typeof createId !== 'function') throw new TypeError('A transition ID factory is required.');
 	const project = projectValue as FramescaperProjectFinishing;
 	const command = snapshotFramescaperProjectCommandFinishing(commandValue);
+	if (isBatch(command)) return prepareBatch(profile, project, command, createId);
 	if (!isRetimeCommandTree(command)) return command;
+	return prepareRetimeCommandTree(profile, project, command, createId);
+}
+
+function prepareBatch(
+	profile: unknown,
+	project: FramescaperProjectFinishing,
+	command: FramescaperProjectCommandBatchFinishing,
+	createId: CreateId,
+): FramescaperProjectCommandFinishing {
+	let current = project;
+	const commands: FramescaperProjectCommandFinishing[] = [];
+	let inherited: FramescaperProjectCommandFinishing[] = [];
+	const apply = (prepared: FramescaperProjectCommandFinishing): void => {
+		current = applyFramescaperProjectCommandFinishing(profile, current, prepared, {
+			now: String(current.updatedAt),
+		});
+	};
+	const flushInherited = (): void => {
+		if (inherited.length === 0) return;
+		const carrier = inherited.length === 1 ? inherited[0]! : {
+			type: 'batch' as const, commands: inherited,
+		};
+		const prepared = prepareRetimeCommandTree(profile, current, carrier, createId);
+		if (isBatch(prepared)) commands.push(...prepared.commands);
+		else commands.push(prepared);
+		apply(prepared);
+		inherited = [];
+	};
+	for (const child of command.commands) {
+		if (isRetimeCommandTree(child)) {
+			inherited.push(child);
+			continue;
+		}
+		flushInherited();
+		const prepared = isBatch(child)
+			? prepareBatch(profile, current, child, createId)
+			: child;
+		commands.push(prepared);
+		apply(prepared);
+	}
+	flushInherited();
+	return snapshotFramescaperProjectCommandFinishing({ type: 'batch', commands });
+}
+
+function prepareRetimeCommandTree(
+	profile: unknown,
+	project: FramescaperProjectFinishing,
+	command: FramescaperProjectCommandFinishing,
+	createId: CreateId,
+): FramescaperProjectCommandFinishing {
 	const visualClipIds = selectedVisualClipIds(project);
 	const inherited = snapshotFramescaperProjectCommandRetime(
 		stripAllocations(command, visualClipIds) as FramescaperProjectCommandRetime,

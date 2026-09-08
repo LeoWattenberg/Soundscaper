@@ -115,6 +115,37 @@ test('transition preflight overlays an allocation without replacing V25 re-probe
 	})]);
 });
 
+test('transition preflight segments an owned finishing command from inherited overlap edits', () => {
+	const { plan, project, runtime } = professionalReprobeFixture();
+	const context = records(project, 'videoColorContexts')[0]!;
+	const command = {
+		type: 'batch',
+		commands: [
+			{
+				type: 'video-color-context/set', sequenceId: 'main-sequence',
+				expectedContext: context, context: { ...context, outputSpace: 'srgb' },
+			},
+			{
+				type: 'source/reprobe', sourceId: plan.sourceId,
+				changes: plan.changes, clips: plan.clips,
+			},
+			{
+				type: 'clip/move', clipId: 'incoming-clip', trackId: 'video-track',
+				timelineStartFrame: 12_800,
+			},
+		],
+	} as FramescaperProjectCommand;
+	const prepared = prepareFramescaperVideoTransitionAllocations(
+		FRAMESCAPER_PROJECT_RUNTIME_PROFILE, project, command, () => 'segmented-transition',
+	);
+	assert.ok(commandLeaves(prepared).some(({ videoTransitionAllocations }) => (
+		Array.isArray(videoTransitionAllocations) && videoTransitionAllocations.length === 1
+	)));
+	assert.doesNotThrow(() => runtime.executeCommand(
+		runtime.createHistory(project), prepared, { now: '2026-08-31T12:00:01.000Z' },
+	));
+});
+
 function professionalReprobeFixture() {
 	const source = createVideoSource({
 		kind: 'video', id: 'video-source', storageKey: 'video-source', name: 'phone.mp4',
