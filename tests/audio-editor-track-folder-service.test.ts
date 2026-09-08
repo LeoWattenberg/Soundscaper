@@ -79,6 +79,16 @@ test('folder creation targets the session-selected folder and publishes state', 
 	assert.equal(validateCurrentAudioEditorProject(fixture.project), true);
 });
 
+test('folder creation honors an explicit root placement while a folder is selected', () => {
+	const fixture = createFixture();
+	const selectedFolderId = fixture.service.createFolder('Section');
+	const rootSiblingId = fixture.service.createFolder('Root sibling', { parentFolderId: null });
+
+	const rootSibling = fixture.project.sequences[0].trackNodes.find(({ id }) => id === rootSiblingId);
+	assert.equal(rootSibling?.parentFolderId, null);
+	assert.notEqual(rootSibling?.parentFolderId, selectedFolderId);
+});
+
 test('rename, collapse toggle, move, and removal ride the folder-aware commands', () => {
 	const fixture = createFixture();
 	fixture.service.renameFolder('band', 'Rhythm');

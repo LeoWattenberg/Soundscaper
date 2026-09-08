@@ -83,8 +83,9 @@ export function createTrackFolderService(
 				id: folderId,
 				name: folderName(name),
 			}, {
-				parentFolderId: placement.parentFolderId
-					?? (selectedFolderId !== null && placement.sequenceId === undefined ? selectedFolderId : null),
+				parentFolderId: placement.parentFolderId !== undefined
+					? placement.parentFolderId
+					: (selectedFolderId !== null && placement.sequenceId === undefined ? selectedFolderId : null),
 				...(placement.index === undefined ? {} : { index: placement.index }),
 			}));
 			selectedFolderId = folderId;
