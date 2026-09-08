@@ -123,7 +123,8 @@ test('WebAssembly runtime responses retain their exact parameter-free MIME requi
 	const fixture = runtimeFixture();
 	let cancelled = false;
 	const fetchImpl: typeof fetch = async (input, init) => {
-		const response = await fixture.fetch(input, init);
+		void init;
+		const response = await fixture.fetch(input);
 		const url = String(input instanceof Request ? input.url : input);
 		if (!url.endsWith('/ffmpeg-core.wasm')) return response;
 		const bytes = new Uint8Array(await response.arrayBuffer());
