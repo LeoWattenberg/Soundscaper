@@ -2,6 +2,7 @@
 
 import { Separator } from '@soundscaper/design-system/Separator';
 import { PreferencePanel } from '@soundscaper/design-system/PreferencePanel';
+import { useEffect, useRef } from 'react';
 
 import { ROUTE_LOCALES } from '../../../i18n/locales.js';
 import { productHref } from '../../../product-web-links.js';
@@ -10,6 +11,7 @@ import DesktopFfmpegPreferencePanel from './DesktopFfmpegPreferencePanel.tsx';
 import PreferenceDropdownField from './PreferenceDropdownField.jsx';
 
 const STARTUP_RADIO_GROUP_NAME = 'audio-editor-program-start';
+const DEFAULT_STARTUP = Object.freeze({ mode: AUDIO_EDITOR_DEFAULT_STARTUP_MODE, projectId: '' });
 
 /**
  * Audacity's General preferences page: the interface language, and the
@@ -38,15 +40,28 @@ export default function GeneralPreferencesPage({
 	productId,
 	run,
 }) {
-	const startup = snapshot.preferences.startup
-		|| { mode: AUDIO_EDITOR_DEFAULT_STARTUP_MODE, projectId: '' };
+	const startup = snapshot.preferences.startup || DEFAULT_STARTUP;
 	const projects = snapshot.projects || [];
 	const startupProjectId = startup.projectId && projects.some((project) => project.id === startup.projectId)
 		? startup.projectId
 		: projects[0]?.id || '';
-	const updateStartup = (changes) => run(() => controller.actions.preferences.update({
+	const repairedStartupRef = useRef('');
+	const updatePreferences = controller.actions.preferences.update;
+	const updateStartup = (changes) => run(() => updatePreferences({
 		startup: { ...startup, ...changes },
 	}));
+	useEffect(() => {
+		if (startup.mode !== 'project' || !startupProjectId || startup.projectId === startupProjectId) {
+			repairedStartupRef.current = '';
+			return;
+		}
+		const repair = `${String(startup.projectId)}\0${startupProjectId}`;
+		if (repairedStartupRef.current === repair) return;
+		repairedStartupRef.current = repair;
+		run(() => updatePreferences({ startup: {
+			...startup, projectId: startupProjectId,
+		} }));
+	}, [run, startup, startupProjectId, updatePreferences]);
 	const selectLocale = (value) => {
 		if (value === locale) return;
 		if (fileService.isDesktop) {
