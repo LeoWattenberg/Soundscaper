@@ -173,7 +173,10 @@ export class SoundscaperDesktopProjectLibraryCatalog {
 			const row = this.#leaseRow();
 			if (!row.active || !row.lease || !sameLease(row.lease, token)) throw leaseLost();
 			const current = row.lease;
-			const expiresAtMs = checkedAdd(now, ttlMs, 'baseline lease expiry');
+			const expiresAtMs = Math.max(
+				checkedAdd(now, ttlMs, 'baseline lease expiry'),
+				current.expiresAtMs,
+			);
 			const result = this.#database.prepare(`
 				UPDATE library_lease SET expires_at_ms = ?
 				WHERE singleton = 1 AND active = 1 AND lease_id = ? AND fencing_token = ?

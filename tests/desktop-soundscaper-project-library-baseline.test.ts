@@ -166,6 +166,25 @@ test('an expired but still-owned writer lease renews after event-loop suspension
 	database.close()
 })
 
+test('a backwards wall-clock step cannot shorten an owned writer lease', () => {
+	const database = new DatabaseSync(':memory:')
+	initializeSoundscaperDesktopProjectLibraryDatabase(database)
+	let now = 1_000_000
+	const catalog = SoundscaperDesktopProjectLibraryCatalog.create({
+		database,
+		owner: { product: 'soundscaper', processId: 930, instanceId: 'backwards-clock' },
+		now: () => now,
+		randomId: () => 'b'.repeat(48),
+	})
+	catalog.acceptHandshake(createSoundscaperDesktopProjectLibraryHandshake())
+	const lease = catalog.acquireLease({ ttlMs: 30_000 })
+	now = 975_000
+	const renewed = catalog.renewLease(lease, { ttlMs: 30_000 })
+
+	assert.ok(renewed.expiresAtMs >= lease.expiresAtMs)
+	database.close()
+})
+
 test('Soundscaper main reports a writer-lease loss exactly once', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-lease-loss-'))
 	context.after(() => rm(root, { recursive: true, force: true }))
