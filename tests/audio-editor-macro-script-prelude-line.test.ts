@@ -20,6 +20,9 @@ interface PostedMessage {
 	readonly type?: string;
 	readonly message?: string;
 	readonly line?: number | null;
+	readonly callId?: number;
+	readonly method?: string;
+	readonly args?: readonly unknown[];
 }
 
 /**
@@ -97,3 +100,48 @@ test('a throw from the program\'s own helper reports a line the author wrote', a
 	const line = authorLine(failure.line);
 	assert.ok(line !== null && line >= 1 && line <= 3, `expected an author line, saw ${String(line)}`);
 });
+
+test('an uncloneable editor call does not consume call or in-flight capacity', async () => {
+	const posted: PostedMessage[] = [];
+	const listeners = new Map<string, (event: unknown) => void>();
+	const context = vm.createContext({
+		self: {
+			postMessage: (message: PostedMessage) => {
+				if (message.type === 'call' && message.args?.some(containsFunction)) {
+					throw new DOMException('The value could not be cloned.', 'DataCloneError');
+				}
+				posted.push(message);
+				if (message.type === 'call') queueMicrotask(() => listeners.get('message')?.({
+					data: { type: 'result', runId: 'run-1', callId: message.callId, value: null },
+				}));
+			},
+			addEventListener: (type: string, listener: (event: unknown) => void) => {
+				listeners.set(type, listener);
+			},
+		},
+	});
+	const program = [
+		'for (let index = 0; index < 10; index += 1) {',
+		'  try { await sound.effect(\'x\', { fn: () => {} }); } catch {}',
+		'}',
+		'await sound.select.all();',
+	].join('\n');
+	vm.runInContext(`(() => {'use strict';${buildMacroSandboxModule(PRELUDE, program)}\n})();`,
+		context, { filename: 'blob:soundscaper-macro' });
+	const booted = vm.runInContext('globalThis.__macroBoot()', context) as Promise<void>;
+	listeners.get('message')?.({ data: {
+		type: 'begin', runId: 'run-1', env: { seed: 'seed' }, limits: {},
+	} });
+	await booted;
+
+	const calls = posted.filter(({ type }) => type === 'call');
+	assert.deepEqual(calls.map(({ callId, method }) => ({ callId, method })), [
+		{ callId: 1, method: 'select.all' },
+	]);
+});
+
+function containsFunction(value: unknown): boolean {
+	if (typeof value === 'function') return true;
+	if (!value || typeof value !== 'object') return false;
+	return Object.values(value).some(containsFunction);
+}

@@ -104,16 +104,27 @@ listen('message', (event) => {
  * what stops a program from holding the editor still while it thinks.
  */
 function call(method, ...args) {
+	return editorCall(method, args, false);
+}
+
+function editorCall(method, args, countsMutation) {
 	if (nextCallId >= limits.maxCalls) {
 		return Promise.reject(new Error(`A macro may ask the editor at most ${limits.maxCalls} times.`));
 	}
 	if (pending.size >= (limits.maxInflightCalls || 8)) {
 		return Promise.reject(new Error('Too many editor calls are already in flight; await them.'));
 	}
-	const callId = ++nextCallId;
+	const callId = nextCallId + 1;
 	return new Promise((resolve, reject) => {
+		try {
+			post({ protocolVersion: 1, type: 'call', runId, callId, method, args });
+		} catch (error) {
+			reject(error instanceof Error ? error : new Error(String(error)));
+			return;
+		}
+		nextCallId = callId;
 		pending.set(callId, { resolve, reject });
-		post({ protocolVersion: 1, type: 'call', runId, callId, method, args });
+		if (countsMutation) mutations += 1;
 	});
 }
 
@@ -122,8 +133,7 @@ function mutating(method) {
 		if (mutations >= limits.maxMutations) {
 			return Promise.reject(new Error(`A macro may change the project at most ${limits.maxMutations} times.`));
 		}
-		mutations += 1;
-		return call(method, ...args);
+		return editorCall(method, args, true);
 	};
 }
 
