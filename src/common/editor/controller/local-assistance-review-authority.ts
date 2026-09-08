@@ -17,6 +17,7 @@ import type { LocalAssistanceReviewAuthority } from '../assistance/local-assista
 
 const OUTPUT_AUDIO_RATES = Object.freeze({
 	'speech-enhancement': 48_000,
+	'dereverberation': 44_100,
 	'source-separation': 44_100,
 } as const);
 
@@ -28,7 +29,8 @@ export async function deriveLocalAssistanceReviewAuthority(
 		|| prepared.operation === 'optical-character-recognition'
 		|| prepared.operation === 'subject-detection'
 		|| prepared.operation === 'saliency-detection') return visualAuthority(prepared);
-	if (prepared.operation !== 'speech-enhancement' && prepared.operation !== 'source-separation') {
+	if (prepared.operation !== 'speech-enhancement' && prepared.operation !== 'dereverberation'
+		&& prepared.operation !== 'source-separation') {
 		return Object.freeze({});
 	}
 	const audioInputs = prepared.inputs.filter(({ role }) => role === 'audio');

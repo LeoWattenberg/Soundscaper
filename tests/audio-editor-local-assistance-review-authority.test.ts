@@ -9,6 +9,7 @@ import { createAssistanceVisualFramePackV2 } from
 	'../src/common/editor/assistance/visual-frame-pack-v2.ts';
 import { deriveLocalAssistanceReviewAuthority } from
 	'../src/common/editor/ui/local-assistance-review-authority.ts';
+import { encodeWav } from '../src/common/editor/wav.js';
 
 test('Advanced visual review authority is derived from exact frame-pack source geometry and VFR ticks', async () => {
 	const chunks = createAssistanceVisualFramePackV2({ sourceWidth: 1_920, sourceHeight: 1_080,
@@ -40,9 +41,24 @@ test('Advanced editorial review binds output strictly to candidate IDs in the st
 	assert.deepEqual(authority, { editorialCandidateIds: ['candidate-a'] });
 });
 
+test('Advanced dereverberation review derives exact audio authority', async () => {
+	const bytes = encodeWav([
+		Float32Array.of(0.1, -0.1),
+		Float32Array.of(-0.1, 0.1),
+	], { sampleRate: 44_100, bitDepth: 32, float: true, dither: false });
+	const authority = await deriveLocalAssistanceReviewAuthority(prepared(
+		'dereverberation', 'audio', 'audio/wav',
+		new Blob([bytes.slice().buffer], { type: 'audio/wav' }),
+	));
+
+	assert.deepEqual(authority, {
+		audioWave: { sampleRate: 44_100, channelCount: 2, frameCount: 2 },
+	});
+});
+
 function prepared(
-	operation: 'optical-character-recognition' | 'editorial-generation',
-	role: 'frame-pack' | 'editorial-context', mediaType: string, bytes: Blob,
+	operation: 'optical-character-recognition' | 'editorial-generation' | 'dereverberation',
+	role: 'frame-pack' | 'editorial-context' | 'audio', mediaType: string, bytes: Blob,
 ) {
 	return { sourceId: 'source-a', operation, selectionFence: {
 		projectId: 'project-a', schemaFamily: 'soundscaper', schemaVersion: 1,
