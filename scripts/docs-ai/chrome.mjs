@@ -121,6 +121,7 @@ export async function writeChromeCatalog(catalog, directory = HANDBOOK_CHROME_DI
 /** Translate whatever one language's navigation catalog is missing or has fallen behind on. */
 export async function translateChrome(options) {
 	const locale = assertDocumentationLocale(options.locale);
+	const log = options.log ?? (() => {});
 	const directory = options.directory ?? HANDBOOK_CHROME_DIRECTORY;
 	const existing = readChromeCatalog(locale, directory);
 	const assessment = assessChromeCatalog(existing);
@@ -150,7 +151,9 @@ export async function translateChrome(options) {
 		} catch (error) {
 			// A batch the model cannot answer leaves those headings in English
 			// rather than stopping the language.
-			summary.skipped.push({ keys, reason: error.message });
+			const reason = error instanceof Error ? error.message : String(error);
+			summary.skipped.push({ keys, reason });
+			log(`${locale} navigation ${keys.join(', ')}: ${reason}`);
 		}
 		await writeChromeCatalog({
 			locale,

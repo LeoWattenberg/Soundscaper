@@ -122,6 +122,8 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'tests/aup3-fixture.js',
 		'tests/fixtures/aup4-native-rich.js',
 		'src/common/editor/example.ts',
+		'vendor/audacity-design-system/tokens/src/themes/dark.v2.ts',
+		'vendor/audacity-design-system/tokens/src/themes/light.v2.ts',
 		'.local-browsers/chromium-101/INSTALLATION_COMPLETE',
 		'.local-browsers/firefox-102/INSTALLATION_COMPLETE',
 		'.local-browsers/webkit-103/INSTALLATION_COMPLETE',

@@ -75,6 +75,8 @@ export async function createFixture(context) {
 		['.wrangler/browser-products/soundscaper/en/index.html', '<p>Soundscaper fixture</p>'],
 		['.wrangler/browser-products/framescaper/en/index.html', '<p>Framescaper fixture</p>'],
 		['handbook/guides/steps.mjs', 'export const steps = true;\n'],
+		['vendor/audacity-design-system/tokens/src/themes/dark.v2.ts', 'export const darkTheme = {};\n'],
+		['vendor/audacity-design-system/tokens/src/themes/light.v2.ts', 'export const lightTheme = {};\n'],
 		['handbook/guides/soundscaper/volume.mjs', 'export const guide = true;\n'],
 		['tests/browser/example.spec.js', 'export const test = true;\n'],
 		['tests/browser/example.spec.js-snapshots/example-chromium-linux.png', 'png'],
