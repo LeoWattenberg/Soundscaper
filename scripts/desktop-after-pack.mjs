@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { verifySignedMacPackage } from './lib/desktop-mac-signing-stage.mjs';
+
 import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
@@ -63,14 +65,18 @@ export default async function hardenPackagedElectron(context, dependencies = {})
 		?? verifyPackagedOsAudioCodecNativeResources;
 	// The absence audit and native payload verifiers cover disjoint policy
 	// concerns, so they run together before fuse and package finalization.
+	const signed = context.electronPlatformName === 'darwin' && process.env.SCAPE_MAC_SIGNING === 'true'
+		? await verifySignedMacPackage(context) : false;
 	await Promise.all([
 		auditCodecPolicy(context, dependencies),
 		verifyElectronFfmpeg(context, dependencies),
-		verifyAssistance(context, dependencies),
-		verifyNativeAddon(context, dependencies),
-		verifyProfessional(context, dependencies),
-		verifyNativeHosts(context, dependencies),
-		verifyOsAudioCodec(context, dependencies),
+		...(!signed ? [
+			verifyAssistance(context, dependencies),
+			verifyNativeAddon(context, dependencies),
+			verifyProfessional(context, dependencies),
+			verifyNativeHosts(context, dependencies),
+			verifyOsAudioCodec(context, dependencies),
+		] : []),
 	]);
 	const extension = {
 		darwin: '.app',

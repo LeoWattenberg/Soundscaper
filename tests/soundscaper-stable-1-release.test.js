@@ -32,11 +32,14 @@ test('the stable tag runs ordinary checks, packages every target, deploys, and p
 	assert.match(workflow, /npm run verify:pages/u);
 	assert.match(workflow, /gh release edit .*--draft=false/isu);
 	assert.doesNotMatch(workflow,
-		/admission|attestation|productionReadiness|reviewKey|notari[sz]|Developer ID|CSC_LINK|CSC_KEY_PASSWORD|SIGNING_CERTIFICATE|APPLE_ID/iu);
+		/admission|attestation|productionReadiness|reviewKey/iu);
 	assert.doesNotMatch(workflow, /soundscaper-stable-lifecycle-smoke/u);
 	assert.doesNotMatch(workflow, /framescaper-v|SCAPE_PRODUCT: framescaper/iu);
-	assert.match(workflow, /CSC_IDENTITY_AUTO_DISCOVERY: 'false'/u);
-	assert.doesNotMatch(workflow, /signing.identity|certificate|notari[sz]/iu);
+	assert.match(workflow, /SCAPE_MAC_SIGNING:.*vars\.MAC_SIGNING_ENABLED == 'true'.*github\.ref_type == 'tag'/u);
+	assert.match(workflow, /SCAPE_WIN_SIGNING:.*github\.ref_type == 'tag'.*vars\.WINDOWS_SIGNING_MODE/u);
+	assert.match(workflow, /APPLE_APP_SPECIFIC_PASSWORD:.*matrix\.target\.platform == 'mac'.*secrets\.APPLE_APP_SPECIFIC_PASSWORD/u);
+	assert.match(workflow, /AZURE_CLIENT_SECRET:.*matrix\.target\.platform == 'win'.*secrets\.AZURE_CLIENT_SECRET/u);
+	assert.match(workflow, /if: always\(\).*runner\.os == 'macOS'.*\n\s+run: node scripts\/desktop-signing-keychain\.mjs cleanup/u);
 	assert.match(workflow, /^permissions: \{\}$/mu);
 	const actionReferences = [...workflow.matchAll(/^\s+- uses: (?<reference>\S+)/gmu)]
 		.map(({ groups }) => groups.reference)

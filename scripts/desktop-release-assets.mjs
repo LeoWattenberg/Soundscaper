@@ -12,6 +12,7 @@ import {
 import { stageDesktopBundledCodecCorrespondingSource } from './lib/desktop-bundled-codec-corresponding-source.mjs';
 import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import { assistanceNativeRuntimeStageSummary } from '../desktop/assistance-native-runtime-payload.mjs';
+import { signedAssistanceAuthority } from './lib/desktop-signed-assistance-authority.mjs';
 import {
 	readProductReleaseLines,
 	resolveProductApplicationVersion,
@@ -281,7 +282,9 @@ export function validateDesktopRuntimeManifests(
 			`${manifest.name} does not declare the stable release channel.`);
 		}
 		assert(JSON.stringify(manifest.value.assistanceNativeRuntime)
-			=== JSON.stringify(assistanceNativeRuntimeStageSummary(assistanceNativeRuntimeManifest, targetId)),
+			=== JSON.stringify(assistanceNativeRuntimeStageSummary(signedAssistanceAuthority(
+				assistanceNativeRuntimeManifest, manifest.value.nativeSigning, targetId,
+			), targetId)),
 			`${manifest.name} has invalid assistance native-runtime evidence.`);
 		validateDesktopNativeAddonSummary(manifest, targetId, {
 			stableSoundscaper: identity?.[1] === 'soundscaper'

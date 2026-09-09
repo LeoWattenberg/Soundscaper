@@ -36,7 +36,7 @@ bounded issue is acceptable—is an explicit owner decision.
 2. Prepare the version metadata with
    `npm run release:soundscaper:prepare -- <version>` and commit that change.
 3. Push the matching stable tag. The tag workflow rebuilds and tests that exact
-   revision, creates unsigned packages, verifies their integrity, deploys the
+   revision, creates packages with the configured signing mode, verifies their integrity, deploys the
    site, and publishes the GitHub release.
 4. If a serious defect appears, remove or disable the affected distribution,
    preserve user projects, fix the bug test-first, and publish a new version.
@@ -44,3 +44,7 @@ bounded issue is acceptable—is an explicit owner decision.
 Framescaper keeps its independent tag namespace and release timing. Neither
 product's release decision grants schema, storage, native-payload, or update
 authority to the other.
+
+See [Desktop signing setup](desktop-signing-setup.md) for Developer ID,
+notarization, Windows signing, and the GitHub secrets and variables to configure
+before enabling signed release builds.

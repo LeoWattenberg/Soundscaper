@@ -9,15 +9,16 @@ const productName = framescaper ? 'Framescaper' : 'Soundscaper';
 const soundscaperStable = !framescaper
 	&& productReleaseLines.products.soundscaper.applicationVersionChannel === 'stable'
 	&& productReleaseLines.products.soundscaper.releaseChannel === 'stable';
-// macOS packages are ad-hoc code sealed solely so Electron and embedded native
-// binaries execute. No identity, secret, or trust claim is involved.
-const macSigningIdentity = '-';
+// Development builds use ad-hoc seals; credentialed release jobs explicitly
+// select a Developer ID identity and require notarization.
+const signing = require('./scripts/lib/desktop-signing-config.cjs').desktopSigningConfig();
+const macSigningIdentity = signing.mac.identity;
 const macEntitlements = framescaper
 	? 'desktop/framescaper-entitlements.mac.plist'
 	: 'desktop/soundscaper-entitlements.mac.plist';
-// These Mach-O payloads already carry ad-hoc code seals when their exact digests
-// enter the stage manifest. Re-signing them here would change authenticated
-// runtime bytes and make both package and runtime verification reject them.
+// These payloads are sealed before their exact digests enter the stage
+// manifest. The release signing hook repins its verified stage before ASAR
+// assembly; electron-builder must not sign those runtime bytes a second time.
 const macAssistancePackage = assistanceNativeRuntimeManifest.targets['mac-arm64'].package;
 const macAssistanceNativeFiles = Object.keys(macAssistancePackage.files)
 	.filter((name) => name.endsWith('.dylib') || name.endsWith('.node'))
@@ -36,6 +37,7 @@ const macPreAuthenticatedRuntimePayload = [
 
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
+	forceCodeSigning: signing.forceCodeSigning,
 	appId: framescaper ? 'org.framescaper.desktop' : 'org.soundscaper.desktop',
 	productName,
 	artifactName: '${productName}-${version}-${os}-${arch}.${ext}',
@@ -48,6 +50,8 @@ module.exports = {
 	npmRebuild: false,
 	beforePack: './scripts/desktop-before-pack.mjs',
 	afterPack: './scripts/desktop-after-pack.mjs',
+	afterSign: './scripts/desktop-after-sign.mjs',
+	afterAllArtifactBuild: './scripts/desktop-verify-release-artifacts.mjs',
 	directories: {
 		app: '.desktop-build/app',
 		buildResources: '.desktop-build/icons',
@@ -99,6 +103,7 @@ module.exports = {
 		}] : []),
 	],
 	win: {
+		...signing.win,
 		icon: '.desktop-build/icons/icon.png',
 		target: ['nsis', 'zip'],
 	},
@@ -112,12 +117,13 @@ module.exports = {
 		deleteAppDataOnUninstall: false,
 	},
 	mac: {
+		notarize: signing.mac.notarize,
 		icon: '.desktop-build/icons/icon.png',
 		identity: macSigningIdentity,
 		hardenedRuntime: true,
 		entitlements: macEntitlements,
 		entitlementsInherit: macEntitlements,
-		signIgnore: macPreAuthenticatedRuntimePayload,
+		signIgnore: signing.mac.notarize ? '/Contents/Resources/runtime/' : macPreAuthenticatedRuntimePayload,
 		gatekeeperAssess: false,
 		category: framescaper ? 'public.app-category.video' : 'public.app-category.music',
 		target: ['dmg'],
@@ -130,6 +136,7 @@ module.exports = {
 		},
 	},
 	dmg: {
+		sign: signing.mac.notarize,
 		artifactName: '${productName}-${version}-mac-${arch}.${ext}',
 	},
 	linux: {

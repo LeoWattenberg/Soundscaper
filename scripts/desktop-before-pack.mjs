@@ -2,6 +2,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { captureMacSigningInputs, signVerifiedMacStage } from './lib/desktop-mac-signing-stage.mjs';
 
 import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import {
@@ -50,6 +51,9 @@ export default async function verifyDesktopRuntimeBeforePack(context = {}, depen
 		?? verifyStagedOsAudioCodecNativeBeforePack;
 	const verifyProfessional = dependencies.verifyStagedSoundscaperProfessionalNativeBeforePack
 		?? verifyStagedSoundscaperProfessionalNativeBeforePack;
+	if (context.electronPlatformName === 'darwin' && process.env.SCAPE_MAC_SIGNING === 'true') {
+		await captureMacSigningInputs(context);
+	}
 	await Promise.all([
 		auditCodecPolicy({ repositoryRoot, stageManifestPath }),
 		verifyAssistance({
@@ -60,6 +64,7 @@ export default async function verifyDesktopRuntimeBeforePack(context = {}, depen
 		verifyNativeHosts({ repositoryRoot, stageManifestPath, packagedTarget }),
 		verifyOsAudioCodec({ repositoryRoot, stageManifestPath, packagedTarget }),
 	]);
+	await signVerifiedMacStage(context);
 }
 
 export async function verifyStagedOsAudioCodecNativeBeforePack({

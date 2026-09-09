@@ -492,6 +492,21 @@ jobs:
     runs-on: ${{ matrix.target.runner }}
     env:
       SCAPE_PRODUCT: ${{ matrix.product }}
+      SCAPE_MAC_SIGNING: ${{ vars.MAC_SIGNING_ENABLED == 'true' && github.ref_type == 'tag' && 'true' || 'false' }}
+      SCAPE_WIN_SIGNING: ${{ github.ref_type == 'tag' && vars.WINDOWS_SIGNING_MODE || 'none' }}
+      CSC_NAME: ${{ vars.MAC_SIGNING_IDENTITY }}
+      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      APPLE_ID: ${{ github.ref_type == 'tag' && matrix.target.platform == 'mac' && vars.MAC_SIGNING_ENABLED == 'true' && secrets.APPLE_ID || '' }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ github.ref_type == 'tag' && matrix.target.platform == 'mac' && vars.MAC_SIGNING_ENABLED == 'true' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+      WIN_CSC_LINK: ${{ github.ref_type == 'tag' && matrix.target.platform == 'win' && vars.WINDOWS_SIGNING_MODE == 'certificate' && secrets.WIN_CSC_LINK || '' }}
+      WIN_CSC_KEY_PASSWORD: ${{ github.ref_type == 'tag' && matrix.target.platform == 'win' && vars.WINDOWS_SIGNING_MODE == 'certificate' && secrets.WIN_CSC_KEY_PASSWORD || '' }}
+      WINDOWS_PUBLISHER_NAME: ${{ vars.WINDOWS_PUBLISHER_NAME }}
+      AZURE_TENANT_ID: ${{ github.ref_type == 'tag' && matrix.target.platform == 'win' && vars.WINDOWS_SIGNING_MODE == 'azure' && secrets.AZURE_TENANT_ID || '' }}
+      AZURE_CLIENT_ID: ${{ github.ref_type == 'tag' && matrix.target.platform == 'win' && vars.WINDOWS_SIGNING_MODE == 'azure' && secrets.AZURE_CLIENT_ID || '' }}
+      AZURE_CLIENT_SECRET: ${{ github.ref_type == 'tag' && matrix.target.platform == 'win' && vars.WINDOWS_SIGNING_MODE == 'azure' && secrets.AZURE_CLIENT_SECRET || '' }}
+      AZURE_SIGNING_ENDPOINT: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+      AZURE_SIGNING_ACCOUNT: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+      AZURE_SIGNING_PROFILE: ${{ vars.AZURE_SIGNING_PROFILE }}
     steps:
       - name: Check out source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -512,6 +527,13 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Import the Developer ID signing certificate
+        if: runner.os == 'macOS' && env.SCAPE_MAC_SIGNING == 'true'
+        run: node scripts/desktop-signing-keychain.mjs setup
+        env:
+          MAC_CERTIFICATE_P12: ${{ secrets.MAC_CERTIFICATE_P12 }}
+          MAC_CERTIFICATE_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
 
       - name: Build the authenticated target-native OS audio codec host
         if: matrix.product == 'soundscaper' && matrix.target.platform != 'linux'
@@ -535,7 +557,7 @@ jobs:
           --config electron-builder.config.cjs
           --${{ matrix.target.platform }} --${{ matrix.target.arch }} --publish never
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ env.SCAPE_MAC_SIGNING == 'true' && 'true' || 'false' }}
 
       - name: Install virtual display for Linux smoke
         if: runner.os == 'Linux'
@@ -646,6 +668,10 @@ jobs:
             release/desktop/*.json
           if-no-files-found: error
           retention-days: 14
+
+      - name: Remove the temporary signing keychain
+        if: always() && runner.os == 'macOS' && env.SCAPE_MAC_SIGNING == 'true'
+        run: node scripts/desktop-signing-keychain.mjs cleanup
 
   milestone-5-package-audit-summary:
     name: Re-audit the Milestone 5 packages
