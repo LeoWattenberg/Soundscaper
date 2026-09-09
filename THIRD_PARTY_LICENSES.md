@@ -21,6 +21,14 @@ Framescaper video-codec source enters that inventory. This checked technical
 inventory does not claim legal, trademark, or patent clearance beyond the
 recorded owner review.
 
+## Audacity appearance previews
+
+The Preferences theme illustration and clip-style SVGs are derived from Audacity
+commit `16f2713979809abe7308b4e1e0d487afeece84f2` under GPL-3.0-only.
+Copyright (C) 2021 MuseScore BVBA and others (theme illustration), and the Audacity
+contributors (clip assets). [Source paths, modifications and original hashes](src/common/editor/ui/skins/previews/NOTICE.md)
+are retained with the assets; [GPLv3 terms](LICENSES/GPL-3.0.txt) are bundled.
+
 ## Audacity-derived native audio effects
 
 Parts of `src/common/editor/audacity-effects/` are JavaScript translations and adaptations of native effect implementations from Audacity 3.7.7, exact commit `5ef610ed23260d6d648175735bb16b32536eb30b`:

@@ -173,54 +173,9 @@ body[data-editor-skin]:not([data-editor-skin='default']) .tooltip__arrow path {
 
 .editor-skin-swatch {
 	display: block;
+	width: 100%;
 	height: 92px;
-	overflow: hidden;
-	background-color: var(--skin-swatch-stage);
-	background-position: right center;
-	background-size: cover;
-	border: 1px solid var(--skin-swatch-accent);
-	border-radius: 3px;
-}
-
-[data-skin-choice='sakura'] .editor-skin-swatch {
-	background-image: url('./sakura.svg');
-	border-radius: 7px;
-}
-
-[data-skin-choice='lilac'] .editor-skin-swatch {
-	background-image: url('./lilac.svg');
-}
-
-[data-skin-choice='techno'] .editor-skin-swatch {
-	background-image: url('./techno.svg');
-	border-radius: 0;
-}
-
-.editor-skin-swatch__bar {
-	display: block;
-	padding: 3px 6px;
-	background: var(--skin-swatch-bg);
-	color: var(--skin-swatch-text);
-	border-bottom: 2px solid var(--skin-swatch-panel);
-	font: 10px/1.4 sans-serif;
-}
-
-.editor-skin-swatch__track {
-	display: block;
-	width: 64%;
-	height: 18px;
-	margin: 8px 0 0 12%;
-	border-top: 4px solid var(--skin-swatch-accent);
-	border-radius: 2px;
-	background: var(--skin-swatch-clip);
-	color: #152132;
-	font: 16px/12px monospace;
-	overflow: hidden;
-}
-
-.editor-skin-swatch__track:last-child {
-	width: 48%;
-	margin-inline-start: 27%;
+	object-fit: contain;
 }
 
 .editor-skin-preview-actions button {
@@ -278,4 +233,9 @@ body[data-editor-skin]:not([data-editor-skin='default']) .tooltip__arrow path {
 #kw-audio-editor-design-system[data-editor-skin='sakura'] .timecode__format-button > .icon {
 	/* The vendor pins a white caret inline for its dark timecode variant. */
 	color: var(--text) !important;
+}
+
+/* Preserve Audacity's complete illustration at either source aspect ratio. */
+.kw-audio-editor-preferences__appearance .preference-thumbnail__image {
+	object-fit: contain;
 }

@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import React, { useState, type CSSProperties } from 'react';
+import React, { useState } from 'react';
 import { SKIN_IDS, normalizeSkin, type SkinId } from '../../skin-preferences.ts';
 import { useEditorSkin } from './EditorSkinProvider.tsx';
-import { resolveSkinTheme, SKINS } from './skin-themes.ts';
+import { SKINS } from './skin-themes.ts';
+import { appearancePreview } from './appearance-previews.ts';
 import type { AudioEditorWorkspaceRunner } from '../workspace/audio-editor-workspace-runner.ts';
 
 export default function SkinPreferences({ controller, copy, run, savedSkin }: {
@@ -30,22 +31,9 @@ export default function SkinPreferences({ controller, copy, run, savedSkin }: {
 		<h4>{copy.skin}</h4>
 		<div className="editor-skin-choices">
 			{SKIN_IDS.map((id) => {
-				const theme = resolveSkinTheme(id, skin.mode);
-				const style = {
-					'--skin-swatch-bg': theme.background.surface.default,
-					'--skin-swatch-panel': theme.background.surface.elevated,
-					'--skin-swatch-stage': theme.background.canvas.default,
-					'--skin-swatch-accent': theme.accent.primary,
-					'--skin-swatch-clip': theme.audio.clip.violet.body,
-					'--skin-swatch-text': theme.foreground.text.primary,
-				} as CSSProperties;
 				return <button type="button" key={id} className="editor-skin-choice" data-skin-choice={id}
 					aria-pressed={effective === id} disabled={saving} onClick={() => { select(id); }}>
-					<span className="editor-skin-swatch" style={style} aria-hidden="true">
-						<span className="editor-skin-swatch__bar">● &nbsp; ▶ &nbsp; ━━━</span>
-						<span className="editor-skin-swatch__track">∿∿∿∿∿∿∿∿</span>
-						<span className="editor-skin-swatch__track">∿∿∿∿∿∿</span>
-					</span>
+					<img className="editor-skin-swatch" src={appearancePreview(id, skin.mode)} alt="" />
 					<span>{name(id)}</span>
 				</button>;
 			})}

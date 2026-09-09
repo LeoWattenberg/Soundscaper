@@ -13,11 +13,18 @@ for (const product of ['soundscaper', 'framescaper']) {
 		registerAudioEditorHooks();
 		const path = product === 'soundscaper' ? '/embed/en/' : '/framescaper/embed/en/';
 
-		test('chooses a skin through Preferences and persists across reload', async ({ page }) => {
+		test('chooses a skin through Preferences and persists across reload', async ({ page }, testInfo) => {
 			let editor = await bootEditor(page, path);
 			await expect(editor).toHaveAttribute('data-editor-skin', 'default');
 			const workspace = await editor.getAttribute('data-workspace-preset');
 			const dialog = await appearance(page, editor);
+			const previews = dialog.locator('img');
+			await expect(previews).toHaveCount(8);
+			for (const preview of await previews.all()) {
+				await expect.poll(() => preview.evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true);
+				await expect(preview).toHaveCSS('object-fit', 'contain');
+			}
+			await dialog.screenshot({ path: testInfo.outputPath('appearance-previews.png') });
 			await dialog.getByRole('button', { name: 'Lilac', exact: true }).click();
 			await expect(dialog.getByRole('button', { name: 'Lilac', exact: true })).toBeEnabled();
 			await expect(editor).toHaveAttribute('data-editor-skin', 'lilac');
