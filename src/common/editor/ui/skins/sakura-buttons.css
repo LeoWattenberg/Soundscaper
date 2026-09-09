@@ -1,0 +1,93 @@
+/* All editor button families share one raised face. Inset edges and content
+   offsets preserve the workspace geometry and each button's hit target.
+   The shared accessibility stylesheet supplies reduced-motion timing. */
+body[data-editor-skin='sakura'] #kw-audio-editor-design-system[data-editor-skin='sakura'] {
+	:is(.button, .transport-button, .tool-button, .toggle-tool-button, .toggle-button,
+		.kw-audio-editor__split-button-arrow, .timecode__format-button,
+		.kw-audio-editor__snap-interval, .dropdown__trigger,
+		:where([data-editor-tool-toolbar], .editor-skin-preview-actions) button) {
+		--sakura-button-edge: #8d3159;
+		--sakura-button-depth: 8px;
+		--sakura-button-offset: 3px;
+		--sakura-face-offset: calc(-1 * var(--sakura-button-offset));
+		border-radius: 7px;
+		box-shadow: inset 0 calc(-1 * var(--sakura-button-depth)) 0 var(--sakura-button-edge),
+			inset 0 2px 0 #ffffff99, inset 0 0 0 1px var(--sakura-button-edge);
+		transition: background-color 120ms ease, box-shadow 100ms ease;
+
+		> :is(.button__text, .button__icon, .musescore-icon,
+			.kw-audio-editor__split-button-arrow-icon, .kw-audio-editor__snap-interval-label,
+			.dropdown__text, .editor-skin-button-label) {
+			transform: translateY(var(--sakura-face-offset));
+			transition: transform 100ms ease;
+		}
+
+		&:not(:disabled):is(:active, [aria-pressed='true'], [aria-expanded='true']) {
+			--sakura-face-offset: var(--sakura-button-offset);
+			box-shadow: inset 0 -2px 0 var(--sakura-button-edge),
+				inset 0 2px 3px #38202f55, inset 0 0 0 1px var(--sakura-button-edge);
+		}
+
+		&:focus-visible {
+			outline: 2px solid var(--accent);
+			outline-offset: 2px;
+		}
+	}
+
+	/* Twenty-pixel mute/solo and small tools need a shallower face to keep
+	   their glyphs clear of the edge. ToggleButton renders text without a span. */
+	:is(.tool-button--small, .toggle-button, .timecode__format-button) {
+		--sakura-button-depth: 5px;
+		--sakura-button-offset: 1.5px;
+	}
+
+	.toggle-button {
+		box-sizing: border-box;
+		padding-block: 0 3px;
+		line-height: 1;
+
+		&:not(:disabled):is(:active, [aria-pressed='true']) {
+			padding-block: 3px 0;
+			color: var(--primary-button-text);
+		}
+	}
+
+	.kw-audio-editor__sequence-frame-step {
+		--sakura-button-depth: 4px;
+		padding-block: 0 4px;
+		background: var(--toolbar-button-bg);
+
+		&:not(:disabled):active {
+			padding-block: 4px 0;
+		}
+	}
+
+	/* The vendor supplies the toggle icon's inverse color inline. The light
+	   pink selected face needs the same dark foreground as a primary button. */
+	.toggle-tool-button[aria-pressed='true'] > .icon {
+		color: var(--primary-button-text) !important;
+	}
+
+	.kw-audio-editor__split-button-main > :is(.transport-button, .toggle-tool-button) {
+		border-radius: 7px 0 0 7px;
+	}
+
+	.kw-audio-editor__split-button-arrow-icon {
+		display: inline-block;
+	}
+
+	.kw-audio-editor__split-button-arrow {
+		border-radius: 0 7px 7px 0;
+	}
+}
+
+@media (forced-colors: active) {
+	body[data-editor-skin='sakura'] #kw-audio-editor-design-system[data-editor-skin='sakura'] :is(
+		.button, .transport-button, .tool-button, .toggle-tool-button, .toggle-button,
+		.kw-audio-editor__split-button-arrow, .timecode__format-button,
+		.kw-audio-editor__snap-interval, .dropdown__trigger,
+		:where([data-editor-tool-toolbar], .editor-skin-preview-actions) button
+	) {
+		box-shadow: inset 0 0 0 1px ButtonText;
+	}
+}
