@@ -132,3 +132,27 @@ test('a run writes the headings a language owes and drops the ones that were rem
 	assert.equal(second.translated, 0);
 	assert.equal(second.current, HANDBOOK_CHROME_KEYS.length);
 });
+
+test('a rejected navigation batch reports its reason as soon as it is skipped', async (context) => {
+	const directory = await catalogDirectory(context);
+	const log = [];
+	const client = {
+		async identity() {
+			return { model: 'aya-expanse:32b', digest: 'sha256:model' };
+		},
+		async generateJson() {
+			return { locale: 'fr', translations: {} };
+		},
+	};
+
+	const summary = await translateChrome({
+		locale: 'fr',
+		client,
+		directory,
+		log: (line) => log.push(line),
+	});
+
+	assert.ok(summary.skipped.length > 0);
+	assert.equal(log.length, summary.skipped.length);
+	assert.match(log[0], /^fr navigation .*: Missing translations for:/u);
+});

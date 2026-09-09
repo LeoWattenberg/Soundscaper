@@ -89,12 +89,24 @@ test('a run translates what a language is missing and leaves what it already has
 test('a page the model answers badly is named and the rest of the language still lands', async (context) => {
 	const root = await tree(context, { 'index.md': PAGE('Home'), 'guides/index.md': PAGE('Guides') });
 	const client = frenchClient({ refuse: new Set(['Home']) });
+	const log = [];
 
-	const summary = await translateHandbook({ locale: 'fr', root, client, cacheDirectory });
+	const summary = await translateHandbook({
+		locale: 'fr',
+		root,
+		client,
+		cacheDirectory,
+		log: (line) => log.push(line),
+	});
 
 	assert.equal(summary.translated, 1);
 	assert.deepEqual(summary.skipped.map(({ page }) => page), ['index.md']);
 	assert.match(summary.skipped[0].reason, /French/u);
+	assert.match(log.find((line) => line.includes('fr/index.md')) ?? '', /French/u);
+	assert.ok(
+		log.findIndex((line) => line.includes('fr/index.md'))
+		< log.findIndex((line) => line.includes('2/2 pages handled')),
+	);
 	await assert.rejects(readFile(join(root, 'fr', 'index.md'), 'utf8'));
 });
 

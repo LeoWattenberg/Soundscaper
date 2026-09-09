@@ -123,7 +123,9 @@ export async function translateHandbook(options) {
 		} catch (error) {
 			// One page the model cannot answer acceptably is one page, not a
 			// language: it is named and the run carries on to the next.
-			summary.skipped.push({ page, reason: error.message });
+			const reason = error instanceof Error ? error.message : String(error);
+			summary.skipped.push({ page, reason });
+			log(`${locale}/${page}: ${reason}`);
 		}
 		log(`${locale}: ${handled}/${pages.length} pages handled (${summary.translated} translated, ${summary.skipped.length} skipped)`);
 	}

@@ -74,6 +74,14 @@ test('restoration resolves protection tokens nested inside a protected link dest
 	assert.equal(restoreMarkdown(protectedDocument.markdown, protectedDocument.tokens), nested);
 });
 
+test('token-shaped source text cannot collide with generated protection tokens', () => {
+	const sourceWithToken = '<!-- Keep <docs-ai-token id="0001"/> as documentation. -->\n\nBody.\n';
+	const protectedDocument = protectMarkdown(sourceWithToken);
+
+	assert.deepEqual([...protectedDocument.tokens.keys()], ['<docs-ai-token id="0002"/>']);
+	assert.equal(restoreMarkdown(protectedDocument.markdown, protectedDocument.tokens), sourceWithToken);
+});
+
 test('chunk validation rejects reordered protection tokens before caching', () => {
 	const protectedDocument = protectMarkdown(source);
 	const [first, second] = [...protectedDocument.tokens.keys()];
@@ -136,4 +144,12 @@ test('link protection still round-trips every destination form', () => {
 		const state = protectMarkdown(sample);
 		assert.equal(restoreMarkdown(state.markdown, state.tokens), sample);
 	}
+});
+
+test('translated slash-separated prose is not mistaken for a symbolic identifier', () => {
+	assert.doesNotThrow(() => assertStructuralParity('On/Off\n', 'Ein/Aus\n'));
+	assert.throws(
+		() => assertStructuralParity('Use audio/export now.\n', 'Audio exportieren.\n'),
+		/changed protected content/u,
+	);
 });

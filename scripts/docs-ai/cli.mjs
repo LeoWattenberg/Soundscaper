@@ -159,11 +159,14 @@ async function runHandbookCommand(options, { env, stdout }) {
 		});
 		// The navigation is a few dozen short strings and belongs to the same
 		// language, so one run leaves nothing behind in English by accident.
-		const navigation = await translateChrome({ locale, client, cacheDirectory: cacheDirectory(env) });
+		const navigation = await translateChrome({
+			locale,
+			client,
+			cacheDirectory: cacheDirectory(env),
+			log: (line) => stdout.write(`${line}\n`),
+		});
 		summaries.push({ ...summary, navigation });
 		stdout.write(`${locale}: ${summary.translated} translated, ${summary.current} already current, ${summary.skipped.length} skipped of ${summary.pages} pages; navigation ${navigation.translated} translated, ${navigation.current} already current\n`);
-		for (const { page, reason } of summary.skipped) stdout.write(`  ${locale}/${page}: ${reason}\n`);
-		for (const { keys, reason } of navigation.skipped) stdout.write(`  ${locale} navigation ${keys.join(', ')}: ${reason}\n`);
 		for (const page of summary.orphaned) stdout.write(`  ${locale}/${page} no longer exists in English; --prune removes it\n`);
 	}
 	return summaries;

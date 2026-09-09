@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { stripProvenance } from './provenance.mjs';
 
 const TOKEN_PATTERN = /<docs-ai-token id="(\d{4,})"\/>/gu;
+const SYMBOLIC_IDENTIFIER_PATTERN = /\b[a-z][a-z0-9_-]*(?:[.:/][a-z][a-z0-9_-]*)+\b/gu;
+const FILE_EXTENSION_PATTERN = /(?<![\w/])\.[a-z][a-z0-9]{1,9}\b/giu;
 
 // A markdown link destination is scanned with "\\." and a bare character in
 // disjoint alternatives. Letting a backslash match both — as "(?:\\.|[^)])+"
@@ -23,14 +25,23 @@ function protectMatches(state, pattern, replacer = (match) => match[0]) {
 }
 
 function addToken(state, protectedValue) {
-	const id = String(state.tokens.size + 1).padStart(4, '0');
+	const id = String(state.nextTokenId).padStart(4, '0');
+	state.nextTokenId += 1;
 	const token = `<docs-ai-token id="${id}"/>`;
 	state.tokens.set(token, protectedValue);
 	return token;
 }
 
+function nextAvailableTokenId(markdown) {
+	TOKEN_PATTERN.lastIndex = 0;
+	let highest = 0;
+	for (const match of markdown.matchAll(TOKEN_PATTERN)) highest = Math.max(highest, Number(match[1]));
+	return highest + 1;
+}
+
 export function protectMarkdown(markdown) {
-	const state = { markdown: stripProvenance(markdown), tokens: new Map() };
+	const clean = stripProvenance(markdown);
+	const state = { markdown: clean, tokens: new Map(), nextTokenId: nextAvailableTokenId(clean) };
 	protectMatches(state, /^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/u);
 	protectMatches(state, /^ {0,3}(`{3,}|~{3,})[^\r\n]*\r?\n[\s\S]*?^ {0,3}\1[ \t]*(?:\r?\n|$)/gmu);
 	protectMatches(state, /<!--[\s\S]*?-->/gu);
@@ -43,8 +54,8 @@ export function protectMarkdown(markdown) {
 		(_full, label, destination) => `${label}${addToken(state, destination)}`,
 	);
 	protectMatches(state, /https?:\/\/[^\s<>"')\]]+/gu);
-	protectMatches(state, /\b[a-z][a-z0-9_-]*(?:[.:/][a-z][a-z0-9_-]*)+\b/giu);
-	protectMatches(state, /(?<![\w/])\.[a-z][a-z0-9]{1,9}\b/giu);
+	protectMatches(state, SYMBOLIC_IDENTIFIER_PATTERN);
+	protectMatches(state, FILE_EXTENSION_PATTERN);
 	TOKEN_PATTERN.lastIndex = 0;
 	state.tokens = new Map(
 		[...state.markdown.matchAll(TOKEN_PATTERN)].flatMap((match) => (
@@ -72,8 +83,9 @@ export function restoreMarkdown(markdown, tokens) {
 	assert.deepEqual(returnedTokens, [...tokens.keys()], 'Model changed the order of protected Markdown tokens.');
 	let restored = markdown;
 	for (const [token, value] of tokens) restored = restored.replace(token, () => value);
-	TOKEN_PATTERN.lastIndex = 0;
-	if (TOKEN_PATTERN.test(restored)) throw new Error('Restored Markdown still contains a protection token.');
+	if ([...tokens.keys()].some((token) => restored.includes(token))) {
+		throw new Error('Restored Markdown still contains a generated protection token.');
+	}
 	return restored;
 }
 
@@ -82,7 +94,7 @@ function expandProtectedValue(token, tokens, visiting) {
 	if (!tokens.has(token)) throw new Error(`Unknown nested protection token: ${token}`);
 	const nextVisiting = new Set(visiting).add(token);
 	return String(tokens.get(token)).replace(/<docs-ai-token id="\d{4,}"\/>/gu, (nested) => (
-		expandProtectedValue(nested, tokens, nextVisiting)
+		tokens.has(nested) ? expandProtectedValue(nested, tokens, nextVisiting) : nested
 	));
 }
 
@@ -181,6 +193,16 @@ function frontmatterOf(markdown) {
 	return markdown.match(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/u)?.[0] ?? '';
 }
 
+function identifiersOf(markdown) {
+	return [SYMBOLIC_IDENTIFIER_PATTERN, FILE_EXTENSION_PATTERN]
+		.flatMap((pattern) => {
+			pattern.lastIndex = 0;
+			return [...markdown.matchAll(pattern)].map((match) => ({ index: match.index, value: match[0] }));
+		})
+		.sort((left, right) => left.index - right.index)
+		.map(({ value }) => value);
+}
+
 function structuralSignature(markdown) {
 	const clean = stripProvenance(markdown);
 	return {
@@ -189,7 +211,7 @@ function structuralSignature(markdown) {
 		inlineCode: [...clean.matchAll(/(`+)([^`\r\n]*?)\1/gu)].map((match) => match[0]),
 		linkDestinations: [...clean.matchAll(LINK_DESTINATION_PATTERN)].map((match) => match[1]),
 		urls: [...clean.matchAll(/https?:\/\/[^\s<>"')\]]+/gu)].map((match) => match[0]),
-		identifiers: [...clean.matchAll(/\b[a-z][a-z0-9_-]*(?:[.:/][a-z][a-z0-9_-]*)+\b|(?<![\w/])\.[a-z][a-z0-9]{1,9}\b/giu)].map((match) => match[0]),
+		identifiers: identifiersOf(clean),
 		headings: [...clean.matchAll(/^ {0,3}(#{1,6})\s+/gmu)].map((match) => match[1].length),
 		lists: [...clean.matchAll(/^\s*(?:([-+*])|(\d+)[.)])\s+/gmu)].map((match) => match[1] ?? '#'),
 		tables: clean.split(/\r?\n/u)

@@ -27,6 +27,7 @@ export const TRANSLATE_PROMPT_VERSION = 'docs-translate-v1';
 const MAX_FACT_PACKET_BYTES = 64 * 1_024;
 const MAX_FACTS = 200;
 const FRONTMATTER_PROMPT_VERSION = 'docs-translate-frontmatter-v1';
+const STANDALONE_PROTECTION_TOKEN_LINE = /^[\t ]*<docs-ai-token id="\d{4,}"\/>[\t ]*(?:\r?\n|$)/gmu;
 
 const DRAFT_SYSTEM_PROMPT = `You draft product documentation from a closed fact packet.
 Use only claims explicitly present in the packet. Do not infer feature support, platform behavior, compatibility, safety, or availability.
@@ -237,6 +238,20 @@ async function translateChunk({ chunk, chunkIndex, sourceHash, targetLocale, cli
 	return translated;
 }
 
+/** Keep opaque block lines out of the model request instead of asking it to echo placeholders. */
+function translationSegments(markdown) {
+	const segments = [];
+	let offset = 0;
+	STANDALONE_PROTECTION_TOKEN_LINE.lastIndex = 0;
+	for (const match of markdown.matchAll(STANDALONE_PROTECTION_TOKEN_LINE)) {
+		if (match.index > offset) segments.push({ markdown: markdown.slice(offset, match.index), translate: true });
+		segments.push({ markdown: match[0], translate: false });
+		offset = match.index + match[0].length;
+	}
+	if (offset < markdown.length) segments.push({ markdown: markdown.slice(offset), translate: true });
+	return segments;
+}
+
 function validateTranslatedFrontmatter(response, sourceFields, protectedFields, targetLocale) {
 	return validateModelOutput(() => {
 		const expectedKeys = sourceFields.description === undefined
@@ -312,7 +327,6 @@ export async function translateDocument(options) {
 	const { frontmatter, body } = splitFrontmatter(source);
 	if (!frontmatter) throw new Error('A Starlight Markdown translation requires YAML frontmatter.');
 	const protectedDocument = protectMarkdown(body);
-	const chunks = chunkProtectedMarkdown(protectedDocument.markdown, options.maxChunkChars ?? 6_000);
 	const modelIdentity = await options.client.identity();
 	const sourceHash = sha256(source);
 	const translatedFrontmatter = await translateFrontmatter({
@@ -324,16 +338,24 @@ export async function translateDocument(options) {
 		cacheDirectory: options.cacheDirectory,
 	});
 	const translatedChunks = [];
-	for (const [chunkIndex, chunk] of chunks.entries()) {
-		translatedChunks.push(await translateChunk({
-			chunk,
-			chunkIndex,
-			sourceHash,
-			targetLocale,
-			client: options.client,
-			modelIdentity,
-			cacheDirectory: options.cacheDirectory,
-		}));
+	let chunkIndex = 0;
+	for (const segment of translationSegments(protectedDocument.markdown)) {
+		if (!segment.translate) {
+			translatedChunks.push(segment.markdown);
+			continue;
+		}
+		for (const chunk of chunkProtectedMarkdown(segment.markdown, options.maxChunkChars ?? 6_000)) {
+			translatedChunks.push(await translateChunk({
+				chunk,
+				chunkIndex,
+				sourceHash,
+				targetLocale,
+				client: options.client,
+				modelIdentity,
+				cacheDirectory: options.cacheDirectory,
+			}));
+			chunkIndex += 1;
+		}
 	}
 	const restoredBody = restoreMarkdown(translatedChunks.join(''), protectedDocument.tokens);
 	// A hero action's link is data no Markdown transform ever sees, so the page
