@@ -140,13 +140,49 @@ body[data-editor-skin]:not([data-editor-skin='default']) .tooltip__arrow path {
 	font-size: 14px;
 }
 
+.editor-skin-carousel {
+	display: grid;
+	grid-template-columns: 28px minmax(0, 1fr) 28px;
+	align-items: center;
+	gap: 8px;
+}
+
 .editor-skin-choices {
 	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
+	grid-auto-flow: column;
+	grid-auto-columns: 148px;
 	gap: 12px;
+	min-width: 0;
+	padding: 4px;
+	overflow-x: auto;
+	scrollbar-width: thin;
+	scroll-snap-type: x proximity;
+	scroll-padding-inline: 4px;
+}
+
+.editor-skin-carousel__step {
+	padding: 0;
+	height: 32px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	background: var(--control);
+	color: var(--text);
+	font: 24px/1 sans-serif;
+	cursor: pointer;
+}
+
+.editor-skin-carousel__step:disabled {
+	opacity: .4;
+	cursor: default;
+}
+
+.editor-skin-carousel__step:dir(rtl) span {
+	display: inline-block;
+	transform: rotate(180deg);
 }
 
 .editor-skin-choice {
+	scroll-snap-align: start;
 	display: grid;
 	gap: 6px;
 	padding: 7px;
@@ -165,6 +201,7 @@ body[data-editor-skin]:not([data-editor-skin='default']) .tooltip__arrow path {
 	outline-offset: -2px;
 }
 
+.editor-skin-carousel__step:focus-visible,
 .editor-skin-choice:focus-visible,
 .editor-skin-preview-actions button:focus-visible {
 	outline: 2px solid var(--focus-color, var(--accent));

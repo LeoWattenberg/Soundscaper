@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { SKIN_IDS, normalizeSkin, type SkinId } from '../../skin-preferences.ts';
 import { useEditorSkin } from './EditorSkinProvider.tsx';
 import { SKINS } from './skin-themes.ts';
+import SkinCarousel from './SkinCarousel.tsx';
 import { appearancePreview } from './appearance-previews.ts';
 import type { AudioEditorWorkspaceRunner } from '../workspace/audio-editor-workspace-runner.ts';
 
@@ -29,7 +30,7 @@ export default function SkinPreferences({ controller, copy, run, savedSkin }: {
 	};
 	return <section className="editor-skin-preferences" aria-label={copy.skin}>
 		<h4>{copy.skin}</h4>
-		<div className="editor-skin-choices">
+		<SkinCarousel current={effective} copy={copy}>
 			{SKIN_IDS.map((id) => {
 				return <button type="button" key={id} className="editor-skin-choice" data-skin-choice={id}
 					aria-pressed={effective === id} disabled={saving} onClick={() => { select(id); }}>
@@ -37,7 +38,7 @@ export default function SkinPreferences({ controller, copy, run, savedSkin }: {
 					<span>{name(id)}</span>
 				</button>;
 			})}
-		</div>
+		</SkinCarousel>
 		{skin.preview !== null && <div className="editor-skin-preview-actions">
 			<p role="status">{copy.skinPreview?.replace('{skin}', name(skin.preview) ?? skin.preview)}</p>
 			<button type="button" disabled={saving} onClick={() => { select(effective); }}><span className="editor-skin-button-label">{copy.skinKeep}</span></button>
