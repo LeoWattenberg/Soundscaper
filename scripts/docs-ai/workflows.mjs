@@ -217,7 +217,8 @@ async function translateChunk({ chunk, chunkIndex, sourceHash, targetLocale, cli
 	let response = cacheDirectory ? await readCache(cacheDirectory, identity) : null;
 	let translated;
 	const validate = (candidate) => validateModelOutput(() => {
-		const candidateMarkdown = validateModelMarkdown(candidate, targetLocale, { allowProtectionTokens: true });
+		const modelMarkdown = validateModelMarkdown(candidate, targetLocale, { allowProtectionTokens: true });
+		const candidateMarkdown = preserveBoundaryWhitespace(chunk, modelMarkdown);
 		assertProtectionTokenParity(chunk, candidateMarkdown);
 		assertStructuralParity(chunk, candidateMarkdown);
 		return candidateMarkdown;
@@ -236,6 +237,13 @@ async function translateChunk({ chunk, chunkIndex, sourceHash, targetLocale, cli
 		translated = validate(response);
 	}
 	return translated;
+}
+
+/** A model may trim an otherwise valid response; chunk joins must still match the source document. */
+function preserveBoundaryWhitespace(source, translated) {
+	const leading = source.match(/^[\t \r\n]*/u)?.[0] ?? '';
+	const trailing = source.match(/[\t \r\n]*$/u)?.[0] ?? '';
+	return `${leading}${translated.replace(/^[\t \r\n]*/u, '').replace(/[\t \r\n]*$/u, '')}${trailing}`;
 }
 
 /** Keep opaque block lines out of the model request instead of asking it to echo placeholders. */

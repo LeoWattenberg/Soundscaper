@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import { stripProvenance } from './provenance.mjs';
 
 const TOKEN_PATTERN = /<docs-ai-token id="(\d{4,})"\/>/gu;
-const SYMBOLIC_IDENTIFIER_PATTERN = /\b[a-z][a-z0-9_-]*(?:[.:/][a-z][a-z0-9_-]*)+\b/gu;
+const SYMBOLIC_IDENTIFIER_COMPONENT_SOURCE = String.raw`[a-z](?:[a-z0-9_-]*[a-z0-9])?`;
+const SYMBOLIC_IDENTIFIER_PATTERN = new RegExp(
+	String.raw`\b${SYMBOLIC_IDENTIFIER_COMPONENT_SOURCE}(?:[.:/]${SYMBOLIC_IDENTIFIER_COMPONENT_SOURCE})+\b`,
+	'gu',
+);
 const FILE_EXTENSION_PATTERN = /(?<![\w/])\.[a-z][a-z0-9]{1,9}\b/giu;
 
 // A markdown link destination is scanned with "\\." and a bare character in
@@ -222,9 +226,16 @@ function structuralSignature(markdown) {
 }
 
 export function assertStructuralParity(source, target) {
+	const sourceSignature = structuralSignature(source);
+	const targetSignature = structuralSignature(target);
+	const sourceIdentifiers = new Set(sourceSignature.identifiers);
+	// Natural translated prose can introduce identifier-shaped compounds. Keep
+	// those, while still requiring every source identifier exactly as often and
+	// in the same order; generation also protects each one with an opaque token.
+	targetSignature.identifiers = targetSignature.identifiers.filter((identifier) => sourceIdentifiers.has(identifier));
 	assert.deepEqual(
-		structuralSignature(target),
-		structuralSignature(source),
+		targetSignature,
+		sourceSignature,
 		'Translated Markdown changed protected content or document structure.',
 	);
 }

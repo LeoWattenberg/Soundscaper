@@ -231,3 +231,74 @@ Body.
 	assert.doesNotMatch(bodyRequest.markdown, /docs-ai-token/u);
 	assert.match(await readFile(targetPath, 'utf8'), new RegExp(generatedComment.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'));
 });
+
+test('translation preserves Markdown structure when a model trims chunk boundary whitespace', async () => {
+	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-docs-ai-'));
+	const sourcePath = join(directory, 'source.md');
+	const targetPath = join(directory, 'target.md');
+	await writeFile(sourcePath, `---
+title: Chunk boundaries
+description: A table split across model requests.
+---
+
+# First heading
+
+The first section is here and the text is complete.
+
+| Name | Description |
+| --- | --- |
+| One | The first item is here and it is useful. |
+| Two | The second item is here and it is useful. |
+`);
+	let requestCount = 0;
+	const client = {
+		async identity() {
+			return { model: 'qwen3:27b', digest: 'sha256:model' };
+		},
+		async generateJson({ prompt }) {
+			requestCount += 1;
+			const request = JSON.parse(prompt);
+			if (!Object.hasOwn(request, 'markdown')) {
+				return {
+					locale: 'de',
+					title: 'Abschnittsgrenzen',
+					description: 'Eine über Modellanfragen aufgeteilte Tabelle.',
+				};
+			}
+			return {
+				locale: 'de',
+				markdown: request.markdown
+					.replaceAll('First', 'Erste')
+					.replaceAll('The', 'Der')
+					.replaceAll('first', 'erste')
+					.replaceAll('second', 'zweite')
+					.replaceAll('heading', 'Überschrift')
+					.replaceAll('section', 'Abschnitt')
+					.replaceAll(' is ', ' ist ')
+					.replaceAll(' and ', ' und ')
+					.replaceAll('here', 'hier')
+					.replaceAll('text', 'Text')
+					.replaceAll('complete', 'vollständig')
+					.replaceAll('Description', 'Beschreibung')
+					.replaceAll('One', 'Eins')
+					.replaceAll('Two', 'Zwei')
+					.replaceAll('item', 'Eintrag')
+					.replaceAll('useful', 'nützlich')
+					.trim(),
+			};
+		},
+	};
+
+	await translateDocument({
+		sourcePath,
+		targetPath,
+		targetLocale: 'de',
+		client,
+		maxChunkChars: 80,
+	});
+
+	assert.ok(requestCount > 2, 'the body crossed at least one model-request boundary');
+	const target = await readFile(targetPath, 'utf8');
+	assert.match(target, /vollständig\.\n\n\| Name \| Beschreibung \|/u);
+	assert.match(target, /nützlich\. \|\n\| Zwei/u);
+});

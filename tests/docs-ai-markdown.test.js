@@ -148,6 +148,14 @@ test('link protection still round-trips every destination form', () => {
 
 test('translated slash-separated prose is not mistaken for a symbolic identifier', () => {
 	assert.doesNotThrow(() => assertStructuralParity('On/Off\n', 'Ein/Aus\n'));
+	assert.doesNotThrow(() => assertStructuralParity(
+		'Mute/unmute the track.\n',
+		'Die Spur stummschalten/entstummen.\n',
+	));
+	assert.doesNotThrow(() => assertStructuralParity(
+		'A one-in/one-out insert.\n',
+		'Eine one-in/one-out-Einfügung.\n',
+	));
 	assert.throws(
 		() => assertStructuralParity('Use audio/export now.\n', 'Audio exportieren.\n'),
 		/changed protected content/u,
