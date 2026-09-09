@@ -112,7 +112,7 @@ export function resolveSkinTheme(skin: SkinId, mode: SkinMode, highContrast = fa
 	theme.background.control.radio.selectedHover = mix(lightAccent, '#ffffff', 0.15);
 	theme.background.control.toggle.on.idle = lightAccent;
 	theme.background.control.toggle.on.hover = mix(lightAccent, '#ffffff', 0.15);
-	// Keep the meter's signal and error semantics; skin color never changes their meaning.
+	// Preserve semantic warning colors; Sakura tints the ordinary meter below.
 	theme.semantic = base.semantic;
 	theme.background.control.meter = base.background.control.meter;
 	theme.audio = { ...theme.audio, envelope: base.audio.envelope, clip: { ...base.audio.clip } };
@@ -129,6 +129,22 @@ export function resolveSkinTheme(skin: SkinId, mode: SkinMode, highContrast = fa
 			timeSelectionBody: mix(body, '#ffffff', 0.4), timeSelectionHeader: mix(header, '#ffffff', 0.4),
 			timeSelectionWaveform: '#152132', timeSelectionWaveformRms: '#445065',
 		};
+	}
+	if (skin === 'sakura') {
+		theme.background.control.timecode = {
+			idle: mix(palette.panel, palette.accent, 0.3),
+			hover: mix(palette.panel, palette.accent, 0.2),
+			active: mix(palette.panel, palette.accent, 0.2),
+		};
+		theme.background.control.meter = { ...base.background.control.meter, background: mix(palette.panel, palette.accent, 0.15), fill: palette.accent };
+		theme.background.panel.timeline = palette.panel;
+		theme.audio.timeline = {
+			...theme.audio.timeline, background: palette.panel, text: palette.text,
+			tickMajor: palette.muted, tickMinor: palette.muted,
+			loopRegionFill: mix(palette.panel, palette.accent, 0.16), loopRegionBorder: palette.accent,
+			loopRegionFillInactive: mix(palette.panel, palette.accent, 0.06), loopRegionBorderInactive: palette.line,
+		};
+		theme.audio.selection = { ...theme.audio.selection, time: mix(palette.panel, palette.accent, 0.25) };
 	}
 	cache.set(key, theme);
 	return theme;

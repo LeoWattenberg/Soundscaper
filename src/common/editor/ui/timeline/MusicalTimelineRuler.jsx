@@ -14,6 +14,7 @@ export function MusicalTimelineRuler({
 	scrollX = 0,
 	width,
 	viewportWidth,
+	skinTheme = null,
 	height = DEFAULT_HEIGHT,
 	timeSelection = null,
 	sampleRate,
@@ -42,7 +43,7 @@ export function MusicalTimelineRuler({
 		canvas.style.height = `${height}px`;
 		context.setTransform(ratio, 0, 0, ratio, 0, 0);
 		const styles = getComputedStyle(canvas);
-		const background = cssColor(styles, '--stage-raised', '#202124');
+		const background = skinTheme?.background.panel.timeline ?? cssColor(styles, '--stage-raised', '#202124');
 		const foreground = cssColor(styles, '--text', '#f5f5f5');
 		const line = cssColor(styles, '--line', '#72757a');
 		const accent = cssColor(styles, '--accent', '#8ab4f8');
@@ -52,19 +53,23 @@ export function MusicalTimelineRuler({
 		if (timeSelection) {
 			const startX = timeX(timeSelection.startTime, pixelsPerSecond, scrollX);
 			const endX = timeX(timeSelection.endTime, pixelsPerSecond, scrollX);
-			context.globalAlpha = 0.35;
-			context.fillStyle = foreground;
+			context.globalAlpha = skinTheme ? 1 : 0.35;
+			context.fillStyle = skinTheme?.audio.selection.time ?? foreground;
 			context.fillRect(startX, middle, endX - startX, height - middle);
 			context.globalAlpha = 1;
 		}
 		if (loopRegionStart !== null && loopRegionEnd !== null) {
 			const startX = timeX(loopRegionStart, pixelsPerSecond, scrollX);
 			const endX = timeX(loopRegionEnd, pixelsPerSecond, scrollX);
-			context.globalAlpha = loopRegionEnabled ? 0.3 : 0.14;
-			context.fillStyle = accent;
+			context.globalAlpha = skinTheme ? 1 : loopRegionEnabled ? 0.3 : 0.14;
+			context.fillStyle = skinTheme
+				? skinTheme.audio.timeline[loopRegionEnabled ? 'loopRegionFill' : 'loopRegionFillInactive']
+				: accent;
 			context.fillRect(startX, 0, endX - startX, middle);
 			context.globalAlpha = 1;
-			context.strokeStyle = accent;
+			context.strokeStyle = skinTheme
+				? skinTheme.audio.timeline[loopRegionEnabled ? 'loopRegionBorder' : 'loopRegionBorderInactive']
+				: accent;
 			context.strokeRect(startX, 0, endX - startX, middle);
 		}
 		context.strokeStyle = line;
@@ -101,7 +106,7 @@ export function MusicalTimelineRuler({
 			if (tick.major || labelRoom) context.fillText(tick.label, x + 4, middle / 2 + 4);
 		}
 	}, [
-		height, loopRegionEnabled, loopRegionEnd, loopRegionStart, pixelsPerSecond, renderWidth,
+		skinTheme, height, loopRegionEnabled, loopRegionEnd, loopRegionStart, pixelsPerSecond, renderWidth,
 		sampleRate, scrollX, signatureMap, tempoMap, timeSelection,
 	]);
 

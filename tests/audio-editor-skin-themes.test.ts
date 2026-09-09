@@ -45,3 +45,20 @@ test('every decorative skin has readable text, button states and distinct clip i
 		}
 	}
 });
+
+for (const mode of ['light', 'dark'] as const) test(`Sakura/${mode} colors time displays, track meters and ruler regions`, () => {
+	const theme = resolveSkinTheme('sakura', mode);
+	const base = mode === 'dark' ? darkTheme : lightTheme;
+	for (const color of [theme.background.control.timecode.idle, theme.background.panel.timeline,
+		theme.audio.selection.time, theme.audio.timeline.loopRegionFill, theme.audio.timeline.loopRegionFillInactive]) {
+		assert.ok(wcagContrastRatio(theme.foreground.text.primary, color) >= 4.5, `ruler/timecode text on ${color}`);
+	}
+	assert.notEqual(theme.background.control.timecode.idle, base.background.control.timecode.idle);
+	assert.notEqual(theme.background.panel.timeline, base.background.panel.timeline);
+	assert.notEqual(theme.audio.timeline.loopRegionFill, base.audio.timeline.loopRegionFill);
+	assert.notEqual(theme.audio.selection.time, base.audio.selection.time);
+	assert.notEqual(theme.background.control.meter.background, base.background.control.meter.background);
+	assert.ok(wcagContrastRatio(theme.background.control.meter.fill, theme.background.control.meter.background) >= 3);
+	assert.ok(wcagContrastRatio(theme.audio.timeline.loopRegionBorder, theme.audio.timeline.loopRegionFill) >= 3);
+	assert.equal(theme.semantic.error.background, base.semantic.error.background);
+});

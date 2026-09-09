@@ -23,6 +23,10 @@ for (const product of ['soundscaper', 'framescaper']) {
 			const controls = editor.locator('.tool-button, .toggle-tool-button, .toggle-button, .kw-audio-editor__split-button-arrow, [data-editor-tool-toolbar] button');
 			for (const button of await controls.all()) {
 				if (!await button.isVisible()) continue;
+				if (await button.evaluate((node) => node.classList.contains('timecode__format-button'))) {
+					await expect(button).toHaveCSS('box-shadow', 'none');
+					continue;
+				}
 				await expect(button).toHaveCSS('box-shadow', /inset/u);
 				const bounds = await button.boundingBox();
 				if (await button.isEnabled() && await button.getAttribute('aria-pressed') !== 'true' && await button.getAttribute('aria-expanded') !== 'true') {

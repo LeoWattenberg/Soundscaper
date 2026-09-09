@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { useTheme } from '@soundscaper/design-system/ThemeProvider';
+import { useEditorSkin } from '../skins/EditorSkinProvider.tsx';
 import { TimelineRuler } from '@soundscaper/design-system/TimelineRuler';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
@@ -28,6 +30,9 @@ export function TimelineRulerCanvas({
 	timelineWidth,
 	viewportWidth,
 }) {
+	const { theme } = useTheme();
+	const { decoration } = useEditorSkin();
+	const skinTheme = decoration === 'sakura' ? theme : null;
 	const hasLoopRegion = displayedLoop.endFrame > displayedLoop.startFrame;
 	const shared = {
 		height: markerLaneVisible ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined,
@@ -43,13 +48,14 @@ export function TimelineRulerCanvas({
 		onLoopRegionEnabledToggle: () => run(() => controller.actions.transport.toggleLoop()),
 	};
 	if (rulerScale.kind === 'timecode') {
-		return <SequenceTimecodeRuler {...shared} view={rulerScale.view} />;
+		return <SequenceTimecodeRuler {...shared} skinTheme={skinTheme} view={rulerScale.view} />;
 	}
 	if (rulerScale.kind === 'musical-map') {
-		return <MusicalTimelineRuler {...shared} tempoMap={rulerScale.tempoMap} signatureMap={rulerScale.signatureMap} />;
+		return <MusicalTimelineRuler {...shared} skinTheme={skinTheme} tempoMap={rulerScale.tempoMap} signatureMap={rulerScale.signatureMap} />;
 	}
 	return <TimelineRuler
 		{...shared}
+		selectionColor={skinTheme?.audio.selection.time}
 		totalDuration={durationSeconds}
 		timeFormat={rulerScale.kind === 'beats-measures' ? 'beats-measures' : 'minutes-seconds'}
 		bpm={rulerScale.kind === 'beats-measures' ? rulerScale.bpm : 120}

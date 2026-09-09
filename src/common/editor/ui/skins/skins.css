@@ -262,3 +262,20 @@ body[data-editor-skin]:not([data-editor-skin='default']) .tooltip__arrow path {
 .editor-skin-button-label {
 	display: inline-block;
 }
+
+/* Time digits and their format arrow remain one flat, pink control. Set these
+   on the children because the vendor pins dark-chip variables on the parent. */
+#kw-audio-editor-design-system[data-editor-skin='sakura'] .timecode > * {
+	--timecode-bg: var(--skin-timecode-bg);
+	--timecode-text: var(--text);
+	--timecode-hover: var(--skin-timecode-hover);
+	--timecode-unit-bg: var(--skin-timecode-bg);
+	--timecode-unit-text: var(--text);
+	--timecode-unit-hover-bg: var(--skin-timecode-hover);
+	--timecode-unit-hover-text: var(--text);
+}
+
+#kw-audio-editor-design-system[data-editor-skin='sakura'] .timecode__format-button > .icon {
+	/* The vendor pins a white caret inline for its dark timecode variant. */
+	color: var(--text) !important;
+}

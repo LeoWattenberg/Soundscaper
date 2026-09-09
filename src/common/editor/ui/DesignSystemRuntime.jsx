@@ -89,6 +89,8 @@ export function useAudioEditorThemeVariables() {
 		'--panel': theme.background.surface.elevated,
 		'--control': theme.background.control.input.idle,
 		'--checkbox-border': theme.border.control.checkbox,
+		'--skin-timecode-bg': theme.background.control.timecode.idle,
+		'--skin-timecode-hover': theme.background.control.timecode.hover,
 		'--text': theme.foreground.text.primary,
 		'--primary-button-bg': theme.background.control.button.primary.idle,
 		'--primary-button-hover': theme.background.control.button.primary.hover,

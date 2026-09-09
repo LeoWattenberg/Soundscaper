@@ -3,9 +3,9 @@
    The shared accessibility stylesheet supplies reduced-motion timing. */
 body[data-editor-skin='sakura'] #kw-audio-editor-design-system[data-editor-skin='sakura'] {
 	:is(.button, .transport-button, .tool-button, .toggle-tool-button, .toggle-button,
-		.kw-audio-editor__split-button-arrow, .timecode__format-button,
+		.kw-audio-editor__split-button-arrow,
 		.kw-audio-editor__snap-interval, .dropdown__trigger,
-		:where([data-editor-tool-toolbar], .editor-skin-preview-actions) button) {
+		:where([data-editor-tool-toolbar], .editor-skin-preview-actions) button:where(:not(.timecode__format-button))) {
 		--sakura-button-edge: #8d3159;
 		--sakura-button-depth: 8px;
 		--sakura-button-offset: 3px;
@@ -36,7 +36,7 @@ body[data-editor-skin='sakura'] #kw-audio-editor-design-system[data-editor-skin=
 
 	/* Twenty-pixel mute/solo and small tools need a shallower face to keep
 	   their glyphs clear of the edge. ToggleButton renders text without a span. */
-	:is(.tool-button--small, .toggle-button, .timecode__format-button) {
+	:is(.tool-button--small, .toggle-button) {
 		--sakura-button-depth: 5px;
 		--sakura-button-offset: 1.5px;
 	}
@@ -84,9 +84,9 @@ body[data-editor-skin='sakura'] #kw-audio-editor-design-system[data-editor-skin=
 @media (forced-colors: active) {
 	body[data-editor-skin='sakura'] #kw-audio-editor-design-system[data-editor-skin='sakura'] :is(
 		.button, .transport-button, .tool-button, .toggle-tool-button, .toggle-button,
-		.kw-audio-editor__split-button-arrow, .timecode__format-button,
+		.kw-audio-editor__split-button-arrow,
 		.kw-audio-editor__snap-interval, .dropdown__trigger,
-		:where([data-editor-tool-toolbar], .editor-skin-preview-actions) button
+		:where([data-editor-tool-toolbar], .editor-skin-preview-actions) button:where(:not(.timecode__format-button))
 	) {
 		box-shadow: inset 0 0 0 1px ButtonText;
 	}
