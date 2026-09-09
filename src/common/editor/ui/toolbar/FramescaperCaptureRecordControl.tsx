@@ -172,6 +172,7 @@ export default function FramescaperCaptureRecordControl({
 	return <span data-transport="framescaper-record" data-capture-active={active || undefined}>
 		<AudioEditorSplitButton
 			icon="record"
+			iconColor="#F08080"
 			className="kw-audio-editor__transport-record kw-framescaper-capture-record"
 			ariaLabel={String(primaryLabel)}
 			optionsAriaLabel={String(copy.captureOptions)}

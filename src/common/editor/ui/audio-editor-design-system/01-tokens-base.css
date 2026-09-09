@@ -34,15 +34,6 @@
 	user-select: text;
 }
 
-.kw-audio-editor__transport-play .transport-button__icon {
-	/* Keep the transport control's normal surface; color only its icon. */
-	color: #2f9e5b !important;
-}
-
-.kw-audio-editor__transport-record .transport-button__icon {
-	color: #d64545 !important;
-}
-
 .kw-audio-editor__split-button {
 	display: inline-flex;
 	align-items: stretch;

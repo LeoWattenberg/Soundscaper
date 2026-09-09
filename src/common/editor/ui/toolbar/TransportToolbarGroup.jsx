@@ -91,6 +91,7 @@ export default function TransportToolbarGroup({
 			{capabilities.audioRecording && wants('record') && <span data-transport="record">
 				<AudioEditorSplitButton
 					icon="record"
+					iconColor="#F08080"
 					className="kw-audio-editor__transport-record kw-audio-editor__transport-record-split"
 					ariaLabel={recordControlLabel}
 					optionsAriaLabel={formatOptionsLabel(copy, copy.recordMenu)}

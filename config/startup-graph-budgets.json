@@ -12,7 +12,7 @@
 	"soundscaper": {
 		"ceilings": {
 			"requests": 75,
-			"rawBytes": 6058566,
+			"rawBytes": 6058461,
 			"brotliBytes": 1448095
 		},
 		"reasons": {}

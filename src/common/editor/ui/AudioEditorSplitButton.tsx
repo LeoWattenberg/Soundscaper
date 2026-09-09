@@ -24,6 +24,7 @@ export interface SplitButtonFlyoutPlacement {
 
 export interface AudioEditorSplitButtonProps {
 	readonly icon: TransportButtonProps['icon'];
+	readonly iconColor?: TransportButtonProps['iconColor'];
 	readonly ariaLabel: string;
 	readonly optionsAriaLabel: string;
 	readonly className?: string;
@@ -54,6 +55,7 @@ export function splitButtonFlyoutPlacement(
 /** Typed boundary around the pinned design-system transport and flyout DOM. */
 export default function AudioEditorSplitButton({
 	icon,
+	iconColor,
 	ariaLabel,
 	optionsAriaLabel,
 	className = '',
@@ -99,6 +101,7 @@ export default function AudioEditorSplitButton({
 					/>
 					: <TransportButton
 						icon={icon}
+						iconColor={iconColor}
 						ariaLabel={ariaLabel}
 						disabled={disabled}
 						className={className}

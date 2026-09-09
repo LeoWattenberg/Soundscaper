@@ -39,6 +39,7 @@ export function TelemetryPlayTransportControl({ copy, snapshot, blocked, control
 			: (atSpeed ? copy.playAtSpeed : copy.play);
 	return <span data-transport="play"><AudioEditorSplitButton
 		icon={playing ? 'pause' : 'play'}
+		iconColor="#74BE59"
 		className="kw-audio-editor__transport-play kw-audio-editor__transport-play-split"
 		ariaLabel={label}
 		optionsAriaLabel={formatOptionsLabel(copy, playing ? copy.pause : copy.play)}

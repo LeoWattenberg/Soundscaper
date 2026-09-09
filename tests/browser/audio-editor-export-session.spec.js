@@ -475,8 +475,19 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor).toHaveAttribute('data-timeline-view', 'spectrogram');
 		await expect(editor.getByRole('button', { name: /^Arm for recording:/ })).toHaveCount(0);
 		const record = editor.getByRole('button', { name: 'Record onto the active track' });
+		const recordIcon = record.locator('.transport-button__icon');
+		const playIcon = editor.getByRole('button', { name: 'Play', exact: true }).locator('.transport-button__icon');
+		for (const theme of ['light', 'dark']) {
+			await setDocumentTheme(page, theme);
+			await expect(playIcon).toHaveCSS('color', 'rgb(116, 190, 89)');
+			await expect(recordIcon).toHaveCSS('color', 'rgb(240, 128, 128)');
+		}
 		await record.click();
 		await expect(record).toHaveAttribute('aria-pressed', 'true');
+		for (const theme of ['light', 'dark']) {
+			await setDocumentTheme(page, theme);
+			await expect(recordIcon).toHaveCSS('color', 'rgb(255, 255, 255)');
+		}
 		const recordingPreview = tracks.nth(1).locator('[data-clip-id^="recording-preview-"]');
 		await expect(recordingPreview).toBeVisible({ timeout: 10_000 });
 		const recordingWaveform = recordingPreview.locator('canvas').first();
@@ -490,6 +501,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		});
 		await page.keyboard.press('Space');
 		await expect(record).toHaveAttribute('aria-pressed', 'false', { timeout: 10_000 });
+		await expect(recordIcon).toHaveCSS('color', 'rgb(240, 128, 128)');
 		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 		await expect(recordingPreview).toHaveCount(0);
 		await expect(editor).toHaveAttribute('data-clip-count', '1');

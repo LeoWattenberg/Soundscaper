@@ -27,7 +27,7 @@ const snapshot = {
 	readOnly: false,
 };
 
-function render(buttons: readonly string[], audioRecording = true, toolbarButtons: Record<string, boolean> = {}) {
+function render(buttons: readonly string[], audioRecording = true, toolbarButtons: Record<string, boolean> = {}, recording = false) {
 	return renderToStaticMarkup(
 		<TransportToolbarGroup
 			buttons={buttons}
@@ -47,7 +47,7 @@ function render(buttons: readonly string[], audioRecording = true, toolbarButton
 			onOpenTimedRecording={() => undefined}
 			recordLabel={ENGLISH_COPY.record}
 			run={() => undefined}
-			snapshot={snapshot}
+			snapshot={{ ...snapshot, recording }}
 			toggleRecording={() => undefined}
 			toolbarButtons={toolbarButtons}
 		/>,
@@ -124,4 +124,13 @@ test('the play dropdown separates selection playback from its speed controls', (
 	const pitch = markup.indexOf(`>${ENGLISH_COPY.playAtSpeedPreservePitch}<`);
 	assert.ok(selection >= 0 && selection < divider && divider < pitch);
 	assert.equal(GERMAN_COPY.playSelection, 'Auswahl abspielen');
+});
+
+test('transport icons use upstream idle accents and white while recording', () => {
+	const idle = render(COMPACT_BAR_TRANSPORT_BUTTONS);
+	assert.match(idle, /--transport-icon-color:#74BE59/u);
+	assert.match(idle, /--transport-icon-color:#F08080/u);
+	const recording = render(COMPACT_BAR_TRANSPORT_BUTTONS, true, {}, true);
+	assert.match(recording, /--transport-icon-color:#FFFFFF/u);
+	assert.doesNotMatch(recording, /--transport-icon-color:#F08080/u);
 });
