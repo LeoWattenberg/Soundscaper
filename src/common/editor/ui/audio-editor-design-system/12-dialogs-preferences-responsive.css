@@ -412,11 +412,6 @@
 	color: var(--muted);
 }
 
-:root[data-theme='dark'] .dropdown__trigger {
-	color: var(--text) !important;
-	background: var(--control) !important;
-}
-
 @media (max-width: 1180px) {
 	.kw-audio-editor__master-meter {
 		width: 210px;

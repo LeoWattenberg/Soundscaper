@@ -1,3 +1,5 @@
+import { darkTheme } from '../../vendor/audacity-design-system/tokens/src/themes/dark.v2.ts';
+import { lightTheme } from '../../vendor/audacity-design-system/tokens/src/themes/light.v2.ts';
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	addRackEffect,
@@ -11,12 +13,8 @@ import {
 	waitForResponsiveEditorLayout,
 } from './audio-editor-test-helpers.js';
 
-// Parity baselines for the design-system vendoring flip: these surfaces render
-// from the compiled @dilsonspickles/components package today and must look
-// identical once the app builds against the vendored source. The dropdown menu
-// renders into document.body through a portal, so it exercises the styles that
-// live outside the #kw-audio-editor-design-system scope — the exact rules the
-// migration relocates. The button tooltip pins the shared floating Flyout.
+// Visual baselines for vendored components and the editor adapters around them.
+// Dropdown exercises a body portal; the button tooltip exercises a Flyout.
 const THEMES = ['light', 'dark'];
 const SCREENSHOT_OPTIONS = {
 	animations: 'disabled',
@@ -99,17 +97,20 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(menu).toHaveCount(1);
 		await expect(menu).toBeVisible();
 		await expect(menu.getByRole('option', { name: 'WAV', exact: true })).toBeVisible();
-		// The design-system Dropdown portals its menu into document.body, outside
-		// the #kw-audio-editor-design-system scope, which is exactly the surface
-		// whose dark-theme overrides the vendoring migration relocates.
+		// The component must carry its theme into document.body without an
+		// application palette overriding the active theme.
 		expect(await menu.evaluate((element) => Boolean(element.closest('[data-audio-editor]')))).toBe(false);
 
 		for (const theme of THEMES) {
 			await setDocumentTheme(page, theme);
 			await expect(menu).toBeVisible();
+			const palette = theme === 'dark' ? darkTheme : lightTheme;
+			await expect(menu).toHaveCSS('--dropdown-menu-bg', palette.background.control.input.idle);
+			await expect(menu).toHaveCSS('--dropdown-text', palette.foreground.text.primary);
+			await expect(menu).toHaveCSS('--dropdown-border', palette.border.input.idle);
 			// Capture the viewport rather than the menu element so the baseline
 			// records the portal together with the dialog dropdown trigger it
-			// belongs to (the trigger has its own dark-theme override).
+			// belongs to.
 			await expect(page).toHaveScreenshot(`audio-editor-dropdown-portal-${theme}.png`, SCREENSHOT_OPTIONS);
 		}
 	});

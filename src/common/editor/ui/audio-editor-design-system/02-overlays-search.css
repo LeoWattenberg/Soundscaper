@@ -347,38 +347,14 @@
 	min-width: 0;
 }
 
-[data-editor-tool-toolbar] :is(.tool-button, .toggle-tool-button) {
-	background-color: var(--toolbar-button-bg) !important;
-}
-
-[data-editor-tool-toolbar] :is(.tool-button--hover, .toggle-tool-button--off-hover) {
-	background-color: var(--toolbar-button-hover) !important;
-}
-
-[data-editor-tool-toolbar] :is(.tool-button--pressed, .toggle-tool-button--on) {
+/* Deliberate editor states: pressed tools use the selected blue, and disabled
+ * toggles keep a solid surface. Other states come from the component theme. */
+[data-editor-tool-toolbar] .tool-button--pressed {
 	background-color: var(--toolbar-button-primary) !important;
 }
 
-[data-editor-tool-toolbar] .toggle-tool-button--on-hover {
-	background-color: var(--toolbar-button-primary-hover) !important;
-}
-
-[data-editor-tool-toolbar] :is(.tool-button--disabled, .toggle-tool-button--disabled) {
+[data-editor-tool-toolbar] .toggle-tool-button--disabled {
 	background-color: var(--toolbar-button-bg) !important;
-}
-
-[data-editor-tool-toolbar] .transport-button:not(.kw-audio-editor__transport-play):not(.kw-audio-editor__transport-record) {
-	background-color: var(--toolbar-button-bg) !important;
-}
-
-[data-editor-tool-toolbar] .transport-button--hover:not(.kw-audio-editor__transport-play):not(.kw-audio-editor__transport-record),
-[data-editor-tool-toolbar] .transport-button--active.transport-button--hover:not(.kw-audio-editor__transport-play):not(.kw-audio-editor__transport-record) {
-	background-color: var(--toolbar-button-hover) !important;
-}
-
-[data-editor-tool-toolbar] .transport-button--pressed:not(.kw-audio-editor__transport-play):not(.kw-audio-editor__transport-record),
-[data-editor-tool-toolbar] .transport-button--active:not(.kw-audio-editor__transport-play):not(.kw-audio-editor__transport-record) {
-	background-color: var(--toolbar-button-active) !important;
 }
 
 .kw-audio-editor__tool-toolbar .toolbar__content {

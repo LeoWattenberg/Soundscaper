@@ -11,7 +11,7 @@ import TransportToolbarGroup, {
 	TRANSPORT_BUTTON_IDS,
 	transportToolbarButtonsVisible,
 } from '../src/common/editor/ui/toolbar/TransportToolbarGroup.jsx';
-import { PlaySpeedFlyout } from '../src/common/editor/ui/toolbar/AudioEditorTransportControls.jsx';
+import { AccessibleTimeCode, PlaySpeedFlyout } from '../src/common/editor/ui/toolbar/AudioEditorTransportControls.jsx';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 import { ThemeProvider } from '../vendor/audacity-design-system/components/src/ThemeProvider/ThemeProvider.tsx';
 
@@ -133,4 +133,11 @@ test('transport icons use upstream idle accents and white while recording', () =
 	const recording = render(COMPACT_BAR_TRANSPORT_BUTTONS, true, {}, true);
 	assert.match(recording, /--transport-icon-color:#FFFFFF/u);
 	assert.doesNotMatch(recording, /--transport-icon-color:#F08080/u);
+});
+
+test('the playhead format control receives its localized label declaratively', () => {
+	const markup = renderToStaticMarkup(<AccessibleTimeCode
+		ariaLabel="Wiedergabeposition: Format" value={0} showFormatSelector
+	/>);
+	assert.match(markup, /aria-label="Wiedergabeposition: Format"/u);
 });

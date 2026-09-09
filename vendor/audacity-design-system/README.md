@@ -49,6 +49,8 @@ on npmjs and GitHub Packages needed a token even for public reads).
 ## Local deviations from upstream
 
 Tracked so upstream syncs know what to preserve. Aside from this list, keep the tree pristine.
+See the [2026-09-09 override audit](OVERRIDE_AUDIT.md) for the latest comparison of
+application overrides and source patches against the pin and upstream master.
 
 1. `"type": "module"` added to all three `package.json`s (upstream omits it; without it Node
    tooling compiles the tree as CommonJS while Vite builds ESM).

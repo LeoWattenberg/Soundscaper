@@ -1,18 +1,6 @@
-/*
- * Dark-theme palettes for design-system surfaces that portal into
- * document.body (dropdown menus, tooltips). These application palette overrides remain global alongside the
- * design-system portal selectors. These blocks previously lived inside
- * scripts/postcss-audacity-design-system.mjs, appended to the design-system
- * stylesheet at build time; they are app-owned CSS and belong here.
- */
-
-html[data-theme="dark"] .dropdown__menu {
-	--dropdown-menu-bg: #202126 !important;
-	--dropdown-border: #4b4d55 !important;
-	--dropdown-menu-shadow: 0 10px 30px rgb(0 0 0 / 55%) !important;
-	--dropdown-text: #f2f2f3 !important;
-	--dropdown-option-hover-bg: #34363d !important;
-}
+/* Tooltip still paints literal light colors (including its SVG arrow) in the
+ * vendored component. Dropdown now carries the active theme into its portal
+ * itself and must not be overridden here. */
 
 html[data-theme="dark"] .tooltip__content {
 	background-color: #202126;

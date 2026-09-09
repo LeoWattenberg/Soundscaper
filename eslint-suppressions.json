@@ -962,7 +962,7 @@
   },
   "src/common/editor/ui/toolbar/AudioEditorTransportControls.jsx": {
     "no-restricted-syntax": {
-      "count": 13
+      "count": 12
     }
   },
   "src/common/editor/ui/workspace/linked-audio-choice-handoff.ts": {

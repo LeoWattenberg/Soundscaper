@@ -367,11 +367,7 @@ function ActionBarAudioDevicesButton({ copy, snapshot, controller, run }) {
 }
 
 export function AccessibleTimeCode({ ariaLabel, ...props }) {
-	const wrapperRef = useRef(null);
-	useEffect(() => {
-		wrapperRef.current?.querySelector('.timecode__format-button')?.setAttribute('aria-label', ariaLabel);
-	}, [ariaLabel]);
-	return <span ref={wrapperRef}><TimeCode {...props} /></span>;
+	return <span><TimeCode {...props} formatAriaLabel={ariaLabel} /></span>;
 }
 
 export function TelemetryTimeCode({
