@@ -258,6 +258,7 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 		drawAudacityWaveformChannel(context, rendering, {
 			channel,
 			width,
+			pixelRatioX,
 			...geometry,
 			maxAmplitude: geometry.maxAmplitude * amplitudeScale,
 			halfWave: options.halfWave,

@@ -47,7 +47,7 @@ export const AUDIO_EDITOR_PATHS = [
 	},
 ];
 
-function createWavFixture({ name, frequency, duration = 0.8, sampleRate = 48_000, channelCount = 2, channelAmplitudes = null }) {
+export function createWavFixture({ name, frequency, duration = 0.8, sampleRate = 48_000, channelCount = 2, channelAmplitudes = null }) {
 	const frameCount = Math.round(duration * sampleRate);
 	const bytesPerSample = 2;
 	const dataLength = frameCount * channelCount * bytesPerSample;

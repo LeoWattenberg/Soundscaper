@@ -96,6 +96,7 @@ export function drawAudacityWaveformChannel(context, rendering, options = {}) {
 		sampleColor,
 		rmsColor,
 		showRms: Boolean(options.showRms),
+		pixelRatioX: positiveFinite(options.pixelRatioX ?? 1, 'pixelRatioX'),
 	});
 }
 
@@ -132,14 +133,14 @@ function drawSummaryColumns(context, channel, options) {
 			minimum = Math.max(0, minimum);
 			maximum = Math.max(0, maximum);
 		}
-		fillAmplitudeSpan(context, x, minimum, maximum, options.centerY, options.maxAmplitude, options.sampleColor(x));
+		fillAmplitudeSpan(context, x, minimum, maximum, options.centerY, options.maxAmplitude, options.sampleColor(x), options.pixelRatioX);
 
 		if (!options.showRms || !channel.rms) continue;
 		const rms = Math.max(0, Math.sqrt(rmsSquareSum / (sourceEnd - sourceStart)) * gain);
 		const rmsMinimum = options.halfWave ? minimum : Math.max(minimum, -rms);
 		const rmsMaximum = Math.min(maximum, rms);
 		if (rmsMinimum <= rmsMaximum) {
-			fillAmplitudeSpan(context, x, rmsMinimum, rmsMaximum, options.centerY, options.maxAmplitude, options.rmsColor(x));
+			fillAmplitudeSpan(context, x, rmsMinimum, rmsMaximum, options.centerY, options.maxAmplitude, options.rmsColor(x), options.pixelRatioX);
 		}
 	}
 }
@@ -205,11 +206,16 @@ function drawCenterLine(context, options) {
 	context.stroke();
 }
 
-function fillAmplitudeSpan(context, x, minimum, maximum, centerY, maxAmplitude, color) {
+function fillAmplitudeSpan(context, x, minimum, maximum, centerY, maxAmplitude, color, pixelRatioX) {
 	const top = Math.round(centerY - maximum * maxAmplitude);
 	const bottom = Math.round(centerY - minimum * maxAmplitude);
 	context.fillStyle = color;
-	context.fillRect(x, Math.min(top, bottom), 1, Math.max(1, Math.abs(bottom - top)));
+	// Adjacent subpixel rectangles are anti-aliased separately, leaving partly
+	// transparent joins that look like a gradient as fractional clip widths vary.
+	// Share physical-pixel boundaries for both the peak and RMS passes.
+	const left = Math.round(x * pixelRatioX) / pixelRatioX;
+	const right = Math.round((x + 1) * pixelRatioX) / pixelRatioX;
+	context.fillRect(left, Math.min(top, bottom), right - left, Math.max(1, Math.abs(bottom - top)));
 }
 
 function finiteSample(value) {
