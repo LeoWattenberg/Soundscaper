@@ -1,3 +1,4 @@
+import { darkTheme } from '../../vendor/audacity-design-system/tokens/src/themes/dark.v2.ts';
 import { expect, monoTone, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
@@ -558,7 +559,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await exportDialog.locator('[data-export-field="format"]').getByRole('button').click();
 		const portal = page.getByRole('listbox');
 		await expect(portal).toBeVisible();
-		await expect(portal).toHaveCSS('--dropdown-menu-bg', '#202126');
+		await expect(portal).toHaveCSS('--dropdown-menu-bg', darkTheme.background.control.input.idle);
 		await page.keyboard.press('Escape');
 		await closeDialog(exportDialog);
 		expect(errors).toEqual([]);

@@ -27,6 +27,7 @@ export const DOCUMENTATION_BASE_URL = 'https://soundscaper.org/docs';
  */
 export const HANDBOOK_LANGUAGES: readonly string[] = Object.freeze([
 	'de', 'ar', 'cs', 'el', 'en-gb', 'es', 'fa',
+	'fi', 'fr', 'gl', 'he', 'hi', 'hy', 'id', 'it',
 ]);
 
 export type DocumentationDestination = 'manual' | 'tutorials';

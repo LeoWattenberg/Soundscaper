@@ -61,6 +61,7 @@ module.exports = {
 				'scripts/lib/**/*',
 				'scripts/*.mjs',
 				'src/**/*',
+				'vendor/audacity-design-system/tokens/**/*',
 				'stage-manifest.json',
 				'tests/**/*',
 			],
