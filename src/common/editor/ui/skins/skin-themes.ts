@@ -27,7 +27,7 @@ export const SKINS: Record<Exclude<SkinId, 'default'>, SkinDefinition> = {
 	},
 	lilac: {
 		name: 'Lilac', font: 'Inter, system-ui, sans-serif',
-		light: { background: '#f5f2fc', panel: '#e5dff3', control: '#fcfaff', text: '#292139', muted: '#5e506e', line: '#84759e', accent: '#6943a8', stage: '#292137' },
+		light: { background: '#f5f2fc', panel: '#e5dff3', control: '#fcfaff', text: '#292139', muted: '#5e506e', line: '#796991', accent: '#6943a8', stage: '#292137' },
 		dark: { background: '#211d30', panel: '#302840', control: '#191621', text: '#f4edff', muted: '#c4b7d6', line: '#9782b5', accent: '#c2a1ff', stage: '#14111e' },
 	},
 	techno: {
@@ -75,7 +75,9 @@ export function resolveSkinTheme(skin: SkinId, mode: SkinMode, highContrast = fa
 	replace(base.accent.primary, palette.accent);
 	replace(base.background.canvas.default, palette.stage);
 	const theme = mapColors(base, replacements);
-	const lightAccent = mix(palette.accent, '#ffffff', mode === 'dark' ? 0 : 0.65);
+	const lightAccent = skin === 'sakura' && mode === 'light'
+		? '#ff9cc7'
+		: mix(palette.accent, '#ffffff', mode === 'dark' ? 0 : 0.65);
 	theme.accent.primary = palette.accent;
 	theme.border.focus = palette.accent;
 	theme.border.control = { radio: palette.line, checkbox: palette.line };
@@ -98,8 +100,14 @@ export function resolveSkinTheme(skin: SkinId, mode: SkinMode, highContrast = fa
 	theme.background.trackHeader.parent = mix(palette.panel, palette.line, 0.15);
 	theme.background.canvas.grid.major = mix(palette.stage, palette.accent, 0.18);
 	theme.background.canvas.grid.minor = mix(palette.stage, palette.accent, 0.1);
-	theme.background.control.checkbox.checked = lightAccent;
-	theme.background.control.checkbox.checkedHover = mix(lightAccent, '#ffffff', 0.15);
+	// Checkbox uses the primary icon token in every state (including pressed).
+	const checkboxFill = mode === 'dark' ? mix(palette.control, palette.accent, 0.18) : lightAccent;
+	theme.background.control.checkbox = {
+		...theme.background.control.checkbox,
+		idle: palette.control, hover: mix(palette.control, palette.panel, 0.4),
+		pressed: mix(palette.control, palette.panel, 0.7),
+		checked: checkboxFill, checkedHover: mix(checkboxFill, palette.control, 0.15),
+	};
 	theme.background.control.radio.selected = lightAccent;
 	theme.background.control.radio.selectedHover = mix(lightAccent, '#ffffff', 0.15);
 	theme.background.control.toggle.on.idle = lightAccent;

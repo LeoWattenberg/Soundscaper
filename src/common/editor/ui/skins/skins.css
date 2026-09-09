@@ -240,3 +240,61 @@ body[data-editor-skin]:not([data-editor-skin='default']) .tooltip__arrow path {
 		outline-color: Highlight;
 	}
 }
+
+/* Ruler labels use the canvas foreground, so their backdrop must stay dark and
+   opaque even when a light panel or a bright clip scrolls underneath. */
+#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default']) .audio-editor-vertical-ruler {
+	background: var(--stage);
+}
+
+#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default']) .button--primary {
+	color: var(--primary-button-text);
+}
+
+/* Inset extrusion keeps the face, hit target and workspace dimensions fixed.
+   Moving only the contents gives a deep press without overlapping neighbours. */
+#kw-audio-editor-design-system[data-editor-skin='sakura'] :is(.button, .transport-button, .editor-skin-preview-actions button):not(:disabled) {
+	--sakura-button-edge: #8d3159;
+	--sakura-button-depth: 8px;
+	border-radius: 7px;
+	box-shadow: inset 0 calc(-1 * var(--sakura-button-depth)) 0 var(--sakura-button-edge),
+		inset 0 2px 0 #ffffff99, inset 0 0 0 1px var(--sakura-button-edge);
+	transition: background-color 120ms ease, box-shadow 100ms ease;
+}
+
+#kw-audio-editor-design-system[data-editor-skin='sakura'] :is(.button, .transport-button, .editor-skin-preview-actions button):not(:disabled) :is(.button__text, .button__icon, .transport-button__icon, .editor-skin-button-label) {
+	transform: translateY(-3px);
+	transition: transform 100ms ease;
+}
+
+#kw-audio-editor-design-system[data-editor-skin='sakura'] :is(.button, .transport-button, .editor-skin-preview-actions button):not(:disabled):active {
+	--sakura-button-depth: 2px;
+	box-shadow: inset 0 -2px 0 var(--sakura-button-edge),
+		inset 0 2px 3px #38202f55, inset 0 0 0 1px var(--sakura-button-edge);
+}
+
+#kw-audio-editor-design-system[data-editor-skin='sakura'] :is(.button, .transport-button, .editor-skin-preview-actions button):not(:disabled):active :is(.button__text, .button__icon, .transport-button__icon, .editor-skin-button-label) {
+	transform: translateY(3px);
+}
+
+/* Decoration must never replace the keyboard focus indicator. */
+#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default']) :is(.button, .transport-button, .checkbox):focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	#kw-audio-editor-design-system[data-editor-skin='sakura'] :is(.button, .transport-button, .button__text, .button__icon, .transport-button__icon, .editor-skin-preview-actions button, .editor-skin-button-label) {
+		transition: none;
+	}
+}
+
+@media (forced-colors: active) {
+	#kw-audio-editor-design-system[data-editor-skin='sakura'] :is(.button, .transport-button, .editor-skin-preview-actions button):not(:disabled) {
+		box-shadow: inset 0 0 0 1px ButtonText;
+	}
+}
+
+.editor-skin-button-label {
+	display: inline-block;
+}

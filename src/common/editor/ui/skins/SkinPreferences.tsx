@@ -52,8 +52,8 @@ export default function SkinPreferences({ controller, copy, run, savedSkin }: {
 		</div>
 		{skin.preview !== null && <div className="editor-skin-preview-actions">
 			<p role="status">{copy.skinPreview?.replace('{skin}', name(skin.preview) ?? skin.preview)}</p>
-			<button type="button" disabled={saving} onClick={() => { select(effective); }}>{copy.skinKeep}</button>
-			<button type="button" disabled={saving} onClick={skin.end}>{copy.skinEndPreview}</button>
+			<button type="button" disabled={saving} onClick={() => { select(effective); }}><span className="editor-skin-button-label">{copy.skinKeep}</span></button>
+			<button type="button" disabled={saving} onClick={skin.end}><span className="editor-skin-button-label">{copy.skinEndPreview}</span></button>
 		</div>}
 		{error && <p role="alert">{error}</p>}
 	</section>;
