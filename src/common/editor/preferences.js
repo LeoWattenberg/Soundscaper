@@ -1,3 +1,4 @@
+import { normalizeAppearancePreferences } from './appearance-preferences.ts';
 import {
 	AUDACITY_ACTION_MANIFEST,
 	AUDACITY_ACTION_STATUS,
@@ -43,6 +44,8 @@ import {
 	workspaceLayout,
 } from './workspace-preference-normalization.js';
 
+export { AUDIO_EDITOR_THEMES, AUDIO_EDITOR_CLIP_STYLES, AUDIO_EDITOR_LAYOUTS, AUDIO_EDITOR_DEFAULT_VIEWS } from './appearance-preferences.ts';
+
 export {
 	AUDIO_EDITOR_BUILT_IN_WORKSPACES,
 	AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION,
@@ -54,14 +57,6 @@ export {
 
 export const AUDIO_EDITOR_PREFERENCES_SCHEMA_VERSION = 1;
 
-export const AUDIO_EDITOR_THEMES = Object.freeze([
-	'system',
-	'light',
-	'dark',
-	'high-contrast-light',
-	'high-contrast-dark',
-]);
-export const AUDIO_EDITOR_CLIP_STYLES = Object.freeze(['classic', 'colorful']);
 export const AUDIO_EDITOR_PLAY_AT_SPEED_MODES = Object.freeze(['naive', 'staffpad']);
 /**
  * Audacity's mouse zoom precision: one wheel notch multiplies the zoom by
@@ -83,14 +78,6 @@ export { AUDIO_EDITOR_STARTUP_MODES };
  * name.
  */
 export const AUDIO_EDITOR_EFFECT_MENU_ORGANIZATIONS = Object.freeze(['default', 'sortby:name']);
-export const AUDIO_EDITOR_LAYOUTS = Object.freeze(['auto', 'compact', 'desktop']);
-/**
- * Audacity's "Default View Mode": the display a track gets when nothing has
- * given it one of its own. Upstream also offers waveform in decibels; this
- * editor draws waveforms on a linear scale only, so it offers the three
- * displays its timeline can actually render.
- */
-export const AUDIO_EDITOR_DEFAULT_VIEWS = Object.freeze(['waveform', 'spectrogram', 'multiview']);
 
 const AUDIO_EDITOR_LOCAL_DEFAULT_SHORTCUTS_BY_ACTION = Object.freeze({
 	...Object.fromEntries(Object.values(AUDACITY_ACTION_MANIFEST)
@@ -129,11 +116,7 @@ const LEGACY_SHORTCUT_ACTION_IDS = Object.freeze({
 	'quick-help': 'online-handbook',
 });
 
-const THEME_SET = new Set(AUDIO_EDITOR_THEMES);
-const CLIP_STYLE_SET = new Set(AUDIO_EDITOR_CLIP_STYLES);
 const PLAY_AT_SPEED_MODE_SET = new Set(AUDIO_EDITOR_PLAY_AT_SPEED_MODES);
-const LAYOUT_SET = new Set(AUDIO_EDITOR_LAYOUTS);
-const DEFAULT_VIEW_SET = new Set(AUDIO_EDITOR_DEFAULT_VIEWS);
 const STARTUP_MODE_SET = new Set(AUDIO_EDITOR_STARTUP_MODES);
 const EFFECT_MENU_ORGANIZATION_SET = new Set(AUDIO_EDITOR_EFFECT_MENU_ORGANIZATIONS);
 const RIPPLE_MODE_SET = new Set(['off', 'per-track', 'all-tracks']);
@@ -171,7 +154,7 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
  * @property {number} shortcutDefaultsVersion
  * @property {{rippleMode: 'off'|'per-track'|'all-tracks', collisionBehavior: 'audacity', snapToZeroCrossings: boolean, zoomPrecision: number}} editing
  * @property {Record<string, string[]>} shortcuts
- * @property {{theme: string, clipStyle: 'classic'|'colorful', layout: 'auto'|'compact'|'desktop', defaultView: 'waveform'|'spectrogram'|'multiview'}} appearance
+ * @property {import('./appearance-preferences.ts').AppearancePreferences} appearance
  * @property {{showMasterTrack: boolean, showMarkers: boolean}} view
  * @property {{activeId: string, custom: Object[], toolbars: Record<string, {visible: boolean, order: number}>, toolbarButtons: Record<string, boolean>, panels: Record<string, AudioEditorPanelStateV1>}} workspace
  * @property {Object} spectrogram
@@ -291,16 +274,7 @@ export function createAudioEditorPreferencesV1(options = {}) {
 			zoomPrecision,
 		},
 		shortcuts: normalizeShortcuts(options.shortcuts === undefined ? AUDIO_EDITOR_DEFAULT_SHORTCUTS : options.shortcuts),
-		appearance: {
-			theme: oneOf(options.appearance?.theme ?? 'system', THEME_SET, 'appearance.theme'),
-			clipStyle: oneOf(options.appearance?.clipStyle ?? 'colorful', CLIP_STYLE_SET, 'appearance.clipStyle'),
-			// 'auto' follows the viewport width; the explicit values force the
-			// compact (drawer) or desktop chrome regardless of window size.
-			layout: oneOf(options.appearance?.layout ?? 'auto', LAYOUT_SET, 'appearance.layout'),
-			// The display new sessions start every track in; a track given a
-			// display of its own keeps it.
-			defaultView: oneOf(options.appearance?.defaultView ?? 'waveform', DEFAULT_VIEW_SET, 'appearance.defaultView'),
-		},
+		appearance: normalizeAppearancePreferences(options.appearance),
 		view: {
 			showMasterTrack,
 			showMarkers,

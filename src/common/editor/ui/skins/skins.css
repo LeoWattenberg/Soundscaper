@@ -1,0 +1,242 @@
+/* Skin decoration never owns spacing, track geometry, or workspace placement. */
+@font-face {
+	font-family: 'Nunito Sans';
+	font-style: normal;
+	font-display: swap;
+	/* Match Inter line metrics so a skin never resizes workspace chrome. */
+	ascent-override: 96.875%;
+	descent-override: 24.1211%;
+	line-gap-override: 0%;
+	font-weight: 400;
+	src: url('@fontsource/nunito-sans/files/nunito-sans-latin-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+	font-family: 'Nunito Sans';
+	font-style: normal;
+	font-display: swap;
+	/* Match Inter line metrics so a skin never resizes workspace chrome. */
+	ascent-override: 96.875%;
+	descent-override: 24.1211%;
+	line-gap-override: 0%;
+	font-weight: 700;
+	src: url('@fontsource/nunito-sans/files/nunito-sans-latin-700-normal.woff2') format('woff2');
+}
+
+@font-face {
+	font-family: 'JetBrains Mono';
+	font-style: normal;
+	font-display: swap;
+	/* Match Inter line metrics so a skin never resizes workspace chrome. */
+	ascent-override: 96.875%;
+	descent-override: 24.1211%;
+	line-gap-override: 0%;
+	font-weight: 400;
+	src: url('@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+}
+
+[data-editor-skin='sakura'] {
+	--editor-skin-font: 'Nunito Sans', ui-rounded, system-ui, sans-serif;
+	--editor-skin-art: url('./sakura.svg');
+	--editor-skin-radius: 7px;
+	--editor-skin-stroke: 1px;
+	--editor-skin-accent: #ac316a;
+	--editor-skin-surface: #fff5f5;
+	--editor-skin-text: #38202f;
+}
+
+[data-editor-skin='lilac'] {
+	--editor-skin-font: Inter, system-ui, sans-serif;
+	--editor-skin-art: url('./lilac.svg');
+	--editor-skin-radius: 3px;
+	--editor-skin-stroke: 1px;
+	--editor-skin-accent: #6943a8;
+	--editor-skin-surface: #f5f2fc;
+	--editor-skin-text: #292139;
+}
+
+[data-editor-skin='techno'] {
+	--editor-skin-font: 'JetBrains Mono', ui-monospace, monospace;
+	--editor-skin-art: url('./techno.svg');
+	--editor-skin-radius: 0;
+	--editor-skin-stroke: 2px;
+	--editor-skin-accent: #075dba;
+	--editor-skin-surface: #edf7ff;
+	--editor-skin-text: #09253e;
+}
+
+html[data-theme='dark'] [data-editor-skin='sakura'] {
+	--editor-skin-accent: #ffaccd;
+	--editor-skin-surface: #291c2a;
+	--editor-skin-text: #ffeef5;
+}
+
+html[data-theme='dark'] [data-editor-skin='lilac'] {
+	--editor-skin-accent: #c2a1ff;
+	--editor-skin-surface: #211d30;
+	--editor-skin-text: #f4edff;
+}
+
+html[data-theme='dark'] [data-editor-skin='techno'] {
+	--editor-skin-accent: #68caff;
+	--editor-skin-surface: #081321;
+	--editor-skin-text: #e1f4ff;
+}
+
+#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default']),
+body[data-editor-skin]:not([data-editor-skin='default']) :is(.dropdown__menu, .tooltip__content) {
+	font-family: var(--editor-skin-font);
+}
+
+/* Override component text families explicitly; icon glyphs retain MusescoreIcon. */
+#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default']) :is(
+	button:not(.toggle-tool-button), input, select, textarea, .menu, .context-menu, .dropdown__trigger,
+	.kw-audio-editor__application-header, .dialog-header,
+	.clip-header__name, .clip-header__name-input, .clip-header__badge-value,
+	.preference-panel, .dialog, .dialog-side-nav
+),
+body[data-editor-skin]:not([data-editor-skin='default']) :is(.dropdown__option, .tooltip__content) {
+	font-family: var(--editor-skin-font);
+}
+
+#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default']) :is(
+	.button, .dropdown__trigger, .audio-editor-dialog, .context-menu
+) {
+	border-radius: var(--editor-skin-radius);
+	box-shadow: inset 0 0 0 var(--editor-skin-stroke) color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* Art lives behind empty timeline space and header chrome, never over waveforms. */
+#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default']) :is(
+	.audio-editor-timeline-scroll, .kw-audio-editor__application-header
+) {
+	background-image: var(--editor-skin-art);
+	background-position: right bottom;
+	background-repeat: no-repeat;
+	background-size: 960px 600px;
+}
+
+#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default']) .audio-editor-timeline-scroll {
+	background-image: linear-gradient(to right, var(--stage-raised) 0 var(--track-panel-width, 0px),
+		var(--stage-line) var(--track-panel-width, 0px) calc(var(--track-panel-width, 0px) + 1px), transparent 0), var(--editor-skin-art);
+	background-size: auto, 960px 600px;
+}
+
+body[data-editor-skin]:not([data-editor-skin='default']) .tooltip__content {
+	background: var(--editor-skin-surface);
+	color: var(--editor-skin-text);
+	border-color: var(--editor-skin-accent);
+}
+
+body[data-editor-skin]:not([data-editor-skin='default']) .tooltip__arrow path {
+	fill: var(--editor-skin-surface);
+	stroke: var(--editor-skin-accent);
+}
+
+.editor-skin-preferences h4 {
+	margin: 0 0 12px;
+	font-size: 14px;
+}
+
+.editor-skin-choices {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+}
+
+.editor-skin-choice {
+	display: grid;
+	gap: 6px;
+	padding: 7px;
+	min-width: 0;
+	border: 1px solid var(--line);
+	border-radius: 5px;
+	color: var(--text);
+	background: var(--bg);
+	cursor: pointer;
+	font: inherit;
+	text-align: start;
+}
+
+.editor-skin-choice[aria-pressed='true'] {
+	outline: 2px solid var(--accent);
+	outline-offset: -2px;
+}
+
+.editor-skin-choice:focus-visible,
+.editor-skin-preview-actions button:focus-visible {
+	outline: 2px solid var(--focus-color, var(--accent));
+	outline-offset: 3px;
+}
+
+.editor-skin-swatch {
+	display: block;
+	height: 92px;
+	overflow: hidden;
+	background-color: var(--skin-swatch-stage);
+	background-position: right center;
+	background-size: cover;
+	border: 1px solid var(--skin-swatch-accent);
+	border-radius: 3px;
+}
+
+[data-skin-choice='sakura'] .editor-skin-swatch {
+	background-image: url('./sakura.svg');
+	border-radius: 7px;
+}
+
+[data-skin-choice='lilac'] .editor-skin-swatch {
+	background-image: url('./lilac.svg');
+}
+
+[data-skin-choice='techno'] .editor-skin-swatch {
+	background-image: url('./techno.svg');
+	border-radius: 0;
+}
+
+.editor-skin-swatch__bar {
+	display: block;
+	padding: 3px 6px;
+	background: var(--skin-swatch-bg);
+	color: var(--skin-swatch-text);
+	border-bottom: 2px solid var(--skin-swatch-panel);
+	font: 10px/1.4 sans-serif;
+}
+
+.editor-skin-swatch__track {
+	display: block;
+	width: 64%;
+	height: 18px;
+	margin: 8px 0 0 12%;
+	border-top: 4px solid var(--skin-swatch-accent);
+	border-radius: 2px;
+	background: var(--skin-swatch-clip);
+	color: #152132;
+	font: 16px/12px monospace;
+	overflow: hidden;
+}
+
+.editor-skin-swatch__track:last-child {
+	width: 48%;
+	margin-inline-start: 27%;
+}
+
+.editor-skin-preview-actions button {
+	margin-inline-end: 8px;
+	padding: 6px 10px;
+	border: 1px solid var(--line);
+	border-radius: 3px;
+	background: var(--control);
+	color: var(--text);
+	font: inherit;
+	cursor: pointer;
+}
+
+@media (forced-colors: active) {
+	#kw-audio-editor-design-system[data-editor-skin] {
+		--editor-skin-art: none;
+	}
+	.editor-skin-choice[aria-pressed='true'] {
+		outline-color: Highlight;
+	}
+}

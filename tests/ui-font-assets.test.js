@@ -34,11 +34,16 @@ test('the lazy editor stylesheet loads only the four retained Inter WOFF2 subset
 	const editorStyles = await readFile(new URL('../src/common/editor/ui/audio-editor-design-system.css', import.meta.url), 'utf8');
 	assert.match(editorStyles, /^@import ['"]\.\/editor-fonts\.css['"];$/m);
 	const fontsCss = await readFile(new URL('../src/common/editor/ui/editor-fonts.css', import.meta.url), 'utf8');
-	const expected = fontFileNames('inter', [400, 600, 700]);
+	const expected = [
+		...fontFileNames('inter', [400, 600, 700]).filter(name => name.includes('latin')),
+		...fontFileNames('inter', ['wght']).filter(name => name.includes('cyrillic')),
+	];
+	assert.equal((fontsCss.match(/font-weight: 100 900;/gu) ?? []).length, 2);
 	assert.deepEqual(fontUrls(fontsCss).map(fileName).sort(), expected.sort());
 	assert.doesNotMatch(fontsCss, /font-family:\s*['"]Ubuntu|\.woff(?:['")])/u);
 	for (const name of expected) {
-		await access(new URL(`node_modules/@fontsource/inter/files/${name}`, PROJECT_ROOT));
+		const source = name.includes('wght') ? '@fontsource-variable' : '@fontsource';
+		await access(new URL(`node_modules/${source}/inter/files/${name}`, PROJECT_ROOT));
 	}
 });
 

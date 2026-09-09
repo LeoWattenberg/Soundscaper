@@ -1,3 +1,4 @@
+import { useEditorSkin } from '../skins/EditorSkinProvider.tsx';
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useTheme } from '@soundscaper/design-system/ThemeProvider';
 
@@ -29,7 +30,8 @@ export function AudacityWaveformCanvases({
 	spectrogramOptions,
 }) {
 	const { theme } = useTheme();
-	const themeDrawKey = `${theme.background.canvas.default}|${theme.foreground.text.primary}`;
+	const { decoration, mode } = useEditorSkin();
+	const themeDrawKey = `${decoration}|${mode}|${theme.background.canvas.default}|${theme.foreground.text.primary}`;
 	const {
 		scale,
 		minFreq,

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="600" viewBox="0 0 960 600">
+ <defs>
+  <g id="flower" fill="#ffd5e5" stroke="#da81a5" stroke-width="1.1">
+   <path d="M0 0C-20-8-19-29-6-25L0-20 6-25C19-29 20-8 0 0Z"/>
+   <path d="M0 0C-20-8-19-29-6-25L0-20 6-25C19-29 20-8 0 0Z" transform="rotate(72)"/>
+   <path d="M0 0C-20-8-19-29-6-25L0-20 6-25C19-29 20-8 0 0Z" transform="rotate(144)"/>
+   <path d="M0 0C-20-8-19-29-6-25L0-20 6-25C19-29 20-8 0 0Z" transform="rotate(216)"/>
+   <path d="M0 0C-20-8-19-29-6-25L0-20 6-25C19-29 20-8 0 0Z" transform="rotate(288)"/>
+   <circle r="5" fill="#ffbf70" stroke="#b86681"/>
+  </g>
+  <g id="petal" fill="#eea1bf"><path d="M0 0Q-16-24 0-31Q16-24 0 0"/></g>
+ </defs>
+ <g fill="none" stroke="#a55f7e" stroke-linecap="round" opacity=".55">
+  <path d="M1010 600Q831 420 868 234Q879 142 822 30" stroke-width="15"/>
+  <path d="M892 448Q734 318 629 339M864 282Q770 228 721 141M868 233Q936 165 933 101M833 84Q764 64 745 7" stroke-width="7"/>
+  <path d="M767 346L716 255M681 334L593 269M765 209L670 198M919 163L883 106" stroke-width="3"/>
+ </g>
+ <g opacity=".85">
+  <use href="#flower" transform="translate(828 81) rotate(12) scale(1.2)"/>
+  <use href="#flower" transform="translate(854 143) rotate(50) scale(.9)"/>
+  <use href="#flower" transform="translate(792 225) scale(1.1)"/>
+  <use href="#flower" transform="translate(721 146) rotate(26)"/>
+  <use href="#flower" transform="translate(674 199) scale(.8)"/>
+  <use href="#flower" transform="translate(738 213) rotate(80) scale(.7)"/>
+  <use href="#flower" transform="translate(631 334) rotate(25) scale(1.3)"/>
+  <use href="#flower" transform="translate(704 332) rotate(40)"/>
+  <use href="#flower" transform="translate(713 267) scale(.8)"/>
+  <use href="#flower" transform="translate(594 271) rotate(24) scale(.7)"/>
+  <use href="#flower" transform="translate(934 108) rotate(70) scale(1.1)"/>
+  <use href="#flower" transform="translate(884 111) scale(.7)"/>
+  <use href="#flower" transform="translate(762 43) scale(.9)"/>
+ </g>
+ <g opacity=".4">
+  <use href="#petal" transform="translate(548 197) rotate(-35) scale(.6)"/>
+  <use href="#petal" transform="translate(491 402) rotate(55) scale(.5)"/>
+  <use href="#petal" transform="translate(712 521) rotate(-25) scale(.7)"/>
+  <use href="#petal" transform="translate(323 310) rotate(75) scale(.4)"/>
+  <use href="#petal" transform="translate(408 553) rotate(30) scale(.6)"/>
+  <use href="#petal" transform="translate(190 444) rotate(-55) scale(.4)"/>
+ </g>
+</svg>

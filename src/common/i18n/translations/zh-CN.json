@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "zh-CN",
 	"provenance": {
-		"machine": {"model":"gpt-6","modelDigest":"sha256:c9f7b7b6a449659f5aa96f735004c88e62231423c9a1ad30d5f9c79a6d0ea268","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:fe94782cf5145ea8e1a9a4eefffa94c8d71b2fa2f87c0bd54805af174981dc5c","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
 	},
 	"entries": {
@@ -1949,6 +1949,12 @@
 		"silenceAudio": ["machine","Silence audio","使音频静音"],
 		"silenceFinder": ["machine","Silence finder","静音查找器"],
 		"silenceGenerator": ["machine","Silence","静音"],
+		"skin": ["machine","Skin","皮肤"],
+		"skinDefault": ["machine","Default","默认"],
+		"skinEndPreview": ["machine","End preview","结束预览"],
+		"skinKeep": ["machine","Keep this skin","保留此皮肤"],
+		"skinPreview": ["machine","Previewing {skin}. Your saved skin has not changed.","正在预览 {skin}。您保存的皮肤未更改。"],
+		"skinSaveError": ["machine","Could not save the skin. Please try again.","无法保存皮肤。请重试。"],
 		"skipTo": ["machine","Skip to","跳至"],
 		"slideApplied": ["machine","Slid clip by {frames} frames; program range {programStartTimecode}–{programEndTimecode}.","已将片段滑行 {frames} 帧；节目范围 {programStartTimecode}–{programEndTimecode}。"],
 		"slideClipEarlierOneFrame": ["machine","Slide clip earlier one frame","将片段滑行提前一帧"],

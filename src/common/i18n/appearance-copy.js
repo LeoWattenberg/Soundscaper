@@ -4,6 +4,12 @@
 export const APPEARANCE_COPY_BY_LOCALE = Object.freeze({
 	de: Object.freeze({
 			appearance: 'Erscheinungsbild',
+			skin: 'Skin',
+			skinDefault: 'Standard',
+			skinPreview: 'Vorschau: {skin}. Dein gespeicherter Skin bleibt erhalten.',
+			skinKeep: 'Diesen Skin behalten',
+			skinEndPreview: 'Vorschau beenden',
+			skinSaveError: 'Der Skin konnte nicht gespeichert werden. Bitte versuche es erneut.',
 			theme: 'Design',
 			themeSystem: 'Systemeinstellung',
 			themeLight: 'Hell',
@@ -16,6 +22,12 @@ export const APPEARANCE_COPY_BY_LOCALE = Object.freeze({
 	}),
 	en: Object.freeze({
 			appearance: 'Appearance',
+			skin: 'Skin',
+			skinDefault: 'Default',
+			skinPreview: 'Previewing {skin}. Your saved skin has not changed.',
+			skinKeep: 'Keep this skin',
+			skinEndPreview: 'End preview',
+			skinSaveError: 'Could not save the skin. Please try again.',
 			theme: 'Theme',
 			themeSystem: 'System preference',
 			themeLight: 'Light',

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ar",
 	"provenance": {
-		"machine": {"model":"gpt-6","modelDigest":"sha256:d4daeffc49b8fdd129ffd3ee689dc160e1d36b3a240a2d35baceb57f5302f8b9","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:f656fa2db3e66836fd2b84f2afdd59d1136d224784df7df57b0feb61d1b91f80","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
 	},
 	"entries": {
@@ -1949,6 +1949,12 @@
 		"silenceAudio": ["machine","Silence audio","إسكات الصوت"],
 		"silenceFinder": ["machine","Silence finder","باحث الصمت"],
 		"silenceGenerator": ["machine","Silence","الصمت"],
+		"skin": ["machine","Skin","المظهر"],
+		"skinDefault": ["machine","Default","الافتراضي"],
+		"skinEndPreview": ["machine","End preview","إنهاء المعاينة"],
+		"skinKeep": ["machine","Keep this skin","الاحتفاظ بهذا المظهر"],
+		"skinPreview": ["machine","Previewing {skin}. Your saved skin has not changed.","معاينة {skin}. لم يتغير مظهرك المحفوظ."],
+		"skinSaveError": ["machine","Could not save the skin. Please try again.","تعذر حفظ المظهر. يرجى المحاولة مرة أخرى."],
 		"skipTo": ["machine","Skip to","تخطي إلى"],
 		"slideApplied": ["machine","Slid clip by {frames} frames; program range {programStartTimecode}–{programEndTimecode}.","تم تحريك المقطع بمقدار {frames} إطارات؛ نطاق البرنامج {programStartTimecode}–{programEndTimecode}."],
 		"slideClipEarlierOneFrame": ["machine","Slide clip earlier one frame","تحريك المقطع إلى الخلف إطار واحد"],

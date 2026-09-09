@@ -1,3 +1,4 @@
+import { useEditorSkin } from '../skins/EditorSkinProvider.tsx';
 import { Button } from '@soundscaper/design-system/Button';
 
 import { productProfile } from '../../../products.js';
@@ -28,6 +29,7 @@ const AUDIO_EDITOR_IMPORT_FILE_ACCEPT = `${AUDIO_EDITOR_AUDIO_FILE_ACCEPT},.txt,
 const EMPTY_SPLIT_TOOL_SHORTCUTS = Object.freeze([]);
 
 export default function AudioEditorWorkspaceView({ model }) {
+	const skin = useEditorSkin();
 	const {
 		aboutLabel,
 		activateSearchEntry,
@@ -153,6 +155,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 			data-clip-count={project?.clips.length || 0}
 			data-timeline-view={snapshot.timeline?.view || 'waveform'}
 			data-editor-theme={preferences?.appearance?.theme || 'system'}
+			data-editor-skin={skin.decoration}
 			data-clip-style={preferences?.appearance?.clipStyle || 'colorful'}
 			data-workspace-preset={preferences?.workspace?.activeId || 'modern'}
 			data-edit-block-reason={editBlock.reason || undefined}

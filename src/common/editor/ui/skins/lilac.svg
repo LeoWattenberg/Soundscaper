@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="600" viewBox="0 0 960 600">
+ <defs>
+  <linearGradient id="fold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ab85ed" stop-opacity=".03"/><stop offset=".5" stop-color="#b49bd8" stop-opacity=".35"/><stop offset="1" stop-color="#694aa1" stop-opacity=".04"/></linearGradient>
+  <pattern id="weave" width="12" height="12" patternUnits="userSpaceOnUse"><path d="M0 12L12 0" stroke="#b59adf" stroke-opacity=".08"/></pattern>
+ </defs>
+ <path d="M410-100C870 80 370 280 1080 530L1100-100Z" fill="url(#fold)"/>
+ <path d="M620-90C1010 160 520 420 1030 640L1100-80Z" fill="url(#fold)"/>
+ <path d="M800-70C1150 220 650 440 1070 650" fill="none" stroke="#c8b5e9" stroke-width="1" opacity=".4"/>
+ <path d="M480-80C920 100 430 310 1100 555" fill="none" stroke="#c8b5e9" stroke-width="1" opacity=".25"/>
+ <rect width="960" height="600" fill="url(#weave)"/>
+</svg>

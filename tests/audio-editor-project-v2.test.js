@@ -410,6 +410,6 @@ test('the layout preference accepts the three chrome modes and defaults older do
 	delete saved.appearance.layout;
 	assert.deepEqual(
 		loadAudioEditorPreferencesV1(saved).preferences.appearance,
-		{ theme: 'dark', clipStyle: 'classic', layout: 'auto', defaultView: 'waveform' },
+		{ skin: 'default', theme: 'dark', clipStyle: 'classic', layout: 'auto', defaultView: 'waveform' },
 	);
 });

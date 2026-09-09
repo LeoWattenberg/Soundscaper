@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "es",
 	"provenance": {
-		"machine": {"model":"gpt-6","modelDigest":"sha256:d2582ec42f6ca1a82ce6ec06ada2b91d1e6a8c41837b0bf1e752b304fcc776c2","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:8f2d895b72e5c770e272e5d324237e2843b631193c7e22e2b5f5f44eff476bd7","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
 	},
 	"entries": {
@@ -1949,6 +1949,12 @@
 		"silenceAudio": ["machine","Silence audio","Silenciar audio"],
 		"silenceFinder": ["machine","Silence finder","Buscador de silencio"],
 		"silenceGenerator": ["machine","Silence","Silencio"],
+		"skin": ["machine","Skin","Apariencia"],
+		"skinDefault": ["machine","Default","Predeterminada"],
+		"skinEndPreview": ["machine","End preview","Finalizar vista previa"],
+		"skinKeep": ["machine","Keep this skin","Conservar esta apariencia"],
+		"skinPreview": ["machine","Previewing {skin}. Your saved skin has not changed.","Vista previa de {skin}. Tu apariencia guardada no ha cambiado."],
+		"skinSaveError": ["machine","Could not save the skin. Please try again.","No se pudo guardar la apariencia. Inténtalo de nuevo."],
 		"skipTo": ["machine","Skip to","Saltar a"],
 		"slideApplied": ["machine","Slid clip by {frames} frames; program range {programStartTimecode}–{programEndTimecode}.","Clip deslizado {frames} marcos; rango de programa {programStartTimecode}–{programEndTimecode}."],
 		"slideClipEarlierOneFrame": ["machine","Slide clip earlier one frame","Deslizar clip un marco antes"],

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { AccessibilityProfileProvider } from '@soundscaper/design-system/contexts/AccessibilityProfileContext';
-import { darkTheme, lightTheme } from '@audacity-ui/tokens';
-import { ThemeProvider, useTheme } from '@soundscaper/design-system/ThemeProvider';
+import { useTheme } from '@soundscaper/design-system/ThemeProvider';
+
+import { EditorSkinProvider, useEditorSkin } from './skins/EditorSkinProvider.tsx';
 
 import { wcagContrastRatio } from './theme-contrast.ts';
 
@@ -13,16 +14,16 @@ let portalObserver = null;
 let portalLayoutFrame = 0;
 let portalOptionsLabel = '';
 
-export function DesignSystemProviders({ children, copy }) {
+export function DesignSystemProviders({ children, copy, controller = undefined }) {
 	const theme = useSiteTheme();
 	const accessibilityProfile = useMemo(readAccessibilityProfile, []);
 	usePortalSentinel(copy.options);
 
 	return (
 		<AccessibilityProfileProvider initialProfileId={accessibilityProfile}>
-			<ThemeProvider theme={theme === 'dark' ? darkTheme : lightTheme}>
+			<EditorSkinProvider controller={controller} mode={theme}>
 				{children}
-			</ThemeProvider>
+			</EditorSkinProvider>
 		</AccessibilityProfileProvider>
 	);
 }
@@ -78,6 +79,7 @@ export function useAudioEditorTelemetrySelector(controller, selector, isEqual = 
 // a second palette.
 export function useAudioEditorThemeVariables() {
 	const { theme } = useTheme();
+	const { mode } = useEditorSkin();
 
 	return useMemo(() => ({
 		'--accent': theme.accent.primary,
@@ -122,8 +124,8 @@ export function useAudioEditorThemeVariables() {
 		// every dialog footer light regardless of theme.
 		'--background-surface-bg-surface-primary-idle': theme.background.surface.default,
 		'--stroke-main-stroke-primary': theme.border.default,
-		colorScheme: theme === darkTheme ? 'dark' : 'light',
-	}), [theme]);
+		colorScheme: mode,
+	}), [theme, mode]);
 }
 
 // Button.css swaps the primary fill for :hover and for :active but paints the

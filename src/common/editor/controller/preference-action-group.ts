@@ -34,6 +34,7 @@ export function createPreferenceActionGroup(
 		update: recordingPreferences.update,
 		revertFactorySettings: recordingPreferences.revertFactorySettings,
 		setWorkspace: scope.setWorkspacePreference,
+		setSkin: (skin: unknown) => updatePreferences({ appearance: { skin } }),
 		setTheme: (theme: unknown) => updatePreferences({ appearance: { theme } }),
 		setClipStyle: (clipStyle: unknown) => updatePreferences({ appearance: { clipStyle } }),
 		setLayout: (layout: unknown) => updatePreferences({ appearance: { layout } }),

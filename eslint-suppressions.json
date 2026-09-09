@@ -892,11 +892,6 @@
       "count": 1
     }
   },
-  "src/common/editor/ui/dialogs/WorkspacePreferencesDialog.jsx": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "src/common/editor/ui/framescaper-native-image-sequence-source-resolver.ts": {
     "no-useless-assignment": {
       "count": 1

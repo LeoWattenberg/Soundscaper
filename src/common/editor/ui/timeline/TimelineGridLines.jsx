@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 
+import { useTheme } from '@soundscaper/design-system/ThemeProvider';
+
 import { createTimelineGridLines } from './timeline-grid-model.ts';
 
 const MAXIMUM_CANVAS_DIMENSION = 32_000;
@@ -26,6 +28,8 @@ export function TimelineGridLines({
 	top = 0,
 	left = 0,
 }) {
+	const { theme } = useTheme();
+	const gridColor = theme.background.canvas.grid.major;
 	const canvasRef = useRef(null);
 	const width = Math.max(1, Math.floor(viewportWidth));
 	const canvasHeight = Math.max(1, Math.floor(height));
@@ -51,8 +55,7 @@ export function TimelineGridLines({
 		context.setTransform(ratio, 0, 0, ratio, 0, 0);
 		context.clearRect(0, 0, width, canvasHeight);
 		context.lineWidth = 1;
-		context.strokeStyle = getComputedStyle(canvas).getPropertyValue('--stage-grid-major').trim()
-			|| '#2d2f34';
+		context.strokeStyle = gridColor;
 		for (const major of [false, true]) {
 			context.globalAlpha = major ? 1 : MINOR_LINE_ALPHA;
 			context.beginPath();
@@ -64,7 +67,7 @@ export function TimelineGridLines({
 			context.stroke();
 		}
 		context.globalAlpha = 1;
-	}, [canvasHeight, lines, width]);
+	}, [canvasHeight, gridColor, lines, width]);
 
 	return (
 		<div

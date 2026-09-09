@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "cs",
 	"provenance": {
-		"machine": {"model":"gpt-6","modelDigest":"sha256:602c42608004762b5b2288831ac93299db8c256f475af1502c25eaf9d0d97c6a","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:68e4c2cf215c2c0a97807f5a57fcd52eab391c8fa8196fd4a2b03f1b079e8aac","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
 	},
 	"entries": {
@@ -1949,6 +1949,12 @@
 		"silenceAudio": ["machine","Silence audio","Ztišit zvuk"],
 		"silenceFinder": ["machine","Silence finder","Hledač ticha"],
 		"silenceGenerator": ["machine","Silence","Ticho"],
+		"skin": ["machine","Skin","Vzhled"],
+		"skinDefault": ["machine","Default","Výchozí"],
+		"skinEndPreview": ["machine","End preview","Ukončit náhled"],
+		"skinKeep": ["machine","Keep this skin","Ponechat tento vzhled"],
+		"skinPreview": ["machine","Previewing {skin}. Your saved skin has not changed.","Náhled vzhledu {skin}. Uložený vzhled se nezměnil."],
+		"skinSaveError": ["machine","Could not save the skin. Please try again.","Vzhled se nepodařilo uložit. Zkuste to znovu."],
 		"skipTo": ["machine","Skip to","Přejít na"],
 		"slideApplied": ["machine","Slid clip by {frames} frames; program range {programStartTimecode}–{programEndTimecode}.","Klip posunut o {frames} snímků; rozsah programu {programStartTimecode}–{programEndTimecode}."],
 		"slideClipEarlierOneFrame": ["machine","Slide clip earlier one frame","Posunout klip o jeden snímek dříve"],

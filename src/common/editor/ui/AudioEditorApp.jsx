@@ -7,15 +7,15 @@ import AudioEditorWorkspace from './workspace/AudioEditorWorkspace.jsx';
 
 /** Presentation-only seam for a product-owned, already-constructed runtime. */
 export function BoundAudioEditorApp(props) {
-	return <AudioEditorFrame copy={props.copy}>
+	return <AudioEditorFrame copy={props.copy} controller={props.controller}>
 		<AudioEditorWorkspace {...props} />
 	</AudioEditorFrame>;
 }
 
-function AudioEditorFrame({ copy, children }) {
+function AudioEditorFrame({ copy, children, controller }) {
 	return (
 		<AudioEditorErrorBoundary copy={copy}>
-			<DesignSystemProviders copy={copy}>
+			<DesignSystemProviders copy={copy} controller={controller}>
 				{children}
 			</DesignSystemProviders>
 		</AudioEditorErrorBoundary>
