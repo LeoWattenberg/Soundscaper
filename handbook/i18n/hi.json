@@ -1,0 +1,30 @@
+{
+	"locale": "hi",
+	"provenance": {"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","promptVersion":"docs-chrome-v1"},
+	"entries": {
+		"sidebar.framescaper": ["Framescaper","Framescaper"],
+		"sidebar.guides": ["How-to guides","कैसे करें गाइड"],
+		"sidebar.guides.all": ["All guides","सभी गाइड"],
+		"sidebar.guides.analysis": ["Analysis","विश्लेषण"],
+		"sidebar.guides.cleaning-up": ["Cleaning up a recording","रिकॉर्डिंग को साफ़ करना"],
+		"sidebar.guides.editing": ["Editing","संपादन"],
+		"sidebar.guides.effects": ["Effects","प्रभाव"],
+		"sidebar.guides.projects": ["Projects and files","प्रोजेक्ट और फ़ाइलें"],
+		"sidebar.guides.tracks-and-export": ["Tracks and export","ट्रैक और एक्सपोर्ट"],
+		"sidebar.guides.volume": ["Volume and dynamics","वॉल्यूम और गतिशीलता"],
+		"sidebar.help": ["Help","सहायता"],
+		"sidebar.projects-and-data": ["Projects and data","प्रोजेक्ट और डेटा"],
+		"sidebar.reference": ["Reference","संदर्भ"],
+		"sidebar.reference.audio-effects": ["Audio effects","ऑडियो इफेक्ट्स"],
+		"sidebar.reference.commands": ["Commands and shortcuts","कमांड्स और शॉर्टकट्स"],
+		"sidebar.reference.formats": ["Export formats","एक्सपोर्ट फॉर्मेट्स"],
+		"sidebar.reference.languages": ["Languages","भाषाएँ"],
+		"sidebar.reference.local-assistance": ["Local assistance","स्थानीय सहायता"],
+		"sidebar.reference.macro-programs": ["Macro programs","मैक्रो प्रोग्राम्स"],
+		"sidebar.reference.nyquist-plugins": ["Nyquist plug-ins","Nyquist प्लग-इन्स"],
+		"sidebar.reference.overview": ["Overview","अवलोकन"],
+		"sidebar.reference.platforms": ["Platforms and packages","प्लेटफॉर्म्स और पैकेजेस"],
+		"sidebar.reference.product-capabilities": ["Product capabilities","प्रोडक्ट क्षमताएँ"],
+		"sidebar.reference.project-files": ["Project and label files","प्रोजेक्ट और लेबल फाइल्स"]
+	}
+}
