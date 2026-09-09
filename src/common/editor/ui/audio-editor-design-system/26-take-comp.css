@@ -13,7 +13,7 @@
 }
 
 .audio-editor-take-comp__group-picker > span {
-	color: var(--kw-editor-text);
+	color: var(--text);
 }
 
 .audio-editor-take-comp__lane,

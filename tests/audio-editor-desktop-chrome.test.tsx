@@ -84,10 +84,10 @@ test('desktop routing owns a full-bleed shell and explicit drag exclusions', asy
 			import.meta.url,
 		), 'utf8'),
 	]);
-	assert.match(app, /desktop \? ' desktop' : ''/u);
+	assert.match(app, /desktop \? ' website-desktop' : ''/u);
 	assert.match(app, /root\.dataset\.desktop = 'true'/u);
-	assert.match(siteCss, /\.site-shell\.desktop \.audio-editor-container/u);
-	assert.match(siteCss, /\.site-shell\.desktop #kw-audio-editor-design-system/u);
+	assert.match(siteCss, /\.website-site-shell\.website-desktop \.website-audio-editor-container/u);
+	assert.match(siteCss, /\.website-site-shell\.website-desktop #kw-audio-editor-design-system/u);
 	assert.match(editorCss, /app-region: drag/u);
 	assert.match(editorCss, /app-region: no-drag/u);
 });

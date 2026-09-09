@@ -110,7 +110,7 @@ export function productInstallScreenshots(productId) {
 
 /**
  * The two surfaces `src/common/site/site.css` paints, copied here because the
- * build runs under plain node with no CSS loader: `--color-surface` under
+ * build runs under plain node with no CSS loader: `--website-color-surface` under
  * `:root` and under `:root[data-theme='dark']`. The install test parses the
  * stylesheet and holds these copies to it, so the two can only drift past a
  * failing test.

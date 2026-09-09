@@ -39,7 +39,7 @@ if (!rootPlan) throw new Error(`Web build ${routing.productId} has no document p
  * has fetched and parsed the manifest - which is after the first paint - and
  * iOS never reads it at all, so the head has to carry the colour as well. It is
  * a pair rather than the manifest's single value because the document has two
- * appearances: `src/common/site/site.css` paints `--color-surface` behind every
+ * appearances: `src/common/site/site.css` paints `--website-color-surface` behind every
  * route, white under the light theme and near-black under the dark one, and one
  * flat dark value would draw a seam above a light window. Neither value is
  * product-specific, so `updateProductHead` in `src/common/site/App.jsx` has

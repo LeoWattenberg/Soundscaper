@@ -101,10 +101,10 @@ export function SteppedSlider({ value, min, max, step, ariaLabel, valueText, dis
 		<div
 			className={`slider audio-editor-stepped-slider${disabled ? ' slider--disabled' : ''}`}
 			style={{
-				'--slider-track-bg': 'var(--kw-editor-line)',
-				'--slider-fill-bg': 'var(--kw-editor-accent)',
-				'--slider-handle-bg': 'var(--kw-editor-panel)',
-				'--slider-handle-border': 'var(--kw-editor-accent-strong)',
+				'--slider-track-bg': 'var(--line)',
+				'--slider-fill-bg': 'var(--accent)',
+				'--slider-handle-bg': 'var(--panel)',
+				'--slider-handle-border': 'var(--accent-strong)',
 			}}
 		>
 			<input

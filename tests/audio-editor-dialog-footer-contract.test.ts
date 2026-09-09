@@ -115,7 +115,7 @@ test('the stale-build prompt stays independent of the editor dialog chunk', asyn
 	]);
 	assert.doesNotMatch(dialog, /@soundscaper\/design-system/u);
 	assert.doesNotMatch(dialog, /AudioEditorDialogShell/u);
-	assert.match(css, /\.stale-build-actions \{[^}]*justify-content: flex-end;/u);
+	assert.match(css, /\.website-stale-build-actions \{[^}]*justify-content: flex-end;/u);
 });
 
 /**

@@ -43,9 +43,9 @@ test.describe('Soundscaper product surface', () => {
 
 		releaseEntryChunk();
 		await expect.poll(() => editorChunkIntercepted).toBe(true);
-		await expect(page.locator('[data-sidebar] .brand strong')).toHaveText('Soundscaper');
-		await expect(page.locator('.tool-intro h1')).toBeVisible();
-		await expect(page.locator('.audio-editor-section').getByRole('status')).toHaveText('Loading project');
+		await expect(page.locator('[data-sidebar] .website-brand strong')).toHaveText('Soundscaper');
+		await expect(page.locator('.website-tool-intro h1')).toBeVisible();
+		await expect(page.locator('.website-audio-editor-section').getByRole('status')).toHaveText('Loading project');
 		await expect(page.locator('[data-audio-editor]')).toHaveCount(0);
 		await expect(initialProgress).toBeVisible();
 
@@ -57,7 +57,7 @@ test.describe('Soundscaper product surface', () => {
 	test('the built profile selects Soundscaper branding, workspace, and authoring controls', async ({ page }) => {
 		await page.goto('/en/');
 		const soundscaper = await readyEditor(page, 'soundscaper');
-		await expect(page.locator('[data-sidebar] .brand strong')).toHaveText('Soundscaper');
+		await expect(page.locator('[data-sidebar] .website-brand strong')).toHaveText('Soundscaper');
 		await expect(soundscaper).toHaveAttribute('data-workspace-preset', 'modern');
 		await expect(soundscaper.locator('[data-transport="record"]')).toBeVisible();
 		await expect(page.locator('[data-workspace-select] option[value="video-editor"]')).toHaveCount(0);

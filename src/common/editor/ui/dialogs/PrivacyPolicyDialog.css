@@ -11,34 +11,34 @@
 	box-shadow: none;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor-privacy-policy {
+.kw-audio-editor-privacy-policy {
 	max-height: calc(100dvh - 32px);
 }
 
-#kw-audio-editor-design-system .kw-audio-editor-privacy-policy__body {
+.kw-audio-editor-privacy-policy__body {
 	font-size: 13px;
 	line-height: 1.55;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor-privacy-policy__body > p {
+.kw-audio-editor-privacy-policy__body > p {
 	font-size: inherit;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor-privacy-policy__summary {
+.kw-audio-editor-privacy-policy__summary {
 	font-weight: 600;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor-privacy-policy__body h2 {
+.kw-audio-editor-privacy-policy__body h2 {
 	margin: 24px 0 8px;
 	font-size: 16px;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor-privacy-policy__body p,
-#kw-audio-editor-design-system .kw-audio-editor-privacy-policy__body ul {
+.kw-audio-editor-privacy-policy__body p,
+.kw-audio-editor-privacy-policy__body ul {
 	margin: 0 0 10px;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor-privacy-policy__body a {
-	color: var(--kw-editor-accent);
+.kw-audio-editor-privacy-policy__body a {
+	color: var(--accent);
 }
 

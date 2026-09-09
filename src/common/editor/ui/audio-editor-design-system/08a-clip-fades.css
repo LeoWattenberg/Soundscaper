@@ -1,4 +1,4 @@
-#kw-audio-editor-design-system .audio-editor-clip-fade {
+.audio-editor-clip-fade {
 	position: absolute;
 	left: 0;
 	right: 0;
@@ -9,7 +9,7 @@
 	overflow: hidden;
 }
 
-#kw-audio-editor-design-system .audio-editor-clip-fade__shade {
+.audio-editor-clip-fade__shade {
 	position: absolute;
 	top: 0;
 	width: 100%;
@@ -17,17 +17,17 @@
 	overflow: hidden;
 }
 
-#kw-audio-editor-design-system .audio-editor-clip-fade__shade polygon {
+.audio-editor-clip-fade__shade polygon {
 	fill: rgb(0 0 0 / 28%);
 }
 
-#kw-audio-editor-design-system .audio-editor-clip-fade__shade polyline {
+.audio-editor-clip-fade__shade polyline {
 	fill: none;
 	stroke: rgb(255 255 255 / 65%);
 	stroke-width: 1;
 }
 
-#kw-audio-editor-design-system .audio-editor-clip-fade__handle {
+.audio-editor-clip-fade__handle {
 	position: absolute;
 	top: 0;
 	height: 20px;
@@ -42,7 +42,7 @@
 	cursor: ew-resize;
 }
 
-#kw-audio-editor-design-system .audio-editor-clip-fade__handle svg {
+.audio-editor-clip-fade__handle svg {
 	position: absolute;
 	top: 1px;
 	left: 0;
@@ -55,18 +55,18 @@
 	filter: drop-shadow(0 1px 1px #000);
 }
 
-#kw-audio-editor-design-system .audio-editor-clip-fade__handle[data-clip-fade-handle="out"] svg {
+.audio-editor-clip-fade__handle[data-clip-fade-handle="out"] svg {
 	left: auto;
 	right: 0;
 }
 
-#kw-audio-editor-design-system .audio-editor-clip-fade__handle:is(:hover, :focus-visible) {
+.audio-editor-clip-fade__handle:is(:hover, :focus-visible) {
 	background: rgb(0 0 0 / 30%);
 	outline: 1px solid currentColor;
 	outline-offset: -1px;
 }
 
-#kw-audio-editor-design-system .audio-editor-clip-fade__handle:disabled {
+.audio-editor-clip-fade__handle:disabled {
 	cursor: default;
 	opacity: 0.5;
 }

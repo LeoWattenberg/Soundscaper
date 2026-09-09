@@ -130,9 +130,9 @@
 	flex-direction: column;
 	overflow: hidden auto;
 	color: var(--header-text);
-	background: var(--header-bg, var(--kw-editor-panel));
-	border-inline-end: 1px solid var(--header-border, var(--kw-editor-line));
-	box-shadow: var(--kw-editor-shadow);
+	background: var(--header-bg, var(--panel));
+	border-inline-end: 1px solid var(--header-border, var(--line));
+	box-shadow: var(--shadow);
 	inset-inline-start: 0;
 	visibility: hidden;
 	transform: translateX(-100%);
@@ -251,17 +251,17 @@
 
 #kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__search[data-editor-search-open='true'] .kw-audio-editor__search-surface {
 	position: absolute;
-	z-index: var(--kw-editor-flyout-z);
+	z-index: var(--flyout-z);
 	top: calc(100% + 4px);
 	right: 8px;
 	left: 8px;
 	display: block;
 	width: auto;
 	padding: 8px;
-	background: var(--flyout-bg, var(--kw-editor-panel));
-	border: 1px solid var(--flyout-border, var(--kw-editor-line));
+	background: var(--flyout-bg, var(--panel));
+	border: 1px solid var(--flyout-border, var(--line));
 	border-radius: 6px;
-	box-shadow: var(--kw-editor-shadow);
+	box-shadow: var(--shadow);
 }
 
 #kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__search-field {
@@ -311,23 +311,23 @@
 
 /* Rows keep their headers mounted and sticky at the left edge; the drawer
    slides them off-canvas and back over the lanes, which now start at x = 0. */
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-track-header-drawer] :is([data-track-header], [data-output-track-header]) {
+.audio-editor-timeline-panel[data-track-header-drawer] :is([data-track-header], [data-output-track-header]) {
 	visibility: hidden;
 	transform: translateX(-100%);
 	transition: transform 180ms ease, visibility 0s linear 180ms;
 }
 
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-track-header-drawer] .audio-editor-track-folder-row__panel {
+.audio-editor-timeline-panel[data-track-header-drawer] .audio-editor-track-folder-row__panel {
 	position: sticky;
 	z-index: 45;
 	left: 0;
-	background: var(--kw-editor-stage-raised);
+	background: var(--stage-raised);
 	visibility: hidden;
 	transform: translateX(-100%);
 	transition: transform 180ms ease, visibility 0s linear 180ms;
 }
 
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-track-header-drawer='open'] :is([data-track-header], [data-output-track-header], .audio-editor-track-folder-row__panel) {
+.audio-editor-timeline-panel[data-track-header-drawer='open'] :is([data-track-header], [data-output-track-header], .audio-editor-track-folder-row__panel) {
 	visibility: visible;
 	box-shadow: 4px 0 12px rgb(0 0 0 / 22%);
 	transform: none;
@@ -341,7 +341,7 @@
    would paint the dimming over the header the drawer has just slid back in.
    Anything above 0 still covers the lane's own content, whose window and
    overlays sit on the row's auto layer. */
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-track-header-drawer='open'] .audio-editor-track-lane::after {
+.audio-editor-timeline-panel[data-track-header-drawer='open'] .audio-editor-track-lane::after {
 	position: absolute;
 	z-index: 40;
 	background: rgb(0 0 0 / 22%);
@@ -350,48 +350,48 @@
 	pointer-events: none;
 }
 
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-track-header-drawer] .audio-editor-track-list::before {
+.audio-editor-timeline-panel[data-track-header-drawer] .audio-editor-track-list::before {
 	display: none;
 }
 
 /* The panel becomes its own stacking context so the handle can sit above the
    playhead boundary (z 70) without competing with the dock overlays outside. */
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-track-header-drawer] {
+.audio-editor-timeline-panel[data-track-header-drawer] {
 	isolation: isolate;
 }
 
 /* The ruler corner is the drawer's handle. Its row rises above the playhead
    boundary (z 70) so the toggle takes the tap; the corner is already sticky
    at the left edge, so the handle never scrolls away. */
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-track-header-drawer] .audio-editor-ruler-row {
+.audio-editor-timeline-panel[data-track-header-drawer] .audio-editor-ruler-row {
 	z-index: 72;
 }
 
-#kw-audio-editor-design-system .audio-editor-ruler-corner[data-track-header-drawer-strip] {
+.audio-editor-ruler-corner[data-track-header-drawer-strip] {
 	justify-content: flex-start;
 	gap: 6px;
 	padding-inline: 4px;
 }
 
-#kw-audio-editor-design-system .audio-editor-ruler-corner[data-track-header-drawer-strip][data-open='true'] {
+.audio-editor-ruler-corner[data-track-header-drawer-strip][data-open='true'] {
 	box-shadow: 4px 0 12px rgb(0 0 0 / 22%);
 }
 
-#kw-audio-editor-design-system .audio-editor-track-header-toggle {
+.audio-editor-track-header-toggle {
 	display: grid;
 	width: 32px;
 	height: 28px;
 	flex: none;
 	place-items: center;
 	padding: 0;
-	color: var(--kw-editor-stage-text);
+	color: var(--stage-text);
 	background: transparent;
 	border: 0;
 	border-radius: 5px;
 	cursor: pointer;
 }
 
-#kw-audio-editor-design-system .audio-editor-track-header-toggle svg {
+.audio-editor-track-header-toggle svg {
 	width: 16px;
 	height: 16px;
 	fill: none;
@@ -400,10 +400,10 @@
 	stroke-width: 1.5;
 }
 
-#kw-audio-editor-design-system .audio-editor-track-header-toggle:hover,
-#kw-audio-editor-design-system .audio-editor-track-header-toggle:focus-visible,
-#kw-audio-editor-design-system .audio-editor-track-header-toggle[aria-expanded='true'] {
-	background: color-mix(in srgb, var(--kw-editor-accent) 18%, transparent);
+.audio-editor-track-header-toggle:hover,
+.audio-editor-track-header-toggle:focus-visible,
+.audio-editor-track-header-toggle[aria-expanded='true'] {
+	background: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 /* The phone sheet sized these for a narrow header column; the drawer keeps

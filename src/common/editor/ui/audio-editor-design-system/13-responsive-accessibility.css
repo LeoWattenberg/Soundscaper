@@ -5,93 +5,93 @@
 		border-radius: 0;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor__video-workspace {
+	.kw-audio-editor__video-workspace {
 		height: clamp(72px, 28%, 220px);
 		min-height: 72px;
 		flex-basis: clamp(72px, 28%, 220px);
 		grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
 	}
 
-	#kw-audio-editor-design-system :is(.kw-audio-editor__side-playback-meter, .kw-audio-editor__side-recording-meter) {
+	:is(.kw-audio-editor__side-playback-meter, .kw-audio-editor__side-recording-meter) {
 		width: 44px;
 		min-width: 44px;
 		flex-basis: 44px;
 		padding: 4px 3px;
 	}
 
-	#kw-audio-editor-design-system :is(.kw-audio-editor__side-playback-meter, .kw-audio-editor__side-recording-meter) .kw-audio-editor__master-meter {
+	:is(.kw-audio-editor__side-playback-meter, .kw-audio-editor__side-recording-meter) .kw-audio-editor__master-meter {
 		width: 34px;
 		min-width: 34px;
 		min-height: 120px;
 	}
 
-	#kw-audio-editor-design-system :is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right) {
+	:is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right) {
 		right: 8px;
 		left: 8px;
 		width: auto;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor__panel-dock--left {
+	.kw-audio-editor__panel-dock--left {
 		top: 8px;
 		bottom: calc(50% + 4px);
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor__panel-dock--right {
+	.kw-audio-editor__panel-dock--right {
 		top: calc(50% + 4px);
 		bottom: 8px;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor__workspace:not(:has(.kw-audio-editor__panel-dock--right)) .kw-audio-editor__panel-dock--left,
-	#kw-audio-editor-design-system .kw-audio-editor__workspace:not(:has(.kw-audio-editor__panel-dock--left)) .kw-audio-editor__panel-dock--right {
+	.kw-audio-editor__workspace:not(:has(.kw-audio-editor__panel-dock--right)) .kw-audio-editor__panel-dock--left,
+	.kw-audio-editor__workspace:not(:has(.kw-audio-editor__panel-dock--left)) .kw-audio-editor__panel-dock--right {
 		top: 8px;
 		bottom: 8px;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor__application-header .application-header__app-name {
+	.kw-audio-editor__application-header .application-header__app-name {
 		max-width: 62vw;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor__search {
+	.kw-audio-editor__search {
 		position: static;
 		width: 36px;
 		padding: 0 4px;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor__search-compact-trigger {
+	.kw-audio-editor__search-compact-trigger {
 		display: grid;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor__search-surface {
+	.kw-audio-editor__search-surface {
 		display: none;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor__search[data-editor-search-open='true'] .kw-audio-editor__search-surface {
+	.kw-audio-editor__search[data-editor-search-open='true'] .kw-audio-editor__search-surface {
 		position: absolute;
-		z-index: var(--kw-editor-flyout-z);
+		z-index: var(--flyout-z);
 		top: calc(100% + 4px);
 		right: 8px;
 		left: 8px;
 		display: block;
 		width: auto;
 		padding: 8px;
-		background: var(--flyout-bg, var(--kw-editor-panel));
-		border: 1px solid var(--flyout-border, var(--kw-editor-line));
+		background: var(--flyout-bg, var(--panel));
+		border: 1px solid var(--flyout-border, var(--line));
 		border-radius: 6px;
-		box-shadow: var(--kw-editor-shadow);
+		box-shadow: var(--shadow);
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor__search-field {
+	.kw-audio-editor__search-field {
 		height: 34px;
 		grid-template-columns: 18px minmax(0, 1fr);
 		gap: 6px;
 		padding: 0 8px;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor__search-field > kbd {
+	.kw-audio-editor__search-field > kbd {
 		display: none;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor__search-popup {
+	.kw-audio-editor__search-popup {
 		position: static;
 		width: auto;
 		max-height: min(62dvh, calc(100dvh - 128px));
@@ -103,11 +103,11 @@
 		box-shadow: none;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor__application-menu.context-menu {
+	.kw-audio-editor__application-menu.context-menu {
 		max-width: calc(100vw - 20px);
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor__application-menu .context-menu-submenu {
+	.kw-audio-editor__application-menu .context-menu-submenu {
 		position: fixed;
 		top: 64px;
 		right: 10px;
@@ -115,98 +115,98 @@
 		max-height: calc(100dvh - 74px);
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor__tool-toolbar.toolbar {
+	.kw-audio-editor__tool-toolbar.toolbar {
 		padding-inline: 7px;
 	}
 
-	#kw-audio-editor-design-system .audio-editor-timeline-scroll {
+	.audio-editor-timeline-scroll {
 		min-height: 360px;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor__project-bin-import {
+	.kw-audio-editor__project-bin-import {
 		grid-template-columns: auto minmax(0, 1fr);
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor__project-bin-card-actions .button {
+	.kw-audio-editor__project-bin-card-actions .button {
 		flex: 1 1 auto;
 	}
 
-	#kw-audio-editor-design-system .audio-editor-empty-state {
+	.audio-editor-empty-state {
 		top: 66px;
 		width: min(300px, calc(100vw - 186px));
 		padding: 13px;
 	}
 
-	#kw-audio-editor-design-system .audio-editor-empty-state strong {
+	.audio-editor-empty-state strong {
 		font-size: 12px;
 	}
 
-	#kw-audio-editor-design-system .audio-editor-empty-state p {
+	.audio-editor-empty-state p {
 		font-size: 10px;
 	}
 
-	#kw-audio-editor-design-system .audio-editor-track-controls .track-control-panel__main {
+	.audio-editor-track-controls .track-control-panel__main {
 		gap: 5px;
 		padding: 8px;
 	}
 
-	#kw-audio-editor-design-system .audio-editor-track-adapters {
+	.audio-editor-track-adapters {
 		top: 6px;
 		right: 58px;
 		left: 7px;
 	}
 
-	#kw-audio-editor-design-system .audio-editor-field-grid,
-	#kw-audio-editor-design-system .audio-editor-export-grid,
-	#kw-audio-editor-design-system .audio-editor-effect-parameters {
+	.audio-editor-field-grid,
+	.audio-editor-export-grid,
+	.audio-editor-effect-parameters {
 		grid-template-columns: 1fr;
 	}
 
-	#kw-audio-editor-design-system .audio-editor-effect-bands {
+	.audio-editor-effect-bands {
 		grid-template-columns: 1fr;
 	}
 
-	#kw-audio-editor-design-system .audio-editor-effect-preset-drawer,
-	#kw-audio-editor-design-system .audio-editor-audacity-layout__grid,
-	#kw-audio-editor-design-system .audio-editor-audacity-layout__parameters,
-	#kw-audio-editor-design-system .audio-editor-native-eq-bands,
-	#kw-audio-editor-design-system .audio-editor-audacity-layout__context-card--profile,
-	#kw-audio-editor-design-system .audio-editor-audacity-layout--audacity-noise-reduction,
-	#kw-audio-editor-design-system .audio-editor-clip-properties,
-	#kw-audio-editor-design-system .audio-editor-clip-properties__time-grid {
+	.audio-editor-effect-preset-drawer,
+	.audio-editor-audacity-layout__grid,
+	.audio-editor-audacity-layout__parameters,
+	.audio-editor-native-eq-bands,
+	.audio-editor-audacity-layout__context-card--profile,
+	.audio-editor-audacity-layout--audacity-noise-reduction,
+	.audio-editor-clip-properties,
+	.audio-editor-clip-properties__time-grid {
 		grid-template-columns: 1fr;
 	}
 
-	#kw-audio-editor-design-system .audio-editor-video-effects__heading,
-	#kw-audio-editor-design-system .audio-editor-video-effect__params {
+	.audio-editor-video-effects__heading,
+	.audio-editor-video-effect__params {
 		grid-template-columns: 1fr;
 	}
 
-	#kw-audio-editor-design-system .audio-editor-export-section .audio-editor-field,
-	#kw-audio-editor-design-system .audio-editor-export-check,
-	#kw-audio-editor-design-system :is(.audio-editor-metadata-table__header, .audio-editor-metadata-table__row) {
+	.audio-editor-export-section .audio-editor-field,
+	.audio-editor-export-check,
+	:is(.audio-editor-metadata-table__header, .audio-editor-metadata-table__row) {
 		grid-template-columns: 1fr;
 	}
 
-	#kw-audio-editor-design-system :is(.audio-editor-metadata-table__header, .audio-editor-metadata-table__row) > span + span {
-		border-top: 1px solid var(--kw-editor-line);
+	:is(.audio-editor-metadata-table__header, .audio-editor-metadata-table__row) > span + span {
+		border-top: 1px solid var(--line);
 		border-left: 0;
 	}
 
-	#kw-audio-editor-design-system .audio-editor-analysis-grid {
+	.audio-editor-analysis-grid {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 
-	#kw-audio-editor-design-system [data-effect-rack] > .effects-panel {
+	[data-effect-rack] > .effects-panel {
 		height: 300px;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor-dialog-backdrop {
+	.kw-audio-editor-dialog-backdrop {
 		align-items: end;
 		padding: 0;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor-dialog {
+	.kw-audio-editor-dialog {
 		width: 100%;
 		max-height: 84dvh;
 		border-right: 0;
@@ -215,49 +215,49 @@
 		border-radius: 13px 13px 0 0;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor-dialog__body {
-		--kw-editor-dialog-body-padding: 14px;
+	.kw-audio-editor-dialog__body {
+		--dialog-body-padding: 14px;
 
 		max-height: calc(84dvh - 42px);
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor-generator__content {
+	.kw-audio-editor-generator__content {
 		padding: 10px;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor-generator__standard-grid,
-	#kw-audio-editor-design-system .kw-audio-editor-generator__pair,
-	#kw-audio-editor-design-system .kw-audio-editor-generator__dtmf {
+	.kw-audio-editor-generator__standard-grid,
+	.kw-audio-editor-generator__pair,
+	.kw-audio-editor-generator__dtmf {
 		grid-template-columns: 1fr;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor-generator__chirp > .kw-audio-editor-dialog__field {
+	.kw-audio-editor-generator__chirp > .kw-audio-editor-dialog__field {
 		max-width: none;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor__nyquist-controls {
+	.kw-audio-editor__nyquist-controls {
 		grid-template-columns: 1fr;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor-preferences__body {
+	.kw-audio-editor-preferences__body {
 		height: calc(84dvh - 94px);
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor-preferences__page {
+	.kw-audio-editor-preferences__page {
 		padding: 10px;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor-preferences__sidebar.dialog-sidenav {
+	.kw-audio-editor-preferences__sidebar.dialog-sidenav {
 		width: 56px;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor-preferences__sidebar .dialog-sidenav__button {
+	.kw-audio-editor-preferences__sidebar .dialog-sidenav__button {
 		justify-content: center;
 		gap: 0;
 		padding-inline: 12px;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor-preferences__sidebar .dialog-sidenav__label {
+	.kw-audio-editor-preferences__sidebar .dialog-sidenav__label {
 		position: absolute;
 		width: 1px;
 		height: 1px;
@@ -270,24 +270,24 @@
 		border: 0;
 	}
 
-	#kw-audio-editor-design-system :is(.kw-audio-editor-preferences__grid, .kw-audio-editor-preferences__checks) {
+	:is(.kw-audio-editor-preferences__grid, .kw-audio-editor-preferences__checks) {
 		grid-template-columns: 1fr;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor-preferences__panel-list > div,
-	#kw-audio-editor-design-system :is(.kw-audio-editor-preferences__shortcut-row, .kw-audio-editor-preferences__shortcut-controls) {
+	.kw-audio-editor-preferences__panel-list > div,
+	:is(.kw-audio-editor-preferences__shortcut-row, .kw-audio-editor-preferences__shortcut-controls) {
 		grid-template-columns: 1fr;
 	}
 
-	#kw-audio-editor-design-system .kw-audio-editor-preferences__shortcut-header {
+	.kw-audio-editor-preferences__shortcut-header {
 		display: none;
 	}
 
-	#kw-audio-editor-design-system .audio-editor-parametric-eq__graph {
+	.audio-editor-parametric-eq__graph {
 		min-height: 238px;
 	}
 
-	#kw-audio-editor-design-system .audio-editor-parametric-eq__inspector {
+	.audio-editor-parametric-eq__inspector {
 		position: sticky;
 		z-index: 5;
 		bottom: 0;
@@ -298,15 +298,15 @@
 		box-shadow: 0 -10px 28px rgb(0 0 0 / 28%);
 	}
 
-	#kw-audio-editor-design-system .audio-editor-parametric-eq__toolbar label:first-of-type {
+	.audio-editor-parametric-eq__toolbar label:first-of-type {
 		margin-inline-start: 0;
 	}
 
-	#kw-audio-editor-design-system .audio-editor-parametric-eq__output {
+	.audio-editor-parametric-eq__output {
 		grid-template-columns: 1fr 78px;
 	}
 
-	#kw-audio-editor-design-system .audio-editor-parametric-eq__output > span {
+	.audio-editor-parametric-eq__output > span {
 		grid-column: 1 / -1;
 	}
 }

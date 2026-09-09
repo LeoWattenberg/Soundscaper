@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-#kw-audio-editor-design-system .audio-editor-timecode-input {
+.audio-editor-timecode-input {
 	position: relative;
 	display: inline-flex;
 	align-items: center;
@@ -10,7 +10,7 @@
 	vertical-align: middle;
 }
 
-#kw-audio-editor-design-system .audio-editor-timecode-input__value {
+.audio-editor-timecode-input__value {
 	position: absolute;
 	width: 1px;
 	height: 1px;
@@ -21,7 +21,7 @@
 	pointer-events: none;
 }
 
-#kw-audio-editor-design-system .audio-editor-timecode-input__sign {
+.audio-editor-timecode-input__sign {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -29,13 +29,13 @@
 	width: 24px;
 	height: 28px;
 	padding: 0;
-	border: 1px solid var(--kw-editor-line);
+	border: 1px solid var(--line);
 	border-radius: 3px;
-	background: var(--kw-editor-control);
-	color: var(--kw-editor-text);
+	background: var(--control);
+	color: var(--text);
 	font-variant-numeric: tabular-nums;
 }
 
-#kw-audio-editor-design-system .audio-editor-timecode-input__sign:disabled {
+.audio-editor-timecode-input__sign:disabled {
 	opacity: 0.45;
 }

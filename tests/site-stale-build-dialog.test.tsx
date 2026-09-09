@@ -78,7 +78,7 @@ function click(node: ReactTestElement): unknown {
 }
 
 function actions(dom: ReactTestDom): ReactTestElement[] {
-	return dom.one('.stale-build-actions').querySelectorAll('button');
+	return dom.one('.website-stale-build-actions').querySelectorAll('button');
 }
 
 test('an idle store renders no prompt at all', async () => {

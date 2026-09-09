@@ -86,5 +86,5 @@ test('the primary button label is chosen for the worst fill, not for the idle on
 
 test('the runtime publishes the primary button label by measurement, not by name', async () => {
 	const runtime = await readFile(RUNTIME, 'utf8');
-	assert.match(runtime, /'--kw-editor-primary-button-text':\s*readablePrimaryButtonText\(/u);
+	assert.match(runtime, /'--primary-button-text':\s*readablePrimaryButtonText\(/u);
 });

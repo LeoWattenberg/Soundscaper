@@ -49,10 +49,10 @@ export default function StaleBuildDialog({ copy }) {
 	if (!open) return null;
 	const reloading = snapshot.status === 'reloading';
 	return (
-		<div className="stale-build-overlay" data-stale-build-overlay>
+		<div className="website-stale-build-overlay" data-stale-build-overlay>
 			<div
 				ref={surface}
-				className="stale-build-dialog"
+				className="website-stale-build-dialog"
 				role="alertdialog"
 				aria-modal="true"
 				aria-labelledby="stale-build-title"
@@ -60,14 +60,14 @@ export default function StaleBuildDialog({ copy }) {
 			>
 				<h2 id="stale-build-title">{copy.staleBuildTitle}</h2>
 				<p id="stale-build-message">{copy.staleBuildMessage}</p>
-				<div className="stale-build-actions">
+				<div className="website-stale-build-actions">
 					<button type="button" onClick={() => dismissStaleBuild()} disabled={reloading}>
 						{copy.staleBuildCancel}
 					</button>
 					<button
 						ref={reloadButton}
 						type="button"
-						className="stale-build-confirm"
+						className="website-stale-build-confirm"
 						data-stale-build-reload
 						disabled={reloading}
 						onClick={() => { void reloadStaleBuild(); }}

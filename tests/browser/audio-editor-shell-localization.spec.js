@@ -26,14 +26,14 @@ test.describe('audio editor React/design-system workflows', () => {
 
 	test('uses branded navigation standalone and a chrome-free embed surface', async ({ page }) => {
 		await page.goto('/en/');
-		await expect(page.locator('.site-sidebar')).toBeVisible();
-		await expect(page.locator('.brand')).toContainText('Soundscaper');
+		await expect(page.locator('.website-site-sidebar')).toBeVisible();
+		await expect(page.locator('.website-brand')).toContainText('Soundscaper');
 		await expect(page.locator('link[rel="icon"][href="/logo/logo-klein-schwarz.svg"]')).toHaveAttribute('media', '(prefers-color-scheme: light)');
 		await expect(page.locator('link[rel="icon"][href="/logo/logo-klein-weiß.svg"]')).toHaveAttribute('media', '(prefers-color-scheme: dark)');
 
 		await page.goto('/embed/en/');
-		await expect(page.locator('.site-sidebar')).toHaveCount(0);
-		await expect(page.locator('.tool-intro')).toBeHidden();
+		await expect(page.locator('.website-site-sidebar')).toHaveCount(0);
+		await expect(page.locator('.website-tool-intro')).toBeHidden();
 		await expect(page.locator('[data-audio-editor]')).toHaveAttribute('data-audio-editor-bound', 'true');
 	});
 
@@ -86,7 +86,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.goto(resolveBrowserProductTestUrl('/framescaper/en/'));
 		const editor = await waitForEditor(page);
 		const workspaceSelect = page.locator('[data-sidebar] [data-workspace-select]');
-		const settingsSection = page.locator('[data-sidebar] .sidebar-settings');
+		const settingsSection = page.locator('[data-sidebar] .website-sidebar-settings');
 		await expect(workspaceSelect).toBeEnabled();
 		await expect(settingsSection.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
 		await expect(settingsSection.getByRole('button', { name: 'Switch color theme', exact: true })).toBeVisible();

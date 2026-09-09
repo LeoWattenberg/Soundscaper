@@ -145,7 +145,7 @@ test('both product manifests declare the colours the stylesheet actually paints'
 	// `background_color` under the splash. Neither is a value the manifest may
 	// invent - a chrome colour the page never paints draws a seam along the top
 	// of the window, and a splash colour the page never paints flashes at the
-	// moment the document takes over - so both are held to `--color-surface`.
+	// moment the document takes over - so both are held to `--website-color-surface`.
 	const light = await siteSurfaceColor('light');
 	const dark = await siteSurfaceColor('dark');
 	assert.match(light, /^#[0-9a-f]{6}$/u);
@@ -244,8 +244,8 @@ function themeColorMetas(html) {
 async function siteSurfaceColor(theme) {
 	const css = await readFile('src/common/site/site.css', 'utf8');
 	const root = theme === 'dark' ? String.raw`:root\[data-theme='dark'\]` : ':root';
-	const declaration = new RegExp(`${root}\\s*\\{[^}]*?--color-surface:\\s*([^;]+);`, 'u').exec(css);
-	assert.ok(declaration, `site.css declares a ${theme} --color-surface`);
+	const declaration = new RegExp(`${root}\\s*\\{[^}]*?--website-color-surface:\\s*([^;]+);`, 'u').exec(css);
+	assert.ok(declaration, `site.css declares a ${theme} --website-color-surface`);
 	return declaration[1].trim();
 }
 

@@ -176,7 +176,7 @@ test.describe('Soundscaper timeline selection rendering', () => {
 			const lastRow = [...root.querySelectorAll('.audio-editor-track-row')].at(-1);
 			const listTop = list.getBoundingClientRect().top;
 			const surface = document.createElement('div');
-			surface.style.background = 'var(--kw-editor-stage-raised)';
+			surface.style.background = 'var(--stage-raised)';
 			root.append(surface);
 			const raised = getComputedStyle(surface).backgroundColor;
 			surface.remove();

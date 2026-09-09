@@ -175,8 +175,8 @@ test.describe('compact layout', () => {
 		await page.setViewportSize(PHONE_PORTRAIT);
 		const editor = await bootEditor(page, '/en/');
 		await waitForResponsiveEditorLayout(editor);
-		const intro = page.locator('.tool-intro');
-		const body = intro.locator('.tool-intro-body');
+		const intro = page.locator('.website-tool-intro');
+		const body = intro.locator('.website-tool-intro-body');
 		const toggle = intro.getByRole('button', { name: 'Show introduction', exact: true });
 		await expect(intro).toHaveAttribute('data-expanded', 'false');
 		await expect(body).toBeHidden();

@@ -4,14 +4,14 @@
 	display: flex;
 	align-items: stretch;
 	min-height: 28px;
-	border-bottom: 1px solid var(--kw-color-border-subtle, rgba(128, 128, 128, 0.25));
-	background: var(--kw-color-surface-raised, rgba(128, 128, 128, 0.08));
+	border-bottom: 1px solid var(--color-border-subtle, rgba(128, 128, 128, 0.25));
+	background: var(--color-surface-raised, rgba(128, 128, 128, 0.08));
 	cursor: default;
 	outline-offset: -2px;
 }
 
 .audio-editor-track-folder-row.is-selected {
-	background: var(--kw-color-surface-selected, rgba(90, 130, 200, 0.22));
+	background: var(--color-surface-selected, rgba(90, 130, 200, 0.22));
 }
 
 .audio-editor-track-folder-row.is-hidden .audio-editor-track-folder-row__name {
@@ -26,7 +26,7 @@
 	box-sizing: border-box;
 	padding-inline-start: calc(6px + (var(--track-folder-level, 1) - 1) * 14px);
 	padding-inline-end: 6px;
-	border-inline-end: 1px solid var(--kw-color-border-subtle, rgba(128, 128, 128, 0.25));
+	border-inline-end: 1px solid var(--color-border-subtle, rgba(128, 128, 128, 0.25));
 	overflow: hidden;
 }
 
@@ -63,7 +63,7 @@
 	inline-size: 20px;
 	block-size: 18px;
 	padding: 0;
-	border: 1px solid var(--kw-color-border-subtle, rgba(128, 128, 128, 0.4));
+	border: 1px solid var(--color-border-subtle, rgba(128, 128, 128, 0.4));
 	border-radius: 3px;
 	background: transparent;
 	color: inherit;
@@ -73,9 +73,9 @@
 }
 
 .audio-editor-track-folder-row__toggle[aria-pressed='true'] {
-	background: var(--kw-color-accent, #4f87c8);
-	border-color: var(--kw-color-accent, #4f87c8);
-	color: var(--kw-color-on-accent, #ffffff);
+	background: var(--color-accent, #4f87c8);
+	border-color: var(--color-accent, #4f87c8);
+	color: var(--color-on-accent, #ffffff);
 }
 
 .audio-editor-track-folder-row__toggle:disabled,
@@ -91,8 +91,8 @@
 			-45deg,
 			transparent,
 			transparent 10px,
-			var(--kw-color-border-subtle, rgba(128, 128, 128, 0.12)) 10px,
-			var(--kw-color-border-subtle, rgba(128, 128, 128, 0.12)) 11px
+			var(--color-border-subtle, rgba(128, 128, 128, 0.12)) 10px,
+			var(--color-border-subtle, rgba(128, 128, 128, 0.12)) 11px
 		);
 }
 

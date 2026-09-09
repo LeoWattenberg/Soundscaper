@@ -8,7 +8,7 @@ test('the public privacy URL renders only the Soundscaper policy dialog', async 
 	await expect(dialog.getByRole('heading', { name: '1. Scope and overview', exact: true })).toBeVisible();
 	await expect(dialog.getByText('privacy@support.soundscaper.org', { exact: true }).first()).toBeVisible();
 	await expect(page.locator('[data-audio-editor]')).toHaveCount(0);
-	await expect(page.locator('.site-shell')).toHaveCount(0);
+	await expect(page.locator('.website-site-shell')).toHaveCount(0);
 });
 
 test('the sidebar and Help menu open the same policy dialog without leaving the editor', async ({ page }) => {

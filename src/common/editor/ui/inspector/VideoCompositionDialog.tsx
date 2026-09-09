@@ -50,7 +50,7 @@ interface VideoCompositionDialogProps {
 type TextDraftKey = Exclude<keyof VideoCompositionDraft,
 	'flipHorizontal' | 'flipVertical' | 'blendMode'>;
 
-const COMPOSITION_FIELD_STYLE = Object.freeze({ color: 'var(--kw-editor-text)' });
+const COMPOSITION_FIELD_STYLE = Object.freeze({ color: 'var(--text)' });
 
 export default function VideoCompositionDialog({
 	productId,

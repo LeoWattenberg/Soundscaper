@@ -82,39 +82,39 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 	const darkTheme = theme === 'dark';
 
 	return (
-		<aside className="site-sidebar" data-sidebar data-product={productId} data-locale={localeDescriptor.locale} data-collapsed={String(collapsed)} aria-label={copy.label}>
-			<a className="brand" href={productHref(productId, locale)} aria-label={profile.name}>
-				<img className="logo-wide" src={darkTheme ? '/logo/logo-weiß.svg' : '/logo/logo-schwarz.svg'} alt="kw.media" width="230" height="91" />
-				<img className="logo-small" src={darkTheme ? '/logo/logo-klein-weiß.svg' : '/logo/logo-klein-schwarz.svg'} alt="" width="48" height="48" />
+		<aside className="website-site-sidebar" data-sidebar data-product={productId} data-locale={localeDescriptor.locale} data-collapsed={String(collapsed)} aria-label={copy.label}>
+			<a className="website-brand" href={productHref(productId, locale)} aria-label={profile.name}>
+				<img className="website-logo-wide" src={darkTheme ? '/logo/logo-weiß.svg' : '/logo/logo-schwarz.svg'} alt="kw.media" width="230" height="91" />
+				<img className="website-logo-small" src={darkTheme ? '/logo/logo-klein-weiß.svg' : '/logo/logo-klein-schwarz.svg'} alt="" width="48" height="48" />
 				<strong>{profile.name}</strong>
 			</a>
-			<button className="sidebar-collapse" type="button" data-sidebar-collapse aria-label={collapsed ? copy.expand : copy.collapse} aria-expanded={String(!collapsed)} onClick={toggleCollapsed}>
+			<button className="website-sidebar-collapse" type="button" data-sidebar-collapse aria-label={collapsed ? copy.expand : copy.collapse} aria-expanded={String(!collapsed)} onClick={toggleCollapsed}>
 				<span aria-hidden="true">‹</span>
 			</button>
-			<div className="sidebar-content" data-sidebar-content>
-				<nav className="sidebar-nav" aria-label={copy.label}>
-						<a className="sidebar-link is-active" href={productHref(productId, locale)} aria-current="page">{productId === 'framescaper' ? profile.name : copy.editor}</a>
-						<a className="sidebar-link" href={productHref(otherProduct.id, locale)}>{otherProduct.name}</a>
-						<a className="sidebar-link" href={`https://kw.media/${chromeLocale}/tools/`}>{copy.tools}</a>
-						<a className="sidebar-link" href={`https://kw.media/${chromeLocale}/audacity/`}>{copy.guides}</a>
-						<a className="sidebar-link" href={privacyPolicyUrl(productId, locale)} onClick={openPrivacyPolicy}>{copy.legal}</a>
-						<a className="sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper/issues/new" target="_blank" rel="noreferrer">{copy.reportIssue}</a>
-						<a className="sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper" target="_blank" rel="noreferrer">{copy.github}</a>
+			<div className="website-sidebar-content" data-sidebar-content>
+				<nav className="website-sidebar-nav" aria-label={copy.label}>
+						<a className="website-sidebar-link website-is-active" href={productHref(productId, locale)} aria-current="page">{productId === 'framescaper' ? profile.name : copy.editor}</a>
+						<a className="website-sidebar-link" href={productHref(otherProduct.id, locale)}>{otherProduct.name}</a>
+						<a className="website-sidebar-link" href={`https://kw.media/${chromeLocale}/tools/`}>{copy.tools}</a>
+						<a className="website-sidebar-link" href={`https://kw.media/${chromeLocale}/audacity/`}>{copy.guides}</a>
+						<a className="website-sidebar-link" href={privacyPolicyUrl(productId, locale)} onClick={openPrivacyPolicy}>{copy.legal}</a>
+						<a className="website-sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper/issues/new" target="_blank" rel="noreferrer">{copy.reportIssue}</a>
+						<a className="website-sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper" target="_blank" rel="noreferrer">{copy.github}</a>
 				</nav>
-				<section className="sidebar-settings" aria-labelledby="sidebar-settings-title">
+				<section className="website-sidebar-settings" aria-labelledby="sidebar-settings-title">
 					<h2 id="sidebar-settings-title">{copy.settings}</h2>
-					<label className="sidebar-workspace">
+					<label className="website-sidebar-workspace">
 						<span>{copy.workspace}</span>
 						<select data-workspace-select aria-label={copy.workspace} value={workspace.activeId} disabled={!workspace.workspaces.length} onChange={selectWorkspace}>
 							{workspaces.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
 						</select>
 					</label>
-					<div className="sidebar-actions">
-						<button className="theme-toggle" type="button" data-theme-toggle aria-label={copy.theme} aria-pressed={String(theme === 'dark')} onClick={toggleTheme}>
-							<span className="theme-toggle-track" aria-hidden="true"><span className="theme-toggle-thumb"></span></span>
+					<div className="website-sidebar-actions">
+						<button className="website-theme-toggle" type="button" data-theme-toggle aria-label={copy.theme} aria-pressed={String(theme === 'dark')} onClick={toggleTheme}>
+							<span className="website-theme-toggle-track" aria-hidden="true"><span className="website-theme-toggle-thumb"></span></span>
 							<span data-theme-label>{theme === 'dark' ? copy.dark : copy.light}</span>
 						</button>
-						<label className="language-picker">
+						<label className="website-language-picker">
 							<span>{copy.language}</span>
 							<select data-locale-select aria-label={copy.language} value={localeDescriptor.locale} onChange={selectLocale}>
 								{localeOptions.map(({ locale: optionLocale, name }) => <option key={optionLocale} value={optionLocale}>{name}</option>)}

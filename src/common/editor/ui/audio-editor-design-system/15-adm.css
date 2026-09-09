@@ -1,78 +1,78 @@
-#kw-audio-editor-design-system .audio-editor-adm-fields {
+.audio-editor-adm-fields {
 	display: grid;
 	gap: 8px;
 }
 
-#kw-audio-editor-design-system .audio-editor-adm-fields > label {
+.audio-editor-adm-fields > label {
 	display: grid;
 	grid-template-columns: minmax(145px, .42fr) minmax(0, 1fr);
 	align-items: center;
 	gap: 10px;
 }
 
-#kw-audio-editor-design-system .audio-editor-adm-fields > label > span,
-#kw-audio-editor-design-system .audio-editor-adm-routing legend {
-	color: var(--kw-editor-muted);
+.audio-editor-adm-fields > label > span,
+.audio-editor-adm-routing legend {
+	color: var(--muted);
 	font-weight: 700;
 }
 
-#kw-audio-editor-design-system .audio-editor-adm-fields :is(input, select) {
+.audio-editor-adm-fields :is(input, select) {
 	min-width: 0;
 	padding: 5px 6px;
 	color: inherit;
-	background: var(--kw-editor-control);
-	border: 1px solid var(--kw-editor-line);
+	background: var(--control);
+	border: 1px solid var(--line);
 	border-radius: 4px;
 	font: inherit;
 }
 
-#kw-audio-editor-design-system .audio-editor-adm-routing {
+.audio-editor-adm-routing {
 	display: grid;
 	gap: 5px;
 	min-width: 0;
 	margin: 3px 0;
 	padding: 9px;
-	border: 1px solid var(--kw-editor-line);
+	border: 1px solid var(--line);
 	border-radius: 5px;
 }
 
-#kw-audio-editor-design-system .audio-editor-adm-route {
+.audio-editor-adm-route {
 	display: grid;
 	grid-template-columns: minmax(120px, 1fr) minmax(70px, .35fr) minmax(64px, .25fr);
 	align-items: center;
 	gap: 6px;
 }
 
-#kw-audio-editor-design-system .audio-editor-adm-route > span {
+.audio-editor-adm-route > span {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-#kw-audio-editor-design-system .audio-editor-adm-objects {
+.audio-editor-adm-objects {
 	display: grid;
 	gap: 5px;
 	min-width: 0;
 	margin: 3px 0;
 	padding: 9px;
-	border: 1px solid var(--kw-editor-line);
+	border: 1px solid var(--line);
 	border-radius: 5px;
 }
 
-#kw-audio-editor-design-system .audio-editor-adm-object {
+.audio-editor-adm-object {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
 	align-items: end;
 	gap: 6px;
 	padding: 6px 0;
-	border-top: 1px solid var(--kw-editor-line);
+	border-top: 1px solid var(--line);
 }
 
-#kw-audio-editor-design-system .audio-editor-adm-object:first-of-type {
+.audio-editor-adm-object:first-of-type {
 	border-top: 0;
 }
 
-#kw-audio-editor-design-system .audio-editor-adm-object-add {
+.audio-editor-adm-object-add {
 	display: grid;
 	grid-template-columns: minmax(120px, 1fr) auto;
 	align-items: end;
@@ -80,40 +80,40 @@
 }
 
 @media (width <= 640px) {
-	#kw-audio-editor-design-system .audio-editor-adm-object,
-	#kw-audio-editor-design-system .audio-editor-adm-object-add {
+	.audio-editor-adm-object,
+	.audio-editor-adm-object-add {
 		grid-template-columns: 1fr;
 	}
 }
 
-#kw-audio-editor-design-system .audio-editor-adm-summary {
+.audio-editor-adm-summary {
 	display: grid;
 	gap: 4px;
 	margin: 0;
 }
 
-#kw-audio-editor-design-system .audio-editor-adm-summary > div {
+.audio-editor-adm-summary > div {
 	display: flex;
 	justify-content: space-between;
 	gap: 12px;
 }
 
-#kw-audio-editor-design-system .audio-editor-adm-summary :is(dt, dd) {
+.audio-editor-adm-summary :is(dt, dd) {
 	margin: 0;
 }
 
-#kw-audio-editor-design-system .audio-editor-adm-actions {
+.audio-editor-adm-actions {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 7px;
 }
 
 @media (max-width: 720px) {
-	#kw-audio-editor-design-system .audio-editor-adm-route {
+	.audio-editor-adm-route {
 		grid-template-columns: minmax(0, 1fr) minmax(64px, .45fr);
 	}
 
-	#kw-audio-editor-design-system .audio-editor-adm-route > span {
+	.audio-editor-adm-route > span {
 		grid-column: 1 / -1;
 	}
 }

@@ -195,7 +195,7 @@ test('a Framescaper rail names its own workspace and links across to the other o
 		await context.render('framescaper');
 		assert.deepEqual(optionValues(context.dom.one('[data-workspace-select]')), ['video-editor']);
 		// This build serves Soundscaper, so the peer link is the absolute one.
-		const [active, peer] = context.dom.one('.sidebar-nav').querySelectorAll('a');
+		const [active, peer] = context.dom.one('.website-sidebar-nav').querySelectorAll('a');
 		assert.equal(active?.getAttribute('href'), 'https://framescaper.org/en/');
 		assert.equal(peer?.getAttribute('href'), '/en/');
 	} finally {

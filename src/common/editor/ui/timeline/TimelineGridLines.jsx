@@ -51,7 +51,7 @@ export function TimelineGridLines({
 		context.setTransform(ratio, 0, 0, ratio, 0, 0);
 		context.clearRect(0, 0, width, canvasHeight);
 		context.lineWidth = 1;
-		context.strokeStyle = getComputedStyle(canvas).getPropertyValue('--kw-editor-stage-grid-major').trim()
+		context.strokeStyle = getComputedStyle(canvas).getPropertyValue('--stage-grid-major').trim()
 			|| '#2d2f34';
 		for (const major of [false, true]) {
 			context.globalAlpha = major ? 1 : MINOR_LINE_ALPHA;

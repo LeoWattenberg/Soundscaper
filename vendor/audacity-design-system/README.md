@@ -35,16 +35,16 @@ on npmjs and GitHub Packages needed a token even for public reads).
   tree-shaken along with their stylesheets. App code that renders a component's markup by
   class name *without* mounting the component must import that component's stylesheet
   directly by relative path (see `TimelineFlyouts.jsx` / `AudioEditorMenuBar.jsx`); the
-  scoping plugin still applies to it.
+  cascade-layer plugin still applies to it.
 - **Do not import** `components/src/style.css`: it is a stale upstream aggregate covering only
   28 of 127 component stylesheets. Component modules import their own CSS; that is the delivery
   path.
 - The vendored `package.json` files are provenance + Node module-typing only; their
   `main`/`module`/`exports` fields point at `dist/` artifacts that do not exist here and are
   bypassed by the file-targeted aliases.
-- Design-system CSS is scoped at build time by `scripts/postcss-audacity-design-system.mjs`
-  (keyed on this directory's path). CSS added here lands scoped under
-  `#kw-audio-editor-design-system` automatically.
+- Design-system CSS is placed in the `design-system` cascade layer at build time by `scripts/postcss-audacity-design-system.mjs`
+  (keyed on this directory's path). Selectors stay global, including body portals.
+  Application overrides are unlayered; website classes and tokens use `website-`.
 
 ## Local deviations from upstream
 

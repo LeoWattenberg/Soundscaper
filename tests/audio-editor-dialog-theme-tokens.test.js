@@ -24,7 +24,7 @@ test('dialog stylesheets only read theme tokens the runtime defines', async () =
 	for (const entry of await readdir(DIALOG_STYLES)) {
 		if (!entry.endsWith('.css')) continue;
 		const css = await readFile(new URL(entry, DIALOG_STYLES), 'utf8');
-		for (const [, name] of css.matchAll(/var\(\s*(--kw-[\w-]+)/gu)) {
+		for (const [, name] of css.matchAll(/var\(\s*(--[\w-]+)/gu)) {
 			if (!defined.has(name)) missing.push(`${entry}: ${name}`);
 		}
 	}
@@ -52,7 +52,7 @@ test('editor design-system styles do not read nonexistent theme-token aliases', 
 		if (!entry.endsWith('.css')) continue;
 		const css = await readFile(new URL(entry, DESIGN_SYSTEM_STYLES), 'utf8');
 		for (const [, name] of css.matchAll(
-			/var\(\s*(--kw-editor-(?:border|control-hover|text-muted))/gu,
+			/var\(\s*(--(?:border|control-hover|text-muted))(?![\w-])/gu,
 		)) invalid.push(`${entry}: ${name}`);
 	}
 
@@ -92,14 +92,14 @@ test('an unchecked checkbox is outlined, because its fill matches a dark surface
 	assert.ok(darkTheme.border.control.checkbox, 'the theme states a checkbox border colour');
 
 	const css = await readFile(new URL('01-tokens-base.css', DESIGN_SYSTEM_STYLES), 'utf8');
-	const rule = /#kw-audio-editor-design-system \.checkbox\s*\{([^}]*)\}/u.exec(css);
+	const rule = /\.checkbox\s*\{([^}]*)\}/u.exec(css);
 	assert.ok(rule, 'the editor outlines the package checkbox');
-	assert.match(rule[1], /border:\s*1px solid var\(--kw-editor-checkbox-border\)/u);
+	assert.match(rule[1], /border:\s*1px solid var\(--checkbox-border\)/u);
 });
 
 test('an unchecked context-menu toggle is outlined in dark flyouts', async () => {
 	const css = await readFile(new URL('01-tokens-base.css', DESIGN_SYSTEM_STYLES), 'utf8');
-	const rule = /#kw-audio-editor-design-system \.context-menu-item-checkmark\s*\{([^}]*)\}/u.exec(css);
+	const rule = /\.context-menu-item-checkmark\s*\{([^}]*)\}/u.exec(css);
 	assert.ok(rule, 'the editor outlines context-menu toggle cells');
-	assert.match(rule[1], /border:\s*1px solid var\(--kw-editor-checkbox-border\)/u);
+	assert.match(rule[1], /border:\s*1px solid var\(--checkbox-border\)/u);
 });

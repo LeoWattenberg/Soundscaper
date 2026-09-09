@@ -25,7 +25,7 @@ test('uses one full-bleed custom title bar with platform-scoped menu mnemonics',
 	test.skip(process.env.SOUNDSCAPER_PACKAGED_RUNTIME_METRICS !== '1', 'Runs only from nightly packaged-runtime collection.');
 	const editor = page.locator('[data-audio-editor]');
 	const chrome = await editor.evaluate((element) => {
-		const shell = document.querySelector('.site-shell');
+		const shell = document.querySelector('.website-site-shell');
 		const header = element.querySelector('[data-desktop-chrome="true"]');
 		const titlebar = header?.querySelector('.application-header__windows-titlebar');
 		const windowActions = header?.querySelector('.kw-audio-editor__window-actions');

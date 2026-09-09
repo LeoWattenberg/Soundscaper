@@ -45,19 +45,19 @@ export default function App({ route }) {
 	}
 
 	return (
-		<div className={`site-shell${embedded ? ' embedded' : ''}${desktop ? ' desktop' : ''}`}>
+		<div className={`website-site-shell${embedded ? ' website-embedded' : ''}${desktop ? ' website-desktop' : ''}`}>
 			{!embedded && <BrandSidebar locale={locale} productId={productId} />}
 			<main>
-				<section className="tool-intro" data-expanded={introExpanded ? 'true' : 'false'}>
-					<div className="container">
-						<div className="tool-intro-heading">
+				<section className="website-tool-intro" data-expanded={introExpanded ? 'true' : 'false'}>
+					<div className="website-container">
+						<div className="website-tool-intro-heading">
 							<div>
-								<p className="eyebrow">{intro.eyebrow}</p>
+								<p className="website-eyebrow">{intro.eyebrow}</p>
 								<h1>{intro.title}</h1>
 							</div>
 							<button
 								type="button"
-								className="tool-intro-toggle"
+								className="website-tool-intro-toggle"
 								aria-expanded={introExpanded}
 								aria-controls="tool-intro-body"
 								onClick={() => setIntroExpanded((expanded) => !expanded)}
@@ -65,14 +65,14 @@ export default function App({ route }) {
 								{introExpanded ? copy.introCollapse : copy.introExpand}
 							</button>
 						</div>
-						<div id="tool-intro-body" className="tool-intro-body">
-							<p className="tool-lede">{intro.intro}</p>
-							{copy.privacy && <p className="tool-note">{copy.privacy}</p>}
+						<div id="tool-intro-body" className="website-tool-intro-body">
+							<p className="website-tool-lede">{intro.intro}</p>
+							{copy.privacy && <p className="website-tool-note">{copy.privacy}</p>}
 						</div>
 					</div>
 				</section>
-				<section className="section audio-editor-section tool-workspace">
-					<div className="container audio-editor-container">
+				<section className="website-section website-audio-editor-section website-tool-workspace">
+					<div className="website-container website-audio-editor-container">
 						<Suspense fallback={<div role="status" aria-live="polite">{copy.loading}</div>}>
 							<EditorBootstrap
 								locale={locale}

@@ -42,10 +42,10 @@ export function MusicalTimelineRuler({
 		canvas.style.height = `${height}px`;
 		context.setTransform(ratio, 0, 0, ratio, 0, 0);
 		const styles = getComputedStyle(canvas);
-		const background = cssColor(styles, '--kw-editor-stage-raised', '#202124');
-		const foreground = cssColor(styles, '--kw-editor-text', '#f5f5f5');
-		const line = cssColor(styles, '--kw-editor-line', '#72757a');
-		const accent = cssColor(styles, '--kw-editor-accent', '#8ab4f8');
+		const background = cssColor(styles, '--stage-raised', '#202124');
+		const foreground = cssColor(styles, '--text', '#f5f5f5');
+		const line = cssColor(styles, '--line', '#72757a');
+		const accent = cssColor(styles, '--accent', '#8ab4f8');
 		context.fillStyle = background;
 		context.fillRect(0, 0, renderWidth, height);
 		const middle = Math.floor(height / 2);

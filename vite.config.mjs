@@ -18,11 +18,11 @@ import {
 } from './scripts/lib/product-release-lines.mjs';
 import { authoredWildcardResponseHeaders } from './scripts/lib/static-response-headers.mjs';
 import { enforceStartupGraphBudgets } from './scripts/lib/startup-graph-budget.mjs';
-import scopeAudacityDesignSystemCss, {
-	getScopedDesignSystemFiles,
+import layerAudacityDesignSystemCss, {
+	getLayeredDesignSystemFiles,
 	isDesignSystemCssFile,
 	normalizeDesignSystemCssFile,
-	resetScopedDesignSystemFileCount,
+	resetLayeredDesignSystemFileCount,
 } from './scripts/postcss-audacity-design-system.mjs';
 import { createPffftNodeModuleBrowserShim } from './scripts/vite-pffft-browser-shim.mjs';
 import { PRODUCT_IDS, normalizeProductId } from './src/common/product-identities.js';
@@ -64,14 +64,14 @@ function resolveBuiltProductId(value) {
 }
 
 /** @returns {import('vite').Plugin} */
-function assertDesignSystemCssScoped() {
+function assertDesignSystemCssLayered() {
 	const transformed = new Set();
 	return {
-		name: 'kw-assert-design-system-css-scoped',
+		name: 'kw-assert-design-system-css-layered',
 		apply: 'build',
 		buildStart() {
 			transformed.clear();
-			resetScopedDesignSystemFileCount();
+			resetLayeredDesignSystemFileCount();
 		},
 		transform(_code, id) {
 			if (isDesignSystemCssFile(id)) transformed.add(normalizeDesignSystemCssFile(id));
@@ -79,12 +79,12 @@ function assertDesignSystemCssScoped() {
 		},
 		closeBundle() {
 			const expected = [...transformed].sort();
-			const scoped = getScopedDesignSystemFiles();
-			if (!expected.length || JSON.stringify(scoped) !== JSON.stringify(expected)) {
-				const missing = expected.filter((file) => !scoped.includes(file));
-				const unexpected = scoped.filter((file) => !transformed.has(file));
+			const layered = getLayeredDesignSystemFiles();
+			if (!expected.length || JSON.stringify(layered) !== JSON.stringify(expected)) {
+				const missing = expected.filter((file) => !layered.includes(file));
+				const unexpected = layered.filter((file) => !transformed.has(file));
 				throw new Error(
-					'Design-system CSS scoping did not match Vite\'s exact transformed inventory. '
+					'Design-system CSS layering did not match Vite\'s exact transformed inventory. '
 					+ `Missing: ${missing.join(', ') || 'none'}. Unexpected: ${unexpected.join(', ') || 'none'}.`,
 				);
 			}
@@ -104,7 +104,7 @@ export default defineConfig({
 	plugins: [
 		createPffftNodeModuleBrowserShim(),
 		react(),
-		assertDesignSystemCssScoped(),
+		assertDesignSystemCssLayered(),
 		enforceStartupGraphBudgets(productId),
 		...(productId === 'soundscaper' && desktopCodecComposition
 			? [emitDesktopRendererProductPublicAssets(import.meta.dirname, productId)]
@@ -161,7 +161,7 @@ export default defineConfig({
 	},
 	css: {
 		postcss: {
-			plugins: [scopeAudacityDesignSystemCss()],
+			plugins: [layerAudacityDesignSystemCss()],
 		},
 	},
 });
