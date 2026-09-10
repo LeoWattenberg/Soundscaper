@@ -72,6 +72,46 @@ test('registration composes Browse, probe, confirmation, install, and exact IPC 
 	assert.equal(handlers.size, 0);
 });
 
+for (const detected of [true, false]) {
+	test(`fresh Linux startup discovers FFmpeg before IPC registration (available: ${detected})`, async () => {
+		const settings = settingsFixture();
+		const probes: Array<string | null> = [];
+		const handlers = new Map<string, (...arguments_: unknown[]) => unknown>();
+		const evidence = available();
+		evidence.evidence.executablePath = '/usr/bin/ffmpeg';
+		evidence.evidence.identity.ffprobePath = '/usr/bin/ffprobe';
+		const registration = await registerExternalFfmpegPreferences({
+			channels: CHANNELS, settings,
+			handle: (channel: string, listener: (...arguments_: unknown[]) => unknown) => {
+				assert.deepEqual(probes, [null]);
+				handlers.set(channel, listener);
+			},
+			removeHandler: (channel: string) => { handlers.delete(channel); },
+			dialog: {
+				showOpenDialog: () => Promise.reject(new Error('must not browse')),
+				showMessageBox: () => Promise.reject(new Error('must not confirm')),
+			},
+			windowFor: () => null, platform: 'linux', architecture: 'x64',
+			userDataPath: '/data', environment: {}, mkdir: () => Promise.resolve(),
+			loadModules: async () => ({
+				createExternalFfmpegInstallerBroker,
+				createExternalFfmpegInstallerNodeRunner: () => async () => { throw new Error('must not install'); },
+				createExternalFfmpegPreferenceNodeProbe: () => async (selectedPath: string | null) => {
+					probes.push(selectedPath);
+					return detected ? evidence : {
+						status: 'unavailable', state: 'unavailable', location: null, detail: 'FFmpeg is not installed.',
+					};
+				},
+				createExternalFfmpegPreferenceService, planExternalFfmpegInstall, registerExternalFfmpegPreferenceMainIpc,
+			}),
+		});
+		assert.equal((await handlers.get('status')?.({}) as { state: string }).state, detected ? 'ready' : 'unavailable');
+		assert.equal(registration.service.admission()?.executablePath ?? null, detected ? '/usr/bin/ffmpeg' : null);
+		assert.equal(settings.snapshot().externalFfmpegSelection?.executablePath ?? null, detected ? '/usr/bin/ffmpeg' : null);
+		registration.dispose();
+	});
+}
+
 test('registration reprobes an explicitly persisted selection before exposing the service', async () => {
 	const probes: Array<string | null> = [];
 	let confirmations = 0;
@@ -166,7 +206,7 @@ test('cancelled file and install dialogs cause no mutation or package-manager pr
 			showOpenDialog: () => Promise.resolve({ canceled: true, filePaths: [] }),
 			showMessageBox: () => Promise.resolve({ response: 0 }),
 		},
-		windowFor: () => null, platform: 'linux', architecture: 'x64',
+		windowFor: () => null, platform: 'darwin', architecture: 'arm64',
 		userDataPath: '/data', environment: {}, mkdir: () => Promise.resolve(),
 		packageManagerExecutableAvailable: async () => true,
 		loadModules: async () => ({

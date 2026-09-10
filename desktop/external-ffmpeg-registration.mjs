@@ -41,7 +41,8 @@ export async function registerExternalFfmpegPreferences(options) {
 			plan: candidate, confirmed: true, signal: abort.signal,
 		}),
 	});
-	if (options.settings.snapshot().externalFfmpegSelection !== null) {
+	// Linux packages use the system FFmpeg, including on the first launch.
+	if (options.platform === 'linux' || options.settings.snapshot().externalFfmpegSelection !== null) {
 		await service.rescan();
 	}
 	const ipc = modules.registerExternalFfmpegPreferenceMainIpc({
