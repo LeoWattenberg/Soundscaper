@@ -1,6 +1,6 @@
 {
 	"locale": "hi",
-	"provenance": {"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","promptVersion":"docs-chrome-v1"},
+	"provenance": {"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","promptVersion":"docs-chrome-v1"},
 	"entries": {
 		"sidebar.framescaper": ["Framescaper","Framescaper"],
 		"sidebar.guides": ["How-to guides","कैसे करें गाइड"],
@@ -25,6 +25,12 @@
 		"sidebar.reference.overview": ["Overview","अवलोकन"],
 		"sidebar.reference.platforms": ["Platforms and packages","प्लेटफॉर्म्स और पैकेजेस"],
 		"sidebar.reference.product-capabilities": ["Product capabilities","प्रोडक्ट क्षमताएँ"],
-		"sidebar.reference.project-files": ["Project and label files","प्रोजेक्ट और लेबल फाइल्स"]
+		"sidebar.reference.project-files": ["Project and label files","प्रोजेक्ट और लेबल फाइल्स"],
+		"sidebar.reference.video-effects": ["Video effects","वीडियो प्रभाव"],
+		"sidebar.reference.workspaces": ["Workspaces and panels","वर्कस्पेस और पैनल"],
+		"sidebar.soundscaper": ["Soundscaper","Soundscaper"],
+		"sidebar.start": ["Start here","यहाँ से शुरू करें"],
+		"sidebar.tutorials": ["Tutorials","ट्यूटोरियल"],
+		"site.title": ["Soundscaper Handbook","Soundscaper Handbook"]
 	}
 }
