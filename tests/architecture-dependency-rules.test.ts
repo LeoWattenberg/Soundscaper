@@ -22,6 +22,12 @@ import test from 'node:test';
  */
 
 const CONFIGURATION = createRequire(import.meta.url)('../.dependency-cruiser.cjs') as {
+	readonly allowedSeverity?: string;
+	readonly allowed?: readonly {
+		readonly comment?: string;
+		readonly from: Readonly<Record<string, unknown>>;
+		readonly to: Readonly<Record<string, unknown>>;
+	}[];
 	readonly forbidden: readonly {
 		readonly name: string;
 		readonly comment?: string;
@@ -43,9 +49,30 @@ test('the cruiser extracts type-only edges, so the layering rules can see them',
 });
 
 test('every rule is an error, so none of them degrades to advice', () => {
+	assert.equal(CONFIGURATION.allowedSeverity, 'error');
 	for (const forbidden of CONFIGURATION.forbidden) {
 		assert.equal(forbidden.severity, 'error', forbidden.name);
 	}
+});
+
+test('controller domains expose only direct public modules across ownership boundaries', () => {
+	assert.deepEqual(CONFIGURATION.allowed, [
+		{
+			comment: 'Dependencies whose target is outside controller domains are unaffected.',
+			from: {},
+			to: { pathNot: '^src/common/editor/controller/' },
+		},
+		{
+			comment: 'A controller domain may use its own public and private modules.',
+			from: { path: '^src/common/editor/controller/([^/]+)/' },
+			to: { path: '^src/common/editor/controller/$1/' },
+		},
+		{
+			comment: 'Other domains and product code may import only direct public modules.',
+			from: {},
+			to: { path: '^src/common/editor/controller/[^/]+/[^/]+$' },
+		},
+	]);
 });
 
 test('no-circular forbids the cycles that survive compilation and says why the rest pass', () => {
@@ -81,6 +108,7 @@ test('check:architecture cruises every maintained source tree', () => {
 	const cruise = /dependency-cruiser ([^&|]+)/u.exec(script);
 	assert.ok(cruise, `check:architecture must run dependency-cruiser, got ${script}`);
 	assert.deepEqual(cruise[1]!.trim().split(/\s+/u), ['src', 'desktop', 'native']);
+	assert.match(script, /node scripts\/check-controller-domains\.mjs/u);
 });
 
 test('the desktop boundary is one-way, and names what src may read', () => {

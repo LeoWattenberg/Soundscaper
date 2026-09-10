@@ -68,6 +68,24 @@ const ELECTRON = '(?:^|/)electron(?:/|$)';
 
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
+	allowedSeverity: 'error',
+	allowed: [
+		{
+			comment: 'Dependencies whose target is outside controller domains are unaffected.',
+			from: {},
+			to: { pathNot: '^src/common/editor/controller/' },
+		},
+		{
+			comment: 'A controller domain may use its own public and private modules.',
+			from: { path: '^src/common/editor/controller/([^/]+)/' },
+			to: { path: '^src/common/editor/controller/$1/' },
+		},
+		{
+			comment: 'Other domains and product code may import only direct public modules.',
+			from: {},
+			to: { path: '^src/common/editor/controller/[^/]+/[^/]+$' },
+		},
+	],
 	forbidden: [
 		{
 			name: 'no-circular',
