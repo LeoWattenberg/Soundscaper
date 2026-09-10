@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "nl",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:0672a3687b6f4d500258ded5309f7ce03a59815e4a1192fab938e00478e9f04c","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:d915869fcfa7aa4f9e227ca5cc474637351470ab8a68e4f4b84d593348cd0404","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
 	},
 	"entries": {
@@ -1950,10 +1950,13 @@
 		"silenceFinder": ["machine","Silence finder","Stiltezoeker"],
 		"silenceGenerator": ["machine","Silence","Stilte"],
 		"skin": ["machine","Skin","Uiterlijk"],
+		"skinCarousel": ["machine","carousel","carrousel"],
 		"skinDefault": ["machine","Default","Standaard"],
 		"skinEndPreview": ["machine","End preview","Voorbeeld beëindigen"],
 		"skinKeep": ["machine","Keep this skin","Dit uiterlijk behouden"],
+		"skinNext": ["machine","Next skins","Volgende skins"],
 		"skinPreview": ["machine","Previewing {skin}. Your saved skin has not changed.","Voorbeeld van {skin}. Je opgeslagen uiterlijk is niet gewijzigd."],
+		"skinPrevious": ["machine","Previous skins","Vorige skins"],
 		"skinSaveError": ["machine","Could not save the skin. Please try again.","Het uiterlijk kon niet worden opgeslagen. Probeer het opnieuw."],
 		"skipTo": ["machine","Skip to","Springen naar"],
 		"slideApplied": ["machine","Slid clip by {frames} frames; program range {programStartTimecode}–{programEndTimecode}.","Clip geschoven met {frames} frames; programmabereik {programStartTimecode}–{programEndTimecode}."],

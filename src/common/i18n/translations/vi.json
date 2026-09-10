@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "vi",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:2d66b57a7352355d6cc8d25366584fd77d4e9a766f607ccf1f2acdbd7f3658e3","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:421087adbaec28dc222f21bf1e65e1d35b39a209a4984827ae5bd344ef40dadd","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
 	},
 	"entries": {
@@ -1950,10 +1950,13 @@
 		"silenceFinder": ["machine","Silence finder","Bộ tìm khoảng lặng"],
 		"silenceGenerator": ["machine","Silence","Khoảng lặng"],
 		"skin": ["machine","Skin","Giao diện"],
+		"skinCarousel": ["machine","carousel","băng chuyền"],
 		"skinDefault": ["machine","Default","Mặc định"],
 		"skinEndPreview": ["machine","End preview","Kết thúc xem trước"],
 		"skinKeep": ["machine","Keep this skin","Giữ giao diện này"],
+		"skinNext": ["machine","Next skins","Giao diện tiếp theo"],
 		"skinPreview": ["machine","Previewing {skin}. Your saved skin has not changed.","Đang xem trước {skin}. Giao diện đã lưu của bạn không thay đổi."],
+		"skinPrevious": ["machine","Previous skins","Giao diện trước"],
 		"skinSaveError": ["machine","Could not save the skin. Please try again.","Không thể lưu giao diện. Vui lòng thử lại."],
 		"skipTo": ["machine","Skip to","Nhảy đến"],
 		"slideApplied": ["machine","Slid clip by {frames} frames; program range {programStartTimecode}–{programEndTimecode}.","Đã trượt clip {frames} khung hình; phạm vi chương trình {programStartTimecode}–{programEndTimecode}."],

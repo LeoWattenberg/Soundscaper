@@ -52,8 +52,9 @@ for (const product of ['soundscaper', 'framescaper']) {
 		for (const skin of ['sakura', 'lilac', 'techno']) {
 			for (const mode of ['Light', 'Dark']) {
 				test(`${skin}/${mode} scale, dialogs, buttons, checkboxes and portals`, async ({ page }) => {
-					await page.emulateMedia({ colorScheme: mode.toLowerCase() });
 					const editor = await bootEditor(page, `${path}?useskin=${skin}`);
+					// Apply after navigation, which can reset Firefox's media emulation.
+					await page.emulateMedia({ colorScheme: mode.toLowerCase() });
 					await importFiles(editor, [monoTone]);
 					const dialog = await appearance(page, editor);
 					await dialog.getByRole('radio', { name: mode, exact: true }).click();
@@ -126,12 +127,19 @@ for (const product of ['soundscaper', 'framescaper']) {
 			await expect(button).toHaveCSS('outline-style', 'solid');
 			await contrast(button, 'outlineColor', 3, true);
 			await page.screenshot({ path: testInfo.outputPath('Sakura-raised.png') });
-			await page.keyboard.down('Space');
+			// Native Firefox buttons activate on Space release without :active.
+			// Check face travel with the pointer, then keyboard activation below.
+			await button.hover();
+			await page.mouse.down();
 			await expect.poll(async () => (await label.boundingBox()).y - idle.y).toBeGreaterThanOrEqual(5);
 			expect(await button.boundingBox()).toEqual(bounds);
 			await contrast(button);
 			await page.screenshot({ path: testInfo.outputPath('Sakura-pressed.png') });
-			await page.keyboard.up('Space');
+			await page.mouse.move(0, 0);
+			await page.mouse.up();
+			await expect(dialog).toBeVisible();
+			await button.focus();
+			await page.keyboard.press('Space');
 			await expect(dialog).toBeHidden();
 			await appearance(page, editor);
 			await page.emulateMedia({ reducedMotion: 'reduce' });

@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { darkTheme, lightTheme, type ThemeTokens } from '@audacity-ui/tokens';
+import { darkTheme } from '../../../../../vendor/audacity-design-system/tokens/src/themes/dark.v2.ts';
+import { lightTheme } from '../../../../../vendor/audacity-design-system/tokens/src/themes/light.v2.ts';
+import type { ThemeTokens } from '@audacity-ui/tokens';
 import type { SkinId } from '../../skin-preferences.ts';
 
 export type SkinMode = 'light' | 'dark';

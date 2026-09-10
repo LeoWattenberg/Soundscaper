@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "pl",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:0fd29a24f48b9c60fa26d5c2221229b5c1b7505b81f2f981d647d8af00e3589a","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:a2f40e60deb39b5f0c72b4dc96b4768368bf8867a3ffeea4a6dcb0c8a08a067d","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
 	},
 	"entries": {
@@ -1950,10 +1950,13 @@
 		"silenceFinder": ["machine","Silence finder","Znajdź wyciszenie"],
 		"silenceGenerator": ["machine","Silence","Wyciszenie"],
 		"skin": ["machine","Skin","Skórka"],
+		"skinCarousel": ["machine","carousel","karuzela"],
 		"skinDefault": ["machine","Default","Domyślna"],
 		"skinEndPreview": ["machine","End preview","Zakończ podgląd"],
 		"skinKeep": ["machine","Keep this skin","Zachowaj tę skórkę"],
+		"skinNext": ["machine","Next skins","Następne skórki"],
 		"skinPreview": ["machine","Previewing {skin}. Your saved skin has not changed.","Podgląd skórki {skin}. Zapisana skórka nie została zmieniona."],
+		"skinPrevious": ["machine","Previous skins","Poprzednie skórki"],
 		"skinSaveError": ["machine","Could not save the skin. Please try again.","Nie udało się zapisać skórki. Spróbuj ponownie."],
 		"skipTo": ["machine","Skip to","Przejdź do"],
 		"slideApplied": ["machine","Slid clip by {frames} frames; program range {programStartTimecode}–{programEndTimecode}.","Przesunąłem klip o {frames} klatek; zakres programu {programStartTimecode}–{programEndTimecode}."],

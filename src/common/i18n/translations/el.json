@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "el",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:a76fc0ccb3008ae358a5f984d43976ed59bbbec7716220c6eba0495f3251e273","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:a4a48043ba4ea87371030c6c0a2dfd25f3ff7f5ce9b5d1ec101e11c2d940efd0","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
 	},
 	"entries": {
@@ -1950,10 +1950,13 @@
 		"silenceFinder": ["machine","Silence finder","Ανιχνευτής σιωπής"],
 		"silenceGenerator": ["machine","Silence","Σιωπή"],
 		"skin": ["machine","Skin","Εμφάνιση"],
+		"skinCarousel": ["machine","carousel","καρουζέλ"],
 		"skinDefault": ["machine","Default","Προεπιλογή"],
 		"skinEndPreview": ["machine","End preview","Τέλος προεπισκόπησης"],
 		"skinKeep": ["machine","Keep this skin","Διατήρηση εμφάνισης"],
+		"skinNext": ["machine","Next skins","Επόμενες εμφανίσεις"],
 		"skinPreview": ["machine","Previewing {skin}. Your saved skin has not changed.","Προεπισκόπηση {skin}. Η αποθηκευμένη εμφάνισή σας δεν άλλαξε."],
+		"skinPrevious": ["machine","Previous skins","Προηγούμενες εμφανίσεις"],
 		"skinSaveError": ["machine","Could not save the skin. Please try again.","Δεν ήταν δυνατή η αποθήκευση της εμφάνισης. Δοκιμάστε ξανά."],
 		"skipTo": ["machine","Skip to","Μετάβαση σε"],
 		"slideApplied": ["machine","Slid clip by {frames} frames; program range {programStartTimecode}–{programEndTimecode}.","Μετατοπίστηκε το κλιπ κατά {frames} καρέ· εύρος προγράμματος {programStartTimecode}–{programEndTimecode}."],

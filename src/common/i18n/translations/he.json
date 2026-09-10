@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "he",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:73e4559b4c89a60083e877dad5aae1d0334dff3d5d87cf78d70d4769c0688191","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:bcf1f06e7ed0d0fc99cba2f9127627f19f0cb33a7d7b96cb64fd2f2c7e910316","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
 	},
 	"entries": {
@@ -1950,10 +1950,13 @@
 		"silenceFinder": ["machine","Silence finder","מאתר שקט"],
 		"silenceGenerator": ["machine","Silence","שקט"],
 		"skin": ["machine","Skin","עיצוב"],
+		"skinCarousel": ["machine","carousel","קרוסלה"],
 		"skinDefault": ["machine","Default","ברירת מחדל"],
 		"skinEndPreview": ["machine","End preview","סיום התצוגה המקדימה"],
 		"skinKeep": ["machine","Keep this skin","שמירת העיצוב הזה"],
+		"skinNext": ["machine","Next skins","ערכות העיצוב הבאות"],
 		"skinPreview": ["machine","Previewing {skin}. Your saved skin has not changed.","תצוגה מקדימה של {skin}. העיצוב השמור שלך לא השתנה."],
+		"skinPrevious": ["machine","Previous skins","ערכות העיצוב הקודמות"],
 		"skinSaveError": ["machine","Could not save the skin. Please try again.","לא ניתן לשמור את העיצוב. יש לנסות שוב."],
 		"skipTo": ["machine","Skip to","דלג אל"],
 		"slideApplied": ["machine","Slid clip by {frames} frames; program range {programStartTimecode}–{programEndTimecode}.","הקטע הוזז ב-{frames} פריימים; טווח תוכנית {programStartTimecode}–{programEndTimecode}."],

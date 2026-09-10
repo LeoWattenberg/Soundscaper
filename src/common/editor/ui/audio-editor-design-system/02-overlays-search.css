@@ -361,6 +361,11 @@
 	min-width: 0;
 }
 
+/* Button wrappers must not add a font-dependent inline baseline below controls. */
+.kw-audio-editor__tool-toolbar .toolbar__button-group > span {
+	display: inline-flex;
+}
+
 .kw-audio-editor__workspace-toolbar {
 	display: contents;
 }

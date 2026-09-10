@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "fa",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:058ada7d34627645b543e37c28963ed6d912ec437d174db096698b55d9d5b9d0","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:06e80812100079d0ed140894863e0656fb2dca534a875cf9d8630767084d788e","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
 	},
 	"entries": {
@@ -1950,10 +1950,13 @@
 		"silenceFinder": ["machine","Silence finder","جستجوگر سکوت"],
 		"silenceGenerator": ["machine","Silence","سکوت"],
 		"skin": ["machine","Skin","پوسته"],
+		"skinCarousel": ["machine","carousel","گردونه"],
 		"skinDefault": ["machine","Default","پیش‌فرض"],
 		"skinEndPreview": ["machine","End preview","پایان پیش‌نمایش"],
 		"skinKeep": ["machine","Keep this skin","نگه داشتن این پوسته"],
+		"skinNext": ["machine","Next skins","پوسته‌های بعدی"],
 		"skinPreview": ["machine","Previewing {skin}. Your saved skin has not changed.","پیش‌نمایش {skin}. پوستهٔ ذخیره‌شدهٔ شما تغییر نکرده است."],
+		"skinPrevious": ["machine","Previous skins","پوسته‌های قبلی"],
 		"skinSaveError": ["machine","Could not save the skin. Please try again.","ذخیرهٔ پوسته ممکن نشد. دوباره تلاش کنید."],
 		"skipTo": ["machine","Skip to","پرش به"],
 		"slideApplied": ["machine","Slid clip by {frames} frames; program range {programStartTimecode}–{programEndTimecode}.","کلیپ به اندازه {frames} فریم اسلاید شد؛ بازه برنامه {programStartTimecode}–{programEndTimecode}."],

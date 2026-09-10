@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ko",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:ded7966211616677e97135a6ac4077bf0a263096abb22327abedf1ac1bb3420a","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:ae848e517227a4acb48f77686b0ab54938c995bac47b0a0ef8d9c0e250fccf23","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
 	},
 	"entries": {
@@ -1950,10 +1950,13 @@
 		"silenceFinder": ["machine","Silence finder","무음 찾기"],
 		"silenceGenerator": ["machine","Silence","무음"],
 		"skin": ["machine","Skin","스킨"],
+		"skinCarousel": ["machine","carousel","캐러셀"],
 		"skinDefault": ["machine","Default","기본"],
 		"skinEndPreview": ["machine","End preview","미리보기 종료"],
 		"skinKeep": ["machine","Keep this skin","이 스킨 유지"],
+		"skinNext": ["machine","Next skins","다음 스킨"],
 		"skinPreview": ["machine","Previewing {skin}. Your saved skin has not changed.","{skin} 미리보기 중입니다. 저장된 스킨은 변경되지 않았습니다."],
+		"skinPrevious": ["machine","Previous skins","이전 스킨"],
 		"skinSaveError": ["machine","Could not save the skin. Please try again.","스킨을 저장할 수 없습니다. 다시 시도해 주세요."],
 		"skipTo": ["machine","Skip to","이동"],
 		"slideApplied": ["machine","Slid clip by {frames} frames; program range {programStartTimecode}–{programEndTimecode}.","클립을 {frames} 프레임 이동; 프로그램 범위 {programStartTimecode}–{programEndTimecode}."],

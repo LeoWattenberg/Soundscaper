@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "zh-TW",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:3bc458aef80c659e93d5702bde061e22c238c300221802fff52dccd317ffbe18","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:78f94ee8970a361ed5472797ea956d65492405ad7f5b6c70917a161e87e6e3a3","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
 	},
 	"entries": {
@@ -1950,10 +1950,13 @@
 		"silenceFinder": ["machine","Silence finder","靜音尋找器"],
 		"silenceGenerator": ["machine","Silence","靜音"],
 		"skin": ["machine","Skin","外觀"],
+		"skinCarousel": ["machine","carousel","輪播"],
 		"skinDefault": ["machine","Default","預設"],
 		"skinEndPreview": ["machine","End preview","結束預覽"],
 		"skinKeep": ["machine","Keep this skin","保留此外觀"],
+		"skinNext": ["machine","Next skins","下一組外觀"],
 		"skinPreview": ["machine","Previewing {skin}. Your saved skin has not changed.","正在預覽 {skin}。您儲存的外觀並未變更。"],
+		"skinPrevious": ["machine","Previous skins","上一組外觀"],
 		"skinSaveError": ["machine","Could not save the skin. Please try again.","無法儲存外觀。請再試一次。"],
 		"skipTo": ["machine","Skip to","跳至"],
 		"slideApplied": ["machine","Slid clip by {frames} frames; program range {programStartTimecode}–{programEndTimecode}.","已將片段滑移 {frames} 個影格；節目範圍 {programStartTimecode}–{programEndTimecode}。"],
