@@ -19,9 +19,10 @@ node scripts/docs-ai.mjs handbook --locale fr
 A run walks every English page, translates the ones the language is missing or
 has fallen behind on into `handbook/src/content/docs/fr/`, then translates the
 navigation the site is configured with into `handbook/i18n/fr.json`. Each page
-is written as it finishes, so an interrupted run resumes where it stopped, and
-a page the model cannot answer acceptably in three attempts is named and left
-untranslated rather than stopping the language for it.
+is written as it finishes, so an interrupted run resumes where it stopped. A
+page whose assembled document fails validation is regenerated with corrective
+feedback up to three times; if it still fails, it is named and left untranslated
+rather than stopping the language for it.
 
 The handbook publishes a language by having a directory of pages for it, so the
 first page a run writes is what puts the language in the site's language
@@ -55,7 +56,7 @@ node scripts/docs-ai.mjs translate \
 
 Both commands write their target by default. Add `--stdout` only when console output is specifically wanted. Add `--check` to validate an existing output and its source provenance without contacting Ollama or changing files.
 
-An invalid model JSON, schema, Markdown structure, protected token sequence, or translated frontmatter response receives concise corrective feedback and may be attempted up to three times. Endpoint, HTTP, and timeout failures stop immediately and are never retried.
+An invalid model JSON, schema, Markdown structure, protected token sequence, or translated frontmatter response receives concise corrective feedback and may be attempted up to three times. Each model request uses a different bounded seed, and each process starts from a fresh seed, so a later run does not repeat the same rejected sequence. Endpoint, HTTP, and timeout failures stop immediately and are never retried.
 
 A draft fact packet is JSON with an English locale, simple Starlight frontmatter, and one or more bounded claims:
 
@@ -88,7 +89,7 @@ Configuration precedence:
   `qwen3.8:latest` for the rest, so a handbook page and the interface strings it quotes are written
   by the same translator.
 - Bounds: `OLLAMA_DOCS_TIMEOUT_MS`, `OLLAMA_DOCS_TEMPERATURE` (maximum `0.3`), and `OLLAMA_DOCS_CHUNK_CHARS`.
-- Cache: `DOCS_AI_CACHE_DIR`, defaulting to `.docs-ai-cache/`.
+- Cache: `DOCS_AI_CACHE_DIR`, defaulting to `.docs-ai-cache/`. Generated page answers are staged and enter the cache only after the complete page passes; a cached page that fails final validation is regenerated without those entries and replaces them only after it passes.
 
 Each output records its operation, prompt version, exact installed model digest, source hash, locale, and fact-packet identity in an HTML comment. Translation localizes the Starlight `title` and `description`, points the page's frontmatter links at its own language, preserves every other frontmatter field, protects code, URLs, link destinations, command IDs, and file extensions, then rejects structural or locale drift before writing.
 

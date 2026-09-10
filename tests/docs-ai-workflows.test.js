@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -301,4 +301,90 @@ The first section is here and the text is complete.
 	const target = await readFile(targetPath, 'utf8');
 	assert.match(target, /vollständig\.\n\n\| Name \| Beschreibung \|/u);
 	assert.match(target, /nützlich\. \|\n\| Zwei/u);
+});
+
+function finalLinkFailureClient({ recover = false } = {}) {
+	let requestCount = 0;
+	const requests = [];
+	return {
+		get requestCount() {
+			return requestCount;
+		},
+		requests,
+		async identity() {
+			return { model: 'qwen3:27b', digest: 'sha256:model' };
+		},
+		async generateJson({ prompt }) {
+			requestCount += 1;
+			requests.push(prompt);
+			const request = JSON.parse(prompt.split('\n\nPrevious complete document failed final validation:')[0]);
+			if (!Object.hasOwn(request, 'markdown')) {
+				return { locale: 'de', title: 'Anleitung', description: 'Eine kurze Anleitung.' };
+			}
+			const retryingDocument = prompt.includes('Previous complete document failed final validation:');
+			return {
+				locale: 'de',
+				markdown: request.markdown.replace(
+					'[Read guide]',
+					recover && retryingDocument ? '[Anleitung lesen]' : 'Anleitung lesen',
+				),
+			};
+		},
+	};
+}
+
+async function writeLinkedTranslationSource(directory) {
+	const sourcePath = join(directory, 'source.md');
+	await writeFile(sourcePath, `---
+title: Guide
+description: A short guide.
+---
+
+[Read guide](https://example.test/guide).
+`);
+	return sourcePath;
+}
+
+test('translation retries the complete document when individually valid chunks fail final validation', async () => {
+	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-docs-ai-'));
+	const sourcePath = await writeLinkedTranslationSource(directory);
+	const cacheDirectory = join(directory, 'cache');
+	const client = finalLinkFailureClient({ recover: true });
+
+	await translateDocument({
+		sourcePath,
+		targetPath: join(directory, 'target.md'),
+		targetLocale: 'de',
+		client,
+		cacheDirectory,
+		maxChunkChars: 2_000,
+	});
+
+	assert.equal(client.requestCount, 3);
+	assert.match(client.requests[2], /Previous complete document failed final validation/u);
+	assert.match(await readFile(join(directory, 'target.md'), 'utf8'), /\[Anleitung lesen\]\(https:\/\/example\.test\/guide\)/u);
+	const entries = await Promise.all((await readdir(cacheDirectory)).map(async (name) => (
+		JSON.parse(await readFile(join(cacheDirectory, name), 'utf8'))
+	)));
+	assert.equal(entries.length, 2);
+	assert.ok(entries.every((entry) => !entry.value.markdown || entry.value.markdown.includes('[Anleitung lesen]')));
+});
+
+test('translation does not cache any part of a document that exhausts final validation retries', async () => {
+	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-docs-ai-'));
+	const sourcePath = await writeLinkedTranslationSource(directory);
+	const cacheDirectory = join(directory, 'cache');
+	const client = finalLinkFailureClient();
+
+	await assert.rejects(() => translateDocument({
+		sourcePath,
+		targetPath: join(directory, 'target.md'),
+		targetLocale: 'de',
+		client,
+		cacheDirectory,
+		maxChunkChars: 2_000,
+	}), /changed protected content or document structure/u);
+
+	assert.equal(client.requestCount, 4);
+	await assert.rejects(() => readdir(cacheDirectory), { code: 'ENOENT' });
 });

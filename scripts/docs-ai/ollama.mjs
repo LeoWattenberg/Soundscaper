@@ -1,5 +1,9 @@
+import { randomInt } from 'node:crypto';
+
 import { docsAiRuntimeOptions, resolveOllamaUrl, resolveRoleModel } from './config.mjs';
 import { InvalidModelOutputError } from './generation.mjs';
+
+const MAX_GENERATION_SEED = 2_147_483_647;
 
 function modelCandidates(models, requested) {
 	const exact = models.filter((entry) => entry.name === requested || entry.model === requested);
@@ -25,6 +29,10 @@ export function createOllamaClient(options) {
 	});
 	let endpointPromise;
 	let identityPromise;
+	let nextSeed = options.seed ?? randomInt(0, MAX_GENERATION_SEED + 1);
+	if (!Number.isSafeInteger(nextSeed) || nextSeed < 0 || nextSeed > MAX_GENERATION_SEED) {
+		throw new Error(`Ollama seed must be an integer from 0 through ${MAX_GENERATION_SEED}.`);
+	}
 
 	async function endpoint() {
 		endpointPromise ??= options.url
@@ -59,6 +67,8 @@ export function createOllamaClient(options) {
 
 	async function generateJson({ system, prompt }) {
 		const [baseUrl, modelIdentity] = await Promise.all([endpoint(), identity()]);
+		const seed = nextSeed;
+		nextSeed = seed === MAX_GENERATION_SEED ? 0 : seed + 1;
 		const response = await fetchImpl(`${baseUrl}/api/generate`, {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
@@ -74,7 +84,7 @@ export function createOllamaClient(options) {
 				keep_alive: '5m',
 				options: {
 					temperature: runtime.temperature,
-					seed: 0,
+					seed,
 					num_predict: 4_096,
 				},
 			}),

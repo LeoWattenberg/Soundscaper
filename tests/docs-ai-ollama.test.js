@@ -4,11 +4,12 @@ import test from 'node:test';
 import { InvalidModelOutputError } from '../scripts/docs-ai/generation.mjs';
 import { createOllamaClient } from '../scripts/docs-ai/ollama.mjs';
 
-test('Ollama requests pin the installed digest identity and bounded generation options', async () => {
+test('Ollama requests pin identity and vary a bounded seed between generation attempts', async () => {
 	const requests = [];
 	const client = createOllamaClient({
 		role: 'draft',
 		url: 'http://ollama.test:11434',
+		seed: 41,
 		env: {
 			OLLAMA_DOCS_DRAFT_MODEL: 'qwen3:27b',
 			OLLAMA_DOCS_TEMPERATURE: '0.1',
@@ -39,14 +40,16 @@ test('Ollama requests pin the installed digest identity and bounded generation o
 	});
 	const result = await client.generateJson({ system: 'Closed facts.', prompt: '{"facts":[]}' });
 	assert.equal(result.markdown, 'Draft');
-	const generationRequest = requests.find((request) => request.input.endsWith('/api/generate'));
-	const body = JSON.parse(generationRequest.init.body);
+	await client.generateJson({ system: 'Closed facts.', prompt: '{"facts":[]}' });
+	const generationRequests = requests.filter((request) => request.input.endsWith('/api/generate'));
+	const body = JSON.parse(generationRequests[0].init.body);
 	assert.equal(body.model, 'qwen3:27b');
 	assert.equal(body.stream, false);
 	assert.equal(body.format, 'json');
 	assert.equal(body.think, false);
 	assert.equal(body.options.temperature, 0.1);
-	assert.equal(body.options.seed, 0);
+	assert.equal(body.options.seed, 41);
+	assert.equal(JSON.parse(generationRequests[1].init.body).options.seed, 42);
 	assert.equal(requests.filter((request) => request.input.endsWith('/api/tags')).length, 1);
 });
 

@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path';
 
 import { readCache, writeCache } from './cache.mjs';
 import { localizeFrontmatterLinks, parseTranslatableFrontmatter, replaceTranslatableFrontmatter } from './frontmatter.mjs';
-import { asInvalidModelOutput, generateValidated } from './generation.mjs';
+import { asInvalidModelOutput, generateValidated, InvalidModelOutputError } from './generation.mjs';
 import { assertDocumentationLocale, assertLocale } from './locale.mjs';
 import {
 	assertModelMarkdown,
@@ -26,6 +26,7 @@ export const DRAFT_PROMPT_VERSION = 'docs-draft-v1';
 export const TRANSLATE_PROMPT_VERSION = 'docs-translate-v1';
 const MAX_FACT_PACKET_BYTES = 64 * 1_024;
 const MAX_FACTS = 200;
+const MAX_DOCUMENT_ATTEMPTS = 3;
 const FRONTMATTER_PROMPT_VERSION = 'docs-translate-frontmatter-v1';
 const STANDALONE_PROTECTION_TOKEN_LINE = /^[\t ]*<docs-ai-token id="\d{4,}"\/>[\t ]*(?:\r?\n|$)/gmu;
 
@@ -203,7 +204,18 @@ export async function draftDocument(options) {
 	return { document, provenance, cacheIdentity: identity };
 }
 
-async function translateChunk({ chunk, chunkIndex, sourceHash, targetLocale, client, modelIdentity, cacheDirectory }) {
+async function translateChunk({
+	chunk,
+	chunkIndex,
+	sourceHash,
+	targetLocale,
+	client,
+	modelIdentity,
+	cacheDirectory,
+	useCache,
+	documentFeedback,
+	pendingCacheWrites,
+}) {
 	if (!chunk.trim()) return chunk;
 	const identity = cacheIdentity({
 		operation: 'translate',
@@ -214,8 +226,7 @@ async function translateChunk({ chunk, chunkIndex, sourceHash, targetLocale, cli
 		documentSourceSha256: sourceHash,
 		chunkIndex,
 	});
-	let response = cacheDirectory ? await readCache(cacheDirectory, identity) : null;
-	let translated;
+	const cachedResponse = cacheDirectory && useCache ? await readCache(cacheDirectory, identity) : null;
 	const validate = (candidate) => validateModelOutput(() => {
 		const modelMarkdown = validateModelMarkdown(candidate, targetLocale, { allowProtectionTokens: true });
 		const candidateMarkdown = preserveBoundaryWhitespace(chunk, modelMarkdown);
@@ -223,20 +234,26 @@ async function translateChunk({ chunk, chunkIndex, sourceHash, targetLocale, cli
 		assertStructuralParity(chunk, candidateMarkdown);
 		return candidateMarkdown;
 	});
-	if (!response) {
-		const generated = await generateValidated({
-			client,
-			system: TRANSLATE_SYSTEM_PROMPT,
-			prompt: JSON.stringify({ sourceLocale: 'en', targetLocale, markdown: chunk }),
-			validate,
-		});
-		response = generated.response;
-		translated = generated.value;
-		if (cacheDirectory) await writeCache(cacheDirectory, identity, response);
-	} else {
-		translated = validate(response);
+	if (cachedResponse) {
+		try {
+			return validate(cachedResponse);
+		} catch (error) {
+			if (!(error instanceof InvalidModelOutputError)) throw error;
+			// A validation rule may have tightened since this response was cached.
+			// Regenerate it and replace the entry only after the whole page passes.
+		}
 	}
-	return translated;
+	const prompt = JSON.stringify({ sourceLocale: 'en', targetLocale, markdown: chunk });
+	const generated = await generateValidated({
+		client,
+		system: TRANSLATE_SYSTEM_PROMPT,
+		prompt: documentFeedback
+			? `${prompt}\n\nPrevious complete document failed final validation: ${documentFeedback}\nRegenerate this chunk carefully so the complete document preserves every Markdown structure.`
+			: prompt,
+		validate,
+	});
+	if (cacheDirectory) pendingCacheWrites.push({ identity, response: generated.response });
+	return generated.value;
 }
 
 /** A model may trim an otherwise valid response; chunk joins must still match the source document. */
@@ -305,26 +322,65 @@ async function translateFrontmatter({ frontmatter, sourceHash, targetLocale, cli
 		targetLocale,
 		documentSourceSha256: sourceHash,
 	});
-	let response = cacheDirectory ? await readCache(cacheDirectory, identity) : null;
-	let translatedFrontmatter;
+	const cachedResponse = cacheDirectory ? await readCache(cacheDirectory, identity) : null;
 	const validate = (candidate) => validateModelOutput(() => {
 		const translatedFields = validateTranslatedFrontmatter(candidate, sourceFields, protectedFields, targetLocale);
 		return replaceTranslatableFrontmatter(frontmatter, translatedFields);
 	});
-	if (!response) {
-		const generated = await generateValidated({
-			client,
-			system: FRONTMATTER_SYSTEM_PROMPT,
-			prompt: JSON.stringify(promptFields),
-			validate,
-		});
-		response = generated.response;
-		translatedFrontmatter = generated.value;
-		if (cacheDirectory) await writeCache(cacheDirectory, identity, response);
-	} else {
-		translatedFrontmatter = validate(response);
+	if (cachedResponse) {
+		try {
+			return { translatedFrontmatter: validate(cachedResponse), pendingCacheWrite: null };
+		} catch (error) {
+			if (!(error instanceof InvalidModelOutputError)) throw error;
+		}
 	}
-	return translatedFrontmatter;
+	const generated = await generateValidated({
+		client,
+		system: FRONTMATTER_SYSTEM_PROMPT,
+		prompt: JSON.stringify(promptFields),
+		validate,
+	});
+	return {
+		translatedFrontmatter: generated.value,
+		pendingCacheWrite: cacheDirectory ? { identity, response: generated.response } : null,
+	};
+}
+
+function finalValidationFeedback(error) {
+	const message = error instanceof Error && error.message ? error.message : String(error);
+	const concise = message.replace(/\s+/gu, ' ').trim();
+	return concise.length <= 500 ? concise : `${concise.slice(0, 499)}…`;
+}
+
+async function translateProtectedBody(options) {
+	const translatedChunks = [];
+	const pendingCacheWrites = [];
+	let chunkIndex = 0;
+	for (const segment of translationSegments(options.protectedDocument.markdown)) {
+		if (!segment.translate) {
+			translatedChunks.push(segment.markdown);
+			continue;
+		}
+		for (const chunk of chunkProtectedMarkdown(segment.markdown, options.maxChunkChars)) {
+			translatedChunks.push(await translateChunk({
+				chunk,
+				chunkIndex,
+				sourceHash: options.sourceHash,
+				targetLocale: options.targetLocale,
+				client: options.client,
+				modelIdentity: options.modelIdentity,
+				cacheDirectory: options.cacheDirectory,
+				useCache: options.useCache,
+				documentFeedback: options.documentFeedback,
+				pendingCacheWrites,
+			}));
+			chunkIndex += 1;
+		}
+	}
+	return {
+		restoredBody: restoreMarkdown(translatedChunks.join(''), options.protectedDocument.tokens),
+		pendingCacheWrites,
+	};
 }
 
 export async function translateDocument(options) {
@@ -337,7 +393,7 @@ export async function translateDocument(options) {
 	const protectedDocument = protectMarkdown(body);
 	const modelIdentity = await options.client.identity();
 	const sourceHash = sha256(source);
-	const translatedFrontmatter = await translateFrontmatter({
+	const frontmatterResult = await translateFrontmatter({
 		frontmatter,
 		sourceHash,
 		targetLocale,
@@ -345,34 +401,38 @@ export async function translateDocument(options) {
 		modelIdentity,
 		cacheDirectory: options.cacheDirectory,
 	});
-	const translatedChunks = [];
-	let chunkIndex = 0;
-	for (const segment of translationSegments(protectedDocument.markdown)) {
-		if (!segment.translate) {
-			translatedChunks.push(segment.markdown);
-			continue;
-		}
-		for (const chunk of chunkProtectedMarkdown(segment.markdown, options.maxChunkChars ?? 6_000)) {
-			translatedChunks.push(await translateChunk({
-				chunk,
-				chunkIndex,
-				sourceHash,
-				targetLocale,
-				client: options.client,
-				modelIdentity,
-				cacheDirectory: options.cacheDirectory,
-			}));
-			chunkIndex += 1;
-		}
-	}
-	const restoredBody = restoreMarkdown(translatedChunks.join(''), protectedDocument.tokens);
 	// A hero action's link is data no Markdown transform ever sees, so the page
 	// carries the language in it itself or the reader leaves the language they
 	// are reading the moment they follow one.
-	const localizedFrontmatter = localizeFrontmatterLinks(translatedFrontmatter, targetLocale);
-	const bareDocument = `${localizedFrontmatter}${restoredBody}`;
-	assertLocale(restoredBody, targetLocale);
-	assertStructuralParity(`${localizedFrontmatter}${body}`, bareDocument);
+	const localizedFrontmatter = localizeFrontmatterLinks(frontmatterResult.translatedFrontmatter, targetLocale);
+	let bareDocument;
+	let acceptedCacheWrites;
+	let documentFeedback = '';
+	for (let attempt = 1; attempt <= MAX_DOCUMENT_ATTEMPTS; attempt += 1) {
+		const bodyResult = await translateProtectedBody({
+			protectedDocument,
+			sourceHash,
+			targetLocale,
+			client: options.client,
+			modelIdentity,
+			cacheDirectory: options.cacheDirectory,
+			maxChunkChars: options.maxChunkChars ?? 6_000,
+			useCache: attempt === 1,
+			documentFeedback,
+		});
+		const candidateDocument = `${localizedFrontmatter}${bodyResult.restoredBody}`;
+		try {
+			assertLocale(bodyResult.restoredBody, targetLocale);
+			assertStructuralParity(`${localizedFrontmatter}${body}`, candidateDocument);
+			bareDocument = candidateDocument;
+			acceptedCacheWrites = bodyResult.pendingCacheWrites;
+			break;
+		} catch (error) {
+			if (attempt === MAX_DOCUMENT_ATTEMPTS) throw error;
+			documentFeedback = finalValidationFeedback(error);
+		}
+	}
+	if (!bareDocument || !acceptedCacheWrites) throw new Error('Unreachable Docs AI document retry state.');
 	const provenance = createProvenance({
 		operation: 'translate',
 		model: modelIdentity.model,
@@ -384,6 +444,10 @@ export async function translateDocument(options) {
 		targetLocale,
 	});
 	const document = embedProvenance(bareDocument, provenance);
+	const pendingCacheWrites = [frontmatterResult.pendingCacheWrite, ...acceptedCacheWrites].filter(Boolean);
+	for (const { identity, response } of pendingCacheWrites) {
+		await writeCache(options.cacheDirectory, identity, response);
+	}
 	if (options.mode !== 'stdout') await writeDocument(options.targetPath, document);
 	return { document, provenance };
 }
