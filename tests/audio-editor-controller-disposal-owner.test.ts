@@ -11,9 +11,14 @@ function fixture() {
 	const state = { disposed: false, phase: lifetime.phase, exportGeneration: 0, exportAbort: null,
 		sourceGcTimer: 0, audacityEffectWorker: null, spectralWorker: null, nyquistAbort: null,
 		projectQueue: Promise.resolve(), outputUrl: null, outputCleanup: null };
+	const effectsState = {
+		takeSelectionWorker: () => { const worker = state.audacityEffectWorker; state.audacityEffectWorker = null; return worker; },
+		takeSpectralWorker: () => { const worker = state.spectralWorker; state.spectralWorker = null; return worker; },
+		clearNyquistAbort: () => { state.nyquistAbort = null; },
+	};
 	const step = (name: string) => () => { calls.push(name); };
 	const dependencies: ControllerDisposalDependencies = {
-		lifetime, state, clearDiagnostics: step('diagnostics'), clearTaskProgress: step('progress'),
+		lifetime, state, effectsState, clearDiagnostics: step('diagnostics'), clearTaskProgress: step('progress'),
 		closeInspections: step('close-inspections'), drainInspections: step('drain-inspections'),
 		publish: step('publish'), clearDocumentChannel: step('document-channel'), clearTelemetryChannel: step('telemetry-channel'),
 		removeDeviceChangeListener: step('devices'), disposeCapture: step('capture'), disposeCaptureProxy: step('proxy'),

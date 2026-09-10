@@ -73,7 +73,7 @@ function createFixture(options: Readonly<{
 	const errors: unknown[] = [];
 	const state = {
 		preferences: { loaded: false },
-		effectPresets: { source: 'initial' },
+		effectPresets: { source: 'initial' } as TestPresets,
 		// Bootstrap hydrates this from the stored collection, so the fixture has
 		// to start with the empty state rather than without the field.
 		deliveryPresets: createDeliveryPresetState(),
@@ -104,7 +104,7 @@ function createFixture(options: Readonly<{
 	};
 	const ownedState = createOwnedStateAccess(state, state);
 	const runtime: ProjectBootstrapServiceRuntime<TestProject, TestPreferences, TestPresets> = {
-		state,
+		state, effectsState: { setEffectPresets: (value) => { state.effectPresets = value; }, setEffectMacros: (value, readOnly = false) => { state.effectMacros = value; state.effectMacrosReadOnly = readOnly; }, setMacroScripts: (value, readOnly = false) => { state.macroScripts = value; state.macroScriptsReadOnly = readOnly; } },
 		recordingState: ownedState,
 		transportState: ownedState,
 		lifetimeSignal: lifetime.signal,

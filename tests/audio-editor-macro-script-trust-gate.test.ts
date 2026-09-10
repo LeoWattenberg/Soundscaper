@@ -42,7 +42,7 @@ function createMacroActions(): MacroScriptActions {
 		macroScripts: createMacroScriptLibrary(),
 	};
 	return createEffectMacroActions({
-		state,
+		effectLibraryState: state,
 		createStableId: (prefix: string) => `${prefix}-${++minted}`,
 		persistSetting: async () => {},
 		publishDocumentSnapshot: () => {},

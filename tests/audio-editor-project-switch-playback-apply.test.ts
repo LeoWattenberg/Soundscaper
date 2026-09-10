@@ -234,6 +234,7 @@ test('project switching cancels signal-ignoring playback source readiness before
 	};
 	const switchRuntime: ProjectSwitchServiceRuntime<TestProject, TestHistory> = {
 		state,
+		effectsState: { beginSwitch() {}, resetScope() {} },
 		productCapabilities: {},
 		lifetime,
 		scapeInspectionQuiescence: createScapeInspectionQuiescence(),

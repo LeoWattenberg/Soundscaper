@@ -5,10 +5,9 @@ import { createControllerDocumentState, type ControllerDocumentState } from '../
 import { exposeOwnedFields } from '../../shared/owned-state.ts';
 import { createControllerRecordingState, type ControllerRecordingState } from '../../recording/recording-state.ts';
 import { createControllerTransportState, type ControllerTransportState } from '../../transport/transport-state.ts';
+import { createControllerEffectsState, type ControllerEffectsState } from '../../effects/effects-state.ts';
 import type { ControllerRuntimeHistory, ControllerRuntimeProject } from '../../document/project-runtime.ts';
 import { createLocalDiagnosticsErrorJournal } from '../../../local-diagnostics-error-journal.ts';
-import { createInitialEffectMacroLibrary } from '../../effects/effect-macro-library-service.ts';
-import { createInitialMacroScriptLibrary } from '../../effects/macro-script-library-service.ts';
 import { createInitialStorageCapacitySnapshot } from '../../shared/storage-capacity-service.ts';
 import { createDeliveryPresetState } from '../../../delivery-preset-store.ts';
 import type { ControllerWorkspaceState } from '../workspace-state-types.ts';
@@ -19,6 +18,7 @@ export interface EditorControllerStateOptions<Preferences, RecordingRouting, Eff
 	readonly document?: ControllerDocumentState<Project, History>;
 	readonly recording?: ControllerRecordingState<RecordingRouting>;
 	readonly transport?: ControllerTransportState;
+	readonly effects?: ControllerEffectsState<EffectPresets>;
 	readonly preferences: Preferences;
 	readonly recordingRouting: RecordingRouting;
 	readonly effectPresets: EffectPresets;
@@ -54,8 +54,12 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 	preferredInputDeviceId,
 	recording = createControllerRecordingState({ recordingRouting, recordingInputGain, preferredInputDeviceId }),
 	transport = createControllerTransportState(),
+	effects = createControllerEffectsState({ effectPresets, initialEffectType }),
 }: EditorControllerStateOptions<Preferences, RecordingRouting, EffectPresets, Project, History>) {
-	const workspace: ControllerWorkspaceState<Preferences, EffectPresets, History> = {
+	const workspace: Omit<
+		ControllerWorkspaceState<Preferences, EffectPresets, History>,
+		keyof ControllerEffectsState<EffectPresets>
+	> = {
 		localDiagnostics: createLocalDiagnosticsErrorJournal(),
 		get history() { return document.history; },
 		set history(value) { document.history = value; },
@@ -65,7 +69,6 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		selectedClipId: null,
 		selectedAnnotationId: null,
 		clipboard: null,
-		effectClipboard: null,
 		pixelsPerSecond: defaultPixelsPerSecond,
 		timelineViewportWidth: 0,
 		autoFitTrackHeight: true,
@@ -88,29 +91,9 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		outputCleanup: null,
 		projectQueue: Promise.resolve(),
 		missingSourceIds: new Set<string>(),
-		audacityEffectType: initialEffectType,
-		audacityEffectParams: {},
-		audacityEffectTouchedParams: new Map<string, Set<string>>(),
-		effectPresets,
-		effectMacros: createInitialEffectMacroLibrary(),
 		deliveryPresets: createDeliveryPresetState(),
-		macroScripts: createInitialMacroScriptLibrary(),
-		macroScriptsReadOnly: false,
-		rackEffectGestures: new Map(),
-		parametricEqGestures: new Map(),
 		videoEffectGestures: new Map(),
-		audacityControlTrackId: null,
-		audacityNoiseProfile: null,
-		audacityEffectProcessing: false,
-		audacityPreviewSource: null,
-		audacityPreviewAuditionBandId: null,
-		audacityPreviewGeneration: 0,
-		lastAudacityEffect: null,
 		lastGeneratorRequest: null,
-		audacityEffectWorker: null,
-		nyquistAbort: null,
-		nyquistResult: null,
-		spectralWorker: null,
 		phase,
 		projects: [],
 		recentProjectIds: [] as string[],
@@ -134,5 +117,5 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		showVerticalRulers: true,
 		disposed: false,
 	};
-	return exposeOwnedFields(exposeOwnedFields(workspace, recording), transport);
+	return exposeOwnedFields(exposeOwnedFields(exposeOwnedFields(workspace, effects), recording), transport);
 }

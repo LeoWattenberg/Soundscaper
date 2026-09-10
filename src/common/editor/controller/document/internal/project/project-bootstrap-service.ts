@@ -23,13 +23,8 @@ import type { OwnedStateWriteScope } from '../../../shared/owned-state.ts';
 import type { ControllerRecordingState } from '../../../recording/recording-state.ts';
 import type { ControllerTransportState } from '../../../transport/transport-state.ts';
 
-export interface ProjectBootstrapState<Preferences, EffectPresets> {
+export interface ProjectBootstrapState<Preferences> {
 	preferences: Preferences;
-	effectPresets: EffectPresets;
-	effectMacros: EffectMacroLibraryState;
-	effectMacrosReadOnly?: boolean;
-	macroScripts: MacroScriptLibraryState;
-	macroScriptsReadOnly?: boolean;
 	deliveryPresets: DeliveryPresetState;
 	showRms: boolean;
 	showVerticalRulers: boolean;
@@ -80,7 +75,12 @@ export interface ProjectBootstrapServiceRuntime<
 	Preferences,
 	EffectPresets,
 > {
-	readonly state: ProjectBootstrapState<Preferences, EffectPresets>;
+	readonly state: ProjectBootstrapState<Preferences>;
+	readonly effectsState: Readonly<{
+		setEffectPresets(value: EffectPresets): void;
+		setEffectMacros(value: EffectMacroLibraryState, readOnly?: boolean): void;
+		setMacroScripts(value: MacroScriptLibraryState, readOnly?: boolean): void;
+	}>;
 	readonly recordingState: ProjectBootstrapRecordingWriteScope;
 	readonly transportState: ProjectBootstrapTransportWriteScope;
 	readonly lifetimeSignal: AbortSignal;
@@ -172,10 +172,10 @@ export function createProjectBootstrapService<
 		await runtime.loadPreferences(token);
 		try {
 			const storedPresets = await guard(runtime.store.loadSetting('audio-editor-effect-presets-v1', null));
-			runtime.state.effectPresets = runtime.createEffectPresets(storedPresets || {});
+			runtime.effectsState.setEffectPresets(runtime.createEffectPresets(storedPresets || {}));
 		} catch (error) {
 			if (runtime.isDisposedError(error)) throw error;
-			runtime.state.effectPresets = runtime.createEffectPresets();
+			runtime.effectsState.setEffectPresets(runtime.createEffectPresets());
 		}
 		// The saved macro library hydrates the same way, and for the same reason:
 		// a write-only library would let the first save of a session replace every
@@ -191,14 +191,13 @@ export function createProjectBootstrapService<
 				runtime.store.loadSetting(EFFECT_MACRO_LIBRARY_SETTING_KEY, null),
 			);
 			if (effectMacroLibrarySchemaIsAhead(storedMacros)) {
-				runtime.state.effectMacros = createInitialEffectMacroLibrary();
-				runtime.state.effectMacrosReadOnly = true;
+				runtime.effectsState.setEffectMacros(createInitialEffectMacroLibrary(), true);
 			} else {
-				runtime.state.effectMacros = createInitialEffectMacroLibrary(storedMacros || {});
+				runtime.effectsState.setEffectMacros(createInitialEffectMacroLibrary(storedMacros || {}));
 			}
 		} catch (error) {
 			if (runtime.isDisposedError(error)) throw error;
-			runtime.state.effectMacros = createInitialEffectMacroLibrary();
+			runtime.effectsState.setEffectMacros(createInitialEffectMacroLibrary());
 		}
 		// Saved macro programs hydrate beside the step-list library, under their own
 		// key so an older build simply does not read them.
@@ -207,14 +206,13 @@ export function createProjectBootstrapService<
 				runtime.store.loadSetting(MACRO_SCRIPT_LIBRARY_SETTING_KEY, null),
 			);
 			if (macroScriptLibrarySchemaIsAhead(storedScripts)) {
-				runtime.state.macroScripts = createInitialMacroScriptLibrary();
-				runtime.state.macroScriptsReadOnly = true;
+				runtime.effectsState.setMacroScripts(createInitialMacroScriptLibrary(), true);
 			} else {
-				runtime.state.macroScripts = createInitialMacroScriptLibrary(storedScripts || {});
+				runtime.effectsState.setMacroScripts(createInitialMacroScriptLibrary(storedScripts || {}));
 			}
 		} catch (error) {
 			if (runtime.isDisposedError(error)) throw error;
-			runtime.state.macroScripts = createInitialMacroScriptLibrary();
+			runtime.effectsState.setMacroScripts(createInitialMacroScriptLibrary());
 		}
 		// Delivery presets hydrate the same way effect presets do. Without this the
 		// preset service is write-only: every session starts with an empty

@@ -12,6 +12,15 @@ import type { EditorActionRuntime } from '../../src/common/editor/controller/com
  */
 export function createActionFacadeRuntime(capability = true): EditorActionRuntime {
 	const callable = () => undefined;
+	const state = {
+		recentProjectIds: [],
+		projects: [],
+		preferences: { recording: {} },
+		audacityEffectType: 'amplify',
+		effectPresets: { schemaVersion: 1 as const, presets: [] },
+		effectMacros: { schemaVersion: 1 as const, macros: [] },
+		macroScripts: { schemaVersion: 1 as const, scripts: [] },
+	};
 	const videoTrimServices = Object.freeze({
 		edge: Object.freeze({ preview: callable, commit: callable, commitStep: callable }),
 		rollRipple: Object.freeze({ preview: callable, commit: callable }),
@@ -25,13 +34,7 @@ export function createActionFacadeRuntime(capability = true): EditorActionRuntim
 			if (name === 'videoTrimServices') return videoTrimServices;
 			if (name === 'copy') return { projectNotFound: 'Not found', localSourcesMissing: 'Missing', audioClipNotFound: 'Missing' };
 			if (name === 'project') return { tracks: [], clips: [] };
-			if (name === 'state') return {
-				recentProjectIds: [],
-				projects: [],
-				preferences: { recording: {} },
-				audacityEffectType: 'amplify',
-				effectPresets: {},
-			};
+			if (name === 'state' || name === 'effectLibraryState') return state;
 			if (name === 'engine' || name === 'analysisService' || name === 'store') {
 				return new Proxy({}, { get: () => callable });
 			}

@@ -38,10 +38,10 @@ test('controller instances never share mutable collections', () => {
 	const first = createState();
 	const second = createState();
 	first.missingSourceIds.add('source-1');
-	first.audacityEffectTouchedParams.set('amplify', new Set(['gain']));
 	assert.equal(second.missingSourceIds.size, 0);
 	assert.equal(second.audacityEffectTouchedParams.size, 0);
 	assert.notEqual(first.missingSourceIds, second.missingSourceIds);
+	assert.notEqual(first.audacityEffectTouchedParams, second.audacityEffectTouchedParams);
 });
 
 test('controller state preserves the supplied document history contract', async () => {

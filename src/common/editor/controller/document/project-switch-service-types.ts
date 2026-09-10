@@ -53,16 +53,16 @@ export interface ProjectSwitchState<
 	selectedTrackId: string | null;
 	selectedClipId: string | null;
 	clipboard: AudioEditorClipboard | null;
-	rackEffectGestures: Map<string, unknown>;
-	parametricEqGestures: Map<string, unknown>;
+	readonly rackEffectGestures: ReadonlyMap<string, unknown>;
+	readonly parametricEqGestures: ReadonlyMap<string, unknown>;
 	videoEffectGestures: Map<string, unknown>;
 	exportAbort: EditorCancellableHandle | null;
-	nyquistAbort: EditorCancellableHandle | null;
+	readonly nyquistAbort: EditorCancellableHandle | null;
 	sampleEditAbort: EditorCancellableHandle | null;
 	sampleEditMode: unknown;
 	sampleEditAvailable: boolean;
-	audacityNoiseProfile: unknown;
-	audacityControlTrackId: string | null;
+	readonly audacityNoiseProfile: unknown;
+	readonly audacityControlTrackId: string | null;
 	analysisResult: unknown;
 	analysisVisuals: unknown;
 	analysisReport: unknown;
@@ -119,6 +119,10 @@ export interface ProjectSwitchServiceRuntime<
 	readonly state: ProjectSwitchState<Project, History>;
 	readonly productCapabilities: Readonly<Record<string, unknown>>;
 	readonly playbackProjectService?: PlaybackProjectService;
+	readonly effectsState: Readonly<{
+		beginSwitch(): void;
+		resetScope(): void;
+	}>;
 	readonly lifetime: ProjectSwitchLifetime;
 	readonly scapeInspectionQuiescence: Pick<ScapeInspectionQuiescence, 'beginFence'>;
 	readonly projectGeneration: Readonly<{

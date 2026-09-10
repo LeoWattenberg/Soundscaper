@@ -16,16 +16,17 @@ import type { createControllerSoundActivationPolicy } from '../recording/sound-a
 import type { createEditorTaskProgressCoordinator } from '../shared/task-progress.ts';
 import type { EffectMacroLibraryServiceRuntime } from '../effects/effect-macro-library-service.ts';
 import type { MacroScriptLibraryServiceRuntime } from '../effects/macro-script-library-service.ts';
+import type { EffectControlsState } from '../effects/effect-controls-service.ts';
 import type { TrimMediaFfmpegHost } from '../document/trim-media-service.ts';
 import type { ExportActionState } from '../export/export-action-group.ts';
 
-type MacroState = EffectMacroLibraryServiceRuntime['state'] & MacroScriptLibraryServiceRuntime['state'];
-interface EditorActionState extends MacroState, ExportActionState {
-	audacityEffectType: string;
-	effectPresets: unknown;
+type EffectLibraryState =
+	& EffectMacroLibraryServiceRuntime['state']
+	& MacroScriptLibraryServiceRuntime['state']
+	& Pick<EffectControlsState, 'audacityEffectType' | 'effectPresets'>;
+interface EditorActionState extends ExportActionState {
 	selectedTrackId: string | null;
 	audacityPreviewSource: EffectControlPreviewSource | Partial<Pick<EngineParametricEqPreview, 'readSpectrum' | 'audition'>> | null;
-	audacityPreviewAuditionBandId: string | number | null;
 	readonly recentProjectIds: readonly string[];
 	readonly projects: readonly Readonly<{ id: string }>[];
 	readonly playAtSpeedRate: number;
@@ -42,6 +43,10 @@ export interface EditorActionResources {
 	readonly capabilities: Readonly<Record<string, boolean>>;
 	readonly copy: Readonly<Record<string, string> & { projectNotFound: string }>;
 	readonly effectSelectionService: ReturnType<typeof createEffectsComposition>['selection'];
+	readonly effectLibraryState: EffectLibraryState;
+	readonly effectPreviewState: Readonly<{
+		auditionParametricEq(bandId: string | number | null): unknown;
+	}>;
 	readonly engine: EnginePublicApi;
 	readonly ffmpeg: ReturnType<typeof createEditorCodecRuntime> & Partial<TrimMediaFfmpegHost>;
 	readonly fileService: ReturnType<typeof createAudioEditorFileService>;

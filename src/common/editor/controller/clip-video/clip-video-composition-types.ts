@@ -41,7 +41,7 @@ export type ClipVideoCommandProject =
 export type ClipVideoCompositionState = VideoEffectServiceRuntime['state'] & SampleEditServiceState & {
 	selectedTrackId: string | null;
 	selectedClipId: string | null;
-	audacityEffectProcessing: boolean;
+	readonly audacityEffectProcessing: boolean;
 };
 
 export type ClipVideoCompositionCopy =
@@ -118,4 +118,5 @@ export interface ClipVideoCompositionDependencies {
 	readonly preflightStorage: (bytes: number, purpose: 'effect') => Promise<unknown>;
 	readonly projectSampleRate: () => number;
 	readonly cacheSourceBuffer: ClipTimePitchRenderServiceDependencies['cacheSourceBuffer'];
+	readonly setEffectProcessing: (processing: boolean) => void;
 }

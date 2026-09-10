@@ -54,7 +54,9 @@ function createFixture(overrides: Partial<AudioGeneratorServiceDependencies> = {
 	const projectGeneration = new EditorProjectGeneration();
 	let activeProject = project();
 	projectGeneration.activate(activeProject.id);
-	const state: AudioGeneratorState = { selectedTrackId: 'track-a', audacityEffectProcessing: false, lastGeneratorRequest: null };
+	const state: Omit<AudioGeneratorState, 'audacityEffectProcessing'> & { audacityEffectProcessing: boolean } = {
+		selectedTrackId: 'track-a', audacityEffectProcessing: false, lastGeneratorRequest: null,
+	};
 	const commits: Array<Readonly<{
 		command: AudioEditorCommand;
 		selection?: Readonly<{ selectTrackId?: string | null; selectClipId?: string | null }>;
@@ -122,6 +124,7 @@ function createFixture(overrides: Partial<AudioGeneratorServiceDependencies> = {
 		commit: (command, selectionValue) => { commits.push({ command, selection: selectionValue }); },
 		setStatus: (message, nextState) => { statuses.push({ message, state: nextState }); },
 		publish: () => { publishes += 1; },
+		setEffectProcessing: (processing) => { state.audacityEffectProcessing = processing; },
 		...overrides,
 	};
 	return {

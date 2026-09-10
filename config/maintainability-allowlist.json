@@ -88,7 +88,7 @@
 		"src/common/editor/controller/capture/internal/framescaper-capture-session-service.ts": 600,
 		"src/common/editor/controller/capture/internal/web-vcr/framescaper-web-vcr-controller.ts": 599,
 		"src/common/editor/controller/document/internal/annotations/timeline-annotation-service.ts": 587,
-		"src/common/editor/controller/document/project-switch-service.ts": 557,
+		"src/common/editor/controller/document/project-switch-service.ts": 554,
 		"src/common/editor/controller/edit/internal/clipboard-edit-service.ts": 576,
 		"src/common/editor/controller/export/internal/direct/direct-compressed-plan.ts": 599,
 		"src/common/editor/controller/export/internal/export-service.ts": 585,

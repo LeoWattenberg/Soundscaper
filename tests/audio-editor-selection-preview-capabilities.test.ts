@@ -11,7 +11,18 @@ function fixture(preview: EditorActionResources['state']['audacityPreviewSource'
 	const runtime = createActionFacadeRuntime();
 	const state = { ...runtime.state, audacityPreviewSource: preview, audacityPreviewAuditionBandId: null as string | number | null };
 	const actions = createGroupedEditorActions(new Proxy(runtime, {
-		get(target, key, receiver) { return key === 'state' ? state : Reflect.get(target, key, receiver); },
+		get(target, key, receiver) {
+			if (key === 'state') return state;
+			if (key === 'effectPreviewState') return {
+				auditionParametricEq(bandId: string | number | null) {
+					state.audacityPreviewAuditionBandId = bandId == null ? null : String(bandId);
+					return preview && 'audition' in preview
+						? preview.audition?.(state.audacityPreviewAuditionBandId) ?? false
+						: false;
+				},
+			};
+			return Reflect.get(target, key, receiver);
+		},
 	}));
 	return { actions: actions.effects, state };
 }

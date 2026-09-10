@@ -479,7 +479,7 @@ function createFixture(options: FixtureOptions) {
 	};
 	const sourceChunkProviders = new SourceChunkProviderRegistry<string, unknown>();
 	const runtime = {
-		state,
+		state, effectsState: { beginSwitch() {}, resetScope() {} },
 		lifetime,
 		scapeInspectionQuiescence: createScapeInspectionQuiescence(),
 		productCapabilities: options.productCapabilities ?? {},

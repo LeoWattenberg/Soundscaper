@@ -352,6 +352,7 @@ function createFixture(options: Readonly<{
 	};
 	const runtime = {
 		state, productCapabilities: options.productCapabilities ?? { audioEffects: false, videoEffects: true },
+		effectsState: { beginSwitch() {}, resetScope() {} },
 		lifetime, scapeInspectionQuiescence: createScapeInspectionQuiescence(),
 		projectGeneration: new EditorProjectGeneration(),
 		copy: { ready: 'Ready', projectOpenOtherTab: 'Open elsewhere', projectReadOnly: 'Read-only',

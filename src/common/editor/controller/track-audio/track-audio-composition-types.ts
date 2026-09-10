@@ -30,14 +30,14 @@ export type TrackAudioCompositionProject =
 	& SelectionViewProject;
 
 export type TrackAudioCompositionState = SelectionViewState & {
-	audacityEffectProcessing: boolean;
+	readonly audacityEffectProcessing: boolean;
 	timelineView: Parameters<EditorTrackServiceDependencies['setTimelineView']>[0];
 };
 
 type TrackAudioCompositionWritableState = Pick<TrackAudioCompositionState,
 	| 'selectedTrackId' | 'selectedClipId' | 'selectedAnnotationId'
 	| 'analysisProcessing' | 'showRms' | 'showVerticalRulers' | 'pixelsPerSecond'
-	| 'audacityEffectProcessing' | 'timelineView'
+	| 'timelineView'
 	| 'scrollViewToPlayhead' | 'pinnedPlayhead' | 'playbackOnRulerClick'
 >;
 
@@ -113,6 +113,7 @@ export interface TrackAudioCompositionDependencies {
 	readonly trackColors: readonly string[];
 	readonly taskProgress: Pick<EditorTaskProgressCoordinator, 'run' | 'updateActive'>;
 	readonly microphoneMeter: Pick<MicrophoneMeterService, 'clearRoutedLoudnessMeter' | 'synchronizeTarget'>;
+	readonly setEffectProcessing: (processing: boolean) => void;
 	readonly recording: TrackAudioRecordingStatePort;
 	readonly export: TrackAudioExportPorts;
 	readonly createRenderEngine: MixRenderServiceDependencies['createRenderEngine'];

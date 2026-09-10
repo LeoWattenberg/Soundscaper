@@ -70,6 +70,7 @@ export interface EditCompositionDependencies<History extends ControllerRuntimeHi
 	readonly sourcePeaks: AudioGeneratorServiceDependencies['sourcePeaks'];
 	readonly sourceChunkFrames: number;
 	readonly taskProgress: Pick<EditorTaskProgressCoordinator, 'run'>;
+	readonly setEffectProcessing: (processing: boolean) => void;
 	/** The product's own label saver, when it has one, and the file service the default saver uses. */
 	readonly saveLabelFile: Parameters<typeof saveLabelExport>[1];
 	readonly fileService: Parameters<typeof saveLabelExport>[2];

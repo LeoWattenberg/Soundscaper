@@ -9,9 +9,6 @@ interface DisposalState {
 	exportGeneration: number;
 	exportAbort: unknown;
 	sourceGcTimer: number;
-	audacityEffectWorker: { terminate(): void } | null;
-	spectralWorker: { terminate(): void } | null;
-	nyquistAbort: unknown;
 	readonly projectQueue: PromiseLike<unknown>;
 	readonly outputUrl: string | null;
 	readonly outputCleanup: Cleanup | null;
@@ -20,6 +17,11 @@ interface DisposalState {
 export interface ControllerDisposalDependencies {
 	readonly lifetime: EditorControllerLifetime;
 	readonly state: DisposalState;
+	readonly effectsState: Readonly<{
+		takeSelectionWorker(): { terminate(): void } | null;
+		takeSpectralWorker(): { terminate(): void } | null;
+		clearNyquistAbort(): void;
+	}>;
 	readonly clearDiagnostics: Cleanup;
 	readonly clearTaskProgress: Cleanup;
 	readonly closeInspections: Cleanup;
@@ -121,13 +123,11 @@ export function createControllerDisposal(d: ControllerDisposalDependencies): () 
 			await cleanup(d.cancelPlayAtSpeedPreparation);
 			await cleanup(d.stopMetronome);
 			await cleanup(d.cancelEffectWorkers, true);
-			await cleanup(() => d.state.audacityEffectWorker?.terminate(), true);
-			d.state.audacityEffectWorker = null;
-			d.state.nyquistAbort = null;
+			await cleanup(() => d.effectsState.takeSelectionWorker()?.terminate(), true);
+			d.effectsState.clearNyquistAbort();
 			await cleanup(d.disposeNyquist, true);
 			await cleanup(d.cancelEffectPreview, true);
-			await cleanup(() => d.state.spectralWorker?.terminate(), true);
-			d.state.spectralWorker = null;
+			await cleanup(() => d.effectsState.takeSpectralWorker()?.terminate(), true);
 			await cleanup(d.disposeMicrophoneMeter);
 			await inspections;
 			await cleanup(() => d.state.projectQueue, true);

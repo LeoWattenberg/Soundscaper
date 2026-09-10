@@ -196,13 +196,11 @@ export function createProjectSwitchService<
 			// this teardown by tagging its task rather than by being listed here.
 			runtime.lifetime.cancelScope(EDITOR_PROJECT_TASK_SCOPE);
 			runtime.projectGeneration.invalidate();
-			runtime.state.rackEffectGestures.clear();
-			runtime.state.parametricEqGestures.clear();
+			runtime.effectsState.beginSwitch();
 			runtime.state.videoEffectGestures.clear();
 			runtime.cancelTimedRecording({ publish: false, status: false });
 			runtime.cancelRecordingStart();
 			runtime.state.exportAbort = null;
-			runtime.state.nyquistAbort = null;
 			runtime.state.sampleEditAbort = null;
 			runtime.state.sampleEditMode = null;
 			runtime.state.sampleEditAvailable = false;
@@ -533,8 +531,7 @@ export function createProjectSwitchService<
 	}
 
 	function resetProjectScopedState(): void {
-		runtime.state.audacityNoiseProfile = null;
-		runtime.state.audacityControlTrackId = null;
+		runtime.effectsState.resetScope();
 		runtime.state.analysisResult = null;
 		runtime.state.analysisVisuals = null;
 		runtime.state.analysisReport = null;

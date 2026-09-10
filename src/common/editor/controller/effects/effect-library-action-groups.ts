@@ -34,7 +34,7 @@ export type EffectLibraryActionScope = Pick<EditorActionFunctions,
 	| 'timelineDurationFrames'
 	| 'setExactSelection'
 	| 'beginMacroTransaction'
-> & Pick<EditorActionResources, 'state' | 'copy' | 'productId' | 'locale' | 'onMacroScriptLog' | 'macroScriptStartedAt'> & {
+> & Pick<EditorActionResources, 'effectLibraryState' | 'copy' | 'productId' | 'locale' | 'onMacroScriptLog' | 'macroScriptStartedAt'> & {
 	readonly getEditorActions?: () => Readonly<Record<string, unknown>> | null;
 };
 
@@ -49,7 +49,7 @@ export function createEffectPresetActions(
 	scope: EffectLibraryActionScope,
 	restricted: RestrictToCapability,
 ) {
-	const { state } = scope;
+	const { effectLibraryState: state } = scope;
 	return Object.freeze({
 		list: (effectType: string = state.audacityEffectType) => (
 			scope.listAudioEditorEffectPresets(state.effectPresets, effectType)
@@ -71,7 +71,7 @@ export function createEffectMacroActions(
 	restricted: RestrictToCapability,
 ) {
 	const library = createEffectMacroLibraryService({
-		state: scope.state,
+		state: scope.effectLibraryState,
 		createId: scope.createStableId,
 		persistSetting: scope.persistSetting,
 		publishDocumentSnapshot: scope.publishDocumentSnapshot,
@@ -103,7 +103,7 @@ export function createEffectMacroActions(
 		untitledMacroName: scope.copy.untitledMacro || scope.copy.macroManager || 'Untitled macro',
 	});
 	const scripts = createMacroScriptLibraryService({
-		state: scope.state,
+		state: scope.effectLibraryState,
 		createId: scope.createStableId,
 		persistSetting: scope.persistSetting,
 		publishDocumentSnapshot: scope.publishDocumentSnapshot,

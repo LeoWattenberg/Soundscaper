@@ -60,7 +60,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 	setAudioOutputDevice, setAutoFitTrackHeight, setClipTimePitch, setLoopRegion, setLoopRegionInOut, setStatus,
 	setLoopRegionToSelection, setPlayAtSpeedRate, setExactSelection, setPreferredInputChannelCount,
 	setPreferredInputDevice, setProjectBinClipColor, setSampleEditMode, setSelection, setSelectionToLoopRegion,
-	setSnapSettings, effectSelectionService, setTimelineView, setTimelineViewportWidth, setTrackDisplayMode,
+	setSnapSettings, effectPreviewState, effectSelectionService, setTimelineView, setTimelineViewportWidth, setTrackDisplayMode,
 	setTrackRate, setVisibleTrackHeights, setZoom, smoothSelectedSamples, snapTimelineFrame, splitAtFrame,
 	splitStereoTrack, state, stopProjectBinPreview, cleanupDisposableStorage, cleanupDerivativeCache, store,
 	stretchClip, swapTrackChannels, switchProject, toggleMetronome, togglePinnedPlayhead, toggleRmsWaveform,
@@ -440,9 +440,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 				return source && 'readSpectrum' in source ? source.readSpectrum?.(...args) ?? null : null;
 			},
 			auditionSelectionParametricEq: (bandId: string | number | null) => {
-				state.audacityPreviewAuditionBandId = bandId == null ? null : String(bandId);
-				const source = state.audacityPreviewSource;
-				return source && 'audition' in source ? source.audition?.(state.audacityPreviewAuditionBandId) ?? false : false;
+				return effectPreviewState.auditionParametricEq(bandId);
 			},
 			remove: restricted('audioEffects', (scope: AudioEditorCommandPayloads['effect/remove']['scope'], trackId: string | null, effectId: string) => commit({ type: 'effect/remove', scope, trackId, busId: trackId, effectId })),
 			reorder: restricted('audioEffects', (scope: AudioEditorCommandPayloads['effect/remove']['scope'], trackId: string | null, effectId: string, toIndex: number) => commit({ type: 'effect/reorder', scope, trackId, busId: trackId, effectId, toIndex })),

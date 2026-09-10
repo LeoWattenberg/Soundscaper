@@ -4,11 +4,9 @@ import type { createLocalDiagnosticsErrorJournal } from '../../local-diagnostics
 import type { DeliveryPresetState } from '../../delivery-preset-store.ts';
 import type { AnalysisState, AnalysisDependencies } from '../analysis/analysis-service.ts';
 import type { EditorDocumentSnapshotRuntime, SnapshotProject } from '../document/document-snapshot.ts';
-import type { EffectsCompositionState } from '../effects/effects-composition-types.ts';
-import type { createInitialEffectMacroLibrary } from '../effects/effect-macro-library-service.ts';
+import type { ControllerEffectsState } from '../effects/effects-state.ts';
 import type { AudioGeneratorServiceDependencies } from '../edit/generator-service.ts';
 import type { EditorCancellableHandle, EditorControllerPhase } from '../shared/lifecycle.ts';
-import type { createInitialMacroScriptLibrary } from '../effects/macro-script-library-service.ts';
 import type { ProjectBinPreview } from '../import/project-bin-types.ts';
 import type { ProjectLifecycleLock } from '../document/project-lifecycle-types.ts';
 import type { ControllerRuntimeHistory } from '../document/project-runtime.ts';
@@ -20,13 +18,16 @@ import type { TakeCyclePendingOpenRecovery } from '../recording/take-cycle-captu
 import type { VideoEffectServiceRuntime } from '../clip-video/video-effect-service.ts';
 import type { AudioEditorClipboard } from '../../commands/protocol.ts';
 import type { ExportActionState } from '../export/export-action-group.ts';
+import type { DeepReadonly } from '../shared/owned-state.ts';
 
 /** Mutable workspace slots retain their owners' contracts after initialization. */
-export interface ControllerWorkspaceState<Preferences, EffectPresets, History = ControllerRuntimeHistory> extends ExportActionState {
+export type ControllerWorkspaceState<Preferences, EffectPresets, History = ControllerRuntimeHistory> =
+	& ExportActionState
+	& DeepReadonly<ControllerEffectsState<EffectPresets>>
+	& {
 	localDiagnostics: ReturnType<typeof createLocalDiagnosticsErrorJournal>;
 	history: History | null;
 	preferences: Preferences;
-	effectPresets: EffectPresets;
 	selectedTrackId: string | null;
 	selectedClipId: string | null;
 	selectedAnnotationId: string | null;
@@ -41,12 +42,8 @@ export interface ControllerWorkspaceState<Preferences, EffectPresets, History = 
 	outputCleanup: (() => PromiseLike<unknown> | unknown) | null;
 	projectQueue: Promise<void>;
 	missingSourceIds: Set<string>;
-	effectMacros: ReturnType<typeof createInitialEffectMacroLibrary>;
-	macroScripts: ReturnType<typeof createInitialMacroScriptLibrary>;
-	macroScriptsReadOnly?: boolean;
 	videoEffectGestures: VideoEffectServiceRuntime['state']['videoEffectGestures'];
 	lastGeneratorRequest: AudioGeneratorServiceDependencies['state']['lastGeneratorRequest'];
-	nyquistResult: unknown;
 	phase: EditorControllerPhase;
 	projects: EditorDocumentSnapshotRuntime<SnapshotProject>['state']['projects'];
 	recentProjectIds: string[];
@@ -62,20 +59,6 @@ export interface ControllerWorkspaceState<Preferences, EffectPresets, History = 
 	sampleEditAbort: EditorCancellableHandle | null;
 	taskProgress: EditorTaskProgress | null;
 	exportOutput: unknown;
-	effectClipboard: EffectsCompositionState['effectClipboard'];
-	audacityEffectType: EffectsCompositionState['audacityEffectType'];
-	audacityEffectParams: EffectsCompositionState['audacityEffectParams'];
-	audacityEffectTouchedParams: EffectsCompositionState['audacityEffectTouchedParams'];
-	rackEffectGestures: EffectsCompositionState['rackEffectGestures'];
-	parametricEqGestures: EffectsCompositionState['parametricEqGestures'];
-	audacityControlTrackId: EffectsCompositionState['audacityControlTrackId'];
-	audacityNoiseProfile: EffectsCompositionState['audacityNoiseProfile'];
-	audacityPreviewSource: EffectsCompositionState['audacityPreviewSource'];
-	audacityPreviewAuditionBandId: EffectsCompositionState['audacityPreviewAuditionBandId'];
-	lastAudacityEffect: EffectsCompositionState['lastAudacityEffect'];
-	audacityEffectWorker: EffectsCompositionState['audacityEffectWorker'];
-	nyquistAbort: EffectsCompositionState['nyquistAbort'];
-	spectralWorker: EffectsCompositionState['spectralWorker'];
 	preferencesReadOnly: boolean;
 	pixelsPerSecond: number;
 	timelineViewportWidth: number;
@@ -88,8 +71,6 @@ export interface ControllerWorkspaceState<Preferences, EffectPresets, History = 
 	sourceGcTimer: number;
 	importing: boolean;
 	exportGeneration: number;
-	audacityEffectProcessing: boolean;
-	audacityPreviewGeneration: number;
 	analysisProcessing: boolean;
 	sampleEditAvailable: boolean;
 	sampleEditProcessing: boolean;
@@ -99,4 +80,4 @@ export interface ControllerWorkspaceState<Preferences, EffectPresets, History = 
 	disposed: boolean;
 	mobile: boolean;
 	deliveryPresets: DeliveryPresetState;
-}
+};

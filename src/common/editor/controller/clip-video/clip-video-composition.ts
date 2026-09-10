@@ -224,7 +224,7 @@ export function createClipVideoComposition(dependencies: ClipVideoCompositionDep
 		peakCacheKey,
 		cacheSourceBuffer: dependencies.cacheSourceBuffer,
 		commit: dependencies.commit,
-		setProcessing: (processing) => { state.audacityEffectProcessing = processing; },
+		setProcessing: dependencies.setEffectProcessing,
 		setStatus: dependencies.setStatus,
 		publish: dependencies.publishDocumentSnapshot,
 	});

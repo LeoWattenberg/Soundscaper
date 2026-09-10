@@ -81,6 +81,7 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 			lifetime,
 			projectGeneration,
 			state,
+			setEffectProcessing: dependencies.setEffectProcessing,
 			copy,
 			store: dependencies.store,
 			sourceBuffers: dependencies.sourceBuffers,

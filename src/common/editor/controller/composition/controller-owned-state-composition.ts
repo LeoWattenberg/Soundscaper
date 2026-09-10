@@ -8,6 +8,11 @@ import {
 	type ControllerRecordingState,
 } from '../recording/recording-state.ts';
 import { createControllerTransportState } from '../transport/transport-state.ts';
+import {
+	createControllerEffectsState,
+	createControllerEffectsStatePorts,
+	type ControllerEffectsState,
+} from '../effects/effects-state.ts';
 import { createOwnedStateAccess } from '../shared/owned-state.ts';
 import {
 	createEditorControllerState,
@@ -39,14 +44,21 @@ export function createControllerOwnedStateComposition<Preferences, EffectPresets
 		preferredInputDeviceId: options.preferredInputDeviceId,
 	});
 	const transportState = createControllerTransportState();
+	const effectsState: ControllerEffectsState<EffectPresets> = options.effects ?? createControllerEffectsState({
+		effectPresets: options.effectPresets,
+		initialEffectType: options.initialEffectType,
+	});
 	const state = createEditorControllerState({
 		...options,
 		recordingRouting,
 		recording: recordingState,
 		transport: transportState,
+		effects: effectsState,
 	});
 	return Object.freeze({
 		state,
+		effectsAccess: createOwnedStateAccess(state, effectsState),
+		effectsStatePorts: createControllerEffectsStatePorts(effectsState),
 		recordingAccess: createOwnedStateAccess(state, recordingState),
 		transportAccess: createOwnedStateAccess(state, transportState),
 		recordingPort: createTrackAudioRecordingStatePort(recordingState),

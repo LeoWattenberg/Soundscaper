@@ -43,7 +43,7 @@ export interface AudioGeneratorEffectTarget {
 
 export interface AudioGeneratorState {
 	selectedTrackId: string | null;
-	audacityEffectProcessing: boolean;
+	readonly audacityEffectProcessing: boolean;
 	lastGeneratorRequest?: AudioGeneratorRequest | null;
 }
 
@@ -110,6 +110,7 @@ export interface AudioGeneratorServiceDependencies<Context = unknown, Target ext
 		delete(sourceId: string): unknown;
 	}>;
 	readonly sourceChunkFrames: number;
+	readonly setEffectProcessing: (processing: boolean) => void;
 	getProject(): AudioGeneratorDocument;
 	getCommandProject?(): AudioGeneratorProject;
 	editingBlocked(): boolean;
@@ -412,7 +413,7 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 	}
 
 	function markProcessing(): true {
-		dependencies.state.audacityEffectProcessing = true;
+		dependencies.setEffectProcessing(true);
 		dependencies.setStatus(dependencies.copy.generatingAudio);
 		dependencies.publish();
 		return true;
@@ -421,7 +422,7 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 	function finishOperation(ownership: OperationOwnership, processing: boolean): void {
 		ownership.task.finish();
 		if (processing && ownership.generation === operationGeneration) {
-			dependencies.state.audacityEffectProcessing = false;
+			dependencies.setEffectProcessing(false);
 			if (!dependencies.lifetime.inactive) dependencies.publish();
 		}
 	}

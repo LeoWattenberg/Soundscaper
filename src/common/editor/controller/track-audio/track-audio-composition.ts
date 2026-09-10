@@ -73,7 +73,7 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 	const createBufferFromChannels = (channels: Float32Array[], sampleRate: number, context: unknown) => (
 		bufferFromChannels(channels, sampleRate, isAudioBufferContext(context) ? context : null, copy)
 	);
-	const setProcessing = (processing: boolean) => { state.audacityEffectProcessing = processing; };
+	const setProcessing = dependencies.setEffectProcessing;
 
 	const derivedAudio: DerivedAudio = createDerivedAudioComposition({
 		lifetime,

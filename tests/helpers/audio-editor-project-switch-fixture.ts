@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from '../../src/common/editor/controller/shared/lifecycle.ts';
 import type { ProjectLifecycleHistory, ProjectLifecycleLock, ProjectLifecycleProject, ProjectLifecycleTab } from '../../src/common/editor/controller/document/project-lifecycle-types.ts';
-import { createProjectSwitchService, type ProjectSwitchServiceRuntime, type ProjectSwitchState } from '../../src/common/editor/controller/document/project-switch-service.ts';
+import { createProjectSwitchService, type ProjectSwitchServiceRuntime } from '../../src/common/editor/controller/document/project-switch-service.ts';
 import { createScapeInspectionQuiescence } from '../../src/common/editor/controller/document/internal/scape/scape-inspection-quiescence.ts';
 import { SourceChunkProviderRegistry } from '../../src/common/editor/controller/source/source-chunk-provider-registry.ts';
 import { PROJECT_SCHEMA_VERSION } from '../../src/common/editor/project-schema-identity.ts';
@@ -85,24 +85,24 @@ export function createFixture(
 		dirty: false,
 	}]]);
 	const initialLock = lock(oldProject.id);
-	const state: ProjectSwitchState<TestProject, TestHistory> = {
+	const state = {
 		projectQueue: Promise.resolve(),
-		projectLock: initialLock,
+		projectLock: initialLock as ProjectLifecycleLock | null,
 		readOnly: false,
 		history: { present: oldProject },
-		selectedTrackId: oldProject.tracks[0]?.id ?? null,
-		selectedClipId: null,
+		selectedTrackId: (oldProject.tracks[0]?.id ?? null) as string | null,
+		selectedClipId: null as string | null,
 		clipboard: null,
 		rackEffectGestures: new Map([['old', {}]]),
 		parametricEqGestures: new Map([['old', {}]]),
 		videoEffectGestures: new Map([['old', {}]]),
 		exportAbort: new AbortController(),
-		nyquistAbort: null,
+		nyquistAbort: null as ReturnType<EditorControllerLifetime['startTask']> | null,
 		sampleEditAbort: new AbortController(),
 		sampleEditMode: 'pencil',
 		sampleEditAvailable: true,
-		audacityNoiseProfile: {},
-		audacityControlTrackId: 'control',
+		audacityNoiseProfile: {} as unknown,
+		audacityControlTrackId: 'control' as string | null,
 		analysisResult: {},
 		analysisVisuals: {},
 		analysisReport: {},
@@ -114,6 +114,17 @@ export function createFixture(
 		missingSourceIds: new Set(['missing']),
 		saveState: 'dirty',
 		projects: [],
+	};
+	const effectsState = {
+		beginSwitch() {
+			state.rackEffectGestures.clear();
+			state.parametricEqGestures.clear();
+			state.nyquistAbort = null;
+		},
+		resetScope() {
+			state.audacityNoiseProfile = null;
+			state.audacityControlTrackId = null;
+		},
 	};
 	const session = {
 		captureProjectHistory(projectId: string) { const history = tabs.get(projectId)?.history; if (!history) throw new Error(`Missing history for ${projectId}.`); return { history, token: history }; },
@@ -146,6 +157,7 @@ export function createFixture(
 	};
 	const runtime = {
 		state,
+		effectsState,
 		lifetime,
 		projectGeneration,
 		scapeInspectionQuiescence,
