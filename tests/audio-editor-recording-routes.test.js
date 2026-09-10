@@ -154,16 +154,23 @@ test('configured desktop audio stays open and compact single-track recording use
 		assert.equal(controller.getSnapshot().audioDevices.displayCaptureOpen, true);
 
 		const trackId = controller.getSnapshot().project.tracks[0].id;
-		await controller.actions.recording.setTrackInput(trackId, {
-			kind: 'display',
-			channelStart: 0,
-			channelCount: 2,
-		});
+		await controller.actions.audioDevices.setPreferredInputChannelCount(2);
+		assert.equal(pool.hardwareRequests.length, 0);
 		await controller.actions.recording.start({ trackId });
 		assert.equal(createdControllers.length, 1);
 		assert.equal(createdControllers[0].stream, desktop);
+		assert.equal(pool.hardwareRequests.length, 0);
+		await createdControllers[0].onChunk({ channels: [
+			new Float32Array(960).fill(0.25),
+			new Float32Array(960).fill(-0.5),
+		] });
 
 		await controller.actions.recording.stop();
+		const source = controller.getSnapshot().project.sources[0];
+		assert.equal(source.channelCount, 2);
+		const stored = await store.readSourceChunk(source.id, 0);
+		assert.equal(stored.channels[0][100], 0.25);
+		assert.equal(stored.channels[1][100], -0.5);
 		assert.equal(desktop.getTracks().every((track) => track.stopCount === 0), true);
 		assert.equal(controller.getSnapshot().audioDevices.displayCaptureOpen, true);
 
@@ -325,6 +332,9 @@ test('audio device preferences persist, preserve explicit routes, and recover fr
 		const firstTrackId = controller.getSnapshot().project.tracks[0].id;
 		assert.equal(controller.getSnapshot().recordingInputs.routes[firstTrackId].deviceId, 'default');
 
+		await controller.actions.recording.setTrackInput(firstTrackId, {
+			kind: 'device', deviceId: 'default', channelStart: 1, channelCount: 1,
+		});
 		await controller.actions.recording.setRetainInputs(false);
 		await controller.actions.audioDevices.setPreferredInput('mic-2');
 		assert.equal(controller.getSnapshot().recordingInputs.retainInputs, true);
@@ -348,6 +358,8 @@ test('audio device preferences persist, preserve explicit routes, and recover fr
 			outputDeviceId: 'speaker-2',
 		});
 		await controller.actions.audioDevices.setPreferredInput('display');
+		assert.equal(controller.getSnapshot().recordingInputs.routes[secondTrackId].kind, 'display');
+		await controller.actions.recording.setTrackInput(secondTrackId, null);
 		const displayTrackId = controller.actions.track.add({ armed: false });
 		assert.equal(controller.getSnapshot().recordingInputs.routes[displayTrackId].kind, 'display');
 		assert.equal(controller.getSnapshot().recordingInputs.routes[displayTrackId].channelCount, 2);

@@ -6,6 +6,7 @@ import type {
 	RecordingRoutingRefreshOptions,
 	RecordingRoutingServiceRuntime,
 } from './recording-routing-service-types.d.ts';
+import { setRecordingTrackRoute } from '../recording-routing.js';
 
 export type {
 	PersistedRecordingRouting,
@@ -171,15 +172,38 @@ export function createRecordingRoutingService<
 			throw new Error('Display audio capture is not supported in this browser.');
 		}
 		await keepSelectedRecordingInputsOpen();
+		const selectedTrackId = state.selectedTrackId;
+		const selectedRoute = selectedTrackId ? state.recordingRouting.routes[selectedTrackId] : null;
+		const previousSourceKey = state.preferredInputDeviceId === RECORDING_DISPLAY_SOURCE_KEY
+			? RECORDING_DISPLAY_SOURCE_KEY : `device:${state.preferredInputDeviceId}`;
+		const selectedTrack = getProject()?.tracks.find((track) => track.id === selectedTrackId);
+		const previousRouting = state.recordingRouting;
+		if (!state.recorder && !state.recordingStarting && !state.timedRecordingPreparing && !state.timedRecording
+			&& selectedTrack && selectedRoute?.channelStart === 0
+			&& recordingRouteSourceKey(selectedRoute) === previousSourceKey) {
+			// Selecting the default must also move the matching active route. Keep
+			// display acquisition on the separate chooser action (or Record).
+			state.recordingRouting = setRecordingTrackRoute(state.recordingRouting, selectedTrack, {
+				...(normalized === RECORDING_DISPLAY_SOURCE_KEY
+					? { kind: 'display' }
+					: { kind: 'device', deviceId: normalized,
+						deviceLabel: state.audioInputDevices.find((device) => device.deviceId === normalized)?.label || '' }),
+				channelStart: 0,
+				channelCount: state.preferredInputChannelCount,
+			});
+		}
 		state.preferredInputDeviceId = normalized;
-		await persistAudioDevicePreferences();
+		await Promise.all([
+			persistAudioDevicePreferences(),
+			state.recordingRouting === previousRouting ? Promise.resolve() : persistRecordingRouting(),
+		]);
 		if (normalized !== RECORDING_DISPLAY_SOURCE_KEY) {
 			await recordingCapturePool.acquireHardware(normalized, {
 				channelCount: state.preferredInputChannelCount,
 				sampleRate: projectSampleRate(),
 			});
-			syncRecordingPoolSnapshot();
 		}
+		syncRecordingPoolSnapshot();
 		publishDocumentSnapshot();
 		return normalized;
 	}
@@ -212,8 +236,10 @@ export function createRecordingRoutingService<
 			assignPreferredInputToTrack(selectedTrackId);
 		}
 		const selectedRoute = selectedTrackId ? state.recordingRouting.routes[selectedTrackId] : null;
-		if (selectedTrackId && selectedRoute?.kind === 'device'
-			&& selectedRoute.deviceId === state.preferredInputDeviceId
+		if (selectedTrackId && selectedRoute
+			&& (selectedRoute.kind === 'display'
+				? state.preferredInputDeviceId === RECORDING_DISPLAY_SOURCE_KEY
+				: selectedRoute.deviceId === state.preferredInputDeviceId)
 			&& selectedRoute.channelStart === 0
 			&& selectedRoute.channelCount !== normalized) {
 			try {
