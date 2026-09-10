@@ -114,7 +114,7 @@ test('the ordinary Open command takes a .dawproject file', async () => {
 	const openInput = view.slice(view.indexOf('data-aup4-input'));
 	assert.match(openInput.slice(0, openInput.indexOf('/>')), /accept=\{`[^`]*\.dawproject/u);
 	const workspace = await readFile(new URL('src/common/editor/ui/workspace/AudioEditorWorkspace.jsx', ROOT), 'utf8');
-	assert.match(workspace, /\/\\\.dawproject\$\/iu\.test\(file\?\.name \|\| ''\) \? controller\.actions\.project\.openDawproject\(file\)/u);
+	assert.match(workspace, /const openProjectFile = useCallback\(\(file\) => openWorkspaceProjectFile\(/u);
 	const menus = await readFile(new URL('src/common/editor/ui/application-menus.js', ROOT), 'utf8');
 	assert.match(menus, /id: 'open-project', label: copy\.open, shortcut: 'Ctrl\+O'/u);
 	assert.doesNotMatch(menus, /dawproject-menu\.js/u);

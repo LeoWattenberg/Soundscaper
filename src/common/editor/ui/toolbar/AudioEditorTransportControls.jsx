@@ -447,6 +447,8 @@ export function AccessibleSelectionToolbar({
 			status.setAttribute('data-state', statusState);
 			status.setAttribute('role', 'status');
 			status.setAttribute('aria-live', 'polite');
+			status.tabIndex = 0;
+			status.title = statusMessage;
 		}
 		setStatusTarget(root.querySelector('.selection-toolbar__status'));
 		const timecodes = [...root.querySelectorAll('.selection-toolbar__timecodes .timecode')];
@@ -504,7 +506,7 @@ export function AccessibleSelectionToolbar({
 				data-selection-toolbar
 			>
 				{lockNotice}
-				<p data-status data-editor-status data-state={statusState} role="status" aria-live="polite">
+				<p data-status data-editor-status data-state={statusState} role="status" aria-live="polite" tabIndex={0} title={statusMessage}>
 					{showStatusbar ? statusMessage : ''}
 				</p>
 				{showStatusbar && <EditorTaskProgressBar controller={controller} snapshot={snapshot} statusMessage={statusMessage} />}

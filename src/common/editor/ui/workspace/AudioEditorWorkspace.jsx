@@ -31,7 +31,8 @@ import {
 } from './workspace-application-menu-runtime.js';
 import { usePrivacyPolicySurface } from '../use-privacy-policy-surface.ts';
 import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts'; import { useWorkspaceOnboardingSurface } from '../use-workspace-onboarding-surface.ts';
-import { isProjectFileName, partitionWorkspaceFiles } from './workspace-file-routing.js';
+import { partitionWorkspaceFiles } from './workspace-file-routing.js';
+import { openWorkspaceProjectFile } from './open-workspace-project-file.ts';
 import { desktopExternalDestination, formatDateTimeLocalInput } from '../workspace-runtime.js';
 import { useTrackHeaderDrawerFlag, useWorkspaceCompactLayout } from './useWorkspaceCompactLayout.js';
 import { createWorkspaceEditItems } from './workspace-edit-items.js';
@@ -223,9 +224,8 @@ export default function AudioEditorWorkspace({
 	const openScapeProjectFile = useCallback((file) => (
 		controller.actions.project.openScapeFile(file, requestScapeOpenDecision)
 	), [controller, requestScapeOpenDecision]);
-	const openProjectFile = useCallback((file) => (isProjectFileName(file?.name || '')
-		? openScapeProjectFile(file) : /\.dawproject$/iu.test(file?.name || '') ? controller.actions.project.openDawproject(file)
-		: controller.actions.project.openAudacityProject(file)), [controller, openScapeProjectFile]);
+	const openProjectFile = useCallback((file) => openWorkspaceProjectFile(
+		controller, file, openScapeProjectFile), [controller, openScapeProjectFile]);
 	const openDesktopProjectDescriptor = useCallback((descriptor) => withDesktopProjectReadDescriptor(
 		fileService,
 		descriptor,
