@@ -2,10 +2,16 @@ import { wcagContrastRatio } from '../../src/common/editor/ui/theme-contrast.ts'
 import { expect, monoTone, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, importFiles, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
 
+const buttonGroups = [
+	['toolbar', ':is(.tool-button, [data-editor-tool-toolbar] button):not(.toggle-tool-button, .toggle-button, .kw-audio-editor__split-button-arrow, .kw-audio-editor__audacity-level-button)'],
+	['toggle', '.toggle-tool-button, .toggle-button'],
+	['split and meter', '.kw-audio-editor__split-button-arrow, .kw-audio-editor__audacity-level-button'],
+];
+
 for (const product of ['soundscaper', 'framescaper']) {
 	for (const mode of ['Light', 'Dark']) test.describe(`${product} Sakura ${mode} buttons`, () => {
 		registerAudioEditorHooks();
-		test('raises toolbar, split, mute, solo and meter controls without moving their bounds', async ({ page }, testInfo) => {
+		test.beforeEach(async ({ page }) => {
 			const editor = await bootEditor(page, `${product === 'soundscaper' ? '' : '/framescaper'}/embed/en/?useskin=sakura`);
 			await importFiles(editor, [monoTone]);
 			await chooseCommandAction(page, editor, 'Edit', 'Preferences');
@@ -14,13 +20,19 @@ for (const product of ['soundscaper', 'framescaper']) {
 			await dialog.getByRole('radio', { name: mode, exact: true }).click();
 			await dialog.getByRole('button', { name: 'Close', exact: true }).last().click();
 			await page.evaluate(() => document.fonts.ready);
+		});
+		// Bound each pointer sweep as well as the stateful interactions so the
+		// exhaustive coverage fits WebKit's per-test budget on the CI runner.
+		for (const [group, selector] of buttonGroups) test(`raises ${group} controls without moving their bounds`, async ({ page }, testInfo) => {
+			const editor = page.locator('[data-audio-editor]');
 			const undo = editor.locator('[data-edit="undo"] button');
 			const redo = editor.locator('[data-edit="redo"] button');
 			await expect(undo).toBeVisible();
 			await expect(redo).toBeVisible();
 			await expect(editor.locator('.kw-audio-editor__audacity-level-button').first()).toBeVisible();
 			await expect(undo.locator('.tool-button__icon')).toHaveCSS('display', 'flex');
-			const controls = editor.locator('.tool-button, .toggle-tool-button, .toggle-button, .kw-audio-editor__split-button-arrow, [data-editor-tool-toolbar] button');
+			const controls = editor.locator(selector);
+			await expect(controls.first()).toBeVisible();
 			for (const button of await controls.all()) {
 				if (!await button.isVisible()) continue;
 				if (await button.evaluate((node) => node.classList.contains('timecode__format-button'))) {
@@ -39,6 +51,12 @@ for (const product of ['soundscaper', 'framescaper']) {
 					await page.mouse.up();
 				}
 			}
+			await page.screenshot({ path: testInfo.outputPath('Sakura-all-buttons.png') });
+		});
+		test('preserves toggle contrast, keyboard focus, history and split-menu interactions', async ({ page }) => {
+			const editor = page.locator('[data-audio-editor]');
+			const undo = editor.getByRole('button', { name: 'Undo', exact: true });
+			const redo = editor.getByRole('button', { name: 'Redo', exact: true });
 			for (const name of ['Mute', 'Solo']) {
 				const button = editor.getByRole('button', { name, exact: true }).first();
 				await expect(button).toBeVisible();
@@ -69,7 +87,6 @@ for (const product of ['soundscaper', 'framescaper']) {
 			await expect(arrow).toHaveAttribute('aria-expanded', 'true');
 			await page.keyboard.press('Escape');
 			await expect(arrow).toHaveAttribute('aria-expanded', 'false');
-			await page.screenshot({ path: testInfo.outputPath('Sakura-all-buttons.png') });
 		});
 	});
 }
