@@ -1,6 +1,6 @@
 {
-	"schemaVersion": 1,
-	"modules": [
+	"schemaVersion": 2,
+	"publicModules": [
 		"analysis/analysis-composition.ts",
 		"analysis/analysis-service.ts",
 		"analysis/transient-analysis-pcm-access.ts",
@@ -187,5 +187,174 @@
 		"transport/transport-composition.ts",
 		"transport/transport-model.ts",
 		"transport/transport-state.ts"
-	]
+	],
+	"allowedDependencies": {
+		"analysis": {
+			"runtime": [
+				"composition",
+				"shared",
+				"source"
+			],
+			"typeOnly": []
+		},
+		"assistance": {
+			"runtime": [
+				"export",
+				"shared"
+			],
+			"typeOnly": []
+		},
+		"capture": {
+			"runtime": [
+				"clip-video",
+				"document"
+			],
+			"typeOnly": [
+				"recording"
+			]
+		},
+		"clip-video": {
+			"runtime": [
+				"effects",
+				"shared",
+				"source"
+			],
+			"typeOnly": [
+				"composition",
+				"document"
+			]
+		},
+		"composition": {
+			"runtime": [
+				"clip-video",
+				"document",
+				"effects",
+				"export",
+				"preferences",
+				"recording",
+				"shared",
+				"source",
+				"track-audio",
+				"transport"
+			],
+			"typeOnly": [
+				"analysis",
+				"capture",
+				"edit",
+				"import"
+			]
+		},
+		"document": {
+			"runtime": [
+				"effects",
+				"export",
+				"import",
+				"recording",
+				"shared",
+				"source"
+			],
+			"typeOnly": [
+				"capture",
+				"composition",
+				"transport"
+			]
+		},
+		"edit": {
+			"runtime": [
+				"composition",
+				"document",
+				"shared",
+				"source",
+				"track-audio"
+			],
+			"typeOnly": [
+				"effects"
+			]
+		},
+		"effects": {
+			"runtime": [
+				"assistance",
+				"composition",
+				"shared",
+				"source",
+				"track-audio"
+			],
+			"typeOnly": [
+				"document"
+			]
+		},
+		"export": {
+			"runtime": [
+				"shared",
+				"track-audio"
+			],
+			"typeOnly": [
+				"source"
+			]
+		},
+		"import": {
+			"runtime": [
+				"clip-video",
+				"document",
+				"export",
+				"shared",
+				"source"
+			],
+			"typeOnly": [
+				"track-audio"
+			]
+		},
+		"preferences": {
+			"runtime": [],
+			"typeOnly": [
+				"shared"
+			]
+		},
+		"recording": {
+			"runtime": [
+				"shared",
+				"source",
+				"transport"
+			],
+			"typeOnly": [
+				"composition",
+				"document"
+			]
+		},
+		"shared": {
+			"runtime": [],
+			"typeOnly": []
+		},
+		"source": {
+			"runtime": [
+				"document",
+				"import",
+				"shared"
+			],
+			"typeOnly": [
+				"transport"
+			]
+		},
+		"track-audio": {
+			"runtime": [
+				"analysis",
+				"document",
+				"export",
+				"import",
+				"shared",
+				"source"
+			],
+			"typeOnly": [
+				"recording",
+				"transport"
+			]
+		},
+		"transport": {
+			"runtime": [],
+			"typeOnly": [
+				"recording",
+				"shared"
+			]
+		}
+	}
 }

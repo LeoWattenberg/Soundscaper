@@ -95,6 +95,17 @@ test('quality runs its static checks in parallel and gates everything behind all
 	}
 });
 
+test('quality gives both architecture ratchets the same event base revision', async () => {
+	const audits = extractJob(await readWorkflow('quality.yml'), 'audits');
+	const baseExpression = "${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || github.sha }}";
+	for (const variable of ['CONTROLLER_DOMAIN_BASE_REVISION', 'MAINTAINABILITY_BASE_REVISION']) {
+		assert.ok(
+			audits.includes(`${variable}: ${baseExpression}`),
+			`${variable} must select the pull-request or push base used by the architecture gate`,
+		);
+	}
+});
+
 for (const [workflowName, { staticJobs, buildJob, historyJobs }] of WORKFLOWS) {
 	const gateJobs = [...staticJobs, 'tests', 'coverage'];
 

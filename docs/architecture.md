@@ -24,10 +24,13 @@ controller shape. Legacy command payloads remain a staged typing boundary.
 Controller coordination is grouped by ownership under the sixteen directories in
 `controller/`. A source file directly under a domain is public; same-domain-only
 implementation belongs under its `internal/` tree. The exact public inventory is
-ratcheted in `config/controller-domain-public-modules.json`, and the architecture
-gate rejects root source files, undeclared domains or public modules, barrels, and
-cross-domain imports of internal files. Consumers import the narrow owning file
-directly rather than going through an index module.
+ratcheted with the runtime and type-only cross-domain dependency directions in
+`config/controller-domain-policy.json`. The architecture gate rejects root source
+files, undeclared domains or public modules, barrels, new dependency directions,
+runtime upgrades of type-only directions, and cross-domain imports of internal
+files. Consumers import the narrow owning file directly rather than going through
+an index module. After removing a direction, run
+`npm run check:controller-domains:tighten` to claim it.
 
 Domains leave the composition root as typed compositions. Recording is the
 first: `controller/recording/recording-state.ts` owns every recording field (the flat
