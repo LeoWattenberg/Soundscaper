@@ -6,8 +6,8 @@ import test from 'node:test';
 import {
 	createRoutedRecordingController,
 	type RecordingCaptureControllerLike,
-} from '../src/common/editor/controller/recording-session-service.ts';
-import { createSoundActivatedRecordingCaptureSession } from '../src/common/editor/controller/sound-activated-recording-capture-session.ts';
+} from '../src/common/editor/controller/recording/internal/recording-session-service.ts';
+import { createSoundActivatedRecordingCaptureSession } from '../src/common/editor/controller/recording/internal/sound-activation/sound-activated-recording-capture-session.ts';
 
 const SETTINGS = Object.freeze({
 	thresholdDb: -20,

@@ -57,7 +57,7 @@ operation set.
   and undone inside the single commit boundary
   (`commands/effects-video-runtime.js:20-49`), and a slider drag already
   coalesces into one history entry
-  (`controller/video-effect-service.ts:251-264`).
+  (`controller/clip-video/video-effect-service.ts:251-264`).
 - **The compositor is one fixed-code shader with an eight-float pass budget.**
   `EFFECT_CODES` maps the twelve ids to branch codes
   (`ui/video-preview-effects.js:18-31`) read by one fragment shader
@@ -142,7 +142,7 @@ operation set.
 
 `src/common/editor/video-effects.js` keeps its path and its exported symbol
 names. Sixty-nine files import it — thirty-one non-test modules (`app.js`, four
-`commands/` runtimes, `controller/video-effect-service.ts`, nine
+`commands/` runtimes, `controller/clip-video/video-effect-service.ts`, nine
 `project-feature-*` modules, `video-export.js`, `video-ffmpeg.js`,
 `video-ffmpeg-render-description.ts`, two `video-keyframe-*` modules,
 `unified-exact-render-plan-v9.ts`, four `ui/` modules, four Framescaper
@@ -447,7 +447,7 @@ pickup, and any packet that grows a slice doc names it here first.
   too.
 - **Invariants:** every mutation is one `applyEditorCommand` commit, so undo is
   single-step per gesture; drags coalesce through the existing gesture seam
-  (`controller/video-effect-service.ts:251-264`); a preset never carries an
+  (`controller/clip-video/video-effect-service.ts:251-264`); a preset never carries an
   instance identity (`video-visual-presentation-v27.ts:98-101`); an unknown
   preset field is rejected, not ignored; quick-develop deltas clamp; no path
   rewrites a stack's `processVersion` implicitly — only a `develop/set-stack`

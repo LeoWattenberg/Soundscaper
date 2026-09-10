@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createTakeCycleRecordingAppSession } from '../src/common/editor/controller/take-cycle-recording-app-session.ts';
+import { createTakeCycleRecordingAppSession } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-recording-app-session.ts';
 
 test('take cycle start flushes the exact current project before capture I/O', async () => {
 	const events: string[] = [];

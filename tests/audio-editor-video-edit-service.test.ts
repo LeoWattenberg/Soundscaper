@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
+import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
 import {
 	SOURCE_MONITOR_NO_MARKS,
 	resolveSourceMonitorPoints,
@@ -12,7 +12,7 @@ import { ThreePointEditError } from '../src/common/editor/three-point-edit.ts';
 import {
 	createVideoEditService,
 	type VideoEditServiceDependencies,
-} from '../src/common/editor/controller/video-edit-service.ts';
+} from '../src/common/editor/controller/clip-video/internal/video/video-edit-service.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 
 const SAMPLE_RATE = 48_000;

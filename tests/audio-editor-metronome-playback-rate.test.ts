@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	calculateAudioEditorMetronomeSchedule,
-} from '../src/common/editor/controller/transport-model.ts';
+} from '../src/common/editor/controller/transport/transport-model.ts';
 
 test('metronome transport timing scales both the next click and beat interval by playback rate', () => {
 	const normal = calculateAudioEditorMetronomeSchedule({

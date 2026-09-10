@@ -4,12 +4,12 @@ import test from 'node:test';
 import {
 	createClipPropertyService,
 	type ClipPropertyService,
-} from '../src/common/editor/controller/clip-property-service.ts';
-import type { ClipTransformProject } from '../src/common/editor/controller/clip-domain-types.ts';
+} from '../src/common/editor/controller/clip-video/internal/clip/clip-property-service.ts';
+import type { ClipTransformProject } from '../src/common/editor/controller/clip-video/internal/clip/clip-domain-types.ts';
 import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
-} from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import {

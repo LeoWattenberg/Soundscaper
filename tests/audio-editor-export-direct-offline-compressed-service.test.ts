@@ -6,8 +6,8 @@ import test from 'node:test';
 import {
 	directCompressedStagingTemporaryBytes,
 	type DirectCompressedFormat,
-} from '../src/common/editor/controller/direct-compressed-export.ts';
-import { createEditorExportService, type ExportServiceRuntime } from '../src/common/editor/controller/export-service.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-compressed-export.ts';
+import { createEditorExportService, type ExportServiceRuntime } from '../src/common/editor/controller/export/internal/export-service.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 import type { FfmpegOutputSink } from '../src/common/editor/ffmpeg-output-stream.ts';
 import { applyMediaChannelMapping } from '../src/common/editor/media-export.js';

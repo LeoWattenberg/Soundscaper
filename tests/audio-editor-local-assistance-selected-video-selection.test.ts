@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { assertLocalAssistanceSelectedVideoOccurrenceSelection } from
-	'../src/common/editor/controller/local-assistance-selected-video-selection.ts';
+	'../src/common/editor/controller/assistance/internal/selected-video/local-assistance-selected-video-selection.ts';
 
 const VIDEO = Object.freeze({ id: 'video-clip', kind: 'video', avLinkId: 'linked-av' });
 const AUDIO = Object.freeze({ id: 'audio-clip', kind: 'audio', avLinkId: 'linked-av' });

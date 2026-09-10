@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createTrackDuplicationService } from '../src/common/editor/controller/track-duplication-service.ts';
+import { createTrackDuplicationService } from '../src/common/editor/controller/document/internal/track-duplication-service.ts';
 import { createAddClipCommand, createAddTrackCommand } from '../src/common/editor/commands/factories.ts';
 import { applyEditorCommand } from '../src/common/editor/commands.js';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';

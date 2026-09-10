@@ -5,9 +5,9 @@ import test from 'node:test';
 
 import { applyEditorCommand } from '../src/common/editor/commands.js';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
-import { createDocumentTrackFolderSnapshot } from '../src/common/editor/controller/document-track-folder-snapshot.ts';
-import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
-import { createTrackFolderService } from '../src/common/editor/controller/track-folder-service.ts';
+import { createDocumentTrackFolderSnapshot } from '../src/common/editor/controller/document/document-track-folder-snapshot.ts';
+import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
+import { createTrackFolderService } from '../src/common/editor/controller/document/internal/track-folder-service.ts';
 import {
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';

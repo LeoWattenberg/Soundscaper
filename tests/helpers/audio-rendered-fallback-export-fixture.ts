@@ -7,8 +7,8 @@ import {
 
 import assert from 'node:assert/strict';
 
-import type { ExportServiceRuntime } from '../../src/common/editor/controller/export-service.ts';
-import { createPlaybackProjectService } from '../../src/common/editor/controller/playback-project-service.ts';
+import type { ExportServiceRuntime } from '../../src/common/editor/controller/export/internal/export-service.ts';
+import { createPlaybackProjectService } from '../../src/common/editor/controller/source/playback-project-service.ts';
 import type { EngineChunkSource } from '../../src/common/editor/engine/types.ts';
 import { encodeAiff } from '../../src/common/editor/aiff.js';
 import { createExportPlan } from '../../src/common/editor/export.js';

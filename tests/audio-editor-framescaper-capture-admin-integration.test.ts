@@ -3,11 +3,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createFramescaperCaptureAdminInterlock } from '../src/common/editor/controller/framescaper-capture-admin-interlock.ts';
+import { createFramescaperCaptureAdminInterlock } from '../src/common/editor/controller/capture/framescaper-capture-admin-interlock.ts';
 import {
 	createProjectAdminService,
 	type ProjectAdminServiceRuntime,
-} from '../src/common/editor/controller/project-admin-service.ts';
+} from '../src/common/editor/controller/document/project-admin-service.ts';
 import { createFixture, deferred } from './audio-editor-project-admin-service-fixture.ts';
 
 test('deferred deletion owns admission before stop and blocks capture until deletion settles', async () => {

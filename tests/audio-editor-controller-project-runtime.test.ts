@@ -5,10 +5,10 @@ import test from 'node:test';
 
 import {
 	resolveControllerProjectRuntime,
-} from '../src/common/editor/controller/project-runtime.ts';
+} from '../src/common/editor/controller/document/project-runtime.ts';
 import {
 	createControllerProjectRuntimeMetrics,
-} from '../src/common/editor/controller/project-runtime-metrics.ts';
+} from '../src/common/editor/controller/document/project-runtime-metrics.ts';
 import { createEditorProjectRuntimeSelection } from '../src/framescaper/editor-project-runtime-selection.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
 import { projectForRuntimeConsumers } from '../src/common/editor/project-current-runtime.ts';
@@ -95,7 +95,7 @@ void test('a dynamically retrieved host does not acquire the default runtime res
 	} };
 	// Reflect.get mirrors an unchecked JavaScript host: only no-argument admission
 	// establishes the default owner; a dynamic input must keep the compatibility port.
-	const selected: import('../src/common/editor/controller/project-runtime.ts').ControllerProjectRuntime =
+	const selected: import('../src/common/editor/controller/document/project-runtime.ts').ControllerProjectRuntime =
 		resolveControllerProjectRuntime(Reflect.get(host, String('runtime')));
 	assert.equal(selected.createProject().title, 123);
 });

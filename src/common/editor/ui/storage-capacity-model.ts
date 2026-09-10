@@ -6,7 +6,7 @@ import type {
 	StorageEvictionProtection,
 	StoragePreflightSnapshot,
 	StoragePressure,
-} from '../controller/storage-capacity-service.ts';
+} from '../controller/shared/storage-capacity-service.ts';
 import type { EditorStoreBackend, EditorStoreState } from '../storage/status.ts';
 
 interface StorageUiSnapshot extends StorageCapacitySnapshot {

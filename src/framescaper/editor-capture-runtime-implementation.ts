@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createFramescaperCaptureAppBinding } from
-	'../common/editor/controller/framescaper-capture-app-binding.ts';
+	'../common/editor/controller/capture/framescaper-capture-app-binding.ts';
 import { createFramescaperCaptureDerivativeScheduler } from
-	'../common/editor/controller/framescaper-capture-derivative-scheduler.ts';
+	'../common/editor/controller/capture/framescaper-capture-derivative-scheduler.ts';
 
 /**
  * The capture implementation the deferred runtime loads.

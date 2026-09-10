@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createEffectControlsService } from '../src/common/editor/controller/effect-controls-service.ts';
-import { createSelectionEffectExecutionService } from '../src/common/editor/controller/effect-execution-service.ts';
+import { createEffectControlsService } from '../src/common/editor/controller/effects/effect-controls-service.ts';
+import { createSelectionEffectExecutionService } from '../src/common/editor/controller/effects/internal/effect-execution-service.ts';
 import {
 	AUDIO_SELECTION_EFFECT_DEFINITIONS,
 	normalizeAudioSelectionEffectParams,

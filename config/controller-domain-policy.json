@@ -1,0 +1,359 @@
+{
+	"schemaVersion": 2,
+	"publicModules": [
+		"analysis/analysis-composition.ts",
+		"analysis/analysis-service.ts",
+		"analysis/transient-analysis-pcm-access.ts",
+		"analysis/transient-analysis-service.ts",
+		"assistance/deferred-local-assistance-runtime.ts",
+		"assistance/local-assistance-audio-spool-release.ts",
+		"assistance/local-assistance-guided-framescaper-acceptance.ts",
+		"assistance/local-assistance-guided-highlight-edits.ts",
+		"assistance/local-assistance-guided-highlight-preview.ts",
+		"assistance/local-assistance-guided-reframe-edits.ts",
+		"assistance/local-assistance-guided-review-media-verification.ts",
+		"assistance/local-assistance-model-selection.ts",
+		"assistance/local-assistance-prepared-media.ts",
+		"assistance/local-assistance-review-authority.ts",
+		"assistance/local-assistance-selected-video-source-time.ts",
+		"assistance/local-assistance-selected-video.ts",
+		"assistance/local-assistance-semantic-index-custody.ts",
+		"capture/capture-composition.ts",
+		"capture/framescaper-capture-admin-interlock.ts",
+		"capture/framescaper-capture-app-binding.ts",
+		"capture/framescaper-capture-app-composition.ts",
+		"capture/framescaper-capture-derivative-scheduler.ts",
+		"capture/framescaper-capture-document-ports.ts",
+		"capture/framescaper-capture-origin-guard.ts",
+		"capture/framescaper-capture-project-write-authority.ts",
+		"capture/framescaper-capture-proxy-quiescence.ts",
+		"capture/framescaper-capture-session-types.ts",
+		"capture/framescaper-recording-factory-adapter.ts",
+		"capture/framescaper-web-vcr-controller-types.ts",
+		"capture/framescaper-web-vcr-ui-snapshot.ts",
+		"capture/video-proxy-candidate-composition.ts",
+		"capture/video-proxy-original-observer.ts",
+		"clip-video/clip-time-pitch-render-service.ts",
+		"clip-video/clip-trim-source-frame-count.ts",
+		"clip-video/clip-video-composition-types.ts",
+		"clip-video/clip-video-composition.ts",
+		"clip-video/exact-preview-render-coordinator.ts",
+		"clip-video/linked-video-original-generation.ts",
+		"clip-video/video-action-group.ts",
+		"clip-video/video-effect-service.ts",
+		"clip-video/video-preview-presented-frame.ts",
+		"clip-video/video-source-reprobe-service.ts",
+		"composition/absent-audio-subsystems.ts",
+		"composition/action-facade-runtime.ts",
+		"composition/action-facade.ts",
+		"composition/controller-action-composition.ts",
+		"composition/controller-bindings.ts",
+		"composition/controller-disposal.ts",
+		"composition/controller-options.ts",
+		"composition/controller-owned-state-composition.ts",
+		"composition/controller-project-queries.ts",
+		"composition/controller-resources.ts",
+		"composition/controller-startup.ts",
+		"composition/controller-timers.ts",
+		"composition/editor-action-functions.ts",
+		"composition/editor-action-resources.ts",
+		"composition/native-render-input-composition.ts",
+		"composition/presentation-state.ts",
+		"composition/product-action-runtime.ts",
+		"composition/product-composition-policy.ts",
+		"composition/product-native-render-input-authority.ts",
+		"composition/snapshot-composition.ts",
+		"composition/workspace-state-types.ts",
+		"document/consolidate-media-service.ts",
+		"document/cross-product-handoff-action-facade.ts",
+		"document/deferred-archive-runtime.ts",
+		"document/document-command-preview.ts",
+		"document/document-composition-types.ts",
+		"document/document-composition.ts",
+		"document/document-mastering-sequence-snapshot.ts",
+		"document/document-snapshot.ts",
+		"document/document-state.ts",
+		"document/document-track-folder-snapshot.ts",
+		"document/native-project-admission.ts",
+		"document/native-project-composition.ts",
+		"document/native-project-service.ts",
+		"document/native-project-types.ts",
+		"document/project-admin-action-binding.ts",
+		"document/project-admin-service.ts",
+		"document/project-bootstrap-composition.ts",
+		"document/project-feature-compatibility-service.ts",
+		"document/project-lifecycle-composition.ts",
+		"document/project-lifecycle-types.ts",
+		"document/project-lock-service.ts",
+		"document/project-media-action-group.ts",
+		"document/project-mutation-service.ts",
+		"document/project-runtime-metrics.ts",
+		"document/project-runtime.ts",
+		"document/project-save-service.ts",
+		"document/project-switch-service-types.ts",
+		"document/project-switch-service.ts",
+		"document/project-view-service.ts",
+		"document/project-visual-service.ts",
+		"document/project-visual-types.ts",
+		"document/regular-interval-annotation-service.ts",
+		"document/scape-open-request-service.ts",
+		"document/scape-project-file-service.ts",
+		"document/session-history-admission.ts",
+		"document/stored-project-open-actions.ts",
+		"document/timeline-annotation-action-facade.ts",
+		"document/trim-media-service.ts",
+		"edit/edit-composition-types.ts",
+		"edit/edit-composition.ts",
+		"edit/generator-service.ts",
+		"effects/audacity-tool-action-runtime.ts",
+		"effects/deferred-effect-runtime.ts",
+		"effects/effect-controls-service.ts",
+		"effects/effect-gesture-safety.ts",
+		"effects/effect-library-action-groups.ts",
+		"effects/effect-macro-library-service.ts",
+		"effects/effect-selection-service.ts",
+		"effects/effects-composition-types.ts",
+		"effects/effects-composition.ts",
+		"effects/macro-script-library-service.ts",
+		"effects/macro-transaction-metadata.ts",
+		"export/deferred-export-service.ts",
+		"export/delivery-preset-service.ts",
+		"export/export-action-group.ts",
+		"export/export-render-project.ts",
+		"export/export-settings.ts",
+		"export/export-snapshot-renderer.ts",
+		"export/export-state.ts",
+		"export/interchange-export-action.ts",
+		"export/product-video-export-strategy.ts",
+		"export/soundscaper-persistent-delivery-controller-composition.ts",
+		"export/soundscaper-persistent-delivery-runtime-binding.ts",
+		"export/stem-archive.ts",
+		"export/temporary-export.ts",
+		"export/video-export-original-loader.ts",
+		"export/video-export-timing.ts",
+		"import/dawproject-audio-decode.ts",
+		"import/deferred-dawproject-service.ts",
+		"import/import-composition.ts",
+		"import/imported-audio-content-identity.ts",
+		"import/prepared-project-sources.ts",
+		"import/project-bin-linked-video-relink-service.ts",
+		"import/project-bin-types.ts",
+		"import/raw-pcm-import.ts",
+		"preferences/preference-action-group.ts",
+		"preferences/preferences-composition.ts",
+		"preferences/setting-persistence.ts",
+		"preferences/skin-preview.ts",
+		"recording/microphone-meter-service.ts",
+		"recording/native-audio-inventory.ts",
+		"recording/recording-action-facade.ts",
+		"recording/recording-capture-pool-binding.ts",
+		"recording/recording-composition.ts",
+		"recording/recording-model.ts",
+		"recording/recording-state.ts",
+		"recording/recording-transaction-types.ts",
+		"recording/sound-activated-recording-gate.ts",
+		"recording/sound-activation-controller-composition.ts",
+		"recording/sound-activation-policy-service.ts",
+		"recording/take-cycle-capture-orchestrator.ts",
+		"recording/take-cycle-open-recovery-app-port.ts",
+		"recording/take-cycle-recording-service.ts",
+		"shared/app-helpers.ts",
+		"shared/deferred-module-facade.ts",
+		"shared/lifecycle.ts",
+		"shared/owned-state.ts",
+		"shared/storage-capacity-runtime.ts",
+		"shared/storage-capacity-service.ts",
+		"shared/task-progress.ts",
+		"shared/transient-render-feature-projection.ts",
+		"source/clip-time-pitch-service.ts",
+		"source/playback-project-service.ts",
+		"source/source-audio.ts",
+		"source/source-chunk-provider-registry.ts",
+		"source/source-lifecycle-service.ts",
+		"source/source-runtime-composition-types.ts",
+		"source/source-runtime-composition.ts",
+		"source/waveform-analysis.ts",
+		"track-audio/audio-warp-action-facade.ts",
+		"track-audio/derived-audio-composition.ts",
+		"track-audio/isolated-track-render-project-v21.ts",
+		"track-audio/mix-render-model.ts",
+		"track-audio/mix-render-options.ts",
+		"track-audio/mix-render-output-layout.ts",
+		"track-audio/split-into-new-track-plan.ts",
+		"track-audio/take-comp-action-facade.ts",
+		"track-audio/track-audio-composition-types.ts",
+		"track-audio/track-audio-composition.ts",
+		"track-audio/track-domain-types.ts",
+		"transport/transport-composition.ts",
+		"transport/transport-model.ts",
+		"transport/transport-state.ts"
+	],
+	"allowedDependencies": {
+		"analysis": {
+			"runtime": [
+				"composition",
+				"shared",
+				"source"
+			],
+			"typeOnly": []
+		},
+		"assistance": {
+			"runtime": [
+				"export",
+				"shared"
+			],
+			"typeOnly": []
+		},
+		"capture": {
+			"runtime": [
+				"clip-video",
+				"document"
+			],
+			"typeOnly": [
+				"recording"
+			]
+		},
+		"clip-video": {
+			"runtime": [
+				"effects",
+				"shared",
+				"source"
+			],
+			"typeOnly": [
+				"composition",
+				"document"
+			]
+		},
+		"composition": {
+			"runtime": [
+				"clip-video",
+				"document",
+				"effects",
+				"export",
+				"preferences",
+				"recording",
+				"shared",
+				"source",
+				"track-audio",
+				"transport"
+			],
+			"typeOnly": [
+				"analysis",
+				"capture",
+				"edit",
+				"import"
+			]
+		},
+		"document": {
+			"runtime": [
+				"effects",
+				"export",
+				"import",
+				"recording",
+				"shared",
+				"source"
+			],
+			"typeOnly": [
+				"capture",
+				"composition",
+				"transport"
+			]
+		},
+		"edit": {
+			"runtime": [
+				"composition",
+				"document",
+				"shared",
+				"source",
+				"track-audio"
+			],
+			"typeOnly": [
+				"effects"
+			]
+		},
+		"effects": {
+			"runtime": [
+				"assistance",
+				"composition",
+				"shared",
+				"source",
+				"track-audio"
+			],
+			"typeOnly": [
+				"document"
+			]
+		},
+		"export": {
+			"runtime": [
+				"shared"
+			],
+			"typeOnly": [
+				"source"
+			]
+		},
+		"import": {
+			"runtime": [
+				"clip-video",
+				"document",
+				"export",
+				"shared",
+				"source"
+			],
+			"typeOnly": [
+				"track-audio"
+			]
+		},
+		"preferences": {
+			"runtime": [],
+			"typeOnly": [
+				"shared"
+			]
+		},
+		"recording": {
+			"runtime": [
+				"shared",
+				"source",
+				"transport"
+			],
+			"typeOnly": [
+				"composition",
+				"document"
+			]
+		},
+		"shared": {
+			"runtime": [],
+			"typeOnly": []
+		},
+		"source": {
+			"runtime": [
+				"document",
+				"import",
+				"shared"
+			],
+			"typeOnly": [
+				"transport"
+			]
+		},
+		"track-audio": {
+			"runtime": [
+				"analysis",
+				"document",
+				"export",
+				"import",
+				"shared",
+				"source"
+			],
+			"typeOnly": [
+				"recording",
+				"transport"
+			]
+		},
+		"transport": {
+			"runtime": [],
+			"typeOnly": [
+				"recording",
+				"shared"
+			]
+		}
+	}
+}

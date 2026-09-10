@@ -5,14 +5,14 @@ import assert from 'node:assert/strict';
 import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
-} from '../../src/common/editor/controller/lifecycle.ts';
+} from '../../src/common/editor/controller/shared/lifecycle.ts';
 import {
 	createProjectBinLinkedAudioRelinkService,
 	type ProjectBinLinkedAudioRelinkBinding,
 	type ProjectBinLinkedAudioRelinkDependencies,
 	type ProjectBinLinkedAudioRelinkLocator,
-} from '../../src/common/editor/controller/project-bin-linked-audio-relink-service.ts';
-import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from '../../src/common/editor/controller/project-bin-linked-video-relink-service.ts';
+} from '../../src/common/editor/controller/import/internal/project-bin/project-bin-linked-audio-relink-service.ts';
+import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from '../../src/common/editor/controller/import/project-bin-linked-video-relink-service.ts';
 
 export const OLD_LOCATOR = Object.freeze({
 	locatorId: 'locator_audio_relink_original_01',

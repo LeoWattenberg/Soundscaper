@@ -15,8 +15,8 @@ import {
 	ZipWriter,
 } from '@zip.js/zip.js';
 
-import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
-import { createScapeProjectFileService } from '../src/common/editor/controller/scape-project-file-service.ts';
+import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
+import { createScapeProjectFileService } from '../src/common/editor/controller/document/scape-project-file-service.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { evaluateProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
 import {

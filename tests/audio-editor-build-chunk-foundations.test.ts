@@ -7,7 +7,7 @@ import { chunkGroupForModulePath, chunkGroups } from '../scripts/lib/build-chunk
 
 test('optional editor ownership is independent of path separator', () => {
 	for (const [path, owner] of [
-		['src/common/editor/controller/local-assistance-runtime.ts', 'editor-optional-assistance'],
+		['src/common/editor/controller/assistance/internal/local-assistance-runtime.ts', 'editor-optional-assistance'],
 		['src/common/editor/assistance/local-model.ts', 'editor-optional-assistance'],
 		['src/common/editor/storage/assistance-derivative-repository.ts', 'editor-optional-assistance'],
 		['src/common/editor/ui/local-model-manager-store.ts', 'editor-optional-surfaces'],
@@ -20,7 +20,7 @@ test('optional editor ownership is independent of path separator', () => {
 
 test('small product-ready foundations have non-recursive semantic owners', () => {
 	for (const [path, owner] of [
-		['src/common/editor/controller/deferred-archive-runtime.ts', 'project-interchange-foundations'],
+		['src/common/editor/controller/document/deferred-archive-runtime.ts', 'project-interchange-foundations'],
 		['desktop/desktop-video-codec-operation-contract.ts', 'editor-codec-foundations'],
 		['src/common/editor/wavpack/pcm.js', 'editor-codec-foundations'],
 		['src/common/editor/staffpad/parameters.js', 'editor-codec-foundations'],

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createFramescaperCaptureMetrics } from '../src/common/editor/controller/framescaper-capture-metrics.ts';
+import { createFramescaperCaptureMetrics } from '../src/common/editor/controller/capture/internal/framescaper-capture-metrics.ts';
 import type { CapturePcmAudioPacket } from '../src/common/editor/framescaper-capture-domain.ts';
 
 test('capture metrics distinguish unavailable evidence from measured zero', () => {

@@ -10,7 +10,7 @@ import type {
 	CaptureSourceRole,
 } from '../framescaper-capture-domain.ts';
 import type { CaptureSourceDeviceDescriptor } from '../platform/capture-source-port.ts';
-import type { FramescaperCaptureDisplaySource } from '../controller/framescaper-capture-session-types.ts';
+import type { FramescaperCaptureDisplaySource } from '../controller/capture/framescaper-capture-session-types.ts';
 import {
 	WEB_VCR_PANEL_ID,
 	type WebVcrUiSnapshot,

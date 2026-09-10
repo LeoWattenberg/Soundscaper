@@ -8,8 +8,8 @@ import {
 	createSelectionEffectResultService,
 	type EffectResultCommitOptions,
 	type SelectionEffectResultRuntime,
-} from '../src/common/editor/controller/effect-result-service.ts';
-import type { AudioBufferLike } from '../src/common/editor/controller/source-audio.ts';
+} from '../src/common/editor/controller/effects/internal/effect-result-service.ts';
+import type { AudioBufferLike } from '../src/common/editor/controller/source/source-audio.ts';
 
 type PasteOptions = Parameters<SelectionEffectResultRuntime['preparePasteCommand']>[1];
 type RangeDeleteOptions = Parameters<SelectionEffectResultRuntime['prepareRangeDeleteCommand']>[1];

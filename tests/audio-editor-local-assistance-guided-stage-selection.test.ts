@@ -6,7 +6,7 @@ import test from 'node:test';
 import { assistanceWorkflowStageGraph } from
 	'../src/common/editor/assistance/workflow-recipes.ts';
 import { selectLocalAssistanceGuidedStages } from
-	'../src/common/editor/controller/local-assistance-guided-stage-selection.ts';
+	'../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-stage-selection.ts';
 
 const models = Object.freeze([
 	{ modelId: 'silero-vad-v6', version: '6.2.1', task: 'voice-activity-detection',

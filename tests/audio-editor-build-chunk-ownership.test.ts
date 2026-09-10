@@ -129,7 +129,7 @@ test('assistance domain modules default to the lazy owner, with a named eager ex
 });
 
 test('every local assistance controller module keeps the lazy assistance owner', () => {
-	// A controller/local-assistance-*.ts module with any other owner lands in an eagerly
+	// A controller/assistance/**/local-assistance-*.ts module with any other owner lands in an eagerly
 	// loaded chunk, and its static imports then drag the whole optional assistance chunk
 	// into the product-ready startup graph, past its byte budget. Only the deferred facade
 	// that the composition root imports directly belongs on the eager side.
@@ -137,9 +137,34 @@ test('every local assistance controller module keeps the lazy assistance owner',
 		.filter((path) => chunkGroupForModulePath(path) !== 'editor-optional-assistance');
 	assert.deepEqual(misowned, [], 'these modules would join the eager startup graph');
 	assert.equal(
-		chunkGroupForModulePath('src/common/editor/controller/deferred-local-assistance-runtime.ts'),
+		chunkGroupForModulePath('src/common/editor/controller/assistance/deferred-local-assistance-runtime.ts'),
 		'editor-controller-core',
 	);
+});
+
+test('moved controller domains preserve their optional chunk owners', () => {
+	const pathsByOwner = {
+		'editor-optional-execution': [
+			'src/common/editor/controller/analysis/analysis-service.ts',
+		],
+		'editor-optional-export': [
+			'src/common/editor/controller/export/internal/direct/direct-wav-export.ts',
+			'src/common/editor/controller/export/internal/video/video-export-service.ts',
+		],
+		'editor-optional-capture': [
+			'src/common/editor/controller/capture/internal/browser/framescaper-browser-audio-recorder.ts',
+			'src/common/editor/controller/capture/internal/web-vcr/framescaper-web-vcr-controller.ts',
+		],
+		'project-interchange-foundations': [
+			'src/common/editor/controller/document/deferred-archive-runtime.ts',
+		],
+	} as const;
+	for (const [owner, paths] of Object.entries(pathsByOwner)) {
+		for (const path of paths) {
+			assert.equal(chunkGroupForModulePath(path), owner, path);
+			assert.equal(chunkGroupForModulePath(path.replaceAll('/', '\\')), owner, path);
+		}
+	}
 });
 
 test('every assistance domain module has an owning chunk group', () => {

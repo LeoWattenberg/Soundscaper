@@ -9,7 +9,7 @@ import type {
 	ProductVideoExportStrategyEncodeRequest,
 	ProductVideoExportStrategyPlanRequest,
 	ProductVideoExportProjectRequest,
-} from '../common/editor/controller/product-video-export-strategy.ts';
+} from '../common/editor/controller/export/product-video-export-strategy.ts';
 import {
 	encodeVideoKeyframeOfflineVideo,
 	encodeVideoKeyframeOfflineVideoToSink,

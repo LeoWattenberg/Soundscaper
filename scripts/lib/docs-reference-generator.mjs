@@ -66,7 +66,7 @@ const RUNTIME_MODULES = Object.freeze({
 	copyKeys: 'src/common/i18n/canonical-extras.js',
 	effectHelpers: 'src/common/editor/ui/inspector/effect-helpers.ts',
 	effects: 'src/common/editor/effects.js',
-	exportSettings: 'src/common/editor/controller/export-settings.ts',
+	exportSettings: 'src/common/editor/controller/export/export-settings.ts',
 	factoryPresets: 'src/common/editor/audacity-effects/factory-presets.js',
 	labels: 'src/common/editor/label-io.js',
 	liveEffects: 'src/common/editor/audacity-effects/live-capabilities.js',

@@ -6,9 +6,9 @@ import test from 'node:test';
 import {
 	createVideoProxyOriginalObserver,
 	type VideoProxyOriginalStore,
-} from '../src/common/editor/controller/video-proxy-original-observer.ts';
+} from '../src/common/editor/controller/capture/video-proxy-original-observer.ts';
 import { rememberLinkedVideoOriginalGeneration } from
-	'../src/common/editor/controller/linked-video-original-generation.ts';
+	'../src/common/editor/controller/clip-video/linked-video-original-generation.ts';
 
 const PROJECT_ID = 'project-1';
 const SOURCE_ID = 'source-1';

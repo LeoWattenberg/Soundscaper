@@ -22,7 +22,7 @@ import {
  * named seven lazily loaded Inspector panels this way while `editor-shell` owned it, which
  * made all seven optional chunks static dependencies of the shell the moment anything
  * imported the barrel, and `src/common/editor/index.js` re-exported the AUP4 archive client
- * that `controller/deferred-archive-runtime.ts` exists to keep behind a dynamic import.
+ * that `controller/document/deferred-archive-runtime.ts` exists to keep behind a dynamic import.
  *
  * A type-only re-export is not an edge: it is erased before the bundler sees it.
  */
@@ -73,7 +73,7 @@ test('the guard reads a barrel as imports followed by re-exports', () => {
 
 test('the public editor facade re-exports nothing the archive boundary keeps lazy', () => {
 	// `aup4-client.js` is optional archive implementation with no owner, reached in
-	// production only through `controller/deferred-archive-runtime.ts`. Re-exporting it from
+	// production only through `controller/document/deferred-archive-runtime.ts`. Re-exporting it from
 	// the `editor-controller-core` barrel put it one static import from the boot graph.
 	const facade = sourceOf('src/common/editor/index.js');
 	assert.ok(!staticRelativeDependencies(facade).includes('./aup4-client.js'));

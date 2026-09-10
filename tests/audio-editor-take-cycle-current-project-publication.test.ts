@@ -13,9 +13,9 @@ import {
 	createTakeCycleCurrentProjectPublicationService,
 	type TakeCyclePublicationHistory,
 	type TakeCyclePublicationSession,
-} from '../src/common/editor/controller/take-cycle-current-project-publication-service.ts';
-import type { TakeCyclePublishedProject } from '../src/common/editor/controller/take-cycle-recording-repository-composition.ts';
-import { applyDefaultTakeCycleProjectCommand, type TakeCycleProjectDocument } from '../src/common/editor/controller/take-cycle-project-document.ts';
+} from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-current-project-publication-service.ts';
+import type { TakeCyclePublishedProject } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-recording-repository-composition.ts';
+import { applyDefaultTakeCycleProjectCommand, type TakeCycleProjectDocument } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-project-document.ts';
 
 const NOW = '2026-08-12T12:00:00.000Z';
 

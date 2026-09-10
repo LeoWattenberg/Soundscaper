@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createProjectSaveService } from '../src/common/editor/controller/project-save-service.ts';
+import { createProjectSaveService } from '../src/common/editor/controller/document/project-save-service.ts';
 import { estimateProjectRevisionPublication } from '../src/common/editor/project-publication-admission.ts';
 import { waitFor } from './helpers/async-test-control.ts';
 

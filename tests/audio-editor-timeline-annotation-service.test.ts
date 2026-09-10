@@ -8,7 +8,7 @@ import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.
 import {
 	createTimelineAnnotationService,
 	type TimelineAnnotationControllerState,
-} from '../src/common/editor/controller/timeline-annotation-service.ts';
+} from '../src/common/editor/controller/document/internal/annotations/timeline-annotation-service.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import type { TimelineAnnotationV11 } from '../src/common/editor/timeline-annotation.ts';
 

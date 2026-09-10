@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createPreparedProjectSources } from '../src/common/editor/controller/prepared-project-sources.ts';
-import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source-chunk-provider-registry.ts';
+import { createPreparedProjectSources } from '../src/common/editor/controller/import/prepared-project-sources.ts';
+import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source/source-chunk-provider-registry.ts';
 
 test('prepared provider publication transfers ownership before awaiting prior cleanup', async () => {
 	const cleanup = deferred<void>();

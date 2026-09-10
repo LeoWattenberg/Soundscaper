@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createEditorExportService } from '../src/common/editor/controller/export-service.ts';
+import { createEditorExportService } from '../src/common/editor/controller/export/internal/export-service.ts';
 import { createFixture } from './helpers/export-service-fixture.ts';
 
 test('persistent delivery waits for an unowned video export to become idle', async () => {

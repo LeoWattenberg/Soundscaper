@@ -9,11 +9,11 @@ import {
 	admitAudioRenderedFallbackExport,
 	assertAudioRenderedFallbackExportSettings,
 	projectForAudioRenderedFallbackExport,
-} from '../src/common/editor/controller/audio-rendered-fallback-export.ts';
+} from '../src/common/editor/controller/export/internal/audio/audio-rendered-fallback-export.ts';
 import {
 	createPlaybackProjectService,
 	type AudioRenderedFallbackDeliveryProjection,
-} from '../src/common/editor/controller/playback-project-service.ts';
+} from '../src/common/editor/controller/source/playback-project-service.ts';
 import type { EngineChunkSource } from '../src/common/editor/engine/types.ts';
 import {
 	PROJECT_FEATURE_CAPABILITY_IDS,

@@ -10,11 +10,11 @@ import {
 	ensureFramescaperCaptureRecoveryOrigin,
 	type FramescaperCaptureAppHistory,
 	type FramescaperCaptureAppProject,
-} from '../src/common/editor/controller/framescaper-capture-app-binding.ts';
-import { createFramescaperCaptureAdminInterlock } from '../src/common/editor/controller/framescaper-capture-admin-interlock.ts';
-import { FramescaperCaptureOriginProtectedError } from '../src/common/editor/controller/framescaper-capture-origin-guard.ts';
-import { framescaperCaptureProjectFence } from '../src/common/editor/controller/framescaper-capture-project-publication-port.ts';
-import { completeFramescaperCaptureRuntimeProbe } from '../src/common/editor/controller/framescaper-capture-runtime-probe.ts';
+} from '../src/common/editor/controller/capture/framescaper-capture-app-binding.ts';
+import { createFramescaperCaptureAdminInterlock } from '../src/common/editor/controller/capture/framescaper-capture-admin-interlock.ts';
+import { FramescaperCaptureOriginProtectedError } from '../src/common/editor/controller/capture/framescaper-capture-origin-guard.ts';
+import { framescaperCaptureProjectFence } from '../src/common/editor/controller/capture/internal/framescaper-capture-project-publication-port.ts';
+import { completeFramescaperCaptureRuntimeProbe } from '../src/common/editor/controller/capture/internal/framescaper-capture-runtime-probe.ts';
 import type { FramescaperCaptureSessionManifestV1 } from '../src/common/editor/framescaper-capture-session-manifest.ts';
 
 test('the app binding exists only for the exact Framescaper v1 identity', () => {

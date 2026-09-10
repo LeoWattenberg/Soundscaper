@@ -6,8 +6,8 @@ import test from 'node:test';
 import {
 	createProjectAdminService,
 	type ProjectAdminServiceRuntime,
-} from '../src/common/editor/controller/project-admin-service.ts';
-import { createProjectSaveService } from '../src/common/editor/controller/project-save-service.ts';
+} from '../src/common/editor/controller/document/project-admin-service.ts';
+import { createProjectSaveService } from '../src/common/editor/controller/document/project-save-service.ts';
 import {
 	createFixture as createAdminFixture,
 	type Project,

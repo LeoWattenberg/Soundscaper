@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	executeTrimMediaCopy,
 	type TrimMediaFfmpegRuntime,
-} from '../src/common/editor/controller/trim-media-execution.ts';
+} from '../src/common/editor/controller/document/internal/trim-media-execution.ts';
 import { createTrimMediaPlan } from '../src/common/editor/trim-media-plan.ts';
 
 const RATE = Object.freeze({ num: 30_000, den: 1_001 });

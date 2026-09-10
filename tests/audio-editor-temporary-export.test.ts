@@ -7,7 +7,7 @@ import {
 	createStreamingZipArchive,
 	createTemporaryFileSink,
 	stemProject,
-} from '../src/common/editor/controller/temporary-export.ts';
+} from '../src/common/editor/controller/export/temporary-export.ts';
 import {
 	createAudioClip,
 	createAudioSource,

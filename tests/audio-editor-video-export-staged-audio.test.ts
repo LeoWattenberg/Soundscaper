@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	stagedAudioChannelCount,
 	stagedAudioChannelLayout,
-} from '../src/common/editor/controller/video-export-staged-audio.ts';
+} from '../src/common/editor/controller/export/internal/video/video-export-staged-audio.ts';
 
 test('staged video audio geometry follows the admitted layout', () => {
 	for (const [layout, masterChannels, expected] of [

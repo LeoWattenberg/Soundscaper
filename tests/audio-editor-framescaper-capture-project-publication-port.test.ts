@@ -7,7 +7,7 @@ import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.
 import {
 	createFramescaperCaptureProjectPublicationPort,
 	framescaperCaptureProjectFence,
-} from '../src/common/editor/controller/framescaper-capture-project-publication-port.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-project-publication-port.ts';
 
 interface Project extends Record<string, unknown> {
 	readonly id: string;

@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createProjectSwitchService, type ProjectSwitchServiceRuntime } from '../src/common/editor/controller/project-switch-service.ts';
+import { createProjectSwitchService, type ProjectSwitchServiceRuntime } from '../src/common/editor/controller/document/project-switch-service.ts';
 import { createFixture, project } from './helpers/audio-editor-project-switch-fixture.ts';
 
 test('activation uses the admitted history instead of traversing the stored input', async () => {

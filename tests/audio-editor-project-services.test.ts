@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createEditorPreferencesService } from '../src/common/editor/controller/preferences-service.ts';
-import { createProjectSaveService } from '../src/common/editor/controller/project-save-service.ts';
-import { createProjectSessionService } from '../src/common/editor/controller/project-session-service.ts';
+import { createEditorPreferencesService } from '../src/common/editor/controller/preferences/internal/preferences-service.ts';
+import { createProjectSaveService } from '../src/common/editor/controller/document/project-save-service.ts';
+import { createProjectSessionService } from '../src/common/editor/controller/document/internal/project/project-session-service.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import type { ProjectLinkedOriginalSourceReference } from '../src/common/editor/storage/project-publication-options.ts';
 import { waitFor } from './helpers/async-test-control.ts';

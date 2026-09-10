@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createVideoRollRippleTrimResultReporter,
 	type VideoRollRippleTrimFeedbackCopy,
-} from '../src/common/editor/controller/video-roll-ripple-trim-feedback.ts';
+} from '../src/common/editor/controller/clip-video/internal/trim/video-roll-ripple-trim-feedback.ts';
 import type { FrameCanonicalRollRippleTrimPlan } from '../src/common/editor/frame-canonical-roll-ripple-trim-domain.ts';
 import { SEQUENCE_TIMING_COPY_BY_LOCALE } from '../src/common/i18n/sequence-timing-copy.js';
 

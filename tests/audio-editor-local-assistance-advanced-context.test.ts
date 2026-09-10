@@ -6,11 +6,11 @@ import test from 'node:test';
 import {
 	createLocalAssistanceAdvancedSelectedContextPreparation,
 	LocalAssistanceAdvancedContextUnavailableError,
-} from '../src/common/editor/controller/local-assistance-advanced-selected-context.ts';
+} from '../src/common/editor/controller/assistance/internal/local-assistance-advanced-selected-context.ts';
 import { resolveLocalAssistanceSelectedAudioAuthority } from
-	'../src/common/editor/controller/local-assistance-selected-preparation.ts';
+	'../src/common/editor/controller/assistance/internal/local-assistance-selected-preparation.ts';
 import { createLocalAssistancePreparationRuntime } from
-	'../src/common/editor/controller/local-assistance-runtime.ts';
+	'../src/common/editor/controller/assistance/internal/local-assistance-runtime.ts';
 import { reviewAssistanceEditorialGenerationPlanV1 } from
 	'../src/common/editor/assistance/editorial-generation-v1.ts';
 import {
@@ -139,7 +139,7 @@ test('composed runtime exposes linked-audio Advanced context without video decod
 
 test('selected-media router keeps visual embedding and OCR on authenticated video custody', async () => {
 	const { createLocalAssistanceSelectedMediaPreparationRouter } = await import(
-		'../src/common/editor/controller/local-assistance-selected-media-router.ts'
+		'../src/common/editor/controller/assistance/internal/local-assistance-selected-media-router.ts'
 	);
 	const calls: string[] = [];
 	const port = (owner: 'audio' | 'video') => Object.freeze({

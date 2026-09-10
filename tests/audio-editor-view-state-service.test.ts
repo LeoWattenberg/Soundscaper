@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createViewStateService,
 	type ViewStateServiceRuntime,
-} from '../src/common/editor/controller/view-state-service.ts';
+} from '../src/common/editor/controller/transport/internal/view-state-service.ts';
 
 function createFixture() {
 	const transportTransitions: Array<readonly [string, string]> = [];

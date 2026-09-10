@@ -7,16 +7,16 @@ import test from 'node:test';
 import {
 	createLocalAssistanceSelectedVideoPreparation,
 	resolveLocalAssistanceSelectedVideoAuthority,
-} from '../src/common/editor/controller/local-assistance-selected-video.ts';
+} from '../src/common/editor/controller/assistance/local-assistance-selected-video.ts';
 import {
 	createLocalAssistanceSelectedVideoModelFramePack,
-} from '../src/common/editor/controller/local-assistance-selected-video-model-preparation.ts';
+} from '../src/common/editor/controller/assistance/internal/selected-video/local-assistance-selected-video-model-preparation.ts';
 import {
 	createLocalAssistanceSelectedVideoSourceTimeDescriptorV1,
 	findLocalAssistanceSelectedVideoSourceTimeBySourceFrameV1,
 	findLocalAssistanceSelectedVideoSourceTimeByTimelineFrameV1,
 	reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1,
-} from '../src/common/editor/controller/local-assistance-selected-video-source-time.ts';
+} from '../src/common/editor/controller/assistance/local-assistance-selected-video-source-time.ts';
 import { sequenceFrameBoundarySample } from '../src/common/editor/sequence-frame-navigation.ts';
 import {
 	registerVideoTimingIndex,

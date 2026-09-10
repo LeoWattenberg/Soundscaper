@@ -8,11 +8,11 @@ import {
 	type TimedRecordingInputProject,
 	type TimedRecordingInputRoute,
 	type TimedRecordingInputServiceRuntime,
-} from '../src/common/editor/controller/timed-recording-input-service.ts';
+} from '../src/common/editor/controller/recording/internal/timed-recording-input-service.ts';
 import {
 	createTimedRecordingService,
 	type TimedRecordingMutableState,
-} from '../src/common/editor/controller/timed-recording-service.ts';
+} from '../src/common/editor/controller/recording/internal/timed-recording-service.ts';
 
 type Mutable<Value> = { -readonly [Key in keyof Value]: Value[Key] };
 

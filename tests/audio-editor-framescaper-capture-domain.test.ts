@@ -12,13 +12,13 @@ import {
 } from '../src/common/editor/framescaper-capture-domain.ts';
 import {
 	createFramescaperCaptureStateMachine,
-} from '../src/common/editor/controller/framescaper-capture-state-machine.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-state-machine.ts';
 import {
 	createFramescaperCaptureActiveTimeClock,
-} from '../src/common/editor/controller/framescaper-capture-active-time-clock.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-active-time-clock.ts';
 import {
 	createIdempotentCaptureLease,
-} from '../src/common/editor/controller/framescaper-capture-lease.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-lease.ts';
 
 const AVAILABLE = createCaptureRuntimeAvailability({
 	status: 'available',

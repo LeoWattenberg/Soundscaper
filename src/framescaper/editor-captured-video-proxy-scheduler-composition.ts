@@ -3,12 +3,12 @@
 import type {
 	FramescaperCapturedVideoProxyActiveUpdate,
 	FramescaperCaptureProxySaveLease,
-} from '../common/editor/controller/framescaper-capture-proxy-quiescence.ts';
+} from '../common/editor/controller/capture/framescaper-capture-proxy-quiescence.ts';
 import {
 	createVideoProxyCandidateObserverForRuntime,
 	type VideoProxyCandidateCompositionOptions,
 	type VideoProxyCandidateRuntime,
-} from '../common/editor/controller/video-proxy-candidate-composition.ts';
+} from '../common/editor/controller/capture/video-proxy-candidate-composition.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import {
 	assertVideoProxyCandidateObserver,

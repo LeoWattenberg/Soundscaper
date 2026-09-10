@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAudioWarpActionFacade } from '../src/common/editor/controller/audio-warp-action-facade.ts';
+import { createAudioWarpActionFacade } from '../src/common/editor/controller/track-audio/audio-warp-action-facade.ts';
 
 test('audio warp facade exposes every selected-clip workflow operation behind one capability', async () => {
 	const calls: string[] = [];

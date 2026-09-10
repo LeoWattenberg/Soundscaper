@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createNativeProjectComposition } from '../src/common/editor/controller/native-project-composition.ts';
-import { createEditorTaskProgressCoordinator } from '../src/common/editor/controller/task-progress.ts';
+import { createNativeProjectComposition } from '../src/common/editor/controller/document/native-project-composition.ts';
+import { createEditorTaskProgressCoordinator } from '../src/common/editor/controller/shared/task-progress.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { exportScapeProject } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';

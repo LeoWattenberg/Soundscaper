@@ -8,11 +8,11 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 
 import {
 	createLocalAssistanceAudioPublicationAcceptance,
-} from '../src/common/editor/controller/local-assistance-audio-publication.ts';
+} from '../src/common/editor/controller/assistance/internal/audio/local-assistance-audio-publication.ts';
 import type { AssistanceSelectionFence } from '../src/common/editor/assistance/proposal-session.ts';
 import {
 	resolveLocalAssistanceSelectedMediaAuthority,
-} from '../src/common/editor/controller/local-assistance-selected-media.ts';
+} from '../src/common/editor/controller/assistance/internal/local-assistance-selected-media.ts';
 import {
 	createEditorHistory,
 	executeEditorCommand,

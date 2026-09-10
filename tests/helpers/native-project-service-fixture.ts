@@ -3,9 +3,9 @@
 import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
-} from '../../src/common/editor/controller/lifecycle.ts';
-import type { NativeProjectServiceRuntime } from '../../src/common/editor/controller/native-project-service.ts';
-import type { NativeProjectDocument } from '../../src/common/editor/controller/native-project-types.ts';
+} from '../../src/common/editor/controller/shared/lifecycle.ts';
+import type { NativeProjectServiceRuntime } from '../../src/common/editor/controller/document/native-project-service.ts';
+import type { NativeProjectDocument } from '../../src/common/editor/controller/document/native-project-types.ts';
 import {
 	PROJECT_FILE_EXTENSION_BY_PRODUCT,
 	withProjectFileExtension,

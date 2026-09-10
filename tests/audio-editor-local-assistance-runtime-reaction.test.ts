@@ -14,10 +14,10 @@ import {
 } from '../src/common/editor/assistance/workflow-settings-v1.ts';
 import {
 	createLocalAssistancePreparationRuntime,
-} from '../src/common/editor/controller/local-assistance-runtime.ts';
+} from '../src/common/editor/controller/assistance/internal/local-assistance-runtime.ts';
 import {
 	resolveLocalAssistanceSelectedMediaAuthority,
-} from '../src/common/editor/controller/local-assistance-selected-media.ts';
+} from '../src/common/editor/controller/assistance/internal/local-assistance-selected-media.ts';
 import { AssistanceDerivativeRepository } from
 	'../src/common/editor/storage/assistance-derivative-repository.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';

@@ -21,7 +21,7 @@ import {
 	mapLocalAssistanceSelectedVideoSourceBoundary,
 	readLocalAssistanceSelectedVideoSourceFrameTick,
 	type LocalAssistanceSelectedVideoAuthority,
-} from '../common/editor/controller/local-assistance-selected-video.ts';
+} from '../common/editor/controller/assistance/local-assistance-selected-video.ts';
 import {
 	normalizeVideoClipComposition,
 } from '../common/editor/video-clip-composition.ts';

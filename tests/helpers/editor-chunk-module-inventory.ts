@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { readdirSync } from 'node:fs';
+import { relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
@@ -23,6 +24,16 @@ function modulesIn(directory: string, prefix: string, accept: (name: string) => 
 		.sort();
 }
 
+function modulesInTree(directory: string, prefix: string, accept: (name: string) => boolean = () => true) {
+	return readdirSync(directory, { recursive: true, withFileTypes: true })
+		.filter((entry) => entry.isFile() && MODULE_PATTERN.test(entry.name) && accept(entry.name))
+		.map((entry) => {
+			const path = `${entry.parentPath}${sep}${entry.name}`;
+			return `${prefix}${relative(directory, path).split(sep).join('/')}`;
+		})
+		.sort();
+}
+
 /** Editor modules directly under `src/common/editor/`, which no subdirectory groups. */
 export function flatEditorModules(): readonly string[] {
 	return modulesIn(EDITOR_DIRECTORY, 'src/common/editor/');
@@ -35,6 +46,6 @@ export function assistanceDomainModules(): readonly string[] {
 
 /** Controller modules belonging to local assistance, named by their shared prefix. */
 export function localAssistanceControllerModules(): readonly string[] {
-	return modulesIn(EDITOR_CONTROLLER_DIRECTORY, 'src/common/editor/controller/',
+	return modulesInTree(EDITOR_CONTROLLER_DIRECTORY, 'src/common/editor/controller/',
 		(name) => name.startsWith('local-assistance-'));
 }

@@ -6,37 +6,37 @@ import test from 'node:test';
 import type {
 	ClipTimePitchPreparationState,
 	ClipTimePitchPreparationWriteScope,
-} from '../src/common/editor/controller/clip-time-pitch-service.ts';
+} from '../src/common/editor/controller/source/clip-time-pitch-service.ts';
 import type {
 	MicrophoneMeterDependencies,
 	MicrophoneMeterState,
-} from '../src/common/editor/controller/microphone-meter-service.ts';
-import type { OwnedStateAccess } from '../src/common/editor/controller/owned-state.ts';
+} from '../src/common/editor/controller/recording/microphone-meter-service.ts';
+import type { OwnedStateAccess } from '../src/common/editor/controller/shared/owned-state.ts';
 import type {
 	ProjectBootstrapRecordingState,
 	ProjectBootstrapRecordingWriteScope,
 	ProjectBootstrapTransportState,
 	ProjectBootstrapTransportWriteScope,
-} from '../src/common/editor/controller/project-bootstrap-service.ts';
-import type { RecordingInputCoordinationState } from '../src/common/editor/controller/recording-input-coordination-service.ts';
-import type { RecordingRoutingState } from '../src/common/editor/controller/recording-routing-service-types.d.ts';
+} from '../src/common/editor/controller/document/internal/project/project-bootstrap-service.ts';
+import type { RecordingInputCoordinationState } from '../src/common/editor/controller/recording/internal/recording-input-coordination-service.ts';
+import type { RecordingRoutingState } from '../src/common/editor/controller/recording/internal/recording-routing-service-types.d.ts';
 import type {
 	RecordingCompositionDependencies,
 	RecordingCompositionState,
-} from '../src/common/editor/controller/recording-composition.ts';
-import type { RecordingSessionMutableState } from '../src/common/editor/controller/recording-session-service.ts';
-import type { ControllerRecordingState } from '../src/common/editor/controller/recording-state.ts';
-import type { RecordingCaptureMutableState } from '../src/common/editor/controller/recording-transaction-types.ts';
-import type { TimedRecordingMutableState } from '../src/common/editor/controller/timed-recording-service.ts';
+} from '../src/common/editor/controller/recording/recording-composition.ts';
+import type { RecordingSessionMutableState } from '../src/common/editor/controller/recording/internal/recording-session-service.ts';
+import type { ControllerRecordingState } from '../src/common/editor/controller/recording/recording-state.ts';
+import type { RecordingCaptureMutableState } from '../src/common/editor/controller/recording/recording-transaction-types.ts';
+import type { TimedRecordingMutableState } from '../src/common/editor/controller/recording/internal/timed-recording-service.ts';
 import type {
 	TrackAudioCompositionDependencies,
 	TrackAudioCompositionState,
-} from '../src/common/editor/controller/track-audio-composition.ts';
+} from '../src/common/editor/controller/track-audio/track-audio-composition.ts';
 import type {
 	TransportCompositionDependencies,
 	TransportCompositionState,
-} from '../src/common/editor/controller/transport-composition.ts';
-import type { ControllerTransportState } from '../src/common/editor/controller/transport-state.ts';
+} from '../src/common/editor/controller/transport/transport-composition.ts';
+import type { ControllerTransportState } from '../src/common/editor/controller/transport/transport-state.ts';
 
 type IsAssignable<Source, Target> = [Source] extends [Target] ? true : false;
 type AssertTrue<Value extends true> = Value;

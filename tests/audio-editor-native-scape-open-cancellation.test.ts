@@ -6,15 +6,15 @@ import test from 'node:test';
 import {
 	createNativeProjectService,
 	type NativeProjectServiceRuntime,
-} from '../src/common/editor/controller/native-project-service.ts';
+} from '../src/common/editor/controller/document/native-project-service.ts';
 import type {
 	NativeProjectDocument,
 	ScapeImportResult,
-} from '../src/common/editor/controller/native-project-types.ts';
+} from '../src/common/editor/controller/document/native-project-types.ts';
 import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
-} from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
 
 interface Deferred<Value> {
 	readonly promise: Promise<Value>;

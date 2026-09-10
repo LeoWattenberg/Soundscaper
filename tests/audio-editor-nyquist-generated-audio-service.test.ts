@@ -7,9 +7,9 @@ import {
 	createNyquistGeneratedAudioService,
 	type NyquistGeneratedAudioProject,
 	type NyquistGeneratedAudioState,
-} from '../src/common/editor/controller/nyquist-generated-audio-service.ts';
-import { EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
-import type { EffectTarget } from '../src/common/editor/controller/effect-selection-service.ts';
+} from '../src/common/editor/controller/effects/internal/nyquist/nyquist-generated-audio-service.ts';
+import { EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
+import type { EffectTarget } from '../src/common/editor/controller/effects/effect-selection-service.ts';
 
 function deferred<Value>() {
 	let resolve: (value: Value) => void = () => undefined;

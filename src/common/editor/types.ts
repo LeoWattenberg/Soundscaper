@@ -1,9 +1,9 @@
-import type { createGroupedEditorActions } from './controller/action-facade.ts';
-import type { EditorControllerPhase } from './controller/lifecycle.ts';
-import type { StorageCapacitySnapshot } from './controller/storage-capacity-service.ts';
+import type { createGroupedEditorActions } from './controller/composition/action-facade.ts';
+import type { EditorControllerPhase } from './controller/shared/lifecycle.ts';
+import type { StorageCapacitySnapshot } from './controller/shared/storage-capacity-service.ts';
 import type { EditorStoreStatus } from './storage/status.ts';
 import type { ProjectLinkedOriginalSourceReference } from './storage/project-publication-options.ts';
-import type { EditorTaskProgress } from './controller/task-progress.ts';
+import type { EditorTaskProgress } from './controller/shared/task-progress.ts';
 import type { ProjectBextMetadata } from './project-bext-metadata.ts';
 import type { IxmlMetadata } from './ixml.ts';
 import type { CartMetadata } from './cart-metadata.ts';
@@ -15,14 +15,14 @@ import type {
 import type { SampleFrame } from './timeline-time.ts';
 import type { TimelineAnnotationV11 } from './timeline-annotation.ts';
 import type { RuntimeTimelineAnnotationProjection } from './runtime-timeline-annotation-projection.ts';
-import type { SoundActivationPolicySnapshot } from './controller/sound-activation-policy-service.ts';
-import type { TakeCyclePendingOpenRecovery } from './controller/take-cycle-capture-orchestrator.ts';
-import type { FramescaperCaptureSessionSnapshot } from './controller/framescaper-capture-session-types.ts';
-import type { FramescaperWebVcrUiSnapshot } from './controller/framescaper-web-vcr-controller-types.ts';
+import type { SoundActivationPolicySnapshot } from './controller/recording/sound-activation-policy-service.ts';
+import type { TakeCyclePendingOpenRecovery } from './controller/recording/take-cycle-capture-orchestrator.ts';
+import type { FramescaperCaptureSessionSnapshot } from './controller/capture/framescaper-capture-session-types.ts';
+import type { FramescaperWebVcrUiSnapshot } from './controller/capture/framescaper-web-vcr-controller-types.ts';
 import type { LocalDiagnosticsErrorSnapshot, LocalDiagnosticsErrorSource } from './local-diagnostics-error-journal.ts';
 
-export type { EditorTaskProgress, EditorTaskProgressKind } from './controller/task-progress.ts';
-export type { SoundActivationPolicySnapshot } from './controller/sound-activation-policy-service.ts';
+export type { EditorTaskProgress, EditorTaskProgressKind } from './controller/shared/task-progress.ts';
+export type { SoundActivationPolicySnapshot } from './controller/recording/sound-activation-policy-service.ts';
 export type { SampleFrame, SourceTicks, VideoFrame } from './timeline-time.ts';
 
 export type EditorId = string;
@@ -222,7 +222,7 @@ export interface EditorTelemetrySnapshot {
 	readonly [metric: string]: unknown;
 }
 
-export type EditorControllerOptions = import('./controller/controller-options.ts').ControllerOptions;
+export type EditorControllerOptions = import('./controller/composition/controller-options.ts').ControllerOptions;
 
 export interface EditorProjectStore {
 	getStatus(): EditorStoreStatus;

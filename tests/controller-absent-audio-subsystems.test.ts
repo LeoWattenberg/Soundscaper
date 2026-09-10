@@ -11,7 +11,7 @@ import {
 	createAbsentNyquistHostService,
 	createAbsentSelectionEffectExecutionService,
 	createAbsentSelectionEffectWorkerService,
-} from '../src/common/editor/controller/absent-audio-subsystems.ts';
+} from '../src/common/editor/controller/composition/absent-audio-subsystems.ts';
 
 const CONTEXT = Object.freeze({ productName: 'Framescaper' });
 
@@ -73,7 +73,7 @@ test('cancelling work an absent subsystem never started is not an error', () => 
 
 test('the absent analysis shape carries every member the deferred facade publishes', async () => {
 	const { createDeferredAudioAnalysisService } = await import(
-		'../src/common/editor/controller/deferred-analysis-service.ts'
+		'../src/common/editor/controller/analysis/internal/deferred-analysis-service.ts'
 	);
 	const real = createDeferredAudioAnalysisService({
 		lifetime: { cancelTask() {} },

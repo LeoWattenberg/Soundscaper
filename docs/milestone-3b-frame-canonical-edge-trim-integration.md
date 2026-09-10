@@ -163,12 +163,12 @@ current path. Packet 3B-4 remains in progress.
 
 ## Expected file ownership
 
-- New `src/common/editor/controller/video-edge-trim-service.ts` and focused
+- New `src/common/editor/controller/clip-video/internal/trim/video-edge-trim-service.ts` and focused
   strict-TypeScript service tests.
 - New `src/common/editor/ui/framescaper-video-trim-menu-model.ts` and focused
   strict-TypeScript menu tests.
 - Narrow composition/facade changes in `src/common/editor/app.js` and
-  `src/common/editor/controller/action-facade.ts`.
+  `src/common/editor/controller/composition/action-facade.ts`.
 - Narrow video-bearing routing changes in
   `src/common/editor/ui/timeline/useTimelinePointerMove.js`,
   `src/common/editor/ui/timeline/useTimelinePointerFinish.js`, and

@@ -7,7 +7,7 @@ import {
 	SOUND_ACTIVATION_UI_RANGES,
 	createSoundActivationUiModel,
 } from '../src/common/editor/ui/sound-activation-ui-model.ts';
-import type { SoundActivationPolicySnapshot } from '../src/common/editor/controller/sound-activation-policy-service.ts';
+import type { SoundActivationPolicySnapshot } from '../src/common/editor/controller/recording/sound-activation-policy-service.ts';
 
 const COPY = Object.freeze({
 	soundActivationGuardReadOnly: 'This project is read-only.',

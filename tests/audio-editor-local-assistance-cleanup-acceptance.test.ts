@@ -7,15 +7,15 @@ import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.
 import {
 	createLocalAssistanceTranscriptCleanupSession,
 	type LocalAssistanceTranscriptCleanupRequest,
-} from '../src/common/editor/controller/local-assistance-cleanup-acceptance.ts';
+} from '../src/common/editor/controller/assistance/internal/local-assistance-cleanup-acceptance.ts';
 import {
 	createLocalAssistanceGuidedCleanupAcceptance,
-} from '../src/common/editor/controller/local-assistance-guided-cleanup-acceptance.ts';
+} from '../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-cleanup-acceptance.ts';
 import type { LocalAssistanceTranscriptCleanupPreset } from
 	'../src/common/editor/assistance/local-assistance-cleanup.ts';
 import {
 	resolveLocalAssistanceSelectedMediaAuthority,
-} from '../src/common/editor/controller/local-assistance-selected-media.ts';
+} from '../src/common/editor/controller/assistance/internal/local-assistance-selected-media.ts';
 import {
 	createEditorHistory,
 	executeEditorCommand,

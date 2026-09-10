@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createSoundscaperPersistentDeliveryWorker } from '../src/common/editor/controller/soundscaper-persistent-delivery-worker.ts';
+import { createSoundscaperPersistentDeliveryWorker } from '../src/common/editor/controller/export/internal/delivery/soundscaper-persistent-delivery-worker.ts';
 import { createSoundscaperPersistentAudioDeliveryPlanV1 } from '../src/common/editor/soundscaper-persistent-delivery-plan-v1.ts';
 import { fingerprintSoundscaperDeliveryPlanV1 } from '../src/common/editor/soundscaper-delivery-contract-v1.ts';
 

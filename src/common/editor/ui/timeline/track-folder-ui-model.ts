@@ -2,7 +2,7 @@
 
 import type {
 	DocumentTrackFolderSnapshot,
-} from '../../controller/document-track-folder-snapshot.ts';
+} from '../../controller/document/document-track-folder-snapshot.ts';
 import type { TrackFolderStateNodeV12 } from '../../track-folder-state-projection.ts';
 
 /**

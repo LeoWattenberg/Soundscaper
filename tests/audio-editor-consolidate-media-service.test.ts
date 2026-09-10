@@ -7,7 +7,7 @@ import {
 	consolidateProjectMedia,
 	planProjectConsolidation,
 	type ConsolidateMediaStore,
-} from '../src/common/editor/controller/consolidate-media-service.ts';
+} from '../src/common/editor/controller/document/consolidate-media-service.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 
 const AUDIO = Uint8Array.from({ length: 4_096 }, (_value, index) => index % 251);

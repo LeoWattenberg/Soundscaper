@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import type {
 	FramescaperCapturedVideoProxyRequest,
-} from '../src/common/editor/controller/framescaper-capture-derivative-scheduler.ts';
+} from '../src/common/editor/controller/capture/framescaper-capture-derivative-scheduler.ts';
 import type { VideoProxyAttachmentV18 } from '../src/common/editor/video-proxy-attachment-v18.ts';
 import type {
 	CapturedVideoProxySchedulerDependencies,

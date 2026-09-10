@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { waveformPeakBlockSizes, WAVEFORM_PEAK_MAX_SOURCE_BYTES, WAVEFORM_PEAK_BLOCK_SIZES } from '../src/common/editor/waveform-peak-contract.ts';
-import { generateWaveformPeaksFallback, generateStoredWaveformPeaksFallback, waveformPeaksHaveRms } from '../src/common/editor/controller/waveform-analysis.ts';
+import { generateWaveformPeaksFallback, generateStoredWaveformPeaksFallback, waveformPeaksHaveRms } from '../src/common/editor/controller/source/waveform-analysis.ts';
 import { validateWaveformPeakLevels } from '../src/common/editor/design-system-adapters/waveform-internals.ts';
 
 test('waveform storage stays bounded for hour-long and much larger audio sources', () => {

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { deferredArchiveRuntime } from '../common/editor/controller/deferred-archive-runtime.ts';
+import { deferredArchiveRuntime } from '../common/editor/controller/document/deferred-archive-runtime.ts';
 import { FRAMESCAPER_PROJECT_SCHEMA_FAMILY, PROJECT_SCHEMA_VERSION } from
 	'../common/editor/project-schema-identity.ts';
 import type { ScapeProjectInput } from '../common/editor/scape-project-input.ts';

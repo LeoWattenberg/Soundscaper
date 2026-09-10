@@ -3,9 +3,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
+import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
 import { VideoSourceUpgradeRefusedError } from '../src/common/editor/video-source-upgrade.ts';
-import { createVideoSourceReprobeService } from '../src/common/editor/controller/video-source-reprobe-service.ts';
+import { createVideoSourceReprobeService } from '../src/common/editor/controller/clip-video/video-source-reprobe-service.ts';
 import { createUnreportedVideoSourceCharacteristics } from '../src/common/editor/video-source-characteristics.ts';
 import { digestMediaContent } from '../src/common/editor/storage/media-content-digest.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';

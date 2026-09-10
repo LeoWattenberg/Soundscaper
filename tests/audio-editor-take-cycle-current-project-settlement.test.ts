@@ -5,24 +5,24 @@ import test from 'node:test';
 
 import { applyEditorCommand } from '../src/common/editor/commands.js';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
-import { createProjectMutationService } from '../src/common/editor/controller/project-mutation-service.ts';
+import { createProjectMutationService } from '../src/common/editor/controller/document/project-mutation-service.ts';
 import {
 	createProjectRetentionService,
 	type RetentionHistory,
 	type RetentionProject,
-} from '../src/common/editor/controller/project-retention-service.ts';
-import { createProjectSaveService } from '../src/common/editor/controller/project-save-service.ts';
-import { createTakeCycleAppComposition } from '../src/common/editor/controller/take-cycle-app-composition.ts';
-import type { TakeCyclePublicationSession } from '../src/common/editor/controller/take-cycle-current-project-publication-service.ts';
-import type { TakeCyclePublicationHistory } from '../src/common/editor/controller/take-cycle-current-project-publication-service.ts';
-import { createTakeCycleRecordingAppSession } from '../src/common/editor/controller/take-cycle-recording-app-session.ts';
-import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/document/internal/project/project-retention-service.ts';
+import { createProjectSaveService } from '../src/common/editor/controller/document/project-save-service.ts';
+import { createTakeCycleAppComposition } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-app-composition.ts';
+import type { TakeCyclePublicationSession } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-current-project-publication-service.ts';
+import type { TakeCyclePublicationHistory } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-current-project-publication-service.ts';
+import { createTakeCycleRecordingAppSession } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-recording-app-session.ts';
+import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
 import type {
 	RecordingControllerFactoryOptions,
 	RecordingRoute,
 	RecordingSelection,
-} from '../src/common/editor/controller/recording-transaction-types.ts';
-import type { TakeCycleRoutedCaptureProject } from '../src/common/editor/controller/take-cycle-routed-capture-types.ts';
+} from '../src/common/editor/controller/recording/recording-transaction-types.ts';
+import type { TakeCycleRoutedCaptureProject } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-routed-capture-types.ts';
 import { createEditorHistory, executeEditorCommand } from '../src/common/editor/history.js';
 import {
 	createAudioTrack,

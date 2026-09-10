@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { FramescaperCapturedVideoProxyRequest } from '../common/editor/controller/framescaper-capture-derivative-scheduler.ts';
+import type { FramescaperCapturedVideoProxyRequest } from '../common/editor/controller/capture/framescaper-capture-derivative-scheduler.ts';
 import {
 	bindFramescaperVideoProxyActionRuntime,
 	registerFramescaperVideoProxyActionRuntime,

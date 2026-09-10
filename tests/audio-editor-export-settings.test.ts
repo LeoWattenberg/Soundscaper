@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { normalizeEditorExportSettings } from '../src/common/editor/controller/export-settings.ts';
+import { normalizeEditorExportSettings } from '../src/common/editor/controller/export/export-settings.ts';
 
 test('export settings normalize formats, codec controls, and project defaults deterministically', () => {
 	assert.deepEqual(normalizeEditorExportSettings({}, 48_000), {

@@ -7,7 +7,7 @@ import { createTransportFixture } from './helpers/audio-editor-transport-fixture
 import {
 	createEditorTransportService,
 	type TransportServiceRuntime,
-} from '../src/common/editor/controller/transport-service.ts';
+} from '../src/common/editor/controller/transport/internal/transport-service.ts';
 
 function createRuntime() {
 	const state = {

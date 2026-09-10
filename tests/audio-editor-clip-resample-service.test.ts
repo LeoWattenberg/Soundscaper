@@ -8,15 +8,15 @@ import {
 	createClipResampleService,
 	resampledClipCommands,
 	type ClipResampleServiceDependencies,
-} from '../src/common/editor/controller/clip-resample-service.ts';
-import { findControllerSource } from '../src/common/editor/controller/track-domain-types.ts';
+} from '../src/common/editor/controller/track-audio/internal/clip-resample-service.ts';
+import { findControllerSource } from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 import type {
 	ControllerClip,
 	ControllerProject,
 	ControllerSource,
 	ControllerTrack,
 	DerivedSourceRecord,
-} from '../src/common/editor/controller/track-domain-types.ts';
+} from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 
 function projectFixture(overrides: Partial<ControllerProject> = {}): ControllerProject {
 	return {

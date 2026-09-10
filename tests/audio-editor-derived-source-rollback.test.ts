@@ -5,12 +5,12 @@ import test from 'node:test';
 
 import {
 	createDerivedSourceService,
-} from '../src/common/editor/controller/derived-source-service.ts';
-import type { AudioBufferLike } from '../src/common/editor/controller/source-audio.ts';
+} from '../src/common/editor/controller/track-audio/internal/derived-audio/derived-source-service.ts';
+import type { AudioBufferLike } from '../src/common/editor/controller/source/source-audio.ts';
 import type {
 	ControllerProject,
 	ControllerSource,
-} from '../src/common/editor/controller/track-domain-types.ts';
+} from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 
 test('derived-source rollback attempts every deletion and aggregates source-store failures', async () => {
 	const firstFailure = new Error('first source deletion failed');

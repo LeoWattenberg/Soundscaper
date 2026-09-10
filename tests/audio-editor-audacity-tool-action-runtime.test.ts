@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createAudacityClipPitchActionRuntime,
 	createAudacityToolActionRuntime,
-} from '../src/common/editor/controller/audacity-tool-action-runtime.ts';
+} from '../src/common/editor/controller/effects/audacity-tool-action-runtime.ts';
 
 test('Audacity selection and persistent tools keep one exclusive pointer mode', () => {
 	let snapshot = { sampleEdit: { available: true, mode: 'pencil' as string | null } };

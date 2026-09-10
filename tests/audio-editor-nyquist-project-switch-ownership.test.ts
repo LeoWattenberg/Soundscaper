@@ -2,18 +2,18 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { throwIfAborted } from '../src/common/editor/controller/app-helpers.ts';
+import { throwIfAborted } from '../src/common/editor/controller/shared/app-helpers.ts';
 import {
 	NYQUIST_EVALUATION_TASK,
 	createSelectionEffectExecutionService,
-} from '../src/common/editor/controller/effect-execution-service.ts';
+} from '../src/common/editor/controller/effects/internal/effect-execution-service.ts';
 import {
 	EDITOR_PROJECT_TASK_SCOPE,
 	EditorControllerLifetime,
 	EditorProjectGeneration,
 	type EditorProjectToken,
 	type EditorTaskScope,
-} from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
 import {
 	freezeNyquistResult,
 	mixNyquistPreviewChannels,
@@ -21,7 +21,7 @@ import {
 	nyquistAudioResultBytes,
 	nyquistMaximumOutputFrames,
 	nyquistResultStatus,
-} from '../src/common/editor/controller/nyquist-audio.ts';
+} from '../src/common/editor/controller/effects/internal/nyquist/nyquist-audio.ts';
 import { createFixture, deferred, project } from './helpers/audio-editor-project-switch-fixture.ts';
 
 interface NyquistHarnessState {

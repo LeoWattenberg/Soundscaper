@@ -1,0 +1,525 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import {
+	commitDirectPcmDestination,
+	openDirectPcmDestination,
+	type DirectPcmDestination,
+	type DirectPcmPreparation,
+} from './direct-pcm-export.ts';
+import {
+	createSequentialZip32Archive,
+	type Zip32StreamInput,
+} from '../archive/sequential-zip32-stream.ts';
+import {
+	createSequentialSevenZipCopyArchive,
+	SEVEN_ZIP_COPY_PREFIX_BYTE_LENGTH,
+} from '../archive/sequential-seven-zip-copy.ts';
+import {
+	captureDirectCompressedStemArchiveContract,
+	type DirectCompressedStemArchiveContract,
+} from './direct-compressed-stem-archive-plan.ts';
+import {
+	captureDirectNativeStemArchiveContract,
+	sameDirectNativeStemArchiveContract,
+	type DirectNativeStemArchiveContract,
+	type DirectNativeStemArchiveOutput,
+	type DirectNativeStemArchivePlan,
+} from './direct-native-stem-archive-plan.ts';
+import { type Zip32Layout } from '../archive/zip32.ts';
+
+const ZIP_CONTAINER_LABEL = 'ZIP';
+const ZIP_FILE_TYPES = Object.freeze([Object.freeze({
+	description: 'ZIP stem archive',
+	accept: Object.freeze({ 'application/zip': Object.freeze(['.zip']) }),
+})]);
+const SEVEN_ZIP_CONTAINER_LABEL = '7z';
+const SEVEN_ZIP_FILE_TYPES = Object.freeze([Object.freeze({
+	description: '7z stem archive',
+	accept: Object.freeze({ 'application/x-7z-compressed': Object.freeze(['.7z']) }),
+})]);
+const DIRECT_STEM_FORMATS = new Set(['wav', 'aiff', 'bwf']);
+
+type Awaitable<Value> = PromiseLike<Value> | Value;
+
+export type DirectStemArchiveOutput = DirectNativeStemArchiveOutput;
+
+type DirectStemArchivePlan = DirectNativeStemArchivePlan;
+
+export interface DirectStemArchiveEncodedOutput {
+	readonly blob?: Blob | null;
+	readonly bytes?: Zip32StreamInput | null;
+	readonly byteLength?: number;
+	readonly cleanup?: (() => Awaitable<void>) | null;
+}
+
+export interface DirectStemArchiveStreamOptions {
+	readonly destination: DirectStemArchiveDestination;
+	readonly plan: DirectStemArchivePlan;
+	readonly signal: AbortSignal;
+	readonly assertCurrent: () => void;
+	readonly renderStem: (
+		output: DirectStemArchiveOutput,
+		index: number,
+	) => Awaitable<DirectStemArchiveEncodedOutput>;
+	readonly onStemComplete?: (progress: number, index: number) => Awaitable<void>;
+}
+
+export interface DirectStemArchiveStreamResult {
+	readonly byteLength: number;
+	readonly destination: DirectStemArchiveDestination;
+	readonly mimeType: 'application/zip' | 'application/x-7z-compressed';
+}
+
+interface DirectStemArchiveFileService {
+	readonly prepareSave?: (
+		request: Readonly<Record<string, unknown>>,
+	) => PromiseLike<unknown> | unknown;
+}
+
+interface DirectCompressedStemContract {
+	readonly kind: 'bounded-compressed';
+	readonly archiveByteLength: number;
+	readonly archiveFileName: string;
+	readonly entryByteLength: number;
+	readonly fingerprint: string;
+	readonly format: DirectCompressedStemArchiveContract['format'];
+	readonly outputs: readonly DirectStemArchiveOutput[];
+	readonly stagingByteLength: number;
+	readonly zip32: Zip32Layout;
+}
+
+type DirectStemArchiveContract = DirectNativeStemArchiveContract | DirectCompressedStemContract;
+
+interface DirectSequentialStemArchiveResult {
+	readonly byteLength: number;
+	readonly output: DirectStemArchiveDestination;
+	readonly zip32: Zip32Layout | null;
+}
+
+interface DirectSequentialStemArchive {
+	add(fileName: string, input: Zip32StreamInput, signal?: AbortSignal | null): Promise<void>;
+	abort(): Promise<void>;
+	finish(): Promise<DirectSequentialStemArchiveResult>;
+}
+
+export type DirectStemArchiveDestination = DirectPcmDestination;
+export type DirectStemArchivePreparation = DirectPcmPreparation;
+
+const preparedContracts = new WeakMap<DirectStemArchiveDestination, DirectStemArchiveContract>();
+
+/** Select and open an exact native ZIP/7z or bounded compressed ZIP stem destination. */
+export async function prepareDirectStemArchiveDestination(
+	fileService: DirectStemArchiveFileService,
+	plan: DirectStemArchivePlan,
+	requestedSettings: Readonly<Record<string, unknown>> | null | undefined,
+	signal: AbortSignal,
+): Promise<DirectStemArchivePreparation> {
+	const contract = captureContract(plan);
+	if (!contract || typeof fileService.prepareSave !== 'function') {
+		return emptyPreparation();
+	}
+	const settings = requestedSettings || {};
+	const sevenZip = directSevenZipContract(contract);
+	const mimeType = archiveMimeType(contract);
+	const prepared = await fileService.prepareSave({
+		purpose: 'audio',
+		suggestedName: contract.archiveFileName,
+		mimeType,
+		target: settings.saveTarget,
+		types: sevenZip ? SEVEN_ZIP_FILE_TYPES : ZIP_FILE_TYPES,
+		useFileSystemAccess: settings.useFileSystemAccess !== false,
+		signal,
+	});
+	const result = await openDirectPcmDestination(
+		prepared,
+		contract.archiveByteLength,
+		archiveContainerLabel(contract),
+		contract.kind === 'exact-native-pcm' ? 'exact' : 'maximum',
+		sevenZip ? { finalPrefixByteLength: SEVEN_ZIP_COPY_PREFIX_BYTE_LENGTH } : {},
+	);
+	if (result.destination) {
+		preparedContracts.set(result.destination, contract);
+		try {
+			assertPreparedPlan(result.destination, plan);
+		} catch (error) {
+			throw await abortWithPrimary(result.destination, error);
+		}
+	}
+	return result;
+}
+
+/** Raw one-render storage staging payload charged while the final archive streams directly. */
+export function directStemArchiveTemporaryBytes(plan: DirectStemArchivePlan): number | null {
+	return captureContract(plan)?.stagingByteLength ?? null;
+}
+
+export function commitDirectStemArchiveDestination(
+	destination: DirectStemArchiveDestination,
+	plannedByteLength: number,
+	emittedByteLength: number,
+	assertReadyToCommit: () => void,
+): Promise<Readonly<Record<string, unknown>>> {
+	return commitDirectPcmDestination(
+		destination,
+		plannedByteLength,
+		emittedByteLength,
+		assertReadyToCommit,
+		ZIP_CONTAINER_LABEL,
+	);
+}
+
+/** Stream admitted stems into the already-opened archive destination in plan order. */
+export async function streamDirectStemArchive(
+	options: DirectStemArchiveStreamOptions,
+): Promise<DirectStemArchiveStreamResult> {
+	const { destination, plan, signal } = options;
+	let contract: DirectStemArchiveContract;
+	try {
+		contract = assertPreparedPlan(destination, plan);
+	} catch (error) {
+		throw await abortWithPrimary(destination, error);
+	}
+	const archive = await createDirectSequentialStemArchive(options, contract);
+	let finished = false;
+	try {
+		for (const [index, output] of contract.outputs.entries()) {
+			assertReady(options);
+			const encoded = await options.renderStem(output, index);
+			await consumeEncodedStem(encoded, async () => {
+				assertReady(options);
+				const input = encoded.blob ?? encoded.bytes;
+				const inputBytes = zipInputByteLength(input);
+				if (!validEntryByteLength(contract, inputBytes, encoded.byteLength)) {
+					throw new Error(`Direct stem archive input byte length does not match its plan: ${output.fileName}`);
+				}
+				await archive.add(output.fileName, input!, signal);
+				assertReady(options);
+			});
+			await options.onStemComplete?.((index + 1) / contract.outputs.length, index);
+		}
+		assertReady(options);
+		const result = await archive.finish();
+		finished = true;
+		assertReady(options);
+		assertArchiveResult(contract, destination, result);
+		return Object.freeze({
+			byteLength: result.byteLength,
+			destination,
+			mimeType: archiveMimeType(contract),
+		});
+	} catch (error) {
+		if (finished) throw await abortWithPrimary(destination, error);
+		try {
+			await archive.abort();
+		} catch (cleanupError) {
+			throw combineErrors(error, cleanupError, 'Direct stem archive destination cleanup also failed.');
+		}
+		throw error;
+	}
+}
+
+/** Commit only the immutable plan contract captured before destination selection. */
+export function commitPreparedDirectStemArchiveDestination(
+	destination: DirectStemArchiveDestination,
+	plan: DirectStemArchivePlan,
+	emittedByteLength: number,
+	assertReadyToCommit: () => void,
+): Promise<Readonly<Record<string, unknown>>> {
+	const contract = assertPreparedPlan(destination, plan);
+	if (contract.kind === 'bounded-compressed') {
+		return commitBoundedStemArchiveDestination(
+			destination,
+			plan,
+			contract,
+			emittedByteLength,
+			assertReadyToCommit,
+		);
+	}
+	return commitDirectPcmDestination(
+		destination,
+		contract.archiveByteLength,
+		emittedByteLength,
+		() => {
+			assertPreparedPlan(destination, plan);
+			assertReadyToCommit();
+		},
+		archiveContainerLabel(contract),
+	);
+}
+
+function captureContract(plan: DirectStemArchivePlan): DirectStemArchiveContract | null {
+	const format = ownStringField(plan, 'format');
+	if (!format) return null;
+	if (!DIRECT_STEM_FORMATS.has(format)) return captureCompressedContract(plan);
+	return captureDirectNativeStemArchiveContract(plan);
+}
+
+function ownStringField(value: unknown, field: string): string | null {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+	const descriptor = Object.getOwnPropertyDescriptor(value, field);
+	return descriptor?.enumerable === true && 'value' in descriptor && typeof descriptor.value === 'string'
+		? descriptor.value
+		: null;
+}
+
+function captureCompressedContract(plan: DirectStemArchivePlan): DirectCompressedStemContract | null {
+	const contract = captureDirectCompressedStemArchiveContract(plan);
+	if (!contract) return null;
+	return Object.freeze({
+		kind: 'bounded-compressed',
+		archiveByteLength: contract.maximumZip32.archiveByteLength,
+		archiveFileName: contract.archiveFileName,
+		entryByteLength: contract.entryMaximumByteLength,
+		fingerprint: contract.fingerprint,
+		format: contract.format,
+		outputs: contract.outputs,
+		stagingByteLength: contract.stagingByteLength,
+		zip32: contract.maximumZip32,
+	});
+}
+
+function assertPreparedPlan(
+	destination: DirectStemArchiveDestination,
+	plan: DirectStemArchivePlan,
+): DirectStemArchiveContract {
+	const expected = preparedContracts.get(destination);
+	const current = captureContract(plan);
+	if (!expected || !current || !sameContract(expected, current)) {
+		throw new Error('The direct stem archive plan changed after its destination was selected.');
+	}
+	return expected;
+}
+
+function sameContract(left: DirectStemArchiveContract, right: DirectStemArchiveContract): boolean {
+	if (left.kind === 'exact-native-pcm') {
+		return right.kind === 'exact-native-pcm'
+			&& sameDirectNativeStemArchiveContract(left, right);
+	}
+	return right.kind === 'bounded-compressed'
+		&& left.archiveByteLength === right.archiveByteLength
+		&& left.archiveFileName === right.archiveFileName
+		&& left.entryByteLength === right.entryByteLength
+		&& left.format === right.format
+		&& left.stagingByteLength === right.stagingByteLength
+		&& left.fingerprint === right.fingerprint
+		&& sameZip32Layout(left.zip32, right.zip32)
+		&& left.outputs.length === right.outputs.length
+		&& left.outputs.every((output, index) => (
+			output.fileName === right.outputs[index]?.fileName
+			&& output.trackId === right.outputs[index]?.trackId
+		));
+}
+
+function assertReady(options: DirectStemArchiveStreamOptions): void {
+	options.signal.throwIfAborted();
+	options.assertCurrent();
+	assertPreparedPlan(options.destination, options.plan);
+}
+
+async function createDirectSequentialStemArchive(
+	options: DirectStemArchiveStreamOptions,
+	contract: DirectStemArchiveContract,
+): Promise<DirectSequentialStemArchive> {
+	const { destination } = options;
+	if (directSevenZipContract(contract)) {
+		const archive = await createSequentialSevenZipCopyArchive(
+			contract.outputs.map(({ fileName }) => ({
+				fileName,
+				expectedByteLength: contract.entryByteLength,
+			})),
+			{
+				write: (chunk) => destination.write(chunk),
+				async finalize(finalPrefix) {
+					assertReady(options);
+					await destination.close();
+					assertReady(options);
+					if (typeof destination.patchFinalPrefix !== 'function') {
+						throw new Error('The direct 7z destination cannot patch its final prefix.');
+					}
+					await destination.patchFinalPrefix(finalPrefix);
+					assertReady(options);
+					return destination;
+				},
+				abort: () => destination.abort(),
+			},
+		);
+		return Object.freeze({
+			add: archive.add,
+			abort: archive.abort,
+			async finish(): Promise<DirectSequentialStemArchiveResult> {
+				const result = await archive.finish();
+				return Object.freeze({ ...result, zip32: null });
+			},
+		});
+	}
+	const archive = await createSequentialZip32Archive<DirectStemArchiveDestination>({
+		write: (chunk) => destination.write(chunk),
+		async close() {
+			assertReady(options);
+			await destination.close();
+			return destination;
+		},
+		abort: () => destination.abort(),
+	});
+	return Object.freeze({
+		add: archive.add,
+		abort: archive.abort,
+		async finish(): Promise<DirectSequentialStemArchiveResult> {
+			const result = await archive.finish();
+			return Object.freeze({
+				byteLength: result.byteLength,
+				output: result.output,
+				zip32: result.layout,
+			});
+		},
+	});
+}
+
+function zipInputByteLength(input: Zip32StreamInput | null | undefined): number {
+	if (input instanceof Blob) return input.size;
+	if (input instanceof ArrayBuffer) return input.byteLength;
+	if (ArrayBuffer.isView(input)) return input.byteLength;
+	throw new TypeError('Direct stem archive render output has no valid input bytes.');
+}
+
+async function consumeEncodedStem(
+	encoded: DirectStemArchiveEncodedOutput,
+	consume: () => Promise<void>,
+): Promise<void> {
+	let primary: unknown;
+	let failed = false;
+	try {
+		await consume();
+	} catch (error) {
+		primary = error;
+		failed = true;
+	}
+	try {
+		await encoded.cleanup?.();
+	} catch (cleanupError) {
+		if (failed) {
+			throw combineErrors(primary, cleanupError, 'Direct stem input cleanup also failed.');
+		}
+		throw cleanupError;
+	}
+	if (failed) throw primary;
+}
+
+function assertArchiveResult(
+	contract: DirectStemArchiveContract,
+	destination: DirectStemArchiveDestination,
+	result: DirectSequentialStemArchiveResult,
+): void {
+	if (directSevenZipContract(contract)) {
+		if (result.output !== destination
+			|| result.zip32 !== null
+			|| result.byteLength !== contract.archiveByteLength
+			|| destination.bytesWritten() !== contract.archiveByteLength) {
+			throw new Error('The streamed 7z archive does not match its exact plan.');
+		}
+		return;
+	}
+	const layout = result.zip32;
+	const exact = contract.kind === 'exact-native-pcm';
+	if (result.output !== destination
+		|| !layout
+		|| result.byteLength !== layout.archiveByteLength
+		|| layout.entryCount !== contract.outputs.length
+		|| layout.eligible !== true
+		|| (exact
+			? result.byteLength !== contract.archiveByteLength
+				|| !sameZip32Layout(layout, contract.zip32)
+			: result.byteLength > contract.archiveByteLength
+				|| layout.localByteLength > contract.zip32.localByteLength
+				|| layout.centralDirectoryByteLength !== contract.zip32.centralDirectoryByteLength)) {
+		throw new Error('The streamed ZIP archive does not match its exact plan.');
+	}
+}
+
+function validEntryByteLength(
+	contract: DirectStemArchiveContract,
+	inputByteLength: number,
+	reportedByteLength: number | undefined,
+): boolean {
+	if (reportedByteLength !== undefined && reportedByteLength !== inputByteLength) return false;
+	return contract.kind === 'exact-native-pcm'
+		? inputByteLength === contract.entryByteLength
+		: inputByteLength > 0 && inputByteLength <= contract.entryByteLength;
+}
+
+async function commitBoundedStemArchiveDestination(
+	destination: DirectStemArchiveDestination,
+	plan: DirectStemArchivePlan,
+	contract: DirectCompressedStemContract,
+	emittedByteLength: number,
+	assertReadyToCommit: () => void,
+): Promise<Readonly<Record<string, unknown>>> {
+	if (!Number.isSafeInteger(emittedByteLength) || emittedByteLength <= 0
+		|| emittedByteLength > contract.archiveByteLength) {
+		throw new Error('The streamed ZIP archive byte count exceeds its admitted maximum.');
+	}
+	if (destination.bytesWritten() !== emittedByteLength) {
+		throw new Error('The streamed ZIP destination byte count does not match its actual archive size.');
+	}
+	assertPreparedPlan(destination, plan);
+	assertReadyToCommit();
+	const current = assertPreparedPlan(destination, plan);
+	if (current.kind !== 'bounded-compressed'
+		|| current.fingerprint !== contract.fingerprint) {
+		throw new Error('The direct stem archive plan changed before publication.');
+	}
+	const published = await destination.commit();
+	if (published.size !== emittedByteLength) {
+		throw new Error('The committed ZIP byte count does not match its actual archive size.');
+	}
+	return published;
+}
+
+async function abortWithPrimary(
+	destination: DirectStemArchiveDestination,
+	primary: unknown,
+): Promise<Error> {
+	try {
+		await destination.abort(primary);
+		return normalizeError(primary);
+	} catch (cleanupError) {
+		return combineErrors(primary, cleanupError, 'Direct stem archive destination cleanup also failed.');
+	}
+}
+
+function combineErrors(primary: unknown, cleanup: unknown, message: string): AggregateError {
+	const primaryError = normalizeError(primary);
+	return new AggregateError([primaryError, normalizeError(cleanup)], `${primaryError.message} ${message}`);
+}
+
+function normalizeError(error: unknown): Error {
+	return error instanceof Error ? error : new Error(String(error));
+}
+
+function directSevenZipContract(
+	contract: DirectStemArchiveContract,
+): contract is DirectNativeStemArchiveContract & { readonly archiveFormat: '7z' } {
+	return contract.kind === 'exact-native-pcm' && contract.archiveFormat === '7z';
+}
+
+function archiveMimeType(
+	contract: DirectStemArchiveContract,
+): DirectStemArchiveStreamResult['mimeType'] {
+	return contract.kind === 'exact-native-pcm' ? contract.archiveMimeType : 'application/zip';
+}
+
+function archiveContainerLabel(contract: DirectStemArchiveContract): string {
+	return directSevenZipContract(contract) ? SEVEN_ZIP_CONTAINER_LABEL : ZIP_CONTAINER_LABEL;
+}
+
+function sameZip32Layout(left: Zip32Layout, right: Zip32Layout): boolean {
+	return left.eligible === right.eligible
+		&& left.entryCount === right.entryCount
+		&& left.localByteLength === right.localByteLength
+		&& left.centralDirectoryByteLength === right.centralDirectoryByteLength
+		&& left.archiveByteLength === right.archiveByteLength;
+}
+
+function emptyPreparation(): DirectStemArchivePreparation {
+	return Object.freeze({ cancelled: null, destination: null });
+}

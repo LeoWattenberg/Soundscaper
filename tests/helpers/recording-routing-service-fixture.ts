@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createRecordingRoutingService } from '../../src/common/editor/controller/recording-routing-service.ts';
+import { createRecordingRoutingService } from '../../src/common/editor/controller/recording/internal/recording-routing-service.ts';
 import type {
 	RecordingPreferencePatch,
 	RecordingRoutingCapturePool,
@@ -8,12 +8,12 @@ import type {
 	RecordingRoutingMediaDevice,
 	RecordingRoutingServiceRuntime,
 	RecordingRoutingState,
-} from '../../src/common/editor/controller/recording-routing-service-types.d.ts';
+} from '../../src/common/editor/controller/recording/internal/recording-routing-service-types.d.ts';
 import type {
 	RecordingInputRoute,
 	RecordingInputRouting,
 	RecordingPoolSource,
-} from '../../src/common/editor/controller/recording-input-coordination-service.ts';
+} from '../../src/common/editor/controller/recording/internal/recording-input-coordination-service.ts';
 
 interface TestProject {
 	readonly id: string;
@@ -182,4 +182,3 @@ export function createFixture(options: FixtureOptions = {}) {
 		releaseDisplayCalls: () => releaseDisplayCalls,
 	};
 }
-

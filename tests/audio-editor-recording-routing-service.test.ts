@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { adaptNativeAudioInventory } from '../src/common/editor/controller/native-audio-inventory.ts';
-import type { RecordingInputRoute } from '../src/common/editor/controller/recording-input-coordination-service.ts';
+import { adaptNativeAudioInventory } from '../src/common/editor/controller/recording/native-audio-inventory.ts';
+import type { RecordingInputRoute } from '../src/common/editor/controller/recording/internal/recording-input-coordination-service.ts';
 import { createFixture, type OutputDeviceResult } from './helpers/recording-routing-service-fixture.ts';
 
 test('input channel preferences do not route a missing selected track', async () => {

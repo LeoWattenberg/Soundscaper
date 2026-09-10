@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createNativeProjectService } from '../src/common/editor/controller/native-project-service.ts';
-import { createProjectSaveService } from '../src/common/editor/controller/project-save-service.ts';
+import { createNativeProjectService } from '../src/common/editor/controller/document/native-project-service.ts';
+import { createProjectSaveService } from '../src/common/editor/controller/document/project-save-service.ts';
 import { createFixture as createNativeProjectFixture } from './helpers/native-project-service-fixture.ts';
 
 interface TestProject {

@@ -72,9 +72,9 @@ test('production evidence pins bounded random-access .scape admission', async ()
 	for (const path of [
 		'desktop/scape-reopen-smoke.js',
 		'desktop/desktop-smoke.js',
-		'src/common/editor/controller/project-bootstrap-service.ts',
-		'src/common/editor/controller/project-session-service.ts',
-		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/controller/document/internal/project/project-bootstrap-service.ts',
+		'src/common/editor/controller/document/internal/project/project-session-service.ts',
+		'src/common/editor/controller/document/project-switch-service.ts',
 		'scripts/lib/desktop-scape-reopen-smoke.mjs',
 		'scripts/desktop-scape-open-smoke.mjs',
 		'tests/desktop-scape-reopen-smoke-probe.test.js',

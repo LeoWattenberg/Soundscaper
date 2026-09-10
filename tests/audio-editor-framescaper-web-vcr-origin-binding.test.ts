@@ -7,9 +7,9 @@ import {
 	createFramescaperCaptureAppBinding,
 	type FramescaperCaptureAppHistory,
 	type FramescaperCaptureAppProject,
-} from '../src/common/editor/controller/framescaper-capture-app-binding.ts';
-import { createFramescaperCaptureAdminInterlock } from '../src/common/editor/controller/framescaper-capture-admin-interlock.ts';
-import { framescaperCaptureProjectFence } from '../src/common/editor/controller/framescaper-capture-project-publication-port.ts';
+} from '../src/common/editor/controller/capture/framescaper-capture-app-binding.ts';
+import { createFramescaperCaptureAdminInterlock } from '../src/common/editor/controller/capture/framescaper-capture-admin-interlock.ts';
+import { framescaperCaptureProjectFence } from '../src/common/editor/controller/capture/internal/framescaper-capture-project-publication-port.ts';
 
 const ID = 'a'.repeat(32);
 

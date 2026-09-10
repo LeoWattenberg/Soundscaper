@@ -6,10 +6,10 @@ import test from 'node:test';
 import {
 	createProjectLockService,
 	type ProjectLockServiceRuntime,
-} from '../src/common/editor/controller/project-lock-service.ts';
-import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from '../src/common/editor/controller/project-bin-linked-video-relink-service.ts';
-import { TAKE_CYCLE_RECORDING_TASK } from '../src/common/editor/controller/take-cycle-recording-service.ts';
-import type { ProjectLifecycleLock } from '../src/common/editor/controller/project-lifecycle-types.ts';
+} from '../src/common/editor/controller/document/project-lock-service.ts';
+import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from '../src/common/editor/controller/import/project-bin-linked-video-relink-service.ts';
+import { TAKE_CYCLE_RECORDING_TASK } from '../src/common/editor/controller/recording/take-cycle-recording-service.ts';
+import type { ProjectLifecycleLock } from '../src/common/editor/controller/document/project-lifecycle-types.ts';
 
 function deferred<Value>() {
 	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;

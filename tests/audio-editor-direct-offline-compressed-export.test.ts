@@ -3,12 +3,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { encodeDirectOfflineCompressed } from '../src/common/editor/controller/direct-offline-compressed-export.ts';
+import { encodeDirectOfflineCompressed } from '../src/common/editor/controller/export/internal/direct/direct-offline-compressed-export.ts';
 import {
 	prepareDirectCompressedDestination,
 	type DirectCompressedDestination,
 	type DirectCompressedFormat,
-} from '../src/common/editor/controller/direct-compressed-export.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-compressed-export.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 import type { FfmpegOutputSink } from '../src/common/editor/ffmpeg-output-stream.ts';
 

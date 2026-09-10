@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 import type {
 	ProjectAdminServiceRuntime,
-} from '../src/common/editor/controller/project-admin-service.ts';
+} from '../src/common/editor/controller/document/project-admin-service.ts';
 import type { ProjectLinkedOriginalSourceReference } from '../src/common/editor/storage/project-publication-options.ts';
 
 export interface Project {

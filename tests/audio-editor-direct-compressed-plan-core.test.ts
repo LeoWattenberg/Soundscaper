@@ -8,7 +8,7 @@ import {
 	captureDirectCompressedContract,
 	type DirectCompressedFormat,
 	type DirectCompressedPlan,
-} from '../src/common/editor/controller/direct-compressed-plan.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-compressed-plan.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 
 interface FormatCase {

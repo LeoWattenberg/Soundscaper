@@ -26,7 +26,7 @@ interface SharedHistory {
 
 /**
  * Where a macro opens, read the way the macro transaction reads it
- * (src/common/editor/controller/project-mutation-service.ts): a position in the
+ * (src/common/editor/controller/document/project-mutation-service.ts): a position in the
  * whole sequence of commits rather than an index into the bounded stack.
  */
 function macroDepth(history: SharedHistory): number {

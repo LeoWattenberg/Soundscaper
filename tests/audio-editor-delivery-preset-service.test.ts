@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	DELIVERY_PRESETS_SETTING_KEY,
 	createDeliveryPresetService,
-} from '../src/common/editor/controller/delivery-preset-service.ts';
+} from '../src/common/editor/controller/export/delivery-preset-service.ts';
 import { createDeliveryPresetState } from '../src/common/editor/delivery-preset-store.ts';
 
 function harness() {

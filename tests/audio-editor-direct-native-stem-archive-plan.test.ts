@@ -7,9 +7,9 @@ import {
 	captureDirectNativeStemArchiveContract,
 	sameDirectNativeStemArchiveContract,
 	type DirectNativeStemArchiveContract,
-} from '../src/common/editor/controller/direct-native-stem-archive-plan.ts';
-import { sevenZipCopyArchiveByteLength } from '../src/common/editor/controller/sequential-seven-zip-copy.ts';
-import { inspectZip32Layout } from '../src/common/editor/controller/zip32.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-native-stem-archive-plan.ts';
+import { sevenZipCopyArchiveByteLength } from '../src/common/editor/controller/export/internal/archive/sequential-seven-zip-copy.ts';
+import { inspectZip32Layout } from '../src/common/editor/controller/export/internal/archive/zip32.ts';
 
 test('captures immutable exact native ZIP and 7z stem contracts', () => {
 	for (const archiveFormat of ['zip', '7z'] as const) {

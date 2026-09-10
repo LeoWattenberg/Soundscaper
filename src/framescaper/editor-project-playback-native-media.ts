@@ -3,7 +3,7 @@
 import type {
 	PlaybackProjectProjection,
 	PlaybackProjectService,
-} from '../common/editor/controller/playback-project-service.ts';
+} from '../common/editor/controller/source/playback-project-service.ts';
 import { projectFeatureAudioEffectPlaybackBypass } from '../common/editor/project-feature-audio-effect-bypass.ts';
 import { projectFeatureAudioRenderedFallbackPlayback } from '../common/editor/project-feature-audio-rendered-fallback.ts';
 import { projectFeatureVideoEffectPlaybackBypass } from '../common/editor/project-feature-video-effect-bypass.ts';

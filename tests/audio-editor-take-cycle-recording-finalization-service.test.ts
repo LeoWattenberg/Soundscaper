@@ -10,11 +10,11 @@ import {
 	type TakeCycleFinalizationRequest,
 	type TakeCyclePassOperation,
 	type TakeCycleProjectPublicationOperation,
-} from '../src/common/editor/controller/take-cycle-recording-service.ts';
+} from '../src/common/editor/controller/recording/take-cycle-recording-service.ts';
 import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
-} from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
 import type {
 	TakeCycleProjectPublicationEvidence,
 	TakeCycleRecoveryEnvelope,

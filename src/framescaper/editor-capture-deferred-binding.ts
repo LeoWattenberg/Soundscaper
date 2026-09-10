@@ -3,20 +3,20 @@
 import type {
 	FramescaperCaptureAppBindingOptions,
 	createFramescaperCaptureAppBinding,
-} from '../common/editor/controller/framescaper-capture-app-binding.ts';
+} from '../common/editor/controller/capture/framescaper-capture-app-binding.ts';
 import type { FramescaperCaptureAppComposition } from
-	'../common/editor/controller/framescaper-capture-app-composition.ts';
+	'../common/editor/controller/capture/framescaper-capture-app-composition.ts';
 import type { FramescaperCaptureOriginGuardSnapshot } from
-	'../common/editor/controller/framescaper-capture-origin-guard.ts';
+	'../common/editor/controller/capture/framescaper-capture-origin-guard.ts';
 import type {
 	FramescaperCaptureSessionActions,
 	FramescaperCaptureSessionService,
 	FramescaperCaptureSessionSnapshot,
-} from '../common/editor/controller/framescaper-capture-session-types.ts';
+} from '../common/editor/controller/capture/framescaper-capture-session-types.ts';
 import type { FramescaperWebVcrActions } from
-	'../common/editor/controller/framescaper-web-vcr-controller-types.ts';
+	'../common/editor/controller/capture/framescaper-web-vcr-controller-types.ts';
 import { createFramescaperWebVcrUiSnapshot } from
-	'../common/editor/controller/framescaper-web-vcr-ui-snapshot.ts';
+	'../common/editor/controller/capture/framescaper-web-vcr-ui-snapshot.ts';
 import {
 	framescaperCaptureRecoveryPresent,
 	type FramescaperCaptureRecoveryPresencePort,
@@ -80,7 +80,7 @@ type Replay = () => void;
  * durable presence probe finds capture state. A probe that fails loads rather
  * than assumes: the cost of a wrong negative is an unrecoverable capture.
  *
- * This binding does not use `controller/deferred-module-facade.ts`. Its load is
+ * This binding does not use `controller/shared/deferred-module-facade.ts`. Its load is
  * not a plain delegation - it constructs the binding, initializes it, replays
  * the journal and notifies the host - and its cold half answers with snapshots
  * rather than deferring, so the two action maps below are annotated against

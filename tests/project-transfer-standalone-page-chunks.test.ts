@@ -51,7 +51,7 @@ import { chunkGroupForModulePath, chunkGroups } from '../scripts/lib/build-chunk
 const REPOSITORY_ROOT = fileURLToPath(new URL('../', import.meta.url));
 const TRANSFER_PAGE_ENTRY = fileURLToPath(new URL('../src/common/transfer/transfer-page-entry.ts', import.meta.url));
 const TRANSFER_DIRECTORY = 'src/common/transfer/';
-const DEFERRED_ARCHIVE_MODULE = 'src/common/editor/controller/deferred-archive-runtime.ts';
+const DEFERRED_ARCHIVE_MODULE = 'src/common/editor/controller/document/deferred-archive-runtime.ts';
 const SCHEMA_IDENTITY_MODULE = 'src/common/editor/project-schema-identity.ts';
 const HANDOFF_INTENT_MODULE = 'src/common/cross-product-handoff-intent.ts';
 

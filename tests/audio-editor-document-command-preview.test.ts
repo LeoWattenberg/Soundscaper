@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createDocumentCommandPreview } from '../src/common/editor/controller/document-command-preview.ts';
+import { createDocumentCommandPreview } from '../src/common/editor/controller/document/document-command-preview.ts';
 
 void test('preview validates the authored owner even when each view read creates a projection', () => {
 	let document = { revision: 1 };

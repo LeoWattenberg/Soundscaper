@@ -11,13 +11,13 @@ import {
 	type FramescaperCapturedVideoProxyRequest,
 	type FramescaperCaptureVideoDerivativeInput,
 	type FramescaperCaptureVideoFrameCaptureOptions,
-} from '../src/common/editor/controller/framescaper-capture-derivative-scheduler.ts';
+} from '../src/common/editor/controller/capture/framescaper-capture-derivative-scheduler.ts';
 import type {
 	FramescaperCaptureDerivativeRequest,
-} from '../src/common/editor/controller/framescaper-capture-canonical-publication.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-canonical-publication.ts';
 import type {
 	FramescaperCapturePublicationPlan,
-} from '../src/common/editor/controller/framescaper-capture-publication-plan.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-publication-plan.ts';
 
 interface FixtureOptions {
 	readonly audioActivationFailure?: boolean;

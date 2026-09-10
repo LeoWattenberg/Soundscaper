@@ -5,22 +5,22 @@ import test from 'node:test';
 
 import {
 	normalizeMixRenderOptions,
-} from '../src/common/editor/controller/mix-render-options.ts';
+} from '../src/common/editor/controller/track-audio/mix-render-options.ts';
 import {
 	assertMixRenderPreflight,
-} from '../src/common/editor/controller/mix-render-operation-model.ts';
+} from '../src/common/editor/controller/track-audio/internal/mix-render/mix-render-operation-model.ts';
 import {
 	createMixRenderSnapshot,
-} from '../src/common/editor/controller/mix-render-model.ts';
+} from '../src/common/editor/controller/track-audio/mix-render-model.ts';
 import {
 	mixRenderOutputChannelChoices,
 	predictMixRenderOutputChannelCount,
 	resolveMixRenderOutputChannelCount,
-} from '../src/common/editor/controller/mix-render-output-layout.ts';
+} from '../src/common/editor/controller/track-audio/mix-render-output-layout.ts';
 import type {
 	ControllerProject,
 	ControllerTrack,
-} from '../src/common/editor/controller/track-domain-types.ts';
+} from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 
 test('Mix and Render defaults only the omitted object and rejects incomplete, invalid, or no-op requests', () => {
 	assert.deepEqual(normalizeMixRenderOptions(), {

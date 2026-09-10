@@ -16,7 +16,7 @@ import {
 	createVideoSource,
 	createVideoTrack,
 } from '../src/common/editor/project-media-factory.ts';
-import { trimProjectMedia } from '../src/common/editor/controller/trim-media-service.ts';
+import { trimProjectMedia } from '../src/common/editor/controller/document/trim-media-service.ts';
 
 const NOW = '2026-08-19T12:00:00.000Z';
 const SAMPLE_RATE = 48_000;

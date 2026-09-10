@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createSourceLifecycleService,
 	type SourceLifecycleServiceRuntime,
-} from '../src/common/editor/controller/source-lifecycle-service.ts';
+} from '../src/common/editor/controller/source/source-lifecycle-service.ts';
 
 test('warped waveform PCM requests read the exact mapped source window', async () => {
 	const source = { id: 'source', kind: 'audio', frameCount: 2_000, storageKey: 'source' };

@@ -13,7 +13,7 @@
   `sequenceFrameBoundarySample`, `snapSampleToSequenceFrame`, and
   `stepSampleBySequenceFrames` (`sequence-frame-navigation.ts:20-90`) resolve
   every boundary from the absolute origin. The sequence timing service already
-  uses them to step and seek the program playhead (`controller/sequence-timing-service.ts:76-92`).
+  uses them to step and seek the program playhead (`controller/clip-video/internal/sequence-timing-service.ts:76-92`).
 - **The engine already has the two playhead ports this slice needs.** Ordinary
   `seek` clamps and publishes a position (`engine/transport-control.ts:191-203`),
   while `scrub` publishes the requested position before asynchronously auditioning
@@ -21,7 +21,7 @@
   In contrast, the ordinary `stop` operation resets the playhead to zero
   (`181-188`), so it cannot implement the K key's hold-at-frame contract.
 - **Controller actions already narrow those ports.** The transport facade exposes
-  `seek`, guarded `scrub`, and `endScrub` (`controller/action-facade.ts:261-276`),
+  `seek`, guarded `scrub`, and `endScrub` (`controller/composition/action-facade.ts:261-276`),
   and the composition root already has injectable clock and cancellable-timer
   seams for controller-owned work (`app.js:370-374`). Its current `now` default is
   a wall clock, so the shuttle still needs a dedicated monotonic clock port; no
@@ -31,13 +31,13 @@
   consumers resolved sample boundaries while retaining each video clip's
   sequence-frame boundaries. The older clip-selection navigation service already
   demonstrates nearest-boundary search and deterministic document ordering
-  (`controller/clip-selection-navigation-service.ts:164-268`), but it searches
+  (`controller/track-audio/internal/clip-selection-navigation-service.ts:164-268`), but it searches
   audio tracks only (`205-247`) and is not wired into the controller. It is a
   precedent, not the video rule this slice needs.
 - **Edit targeting is already session state.** `resolveVideoEditTargets`
   (`video-edit-targeting.ts:40-79`) makes an explicit target complete and otherwise
   inherits the selected track and its lane-group partner. `videoEditService.targets`
-  exposes that result through the action facade (`controller/action-facade.ts:190-201`).
+  exposes that result through the action facade (`controller/composition/action-facade.ts:190-201`).
 - **Video visibility already exists, but track locking does not.** Video tracks
   persist `hidden`, the current control toggles it (`ui/timeline/VideoTrackRow.jsx:368-381`),
   and no current track wire type, validator, or command has a `locked` field. This

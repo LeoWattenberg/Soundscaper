@@ -29,7 +29,7 @@ operations.
   generalized from one track to a targeted A/V pair.
 - **Lane-group partner resolution.** Import already finds the audio track that
   belongs with a video track through `laneGroupId`
-  (`controller/source-import.ts:387-398`).
+  (`controller/import/internal/source-import.ts:387-398`).
 
 What is missing is the arithmetic that decides *which* range, the state that
 decides *which* tracks, and an insertion that opens a hole rather than closing
@@ -81,7 +81,7 @@ them rather than adding a second way to delete a range.
 4. **Targeting is a working choice, and working choices are session state.**
    Which tracks receive an edit is not a fact about the document — reopening a
    project does not owe the user the target they had — so targeting lives in the
-   controller beside the folder selection (`controller/track-folder-service.ts:62`)
+   controller beside the folder selection (`controller/document/internal/track-folder-service.ts:62`)
    rather than in the schema. It resolves to at most one video and one audio
    track per sequence, because ingest extracts exactly one audio program (3B-2a
    contract 5). With nothing explicitly targeted it falls back to the selected

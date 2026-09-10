@@ -3,7 +3,7 @@
 import type {
 	ProductVideoExportPlan,
 	ProductVideoExportStrategyPlanRequest,
-} from '../common/editor/controller/product-video-export-strategy.ts';
+} from '../common/editor/controller/export/product-video-export-strategy.ts';
 import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import { sequenceFrameBoundarySample } from '../common/editor/sequence-frame-navigation.ts';
 import { normalizeVideoDeliveryAudioLayout } from '../common/editor/video-delivery-audio-layout.ts';

@@ -7,8 +7,8 @@ import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.
 import {
 	createVideoEdgeTrimResultReporter,
 	type VideoEdgeTrimFeedbackCopy,
-} from '../src/common/editor/controller/video-edge-trim-feedback.ts';
-import { createVideoEdgeTrimService } from '../src/common/editor/controller/video-edge-trim-service.ts';
+} from '../src/common/editor/controller/clip-video/internal/trim/video-edge-trim-feedback.ts';
+import { createVideoEdgeTrimService } from '../src/common/editor/controller/clip-video/internal/trim/video-edge-trim-service.ts';
 import type {
 	FrameCanonicalEdgeTrimPlan,
 	FrameCanonicalEdgeTrimRequest,

@@ -6,8 +6,8 @@ import test from 'node:test';
 import {
 	createEditorExportService,
 	type ExportServiceRuntime,
-} from '../src/common/editor/controller/export-service.ts';
-import { projectForVideoRenderedFallbackExport } from '../src/common/editor/controller/video-rendered-fallback-export.ts';
+} from '../src/common/editor/controller/export/internal/export-service.ts';
+import { projectForVideoRenderedFallbackExport } from '../src/common/editor/controller/export/internal/video/video-rendered-fallback-export.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import type { ProjectVideoFallbackIntegritySelector } from '../src/common/editor/project-fallback-integrity.ts';

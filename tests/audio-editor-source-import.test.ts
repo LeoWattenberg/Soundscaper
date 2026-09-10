@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	createImportVideoFile,
-} from '../src/common/editor/controller/source-import.ts';
+} from '../src/common/editor/controller/import/internal/source-import.ts';
 import {
 	createFixture,
 	videoFile,

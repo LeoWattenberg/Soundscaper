@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { ExportServiceRuntime } from '../../src/common/editor/controller/export-service.ts';
+import type { ExportServiceRuntime } from '../../src/common/editor/controller/export/internal/export-service.ts';
 import { encodeAiff } from '../../src/common/editor/aiff.js';
 import { encodeWav } from '../../src/common/editor/wav.js';
 

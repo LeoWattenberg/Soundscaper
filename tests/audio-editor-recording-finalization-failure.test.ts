@@ -7,7 +7,7 @@ import {
 	createRecordingSessionService,
 	type RecordingControllerLike,
 	type RecordingSessionMutableState,
-} from '../src/common/editor/controller/recording-session-service.ts';
+} from '../src/common/editor/controller/recording/internal/recording-session-service.ts';
 
 test('stop rejects a finalization failure after resetting recording ownership', async () => {
 	const failure = new Error('recording commit failed');

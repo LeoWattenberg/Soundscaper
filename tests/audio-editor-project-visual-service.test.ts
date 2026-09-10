@@ -4,8 +4,8 @@ import test from 'node:test';
 import {
 	createProjectVisualService,
 	type ProjectVisualServiceDependencies,
-} from '../src/common/editor/controller/project-visual-service.ts';
-import { EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/document/project-visual-service.ts';
+import { EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
 import { createVideoTimingAssetPublication } from '../src/common/editor/video-timing-asset.ts';
 
 type VideoDerivatives = Awaited<ReturnType<

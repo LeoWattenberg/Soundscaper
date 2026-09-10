@@ -3,9 +3,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createNativeProjectService } from '../src/common/editor/controller/native-project-service.ts';
+import { createNativeProjectService } from '../src/common/editor/controller/document/native-project-service.ts';
 import { createEditorTaskProgressCoordinator } from
-	'../src/common/editor/controller/task-progress.ts';
+	'../src/common/editor/controller/shared/task-progress.ts';
 import { createFixture, nativeFile, project } from './helpers/native-project-service-fixture.ts';
 
 test('Audacity open maps validation and decode into distinct progress phases', async () => {

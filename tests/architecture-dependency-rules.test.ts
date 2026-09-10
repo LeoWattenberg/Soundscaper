@@ -22,6 +22,12 @@ import test from 'node:test';
  */
 
 const CONFIGURATION = createRequire(import.meta.url)('../.dependency-cruiser.cjs') as {
+	readonly allowedSeverity?: string;
+	readonly allowed?: readonly {
+		readonly comment?: string;
+		readonly from: Readonly<Record<string, unknown>>;
+		readonly to: Readonly<Record<string, unknown>>;
+	}[];
 	readonly forbidden: readonly {
 		readonly name: string;
 		readonly comment?: string;
@@ -31,6 +37,49 @@ const CONFIGURATION = createRequire(import.meta.url)('../.dependency-cruiser.cjs
 	}[];
 	readonly options: Readonly<Record<string, unknown>>;
 };
+
+interface ControllerDomainPolicy {
+	readonly schemaVersion: 2;
+	readonly publicModules: readonly string[];
+	readonly allowedDependencies: Readonly<Record<string, {
+		readonly runtime: readonly string[];
+		readonly typeOnly: readonly string[];
+	}>>;
+}
+
+const CONTROLLER_ROOT = '^src/common/editor/controller/';
+const ERASED_TYPESCRIPT_DEPENDENCIES = ['pre-compilation-only', 'type-import', 'type-only'];
+const POLICY = JSON.parse(readFileSync(
+	fileURLToPath(new URL('../config/controller-domain-policy.json', import.meta.url)),
+	'utf8',
+)) as ControllerDomainPolicy;
+const PUBLIC_CONTROLLER_MODULES = POLICY.publicModules.map((module) => (
+	`${CONTROLLER_ROOT}${module.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}$`
+));
+
+function publicModulesForDomain(domain: string) {
+	return PUBLIC_CONTROLLER_MODULES.filter((module) => module.startsWith(`${CONTROLLER_ROOT}${domain}/`));
+}
+
+function dependencyRule(source: string, target: string, typeOnly: boolean) {
+	return {
+		comment: typeOnly
+			? `The ${source} controller domain may name types from ${target}'s public modules.`
+			: `The ${source} controller domain may import ${target}'s public modules.`,
+		from: { path: `${CONTROLLER_ROOT}${source}/` },
+		to: {
+			path: publicModulesForDomain(target),
+			...(typeOnly ? { dependencyTypes: ERASED_TYPESCRIPT_DEPENDENCIES } : {}),
+		},
+	};
+}
+
+function configuredDependencyRules() {
+	return Object.entries(POLICY.allowedDependencies).flatMap(([source, dependencies]) => [
+		...dependencies.runtime.map((target) => dependencyRule(source, target, false)),
+		...dependencies.typeOnly.map((target) => dependencyRule(source, target, true)),
+	]);
+}
 
 function rule(name: string) {
 	const found = CONFIGURATION.forbidden.find((candidate) => candidate.name === name);
@@ -43,8 +92,47 @@ test('the cruiser extracts type-only edges, so the layering rules can see them',
 });
 
 test('every rule is an error, so none of them degrades to advice', () => {
+	assert.equal(CONFIGURATION.allowedSeverity, 'error');
 	for (const forbidden of CONFIGURATION.forbidden) {
 		assert.equal(forbidden.severity, 'error', forbidden.name);
+	}
+});
+
+test('controller domains expose only configured direct public dependencies across ownership boundaries', () => {
+	assert.equal(POLICY.schemaVersion, 2);
+	assert.deepEqual(CONFIGURATION.allowed, [
+		{
+			comment: 'Dependencies whose target is outside controller domains are unaffected.',
+			from: {},
+			to: { pathNot: '^src/common/editor/controller/' },
+		},
+		{
+			comment: 'A controller domain may use its own public and private modules.',
+			from: { path: '^src/common/editor/controller/([^/]+)/' },
+			to: { path: '^src/common/editor/controller/$1/' },
+		},
+		{
+			comment: 'Code outside controller domains may import configured public controller modules.',
+			from: { pathNot: CONTROLLER_ROOT },
+			to: { path: PUBLIC_CONTROLLER_MODULES },
+		},
+		...configuredDependencyRules(),
+	]);
+});
+
+test('unlisted direct files cannot escape ownership through a public-module allowance', () => {
+	const unlisted = 'src/common/editor/controller/analysis/unlisted.json';
+	assert.equal(POLICY.publicModules.includes('analysis/unlisted.json'), false);
+	const ownershipBoundaryRules = CONFIGURATION.allowed?.slice(2) ?? [];
+	assert.ok(ownershipBoundaryRules.length > 1);
+	for (const boundaryRule of ownershipBoundaryRules) {
+		const configuredPaths = Array.isArray(boundaryRule.to.path)
+			? boundaryRule.to.path : [boundaryRule.to.path];
+		assert.equal(
+			configuredPaths.some((path) => typeof path === 'string' && new RegExp(path, 'u').test(unlisted)),
+			false,
+			boundaryRule.comment ?? 'an ownership-boundary rule admitted an unlisted direct file',
+		);
 	}
 });
 
@@ -54,7 +142,9 @@ test('no-circular forbids the cycles that survive compilation and says why the r
 	// every type-level cycle in the repository, and the recovery from that would be to
 	// lower the severity - which is how the rule stops guarding the case that matters.
 	const circular = rule('no-circular');
-	assert.deepEqual(circular.to.viaOnly, { dependencyTypesNot: ['type-only'] });
+	assert.deepEqual(circular.to.viaOnly, {
+		dependencyTypesNot: ERASED_TYPESCRIPT_DEPENDENCIES,
+	});
 	assert.match(String(circular.comment), /type-only|import type/u);
 });
 
@@ -81,6 +171,18 @@ test('check:architecture cruises every maintained source tree', () => {
 	const cruise = /dependency-cruiser ([^&|]+)/u.exec(script);
 	assert.ok(cruise, `check:architecture must run dependency-cruiser, got ${script}`);
 	assert.deepEqual(cruise[1]!.trim().split(/\s+/u), ['src', 'desktop', 'native']);
+	assert.match(script, /node scripts\/check-controller-domains\.mjs/u);
+});
+
+test('the controller-domain graph exposes a dedicated tightening command', () => {
+	const manifest = JSON.parse(readFileSync(
+		fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')) as {
+			readonly scripts: Readonly<Record<string, string>>;
+		};
+	assert.equal(
+		manifest.scripts['check:controller-domains:tighten'],
+		'node scripts/check-controller-domains.mjs --tighten',
+	);
 });
 
 test('the desktop boundary is one-way, and names what src may read', () => {

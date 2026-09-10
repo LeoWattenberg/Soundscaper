@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type * as Guided from '../common/editor/controller/local-assistance-guided-framescaper-acceptance.ts';
+import type * as Guided from '../common/editor/controller/assistance/local-assistance-guided-framescaper-acceptance.ts';
 import type * as Reframe from '../framescaper/editor-local-assistance-reframe-publication.ts';
 import type * as Highlight from '../framescaper/editor-local-assistance-highlight-publication.ts';
 

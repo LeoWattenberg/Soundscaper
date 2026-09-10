@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { audioBufferChannels } from '../src/common/editor/controller/source-audio.ts';
+import { audioBufferChannels } from '../src/common/editor/controller/source/source-audio.ts';
 import type { PlanarPcm } from '../src/common/editor/rendered-audio-channels.ts';
 
 void test('rendered planar PCM exposes its channels without changing the renderer inventory', () => {

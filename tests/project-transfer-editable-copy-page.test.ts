@@ -20,7 +20,7 @@ import { mountTransferPage } from '../src/common/transfer/transfer-page-entry.ts
 import type { TransferRuntime } from '../src/common/transfer/transfer-session.ts';
 import { FakeWindow, settle } from './project-transfer-page-fixture.ts';
 import { saveCrossProductEditableCopy } from
-	'../src/common/editor/controller/cross-product-handoff-action.ts';
+	'../src/common/editor/controller/document/internal/cross-product-handoff-action.ts';
 
 const NOW = '2026-08-29T12:00:00.000Z';
 

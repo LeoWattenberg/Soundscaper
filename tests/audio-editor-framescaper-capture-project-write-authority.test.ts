@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createFramescaperCaptureProjectWriteAuthority,
 	type FramescaperCaptureProjectLock,
-} from '../src/common/editor/controller/framescaper-capture-project-write-authority.ts';
+} from '../src/common/editor/controller/capture/framescaper-capture-project-write-authority.ts';
 
 test('capture write admission requires a writable open tab and the active editor lock', () => {
 	let tab: Readonly<{ readOnly: boolean; intrinsicReadOnly: boolean }> | null = null;

@@ -8,13 +8,13 @@ import {
 	type AudioGeneratorProject,
 	type AudioGeneratorState,
 	type AudioGeneratorServiceDependencies,
-} from '../src/common/editor/controller/generator-service.ts';
+} from '../src/common/editor/controller/edit/generator-service.ts';
 import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
-} from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
-import type { AudioBufferLike } from '../src/common/editor/controller/source-audio.ts';
+import type { AudioBufferLike } from '../src/common/editor/controller/source/source-audio.ts';
 
 interface Deferred<Value> {
 	readonly promise: Promise<Value>;

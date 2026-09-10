@@ -6,14 +6,14 @@ import test from 'node:test';
 import {
 	createTakeCycleCaptureOrchestrator,
 	type TakeCycleCapturedLane,
-} from '../src/common/editor/controller/take-cycle-capture-orchestrator.ts';
-import { createTakeCycleCaptureSourceSpool } from '../src/common/editor/controller/take-cycle-capture-spool.ts';
-import { createTakeCycleLiveCaptureSpool } from '../src/common/editor/controller/take-cycle-live-capture-spool.ts';
+} from '../src/common/editor/controller/recording/take-cycle-capture-orchestrator.ts';
+import { createTakeCycleCaptureSourceSpool } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-capture-spool.ts';
+import { createTakeCycleLiveCaptureSpool } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-live-capture-spool.ts';
 import type {
 	TakeCycleFinalizationRequest,
 	TakeCycleFinalizationResult,
 	TakeCycleRecoveryRequest,
-} from '../src/common/editor/controller/take-cycle-recording-service.ts';
+} from '../src/common/editor/controller/recording/take-cycle-recording-service.ts';
 import type { TakeCycleRecoveryEnvelope } from '../src/common/editor/take-cycle-recovery-envelope.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import type { SourceRepository } from '../src/common/editor/storage/source-repository.ts';

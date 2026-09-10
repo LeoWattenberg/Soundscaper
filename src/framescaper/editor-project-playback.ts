@@ -3,7 +3,7 @@
 import type {
 	PlaybackProjectProjection,
 	PlaybackProjectService,
-} from '../common/editor/controller/playback-project-service.ts';
+} from '../common/editor/controller/source/playback-project-service.ts';
 import { FRAMESCAPER_PROJECT_SCHEMA_FAMILY, classifyProjectSchemaIdentity } from
 	'../common/editor/project-schema-identity.ts';
 import {

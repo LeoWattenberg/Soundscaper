@@ -75,7 +75,7 @@ test('trust is bound to the exact bytes it was granted for', () => {
 
 test('an imported program has no permission until somebody gives it one', async () => {
 	const { createMacroScriptLibraryService, MACRO_SCRIPT_LIBRARY_SETTING_KEY } = await import(
-		'../src/common/editor/controller/macro-script-library-service.ts'
+		'../src/common/editor/controller/effects/macro-script-library-service.ts'
 	);
 	const written: Array<[string, unknown]> = [];
 	let minted = 0;
@@ -120,7 +120,7 @@ test('an imported program has no permission until somebody gives it one', async 
 
 test('a program the user wrote here exports as a file that will not run itself', async () => {
 	const { createMacroScriptLibraryService } = await import(
-		'../src/common/editor/controller/macro-script-library-service.ts'
+		'../src/common/editor/controller/effects/macro-script-library-service.ts'
 	);
 	const state = { macroScripts: createMacroScriptLibrary() };
 	const service = createMacroScriptLibraryService({
@@ -139,7 +139,7 @@ test('a program the user wrote here exports as a file that will not run itself',
 
 test('a newer macro script library cannot be overwritten', async () => {
 	const { createMacroScriptLibraryService } = await import(
-		'../src/common/editor/controller/macro-script-library-service.ts'
+		'../src/common/editor/controller/effects/macro-script-library-service.ts'
 	);
 	let writes = 0;
 	const state = { macroScripts: createMacroScriptLibrary(), macroScriptsReadOnly: true };

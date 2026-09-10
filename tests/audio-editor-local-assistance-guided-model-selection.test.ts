@@ -6,7 +6,7 @@ import test from 'node:test';
 import { defaultAssistanceWorkflowSettingsV1 } from
 	'../src/common/editor/assistance/workflow-settings-v1.ts';
 import { localAssistanceGuidedModelCandidates, localAssistanceGuidedModelMatches } from
-	'../src/common/editor/controller/local-assistance-guided-model-selection.ts';
+	'../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-model-selection.ts';
 import type { LocalAssistanceModel } from
 	'../src/common/editor/assistance/local-assistance-bridge.ts';
 

@@ -2,10 +2,10 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { bindSessionHistoryAdmission } from '../src/common/editor/controller/session-history-admission.ts';
+import { bindSessionHistoryAdmission } from '../src/common/editor/controller/document/session-history-admission.ts';
 import { createSoundscaperProjectRuntimeSelection } from '../src/soundscaper/editor-project-runtime-selection.ts';
 import { createTakeCycleCurrentProjectPublicationService, type TakeCyclePublicationHistory } from
-	'../src/common/editor/controller/take-cycle-current-project-publication-service.ts';
+	'../src/common/editor/controller/recording/internal/take-cycle/take-cycle-current-project-publication-service.ts';
 
 void test('take publication retains the actual product family and one history authority', async () => {
 	const runtime = createSoundscaperProjectRuntimeSelection();

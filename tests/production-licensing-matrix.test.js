@@ -329,7 +329,7 @@ test('runtime provenance entries and distribution checks fail closed without cla
 			'src/common/editor/wavpack/source-manifest.json',
 			'src/common/editor/wavpack/NOTICE.md',
 			'src/common/editor/desktop-wavpack-codec-profile.ts',
-			'src/common/editor/controller/desktop-audio-export-capability.ts',
+			'src/common/editor/controller/export/internal/desktop-audio-export-capability.ts',
 			'scripts/audit-wavpack-wasm.mjs',
 			'scripts/lib/desktop-bundled-wavpack-runtime.mjs',
 			'desktop/bundled-wavpack-audio-codec-runtime.ts',

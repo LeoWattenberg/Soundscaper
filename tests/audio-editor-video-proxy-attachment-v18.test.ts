@@ -231,7 +231,7 @@ test('remains a closed scalar owner with only the reviewed cumulative consumers'
 		'src/framescaper/editor-captured-video-proxy-request.ts',
 		'src/framescaper/editor-captured-video-proxy-scheduler-guards.ts',
 		'src/framescaper/editor-captured-video-proxy-transition.ts',
-		'src/common/editor/controller/framescaper-capture-derivative-scheduler.ts',
+		'src/common/editor/controller/capture/framescaper-capture-derivative-scheduler.ts',
 		// Baseline sequence custody and professional-media validation own lifecycle edits.
 		'src/framescaper/editor-project-sequence-archive-repository.ts',
 		'src/framescaper/editor-project-sequence-claim-cleanup-repository.ts',

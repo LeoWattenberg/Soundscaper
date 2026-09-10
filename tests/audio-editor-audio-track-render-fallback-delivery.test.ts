@@ -10,8 +10,8 @@ import {
 	assertAudioRenderedFallbackExportSettings,
 	audioRenderedFallbackIntegritySelector,
 	audioRenderedFallbackRenderSources,
-} from '../src/common/editor/controller/audio-rendered-fallback-export.ts';
-import { createPlaybackProjectService } from '../src/common/editor/controller/playback-project-service.ts';
+} from '../src/common/editor/controller/export/internal/audio/audio-rendered-fallback-export.ts';
+import { createPlaybackProjectService } from '../src/common/editor/controller/source/playback-project-service.ts';
 import type { EngineChunkSource } from '../src/common/editor/engine/types.ts';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_AUDIO_TRACK_RENDER_IDS } from '../src/common/editor/project-feature-audio-track-render-v1.ts';

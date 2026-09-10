@@ -10,7 +10,7 @@ import { createAssistanceEmbeddingMatrixV1 } from
 import { reviewAssistanceSemanticDerivativeBundleV1 } from
 	'../src/common/editor/assistance/semantic-derivative-bundle-v1.ts';
 import { publishLocalAssistanceGuidedIndex } from
-	'../src/common/editor/controller/local-assistance-guided-index-publication.ts';
+	'../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-index-publication.ts';
 import { AssistanceDerivativeRepository } from
 	'../src/common/editor/storage/assistance-derivative-repository.ts';
 import type { AssistanceDerivativeKeyValuePort } from

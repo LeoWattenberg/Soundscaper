@@ -14,7 +14,7 @@ import {
 	resolveLocalAssistanceWorkflowBridge,
 } from '../src/common/editor/assistance/local-assistance-workflow-bridge.ts';
 import { bindLocalAssistancePreparedAudioWaveRelease } from
-	'../src/common/editor/controller/local-assistance-audio-spool-release.ts';
+	'../src/common/editor/controller/assistance/local-assistance-audio-spool-release.ts';
 import { WORKFLOW_JOB_ID } from './helpers/assistance-workflow-fixture.ts';
 
 test('renderer workflow custody hashes Blobs and correlates main-minted slot handles', async () => {

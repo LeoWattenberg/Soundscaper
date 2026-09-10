@@ -2,7 +2,7 @@
 
 /** Exact float32 WAV carrier streamed by the common bounded PCM engine. */
 
-import type { ProductNativeRenderInputOperation } from '../common/editor/controller/product-native-render-input-authority.ts';
+import type { ProductNativeRenderInputOperation } from '../common/editor/controller/composition/product-native-render-input-authority.ts';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { applyMediaChannelMapping } from '../common/editor/media-export.js';

@@ -9,7 +9,7 @@ import vm from 'node:vm';
 
 import { IPC } from '../desktop/constants.js';
 import { AtomicSaveManager, SaveTargetStore } from '../desktop/save-targets.js';
-import { openDirectPcmDestination } from '../src/common/editor/controller/direct-pcm-export.ts';
+import { openDirectPcmDestination } from '../src/common/editor/controller/export/internal/direct/direct-pcm-export.ts';
 import { createDesktopPreparedSave } from '../src/common/editor/file-save-stream.ts';
 
 const OWNER = Object.freeze({ name: 'bridge-integration-owner' });

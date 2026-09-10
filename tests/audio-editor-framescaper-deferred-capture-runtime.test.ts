@@ -4,13 +4,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createFramescaperCaptureAdminInterlock } from
-	'../src/common/editor/controller/framescaper-capture-admin-interlock.ts';
+	'../src/common/editor/controller/capture/framescaper-capture-admin-interlock.ts';
 import {
 	createFramescaperCaptureAppBinding,
 	type FramescaperCaptureAppBindingOptions,
 	type FramescaperCaptureAppHistory,
 	type FramescaperCaptureAppProject,
-} from '../src/common/editor/controller/framescaper-capture-app-binding.ts';
+} from '../src/common/editor/controller/capture/framescaper-capture-app-binding.ts';
 import {
 	createDeferredFramescaperCaptureAppBinding,
 	FRAMESCAPER_CAPTURE_IDLE_SNAPSHOT,

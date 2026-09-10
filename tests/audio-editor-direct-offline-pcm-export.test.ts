@@ -5,12 +5,12 @@ import test from 'node:test';
 
 import {
 	encodeDirectOfflinePcm,
-} from '../src/common/editor/controller/direct-offline-pcm-export.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-offline-pcm-export.ts';
 import {
 	DIRECT_PCM_RENDER_CHUNK_FRAMES,
 	type DirectPcmContainerEncoder,
 	type DirectPcmDestination,
-} from '../src/common/editor/controller/direct-pcm-export.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-pcm-export.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 
 test('offline PCM encoding drains bounded awaited planar blocks into one exact destination', async () => {

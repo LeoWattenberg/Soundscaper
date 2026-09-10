@@ -6,7 +6,7 @@ import test from 'node:test';
 import { soundscaperNativeAudioDestination } from '../src/common/editor/soundscaper-native-audio-renderer.ts';
 import type { EnginePublicApi } from '../src/common/editor/engine/public-api.ts';
 import { createDefaultMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
-import type { NativeAudioInventory } from '../src/common/editor/controller/native-audio-inventory.ts';
+import type { NativeAudioInventory } from '../src/common/editor/controller/recording/native-audio-inventory.ts';
 import type {
 	NativeAudioSessionOpenRequestV1,
 	SoundscaperNativeServicesBridge,

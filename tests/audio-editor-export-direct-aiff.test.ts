@@ -12,13 +12,13 @@ import {
 	DIRECT_AIFF_MAXIMUM_FILE_BYTES,
 	createDirectAiffEncoder,
 	prepareDirectAiffDestination,
-} from '../src/common/editor/controller/direct-aiff-export.ts';
-import { createEditorExportService } from '../src/common/editor/controller/export-service.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-aiff-export.ts';
+import { createEditorExportService } from '../src/common/editor/controller/export/internal/export-service.ts';
 import {
 	DIRECT_PCM_DESTINATION_WRITE_BYTES,
 	DIRECT_PCM_RENDER_CHUNK_FRAMES,
 	directPcmMaximumPendingChunks,
-} from '../src/common/editor/controller/direct-pcm-export.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-pcm-export.ts';
 import {
 	createDirectPcmExportFixture,
 	createPreparedStream,

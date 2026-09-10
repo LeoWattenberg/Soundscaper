@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createPlaybackProjectService } from '../src/common/editor/controller/playback-project-service.ts';
-import { acquireVideoExportTimingIndexes } from '../src/common/editor/controller/video-export-timing.ts';
+import { createPlaybackProjectService } from '../src/common/editor/controller/source/playback-project-service.ts';
+import { acquireVideoExportTimingIndexes } from '../src/common/editor/controller/export/video-export-timing.ts';
 import { buildProjectGraph } from '../src/common/editor/engine/project-graph.ts';
 import {
 	createAudioTrack,

@@ -3,7 +3,7 @@
 import {
 	createProjectImportService as createService,
 	type ProjectImportRuntime as ProductionRuntime,
-} from '../../src/common/editor/controller/project-import-service.ts';
+} from '../../src/common/editor/controller/import/internal/project-import-service.ts';
 
 /**
  * Routing and rollback tests intentionally supply only the ports their branch

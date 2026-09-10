@@ -7,12 +7,12 @@ import {
 	createAudioAnalysisService,
 	type AnalysisRange,
 	type AnalysisState,
-} from '../src/common/editor/controller/analysis-service.ts';
+} from '../src/common/editor/controller/analysis/analysis-service.ts';
 import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
 	type EditorProjectToken,
-} from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
 import {
 	createLoudnessMeasurementReport,
 	loudnessMeasurementScope,

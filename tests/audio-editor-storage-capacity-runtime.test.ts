@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createControllerStorageCapacityService } from '../src/common/editor/controller/storage-capacity-runtime.ts';
-import { createInitialStorageCapacitySnapshot } from '../src/common/editor/controller/storage-capacity-service.ts';
+import { createControllerStorageCapacityService } from '../src/common/editor/controller/shared/storage-capacity-runtime.ts';
+import { createInitialStorageCapacitySnapshot } from '../src/common/editor/controller/shared/storage-capacity-service.ts';
 
 test('controller cleanup delegates only to stale temporary/orphan cleanup', async () => {
 	const calls: string[] = [];

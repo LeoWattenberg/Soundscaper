@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { finalizeFramescaperCaptureDurability } from '../src/common/editor/controller/framescaper-capture-durable-finalization.ts';
+import { finalizeFramescaperCaptureDurability } from '../src/common/editor/controller/capture/internal/framescaper-capture-durable-finalization.ts';
 
 test('durable finalization retires only after committed settlement', async () => {
 	const events: string[] = [];

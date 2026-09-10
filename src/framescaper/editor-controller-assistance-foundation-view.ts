@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { ProductNativeRenderInputOperation } from '../common/editor/controller/product-native-render-input-authority.ts';
-import type { ProductNativeRenderInputAuthorityBinding } from '../common/editor/controller/product-native-render-input-authority.ts';
+import type { ProductNativeRenderInputOperation } from '../common/editor/controller/composition/product-native-render-input-authority.ts';
+import type { ProductNativeRenderInputAuthorityBinding } from '../common/editor/controller/composition/product-native-render-input-authority.ts';
 import { framescaperProjectNativeMediaFoundationShapeAssistance } from './editor-project-assistance-foundation.ts';
 
 type Awaitable<Value> = Value | PromiseLike<Value>;

@@ -5,7 +5,7 @@
  *
  * The renderer that calls these lives in `ui/`, because it drives the WebGL
  * preview compositor the workspace also renders through. The vocabulary does
- * not: `controller/product-video-export-strategy.ts` and the Framescaper
+ * not: `controller/export/product-video-export-strategy.ts` and the Framescaper
  * finishing strategies name these two function shapes to describe what they
  * hand the renderer, and a controller module that reaches into `ui/` for a type
  * cannot be read from a worker, the desktop main process or Node tooling

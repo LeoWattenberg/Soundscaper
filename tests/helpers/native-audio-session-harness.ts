@@ -12,7 +12,7 @@ import {
 	type NativeAudioInputStreamPort, type NativeAudioInventoryReport, type NativeAudioOpenPortRequest,
 	type NativeAudioOpenRequest, type NativeAudioOutputLossPolicy, type NativeAudioOutputStreamPort,
 	type NativeAudioSession, type NativeAudioSessionStatus, type NativeAudioStreamGrant,
-} from '../../src/common/editor/controller/native-audio-session.ts';
+} from '../../src/common/editor/controller/recording/internal/native-audio/native-audio-session.ts';
 
 export type FakePort = NativeAudioInputStreamPort & NativeAudioOutputStreamPort;
 export type GrantOverrides = Readonly<Partial<Record<NativeAudioDirection, Partial<NativeAudioStreamGrant>>>>;

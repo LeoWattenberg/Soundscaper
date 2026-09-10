@@ -7,7 +7,7 @@ import {
 	createSelectionEffectWorkerService,
 	type EffectWorkerLike,
 	type EffectWorkerState,
-} from '../src/common/editor/controller/selection-effect-worker-service.ts';
+} from '../src/common/editor/controller/effects/internal/selection-effect-worker-service.ts';
 import { planSpectralEditJobAdmission } from '../src/common/editor/spectral-edit-admission.ts';
 import { waitFor } from './helpers/async-test-control.ts';
 

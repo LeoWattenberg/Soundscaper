@@ -9,7 +9,7 @@ import {
 	setLocalAssistanceGuidedHighlightTitleV1,
 	setLocalAssistanceGuidedHighlightTrimV1,
 	validateLocalAssistanceGuidedHighlightDraftV1,
-} from '../src/common/editor/controller/local-assistance-guided-highlight-edits.ts';
+} from '../src/common/editor/controller/assistance/local-assistance-guided-highlight-edits.ts';
 
 test('Guided highlight edits stay bounded to the authenticated proposal', () => {
 	const original = proposals();

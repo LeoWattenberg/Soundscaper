@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createVideoTrimActionFacade } from '../src/common/editor/controller/video-trim-action-facade.ts';
-import type { VideoTrimServices } from '../src/common/editor/controller/video-trim-composition.ts';
+import { createVideoTrimActionFacade } from '../src/common/editor/controller/clip-video/internal/trim/video-trim-action-facade.ts';
+import type { VideoTrimServices } from '../src/common/editor/controller/clip-video/internal/trim/video-trim-composition.ts';
 
 test('video trim facade exposes exact step, slip/slide, and rate-stretch paths', () => {
 	const events: unknown[][] = [];

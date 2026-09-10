@@ -7,13 +7,13 @@ import { createAup4ExportPlan } from '../src/common/editor/aup4-export.js';
 import { prepareRangeDeleteCommand } from '../src/common/editor/commands.js';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 
-import { createExportRenderProject } from '../src/common/editor/controller/export-render-project.ts';
+import { createExportRenderProject } from '../src/common/editor/controller/export/export-render-project.ts';
 import {
 	createIsolatedTrackRenderProjectV21,
-} from '../src/common/editor/controller/isolated-track-render-project-v21.ts';
-import { exportProjectEdl, exportProjectOtio } from '../src/common/editor/controller/interchange-export-action.ts';
-import { createMixRenderSnapshot } from '../src/common/editor/controller/mix-render-model.ts';
-import type { ControllerProject, ControllerTrack } from '../src/common/editor/controller/track-domain-types.ts';
+} from '../src/common/editor/controller/track-audio/isolated-track-render-project-v21.ts';
+import { exportProjectEdl, exportProjectOtio } from '../src/common/editor/controller/export/interchange-export-action.ts';
+import { createMixRenderSnapshot } from '../src/common/editor/controller/track-audio/mix-render-model.ts';
+import type { ControllerProject, ControllerTrack } from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
 import {
 	createAudioClip,

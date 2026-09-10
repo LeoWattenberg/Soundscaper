@@ -6,10 +6,10 @@ import test from 'node:test';
 import {
 	createLocalAssistanceSelectedMediaPreparation,
 	resolveLocalAssistanceSelectedMediaAuthority,
-} from '../src/common/editor/controller/local-assistance-selected-media.ts';
+} from '../src/common/editor/controller/assistance/internal/local-assistance-selected-media.ts';
 import {
 	localAssistanceAudioWaveGeometry,
-} from '../src/common/editor/controller/local-assistance-audio-geometry.ts';
+} from '../src/common/editor/controller/assistance/internal/audio/local-assistance-audio-geometry.ts';
 
 const SOURCE_SHA256 = 'ab'.repeat(32);
 

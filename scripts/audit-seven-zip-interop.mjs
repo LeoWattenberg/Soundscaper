@@ -12,7 +12,7 @@ import { promisify } from 'node:util';
 import {
 	createSevenZipStemArchivePlan,
 	createStreamingStemArchive,
-} from '../src/common/editor/controller/stem-archive.ts';
+} from '../src/common/editor/controller/export/stem-archive.ts';
 import {
 	SEVEN_ZIP_COPY_GOLDEN_BASE64,
 	SEVEN_ZIP_COPY_GOLDEN_PROVENANCE,

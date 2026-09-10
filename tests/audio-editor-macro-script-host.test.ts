@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createMacroScriptHost } from '../src/common/editor/controller/macro-script-host.ts';
+import { createMacroScriptHost } from '../src/common/editor/controller/effects/internal/macro/macro-script-host.ts';
 
 function createHarness() {
 	const events: string[] = [];

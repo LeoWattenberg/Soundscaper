@@ -122,7 +122,7 @@ test('an unsealed or foreign report is refused', async () => {
 
 test('the save action writes the session report and no-ops before any delivery', async () => {
 	const { saveCurrentDeliveryReport } = await import(
-		'../src/common/editor/controller/delivery-report-action.ts'
+		'../src/common/editor/controller/export/internal/delivery/delivery-report-action.ts'
 	);
 	const requests: Array<Record<string, unknown>> = [];
 	const fileService = { saveFile: (request: Record<string, unknown>) => { requests.push(request); } };

@@ -85,9 +85,9 @@ and never disable these active routes.
 
 The crash-safe creation and append protocol landed in commit `917add78`.
 Runtime admission and orchestration are owned by
-`src/common/editor/controller/framescaper-capture-app-composition.ts`,
-`src/common/editor/controller/framescaper-capture-durable-creation.ts`, and
-`src/common/editor/controller/framescaper-capture-durable-session.ts`. Closed
+`src/common/editor/controller/capture/framescaper-capture-app-composition.ts`,
+`src/common/editor/controller/capture/internal/framescaper-capture-durable-creation.ts`, and
+`src/common/editor/controller/capture/internal/framescaper-capture-durable-session.ts`. Closed
 creation inventory and fencing are owned by
 `src/common/editor/storage/framescaper-capture-creation-admission.ts`,
 `src/common/editor/storage/framescaper-capture-session-creation-repository.ts`,
@@ -145,8 +145,8 @@ physical-tail cleanup, and terminal reservation retirement.
 
 The capture-only proxy route landed in commit `4f4d9d5a`. Canonical fire-and-forget
 scheduling is owned by
-`src/common/editor/controller/framescaper-capture-canonical-publication.ts` and
-`src/common/editor/controller/framescaper-capture-derivative-scheduler.ts`.
+`src/common/editor/controller/capture/internal/framescaper-capture-canonical-publication.ts` and
+`src/common/editor/controller/capture/framescaper-capture-derivative-scheduler.ts`.
 Product composition and exact selected-F31 web/desktop attachment, with
 historical V19-web/V18-desktop compatibility, are owned by
 `src/common/editor/app.js`,
@@ -218,7 +218,7 @@ selection, offline editing, detach, relink, regeneration, and cancellation.
 #### Committed timing and configured-browser evidence
 
 Commit `15a50dcb` normalizes an aggregate `unavailable` timing verdict in
-`src/common/editor/controller/framescaper-capture-stream-timing.ts`: numeric
+`src/common/editor/controller/capture/internal/framescaper-capture-stream-timing.ts`: numeric
 drop and drift fields remain `null` rather than retaining a misleading value.
 `tests/audio-editor-framescaper-capture-shared-timing.test.ts` owns the focused
 regression.

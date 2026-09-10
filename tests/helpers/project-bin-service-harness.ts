@@ -3,18 +3,18 @@
 import {
 	createProjectBinService,
 	type ProjectBinServiceDependencies,
-} from '../../src/common/editor/controller/project-bin-service.ts';
-import type { ProjectBinPreviewEngine } from '../../src/common/editor/controller/project-bin-preview-service.ts';
+} from '../../src/common/editor/controller/import/internal/project-bin/project-bin-service.ts';
+import type { ProjectBinPreviewEngine } from '../../src/common/editor/controller/import/internal/project-bin/project-bin-preview-service.ts';
 import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
-} from '../../src/common/editor/controller/lifecycle.ts';
+} from '../../src/common/editor/controller/shared/lifecycle.ts';
 import type { AudioEditorCommand } from '../../src/common/editor/commands/protocol.ts';
 import type {
 	ProjectBinClip,
 	ProjectBinPreview,
 	ProjectBinProject,
-} from '../../src/common/editor/controller/project-bin-types.ts';
+} from '../../src/common/editor/controller/import/project-bin-types.ts';
 
 interface HarnessOptions {
 	readonly importProjectBinFile?: ProjectBinServiceDependencies['importProjectBinFile'];

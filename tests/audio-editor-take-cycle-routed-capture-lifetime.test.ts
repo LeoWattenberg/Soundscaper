@@ -6,9 +6,9 @@ import test from 'node:test';
 import {
 	createTakeCycleRoutedCaptureService,
 	type TakeCycleRoutedCaptureRuntime,
-} from '../src/common/editor/controller/take-cycle-routed-capture-service.ts';
-import type { TakeCycleLiveCaptureSession } from '../src/common/editor/controller/take-cycle-live-capture-session.ts';
-import type { RecordingControllerFactoryOptions } from '../src/common/editor/controller/recording-transaction-types.ts';
+} from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-routed-capture-service.ts';
+import type { TakeCycleLiveCaptureSession } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-live-capture-session.ts';
+import type { RecordingControllerFactoryOptions } from '../src/common/editor/controller/recording/recording-transaction-types.ts';
 import { waitFor } from './helpers/async-test-control.ts';
 
 test('take-cycle input and recorder lifetime loss discards the captured prefix without publication', async (context) => {

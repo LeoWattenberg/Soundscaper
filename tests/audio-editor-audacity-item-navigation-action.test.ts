@@ -9,7 +9,7 @@ import {
 	collectClipTrimIds,
 } from '../src/common/editor/commands/clip-basic-runtime.js';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
-import type { ControllerProject } from '../src/common/editor/controller/track-domain-types.ts';
+import type { ControllerProject } from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 import { handleWorkspaceKeyboard } from '../src/common/editor/ui/workspace-shortcuts.ts';
 import { installReactTestDom } from './helpers/react-test-dom.ts';
 

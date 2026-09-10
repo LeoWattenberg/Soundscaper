@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { register } from 'node:module';
 import test from 'node:test';
 
-import type { ScapeInspectionQuiescenceOptions } from '../src/common/editor/controller/scape-inspection-quiescence.ts';
+import type { ScapeInspectionQuiescenceOptions } from '../src/common/editor/controller/document/internal/scape/scape-inspection-quiescence.ts';
 
 const assetLoader = `
 	export async function resolve(specifier, context, nextResolve) {
@@ -25,7 +25,7 @@ const { createAudioEditorEngine } = await import('../src/common/editor/engine.js
 const { createProjectStore } = await import('../src/common/editor/storage.js');
 const {
 	ScapeInspectionSettlementTimeoutError,
-} = await import('../src/common/editor/controller/scape-inspection-quiescence.ts');
+} = await import('../src/common/editor/controller/document/internal/scape/scape-inspection-quiescence.ts');
 
 function deferred<Value>() {
 	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;

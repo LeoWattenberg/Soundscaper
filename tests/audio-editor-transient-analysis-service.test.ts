@@ -6,8 +6,8 @@ import test from 'node:test';
 import {
 	createTransientAnalysisService,
 	type TransientAnalysisControllerProject,
-} from '../src/common/editor/controller/transient-analysis-service.ts';
-import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/analysis/transient-analysis-service.ts';
+import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
 import { transientAnalysisIdentity } from '../src/common/editor/storage/transient-analysis-cache.ts';
 
 const SOURCE_SHA256 = 'ab'.repeat(32);

@@ -3,12 +3,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { captureDirectCompressedStemArchiveContract } from '../src/common/editor/controller/direct-compressed-stem-archive-plan.ts';
+import { captureDirectCompressedStemArchiveContract } from '../src/common/editor/controller/export/internal/direct/direct-compressed-stem-archive-plan.ts';
 import {
 	encodeRenderedAudio,
 	type RenderedAudioEncodingPlan,
 	type RenderedAudioEncodingRuntime,
-} from '../src/common/editor/controller/rendered-audio-encoding.ts';
+} from '../src/common/editor/controller/export/internal/rendered-audio-encoding.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 
 const CASES = Object.freeze([

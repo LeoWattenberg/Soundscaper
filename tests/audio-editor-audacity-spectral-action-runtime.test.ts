@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAudacitySpectralActionRuntime } from '../src/common/editor/controller/audacity-spectral-action-runtime.ts';
+import { createAudacitySpectralActionRuntime } from '../src/common/editor/controller/effects/internal/audacity-spectral-action-runtime.ts';
 
 test('spectral selection restores its prior frequency band after a time-only toggle', () => {
 	let project: Record<string, unknown> = { id: 'project-a', selection: null };

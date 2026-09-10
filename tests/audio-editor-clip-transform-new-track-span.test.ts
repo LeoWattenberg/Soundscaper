@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
+import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
 import {
 	createClipTransformService,
-} from '../src/common/editor/controller/clip-transform-service.ts';
-import type { ClipTransformProject } from '../src/common/editor/controller/clip-domain-types.ts';
+} from '../src/common/editor/controller/clip-video/internal/clip/clip-transform-service.ts';
+import type { ClipTransformProject } from '../src/common/editor/controller/clip-video/internal/clip/clip-domain-types.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import {

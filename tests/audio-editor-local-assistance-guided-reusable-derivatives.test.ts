@@ -19,7 +19,7 @@ import {
 import { assembleOwnedHighlightsV1 } from
 	'../src/common/editor/assistance/owned-highlight-workflow-transforms-v1.ts';
 import { retainLocalAssistanceGuidedReusableDerivatives } from
-	'../src/common/editor/controller/local-assistance-guided-reusable-derivatives.ts';
+	'../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-reusable-derivatives.ts';
 import { AssistanceDerivativeRepository } from
 	'../src/common/editor/storage/assistance-derivative-repository.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';

@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
 import { ThemeProvider } from '@soundscaper/design-system/ThemeProvider';
 import { normalizeSkin, type SkinId } from '../../skin-preferences.ts';
-import { createSkinPreview } from '../../controller/skin-preview.ts';
+import { createSkinPreview } from '../../controller/preferences/skin-preview.ts';
 import { resolveSkinTheme, type SkinMode } from './skin-themes.ts';
 
 interface SkinController {

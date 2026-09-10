@@ -13,7 +13,7 @@ a shape both a presentation module and editor core name gets its own contract
 module beside the domain rather than inside the surface that happens to use it.
 Production source must never import `tests/`. Within the editor, import the
 narrow owning module directly. The active document has one typed history owner
-(`controller/document-state.ts`); its project accessor derives from that
+(`controller/document/document-state.ts`); its project accessor derives from that
 history. Autosave owns its queue and timers, reports save status through its
 publish port, and exposes a drain port rather than sharing mutable queue fields
 with unrelated services. The action assembly has a closed dependency inventory
@@ -21,8 +21,19 @@ and checks missing callable ports during construction. Its public facade
 preserves inferred action signatures instead of asserting an unrelated
 controller shape. Legacy command payloads remain a staged typing boundary.
 
+Controller coordination is grouped by ownership under the sixteen directories in
+`controller/`. A source file directly under a domain is public; same-domain-only
+implementation belongs under its `internal/` tree. The exact public inventory is
+ratcheted with the runtime and type-only cross-domain dependency directions in
+`config/controller-domain-policy.json`. The architecture gate rejects root source
+files, undeclared domains or public modules, barrels, new dependency directions,
+runtime upgrades of type-only directions, and cross-domain imports of internal
+files. Consumers import the narrow owning file directly rather than going through
+an index module. After removing a direction, run
+`npm run check:controller-domains:tighten` to claim it.
+
 Domains leave the composition root as typed compositions. Recording is the
-first: `controller/recording-state.ts` owns every recording field (the flat
+first: `controller/recording/recording-state.ts` owns every recording field (the flat
 controller state exposes them as read-only live accessors for legacy readers),
 and the composition root gives recording services a narrowly writable view of
 that owner. Transport uses the same arrangement, so neither domain can mutate
@@ -30,36 +41,36 @@ the other through the compatibility state. Nested compatibility values use
 stable read-only views, while owner-scoped services retain the mutable storage.
 Deferred export receives a separate eight-field workspace projection, so its
 lazy module cannot regain unrelated recording or transport writes.
-`controller/recording-composition.ts`
+`controller/recording/recording-composition.ts`
 builds routing, capture, finalization, take-cycle, timed and session services
 from one declared dependency contract,
 so the compiler checks their wiring and the root only supplies ports. Where two
 services described one object differently (the routed loudness meter, the
 source writer's commit result, the input stream) the contract was unified
-rather than cast. Transport follows the same shape: `controller/transport-state.ts`
+rather than cast. Transport follows the same shape: `controller/transport/transport-state.ts`
 owns the playhead, transport state, meters, play-at-speed and playback-cache
 preparation, the metronome and the playback display toggles, and
-`controller/transport-composition.ts` builds the transport and view-state
+`controller/transport/transport-composition.ts` builds the transport and view-state
 services, whose runtimes are now declared rather than `any`-indexed and generic
 over the document shape the root supplies. Effects follow in
-`controller/effects-composition.ts`: selection, controls, audio and spectral
+`controller/effects/effects-composition.ts`: selection, controls, audio and spectral
 processing, Nyquist hosting and generated audio, macros, the selection-effect
 worker, rack effects and the result writer are built from one contract, with
 the product's absent-subsystem stand-ins chosen there. The audio and macro
 services are generic over the rendered buffer they hand to the channel helper,
 so the root instantiates them with the engine's real buffer while tests keep
 their small fakes. Clips and video follow in
-`controller/clip-video-composition.ts`: sequence timing, the source monitor
+`controller/clip-video/clip-video-composition.ts`: sequence timing, the source monitor
 and three-point edits, JKL navigation, the frame-canonical trims, source
 reprobing, sample editing, clip transforms and properties, the committed
 time-pitch render and video clip effects. Its dependency contract is derived
 from the services' own declared dependencies, so a change to what a service
 needs is a compile error at the composition rather than a runtime gap. Tracks
-and audio production follow in `controller/track-audio-composition.ts`: the
+and audio production follow in `controller/track-audio/track-audio-composition.ts`: the
 derived-source rewrites, the track service and its action adapter, the
 deferred export service whose snapshot renderer the other renders read
 through, take comping, audio warp, mix-and-render and the selection view. Editing and import follow in
-`controller/edit-composition.ts` and `controller/import-composition.ts`: the
+`controller/edit/edit-composition.ts` and `controller/import/import-composition.ts`: the
 former builds label import and export, the clipboard edits, the audio
 generators (a refusing stand-in when the product does not compose them) and
 the Edit-menu dispatcher; the latter builds project import, video import and
@@ -67,11 +78,11 @@ the project bin, binding the two importers through a closure because each
 normalises through the other. The project and video import services still take
 untyped runtimes, so the copy and store members they read are named at the
 composition boundary rather than derived. The source runtime follows in
-`controller/source-runtime-composition.ts`: the visual data clips and video
+`controller/source/source-runtime-composition.ts`: the visual data clips and video
 sources present, the committed and playback time-pitch caches, the stored
 source lifecycle with its waveform PCM windows, and the step that applies a
 document to the playback engine. The document itself follows in
-`controller/document-composition.ts`: session tabs and their selection memory,
+`controller/document/document-composition.ts`: session tabs and their selection memory,
 saves and autosave, source retention across the undo history, the view
 publisher, timeline annotations, track folders, the mutation service that
 commits every command, and track duplication. Its history type is the product
@@ -84,9 +95,9 @@ contract. A compile-only boundary test rejects open string indexes and `any`
 in their direct values, callback arguments and callback results, so a new port
 must be declared at its owning seam before a composition can use it.
 
-Analysis is composed in `controller/analysis-composition.ts`. It keeps report
+Analysis is composed in `controller/analysis/analysis-composition.ts`. It keeps report
 execution lazy and cancellation eager, owns progress and result publication,
-and uses `controller/analysis-renderer.ts` to isolate track analysis on a
+and uses `controller/analysis/internal/analysis-renderer.ts` to isolate track analysis on a
 detached document. Its action contract reaches the public action tree through
 a capability wrapper that preserves argument and return types. Worker results
 are checked before they enter the report service.
@@ -106,12 +117,16 @@ import any desktop module that imports `electron`, and may not name `electron`
 itself. `desktop/` and `native/` are held to the no-React and no-`tests/` rules
 alongside `src/`.
 
-Remaining large legacy modules and integration suites are ratcheted in
-`config/maintainability-allowlist.json`. Their limits capture the reviewed
-baseline; new behavior should be extracted rather than increasing a limit, and
-a smaller file must lower its recorded limit in the same change. The editor
-shell and design-system stylesheet are already decomposed into focused modules;
-do not rebuild either monolith.
+Maintained sources are growth-frozen as soon as they reach the 550-line warning
+band. `config/maintainability-allowlist.json` records those reviewed baselines
+alongside the ratchets for legacy modules already over their hard ceiling. A
+new file may not enter the warning band, and an existing file may not exceed its
+recorded size. CI compares each warning-band file with its source at the
+explicit base revision; local checks compare the working tree with `HEAD`, and
+both follow Git renames. `npm run check:size:tighten` claims reductions and removes a
+warning-band row after its file falls below 550 lines. The editor shell and
+design-system stylesheet are already decomposed into focused modules; do not
+rebuild either monolith.
 `npm run check:architecture` enforces both dependency rules and
 a 600-line default ceiling and an 800-line browser-spec ceiling.
 `eslint-suppressions.json` similarly records exact

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
-import { createVideoSlipSlideService } from '../src/common/editor/controller/video-slip-slide-service.ts';
+import { createVideoSlipSlideService } from '../src/common/editor/controller/clip-video/internal/trim/video-slip-slide-service.ts';
 import type {
 	FrameCanonicalSlipSlideRequest,
 	VideoSourceTimingView,

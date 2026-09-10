@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
+import { EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
 import { captureSoundscaperNativeProjectOperation } from '../src/common/editor/ui/soundscaper-native-renderer-project-operation.ts';
 
 test('native project ownership rejects an A-B-A project activation cycle', () => {

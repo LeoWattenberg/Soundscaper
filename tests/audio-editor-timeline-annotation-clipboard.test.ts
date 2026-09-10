@@ -12,7 +12,7 @@ import type {
 	AudioEditorClipboard,
 	AudioEditorCommand,
 } from '../src/common/editor/commands/protocol.ts';
-import { assertEditorCommandCapabilities } from '../src/common/editor/controller/command-capability-policy.ts';
+import { assertEditorCommandCapabilities } from '../src/common/editor/controller/document/internal/command-capability-policy.ts';
 import {
 	createEditorHistory,
 	executeEditorCommand,

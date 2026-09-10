@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createNativeProjectService } from '../src/common/editor/controller/native-project-service.ts';
-import type { NativeProjectDocument } from '../src/common/editor/controller/native-project-types.ts';
+import { createNativeProjectService } from '../src/common/editor/controller/document/native-project-service.ts';
+import type { NativeProjectDocument } from '../src/common/editor/controller/document/native-project-types.ts';
 import { readDawprojectArchive, writeDawprojectArchive } from '../src/common/editor/dawproject-archive.ts';
 import { parseDawprojectDocument } from '../src/common/editor/dawproject-import.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';

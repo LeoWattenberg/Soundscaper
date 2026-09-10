@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createStoredProjectOpenActions } from
-	'../src/common/editor/controller/stored-project-open-actions.ts';
+	'../src/common/editor/controller/document/stored-project-open-actions.ts';
 
 test('openById forwards explicit active-session revision adoption to an open tab', async () => {
 	const project = Object.freeze({ id: 'project-a' });

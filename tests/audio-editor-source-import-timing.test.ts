@@ -7,8 +7,8 @@ import { digestMediaContent } from '../src/common/editor/storage/media-content-d
 import {
 	createImportVideoFile,
 	type ImportVideoRuntime,
-} from '../src/common/editor/controller/source-import.ts';
-import { planVideoImportTiming } from '../src/common/editor/controller/video-import-timing.ts';
+} from '../src/common/editor/controller/import/internal/source-import.ts';
+import { planVideoImportTiming } from '../src/common/editor/controller/import/internal/video-import-timing.ts';
 import { createFixture } from './helpers/audio-editor-source-import-fixture.ts';
 import { videoFile } from './helpers/audio-editor-source-import-fixture.ts';
 

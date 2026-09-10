@@ -6,7 +6,7 @@ import test from 'node:test';
 import { createBoundedPortMessage } from '../src/common/editor/platform/bounded-transfer.ts';
 import type { PersistentRenderQueuePortV1 } from '../src/common/editor/platform/persistent-render-queue-port.ts';
 import type { SoundscaperDeliveryDescriptionV1 } from '../src/common/editor/soundscaper-delivery-contract-v1.ts';
-import { createSoundscaperPersistentDeliveryQueueAdapterV1 } from '../src/common/editor/controller/soundscaper-persistent-delivery-adapter-v1.ts';
+import { createSoundscaperPersistentDeliveryQueueAdapterV1 } from '../src/common/editor/controller/export/internal/delivery/soundscaper-persistent-delivery-adapter-v1.ts';
 import { description } from './helpers/soundscaper-delivery-adapter-fixtures.ts';
 
 test('the persistent adapter bounds descriptions and validates summaries and events', async () => {

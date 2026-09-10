@@ -2,9 +2,9 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { connectControllerNativeRenderInput } from '../src/common/editor/controller/native-render-input-composition.ts';
-import { createProductNativeRenderInputAuthorityBinding } from '../src/common/editor/controller/product-native-render-input-authority.ts';
-import { EditorControllerLifetime, EditorProjectGeneration, EDITOR_PROJECT_TASK_SCOPE } from '../src/common/editor/controller/lifecycle.ts';
+import { connectControllerNativeRenderInput } from '../src/common/editor/controller/composition/native-render-input-composition.ts';
+import { createProductNativeRenderInputAuthorityBinding } from '../src/common/editor/controller/composition/product-native-render-input-authority.ts';
+import { EditorControllerLifetime, EditorProjectGeneration, EDITOR_PROJECT_TASK_SCOPE } from '../src/common/editor/controller/shared/lifecycle.ts';
 
 function fixture() {
 	const binding = createProductNativeRenderInputAuthorityBinding();

@@ -189,7 +189,7 @@ MIT-compatible), no weights, deterministic, sample-rate-agnostic.
   `src/common/editor/first-party-effects/dereverb/` (STFT, WPE core,
   suppression, params) — **not** appended to existing files:
   `src/common/editor/effects.js` is at 598/600 lines and
-  `src/common/editor/controller/effect-audio-service.ts` at 597/600, so only
+  `src/common/editor/controller/effects/internal/effect-audio-service.ts` at 597/600, so only
   minimal glue may touch them, or they must first be split per the standing
   oversize-file policy.
 - Definition merged into `AUDIO_SELECTION_EFFECT_DEFINITIONS`

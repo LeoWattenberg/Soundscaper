@@ -5,13 +5,13 @@ import test from 'node:test';
 
 import {
 	prepareMixRenderOperationCommit,
-} from '../src/common/editor/controller/mix-render-commit.ts';
-import { normalizeMixRenderOptions } from '../src/common/editor/controller/mix-render-options.ts';
+} from '../src/common/editor/controller/track-audio/internal/mix-render/mix-render-commit.ts';
+import { normalizeMixRenderOptions } from '../src/common/editor/controller/track-audio/mix-render-options.ts';
 import type {
 	ControllerProject,
 	ControllerSource,
 	ControllerTrack,
-} from '../src/common/editor/controller/track-domain-types.ts';
+} from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 
 test('all six Mix and Render combinations produce one atomic command', () => {
 	for (const mixDown of [true, false]) {

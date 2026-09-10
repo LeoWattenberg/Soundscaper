@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { applyEditorCommand, createAddSourceCommand } from '../src/common/editor/commands.js';
-import { createProjectFeatureCompatibilityService } from '../src/common/editor/controller/project-feature-compatibility-service.ts';
+import { createProjectFeatureCompatibilityService } from '../src/common/editor/controller/document/project-feature-compatibility-service.ts';
 import {
 	createEditorHistory,
 	executeEditorCommand,

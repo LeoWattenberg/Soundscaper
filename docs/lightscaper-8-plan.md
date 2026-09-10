@@ -88,7 +88,7 @@ packaged smoke runs that cannot exist until a packaged Lightscaper does.
   `src/common/editor/video-proxy-generation.ts:3-13` states that a proxy is a
   preview stand-in while clip bounds, source timing, relink identity, and
   delivery keep referring to the original;
-  `src/common/editor/controller/video-proxy-original-observer.ts:13-21` refuses
+  `src/common/editor/controller/capture/video-proxy-original-observer.ts:13-21` refuses
   as soon as the generation token, storage key, or digest stops matching what
   was opened. Reads are per-owner count- and byte-bounded with a fifteen-minute
   TTL (`desktop/file-capabilities.js:36`, `:56-88`;
@@ -424,7 +424,7 @@ at pickup, and any packet that later grows one names its filename here first.
   ML-assisted matching; no content search outside granted roots.
 - **Stop condition:** stop if any relink decision requires re-digesting a
   full-resolution original on every sweep; the fingerprint is recorded at import
-  (`src/common/editor/controller/video-proxy-original-observer.ts:23-29`).
+  (`src/common/editor/controller/capture/video-proxy-original-observer.ts:23-29`).
 
 ### WP-L8A.2 — Disconnected volumes: derivative develop, refused full render
 

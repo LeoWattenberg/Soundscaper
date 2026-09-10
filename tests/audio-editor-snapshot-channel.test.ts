@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createSnapshotChannel } from '../src/common/editor/controller/snapshot-channel.ts';
+import { createSnapshotChannel } from '../src/common/editor/controller/composition/internal/snapshot-channel.ts';
 
 test('snapshot channels cache reads and publish one immutable generation to every listener', () => {
 	let generation = 0;

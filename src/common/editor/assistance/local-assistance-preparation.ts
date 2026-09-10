@@ -36,7 +36,7 @@ import {
 	id,
 	normalizeLocalAssistancePreparedMedia,
 	text,
-} from '../controller/local-assistance-prepared-media.ts';
+} from '../controller/assistance/local-assistance-prepared-media.ts';
 
 export { normalizeLocalAssistancePreparedMedia };
 
@@ -47,7 +47,7 @@ export {
 	localAssistanceModelTaskSlots,
 	localAssistanceOperationModelsAvailable,
 	localAssistanceSelectedModels,
-} from '../controller/local-assistance-model-selection.ts';
+} from '../controller/assistance/local-assistance-model-selection.ts';
 import type {
 	LocalAssistanceTranscriptCleanupPreparationRequest,
 } from './local-assistance-cleanup.ts';

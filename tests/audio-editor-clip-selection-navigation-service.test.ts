@@ -7,7 +7,7 @@ import {
 	createClipSelectionNavigationService,
 	type ClipSelectionNavigationProject,
 	type ClipSelectionNavigationSelectionCommand,
-} from '../src/common/editor/controller/clip-selection-navigation-service.ts';
+} from '../src/common/editor/controller/track-audio/internal/clip-selection-navigation-service.ts';
 
 const tempoMap = {
 	mode: 'musical' as const,

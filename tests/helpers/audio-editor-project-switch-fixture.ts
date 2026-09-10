@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from '../../src/common/editor/controller/lifecycle.ts';
-import type { ProjectLifecycleHistory, ProjectLifecycleLock, ProjectLifecycleProject, ProjectLifecycleTab } from '../../src/common/editor/controller/project-lifecycle-types.ts';
-import { createProjectSwitchService, type ProjectSwitchServiceRuntime, type ProjectSwitchState } from '../../src/common/editor/controller/project-switch-service.ts';
-import { createScapeInspectionQuiescence } from '../../src/common/editor/controller/scape-inspection-quiescence.ts';
-import { SourceChunkProviderRegistry } from '../../src/common/editor/controller/source-chunk-provider-registry.ts';
+import { EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from '../../src/common/editor/controller/shared/lifecycle.ts';
+import type { ProjectLifecycleHistory, ProjectLifecycleLock, ProjectLifecycleProject, ProjectLifecycleTab } from '../../src/common/editor/controller/document/project-lifecycle-types.ts';
+import { createProjectSwitchService, type ProjectSwitchServiceRuntime, type ProjectSwitchState } from '../../src/common/editor/controller/document/project-switch-service.ts';
+import { createScapeInspectionQuiescence } from '../../src/common/editor/controller/document/internal/scape/scape-inspection-quiescence.ts';
+import { SourceChunkProviderRegistry } from '../../src/common/editor/controller/source/source-chunk-provider-registry.ts';
 import { PROJECT_SCHEMA_VERSION } from '../../src/common/editor/project-schema-identity.ts';
 
 export function deferred<Value>() {

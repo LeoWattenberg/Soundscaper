@@ -2,12 +2,12 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createCaptureComposition } from '../src/common/editor/controller/capture-composition.ts';
-import { adaptFramescaperRecordingControllerFactory } from '../src/common/editor/controller/framescaper-recording-factory-adapter.ts';
+import { createCaptureComposition } from '../src/common/editor/controller/capture/capture-composition.ts';
+import { adaptFramescaperRecordingControllerFactory } from '../src/common/editor/controller/capture/framescaper-recording-factory-adapter.ts';
 import {
 	createFramescaperCaptureDocumentPorts,
 	createFramescaperCaptureProxyDocumentInstaller,
-} from '../src/common/editor/controller/framescaper-capture-document-ports.ts';
+} from '../src/common/editor/controller/capture/framescaper-capture-document-ports.ts';
 import { FRAMESCAPER_EDITOR_CAPTURE_RUNTIME } from '../src/framescaper/editor-capture-runtime.ts';
 
 test('capture document admission is supplied by the selected product runtime', () => {

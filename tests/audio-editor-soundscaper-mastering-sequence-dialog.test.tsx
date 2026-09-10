@@ -7,7 +7,7 @@ import React, { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { createDocumentMasteringSequenceSnapshot } from
-	'../src/common/editor/controller/document-mastering-sequence-snapshot.ts';
+	'../src/common/editor/controller/document/document-mastering-sequence-snapshot.ts';
 import SoundscaperMasteringSequenceDialog from
 	'../src/common/editor/ui/dialogs/SoundscaperMasteringSequenceDialog.tsx';
 import { SOUNDSCAPER_MASTERING_SEQUENCE_COPY } from

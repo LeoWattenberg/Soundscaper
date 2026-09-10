@@ -3,11 +3,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createNativeProjectService } from '../src/common/editor/controller/native-project-service.ts';
+import { createNativeProjectService } from '../src/common/editor/controller/document/native-project-service.ts';
 import type {
 	NativeProjectDocument,
 	ScapeImportResult,
-} from '../src/common/editor/controller/native-project-types.ts';
+} from '../src/common/editor/controller/document/native-project-types.ts';
 import {
 	createFixture,
 	nativeFile,

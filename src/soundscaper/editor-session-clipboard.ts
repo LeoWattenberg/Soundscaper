@@ -3,7 +3,7 @@
 import type {
 	ControllerTrackDuplicateCarrier,
 	ControllerTrackDuplicateRequest,
-} from '../common/editor/controller/project-runtime.ts'
+} from '../common/editor/controller/document/project-runtime.ts'
 import type { SoundscaperProject } from './editor-project.ts'
 import { validateSoundscaperProject } from './editor-project-validation.ts'
 

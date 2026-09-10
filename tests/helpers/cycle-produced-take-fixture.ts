@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { TakeCycleProjectDocument } from '../../src/common/editor/controller/take-cycle-project-document.ts';
+import type { TakeCycleProjectDocument } from '../../src/common/editor/controller/recording/internal/take-cycle/take-cycle-project-document.ts';
 import type { AudioEditorProjectCurrent } from '../../src/common/editor/project-current.ts';
 import type { AudioEditorCommand } from '../../src/common/editor/commands/protocol.ts';
 import {
 	createTakeCycleRecordingRepositoryComposition,
 	type TakeCyclePublishedProject,
-} from '../../src/common/editor/controller/take-cycle-recording-repository-composition.ts';
-import { EditorControllerLifetime, EditorProjectGeneration } from '../../src/common/editor/controller/lifecycle.ts';
-import type { TakeCyclePassOperation } from '../../src/common/editor/controller/take-cycle-recording-service.ts';
+} from '../../src/common/editor/controller/recording/internal/take-cycle/take-cycle-recording-repository-composition.ts';
+import { EditorControllerLifetime, EditorProjectGeneration } from '../../src/common/editor/controller/shared/lifecycle.ts';
+import type { TakeCyclePassOperation } from '../../src/common/editor/controller/recording/take-cycle-recording-service.ts';
 import { createEditorHistory, executeEditorCommand } from '../../src/common/editor/history.js';
 import {
 	createAudioTrack,

@@ -34,17 +34,17 @@ import {
 	setLocalAssistanceGuidedHighlightCropV1,
 	setLocalAssistanceGuidedHighlightTitleV1,
 	setLocalAssistanceGuidedHighlightTrimV1,
-} from '../controller/local-assistance-guided-highlight-edits.ts';
+} from '../controller/assistance/local-assistance-guided-highlight-edits.ts';
 import { readLocalAssistanceGuidedHighlightSourceTimeAuthorityV1 } from
-	'../controller/local-assistance-guided-highlight-preview.ts';
+	'../controller/assistance/local-assistance-guided-highlight-preview.ts';
 import type { LocalAssistanceSelectedVideoSourceTimeDescriptorV1 } from
-	'../controller/local-assistance-selected-video-source-time.ts';
+	'../controller/assistance/local-assistance-selected-video-source-time.ts';
 import {
 	createLocalAssistanceGuidedReframeDraftV1,
 	setLocalAssistanceGuidedReframeCropV1,
-} from '../controller/local-assistance-guided-reframe-edits.ts';
+} from '../controller/assistance/local-assistance-guided-reframe-edits.ts';
 import { verifyLocalAssistanceGuidedReviewMediaAuthority as verifyReviewMediaAuthority } from
-	'../controller/local-assistance-guided-review-media-verification.ts';
+	'../controller/assistance/local-assistance-guided-review-media-verification.ts';
 import {
 	LOCAL_ASSISTANCE_GUIDED_PREPARATION_UNAVAILABLE_REASONS,
 	type LocalAssistanceGuidedPreparationUnavailableReason,

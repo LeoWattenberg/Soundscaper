@@ -9,7 +9,7 @@ import {
 	type RecordingCaptureControllerLike,
 	type RecordingControllerLike,
 	type RecordingSessionMutableState,
-} from '../src/common/editor/controller/recording-session-service.ts';
+} from '../src/common/editor/controller/recording/internal/recording-session-service.ts';
 
 test('recording service exposes only controller action entry points', () => {
 	const service = createRecordingSessionService({

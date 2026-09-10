@@ -2,13 +2,13 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { EDITOR_PROJECT_TASK_SCOPE } from '../src/common/editor/controller/lifecycle.ts';
-import { createProjectSaveService } from '../src/common/editor/controller/project-save-service.ts';
-import type { ProjectLifecycleLock } from '../src/common/editor/controller/project-lifecycle-types.ts';
-import { PLAYBACK_PROJECT_APPLY_TASK } from '../src/common/editor/controller/playback-project-service.ts';
-import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from '../src/common/editor/controller/project-bin-linked-video-relink-service.ts';
-import { SCAPE_INSPECTION_TASK, createScapeInspectionService } from '../src/common/editor/controller/scape-inspection-service.ts';
-import { SCAPE_OPEN_REQUEST_TASK } from '../src/common/editor/controller/scape-open-request-service.ts';
+import { EDITOR_PROJECT_TASK_SCOPE } from '../src/common/editor/controller/shared/lifecycle.ts';
+import { createProjectSaveService } from '../src/common/editor/controller/document/project-save-service.ts';
+import type { ProjectLifecycleLock } from '../src/common/editor/controller/document/project-lifecycle-types.ts';
+import { PLAYBACK_PROJECT_APPLY_TASK } from '../src/common/editor/controller/source/playback-project-service.ts';
+import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from '../src/common/editor/controller/import/project-bin-linked-video-relink-service.ts';
+import { SCAPE_INSPECTION_TASK, createScapeInspectionService } from '../src/common/editor/controller/document/internal/scape/scape-inspection-service.ts';
+import { SCAPE_OPEN_REQUEST_TASK } from '../src/common/editor/controller/document/scape-open-request-service.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { PROJECT_SCHEMA_VERSION } from '../src/common/editor/project-schema-identity.ts';
 import { createFixture, deferred, lock, project } from './helpers/audio-editor-project-switch-fixture.ts';

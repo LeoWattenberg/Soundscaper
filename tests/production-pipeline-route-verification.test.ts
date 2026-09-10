@@ -97,8 +97,8 @@ test('every browser route has one frozen Blob limit and every direct route exclu
 
 test('browser audio and video publication use the shared admission boundary', async () => {
 	const [audio, video, audioRuntime, nativeVideo] = await Promise.all([
-		readFile(new URL('../src/common/editor/controller/export-service.ts', import.meta.url), 'utf8'),
-		readFile(new URL('../src/common/editor/controller/video-export-service.ts', import.meta.url), 'utf8'),
+		readFile(new URL('../src/common/editor/controller/export/internal/export-service.ts', import.meta.url), 'utf8'),
+		readFile(new URL('../src/common/editor/controller/export/internal/video/video-export-service.ts', import.meta.url), 'utf8'),
 		readFile(new URL('../src/common/editor/browser-audio-codec-runtime.ts', import.meta.url), 'utf8'),
 		readFile(new URL('../src/common/editor/video-keyframe-mediabunny-execution.ts', import.meta.url), 'utf8'),
 	]);

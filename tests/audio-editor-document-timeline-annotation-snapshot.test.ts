@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	createDocumentTimelineAnnotationSnapshot,
-} from '../src/common/editor/controller/document-timeline-annotation-snapshot.ts';
+} from '../src/common/editor/controller/document/internal/snapshots/document-timeline-annotation-snapshot.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,

@@ -242,27 +242,27 @@
       "count": 1
     }
   },
-  "src/common/editor/controller/app-helpers.ts": {
+  "src/common/editor/controller/shared/app-helpers.ts": {
     "no-control-regex": {
       "count": 2
     }
   },
-  "src/common/editor/controller/clip-time-pitch-service.ts": {
+  "src/common/editor/controller/source/clip-time-pitch-service.ts": {
     "no-useless-assignment": {
       "count": 1
     }
   },
-  "src/common/editor/controller/derived-source-service.ts": {
+  "src/common/editor/controller/track-audio/internal/derived-audio/derived-source-service.ts": {
     "preserve-caught-error": {
       "count": 1
     }
   },
-  "src/common/editor/controller/direct-audio-render-plan.ts": {
+  "src/common/editor/controller/export/internal/direct/direct-audio-render-plan.ts": {
     "no-extra-boolean-cast": {
       "count": 1
     }
   },
-  "src/common/editor/controller/direct-compressed-stem-archive-plan.ts": {
+  "src/common/editor/controller/export/internal/direct/direct-compressed-stem-archive-plan.ts": {
     "no-control-regex": {
       "count": 1
     },
@@ -270,7 +270,7 @@
       "count": 1
     }
   },
-  "src/common/editor/controller/direct-native-stem-archive-plan.ts": {
+  "src/common/editor/controller/export/internal/direct/direct-native-stem-archive-plan.ts": {
     "no-control-regex": {
       "count": 1
     },
@@ -278,42 +278,42 @@
       "count": 1
     }
   },
-  "src/common/editor/controller/direct-offline-compressed-export.ts": {
+  "src/common/editor/controller/export/internal/direct/direct-offline-compressed-export.ts": {
     "no-useless-assignment": {
       "count": 2
     }
   },
-  "src/common/editor/controller/direct-pcm-export.ts": {
+  "src/common/editor/controller/export/internal/direct/direct-pcm-export.ts": {
     "preserve-caught-error": {
       "count": 1
     }
   },
-  "src/common/editor/controller/direct-video-export.ts": {
+  "src/common/editor/controller/export/internal/direct/direct-video-export.ts": {
     "preserve-caught-error": {
       "count": 1
     }
   },
-  "src/common/editor/controller/export-service.ts": {
+  "src/common/editor/controller/export/internal/export-service.ts": {
     "no-useless-assignment": {
       "count": 1
     }
   },
-  "src/common/editor/controller/framescaper-capture-admin-interlock.ts": {
+  "src/common/editor/controller/capture/framescaper-capture-admin-interlock.ts": {
     "no-control-regex": {
       "count": 1
     }
   },
-  "src/common/editor/controller/framescaper-capture-app-binding.ts": {
+  "src/common/editor/controller/capture/framescaper-capture-app-binding.ts": {
     "no-control-regex": {
       "count": 1
     }
   },
-  "src/common/editor/controller/framescaper-capture-canonical-assets.ts": {
+  "src/common/editor/controller/capture/internal/framescaper-capture-canonical-assets.ts": {
     "preserve-caught-error": {
       "count": 2
     }
   },
-  "src/common/editor/controller/framescaper-capture-durable-session.ts": {
+  "src/common/editor/controller/capture/internal/framescaper-capture-durable-session.ts": {
     "no-useless-assignment": {
       "count": 1
     },
@@ -321,37 +321,37 @@
       "count": 3
     }
   },
-  "src/common/editor/controller/framescaper-capture-metrics.ts": {
+  "src/common/editor/controller/capture/internal/framescaper-capture-metrics.ts": {
     "no-control-regex": {
       "count": 1
     }
   },
-  "src/common/editor/controller/framescaper-capture-origin-guard.ts": {
+  "src/common/editor/controller/capture/framescaper-capture-origin-guard.ts": {
     "no-control-regex": {
       "count": 1
     }
   },
-  "src/common/editor/controller/framescaper-capture-project-publication-port.ts": {
+  "src/common/editor/controller/capture/internal/framescaper-capture-project-publication-port.ts": {
     "no-unsafe-finally": {
       "count": 1
     }
   },
-  "src/common/editor/controller/framescaper-capture-project-write-authority.ts": {
+  "src/common/editor/controller/capture/framescaper-capture-project-write-authority.ts": {
     "no-control-regex": {
       "count": 1
     }
   },
-  "src/common/editor/controller/framescaper-capture-proxy-quiescence.ts": {
+  "src/common/editor/controller/capture/framescaper-capture-proxy-quiescence.ts": {
     "preserve-caught-error": {
       "count": 1
     }
   },
-  "src/common/editor/controller/framescaper-capture-publication-plan.ts": {
+  "src/common/editor/controller/capture/internal/framescaper-capture-publication-plan.ts": {
     "no-control-regex": {
       "count": 1
     }
   },
-  "src/common/editor/controller/framescaper-capture-publication-service.ts": {
+  "src/common/editor/controller/capture/internal/framescaper-capture-publication-service.ts": {
     "no-control-regex": {
       "count": 1
     },
@@ -359,37 +359,37 @@
       "count": 1
     }
   },
-  "src/common/editor/controller/framescaper-capture-recovery-admission.ts": {
+  "src/common/editor/controller/capture/internal/framescaper-capture-recovery-admission.ts": {
     "no-control-regex": {
       "count": 1
     }
   },
-  "src/common/editor/controller/framescaper-capture-source-adapter-router.ts": {
+  "src/common/editor/controller/capture/internal/framescaper-capture-source-adapter-router.ts": {
     "no-control-regex": {
       "count": 2
     }
   },
-  "src/common/editor/controller/linked-audio-import-admission.ts": {
+  "src/common/editor/controller/import/internal/linked-media/linked-audio-import-admission.ts": {
     "preserve-caught-error": {
       "count": 1
     }
   },
-  "src/common/editor/controller/linked-wav-import-service.ts": {
+  "src/common/editor/controller/import/internal/linked-media/linked-wav-import-service.ts": {
     "preserve-caught-error": {
       "count": 1
     }
   },
-  "src/common/editor/controller/local-assistance-audio-publication.ts": {
+  "src/common/editor/controller/assistance/internal/audio/local-assistance-audio-publication.ts": {
     "preserve-caught-error": {
       "count": 1
     }
   },
-  "src/common/editor/controller/local-assistance-transcript-acceptance.ts": {
+  "src/common/editor/controller/assistance/internal/local-assistance-transcript-acceptance.ts": {
     "preserve-caught-error": {
       "count": 1
     }
   },
-  "src/common/editor/controller/native-scape-save.ts": {
+  "src/common/editor/controller/document/internal/native-project/native-scape-save.ts": {
     "no-useless-assignment": {
       "count": 2
     },
@@ -397,7 +397,7 @@
       "count": 2
     }
   },
-  "src/common/editor/controller/playback-project-service.ts": {
+  "src/common/editor/controller/source/playback-project-service.ts": {
     "no-unsafe-finally": {
       "count": 2
     },
@@ -405,17 +405,17 @@
       "count": 1
     }
   },
-  "src/common/editor/controller/preferences-service.ts": {
+  "src/common/editor/controller/preferences/internal/preferences-service.ts": {
     "preserve-caught-error": {
       "count": 1
     }
   },
-  "src/common/editor/controller/prepared-project-sources.ts": {
+  "src/common/editor/controller/import/prepared-project-sources.ts": {
     "preserve-caught-error": {
       "count": 1
     }
   },
-  "src/common/editor/controller/product-native-render-audio-stream.ts": {
+  "src/common/editor/controller/composition/internal/product-native-render-audio-stream.ts": {
     "no-unsafe-finally": {
       "count": 2
     },
@@ -423,92 +423,92 @@
       "count": 1
     }
   },
-  "src/common/editor/controller/project-admin-service.ts": {
+  "src/common/editor/controller/document/project-admin-service.ts": {
     "no-useless-assignment": {
       "count": 1
     }
   },
-  "src/common/editor/controller/project-import-service.ts": {
+  "src/common/editor/controller/import/internal/project-import-service.ts": {
     "preserve-caught-error": {
       "count": 1
     }
   },
-  "src/common/editor/controller/project-switch-service.ts": {
+  "src/common/editor/controller/document/project-switch-service.ts": {
     "no-unsafe-finally": {
       "count": 2
     }
   },
-  "src/common/editor/controller/sample-edit-service.ts": {
+  "src/common/editor/controller/clip-video/internal/sample-edit-service.ts": {
     "preserve-caught-error": {
       "count": 1
     }
   },
-  "src/common/editor/controller/sequential-seven-zip-copy.ts": {
+  "src/common/editor/controller/export/internal/archive/sequential-seven-zip-copy.ts": {
     "preserve-caught-error": {
       "count": 1
     }
   },
-  "src/common/editor/controller/soundscaper-delivery-publication-v1.ts": {
+  "src/common/editor/controller/export/internal/delivery/soundscaper-delivery-publication-v1.ts": {
     "no-control-regex": {
       "count": 1
     }
   },
-  "src/common/editor/controller/soundscaper-persistent-delivery-private-transport.ts": {
+  "src/common/editor/controller/export/internal/delivery/soundscaper-persistent-delivery-private-transport.ts": {
     "no-control-regex": {
       "count": 1
     }
   },
-  "src/common/editor/controller/soundscaper-persistent-delivery-ui-service.ts": {
+  "src/common/editor/controller/export/internal/delivery/soundscaper-persistent-delivery-ui-service.ts": {
     "no-useless-assignment": {
       "count": 1
     }
   },
-  "src/common/editor/controller/source-lifecycle-service.ts": {
+  "src/common/editor/controller/source/source-lifecycle-service.ts": {
     "preserve-caught-error": {
       "count": 1
     }
   },
-  "src/common/editor/controller/stem-archive.ts": {
+  "src/common/editor/controller/export/stem-archive.ts": {
     "preserve-caught-error": {
       "count": 1
     }
   },
-  "src/common/editor/controller/take-cycle-capture-orchestrator.ts": {
+  "src/common/editor/controller/recording/take-cycle-capture-orchestrator.ts": {
     "no-control-regex": {
       "count": 1
     }
   },
-  "src/common/editor/controller/take-cycle-capture-spool-manifest.ts": {
+  "src/common/editor/controller/recording/internal/take-cycle/take-cycle-capture-spool-manifest.ts": {
     "no-control-regex": {
       "count": 1
     }
   },
-  "src/common/editor/controller/take-cycle-capture-spool.ts": {
+  "src/common/editor/controller/recording/internal/take-cycle/take-cycle-capture-spool.ts": {
     "no-control-regex": {
       "count": 1
     }
   },
-  "src/common/editor/controller/take-cycle-live-capture-request.ts": {
+  "src/common/editor/controller/recording/internal/take-cycle/take-cycle-live-capture-request.ts": {
     "no-control-regex": {
       "count": 1
     }
   },
-  "src/common/editor/controller/take-cycle-live-capture-session.ts": {
+  "src/common/editor/controller/recording/internal/take-cycle/take-cycle-live-capture-session.ts": {
     "no-control-regex": {
       "count": 1
     }
   },
-  "src/common/editor/controller/take-cycle-live-capture-spool.ts": {
+  "src/common/editor/controller/recording/internal/take-cycle/take-cycle-live-capture-spool.ts": {
     "no-control-regex": {
       "count": 1
     }
   },
-  "src/common/editor/controller/take-cycle-recording-repository-composition.ts": {
+  "src/common/editor/controller/recording/internal/take-cycle/take-cycle-recording-repository-composition.ts": {
     "no-control-regex": {
       "count": 1
     }
   },
-  "src/common/editor/controller/take-cycle-recording-service.ts": {
+  "src/common/editor/controller/recording/take-cycle-recording-service.ts": {
     "no-control-regex": {
       "count": 1
     },
@@ -516,17 +516,17 @@
       "count": 1
     }
   },
-  "src/common/editor/controller/take-cycle-routed-capture-validation.ts": {
+  "src/common/editor/controller/recording/internal/take-cycle/take-cycle-routed-capture-validation.ts": {
     "no-control-regex": {
       "count": 1
     }
   },
-  "src/common/editor/controller/timeline-annotation-service.ts": {
+  "src/common/editor/controller/document/internal/annotations/timeline-annotation-service.ts": {
     "no-useless-assignment": {
       "count": 1
     }
   },
-  "src/common/editor/controller/transient-analysis-pcm-access.ts": {
+  "src/common/editor/controller/analysis/transient-analysis-pcm-access.ts": {
     "no-unsafe-finally": {
       "count": 2
     },
@@ -534,12 +534,12 @@
       "count": 1
     }
   },
-  "src/common/editor/controller/video-proxy-candidate-composition.ts": {
+  "src/common/editor/controller/capture/video-proxy-candidate-composition.ts": {
     "no-useless-escape": {
       "count": 1
     }
   },
-  "src/common/editor/controller/video-relink-probe.ts": {
+  "src/common/editor/controller/import/internal/linked-media/video-relink-probe.ts": {
     "no-useless-assignment": {
       "count": 1
     }

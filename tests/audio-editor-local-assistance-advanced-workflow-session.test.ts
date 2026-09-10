@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createLocalAssistanceAdvancedWorkflowPreparation } from
-	'../src/common/editor/controller/local-assistance-advanced-workflow-preparation.ts';
+	'../src/common/editor/controller/assistance/internal/local-assistance-advanced-workflow-preparation.ts';
 import {
 	createAssistanceWorkflowCustodyClaimV1,
 	workflowClaimFromCustodyV1,

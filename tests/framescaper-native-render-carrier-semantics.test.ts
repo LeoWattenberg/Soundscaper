@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import type {
 	ProductVideoExportPlan,
-} from '../src/common/editor/controller/product-video-export-strategy.ts';
+} from '../src/common/editor/controller/export/product-video-export-strategy.ts';
 import type { UnifiedExactRenderPlanV14 } from '../src/common/editor/unified-exact-render-plan.ts';
 import {
 	FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE as PROFILE,

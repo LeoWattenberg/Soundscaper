@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createProjectSessionSelectionService,
 	type ProjectSessionSelectionMetadata,
-} from '../src/common/editor/controller/project-session-selection-service.ts';
+} from '../src/common/editor/controller/document/internal/project/project-session-selection-service.ts';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 } from '../src/common/editor/project-schema-version.ts';

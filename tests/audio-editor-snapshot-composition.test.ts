@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createSnapshotComposition } from '../src/common/editor/controller/snapshot-composition.ts';
+import { createSnapshotComposition } from '../src/common/editor/controller/composition/snapshot-composition.ts';
 import { stateFixture } from './helpers/audio-editor-snapshot-state.ts';
 import { DEFAULT_SOUND_ACTIVATION_PREFERENCES } from '../src/common/editor/sound-activation-preferences.ts';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';

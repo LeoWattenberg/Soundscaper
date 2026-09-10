@@ -4,12 +4,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { encodeAiff } from '../src/common/editor/aiff.js';
-import { maintainedAiffMimeType } from '../src/common/editor/controller/aiff-file-identity.ts';
-import { admitChangedContentAudioCandidate } from '../src/common/editor/controller/audio-relink-probe.ts';
-import { inspectDesktopStandalonePcm } from '../src/common/editor/controller/desktop-standalone-pcm-import.ts';
-import { createIncrementalPcmImporter } from '../src/common/editor/controller/incremental-wav-import-service.ts';
-import { createLinkedAudioImportAdmission } from '../src/common/editor/controller/linked-audio-import-admission.ts';
-import { createLinkedPcmImporter } from '../src/common/editor/controller/linked-wav-import-service.ts';
+import { maintainedAiffMimeType } from '../src/common/editor/controller/import/internal/aiff-file-identity.ts';
+import { admitChangedContentAudioCandidate } from '../src/common/editor/controller/import/internal/linked-media/audio-relink-probe.ts';
+import { inspectDesktopStandalonePcm } from '../src/common/editor/controller/import/internal/desktop-standalone-pcm-import.ts';
+import { createIncrementalPcmImporter } from '../src/common/editor/controller/import/internal/incremental-wav-import-service.ts';
+import { createLinkedAudioImportAdmission } from '../src/common/editor/controller/import/internal/linked-media/linked-audio-import-admission.ts';
+import { createLinkedPcmImporter } from '../src/common/editor/controller/import/internal/linked-media/linked-wav-import-service.ts';
 import { DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER } from '../src/common/editor/desktop-main-audio-codec-runtime-marker.ts';
 
 const LOCATOR_ID = 'locator_0000000000000001';

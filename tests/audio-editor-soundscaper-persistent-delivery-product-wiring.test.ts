@@ -8,7 +8,7 @@ import { createDeliveryReport, sealDeliveryReport } from '../src/common/editor/d
 import {
 	bindSoundscaperPersistentDeliveryRuntime,
 	type SoundscaperPersistentDeliveryExportRuntime,
-} from '../src/common/editor/controller/soundscaper-persistent-delivery-runtime-binding.ts';
+} from '../src/common/editor/controller/export/soundscaper-persistent-delivery-runtime-binding.ts';
 
 test('the closed common export seam binds one immutable Soundscaper delivery runtime', () => {
 	const received: SoundscaperPersistentDeliveryExportRuntime[] = [];

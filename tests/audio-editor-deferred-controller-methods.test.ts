@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { deferControllerMethods, deferAsyncControllerMethods } from '../src/common/editor/controller/deferred-controller-methods.ts';
+import { deferControllerMethods, deferAsyncControllerMethods } from '../src/common/editor/controller/composition/internal/deferred-controller-methods.ts';
 
 test('controller bindings defer access until invocation and preserve receivers and results', () => {
 	let reads = 0;

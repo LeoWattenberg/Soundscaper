@@ -5,9 +5,9 @@ import test from 'node:test';
 
 import { createMasteringSequenceV23 } from '../src/common/editor/mastering-sequence.ts';
 import { createMasteringSequenceDeliveryPlan } from '../src/common/editor/mastering-sequence-delivery.ts';
-import { renderMasteringSequenceExport } from '../src/common/editor/controller/mastering-sequence-export-render.ts';
-import { renderAndEncodeAudioExport } from '../src/common/editor/controller/audio-export-render-orchestration.ts';
-import { audioBufferChannels } from '../src/common/editor/controller/source-audio.ts';
+import { renderMasteringSequenceExport } from '../src/common/editor/controller/export/internal/mastering-sequence-export-render.ts';
+import { renderAndEncodeAudioExport } from '../src/common/editor/controller/export/internal/audio/audio-export-render-orchestration.ts';
+import { audioBufferChannels } from '../src/common/editor/controller/source/source-audio.ts';
 
 const REGIONS = [
 	{ id: 'a', sequenceId: 'main', name: 'One', startFrame: 0, endFrame: 8 },

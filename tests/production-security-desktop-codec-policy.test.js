@@ -120,7 +120,7 @@ test('desktop codec security separates Electron framework, application, and exte
 	assertEvidence(helperPayload, EXTERNAL_CODEC_EVIDENCE);
 	assertEvidence(helperPayload, FRAMESCAPER_NATIVE_MEDIA_EVIDENCE);
 	assertEvidence(helperPayload, [
-		'src/common/editor/controller/desktop-audio-export-capability.ts',
+		'src/common/editor/controller/export/internal/desktop-audio-export-capability.ts',
 		'tests/audio-editor-desktop-export-capability.test.ts',
 		'tests/audio-editor-desktop-export-codec-model.test.ts',
 		'tests/audio-editor-desktop-export-dialog-capability.test.js',

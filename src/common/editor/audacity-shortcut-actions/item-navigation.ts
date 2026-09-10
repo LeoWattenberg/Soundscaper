@@ -6,13 +6,13 @@ import {
 	audacityTimelinePixelFrames,
 	audacityTimelineStepFrame,
 } from '../audacity-action-runtime-helpers.ts';
-import { clipTrimSourceFrameCount } from '../controller/clip-trim-source-frame-count.ts';
+import { clipTrimSourceFrameCount } from '../controller/clip-video/clip-trim-source-frame-count.ts';
 import type { AudioEditorCommand, CommandObject } from '../commands/protocol.ts';
 import type {
 	ControllerClip,
 	ControllerProject,
 	ControllerTrack,
-} from '../controller/track-domain-types.ts';
+} from '../controller/track-audio/track-domain-types.ts';
 
 export type AudacityItemNavigationAction =
 	| 'track-view-item-move-left'

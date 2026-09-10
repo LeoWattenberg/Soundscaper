@@ -8,19 +8,19 @@ import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.
 import {
 	prepareMixRenderOperationCommit,
 	type MixRenderOperationCommit,
-} from '../src/common/editor/controller/mix-render-commit.ts';
+} from '../src/common/editor/controller/track-audio/internal/mix-render/mix-render-commit.ts';
 import {
 	createMixRenderSnapshot,
 	mixRenderTailFrames,
 	v21StripLaneRemovalCommands,
-} from '../src/common/editor/controller/mix-render-model.ts';
-import { normalizeMixRenderOptions } from '../src/common/editor/controller/mix-render-options.ts';
-import { preserveProductionMixRenderRouting } from '../src/common/editor/controller/mix-render-routing.ts';
+} from '../src/common/editor/controller/track-audio/mix-render-model.ts';
+import { normalizeMixRenderOptions } from '../src/common/editor/controller/track-audio/mix-render-options.ts';
+import { preserveProductionMixRenderRouting } from '../src/common/editor/controller/track-audio/internal/mix-render/mix-render-routing.ts';
 import type {
 	ControllerProject,
 	ControllerSource,
 	ControllerTrack,
-} from '../src/common/editor/controller/track-domain-types.ts';
+} from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 import {
 	createAudioClip,
 	createAudioSource,

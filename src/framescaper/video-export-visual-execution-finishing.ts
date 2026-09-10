@@ -7,7 +7,7 @@ import type {
 	UnifiedExactRenderVisualNode,
 } from '../common/editor/unified-exact-render-plan.ts';
 import { getVideoExportFormat } from '../common/editor/video-export.js';
-import type { ProductVideoExportPlan } from '../common/editor/controller/product-video-export-strategy.ts';
+import type { ProductVideoExportPlan } from '../common/editor/controller/export/product-video-export-strategy.ts';
 import type { VideoSourceTimingView } from '../common/editor/video-source-timing-view.ts';
 import type { FramescaperProjectFinishing } from './editor-project-finishing.ts';
 import type { FramescaperOpenFxFrameDispositionNativeMedia } from './editor-openfx-frame-graph-native-media.ts';

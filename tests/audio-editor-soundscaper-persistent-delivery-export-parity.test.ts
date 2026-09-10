@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createEditorExportService } from '../src/common/editor/controller/export-service.ts';
-import { createDeferredEditorExportService } from '../src/common/editor/controller/deferred-export-service.ts';
+import { createEditorExportService } from '../src/common/editor/controller/export/internal/export-service.ts';
+import { createDeferredEditorExportService } from '../src/common/editor/controller/export/deferred-export-service.ts';
 import { createAudioEditorFileService } from '../src/common/editor/file-service.js';
 import {
 	bindSoundscaperPersistentDeliverySave,

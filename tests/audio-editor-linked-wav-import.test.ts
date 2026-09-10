@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { encodeAiff } from '../src/common/editor/aiff.js';
-import { createLinkedPcmImporter } from '../src/common/editor/controller/linked-wav-import-service.ts';
+import { createLinkedPcmImporter } from '../src/common/editor/controller/import/internal/linked-media/linked-wav-import-service.ts';
 import {
 	createProjectImportService,
 	type ProjectImportRuntime,

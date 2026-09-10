@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
-import { createVideoPreviewPresentedFrameGate } from '../../controller/video-preview-presented-frame.ts';
+import { createVideoPreviewPresentedFrameGate } from '../../controller/clip-video/video-preview-presented-frame.ts';
 import { synchronizeVideoPreviewMedia } from './video-preview-retime.ts';
 
 export default function VideoPreviewClip({

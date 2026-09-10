@@ -2,8 +2,8 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { admitFramescaperCaptureProject } from '../src/common/editor/controller/framescaper-capture-project-admission.ts';
-import { createFramescaperCaptureAppProjectRepository, type FramescaperCaptureAppBindingStore } from '../src/common/editor/controller/framescaper-capture-app-binding.ts';
+import { admitFramescaperCaptureProject } from '../src/common/editor/controller/capture/internal/framescaper-capture-project-admission.ts';
+import { createFramescaperCaptureAppProjectRepository, type FramescaperCaptureAppBindingStore } from '../src/common/editor/controller/capture/framescaper-capture-app-binding.ts';
 
 function project() {
 	return { id: 'capture', schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,

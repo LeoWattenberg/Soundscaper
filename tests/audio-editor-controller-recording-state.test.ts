@@ -6,9 +6,9 @@ import {
 	createOwnedStateAccess,
 	exposeOwnedFields,
 	type OwnedStateWriteScope,
-} from '../src/common/editor/controller/owned-state.ts';
-import { createControllerRecordingState } from '../src/common/editor/controller/recording-state.ts';
-import { createEditorControllerState } from '../src/common/editor/controller/state.ts';
+} from '../src/common/editor/controller/shared/owned-state.ts';
+import { createControllerRecordingState } from '../src/common/editor/controller/recording/recording-state.ts';
+import { createEditorControllerState } from '../src/common/editor/controller/composition/internal/state.ts';
 
 function createState(recording = createControllerRecordingState({
 	recordingRouting: { routes: {}, offsets: {} },

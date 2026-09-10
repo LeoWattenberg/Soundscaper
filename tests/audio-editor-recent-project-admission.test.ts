@@ -2,8 +2,8 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createProjectSessionService } from '../src/common/editor/controller/project-session-service.ts';
-import type { ProjectBootstrapServiceRuntime } from '../src/common/editor/controller/project-bootstrap-service.ts';
+import { createProjectSessionService } from '../src/common/editor/controller/document/internal/project/project-session-service.ts';
+import type { ProjectBootstrapServiceRuntime } from '../src/common/editor/controller/document/internal/project/project-bootstrap-service.ts';
 
 function fixture(productId: string, values: Readonly<Record<string, unknown>>) {
 	const reads: string[] = [];

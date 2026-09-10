@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createWebVcrAudioMonitor } from '../src/common/editor/controller/web-vcr-audio-monitor.ts';
+import { createWebVcrAudioMonitor } from '../src/common/editor/controller/capture/internal/web-vcr/web-vcr-audio-monitor.ts';
 
 test('Web VCR mute controls only a cloned trusted monitor track', () => {
 	let recordedStops = 0;

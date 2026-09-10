@@ -12,7 +12,7 @@ import {
 	validateAssistanceSelectionFence,
 } from '../common/editor/assistance/proposal-session.ts';
 import type { LocalAssistanceSelectedVideoAuthority } from
-	'../common/editor/controller/local-assistance-selected-video.ts';
+	'../common/editor/controller/assistance/local-assistance-selected-video.ts';
 import {
 	createAddClipCommand,
 	createAddTrackCommand,

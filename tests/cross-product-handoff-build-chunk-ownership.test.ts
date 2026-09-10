@@ -13,11 +13,11 @@ import {
 
 test('the cross-product handoff implementation stays behind its eager facade', () => {
 	assert.equal(
-		chunkGroupForModulePath('src/common/editor/controller/cross-product-handoff-action-facade.ts'),
+		chunkGroupForModulePath('src/common/editor/controller/document/cross-product-handoff-action-facade.ts'),
 		'editor-controller-core',
 	);
 	assert.equal(
-		chunkGroupForModulePath('src/common/editor/controller/cross-product-handoff-action.ts'),
+		chunkGroupForModulePath('src/common/editor/controller/document/internal/cross-product-handoff-action.ts'),
 		null,
 	);
 });

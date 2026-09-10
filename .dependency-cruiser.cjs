@@ -66,15 +66,66 @@ const DESKTOP_MAIN_PROCESS_ONLY = [
 /** Both the bare `electron` package and the unresolvable `electron/main` subpath. */
 const ELECTRON = '(?:^|/)electron(?:/|$)';
 
+const CONTROLLER_DOMAIN_POLICY = require('./config/controller-domain-policy.json');
+const CONTROLLER_ROOT = '^src/common/editor/controller/';
+const ERASED_TYPESCRIPT_DEPENDENCIES = ['pre-compilation-only', 'type-import', 'type-only'];
+const PUBLIC_CONTROLLER_MODULES = CONTROLLER_DOMAIN_POLICY.publicModules.map((module) => (
+	`${CONTROLLER_ROOT}${module.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}$`
+));
+
+function controllerPublicModules(domain) {
+	return PUBLIC_CONTROLLER_MODULES.filter((module) => module.startsWith(`${CONTROLLER_ROOT}${domain}/`));
+}
+
+function controllerDomainDependencyRule(source, target, typeOnly) {
+	return {
+		comment: typeOnly
+			? `The ${source} controller domain may name types from ${target}'s public modules.`
+			: `The ${source} controller domain may import ${target}'s public modules.`,
+		from: { path: `${CONTROLLER_ROOT}${source}/` },
+		to: {
+			path: controllerPublicModules(target),
+			...(typeOnly ? { dependencyTypes: ERASED_TYPESCRIPT_DEPENDENCIES } : {}),
+		},
+	};
+}
+
+const CONTROLLER_DOMAIN_DEPENDENCY_RULES = Object.entries(
+	CONTROLLER_DOMAIN_POLICY.allowedDependencies,
+).flatMap(([source, dependencies]) => [
+	...dependencies.runtime.map((target) => controllerDomainDependencyRule(source, target, false)),
+	...dependencies.typeOnly.map((target) => controllerDomainDependencyRule(source, target, true)),
+]);
+
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
+	allowedSeverity: 'error',
+	allowed: [
+		{
+			comment: 'Dependencies whose target is outside controller domains are unaffected.',
+			from: {},
+			to: { pathNot: '^src/common/editor/controller/' },
+		},
+		{
+			comment: 'A controller domain may use its own public and private modules.',
+			from: { path: '^src/common/editor/controller/([^/]+)/' },
+			to: { path: '^src/common/editor/controller/$1/' },
+		},
+		{
+			comment: 'Code outside controller domains may import configured public controller modules.',
+			from: { pathNot: CONTROLLER_ROOT },
+			to: { path: PUBLIC_CONTROLLER_MODULES },
+		},
+		...CONTROLLER_DOMAIN_DEPENDENCY_RULES,
+	],
 	forbidden: [
 		{
 			name: 'no-circular',
 			comment: 'Cycles hide initialization order and make AI-assisted changes harder to bound. '
 				+ 'A cycle is an initialization-order hazard only when every edge in it survives '
-				+ 'compilation, so `viaOnly` excludes any cycle that passes through an `import '
-				+ 'type` edge: that edge is erased, the ring is open at runtime, and there is no '
+				+ 'compilation, so `viaOnly` excludes any cycle that passes through an erased '
+				+ 'TypeScript edge (`import type`, inline `type`, or pre-compilation-only): '
+				+ 'that edge is erased, the ring is open at runtime, and there is no '
 				+ 'order to hide. This keeps exactly the coverage the rule had before '
 				+ '`tsPreCompilationDeps` was set - it caught no type-only cycle then because it '
 				+ 'could see none - while the layering rules below now do see those edges. The '
@@ -82,7 +133,7 @@ module.exports = {
 				+ 'closes and this rule fires.',
 			severity: 'error',
 			from: {},
-			to: { circular: true, viaOnly: { dependencyTypesNot: ['type-only'] } },
+			to: { circular: true, viaOnly: { dependencyTypesNot: ERASED_TYPESCRIPT_DEPENDENCIES } },
 		},
 		{
 			name: 'editor-core-does-not-import-ui',

@@ -7,7 +7,7 @@ import {
 	createLocalAssistanceAudioWaveFromChunks,
 	releaseLocalAssistancePreparedAudioWave,
 	type LocalAssistanceAudioWaveSpoolV1,
-} from '../src/common/editor/controller/local-assistance-audio-preparation.ts';
+} from '../src/common/editor/controller/assistance/internal/audio/local-assistance-audio-preparation.ts';
 import { inspectWavBlobPcm } from '../src/common/editor/wav-import.js';
 
 test('long assistance preparation writes bounded chunks to a disposable spool and releases it', async () => {

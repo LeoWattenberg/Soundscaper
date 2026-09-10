@@ -5,7 +5,7 @@ import type {
 	ScapeOpenDecisionKind,
 	ScapeOpenDecisionRequest,
 	ScapeOpenInspection,
-} from '../../controller/scape-open-request-service.ts';
+} from '../../controller/document/scape-open-request-service.ts';
 
 export interface ScapeOpenDecisionPrompt<Inspection extends ScapeOpenInspection> {
 	readonly requestId: number;

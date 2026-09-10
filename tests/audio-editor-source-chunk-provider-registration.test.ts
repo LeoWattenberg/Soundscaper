@@ -3,14 +3,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createSourceChunkProviderRegistration } from '../src/common/editor/controller/source-chunk-provider-registration.ts';
-import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source-chunk-provider-registry.ts';
+import { createSourceChunkProviderRegistration } from '../src/common/editor/controller/source/internal/source-chunk-provider-registration.ts';
+import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source/source-chunk-provider-registry.ts';
 import {
 	createStoredChunkProvider,
 	isStreamableStoredSource,
 	type StoredAudioSource,
 	type StoredSourceMetadata,
-} from '../src/common/editor/controller/source-audio.ts';
+} from '../src/common/editor/controller/source/source-audio.ts';
 
 const source = Object.freeze({
 	id: 'source',

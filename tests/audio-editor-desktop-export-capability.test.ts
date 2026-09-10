@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { assertDesktopAudioExportCapability } from '../src/common/editor/controller/desktop-audio-export-capability.ts';
+import { assertDesktopAudioExportCapability } from '../src/common/editor/controller/export/internal/desktop-audio-export-capability.ts';
 import { DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER } from '../src/common/editor/desktop-main-audio-codec-runtime-marker.ts';
 
 test('desktop export gate requires the exact planned encode tuple before rendering', async () => {

@@ -6,13 +6,13 @@ import test from 'node:test';
 import {
 	captureDirectCompressedStemArchiveContract,
 	DIRECT_COMPRESSED_STEM_MINIMUM_ENTRY_BYTES,
-} from '../src/common/editor/controller/direct-compressed-stem-archive-plan.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-compressed-stem-archive-plan.ts';
 import {
 	directStemArchiveTemporaryBytes,
 	prepareDirectStemArchiveDestination,
-} from '../src/common/editor/controller/direct-stem-archive-export.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-stem-archive-export.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
-import { inspectZip32Layout } from '../src/common/editor/controller/zip32.ts';
+import { inspectZip32Layout } from '../src/common/editor/controller/export/internal/archive/zip32.ts';
 
 const FORMAT_CASES = Object.freeze([
 	{ format: 'mp3', extension: 'mp3', options: { bitRate: 320 } },

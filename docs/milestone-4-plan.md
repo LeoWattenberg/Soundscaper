@@ -162,7 +162,7 @@ descriptor and no identity-stability contract**. The foundation defines:
 
 The write-mode gesture semantics (touch/latch/write) extend the proven
 adopt-live-then-commit pattern of the rack effect service
-(`src/common/editor/controller/rack-effect-service.ts:343-380`), where
+(`src/common/editor/controller/effects/internal/rack-effect-service.ts:343-380`), where
 live worklet configuration (`src/common/editor/engine/effect-control.ts:40-107`)
 runs ahead of a single history commit.
 
@@ -243,7 +243,7 @@ any route.
 Nothing called freeze exists. What exists must not be mistaken for it:
 
 - **mix-and-render** is a destructive bounce that deletes source
-  material (`src/common/editor/controller/mix-render-model.ts:210-290`);
+  material (`src/common/editor/controller/track-audio/mix-render-model.ts:210-290`);
 - the milestone-2 **rendered-fallback roles** are read-side,
   publisher-supplied, digest-bound substitutions that cannot author,
   refresh, or revert
@@ -255,7 +255,7 @@ Nothing called freeze exists. What exists must not be mistaken for it:
 
 Milestone 4 adds reversible freeze/unfreeze/commit: frozen audio renders
 persist through the derived-source machinery
-(`src/common/editor/controller/derived-source-service.ts:51-62`), the
+(`src/common/editor/controller/track-audio/internal/derived-audio/derived-source-service.ts:51-62`), the
 frozen state retains the complete editable rack and routing, freshness
 is digest-bound to the inputs that produced the render, and commit is
 the explicit irreversible step. The planned `audio-freeze-fallback`
@@ -411,10 +411,10 @@ initially unavailable
 requirement predicate
 (`src/common/editor/project-owned-feature-requirements.ts:16-27, 64-96`),
 compatibility register rule, capability-policy gate
-(`src/common/editor/controller/command-capability-policy.ts:20-104`),
+(`src/common/editor/controller/document/internal/command-capability-policy.ts:20-104`),
 factory/normalizer coverage with the idempotence/survival pair, and the
 single mutation path
-(`src/common/editor/controller/project-mutation-service.ts:140-161`) —
+(`src/common/editor/controller/document/project-mutation-service.ts:140-161`) —
 per the standing duties (roadmap.md:844-846).
 
 ## Phase structure
@@ -704,7 +704,7 @@ gates.
   budget) mean `project-graph.ts` and `effect-rack.ts` grow by
   extraction, not appension.
 - **The single foreground task coordinator**
-  (`src/common/editor/controller/task-progress.ts`) is not a queue;
+  (`src/common/editor/controller/shared/task-progress.ts`) is not a queue;
   long renders in 4A/4B stay single-task and abortable, and queueing
   remains milestone 5/6 scope.
 

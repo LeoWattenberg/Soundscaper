@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { AUDIO_SELECTION_EFFECT_DEFINITIONS } from '../src/common/editor/effects.js';
-import { createSelectionEffectTypeSnapshot } from '../src/common/editor/controller/document-snapshot.ts';
+import { createSelectionEffectTypeSnapshot } from '../src/common/editor/controller/document/document-snapshot.ts';
 import { createWorkspaceApplicationMenus } from '../src/common/editor/ui/workspace/workspace-application-menu-runtime.js';
 import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
 

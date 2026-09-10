@@ -6,9 +6,9 @@ import test from 'node:test';
 import {
 	createLocalAssistanceSelectedPreparation,
 	resolveLocalAssistanceSelectedAudioAuthority,
-} from '../src/common/editor/controller/local-assistance-selected-preparation.ts';
+} from '../src/common/editor/controller/assistance/internal/local-assistance-selected-preparation.ts';
 import { createLocalAssistancePreparationRuntime } from
-	'../src/common/editor/controller/local-assistance-runtime.ts';
+	'../src/common/editor/controller/assistance/internal/local-assistance-runtime.ts';
 
 test('a selected video exposes its one exact linked audio peer for highlight signal preparation', async () => {
 	const project = linkedProject();

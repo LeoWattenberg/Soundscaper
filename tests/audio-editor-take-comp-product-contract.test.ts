@@ -3,10 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createFramescaperProject } from '../src/framescaper/editor-project.ts';
-import { createTakeCompService } from '../src/common/editor/controller/take-comp-service.ts';
-import type { TakeCompCompositionDependencies } from '../src/common/editor/controller/take-comp-composition.ts';
-import type { TakeCompPreviewDependencies } from '../src/common/editor/controller/take-comp-preview-service.ts';
-import type { TakeCompFlattenServiceDependencies } from '../src/common/editor/controller/take-comp-flatten-service.ts';
+import { createTakeCompService } from '../src/common/editor/controller/track-audio/internal/take-comp/take-comp-service.ts';
+import type { TakeCompCompositionDependencies } from '../src/common/editor/controller/track-audio/internal/take-comp/take-comp-composition.ts';
+import type { TakeCompPreviewDependencies } from '../src/common/editor/controller/track-audio/internal/take-comp/take-comp-preview-service.ts';
+import type { TakeCompFlattenServiceDependencies } from '../src/common/editor/controller/track-audio/internal/take-comp/take-comp-flatten-service.ts';
 
 test('take-comp owners accept the actual Framescaper document without changing its schema', () => {
 	const project = createFramescaperProject();

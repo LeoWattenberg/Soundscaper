@@ -101,13 +101,13 @@ The substrate 6A consumes is present and verified:
   `measureBextLoudness` returns integrated loudness, loudness range, maximum
   true peak (dBTP), and momentary/short-term maxima from the R128 meter
   (`src/common/editor/broadcast-loudness.ts:6-21`), reachable only as a BEXT
-  capture flag (`controller/export-settings.ts:41,80`;
-  `controller/rendered-audio-encoding.ts:143-145`). No UI reads it and no
+  capture flag (`controller/export/export-settings.ts:41,80`;
+  `controller/export/internal/rendered-audio-encoding.ts:143-145`). No UI reads it and no
   export path applies gain from it.
 - **Stems and the plan seam are the extension points.** `createExportPlan`
   (`src/common/editor/export.js:152`), the stem archive plan
   (`export.js:279-288`) and its ZIP32/7z selector
-  (`controller/stem-archive.ts:36-76`) are extended by 6A-3, never
+  (`controller/export/stem-archive.ts:36-76`) are extended by 6A-3, never
   duplicated.
 - **ADM is two modes.** Authored programmes carry a bed from mono through 7.1.4
   plus positioned objects (`src/common/editor/adm-bed-layout.ts`,
@@ -231,7 +231,7 @@ audio the sequence did not ask for.
   parts; scaling accumulated positions instead would let rounding drift a
   boundary away from the audio it belongs to. Source frames keep the project
   rate: they say what to render, not what was written.
-- **The render.** `controller/mastering-sequence-export-render.ts` calls the same
+- **The render.** `controller/export/internal/mastering-sequence-export-render.ts` calls the same
   offline render every other export calls, once per entry over its own region's
   range, and `mastering-sequence-render.ts` arranges the results — gaps as real
   silence, fades applied on the way out, the source untouched, which is what

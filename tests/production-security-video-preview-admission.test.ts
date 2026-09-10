@@ -31,7 +31,7 @@ const matrixUrl = new URL('../config/production-security-matrix.json', import.me
 const EXPECTED_EVIDENCE = [
 	{ kind: 'implementation', path: 'src/common/editor/video-preview-capture-admission.ts' },
 	{ kind: 'implementation', path: 'src/common/editor/video-media.js' },
-	{ kind: 'implementation', path: 'src/common/editor/controller/source-import.ts' },
+	{ kind: 'implementation', path: 'src/common/editor/controller/import/internal/source-import.ts' },
 	{ kind: 'test', path: 'tests/audio-editor-video-preview-capture-admission.test.ts' },
 	{ kind: 'test', path: 'tests/audio-editor-video-media.test.js' },
 	{ kind: 'test', path: 'tests/audio-editor-source-import.test.ts' },

@@ -1,0 +1,336 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import {
+	resolveLocalAssistanceSelectedVideoAuthority,
+} from '../local-assistance-selected-video.ts';
+import {
+	createLocalAssistanceSelectedPreparation,
+	resolveLocalAssistanceSelectedAudioAuthority,
+	type LocalAssistanceSelectedVideoStore,
+} from './local-assistance-selected-preparation.ts';
+import {
+	createLocalAssistanceGuidedWorkflowPreparation,
+} from './guided/local-assistance-guided-preparation.ts';
+import {
+	createLocalAssistanceAdvancedWorkflowPreparation,
+} from './local-assistance-advanced-workflow-preparation.ts';
+import {
+	createLocalAssistanceAdvancedSelectedContextPreparation,
+} from './local-assistance-advanced-selected-context.ts';
+import {
+	createLocalAssistanceResultAcceptance,
+	type LocalAssistanceResultAcceptanceStore,
+} from './local-assistance-result-acceptance.ts';
+import {
+	createLocalAssistanceGuidedResultAcceptance,
+	type LocalAssistanceGuidedHighlightAcceptanceRequest,
+	type LocalAssistanceGuidedReframeAcceptanceRequest,
+} from './guided/local-assistance-guided-result-acceptance.ts';
+import {
+	publishLocalAssistanceGuidedIndex,
+} from './guided/local-assistance-guided-index-publication.ts';
+import {
+	createLocalAssistanceGuidedPublicationFenceResolver,
+} from './guided/local-assistance-guided-publication-fence.ts';
+import {
+	retainLocalAssistanceGuidedReusableDerivatives,
+} from './guided/local-assistance-guided-reusable-derivatives.ts';
+import {
+	retainLocalAssistanceGuidedReactionScores,
+} from './guided/local-assistance-guided-reaction-derivative.ts';
+import {
+	retainLocalAssistanceGuidedAcceptedReframePathV1,
+} from './guided/local-assistance-guided-reframe-derivative.ts';
+import {
+	acknowledgeLocalAssistanceGuidedEditorialSelection,
+} from './guided/local-assistance-guided-editorial-acceptance.ts';
+import { validateAssistanceWorkflow } from '../../../assistance/workflow.ts';
+import type { LocalAssistanceGuidedWorkflowAcceptanceRequest } from
+	'../../../assistance/local-assistance-preparation.ts';
+import type { DeferredLocalAssistanceRuntimeDependencies } from '../deferred-local-assistance-runtime.ts';
+
+/** Compose the stateful selected-media and proposal-acceptance ports after invocation. */
+export function createLocalAssistancePreparationRuntime(
+	dependencies: DeferredLocalAssistanceRuntimeDependencies,
+) {
+	const selectedMediaDependencies = {
+		getProject: dependencies.getProject,
+		getSelectedClipId: dependencies.getSelectedClipId,
+		captureProject: dependencies.captureProject,
+		assertProject: dependencies.assertProject,
+		renderDryTrackRange: dependencies.renderDryTrackRange,
+	};
+	const assistanceStore = dependencies.assistanceStore as
+		LocalAssistanceResultAcceptanceStore | undefined;
+	const assistanceVideoStore = dependencies.assistanceVideoStore as
+		LocalAssistanceSelectedVideoStore | undefined;
+	const currentVideoAuthority = () => resolveLocalAssistanceSelectedVideoAuthority(
+		selectedMediaDependencies,
+	);
+	const currentSelectionFence = () => {
+		try {
+			return resolveLocalAssistanceSelectedAudioAuthority({
+				...selectedMediaDependencies,
+				...(assistanceVideoStore ? { videoStore: assistanceVideoStore } : {}),
+			}).fence;
+		}
+		catch (audioError) {
+			if (!assistanceVideoStore) throw audioError;
+			return currentVideoAuthority().fence;
+		}
+	};
+	const selectionFenceForSource = (sourceId: string) => {
+		try {
+			const audio = resolveLocalAssistanceSelectedAudioAuthority({
+				...selectedMediaDependencies,
+				...(assistanceVideoStore ? { videoStore: assistanceVideoStore } : {}),
+			});
+			if (audio.fence.sourceId === sourceId) return audio.fence;
+		} catch { /* The selected source may be video-only. */ }
+		if (assistanceVideoStore) {
+			const video = currentVideoAuthority();
+			if (video.fence.sourceId === sourceId) return video.fence;
+		}
+		throw new Error('The requested Advanced context source is not selected or linked.');
+	};
+	const resultAcceptance = assistanceStore ? createLocalAssistanceResultAcceptance({
+		currentAuthority: () => resolveLocalAssistanceSelectedAudioAuthority({
+			...selectedMediaDependencies,
+			...(assistanceVideoStore ? { videoStore: assistanceVideoStore } : {}),
+		}),
+		...(assistanceVideoStore ? {
+			currentVideoAuthority,
+		} : {}),
+		captureProject: dependencies.captureProject,
+		store: assistanceStore,
+		audioStore: assistanceStore,
+		createId: dependencies.createId,
+		preflightStorage: dependencies.preflightStorage,
+		assertProject: dependencies.assertProject,
+		commit: dependencies.commit,
+	}) : null;
+	const selectedPreparation = createLocalAssistanceSelectedPreparation({
+		...selectedMediaDependencies,
+		...(assistanceVideoStore ? { videoStore: assistanceVideoStore } : {}),
+		...(resultAcceptance ? { acceptValidatedResult: resultAcceptance.acceptValidatedResult } : {}),
+	});
+	const advancedSelectedPreparation = createLocalAssistanceAdvancedSelectedContextPreparation({
+		getProject: dependencies.getProject,
+		selectionFenceForSource,
+		...(assistanceStore ? {
+			loadTranscriptBody: (storageKey: string, signal: AbortSignal) => {
+				signal.throwIfAborted();
+				return assistanceStore.loadMediaAsset(storageKey);
+			},
+		} : {}),
+		selected: selectedPreparation,
+	});
+	const publicationFenceResolver = createLocalAssistanceGuidedPublicationFenceResolver({
+		getProject: dependencies.getProject,
+		captureProject: dependencies.captureProject,
+		assertProject: dependencies.assertProject,
+		currentSelectionFence,
+		...(assistanceVideoStore ? {
+			currentVideoSelectionFence: () => currentVideoAuthority().fence,
+		} : {}),
+		...(assistanceStore ? {
+			loadTranscriptBody: (storageKey: string, signal: AbortSignal) => {
+				signal.throwIfAborted();
+				return assistanceStore.loadMediaAsset(storageKey);
+			},
+		} : {}),
+		selected: selectedPreparation,
+	});
+	const guidedAcceptance = resultAcceptance ? createLocalAssistanceGuidedResultAcceptance({
+		currentSelectionFence: selectionFenceForSource,
+		assertCurrentWorkflowFence: (workflow, signal) =>
+			publicationFenceResolver.assertCurrentFence(workflow, signal),
+		acceptValidatedResult: (request) => resultAcceptance.acceptValidatedResult(request),
+		acceptAudioResult: (request, choice) => resultAcceptance.acceptAudioResult(request, choice),
+		acceptCleanupResult: (request) => resultAcceptance.acceptCleanupResult(request),
+		createBeatReviewSession: (request) => resultAcceptance.createBeatReviewSession(request),
+		createReactionReviewSession: (request, options) =>
+			resultAcceptance.createReactionReviewSession(request, options),
+		...(assistanceVideoStore ? {
+			acceptReframeResult: (request: LocalAssistanceGuidedReframeAcceptanceRequest) =>
+				acceptFramescaperReframe(request),
+			acceptHighlightResult: (request: LocalAssistanceGuidedHighlightAcceptanceRequest) =>
+				acceptFramescaperHighlights(request),
+			...(dependencies.assistanceDerivativeRepository ? {
+				retainReframeResult: async ({ workflow, result }: Readonly<{
+					workflow: unknown; result: unknown;
+				}>) => {
+					try {
+						await retainLocalAssistanceGuidedAcceptedReframePathV1({ workflow, result,
+							repository: dependencies.assistanceDerivativeRepository!,
+							currentProject: () => {
+								const project = dependencies.getProject() as
+									Readonly<Record<string, unknown>>;
+								return { schemaFamily: project.schemaFamily, schemaVersion: project.schemaVersion,
+									projectId: project.id, projectRevision: project.revision };
+							},
+						});
+					} catch {
+						// Disposable crop evidence cannot turn an already committed edit into failure.
+					}
+				},
+			} : {}),
+		} : {}),
+	}) : null;
+	const advancedPreparation = createLocalAssistanceAdvancedWorkflowPreparation({
+		getProject: dependencies.getProject,
+		captureProject: dependencies.captureProject,
+		assertProject: dependencies.assertProject,
+		preflightStorage: (bytes) => dependencies.preflightStorage(bytes, 'effect'),
+		selected: advancedSelectedPreparation,
+	});
+	const guidedPreparation = createLocalAssistanceGuidedWorkflowPreparation({
+		getProject: dependencies.getProject,
+		getSelectedClipId: dependencies.getSelectedClipId,
+		captureProject: dependencies.captureProject,
+		assertProject: dependencies.assertProject,
+		preflightStorage: (bytes) => dependencies.preflightStorage(bytes, 'effect'),
+		currentSelectionFence,
+		...(assistanceStore ? {
+			loadTranscriptBody: (storageKey: string) => assistanceStore.loadMediaAsset(storageKey),
+		} : {}),
+		...(dependencies.assistanceDerivativeRepository ? {
+			loadVisualIndexDerivatives: async (projectId: string, signal: AbortSignal) => {
+				signal.throwIfAborted();
+				const records = await dependencies.assistanceDerivativeRepository!.listProject(
+					projectId, ['visual-index'],
+				);
+				signal.throwIfAborted();
+				return records;
+			},
+			loadReframeDerivatives: async (projectId: string, signal: AbortSignal) => {
+				signal.throwIfAborted();
+				const records = await dependencies.assistanceDerivativeRepository!.listProject(
+					projectId, ['reframe-path'],
+				);
+				signal.throwIfAborted();
+				return records;
+			},
+		} : {}),
+		selected: selectedPreparation,
+	});
+
+	async function acceptFramescaperReframe(
+		request: LocalAssistanceGuidedReframeAcceptanceRequest,
+	): Promise<void> {
+		const { createFramescaperAssistanceReframePublication } = await import(
+			'../../../../../framescaper/editor-local-assistance-reframe-publication.ts'
+		);
+		const publication = createFramescaperAssistanceReframePublication({
+			currentAuthority: () => ({ selection: currentVideoAuthority(), fence: request.fence }),
+			captureProject: dependencies.captureProject,
+			assertProject: dependencies.assertProject,
+			commit: (command) => dependencies.commit(command as Readonly<Record<string, unknown>>),
+		});
+		await publication.acceptReviewed(request);
+	}
+
+	async function acceptFramescaperHighlights(
+		request: LocalAssistanceGuidedHighlightAcceptanceRequest,
+	): Promise<void> {
+		const { createFramescaperAssistanceHighlightPublication } = await import(
+			'../../../../../framescaper/editor-local-assistance-highlight-publication.ts'
+		);
+		const publication = createFramescaperAssistanceHighlightPublication({
+			currentAuthority: () => ({
+				selection: currentVideoAuthority(),
+				fence: request.fence,
+			}),
+			captureProject: dependencies.captureProject,
+			assertProject: dependencies.assertProject,
+			createId: dependencies.createId,
+			commit: (command) => dependencies.commit(command as Readonly<Record<string, unknown>>),
+		});
+		await publication.acceptReviewed({
+			kind: 'highlight-proposals', schemaVersion: 1, workflowId: 'make-highlights',
+			fence: request.fence, proposals: request.result.proposals,
+		}, request.selectedProposalIds);
+	}
+	return Object.freeze({
+		...advancedSelectedPreparation,
+		prepareAdvancedWorkflow: advancedPreparation.prepareAdvancedWorkflow,
+		prepareGuidedWorkflow: guidedPreparation.prepareGuidedWorkflow,
+		assertCurrentWorkflowFence: (
+			workflow: Parameters<typeof publicationFenceResolver.assertCurrentFence>[0],
+			signal: AbortSignal,
+		) => publicationFenceResolver.assertCurrentFence(workflow, signal),
+		async acceptGuidedWorkflowResult(request: LocalAssistanceGuidedWorkflowAcceptanceRequest) {
+			const workflow = validateAssistanceWorkflow(request.workflow);
+			if (workflow.workflowId === 'generate-editorial-text') {
+				return acknowledgeLocalAssistanceGuidedEditorialSelection({ workflow,
+					reviewedResult: request.reviewedResult,
+					selectedChoiceIds: request.selectedChoiceIds,
+				});
+			}
+			const publicationSignal = new AbortController().signal;
+			await publicationFenceResolver.assertCurrentFence(workflow, publicationSignal);
+			const currentProject = () => {
+				const project = dependencies.getProject() as Readonly<Record<string, unknown>>;
+				return { schemaFamily: project.schemaFamily, schemaVersion: project.schemaVersion,
+					projectId: project.id, projectRevision: project.revision };
+			};
+			if (workflow.workflowId === 'index-transcript' || workflow.workflowId === 'index-video') {
+				if (!dependencies.assistanceDerivativeRepository) return Object.freeze({
+					outcome: 'unsupported' as const, workflowId: workflow.workflowId,
+					reason: 'workflow-publication-unavailable' as const,
+				});
+				const outcome = await publishLocalAssistanceGuidedIndex({ workflow,
+					review: request.reviewedResult, selectedChoiceIds: request.selectedChoiceIds,
+					readOutput: request.readOutput, repository: dependencies.assistanceDerivativeRepository,
+					resolveCurrentFence: publicationFenceResolver.resolveCurrentFence,
+				});
+				return outcome.outcome === 'published'
+					? Object.freeze({ outcome: 'accepted' as const,
+						selectedIds: Object.freeze([...request.selectedChoiceIds]) })
+					: Object.freeze({ outcome: 'accepted' as const, selectedIds: Object.freeze([]) });
+			}
+			if (!guidedAcceptance) return Object.freeze({ outcome: 'unsupported' as const,
+				workflowId: workflow.workflowId, reason: 'workflow-publication-unavailable' as const });
+			if (workflow.workflowId === 'mark-reactions'
+				&& !dependencies.assistanceDerivativeRepository) return Object.freeze({
+				outcome: 'unsupported' as const, workflowId: workflow.workflowId,
+				reason: 'workflow-publication-unavailable' as const,
+			});
+			const availability = guidedAcceptance.createAcceptanceSession({ workflow,
+				reviewedResult: request.reviewedResult,
+				...(request.reframeDraft === undefined ? {} : { reframeDraft: request.reframeDraft }),
+				...(request.highlightDraft === undefined ? {} : { highlightDraft: request.highlightDraft }),
+				...(request.highlightSourceTimeAuthority === undefined ? {}
+					: { highlightSourceTimeAuthority: request.highlightSourceTimeAuthority }) });
+			if (availability.outcome !== 'ready') return availability;
+			const accepted = await availability.session.accept(request.selectedChoiceIds);
+			if (accepted.outcome === 'accepted' && request.selectedChoiceIds.length > 0) {
+				try {
+					if (workflow.workflowId === 'mark-reactions') {
+						await retainLocalAssistanceGuidedReactionScores({ workflow,
+							readOutput: request.readOutput,
+							repository: dependencies.assistanceDerivativeRepository!, currentProject,
+						});
+					} else if (dependencies.assistanceDerivativeRepository
+						&& (workflow.workflowId === 'mark-cuts' || workflow.workflowId === 'reframe'
+							|| workflow.workflowId === 'make-highlights')) {
+						await retainLocalAssistanceGuidedReusableDerivatives({ workflow,
+							review: request.reviewedResult, readOutput: request.readOutput,
+							repository: dependencies.assistanceDerivativeRepository,
+							resolveCurrentFence: publicationFenceResolver.resolveCurrentFence,
+						});
+					}
+				} catch {
+					// Disposable evidence cannot turn an already committed edit into failure.
+				}
+			}
+			return accepted;
+		},
+		...(resultAcceptance ? {
+			prepareTranscriptCleanup: resultAcceptance.prepareTranscriptCleanup,
+			acceptTranscriptCleanup: resultAcceptance.acceptTranscriptCleanup,
+			rejectTranscriptCleanup: resultAcceptance.rejectTranscriptCleanup,
+			cancelTranscriptCleanup: resultAcceptance.cancelTranscriptCleanup,
+		} : {}),
+	});
+}

@@ -6,7 +6,7 @@ import type {
 	ControllerRuntimeHistory,
 	ControllerRuntimeProject,
 	ControllerTrackDuplicateRequest,
-} from '../common/editor/controller/project-runtime.ts';
+} from '../common/editor/controller/document/project-runtime.ts';
 import { AUDIO_EDITOR_HISTORY_LIMIT } from '../common/editor/history.js';
 import { acquireProjectLock } from '../common/editor/project-lock.js';
 import {

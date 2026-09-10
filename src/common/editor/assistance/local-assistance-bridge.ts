@@ -16,7 +16,7 @@ import {
 import type { AssistanceSemanticSearchSessionPortV1 } from
 	'./semantic-search-runtime-v1.ts';
 import { releaseLocalAssistancePreparedAudioWave } from
-	'../controller/local-assistance-audio-spool-release.ts';
+	'../controller/assistance/local-assistance-audio-spool-release.ts';
 import { lazyAssistanceWorkflowBridge } from './local-assistance-lazy-workflow-bridge.ts';
 import { lazyLocalAssistanceSemanticSearchBridge } from
 	'./local-assistance-lazy-semantic-search-bridge.ts';

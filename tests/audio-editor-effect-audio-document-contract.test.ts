@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { EffectAudioProject } from '../src/common/editor/controller/effect-audio-service.ts';
+import type { EffectAudioProject } from '../src/common/editor/controller/effects/internal/effect-audio-service.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { createAudioClip, createAudioSource, createAudioTrack } from '../src/common/editor/project-media-factory.ts';
 import { createEffect } from '../src/common/editor/effects.js';

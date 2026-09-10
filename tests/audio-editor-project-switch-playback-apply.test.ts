@@ -8,27 +8,27 @@ import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
 	isEditorDisposedError,
-} from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
 import {
 	createPlaybackProjectApplyService,
-} from '../src/common/editor/controller/playback-project-service.ts';
+} from '../src/common/editor/controller/source/playback-project-service.ts';
 import type {
 	ProjectLifecycleHistory,
 	ProjectLifecycleLock,
 	ProjectLifecycleProject,
 	ProjectLifecycleTab,
-} from '../src/common/editor/controller/project-lifecycle-types.ts';
+} from '../src/common/editor/controller/document/project-lifecycle-types.ts';
 import {
 	createProjectSwitchService,
 	type ProjectSwitchServiceRuntime,
 	type ProjectSwitchState,
-} from '../src/common/editor/controller/project-switch-service.ts';
-import { createScapeInspectionQuiescence } from '../src/common/editor/controller/scape-inspection-quiescence.ts';
+} from '../src/common/editor/controller/document/project-switch-service.ts';
+import { createScapeInspectionQuiescence } from '../src/common/editor/controller/document/internal/scape/scape-inspection-quiescence.ts';
 import {
 	createSourceLifecycleService,
 	type SourceLifecycleServiceRuntime,
-} from '../src/common/editor/controller/source-lifecycle-service.ts';
-import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source-chunk-provider-registry.ts';
+} from '../src/common/editor/controller/source/source-lifecycle-service.ts';
+import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source/source-chunk-provider-registry.ts';
 
 interface TestSource {
 	readonly id: string;

@@ -134,7 +134,7 @@ test('disposable video preview cache evidence binds current originals without cl
 		'src/common/editor/storage/media-repository.ts',
 		'src/common/editor/storage/derivative-cache-entry.ts',
 		'src/common/editor/storage/media-records.ts',
-		'src/common/editor/controller/source-import.ts',
+		'src/common/editor/controller/import/internal/source-import.ts',
 		'src/common/editor/commands/project-source-bin-runtime.js',
 		'src/common/editor/scape-project.js',
 		'tests/audio-editor-video-derivative-binding.test.ts',

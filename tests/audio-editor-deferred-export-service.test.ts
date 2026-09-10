@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createDeferredEditorExportService,
 	type DeferredEditorExportModule,
-} from '../src/common/editor/controller/deferred-export-service.ts';
+} from '../src/common/editor/controller/export/deferred-export-service.ts';
 
 type ExportFacade = ReturnType<typeof createDeferredEditorExportService>;
 

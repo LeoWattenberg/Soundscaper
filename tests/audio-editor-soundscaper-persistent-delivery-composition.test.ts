@@ -13,10 +13,10 @@ import {
 } from '../src/common/editor/soundscaper-delivery-contract-v1.ts';
 import {
 	createSoundscaperPersistentDeliveryControllerComposition,
-} from '../src/common/editor/controller/soundscaper-persistent-delivery-controller-composition.ts';
+} from '../src/common/editor/controller/export/soundscaper-persistent-delivery-controller-composition.ts';
 import type {
 	SoundscaperPersistentDeliverySummary,
-} from '../src/common/editor/controller/soundscaper-persistent-delivery-ui-service.ts';
+} from '../src/common/editor/controller/export/internal/delivery/soundscaper-persistent-delivery-ui-service.ts';
 
 const PROJECT_SHA = 'ab'.repeat(32);
 const PROJECT_IDENTITY = Object.freeze({

@@ -8,16 +8,16 @@ import {
 	planTrackAlignment,
 	planTrackSort,
 	type TrackAlignmentMode,
-} from '../src/common/editor/controller/track-structural-operation-planner.ts';
+} from '../src/common/editor/controller/track-audio/internal/track-structural-operation-planner.ts';
 import {
 	createTrackStructuralOperationService,
 	type TrackStructuralOperationServiceDependencies,
-} from '../src/common/editor/controller/track-structural-operation-service.ts';
+} from '../src/common/editor/controller/track-audio/internal/track-structural-operation-service.ts';
 import type {
 	ControllerClip,
 	ControllerProject,
 	ControllerTrack,
-} from '../src/common/editor/controller/track-domain-types.ts';
+} from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 import { createTrackStructuralOperationMenuModel } from '../src/common/editor/ui/track-structural-operation-menu-model.ts';
 import {
 	moveTrackNodeV12,

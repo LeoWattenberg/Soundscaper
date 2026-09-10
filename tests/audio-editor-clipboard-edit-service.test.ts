@@ -7,8 +7,8 @@ import {
 	createClipboardEditService,
 	type ClipboardEditProject,
 	type ClipboardEditServiceDependencies,
-} from '../src/common/editor/controller/clipboard-edit-service.ts';
-import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/edit/internal/clipboard-edit-service.ts';
+import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
 import type { AudioEditorClipboard, AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 
 function audioClipboard(): AudioEditorClipboard {

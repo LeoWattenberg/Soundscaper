@@ -11,7 +11,7 @@ import {
 	createFramescaperVideoProxyActions,
 } from '../src/framescaper/editor-video-proxy-actions-retime.ts';
 import { FramescaperVideoProxyCleanupCoordinatorRetime } from '../src/framescaper/editor-video-proxy-cleanup-retime.ts';
-import type { FramescaperCapturedVideoProxyRequest } from '../src/common/editor/controller/framescaper-capture-derivative-scheduler.ts';
+import type { FramescaperCapturedVideoProxyRequest } from '../src/common/editor/controller/capture/framescaper-capture-derivative-scheduler.ts';
 
 test('Framescaper baseline publishes through a disposable scheduler with progress and modes', async () => {
 	const owner = ownerFixture(null);

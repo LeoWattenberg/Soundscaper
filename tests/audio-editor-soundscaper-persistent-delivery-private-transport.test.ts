@@ -6,7 +6,7 @@ import test from 'node:test';
 
 import {
 	createSoundscaperPersistentDeliveryPrivateTransport,
-} from '../src/common/editor/controller/soundscaper-persistent-delivery-private-transport.ts';
+} from '../src/common/editor/controller/export/internal/delivery/soundscaper-persistent-delivery-private-transport.ts';
 import {
 	createSoundscaperPersistentAudioDeliveryPlanV1,
 } from '../src/common/editor/soundscaper-persistent-delivery-plan-v1.ts';

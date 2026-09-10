@@ -7,7 +7,7 @@ import {
 	createProjectRetentionService,
 	type RetentionHistory,
 	type RetentionProject,
-} from '../src/common/editor/controller/project-retention-service.ts';
+} from '../src/common/editor/controller/document/internal/project/project-retention-service.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import {
 	collectProjectSourceIds,

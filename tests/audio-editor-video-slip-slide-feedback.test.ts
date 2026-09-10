@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createVideoSlipSlideResultReporter,
 	type VideoSlipSlideFeedbackCopy,
-} from '../src/common/editor/controller/video-slip-slide-feedback.ts';
+} from '../src/common/editor/controller/clip-video/internal/trim/video-slip-slide-feedback.ts';
 import type { FrameCanonicalSlipSlidePlan } from '../src/common/editor/frame-canonical-slip-slide-domain.ts';
 
 const COPY: VideoSlipSlideFeedbackCopy = Object.freeze({

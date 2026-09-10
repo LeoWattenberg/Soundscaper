@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
-import { createControllerTimers } from '../src/common/editor/controller/controller-timers.ts';
+import { createControllerTimers } from '../src/common/editor/controller/composition/controller-timers.ts';
 
 test('controller timers preserve host handles and pair each cancellation with its scheduler', () => {
 	const cleared: string[] = [];

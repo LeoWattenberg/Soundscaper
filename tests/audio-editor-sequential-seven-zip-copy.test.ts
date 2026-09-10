@@ -8,7 +8,7 @@ import {
 	SEVEN_ZIP_COPY_PREFIX_BYTE_LENGTH,
 	sevenZipCopyArchiveByteLength,
 	type SequentialSevenZipCopySink,
-} from '../src/common/editor/controller/sequential-seven-zip-copy.ts';
+} from '../src/common/editor/controller/export/internal/archive/sequential-seven-zip-copy.ts';
 import { SEVEN_ZIP_COPY_GOLDEN_BASE64 } from './fixtures/seven-zip-copy-golden.ts';
 
 const entries = Object.freeze([

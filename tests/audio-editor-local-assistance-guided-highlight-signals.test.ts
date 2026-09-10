@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createLocalAssistanceGuidedHighlightAudioSignalsV1,
 	createLocalAssistanceGuidedHighlightVideoSignalsV1,
-} from '../src/common/editor/controller/local-assistance-guided-highlight-signals.ts';
+} from '../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-highlight-signals.ts';
 import { createAssistanceSourceTimeRowChunksV1 } from
 	'../src/common/editor/assistance/source-time-rows-v1.ts';
 import { gatherOwnedHighlightSignalsV1 } from

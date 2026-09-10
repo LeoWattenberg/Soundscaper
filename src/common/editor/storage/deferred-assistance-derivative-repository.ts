@@ -9,7 +9,7 @@ import type {
 	AssistanceDerivativeRecordV1,
 	AssistanceDerivativeRepositoryOptions,
 } from './assistance-derivative-repository.ts';
-import { createDeferredModuleFacade } from '../controller/deferred-module-facade.ts';
+import { createDeferredModuleFacade } from '../controller/shared/deferred-module-facade.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 
 export interface AssistanceDerivativeRepositoryPort {

@@ -22,8 +22,8 @@ import {
 } from './helpers/video-clip-fallback-project-fixture.ts';
 import test from 'node:test';
 
-import { createPlaybackProjectService } from '../src/common/editor/controller/playback-project-service.ts';
-import { createEditorVideoExportAction } from '../src/common/editor/controller/video-export-service.ts';
+import { createPlaybackProjectService } from '../src/common/editor/controller/source/playback-project-service.ts';
+import { createEditorVideoExportAction } from '../src/common/editor/controller/export/internal/video/video-export-service.ts';
 import type { EngineChunkSource } from '../src/common/editor/engine/types.ts';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';

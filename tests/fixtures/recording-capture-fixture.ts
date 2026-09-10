@@ -9,17 +9,17 @@ import type {
 	RecordingSoundActivationSource,
 	RecordingSourceWriter,
 	RoutedRecordingCaptureRuntime,
-} from '../../src/common/editor/controller/recording-transaction-types.ts';
+} from '../../src/common/editor/controller/recording/recording-transaction-types.ts';
 import type {
 	RecordingCaptureControllerLike,
 	RecordingStartScope,
-} from '../../src/common/editor/controller/recording-session-service.ts';
-import { createRoutedRecordingController } from '../../src/common/editor/controller/recording-session-service.ts';
-import type { RecordingPreview } from '../../src/common/editor/controller/recording-model.ts';
+} from '../../src/common/editor/controller/recording/internal/recording-session-service.ts';
+import { createRoutedRecordingController } from '../../src/common/editor/controller/recording/internal/recording-session-service.ts';
+import type { RecordingPreview } from '../../src/common/editor/controller/recording/recording-model.ts';
 import type {
 	SoundActivationGateState,
 	SoundActivationSettings,
-} from '../../src/common/editor/controller/sound-activated-recording-gate.ts';
+} from '../../src/common/editor/controller/recording/sound-activated-recording-gate.ts';
 
 type Mutable<Value> = { -readonly [Key in keyof Value]: Value[Key] };
 

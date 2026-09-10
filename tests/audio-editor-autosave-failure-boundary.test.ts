@@ -6,7 +6,7 @@ import {
 	createProjectSaveService,
 	type ProjectSaveServiceDependencies,
 	type ProjectSaveState,
-} from '../src/common/editor/controller/project-save-service.ts';
+} from '../src/common/editor/controller/document/project-save-service.ts';
 
 interface Project { readonly id: string; readonly revision: number }
 

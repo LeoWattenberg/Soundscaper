@@ -39,9 +39,9 @@ const matrixUrl = new URL('../config/production-security-matrix.json', import.me
 
 const EXPECTED_EVIDENCE = [
 	{ kind: 'implementation', path: 'src/common/editor/spectral-edit-admission.ts' },
-	{ kind: 'implementation', path: 'src/common/editor/controller/effect-audio-service.ts' },
-	{ kind: 'implementation', path: 'src/common/editor/controller/effect-result-service.ts' },
-	{ kind: 'implementation', path: 'src/common/editor/controller/selection-effect-worker-service.ts' },
+	{ kind: 'implementation', path: 'src/common/editor/controller/effects/internal/effect-audio-service.ts' },
+	{ kind: 'implementation', path: 'src/common/editor/controller/effects/internal/effect-result-service.ts' },
+	{ kind: 'implementation', path: 'src/common/editor/controller/effects/internal/selection-effect-worker-service.ts' },
 	{ kind: 'implementation', path: 'src/common/editor/spectral-edit-worker.js' },
 	{ kind: 'implementation', path: 'src/common/editor/spectral-edit.js' },
 	{ kind: 'implementation', path: 'src/common/editor/pffft.js' },

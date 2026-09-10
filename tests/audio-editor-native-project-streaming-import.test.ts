@@ -2,8 +2,8 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createNativeProjectService } from '../src/common/editor/controller/native-project-service.ts';
-import type { NativeAup4Client, NativeProjectDocument } from '../src/common/editor/controller/native-project-types.ts';
+import { createNativeProjectService } from '../src/common/editor/controller/document/native-project-service.ts';
+import type { NativeAup4Client, NativeProjectDocument } from '../src/common/editor/controller/document/native-project-types.ts';
 import { createFixture, nativeFile, project } from './helpers/native-project-service-fixture.ts';
 import { deferred } from './helpers/async-test-control.ts';
 

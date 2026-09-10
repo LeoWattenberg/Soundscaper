@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createRegularIntervalAnnotationCommand } from '../src/common/editor/controller/regular-interval-annotation-service.ts';
-import { createRegularIntervalAnnotationController } from '../src/common/editor/controller/regular-interval-annotation-controller.ts';
+import { createRegularIntervalAnnotationCommand } from '../src/common/editor/controller/document/regular-interval-annotation-service.ts';
+import { createRegularIntervalAnnotationController } from '../src/common/editor/controller/document/internal/annotations/regular-interval-annotation-controller.ts';
 import { createEditorHistory, executeEditorCommand, redoEditorCommand, undoEditorCommand } from '../src/common/editor/history.js';
 import {
 	createCurrentAudioEditorProject,

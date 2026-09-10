@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createDeferredModuleFacade } from '../src/common/editor/controller/deferred-module-facade.ts';
+import { createDeferredModuleFacade } from '../src/common/editor/controller/shared/deferred-module-facade.ts';
 
 interface FakeService {
 	measure(label: string, weight?: number): Promise<string>;

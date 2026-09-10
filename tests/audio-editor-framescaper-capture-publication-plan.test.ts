@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	planFramescaperCapturePublication,
-} from '../src/common/editor/controller/framescaper-capture-publication-plan.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-publication-plan.ts';
 import { videoFrameRangeToSampleRange } from '../src/common/editor/timeline-time.ts';
 
 const EXACT_RANGE = '0:1000000' as const;

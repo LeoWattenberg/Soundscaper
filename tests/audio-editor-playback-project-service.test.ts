@@ -8,8 +8,8 @@ import test from 'node:test';
 import {
 	applyCanonicalProjectToPlaybackEngine,
 	createPlaybackProjectService,
-} from '../src/common/editor/controller/playback-project-service.ts';
-import type { ControllerTrack } from '../src/common/editor/controller/track-domain-types.ts';
+} from '../src/common/editor/controller/source/playback-project-service.ts';
+import type { ControllerTrack } from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 import { createEffect } from '../src/common/editor/effects.js';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';

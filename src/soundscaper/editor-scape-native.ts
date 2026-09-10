@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { deferredArchiveRuntime } from '../common/editor/controller/deferred-archive-runtime.ts';
+import { deferredArchiveRuntime } from '../common/editor/controller/document/deferred-archive-runtime.ts';
 import {
 	PROJECT_SCHEMA_VERSION,
 	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,

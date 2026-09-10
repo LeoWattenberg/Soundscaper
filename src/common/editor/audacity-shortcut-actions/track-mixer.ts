@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudioEditorCommand } from '../commands/protocol.ts';
-import type { ControllerProject } from '../controller/track-domain-types.ts';
+import type { ControllerProject } from '../controller/track-audio/track-domain-types.ts';
 
 interface AudacityTrackMixerSnapshot {
 	readonly project?: ControllerProject | null;

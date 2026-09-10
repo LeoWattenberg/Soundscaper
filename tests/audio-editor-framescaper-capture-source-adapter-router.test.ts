@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createFramescaperCaptureSourceAdapterRouter,
 	isWebVcrRecoveryOwner,
-} from '../src/common/editor/controller/framescaper-capture-source-adapter-router.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-source-adapter-router.ts';
 
 test('capture adapter routing keeps source, display authorization, recorder, and recovery ownership together', async () => {
 	const events: string[] = [];

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createFramescaperWebVcrController } from
-	'../src/common/editor/controller/framescaper-web-vcr-controller.ts';
+	'../src/common/editor/controller/capture/internal/web-vcr/framescaper-web-vcr-controller.ts';
 
 test('disposing during the Web VCR handshake never installs a late subscription', async () => {
 	const handshake = deferred<Readonly<Record<string, unknown>>>();

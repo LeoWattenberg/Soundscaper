@@ -3,13 +3,13 @@
 import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
-} from '../../src/common/editor/controller/lifecycle.ts';
+} from '../../src/common/editor/controller/shared/lifecycle.ts';
 import {
 	createProjectBinLinkedVideoRelinkService,
 	type ProjectBinLinkedVideoRelinkBinding,
 	type ProjectBinLinkedVideoRelinkDependencies,
 	type ProjectBinLinkedVideoRelinkLocator,
-} from '../../src/common/editor/controller/project-bin-linked-video-relink-service.ts';
+} from '../../src/common/editor/controller/import/project-bin-linked-video-relink-service.ts';
 
 export const OLD_LOCATOR = Object.freeze({
 	locatorId: 'locator_relink_original_0001',

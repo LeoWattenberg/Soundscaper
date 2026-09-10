@@ -8,7 +8,7 @@ import {
 	type AssistanceSemanticSearchMenuSourceV1,
 } from '../assistance/semantic-search-runtime-v1.ts';
 import { createLocalAssistanceSemanticIndexCustodyV1 } from
-	'../controller/local-assistance-semantic-index-custody.ts';
+	'../controller/assistance/local-assistance-semantic-index-custody.ts';
 import type { AssistanceDerivativeRepositoryPort } from
 	'../storage/deferred-assistance-derivative-repository.ts';
 import { resolveLocalAssistanceBridge } from '../assistance/local-assistance-bridge.ts';

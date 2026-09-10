@@ -1,7 +1,7 @@
 import { projectDurationFrames } from './project.js';
 import { audacityTimelineStepFrame, createAudacityCursorActionRuntime, freezeAudacityActionTree } from './audacity-action-runtime-helpers.ts';
 import { NYQUIST_BUNDLED_PLUGINS } from './nyquist/plugin-registry.js';
-import { createAudacityClipPitchActionRuntime, createAudacityToolActionRuntime } from './controller/audacity-tool-action-runtime.ts';
+import { createAudacityClipPitchActionRuntime, createAudacityToolActionRuntime } from './controller/effects/audacity-tool-action-runtime.ts';
 import { advanceAudacityTrackSelection, audacityToggledTrackSelection, audacityTrackRangeSelection } from './audacity-track-selection.ts';
 import { documentationUrl } from './documentation-links.ts';
 import { createTransportActionGroup } from './audacity-action-runtime-transport.js';

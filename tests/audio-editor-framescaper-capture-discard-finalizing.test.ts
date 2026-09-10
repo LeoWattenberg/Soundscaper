@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createFramescaperCaptureDurableSessionCoordinator } from '../src/common/editor/controller/framescaper-capture-durable-session.ts';
+import { createFramescaperCaptureDurableSessionCoordinator } from '../src/common/editor/controller/capture/internal/framescaper-capture-durable-session.ts';
 import {
 	createFixture,
 	encodedPacket,

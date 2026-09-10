@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { SourceRuntimeCompositionStore } from '../src/common/editor/controller/source-runtime-composition-types.ts';
+import type { SourceRuntimeCompositionStore } from '../src/common/editor/controller/source/source-runtime-composition-types.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 
 void test('stored PCM retains the destination buffer type and context-owned identity', async () => {

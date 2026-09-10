@@ -1,19 +1,19 @@
 // @ts-check
-import { createCaptureComposition } from './controller/capture-composition.ts';
-import { startController } from './controller/controller-startup.ts';
-import { createControllerResources } from './controller/controller-resources.ts';
-import { bindSessionHistoryAdmission } from './controller/session-history-admission.ts';
-import { createControllerDisposal } from './controller/controller-disposal.ts';
-import { createControllerBindings } from './controller/controller-bindings.ts';
-import { createControllerDocumentState, createControllerDocumentCheckpoints } from './controller/document-state.ts';
-import { createEffectsComposition } from './controller/effects-composition.ts';
-import { createClipVideoComposition } from './controller/clip-video-composition.ts';
-import { createTrackAudioComposition } from './controller/track-audio-composition.ts';
-import { createEditorExportStateAccess } from './controller/export-state.ts';
-import { loadNativeEditableProject } from './controller/native-project-admission.ts';
-import { createControllerTimers } from './controller/controller-timers.ts';
-import { createRecordingCapturePoolBinding } from './controller/recording-capture-pool-binding.ts';
-import { createRecordingComposition } from './controller/recording-composition.ts';
+import { createCaptureComposition } from './controller/capture/capture-composition.ts';
+import { startController } from './controller/composition/controller-startup.ts';
+import { createControllerResources } from './controller/composition/controller-resources.ts';
+import { bindSessionHistoryAdmission } from './controller/document/session-history-admission.ts';
+import { createControllerDisposal } from './controller/composition/controller-disposal.ts';
+import { createControllerBindings } from './controller/composition/controller-bindings.ts';
+import { createControllerDocumentState, createControllerDocumentCheckpoints } from './controller/document/document-state.ts';
+import { createEffectsComposition } from './controller/effects/effects-composition.ts';
+import { createClipVideoComposition } from './controller/clip-video/clip-video-composition.ts';
+import { createTrackAudioComposition } from './controller/track-audio/track-audio-composition.ts';
+import { createEditorExportStateAccess } from './controller/export/export-state.ts';
+import { loadNativeEditableProject } from './controller/document/native-project-admission.ts';
+import { createControllerTimers } from './controller/composition/controller-timers.ts';
+import { createRecordingCapturePoolBinding } from './controller/recording/recording-capture-pool-binding.ts';
+import { createRecordingComposition } from './controller/recording/recording-composition.ts';
 import {
 	AUDIO_EDITOR_DEFAULT_PIXELS_PER_SECOND,
 	AUDIO_EDITOR_MAX_PIXELS_PER_SECOND,
@@ -21,7 +21,7 @@ import {
 import { createAddTrackCommand } from './commands.js';
 import { createAudioEditorEffectPresets, listAudioEditorEffectPresets } from './effect-presets.js';
 import { audioSelectionEffectTypes } from './effects.js';
-import { createControllerPresentationState } from './controller/presentation-state.ts';
+import { createControllerPresentationState } from './controller/composition/presentation-state.ts';
 import { selectAudioEditorControllerEditBlock } from './edit-blocking.ts';
 import { AUDIO_EDITOR_DEFAULT_SHORTCUTS, createAudioEditorPreferencesV1 } from './preferences.js';
 import {
@@ -51,31 +51,31 @@ import { createEbuR128MeterNode } from './ebu-r128-node.js';
 import { acquireProjectLock } from './project-lock.js';
 import { ENGLISH_COPY } from '../i18n/catalogs.js';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
-import { EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from './controller/lifecycle.ts';
-import { deferredArchiveRuntime } from './controller/deferred-archive-runtime.ts';
-import { connectControllerNativeRenderInput } from './controller/native-render-input-composition.ts';
-import { createAnalysisComposition } from './controller/analysis-composition.ts';
-import { resolveProductCompositionDecision } from './controller/product-composition-policy.ts';
-import { createControllerActionComposition } from './controller/controller-action-composition.ts';
-import { productActionRuntime } from './controller/product-action-runtime.ts'; import { createScapeProjectFileService } from './controller/scape-project-file-service.ts'; import { bindSoundscaperPersistentDeliveryRuntime } from './controller/soundscaper-persistent-delivery-runtime-binding.ts';
+import { EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from './controller/shared/lifecycle.ts';
+import { deferredArchiveRuntime } from './controller/document/deferred-archive-runtime.ts';
+import { connectControllerNativeRenderInput } from './controller/composition/native-render-input-composition.ts';
+import { createAnalysisComposition } from './controller/analysis/analysis-composition.ts';
+import { resolveProductCompositionDecision } from './controller/composition/product-composition-policy.ts';
+import { createControllerActionComposition } from './controller/composition/controller-action-composition.ts';
+import { productActionRuntime } from './controller/composition/product-action-runtime.ts'; import { createScapeProjectFileService } from './controller/document/scape-project-file-service.ts'; import { bindSoundscaperPersistentDeliveryRuntime } from './controller/export/soundscaper-persistent-delivery-runtime-binding.ts';
 
-import { createControllerProjectQueries, createResolvedCommandProjectReader } from './controller/controller-project-queries.ts';
-import { createPreferencesComposition } from './controller/preferences-composition.ts';
-import { createControllerSoundActivationPolicy } from './controller/sound-activation-controller-composition.ts';
-import { createDocumentComposition } from './controller/document-composition.ts';
-import { createProjectBootstrapComposition } from './controller/project-bootstrap-composition.ts';
-import { createProjectLifecycleComposition } from './controller/project-lifecycle-composition.ts';
-import { resolveControllerProjectRuntime } from './controller/project-runtime.ts';
-import { createControllerProjectRuntimeMetrics } from './controller/project-runtime-metrics.ts';
+import { createControllerProjectQueries, createResolvedCommandProjectReader } from './controller/composition/controller-project-queries.ts';
+import { createPreferencesComposition } from './controller/preferences/preferences-composition.ts';
+import { createControllerSoundActivationPolicy } from './controller/recording/sound-activation-controller-composition.ts';
+import { createDocumentComposition } from './controller/document/document-composition.ts';
+import { createProjectBootstrapComposition } from './controller/document/project-bootstrap-composition.ts';
+import { createProjectLifecycleComposition } from './controller/document/project-lifecycle-composition.ts';
+import { resolveControllerProjectRuntime } from './controller/document/project-runtime.ts';
+import { createControllerProjectRuntimeMetrics } from './controller/document/project-runtime-metrics.ts';
 import {
 	createPlaybackProjectService,
-} from './controller/playback-project-service.ts';
-import { createMicrophoneMeterService } from './controller/microphone-meter-service.ts';
+} from './controller/source/playback-project-service.ts';
+import { createMicrophoneMeterService } from './controller/recording/microphone-meter-service.ts';
 
-import { createNativeProjectComposition } from './controller/native-project-composition.ts';
-import { createDawprojectAudioDecoder } from './controller/dawproject-audio-decode.ts';
+import { createNativeProjectComposition } from './controller/document/native-project-composition.ts';
+import { createDawprojectAudioDecoder } from './controller/import/dawproject-audio-decode.ts';
 
-import { createTakeCycleOpenRecoveryAppPort } from './controller/take-cycle-open-recovery-app-port.ts';
+import { createTakeCycleOpenRecoveryAppPort } from './controller/recording/take-cycle-open-recovery-app-port.ts';
 
 import {
 	abortError,
@@ -85,28 +85,28 @@ import {
 	historyEntrySummary,
 	normalizeProjectSampleRate,
 	throwIfAborted,
-} from './controller/app-helpers.ts';
+} from './controller/shared/app-helpers.ts';
 import {
 	recordingPreviewSnapshot,
 	streamAudioChannelCount,
-} from './controller/recording-model.ts';
-import { createSettingPersistence } from './controller/setting-persistence.ts';
-import { createControllerStorageCapacityService } from './controller/storage-capacity-runtime.ts';
-import { createSnapshotComposition } from './controller/snapshot-composition.ts';
-import { createEditorTaskProgressCoordinator } from './controller/task-progress.ts';
-import { SOURCE_CHUNK_FRAMES } from './controller/source-audio.ts';
-import { createControllerOwnedStateComposition } from './controller/controller-owned-state-composition.ts';
-import { createTransportComposition } from './controller/transport-composition.ts';
-import { createProjectAdminService } from './controller/project-admin-service.ts';
-import { bindProjectAdministrationActions } from './controller/project-admin-action-binding.ts';
-import { createEditComposition } from './controller/edit-composition.ts';
-import { createImportComposition } from './controller/import-composition.ts';
-import { createSourceRuntimeComposition } from './controller/source-runtime-composition.ts';
+} from './controller/recording/recording-model.ts';
+import { createSettingPersistence } from './controller/preferences/setting-persistence.ts';
+import { createControllerStorageCapacityService } from './controller/shared/storage-capacity-runtime.ts';
+import { createSnapshotComposition } from './controller/composition/snapshot-composition.ts';
+import { createEditorTaskProgressCoordinator } from './controller/shared/task-progress.ts';
+import { SOURCE_CHUNK_FRAMES } from './controller/source/source-audio.ts';
+import { createControllerOwnedStateComposition } from './controller/composition/controller-owned-state-composition.ts';
+import { createTransportComposition } from './controller/transport/transport-composition.ts';
+import { createProjectAdminService } from './controller/document/project-admin-service.ts';
+import { bindProjectAdministrationActions } from './controller/document/project-admin-action-binding.ts';
+import { createEditComposition } from './controller/edit/edit-composition.ts';
+import { createImportComposition } from './controller/import/import-composition.ts';
+import { createSourceRuntimeComposition } from './controller/source/source-runtime-composition.ts';
 
-import { calculateAudioEditorMetronomeSchedule } from './controller/transport-model.ts';
+import { calculateAudioEditorMetronomeSchedule } from './controller/transport/transport-model.ts';
 
-export { calculateAudioEditorMetronomeSchedule } from './controller/transport-model.ts';
-/** @param {Element | null} [_root] @param {import("./controller/controller-options.ts").ControllerOptions} [options] */
+export { calculateAudioEditorMetronomeSchedule } from './controller/transport/transport-model.ts';
+/** @param {Element | null} [_root] @param {import("./controller/composition/controller-options.ts").ControllerOptions} [options] */
 export function createAudioEditorController(_root = null, options = {}) {
 	/** @type {ReturnType<typeof createControllerBindings<import('./engine/public-api.ts').EnginePublicApi>>} */
 	const bindings = createControllerBindings({
@@ -156,7 +156,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const sessionController = bindSessionHistoryAdmission(rawSessionController, (value) => projectRuntime.createHistory(value).present);
 	const currentTimeMs = typeof options.now === 'function' ? options.now : () => Date.now();
 	const { scheduleTimer, clearScheduledTimer, scheduleInterval, clearScheduledInterval } = createControllerTimers(options);
-	/** @type {import('./controller/document-state.ts').ControllerDocumentState<import('./controller/document-composition-types.ts').DocumentProject, import('./controller/document-composition-types.ts').DocumentHistory>} */
+	/** @type {import('./controller/document/document-state.ts').ControllerDocumentState<import('./controller/document/document-composition-types.ts').DocumentProject, import('./controller/document/document-composition-types.ts').DocumentHistory>} */
 	const documentState = createControllerDocumentState();
 	const { activeSelection, normalizeExportSettings } = createControllerProjectQueries({ getProject: () => documentState.project, projectSampleRate: () => projectSampleRate() });
 	const { state, recordingAccess, transportAccess,
@@ -192,7 +192,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		|| createPlaybackProjectService(product.capabilities, product.id);
 	/** @type {ReturnType<typeof createClipVideoComposition>['videoNavigation'] | null} */
 	let videoNavigationService = null;
-	/** @type {ReturnType<typeof import('./controller/framescaper-capture-app-binding.ts').createFramescaperCaptureAppBinding> | null} */
+	/** @type {ReturnType<typeof import('./controller/capture/framescaper-capture-app-binding.ts').createFramescaperCaptureAppBinding> | null} */
 	let framescaperCapture = null;
 	const framescaperCaptureRuntime = options.framescaperCaptureRuntime ?? null;
 	const framescaperCaptureAdminInterlock = framescaperCaptureRuntime?.createAdminInterlock() ?? null;

@@ -4,12 +4,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
-import { EffectGestureTargetChangedError } from '../src/common/editor/controller/effect-gesture-safety.ts';
-import { EditorProjectChangedError, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
+import { EffectGestureTargetChangedError } from '../src/common/editor/controller/effects/effect-gesture-safety.ts';
+import { EditorProjectChangedError, EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
 import {
 	ParameterGestureAuthorityChangedError,
 	ParameterGesturePreviewSupersededError,
-} from '../src/common/editor/controller/parameter-gesture-adapter.ts';
+} from '../src/common/editor/controller/effects/internal/parameter-gesture-adapter.ts';
 import {
 	createRackEffectService,
 	type ControllerRackEffect,
@@ -17,7 +17,7 @@ import {
 	type RackEffectControllerState,
 	type RackEffectProject,
 	type RackEffectScope,
-} from '../src/common/editor/controller/rack-effect-service.ts';
+} from '../src/common/editor/controller/effects/internal/rack-effect-service.ts';
 import { createEffect } from '../src/common/editor/effects.js';
 
 const COPY = Object.freeze({

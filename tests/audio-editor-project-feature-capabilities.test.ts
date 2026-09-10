@@ -11,7 +11,7 @@ import {
 } from '../src/common/editor/project-feature-capabilities.ts';
 import {
 	createProjectFeatureCompatibilityService,
-} from '../src/common/editor/controller/project-feature-compatibility-service.ts';
+} from '../src/common/editor/controller/document/project-feature-compatibility-service.ts';
 type Requirement = Readonly<{
 	id: string;
 	featureId: string;

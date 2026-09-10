@@ -5,10 +5,10 @@ import test from 'node:test';
 
 import {
 	createLocalAssistanceBeatReviewSession,
-} from '../src/common/editor/controller/local-assistance-beat-acceptance.ts';
+} from '../src/common/editor/controller/assistance/internal/local-assistance-beat-acceptance.ts';
 import {
 	createLocalAssistanceResultAcceptance,
-} from '../src/common/editor/controller/local-assistance-result-acceptance.ts';
+} from '../src/common/editor/controller/assistance/internal/local-assistance-result-acceptance.ts';
 
 const SOURCE_SHA256 = 'ab'.repeat(32);
 const MODEL_SHA256 = '12'.repeat(32);

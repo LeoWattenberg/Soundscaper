@@ -7,7 +7,7 @@ import {
 	createLocalAssistanceSelectedVideoFramePacksV1,
 	createLocalAssistanceSelectedVideoVisualFramePackV2,
 	createLocalAssistanceSelectedVideoVisualFramePacksV2,
-} from '../src/common/editor/controller/local-assistance-selected-video-frame-pack.ts';
+} from '../src/common/editor/controller/assistance/internal/selected-video/local-assistance-selected-video-frame-pack.ts';
 import {
 	reviewAssistanceFramePackV1,
 } from '../src/common/editor/assistance/binary-formats-v1.ts';

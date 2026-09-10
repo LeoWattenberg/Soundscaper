@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { deriveLocalAssistanceGuidedReviewAuthority } from
-	'../src/common/editor/controller/local-assistance-guided-review-authority.ts';
+	'../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-review-authority.ts';
 import { validateAssistanceWorkflowReviewAuthorityV1 } from
 	'../src/common/editor/assistance/workflow-review-authority-v1.ts';
 import { encodeWav } from '../src/common/editor/wav.js';

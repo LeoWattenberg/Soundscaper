@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createEditorVideoExportAction } from '../src/common/editor/controller/video-export-service.ts';
+import { createEditorVideoExportAction } from '../src/common/editor/controller/export/internal/video/video-export-service.ts';
 import {
 	mapVideoTimelineFrameToSource,
 	registerVideoTimingIndex,

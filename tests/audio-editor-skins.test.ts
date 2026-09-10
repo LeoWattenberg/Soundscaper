@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createAudioEditorPreferencesV1, updateAudioEditorPreferencesV1, applyAudioEditorWorkspace } from '../src/common/editor/preferences.js';
 import { SKIN_IDS } from '../src/common/editor/skin-preferences.ts';
-import { createSkinPreview } from '../src/common/editor/controller/skin-preview.ts';
+import { createSkinPreview } from '../src/common/editor/controller/preferences/skin-preview.ts';
 
 function browser(search = '?useskin=sakura&project=demo#track') {
 	let url = new URL(`https://soundscaper.org/editor${search}`);

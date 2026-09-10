@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createDeferredArchiveRuntime } from '../src/common/editor/controller/deferred-archive-runtime.ts';
+import { createDeferredArchiveRuntime } from '../src/common/editor/controller/document/deferred-archive-runtime.ts';
 
 test('the lazy Audacity facade forwards planning and streams with consumer backpressure', async () => {
 	const events: string[] = [];

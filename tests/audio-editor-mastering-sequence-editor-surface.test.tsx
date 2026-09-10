@@ -14,7 +14,7 @@ import SoundscaperMasteringSequenceEditor, {
 } from '../src/common/editor/ui/dialogs/SoundscaperMasteringSequenceEditor.tsx';
 import {
 	createDocumentMasteringSequenceSnapshot,
-} from '../src/common/editor/controller/document-mastering-sequence-snapshot.ts';
+} from '../src/common/editor/controller/document/document-mastering-sequence-snapshot.ts';
 import {
 	SOUNDSCAPER_MASTERING_SEQUENCE_COPY,
 } from '../src/common/editor/ui/soundscaper-mastering-sequence-copy.ts';

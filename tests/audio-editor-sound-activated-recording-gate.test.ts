@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createSoundActivatedRecordingGate,
 	normalizeSoundActivationSettings,
-} from '../src/common/editor/controller/sound-activated-recording-gate.ts';
+} from '../src/common/editor/controller/recording/sound-activated-recording-gate.ts';
 
 function mono(...samples: number[]): readonly Float32Array[] {
 	return [Float32Array.from(samples)];

@@ -25,7 +25,7 @@ const NAMED_MACRO_RUN = { type: 'macro/run', name: 'Restoration' } as unknown as
 
 /**
  * Where a macro opens, read the way the macro transaction reads it
- * (src/common/editor/controller/project-mutation-service.ts): a position in the
+ * (src/common/editor/controller/document/project-mutation-service.ts): a position in the
  * whole sequence of commits, so the bounded stack shifting underneath it while
  * the macro runs cannot make it name a different entry.
  */

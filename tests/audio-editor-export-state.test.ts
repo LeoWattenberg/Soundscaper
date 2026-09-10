@@ -7,7 +7,7 @@ import {
 	createDeliveryReportStateAccess,
 	createEditorExportStateAccess,
 	type EditorExportState,
-} from '../src/common/editor/controller/export-state.ts';
+} from '../src/common/editor/controller/export/export-state.ts';
 
 type IsAny<Value> = 0 extends (1 & Value) ? true : false;
 type AssertFalse<Value extends false> = Value;

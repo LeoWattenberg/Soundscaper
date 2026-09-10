@@ -7,10 +7,10 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 
 import {
 	prepareLocalAssistanceGuidedHighlightInputsV1,
-} from '../src/common/editor/controller/local-assistance-guided-highlight-preparation.ts';
+} from '../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-highlight-preparation.ts';
 import {
 	prepareLocalAssistanceGuidedHighlightVisualEvidenceV1,
-} from '../src/common/editor/controller/local-assistance-guided-highlight-visual-evidence.ts';
+} from '../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-highlight-visual-evidence.ts';
 import { defaultAssistanceWorkflowSettingsV1 } from
 	'../src/common/editor/assistance/workflow-settings-v1.ts';
 import { createAssistanceEmbeddingMatrixV1 } from

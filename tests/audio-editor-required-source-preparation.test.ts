@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createSourceLifecycleService,
 	type SourceLifecycleServiceRuntime,
-} from '../src/common/editor/controller/source-lifecycle-service.ts';
+} from '../src/common/editor/controller/source/source-lifecycle-service.ts';
 
 interface RequiredSourcePreparation {
 	commit<Result>(

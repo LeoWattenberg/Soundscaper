@@ -2,26 +2,26 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createProjectBootstrapComposition } from '../src/common/editor/controller/project-bootstrap-composition.ts';
-import { createOwnedStateAccess } from '../src/common/editor/controller/owned-state.ts';
+import { createProjectBootstrapComposition } from '../src/common/editor/controller/document/project-bootstrap-composition.ts';
+import { createOwnedStateAccess } from '../src/common/editor/controller/shared/owned-state.ts';
 
 import {
 	EditorControllerLifetime,
 	isEditorDisposedError,
-} from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
 import {
 	createProjectBootstrapService,
 	type ProjectBootstrapServiceRuntime,
-} from '../src/common/editor/controller/project-bootstrap-service.ts';
-import { DELIVERY_PRESETS_SETTING_KEY } from '../src/common/editor/controller/delivery-preset-service.ts';
+} from '../src/common/editor/controller/document/internal/project/project-bootstrap-service.ts';
+import { DELIVERY_PRESETS_SETTING_KEY } from '../src/common/editor/controller/export/delivery-preset-service.ts';
 import {
 	EFFECT_MACRO_LIBRARY_SETTING_KEY,
 	createInitialEffectMacroLibrary,
-} from '../src/common/editor/controller/effect-macro-library-service.ts';
+} from '../src/common/editor/controller/effects/effect-macro-library-service.ts';
 import {
 	MACRO_SCRIPT_LIBRARY_SETTING_KEY,
 	createInitialMacroScriptLibrary,
-} from '../src/common/editor/controller/macro-script-library-service.ts';
+} from '../src/common/editor/controller/effects/macro-script-library-service.ts';
 import {
 	createDeliveryPresetState,
 	saveDeliveryPresetToState,

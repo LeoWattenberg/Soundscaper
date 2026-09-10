@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createFramescaperWebVcrController } from '../src/common/editor/controller/framescaper-web-vcr-controller.ts';
+import { createFramescaperWebVcrController } from '../src/common/editor/controller/capture/internal/web-vcr/framescaper-web-vcr-controller.ts';
 import type { WebVcrSnapshot } from '../src/common/editor/web-vcr-domain.ts';
 
 test('recovery cleanup closes locally when desktop guest disposal fails', async () => {

@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	createFramescaperBrowserAudioRecorder,
-} from '../src/common/editor/controller/framescaper-browser-audio-recorder.ts';
+} from '../src/common/editor/controller/capture/internal/browser/framescaper-browser-audio-recorder.ts';
 import { waitFor } from './helpers/async-test-control.ts';
 
 interface ReadResult {

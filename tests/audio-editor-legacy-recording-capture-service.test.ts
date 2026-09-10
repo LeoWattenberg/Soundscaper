@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createLegacyRecordingCaptureService } from '../src/common/editor/controller/legacy-recording-capture-service.ts';
-import type { RecordingMediaStream } from '../src/common/editor/controller/recording-transaction-types.ts';
+import { createLegacyRecordingCaptureService } from '../src/common/editor/controller/recording/internal/legacy-recording-capture-service.ts';
+import type { RecordingMediaStream } from '../src/common/editor/controller/recording/recording-transaction-types.ts';
 import {
 	createRecordingCaptureFixture,
 	createScope,

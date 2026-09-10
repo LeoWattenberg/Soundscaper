@@ -152,7 +152,7 @@ bound every slice below, and each one narrows scope rather than widening it:
    `video-export-plan-version.ts` the only place a version is written down, so
    6B-1's 6 → 8 bump moved one number and its pins followed. A strategy layer
    carries its own version surface
-   (`controller/product-video-export-strategy.ts:7`). No 6B slice touches a
+   (`controller/export/product-video-export-strategy.ts:7`). No 6B slice touches a
    plan version except through that constant.
 2. **7B-5 never landed.** Milestone 7 delivered 7A-1/7A-2 only, so at
    grounding there was no vertical canvas or delivery crop stage anywhere in

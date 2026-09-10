@@ -2,12 +2,12 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createFramescaperCaptureDocumentPorts, createFramescaperCaptureProxyDocumentInstaller } from '../src/common/editor/controller/framescaper-capture-document-ports.ts';
-import { createFramescaperCaptureProxyActiveProjectSynchronizer } from '../src/common/editor/controller/framescaper-capture-proxy-quiescence.ts';
-import { admitFramescaperCaptureProject } from '../src/common/editor/controller/framescaper-capture-project-admission.ts';
-import { createFramescaperCaptureAdminInterlock } from '../src/common/editor/controller/framescaper-capture-admin-interlock.ts';
-import { resolveControllerProjectRuntime } from '../src/common/editor/controller/project-runtime.ts';
-import type { DocumentHistory, DocumentProject } from '../src/common/editor/controller/document-composition-types.ts';
+import { createFramescaperCaptureDocumentPorts, createFramescaperCaptureProxyDocumentInstaller } from '../src/common/editor/controller/capture/framescaper-capture-document-ports.ts';
+import { createFramescaperCaptureProxyActiveProjectSynchronizer } from '../src/common/editor/controller/capture/framescaper-capture-proxy-quiescence.ts';
+import { admitFramescaperCaptureProject } from '../src/common/editor/controller/capture/internal/framescaper-capture-project-admission.ts';
+import { createFramescaperCaptureAdminInterlock } from '../src/common/editor/controller/capture/framescaper-capture-admin-interlock.ts';
+import { resolveControllerProjectRuntime } from '../src/common/editor/controller/document/project-runtime.ts';
+import type { DocumentHistory, DocumentProject } from '../src/common/editor/controller/document/document-composition-types.ts';
 import { createAudioEditorSessionController } from '../src/common/editor/session.js';
 import { createOpaqueProjectConsumer } from '../src/common/editor/project-opaque-consumer.ts';
 import { createEditorProjectRuntimeSelection } from '../src/framescaper/editor-project-runtime-selection.ts';

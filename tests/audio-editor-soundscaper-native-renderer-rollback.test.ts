@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
+import { EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
 import type { EnginePublicApi } from '../src/common/editor/engine/public-api.ts';
 import { createDefaultMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
 import { prepareNativePluginOfflineRuntimes } from '../src/common/editor/native-plugin-realtime-node.js';

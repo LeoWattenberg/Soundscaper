@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 
-import type { ImportVideoRuntime } from '../../src/common/editor/controller/source-import.ts';
+import type { ImportVideoRuntime } from '../../src/common/editor/controller/import/internal/source-import.ts';
 import {
 	VideoPreviewEncodedPayloadTooLargeError,
 	VideoPreviewSourceGeometryTooLargeError,

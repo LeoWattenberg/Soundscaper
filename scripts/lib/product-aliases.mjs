@@ -70,13 +70,13 @@ export const PRODUCT_STAND_IN_ALIASES = Object.freeze([
 		desktopCodecRuntime: null,
 	},
 	{
-		find: /^\.\/local-assistance-guided-framescaper-acceptance\.ts$/u,
+		find: /^\.\.\/\.\.\/local-assistance-guided-framescaper-acceptance\.ts$/u,
 		standIn: 'src/soundscaper/local-assistance-deferred-publication.ts',
 		product: 'soundscaper',
 		desktopCodecRuntime: null,
 	},
 	{
-		find: /^\.\.\/\.\.\/\.\.\/framescaper\/editor-local-assistance-(?:reframe|highlight)-publication\.ts$/u,
+		find: /^\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/framescaper\/editor-local-assistance-(?:reframe|highlight)-publication\.ts$/u,
 		standIn: 'src/soundscaper/local-assistance-deferred-publication.ts',
 		product: 'soundscaper',
 		desktopCodecRuntime: null,
@@ -106,7 +106,7 @@ export const PRODUCT_STAND_IN_ALIASES = Object.freeze([
 		desktopCodecRuntime: null,
 	},
 	{
-		find: /^\.\/cross-product-handoff-action-facade\.ts$/u,
+		find: /^\.\.\/document\/cross-product-handoff-action-facade\.ts$/u,
 		standIn: 'src/soundscaper/editor-foreign-family-runtime.ts',
 		product: 'soundscaper',
 		desktopCodecRuntime: true,
@@ -118,7 +118,7 @@ export const PRODUCT_STAND_IN_ALIASES = Object.freeze([
 		desktopCodecRuntime: true,
 	},
 	{
-		find: /^\.\.\/editor-codec-runtime\.ts$/u,
+		find: /^\.\.\/\.\.\/editor-codec-runtime\.ts$/u,
 		standIn: 'src/common/editor/editor-codec-runtime.desktop.ts',
 		product: null,
 		desktopCodecRuntime: true,

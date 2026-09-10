@@ -7,18 +7,18 @@ import type { AssistanceWorkflowFenceV1 } from
 	'../src/common/editor/assistance/workflow.ts';
 import {
 	resolveLocalAssistanceSelectedVideoAuthority,
-} from '../src/common/editor/controller/local-assistance-selected-video.ts';
+} from '../src/common/editor/controller/assistance/local-assistance-selected-video.ts';
 import {
 	createLocalAssistanceSelectedVideoSourceTimeDescriptorV1,
 	findLocalAssistanceSelectedVideoSourceTimeBySourceFrameV1,
-} from '../src/common/editor/controller/local-assistance-selected-video-source-time.ts';
+} from '../src/common/editor/controller/assistance/local-assistance-selected-video-source-time.ts';
 import {
 	createLocalAssistanceGuidedHighlightDraftV1,
 	setLocalAssistanceGuidedHighlightTrimV1,
-} from '../src/common/editor/controller/local-assistance-guided-highlight-edits.ts';
+} from '../src/common/editor/controller/assistance/local-assistance-guided-highlight-edits.ts';
 import {
 	snapLocalAssistanceGuidedHighlightTrimBoundaryV1,
-} from '../src/common/editor/controller/local-assistance-guided-highlight-preview.ts';
+} from '../src/common/editor/controller/assistance/local-assistance-guided-highlight-preview.ts';
 import {
 	createFramescaperAssistanceHighlightPublication,
 } from '../src/framescaper/editor-local-assistance-highlight-publication.ts';

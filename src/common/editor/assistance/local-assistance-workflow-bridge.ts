@@ -22,7 +22,7 @@ import {
 	type AssistanceWorkflowCustodyClaimV1,
 } from './workflow-custody-v1.ts';
 import { releaseLocalAssistancePreparedAudioWave } from
-	'../controller/local-assistance-audio-spool-release.ts';
+	'../controller/assistance/local-assistance-audio-spool-release.ts';
 
 export const LOCAL_ASSISTANCE_WORKFLOW_UNAVAILABLE_REASONS = Object.freeze([
 	'workflow-runner-unavailable', 'stage-unavailable', 'model-unavailable',

@@ -3,12 +3,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createTakeCycleCaptureOrchestrator } from '../src/common/editor/controller/take-cycle-capture-orchestrator.ts';
-import type { TakeCycleCaptureDraft } from '../src/common/editor/controller/take-cycle-capture-spool.ts';
+import { createTakeCycleCaptureOrchestrator } from '../src/common/editor/controller/recording/take-cycle-capture-orchestrator.ts';
+import type { TakeCycleCaptureDraft } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-capture-spool.ts';
 import type {
 	TakeCycleFinalizationRequest,
 	TakeCycleFinalizationResult,
-} from '../src/common/editor/controller/take-cycle-recording-service.ts';
+} from '../src/common/editor/controller/recording/take-cycle-recording-service.ts';
 
 test('mixed envelope cleanup cannot activate stale cached bindings instead of resuming its raw draft', async () => {
 	const draft = captureDraft();

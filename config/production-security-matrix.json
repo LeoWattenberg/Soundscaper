@@ -2080,7 +2080,7 @@
 			"data": "Program source, bounded protocol calls, project snapshots, selection and effect parameters, and a run log",
 			"entryPoints": [
 				"src/common/editor/macro-script/browser-sandbox.ts",
-				"src/common/editor/controller/macro-script-host.ts"
+				"src/common/editor/controller/effects/internal/macro/macro-script-host.ts"
 			],
 			"evidence": [
 				{
@@ -2097,7 +2097,7 @@
 				},
 				{
 					"kind": "implementation",
-					"path": "src/common/editor/controller/macro-script-host.ts"
+					"path": "src/common/editor/controller/effects/internal/macro/macro-script-host.ts"
 				},
 				{
 					"kind": "implementation",
@@ -2165,18 +2165,18 @@
 			"to": "Project import, export, storage, and desktop file services",
 			"data": "Task generations, AbortSignals, project bytes, storage writes, owner-scoped keyed-video operation ids and chunks, cancellation, validated output publication, and late results",
 			"entryPoints": [
-				"src/common/editor/controller/lifecycle.ts",
-				"src/common/editor/controller/export-service.ts",
-				"src/common/editor/controller/direct-aiff-export.ts",
-				"src/common/editor/controller/direct-bw64-export.ts",
-				"src/common/editor/controller/direct-bwf-export.ts",
-				"src/common/editor/controller/direct-export-dispatch.ts",
-				"src/common/editor/controller/direct-pcm-export.ts",
-				"src/common/editor/controller/direct-wav-export.ts",
-				"src/common/editor/controller/video-export-service.ts",
+				"src/common/editor/controller/shared/lifecycle.ts",
+				"src/common/editor/controller/export/internal/export-service.ts",
+				"src/common/editor/controller/export/internal/direct/direct-aiff-export.ts",
+				"src/common/editor/controller/export/internal/direct/direct-bw64-export.ts",
+				"src/common/editor/controller/export/internal/direct/direct-bwf-export.ts",
+				"src/common/editor/controller/export/internal/direct/direct-export-dispatch.ts",
+				"src/common/editor/controller/export/internal/direct/direct-pcm-export.ts",
+				"src/common/editor/controller/export/internal/direct/direct-wav-export.ts",
+				"src/common/editor/controller/export/internal/video/video-export-service.ts",
 				"src/common/editor/desktop-video-codec-runtime.ts",
-				"src/common/editor/controller/native-project-service.ts",
-				"src/common/editor/controller/native-scape-save.ts",
+				"src/common/editor/controller/document/native-project-service.ts",
+				"src/common/editor/controller/document/internal/native-project/native-scape-save.ts",
 				"src/common/editor/scape-project.js",
 				"src/common/editor/scape-export-destination.ts",
 				"src/common/editor/file-save-stream.ts",
@@ -2185,39 +2185,39 @@
 			"evidence": [
 				{
 					"kind": "implementation",
-					"path": "src/common/editor/controller/lifecycle.ts"
+					"path": "src/common/editor/controller/shared/lifecycle.ts"
 				},
 				{
 					"kind": "implementation",
-					"path": "src/common/editor/controller/export-service.ts"
+					"path": "src/common/editor/controller/export/internal/export-service.ts"
 				},
 				{
 					"kind": "implementation",
-					"path": "src/common/editor/controller/direct-aiff-export.ts"
+					"path": "src/common/editor/controller/export/internal/direct/direct-aiff-export.ts"
 				},
 				{
 					"kind": "implementation",
-					"path": "src/common/editor/controller/direct-bw64-export.ts"
+					"path": "src/common/editor/controller/export/internal/direct/direct-bw64-export.ts"
 				},
 				{
 					"kind": "implementation",
-					"path": "src/common/editor/controller/direct-bwf-export.ts"
+					"path": "src/common/editor/controller/export/internal/direct/direct-bwf-export.ts"
 				},
 				{
 					"kind": "implementation",
-					"path": "src/common/editor/controller/direct-export-dispatch.ts"
+					"path": "src/common/editor/controller/export/internal/direct/direct-export-dispatch.ts"
 				},
 				{
 					"kind": "implementation",
-					"path": "src/common/editor/controller/direct-pcm-export.ts"
+					"path": "src/common/editor/controller/export/internal/direct/direct-pcm-export.ts"
 				},
 				{
 					"kind": "implementation",
-					"path": "src/common/editor/controller/direct-wav-export.ts"
+					"path": "src/common/editor/controller/export/internal/direct/direct-wav-export.ts"
 				},
 				{
 					"kind": "implementation",
-					"path": "src/common/editor/controller/video-export-service.ts"
+					"path": "src/common/editor/controller/export/internal/video/video-export-service.ts"
 				},
 				{
 					"kind": "implementation",
@@ -2225,11 +2225,11 @@
 				},
 				{
 					"kind": "implementation",
-					"path": "src/common/editor/controller/native-project-service.ts"
+					"path": "src/common/editor/controller/document/native-project-service.ts"
 				},
 				{
 					"kind": "implementation",
-					"path": "src/common/editor/controller/native-scape-save.ts"
+					"path": "src/common/editor/controller/document/internal/native-project/native-scape-save.ts"
 				},
 				{
 					"kind": "implementation",
@@ -2618,19 +2618,19 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/take-comp-service.ts"
+							"path": "src/common/editor/controller/track-audio/internal/take-comp/take-comp-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/take-comp-preview-service.ts"
+							"path": "src/common/editor/controller/track-audio/internal/take-comp/take-comp-preview-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/take-comp-flatten-service.ts"
+							"path": "src/common/editor/controller/track-audio/internal/take-comp/take-comp-flatten-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/take-comp-composition.ts"
+							"path": "src/common/editor/controller/track-audio/internal/take-comp/take-comp-composition.ts"
 						},
 						{
 							"kind": "implementation",
@@ -2950,15 +2950,15 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-save-service.ts"
+							"path": "src/common/editor/controller/document/project-save-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/storage-capacity-runtime.ts"
+							"path": "src/common/editor/controller/shared/storage-capacity-runtime.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/storage-capacity-service.ts"
+							"path": "src/common/editor/controller/shared/storage-capacity-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -3049,23 +3049,23 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-switch-service.ts"
+							"path": "src/common/editor/controller/document/project-switch-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/audio-rendered-fallback-export.ts"
+							"path": "src/common/editor/controller/export/internal/audio/audio-rendered-fallback-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/video-rendered-fallback-export.ts"
+							"path": "src/common/editor/controller/export/internal/video/video-rendered-fallback-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/video-export-service.ts"
+							"path": "src/common/editor/controller/export/internal/video/video-export-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/export-service.ts"
+							"path": "src/common/editor/controller/export/internal/export-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -3149,23 +3149,23 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/playback-project-service.ts"
+							"path": "src/common/editor/controller/source/playback-project-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-admin-service.ts"
+							"path": "src/common/editor/controller/document/project-admin-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/source-lifecycle-service.ts"
+							"path": "src/common/editor/controller/source/source-lifecycle-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/source-audio.ts"
+							"path": "src/common/editor/controller/source/source-audio.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-switch-service.ts"
+							"path": "src/common/editor/controller/document/project-switch-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -3177,7 +3177,7 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/document-snapshot.ts"
+							"path": "src/common/editor/controller/document/document-snapshot.ts"
 						},
 						{
 							"kind": "implementation",
@@ -3305,19 +3305,19 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/playback-project-service.ts"
+							"path": "src/common/editor/controller/source/playback-project-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-admin-service.ts"
+							"path": "src/common/editor/controller/document/project-admin-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/audio-rendered-fallback-export.ts"
+							"path": "src/common/editor/controller/export/internal/audio/audio-rendered-fallback-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/export-service.ts"
+							"path": "src/common/editor/controller/export/internal/export-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -3421,23 +3421,23 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/playback-project-service.ts"
+							"path": "src/common/editor/controller/source/playback-project-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-switch-service.ts"
+							"path": "src/common/editor/controller/document/project-switch-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/source-lifecycle-service.ts"
+							"path": "src/common/editor/controller/source/source-lifecycle-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-visual-service.ts"
+							"path": "src/common/editor/controller/document/project-visual-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/document-snapshot.ts"
+							"path": "src/common/editor/controller/document/document-snapshot.ts"
 						},
 						{
 							"kind": "implementation",
@@ -3561,11 +3561,11 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/video-rendered-fallback-export.ts"
+							"path": "src/common/editor/controller/export/internal/video/video-rendered-fallback-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/video-export-service.ts"
+							"path": "src/common/editor/controller/export/internal/video/video-export-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -3641,7 +3641,7 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/document-snapshot.ts"
+							"path": "src/common/editor/controller/document/document-snapshot.ts"
 						},
 						{
 							"kind": "implementation",
@@ -3704,7 +3704,7 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-import-service.ts"
+							"path": "src/common/editor/controller/import/internal/project-import-service.ts"
 						},
 						{
 							"kind": "test",
@@ -3731,7 +3731,7 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-import-service.ts"
+							"path": "src/common/editor/controller/import/internal/project-import-service.ts"
 						},
 						{
 							"kind": "test",
@@ -3913,7 +3913,7 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/source-import.ts"
+							"path": "src/common/editor/controller/import/internal/source-import.ts"
 						},
 						{
 							"kind": "test",
@@ -3956,7 +3956,7 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/source-import.ts"
+							"path": "src/common/editor/controller/import/internal/source-import.ts"
 						},
 						{
 							"kind": "implementation",
@@ -4217,7 +4217,7 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/linked-audio-import-admission.ts"
+							"path": "src/common/editor/controller/import/internal/linked-media/linked-audio-import-admission.ts"
 						},
 						{
 							"kind": "implementation",
@@ -4430,11 +4430,11 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/native-project-service.ts"
+							"path": "src/common/editor/controller/document/native-project-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/storage-capacity-service.ts"
+							"path": "src/common/editor/controller/shared/storage-capacity-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -4574,7 +4574,7 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/scape-project-file-service.ts"
+							"path": "src/common/editor/controller/document/scape-project-file-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -4741,15 +4741,15 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-bootstrap-service.ts"
+							"path": "src/common/editor/controller/document/internal/project/project-bootstrap-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-session-service.ts"
+							"path": "src/common/editor/controller/document/internal/project/project-session-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-switch-service.ts"
+							"path": "src/common/editor/controller/document/project-switch-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -4950,7 +4950,7 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/native-scape-save.ts"
+							"path": "src/common/editor/controller/document/internal/native-project/native-scape-save.ts"
 						},
 						{
 							"kind": "implementation",
@@ -5021,7 +5021,7 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/native-project-service.ts"
+							"path": "src/common/editor/controller/document/native-project-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -5409,35 +5409,35 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/local-assistance-selected-media.ts"
+							"path": "src/common/editor/controller/assistance/internal/local-assistance-selected-media.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/local-assistance-guided-result-acceptance.ts"
+							"path": "src/common/editor/controller/assistance/internal/guided/local-assistance-guided-result-acceptance.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/local-assistance-guided-index-publication.ts"
+							"path": "src/common/editor/controller/assistance/internal/guided/local-assistance-guided-index-publication.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/local-assistance-transcript-acceptance.ts"
+							"path": "src/common/editor/controller/assistance/internal/local-assistance-transcript-acceptance.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/local-assistance-range-label-acceptance.ts"
+							"path": "src/common/editor/controller/assistance/internal/local-assistance-range-label-acceptance.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/local-assistance-shot-acceptance.ts"
+							"path": "src/common/editor/controller/assistance/internal/local-assistance-shot-acceptance.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/local-assistance-cleanup-acceptance.ts"
+							"path": "src/common/editor/controller/assistance/internal/local-assistance-cleanup-acceptance.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/local-assistance-cleanup-workflow.ts"
+							"path": "src/common/editor/controller/assistance/internal/local-assistance-cleanup-workflow.ts"
 						},
 						{
 							"kind": "implementation",
@@ -5999,63 +5999,63 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/action-facade.ts"
+							"path": "src/common/editor/controller/composition/action-facade.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/document-snapshot.ts"
+							"path": "src/common/editor/controller/document/document-snapshot.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-app-composition.ts"
+							"path": "src/common/editor/controller/capture/framescaper-capture-app-composition.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-app-binding.ts"
+							"path": "src/common/editor/controller/capture/framescaper-capture-app-binding.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-device-adapter.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-device-adapter.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-source-adapter-router.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-source-adapter-router.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-start-admission.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-start-admission.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-web-vcr-capture-adapter.ts"
+							"path": "src/common/editor/controller/capture/internal/web-vcr/framescaper-web-vcr-capture-adapter.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-web-vcr-controller.ts"
+							"path": "src/common/editor/controller/capture/internal/web-vcr/framescaper-web-vcr-controller.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-web-vcr-controller-types.ts"
+							"path": "src/common/editor/controller/capture/framescaper-web-vcr-controller-types.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-web-vcr-snapshot-order.ts"
+							"path": "src/common/editor/controller/capture/internal/web-vcr/framescaper-web-vcr-snapshot-order.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-web-vcr-take-authority.ts"
+							"path": "src/common/editor/controller/capture/internal/web-vcr/framescaper-web-vcr-take-authority.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/web-vcr-audio-monitor.ts"
+							"path": "src/common/editor/controller/capture/internal/web-vcr/web-vcr-audio-monitor.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/web-vcr-recorder-factory.ts"
+							"path": "src/common/editor/controller/capture/internal/web-vcr/web-vcr-recorder-factory.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/web-vcr-video-frame-crop.ts"
+							"path": "src/common/editor/controller/capture/internal/web-vcr/web-vcr-video-frame-crop.ts"
 						},
 						{
 							"kind": "implementation",
@@ -6635,31 +6635,31 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/clip-time-pitch-service.ts"
+							"path": "src/common/editor/controller/source/clip-time-pitch-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/prepared-project-sources.ts"
+							"path": "src/common/editor/controller/import/prepared-project-sources.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-admin-service.ts"
+							"path": "src/common/editor/controller/document/project-admin-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-switch-service.ts"
+							"path": "src/common/editor/controller/document/project-switch-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/source-audio.ts"
+							"path": "src/common/editor/controller/source/source-audio.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/source-chunk-provider-registry.ts"
+							"path": "src/common/editor/controller/source/source-chunk-provider-registry.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/source-lifecycle-service.ts"
+							"path": "src/common/editor/controller/source/source-lifecycle-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -6985,35 +6985,35 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-aiff-export.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-aiff-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-bw64-export.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-bw64-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-bwf-export.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-bwf-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-export-dispatch.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-export-dispatch.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-pcm-export.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-pcm-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-wav-export.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-wav-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/export-service.ts"
+							"path": "src/common/editor/controller/export/internal/export-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/realtime-export-pcm-transform.ts"
+							"path": "src/common/editor/controller/export/internal/realtime-export-pcm-transform.ts"
 						},
 						{
 							"kind": "implementation",
@@ -7232,15 +7232,15 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-compressed-export.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-compressed-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-offline-compressed-export.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-offline-compressed-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/export-service.ts"
+							"path": "src/common/editor/controller/export/internal/export-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -7299,11 +7299,11 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-video-export.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-video-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/video-export-service.ts"
+							"path": "src/common/editor/controller/export/internal/video/video-export-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -7375,27 +7375,27 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-compressed-stem-archive-plan.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-compressed-stem-archive-plan.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-native-stem-archive-plan.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-native-stem-archive-plan.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-stem-archive-export.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-stem-archive-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/sequential-seven-zip-copy.ts"
+							"path": "src/common/editor/controller/export/internal/archive/sequential-seven-zip-copy.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/sequential-zip32-stream.ts"
+							"path": "src/common/editor/controller/export/internal/archive/sequential-zip32-stream.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/export-service.ts"
+							"path": "src/common/editor/controller/export/internal/export-service.ts"
 						},
 						{
 							"kind": "test",
@@ -7891,7 +7891,7 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/document-snapshot.ts"
+							"path": "src/common/editor/controller/document/document-snapshot.ts"
 						},
 						{
 							"kind": "implementation",
@@ -8071,7 +8071,7 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-admin-service.ts"
+							"path": "src/common/editor/controller/document/project-admin-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -8222,39 +8222,39 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/action-facade.ts"
+							"path": "src/common/editor/controller/composition/action-facade.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/audio-relink-probe.ts"
+							"path": "src/common/editor/controller/import/internal/linked-media/audio-relink-probe.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-bin-linked-audio-relink-service.ts"
+							"path": "src/common/editor/controller/import/internal/project-bin/project-bin-linked-audio-relink-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-bin-linked-original-relink-task.ts"
+							"path": "src/common/editor/controller/import/internal/project-bin/project-bin-linked-original-relink-task.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-bin-linked-video-relink-service.ts"
+							"path": "src/common/editor/controller/import/project-bin-linked-video-relink-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-bin-service.ts"
+							"path": "src/common/editor/controller/import/internal/project-bin/project-bin-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-bin-types.ts"
+							"path": "src/common/editor/controller/import/project-bin-types.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-lock-service.ts"
+							"path": "src/common/editor/controller/document/project-lock-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/source-lifecycle-service.ts"
+							"path": "src/common/editor/controller/source/source-lifecycle-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -8274,11 +8274,11 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/linked-audio-import-admission.ts"
+							"path": "src/common/editor/controller/import/internal/linked-media/linked-audio-import-admission.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/linked-wav-import-service.ts"
+							"path": "src/common/editor/controller/import/internal/linked-media/linked-wav-import-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -8612,7 +8612,7 @@
 					"evidence": [
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-bootstrap-service.ts"
+							"path": "src/common/editor/controller/document/internal/project/project-bootstrap-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -8704,7 +8704,7 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/source-audio.ts"
+							"path": "src/common/editor/controller/source/source-audio.ts"
 						},
 						{
 							"kind": "implementation",
@@ -8856,43 +8856,43 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/action-facade.ts"
+							"path": "src/common/editor/controller/composition/action-facade.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-admin-service.ts"
+							"path": "src/common/editor/controller/document/project-admin-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-bin-linked-video-relink-service.ts"
+							"path": "src/common/editor/controller/import/project-bin-linked-video-relink-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-bin-service.ts"
+							"path": "src/common/editor/controller/import/internal/project-bin/project-bin-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-lock-service.ts"
+							"path": "src/common/editor/controller/document/project-lock-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-bin-replacement-service.ts"
+							"path": "src/common/editor/controller/import/internal/project-bin/project-bin-replacement-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-switch-service.ts"
+							"path": "src/common/editor/controller/document/project-switch-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/source-import.ts"
+							"path": "src/common/editor/controller/import/internal/source-import.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/source-lifecycle-service.ts"
+							"path": "src/common/editor/controller/source/source-lifecycle-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-visual-service.ts"
+							"path": "src/common/editor/controller/document/project-visual-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -9155,19 +9155,19 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-admin-service.ts"
+							"path": "src/common/editor/controller/document/project-admin-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-retention-service.ts"
+							"path": "src/common/editor/controller/document/internal/project/project-retention-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-save-service.ts"
+							"path": "src/common/editor/controller/document/project-save-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-switch-service.ts"
+							"path": "src/common/editor/controller/document/project-switch-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -9578,23 +9578,23 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/action-facade.ts"
+							"path": "src/common/editor/controller/composition/action-facade.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-admin-service.ts"
+							"path": "src/common/editor/controller/document/project-admin-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-bootstrap-service.ts"
+							"path": "src/common/editor/controller/document/internal/project/project-bootstrap-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-bin-replacement-service.ts"
+							"path": "src/common/editor/controller/import/internal/project-bin/project-bin-replacement-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-switch-service.ts"
+							"path": "src/common/editor/controller/document/project-switch-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -9614,19 +9614,19 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-import-service.ts"
+							"path": "src/common/editor/controller/import/internal/project-import-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/source-import.ts"
+							"path": "src/common/editor/controller/import/internal/source-import.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/source-lifecycle-service.ts"
+							"path": "src/common/editor/controller/source/source-lifecycle-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-visual-service.ts"
+							"path": "src/common/editor/controller/document/project-visual-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -10101,7 +10101,7 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/macro-script-host.ts"
+							"path": "src/common/editor/controller/effects/internal/macro/macro-script-host.ts"
 						},
 						{
 							"kind": "test",
@@ -10132,7 +10132,7 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/macro-script-library-service.ts"
+							"path": "src/common/editor/controller/effects/macro-script-library-service.ts"
 						},
 						{
 							"kind": "test",
@@ -10757,7 +10757,7 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/desktop-audio-export-capability.ts"
+							"path": "src/common/editor/controller/export/internal/desktop-audio-export-capability.ts"
 						},
 						{
 							"kind": "audit",
@@ -11541,11 +11541,11 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/export-service.ts"
+							"path": "src/common/editor/controller/export/internal/export-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/video-export-service.ts"
+							"path": "src/common/editor/controller/export/internal/video/video-export-service.ts"
 						},
 						{
 							"kind": "test",
@@ -11648,11 +11648,11 @@
 					"evidence": [
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/lifecycle.ts"
+							"path": "src/common/editor/controller/shared/lifecycle.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/native-project-service.ts"
+							"path": "src/common/editor/controller/document/native-project-service.ts"
 						},
 						{
 							"kind": "test",
@@ -11675,7 +11675,7 @@
 					"evidence": [
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/native-project-service.ts"
+							"path": "src/common/editor/controller/document/native-project-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -11718,15 +11718,15 @@
 					"evidence": [
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/scape-inspection-service.ts"
+							"path": "src/common/editor/controller/document/internal/scape/scape-inspection-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/action-facade.ts"
+							"path": "src/common/editor/controller/composition/action-facade.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-switch-service.ts"
+							"path": "src/common/editor/controller/document/project-switch-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -11785,19 +11785,19 @@
 					"evidence": [
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/scape-inspection-quiescence.ts"
+							"path": "src/common/editor/controller/document/internal/scape/scape-inspection-quiescence.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/scape-inspection-service.ts"
+							"path": "src/common/editor/controller/document/internal/scape/scape-inspection-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/scape-project-file-service.ts"
+							"path": "src/common/editor/controller/document/scape-project-file-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-switch-service.ts"
+							"path": "src/common/editor/controller/document/project-switch-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -11848,19 +11848,19 @@
 					"evidence": [
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/scape-open-request-service.ts"
+							"path": "src/common/editor/controller/document/scape-open-request-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/scape-project-file-service.ts"
+							"path": "src/common/editor/controller/document/scape-project-file-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/action-facade.ts"
+							"path": "src/common/editor/controller/composition/action-facade.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-switch-service.ts"
+							"path": "src/common/editor/controller/document/project-switch-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -11896,7 +11896,7 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/native-project-service.ts"
+							"path": "src/common/editor/controller/document/native-project-service.ts"
 						},
 						{
 							"kind": "test",
@@ -12111,15 +12111,15 @@
 					"evidence": [
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/native-project-service.ts"
+							"path": "src/common/editor/controller/document/native-project-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/native-scape-save.ts"
+							"path": "src/common/editor/controller/document/internal/native-project/native-scape-save.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-switch-service.ts"
+							"path": "src/common/editor/controller/document/project-switch-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -12150,31 +12150,31 @@
 					"evidence": [
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-aiff-export.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-aiff-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-bw64-export.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-bw64-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-bwf-export.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-bwf-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-export-dispatch.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-export-dispatch.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-pcm-export.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-pcm-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-wav-export.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-wav-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/export-service.ts"
+							"path": "src/common/editor/controller/export/internal/export-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -12333,15 +12333,15 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-compressed-export.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-compressed-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-offline-compressed-export.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-offline-compressed-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/export-service.ts"
+							"path": "src/common/editor/controller/export/internal/export-service.ts"
 						},
 						{
 							"kind": "test",
@@ -12388,11 +12388,11 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-video-export.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-video-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/video-export-service.ts"
+							"path": "src/common/editor/controller/export/internal/video/video-export-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -12435,19 +12435,19 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/direct-stem-archive-export.ts"
+							"path": "src/common/editor/controller/export/internal/direct/direct-stem-archive-export.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/sequential-seven-zip-copy.ts"
+							"path": "src/common/editor/controller/export/internal/archive/sequential-seven-zip-copy.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/sequential-zip32-stream.ts"
+							"path": "src/common/editor/controller/export/internal/archive/sequential-zip32-stream.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/export-service.ts"
+							"path": "src/common/editor/controller/export/internal/export-service.ts"
 						},
 						{
 							"kind": "test",
@@ -12486,31 +12486,31 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/take-cycle-routed-capture-validation.ts"
+							"path": "src/common/editor/controller/recording/internal/take-cycle/take-cycle-routed-capture-validation.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/take-cycle-routed-source-acquisition.ts"
+							"path": "src/common/editor/controller/recording/internal/take-cycle/take-cycle-routed-source-acquisition.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/take-cycle-routed-pcm-stream.ts"
+							"path": "src/common/editor/controller/recording/internal/take-cycle/take-cycle-routed-pcm-stream.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/take-cycle-routed-capture-service.ts"
+							"path": "src/common/editor/controller/recording/internal/take-cycle/take-cycle-routed-capture-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/take-cycle-capture-pcm-evidence.ts"
+							"path": "src/common/editor/controller/recording/internal/take-cycle/take-cycle-capture-pcm-evidence.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/take-cycle-live-pass-evidence.ts"
+							"path": "src/common/editor/controller/recording/internal/take-cycle/take-cycle-live-pass-evidence.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/take-cycle-live-capture-spool.ts"
+							"path": "src/common/editor/controller/recording/internal/take-cycle/take-cycle-live-capture-spool.ts"
 						},
 						{
 							"kind": "implementation",
@@ -12526,51 +12526,51 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/take-cycle-recording-repository-composition.ts"
+							"path": "src/common/editor/controller/recording/internal/take-cycle/take-cycle-recording-repository-composition.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/take-cycle-current-project-publication-service.ts"
+							"path": "src/common/editor/controller/recording/internal/take-cycle/take-cycle-current-project-publication-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/take-cycle-open-recovery-authority.ts"
+							"path": "src/common/editor/controller/recording/internal/take-cycle/take-cycle-open-recovery-authority.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/take-cycle-open-recovery-coordinator.ts"
+							"path": "src/common/editor/controller/recording/internal/take-cycle/take-cycle-open-recovery-coordinator.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/take-cycle-production-composition.ts"
+							"path": "src/common/editor/controller/recording/internal/take-cycle/take-cycle-production-composition.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/take-cycle-app-composition.ts"
+							"path": "src/common/editor/controller/recording/internal/take-cycle/take-cycle-app-composition.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/take-cycle-recording-app-session.ts"
+							"path": "src/common/editor/controller/recording/internal/take-cycle/take-cycle-recording-app-session.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/recording-action-facade.ts"
+							"path": "src/common/editor/controller/recording/recording-action-facade.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-mutation-service.ts"
+							"path": "src/common/editor/controller/document/project-mutation-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-retention-service.ts"
+							"path": "src/common/editor/controller/document/internal/project/project-retention-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-lock-service.ts"
+							"path": "src/common/editor/controller/document/project-lock-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-switch-service.ts"
+							"path": "src/common/editor/controller/document/project-switch-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -12694,19 +12694,19 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-browser-capture-source.ts"
+							"path": "src/common/editor/controller/capture/internal/browser/framescaper-browser-capture-source.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-active-time-clock.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-active-time-clock.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-app-binding.ts"
+							"path": "src/common/editor/controller/capture/framescaper-capture-app-binding.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-runtime-probe.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-runtime-probe.ts"
 						},
 						{
 							"kind": "implementation",
@@ -12718,79 +12718,79 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-app-composition.ts"
+							"path": "src/common/editor/controller/capture/framescaper-capture-app-composition.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-canonical-pcm.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-canonical-pcm.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-canonical-publication.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-canonical-publication.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-derivative-scheduler.ts"
+							"path": "src/common/editor/controller/capture/framescaper-capture-derivative-scheduler.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-durable-creation.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-durable-creation.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-durable-finalization.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-durable-finalization.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-durable-manifest.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-durable-manifest.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-metrics.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-metrics.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-pcm-packetizer.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-pcm-packetizer.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-exact-presentation-range.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-exact-presentation-range.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-session-service.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-session-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-durable-storage.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-durable-storage.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-durable-session.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-durable-session.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-durable-port.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-durable-port.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-origin-guard.ts"
+							"path": "src/common/editor/controller/capture/framescaper-capture-origin-guard.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-publication-plan.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-publication-plan.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-publication-service.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-publication-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/framescaper-capture-stream-timing.ts"
+							"path": "src/common/editor/controller/capture/internal/framescaper-capture-stream-timing.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/project-save-service.ts"
+							"path": "src/common/editor/controller/document/project-save-service.ts"
 						},
 						{
 							"kind": "implementation",
@@ -13122,11 +13122,11 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/transient-analysis-service.ts"
+							"path": "src/common/editor/controller/analysis/transient-analysis-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/transient-analysis-pcm-access.ts"
+							"path": "src/common/editor/controller/analysis/transient-analysis-pcm-access.ts"
 						},
 						{
 							"kind": "test",
@@ -13255,15 +13255,15 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/effect-audio-service.ts"
+							"path": "src/common/editor/controller/effects/internal/effect-audio-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/effect-result-service.ts"
+							"path": "src/common/editor/controller/effects/internal/effect-result-service.ts"
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/selection-effect-worker-service.ts"
+							"path": "src/common/editor/controller/effects/internal/selection-effect-worker-service.ts"
 						},
 						{
 							"kind": "implementation",

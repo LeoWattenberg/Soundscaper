@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { normalizeEditorExportSettings } from '../src/common/editor/controller/export-settings.ts';
+import { normalizeEditorExportSettings } from '../src/common/editor/controller/export/export-settings.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import {

@@ -24,7 +24,7 @@ reasons that are already on the record.
 1. **The probe was unavailable at ingest.** When no timing probe succeeds,
    `probeVideoTiming` returns the explicit fallback (`video-timing-probe.ts:84-90`)
    and ingest persists a *fabricated* 30/1 rate, an all-unreported
-   characteristics record, and no timing asset (`controller/source-import.ts:62-70`,
+   characteristics record, and no timing asset (`controller/import/internal/source-import.ts:62-70`,
    `280-314`). The properties surface already discloses exactly this state as
    `timing-unprobed` (`source-properties-model.ts:210-212`). The rate is not
    wrong because the file changed; it is wrong because nothing ever read it.
@@ -84,7 +84,7 @@ Two things stay outside it, unchanged from 3B-2b:
    `extractedAudioStreamIndex`: it records which program *ingest* extracted, so
    it is carried by the same rule ingest applied — named only when the inventory
    reports exactly one stream and the source has audio
-   (`controller/source-import.ts:286-292`).
+   (`controller/import/internal/source-import.ts:286-292`).
 4. **Provenance is history, not a probe result.** `timingDecision.mode` records
    how the stored bytes came to exist. A source whose media was conformed at
    ingest keeps `conform-cfr-at-ingest` however exactly it re-probes, because

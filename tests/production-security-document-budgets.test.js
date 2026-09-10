@@ -24,7 +24,7 @@ test('legacy AUP evidence pins structural and block-materialization budgets', as
 	for (const path of [
 		'src/common/editor/aup-legacy-xml.ts',
 		'src/common/editor/aup-legacy.js',
-		'src/common/editor/controller/project-import-service.ts',
+		'src/common/editor/controller/import/internal/project-import-service.ts',
 		'tests/audio-editor-aup-legacy.test.js',
 		'tests/audio-editor-aup-legacy-import-boundary.test.ts',
 	]) assert.ok(legacyAup.evidence.some((item) => item.path === path));
@@ -40,7 +40,7 @@ test('legacy AUP evidence pins structural and block-materialization budgets', as
 	for (const path of [
 		'src/common/editor/aup-legacy-block-budget.ts',
 		'src/common/editor/aup-legacy.js',
-		'src/common/editor/controller/project-import-service.ts',
+		'src/common/editor/controller/import/internal/project-import-service.ts',
 		'tests/audio-editor-aup-legacy-block-budget.test.ts',
 		'tests/audio-editor-aup-legacy-block-compatibility.test.ts',
 		'tests/audio-editor-aup-legacy.test.js',

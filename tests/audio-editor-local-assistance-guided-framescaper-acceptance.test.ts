@@ -6,15 +6,15 @@ import test from 'node:test';
 
 import {
 	createLocalAssistanceGuidedResultAcceptance as createGuidedResultAcceptance,
-} from '../src/common/editor/controller/local-assistance-guided-result-acceptance.ts';
+} from '../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-result-acceptance.ts';
 import {
 	createLocalAssistanceGuidedHighlightDraftV1,
 	setLocalAssistanceGuidedHighlightTitleV1,
-} from '../src/common/editor/controller/local-assistance-guided-highlight-edits.ts';
+} from '../src/common/editor/controller/assistance/local-assistance-guided-highlight-edits.ts';
 import {
 	createLocalAssistanceGuidedReframeDraftV1,
 	setLocalAssistanceGuidedReframeCropV1,
-} from '../src/common/editor/controller/local-assistance-guided-reframe-edits.ts';
+} from '../src/common/editor/controller/assistance/local-assistance-guided-reframe-edits.ts';
 import {
 	assistanceWorkflowModelBindingsSha256V1,
 	assistanceWorkflowRecipeSha256V1,

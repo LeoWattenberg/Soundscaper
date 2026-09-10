@@ -138,7 +138,7 @@ export const FOUNDATION_EDIT_COORDINATE_MATRIX: Readonly<
 		videoExtent: 'Identical to paste.',
 		videoSourceRange: 'Identical to paste.',
 		operationConformance: 'Duplicate is descriptor creation plus the paste rule; it has no second delta path.',
-		implementation: ['controller/edit-service.ts', 'commands/clipboard-runtime.js', 'commands/timeline-annotation-clipboard.ts'],
+		implementation: ['controller/edit/internal/edit-service.ts', 'commands/clipboard-runtime.js', 'commands/timeline-annotation-clipboard.ts'],
 	},
 	'range-delete': {
 		primitive: 'range-delete',
@@ -182,7 +182,7 @@ export const FOUNDATION_EDIT_COORDINATE_MATRIX: Readonly<
 		videoExtent: 'Unchanged in sequence frames; only the media behind those frames changes.',
 		videoSourceRange: 'The source in is the source monitor playhead, and the count is the clip extent converted once as a change of basis.',
 		operationConformance: 'Replace is overwrite whose range is the replaced clip own resolved range rather than a selection, so it adds no second conforming rule; a source too short to supply that range refuses instead of clamping.',
-		implementation: ['controller/video-edit-service.ts', 'commands/three-point-edit-runtime.js'],
+		implementation: ['controller/clip-video/internal/video/video-edit-service.ts', 'commands/three-point-edit-runtime.js'],
 	},
 });
 

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createStoredChunkProvider } from '../src/common/editor/controller/source-audio.ts';
+import { createStoredChunkProvider } from '../src/common/editor/controller/source/source-audio.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import type { StorageRecord } from '../src/common/editor/storage/media-records.ts';
 import { OWNED_SOURCE_PCM_MAXIMUM_DEPENDENCY_COUNT } from '../src/common/editor/storage/owned-source-pcm-read-session.ts';

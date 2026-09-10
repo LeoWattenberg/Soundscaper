@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createTakeCompActionFacade } from '../src/common/editor/controller/take-comp-action-facade.ts';
+import { createTakeCompActionFacade } from '../src/common/editor/controller/track-audio/take-comp-action-facade.ts';
 
 test('take comp facade exposes every persistent and audition operation behind one capability', () => {
 	const calls: Array<readonly [string, ...unknown[]]> = [];

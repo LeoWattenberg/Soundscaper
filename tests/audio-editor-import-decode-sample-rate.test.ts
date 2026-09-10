@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
-import { decodeStandaloneAudioForImport } from '../src/common/editor/controller/standalone-audio-import-decoder.ts';
+import { decodeStandaloneAudioForImport } from '../src/common/editor/controller/import/internal/standalone-audio-import-decoder.ts';
 
 interface DecodedStub {
 	readonly sampleRate: number;

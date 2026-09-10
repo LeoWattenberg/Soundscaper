@@ -3,11 +3,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
+import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
 import {
 	SCAPE_OPEN_REQUEST_TASK,
 	createScapeOpenRequestService,
-} from '../src/common/editor/controller/scape-open-request-service.ts';
+} from '../src/common/editor/controller/document/scape-open-request-service.ts';
 
 function deferred<Value>() {
 	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;

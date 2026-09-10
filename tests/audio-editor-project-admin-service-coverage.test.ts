@@ -6,8 +6,8 @@ import test from 'node:test';
 import {
 	createProjectAdminService,
 	type ProjectAdminServiceRuntime,
-} from '../src/common/editor/controller/project-admin-service.ts';
-import { exposeOwnedFields } from '../src/common/editor/controller/owned-state.ts';
+} from '../src/common/editor/controller/document/project-admin-service.ts';
+import { exposeOwnedFields } from '../src/common/editor/controller/shared/owned-state.ts';
 import {
 	createFixture,
 	deferred,

@@ -7,19 +7,19 @@ import {
 	beginNativeScapeSave,
 	publishNativeScape,
 	publishNativeScapeArchiveCopy,
-} from '../src/common/editor/controller/native-scape-save.ts';
-import { createNativeProjectService } from '../src/common/editor/controller/native-project-service.ts';
+} from '../src/common/editor/controller/document/internal/native-project/native-scape-save.ts';
+import { createNativeProjectService } from '../src/common/editor/controller/document/native-project-service.ts';
 import { withProjectFileExtension } from '../src/common/project-file-extensions.ts';
 import type {
 	NativePreparedSave,
 	NativeProjectDocument,
 	NativeProjectFileService,
 	NativeProjectServiceRuntime,
-} from '../src/common/editor/controller/native-project-types.ts';
+} from '../src/common/editor/controller/document/native-project-types.ts';
 import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
-} from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
 
 const project: NativeProjectDocument = {
 	id: 'direct-save', title: 'Direct save', schemaVersion: 6, sources: [], clips: [],

@@ -8,14 +8,14 @@ import { prepareLinkedSplitCommand } from '../src/common/editor/commands/clip-li
 import {
 	createFramescaperCaptureCanonicalPublicationService,
 	type FramescaperCaptureCanonicalStore,
-} from '../src/common/editor/controller/framescaper-capture-canonical-publication.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-canonical-publication.ts';
 import {
 	createFramescaperCaptureExactPresentationRange,
-} from '../src/common/editor/controller/framescaper-capture-exact-presentation-range.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-exact-presentation-range.ts';
 import {
 	createFramescaperCaptureDurableSessionCoordinator,
 	type FramescaperCaptureDurableSession,
-} from '../src/common/editor/controller/framescaper-capture-durable-session.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-durable-session.ts';
 import type { AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 import type { AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import type {

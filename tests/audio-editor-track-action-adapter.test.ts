@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createTrackActionAdapter } from '../src/common/editor/controller/track-action-adapter.ts';
+import { createTrackActionAdapter } from '../src/common/editor/controller/track-audio/internal/track-action-adapter.ts';
 
 test('track action adapter delegates explicit and selected-track operations without changing defaults', async () => {
 	const calls: unknown[][] = [];

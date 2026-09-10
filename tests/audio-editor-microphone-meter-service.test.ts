@@ -5,8 +5,8 @@ import {
 	createMicrophoneMeterService,
 	type MeterMediaStream,
 	type MicrophoneMeterState,
-} from '../src/common/editor/controller/microphone-meter-service.ts';
-import { createOwnedStateAccess } from '../src/common/editor/controller/owned-state.ts';
+} from '../src/common/editor/controller/recording/microphone-meter-service.ts';
+import { createOwnedStateAccess } from '../src/common/editor/controller/shared/owned-state.ts';
 
 type Mutable<Value> = { -readonly [Key in keyof Value]: Value[Key] };
 

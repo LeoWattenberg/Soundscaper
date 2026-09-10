@@ -12,7 +12,7 @@ import {
 	recordingStreamIsLive,
 	scaleRecordingFrames,
 	streamAudioChannelCount,
-} from '../src/common/editor/controller/recording-model.ts';
+} from '../src/common/editor/controller/recording/recording-model.ts';
 
 test('recording preferences and timing inputs are normalized at the controller boundary', () => {
 	assert.deepEqual(normalizeAudioDevicePreferences({

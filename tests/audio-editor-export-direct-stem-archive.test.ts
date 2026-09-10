@@ -7,8 +7,8 @@ import {
 	commitDirectStemArchiveDestination,
 	directStemArchiveTemporaryBytes,
 	prepareDirectStemArchiveDestination,
-} from '../src/common/editor/controller/direct-stem-archive-export.ts';
-import { inspectZip32Layout } from '../src/common/editor/controller/zip32.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-stem-archive-export.ts';
+import { inspectZip32Layout } from '../src/common/editor/controller/export/internal/archive/zip32.ts';
 
 test('direct stem admission opens one exact ZIP destination before rendering', async () => {
 	const plan = eligiblePlan();

@@ -14,7 +14,7 @@ import test from 'node:test';
 import {
 	generateStoredWaveformPeaksFallback,
 	generateWaveformPeaksFallback,
-} from '../src/common/editor/controller/waveform-analysis.ts';
+} from '../src/common/editor/controller/source/waveform-analysis.ts';
 
 const BLOCK = 64;
 

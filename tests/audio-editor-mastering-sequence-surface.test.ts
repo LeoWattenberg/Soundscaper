@@ -6,8 +6,8 @@ import test from 'node:test';
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import {
 	createDocumentMasteringSequenceSnapshot,
-} from '../src/common/editor/controller/document-mastering-sequence-snapshot.ts';
-import { normalizeEditorExportSettings } from '../src/common/editor/controller/export-settings.ts';
+} from '../src/common/editor/controller/document/document-mastering-sequence-snapshot.ts';
+import { normalizeEditorExportSettings } from '../src/common/editor/controller/export/export-settings.ts';
 import { createExportDialogRequest } from '../src/common/editor/ui/export-dialog-model.js';
 
 const NOW = '2026-08-18T00:00:00.000Z';

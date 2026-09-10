@@ -15,13 +15,13 @@ import type { CartMetadataInput } from '../src/common/editor/cart-metadata.ts';
 import {
 	DIRECT_BW64_MAXIMUM_FILE_BYTES,
 	prepareDirectBw64Destination,
-} from '../src/common/editor/controller/direct-bw64-export.ts';
-import { createEditorExportService, type ExportServiceRuntime } from '../src/common/editor/controller/export-service.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-bw64-export.ts';
+import { createEditorExportService, type ExportServiceRuntime } from '../src/common/editor/controller/export/internal/export-service.ts';
 import {
 	DIRECT_PCM_DESTINATION_WRITE_BYTES,
 	DIRECT_PCM_RENDER_CHUNK_FRAMES,
 	directPcmMaximumPendingChunks,
-} from '../src/common/editor/controller/direct-pcm-export.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-pcm-export.ts';
 import { normalizeMediaChannelMapping } from '../src/common/editor/media-export.js';
 import type { IxmlMetadataInput } from '../src/common/editor/ixml.ts';
 import type { RiffMarkerInput } from '../src/common/editor/riff-markers.ts';

@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createFramescaperCaptureAdminInterlock,
 	FramescaperCaptureAdminInterlockConflictError,
-} from '../src/common/editor/controller/framescaper-capture-admin-interlock.ts';
+} from '../src/common/editor/controller/capture/framescaper-capture-admin-interlock.ts';
 
 test('an admitted delete blocks capture until its exact lease finishes', () => {
 	const interlock = createFramescaperCaptureAdminInterlock();

@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	MAXIMUM_RAW_PCM_IMPORT_BYTES,
 	prepareRawPcmWaveFile,
-} from '../src/common/editor/controller/raw-pcm-import.ts';
+} from '../src/common/editor/controller/import/raw-pcm-import.ts';
 
 test('raw PCM import wraps a bounded little-endian stream as canonical WAV', async () => {
 	const input = new File([new Uint8Array([0x34, 0x12, 0xcc, 0xed])], 'voice.raw');

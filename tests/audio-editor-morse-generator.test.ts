@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { audacityActionDefinition } from '../src/common/editor/audacity-action-parity.js';
-import { generatorName } from '../src/common/editor/controller/app-helpers.ts';
+import { generatorName } from '../src/common/editor/controller/shared/app-helpers.ts';
 import {
 	AUDIO_EDITOR_GENERATOR_TYPES,
 	generateAudioEditorSignal,

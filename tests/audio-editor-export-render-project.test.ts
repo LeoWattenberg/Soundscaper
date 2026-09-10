@@ -7,8 +7,8 @@ import {
 	computeAudioTrackFreezeDigestsV1,
 	type AudioTrackFreezeV1,
 } from '../src/common/editor/audio-track-freeze-v21.ts';
-import { createExportRenderProject } from '../src/common/editor/controller/export-render-project.ts';
-import { stemProject } from '../src/common/editor/controller/temporary-export.ts';
+import { createExportRenderProject } from '../src/common/editor/controller/export/export-render-project.ts';
+import { stemProject } from '../src/common/editor/controller/export/temporary-export.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { normalizeProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
 import {

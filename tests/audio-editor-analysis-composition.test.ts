@@ -3,10 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
-import { createAnalysisComposition, type AnalysisCompositionDependencies, type AnalysisCompositionState } from '../src/common/editor/controller/analysis-composition.ts';
-import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
-import { createEditorTaskProgressCoordinator } from '../src/common/editor/controller/task-progress.ts';
-import type { createGroupedEditorActions } from '../src/common/editor/controller/action-facade.ts';
+import { createAnalysisComposition, type AnalysisCompositionDependencies, type AnalysisCompositionState } from '../src/common/editor/controller/analysis/analysis-composition.ts';
+import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
+import { createEditorTaskProgressCoordinator } from '../src/common/editor/controller/shared/task-progress.ts';
+import type { createGroupedEditorActions } from '../src/common/editor/controller/composition/action-facade.ts';
 
 function fixture(enabled = true) {
 	const project = { id: 'analysis', revision: 1, clips: [{ id: 'clip' }], tracks: [{ id: 'track', type: 'audio' }], master: {} };

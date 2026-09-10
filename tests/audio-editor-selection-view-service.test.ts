@@ -8,7 +8,7 @@ import {
 	type SelectionViewSelection,
 	type SelectionViewServiceRuntime,
 	type SelectionViewState,
-} from '../src/common/editor/controller/selection-view-service.ts';
+} from '../src/common/editor/controller/track-audio/internal/selection-view-service.ts';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 } from '../src/common/editor/project-schema-version.ts';

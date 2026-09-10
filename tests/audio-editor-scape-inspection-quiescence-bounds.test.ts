@@ -3,12 +3,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createScapeInspectionService } from '../src/common/editor/controller/scape-inspection-service.ts';
-import * as quiescenceModule from '../src/common/editor/controller/scape-inspection-quiescence.ts';
+import { createScapeInspectionService } from '../src/common/editor/controller/document/internal/scape/scape-inspection-service.ts';
+import * as quiescenceModule from '../src/common/editor/controller/document/internal/scape/scape-inspection-quiescence.ts';
 import type {
 	ScapeInspectionAdmission,
 	ScapeInspectionQuiescence,
-} from '../src/common/editor/controller/scape-inspection-quiescence.ts';
+} from '../src/common/editor/controller/document/internal/scape/scape-inspection-quiescence.ts';
 
 interface ScapeInspectionQuiescenceLimits {
 	readonly maximumActiveInspections: number;

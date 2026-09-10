@@ -7,7 +7,7 @@ import {
 	encodeRenderedAudio,
 	type RenderedAudioEncodingPlan,
 	type RenderedAudioEncodingRuntime,
-} from '../src/common/editor/controller/rendered-audio-encoding.ts';
+} from '../src/common/editor/controller/export/internal/rendered-audio-encoding.ts';
 
 interface TestBuffer {
 	readonly sampleRate: number;

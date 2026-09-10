@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createVideoPreviewPresentedFrameGate,
 	type VideoPreviewPresentedFrameSource,
-} from '../src/common/editor/controller/video-preview-presented-frame.ts';
+} from '../src/common/editor/controller/clip-video/video-preview-presented-frame.ts';
 
 test('presented-frame gate coalesces readiness until the browser authenticates one picture', () => {
 	const gate = createVideoPreviewPresentedFrameGate();
