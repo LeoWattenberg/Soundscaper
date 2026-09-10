@@ -230,7 +230,7 @@ export interface ImportVideoRuntime {
 	normalizeImportOptions(): Readonly<ImportVideoOptions>;
 	peakCacheKey(sourceId: string): string;
 	preflightStorage(bytes: number, category: 'import'): PromiseLike<unknown>;
-	getProject(): ImportVideoProject;
+	getProject(): ImportVideoProject | null;
 	projectSampleRate(): number;
 	revokeVideoVisual(sourceId: string): Awaitable<unknown>;
 	stripExtension(name: string): string;

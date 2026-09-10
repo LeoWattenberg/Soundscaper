@@ -148,11 +148,7 @@ export function createImportComposition(dependencies: ImportCompositionDependenc
 		normalizeImportOptions: projectImport.normalizeImportOptions,
 		peakCacheKey,
 		preflightStorage: dependencies.preflightStorage,
-		getProject: () => {
-			const project = dependencies.getProject();
-			if (!project) throw new Error('Video import requires an open project.');
-			return project;
-		},
+		getProject: dependencies.getProject,
 		captureProject,
 		assertProject,
 		projectSampleRate: dependencies.projectSampleRate,

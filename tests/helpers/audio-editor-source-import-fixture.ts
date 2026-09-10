@@ -119,6 +119,7 @@ export function createFixture() {
 		commitFails: false,
 		commitMutatesThenFails: false,
 		extractorFails: false,
+		projectAbsent: false,
 		preflightFails: false,
 		peaksFail: false,
 	};
@@ -280,7 +281,7 @@ export function createFixture() {
 				throw new Error('The project changed during video import.');
 			}
 		},
-		getProject: () => project,
+		getProject: () => options.projectAbsent ? null : project,
 		projectSampleRate: () => 48_000,
 		revokeVideoVisual: (sourceId: string) => { calls.push(`revoke:${sourceId}`); },
 		sourceBuffers,

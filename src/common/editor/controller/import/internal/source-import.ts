@@ -23,10 +23,10 @@ import { decodeImportedVideoAudio } from './video-import-audio-decode.ts';
 import { digestImportedVideoFile, publishImportedVideo } from './source-import-video-publication.ts';
 import type {
 	ImportVideoFile, ImportVideoFrameExtractor, ImportVideoOptions, ImportVideoRuntime,
-	ImportVideoSource, PreparedVideoImport,
-} from './source-import-types.ts';
+	ImportVideoProject, ImportVideoSource, PreparedVideoImport,
+} from './source-import-types.d.ts';
 
-export type { ImportVideoFile, ImportVideoFileInput, ImportVideoOptions, ImportVideoResult, ImportVideoRuntime } from './source-import-types.ts';
+export type { ImportVideoFile, ImportVideoFileInput, ImportVideoOptions, ImportVideoResult, ImportVideoRuntime } from './source-import-types.d.ts';
 
 export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoFile {
 	const {
@@ -53,6 +53,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 		let prepared: PreparedVideoImport;
 		try {
 			const startingProject = getProject();
+			if (!startingProject) throw new Error('Video import requires an open project.');
 			const startingProjectToken = captureProject();
 			const startingProjectId = startingProject.id;
 			const startingVideoTrackCount = startingProject.tracks
@@ -133,13 +134,15 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			startingProjectId, startingProjectToken, sampleRate, metadataDurationFrames, videoSourceId, videoClipId,
 			binItemId, trackName, sourceName, timingProbe, canonicalVideoFile, conformedAtIngest,
 		} = prepared;
-		const assertImportProjectCurrent = () => {
+		const requireImportProjectCurrent = (): ImportVideoProject => {
 			try { assertProject(startingProjectToken); } catch (error) {
 				throw new Error('The project changed during video import.', { cause: error });
 			}
-			if (getProject()?.id !== startingProjectId) {
+			const project = getProject();
+			if (project?.id !== startingProjectId) {
 				throw new Error('The project changed during video import.');
 			}
+			return project;
 		};
 		let audioSourceId: string | null = null;
 		let audioClipId = null;
@@ -160,8 +163,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			}
 		};
 		try {
-			assertImportProjectCurrent();
-			const activeProject = getProject();
+			const activeProject = requireImportProjectCurrent();
 			const sequenceId = activeProject.primarySequenceId || 'main-sequence';
 			const sequence = activeProject.sequences?.find((candidate) => candidate.id === sequenceId)
 				|| { id: sequenceId, rate: { num: 30, den: 1 } };
@@ -413,15 +415,16 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				commands.push({ type: 'project-bin/add', clip: videoClip });
 				if (audioClip) commands.push({ type: 'project-bin/add', clip: audioClip });
 			} else {
-				const target = importOptions.trackId ? findTrack(getProject(), importOptions.trackId) : null;
+				const currentProject = requireImportProjectCurrent();
+				const target = importOptions.trackId ? findTrack(currentProject, importOptions.trackId) : null;
 				const laneGroupId = target?.laneGroupId || createStableId('media-lane');
 				let videoTrack = target?.type === 'video' ? target : null;
 				let audioTrack = target?.type === 'audio' ? target : null;
 				if (target?.laneGroupId) {
-					videoTrack ||= getProject().tracks.find((track) => (
+					videoTrack ||= currentProject.tracks.find((track) => (
 						track.type === 'video' && track.laneGroupId === target.laneGroupId
 					)) || null;
-					audioTrack ||= getProject().tracks.find((track) => (
+					audioTrack ||= currentProject.tracks.find((track) => (
 						track.type === 'audio' && track.laneGroupId === target.laneGroupId
 					)) || null;
 				}
@@ -430,7 +433,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 					const audioTrackId = createStableId('track');
 					const index = typeof importOptions.trackIndex === 'number' && Number.isSafeInteger(importOptions.trackIndex)
 						? importOptions.trackIndex
-						: getProject().tracks.length;
+						: currentProject.tracks.length;
 					commands.push({
 						...createAddTrackCommand({
 							type: 'video',
@@ -457,7 +460,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				commands.push(createAddClipCommand(videoTrack.id, { ...videoClip, avLinkId }));
 				if (audioClip) commands.push(createAddClipCommand(audioTrack.id, { ...audioClip, avLinkId }));
 			}
-			assertImportProjectCurrent();
+			requireImportProjectCurrent();
 			if (linkedVideoLocatorId) {
 				linkedBinding = await store.bindLinkedVideoOriginal(
 					linkedProjectId,
@@ -474,7 +477,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				}
 			}
 			await activateVideoSource(videoSource);
-			assertImportProjectCurrent();
+			requireImportProjectCurrent();
 			commit({ type: 'batch', commands }, {
 				selectTrackId: selectedTrackId,
 				selectClipId: videoClipId,

@@ -315,6 +315,25 @@ test('linked video import rolls back when the active project changes during acti
 	assert.deepEqual(fixture.getProject().sources, []);
 });
 
+test('video import rolls back when the active project closes during activation', async () => {
+	const fixture = createFixture();
+	let continueActivation!: () => void;
+	fixture.options.activationGate = new Promise<void>((resolve) => { continueActivation = resolve; });
+	const operation = createImportVideoFile(fixture.runtime)(videoFile(), {
+		destination: 'project-bin', trackId: null, timelineStartFrame: 0,
+	});
+	while (!fixture.calls.includes('activate:video-source-1')) await Promise.resolve();
+	fixture.options.projectAbsent = true;
+	continueActivation();
+
+	await assert.rejects(operation, /project changed during video import/iu);
+	assert.equal(fixture.commits.length, 0);
+	assert.deepEqual(fixture.deletedSources, ['source-1']);
+	assert.deepEqual(fixture.deletedMedia, ['video-source-1']);
+	assert.deepEqual(fixture.mediaDiscardAttempts, ['video-source-1']);
+	assert.equal(fixture.calls.includes('revoke:video-source-1'), true);
+});
+
 test('linked video import rolls back when the active project generation changes under the same id', async () => {
 	const fixture = createFixture();
 	let continueActivation!: () => void;
