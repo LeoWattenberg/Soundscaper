@@ -258,7 +258,7 @@ export interface EditorActionFunctions {
 	readonly toggleSelectionFollowsLoop: ReturnType<typeof createTransportComposition>['transport']['toggleSelectionFollowsLoop'];
 	readonly toggleStretchToTempo: ReturnType<typeof createClipVideoComposition>['clipProperty']['toggleStretchToTempo'];
 	readonly toggleToolbarPreference: ReturnType<typeof createPreferencesComposition>['actions']['toggleToolbarPreference'];
-	readonly toggleUpdateWhilePlaying: ReturnType<typeof createTrackAudioComposition>['selectionView']['toggleUpdateWhilePlaying'];
+	readonly toggleScrollViewToPlayhead: ReturnType<typeof createTrackAudioComposition>['selectionView']['toggleScrollViewToPlayhead'];
 	readonly toggleVerticalRulers: ReturnType<typeof createTrackAudioComposition>['selectionView']['toggleVerticalRulers'];
 	readonly toggleVideoClipEffect: ReturnType<typeof createClipVideoComposition>['videoEffect']['toggleVideoClipEffect'];
 	readonly trimClips: ReturnType<typeof createClipVideoComposition>['clipTransform']['trimClips'];

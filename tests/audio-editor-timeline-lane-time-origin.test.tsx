@@ -29,7 +29,7 @@ test('a label at the playhead is drawn on the playhead, not left of it', () => {
 	const projection = readFileSync(new URL(
 		'../src/common/editor/ui/timeline/TimelinePlaybackProjection.tsx', import.meta.url,
 	), 'utf8');
-	assert.match(projection, /`\$\{CLIP_CONTENT_OFFSET \+ positionPixels\}px`/u);
+	assert.match(projection, /const playheadX = CLIP_CONTENT_OFFSET[\s\S]*`\$\{playheadX\}px`/u);
 });
 
 test('pointer positions in a label lane read back the time drawn under them', () => {
@@ -59,9 +59,10 @@ test('scrolling to a timeline position lands on the pixel that draws it', () => 
 
 	assert.match(
 		source('timeline/TimelinePlaybackProjection.tsx'),
-		/CLIP_CONTENT_OFFSET \+ positionPixels - viewportWidth \/ 2,/u,
+		/playheadX,[\s\S]*leadingInset: CLIP_CONTENT_OFFSET,/u,
 		'the pinned playhead centres on its own drawn position',
 	);
+	assert.match(source('timeline/timeline-playback-frame-loop.ts'), /position - viewport \/ 2/u);
 	assert.match(
 		source('timeline/useTimelineNavigation.js'),
 		/const clipCenterPixels = CLIP_CONTENT_OFFSET \+ framesToSeconds\(/u,

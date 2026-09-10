@@ -37,7 +37,7 @@ export interface ControllerTransportState {
 	selectionFollowsLoop: boolean;
 	pinnedPlayhead: boolean;
 	playbackOnRulerClick: boolean;
-	updateDisplayWhilePlaying: boolean;
+	scrollViewToPlayhead: boolean;
 }
 
 export function createControllerTransportState(): ControllerTransportState {
@@ -59,6 +59,6 @@ export function createControllerTransportState(): ControllerTransportState {
 		selectionFollowsLoop: false,
 		pinnedPlayhead: false,
 		playbackOnRulerClick: true,
-		updateDisplayWhilePlaying: true,
+		scrollViewToPlayhead: true,
 	};
 }

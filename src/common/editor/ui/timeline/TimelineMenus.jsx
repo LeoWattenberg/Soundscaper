@@ -95,8 +95,8 @@ export function TimelineMenus({
 				onTimeFormatChange={(format) => run(() => controller.actions.project.setTimeDisplay(
 					format === 'beats-measures' ? 'beats+measures' : 'hh:mm:ss+milliseconds',
 				))}
-				updateDisplayWhilePlaying={snapshot.timeline?.updateDisplayWhilePlaying !== false}
-				onToggleUpdateDisplay={() => run(() => controller.actions.timeline.toggleUpdateWhilePlaying())}
+				scrollViewToPlayhead={snapshot.timeline?.scrollViewToPlayhead !== false}
+				onToggleScrollViewToPlayhead={() => run(() => controller.actions.timeline.toggleScrollViewToPlayhead())}
 				pinnedPlayHead={Boolean(snapshot.timeline?.pinnedPlayhead)}
 				onTogglePinnedPlayHead={() => run(() => controller.actions.timeline.togglePinnedPlayhead())}
 				clickRulerToStartPlayback={snapshot.timeline?.playbackOnRulerClick !== false}

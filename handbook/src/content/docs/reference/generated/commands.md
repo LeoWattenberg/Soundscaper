@@ -229,6 +229,7 @@ Product availability follows each product profile’s command filters. “—”
 | Save preset as | `action://effects/presets/save_as` | — | Effect dialog > Presets | Soundscaper | Audacity |
 | Save project | `file-save` | Ctrl+S | File | Soundscaper, Framescaper | Audacity |
 | Save project as | `file-save-as` | — | File | Soundscaper, Framescaper | Audacity |
+| Scroll view to playhead | `toggle-update-display-while-playing` | — | View | Soundscaper, Framescaper | Audacity |
 | Select all | `select-all` | Ctrl+A | Select | Soundscaper, Framescaper | Audacity |
 | Select all tracks | `select-all-tracks` | Ctrl+Shift+K | Select | Soundscaper, Framescaper | Audacity |
 | Select no tracks | `local://select-no-tracks` | — | Select > Tracks | Soundscaper, Framescaper | Soundscaper local |
@@ -303,7 +304,6 @@ Product availability follows each product profile’s command filters. “—”
 | Ungroup clips | `ungroup-clips` | Ctrl+Shift+G | Edit > Clip; Clip context | Soundscaper, Framescaper | Audacity |
 | Unmute Tracks | `unmute-tracks` | Ctrl+Alt+Shift+U | Tracks > Mute/Unmute | Soundscaper, Framescaper | Audacity |
 | Unmute all tracks | `local://unmute-all` | Ctrl+Shift+U | Tracks | Soundscaper, Framescaper | Soundscaper local |
-| Update display while playing | `toggle-update-display-while-playing` | — | View | Soundscaper, Framescaper | Audacity |
 | Vocoder | `nyquist:vocoder` | — | Nyquist | Soundscaper | Audacity |
 | Waveform | `action://trackedit/track-view-waveform` | — | Track context > Display | Soundscaper, Framescaper | Audacity |
 | Zoom in | `zoom-in` | Ctrl+= | View > Zoom | Soundscaper, Framescaper | Audacity |

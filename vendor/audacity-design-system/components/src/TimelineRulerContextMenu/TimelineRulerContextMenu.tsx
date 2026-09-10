@@ -36,14 +36,14 @@ export interface TimelineRulerContextMenuProps {
   onTimeFormatChange?: (format: 'minutes-seconds' | 'beats-measures') => void;
 
   /**
-   * Whether "Update display while playing" is enabled
+   * Whether "Scroll view to playhead" is enabled
    */
-  updateDisplayWhilePlaying?: boolean;
+  scrollViewToPlayhead?: boolean;
 
   /**
-   * Callback for toggling "Update display while playing"
+   * Callback for toggling "Scroll view to playhead"
    */
-  onToggleUpdateDisplay?: () => void;
+  onToggleScrollViewToPlayhead?: () => void;
 
   /**
    * Whether "Pinned play head" is enabled
@@ -127,8 +127,8 @@ export const TimelineRulerContextMenu: React.FC<TimelineRulerContextMenuProps> =
   y,
   timeFormat = 'minutes-seconds',
   onTimeFormatChange,
-  updateDisplayWhilePlaying = false,
-  onToggleUpdateDisplay,
+  scrollViewToPlayhead = false,
+  onToggleScrollViewToPlayhead,
   pinnedPlayHead = false,
   onTogglePinnedPlayHead,
   clickRulerToStartPlayback = false,
@@ -178,13 +178,13 @@ export const TimelineRulerContextMenu: React.FC<TimelineRulerContextMenuProps> =
 
       {/* Display options */}
       <ContextMenuItem
-        label="Update display while playing"
+        label="Scroll view to playhead"
         onClick={() => {
-          onToggleUpdateDisplay?.();
+          onToggleScrollViewToPlayhead?.();
           onClose();
         }}
         onClose={onClose}
-        icon={updateDisplayWhilePlaying ? <CheckIcon /> : null}
+        icon={scrollViewToPlayhead ? <CheckIcon /> : null}
       />
 
       <ContextMenuItem

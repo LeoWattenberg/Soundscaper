@@ -38,7 +38,7 @@ type TrackAudioCompositionWritableState = Pick<TrackAudioCompositionState,
 	| 'selectedTrackId' | 'selectedClipId' | 'selectedAnnotationId'
 	| 'analysisProcessing' | 'showRms' | 'showVerticalRulers' | 'pixelsPerSecond'
 	| 'audacityEffectProcessing' | 'timelineView'
-	| 'updateDisplayWhilePlaying' | 'pinnedPlayhead' | 'playbackOnRulerClick'
+	| 'scrollViewToPlayhead' | 'pinnedPlayhead' | 'playbackOnRulerClick'
 >;
 
 export type TrackAudioRecordingStatePort = Pick<TrackRecordingRoutingPort,

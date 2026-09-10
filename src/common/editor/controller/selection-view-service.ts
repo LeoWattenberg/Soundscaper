@@ -19,7 +19,7 @@ export type * from './selection-view-service-types.d.ts';
 type SelectionViewBooleanPreferenceKey =
 	| 'showRms'
 	| 'showVerticalRulers'
-	| 'updateDisplayWhilePlaying'
+	| 'scrollViewToPlayhead'
 	| 'pinnedPlayhead'
 	| 'playbackOnRulerClick';
 
@@ -369,12 +369,34 @@ export function createSelectionViewService<
 		return persistBooleanPreference('showVerticalRulers', 'timeline-show-vertical-rulers');
 	}
 
-	function toggleUpdateWhilePlaying() {
-		return persistBooleanPreference('updateDisplayWhilePlaying', 'timeline-update-while-playing');
+	function toggleScrollViewToPlayhead() {
+		return persistPlaybackFollowPreference(
+			'scrollViewToPlayhead', 'timeline-update-while-playing',
+			'pinnedPlayhead', 'timeline-pinned-playhead',
+		);
 	}
 
 	function togglePinnedPlayhead() {
-		return persistBooleanPreference('pinnedPlayhead', 'timeline-pinned-playhead');
+		return persistPlaybackFollowPreference(
+			'pinnedPlayhead', 'timeline-pinned-playhead',
+			'scrollViewToPlayhead', 'timeline-update-while-playing',
+		);
+	}
+
+	function persistPlaybackFollowPreference(
+		stateKey: 'scrollViewToPlayhead' | 'pinnedPlayhead',
+		settingKey: string,
+		exclusiveStateKey: 'scrollViewToPlayhead' | 'pinnedPlayhead',
+		exclusiveSettingKey: string,
+	) {
+		state[stateKey] = !state[stateKey];
+		void persistSetting(productSettingKey(settingKey), state[stateKey]);
+		if (state[stateKey] && state[exclusiveStateKey]) {
+			state[exclusiveStateKey] = false;
+			void persistSetting(productSettingKey(exclusiveSettingKey), false);
+		}
+		publishDocumentSnapshot();
+		return state[stateKey];
 	}
 
 	function toggleRulerPlayback() {
@@ -485,7 +507,7 @@ export function createSelectionViewService<
 		togglePinnedPlayhead,
 		toggleRmsWaveform,
 		toggleRulerPlayback,
-		toggleUpdateWhilePlaying,
+		toggleScrollViewToPlayhead,
 		toggleVerticalRulers,
 	});
 }

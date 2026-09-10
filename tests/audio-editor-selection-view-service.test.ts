@@ -80,7 +80,7 @@ function createFixture(options: { readonly timelineDurationFrames?: number;
 		selectedAnnotationId: null,
 		showRms: false,
 		showVerticalRulers: false,
-		updateDisplayWhilePlaying: true,
+		scrollViewToPlayhead: true,
 		pinnedPlayhead: false,
 		playbackOnRulerClick: true,
 		timelineViewportWidth: 1_000,
@@ -234,18 +234,18 @@ test('retired zero-crossing cleanup cannot release a newer project analysis', as
 	assert.equal(fixture.state.analysisProcessing, false);
 });
 
-test('view toggles share durable preference publication behavior', () => {
+test('view toggles persist mutually exclusive playback-follow preferences', () => {
 	const fixture = createFixture();
 	assert.equal(fixture.service.toggleRmsWaveform(), true);
 	assert.equal(fixture.service.toggleVerticalRulers(), true);
-	assert.equal(fixture.service.toggleUpdateWhilePlaying(), false);
-	assert.equal(fixture.service.togglePinnedPlayhead(), true);
+	assert.deepEqual([fixture.service.togglePinnedPlayhead(), fixture.state.scrollViewToPlayhead], [true, false]);
+	assert.deepEqual([fixture.service.toggleScrollViewToPlayhead(), fixture.state.pinnedPlayhead], [true, false]);
 	assert.equal(fixture.service.toggleRulerPlayback(), false);
 	assert.deepEqual(fixture.persisted, [
 		['product:waveform-show-rms', true],
 		['product:timeline-show-vertical-rulers', true],
-		['product:timeline-update-while-playing', false],
-		['product:timeline-pinned-playhead', true],
+		['product:timeline-pinned-playhead', true], ['product:timeline-update-while-playing', false],
+		['product:timeline-update-while-playing', true], ['product:timeline-pinned-playhead', false],
 		['product:timeline-ruler-playback', false],
 	]);
 	assert.equal(fixture.publishes(), 5);

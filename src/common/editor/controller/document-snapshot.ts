@@ -123,7 +123,7 @@ export interface EditorDocumentSnapshotState {
 	readonly timelineView: string;
 	readonly showRms: boolean;
 	readonly showVerticalRulers: boolean;
-	readonly updateDisplayWhilePlaying: boolean;
+	readonly scrollViewToPlayhead: boolean;
 	readonly pinnedPlayhead: boolean;
 	readonly playbackOnRulerClick: boolean;
 	readonly pixelsPerSecond: number;
@@ -286,7 +286,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 			view: state.timelineView,
 			showRms: state.showRms,
 			showVerticalRulers: state.showVerticalRulers,
-			updateDisplayWhilePlaying: state.updateDisplayWhilePlaying,
+			scrollViewToPlayhead: state.scrollViewToPlayhead,
 			pinnedPlayhead: state.pinnedPlayhead,
 			playbackOnRulerClick: state.playbackOnRulerClick,
 			pixelsPerSecond: state.pixelsPerSecond,

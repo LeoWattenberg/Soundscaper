@@ -92,7 +92,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	const { renameProjectBinClip, removeProjectBinClip, setProjectBinClipColor, projectBinInstanceCount, selectProjectBinInstances, removeProjectBinSource } = deferControllerMethods(() => services.imports().projectBin, ['renameProjectBinClip', 'removeProjectBinClip', 'setProjectBinClipColor', 'projectBinInstanceCount', 'selectProjectBinInstances', 'removeProjectBinSource']);
 	const { mixAndRenderTracks, resampleTrack, resampleClip, swapTrackChannels, splitStereoTrack, makeStereoTrack } = deferControllerMethods(() => services.tracks(), ['mixAndRenderTracks', 'resampleTrack', 'resampleClip', 'swapTrackChannels', 'splitStereoTrack', 'makeStereoTrack']);
 	const { splitAtFrame } = deferControllerMethods(() => services.edits().clipboard, ['splitAtFrame']);
-	const { selectTrack, selectAllTracks, selectTrackStartToCursor, selectCursorToTrackEnd, selectTrackStartToEnd, selectedTracksTimeRange, toggleRmsWaveform, toggleVerticalRulers, toggleUpdateWhilePlaying, togglePinnedPlayhead, toggleRulerPlayback, selectAtZeroCrossings, setZoom } = deferControllerMethods(() => services.tracks().selectionView, ['selectTrack', 'selectAllTracks', 'selectTrackStartToCursor', 'selectCursorToTrackEnd', 'selectTrackStartToEnd', 'selectedTracksTimeRange', 'toggleRmsWaveform', 'toggleVerticalRulers', 'toggleUpdateWhilePlaying', 'togglePinnedPlayhead', 'toggleRulerPlayback', 'selectAtZeroCrossings', 'setZoom']);
+	const { selectTrack, selectAllTracks, selectTrackStartToCursor, selectCursorToTrackEnd, selectTrackStartToEnd, selectedTracksTimeRange, toggleRmsWaveform, toggleVerticalRulers, toggleScrollViewToPlayhead, togglePinnedPlayhead, toggleRulerPlayback, selectAtZeroCrossings, setZoom } = deferControllerMethods(() => services.tracks().selectionView, ['selectTrack', 'selectAllTracks', 'selectTrackStartToCursor', 'selectCursorToTrackEnd', 'selectTrackStartToEnd', 'selectedTracksTimeRange', 'toggleRmsWaveform', 'toggleVerticalRulers', 'toggleScrollViewToPlayhead', 'togglePinnedPlayhead', 'toggleRulerPlayback', 'selectAtZeroCrossings', 'setZoom']);
 	const { synchronizeAutomaticSampleEditMode, cancelSampleEdit } = deferControllerMethods(() => services.clips().sampleEdit, ['synchronizeAutomaticSampleEditMode', 'cancelSampleEdit']);
 	const { persistRecordingRouting, releaseInputs } = deferControllerMethods(() => services.recording().routing, ['persistRecordingRouting', 'releaseInputs']);
 	const { syncRecordingPoolSnapshot, setMonitoring, setRecordingInputGain, setLatencyOffset, invalidateTakeCycleRecording } = deferControllerMethods(() => services.recording(), ['syncRecordingPoolSnapshot', 'setMonitoring', 'setRecordingInputGain', 'setLatencyOffset', 'invalidateTakeCycleRecording']);
@@ -144,7 +144,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 		mixAndRenderTracks, resampleTrack, resampleClip, swapTrackChannels,
 		splitStereoTrack, makeStereoTrack, splitAtFrame, selectTrack,
 		selectAllTracks, selectTrackStartToCursor, selectCursorToTrackEnd, selectTrackStartToEnd,
-		selectedTracksTimeRange, toggleRmsWaveform, toggleVerticalRulers, toggleUpdateWhilePlaying,
+		selectedTracksTimeRange, toggleRmsWaveform, toggleVerticalRulers, toggleScrollViewToPlayhead,
 		togglePinnedPlayhead, toggleRulerPlayback, selectAtZeroCrossings, setZoom,
 		synchronizeAutomaticSampleEditMode, cancelSampleEdit, persistRecordingRouting, releaseInputs,
 		syncRecordingPoolSnapshot, setMonitoring, setRecordingInputGain, setLatencyOffset,

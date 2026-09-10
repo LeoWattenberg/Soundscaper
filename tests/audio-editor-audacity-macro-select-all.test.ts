@@ -69,7 +69,7 @@ function createFixture() {
 		selectedAnnotationId: null,
 		showRms: false,
 		showVerticalRulers: false,
-		updateDisplayWhilePlaying: true,
+		scrollViewToPlayhead: true,
 		pinnedPlayhead: false,
 		playbackOnRulerClick: true,
 		timelineViewportWidth: 1_000,

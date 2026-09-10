@@ -7,8 +7,13 @@ import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import {
 	createTimelinePlaybackFrameLoop,
 	lowRateTimelinePositionFrame,
+	resolveTimelinePlaybackScroll,
+	type TimelinePlaybackFollowMode,
 } from './timeline-playback-frame-loop.ts';
-import { timelineDomScrollForElement } from './timeline-scroll-space.ts';
+import {
+	readTimelineContentScrollX,
+	timelineDomScrollForElement,
+} from './timeline-scroll-space.ts';
 
 interface PlaybackTelemetrySnapshot {
 	readonly positionFrame?: number;
@@ -28,7 +33,7 @@ export function TimelinePlaybackProjection({
 	pixelsPerSecond,
 	sampleRate,
 	viewportWidth,
-	pinned,
+	followMode,
 }: Readonly<{
 	controller: PlaybackProjectionController;
 	rootRef: RefObject<HTMLElement | null>;
@@ -36,7 +41,7 @@ export function TimelinePlaybackProjection({
 	pixelsPerSecond: number;
 	sampleRate: number;
 	viewportWidth: number;
-	pinned: boolean;
+	followMode: TimelinePlaybackFollowMode;
 }>) {
 	const positionFrame = useAudioEditorTelemetrySelector(
 		controller,
@@ -47,22 +52,71 @@ export function TimelinePlaybackProjection({
 		(telemetry: PlaybackTelemetrySnapshot) => telemetry.transportState || 'stopped',
 	);
 	const latestPositionRef = useRef(positionFrame);
+	const suspendedRef = useRef(false);
+	const automaticScrollRef = useRef<number | null>(null);
 	latestPositionRef.current = positionFrame;
 	const projectPosition = useCallback((rawFrame: number, follow: boolean) => {
 		const frame = Math.max(0, Number(rawFrame) || 0);
-		const positionPixels = frame / Math.max(1, sampleRate) * pixelsPerSecond;
+		const playheadX = CLIP_CONTENT_OFFSET
+			+ frame / Math.max(1, sampleRate) * pixelsPerSecond;
 		rootRef.current?.style.setProperty(
 			'--timeline-playhead-x',
-			`${CLIP_CONTENT_OFFSET + positionPixels}px`,
+			`${playheadX}px`,
 		);
 		const scroll = scrollRef.current;
-		if (!follow || !pinned || !scroll) return;
+		if (!follow || !scroll) return;
+		const resolution = resolveTimelinePlaybackScroll({
+			mode: followMode,
+			playheadX,
+			scrollX: readTimelineContentScrollX(scroll),
+			viewportWidth,
+			leadingInset: CLIP_CONTENT_OFFSET,
+			suspended: suspendedRef.current,
+		});
+		suspendedRef.current = resolution.suspended;
+		if (resolution.targetScrollX === null) return;
 		const nextScroll = timelineDomScrollForElement(
 			scroll,
-			CLIP_CONTENT_OFFSET + positionPixels - viewportWidth / 2,
+			resolution.targetScrollX,
 		);
-		if (Math.abs(scroll.scrollLeft - nextScroll) > 1) scroll.scrollLeft = nextScroll;
-	}, [pinned, pixelsPerSecond, rootRef, sampleRate, scrollRef, viewportWidth]);
+		if (Math.abs(scroll.scrollLeft - nextScroll) <= 1) return;
+		automaticScrollRef.current = nextScroll;
+		scroll.scrollLeft = nextScroll;
+	}, [followMode, pixelsPerSecond, rootRef, sampleRate, scrollRef, viewportWidth]);
+
+	useEffect(() => {
+		suspendedRef.current = false;
+	}, [followMode]);
+
+	useEffect(() => {
+		const scroll = scrollRef.current;
+		if (!scroll) return undefined;
+		let previousScrollLeft = scroll.scrollLeft;
+		const handleScroll = () => {
+			const currentScrollLeft = scroll.scrollLeft;
+			if (Math.abs(previousScrollLeft - currentScrollLeft) <= 1) return;
+			previousScrollLeft = currentScrollLeft;
+			const automaticScroll = automaticScrollRef.current;
+			if (automaticScroll !== null && Math.abs(automaticScroll - currentScrollLeft) <= 1) {
+				automaticScrollRef.current = null;
+				return;
+			}
+			automaticScrollRef.current = null;
+			const frame = controller.engine?.getPositionFrames?.() ?? latestPositionRef.current;
+			const playheadX = CLIP_CONTENT_OFFSET
+				+ Math.max(0, Number(frame) || 0) / Math.max(1, sampleRate) * pixelsPerSecond;
+			suspendedRef.current = resolveTimelinePlaybackScroll({
+				mode: followMode,
+				playheadX,
+				scrollX: readTimelineContentScrollX(scroll),
+				viewportWidth,
+				leadingInset: CLIP_CONTENT_OFFSET,
+				suspended: true,
+			}).suspended;
+		};
+		scroll.addEventListener('scroll', handleScroll);
+		return () => scroll.removeEventListener('scroll', handleScroll);
+	}, [controller, followMode, pixelsPerSecond, sampleRate, scrollRef, viewportWidth]);
 
 	useLayoutEffect(() => {
 		if (transportState === 'playing' || transportState === 'recording') return;

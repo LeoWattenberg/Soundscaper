@@ -78,12 +78,13 @@ test('composed timeline actions write transport-owned display preferences', asyn
 	const controller = createController([]);
 	try {
 		await controller.ready;
-		assert.equal(controller.actions.timeline.toggleUpdateWhilePlaying(), false);
 		assert.equal(controller.actions.timeline.togglePinnedPlayhead(), true);
+		assert.equal(controller.getSnapshot().timeline.scrollViewToPlayhead, false);
+		assert.equal(controller.actions.timeline.toggleScrollViewToPlayhead(), true);
 		assert.equal(controller.actions.timeline.toggleRulerPlayback(), false);
 		const timeline = controller.getSnapshot().timeline;
-		assert.equal(timeline.updateDisplayWhilePlaying, false);
-		assert.equal(timeline.pinnedPlayhead, true);
+		assert.equal(timeline.scrollViewToPlayhead, true);
+		assert.equal(timeline.pinnedPlayhead, false);
 		assert.equal(timeline.playbackOnRulerClick, false);
 	} finally {
 		await controller.dispose();

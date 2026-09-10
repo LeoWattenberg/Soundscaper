@@ -20,7 +20,7 @@ export function stateFixture(
 		recordingRouting: { routes: {}, offsets: {} }, recordingRouteHealth: {},
 		recordingPoolSources: [], audacityEffectProcessing: false, exportAbort: null,
 		timelineView: 'waveform', showRms: false, showVerticalRulers: true,
-		updateDisplayWhilePlaying: true, pinnedPlayhead: false, playbackOnRulerClick: true,
+		scrollViewToPlayhead: true, pinnedPlayhead: false, playbackOnRulerClick: true,
 		pixelsPerSecond: 120, timelineWidth: 1_200, autoFitTrackHeight: true,
 		sampleEditMode: null, sampleEditProcessing: false, history: null, clipboard: null,
 		status: { message: 'Ready', state: 'info' }, saveState: 'saved',

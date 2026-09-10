@@ -90,7 +90,7 @@ function createFixture(options: Readonly<{
 		leadInRecording: false,
 		showRms: false,
 		showVerticalRulers: true,
-		updateDisplayWhilePlaying: true,
+		scrollViewToPlayhead: true,
 		pinnedPlayhead: false,
 		playbackOnRulerClick: true,
 		metronomeEnabled: false,
@@ -325,6 +325,8 @@ test('bootstrap applies settings before opening the saved project', async () => 
 	fixture.settings.set('recording-lead-in', true);
 	fixture.settings.set('product:waveform-show-rms', true);
 	fixture.settings.set('product:timeline-show-vertical-rulers', false);
+	fixture.settings.set('product:timeline-update-while-playing', true);
+	fixture.settings.set('product:timeline-pinned-playhead', true);
 	fixture.settings.set('product:audio-devices', {
 		inputDeviceId: 'mic-a', inputChannelCount: 2, outputDeviceId: 'output-a',
 	});
@@ -336,6 +338,7 @@ test('bootstrap applies settings before opening the saved project', async () => 
 	assert.equal(fixture.state.recordingInputGain, 1.5);
 	assert.equal(fixture.state.latencyOffsetMs, 42);
 	assert.equal(fixture.state.showVerticalRulers, false);
+	assert.deepEqual([fixture.state.scrollViewToPlayhead, fixture.state.pinnedPlayhead], [false, true]);
 	assert.equal(fixture.state.preferredInputChannelCount, 2);
 	assert.ok(fixture.events.includes('reconcile-linked-originals'));
 	assert.equal(fixture.events.includes('reconcile-linked-video'), false);

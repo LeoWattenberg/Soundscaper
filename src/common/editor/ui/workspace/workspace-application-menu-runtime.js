@@ -273,7 +273,7 @@ export function createWorkspaceApplicationMenus({
 				setTimelineView: (view) => run(() => controller.actions.timeline.setView(view)),
 				toggleRms: () => run(() => controller.actions.timeline.toggleRms()),
 				toggleVerticalRulers: () => run(() => controller.actions.timeline.toggleVerticalRulers()),
-				toggleUpdateWhilePlaying: () => run(() => controller.actions.timeline.toggleUpdateWhilePlaying()),
+				toggleScrollViewToPlayhead: () => run(() => controller.actions.timeline.toggleScrollViewToPlayhead()),
 				togglePinnedPlayhead: () => run(() => controller.actions.timeline.togglePinnedPlayhead()),
 				toggleRulerPlayback: () => run(() => controller.actions.timeline.toggleRulerPlayback()),
 					setSnap: (settings) => run(() => controller.actions.timeline.setSnap(settings)),

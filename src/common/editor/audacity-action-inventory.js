@@ -226,7 +226,7 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 	implemented('minutes-seconds-ruler', 'Minutes and seconds ruler', ['Timeline ruler'], 'timeline.setSecondsRuler', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('beats-measures-ruler', 'Beats and measures ruler', ['Timeline ruler'], 'timeline.setMusicalRuler', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('show-master-track', 'Show master track', ['View'], 'workspace.toggleMasterTrack', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
-	implemented('toggle-update-display-while-playing', 'Update display while playing', ['View'], 'timeline.toggleUpdateWhilePlaying', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
+	implemented('toggle-update-display-while-playing', 'Scroll view to playhead', ['View'], 'timeline.toggleScrollViewToPlayhead', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('toggle-pinned-play-head', 'Pinned playhead', ['View'], 'timeline.togglePinnedPlayhead', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('toggle-playback-on-ruler-click-enabled', 'Click ruler to start playback', ['Timeline ruler'], 'timeline.toggleRulerPlayback', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('skip-to-selection-start', 'Selection start', ['View > Skip to'], 'selection.skipToSelectionStart', { enableWhen: 'time-or-clip-selection' }),

@@ -12,6 +12,22 @@ interface TimelinePositionTelemetry {
 	readonly transportState?: unknown;
 }
 
+export type TimelinePlaybackFollowMode = 'none' | 'page' | 'pinned';
+
+interface TimelinePlaybackScrollOptions {
+	readonly mode: TimelinePlaybackFollowMode;
+	readonly playheadX: number;
+	readonly scrollX: number;
+	readonly viewportWidth: number;
+	readonly leadingInset: number;
+	readonly suspended?: boolean;
+}
+
+export interface TimelinePlaybackScrollResolution {
+	readonly suspended: boolean;
+	readonly targetScrollX: number | null;
+}
+
 const ACCESSIBLE_POSITION_UPDATES_PER_SECOND = 4;
 
 export function lowRateTimelinePositionFrame(
@@ -26,6 +42,32 @@ export function lowRateTimelinePositionFrame(
 		(Number(sampleRate) || 48_000) / ACCESSIBLE_POSITION_UPDATES_PER_SECOND,
 	));
 	return Math.floor(positionFrame / intervalFrames) * intervalFrames;
+}
+
+export function resolveTimelinePlaybackScroll({
+	mode,
+	playheadX,
+	scrollX,
+	viewportWidth,
+	leadingInset,
+	suspended = false,
+}: TimelinePlaybackScrollOptions): TimelinePlaybackScrollResolution {
+	const position = Math.max(0, Number(playheadX) || 0);
+	const viewportStart = Math.max(0, Number(scrollX) || 0);
+	const viewport = Math.max(1, Number(viewportWidth) || 1);
+	const inset = Math.max(0, Number(leadingInset) || 0);
+	const visible = position >= viewportStart + inset && position <= viewportStart + viewport;
+	if (mode === 'none') return { suspended: false, targetScrollX: null };
+	if (suspended && !visible) return { suspended: true, targetScrollX: null };
+	if (mode === 'pinned') {
+		return { suspended: false, targetScrollX: Math.max(0, position - viewport / 2) };
+	}
+	return {
+		suspended: false,
+		targetScrollX: position >= viewportStart + viewport
+			? Math.max(0, position - inset)
+			: null,
+	};
 }
 
 export interface TimelinePlaybackFrameLoop {

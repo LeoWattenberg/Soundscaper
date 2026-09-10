@@ -205,10 +205,9 @@ export function TimelineWorkspaceView({
 				pixelsPerSecond={pixelsPerSecond}
 				sampleRate={sampleRate}
 				viewportWidth={viewportWidth}
-				pinned={Boolean(
-					snapshot.timeline?.pinnedPlayhead
-					&& snapshot.timeline?.updateDisplayWhilePlaying !== false
-				)}
+				followMode={snapshot.timeline?.pinnedPlayhead
+					? 'pinned'
+					: snapshot.timeline?.scrollViewToPlayhead !== false ? 'page' : 'none'}
 			/>
 			<div
 				className="audio-editor-timeline-scroll"

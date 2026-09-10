@@ -234,7 +234,7 @@ export const EDITOR_ACTION_FUNCTION_NAMES = [
 	'toggleSelectionFollowsLoop',
 	'toggleStretchToTempo',
 	'toggleToolbarPreference',
-	'toggleUpdateWhilePlaying',
+	'toggleScrollViewToPlayhead',
 	'toggleVerticalRulers',
 	'toggleVideoClipEffect',
 	'trimClips',

@@ -40,7 +40,7 @@ export interface SelectionViewState extends ClipSelectionNavigationState {
 	analysisProcessing: boolean;
 	showRms: boolean;
 	showVerticalRulers: boolean;
-	updateDisplayWhilePlaying: boolean;
+	scrollViewToPlayhead: boolean;
 	pinnedPlayhead: boolean;
 	playbackOnRulerClick: boolean;
 	timelineViewportWidth: number;

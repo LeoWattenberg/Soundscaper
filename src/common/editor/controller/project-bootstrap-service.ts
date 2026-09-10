@@ -46,7 +46,7 @@ export type ProjectBootstrapRecordingState = Pick<ControllerRecordingState,
 
 export type ProjectBootstrapTransportState = Pick<ControllerTransportState,
 	| 'metronomeEnabled' | 'pinnedPlayhead' | 'playbackOnRulerClick'
-	| 'selectionFollowsLoop' | 'updateDisplayWhilePlaying'
+	| 'selectionFollowsLoop' | 'scrollViewToPlayhead'
 >;
 export type ProjectBootstrapRecordingWriteScope = OwnedStateWriteScope<
 	ProjectBootstrapRecordingState,
@@ -253,7 +253,7 @@ export function createProjectBootstrapService<
 			runtime.productSettingKey('timeline-show-vertical-rulers'),
 			true,
 		)));
-		runtime.transportState.updateDisplayWhilePlaying = Boolean(await guard(runtime.store.loadSetting(
+		runtime.transportState.scrollViewToPlayhead = Boolean(await guard(runtime.store.loadSetting(
 			runtime.productSettingKey('timeline-update-while-playing'),
 			true,
 		)));
@@ -261,6 +261,9 @@ export function createProjectBootstrapService<
 			runtime.productSettingKey('timeline-pinned-playhead'),
 			false,
 		)));
+		if (runtime.transportState.pinnedPlayhead) {
+			runtime.transportState.scrollViewToPlayhead = false;
+		}
 		runtime.transportState.playbackOnRulerClick = Boolean(await guard(runtime.store.loadSetting(
 			runtime.productSettingKey('timeline-ruler-playback'),
 			true,
