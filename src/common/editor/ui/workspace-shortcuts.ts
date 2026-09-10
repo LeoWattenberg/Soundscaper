@@ -267,6 +267,7 @@ export function findShortcutMenuHandler(
 }
 
 export function handleEditorToolbarKeyDown(event: ReactKeyboardEvent<HTMLElement>): void {
+	if (event.target instanceof Element && event.target.closest('[role="menu"]')) return;
 	if (!['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
 	const toolbar = event.currentTarget.querySelector('.toolbar[role="toolbar"]');
 	if (!toolbar) return;

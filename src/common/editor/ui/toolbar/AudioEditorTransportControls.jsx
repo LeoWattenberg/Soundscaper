@@ -379,6 +379,7 @@ export function TelemetryTimeCode({
 	recording,
 	run,
 }) {
+	const [format, setFormat] = useState('hh:mm:ss');
 	const positionFrame = useAudioEditorTelemetrySelector(
 		controller,
 		(telemetry) => telemetry.positionFrame || 0,
@@ -386,6 +387,8 @@ export function TelemetryTimeCode({
 	return <div className="kw-audio-editor__timecode" data-time-display>
 		<AccessibleTimeCode
 			ariaLabel={`${copy.playhead}: ${copy.format}`}
+			format={format}
+			onFormatChange={setFormat}
 			value={framesToSeconds(positionFrame, { sampleRate: project?.sampleRate })}
 			sampleRate={project?.sampleRate || 48_000}
 			showFormatSelector={!isCompact}

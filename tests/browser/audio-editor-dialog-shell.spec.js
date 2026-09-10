@@ -1,5 +1,6 @@
 import { expect } from '@playwright/test';
-import { test } from './audio-editor-test-fixtures.js';
+import { longTone, test } from './audio-editor-test-fixtures.js';
+import { getMenuItem, importFiles } from './audio-editor-test-helpers.js';
 import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
 
 test.describe('shared audio editor dialog behavior', () => {
@@ -54,6 +55,54 @@ test.describe('shared audio editor dialog behavior', () => {
 		});
 		await expect(menu).toBeVisible();
 		await expect(menu.getByRole('menuitem', { name: 'Hz', exact: true })).toHaveCount(0);
+	});
+
+	test('switches playback, selection and duration through grouped frame formats', async ({ page }) => {
+		const editor = await bootEditor(page);
+		const playback = editor.locator('[data-time-display] .timecode');
+		await chooseTimeCodeFormat(page, playback, 'CD frames', 'hh:mm:ss + CDDA frames (75 fps)', true);
+		await expect(playback.locator('.timecode-digit')).toHaveCount(8);
+		await chooseTimeCodeFormat(page, playback, 'CD frames', 'CDDA frames (75 fps)');
+		await expect(playback.locator('.timecode-digit')).toHaveCount(1);
+
+		await importFiles(editor, [longTone]);
+		await chooseCommand(page, editor, 'Select', 'Select all');
+		const timers = editor.locator('[data-selection-toolbar] .timecode');
+		await chooseTimeCodeFormat(page, timers.nth(1), 'CD frames', 'hh:mm:ss + CDDA frames (75 fps)');
+		await expect(timers.nth(0).locator('.timecode-digit')).toHaveCount(8);
+		await expect(timers.nth(1).locator('.timecode-digit')).toHaveCount(8);
+		await chooseTimeCodeFormat(page, timers.nth(2), 'CD frames', 'CDDA frames (75 fps)');
+		await expect(timers.nth(2).locator('.timecode-digit')).toHaveText(['6', '0', '0']);
+		for (const [label, expected] of [
+			['film frames (24fps)', ['1', '9', '2']],
+			['NTSC frames (29.97 fps)', ['2', '3', '9']],
+			['PAL frames (25 fps)', ['2', '0', '0']],
+		]) {
+			await chooseTimeCodeFormat(page, timers.nth(2), 'Video frames', label);
+			await expect(timers.nth(2).locator('.timecode-digit')).toHaveText(expected);
+		}
+		await chooseTimeCodeFormat(page, timers.nth(2), 'Video frames', 'hh:mm:ss + NTSC drop frames (29.97 fps)');
+		await expect(timers.nth(2).locator('.timecode-digit')).toHaveText(['0', '0', '0', '0', '0', '7', '2', '9']);
+		await chooseTimeCodeFormat(page, playback, 'CD frames', 'hh:mm:ss + CDDA frames (75 fps)');
+		await playback.locator('.timecode-digit').nth(5).click();
+		await page.keyboard.press('1');
+		await page.keyboard.press('Enter');
+		await playback.locator('.timecode-digit').nth(7).click();
+		await page.keyboard.press('1');
+		await page.keyboard.press('Enter');
+		await chooseTimeCodeFormat(page, playback, 'CD frames', 'CDDA frames (75 fps)');
+		await expect(playback.locator('.timecode-digit')).toHaveText(['7', '6']);
+		await playback.locator('.timecode-digit').last().click();
+		await page.keyboard.press('7');
+		await page.keyboard.press('Enter');
+		await expect(playback.locator('.timecode-digit')).toHaveText(['7', '7']);
+		await chooseTimeCodeFormat(page, playback, 'Video frames', 'NTSC frames (29.97 fps)');
+		await playback.locator('.timecode-digit').last().click();
+		await page.keyboard.press('2');
+		await playback.locator('.timecode-digit').first().click();
+		await page.keyboard.press('0');
+		await page.keyboard.press('Enter');
+		await expect(playback.locator('.timecode-digit')).toHaveText(['2']);
 	});
 
 	test('offers Tone waveforms and amplitude endpoints in the Chirp generator', async ({ page }) => {
@@ -283,4 +332,19 @@ async function chooseCommandWithHeldInitialFocus(page, editor, menuName, command
 		await page.evaluate(() => window.__releaseHeldDialogFrames?.());
 		throw error;
 	}
+}
+
+async function chooseTimeCodeFormat(page, timer, group, label, keyboard = false) {
+	await timer.getByRole('button').click();
+	const submenu = getMenuItem(page, group);
+	if (keyboard) {
+		await submenu.focus();
+		await page.keyboard.press('ArrowRight');
+	} else await submenu.hover();
+	const option = page.getByRole('menuitem', { name: label, exact: true });
+	await expect(option).toBeVisible();
+	if (keyboard) {
+		await option.focus();
+		await page.keyboard.press('Enter');
+	} else await option.click();
 }

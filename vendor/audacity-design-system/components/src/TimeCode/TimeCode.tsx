@@ -4,55 +4,16 @@ import { TimeCodeUnit } from './TimeCodeUnit';
 import type { TimeCodeUnitType } from './TimeCodeUnit';
 import { Icon } from '../Icon';
 import { ContextMenu } from '../ContextMenu';
-import { ContextMenuItem } from '../ContextMenuItem';
+import { useTimeCodeSubmenuPosition } from './useTimeCodeSubmenuPosition';
+import { TimeCodeFormatMenuItems } from './TimeCodeFormatMenuItems';
+import { timeCodeFrameFormat, timeCodeFrameCount, timeCodeLabelledFrameCount, timeCodeFrameSeconds } from './time-code-frames';
 import { useTheme } from '../ThemeProvider';
 import './TimeCode.css';
 import './TimeCodeDigit.css';
 import './TimeCodeUnit.css';
 
-export type TimeCodeFormat =
-  | 'dd:hh:mm:ss'
-  | 'hh:mm:ss'
-  | 'hh:mm:ss+hundredths'
-  | 'hh:mm:ss+milliseconds'
-  | 'hh:mm:ss+samples'
-  | 'hh:mm:ss+frames'
-  | 'samples'
-  | 'seconds'
-  | 'seconds+milliseconds'
-  | 'film-frames'
-  | 'beats:bars'
-  | 'Hz';
-
-export type TimeCodeFormatDomain = 'time' | 'frequency';
-
-export interface TimeCodeFormatOption {
-  readonly format: TimeCodeFormat;
-  readonly label: string;
-}
-
-const TIME_FORMAT_OPTIONS: readonly TimeCodeFormatOption[] = Object.freeze([
-  { format: 'dd:hh:mm:ss', label: 'dd:hh:mm:ss' },
-  { format: 'hh:mm:ss', label: 'hh:mm:ss' },
-  { format: 'hh:mm:ss+hundredths', label: 'hh:mm:ss + hundredths' },
-  { format: 'hh:mm:ss+milliseconds', label: 'hh:mm:ss + milliseconds' },
-  { format: 'hh:mm:ss+samples', label: 'hh:mm:ss + samples' },
-  { format: 'hh:mm:ss+frames', label: 'hh:mm:ss + frames (24fps)' },
-  { format: 'samples', label: 'samples' },
-  { format: 'seconds', label: 'seconds' },
-  { format: 'seconds+milliseconds', label: 'seconds + milliseconds' },
-  { format: 'film-frames', label: 'film frames (24fps)' },
-  { format: 'beats:bars', label: 'beats:bars' },
-]);
-const FREQUENCY_FORMAT_OPTIONS: readonly TimeCodeFormatOption[] = Object.freeze([
-  { format: 'Hz', label: 'Hz' },
-]);
-
-export function timeCodeFormatOptionsForDomain(
-  domain: TimeCodeFormatDomain,
-): readonly TimeCodeFormatOption[] {
-  return domain === 'frequency' ? FREQUENCY_FORMAT_OPTIONS : TIME_FORMAT_OPTIONS;
-}
+import { timeCodeFormatOptionsForDomain, type TimeCodeFormat, type TimeCodeFormatDomain } from './time-code-formats';
+export { timeCodeFormatOptionsForDomain, type TimeCodeFormat, type TimeCodeFormatDomain, type TimeCodeFormatOption } from './time-code-formats';
 
 export interface TimeCodeUnit {
   value: string;
@@ -153,7 +114,7 @@ export function TimeCode({
   className = '',
 }: TimeCodeProps) {
   const { theme } = useTheme();
-  const formatOptions = timeCodeFormatOptionsForDomain(formatDomain);
+  const formatOptions = timeCodeFormatOptionsForDomain(formatDomain, frameRate);
   const [isEditing, setIsEditing] = useState(false);
   const [editingDigitIndex, setEditingDigitIndex] = useState<number | null>(null);
   const [hoverDigitIndex, setHoverDigitIndex] = useState<number | null>(null);
@@ -163,6 +124,7 @@ export function TimeCode({
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const digitRefsMap = useRef<Map<number, HTMLSpanElement>>(new Map());
+  useTimeCodeSubmenuPosition(containerRef, showMenu);
 
 
   const segments = formatTimeToSegments(value, format, sampleRate, frameRate);
@@ -531,12 +493,7 @@ export function TimeCode({
             y={menuPosition.y}
             autoFocus={menuOpenedViaKeyboard}
           >
-            {formatOptions.map((option) => <ContextMenuItem
-              key={option.format}
-              label={option.label}
-              checked={format === option.format}
-              onClick={() => handleFormatSelect(option.format)}
-            />)}
+            <TimeCodeFormatMenuItems options={formatOptions} format={format} onSelect={handleFormatSelect} />
           </ContextMenu>
         </>
       )}
@@ -550,6 +507,13 @@ function formatTimeToSegments(
   sampleRate: number,
   frameRate: number
 ): TimeCodeSegment[] {
+  const frameFormat = timeCodeFrameFormat(format, frameRate);
+  if (frameFormat) {
+    if (frameFormat.total) return formatFilmFrames(seconds, frameFormat.rate, sampleRate);
+    const count = timeCodeFrameCount(seconds, frameFormat.rate, sampleRate);
+    const labelled = timeCodeLabelledFrameCount(count, frameFormat);
+    return formatHHMMSSFrames(labelled / frameFormat.nominalRate, frameFormat.nominalRate);
+  }
   switch (format) {
     case 'dd:hh:mm:ss':
       return formatDDHHMMSS(seconds);
@@ -561,16 +525,12 @@ function formatTimeToSegments(
       return formatHHMMSSMilliseconds(seconds);
     case 'hh:mm:ss+samples':
       return formatHHMMSSSamples(seconds, sampleRate);
-    case 'hh:mm:ss+frames':
-      return formatHHMMSSFrames(seconds, frameRate);
     case 'samples':
       return formatSamples(seconds, sampleRate);
     case 'seconds':
       return formatSeconds(seconds);
     case 'seconds+milliseconds':
       return formatSecondsMilliseconds(seconds);
-    case 'film-frames':
-      return formatFilmFrames(seconds, frameRate);
     case 'beats:bars':
       return formatBeatsBar(seconds);
     case 'Hz':
@@ -672,10 +632,12 @@ function formatHHMMSSSamples(seconds: number, sampleRate: number): TimeCodeSegme
 }
 
 function formatHHMMSSFrames(seconds: number, frameRate: number): TimeCodeSegment[] {
+  const totalFrames = timeCodeFrameCount(seconds, frameRate);
+  if (Number.isInteger(frameRate)) seconds = Math.floor(totalFrames / frameRate);
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
-  const frames = Math.floor((seconds % 1) * frameRate);
+  const frames = Number.isInteger(frameRate) ? totalFrames % frameRate : Math.floor((seconds % 1) * frameRate);
 
   return [
     { value: pad(hours, 2), type: 'unit', maxLength: 2, max: 99, editable: true },
@@ -777,8 +739,8 @@ function formatSecondsMilliseconds(seconds: number): TimeCodeSegment[] {
   return parts;
 }
 
-function formatFilmFrames(seconds: number, frameRate: number): TimeCodeSegment[] {
-  const totalFrames = Math.floor(seconds * frameRate);
+function formatFilmFrames(seconds: number, frameRate: number, sampleRate: number): TimeCodeSegment[] {
+  const totalFrames = timeCodeFrameCount(seconds, frameRate, sampleRate);
   const framesStr = totalFrames.toString();
 
   // Add commas for thousands separators
@@ -923,6 +885,9 @@ function segmentsToSeconds(
     }
   }
 
+  const frameFormat = timeCodeFrameFormat(format, frameRate);
+  if (frameFormat) return timeCodeFrameSeconds(unitValues, frameFormat);
+
   switch (format) {
     case 'dd:hh:mm:ss': {
       const [days, hours, minutes, seconds] = unitValues;
@@ -944,10 +909,6 @@ function segmentsToSeconds(
       const [hours, minutes, seconds, samples] = unitValues;
       return (hours || 0) * 3600 + (minutes || 0) * 60 + (seconds || 0) + (samples || 0) / sampleRate;
     }
-    case 'hh:mm:ss+frames': {
-      const [hours, minutes, seconds, frames] = unitValues;
-      return (hours || 0) * 3600 + (minutes || 0) * 60 + (seconds || 0) + (frames || 0) / frameRate;
-    }
     case 'samples': {
       // Sum all unit values (handling comma-separated groups)
       const totalSamples = unitValues.reduce((sum, val) => sum * 1000 + val, 0);
@@ -962,10 +923,6 @@ function segmentsToSeconds(
       const milliseconds = unitValues.pop() || 0;
       const seconds = unitValues.reduce((sum, val) => sum * 1000 + val, 0);
       return seconds + milliseconds / 1000;
-    }
-    case 'film-frames': {
-      const totalFrames = unitValues.reduce((sum, val) => sum * 1000 + val, 0);
-      return totalFrames / frameRate;
     }
     case 'beats:bars': {
       const [bars, beats] = unitValues;

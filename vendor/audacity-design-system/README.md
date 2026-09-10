@@ -202,6 +202,16 @@ application overrides and source patches against the pin and upstream master.
     English in a German UI. Covered by
     `tests/vendored-design-system-control-accessible-state.test.tsx`. Upstream-PR candidate.
 
+24. `TimeCode` groups frame formats under Video frames and CD frames, matching the
+    application's snap menu. It offers film, PAL, NTSC, NTSC drop-frame timecode and CDDA
+    formats. Frame clocks count frames before splitting fields and account for audio-sample
+    quantization at frame boundaries. NTSC drop-frame omits labels rather than media frames.
+    Format definitions and arithmetic live in `time-code-formats.ts` and `time-code-frames.ts`;
+    configurable frame-rate labels reflect the supplied rate. Format submenus stay inside
+    the viewport, and the host toolbar yields arrow keys to open menus. Covered by
+    `tests/audio-editor-frame-timecode.test.tsx` and the grouped timer workflow in
+    `tests/browser/audio-editor-dialog-shell.spec.js`.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they
