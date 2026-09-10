@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { filterSoundActivatedRecordingChunk } from '../src/common/editor/controller/sound-activated-recording-chunk.ts';
-import { createSoundActivatedRecordingGate } from '../src/common/editor/controller/sound-activated-recording-gate.ts';
+import { filterSoundActivatedRecordingChunk } from '../src/common/editor/controller/recording/internal/sound-activation/sound-activated-recording-chunk.ts';
+import { createSoundActivatedRecordingGate } from '../src/common/editor/controller/recording/sound-activated-recording-gate.ts';
 
 test('filters one recorder chunk into exact absolute active segments', () => {
 	const gate = createSoundActivatedRecordingGate({ thresholdDb: -20, hysteresisDb: 6, holdFrames: 0 });

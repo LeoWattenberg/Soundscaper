@@ -5,10 +5,10 @@ import test, { after } from 'node:test';
 
 import type {
 	FramescaperCapturedVideoProxyRequest,
-} from '../src/common/editor/controller/framescaper-capture-derivative-scheduler.ts';
+} from '../src/common/editor/controller/capture/framescaper-capture-derivative-scheduler.ts';
 import type {
 	VideoProxyCandidateRuntime,
-} from '../src/common/editor/controller/video-proxy-candidate-composition.ts';
+} from '../src/common/editor/controller/capture/video-proxy-candidate-composition.ts';
 import { createVideoSource } from '../src/common/editor/project-media-factory.ts';
 import {
 	assertVideoProxyCandidateObserver,

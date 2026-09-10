@@ -6,12 +6,12 @@ import test from 'node:test';
 import {
 	prepareDirectCompressedDestination,
 	type DirectCompressedFormat,
-} from '../src/common/editor/controller/direct-compressed-export.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-compressed-export.ts';
 import {
 	encodeRenderedAudio,
 	type RenderedAudioEncodingPlan,
 	type RenderedAudioEncodingRuntime,
-} from '../src/common/editor/controller/rendered-audio-encoding.ts';
+} from '../src/common/editor/controller/export/internal/rendered-audio-encoding.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 
 test('rendered direct compressed output resamples then stages unmapped mono and custom inputs', async () => {

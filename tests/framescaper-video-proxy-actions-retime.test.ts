@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { FramescaperCapturedVideoProxyRequest } from '../src/common/editor/controller/framescaper-capture-derivative-scheduler.ts';
+import type { FramescaperCapturedVideoProxyRequest } from '../src/common/editor/controller/capture/framescaper-capture-derivative-scheduler.ts';
 import { createFramescaperVideoProxyActions } from '../src/framescaper/editor-video-proxy-actions-retime.ts';
 import {
 	FramescaperVideoProxyCleanupCoordinatorRetime,

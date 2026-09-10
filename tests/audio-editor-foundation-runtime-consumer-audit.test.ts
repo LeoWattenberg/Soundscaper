@@ -260,7 +260,7 @@ test('clip selection navigation owns its projected timing boundary', () => {
 	assert.deepEqual(consumer, {
 		id: 'clip-selection-navigation',
 		surface: 'navigation',
-		file: 'src/common/editor/controller/clip-selection-navigation-service.ts',
+		file: 'src/common/editor/controller/track-audio/internal/clip-selection-navigation-service.ts',
 		entryPoint: 'projectedAudioClips',
 		inputIdentifier: 'project',
 		projectedIdentifier: 'projection',

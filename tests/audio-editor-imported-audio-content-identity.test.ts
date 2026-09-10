@@ -7,7 +7,7 @@ import test from 'node:test';
 
 import {
 	createImportedAudioContentIdentityWriter,
-} from '../src/common/editor/controller/imported-audio-content-identity.ts';
+} from '../src/common/editor/controller/import/imported-audio-content-identity.ts';
 import { packPlanarFloat32 } from '../src/common/editor/wavpack/index.js';
 
 test('imported audio identity authenticates canonical PCM as chunks are persisted', async () => {

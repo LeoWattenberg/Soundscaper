@@ -8,13 +8,13 @@ import { createMacroCommandStep } from '../src/common/editor/macro-command-steps
 import {
 	createMacroCommandService,
 	type MacroCommandProject,
-} from '../src/common/editor/controller/macro-command-service.ts';
+} from '../src/common/editor/controller/effects/internal/macro/macro-command-service.ts';
 import {
 	createSelectionViewService,
 	type SelectionViewSelection,
 	type SelectionViewServiceRuntime,
 	type SelectionViewState,
-} from '../src/common/editor/controller/selection-view-service.ts';
+} from '../src/common/editor/controller/track-audio/internal/selection-view-service.ts';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 } from '../src/common/editor/project-schema-version.ts';

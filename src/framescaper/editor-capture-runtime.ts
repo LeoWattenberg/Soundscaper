@@ -1,22 +1,22 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createFramescaperCaptureAdminInterlock } from
-	'../common/editor/controller/framescaper-capture-admin-interlock.ts';
-import { adaptFramescaperRecordingControllerFactory } from '../common/editor/controller/framescaper-recording-factory-adapter.ts';
+	'../common/editor/controller/capture/framescaper-capture-admin-interlock.ts';
+import { adaptFramescaperRecordingControllerFactory } from '../common/editor/controller/capture/framescaper-recording-factory-adapter.ts';
 import {
 	createFramescaperCaptureDocumentPorts,
 	createFramescaperCaptureProxyDocumentInstaller,
-} from '../common/editor/controller/framescaper-capture-document-ports.ts';
+} from '../common/editor/controller/capture/framescaper-capture-document-ports.ts';
 import type {
 	FramescaperCaptureDerivativeScheduler,
 	FramescaperCaptureDerivativeSchedulerOptions,
-} from '../common/editor/controller/framescaper-capture-derivative-scheduler.ts';
+} from '../common/editor/controller/capture/framescaper-capture-derivative-scheduler.ts';
 import { createFramescaperCaptureProjectWriteAuthority } from
-	'../common/editor/controller/framescaper-capture-project-write-authority.ts';
+	'../common/editor/controller/capture/framescaper-capture-project-write-authority.ts';
 import {
 	createFramescaperCaptureProxyActiveProjectSynchronizer,
 	createFramescaperCaptureProxySaveQuiescence,
-} from '../common/editor/controller/framescaper-capture-proxy-quiescence.ts';
+} from '../common/editor/controller/capture/framescaper-capture-proxy-quiescence.ts';
 import {
 	createDeferredFramescaperCaptureAppBinding,
 	type FramescaperCaptureImplementationLoader,

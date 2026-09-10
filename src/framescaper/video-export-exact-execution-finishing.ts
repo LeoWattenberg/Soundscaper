@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { ProductVideoExportStrategyEncodeRequest } from '../common/editor/controller/product-video-export-strategy.ts';
+import type { ProductVideoExportStrategyEncodeRequest } from '../common/editor/controller/export/product-video-export-strategy.ts';
 import type { VideoKeyframeExportFrame } from '../common/editor/video-keyframe-export-frame-source.ts';
 import type { VideoKeyframeOfflineRgbaCompositor } from '../common/editor/video-keyframe-offline-rgba-contract.ts';
 import type { UnifiedExactRenderPlanV13 } from '../common/editor/unified-exact-render-plan.ts';

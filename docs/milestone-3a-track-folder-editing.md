@@ -286,10 +286,10 @@ Without this the tree is un-editable the moment it is nonempty:
 `commands.js:126-129` marks **every** `track/add|remove|reorder` as a legacy
 structural edit, and the reconciler throws whenever `folders.length > 0`. The
 verified emitters that would break the instant a user creates a folder are
-`controller/track-service.ts:157,187,197,274`,
-`controller/track-transform-service.ts:248-250,284`,
-`controller/mix-render-model.ts:244-246`,
-`controller/clipboard-edit-service.ts:241`, `controller/action-facade.ts:371`,
+`controller/track-audio/internal/track-service.ts:157,187,197,274`,
+`controller/track-audio/internal/track-transform-service.ts:248-250,284`,
+`controller/track-audio/mix-render-model.ts:244-246`,
+`controller/edit/internal/clipboard-edit-service.ts:241`, `controller/composition/action-facade.ts:371`,
 and the import paths wired at `app.js:706,779,1386,1403,1417`.
 
 `track/add` with no parent defaults to the owning sequence's root. Do **not**
@@ -355,10 +355,10 @@ deliberately rather than silently.
 
 ### S8 — Controller actions and the folder snapshot
 
-`controller/track-folder-service.ts` plus an `actions.trackFolders` group, each
+`controller/document/internal/track-folder-service.ts` plus an `actions.trackFolders` group, each
 entry wrapped in the `restricted(...)` pattern the annotations facade already
 uses, so the actions exist, are typed, and reject in both products until the
-flip. A `controller/document-track-folder-snapshot.ts` becomes the first
+flip. A `controller/document/document-track-folder-snapshot.ts` becomes the first
 **UI-facing** consumer of the `depth`, `ancestorFolderIds`, `rowHidden`,
 `hasAudioDescendant`, and `structuralSoloActive` fields —
 `track-folder-media-runtime.ts:67,78-88` already consumes the three

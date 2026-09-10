@@ -5,7 +5,7 @@ import {
 	createEditorDocumentSnapshot,
 	type EditorDocumentSnapshotState,
 	type SnapshotProject,
-} from '../src/common/editor/controller/document-snapshot.ts';
+} from '../src/common/editor/controller/document/document-snapshot.ts';
 import { stateFixture } from './helpers/audio-editor-snapshot-state.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { DEFAULT_SOUND_ACTIVATION_PREFERENCES } from '../src/common/editor/sound-activation-preferences.ts';

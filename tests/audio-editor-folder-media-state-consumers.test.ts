@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createAup4ExportPlan } from '../src/common/editor/aup4-export.js';
-import { exportProjectEdl } from '../src/common/editor/controller/interchange-export-action.ts';
+import { exportProjectEdl } from '../src/common/editor/controller/export/interchange-export-action.ts';
 import { edlExportableVideoTracks } from '../src/common/editor/ui/application-menus.js';
 import {
 	createAudioClip,

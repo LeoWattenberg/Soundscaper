@@ -21,12 +21,12 @@ import { createAssistanceOwnedVideoHighlightTransformRegistryV1 } from
 import {
 	prepareLocalAssistanceGuidedHighlightReframeEvidenceV1,
 	retainLocalAssistanceGuidedAcceptedReframePathV1,
-} from '../src/common/editor/controller/local-assistance-guided-reframe-derivative.ts';
+} from '../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-reframe-derivative.ts';
 import { publishLocalAssistanceGuidedFramescaperSelection } from
-	'../src/common/editor/controller/local-assistance-guided-framescaper-acceptance.ts';
+	'../src/common/editor/controller/assistance/local-assistance-guided-framescaper-acceptance.ts';
 import {
 	createLocalAssistanceGuidedHighlightVideoSignalsV1,
-} from '../src/common/editor/controller/local-assistance-guided-highlight-signals.ts';
+} from '../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-highlight-signals.ts';
 import { AssistanceDerivativeRepository } from
 	'../src/common/editor/storage/assistance-derivative-repository.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';

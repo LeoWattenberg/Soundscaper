@@ -12,13 +12,13 @@ import test from 'node:test';
 
 /** Module path under src/common/editor → the factory export the composition calls from it. */
 const GATED_FACTORIES = Object.freeze({
-	'controller/deferred-analysis-service.ts': 'createDeferredAudioAnalysisService',
-	'controller/selection-effect-worker-service.ts': 'createSelectionEffectWorkerService',
-	'controller/nyquist-host-service.ts': 'createNyquistHostService',
-	'controller/nyquist-generated-audio-service.ts': 'createNyquistGeneratedAudioService',
-	'controller/effect-macro-service.ts': 'createEffectMacroService',
-	'controller/effect-execution-service.ts': 'createSelectionEffectExecutionService',
-	'controller/generator-service.ts': 'createAudioGeneratorService',
+	'controller/analysis/internal/deferred-analysis-service.ts': 'createDeferredAudioAnalysisService',
+	'controller/effects/internal/selection-effect-worker-service.ts': 'createSelectionEffectWorkerService',
+	'controller/effects/internal/nyquist/nyquist-host-service.ts': 'createNyquistHostService',
+	'controller/effects/internal/nyquist/nyquist-generated-audio-service.ts': 'createNyquistGeneratedAudioService',
+	'controller/effects/internal/macro/effect-macro-service.ts': 'createEffectMacroService',
+	'controller/effects/internal/effect-execution-service.ts': 'createSelectionEffectExecutionService',
+	'controller/edit/generator-service.ts': 'createAudioGeneratorService',
 });
 
 const RECORDER = '__soundscaperComposedFactories';

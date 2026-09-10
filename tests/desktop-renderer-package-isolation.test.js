@@ -55,7 +55,7 @@ test('Soundscaper renderer package permits product-neutral foreign-family custod
 			'/workspace/src/common/editor/project-schema-identity.ts': {},
 			'/workspace/src/common/editor/scape-project-document.js': {},
 			'/workspace/src/common/cross-product-handoff-intent.ts': {},
-			'/workspace/src/common/editor/controller/video-export-service.ts': {},
+			'/workspace/src/common/editor/controller/export/internal/video/video-export-service.ts': {},
 			'/workspace/src/common/editor/video-effects.js': {},
 			'/workspace/src/common/editor/video-media.js': {},
 		}),

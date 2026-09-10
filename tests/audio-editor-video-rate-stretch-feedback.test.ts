@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createVideoRateStretchResultReporter,
 	type VideoRateStretchFeedbackCopy,
-} from '../src/common/editor/controller/video-rate-stretch-feedback.ts';
+} from '../src/common/editor/controller/clip-video/internal/trim/video-rate-stretch-feedback.ts';
 
 const COPY: VideoRateStretchFeedbackCopy = Object.freeze({
 	rateStretchLeftEdgeApplied: 'LEFT {rate} {timecode}',

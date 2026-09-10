@@ -7,7 +7,7 @@ import {
 	createEffectSelectionService,
 	type EffectSelectionProject,
 	type EffectSelectionState,
-} from '../src/common/editor/controller/effect-selection-service.ts';
+} from '../src/common/editor/controller/effects/effect-selection-service.ts';
 
 const PROJECT_IDENTITY = Object.freeze({
 	schemaFamily: 'soundscaper' as const,

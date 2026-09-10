@@ -31,11 +31,11 @@ export interface FoundationRuntimeProjectionImporterExclusion {
 /** Projection adapters admitted by the WP-0.2 shield audit. */
 export const FOUNDATION_RUNTIME_PROJECTION_BOUNDARIES: readonly FoundationRuntimeProjectionBoundary[] = deepFreeze([
 	{ boundary: 'resolveRuntimeClipProjection', file: 'src/common/editor/runtime-clip-projection.ts', root: true, delegate: null, guardsBrand: false },
-	{ boundary: 'resolveProjectBinAudioPreviewClip', file: 'src/common/editor/controller/project-bin-runtime.ts', root: false, delegate: 'resolveRuntimeClipProjection', guardsBrand: false },
-	{ boundary: 'projectBinReplacementShortensClip', file: 'src/common/editor/controller/project-bin-runtime.ts', root: false, delegate: 'resolveRuntimeClipProjection', guardsBrand: false },
+	{ boundary: 'resolveProjectBinAudioPreviewClip', file: 'src/common/editor/controller/import/internal/project-bin/project-bin-runtime.ts', root: false, delegate: 'resolveRuntimeClipProjection', guardsBrand: false },
+	{ boundary: 'projectBinReplacementShortensClip', file: 'src/common/editor/controller/import/internal/project-bin/project-bin-runtime.ts', root: false, delegate: 'resolveRuntimeClipProjection', guardsBrand: false },
 	{
 		boundary: 'projectForAudioGeneratorCommands',
-		file: 'src/common/editor/controller/generator-project-view.ts',
+		file: 'src/common/editor/controller/edit/internal/generator-project-view.ts',
 		root: false, delegate: 'projectForRuntimeConsumers', guardsBrand: false,
 	},
 	{
@@ -105,37 +105,37 @@ export const FOUNDATION_RUNTIME_PROJECTION_BOUNDARIES: readonly FoundationRuntim
 
 /** Files that own the raw-project boundary for every WP-0.2 consumer surface. */
 export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShieldedOwner[] = deepFreeze([
-	{ file: 'src/common/editor/controller/project-bin-runtime.ts', surfaces: ['preview', 'composition'] },
-	{ file: 'src/common/editor/controller/project-bin-preview-service.ts', surfaces: ['preview'] },
-	{ file: 'src/common/editor/controller/project-bin-replacement-service.ts', surfaces: ['composition'] },
+	{ file: 'src/common/editor/controller/import/internal/project-bin/project-bin-runtime.ts', surfaces: ['preview', 'composition'] },
+	{ file: 'src/common/editor/controller/import/internal/project-bin/project-bin-preview-service.ts', surfaces: ['preview'] },
+	{ file: 'src/common/editor/controller/import/internal/project-bin/project-bin-replacement-service.ts', surfaces: ['composition'] },
 	{ file: 'src/common/editor/engine/lifecycle.ts', surfaces: ['playback'] },
 	{ file: 'src/common/editor/export.js', surfaces: ['audio-export'] },
 	{ file: 'src/common/editor/aup4-export.js', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/aup4-annotation-interchange.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/timeline-annotation-riff-interchange.ts', surfaces: ['interchange'] },
-	{ file: 'src/common/editor/controller/interchange-export-action.ts', surfaces: ['interchange'] },
-	{ file: 'src/common/editor/controller/nyquist-host-service.ts', surfaces: ['interchange'] },
-	{ file: 'src/common/editor/controller/generator-service.ts', surfaces: ['composition'] },
-	{ file: 'src/common/editor/controller/labeled-audio-silence.ts', surfaces: ['composition'] },
-	{ file: 'src/common/editor/controller/controller-project-queries.ts', surfaces: ['composition'] },
-	{ file: 'src/common/editor/controller/effect-audio-service.ts', surfaces: ['audio-export'] },
-	{ file: 'src/common/editor/controller/nyquist-generated-audio-service.ts', surfaces: ['composition'] },
+	{ file: 'src/common/editor/controller/export/interchange-export-action.ts', surfaces: ['interchange'] },
+	{ file: 'src/common/editor/controller/effects/internal/nyquist/nyquist-host-service.ts', surfaces: ['interchange'] },
+	{ file: 'src/common/editor/controller/edit/generator-service.ts', surfaces: ['composition'] },
+	{ file: 'src/common/editor/controller/edit/internal/labeled-audio-silence.ts', surfaces: ['composition'] },
+	{ file: 'src/common/editor/controller/composition/controller-project-queries.ts', surfaces: ['composition'] },
+	{ file: 'src/common/editor/controller/effects/internal/effect-audio-service.ts', surfaces: ['audio-export'] },
+	{ file: 'src/common/editor/controller/effects/internal/nyquist/nyquist-generated-audio-service.ts', surfaces: ['composition'] },
 	{ file: 'src/common/editor/video-export.js', surfaces: ['video-export'] },
 	{ file: 'src/common/editor/video-caption-cues.ts', surfaces: ['video-export'] },
 	{ file: 'src/common/editor/video-keyframe-export-inventory.ts', surfaces: ['video-export'] },
 	{ file: 'src/common/editor/ui/video-keyframe-offline-video-export.ts', surfaces: ['video-export'] },
 	{ file: 'src/common/editor/video-timeline.js', surfaces: ['preview', 'composition', 'transition', 'navigation'] },
 	{ file: 'src/common/editor/project.js', surfaces: ['navigation'] },
-	{ file: 'src/common/editor/controller/clip-selection-navigation-service.ts', surfaces: ['navigation'] },
+	{ file: 'src/common/editor/controller/track-audio/internal/clip-selection-navigation-service.ts', surfaces: ['navigation'] },
 	{ file: 'src/common/editor/ui/timeline/useTimelineViewportModel.js', surfaces: ['timeline'] },
 	{ file: 'src/common/editor/ui/framescaper-edit-control-menu-model.ts', surfaces: ['timeline'] },
-	{ file: 'src/common/editor/controller/project-visual-service.ts', surfaces: ['waveform'] },
+	{ file: 'src/common/editor/controller/document/project-visual-service.ts', surfaces: ['waveform'] },
 ]);
 
 /** Exact non-consumer readers co-located with a shield owner. No wildcard exclusions are admitted. */
 export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRuntimeTimingReaderExclusion[] = deepFreeze([
 	{
-		file: 'src/common/editor/controller/labeled-audio-silence.ts', entryPoint: 'coveredSpans',
+		file: 'src/common/editor/controller/edit/internal/labeled-audio-silence.ts', entryPoint: 'coveredSpans',
 		reason: 'Private downstream helper receives the resolved AudioGeneratorProject from generateLabeledSilence; its caller crosses projectForAudioGeneratorCommands before planning spans.',
 	},
 	{
@@ -156,8 +156,8 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 		file: 'src/common/editor/video-keyframe-export-frame-source.ts',
 		reason: 'The immutable export snapshot preserves an existing runtime-projection brand after inheriting exact folder media state; projection and timing consumption remain owned by the upstream keyed-export inventory.',
 	},
-	{ file: 'src/common/editor/controller/controller-options.ts', reason: 'Controller options use type-only projection imports to declare selected product consumer ports; this module executes no timing reads.' },
-	{ file: 'src/common/editor/controller/project-bin-types.ts', reason: 'The bin declares authored clip and project input ports through type-only imports; it does not read transient clip coordinates.' },
+	{ file: 'src/common/editor/controller/composition/controller-options.ts', reason: 'Controller options use type-only projection imports to declare selected product consumer ports; this module executes no timing reads.' },
+	{ file: 'src/common/editor/controller/import/project-bin-types.ts', reason: 'The bin declares authored clip and project input ports through type-only imports; it does not read transient clip coordinates.' },
 	{
 		file: 'src/common/editor/audio-warp-clip-authority.ts',
 		reason: 'Warp authoring snapshots resolved clip geometry into immutable stale-edit authority; it is a persisted edit adapter rather than a runtime media consumer.',
@@ -167,7 +167,7 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 		reason: 'Warp trim and split authoring resolve persisted clip boundaries before deriving exact child maps; they do not create a playback projection.',
 	},
 	{
-		file: 'src/common/editor/controller/project-runtime.ts',
+		file: 'src/common/editor/controller/document/project-runtime.ts',
 		reason: 'The default controller runtime binds command and presentation projections as edit adapters; selected product authority supplies the same closed surface.',
 	},
 	{
@@ -243,7 +243,7 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 		reason: 'The slip/slide pointer adapter requires an already-branded request-start projection plus verified source timing while capturing immutable gesture authority; it does not create or consume a runtime playback projection.',
 	},
 	{
-		file: 'src/common/editor/controller/track-structural-operation-planner.ts',
+		file: 'src/common/editor/controller/track-audio/internal/track-structural-operation-planner.ts',
 		reason: 'The structural edit planner resolves clip placement while deriving one atomic alignment or sort command; it does not create or consume a runtime playback projection.',
 	},
 	{

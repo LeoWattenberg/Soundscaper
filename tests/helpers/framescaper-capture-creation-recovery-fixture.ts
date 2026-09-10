@@ -2,11 +2,11 @@
 
 import {
 	captureCreationInventory,
-} from '../../src/common/editor/controller/framescaper-capture-durable-creation.ts';
+} from '../../src/common/editor/controller/capture/internal/framescaper-capture-durable-creation.ts';
 import {
 	createFramescaperCaptureDurableSessionCoordinator,
 	type CreateFramescaperCaptureDurableSessionRequest,
-} from '../../src/common/editor/controller/framescaper-capture-durable-session.ts';
+} from '../../src/common/editor/controller/capture/internal/framescaper-capture-durable-session.ts';
 import type { FramescaperCaptureSessionManifestV1 } from '../../src/common/editor/framescaper-capture-session-manifest.ts';
 import { EncodedCaptureSpoolRepository } from '../../src/common/editor/storage/encoded-capture-spool-repository.ts';
 import { FramescaperCaptureSessionManifestRepository } from '../../src/common/editor/storage/framescaper-capture-session-manifest-repository.ts';

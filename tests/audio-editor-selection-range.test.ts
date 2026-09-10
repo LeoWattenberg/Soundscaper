@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { resolveSelectionRange } from '../src/common/editor/selection-range.ts';
-import { prepareSplitRangeIntoNewTrackCommand } from '../src/common/editor/controller/split-into-new-track-plan.ts';
+import { prepareSplitRangeIntoNewTrackCommand } from '../src/common/editor/controller/track-audio/split-into-new-track-plan.ts';
 import { prepareLinkedSplitCommand } from '../src/common/editor/commands/clip-link-runtime.js';
 import { createAddTrackCommand } from '../src/common/editor/commands/factories.ts';
 

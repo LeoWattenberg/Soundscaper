@@ -11,7 +11,7 @@ import {
 import { FramescaperCaptureSessionManifestRepository } from '../src/common/editor/storage/framescaper-capture-session-manifest-repository.ts';
 import {
 	createFramescaperCaptureAssetStreams,
-} from '../src/common/editor/controller/framescaper-capture-stream-timing.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-stream-timing.ts';
 
 test('manifest timing requires one retained shared-origin range for every acknowledged stream', () => {
 	const empty = manifest();

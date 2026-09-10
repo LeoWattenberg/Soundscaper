@@ -61,7 +61,7 @@ test('disposable video previews remain reproducible local relationships, not dur
 	for (const evidence of [
 		'src/common/editor/storage/video-derivative-relationship.ts',
 		'src/common/editor/storage/video-derivative-repository.ts',
-		'src/common/editor/controller/source-import.ts',
+		'src/common/editor/controller/import/internal/source-import.ts',
 		'src/common/editor/commands/project-source-bin-runtime.js',
 		'src/common/editor/scape-project.js',
 		'tests/audio-editor-video-derivative-binding.test.ts',

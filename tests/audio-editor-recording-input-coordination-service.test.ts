@@ -10,7 +10,7 @@ import {
 	type RecordingInputCoordinationState,
 	type RecordingInputRoute,
 	type RecordingPoolSource,
-} from '../src/common/editor/controller/recording-input-coordination-service.ts';
+} from '../src/common/editor/controller/recording/internal/recording-input-coordination-service.ts';
 
 type Mutable<Value> = { -readonly [Key in keyof Value]: Value[Key] };
 

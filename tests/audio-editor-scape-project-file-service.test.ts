@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
-import { createScapeProjectFileService } from '../src/common/editor/controller/scape-project-file-service.ts';
+import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
+import { createScapeProjectFileService } from '../src/common/editor/controller/document/scape-project-file-service.ts';
 import { createScapeArchiveByteSource } from '../src/common/editor/scape-archive-byte-source.ts';
 
 test('Scape project file composition shares owned inspection with collision-gated opens', async () => {

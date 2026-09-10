@@ -7,8 +7,8 @@ import {
 	applyVideoEffectGesturePreviews,
 	createAudioDeviceSnapshot,
 	createEditorTelemetrySnapshot,
-} from '../src/common/editor/controller/snapshot-model.ts';
-import { exposeOwnedFields } from '../src/common/editor/controller/owned-state.ts';
+} from '../src/common/editor/controller/composition/internal/snapshot-model.ts';
+import { exposeOwnedFields } from '../src/common/editor/controller/shared/owned-state.ts';
 
 test('video effect gesture previews replace only the active immutable params', () => {
 	const project = {

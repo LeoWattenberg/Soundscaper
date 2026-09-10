@@ -16,7 +16,7 @@ import AudioEditorMacroManagerDialog from '../../src/common/editor/ui/inspector/
 import {
 	createMacroScriptLibraryService,
 	type MacroScriptRecord,
-} from '../../src/common/editor/controller/macro-script-library-service.ts';
+} from '../../src/common/editor/controller/effects/macro-script-library-service.ts';
 import { createMacroScriptLibrary } from '../../src/common/editor/macro-script-library.ts';
 import { createEffect } from '../../src/common/editor/effects.js';
 import { ENGLISH_COPY } from '../../src/common/i18n/catalogs.js';

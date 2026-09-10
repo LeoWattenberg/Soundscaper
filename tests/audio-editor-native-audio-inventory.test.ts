@@ -7,8 +7,8 @@ import { PLATFORM_TRANSFER_HARD_LIMITS } from '../src/common/editor/platform/bou
 import {
 	adaptNativeAudioInventory, isOpaqueNativeAudioHandle, nativeAudioChannelMap,
 	nativeAudioDeviceGroupId, nativeAudioDeviceId, type NativeAudioInventoryReport,
-} from '../src/common/editor/controller/native-audio-inventory.ts';
-import * as session from '../src/common/editor/controller/native-audio-session.ts';
+} from '../src/common/editor/controller/recording/native-audio-inventory.ts';
+import * as session from '../src/common/editor/controller/recording/internal/native-audio/native-audio-session.ts';
 
 const INPUT_ID = 'native:alsa:in:hw:0,0';
 const OUTPUT_ID = 'native:alsa:out:hw:0,0';

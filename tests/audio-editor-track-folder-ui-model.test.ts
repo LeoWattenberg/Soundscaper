@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createDocumentTrackFolderSnapshot } from '../src/common/editor/controller/document-track-folder-snapshot.ts';
+import { createDocumentTrackFolderSnapshot } from '../src/common/editor/controller/document/document-track-folder-snapshot.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import {
 	createAudioTrack,

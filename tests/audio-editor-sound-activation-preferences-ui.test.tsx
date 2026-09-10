@@ -8,7 +8,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import SoundActivationPreferences from '../src/common/editor/ui/SoundActivationPreferences.tsx';
 import { RecordFlyout } from '../src/common/editor/ui/toolbar/AudioEditorTransportControls.jsx';
-import type { SoundActivationPolicySnapshot } from '../src/common/editor/controller/sound-activation-policy-service.ts';
+import type { SoundActivationPolicySnapshot } from '../src/common/editor/controller/recording/sound-activation-policy-service.ts';
 
 test('Soundscaper renders four accessible sound activation controls over the public snapshot', () => {
 	const markup = render(false, policy());

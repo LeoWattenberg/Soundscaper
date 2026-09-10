@@ -15,26 +15,28 @@
 export const editorPath = String.raw`src[\\/]common[\\/]editor[\\/]`;
 const editorOptionalArchiveModule = String.raw`(?:archive-media-reader|aup-legacy(?:-block-budget|-conversion|-xml)?|aup4-(?:client|opaque-merge|opaque-persistence|profile-values|profile|sanitization|time-signature|track-nodes)|audacity-(?:annotation-interchange|tempo-import)|dawproject-(?:archive|export(?:-context|-lanes)?|format|import(?:-maps|-project|-structure|-timeline)?|xml)|scape-(?:archive-(?:copy|layout(?:-witness)?|manifest|reader)|export-destination|import-capacity|import-transaction|project-admission|project-source-remap)|scape-project(?:-canonical-inspection|-timing-assets)?)`;
 const editorOptionalExecutionModule = String.raw`(?:analysis|browser-(?:dedicated-audio-worker-client|webcodecs-aac)|loudness-measurement-report|pffft|selection-effects-runtime|spectral-edit(?:-admission)?|video-(?:keyframe-mediabunny-execution|mediabunny-muxer))`;
-const editorOptionalExportControllerModule = String.raw`(?:audio-export-delivery-admission|audio-export-render-orchestration|audio-realtime-encoded-export|audio-rendered-fallback-export|bw64-render-project|delivery-conformance-action|desktop-audio-export-capability|direct-(?:aiff-export|audio-render-plan|broadcast-wave-export|bw64-export|bwf-export|compressed-export|compressed-plan|compressed-stem-archive-plan|export-dispatch|mp3-export|native-stem-archive-plan|offline-compressed-export|offline-pcm-export|pcm-export|stem-archive-export|video-export|video-plan-contract|wav-export)|export-service|mastering-sequence-export-render|persistent-audio-delivery-execution|persistent-export-progress|realtime-export-pcm-transform|rendered-audio-encoding|streaming-stem-archive-export|video-export-captions|video-export-original-loader|video-export-service|video-export-staged-audio|video-rendered-fallback-export)`;
+const controllerInternalPath = String.raw`internal[\\/](?:[^\\/]+[\\/])*`;
+const editorOptionalExportControllerBasename = String.raw`(?:audio-export-delivery-admission|audio-export-render-orchestration|audio-realtime-encoded-export|audio-rendered-fallback-export|bw64-render-project|delivery-conformance-action|desktop-audio-export-capability|direct-(?:aiff-export|audio-render-plan|broadcast-wave-export|bw64-export|bwf-export|compressed-export|compressed-plan|compressed-stem-archive-plan|export-dispatch|mp3-export|native-stem-archive-plan|offline-compressed-export|offline-pcm-export|pcm-export|stem-archive-export|video-export|video-plan-contract|wav-export)|export-service|mastering-sequence-export-render|persistent-audio-delivery-execution|persistent-export-progress|realtime-export-pcm-transform|rendered-audio-encoding|streaming-stem-archive-export|video-export-captions|video-export-original-loader|video-export-service|video-export-staged-audio|video-rendered-fallback-export)`;
+const editorOptionalExportControllerModule = String.raw`export[\\/](?:${controllerInternalPath})?${editorOptionalExportControllerBasename}`;
 /**
  * Flat editor modules the lazy export slice alone renders through.
  *
  * `loudness-normalization-render.ts` is the case that named this: its only
- * importer is `controller/rendered-audio-encoding.ts`, which the optional export
+ * importer is `controller/export/internal/rendered-audio-encoding.ts`, which the optional export
  * owner claims, so every byte of it sat in both products' startup graphs for an
  * export nobody had opened. A flat module is claimed by the domain group by
  * default, which is eager, so escaping that default takes a name here.
  *
  * The other four arrived the same way and were found the same way, by reading every
- * importer rather than every chunk: `controller/export-service.ts` and
- * `controller/delivery-conformance-action.ts` are the only value importers of
- * `delivery-conformance.ts`, and `controller/video-export-service.ts` is the only one of
+ * importer rather than every chunk: `controller/export/internal/export-service.ts` and
+ * `controller/export/internal/delivery/delivery-conformance-action.ts` are the only value importers of
+ * `delivery-conformance.ts`, and `controller/export/internal/video/video-export-service.ts` is the only one of
  * the conversion inventory, the burn-in font loader and the encoder tier. Note that
  * `video-burn-in-font-subsets.ts` is a different module the caption pipeline reads
  * eagerly; the trailing `\.ts$` anchor is what keeps it out of this alternation.
  */
 const editorOptionalExportFlatModule = String.raw`(?:delivery-conformance|delivery-video-conversion-inventory|loudness-normalization-render|video-burn-in-font|video-delivery-encoder-tier)`;
-export const editorOptionalControllerModule = String.raw`(?:analysis-service|cross-product-handoff-action|dawproject-service|${editorOptionalExportControllerModule})`;
+export const editorOptionalControllerModule = String.raw`(?:analysis[\\/]analysis-service|document[\\/]internal[\\/]cross-product-handoff-action|import[\\/]internal[\\/]dawproject[\\/]dawproject-service|${editorOptionalExportControllerModule})`;
 /**
  * The Framescaper capture and Web VCR implementation, loaded when a capture
  * gesture, a desktop bridge or durable recovery state asks for it.
@@ -44,9 +46,10 @@ export const editorOptionalControllerModule = String.raw`(?:analysis-service|cro
  * UI snapshot builds the idle snapshot the deferred facade shows, and the
  * session manifest is storage the eager repositories read.
  */
-export const editorOptionalCaptureControllerModule = String.raw`(?:framescaper-browser-(?:audio-processor-recorder|audio-recorder|capture-preview|capture-source|recorder-factory|video-recorder)|framescaper-capture-(?!admin-interlock\.ts$|document-ports\.ts$|project-admission\.ts$|project-write-authority\.ts$|proxy-quiescence\.ts$)[a-z\d-]+|framescaper-web-vcr-(?!ui-snapshot\.ts$)[a-z\d-]+|web-vcr-(?:audio-monitor|recorder-factory|video-frame-crop))`;
+const editorOptionalCaptureControllerBasename = String.raw`(?:framescaper-browser-(?:audio-processor-recorder|audio-recorder|capture-preview|capture-source|recorder-factory|video-recorder)|framescaper-capture-(?!admin-interlock\.ts$|document-ports\.ts$|project-admission\.ts$|project-write-authority\.ts$|proxy-quiescence\.ts$)[a-z\d-]+|framescaper-web-vcr-(?!ui-snapshot\.ts$)[a-z\d-]+|web-vcr-(?:audio-monitor|recorder-factory|video-frame-crop))`;
+export const editorOptionalCaptureControllerModule = String.raw`capture[\\/](?:${controllerInternalPath})?${editorOptionalCaptureControllerBasename}`;
 export const editorOptionalCaptureFlatModule = String.raw`(?:framescaper-capture-domain|web-vcr-domain|web-vcr-geometry)`;
-export const editorOptionalAssistanceModule = String.raw`local-assistance-[^\\/]+`;
+export const editorOptionalAssistanceModule = String.raw`assistance[\\/](?:${controllerInternalPath})?local-assistance-[^\\/]+`;
 /**
  * Assistance domain modules the eagerly loaded shell and controller genuinely share.
  *
@@ -87,7 +90,7 @@ export const EDITOR_PRODUCTION_METER_CHUNK_TEST = new RegExp(
 
 /** Effect and Analyze implementations reached only after their eager action facade runs. */
 export const EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST = new RegExp(
-	`${editorPath}(?:${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)|controller[\\\\/]analysis-service\\.ts)$`,
+	`${editorPath}(?:${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)|controller[\\\\/]analysis[\\\\/]analysis-service\\.ts)$`,
 );
 
 /** Audio and video delivery execution isolated from the effect-runtime graph. */
@@ -314,7 +317,7 @@ export const FRAMESCAPER_TIMELINE_IMAGE_CHUNK_TEST =
  * imports, so sharing this owner does not grow the mounted transfer graph.
  */
 export const PROJECT_INTERCHANGE_FOUNDATION_CHUNK_TEST = new RegExp(
-	`(?:${editorPath}(?:project-schema-identity|controller[\\\\/]deferred-archive-runtime)|src[\\\\/]common[\\\\/]cross-product-handoff-intent)\\.ts$`,
+	`(?:${editorPath}(?:project-schema-identity|controller[\\\\/]document[\\\\/]deferred-archive-runtime)|src[\\\\/]common[\\\\/]cross-product-handoff-intent)\\.ts$`,
 );
 
 /** Flat editor modules and `assistance/` domain modules shared by the shell and dialogs. */

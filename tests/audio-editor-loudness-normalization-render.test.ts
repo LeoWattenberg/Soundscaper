@@ -7,7 +7,7 @@ import {
 	encodeRenderedAudio,
 	type RenderedAudioEncodingPlan,
 	type RenderedAudioEncodingRuntime,
-} from '../src/common/editor/controller/rendered-audio-encoding.ts';
+} from '../src/common/editor/controller/export/internal/rendered-audio-encoding.ts';
 import { normalizeRenderedLoudness } from '../src/common/editor/loudness-normalization-render.ts';
 import { measureBextLoudness } from '../src/common/editor/broadcast-loudness.ts';
 import { applyMediaChannelMapping } from '../src/common/editor/media-export.js';

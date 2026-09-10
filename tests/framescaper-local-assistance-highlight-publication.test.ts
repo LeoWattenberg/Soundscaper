@@ -12,7 +12,7 @@ import type {
 } from '../src/common/editor/assistance/workflow.ts';
 import {
 	resolveLocalAssistanceSelectedVideoAuthority,
-} from '../src/common/editor/controller/local-assistance-selected-video.ts';
+} from '../src/common/editor/controller/assistance/local-assistance-selected-video.ts';
 import {
 	createLabel,
 	createLabelTrack,

@@ -8,13 +8,13 @@ import {
 	type ClipTimePitchCachePort,
 	type ClipTimePitchPreparationState,
 	type ClipTimePitchPlaybackState,
-} from '../src/common/editor/controller/clip-time-pitch-service.ts';
-import type { ClipTransformProject } from '../src/common/editor/controller/clip-domain-types.ts';
+} from '../src/common/editor/controller/source/clip-time-pitch-service.ts';
+import type { ClipTransformProject } from '../src/common/editor/controller/clip-video/internal/clip/clip-domain-types.ts';
 import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
-} from '../src/common/editor/controller/lifecycle.ts';
-import { createOwnedStateAccess } from '../src/common/editor/controller/owned-state.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
+import { createOwnedStateAccess } from '../src/common/editor/controller/shared/owned-state.ts';
 
 test('cancelling playback preparation leaves no unobserved stale-refresh rejection', async (t) => {
 	const unobserved: unknown[] = [];

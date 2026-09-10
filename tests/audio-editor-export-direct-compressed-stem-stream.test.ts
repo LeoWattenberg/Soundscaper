@@ -5,13 +5,13 @@ import test from 'node:test';
 
 import { unzipSync } from 'fflate';
 
-import { captureDirectCompressedStemArchiveContract } from '../src/common/editor/controller/direct-compressed-stem-archive-plan.ts';
+import { captureDirectCompressedStemArchiveContract } from '../src/common/editor/controller/export/internal/direct/direct-compressed-stem-archive-plan.ts';
 import {
 	commitPreparedDirectStemArchiveDestination,
 	prepareDirectStemArchiveDestination,
 	streamDirectStemArchive,
-} from '../src/common/editor/controller/direct-stem-archive-export.ts';
-import { inspectZip32Layout } from '../src/common/editor/controller/zip32.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-stem-archive-export.ts';
+import { inspectZip32Layout } from '../src/common/editor/controller/export/internal/archive/zip32.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 
 test('streams variable compressed entries through one retained stem and commits their actual ZIP size', async (context) => {

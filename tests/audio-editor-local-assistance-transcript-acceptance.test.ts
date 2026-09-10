@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	createLocalAssistanceTranscriptAcceptance,
-} from '../src/common/editor/controller/local-assistance-transcript-acceptance.ts';
+} from '../src/common/editor/controller/assistance/internal/local-assistance-transcript-acceptance.ts';
 
 const SOURCE_SHA256 = 'ab'.repeat(32);
 const MODEL_SHA256 = '12'.repeat(32);

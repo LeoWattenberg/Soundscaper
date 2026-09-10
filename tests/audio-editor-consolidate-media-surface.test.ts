@@ -8,7 +8,7 @@ import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace
 import { EXPORT_MENU_COPY_BY_LOCALE } from '../src/common/i18n/export-menu-copy.js';
 import {
 	createProjectMediaActionGroup,
-} from '../src/common/editor/controller/project-media-action-group.ts';
+} from '../src/common/editor/controller/document/project-media-action-group.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 
 interface MenuItem {

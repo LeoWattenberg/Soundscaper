@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createDeliveryQueueService } from '../src/common/editor/controller/delivery-queue-service.ts';
-import { createExportActionGroup } from '../src/common/editor/controller/export-action-group.ts';
+import { createDeliveryQueueService } from '../src/common/editor/controller/export/internal/delivery/delivery-queue-service.ts';
+import { createExportActionGroup } from '../src/common/editor/controller/export/export-action-group.ts';
 
 /**
  * What the export path returns when it published something. The stand-in has to

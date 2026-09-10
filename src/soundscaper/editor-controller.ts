@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { ControllerOptions } from '../common/editor/controller/controller-options.ts';
+import type { ControllerOptions } from '../common/editor/controller/composition/controller-options.ts';
 import { createAudioEditorController } from '../common/editor/app.js';
 import { importSoundscaperAudacityProject } from './editor-audacity-project-import.ts';
 import {
@@ -36,10 +36,10 @@ import { createSoundscaperVideoExportStrategy } from './video-export-strategy.ts
 import {
 	createSoundscaperPersistentDeliveryControllerComposition,
 	type SoundscaperPersistentDeliveryControllerRuntime,
-} from '../common/editor/controller/soundscaper-persistent-delivery-controller-composition.ts';
+} from '../common/editor/controller/export/soundscaper-persistent-delivery-controller-composition.ts';
 import type {
 	SoundscaperPersistentDeliveryExportRuntime,
-} from '../common/editor/controller/soundscaper-persistent-delivery-runtime-binding.ts';
+} from '../common/editor/controller/export/soundscaper-persistent-delivery-runtime-binding.ts';
 
 const PRESENTATION_FIELDS = ['locale', 'copy', 'fileService'] as const;
 

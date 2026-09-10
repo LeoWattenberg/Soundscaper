@@ -7,14 +7,14 @@ import test from 'node:test';
 import {
 	createDeferredEffectRuntime,
 	type DeferredEffectModuleLoaders,
-} from '../src/common/editor/controller/deferred-effect-runtime.ts';
+} from '../src/common/editor/controller/effects/deferred-effect-runtime.ts';
 import {
 	createDeferredSpectralEditAdmissionLoader,
-} from '../src/common/editor/controller/deferred-spectral-edit-admission.ts';
+} from '../src/common/editor/controller/effects/internal/deferred-spectral-edit-admission.ts';
 import {
 	createDeferredEditorExportService,
 	type DeferredEditorExportModule,
-} from '../src/common/editor/controller/deferred-export-service.ts';
+} from '../src/common/editor/controller/export/deferred-export-service.ts';
 
 test('effect implementations load only on invocation and cache their modules and Nyquist client', async () => {
 	const calls = { audacity: 0, selection: 0, pffft: 0, parametricEq: 0, spectral: 0, nyquist: 0 };
@@ -191,11 +191,11 @@ test('product-ready owners retain descriptors but not optional effect or analysi
 		'spectral-edit.js',
 	]) assert.doesNotMatch(app, new RegExp(`from ['"].*${implementation.replaceAll('.', '\\.')}`), implementation);
 	assert.doesNotMatch(app, /from ['"].*controller\/export-service\.ts['"]/u);
-	assert.doesNotMatch(source('src/common/editor/controller/waveform-analysis.ts'), /from ['"]\.\.\/analysis\.js['"]/u);
+	assert.doesNotMatch(source('src/common/editor/controller/source/waveform-analysis.ts'), /from ['"]\.\.\/analysis\.js['"]/u);
 	assert.doesNotMatch(source('src/common/editor/pffft-spectrogram.js'), /from ['"]\.\/pffft\.js['"]/u);
 	for (const path of [
-		'src/common/editor/controller/effect-audio-service.ts',
-		'src/common/editor/controller/selection-effect-worker-service.ts',
+		'src/common/editor/controller/effects/internal/effect-audio-service.ts',
+		'src/common/editor/controller/effects/internal/selection-effect-worker-service.ts',
 	]) assert.doesNotMatch(source(path), /from ['"]\.\.\/spectral-edit-admission\.ts['"]/u, path);
 	for (const path of [
 		'src/common/editor/effects.js',

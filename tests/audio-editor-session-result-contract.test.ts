@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createAudioEditorSessionController } from '../src/common/editor/session.js';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
-import type { ProjectAdminServiceRuntime } from '../src/common/editor/controller/project-admin-runtime.ts';
+import type { ProjectAdminServiceRuntime } from '../src/common/editor/controller/document/internal/project/project-admin-runtime.ts';
 
 void test('session close retains its result fields through source retirement', () => {
 	const session = createAudioEditorSessionController() satisfies

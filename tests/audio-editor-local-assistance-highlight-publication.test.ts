@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import type { AssistanceWorkflowFenceV1 } from '../src/common/editor/assistance/workflow.ts';
 import { resolveLocalAssistanceSelectedVideoAuthority } from
-	'../src/common/editor/controller/local-assistance-selected-video.ts';
+	'../src/common/editor/controller/assistance/local-assistance-selected-video.ts';
 import {
 	createFramescaperAssistanceHighlightPublication,
 } from '../src/framescaper/editor-local-assistance-highlight-publication.ts';

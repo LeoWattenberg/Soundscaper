@@ -8,15 +8,15 @@ import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.
 import {
 	createTakeCycleCaptureOrchestrator,
 	type TakeCycleCapturedLane,
-} from '../src/common/editor/controller/take-cycle-capture-orchestrator.ts';
-import { createTakeCycleCaptureSourceSpool } from '../src/common/editor/controller/take-cycle-capture-spool.ts';
-import { createTakeCycleLiveCaptureSpool } from '../src/common/editor/controller/take-cycle-live-capture-spool.ts';
+} from '../src/common/editor/controller/recording/take-cycle-capture-orchestrator.ts';
+import { createTakeCycleCaptureSourceSpool } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-capture-spool.ts';
+import { createTakeCycleLiveCaptureSpool } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-live-capture-spool.ts';
 import {
 	createTakeCycleRecordingRepositoryComposition,
 	type TakeCyclePublishedProject,
-} from '../src/common/editor/controller/take-cycle-recording-repository-composition.ts';
-import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
-import type { TakeCycleFinalizationRequest } from '../src/common/editor/controller/take-cycle-recording-service.ts';
+} from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-recording-repository-composition.ts';
+import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
+import type { TakeCycleFinalizationRequest } from '../src/common/editor/controller/recording/take-cycle-recording-service.ts';
 import { createEditorHistory, executeEditorCommand } from '../src/common/editor/history.js';
 import {
 	createAudioTrack,

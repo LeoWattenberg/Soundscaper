@@ -96,9 +96,9 @@ test('linked-original compatibility policy qualifies bounded save and activation
 	);
 
 	for (const evidence of [
-		'src/common/editor/controller/project-retention-service.ts',
-		'src/common/editor/controller/project-save-service.ts',
-		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/controller/document/internal/project/project-retention-service.ts',
+		'src/common/editor/controller/document/project-save-service.ts',
+		'src/common/editor/controller/document/project-switch-service.ts',
 		'src/soundscaper/desktop-project-library-renderer.ts',
 		'src/common/editor/storage/linked-original-lifecycle-coordinator.ts',
 		'src/common/editor/storage/linked-original-pair-writer.ts',

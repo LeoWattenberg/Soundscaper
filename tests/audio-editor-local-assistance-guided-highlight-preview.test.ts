@@ -7,7 +7,7 @@ import {
 	createLocalAssistanceGuidedHighlightPreviewPlanV1,
 	extractLocalAssistanceGuidedHighlightSourceTimeAuthorityV1,
 	snapLocalAssistanceGuidedHighlightTrimBoundaryV1,
-} from '../src/common/editor/controller/local-assistance-guided-highlight-preview.ts';
+} from '../src/common/editor/controller/assistance/local-assistance-guided-highlight-preview.ts';
 import { assistanceWorkflowFixture } from './helpers/assistance-workflow-fixture.ts';
 
 test('highlight preview seeks the exact edited VFR/retime interval and current crop', () => {

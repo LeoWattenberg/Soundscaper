@@ -4,8 +4,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 
-import { prepareRawPcmWaveFile, type RawPcmByteOrder, type RawPcmSampleFormat } from '../../controller/raw-pcm-import.ts';
-import type { RegularIntervalAnnotationOptions } from '../../controller/regular-interval-annotation-service.ts';
+import { prepareRawPcmWaveFile, type RawPcmByteOrder, type RawPcmSampleFormat } from '../../controller/import/raw-pcm-import.ts';
+import type { RegularIntervalAnnotationOptions } from '../../controller/document/regular-interval-annotation-service.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';

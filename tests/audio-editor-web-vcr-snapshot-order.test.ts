@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	createFramescaperWebVcrSnapshotOrder,
-} from '../src/common/editor/controller/framescaper-web-vcr-snapshot-order.ts';
+} from '../src/common/editor/controller/capture/internal/web-vcr/framescaper-web-vcr-snapshot-order.ts';
 
 const snapshot = (
 	generation: number,

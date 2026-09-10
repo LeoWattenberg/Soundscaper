@@ -7,12 +7,12 @@ import {
 	sameAudioTrackFreezeV1,
 	type AudioTrackFreezeV1,
 } from '../common/editor/audio-track-freeze-v21.ts';
-import type { PlaybackProjectService } from '../common/editor/controller/playback-project-service.ts';
+import type { PlaybackProjectService } from '../common/editor/controller/source/playback-project-service.ts';
 import {
 	createTransientAnalysisPcmAccess,
 	type TransientAnalysisPcmSource,
 	type TransientAnalysisPcmStore,
-} from '../common/editor/controller/transient-analysis-pcm-access.ts';
+} from '../common/editor/controller/analysis/transient-analysis-pcm-access.ts';
 import { normalizeMixerGraphV21 } from '../common/editor/mixer-graph-v21.ts';
 import {
 	inheritTrackFolderMediaStateProjectionV12,

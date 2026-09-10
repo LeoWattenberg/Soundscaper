@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createNormalizingMixRenderPacketSink,
 	normalizeMixRenderChannels,
-} from '../src/common/editor/controller/mix-render-channel-normalizer.ts';
+} from '../src/common/editor/controller/track-audio/internal/mix-render/mix-render-channel-normalizer.ts';
 
 test('buffered and streamed Mix and Render use identical chosen multichannel layouts', async () => {
 	const input = Array.from({ length: 6 }, (_, channel) => Float32Array.of(

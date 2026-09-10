@@ -2,9 +2,9 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createPreferencesComposition } from '../src/common/editor/controller/preferences-composition.ts';
+import { createPreferencesComposition } from '../src/common/editor/controller/preferences/preferences-composition.ts';
 import { createAudioEditorPreferencesV1 } from '../src/common/editor/preferences.js';
-import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
+import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
 import type { createAudioEditorController } from '../src/common/editor/facade.ts';
 
 test('preference composition loads product storage and applies session defaults', async () => {

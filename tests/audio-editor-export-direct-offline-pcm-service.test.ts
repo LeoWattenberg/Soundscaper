@@ -7,8 +7,8 @@ import { createAiffStreamEncoder, encodeAiff } from '../src/common/editor/aiff.j
 import {
 	createEditorExportService,
 	type ExportServiceRuntime,
-} from '../src/common/editor/controller/export-service.ts';
-import { DIRECT_PCM_RENDER_CHUNK_FRAMES } from '../src/common/editor/controller/direct-pcm-export.ts';
+} from '../src/common/editor/controller/export/internal/export-service.ts';
+import { DIRECT_PCM_RENDER_CHUNK_FRAMES } from '../src/common/editor/controller/export/internal/direct/direct-pcm-export.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 import { applyMediaChannelMapping } from '../src/common/editor/media-export.js';
 import { createDefaultMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { resolveTakeCycleGroupId } from '../src/common/editor/controller/take-cycle-group-id.ts';
+import { resolveTakeCycleGroupId } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-group-id.ts';
 
 test('cycle group IDs reuse the exact same track sequence and loop', () => {
 	const project = {

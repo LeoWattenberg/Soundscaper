@@ -2,9 +2,9 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createGroupedEditorActions } from '../src/common/editor/controller/action-facade.ts';
-import type { EditorActionResources } from '../src/common/editor/controller/editor-action-resources.ts';
-import type { EffectControlPreviewSource } from '../src/common/editor/controller/effect-controls-service.ts';
+import { createGroupedEditorActions } from '../src/common/editor/controller/composition/action-facade.ts';
+import type { EditorActionResources } from '../src/common/editor/controller/composition/editor-action-resources.ts';
+import type { EffectControlPreviewSource } from '../src/common/editor/controller/effects/effect-controls-service.ts';
 import { createActionFacadeRuntime } from './helpers/action-facade-runtime-fixture.ts';
 
 function fixture(preview: EditorActionResources['state']['audacityPreviewSource']) {

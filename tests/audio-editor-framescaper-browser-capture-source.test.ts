@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createBrowserFramescaperCaptureSourcePort,
 	selectFramescaperVideoMimeType,
-} from '../src/common/editor/controller/framescaper-browser-capture-source.ts';
+} from '../src/common/editor/controller/capture/internal/browser/framescaper-browser-capture-source.ts';
 
 interface FakeTrack {
 	readonly id: string;

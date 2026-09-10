@@ -20,7 +20,7 @@
 - **The three-point resolver already accepts source marks.**
   `resolveThreePointEdit` (`three-point-edit.ts:83`) takes all four points and
   resolves whichever one is missing; 3B-3a simply never had marks to give it and
-  passed the whole source instead (`controller/video-edit-service.ts:99-103`).
+  passed the whole source instead (`controller/clip-video/internal/video/video-edit-service.ts:99-103`).
   Marking is the missing input, not a missing rule.
 - **The frame under the playhead is already computed.**
   `resolveSourceTimecodeAtSample` (`source-properties-model.ts:110`) maps a
@@ -34,8 +34,8 @@
   `overwriteThreePointEdit` (`commands/three-point-edit-runtime.js:100`)
   conforms once per sequence and disturbs only the lanes it lands on.
 - **Session state has a precedent.** Folder selection
-  (`controller/track-folder-service.ts:62`) and edit targeting
-  (`controller/video-edit-service.ts:71`) are both held in the controller and
+  (`controller/document/internal/track-folder-service.ts:62`) and edit targeting
+  (`controller/clip-video/internal/video/video-edit-service.ts:71`) are both held in the controller and
   never persisted.
 
 What is missing is a surface that addresses a source by its own frame grid, the

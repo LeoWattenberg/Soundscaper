@@ -8,7 +8,7 @@ import { registerFileCapabilityIpc } from '../desktop/main-file-capability-ipc.m
 import { validateSaveChoice } from '../desktop/validation.js';
 import { createCrossProductHandoffLaunchIntent } from '../src/common/cross-product-handoff-intent.ts';
 import { saveCrossProductEditableCopy } from
-	'../src/common/editor/controller/cross-product-handoff-action.ts';
+	'../src/common/editor/controller/document/internal/cross-product-handoff-action.ts';
 import { convertCrossProductEditableCopy } from
 	'../src/common/transfer/cross-product-handoff-conversion.ts';
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';

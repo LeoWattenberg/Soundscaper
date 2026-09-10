@@ -5,7 +5,7 @@ import { register } from 'node:module';
 import test from 'node:test';
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
 import type { EngineAudioContext } from '../src/common/editor/engine/public-api.ts';
-import type { RecordingControllerFactoryOptions } from '../src/common/editor/controller/recording-transaction-types.ts';
+import type { RecordingControllerFactoryOptions } from '../src/common/editor/controller/recording/recording-transaction-types.ts';
 import { MockAudioContext } from './helpers/mock-audio-context.js';
 
 import type {

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { ProductVideoExportStrategy } from
-	'../common/editor/controller/product-video-export-strategy.ts';
+	'../common/editor/controller/export/product-video-export-strategy.ts';
 import type { FramescaperSelectedOpenFxExecutionNativeMedia } from './selected-native-media-openfx-exact-planes.ts';
 import type { FramescaperVideoExportStrategyFinishingDependencies } from './video-export-strategy-finishing.ts';
 import type { FramescaperVideoExportAssetStoreTimelineImage } from './video-export-strategy-timeline-image.ts';

@@ -1,0 +1,164 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import type { AudioEditorCommand } from '../../../../commands/protocol.ts';
+import { applyDefaultTakeCycleProjectCommand, type TakeCycleProjectDocument } from './take-cycle-project-document.ts';
+import { serializeScapeProjectDocument } from '../../../../scape-project-document.ts';
+import type { TakeCyclePublishedProject } from './take-cycle-recording-repository-composition.ts';
+
+export interface TakeCyclePublicationHistory {
+	readonly limit: number;
+	readonly dropped?: number;
+	readonly present: TakeCycleProjectDocument;
+	readonly undoStack: readonly Readonly<{
+		readonly project: TakeCycleProjectDocument;
+		readonly command?: unknown;
+	}>[];
+	readonly redoStack: readonly Readonly<{
+		readonly project: TakeCycleProjectDocument;
+		readonly command?: unknown;
+	}>[];
+}
+
+export interface TakeCyclePublicationSession {
+	captureProjectHistory(projectId: string): Readonly<{
+		readonly history: TakeCyclePublicationHistory;
+		readonly token: unknown;
+	}>;
+	assertProjectHistoryToken(projectId: string, token: unknown): unknown;
+	updateProjectHistory(
+		projectId: string,
+		history: TakeCyclePublicationHistory,
+		options: Readonly<{ readonly dirty: false }>,
+	): unknown;
+	getProjectHistory(projectId: string): TakeCyclePublicationHistory;
+	markProjectSaved(projectId: string): unknown;
+}
+
+export interface TakeCycleCurrentProjectPublicationDependencies {
+	readonly session: TakeCyclePublicationSession;
+	readonly applyProjectCommand?: (
+		project: TakeCycleProjectDocument,
+		command: AudioEditorCommand,
+		options?: Readonly<{ readonly now?: Date | string }>,
+	) => TakeCycleProjectDocument;
+	getActiveProject(): TakeCycleProjectDocument | null;
+	getActiveHistory(): TakeCyclePublicationHistory | null;
+	setActiveProject(project: TakeCycleProjectDocument): void;
+	setActiveHistory(history: TakeCyclePublicationHistory): void;
+	isActiveProject(projectId: string): boolean;
+	synchronizeProject(project: TakeCycleProjectDocument): PromiseLike<void> | void;
+}
+
+export interface TakeCycleCurrentProjectPublicationService {
+	publish(publication: TakeCyclePublishedProject): Promise<void>;
+}
+
+/** Synchronize an already-durable exact CAS target into the active editor tab. */
+export function createTakeCycleCurrentProjectPublicationService(
+	dependencies: TakeCycleCurrentProjectPublicationDependencies,
+): Readonly<TakeCycleCurrentProjectPublicationService> {
+	return Object.freeze({ publish });
+
+	async function publish(publication: TakeCyclePublishedProject): Promise<void> {
+		const { base, target } = publication;
+		if (base.id !== target.id || !dependencies.isActiveProject(base.id)) {
+			throw new Error('Take cycle publication does not own the exact active project.');
+		}
+		const active = dependencies.getActiveProject();
+		const activeHistory = dependencies.getActiveHistory();
+		if (!active || !activeHistory || active.id !== base.id || activeHistory.present.id !== base.id) {
+			throw new Error('Take cycle publication requires one exact active project history.');
+		}
+		const capture = dependencies.session.captureProjectHistory(base.id);
+		if (!sameProject(capture.history.present, activeHistory.present)
+			|| !sameProject(active, activeHistory.present)) {
+			throw new Error('Take cycle active project and session history diverged.');
+		}
+		const atBase = sameProject(active, base);
+		const atTarget = sameProject(active, target);
+		if (!atBase && !atTarget) {
+			throw new Error('Active project does not match the exact take cycle base or target.');
+		}
+
+		let nextHistory: TakeCyclePublicationHistory;
+		if (publication.command) {
+			if (publication.reason !== 'finalize' || !atBase) {
+				throw new Error('A live take cycle command requires the exact active base.');
+			}
+			assertCommandTarget(
+				base,
+				target,
+				publication.command,
+				dependencies.applyProjectCommand ?? applyDefaultTakeCycleProjectCommand,
+			);
+			const pushed = [
+				...capture.history.undoStack,
+				Object.freeze({ project: base, command: publication.command }),
+			];
+			const undoStack = pushed.slice(-capture.history.limit);
+			nextHistory = Object.freeze({
+				...capture.history,
+				present: target,
+				undoStack: Object.freeze(undoStack),
+				redoStack: Object.freeze([]),
+				dropped: (capture.history.dropped ?? 0) + pushed.length - undoStack.length,
+			});
+		} else if (atBase) {
+			nextHistory = Object.freeze({
+				...capture.history,
+				present: target,
+				undoStack: Object.freeze([]),
+				redoStack: Object.freeze([]),
+			});
+		} else nextHistory = capture.history;
+
+		dependencies.session.assertProjectHistoryToken(base.id, capture.token);
+		if (!dependencies.isActiveProject(base.id)) {
+			throw new Error('Take cycle publication lost the active project before synchronization.');
+		}
+		if (!sameHistory(capture.history, nextHistory)) {
+			dependencies.session.updateProjectHistory(base.id, nextHistory, { dirty: false });
+		}
+		dependencies.session.markProjectSaved(base.id);
+		const synchronizedHistory = dependencies.session.getProjectHistory(base.id);
+		if (!sameProject(synchronizedHistory.present, target)) {
+			throw new Error('Session normalization changed the exact take cycle target.');
+		}
+		dependencies.setActiveHistory(synchronizedHistory);
+		dependencies.setActiveProject(synchronizedHistory.present);
+		await dependencies.synchronizeProject(synchronizedHistory.present);
+		if (!dependencies.isActiveProject(base.id)
+			|| !sameProject(dependencies.getActiveProject(), target)) {
+			throw new Error('Take cycle publication was superseded during project synchronization.');
+		}
+	}
+}
+
+function assertCommandTarget(
+	base: TakeCycleProjectDocument,
+	target: TakeCycleProjectDocument,
+	command: AudioEditorCommand,
+	applyProjectCommand: NonNullable<TakeCycleCurrentProjectPublicationDependencies['applyProjectCommand']>,
+): void {
+	const applied = applyProjectCommand(base, command, { now: target.updatedAt });
+	if (!sameProject(applied, target)) {
+		throw new Error('Prepared take cycle command does not produce its exact durable target.');
+	}
+}
+
+function sameProject(left: unknown, right: unknown): boolean {
+	if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
+	try {
+		return serializeScapeProjectDocument(left)
+			=== serializeScapeProjectDocument(right);
+	} catch {
+		return false;
+	}
+}
+
+function sameHistory(
+	left: TakeCyclePublicationHistory,
+	right: TakeCyclePublicationHistory,
+): boolean {
+	return left === right || JSON.stringify(left) === JSON.stringify(right);
+}

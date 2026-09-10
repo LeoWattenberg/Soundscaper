@@ -9,7 +9,7 @@ import {
 	PROJECT_SCHEMA_VERSION,
 	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
 } from '../../src/common/editor/project-schema-identity.ts';
-import type { ScapeProjectInspection } from '../../src/common/editor/controller/scape-project-file-service.ts';
+import type { ScapeProjectInspection } from '../../src/common/editor/controller/document/scape-project-file-service.ts';
 import type { ScapeProjectInput } from '../../src/common/editor/scape-project-input.ts';
 import {
 	importScapeProject as importRawScapeProject,

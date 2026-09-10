@@ -3,7 +3,7 @@
 import type { DeliveryBatchTarget } from '../delivery-batch.ts';
 import type {
 	DocumentMasteringSequenceDocumentSnapshot,
-} from '../controller/document-mastering-sequence-snapshot.ts';
+} from '../controller/document/document-mastering-sequence-snapshot.ts';
 
 /**
  * What a batch can deliver from *this* document, right now.

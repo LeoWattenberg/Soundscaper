@@ -8,12 +8,12 @@ import test from 'node:test';
 
 import { ReadCapabilityStore } from '../desktop/file-capabilities.js';
 import { createProtocolHandler } from '../desktop/protocol.js';
-import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
-import type { ScapeProjectInspector } from '../src/common/editor/controller/scape-inspection-service.ts';
+import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
+import type { ScapeProjectInspector } from '../src/common/editor/controller/document/internal/scape/scape-inspection-service.ts';
 import {
 	createScapeProjectFileService,
 	type ScapeProjectInspection,
-} from '../src/common/editor/controller/scape-project-file-service.ts';
+} from '../src/common/editor/controller/document/scape-project-file-service.ts';
 import { createAudioEditorFileService } from '../src/common/editor/file-service.js';
 import type { ScapeManifest } from '../src/common/editor/scape-archive-envelope.ts';
 import { inspectScapeProject } from '../src/common/editor/scape-project.js';

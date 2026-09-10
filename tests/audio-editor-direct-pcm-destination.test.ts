@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { openDirectPcmDestination } from '../src/common/editor/controller/direct-pcm-export.ts';
+import { openDirectPcmDestination } from '../src/common/editor/controller/export/internal/direct/direct-pcm-export.ts';
 
 type SizeMode = 'exact' | 'maximum';
 

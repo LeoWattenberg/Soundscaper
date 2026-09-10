@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { bindProjectAdministrationActions, type ProjectAdministrationCaptureGuard } from '../src/common/editor/controller/project-admin-action-binding.ts';
+import { bindProjectAdministrationActions, type ProjectAdministrationCaptureGuard } from '../src/common/editor/controller/document/project-admin-action-binding.ts';
 
 type Administration = Parameters<typeof bindProjectAdministrationActions>[0];
 

@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createControllerDocumentState, createControllerDocumentCheckpoints } from '../src/common/editor/controller/document-state.ts';
+import { createControllerDocumentState, createControllerDocumentCheckpoints } from '../src/common/editor/controller/document/document-state.ts';
 
 interface Project { readonly id: string; readonly revision: number }
 interface History { readonly present: Project; readonly undoStack: readonly Project[] }

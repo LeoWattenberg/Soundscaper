@@ -17,7 +17,7 @@ import {
 import {
 	SOUNDSCAPER_DELIVERY_PROGRESS_MESSAGE_TYPE,
 	executeSoundscaperDeliveryRenderJobV1,
-} from '../src/common/editor/controller/soundscaper-persistent-delivery-adapter-v1.ts';
+} from '../src/common/editor/controller/export/internal/delivery/soundscaper-persistent-delivery-adapter-v1.ts';
 import {
 	PROJECT,
 	boundDestination,
@@ -138,7 +138,7 @@ test('progress and result sequences must advance through the executor', async ()
 
 test('the caller-owned publication fence is single-use', async () => {
 	const { validateSoundscaperDeliveryPublicationFenceV1, validateSoundscaperDeliveryDestinationV1 } = await import(
-		'../src/common/editor/controller/soundscaper-delivery-publication-v1.ts');
+		'../src/common/editor/controller/export/internal/delivery/soundscaper-delivery-publication-v1.ts');
 	const expected = description();
 	const output = result(expected);
 	const destination = validateSoundscaperDeliveryDestinationV1(

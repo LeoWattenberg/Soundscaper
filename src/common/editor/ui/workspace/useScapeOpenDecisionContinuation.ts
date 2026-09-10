@@ -6,7 +6,7 @@ import type {
 	ScapeOpenDecisionChoice,
 	ScapeOpenDecisionRequest,
 	ScapeOpenInspection,
-} from '../../controller/scape-open-request-service.ts';
+} from '../../controller/document/scape-open-request-service.ts';
 import {
 	createScapeOpenDecisionContinuation,
 	type ScapeOpenDecisionPrompt,

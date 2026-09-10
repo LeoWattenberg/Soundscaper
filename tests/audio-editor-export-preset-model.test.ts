@@ -15,7 +15,7 @@ import {
 	resolveDeliveryPresetPlanOptions,
 	validateDeliveryPreset,
 } from '../src/common/editor/delivery-preset.ts';
-import { createDeliveryPresetService } from '../src/common/editor/controller/delivery-preset-service.ts';
+import { createDeliveryPresetService } from '../src/common/editor/controller/export/delivery-preset-service.ts';
 import {
 	createExportDialogRequest,
 	isVideoExportDialogFormat,

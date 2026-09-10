@@ -3,10 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createFramescaperCaptureAdminInterlock } from '../src/common/editor/controller/framescaper-capture-admin-interlock.ts';
+import { createFramescaperCaptureAdminInterlock } from '../src/common/editor/controller/capture/framescaper-capture-admin-interlock.ts';
 import {
 	createFramescaperCaptureStartAdmissionCoordinator,
-} from '../src/common/editor/controller/framescaper-capture-start-admission.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-start-admission.ts';
 
 const SHA_A = 'ab'.repeat(32);
 const SHA_B = 'cd'.repeat(32);

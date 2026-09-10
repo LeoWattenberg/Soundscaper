@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
 	createInitialStorageCapacitySnapshot,
 	createStorageCapacityService,
-} from '../src/common/editor/controller/storage-capacity-service.ts';
+} from '../src/common/editor/controller/shared/storage-capacity-service.ts';
 
 test('storage capacity refresh ignores a late completion after controller shutdown', async () => {
 	const estimate = deferred<Readonly<{ usage: number; quota: number }>>();

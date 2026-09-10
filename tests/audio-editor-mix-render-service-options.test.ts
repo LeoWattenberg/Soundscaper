@@ -7,14 +7,14 @@ import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.
 import {
 	createMixRenderService,
 	type MixRenderServiceDependencies,
-} from '../src/common/editor/controller/mix-render-service.ts';
-import type { AudioBufferLike } from '../src/common/editor/controller/source-audio.ts';
+} from '../src/common/editor/controller/track-audio/internal/mix-render/mix-render-service.ts';
+import type { AudioBufferLike } from '../src/common/editor/controller/source/source-audio.ts';
 import type {
 	ControllerProject,
 	ControllerSource,
 	DerivedSourceRecord,
 	SourceWriter,
-} from '../src/common/editor/controller/track-domain-types.ts';
+} from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 
 test('individual Mix and Render skips empty targets and stages project-ordered outputs in one commit', async () => {
 	const project = fixture();

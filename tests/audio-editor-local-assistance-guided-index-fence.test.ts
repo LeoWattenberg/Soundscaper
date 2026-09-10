@@ -12,9 +12,9 @@ import { serializeAssistanceWorkflowSettingsV1 } from
 import { defaultAssistanceWorkflowSettingsV1 } from
 	'../src/common/editor/assistance/workflow-settings-v1.ts';
 import { createLocalAssistanceGuidedAggregateFenceV1 } from
-	'../src/common/editor/controller/local-assistance-guided-fence.ts';
+	'../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-fence.ts';
 import { createLocalAssistanceGuidedPublicationFenceResolver } from
-	'../src/common/editor/controller/local-assistance-guided-publication-fence.ts';
+	'../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-publication-fence.ts';
 import { assistanceWorkflowFixture } from './helpers/assistance-workflow-fixture.ts';
 
 const SOURCE_SHA256 = '12'.repeat(32);

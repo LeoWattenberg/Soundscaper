@@ -74,12 +74,12 @@ test('Framescaper capture and Web VCR stay behind their deferred product runtime
 		.filter((path) => /\/(?:framescaper-(?:browser|capture|web-vcr)-|web-vcr-)/u.test(path));
 	assert.ok(implementation.length >= 55, `the capture implementation must be found (${implementation.length})`);
 	const eager = new Set([
-		'src/common/editor/controller/framescaper-capture-admin-interlock.ts',
-		'src/common/editor/controller/framescaper-capture-project-write-authority.ts',
-		'src/common/editor/controller/framescaper-capture-proxy-quiescence.ts',
-		'src/common/editor/controller/framescaper-capture-document-ports.ts',
-		'src/common/editor/controller/framescaper-capture-project-admission.ts',
-		'src/common/editor/controller/framescaper-web-vcr-ui-snapshot.ts',
+		'src/common/editor/controller/capture/framescaper-capture-admin-interlock.ts',
+		'src/common/editor/controller/capture/framescaper-capture-project-write-authority.ts',
+		'src/common/editor/controller/capture/framescaper-capture-proxy-quiescence.ts',
+		'src/common/editor/controller/capture/framescaper-capture-document-ports.ts',
+		'src/common/editor/controller/capture/internal/framescaper-capture-project-admission.ts',
+		'src/common/editor/controller/capture/framescaper-web-vcr-ui-snapshot.ts',
 	]);
 	for (const path of implementation) {
 		if (eager.has(path)) {
@@ -115,13 +115,13 @@ test('the export and delivery split keeps its implementation behind the export o
 	// render, delivery and staging code in an eagerly loaded chunk. Each is
 	// imported only from a service that is itself behind the lazy export owner.
 	for (const path of [
-		'src/common/editor/controller/bw64-render-project.ts',
-		'src/common/editor/controller/mastering-sequence-export-render.ts',
-		'src/common/editor/controller/persistent-audio-delivery-execution.ts',
-		'src/common/editor/controller/persistent-export-progress.ts',
-		'src/common/editor/controller/streaming-stem-archive-export.ts',
-		'src/common/editor/controller/video-export-original-loader.ts',
-		'src/common/editor/controller/video-export-staged-audio.ts',
+		'src/common/editor/controller/export/internal/bw64-render-project.ts',
+		'src/common/editor/controller/export/internal/mastering-sequence-export-render.ts',
+		'src/common/editor/controller/export/internal/delivery/persistent-audio-delivery-execution.ts',
+		'src/common/editor/controller/export/internal/delivery/persistent-export-progress.ts',
+		'src/common/editor/controller/export/internal/archive/streaming-stem-archive-export.ts',
+		'src/common/editor/controller/export/video-export-original-loader.ts',
+		'src/common/editor/controller/export/internal/video/video-export-staged-audio.ts',
 	]) {
 		assert.ok(EDITOR_OPTIONAL_EXPORT_CHUNK_TEST.test(path), `${path} must be an optional export module`);
 		assert.equal(chunkGroupForModulePath(path), 'editor-optional-export', `${path} belongs to the export owner`);
@@ -162,16 +162,16 @@ test('the DAWproject exchange stays behind its deferred controller facade', () =
 	// of its ceilings, for a File menu entry most sessions never open.
 	const implementation = flatEditorModules().filter((path) => /dawproject-/u.test(path));
 	assert.ok(implementation.length >= 10, 'the exchange implementation must be found');
-	for (const path of [...implementation, 'src/common/editor/controller/dawproject-service.ts']) {
+	for (const path of [...implementation, 'src/common/editor/controller/import/internal/dawproject/dawproject-service.ts']) {
 		assert.ok(EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST.test(path) || path.includes('/controller/'), path);
 		assert.equal(chunkGroupForModulePath(path), null, `${path} must stay behind its lazy action`);
 	}
 	assert.equal(
-		chunkGroupForModulePath('src/common/editor/controller/deferred-dawproject-service.ts'),
+		chunkGroupForModulePath('src/common/editor/controller/import/deferred-dawproject-service.ts'),
 		'editor-controller-core',
 	);
 	const composition = readFileSync(
-		new URL('../src/common/editor/controller/native-project-service.ts', import.meta.url),
+		new URL('../src/common/editor/controller/document/native-project-service.ts', import.meta.url),
 		'utf8',
 	);
 	assert.match(composition, /createDeferredDawprojectService\(/u);
@@ -183,7 +183,7 @@ test('optional effect and analysis implementations have a dedicated lazy owner',
 		'src/common/editor/analysis.js',
 		'src/common/editor/spectral-edit.js',
 		'src/common/editor/spectral-edit-admission.ts',
-		'src/common/editor/controller/analysis-service.ts',
+		'src/common/editor/controller/analysis/analysis-service.ts',
 	]) {
 		assert.ok(EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST.test(path), `${path} must be an optional execution module`);
 		assert.equal(chunkGroupForModulePath(path), 'editor-optional-execution', `${path} must stay behind its lazy action`);
@@ -220,12 +220,12 @@ test('selection effects have an isolated lazy runtime owner', () => {
 
 test('optional export execution has an isolated lazy owner', () => {
 	for (const path of [
-		'src/common/editor/controller/export-service.ts',
-		'src/common/editor/controller/audio-export-render-orchestration.ts',
-		'src/common/editor/controller/audio-realtime-encoded-export.ts',
-		'src/common/editor/controller/direct-compressed-export.ts',
-		'src/common/editor/controller/video-export-service.ts',
-		'src/common/editor/controller/delivery-conformance-action.ts',
+		'src/common/editor/controller/export/internal/export-service.ts',
+		'src/common/editor/controller/export/internal/audio/audio-export-render-orchestration.ts',
+		'src/common/editor/controller/export/internal/audio/audio-realtime-encoded-export.ts',
+		'src/common/editor/controller/export/internal/direct/direct-compressed-export.ts',
+		'src/common/editor/controller/export/internal/video/video-export-service.ts',
+		'src/common/editor/controller/export/internal/delivery/delivery-conformance-action.ts',
 	]) {
 		assert.ok(EDITOR_OPTIONAL_EXPORT_CHUNK_TEST.test(path), `${path} must be optional export execution`);
 		assert.equal(chunkGroupForModulePath(path), 'editor-optional-export');
@@ -238,22 +238,22 @@ test('optional export execution has an isolated lazy owner', () => {
 
 test('stateful local assistance implementations share one dedicated lazy owner', () => {
 	for (const path of [
-		'src/common/editor/controller/local-assistance-runtime.ts',
-		'src/common/editor/controller/local-assistance-audio-preparation.ts',
-		'src/common/editor/controller/local-assistance-audio-publication.ts',
-		'src/common/editor/controller/local-assistance-audio-result-custody.ts',
-		'src/common/editor/controller/local-assistance-beat-acceptance.ts',
-		'src/common/editor/controller/local-assistance-selected-media.ts',
-		'src/common/editor/controller/local-assistance-selected-video.ts',
-		'src/common/editor/controller/local-assistance-selected-preparation.ts',
-		'src/common/editor/controller/local-assistance-selected-media-router.ts',
-		'src/common/editor/controller/local-assistance-result-acceptance.ts',
-		'src/common/editor/controller/local-assistance-reaction-acceptance.ts',
-		'src/common/editor/controller/local-assistance-cleanup-workflow.ts',
-		'src/common/editor/controller/local-assistance-cleanup-acceptance.ts',
-		'src/common/editor/controller/local-assistance-range-label-acceptance.ts',
-		'src/common/editor/controller/local-assistance-shot-acceptance.ts',
-		'src/common/editor/controller/local-assistance-transcript-acceptance.ts',
+		'src/common/editor/controller/assistance/internal/local-assistance-runtime.ts',
+		'src/common/editor/controller/assistance/internal/audio/local-assistance-audio-preparation.ts',
+		'src/common/editor/controller/assistance/internal/audio/local-assistance-audio-publication.ts',
+		'src/common/editor/controller/assistance/internal/audio/local-assistance-audio-result-custody.ts',
+		'src/common/editor/controller/assistance/internal/local-assistance-beat-acceptance.ts',
+		'src/common/editor/controller/assistance/internal/local-assistance-selected-media.ts',
+		'src/common/editor/controller/assistance/local-assistance-selected-video.ts',
+		'src/common/editor/controller/assistance/internal/local-assistance-selected-preparation.ts',
+		'src/common/editor/controller/assistance/internal/local-assistance-selected-media-router.ts',
+		'src/common/editor/controller/assistance/internal/local-assistance-result-acceptance.ts',
+		'src/common/editor/controller/assistance/internal/local-assistance-reaction-acceptance.ts',
+		'src/common/editor/controller/assistance/internal/local-assistance-cleanup-workflow.ts',
+		'src/common/editor/controller/assistance/internal/local-assistance-cleanup-acceptance.ts',
+		'src/common/editor/controller/assistance/internal/local-assistance-range-label-acceptance.ts',
+		'src/common/editor/controller/assistance/internal/local-assistance-shot-acceptance.ts',
+		'src/common/editor/controller/assistance/internal/local-assistance-transcript-acceptance.ts',
 		'src/common/editor/assistance/disfluency.ts',
 		'src/common/editor/assistance/async-search-provider.ts',
 		'src/common/editor/assistance/beat-proposals.ts',
@@ -298,8 +298,8 @@ test('stateful local assistance implementations share one dedicated lazy owner',
 		'src/common/editor/assistance/workflow-recipes.ts',
 		'src/common/editor/assistance/workflow-settings-v1.ts',
 		'src/common/editor/assistance/workflow.ts',
-		'src/common/editor/controller/local-assistance-selected-video-frame-pack.ts',
-		'src/common/editor/controller/local-assistance-selected-video-timing.ts',
+		'src/common/editor/controller/assistance/internal/selected-video/local-assistance-selected-video-frame-pack.ts',
+		'src/common/editor/controller/assistance/internal/selected-video/local-assistance-selected-video-timing.ts',
 		'src/common/editor/storage/assistance-derivative-codec.ts',
 		'src/common/editor/storage/assistance-derivative-key-value-port.ts',
 		'src/common/editor/storage/assistance-derivative-repository.ts',
@@ -308,7 +308,7 @@ test('stateful local assistance implementations share one dedicated lazy owner',
 		assert.equal(chunkGroupForModulePath(path), 'editor-optional-assistance');
 	}
 	assert.equal(
-		chunkGroupForModulePath('src/common/editor/controller/deferred-local-assistance-runtime.ts'),
+		chunkGroupForModulePath('src/common/editor/controller/assistance/deferred-local-assistance-runtime.ts'),
 		'editor-controller-core',
 	);
 	assert.equal(

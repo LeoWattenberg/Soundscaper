@@ -39,7 +39,7 @@
    (`src/common/editor/delivery-queue.ts:30-48`), and the file-save purpose
    allowlist (`src/common/editor/file-service.js:190`). A batch member is one
    ordinary export action, as the audio batch already is
-   (`src/common/editor/controller/delivery-queue-service.ts:18-20`).
+   (`src/common/editor/controller/export/internal/delivery/delivery-queue-service.ts:18-20`).
 
 Work is ordered by contract risk: the plan shape, the format registry, and the
 availability declaration land first, because every later packet emits a plan,
@@ -53,7 +53,7 @@ sidecar follow, since their report items are what the batch gate counts.
   one: `createExportPlan` (`src/common/editor/export.js:155`),
   `createVideoExportPlan` (`src/common/editor/video-export.js:244`). The one
   controller entry is `handleExportAction`
-  (`src/common/editor/controller/export-service.ts:69`), owning cancel
+  (`src/common/editor/controller/export/internal/export-service.ts:69`), owning cancel
   (`:70-77`), video dispatch by format (`:79-81`), and a single named lifetime
   task with its abort signal and generation guard (`:103-110`).
 - **Milestone 6's delivery model is complete on the web tier.** Dispositions
@@ -75,7 +75,7 @@ sidecar follow, since their report items are what the batch gate counts.
   checkpoint, because an encoded container has no verifiable partial state
   (`:71-77`), and admission refuses the mismatch (`:189-195`). The web queue
   declares `encoded-export`/`atomic-restart`
-  (`controller/delivery-queue-service.ts:111-113`) and refuses to record a
+  (`controller/export/internal/delivery/delivery-queue-service.ts:111-113`) and refuses to record a
   delivery that published nothing (`:36-38, 52-60`).
 - **Browser image encoding is canvas-only, and proven.** The freeze path puts
   evaluated RGBA into a 2D canvas, forces opaque alpha, calls
@@ -98,7 +98,7 @@ sidecar follow, since their report items are what the batch gate counts.
 - **Cross-product handoff exists and is witnessed.** `prepareProjectHandoff`
   flushes, re-checks project identity under a capture interlock, releases the
   project lock, and returns `{projectId, revision}`
-  (`controller/project-admin-service.ts:92-120`); the menu action pairs it with
+  (`controller/document/project-admin-service.ts:92-120`); the menu action pairs it with
   `otherProductId` and a locale navigation
   (`ui/workspace/workspace-application-menu-runtime.js:236-240`); a browser
   spec proves a Scape archive crosses products, is held read-only by the
@@ -112,7 +112,7 @@ sidecar follow, since their report items are what the batch gate counts.
 ## Verified gaps this plan closes (grounded 2026-08-25)
 
 - **No photo export plan, format table, or output-stage order exists.** The two
-  format registries are audio (`controller/export-settings.ts:9-22`, twelve
+  format registries are audio (`controller/export/export-settings.ts:9-22`, twelve
   ids) and video (`video-export.js:46-60`); neither admits a still image.
 - **No TIFF encoder is reachable from a browser.** The only in-tree TIFF encode
   is the native FFmpeg profile `encode-tiff-sequence`, muxer `image2`, pixel
@@ -165,8 +165,8 @@ resolves to its options through `resolveDeliveryPresetPlanOptions` under a new
 `DeliveryReport` with the audio-shaped subject fields left null
 (`delivery-report.ts:35-42`); a queued member reaches it through the one
 `handleExportAction` call the queue service already makes
-(`controller/delivery-queue-service.ts:18-20`,
-`controller/export-service.ts:69`); and publication goes through the existing
+(`controller/export/internal/delivery/delivery-queue-service.ts:18-20`,
+`controller/export/internal/export-service.ts:69`); and publication goes through the existing
 file-service purposes (`file-service.js:190`).
 
 ### The output-only stage order is fixed and named in the plan
@@ -238,7 +238,7 @@ added to the allowlist (`file-service.js:190`) rather than reusing `report`.
 ### Batch export checkpoints per photo and says so honestly
 
 A single photo delivery declares `encoded-export` with `atomic-restart`, as the
-web queue already does (`controller/delivery-queue-service.ts:111-113`). A
+web queue already does (`controller/export/internal/delivery/delivery-queue-service.ts:111-113`). A
 batch declares `image-sequence-export` with `verified-frame-checkpoint`, which
 the queue record admits for that task kind and no other
 (`native-queue-record.ts:71-77, 189-195`). The claim is honest because the
@@ -268,7 +268,7 @@ A developed photo opens in Framescaper as a still source bound to the same
 managed media id and digest — no media copy, the roadmap's own boundary
 (roadmap-lightscaper.md:83-85). Transport is the existing Scape archive
 (`scape-export-plan.ts:86-95`) over the `prepareProjectHandoff` lock discipline
-(`controller/project-admin-service.ts:92-120`). Pixel identity follows from both
+(`controller/document/project-admin-service.ts:92-120`). Pixel identity follows from both
 products evaluating the same `DevelopStackV1` through the same shared code, so
 the proof is digest equality.
 
@@ -411,7 +411,7 @@ pickup, and any packet that grows one names it here first.
   resolving collisions deterministically; a `photo` kind in
   `DELIVERY_PRESET_KINDS` (`delivery-preset.ts:20-22`) with its closed settings
   list; the Lightscaper export dialog reaching the controls the delivery preset
-  service already exposes (`controller/delivery-preset-service.ts:18-25`); the
+  service already exposes (`controller/export/delivery-preset-service.ts:18-25`); the
   menu entry contributed through the per-product export extension point
   (`ui/application-menus.js:237`, `ui/application-menu-product-items.js:107`);
   `photoExport` and `photoMetadata` flipped to `true` in Lightscaper's
@@ -448,8 +448,8 @@ pickup, and any packet that grows one names it here first.
 
 - **Outcome:** photo batches built through `delivery-batch.ts` (`:10-26`) with
   photo-version targets; the batch enqueued through the existing runner and
-  service (`controller/delivery-queue-runner.ts:21-33`,
-  `controller/delivery-queue-service.ts:18-26`) declaring
+  service (`controller/export/internal/delivery/delivery-queue-runner.ts:21-33`,
+  `controller/export/internal/delivery/delivery-queue-service.ts:18-26`) declaring
   `image-sequence-export` with `verified-frame-checkpoint`
   (`native-queue-record.ts:43-54, 71-77`); per-photo conformance decoding each
   produced file back before counting it verified
@@ -491,7 +491,7 @@ pickup, and any packet that grows one names it here first.
   (`src/framescaper/editor-project-v28-validation.ts:47-48`); transport over
   the Scape planner (`scape-export-plan.ts:86-95`) and the
   `prepareProjectHandoff` lock discipline
-  (`controller/project-admin-service.ts:92-120`), driven by L1's
+  (`controller/document/project-admin-service.ts:92-120`), driven by L1's
   registry-selected destination, not `otherProductId`
   (`src/common/products.js:30-32`); `crossProductHandoffAvailable` flipped from
   `false` to `true` for Lightscaper in its bootstrap, the disabled-reason
@@ -575,9 +575,9 @@ pickup, and any packet that grows one names it here first.
   `delivery-preset.ts`, `delivery-report.ts`,
   `delivery-conversion-inventory.ts`, `delivery-queue.ts`,
   `unified-exact-render-visual-materializer-v13.ts`,
-  `controller/export-settings.ts`, `controller/export-service.ts`,
-  `controller/delivery-queue-service.ts`,
-  `controller/project-admin-service.ts`, `ui/application-menus.js`, and
+  `controller/export/export-settings.ts`, `controller/export/internal/export-service.ts`,
+  `controller/export/internal/delivery/delivery-queue-service.ts`,
+  `controller/document/project-admin-service.ts`, `ui/application-menus.js`, and
   `ui/application-menu-product-items.js`; plus `src/common/products.js`, the
   i18n copy catalogs, `scripts/lib/node-test-shards.mjs`, and the
   `production-capabilities`, `production-licensing-matrix`, `quality-budgets`,

@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	prepareDirectVideoDestination,
-} from '../src/common/editor/controller/direct-video-export.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-video-export.ts';
 import {
 	createVideoKeyframeExportPlanV7,
 } from '../src/common/editor/video-keyframe-export-plan-v7.ts';

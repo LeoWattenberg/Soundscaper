@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createProjectLifecycleComposition } from '../src/common/editor/controller/project-lifecycle-composition.ts';
+import { createProjectLifecycleComposition } from '../src/common/editor/controller/document/project-lifecycle-composition.ts';
 import { createFixture, lock, project } from './helpers/audio-editor-project-switch-fixture.ts';
 
 test('project activation releases its previous lease through the composed lock owner', async () => {

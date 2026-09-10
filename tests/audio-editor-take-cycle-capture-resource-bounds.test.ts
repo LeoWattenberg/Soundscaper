@@ -6,8 +6,8 @@ import test from 'node:test';
 import {
 	inspectTakeCyclePcmEvidenceAllocationProbe,
 	resetTakeCyclePcmEvidenceAllocationProbe,
-} from '../src/common/editor/controller/take-cycle-capture-pcm-evidence.ts';
-import { collectTakeCycleLivePassEvidence } from '../src/common/editor/controller/take-cycle-live-pass-evidence.ts';
+} from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-capture-pcm-evidence.ts';
+import { collectTakeCycleLivePassEvidence } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-live-pass-evidence.ts';
 import { TAKE_CYCLE_CAPTURE_MAXIMUM_PASSES } from '../src/common/editor/take-cycle-capture-domain.ts';
 
 test('maximum-pass evidence keeps only one chunk accumulator live at a time', async () => {

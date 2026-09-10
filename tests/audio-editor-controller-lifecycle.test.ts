@@ -7,7 +7,7 @@ import {
 	EditorDisposedError,
 	EditorProjectChangedError,
 	EditorProjectGeneration,
-} from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
 
 test('controller lifetime is terminal and invalidates captured work', async () => {
 	const lifetime = new EditorControllerLifetime();

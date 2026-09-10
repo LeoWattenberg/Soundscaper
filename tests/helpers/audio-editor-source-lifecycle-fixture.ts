@@ -5,7 +5,7 @@ import {
 	type SourceLifecycleServiceRuntime,
 	type SourceLifecycleWaveformPcmRequest,
 	type SourceLifecycleWaveformPcmWindow,
-} from '../../src/common/editor/controller/source-lifecycle-service.ts';
+} from '../../src/common/editor/controller/source/source-lifecycle-service.ts';
 
 export function createSourceLifecycleFixture(options: Readonly<{ videoFailure?: Error }> = {}) {
 	const source = { id: 'source', kind: 'audio', frameCount: 100, storageKey: 'source' };

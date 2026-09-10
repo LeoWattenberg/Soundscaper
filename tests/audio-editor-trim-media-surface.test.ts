@@ -6,7 +6,7 @@ import test from 'node:test';
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
 import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
 import { EXPORT_MENU_COPY_BY_LOCALE } from '../src/common/i18n/export-menu-copy.js';
-import { createProjectMediaActionGroup } from '../src/common/editor/controller/project-media-action-group.ts';
+import { createProjectMediaActionGroup } from '../src/common/editor/controller/document/project-media-action-group.ts';
 import {
 	createCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';

@@ -11,7 +11,7 @@ import {
 	type SoundscaperPersistentDeliveryEnqueueRequest,
 	type SoundscaperPersistentDeliveryRendererBridge,
 	type SoundscaperPersistentDeliverySummary,
-} from '../src/common/editor/controller/soundscaper-persistent-delivery-ui-service.ts';
+} from '../src/common/editor/controller/export/internal/delivery/soundscaper-persistent-delivery-ui-service.ts';
 
 const PROJECT_SHA = 'ab'.repeat(32);
 const PROJECT = Object.freeze({

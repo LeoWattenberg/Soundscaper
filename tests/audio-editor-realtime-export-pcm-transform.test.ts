@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { applyMediaChannelMapping } from '../src/common/editor/media-export.js';
-import { createRealtimeExportPcmTransform } from '../src/common/editor/controller/realtime-export-pcm-transform.ts';
+import { createRealtimeExportPcmTransform } from '../src/common/editor/controller/export/internal/realtime-export-pcm-transform.ts';
 
 test('direct WAV resamples selection-only upmixes before duplicating channels', () => {
 	const mapping = {

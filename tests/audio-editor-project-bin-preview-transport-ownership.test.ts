@@ -6,19 +6,19 @@ import test from 'node:test';
 import {
 	createEditorTransportService,
 	type TransportServiceRuntime,
-} from '../src/common/editor/controller/transport-service.ts';
+} from '../src/common/editor/controller/transport/internal/transport-service.ts';
 import {
 	createProjectBinPreviewService,
 	type ProjectBinPreviewEngine,
-} from '../src/common/editor/controller/project-bin-preview-service.ts';
+} from '../src/common/editor/controller/import/internal/project-bin/project-bin-preview-service.ts';
 import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
-} from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
 import type {
 	ProjectBinPreview,
 	ProjectBinProject,
-} from '../src/common/editor/controller/project-bin-types.ts';
+} from '../src/common/editor/controller/import/project-bin-types.ts';
 
 for (const mode of ['normal', 'play-at-speed'] as const) {
 	test(`Project Bin audition retires a pending ${mode} timeline start`, async () => {

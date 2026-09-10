@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { ProductNativeRenderInputOperation } from '../common/editor/controller/product-native-render-input-authority.ts';
+import type { ProductNativeRenderInputOperation } from '../common/editor/controller/composition/product-native-render-input-authority.ts';
 import { canonicalizeNativeMediaPlan, fingerprintNativeMediaPlan } from '../common/editor/native-media-plan-canonical-form.ts';
 import { createNativeMediaPlanEnvelopeV2 } from '../common/editor/native-media-plan-envelope-v2.ts';
 import type { UnifiedExactRenderPlanV14 } from '../common/editor/unified-exact-render-plan.ts';

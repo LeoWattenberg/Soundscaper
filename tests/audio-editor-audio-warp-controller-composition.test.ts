@@ -7,8 +7,8 @@ import { applyEditorCommand } from '../src/common/editor/commands.js';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import {
 	createAudioWarpControllerComposition,
-} from '../src/common/editor/controller/audio-warp-composition.ts';
-import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/track-audio/internal/audio-warp/audio-warp-composition.ts';
+import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
 import { detectPcmTransients } from '../src/common/editor/transient-analysis.ts';
 import {
 	createCurrentAudioEditorProject,

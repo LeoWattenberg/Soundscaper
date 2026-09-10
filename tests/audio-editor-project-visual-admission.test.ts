@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createProjectVisualService } from '../src/common/editor/controller/project-visual-service.ts';
-import type { ProjectVisualStore } from '../src/common/editor/controller/project-visual-types.ts';
+import { createProjectVisualService } from '../src/common/editor/controller/document/project-visual-service.ts';
+import type { ProjectVisualStore } from '../src/common/editor/controller/document/project-visual-types.ts';
 
 function fixture(store: ProjectVisualStore) {
 	const source = { id: 'video', kind: 'video' };

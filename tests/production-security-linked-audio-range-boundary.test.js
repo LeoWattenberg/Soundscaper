@@ -83,7 +83,7 @@ test('linked-audio range IPC stays pathless and renderer-owner scoped', async ()
 	}
 	for (const path of [
 		'src/common/editor/aiff-pcm-chunk-reader.ts',
-		'src/common/editor/controller/linked-audio-import-admission.ts',
+		'src/common/editor/controller/import/internal/linked-media/linked-audio-import-admission.ts',
 		'tests/audio-editor-aiff-pcm-chunk-reader.test.ts',
 	]) {
 		assert.ok(portability.evidence.some((item) => item.path === path), path);

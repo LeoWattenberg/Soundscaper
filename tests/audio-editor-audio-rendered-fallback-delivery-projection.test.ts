@@ -8,7 +8,7 @@ import {
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createPlaybackProjectService } from '../src/common/editor/controller/playback-project-service.ts';
+import { createPlaybackProjectService } from '../src/common/editor/controller/source/playback-project-service.ts';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import {

@@ -9,11 +9,11 @@ import {
 	ParameterGesturePreviewSupersededError,
 	createParameterGestureAdapter,
 	type ParameterGestureTarget,
-} from '../src/common/editor/controller/parameter-gesture-adapter.ts';
+} from '../src/common/editor/controller/effects/internal/parameter-gesture-adapter.ts';
 import {
 	EditorProjectChangedError,
 	EditorProjectGeneration,
-} from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
 
 interface Value {
 	readonly amount: number;

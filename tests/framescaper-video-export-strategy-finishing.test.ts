@@ -6,7 +6,7 @@ import test from 'node:test';
 import type {
 	ProductVideoExportPlan,
 	ProductVideoExportStrategy,
-} from '../src/common/editor/controller/product-video-export-strategy.ts';
+} from '../src/common/editor/controller/export/product-video-export-strategy.ts';
 import {
 	FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE as PROFILE,
 } from '../src/framescaper/editor-domain-runtime-profile.ts';

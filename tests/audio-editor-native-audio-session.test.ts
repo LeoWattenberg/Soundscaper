@@ -8,8 +8,8 @@ import {
 	NATIVE_AUDIO_MAXIMUM_DEVICE_LATENCY_SECONDS, createNativeAudioSession,
 	type NativeAudioActivity, type NativeAudioDirection, type NativeAudioLossDisposition,
 	type NativeAudioOpenRequest,
-} from '../src/common/editor/controller/native-audio-session.ts';
-import { createNativeAudioCalibrationStore } from '../src/common/editor/controller/native-audio-calibration.ts';
+} from '../src/common/editor/controller/recording/internal/native-audio/native-audio-session.ts';
+import { createNativeAudioCalibrationStore } from '../src/common/editor/controller/recording/internal/native-audio/native-audio-calibration.ts';
 import {
 	INPUT_ID, OPEN, OUTPUT_ID, chunk, createHarness, failure, openHarness, tick,
 	type GrantOverrides,

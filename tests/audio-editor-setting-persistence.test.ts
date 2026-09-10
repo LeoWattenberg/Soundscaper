@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createSettingPersistence } from '../src/common/editor/controller/setting-persistence.ts';
+import { createSettingPersistence } from '../src/common/editor/controller/preferences/setting-persistence.ts';
 
 test('best-effort setting writes resolve with a controlled warning', async () => {
 	const failure = new Error('quota');

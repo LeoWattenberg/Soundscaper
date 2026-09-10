@@ -6,7 +6,7 @@ import test from 'node:test';
 
 import {
 	createLocalAssistanceGuidedResultAcceptance as createGuidedResultAcceptance,
-} from '../src/common/editor/controller/local-assistance-guided-result-acceptance.ts';
+} from '../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-result-acceptance.ts';
 import {
 	assistanceWorkflowModelBindingsSha256V1,
 	assistanceWorkflowRecipeSha256V1,

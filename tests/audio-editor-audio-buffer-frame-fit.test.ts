@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { fitAudioBufferToFrames } from '../src/common/editor/controller/audio-buffer-frame-fit.ts';
+import { fitAudioBufferToFrames } from '../src/common/editor/controller/import/internal/audio-buffer-frame-fit.ts';
 
 test('audio-buffer fitting preserves an exact buffer and truncates or zero-pads channel data', () => {
 	const original = testAudioBuffer([[1, 2, 3], [4, 5, 6]], 48_000);

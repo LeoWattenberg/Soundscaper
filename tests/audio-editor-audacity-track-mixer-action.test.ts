@@ -8,7 +8,7 @@ import { applyAudacityTrackMixerAction } from '../src/common/editor/audacity-sho
 import type {
 	ControllerProject,
 	ControllerTrack,
-} from '../src/common/editor/controller/track-domain-types.ts';
+} from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 
 const ACTIONS = [
 	'mute-tracks', 'unmute-tracks', 'track-pan-left', 'track-pan-right',

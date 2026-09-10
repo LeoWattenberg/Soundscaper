@@ -9,10 +9,10 @@ import {
 } from '../src/common/editor/audio-track-freeze-v21.ts';
 import {
 	projectForAudioRenderedFallbackExport,
-} from '../src/common/editor/controller/audio-rendered-fallback-export.ts';
+} from '../src/common/editor/controller/export/internal/audio/audio-rendered-fallback-export.ts';
 import {
 	projectForVideoRenderedFallbackExport,
-} from '../src/common/editor/controller/video-rendered-fallback-export.ts';
+} from '../src/common/editor/controller/export/internal/video/video-rendered-fallback-export.ts';
 import {
 	createAudioClip,
 	createAudioSource,

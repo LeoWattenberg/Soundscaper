@@ -448,7 +448,7 @@
 			"compressionLevel": 2,
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
 			"verification": "Exact reviewed float32 WavPack encode/decode slice with strict bounded parsing, startup canary, and a narrow stock WavPack 5.9.0 decoder witness. No patent-clearance or non-infringement claim is made.",
-			"evidence": ["src/common/editor/wavpack/source-manifest.json", "src/common/editor/wavpack/NOTICE.md", "src/common/editor/desktop-wavpack-codec-profile.ts", "src/common/editor/controller/desktop-audio-export-capability.ts", "scripts/audit-wavpack-wasm.mjs", "scripts/lib/desktop-bundled-wavpack-runtime.mjs", "desktop/bundled-wavpack-audio-codec-runtime.ts", "desktop/bundled-wavpack-stream.ts", "desktop/desktop-audio-codec-registration.mjs", "tests/audio-editor-wavpack.test.js", "tests/audio-editor-desktop-export-capability.test.ts", "tests/audio-editor-desktop-export-codec-model.test.ts", "tests/audio-editor-desktop-export-dialog-capability.test.js", "tests/desktop-bundled-wavpack-audio-codec-runtime.test.ts", "tests/desktop-audio-codec-runtime-staging.test.js", "docs/desktop-codec-provider-plan.md", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["src/common/editor/wavpack/source-manifest.json", "src/common/editor/wavpack/NOTICE.md", "src/common/editor/desktop-wavpack-codec-profile.ts", "src/common/editor/controller/export/internal/desktop-audio-export-capability.ts", "scripts/audit-wavpack-wasm.mjs", "scripts/lib/desktop-bundled-wavpack-runtime.mjs", "desktop/bundled-wavpack-audio-codec-runtime.ts", "desktop/bundled-wavpack-stream.ts", "desktop/desktop-audio-codec-registration.mjs", "tests/audio-editor-wavpack.test.js", "tests/audio-editor-desktop-export-capability.test.ts", "tests/audio-editor-desktop-export-codec-model.test.ts", "tests/audio-editor-desktop-export-dialog-capability.test.js", "tests/desktop-bundled-wavpack-audio-codec-runtime.test.ts", "tests/desktop-audio-codec-runtime-staging.test.js", "docs/desktop-codec-provider-plan.md", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "reviewed-effect-utility-gain-wasm",
@@ -782,7 +782,7 @@
 			"src/common/editor/twolame/source-manifest.json",
 			"src/common/editor/wavpack/NOTICE.md",
 			"src/common/editor/desktop-wavpack-codec-profile.ts",
-			"src/common/editor/controller/desktop-audio-export-capability.ts",
+			"src/common/editor/controller/export/internal/desktop-audio-export-capability.ts",
 			"scripts/audit-flac-wasm.mjs",
 			"scripts/audit-opus-wasm.mjs",
 			"scripts/audit-vorbis-wasm.mjs",

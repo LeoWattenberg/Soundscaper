@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { EditorActionRuntime } from '../../src/common/editor/controller/action-facade.ts';
+import type { EditorActionRuntime } from '../../src/common/editor/controller/composition/action-facade.ts';
 
 /**
  * A runtime that answers every name the action facade destructures.

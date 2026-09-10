@@ -3,11 +3,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { RecordingRoutingServiceRuntime } from '../src/common/editor/controller/recording-routing-service.ts';
-import type { SampleEditServiceRuntime } from '../src/common/editor/controller/sample-edit-service.ts';
-import type { SelectionViewServiceRuntime } from '../src/common/editor/controller/selection-view-service.ts';
-import type { SourceLifecycleServiceRuntime } from '../src/common/editor/controller/source-lifecycle-service.ts';
-import type { SourceRuntimeCompositionDependencies } from '../src/common/editor/controller/source-runtime-composition-types.ts';
+import type { RecordingRoutingServiceRuntime } from '../src/common/editor/controller/recording/internal/recording-routing-service.ts';
+import type { SampleEditServiceRuntime } from '../src/common/editor/controller/clip-video/internal/sample-edit-service.ts';
+import type { SelectionViewServiceRuntime } from '../src/common/editor/controller/track-audio/internal/selection-view-service.ts';
+import type { SourceLifecycleServiceRuntime } from '../src/common/editor/controller/source/source-lifecycle-service.ts';
+import type { SourceRuntimeCompositionDependencies } from '../src/common/editor/controller/source/source-runtime-composition-types.ts';
 import type {
 	createPencilSampleEdits,
 	createSmoothSampleRange,

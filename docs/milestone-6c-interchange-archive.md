@@ -222,7 +222,7 @@ Studio One, Cubase, and others.
   `dawproject-import.ts`, `dawproject-import-timeline.ts`, and
   `dawproject-import-project.ts` read them back into a current document;
   `dawproject-archive.ts` owns the container and `dawproject-xml.ts` the bounded
-  XML layer both share. `controller/dawproject-service.ts` composes open and
+  XML layer both share. `controller/import/internal/dawproject/dawproject-service.ts` composes open and
   export into the native project service. A `.dawproject` opens through the
   ordinary File > Open command, which routes it by extension the way it routes a
   `.scape` or an Audacity project; File > Export other holds the export, and the
@@ -333,7 +333,7 @@ Studio One, Cubase, and others.
   call in turn rather than one representative step. Held against an operation
   deliberately weakened to rebind before verifying, it fails.
 
-  **The wiring landed with them.** `controller/consolidate-media-service.ts`
+  **The wiring landed with them.** `controller/document/consolidate-media-service.ts`
   says what the operation's ports mean against the project's real storage, and
   the meaning worth stating is that rebinding a consolidated source is
   *unlinking* it: a source with no linked-original binding is one whose bytes
@@ -372,7 +372,7 @@ Studio One, Cubase, and others.
   builds the copy commands, seeking by the **midpoint** of the first frame
   because a rational rate like 30000/1001 has no exact decimal and half a frame
   of tolerance makes both a too-early and a too-late landing impossible.
-  `controller/trim-media-execution.ts` runs the sequence and deletes every MEMFS
+  `controller/document/internal/trim-media-execution.ts` runs the sequence and deletes every MEMFS
   path it wrote, newest first, since the parts a large trim writes are as big as
   the source.
 
@@ -411,7 +411,7 @@ Studio One, Cubase, and others.
   takes its whole source out of the batch with a finding: a source with half its
   references moved is worse than one that was not trimmed.
 
-  `controller/trim-media-service.ts` binds it to real storage. The trimmed body
+  `controller/document/trim-media-service.ts` binds it to real storage. The trimmed body
   is written under a **new**, content-addressed key rather than the source's own,
   which is where this parts company with consolidate: consolidate writes a
   source's own bytes back and may reuse its key, while overwriting the key a

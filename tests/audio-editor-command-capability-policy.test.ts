@@ -8,7 +8,7 @@ import { snapshotInertEditorCommand } from '../src/common/editor/commands/editor
 import {
 	assertEditorCommandCapabilities,
 	type EditorCommandCapabilities,
-} from '../src/common/editor/controller/command-capability-policy.ts';
+} from '../src/common/editor/controller/document/internal/command-capability-policy.ts';
 
 const enabled: EditorCommandCapabilities = {
 	audioEffects: true,

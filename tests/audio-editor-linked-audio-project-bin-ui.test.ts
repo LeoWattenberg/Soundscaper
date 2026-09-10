@@ -10,7 +10,7 @@ import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 import ProjectBinPanel from '../src/common/editor/ui/workspace/ProjectBinPanel.jsx';
 
 const PANEL_URL = new URL('../src/common/editor/ui/workspace/ProjectBinPanel.jsx', import.meta.url);
-const RESOURCES_URL = new URL('../src/common/editor/controller/controller-resources.ts', import.meta.url);
+const RESOURCES_URL = new URL('../src/common/editor/controller/composition/controller-resources.ts', import.meta.url);
 (globalThis as typeof globalThis & { React: typeof React }).React = React;
 
 test('the Project Bin exposes the localized linked-WAV chooser only when its platform capability exists', () => {

@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createVideoProxyCandidateObserverForRuntime,
 	createVideoProxyExistingCandidateObserverForRuntime,
-} from '../src/common/editor/controller/video-proxy-candidate-composition.ts';
+} from '../src/common/editor/controller/capture/video-proxy-candidate-composition.ts';
 import {
 	assertVideoProxyCandidateObserver,
 	consumeVideoProxyCandidateObservation,

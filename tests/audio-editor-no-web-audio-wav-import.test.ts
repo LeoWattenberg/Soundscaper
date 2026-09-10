@@ -10,7 +10,7 @@ import {
 import {
 	createSourceLifecycleService,
 	type SourceLifecycleServiceRuntime,
-} from '../src/common/editor/controller/source-lifecycle-service.ts';
+} from '../src/common/editor/controller/source/source-lifecycle-service.ts';
 import { inspectWavBlobPcm, streamWavBlobPcm } from '../src/common/editor/wav-import.js';
 
 test('short inspectable PCM WAVs stream without Web Audio', async () => {

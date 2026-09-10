@@ -28,16 +28,16 @@ function importsOf(path: string): readonly string[] {
 }
 
 test('the loudness normalization render belongs to the export slice that alone uses it', () => {
-	// `controller/rendered-audio-encoding.ts` is the only module that imports it, and
+	// `controller/export/internal/rendered-audio-encoding.ts` is the only module that imports it, and
 	// that module is lazily owned, so every byte of the normalization render was in
 	// the startup graph of both products for an export nobody had asked for yet.
 	assert.ok(
-		importsOf('src/common/editor/controller/rendered-audio-encoding.ts')
-			.includes('../loudness-normalization-render.ts'),
+		importsOf('src/common/editor/controller/export/internal/rendered-audio-encoding.ts')
+			.includes('../../../loudness-normalization-render.ts'),
 		'the lazy encoder must still be the reason this module has an owner',
 	);
 	assert.equal(
-		chunkGroupForModulePath('src/common/editor/controller/rendered-audio-encoding.ts'),
+		chunkGroupForModulePath('src/common/editor/controller/export/internal/rendered-audio-encoding.ts'),
 		'editor-optional-export',
 	);
 	assert.equal(
@@ -58,11 +58,11 @@ test('the detached export projection is eager, because an eagerly composed strat
 	);
 	assert.ok(
 		importsOf('src/soundscaper/video-export-strategy.ts')
-			.includes('../common/editor/controller/export-render-project.ts'),
+			.includes('../common/editor/controller/export/export-render-project.ts'),
 		'the strategy must still reach the projection through a static import',
 	);
 	assert.equal(
-		chunkGroupForModulePath('src/common/editor/controller/export-render-project.ts'),
+		chunkGroupForModulePath('src/common/editor/controller/export/export-render-project.ts'),
 		'editor-controller-core',
 	);
 	// Moving it costs the boot graph only this module: both of its own dependencies

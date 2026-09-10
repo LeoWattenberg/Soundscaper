@@ -2,7 +2,7 @@
 
 import type {
 	FramescaperCapturedVideoProxyActiveUpdate,
-} from '../common/editor/controller/framescaper-capture-proxy-quiescence.ts';
+} from '../common/editor/controller/capture/framescaper-capture-proxy-quiescence.ts';
 import {
 	cleanupCapturedVideoProxyClaims,
 	type CapturedVideoProxyClaimCleanup,

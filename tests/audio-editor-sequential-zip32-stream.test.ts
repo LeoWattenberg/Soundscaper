@@ -8,11 +8,11 @@ import { unzipSync } from 'fflate';
 import {
 	createSequentialZip32Archive,
 	type SequentialZip32Sink,
-} from '../src/common/editor/controller/sequential-zip32-stream.ts';
+} from '../src/common/editor/controller/export/internal/archive/sequential-zip32-stream.ts';
 import {
 	EMPTY_ZIP32_LAYOUT,
 	extendZip32Layout,
-} from '../src/common/editor/controller/zip32.ts';
+} from '../src/common/editor/controller/export/internal/archive/zip32.ts';
 import { waitFor } from './helpers/async-test-control.ts';
 
 class MemorySink implements SequentialZip32Sink<Uint8Array> {

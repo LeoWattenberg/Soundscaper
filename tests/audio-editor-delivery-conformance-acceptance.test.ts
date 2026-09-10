@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createEditorExportService } from '../src/common/editor/controller/export-service.ts';
+import { createEditorExportService } from '../src/common/editor/controller/export/internal/export-service.ts';
 import { createFixture, defaultPlan } from './helpers/export-service-fixture.ts';
 import { countUnreportedDeliveryConversions } from '../src/common/editor/delivery-conversion-inventory.ts';
 

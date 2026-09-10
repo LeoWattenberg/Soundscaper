@@ -8,7 +8,7 @@ import {
 	createEditorPreferencesService,
 	type EditorPreferenceActionSource,
 	type EditorPreferencesServiceDependencies,
-} from '../src/common/editor/controller/preferences-service.ts';
+} from '../src/common/editor/controller/preferences/internal/preferences-service.ts';
 
 interface Preferences extends Record<string, unknown> {
 	readonly workspace: {

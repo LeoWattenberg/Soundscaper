@@ -5,13 +5,13 @@ import test from 'node:test';
 
 import {
 	createLocalAssistanceResultAcceptance,
-} from '../src/common/editor/controller/local-assistance-result-acceptance.ts';
+} from '../src/common/editor/controller/assistance/internal/local-assistance-result-acceptance.ts';
 import {
 	createLocalAssistanceShotAcceptance,
-} from '../src/common/editor/controller/local-assistance-shot-acceptance.ts';
+} from '../src/common/editor/controller/assistance/internal/local-assistance-shot-acceptance.ts';
 import {
 	resolveLocalAssistanceSelectedVideoAuthority,
-} from '../src/common/editor/controller/local-assistance-selected-video.ts';
+} from '../src/common/editor/controller/assistance/local-assistance-selected-video.ts';
 
 const SOURCE_SHA256 = 'ab'.repeat(32);
 

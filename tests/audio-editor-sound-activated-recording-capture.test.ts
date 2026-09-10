@@ -3,12 +3,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createLegacyRecordingCaptureService } from '../src/common/editor/controller/legacy-recording-capture-service.ts';
-import { createRoutedRecordingCaptureService } from '../src/common/editor/controller/routed-recording-capture-service.ts';
+import { createLegacyRecordingCaptureService } from '../src/common/editor/controller/recording/internal/legacy-recording-capture-service.ts';
+import { createRoutedRecordingCaptureService } from '../src/common/editor/controller/recording/internal/routed-recording-capture-service.ts';
 import {
 	type RecordingCaptureControllerLike,
-} from '../src/common/editor/controller/recording-session-service.ts';
-import { createSoundActivatedRecordingCaptureSession } from '../src/common/editor/controller/sound-activated-recording-capture-session.ts';
+} from '../src/common/editor/controller/recording/internal/recording-session-service.ts';
+import { createSoundActivatedRecordingCaptureSession } from '../src/common/editor/controller/recording/internal/sound-activation/sound-activated-recording-capture-session.ts';
 import {
 	createRecordingCaptureFixture,
 	createScope,

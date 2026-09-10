@@ -74,7 +74,7 @@ every later packet emits reports, pins plans, and enqueues jobs.
 ## What exists today (verified baseline)
 
 - **Audio delivery is broad and direct-to-disk.** Twelve formats
-  (`src/common/editor/controller/export-settings.ts:5-18`) over
+  (`src/common/editor/controller/export/export-settings.ts:5-18`) over
   native-WAV/AIFF and ffmpeg backends with per-format channel ceilings
   (`src/common/editor/media-export.js:34-105`); RF64 is automatic
   promotion above the RIFF size limit, not a selectable format
@@ -82,10 +82,10 @@ every later packet emits reports, pins plans, and enqueues jobs.
   mapping with per-output gain matrices are complete
   (`src/common/editor/media-export.js:277-329, 428-432`); export-time
   windowed-sinc resampling engages when rates differ
-  (`src/common/editor/controller/rendered-audio-encoding.ts:126-134`);
+  (`src/common/editor/controller/export/internal/rendered-audio-encoding.ts:126-134`);
   stems export per-track with streaming ZIP32/7z archives
   (`src/common/editor/export.js:279-288`;
-  `src/common/editor/controller/stem-archive.ts:36-76`).
+  `src/common/editor/controller/export/stem-archive.ts:36-76`).
 - **Loudness was measured, never applied — 6A-2 closed both halves.** EBU R128
   measurement is mature (`src/common/editor/ebu-r128.js`) and BWF/BW64 exports
   capture loudness into BEXT. At the original grounding `measureBextLoudness`
@@ -99,7 +99,7 @@ every later packet emits reports, pins plans, and enqueues jobs.
   encoded by single-threaded ffmpeg.wasm, default canvas ceiling
   1280×720@30 (`src/common/editor/video-export.js:24-26`), range
   restriction project/selection/loop
-  (`src/common/editor/controller/video-export-service.ts:124`). No
+  (`src/common/editor/controller/export/internal/video/video-export-service.ts:124`). No
   WebCodecs encode path and no JS muxer exist. Since first grounding, a
   V7 keyframe export subsystem
   (`src/common/editor/video-keyframe-export-plan-v7.ts` and siblings,
@@ -116,7 +116,7 @@ every later packet emits reports, pins plans, and enqueues jobs.
 - **Interchange is Audacity plus `.scape`.** AUP/AUP4 both directions
   with a **versioned omission/conversion report produced, retained, and
   now rendered** (`src/common/editor/aup4-profile.js:74-112`;
-  `src/common/editor/controller/native-project-service.ts:223-233`;
+  `src/common/editor/controller/document/native-project-service.ts:223-233`;
   menu entry `src/common/editor/ui/application-menus.js:137-139` with
   its dialog in `ui/dialogs/EditorDialog.jsx` — the surface landed
   after first grounding); `.scape` is deterministic, streaming, and
@@ -128,8 +128,8 @@ every later packet emits reports, pins plans, and enqueues jobs.
   recorded for them are at docs/milestone-3-plan.md:449-480.
 - **Web jobs remain one-at-a-time and unresumable.** A single foreground task
   with named-scope AbortSignal cancellation
-  (`src/common/editor/controller/lifecycle.ts:150-187`;
-  `src/common/editor/controller/export-service.ts:53-93`); no pause, no
+  (`src/common/editor/controller/shared/lifecycle.ts:150-187`;
+  `src/common/editor/controller/export/internal/export-service.ts:53-93`); no pause, no
   retry, no persistence; the abortable `render-job-port` interface
   exists unimplemented
   (`src/common/editor/platform/render-job-port.ts:9-23`). The 5B-3
@@ -373,17 +373,17 @@ which is not redistributable. What landed:
   `delivery-queue.ts` is the bounded in-session queue, consuming the 5B-3
   recovery-class and task-kind vocabulary rather than forking it. Enqueue
   refuses a job that would claim a recovery it cannot prove.
-  `controller/delivery-queue-runner.ts` drives it: one job at a time, a
+  `controller/export/internal/delivery/delivery-queue-runner.ts` drives it: one job at a time, a
   cancelled job stays cancelled even if its executor later resolves, and an
   abort settles as cancelled rather than failed.
-  `controller/delivery-queue-service.ts` binds it to the real export path:
+  `controller/export/internal/delivery/delivery-queue-service.ts` binds it to the real export path:
   every member is one ordinary `handleExportAction` call, so a batch is
   never a second render path.
 - **WP-6.0.2 preset core — complete.**
   `delivery-preset.ts` validates preset records with closed field lists,
   resolves them to ordinary plan options (parity-tested against the dialog
   path), and declares legal availability from the licensing matrix.
-  `delivery-preset-store.ts` and `controller/delivery-preset-service.ts`
+  `delivery-preset-store.ts` and `controller/export/delivery-preset-service.ts`
   mirror `effect-presets.js` and its service exactly — same state shape,
   same verbs, same id-collision rule — because the export dialog reuses the
   effect-preset controls, which is the owner's recorded decision. The

@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	createFramescaperCapturePublicationLifecycle,
-} from '../src/common/editor/controller/framescaper-capture-publication-lifecycle.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-publication-lifecycle.ts';
 import {
 	normalizeFramescaperCaptureSessionManifest,
 	type FramescaperCaptureManifestState,

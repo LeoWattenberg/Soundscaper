@@ -7,7 +7,7 @@ import {
 	linkedOriginalLocatorReferenceFromImportOptions,
 	normalizeProjectImportOptions,
 	normalizeProjectImportOptionsForUse,
-} from '../src/common/editor/controller/project-import-options.ts';
+} from '../src/common/editor/controller/import/internal/project-import-options.ts';
 
 const LOCATOR_ID = 'locator_0000000000000001';
 const LOCATOR_REVISION = 'revision_0000000000000001';

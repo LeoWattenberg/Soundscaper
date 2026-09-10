@@ -14,7 +14,7 @@ import {
 	labelMimeType,
 	normalizeAup4CompatibilityReport,
 	normalizeProjectSampleRate,
-} from '../src/common/editor/controller/app-helpers.ts';
+} from '../src/common/editor/controller/shared/app-helpers.ts';
 import {
 	cloneAudacityWorkerPayload,
 	freezeNyquistResult,
@@ -24,7 +24,7 @@ import {
 	nyquistChannelStats,
 	nyquistMaximumOutputFrames,
 	nyquistResultStatus,
-} from '../src/common/editor/controller/nyquist-audio.ts';
+} from '../src/common/editor/controller/effects/internal/nyquist/nyquist-audio.ts';
 import {
 	createStoredChunkProvider,
 	isStreamableStoredSource,
@@ -33,8 +33,8 @@ import {
 	serializeAudacityNoiseProfile,
 	sourceAudioBufferBytes,
 	sourcePcmBytes,
-} from '../src/common/editor/controller/source-audio.ts';
-import { createStreamingZipArchive } from '../src/common/editor/controller/temporary-export.ts';
+} from '../src/common/editor/controller/source/source-audio.ts';
+import { createStreamingZipArchive } from '../src/common/editor/controller/export/temporary-export.ts';
 import {
 	clipSourceWindowRange,
 	generateWaveformPeaksFallback,
@@ -44,7 +44,7 @@ import {
 	readWaveformPcmWindow,
 	waveformPcmWindowContains,
 	waveformPeaksHaveRms,
-} from '../src/common/editor/controller/waveform-analysis.ts';
+} from '../src/common/editor/controller/source/waveform-analysis.ts';
 
 test('Nyquist helpers normalize roles, bounds, channels, and transferable payloads', () => {
 	assert.equal(normalizeNyquistRole(' Tool Analyze '), 'analyze');

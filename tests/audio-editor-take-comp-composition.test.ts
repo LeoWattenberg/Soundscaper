@@ -5,10 +5,10 @@ import test from 'node:test';
 
 import { applyEditorCommand } from '../src/common/editor/commands.js';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
-import { createTakeCompControllerComposition } from '../src/common/editor/controller/take-comp-composition.ts';
-import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
-import type { AudioBufferLike } from '../src/common/editor/controller/source-audio.ts';
-import type { DerivedSourceRecord } from '../src/common/editor/controller/track-domain-types.ts';
+import { createTakeCompControllerComposition } from '../src/common/editor/controller/track-audio/internal/take-comp/take-comp-composition.ts';
+import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
+import type { AudioBufferLike } from '../src/common/editor/controller/source/source-audio.ts';
+import type { DerivedSourceRecord } from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 import {
 	createAudioSource,
 	createAudioTrack,

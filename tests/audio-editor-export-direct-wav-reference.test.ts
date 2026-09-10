@@ -8,12 +8,12 @@ import test from 'node:test';
 import {
 	createEditorExportService,
 	type ExportServiceRuntime,
-} from '../src/common/editor/controller/export-service.ts';
+} from '../src/common/editor/controller/export/internal/export-service.ts';
 import {
 	DIRECT_PCM_DESTINATION_WRITE_BYTES, DIRECT_PCM_MAXIMUM_PENDING_BYTES,
 	DIRECT_PCM_RENDER_CHUNK_FRAMES, directPcmMaximumPendingChunks,
-} from '../src/common/editor/controller/direct-pcm-export.ts';
-import { DIRECT_WAV_MAXIMUM_FILE_BYTES, prepareDirectWavDestination } from '../src/common/editor/controller/direct-wav-export.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-pcm-export.ts';
+import { DIRECT_WAV_MAXIMUM_FILE_BYTES, prepareDirectWavDestination } from '../src/common/editor/controller/export/internal/direct/direct-wav-export.ts';
 import { createExportPlan as createAudioExportPlan } from '../src/common/editor/export.js';
 import { applyMediaChannelMapping } from '../src/common/editor/media-export.js';
 import { createAsyncPlanarPcmSinkQueue } from '../src/common/editor/pcm-sink.js';

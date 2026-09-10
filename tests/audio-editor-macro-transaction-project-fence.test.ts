@@ -6,12 +6,12 @@ import test from 'node:test';
 import {
 	EditorProjectGeneration,
 	type EditorProjectToken,
-} from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
 import {
 	createProjectMutationService,
 	type MutationHistory,
 	type MutationProject,
-} from '../src/common/editor/controller/project-mutation-service.ts';
+} from '../src/common/editor/controller/document/project-mutation-service.ts';
 
 interface FenceTrack {
 	readonly id: string;

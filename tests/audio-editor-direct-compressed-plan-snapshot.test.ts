@@ -9,8 +9,8 @@ import {
 	fingerprintCanonicalCompressedSnapshot,
 	type DirectCompressedFormat,
 	type DirectCompressedPlan,
-} from '../src/common/editor/controller/direct-compressed-plan.ts';
-import { prepareDirectCompressedDestination } from '../src/common/editor/controller/direct-compressed-export.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-compressed-plan.ts';
+import { prepareDirectCompressedDestination } from '../src/common/editor/controller/export/internal/direct/direct-compressed-export.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 import { normalizeMediaChannelMapping } from '../src/common/editor/media-export.js';
 

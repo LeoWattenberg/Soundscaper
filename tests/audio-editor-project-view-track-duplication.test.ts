@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
-import { createProjectViewService } from '../src/common/editor/controller/project-view-service.ts';
-import { createTrackDuplicationService } from '../src/common/editor/controller/track-duplication-service.ts';
+import { createProjectViewService } from '../src/common/editor/controller/document/project-view-service.ts';
+import { createTrackDuplicationService } from '../src/common/editor/controller/document/internal/track-duplication-service.ts';
 
 test('project view publication clamps timeline geometry and updates dependent state once', () => {
 	const project = {

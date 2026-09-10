@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	retainLocalAssistanceGuidedReactionScores,
-} from '../src/common/editor/controller/local-assistance-guided-reaction-derivative.ts';
+} from '../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-reaction-derivative.ts';
 import { AssistanceDerivativeRepository } from
 	'../src/common/editor/storage/assistance-derivative-repository.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';

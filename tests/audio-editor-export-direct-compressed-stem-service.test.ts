@@ -5,9 +5,9 @@ import test from 'node:test';
 
 import { unzipSync } from 'fflate';
 
-import { captureDirectCompressedStemArchiveContract } from '../src/common/editor/controller/direct-compressed-stem-archive-plan.ts';
-import { createEditorExportService, type ExportServiceRuntime } from '../src/common/editor/controller/export-service.ts';
-import { inspectZip32Layout } from '../src/common/editor/controller/zip32.ts';
+import { captureDirectCompressedStemArchiveContract } from '../src/common/editor/controller/export/internal/direct/direct-compressed-stem-archive-plan.ts';
+import { createEditorExportService, type ExportServiceRuntime } from '../src/common/editor/controller/export/internal/export-service.ts';
+import { inspectZip32Layout } from '../src/common/editor/controller/export/internal/archive/zip32.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 import { directCompressedStemProjectFixture as projectFixture } from
 	'./helpers/direct-compressed-stem-project-fixture.ts';

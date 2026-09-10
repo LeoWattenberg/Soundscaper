@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { renderExactAudioWarpPcm } from '../src/common/editor/audio-warp-render-parity.ts';
-import { createEditorExportService, type ExportServiceRuntime } from '../src/common/editor/controller/export-service.ts';
+import { createEditorExportService, type ExportServiceRuntime } from '../src/common/editor/controller/export/internal/export-service.ts';
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
 import { createExportPlan } from '../src/common/editor/export.js';
 import { applyMediaChannelMapping } from '../src/common/editor/media-export.js';

@@ -7,7 +7,7 @@ import { AUDIO_EDITOR_COMMAND_TYPES } from '../src/common/editor/commands/protoc
 import { MASTERING_SEQUENCE_COMMAND_TYPES } from '../src/common/editor/commands/mastering-sequence.ts';
 import { createMasteringSequenceRuntimeHandlers } from '../src/common/editor/commands/mastering-sequence-runtime.ts';
 import { createMasteringSequenceV23 } from '../src/common/editor/mastering-sequence.ts';
-import { assertEditorCommandCapabilities } from '../src/common/editor/controller/command-capability-policy.ts';
+import { assertEditorCommandCapabilities } from '../src/common/editor/controller/document/internal/command-capability-policy.ts';
 
 const HANDLERS = createMasteringSequenceRuntimeHandlers();
 

@@ -5,7 +5,7 @@ import test from 'node:test';
 import {
 	assertEditorActionFunctions,
 	type EditorActionRuntime,
-} from '../src/common/editor/controller/action-facade-runtime.ts';
+} from '../src/common/editor/controller/composition/action-facade-runtime.ts';
 import { createActionFacadeRuntime } from './helpers/action-facade-runtime-fixture.ts';
 
 test('a missing or non-callable dependency fails during assembly with its name', () => {

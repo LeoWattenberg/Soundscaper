@@ -2,8 +2,8 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { bindSessionHistoryAdmission } from '../src/common/editor/controller/session-history-admission.ts';
-import { resolveControllerProjectRuntime } from '../src/common/editor/controller/project-runtime.ts';
+import { bindSessionHistoryAdmission } from '../src/common/editor/controller/document/session-history-admission.ts';
+import { resolveControllerProjectRuntime } from '../src/common/editor/controller/document/project-runtime.ts';
 import { createAudioEditorSessionController } from '../src/common/editor/session.js';
 
 const runtime = resolveControllerProjectRuntime();

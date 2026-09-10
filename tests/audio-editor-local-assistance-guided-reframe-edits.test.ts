@@ -7,7 +7,7 @@ import {
 	createLocalAssistanceGuidedReframeDraftV1,
 	setLocalAssistanceGuidedReframeCropV1,
 	validateLocalAssistanceGuidedReframeDraftV1,
-} from '../src/common/editor/controller/local-assistance-guided-reframe-edits.ts';
+} from '../src/common/editor/controller/assistance/local-assistance-guided-reframe-edits.ts';
 
 test('Guided Reframe crop edits stay transient, aspect-correct, and authority-bound', () => {
 	const original = reframeResult();

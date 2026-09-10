@@ -5,24 +5,24 @@ import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from 
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
+import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
 import type {
 	ProjectLifecycleHistory,
 	ProjectLifecycleLock,
 	ProjectLifecycleProject,
 	ProjectLifecycleTab,
-} from '../src/common/editor/controller/project-lifecycle-types.ts';
+} from '../src/common/editor/controller/document/project-lifecycle-types.ts';
 import {
 	createProjectSwitchService,
 	type ProjectSwitchServiceRuntime,
 	type ProjectSwitchState,
-} from '../src/common/editor/controller/project-switch-service.ts';
-import { createScapeInspectionQuiescence } from '../src/common/editor/controller/scape-inspection-quiescence.ts';
-import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source-chunk-provider-registry.ts';
+} from '../src/common/editor/controller/document/project-switch-service.ts';
+import { createScapeInspectionQuiescence } from '../src/common/editor/controller/document/internal/scape/scape-inspection-quiescence.ts';
+import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source/source-chunk-provider-registry.ts';
 import {
 	createSourceLifecycleService,
 	type SourceLifecycleServiceRuntime,
-} from '../src/common/editor/controller/source-lifecycle-service.ts';
+} from '../src/common/editor/controller/source/source-lifecycle-service.ts';
 import { createEffect } from '../src/common/editor/effects.js';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';

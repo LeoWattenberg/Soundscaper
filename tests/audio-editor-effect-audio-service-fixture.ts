@@ -4,10 +4,10 @@ import {
 	createEffectAudioService,
 	type EffectAudioProject,
 	type EffectAudioState,
-} from '../src/common/editor/controller/effect-audio-service.ts';
+} from '../src/common/editor/controller/effects/internal/effect-audio-service.ts';
 import { matchAudacitySelectionChannels } from '../src/common/editor/audacity-selection.js';
-import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
-import type { EffectTarget } from '../src/common/editor/controller/effect-selection-service.ts';
+import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
+import type { EffectTarget } from '../src/common/editor/controller/effects/effect-selection-service.ts';
 import { createEffect } from '../src/common/editor/effects.js';
 import { createAudioClip, createAudioSource, createAudioTrack } from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';

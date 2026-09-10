@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	createIncrementalWavImporter,
-} from '../src/common/editor/controller/incremental-wav-import-service.ts';
+} from '../src/common/editor/controller/import/internal/incremental-wav-import-service.ts';
 
 class TestSourceChunkProviders extends Map<string, unknown> {
 	readonly #calls: string[];

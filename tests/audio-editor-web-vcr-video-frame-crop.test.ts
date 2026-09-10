@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createWebVcrCroppedVideoTrack } from '../src/common/editor/controller/web-vcr-video-frame-crop.ts';
+import { createWebVcrCroppedVideoTrack } from '../src/common/editor/controller/capture/internal/web-vcr/web-vcr-video-frame-crop.ts';
 
 test('Web VCR crops before encoding, freezes first-frame geometry, and closes every frame', async () => {
 	const inputs = [frame(1_921, 1_081, 0), frame(1_921, 1_081, 33_333)];

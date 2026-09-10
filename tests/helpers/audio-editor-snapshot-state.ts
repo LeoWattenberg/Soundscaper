@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { EditorDocumentSnapshotState } from '../../src/common/editor/controller/document-snapshot.ts';
-import { createInitialStorageCapacitySnapshot } from '../../src/common/editor/controller/storage-capacity-service.ts';
+import type { EditorDocumentSnapshotState } from '../../src/common/editor/controller/document/document-snapshot.ts';
+import { createInitialStorageCapacitySnapshot } from '../../src/common/editor/controller/shared/storage-capacity-service.ts';
 
 export function stateFixture(
 	overrides: Partial<EditorDocumentSnapshotState> = {},

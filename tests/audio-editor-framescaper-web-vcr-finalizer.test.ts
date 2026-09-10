@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { CapturePhase } from '../src/common/editor/framescaper-capture-domain.ts';
-import { finalizeFramescaperWebVcrCapture } from '../src/common/editor/controller/framescaper-web-vcr-finalizer.ts';
+import { finalizeFramescaperWebVcrCapture } from '../src/common/editor/controller/capture/internal/web-vcr/framescaper-web-vcr-finalizer.ts';
 
 test('capture stop continues through a rejected host-finalizing transition', async () => {
 	const calls: string[] = [];

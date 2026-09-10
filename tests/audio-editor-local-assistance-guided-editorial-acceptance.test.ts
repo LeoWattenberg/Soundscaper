@@ -5,9 +5,9 @@ import test from 'node:test';
 
 import {
 	acknowledgeLocalAssistanceGuidedEditorialSelection,
-} from '../src/common/editor/controller/local-assistance-guided-editorial-acceptance.ts';
+} from '../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-editorial-acceptance.ts';
 import { createLocalAssistancePreparationRuntime } from
-	'../src/common/editor/controller/local-assistance-runtime.ts';
+	'../src/common/editor/controller/assistance/internal/local-assistance-runtime.ts';
 import type { AssistanceWorkflowV1 } from
 	'../src/common/editor/assistance/workflow.ts';
 import type { LocalAssistanceGuidedReviewedResult } from

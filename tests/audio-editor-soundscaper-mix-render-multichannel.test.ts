@@ -3,15 +3,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createDerivedSourceService } from '../src/common/editor/controller/derived-source-service.ts';
-import { createMixRenderService } from '../src/common/editor/controller/mix-render-service.ts';
-import type { AudioBufferLike } from '../src/common/editor/controller/source-audio.ts';
+import { createDerivedSourceService } from '../src/common/editor/controller/track-audio/internal/derived-audio/derived-source-service.ts';
+import { createMixRenderService } from '../src/common/editor/controller/track-audio/internal/mix-render/mix-render-service.ts';
+import type { AudioBufferLike } from '../src/common/editor/controller/source/source-audio.ts';
 import { createEffect } from '../src/common/editor/effects.js';
 import type {
 	ControllerProject,
 	ControllerSource,
 	SourceWriter,
-} from '../src/common/editor/controller/track-domain-types.ts';
+} from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 import {
 	createAudioClip,
 	createAudioSource,

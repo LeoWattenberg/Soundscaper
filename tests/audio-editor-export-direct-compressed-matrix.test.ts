@@ -10,7 +10,7 @@ import {
 	prepareDirectCompressedDestination,
 	type DirectCompressedFormat,
 	type DirectCompressedPlan,
-} from '../src/common/editor/controller/direct-compressed-export.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-compressed-export.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 
 interface FormatCase {

@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createGroupedEditorActions,
 	type EditorActionRuntime,
-} from '../src/common/editor/controller/action-facade.ts';
+} from '../src/common/editor/controller/composition/action-facade.ts';
 
 interface TestProject {
 	readonly id: string;

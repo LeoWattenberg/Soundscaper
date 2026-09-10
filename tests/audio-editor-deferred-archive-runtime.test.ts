@@ -7,7 +7,7 @@ import test from 'node:test';
 import {
 	createDeferredArchiveRuntime,
 	type DeferredArchiveModuleLoaders,
-} from '../src/common/editor/controller/deferred-archive-runtime.ts';
+} from '../src/common/editor/controller/document/deferred-archive-runtime.ts';
 
 test('archive implementations stay unloaded until their existing actions run and are cached', async () => {
 	const calls = { aup4: 0, legacy: 0, scape: 0, copy: 0 };
@@ -102,7 +102,7 @@ test('archive loader failures preserve the original rejection', async () => {
 test('selected startup owners contain no static archive implementation imports', () => {
 	for (const path of [
 		'src/common/editor/app.js',
-		'src/common/editor/controller/scape-inspection-service.ts',
+		'src/common/editor/controller/document/internal/scape/scape-inspection-service.ts',
 		'src/soundscaper/editor-scape-native.ts',
 		'src/framescaper/editor-scape-native.ts',
 	]) {
@@ -128,7 +128,7 @@ test('selected startup owners contain no static archive implementation imports',
 		/import\s+(?!type\b)[^;]+from ['"]\.\/scape-archive-reader\.ts['"]/u,
 	);
 	const manifestAction = readFileSync(new URL(
-		'../src/common/editor/controller/scape-archive-manifest-action.ts', import.meta.url,
+		'../src/common/editor/controller/document/internal/scape/scape-archive-manifest-action.ts', import.meta.url,
 	), 'utf8');
 	assert.doesNotMatch(
 		manifestAction,

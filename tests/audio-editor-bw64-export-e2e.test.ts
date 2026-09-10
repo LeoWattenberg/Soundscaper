@@ -11,7 +11,7 @@ import {
 	parseRiffChnaChunk,
 	validateAdmChnaConsistency,
 } from '../src/common/editor/adm-metadata.ts';
-import { createImportedAdmPassthroughMetadata } from '../src/common/editor/controller/wav-import-metadata.ts';
+import { createImportedAdmPassthroughMetadata } from '../src/common/editor/controller/import/internal/wav-import-metadata.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 import {
 	createCurrentAudioEditorProject,

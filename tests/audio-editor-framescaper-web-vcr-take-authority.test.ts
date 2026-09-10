@@ -7,7 +7,7 @@ import {
 	createFramescaperWebVcrRecordingToken,
 	evaluateFramescaperWebVcrTakeObservation,
 	type FramescaperWebVcrFrozenTake,
-} from '../src/common/editor/controller/framescaper-web-vcr-take-authority.ts';
+} from '../src/common/editor/controller/capture/internal/web-vcr/framescaper-web-vcr-take-authority.ts';
 import type { WebVcrSnapshot } from '../src/common/editor/web-vcr-domain.ts';
 
 const TOKEN = 'b'.repeat(32);

@@ -2,7 +2,7 @@
 
 import {
 	createVideoProxyExistingCandidateObserverForRuntime,
-} from '../common/editor/controller/video-proxy-candidate-composition.ts';
+} from '../common/editor/controller/capture/video-proxy-candidate-composition.ts';
 import {
 	createFramescaperCapturedVideoProxyScheduler as createScheduler,
 	type FramescaperCapturedVideoProxyRuntimeComposition,

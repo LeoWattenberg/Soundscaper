@@ -7,7 +7,7 @@ import {
 	recordScapeArchiveManifest,
 	saveCurrentScapeArchiveManifest,
 	verifyScapeArchiveAgainstManifest,
-} from '../src/common/editor/controller/scape-archive-manifest-action.ts';
+} from '../src/common/editor/controller/document/internal/scape/scape-archive-manifest-action.ts';
 import { serializeArchiveManifest } from '../src/common/editor/archive-manifest.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 

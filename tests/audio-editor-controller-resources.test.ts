@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ClipTimePitchRenderCacheCoordinator } from '../src/common/editor/clip-time-pitch-cache.js';
-import { createControllerResources } from '../src/common/editor/controller/controller-resources.ts';
+import { createControllerResources } from '../src/common/editor/controller/composition/controller-resources.ts';
 
 const callbacks = {
 	copy: { staffPadRangeWarning: '{stageCount} stages', ffmpegLoading: 'Loading' },

@@ -7,15 +7,15 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 
 import {
 	createLocalAssistanceSelectedMediaPreparationRouter,
-} from '../src/common/editor/controller/local-assistance-selected-media-router.ts';
+} from '../src/common/editor/controller/assistance/internal/local-assistance-selected-media-router.ts';
 import {
 	createLocalAssistanceSelectedPreparation,
-} from '../src/common/editor/controller/local-assistance-selected-preparation.ts';
+} from '../src/common/editor/controller/assistance/internal/local-assistance-selected-preparation.ts';
 import {
 	createLocalAssistanceSelectedVideoPreparation,
 	mapLocalAssistanceSelectedVideoSourceBoundary,
 	resolveLocalAssistanceSelectedVideoAuthority,
-} from '../src/common/editor/controller/local-assistance-selected-video.ts';
+} from '../src/common/editor/controller/assistance/local-assistance-selected-video.ts';
 import {
 	normalizeLocalAssistancePreparedMedia,
 } from '../src/common/editor/assistance/local-assistance-preparation.ts';

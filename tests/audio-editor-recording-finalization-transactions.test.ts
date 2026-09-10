@@ -6,23 +6,23 @@ import test from 'node:test';
 import {
 	createLegacyRecordingFinalization,
 	snapshotLegacyRecordingFinalization,
-} from '../src/common/editor/controller/legacy-recording-finalization.ts';
+} from '../src/common/editor/controller/recording/internal/legacy-recording-finalization.ts';
 import {
 	createRoutedRecordingFinalization,
 	snapshotRoutedRecordingFinalization,
-} from '../src/common/editor/controller/routed-recording-finalization.ts';
+} from '../src/common/editor/controller/recording/internal/routed-recording-finalization.ts';
 import type {
 	RecordingFinalizationCommonRuntime,
 	RoutedRecordingFinalizationRuntime,
-} from '../src/common/editor/controller/recording-finalization-types.ts';
-import type { RecordingFinalizationSnapshot } from '../src/common/editor/controller/recording-session-service.ts';
+} from '../src/common/editor/controller/recording/internal/recording-finalization-types.ts';
+import type { RecordingFinalizationSnapshot } from '../src/common/editor/controller/recording/internal/recording-session-service.ts';
 import type {
 	RecordingProject,
 	RecordingRoute,
 	RecordingSourceWriter,
 	RoutedRecordingEntry,
-} from '../src/common/editor/controller/recording-transaction-types.ts';
-import type { RecordingPreview } from '../src/common/editor/controller/recording-model.ts';
+} from '../src/common/editor/controller/recording/recording-transaction-types.ts';
+import type { RecordingPreview } from '../src/common/editor/controller/recording/recording-model.ts';
 
 function createPreview(trackId = 'track-1'): RecordingPreview {
 	return {

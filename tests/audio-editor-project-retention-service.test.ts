@@ -7,7 +7,7 @@ import {
 	createProjectRetentionService,
 	type RetentionHistory,
 	type RetentionProject,
-} from '../src/common/editor/controller/project-retention-service.ts';
+} from '../src/common/editor/controller/document/internal/project/project-retention-service.ts';
 
 interface TestProject extends RetentionProject {
 	readonly clips: readonly Readonly<{

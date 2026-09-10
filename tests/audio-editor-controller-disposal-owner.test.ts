@@ -2,8 +2,8 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createControllerDisposal, type ControllerDisposalDependencies } from '../src/common/editor/controller/controller-disposal.ts';
-import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
+import { createControllerDisposal, type ControllerDisposalDependencies } from '../src/common/editor/controller/composition/controller-disposal.ts';
+import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
 
 function fixture() {
 	const calls: string[] = [];

@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	createFramescaperBrowserRecorderFactory,
-} from '../src/common/editor/controller/framescaper-browser-recorder-factory.ts';
+} from '../src/common/editor/controller/capture/internal/browser/framescaper-browser-recorder-factory.ts';
 import type { CapturePacket } from '../src/common/editor/framescaper-capture-domain.ts';
 import { waitFor } from './helpers/async-test-control.ts';
 

@@ -7,7 +7,7 @@ import {
 	addAudioWarpMarker,
 	deleteAudioWarpMarker,
 	moveAudioWarpMarker,
-} from '../src/common/editor/controller/audio-warp-marker-editor.ts';
+} from '../src/common/editor/controller/track-audio/internal/audio-warp/audio-warp-marker-editor.ts';
 
 const MAP = Object.freeze({
 	feature: 'audio-warp' as const,

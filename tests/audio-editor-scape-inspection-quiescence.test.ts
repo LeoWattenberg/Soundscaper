@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createScapeInspectionQuiescence } from '../src/common/editor/controller/scape-inspection-quiescence.ts';
+import { createScapeInspectionQuiescence } from '../src/common/editor/controller/document/internal/scape/scape-inspection-quiescence.ts';
 
 test('a fence drains every admitted inspection generation after replacement', async () => {
 	const quiescence = createScapeInspectionQuiescence();

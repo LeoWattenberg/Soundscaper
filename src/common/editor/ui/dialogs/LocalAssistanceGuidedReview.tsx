@@ -15,9 +15,9 @@ import { createLocalAssistanceCleanupAuditionWave } from
 	'../local-assistance-cleanup-audition.ts';
 import { createLocalAssistanceGuidedHighlightPreviewPlanV1,
 	snapLocalAssistanceGuidedHighlightTrimBoundaryV1 } from
-	'../../controller/local-assistance-guided-highlight-preview.ts';
+	'../../controller/assistance/local-assistance-guided-highlight-preview.ts';
 import type { LocalAssistanceSelectedVideoSourceTimeDescriptorV1 } from
-	'../../controller/local-assistance-selected-video-source-time.ts';
+	'../../controller/assistance/local-assistance-selected-video-source-time.ts';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 
 type Copy = Readonly<Record<string, string | undefined>>;

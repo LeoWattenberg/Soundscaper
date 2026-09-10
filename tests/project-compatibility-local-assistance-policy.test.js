@@ -36,7 +36,7 @@ test('compatibility policy records family-qualified local-assistance custody', a
 	}
 	assert.deepEqual(localAssistance.evidence, [
 		'src/common/editor/assistance/workflow.ts',
-		'src/common/editor/controller/local-assistance-guided-result-acceptance.ts',
+		'src/common/editor/controller/assistance/internal/guided/local-assistance-guided-result-acceptance.ts',
 		'src/soundscaper/editor-project.ts',
 		'src/framescaper/editor-project-assistance.ts',
 		'tests/audio-editor-assistance-workflow-contract.test.ts',

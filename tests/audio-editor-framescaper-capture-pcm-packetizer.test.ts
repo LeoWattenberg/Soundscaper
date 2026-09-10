@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	createFramescaperCapturePcmPacketizer,
-} from '../src/common/editor/controller/framescaper-capture-pcm-packetizer.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-pcm-packetizer.ts';
 
 test('PCM packetizer preserves actual format, interleaves samples, and retains the shared active-time grid', () => {
 	let now = 10;

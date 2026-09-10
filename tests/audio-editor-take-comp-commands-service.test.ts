@@ -7,7 +7,7 @@ import { applyEditorCommand } from '../src/common/editor/commands.js';
 import type { AudioEditorCommand, CommandObject } from '../src/common/editor/commands/protocol.ts';
 import {
 	createTakeCompService,
-} from '../src/common/editor/controller/take-comp-service.ts';
+} from '../src/common/editor/controller/track-audio/internal/take-comp/take-comp-service.ts';
 import {
 	createEditorHistory,
 	executeEditorCommand,

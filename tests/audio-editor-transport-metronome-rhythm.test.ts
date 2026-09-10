@@ -5,11 +5,11 @@ import test from 'node:test';
 
 import {
 	calculateAudioEditorMetronomeSchedule,
-} from '../src/common/editor/controller/transport-model.ts';
+} from '../src/common/editor/controller/transport/transport-model.ts';
 import {
 	createEditorTransportService,
 	type TransportServiceRuntime,
-} from '../src/common/editor/controller/transport-service.ts';
+} from '../src/common/editor/controller/transport/internal/transport-service.ts';
 
 const SAMPLE_RATE = 48_000;
 const BPM = 120;

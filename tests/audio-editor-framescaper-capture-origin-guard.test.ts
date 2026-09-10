@@ -8,7 +8,7 @@ import {
 	createFramescaperCaptureOriginGuard,
 	type FramescaperCaptureOriginBinding,
 	type FramescaperCaptureOriginReleaseOutcome,
-} from '../src/common/editor/controller/framescaper-capture-origin-guard.ts';
+} from '../src/common/editor/controller/capture/framescaper-capture-origin-guard.ts';
 
 const ORIGIN_A = Object.freeze({
 	schemaFamily: 'framescaper',

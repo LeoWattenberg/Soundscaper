@@ -5,10 +5,10 @@ import test from 'node:test';
 
 import {
 	createLocalAssistanceGuidedHighlightTranscriptSignalsV1,
-} from '../src/common/editor/controller/local-assistance-guided-highlight-transcript.ts';
+} from '../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-highlight-transcript.ts';
 import {
 	createLocalAssistanceGuidedHighlightVideoSignalsV1,
-} from '../src/common/editor/controller/local-assistance-guided-highlight-signals.ts';
+} from '../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-highlight-signals.ts';
 import { defaultAssistanceWorkflowSettingsV1 } from
 	'../src/common/editor/assistance/workflow-settings-v1.ts';
 

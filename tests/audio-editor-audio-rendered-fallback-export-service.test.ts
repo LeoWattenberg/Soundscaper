@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createEditorExportService } from '../src/common/editor/controller/export-service.ts';
+import { createEditorExportService } from '../src/common/editor/controller/export/internal/export-service.ts';
 import { PROJECT_AUDIO_FALLBACK_INTEGRITY_ERROR_CODE } from '../src/common/editor/project-fallback-integrity.ts';
 import {
 	assertGlobalCachesUnchanged,

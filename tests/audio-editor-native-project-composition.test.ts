@@ -2,8 +2,8 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createNativeProjectComposition } from '../src/common/editor/controller/native-project-composition.ts';
-import { createEditorTaskProgressCoordinator } from '../src/common/editor/controller/task-progress.ts';
+import { createNativeProjectComposition } from '../src/common/editor/controller/document/native-project-composition.ts';
+import { createEditorTaskProgressCoordinator } from '../src/common/editor/controller/shared/task-progress.ts';
 import { createFixture, nativeFile } from './helpers/native-project-service-fixture.ts';
 
 test('native project composition retains the injected archive client and disposes it once', async () => {

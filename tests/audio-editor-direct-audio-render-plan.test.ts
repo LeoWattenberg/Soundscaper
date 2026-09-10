@@ -7,7 +7,7 @@ import {
 	directAudioRenderStrategy,
 	isDirectOfflineAudioRenderPlan,
 	isDirectOfflineAudioMixPlan,
-} from '../src/common/editor/controller/direct-audio-render-plan.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-audio-render-plan.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 
 test('direct audio render admission accepts planner-owned offline single mixes', () => {

@@ -3,11 +3,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createEditorExportService } from '../src/common/editor/controller/export-service.ts';
+import { createEditorExportService } from '../src/common/editor/controller/export/internal/export-service.ts';
 import { createFixture, defaultPlan } from './helpers/export-service-fixture.ts';
 
 // The two deliveries that stream many rendered outputs into one archive, which
-// is the whole of src/common/editor/controller/streaming-stem-archive-export.ts:
+// is the whole of src/common/editor/controller/export/internal/archive/streaming-stem-archive-export.ts:
 // a stem is one track over the delivery's range, a chapter is the whole mix
 // over a span of its own, and both are conformed per file before they join.
 

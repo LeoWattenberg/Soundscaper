@@ -22,7 +22,7 @@ import {
 	sourcePcmBytes,
 	writeBuffer,
 	type AudioBufferLike,
-} from '../src/common/editor/controller/source-audio.ts';
+} from '../src/common/editor/controller/source/source-audio.ts';
 
 const copy = {
 	decodedAudioEmpty: 'Audio is empty.',

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source-chunk-provider-registry.ts';
+import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source/source-chunk-provider-registry.ts';
 
 test('provider replacement starts cleanup synchronously and drain waits for it', async () => {
 	const cleanup = deferred<void>();

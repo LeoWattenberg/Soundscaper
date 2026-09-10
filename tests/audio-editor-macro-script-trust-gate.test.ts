@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createEffectMacroActions,
 	type EffectLibraryActionScope,
-} from '../src/common/editor/controller/effect-library-action-groups.ts';
+} from '../src/common/editor/controller/effects/effect-library-action-groups.ts';
 import { createEffectMacroLibrary } from '../src/common/editor/effect-macro-library.js';
 import { createMacroScriptLibrary } from '../src/common/editor/macro-script-library.ts';
 import { serializeMacroScriptEnvelope } from '../src/common/editor/macro-script-envelope.ts';

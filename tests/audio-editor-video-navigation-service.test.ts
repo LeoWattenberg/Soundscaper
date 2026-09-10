@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createVideoNavigationService } from '../src/common/editor/controller/video-navigation-service.ts';
+import { createVideoNavigationService } from '../src/common/editor/controller/clip-video/internal/video/video-navigation-service.ts';
 import { sequenceFrameBoundarySample } from '../src/common/editor/sequence-frame-navigation.ts';
 import type { VideoEditTargets } from '../src/common/editor/video-edit-targeting.ts';
 

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createRecordingCapturePool } from '../src/common/editor/recording-capture-pool.js';
 import { RECORDING_DEFAULT_DEVICE_ID } from '../src/common/editor/recording-routing.js';
-import { createRecordingCapturePoolBinding } from '../src/common/editor/controller/recording-capture-pool-binding.ts';
+import { createRecordingCapturePoolBinding } from '../src/common/editor/controller/recording/recording-capture-pool-binding.ts';
 
 test('capture binding preserves an injected pool', () => {
 	const pool = createRecordingCapturePool();

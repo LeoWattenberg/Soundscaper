@@ -1,0 +1,479 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import type { AssistanceOperation } from '../../../../assistance/operation.ts';
+import {
+	assistanceWorkflowStageGraph,
+	validateAssistanceWorkflow,
+	type AssistanceGuidedWorkflowId,
+	type AssistanceWorkflowClaimV1,
+	type AssistanceWorkflowModelBindingV1,
+	type AssistanceWorkflowStageSpec,
+	type AssistanceWorkflowV1,
+} from '../../../../assistance/workflow.ts';
+import type { AssistanceWorkflowCustodyClaimV1 } from '../../../../assistance/workflow-custody-v1.ts';
+import type { AssistanceWorkflowReviewAuthorityV1 } from '../../../../assistance/workflow-review-authority-v1.ts';
+import {
+	serializeAssistanceWorkflowSettingsV1,
+	validateAssistanceWorkflowSettingsV1,
+	type AssistanceWorkflowSettingsV1,
+} from '../../../../assistance/workflow-settings-v1.ts';
+import type { LocalAssistanceModel } from '../../../../assistance/local-assistance-bridge.ts';
+import type { LocalAssistanceWorkflowCustodyBridge } from '../../../../assistance/local-assistance-workflow-bridge.ts';
+import type { LocalAssistanceGuidedPreparationUnavailableReason } from
+	'../../../../assistance/local-assistance-preparation.ts';
+import { deriveLocalAssistanceGuidedReviewAuthority } from './local-assistance-guided-review-authority.ts';
+import {
+	prepareLocalAssistanceGuidedEditorialContext,
+	prepareLocalAssistanceGuidedTranscriptInput,
+	type LocalAssistanceGuidedPrimitiveFence,
+} from './local-assistance-guided-transcript-context.ts';
+import {
+	createLocalAssistanceGuidedAggregateFenceV1,
+	LocalAssistanceGuidedFenceUnavailableError,
+} from './local-assistance-guided-fence.ts';
+import {
+	prepareLocalAssistanceGuidedHighlightInputsV1,
+	type LocalAssistanceGuidedHighlightPreparedInputsV1,
+} from './local-assistance-guided-highlight-preparation.ts';
+import {
+	localAssistanceGuidedOutputMaximumByteLength,
+	localAssistanceGuidedStorageReservation,
+} from './local-assistance-guided-output-capacity.ts';
+import {
+	assertSafeProjectTopology,
+	correlateSelectedVideoDescriptor,
+	type InventorySource,
+	dataRecord,
+	normalizeInventory,
+	primitiveFence,
+	projectRecord,
+	UnavailableError,
+} from './local-assistance-guided-admission.ts';
+import { localAssistanceGuidedModelCandidates } from './local-assistance-guided-model-selection.ts';
+import { selectLocalAssistanceGuidedStages } from './local-assistance-guided-stage-selection.ts';
+
+const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
+const SHA256 = /^[a-f\d]{64}$/u;
+const MODEL_ID = /^[a-z\d](?:[a-z\d.-]{0,126}[a-z\d])?$/u;
+const AUDIO_OPERATIONS = new Set<AssistanceOperation>([
+	'voice-activity-detection', 'speech-recognition', 'speaker-diarization',
+	'word-alignment', 'speech-enhancement', 'dereverberation', 'source-separation',
+	'audio-tagging', 'beat-tracking',
+]);
+export type {
+	LocalAssistanceGuidedPreparationUnavailableReason,
+} from '../../../../assistance/local-assistance-preparation.ts';
+export interface LocalAssistanceAggregateCustodyHandle {
+	readonly custody: AssistanceWorkflowCustodyClaimV1;
+	readonly workflowClaim: AssistanceWorkflowClaimV1;
+}
+
+export type LocalAssistanceAggregateCustodyPort = LocalAssistanceWorkflowCustodyBridge;
+
+export interface LocalAssistanceGuidedWorkflowPreparationRequest {
+	readonly jobId: string;
+	readonly workflowId: AssistanceGuidedWorkflowId;
+	readonly settings: AssistanceWorkflowSettingsV1;
+	readonly models: readonly LocalAssistanceModel[];
+	readonly custody: LocalAssistanceAggregateCustodyPort;
+	readonly signal: AbortSignal;
+}
+
+export type LocalAssistanceGuidedWorkflowPreparationOutcome = Readonly<{
+	outcome: 'prepared'; workflow: AssistanceWorkflowV1;
+	reviewAuthority: AssistanceWorkflowReviewAuthorityV1;
+}> | Readonly<{
+	outcome: 'unavailable';
+	reason: LocalAssistanceGuidedPreparationUnavailableReason;
+}>;
+
+interface SelectedPreparationPort {
+	listSelectedMedia(): Promise<unknown>;
+	prepareSelectedMedia(request: Readonly<{
+		sourceId: string;
+		operation: AssistanceOperation;
+		shotDetectionMode?: 'fast' | 'accurate';
+		inputRole?: 'video' | 'frame-pack';
+		signal?: AbortSignal;
+	}>): Promise<unknown>;
+	describeSelectedVideoSourceTime?(): Promise<unknown>;
+}
+
+export interface LocalAssistanceGuidedPreparationDependencies {
+	readonly getProject: () => unknown;
+	readonly getSelectedClipId: () => string | null;
+	readonly captureProject: () => unknown;
+	readonly assertProject: (token: unknown) => void;
+	readonly preflightStorage: (bytes: number) => Promise<unknown>;
+	readonly currentSelectionFence: () => unknown;
+	readonly loadTranscriptBody?: (
+		storageKey: string,
+		signal: AbortSignal,
+	) => PromiseLike<unknown> | unknown;
+	readonly loadVisualIndexDerivatives?: (
+		projectId: string,
+		signal: AbortSignal,
+	) => PromiseLike<readonly unknown[]> | readonly unknown[];
+	readonly loadReframeDerivatives?: (
+		projectId: string,
+		signal: AbortSignal,
+	) => PromiseLike<readonly unknown[]> | readonly unknown[];
+	readonly selected: SelectedPreparationPort;
+}
+
+export interface LocalAssistanceGuidedWorkflowPreparation {
+	prepareGuidedWorkflow(
+		request: LocalAssistanceGuidedWorkflowPreparationRequest,
+	): Promise<LocalAssistanceGuidedWorkflowPreparationOutcome>;
+}
+
+interface PreparedExternalInput {
+	readonly mediaType: string;
+	readonly bytes: Blob;
+	readonly fence: LocalAssistanceGuidedPrimitiveFence;
+}
+
+export function createLocalAssistanceGuidedWorkflowPreparation(
+	dependencies: LocalAssistanceGuidedPreparationDependencies,
+): Readonly<LocalAssistanceGuidedWorkflowPreparation> {
+	assertDependencies(dependencies);
+
+	async function prepareGuidedWorkflow(
+		request: LocalAssistanceGuidedWorkflowPreparationRequest,
+	): Promise<LocalAssistanceGuidedWorkflowPreparationOutcome> {
+		const settings = validateAssistanceWorkflowSettingsV1(request?.settings, request?.workflowId);
+		if (!request?.custody || typeof request.custody.stageInput !== 'function'
+			|| typeof request.custody.reserveOutput !== 'function'
+			|| typeof request.custody.bindProducer !== 'function'
+			|| typeof request.custody.release !== 'function') {
+			return unavailable('aggregate-custody-unavailable');
+		}
+		if (!(request.signal instanceof AbortSignal)) {
+			throw new TypeError('Guided preparation requires one cancellation signal.');
+		}
+		const token = dependencies.captureProject();
+		try {
+			request.signal.throwIfAborted();
+			const project = projectRecord(
+				dependencies.getProject(), dependencies.getSelectedClipId(),
+			);
+			assertSafeProjectTopology(project);
+			const graph = assistanceWorkflowStageGraph(request.workflowId);
+			const inventory = normalizeInventory(await dependencies.selected.listSelectedMedia());
+			dependencies.assertProject(token);
+			const stages = selectLocalAssistanceGuidedStages(graph, settings, request.models, inventory);
+			if (stages === null) throw new UnavailableError('workflow-disabled');
+			const models = resolveModelBindings(stages, request.models, settings);
+			if (models === null) throw new UnavailableError('model-binding-unavailable');
+			const highlightInputs = request.workflowId === 'make-highlights'
+				&& dependencies.selected.describeSelectedVideoSourceTime
+				? await prepareLocalAssistanceGuidedHighlightInputsV1({ project, inventory, settings,
+					signal: request.signal,
+					describeSelectedVideoSourceTime: dependencies.selected.describeSelectedVideoSourceTime,
+					prepareSelectedMedia: dependencies.selected.prepareSelectedMedia,
+					loadTranscriptBody: dependencies.loadTranscriptBody,
+					loadVisualIndexDerivatives: dependencies.loadVisualIndexDerivatives,
+					loadReframeDerivatives: dependencies.loadReframeDerivatives }) : null;
+			if (request.workflowId === 'make-highlights' && highlightInputs === null) {
+				throw new UnavailableError('source-custody-unavailable');
+			}
+			dependencies.assertProject(token);
+			const externalByBinding = new Map<string, readonly PreparedExternalInput[]>();
+			const producedSlots = new Set<string>();
+			for (const stage of stages) {
+				for (const slot of stage.inputSlots) {
+					const selectedShotInput = stage.operation === 'shot-detection' && slot.slotId === (shotMode(settings) === 'accurate' ? 'frame-pack' : 'video');
+					const selectedHighlightInput = highlightExternalInput(
+						highlightInputs, stage.stageId, slot.slotId,
+					) !== null;
+					if ((!slot.required && !selectedShotInput && !selectedHighlightInput)
+						|| producedSlots.has(slot.slotId)) continue;
+					const external = await prepareExternalInputs(
+						dependencies, project, inventory, stage, slot.slotId, settings, request.signal,
+						highlightInputs,
+					);
+					if (external === null) throw new UnavailableError(externalReason(slot.slotId));
+					externalByBinding.set(bindingKey(stage.stageId, slot.slotId), external);
+					dependencies.assertProject(token);
+				}
+				for (const slot of stage.outputSlots) if (slot.required) producedSlots.add(slot.slotId);
+			}
+			const preparedFences = [...externalByBinding.values()].flatMap((externals) =>
+				externals.map(({ fence }) => fence));
+			if (preparedFences.length < 1) throw new UnavailableError('source-custody-unavailable');
+			const settingsBody = serializeAssistanceWorkflowSettingsV1(settings);
+			const fence = createLocalAssistanceGuidedAggregateFenceV1({ project,
+				primitiveFences: preparedFences, stages, settingsBody, models });
+			const outputBySlot = new Map<string, LocalAssistanceAggregateCustodyHandle>();
+			const stagedExternalByBinding = new Map<string, readonly AssistanceWorkflowClaimV1[]>();
+			const reviewInputs: Array<Readonly<{
+				stageId: string; slotId: string; claimId: string; mediaType: string; bytes: Blob;
+			}>> = [];
+			const inputs: AssistanceWorkflowClaimV1[] = [];
+			const outputs: AssistanceWorkflowClaimV1[] = [];
+			for (const stage of stages) {
+				for (const slot of stage.inputSlots) {
+					const key = bindingKey(stage.stageId, slot.slotId);
+					const externals = externalByBinding.get(key) ?? null;
+					if (externals === null) continue;
+					const claims: AssistanceWorkflowClaimV1[] = [];
+					for (const external of externals) {
+						const staged = await request.custody.stageInput({ jobId: request.jobId,
+							workflowId: request.workflowId, stageId: stage.stageId, slotId: slot.slotId,
+							mediaType: external.mediaType, bytes: external.bytes, signal: request.signal });
+						const claim = assertHandle(staged, 'input', request.jobId, stage.stageId, slot.slotId);
+						claims.push(claim);
+						reviewInputs.push(Object.freeze({ stageId: stage.stageId, slotId: slot.slotId,
+							claimId: claim.claimId, mediaType: external.mediaType, bytes: external.bytes }));
+						dependencies.assertProject(token);
+					}
+					stagedExternalByBinding.set(key, Object.freeze(claims));
+				}
+			}
+			const reviewAuthority = await deriveLocalAssistanceGuidedReviewAuthority(
+				request.workflowId, reviewInputs, request.signal,
+			);
+			await dependencies.preflightStorage(localAssistanceGuidedStorageReservation(
+				request.workflowId, stages, reviewAuthority,
+			));
+			dependencies.assertProject(token);
+
+			for (const stage of stages) {
+				for (const slot of stage.inputSlots) {
+					const producer = outputBySlot.get(slot.slotId);
+					if (producer) {
+						const bound = await request.custody.bindProducer({ jobId: request.jobId,
+							workflowId: request.workflowId, stageId: stage.stageId,
+							slotId: slot.slotId, producer: producer.custody });
+						inputs.push(assertHandle(bound, 'input', request.jobId, stage.stageId, slot.slotId));
+						continue;
+					}
+					if (!slot.required && !externalByBinding.has(bindingKey(stage.stageId, slot.slotId))) continue;
+					const staged = stagedExternalByBinding.get(bindingKey(stage.stageId, slot.slotId));
+					if (!staged) throw new UnavailableError(externalReason(slot.slotId));
+					inputs.push(...staged);
+				}
+				for (const slot of stage.outputSlots) {
+					if (!slot.required) continue;
+					const reserved = await request.custody.reserveOutput({ jobId: request.jobId,
+						workflowId: request.workflowId, stageId: stage.stageId, slotId: slot.slotId,
+						maximumByteLength: localAssistanceGuidedOutputMaximumByteLength(
+							request.workflowId, stage.stageId, slot.slotId, reviewAuthority,
+						) });
+					outputs.push(assertHandle(reserved, 'output', request.jobId, stage.stageId, slot.slotId));
+					outputBySlot.set(slot.slotId, reserved);
+				}
+			}
+			dependencies.assertProject(token);
+			const stageIds = Object.freeze(stages.map(({ stageId }) => stageId));
+			const workflow = validateAssistanceWorkflow({ contractVersion: 1, jobId: request.jobId,
+				workflowId: request.workflowId, recipeVersion: 1,
+				settingsVersion: settings.settingsVersion, settings, fence, stageIds,
+				models, inputs: Object.freeze(inputs), outputs: Object.freeze(outputs) });
+			return Object.freeze({ outcome: 'prepared', workflow, reviewAuthority });
+		} catch (error) {
+			await request.custody.release(request.jobId).catch(() => false);
+			if (error instanceof UnavailableError
+				|| error instanceof LocalAssistanceGuidedFenceUnavailableError) {
+				return unavailable(error.reason);
+			}
+			throw error;
+		}
+	}
+
+	return Object.freeze({ prepareGuidedWorkflow });
+}
+
+type PrimitiveFence = LocalAssistanceGuidedPrimitiveFence;
+
+async function prepareExternalInputs(
+	dependencies: LocalAssistanceGuidedPreparationDependencies,
+	project: Record<string, unknown>,
+	inventory: readonly InventorySource[],
+	stage: AssistanceWorkflowStageSpec,
+	slotId: string,
+	settings: AssistanceWorkflowSettingsV1,
+	signal: AbortSignal,
+	highlightInputs: LocalAssistanceGuidedHighlightPreparedInputsV1 | null,
+): Promise<readonly PreparedExternalInput[] | null> {
+	const highlight = highlightExternalInput(highlightInputs, stage.stageId, slotId);
+	if (highlight !== null) return Object.freeze([highlight]);
+	if (slotId === 'transcript' || slotId === 'editorial-context') {
+		const options = Object.freeze({ project, inventory,
+			fence: primitiveFence(dependencies.currentSelectionFence()),
+			loadTranscriptBody: dependencies.loadTranscriptBody,
+			...(slotId === 'editorial-context' && settings.workflowId === 'generate-editorial-text'
+				? { editorialFields: settings.fields }
+				: {}),
+			signal });
+		const prepared = await (slotId === 'transcript'
+			? prepareLocalAssistanceGuidedTranscriptInput(options)
+			: prepareLocalAssistanceGuidedEditorialContext(options));
+		return prepared === null ? null : Object.freeze([prepared]);
+	}
+	if (slotId === 'video-authority') {
+		if (!dependencies.selected.describeSelectedVideoSourceTime) return null;
+		signal.throwIfAborted();
+		const described = dataRecord(await dependencies.selected.describeSelectedVideoSourceTime(),
+			'selected-video source-time description');
+		signal.throwIfAborted();
+		const fence = primitiveFence(described.selectionFence);
+		const descriptor = correlateSelectedVideoDescriptor(described.descriptor, fence);
+		const bytes = new Blob([JSON.stringify(descriptor)], {
+			type: 'application/vnd.soundscaper.video-authority+json',
+		});
+		if (bytes.size < 1 || bytes.size > MAXIMUM_OUTPUT_BYTES) {
+			throw new UnavailableError('timing-authority-unavailable');
+		}
+		return Object.freeze([Object.freeze({ mediaType: bytes.type, bytes, fence })]);
+	}
+	if (slotId !== 'audio' && slotId !== 'video' && slotId !== 'frame-pack') return null;
+	const source = inventory.filter(({ mediaKind }) => mediaKind === (slotId === 'frame-pack' ? 'video' : slotId));
+	if (source.length !== 1) return null;
+	const operation = slotId === 'video' ? 'shot-detection' : stage.operation;
+	if (!operation || (slotId === 'audio' && !AUDIO_OPERATIONS.has(operation))) return null;
+	const mode = operation === 'shot-detection' ? shotMode(settings) : undefined;
+	const inputRole = operation === 'shot-detection'
+		? slotId as 'video' | 'frame-pack' : undefined;
+	const value = await dependencies.selected.prepareSelectedMedia({
+		sourceId: source[0]!.sourceId, operation, ...(mode ? { shotDetectionMode: mode } : {}),
+		...(inputRole ? { inputRole } : {}), signal,
+	});
+	const prepared = primitivePrepared(value, source[0]!.sourceId, operation, mode);
+	const matches = prepared.inputs.filter((candidate) => candidate.role === slotId);
+	if (matches.length < 1 || matches.length > (slotId === 'frame-pack' ? 64 : 1)) {
+		throw new UnavailableError('aggregate-custody-unavailable');
+	}
+	return Object.freeze(matches.map((input) => Object.freeze({
+		mediaType: input.mediaType, bytes: input.bytes, fence: prepared.fence,
+	})));
+}
+
+function highlightExternalInput(
+	inputs: LocalAssistanceGuidedHighlightPreparedInputsV1 | null,
+	stageId: string,
+	slotId: string,
+): Readonly<{ mediaType: string; bytes: Blob; fence: PrimitiveFence }> | null {
+	if (inputs === null) return null;
+	if (stageId === 'detect-highlight-shots' && slotId === 'video') return inputs.reviewVideo;
+	if (stageId === 'tag-highlight-reactions' && slotId === 'audio') return inputs.audioWave;
+	if (stageId !== 'gather-signals') return null;
+	if (slotId === 'video') return inputs.video;
+	if (slotId === 'audio') return inputs.audio;
+	if (slotId === 'transcript') return inputs.transcript;
+	if (slotId === 'embeddings') return inputs.embeddings;
+	return null;
+}
+
+function resolveModelBindings(
+	stages: readonly AssistanceWorkflowStageSpec[],
+	modelsValue: readonly LocalAssistanceModel[],
+	settings: AssistanceWorkflowSettingsV1,
+): readonly AssistanceWorkflowModelBindingV1[] | null {
+	const models = modelsValue.map(normalizeModel);
+	const result: AssistanceWorkflowModelBindingV1[] = [];
+	for (const stage of stages) {
+		for (const slot of stage.modelSlots) {
+			if (!slot.required && !optionalModelEnabled(stage.stageId, settings)) continue;
+			const matches = localAssistanceGuidedModelCandidates(slot.slotId, models, settings);
+			if (matches.length !== 1) return null;
+			const selected = matches[0]!;
+			result.push(Object.freeze({ bindingVersion: 1, stageId: stage.stageId,
+				slotId: slot.slotId, modelId: selected.modelId, version: selected.version,
+				artifactSha256s: Object.freeze([...selected.artifactSha256s].sort()) }));
+		}
+	}
+	return Object.freeze(result);
+}
+
+function primitivePrepared(
+	value: unknown, sourceId: string, operation: AssistanceOperation, mode?: 'fast' | 'accurate',
+): Readonly<{ inputs: readonly Readonly<{ role: string; mediaType: string; bytes: Blob }>[];
+	fence: PrimitiveFence }> {
+	const row = dataRecord(value, 'prepared selected media');
+	if (row.sourceId !== sourceId || row.operation !== operation
+		|| (mode !== undefined && row.shotDetectionMode !== mode)
+		|| !Array.isArray(row.inputs)) throw new TypeError('Prepared media lost exact aggregate authority.');
+	const inputs = row.inputs.map((candidate) => {
+		const input = dataRecord(candidate, 'prepared aggregate input');
+		if (typeof input.role !== 'string' || typeof input.mediaType !== 'string'
+			|| !(input.bytes instanceof Blob) || input.bytes.size < 1) {
+			throw new TypeError('Prepared aggregate input custody is invalid.');
+		}
+		return Object.freeze({ role: input.role, mediaType: input.mediaType, bytes: input.bytes });
+	});
+	return Object.freeze({ inputs: Object.freeze(inputs),
+		fence: primitiveFence(row.selectionFence) });
+}
+
+function assertHandle(
+	handle: LocalAssistanceAggregateCustodyHandle,
+	direction: 'input' | 'output', jobId: string, stageId: string, slotId: string,
+): AssistanceWorkflowClaimV1 {
+	const claim = handle?.workflowClaim;
+	if (!handle?.custody || claim?.direction !== direction || claim.jobId !== jobId
+		|| claim.stageId !== stageId || claim.slotId !== slotId
+		|| claim.claimId !== handle.custody.claimId) {
+		throw new TypeError('Aggregate custody returned an uncorrelated slotted claim.');
+	}
+	return claim;
+}
+
+function bindingKey(stageId: string, slotId: string): string { return `${stageId}\0${slotId}`; }
+
+function normalizeModel(model: LocalAssistanceModel): LocalAssistanceModel {
+	if (!model || typeof model !== 'object' || !MODEL_ID.test(model.modelId)
+		|| typeof model.version !== 'string' || model.version.length < 1 || model.version.length > 128
+		|| typeof model.task !== 'string' || model.task.length < 1
+		|| !Array.isArray(model.artifactSha256s) || model.artifactSha256s.length < 1
+		|| model.artifactSha256s.some((value) => !SHA256.test(value))
+		|| new Set(model.artifactSha256s).size !== model.artifactSha256s.length) {
+		throw new TypeError('Authenticated aggregate model inventory is invalid.');
+	}
+	return model;
+}
+
+function optionalModelEnabled(stageId: string, settings: AssistanceWorkflowSettingsV1): boolean {
+	if (stageId !== 'detect-shots') return false;
+	return (settings.workflowId === 'mark-cuts' && settings.mode === 'accurate')
+		|| (settings.workflowId === 'index-video' && settings.shotMode === 'accurate');
+}
+
+function shotMode(settings: AssistanceWorkflowSettingsV1): 'fast' | 'accurate' {
+	if (settings.workflowId === 'mark-cuts') return settings.mode;
+	if (settings.workflowId === 'index-video') return settings.shotMode;
+	return 'fast';
+}
+
+function externalReason(slotId: string): LocalAssistanceGuidedPreparationUnavailableReason {
+	if (slotId === 'transcript') return 'transcript-custody-unavailable';
+	if (slotId === 'editorial-context') return 'editorial-context-custody-unavailable';
+	if (slotId === 'video-authority') return 'timing-authority-unavailable';
+	if (slotId === 'frame-pack' || slotId === 'shot-boundaries'
+		|| slotId === 'reaction-ranges' || slotId === 'embeddings') {
+		return 'derived-custody-unavailable';
+	}
+	return 'source-custody-unavailable';
+}
+
+function assertDependencies(value: LocalAssistanceGuidedPreparationDependencies): void {
+	if (!value || typeof value !== 'object' || typeof value.getProject !== 'function'
+		|| typeof value.getSelectedClipId !== 'function' || typeof value.captureProject !== 'function'
+		|| typeof value.assertProject !== 'function' || typeof value.preflightStorage !== 'function'
+		|| typeof value.currentSelectionFence !== 'function'
+		|| (value.loadTranscriptBody !== undefined && typeof value.loadTranscriptBody !== 'function')
+		|| (value.loadVisualIndexDerivatives !== undefined
+			&& typeof value.loadVisualIndexDerivatives !== 'function')
+		|| (value.loadReframeDerivatives !== undefined
+			&& typeof value.loadReframeDerivatives !== 'function')
+		|| !value.selected || typeof value.selected.listSelectedMedia !== 'function'
+		|| typeof value.selected.prepareSelectedMedia !== 'function') {
+		throw new TypeError('Guided preparation requires exact project, storage, and media custody ports.');
+	}
+}
+function unavailable(
+	reason: LocalAssistanceGuidedPreparationUnavailableReason,
+): LocalAssistanceGuidedWorkflowPreparationOutcome {
+	return Object.freeze({ outcome: 'unavailable', reason });
+}
+

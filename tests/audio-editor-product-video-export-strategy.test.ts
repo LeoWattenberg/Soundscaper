@@ -4,13 +4,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { FfmpegOutputSink } from '../src/common/editor/ffmpeg-output-stream.ts';
-import { createEditorVideoExportAction } from '../src/common/editor/controller/video-export-service.ts';
+import { createEditorVideoExportAction } from '../src/common/editor/controller/export/internal/video/video-export-service.ts';
 import type {
 	ProductVideoExportPlan,
 	ProductVideoExportStrategy,
 	ProductVideoExportStrategyEncodeRequest,
 	ProductVideoExportStrategyPlanRequest,
-} from '../src/common/editor/controller/product-video-export-strategy.ts';
+} from '../src/common/editor/controller/export/product-video-export-strategy.ts';
 import {
 	createVideoSource,
 } from '../src/common/editor/project-media-factory.ts';

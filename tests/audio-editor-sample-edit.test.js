@@ -18,9 +18,9 @@ import {
 	createAddSourceCommand,
 	createReplaceClipSourceCommand,
 } from '../src/common/editor/commands.js';
-import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
-import { createSampleEditService } from '../src/common/editor/controller/sample-edit-service.ts';
-import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source-chunk-provider-registry.ts';
+import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
+import { createSampleEditService } from '../src/common/editor/controller/clip-video/internal/sample-edit-service.ts';
+import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source/source-chunk-provider-registry.ts';
 import {
 	createEditorHistory,
 	executeEditorCommand,

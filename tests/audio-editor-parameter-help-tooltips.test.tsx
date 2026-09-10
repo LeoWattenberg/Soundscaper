@@ -13,7 +13,7 @@ import { SelectionEffectsDialog } from '../src/common/editor/ui/inspector/Select
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import type {
 	SoundActivationPolicySnapshot,
-} from '../src/common/editor/controller/sound-activation-policy-service.ts';
+} from '../src/common/editor/controller/recording/sound-activation-policy-service.ts';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
 // The .jsx modules compile against the global React the browser build provides.

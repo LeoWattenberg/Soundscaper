@@ -7,11 +7,11 @@ import {
 	createLabelService,
 	type LabelProjectDocument,
 	type LabelServiceDependencies,
-} from '../src/common/editor/controller/label-service.ts';
+} from '../src/common/editor/controller/edit/internal/label-service.ts';
 import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
-} from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 
 interface Deferred<Value> {

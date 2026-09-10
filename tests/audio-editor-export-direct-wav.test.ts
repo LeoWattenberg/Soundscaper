@@ -4,12 +4,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { MAX_DESKTOP_SAVE_BYTES } from '../desktop/constants.js';
-import { createEditorExportService } from '../src/common/editor/controller/export-service.ts';
+import { createEditorExportService } from '../src/common/editor/controller/export/internal/export-service.ts';
 import {
 	DIRECT_PCM_DESTINATION_WRITE_BYTES, DIRECT_PCM_MAXIMUM_PENDING_BYTES, DIRECT_PCM_RENDER_CHUNK_FRAMES,
 	createDirectPcmEncoder, directPcmMaximumPendingChunks, openDirectPcmDestination,
-} from '../src/common/editor/controller/direct-pcm-export.ts';
-import { DIRECT_WAV_MAXIMUM_FILE_BYTES, prepareDirectWavDestination } from '../src/common/editor/controller/direct-wav-export.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-pcm-export.ts';
+import { DIRECT_WAV_MAXIMUM_FILE_BYTES, prepareDirectWavDestination } from '../src/common/editor/controller/export/internal/direct/direct-wav-export.ts';
 import type { IxmlMetadataInput } from '../src/common/editor/ixml.ts';
 import type { RiffMarkerInput } from '../src/common/editor/riff-markers.ts';
 import { encodeWav, inspectWavLayout } from '../src/common/editor/wav.js';

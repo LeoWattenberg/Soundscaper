@@ -5,10 +5,10 @@ import test from 'node:test';
 
 import {
 	createFramescaperCaptureDurableSessionCoordinator,
-} from '../src/common/editor/controller/framescaper-capture-durable-session.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-durable-session.ts';
 import {
 	captureCreationInventory,
-} from '../src/common/editor/controller/framescaper-capture-durable-creation.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-durable-creation.ts';
 import { FramescaperCaptureSessionManifestRepository } from '../src/common/editor/storage/framescaper-capture-session-manifest-repository.ts';
 import { framescaperCaptureCreationFenceKey } from '../src/common/editor/storage/framescaper-capture-session-creation-repository.ts';
 import { RawPcmSpoolRepository } from '../src/common/editor/storage/raw-pcm-spool-repository.ts';

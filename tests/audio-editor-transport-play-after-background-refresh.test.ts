@@ -7,18 +7,18 @@ import {
 	createClipTimePitchCacheService,
 	type ClipTimePitchCacheEntry,
 	type ClipTimePitchCachePort,
-} from '../src/common/editor/controller/clip-time-pitch-service.ts';
+} from '../src/common/editor/controller/source/clip-time-pitch-service.ts';
 import {
 	createEditorTransportService,
 	type TransportServiceRuntime,
-} from '../src/common/editor/controller/transport-service.ts';
-import type { ClipTransformProject } from '../src/common/editor/controller/clip-domain-types.ts';
-import type { AudioBufferLike } from '../src/common/editor/controller/source-audio.ts';
+} from '../src/common/editor/controller/transport/internal/transport-service.ts';
+import type { ClipTransformProject } from '../src/common/editor/controller/clip-video/internal/clip/clip-domain-types.ts';
+import type { AudioBufferLike } from '../src/common/editor/controller/source/source-audio.ts';
 import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
-} from '../src/common/editor/controller/lifecycle.ts';
-import { createOwnedStateAccess } from '../src/common/editor/controller/owned-state.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
+import { createOwnedStateAccess } from '../src/common/editor/controller/shared/owned-state.ts';
 
 test('play starts again after playback ended while a background cache refresh is still rendering', async () => {
 	const harness = createPlaybackHarness({

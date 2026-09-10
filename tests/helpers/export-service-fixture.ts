@@ -7,7 +7,7 @@
  * export end to end and observe exactly what the service did.
  */
 
-import { type ExportServiceRuntime } from '../../src/common/editor/controller/export-service.ts';
+import { type ExportServiceRuntime } from '../../src/common/editor/controller/export/internal/export-service.ts';
 import type { FfmpegOutputSink } from '../../src/common/editor/ffmpeg-output-stream.ts';
 import { encodeAiff } from '../../src/common/editor/aiff.js';
 import { encodeWav } from '../../src/common/editor/wav.js';

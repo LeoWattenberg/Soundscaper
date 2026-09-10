@@ -7,7 +7,7 @@ import {
 	EFFECT_MACRO_LIBRARY_SETTING_KEY,
 	createEffectMacroLibraryService,
 	createInitialEffectMacroLibrary,
-} from '../src/common/editor/controller/effect-macro-library-service.ts';
+} from '../src/common/editor/controller/effects/effect-macro-library-service.ts';
 
 test('a saved macro is readable and published before the settings write settles', async () => {
 	const harness = createHarness();

@@ -462,11 +462,11 @@ This answers "how are we shipping them."
   (ranked candidate clips, a cut list grouped by type, a label set, a
   crop path). Nothing touches the document until the user accepts;
   accepting commits ordinary commands through the single mutation path
-  (`src/common/editor/controller/project-mutation-service.ts:140-161`),
+  (`src/common/editor/controller/document/project-mutation-service.ts:140-161`),
   so AI edits are inspectable in history and undo like any other edit
   (`src/common/editor/history.js`). Precedents to reuse, not reinvent:
   `persistNyquistLabels` commits a label batch
-  (`src/common/editor/controller/nyquist-host-service.ts:234-259`);
+  (`src/common/editor/controller/effects/internal/nyquist/nyquist-host-service.ts:234-259`);
   `prepareDisjointRangeDeleteCommand` merges N ranges into one
   right-to-left simulated ripple batch
   (`src/common/editor/commands/range-runtime.js:234-257`) — exactly the
@@ -475,7 +475,7 @@ This answers "how are we shipping them."
 - **Two persistence classes.** *Derived assets* (transcripts with
   word-level timing, speaker turns, confidence) are user-valuable and
   persist through the derived-source/derived-record machinery
-  (`src/common/editor/controller/derived-source-service.ts:52-60`),
+  (`src/common/editor/controller/track-audio/internal/derived-audio/derived-source-service.ts:52-60`),
   following the digest-bound external-asset pattern the VFR timing
   contract established for bulk data that must not bloat the document.
   *Disposable derivatives* (frame/transcript embedding indexes, shot
@@ -511,7 +511,7 @@ This answers "how are we shipping them."
   `application-menu-product-filter.js`). The model manager itself is a
   menu-reached dialog. Assistance jobs surface through the existing task
   progress coordinator with a new task kind
-  (`src/common/editor/controller/task-progress.ts:3-12`).
+  (`src/common/editor/controller/shared/task-progress.ts:3-12`).
 
 ## Feature compositions
 

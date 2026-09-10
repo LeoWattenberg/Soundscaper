@@ -6,7 +6,7 @@ import { DialogFooter } from '@soundscaper/design-system/Footer';
 
 import '../audio-editor-design-system/28-take-cycle-recovery.css';
 
-import type { TakeCyclePendingOpenRecovery } from '../../controller/take-cycle-capture-orchestrator.ts';
+import type { TakeCyclePendingOpenRecovery } from '../../controller/recording/take-cycle-capture-orchestrator.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 

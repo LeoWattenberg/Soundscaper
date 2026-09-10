@@ -10,9 +10,9 @@ import type {
 	ProjectAudioFallbackIntegritySelector,
 	ProjectVideoFallbackIntegritySelector,
 } from '../src/common/editor/project-fallback-integrity.ts';
-import type { VideoRenderedFallbackDeliveryProjection } from '../src/common/editor/controller/playback-project-service.ts';
-import { createEditorVideoExportAction } from '../src/common/editor/controller/video-export-service.ts';
-import { admitVideoRenderedFallbackExport } from '../src/common/editor/controller/video-rendered-fallback-export.ts';
+import type { VideoRenderedFallbackDeliveryProjection } from '../src/common/editor/controller/source/playback-project-service.ts';
+import { createEditorVideoExportAction } from '../src/common/editor/controller/export/internal/video/video-export-service.ts';
+import { admitVideoRenderedFallbackExport } from '../src/common/editor/controller/export/internal/video/video-rendered-fallback-export.ts';
 import { availableDesktopVideoExportCapabilities } from './helpers/desktop-video-export-capabilities.js';
 
 const AUDIO_FEATURE_ID = 'org.example.future-audio-pipeline';

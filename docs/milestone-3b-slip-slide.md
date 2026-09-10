@@ -234,8 +234,8 @@ move keep their current behavior.
   non-browser, build, and Chromium gates pass before status is recorded.
 
 Expected strict modules are `frame-canonical-slip-slide-domain.ts`,
-`frame-canonical-slip-slide-planner.ts`, `controller/video-slip-slide-service.ts`,
-`controller/video-slip-slide-feedback.ts`, `ui/framescaper-slip-slide-menu-model.ts`,
+`frame-canonical-slip-slide-planner.ts`, `controller/clip-video/internal/trim/video-slip-slide-service.ts`,
+`controller/clip-video/internal/trim/video-slip-slide-feedback.ts`, `ui/framescaper-slip-slide-menu-model.ts`,
 and `ui/timeline/slip-slide-pointer-routing.ts`. Compose them through
 `video.trim.slipSlide.preview/commit` and a narrow request-builder port; keep
 each maintained file below 600 lines and register new conversions.

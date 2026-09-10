@@ -7,4 +7,4 @@
  */
 
 export { deriveLocalAssistanceReviewAuthority } from
-	'../controller/local-assistance-review-authority.ts';
+	'../controller/assistance/local-assistance-review-authority.ts';

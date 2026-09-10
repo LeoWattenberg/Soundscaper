@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createMacroProgramService } from '../src/common/editor/controller/macro-program-service.ts';
+import { createMacroProgramService } from '../src/common/editor/controller/effects/internal/macro/macro-program-service.ts';
 import { createMacroCommandStep } from '../src/common/editor/macro-command-steps.ts';
 
 const effect = (type: string, id = type) => ({ id, type, enabled: true, params: {} });

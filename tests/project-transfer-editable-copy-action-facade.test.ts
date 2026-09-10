@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createCrossProductHandoffActionFacade } from
-	'../src/common/editor/controller/cross-product-handoff-action-facade.ts';
+	'../src/common/editor/controller/document/cross-product-handoff-action-facade.ts';
 
 test('the desktop action facade owns one cancellable operation and clears it after abort', async () => {
 	let started!: () => void;

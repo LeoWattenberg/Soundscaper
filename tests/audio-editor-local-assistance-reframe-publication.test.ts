@@ -8,7 +8,7 @@ import type { AssistanceWorkflowFenceV1 } from
 import { createSetVideoKeyframesCommand } from '../src/common/editor/commands/factories.ts';
 import {
 	resolveLocalAssistanceSelectedVideoAuthority,
-} from '../src/common/editor/controller/local-assistance-selected-video.ts';
+} from '../src/common/editor/controller/assistance/local-assistance-selected-video.ts';
 import {
 	createFramescaperAssistanceReframePublication,
 } from '../src/framescaper/editor-local-assistance-reframe-publication.ts';

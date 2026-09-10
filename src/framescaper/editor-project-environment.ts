@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { PlaybackProjectService } from '../common/editor/controller/playback-project-service.ts';
+import type { PlaybackProjectService } from '../common/editor/controller/source/playback-project-service.ts';
 import type { AudioEditorProjectStoreOptions } from '../common/editor/storage/project-store-options.ts';
 import type { ProjectDocument } from '../common/editor/storage/project-repository.ts';
 import { AudioEditorProjectStore } from '../common/editor/storage.js';

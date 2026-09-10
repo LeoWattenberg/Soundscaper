@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { ControllerProjectRuntime } from '../common/editor/controller/project-runtime.ts';
+import type { ControllerProjectRuntime } from '../common/editor/controller/document/project-runtime.ts';
 import type { VideoDeliveryAudioLayout } from '../common/editor/video-delivery-audio-layout.ts';
 import type { VideoDeliveryQuality } from '../common/editor/video-delivery-quality.ts';
 import {

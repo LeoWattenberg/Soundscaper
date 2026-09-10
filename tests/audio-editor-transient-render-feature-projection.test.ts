@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	projectTransientRenderFeatures,
-} from '../src/common/editor/controller/transient-render-feature-projection.ts';
+} from '../src/common/editor/controller/track-audio/transient-render-feature-projection.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import {
 	PROJECT_OWNED_FEATURE_REQUIREMENT_IDS,

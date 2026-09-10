@@ -2,10 +2,10 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readStoredAudioBuffer } from '../src/common/editor/controller/source-audio.ts';
-import type { createSourceRuntimeComposition } from '../src/common/editor/controller/source-runtime-composition.ts';
-import type { PreparedRequiredProjectSources } from '../src/common/editor/controller/prepared-project-sources.ts';
-import { createPreparedProjectSources, type PreparedProjectSourceEntry } from '../src/common/editor/controller/prepared-project-sources.ts';
+import { readStoredAudioBuffer } from '../src/common/editor/controller/source/source-audio.ts';
+import type { createSourceRuntimeComposition } from '../src/common/editor/controller/source/source-runtime-composition.ts';
+import type { PreparedRequiredProjectSources } from '../src/common/editor/controller/import/prepared-project-sources.ts';
+import { createPreparedProjectSources, type PreparedProjectSourceEntry } from '../src/common/editor/controller/import/prepared-project-sources.ts';
 
 void test('prepared source handoff retains distinct buffer and provider types without replacing live caches early', async () => {
 	const buffer = { channels: [new Float32Array([1, 2])], sampleRate: 48000 };

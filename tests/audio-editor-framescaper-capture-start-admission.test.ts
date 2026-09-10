@@ -3,14 +3,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createFramescaperCaptureOriginGuard } from '../src/common/editor/controller/framescaper-capture-origin-guard.ts';
-import { createFramescaperCaptureSessionService } from '../src/common/editor/controller/framescaper-capture-session-service.ts';
+import { createFramescaperCaptureOriginGuard } from '../src/common/editor/controller/capture/framescaper-capture-origin-guard.ts';
+import { createFramescaperCaptureSessionService } from '../src/common/editor/controller/capture/internal/framescaper-capture-session-service.ts';
 import type {
 	FramescaperCaptureDurablePort,
 	FramescaperCaptureRecorder,
 	FramescaperCaptureRecorderRequest,
 	FramescaperCaptureSessionService,
-} from '../src/common/editor/controller/framescaper-capture-session-types.ts';
+} from '../src/common/editor/controller/capture/framescaper-capture-session-types.ts';
 import type { CapturePacket, CaptureSourceRole } from '../src/common/editor/framescaper-capture-domain.ts';
 import { deferred, remainsPending, waitForEvent } from './helpers/async-test-control.ts';
 

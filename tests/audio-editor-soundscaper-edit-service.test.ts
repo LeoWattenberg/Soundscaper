@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createEditorEditService } from '../src/common/editor/controller/edit-service.ts';
+import { createEditorEditService } from '../src/common/editor/controller/edit/internal/edit-service.ts';
 import {
 	createSoundscaperProjectHistory,
 	executeSoundscaperProjectCommand,

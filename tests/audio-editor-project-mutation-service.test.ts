@@ -3,14 +3,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { MacroTransactionMetadata } from '../src/common/editor/controller/macro-transaction-metadata.ts';
+import type { MacroTransactionMetadata } from '../src/common/editor/controller/effects/macro-transaction-metadata.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { snapshotInertEditorCommand } from '../src/common/editor/commands/editor-command-snapshot.ts';
 import {
 	createProjectMutationService,
 	type MutationHistory,
 	type MutationProject,
-} from '../src/common/editor/controller/project-mutation-service.ts';
+} from '../src/common/editor/controller/document/project-mutation-service.ts';
 
 interface TestTrack {
 	readonly id: string;

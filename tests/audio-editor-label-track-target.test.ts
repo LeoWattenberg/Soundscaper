@@ -7,11 +7,11 @@ import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.
 import {
 	createEditorTrackService,
 	type EditorTrackServiceDependencies,
-} from '../src/common/editor/controller/track-service.ts';
+} from '../src/common/editor/controller/track-audio/internal/track-service.ts';
 import type {
 	ControllerProject,
 	ControllerTrack,
-} from '../src/common/editor/controller/track-domain-types.ts';
+} from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 
 test('a label joins the label track the project already has instead of starting another', () => {
 	const service = labelServiceFixture(['audio', 'labels'], 'audio');

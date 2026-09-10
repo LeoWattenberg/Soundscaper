@@ -7,7 +7,7 @@ import {
 	createDesktopPreparedSave,
 	createFileSystemPreparedSave,
 } from '../src/common/editor/file-save-stream.ts';
-import { openDirectPcmDestination } from '../src/common/editor/controller/direct-pcm-export.ts';
+import { openDirectPcmDestination } from '../src/common/editor/controller/export/internal/direct/direct-pcm-export.ts';
 
 const FINAL_PREFIX_BYTES = 32;
 

@@ -3,13 +3,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
+import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
 import { throwIfScapeAborted } from '../src/common/editor/scape-abort.ts';
 import {
 	SCAPE_INSPECTION_TASK,
 	createScapeInspectionService,
-} from '../src/common/editor/controller/scape-inspection-service.ts';
-import { createScapeInspectionQuiescence } from '../src/common/editor/controller/scape-inspection-quiescence.ts';
+} from '../src/common/editor/controller/document/internal/scape/scape-inspection-service.ts';
+import { createScapeInspectionQuiescence } from '../src/common/editor/controller/document/internal/scape/scape-inspection-quiescence.ts';
 
 function deferred<Value>() {
 	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;

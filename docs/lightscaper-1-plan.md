@@ -219,7 +219,7 @@ for Lightscaper. The submenu items render disabled with the recorded reason
 
 Separating the two stops the gate being "met" by turning handoff on. Handoff
 carries a project through `prepareProjectHandoff`
-(`src/common/editor/controller/project-admin-service.ts`) into a destination
+(`src/common/editor/controller/document/project-admin-service.ts`) into a destination
 that must open it; Lightscaper has no schema to open until L2, so enabling it
 would ship a broken path to satisfy a wording.
 

@@ -3,7 +3,7 @@
 import type {
 	SoundActivationPolicySnapshot,
 	SoundActivationPreferenceMutationBlockReason,
-} from '../controller/sound-activation-policy-service.ts';
+} from '../controller/recording/sound-activation-policy-service.ts';
 import {
 	SOUND_ACTIVATION_PREFERENCE_LIMITS,
 	normalizeSoundActivationPreferences,

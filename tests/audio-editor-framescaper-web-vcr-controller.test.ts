@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createFramescaperWebVcrController, type FramescaperWebVcrBridgeV1 } from '../src/common/editor/controller/framescaper-web-vcr-controller.ts';
+import { createFramescaperWebVcrController, type FramescaperWebVcrBridgeV1 } from '../src/common/editor/controller/capture/internal/web-vcr/framescaper-web-vcr-controller.ts';
 import type { WebVcrCommandV1, WebVcrSnapshot } from '../src/common/editor/web-vcr-domain.ts';
 
 test('Web VCR stays fail-closed behind the roadmap capability gate', async () => {

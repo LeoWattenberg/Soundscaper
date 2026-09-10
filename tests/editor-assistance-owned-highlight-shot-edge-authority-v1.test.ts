@@ -6,7 +6,7 @@ import test from 'node:test';
 import { gatherOwnedHighlightSignalsV1 } from
 	'../src/common/editor/assistance/owned-highlight-workflow-transforms-v1.ts';
 import { createLocalAssistanceGuidedHighlightVideoSignalsV1 } from
-	'../src/common/editor/controller/local-assistance-guided-highlight-signals.ts';
+	'../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-highlight-signals.ts';
 
 const SETTINGS = Object.freeze({
 	settingsVersion: 1 as const,

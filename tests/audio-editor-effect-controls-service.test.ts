@@ -7,7 +7,7 @@ import {
 	createEffectControlsService,
 	type EffectControlsState,
 	type EffectPresetCollection,
-} from '../src/common/editor/controller/effect-controls-service.ts';
+} from '../src/common/editor/controller/effects/effect-controls-service.ts';
 
 interface HarnessOptions {
 	readonly createId?: (prefix: string) => string;

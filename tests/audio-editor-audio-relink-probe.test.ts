@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { encodeAiff } from '../src/common/editor/aiff.js';
-import { admitChangedContentAudioCandidate } from '../src/common/editor/controller/audio-relink-probe.ts';
+import { admitChangedContentAudioCandidate } from '../src/common/editor/controller/import/internal/linked-media/audio-relink-probe.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
 
 const SOURCE = Object.freeze({

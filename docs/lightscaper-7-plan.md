@@ -468,7 +468,7 @@ pickup; a packet that grows one names it here first.
   profile and the output sample profile; a `raw-decoder` entry in
   `HELPER_EXECUTABLE_ROLES` (`desktop/helper-native-job-contract.ts:109-111`)
   with digest-pinned per-platform provenance; a task-progress kind if the ten at
-  `controller/task-progress.ts:3-13` do not cover it; the WASM path is the
+  `controller/shared/task-progress.ts:3-13` do not cover it; the WASM path is the
   declared fallback.
 - **Invariants:** the renderer never receives spawn or path authority; a helper
   crash quarantines and the Web Core path continues unchanged; disabling every
@@ -570,7 +570,7 @@ pickup; a packet that grows one names it here first.
   under `src/common/editor/`: `video-color-management-v27.ts`, the three
   `unified-exact-*-v13.ts` render modules,
   `native-rgba-frame-pack-v1-contract.ts`, `video-effects.js`,
-  `visual-effect-catalog-*.ts`, `controller/task-progress.ts`. Policy and config
+  `visual-effect-catalog-*.ts`, `controller/shared/task-progress.ts`. Policy and config
   under `config/`: `production-licensing-matrix.json`,
   `production-capabilities.json`, `quality-budgets.json`,
   `ffmpeg-runtime-manifest.json`, `maintainability-allowlist.json`, plus

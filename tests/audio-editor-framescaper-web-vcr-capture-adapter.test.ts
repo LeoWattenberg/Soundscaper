@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createFramescaperWebVcrCaptureAdapter } from '../src/common/editor/controller/framescaper-web-vcr-capture-adapter.ts';
+import { createFramescaperWebVcrCaptureAdapter } from '../src/common/editor/controller/capture/internal/web-vcr/framescaper-web-vcr-capture-adapter.ts';
 
 test('Web VCR adapter requires the owned display and page-audio grant and monitors only a clone', async () => {
 	const events: string[] = [];

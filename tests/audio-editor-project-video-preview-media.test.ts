@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createProjectVisualService } from '../src/common/editor/controller/project-visual-service.ts';
+import { createProjectVisualService } from '../src/common/editor/controller/document/project-visual-service.ts';
 
 test('an authenticated product proxy makes an offline video visual available without reading it as an original', async () => {
 	const source = Object.freeze({ id: 'video', kind: 'video', storageKey: 'original' });

@@ -27,21 +27,21 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { Aup4WorkerClient } from '../src/common/editor/aup4-client.js';
-import { createDeferredAudioAnalysisService } from '../src/common/editor/controller/deferred-analysis-service.ts';
-import { createDeferredArchiveRuntime } from '../src/common/editor/controller/deferred-archive-runtime.ts';
-import { createDeferredDawprojectService } from '../src/common/editor/controller/deferred-dawproject-service.ts';
+import { createDeferredAudioAnalysisService } from '../src/common/editor/controller/analysis/internal/deferred-analysis-service.ts';
+import { createDeferredArchiveRuntime } from '../src/common/editor/controller/document/deferred-archive-runtime.ts';
+import { createDeferredDawprojectService } from '../src/common/editor/controller/import/deferred-dawproject-service.ts';
 import {
 	createDeferredEditorExportService,
 	type DeferredEditorExportRuntime,
-} from '../src/common/editor/controller/deferred-export-service.ts';
-import { createDeferredEffectRuntime } from '../src/common/editor/controller/deferred-effect-runtime.ts';
+} from '../src/common/editor/controller/export/deferred-export-service.ts';
+import { createDeferredEffectRuntime } from '../src/common/editor/controller/effects/deferred-effect-runtime.ts';
 import {
 	createDeferredLocalAssistancePreparation,
 	type DeferredLocalAssistanceRuntimeDependencies,
-} from '../src/common/editor/controller/deferred-local-assistance-runtime.ts';
+} from '../src/common/editor/controller/assistance/deferred-local-assistance-runtime.ts';
 import {
 	loadDeferredSpectralEditAdmission,
-} from '../src/common/editor/controller/deferred-spectral-edit-admission.ts';
+} from '../src/common/editor/controller/effects/internal/deferred-spectral-edit-admission.ts';
 import { NyquistEvaluationClient } from '../src/common/editor/nyquist/client.js';
 
 /**
@@ -110,34 +110,34 @@ const SCAPE_COPY_PORTS = ['copyFutureScapeArchive'] as const;
 const CONTRACTS: readonly DeferredFacadeContract[] = Object.freeze([
 	{
 		facade: 'deferred-analysis-service',
-		implementation: 'controller/analysis-service.ts',
+		implementation: 'controller/analysis/analysis-service.ts',
 		members: Object.keys(analysisFacade),
 		resolve: async () => (
-			await import('../src/common/editor/controller/analysis-service.ts')
+			await import('../src/common/editor/controller/analysis/analysis-service.ts')
 		).createAudioAnalysisService(stub()),
 	},
 	{
 		facade: 'deferred-dawproject-service',
-		implementation: 'controller/dawproject-service.ts',
+		implementation: 'controller/import/internal/dawproject/dawproject-service.ts',
 		members: Object.keys(dawprojectFacade),
 		resolve: async () => (
-			await import('../src/common/editor/controller/dawproject-service.ts')
+			await import('../src/common/editor/controller/import/internal/dawproject/dawproject-service.ts')
 		).createDawprojectService(stub(), stub()),
 	},
 	{
 		facade: 'deferred-export-service',
-		implementation: 'controller/export-service.ts',
+		implementation: 'controller/export/internal/export-service.ts',
 		members: Object.keys(exportFacade),
 		resolve: async () => (
-			await import('../src/common/editor/controller/export-service.ts')
+			await import('../src/common/editor/controller/export/internal/export-service.ts')
 		).createEditorExportService(stub()),
 	},
 	{
 		facade: 'deferred-local-assistance-runtime',
-		implementation: 'controller/local-assistance-runtime.ts',
+		implementation: 'controller/assistance/internal/local-assistance-runtime.ts',
 		members: Object.keys(assistanceFacade),
 		resolve: async () => (
-			await import('../src/common/editor/controller/local-assistance-runtime.ts')
+			await import('../src/common/editor/controller/assistance/internal/local-assistance-runtime.ts')
 		).createLocalAssistancePreparationRuntime({
 			...ASSISTANCE_PORTS, assistanceStore: ASSISTANCE_STORE,
 		}),
@@ -266,7 +266,7 @@ test('the assistance facade without a store declares a subset of the acceptance 
 	assert.ok(withoutStore.length > 0);
 	assert.deepEqual(withoutStore.filter((name) => !withStore.has(name)), []);
 	const preparation = (
-		await import('../src/common/editor/controller/local-assistance-runtime.ts')
+		await import('../src/common/editor/controller/assistance/internal/local-assistance-runtime.ts')
 	).createLocalAssistancePreparationRuntime(ASSISTANCE_PORTS);
 	assert.deepEqual(withoutStore.filter((name) => kindOf(preparation, name) !== 'function'), []);
 });

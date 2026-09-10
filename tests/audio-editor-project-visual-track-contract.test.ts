@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createProjectVisualService, type ProjectVisualProject } from '../src/common/editor/controller/project-visual-service.ts';
+import { createProjectVisualService, type ProjectVisualProject } from '../src/common/editor/controller/document/project-visual-service.ts';
 import type { AudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 
 const canonicalProjectFitsVisuals: (project: AudioEditorProjectV17) => ProjectVisualProject = project => project;

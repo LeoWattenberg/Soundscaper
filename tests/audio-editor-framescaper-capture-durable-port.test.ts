@@ -5,12 +5,12 @@ import test from 'node:test';
 
 import {
 	createFramescaperCaptureDurablePortBinding,
-} from '../src/common/editor/controller/framescaper-capture-durable-port.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-durable-port.ts';
 import type {
 	CreateFramescaperCaptureDurableSessionRequest,
 	FramescaperCaptureDurableSession as CoordinatorSession,
 	FramescaperCaptureRecoveryInventoryEntry,
-} from '../src/common/editor/controller/framescaper-capture-durable-session.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-durable-session.ts';
 import type { FramescaperCaptureSessionManifestV1 } from '../src/common/editor/framescaper-capture-session-manifest.ts';
 
 const SHA = 'ab'.repeat(32);

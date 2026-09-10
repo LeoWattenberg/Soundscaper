@@ -44,7 +44,7 @@ test('take/comp security truth binds native Soundscaper to read-only Framescaper
 		'src/common/editor/take-comp-domain.ts',
 		'src/common/editor/commands/take-comp-runtime.ts',
 		'src/common/editor/commands/take-comp-clipboard.ts',
-		'src/common/editor/controller/take-comp-flatten-service.ts',
+		'src/common/editor/controller/track-audio/internal/take-comp/take-comp-flatten-service.ts',
 		'src/common/editor/ui/dialogs/TakeCompDialog.tsx',
 		'src/common/editor/scape-project.js',
 		'src/soundscaper/product.js',

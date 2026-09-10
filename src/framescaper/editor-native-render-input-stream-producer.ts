@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { ProductNativeRenderInputAuthorityBinding } from
-	'../common/editor/controller/product-native-render-input-authority.ts';
+	'../common/editor/controller/composition/product-native-render-input-authority.ts';
 import { adaptFramescaperNativeRenderInputAuthorityAssistance } from
 	'./editor-controller-assistance-foundation-view.ts';
 import {

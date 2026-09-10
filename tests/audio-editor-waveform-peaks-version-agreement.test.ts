@@ -14,7 +14,7 @@ import test from 'node:test';
 import {
 	WAVEFORM_PEAKS_VERSION,
 	generateWaveformPeaksFallback,
-} from '../src/common/editor/controller/waveform-analysis.ts';
+} from '../src/common/editor/controller/source/waveform-analysis.ts';
 import {
 	validateWaveformPeakLevels,
 } from '../src/common/editor/design-system-adapters/waveform-internals.ts';

@@ -3,10 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createEffectMacroService } from '../src/common/editor/controller/effect-macro-service.ts';
+import { createEffectMacroService } from '../src/common/editor/controller/effects/internal/macro/effect-macro-service.ts';
 import { createEffectMacroTemplateDraft } from '../src/common/editor/effect-macro-templates.ts';
-import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
-import type { EffectTarget } from '../src/common/editor/controller/effect-selection-service.ts';
+import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
+import type { EffectTarget } from '../src/common/editor/controller/effects/effect-selection-service.ts';
 import { projectGraphLatencyFramesV21 } from '../src/common/editor/engine/project-graph-v21.ts';
 import {
 	createAudioTrack,

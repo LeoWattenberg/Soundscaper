@@ -3,20 +3,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
+import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
 import {
 	createProjectSwitchService,
 	type ProjectSwitchServiceRuntime,
 	type ProjectSwitchState,
-} from '../src/common/editor/controller/project-switch-service.ts';
+} from '../src/common/editor/controller/document/project-switch-service.ts';
 import {
 	ScapeInspectionSettlementTimeoutError,
 	createScapeInspectionQuiescence,
-} from '../src/common/editor/controller/scape-inspection-quiescence.ts';
+} from '../src/common/editor/controller/document/internal/scape/scape-inspection-quiescence.ts';
 import type {
 	ProjectLifecycleHistory,
 	ProjectLifecycleProject,
-} from '../src/common/editor/controller/project-lifecycle-types.ts';
+} from '../src/common/editor/controller/document/project-lifecycle-types.ts';
 
 interface TestProject extends ProjectLifecycleProject {
 	readonly title: string;

@@ -6,9 +6,9 @@ import test from 'node:test';
 
 import { BlobReader, ZipReader } from '@zip.js/zip.js';
 
-import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
-import { createScapeInspectionQuiescence } from '../src/common/editor/controller/scape-inspection-quiescence.ts';
-import { createScapeInspectionService } from '../src/common/editor/controller/scape-inspection-service.ts';
+import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
+import { createScapeInspectionQuiescence } from '../src/common/editor/controller/document/internal/scape/scape-inspection-quiescence.ts';
+import { createScapeInspectionService } from '../src/common/editor/controller/document/internal/scape/scape-inspection-service.ts';
 import type {
 	ScapeArchiveEntry,
 } from '../src/common/editor/scape-archive-envelope.ts';

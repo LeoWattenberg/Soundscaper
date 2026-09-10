@@ -11,7 +11,7 @@ import {
 	PcmContainerWriter,
 	crc32,
 } from '../src/common/editor/wavpack/index.js';
-import { generateWaveformPeaksFallback } from '../src/common/editor/controller/waveform-analysis.ts';
+import { generateWaveformPeaksFallback } from '../src/common/editor/controller/source/waveform-analysis.ts';
 
 test('encoded derivative publication reports its exact bounded binary payload', () => {
 	assert.deepEqual(estimateEncodedDerivativePublication(123), {

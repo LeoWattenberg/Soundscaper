@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { admitChangedContentVideoCandidate } from '../src/common/editor/controller/video-relink-probe.ts';
+import { admitChangedContentVideoCandidate } from '../src/common/editor/controller/import/internal/linked-media/video-relink-probe.ts';
 
 test('changed-content video relink admits the persisted sample-frame duration', async () => {
 	let disposals = 0;

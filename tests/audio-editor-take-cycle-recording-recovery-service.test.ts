@@ -5,11 +5,11 @@ import test from 'node:test';
 
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
-import { createTakeCycleRecordingService } from '../src/common/editor/controller/take-cycle-recording-service.ts';
+import { createTakeCycleRecordingService } from '../src/common/editor/controller/recording/take-cycle-recording-service.ts';
 import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
-} from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
 import {
 	createTakeCycleRecoveryEnvelope,
 	transitionTakeCycleRecoveryEnvelopeMedia,

@@ -2,9 +2,9 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createNativeProjectService } from '../src/common/editor/controller/native-project-service.ts';
-import { createProjectVisualService } from '../src/common/editor/controller/project-visual-service.ts';
-import type { NativeAup4Client, NativeProjectDocument } from '../src/common/editor/controller/native-project-types.ts';
+import { createNativeProjectService } from '../src/common/editor/controller/document/native-project-service.ts';
+import { createProjectVisualService } from '../src/common/editor/controller/document/project-visual-service.ts';
+import type { NativeAup4Client, NativeProjectDocument } from '../src/common/editor/controller/document/native-project-types.ts';
 import { createFixture, project } from './helpers/native-project-service-fixture.ts';
 
 test('AUP4 save streams only audio PCM while retaining mixed-media compatibility reporting', async () => {

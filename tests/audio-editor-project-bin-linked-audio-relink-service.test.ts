@@ -5,9 +5,9 @@ import test from 'node:test';
 
 import {
 	PROJECT_BIN_LINKED_AUDIO_RELINK_TASK,
-} from '../src/common/editor/controller/project-bin-linked-audio-relink-service.ts';
-import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from '../src/common/editor/controller/project-bin-linked-video-relink-service.ts';
-import { EDITOR_PROJECT_TASK_SCOPE } from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/import/internal/project-bin/project-bin-linked-audio-relink-service.ts';
+import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from '../src/common/editor/controller/import/project-bin-linked-video-relink-service.ts';
+import { EDITOR_PROJECT_TASK_SCOPE } from '../src/common/editor/controller/shared/lifecycle.ts';
 import {
 	audioFile,
 	createHarness,

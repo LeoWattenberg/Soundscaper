@@ -9,7 +9,7 @@ import {
 	OPTIONAL_COMPOSITION_DOMAINS,
 	resolveProductCompositionDecision,
 	type OptionalCompositionDomain,
-} from '../src/common/editor/controller/product-composition-policy.ts';
+} from '../src/common/editor/controller/composition/product-composition-policy.ts';
 
 test('Soundscaper composes every optional audio subsystem domain', () => {
 	const decision = resolveProductCompositionDecision(SOUNDSCAPER_PROFILE);

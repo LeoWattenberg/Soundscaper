@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { loadNativeEditableProject } from '../src/common/editor/controller/native-project-admission.ts';
+import { loadNativeEditableProject } from '../src/common/editor/controller/document/native-project-admission.ts';
 
 test('native decoding publishes the history-admitted document rather than the loader input', () => {
 	const stored = { id: 'decoded' };

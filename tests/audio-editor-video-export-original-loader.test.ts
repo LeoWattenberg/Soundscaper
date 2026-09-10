@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	loadVideoExportOriginal,
-} from '../src/common/editor/controller/video-export-original-loader.ts';
+} from '../src/common/editor/controller/export/video-export-original-loader.ts';
 
 const PROJECT = Object.freeze({
 	id: 'project-1',

@@ -2,7 +2,7 @@
 
 import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import type { PlaybackProjectProjection } from
-	'../common/editor/controller/playback-project-service.ts';
+	'../common/editor/controller/source/playback-project-service.ts';
 
 /** Preserve media required by an inherited playback layer without changing the outer projection. */
 export function inheritFramescaperPlaybackAdmission<Project extends object>(

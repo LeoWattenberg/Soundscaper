@@ -10,7 +10,7 @@ import {
 	createAssistanceSemanticDerivativeBundleV1,
 } from '../src/common/editor/assistance/semantic-derivative-bundle-v1.ts';
 import { createLocalAssistanceSemanticIndexCustodyV1 } from
-	'../src/common/editor/controller/local-assistance-semantic-index-custody.ts';
+	'../src/common/editor/controller/assistance/local-assistance-semantic-index-custody.ts';
 import { AssistanceDerivativeRepository } from
 	'../src/common/editor/storage/assistance-derivative-repository.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';

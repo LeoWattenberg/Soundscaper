@@ -2,9 +2,9 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createControllerBindings } from '../src/common/editor/controller/controller-bindings.ts';
-import { createControllerPresentationState } from '../src/common/editor/controller/presentation-state.ts';
-import type { createSourceRuntimeComposition } from '../src/common/editor/controller/source-runtime-composition.ts';
+import { createControllerBindings } from '../src/common/editor/controller/composition/controller-bindings.ts';
+import { createControllerPresentationState } from '../src/common/editor/controller/composition/presentation-state.ts';
+import type { createSourceRuntimeComposition } from '../src/common/editor/controller/source/source-runtime-composition.ts';
 import type { EnginePublicApi } from '../src/common/editor/engine/public-api.ts';
 
 test('controller binding construction leaves unrelated owners uninitialized', () => {

@@ -67,12 +67,12 @@ budgets close last, over code that already exists.
   known-insufficient estimate, and leaves an unavailable estimate advisory
   (`src/common/editor/scape-import-capacity.ts:44-70,73-103`); pressure is
   classified at 0.75 and 0.90 of quota with recorded cleanup actions
-  (`src/common/editor/controller/storage-capacity-service.ts:202-231,306-312`).
+  (`src/common/editor/controller/shared/storage-capacity-service.ts:202-231,306-312`).
 - **Relink is a closed lifecycle with structural admission.** Linked originals
   refuse an unavailable or changed original
   (`src/common/editor/storage/linked-original-resolver.ts:120,209`), a
   replacement is admitted structurally without decoding or retaining samples
-  (`src/common/editor/controller/audio-relink-probe.ts:25-47`), and startup
+  (`src/common/editor/controller/import/internal/linked-media/audio-relink-probe.ts:25-47`), and startup
   reconciliation repairs durable locator references
   (`src/common/editor/storage/linked-original-startup-reconciliation-repository.ts:70,118-133`).
 - **Commands, history, and the single commit boundary are fixed.**
@@ -110,9 +110,9 @@ budgets close last, over code that already exists.
   and `trimDerivatives` calls it twice per trim
   (`src/common/editor/storage/video-derivative-repository.ts:219,256`).
 - **The only derivative scheduler is sequential and takes no `AbortSignal`**
-  (`src/common/editor/controller/framescaper-capture-derivative-scheduler.ts:243-277`)
+  (`src/common/editor/controller/capture/framescaper-capture-derivative-scheduler.ts:243-277`)
   while cancellation elsewhere uses named task scopes
-  (`src/common/editor/controller/lifecycle.ts:150-183`).
+  (`src/common/editor/controller/shared/lifecycle.ts:150-183`).
 - **Scape cannot carry a six-figure library as media.** The archive admits
   4,096 entries and a 256 MiB `project.json`
   (`src/common/editor/scape-archive-envelope.ts:18-23`); the export planner
@@ -339,7 +339,7 @@ pickup, and any packet that grows a slice doc names it here first.
   (`src/common/editor/storage/video-derivative-repository.ts:44-51,101`), each
   bound to the original's digest plus a recipe id and version; a cancellable
   background batch builder owning a named task scope
-  (`src/common/editor/controller/lifecycle.ts:150-183`) with a bounded
+  (`src/common/editor/controller/shared/lifecycle.ts:150-183`) with a bounded
   concurrency ceiling, on-demand regeneration, and pressure-driven eviction
   wired to the existing capacity classifier; streaming eviction planning so
   `trimDerivatives` stops materializing the whole inventory twice
@@ -348,7 +348,7 @@ pickup, and any packet that grows a slice doc names it here first.
   (`src/common/editor/storage/derivative-cache-policy.ts:22-26`).
 - **Invariants:** a preview build never mutates the committed catalog document
   (the post-commit rule,
-  `src/common/editor/controller/framescaper-capture-derivative-scheduler.ts:238-242`);
+  `src/common/editor/controller/capture/framescaper-capture-derivative-scheduler.ts:238-242`);
   cancelling a batch leaves no partially written derivative and no row pointing
   at one; eviction never removes an original; a derivative whose
   `originalSha256` no longer matches is never served.

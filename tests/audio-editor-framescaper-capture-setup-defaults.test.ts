@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createFramescaperCaptureSetupDefaults,
 	normalizeFramescaperCaptureSetupDefaults,
-} from '../src/common/editor/controller/framescaper-capture-setup-defaults.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-setup-defaults.ts';
 
 test('capture setup defaults are controller-owned, closed, frozen, and observable', () => {
 	let changes = 0;

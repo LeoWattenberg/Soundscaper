@@ -7,12 +7,12 @@ import {
 	commitPreparedDirectStemArchiveDestination,
 	prepareDirectStemArchiveDestination,
 	streamDirectStemArchive,
-} from '../src/common/editor/controller/direct-stem-archive-export.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-stem-archive-export.ts';
 import {
 	createEditorExportService,
 	type ExportServiceRuntime,
-} from '../src/common/editor/controller/export-service.ts';
-import { createSevenZipStemArchivePlan } from '../src/common/editor/controller/stem-archive.ts';
+} from '../src/common/editor/controller/export/internal/export-service.ts';
+import { createSevenZipStemArchivePlan } from '../src/common/editor/controller/export/stem-archive.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
 
 const FINAL_PREFIX_BYTES = 32;

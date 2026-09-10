@@ -6,10 +6,10 @@ import test from 'node:test';
 import {
 	createTakeCycleProductionComposition,
 	type TakeCycleProductionCompositionDependencies,
-} from '../src/common/editor/controller/take-cycle-production-composition.ts';
-import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
-import type { RecordingControllerFactoryOptions } from '../src/common/editor/controller/recording-transaction-types.ts';
-import type { TakeCycleRoutedCaptureProject } from '../src/common/editor/controller/take-cycle-routed-capture-types.ts';
+} from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-production-composition.ts';
+import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
+import type { RecordingControllerFactoryOptions } from '../src/common/editor/controller/recording/recording-transaction-types.ts';
+import type { TakeCycleRoutedCaptureProject } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-routed-capture-types.ts';
 import {
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';

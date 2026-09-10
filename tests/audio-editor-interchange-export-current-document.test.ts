@@ -7,7 +7,7 @@ import {
 	exportProjectEdl,
 	exportProjectFcpxml,
 	exportProjectOtio,
-} from '../src/common/editor/controller/interchange-export-action.ts';
+} from '../src/common/editor/controller/export/interchange-export-action.ts';
 import {
 	createAudioClip,
 	createAudioSource,

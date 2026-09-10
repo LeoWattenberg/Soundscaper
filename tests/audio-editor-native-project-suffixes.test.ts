@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createNativeProjectService } from '../src/common/editor/controller/native-project-service.ts';
+import { createNativeProjectService } from '../src/common/editor/controller/document/native-project-service.ts';
 import {
 	createFixture,
 	nativeFile,

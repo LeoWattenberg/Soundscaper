@@ -13,9 +13,9 @@ import {
 	parseRiffChnaChunk,
 	validateAdmChnaConsistency,
 } from '../src/common/editor/adm-metadata.ts';
-import { createImportedAdmPassthroughMetadata } from '../src/common/editor/controller/wav-import-metadata.ts';
+import { createImportedAdmPassthroughMetadata } from '../src/common/editor/controller/import/internal/wav-import-metadata.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
-import { renderAndEncodeAudioExport } from '../src/common/editor/controller/audio-export-render-orchestration.ts';
+import { renderAndEncodeAudioExport } from '../src/common/editor/controller/export/internal/audio/audio-export-render-orchestration.ts';
 import {
 	createDeliveryReportForPlan,
 	countUnreportedDeliveryConversions,

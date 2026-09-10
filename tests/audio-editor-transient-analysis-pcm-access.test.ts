@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createTransientAnalysisPcmAccess,
 	type TransientAnalysisPcmSource,
-} from '../src/common/editor/controller/transient-analysis-pcm-access.ts';
+} from '../src/common/editor/controller/analysis/transient-analysis-pcm-access.ts';
 
 const DIRECT_SHA256 = 'cd'.repeat(32);
 

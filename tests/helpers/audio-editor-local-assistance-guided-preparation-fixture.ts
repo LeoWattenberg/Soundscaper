@@ -6,7 +6,7 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import {
 	createLocalAssistanceGuidedWorkflowPreparation,
 	type LocalAssistanceAggregateCustodyPort,
-} from '../../src/common/editor/controller/local-assistance-guided-preparation.ts';
+} from '../../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-preparation.ts';
 import {
 	assistanceWorkflowCustodySlotSpec,
 	createAssistanceWorkflowCustodyClaimV1,

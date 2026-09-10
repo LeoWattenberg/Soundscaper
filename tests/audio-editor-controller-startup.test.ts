@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { deferred } from './helpers/async-test-control.ts';
-import { startController } from '../src/common/editor/controller/controller-startup.ts';
-import { EditorControllerLifetime, type EditorControllerPhase } from '../src/common/editor/controller/lifecycle.ts';
+import { startController } from '../src/common/editor/controller/composition/controller-startup.ts';
+import { EditorControllerLifetime, type EditorControllerPhase } from '../src/common/editor/controller/shared/lifecycle.ts';
 
 function fixture() {
 	const lifetime = new EditorControllerLifetime();

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createEditorTransportService, type TransportServiceRuntime } from '../../src/common/editor/controller/transport-service.ts';
+import { createEditorTransportService, type TransportServiceRuntime } from '../../src/common/editor/controller/transport/internal/transport-service.ts';
 
 export function createTransportFixture() {
 	type TestProject = {

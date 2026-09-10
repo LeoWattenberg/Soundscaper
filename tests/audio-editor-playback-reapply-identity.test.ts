@@ -10,8 +10,8 @@ import {
 	createPlaybackProjectApplyService,
 	createPlaybackProjectService,
 	PLAYBACK_PROJECT_APPLY_TASK,
-} from '../src/common/editor/controller/playback-project-service.ts';
-import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/source/playback-project-service.ts';
+import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
 import { createEffect } from '../src/common/editor/effects.js';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import {

@@ -414,7 +414,7 @@ blend/order of an existing implicit transition is a two-child `batch`, still
 one commit and one undo entry. Undo and redo restore detached canonical values
 and continue the V19 monotone revision/timestamp rules. The common single
 mutation boundary remains `controller.actions.edit.commit` through
-`src/common/editor/controller/project-mutation-service.ts:143-163`; no dialog,
+`src/common/editor/controller/document/project-mutation-service.ts:143-163`; no dialog,
 preview, renderer, or product bootstrap mutates a project directly.
 
 Capability policy covers the direct command and recursive batches. It also

@@ -5,8 +5,8 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const APP_URL = new URL('../src/common/editor/app.js', import.meta.url);
-const BINDINGS_URL = new URL('../src/common/editor/controller/controller-bindings.ts', import.meta.url);
-const SOURCE_RUNTIME_URL = new URL('../src/common/editor/controller/source-runtime-composition.ts', import.meta.url);
+const BINDINGS_URL = new URL('../src/common/editor/controller/composition/controller-bindings.ts', import.meta.url);
+const SOURCE_RUNTIME_URL = new URL('../src/common/editor/controller/source/source-runtime-composition.ts', import.meta.url);
 
 test('initial activation and later engine reapplies share the transient playback-project service', async () => {
 	const [app, sourceRuntime, bindings] = await Promise.all([
@@ -14,7 +14,7 @@ test('initial activation and later engine reapplies share the transient playback
 	]);
 	assert.match(
 		app,
-		/import \{\s*createPlaybackProjectService,\s*\} from '\.\/controller\/playback-project-service\.ts';/u,
+		/import \{\s*createPlaybackProjectService,\s*\} from '\.\/controller\/source\/playback-project-service\.ts';/u,
 	);
 	assert.match(app,
 		/const playbackProjectService = options\.playbackProjectService\s*\n\s*\|\| createPlaybackProjectService\(product\.capabilities, product\.id\);/u);

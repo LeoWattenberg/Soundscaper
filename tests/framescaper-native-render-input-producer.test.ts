@@ -5,11 +5,11 @@ import test, { type TestContext } from 'node:test';
 
 import type {
 	ProductNativeRenderInputOperation,
-} from '../src/common/editor/controller/product-native-render-input-authority.ts';
+} from '../src/common/editor/controller/composition/product-native-render-input-authority.ts';
 import {
 	acquireVideoExportTimingIndexes,
 	type VideoExportTimingIndexLease,
-} from '../src/common/editor/controller/video-export-timing.ts';
+} from '../src/common/editor/controller/export/video-export-timing.ts';
 import {
 	canonicalizeNativeMediaPlan,
 	fingerprintNativeMediaPlan,

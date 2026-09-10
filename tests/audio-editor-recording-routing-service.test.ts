@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createRecordingRoutingService } from '../src/common/editor/controller/recording-routing-service.ts';
+import { createRecordingRoutingService } from '../src/common/editor/controller/recording/internal/recording-routing-service.ts';
 import type {
 	RecordingPreferencePatch,
 	RecordingRoutingCapturePool,
@@ -11,13 +11,13 @@ import type {
 	RecordingRoutingMediaDevice,
 	RecordingRoutingServiceRuntime,
 	RecordingRoutingState,
-} from '../src/common/editor/controller/recording-routing-service-types.d.ts';
-import { adaptNativeAudioInventory } from '../src/common/editor/controller/native-audio-inventory.ts';
+} from '../src/common/editor/controller/recording/internal/recording-routing-service-types.d.ts';
+import { adaptNativeAudioInventory } from '../src/common/editor/controller/recording/native-audio-inventory.ts';
 import type {
 	RecordingInputRoute,
 	RecordingInputRouting,
 	RecordingPoolSource,
-} from '../src/common/editor/controller/recording-input-coordination-service.ts';
+} from '../src/common/editor/controller/recording/internal/recording-input-coordination-service.ts';
 
 interface TestProject {
 	readonly id: string;

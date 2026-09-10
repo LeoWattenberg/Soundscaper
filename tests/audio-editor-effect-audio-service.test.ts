@@ -3,14 +3,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { EffectAudioProject } from '../src/common/editor/controller/effect-audio-service.ts';
-import { createEffectControlsService } from '../src/common/editor/controller/effect-controls-service.ts';
-import { createSelectionEffectExecutionService } from '../src/common/editor/controller/effect-execution-service.ts';
+import type { EffectAudioProject } from '../src/common/editor/controller/effects/internal/effect-audio-service.ts';
+import { createEffectControlsService } from '../src/common/editor/controller/effects/effect-controls-service.ts';
+import { createSelectionEffectExecutionService } from '../src/common/editor/controller/effects/internal/effect-execution-service.ts';
 import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
 	type EditorProjectToken,
-} from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
 import { projectGraphLatencyFramesV21 } from '../src/common/editor/engine/project-graph-v21.ts';
 import {
 	AUDIO_SELECTION_EFFECT_DEFINITIONS,

@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import { configure } from '@zip.js/zip.js/index-native.js';
 
-import { createNativeProjectService } from '../src/common/editor/controller/native-project-service.ts';
+import { createNativeProjectService } from '../src/common/editor/controller/document/native-project-service.ts';
 import { writeDawprojectArchive } from '../src/common/editor/dawproject-archive.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
 import { createFixture } from './helpers/native-project-service-fixture.ts';

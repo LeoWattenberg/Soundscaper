@@ -3,10 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { TakeCyclePendingOpenRecovery } from '../src/common/editor/controller/take-cycle-capture-orchestrator.ts';
+import type { TakeCyclePendingOpenRecovery } from '../src/common/editor/controller/recording/take-cycle-capture-orchestrator.ts';
 import {
 	createTakeCycleOpenRecoveryCoordinator,
-} from '../src/common/editor/controller/take-cycle-open-recovery-coordinator.ts';
+} from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-open-recovery-coordinator.ts';
 
 test('pending open freezes exact authority and defers every post-open mutation', async () => {
 	const fixture = coordinatorFixture(pending('project-a', 'token-a'));

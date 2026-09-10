@@ -12,7 +12,7 @@ import {
 	type AudioEditorCommand,
 } from '../src/common/editor/commands/protocol.ts'
 import { createEditorCommandRuntime } from '../src/common/editor/commands/runtime-registry.ts'
-import { assertEditorCommandCapabilities } from '../src/common/editor/controller/command-capability-policy.ts'
+import { assertEditorCommandCapabilities } from '../src/common/editor/controller/document/internal/command-capability-policy.ts'
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts'
 
 test('production command discriminants are registered in exactly one exhaustive domain', () => {

@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createRecordingActionFacade,
 	type RecordingActionScope,
-} from '../src/common/editor/controller/recording-action-facade.ts';
+} from '../src/common/editor/controller/recording/recording-action-facade.ts';
 
 test('recording cycle actions expose the pinned nested contract and exact authority argument', () => {
 	const calls: unknown[][] = [];

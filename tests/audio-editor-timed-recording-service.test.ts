@@ -3,11 +3,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { RecordingControllerLike } from '../src/common/editor/controller/recording-session-service.ts';
+import type { RecordingControllerLike } from '../src/common/editor/controller/recording/internal/recording-session-service.ts';
 import {
 	createTimedRecordingService,
 	type TimedRecordingMutableState,
-} from '../src/common/editor/controller/timed-recording-service.ts';
+} from '../src/common/editor/controller/recording/internal/timed-recording-service.ts';
 
 test('timed recording service exposes only schedule and cancellation actions', () => {
 	const service = createTimedRecordingService({

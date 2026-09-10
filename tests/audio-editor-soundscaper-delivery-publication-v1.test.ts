@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 
-import { createSoundscaperDeliveryPublicationGuardV1 } from '../src/common/editor/controller/soundscaper-delivery-publication-v1.ts';
+import { createSoundscaperDeliveryPublicationGuardV1 } from '../src/common/editor/controller/export/internal/delivery/soundscaper-delivery-publication-v1.ts';
 import { createBoundedByteChunk } from '../src/common/editor/platform/bounded-transfer.ts';
 import type { MediaByteWriterPort } from '../src/common/editor/platform/media-stream-port.ts';
 

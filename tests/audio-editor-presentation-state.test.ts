@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createControllerPresentationState } from '../src/common/editor/controller/presentation-state.ts';
+import { createControllerPresentationState } from '../src/common/editor/controller/composition/presentation-state.ts';
 
 test('progress updates stay on telemetry while failures publish a diagnostic and document status', () => {
 	const events: string[] = [];

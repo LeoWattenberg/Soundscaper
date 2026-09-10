@@ -7,8 +7,8 @@ import { normalizeRecordingRouting } from '../src/common/editor/recording-routin
 import {
 	createTrackAudioRecordingStatePort,
 	reconcileControllerRecordingRouting,
-} from '../src/common/editor/controller/controller-owned-state-composition.ts';
-import { createControllerRecordingState } from '../src/common/editor/controller/recording-state.ts';
+} from '../src/common/editor/controller/composition/controller-owned-state-composition.ts';
+import { createControllerRecordingState } from '../src/common/editor/controller/recording/recording-state.ts';
 
 test('recording state ports mutate only the explicit recording owner', () => {
 	const state = createControllerRecordingState({

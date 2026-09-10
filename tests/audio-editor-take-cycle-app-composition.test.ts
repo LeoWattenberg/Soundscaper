@@ -6,9 +6,9 @@ import test from 'node:test';
 import {
 	createTakeCycleAppComposition,
 	type TakeCycleAppCompositionDependencies,
-} from '../src/common/editor/controller/take-cycle-app-composition.ts';
-import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
-import type { RecordingControllerFactoryOptions } from '../src/common/editor/controller/recording-transaction-types.ts';
+} from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-app-composition.ts';
+import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
+import type { RecordingControllerFactoryOptions } from '../src/common/editor/controller/recording/recording-transaction-types.ts';
 import {
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';

@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createAnalysisRenderer } from '../src/common/editor/controller/analysis-renderer.ts';
+import { createAnalysisRenderer } from '../src/common/editor/controller/analysis/internal/analysis-renderer.ts';
 
 interface MixerStripFixture {
 	id: string;

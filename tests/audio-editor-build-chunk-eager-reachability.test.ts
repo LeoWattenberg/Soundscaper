@@ -64,7 +64,7 @@ test('an unowned importer the eager entries reach counts as eager', () => {
 	assert.equal(chunkGroupForModulePath('src/common/editor/ui/inspector/ExportDialog.jsx'), null);
 	assert.equal(isEagerlyLoadedModule('src/common/editor/ui/inspector/ExportDialog.jsx'), false);
 	assert.equal(
-		isEagerlyLoadedModule('src/common/editor/controller/local-assistance-runtime.ts'),
+		isEagerlyLoadedModule('src/common/editor/controller/assistance/internal/local-assistance-runtime.ts'),
 		false,
 	);
 	// An owner still answers for the modules that have one, in both directions.

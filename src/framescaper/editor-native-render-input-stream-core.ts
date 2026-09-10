@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { ProductNativeRenderInputOperation } from '../common/editor/controller/product-native-render-input-authority.ts';
+import type { ProductNativeRenderInputOperation } from '../common/editor/controller/composition/product-native-render-input-authority.ts';
 import { nativeRgbaFramePackV1ByteLength } from '../common/editor/native-rgba-frame-pack-v1-contract.ts';
 import type { FramescaperNativeRgbaFramePackV1Sink } from './native-render-frame-pack-v1.ts';
 import {

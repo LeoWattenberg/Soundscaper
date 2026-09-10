@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { stemProject } from '../src/common/editor/controller/temporary-export.ts';
+import { stemProject } from '../src/common/editor/controller/export/temporary-export.ts';
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
 import type { EngineOfflineContextOptions } from '../src/common/editor/engine/runtime-types.ts';
 import {

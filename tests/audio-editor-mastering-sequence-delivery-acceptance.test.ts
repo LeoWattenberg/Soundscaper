@@ -9,7 +9,7 @@ import { encodeWav } from '../src/common/editor/wav.js';
 import { parseRiffMarkers } from '../src/common/editor/riff-markers.ts';
 import {
 	renderMasteringSequenceExport,
-} from '../src/common/editor/controller/mastering-sequence-export-render.ts';
+} from '../src/common/editor/controller/export/internal/mastering-sequence-export-render.ts';
 import {
 	countUnreportedDeliveryConversions,
 	createDeliveryReportForPlan,

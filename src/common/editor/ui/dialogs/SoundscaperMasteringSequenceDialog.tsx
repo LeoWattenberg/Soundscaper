@@ -7,7 +7,7 @@ import React from 'react';
 import {
 	createDocumentMasteringSequenceSnapshot,
 	type DocumentMasteringSequenceDocumentSnapshot,
-} from '../../controller/document-mastering-sequence-snapshot.ts';
+} from '../../controller/document/document-mastering-sequence-snapshot.ts';
 import { hasMasteringSequenceProjectAuthority } from '../../project-schema-version.ts';
 import { createStableId } from '../../stable-id.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';

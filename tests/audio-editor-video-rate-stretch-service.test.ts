@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
-import { createVideoRateStretchService } from '../src/common/editor/controller/video-rate-stretch-service.ts';
+import { createVideoRateStretchService } from '../src/common/editor/controller/clip-video/internal/trim/video-rate-stretch-service.ts';
 import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
 	createAudioClip,

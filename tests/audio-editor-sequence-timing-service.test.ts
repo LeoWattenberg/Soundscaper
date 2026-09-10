@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createSequenceTimingService } from '../src/common/editor/controller/sequence-timing-service.ts';
+import { createSequenceTimingService } from '../src/common/editor/controller/clip-video/internal/sequence-timing-service.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 
 const NTSC = { num: 30_000, den: 1_001 };

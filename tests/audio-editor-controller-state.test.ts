@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createEditorControllerState } from '../src/common/editor/controller/state.ts';
+import { createEditorControllerState } from '../src/common/editor/controller/composition/internal/state.ts';
 
 function createState() {
 	return createEditorControllerState({
@@ -45,7 +45,7 @@ test('controller instances never share mutable collections', () => {
 });
 
 test('controller state preserves the supplied document history contract', async () => {
-	const { createControllerDocumentState } = await import('../src/common/editor/controller/document-state.ts');
+	const { createControllerDocumentState } = await import('../src/common/editor/controller/document/document-state.ts');
 	const history = { present: { id: 'project', title: 'Original' }, origin: 'retained-session' };
 	const document = createControllerDocumentState<typeof history.present, typeof history>();
 	const state = createEditorControllerState({

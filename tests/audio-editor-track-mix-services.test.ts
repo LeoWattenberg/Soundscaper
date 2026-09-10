@@ -6,27 +6,27 @@ import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.
 import {
 	createEditorTrackService,
 	type EditorTrackServiceDependencies,
-} from '../src/common/editor/controller/track-service.ts';
+} from '../src/common/editor/controller/track-audio/internal/track-service.ts';
 import {
 	createMixRenderSnapshot,
 	prepareMixRenderCommit,
 	selectAudioTracksForMix,
-} from '../src/common/editor/controller/mix-render-model.ts';
+} from '../src/common/editor/controller/track-audio/mix-render-model.ts';
 import {
 	createDerivedSourceService,
-} from '../src/common/editor/controller/derived-source-service.ts';
-import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source-chunk-provider-registry.ts';
-import type { AudioBufferLike } from '../src/common/editor/controller/source-audio.ts';
+} from '../src/common/editor/controller/track-audio/internal/derived-audio/derived-source-service.ts';
+import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source/source-chunk-provider-registry.ts';
+import type { AudioBufferLike } from '../src/common/editor/controller/source/source-audio.ts';
 import {
 	createTrackTransformService,
-} from '../src/common/editor/controller/track-transform-service.ts';
+} from '../src/common/editor/controller/track-audio/internal/track-transform-service.ts';
 import {
 	createMixRenderService,
-} from '../src/common/editor/controller/mix-render-service.ts';
+} from '../src/common/editor/controller/track-audio/internal/mix-render/mix-render-service.ts';
 import type {
 	ControllerProject,
 	ControllerTrack,
-} from '../src/common/editor/controller/track-domain-types.ts';
+} from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 
 test('track service prepares stable atomic track commands and moves linked lanes together', () => {
 	let project = projectFixture({

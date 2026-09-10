@@ -4,7 +4,7 @@ import {
 	normalizeSoundActivationSettings,
 	SOUND_ACTIVATION_LIMITS,
 	type SoundActivationSettings,
-} from './controller/sound-activated-recording-gate.ts';
+} from './controller/recording/sound-activated-recording-gate.ts';
 
 export interface SoundActivationPreferences {
 	readonly enabled: boolean;

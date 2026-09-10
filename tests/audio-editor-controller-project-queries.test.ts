@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createControllerProjectQueries, createCommandProjectReader, createResolvedCommandProjectReader } from '../src/common/editor/controller/controller-project-queries.ts';
+import { createControllerProjectQueries, createCommandProjectReader, createResolvedCommandProjectReader } from '../src/common/editor/controller/composition/controller-project-queries.ts';
 
 function fixture(project: Readonly<Record<string, unknown>> | null) {
 	return createControllerProjectQueries({ getProject: () => project, projectSampleRate: () => 48000 });

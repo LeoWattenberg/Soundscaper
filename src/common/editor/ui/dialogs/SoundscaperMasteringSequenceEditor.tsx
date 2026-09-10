@@ -6,7 +6,7 @@ import type {
 	DocumentMasteringSequenceEntrySnapshot,
 	DocumentMasteringSequenceRegionSnapshot,
 	DocumentMasteringSequenceSnapshot,
-} from '../../controller/document-mastering-sequence-snapshot.ts';
+} from '../../controller/document/document-mastering-sequence-snapshot.ts';
 import type { SoundscaperMasteringSequenceCopy } from '../soundscaper-mastering-sequence-copy.ts';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import EditorHelpTooltip from '../EditorHelpTooltip.tsx';

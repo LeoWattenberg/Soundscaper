@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	createFramescaperBrowserVideoRecorder,
-} from '../src/common/editor/controller/framescaper-browser-video-recorder.ts';
+} from '../src/common/editor/controller/capture/internal/browser/framescaper-browser-video-recorder.ts';
 
 class FakeMediaRecorder {
 	static isTypeSupported(): boolean { return true; }

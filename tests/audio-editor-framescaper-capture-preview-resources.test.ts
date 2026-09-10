@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createBrowserFramescaperCaptureLevelMonitor,
 	createBrowserFramescaperCapturePreviewSurface,
-} from '../src/common/editor/controller/framescaper-browser-capture-preview.ts';
+} from '../src/common/editor/controller/capture/internal/browser/framescaper-browser-capture-preview.ts';
 
 test('browser video preview uses the live stream and owns no synthetic object URL', async () => {
 	const stream = { id: 'camera-stream' };

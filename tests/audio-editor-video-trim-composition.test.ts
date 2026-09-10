@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createVideoTrimServices } from '../src/common/editor/controller/video-trim-composition.ts';
+import { createVideoTrimServices } from '../src/common/editor/controller/clip-video/internal/trim/video-trim-composition.ts';
 
 test('video trim composition owns edge, roll/ripple, slip/slide, and rate-stretch services', () => {
 	const services = createVideoTrimServices({

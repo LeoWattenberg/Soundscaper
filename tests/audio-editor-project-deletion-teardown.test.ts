@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createProjectAdminService,
 	type ProjectAdminServiceRuntime,
-} from '../src/common/editor/controller/project-admin-service.ts';
+} from '../src/common/editor/controller/document/project-admin-service.ts';
 import {
 	createFixture,
 	deferred,

@@ -5,7 +5,7 @@ import test from 'node:test';
 import {
 	calculateAudioEditorCountInFrames,
 	calculateAudioEditorMetronomeSchedule,
-} from '../src/common/editor/controller/transport-model.ts';
+} from '../src/common/editor/controller/transport/transport-model.ts';
 
 test('metronome schedules remain frame-accurate across playback rates', () => {
 	assert.deepEqual(calculateAudioEditorMetronomeSchedule({

@@ -18,7 +18,7 @@ import {
 	type NativeAudioCalibrationResolution,
 	type NativeAudioCalibrationStore,
 	type RecordingRoutingLike,
-} from '../src/common/editor/controller/native-audio-calibration.ts';
+} from '../src/common/editor/controller/recording/internal/native-audio/native-audio-calibration.ts';
 import { normalizeRecordingRouting, recordingRouteSourceKey } from '../src/common/editor/recording-routing.js';
 
 const INPUT = 'native:alsa:in:hw:0,0';

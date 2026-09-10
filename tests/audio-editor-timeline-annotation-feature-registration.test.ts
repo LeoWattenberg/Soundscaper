@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createProjectFeatureCompatibilityService } from '../src/common/editor/controller/project-feature-compatibility-service.ts';
+import { createProjectFeatureCompatibilityService } from '../src/common/editor/controller/document/project-feature-compatibility-service.ts';
 import {
 	PROJECT_FEATURE_AUDIO_CAPABILITY_IDS,
 	PROJECT_FEATURE_CAPABILITY_IDS,

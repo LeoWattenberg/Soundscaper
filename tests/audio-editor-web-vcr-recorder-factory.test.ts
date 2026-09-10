@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createWebVcrRecorderFactory } from '../src/common/editor/controller/web-vcr-recorder-factory.ts';
+import { createWebVcrRecorderFactory } from '../src/common/editor/controller/capture/internal/web-vcr/web-vcr-recorder-factory.ts';
 
 test('Web VCR recorder exposes only the frozen cropped track to the 8A encoder', async () => {
 	const rawTrack = { kind: 'video', stop() {} };

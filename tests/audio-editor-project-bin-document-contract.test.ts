@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { EngineProject } from '../src/common/editor/engine/types.ts';
-import { findProjectBinClipTrack, projectBinMediaKind } from '../src/common/editor/controller/project-bin-types.ts';
+import { findProjectBinClipTrack, projectBinMediaKind } from '../src/common/editor/controller/import/project-bin-types.ts';
 import { clipFixture, createHarness, createPreviewEngine, projectFixture } from './helpers/project-bin-service-harness.ts';
 
 void test('project bin preview resolves musical timing before constructing its audio model', async () => {

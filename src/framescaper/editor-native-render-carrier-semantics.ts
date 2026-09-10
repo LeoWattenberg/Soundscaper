@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { ProductVideoExportPlan } from '../common/editor/controller/product-video-export-strategy.ts';
+import type { ProductVideoExportPlan } from '../common/editor/controller/export/product-video-export-strategy.ts';
 import { canonicalizeNativeMediaPlan } from '../common/editor/native-media-plan-canonical-form.ts';
 import { nativeMediaV14EncodeDispatch } from '../common/editor/native-media-v14-native-dispatch.ts';
 import type { UnifiedExactRenderPlanV14 } from '../common/editor/unified-exact-render-plan.ts';

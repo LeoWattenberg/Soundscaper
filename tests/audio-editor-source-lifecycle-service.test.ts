@@ -7,7 +7,7 @@ import { setImmediate as nextTurn, setTimeout as delay } from 'node:timers/promi
 import {
 	createSourceLifecycleService,
 	type SourceLifecycleServiceRuntime,
-} from '../src/common/editor/controller/source-lifecycle-service.ts';
+} from '../src/common/editor/controller/source/source-lifecycle-service.ts';
 import { createSourceLifecycleFixture } from './helpers/audio-editor-source-lifecycle-fixture.ts';
 
 test('visual-only still, generator, and timeline image sources do not enter the PCM missing-source fence', async () => {

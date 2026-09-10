@@ -25,9 +25,9 @@ test('direct stem archives use browser-native complete-file codecs and exact rol
 		'src/common/editor/browser-audio-codec-runtime.ts',
 		'src/common/editor/browser-dedicated-audio-codec.ts',
 		'src/common/editor/browser-webcodecs-aac.ts',
-		'src/common/editor/controller/direct-stem-archive-export.ts',
-		'src/common/editor/controller/sequential-seven-zip-copy.ts',
-		'src/common/editor/controller/sequential-zip32-stream.ts',
+		'src/common/editor/controller/export/internal/direct/direct-stem-archive-export.ts',
+		'src/common/editor/controller/export/internal/archive/sequential-seven-zip-copy.ts',
+		'src/common/editor/controller/export/internal/archive/sequential-zip32-stream.ts',
 		'tests/audio-editor-browser-dedicated-codec.test.ts',
 		'tests/audio-editor-browser-webcodecs-aac.test.ts',
 		'tests/audio-editor-export-direct-compressed-stem-service.test.ts',
@@ -39,7 +39,7 @@ test('direct stem archives use browser-native complete-file codecs and exact rol
 	}
 	for (const path of [
 		'src/common/editor/browser-dedicated-audio-worker-client.ts',
-		'src/common/editor/controller/direct-stem-archive-export.ts',
+		'src/common/editor/controller/export/internal/direct/direct-stem-archive-export.ts',
 		'tests/audio-editor-browser-dedicated-codec.test.ts',
 		'tests/audio-editor-export-direct-compressed-stem-service.test.ts',
 	]) assert.ok(rollback.evidence.some((item) => item.path === path), path);
@@ -218,11 +218,11 @@ test('the direct stem-archive fixture records native ZIP32/7z and compressed ZIP
 	assert.equal(budgets.workloads.some(({ id }) => id === 'm2-streaming-bounded-memory'), false);
 
 	for (const path of [
-		'src/common/editor/controller/audio-export-render-orchestration.ts',
-		'src/common/editor/controller/direct-audio-render-plan.ts',
-		'src/common/editor/controller/direct-native-stem-archive-plan.ts',
-		'src/common/editor/controller/rendered-audio-encoding.ts',
-		'src/common/editor/controller/sequential-seven-zip-copy.ts',
+		'src/common/editor/controller/export/internal/audio/audio-export-render-orchestration.ts',
+		'src/common/editor/controller/export/internal/direct/direct-audio-render-plan.ts',
+		'src/common/editor/controller/export/internal/direct/direct-native-stem-archive-plan.ts',
+		'src/common/editor/controller/export/internal/rendered-audio-encoding.ts',
+		'src/common/editor/controller/export/internal/archive/sequential-seven-zip-copy.ts',
 		'src/common/editor/file-save-stream.ts',
 		'tests/audio-editor-direct-audio-render-plan.test.ts',
 		'tests/audio-editor-direct-native-stem-archive-plan.test.ts',

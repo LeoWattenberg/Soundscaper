@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { EnginePublicApi } from '../src/common/editor/engine/public-api.ts';
-import { renderProductNativeAudioToSink, type ProductNativeRenderAudioStreamDependencies } from '../src/common/editor/controller/product-native-render-audio-stream.ts';
+import { renderProductNativeAudioToSink, type ProductNativeRenderAudioStreamDependencies } from '../src/common/editor/controller/composition/internal/product-native-render-audio-stream.ts';
 
 // The production engine's buffer and streaming signatures must survive this port.
 function engineContract(engine: EnginePublicApi): ProductNativeRenderAudioStreamDependencies<Map<string, AudioBuffer>>['createRenderEngine'] {

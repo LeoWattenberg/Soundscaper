@@ -4,7 +4,7 @@ import type {
 	NativePluginInstanceProjectionV1,
 	NativePluginProjectStateV1,
 } from './soundscaper-native-services-bridge.ts';
-import type { EditorProjectToken } from '../controller/lifecycle.ts';
+import type { EditorProjectToken } from '../controller/shared/lifecycle.ts';
 
 interface NativeProjectController {
 	readonly project?: unknown;

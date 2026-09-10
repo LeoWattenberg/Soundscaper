@@ -9,12 +9,12 @@ import {
 	commitPreparedDirectStemArchiveDestination,
 	prepareDirectStemArchiveDestination,
 	streamDirectStemArchive,
-} from '../src/common/editor/controller/direct-stem-archive-export.ts';
+} from '../src/common/editor/controller/export/internal/direct/direct-stem-archive-export.ts';
 import {
 	createEditorExportService,
 	type ExportServiceRuntime,
-} from '../src/common/editor/controller/export-service.ts';
-import { inspectZip32Layout } from '../src/common/editor/controller/zip32.ts';
+} from '../src/common/editor/controller/export/internal/export-service.ts';
+import { inspectZip32Layout } from '../src/common/editor/controller/export/internal/archive/zip32.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
 
 test('streams a reconstructible two-stem ZIP, closes it, and only then commits it', async () => {

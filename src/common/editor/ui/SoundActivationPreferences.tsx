@@ -4,7 +4,7 @@ import React, { useId } from 'react';
 
 import './audio-editor-design-system/20-sound-activation.css';
 
-import type { SoundActivationPolicySnapshot } from '../controller/sound-activation-policy-service.ts';
+import type { SoundActivationPolicySnapshot } from '../controller/recording/sound-activation-policy-service.ts';
 import {
 	SOUND_ACTIVATION_UI_RANGES,
 	createSoundActivationUiModel,

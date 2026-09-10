@@ -7,7 +7,7 @@ import {
 	createDeferredEffectRuntime,
 	type DeferredEffectModuleLoaders,
 	type DeferredNyquistClient,
-} from '../src/common/editor/controller/deferred-effect-runtime.ts';
+} from '../src/common/editor/controller/effects/deferred-effect-runtime.ts';
 
 type NyquistModule = typeof import('../src/common/editor/nyquist/client.js');
 type NyquistClient = InstanceType<NyquistModule['NyquistEvaluationClient']>;

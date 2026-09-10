@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import { resolveLocalAssistanceBridge } from '../src/common/editor/assistance/local-assistance-bridge.ts';
 import { bindLocalAssistancePreparedAudioWaveRelease } from
-	'../src/common/editor/controller/local-assistance-audio-spool-release.ts';
+	'../src/common/editor/controller/assistance/local-assistance-audio-spool-release.ts';
 import { assistanceWorkflowFixture, WORKFLOW_JOB_ID } from './helpers/assistance-workflow-fixture.ts';
 import { JOB_ID, rawBridgeFixture } from './helpers/local-assistance-fixtures.ts';
 

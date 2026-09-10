@@ -7,7 +7,7 @@ import {
 	createFramescaperCaptureAppComposition,
 	createFramescaperCapturePublicationIdFactory,
 	createFramescaperCaptureVideoProbe,
-} from '../src/common/editor/controller/framescaper-capture-app-composition.ts';
+} from '../src/common/editor/controller/capture/framescaper-capture-app-composition.ts';
 
 const SHA = 'ab'.repeat(32);
 

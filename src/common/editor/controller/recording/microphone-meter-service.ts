@@ -1,0 +1,463 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { soundscaperNativeAudioCaptureSource } from '../../soundscaper-native-audio-capture.ts';
+import type { RoutedInputLoudnessMeter } from './recording-transaction-types.ts';
+
+import type { RecordingDeviceRoute, RecordingRouteLike, AudioNodePort, AnalyserNodePort, MeterAudioContext, NodeLoudnessMeter, MicrophoneMeterSession, MicrophoneMeterDependencies, MicrophoneMeterService } from './internal/microphone-meter-types.ts';
+export type { RecordingDeviceRoute, MicrophoneMeterState, MeterMediaStream, InputLoudnessMeter, MicrophoneMeterSession, MicrophoneMeterDependencies, MicrophoneMeterService } from './internal/microphone-meter-types.ts';
+
+export function createMicrophoneMeterService(
+	dependencies: MicrophoneMeterDependencies,
+): Readonly<MicrophoneMeterService> {
+	const { state } = dependencies;
+	let session: MicrophoneMeterSession | null = null;
+	let startPromise: Promise<boolean> | null = null;
+	let generation = 0;
+	let targetKey: string | null = null;
+	let routedLoudnessMeter: RoutedInputLoudnessMeter | null = null;
+	let routedLoudnessMeterKey: string | null = null;
+
+	return Object.freeze({
+		getSession: () => session,
+		getRoutedLoudnessMeter: () => routedLoudnessMeter,
+		getRoutedLoudnessMeterKey: () => routedLoudnessMeterKey,
+		setRoutedLoudnessMeter,
+		clearRoutedLoudnessMeter,
+		getRoute,
+		getRouteKey,
+		getDeviceId: () => getRoute().deviceId,
+		getGeneration: () => generation,
+		invalidate,
+		isGeneration: (candidate: number) => generation === candidate,
+		setMicrophoneMetering,
+		startMicrophoneMetering,
+		stopMicrophoneMetering,
+		reconcileInput,
+		synchronizeTarget,
+		handleTransportState,
+		pauseLoudnessMeasurement,
+		continueLoudnessMeasurement,
+		resetLoudnessMeasurement,
+		setRecordingInputGain,
+		dispose,
+	});
+
+	function setRoutedLoudnessMeter(meter: RoutedInputLoudnessMeter | null, key: string | null = null): void {
+		routedLoudnessMeter = meter;
+		routedLoudnessMeterKey = meter ? key : null;
+	}
+
+	function clearRoutedLoudnessMeter(): void {
+		routedLoudnessMeter = null;
+		routedLoudnessMeterKey = null;
+		state.inputMeter = null;
+	}
+
+	function getRoute(): RecordingDeviceRoute {
+		const selectedRoute = state.selectedTrackId
+			? state.recordingRouting.routes[state.selectedTrackId]
+			: null;
+		const route = selectedRoute?.kind === 'device'
+			? selectedRoute
+			: Object.values(state.recordingRouting.routes)
+				.find((candidate) => candidate?.kind === 'device');
+		return normalizeRoute(route, dependencies.defaultDeviceId);
+	}
+
+	function getRouteKey(route: RecordingDeviceRoute = getRoute()): string {
+		return `${route.deviceId}:${route.channelStart}:${route.channelCount}`;
+	}
+
+	function invalidate(): number {
+		generation += 1;
+		return generation;
+	}
+
+	async function setMicrophoneMetering(enabled: unknown): Promise<boolean> {
+		const next = Boolean(enabled);
+		if (!next) {
+			state.microphoneMetering = false;
+			invalidate();
+			if (!state.recorder && !state.recordingStarting) {
+				stopMicrophoneMetering({ releaseInput: true });
+			}
+			void Promise.resolve(dependencies.persistSetting('microphone-metering', false));
+			dependencies.publishDocumentSnapshot();
+			return false;
+		}
+		state.microphoneMetering = true;
+		void Promise.resolve(dependencies.persistSetting('microphone-metering', true));
+		dependencies.publishDocumentSnapshot();
+		if (session) return true;
+		try {
+			while (state.microphoneMetering && !session && !state.disposed) {
+				if (!startPromise) {
+					const operation = startMicrophoneMetering();
+					const tracked = operation.finally(() => {
+						if (startPromise === tracked) startPromise = null;
+					});
+					startPromise = tracked;
+				}
+				await startPromise;
+			}
+			return Boolean(state.microphoneMetering && session);
+		} catch (error) {
+			if (state.microphoneMetering && !state.disposed) {
+				state.microphoneMetering = false;
+				invalidate();
+				stopMicrophoneMetering({ releaseInput: true });
+				void Promise.resolve(dependencies.persistSetting('microphone-metering', false));
+				dependencies.publishDocumentSnapshot();
+			}
+			throw error;
+		}
+	}
+
+	async function startMicrophoneMetering(
+		{ force = false }: Readonly<{ force?: boolean }> = {},
+	): Promise<boolean> {
+		if (session || (!state.microphoneMetering && !force) || state.disposed) return false;
+		const operationGeneration = invalidate();
+		const route = getRoute();
+		const { deviceId } = route;
+		const requestedChannels = Math.max(1, route.channelStart + route.channelCount);
+		targetKey = getRouteKey(route);
+		const retainedStream = dependencies.recordingCapturePool.getHardware?.(deviceId);
+		let stream = retainedStream && dependencies.streamAudioChannelCount(retainedStream) >= requestedChannels
+			? retainedStream
+			: null;
+		let source: AudioNodePort | null = null;
+		let disconnectSource = (): void => undefined;
+		let splitter: AudioNodePort | null = null;
+		let merger: AudioNodePort | null = null;
+		let loudnessMeter: NodeLoudnessMeter | null = null;
+		const analysers: AnalyserNodePort[] = [];
+		const discardPendingGraph = (): void => {
+			disconnectSource();
+			disconnect(splitter);
+			disconnect(merger);
+			loudnessMeter?.dispose?.();
+			for (const analyser of analysers) disconnect(analyser);
+			releaseIfUnused(deviceId);
+		};
+		try {
+			stream ||= await dependencies.recordingCapturePool.acquireHardware(deviceId, {
+				channelCount: requestedChannels,
+				sampleRate: dependencies.projectSampleRate(),
+			});
+			if (operationIsStale(operationGeneration)) {
+				releaseIfUnused(deviceId);
+				return false;
+			}
+			const context = await dependencies.getAudioContext();
+			if (operationIsStale(operationGeneration)) {
+				releaseIfUnused(deviceId);
+				return false;
+			}
+			const nativeSource = soundscaperNativeAudioCaptureSource(
+				stream as MediaStream, context as unknown as BaseAudioContext,
+			) as unknown as AudioNodePort | null;
+			if ((!nativeSource && !context?.createMediaStreamSource) || !context?.createAnalyser) {
+				throw new Error('Microphone metering is not supported by this AudioContext.');
+			}
+			source = nativeSource || context.createMediaStreamSource(stream);
+			const sourceConnections: AudioNodePort[] = [];
+			const connectSource = (destination: AudioNodePort): void => {
+				source?.connect?.(destination);
+				sourceConnections.push(destination);
+			};
+			disconnectSource = () => {
+				for (const destination of sourceConnections) {
+					try { (source?.disconnect as ((value: AudioNodePort) => void) | undefined)?.(destination); }
+					catch { /* already disconnected */ }
+				}
+			};
+			if (context.createChannelSplitter) {
+				splitter = context.createChannelSplitter(requestedChannels);
+				connectSource(splitter);
+				for (let index = 0; index < route.channelCount; index += 1) {
+					const analyser = createAnalyser(context);
+					splitter.connect?.(analyser, route.channelStart + index);
+					analysers.push(analyser);
+				}
+			} else {
+				const analyser = createAnalyser(context);
+				connectSource(analyser);
+				analysers.push(analyser);
+			}
+			try {
+				loudnessMeter = await dependencies.createLoudnessMeterNode(context, {
+					channelCount: route.channelCount,
+					inputGain: state.recordingInputGain,
+					passthrough: false,
+					running: !state.inputLoudnessMeasurementManuallyPaused
+						&& (state.transportState === 'recording'
+							|| state.inputLoudnessMeasurementExplicitlyRunning),
+					onMeter: publishLoudnessReading,
+				});
+				if (splitter && context.createChannelMerger) {
+					merger = context.createChannelMerger(route.channelCount);
+					for (let index = 0; index < route.channelCount; index += 1) {
+						splitter.connect?.(merger, route.channelStart + index, index);
+					}
+					merger.connect?.(loudnessMeter.node);
+				} else connectSource(loudnessMeter.node);
+				loudnessMeter.node.connect?.(context.destination);
+			} catch {
+				if (merger) disconnectFrom(splitter, merger);
+				else if (loudnessMeter) disconnectFrom(source, loudnessMeter.node);
+				disconnect(merger);
+				disconnect(loudnessMeter?.node);
+				try { loudnessMeter?.dispose?.(); } catch { /* Optional meter fallback still owns cleanup. */ }
+				loudnessMeter = null;
+				merger = null;
+			}
+			if (operationIsStale(operationGeneration)) {
+				discardPendingGraph();
+				return false;
+			}
+			const samples = analysers.map((analyser) => new Float32Array(analyser.fftSize));
+			const endedListeners: (() => void)[] = [];
+			const nextSession: MicrophoneMeterSession = {
+				analysers,
+				deviceId,
+				disconnectSource,
+				endedListeners,
+				interval: null,
+				loudnessMeter,
+				merger,
+				routeKey: getRouteKey(route),
+				source,
+				splitter,
+				stream,
+			};
+			const handleEnded = (): void => {
+				if (session === nextSession) reconcileInput({ endedSession: nextSession });
+			};
+			for (const track of stream.getAudioTracks?.() || []) {
+				track.addEventListener?.('ended', handleEnded);
+				endedListeners.push(() => track.removeEventListener?.('ended', handleEnded));
+			}
+			session = nextSession;
+			const update = (): void => {
+				if (session !== nextSession
+					|| (!state.microphoneMetering && !state.recorder && !state.recordingStarting)
+					|| state.disposed) return;
+				let peak = 0;
+				for (let index = 0; index < analysers.length; index += 1) {
+					const analyser = analysers[index];
+					const sampleBuffer = samples[index];
+					if (!analyser || !sampleBuffer) continue;
+					analyser.getFloatTimeDomainData(sampleBuffer);
+					for (const sample of sampleBuffer) peak = Math.max(peak, Math.abs(sample));
+				}
+				peak *= state.recordingInputGain;
+				state.inputMeterDb = peak > 0 ? Math.max(-60, 20 * Math.log10(peak)) : -60;
+				dependencies.publishTelemetrySnapshot();
+			};
+			nextSession.interval = dependencies.scheduleInterval(update, 50);
+			update();
+			dependencies.syncRecordingPoolSnapshot();
+			dependencies.publishDocumentSnapshot();
+			return true;
+		} catch (error) {
+			discardPendingGraph();
+			throw error;
+		}
+	}
+
+	function stopMicrophoneMetering(
+		{ releaseInput = false, preserveReading = false }: Readonly<{
+			releaseInput?: boolean;
+			preserveReading?: boolean;
+		}> = {},
+	): void {
+		const stoppedSession = session;
+		session = null;
+		targetKey = null;
+		if (stoppedSession?.interval != null) dependencies.clearInterval(stoppedSession.interval);
+		for (const remove of stoppedSession?.endedListeners || []) remove();
+		stoppedSession?.disconnectSource();
+		disconnect(stoppedSession?.splitter);
+		disconnect(stoppedSession?.merger);
+		stoppedSession?.loudnessMeter?.dispose?.();
+		for (const analyser of stoppedSession?.analysers || []) disconnect(analyser);
+		if (releaseInput && stoppedSession && canReleaseInput()) {
+			dependencies.recordingCapturePool.releaseHardware(stoppedSession.deviceId);
+			dependencies.syncRecordingPoolSnapshot();
+		}
+		if (!state.recorder && !preserveReading) {
+			state.inputMeterDb = -60;
+			state.inputMeter = null;
+			dependencies.publishTelemetrySnapshot();
+		}
+	}
+
+	function reconcileInput(
+		{ endedSession = null }: Readonly<{ endedSession?: MicrophoneMeterSession | null }> = {},
+	): boolean {
+		const expectedSession = endedSession || session;
+		if (!expectedSession || session !== expectedSession) return false;
+		const replacement = dependencies.recordingCapturePool.getHardware?.(expectedSession.deviceId) || null;
+		if (session !== expectedSession) return true;
+		if (!endedSession && replacement === expectedSession.stream) return false;
+		if (!state.disposed && state.microphoneMetering && replacement && replacement !== expectedSession.stream) {
+			invalidate();
+			stopMicrophoneMetering({ releaseInput: false });
+			void setMicrophoneMetering(true).catch((error: unknown) => {
+				if (!state.disposed) dependencies.handleError(error);
+			});
+			return true;
+		}
+		state.microphoneMetering = false;
+		invalidate();
+		stopMicrophoneMetering({ releaseInput: false });
+		void Promise.resolve(dependencies.persistSetting('microphone-metering', false));
+		if (!state.disposed) dependencies.publishDocumentSnapshot();
+		return true;
+	}
+
+	function synchronizeTarget(): boolean {
+		if (!state.microphoneMetering || state.recorder || state.disposed) return false;
+		const route = getRoute();
+		const nextTargetKey = getRouteKey(route);
+		if (targetKey === nextTargetKey) return false;
+		const releaseInput = Boolean(session && session.deviceId !== route.deviceId);
+		invalidate();
+		stopMicrophoneMetering({ releaseInput });
+		void setMicrophoneMetering(true).catch((error: unknown) => {
+			if (!state.disposed) dependencies.handleError(error);
+		});
+		return true;
+	}
+
+	function handleTransportState(previousState: string, nextState: string): void {
+		if (previousState !== nextState && nextState !== 'recording') {
+			state.inputLoudnessMeasurementExplicitlyRunning = false;
+		}
+		const shouldMeasure = !state.inputLoudnessMeasurementManuallyPaused
+			&& (nextState === 'recording' || state.inputLoudnessMeasurementExplicitlyRunning);
+		session?.loudnessMeter?.setRunning(shouldMeasure);
+		routedLoudnessMeter?.setRunning(shouldMeasure);
+		session?.loudnessMeter?.requestSnapshot?.();
+		if (nextState !== 'recording' && !state.microphoneMetering && !state.recorder && session) {
+			stopMicrophoneMetering({ releaseInput: false, preserveReading: true });
+		}
+	}
+
+	function pauseLoudnessMeasurement(kind = 'input'): boolean {
+		if (kind === 'input') {
+			state.inputLoudnessMeasurementManuallyPaused = true;
+			state.inputLoudnessMeasurementExplicitlyRunning = false;
+			session?.loudnessMeter?.setRunning(false);
+			session?.loudnessMeter?.requestSnapshot?.();
+			routedLoudnessMeter?.setRunning(false);
+		} else dependencies.playbackLoudness?.pause?.();
+		dependencies.publishTelemetrySnapshot();
+		return true;
+	}
+
+	function continueLoudnessMeasurement(kind = 'input'): boolean {
+		if (kind === 'input') {
+			state.inputLoudnessMeasurementManuallyPaused = false;
+			state.inputLoudnessMeasurementExplicitlyRunning = state.transportState !== 'recording';
+			const running = state.transportState === 'recording'
+				|| state.inputLoudnessMeasurementExplicitlyRunning;
+			session?.loudnessMeter?.setRunning(running);
+			session?.loudnessMeter?.requestSnapshot?.();
+			routedLoudnessMeter?.setRunning(running);
+		} else dependencies.playbackLoudness?.continue?.();
+		dependencies.publishTelemetrySnapshot();
+		return true;
+	}
+
+	function resetLoudnessMeasurement(kind = 'input'): boolean {
+		if (kind === 'input') {
+			session?.loudnessMeter?.reset();
+			session?.loudnessMeter?.requestSnapshot?.();
+			routedLoudnessMeter?.reset();
+			if (routedLoudnessMeter?.snapshot) state.inputMeter = routedLoudnessMeter.snapshot();
+		} else dependencies.playbackLoudness?.reset?.();
+		dependencies.publishTelemetrySnapshot();
+		return true;
+	}
+
+	function setRecordingInputGain(value: unknown, normalize: (value: unknown) => number): number {
+		state.recordingInputGain = normalize(value);
+		state.recorder?.setInputGain?.(state.recordingInputGain);
+		session?.loudnessMeter?.setInputGain(state.recordingInputGain);
+		void Promise.resolve(dependencies.persistSetting('recording-input-gain', state.recordingInputGain));
+		dependencies.publishDocumentSnapshot();
+		return state.recordingInputGain;
+	}
+
+	function dispose(): void {
+		state.microphoneMetering = false;
+		invalidate();
+		stopMicrophoneMetering({ releaseInput: false });
+		clearRoutedLoudnessMeter();
+	}
+
+	function createAnalyser(context: MeterAudioContext): AnalyserNodePort {
+		const analyser = context.createAnalyser();
+		if (typeof analyser?.getFloatTimeDomainData !== 'function') {
+			throw new Error('Microphone metering is not supported by this AudioContext.');
+		}
+		analyser.fftSize = 256;
+		analyser.smoothingTimeConstant = 0.35;
+		return analyser;
+	}
+
+	function publishLoudnessReading(reading: unknown): void {
+		if (!session?.loudnessMeter) return;
+		state.inputMeter = reading;
+		const dbfs = reading && typeof reading === 'object'
+			? Number((reading as Readonly<{ dbfs?: unknown }>).dbfs)
+			: Number.NaN;
+		state.inputMeterDb = Number.isFinite(dbfs) ? Math.max(-60, Math.min(0, dbfs)) : -60;
+		dependencies.publishTelemetrySnapshot();
+	}
+
+	function operationIsStale(operationGeneration: number): boolean {
+		return generation !== operationGeneration || !state.microphoneMetering || state.disposed;
+	}
+
+	function releaseIfUnused(deviceId: string): void {
+		if (!canReleaseInput()) return;
+		dependencies.recordingCapturePool.releaseHardware(deviceId);
+		dependencies.syncRecordingPoolSnapshot();
+	}
+
+	function canReleaseInput(): boolean {
+		return !state.preferences.recording.retainInputs
+			&& !state.recorder
+			&& !state.recordingStarting
+			&& !state.timedRecordingPreparing
+			&& !state.timedRecording;
+	}
+}
+
+function normalizeRoute(
+	route: RecordingRouteLike | null | undefined,
+	defaultDeviceId: string,
+): RecordingDeviceRoute {
+	return Object.freeze({
+		kind: 'device',
+		deviceId: typeof route?.deviceId === 'string' && route.deviceId ? route.deviceId : defaultDeviceId,
+		channelStart: Math.max(0, Math.floor(Number(route?.channelStart) || 0)),
+		channelCount: Math.max(1, Math.floor(Number(route?.channelCount) || 2)),
+	});
+}
+
+function disconnect(node: AudioNodePort | null | undefined): void {
+	try {
+		node?.disconnect?.();
+	} catch {
+		// Web Audio nodes may already be disconnected during terminal cleanup.
+	}
+}
+
+function disconnectFrom(source: AudioNodePort | null, destination: AudioNodePort): void {
+	try { (source?.disconnect as ((target: AudioNodePort) => void) | undefined)?.(destination); }
+	catch { /* Web Audio nodes may already be disconnected during partial construction. */ }
+}

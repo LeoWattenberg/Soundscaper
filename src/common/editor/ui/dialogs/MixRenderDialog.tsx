@@ -5,13 +5,13 @@ import { DialogFooter } from '@soundscaper/design-system/Footer';
 
 import '../audio-editor-design-system/28-mix-render.css';
 
-import type { MixRenderOptions } from '../../controller/mix-render-options.ts';
+import type { MixRenderOptions } from '../../controller/track-audio/mix-render-options.ts';
 import {
 	mixRenderOutputChannelChoices,
 	predictMixRenderOutputChannelCount,
-} from '../../controller/mix-render-output-layout.ts';
-import { selectAudioTracksForMix } from '../../controller/mix-render-model.ts';
-import type { ControllerProject } from '../../controller/track-domain-types.ts';
+} from '../../controller/track-audio/mix-render-output-layout.ts';
+import { selectAudioTracksForMix } from '../../controller/track-audio/mix-render-model.ts';
+import type { ControllerProject } from '../../controller/track-audio/track-domain-types.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';

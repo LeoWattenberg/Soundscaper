@@ -6,7 +6,7 @@ import {
 	EDITOR_PROJECT_TASK_SCOPE,
 	EditorControllerLifetime,
 	EditorDisposedError,
-} from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
 import { createFixture, project } from './helpers/audio-editor-project-switch-fixture.ts';
 
 test('cancelling a scope aborts every task carrying it and leaves the rest running', () => {

@@ -3,17 +3,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createDerivedSourceService } from '../src/common/editor/controller/derived-source-service.ts';
+import { createDerivedSourceService } from '../src/common/editor/controller/track-audio/internal/derived-audio/derived-source-service.ts';
 import {
 	SOURCE_CHUNK_FRAMES,
 	writeBuffer,
 	type AudioBufferLike,
-} from '../src/common/editor/controller/source-audio.ts';
+} from '../src/common/editor/controller/source/source-audio.ts';
 import type {
 	ControllerProject,
 	ControllerSource,
 	DerivedSourceRecord,
-} from '../src/common/editor/controller/track-domain-types.ts';
+} from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 
 const SAMPLE_RATE = 48_000;
 const FRAME_COUNT = SOURCE_CHUNK_FRAMES + 1_024;

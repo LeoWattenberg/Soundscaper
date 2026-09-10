@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createEditorExportService,
 	type ExportServiceRuntime,
-} from '../src/common/editor/controller/export-service.ts';
+} from '../src/common/editor/controller/export/internal/export-service.ts';
 
 test('cancelling video export during live-state preparation prevents late project access', async () => {
 	const preparation = deferred();

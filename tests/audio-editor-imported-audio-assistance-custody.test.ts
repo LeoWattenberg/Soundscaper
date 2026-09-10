@@ -15,11 +15,11 @@ import { defaultAssistanceWorkflowSettingsV1 } from
 import {
 	createLocalAssistanceGuidedWorkflowPreparation,
 	type LocalAssistanceAggregateCustodyPort,
-} from '../src/common/editor/controller/local-assistance-guided-preparation.ts';
+} from '../src/common/editor/controller/assistance/internal/guided/local-assistance-guided-preparation.ts';
 import {
 	createLocalAssistanceSelectedMediaPreparation,
 	resolveLocalAssistanceSelectedMediaAuthority,
-} from '../src/common/editor/controller/local-assistance-selected-media.ts';
+} from '../src/common/editor/controller/assistance/internal/local-assistance-selected-media.ts';
 import {
 	createProjectImportService,
 	type ProjectImportRuntime,

@@ -6,12 +6,12 @@ import test from 'node:test';
 import {
 	createMixRenderSnapshot,
 	prepareMixRenderCommit,
-} from '../src/common/editor/controller/mix-render-model.ts';
+} from '../src/common/editor/controller/track-audio/mix-render-model.ts';
 import type {
 	ControllerProject,
 	ControllerSource,
 	ControllerTrack,
-} from '../src/common/editor/controller/track-domain-types.ts';
+} from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 import { validateMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
 import {
 	createAudioClip,

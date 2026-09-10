@@ -23,9 +23,9 @@ test('project publication evidence keeps canonical admission distinct from backe
 	);
 	for (const path of [
 		'src/common/editor/project-publication-admission.ts', 'src/common/editor/storage.js', 'src/common/editor/types.ts',
-		'src/common/editor/controller/project-save-service.ts',
-		'src/common/editor/controller/storage-capacity-runtime.ts',
-		'src/common/editor/controller/storage-capacity-service.ts', 'src/common/editor/app.js',
+		'src/common/editor/controller/document/project-save-service.ts',
+		'src/common/editor/controller/shared/storage-capacity-runtime.ts',
+		'src/common/editor/controller/shared/storage-capacity-service.ts', 'src/common/editor/app.js',
 		'tests/audio-editor-project-publication-admission.test.ts',
 		'tests/audio-editor-project-store-publication-admission.test.ts',
 		'tests/audio-editor-project-save-publication-admission.test.ts',

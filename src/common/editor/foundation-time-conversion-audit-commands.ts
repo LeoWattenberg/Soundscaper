@@ -92,25 +92,25 @@ export const FOUNDATION_TIME_CONVERSION_COMMAND_SITES: readonly FoundationTimeCo
 	},
 	{
 		id: 'framescaper-capture-canonical-duration',
-		file: 'src/common/editor/controller/framescaper-capture-canonical-assets.ts',
+		file: 'src/common/editor/controller/capture/internal/framescaper-capture-canonical-assets.ts',
 		behavior: 'Canonical capture publication point-resolves an exact sealed PCM or probed video duration once onto the project sample grid before planning its source and clip extent.',
 		conversions: [{ helper: 'roundRational', policies: ['point'] }],
 	},
 	{
 		id: 'framescaper-capture-origin-placement',
-		file: 'src/common/editor/controller/framescaper-capture-app-binding.ts',
+		file: 'src/common/editor/controller/capture/framescaper-capture-app-binding.ts',
 		behavior: 'Capture admission freezes the active playhead as nearest-point microseconds, and publication resolves that same origin once onto the exact project sample grid.',
 		conversions: [{ helper: 'roundRational', policies: ['point'] }],
 	},
 	{
 		id: 'framescaper-capture-stream-presentation-range',
-		file: 'src/common/editor/controller/framescaper-capture-stream-timing.ts',
+		file: 'src/common/editor/controller/capture/internal/framescaper-capture-stream-timing.ts',
 		behavior: 'Each manifest-acknowledged presentation start and end resolves once to nearest project-frame boundaries while retaining the exact microsecond range beside it.',
 		conversions: [{ helper: 'roundRational', policies: ['point'] }],
 	},
 	{
 		id: 'framescaper-capture-sequence-conformance',
-		file: 'src/common/editor/controller/framescaper-capture-publication-plan.ts',
+		file: 'src/common/editor/controller/capture/internal/framescaper-capture-publication-plan.ts',
 		behavior: 'Captured video placement point-conforms both resolved sample endpoints to the destination sequence grid, then owns the enclosing sample range represented by those sequence frames.',
 		conversions: [
 			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
@@ -119,7 +119,7 @@ export const FOUNDATION_TIME_CONVERSION_COMMAND_SITES: readonly FoundationTimeCo
 	},
 	{
 		id: 'legacy-recording-count-in',
-		file: 'src/common/editor/controller/legacy-recording-capture-service.ts',
+		file: 'src/common/editor/controller/recording/internal/legacy-recording-capture-service.ts',
 		behavior: 'Legacy capture delegates count-in to the authoritative map, encloses the recorder start after its context-time projection, and encloses any finite selected stop after changing sample-rate basis.',
 		conversions: [
 			{ helper: 'countInSampleFrames', policies: ['point'] },
@@ -129,13 +129,13 @@ export const FOUNDATION_TIME_CONVERSION_COMMAND_SITES: readonly FoundationTimeCo
 	},
 	{
 		id: 'nyquist-active-map-tempo',
-		file: 'src/common/editor/controller/nyquist-host-service.ts',
+		file: 'src/common/editor/controller/effects/internal/nyquist/nyquist-host-service.ts',
 		behavior: 'Nyquist interchange exactly inverts the evaluation-start sample once, then selects the last authoritative event at or before that beat.',
 		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
 	},
 	{
 		id: 'routed-recording-count-in',
-		file: 'src/common/editor/controller/routed-recording-capture-service.ts',
+		file: 'src/common/editor/controller/recording/internal/routed-recording-capture-service.ts',
 		behavior: 'Routed capture shares the authoritative count-in map, encloses its recorder context start, and independently encloses each routed source stop after changing sample-rate basis.',
 		conversions: [
 			{ helper: 'countInSampleFrames', policies: ['point'] },
@@ -145,37 +145,37 @@ export const FOUNDATION_TIME_CONVERSION_COMMAND_SITES: readonly FoundationTimeCo
 	},
 	{
 		id: 'timeline-annotation-controller-conversion',
-		file: 'src/common/editor/controller/timeline-annotation-conversion.ts',
+		file: 'src/common/editor/controller/document/internal/annotations/timeline-annotation-conversion.ts',
 		behavior: 'Annotation kind and anchor conversion preserves musical authority when present and otherwise exactly inverts its resolved sample endpoints.',
 		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
 	},
 	{
 		id: 'timeline-annotation-controller-editing',
-		file: 'src/common/editor/controller/timeline-annotation-service.ts',
+		file: 'src/common/editor/controller/document/internal/annotations/timeline-annotation-service.ts',
 		behavior: 'Annotation creation, movement, and resizing exactly invert user-selected sample positions into the matching musical-authority coordinates.',
 		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
 	},
 	{
 		id: 'clip-resample-output-extent',
-		file: 'src/common/editor/controller/clip-resample-service.ts',
+		file: 'src/common/editor/controller/track-audio/internal/clip-resample-service.ts',
 		behavior: 'Resampling point-rounds the source frame count once into the requested rate so the rendered extent and its storage preflight agree on one output length.',
 		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
 	},
 	{
 		id: 'clip-time-pitch-render-extent',
-		file: 'src/common/editor/controller/clip-time-pitch-render-service.ts',
+		file: 'src/common/editor/controller/clip-video/clip-time-pitch-render-service.ts',
 		behavior: 'A rendered time-and-pitch clip point-rounds its output frame count out of the source rate into the project rate once, so the timeline extent it commits spans the same time the render produced.',
 		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
 	},
 	{
 		id: 'video-source-import-placement',
-		file: 'src/common/editor/controller/source-import.ts',
+		file: 'src/common/editor/controller/import/internal/source-import.ts',
 		behavior: 'Metadata-only imported video duration encloses the probed source; exact timing-sidecar placement is delegated to its separately registered authority helper.',
 		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['enclosingEnd'] }],
 	},
 	{
 		id: 'video-import-exact-timing-authority',
-		file: 'src/common/editor/controller/video-import-timing.ts',
+		file: 'src/common/editor/controller/import/internal/video-import-timing.ts',
 		behavior: 'Exact timing-sidecar duration is point-rounded once into sample authority before both placement endpoints are point-conformed through the destination sequence grid.',
 		conversions: [
 			{ helper: 'roundRational', policies: ['point'] },
@@ -185,7 +185,7 @@ export const FOUNDATION_TIME_CONVERSION_COMMAND_SITES: readonly FoundationTimeCo
 	},
 	{
 		id: 'transport-metronome-schedule',
-		file: 'src/common/editor/controller/transport-model.ts',
+		file: 'src/common/editor/controller/transport/transport-model.ts',
 		behavior: 'Transport inverts the absolute sample through the tempo map, selects the next signature-denominator pulse directionally, and point-resolves count-in and click endpoints from the map origin.',
 		conversions: [
 			{ helper: 'beatToSampleFrame', policies: ['point'] },
@@ -195,7 +195,7 @@ export const FOUNDATION_TIME_CONVERSION_COMMAND_SITES: readonly FoundationTimeCo
 	},
 	{
 		id: 'video-edit-service-points',
-		file: 'src/common/editor/controller/video-edit-service.ts',
+		file: 'src/common/editor/controller/clip-video/internal/video/video-edit-service.ts',
 		behavior: 'The edit service resolves the time selection onto the sequence grid as point coordinates and maps the resolved source range once into source samples for the linked audio member.',
 		conversions: [
 			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },

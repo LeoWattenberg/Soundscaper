@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { findControllerClipTrack, findControllerSource } from '../src/common/editor/controller/track-domain-types.ts';
+import { findControllerClipTrack, findControllerSource } from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 import { createAudioTrack, createLabelTrack } from '../src/common/editor/project-media-factory.ts';
 
 void test('clip ownership lookup skips label tracks before a media track', () => {

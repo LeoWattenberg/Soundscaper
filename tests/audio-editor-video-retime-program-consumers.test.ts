@@ -3,12 +3,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
+import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
 import {
 	createVideoEditService,
 	type VideoEditServiceDependencies,
-} from '../src/common/editor/controller/video-edit-service.ts';
-import { createVideoRetimeProgramStateResolver } from '../src/common/editor/controller/video-retime-program-state.ts';
+} from '../src/common/editor/controller/clip-video/internal/video/video-edit-service.ts';
+import { createVideoRetimeProgramStateResolver } from '../src/common/editor/controller/clip-video/internal/video/video-retime-program-state.ts';
 import { resolveProgramFrame } from '../src/common/editor/source-monitor-model.ts';
 import { resolveSourceTimecodeAtSample } from '../src/common/editor/source-properties-model.ts';
 import { videoFrameToSampleFrame } from '../src/common/editor/timeline-time.ts';

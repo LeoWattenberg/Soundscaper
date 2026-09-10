@@ -31,7 +31,7 @@ import {
 	createNativePluginStateCaptureProvider,
 	registerNativePluginStateQuiescence,
 } from '../native-plugin-state-quiescence.ts';
-import { adaptNativeAudioInventory, type NativeAudioInventory } from '../controller/native-audio-inventory.ts';
+import { adaptNativeAudioInventory, type NativeAudioInventory } from '../controller/recording/native-audio-inventory.ts';
 import { soundscaperNativeAudioCaptureHasActiveLease } from '../soundscaper-native-audio-capture.ts';
 import { createSoundscaperNativeRendererOperationBarrier } from './soundscaper-native-renderer-operation-barrier.ts';
 import {

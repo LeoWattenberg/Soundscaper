@@ -8,7 +8,7 @@ import {
 	createDeferredLocalAssistancePreparation,
 	type DeferredLocalAssistancePreparationModule,
 	type DeferredLocalAssistanceRuntimeDependencies,
-} from '../src/common/editor/controller/deferred-local-assistance-runtime.ts';
+} from '../src/common/editor/controller/assistance/deferred-local-assistance-runtime.ts';
 
 test('selected-media assistance loads on first dialog operation and caches its runtime', async () => {
 	const calls: unknown[][] = [];
@@ -92,7 +92,7 @@ test('assistance loader failures preserve the original rejection', async () => {
 
 test('effect audio composition does not statically own assistance implementation modules', () => {
 	const source = readFileSync(
-		new URL('../src/common/editor/controller/effect-audio-service.ts', import.meta.url),
+		new URL('../src/common/editor/controller/effects/internal/effect-audio-service.ts', import.meta.url),
 		'utf8',
 	);
 	for (const implementation of [

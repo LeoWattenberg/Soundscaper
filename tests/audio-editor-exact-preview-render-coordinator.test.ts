@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createExactPreviewRenderCoordinator } from '../src/common/editor/controller/exact-preview-render-coordinator.ts';
+import { createExactPreviewRenderCoordinator } from '../src/common/editor/controller/clip-video/exact-preview-render-coordinator.ts';
 
 function deferred<Value>() {
 	let resolve: (value: Value) => void = () => undefined;

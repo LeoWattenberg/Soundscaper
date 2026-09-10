@@ -7,7 +7,7 @@ import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.
 import {
 	createVideoRollRippleTrimService,
 	type VideoRollRippleTrimServiceDependencies,
-} from '../src/common/editor/controller/video-roll-ripple-trim-service.ts';
+} from '../src/common/editor/controller/clip-video/internal/trim/video-roll-ripple-trim-service.ts';
 import type {
 	FrameCanonicalRollRippleTrimPlan,
 	FrameCanonicalRollRippleTrimRequest,

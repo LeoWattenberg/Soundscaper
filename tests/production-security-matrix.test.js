@@ -34,8 +34,8 @@ const IMPLEMENTED_ARCHIVE_EXPANSION_CONTROLS = {
 	],
 	'point-in-time-import-capacity-admission': [
 		'src/common/editor/app.js',
-		'src/common/editor/controller/native-project-service.ts',
-		'src/common/editor/controller/storage-capacity-service.ts',
+		'src/common/editor/controller/document/native-project-service.ts',
+		'src/common/editor/controller/shared/storage-capacity-service.ts',
 		'src/common/editor/scape-import-capacity.ts',
 		'src/common/editor/scape-import-transaction.ts',
 		'src/common/editor/scape-project.js',
@@ -90,7 +90,7 @@ const IMPLEMENTED_ARCHIVE_EXPANSION_CONTROLS = {
 	],
 	'bounded-direct-archive-publication': [
 		'src/common/editor/scape-export-destination.ts',
-		'src/common/editor/controller/native-scape-save.ts',
+		'src/common/editor/controller/document/internal/native-project/native-scape-save.ts',
 		'src/common/editor/file-save-stream.ts',
 		'tests/audio-editor-scape-export-destination.test.ts',
 		'tests/audio-editor-native-scape-save.test.ts',
@@ -338,9 +338,9 @@ test('native plug-in surfaces are conditional for testing and portable archive c
 	);
 	assert.ok(scapeInspection);
 	for (const path of [
-		'src/common/editor/controller/scape-inspection-service.ts',
-		'src/common/editor/controller/action-facade.ts',
-		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/controller/document/internal/scape/scape-inspection-service.ts',
+		'src/common/editor/controller/composition/action-facade.ts',
+		'src/common/editor/controller/document/project-switch-service.ts',
 		'src/common/editor/scape-abort.ts',
 		'src/common/editor/scape-project.js',
 		'src/common/editor/storage.js',
@@ -363,10 +363,10 @@ test('native plug-in surfaces are conditional for testing and portable archive c
 	);
 	assert.ok(scapeInspectionQuiescence);
 	for (const path of [
-		'src/common/editor/controller/scape-inspection-quiescence.ts',
-		'src/common/editor/controller/scape-inspection-service.ts',
-		'src/common/editor/controller/scape-project-file-service.ts',
-		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/controller/document/internal/scape/scape-inspection-quiescence.ts',
+		'src/common/editor/controller/document/internal/scape/scape-inspection-service.ts',
+		'src/common/editor/controller/document/scape-project-file-service.ts',
+		'src/common/editor/controller/document/project-switch-service.ts',
 		'src/common/editor/scape-abort.ts',
 		'src/common/editor/scape-archive-reader.ts',
 		'src/common/editor/app.js',
@@ -386,10 +386,10 @@ test('native plug-in surfaces are conditional for testing and portable archive c
 	);
 	assert.ok(scapeOpenDecisionContinuation);
 	for (const path of [
-		'src/common/editor/controller/scape-open-request-service.ts',
-		'src/common/editor/controller/scape-project-file-service.ts',
-		'src/common/editor/controller/action-facade.ts',
-		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/controller/document/scape-open-request-service.ts',
+		'src/common/editor/controller/document/scape-project-file-service.ts',
+		'src/common/editor/controller/composition/action-facade.ts',
+		'src/common/editor/controller/document/project-switch-service.ts',
 		'src/common/editor/ui/workspace/scape-open-decision-continuation.ts',
 		'src/common/editor/ui/workspace/useScapeOpenDecisionContinuation.ts',
 		'src/common/editor/ui/workspace/ScapeOpenDecisionDialog.jsx',
@@ -398,7 +398,7 @@ test('native plug-in surfaces are conditional for testing and portable archive c
 		'src/common/editor/ui/workspace/useAudioEditorWorkspaceLifecycle.js',
 		'src/common/editor/ui/AudioEditorDialogShell.tsx',
 		'src/common/editor/app.js',
-		'src/common/editor/controller/native-project-service.ts',
+		'src/common/editor/controller/document/native-project-service.ts',
 		'tests/audio-editor-scape-open-request-service.test.ts',
 		'tests/audio-editor-native-scape-open-cancellation.test.ts',
 		'tests/audio-editor-scape-project-file-service.test.ts',

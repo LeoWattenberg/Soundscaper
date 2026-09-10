@@ -4,7 +4,7 @@
 // directly; adding an export here is an API decision, not a convenience barrel.
 export * from './facade.ts';
 export * from './types.ts';
-export * from './controller/lifecycle.ts';
+export * from './controller/shared/lifecycle.ts';
 export * from './storage/status.ts';
 export * from './worker-protocol.ts';
 export {
@@ -86,7 +86,7 @@ export {
 	createEditorFfmpeg,
 } from './ffmpeg.js';
 // The AUP4 archive client is deliberately absent: it is optional archive implementation
-// with no chunk owner, and `controller/deferred-archive-runtime.ts` is the only production
+// with no chunk owner, and `controller/document/deferred-archive-runtime.ts` is the only production
 // reach into it, through a dynamic import. Re-exporting it from this eagerly owned barrel
 // put the whole archive chunk one static import away from the boot graph.
 export { StaffPadRenderClient } from './staffpad/client.js';

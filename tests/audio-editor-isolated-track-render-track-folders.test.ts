@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
-import { createIsolatedTrackRenderProjectV21 } from '../src/common/editor/controller/isolated-track-render-project-v21.ts';
+import { createIsolatedTrackRenderProjectV21 } from '../src/common/editor/controller/track-audio/isolated-track-render-project-v21.ts';
 import {
 	createAudioClip,
 	createAudioSource,

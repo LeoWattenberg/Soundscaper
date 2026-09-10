@@ -11,7 +11,7 @@ import {
 } from '../src/common/editor/audio-warp-clip-authority.ts';
 import {
 	createAudioWarpAuthoringService,
-} from '../src/common/editor/controller/audio-warp-authoring-service.ts';
+} from '../src/common/editor/controller/track-audio/internal/audio-warp/audio-warp-authoring-service.ts';
 import {
 	createEditorHistory,
 	executeEditorCommand,

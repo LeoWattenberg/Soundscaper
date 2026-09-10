@@ -15,7 +15,7 @@ and, when none succeeds, returns an explicitly recorded
 `conform-cfr-at-ingest` decision carrying every backend failure. Ingest
 publishes the resulting per-frame index as a digest-bound asset and persists the
 exact rational rate, the source frame count, the asset reference, and the
-decision that produced them (`controller/source-import.ts:270-294`,
+decision that produced them (`controller/import/internal/source-import.ts:270-294`,
 `project-v10.ts:88-128`, validated at
 `project-v10-foundation-validation.ts:238-267`).
 
@@ -26,7 +26,7 @@ videoCodec: conformedAtIngest ? 'h264' : 'unknown',
 audioCodec: canonicalAudio ? (conformedAtIngest ? 'aac' : 'unknown') : null,
 ```
 
-— `controller/source-import.ts:295-296`. Rotation, pixel aspect, field order,
+— `controller/import/internal/source-import.ts:295-296`. Rotation, pixel aspect, field order,
 alpha, colour, the audio stream inventory, and the source start timecode are not
 read, not stored, and not shown. A rotated phone clip, an anamorphic master, and
 a square-pixel export are indistinguishable in the document.

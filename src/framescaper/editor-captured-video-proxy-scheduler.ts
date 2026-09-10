@@ -2,11 +2,11 @@
 
 import type {
 	FramescaperCapturedVideoProxyRequest,
-} from '../common/editor/controller/framescaper-capture-derivative-scheduler.ts';
+} from '../common/editor/controller/capture/framescaper-capture-derivative-scheduler.ts';
 import type {
 	FramescaperCaptureProxySaveLease,
-} from '../common/editor/controller/framescaper-capture-proxy-quiescence.ts';
-import { createVideoProxyOriginalObserver } from '../common/editor/controller/video-proxy-original-observer.ts';
+} from '../common/editor/controller/capture/framescaper-capture-proxy-quiescence.ts';
+import { createVideoProxyOriginalObserver } from '../common/editor/controller/capture/video-proxy-original-observer.ts';
 import { VideoProxyClaimRepository } from '../common/editor/storage/video-proxy-claim-repository.ts';
 import { VideoProxyClaimStagingRepository } from '../common/editor/storage/video-proxy-claim-staging-repository.ts';
 import {

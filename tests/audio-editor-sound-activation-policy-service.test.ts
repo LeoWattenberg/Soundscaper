@@ -7,12 +7,12 @@ import {
 	type SoundActivationPreferencePatch,
 	type SoundActivationPolicyRecordingState,
 	type SoundActivationPolicySnapshot,
-} from '../src/common/editor/controller/sound-activation-policy-service.ts';
+} from '../src/common/editor/controller/recording/sound-activation-policy-service.ts';
 import {
 	DEFAULT_SOUND_ACTIVATION_PREFERENCES,
 	type SoundActivationPreferences,
 } from '../src/common/editor/sound-activation-preferences.ts';
-import type { RecordingSoundActivationSource } from '../src/common/editor/controller/recording-transaction-types.ts';
+import type { RecordingSoundActivationSource } from '../src/common/editor/controller/recording/recording-transaction-types.ts';
 
 const DEVICE_SOURCE = Object.freeze({
 	sourceKey: 'device:default',

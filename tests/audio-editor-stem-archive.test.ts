@@ -8,15 +8,15 @@ import {
 	createSevenZipStemArchivePlan,
 	createStemArchivePlan,
 	createStreamingStemArchive,
-} from '../src/common/editor/controller/stem-archive.ts';
+} from '../src/common/editor/controller/export/stem-archive.ts';
 import {
 	EMPTY_ZIP32_LAYOUT,
 	extendZip32Layout,
 	inspectZip32Layout,
 	ZIP32_UINT16_SENTINEL,
 	ZIP32_UINT32_SENTINEL,
-} from '../src/common/editor/controller/zip32.ts';
-import { createStreamingZipArchive } from '../src/common/editor/controller/temporary-export.ts';
+} from '../src/common/editor/controller/export/internal/archive/zip32.ts';
+import { createStreamingZipArchive } from '../src/common/editor/controller/export/temporary-export.ts';
 import {
 	SEVEN_ZIP_COPY_GOLDEN_BASE64,
 	SEVEN_ZIP_COPY_GOLDEN_SHA256,

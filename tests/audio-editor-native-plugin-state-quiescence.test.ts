@@ -8,7 +8,7 @@ import {
 	quiesceNativePluginState,
 	registerNativePluginStateQuiescence,
 } from '../src/common/editor/native-plugin-state-quiescence.ts';
-import { createProjectSaveService } from '../src/common/editor/controller/project-save-service.ts';
+import { createProjectSaveService } from '../src/common/editor/controller/document/project-save-service.ts';
 
 const liveState = (instanceId: string) => Object.freeze({
 	instanceId, enabled: true, bypassed: false, continuity: 'live',

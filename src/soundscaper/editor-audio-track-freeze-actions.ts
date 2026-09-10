@@ -11,7 +11,7 @@ import {
 	soundscaperFreezeRenderFingerprint,
 } from './editor-audio-track-freeze-currency.ts';
 import { normalizeAutomationLaneV21 } from '../common/editor/automation-lane-v21.ts';
-import { createStoredChunkProvider, SOURCE_CHUNK_FRAMES } from '../common/editor/controller/source-audio.ts';
+import { createStoredChunkProvider, SOURCE_CHUNK_FRAMES } from '../common/editor/controller/source/source-audio.ts';
 import { rackTailFrames } from '../common/editor/effects.js';
 import { audioBufferChannels, type PlanarPcm } from '../common/editor/engine/buffer-math.ts';
 import { compileProjectPathPdcPlanV21 } from '../common/editor/engine/project-path-pdc-plan-v21.ts';
@@ -23,7 +23,7 @@ import { resolveRuntimeProjectProjection } from '../common/editor/runtime-clip-p
 import { resolveTerminalChannelWidths } from '../common/editor/terminal-channel-widths.ts';
 import type { StorageRecord } from '../common/editor/storage/media-records.ts';
 import type { AudioSourceWriter } from '../common/editor/storage/source-write-repository.ts';
-import type { TransientAnalysisPcmStore } from '../common/editor/controller/transient-analysis-pcm-access.ts';
+import type { TransientAnalysisPcmStore } from '../common/editor/controller/analysis/transient-analysis-pcm-access.ts';
 import { validateSoundscaperProject, type SoundscaperProject } from './editor-project-validation.ts';
 import type {
 	SoundscaperAudioTrackFreezePlaybackService,

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createEditorAnalysisVisuals } from '../src/common/editor/controller/analysis-visuals.ts';
+import { createEditorAnalysisVisuals } from '../src/common/editor/controller/analysis/internal/analysis-visuals.ts';
 
 test('analysis visuals mix a centered spectrum and bounded mono overview', () => {
 	const left = Float32Array.from({ length: 200_000 }, (_, index) => index % 11 / 10);

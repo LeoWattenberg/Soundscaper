@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { loadRetainedCaptureVideoBody } from '../src/common/editor/controller/framescaper-capture-retained-media.ts';
+import { loadRetainedCaptureVideoBody } from '../src/common/editor/controller/capture/internal/framescaper-capture-retained-media.ts';
 
 void test('retained capture probes receive canonical bytes with subclass overrides removed', async () => {
 	class StoredMedia extends Blob {

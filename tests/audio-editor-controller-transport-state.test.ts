@@ -2,8 +2,8 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createEditorControllerState } from '../src/common/editor/controller/state.ts';
-import { createControllerTransportState } from '../src/common/editor/controller/transport-state.ts';
+import { createEditorControllerState } from '../src/common/editor/controller/composition/internal/state.ts';
+import { createControllerTransportState } from '../src/common/editor/controller/transport/transport-state.ts';
 
 function createState(transport = createControllerTransportState()) {
 	return {

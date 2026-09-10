@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { DocumentProject } from '../src/common/editor/controller/document-composition-types.ts';
+import type { DocumentProject } from '../src/common/editor/controller/document/document-composition-types.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { createOpaqueProjectConsumer } from '../src/common/editor/project-opaque-consumer.ts';
 import { createFramescaperProject } from '../src/framescaper/editor-project.ts';

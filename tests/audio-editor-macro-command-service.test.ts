@@ -8,7 +8,7 @@ import {
 	isRunnableMacroCommand,
 	type MacroCommandProject,
 	type MacroCommandSelection,
-} from '../src/common/editor/controller/macro-command-service.ts';
+} from '../src/common/editor/controller/effects/internal/macro/macro-command-service.ts';
 import {
 	createMacroCommandStep,
 	macroCommandStepCommands,

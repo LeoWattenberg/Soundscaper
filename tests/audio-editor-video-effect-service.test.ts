@@ -4,14 +4,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
-import { EffectGestureTargetChangedError } from '../src/common/editor/controller/effect-gesture-safety.ts';
-import { EditorProjectChangedError, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
+import { EffectGestureTargetChangedError } from '../src/common/editor/controller/effects/effect-gesture-safety.ts';
+import { EditorProjectChangedError, EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
 import {
 	createVideoEffectService,
 	type ControllerVideoEffect,
 	type VideoEffectControllerState,
 	type VideoEffectProject,
-} from '../src/common/editor/controller/video-effect-service.ts';
+} from '../src/common/editor/controller/clip-video/video-effect-service.ts';
 import { createVideoEffect } from '../src/common/editor/video-effects.js';
 
 function createHarness() {

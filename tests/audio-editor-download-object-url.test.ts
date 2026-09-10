@@ -13,7 +13,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { saveLabelExport } from '../src/common/editor/controller/app-helpers.ts';
+import { saveLabelExport } from '../src/common/editor/controller/shared/app-helpers.ts';
 import { downloadTextFile } from '../src/common/editor/ui/inspector/inspector-helpers.ts';
 import {
 	OBJECT_URL_REVOKE_DELAY_MS,

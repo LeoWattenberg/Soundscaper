@@ -6,8 +6,8 @@ import test from 'node:test';
 import {
 	createRoutedRecordingCaptureService,
 	planRoutedRecordingSources,
-} from '../src/common/editor/controller/routed-recording-capture-service.ts';
-import type { RecordingMediaStream } from '../src/common/editor/controller/recording-transaction-types.ts';
+} from '../src/common/editor/controller/recording/internal/routed-recording-capture-service.ts';
+import type { RecordingMediaStream } from '../src/common/editor/controller/recording/recording-transaction-types.ts';
 import {
 	createRecordingCaptureFixture,
 	createScope,

@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAudioAnalysisService, type AnalysisState } from '../src/common/editor/controller/analysis-service.ts';
-import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
+import { createAudioAnalysisService, type AnalysisState } from '../src/common/editor/controller/analysis/analysis-service.ts';
+import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
 import { resolveAdmEbuChannelWeights } from '../src/common/editor/loudness-channel-layout.ts';
 
 test('repeat analyzer replays the last successful analysis request', async () => {

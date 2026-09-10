@@ -17,7 +17,7 @@ import {
 } from './media-export.js';
 import { inspectAiffLayout } from './aiff.js';
 import { inspectWavLayout } from './wav.js';
-import { createStemArchivePlan } from './controller/stem-archive.ts';
+import { createStemArchivePlan } from './controller/export/stem-archive.ts';
 import { EBU_R128_MAXIMUM_CHANNELS } from './ebu-r128.js';
 import { resolveAdmEbuChannelWeights } from './loudness-channel-layout.ts';
 import { createRiffAnnotationExport } from './timeline-annotation-riff-interchange.ts';
@@ -84,7 +84,7 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
  * @property {Readonly<Record<string, string>>} metadata
  * @property {{ strategy: 'offline' | 'realtime-stream', fast: boolean, reason: 'output-memory'|'total-memory'|'offline-render-output-memory'|null, offlineRenderAdmission?: import('./export-render-admission.ts').ExportOfflineRenderStrategyAdmission }} render
  * @property {AudioExportPlanOutput[]} outputs
- * @property {import('./controller/stem-archive.ts').StemArchivePlan|null} archive
+ * @property {import('./controller/export/stem-archive.ts').StemArchivePlan|null} archive
  * @property {import('./broadcast-wave.ts').BextMetadata} [bext]
  * @property {'bw64'} [container]
  * @property {{ mode: 'authored'|'passthrough', metadata: import('./adm-project-metadata.ts').AdmProjectMetadata, channelCount: number, channelOrder: readonly string[], preDataChunks: Uint8Array|readonly Uint8Array[]|undefined, trailingChunks: Uint8Array|readonly Uint8Array[]|undefined }} [adm]

@@ -1,0 +1,154 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import type { MediaSourceLeaf, MediaClipLeaf } from '../../project-media-types.ts';
+import type { FramescaperImageSourceV1, FramescaperImageClipV1 } from '../../timeline-image-model.ts';
+import type { ProjectDocumentBody } from '../../project-document-body-types.ts';
+import type { MacroTransactionMetadata } from '../effects/macro-transaction-metadata.ts';
+
+import type { EnginePublicApi } from '../../engine/public-api.ts';
+import type { EditorCommandCapabilities } from './internal/command-capability-policy.ts';
+import type { EditorControllerLifetime, EditorProjectGeneration } from '../shared/lifecycle.ts';
+import type {
+	EditorCommandMoment,
+	MutationTrack,
+	MutationProject,
+	ProjectMutationState,
+} from './project-mutation-service.ts';
+import type {
+	ProjectRetentionServiceDependencies,
+	ProjectRetentionState,
+	RetentionProject,
+} from './internal/project/project-retention-service.ts';
+import type { AudioEditorCommand } from '../../commands/protocol.ts';
+import type { ControllerProjectRuntime, ControllerRuntimeHistory, ControllerRuntimeProject } from './project-runtime.ts';
+import type {
+	ProjectSaveServiceDependencies,
+	ProjectSaveSnapshot,
+	ProjectSaveStatus,
+	ProjectSnapshotPreparationPurpose,
+} from './project-save-service.ts';
+import type { ProjectSessionTab } from './internal/project/project-session-service.ts';
+import type {
+	ProjectSessionSelectionProject,
+	ProjectSessionSelectionState,
+} from './internal/project/project-session-selection-service.ts';
+import type { ProjectViewProject, ProjectViewState } from './project-view-service.ts';
+import type { createRegularIntervalAnnotationController } from './internal/annotations/regular-interval-annotation-controller.ts';
+import type { ProjectVisualProject } from './project-visual-types.ts';
+import type { SourceRuntimeComposition } from '../source/source-runtime-composition.ts';
+import type { TimelineAnnotationControllerState } from './internal/annotations/timeline-annotation-service.ts';
+import type { TrackDuplicationProject } from './internal/track-duplication-service.ts';
+
+/** One document shape that satisfies every persistence and mutation service's constraint. */
+export type DocumentProject =
+	& ControllerRuntimeProject
+	& ProjectDocumentBody<
+		MediaSourceLeaf | (FramescaperImageSourceV1 & Readonly<Record<string, unknown>>),
+		MediaClipLeaf | (FramescaperImageClipV1 & Readonly<Record<string, unknown>>)
+	>
+	& ProjectVisualProject
+	& MutationProject
+	& RetentionProject
+	& ProjectSaveSnapshot
+	& ProjectSessionSelectionProject
+	& ProjectViewProject
+	& TrackDuplicationProject
+	& ReturnType<Parameters<typeof createRegularIntervalAnnotationController>[0]['getProject']>;
+
+/** The product runtime's history, as the mutation and retention services read it. */
+export type DocumentHistory = ControllerRuntimeHistory<DocumentProject> & { readonly limit: number };
+
+/** A session tab as the session controller keeps it; the persistence services read its dirty flag and history. */
+export type DocumentSessionTab = ProjectSessionTab & {
+	readonly dirty: boolean;
+	readonly readOnly: boolean;
+	readonly history: DocumentHistory;
+};
+
+/** What the session controller does for the document: tabs, metadata, saved marks and source reference counts. */
+export interface DocumentSessionPort {
+	getSnapshot(): Readonly<{ readonly tabs: readonly DocumentSessionTab[] }>;
+	updateProjectMetadata(projectId: string, metadata: Record<string, unknown>): unknown;
+	updateProjectHistory(projectId: string, history: DocumentHistory, options: Readonly<{ dirty: boolean }>): unknown;
+	markProjectSaved(projectId: string): unknown;
+	getSourceReferenceCounts(): Readonly<Record<string, number>>;
+}
+
+export type DocumentCompositionState =
+	& ProjectMutationState<DocumentProject, DocumentHistory>
+	& ProjectRetentionState<DocumentHistory>
+	& ProjectViewState
+	& ProjectSessionSelectionState
+	& TimelineAnnotationControllerState
+	& {
+		recentProjectIds: string[];
+		saveState: ProjectSaveStatus;
+	};
+
+export type DocumentCompositionCopy = Readonly<{
+	readonly projectReadOnly: string;
+	readonly projectCopySuffix: string;
+}>;
+
+export type DocumentCompositionStore = Readonly<{
+	loadSetting(key: string, fallback: unknown): Promise<unknown>;
+	saveProject: ProjectSaveServiceDependencies<DocumentProject>['saveProject'];
+}>;
+
+export interface DocumentCompositionDependencies {
+	readonly state: DocumentCompositionState;
+	readonly copy: DocumentCompositionCopy;
+	readonly lifetime: EditorControllerLifetime;
+	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
+	/** Product operations act on the admitted document and its history. */
+	readonly projectRuntime: Readonly<{
+		readonly cloneProject: (project: DocumentProject) => DocumentProject;
+		readonly applyCommand: (project: DocumentProject, command: AudioEditorCommand) => DocumentProject;
+		readonly executeCommand: (history: DocumentHistory, command: unknown, options?: EditorCommandMoment) => DocumentHistory;
+		readonly collapseHistory?: (history: DocumentHistory, depth: number, command: MacroTransactionMetadata) => DocumentHistory;
+		readonly rollbackHistory?: (history: DocumentHistory, depth: number) => DocumentHistory;
+		readonly prepareTrackDuplicateCarrier: ControllerProjectRuntime['prepareTrackDuplicateCarrier'];
+	}>;
+	readonly product: Readonly<{ readonly id: string; readonly name: string }>;
+	readonly capabilities: EditorCommandCapabilities;
+	readonly session: DocumentSessionPort;
+	readonly store: DocumentCompositionStore;
+	readonly engine: Pick<EnginePublicApi, 'getPositionFrames' | 'getState' | 'seek'>;
+	readonly sourceBuffers: ReadonlyMap<string, unknown>;
+	readonly sourcePeaks: ReadonlyMap<string, unknown>;
+	/** The render cache that pins clip renders, and the bin's staged sources retention must keep. */
+	readonly timePitchCache: ProjectRetentionServiceDependencies<DocumentProject, DocumentHistory>['clipCache'];
+	readonly protectedSourceIds: Iterable<string>;
+	readonly maximumPixelsPerSecond: number;
+	readonly settingKeys: Readonly<{ readonly recentProjects: string; readonly lastProject: string }>;
+	readonly scheduleTimer: (callback: () => void, delayMs: number) => number;
+	readonly clearTimer: (handle: number) => void;
+	/** The product's own snapshot preparation, run before a save leaves the editor. */
+	readonly prepareProjectSnapshot?: (
+		purpose: ProjectSnapshotPreparationPurpose,
+		snapshot: DocumentProject,
+	) => PromiseLike<unknown> | unknown;
+	readonly sources: Pick<SourceRuntimeComposition, 'projectVisual' | 'timePitchCaches' | 'playbackApply' | 'sourceLifecycle'>;
+	readonly getProject: () => DocumentProject | null;
+	readonly setProject: (project: DocumentProject | null) => void;
+	readonly getHistory: () => DocumentHistory | null;
+	readonly setHistory: (history: DocumentHistory) => void;
+	readonly projectDurationFrames: (project: DocumentProject) => number;
+	readonly editorTimelineDurationFrames: (project: DocumentProject, sampleRate: number) => number;
+	readonly projectSampleRate: () => number;
+	readonly persistSetting: (key: string, value: unknown) => Promise<unknown>;
+	readonly preflightStorage: (bytes: number, category: 'project') => Promise<unknown>;
+	readonly garbageCollectSources: () => Promise<unknown>;
+	readonly refreshStorageUsage: () => Promise<unknown>;
+	readonly editingBlocked: () => boolean;
+	/** Refuse an edit the Framescaper capture origin has fenced. */
+	readonly assertEditingAllowed: () => void;
+	readonly updatePlayhead: (frame: number, duration: number) => void;
+	readonly synchronizeAutomaticSampleEditMode: () => void;
+	readonly synchronizeMicrophoneMeterTarget: () => void;
+	readonly stopProjectBinPreview: () => unknown;
+	readonly reconcileRecordingRouting: (tracks: readonly MutationTrack[]) => boolean;
+	readonly persistRecordingRouting: () => Promise<unknown>;
+	readonly publishDocumentSnapshot: () => void;
+	readonly handleError: (error: unknown) => void;
+}

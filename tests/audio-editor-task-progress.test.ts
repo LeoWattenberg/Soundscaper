@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createEditorTaskProgressCoordinator } from '../src/common/editor/controller/task-progress.ts';
+import { createEditorTaskProgressCoordinator } from '../src/common/editor/controller/shared/task-progress.ts';
 
 test('local assistance owns a distinct foreground task kind', () => {
 	const coordinator = createEditorTaskProgressCoordinator();

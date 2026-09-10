@@ -13,8 +13,8 @@ import {
 	resolveEditingSelection,
 } from '../src/common/editor/commands.js';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
-import { createClipTransformService } from '../src/common/editor/controller/clip-transform-service.ts';
-import { createEditorEditService } from '../src/common/editor/controller/edit-service.ts';
+import { createClipTransformService } from '../src/common/editor/controller/clip-video/internal/clip/clip-transform-service.ts';
+import { createEditorEditService } from '../src/common/editor/controller/edit/internal/edit-service.ts';
 import { findClip, findClipTrack, findTrack } from '../src/common/editor/project.js';
 import { createAudioWarpClipAuthority } from '../src/common/editor/audio-warp-clip-authority.ts';
 import { normalizeAudioWarpMap } from '../src/common/editor/audio-warp-domain.ts';

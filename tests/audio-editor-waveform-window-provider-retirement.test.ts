@@ -6,12 +6,12 @@ import test from 'node:test';
 import {
 	STORED_CHUNK_PROVIDER_DISPOSED_ERROR_NAME,
 	isRetiredSourceReadError,
-} from '../src/common/editor/controller/source-audio.ts';
+} from '../src/common/editor/controller/source/source-audio.ts';
 import { SOURCE_PCM_READ_SESSION_RELEASED_ERROR_NAME } from '../src/common/editor/storage/source-pcm-read-session.ts';
 import {
 	createSourceLifecycleService,
 	type SourceLifecycleServiceRuntime,
-} from '../src/common/editor/controller/source-lifecycle-service.ts';
+} from '../src/common/editor/controller/source/source-lifecycle-service.ts';
 
 interface FixtureProject {
 	readonly id: string;

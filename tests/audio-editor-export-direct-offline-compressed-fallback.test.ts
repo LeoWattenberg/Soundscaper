@@ -8,8 +8,8 @@ import {
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createEditorExportService, type ExportServiceRuntime } from '../src/common/editor/controller/export-service.ts';
-import { createPlaybackProjectService } from '../src/common/editor/controller/playback-project-service.ts';
+import { createEditorExportService, type ExportServiceRuntime } from '../src/common/editor/controller/export/internal/export-service.ts';
+import { createPlaybackProjectService } from '../src/common/editor/controller/source/playback-project-service.ts';
 import type { EngineChunkSource } from '../src/common/editor/engine/types.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 import type { FfmpegOutputSink } from '../src/common/editor/ffmpeg-output-stream.ts';

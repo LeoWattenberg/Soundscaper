@@ -2,7 +2,7 @@
 import type {
 	ProductVideoExportEncodedOutput,
 	ProductVideoExportSinkOutput,
-} from '../common/editor/controller/product-video-export-strategy.ts';
+} from '../common/editor/controller/export/product-video-export-strategy.ts';
 import type {
 	VideoKeyframeVideoEncoderResult,
 	VideoKeyframeVideoSinkEncoderResult,

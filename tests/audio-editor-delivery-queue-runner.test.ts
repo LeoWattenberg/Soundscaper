@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createDeliveryQueueRunner } from '../src/common/editor/controller/delivery-queue-runner.ts';
+import { createDeliveryQueueRunner } from '../src/common/editor/controller/export/internal/delivery/delivery-queue-runner.ts';
 
 function abortError() {
 	return Object.assign(new Error('Aborted'), { name: 'AbortError' });

@@ -10,7 +10,7 @@ import {
 	type ProjectSchemaFamily,
 } from '../src/common/editor/project-schema-identity.ts';
 import { copyFutureScapeArchive } from '../src/common/editor/scape-archive-copy.ts';
-import type { ScapeProjectInspection } from '../src/common/editor/controller/scape-project-file-service.ts';
+import type { ScapeProjectInspection } from '../src/common/editor/controller/document/scape-project-file-service.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 import {
 	prepareScapeExport,

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { acquireVideoExportTimingIndexes } from '../src/common/editor/controller/video-export-timing.ts';
+import { acquireVideoExportTimingIndexes } from '../src/common/editor/controller/export/video-export-timing.ts';
 import {
 	boundVideoSourceTimingViewInfo,
 	videoSourceFrameTime,

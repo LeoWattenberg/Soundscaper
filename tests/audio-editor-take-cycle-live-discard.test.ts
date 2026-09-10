@@ -3,9 +3,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createTakeCycleCaptureSourceSpool } from '../src/common/editor/controller/take-cycle-capture-spool.ts';
-import { beginTakeCycleLiveCaptureSession } from '../src/common/editor/controller/take-cycle-live-capture-session.ts';
-import { createTakeCycleLiveCaptureSpool } from '../src/common/editor/controller/take-cycle-live-capture-spool.ts';
+import { createTakeCycleCaptureSourceSpool } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-capture-spool.ts';
+import { beginTakeCycleLiveCaptureSession } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-live-capture-session.ts';
+import { createTakeCycleLiveCaptureSpool } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-live-capture-spool.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import { KeyValueRepository } from '../src/common/editor/storage/key-value-repository.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';

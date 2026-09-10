@@ -6,15 +6,15 @@ import test from 'node:test';
 import {
 	createClipTimePitchRenderService,
 	type ClipTimePitchRenderStore,
-} from '../src/common/editor/controller/clip-time-pitch-render-service.ts';
-import type { ClipTimePitchCacheEntry } from '../src/common/editor/controller/clip-time-pitch-service.ts';
-import type { ClipTransformProject } from '../src/common/editor/controller/clip-domain-types.ts';
+} from '../src/common/editor/controller/clip-video/clip-time-pitch-render-service.ts';
+import type { ClipTimePitchCacheEntry } from '../src/common/editor/controller/source/clip-time-pitch-service.ts';
+import type { ClipTransformProject } from '../src/common/editor/controller/clip-video/internal/clip/clip-domain-types.ts';
 import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
-} from '../src/common/editor/controller/lifecycle.ts';
+} from '../src/common/editor/controller/shared/lifecycle.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
-import type { AudioBufferLike } from '../src/common/editor/controller/source-audio.ts';
+import type { AudioBufferLike } from '../src/common/editor/controller/source/source-audio.ts';
 
 test('rendering a source below the project rate keeps the clip timeline extent', async () => {
 	const rendered = bufferFixture(4, 24_000);

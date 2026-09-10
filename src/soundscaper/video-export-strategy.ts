@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
-import { createExportRenderProject } from '../common/editor/controller/export-render-project.ts';
+import { createExportRenderProject } from '../common/editor/controller/export/export-render-project.ts';
 import { projectTrackFolderMediaStateV12 } from '../common/editor/track-folder-media-runtime.ts';
 import type {
 	ProductVideoExportEncodedOutput,
@@ -10,8 +10,8 @@ import type {
 	ProductVideoExportStrategyEncodeRequest,
 	ProductVideoExportStrategyPlanRequest,
 	ProductVideoExportProjectRequest,
-} from '../common/editor/controller/product-video-export-strategy.ts';
-import type { ControllerProjectRuntime } from '../common/editor/controller/project-runtime.ts';
+} from '../common/editor/controller/export/product-video-export-strategy.ts';
+import type { ControllerProjectRuntime } from '../common/editor/controller/document/project-runtime.ts';
 import {
 	encodeVideoKeyframeOfflineVideo,
 	encodeVideoKeyframeOfflineVideoToSink,

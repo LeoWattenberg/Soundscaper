@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	createEditorExportService,
 	type ExportServiceRuntime,
-} from '../src/common/editor/controller/export-service.ts';
+} from '../src/common/editor/controller/export/internal/export-service.ts';
 import { createDefaultMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
 import {
 	createAudioClip,

@@ -29,26 +29,26 @@ export interface FoundationRuntimeConsumerEvidence {
  * boundary before reading any persisted/resolved clip timing field.
  */
 const entries: FoundationRuntimeConsumerEvidence[] = [
-	{"id": "bin-audio-preview", "file": "src/common/editor/controller/project-bin-preview-service.ts", "entryPoint": "playPauseProjectBinClip", "inputIdentifier": "project", "projectedIdentifier": null, "boundary": "resolveProjectBinAudioPreviewClip", "surface": "preview", "evidence": "Project Bin reads resolved clip geometry at its audio preview and replacement boundary while retaining authored documents for checkpoint ownership."},
-	{"id": "bin-preview-geometry", "file": "src/common/editor/controller/project-bin-runtime.ts", "entryPoint": "resolveProjectBinAudioPreviewClip", "inputIdentifier": "project", "projectedIdentifier": "resolved", "boundary": "resolveRuntimeClipProjection", "surface": "preview", "evidence": "Project Bin reads resolved clip geometry at its audio preview and replacement boundary while retaining authored documents for checkpoint ownership."},
-	{"id": "bin-replacement-geometry", "file": "src/common/editor/controller/project-bin-runtime.ts", "entryPoint": "projectBinReplacementShortensClip", "inputIdentifier": "project", "projectedIdentifier": "resolved", "boundary": "resolveRuntimeClipProjection", "surface": "composition", "evidence": "Project Bin reads resolved clip geometry at its audio preview and replacement boundary while retaining authored documents for checkpoint ownership."},
-	{"id": "bin-replacement-ranges", "file": "src/common/editor/controller/project-bin-replacement-service.ts", "entryPoint": "prepareProjectBinReplacement", "inputIdentifier": "baseProject", "projectedIdentifier": null, "boundary": "projectBinReplacementShortensClip", "surface": "composition", "evidence": "Project Bin reads resolved clip geometry at its audio preview and replacement boundary while retaining authored documents for checkpoint ownership."},
+	{"id": "bin-audio-preview", "file": "src/common/editor/controller/import/internal/project-bin/project-bin-preview-service.ts", "entryPoint": "playPauseProjectBinClip", "inputIdentifier": "project", "projectedIdentifier": null, "boundary": "resolveProjectBinAudioPreviewClip", "surface": "preview", "evidence": "Project Bin reads resolved clip geometry at its audio preview and replacement boundary while retaining authored documents for checkpoint ownership."},
+	{"id": "bin-preview-geometry", "file": "src/common/editor/controller/import/internal/project-bin/project-bin-runtime.ts", "entryPoint": "resolveProjectBinAudioPreviewClip", "inputIdentifier": "project", "projectedIdentifier": "resolved", "boundary": "resolveRuntimeClipProjection", "surface": "preview", "evidence": "Project Bin reads resolved clip geometry at its audio preview and replacement boundary while retaining authored documents for checkpoint ownership."},
+	{"id": "bin-replacement-geometry", "file": "src/common/editor/controller/import/internal/project-bin/project-bin-runtime.ts", "entryPoint": "projectBinReplacementShortensClip", "inputIdentifier": "project", "projectedIdentifier": "resolved", "boundary": "resolveRuntimeClipProjection", "surface": "composition", "evidence": "Project Bin reads resolved clip geometry at its audio preview and replacement boundary while retaining authored documents for checkpoint ownership."},
+	{"id": "bin-replacement-ranges", "file": "src/common/editor/controller/import/internal/project-bin/project-bin-replacement-service.ts", "entryPoint": "prepareProjectBinReplacement", "inputIdentifier": "baseProject", "projectedIdentifier": null, "boundary": "projectBinReplacementShortensClip", "surface": "composition", "evidence": "Project Bin reads resolved clip geometry at its audio preview and replacement boundary while retaining authored documents for checkpoint ownership."},
 	{
 		id: 'audio-generator-placement', surface: 'composition',
-		file: 'src/common/editor/controller/generator-service.ts', entryPoint: 'prepareGeneratorCommand',
+		file: 'src/common/editor/controller/edit/generator-service.ts', entryPoint: 'prepareGeneratorCommand',
 		inputIdentifier: 'persistedProject', projectedIdentifier: 'project', boundary: 'projectForAudioGeneratorCommands',
 		evidence: 'Tone and signal placement retain product command fields and compare only resolved clip bounds before choosing a track or replacing a range.',
 	},
 	{
 		id: 'labeled-audio-silence-ranges', surface: 'composition',
-		file: 'src/common/editor/controller/labeled-audio-silence.ts', entryPoint: 'generateLabeledSilence',
+		file: 'src/common/editor/controller/edit/internal/labeled-audio-silence.ts', entryPoint: 'generateLabeledSilence',
 		inputIdentifier: 'persistedProject', projectedIdentifier: 'project', boundary: 'projectForAudioGeneratorCommands',
 		evidence: 'Labeled silence intersects regions against a resolved command view, retaining the separate persisted document for operation ownership.',
 	},
 	{
 		id: 'controller-command-reader',
 		surface: 'composition',
-		file: 'src/common/editor/controller/controller-project-queries.ts',
+		file: 'src/common/editor/controller/composition/controller-project-queries.ts',
 		entryPoint: 'readResolvedCommandProject',
 		inputIdentifier: 'projection',
 		projectedIdentifier: null,
@@ -88,7 +88,7 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 	{
 		id: 'interchange-export-delivery',
 		surface: 'interchange',
-		file: 'src/common/editor/controller/interchange-export-action.ts',
+		file: 'src/common/editor/controller/export/interchange-export-action.ts',
 		entryPoint: 'resolveDeliveredProject',
 		inputIdentifier: 'mediaProject',
 		projectedIdentifier: 'project',
@@ -98,7 +98,7 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 	{
 		id: 'nyquist-generator-placement',
 		surface: 'composition',
-		file: 'src/common/editor/controller/nyquist-generated-audio-service.ts',
+		file: 'src/common/editor/controller/effects/internal/nyquist/nyquist-generated-audio-service.ts',
 		entryPoint: 'persistNyquistGeneratedAudio',
 		inputIdentifier: 'persistedProject',
 		projectedIdentifier: 'project',
@@ -108,7 +108,7 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 	{
 		id: 'rack-prefix-audio-render',
 		surface: 'audio-export',
-		file: 'src/common/editor/controller/effect-audio-service.ts',
+		file: 'src/common/editor/controller/effects/internal/effect-audio-service.ts',
 		entryPoint: 'renderRackPrefixRange',
 		inputIdentifier: 'snapshot',
 		projectedIdentifier: null,
@@ -118,7 +118,7 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 	{
 		id: 'rack-noise-profile-range',
 		surface: 'audio-export',
-		file: 'src/common/editor/controller/effect-audio-service.ts',
+		file: 'src/common/editor/controller/effects/internal/effect-audio-service.ts',
 		entryPoint: 'captureRackNoiseProfile',
 		inputIdentifier: 'persistedProject',
 		projectedIdentifier: 'project',
@@ -128,7 +128,7 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 	{
 		id: 'nyquist-host-properties',
 		surface: 'interchange',
-		file: 'src/common/editor/controller/nyquist-host-service.ts',
+		file: 'src/common/editor/controller/effects/internal/nyquist/nyquist-host-service.ts',
 		entryPoint: 'nyquistHostProperties',
 		inputIdentifier: 'persistedProject',
 		projectedIdentifier: 'project',
@@ -318,7 +318,7 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 	{
 		id: 'clip-selection-navigation',
 		surface: 'navigation',
-		file: 'src/common/editor/controller/clip-selection-navigation-service.ts',
+		file: 'src/common/editor/controller/track-audio/internal/clip-selection-navigation-service.ts',
 		entryPoint: 'projectedAudioClips',
 		inputIdentifier: 'project',
 		projectedIdentifier: 'projection',
@@ -348,7 +348,7 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 	{
 		id: 'waveform-visible-clips',
 		surface: 'waveform',
-		file: 'src/common/editor/controller/project-visual-service.ts',
+		file: 'src/common/editor/controller/document/project-visual-service.ts',
 		entryPoint: 'getVisibleClips',
 		inputIdentifier: 'project',
 		projectedIdentifier: 'runtimeProject',

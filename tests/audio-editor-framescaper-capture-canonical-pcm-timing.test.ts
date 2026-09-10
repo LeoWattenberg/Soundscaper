@@ -6,9 +6,9 @@ import test from 'node:test';
 import {
 	publishFramescaperCaptureCanonicalAsset,
 	type FramescaperCaptureCanonicalStore,
-} from '../src/common/editor/controller/framescaper-capture-canonical-assets.ts';
-import { createFramescaperCaptureDurableSessionCoordinator } from '../src/common/editor/controller/framescaper-capture-durable-session.ts';
-import { createFramescaperCaptureAssetStreams } from '../src/common/editor/controller/framescaper-capture-stream-timing.ts';
+} from '../src/common/editor/controller/capture/internal/framescaper-capture-canonical-assets.ts';
+import { createFramescaperCaptureDurableSessionCoordinator } from '../src/common/editor/controller/capture/internal/framescaper-capture-durable-session.ts';
+import { createFramescaperCaptureAssetStreams } from '../src/common/editor/controller/capture/internal/framescaper-capture-stream-timing.ts';
 import type { AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
 import { createFramescaperProjectStore } from '../src/framescaper/editor-project-store.ts';

@@ -3,16 +3,16 @@
 import type {
 	ProductNativeRenderInputAuthorityBinding,
 	ProductNativeRenderInputOperation,
-} from '../common/editor/controller/product-native-render-input-authority.ts';
+} from '../common/editor/controller/composition/product-native-render-input-authority.ts';
 import {
 	acquireVideoExportTimingIndexes,
 	type VideoExportTimingIndexLease,
-} from '../common/editor/controller/video-export-timing.ts';
+} from '../common/editor/controller/export/video-export-timing.ts';
 import {
 	captureProductVideoExportTimingSourceIds,
 	type ProductVideoExportPlan,
 	type ProductVideoExportStrategyEncodeRequest,
-} from '../common/editor/controller/product-video-export-strategy.ts';
+} from '../common/editor/controller/export/product-video-export-strategy.ts';
 import { canonicalMediaContentBlob } from '../common/editor/storage/media-content-digest.ts';
 import type { BlobLike } from '../common/editor/storage/media-records.ts';
 import {

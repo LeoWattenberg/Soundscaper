@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { ControllerOptions } from '../common/editor/controller/controller-options.ts';
+import type { ControllerOptions } from '../common/editor/controller/composition/controller-options.ts';
 import { createAudioEditorController } from '../common/editor/app.js';
 import { createProductNativeRenderInputAuthorityBinding } from
-	'../common/editor/controller/product-native-render-input-authority.ts';
+	'../common/editor/controller/composition/product-native-render-input-authority.ts';
 import { createVideoRetimeProgramOrdinalBridge } from
 	'../common/editor/video-retime-program-ordinal-bridge.ts';
 import { resolveFramescaperNativeServicesBridge } from

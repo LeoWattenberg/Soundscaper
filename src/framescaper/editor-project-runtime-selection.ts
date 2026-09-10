@@ -3,8 +3,8 @@
 import type { AudioEditorClipboard, AudioEditorCommand } from '../common/editor/commands/protocol.ts';
 import { AUDIO_EDITOR_HISTORY_LIMIT } from '../common/editor/history.js';
 import { acquireProjectLock } from '../common/editor/project-lock.js';
-import type { ControllerRuntimeHistory } from '../common/editor/controller/project-runtime.ts';
-import type { ProjectLifecycleLock } from '../common/editor/controller/project-lifecycle-types.ts';
+import type { ControllerRuntimeHistory } from '../common/editor/controller/document/project-runtime.ts';
+import type { ProjectLifecycleLock } from '../common/editor/controller/document/project-lifecycle-types.ts';
 import { createOpaqueProjectConsumer } from '../common/editor/project-opaque-consumer.ts';
 import {
 	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,

@@ -180,7 +180,7 @@ assistance helper retrofitted onto them — conforms:
    handles, the `DesktopLibraryMediaCapacity` shape.
 6. **Structured progress and errors** through the task-progress
    coordinator with new milestone-5 task kinds (the kind enum at
-   `src/common/editor/controller/task-progress.ts:3-12` is a spine
+   `src/common/editor/controller/shared/task-progress.ts:3-12` is a spine
    file), and bulk data crossing as bounded transfers, never unbounded
    invoke payloads (roadmap.md:837-839; the milestone-7 IPC data
    discipline at docs/milestone-7-plan.md:183-187 carries over).
