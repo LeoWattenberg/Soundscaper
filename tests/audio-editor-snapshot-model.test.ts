@@ -8,6 +8,7 @@ import {
 	createAudioDeviceSnapshot,
 	createEditorTelemetrySnapshot,
 } from '../src/common/editor/controller/snapshot-model.ts';
+import { exposeOwnedFields } from '../src/common/editor/controller/owned-state.ts';
 
 test('video effect gesture previews replace only the active immutable params', () => {
 	const project = {
@@ -78,4 +79,24 @@ test('audio-device snapshots distinguish availability, support, and active outpu
 	assert.equal(snapshot.displayCaptureOpen, true);
 	assert.equal(snapshot.activeOutputDeviceId, 'speaker-1');
 	assert.equal(snapshot.playbackGain, 0.5);
+});
+
+test('audio-device snapshots copy arrays exposed by an owner compatibility view', () => {
+	const owner = {
+		preferredInputDeviceId: 'default', preferredInputChannelCount: 1,
+		preferredOutputDeviceId: '', activeOutputDeviceId: '', audioInputAccess: false,
+		audioInputDevices: [{ deviceId: 'microphone-1' }],
+		audioOutputDevices: [{ deviceId: 'speaker-1' }],
+		recordingPoolSources: [] as Array<{ kind: string }>, audioOutputStatus: 'default',
+	};
+	const state = exposeOwnedFields({}, owner);
+
+	const snapshot = createAudioDeviceSnapshot(state, {}, null, 'default', 'display');
+
+	assert.deepEqual(snapshot.inputs, owner.audioInputDevices);
+	assert.deepEqual(snapshot.outputs, owner.audioOutputDevices);
+	assert.notEqual(snapshot.inputs, state.audioInputDevices);
+	assert.notEqual(snapshot.outputs, state.audioOutputDevices);
+	assert.equal(Object.isFrozen(snapshot.inputs), true);
+	assert.equal(Object.isFrozen(owner.audioInputDevices), false);
 });

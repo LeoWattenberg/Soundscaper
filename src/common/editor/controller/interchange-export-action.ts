@@ -10,6 +10,7 @@ import {
 	inheritTrackFolderMediaStateProjectionV12,
 	projectTrackFolderMediaStateV12,
 } from '../track-folder-media-runtime.ts';
+import type { DeliveryReportState } from './export-state.ts';
 
 /**
  * Export the current project through an interchange profile.
@@ -25,7 +26,7 @@ import {
 
 interface InterchangeRuntime {
 	readonly getProject: () => Readonly<Record<string, unknown>> | null | undefined;
-	readonly state: { deliveryReport?: unknown };
+	readonly state: DeliveryReportState;
 	readonly fileService?: { saveFile?: (request: Readonly<Record<string, unknown>>) => unknown } | null;
 	readonly publishDocumentSnapshot?: () => void;
 	readonly sequenceId?: string;

@@ -14,6 +14,8 @@ import {
 	type TimedRecordingMutableState,
 } from '../src/common/editor/controller/timed-recording-service.ts';
 
+type Mutable<Value> = { -readonly [Key in keyof Value]: Value[Key] };
+
 interface TestStream {
 	readonly id: string;
 	readonly channels: number;
@@ -394,7 +396,7 @@ test('invalid track, routing, stream, and channel capabilities preserve controll
 	assert.equal(undersized.health['track-1'], 'skipped');
 });
 
-function createTimedState(): TimedRecordingMutableState<number> {
+function createTimedState(): Mutable<TimedRecordingMutableState<number>> {
 	return {
 		readOnly: false,
 		disposed: false,

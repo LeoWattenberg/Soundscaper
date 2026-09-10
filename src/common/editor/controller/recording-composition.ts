@@ -41,6 +41,7 @@ import {
 } from './recording-session-service.ts';
 import type {
 	RecordingCaptureCommonRuntime,
+	RecordingMediaStream,
 	RecordingSelection,
 } from './recording-transaction-types.ts';
 import { createRoutedRecordingCaptureService } from './routed-recording-capture-service.ts';
@@ -70,6 +71,8 @@ export type {
 export { AUDIO_DEVICE_PREFERENCES_SETTING_KEY } from './recording-model.ts';
 const LIVE_RECORDING_WAVEFORM_PUBLISH_INTERVAL_MS = 80;
 const MAXIMUM_TIMER_DELAY_MS = 2_147_000_000;
+type RecordingInputs = ReturnType<typeof createRecordingInputCoordinationService<RecordingMediaStream>>;
+type RecordingRouting = ReturnType<typeof createRecordingRoutingService<RecordingCompositionProject, RecordingMediaStream>>;
 
 /**
  * Build the recording domain: input routing and device inventory, the capture
@@ -91,7 +94,7 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 	const activeSelectionOf = ({ selection }: Readonly<{ readonly selection?: unknown }>): RecordingSelection | null => (
 		isRecordingSelection(selection) && selection.endFrame > selection.startFrame ? selection : null
 	);
-	const routing = createRecordingRoutingService({
+	const routing: RecordingRouting = createRecordingRoutingService({
 		AUDIO_DEVICE_PREFERENCES_SETTING_KEY,
 		RECORDING_CHANNEL_COUNT_MAXIMUM,
 		RECORDING_DEFAULT_DEVICE_ID,
@@ -389,7 +392,7 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		},
 	});
 
-	const inputs = createRecordingInputCoordinationService({
+	const inputs: RecordingInputs = createRecordingInputCoordinationService({
 		state,
 		capturePool,
 		captureOperation: () => {

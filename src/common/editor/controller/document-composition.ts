@@ -3,7 +3,6 @@
 import { createAddClipCommand, createAddTrackCommand } from '../commands.js';
 import { createHistorySourceCompactor } from '../history-source-compaction.ts';
 import { createStableId, findClip, findTrack } from '../project.js';
-import { normalizeRecordingRouting } from '../recording-routing.js';
 import {
 	compactProjectSourceMetadata,
 	editorHistoryProjects,
@@ -26,7 +25,6 @@ import { createRegularIntervalAnnotationController } from './regular-interval-an
 import { createTimelineAnnotationService } from './timeline-annotation-service.ts';
 import { createTrackDuplicationService } from './track-duplication-service.ts';
 import { createTrackFolderService } from './track-folder-service.ts';
-import type { RecordingRouting } from './track-service.ts';
 
 export type {
 	DocumentCompositionCopy,
@@ -40,7 +38,7 @@ export type {
 } from './document-composition-types.ts';
 
 type Mutation = ReturnType<typeof createProjectMutationService<
-	DocumentProject, DocumentHistory, RecordingRouting, EditorProjectToken, EditorLifetimeToken, MutationTrack
+	DocumentProject, DocumentHistory, EditorProjectToken, EditorLifetimeToken, MutationTrack
 >>;
 
 /**
@@ -180,7 +178,7 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 		publishProjectState: () => view.publishProjectState(),
 	});
 	mutation = createProjectMutationService<
-		DocumentProject, DocumentHistory, RecordingRouting, EditorProjectToken, EditorLifetimeToken, MutationTrack
+		DocumentProject, DocumentHistory, EditorProjectToken, EditorLifetimeToken, MutationTrack
 	>({
 		lifetime,
 		state,
@@ -201,7 +199,7 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 		saves,
 		stopProjectBinPreview: dependencies.stopProjectBinPreview,
 		clearWaveformPcmWindows: () => sources.sourceLifecycle.clearWaveformPcmWindows(),
-		normalizeRecordingRouting,
+		reconcileRecordingRouting: dependencies.reconcileRecordingRouting,
 		persistRecordingRouting: dependencies.persistRecordingRouting,
 		findClip,
 		findTrack,

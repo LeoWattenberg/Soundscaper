@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { MicrophoneMeterService } from './microphone-meter-service.ts';
+import type { OwnedStateWriteScope } from './owned-state.ts';
 import {
 	createEditorTransportService,
 	type TransportCopy,
@@ -15,6 +16,7 @@ import {
 	type ViewStateServiceRuntime,
 	type ViewStateServiceState,
 } from './view-state-service.ts';
+import type { ControllerTransportState } from './transport-state.ts';
 
 /** What the transport and the timeline view together read from the active document. */
 export type TransportCompositionProject = TransportProject & ViewStateProject;
@@ -23,23 +25,32 @@ export type TransportCompositionState = TransportServiceState & ViewStateService
 
 export type TransportCompositionCopy = TransportCopy & ViewStateServiceRuntime['copy'];
 
+type TransportCompositionWritableState = ControllerTransportState & Pick<
+	TransportCompositionState,
+	'pixelsPerSecond' | 'sampleEditMode' | 'timelineViewportWidth' | 'autoFitTrackHeight' | 'visibleTrackHeights'
+>;
+
 type TransportPorts<Project extends TransportCompositionProject> = Omit<TransportServiceRuntime<Project>,
 	| 'AUDIO_EDITOR_SAMPLE_RATE' | 'copy' | 'engine' | 'state'
 >;
 type ViewPorts<Project extends TransportCompositionProject> = Omit<ViewStateServiceRuntime<Project>,
-	| 'MAX_PIXELS_PER_SECOND' | 'copy' | 'getMicrophoneMeterSession' | 'getProject' | 'getRoutedInputLoudnessMeter'
-	| 'projectDurationFrames' | 'projectSampleRate' | 'state' | 'stopMicrophoneMetering' | 'syncMetronome'
+	| 'MAX_PIXELS_PER_SECOND' | 'copy' | 'getProject' | 'handleMicrophoneMeterTransportState'
+	| 'projectDurationFrames' | 'projectSampleRate' | 'state' | 'syncMetronome'
 	| 'editorTimelineDurationFrames' | 'commit'
 >;
 
 export interface TransportCompositionDependencies<Project extends TransportCompositionProject = TransportCompositionProject>
 	extends TransportPorts<Project>, ViewPorts<Project> {
-	readonly state: TransportCompositionState;
+	readonly state: OwnedStateWriteScope<
+		TransportCompositionState,
+		ControllerTransportState,
+		TransportCompositionWritableState
+	>;
 	readonly engine: TransportEngine;
 	readonly copy: TransportCompositionCopy;
 	readonly sampleRate: number;
 	readonly maximumPixelsPerSecond: number;
-	readonly microphoneMeter: Pick<MicrophoneMeterService, 'getSession' | 'getRoutedLoudnessMeter' | 'stopMicrophoneMetering'>;
+	readonly microphoneMeter: Pick<MicrophoneMeterService, 'handleTransportState'>;
 }
 
 /**
@@ -61,6 +72,7 @@ export function createTransportComposition<Project extends TransportCompositionP
 		beginPlaybackCachePreparation: dependencies.beginPlaybackCachePreparation,
 		calculateAudioEditorMetronomeSchedule: dependencies.calculateAudioEditorMetronomeSchedule,
 		cancelPlaybackCachePreparation: dependencies.cancelPlaybackCachePreparation,
+		playbackCachePreparationPending: dependencies.playbackCachePreparationPending,
 		cancelTimedRecording: dependencies.cancelTimedRecording,
 		commit: dependencies.commit,
 		copy,
@@ -89,16 +101,14 @@ export function createTransportComposition<Project extends TransportCompositionP
 		editingBlocked: dependencies.editingBlocked,
 		editorTimelineDurationFrames: dependencies.editorTimelineDurationFrames,
 		findTrack: dependencies.findTrack,
-		getMicrophoneMeterSession: microphoneMeter.getSession,
 		getProject: dependencies.getProject,
-		getRoutedInputLoudnessMeter: microphoneMeter.getRoutedLoudnessMeter,
+		handleMicrophoneMeterTransportState: microphoneMeter.handleTransportState,
 		projectDurationFrames: dependencies.projectDurationFrames,
 		projectSampleRate: transport.projectSampleRate,
 		publishProjectState: dependencies.publishProjectState,
 		publishTelemetrySnapshot: dependencies.publishTelemetrySnapshot,
 		sampleEditingAvailable: dependencies.sampleEditingAvailable,
 		state,
-		stopMicrophoneMetering: microphoneMeter.stopMicrophoneMetering,
 		syncMetronome: transport.syncMetronome,
 	});
 	return Object.freeze({ transport, view });

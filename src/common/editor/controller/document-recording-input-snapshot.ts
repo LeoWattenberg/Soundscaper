@@ -21,11 +21,11 @@ export function createDocumentRecordingInputSnapshot(
 	soundActivation: SoundActivationPolicySnapshot,
 ) {
 	return Object.freeze({
-		devices: Object.freeze(state.recordingDevices),
+		devices: Object.freeze([...state.recordingDevices]),
 		routes: state.recordingRouting.routes,
 		offsets: state.recordingRouting.offsets,
 		health: Object.freeze({ ...state.recordingRouteHealth }),
-		sources: Object.freeze(state.recordingPoolSources),
+		sources: Object.freeze([...state.recordingPoolSources]),
 		retainInputs: state.preferences.recording.retainInputs,
 		hasOpenInputs: state.recordingPoolSources.length > 0,
 		soundActivation,

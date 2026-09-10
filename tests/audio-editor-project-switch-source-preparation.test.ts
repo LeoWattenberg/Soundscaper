@@ -235,13 +235,14 @@ function createFixture(options: Readonly<{
 			events.push(`source:video:${source.id}`);
 			activatedVideoSourceIds.push(source.id);
 		},
-		allProjectClips: (project: TestProject) => project.clips,
+		allProjectClips: (project) => project.clips,
 		audioBufferChannels: () => [],
 		clipSourceWindowRange: () => ({ startFrame: 0, endFrame: 0 }),
 		clipWaveformPcmRequests: new Map(),
 		clipWaveformPcmWindows: new Map(),
 		copy: {},
-		createStoredChunkProvider: () => {
+		createStoredChunkProviderCandidate: (source) => {
+			if (source.id !== FALLBACK_SOURCE_ID) return null;
 			events.push('source:provider:prepared');
 			return preparedProvider;
 		},
@@ -257,26 +258,21 @@ function createFixture(options: Readonly<{
 		generateStoredWaveformPeaks: async () => ({ levels: [] }),
 		generateWaveformPeaks: async () => ({ levels: [] }),
 		getProject: () => currentProject,
-		isStreamableStoredSource: (source: Readonly<{ id: string }>) => source.id === FALLBACK_SOURCE_ID,
 		legacyPeakCacheKey: (sourceId: string) => `legacy:${sourceId}`,
 		peakCacheKey: (sourceId: string) => `peak:${sourceId}`,
 		publishDocumentSnapshot: () => undefined,
-		readStoredAudioBuffer: async (_store: unknown, source: Readonly<{
-			frameCount: number;
-			channelCount: number;
-			sampleRate: number;
-		}>) => Object.freeze({
-			length: source.frameCount,
-			numberOfChannels: source.channelCount,
-			sampleRate: source.sampleRate,
-			getChannelData: () => new Float32Array(source.frameCount),
+		readStoredAudioBuffer: async (_store, source) => Object.freeze({
+			length: Number(source.frameCount),
+			numberOfChannels: Number(source.channelCount),
+			sampleRate: Number(source.sampleRate),
+			getChannelData: () => new Float32Array(Number(source.frameCount)),
 		}),
 		readWaveformPcmWindow: async () => [],
 		setStatus: () => undefined,
 		sourceAudioBufferBytes: () => 8,
 		sourceBuffers,
 		sourceChunkProviders,
-		sourcePcmBytes: (source: Readonly<{ id: string }>) => source.id === FALLBACK_SOURCE_ID ? 32 : 8,
+		sourcePcmBytes: (source) => source?.id === FALLBACK_SOURCE_ID ? 32 : 8,
 		sourcePeaks: new Map(),
 		state: { missingSourceIds: new Set<string>() },
 		store: {

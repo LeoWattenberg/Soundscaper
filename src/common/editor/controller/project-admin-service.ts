@@ -16,7 +16,7 @@ export function createProjectAdminService<
 		beginCaptureInterlockedAdminOperation,
 		cancelPlaybackCachePreparation, clearScheduledTimer, clearWaveformPcmWindows,
 		clipTimePitchCache, commit, copy, currentTimeMs, disposeRenderEngines, editorHistoryProjects, engine,
-		evictUnreferencedSourceCaches, flushProject, getProject, handleError,
+		evictUnreferencedSourceCaches, flushProject, getProject, getRecordingRouting, handleError,
 		liveSessionClipIds, liveSessionLinkedOriginalSourceReferences,
 		liveSessionSourceIds, newProject, openProject, persistSetting,
 		projectSaveService, projectGeneration, projectMaintenanceRuntime, projectSessionService, publishDocumentSnapshot,
@@ -168,7 +168,7 @@ export function createProjectAdminService<
 		if (recoveryBlocked()) return null;
 		const project = getProject();
 		if (!project) return;
-		const recordingRouting = structuredClone(state.recordingRouting);
+		const recordingRouting = structuredClone(getRecordingRouting());
 		await saveNow();
 		if (getProject() !== project) return null;
 		const title = String(requestedTitle || `${project.title} ${copy.projectCopySuffix}`).trim();

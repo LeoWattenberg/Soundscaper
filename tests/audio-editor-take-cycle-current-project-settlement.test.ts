@@ -142,7 +142,7 @@ test('selection clear settles through the production current-project cycle path 
 			handleError: (error) => { throw error; },
 		});
 		const mutation = createProjectMutationService<
-			SettlementProject, SettlementHistory, typeof state.recordingRouting, number, number
+			SettlementProject, SettlementHistory, number, number
 		>({
 			lifetime: { capture: () => 1, assertActive: () => undefined },
 			state, productName: 'Soundscaper',
@@ -169,7 +169,7 @@ test('selection clear settles through the production current-project cycle path 
 			publisher: { publishProjectState: () => undefined },
 			saves,
 			stopProjectBinPreview: () => undefined, clearWaveformPcmWindows: () => undefined,
-			normalizeRecordingRouting: (value) => value,
+			reconcileRecordingRouting: () => false,
 			persistRecordingRouting: async () => undefined,
 			findClip: () => null,
 			findTrack: (value, trackId) => value.tracks.find((track) => track.id === trackId) as {

@@ -6,6 +6,9 @@ import {
 	type MeterMediaStream,
 	type MicrophoneMeterState,
 } from '../src/common/editor/controller/microphone-meter-service.ts';
+import { createOwnedStateAccess } from '../src/common/editor/controller/owned-state.ts';
+
+type Mutable<Value> = { -readonly [Key in keyof Value]: Value[Key] };
 
 test('microphone meter chooses the selected hardware route and exposes a stable key', () => {
 	const harness = createHarness();
@@ -150,6 +153,26 @@ test('input loudness controls address both live and routed meters', async () => 
 	assert.deepEqual(harness.state.inputMeter, routed.snapshotValue);
 });
 
+test('transport transitions apply loudness policy inside the microphone owner', async () => {
+	const harness = createHarness();
+	await harness.service.setMicrophoneMetering(true);
+	const routed = fakeLoudnessMeter();
+	harness.service.setRoutedLoudnessMeter(routed, 'route');
+	harness.state.inputLoudnessMeasurementExplicitlyRunning = true;
+
+	harness.service.handleTransportState('stopped', 'playing');
+	assert.equal(harness.state.inputLoudnessMeasurementExplicitlyRunning, false);
+	assert.deepEqual(routed.running, [false]);
+
+	harness.service.handleTransportState('playing', 'recording');
+	assert.deepEqual(routed.running, [false, true]);
+
+	harness.state.microphoneMetering = false;
+	harness.service.handleTransportState('recording', 'stopped');
+	assert.equal(harness.service.getSession(), null);
+	assert.deepEqual(harness.releasedDevices, []);
+});
+
 interface FakeTrack {
 	addEventListener(type: string, listener: () => void): void;
 	removeEventListener(type: string, listener: () => void): void;
@@ -167,7 +190,7 @@ function createHarness(overrides: Readonly<{
 	failLoudnessConnection?: boolean;
 	loudnessGate?: Promise<void>;
 }> = {}) {
-	const state: MicrophoneMeterState = {
+	const state: Mutable<MicrophoneMeterState> = {
 		disposed: false,
 		microphoneMetering: false,
 		recorder: null,
@@ -214,7 +237,7 @@ function createHarness(overrides: Readonly<{
 		}),
 	};
 	const service = createMicrophoneMeterService({
-		state,
+		state: createOwnedStateAccess(state, state),
 		defaultDeviceId: 'default',
 		recordingCapturePool: {
 			getHardware: (deviceId) => streams.get(deviceId) ?? null,

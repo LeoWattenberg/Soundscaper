@@ -30,7 +30,10 @@ import { Aup4WorkerClient } from '../src/common/editor/aup4-client.js';
 import { createDeferredAudioAnalysisService } from '../src/common/editor/controller/deferred-analysis-service.ts';
 import { createDeferredArchiveRuntime } from '../src/common/editor/controller/deferred-archive-runtime.ts';
 import { createDeferredDawprojectService } from '../src/common/editor/controller/deferred-dawproject-service.ts';
-import { createDeferredEditorExportService } from '../src/common/editor/controller/deferred-export-service.ts';
+import {
+	createDeferredEditorExportService,
+	type DeferredEditorExportRuntime,
+} from '../src/common/editor/controller/deferred-export-service.ts';
 import { createDeferredEffectRuntime } from '../src/common/editor/controller/deferred-effect-runtime.ts';
 import {
 	createDeferredLocalAssistancePreparation,
@@ -71,7 +74,7 @@ const ASSISTANCE_STORE = Object.freeze({
 
 const analysisFacade = createDeferredAudioAnalysisService(stub());
 const dawprojectFacade = createDeferredDawprojectService(stub(), stub());
-const exportFacade = createDeferredEditorExportService(stub());
+const exportFacade = createDeferredEditorExportService(stub<DeferredEditorExportRuntime>());
 const assistanceFacade = createDeferredLocalAssistancePreparation({
 	...ASSISTANCE_PORTS, assistanceStore: ASSISTANCE_STORE,
 });

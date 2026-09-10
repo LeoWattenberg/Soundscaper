@@ -4,37 +4,53 @@ import type { AudioEditorCommand } from '../commands/protocol.ts';
 import type { EnginePublicApi } from '../engine/public-api.ts';
 import type { AudioWarpControllerCompositionDependencies } from './audio-warp-composition.ts';
 import type { DerivedAudioCompositionDependencies } from './derived-audio-composition.ts';
+import type { EditorExportState } from './export-state.ts';
 import type { ExportSnapshotRendererRuntime } from './export-snapshot-renderer.ts';
 import type { EditorControllerLifetime, EditorProjectGeneration } from './lifecycle.ts';
 import type { MicrophoneMeterService } from './microphone-meter-service.ts';
+import type { OwnedStateWriteScope } from './owned-state.ts';
 import type { MixRenderServiceDependencies } from './mix-render-service.ts';
-import type { ControllerRecordingState } from './recording-state.ts';
+import type {
+	SelectionViewCopy,
+	SelectionViewProject,
+	SelectionViewServiceRuntime,
+	SelectionViewState,
+} from './selection-view-service-types.d.ts';
 import type { TakeCompCompositionDependencies } from './take-comp-composition.ts';
 import type { EditorTaskProgressCoordinator } from './task-progress.ts';
 import type { bufferFromChannels } from './source-audio.ts';
 import type { EditorTrackServiceDependencies, TrackRecordingRoutingPort } from './track-service.ts';
 import type { generateWaveformPeaks } from './waveform-analysis.ts';
+import type { ControllerTransportState } from './transport-state.ts';
 
 /** The document shape every track and audio-production service reads. */
 export type TrackAudioCompositionProject =
 	& ReturnType<TakeCompCompositionDependencies['getProject']>
-	& ReturnType<AudioWarpControllerCompositionDependencies['getProject']>;
+	& ReturnType<AudioWarpControllerCompositionDependencies['getProject']>
+	& SelectionViewProject;
 
-export type TrackAudioCompositionState = Pick<ControllerRecordingState,
-	| 'preferredInputChannelCount' | 'preferredInputDeviceId' | 'recordingDevices' | 'recordingPoolSources'
-	| 'recordingRouteHealth' | 'recordingRouting'
-> & {
-	selectedTrackId: string | null;
-	selectedClipId: string | null;
+export type TrackAudioCompositionState = SelectionViewState & {
 	audacityEffectProcessing: boolean;
-	analysisProcessing: boolean;
 	timelineView: Parameters<EditorTrackServiceDependencies['setTimelineView']>[0];
 };
+
+type TrackAudioCompositionWritableState = Pick<TrackAudioCompositionState,
+	| 'selectedTrackId' | 'selectedClipId' | 'selectedAnnotationId'
+	| 'analysisProcessing' | 'showRms' | 'showVerticalRulers' | 'pixelsPerSecond'
+	| 'audacityEffectProcessing' | 'timelineView'
+	| 'updateDisplayWhilePlaying' | 'pinnedPlayhead' | 'playbackOnRulerClick'
+>;
+
+export type TrackAudioRecordingStatePort = Pick<TrackRecordingRoutingPort,
+	| 'getDevices' | 'getPoolSources' | 'getPreferredChannelCount' | 'getPreferredDeviceId'
+	| 'getRouting' | 'setRouteHealth' | 'setRouting'
+>;
 
 export type TrackAudioCompositionCopy =
 	& DerivedAudioCompositionDependencies['copy']
 	& EditorTrackServiceDependencies['copy']
 	& MixRenderServiceDependencies['copy']
+	& SelectionViewCopy
 	& Parameters<typeof bufferFromChannels>[3]
 	& Parameters<typeof generateWaveformPeaks>[1]
 	& Readonly<{
@@ -51,11 +67,12 @@ export type TrackAudioCompositionStore =
 	& MixRenderServiceDependencies['store'];
 
 export type TrackAudioCompositionEngine = Pick<EnginePublicApi,
-	| 'getAudioContext' | 'getAudioWarpRenderStatus' | 'getPositionFrames' | 'seek' | 'stop'
+	| 'getAudioContext' | 'getAudioWarpRenderStatus' | 'getPositionFrames' | 'getState' | 'seek' | 'stop'
 >;
 
 /** What the deferred export service takes beyond the pure helpers the composition imports itself. */
 export type TrackAudioExportPorts = Readonly<{
+	readonly state: EditorExportState;
 	readonly ffmpeg: unknown;
 	readonly fileService: unknown;
 	readonly playbackProjects: unknown;
@@ -68,7 +85,11 @@ export type TrackAudioExportPorts = Readonly<{
 }>;
 
 export interface TrackAudioCompositionDependencies {
-	readonly state: TrackAudioCompositionState;
+	readonly state: OwnedStateWriteScope<
+		TrackAudioCompositionState,
+		ControllerTransportState,
+		TrackAudioCompositionWritableState
+	>;
 	readonly copy: TrackAudioCompositionCopy;
 	readonly lifetime: EditorControllerLifetime;
 	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
@@ -92,6 +113,7 @@ export interface TrackAudioCompositionDependencies {
 	readonly trackColors: readonly string[];
 	readonly taskProgress: Pick<EditorTaskProgressCoordinator, 'run' | 'updateActive'>;
 	readonly microphoneMeter: Pick<MicrophoneMeterService, 'clearRoutedLoudnessMeter' | 'synchronizeTarget'>;
+	readonly recording: TrackAudioRecordingStatePort;
 	readonly export: TrackAudioExportPorts;
 	readonly createRenderEngine: MixRenderServiceDependencies['createRenderEngine'];
 	readonly createPreviewEngine: TakeCompCompositionDependencies['createPreviewEngine'];
@@ -104,7 +126,8 @@ export interface TrackAudioCompositionDependencies {
 		& EditorTrackServiceDependencies['commit']
 		& TakeCompCompositionDependencies['commit']
 		& AudioWarpControllerCompositionDependencies['commit']
-		& MixRenderServiceDependencies['commit'];
+		& MixRenderServiceDependencies['commit']
+		& SelectionViewServiceRuntime<TrackAudioCompositionProject>['commit'];
 	readonly setStatus: (message: string, state?: string) => void;
 	readonly publishDocumentSnapshot: () => void;
 	readonly publishProjectState: () => void;
@@ -116,14 +139,14 @@ export interface TrackAudioCompositionDependencies {
 	readonly normalizeTimelineFrame: (frame: unknown) => number;
 	readonly persistSetting: (key: string, value: unknown) => Promise<unknown>;
 	readonly productSettingKey: (name: string) => string;
-	readonly activeSelection: () => Readonly<{ readonly startFrame: number; readonly endFrame: number }> | null;
+	readonly activeSelection: SelectionViewServiceRuntime<TrackAudioCompositionProject>['activeSelection'];
 	readonly activateStoredSource: MixRenderServiceDependencies['activateStoredSource'];
 	readonly cacheSourceBuffer: DerivedAudioCompositionDependencies['cacheSourceBuffer'];
 	readonly retireSourceChunkProvider: DerivedAudioCompositionDependencies['retireSourceChunkProvider'];
 	readonly renderDryTrackRange: DerivedAudioCompositionDependencies['renderDryTrackRange'];
 	readonly hasMissingTimelineSources: () => boolean;
 	readonly updatePlayhead: (frame?: number, duration?: number) => unknown;
-	readonly updateSelection: (command: AudioEditorCommand) => unknown;
+	readonly updateSelection: SelectionViewServiceRuntime<TrackAudioCompositionProject>['updateSelection'];
 	readonly synchronizeAutomaticSampleEditMode: () => unknown;
 	readonly updateRecordingDeviceRows: TrackRecordingRoutingPort['updateDeviceRows'];
 	readonly persistRecordingRouting: TrackRecordingRoutingPort['persistRouting'];

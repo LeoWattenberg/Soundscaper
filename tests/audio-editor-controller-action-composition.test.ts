@@ -74,6 +74,35 @@ test('common controller does not claim the selected product assistance command o
 	}
 });
 
+test('composed timeline actions write transport-owned display preferences', async () => {
+	const controller = createController([]);
+	try {
+		await controller.ready;
+		assert.equal(controller.actions.timeline.toggleUpdateWhilePlaying(), false);
+		assert.equal(controller.actions.timeline.togglePinnedPlayhead(), true);
+		assert.equal(controller.actions.timeline.toggleRulerPlayback(), false);
+		const timeline = controller.getSnapshot().timeline;
+		assert.equal(timeline.updateDisplayWhilePlaying, false);
+		assert.equal(timeline.pinnedPlayhead, true);
+		assert.equal(timeline.playbackOnRulerClick, false);
+	} finally {
+		await controller.dispose();
+	}
+});
+
+test('composed selection actions preserve their no-project fallbacks before bootstrap', async () => {
+	const controller = createController([]);
+	try {
+		assert.equal(controller.project, null);
+		assert.equal(controller.actions.timeline.selectAll(), null);
+		assert.equal(controller.actions.timeline.selectNextClip(), null);
+		assert.equal(controller.actions.timeline.snapFrame(-4.4), 0);
+		assert.equal(controller.actions.timeline.snapFrame(12.4), 12);
+	} finally {
+		await controller.dispose();
+	}
+});
+
 test('real controller accepts one reviewed transcript into storage and one undo step', async () => {
 	const projectRuntime = createSoundscaperProjectRuntimeSelection();
 	const store = projectRuntime.createProjectStore({ indexedDB: null, preferOpfs: false });

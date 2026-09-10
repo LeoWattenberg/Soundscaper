@@ -5,7 +5,9 @@ import test from 'node:test';
 
 import {
 	createSelectionViewService,
+	type SelectionViewSelection,
 	type SelectionViewServiceRuntime,
+	type SelectionViewState,
 } from '../src/common/editor/controller/selection-view-service.ts';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
@@ -13,6 +15,7 @@ import {
 
 function createFixture(options: { readonly timelineDurationFrames?: number;
 	readonly clampZeroCrossing?: boolean } = {}) {
+	type TestRenderedAudio = Readonly<{ channels: readonly Float32Array[] }>;
 	type TestProject = {
 		id: string;
 		schemaFamily?: string;
@@ -31,15 +34,11 @@ function createFixture(options: { readonly timelineDurationFrames?: number;
 			durationFrames: number;
 			sourceStartFrame: number;
 		}>;
-		timelineAnnotations?: unknown[];
-		selection: {
-			startFrame: number;
-			endFrame: number;
-			trackIds: string[];
-			clipIds: string[];
-			annotationIds?: string[];
-			frequencyRange?: Record<string, number> | null;
-		} | null;
+		timelineAnnotations?: object[];
+		selection: SelectionViewSelection & {
+			trackIds: readonly string[];
+			clipIds: readonly string[];
+		};
 	};
 	let project: TestProject = {
 		id: 'project-a',
@@ -57,7 +56,7 @@ function createFixture(options: { readonly timelineDurationFrames?: number;
 		selection: { startFrame: 10, endFrame: 30, trackIds: ['track-a'], clipIds: [] },
 	};
 	const renderRequests: Array<{
-		resolve(value: unknown): void;
+		resolve(value: TestRenderedAudio): void;
 		reject(reason?: unknown): void;
 	}> = [];
 	const snappedFrames: number[] = [];
@@ -68,13 +67,13 @@ function createFixture(options: { readonly timelineDurationFrames?: number;
 	let meterResets = 0;
 	let meterSynchronizations = 0;
 	let automaticModeSynchronizations = 0;
-	const persisted: Array<[string, unknown]> = [];
-	const statuses: Array<[unknown, unknown]> = [];
+	const persisted: Array<[string, boolean]> = [];
+	const statuses: Array<[string, string | undefined]> = [];
 	const handledErrors: unknown[] = [];
-	const playheads: unknown[] = [];
+	const playheads: number[] = [];
 	const seeks: number[] = [];
 	let transportState = 'stopped';
-	const state: Record<string, unknown> = {
+	const state: SelectionViewState = {
 		analysisProcessing: false,
 		selectedTrackId: 'track-a',
 		selectedClipId: null,
@@ -87,7 +86,7 @@ function createFixture(options: { readonly timelineDurationFrames?: number;
 		timelineViewportWidth: 1_000,
 		pixelsPerSecond: 100,
 	};
-	const runtime: SelectionViewServiceRuntime = {
+	const runtime: SelectionViewServiceRuntime<TestProject, TestRenderedAudio> = {
 		DEFAULT_PIXELS_PER_SECOND: 100,
 		MAX_PIXELS_PER_SECOND: 10_000,
 		activeSelection: () => project.selection,
@@ -115,11 +114,11 @@ function createFixture(options: { readonly timelineDurationFrames?: number;
 			getState: () => ({ state: transportState }),
 			seek: (frame: number) => { seeks.push(frame); },
 		},
-		findClip: (value, clipId) => value.clips.find((clip: { id: string }) => clip.id === clipId) || null,
-		findClipTrack: (value, clipId) => value.tracks.find((track: { clipIds?: string[] }) => track.clipIds?.includes(clipId)) || null,
+		findClip: (value, clipId) => value.clips.find((clip) => clip.id === clipId) || null,
+		findClipTrack: (value, clipId) => value.tracks.find((track) => track.clipIds?.includes(clipId)) || null,
 		findNearestAudioZeroCrossing: (channels, frame) => options.clampZeroCrossing
 			? Math.max(0, Math.min(channels[0]!.length - 1, Math.round(frame))) : frame,
-		findTrack: (value, trackId) => value.tracks.find((track: { id: string }) => track.id === trackId),
+		findTrack: (value, trackId) => value.tracks.find((track) => track.id === trackId),
 		getProject: () => project,
 		handleError: (error) => { handledErrors.push(error); },
 		normalizeTimelineFrame: (value) => Math.max(0, Math.min(100, Math.round(Number(value)))),
@@ -175,7 +174,10 @@ function createFixture(options: { readonly timelineDurationFrames?: number;
 			project = { ...project, id: 'project-b' };
 			state.analysisProcessing = false;
 		},
-		resolveRender(value: unknown, requestIndex = 0) {
+		resolveRender(
+			value: TestRenderedAudio = { channels: [new Float32Array(64)] },
+			requestIndex = 0,
+		) {
 			renderRequests[requestIndex]?.resolve(value);
 		},
 		rejectRender(reason: unknown, requestIndex = 0) {
@@ -205,7 +207,7 @@ test('selection async completion cannot publish into a replacement project', asy
 	assert.equal(Object.isFrozen(fixture.service), true);
 	const pending = fixture.service.selectAtZeroCrossings();
 	fixture.replaceProject();
-	fixture.resolveRender({});
+	fixture.resolveRender();
 	assert.equal(await pending, null);
 	assert.equal(fixture.commits(), 0);
 	assert.equal(fixture.state.analysisProcessing, false);
@@ -219,7 +221,7 @@ test('retired zero-crossing cleanup cannot release a newer project analysis', as
 	const current = fixture.service.selectAtZeroCrossings();
 	assert.equal(fixture.state.analysisProcessing, true);
 
-	fixture.resolveRender({}, 0);
+	fixture.resolveRender(undefined, 0);
 	assert.equal(await retired, null);
 	assert.equal(
 		fixture.state.analysisProcessing,
@@ -227,7 +229,7 @@ test('retired zero-crossing cleanup cannot release a newer project analysis', as
 		'the retired project must not clear the current project analysis owner',
 	);
 
-	fixture.resolveRender({}, 1);
+	fixture.resolveRender(undefined, 1);
 	assert.ok(await current);
 	assert.equal(fixture.state.analysisProcessing, false);
 });
@@ -406,7 +408,9 @@ test('track and clip selection cover modern, additive, toggle, clear, and legacy
 	assert.deepEqual(fixture.project().selection?.clipIds, ['clip-a', 'clip-b']);
 	assert.equal(fixture.service.selectClip('clip-b', { toggle: true }), 'clip-a');
 	assert.deepEqual(fixture.project().selection?.clipIds, ['clip-a']);
-	assert.deepEqual(fixture.service.selectClip(null).selection?.clipIds, []);
+	const clearedClips = fixture.service.selectClip(null);
+	assert.ok(clearedClips && typeof clearedClips !== 'string');
+	assert.deepEqual(clearedClips.selection.clipIds, []);
 	assert.deepEqual(fixture.project().selection?.clipIds, []);
 	assert.throws(() => fixture.service.selectClip('missing'), /Clip not found/u);
 
@@ -424,15 +428,16 @@ test('selection range commands derive audio and label bounds around the playhead
 	});
 	assert.deepEqual(fixture.service.selectedTracksTimeRange(), { startFrame: 5, endFrame: 75 });
 	const wholeTracks = fixture.service.selectTrackStartToEnd();
+	assert.ok(wholeTracks);
 	assert.equal(wholeTracks.startFrame, 5);
 	assert.equal(wholeTracks.endFrame, 75);
 	assert.deepEqual(wholeTracks.trackIds, ['track-a', 'labels']);
-	assert.equal(fixture.service.selectLeftOfPlaybackPosition().endFrame, 20);
-	assert.equal(fixture.service.selectLeftOfPlaybackPosition(25).startFrame, 0);
-	assert.equal(fixture.service.selectRightOfPlaybackPosition().endFrame, 100);
-	assert.equal(fixture.service.selectRightOfPlaybackPosition(10).endFrame, 100);
-	assert.equal(fixture.service.selectTrackStartToCursor().startFrame, 5);
-	assert.equal(fixture.service.selectCursorToTrackEnd().endFrame, 75);
+	assert.equal(fixture.service.selectLeftOfPlaybackPosition()?.endFrame, 20);
+	assert.equal(fixture.service.selectLeftOfPlaybackPosition(25)?.startFrame, 0);
+	assert.equal(fixture.service.selectRightOfPlaybackPosition()?.endFrame, 100);
+	assert.equal(fixture.service.selectRightOfPlaybackPosition(10)?.endFrame, 100);
+	assert.equal(fixture.service.selectTrackStartToCursor()?.startFrame, 5);
+	assert.equal(fixture.service.selectCursorToTrackEnd()?.endFrame, 75);
 
 	const selected = fixture.service.selectAllTracks();
 	assert.deepEqual(selected?.trackIds, ['track-a', 'track-b', 'labels']);
@@ -517,8 +522,9 @@ test('the zoom ceiling stays reachable however long the project is', () => {
 test('zero-crossing alignment commits success and reports render failures', async () => {
 	const success = createFixture();
 	const aligned = success.service.selectAtZeroCrossings();
-	success.resolveRender({});
+	success.resolveRender();
 	const result = await aligned;
+	assert.ok(result);
 	assert.equal(result.startFrame, 10);
 	assert.equal(result.endFrame, 30);
 	assert.deepEqual(result.trackIds, ['track-a']);
@@ -541,7 +547,7 @@ test('zero-crossing alignment leaves an edge beyond real audio unchanged', async
 		startFrame: 80, endFrame: 500, trackIds: ['track-a'], clipIds: [],
 	} });
 	const pending = fixture.service.selectAtZeroCrossings();
-	fixture.resolveRender({});
+	fixture.resolveRender();
 	assert.equal((await pending)?.endFrame, 500);
 	assert.equal(fixture.project().selection?.endFrame, 500);
 });

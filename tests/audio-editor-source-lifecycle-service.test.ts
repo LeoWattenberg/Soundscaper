@@ -8,94 +8,11 @@ import {
 	createSourceLifecycleService,
 	type SourceLifecycleServiceRuntime,
 } from '../src/common/editor/controller/source-lifecycle-service.ts';
-
-function createFixture(options: Readonly<{ videoFailure?: Error }> = {}) {
-	const source = { id: 'source', kind: 'audio', frameCount: 100, storageKey: 'source' };
-	const clip = { id: 'clip', sourceId: source.id, durationFrames: 100 };
-	let project = { id: 'project-a', clips: [clip], sources: [source] };
-	let resolveRead: (channels: Float32Array[]) => void = () => undefined;
-	let publishes = 0;
-	const clipWaveformPcmRequests = new Map<string, unknown>();
-	const clipWaveformPcmWindows = new Map<string, unknown>();
-	const sourceChunkProviders = new Map<string, unknown>([['source', { id: 'provider' }]]);
-	const sourcePeaks = new Map<string, unknown>();
-	const cachedBuffers = new Map<string, unknown>();
-	const deletedAnalyses: string[] = [];
-	const activatedVideoSources: Array<Readonly<Record<string, unknown>>> = [];
-	const activatedVideoSignals: Array<AbortSignal | undefined> = [];
-	const missingSourceIds = new Set<string>();
-	const sourceBuffers = {
-		has: (id: string) => cachedBuffers.has(id),
-		get: (id: string) => cachedBuffers.get(id),
-		delete: (id: string) => cachedBuffers.delete(id),
-		setIfFits(id: string, value: unknown) {
-			cachedBuffers.set(id, value);
-			return true;
-		},
-	};
-	const runtime: SourceLifecycleServiceRuntime = {
-		MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES: 2,
-		MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES: 100,
-		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES: 1_024,
-		activateVideoSource: async (candidate, activationOptions) => {
-			if (options.videoFailure) throw options.videoFailure;
-			activatedVideoSources.push(candidate);
-			activatedVideoSignals.push(activationOptions?.signal);
-		},
-		allProjectClips: (value) => value.clips,
-		audioBufferChannels: () => [],
-		clipSourceWindowRange: (_value, startFrame, endFrame) => ({ startFrame, endFrame }),
-		clipWaveformPcmRequests,
-		clipWaveformPcmWindows,
-		copy: {},
-		createStoredChunkProvider: () => ({ id: 'created-provider' }),
-		engine: { getAudioContext: async () => null },
-		findClip: (value, id) => value.clips.find((candidate: { id: string }) => candidate.id === id),
-		findSource: (value, id) => value.sources.find((candidate: { id: string }) => candidate.id === id),
-		generateStoredWaveformPeaks: async () => ({ levels: [] }),
-		generateWaveformPeaks: async () => ({ levels: [] }),
-		getProject: () => project,
-		isStreamableStoredSource: () => true,
-		legacyPeakCacheKey: (id) => `legacy:${id}`,
-		peakCacheKey: (id) => `peak:${id}`,
-		publishDocumentSnapshot: () => { publishes += 1; },
-		readStoredAudioBuffer: async () => null,
-		readWaveformPcmWindow: () => new Promise<Float32Array[]>((resolve) => { resolveRead = resolve; }),
-		setStatus: () => undefined,
-		sourceAudioBufferBytes: (value) => value.byteLength,
-		sourceBuffers,
-		sourceChunkProviders,
-		sourcePcmBytes: () => 0,
-		sourcePeaks,
-		state: { missingSourceIds },
-		store: { deleteAnalysis: async (key: string) => { deletedAnalyses.push(key); } },
-		waveformPcmWindowContains: () => false,
-		waveformPeaksHaveRms: () => true,
-	};
-	return {
-		service: createSourceLifecycleService(runtime),
-		cachedBuffers,
-		deletedAnalyses,
-		sourceChunkProviders,
-		sourcePeaks,
-		activatedVideoSources,
-		activatedVideoSignals,
-		missingSourceIds,
-		clipWaveformPcmRequests,
-		clipWaveformPcmWindows,
-		publishes: () => publishes,
-		replaceProject() {
-			project = { ...project, id: 'project-b' };
-		},
-		resolveRead(channels: Float32Array[]) {
-			resolveRead(channels);
-		},
-	};
-}
+import { createSourceLifecycleFixture } from './helpers/audio-editor-source-lifecycle-fixture.ts';
 
 test('visual-only still, generator, and timeline image sources do not enter the PCM missing-source fence', async () => {
 	for (const kind of ['still', 'generator', 'image']) {
-		const fixture = createFixture();
+		const fixture = createSourceLifecycleFixture();
 		const source = { id: `${kind}-source`, kind };
 		await fixture.service.loadProjectSources({ id: `${kind}-project`, sources: [source],
 			clips: [{ id: `${kind}-clip`, kind, sourceId: source.id }] });
@@ -103,7 +20,7 @@ test('visual-only still, generator, and timeline image sources do not enter the 
 	}
 });
 test('a required rendered-video source activates even when only its manifest references it', async () => {
-	const fixture = createFixture();
+	const fixture = createSourceLifecycleFixture();
 	const source = Object.freeze({
 		id: 'fallback-video', kind: 'video', storageKey: 'fallback-video',
 		frameCount: 48, sampleRate: 48_000, width: 1_280, height: 720, frameRate: 24,
@@ -129,7 +46,7 @@ test('a required rendered-video source activates even when only its manifest ref
 
 test('required rendered-video activation rejects missing, wrong-kind, and unreadable sources', async () => {
 	const audio = Object.freeze({ id: 'fallback-video', kind: 'audio' });
-	const wrongKind = createFixture();
+	const wrongKind = createSourceLifecycleFixture();
 	await assert.rejects(
 		wrongKind.service.loadProjectSources(
 			{ id: 'project', clips: [], sources: [audio] },
@@ -146,7 +63,7 @@ test('required rendered-video activation rejects missing, wrong-kind, and unread
 	);
 
 	const failure = new Error('video body disappeared');
-	const unreadable = createFixture({ videoFailure: failure });
+	const unreadable = createSourceLifecycleFixture({ videoFailure: failure });
 	await assert.rejects(
 		unreadable.service.loadProjectSources(
 			{ id: 'project', clips: [], sources: [{ id: 'fallback-video', kind: 'video' }] },
@@ -157,7 +74,7 @@ test('required rendered-video activation rejects missing, wrong-kind, and unread
 });
 
 test('late waveform PCM completion is discarded after a project switch', async () => {
-	const fixture = createFixture();
+	const fixture = createSourceLifecycleFixture();
 	const pending = fixture.service.requestWaveformPcmWindow('clip', { startFrame: 0, endFrame: 20 });
 	fixture.replaceProject();
 	fixture.resolveRead([new Float32Array(20)]);
@@ -167,8 +84,21 @@ test('late waveform PCM completion is discarded after a project switch', async (
 	assert.equal(fixture.publishes(), 0);
 });
 
+test('waveform PCM requests reject numeric-string persisted geometry', async () => {
+	for (const field of ['durationFrames', 'frameCount'] as const) {
+		const fixture = createSourceLifecycleFixture();
+		const target = field === 'durationFrames' ? fixture.clip : fixture.source;
+		Object.defineProperty(target, field, { value: '100' });
+		const pending = fixture.service.requestWaveformPcmWindow('clip', { startFrame: 0, endFrame: 20 });
+		fixture.resolveRead([new Float32Array(20)]);
+		await assert.rejects(pending, field === 'durationFrames'
+			? /non-negative clip duration/iu
+			: /non-negative source frame count/iu);
+	}
+});
+
 test('short source buffers are cached and oversized buffers evict stale entries', () => {
-	const fixture = createFixture();
+	const fixture = createSourceLifecycleFixture();
 	assert.equal(fixture.service.cacheSourceBuffer('source', { byteLength: 128 }), true);
 	assert.equal(fixture.cachedBuffers.has('source'), true);
 	assert.equal(fixture.service.cacheSourceBuffer('source', { byteLength: 2_048 }), false);
@@ -176,22 +106,32 @@ test('short source buffers are cached and oversized buffers evict stale entries'
 });
 
 test('clearing waveform windows also forgets in-flight ownership', () => {
-	const fixture = createFixture();
-	fixture.clipWaveformPcmRequests.set('clip', {});
-	fixture.clipWaveformPcmWindows.set('clip', {});
+	const fixture = createSourceLifecycleFixture();
+	fixture.clipWaveformPcmRequests.set('clip', {
+		sourceId: 'source', startFrame: 0, endFrame: 1, promise: Promise.resolve(null),
+	});
+	fixture.clipWaveformPcmWindows.set('clip', {
+		clipId: 'clip', sourceId: 'source', startFrame: 0, endFrame: 1, channels: [],
+	});
 	fixture.service.clearWaveformPcmWindows();
 	assert.equal(fixture.clipWaveformPcmRequests.size, 0);
 	assert.equal(fixture.clipWaveformPcmWindows.size, 0);
 });
 
 test('source runtime invalidation clears only that source and suppresses its late waveform publication', async () => {
-	const fixture = createFixture();
+	const fixture = createSourceLifecycleFixture();
 	fixture.cachedBuffers.set('source', {}); fixture.cachedBuffers.set('other', {});
 	fixture.sourcePeaks.set('source', {}); fixture.sourcePeaks.set('other', {});
-	fixture.clipWaveformPcmWindows.set('cached', { sourceId: 'source' });
-	fixture.clipWaveformPcmWindows.set('other', { sourceId: 'other' });
+	fixture.clipWaveformPcmWindows.set('cached', {
+		clipId: 'cached', sourceId: 'source', startFrame: 0, endFrame: 1, channels: [],
+	});
+	fixture.clipWaveformPcmWindows.set('other', {
+		clipId: 'other', sourceId: 'other', startFrame: 0, endFrame: 1, channels: [],
+	});
 	const pending = fixture.service.requestWaveformPcmWindow('clip', { startFrame: 0, endFrame: 20 });
-	fixture.clipWaveformPcmRequests.set('other', { sourceId: 'other' });
+	fixture.clipWaveformPcmRequests.set('other', {
+		sourceId: 'other', startFrame: 0, endFrame: 1, promise: Promise.resolve(null),
+	});
 
 	await fixture.service.invalidateSourceRuntime('source');
 
@@ -254,13 +194,15 @@ function createRequiredSourceFixture(options: RequiredSourceFixtureOptions = {})
 	const contextStall = deferred<typeof audioContext>();
 	const bufferStall = deferred<typeof loadedBuffer>();
 	const stallStarted = deferred<void>();
-	const cachedBuffers = new Map<string, unknown>([['fallback-source', Object.freeze({ stale: true })]]);
+	const cachedBuffers = new Map<string, Readonly<Record<string, unknown>>>([
+		['fallback-source', Object.freeze({ stale: true })],
+	]);
 	const sourceBuffers = {
 		[Symbol.iterator]: () => cachedBuffers[Symbol.iterator](),
 		has: (id: string) => cachedBuffers.has(id),
 		get: (id: string) => cachedBuffers.get(id),
 		delete: (id: string) => cachedBuffers.delete(id),
-		setIfFits(id: string, value: unknown) {
+		setIfFits(id: string, value: Readonly<Record<string, unknown>>) {
 			if (options.cacheFits === false) return false;
 			cachedBuffers.set(id, value);
 			return true;
@@ -290,7 +232,9 @@ function createRequiredSourceFixture(options: RequiredSourceFixtureOptions = {})
 		clipWaveformPcmRequests: new Map(),
 		clipWaveformPcmWindows: new Map(),
 		copy: {},
-		createStoredChunkProvider: () => freshProvider,
+		createStoredChunkProviderCandidate: () => (
+			options.streamable ?? options.long === true ? freshProvider : null
+		),
 		engine: {
 			getAudioContext: async () => {
 				if (options.stall === 'context') {
@@ -308,7 +252,6 @@ function createRequiredSourceFixture(options: RequiredSourceFixtureOptions = {})
 		generateStoredWaveformPeaks: async () => ({ levels: [] }),
 		generateWaveformPeaks: async () => ({ levels: [] }),
 		getProject: () => project,
-		isStreamableStoredSource: () => options.streamable ?? options.long === true,
 		legacyPeakCacheKey: (id) => `legacy:${id}`,
 		peakCacheKey: (id) => `peak:${id}`,
 		publishDocumentSnapshot: () => undefined,

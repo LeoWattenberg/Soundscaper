@@ -46,7 +46,7 @@ test('chunk-required short source activation never requests an AudioContext', as
 	const provider = Object.freeze({ id: 'short-source-provider' });
 	const runtime = runtimeProxy<SourceLifecycleServiceRuntime>({
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES: 32,
-		createStoredChunkProvider: () => provider,
+		createStoredChunkProviderCandidate: () => provider,
 		engine: {
 			getAudioContext: async () => {
 				audioContextRequests += 1;
@@ -55,13 +55,20 @@ test('chunk-required short source activation never requests an AudioContext', as
 			setChunkSources: () => undefined,
 		},
 		generateStoredWaveformPeaks: async () => ({ levels: [] }),
-		isStreamableStoredSource: () => true,
 		peakCacheKey: (sourceId: string) => `peaks:${sourceId}`,
-		sourceBuffers: { delete: () => true },
+		sourceBuffers: {
+			[Symbol.iterator]: () => new Map<string, unknown>()[Symbol.iterator](),
+			has: () => false,
+			get: () => undefined,
+			delete: () => true,
+			setIfFits: () => false,
+		},
 		sourceChunkProviders,
 		sourcePcmBytes: () => 16,
 		sourcePeaks,
 		store: {
+			getSourceMetadata: async () => null,
+			loadAnalysis: async () => null,
 			readSourceChunk: async () => ({ channels: [] }),
 			saveAnalysis: async () => undefined,
 		},

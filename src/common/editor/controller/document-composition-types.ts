@@ -10,6 +10,7 @@ import type { EditorCommandCapabilities } from './command-capability-policy.ts';
 import type { EditorControllerLifetime, EditorProjectGeneration } from './lifecycle.ts';
 import type {
 	EditorCommandMoment,
+	MutationTrack,
 	MutationProject,
 	ProjectMutationState,
 } from './project-mutation-service.ts';
@@ -37,7 +38,6 @@ import type { ProjectVisualProject } from './project-visual-types.ts';
 import type { SourceRuntimeComposition } from './source-runtime-composition.ts';
 import type { TimelineAnnotationControllerState } from './timeline-annotation-service.ts';
 import type { TrackDuplicationProject } from './track-duplication-service.ts';
-import type { RecordingRouting } from './track-service.ts';
 
 /** One document shape that satisfies every persistence and mutation service's constraint. */
 export type DocumentProject =
@@ -75,7 +75,7 @@ export interface DocumentSessionPort {
 }
 
 export type DocumentCompositionState =
-	& ProjectMutationState<DocumentProject, DocumentHistory, RecordingRouting>
+	& ProjectMutationState<DocumentProject, DocumentHistory>
 	& ProjectRetentionState<DocumentHistory>
 	& ProjectViewState
 	& ProjectSessionSelectionState
@@ -147,6 +147,7 @@ export interface DocumentCompositionDependencies {
 	readonly synchronizeAutomaticSampleEditMode: () => void;
 	readonly synchronizeMicrophoneMeterTarget: () => void;
 	readonly stopProjectBinPreview: () => unknown;
+	readonly reconcileRecordingRouting: (tracks: readonly MutationTrack[]) => boolean;
 	readonly persistRecordingRouting: () => Promise<unknown>;
 	readonly publishDocumentSnapshot: () => void;
 	readonly handleError: (error: unknown) => void;

@@ -46,10 +46,10 @@ export interface TimedRecordingResult {
 }
 
 export interface TimedRecordingMutableState<TimerHandle = unknown> {
-	readOnly: boolean;
-	takeCycleRecovery?: unknown;
-	takeCycleRecoveryInspecting?: boolean;
-	disposed: boolean;
+	readonly readOnly: boolean;
+	readonly takeCycleRecovery?: unknown;
+	readonly takeCycleRecoveryInspecting?: boolean;
+	readonly disposed: boolean;
 	recorder: RecordingControllerLike | null;
 	recordingStarting: boolean;
 	recordingStartPromise: Promise<void> | null;

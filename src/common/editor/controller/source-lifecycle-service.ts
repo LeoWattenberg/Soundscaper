@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- Explicit legacy ports keep this migration seam typo-safe while source records are narrowed. */
-
 import {
 	createPreparedProjectSources,
 	type PreparedProjectSourceEntry,
@@ -9,66 +7,75 @@ import {
 } from './prepared-project-sources.ts';
 import { createSourceChunkProviderRegistration } from './source-chunk-provider-registration.ts';
 import { isRetiredSourceReadError } from './source-audio.ts';
-import { resolveWaveformPcmWindowRequest } from './waveform-pcm-window-request.ts';
-import { audioWarpSourceWindowRange } from '../audio-warp-runtime.ts';
+import type {
+	ActivateStoredSourceOptions,
+	SourceLifecycleClip,
+	SourceLifecycleLoadOptions,
+	SourceLifecycleProject,
+	SourceLifecycleServiceRuntime,
+	SourceLifecycleSource,
+	SourceLifecycleWaveformPcmRequest,
+	SourceLifecycleWaveformPcmWindow,
+} from './source-lifecycle-types.d.ts';
+import {
+	requireWaveformSourceFrameCount, resolveWaveformPcmWindowRequest, type WaveformPcmWindowRequest,
+} from './waveform-pcm-window-request.ts';
+import {
+	audioWarpSourceWindowRange,
+	type AudioWarpRuntimeClip,
+	type AudioWarpRuntimeProject,
+} from '../audio-warp-runtime.ts';
 
 export type {
 	PreparedProjectSourceInputs,
 	PreparedRequiredProjectSources,
 } from './prepared-project-sources.ts';
-
-type LegacyPort = (...args: any[]) => any;
-
-interface SourceChunkProviderRegistryPort extends Map<string, any> {
-	drain?(): PromiseLike<void> | void;
-}
-
-export interface SourceLifecycleServiceRuntime<Buffer = unknown> {
-	readonly MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES: number;
-	readonly MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES: number;
-	readonly SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES: number;
-	readonly activateVideoSource: LegacyPort;
-	readonly allProjectClips: LegacyPort;
-	readonly audioBufferChannels: LegacyPort;
-	readonly clipSourceWindowRange: LegacyPort;
-	readonly clipWaveformPcmRequests: Map<string, any>;
-	readonly clipWaveformPcmWindows: Map<string, any>;
-	readonly copy: any;
-	readonly createStoredChunkProvider: LegacyPort;
-	readonly engine: any;
-	readonly findClip: LegacyPort;
-	readonly findSource: LegacyPort;
-	readonly generateStoredWaveformPeaks: LegacyPort;
-	readonly generateWaveformPeaks: LegacyPort;
-	readonly getProject: LegacyPort;
-	readonly isStreamableStoredSource: LegacyPort;
-	readonly legacyPeakCacheKey: LegacyPort;
-	readonly peakCacheKey: LegacyPort;
-	readonly publishDocumentSnapshot: LegacyPort;
-	readonly readStoredAudioBuffer: (...args: any[]) => PromiseLike<Buffer | null> | Buffer | null;
-	readonly readWaveformPcmWindow: LegacyPort;
-	readonly setStatus: LegacyPort;
-	readonly sourceAudioBufferBytes: LegacyPort;
-	readonly sourceBuffers: any;
-	readonly sourceChunkProviders: SourceChunkProviderRegistryPort;
-	readonly sourcePcmBytes: LegacyPort;
-	readonly sourcePeaks: Map<string, any>;
-	readonly state: any;
-	readonly store: any;
-	readonly waveformPcmWindowContains: LegacyPort;
-	readonly waveformPeaksHaveRms: LegacyPort;
-}
-
-export interface SourceLifecycleLoadOptions {
-	readonly excludedAudioSourceIds?: readonly string[];
-	readonly onlyRequiredAudioSources?: boolean;
-	readonly requiredAudioSourceIds?: readonly string[];
-	readonly requiredVideoSourceIds?: readonly string[];
-	readonly signal?: AbortSignal;
-}
+export type {
+	ActivateStoredSourceOptions,
+	SourceLifecycleAudioBuffer,
+	SourceLifecycleBufferCache,
+	SourceLifecycleClip,
+	SourceLifecycleCopy,
+	SourceLifecycleEngine,
+	SourceLifecycleLoadOptions,
+	SourceLifecycleMetadata,
+	SourceLifecycleProject,
+	SourceLifecycleServiceRuntime,
+	SourceLifecycleSource,
+	SourceLifecycleState,
+	SourceLifecycleStore,
+	SourceLifecycleWaveformPcmRequest,
+	SourceLifecycleWaveformPcmWindow,
+} from './source-lifecycle-types.d.ts';
 
 function throwIfSourceLoadAborted(signal?: AbortSignal): void {
 	if (signal?.aborted) throw signal.reason;
+}
+
+function hasWaveformPeakLevels<Value>(
+	value: Value | null | undefined,
+): value is Value & Readonly<{ levels: unknown }> {
+	return typeof value === 'object' && value !== null && 'levels' in value
+		&& Boolean((value as Readonly<{ levels?: unknown }>).levels);
+}
+
+function isAudioWarpRuntimeProject(
+	project: SourceLifecycleProject,
+): project is SourceLifecycleProject & AudioWarpRuntimeProject {
+	const tempoMap = project.tempoMap;
+	return Number.isSafeInteger(project.sampleRate) && Number(project.sampleRate) > 0
+		&& typeof tempoMap === 'object' && tempoMap !== null
+		&& 'events' in tempoMap && Array.isArray(tempoMap.events) && tempoMap.events.length > 0;
+}
+
+function isAudioWarpRuntimeClip(
+	clip: SourceLifecycleClip,
+): clip is SourceLifecycleClip & AudioWarpRuntimeClip {
+	return clip.kind === 'audio'
+		&& Number.isSafeInteger(clip.timelineStartFrame) && Number(clip.timelineStartFrame) >= 0
+		&& Number.isSafeInteger(clip.durationFrames) && Number(clip.durationFrames) > 0
+		&& Number.isSafeInteger(clip.sourceStartFrame) && Number(clip.sourceStartFrame) >= 0
+		&& Number.isSafeInteger(clip.sourceDurationFrames) && Number(clip.sourceDurationFrames) > 0;
 }
 
 function awaitSourceLoadOperation<Value>(
@@ -113,14 +120,22 @@ import {
 	sourceIdSet,
 } from './required-source-admission.ts';
 
-export function createSourceLifecycleService<Buffer>(runtime: SourceLifecycleServiceRuntime<Buffer>) {
+export function createSourceLifecycleService<
+	Buffer,
+	Project extends SourceLifecycleProject = SourceLifecycleProject,
+	Provider = unknown,
+	Peaks = unknown,
+	Metadata = unknown,
+>(runtime: SourceLifecycleServiceRuntime<Buffer, Project, Provider, Peaks, Metadata>) {
 	const {
 		MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES, MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES,
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES, activateVideoSource, allProjectClips,
 		audioBufferChannels, clipSourceWindowRange, clipWaveformPcmRequests,
-		clipWaveformPcmWindows, copy, createStoredChunkProvider, engine, findClip,
+		clipWaveformPcmWindows, copy,
+		createStoredChunkProviderCandidate: buildStoredChunkProviderCandidate,
+		engine, findClip,
 		findSource, generateStoredWaveformPeaks, generateWaveformPeaks, getProject,
-		isStreamableStoredSource, legacyPeakCacheKey, peakCacheKey,
+		legacyPeakCacheKey, peakCacheKey,
 		publishDocumentSnapshot, readStoredAudioBuffer, readWaveformPcmWindow,
 		setStatus, sourceAudioBufferBytes, sourceBuffers, sourceChunkProviders,
 		sourcePcmBytes, sourcePeaks, state, store, waveformPcmWindowContains,
@@ -131,7 +146,9 @@ export function createSourceLifecycleService<Buffer>(runtime: SourceLifecycleSer
 		createStoredChunkProviderCandidate, forgetChunkProvider,
 		registerStoredChunkProvider, retireSourceChunkProvider,
 	} = createSourceChunkProviderRegistration({
-		createStoredChunkProvider, engine, isStreamableStoredSource, sourceChunkProviders, store,
+		createStoredChunkProviderCandidate: buildStoredChunkProviderCandidate,
+		engine,
+		sourceChunkProviders,
 	});
 
 	function cacheSourceBuffer(sourceId: string, buffer: Buffer) {
@@ -144,25 +161,40 @@ export function createSourceLifecycleService<Buffer>(runtime: SourceLifecycleSer
 		return false;
 	}
 
-	async function requestWaveformPcmWindow(clipId: string, options: any = {}) {
+	async function requestWaveformPcmWindow(
+		clipId: string,
+		options: WaveformPcmWindowRequest = {},
+	): Promise<SourceLifecycleWaveformPcmWindow | null> {
 		const projectAtStart = getProject();
-		const clip = projectAtStart ? findClip(projectAtStart, clipId) : null;
+		if (!projectAtStart) return null;
+		const clip = findClip(projectAtStart, clipId);
 		const source = clip ? findSource(projectAtStart, clip.sourceId) : null;
 		if (!clip || !source || source.kind === 'video' || source.kind === 'image' || sourceBuffers.has(source.id)) return null;
 		const cacheKey = String(clip.id);
 		const requestedRange = resolveWaveformPcmWindowRequest(options, clip.durationFrames);
 		if (!requestedRange) return null;
 		const { startFrame, endFrame } = requestedRange;
-		const range = clip.warpMap == null
-			? clipSourceWindowRange(clip, startFrame, endFrame, source.frameCount)
-			: audioWarpSourceWindowRange(projectAtStart, clip, {
-				startFrame,
-				endFrame,
-				sourceFrameCount: source.frameCount,
-			});
+		const sourceFrameCount = requireWaveformSourceFrameCount(source.frameCount);
+		let range;
+		if (clip.warpMap == null) {
+			range = clipSourceWindowRange(clip, startFrame, endFrame, sourceFrameCount);
+		} else {
+			if (!isAudioWarpRuntimeProject(projectAtStart) || !isAudioWarpRuntimeClip(clip)) {
+				throw new TypeError('A warped waveform window requires valid project and audio clip timing.');
+			}
+			range = audioWarpSourceWindowRange(
+				projectAtStart,
+				clip,
+				{
+					startFrame,
+					endFrame,
+					sourceFrameCount,
+				},
+			);
+		}
 		if (range.endFrame - range.startFrame > MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES) return null;
 		const cached = clipWaveformPcmWindows.get(cacheKey);
-		if (waveformPcmWindowContains(cached, range)) {
+		if (cached && waveformPcmWindowContains(cached, range)) {
 			clipWaveformPcmWindows.delete(cacheKey);
 			clipWaveformPcmWindows.set(cacheKey, cached);
 			return cached;
@@ -170,48 +202,47 @@ export function createSourceLifecycleService<Buffer>(runtime: SourceLifecycleSer
 		const pending = clipWaveformPcmRequests.get(cacheKey);
 		if (pending && waveformPcmWindowContains(pending, range)) return pending.promise;
 
-		let provider = sourceChunkProviders.get(source.id);
+		let provider: Provider | null | undefined = sourceChunkProviders.get(source.id);
 		if (!provider) {
 			const metadata = await store.getSourceMetadata(source.storageKey || source.id);
 			if (getProject() !== projectAtStart) return null;
 			provider = registerStoredChunkProvider(source, metadata);
 		}
 		if (!provider || getProject() !== projectAtStart) return null;
-		const request: any = {
+		const request: SourceLifecycleWaveformPcmRequest = {
 			sourceId: source.id,
 			startFrame: range.startFrame,
 			endFrame: range.endFrame,
-			promise: null,
+			promise: Promise.resolve(readWaveformPcmWindow(provider, range)).then((channels) => {
+				if (clipWaveformPcmRequests.get(cacheKey) !== request) return null;
+				clipWaveformPcmRequests.delete(cacheKey);
+				const currentProject = getProject();
+				if (!currentProject || currentProject !== projectAtStart || !findSource(currentProject, source.id)) return null;
+				const window: SourceLifecycleWaveformPcmWindow = Object.freeze({
+					clipId: cacheKey,
+					sourceId: source.id,
+					startFrame: range.startFrame,
+					endFrame: range.endFrame,
+					channels: Object.freeze(channels),
+				});
+				clipWaveformPcmWindows.delete(cacheKey);
+				clipWaveformPcmWindows.set(cacheKey, window);
+				while (clipWaveformPcmWindows.size > MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES) {
+					const oldestKey = clipWaveformPcmWindows.keys().next().value;
+					if (oldestKey === undefined) break;
+					clipWaveformPcmWindows.delete(oldestKey);
+				}
+				publishDocumentSnapshot();
+				return window;
+			}).catch((error: unknown) => {
+				if (clipWaveformPcmRequests.get(cacheKey) === request) clipWaveformPcmRequests.delete(cacheKey);
+				// A window is a speculative cache fill. Losing its provider to routine
+				// retirement is not a fault the user can act on, and reporting it put a
+				// generic error over an export that was still running fine.
+				if (isRetiredSourceReadError(error)) return null;
+				throw error;
+			}),
 		};
-		request.promise = readWaveformPcmWindow(provider, range).then((channels: any) => {
-			if (clipWaveformPcmRequests.get(cacheKey) !== request) return null;
-			clipWaveformPcmRequests.delete(cacheKey);
-			const currentProject = getProject();
-			if (currentProject !== projectAtStart || !findSource(currentProject, source.id)) return null;
-			const window = Object.freeze({
-				clipId: cacheKey,
-				sourceId: source.id,
-				startFrame: range.startFrame,
-				endFrame: range.endFrame,
-				channels: Object.freeze(channels),
-			});
-			clipWaveformPcmWindows.delete(cacheKey);
-			clipWaveformPcmWindows.set(cacheKey, window);
-			while (clipWaveformPcmWindows.size > MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES) {
-				const oldestKey = clipWaveformPcmWindows.keys().next().value;
-				if (oldestKey === undefined) break;
-				clipWaveformPcmWindows.delete(oldestKey);
-			}
-			publishDocumentSnapshot();
-			return window;
-		}).catch((error: unknown) => {
-			if (clipWaveformPcmRequests.get(cacheKey) === request) clipWaveformPcmRequests.delete(cacheKey);
-			// A window is a speculative cache fill. Losing its provider to routine
-			// retirement is not a fault the user can act on, and reporting it put a
-			// generic error over an export that was still running fine.
-			if (isRetiredSourceReadError(error)) return null;
-			throw error;
-		});
 		clipWaveformPcmRequests.set(cacheKey, request);
 		return request.promise;
 	}
@@ -233,21 +264,21 @@ export function createSourceLifecycleService<Buffer>(runtime: SourceLifecycleSer
 		await store.deleteAnalysis?.(peakCacheKey(sourceId));
 	}
 
-	async function loadProjectSources(project: any, options: SourceLifecycleLoadOptions = {}) {
+	async function loadProjectSources(project: Project, options: SourceLifecycleLoadOptions = {}) {
 		const requiredSourceIds = requiredAudioSourceIdSet(project, options);
 		const requiredVideoSourceIds = requiredVideoSourceIdSet(project, options);
 		const excludedSourceIds = sourceIdSet(options.excludedAudioSourceIds ?? [], 'excluded audio source');
 		const usedSourceIds = options.onlyRequiredAudioSources
 			? new Set<string>()
-			: new Set<string>(allProjectClips(project).map((clip: any) => clip.sourceId));
+			: new Set<string>(allProjectClips(project).map((clip) => clip.sourceId));
 		for (const sourceId of excludedSourceIds) usedSourceIds.delete(sourceId);
 		for (const sourceId of requiredSourceIds) usedSourceIds.add(sourceId);
 		for (const sourceId of requiredVideoSourceIds) usedSourceIds.add(sourceId);
 		const transientBuffers = new Map<string, Buffer>();
 		if (!usedSourceIds.size) return transientBuffers;
 		throwIfSourceLoadAborted(options.signal);
-		let context: any = null;
-		for (const source of project.sources.filter((candidate: any) => usedSourceIds.has(candidate.id))) {
+		let context: unknown = null;
+		for (const source of project.sources.filter((candidate) => usedSourceIds.has(candidate.id))) {
 			const required = requiredSourceIds.has(source.id) || requiredVideoSourceIds.has(source.id);
 			try {
 				if (source.kind === 'video') {
@@ -323,7 +354,7 @@ export function createSourceLifecycleService<Buffer>(runtime: SourceLifecycleSer
 					}
 				}
 				await Promise.resolve(store.deleteAnalysis?.(legacyPeakCacheKey(source.id))).catch(() => undefined);
-				if (peaks?.levels) sourcePeaks.set(source.id, peaks);
+				if (hasWaveformPeakLevels(peaks)) sourcePeaks.set(source.id, peaks);
 			} catch (error) {
 				throwIfSourceLoadAborted(options.signal);
 				if (options.onlyRequiredAudioSources) throw error;
@@ -337,11 +368,11 @@ export function createSourceLifecycleService<Buffer>(runtime: SourceLifecycleSer
 	}
 
 	async function prepareRequiredProjectSources(
-		project: any,
+		project: Project,
 		options: SourceLifecycleLoadOptions,
-	): Promise<PreparedRequiredProjectSources<Buffer>> {
+	): Promise<PreparedRequiredProjectSources<Buffer, Provider>> {
 		const requiredSourceIds = requiredAudioSourceIdSet(project, options);
-		const prepared = new Map<string, PreparedProjectSourceEntry<Buffer>>();
+		const prepared = new Map<string, PreparedProjectSourceEntry<Buffer, Provider>>();
 		const ownership = createPreparedProjectSources({
 			prepared,
 			signal: options.signal,
@@ -351,9 +382,9 @@ export function createSourceLifecycleService<Buffer>(runtime: SourceLifecycleSer
 			throwIfAborted: throwIfSourceLoadAborted,
 		});
 		throwIfSourceLoadAborted(options.signal);
-		let context: any = null;
+		let context: unknown = null;
 		try {
-			for (const source of project.sources.filter((candidate: any) => requiredSourceIds.has(candidate.id))) {
+			for (const source of project.sources.filter((candidate) => requiredSourceIds.has(candidate.id))) {
 				const metadata = await awaitSourceLoadOperation(
 					() => store.getSourceMetadata(source.storageKey || source.id),
 					options.signal,
@@ -397,9 +428,9 @@ export function createSourceLifecycleService<Buffer>(runtime: SourceLifecycleSer
 		return ownership;
 	}
 
-	async function activateStoredSource(source: any, metadata: any, {
+	async function activateStoredSource(source: SourceLifecycleSource, metadata: Metadata | null | undefined, {
 		buffer = null, requireChunkStream = false,
-	}: any = {}) {
+	}: ActivateStoredSourceOptions<Buffer> = {}): Promise<Peaks> {
 		const provider = registerStoredChunkProvider(source, metadata);
 		if (requireChunkStream && !provider) {
 			throw new Error(`Source ${source.id} requires a playable chunk provider.`);
@@ -421,27 +452,27 @@ export function createSourceLifecycleService<Buffer>(runtime: SourceLifecycleSer
 	}
 
 	async function ensureProjectSourcesAvailable(
-		snapshot: any,
+		snapshot: Project,
 		options: SourceLifecycleLoadOptions = {},
 	) {
 		const requiredSourceIds = requiredAudioSourceIdSet(snapshot, options);
 		const requiredVideoSourceIds = requiredVideoSourceIdSet(snapshot, options);
 		const excludedAudioSourceIds = sourceIdSet(options.excludedAudioSourceIds ?? [], 'excluded audio source');
 		const usedSourceIds = new Set((snapshot?.clips || [])
-			.filter((clip: any) => clip.kind !== 'video')
-			.map((clip: any) => clip.sourceId));
+			.filter((clip) => clip.kind !== 'video')
+			.map((clip) => clip.sourceId));
 		for (const sourceId of excludedAudioSourceIds) usedSourceIds.delete(sourceId);
 		for (const sourceId of requiredSourceIds) usedSourceIds.add(sourceId);
 		const transientBuffers = new Map<string, Buffer>();
 		throwIfSourceLoadAborted(options.signal);
-		for (const source of (snapshot?.sources || []).filter((candidate: any) => (
+		for (const source of (snapshot?.sources || []).filter((candidate) => (
 			requiredVideoSourceIds.has(candidate.id)
 		))) {
 			await awaitSourceLoadOperation(() => activateVideoSource(source, { signal: options.signal }), options.signal);
 			throwIfSourceLoadAborted(options.signal);
 		}
-		let context: any = null;
-		for (const source of (snapshot?.sources || []).filter((candidate: any) => (
+		let context: unknown = null;
+		for (const source of (snapshot?.sources || []).filter((candidate) => (
 			candidate.kind !== 'video' && usedSourceIds.has(candidate.id)
 		))) {
 			const required = requiredSourceIds.has(source.id);

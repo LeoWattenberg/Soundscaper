@@ -128,6 +128,8 @@ test('waveform helpers map source windows and compute validated peak pyramids', 
 	const channels = [Float32Array.of(-1, -0.5, 0, 0.5, 1, 0.5, 0, -0.5)];
 	const peaks = generateWaveformPeaksFallback(channels);
 	assert.equal(waveformPeaksHaveRms(peaks, { frameCount: 8, channelCount: 1 }), true);
+	assert.equal(waveformPeaksHaveRms(peaks, { frameCount: '8', channelCount: 1 }), false);
+	assert.equal(waveformPeaksHaveRms(peaks, { frameCount: 8, channelCount: '1' }), false);
 	assert.equal(peaks.levels[0]?.channels[0]?.minimums[0], -1);
 	assert.equal(peaks.levels[0]?.channels[0]?.maximums[0], 1);
 	assert.deepEqual(Array.from(mixToMono([channels[0] as Float32Array, channels[0] as Float32Array])), Array.from(channels[0] as Float32Array));

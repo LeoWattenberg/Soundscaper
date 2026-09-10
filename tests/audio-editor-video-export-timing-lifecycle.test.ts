@@ -97,6 +97,7 @@ function createFixture(timingBlob: Blob, desktop = false) {
 		outputCleanup: null,
 		exportOutput: null,
 		disposed: false,
+		mobile: false,
 		deliveryReport: previousDeliveryReport,
 	};
 	const runtime = {

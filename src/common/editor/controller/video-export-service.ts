@@ -36,12 +36,14 @@ import { videoBurnInFontSubsetIds } from '../video-caption-burn-in.ts';
 import { resolveVideoDeliveryEncoderTier, VIDEO_DELIVERY_FFMPEG_ENCODER } from '../video-delivery-encoder-tier.ts';
 import { loadVideoExportOriginal } from './video-export-original-loader.ts';
 import { assertDesktopVideoExportAvailable } from '../desktop-video-export-capability.ts';
+import type { EditorExportState } from './export-state.ts';
 import {
 	stagedAudioChannelCount,
 	stagedAudioChannelLayout,
 } from './video-export-staged-audio.ts';
 
 export interface VideoExportServiceRuntime {
+	readonly state: EditorExportState;
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	readonly [name: string]: any;

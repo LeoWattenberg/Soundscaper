@@ -12,6 +12,8 @@ import {
 	type RecordingPoolSource,
 } from '../src/common/editor/controller/recording-input-coordination-service.ts';
 
+type Mutable<Value> = { -readonly [Key in keyof Value]: Value[Key] };
+
 interface FixtureOptions {
 	readonly acquireDisplay?: () => Promise<unknown>;
 	readonly acquireHardware?: (
@@ -58,7 +60,7 @@ function createFixture(options: FixtureOptions = {}) {
 		channelCount: number;
 		sampleRate: number;
 	}>> = [];
-	const state: RecordingInputCoordinationState = {
+	const state: Mutable<RecordingInputCoordinationState> = {
 		disposed: false,
 		microphoneMetering: false,
 		recorder: null,

@@ -1,14 +1,31 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export interface RecordingRoutingServiceRuntime {
-	// Legacy JavaScript ports are narrowed as their owning services migrate.
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	readonly [name: string]: any;
-}
+import type {
+	RecordingRoutingDeviceRow,
+	RecordingRoutingProject,
+	RecordingRoutingRefreshOptions,
+	RecordingRoutingServiceRuntime,
+} from './recording-routing-service-types.d.ts';
 
-type RuntimeValue = RecordingRoutingServiceRuntime[string];
+export type {
+	PersistedRecordingRouting,
+	RecordingPreferencePatch,
+	RecordingRoutingCapturePool,
+	RecordingRoutingDeviceRow,
+	RecordingRoutingMediaDevice,
+	RecordingRoutingMediaDevices,
+	RecordingRoutingNativeInventory,
+	RecordingRoutingProject,
+	RecordingRoutingRefreshOptions,
+	RecordingRoutingServiceRuntime,
+	RecordingRoutingState,
+	RecordingRoutingTrack,
+} from './recording-routing-service-types.d.ts';
 
-export function createRecordingRoutingService(runtime: RecordingRoutingServiceRuntime) {
+export function createRecordingRoutingService<
+	Project extends RecordingRoutingProject = RecordingRoutingProject,
+	Stream = unknown,
+>(runtime: RecordingRoutingServiceRuntime<Project, Stream>) {
 	const {
 		AUDIO_DEVICE_PREFERENCES_SETTING_KEY, RECORDING_CHANNEL_COUNT_MAXIMUM, RECORDING_DEFAULT_DEVICE_ID, RECORDING_DISPLAY_SOURCE_KEY,
 		assignPreferredInputToTrack, engine, mediaDevices, microphoneMeterDeviceId,
@@ -19,38 +36,40 @@ export function createRecordingRoutingService(runtime: RecordingRoutingServiceRu
 		stopMicrophoneMetering, store, updatePreferences,
 	} = runtime;
 	let outputDeviceSelectionGeneration = 0;
-	async function loadRecordingRouting(currentProject: RuntimeValue = getProject()) {
+	async function loadRecordingRouting(currentProject: Project | null = getProject()) {
 		if (!currentProject) {
 			state.recordingRouting = normalizeRecordingRouting();
 			state.recordingDevices = [];
 			state.recordingRouteHealth = {};
 			return state.recordingRouting;
 		}
-		let saved = null;
+		let saved: unknown = null;
 		try {
 			saved = await store.loadSetting(recordingRoutingSettingKey(currentProject.id), null);
 		} catch {
 			// Local routing is optional and must never prevent a project from opening.
 		}
-		state.recordingRouting = normalizeRecordingRouting(saved || {}, currentProject.tracks);
+		const storedRouting = saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+		state.recordingRouting = normalizeRecordingRouting(storedRouting, currentProject.tracks);
 		state.recordingRouteHealth = Object.fromEntries(Object.keys(state.recordingRouting.routes)
-			.map((trackId: RuntimeValue) => [trackId, 'unavailable']));
+			.map((trackId) => [trackId, 'unavailable']));
 		updateRecordingDeviceRows();
 		syncRecordingPoolSnapshot();
 		return state.recordingRouting;
 	}
 
 	function persistRecordingRouting() {
-		if (!getProject()) return Promise.resolve(state.recordingRouting);
-		return persistSetting(recordingRoutingSettingKey(getProject().id), state.recordingRouting, { policy: 'required' })
+		const project = getProject();
+		if (!project) return Promise.resolve(state.recordingRouting);
+		return persistSetting(recordingRoutingSettingKey(project.id), state.recordingRouting, { policy: 'required' })
 			.then(() => state.recordingRouting);
 	}
 
 	async function requestInputAccess() {
 		if (!mediaDevices?.getUserMedia) throw new Error('Hardware audio recording is not supported in this browser.');
 		const sampleRate = projectSampleRate();
-		const opened = [];
-		const failures = [];
+		const opened: string[] = [];
+		const failures: unknown[] = [];
 		try {
 			await recordingCapturePool.acquireHardware(RECORDING_DEFAULT_DEVICE_ID, { channelCount: RECORDING_CHANNEL_COUNT_MAXIMUM, sampleRate });
 			opened.push(RECORDING_DEFAULT_DEVICE_ID);
@@ -59,9 +78,9 @@ export function createRecordingRoutingService(runtime: RecordingRoutingServiceRu
 		}
 		await refreshRecordingInputs({ probe: false });
 		const deviceIds = state.recordingDevices
-			.map((device: RuntimeValue) => device.deviceId)
-			.filter((deviceId: RuntimeValue) => deviceId && deviceId !== RECORDING_DEFAULT_DEVICE_ID);
-		const results = await Promise.allSettled(deviceIds.map((deviceId: RuntimeValue) => (
+			.map((device) => device.deviceId)
+			.filter((deviceId) => deviceId && deviceId !== RECORDING_DEFAULT_DEVICE_ID);
+		const results = await Promise.allSettled(deviceIds.map((deviceId) => (
 			recordingCapturePool.acquireHardware(deviceId, { channelCount: RECORDING_CHANNEL_COUNT_MAXIMUM, sampleRate })
 		)));
 		for (let index = 0; index < results.length; index += 1) {
@@ -79,13 +98,17 @@ export function createRecordingRoutingService(runtime: RecordingRoutingServiceRu
 		return state.recordingDevices;
 	}
 
-	async function refreshRecordingInputs({ probe = true }: RuntimeValue = {}) {
+	async function refreshRecordingInputs({ probe = true }: Pick<RecordingRoutingRefreshOptions, 'probe'> = {}) {
 		return refreshAudioDevices({ probe });
 	}
 
-	async function refreshAudioDevices({ probe = true, publish = true, nativeInventory = null }: RuntimeValue = {}) {
-		const webInputs = [];
-		const webOutputs = [];
+	async function refreshAudioDevices({
+		probe = true,
+		publish = true,
+		nativeInventory = null,
+	}: RecordingRoutingRefreshOptions = {}) {
+		const webInputs: RecordingRoutingDeviceRow[] = [];
+		const webOutputs: RecordingRoutingDeviceRow[] = [];
 		if (mediaDevices?.enumerateDevices) {
 			const devices = await mediaDevices.enumerateDevices();
 			for (const device of devices || []) {
@@ -101,23 +124,23 @@ export function createRecordingRoutingService(runtime: RecordingRoutingServiceRu
 		}
 		const discoveredInputs = uniqueDeviceRows([...webInputs, ...(nativeInventory?.inputs || [])]);
 		const discoveredOutputs = uniqueDeviceRows([...webOutputs, ...(nativeInventory?.outputs || [])]);
-		state.recordingEnumeratedDeviceIds = new Set(discoveredInputs.map((device: RuntimeValue) => device.deviceId));
-		if (discoveredInputs.some((device: RuntimeValue) => device.label)) state.audioInputAccess = true;
+		state.recordingEnumeratedDeviceIds = new Set(discoveredInputs.map((device) => device.deviceId));
+		if (discoveredInputs.some((device) => device.label)) state.audioInputAccess = true;
 		updateRecordingDeviceRows(discoveredInputs);
-		state.audioInputDevices = Object.freeze(state.recordingDevices.map((device: RuntimeValue, index: RuntimeValue) => Object.freeze({
+		state.audioInputDevices = Object.freeze(state.recordingDevices.map((device, index) => Object.freeze({
 			deviceId: device.deviceId,
 			label: device.label || `Audio input ${index + 1}`,
 			channelCount: device.channelCount,
 			status: device.status,
 		})));
-		state.audioOutputDevices = Object.freeze(discoveredOutputs.map((device: RuntimeValue, index: RuntimeValue) => Object.freeze({
+		state.audioOutputDevices = Object.freeze(discoveredOutputs.map((device, index) => Object.freeze({
 			deviceId: device.deviceId,
 			label: device.label || `Audio output ${index + 1}`,
 			groupId: device.groupId || '',
 			isDefault: device.isDefault === true,
 		})));
 		if (probe) {
-			await Promise.allSettled(webInputs.map((device: RuntimeValue) => recordingCapturePool.acquireHardware(device.deviceId, {
+			await Promise.allSettled(webInputs.map((device) => recordingCapturePool.acquireHardware(device.deviceId, {
 				channelCount: RECORDING_CHANNEL_COUNT_MAXIMUM,
 				sampleRate: projectSampleRate(),
 			})));
@@ -125,7 +148,7 @@ export function createRecordingRoutingService(runtime: RecordingRoutingServiceRu
 			if (!state.recorder) releaseUnretainedRecordingInputs();
 			syncRecordingPoolSnapshot();
 			updateRecordingDeviceRows(discoveredInputs);
-			state.audioInputDevices = Object.freeze(state.recordingDevices.map((device: RuntimeValue) => Object.freeze({
+			state.audioInputDevices = Object.freeze(state.recordingDevices.map((device) => Object.freeze({
 				deviceId: device.deviceId,
 				label: device.label,
 				channelCount: device.channelCount,
@@ -137,11 +160,11 @@ export function createRecordingRoutingService(runtime: RecordingRoutingServiceRu
 		return state.recordingDevices;
 	}
 
-	async function setPreferredInputDevice(deviceId: RuntimeValue) {
+	async function setPreferredInputDevice(deviceId: string) {
 		const normalized = normalizePreferredInputDeviceId(deviceId);
 		if (normalized !== RECORDING_DEFAULT_DEVICE_ID
 			&& normalized !== RECORDING_DISPLAY_SOURCE_KEY
-			&& !state.audioInputDevices.some((device: RuntimeValue) => device.deviceId === normalized)) {
+			&& !state.audioInputDevices.some((device) => device.deviceId === normalized)) {
 			throw new Error('The selected audio input is unavailable.');
 		}
 		if (normalized === RECORDING_DISPLAY_SOURCE_KEY && !mediaDevices?.getDisplayMedia) {
@@ -181,19 +204,20 @@ export function createRecordingRoutingService(runtime: RecordingRoutingServiceRu
 		return updatePreferences({ recording: { retainInputs: true } });
 	}
 
-	async function setPreferredInputChannelCount(channelCount: RuntimeValue) {
+	async function setPreferredInputChannelCount(channelCount: number) {
 		const normalized = Number(channelCount) === 2 ? 2 : 1;
 		state.preferredInputChannelCount = normalized;
-		if (!state.recordingRouting.routes[state.selectedTrackId]) {
-			assignPreferredInputToTrack(state.selectedTrackId);
+		const selectedTrackId = state.selectedTrackId;
+		if (selectedTrackId && !state.recordingRouting.routes[selectedTrackId]) {
+			assignPreferredInputToTrack(selectedTrackId);
 		}
-		const selectedRoute = state.recordingRouting.routes[state.selectedTrackId];
-		if (selectedRoute?.kind === 'device'
+		const selectedRoute = selectedTrackId ? state.recordingRouting.routes[selectedTrackId] : null;
+		if (selectedTrackId && selectedRoute?.kind === 'device'
 			&& selectedRoute.deviceId === state.preferredInputDeviceId
 			&& selectedRoute.channelStart === 0
 			&& selectedRoute.channelCount !== normalized) {
 			try {
-				await setRecordingTrackInput(state.selectedTrackId, {
+				await setRecordingTrackInput(selectedTrackId, {
 					...selectedRoute,
 					channelCount: normalized,
 				});
@@ -206,9 +230,9 @@ export function createRecordingRoutingService(runtime: RecordingRoutingServiceRu
 		return normalized;
 	}
 
-	async function setAudioOutputDevice(deviceId: RuntimeValue) {
+	async function setAudioOutputDevice(deviceId: string) {
 		const normalized = normalizePreferredOutputDeviceId(deviceId);
-		if (normalized && !state.audioOutputDevices.some((device: RuntimeValue) => device.deviceId === normalized)) {
+		if (normalized && !state.audioOutputDevices.some((device) => device.deviceId === normalized)) {
 			throw new Error('The selected audio output is unavailable.');
 		}
 		const generation = ++outputDeviceSelectionGeneration;
@@ -255,7 +279,7 @@ export function createRecordingRoutingService(runtime: RecordingRoutingServiceRu
 			state.audioOutputStatus = 'default';
 			return;
 		}
-		const available = state.audioOutputDevices.some((device: RuntimeValue) => device.deviceId === preferred);
+		const available = state.audioOutputDevices.some((device) => device.deviceId === preferred);
 		if (!available) {
 			await Promise.resolve(engine.setOutputDevice?.('')).catch(() => undefined);
 			if (generation !== outputDeviceSelectionGeneration) return;
@@ -291,13 +315,13 @@ export function createRecordingRoutingService(runtime: RecordingRoutingServiceRu
 		});
 	}
 
-	function updateRecordingDeviceRows(discovered: RuntimeValue = state.recordingDevices) {
-		const rows = new Map();
+	function updateRecordingDeviceRows(discovered: readonly RecordingRoutingDeviceRow[] = state.recordingDevices) {
+		const rows = new Map<string, RecordingRoutingDeviceRow>();
 		for (const device of discovered || []) {
 			if (!device?.deviceId) continue;
 			rows.set(device.deviceId, { ...device });
 		}
-		for (const route of Object.values(state.recordingRouting.routes || {}) as RuntimeValue[]) {
+		for (const route of Object.values(state.recordingRouting.routes || {})) {
 			if (route.kind !== 'device' || rows.has(route.deviceId)) continue;
 			rows.set(route.deviceId, {
 				deviceId: route.deviceId,
@@ -305,18 +329,18 @@ export function createRecordingRoutingService(runtime: RecordingRoutingServiceRu
 			});
 		}
 		for (const source of state.recordingPoolSources) {
-			if (source.kind !== 'device') continue;
+			if (source.kind !== 'device' || !source.deviceId) continue;
 			const existing = rows.get(source.deviceId) || { deviceId: source.deviceId, label: '' };
 			rows.set(source.deviceId, { ...existing, channelCount: source.channelCount });
 		}
-		state.recordingDevices = Object.freeze([...rows.values()].map((device: RuntimeValue) => Object.freeze({
+		state.recordingDevices = Object.freeze([...rows.values()].map((device) => Object.freeze({
 			deviceId: device.deviceId,
 			label: device.label || (device.deviceId === RECORDING_DEFAULT_DEVICE_ID ? 'Default audio input' : 'Audio input'),
 			groupId: device.groupId || '',
 			isDefault: device.isDefault === true,
 			channels: Object.freeze([...(device.channels || [])]),
 			channelCount: Math.max(0, Number(device.channelCount) || 0),
-			status: state.recordingPoolSources.some((source: RuntimeValue) => source.key === `device:${device.deviceId}`)
+			status: state.recordingPoolSources.some((source) => source.key === `device:${device.deviceId}`)
 				? 'open'
 				: state.recordingEnumeratedDeviceIds.has(device.deviceId) || device.deviceId === RECORDING_DEFAULT_DEVICE_ID
 					? 'available'
@@ -324,22 +348,22 @@ export function createRecordingRoutingService(runtime: RecordingRoutingServiceRu
 		})));
 	}
 
-	function uniqueDeviceRows(devices: RuntimeValue) {
-		const rows = new Map();
+	function uniqueDeviceRows<Device extends RecordingRoutingDeviceRow>(devices: readonly Device[]): Device[] {
+		const rows = new Map<string, Device>();
 		for (const device of devices) {
 			if (device?.deviceId && !rows.has(device.deviceId)) rows.set(device.deviceId, device);
 		}
 		return [...rows.values()];
 	}
 
-	async function setRecordingSourceLatency(sourceKey: RuntimeValue, value: RuntimeValue) {
+	async function setRecordingSourceLatency(sourceKey: string, value: number) {
 		state.recordingRouting = setRecordingSourceOffset(state.recordingRouting, sourceKey, value);
 		publishDocumentSnapshot();
 		await persistRecordingRouting();
 		return state.recordingRouting.offsets[sourceKey];
 	}
 
-	async function setRetainInputs(enabled: RuntimeValue) {
+	async function setRetainInputs(enabled: boolean) {
 		const retainInputs = Boolean(enabled);
 		await updatePreferences({ recording: { retainInputs } });
 		if (retainInputs) state.recordingReleaseAfterStop = false;
@@ -366,7 +390,7 @@ export function createRecordingRoutingService(runtime: RecordingRoutingServiceRu
 		return released;
 	}
 
-	function releaseUnretainedRecordingInputs({ force = false }: RuntimeValue = {}) {
+	function releaseUnretainedRecordingInputs({ force = false }: Readonly<{ readonly force?: boolean }> = {}) {
 		if (!force && state.preferences.recording.retainInputs) return false;
 		if (!state.microphoneMetering) return recordingCapturePool.releaseAll();
 		const meterDeviceId = getMicrophoneMeterSession()?.deviceId || microphoneMeterDeviceId();
@@ -374,7 +398,7 @@ export function createRecordingRoutingService(runtime: RecordingRoutingServiceRu
 		for (const source of recordingCapturePool.getSnapshot?.() || []) {
 			if (source.kind === 'display') {
 				released = recordingCapturePool.releaseDisplay() || released;
-			} else if (source.kind === 'device' && source.deviceId !== meterDeviceId) {
+			} else if (source.kind === 'device' && source.deviceId && source.deviceId !== meterDeviceId) {
 				released = recordingCapturePool.releaseHardware(source.deviceId) || released;
 			}
 		}
@@ -384,10 +408,10 @@ export function createRecordingRoutingService(runtime: RecordingRoutingServiceRu
 	function syncRecordingPoolSnapshot() {
 		state.recordingPoolSources = Object.freeze(recordingCapturePool.getSnapshot?.() || []);
 		if (!state.recorder) {
-			const open = new Map(state.recordingPoolSources.map((source: RuntimeValue) => [source.key, source]));
-			for (const [trackId, route] of Object.entries(state.recordingRouting.routes || {}) as Array<[string, RuntimeValue]>) {
+			const open = new Map(state.recordingPoolSources.map((source) => [source.key, source]));
+			for (const [trackId, route] of Object.entries(state.recordingRouting.routes || {})) {
 				const previous = state.recordingRouteHealth[trackId];
-				const source: RuntimeValue = open.get(recordingRouteSourceKey(route));
+				const source = open.get(recordingRouteSourceKey(route));
 				state.recordingRouteHealth[trackId] = source
 					? route.kind === 'display' || route.channelStart + route.channelCount <= source.channelCount ? 'open' : 'skipped'
 					: previous === 'disconnected' ? 'disconnected' : 'unavailable';

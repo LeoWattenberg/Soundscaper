@@ -5,6 +5,7 @@ import {
 	createClipTimePitchCacheService,
 	type ClipTimePitchCacheEntry,
 	type ClipTimePitchCachePort,
+	type ClipTimePitchPreparationState,
 	type ClipTimePitchPlaybackState,
 } from '../src/common/editor/controller/clip-time-pitch-service.ts';
 import type { ClipTransformProject } from '../src/common/editor/controller/clip-domain-types.ts';
@@ -12,6 +13,7 @@ import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
 } from '../src/common/editor/controller/lifecycle.ts';
+import { createOwnedStateAccess } from '../src/common/editor/controller/owned-state.ts';
 
 test('committed cache preparation retains the semantic clip inventory and materializes exact entries', async () => {
 	const project = projectFixture();
@@ -169,7 +171,7 @@ function createHarness(
 	const generation = new EditorProjectGeneration();
 	generation.activate(project.id);
 	const cache = new MemoryCache(options.prepareCommitted, () => resolvePlayback());
-	const state: ClipTimePitchPlaybackState = {
+	const state: ClipTimePitchPlaybackState & ClipTimePitchPreparationState = {
 		playbackCacheGeneration: 0,
 		playbackCacheAbort: null,
 		playbackCacheRefreshAbort: null,
@@ -189,6 +191,7 @@ function createHarness(
 	const service = createClipTimePitchCacheService({
 		lifetime,
 		state,
+		playbackCacheState: createOwnedStateAccess(state, state),
 		cache,
 		sourceResolver,
 		sourceChunkProviders,

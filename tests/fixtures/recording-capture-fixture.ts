@@ -21,6 +21,8 @@ import type {
 	SoundActivationSettings,
 } from '../../src/common/editor/controller/sound-activated-recording-gate.ts';
 
+type Mutable<Value> = { -readonly [Key in keyof Value]: Value[Key] };
+
 export function deferred<T>() {
 	let resolve!: (value: T | PromiseLike<T>) => void;
 	let reject!: (reason?: unknown) => void;
@@ -59,7 +61,7 @@ function createStream(channelCount = 2): RecordingMediaStream {
 	};
 }
 
-function createState(): RecordingCaptureMutableState {
+function createState(): Mutable<RecordingCaptureMutableState> {
 	return {
 		readOnly: false,
 		recordingStarting: false,

@@ -16,7 +16,11 @@ test('cancelling video export during live-state preparation prevents late projec
 	const state = {
 		exportGeneration: 0,
 		exportAbort: null,
+		exportOutput: null,
 		disposed: false,
+		mobile: false,
+		outputCleanup: null,
+		outputUrl: null,
 	};
 	const service = createEditorExportService({
 		state,

@@ -19,6 +19,9 @@ import {
 	type MacroScriptLibraryState,
 } from './macro-script-library-service.ts';
 import { macroScriptLibrarySchemaIsAhead } from '../macro-script-library.ts';
+import type { OwnedStateWriteScope } from './owned-state.ts';
+import type { ControllerRecordingState } from './recording-state.ts';
+import type { ControllerTransportState } from './transport-state.ts';
 
 export interface ProjectBootstrapState<Preferences, EffectPresets> {
 	preferences: Preferences;
@@ -28,25 +31,31 @@ export interface ProjectBootstrapState<Preferences, EffectPresets> {
 	macroScripts: MacroScriptLibraryState;
 	macroScriptsReadOnly?: boolean;
 	deliveryPresets: DeliveryPresetState;
-	monitoring: boolean;
-	microphoneMetering: boolean;
-	recordingInputGain: number;
-	latencyOffsetMs: number;
-	leadInRecording: boolean;
 	showRms: boolean;
 	showVerticalRulers: boolean;
-	updateDisplayWhilePlaying: boolean;
-	pinnedPlayhead: boolean;
-	playbackOnRulerClick: boolean;
-	metronomeEnabled: boolean;
-	selectionFollowsLoop: boolean;
-	preferredInputDeviceId: string;
-	preferredInputChannelCount: number;
-	preferredOutputDeviceId: string;
 	readOnly: boolean;
 	takeCycleRecovery?: unknown;
 	takeCycleRecoveryInspecting?: boolean;
 }
+
+export type ProjectBootstrapRecordingState = Pick<ControllerRecordingState,
+	| 'latencyOffsetMs' | 'leadInRecording' | 'microphoneMetering' | 'monitoring'
+	| 'preferredInputChannelCount' | 'preferredInputDeviceId' | 'preferredOutputDeviceId'
+	| 'recordingInputGain'
+>;
+
+export type ProjectBootstrapTransportState = Pick<ControllerTransportState,
+	| 'metronomeEnabled' | 'pinnedPlayhead' | 'playbackOnRulerClick'
+	| 'selectionFollowsLoop' | 'updateDisplayWhilePlaying'
+>;
+export type ProjectBootstrapRecordingWriteScope = OwnedStateWriteScope<
+	ProjectBootstrapRecordingState,
+	ProjectBootstrapRecordingState
+>;
+export type ProjectBootstrapTransportWriteScope = OwnedStateWriteScope<
+	ProjectBootstrapTransportState,
+	ProjectBootstrapTransportState
+>;
 
 export interface ProjectBootstrapStore<Project> {
 	ready(): PromiseLike<unknown> | unknown;
@@ -72,6 +81,8 @@ export interface ProjectBootstrapServiceRuntime<
 	EffectPresets,
 > {
 	readonly state: ProjectBootstrapState<Preferences, EffectPresets>;
+	readonly recordingState: ProjectBootstrapRecordingWriteScope;
+	readonly transportState: ProjectBootstrapTransportWriteScope;
 	readonly lifetimeSignal: AbortSignal;
 	readonly store: ProjectBootstrapStore<Project>;
 	readonly engine: Readonly<{
@@ -218,22 +229,22 @@ export function createProjectBootstrapService<
 			if (runtime.isDisposedError(error)) throw error;
 			runtime.state.deliveryPresets = createDeliveryPresetState();
 		}
-		runtime.state.monitoring = Boolean(await guard(runtime.store.loadSetting('input-monitor', false)));
-		runtime.state.microphoneMetering = Boolean(await guard(runtime.store.loadSetting('microphone-metering', false)));
+		runtime.recordingState.monitoring = Boolean(await guard(runtime.store.loadSetting('input-monitor', false)));
+		runtime.recordingState.microphoneMetering = Boolean(await guard(runtime.store.loadSetting('microphone-metering', false)));
 		try {
-			runtime.state.recordingInputGain = runtime.normalizeRecordingInputGain(await guard(runtime.store.loadSetting(
+			runtime.recordingState.recordingInputGain = runtime.normalizeRecordingInputGain(await guard(runtime.store.loadSetting(
 				'recording-input-gain',
 				runtime.recordingInputGainDefault,
 			)));
 		} catch (error) {
 			if (runtime.isDisposedError(error)) throw error;
-			runtime.state.recordingInputGain = runtime.recordingInputGainDefault;
+			runtime.recordingState.recordingInputGain = runtime.recordingInputGainDefault;
 		}
-		runtime.state.latencyOffsetMs = runtime.normalizeLatencyOffset(await guard(runtime.store.loadSetting(
+		runtime.recordingState.latencyOffsetMs = runtime.normalizeLatencyOffset(await guard(runtime.store.loadSetting(
 			'recording-latency-offset-ms',
 			0,
 		)));
-		runtime.state.leadInRecording = Boolean(await guard(runtime.store.loadSetting('recording-lead-in', false)));
+		runtime.recordingState.leadInRecording = Boolean(await guard(runtime.store.loadSetting('recording-lead-in', false)));
 		runtime.state.showRms = Boolean(await guard(runtime.store.loadSetting(
 			runtime.productSettingKey('waveform-show-rms'),
 			false,
@@ -242,23 +253,23 @@ export function createProjectBootstrapService<
 			runtime.productSettingKey('timeline-show-vertical-rulers'),
 			true,
 		)));
-		runtime.state.updateDisplayWhilePlaying = Boolean(await guard(runtime.store.loadSetting(
+		runtime.transportState.updateDisplayWhilePlaying = Boolean(await guard(runtime.store.loadSetting(
 			runtime.productSettingKey('timeline-update-while-playing'),
 			true,
 		)));
-		runtime.state.pinnedPlayhead = Boolean(await guard(runtime.store.loadSetting(
+		runtime.transportState.pinnedPlayhead = Boolean(await guard(runtime.store.loadSetting(
 			runtime.productSettingKey('timeline-pinned-playhead'),
 			false,
 		)));
-		runtime.state.playbackOnRulerClick = Boolean(await guard(runtime.store.loadSetting(
+		runtime.transportState.playbackOnRulerClick = Boolean(await guard(runtime.store.loadSetting(
 			runtime.productSettingKey('timeline-ruler-playback'),
 			true,
 		)));
-		runtime.state.metronomeEnabled = Boolean(await guard(runtime.store.loadSetting(
+		runtime.transportState.metronomeEnabled = Boolean(await guard(runtime.store.loadSetting(
 			runtime.productSettingKey('transport-metronome'),
 			false,
 		)));
-		runtime.state.selectionFollowsLoop = Boolean(await guard(runtime.store.loadSetting(
+		runtime.transportState.selectionFollowsLoop = Boolean(await guard(runtime.store.loadSetting(
 			runtime.productSettingKey('selection-follows-loop'),
 			false,
 		)));
@@ -266,9 +277,9 @@ export function createProjectBootstrapService<
 			runtime.productSettingKey(runtime.audioDevicePreferencesSettingKey),
 			null,
 		)));
-		runtime.state.preferredInputDeviceId = savedAudioDevices.inputDeviceId;
-		runtime.state.preferredInputChannelCount = savedAudioDevices.inputChannelCount;
-		runtime.state.preferredOutputDeviceId = savedAudioDevices.outputDeviceId;
+		runtime.recordingState.preferredInputDeviceId = savedAudioDevices.inputDeviceId;
+		runtime.recordingState.preferredInputChannelCount = savedAudioDevices.inputChannelCount;
+		runtime.recordingState.preferredOutputDeviceId = savedAudioDevices.outputDeviceId;
 		await guard(Promise.resolve(runtime.engine.setOutputDevice?.(savedAudioDevices.outputDeviceId)).catch(() => undefined));
 		if (runtime.automaticAudioDeviceEnumeration !== false) {
 			await guard(runtime.refreshAudioDevices({ probe: false, publish: false }));

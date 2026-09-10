@@ -1,25 +1,42 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- Explicit legacy ports keep this migration seam typo-safe while source records are narrowed. */
-
-interface SourceChunkProviderRegistryPort extends Map<string, any> {
+export interface SourceChunkProviderRegistryPort<Key, Provider> extends Map<Key, Provider> {
 	drain?(): PromiseLike<void> | void;
 }
 
-export interface SourceChunkProviderRegistrationRuntime {
-	readonly createStoredChunkProvider: (store: any, source: any, metadata: any) => any;
-	readonly engine: any;
-	readonly isStreamableStoredSource: (source: any, metadata: any) => boolean;
-	readonly sourceChunkProviders: SourceChunkProviderRegistryPort;
-	readonly store: any;
+export interface SourceChunkProviderRegistrationSource {
+	readonly id: string;
+}
+
+export interface SourceChunkProviderRegistrationEngine<Provider> {
+	setChunkSources?(providers: ReadonlyMap<string, Provider>): unknown;
+}
+
+export interface SourceChunkProviderRegistrationRuntime<
+	Source extends SourceChunkProviderRegistrationSource = SourceChunkProviderRegistrationSource,
+	Metadata = unknown,
+	RegistryProvider = unknown,
+	Provider extends RegistryProvider = RegistryProvider,
+> {
+	/** Validate the stored record and build its provider, or reject it as non-streamable. */
+	readonly createStoredChunkProviderCandidate: (source: Source, metadata: Metadata) => Provider | null;
+	readonly engine: SourceChunkProviderRegistrationEngine<RegistryProvider>;
+	readonly sourceChunkProviders: SourceChunkProviderRegistryPort<string, RegistryProvider>;
 }
 
 /** Own the registry side of stored chunk providers: candidacy, publication, retirement. */
-export function createSourceChunkProviderRegistration(
-	runtime: SourceChunkProviderRegistrationRuntime,
+export function createSourceChunkProviderRegistration<
+	Source extends SourceChunkProviderRegistrationSource,
+	Metadata,
+	RegistryProvider,
+	Provider extends RegistryProvider,
+>(
+	runtime: SourceChunkProviderRegistrationRuntime<Source, Metadata, RegistryProvider, Provider>,
 ) {
 	const {
-		createStoredChunkProvider, engine, isStreamableStoredSource, sourceChunkProviders, store,
+		createStoredChunkProviderCandidate: buildStoredChunkProviderCandidate,
+		engine,
+		sourceChunkProviders,
 	} = runtime;
 
 	/**
@@ -31,12 +48,11 @@ export function createSourceChunkProviderRegistration(
 	 * how the previous provider's exclusive OPFS access handle is released, and
 	 * holding it made a later read of the same payload fail as a missing source.
 	 */
-	function createStoredChunkProviderCandidate(source: any, metadata: any) {
-		if (typeof store.readSourceChunk !== 'function' || !isStreamableStoredSource(source, metadata)) return null;
-		return createStoredChunkProvider(store, source, metadata);
+	function createStoredChunkProviderCandidate(source: Source, metadata: Metadata): Provider | null {
+		return buildStoredChunkProviderCandidate(source, metadata);
 	}
 
-	function registerStoredChunkProvider(source: any, metadata: any) {
+	function registerStoredChunkProvider(source: Source, metadata: Metadata): Provider | null {
 		const provider = createStoredChunkProviderCandidate(source, metadata);
 		if (!provider) return null;
 		sourceChunkProviders.set(source.id, provider);

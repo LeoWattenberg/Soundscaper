@@ -174,7 +174,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 				cancelPlaybackCachePreparation();
 				return engine.pause();
 			}
-			if (state.playbackCacheAbort) {
+			if (runtime.playbackCachePreparationPending()) {
 				cancelPlaybackCachePreparation();
 				return;
 			}

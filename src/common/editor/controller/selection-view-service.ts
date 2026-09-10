@@ -1,49 +1,32 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { CommandObject } from '../commands/protocol.ts';
+import type { RenderedAudio } from '../rendered-audio-channels.ts';
 import { hasCoreEditingProjectAuthority, isActiveAudioEditorProjectSchema } from '../project-schema-version.ts';
-import { createClipSelectionNavigationService } from './clip-selection-navigation-service.ts';
 import { resolveSelectionRange } from '../selection-range.ts';
+import { createClipSelectionNavigationService } from './clip-selection-navigation-service.ts';
+import type {
+	SelectionViewClipOptions,
+	SelectionViewProject,
+	SelectionViewSelectionCommand,
+	SelectionViewSelectionDetails,
+	SelectionViewServiceRuntime,
+	SelectionViewSnapOverrides,
+} from './selection-view-service-types.d.ts';
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- Explicitly named legacy ports keep the migration seam typo-safe while project shapes are narrowed. */
+export type * from './selection-view-service-types.d.ts';
 
-type LegacyPort = (...args: any[]) => any;
+type SelectionViewBooleanPreferenceKey =
+	| 'showRms'
+	| 'showVerticalRulers'
+	| 'updateDisplayWhilePlaying'
+	| 'pinnedPlayhead'
+	| 'playbackOnRulerClick';
 
-export interface SelectionViewServiceRuntime {
-	readonly DEFAULT_PIXELS_PER_SECOND: number;
-	readonly MAX_PIXELS_PER_SECOND: number;
-	readonly activeSelection: LegacyPort;
-	readonly audioBufferChannels: LegacyPort;
-	readonly cloneProject: LegacyPort;
-	readonly collectRelatedClipIds: LegacyPort;
-	readonly commit: LegacyPort;
-	readonly copy: any;
-	readonly editorTimelineDurationFrames: LegacyPort;
-	readonly engine: any;
-	readonly findClip: LegacyPort;
-	readonly findClipTrack: LegacyPort;
-	readonly findNearestAudioZeroCrossing: LegacyPort;
-	readonly findTrack: LegacyPort;
-	readonly getProject: LegacyPort;
-	readonly handleError: LegacyPort;
-	readonly normalizeTimelineFrame: LegacyPort;
-	readonly persistSetting: LegacyPort;
-	readonly productSettingKey: LegacyPort;
-	readonly projectDurationFrames: LegacyPort;
-	readonly projectSampleRate: LegacyPort;
-	readonly publishDocumentSnapshot: LegacyPort;
-	readonly publishProjectState: LegacyPort;
-	readonly renderSnapshot: LegacyPort;
-	readonly resetRoutedInputMeter: LegacyPort;
-	readonly setStatus: LegacyPort;
-	readonly snapAudioEditorFrameWithProject: LegacyPort;
-	readonly state: any;
-	readonly synchronizeAutomaticSampleEditMode: LegacyPort;
-	readonly synchronizeMicrophoneMeterTarget: LegacyPort;
-	readonly updatePlayhead: LegacyPort;
-	readonly updateSelection: LegacyPort;
-}
-
-export function createSelectionViewService(runtime: SelectionViewServiceRuntime) {
+export function createSelectionViewService<
+	Project extends SelectionViewProject,
+	Rendered extends RenderedAudio,
+>(runtime: SelectionViewServiceRuntime<Project, Rendered>) {
 	const {
 		DEFAULT_PIXELS_PER_SECOND, MAX_PIXELS_PER_SECOND,
 		activeSelection, audioBufferChannels, cloneProject, collectRelatedClipIds,
@@ -63,28 +46,30 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 	});
 	let zeroCrossingGeneration = 0;
 
-	function selectTrack(trackId: any) {
+	function selectTrack(trackId: string | null) {
 		const project = getProject();
-		if (trackId != null && !findTrack(project, trackId)) throw new Error(copy.audioTrackNotFound);
+		if (trackId != null && (!project || !findTrack(project, trackId))) {
+			throw new Error(copy.audioTrackNotFound);
+		}
 		const changed = state.selectedTrackId !== (trackId || null);
 		state.selectedTrackId = trackId || null;
 		state.selectedClipId = null;
 		state.selectedAnnotationId = null;
 		if (changed) resetRoutedInputMeter();
 		synchronizeMicrophoneMeterTarget();
-		if (!clearDurableAnnotationSelection(project)) publishProjectState();
+		if (!project || !clearDurableAnnotationSelection(project)) publishProjectState();
 	}
 
-	function expandSelectedClipIds(rawClipIds: any) {
-		return collectRelatedClipIds(getProject(), rawClipIds || []);
+	function expandSelectedClipIds(project: Project, rawClipIds: readonly string[]) {
+		return collectRelatedClipIds(project, rawClipIds || []);
 	}
 
-	function selectClip(clipId: any, options: any = {}) {
+	function selectClip(clipId: string | null, options: SelectionViewClipOptions = {}) {
 		const project = getProject();
 		if (clipId == null) {
 			state.selectedClipId = null;
 			state.selectedAnnotationId = null;
-			if (hasCoreEditingProjectAuthority(project) && (
+			if (project && hasCoreEditingProjectAuthority(project) && (
 				project.selection?.clipIds?.length
 				|| (hasActiveTimelineAnnotations(project) && project.selection?.annotationIds?.length)
 			)) {
@@ -102,6 +87,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 			publishProjectState();
 			return null;
 		}
+		if (!project) throw new Error(copy.audioClipNotFound);
 		const clip = findClip(project, clipId);
 		const track = clip ? findClipTrack(project, clip.id) : null;
 		if (!clip || !track) throw new Error(copy.audioClipNotFound);
@@ -115,17 +101,20 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		}
 
 		const currentClipIds = project.selection?.clipIds || [];
-		let clipIds;
+		let clipIds: readonly string[];
 		if (options.toggle) {
-			const toggledClipIds = new Set(expandSelectedClipIds([clip.id]));
+			const toggledClipIds = new Set(expandSelectedClipIds(project, [clip.id]));
 			clipIds = currentClipIds.includes(clip.id)
-				? currentClipIds.filter((selectedId: any) => !toggledClipIds.has(selectedId))
+				? currentClipIds.filter((selectedId) => !toggledClipIds.has(selectedId))
 				: [...currentClipIds, ...toggledClipIds];
 		} else if (options.additive) {
 			clipIds = currentClipIds.includes(clip.id) ? currentClipIds : [...currentClipIds, clip.id];
 		} else clipIds = [clip.id];
-		const nextClipIds = expandSelectedClipIds(clipIds);
-		const trackIds = [...new Set(nextClipIds.map((selectedId: any) => findClipTrack(project, selectedId)?.id).filter(Boolean))];
+		const nextClipIds = expandSelectedClipIds(project, clipIds);
+		const trackIds = [...new Set(nextClipIds.flatMap((selectedId) => {
+			const selectedTrack = findClipTrack(project, selectedId);
+			return selectedTrack ? [selectedTrack.id] : [];
+		}))];
 		const activeClipId = nextClipIds.includes(clip.id) ? clip.id : nextClipIds.at(-1) || null;
 		const activeTrack = activeClipId ? findClipTrack(project, activeClipId) : null;
 		state.selectedTrackId = activeTrack?.id || null;
@@ -142,8 +131,14 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		return activeClipId;
 	}
 
-	function setSelection(startFrame: any, endFrame: any, details: any = {}) {
-		return applySelectionRange(startFrame, endFrame, details, true);
+	function setSelection(
+		startFrame: unknown,
+		endFrame: unknown,
+		details: SelectionViewSelectionDetails = {},
+	) {
+		const project = getProject();
+		if (!project) throw new Error(copy.v2Required);
+		return applySelectionRange(project, startFrame, endFrame, details, true);
 	}
 
 	/**
@@ -153,8 +148,14 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 	 * through the snap grid would silently move them, and the reader's own snap
 	 * preference is not part of what the macro says.
 	 */
-	function setExactSelection(startFrame: any, endFrame: any, details: any = {}) {
-		return applySelectionRange(startFrame, endFrame, details, false);
+	function setExactSelection(
+		startFrame: unknown,
+		endFrame: unknown,
+		details: SelectionViewSelectionDetails = {},
+	) {
+		const project = getProject();
+		if (!project) throw new Error(copy.v2Required);
+		return applySelectionRange(project, startFrame, endFrame, details, false);
 	}
 
 	/**
@@ -168,41 +169,45 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 	 */
 	function carryPlayheadToSelectionStart(startFrame: number, endFrame: number) {
 		if (endFrame <= startFrame) return;
-		if (engine.getState?.().state === 'playing') return;
+		if (engine.getState().state === 'playing') return;
 		engine.seek(startFrame);
 	}
 
 	function applySelectionRange(
-		startFrame: any,
-		endFrame: any,
-		details: any,
+		project: Project,
+		startFrame: unknown,
+		endFrame: unknown,
+		details: SelectionViewSelectionDetails,
 		snap: boolean,
 		carryPlayhead = true,
 	) {
-		const project = getProject();
 		if (!Number.isFinite(Number(startFrame)) || !Number.isFinite(Number(endFrame))) {
 			throw new TypeError(copy.selectionFramesFinite);
 		}
 		const maximumFrame = project.tracks.length
 			? editorTimelineDurationFrames(project, projectSampleRate())
 			: projectDurationFrames(project);
-		const clampSelectionFrame = (value: any) => Math.max(0, Math.min(maximumFrame, Math.round(Number(value))));
-		const place = (value: any) => snap
+		const clampSelectionFrame = (value: unknown) => Math.max(0, Math.min(maximumFrame, Math.round(Number(value))));
+		const place = (value: unknown) => snap
 			? snapTimelineFrame(clampSelectionFrame(value), { maximumFrame })
 			: clampSelectionFrame(value);
 		const start = place(Math.min(Number(startFrame), Number(endFrame)));
 		const end = place(Math.max(Number(startFrame), Number(endFrame)));
 		state.selectedClipId = null;
 		state.selectedAnnotationId = null;
-		const command: any = { type: 'selection/set', startFrame: start, endFrame: end };
-		if (Object.keys(details).length) Object.assign(command, details, { clipIds: [] });
-		Object.assign(command, clearedAnnotationSelectionDetails(project));
+		const command: SelectionViewSelectionCommand = {
+			type: 'selection/set',
+			startFrame: start,
+			endFrame: end,
+			...(Object.keys(details).length ? { ...details, clipIds: [] } : {}),
+			...clearedAnnotationSelectionDetails(project),
+		};
 		const next = updateSelection(command);
 		if (carryPlayhead) carryPlayheadToSelectionStart(start, end);
 		return next;
 	}
 
-	function clearDurableAnnotationSelection(project: any) {
+	function clearDurableAnnotationSelection(project: Project) {
 		if (!hasActiveTimelineAnnotations(project) || !project.selection?.annotationIds?.length) return false;
 		const selection = project.selection;
 		updateSelection({
@@ -213,7 +218,9 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		return true;
 	}
 
-	function clearedAnnotationSelectionDetails(project: any) {
+	function clearedAnnotationSelectionDetails(
+		project: Project,
+	): Partial<Pick<SelectionViewSelectionCommand, 'annotationIds'>> {
 		return hasActiveTimelineAnnotations(project) && project.selection?.annotationIds?.length ? { annotationIds: [] } : {};
 	}
 
@@ -230,8 +237,8 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 	function selectAll() {
 		const project = getProject();
 		if (!project) return null;
-		const trackIds = project.tracks.map((track: any) => track.id);
-		const next = applySelectionRange(0, projectDurationFrames(project), { trackIds }, false);
+		const trackIds = project.tracks.map((track) => track.id);
+		const next = applySelectionRange(project, 0, projectDurationFrames(project), { trackIds }, false);
 		if (!state.selectedTrackId && trackIds.length) {
 			state.selectedTrackId = trackIds[0];
 			synchronizeMicrophoneMeterTarget();
@@ -243,10 +250,12 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		const project = getProject();
 		if (!project) return null;
 		const selection = project.selection || { startFrame: 0, endFrame: 0 };
-		const trackIds = project.tracks.map((track: any) => track.id);
+		const trackIds = project.tracks.map((track) => track.id);
 		// Widening the selection's track scope leaves its time range exactly as it
 		// was, so it is not a new time selection and does not move the playhead.
-		const next = applySelectionRange(selection.startFrame, selection.endFrame, { trackIds }, true, false);
+		const next = applySelectionRange(
+			project, selection.startFrame, selection.endFrame, { trackIds }, true, false,
+		);
 		if (!state.selectedTrackId && trackIds.length) {
 			state.selectedTrackId = trackIds[0];
 			synchronizeMicrophoneMeterTarget();
@@ -259,39 +268,46 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 	 * the selection they make must not then move it: the next such command would
 	 * measure from an anchor its predecessor had already shifted.
 	 */
-	function setPlayheadAnchoredSelection(startFrame: any, endFrame: any) {
-		return applySelectionRange(startFrame, endFrame, {}, true, false);
+	function setPlayheadAnchoredSelection(
+		startFrame: unknown,
+		endFrame: unknown,
+		project = getProject(),
+	) {
+		return project ? applySelectionRange(project, startFrame, endFrame, {}, true, false) : null;
 	}
 
-	function selectLeftOfPlaybackPosition(requestedStartFrame: any = null) {
+	function selectLeftOfPlaybackPosition(requestedStartFrame: unknown = null) {
 		const playbackFrame = normalizeTimelineFrame(engine.getPositionFrames());
 		let startFrame = requestedStartFrame == null
 			? (activeSelection()?.startFrame ?? 0)
 			: normalizeTimelineFrame(requestedStartFrame);
 		if (startFrame >= playbackFrame) startFrame = 0;
-		return setPlayheadAnchoredSelection(startFrame, playbackFrame).selection;
+		return setPlayheadAnchoredSelection(startFrame, playbackFrame)?.selection ?? null;
 	}
 
-	function selectRightOfPlaybackPosition(requestedEndFrame: any = null) {
+	function selectRightOfPlaybackPosition(requestedEndFrame: unknown = null) {
 		const project = getProject();
+		if (!project) return null;
 		const playbackFrame = normalizeTimelineFrame(engine.getPositionFrames());
 		let endFrame = requestedEndFrame == null
 			? (activeSelection()?.endFrame ?? projectDurationFrames(project))
 			: normalizeTimelineFrame(requestedEndFrame);
 		if (endFrame <= playbackFrame) endFrame = projectDurationFrames(project);
-		return setPlayheadAnchoredSelection(playbackFrame, endFrame).selection;
+		return setPlayheadAnchoredSelection(playbackFrame, endFrame, project)?.selection ?? null;
 	}
 
 	function selectTrackStartToCursor() {
 		const range = selectedTracksTimeRange();
-		return setPlayheadAnchoredSelection(range?.startFrame ?? 0, normalizeTimelineFrame(engine.getPositionFrames())).selection;
+		return setPlayheadAnchoredSelection(
+			range?.startFrame ?? 0, normalizeTimelineFrame(engine.getPositionFrames()),
+		)?.selection ?? null;
 	}
 
 	function selectCursorToTrackEnd() {
 		const range = selectedTracksTimeRange();
 		const playbackFrame = normalizeTimelineFrame(engine.getPositionFrames());
 		return range && range.endFrame > playbackFrame
-			? setPlayheadAnchoredSelection(playbackFrame, range.endFrame).selection
+			? setPlayheadAnchoredSelection(playbackFrame, range.endFrame)?.selection ?? null
 			: selectTrackStartToCursor();
 	}
 
@@ -303,18 +319,28 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 
 	function selectedTracksTimeRange() {
 		const project = getProject();
+		if (!project) return null;
 		const requestedIds = project.selection?.trackIds?.length
 			? project.selection.trackIds
 			: state.selectedTrackId ? [state.selectedTrackId] : [];
-		const tracks = requestedIds.map((trackId: any) => findTrack(project, trackId)).filter(Boolean);
+		const tracks = requestedIds.flatMap((trackId) => {
+			const track = findTrack(project, trackId);
+			return track ? [track] : [];
+		});
 		const ranges: Array<[number, number]> = [];
 		for (const track of tracks) {
 			if (track.type === 'label') {
-				for (const label of track.labels || []) ranges.push([label.startFrame, label.endFrame]);
+				for (const label of track.labels || []) {
+					if (isFiniteFrame(label.startFrame) && isFiniteFrame(label.endFrame)) {
+						ranges.push([label.startFrame, label.endFrame]);
+					}
+				}
 			} else {
 				for (const clipId of track.clipIds || []) {
 					const clip = findClip(project, clipId);
-					if (clip) ranges.push([clip.timelineStartFrame, clip.timelineStartFrame + clip.durationFrames]);
+					if (clip && isFiniteFrame(clip.timelineStartFrame) && isFiniteFrame(clip.durationFrames)) {
+						ranges.push([clip.timelineStartFrame, clip.timelineStartFrame + clip.durationFrames]);
+					}
 				}
 			}
 		}
@@ -328,7 +354,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		};
 	}
 
-	function persistBooleanPreference(stateKey: string, settingKey: string) {
+	function persistBooleanPreference(stateKey: SelectionViewBooleanPreferenceKey, settingKey: string) {
 		state[stateKey] = !state[stateKey];
 		void persistSetting(productSettingKey(settingKey), state[stateKey]);
 		publishDocumentSnapshot();
@@ -359,9 +385,9 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		// Selected clips are a selection: the snap takes the range they span and
 		// leaves a drawn time range on the boundaries it found, so either way of
 		// selecting audio ends with edges that sit on zero crossings.
-		const selection = resolveSelectionRange(getProject(), { selectedClipId: state.selectedClipId });
-		if (!selection || state.analysisProcessing) return null;
 		const projectAtStart = getProject();
+		const selection = resolveSelectionRange(projectAtStart, { selectedClipId: state.selectedClipId });
+		if (!projectAtStart || !selection || state.analysisProcessing) return null;
 		const generation = ++zeroCrossingGeneration;
 		const radius = Math.max(1, Math.round(projectSampleRate() * 0.01));
 		const renderStart = Math.max(0, selection.startFrame - radius);
@@ -408,13 +434,13 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		}
 	}
 
-	function setSnapSettings(settings: any = {}) {
+	function setSnapSettings(settings: CommandObject = {}) {
 		const project = getProject();
 		if (!project || !hasCoreEditingProjectAuthority(project)) throw new Error(copy.v2Required);
 		return commit({ type: 'snap/set', settings });
 	}
 
-	function snapTimelineFrame(value: any, overrides: any = {}) {
+	function snapTimelineFrame(value: unknown, overrides: SelectionViewSnapOverrides = {}) {
 		const project = getProject();
 		const frame = Number(value);
 		if (!Number.isFinite(frame)) throw new TypeError(copy.timelineFramesFinite);
@@ -423,8 +449,9 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		return snapAudioEditorFrameWithProject(rounded, project, { minimumFrame: 0, ...overrides });
 	}
 
-	function setZoom(pixelsPerSecond: any) {
+	function setZoom(pixelsPerSecond: unknown) {
 		const project = getProject();
+		if (!project) return state.pixelsPerSecond;
 		const durationSeconds = editorTimelineDurationFrames(project, projectSampleRate()) / projectSampleRate();
 		const minimum = state.timelineViewportWidth > 0 ? state.timelineViewportWidth / durationSeconds : 1;
 		state.pixelsPerSecond = Math.max(
@@ -463,7 +490,11 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 	});
 }
 
-function hasActiveTimelineAnnotations(project: any): boolean {
+function isFiniteFrame(value: unknown): value is number {
+	return typeof value === 'number' && Number.isFinite(value);
+}
+
+function hasActiveTimelineAnnotations(project: SelectionViewProject): boolean {
 	return isActiveAudioEditorProjectSchema(project)
 		&& Array.isArray(project.timelineAnnotations);
 }

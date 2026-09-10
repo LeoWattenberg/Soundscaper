@@ -145,7 +145,7 @@ export interface RecordingEnginePort {
 }
 
 export interface RecordingCaptureMutableState {
-	readOnly: boolean;
+	readonly readOnly: boolean;
 	recordingStarting: boolean;
 	recordingStartGeneration: number;
 	recorder: RecordingControllerLike | null;
@@ -173,7 +173,7 @@ export interface RecordingCaptureMutableState {
 	inputMeterDb: number;
 	inputMeters: Record<string, number>;
 	inputMeter: unknown;
-	selectedTrackId: string | null;
+	readonly selectedTrackId: string | null;
 	recordingRouting: Readonly<{
 		readonly routes: Readonly<Record<string, RecordingRoute>>;
 		readonly offsets: Readonly<Record<string, number>>;

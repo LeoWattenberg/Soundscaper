@@ -216,6 +216,7 @@ export function createFixture() {
 		evictUnreferencedSourceCaches: () => { calls.push('evict'); },
 		flushProject: async () => { calls.push('flush'); },
 		getProject: () => project,
+		getRecordingRouting: () => state.recordingRouting,
 		handleError: (error: unknown) => { calls.push(`error:${String(error)}`); },
 		liveSessionClipIds: () => new Set(['clip']),
 		liveSessionLinkedOriginalSourceReferences: () => Object.freeze([

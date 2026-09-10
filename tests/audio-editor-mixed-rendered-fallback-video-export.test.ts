@@ -115,6 +115,7 @@ test('desktop mixed video export reuses verified video and renders verified audi
 		outputCleanup: null,
 		exportOutput: null,
 		disposed: false,
+		mobile: false,
 	};
 	const runtime = {
 		abortError: () => new DOMException('Cancelled', 'AbortError'),

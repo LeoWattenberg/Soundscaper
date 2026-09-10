@@ -115,6 +115,7 @@ export function createTransportFixture() {
 			state.playbackCacheAbort?.abort();
 			state.playbackCacheAbort = null;
 		},
+		playbackCachePreparationPending: () => state.playbackCacheAbort !== null,
 		cancelTimedRecording: () => { calls.timedCancellations += 1; return 'timed-cancelled'; },
 		commit: (command: unknown) => {
 			calls.commits.push(command);

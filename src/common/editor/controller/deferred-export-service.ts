@@ -5,10 +5,14 @@ import {
 	createExportSnapshotRenderer,
 	type ExportSnapshotRendererRuntime,
 } from './export-snapshot-renderer.ts';
+import type { EditorExportState } from './export-state.ts';
 
 export type DeferredEditorExportModule = typeof import('./export-service.ts');
 type EditorExportService = ReturnType<DeferredEditorExportModule['createEditorExportService']>;
-type RuntimeValue = unknown;
+
+export interface DeferredEditorExportRuntime extends ExportSnapshotRendererRuntime {
+	readonly state: EditorExportState;
+}
 
 export type DeferredEditorExportLoader = () => Promise<DeferredEditorExportModule>;
 
@@ -34,8 +38,8 @@ const DEFERRED_EXPORT_METHOD_NAMES = [
  * moment it exists. Waiting is answered the same way, so a queue worker polling
  * for an idle exporter never pulls the delivery slice into the boot path.
  */
-export function createDeferredEditorExportService(
-	runtime: ExportSnapshotRendererRuntime & Readonly<Record<string, RuntimeValue>>,
+export function createDeferredEditorExportService<Runtime extends DeferredEditorExportRuntime>(
+	runtime: Runtime,
 	loadModule: DeferredEditorExportLoader = DEFAULT_LOADER,
 ) {
 	const exportSnapshotRenderer = createExportSnapshotRenderer(runtime);

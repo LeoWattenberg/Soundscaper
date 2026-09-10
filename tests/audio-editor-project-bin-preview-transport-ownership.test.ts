@@ -101,6 +101,7 @@ function ownershipFixture() {
 			active?.abort(abortError());
 			return active !== null;
 		},
+		playbackCachePreparationPending: () => state.playbackCacheAbort !== null,
 		copy: {
 			playAtSpeedPlaying: 'Playing at {rate}',
 			localSourcesMissing: 'Sources missing.',

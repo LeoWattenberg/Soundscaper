@@ -23,6 +23,7 @@ import { createDerivedAudioComposition } from './derived-audio-composition.ts';
 import { createMixRenderService } from './mix-render-service.ts';
 import { createSelectionViewService } from './selection-view-service.ts';
 import {
+	type AudioBufferContext,
 	audioBufferChannels,
 	bufferFromChannels,
 	createCoalescingSourceWriter,
@@ -70,7 +71,7 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 	const assertProject = (token: ReturnType<typeof captureProject>) => dependencies.projectGeneration.assertCurrent(token);
 	const getAudioContext = () => engine.getAudioContext({ resume: false });
 	const createBufferFromChannels = (channels: Float32Array[], sampleRate: number, context: unknown) => (
-		bufferFromChannels(channels, sampleRate, context as Parameters<typeof bufferFromChannels>[2], copy)
+		bufferFromChannels(channels, sampleRate, isAudioBufferContext(context) ? context : null, copy)
 	);
 	const setProcessing = (processing: boolean) => { state.audacityEffectProcessing = processing; };
 
@@ -121,16 +122,10 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 		setTimelineView: (value) => { state.timelineView = value; },
 		resampleTrack: (...args) => derivedAudio.resampleTrack(...args),
 		recording: {
+			...dependencies.recording,
 			defaultDeviceId: RECORDING_DEFAULT_DEVICE_ID,
 			displaySourceKey: RECORDING_DISPLAY_SOURCE_KEY,
-			getRouting: () => state.recordingRouting,
-			setRouting: (routing) => { state.recordingRouting = routing; },
-			getPreferredDeviceId: () => state.preferredInputDeviceId,
-			getPreferredChannelCount: () => state.preferredInputChannelCount,
-			getDevices: () => state.recordingDevices,
-			getPoolSources: () => state.recordingPoolSources,
 			setTrackRoute: setRecordingTrackRoute,
-			setRouteHealth: (trackId, health) => { state.recordingRouteHealth[trackId] = health; },
 			updateDeviceRows: dependencies.updateRecordingDeviceRows,
 			persistRouting: dependencies.persistRecordingRouting,
 			publish: dependencies.publishDocumentSnapshot,
@@ -181,7 +176,7 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 		setStatus: dependencies.setStatus,
 		sourceBuffers: dependencies.sourceBuffers,
 		sourceChunkProviders: dependencies.sourceChunkProviders,
-		state,
+		state: dependencies.export.state,
 		stemProject,
 		store,
 		throwIfAborted,
@@ -323,3 +318,8 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 }
 
 export type TrackAudioComposition = ReturnType<typeof createTrackAudioComposition>;
+
+function isAudioBufferContext(value: unknown): value is AudioBufferContext {
+	return value !== null && typeof value === 'object'
+		&& 'createBuffer' in value && typeof value.createBuffer === 'function';
+}

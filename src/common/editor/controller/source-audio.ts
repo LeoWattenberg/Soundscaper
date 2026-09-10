@@ -44,7 +44,16 @@ export interface StoredAudioSource {
 	readonly chunkFrames?: number;
 }
 
-interface StoredSourceMetadata extends Record<string, unknown> {
+export interface StoredAudioSourceCandidate {
+	readonly id?: unknown;
+	readonly storageKey?: unknown;
+	readonly frameCount?: unknown;
+	readonly channelCount?: unknown;
+	readonly sampleRate?: unknown;
+	readonly chunkFrames?: unknown;
+}
+
+export interface StoredSourceMetadata extends Record<string, unknown> {
 	readonly id?: unknown;
 	readonly frameCount?: unknown;
 	readonly frameLength?: unknown;
@@ -54,7 +63,11 @@ interface StoredSourceMetadata extends Record<string, unknown> {
 	readonly chunkCount?: unknown;
 }
 
-interface StoredSourceReader {
+export function isStoredSourceMetadata(value: unknown): value is StoredSourceMetadata {
+	return typeof value === 'object' && value !== null;
+}
+
+export interface StoredSourceReader {
 	readSourceChunk(sourceId: string, chunkIndex: number, context?: Record<string, unknown>): Promise<unknown> | unknown;
 	openSourceReadSession?(
 		sourceId: string,
@@ -164,17 +177,29 @@ export function normalizeByteLimit(value: unknown, fallback: number): number {
 }
 
 export function isStreamableStoredSource(
-	source: StoredAudioSource | null | undefined,
+	source: StoredAudioSourceCandidate | null | undefined,
 	metadata: StoredSourceMetadata | null | undefined,
-): boolean {
+): source is StoredAudioSource {
 	if (!metadata || typeof metadata !== 'object') return false;
-	if (typeof metadata.id !== 'string' || typeof source?.id !== 'string') return false;
-	if (!Number.isSafeInteger(source.frameCount) || !Number.isSafeInteger(source.channelCount)) return false;
+	if (!isStoredAudioSource(source) || typeof metadata.id !== 'string') return false;
 	const chunkFrames = Object.hasOwn(metadata, 'chunkFrames') ? metadata.chunkFrames : source.chunkFrames;
 	if (!Number.isSafeInteger(chunkFrames) || Number(chunkFrames) <= 0 || Number(chunkFrames) > SOURCE_CHUNK_FRAMES) return false;
 	if ((metadata.frameCount ?? metadata.frameLength) !== source.frameCount || metadata.channelCount !== source.channelCount) return false;
 	if (metadata.sampleRate != null && metadata.sampleRate !== source.sampleRate) return false;
 	return metadata.chunkCount === Math.ceil(source.frameCount / Number(chunkFrames));
+}
+
+/** Narrow an admitted project source to the PCM geometry required by stored readers. */
+export function isStoredAudioSource(
+	source: StoredAudioSourceCandidate | null | undefined,
+): source is StoredAudioSource {
+	if (!source || typeof source !== 'object' || typeof source.id !== 'string') return false;
+	if (source.storageKey !== undefined && typeof source.storageKey !== 'string') return false;
+	return Number.isSafeInteger(source.frameCount) && Number(source.frameCount) >= 0
+		&& Number.isSafeInteger(source.channelCount) && Number(source.channelCount) > 0
+		&& Number.isSafeInteger(source.sampleRate) && Number(source.sampleRate) > 0
+		&& (source.chunkFrames === undefined
+			|| (Number.isSafeInteger(source.chunkFrames) && Number(source.chunkFrames) > 0));
 }
 
 export function createStoredChunkProvider(

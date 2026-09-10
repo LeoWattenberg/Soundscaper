@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createProjectBootstrapComposition } from '../src/common/editor/controller/project-bootstrap-composition.ts';
+import { createOwnedStateAccess } from '../src/common/editor/controller/owned-state.ts';
 
 import {
 	EditorControllerLifetime,
@@ -101,8 +102,11 @@ function createFixture(options: Readonly<{
 		takeCycleRecovery: null as unknown,
 		takeCycleRecoveryInspecting: false,
 	};
+	const ownedState = createOwnedStateAccess(state, state);
 	const runtime: ProjectBootstrapServiceRuntime<TestProject, TestPreferences, TestPresets> = {
 		state,
+		recordingState: ownedState,
+		transportState: ownedState,
 		lifetimeSignal: lifetime.signal,
 		store: {
 			ready: () => ready(),

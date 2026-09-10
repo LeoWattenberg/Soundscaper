@@ -35,14 +35,9 @@ export interface MutationHistory<Project extends MutationProject> {
 	readonly dropped?: number;
 }
 
-export interface MutationRecordingRouting {
-	readonly routes: Readonly<Record<string, unknown>>;
-}
-
 export interface ProjectMutationState<
 	Project extends MutationProject,
 	History extends MutationHistory<Project>,
-	Routing extends MutationRecordingRouting,
 > {
 	readOnly: boolean;
 	takeCycleRecovery?: unknown;
@@ -51,8 +46,6 @@ export interface ProjectMutationState<
 	selectedTrackId: string | null;
 	selectedClipId: string | null;
 	projectBinPreview: unknown;
-	recordingRouting: Routing;
-	recordingRouteHealth: Record<string, string>;
 }
 
 interface MutationLifetime<LifetimeToken> {
@@ -97,13 +90,12 @@ export interface ProjectChangedOptions {
 export interface ProjectMutationServiceDependencies<
 	Project extends MutationProject<Track>,
 	History extends MutationHistory<Project>,
-	Routing extends MutationRecordingRouting,
 	ProjectToken,
 	LifetimeToken = Readonly<{ readonly generation: number }>,
 	Track extends MutationTrack = MutationTrack,
 > {
 	readonly lifetime: MutationLifetime<LifetimeToken>;
-	readonly state: ProjectMutationState<Project, History, Routing>;
+	readonly state: ProjectMutationState<Project, History>;
 	readonly productName: string;
 	readonly capabilities: EditorCommandCapabilities;
 	readonly projectReadOnlyMessage: string;
@@ -129,7 +121,8 @@ export interface ProjectMutationServiceDependencies<
 	readonly saves: ProjectSavePort;
 	readonly stopProjectBinPreview: () => unknown;
 	readonly clearWaveformPcmWindows: () => void;
-	readonly normalizeRecordingRouting: (routing: Routing, tracks: readonly Track[]) => Routing;
+	/** Reconcile the recording owner's routing to the active track set. */
+	readonly reconcileRecordingRouting: (tracks: readonly Track[]) => boolean;
 	readonly persistRecordingRouting: () => Promise<unknown>;
 	readonly findClip: (project: Project, clipId: string) => Readonly<{ id: string }> | null;
 	readonly findTrack: (project: Project, trackId: string) => Track | null;
@@ -186,13 +179,12 @@ export interface ProjectMutationService<Project extends MutationProject> {
 export function createProjectMutationService<
 	Project extends MutationProject<Track>,
 	History extends MutationHistory<Project>,
-	Routing extends MutationRecordingRouting,
 	ProjectToken,
 	LifetimeToken = Readonly<{ readonly generation: number }>,
 	Track extends MutationTrack = MutationTrack,
 >(
 	dependencies: ProjectMutationServiceDependencies<
-		Project, History, Routing, ProjectToken, LifetimeToken, Track
+		Project, History, ProjectToken, LifetimeToken, Track
 	>,
 ): Readonly<ProjectMutationService<Project>> {
 	let openMacroTransactions = 0;
@@ -302,15 +294,7 @@ export function createProjectMutationService<
 			dependencies.retention.retainLiveClipIds();
 		}
 		const project = requireProject();
-		const normalizedRouting = dependencies.normalizeRecordingRouting(
-			dependencies.state.recordingRouting,
-			project.tracks,
-		);
-		if (JSON.stringify(normalizedRouting) !== JSON.stringify(dependencies.state.recordingRouting)) {
-			dependencies.state.recordingRouting = normalizedRouting;
-			for (const trackId of Object.keys(dependencies.state.recordingRouteHealth)) {
-				if (!normalizedRouting.routes[trackId]) delete dependencies.state.recordingRouteHealth[trackId];
-			}
+		if (dependencies.reconcileRecordingRouting(project.tracks)) {
 			void dependencies.persistRecordingRouting().catch(() => undefined);
 		}
 		if (dependencies.state.selectedClipId

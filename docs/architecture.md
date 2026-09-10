@@ -23,9 +23,16 @@ controller shape. Legacy command payloads remain a staged typing boundary.
 
 Domains leave the composition root as typed compositions. Recording is the
 first: `controller/recording-state.ts` owns every recording field (the flat
-controller state exposes them as live accessors for legacy readers), and
-`controller/recording-composition.ts` builds routing, capture, finalization,
-take-cycle, timed and session services from one declared dependency contract,
+controller state exposes them as read-only live accessors for legacy readers),
+and the composition root gives recording services a narrowly writable view of
+that owner. Transport uses the same arrangement, so neither domain can mutate
+the other through the compatibility state. Nested compatibility values use
+stable read-only views, while owner-scoped services retain the mutable storage.
+Deferred export receives a separate eight-field workspace projection, so its
+lazy module cannot regain unrelated recording or transport writes.
+`controller/recording-composition.ts`
+builds routing, capture, finalization, take-cycle, timed and session services
+from one declared dependency contract,
 so the compiler checks their wiring and the root only supplies ports. Where two
 services described one object differently (the routed loudness meter, the
 source writer's commit result, the input stream) the contract was unified
@@ -71,7 +78,11 @@ commits every command, and track duplication. Its history type is the product
 runtime's history instantiated with the document, so the stacks are typed
 entries rather than `unknown`, and the recording route and routing types are
 declared once at the routing module that normalises them and derived from
-there by the capture and track services.
+there by the capture and track services. Recording routing, sample editing,
+selection view and source lifecycle each expose a closed generic runtime
+contract. A compile-only boundary test rejects open string indexes and `any`
+in their direct values, callback arguments and callback results, so a new port
+must be declared at its owning seam before a composition can use it.
 
 Analysis is composed in `controller/analysis-composition.ts`. It keeps report
 execution lazy and cancellation eager, owns progress and result publication,

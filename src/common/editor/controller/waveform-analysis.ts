@@ -4,12 +4,12 @@ import { abortError, throwIfAborted } from './app-helpers.ts';
 export { WAVEFORM_PEAK_BLOCK_SIZES, WAVEFORM_PEAKS_VERSION } from '../waveform-peak-contract.ts';
 export const WAVEFORM_PEAK_CACHE_PREFIX = 'audio-editor-peaks-v2:';
 
-interface WorkerCopy {
+export interface WorkerCopy {
 	readonly audioAnalysisWorkerFailed: string;
 	readonly audioAnalysisFailed: string;
 }
 
-interface WaveformSource {
+export interface WaveformSource {
 	readonly id: string;
 	readonly storageKey?: string;
 	readonly frameCount: number;
@@ -26,7 +26,7 @@ interface WaveformChunkValue {
 	readonly frames?: number;
 }
 
-interface StoredWaveformStore {
+export interface StoredWaveformStore {
 	readSourceChunks(sourceId: string): AsyncIterable<StoredPcmChunk>;
 }
 
@@ -42,7 +42,7 @@ export interface WaveformPcmRange {
 	readonly endFrame: number;
 }
 
-interface WaveformPcmProvider {
+export interface WaveformPcmProvider {
 	readonly channelCount: number;
 	readonly chunkFrames: number;
 	readStorageChunk(chunkIndex: number): Promise<WaveformChunkValue | Float32Array[]> | WaveformChunkValue | Float32Array[];
@@ -307,28 +307,57 @@ export function generateWaveformPeaksFallback(channels: Float32Array[]): Wavefor
 }
 
 export function waveformPeaksHaveRms(
-	peaks: WaveformPeaks | null | undefined,
-	source: Pick<WaveformSource, 'frameCount' | 'channelCount'> | null = null,
+	peaks: unknown,
+	source: Readonly<{ readonly frameCount?: unknown; readonly channelCount?: unknown }> | null = null,
 ): boolean {
-	return Boolean(
-		peaks?.version === WAVEFORM_PEAKS_VERSION
-		&& Number.isSafeInteger(peaks.channelCount)
-		&& peaks.channelCount > 0
-		&& (!source || peaks.channelCount === source.channelCount)
-		&& peaks.levels?.length === WAVEFORM_PEAK_BLOCK_SIZES.length
-		&& peaks.levels.every((level, index, levels) => (
-			Number.isSafeInteger(level?.blockSize)
-			&& level.blockSize === WAVEFORM_PEAK_BLOCK_SIZES[index]
-			&& level.blockSize > (levels[index - 1]?.blockSize || 0)
-			&& level?.channels?.length === peaks.channelCount
-			&& level.channels.every((channel) => (
-				channel?.minimums?.length > 0
-				&& channel.maximums?.length === channel.minimums.length
-				&& channel.rms?.length === channel.minimums.length
-				&& (!source || channel.minimums.length === Math.ceil(source.frameCount / level.blockSize))
-			))
-		)),
-	);
+	if (!peaks || typeof peaks !== 'object'
+		|| !('version' in peaks) || peaks.version !== WAVEFORM_PEAKS_VERSION
+		|| !('channelCount' in peaks) || typeof peaks.channelCount !== 'number'
+		|| !Number.isSafeInteger(peaks.channelCount) || peaks.channelCount <= 0
+		|| !('levels' in peaks) || !Array.isArray(peaks.levels)) return false;
+	const channelCount = peaks.channelCount;
+	let sourceFrameCount: number | null = null;
+	if (source) {
+		if (typeof source.frameCount !== 'number' || !Number.isSafeInteger(source.frameCount)
+			|| source.frameCount < 0 || typeof source.channelCount !== 'number'
+			|| !Number.isSafeInteger(source.channelCount) || source.channelCount <= 0
+			|| channelCount !== source.channelCount) return false;
+		sourceFrameCount = source.frameCount;
+	}
+	if (peaks.levels.length !== WAVEFORM_PEAK_BLOCK_SIZES.length) return false;
+	return peaks.levels.every((level: unknown, index: number, levels: unknown[]) => {
+		if (!level || typeof level !== 'object'
+			|| !('blockSize' in level) || typeof level.blockSize !== 'number'
+			|| !Number.isSafeInteger(level.blockSize)
+			|| level.blockSize !== WAVEFORM_PEAK_BLOCK_SIZES[index]
+			|| level.blockSize <= previousPeakBlockSize(levels[index - 1])
+			|| !('channels' in level) || !Array.isArray(level.channels)
+			|| level.channels.length !== channelCount) return false;
+		const blockSize = level.blockSize;
+		return level.channels.every((channel: unknown) => {
+			if (!channel || typeof channel !== 'object'
+				|| !('minimums' in channel) || !hasArrayLikeLength(channel.minimums)
+				|| !('maximums' in channel) || !hasArrayLikeLength(channel.maximums)
+				|| !('rms' in channel) || !hasArrayLikeLength(channel.rms)) return false;
+			return channel.minimums.length > 0
+				&& channel.maximums.length === channel.minimums.length
+				&& channel.rms.length === channel.minimums.length
+				&& (sourceFrameCount === null
+					|| channel.minimums.length === Math.ceil(sourceFrameCount / blockSize));
+		});
+	});
+}
+
+function previousPeakBlockSize(value: unknown): number {
+	return value && typeof value === 'object' && 'blockSize' in value && typeof value.blockSize === 'number'
+		? value.blockSize
+		: 0;
+}
+
+function hasArrayLikeLength(value: unknown): value is Readonly<{ readonly length: number }> {
+	return typeof value === 'object' && value !== null
+		&& 'length' in value && typeof value.length === 'number'
+		&& Number.isSafeInteger(value.length) && value.length >= 0;
 }
 
 export function peakCacheKey(sourceId: unknown): string {

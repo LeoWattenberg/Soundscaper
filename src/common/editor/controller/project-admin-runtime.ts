@@ -46,7 +46,6 @@ interface AdminState<Project extends AdminProject, History extends AdminHistory<
 	readonly projectLock?: Readonly<{ projectId: string; readOnly: boolean }> | null;
 	history: History | null;
 	projects: readonly AdminProject[];
-	recordingRouting: unknown;
 	selectedTrackId: string | null;
 	selectedClipId: string | null;
 	selectedAnnotationId: string | null;
@@ -81,6 +80,7 @@ export interface ProjectAdminServiceRuntime<
 	evictUnreferencedSourceCaches(buffers: SourceCache, peaks: SourceCache, retainedIds: Set<string>): unknown;
 	flushProject(options?: ProjectFlushOptions): Awaitable<unknown>;
 	getProject(): Project | null;
+	getRecordingRouting(): unknown;
 	handleError(error: unknown): unknown;
 	liveSessionClipIds(): Set<string>;
 	liveSessionLinkedOriginalSourceReferences(): readonly ProjectLinkedOriginalSourceReference[];

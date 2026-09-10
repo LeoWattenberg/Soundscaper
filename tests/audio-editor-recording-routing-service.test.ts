@@ -3,25 +3,44 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-	createRecordingRoutingService,
-	type RecordingRoutingServiceRuntime,
-} from '../src/common/editor/controller/recording-routing-service.ts';
+import { createRecordingRoutingService } from '../src/common/editor/controller/recording-routing-service.ts';
+import type {
+	RecordingPreferencePatch,
+	RecordingRoutingCapturePool,
+	RecordingRoutingDeviceRow,
+	RecordingRoutingMediaDevice,
+	RecordingRoutingServiceRuntime,
+	RecordingRoutingState,
+} from '../src/common/editor/controller/recording-routing-service-types.d.ts';
 import { adaptNativeAudioInventory } from '../src/common/editor/controller/native-audio-inventory.ts';
+import type {
+	RecordingInputRoute,
+	RecordingInputRouting,
+	RecordingPoolSource,
+} from '../src/common/editor/controller/recording-input-coordination-service.ts';
 
 interface TestProject {
 	readonly id: string;
 	readonly tracks: ReadonlyArray<{ readonly id: string }>;
 }
 
+type OutputDeviceResult = Readonly<{ readonly activeDeviceId?: string }> | null | undefined;
+type Mutable<Value> = { -readonly [Key in keyof Value]: Value[Key] };
+type FixtureState = Mutable<Omit<RecordingRoutingState, 'preferences'>> & Readonly<{
+	preferences: Readonly<{ recording: { retainInputs: boolean } }>;
+}>;
+
 interface FixtureOptions {
 	readonly project?: TestProject | null;
 	readonly loadSetting?: (key: string, fallback: unknown) => Promise<unknown>;
-	readonly normalizeRouting?: (saved?: unknown, tracks?: TestProject['tracks']) => Record<string, unknown>;
-	readonly enumerateDevices?: () => Promise<ReadonlyArray<Record<string, unknown>>>;
+	readonly normalizeRouting?: (
+		saved?: Parameters<RecordingRoutingServiceRuntime<TestProject>['normalizeRecordingRouting']>[0],
+		tracks?: TestProject['tracks'] | null,
+	) => RecordingInputRouting;
+	readonly enumerateDevices?: () => Promise<readonly RecordingRoutingMediaDevice[]>;
 	readonly acquireHardware?: (deviceId: string) => Promise<unknown>;
 	readonly persistSetting?: (key: string, value: unknown, options?: unknown) => Promise<unknown>;
-	readonly setOutputDevice?: (deviceId: string) => Promise<unknown>;
+	readonly setOutputDevice?: (deviceId: string) => Promise<OutputDeviceResult>;
 }
 
 function createFixture(options: FixtureOptions = {}) {
@@ -33,23 +52,24 @@ function createFixture(options: FixtureOptions = {}) {
 	const hardwareRequests: string[] = [];
 	const persistCalls: Array<[string, unknown, unknown]> = [];
 	const stopMeterCalls: unknown[] = [];
+	const assignedTrackIds: string[] = [];
 	const releasedHardware: string[] = [];
 	let publishes = 0;
 	let meterInvalidations = 0;
 	let releaseAllCalls = 0;
 	let releaseDisplayCalls = 0;
-	let poolSources: ReadonlyArray<Record<string, unknown>> = [];
-	const state = {
+	let poolSources: readonly RecordingPoolSource[] = [];
+	const state: FixtureState = {
 		recordingRouting: {
-			routes: {} as Record<string, Readonly<Record<string, unknown>>>,
+			routes: {} as Record<string, RecordingInputRoute>,
 			offsets: {} as Record<string, number>,
 		},
-		recordingDevices: [] as ReadonlyArray<Record<string, unknown>>,
+		recordingDevices: [] as readonly RecordingRoutingDeviceRow[],
 		recordingRouteHealth: {} as Record<string, string>,
 		recordingEnumeratedDeviceIds: new Set<string>(),
-		recordingPoolSources: [] as ReadonlyArray<Record<string, unknown>>,
-		audioInputDevices: [] as ReadonlyArray<Record<string, unknown>>,
-		audioOutputDevices: [] as ReadonlyArray<Record<string, unknown>>,
+		recordingPoolSources: [] as readonly RecordingPoolSource[],
+		audioInputDevices: [],
+		audioOutputDevices: [],
 		audioInputAccess: false,
 		preferredInputDeviceId: 'default',
 		preferredInputChannelCount: 1,
@@ -61,15 +81,18 @@ function createFixture(options: FixtureOptions = {}) {
 		recorder: null as object | null,
 		recordingStarting: false,
 		timedRecordingPreparing: false,
-		timedRecording: null,
+		timedRecording: null as object | null,
 		recordingFinishing: false,
 		recordingReleaseAfterStop: false,
 		microphoneMetering: false,
 	};
-	const recordingCapturePool = {
+	const recordingCapturePool: RecordingRoutingCapturePool<unknown> = {
 		async acquireHardware(deviceId: string) {
 			hardwareRequests.push(deviceId);
 			return options.acquireHardware?.(deviceId);
+		},
+		async acquireDisplay() {
+			return undefined;
 		},
 		getSnapshot: () => poolSources,
 		releaseAll() {
@@ -91,7 +114,10 @@ function createFixture(options: FixtureOptions = {}) {
 		RECORDING_CHANNEL_COUNT_MAXIMUM: 32,
 		RECORDING_DEFAULT_DEVICE_ID: 'default',
 		RECORDING_DISPLAY_SOURCE_KEY: 'display',
-		assignPreferredInputToTrack: () => undefined,
+		assignPreferredInputToTrack: (trackId: string) => {
+			assignedTrackIds.push(trackId);
+			return false;
+		},
 		engine: { setOutputDevice: options.setOutputDevice || (async (deviceId: string) => ({ activeDeviceId: deviceId })) },
 		mediaDevices: {
 			getUserMedia: () => undefined,
@@ -102,7 +128,10 @@ function createFixture(options: FixtureOptions = {}) {
 		invalidateMicrophoneMeter: () => { meterInvalidations += 1; },
 		normalizePreferredInputDeviceId: (value: unknown) => String(value || 'default'),
 		normalizePreferredOutputDeviceId: (value: unknown) => String(value || ''),
-		normalizeRecordingRouting(saved?: unknown, tracks?: TestProject['tracks']) {
+		normalizeRecordingRouting(
+			saved?: Parameters<RecordingRoutingServiceRuntime<TestProject>['normalizeRecordingRouting']>[0],
+			tracks?: TestProject['tracks'] | null,
+		) {
 			normalizationCalls.push({ saved, tracks });
 			return options.normalizeRouting?.(saved, tracks) || { routes: {}, offsets: {} };
 		},
@@ -115,32 +144,33 @@ function createFixture(options: FixtureOptions = {}) {
 		projectSampleRate: () => 48_000,
 		publishDocumentSnapshot: () => { publishes += 1; },
 		recordingCapturePool,
-		recordingRouteSourceKey: (route: { kind?: string; deviceId?: string }) => (
+		recordingRouteSourceKey: (route: RecordingInputRoute) => (
 			route.kind === 'display' ? 'display' : `device:${route.deviceId}`
 		),
 		recordingRoutingSettingKey: (projectId: string) => `routing:${projectId}`,
-		setRecordingSourceOffset: (routing: typeof state.recordingRouting, sourceKey: string, value: unknown) => ({
+		setRecordingSourceOffset: (routing: RecordingInputRouting, sourceKey: string, value: unknown) => ({
 			...routing,
 			offsets: { ...routing.offsets, [sourceKey]: Number(value) || 0 },
 		}),
 		setRecordingTrackInput: async () => undefined,
 		state,
-		stopMicrophoneMetering: (stopOptions: unknown) => { stopMeterCalls.push(stopOptions); },
+		stopMicrophoneMetering: (stopOptions: Readonly<{ readonly releaseInput: boolean }>) => {
+			stopMeterCalls.push(stopOptions);
+		},
 		store: {
 			async loadSetting(key: string, fallback: unknown) {
 				loadCalls.push([key, fallback]);
 				return options.loadSetting?.(key, fallback) ?? fallback;
 			},
 		},
-		updatePreferences: async (patch: { recording?: { retainInputs?: boolean } }) => {
-			if (typeof patch.recording?.retainInputs === 'boolean') {
-				state.preferences.recording.retainInputs = patch.recording.retainInputs;
-			}
+		updatePreferences: async (patch: RecordingPreferencePatch) => {
+			state.preferences.recording.retainInputs = patch.recording.retainInputs;
 			return state.preferences;
 		},
-	} as RecordingRoutingServiceRuntime;
+	} satisfies RecordingRoutingServiceRuntime<TestProject, unknown>;
 	return {
 		service: createRecordingRoutingService(runtime),
+		assignedTrackIds,
 		state,
 		hardwareRequests,
 		loadCalls,
@@ -148,13 +178,21 @@ function createFixture(options: FixtureOptions = {}) {
 		persistCalls,
 		releasedHardware,
 		stopMeterCalls,
-		setPoolSources: (sources: ReadonlyArray<Record<string, unknown>>) => { poolSources = sources; },
+		setPoolSources: (sources: readonly RecordingPoolSource[]) => { poolSources = sources; },
 		publishes: () => publishes,
 		meterInvalidations: () => meterInvalidations,
 		releaseAllCalls: () => releaseAllCalls,
 		releaseDisplayCalls: () => releaseDisplayCalls,
 	};
 }
+
+test('input channel preferences do not route a missing selected track', async () => {
+	const fixture = createFixture();
+	fixture.state.selectedTrackId = null;
+
+	assert.equal(await fixture.service.setPreferredInputChannelCount(2), 2);
+	assert.deepEqual(fixture.assignedTrackIds, []);
+});
 
 test('recording routing loading uses an empty fallback and handles a missing project locally', async () => {
 	const noProject = createFixture({ project: null });
@@ -233,7 +271,7 @@ test('native inventory joins Web devices through the routing action without prob
 	const nativeInput = fixture.state.recordingDevices[1];
 	assert.deepEqual({
 		groupId: nativeInput.groupId, channelCount: nativeInput.channelCount,
-		channels: (nativeInput.channels as readonly unknown[]).length, status: nativeInput.status,
+		channels: (nativeInput.channels || []).length, status: nativeInput.status,
 	}, { groupId: 'native:wasapi:studio-interface', channelCount: 32, channels: 32, status: 'available' });
 	assert.deepEqual(fixture.hardwareRequests, [], 'describing inventory must not open either Web or native capture');
 	assert.deepEqual(sinkCalls, [], 'a native preference is not passed to the browser setSinkId route');
@@ -260,8 +298,8 @@ test('audio output failures restore the preference and classify browser errors',
 });
 
 test('an older audio output completion cannot overwrite a newer persisted selection', async () => {
-	const speakerA = deferred<unknown>();
-	const speakerB = deferred<unknown>();
+	const speakerA = deferred<OutputDeviceResult>();
+	const speakerB = deferred<OutputDeviceResult>();
 	const fixture = createFixture({
 		setOutputDevice: (deviceId) => deviceId === 'speaker-a' ? speakerA.promise : speakerB.promise,
 	});
@@ -289,8 +327,8 @@ test('an older audio output completion cannot overwrite a newer persisted select
 });
 
 test('a stale audio output failure still rejects without replacing the newer success', async () => {
-	const speakerA = deferred<unknown>();
-	const speakerB = deferred<unknown>();
+	const speakerA = deferred<OutputDeviceResult>();
+	const speakerB = deferred<OutputDeviceResult>();
 	const fixture = createFixture({
 		setOutputDevice: (deviceId) => deviceId === 'speaker-a' ? speakerA.promise : speakerB.promise,
 	});
@@ -315,8 +353,8 @@ test('a stale audio output failure still rejects without replacing the newer suc
 });
 
 test('an older audio output success cannot erase the newer selection error', async () => {
-	const speakerA = deferred<unknown>();
-	const speakerB = deferred<unknown>();
+	const speakerA = deferred<OutputDeviceResult>();
+	const speakerB = deferred<OutputDeviceResult>();
 	const fixture = createFixture({
 		setOutputDevice: (deviceId) => deviceId === 'speaker-a' ? speakerA.promise : speakerB.promise,
 	});
@@ -343,8 +381,8 @@ test('an older audio output success cannot erase the newer selection error', asy
 });
 
 test('a manual output selection retires an older device reconciliation', async () => {
-	const speakerA = deferred<unknown>();
-	const speakerB = deferred<unknown>();
+	const speakerA = deferred<OutputDeviceResult>();
+	const speakerB = deferred<OutputDeviceResult>();
 	const sinkCalls: string[] = [];
 	const fixture = createFixture({
 		setOutputDevice: (deviceId) => {

@@ -6,8 +6,10 @@ import {
 import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
 import { throwIfAborted } from './app-helpers.ts';
 import { admitTimePitchCacheProject } from './time-pitch-cache-project-admission.ts';
+import type { OwnedStateWriteScope } from './owned-state.ts';
 import type { AudioBufferLike } from './source-audio.ts';
 import type { ProjectVisualClip, ProjectVisualProject, ProjectVisualSource } from './project-visual-types.ts';
+import type { ControllerTransportState } from './transport-state.ts';
 import type {
 	EditorControllerLifetime,
 	EditorProjectToken,
@@ -43,14 +45,17 @@ export interface ClipTimePitchCachePort {
 }
 
 export interface ClipTimePitchPlaybackState {
-	playbackCacheGeneration: number;
-	/** A preparation playback is still waiting on, so pressing play again cancels it. */
-	playbackCacheAbort: AbortController | null;
-	/** A refresh rendering behind playback that already started on a stale cache. */
-	playbackCacheRefreshAbort: AbortController | null;
-	recordingStarting: boolean;
-	recorder: unknown;
+	readonly recordingStarting: boolean;
+	readonly recorder: unknown;
 }
+
+export type ClipTimePitchPreparationState = Pick<ControllerTransportState,
+	'playbackCacheAbort' | 'playbackCacheGeneration' | 'playbackCacheRefreshAbort'
+>;
+export type ClipTimePitchPreparationWriteScope = OwnedStateWriteScope<
+	ClipTimePitchPreparationState,
+	ClipTimePitchPreparationState
+>;
 
 export interface ClipTimePitchRenderEngine {
 	setSourceResolver?(resolver: unknown): void;
@@ -68,6 +73,7 @@ export interface ClipTimePitchCacheServiceDependencies<
 > {
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive'>;
 	readonly state: ClipTimePitchPlaybackState;
+	readonly playbackCacheState: ClipTimePitchPreparationWriteScope;
 	readonly cache: ClipTimePitchCachePort;
 	readonly sourceResolver: unknown;
 	readonly sourceChunkProviders: ReadonlyMap<string, unknown>;
@@ -108,6 +114,7 @@ export interface ClipTimePitchCacheService<
 		options?: Readonly<{ abortController?: AbortController | null }>,
 	): Promise<readonly Promise<ClipTimePitchCacheEntry>[]>;
 	cancelPlaybackCachePreparation(): boolean;
+	isPlaybackCachePreparationPending(): boolean;
 }
 
 export function createClipTimePitchCacheService<
@@ -126,6 +133,7 @@ export function createClipTimePitchCacheService<
 		preparePlaybackTimePitchCaches,
 		beginPlaybackCachePreparation,
 		cancelPlaybackCachePreparation,
+		isPlaybackCachePreparationPending,
 	});
 
 	function projectTimePitchPairs(
@@ -281,9 +289,9 @@ export function createClipTimePitchCacheService<
 		const snapshot = admitTimePitchCacheProject(input);
 		cancelPlaybackCachePreparation();
 		const abort = options.abortController ?? new AbortController();
-		const generation = ++dependencies.state.playbackCacheGeneration;
+		const generation = ++dependencies.playbackCacheState.playbackCacheGeneration;
 		const projectToken = dependencies.captureProject(snapshot.id);
-		dependencies.state.playbackCacheAbort = abort;
+		dependencies.playbackCacheState.playbackCacheAbort = abort;
 		let refreshes: readonly Promise<ClipTimePitchCacheEntry>[] = [];
 		let background = false;
 		try {
@@ -291,9 +299,9 @@ export function createClipTimePitchCacheService<
 			assertOwned(projectToken, abort.signal);
 			if (refreshes.length) {
 				background = true;
-				if (generation === dependencies.state.playbackCacheGeneration) {
-					dependencies.state.playbackCacheAbort = null;
-					dependencies.state.playbackCacheRefreshAbort = abort;
+				if (generation === dependencies.playbackCacheState.playbackCacheGeneration) {
+					dependencies.playbackCacheState.playbackCacheAbort = null;
+					dependencies.playbackCacheState.playbackCacheRefreshAbort = abort;
 				}
 				void Promise.all(refreshes)
 					.then(async () => {
@@ -307,27 +315,31 @@ export function createClipTimePitchCacheService<
 					})
 					.catch(handlePlaybackCacheError)
 					.finally(() => {
-						if (generation === dependencies.state.playbackCacheGeneration) {
-							dependencies.state.playbackCacheRefreshAbort = null;
+						if (generation === dependencies.playbackCacheState.playbackCacheGeneration) {
+							dependencies.playbackCacheState.playbackCacheRefreshAbort = null;
 						}
 					});
 			}
 			return refreshes;
 		} finally {
-			if (!background && generation === dependencies.state.playbackCacheGeneration) {
-				dependencies.state.playbackCacheAbort = null;
+			if (!background && generation === dependencies.playbackCacheState.playbackCacheGeneration) {
+				dependencies.playbackCacheState.playbackCacheAbort = null;
 			}
 		}
 	}
 
 	function cancelPlaybackCachePreparation(): boolean {
-		dependencies.state.playbackCacheGeneration += 1;
-		const active = dependencies.state.playbackCacheAbort
-			?? dependencies.state.playbackCacheRefreshAbort;
+		dependencies.playbackCacheState.playbackCacheGeneration += 1;
+		const active = dependencies.playbackCacheState.playbackCacheAbort
+			?? dependencies.playbackCacheState.playbackCacheRefreshAbort;
 		active?.abort(new DOMException('Playback cache preparation was cancelled.', 'AbortError'));
-		dependencies.state.playbackCacheAbort = null;
-		dependencies.state.playbackCacheRefreshAbort = null;
+		dependencies.playbackCacheState.playbackCacheAbort = null;
+		dependencies.playbackCacheState.playbackCacheRefreshAbort = null;
 		return active !== null;
+	}
+
+	function isPlaybackCachePreparationPending(): boolean {
+		return dependencies.playbackCacheState.playbackCacheAbort !== null;
 	}
 
 	function assertOwned(projectToken: EditorProjectToken, signal: AbortSignal | null): void {
@@ -343,7 +355,7 @@ export function createClipTimePitchCacheService<
 		signal: AbortSignal,
 	): void {
 		assertOwned(projectToken, signal);
-		if (generation !== dependencies.state.playbackCacheGeneration
+		if (generation !== dependencies.playbackCacheState.playbackCacheGeneration
 			|| dependencies.getProject() !== snapshot) {
 			throw new DOMException('Playback cache preparation was superseded.', 'AbortError');
 		}

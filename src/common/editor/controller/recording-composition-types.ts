@@ -3,6 +3,7 @@
 import type { TakeCycleProjectDocument } from './take-cycle-project-document.ts';
 import type { EditorControllerLifetime, EditorProjectGeneration } from './lifecycle.ts';
 import type { MicrophoneMeterService } from './microphone-meter-service.ts';
+import type { OwnedStateWriteScope } from './owned-state.ts';
 import type { ProjectFlushOptions } from './project-save-service.ts';
 import type { RecordedAudioSource } from './recording-finalization-types.ts';
 import type { ControllerRecordingState } from './recording-state.ts';
@@ -10,8 +11,14 @@ import type {
 	RecordingCapturePool,
 	RecordingControllerFactory,
 	RecordingEnginePort,
+	RecordingMediaStream,
 	RecordingProject,
 } from './recording-transaction-types.ts';
+import type {
+	RecordingPreferencePatch,
+	RecordingRoutingCapturePool,
+	RecordingRoutingMediaDevices,
+} from './recording-routing-service-types.d.ts';
 import type { SoundActivationPolicyService } from './sound-activation-policy-service.ts';
 import type { WritablePcmSource } from './source-audio.ts';
 import type { SourceChunkProviderRegistry } from './source-chunk-provider-registry.ts';
@@ -50,6 +57,11 @@ export type RecordingCompositionState = ControllerRecordingState & {
 	readonly projectLock: Readonly<{ readonly readOnly?: boolean }> | null;
 };
 
+type RecordingCompositionWritableState = ControllerRecordingState & Pick<
+	RecordingCompositionState,
+	'history' | 'saveState' | 'takeCycleRecovery' | 'takeCycleRecoveryInspecting'
+>;
+
 export type RecordingCompositionStore = TakeCycleAppCompositionDependencies['store'] & Readonly<{
 	beginSourceWrite(
 		sourceId: string,
@@ -57,6 +69,7 @@ export type RecordingCompositionStore = TakeCycleAppCompositionDependencies['sto
 	): Promise<WritablePcmSource<unknown, Promise<unknown>>>;
 	deleteSource(sourceId: string): Promise<unknown>;
 	deleteAnalysis?(key: string): PromiseLike<unknown> | unknown;
+	loadSetting(key: string, fallback: unknown): PromiseLike<unknown> | unknown;
 }>;
 
 export type RecordingCompositionEngine = RecordingEnginePort & TakeCycleRoutedCaptureEngine & Readonly<{
@@ -64,6 +77,9 @@ export type RecordingCompositionEngine = RecordingEnginePort & TakeCycleRoutedCa
 	stop(): unknown;
 	getState(): Readonly<{ readonly state: string }>;
 	setChunkSources(providers: SourceChunkProviderRegistry<string, unknown>): unknown;
+	setOutputDevice?(deviceId: string): PromiseLike<Readonly<{
+		readonly activeDeviceId?: string;
+	}> | null | undefined> | Readonly<{ readonly activeDeviceId?: string }> | null | undefined;
 }>;
 
 export interface RecordingCompositionCopy {
@@ -84,7 +100,11 @@ export interface RecordingCompositionCopy {
 }
 
 export interface RecordingCompositionDependencies {
-	readonly state: RecordingCompositionState;
+	readonly state: OwnedStateWriteScope<
+		RecordingCompositionState,
+		ControllerRecordingState,
+		RecordingCompositionWritableState
+	>;
 	readonly lifetime: Pick<EditorControllerLifetime, 'capture' | 'assertActive' | 'startTask' | 'cancelTask'>;
 	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
 	readonly projectRuntime: Readonly<{
@@ -96,8 +116,8 @@ export interface RecordingCompositionDependencies {
 	readonly engine: RecordingCompositionEngine;
 	readonly copy: RecordingCompositionCopy;
 	readonly locale: string;
-	readonly mediaDevices: unknown;
-	readonly capturePool: RecordingCapturePool;
+	readonly mediaDevices: RecordingRoutingMediaDevices | null | undefined;
+	readonly capturePool: RecordingCapturePool & RecordingRoutingCapturePool<RecordingMediaStream>;
 	readonly createRecorder: RecordingControllerFactory;
 	readonly microphoneMeter: MicrophoneMeterService;
 	readonly soundActivation: SoundActivationPolicyService;
@@ -135,7 +155,7 @@ export interface RecordingCompositionDependencies {
 		value: unknown,
 		options?: Readonly<{ readonly policy?: 'best-effort' | 'required' }>,
 	) => Promise<unknown>;
-	readonly updatePreferences: (patch: unknown) => unknown;
+	readonly updatePreferences: (patch: RecordingPreferencePatch) => Promise<unknown>;
 	readonly preflightStorage: (requiredBytes: number, operation: 'recording') => Promise<void>;
 	readonly publishDocumentSnapshot: () => void;
 	readonly publishTelemetrySnapshot: () => void;

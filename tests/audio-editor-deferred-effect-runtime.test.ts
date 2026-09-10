@@ -126,6 +126,7 @@ test('export implementations load only when an export action is invoked', async 
 	const calls: unknown[][] = [];
 	let loads = 0;
 	const runtime = {
+		state: exportState(),
 		options: {},
 		sourceBuffers: new Map(),
 		taskProgress: null,
@@ -168,6 +169,7 @@ test('export implementations load only when an export action is invoked', async 
 test('export loader failures preserve the original rejection', async () => {
 	const failure = new Error('export loader failed');
 	const service = createDeferredEditorExportService({
+		state: exportState(),
 		options: {}, sourceBuffers: new Map(), taskProgress: null,
 		createCacheAwareRenderEngine: () => null,
 		prepareCommittedTimePitchCaches: async () => undefined,
@@ -205,4 +207,17 @@ test('product-ready owners retain descriptors but not optional effect or analysi
 
 function source(path: string): string {
 	return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+}
+
+function exportState() {
+	return {
+		deliveryReport: null,
+		disposed: false,
+		exportAbort: null,
+		exportGeneration: 0,
+		exportOutput: null,
+		mobile: false,
+		outputCleanup: null,
+		outputUrl: null,
+	};
 }

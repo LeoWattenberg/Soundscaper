@@ -27,6 +27,7 @@ import { commitPreparedDirectStemArchiveDestination, directStemArchiveTemporaryB
 import { createEditorVideoExportAction } from './video-export-service.ts';
 import { createExportOperationAvailability } from './export-operation-availability.ts';
 import { createExportSnapshotRenderer } from './export-snapshot-renderer.ts';
+import type { EditorExportState } from './export-state.ts';
 import { streamStemArchiveExport } from './streaming-stem-archive-export.ts';
 import { assertDesktopAudioExportCapability } from './desktop-audio-export-capability.ts';
 import { createDeliveryReportForPlan } from '../delivery-conversion-inventory.ts';
@@ -44,6 +45,7 @@ import {
 	exactPersistentAudioDeliveryExecution,
 } from './persistent-audio-delivery-execution.ts';
 export interface ExportServiceRuntime {
+	readonly state: EditorExportState;
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	readonly [name: string]: any;

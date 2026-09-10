@@ -144,7 +144,7 @@ export function createClipVideoComposition(dependencies: ClipVideoCompositionDep
 		createAudioEditorVideoFrameExtractor,
 		activateVideoSource: (source, options) => dependencies.activateVideoSource(source, options),
 	});
-	const sampleEdit: SampleEdit = createSampleEditService({
+	const sampleEdit: SampleEdit = createSampleEditService<ClipVideoCompositionProject>({
 		lifetime,
 		activeSelection: dependencies.activeSelection,
 		activateStoredSource: dependencies.activateStoredSource,

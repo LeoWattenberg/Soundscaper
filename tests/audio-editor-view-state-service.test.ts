@@ -9,15 +9,13 @@ import {
 } from '../src/common/editor/controller/view-state-service.ts';
 
 function createFixture() {
-	const meterCalls: boolean[] = [];
+	const transportTransitions: Array<readonly [string, string]> = [];
 	let telemetryPublishes = 0;
 	let projectPublishes = 0;
-	let microphoneStops = 0;
 	let metronomeSynchronizations = 0;
 	let blocked = false;
 	let sampleEditing = false;
 	let contentDurationFrames = 48_000;
-	let routedMeterEnabled = false;
 	const commands: unknown[] = [];
 	let project: { tracks: Array<{ id: string; height?: number }> } = {
 		tracks: [{ id: 'track', height: 100 }, { id: 'second', height: 114 }],
@@ -28,9 +26,6 @@ function createFixture() {
 		positionFrame: 0,
 		durationFrames: 0,
 		transportState: 'stopped',
-		inputLoudnessMeasurementExplicitlyRunning: false,
-		inputLoudnessMeasurementManuallyPaused: false,
-		microphoneMetering: false,
 		meters: null,
 		pixelsPerSecond: 100,
 		timelineViewportWidth: 1_000,
@@ -45,38 +40,29 @@ function createFixture() {
 		editingBlocked: () => blocked,
 		editorTimelineDurationFrames: () => 48_000,
 		findTrack: (value: typeof project, id: unknown) => value.tracks.find((track) => track.id === id),
-		getMicrophoneMeterSession: () => ({
-			loudnessMeter: {
-				setRunning: (running: boolean) => { meterCalls.push(running); },
-				requestSnapshot: () => undefined,
-			},
-		}),
 		getProject: () => project,
-		getRoutedInputLoudnessMeter: () => routedMeterEnabled ? {
-			setRunning: (running: boolean) => { meterCalls.push(running); },
-		} : null,
+		handleMicrophoneMeterTransportState: (previousState: string, nextState: string) => {
+			transportTransitions.push([previousState, nextState]);
+		},
 		projectDurationFrames: () => contentDurationFrames,
 		projectSampleRate: () => 48_000,
 		publishProjectState: () => { projectPublishes += 1; },
 		publishTelemetrySnapshot: () => { telemetryPublishes += 1; },
 		sampleEditingAvailable: () => sampleEditing,
 		state,
-		stopMicrophoneMetering: () => { microphoneStops += 1; },
 		syncMetronome: () => { metronomeSynchronizations += 1; },
 	} as unknown as ViewStateServiceRuntime;
 	return {
 		service: createViewStateService(runtime),
 		state,
 		commands,
-		meterCalls,
+		transportTransitions,
 		telemetryPublishes: () => telemetryPublishes,
 		projectPublishes: () => projectPublishes,
-		microphoneStops: () => microphoneStops,
 		metronomeSynchronizations: () => metronomeSynchronizations,
 		setBlocked(value: boolean) { blocked = value; },
 		setSampleEditing(value: boolean) { sampleEditing = value; },
 		setContentDurationFrames(value: number) { contentDurationFrames = value; },
-		setRoutedMeterEnabled(value: boolean) { routedMeterEnabled = value; },
 		setProject(value: typeof project) { project = value; },
 	};
 }
@@ -92,12 +78,14 @@ test('recording previews extend playhead and duration in project coordinates', (
 	assert.equal(fixture.telemetryPublishes(), 1);
 });
 
-test('transport state owns loudness-meter running policy', () => {
+test('transport state delegates microphone-meter policy to its owner', () => {
 	const fixture = createFixture();
 	fixture.service.updateTransportState('recording');
 	fixture.service.updateTransportState('stopped');
-	assert.deepEqual(fixture.meterCalls, [true, false]);
-	assert.equal(fixture.state.inputLoudnessMeasurementExplicitlyRunning, false);
+	assert.deepEqual(fixture.transportTransitions, [
+		['stopped', 'recording'],
+		['recording', 'stopped'],
+	]);
 	assert.equal(fixture.telemetryPublishes(), 2);
 });
 
@@ -112,13 +100,10 @@ test('track-height changes commit one atomic batch and disable auto-fit', () => 
 	});
 });
 
-test('view state publishes meter snapshots and releases idle microphone sessions', () => {
+test('view state publishes meter snapshots and synchronizes transport observers', () => {
 	const fixture = createFixture();
-	fixture.setRoutedMeterEnabled(true);
-	fixture.state.inputLoudnessMeasurementExplicitlyRunning = true;
 	fixture.service.updateTransportState('playing');
-	assert.deepEqual(fixture.meterCalls, [false, false]);
-	assert.equal(fixture.microphoneStops(), 1);
+	assert.deepEqual(fixture.transportTransitions, [['stopped', 'playing']]);
 	assert.equal(fixture.metronomeSynchronizations(), 1);
 
 	fixture.service.updateMeters({ tracks: { track: { peak: 0.5 } }, master: null });

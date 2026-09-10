@@ -20,16 +20,8 @@ export interface ViewStateServiceState extends Pick<ControllerTransportState,
 	autoFitTrackHeight: boolean;
 	visibleTrackHeights: Record<string, number>;
 	sampleEditMode: unknown;
-	inputLoudnessMeasurementExplicitlyRunning: boolean;
-	readonly inputLoudnessMeasurementManuallyPaused: boolean;
-	readonly microphoneMetering: boolean;
 	readonly recorder: unknown;
 	readonly recordingPreviews: readonly Readonly<{ readonly startFrame: number; readonly frames: number }>[];
-}
-
-export interface ViewStateLoudnessMeter {
-	setRunning(running: boolean): void;
-	requestSnapshot?(): void;
 }
 
 export interface ViewStateServiceRuntime<Project extends ViewStateProject = ViewStateProject> {
@@ -42,18 +34,14 @@ export interface ViewStateServiceRuntime<Project extends ViewStateProject = View
 	readonly editingBlocked: () => boolean;
 	readonly editorTimelineDurationFrames: (project: Project | null, sampleRate: number) => number;
 	readonly findTrack: (project: Project | null, trackId: unknown) => ViewStateTrack | null | undefined;
-	readonly getMicrophoneMeterSession: () => Readonly<{ readonly loudnessMeter?: ViewStateLoudnessMeter | null }> | null;
 	readonly getProject: () => Project | null;
-	readonly getRoutedInputLoudnessMeter: () => Pick<ViewStateLoudnessMeter, 'setRunning'> | null;
+	readonly handleMicrophoneMeterTransportState: (previousState: string, nextState: string) => void;
 	readonly projectDurationFrames: (project: Project | null) => number;
 	readonly projectSampleRate: () => number;
 	readonly publishProjectState: () => void;
 	readonly publishTelemetrySnapshot: () => void;
 	readonly sampleEditingAvailable: () => boolean;
 	readonly state: ViewStateServiceState;
-	readonly stopMicrophoneMetering: (
-		options: Readonly<{ readonly releaseInput: boolean; readonly preserveReading: boolean }>,
-	) => unknown;
 	readonly syncMetronome: () => unknown;
 }
 
@@ -62,10 +50,10 @@ export function createViewStateService<Project extends ViewStateProject = ViewSt
 ) {
 	const {
 		MAX_PIXELS_PER_SECOND, commit, copy, editingBlocked,
-		editorTimelineDurationFrames, findTrack, getMicrophoneMeterSession, getProject,
-		getRoutedInputLoudnessMeter, projectDurationFrames, projectSampleRate,
+		editorTimelineDurationFrames, findTrack, getProject, handleMicrophoneMeterTransportState,
+		projectDurationFrames, projectSampleRate,
 		publishProjectState, publishTelemetrySnapshot, sampleEditingAvailable, state,
-		stopMicrophoneMetering, syncMetronome,
+		syncMetronome,
 	} = runtime;
 
 	function updatePlayhead(frame: unknown = 0, duration: unknown = projectDurationFrames(getProject())) {
@@ -87,22 +75,9 @@ export function createViewStateService<Project extends ViewStateProject = ViewSt
 
 	function updateTransportState(value: unknown) {
 		const nextTransportState = typeof value === 'string' && value ? value : 'stopped';
-		if (nextTransportState !== state.transportState && nextTransportState !== 'recording') {
-			state.inputLoudnessMeasurementExplicitlyRunning = false;
-		}
+		const previousTransportState = state.transportState;
 		state.transportState = nextTransportState;
-		const shouldMeasure = !state.inputLoudnessMeasurementManuallyPaused
-			&& (state.transportState === 'recording' || state.inputLoudnessMeasurementExplicitlyRunning);
-		const microphoneMeterSession = getMicrophoneMeterSession();
-		microphoneMeterSession?.loudnessMeter?.setRunning(shouldMeasure);
-		getRoutedInputLoudnessMeter()?.setRunning(shouldMeasure);
-		microphoneMeterSession?.loudnessMeter?.requestSnapshot?.();
-		if (state.transportState !== 'recording'
-			&& !state.microphoneMetering
-			&& !state.recorder
-			&& microphoneMeterSession) {
-			stopMicrophoneMetering({ releaseInput: false, preserveReading: true });
-		}
+		handleMicrophoneMeterTransportState(previousTransportState, nextTransportState);
 		syncMetronome();
 		publishTelemetrySnapshot();
 	}

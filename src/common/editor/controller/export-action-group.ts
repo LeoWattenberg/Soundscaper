@@ -4,6 +4,7 @@ import { createDeliveryPresetService } from './delivery-preset-service.ts';
 import { createDeliveryQueueService } from './delivery-queue-service.ts';
 import { saveCurrentDeliveryReport } from './delivery-report-action.ts';
 import { exportProjectEdl, exportProjectFcpxml, exportProjectOtio } from './interchange-export-action.ts';
+import { createDeliveryReportStateAccess } from './export-state.ts';
 import type { DeliveryQueue } from '../delivery-queue.ts';
 
 /** Delivery owns these optional workspace slots; reports remain inert domain data. */
@@ -41,8 +42,9 @@ export function createExportActionGroup(runtime: ExportActionGroupRuntime) {
 		handleExportAction, state, productName, getProjectTitle,
 		fileService, persistSetting, publishDocumentSnapshot, createId, getProject,
 	} = runtime;
+	const interchangeState = createDeliveryReportStateAccess(state);
 	const interchange = () => ({
-		getProject: getProject ?? (() => null), state, fileService, publishDocumentSnapshot,
+		getProject: getProject ?? (() => null), state: interchangeState, fileService, publishDocumentSnapshot,
 	});
 	return Object.freeze({
 		start: (settings: unknown) => handleExportAction('start', settings),

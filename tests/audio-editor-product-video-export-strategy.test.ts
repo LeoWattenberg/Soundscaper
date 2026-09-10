@@ -420,7 +420,7 @@ function createFixture(options: FixtureOptions) {
 		outputUrl: null,
 		outputCleanup: null,
 		exportOutput: null,
-		disposed: false,
+		disposed: false, mobile: false,
 	};
 	let activeController: AbortController | null = null;
 	let written = 0;

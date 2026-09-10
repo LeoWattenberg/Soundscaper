@@ -7,6 +7,7 @@ import {
 	createProjectAdminService,
 	type ProjectAdminServiceRuntime,
 } from '../src/common/editor/controller/project-admin-service.ts';
+import { exposeOwnedFields } from '../src/common/editor/controller/owned-state.ts';
 import {
 	createFixture,
 	deferred,
@@ -32,6 +33,23 @@ test('project administration lists, renames, duplicates, and clears recents', as
 
 	fixture.setProject(null);
 	assert.equal(await service.duplicateProject('Unused'), undefined);
+});
+
+test('project duplication clones routing through its owner port', async () => {
+	const fixture = createFixture();
+	const owner = { recordingRouting: { input: 'device-a' } };
+	const state = exposeOwnedFields(fixture.state, owner);
+	const persisted: unknown[] = [];
+	const service = createProjectAdminService({
+		...fixture.runtime,
+		state,
+		getRecordingRouting: () => owner.recordingRouting,
+		persistSetting: async (_key, value) => { persisted.push(structuredClone(value)); },
+	});
+
+	await service.duplicateProject('Project A copy');
+
+	assert.deepEqual(persisted, [{ input: 'device-a' }]);
 });
 
 test('duplicate completion preserves initiating routing without replacing a later activation', async () => {

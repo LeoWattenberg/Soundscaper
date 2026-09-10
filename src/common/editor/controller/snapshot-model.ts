@@ -135,8 +135,8 @@ export function createAudioDeviceSnapshot(
 	const preferredOutputAvailable = !state.preferredOutputDeviceId
 		|| state.audioOutputDevices.some((device) => device.deviceId === state.preferredOutputDeviceId);
 	return Object.freeze({
-		inputs: Object.freeze(state.audioInputDevices),
-		outputs: Object.freeze(state.audioOutputDevices),
+		inputs: Object.freeze([...state.audioInputDevices]),
+		outputs: Object.freeze([...state.audioOutputDevices]),
 		preferredInputDeviceId: state.preferredInputDeviceId,
 		preferredInputChannelCount: state.preferredInputChannelCount,
 		preferredOutputDeviceId: state.preferredOutputDeviceId,

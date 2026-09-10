@@ -35,7 +35,7 @@ export type TransportEngine = Pick<EnginePublicApi,
 
 export interface TransportServiceState extends Pick<ControllerTransportState,
 	| 'metronomeAnchor' | 'metronomeEnabled' | 'metronomePending' | 'metronomeTimer'
-	| 'playAtSpeedAbort' | 'playAtSpeedGeneration' | 'playAtSpeedRate' | 'playbackCacheAbort'
+	| 'playAtSpeedAbort' | 'playAtSpeedGeneration' | 'playAtSpeedRate'
 	| 'selectionFollowsLoop' | 'transportState'
 > {
 	readonly disposed: boolean;
@@ -83,6 +83,7 @@ export interface TransportServiceRuntime<Project extends TransportProject = Tran
 	) => Promise<unknown>;
 	readonly calculateAudioEditorMetronomeSchedule: typeof calculateAudioEditorMetronomeSchedule;
 	readonly cancelPlaybackCachePreparation: () => unknown;
+	readonly playbackCachePreparationPending: () => boolean;
 	readonly cancelTimedRecording: () => unknown;
 	/** Apply a loop or batch command and return the document it produced. */
 	readonly commit: (command: TransportCommand) => Project & Readonly<{ readonly loop: TransportLoop }>;

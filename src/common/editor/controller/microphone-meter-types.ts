@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudioTrackLike } from './recording-model.ts';
+import type { OwnedStateWriteScope } from './owned-state.ts';
+import type { ControllerRecordingState } from './recording-state.ts';
 import type { RoutedInputLoudnessMeter } from './recording-transaction-types.ts';
 
 export interface RecordingDeviceRoute {
@@ -18,22 +20,27 @@ export interface RecordingRouteLike {
 }
 
 export interface MicrophoneMeterState {
-	disposed: boolean;
+	readonly disposed: boolean;
 	microphoneMetering: boolean;
-	recorder: Readonly<{ setInputGain?(value: number): void }> | null;
-	recordingStarting: boolean;
-	timedRecordingPreparing: boolean;
-	timedRecording: unknown;
+	readonly recorder: Readonly<{ setInputGain?(value: number): void }> | null;
+	readonly recordingStarting: boolean;
+	readonly timedRecordingPreparing: boolean;
+	readonly timedRecording: unknown;
 	readonly preferences: Readonly<{ recording: Readonly<{ retainInputs: boolean }> }>;
 	recordingInputGain: number;
-	transportState: string;
+	readonly transportState: string;
 	inputLoudnessMeasurementManuallyPaused: boolean;
 	inputLoudnessMeasurementExplicitlyRunning: boolean;
 	inputMeterDb: number;
 	inputMeter: unknown;
-	selectedTrackId: string | null;
-	recordingRouting: Readonly<{ routes: Readonly<Record<string, RecordingRouteLike | null | undefined>> }>;
+	readonly selectedTrackId: string | null;
+	readonly recordingRouting: Readonly<{ routes: Readonly<Record<string, RecordingRouteLike | null | undefined>> }>;
 }
+
+type MicrophoneMeterOwnerState = Pick<ControllerRecordingState,
+	| 'inputLoudnessMeasurementExplicitlyRunning' | 'inputLoudnessMeasurementManuallyPaused'
+	| 'inputMeter' | 'inputMeterDb' | 'microphoneMetering' | 'recordingInputGain'
+>;
 
 export interface AudioTrackPort extends AudioTrackLike {
 	addEventListener?(type: 'ended', listener: () => void): void;
@@ -108,7 +115,7 @@ export interface LoudnessMeterOptions {
 }
 
 export interface MicrophoneMeterDependencies {
-	readonly state: MicrophoneMeterState;
+	readonly state: OwnedStateWriteScope<MicrophoneMeterState, MicrophoneMeterOwnerState>;
 	readonly defaultDeviceId: string;
 	readonly recordingCapturePool: RecordingCapturePoolPort;
 	getAudioContext(): Promise<MeterAudioContext>;
@@ -149,6 +156,7 @@ export interface MicrophoneMeterService {
 	stopMicrophoneMetering(options?: Readonly<{ releaseInput?: boolean; preserveReading?: boolean }>): void;
 	reconcileInput(options?: Readonly<{ endedSession?: MicrophoneMeterSession | null }>): boolean;
 	synchronizeTarget(): boolean;
+	handleTransportState(previousState: string, nextState: string): void;
 	pauseLoudnessMeasurement(kind?: string): boolean;
 	continueLoudnessMeasurement(kind?: string): boolean;
 	resetLoudnessMeasurement(kind?: string): boolean;

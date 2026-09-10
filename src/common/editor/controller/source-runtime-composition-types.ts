@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EnginePublicApi } from '../engine/public-api.ts';
-import type { createSourceBufferCache } from '../source-buffer-cache.js';
 import type {
 	ClipTimePitchCacheServiceDependencies,
+	ClipTimePitchPreparationWriteScope,
 	ClipTimePitchPlaybackState,
 	ClipTimePitchRenderEngine,
 } from './clip-time-pitch-service.ts';
@@ -12,6 +12,7 @@ import type { PlaybackProjectService } from './playback-project-service.ts';
 import type { ProjectVisualProject, ProjectVisualServiceDependencies } from './project-visual-types.ts';
 import type { bufferFromChannels, createStoredChunkProvider, readStoredAudioBuffer } from './source-audio.ts';
 import type { SourceChunkProviderRegistry } from './source-chunk-provider-registry.ts';
+import type { SourceLifecycleBufferCache } from './source-lifecycle-types.d.ts';
 import type { generateStoredWaveformPeaks, generateWaveformPeaks } from './waveform-analysis.ts';
 
 /** The document shape the visual, time-pitch and playback services read. */
@@ -29,8 +30,8 @@ export type SourceRuntimeCompositionCopy =
 
 /**
  * What the visual service, the stored-source readers and the source lifecycle
- * read from the store. The lifecycle's runtime is still untyped, so the four
- * members it calls directly are declared here.
+ * read from the store. Helper parameter projections preserve each exact storage
+ * capability without widening the composition boundary.
  */
 export type SourceRuntimeCompositionStore =
 	& ProjectVisualServiceDependencies['store']
@@ -52,12 +53,13 @@ export interface SourceRuntimeCompositionDependencies<
 	RenderEngine extends ClipTimePitchRenderEngine = ClipTimePitchRenderEngine,
 > {
 	readonly state: SourceRuntimeCompositionState;
+	readonly playbackCacheState: ClipTimePitchPreparationWriteScope;
 	readonly copy: SourceRuntimeCompositionCopy;
 	readonly lifetime: EditorControllerLifetime;
 	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
 	readonly store: SourceRuntimeCompositionStore;
 	readonly engine: SourceRuntimeCompositionEngine;
-	readonly sourceBuffers: ReturnType<typeof createSourceBufferCache>;
+	readonly sourceBuffers: SourceLifecycleBufferCache<AudioBuffer> & ReadonlyMap<string, AudioBuffer>;
 	readonly sourceChunkProviders: SourceChunkProviderRegistry<string, ReturnType<typeof createStoredChunkProvider>>;
 	readonly sourcePeaks: Map<string, unknown>;
 	/** The render-cache coordinator the kernel owns, and the resolver it hands the engines. */

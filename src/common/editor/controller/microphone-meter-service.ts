@@ -34,6 +34,7 @@ export function createMicrophoneMeterService(
 		stopMicrophoneMetering,
 		reconcileInput,
 		synchronizeTarget,
+		handleTransportState,
 		pauseLoudnessMeasurement,
 		continueLoudnessMeasurement,
 		resetLoudnessMeasurement,
@@ -328,6 +329,20 @@ export function createMicrophoneMeterService(
 			if (!state.disposed) dependencies.handleError(error);
 		});
 		return true;
+	}
+
+	function handleTransportState(previousState: string, nextState: string): void {
+		if (previousState !== nextState && nextState !== 'recording') {
+			state.inputLoudnessMeasurementExplicitlyRunning = false;
+		}
+		const shouldMeasure = !state.inputLoudnessMeasurementManuallyPaused
+			&& (nextState === 'recording' || state.inputLoudnessMeasurementExplicitlyRunning);
+		session?.loudnessMeter?.setRunning(shouldMeasure);
+		routedLoudnessMeter?.setRunning(shouldMeasure);
+		session?.loudnessMeter?.requestSnapshot?.();
+		if (nextState !== 'recording' && !state.microphoneMetering && !state.recorder && session) {
+			stopMicrophoneMetering({ releaseInput: false, preserveReading: true });
+		}
 	}
 
 	function pauseLoudnessMeasurement(kind = 'input'): boolean {

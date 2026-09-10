@@ -45,13 +45,13 @@ export interface PreparedRecordingInputs {
 }
 
 export interface RecordingInputCoordinationState {
-	disposed: boolean;
+	readonly disposed: boolean;
 	microphoneMetering: boolean;
 	recorder: unknown | null;
 	recordingPoolSources: readonly RecordingPoolSource[];
 	recordingRouteHealth: Record<string, string>;
 	recordingRouting: RecordingInputRouting;
-	selectedTrackId: string | null;
+	readonly selectedTrackId: string | null;
 	timedRecording: PreparedRecordingInputs | null;
 	timedRecordingPreparing: boolean;
 }

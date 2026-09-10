@@ -8,6 +8,8 @@ import { SourceChunkProviderRegistry } from '../src/common/editor/controller/sou
 import {
 	createStoredChunkProvider,
 	isStreamableStoredSource,
+	type StoredAudioSource,
+	type StoredSourceMetadata,
 } from '../src/common/editor/controller/source-audio.ts';
 
 const source = Object.freeze({
@@ -32,11 +34,16 @@ function createFixture() {
 	const published: unknown[] = [];
 	const store = { readSourceChunk: () => 'chunk', openSourceReadSession: () => null };
 	const registration = createSourceChunkProviderRegistration({
-		createStoredChunkProvider,
+		createStoredChunkProviderCandidate: (
+			candidate: StoredAudioSource,
+			candidateMetadata: StoredSourceMetadata,
+		) => (
+			isStreamableStoredSource(candidate, candidateMetadata)
+				? createStoredChunkProvider(store, candidate, candidateMetadata)
+				: null
+		),
 		engine: { setChunkSources: (value: unknown) => { published.push(value); } },
-		isStreamableStoredSource,
 		sourceChunkProviders,
-		store,
 	});
 	return { published, registration, sourceChunkProviders };
 }
@@ -46,6 +53,7 @@ test('re-registering an unchanged stored source retires the provider it replaces
 	const first = registration.registerStoredChunkProvider(source, metadata);
 	assert.ok(first);
 	const second = registration.registerStoredChunkProvider({ ...source }, { ...metadata });
+	assert.ok(second);
 	// Reusing the live provider would spare its read session, but retirement is
 	// also how the exclusive OPFS access handle behind it is released; holding
 	// that handle made a later read of the same payload fail as a missing source.
@@ -59,9 +67,11 @@ test('re-registering an unchanged stored source retires the provider it replaces
 test('registering a changed stored source replaces and retires the stale provider', async () => {
 	const { registration, sourceChunkProviders } = createFixture();
 	const first = registration.registerStoredChunkProvider(source, metadata);
+	assert.ok(first);
 	const grown = { ...source, frameCount: 12 };
 	const grownMetadata = { ...metadata, frameLength: 12, chunkCount: 3 };
 	const second = registration.registerStoredChunkProvider(grown, grownMetadata);
+	assert.ok(second);
 	assert.notStrictEqual(second, first);
 	assert.strictEqual(sourceChunkProviders.get('source'), second);
 	await sourceChunkProviders.drain();

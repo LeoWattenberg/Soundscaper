@@ -11,7 +11,9 @@ import {
 } from '../src/common/editor/controller/macro-command-service.ts';
 import {
 	createSelectionViewService,
+	type SelectionViewSelection,
 	type SelectionViewServiceRuntime,
+	type SelectionViewState,
 } from '../src/common/editor/controller/selection-view-service.ts';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
@@ -23,12 +25,12 @@ const PROJECT_END_FRAME = 70;
 /** The timeline runs past the content, so a full-range selection must not stop here. */
 const TIMELINE_FRAMES = 200;
 
-type TestSelection = {
-	startFrame: number;
-	endFrame: number;
-	trackIds: string[];
-	clipIds: string[];
+type TestSelection = SelectionViewSelection & {
+	trackIds: readonly string[];
+	clipIds: readonly string[];
 };
+
+type TestRenderedAudio = Readonly<{ channels: readonly Float32Array[] }>;
 
 type TestProject = {
 	id: string;
@@ -60,15 +62,20 @@ function createFixture() {
 		selection: { startFrame: 10, endFrame: 30, trackIds: ['track-a'], clipIds: [] },
 	};
 	const seeks: number[] = [];
-	const state: Record<string, unknown> = {
+	const state: SelectionViewState = {
 		analysisProcessing: false,
 		selectedTrackId: 'track-a',
 		selectedClipId: null,
 		selectedAnnotationId: null,
+		showRms: false,
+		showVerticalRulers: false,
+		updateDisplayWhilePlaying: true,
+		pinnedPlayhead: false,
+		playbackOnRulerClick: true,
 		timelineViewportWidth: 1_000,
 		pixelsPerSecond: 100,
 	};
-	const runtime: SelectionViewServiceRuntime = {
+	const runtime: SelectionViewServiceRuntime<TestProject, TestRenderedAudio> = {
 		DEFAULT_PIXELS_PER_SECOND: 100,
 		MAX_PIXELS_PER_SECOND: 10_000,
 		activeSelection: () => project.selection,
@@ -90,11 +97,11 @@ function createFixture() {
 			getState: () => ({ state: 'stopped' }),
 			seek: (frame: number) => { seeks.push(frame); },
 		},
-		findClip: (value, clipId) => value.clips.find((clip: { id: string }) => clip.id === clipId) || null,
+		findClip: (value, clipId) => value.clips.find((clip) => clip.id === clipId) || null,
 		findClipTrack: (value, clipId) => value.tracks
-			.find((track: { clipIds?: string[] }) => track.clipIds?.includes(clipId)) || null,
+			.find((track) => track.clipIds?.includes(clipId)) || null,
 		findNearestAudioZeroCrossing: (_channels, frame) => frame,
-		findTrack: (value, trackId) => value.tracks.find((track: { id: string }) => track.id === trackId),
+		findTrack: (value, trackId) => value.tracks.find((track) => track.id === trackId),
 		getProject: () => project,
 		handleError: () => undefined,
 		normalizeTimelineFrame: (value) => Math.max(0, Math.min(TIMELINE_FRAMES, Math.round(Number(value)))),
@@ -105,7 +112,7 @@ function createFixture() {
 		projectSampleRate: () => SAMPLE_RATE,
 		publishDocumentSnapshot: () => undefined,
 		publishProjectState: () => undefined,
-		renderSnapshot: () => Promise.resolve({}),
+		renderSnapshot: () => Promise.resolve({ channels: [new Float32Array(8)] }),
 		resetRoutedInputMeter: () => undefined,
 		setStatus: () => undefined,
 		snapAudioEditorFrameWithProject: (frame) => Number(frame),
@@ -113,7 +120,7 @@ function createFixture() {
 		synchronizeAutomaticSampleEditMode: () => undefined,
 		synchronizeMicrophoneMeterTarget: () => undefined,
 		updatePlayhead: () => undefined,
-		updateSelection: (command: Partial<TestSelection>) => {
+		updateSelection: (command) => {
 			project = { ...project, selection: { ...project.selection, ...command } };
 			return project;
 		},

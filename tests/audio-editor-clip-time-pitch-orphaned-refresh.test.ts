@@ -6,6 +6,7 @@ import {
 	createClipTimePitchCacheService,
 	type ClipTimePitchCacheEntry,
 	type ClipTimePitchCachePort,
+	type ClipTimePitchPreparationState,
 	type ClipTimePitchPlaybackState,
 } from '../src/common/editor/controller/clip-time-pitch-service.ts';
 import type { ClipTransformProject } from '../src/common/editor/controller/clip-domain-types.ts';
@@ -13,6 +14,7 @@ import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
 } from '../src/common/editor/controller/lifecycle.ts';
+import { createOwnedStateAccess } from '../src/common/editor/controller/owned-state.ts';
 
 test('cancelling playback preparation leaves no unobserved stale-refresh rejection', async (t) => {
 	const unobserved: unknown[] = [];
@@ -62,7 +64,7 @@ function createHarness(
 	lifetime.markReady();
 	const generation = new EditorProjectGeneration();
 	generation.activate(project.id);
-	const state: ClipTimePitchPlaybackState = {
+	const state: ClipTimePitchPlaybackState & ClipTimePitchPreparationState = {
 		playbackCacheGeneration: 0,
 		playbackCacheAbort: null,
 		playbackCacheRefreshAbort: null,
@@ -82,6 +84,7 @@ function createHarness(
 	const service = createClipTimePitchCacheService({
 		lifetime,
 		state,
+		playbackCacheState: createOwnedStateAccess(state, state),
 		cache,
 		sourceResolver: null,
 		sourceChunkProviders: new Map<string, unknown>(),

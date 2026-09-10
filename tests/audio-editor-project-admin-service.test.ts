@@ -69,6 +69,7 @@ function createFixture() {
 			return flush();
 		},
 		getProject: () => project,
+		getRecordingRouting: () => state.recordingRouting,
 		handleError: noop,
 		liveSessionClipIds: () => new Set<string>(),
 		liveSessionLinkedOriginalSourceReferences: () => [],

@@ -383,7 +383,7 @@ function mutationFixture(overrides: FixtureOverrides = {}) {
 	const setHistory = overrides.setHistory || ((value: TestHistory) => { history = value; state.history = value; });
 	const getProject = overrides.getProject || (() => project);
 	const setProject = overrides.setProject || ((value: TestProject | null) => { if (value) project = value; });
-	const service = createProjectMutationService<TestProject, TestHistory, TestRouting, Readonly<{ projectId: string; generation: number }>>({
+	const service = createProjectMutationService<TestProject, TestHistory, Readonly<{ projectId: string; generation: number }>>({
 		lifetime: {
 			capture: () => ({ generation: 1 }),
 			assertActive: () => undefined,
@@ -421,7 +421,18 @@ function mutationFixture(overrides: FixtureOverrides = {}) {
 		},
 		stopProjectBinPreview: () => undefined,
 		clearWaveformPcmWindows: () => undefined,
-		normalizeRecordingRouting: overrides.normalizeRouting || ((value) => value),
+		reconcileRecordingRouting: (tracks) => {
+			const normalized = (overrides.normalizeRouting || ((value: TestRouting) => value))(
+				state.recordingRouting,
+				tracks,
+			);
+			if (JSON.stringify(normalized) === JSON.stringify(state.recordingRouting)) return false;
+			state.recordingRouting = normalized;
+			for (const trackId of Object.keys(state.recordingRouteHealth)) {
+				if (!normalized.routes[trackId]) delete state.recordingRouteHealth[trackId];
+			}
+			return true;
+		},
 		persistRecordingRouting: overrides.persistRouting || (async () => undefined),
 		findClip: (value, clipId) => value.clips.find((clip) => clip.id === clipId) || null,
 		findTrack: (value, trackId) => value.tracks.find((track) => track.id === trackId) || null,

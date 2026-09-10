@@ -8,6 +8,12 @@ import {
 	smoothImmutablePcmRange,
 } from './pcm-chunks.js';
 
+/** @typedef {import('./sample-edit-types.ts').CreatePencilSampleEditsRequest} CreatePencilSampleEditsRequest */
+/** @typedef {import('./sample-edit-types.ts').CreateSmoothSampleRangeRequest} CreateSmoothSampleRangeRequest */
+/** @typedef {import('./sample-edit-types.ts').PersistedSampleEdit} PersistedSampleEdit */
+/** @typedef {import('./sample-edit-types.ts').PersistImmutableSampleEditRequest} PersistImmutableSampleEditRequest */
+/** @typedef {import('./sample-edit-types.ts').SamplePencilEdit} SamplePencilEdit */
+
 export const AUDIO_EDITOR_SAMPLE_EDIT_MIN_PIXELS_PER_SAMPLE = AUDACITY_WAVEFORM_STEM_PIXELS_PER_SAMPLE;
 export const AUDIO_EDITOR_SAMPLE_EDIT_MAX_FRAMES = 262_144;
 
@@ -49,6 +55,8 @@ export function timelineFrameToSourceFrame(clip, source, timelineFrame) {
 /**
  * Turn pointer samples into a continuous, frame-addressed pencil stroke.
  * Later points win when a stroke crosses the same frame more than once.
+ * @param {CreatePencilSampleEditsRequest} [request]
+ * @returns {readonly SamplePencilEdit[]}
  */
 export function createPencilSampleEdits({ clip, source, channel = 0, points, maximumFrames = AUDIO_EDITOR_SAMPLE_EDIT_MAX_FRAMES } = {}) {
 	validateClipAndSource(clip, source);
@@ -82,7 +90,10 @@ export function createPencilSampleEdits({ clip, source, channel = 0, points, max
 	return Object.freeze([...edits.values()].sort((left, right) => left.frame - right.frame || left.channel - right.channel));
 }
 
-/** Map a project selection to the selected clip's source interval. */
+/**
+ * Map a project selection to the selected clip's source interval.
+ * @param {CreateSmoothSampleRangeRequest} [request]
+ */
 export function createSmoothSampleRange({ clip, source, startFrame, endFrame, channel = null, maximumFrames = AUDIO_EDITOR_SAMPLE_EDIT_MAX_FRAMES } = {}) {
 	validateClipAndSource(clip, source);
 	const start = safeInteger(startFrame, 'startFrame');
@@ -109,6 +120,8 @@ export function createSmoothSampleRange({ clip, source, startFrame, endFrame, ch
  * Persist a derived immutable source without ever publishing partial PCM.
  * The caller publishes the returned source descriptor in one editor command;
  * `rollback()` removes the committed source if that command cannot be applied.
+ * @param {PersistImmutableSampleEditRequest} [request]
+ * @returns {Promise<PersistedSampleEdit>}
  */
 export async function persistImmutableSampleEdit({
 	store,

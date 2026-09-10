@@ -13,9 +13,9 @@ export interface WaveformPcmWindowRange {
 /** Clamp one requested clip window while preserving an explicit zero end. */
 export function resolveWaveformPcmWindowRequest(
 	request: WaveformPcmWindowRequest,
-	durationFrames: number,
+	durationFrames: unknown,
 ): WaveformPcmWindowRange | null {
-	if (!Number.isSafeInteger(durationFrames) || durationFrames < 0) {
+	if (typeof durationFrames !== 'number' || !Number.isSafeInteger(durationFrames) || durationFrames < 0) {
 		throw new RangeError('A waveform PCM window requires a non-negative clip duration.');
 	}
 	const startFrame = boundedFrame(request.startFrame, 0, durationFrames);
@@ -24,6 +24,14 @@ export function resolveWaveformPcmWindowRequest(
 		boundedFrame(request.endFrame, durationFrames, durationFrames),
 	);
 	return endFrame <= startFrame ? null : Object.freeze({ startFrame, endFrame });
+}
+
+/** Validate persisted source geometry before it reaches range arithmetic. */
+export function requireWaveformSourceFrameCount(value: unknown): number {
+	if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
+		throw new RangeError('A waveform PCM window requires a non-negative source frame count.');
+	}
+	return value;
 }
 
 function boundedFrame(value: unknown, fallback: number, durationFrames: number): number {

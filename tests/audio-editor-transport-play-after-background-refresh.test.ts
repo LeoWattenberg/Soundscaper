@@ -18,6 +18,7 @@ import {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
 } from '../src/common/editor/controller/lifecycle.ts';
+import { createOwnedStateAccess } from '../src/common/editor/controller/owned-state.ts';
 
 test('play starts again after playback ended while a background cache refresh is still rendering', async () => {
 	const harness = createPlaybackHarness({
@@ -92,6 +93,7 @@ function createPlaybackHarness(options: Readonly<{
 	const timePitch = createClipTimePitchCacheService({
 		lifetime,
 		state,
+		playbackCacheState: createOwnedStateAccess(state, state),
 		cache,
 		sourceResolver: null,
 		sourceChunkProviders: new Map<string, unknown>(),
@@ -117,6 +119,7 @@ function createPlaybackHarness(options: Readonly<{
 		hasMissingTimelineSources: () => false,
 		beginPlaybackCachePreparation: timePitch.beginPlaybackCachePreparation,
 		cancelPlaybackCachePreparation: timePitch.cancelPlaybackCachePreparation,
+		playbackCachePreparationPending: timePitch.isPlaybackCachePreparationPending,
 		publishDocumentSnapshot: () => {},
 		setStatus: () => {},
 		stopProjectBinPreview: () => Promise.resolve(),

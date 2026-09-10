@@ -108,7 +108,7 @@ function fenceFixture() {
 		recordingRouting: { routes: {} } as FenceRouting,
 		recordingRouteHealth: {} as Record<string, string>,
 	};
-	const service = createProjectMutationService<FenceProject, FenceHistory, FenceRouting, EditorProjectToken>({
+	const service = createProjectMutationService<FenceProject, FenceHistory, EditorProjectToken>({
 		lifetime: { capture: () => ({ generation: 1 }), assertActive: () => undefined },
 		state,
 		productName: 'Test editor',
@@ -143,7 +143,7 @@ function fenceFixture() {
 		},
 		stopProjectBinPreview: () => undefined,
 		clearWaveformPcmWindows: () => undefined,
-		normalizeRecordingRouting: (value) => value,
+		reconcileRecordingRouting: () => false,
 		persistRecordingRouting: async () => undefined,
 		findClip: (value, clipId) => value.clips.find((clip) => clip.id === clipId) ?? null,
 		findTrack: (value, trackId) => value.tracks.find((track) => track.id === trackId) ?? null,

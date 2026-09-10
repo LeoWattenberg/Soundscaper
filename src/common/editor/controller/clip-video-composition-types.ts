@@ -5,7 +5,13 @@ import type { ClipPropertyServiceDependencies } from './clip-property-service.ts
 import type { ClipTimePitchRenderServiceDependencies } from './clip-time-pitch-render-service.ts';
 import type { ClipTransformServiceDependencies } from './clip-transform-service.ts';
 import type { EditorControllerLifetime, EditorProjectGeneration } from './lifecycle.ts';
-import type { SampleEditServiceRuntime } from './sample-edit-service.ts';
+import type { ControllerRuntimeProject } from './project-runtime.ts';
+import type {
+	SampleEditServiceCopy,
+	SampleEditServiceRuntime,
+	SampleEditServiceState,
+	SampleEditStore,
+} from './sample-edit-service.ts';
 import type { SequenceTimingServiceDependencies } from './sequence-timing-service.ts';
 import type { SourceMonitorServiceDependencies } from './source-monitor-service.ts';
 import type { EditorTaskProgressCoordinator } from './task-progress.ts';
@@ -20,7 +26,8 @@ import type { generateWaveformPeaks } from './waveform-analysis.ts';
 /** The document identity the clip services read; the command projection is supplied separately. */
 export type ClipVideoCompositionProject =
 	& ReturnType<VideoSourceReprobeDependencies['getProject']>
-	& NonNullable<ReturnType<VideoEffectServiceRuntime['getProject']>>;
+	& NonNullable<ReturnType<VideoEffectServiceRuntime['getProject']>>
+	& ControllerRuntimeProject;
 
 /** The resolved-sample projection every edit and navigation service reads. */
 export type ClipVideoCommandProject =
@@ -31,7 +38,7 @@ export type ClipVideoCommandProject =
 	& ReturnType<ClipTimePitchRenderServiceDependencies['getProject']>
 	& ReturnType<ClipTransformServiceDependencies['getProject']>;
 
-export type ClipVideoCompositionState = VideoEffectServiceRuntime['state'] & {
+export type ClipVideoCompositionState = VideoEffectServiceRuntime['state'] & SampleEditServiceState & {
 	selectedTrackId: string | null;
 	selectedClipId: string | null;
 	audacityEffectProcessing: boolean;
@@ -43,12 +50,14 @@ export type ClipVideoCompositionCopy =
 	& ClipTimePitchRenderServiceDependencies['copy']
 	& VideoTrimCompositionDependencies['copy']
 	& VideoEffectServiceRuntime['copy']
+	& SampleEditServiceCopy
 	& Parameters<typeof generateWaveformPeaks>[1]
-	& Readonly<{ readonly sampleEditSaving: string; readonly rendering: string }>;
+	& Readonly<{ readonly rendering: string }>;
 
 export type ClipVideoCompositionStore =
 	& VideoSourceReprobeDependencies['store']
-	& ClipTimePitchRenderServiceDependencies['store'];
+	& ClipTimePitchRenderServiceDependencies['store']
+	& SampleEditStore;
 
 export type ClipVideoCompositionEngine = Pick<EnginePublicApi,
 	| 'endScrub' | 'getPositionFrames' | 'pause' | 'scrub' | 'seek'

@@ -62,11 +62,11 @@ export interface RecordingStartScope {
 }
 
 export interface RecordingSessionMutableState {
-	readOnly: boolean;
-	takeCycleRecovery?: unknown;
-	takeCycleRecoveryInspecting?: boolean;
-	disposed: boolean;
-	projectBinPreview: unknown | null;
+	readonly readOnly: boolean;
+	readonly takeCycleRecovery?: unknown;
+	readonly takeCycleRecoveryInspecting?: boolean;
+	readonly disposed: boolean;
+	readonly projectBinPreview: unknown | null;
 	recorder: RecordingControllerLike | null;
 	recordingKind: 'ordinary' | 'take-cycle' | null;
 	recordingStarting: boolean;
