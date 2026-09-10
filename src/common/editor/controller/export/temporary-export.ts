@@ -11,7 +11,7 @@ import {
 	createSequentialZip32Archive,
 	type Zip32StreamInput,
 } from './internal/archive/sequential-zip32-stream.ts';
-import { projectTransientRenderFeatures } from '../track-audio/transient-render-feature-projection.ts';
+import { projectTransientRenderFeatures } from '../shared/transient-render-feature-projection.ts';
 
 export interface TemporaryExportCopy {
 	readonly temporaryExportClosed: string;

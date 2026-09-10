@@ -164,6 +164,7 @@
 		"shared/storage-capacity-runtime.ts",
 		"shared/storage-capacity-service.ts",
 		"shared/task-progress.ts",
+		"shared/transient-render-feature-projection.ts",
 		"source/clip-time-pitch-service.ts",
 		"source/playback-project-service.ts",
 		"source/source-audio.ts",
@@ -183,7 +184,6 @@
 		"track-audio/track-audio-composition-types.ts",
 		"track-audio/track-audio-composition.ts",
 		"track-audio/track-domain-types.ts",
-		"track-audio/transient-render-feature-projection.ts",
 		"transport/transport-composition.ts",
 		"transport/transport-model.ts",
 		"transport/transport-state.ts"
@@ -285,8 +285,7 @@
 		},
 		"export": {
 			"runtime": [
-				"shared",
-				"track-audio"
+				"shared"
 			],
 			"typeOnly": [
 				"source"

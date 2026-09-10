@@ -13,7 +13,7 @@ import {
 	inheritTrackFolderMediaStateProjectionV12,
 	projectTrackFolderMediaStateV12,
 } from '../../../../track-folder-media-runtime.ts';
-import { projectTransientRenderFeatures } from '../../transient-render-feature-projection.ts';
+import { projectTransientRenderFeatures } from '../../../shared/transient-render-feature-projection.ts';
 import {
 	findControllerTrack,
 	type ControllerEffect,

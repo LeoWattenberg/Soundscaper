@@ -10,7 +10,7 @@ import {
 	projectTrackFolderMediaStateV12,
 } from '../../track-folder-media-runtime.ts';
 import { resolveTerminalChannelWidths } from '../../terminal-channel-widths.ts';
-import { projectTransientRenderFeatures } from './transient-render-feature-projection.ts';
+import { projectTransientRenderFeatures } from '../shared/transient-render-feature-projection.ts';
 
 interface IsolatedTrackRenderTrackV21 extends Readonly<Record<string, unknown>> {
 	readonly id: string;
