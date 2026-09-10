@@ -275,6 +275,8 @@ jobs:
 
       - name: Check the architecture rules
         run: npm run check:architecture
+        env:
+          MAINTAINABILITY_BASE_REVISION: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || github.sha }}
 
       - name: Audit the pinned third-party payloads
         run: npm run audit:ci

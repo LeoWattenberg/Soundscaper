@@ -25,11 +25,15 @@ import { sourceLineCount } from '../lib/source-line-count.mjs';
 const root = resolve(import.meta.dirname, '..', '..');
 
 /** The advice for one edited file, or null when it is nowhere near its ceiling. */
-export function headroomAdvice(filePath, readFile = (path) => readFileSync(path, 'utf8')) {
+export function headroomAdvice(
+	filePath,
+	readFile = (path) => readFileSync(path, 'utf8'),
+	readConfig = () => loadMaintainabilityConfig(root),
+) {
 	const absolute = resolve(root, filePath);
 	const repositoryPath = relative(root, absolute).split(sep).join('/');
 	if (repositoryPath.startsWith('..') || !isMaintainedSourceFile(repositoryPath)) return null;
-	const config = loadMaintainabilityConfig(root);
+	const config = readConfig();
 	const assessment = assessFile(repositoryPath, sourceLineCount(readFile(absolute)), config);
 	const { status, lines, ceiling, ratchet } = assessment;
 	if (status === 'over-ceiling') {
@@ -40,12 +44,21 @@ export function headroomAdvice(filePath, readFile = (path) => readFileSync(path,
 		return `${repositoryPath} is ${lines} lines and has passed its allowlist ratchet of ${ratchet}. `
 			+ 'npm run check:architecture will fail until it shrinks; extract a focused module now, as part of this change.';
 	}
-	if (status === 'near-ceiling') {
-		return lines === ceiling
-			? `${repositoryPath} is ${lines} lines, exactly on the ${ceiling}-line maintainability ceiling. `
-				+ 'Any further line fails npm run check:architecture; extract a focused module before adding one.'
-			: `${repositoryPath} is ${lines} lines, ${ceiling - lines} below the ${ceiling}-line maintainability ceiling. `
-				+ 'Extract a focused module rather than filling the remaining room.';
+	if (status === 'over-warning-ratchet') {
+		return `${repositoryPath} is ${lines} lines and has passed its warning-band ratchet of ${ratchet}. `
+			+ 'npm run check:architecture will fail until it shrinks; extract a focused module now, as part of this change.';
+	}
+	if (status === 'unratcheted-warning-band') {
+		return `${repositoryPath} is ${lines} lines and entered the warning band without a baseline. `
+			+ 'npm run check:architecture will fail; extract a focused module now, as part of this change.';
+	}
+	if (status === 'at-warning-ratchet') {
+		return `${repositoryPath} is ${lines} lines at its warning-band ratchet. `
+			+ 'Any growth fails npm run check:architecture; extract a focused module before adding code.';
+	}
+	if (status === 'warning-ratchet-slack') {
+		return `${repositoryPath} is ${lines} lines against its warning-band ratchet of ${ratchet}. `
+			+ `Run npm run check:size:tighten to claim the ${ratchet - lines} recovered lines.`;
 	}
 	return null;
 }
