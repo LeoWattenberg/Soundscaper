@@ -150,7 +150,7 @@ html, body { color: var(--website-color-ink); background: var(--website-color-su
 .website-sidebar-nav { display: grid; gap: 4px; margin-top: 34px; }
 .website-sidebar-link { padding: 10px 12px; color: var(--website-color-muted); border-radius: 6px; font-weight: 800; text-decoration: none; }
 .website-sidebar-link:hover, .website-sidebar-link.website-is-active { color: var(--website-color-accent-dark); background: var(--website-color-surface-alt); }
-.website-sidebar-settings { display: grid; gap: 8px; margin-top: auto; padding-top: 20px; }
+.website-sidebar-settings { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: auto; padding-top: 20px; }
 .website-sidebar-settings h2 { margin: 0 0 2px; color: var(--website-color-muted); font-size: 0.8rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
 .website-sidebar-workspace { display: grid; gap: 6px; color: var(--website-color-muted); font-size: 0.78rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; }
 .website-sidebar-workspace select {
@@ -170,7 +170,7 @@ html, body { color: var(--website-color-ink); background: var(--website-color-su
 }
 .website-sidebar-workspace select:focus-visible { outline: 2px solid var(--website-color-accent); outline-offset: 2px; }
 .website-sidebar-workspace select:disabled { opacity: 0.55; }
-.website-sidebar-actions { display: grid; gap: 8px; }
+.website-sidebar-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .website-theme-toggle, .website-language-picker {
 	display: flex;
 	align-items: center;
@@ -215,7 +215,7 @@ html, body { color: var(--website-color-ink); background: var(--website-color-su
 	.website-sidebar-nav { display: flex; gap: 6px; margin-top: 12px; overflow-x: auto; }
 	.website-sidebar-link { flex: 0 0 auto; }
 	.website-sidebar-settings { margin-top: 12px; padding-top: 0; }
-	.website-sidebar-actions { grid-template-columns: 1fr 1fr; }
+	.website-sidebar-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 	/* The folded introduction gives up its eyebrow and its heading scale too. */
 	.website-tool-intro { padding-block: 10px; }
 	.website-tool-intro .website-eyebrow { display: none; }
