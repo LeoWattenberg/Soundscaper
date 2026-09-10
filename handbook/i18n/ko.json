@@ -1,0 +1,30 @@
+{
+	"locale": "ko",
+	"provenance": {"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","promptVersion":"docs-chrome-v1"},
+	"entries": {
+		"sidebar.framescaper": ["Framescaper","Framescaper"],
+		"sidebar.guides": ["How-to guides","사용 방법 가이드"],
+		"sidebar.guides.all": ["All guides","전체 가이드"],
+		"sidebar.guides.analysis": ["Analysis","분석"],
+		"sidebar.guides.cleaning-up": ["Cleaning up a recording","녹음 정리"],
+		"sidebar.guides.editing": ["Editing","편집"],
+		"sidebar.guides.effects": ["Effects","효과"],
+		"sidebar.guides.projects": ["Projects and files","프로젝트와 파일"],
+		"sidebar.guides.tracks-and-export": ["Tracks and export","트랙과 내보내기"],
+		"sidebar.guides.volume": ["Volume and dynamics","볼륨과 동적 범위"],
+		"sidebar.help": ["Help","도움말"],
+		"sidebar.projects-and-data": ["Projects and data","프로젝트와 데이터"],
+		"sidebar.reference": ["Reference","참조"],
+		"sidebar.reference.audio-effects": ["Audio effects","오디오 효과"],
+		"sidebar.reference.commands": ["Commands and shortcuts","명령어와 단축키"],
+		"sidebar.reference.formats": ["Export formats","내보내기 형식"],
+		"sidebar.reference.languages": ["Languages","언어"],
+		"sidebar.reference.local-assistance": ["Local assistance","현지 지원"],
+		"sidebar.reference.macro-programs": ["Macro programs","매크로 프로그램"],
+		"sidebar.reference.nyquist-plugins": ["Nyquist plug-ins","Nyquist 플러그인"],
+		"sidebar.reference.overview": ["Overview","개요"],
+		"sidebar.reference.platforms": ["Platforms and packages","플랫폼 및 패키지"],
+		"sidebar.reference.product-capabilities": ["Product capabilities","제품 기능"],
+		"sidebar.reference.project-files": ["Project and label files","프로젝트 및 레이블 파일"]
+	}
+}
