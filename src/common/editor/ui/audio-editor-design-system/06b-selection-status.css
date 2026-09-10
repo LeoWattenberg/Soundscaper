@@ -10,8 +10,6 @@
 .kw-audio-editor__selection-surface .selection-toolbar {
 	width: 100%;
 	min-width: 0;
-	height: auto;
-	min-height: 40px;
 }
 
 .kw-audio-editor__project-lock-notice {
@@ -34,16 +32,12 @@
 .kw-audio-editor__selection-surface .selection-toolbar__left {
 	min-width: 0;
 	flex: 1 1 auto;
-	height: auto;
-	min-height: 40px;
 }
 
 .kw-audio-editor__selection-surface .selection-toolbar__status {
 	width: min(320px, 24vw);
 	min-width: 0;
 	flex: 1 1 150px;
-	height: auto;
-	min-height: 40px;
 }
 
 .kw-audio-editor__selection-surface :is(.selection-toolbar__status-text, .selection-toolbar__instruction) {
@@ -62,7 +56,7 @@
 
 /* Status messages include actionable import failures. Keep every character
    readable and selectable, with keyboard scrolling for unusually long errors. */
-.kw-audio-editor__selection-surface [data-editor-status] {
+.kw-audio-editor__selection-surface [data-editor-status][data-state='error'] {
 	max-height: min(8rem, 30vh);
 	overflow: auto;
 	text-overflow: clip;
@@ -73,6 +67,11 @@
 
 .kw-audio-editor__selection-surface:has([data-state='error']) .selection-toolbar {
 	flex-wrap: wrap;
+}
+
+.kw-audio-editor__selection-surface:has([data-state='error']) :is(.selection-toolbar, .selection-toolbar__left, .selection-toolbar__status) {
+	height: auto;
+	min-height: 40px;
 }
 
 .kw-audio-editor__selection-surface:has([data-state='error']) .selection-toolbar__left {

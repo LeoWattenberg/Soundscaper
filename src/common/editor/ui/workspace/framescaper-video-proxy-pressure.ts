@@ -83,7 +83,7 @@ export function useFramescaperVideoProxyPreviewPressure(options: Readonly<{
 	readonly referenceWidth: number;
 	readonly referenceHeight: number;
 	readonly playing: boolean;
-	readonly run: (operation: () => Promise<void>) => unknown;
+	readonly run: (operation: () => Promise<void>, options?: Readonly<{ clearError?: boolean }>) => unknown;
 }>): void {
 	const entriesRef = useRef(options.entries);
 	entriesRef.current = options.entries;
@@ -93,6 +93,7 @@ export function useFramescaperVideoProxyPreviewPressure(options: Readonly<{
 		const report = (): void => {
 			const canvas = options.canvas.current;
 			if (!canvas) return;
+			// Resize/playback telemetry must not dismiss the user's current error.
 			void Promise.resolve(options.run(() => reportFramescaperVideoProxyPreviewPressure(
 				options.reporter,
 				entriesRef.current,
@@ -103,7 +104,7 @@ export function useFramescaperVideoProxyPreviewPressure(options: Readonly<{
 					referenceHeight: options.referenceHeight,
 				},
 				countersRef.current,
-			))).catch(() => undefined);
+			), { clearError: false })).catch(() => undefined);
 		};
 		report();
 		const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(report) : null;

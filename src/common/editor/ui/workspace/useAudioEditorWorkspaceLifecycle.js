@@ -94,8 +94,8 @@ export function useAudioEditorWorkspaceLifecycle({
 		});
 	}, [controller, onError, openLaunchedProjectPicker]);
 
-	const run = useCallback((action) => {
-		setLocalError('');
+	const run = useCallback((action, { clearError = true } = {}) => {
+		if (clearError) setLocalError('');
 		try {
 			const value = action();
 			if (value && typeof value.catch === 'function') value.catch(onError);
