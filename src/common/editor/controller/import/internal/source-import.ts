@@ -21,14 +21,12 @@ import { createImportedAudioContentIdentityWriter, rollbackImportedAudioContentI
 	type ImportedAudioContentIdentity } from '../imported-audio-content-identity.ts';
 import { decodeImportedVideoAudio } from './video-import-audio-decode.ts';
 import { digestImportedVideoFile, publishImportedVideo } from './source-import-video-publication.ts';
-export interface ImportVideoRuntime {
-	// Legacy JavaScript ports are narrowed as their owning services migrate.
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	readonly [name: string]: any;
-}
+import type {
+	ImportVideoFile, ImportVideoFrameExtractor, ImportVideoOptions, ImportVideoRuntime,
+	ImportVideoSource, PreparedVideoImport,
+} from './source-import-types.ts';
 
-type RuntimeValue = ImportVideoRuntime[string];
-export type ImportVideoFile = (file: RuntimeValue, options?: RuntimeValue) => Promise<RuntimeValue>;
+export type { ImportVideoFile, ImportVideoFileInput, ImportVideoOptions, ImportVideoResult, ImportVideoRuntime } from './source-import-types.ts';
 
 export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoFile {
 	const {
@@ -42,7 +40,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 		projectSampleRate, revokeVideoVisual, sourceBuffers, sourcePeaks,
 		store, stripExtension, warnEnvelope, writeBuffer,
 	} = runtime;
-	async function importVideoFile(file: RuntimeValue, importOptions: RuntimeValue = normalizeImportOptions()) {
+	async function importVideoFile(file: Parameters<ImportVideoFile>[0], importOptions: Readonly<ImportVideoOptions> = normalizeImportOptions()) {
 		const linkedVideoLocator = linkedVideoLocatorReferenceFromImportOptions(importOptions);
 		const { locatorId: linkedVideoLocatorId = null, locatorRevision: linkedVideoLocatorRevision = null } = linkedVideoLocator ?? {};
 		const releaseUnusedLinkedVideoLocator = async () => {
@@ -51,16 +49,16 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				if (released === false) throw new Error('The unused linked-video locator was not released.');
 			}
 		};
-		let extractor: RuntimeValue = null;
-		let prepared: RuntimeValue;
+		let extractor: ImportVideoFrameExtractor | null = null;
+		let prepared: PreparedVideoImport;
 		try {
 			const startingProject = getProject();
 			const startingProjectToken = captureProject();
 			const startingProjectId = startingProject.id;
 			const startingVideoTrackCount = startingProject.tracks
-				.filter((track: RuntimeValue) => track.type === 'video').length;
+				.filter((track) => track.type === 'video').length;
 			await preflightStorage(Math.max(file.size * 2, 16 * 1024 * 1024), 'import');
-			let canonicalVideoFile = file;
+			let canonicalVideoFile: Blob = file;
 			extractor = await createAudioEditorVideoFrameExtractor(canonicalVideoFile);
 			const sampleRate = projectSampleRate();
 			const ffmpegTimingProbe = createFfmpegVideoTimingProbe(ffmpeg);
@@ -69,7 +67,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			// answers last, from the file's own integers, so a build that carries no
 			// decoder at all still reaches exact timing instead of conforming.
 			const preferredProbes = [helperTimingProbe, ffmpegTimingProbe, createContainerVideoTimingProbe()]
-				.filter((probe: RuntimeValue) => Boolean(probe));
+				.filter((probe): probe is NonNullable<typeof probe> => Boolean(probe));
 			let timingProbe = canonicalVideoFile instanceof Blob
 				? await probeVideoTiming(canonicalVideoFile, {
 					probes: preferredProbes,
@@ -152,10 +150,10 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 		let mediaPublication: OwnedMediaAssetPublication | null = null;
 		let timingAssetPublication: OwnedMediaAssetPublication | null = null;
 		let audioPersisted = false;
-		let linkedBinding: RuntimeValue = null;
-		let linkedProjectId: RuntimeValue = null;
-		const pendingLinkedDerivatives: RuntimeValue[] = [];
-		const savePreviewDerivative = async (derivative: RuntimeValue) => {
+		let linkedBinding: Awaited<ReturnType<typeof store.bindLinkedVideoOriginal>> | null = null;
+		const linkedProjectId = startingProjectId;
+		const pendingLinkedDerivatives: Parameters<typeof store.saveVideoDerivative>[1][] = [];
+		const savePreviewDerivative = async (derivative: Parameters<typeof store.saveVideoDerivative>[1]) => {
 			if (linkedVideoLocatorId) pendingLinkedDerivatives.push(derivative);
 			else {
 				await store.saveVideoDerivative(videoSourceId, derivative);
@@ -165,7 +163,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			assertImportProjectCurrent();
 			const activeProject = getProject();
 			const sequenceId = activeProject.primarySequenceId || 'main-sequence';
-			const sequence = activeProject.sequences?.find((candidate: RuntimeValue) => candidate.id === sequenceId)
+			const sequence = activeProject.sequences?.find((candidate) => candidate.id === sequenceId)
 				|| { id: sequenceId, rate: { num: 30, den: 1 } };
 			const {
 				sourceDurationFrames: durationFrames,
@@ -252,7 +250,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 					inspectEncodedSampleRate: inspectEncodedAudioSampleRate,
 					decodeNative: (encoded) => engine.decodeAudioData(encoded),
 					decodeContainerAudio: runtime.decodeContainerAudio,
-					decodeFfmpeg: (video, options) => ffmpeg.decode(video, options),
+					decodeFfmpeg: async (video, options) => ffmpeg.decode(video, options),
 				});
 				const decodedChannels = decodedAudio?.channels?.length
 					? decodedAudio.channels
@@ -325,7 +323,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				...timingProbe.characteristics,
 				extractedAudioStreamIndex: extractedStream ? extractedStream.index : null,
 			}, { rate: sourceRate });
-			const videoSource = {
+			const videoSource: ImportVideoSource = {
 				kind: 'video',
 				id: videoSourceId,
 				storageKey: videoSourceId,
@@ -408,7 +406,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				avLinkId: null,
 				binItemId: importOptions.destination === 'project-bin' ? binItemId : null,
 			} : null;
-			const commands = [createAddSourceCommand(videoSource)];
+			const commands: Parameters<typeof commit>[0][] = [createAddSourceCommand(videoSource)];
 			if (audioSource) commands.push(createAddSourceCommand(audioSource));
 			let selectedTrackId = null;
 			if (importOptions.destination === 'project-bin') {
@@ -420,17 +418,17 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				let videoTrack = target?.type === 'video' ? target : null;
 				let audioTrack = target?.type === 'audio' ? target : null;
 				if (target?.laneGroupId) {
-					videoTrack ||= getProject().tracks.find((track: RuntimeValue) => (
+					videoTrack ||= getProject().tracks.find((track) => (
 						track.type === 'video' && track.laneGroupId === target.laneGroupId
 					)) || null;
-					audioTrack ||= getProject().tracks.find((track: RuntimeValue) => (
+					audioTrack ||= getProject().tracks.find((track) => (
 						track.type === 'audio' && track.laneGroupId === target.laneGroupId
 					)) || null;
 				}
 				if (!videoTrack || !audioTrack) {
 					const videoTrackId = createStableId('video-track');
 					const audioTrackId = createStableId('track');
-					const index = Number.isSafeInteger(importOptions.trackIndex)
+					const index = typeof importOptions.trackIndex === 'number' && Number.isSafeInteger(importOptions.trackIndex)
 						? importOptions.trackIndex
 						: getProject().tracks.length;
 					commands.push({
@@ -451,8 +449,8 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 						}),
 						index: index + 1,
 					});
-					videoTrack = { id: videoTrackId };
-					audioTrack = { id: audioTrackId };
+					videoTrack = { id: videoTrackId, type: 'video' };
+					audioTrack = { id: audioTrackId, type: 'audio' };
 				}
 				selectedTrackId = videoTrack.id;
 				const avLinkId = audioClip ? createStableId('av-link') : null;
@@ -461,7 +459,6 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			}
 			assertImportProjectCurrent();
 			if (linkedVideoLocatorId) {
-				linkedProjectId = startingProjectId;
 				linkedBinding = await store.bindLinkedVideoOriginal(
 					linkedProjectId,
 					videoSource,
@@ -495,7 +492,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 		} catch (error) {
 			const currentProject = getProject();
 			const canonicalSourceLanded = currentProject?.id === startingProjectId
-				&& currentProject.sources?.some((source: RuntimeValue) => source.id === videoSourceId);
+				&& currentProject.sources?.some((source) => source.id === videoSourceId);
 			if (canonicalSourceLanded) throw error;
 			const cleanupErrors: unknown[] = [];
 			try { await revokeVideoVisual(videoSourceId); } catch (cleanupError) { cleanupErrors.push(cleanupError); }

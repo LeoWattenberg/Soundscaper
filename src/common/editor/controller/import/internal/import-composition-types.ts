@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { RiffAnnotationImportProject } from '../../../timeline-annotation-riff-interchange.ts';
+import type { ProjectHierarchySequence } from '../../../project-hierarchy-document-validation.ts';
 import type { EnginePublicApi } from '../../../engine/public-api.ts';
 import type { LinkedOriginalStoreService } from '../../../storage/linked-original-store-service.ts';
 import type { createFfmpegVideoTimingProbe } from '../../../video-timing-probe.ts';
+import type { VideoTimingMediaStore } from '../../../video-timing-storage.ts';
 import type { ClipTimePitchRenderStore } from '../../clip-video/clip-time-pitch-render-service.ts';
 import type { ConsolidateMediaStore } from '../../document/consolidate-media-service.ts';
 import type { DerivedAudioCompositionDependencies } from '../../track-audio/derived-audio-composition.ts';
@@ -20,7 +22,10 @@ import type { ChangedContentVideoCandidateRuntime } from './linked-media/video-r
 import type { VideoSourceReprobeDependencies } from '../../clip-video/video-source-reprobe-service.ts';
 import type { generateWaveformPeaks } from '../../source/waveform-analysis.ts';
 
-export type ImportCompositionProject = ReturnType<ProjectBinServiceDependencies['getProject']> & RiffAnnotationImportProject;
+export type ImportCompositionProject = ReturnType<ProjectBinServiceDependencies['getProject']>
+	& RiffAnnotationImportProject & Readonly<{
+	readonly sequences: readonly ProjectHierarchySequence[];
+}>;
 
 export type ImportCompositionState = {
 	selectedTrackId: string | null;
@@ -62,6 +67,7 @@ export type ImportCompositionStore =
 	& Parameters<typeof createIncrementalPcmImporter>[0]['store']
 	& Parameters<typeof createLinkedPcmImporter>[0]['store']
 	& Parameters<typeof publishImportedVideo>[0]
+	& Pick<VideoTimingMediaStore, 'getMediaAssetMetadata' | 'loadMediaAsset'>
 	& Pick<ConsolidateMediaStore, 'unlinkLinkedVideoOriginal'>
 	& Pick<LinkedOriginalStoreService, 'saveLinkedVideoDerivative'>
 	& Readonly<{

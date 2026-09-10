@@ -6,10 +6,19 @@ import {
 } from '../../../browser-container-audio-decode.ts';
 import { throwIfAborted } from '../../../video-timing-demux-reader.ts';
 
-interface ImportedVideoDecodedAudio {
-	readonly channels?: readonly Float32Array[];
-	readonly numberOfChannels?: number;
-	readonly sampleRate?: number;
+export type ImportedVideoDecodedAudio = ImportedVideoPlanarAudio | ImportedVideoAudioBuffer;
+
+export interface ImportedVideoPlanarAudio {
+	readonly channels: readonly Float32Array[];
+	readonly numberOfChannels?: never;
+	readonly sampleRate: number;
+}
+
+export interface ImportedVideoAudioBuffer {
+	readonly channels?: never;
+	readonly numberOfChannels: number;
+	readonly sampleRate: number;
+	getChannelData(channel: number): Float32Array;
 }
 
 interface ImportedVideoAudioDecodeOptions {
@@ -29,7 +38,7 @@ interface ImportedVideoAudioDecodeOptions {
 	) => Promise<ImportedVideoDecodedAudio>;
 }
 
-interface ImportedVideoAudioDecodeResult {
+export interface ImportedVideoAudioDecodeResult {
 	readonly decodedAudio: ImportedVideoDecodedAudio;
 	readonly declaredAudioSampleRate: number | null;
 }

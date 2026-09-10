@@ -31,7 +31,12 @@ import {
 	sourcePcmBytes,
 	writeBuffer,
 } from '../source/source-audio.ts';
-import { createImportVideoFile, type ImportVideoFile } from './internal/source-import.ts';
+import {
+	createImportVideoFile,
+	type ImportVideoFile,
+	type ImportVideoFileInput,
+	type ImportVideoOptions,
+} from './internal/source-import.ts';
 import { admitChangedContentVideoCandidate, type ChangedContentVideoCandidateSource } from './internal/linked-media/video-relink-probe.ts';
 import { generateWaveformPeaks, peakCacheKey } from '../source/waveform-analysis.ts';
 
@@ -86,7 +91,7 @@ export function createImportComposition(dependencies: ImportCompositionDependenc
 		formatLegacyAupWarning,
 		generateWaveformPeaks,
 		handleError: dependencies.handleError,
-		importVideoFile: (file: unknown, options?: unknown) => {
+		importVideoFile: (file: ImportVideoFileInput, options?: Readonly<ImportVideoOptions>) => {
 			if (!importVideoFile) throw new Error('The video importer is not composed yet.');
 			return importVideoFile(file, options);
 		},
@@ -143,7 +148,11 @@ export function createImportComposition(dependencies: ImportCompositionDependenc
 		normalizeImportOptions: projectImport.normalizeImportOptions,
 		peakCacheKey,
 		preflightStorage: dependencies.preflightStorage,
-		getProject: dependencies.getProject,
+		getProject: () => {
+			const project = dependencies.getProject();
+			if (!project) throw new Error('Video import requires an open project.');
+			return project;
+		},
 		captureProject,
 		assertProject,
 		projectSampleRate: dependencies.projectSampleRate,

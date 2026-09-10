@@ -5,6 +5,9 @@ import test from 'node:test';
 
 import {
 	createImportVideoFile,
+	type ImportVideoFile,
+	type ImportVideoFileInput,
+	type ImportVideoRuntime,
 } from '../src/common/editor/controller/import/internal/source-import.ts';
 import {
 	createFixture,
@@ -34,8 +37,8 @@ test('video import extracts linked audio and creates a new timeline lane pair', 
 
 	assert.equal(result.destination, 'timeline');
 	assert.match(result.sourceId, /^video-source-/u);
-	assert.match(result.audioSourceId, /^source-/u);
-	assert.match(result.trackId, /^video-track-/u);
+	assert.match(String(result.audioSourceId), /^source-/u);
+	assert.match(String(result.trackId), /^video-track-/u);
 	const videoSource = fixture.addedSources.find(({ kind }) => kind === 'video');
 	assert.ok(videoSource);
 	assert.equal(videoSource.posterStorageKey, null);
@@ -151,7 +154,7 @@ test('a selected ungrouped video lane causes a companion lane pair to be created
 	const result = await createImportVideoFile(fixture.runtime)(videoFile('clip.webm'), {
 		destination: 'timeline', trackId: 'video-only', timelineStartFrame: 4,
 	});
-	assert.match(result.trackId, /^video-track-/u);
+	assert.match(String(result.trackId), /^video-track-/u);
 	assert.equal(fixture.commits[0]?.command.commands.length, 6);
 });
 
@@ -351,3 +354,25 @@ test('a post-mutation commit failure retains resources for the landed canonical 
 	assert.deepEqual(fixture.deletedSources, []);
 	assert.deepEqual(fixture.deletedMedia, []);
 });
+
+/** Compile-time checks: video import retains its file, option, result, and runtime port contracts. */
+export function checkImportVideoBoundaryTypes(
+	importVideo: ImportVideoFile,
+	file: ImportVideoFileInput,
+	runtime: ImportVideoRuntime,
+): void {
+	// @ts-expect-error Video imports cannot target an undeclared destination.
+	void importVideo(file, { destination: 'library', trackId: null, timelineStartFrame: 0 });
+	// @ts-expect-error A video import file exposes a numeric byte length.
+	void importVideo({ name: 'broken.mp4', size: '32' });
+	void importVideo(file).then((result) => {
+		// @ts-expect-error Imported source IDs remain strings at the public boundary.
+		const sourceId: number = result.sourceId;
+		void sourceId;
+	});
+	// @ts-expect-error Storage admission for this domain can only be charged to import.
+	void runtime.preflightStorage(32, 'export');
+}
+
+// @ts-expect-error The runtime inventory has no arbitrary-name fallback.
+export type MisspelledVideoImportPort = ImportVideoRuntime['createAudioEditorVideoFrameExtracter'];

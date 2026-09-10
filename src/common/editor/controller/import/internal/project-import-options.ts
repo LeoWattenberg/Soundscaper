@@ -2,6 +2,21 @@
 
 type ImportOptionsRecord = Record<string, unknown>;
 
+export type ProjectImportDestination = 'timeline' | 'project-bin';
+
+export interface NormalizedProjectImportOptions extends Readonly<Record<string, unknown>> {
+	readonly destination: ProjectImportDestination;
+	readonly trackId: string | null;
+	readonly trackIndex?: number;
+	readonly timelineStartFrame: number;
+	readonly timelineStartExplicit?: boolean;
+	readonly signal?: AbortSignal;
+	readonly linkedAudioLocatorId?: string;
+	readonly linkedAudioLocatorRevision?: string;
+	readonly linkedVideoLocatorId?: string;
+	readonly linkedVideoLocatorRevision?: string;
+}
+
 export interface LinkedVideoImportLocatorReference {
 	readonly locatorId: string;
 	readonly locatorRevision: string;
@@ -24,16 +39,11 @@ const NORMALIZED_PROJECT_IMPORT_OPTIONS = new WeakSet<object>();
 export function normalizeProjectImportOptions(
 	value: unknown,
 	timelineFramesFinite: string,
-): Readonly<ImportOptionsRecord> {
+): Readonly<NormalizedProjectImportOptions> {
 	const candidate = optionRecord(value);
-	const requestedDestination = candidate.destination ?? 'auto';
-	if (typeof requestedDestination !== 'string'
-		|| !['auto', 'timeline', 'project-bin'].includes(requestedDestination)) {
-		throw new RangeError(`Unsupported audio import destination: ${String(requestedDestination)}.`);
-	}
-	const destination = requestedDestination === 'auto'
-		? candidate.projectBinVisible ? 'project-bin' : 'timeline'
-		: requestedDestination;
+	const destination = normalizeProjectImportDestination(
+		candidate.destination ?? 'auto', candidate.projectBinVisible,
+	);
 	const timelineStartExplicit = Object.hasOwn(candidate, 'timelineStartExplicit')
 		? Boolean(candidate.timelineStartExplicit)
 		: Object.hasOwn(candidate, 'timelineStartFrame');
@@ -44,7 +54,8 @@ export function normalizeProjectImportOptions(
 			candidate.timelineStartFrame ?? 0,
 			timelineFramesFinite,
 		),
-		...(Number.isSafeInteger(candidate.trackIndex) ? { trackIndex: candidate.trackIndex } : {}),
+		...(typeof candidate.trackIndex === 'number' && Number.isSafeInteger(candidate.trackIndex)
+			? { trackIndex: candidate.trackIndex } : {}),
 		...normalizeLinkedOriginalImportLocator(candidate),
 	}, timelineStartExplicit);
 }
@@ -53,7 +64,7 @@ export async function normalizeProjectImportOptionsForUse(
 	value: unknown,
 	timelineFramesFinite: string,
 	releaseLocator: (reference: LinkedOriginalImportLocatorReference) => PromiseLike<unknown> | unknown,
-): Promise<Readonly<ImportOptionsRecord>> {
+): Promise<Readonly<NormalizedProjectImportOptions>> {
 	try {
 		if (isNormalizedProjectImportOptions(value)) {
 			normalizeLinkedOriginalImportLocator(optionRecord(value));
@@ -88,9 +99,9 @@ export async function normalizeProjectImportOptionsForUse(
 }
 
 export function freezeProjectImportOptions(
-	value: ImportOptionsRecord,
+	value: NormalizedProjectImportOptions,
 	timelineStartExplicit: boolean,
-): Readonly<ImportOptionsRecord> {
+): Readonly<NormalizedProjectImportOptions> {
 	Object.defineProperty(value, 'timelineStartExplicit', {
 		configurable: false,
 		enumerable: false,
@@ -199,10 +210,19 @@ function opaqueLocatorToken(value: unknown): value is string {
 	return typeof value === 'string' && OPAQUE_LINKED_ORIGINAL_LOCATOR_PATTERN.test(value);
 }
 
-function isNormalizedProjectImportOptions(value: unknown): value is Readonly<ImportOptionsRecord> {
+function isNormalizedProjectImportOptions(value: unknown): value is Readonly<NormalizedProjectImportOptions> {
 	return Boolean(value && typeof value === 'object' && NORMALIZED_PROJECT_IMPORT_OPTIONS.has(value));
 }
 
 function optionRecord(value: unknown): ImportOptionsRecord {
 	return value && typeof value === 'object' ? value as ImportOptionsRecord : {};
+}
+
+function normalizeProjectImportDestination(
+	value: unknown,
+	projectBinVisible: unknown,
+): ProjectImportDestination {
+	if (value === 'auto') return projectBinVisible ? 'project-bin' : 'timeline';
+	if (value === 'timeline' || value === 'project-bin') return value;
+	throw new RangeError(`Unsupported audio import destination: ${String(value)}.`);
 }

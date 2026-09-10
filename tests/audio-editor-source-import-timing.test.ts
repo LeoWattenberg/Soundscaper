@@ -43,21 +43,19 @@ test('video import does not delete media that failed before persistence', async 
 test('failed exact-timing import preserves newer original and timing generations', async () => {
 	const fixture = createFixture();
 	const runtime = fixture.runtime as MutableImportVideoRuntime;
-	const originalStore = runtime.store as Record<string, unknown> & {
-		beginMediaAssetWrite(...args: unknown[]): Promise<unknown>;
-	};
+	const originalStore = runtime.store;
 	const storageKeys: string[] = [];
 	runtime.store = {
 		...originalStore,
 		async getMediaAssetMetadata() { return null; },
 		async loadMediaAsset() { return null; },
-		async beginMediaAssetWrite(...args: unknown[]) {
-			storageKeys.push(String(args[0]));
-			return originalStore.beginMediaAssetWrite(...args);
+		async beginMediaAssetWrite(storageKey, metadata, options) {
+			storageKeys.push(storageKey);
+			return originalStore.beginMediaAssetWrite(storageKey, metadata, options);
 		},
 	};
 	runtime.ffmpeg = {
-		...(runtime.ffmpeg as Readonly<Record<string, unknown>>),
+		...runtime.ffmpeg,
 		async probeVideoTiming() {
 			return {
 				timescale: 1_000,
@@ -87,13 +85,13 @@ test('exact timing owns imported source duration and one aligned A/V placement',
 	const fixture = createFixture();
 	const runtime = fixture.runtime as MutableImportVideoRuntime;
 	runtime.store = {
-		...(runtime.store as Readonly<Record<string, unknown>>),
+		...runtime.store,
 		async getMediaAssetMetadata() { return null; },
 		async loadMediaAsset() { return null; },
 	};
 	const presentationTicks = Array.from({ length: 32 }, (_, index) => BigInt(index));
 	runtime.ffmpeg = {
-		...(runtime.ffmpeg as Readonly<Record<string, unknown>>),
+		...runtime.ffmpeg,
 		async probeVideoTiming() {
 			return {
 				timescale: 15,
@@ -104,16 +102,16 @@ test('exact timing owns imported source duration and one aligned A/V placement',
 		},
 	};
 	let fittedFrames = 0;
-	runtime.fitAudioBufferToFrames = (buffer: Readonly<Record<string, unknown>>, frameCount: number) => {
+	runtime.fitAudioBufferToFrames = (buffer, frameCount) => {
 		fittedFrames = frameCount;
 		// Mirror the real fit rather than only relabelling the length: imported audio now
 		// proves the PCM it committed matches the frame count the project records, so a
 		// buffer that claims frames it cannot supply is refused - as it should be.
 		const channelCount = Math.max(1, Number(buffer.numberOfChannels) || 1);
-		const read = buffer.getChannelData as ((channel: number) => Float32Array) | undefined;
+		const read = buffer.getChannelData;
 		const channels = Array.from({ length: channelCount }, (_, channel) => {
 			const fitted = new Float32Array(frameCount);
-			fitted.set((read?.call(buffer, channel) ?? new Float32Array(0)).subarray(0, frameCount));
+			fitted.set(read.call(buffer, channel).subarray(0, frameCount));
 			return fitted;
 		});
 		return {
@@ -160,7 +158,7 @@ test('exact timing owns imported source duration and one aligned A/V placement',
 test('probe failure stores genuinely conformed CFR media and reprobes its exact timing', async () => {
 	const fixture = createFixture();
 	const runtime = fixture.runtime as MutableImportVideoRuntime;
-	const originalFfmpeg = runtime.ffmpeg as Readonly<Record<string, unknown>>;
+	const originalFfmpeg = runtime.ffmpeg;
 	let probeCalls = 0;
 	let conformedInput: Blob | null = null;
 	runtime.ffmpeg = {
@@ -180,7 +178,7 @@ test('probe failure stores genuinely conformed CFR media and reprobes its exact 
 			return new File([Uint8Array.of(9, 8, 7)], 'conformed.mp4', { type: 'video/mp4' });
 		},
 	};
-	const originalStore = runtime.store as Record<string, unknown>;
+	const originalStore = runtime.store;
 	runtime.store = {
 		...originalStore,
 		async getMediaAssetMetadata() { return null; },
@@ -252,14 +250,14 @@ test('probe fallback fails closed when CFR conformance is unavailable', async ()
 test('ingest persists probed characteristics instead of guessing codecs', async () => {
 	const fixture = createFixture();
 	const runtime = fixture.runtime as MutableImportVideoRuntime;
-	const originalStore = runtime.store as Record<string, unknown>;
+	const originalStore = runtime.store;
 	runtime.store = {
 		...originalStore,
 		async getMediaAssetMetadata() { return null; },
 		async loadMediaAsset() { return null; },
 	};
 	runtime.ffmpeg = {
-		...(runtime.ffmpeg as Readonly<Record<string, unknown>>),
+		...runtime.ffmpeg,
 		async probeVideoTiming() {
 			return {
 				timescale: 1_000,
@@ -297,14 +295,14 @@ test('ingest persists probed characteristics instead of guessing codecs', async 
 test('a multi-stream master records the programs ingest did not import', async () => {
 	const fixture = createFixture();
 	const runtime = fixture.runtime as MutableImportVideoRuntime;
-	const originalStore = runtime.store as Record<string, unknown>;
+	const originalStore = runtime.store;
 	runtime.store = {
 		...originalStore,
 		async getMediaAssetMetadata() { return null; },
 		async loadMediaAsset() { return null; },
 	};
 	runtime.ffmpeg = {
-		...(runtime.ffmpeg as Readonly<Record<string, unknown>>),
+		...runtime.ffmpeg,
 		async probeVideoTiming() {
 			return {
 				timescale: 1_000,
@@ -362,12 +360,12 @@ test('the first timing probe receives the import abort signal', async () => {
 				throw new Error('helper probe unavailable in this fixture');
 			},
 		},
-	} as never);
+	});
 	const blobVideo = new File([new Uint8Array(4)], 'movie.mp4', { type: 'video/mp4' });
-	await assert.rejects(() => importVideo(blobVideo as never, {
+	await assert.rejects(() => importVideo(blobVideo, {
 		destination: 'timeline', trackId: null, trackIndex: 0, timelineStartFrame: 0,
 		signal: controller.signal,
-	} as never));
+	}));
 	assert.equal(seen.length, 1);
 	assert.equal(seen[0], controller.signal,
 		'aborting an import must be able to cancel its in-flight helper probe');

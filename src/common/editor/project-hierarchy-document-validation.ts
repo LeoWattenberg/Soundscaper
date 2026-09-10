@@ -40,7 +40,7 @@ import {
 	validateTimelineAnnotationsV11,
 	type TimelineAnnotationV11,
 } from './timeline-annotation.ts';
-import type { HoldTempoMap } from './timeline-time.ts';
+import type { HoldTempoMap, RationalRate } from './timeline-time.ts';
 import { validateTrackFoldersV12, type TrackFolderV12 } from './track-folder-v12.ts';
 import {
 	validateTrackHierarchyV12,
@@ -53,6 +53,7 @@ export interface ProjectHierarchyDocumentValidationOptions {
 
 export interface ProjectHierarchySequence extends Readonly<Record<string, unknown>> {
 	readonly id: string;
+	readonly rate: RationalRate;
 	readonly trackIds: readonly string[];
 	readonly trackNodes: readonly TrackNodeV12[];
 }

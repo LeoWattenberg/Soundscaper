@@ -2,25 +2,28 @@
 
 import assert from 'node:assert/strict';
 
-import type { ImportVideoRuntime } from '../../src/common/editor/controller/import/internal/source-import.ts';
+import type {
+	ImportVideoFileInput,
+	ImportVideoRuntime,
+} from '../../src/common/editor/controller/import/internal/source-import.ts';
 import {
 	VideoPreviewEncodedPayloadTooLargeError,
 	VideoPreviewSourceGeometryTooLargeError,
 } from '../../src/common/editor/video-preview-capture-admission.ts';
 
-export interface VideoFile {
-	readonly name: string;
-	readonly type: string;
-	readonly size: number;
-	arrayBuffer(): Promise<ArrayBuffer>;
-}
+export type VideoFile = ImportVideoFileInput;
 
 export function videoFile(name = 'movie.mp4'): VideoFile {
+	const body = new Blob([new Uint8Array(8)], { type: 'video/mp4' });
 	return {
 		name,
-		type: 'video/mp4',
+		type: body.type,
 		size: 32,
-		arrayBuffer: async () => new ArrayBuffer(8),
+		arrayBuffer: () => body.arrayBuffer(),
+		bytes: () => body.bytes(),
+		slice: body.slice.bind(body),
+		stream: body.stream.bind(body),
+		text: body.text.bind(body),
 	};
 }
 
@@ -71,19 +74,23 @@ const SOURCE_IMPORT_CHUNK_FRAMES = 65_536;
 
 function isSourceAddCommand(value: unknown): value is Readonly<{
 	type: 'source/add';
-	source: Record<string, unknown>;
+	source: Record<string, unknown> & { id: string };
 }> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const command = value as Readonly<Record<string, unknown>>;
 	return command.type === 'source/add' && Boolean(command.source)
-		&& typeof command.source === 'object' && !Array.isArray(command.source);
+		&& typeof command.source === 'object' && !Array.isArray(command.source)
+		&& typeof (command.source as Readonly<Record<string, unknown>>).id === 'string';
 }
 
 export function createFixture() {
 	const calls: string[] = [];
 	const addedSources: Record<string, unknown>[] = [];
-	const derivatives: Array<{ timestamp: number; type: string }> = [];
-	const commits: Array<{ command: { commands: unknown[] }; selection: Record<string, unknown> }> = [];
+	const derivatives: Array<{ timestamp?: number; type?: string }> = [];
+	const commits: Array<{
+		command: { readonly commands: readonly unknown[] };
+		selection: Readonly<Record<string, unknown>>;
+	}> = [];
 	const deletedSources: string[] = [];
 	const deletedMedia: string[] = [];
 	const boundSnapshots: unknown[] = [];
@@ -120,11 +127,12 @@ export function createFixture() {
 		numberOfChannels: 1,
 		sampleRate: 48_000,
 		channels: [Float32Array.of(0, 0.1, 0.2, 0.3, 0.4, 0.3, 0.2, 0.1)],
+		getChannelData(channel: number) { return this.channels[channel] ?? new Float32Array(this.length); },
 	};
 	let project = {
 		id: 'project-import-video',
-		tracks: [] as Array<{ id: string; type: string; laneGroupId?: string }>,
-		sources: [] as Record<string, unknown>[],
+		tracks: [] as Array<{ id: string; type: 'audio' | 'video' | 'label'; laneGroupId?: string }>,
+		sources: [] as Array<Record<string, unknown> & { id: string }>,
 	};
 	let projectGeneration = 0;
 	const ids = new Map<string, number>();
@@ -177,12 +185,15 @@ export function createFixture() {
 				throw new Error('activation failed');
 			}
 		},
-		audioBufferChannels: (value: typeof canonicalAudio) => value.channels || canonicalAudio.channels,
+		audioBufferChannels: (value) => Array.from(
+			{ length: value.numberOfChannels }, (_, channel) => value.getChannelData(channel),
+		),
 		audioEditorVideoThumbnailTimes: () => [1, 2],
 		bufferFromChannels: async () => canonicalAudio,
 		cacheSourceBuffer: (sourceId: string, value: unknown) => { sourceBuffers.set(sourceId, value); },
 		canonicalizeBuffer: async () => canonicalAudio,
-		commit: (command: { commands: unknown[] }, selection: Record<string, unknown>) => {
+		commit: (command, selection = {}) => {
+			if (command.type !== 'batch') throw new TypeError('The fixture accepts only batch imports.');
 			calls.push('commit');
 			if (options.commitFails) throw new Error('commit failed');
 			if (options.commitMutatesThenFails) {
@@ -198,26 +209,42 @@ export function createFixture() {
 			commits.push({ command, selection });
 		},
 		copy: {
+			audioAnalysisFailed: 'Audio analysis failed.',
+			audioAnalysisWorkerFailed: 'Audio analysis worker failed.',
+			audioBufferUnsupported: 'Audio buffers are unavailable.',
+			audacityProjectTooLong: 'The project is too long.',
+			decodedAudioEmpty: 'Decoded audio is empty.',
+			decodedChannelLengthsMismatch: 'Decoded channel lengths differ.',
 			videoAudioDecodeFailed: 'The audio from {file} could not be decoded. The video was imported without audio.',
 		},
-		createAddClipCommand: (trackId: string, clip: unknown) => ({ type: 'clip/add', trackId, clip }),
-		createAddSourceCommand: (source: unknown) => {
+		createAddClipCommand: (trackId, clip) => ({ type: 'clip/add', trackId, clip }),
+		createAddSourceCommand: (source) => {
 			addedSources.push(source as Record<string, unknown>);
 			return { type: 'source/add', source };
 		},
-		createAddTrackCommand: (track: unknown) => ({ type: 'track/add', track }),
+		createAddTrackCommand: (track) => ({ type: 'track/add', track }),
 		createAudioEditorVideoFrameExtractor: async () => {
 			if (options.extractorFails) throw new Error('extractor failed');
 			return extractor;
 		},
 		createStableId: stableId,
 		engine: {
-			getAudioContext: async () => ({}),
+			getAudioContext: async () => ({
+				createBuffer(channelCount: number, length: number, sampleRate: number) {
+					const channels = Array.from({ length: channelCount }, () => new Float32Array(length));
+					return {
+						length, numberOfChannels: channelCount, sampleRate,
+						getChannelData: (channel: number) => channels[channel]!,
+					};
+				},
+			}),
 			decodeAudioData: async () => {
 				if (options.decodeMode !== 'native') throw new Error('native decode failed');
 				return {
-					...canonicalAudio,
-					channels: undefined,
+					length: canonicalAudio.length,
+					numberOfChannels: canonicalAudio.numberOfChannels,
+					sampleRate: canonicalAudio.sampleRate,
+					getChannelData: canonicalAudio.getChannelData.bind(canonicalAudio),
 				};
 			},
 		},
@@ -233,11 +260,11 @@ export function createFixture() {
 				return { channels: canonicalAudio.channels, sampleRate: 44_100 };
 			},
 		},
-		findTrack: (value: typeof project, trackId: string) => value.tracks.find((track) => track.id === trackId) || null,
+		findTrack: (value, trackId) => value.tracks.find((track) => track.id === trackId) || null,
 		fitAudioBufferToFrames: () => canonicalAudio,
 		generateWaveformPeaks: async () => {
 			if (options.peaksFail) throw new Error('peaks failed');
-			return { levels: [] };
+			return { version: 2, channelCount: 1, levels: [] };
 		},
 		inspectEncodedAudioSampleRate: () => 44_100,
 		normalizeImportOptions: () => ({ destination: 'timeline', trackId: null, timelineStartFrame: 0 }),
@@ -259,6 +286,8 @@ export function createFixture() {
 		sourceBuffers,
 		sourcePeaks,
 		store: {
+			async getMediaAssetMetadata() { return null; },
+			async loadMediaAsset() { return null; },
 			async beginMediaAssetWrite(
 				sourceId: string,
 				_metadata: Readonly<Record<string, unknown>>,
@@ -272,14 +301,14 @@ export function createFixture() {
 					writeFails: options.writeMediaFails,
 				});
 			},
-			async saveVideoDerivative(_sourceId: string, derivative: { timestamp: number; type: string }) {
+			async saveVideoDerivative(_sourceId, derivative) {
 				derivatives.push(derivative);
 			},
 			async saveLinkedVideoDerivative(
-				_projectId: string,
-				_source: unknown,
-				_binding: unknown,
-				derivative: { timestamp: number; type: string },
+				_projectId,
+				_source,
+				_binding,
+				derivative,
 			) {
 				calls.push('save-linked-derivative');
 				derivatives.push(derivative);
@@ -287,25 +316,36 @@ export function createFixture() {
 			async beginSourceWrite() { return writer; },
 			async saveAnalysis() { calls.push('save-analysis'); },
 			async deleteSource(sourceId: string) { deletedSources.push(sourceId); },
-			async deleteMediaAsset(sourceId: string) { deletedMedia.push(sourceId); },
 			async bindLinkedVideoOriginal(
-				projectId: string,
-				source: { id: string },
-				locatorId: string,
-				bindOptions: { expectedLocatorRevision: string; expectedSnapshot: unknown },
+				projectId,
+				source,
+				locatorId,
+				bindOptions,
 			) {
 				calls.push(`bind:${projectId}:${source.id}:${locatorId}`);
 				assert.equal(bindOptions.expectedLocatorRevision, 'revision_0000000000000001');
 				boundSnapshots.push(bindOptions.expectedSnapshot);
 				if (options.bindFails) throw new Error('binding failed');
 				return Object.freeze({
+					schemaVersion: 1 as const,
 					projectId,
 					sourceId: source.id,
 					storageKey: source.id,
 					locatorId,
 					locatorRevision: 'revision_0000000000000001',
+					mimeType: source.mimeType,
 					byteLength: 32,
 					sha256: '1'.repeat(64),
+					sourceShape: {
+						frameCount: source.sampleFrameCount,
+						sampleRate: source.sampleRate,
+						width: source.width,
+						height: source.height,
+						frameRate: source.frameRate.num / source.frameRate.den,
+						videoCodec: source.videoCodec,
+						audioCodec: source.audioCodec,
+						hasAudio: source.hasAudio,
+					},
 					bindingToken: 'binding_token_0000000000001',
 					boundAt: '2026-08-02T00:00:00.000Z',
 				});

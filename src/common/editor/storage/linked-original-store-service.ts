@@ -53,8 +53,8 @@ import type {
 import type {
 	BindLinkedVideoOriginalOptions,
 	LinkedVideoOriginalResolver,
-	LinkedVideoOriginalSource,
 } from './linked-video-original-resolver.ts';
+import type { CompatibleLinkedVideoOriginalSource } from './linked-video-original-source.ts';
 import { linkedVideoDerivativeOriginal } from './video-derivative-relationship.ts';
 import type {
 	VideoDerivativeInput,
@@ -342,7 +342,7 @@ export class LinkedOriginalStoreService {
 
 	bindVideo(
 		projectId: string,
-		source: LinkedVideoOriginalSource,
+		source: CompatibleLinkedVideoOriginalSource,
 		locatorId: string,
 		options: BindLinkedVideoOriginalOptions = {},
 	) {
@@ -363,7 +363,7 @@ export class LinkedOriginalStoreService {
 
 	relinkVideo(
 		projectId: string,
-		source: LinkedVideoOriginalSource,
+		source: CompatibleLinkedVideoOriginalSource,
 		locatorId: string,
 		options: RelinkLinkedVideoOriginalOptions,
 	): Promise<LinkedVideoOriginalBinding> {
@@ -402,7 +402,7 @@ export class LinkedOriginalStoreService {
 
 	resolveVideo(
 		projectId: string,
-		source: LinkedVideoOriginalSource,
+		source: CompatibleLinkedVideoOriginalSource,
 		options: Readonly<{ signal?: AbortSignal }> = {},
 	) {
 		return this.#requiredVideoResolver().resolve(projectId, source, options);
@@ -410,13 +410,13 @@ export class LinkedOriginalStoreService {
 
 	leaseVideoPlayback(
 		projectId: string,
-		source: LinkedVideoOriginalSource,
+		source: CompatibleLinkedVideoOriginalSource,
 		options: Readonly<{ signal?: AbortSignal }> = {},
 	) {
 		return this.#repositories.linkedVideoOriginals?.leasePlayback(projectId, source, options) ?? null;
 	}
 
-	metadataVideo(projectId: string, source: LinkedVideoOriginalSource) {
+	metadataVideo(projectId: string, source: CompatibleLinkedVideoOriginalSource) {
 		return this.#requiredVideoResolver().metadata(projectId, source);
 	}
 
@@ -460,7 +460,7 @@ export class LinkedOriginalStoreService {
 
 	async saveLinkedVideoDerivative(
 		projectId: string,
-		source: LinkedVideoOriginalSource,
+		source: CompatibleLinkedVideoOriginalSource,
 		binding: LinkedVideoOriginalBinding,
 		input: VideoDerivativeInput = {},
 	) {
@@ -476,7 +476,7 @@ export class LinkedOriginalStoreService {
 
 	async loadLinkedVideoDerivative(
 		projectId: string,
-		source: LinkedVideoOriginalSource,
+		source: CompatibleLinkedVideoOriginalSource,
 		binding: LinkedVideoOriginalBinding,
 		selector: VideoDerivativeSelector = {},
 	) {
@@ -492,7 +492,7 @@ export class LinkedOriginalStoreService {
 
 	async listLinkedVideoDerivatives(
 		projectId: string,
-		source: LinkedVideoOriginalSource,
+		source: CompatibleLinkedVideoOriginalSource,
 		binding: LinkedVideoOriginalBinding,
 		selector: Pick<VideoDerivativeSelector, 'type' | 'recipe'> = {},
 	) {
