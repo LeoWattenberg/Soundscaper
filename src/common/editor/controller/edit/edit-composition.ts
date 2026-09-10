@@ -13,7 +13,7 @@ import {
 import { createLabeledAudioClipboardPort } from '../../labeled-audio-clipboard.ts';
 import { createStableId, findClip, findClipTrack, findTrack } from '../../project.js';
 import { audioTrackChannelCount } from '../../project-audio-factory.js';
-import { createAbsentAudioGeneratorService } from '../composition/absent-audio-subsystems.ts';
+import { createAbsentAudioGeneratorService } from './internal/absent-audio-generator-service.ts';
 import { saveLabelExport } from '../shared/app-helpers.ts';
 import { createClipboardEditService } from './internal/clipboard-edit-service.ts';
 import type { EditCompositionDependencies, EditCompositionProject } from './edit-composition-types.ts';

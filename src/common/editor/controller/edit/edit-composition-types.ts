@@ -2,7 +2,7 @@
 
 import type { EffectTarget } from '../effects/effect-selection-service.ts';
 import type { EnginePublicApi } from '../../engine/public-api.ts';
-import type { AbsentSubsystemContext } from '../composition/absent-audio-subsystems.ts';
+import type { AbsentSubsystemContext } from '../shared/absent-subsystem.ts';
 import type { saveLabelExport } from '../shared/app-helpers.ts';
 import type { ClipboardEditServiceDependencies } from './internal/clipboard-edit-service.ts';
 import type { AudioGeneratorServiceDependencies } from './generator-service.ts';

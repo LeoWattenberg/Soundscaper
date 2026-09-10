@@ -4,7 +4,7 @@ import type { DeferredNyquistClient } from './deferred-effect-runtime.ts';
 import type { AudioEditorCommand } from '../../commands/protocol.ts';
 import type { EnginePublicApi, EngineSourceBufferInput } from '../../engine/public-api.ts';
 import type { AssistanceDerivativeRepositoryPort } from '../../storage/deferred-assistance-derivative-repository.ts';
-import type { AbsentSubsystemContext } from '../composition/absent-audio-subsystems.ts';
+import type { AbsentSubsystemContext } from '../shared/absent-subsystem.ts';
 import type { EffectAudioProject, EffectAudioServiceRuntime } from './internal/effect-audio-service.ts';
 import type { EffectControlsServiceRuntime } from './effect-controls-service.ts';
 import type { EffectMacroServiceRuntime } from './internal/macro/effect-macro-service.ts';

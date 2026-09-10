@@ -43,7 +43,6 @@
 		"clip-video/video-effect-service.ts",
 		"clip-video/video-preview-presented-frame.ts",
 		"clip-video/video-source-reprobe-service.ts",
-		"composition/absent-audio-subsystems.ts",
 		"composition/action-facade-runtime.ts",
 		"composition/action-facade.ts",
 		"composition/controller-action-composition.ts",
@@ -157,6 +156,7 @@
 		"recording/take-cycle-capture-orchestrator.ts",
 		"recording/take-cycle-open-recovery-app-port.ts",
 		"recording/take-cycle-recording-service.ts",
+		"shared/absent-subsystem.ts",
 		"shared/app-helpers.ts",
 		"shared/deferred-module-facade.ts",
 		"shared/lifecycle.ts",
@@ -191,7 +191,6 @@
 	"allowedDependencies": {
 		"analysis": {
 			"runtime": [
-				"composition",
 				"shared",
 				"source"
 			],
@@ -261,7 +260,6 @@
 		},
 		"edit": {
 			"runtime": [
-				"composition",
 				"document",
 				"shared",
 				"source",
@@ -274,12 +272,12 @@
 		"effects": {
 			"runtime": [
 				"assistance",
-				"composition",
 				"shared",
 				"source",
 				"track-audio"
 			],
 			"typeOnly": [
+				"composition",
 				"document"
 			]
 		},

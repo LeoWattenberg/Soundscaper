@@ -31,7 +31,7 @@ import {
 	createAbsentNyquistHostService,
 	createAbsentSelectionEffectExecutionService,
 	createAbsentSelectionEffectWorkerService,
-} from '../composition/absent-audio-subsystems.ts';
+} from './internal/absent-effects-services.ts';
 import { abortError, throwIfAborted } from '../shared/app-helpers.ts';
 import { deferredEffectRuntime } from './deferred-effect-runtime.ts';
 import { createEffectAudioService } from './internal/effect-audio-service.ts';
@@ -88,7 +88,7 @@ type SelectionEffectResult = ReturnType<typeof createSelectionEffectResultServic
  * that runs selection effects off the main thread, rack effects with their
  * live gestures, and the result service that writes processed audio back into
  * the document. Products that do not compose effects, macros or workers get
- * the refusing stand-ins from `absent-audio-subsystems.ts`.
+ * refusing stand-ins owned by this domain.
  */
 export function createEffectsComposition(dependencies: EffectsCompositionDependencies) {
 	const { state, copy, engine, store, taskProgress, absentSubsystem } = dependencies;

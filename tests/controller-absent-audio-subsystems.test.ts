@@ -5,13 +5,17 @@ import test from 'node:test';
 
 import {
 	createAbsentAnalysisService,
+} from '../src/common/editor/controller/analysis/internal/absent-analysis-service.ts';
+import {
 	createAbsentAudioGeneratorService,
+} from '../src/common/editor/controller/edit/internal/absent-audio-generator-service.ts';
+import {
 	createAbsentEffectMacroService,
 	createAbsentNyquistGeneratedAudioService,
 	createAbsentNyquistHostService,
 	createAbsentSelectionEffectExecutionService,
 	createAbsentSelectionEffectWorkerService,
-} from '../src/common/editor/controller/composition/absent-audio-subsystems.ts';
+} from '../src/common/editor/controller/effects/internal/absent-effects-services.ts';
 
 const CONTEXT = Object.freeze({ productName: 'Framescaper' });
 

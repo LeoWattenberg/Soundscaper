@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAbsentAnalysisService } from '../composition/absent-audio-subsystems.ts';
+import { createAbsentAnalysisService } from './internal/absent-analysis-service.ts';
 import { createAnalysisRenderer, type AnalysisRenderDependencies, type AnalysisRenderProject } from './internal/analysis-renderer.ts';
 import type { AnalysisDependencies, AnalysisState } from './analysis-service.ts';
 import { createEditorAnalysisVisuals } from './internal/analysis-visuals.ts';
