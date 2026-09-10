@@ -67,11 +67,14 @@ test.describe('Soundscaper mixer routing graph', () => {
 		const sourcePort = graph.locator('[data-routing-source^="track:"]');
 		const destinationPort = graph.locator(`[data-routing-destination="${groupKey}"]`);
 		const sourceBox = await sourcePort.boundingBox();
-		const destinationBox = await destinationPort.boundingBox();
 		expect(sourceBox).not.toBeNull();
-		expect(destinationBox).not.toBeNull();
 		await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
 		await page.mouse.down();
+		// Arming the source clears the cycle alert and can reposition the graph.
+		await expect(graph.locator('.kw-routing-graph__status')).toContainText('Choose a destination');
+		await expect(graph.getByRole('alert')).toHaveCount(0);
+		const destinationBox = await destinationPort.boundingBox();
+		expect(destinationBox).not.toBeNull();
 		await page.mouse.move(destinationBox.x + destinationBox.width / 2, destinationBox.y + destinationBox.height / 2);
 		await page.mouse.up();
 		await expect(graph.locator('[data-routing-edge]')).toHaveCount(edgesBefore + 3);
