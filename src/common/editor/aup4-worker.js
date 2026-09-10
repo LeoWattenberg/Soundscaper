@@ -80,6 +80,12 @@ async function handle(type, args, context) {
 	if (type === 'open-file') return openFile(args, context);
 	if (type === 'inspect') return inspectProject(args.projectId, args.options);
 	if (type === 'decode') return decodeProject(args, context);
+	if (type === 'plan-import') return planImport(args, context);
+	if (type === 'read-import-chunk') {
+		const session = requireProject(args.projectId).importSession;
+		if (!session) throw operationError('The Audacity import has not been planned.', 'IMPORT_NOT_PLANNED');
+		return session.next(args.sourceId, args.index, context.checkCancelled);
+	}
 	if (type === 'write-document') return updateDocument(args, context);
 	if (type === 'write-snapshot') return snapshots.write(args, context);
 	if (type === 'begin-snapshot') return snapshots.begin(args, context);
@@ -219,7 +225,7 @@ async function openFile(args, context) {
 			: migration.validation;
 		entry.portableLimit = limit;
 		entry.openedSize = file.size;
-		entry.readOnly = Boolean(validation.readOnly || exceedsEditableLimit);
+		entry.readOnly = Boolean(validation.readOnly);
 		projects.set(projectId, entry);
 		context.progress(1, 'complete');
 		const portable = portableValidation(validation, entry);
@@ -227,11 +233,6 @@ async function openFile(args, context) {
 			level: 'warning',
 			code: 'SCHEMA_UPGRADED',
 			message: `The Audacity database schema was upgraded from 0x${migration.fromVersion.toString(16)} to the pinned browser profile.`,
-		}];
-		if (exceedsEditableLimit) portable.issues = [...portable.issues, {
-			level: 'warning',
-			code: 'EDITABLE_LIMIT_EXCEEDED',
-			message: `This project exceeds the browser's ${Math.round(limit / 1024 / 1024)} MiB editable-project limit and was opened read-only for audio extraction.`,
 		}];
 		return { ...projectDescriptor(entry), validation: portable };
 	} catch (error) {
@@ -336,6 +337,25 @@ function updateDocument(args, context) {
 	}
 }
 
+async function planImport(args, context) {
+	const [{ Aup4WorkerImportSession }, { readAup4ImportSamples }] = await Promise.all([
+		import('./aup4-worker-import-session.ts'), import('./aup4-import-sample-reader.ts'),
+	]);
+	const entry = requireProject(args.projectId);
+	const validation = validateAudacityProjectDatabase(entry.database, WORKER_VALIDATION_OPTIONS);
+	context.checkCancelled();
+	await entry.importSession?.close();
+	const decoded = await decodeAudacityProjectTree(validation.document.root, () => {
+		throw operationError('Audio must be read through the import stream.', 'INVALID_IMPORT_READ');
+	}, { projectId: entry.projectId, title: args.title, sourceGeneration: entry.sourceGeneration, planAudio: true });
+	context.checkCancelled();
+	entry.importSession = new Aup4WorkerImportSession(decoded.sources,
+		(block, offset, frames) => readAup4ImportSamples(entry.database, block, offset, frames));
+	const portable = portableValidation(validation, entry);
+	return { ...decoded, sources: [], validation: portable,
+		compatibilityReport: mergeCompatibilityReports(portable.compatibilityReport, decoded.compatibilityReport) };
+}
+
 function commitProject(projectId, now) {
 	const entry = requireWritableProject(projectId);
 	snapshots.assertNone(entry.projectId);
@@ -394,6 +414,7 @@ async function closeProject(projectId) {
 	const id = normalizeProjectId(projectId);
 	const entry = projects.get(id);
 	if (!entry) return false;
+	await entry.importSession?.close();
 	snapshots.discardForProject(id);
 	entry.database?.close();
 	projects.delete(id);

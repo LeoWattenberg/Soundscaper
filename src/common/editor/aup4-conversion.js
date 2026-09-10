@@ -22,6 +22,7 @@ import { createStableId } from './project.js';
 import { canonicalAudacityMusicalRoot } from './audacity-tempo-import.ts';
 import { createAudacityAnnotationImport, readAup4AnnotationTracks } from './audacity-annotation-interchange.ts';
 import { secondsToSampleFrame } from './timeline-time.ts';
+import { planAup4ClipAudio } from './aup4-import-plan.ts';
 
 const DEFAULT_MAX_DECODED_BYTES = 512 * 1024 * 1024;import {
 	booleanValue,
@@ -150,15 +151,16 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 			const alignedChannels = alignedClipNodes[clipIndex];
 			const channelNodes = alignedChannels.filter(Boolean);
 			if (!channelNodes.length) continue;
+			const audioPlan = options.planAudio ? planAup4ClipAudio(alignedChannels, channelRates, trackRate) : null;
 			const channels = [];
-			for (let channel = 0; channel < group.length; channel += 1) {
+			for (let channel = 0; !audioPlan && channel < group.length; channel += 1) {
 				const clipNode = alignedChannels[channel];
 				const decoded = clipNode ? await decodeClipSequence(clipNode, state) : new Float32Array(0);
 				channels.push(channelRates[channel] === trackRate
 					? decoded
 					: resampleMono(decoded, channelRates[channel], trackRate));
 			}
-			const frameCount = Math.max(...channels.map((channel) => channel.length));
+			const frameCount = audioPlan?.frameCount ?? Math.max(...channels.map((channel) => channel.length));
 			if (!frameCount) {
 				warn(state, `Clip ${clipIndex + 1} on track ${trackIndex + 1} contains no readable samples.`);
 				continue;
@@ -169,6 +171,9 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 				padded.set(channels[channel]);
 				channels[channel] = padded;
 				warn(state, `Clip ${clipIndex + 1} on track ${trackIndex + 1} had mismatched channel lengths and was padded.`);
+			}
+			for (const channel of audioPlan?.channelPlans || []) {
+				if (channel.outputFrames !== frameCount) warn(state, `Clip ${clipIndex + 1} on track ${trackIndex + 1} had mismatched channel lengths and was padded.`);
 			}
 			const clipNode = channelNodes[0];
 			const {
@@ -191,7 +196,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 				mimeType: 'audio/x-audacity-sampleblocks',
 				storageKey: sourceId,
 				frameCount,
-				channelCount: channels.length,
+				channelCount: audioPlan?.channelCount ?? channels.length,
 				sampleRate: trackRate,
 				originalSampleRate: trackRate,
 				sampleFormat: sourceSampleFormat,
@@ -235,7 +240,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 			sources.push(source);
 			clips.push(clip);
 			clipIds.push(clip.id);
-			sourceAudio.push({ sourceId, sampleRate: trackRate, channels });
+			sourceAudio.push(audioPlan ? { ...audioPlan, sourceId } : { sourceId, sampleRate: trackRate, channels });
 		}
 		const selected = group.some((node) => Boolean(audacityXmlAttribute(node, 'isSelected', false)));
 		if (selected) selectedTrackIds.push(trackId);

@@ -50,6 +50,16 @@ export class Aup4WorkerClient {
 			maxDecodedBytes: options.maxDecodedBytes,
 		}, options);
 	}
+	planImport(projectId, options = {}) {
+		return this.call('plan-import', { projectId, title: options.title }, options);
+	}
+	async *readSourceChunks(projectId, sourceId, options = {}) {
+		for (let index = 0; ; index += 1) {
+			const result = await this.call('read-import-chunk', { projectId, sourceId, index }, options);
+			if (result.done) return;
+			yield result.channels;
+		}
+	}
 	writeDocument(projectId, encoded, options = {}) {
 		const transfer = [];
 		const transferableEncoded = cloneBinaryRecord(encoded, transfer);

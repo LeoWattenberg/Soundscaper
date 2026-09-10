@@ -3,10 +3,23 @@ import { createAup3Fixture, expect, test } from './audio-editor-test-fixtures.js
 import { bootEditor, chooseFileAction, trackNameText } from './audio-editor-test-helpers.js';
 
 test('opens a checkpointed Audacity 3 project through the File menu', async ({ page }) => {
+	await page.addInitScript(() => {
+		const NativeWorker = globalThis.Worker;
+		globalThis.__audacityImportRequests = [];
+		globalThis.Worker = class extends NativeWorker {
+			constructor(url, options) { super(url, options); this.audacity = options?.name === 'kw-media-audacity-projects'; }
+			postMessage(message, ...options) {
+				if (this.audacity) globalThis.__audacityImportRequests.push(message.type);
+				super.postMessage(message, ...options);
+			}
+		};
+	});
 	const editor = await bootEditor(page, '/embed/en/');
+	const samples = Array.from({ length: 65_536 }, (_, index) => Math.sin(index / 17) * 0.5);
+	const blocks = [{ samples }, { samples }, { samples: [0.25] }];
 	const bytes = await createAup3Fixture({ tracks: [
-		{ name: 'Stereo recording', channel: 0, linked: true, samples: [0.25, -0.5, 0.75, 0] },
-		{ name: 'Stereo recording', channel: 1, samples: [-0.25, 0.5, -0.75, 0] },
+		{ name: 'Stereo recording', channel: 0, linked: true, clips: [{ blocks }] },
+		{ name: 'Stereo recording', channel: 1, clips: [{ blocks }] },
 	] });
 	// Native 3.7 projects keep WAL flags even in their checkpointed main file.
 	bytes[18] = 2;
@@ -21,6 +34,11 @@ test('opens a checkpointed Audacity 3 project through the File menu', async ({ p
 	await expect(editor).toHaveAttribute('data-track-count', '1');
 	await expect(editor).toHaveAttribute('data-clip-count', '1');
 	await expect(trackNameText(editor).first()).toHaveText('Stereo recording');
+	const requests = await page.evaluate(() => globalThis.__audacityImportRequests);
+	expect(requests).toContain('plan-import');
+	expect(requests).toContain('read-import-chunk');
+	expect(requests.filter((type) => type === 'read-import-chunk')).toHaveLength(4);
+	expect(requests).not.toContain('decode');
 });
 
 test('keeps a complete import error readable and permits opening another AUP3', async ({ page }) => {

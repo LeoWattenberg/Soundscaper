@@ -1,4 +1,4 @@
-import { WAVEFORM_PEAK_BLOCK_SIZES, WAVEFORM_PEAKS_VERSION } from '../waveform-peak-contract.ts';
+import { WAVEFORM_PEAK_BLOCK_SIZES, WAVEFORM_PEAKS_VERSION, waveformPeakBlockSizes } from '../waveform-peak-contract.ts';
 import { abortError, throwIfAborted } from './app-helpers.ts';
 
 export { WAVEFORM_PEAK_BLOCK_SIZES, WAVEFORM_PEAKS_VERSION } from '../waveform-peak-contract.ts';
@@ -142,7 +142,8 @@ export async function generateStoredWaveformPeaks(
 	if (typeof Worker !== 'function') return generateStoredWaveformPeaksFallback(store, source);
 	const worker = new Worker(new URL('../peaks-worker.js', import.meta.url), { type: 'module' });
 	try {
-		worker.postMessage({ type: 'start', channelCount: source.channelCount });
+		worker.postMessage({ type: 'start', channelCount: source.channelCount,
+			blockSizes: waveformPeakBlockSizes(source.frameCount, source.channelCount) });
 		await waitForAnalysisWorker(worker, 'ready', copy);
 		for await (const chunk of store.readSourceChunks(source.storageKey || source.id)) {
 			const channels = chunk.channels.map((channel) => channel.slice());
@@ -162,7 +163,7 @@ export async function generateStoredWaveformPeaksFallback(
 	store: StoredWaveformStore,
 	source: WaveformSource,
 ): Promise<WaveformPeaks> {
-	const levels = WAVEFORM_PEAK_BLOCK_SIZES.map((blockSize) => ({
+	const levels = waveformPeakBlockSizes(source.frameCount, source.channelCount).map((blockSize) => ({
 		blockSize,
 		channels: Array.from({ length: source.channelCount }, () => ({
 			minimums: new Float32Array(Math.ceil(source.frameCount / blockSize))
@@ -256,7 +257,8 @@ export async function generateWaveformPeaks(
 	if (typeof Worker !== 'function') return generateWaveformPeaksFallback(channels);
 	const worker = new Worker(new URL('../peaks-worker.js', import.meta.url), { type: 'module' });
 	try {
-		worker.postMessage({ type: 'start', channelCount: channels.length });
+		worker.postMessage({ type: 'start', channelCount: channels.length,
+			blockSizes: waveformPeakBlockSizes(channels[0]?.length || 0, channels.length) });
 		await waitForAnalysisWorker(worker, 'ready', copy);
 		const frameCount = channels[0]?.length || 0;
 		for (let offset = 0; offset < frameCount; offset += chunkFrames) {
@@ -277,7 +279,7 @@ export function generateWaveformPeaksFallback(channels: Float32Array[]): Wavefor
 	return {
 		version: WAVEFORM_PEAKS_VERSION,
 		channelCount: channels.length,
-		levels: WAVEFORM_PEAK_BLOCK_SIZES.map((blockSize) => {
+		levels: waveformPeakBlockSizes(channels[0]?.length || 0, channels.length).map((blockSize) => {
 			const count = Math.ceil((channels[0]?.length || 0) / blockSize);
 			const channelLevels = channels.map((channel) => {
 				const minimums = new Float32Array(count);
@@ -313,7 +315,7 @@ export function waveformPeaksHaveRms(
 	if (!peaks || typeof peaks !== 'object'
 		|| !('version' in peaks) || peaks.version !== WAVEFORM_PEAKS_VERSION
 		|| !('channelCount' in peaks) || typeof peaks.channelCount !== 'number'
-		|| !Number.isSafeInteger(peaks.channelCount) || peaks.channelCount <= 0
+		|| !Number.isSafeInteger(peaks.channelCount) || peaks.channelCount <= 0 || peaks.channelCount > 1_024
 		|| !('levels' in peaks) || !Array.isArray(peaks.levels)) return false;
 	const channelCount = peaks.channelCount;
 	let sourceFrameCount: number | null = null;
@@ -325,11 +327,16 @@ export function waveformPeaksHaveRms(
 		sourceFrameCount = source.frameCount;
 	}
 	if (peaks.levels.length !== WAVEFORM_PEAK_BLOCK_SIZES.length) return false;
+	const firstSize = previousPeakBlockSize(peaks.levels[0]);
+	const scale = firstSize / WAVEFORM_PEAK_BLOCK_SIZES[0]!;
+	if (!Number.isSafeInteger(scale) || scale < 1 || !Number.isInteger(Math.log2(scale))) return false;
+	const blockSizes = sourceFrameCount === null ? WAVEFORM_PEAK_BLOCK_SIZES.map((size) => size * scale)
+		: waveformPeakBlockSizes(sourceFrameCount, channelCount);
 	return peaks.levels.every((level: unknown, index: number, levels: unknown[]) => {
 		if (!level || typeof level !== 'object'
 			|| !('blockSize' in level) || typeof level.blockSize !== 'number'
 			|| !Number.isSafeInteger(level.blockSize)
-			|| level.blockSize !== WAVEFORM_PEAK_BLOCK_SIZES[index]
+			|| level.blockSize !== blockSizes[index]
 			|| level.blockSize <= previousPeakBlockSize(levels[index - 1])
 			|| !('channels' in level) || !Array.isArray(level.channels)
 			|| level.channels.length !== channelCount) return false;

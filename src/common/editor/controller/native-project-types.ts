@@ -225,6 +225,7 @@ export interface Aup4Environment extends Readonly<Record<string, unknown>> {
 }
 
 export interface Aup4PortableOptions {
+	readonly signal?: AbortSignal;
 	readonly mobile: boolean;
 	readonly opfs?: boolean;
 	readonly quota?: number;
@@ -251,11 +252,18 @@ export interface Aup4SnapshotResult extends Readonly<Record<string, unknown>> {
 }
 
 export interface NativeAup4Client {
+	planImport?(projectId: string, options: Readonly<{
+		title: string; signal: AbortSignal; onProgress: (progress: NativeProgress) => void;
+	}>): Promise<Aup4DecodedProject>;
+	readSourceChunks?(projectId: string, sourceId: string, options: Readonly<{
+		signal: AbortSignal;
+	}>): AsyncIterable<readonly Float32Array[]>;
 	initialize(): Promise<Aup4Environment>;
 	create(projectId: string): PromiseLike<unknown> | unknown;
 	openFile(projectId: string, file: NativeProjectFile, options: Aup4PortableOptions): Promise<Aup4OpenedProject>;
 	decode(projectId: string, options: Readonly<{
 		title: string;
+		signal?: AbortSignal;
 		onProgress: (progress: NativeProgress) => void;
 	}>): Promise<Aup4DecodedProject>;
 	writeSnapshot(

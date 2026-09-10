@@ -19,6 +19,7 @@ import {
 const PROJECT_SCOPED_TASK: EditorTaskOptions = Object.freeze({ scope: EDITOR_PROJECT_TASK_SCOPE });
 import { createNativeProjectOwnership, type ProjectTask } from './native-project-ownership.ts';
 import { nativeProjectProgressMessage, publishAup4OpenStatus } from './native-project-status.ts';
+import { bufferedNativeSourceChunks, persistNativeProjectSource } from './native-project-source-persistence.ts';
 import {
 	beginNativeScapeSave,
 	type NativeRetainedScapeArchive,
@@ -205,13 +206,15 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			assertOwnership(operation.task, operation.projectToken);
 			const storage = await runtime.store.estimateStorage();
 			assertOwnership(operation.task, operation.projectToken);
-			const opened = await activeClient.openFile(nativeId, file, portableOptions(file.size, storage, (progress) => {
+			const opened = await activeClient.openFile(nativeId, file, { ...portableOptions(file.size, storage, (progress) => {
 				updateNativeProjectProgress(progress, runtime.copy.importing, operation.task,
 					operation.projectToken, { start: 0, end: 0.3 });
-			}));
+			}), signal: operation.task.signal });
 			assertOwnership(operation.task, operation.projectToken);
-			const decoded = await activeClient.decode(nativeId, {
-				title: file.name,
+			const streaming = Boolean(activeClient.planImport && activeClient.readSourceChunks);
+			const decode = streaming ? activeClient.planImport! : activeClient.decode;
+			const decoded = await decode.call(activeClient, nativeId, {
+				title: file.name, signal: operation.task.signal,
 				onProgress: (progress) => {
 					updateNativeProjectProgress(progress, runtime.copy.importing, operation.task,
 						operation.projectToken, { start: 0.3, end: 1 });
@@ -221,13 +224,28 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			importedProject = runtime.adaptAudacityProject
 				? await runtime.adaptAudacityProject(decoded.project)
 				: runtime.loadProject(decoded.project).project;
-			const decodedBytes = decoded.sources.reduce((total, source) => total + source.channels.reduce(
+			const decodedBytes = streaming
+				? importedProject.sources.filter((source) => isAudioMediaKind(source.kind)).reduce(
+					(total, source) => total + runtime.sourcePcmBytes(source as NativeProjectAudioSource), 0)
+				: decoded.sources.reduce((total, source) => total + source.channels.reduce(
 				(channelTotal, channel) => channelTotal + channel.byteLength,
 				0,
 			), 0);
 			await runtime.preflightStorage(decodedBytes, 'import');
 			assertOwnership(operation.task, operation.projectToken);
-			for (const sourceAudio of decoded.sources) {
+			if (streaming) {
+				let completedBytes = 0;
+				for (const source of importedProject.sources.filter((item) => isAudioMediaKind(item.kind))) {
+					const chunks = activeClient.readSourceChunks!(nativeId, source.id, { signal: operation.task.signal });
+					await persistNativeProjectSource(runtime, importedProject, source.id, chunks, persistedSourceIds,
+						() => assertOwnership(operation.task, operation.projectToken),
+						(bytes) => {
+							completedBytes += bytes;
+							updateNativeProjectProgress({ value: decodedBytes ? completedBytes / decodedBytes : 1 },
+								runtime.copy.importing, operation.task, operation.projectToken, { start: 0.3, end: 1 });
+						});
+				}
+			} else for (const sourceAudio of decoded.sources) {
 				await persistDecodedSource(importedProject, sourceAudio, persistedSourceIds, operation);
 			}
 			const compatibilityIssues = opened.validation?.issues || decoded.validation?.issues || [];
@@ -390,31 +408,9 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		persistedSourceIds: string[],
 		operation: ProjectTask,
 	): Promise<void> {
-		const source = project.sources.find((candidate): candidate is NativeProjectAudioSource => (
-			isAudioMediaKind(candidate.kind) && candidate.id === sourceAudio.sourceId
-		));
-		if (!source) return;
-		const writer = await runtime.store.beginSourceWrite(source.id, {
-			name: source.name,
-			mimeType: source.mimeType,
-			sampleRate: source.sampleRate,
-			channelCount: source.channelCount,
-			chunkFrames: runtime.sourceChunkFrames,
-		});
-		assertOwnership(operation.task, operation.projectToken);
-		try {
-			for (let offset = 0; offset < source.frameCount; offset += runtime.sourceChunkFrames) {
-				const end = Math.min(source.frameCount, offset + runtime.sourceChunkFrames);
-				await writer.write(sourceAudio.channels.map((channel) => channel.subarray(offset, end)));
-				assertOwnership(operation.task, operation.projectToken);
-			}
-			await writer.commit({ sampleRate: source.sampleRate, channelCount: source.channelCount });
-			persistedSourceIds.push(source.id);
-			assertOwnership(operation.task, operation.projectToken);
-		} catch (error) {
-			await Promise.resolve(writer.abort()).catch(() => undefined);
-			throw error;
-		}
+		await persistNativeProjectSource(runtime, project, sourceAudio.sourceId,
+			bufferedNativeSourceChunks(sourceAudio.channels, runtime.sourceChunkFrames), persistedSourceIds,
+			() => assertOwnership(operation.task, operation.projectToken));
 	}
 
 	async function* readAup4SourceAudio(

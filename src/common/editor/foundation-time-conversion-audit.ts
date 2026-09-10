@@ -143,6 +143,18 @@ const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'secondsToSampleFrame', policies: ['point'] }],
 	},
 	{
+		id: 'aup4-import-plan',
+		file: 'src/common/editor/aup4-import-plan.ts',
+		behavior: 'Streaming Audacity import plans retain the nearest-sample resampled channel lengths used by the buffered decoder.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
+	},
+	{
+		id: 'aup4-import-audio',
+		file: 'src/common/editor/aup4-import-audio.ts',
+		behavior: 'Streaming Audacity input reads round down when converting the output chunk budget to input frames, bounding each resampler push.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['enclosingStart'] }],
+	},
+	{
 		id: 'aup4-conversion-settings',
 		file: 'src/common/editor/aup4-conversion-settings.js',
 		behavior: 'AUP4 view and envelope settings resolve their second-valued instants relative to the visible start as nearest sample frames.',

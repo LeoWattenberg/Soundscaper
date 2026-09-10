@@ -117,6 +117,12 @@ function createDeferredAup4Client(
 		create: (...args: unknown[]) => invoke('create', args),
 		openFile: (...args: unknown[]) => invoke('openFile', args),
 		decode: (...args: unknown[]) => invoke('decode', args),
+		planImport: (...args: unknown[]) => invoke('planImport', args),
+		async *readSourceChunks(...args: Parameters<NonNullable<NativeAup4Client['readSourceChunks']>>) {
+			const client = await loadClient();
+			if (!client.readSourceChunks) throw new TypeError('The Audacity client does not support streaming import.');
+			yield* client.readSourceChunks(...args);
+		},
 		writeSnapshot: (...args: unknown[]) => invoke('writeSnapshot', args),
 		commit: (...args: unknown[]) => invoke('commit', args),
 		export: (...args: unknown[]) => invoke('export', args),
