@@ -9,6 +9,7 @@ import {
 import { stateFixture } from './helpers/audio-editor-snapshot-state.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { DEFAULT_SOUND_ACTIVATION_PREFERENCES } from '../src/common/editor/sound-activation-preferences.ts';
+import { exposeOwnedFields } from '../src/common/editor/controller/shared/owned-state.ts';
 
 const SOUND_ACTIVATION_SNAPSHOT = Object.freeze({
 	preferences: DEFAULT_SOUND_ACTIVATION_PREFERENCES,
@@ -245,6 +246,54 @@ test('document snapshots expose one sorted immutable runtime annotation view', (
 	assert.equal(Object.isFrozen(snapshot.timelineAnnotations), true);
 	assert.equal(Object.isFrozen(snapshot.timelineAnnotations[0]), true);
 	assert.notStrictEqual(snapshot.timelineAnnotations, project.timelineAnnotations);
+});
+
+test('document snapshots materialize cloneable effects-owned results', () => {
+	const state = exposeOwnedFields(stateFixture(), {
+		effectMacros: Object.freeze({
+			schemaVersion: 1 as const,
+			macros: Object.freeze([Object.freeze({
+				id: 'macro', name: 'Cleanup',
+				effects: Object.freeze([Object.freeze({
+					id: 'effect', type: 'gain', params: Object.freeze({ gainDb: 3 }),
+				})]),
+			})]),
+		}),
+		macroScripts: Object.freeze({
+			schemaVersion: 1 as const,
+			scripts: Object.freeze([Object.freeze({
+				id: 'script', name: 'Select all', source: 'await sound.select.all();',
+				trust: 'authored' as const, trustedSource: null, origin: null,
+			})]),
+		}),
+		nyquistResult: Object.freeze({
+			type: 'labels',
+			labels: Object.freeze([Object.freeze({ startTime: 0, endTime: 1, text: 'Verse' })]),
+			output: '',
+		}),
+	});
+	const snapshot = createEditorDocumentSnapshot({
+		...documentRuntimeFixture({ id: 'project' }),
+		state,
+	});
+
+	const clone = structuredClone({ macros: snapshot.macros, nyquist: snapshot.nyquist });
+	assert.deepEqual(clone, {
+		macros: {
+			library: [{
+				id: 'macro', name: 'Cleanup',
+				effects: [{ id: 'effect', type: 'gain', params: { gainDb: 3 } }],
+			}],
+			scripts: [{
+				id: 'script', name: 'Select all', source: 'await sound.select.all();',
+				trust: 'authored', trustedSource: null, origin: null,
+			}],
+		},
+		nyquist: {
+			processing: false,
+			result: { type: 'labels', labels: [{ startTime: 0, endTime: 1, text: 'Verse' }], output: '' },
+		},
+	});
 });
 
 function documentRuntimeFixture(project: SnapshotProject) {

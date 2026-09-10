@@ -360,13 +360,13 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 			presets: runtime.getEffectPresets(),
 		}),
 		macros: Object.freeze({
-			library: state.effectMacros.macros,
-			scripts: state.macroScripts?.scripts ?? [],
+			library: materializeSnapshotValue(state.effectMacros.macros),
+			scripts: materializeSnapshotValue(state.macroScripts?.scripts ?? []),
 		}),
 		generators: Object.freeze({ canRepeatLast: Boolean(state.lastGeneratorRequest) }),
 		nyquist: Object.freeze({
 			processing: Boolean(state.nyquistAbort),
-			result: state.nyquistResult,
+			result: materializeSnapshotValue(state.nyquistResult),
 		}),
 		monitor: Object.freeze({
 			enabled: state.monitoring,
@@ -383,6 +383,44 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		missingSourceIds: Object.freeze([...state.missingSourceIds]),
 		disposed: state.disposed,
 	});
+}
+
+/** Detach plain snapshot data from recursive read-only state proxies. */
+function materializeSnapshotValue<Value>(
+	value: Value,
+	seen = new WeakMap<object, object>(),
+): Value {
+	if (value === null || typeof value !== 'object') return value;
+	const existing = seen.get(value);
+	if (existing) return existing as Value;
+	if (Array.isArray(value)) {
+		const copy: unknown[] = [];
+		seen.set(value, copy);
+		for (const entry of value) copy.push(materializeSnapshotValue(entry, seen));
+		return Object.freeze(copy) as Value;
+	}
+	if (value instanceof Map) {
+		const copy = new Map<unknown, unknown>();
+		seen.set(value, copy);
+		for (const [key, entry] of value) {
+			copy.set(materializeSnapshotValue(key, seen), materializeSnapshotValue(entry, seen));
+		}
+		return Object.freeze(copy) as Value;
+	}
+	if (value instanceof Set) {
+		const copy = new Set<unknown>();
+		seen.set(value, copy);
+		for (const entry of value) copy.add(materializeSnapshotValue(entry, seen));
+		return Object.freeze(copy) as Value;
+	}
+	const prototype = Object.getPrototypeOf(value) as object | null;
+	if (prototype !== null && prototype !== Object.prototype) return value;
+	const copy = Object.create(prototype) as Record<string, unknown>;
+	seen.set(value, copy);
+	for (const key of Object.keys(value)) {
+		copy[key] = materializeSnapshotValue((value as Record<string, unknown>)[key], seen);
+	}
+	return Object.freeze(copy) as Value;
 }
 
 /**
