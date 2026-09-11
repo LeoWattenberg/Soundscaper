@@ -47,11 +47,15 @@ function chromeScope(platform, fileAccessKey) {
 		getBoundingClientRect: () => ({ left: 0, top: 0, right: 1_000, bottom: 700 }),
 		querySelector: () => header,
 	};
-	const shell = { classList: { contains: (name) => name === 'desktop' } };
+	const shell = { classList: { contains: (name) => name === 'website-desktop' } };
 	return {
 		document: {
 			documentElement: { dataset: { desktop: 'true' } },
-			querySelector: (selector) => selector === '[data-audio-editor-bound="true"]' ? editor : shell,
+			querySelector: (selector) => {
+				if (selector === '[data-audio-editor-bound="true"]') return editor;
+				if (selector === '.website-site-shell') return shell;
+				return null;
+			},
 		},
 		innerWidth: 1_000,
 		innerHeight: 700,

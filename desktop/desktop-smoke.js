@@ -82,7 +82,7 @@ export async function collectDesktopChromeArtifactWitness(scope) {
 	do {
 		const document = scope.document;
 		const editor = document?.querySelector?.('[data-audio-editor-bound="true"]');
-		const shell = document?.querySelector?.('.site-shell');
+		const shell = document?.querySelector?.('.website-site-shell');
 		const header = editor?.querySelector?.('[data-desktop-chrome="true"]');
 		const titlebar = header?.querySelector?.('.application-header__windows-titlebar');
 		const actions = header?.querySelector?.('.kw-audio-editor__window-actions');
@@ -96,7 +96,7 @@ export async function collectDesktopChromeArtifactWitness(scope) {
 		const file = header?.querySelector?.('[data-application-menubar] [role="menuitem"]');
 		witness = {
 			documentDesktop: document?.documentElement?.dataset?.desktop === 'true',
-			shellDesktop: shell?.classList?.contains?.('desktop') === true,
+			shellDesktop: shell?.classList?.contains?.('website-desktop') === true,
 			fullBleed: Boolean(bounds && Math.abs(bounds.left) < 1 && Math.abs(bounds.top) < 1
 				&& Math.abs(bounds.right - scope.innerWidth) < 1 && Math.abs(bounds.bottom - scope.innerHeight) < 1
 				&& editorStyle?.borderTopWidth === '0px' && editorStyle?.borderTopLeftRadius === '0px'),

@@ -36,7 +36,7 @@ test('uses one full-bleed custom title bar with platform-scoped menu mnemonics',
 			: button.dataset.windowControl;
 		return {
 			documentDesktop: document.documentElement.dataset.desktop === 'true',
-			shellDesktop: shell?.classList.contains('desktop') === true,
+			shellDesktop: shell?.classList.contains('website-desktop') === true,
 			bounds: [editorBounds.left, editorBounds.top, editorBounds.right, editorBounds.bottom],
 			viewport: [innerWidth, innerHeight],
 			borderWidth: editorStyle.borderTopWidth,
