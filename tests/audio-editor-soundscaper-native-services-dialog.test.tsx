@@ -504,7 +504,7 @@ test('the dialog is an accessible modal that shows progress, results, consent an
 		initialState={{ ...seeded, audio: { ...seeded.audio!, enabled: false } }}
 		onClose={() => {}}
 	/>);
-	assert.match(devices, /disabled="" data-native-audio-describe="alsa"/u,
+	assert.match(devices, /disabled=""[^>]*data-native-audio-describe="alsa"/u,
 		'device discovery must remain unavailable while native audio is off');
 });
 

@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 
 import LocalAssistanceDialog, { type LocalAssistanceDialogProps } from './LocalAssistanceDialog.tsx';
+import { resolveLocalModelManagerBridge } from '../local-model-manager-bridge.ts';
 import { resolveLocalAssistanceBridge } from '../../assistance/local-assistance-bridge.ts';
 
 export interface LocalAssistanceDialogSurfaceProps
@@ -15,5 +16,5 @@ export default function LocalAssistanceDialogSurface({
 	bridgeScope, ...props
 }: LocalAssistanceDialogSurfaceProps) {
 	const bridge = useMemo(() => resolveLocalAssistanceBridge(bridgeScope), [bridgeScope]);
-	return <LocalAssistanceDialog {...props} bridge={bridge} />;
+	return <LocalAssistanceDialog {...props} bridge={bridge} modelBridge={resolveLocalModelManagerBridge(bridgeScope)} />;
 }

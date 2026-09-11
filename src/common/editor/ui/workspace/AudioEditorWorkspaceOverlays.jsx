@@ -6,7 +6,7 @@ import {
 } from '../../project-schema-identity.ts';
 import { framescaperFinishingSurface } from '../framescaper-finishing-menu.ts';
 import { framescaperSelectedVisualAuthoringSurface } from '../framescaper-selected-visual-authoring-menu.ts';
-import { resolveLocalModelManagerBridge } from '../local-model-manager-bridge.ts';
+import LocalProcessingOverlays from './LocalProcessingOverlays.tsx';
 import { resolveSoundscaperMasteringSequenceCopy } from '../soundscaper-workflow-product-runtime.tsx';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 import EditorSurfaceBoundary from '../EditorSurfaceBoundary.jsx';
@@ -48,8 +48,6 @@ const TakeCycleRecoveryDialog = lazyEditorModule(() => import('../dialogs/TakeCy
 const WorkspacePreferencesDialog = lazyEditorModule(() => import('../dialogs/WorkspacePreferencesDialog.jsx'));
 const RawPcmImportDialog = lazyEditorModule(() => import('../dialogs/ImportAnalysisDialogs.tsx').then((module) => ({ default: module.RawPcmImportDialog })));
 const RegularIntervalAnnotationDialog = lazyEditorModule(() => import('../dialogs/ImportAnalysisDialogs.tsx').then((module) => ({ default: module.RegularIntervalAnnotationDialog })));
-const LocalModelManagerDialog = lazyEditorModule(() => import('../dialogs/LocalModelManagerDialog.tsx'));
-const LocalAssistanceDialog = lazyEditorModule(() => import('../dialogs/LocalAssistanceDialogSurface.tsx'));
 const LocalDiagnosticsDialog = lazyEditorModule(() => import('../dialogs/LocalDiagnosticsDialog.tsx'));
 const PrivacyPolicyDialog = lazyEditorModule(() => import('../dialogs/PrivacyPolicyDialog.tsx'));
 
@@ -98,7 +96,6 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 	} = model;
 	const activeFramescaperFinishingSurface = framescaperFinishingSurface(activeSurface);
 	const selectedAuthoringSurface = framescaperSelectedVisualAuthoringSurface(activeSurface);
-	const localModelManagerBridge = resolveLocalModelManagerBridge(fileService.bridge);
 	const selectedFramescaperProject = productId === 'framescaper'
 		&& isCurrentProjectSchemaIdentity(snapshot.project, FRAMESCAPER_PROJECT_SCHEMA_FAMILY);
 	const framescaperProxyProject = productId === 'framescaper'
@@ -502,31 +499,9 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 					/>
 				</div>
 			)}
-			{fileService.isDesktop && activeSurface === 'local-models' && (
-				<div data-editor-surface="local-models">
-					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
-						<LocalModelManagerDialog
-							bridge={localModelManagerBridge}
-							copy={copy}
-							locale={locale}
-							onClose={() => setActiveSurface(null)}
-						/>
-					</React.Suspense>
-				</div>
-			)}
-			{fileService.isDesktop && capabilities.assistanceAssets && activeSurface === 'local-assistance' && (
-				<div data-editor-surface="local-assistance">
-					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
-						<LocalAssistanceDialog
-							projectId={snapshot.project?.id ?? null}
-							bridgeScope={fileService.bridge}
-							preparation={selectedMediaPreparation}
-							copy={copy}
-							onClose={() => setActiveSurface(null)}
-						/>
-					</React.Suspense>
-				</div>
-			)}
+			<LocalProcessingOverlays activeSurface={activeSurface} fileService={fileService}
+				capabilities={capabilities} snapshot={snapshot} copy={copy} locale={locale}
+				selectedMediaPreparation={selectedMediaPreparation} setActiveSurface={setActiveSurface} />
 
 			{dialog && (
 				<EditorDialog

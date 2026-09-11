@@ -2,6 +2,8 @@
 
 /** Lazy Guided review surface; every admitted choice begins unchecked. */
 
+import { Checkbox } from '@soundscaper/design-system/Checkbox';
+import { ProcessingButton as Button } from './ProcessingButton.tsx';
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 
 import type {
@@ -59,9 +61,9 @@ export default function LocalAssistanceGuidedReview({
 	return <section className="kw-local-assistance__guided-review"
 		aria-label={text(copy, 'localAssistanceGuidedReview', 'Guided workflow review')}>
 		<h3>{text(copy, 'localAssistanceReview', 'Review result')}</h3>
-		<p>{review.outputs.map(({ slotId, byteLength }) => (
+		<details><summary>{text(copy, 'assistanceTechnicalDetails', 'Technical details')}</summary><p>{review.outputs.map(({ slotId, byteLength }) => (
 			`${slotId} · ${String(byteLength)} bytes`
-		)).join(' · ')}</p>
+		)).join(' · ')}</p></details>
 		{auditionAudio === null ? null : <AudioAudition body={auditionAudio}
 			label={text(copy, 'localAssistanceOriginalSelection', 'Original selection')}
 			skipRanges={cleanupSkipRanges(review, selectedChoiceIds,
@@ -70,7 +72,7 @@ export default function LocalAssistanceGuidedReview({
 			? <p>{text(copy, 'localAssistanceCleanupAudition',
 				'Audition skips checked ranges without changing the project.')}</p> : null}
 		{review.outputs.filter(({ mediaType }) => mediaType === 'audio/wav').map((output) =>
-			<AudioAudition key={output.claim.claimId} body={output.body} label={output.slotId} />)}
+			<AudioAudition key={output.claim.claimId} body={output.body} label={copy[`assistanceOutput.${output.slotId}`] || output.slotId.replaceAll('-', ' ')} />)}
 		{review.workflowId === 'generate-editorial-text'
 			? <EditorialProposals review={review} /> : null}
 		{review.workflowId === 'reframe' && reframeDraft
@@ -85,8 +87,8 @@ export default function LocalAssistanceGuidedReview({
 			: <fieldset>
 				<legend>{text(copy, 'localAssistanceChooseProposals', 'Choose proposals to accept')}</legend>
 				{review.choices.map((choice) => <label key={choice.id}>
-					<input type="checkbox" checked={selected.has(choice.id)} disabled={!choice.enabled}
-						onChange={(event) => { void onChoiceChange(choice.id, event.currentTarget.checked); }} />
+					<Checkbox checked={selected.has(choice.id)} disabled={!choice.enabled} aria-label={choice.label}
+						onChange={(checked) => { void onChoiceChange(choice.id, checked); }} />
 					{choice.label}
 				</label>)}
 			</fieldset>}
@@ -107,14 +109,14 @@ function ReframePath({ copy, draft, onCrop }: Readonly<{
 		<p>{text(copy, 'localAssistanceReframeKeyframePosition', 'Keyframe')} {' '}
 			{String(keyframeIndex + 1)} / {String(draft.path.keyframes.length)}</p>
 		<div className="kw-local-assistance__reframe-navigation">
-			<button type="button" disabled={keyframeIndex === 0}
+			<Button variant="secondary" disabled={keyframeIndex === 0}
 				onClick={() => setKeyframeIndex((index) => Math.max(0, index - 1))}>
 				{text(copy, 'localAssistancePreviousKeyframe', 'Previous keyframe')}
-			</button>
-			<button type="button" disabled={keyframeIndex === draft.path.keyframes.length - 1}
+			</Button>
+			<Button variant="secondary" disabled={keyframeIndex === draft.path.keyframes.length - 1}
 				onClick={() => setKeyframeIndex((index) => Math.min(
 					draft.path.keyframes.length - 1, index + 1,
-				))}>{text(copy, 'localAssistanceNextKeyframe', 'Next keyframe')}</button>
+				))}>{text(copy, 'localAssistanceNextKeyframe', 'Next keyframe')}</Button>
 		</div>
 		<fieldset key={keyframe.sourceFrame}>
 			<legend>{text(copy, 'localAssistanceReframeCropKeyframe', 'Crop keyframe')}{' '}
@@ -297,11 +299,11 @@ function HighlightProposals({ copy, draft, authority, activeId, onPreview, onTit
 		{editError === '' ? null : <p role="alert" aria-live="polite">{editError}</p>}
 		{draft.proposals.map((proposal, index) => <article key={proposal.id}
 			aria-label={`${text(copy, 'localAssistanceHighlightProposal', 'Highlight proposal')} ${String(index + 1)}`}>
-			<button type="button" aria-pressed={activeId === proposal.id}
+			<Button variant="secondary" aria-pressed={activeId === proposal.id}
 				onClick={() => { void onPreview(proposal.id); }}>
 				{`${text(copy, 'localAssistanceHighlightPreview', 'Preview')} ${
 					text(copy, 'localAssistanceHighlightChoice', 'Highlight')} ${String(index + 1)}`}
-			</button>
+			</Button>
 			<label>{text(copy, 'localAssistanceHighlightTitle', 'Title')}<input type="text"
 				key={proposal.title} defaultValue={proposal.title} minLength={1} maxLength={160} required
 				onBlur={(event) => {

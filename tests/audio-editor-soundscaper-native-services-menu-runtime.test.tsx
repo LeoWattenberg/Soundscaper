@@ -18,6 +18,7 @@ interface MenuItem {
 	readonly id?: string;
 	readonly disabled?: boolean;
 	readonly items?: readonly MenuItem[];
+	readonly nativePreferences?: readonly MenuItem[];
 	onClick?(): unknown;
 }
 
@@ -131,12 +132,8 @@ test('the workspace supplies the native services runtime so its menu entries are
 	const entries = await settledNativeEntries('soundscaper');
 
 	assert.deepEqual(entries.map(({ id, disabled }) => [id, disabled]), [
-		['native-effects', false],
-		['native-effect-scan', false],
 		['native-effect-manage', false],
-		['native-audio', false],
-		['native-audio-device', false],
-		['native-audio-preferences', false],
+		['native-effect-use', false],
 	]);
 	assert.ok(calls.includes('nativePluginAvailability'), 'the runtime must consume the preload bridge');
 	for (const entry of entries) {
@@ -166,7 +163,7 @@ test('a tier whose formats are all unconsented keeps the scan entry disabled but
 
 	assert.deepEqual(
 		entries.filter(({ id }) => (id ?? '').startsWith('native-effect-')).map(({ id, disabled }) => [id, disabled]),
-		[['native-effect-scan', true], ['native-effect-manage', false]],
+		[['native-effect-manage', false], ['native-effect-use', true]],
 	);
 });
 
@@ -266,7 +263,7 @@ test('Framescaper gains no Soundscaper native services runtime', async (t) => {
 
 	const entries = await settledNativeEntries('framescaper');
 
-	assert.deepEqual(entries.map(({ id }) => id), []);
+	assert.deepEqual(entries.map(({ id }) => id).sort(), []);
 	assert.deepEqual(calls, [], 'the other product must not even probe the native tier');
 });
 
@@ -287,8 +284,7 @@ test('both desktop products gain the shared host controls without mounting the S
 	};
 	for (const productId of ['soundscaper', 'framescaper']) {
 		const menus = createWorkspaceApplicationMenus(workspaceMenuInput(productId, runtime)) as readonly MenuItem[];
-		assert.deepEqual(flatten(menus).filter(({ id }) => id?.startsWith('desktop-')).map(({ id }) => id), [
-			'desktop-services',
+		assert.deepEqual(flatten([...menus, ...menus.flatMap((menu) => menu.nativePreferences ?? [])]).filter(({ id }) => id?.startsWith('desktop-')).map(({ id }) => id).sort(), [
 			'desktop-use-native-probe-helper',
 			'desktop-clear-probe-helper-quarantine',
 			'desktop-use-native-audio-helper',
@@ -297,7 +293,7 @@ test('both desktop products gain the shared host controls without mounting the S
 			'desktop-product-help',
 			'desktop-check-updates',
 			'desktop-view-source',
-		]);
+		].sort());
 	}
 });
 

@@ -2,6 +2,7 @@
 
 /** Menu-owned, lazy renderer host for the Framescaper native-services tier. */
 
+import { captureNativeProcessingReturnFocus } from './native-processing-return-focus.ts';
 import React, { useEffect, useSyncExternalStore } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
@@ -108,10 +109,12 @@ export function createFramescaperNativeServicesSurfaceHost(
 		?? (typeof document === 'undefined' ? null : document);
 	let container: HTMLElement | null = null;
 	let root: FramescaperNativeServicesHostRoot | null = null;
-	const close = (): void => { root?.render(null); };
+	let returnFocus: (() => void) | null = null;
+	const close = (): void => { root?.render(null); returnFocus?.(); returnFocus = null; };
 	return Object.freeze({
 		open: (surface: FramescaperNativeServiceSurface, context?: FramescaperNativeServicesDialogContext) => {
 			if (!documentValue) return;
+			returnFocus = captureNativeProcessingReturnFocus(documentValue);
 			if (!container) {
 				container = documentValue.createElement('div');
 				container.dataset.editorSurface = 'framescaper-native-services';

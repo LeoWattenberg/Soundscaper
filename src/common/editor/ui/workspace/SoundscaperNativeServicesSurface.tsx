@@ -16,6 +16,7 @@
  * absent until an existing menu explicitly opens it, so the tier adds no chrome.
  */
 
+import { captureNativeProcessingReturnFocus } from './native-processing-return-focus.ts';
 import React, { useEffect, useSyncExternalStore } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -63,6 +64,7 @@ export interface SoundscaperNativeServicesWorkspaceRuntime {
 export interface SoundscaperNativeServicesSurfaceHost {
 	readonly dialogRuntime: SoundscaperNativeServicesDialogRuntime;
 	restoreProjectNativePlugins(): Promise<readonly unknown[]>;
+	setProcessingBlocked(blocked: boolean): void;
 	setCopy(copy: Readonly<Record<string, string | undefined>> | undefined): void;
 	open(surface: SoundscaperNativeServiceSurface): void;
 	close(): void;
@@ -91,8 +93,9 @@ export function createSoundscaperNativeServicesSurfaceHost(
 		?? (typeof document === 'undefined' ? null : document);
 	let container: HTMLElement | null = null;
 	let root: SoundscaperNativeServicesHostRoot | null = null;
-	let returnFocus: HTMLElement | null = null;
+	let returnFocus: (() => void) | null = null;
 	let copy = options.copy;
+	let processingBlocked = false;
 	let openSurface: SoundscaperNativeServiceSurface | null = null;
 	const renderer = options.engine
 		? (options.createRendererBridge ?? createSoundscaperNativeRendererBridge)({
@@ -109,13 +112,9 @@ export function createSoundscaperNativeServicesSurfaceHost(
 	const close = (): void => {
 		openSurface = null;
 		root?.render(null);
-		const target = returnFocus;
+		const restore = returnFocus;
 		returnFocus = null;
-		if (!target) return;
-		const restore = () => { if (target.isConnected) target.focus({ preventScroll: true }); };
-		const animationFrame = documentValue?.defaultView?.requestAnimationFrame;
-		if (animationFrame) animationFrame.call(documentValue.defaultView, restore);
-		else queueMicrotask(restore);
+		restore?.();
 	};
 	const renderDialog = (surface: SoundscaperNativeServiceSurface): void => {
 		root?.render(<React.Suspense fallback={null}>
@@ -123,6 +122,7 @@ export function createSoundscaperNativeServicesSurfaceHost(
 				bridge={bridge}
 				runtime={dialogRuntime}
 				initialSurface={surface}
+				processingBlocked={processingBlocked}
 				copy={copy}
 				onClose={close}
 			/>
@@ -149,6 +149,11 @@ export function createSoundscaperNativeServicesSurfaceHost(
 			restorationResult = restoration;
 			return restoration;
 		},
+		setProcessingBlocked: (blocked: boolean) => {
+			if (processingBlocked === blocked) return;
+			processingBlocked = blocked;
+			if (openSurface !== null) renderDialog(openSurface);
+		},
 		setCopy: (next: Readonly<Record<string, string | undefined>> | undefined) => {
 			if (copy === next) return;
 			copy = next;
@@ -157,11 +162,7 @@ export function createSoundscaperNativeServicesSurfaceHost(
 		open: (surface: SoundscaperNativeServiceSurface) => {
 			if (!documentValue) return;
 			openSurface = surface;
-			const activeElement = focusableElement(documentValue.activeElement)
-				? documentValue.activeElement : null;
-			returnFocus = documentValue.querySelector<HTMLElement>(
-				'[data-application-menubar] [role="menuitem"][aria-expanded="true"]',
-			) ?? activeElement;
+			returnFocus = captureNativeProcessingReturnFocus(documentValue);
 			if (!container) {
 				container = documentValue.createElement('div');
 				container.dataset.editorSurface = 'soundscaper-native-services';
@@ -193,11 +194,6 @@ export function createSoundscaperNativeServicesSurfaceHost(
 			return operation;
 		},
 	});
-}
-
-function focusableElement(value: unknown): value is HTMLElement {
-	return value !== null && typeof value === 'object'
-		&& typeof (value as Readonly<{ readonly focus?: unknown }>).focus === 'function';
 }
 
 interface OwnedHost {
@@ -254,6 +250,7 @@ export function useSoundscaperNativeServicesMenuRefresh(input: Readonly<{
  */
 export function resolveSoundscaperNativeServicesWorkspaceRuntime(input: Readonly<{
 	productId: string;
+	processingBlocked?: boolean;
 	bridge?: SoundscaperNativeServicesBridge | null;
 	copy?: Readonly<Record<string, string | undefined>>;
 	engine?: EnginePublicApi | null;
@@ -275,6 +272,7 @@ export function resolveSoundscaperNativeServicesWorkspaceRuntime(input: Readonly
 	}
 	const { host } = owned;
 	host.setCopy(input.copy);
+	host.setProcessingBlocked(input.processingBlocked === true);
 	void host.restoreProjectNativePlugins().catch((error: unknown) => {
 		console.error('Persisted native plug-ins could not be restored:', error);
 	});

@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { openNativePreferences } from './helpers/assistance-task-menu.js';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
+	chooseCommandAction,
 	getMenuItem,
 	openNestedCommandMenu,
 } from './audio-editor-test-helpers.js';
@@ -15,19 +17,9 @@ test('selected Soundscaper exposes the default-off native tier only through menu
 
 	await expect(page.locator('[data-soundscaper-native-services-dialog="true"]')).toHaveCount(0);
 	await expect(page.getByText('Native audio and effects', { exact: true })).toHaveCount(0);
-	const tools = await openNestedCommandMenu(page, editor, 'Tools', []);
-	const audioGroups = tools.getByRole('menuitem', { name: /^Audio setup(?:\s|$)/u });
-	await audioGroups.last().press('ArrowRight');
-	const audio = audioGroups.last().getByRole('menu');
-	await expect(audio).toBeVisible();
-	const device = getMenuItem(audio, 'Native audio device…');
-	await expect(device).toBeDisabled();
-	await expect(device).toContainText('Fixture professional payload is unavailable');
-	const preferences = getMenuItem(audio, 'Native audio and latency…');
-	await expect(preferences).toBeEnabled();
-	await preferences.press('Enter');
+	await openNativePreferences(page, editor, 'Audio settings', 'Native audio and latency…');
 
-	const dialog = page.getByRole('dialog', { name: 'Native audio and effects', exact: true });
+	const dialog = page.getByRole('dialog', { name: 'Audio setup', exact: true });
 	await expect(dialog).toBeVisible();
 	const nativeAudio = dialog.getByRole('tab', { name: 'Native audio', exact: true });
 	await expect(nativeAudio).toBeFocused();
@@ -35,20 +27,68 @@ test('selected Soundscaper exposes the default-off native tier only through menu
 	await expect(dialog.getByText('Native audio is off.', { exact: true })).toBeVisible();
 	await expect(dialog.getByText('Fixture professional payload is unavailable', { exact: true })).toBeVisible();
 
+	await expect(dialog.getByRole('tab', { name: 'Scanning & Settings', exact: true })).toHaveCount(0);
 	await nativeAudio.press('ArrowRight');
-	const scan = dialog.getByRole('tab', { name: 'Scan', exact: true });
-	await expect(scan).toBeFocused();
-	await expect(scan).toHaveAttribute('aria-selected', 'true');
-	await scan.press('Home');
 	await expect(dialog.getByRole('tab', { name: 'Devices', exact: true })).toBeFocused();
 	await page.keyboard.press('Escape');
 	await expect(dialog).toHaveCount(0);
-	await expect(editor.getByRole('menubar', { name: 'Application menu' })
-		.getByRole('menuitem', { name: 'Tools', exact: true })).toBeFocused();
+
 	await expect.poll(() => page.evaluate(() => globalThis.__soundscaperNativeRuntimeCalls)).toEqual([]);
 	await expect(page.locator('[data-soundscaper-native-services-dialog="true"]')).toHaveCount(0);
 });
 
+
+test('Plugin Manager stays available with processing off and supports keyboard and narrow themes', async ({ page }) => {
+	await installNativeServicesFixture(page);
+	const editor = await bootEditor(page, '/embed/en/');
+	await chooseCommandAction(page, editor, 'Effect', 'Plugin Manager');
+	const dialog = page.getByRole('dialog', { name: 'Plugin Manager', exact: true });
+	await expect(dialog.getByRole('tab', { name: 'Devices', exact: true })).toHaveCount(0);
+	await dialog.getByRole('textbox', { name: 'Search plugins' }).fill('no plugin');
+	await expect(dialog.getByRole('table')).toBeVisible();
+	const installed = dialog.getByRole('tab', { name: 'Installed', exact: true });
+	await installed.focus();
+	await installed.press('ArrowRight');
+	await expect(dialog.getByRole('tab', { name: 'Scanning & Settings' })).toBeFocused();
+	await page.setViewportSize({ width: 390, height: 844 });
+	for (const theme of ['dark', 'light']) {
+		await page.evaluate((value) => { document.documentElement.dataset.theme = value; }, theme);
+		await expect(dialog.locator('.button').first()).toHaveCSS('--button-bg-idle', theme === 'dark' ? '#515A63' : '#D3D4DC');
+		const box = await dialog.boundingBox();
+		expect(box.x).toBeGreaterThanOrEqual(0);
+		expect(box.x + box.width).toBeLessThanOrEqual(390);
+	}
+	await page.emulateMedia({ forcedColors: 'active' });
+	await expect(dialog.getByRole('tab', { name: 'Scanning & Settings' })).toBeFocused();
+	await page.setViewportSize({ width: 1280, height: 720 });
+	await page.keyboard.press('Escape');
+	await expect(dialog).toHaveCount(0);
+	await expect(editor.getByRole('menuitem', { name: 'Effect', exact: true })).toBeFocused();
+	await expect.poll(() => page.evaluate(() => globalThis.__soundscaperNativeRuntimeCalls)).toEqual([]);
+});
+
+test('Plugin Manager filters installed rows and reviews only the selected installation', async ({ page }) => {
+	await installNativeServicesFixture(page, true);
+	const editor = await bootEditor(page, '/embed/en/');
+	await chooseCommandAction(page, editor, 'Effect', 'Plugin Manager');
+	const dialog = page.getByRole('dialog', { name: 'Plugin Manager', exact: true });
+	const search = dialog.getByRole('textbox', { name: 'Search plugins' });
+	await expect(dialog.locator('[data-native-plugin-entry]')).toHaveCount(2);
+	await dialog.getByRole('button', { name: 'Status', exact: true }).click();
+	await page.getByRole('option', { name: 'Needs attention', exact: true }).click();
+	await expect(dialog.locator('[data-native-plugin-entry]')).toHaveCount(1);
+	await dialog.getByRole('button', { name: 'Echo', exact: true }).click();
+	await expect(dialog.getByRole('region', { name: 'Plugin details' })).toContainText('Review this installation before use.');
+	await search.fill('absent');
+	await expect(dialog.getByRole('region', { name: 'Plugin details' })).toHaveCount(0);
+	await expect(dialog.getByText('No plugins match these filters.', { exact: true })).toBeVisible();
+	await search.fill('Echo');
+	await expect.poll(() => page.evaluate(() => globalThis.__soundscaperNativeRuntimeCalls)).toEqual([]);
+	await dialog.locator('[data-native-plugin-review="allow"]').click();
+	await expect.poll(() => page.evaluate(() => globalThis.__soundscaperNativeRuntimeCalls)).toEqual(['review:echo-install:allow']);
+	await expect(dialog.locator('[data-native-plugin-review="revoke"]')).toBeVisible();
+	await expect(dialog.locator('[data-native-plugin-instantiate]')).toHaveCount(0);
+});
 
 test('Framescaper never exposes the Soundscaper native-services surface', async ({ page }) => {
 	await installNativeServicesFixture(page);
@@ -64,8 +104,8 @@ test('Framescaper never exposes the Soundscaper native-services surface', async 
 	await expect.poll(() => page.evaluate(() => globalThis.__soundscaperNativeRuntimeCalls)).toEqual([]);
 });
 
-async function installNativeServicesFixture(page) {
-	await page.addInitScript(() => {
+async function installNativeServicesFixture(page, withPlugins = false) {
+	await page.addInitScript((includePlugins) => {
 		const runtimeCalls = [];
 		let probeCount = 0;
 		const unavailablePayload = Object.freeze({
@@ -84,7 +124,14 @@ async function installNativeServicesFixture(page) {
 			consent: Object.freeze({ scanningEnabled: false, formats: Object.freeze([]) }),
 			quarantine,
 		});
-		const registry = Object.freeze({ entries: Object.freeze([]) });
+		let registry = { entries: includePlugins ? [
+			{ entryId: 'echo', format: 'VST3', name: 'Echo', vendor: 'Fixture', eligible: false,
+				ineligibleReason: 'Review this installation before use.', installations: [{ installationId: 'echo-install',
+					version: '1.0', reviewed: false, selected: true, quarantined: false }] },
+			{ entryId: 'gain', format: 'LV2', name: 'Gain', vendor: 'Fixture', eligible: true,
+				ineligibleReason: null, installations: [{ installationId: 'gain-install',
+					version: '2.0', reviewed: true, selected: true, quarantined: false }] },
+		] : [] };
 		const refused = async (name) => {
 			runtimeCalls.push(name);
 			throw new Error(`Default-off fixture must not call ${name}.`);
@@ -96,6 +143,7 @@ async function installNativeServicesFixture(page) {
 			configurable: true, get: () => probeCount,
 		});
 		const bridge = Object.freeze({
+			getExternalFfmpegStatus: async () => ({ state: 'unconfigured', location: null, version: null, detail: '', canInstall: false, canBrowse: false, canClear: false }),
 			getEnvironment: async () => null,
 			signalReady: async () => undefined,
 			onMenuCommand: () => () => undefined,
@@ -122,7 +170,14 @@ async function installNativeServicesFixture(page) {
 			reportNativeAudioSessionTransfer: () => refused('reportNativeAudioSessionTransfer'),
 			reportNativeAudioSessionLoss: () => refused('reportNativeAudioSessionLoss'),
 			closeNativeAudioSession: () => refused('closeNativeAudioSession'),
-			reviewNativePluginInstallation: () => refused('reviewNativePluginInstallation'),
+			reviewNativePluginInstallation: async ({ installationId, action: review }) => {
+				runtimeCalls.push(`review:${installationId}:${review}`);
+				registry = { entries: registry.entries.map((entry) => ({ ...entry,
+					installations: entry.installations.map((installation) => installation.installationId === installationId
+						? { ...installation, reviewed: review === 'allow' } : installation),
+				})) };
+				return registry;
+			},
 			instantiateNativePlugin: () => refused('instantiateNativePlugin'),
 			runNativePluginOffline: () => refused('runNativePluginOffline'),
 			setNativePluginBypassed: () => refused('setNativePluginBypassed'),
@@ -134,5 +189,5 @@ async function installNativeServicesFixture(page) {
 		});
 		const surface = Object.freeze({ v1: bridge });
 		Object.defineProperty(globalThis, 'soundscaperDesktop', { configurable: true, value: surface });
-	});
+	}, withPlugins);
 }

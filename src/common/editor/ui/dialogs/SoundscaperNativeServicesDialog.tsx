@@ -10,6 +10,10 @@
  * names status and never mechanism.
  */
 
+import NativeProcessingTheme from './NativeProcessingTheme.tsx';
+import { ProcessingButton as Button } from './ProcessingButton.tsx';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
+import './ProcessingDialogs.css';
 import React, { useEffect, useMemo, useSyncExternalStore, type KeyboardEvent } from 'react';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
@@ -34,7 +38,6 @@ import {
 import { isNativeAudioStreamingBackend } from '../soundscaper-native-audio-route.ts';
 export { createNativeAudioRouteOpenRequest } from '../soundscaper-native-audio-route.ts';
 import {
-	SOUNDSCAPER_NATIVE_SERVICE_SURFACES,
 	type SoundscaperNativeServiceSurface,
 } from '../soundscaper-native-services-menu.ts';
 import {
@@ -43,6 +46,7 @@ import {
 } from './SoundscaperNativeEffectPanels.tsx';
 
 export interface SoundscaperNativeServicesDialogProps {
+	readonly processingBlocked?: boolean;
 	readonly bridge: SoundscaperNativeServicesBridge;
 	readonly initialSurface: SoundscaperNativeServiceSurface;
 	readonly initialState?: SoundscaperNativeServicesDialogState;
@@ -51,9 +55,14 @@ export interface SoundscaperNativeServicesDialogProps {
 	readonly onClose: () => void;
 }
 
-export default function SoundscaperNativeServicesDialog({
+export default function SoundscaperNativeServicesDialog(props: SoundscaperNativeServicesDialogProps) {
+	return <NativeProcessingTheme><NativeServicesDialog {...props} /></NativeProcessingTheme>;
+}
+
+function NativeServicesDialog({
 	bridge,
 	initialSurface,
+	processingBlocked = false,
 	initialState = EMPTY_SOUNDSCAPER_NATIVE_SERVICES_DIALOG_STATE,
 	runtime: workspaceRuntime,
 	copy: hostCopy,
@@ -72,9 +81,12 @@ export default function SoundscaperNativeServicesDialog({
 	}, [runtime]);
 	useEffect(() => { perform({ type: 'refresh' }); }, [perform]);
 
+	const surfaces: readonly SoundscaperNativeServiceSurface[] = initialSurface.startsWith('native-audio')
+		? ['native-audio-device', 'native-audio-preferences']
+		: initialSurface === 'native-effect-use' ? ['native-effect-use'] : ['native-effect-manage', 'native-effect-scan'];
 	const busy = state.pending !== null || Object.values(state.scans).some((scan) => scan.running);
 	const handleTabKey = (event: KeyboardEvent<HTMLButtonElement>): void => {
-		const next = adjacentSurface(surface, event.key);
+		const next = adjacentSurface(surface, event.key, surfaces);
 		if (next === null) return;
 		event.preventDefault();
 		setSurface(next);
@@ -84,15 +96,18 @@ export default function SoundscaperNativeServicesDialog({
 	};
 
 	return <AudioEditorDialogShell
-		title={copy.nativeServices}
+		title={initialSurface.startsWith('native-audio') ? copy.audioDevices
+			: initialSurface === 'native-effect-use' ? copy.audioPluginEffects : copy.pluginManage.replace(/…$/u, '')}
 		onClose={onClose}
 		width={760}
 		initialFocus={`[data-native-service-tab="${surface}"]`}
 		dataAttributes={{ 'data-soundscaper-native-services-dialog': 'true' }}
+		footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={
+			<Button variant="primary" onClick={onClose}>{copy.close}</Button>} />}
 	>
 		<div className="audio-editor-soundscaper-native-services">
-			<div role="tablist" aria-label={copy.nativeServiceSurfaces}>
-				{SOUNDSCAPER_NATIVE_SERVICE_SURFACES.map((candidate) => <button
+			<div className="kw-processing-tabs" role="tablist" aria-label={copy.nativeServiceSurfaces}>
+				{surfaces.map((candidate) => <button
 					key={candidate}
 					id={tabId(candidate)}
 					type="button"
@@ -115,12 +130,12 @@ export default function SoundscaperNativeServicesDialog({
 				tabIndex={0}
 			>
 				<p>
-					<button
-						type="button"
+					<Button
+						variant="secondary"
 						disabled={state.pending !== null}
 						data-native-service-refresh="true"
 						onClick={() => perform({ type: 'refresh' })}
-					>{copy.refresh}</button>
+					>{copy.refresh}</Button>
 				</p>
 				{surface === 'native-audio-device' && <AudioDevicePanel
 					copy={copy}
@@ -137,13 +152,14 @@ export default function SoundscaperNativeServicesDialog({
 				{surface === 'native-effect-scan' && <SoundscaperNativeEffectScanPanel
 					copy={copy}
 					state={state}
-					disabled={state.pending !== null}
+					disabled={state.pending !== null || processingBlocked}
 					perform={perform}
 				/>}
-				{surface === 'native-effect-manage' && <SoundscaperNativeEffectManagePanel
+				{(surface === 'native-effect-manage' || surface === 'native-effect-use') && <SoundscaperNativeEffectManagePanel
+					mode={surface === 'native-effect-use' ? 'use' : 'manage'}
 					copy={copy}
 					state={state}
-					disabled={state.pending !== null}
+					disabled={state.pending !== null || (surface === 'native-effect-use' && processingBlocked)}
 					perform={perform}
 				/>}
 			</section>
@@ -169,12 +185,12 @@ function AudioDevicePanel({ copy, state, disabled, perform }: Readonly<{
 			: <ul>
 				{backends.map((backend) => <li key={backend} data-native-audio-backend={backend}>
 					<span>{backend}</span>
-					<button
-						type="button"
+					<Button
+						variant="secondary"
 						disabled={disabled || state.audio?.enabled !== true}
 						data-native-audio-describe={backend}
 						onClick={() => perform({ type: 'describe-devices', backend })}
-					>{copy.listDevices}</button>
+					>{copy.listDevices}</Button>
 				</li>)}
 			</ul>}
 		{devices?.status === 'failed' && <p>{devices.message}</p>}
@@ -212,19 +228,19 @@ function AudioSessionControls({ copy, disabled, state, perform }: Readonly<{
 	if (session === null) return null;
 	return <section data-native-audio-session={session.sessionId}>
 		<h3>{`${session.backend} — ${session.state}`}</h3>
-		<button type="button" disabled={disabled || session.state !== 'open'}
+		<Button variant="secondary" disabled={disabled || session.state !== 'open'}
 			data-native-audio-bind="true"
 			onClick={() => perform({ type: 'bind-audio-session', sessionId: session.sessionId })}
-		>{copy.bindAudioSession}</button>
-		<button type="button" disabled={disabled} data-native-audio-status="true"
+		>{copy.bindAudioSession}</Button>
+		<Button variant="secondary" disabled={disabled} data-native-audio-status="true"
 			onClick={() => perform({ type: 'audio-session-status', sessionId: session.sessionId })}
-		>{copy.refreshAudioSession}</button>
-		<button type="button" disabled={disabled || !session.calibrationAvailable} data-native-audio-calibrate="true"
+		>{copy.refreshAudioSession}</Button>
+		<Button variant="secondary" disabled={disabled || !session.calibrationAvailable} data-native-audio-calibrate="true"
 			onClick={() => perform({ type: 'calibrate-audio-session', sessionId: session.sessionId })}
-		>{copy.calibrateAudioSession}</button>
-		<button type="button" disabled={disabled} data-native-audio-close="true"
+		>{copy.calibrateAudioSession}</Button>
+		<Button variant="secondary" disabled={disabled} data-native-audio-close="true"
 			onClick={() => perform({ type: 'close-audio-session', sessionId: session.sessionId })}
-		>{copy.closeAudioSession}</button>
+		>{copy.closeAudioSession}</Button>
 		<p>{`${session.format.direction}, ${session.format.mode}, ${session.format.sampleRate} Hz, ${session.format.periodFrames} frames, ${session.format.channelCount} channels`}</p>
 		<p>{`${session.framesTransferred} frames transferred; ${session.lostFrames} frames lost`}</p>
 		{session.calibrationUnavailableReason !== null
@@ -319,8 +335,8 @@ function AudioRouteControl({ copy, backend, route, preference, availableBackends
 			disabled={disabled} data-native-audio-channel-count={route.handle}
 			onChange={(event) => setChannelCount(Math.max(1,
 				Math.min(maximumChannels, Number(event.currentTarget.value))))} /></label>
-		<button type="button" disabled={disabled || !isNativeAudioStreamingBackend(backend)}
-			data-native-audio-open={route.handle} onClick={open}>{copy.openAudioSession}</button>
+		<Button variant="secondary" disabled={disabled || !isNativeAudioStreamingBackend(backend)}
+			data-native-audio-open={route.handle} onClick={open}>{copy.openAudioSession}</Button>
 	</li>;
 }
 
@@ -415,12 +431,12 @@ function NativeAudioPanel({ copy, state, disabled, perform }: Readonly<{
 	const enabled = audio?.enabled === true;
 	return <div className="audio-editor-soundscaper-native-audio">
 		<p>{enabled ? copy.tierEnabled : copy.tierDisabled}</p>
-		<button
-			type="button"
+		<Button
+			variant="secondary"
 			disabled={disabled || audio === null}
 			data-native-audio-set-enabled={String(!enabled)}
 			onClick={() => perform({ type: 'set-audio-enabled', enabled: !enabled })}
-		>{enabled ? copy.disableNativeAudio : copy.enableNativeAudio}</button>
+		>{enabled ? copy.disableNativeAudio : copy.enableNativeAudio}</Button>
 		{audio?.quarantined === true && <p>{copy.audioHelperQuarantined}</p>}
 		{audio !== null && audio.payload.status !== 'available'
 			&& <p>{audio.payload.detail || copy.audioBackendUnavailable}</p>}
@@ -431,8 +447,8 @@ function NativeAudioPanel({ copy, state, disabled, perform }: Readonly<{
 function adjacentSurface(
 	surface: SoundscaperNativeServiceSurface,
 	key: string,
+	surfaces: readonly SoundscaperNativeServiceSurface[],
 ): SoundscaperNativeServiceSurface | null {
-	const surfaces = SOUNDSCAPER_NATIVE_SERVICE_SURFACES;
 	const index = surfaces.indexOf(surface);
 	if (key === 'ArrowRight') return surfaces[(index + 1) % surfaces.length];
 	if (key === 'ArrowLeft') return surfaces[(index - 1 + surfaces.length) % surfaces.length];
@@ -447,6 +463,7 @@ function surfaceLabel(
 ): string {
 	if (surface === 'native-audio-device') return copy.tabAudioDevice;
 	if (surface === 'native-audio-preferences') return copy.tabAudioPreferences;
+	if (surface === 'native-effect-use') return copy.audioPluginEffects;
 	if (surface === 'native-effect-scan') return copy.tabEffectScan;
 	return copy.tabEffectManage;
 }

@@ -78,18 +78,18 @@ test('the surfaces sit in the menu families the plan names', () => {
 		'framescaper-proxies',
 		'framescaper-native-media-preferences',
 	]);
-	assert.deepEqual(items.effect.map((item) => item.id), ['framescaper-video-effects']);
-	assert.deepEqual(items.effect[0]?.items?.map((item) => item.id), [
-		'framescaper-ofx-add', 'framescaper-ofx-manage', 'framescaper-ofx-interact',
+	assert.deepEqual(items.effect.map((item) => item.id), ['framescaper-ofx-manage', 'framescaper-video-effects']);
+	assert.deepEqual(items.effect[1]?.items?.map((item) => item.id), [
+		'framescaper-ofx-add', 'framescaper-ofx-interact',
 	]);
 });
 
 test('Framescaper retains only its video-effect menu when audio effects are unavailable', () => {
-	const nativeBranch = menu().effect[0];
+	const nativeBranches = menu().effect;
 	const filtered = filterProductMenus([{
 		id: 'effect', label: 'Effect', items: [
 			{ id: 'audio-effect', label: 'Audio effect' },
-			nativeBranch,
+			...nativeBranches,
 		],
 	}], {
 		audioGenerators: false,
@@ -100,7 +100,7 @@ test('Framescaper retains only its video-effect menu when audio effects are unav
 	}, 'framescaper');
 
 	assert.deepEqual(filtered.map(({ id }: { id: string }) => id), ['effect']);
-	assert.deepEqual(filtered[0]?.items?.map(({ id }: { id: string }) => id), ['framescaper-video-effects']);
+	assert.deepEqual(filtered[0]?.items?.map(({ id }: { id: string }) => id), ['framescaper-ofx-manage', 'framescaper-video-effects']);
 });
 
 test('an enabled tier exposes only surfaces with real selected-runtime actions', () => {

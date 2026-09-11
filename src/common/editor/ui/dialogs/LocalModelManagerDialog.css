@@ -89,7 +89,7 @@
 [data-local-model-manager] dt,
 [data-local-model-manager] .kw-local-model-manager__progress label {
 	color: var(--muted);
-	font-size: 10px;
+	font-size: 12px;
 }
 
 [data-local-model-manager] dl {

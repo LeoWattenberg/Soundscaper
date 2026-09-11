@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { openNativePreferences } from './helpers/assistance-task-menu.js';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	chooseNestedCommandAction,
+	chooseCommandAction,
 	getMenuItem,
 	openNestedCommandMenu,
 } from './audio-editor-test-helpers.js';
@@ -24,9 +26,8 @@ test('Framescaper v1 exposes native work only through menus and retains its watc
 	let tools = await openNestedCommandMenu(page, editor, 'Tools', []);
 	await expect(getMenuItem(tools, 'Background jobs…')).toBeDisabled();
 	await expect(getMenuItem(tools, 'Watch folders…')).toBeDisabled();
-	const preferencesItem = getMenuItem(tools, 'Native media and scratch…');
-	await expect(preferencesItem).toBeEnabled();
-	await preferencesItem.click();
+	await page.keyboard.press('Escape');
+	await openNativePreferences(page, editor, 'Media', 'Native media and scratch…');
 
 	let dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
 	await expect(dialog).toBeVisible();
@@ -37,7 +38,7 @@ test('Framescaper v1 exposes native work only through menus and retains its watc
 		'setPreference', 'native-media', true,
 	]);
 	await expect(master).toBeChecked();
-	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+	await dialog.locator('button').filter({ hasText: /^Close$/u }).click();
 	await expect(dialog).toBeHidden();
 
 	fileExport = await openNestedCommandMenu(page, editor, 'File', ['Export other']);
@@ -56,7 +57,7 @@ test('Framescaper v1 exposes native work only through menus and retains its watc
 		'control', 'pause',
 	]);
 	await expect(queueRow).toContainText('paused');
-	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+	await dialog.locator('button').filter({ hasText: /^Close$/u }).click();
 
 	tools = await openNestedCommandMenu(page, editor, 'Tools', []);
 	const watchFolders = getMenuItem(tools, 'Watch folders…');
@@ -105,12 +106,15 @@ test('Framescaper v1 authors typed OpenFX state only from the opted-in Effect me
 	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…'], SLOW_WORKFLOW);
 	await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(1, SLOW_WORKFLOW);
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', SLOW_WORKFLOW);
-	const tools = await openNestedCommandMenu(page, editor, 'Tools', [], SLOW_WORKFLOW);
-	await getMenuItem(tools, 'Native media and scratch…').click();
+	await openNativePreferences(page, editor, 'Media', 'Native media and scratch…');
 	let dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
 	await dialog.locator('[data-native-service-preference="native-media"]').check();
-	await dialog.locator('[data-native-service-preference="ofx-consent"]').check();
-	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+	await dialog.locator('button').filter({ hasText: /^Close$/u }).click();
+	await chooseCommandAction(page, editor, 'Effect', 'Plugin Manager');
+	dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
+	await dialog.getByText('Scanning & Settings', { exact: true }).click();
+	await dialog.getByRole('checkbox', { name: 'Allow OpenFX plugin scanning and execution' }).check();
+	await dialog.locator('button').filter({ hasText: /^Close$/u }).click();
 
 	const effects = await openNestedCommandMenu(page, editor, 'Effect', ['Video effects'], SLOW_WORKFLOW);
 	const add = getMenuItem(effects, 'Add OFX…');
@@ -137,12 +141,15 @@ test('Framescaper v1 runs one cumulative accessible OpenFX Interact workflow wit
 	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…'], SLOW_WORKFLOW);
 	await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(1, SLOW_WORKFLOW);
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', SLOW_WORKFLOW);
-	const tools = await openNestedCommandMenu(page, editor, 'Tools', [], SLOW_WORKFLOW);
-	await getMenuItem(tools, 'Native media and scratch…').click();
+	await openNativePreferences(page, editor, 'Media', 'Native media and scratch…');
 	let dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
 	await dialog.locator('[data-native-service-preference="native-media"]').check();
-	await dialog.locator('[data-native-service-preference="ofx-consent"]').check();
-	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+	await dialog.locator('button').filter({ hasText: /^Close$/u }).click();
+	await chooseCommandAction(page, editor, 'Effect', 'Plugin Manager');
+	dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
+	await dialog.getByText('Scanning & Settings', { exact: true }).click();
+	await dialog.getByRole('checkbox', { name: 'Allow OpenFX plugin scanning and execution' }).check();
+	await dialog.locator('button').filter({ hasText: /^Close$/u }).click();
 	let effects = await openNestedCommandMenu(page, editor, 'Effect', ['Video effects'], SLOW_WORKFLOW);
 	await getMenuItem(effects, 'Add OFX…').click();
 	dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
@@ -152,7 +159,7 @@ test('Framescaper v1 runs one cumulative accessible OpenFX Interact workflow wit
 	await form.getByLabel('Custom encoding for customState', { exact: true }).fill('vendor-v1');
 	await form.getByRole('button', { name: 'Add OpenFX effect', exact: true }).click();
 	await expect(form.getByRole('status')).toContainText('OpenFX effect added.', SLOW_WORKFLOW);
-	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+	await dialog.locator('button').filter({ hasText: /^Close$/u }).click();
 
 	const effectButton = editor.getByRole('menuitem', { name: 'Effect', exact: true });
 	effects = await openNestedCommandMenu(page, editor, 'Effect', ['Video effects'], SLOW_WORKFLOW);
@@ -226,7 +233,7 @@ test('Framescaper v1 runs one cumulative accessible OpenFX Interact workflow wit
 	await expect(dialog.locator('[data-framescaper-openfx-interact-status="true"]'))
 		.toContainText(/ready/iu);
 	expect(page.context().pages()).toHaveLength(1);
-	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+	await dialog.locator('button').filter({ hasText: /^Close$/u }).click();
 	await expect(effectButton).toBeFocused();
 });
 
@@ -357,6 +364,7 @@ async function installNativeServicesFixture(page) {
 			configurable: true,
 			enumerable: true,
 			value: Object.freeze({ v1: Object.freeze({
+			getExternalFfmpegStatus: async () => ({ state: 'unconfigured', location: null, version: null, detail: '', canInstall: false, canBrowse: false, canClear: false }),
 				nativeServices: Object.freeze(nativeServices),
 				readNativeTierControls: async () => ({
 					probeHelperEnabled: false, probeHelperQuarantined: false,

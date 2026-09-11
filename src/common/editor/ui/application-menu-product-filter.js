@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { assistanceOnlyMenuEntry } from './assistance-task-catalog.ts';
 import { workspacePanelAvailable } from './workspace/workspace-product-panel-runtime.ts';
 
 export function filterProductMenus(menus, capabilities, productId) {
@@ -8,12 +9,11 @@ export function filterProductMenus(menus, capabilities, productId) {
 		&& (capabilities.videoGenerators || capabilities.videoStills);
 	const candidateVideoAnalysis = productId === 'framescaper'
 		&& capabilities.videoMotionTracking;
-	const candidateLocalAssistance = capabilities.assistanceAssets === true
-		&& menus.some((menu) => menu.id === 'analyze'
-			&& menu.items.some((item) => item.id === 'local-assistance'));
-	if (!capabilities.audioGenerators && !candidateVideoGeneration) hiddenTopLevel.add('generate');
-	if (!capabilities.audioEffects && productId !== 'framescaper') hiddenTopLevel.add('effect');
-	if (!capabilities.audioAnalysis && !candidateVideoAnalysis && !candidateLocalAssistance) hiddenTopLevel.add('analyze');
+	const hasAssistance = (id) => capabilities.assistanceAssets === true
+		&& menus.some((menu) => menu.id === id && menu.items.some(assistanceOnlyMenuEntry));
+	if (!capabilities.audioGenerators && !candidateVideoGeneration && !hasAssistance('generate')) hiddenTopLevel.add('generate');
+	if (!capabilities.audioEffects && productId !== 'framescaper' && !hasAssistance('effect')) hiddenTopLevel.add('effect');
+	if (!capabilities.audioAnalysis && !candidateVideoAnalysis && !hasAssistance('analyze')) hiddenTopLevel.add('analyze');
 	return menus
 		.filter((menu) => !hiddenTopLevel.has(menu.id))
 		.map((menu) => {
@@ -23,18 +23,18 @@ export function filterProductMenus(menus, capabilities, productId) {
 				]);
 				return {
 					...menu,
-					items: menu.items.filter((item) => framescaperVideoGeneratorIds.has(item.id)),
+					items: menu.items.map((item) => framescaperVideoGeneratorIds.has(item.id) ? item : assistanceOnlyMenuEntry(item)).filter(Boolean),
 				};
 			}
 			if (menu.id === 'effect' && !capabilities.audioEffects) {
 				const framescaperVideoEffectIds = new Set([
-					'framescaper-video-effects', 'framescaper-video-transitions',
+					'framescaper-ofx-manage', 'framescaper-video-effects', 'framescaper-video-transitions',
 					'framescaper-edit-video-mask-matte', 'framescaper-freeze-video',
 					'framescaper-video-finishing',
 				]);
 				return {
 					...menu,
-					items: menu.items.filter((item) => framescaperVideoEffectIds.has(item.id)),
+					items: menu.items.map((item) => framescaperVideoEffectIds.has(item.id) ? item : assistanceOnlyMenuEntry(item)).filter(Boolean),
 				};
 			}
 			if (menu.id === 'tracks' && !capabilities.audioEffects) {
@@ -48,7 +48,7 @@ export function filterProductMenus(menus, capabilities, productId) {
 				]);
 				return {
 					...menu,
-					items: menu.items.filter((item) => retainedAnalyzeItems.has(item.id)),
+					items: menu.items.map((item) => retainedAnalyzeItems.has(item.id) ? item : assistanceOnlyMenuEntry(item)).filter(Boolean),
 				};
 			}
 			if (menu.id === 'tools' && !capabilities.audioMacros) {

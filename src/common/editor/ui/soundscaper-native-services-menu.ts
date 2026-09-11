@@ -29,6 +29,7 @@ export const SOUNDSCAPER_NATIVE_SERVICE_SURFACES = Object.freeze([
 	'native-audio-preferences',
 	'native-effect-scan',
 	'native-effect-manage',
+	'native-effect-use',
 ] as const);
 
 export type SoundscaperNativeServiceSurface =
@@ -114,11 +115,9 @@ export function createSoundscaperNativeServicesMenuItems(
 		disabledReason: null,
 		open: actions.open,
 	});
-	const scan = entry({
-		id: 'native-effect-scan',
-		label: copy.pluginScan,
-		disabledReason: reason
-			?? (input.editingBlocked === true || input.readOnly === true ? copy.projectReadOnly : null)
+	const use = entry({
+		id: 'native-effect-use', label: copy.audioPluginEffects,
+		disabledReason: reason ?? (input.editingBlocked === true || input.readOnly === true ? copy.projectReadOnly : null)
 			?? (snapshot.enabledPluginFormats.length === 0 ? copy.pluginFormatsBlocked : null),
 		open: actions.open,
 	});
@@ -134,7 +133,7 @@ export function createSoundscaperNativeServicesMenuItems(
 			group('native-audio', copy.audioDevices, [audioDevice, audioPreferences]),
 		]),
 		effect: Object.freeze([
-			group('native-effects', copy.audioPluginEffects, [scan, manage]),
+			manage, use,
 		]),
 	});
 }

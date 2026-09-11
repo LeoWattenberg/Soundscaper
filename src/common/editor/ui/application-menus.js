@@ -3,6 +3,7 @@ import { audacitySpectrogramTrackSelected } from '../audacity-action-enablement.
 import { AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS } from './application-menu-registry.ts';
 import { createApplicationViewMenu } from './application-view-menu.js';
 import { createEffectMenuEntries, resolveEffectMenuTargeting } from './effect-menu-organization.js';
+import { prepareLocalProcessingMenus } from './local-processing-menus.ts';
 import { filterProductMenus } from './application-menu-product-filter.js';
 import {
 	createApplicationMenuProductItems,
@@ -171,7 +172,7 @@ export default function createApplicationMenus({
 		editBlocked, blocked, selectedAudioTrack: effectTargeting.effectAudioTrack, frequencySelectionActive,
 		selectionActive: effectTargeting.effectSelectionActive,
 	}, actions);
-	const menus = applyAudacityParityToMenus([
+	const menus = [
 		{
 			id: 'file',
 			label: copy.fileMenu,
@@ -490,7 +491,6 @@ export default function createApplicationMenus({
 			items: [
 				createRepeatAnalyzerMenuItem(importAnalysisMenuContext),
 				divider(),
-				...createLocalAssistanceMenuItems({ desktopAvailable: typeof actions.openLocalAssistance === 'function', capabilityActive: capabilities.assistanceAssets === true, copy }, { open: actions.openLocalAssistance, openIndexedSearch: actions.openLocalAssistanceIndexedSearch }),
 				...productItems.analyze,
 				{ id: 'analysis', label: copy.analysisCommand, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('levels') },
 				{ id: 'plot-spectrum', label: copy.plotSpectrum, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('spectrum') },
@@ -506,6 +506,7 @@ export default function createApplicationMenus({
 			label: copy.toolsMenu,
 			items: [
 				...createImportAnalysisToolMenuItems(importAnalysisMenuContext),
+				...createLocalAssistanceMenuItems({ desktopAvailable: typeof actions.openLocalAssistance === 'function', capabilityActive: capabilities.assistanceAssets === true, copy }, { open: actions.openLocalAssistance, openIndexedSearch: actions.openLocalAssistanceIndexedSearch }),
 				...createLocalModelManagerMenuItems({ desktopAvailable: typeof actions.openLocalModels === 'function', copy }, { open: actions.openLocalModels }),
 				...productItems.tools,
 				...desktopHost.tools,
@@ -537,9 +538,8 @@ export default function createApplicationMenus({
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.aboutAudacity, label: aboutLabel, preserveLabel: true, onClick: actions.about },
 			],
 		},
-	], {
-		locale, copy, materializeDisabled: true, actionRuntime,
-		shortcuts: preferences?.shortcuts,
-	});
-	return filterProductMenus(menus, capabilities, productId);
+	];
+	return filterProductMenus(applyAudacityParityToMenus(prepareLocalProcessingMenus(menus, {
+		productId, copy, locale, snapshot, actions, capabilities,
+	}), { locale, copy, materializeDisabled: true, actionRuntime, shortcuts: preferences?.shortcuts }), capabilities, productId);
 }

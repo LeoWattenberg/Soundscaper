@@ -7,6 +7,7 @@ const PREFERENCE_PAGES = new Set([
 	'playback-recording',
 	'editing',
 	'effects',
+	'media',
 	'workspace',
 	'shortcuts',
 	'spectrogram',
@@ -14,10 +15,8 @@ const PREFERENCE_PAGES = new Set([
 ]);
 
 /**
- * Audacity opens Preferences on its General page, and every page it lists is
- * reachable on every host. The desktop build adds one section to General — the
- * FFmpeg location — rather than a page of its own, so the host no longer
- * decides which pages exist.
+ * Preferences opens on General. Desktop hosts also expose Media; native audio
+ * and plugin configuration are reached through the Audio and Effects pages.
  */
 export function workspacePreferencesPage(requestedSection: unknown): string {
 	if (typeof requestedSection === 'string' && PREFERENCE_PAGES.has(requestedSection)) {

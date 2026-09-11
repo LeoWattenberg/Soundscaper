@@ -1,3 +1,4 @@
+import { assistanceDialogSurface } from '../assistance-task-catalog.ts';
 import { otherProductId, productProfile } from '../../../products.js';
 import { applicationInstallPromptCapture } from '../../../offline/install-prompt.ts';
 import { documentationUrl } from '../../documentation-links.ts';
@@ -73,7 +74,7 @@ export function createWorkspaceApplicationMenus({
 		zoomProject,
 }) {
 	const soundscaperNativeServices = resolveSoundscaperNativeServicesWorkspaceRuntime({
-		productId, copy, engine: controller?.engine, controller,
+		productId, copy, engine: controller?.engine, controller, processingBlocked: editBlocked || snapshot.readOnly === true,
 	});
 	const framescaperRuntime = createProductWorkspaceApplicationMenuRuntime({
 		controller,
@@ -124,7 +125,7 @@ export function createWorkspaceApplicationMenus({
 				installAvailable: () => installPrompt.available(),
 				installApplication: () => run(() => installPrompt.prompt()),
 				openLocalModels: fileService.isDesktop ? () => openSurface('local-models') : undefined,
-				openLocalAssistance: fileService.isDesktop ? () => openSurface('local-assistance') : undefined,
+				openLocalAssistance: fileService.isDesktop ? (request = { mode: 'advanced' }) => openSurface(assistanceDialogSurface(request)) : undefined,
 				openLocalAssistanceIndexedSearch: fileService.isDesktop && project
 					? openAssistanceSearch : undefined,
 				framescaperCandidateAuthoring: framescaperRuntime.framescaperCandidateAuthoring,

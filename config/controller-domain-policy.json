@@ -18,6 +18,7 @@
 		"assistance/local-assistance-selected-video-source-time.ts",
 		"assistance/local-assistance-selected-video.ts",
 		"assistance/local-assistance-semantic-index-custody.ts",
+		"assistance/local-assistance-task-models.ts",
 		"capture/capture-composition.ts",
 		"capture/framescaper-capture-admin-interlock.ts",
 		"capture/framescaper-capture-app-binding.ts",

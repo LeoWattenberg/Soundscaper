@@ -130,7 +130,7 @@ test('the lazy dialog reports blocked native state and keeps preference switches
 	assert.match(markup, /Native media master/u);
 	assert.match(markup, /Hardware decode/u);
 	assert.match(markup, /Hardware encode/u);
-	assert.match(markup, /OpenFX consent/u);
+	assert.doesNotMatch(markup, /data-native-service-preference="ofx-consent"/u);
 	assert.match(markup, /Native media runtime is unavailable/u);
 	assert.match(markup, /disabled=""/u);
 });
@@ -196,7 +196,7 @@ test('the background-jobs surface disables every reorder while the native runtim
 		initialSnapshot={{ ...base, services: { ...base.services, queue } }}
 		onClose={() => undefined}
 	/>);
-	assert.equal(markup.match(/disabled="">Move (?:earlier|later)<\/button>/gu)?.length, 6);
+	assert.equal(markup.match(/<button[^>]*disabled=""[^>]*><span[^>]*>Move (?:earlier|later)<\/span><\/button>/gu)?.length, 6);
 });
 
 test('Manage OFX reports consent and runtime evidence instead of a generic unavailable panel', () => {
@@ -207,10 +207,10 @@ test('Manage OFX reports consent and runtime evidence instead of a generic unava
 		onClose={() => undefined}
 	/>);
 
-	assert.match(markup, /OpenFX consent/u);
+	assert.match(markup, /Allow OpenFX plugin scanning and execution/u);
 	assert.match(markup, /Runtime capability status/u);
 	assert.match(markup, /Detailed runtime capability evidence is unavailable/u);
-	assert.match(markup, /disabled="" data-framescaper-openfx-scan="true"/u);
+	assert.match(markup, /disabled=""[^>]*data-framescaper-openfx-scan="true"/u);
 	assert.doesNotMatch(markup, /This operation is unavailable until/u);
 });
 
@@ -232,8 +232,8 @@ test('Manage OFX exposes scan only when exact runtime, consent, and bridge gates
 	}).bridge;
 	const markup = renderToStaticMarkup(<FramescaperNativeServicesDialog bridge={bridge}
 		initialSurface="ofx-manage" initialSnapshot={snapshot} onClose={() => undefined} />);
-	assert.match(markup, /data-framescaper-openfx-scan="true">Scan plug-in/u);
-	assert.doesNotMatch(markup, /disabled="" data-framescaper-openfx-scan="true"/u);
+	assert.match(markup, /data-framescaper-openfx-scan="true"[^>]*><span[^>]*>Scan plug-in/u);
+	assert.doesNotMatch(markup, /disabled=""[^>]*data-framescaper-openfx-scan="true"/u);
 });
 
 test('candidate project actions render a lazy opt-in operation instead of a placeholder', () => {

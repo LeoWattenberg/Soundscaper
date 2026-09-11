@@ -214,12 +214,11 @@ export function createFramescaperNativeServicesMenuItems(
 				'native-media-preferences', true,
 			),
 		]),
-		effect: Object.freeze([branch('framescaper-video-effects', copy.videoEffects, [
+		effect: Object.freeze([leaf('framescaper-ofx-manage', copy.ofxManage, 'ofx-manage', true), branch('framescaper-video-effects', copy.videoEffects, [
 			leaf('framescaper-ofx-add', copy.ofxAdd, 'ofx-add',
 				mutable && openFxProject && projectCapability('ofxEffects') && ofxUsable
 					&& projectAction('ofx-add')),
 			// Always reachable: this is where consent is granted and quarantine cleared.
-			leaf('framescaper-ofx-manage', copy.ofxManage, 'ofx-manage', true),
 			leaf('framescaper-ofx-interact', copy.ofxInteract, 'ofx-interact',
 				openFxProject && projectCapability('ofxEffects') && ofxUsable),
 		])]),

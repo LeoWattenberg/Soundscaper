@@ -2,7 +2,9 @@
 
 /** Workflow-specific Guided controls that always emit a complete settings-v1 body. */
 
-import type { ReactNode } from 'react';
+import { Children, isValidElement, type ReactNode } from 'react';
+import { Checkbox } from '@soundscaper/design-system/Checkbox';
+import PreferenceDropdownField from './PreferenceDropdownField.jsx';
 
 import type {
 	AssistanceWorkflowSettingsV1,
@@ -188,16 +190,18 @@ function SelectSetting({ label, value, disabled, onChange, children }: Readonly<
 	label: string; value: string; disabled: boolean; onChange: (value: string) => unknown;
 	children: ReactNode;
 }>) {
-	return <label>{label}<select value={value} disabled={disabled}
-		onChange={(event) => { void onChange(event.currentTarget.value); }}>{children}</select></label>;
+	const options = Children.toArray(children).filter(isValidElement<{ value: string; children: ReactNode }>)
+		.map((child) => ({ value: child.props.value, label: String(child.props.children) }));
+	return <PreferenceDropdownField label={label} value={value} disabled={disabled} options={options}
+		onChange={(next: string) => { void onChange(next); }} />;
 }
 
 function CheckboxSetting({ disabled, checked, onChange, children }: Readonly<{
 	disabled: boolean; checked: boolean; onChange: (checked: boolean) => unknown; children: ReactNode;
 }>) {
-	return <label className="kw-local-assistance__guided-checkbox"><input type="checkbox"
-		disabled={disabled} checked={checked}
-		onChange={(event) => { void onChange(event.currentTarget.checked); }} />{children}</label>;
+	return <div className="kw-processing-checkbox"><Checkbox disabled={disabled} checked={checked}
+		aria-label={typeof children === 'string' ? children : undefined}
+		onChange={(value) => { void onChange(value); }} /><span>{children}</span></div>;
 }
 
 function NumberSetting({ label, value, min, max, step, disabled, onChange }: Readonly<{

@@ -1,9 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 
+import { ProcessingSearchField } from './ProcessingSearchField.tsx';
+import { Table } from '@soundscaper/design-system/Table/Table';
+import PreferenceDropdownField from './PreferenceDropdownField.jsx';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import {
 	localModelManagerStoreFor,
@@ -15,10 +18,14 @@ import type {
 	LocalModelManagerModel,
 } from '../local-model-manager-bridge.ts';
 import './LocalModelManagerDialog.css';
+import { localModelDisplayName } from './local-model-display-name.ts';
+
+import './ProcessingDialogs.css';
 
 type Copy = Readonly<Record<string, string | undefined>>;
 
 export interface LocalModelManagerDialogProps {
+	readonly modelFilter?: (model: LocalModelManagerModel) => boolean;
 	readonly bridge: LocalModelManagerBridge | null;
 	readonly copy: Copy;
 	readonly locale: string;
@@ -26,6 +33,7 @@ export interface LocalModelManagerDialogProps {
 }
 
 export interface LocalModelManagerDialogViewProps {
+	readonly modelFilter?: (model: LocalModelManagerModel) => boolean;
 	readonly copy: Copy;
 	readonly locale: string;
 	readonly snapshot: LocalModelManagerSnapshot;
@@ -44,7 +52,7 @@ export interface LocalModelManagerDialogViewProps {
 const subscribeToNothing = (): (() => void) => () => undefined;
 
 export default function LocalModelManagerDialog({
-	bridge, copy, locale, onClose,
+	bridge, copy, locale, onClose, modelFilter,
 }: LocalModelManagerDialogProps) {
 	const store = useMemo(() => bridge ? localModelManagerStoreFor(bridge) : null, [bridge]);
 	const unavailable = useMemo<LocalModelManagerSnapshot>(() => Object.freeze({
@@ -69,6 +77,7 @@ export default function LocalModelManagerDialog({
 	}, [store]);
 
 	return <LocalModelManagerDialogView
+		modelFilter={modelFilter}
 		copy={copy}
 		locale={locale}
 		snapshot={snapshot}
@@ -86,9 +95,17 @@ export default function LocalModelManagerDialog({
 }
 
 export function LocalModelManagerDialogView({
-	copy, locale, snapshot, onClose, onInstall, onInstallPreseeded, onCancelInstall,
+	copy, locale, snapshot, modelFilter, onClose, onInstall, onInstallPreseeded, onCancelInstall,
 	onRemove, onReconcile, onGarbageCollect, onShowNotices, onRelocate, onRetry,
 }: LocalModelManagerDialogViewProps) {
+	const [query, setQuery] = useState('');
+	const [task, setTask] = useState('all');
+	const [status, setStatus] = useState('all');
+	const [relatedOnly, setRelatedOnly] = useState(true);
+	const models = snapshot.models.filter((model) => (!relatedOnly || !modelFilter || modelFilter(model))
+		&& (task === 'all' || model.task === task)
+		&& (status === 'all' || (status === 'installed' ? model.installedBytes !== null : model.installedBytes === null))
+		&& `${model.modelId} ${localModelDisplayName(model.modelId)} ${modelPurpose(copy, model.task)}`.toLocaleLowerCase(locale).includes(query.toLocaleLowerCase(locale)));
 	const progress = new Map(snapshot.progress.map((entry) => [entry.modelId, entry]));
 	const busy = new Set(snapshot.busyModelIds);
 	const installing = new Set(snapshot.installingModelIds);
@@ -97,11 +114,11 @@ export function LocalModelManagerDialogView({
 	const runtimeSummary = snapshot.runtimeAvailable === true
 		? text(copy, 'localModelsRuntimeReady', 'The local inference runtime is available.')
 		: snapshot.runtimeAvailable === false
-			? snapshot.runtimeReason || text(copy, 'localModelsRuntimeUnavailable',
+			? text(copy, 'localModelsRuntimeUnavailable',
 				'The local inference runtime is unavailable.')
 			: null;
 	return <AudioEditorDialogShell
-		title={text(copy, 'localModels', 'Local Models')}
+		title={text(copy, 'manageLocalModels', 'Model Manager')}
 		onClose={onClose}
 		width={760}
 		initialFocus="dialog"
@@ -117,16 +134,10 @@ export function LocalModelManagerDialogView({
 			copy, 'localModelsRuntime', 'Local inference runtime',
 		)}>
 			<p role="status" aria-live="polite">{runtimeSummary}</p>
+			{snapshot.runtimeReason && <details><summary>{text(copy, 'assistanceTechnicalDetails', 'Technical details')}</summary>
+				<p>{snapshot.runtimeReason}</p></details>}
 		</section>}
-		<MaintenanceControls
-			copy={copy}
-			busy={globallyBusy}
-			operation={snapshot.maintenanceOperation}
-			onReconcile={onReconcile}
-			onGarbageCollect={onGarbageCollect}
-			onShowNotices={onShowNotices}
-			onRelocate={onRelocate}
-		/>
+
 		{snapshot.lastResult && <OperationResult copy={copy} locale={locale} result={snapshot.lastResult} />}
 		{snapshot.noticesLoaded && <InstalledNotices copy={copy} notices={snapshot.notices} />}
 		{(snapshot.phase === 'idle' || snapshot.phase === 'loading') && <p
@@ -138,16 +149,32 @@ export function LocalModelManagerDialogView({
 			<strong>{snapshot.error.modelId
 				? text(copy, 'localModelsOperationError', 'The local-model operation failed.')
 				: text(copy, 'localModelsLoadError', 'Local models could not be loaded.')}</strong>
-			<p>{snapshot.error.message}</p>
-			<button type="button" onClick={() => { void onRetry(); }}>
+			<details><summary>{text(copy, 'assistanceTechnicalDetails', 'Technical details')}</summary><p>{snapshot.error.message}</p></details>
+			<Button variant="secondary" onClick={() => { void onRetry(); }}>
 				{text(copy, 'localModelsRetry', 'Retry')}
-			</button>
+			</Button>
 		</div>}
-		{snapshot.models.length > 0 && <ul
-			className="kw-local-model-manager__list"
-			aria-label={text(copy, 'localModelsList', 'Available local models')}
-		>
-			{snapshot.models.map((model) => <ModelRow
+		<div className="kw-processing-filters">
+			<ProcessingSearchField value={query} onChange={setQuery} label={text(copy, 'assistanceSearchModels', 'Search models')} />
+			<PreferenceDropdownField label={text(copy, 'assistanceModelTask', 'Task')} value={task} onChange={setTask}
+				options={[{ value: 'all', label: text(copy, 'assistanceAllTasks', 'All tasks') },
+					...[...new Set(snapshot.models.map((model) => model.task))].map((value) => ({ value, label: modelPurpose(copy, value) }))]} />
+			<PreferenceDropdownField label={text(copy, 'localModelsAvailability', 'Availability')} value={status} onChange={setStatus}
+				options={[{ value: 'all', label: text(copy, 'assistanceAllModels', 'All models') },
+					{ value: 'installed', label: text(copy, 'localModelsInstalled', 'Installed') },
+					{ value: 'available', label: text(copy, 'assistanceNotInstalled', 'Not installed') }]} />
+		</div>
+		{modelFilter && <Button variant="secondary" onClick={() => setRelatedOnly(!relatedOnly)}>
+			{relatedOnly ? text(copy, 'assistanceShowAllModels', 'Show all models') : text(copy, 'assistanceShowTaskModels', 'Show models for this task')}
+		</Button>}
+		<Table className="kw-processing-table">
+		<table aria-label={text(copy, 'localModelsList', 'Available local models')}>
+			<thead><tr><th>{text(copy, 'assistanceModelName', 'Model')}</th>
+				<th>{text(copy, 'assistancePurpose', 'Purpose')}</th><th>{text(copy, 'assistanceSize', 'Size')}</th>
+				<th>{text(copy, 'localModelsAvailability', 'Availability')}</th>
+				<th>{text(copy, 'assistanceActions', 'Actions')}</th></tr></thead>
+			<tbody>
+			{models.map((model) => <ModelRow
 				key={model.modelId}
 				model={model}
 				copy={copy}
@@ -158,17 +185,32 @@ export function LocalModelManagerDialogView({
 				maintenanceBusy={snapshot.maintenanceOperation !== null}
 				progress={progress.get(model.modelId) ?? null}
 				onInstall={onInstall}
-				onInstallPreseeded={onInstallPreseeded}
 				onCancelInstall={onCancelInstall}
 				onRemove={onRemove}
 			/>)}
-		</ul>}
+			</tbody></table>
+		</Table>
+		{models.length === 0 && snapshot.phase === 'ready' && <p role="status">{text(copy, 'assistanceNoMatchingModels', 'No models match these filters.')}</p>}
+		<details className="kw-processing-details">
+			<summary>{text(copy, 'localModelsMaintenance', 'Storage and verification')}</summary>
+		<MaintenanceControls
+			copy={copy}
+			busy={globallyBusy}
+			operation={snapshot.maintenanceOperation}
+			models={models}
+			onInstallPreseeded={onInstallPreseeded}
+			onReconcile={onReconcile}
+			onGarbageCollect={onGarbageCollect}
+			onShowNotices={onShowNotices}
+			onRelocate={onRelocate}
+		/>
+		</details>
 	</AudioEditorDialogShell>;
 }
 
 function ModelRow({
 	model, copy, locale, busy, installing, cancelling, maintenanceBusy, progress,
-	onInstall, onInstallPreseeded, onCancelInstall, onRemove,
+	onInstall, onCancelInstall, onRemove,
 }: Readonly<{
 	model: LocalModelManagerModel;
 	copy: Copy;
@@ -179,7 +221,6 @@ function ModelRow({
 	maintenanceBusy: boolean;
 	progress: LocalModelManagerSnapshot['progress'][number] | null;
 	onInstall: (modelId: string) => unknown;
-	onInstallPreseeded: (modelId: string) => unknown;
 	onCancelInstall: (modelId: string) => unknown;
 	onRemove: (modelId: string) => unknown;
 }>) {
@@ -189,18 +230,16 @@ function ModelRow({
 	const sizeLabel = installed
 		? text(copy, 'localModelsInstalledSize', 'Installed size')
 		: text(copy, 'localModelsDownloadSize', 'Download size');
-	return <li aria-busy={busy} data-local-model-id={model.modelId}
+	return <tr aria-busy={busy} data-local-model-id={model.modelId}
 		data-local-model-availability={model.availability}>
-		<div className="kw-local-model-manager__identity">
-			<strong>{model.modelId}</strong>
-			<span>{humanizeTask(model.task)} · {model.version}</span>
+		<td><div className="kw-local-model-manager__identity">
+			<strong>{localModelDisplayName(model.modelId)}</strong>
+			<details><summary>{text(copy, 'assistanceTechnicalDetails', 'Technical details')}</summary>
+				<code>{model.modelId} · {model.version}</code></details>
 		</div>
-		<dl>
-			<div><dt>{text(copy, 'localModelsAvailability', 'Availability')}</dt>
-				<dd>{availabilityLabel(copy, model.availability)}</dd></div>
-			<div><dt>{sizeLabel}</dt><dd>{formatBytes(size, locale,
-				text(copy, 'localModelsSizeUnavailable', 'Unavailable'))}</dd></div>
-		</dl>
+		</td><td>{modelPurpose(copy, model.task)}</td>
+		<td title={sizeLabel}>{formatBytes(size, locale, text(copy, 'localModelsSizeUnavailable', 'Unavailable'))}</td>
+		<td>{availabilityLabel(copy, model.availability)}</td><td>
 		{progress && <div className="kw-local-model-manager__progress">
 			<label htmlFor={`local-model-progress-${model.modelId}`}>{template(
 				text(copy, 'localModelsProgress', '{fileName}: {completed} of {total}'),
@@ -214,35 +253,35 @@ function ModelRow({
 				value={progress.completedBytes} max={progress.totalBytes} />
 		</div>}
 		{actionAvailable && <div className="kw-local-model-manager__actions">
-			{installed && <button type="button" disabled={busy || maintenanceBusy} onClick={() => {
+			{installed && <Button variant="secondary" disabled={busy || maintenanceBusy} onClick={() => {
 				void onRemove(model.modelId);
 			}}>{busy
 				? text(copy, 'localModelsRemoving', 'Removing…')
-				: text(copy, 'localModelsRemove', 'Remove')}</button>}
+				: text(copy, 'localModelsRemove', 'Remove')}</Button>}
 			{!installed && !installing && <>
-				<button type="button" disabled={busy || maintenanceBusy} onClick={() => { void onInstall(model.modelId); }}>
+				<Button variant="secondary" disabled={busy || maintenanceBusy} onClick={() => { void onInstall(model.modelId); }}>
 					{text(copy, 'localModelsInstall', 'Install')}
-				</button>
-				<button type="button" disabled={busy || maintenanceBusy} onClick={() => { void onInstallPreseeded(model.modelId); }}>
-					{text(copy, 'localModelsInstallFromFolder', 'Install from folder…')}
-				</button>
+				</Button>
 			</>}
 			{!installed && installing && <>
-				<button type="button" disabled>{text(copy, 'localModelsInstalling', 'Installing…')}</button>
-				<button type="button" disabled={cancelling} onClick={() => { void onCancelInstall(model.modelId); }}>
+				<Button variant="secondary" disabled>{text(copy, 'localModelsInstalling', 'Installing…')}</Button>
+				<Button variant="secondary" disabled={cancelling} onClick={() => { void onCancelInstall(model.modelId); }}>
 					{cancelling
 						? text(copy, 'localModelsCancelling', 'Cancelling…')
 						: text(copy, 'localModelsCancelInstall', 'Cancel install')}
-				</button>
+				</Button>
 			</>}
 		</div>}
-	</li>;
+		</td>
+	</tr>;
 }
 
 function MaintenanceControls({
-	copy, busy, operation, onReconcile, onGarbageCollect, onShowNotices, onRelocate,
+	copy, busy, operation, onReconcile, onGarbageCollect, onShowNotices, onRelocate, models, onInstallPreseeded,
 }: Readonly<{
 	copy: Copy;
+	models: readonly LocalModelManagerModel[];
+	onInstallPreseeded: (modelId: string) => unknown;
 	busy: boolean;
 	operation: LocalModelManagerSnapshot['maintenanceOperation'];
 	onReconcile: () => unknown;
@@ -250,22 +289,32 @@ function MaintenanceControls({
 	onShowNotices: () => unknown;
 	onRelocate: () => unknown;
 }>) {
+	const [offlineModelId, setOfflineModelId] = useState('');
+	const offlineModels = models.filter((model) => model.installedBytes === null && model.availability === 'installable');
+	const selected = offlineModels.find((model) => model.modelId === offlineModelId) ?? offlineModels[0];
 	return <section className="kw-local-model-manager__maintenance" aria-labelledby="local-model-maintenance-title">
 		<h3 id="local-model-maintenance-title">{text(copy, 'localModelsMaintenance', 'Storage and verification')}</h3>
 		<div className="kw-local-model-manager__maintenance-actions">
-			<button type="button" disabled={busy} onClick={() => { void onReconcile(); }}>
+			<Button variant="secondary" disabled={busy} onClick={() => { void onReconcile(); }}>
 				{text(copy, 'localModelsReconcile', 'Reconcile pre-seeded files')}
-			</button>
-			<button type="button" disabled={busy} onClick={() => { void onGarbageCollect(); }}>
+			</Button>
+			<Button variant="secondary" disabled={busy} onClick={() => { void onGarbageCollect(); }}>
 				{text(copy, 'localModelsGarbageCollect', 'Collect unused files')}
-			</button>
-			<button type="button" disabled={busy} onClick={() => { void onRelocate(); }}>
+			</Button>
+			<Button variant="secondary" disabled={busy} onClick={() => { void onRelocate(); }}>
 				{text(copy, 'localModelsRelocate', 'Relocate model storage…')}
-			</button>
-			<button type="button" disabled={busy} onClick={() => { void onShowNotices(); }}>
+			</Button>
+			<Button variant="secondary" disabled={busy} onClick={() => { void onShowNotices(); }}>
 				{text(copy, 'localModelsShowNotices', 'Show installed notices')}
-			</button>
+			</Button>
 		</div>
+		{offlineModels.length > 0 && <div className="kw-processing-details">
+			<PreferenceDropdownField label={text(copy, 'assistanceOfflineInstall', 'Offline installation')}
+				value={selected?.modelId ?? ''} onChange={setOfflineModelId} disabled={busy}
+				options={offlineModels.map((model) => ({ value: model.modelId, label: localModelDisplayName(model.modelId) }))} />
+			<Button variant="secondary" disabled={busy || !selected} onClick={() => { if (selected) void onInstallPreseeded(selected.modelId); }}>
+				{text(copy, 'localModelsInstallFromFolder', 'Install from folder…')}</Button>
+		</div>}
 		{operation && <p role="status" aria-live="polite">{maintenanceOperationLabel(copy, operation)}</p>}
 	</section>;
 }
@@ -367,7 +416,8 @@ function formatBytes(value: number | null, locale: string, unavailable: string):
 	return formatLocalModelBytes(value, locale) ?? unavailable;
 }
 
-function humanizeTask(value: string): string {
+function modelPurpose(copy: Copy, value: string): string {
+	if (copy[`assistanceModelPurpose.${value}`]) return copy[`assistanceModelPurpose.${value}`]!;
 	return value.replaceAll('-', ' ').replace(/^./u, (first) => first.toLocaleUpperCase());
 }
 

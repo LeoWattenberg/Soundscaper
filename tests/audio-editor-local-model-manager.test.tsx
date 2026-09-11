@@ -394,10 +394,10 @@ test('the manager view exposes runtime, sizes, correlated progress, and explicit
 	assert.match(markup, /<progress[^>]*value="100"[^>]*max="1000"/u);
 	assert.match(markup, /Installing/u);
 	assert.match(markup, /Cancel install/u);
-	assert.match(markup, /Reconcile pre-seeded files/u);
-	assert.match(markup, /Collect unused files/u);
+	assert.match(markup, /Verify and repair models/u);
+	assert.match(markup, /Remove unused files/u);
 	assert.match(markup, /Relocate model storage/u);
-	assert.match(markup, /Show installed notices/u);
+	assert.match(markup, /Licenses and notices/u);
 	assert.match(markup, /disabled=""/u);
 	const installedMarkup = renderToStaticMarkup(<LocalModelManagerDialogView
 		copy={ENGLISH_COPY} locale="en"
@@ -486,10 +486,8 @@ test('Tools reaches Local Models in both desktops and omits it in the browser', 
 			productId, true, (surface) => opened.push(surface),
 		));
 		const tools = (desktopMenus as readonly MenuItem[]).find(({ id }) => id === 'tools');
-		const localModels = findMenuItem(tools?.items ?? [], 'local-models');
-		const manage = findMenuItem(localModels?.items ?? [], 'manage-local-models');
-		assert.equal(localModels?.label, 'Local Models');
-		assert.equal(manage?.label, 'Manage Models…');
+		const manage = findMenuItem(tools?.items ?? [], 'manage-local-models');
+		assert.equal(manage?.label, 'Model Manager…');
 		manage?.onClick?.();
 		assert.deepEqual(opened, ['local-models']);
 		assert.equal(findMenuItem(

@@ -325,7 +325,7 @@ class TestText extends TestNode {
 class TestElement extends TestNode {
 	readonly tagName: string;
 	readonly namespaceURI = 'http://www.w3.org/1999/xhtml';
-	readonly style: Record<string, unknown> = {};
+	readonly style: Record<string, unknown> = { setProperty: (name: string, value: string) => { this.style[name] = value; } };
 	readonly attributes = new Map<string, string>();
 	value = '';
 	checked = false;
@@ -347,6 +347,7 @@ class TestElement extends TestNode {
 	removeAttribute(name: string): void { this.attributes.delete(name); }
 	getAttribute(name: string): string | null { return this.attributes.get(name) ?? null; }
 	hasAttribute(name: string): boolean { return this.attributes.has(name); }
+	querySelector(selector: string): TestElement | null { return descendants(this).find((node) => matches(node, selector)) ?? null; }
 	focus(): void { this.ownerDocument.activeElement = this; }
 }
 

@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { openAssistanceTask } from './helpers/assistance-task-menu.js';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	chooseCommandAction,
-	chooseNestedCommandAction,
 	collectClientErrors,
 	registerAudioEditorHooks,
 	stubStorageEstimate,
@@ -58,18 +58,20 @@ test.describe('menu-only Local Assistance workflows', () => {
 		await expect(editor.getByRole('button', { name: /Local Assistance|Local Models/u }))
 			.toHaveCount(0);
 
-		await chooseCommandAction(page, editor, 'Analyze', 'Local Assistance…');
-		let assistance = page.getByRole('dialog', { name: 'Local Assistance', exact: true });
-		await expect(assistance).toBeVisible();
-		await expect(assistance.getByRole('tab', { name: 'Guided', exact: true }))
-			.toHaveAttribute('aria-selected', 'true');
+		await openAssistanceTask(page, editor, 'Enhance Dialogue');
+		let assistance = page.getByRole('dialog', { name: 'Enhance Dialogue', exact: true });
+		await expect(assistance.getByRole('tablist')).toHaveCount(0);
+		const placement = assistance.getByRole('button', { name: 'Add result to', exact: true });
+		await placement.click();
+		await page.getByRole('option', { name: 'Replace selected range', exact: true }).click();
 		await expect.poll(() => fixtureSnapshot(page).then(({ installCalls }) => installCalls)).toBe(0);
-		await assistance.locator('button').filter({ hasText: /^Close$/u }).click();
-		await expect(assistance).toBeHidden();
-
-		await chooseNestedCommandAction(page, editor, 'Tools', ['Local Models', 'Manage Models…']);
-		const manager = page.getByRole('dialog', { name: 'Local Models', exact: true });
+		await assistance.getByRole('button', { name: 'Manage Models', exact: true }).click();
+		const manager = page.getByRole('dialog', { name: 'Model Manager', exact: true });
 		const model = manager.locator('[data-local-model-id="deepfilternet3"]');
+		await manager.getByRole('textbox', { name: 'Search models' }).fill('unrelated');
+		await expect(model).toHaveCount(0);
+		await manager.getByRole('textbox', { name: 'Search models' }).fill('DeepFilterNet');
+		await expect(model).toBeVisible();
 		await expect(model).toHaveAttribute('data-local-model-availability', 'installable');
 		await expect(model.getByRole('button', { name: 'Install', exact: true })).toBeVisible();
 		await model.getByRole('button', { name: 'Install', exact: true }).click();
@@ -78,17 +80,17 @@ test.describe('menu-only Local Assistance workflows', () => {
 		await expect.poll(() => fixtureSnapshot(page).then(({ installCalls }) => installCalls)).toBe(1);
 		await manager.locator('button').filter({ hasText: /^Close$/u }).click();
 		await expect(manager).toBeHidden();
+		await expect(placement).toContainText('Replace selected range');
+		await expect(assistance.getByRole('button', { name: 'Manage Models', exact: true })).toBeFocused();
+		await expect(assistance.getByText('Required models are installed.', { exact: true })).toBeVisible();
+		await assistance.locator('button').filter({ hasText: /^Close$/u }).click();
 		await selectedClip.focus();
 		await page.keyboard.press('Enter');
 		await expect(selectedClip.locator('.clip-display')).toHaveClass(/clip-display--selected/u);
 
-		await chooseCommandAction(page, editor, 'Analyze', 'Local Assistance…');
-		assistance = page.getByRole('dialog', { name: 'Local Assistance', exact: true });
-		const guided = assistance.getByRole('tabpanel', { name: 'Guided', exact: true });
-		const workflowSelection = guided.getByRole('combobox', { name: 'Workflow', exact: true });
-		await expect(workflowSelection).toHaveValue('');
-		await expect(workflowSelection.locator('option', { hasText: 'Mark Cuts' })).toHaveCount(1);
-		await workflowSelection.selectOption({ label: 'Mark Cuts' });
+		await openAssistanceTask(page, editor, 'Mark Cuts');
+		assistance = page.getByRole('dialog', { name: 'Mark Cuts', exact: true });
+		const guided = assistance;
 		const fastMode = guided.getByRole('radio', { name: 'Fast · model-free', exact: true });
 		const accurateMode = guided.getByRole('radio', { name: 'Accurate · TransNetV2', exact: true });
 		await expect(fastMode).toBeChecked();
@@ -103,11 +105,11 @@ test.describe('menu-only Local Assistance workflows', () => {
 			expect(dialog.type()).toBe('confirm');
 			await dialog.accept();
 		});
-		await guided.getByRole('button', { name: 'Run Guided workflow', exact: true }).click();
-		await expect(guided.getByRole('status')).toHaveText('detect-shots · running');
+		await guided.getByRole('button', { name: 'Run locally', exact: true }).click();
+		await expect(guided.getByRole('status', { name: 'Processing status' })).toHaveText('Processing selected media locally');
 		await expect.poll(() => fixtureSnapshot(page).then(({ progressEvents }) => progressEvents)).toBe(1);
 		await page.evaluate(() => globalThis.__m7AssistanceFixture.completeRun());
-		await expect(guided.getByRole('status')).toContainText('The Guided workflow completed.');
+		await expect(guided.getByRole('status', { name: 'Processing status' })).toContainText('Processing finished.');
 
 		expect(consentMessages).toHaveLength(1);
 		expect(consentMessages[0]).toContain('Workflow: mark-cuts');
@@ -120,7 +122,7 @@ test.describe('menu-only Local Assistance workflows', () => {
 		const review = guided.getByRole('region', { name: 'Guided workflow review', exact: true });
 		await expect(review).toBeVisible();
 		const choice = review.getByRole('checkbox', { name: 'Cut 1', exact: true });
-		const accept = guided.getByRole('button', { name: 'Accept selected', exact: true });
+		const accept = guided.getByRole('button', { name: 'Apply selected', exact: true });
 		await expect(choice).not.toBeChecked();
 		await expect(accept).toBeDisabled();
 		await choice.check();
@@ -129,7 +131,7 @@ test.describe('menu-only Local Assistance workflows', () => {
 		await expect(accept).toBeDisabled();
 		await choice.check();
 		await accept.click();
-		await expect(guided.getByRole('status')).toHaveText('The proposal was accepted.');
+		await expect(guided.getByRole('status', { name: 'Processing status' })).toHaveText('The proposal was accepted.');
 		await assistance.locator('button').filter({ hasText: /^Close$/u }).click();
 		await expect(assistance).toBeHidden();
 
@@ -158,23 +160,19 @@ test.describe('menu-only Local Assistance workflows', () => {
 		await page.evaluate(() => { globalThis.__m7AssistanceFixture.stallNextCreate = true; });
 		await selectedClip.focus();
 		await page.keyboard.press('Enter');
-		await chooseCommandAction(page, editor, 'Analyze', 'Local Assistance…');
+		await openAssistanceTask(page, editor, 'Mark Cuts');
 		const cancellationDialog = page.getByRole('dialog', {
-			name: 'Local Assistance', exact: true,
+			name: 'Mark Cuts', exact: true,
 		});
-		const cancellationGuided = cancellationDialog.getByRole('tabpanel', {
-			name: 'Guided', exact: true,
-		});
-		await cancellationGuided.getByRole('combobox', { name: 'Workflow', exact: true })
-			.selectOption({ label: 'Mark Cuts' });
-		await cancellationGuided.getByRole('button', { name: 'Run Guided workflow', exact: true })
+		const cancellationGuided = cancellationDialog;
+		await cancellationGuided.getByRole('button', { name: 'Run locally', exact: true })
 			.click();
 		await expect.poll(() => fixtureSnapshot(page).then(({ createWaits }) => createWaits)).toBe(1);
-		await expect(cancellationGuided.getByRole('status'))
-			.toHaveText('Preparing the aggregate workflow request.');
-		await cancellationGuided.getByRole('button', { name: 'Cancel', exact: true }).click();
+		await expect(cancellationGuided.getByRole('status', { name: 'Processing status' }))
+			.toHaveText('Preparing selected media');
+		await cancellationGuided.getByRole('button', { name: 'Cancel processing', exact: true }).click();
 		await page.evaluate(() => globalThis.__m7AssistanceFixture.releaseCreate());
-		await expect(cancellationGuided.getByRole('status'))
+		await expect(cancellationGuided.getByRole('status', { name: 'Processing status' }))
 			.toHaveText('The local operation was cancelled.');
 		await expect.poll(() => fixtureSnapshot(page).then(({ cancelCalls }) => cancelCalls))
 			.toBeGreaterThan(0);
@@ -200,16 +198,10 @@ test.describe('menu-only Local Assistance workflows', () => {
 		await page.keyboard.press('Enter');
 		await expect(selectedClip.locator('.clip-display')).toHaveClass(/clip-display--selected/u);
 
-		await chooseCommandAction(page, editor, 'Analyze', 'Local Assistance…');
-		const assistance = page.getByRole('dialog', { name: 'Local Assistance', exact: true });
-		const guidedTab = assistance.getByRole('tab', { name: 'Guided', exact: true });
-		const advancedTab = assistance.getByRole('tab', { name: 'Advanced', exact: true });
-		await expect(guidedTab).toHaveAttribute('aria-selected', 'true');
-		await expect(assistance.getByRole('tabpanel', { name: 'Advanced', exact: true }))
-			.toHaveCount(0);
-		await advancedTab.click();
+		await chooseCommandAction(page, editor, 'Tools', 'Advanced Local Processing…');
+		const assistance = page.getByRole('dialog', { name: 'Advanced Local Processing', exact: true });
+		await expect(assistance.getByRole('tablist')).toHaveCount(0);
 		const advanced = assistance.getByRole('tabpanel', { name: 'Advanced', exact: true });
-		await expect(advancedTab).toHaveAttribute('aria-selected', 'true');
 		await expect(advanced).toBeVisible();
 
 		const source = advanced.getByRole('combobox', { name: 'Selected media', exact: true });

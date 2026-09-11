@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 test('the workspace defers Local Assistance bridge resolution with its dialog', () => {
-	const workspace = source('src/common/editor/ui/workspace/AudioEditorWorkspaceOverlays.jsx');
+	const workspace = source('src/common/editor/ui/workspace/LocalProcessingOverlays.tsx');
 	assert.match(
 		workspace,
 		/lazyEditorModule\(\(\) => import\('\.\.\/dialogs\/LocalAssistanceDialogSurface\.tsx'\)\)/u,

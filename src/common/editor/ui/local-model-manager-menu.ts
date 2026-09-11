@@ -20,12 +20,8 @@ export function createLocalModelManagerMenuItems(
 ) {
 	if (!input.desktopAvailable || typeof actions.open !== 'function') return Object.freeze([]);
 	return Object.freeze([Object.freeze({
-		id: 'local-models',
-		label: input.copy.localModels || 'Local Models',
-		items: Object.freeze([Object.freeze({
-			id: 'manage-local-models',
-			label: `${input.copy.manageLocalModels || 'Manage Models'}…`,
-			onClick: actions.open,
-		})]),
+		id: 'manage-local-models',
+		label: `${input.copy.manageLocalModels || 'Model Manager'}…`,
+		onClick: actions.open,
 	})]);
 }

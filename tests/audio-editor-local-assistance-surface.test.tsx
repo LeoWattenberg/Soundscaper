@@ -142,8 +142,8 @@ test('Local Assistance menu is desktop- and capability-gated and survives the Fr
 	const desktop = createLocalAssistanceMenuItems({ desktopAvailable: true,
 		capabilityActive: true, copy: ENGLISH_COPY }, { open: () => opened.push('opened') });
 	assert.equal(desktop[0]?.id, 'local-assistance');
-	assert.equal(desktop[0]?.label, 'Local Assistance…');
-	desktop[0]?.onClick();
+	assert.equal(desktop[0]?.label, 'Advanced Local Processing…');
+	desktop[0]?.onClick?.();
 	assert.deepEqual(opened, ['opened']);
 	assert.deepEqual(createLocalAssistanceMenuItems({ desktopAvailable: false,
 		capabilityActive: true, copy: ENGLISH_COPY }, { open: () => undefined }), []);
@@ -153,18 +153,18 @@ test('Local Assistance menu is desktop- and capability-gated and survives the Fr
 		capabilityActive: true, copy: ENGLISH_COPY }, {
 		open: () => undefined, openIndexedSearch: () => opened.push('indexed-search'),
 	});
-	assert.equal(indexed[1]?.id, 'local-assistance-indexed-search');
-	assert.equal(indexed[1]?.label, 'Indexed Search…');
-	indexed[1]?.onClick();
+	assert.equal(indexed[1]?.id, 'assistance-search');
+	assert.equal(indexed[1]?.items?.[0]?.label, 'Indexed Search…');
+	indexed[1]?.items?.[0]?.onClick?.();
 	assert.deepEqual(opened, ['opened', 'indexed-search']);
 
-	const filtered = filterProductMenus([{ id: 'analyze', items: indexed }], {
+	const filtered = filterProductMenus([{ id: 'tools', items: indexed }], {
 		audioAnalysis: false, audioGenerators: true, audioEffects: true,
 		audioMacros: true, audioRecording: true, videoMotionTracking: false,
 		assistanceAssets: true,
 	}, 'framescaper');
 	assert.deepEqual(filtered[0]?.items.map(({ id }: { id: string }) => id), [
-		'local-assistance', 'local-assistance-indexed-search',
+		'local-assistance', 'assistance-search',
 	]);
 });
 

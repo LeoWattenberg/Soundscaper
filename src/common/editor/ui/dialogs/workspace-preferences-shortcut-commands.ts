@@ -31,6 +31,7 @@ interface AudacityShortcutMenuItem {
 	readonly divider?: boolean;
 	readonly shortcutAssignable?: boolean;
 	readonly items?: readonly AudacityShortcutMenuEntry[];
+	readonly nativePreferences?: readonly AudacityShortcutMenuEntry[];
 }
 
 type AudacityShortcutMenuEntry = AudacityShortcutMenuItem | null | undefined;
@@ -104,6 +105,7 @@ export function collectAudacityShortcutCommands(
 	const visit = (items: readonly AudacityShortcutMenuEntry[] = []): void => {
 		for (const item of items) {
 			if (!item || item.divider || item.shortcutAssignable === false) continue;
+			visit(item.nativePreferences);
 			if (item.items?.length) {
 				visit(item.items);
 				continue;

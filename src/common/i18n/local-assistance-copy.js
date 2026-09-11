@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { PROCESSING_DIALOG_COPY_BY_LOCALE } from './processing-dialog-copy.js';
+
 export const LOCAL_ASSISTANCE_COPY_BY_LOCALE = Object.freeze({
 	de: Object.freeze({
+		...PROCESSING_DIALOG_COPY_BY_LOCALE.de,
 		localAssistance: 'Lokale Assistenz',
 		localAssistanceIndexedSearch: 'Indexierte Suche',
 		localAssistanceDescription: 'Verarbeitet die ausdrücklich ausgewählten Medien lokal mit einem installierten, kompatiblen Modell.',
@@ -50,6 +53,7 @@ export const LOCAL_ASSISTANCE_COPY_BY_LOCALE = Object.freeze({
 		localAssistanceCleanupRepetition: 'Wiederholung: {text}',
 	}),
 	en: Object.freeze({
+		...PROCESSING_DIALOG_COPY_BY_LOCALE.en,
 		localAssistance: 'Local Assistance',
 		localAssistanceIndexedSearch: 'Indexed Search',
 		localAssistanceDescription: 'Process explicitly selected media locally with an installed, compatible model.',
@@ -63,7 +67,7 @@ export const LOCAL_ASSISTANCE_COPY_BY_LOCALE = Object.freeze({
 		localAssistanceCancel: 'Cancel',
 		localAssistanceReview: 'Review result',
 		localAssistanceAccept: 'Accept proposal',
-		localAssistanceAcceptSelected: 'Accept selected',
+		localAssistanceAcceptSelected: 'Apply selected',
 		localAssistanceLoading: 'Preparing Local Assistance.',
 		localAssistancePreparing: 'Staging the selected media.',
 		localAssistanceRunning: 'Running the local model.',

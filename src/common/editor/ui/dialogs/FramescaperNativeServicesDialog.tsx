@@ -1,5 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import NativeProcessingTheme from './NativeProcessingTheme.tsx';
+import { ProcessingButton as Button } from './ProcessingButton.tsx';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
+import './ProcessingDialogs.css';
 import React, {
 	useCallback,
 	useEffect,
@@ -65,7 +69,11 @@ export interface FramescaperNativeServicesDialogContext {
 	readonly allowProxyGeneration: boolean;
 }
 
-export default function FramescaperNativeServicesDialog({
+export default function FramescaperNativeServicesDialog(props: FramescaperNativeServicesDialogProps) {
+	return <NativeProcessingTheme><NativeServicesDialog {...props} /></NativeProcessingTheme>;
+}
+
+function NativeServicesDialog({
 	bridge,
 	initialSurface,
 	initialSnapshot = null,
@@ -104,18 +112,20 @@ export default function FramescaperNativeServicesDialog({
 		width={760}
 		initialFocus="first"
 		dataAttributes={{ 'data-framescaper-native-services-dialog': 'true' }}
+		footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={
+			<Button variant="primary" onClick={onClose}>{copy.close}</Button>} />}
 	>
 		<div className="audio-editor-framescaper-native-services">
 			<p role="status" aria-live="polite" aria-busy={busy ? 'true' : undefined}>
 				{state.error || (busy ? copy.working : state.completed === null ? '' : copy.operationComplete)}
 			</p>
 			<p>
-				<button
-					type="button"
+				<Button
+					variant="secondary"
 					disabled={busy}
 					data-framescaper-native-refresh="true"
 					onClick={() => perform({ type: 'refresh' })}
-				>{copy.refresh}</button>
+				>{copy.refresh}</Button>
 			</p>
 			<RuntimeNotice copy={copy} snapshot={snapshot} />
 			<SurfacePanel
@@ -220,16 +230,16 @@ function QueuePanel({ copy, snapshot, busy, perform, projectActions }: Readonly<
 						perform={perform}
 					/>
 				))}
-				<button
-					type="button"
+				<Button
+					variant="secondary"
 					disabled={busy || !runtimeUsable || index === 0 || !reorderable(job)}
 					onClick={() => perform({ type: 'queue-reorder', jobId: job.jobId, index: index - 1 })}
-				>{copy.queueMoveEarlier}</button>
-				<button
-					type="button"
+				>{copy.queueMoveEarlier}</Button>
+				<Button
+					variant="secondary"
 					disabled={busy || !runtimeUsable || index === queue.length - 1 || !reorderable(job)}
 					onClick={() => perform({ type: 'queue-reorder', jobId: job.jobId, index: index + 1 })}
-				>{copy.queueMoveLater}</button>
+				>{copy.queueMoveLater}</Button>
 			</div>
 		</li>)}
 	</ol>;
@@ -242,8 +252,8 @@ function QueueActionButton({ action, job, copy, disabled, perform }: Readonly<{
 	disabled: boolean;
 	perform: (action: FramescaperNativeServicesDialogAction) => void;
 }>) {
-	return <button
-		type="button"
+	return <Button
+		variant="secondary"
 		disabled={disabled}
 		data-native-queue-action={action}
 		onClick={() => perform(action === 'remove'
@@ -253,7 +263,7 @@ function QueueActionButton({ action, job, copy, disabled, perform }: Readonly<{
 			: action === 'reauthorize-root'
 				? { type: 'queue-reauthorize-root', jobId: job.jobId }
 			: { type: 'queue-control', jobId: job.jobId, action })}
-	>{queueActionLabel(copy, action)}</button>;
+	>{queueActionLabel(copy, action)}</Button>;
 }
 
 function WatchPanel({ copy, snapshot, busy, perform, context, lifecycleMethods }: Readonly<{
@@ -315,9 +325,9 @@ function WatchPanel({ copy, snapshot, busy, perform, context, lifecycleMethods }
 				? copy.watchProjectUnavailable
 				: roots.length === 0 ? copy.watchRootUnavailable : ''}</p>
 			<div className="kw-audio-editor-dialog__actions">
-				<button type="submit" disabled={busy || !canCreate}>{copy.watchCreate}</button>
-				<button type="button" disabled={busy || !lifecycleMethods.includes('reconcileWatch')}
-					onClick={() => perform({ type: 'watch-reconcile' })}>{copy.watchReconcile}</button>
+				<Button type="submit" disabled={busy || !canCreate}>{copy.watchCreate}</Button>
+				<Button variant="secondary" disabled={busy || !lifecycleMethods.includes('reconcileWatch')}
+					onClick={() => perform({ type: 'watch-reconcile' })}>{copy.watchReconcile}</Button>
 			</div>
 		</form>
 		{snapshot.services.watchRules.length === 0
@@ -328,15 +338,15 @@ function WatchPanel({ copy, snapshot, busy, perform, context, lifecycleMethods }
 					{' — '}{rule.importMode === 'link' ? copy.watchLinked : copy.watchCopied}
 					{rule.generateProxies ? ` — ${copy.proxyGenerate}` : ''}
 					<div className="kw-audio-editor-dialog__actions">
-						<button type="button" disabled={busy || !lifecycleMethods.includes('setWatchEnabled')}
+						<Button variant="secondary" disabled={busy || !lifecycleMethods.includes('setWatchEnabled')}
 							onClick={() => perform({ type: 'watch-set-enabled', ruleId: rule.ruleId,
 								enabled: !rule.enabled })}>
 							{rule.enabled ? copy.watchDisable : copy.watchEnable}
-						</button>
-						<button type="button" disabled={busy || !lifecycleMethods.includes('removeWatch')}
+						</Button>
+						<Button variant="secondary" disabled={busy || !lifecycleMethods.includes('removeWatch')}
 							onClick={() => perform({ type: 'watch-remove', ruleId: rule.ruleId })}>
 							{copy.watchRemove}
-						</button>
+						</Button>
 					</div>
 				</li>)}
 			</ul>}
@@ -373,8 +383,8 @@ function PreferencesPanel({ copy, snapshot, busy, perform, lifecycleMethods }: R
 			})}
 		</fieldset>
 		<RootsPanel {...{ copy, snapshot, busy, perform, lifecycleMethods }} />
-		<p><button type="button" disabled={busy || !lifecycleMethods.includes('cleanupScratch')}
-			onClick={() => perform({ type: 'scratch-cleanup' })}>{copy.scratchCleanup}</button></p>
+		<p><Button variant="secondary" disabled={busy || !lifecycleMethods.includes('cleanupScratch')}
+			onClick={() => perform({ type: 'scratch-cleanup' })}>{copy.scratchCleanup}</Button></p>
 		<CapabilityReport copy={copy} snapshot={snapshot} />
 	</>;
 }
@@ -388,22 +398,22 @@ function RootsPanel({ copy, snapshot, busy, perform, lifecycleMethods }: Readonl
 }>) {
 	return <section aria-label={copy.nativeRoots}>
 		<h3>{copy.nativeRoots}</h3>
-		<p><button type="button" disabled={busy || !lifecycleMethods.includes('selectRoot')}
-			onClick={() => perform({ type: 'root-select' })}>{copy.rootAuthorize}</button></p>
+		<p><Button variant="secondary" disabled={busy || !lifecycleMethods.includes('selectRoot')}
+			onClick={() => perform({ type: 'root-select' })}>{copy.rootAuthorize}</Button></p>
 		{snapshot.services.roots.length === 0
 			? <p>{copy.noNativeRoots}</p>
 			: <ul>{snapshot.services.roots.map((root) => <li key={root.grantId}>
 				{`${root.displayName} — ${root.revoked ? copy.rootRevoked : copy.rootAvailable}`}
 				<div className="kw-audio-editor-dialog__actions">
-					<button type="button" disabled={busy || !lifecycleMethods.includes('revalidateRoot')}
+					<Button variant="secondary" disabled={busy || !lifecycleMethods.includes('revalidateRoot')}
 						onClick={() => perform({ type: 'root-revalidate', grantId: root.grantId })}>
 						{copy.rootRevalidate}
-					</button>
-					<button type="button" disabled={busy || root.revoked
+					</Button>
+					<Button variant="secondary" disabled={busy || root.revoked
 						|| !lifecycleMethods.includes('revokeRoot')}
 						onClick={() => perform({ type: 'root-revoke', grantId: root.grantId })}>
 						{copy.rootRevoke}
-					</button>
+					</Button>
 				</div>
 			</li>)}</ul>}
 	</section>;
@@ -425,15 +435,15 @@ function CapabilityReport({ copy, snapshot }: Readonly<{
 	snapshot: FramescaperNativeServicesRendererSnapshot;
 }>) {
 	const capability = snapshot.capabilitySnapshot;
-	return <section aria-label={copy.capabilityStatus}>
-		<h3>{copy.capabilityStatus}</h3>
+	return <details className="kw-processing-details" aria-label={copy.capabilityStatus}>
+		<summary>{copy.capabilityStatus}</summary>
 		{capability === null || capability.entries.length === 0
 			? <p>{copy.noCapabilityReport}</p>
 			: <dl>{capability.entries.map((entry) => <React.Fragment key={`${entry.domain}/${entry.id}`}>
 				<dt>{`${entry.domain}/${entry.id}`}</dt>
 				<dd>{`${entry.state} — ${entry.reason}`}</dd>
 			</React.Fragment>)}</dl>}
-	</section>;
+	</details>;
 }
 
 function preferenceRows(
@@ -451,8 +461,6 @@ function preferenceRows(
 			enabled: snapshot.preferences.hardwareDecodeEnabled },
 		{ preference: 'hardware-encode', label: copy.hardwareEncode,
 			enabled: snapshot.preferences.hardwareEncodeEnabled },
-		{ preference: 'ofx-consent', label: copy.ofxConsent,
-			enabled: snapshot.preferences.ofxConsentEnabled },
 	]);
 }
 

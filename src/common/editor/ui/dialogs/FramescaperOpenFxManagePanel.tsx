@@ -1,5 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { ProcessingButton as Button } from './ProcessingButton.tsx';
+import { ProcessingSearchField } from './ProcessingSearchField.tsx';
+import { Table } from '@soundscaper/design-system/Table/Table';
+import { Checkbox } from '@soundscaper/design-system/Checkbox';
+import PreferenceDropdownField from './PreferenceDropdownField.jsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
@@ -29,6 +34,9 @@ export interface FramescaperOpenFxManagePanelProps {
 export default function FramescaperOpenFxManagePanel({
 	bridge, copy, snapshot, busy, setConsent,
 }: FramescaperOpenFxManagePanelProps) {
+	const [query, setQuery] = useState('');
+	const [status, setStatus] = useState('all');
+	const [selectedHandle, setSelectedHandle] = useState<string | null>(null);
 	const [plugins, setPlugins] = useState<readonly FramescaperOpenFxPluginProjectionV1[]>([]);
 	const [working, setWorking] = useState(false);
 	const [message, setMessage] = useState('');
@@ -83,34 +91,48 @@ export default function FramescaperOpenFxManagePanel({
 	const usable = ofxUsable(snapshot) && bridge.scanOpenFxPlugin !== undefined
 		&& bridge.listOpenFxPlugins !== undefined && bridge.controlOpenFxPlugin !== undefined;
 	const disabled = busy || working;
+	const visible = plugins.filter((plugin) => (status === 'all' || plugin.state === status)
+		&& `${plugin.pluginId} ${plugin.vendor ?? ''}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
+	const selected = visible.find((plugin) => plugin.pluginHandle === selectedHandle);
 	return <>
-		<fieldset>
-			<legend>{copy.ofxManage}</legend>
-			<label className="kw-audio-editor-dialog__field">
-				<span>{copy.ofxConsent}</span>
-				<input type="checkbox" checked={snapshot.preferences.ofxConsentEnabled}
-					disabled={disabled || !controllable} data-native-service-preference="ofx-consent"
-					onChange={(event) => setConsent(event.currentTarget.checked)} />
-				{!controllable && <small>{copy.preferenceControlUnavailable}</small>}
-			</label>
-			<p><button type="button" disabled={disabled || !usable}
-				data-framescaper-openfx-scan="true" onClick={scan}>{copy.ofxScan}</button></p>
-		</fieldset>
+		<div className="kw-processing-filters">
+			<ProcessingSearchField value={query} onChange={setQuery} label={copy.searchPlugins} />
+			<PreferenceDropdownField label={copy.pluginStatus} value={status} onChange={setStatus}
+				options={[{ value: 'all', label: copy.allPluginStates },
+					...[...new Set(plugins.map((plugin) => plugin.state))].map((value) => ({ value, label: value }))]} />
+		</div>
 		<p role="status" aria-live="polite">{message}</p>
-		{plugins.length === 0 ? <p>{copy.ofxNoPlugins}</p> : <ul aria-label={copy.ofxPlugins}>
-			{plugins.map((plugin) => <li key={plugin.pluginHandle}
-				data-framescaper-openfx-plugin={plugin.pluginHandle}>
-				<strong>{plugin.pluginId}</strong>{` — ${plugin.vendor ?? 'Vendor not reported'} — ${plugin.state}`}
-				<div className="kw-audio-editor-dialog__actions">
-					<button type="button" disabled={disabled || !usable || plugin.state !== 'consented'}
-						onClick={() => control(plugin.pluginHandle, 'enable')}>{copy.ofxEnable}</button>
-					<button type="button" disabled={disabled || plugin.state === 'revoked'}
-						onClick={() => control(plugin.pluginHandle, 'revoke')}>{copy.ofxRevoke}</button>
-					<button type="button" disabled={disabled || !usable || !plugin.quarantined}
-						onClick={() => control(plugin.pluginHandle, 'clear-quarantine')}>{copy.ofxClearQuarantine}</button>
-				</div>
-			</li>)}
-		</ul>}
+		<Table className="kw-processing-table"><table aria-label={copy.ofxPlugins}>
+			<thead><tr><th>{copy.pluginName}</th><th>{copy.pluginVendor}</th><th>{copy.pluginStatus}</th></tr></thead>
+			<tbody>{visible.map((plugin) => <tr key={plugin.pluginHandle}
+				data-framescaper-openfx-plugin={plugin.pluginHandle} aria-selected={plugin.pluginHandle === selectedHandle}>
+				<td><Button variant="secondary" onClick={() => setSelectedHandle(plugin.pluginHandle)}>{plugin.pluginId}</Button></td>
+				<td>{plugin.vendor ?? '—'}</td><td>{plugin.state}</td>
+			</tr>)}</tbody>
+		</table></Table>
+		{visible.length === 0 && <p>{plugins.length ? copy.noMatchingPlugins : copy.ofxNoPlugins}</p>}
+		{selected ? <section className="kw-processing-details" aria-label={copy.pluginDetails}>
+			<h3>{selected.pluginId}</h3>
+			<div className="kw-processing-actions">
+				<Button variant="secondary" disabled={disabled || !usable || selected.state !== 'consented'}
+					onClick={() => control(selected.pluginHandle, 'enable')}>{copy.ofxEnable}</Button>
+				<Button variant="secondary" disabled={disabled || selected.state === 'revoked'}
+					onClick={() => control(selected.pluginHandle, 'revoke')}>{copy.ofxRevoke}</Button>
+				<Button variant="secondary" disabled={disabled || !usable || !selected.quarantined}
+					onClick={() => control(selected.pluginHandle, 'clear-quarantine')}>{copy.ofxClearQuarantine}</Button>
+			</div>
+		</section> : visible.length > 0 && <p>{copy.choosePlugin}</p>}
+		<details className="kw-processing-details">
+			<summary>{copy.tabEffectScan}</summary>
+			<div className="kw-processing-checkbox">
+				<Checkbox checked={snapshot.preferences.ofxConsentEnabled} aria-label={copy.ofxConsent}
+					disabled={disabled || !controllable} onChange={setConsent} />
+				<span>{copy.ofxConsent}</span>
+				{!controllable && <small>{copy.preferenceControlUnavailable}</small>}
+			</div>
+			<p><Button variant="secondary" disabled={disabled || !usable}
+				data-framescaper-openfx-scan="true" onClick={scan}>{copy.ofxScan}</Button></p>
+		</details>
 	</>;
 }
 

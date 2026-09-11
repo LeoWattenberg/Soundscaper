@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useRef } from 'react';
+import React from 'react';
 import { Dropdown } from '@soundscaper/design-system/Dropdown';
 
 /**
@@ -18,8 +18,8 @@ export default function PreferenceDropdownField({
 	disabled = false,
 	onChange,
 }) {
-	const wrapperRef = useRef(null);
-	useEffect(() => {
+	const wrapperRef = React.useRef(null);
+	React.useEffect(() => {
 		wrapperRef.current?.querySelector('.dropdown__trigger')?.setAttribute('aria-label', label);
 	}, [label]);
 	return (

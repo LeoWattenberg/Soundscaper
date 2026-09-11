@@ -46,7 +46,7 @@ test('the menu dialog opens Guided and exposes all 13 recipes before explicit Ad
 	for (const workflowId of ASSISTANCE_GUIDED_WORKFLOW_IDS) {
 		assert.match(initial, new RegExp(`value="${workflowId}"`, 'u'));
 	}
-	assert.match(initial, /<button type="button" disabled="">Accept selected<\/button>/u);
+	assert.match(initial, /<button[^>]*disabled=""[^>]*><span[^>]*>Apply selected<\/span><\/button>/u);
 	assert.doesNotMatch(initial, />Operation<\/label>/u);
 
 	guided.selectSurface('advanced');
@@ -110,8 +110,8 @@ test('Guided workflow settings are editable only through their exact validated b
 	assert.match(highlightsMarkup, /min="1" max="20" step="1" value="20"/u);
 	assert.match(highlightsMarkup, /data-timecode-input="seconds"/u);
 	assert.match(highlightsMarkup, /role="group" aria-label="Maximum seconds per proposal"/u);
-	assert.match(highlightsMarkup, /Use installed Qwen to rerank known candidates/u);
-	assert.match(highlightsMarkup, /type="checkbox" checked=""/u);
+	assert.match(highlightsMarkup, /Refine highlight suggestions/u);
+	assert.match(highlightsMarkup, /role="checkbox" aria-checked="true"/u);
 });
 
 test('Guided never calls the workflow bridge without an aggregate preparation seam', async () => {
@@ -201,7 +201,7 @@ test('completed Guided output remains unchecked until its terminal claim passes 
 	assert.match(renderToStaticMarkup(<LocalAssistanceGuidedReview copy={ENGLISH_COPY}
 		review={guided.getSnapshot().review!} selectedChoiceIds={guided.getSnapshot().selectedChoiceIds}
 		onChoiceChange={() => undefined} auditionAudio={guided.getSnapshot().auditionAudio} />),
-	/type="checkbox" checked=""/u);
+	/role="checkbox" aria-checked="true"/u);
 	await guided.dispose();
 });
 

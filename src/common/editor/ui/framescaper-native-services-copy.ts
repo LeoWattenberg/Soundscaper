@@ -4,7 +4,10 @@ import {
 	resolveCopyCatalogOverrides,
 } from './copy-catalog-overrides.ts';
 
+import { PROCESSING_DIALOG_COPY_BY_LOCALE } from '../../i18n/processing-dialog-copy.js';
+
 export const FRAMESCAPER_NATIVE_SERVICES_COPY = Object.freeze({
+	...PROCESSING_DIALOG_COPY_BY_LOCALE.en,
 	importImageSequence: 'Image sequence…',
 	addToRenderQueue: 'Add to render queue…',
 	externalDisplay: 'External display',
@@ -20,7 +23,7 @@ export const FRAMESCAPER_NATIVE_SERVICES_COPY = Object.freeze({
 	nativeMediaPreferences: 'Native media and scratch…',
 	videoEffects: 'Video effects',
 	ofxAdd: 'Add OFX…',
-	ofxManage: 'Manage OFX…',
+	ofxManage: "Plugin Manager",
 	ofxInteract: 'Open OFX Interact…',
 	nativeServices: 'Framescaper native services',
 	refresh: 'Refresh status',
@@ -71,7 +74,7 @@ export const FRAMESCAPER_NATIVE_SERVICES_COPY = Object.freeze({
 	nativeMediaMaster: 'Native media master',
 	hardwareDecode: 'Hardware decode',
 	hardwareEncode: 'Hardware encode',
-	ofxConsent: 'OpenFX consent',
+	ofxConsent: PROCESSING_DIALOG_COPY_BY_LOCALE.en.ofxConsent,
 	ofxScan: 'Scan plug-in…',
 	ofxPlugins: 'Scanned OpenFX plug-ins',
 	ofxNoPlugins: 'No OpenFX plug-ins have been scanned in this session.',

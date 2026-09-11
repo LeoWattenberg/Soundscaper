@@ -1,9 +1,10 @@
+import { openAssistanceTask } from './helpers/assistance-task-menu.js';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
-	chooseCommandAction,
+	chooseNestedCommandAction,
 	clipByName,
 	collectClientErrors,
 	importFiles,
@@ -37,24 +38,24 @@ test.describe('Milestone 7 Guided workflow qualification', () => {
 		let review = await runAndReview(page, guided, 'Transcribe & Captions');
 		const captions = review.getByRole('checkbox', { name: '1 caption cue', exact: true });
 		await expect(captions).not.toBeChecked();
-		await expect(guided.getByRole('button', { name: 'Accept selected', exact: true })).toBeDisabled();
+		await expect(guided.getByRole('button', { name: 'Apply selected', exact: true })).toBeDisabled();
 		await captions.check();
-		await guided.getByRole('button', { name: 'Accept selected', exact: true }).click();
-		await expect(guided.getByRole('status')).toHaveText('The proposal was accepted.');
+		await guided.getByRole('button', { name: 'Apply selected', exact: true }).click();
+		await expect(guided.getByRole('status', { name: 'Processing status' })).toHaveText('The proposal was accepted.');
 		await assistance.locator('button').filter({ hasText: /^Close$/u }).click();
 		await expect(assistance).toBeHidden();
 		await expect(editor.locator('[data-label-track] [data-label-id]')).toHaveCount(1);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		await expect(editor.locator('[data-label-track]')).toHaveCount(0);
 		await reselectTimelineAudio(editor, page);
-		await chooseCommandAction(page, editor, 'Analyze', 'Local Assistance…');
-		assistance = page.getByRole('dialog', { name: 'Local Assistance', exact: true });
-		guided = assistance.getByRole('tabpanel', { name: 'Guided', exact: true });
+		await openAssistanceTask(page, editor, 'Transcribe & Captions');
+		assistance = page.locator('[data-local-assistance]');
+		guided = assistance;
 
 		review = await runAndReview(page, guided, 'Enhance Dialogue');
 		await expect(review.locator('label', { hasText: 'Original selection' }).locator('audio'))
 			.toHaveCount(1);
-		await expect(review.locator('label', { hasText: 'enhanced-audio' }).locator('audio'))
+		await expect(review.locator('label', { hasText: 'Enhanced dialogue' }).locator('audio'))
 			.toHaveCount(1);
 		await expect(review.getByRole('checkbox', { name: 'Enhanced Dialogue', exact: true }))
 			.not.toBeChecked();
@@ -62,17 +63,17 @@ test.describe('Milestone 7 Guided workflow qualification', () => {
 		review = await runAndReview(page, guided, 'Reduce Reverb');
 		await expect(review.locator('label', { hasText: 'Original selection' }).locator('audio'))
 			.toHaveCount(1);
-		await expect(review.locator('label', { hasText: 'dereverberated-audio' }).locator('audio'))
+		await expect(review.locator('label', { hasText: 'Reduced reverb' }).locator('audio'))
 			.toHaveCount(1);
 		await expect(review.getByRole('checkbox', { name: 'Reduced Reverb', exact: true }))
 			.not.toBeChecked();
 
-		await selectWorkflow(guided, 'Detect Beats & Tempo');
+		await selectWorkflow(page, guided, 'Detect Beats & Tempo');
 		const beatLabels = guided.getByRole('checkbox', {
-			name: 'Publish an owned Beats label track', exact: true,
+			name: 'Add a Beats label track', exact: true,
 		});
 		const tempoMap = guided.getByRole('checkbox', {
-			name: 'Offer the exactly representable tempo-map diff', exact: true,
+			name: 'Update the project tempo map', exact: true,
 		});
 		await expect(beatLabels).not.toBeChecked();
 		await expect(tempoMap).not.toBeChecked();
@@ -112,20 +113,20 @@ test.describe('Milestone 7 Guided workflow qualification', () => {
 		const { editor, assistance, guided, errors } = await openGuidedVideoFixture(page);
 		acceptConsentDialogs(page);
 
-		await selectWorkflow(guided, 'Index Video');
+		await selectWorkflow(page, guided, 'Index Video');
 		await expect(guided.getByRole('checkbox', {
-			name: 'Index visible text with PP-OCR', exact: true,
+			name: 'Include visible text', exact: true,
 		})).toBeChecked();
 		let review = await runSelectedAndReview(page, guided);
 		const videoIndex = review.getByRole('checkbox', { name: '1 video index rows', exact: true });
 		await expect(videoIndex).not.toBeChecked();
 		await videoIndex.check();
-		await guided.getByRole('button', { name: 'Accept selected', exact: true }).click();
-		await expect(guided.getByRole('status')).toHaveText('The proposal was accepted.');
+		await guided.getByRole('button', { name: 'Apply selected', exact: true }).click();
+		await expect(guided.getByRole('status', { name: 'Processing status' })).toHaveText('The proposal was accepted.');
 		await assistance.locator('button').filter({ hasText: /^Close$/u }).click();
 		await expect(assistance).toBeHidden();
 
-		await chooseCommandAction(page, editor, 'Analyze', 'Indexed Search…');
+		await chooseNestedCommandAction(page, editor, 'Tools', ['Search', 'Indexed Search…']);
 		const search = editor.getByRole('combobox', { name: 'Search commands and media', exact: true });
 		await expect(search).toBeFocused();
 		await search.fill('Launch Plan');
@@ -139,9 +140,9 @@ test.describe('Milestone 7 Guided workflow qualification', () => {
 			.toBeGreaterThan(0);
 
 		await reselectTimelineVideo(editor, page);
-		await chooseCommandAction(page, editor, 'Analyze', 'Local Assistance…');
-		const reopened = page.getByRole('dialog', { name: 'Local Assistance', exact: true });
-		const reopenedGuided = reopened.getByRole('tabpanel', { name: 'Guided', exact: true });
+		await openAssistanceTask(page, editor, 'Transcribe & Captions');
+		const reopened = page.locator('[data-local-assistance]');
+		const reopenedGuided = reopened;
 		review = await runAndReview(page, reopenedGuided, 'Reframe');
 		await expect(review).toContainText('Target aspect: 9:16');
 		await expect(review.getByRole('checkbox', { name: 'Reframe crop path', exact: true }))
@@ -222,9 +223,9 @@ async function openGuidedLinkedFixture(page) {
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
 		timeout: 30_000,
 	});
-	await chooseCommandAction(page, editor, 'Analyze', 'Local Assistance…');
-	const assistance = page.getByRole('dialog', { name: 'Local Assistance', exact: true });
-	const guided = assistance.getByRole('tabpanel', { name: 'Guided', exact: true });
+	await openAssistanceTask(page, editor, 'Transcribe & Captions');
+	const assistance = page.locator('[data-local-assistance]');
+	const guided = assistance;
 	return { editor, assistance, guided, errors };
 }
 
@@ -248,9 +249,9 @@ async function openGuidedVideoFixture(page) {
 	}).click();
 	await expect(editor).toHaveAttribute('data-clip-count', '1', { timeout: 30_000 });
 	await reselectTimelineVideo(editor, page);
-	await chooseCommandAction(page, editor, 'Analyze', 'Local Assistance…');
-	const assistance = page.getByRole('dialog', { name: 'Local Assistance', exact: true });
-	const guided = assistance.getByRole('tabpanel', { name: 'Guided', exact: true });
+	await openAssistanceTask(page, editor, 'Transcribe & Captions');
+	const assistance = page.locator('[data-local-assistance]');
+	const guided = assistance;
 	return { editor, assistance, guided, errors };
 }
 
@@ -272,24 +273,25 @@ function acceptConsentDialogs(page) {
 	return messages;
 }
 
-async function selectWorkflow(guided, label) {
-	await guided.getByRole('combobox', { name: 'Workflow', exact: true }).selectOption({ label });
+async function selectWorkflow(page, guided, label) {
+	await guided.locator('button').filter({ hasText: /^Close$/u }).click();
+	await openAssistanceTask(page, page.locator('[data-audio-editor]'), label);
 }
 
 async function runAndReview(page, guided, label) {
-	await selectWorkflow(guided, label);
+	await selectWorkflow(page, guided, label);
 	return runSelectedAndReview(page, guided);
 }
 
 async function runSelectedAndReview(page, guided) {
-	await guided.getByRole('button', { name: 'Run Guided workflow', exact: true }).click();
-	const status = guided.getByRole('status');
-	await expect(status).toHaveText(/running|unavailable locally/u);
+	await guided.getByRole('button', { name: 'Run locally', exact: true }).click();
+	const status = guided.getByRole('status', { name: 'Processing status' });
+	await expect(status).toHaveText(/Processing selected media|unavailable locally/u);
 	if ((await status.textContent())?.includes('unavailable')) {
 		throw new Error(JSON.stringify(await milestone7FixtureSnapshot(page)));
 	}
 	await completeMilestone7Run(page);
-	await expect(guided.getByRole('status')).toContainText('The Guided workflow completed.');
+	await expect(guided.getByRole('status', { name: 'Processing status' })).toContainText('Processing finished.');
 	await guided.getByRole('button', { name: 'Review result', exact: true }).click();
 	const review = guided.getByRole('region', { name: 'Guided workflow review', exact: true });
 	await expect(review).toBeVisible();

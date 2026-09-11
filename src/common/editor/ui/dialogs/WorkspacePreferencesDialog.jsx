@@ -1,3 +1,5 @@
+import NativePreferencesPanel from './NativePreferencesPanel.tsx';
+import './ProcessingDialogs.css';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogSideNav } from '@soundscaper/design-system/DialogSideNav/DialogSideNav';
@@ -81,6 +83,7 @@ export default function WorkspacePreferencesDialog({
 		{ id: 'playback-recording', label: copy.preferencesPlaybackRecording, icon: iconNameToChar('MICROPHONE') },
 		{ id: 'spectrogram', label: copy.panelSpectrogram, icon: iconNameToChar('SPECTROGRAM') },
 		{ id: 'editing', label: copy.preferencesEditing, icon: iconNameToChar('EDIT') },
+		...(fileService?.isDesktop ? [{ id: 'media', label: copy.assistanceMediaPreferences || 'Media', icon: iconNameToChar('SETTINGS_COG') }] : []),
 		{ id: 'effects', label: copy.preferencesEffects, icon: iconNameToChar('WAVEFORM') },
 		{ id: 'shortcuts', label: copy.shortcuts, icon: iconNameToChar('SHORTCUTS') },
 		{ id: 'workspace', label: copy.workspace, icon: iconNameToChar('WORKSPACE') },
@@ -155,6 +158,7 @@ export default function WorkspacePreferencesDialog({
 						id={`dialog-panel-${selectedPage}`}
 						aria-label={selectedPageLabel}
 					>
+						<NativePreferencesPanel menus={menus} section={selectedPage} copy={copy} onNavigate={onClose} />
 						{selectedPage === 'general' && (
 							<GeneralPreferencesPage
 								controller={controller}

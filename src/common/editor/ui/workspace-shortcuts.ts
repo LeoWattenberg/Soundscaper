@@ -31,6 +31,7 @@ interface ShortcutMenuItem {
 	divider?: boolean;
 	id?: string;
 	items?: readonly ShortcutMenuItem[];
+	nativePreferences?: readonly ShortcutMenuItem[];
 	onClick?: ShortcutHandler;
 	parityActionId?: string;
 }
@@ -260,7 +261,7 @@ export function findShortcutMenuHandler(
 				handler: item.disabled || typeof item.onClick !== 'function' ? null : item.onClick,
 			};
 		}
-		const childMatch = findShortcutMenuHandler(item.items, canonicalActionId);
+		const childMatch = findShortcutMenuHandler([...(item.items ?? []), ...(item.nativePreferences ?? [])], canonicalActionId);
 		if (childMatch.matched) return childMatch;
 	}
 	return { matched: false, handler: null };

@@ -51,7 +51,7 @@ test('Framescaper receives none of the Soundscaper native audio tier', () => {
 test('every native surface is reached from an existing menu family and none is always-visible chrome', () => {
 	const { items } = build();
 	const ids = [...flatten(items.tools), ...flatten(items.effect)].map(({ id }) => id);
-	for (const surface of SOUNDSCAPER_NATIVE_SERVICE_SURFACES) {
+	for (const surface of SOUNDSCAPER_NATIVE_SERVICE_SURFACES.filter((id) => id !== 'native-effect-scan')) {
 		assert.ok(ids.includes(surface), `${surface} must be menu-reached`);
 	}
 	assert.deepEqual(Object.keys(items), ['tools', 'effect']);
@@ -60,8 +60,8 @@ test('every native surface is reached from an existing menu family and none is a
 test('a healthy tier opens each surface exactly once per click', () => {
 	const { items, opened } = build();
 	find(items.tools, 'native-audio-device').onClick?.();
-	find(items.effect, 'native-effect-scan').onClick?.();
-	assert.deepEqual(opened, ['native-audio-device', 'native-effect-scan']);
+	find(items.effect, 'native-effect-use').onClick?.();
+	assert.deepEqual(opened, ['native-audio-device', 'native-effect-use']);
 });
 
 test('the surfaces that turn the tier on or repair it stay reachable while it is off', () => {
@@ -94,7 +94,7 @@ test('a disabled entry says which problem it has, not merely that it is unavaila
 	assert.match(find(noBackend.items.tools, 'native-audio-device').disabledReason, /no native audio backend/iu);
 
 	const noFormat = build({}, { ...HEALTHY, enabledPluginFormats: [] });
-	assert.match(find(noFormat.items.effect, 'native-effect-scan').disabledReason, /no native effect format/iu);
+	assert.match(find(noFormat.items.effect, 'native-effect-use').disabledReason, /no native effect format/iu);
 });
 
 test('a disabled entry cannot be activated at all', () => {
@@ -105,10 +105,10 @@ test('a disabled entry cannot be activated at all', () => {
 	assert.deepEqual(opened, []);
 });
 
-test('scanning is refused while the project is read-only or editing is blocked', () => {
+test('effect use is refused while the project is read-only or editing is blocked', () => {
 	for (const overrides of [{ readOnly: true }, { editingBlocked: true }]) {
 		const { items } = build(overrides);
-		assert.equal(find(items.effect, 'native-effect-scan').disabled, true);
+		assert.equal(find(items.effect, 'native-effect-use').disabled, true);
 		assert.equal(find(items.effect, 'native-effect-manage').disabled, false,
 			'managing existing effects must survive a read-only project');
 	}
@@ -130,5 +130,5 @@ test('a group stays reachable while any child is, and the always-reachable ones 
 	assert.equal(items.tools[0].disabled, false, 'preferences keep the audio group reachable');
 	assert.equal(items.effect[0].disabled, false, 'manage keeps the effect group reachable');
 	assert.equal(find(items.tools, 'native-audio-device').disabled, true);
-	assert.equal(find(items.effect, 'native-effect-scan').disabled, true);
+	assert.equal(find(items.effect, 'native-effect-use').disabled, true);
 });

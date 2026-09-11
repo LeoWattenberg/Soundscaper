@@ -274,7 +274,7 @@ test('session controls disclose fallback and disable calibration when the exact 
 		}}
 		onClose={() => undefined}
 	/>);
-	assert.match(markup, /disabled="" data-native-audio-calibrate="true"/u);
+	assert.match(markup, /<button\b(?=[^>]*disabled="")(?=[^>]*data-native-audio-calibrate="true")[^>]*>/u);
 	assert.match(markup, /Calibration requires a bound duplex route/u);
 	assert.match(markup, /Web Core fallback is active after device loss/u);
 	assert.match(markup, /4096 frames transferred; 256 frames lost/u);
