@@ -70,7 +70,8 @@ test.describe('WP-0.3 browser timing-probe qualification', () => {
 			expect(source.characteristics.hasAlpha).toBe(fixture.kind === 'vfr');
 			expect(source.characteristics.videoCodec).toBe(fixture.kind === 'cfr' ? 'h264' : 'vp8');
 			expect(source.videoCodec).toBe(source.characteristics.videoCodec);
-			expect(source.characteristics.audioStreams).toBeNull();
+			// Both containers report no audio tracks; this is known, not unreported.
+			expect(source.characteristics.audioStreams).toEqual([]);
 			expect(source.characteristics.extractedAudioStreamIndex).toBeNull();
 			expect(source.characteristics.startTimecode).toBeNull();
 
