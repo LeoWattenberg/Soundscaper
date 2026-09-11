@@ -1,9 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
+import { promisify } from 'node:util';
 
 import baseManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import recipe from '../config/assistance-sherpa-win-arm64-build.json' with { type: 'json' };
@@ -17,6 +21,25 @@ import {
 import { desktopAssistanceNativeManifest } from '../scripts/lib/desktop-assistance-speech-runtime.mjs';
 
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
+const runFile = promisify(execFile);
+
+test('a Windows-style checkout preserves the authenticated Sherpa CMake recipe bytes', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'sherpa-windows-checkout-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const path = 'native/assistance-sherpa-node-api/CMakeLists.txt';
+	await mkdir(dirname(join(root, path)), { recursive: true });
+	await copyFile(new URL(`../${path}`, import.meta.url), join(root, path));
+	await copyFile(new URL('../.gitattributes', import.meta.url), join(root, '.gitattributes'));
+	const git = async (args) => runFile('git', [
+		'-c', 'core.autocrlf=true', '-c', 'core.eol=crlf', '-c', 'core.attributesFile=', ...args,
+	], { cwd: root, windowsHide: true });
+	await git(['init', '--quiet']);
+	await git(['add', '--', '.gitattributes', path]);
+	await rm(join(root, path));
+	await git(['checkout-index', '--force', '--', path]);
+	assert.equal(hash(await readFile(join(root, path))), recipe.cmakeSha256,
+		'Windows checkout must preserve the reviewed bytes, without normalizing or replacing the source digest');
+});
 
 function receipt() {
 	const provenance = {

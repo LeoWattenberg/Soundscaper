@@ -20,6 +20,7 @@ patches/**/*.patch text eol=lf
 /desktop/soundscaper-professional-linux-system-libraries.ts text eol=lf
 /desktop/soundscaper-professional-linux-system-runtime.ts text eol=lf
 /docs/production-licensing-policy.md text eol=lf
+/native/assistance-sherpa-node-api/** text eol=lf
 /native/framescaper-media-host/** text eol=lf
 /native/framescaper-openfx-host/** text eol=lf
 /native/os-audio-codec-host/** text eol=lf
