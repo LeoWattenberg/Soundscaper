@@ -19,3 +19,5 @@ project interchange.
 5. Pick a [how-to guide](/guides/) for the task in front of you — noise removal, fades, loudness, export and more.
 
 Open the browser editor at [soundscaper.org/en](https://soundscaper.org/en/).
+
+For desktop assistance, see [local processing, models, and plugins](/help/local-processing/).

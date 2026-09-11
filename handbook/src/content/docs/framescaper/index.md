@@ -35,3 +35,5 @@ against Soundscaper, and cover the audio side of a video project too.
 
 Open the browser editor at
 [soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+
+For desktop assistance, see [local processing, models, and plugins](/help/local-processing/).
