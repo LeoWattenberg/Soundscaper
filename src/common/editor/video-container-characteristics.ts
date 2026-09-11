@@ -98,7 +98,7 @@ async function readAudioStreams(
 	audioTracks: readonly InputAudioTrack[],
 	allTracks: readonly InputTrack[],
 ): Promise<readonly VideoSourceAudioStream[] | null> {
-	if (audioTracks.length === 0 || audioTracks.length > VIDEO_SOURCE_MAXIMUM_AUDIO_STREAMS) return null;
+	if (audioTracks.length > VIDEO_SOURCE_MAXIMUM_AUDIO_STREAMS) return null;
 	const streams = await Promise.all(audioTracks.map(async (track) => {
 		const [codec, channelCount, sampleRate, language] = await Promise.all([
 			track.getCodec(),

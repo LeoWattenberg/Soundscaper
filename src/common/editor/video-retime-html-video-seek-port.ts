@@ -129,9 +129,15 @@ export function createVideoRetimeHtmlVideoSeekPort(
 		const request = presentationRequest(requestValue);
 		if (request.signal.aborted) throw abortError();
 		const duration = video.duration;
-		if (!Number.isFinite(duration) || duration <= 0 || request.targetSeconds >= duration) {
+		if (!Number.isFinite(duration) || duration <= 0 || request.intervalStartSeconds >= duration) {
 			throw new RangeError('The retime preview target would be clamped by the media duration.');
 		}
+		// A final indexed frame may extend past the container's media duration.
+		// Seek inside their intersection; the frame callback must still prove
+		// that the decoded picture belongs to the original requested interval.
+		const interiorTarget = request.intervalStartSeconds + (duration - request.intervalStartSeconds) / 2;
+		const targetSeconds = request.targetSeconds < duration ? request.targetSeconds
+			: interiorTarget < duration ? interiorTarget : request.intervalStartSeconds;
 		// rVFC reports newly presented frames only. A repeated paused-frame
 		// request can therefore reuse the last compositor-authenticated result
 		// when both the exact request and the media element still name that frame.
@@ -147,12 +153,32 @@ export function createVideoRetimeHtmlVideoSeekPort(
 		return new Promise<Readonly<{ readonly mediaTime: number }>>((resolve, reject) => {
 			const seek = createActiveSeek(request, resolve, reject);
 			active = seek;
+			let retriedAtIntervalStart = false;
 			const requestPresentedFrame = (): void => {
 				const mayPrecedeTargetAssignment = !seek.seekIssued;
 				const frameCallbackId = requestFrame((_now, metadata) => {
-					if (seek.settled) return;
+					if (seek.settled || seek.failure !== null) return;
 					const mediaTime = metadata.mediaTime;
 					if (!mediaTimeInRequestedInterval(mediaTime, request)) {
+						// WebKit can snap an interior seek forward to the following
+						// frame. Retry once at the interval start after the seek drains;
+						// the replacement callback must authenticate the same interval.
+						if (seek.seekIssued && !video.seeking && !retriedAtIntervalStart
+							&& mediaTime >= request.intervalEndSeconds
+							&& targetSeconds > request.intervalStartSeconds) {
+							retriedAtIntervalStart = true;
+							cancelFrame(frameCallbackId);
+							seek.frameCallbackId = null;
+							seek.seekComplete = false;
+							try {
+								assertCurrent();
+								requestPresentedFrame();
+								video.currentTime = request.intervalStartSeconds;
+							} catch (error) {
+								requestFailure(seek, errorValue(error, 'The retime preview boundary seek failed.'));
+							}
+							return;
+						}
 						// The callback is armed before currentTime is assigned so a pending
 						// presentation may still report the preceding frame. Only that
 						// pre-assignment callback may be discarded; a replacement callback
@@ -206,7 +232,7 @@ export function createVideoRetimeHtmlVideoSeekPort(
 				assertCurrent();
 				if (seek.settled) return;
 				seek.seekIssued = true;
-				video.currentTime = request.targetSeconds;
+				video.currentTime = targetSeconds;
 			} catch (error) {
 				const failure = errorValue(error, 'The retime preview seek setup failed.');
 				if (seek.seekIssued && video.seeking) requestFailure(seek, failure);

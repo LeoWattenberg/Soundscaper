@@ -49,7 +49,7 @@ test('the container demuxer reads the pinned CFR MP4 timing exactly', async () =
 		hasAlpha: false,
 		videoCodec: 'h264',
 		colour: { primaries: null, transfer: null, matrix: null, range: null },
-		audioStreams: null,
+		audioStreams: [],
 		extractedAudioStreamIndex: null,
 		startTimecode: null,
 	});
@@ -84,7 +84,7 @@ test('the container demuxer reads the pinned irregular WebM timing exactly', asy
 		hasAlpha: true,
 		videoCodec: 'vp8',
 		colour: { primaries: null, transfer: null, matrix: null, range: null },
-		audioStreams: null,
+		audioStreams: [],
 		extractedAudioStreamIndex: null,
 		startTimecode: null,
 	});

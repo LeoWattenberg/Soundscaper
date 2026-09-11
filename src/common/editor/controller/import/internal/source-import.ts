@@ -248,6 +248,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 					file: canonicalVideoFile,
 					projectSampleRate: sampleRate,
 					durationSeconds: timelineDurationFrames / sampleRate,
+					hasAudio: timingProbe.characteristics.audioStreams?.some(() => true),
 					signal: importOptions.signal,
 					inspectEncodedSampleRate: inspectEncodedAudioSampleRate,
 					decodeNative: (encoded) => engine.decodeAudioData(encoded),
