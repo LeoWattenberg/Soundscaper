@@ -4,6 +4,8 @@ const CD_FRAMES_PER_SECOND = 75;
 const DEFAULT_MAX_INPUT_CHARS = 16 * 1024 * 1024;
 const DEFAULT_MAX_CUES = 4_096;
 
+export type CueImportDestination = 'markers' | 'labels';
+
 export interface AudioEditorCuePoint {
 	readonly number: number;
 	readonly title: string;

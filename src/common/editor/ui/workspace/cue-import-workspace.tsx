@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent, type RefObj
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 
-import type { CueImportDestination } from '../../controller/edit/internal/label-service.ts';
+import type { CueImportDestination } from '../../cue-import.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 
 interface CueImportController {

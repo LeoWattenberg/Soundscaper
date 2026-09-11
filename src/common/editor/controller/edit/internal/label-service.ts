@@ -5,7 +5,10 @@ import {
 	createAddTimelineAnnotationCommand,
 } from '../../../commands/factories.ts';
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
-import { parseAudioEditorCueSheet } from '../../../cue-import.ts';
+import {
+	parseAudioEditorCueSheet,
+	type CueImportDestination,
+} from '../../../cue-import.ts';
 import { parseAudioEditorLabels, serializeAudioEditorLabels } from '../../../label-io.js';
 import { AUDIO_EDITOR_TIMELINE_ANNOTATION_LIMITS } from '../../../timeline-annotation.ts';
 import {
@@ -85,8 +88,6 @@ export interface LabelImportResult {
 	readonly warnings: readonly unknown[];
 	readonly trackId: string;
 }
-
-export type CueImportDestination = 'markers' | 'labels';
 
 export interface CueImportResult {
 	readonly destination: CueImportDestination;
