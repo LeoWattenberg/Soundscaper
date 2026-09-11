@@ -53,6 +53,17 @@ test('desktop standalone import reads a platform-typed AIFF on the maintained PC
 	);
 });
 
+test('browser import admits AIFF without requiring desktop main audio', async () => {
+	const descriptor = await inspectDesktopStandalonePcm(
+		new File([aiffBytes()], 'browser.aiff', { type: 'audio/aiff' }), {}, null,
+	) as { container: string; frameCount: number; channelCount: number } | null;
+	assert.ok(descriptor);
+	assert.equal(descriptor.container, 'aiff');
+	assert.equal(descriptor.frameCount, 5);
+	assert.equal(descriptor.channelCount, 2);
+	assert.equal(await inspectDesktopStandalonePcm({}, {}, { container: 'wav' }), null);
+});
+
 test('incremental PCM import stores the canonical AIFF MIME type for a platform-typed file', async () => {
 	const beginMimeTypes: unknown[] = [];
 	const sourceMimeTypes: unknown[] = [];

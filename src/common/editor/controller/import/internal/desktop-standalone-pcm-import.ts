@@ -4,14 +4,13 @@ import { inspectAiffBlobPcm } from '../../../aiff-pcm-chunk-reader.ts';
 import { isDesktopMainAudioCodecRuntime } from '../../../desktop-main-audio-codec-runtime-marker.ts';
 import { maintainedAiffMimeType } from './aiff-file-identity.ts';
 
-/** Admit only maintained PCM identities when the renderer is bound to desktop main audio. */
+/** Use the maintained AIFF reader on every platform; retain desktop WAV admission. */
 export async function inspectDesktopStandalonePcm(
 	file: unknown,
 	codecRuntime: unknown,
 	wavDescriptor: unknown,
 ): Promise<unknown | null> {
-	if (!isDesktopMainAudioCodecRuntime(codecRuntime)) return null;
-	if (wavDescriptor) return wavDescriptor;
+	if (wavDescriptor) return isDesktopMainAudioCodecRuntime(codecRuntime) ? wavDescriptor : null;
 	if (!maintainedAiffMimeType(file)) return null;
 	return inspectAiffBlobPcm(file);
 }

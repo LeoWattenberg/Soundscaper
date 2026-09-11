@@ -77,7 +77,12 @@ export function createImportComposition(dependencies: ImportCompositionDependenc
 		cacheSourceBuffer: dependencies.cacheSourceBuffer,
 		canonicalizeBuffer,
 		commit: dependencies.commit,
-		convertLegacyAupToProject: deferredArchiveRuntime.convertLegacyAupToProject,
+		convertLegacyAupToProject: async (...args) => {
+			const decoded = await deferredArchiveRuntime.convertLegacyAupToProject(...args);
+			return dependencies.adaptAudacityProject
+				? { ...decoded, project: await dependencies.adaptAudacityProject(decoded.project) }
+				: decoded;
+		},
 		copy,
 		createAddClipCommand,
 		createAddSourceCommand,

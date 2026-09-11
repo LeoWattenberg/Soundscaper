@@ -138,7 +138,12 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 				fileName: String(file.name), media, createStableId: runtime.createStableId,
 			});
 			const created = createCurrentAudioEditorProject(plan.project as never);
-			importedProject = runtime.loadProject(created).project;
+			// Both interchange readers produce the shared audio document. Apply the
+			// product's import adapter before its family-qualified loader sees it.
+			importedProject = runtime.adaptAudacityProject
+				? await runtime.adaptAudacityProject(created)
+				: runtime.loadProject(created).project;
+			assertReady();
 			for (const binding of plan.media) {
 				const entry = decoded.get(binding.path);
 				if (!entry) continue;

@@ -92,6 +92,7 @@ export type ImportCompositionFfmpeg =
 	}>;
 
 export interface ImportCompositionDependencies {
+	readonly adaptAudacityProject?: (value: unknown) => unknown;
 	readonly state: ImportCompositionState;
 	readonly copy: ImportCompositionCopy;
 	readonly lifetime: EditorControllerLifetime;

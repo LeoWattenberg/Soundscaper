@@ -10,6 +10,8 @@ import { parseDawprojectDocument } from '../src/common/editor/dawproject-import.
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
 import { createFixture } from './helpers/native-project-service-fixture.ts';
+import { importSoundscaperAudacityProject } from '../src/soundscaper/editor-audacity-project-import.ts';
+import { validateSoundscaperProject } from '../src/soundscaper/editor-project-validation.ts';
 
 const SAMPLE_RATE = 48_000;
 const FRAMES = 1_000;
@@ -87,6 +89,33 @@ test('a file that is not a DAWproject is refused before anything is read', async
 	Object.defineProperty(wrong, 'name', { value: 'song.aup4' });
 	await assert.rejects(service.openDawproject(wrong as Blob & { name: string }), TypeError);
 	assert.deepEqual(fixture.switched, []);
+});
+
+test('DAWproject import promotes decoded audio before entering the product loader', async () => {
+	const { store } = writerCapture();
+	const fixture = createFixture({
+		store,
+		adaptAudacityProject: importSoundscaperAudacityProject,
+		loadProject: () => { throw new Error('Unqualified documents must not enter the product loader.'); },
+	});
+	const result = await createNativeProjectService(fixture.runtime).openDawproject(await dawprojectFile());
+	assert.ok(result);
+	validateSoundscaperProject(result.project);
+	assert.equal(result.project.schemaFamily, 'soundscaper');
+	assert.equal(result.project.sources.length, 1);
+	assert.deepEqual(fixture.switched, [result.project.id]);
+});
+
+test('changing projects during adaptation cancels DAWproject publication', async () => {
+	const { store, written } = writerCapture();
+	const fixture = createFixture({ store, adaptAudacityProject: async (value) => {
+		fixture.replaceProject('other-project');
+		return importSoundscaperAudacityProject(value);
+	} });
+	await assert.rejects(createNativeProjectService(fixture.runtime).openDawproject(await dawprojectFile()));
+	assert.deepEqual(written, []);
+	assert.deepEqual(fixture.switched, []);
+	assert.equal(fixture.runtime.getProject()?.id, 'other-project');
 });
 
 test('a failed switch deletes the sources the open persisted and clears the importing flag', async () => {

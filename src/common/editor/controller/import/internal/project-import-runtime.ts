@@ -25,7 +25,10 @@ export interface ProjectImportRuntime extends Pick<ImportCompositionDependencies
 	readonly captureProject: () => EditorProjectToken;
 	readonly assertProject: (token: EditorProjectToken) => void;
 	readonly importVideoFile: ImportVideoFile;
-	readonly convertLegacyAupToProject: typeof deferredArchiveRuntime.convertLegacyAupToProject;
+	readonly convertLegacyAupToProject: (
+		...args: Parameters<typeof deferredArchiveRuntime.convertLegacyAupToProject>
+	) => Promise<Omit<Awaited<ReturnType<typeof deferredArchiveRuntime.convertLegacyAupToProject>>, 'project'>
+		& { readonly project: unknown }>;
 	readonly decodeLegacyAupProject: typeof deferredArchiveRuntime.decodeLegacyAupProject;
 	readonly audioBufferChannels: typeof audioBufferChannels;
 	readonly bufferFromChannels: typeof bufferFromChannels;
