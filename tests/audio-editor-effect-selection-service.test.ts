@@ -14,7 +14,11 @@ const PROJECT_IDENTITY = Object.freeze({
 	schemaVersion: 1 as const,
 });
 
-function createHarness(options: Readonly<{ genericRangeErrors?: boolean }> = {}) {
+function createHarness(options: Readonly<{
+	applyEffectsToAllAudio?: boolean;
+	audioTrackChannelCounts?: Readonly<Record<string, number>>;
+	genericRangeErrors?: boolean;
+}> = {}) {
 	let project: EffectSelectionProject = {
 		...PROJECT_IDENTITY,
 		id: 'project-a',
@@ -36,6 +40,7 @@ function createHarness(options: Readonly<{ genericRangeErrors?: boolean }> = {})
 		selectedTrackId: 'track-a',
 		selectedClipId: 'clip-a',
 		audacityEffectType: 'compressor',
+		preferences: { editing: { applyEffectsToAllAudio: options.applyEffectsToAllAudio ?? false } },
 	};
 	let blocked = false;
 	const commits: unknown[] = [];
@@ -53,11 +58,14 @@ function createHarness(options: Readonly<{ genericRangeErrors?: boolean }> = {})
 			v2Required: 'Version 2 required',
 		},
 		getProject: () => project,
-		activeSelection: () => project.selection ?? null,
+		activeSelection: () => project.selection && project.selection.endFrame > project.selection.startFrame
+			? project.selection
+			: null,
 		resolveEditingSelection: (_value, options) => options.selectedClipId
 			? { kind: 'clips', clipIds: [options.selectedClipId] }
 			: null,
-		audacitySelectionChannelCount: (_value, trackId) => trackId === 'track-a' ? 2 : 0,
+		audacitySelectionChannelCount: (_value, trackId) => options.audioTrackChannelCounts?.[trackId]
+			?? (trackId === 'track-a' ? 2 : 0),
 		audioTrackChannelCount: (_value, _track, fallback) => fallback,
 		selectedTracksTimeRange: () => ({ startFrame: 10, endFrame: 20 }),
 		projectSampleRate: () => project.sampleRate,
@@ -149,6 +157,140 @@ test('target resolution rejects missing focus, silent ranges, and invalid clip t
 		selection: null, master: { effects: [] }, mixer: { groups: [], sends: [], routes: {} },
 	});
 	assert.deepEqual(harness.service.audacityEffectTargets(), []);
+});
+
+test('the no-selection preference targets every audible audio track over the project audio extent', () => {
+	const harness = createHarness({
+		applyEffectsToAllAudio: true,
+		audioTrackChannelCounts: { 'track-a': 2, 'track-b': 1, silent: 0 },
+	});
+	harness.state.selectedTrackId = null;
+	harness.state.selectedClipId = null;
+	harness.setProject({
+		...PROJECT_IDENTITY, id: 'project-a', sampleRate: 48_000, title: 'Project',
+		tracks: [
+			{ id: 'track-a', name: 'A', type: 'audio', clipIds: ['clip-a'] },
+			{ id: 'track-b', name: 'B', type: 'audio', clipIds: ['clip-b'] },
+			{ id: 'silent', name: 'Silent', type: 'audio', clipIds: [] },
+			{ id: 'labels', name: 'Labels', type: 'label', clipIds: [] },
+		],
+		clips: [
+			{
+				id: 'clip-a', kind: 'audio', sourceId: 'source-a', timelineStartFrame: 100,
+				sourceStartFrame: 0, sourceDurationFrames: 200, durationFrames: 200,
+			},
+			{
+				id: 'clip-b', kind: 'audio', sourceId: 'source-b', timelineStartFrame: 400,
+				sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100,
+			},
+		],
+		selection: null,
+	});
+
+	assert.deepEqual(harness.service.audacityEffectTargets().map((target) => ({
+		trackId: target.track.id,
+		startFrame: target.startFrame,
+		endFrame: target.endFrame,
+		durationFrames: target.durationFrames,
+	})), [
+		{ trackId: 'track-a', startFrame: 0, endFrame: 500, durationFrames: 500 },
+		{ trackId: 'track-b', startFrame: 0, endFrame: 500, durationFrames: 500 },
+	]);
+	assert.deepEqual(
+		harness.service.audacityEffectTargets({ includeSilentTracks: true })
+			.map((target) => [target.track.id, target.hasAudio]),
+		[['track-a', true], ['track-b', true], ['silent', false]],
+	);
+});
+
+test('the no-selection preference expands collapsed selected tracks across the project', () => {
+	const harness = createHarness({
+		applyEffectsToAllAudio: true,
+		audioTrackChannelCounts: { 'track-a': 2, 'track-b': 1 },
+	});
+	harness.state.selectedTrackId = null;
+	harness.state.selectedClipId = null;
+	const project = harness.getProject();
+	harness.setProject({
+		...project,
+		tracks: [
+			{ id: 'track-a', name: 'A', type: 'audio', clipIds: ['clip-a'] },
+			{ id: 'track-b', name: 'B', type: 'audio', clipIds: ['clip-b'] },
+		],
+		clips: [
+			...project.clips,
+			{
+				id: 'clip-b', kind: 'audio', sourceId: 'source-b', timelineStartFrame: 500,
+				sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100,
+			},
+		],
+		selection: { startFrame: 250, endFrame: 250, trackIds: ['track-b'], clipIds: [] },
+	});
+
+	assert.deepEqual(harness.service.audacityEffectTargets().map((target) => ({
+		trackId: target.track.id,
+		startFrame: target.startFrame,
+		endFrame: target.endFrame,
+	})), [{ trackId: 'track-b', startFrame: 0, endFrame: 600 }]);
+});
+
+test('the no-selection preference applies a trackless time selection to all audible audio tracks', () => {
+	const harness = createHarness({
+		applyEffectsToAllAudio: true,
+		audioTrackChannelCounts: { 'track-a': 2, 'track-b': 1, silent: 0 },
+	});
+	harness.state.selectedTrackId = null;
+	harness.state.selectedClipId = null;
+	const project = harness.getProject();
+	harness.setProject({
+		...project,
+		tracks: [
+			{ id: 'track-a', name: 'A', type: 'audio', clipIds: ['clip-a'] },
+			{ id: 'track-b', name: 'B', type: 'audio', clipIds: ['clip-b'] },
+			{ id: 'silent', name: 'Silent', type: 'audio', clipIds: [] },
+		],
+		clips: [
+			...project.clips,
+			{
+				id: 'clip-b', kind: 'audio', sourceId: 'source-b', timelineStartFrame: 100,
+				sourceStartFrame: 0, sourceDurationFrames: 200, durationFrames: 200,
+			},
+		],
+		selection: { startFrame: 120, endFrame: 160, trackIds: [], clipIds: [] },
+	});
+
+	assert.deepEqual(harness.service.audacityEffectTargets().map((target) => ({
+		trackId: target.track.id,
+		startFrame: target.startFrame,
+		endFrame: target.endFrame,
+	})), [
+		{ trackId: 'track-a', startFrame: 120, endFrame: 160 },
+		{ trackId: 'track-b', startFrame: 120, endFrame: 160 },
+	]);
+});
+
+test('disabling apply-to-all preserves empty targets when nothing is selected', () => {
+	const harness = createHarness({
+		applyEffectsToAllAudio: false,
+		audioTrackChannelCounts: { 'track-a': 2, 'track-b': 1 },
+	});
+	harness.state.selectedTrackId = null;
+	harness.state.selectedClipId = null;
+
+	assert.deepEqual(harness.service.audacityEffectTargets(), []);
+});
+
+test('effects that need selection-specific context reject the implicit all-audio target', () => {
+	const harness = createHarness({
+		applyEffectsToAllAudio: true,
+		audioTrackChannelCounts: { 'track-a': 2, 'track-b': 1 },
+	});
+	harness.state.selectedTrackId = null;
+	harness.state.selectedClipId = null;
+	for (const type of ['audacity-noise-reduction', 'audacity-auto-duck']) {
+		harness.state.audacityEffectType = type;
+		assert.deepEqual(harness.service.audacityEffectTargets(), [], type);
+	}
 });
 
 test('multi-track range resolution preserves silent tracks only when requested', () => {

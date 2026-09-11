@@ -4,6 +4,10 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { createAudioEditorFileService } from '../../common/editor/file-service.js';
 import { BoundAudioEditorApp } from '../../common/editor/ui/AudioEditorApp.jsx';
+import { createMonoConversionConfirmation, type MonoConversionConfirmation } from
+	'../../common/editor/ui/dialogs/mono-conversion-confirmation.ts';
+import { createDeleteBehaviorConfirmation, type DeleteBehaviorConfirmation } from
+	'../../common/editor/ui/dialogs/delete-behavior-confirmation.ts';
 import { createLocalAssistanceLazySemanticSearchSourceV1 } from
 	'../../common/editor/ui/local-assistance-lazy-semantic-search-source.ts';
 import { bundledCatalogForLocale, resolveCatalog } from '../../common/i18n/runtime.js';
@@ -22,6 +26,8 @@ const RUNTIME_PROJECTORS = new WeakMap<object, SoundscaperProjectRuntimeProjecti
 const RUNTIME_ASSISTANCE_SEARCH = new WeakMap<object, ReturnType<
 	typeof createLocalAssistanceLazySemanticSearchSourceV1
 >>();
+const RUNTIME_MONO_CONFIRMATIONS = new WeakMap<object, MonoConversionConfirmation>();
+const RUNTIME_DELETE_BEHAVIOR_CONFIRMATIONS = new WeakMap<object, DeleteBehaviorConfirmation>();
 const PRESENTATION_FIELDS = ['locale', 'copy'] as const;
 
 export interface SoundscaperWebEditorRuntimePresentation {
@@ -53,19 +59,27 @@ export async function createSoundscaperWebEditorRuntime(
 			linkedVideoOriginalPort: fileService.linkedVideoOriginalPort,
 		},
 	});
+	const monoConversionConfirmation = createMonoConversionConfirmation();
+	const deleteBehaviorConfirmation = createDeleteBehaviorConfirmation();
 	try {
 		const controller = createSoundscaperAudioEditorController(environment, {
 			locale: presentation.locale,
 			copy: presentation.copy,
 			fileService,
+			confirmMonoConversion: monoConversionConfirmation.confirm,
+			confirmDeleteBehavior: deleteBehaviorConfirmation.confirm,
 		});
 		let disposal: Promise<void> | null = null;
 		const dispose = (): Promise<void> => {
-			disposal ??= disposeRuntime(controller, environment);
+			disposal ??= disposeRuntime(
+				controller, environment, monoConversionConfirmation, deleteBehaviorConfirmation,
+			);
 			return disposal;
 		};
 		const runtime = Object.freeze({ controller, fileService, dispose });
 		RUNTIME_PROJECTORS.set(runtime, environment.runtime.projectForRuntimeConsumers);
+		RUNTIME_MONO_CONFIRMATIONS.set(runtime, monoConversionConfirmation);
+		RUNTIME_DELETE_BEHAVIOR_CONFIRMATIONS.set(runtime, deleteBehaviorConfirmation);
 		if (fileService.isDesktop) RUNTIME_ASSISTANCE_SEARCH.set(runtime,
 			createLocalAssistanceLazySemanticSearchSourceV1({
 				bridgeScope: fileService.bridge,
@@ -73,6 +87,8 @@ export async function createSoundscaperWebEditorRuntime(
 			}));
 		return runtime;
 	} catch (error) {
+		monoConversionConfirmation.dispose();
+		deleteBehaviorConfirmation.dispose();
 		try {
 			await environment.close();
 		} catch (cleanupError) {
@@ -163,6 +179,8 @@ export default function SoundscaperAudioEditorBootstrap({
 			fileService={runtime.fileService}
 			projectForRuntimeConsumers={runtimeProjector(runtime)}
 			assistanceSearchSource={RUNTIME_ASSISTANCE_SEARCH.get(runtime) ?? null}
+			monoConversionConfirmation={runtimeMonoConversionConfirmation(runtime)}
+			deleteBehaviorConfirmation={runtimeDeleteBehaviorConfirmation(runtime)}
 			crossProductHandoffAvailable={true}
 		/>
 	</Suspense>;
@@ -180,11 +198,31 @@ function runtimeProjector(
 	return projector;
 }
 
+function runtimeMonoConversionConfirmation(
+	runtime: Readonly<SoundscaperWebEditorRuntime>,
+): MonoConversionConfirmation {
+	const confirmation = RUNTIME_MONO_CONFIRMATIONS.get(runtime);
+	if (!confirmation) throw new TypeError('An exact Soundscaper baseline web runtime is required.');
+	return confirmation;
+}
+
+function runtimeDeleteBehaviorConfirmation(
+	runtime: Readonly<SoundscaperWebEditorRuntime>,
+): DeleteBehaviorConfirmation {
+	const confirmation = RUNTIME_DELETE_BEHAVIOR_CONFIRMATIONS.get(runtime);
+	if (!confirmation) throw new TypeError('An exact Soundscaper baseline web runtime is required.');
+	return confirmation;
+}
+
 async function disposeRuntime(
 	controller: SoundscaperWebController,
 	environment: Readonly<SoundscaperEditorProjectEnvironment>,
+	monoConversionConfirmation: MonoConversionConfirmation,
+	deleteBehaviorConfirmation: DeleteBehaviorConfirmation,
 ): Promise<void> {
 	let failure: unknown;
+	monoConversionConfirmation.dispose();
+	deleteBehaviorConfirmation.dispose();
 	try {
 		await controller.dispose();
 	} catch (error) {

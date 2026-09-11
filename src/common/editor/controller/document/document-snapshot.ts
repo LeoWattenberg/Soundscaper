@@ -26,6 +26,7 @@ interface SnapshotSelection extends Readonly<Record<string, unknown>> {
 export interface SnapshotProject extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly selection?: SnapshotSelection | null;
+	readonly tracks?: readonly Readonly<{ readonly id: string }>[];
 }
 
 interface SnapshotProjectSummary extends Readonly<Record<string, unknown>> {
@@ -84,6 +85,7 @@ interface CurrentTabMetadata {
 	readonly featureRequirementsAudioRenderedFallback?: unknown;
 	readonly featureRequirementsVideoEffectPlaybackBypass?: unknown;
 	readonly featureRequirementsVideoRenderedFallback?: unknown;
+	readonly trackChannelHeightRatios?: unknown;
 }
 
 export interface EditorDocumentSnapshotState {
@@ -127,6 +129,7 @@ export interface EditorDocumentSnapshotState {
 	readonly pinnedPlayhead: boolean;
 	readonly playbackOnRulerClick: boolean;
 	readonly pixelsPerSecond: number;
+	readonly timelineViewportWidth: number;
 	readonly timelineWidth: number;
 	readonly autoFitTrackHeight: boolean;
 	readonly sampleEditMode: unknown;
@@ -290,8 +293,13 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 			pinnedPlayhead: state.pinnedPlayhead,
 			playbackOnRulerClick: state.playbackOnRulerClick,
 			pixelsPerSecond: state.pixelsPerSecond,
+			viewportWidth: state.timelineViewportWidth,
 			width: state.timelineWidth,
 			autoFitTrackHeight: state.autoFitTrackHeight,
+			trackChannelHeightRatios: snapshotTrackChannelHeightRatios(
+				currentProject,
+				currentTabMetadata.trackChannelHeightRatios,
+			),
 		}),
 		sampleEdit: Object.freeze({
 			available: runtime.sampleEditingAvailable(),
@@ -356,6 +364,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 			controlTrackId: state.audacityControlTrackId,
 			noiseProfileReady: Boolean(state.audacityNoiseProfile),
 			canRepeatLast: Boolean(state.lastAudacityEffect),
+			lastSelectionType: lastSelectionEffectType(state.lastAudacityEffect),
 			previewing: Boolean(state.audacityPreviewSource),
 			presets: runtime.getEffectPresets(),
 		}),
@@ -421,6 +430,26 @@ function materializeSnapshotValue<Value>(
 		copy[key] = materializeSnapshotValue((value as Record<string, unknown>)[key], seen);
 	}
 	return Object.freeze(copy) as Value;
+}
+
+function lastSelectionEffectType(value: unknown): string | null {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+	const type = (value as Readonly<{ type?: unknown }>).type;
+	return typeof type === 'string' && type ? type : null;
+}
+
+function snapshotTrackChannelHeightRatios(
+	project: SnapshotProject | null,
+	value: unknown,
+): Readonly<Record<string, number>> {
+	if (!project?.tracks || !value || typeof value !== 'object' || Array.isArray(value)) {
+		return Object.freeze({});
+	}
+	const trackIds = new Set(project.tracks.map(({ id }) => id));
+	return Object.freeze(Object.fromEntries(Object.entries(value).filter(([trackId, ratio]) => (
+		trackIds.has(trackId) && typeof ratio === 'number' && Number.isFinite(ratio)
+		&& ratio > 0 && ratio < 1
+	))));
 }
 
 /**

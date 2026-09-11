@@ -10,6 +10,7 @@ function fixture(productId: string, values: Readonly<Record<string, unknown>>) {
 	const service = createProjectSessionService({
 		productId, recentProjectsSettingKey: `${productId}:recent`, lastProjectSettingKey: `${productId}:last`,
 		getRecentProjectIds: () => [], setRecentProjectIds() {}, getActiveProjectId: () => null,
+		getActiveProject: () => null,
 		state: { selectedTrackId: null, selectedClipId: null, selectedAnnotationId: null },
 		findTrack: () => null, findClip: () => null, getTabs: () => [], updateProjectMetadata() {},
 		async loadSetting(key, fallback) { reads.push(key); return Object.hasOwn(values, key) ? values[key] : fallback; },

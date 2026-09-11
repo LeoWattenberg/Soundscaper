@@ -97,6 +97,23 @@ test('controller action facade enforces product capabilities at invocation', () 
 	assert.throws(() => addEffect(), /does not support audioEffects/u);
 });
 
+test('timeline actions retain the per-project stereo channel height ratio owner', () => {
+	const calls: unknown[][] = [];
+	const base = createActionFacadeRuntime();
+	const runtime = new Proxy(base, {
+		get(target, name, receiver) {
+			if (name === 'setTrackChannelHeightRatio') return (...args: unknown[]) => {
+				calls.push(args);
+				return args[1];
+			};
+			return Reflect.get(target, name, receiver);
+		},
+	});
+	const result = createGroupedEditorActions(runtime).timeline.setChannelHeightRatio('stereo', 0.65);
+	assert.equal(result, 0.65);
+	assert.deepEqual(calls, [['stereo', 0.65]]);
+});
+
 test('recording actions expose one capability-guarded sound activation preference group', async () => {
 	const calls: unknown[][] = [];
 	const base = createActionFacadeRuntime();

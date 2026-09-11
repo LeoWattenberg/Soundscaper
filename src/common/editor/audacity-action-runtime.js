@@ -5,6 +5,7 @@ import { createAudacityClipPitchActionRuntime, createAudacityToolActionRuntime }
 import { advanceAudacityTrackSelection, audacityToggledTrackSelection, audacityTrackRangeSelection } from './audacity-track-selection.ts';
 import { documentationUrl } from './documentation-links.ts';
 import { createTransportActionGroup } from './audacity-action-runtime-transport.js';
+import { applyAudacityZoomToggle } from './audacity-zoom-toggle-runtime.ts';
 import { resolveSelectionRange } from './selection-range.ts';
 const STAFFPAD_EFFECT_TYPES = Object.freeze({
 	changePitch: 'audacity-change-pitch',
@@ -187,7 +188,6 @@ export function createAudacityActionRuntime(controller, options = {}) {
 	const cursorActions = createAudacityCursorActionRuntime(controller, project, setSelection, nudgeFrame);
 	const navigateItem = (action) => import('./audacity-shortcut-actions/item-navigation.ts')
 		.then(({ applyAudacityItemNavigationAction }) => applyAudacityItemNavigationAction(action, controller));
-	let alternateZoom = 240;
 	function openEffect(type = null) {
 		if (type) controllerActions.effects.setSelectionType(type);
 		return openSurface('selection-effect', type ? { type } : {});
@@ -382,10 +382,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 				return controllerActions.timeline.setZoom(960 / ((selection.endFrame - selection.startFrame) / sampleRate));
 			},
 			zoomToggle: () => {
-				const current = snapshot().timeline?.pixelsPerSecond || 120;
-				const target = Math.abs(current - 120) < 0.001 ? alternateZoom : 120;
-				alternateZoom = current;
-				return controllerActions.timeline.setZoom(target);
+				return applyAudacityZoomToggle(controller, ui, selectedClipId());
 			},
 			fitHeight: controllerActions.timeline.fitHeight,
 			centerOnPlayhead: () => ui.issue('center-playhead'),

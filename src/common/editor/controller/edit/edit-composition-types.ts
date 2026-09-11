@@ -13,6 +13,16 @@ import type { ControllerProjectRuntime, ControllerRuntimeHistory, ControllerRunt
 import type { bufferFromChannels } from '../source/source-audio.ts';
 import type { EditorTaskProgressCoordinator } from '../shared/task-progress.ts';
 import type { generateWaveformPeaks } from '../source/waveform-analysis.ts';
+import type { AudioEditorEditingPreferences } from '../../editing-preferences.ts';
+import type { PasteMonoConversionPlan } from './paste-mono-conversion-policy.ts';
+import type {
+	PasteMonoConfirmationDecision,
+	PasteMonoDerivedSourcesPort,
+} from './paste-mono-conversion-service.ts';
+import type {
+	DeleteBehaviorConfirmationDecision,
+	DeleteBehaviorConfirmationRequest,
+} from '../../delete-behavior-onboarding.ts';
 
 /** The document identity the label and generator services read. */
 export type EditCompositionProject =
@@ -30,6 +40,7 @@ export type EditCompositionState<History extends ControllerRuntimeHistory = Cont
 	& AudioGeneratorServiceDependencies['state']
 	& {
 		history: History | null;
+		preferences?: Readonly<{ readonly editing?: Partial<AudioEditorEditingPreferences> }>;
 		videoEffectGestures: Map<string, unknown>;
 	};
 
@@ -41,9 +52,21 @@ export type EditCompositionCopy =
 	& Parameters<typeof generateWaveformPeaks>[1]
 	& Readonly<{
 		readonly generatingAudio: string;
+		readonly editingDeleteBehavior: string;
+		readonly monoConversionPrompt: string;
+		readonly monoConversionTitle: string;
 		readonly timeSelectionRequired: string;
 		readonly labeledAudioRequired: string;
 	}>;
+
+export interface EditMonoConversionConfirmationRequest {
+	readonly title: string;
+	readonly body: string;
+	readonly plan: Readonly<PasteMonoConversionPlan>;
+	readonly signal?: AbortSignal;
+}
+
+export type EditDeleteBehaviorConfirmationRequest = DeleteBehaviorConfirmationRequest;
 
 export interface EditCompositionRuntime<History extends ControllerRuntimeHistory> extends ControllerEditClipboardRuntimeBindings {
 	readonly prepareEditClipboardDescriptor: ControllerProjectRuntime['prepareEditClipboardDescriptor'];
@@ -69,6 +92,14 @@ export interface EditCompositionDependencies<History extends ControllerRuntimeHi
 		& AudioGeneratorServiceDependencies['sourceBuffers'];
 	readonly sourcePeaks: AudioGeneratorServiceDependencies['sourcePeaks'];
 	readonly sourceChunkFrames: number;
+	readonly derivedSources: PasteMonoDerivedSourcesPort;
+	readonly confirmMonoConversion: (
+		request: Readonly<EditMonoConversionConfirmationRequest>,
+	) => PromiseLike<PasteMonoConfirmationDecision> | PasteMonoConfirmationDecision;
+	readonly confirmDeleteBehavior: (
+		request: Readonly<EditDeleteBehaviorConfirmationRequest>,
+	) => PromiseLike<DeleteBehaviorConfirmationDecision> | DeleteBehaviorConfirmationDecision;
+	readonly updatePreferences: (patch: Readonly<Record<string, unknown>>) => PromiseLike<unknown> | unknown;
 	readonly taskProgress: Pick<EditorTaskProgressCoordinator, 'run'>;
 	readonly setEffectProcessing: (processing: boolean) => void;
 	/** The product's own label saver, when it has one, and the file service the default saver uses. */

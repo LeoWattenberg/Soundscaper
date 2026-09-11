@@ -21,7 +21,7 @@ export function stateFixture(
 		recordingPoolSources: [], audacityEffectProcessing: false, exportAbort: null,
 		timelineView: 'waveform', showRms: false, showVerticalRulers: true,
 		scrollViewToPlayhead: true, pinnedPlayhead: false, playbackOnRulerClick: true,
-		pixelsPerSecond: 120, timelineWidth: 1_200, autoFitTrackHeight: true,
+		pixelsPerSecond: 120, timelineViewportWidth: 960, timelineWidth: 1_200, autoFitTrackHeight: true,
 		sampleEditMode: null, sampleEditProcessing: false, history: null, clipboard: null,
 		status: { message: 'Ready', state: 'info' }, saveState: 'saved',
 		storageEstimate: createInitialStorageCapacitySnapshot(), analysisResult: null,

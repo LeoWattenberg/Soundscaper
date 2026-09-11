@@ -13,13 +13,14 @@ import type { EffectsCompositionState } from './effects-composition-types.ts';
 type SharedEffectsCompositionField =
 	| 'selectedTrackId'
 	| 'selectedClipId'
+	| 'preferences'
 	| 'readOnly'
 	| 'writeAuthorityGeneration';
 
 /**
- * Mutable state owned by the effects domain. Selection and write authority
- * remain workspace concerns that the effects composition receives read access
- * to through its scoped state view.
+ * Mutable state owned by the effects domain. Selection, preferences, and write
+ * authority remain workspace concerns that the effects composition receives
+ * read access to through its scoped state view.
  */
 export type ControllerEffectsState<EffectPresets> = Omit<
 	EffectsCompositionState,

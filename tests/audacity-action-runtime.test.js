@@ -144,11 +144,28 @@ test('every implemented manifest action resolves on the concrete editor runtime'
 		assert.equal(controller.getSnapshot().selectedTrackId, mixerTrackId);
 		runtime.actions.timeline.setMusicalRuler();
 		assert.equal(controller.getSnapshot().project.timeDisplay.format, 'beats+measures');
+		controller.actions.timeline.setViewportWidth(960);
 		controller.actions.timeline.setZoom(120);
 		runtime.actions.timeline.zoomToggle();
-		assert.equal(controller.getSnapshot().timeline.pixelsPerSecond, 240);
+		assert.equal(controller.getSnapshot().timeline.pixelsPerSecond, 176_400);
+		assert.equal(uiController.getSnapshot().request.type, 'focus-timeline-zoom');
+		assert.deepEqual(uiController.getSnapshot().request.payload, {
+			mode: 'center',
+			positionFrame: 0,
+			pixelsPerSecond: 176_400,
+			sampleRate: 48_000,
+		});
 		runtime.actions.timeline.zoomToggle();
 		assert.equal(controller.getSnapshot().timeline.pixelsPerSecond, 120);
+		await controller.actions.preferences.update({ editing: {
+			zoomTogglePreset1: 'seconds',
+			zoomTogglePreset2: '100ths-of-seconds',
+		} });
+		controller.actions.timeline.setZoom(5);
+		runtime.actions.timeline.zoomToggle();
+		assert.equal(controller.getSnapshot().timeline.pixelsPerSecond, 500);
+		runtime.actions.timeline.zoomToggle();
+		assert.equal(controller.getSnapshot().timeline.pixelsPerSecond, 5);
 		controller.actions.timeline.setZoom(360);
 		runtime.actions.timeline.zoomDefault();
 		assert.equal(controller.getSnapshot().timeline.pixelsPerSecond, 120);

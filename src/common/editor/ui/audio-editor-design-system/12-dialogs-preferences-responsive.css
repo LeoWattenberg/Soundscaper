@@ -133,6 +133,10 @@
 	font-size: 11px;
 }
 
+.kw-audio-editor-preferences__editing :is(.kw-audio-editor-preferences__note, .kw-audio-editor-preferences__field > span) {
+	color: var(--text);
+}
+
 .kw-audio-editor-preferences__startup {
 	display: grid;
 	gap: 10px;

@@ -19,3 +19,23 @@ test('pointer sampling maps the exact lane bottom to the final channel boundary'
 
 	assert.deepEqual(point, { channel: 1, timelineFrame: 9, value: -1 });
 });
+
+test('pointer sampling follows the rendered asymmetric stereo channel boundary', () => {
+	const lane = {
+		dataset: { channelBodyTop: '20', channelHeightRatio: '0.25' },
+		getBoundingClientRect: () => ({ height: 120, top: 0 }),
+	};
+	const first = samplePointAtPointer(
+		{ clientX: 20, clientY: 40 }, lane,
+		{ timelineStartFrame: 5, durationFrames: 5 }, { channelCount: 2 }, () => 7,
+	);
+	const second = samplePointAtPointer(
+		{ clientX: 20, clientY: 50 }, lane,
+		{ timelineStartFrame: 5, durationFrames: 5 }, { channelCount: 2 }, () => 7,
+	);
+
+	assert.equal(first.channel, 0);
+	assert.ok(Math.abs(first.value + 0.6) < 1e-12);
+	assert.equal(second.channel, 1);
+	assert.ok(Math.abs(second.value - 13 / 15) < 1e-12);
+});

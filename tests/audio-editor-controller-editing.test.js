@@ -354,14 +354,12 @@ test('cut and delete accept clip selections without a time range', async () => {
 	controller.actions.timeline.selectClip('clip-edit-target');
 	controller.actions.edit.deleteAllTracksRipple();
 	let remaining = controller.getSnapshot().project.clips;
-	assert.deepEqual(remaining.map((clip) => clip.id), ['clip-edit-gap']);
-	assert.equal(remaining[0].timelineStartFrame, 1_000);
+	assert.deepEqual(remaining.map((clip) => clip.id), []);
 	controller.actions.edit.undo();
 	controller.actions.timeline.selectClip('clip-edit-target');
 	controller.actions.edit.cutAllTracksRipple();
 	remaining = controller.getSnapshot().project.clips;
-	assert.deepEqual(remaining.map((clip) => clip.id), ['clip-edit-gap']);
-	assert.equal(remaining[0].timelineStartFrame, 1_000);
+	assert.deepEqual(remaining.map((clip) => clip.id), []);
 	assert.equal(controller.getSnapshot().history.hasClipboard, true);
 	controller.actions.edit.undo();
 	controller.actions.timeline.selectClip('clip-edit-target');

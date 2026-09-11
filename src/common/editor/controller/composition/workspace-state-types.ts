@@ -61,6 +61,7 @@ export type ControllerWorkspaceState<Preferences, EffectPresets, History = Contr
 	exportOutput: unknown;
 	preferencesReadOnly: boolean;
 	pixelsPerSecond: number;
+	allowBelowProjectFitZoom: boolean;
 	timelineViewportWidth: number;
 	autoFitTrackHeight: boolean;
 	timelineWidth: number;

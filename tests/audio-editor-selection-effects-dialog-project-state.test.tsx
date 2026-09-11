@@ -141,16 +141,73 @@ test('reviewed Utility Gain uses the canonical selection-effect label and parame
 	}
 });
 
+test('all-audio targeting keeps the dialog actionable except for selection-context effects', async () => {
+	const fixture = await mountedSelectionEffectsFixture();
+	try {
+		const project = effectProject('all-audio', true);
+		await fixture.render(project, { gainDb: 3 }, 'audacity-amplify', {
+			selectedTrackId: null,
+			applyEffectsToAllAudio: true,
+		});
+		assert.equal(reactProps(fixture.previewButton()).disabled, false);
+		assert.equal(reactProps(fixture.applyButton()).disabled, false);
+
+		await fixture.render(project, {}, 'audacity-noise-reduction', {
+			selectedTrackId: null,
+			applyEffectsToAllAudio: true,
+		});
+		assert.equal(reactProps(fixture.previewButton()).disabled, true);
+		assert.equal(reactProps(fixture.applyButton()).disabled, true);
+
+		await fixture.render(project, {}, 'audacity-auto-duck', {
+			selectedTrackId: null,
+			applyEffectsToAllAudio: true,
+		});
+		assert.equal(reactProps(fixture.previewButton()).disabled, true);
+		assert.equal(reactProps(fixture.applyButton()).disabled, true);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
+test('Auto Duck offers only untargeted audio tracks as controls', async () => {
+	const fixture = await mountedSelectionEffectsFixture();
+	try {
+		const project: EffectProject = {
+			...effectProject('auto-duck-controls', true),
+			tracks: [
+				{ id: 'target-a', type: 'audio', name: 'Target A', clipIds: ['target-a-clip'] },
+				{ id: 'target-b', type: 'audio', name: 'Target B', clipIds: ['target-b-clip'] },
+				{ id: 'control', type: 'audio', name: 'Control', clipIds: ['control-clip'] },
+				{ id: 'picture', type: 'video', name: 'Picture', clipIds: ['picture-clip'] },
+				{ id: 'markers', type: 'label', name: 'Markers' },
+			],
+			selection: { startFrame: 0, endFrame: 100, trackIds: ['target-a', 'target-b'] },
+		};
+		await fixture.render(project, {}, 'audacity-auto-duck', {
+			selectedTrackId: 'target-a', applyEffectsToAllAudio: true,
+		});
+		assert.deepEqual(await fixture.controlTrackOptions(), ['Control']);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 interface EffectProject {
 	readonly id: string;
 	readonly sampleRate: number;
-	readonly clips: readonly never[];
+	readonly clips: readonly Readonly<Record<string, unknown>>[];
 	readonly tracks: readonly Readonly<{
 		id: string;
-		type: 'audio';
+		type: 'audio' | 'video' | 'label';
 		name: string;
-		clipIds: readonly never[];
+		clipIds?: readonly string[];
 	}>[];
+	readonly selection?: Readonly<{
+		startFrame: number;
+		endFrame: number;
+		trackIds: readonly string[];
+	}>;
 }
 
 interface ApplyRequest {
@@ -223,12 +280,16 @@ async function mountedSelectionEffectsFixture() {
 			project: EffectProject,
 			params: Readonly<Record<string, unknown>>,
 			type = 'audacity-amplify',
+			options: Readonly<{
+				selectedTrackId?: string | null;
+				applyEffectsToAllAudio?: boolean;
+			}> = {},
 		) => {
 			currentProject = project;
 			await act(async () => root.render(<SelectionEffectsDialog
 				isOpen
 				controller={controller}
-				snapshot={effectSnapshot(project, params, type)}
+				snapshot={effectSnapshot(project, params, type, options)}
 				copy={ENGLISH_COPY}
 				fileService={null}
 				onClose={() => { closes.count += 1; }}
@@ -238,6 +299,17 @@ async function mountedSelectionEffectsFixture() {
 		dialog: () => dom.one('[data-selection-effects-dialog]'),
 		effectParameter: (name: string) => dom.one(`[data-effect-param="${name}"]`),
 		applyButton: () => descendantByTag(dom.one('[data-apply-audacity-effect]'), 'button'),
+		previewButton: () => descendantByTag(dom.one('[data-preview-audacity-effect]'), 'button'),
+		controlTrackOptions: async () => {
+			const control = dom.one('[data-audacity-control-track]');
+			await act(async () => {
+				reactProps(descendantByTag(control, 'button')).onClick({});
+				await Promise.resolve();
+				await Promise.resolve();
+			});
+			const body = (globalThis.document as unknown as { body: ReactTestElement }).body;
+			return body.querySelectorAll('[role="option"]').map((option) => option.textContent);
+		},
 		presetPrompt: () => dom.container.querySelector('[data-preset-name-dialog]'),
 		presetNameInput: () => {
 			const prompt = dom.container.querySelector('[data-preset-name-dialog]');
@@ -298,12 +370,16 @@ async function mountedSelectionEffectsFixture() {
 	};
 }
 
-function effectProject(id: string): EffectProject {
+function effectProject(id: string, hasAudio = false): EffectProject {
+	const clipId = `${id}-clip`;
 	return {
 		id,
 		sampleRate: 48_000,
-		clips: [],
-		tracks: [{ id: `${id}-audio`, type: 'audio', name: `${id} audio`, clipIds: [] }],
+		clips: hasAudio ? [{
+			id: clipId, sourceId: `${id}-source`, timelineStartFrame: 0,
+			sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100,
+		}] : [],
+		tracks: [{ id: `${id}-audio`, type: 'audio', name: `${id} audio`, clipIds: hasAudio ? [clipId] : [] }],
 	};
 }
 
@@ -311,11 +387,18 @@ function effectSnapshot(
 	project: EffectProject,
 	params: Readonly<Record<string, unknown>>,
 	type = 'audacity-amplify',
+	options: Readonly<{
+		selectedTrackId?: string | null;
+		applyEffectsToAllAudio?: boolean;
+	}> = {},
 ) {
 	return {
 		ready: true,
 		project,
-		selectedTrackId: project.tracks[0]?.id ?? null,
+		selectedTrackId: options.selectedTrackId === undefined
+			? project.tracks[0]?.id ?? null
+			: options.selectedTrackId,
+		preferences: { editing: { applyEffectsToAllAudio: options.applyEffectsToAllAudio ?? true } },
 		effects: {
 			selectionType: type,
 			selectionParams: type === 'audacity-amplify'

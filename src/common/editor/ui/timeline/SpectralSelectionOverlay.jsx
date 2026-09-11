@@ -3,7 +3,7 @@ import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
 import {
-	CLIP_HEADER_HEIGHT,
+	audioEditorClipBodyGeometry,
 	normalizeSpectrogramScale,
 	spectralSelectionState,
 	spectrogramFrequencyAtFraction,
@@ -35,9 +35,10 @@ export function SpectralSelectionOverlay({
 		Math.min(sampleRate / 2, Number(track.spectrogram?.maximumFrequency) || sampleRate / 2),
 	);
 	const scale = normalizeSpectrogramScale(track.spectrogram?.scale);
+	const { top: clipBodyTop, height: clipBodyHeight } = audioEditorClipBodyGeometry(trackHeight);
 	const spectralHeight = displayMode === 'multiview'
-		? Math.max(1, Math.floor((trackHeight - CLIP_HEADER_HEIGHT) / 2))
-		: Math.max(1, trackHeight - CLIP_HEADER_HEIGHT);
+		? Math.max(1, Math.floor(clipBodyHeight / 2))
+		: Math.max(1, clipBodyHeight);
 
 	useEffect(() => {
 		if (dragRef.current) return;
@@ -83,7 +84,7 @@ export function SpectralSelectionOverlay({
 		} else {
 			if (!drag.laneRect) return;
 			const verticalFraction = 1 - clamp(
-				(event.clientY - drag.laneRect.top - CLIP_HEADER_HEIGHT) / spectralHeight,
+				(event.clientY - drag.laneRect.top - clipBodyTop) / spectralHeight,
 				0,
 				1,
 			);
@@ -156,7 +157,7 @@ export function SpectralSelectionOverlay({
 	if (right <= left) return null;
 	const lowFraction = spectrogramFrequencyFraction(preview.minimumFrequency, scale, displayMinimum, displayMaximum);
 	const highFraction = spectrogramFrequencyFraction(preview.maximumFrequency, scale, displayMinimum, displayMaximum);
-	const top = CLIP_HEADER_HEIGHT + (1 - highFraction) * spectralHeight;
+	const top = clipBodyTop + (1 - highFraction) * spectralHeight;
 	const height = Math.max(2, (highFraction - lowFraction) * spectralHeight);
 	const timeMaximumSeconds = framesToSeconds(maximumFrame, { sampleRate });
 	const handleProps = (kind) => ({

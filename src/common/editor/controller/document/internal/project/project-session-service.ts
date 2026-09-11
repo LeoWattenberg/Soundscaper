@@ -8,6 +8,10 @@ import {
 
 export type ProjectSessionGuard = <Value>(value: PromiseLike<Value> | Value) => Promise<Value>;
 
+export interface ProjectSessionProject extends ProjectSessionSelectionProject {
+	readonly id: string;
+}
+
 export interface ProjectSessionTab {
 	readonly projectId: string;
 	readonly metadata?: Record<string, unknown>;
@@ -15,7 +19,7 @@ export interface ProjectSessionTab {
 }
 
 export interface ProjectSessionServiceDependencies<
-	Project extends ProjectSessionSelectionProject,
+	Project extends ProjectSessionProject,
 	Tab extends ProjectSessionTab = ProjectSessionTab,
 > {
 	readonly productId: string;
@@ -24,6 +28,7 @@ export interface ProjectSessionServiceDependencies<
 	readonly getRecentProjectIds: () => string[];
 	readonly setRecentProjectIds: (projectIds: string[]) => void;
 	readonly getActiveProjectId: () => string | null;
+	readonly getActiveProject: () => Project | null;
 	readonly state: ProjectSessionSelectionState;
 	readonly findTrack: ProjectSessionSelectionServiceDependencies<Project>['findTrack'];
 	readonly findClip: ProjectSessionSelectionServiceDependencies<Project>['findClip'];
@@ -35,7 +40,7 @@ export interface ProjectSessionServiceDependencies<
 }
 
 export function createProjectSessionService<
-	Project extends ProjectSessionSelectionProject,
+	Project extends ProjectSessionProject,
 	Tab extends ProjectSessionTab = ProjectSessionTab,
 >(
 	dependencies: ProjectSessionServiceDependencies<Project, Tab>,
@@ -44,6 +49,7 @@ export function createProjectSessionService<
 	return Object.freeze({
 		sessionTab,
 		persistActiveSessionUiState,
+		setTrackChannelHeightRatio,
 		restoreProjectSelection,
 		loadRecentProjectState,
 		recordOpenedProject,
@@ -59,6 +65,25 @@ export function createProjectSessionService<
 		const projectId = dependencies.getActiveProjectId();
 		if (!projectId || !sessionTab(projectId)) return;
 		dependencies.updateProjectMetadata(projectId, { ...projectSelection.capture() });
+	}
+
+	function setTrackChannelHeightRatio(trackId: unknown, requestedRatio: unknown): number {
+		const project = dependencies.getActiveProject();
+		if (!project || typeof trackId !== 'string' || !dependencies.findTrack(project, trackId)) {
+			throw new ReferenceError(`Unknown track: ${String(trackId)}.`);
+		}
+		const ratio = Number(requestedRatio);
+		if (!Number.isFinite(ratio) || ratio <= 0 || ratio >= 1) {
+			throw new RangeError('Stereo channel height ratio must be between zero and one.');
+		}
+		const tab = sessionTab(project.id);
+		if (!tab) throw new ReferenceError(`Unknown project tab: ${project.id}.`);
+		const current = admittedTrackChannelHeightRatios(tab.metadata?.trackChannelHeightRatios, project);
+		dependencies.updateProjectMetadata(project.id, {
+			trackChannelHeightRatios: { ...current, [trackId]: ratio },
+		});
+		dependencies.publish();
+		return ratio;
 	}
 
 	function restoreProjectSelection(
@@ -113,6 +138,18 @@ export function createProjectSessionService<
 		dependencies.publish();
 		return recentProjectIds;
 	}
+}
+
+function admittedTrackChannelHeightRatios(
+	value: unknown,
+	project: ProjectSessionProject,
+): Record<string, number> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+	const trackIds = new Set(project.tracks.map(({ id }) => id));
+	return Object.fromEntries(Object.entries(value).filter(([trackId, ratio]) => (
+		trackIds.has(trackId) && typeof ratio === 'number' && Number.isFinite(ratio)
+		&& ratio > 0 && ratio < 1
+	)));
 }
 
 function admittedProjectId(value: unknown): string | null {

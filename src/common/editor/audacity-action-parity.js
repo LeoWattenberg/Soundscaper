@@ -3,9 +3,7 @@
  *
  * Audacity 4 browser action-parity runtime.
  *
- * The inventory this reads lives in audacity-action-inventory.js and is
- * intentionally pinned: updating it means reviewing the upstream menus and
- * action registrations at the new commit, not merely changing
+ * The inventory is pinned; updates require upstream menu/action review, not just
  * AUDACITY_ACTION_SOURCE.commit.
  */
 
@@ -15,11 +13,15 @@ import {
 	localizedAudacityReason,
 } from '../i18n/action-parity.js';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
-import { audacitySpectrogramTrackSelected } from './audacity-action-enablement.ts';
+import {
+	audacitySpectrogramTrackSelected,
+	resolveAudacityActionSelectionFacts,
+} from './audacity-action-enablement.ts';
 import { audacityShortcutCommandDisabled } from './audacity-shortcut-command-inventory.ts';
 import { selectLabeledAudioRegions } from './labeled-audio-regions.ts';
 import { selectAudioEditorEditBlock } from './edit-blocking.ts';
 import { audioTrackChannelCount } from './project-audio-factory.js';
+import { audioSelectionEffectAppliesToAllAudio } from './effects.js';
 import { AUDACITY_ACTION_ALIASES } from './audacity-action-aliases.js';
 import { AUDACITY_ACTION_DEFINITIONS, AUDACITY_ACTION_STATUS } from './audacity-action-inventory.js';
 import {
@@ -68,44 +70,23 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 	if (typeof override === 'boolean') return override;
 
 	const snapshot = resolvedContext?.snapshot || {};
-	const project = snapshot.project || null;
+	const {
+		project, tracks, selection, selectedClipIds, selectedClips, selectedTrackIds,
+		selectedTrack, selectedAudioTrack, focusedTrack, selectedMediaTrack, selectedClip,
+		selectedAudioClip, timeSelection, frequencySelection, projectHasAudio, audioSelection,
+		unscopedAudioSelection, nonAudioEffectFocus,
+	} = resolveAudacityActionSelectionFacts(snapshot);
 	const telemetry = resolvedContext?.telemetry || {};
 	const ui = resolvedContext?.ui || {};
-	const tracks = project?.tracks || [];
-	const clips = project?.clips || [];
-	const selection = project?.selection || snapshot.selection || {};
-	const selectedClipIds = uniqueExistingIds([
-		snapshot.selectedClipId,
-		...(selection.clipIds || []),
-	], clips);
-	const selectedClips = selectedClipIds.map((clipId) => clips.find((clip) => clip.id === clipId)).filter(Boolean);
-	const selectedTrackIds = uniqueExistingIds([
-		snapshot.selectedTrackId,
-		...(selection.trackIds || []),
-		...selectedClips.map((clip) => tracks.find((track) => track.clipIds?.includes(clip.id))?.id),
-	], tracks);
-	const selectedTracks = selectedTrackIds.map((trackId) => tracks.find((track) => track.id === trackId)).filter(Boolean);
-	const selectedTrack = selectedTracks[0] || null;
-	const selectedAudioTrack = selectedTracks.find((track) => track.type === 'audio') || null;
-	const focusedTrack = tracks.find((track) => track.id === snapshot.selectedTrackId) || null;
-	const selectedMediaTrack = (selection.trackIds?.length ? selection.trackIds : [snapshot.selectedTrackId])
-		.some((id) => tracks.some((track) => track.id === id && track.type !== 'label'));
-	const selectedClip = selectedClips[0] || null;
-	const selectedAudioClip = selectedClip?.kind === 'audio' ? selectedClip : null;
-	const timeSelection = Number.isSafeInteger(selection.startFrame)
-		&& Number.isSafeInteger(selection.endFrame)
-		&& selection.endFrame > selection.startFrame;
-	const frequencySelection = timeSelection
-		&& Number.isFinite(selection.frequencyRange?.minimumFrequency)
-		&& Number.isFinite(selection.frequencyRange?.maximumFrequency)
-		&& selection.frequencyRange.maximumFrequency > selection.frequencyRange.minimumFrequency;
 	const projectOpened = Boolean(project);
 	const projectWritable = projectOpened && !snapshot.readOnly;
 	const recording = Boolean(snapshot.recording || snapshot.recordingStarting || telemetry.recording);
 	const playing = telemetry.transportState === 'playing';
 	const editable = projectWritable && !selectAudioEditorEditBlock(snapshot).blocked && !telemetry.recording;
-	const projectHasAudio = tracks.some((track) => track.type === 'audio' && track.clipIds?.length);
-	const audioSelection = timeSelection && Boolean(selectedAudioTrack || projectHasAudio);
+	const effectPreferenceTarget = projectHasAudio
+		&& snapshot.preferences?.editing?.applyEffectsToAllAudio === true
+		&& selectedClipIds.length === 0
+		&& !nonAudioEffectFocus;
 	const realtimeEffectId = resolvedContext?.realtimeEffectId || null;
 	const realtimeEffects = selectedAudioTrack?.effects || [];
 	const realtimeEffectIndex = realtimeEffects.findIndex((effect) => effect.id === realtimeEffectId);
@@ -140,11 +121,14 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		// What every command that acts on "the selection" asks: a drawn time
 		// range or a set of selected clips. Selecting a clip leaves the time
 		// range collapsed on frame zero, so a predicate that reads only the
-		// range withholds the command from half the ways of selecting audio.
+		// range withholds it from half the ways of selecting audio.
 		'time-or-clip-selection': timeSelection || selectedClips.length > 0,
 		'audio-selection': audioSelection,
 		'audio-selection-or-clip': audioSelection || Boolean(selectedClip),
 		'editable-selection-or-clip': editable && (audioSelection || Boolean(selectedClip)),
+		'editable-delete-target': editable && (audioSelection || unscopedAudioSelection || Boolean(selectedClip)
+			|| (!timeSelection && Boolean(selectedTrack))),
+		'editable-effect-target': editable && (audioSelection || Boolean(selectedAudioClip) || effectPreferenceTarget),
 		'playing-or-editable-clip-or-project-cursor': playing || (projectOpened && (!selectedClip || editable)),
 		'clipboard-and-project-writable': projectWritable && Boolean(snapshot.history?.hasClipboard),
 		'clip-selected': Boolean(selectedClip),
@@ -176,7 +160,7 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		'editable-spectrogram-track-selected': editable && audacitySpectrogramTrackSelected(selectedAudioTrack, snapshot),
 		'editable-frequency-selection': editable && Boolean(selectedAudioTrack) && frequencySelection,
 		'sample-pencil-available': editable && Boolean(selectedAudioClip) && snapshot.sampleEdit?.available === true,
-		'repeatable-effect-and-editable-selection': editable && (audioSelection || Boolean(selectedClip)) && Boolean(snapshot.effects?.canRepeatLast),
+		'repeatable-effect-and-editable-selection': editable && (audioSelection || Boolean(selectedAudioClip) || (effectPreferenceTarget && audioSelectionEffectAppliesToAllAudio(snapshot.effects?.lastSelectionType))) && Boolean(snapshot.effects?.canRepeatLast),
 		'repeatable-generator': editable && Boolean(snapshot.generators?.canRepeatLast),
 		'repeatable-analyzer': projectHasAudio && Boolean(snapshot.analysisRepeatable),
 		'effect-opened': effectOpened,
@@ -399,11 +383,6 @@ function resolveActionContext(context) {
 		|| Object.hasOwn(context, 'realtimeEffectId')
 	) return context;
 	return { snapshot: context };
-}
-
-function uniqueExistingIds(values, records) {
-	const available = new Set(records.map((record) => record.id));
-	return [...new Set(values.filter((value) => typeof value === 'string' && available.has(value)))];
 }
 
 function clipHasTimePitchTransform(clip) {

@@ -70,6 +70,7 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		selectedAnnotationId: null,
 		clipboard: null,
 		pixelsPerSecond: defaultPixelsPerSecond,
+		allowBelowProjectFitZoom: false,
 		timelineViewportWidth: 0,
 		autoFitTrackHeight: true,
 		visibleTrackHeights: {},

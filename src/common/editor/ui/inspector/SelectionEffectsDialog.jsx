@@ -3,6 +3,7 @@ import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { audacityEffectTypes } from '../../audacity-effects/manifest.js';
 import {
+	audioSelectionEffectAppliesToAllAudio,
 	audioSelectionEffectDefinition,
 	audioSelectionEffectDefaults,
 } from '../../effects.js';
@@ -98,7 +99,35 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 		controller.actions.effects.setSelectionParams(changes);
 	};
 	const selectionDefinition = audioSelectionEffectDefinition(selectionType);
-	const selectionControlTracks = (project?.tracks || []).filter((track) => track.id !== selectedTrack?.id);
+	const implicitAllAudioTarget = snapshot.preferences?.editing?.applyEffectsToAllAudio === true
+		&& audioSelectionEffectAppliesToAllAudio(selectionType)
+		&& project?.tracks.some((track) => track.type === 'audio' && track.clipIds?.length);
+	const selectedRangeTrack = project?.selection?.trackIds?.length
+		? project.tracks.find((track) => (
+			track.type === 'audio' && project.selection.trackIds.includes(track.id)
+		))
+		: null;
+	const effectTargetTrack = selectedTrack?.type === 'audio'
+		? selectedTrack
+		: selectedRangeTrack || (implicitAllAudioTarget
+			? project?.tracks.find((track) => track.type === 'audio' && track.clipIds?.length)
+			: null);
+	const effectTargetAvailable = Boolean(effectTargetTrack);
+	const selectedClipIds = new Set([
+		...(project?.selection?.clipIds || []), snapshot.selectedClipId,
+	].filter(Boolean));
+	const explicitEffectTargetTrackIds = new Set([
+		selectedTrack?.id, ...(project?.selection?.trackIds || []),
+		...(project?.tracks || []).filter((track) => (
+			track.clipIds?.some((clipId) => selectedClipIds.has(clipId))
+		)).map((track) => track.id),
+	].filter(Boolean));
+	const selectionControlTracks = (project?.tracks || []).filter((track) => (
+		track.type === 'audio' && !explicitEffectTargetTrackIds.has(track.id)
+	));
+	const eligibleControlTrackId = selectionControlTracks.some((track) => track.id === controlTrackId)
+		? controlTrackId
+		: '';
 	const effectPresets = (snapshot.effects?.presets || []).filter((preset) => preset.effectType === selectionType);
 	const applyPreset = (id = selectedPresetId) => run(() => (
 		id ? controller.actions.effects.presets.apply(id) : null
@@ -192,13 +221,13 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 						<span data-preview-audacity-effect>
 							<Button
 								variant="secondary"
-								disabled={blocked || !selectedTrack}
+								disabled={blocked || !effectTargetAvailable}
 								onClick={() => run(() => snapshot.effects?.previewing
 									? controller.actions.effects.cancelPreview()
 									: controller.actions.effects.previewSelection({
 										type: selectionType,
 										params: selectionParams,
-										controlTrackId: controlTrackId || null,
+										controlTrackId: eligibleControlTrackId || null,
 									}))}
 							>{snapshot.effects?.previewing ? copy.stopPreview : copy.previewEffect}</Button>
 						</span>
@@ -212,11 +241,11 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 							<span data-apply-audacity-effect>
 								<Button
 									variant="primary"
-									disabled={blocked || !selectedTrack}
+									disabled={blocked || !effectTargetAvailable}
 									onClick={() => run(() => controller.actions.effects.applySelection({
 										type: selectionType,
 										params: selectionParams,
-										controlTrackId: controlTrackId || null,
+										controlTrackId: eligibleControlTrackId || null,
 									}), () => onClose?.())}
 								>{copy.applyAudacityEffect}</Button>
 							</span>
@@ -229,7 +258,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 				{selectionDefinition?.requiresControlTrack && (
 					<LabeledDropdown
 						label={copy.controlTrack}
-						value={controlTrackId}
+						value={eligibleControlTrackId}
 						options={selectionControlTracks.map((track) => ({ value: track.id, label: track.name }))}
 						onChange={(trackId) => {
 							setControlTrackId(trackId);
@@ -249,7 +278,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 					disabled={blocked}
 					sampleRate={project?.sampleRate || AUDIO_EDITOR_SAMPLE_RATE}
 					tracks={project?.tracks || []}
-					targetTrackId={selectedTrack?.id || null}
+					targetTrackId={effectTargetTrack?.id || null}
 					captureNoiseProfile={selectionType === 'audacity-noise-reduction'
 						? () => run(() => controller.actions.effects.captureNoiseProfile(selectionParams))
 						: null}

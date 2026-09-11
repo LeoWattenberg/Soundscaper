@@ -5,7 +5,7 @@ import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import '../audio-editor-design-system/25-spectral-brush.css';
 
-import { CLIP_HEADER_HEIGHT, normalizeSpectrogramScale } from './geometry.ts';
+import { audioEditorClipBodyGeometry, normalizeSpectrogramScale } from './geometry.ts';
 import { planSpectralBrushGesture } from './spectral-brush-model.ts';
 
 export function SpectralBrushOverlay({
@@ -22,9 +22,10 @@ export function SpectralBrushOverlay({
 }) {
 	const dragRef = useRef(null);
 	const [preview, setPreview] = useState(null);
+	const { top: clipBodyTop, height: clipBodyHeight } = audioEditorClipBodyGeometry(trackHeight);
 	const laneHeight = displayMode === 'multiview'
-		? Math.max(1, Math.floor((trackHeight - CLIP_HEADER_HEIGHT) / 2))
-		: Math.max(1, trackHeight - CLIP_HEADER_HEIGHT);
+		? Math.max(1, Math.floor(clipBodyHeight / 2))
+		: Math.max(1, clipBodyHeight);
 	const minimumFrequency = Math.max(0, Number(track.spectrogram?.minimumFrequency) || 0);
 	const maximumFrequency = Math.max(
 		minimumFrequency + 1,
@@ -105,7 +106,7 @@ export function SpectralBrushOverlay({
 			tabIndex={disabled ? -1 : 0}
 			aria-label={copy.spectralBrush}
 			aria-disabled={disabled || undefined}
-			style={{ top: CLIP_HEADER_HEIGHT, height: laneHeight }}
+			style={{ top: clipBodyTop, height: laneHeight }}
 			onKeyDown={createCenteredBrush}
 			onPointerDown={begin}
 			onPointerMove={move}

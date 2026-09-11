@@ -64,6 +64,8 @@ export interface ControllerOptions extends ControllerResourceOptions, Controller
 	readonly resolveProductVideoPreviewMedia?: SourceRuntimeCompositionDependencies['resolveProductVideoPreviewMedia'];
 	readonly reportProductVideoPreviewPressure?: EditorActionFunctions['reportVideoPreviewPressure'];
 	readonly saveLabelFile?: EditCompositionDependencies['saveLabelFile'];
+	readonly confirmMonoConversion?: EditCompositionDependencies['confirmMonoConversion'];
+	readonly confirmDeleteBehavior?: EditCompositionDependencies['confirmDeleteBehavior'];
 	readonly aup4Client?: NativeProjectServiceRuntime['initialAup4Client'];
 	readonly aup4?: NativeProjectServiceRuntime['aup4Options'];
 	readonly adaptAudacityProject?: NativeProjectServiceRuntime['adaptAudacityProject'];

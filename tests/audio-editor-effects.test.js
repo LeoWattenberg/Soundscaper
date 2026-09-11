@@ -13,6 +13,7 @@ import {
 	audioEffectParamRange,
 	audioEffectTypes,
 	audioSelectionEffectDefaults,
+	audioSelectionEffectAppliesToAllAudio,
 	audioSelectionEffectLabel,
 	audioSelectionEffectTypes,
 	createEffect,
@@ -348,6 +349,9 @@ test('selection effect registry adds canonical EQ, the bitcrusher, and the relea
 	);
 	assert.equal(AUDIO_SELECTION_EFFECT_DEFINITIONS.eq.maximumBands, 12);
 	assert.equal(AUDIO_SELECTION_EFFECT_DEFINITIONS.eq.preRollSeconds, 10);
+	assert.equal(audioSelectionEffectAppliesToAllAudio('audacity-amplify'), true);
+	assert.equal(audioSelectionEffectAppliesToAllAudio('audacity-noise-reduction'), false);
+	assert.equal(audioSelectionEffectAppliesToAllAudio('audacity-auto-duck'), false);
 	assert.equal(audioSelectionEffectLabel('eq', 'en'), audioEffectLabel('eq', 'en'));
 	assert.equal(audioSelectionEffectLabel('reviewed-utility-gain', 'en'), 'Utility Gain (Reviewed)');
 	assert.deepEqual(audioSelectionEffectDefaults('reviewed-utility-gain'), { gain: 1 });

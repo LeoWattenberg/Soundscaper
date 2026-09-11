@@ -45,6 +45,7 @@ export interface SelectionViewState extends ClipSelectionNavigationState {
 	playbackOnRulerClick: boolean;
 	timelineViewportWidth: number;
 	pixelsPerSecond: number;
+	allowBelowProjectFitZoom?: boolean;
 }
 
 export interface SelectionViewCopy {

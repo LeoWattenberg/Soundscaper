@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudioEditorCommand } from '../../commands/protocol.ts';
+import { AUDIO_EDITOR_MIN_PIXELS_PER_SECOND } from '../../timeline-zoom-limits.ts';
 
 export type ProjectTimelineView = 'waveform' | 'spectrogram' | 'multiview';
 
@@ -17,6 +18,7 @@ export interface ProjectViewProject<Track extends ProjectViewTrack = ProjectView
 
 export interface ProjectViewState {
 	pixelsPerSecond: number;
+	allowBelowProjectFitZoom?: boolean;
 	timelineViewportWidth: number;
 	timelineWidth: number;
 	timelineView: ProjectTimelineView;
@@ -66,9 +68,12 @@ export function createProjectViewService<
 		const sampleRate = dependencies.projectSampleRate();
 		const timelineDuration = dependencies.editorTimelineDurationFrames(project, sampleRate);
 		const durationSeconds = timelineDuration / sampleRate;
-		const minimumPixelsPerSecond = dependencies.state.timelineViewportWidth > 0
+		const projectFitPixelsPerSecond = dependencies.state.timelineViewportWidth > 0
 			? dependencies.state.timelineViewportWidth / durationSeconds
 			: 1;
+		const minimumPixelsPerSecond = dependencies.state.allowBelowProjectFitZoom === true
+			? AUDIO_EDITOR_MIN_PIXELS_PER_SECOND
+			: projectFitPixelsPerSecond;
 		dependencies.state.pixelsPerSecond = Math.max(
 			minimumPixelsPerSecond,
 			dependencies.state.pixelsPerSecond,

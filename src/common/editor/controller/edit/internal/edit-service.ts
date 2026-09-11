@@ -5,6 +5,11 @@ import {
 	isLabeledAudioEditAction,
 } from './labeled-audio-edit-service.ts';
 import { prepareSplitRangeIntoNewTrackCommand } from '../../track-audio/split-into-new-track-plan.ts';
+import {
+	normalizeAudioEditorEditingPreferences,
+	resolveAudioEditorDefaultDelete,
+	resolveAudioEditorDefaultPaste,
+} from '../../../editing-preferences.ts';
 
 export interface EditServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -20,13 +25,14 @@ export type HandleEditorEdit = (action: string) => RuntimeValue;
 export function createEditorEditService(runtime: EditServiceRuntime): HandleEditorEdit {
 	const {
 		activeSelection, commit, commitSplitAtFrames, compactLiveSourceState,
+		commitPreparedPaste,
 		copy, createAddTrackCommand, createClipboardDescriptor, createStableId,
 		editingBlocked, engine, findClip, findClipTrack,
 		findTrack, garbageCollectSources, handleError, normalizeTimelineFrame,
 		prepareControllerPaste, prepareDisjointRangeDeleteCommand, prepareGroupClipsCommand, prepareKeepRangeCommand,
 		prepareLinkedSplitCommand, prepareRangeDeleteCommand, getProject, projectChanged,
 		publishDocumentSnapshot, redoEditorCommand, resolveEditingSelection, setSessionClipboard,
-		state, undoEditorCommand,
+		state, undoEditorCommand, requestDeleteBehaviorChoice,
 	} = runtime;
 	const executeLabeledAudioEdit = createLabeledAudioEditService(runtime);
 
@@ -89,6 +95,10 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 			if (action === 'redo') return travel(redoEditorCommand);
 			const audioTrackIds = getProject().tracks.filter((track: RuntimeValue) => Array.isArray(track.clipIds)).map((track: RuntimeValue) => track.id);
 			const selectedTrack = findTrack(getProject(), state.selectedTrackId);
+			const selectedProjectTrackIds = [...new Set(
+				(Array.isArray(getProject().selection?.trackIds) ? getProject().selection.trackIds : [])
+					.filter((trackId: RuntimeValue) => typeof trackId === 'string' && findTrack(getProject(), trackId)),
+			)];
 			const baseSelection = activeSelection();
 			const editingSelection = resolveEditingSelection(getProject(), { selectedClipId: state.selectedClipId });
 			const selectedClipCandidates = editingSelection?.kind === 'clips' ? editingSelection.clipIds : [];
@@ -111,8 +121,49 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 			const trackIds = rangeTrackIds.length
 				? rangeTrackIds
 				: selectedTrack && Array.isArray(selectedTrack.clipIds) ? [selectedTrack.id] : audioTrackIds;
+			const editingPreferences = normalizeAudioEditorEditingPreferences(state.preferences?.editing);
+			const selectedRangeTrackIds = Array.isArray(getProject().selection?.trackIds)
+				? getProject().selection.trackIds
+				: [];
+			const onboardingAudioTrackIds = getProject().tracks
+				.filter((track: RuntimeValue) => track.type === 'audio')
+				.map((track: RuntimeValue) => track.id);
+			const selectedAudioClipIds = selectedClips
+				.filter((clip: RuntimeValue) => clip.kind !== 'video'
+					&& findClipTrack(getProject(), clip.id)?.type === 'audio')
+				.map((clip: RuntimeValue) => clip.id);
+			const hasAudioSelection = selectedAudioClipIds.length > 0 || Boolean(baseSelection && (
+				selectedRangeTrackIds.some((trackId: RuntimeValue) => onboardingAudioTrackIds.includes(trackId))
+				|| (selectedRangeTrackIds.length === 0
+					&& (!selectedTrack || selectedTrack.type === 'audio'))
+			));
+			const hasOnlyLabelRange = Boolean(baseSelection
+				&& selectedClipIds.length === 0
+				&& selectedRangeTrackIds.length > 0
+				&& selectedRangeTrackIds.every((trackId: RuntimeValue) => findTrack(getProject(), trackId)?.type === 'label'));
+			if ((action === 'cut' || action === 'delete') && hasOnlyLabelRange) return;
+			if (
+				(action === 'cut' || action === 'delete')
+				&& selection
+				&& editingPreferences.deleteBehavior === 'not-set'
+			) {
+				if (hasAudioSelection) {
+					if (typeof requestDeleteBehaviorChoice !== 'function') {
+						throw new Error('Delete behavior onboarding is unavailable.');
+					}
+					const pending = requestDeleteBehaviorChoice(action, (configuredAction: string) => (
+						handleEdit(configuredAction)
+					));
+					return pending && typeof pending.then === 'function'
+						? Promise.resolve(pending).catch(handleError)
+						: pending;
+				}
+			}
+			const preferredDelete = editingPreferences.deleteBehavior === 'not-set'
+				? { rippleMode: 'none', allTracks: false }
+				: resolveAudioEditorDefaultDelete(editingPreferences);
 			const cutModes: Readonly<Record<string, string>> = {
-				cut: 'none',
+				cut: preferredDelete.rippleMode,
 				'cut-leave-gap': 'none',
 				'cut-per-clip-ripple': 'clip',
 				'cut-per-track-ripple': 'track',
@@ -121,12 +172,15 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 			if (action === 'copy' || Object.hasOwn(cutModes, action)) {
 				if (!selection) throw new Error(copy.timeSelectionRequired);
 				const exactClipSelection = !baseSelection && selectedClipIds.length > 0;
-				const exactClipEdit = exactClipSelection && action !== 'cut-all-tracks-ripple';
-				const affectedTrackIds = action === 'cut-all-tracks-ripple' ? audioTrackIds : trackIds;
+				const allTracksRipple = action === 'cut-all-tracks-ripple'
+					|| (action === 'cut' && preferredDelete.allTracks);
+				const exactClipEdit = exactClipSelection && !allTracksRipple;
+				const affectedTrackIds = allTracksRipple ? audioTrackIds : trackIds;
 				const clipboardOptions = {
-					...selection,
-					trackIds: exactClipSelection ? selectedClipTrackIds : affectedTrackIds,
-					...(exactClipSelection ? { clipIds: selectedClipIds } : {}),
+					startFrame: selection.startFrame,
+					endFrame: selection.endFrame,
+					trackIds: exactClipEdit ? selectedClipTrackIds : affectedTrackIds,
+					...(exactClipEdit ? { clipIds: selectedClipIds } : {}),
 				};
 				if (action === 'copy') {
 					setSessionClipboard(createClipboardDescriptor(getProject(), clipboardOptions));
@@ -141,9 +195,10 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 							clipIds: selectedClipIds,
 							rippleMode: cutModes[action],
 						}
-						: !baseSelection && action === 'cut-all-tracks-ripple'
-							? prepareDisjointRangeDeleteCommand(getProject(), {
-								ranges: editingSelection.ranges,
+						: !baseSelection && allTracksRipple
+							? prepareRangeDeleteCommand(getProject(), {
+								startFrame: selection.startFrame,
+								endFrame: selection.endFrame,
 								trackIds: audioTrackIds,
 								rippleMode: 'track',
 							})
@@ -159,13 +214,18 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 			}
 			if (['paste', 'paste-overlap', 'paste-insert', 'paste-all-tracks-ripple'].includes(action)) {
 				if (!state.clipboard) return;
-				const mode = action === 'paste-insert'
+				const mode = action === 'paste'
+					? resolveAudioEditorDefaultPaste(state.preferences?.editing)
+					: action === 'paste-insert'
 					? 'insert-track'
 					: action === 'paste-all-tracks-ripple'
 						? 'insert-all'
 						: 'overlap';
-				commit(prepareControllerPaste(mode));
-				return;
+				return commitPreparedPaste(prepareControllerPaste(
+					mode,
+					undefined,
+					state.preferences?.editing?.alwaysPasteAsNewClip !== false,
+				));
 			}
 			if (action === 'duplicate') {
 				if (!selection) throw new Error(copy.timeSelectionRequired);
@@ -271,19 +331,34 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 				}));
 				return;
 			}
+			if (action === 'delete' && !selection && selectedTrack) {
+				const trackIdsToRemove = selectedProjectTrackIds.length
+					? selectedProjectTrackIds
+					: [selectedTrack.id];
+				const commands = trackIdsToRemove.map((trackId) => ({
+					type: 'track/remove' as const,
+					trackId,
+				}));
+				commit(commands.length === 1 ? commands[0] : { type: 'batch', commands });
+				state.selectedTrackId = null;
+				state.selectedClipId = null;
+				return;
+			}
 			const deleteModes: Readonly<Record<string, string>> = {
-				delete: 'none',
+				delete: preferredDelete.rippleMode,
 				'delete-leave-gap': 'none',
 				'ripple-delete': 'track',
 				'delete-per-clip-ripple': 'clip',
 				'delete-per-track-ripple': 'track',
 				'delete-all-tracks-ripple': 'track',
 			};
+			const allTracksRipple = action === 'delete-all-tracks-ripple'
+				|| (action === 'delete' && preferredDelete.allTracks);
 			if (
 				!baseSelection
 				&& selectedClipIds.length
 				&& Object.hasOwn(deleteModes, action)
-				&& action !== 'delete-all-tracks-ripple'
+				&& !allTracksRipple
 			) {
 				commit({
 					type: 'clip/remove-many',
@@ -294,15 +369,16 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 				return;
 			}
 			if (selection && Object.hasOwn(deleteModes, action)) {
-				commit(!baseSelection && action === 'delete-all-tracks-ripple'
-					? prepareDisjointRangeDeleteCommand(getProject(), {
-						ranges: editingSelection.ranges,
+				commit(!baseSelection && allTracksRipple
+					? prepareRangeDeleteCommand(getProject(), {
+						startFrame: selection.startFrame,
+						endFrame: selection.endFrame,
 						trackIds: audioTrackIds,
 						rippleMode: 'track',
 					})
 					: prepareRangeDeleteCommand(getProject(), {
 						...selection,
-						trackIds: action === 'delete-all-tracks-ripple' ? audioTrackIds : trackIds,
+						trackIds: allTracksRipple ? audioTrackIds : trackIds,
 						rippleMode: deleteModes[action],
 					}));
 				if (!baseSelection) state.selectedClipId = null;

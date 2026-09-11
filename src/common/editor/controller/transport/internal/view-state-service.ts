@@ -16,6 +16,7 @@ export interface ViewStateServiceState extends Pick<ControllerTransportState,
 	| 'durationFrames' | 'meters' | 'positionFrame' | 'transportState'
 > {
 	pixelsPerSecond: number;
+	allowBelowProjectFitZoom?: boolean;
 	timelineViewportWidth: number;
 	autoFitTrackHeight: boolean;
 	visibleTrackHeights: Record<string, number>;
@@ -95,6 +96,7 @@ export function createViewStateService<Project extends ViewStateProject = ViewSt
 	 */
 	function updateZoom(action: unknown, requestedViewportWidth: unknown, requestedFactor?: unknown) {
 		const project = getProject();
+		state.allowBelowProjectFitZoom = false;
 		if (action === 'fit') {
 			const viewport = Math.max(320, Number(requestedViewportWidth) || state.timelineViewportWidth || 960);
 			const sampleRate = projectSampleRate();

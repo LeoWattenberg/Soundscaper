@@ -4,6 +4,10 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { createAudioEditorFileService } from '../../common/editor/file-service.js';
 import { BoundAudioEditorApp } from '../../common/editor/ui/AudioEditorApp.jsx';
+import { createMonoConversionConfirmation, type MonoConversionConfirmation } from
+	'../../common/editor/ui/dialogs/mono-conversion-confirmation.ts';
+import { createDeleteBehaviorConfirmation, type DeleteBehaviorConfirmation } from
+	'../../common/editor/ui/dialogs/delete-behavior-confirmation.ts';
 import { createLocalAssistanceLazySemanticSearchSourceV1 } from
 	'../../common/editor/ui/local-assistance-lazy-semantic-search-source.ts';
 import { resolveFramescaperNativeServicesBridge } from
@@ -26,6 +30,8 @@ const PROJECTORS = new WeakMap<object, RuntimeProjection>();
 const ASSISTANCE_SEARCH_SOURCES = new WeakMap<object, ReturnType<
 	typeof createLocalAssistanceLazySemanticSearchSourceV1
 >>();
+const MONO_CONFIRMATIONS = new WeakMap<object, MonoConversionConfirmation>();
+const DELETE_BEHAVIOR_CONFIRMATIONS = new WeakMap<object, DeleteBehaviorConfirmation>();
 const PRESENTATION_FIELDS = ['locale', 'copy'] as const;
 
 export interface FramescaperWebEditorRuntimePresentation {
@@ -56,11 +62,15 @@ export async function createFramescaperWebEditorRuntime(
 			linkedVideoOriginalPort: fileService.linkedVideoOriginalPort,
 		},
 	});
+	const monoConversionConfirmation = createMonoConversionConfirmation();
+	const deleteBehaviorConfirmation = createDeleteBehaviorConfirmation();
 	try {
 		const controller = createFramescaperAudioEditorController(environment, {
 			locale: presentation.locale,
 			copy: presentation.copy,
 			fileService,
+			confirmMonoConversion: monoConversionConfirmation.confirm,
+			confirmDeleteBehavior: deleteBehaviorConfirmation.confirm,
 		});
 		const watchImports = createFramescaperNativeWatchImportClient({
 			controller,
@@ -69,11 +79,16 @@ export async function createFramescaperWebEditorRuntime(
 		});
 		let disposal: Promise<void> | null = null;
 		const dispose = (): Promise<void> => {
-			disposal ??= disposeRuntime(controller, environment, watchImports);
+			disposal ??= disposeRuntime(
+				controller, environment, watchImports, monoConversionConfirmation,
+				deleteBehaviorConfirmation,
+			);
 			return disposal;
 		};
 		const runtime = Object.freeze({ controller, fileService, dispose });
 		PROJECTORS.set(runtime, environment.runtime.projectForRuntimeConsumers);
+		MONO_CONFIRMATIONS.set(runtime, monoConversionConfirmation);
+		DELETE_BEHAVIOR_CONFIRMATIONS.set(runtime, deleteBehaviorConfirmation);
 		if (fileService.isDesktop) {
 			ASSISTANCE_SEARCH_SOURCES.set(runtime, createLocalAssistanceLazySemanticSearchSourceV1({
 				bridgeScope: fileService.bridge,
@@ -82,6 +97,8 @@ export async function createFramescaperWebEditorRuntime(
 		}
 		return runtime;
 	} catch (error) {
+		monoConversionConfirmation.dispose();
+		deleteBehaviorConfirmation.dispose();
 		try {
 			await environment.close();
 		} catch (cleanupError) {
@@ -172,6 +189,8 @@ export default function FramescaperAudioEditorBootstrap({
 			fileService={runtime.fileService}
 			projectForRuntimeConsumers={runtimeProjector(runtime)}
 			assistanceSearchSource={ASSISTANCE_SEARCH_SOURCES.get(runtime) ?? null}
+			monoConversionConfirmation={runtimeMonoConversionConfirmation(runtime)}
+			deleteBehaviorConfirmation={runtimeDeleteBehaviorConfirmation(runtime)}
 			crossProductHandoffAvailable={true}
 		/>
 	</Suspense>;
@@ -187,12 +206,32 @@ function runtimeProjector(runtime: Readonly<FramescaperWebEditorRuntime>): Runti
 	return projector;
 }
 
+function runtimeMonoConversionConfirmation(
+	runtime: Readonly<FramescaperWebEditorRuntime>,
+): MonoConversionConfirmation {
+	const confirmation = MONO_CONFIRMATIONS.get(runtime);
+	if (!confirmation) throw new TypeError('An exact Framescaper web runtime is required.');
+	return confirmation;
+}
+
+function runtimeDeleteBehaviorConfirmation(
+	runtime: Readonly<FramescaperWebEditorRuntime>,
+): DeleteBehaviorConfirmation {
+	const confirmation = DELETE_BEHAVIOR_CONFIRMATIONS.get(runtime);
+	if (!confirmation) throw new TypeError('An exact Framescaper web runtime is required.');
+	return confirmation;
+}
+
 async function disposeRuntime(
 	controller: WebController,
 	environment: Readonly<FramescaperEditorProjectEnvironment>,
 	watchImports: Readonly<FramescaperNativeWatchImportClient>,
+	monoConversionConfirmation: MonoConversionConfirmation,
+	deleteBehaviorConfirmation: DeleteBehaviorConfirmation,
 ): Promise<void> {
 	let failure: unknown;
+	monoConversionConfirmation.dispose();
+	deleteBehaviorConfirmation.dispose();
 	try { await watchImports.dispose(); } catch (error) { failure = error; }
 	try { await controller.dispose(); } catch (error) {
 		failure = failure

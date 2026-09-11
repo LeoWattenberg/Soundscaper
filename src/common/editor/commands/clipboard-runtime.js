@@ -240,6 +240,7 @@ export function preparePasteCommand(clipboard, options = {}, idFactory = createS
 		avLinkIds,
 		videoEffectIds,
 		mode,
+		...(options.pasteAsNewClip === false && mode !== 'insert-all' ? { pasteIntoExistingClip: true } : {}),
 		splitClipIds: {},
 		splitAvLinkIds: {},
 	};

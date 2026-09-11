@@ -1,15 +1,51 @@
-import React from 'react';
+import React, { Suspense, useSyncExternalStore } from 'react';
 
+import { lazyEditorModule } from '../../offline/lazy-module.tsx';
 import { reportStaleBuildCandidate } from '../../offline/stale-build-runtime.ts';
 import './audio-editor-design-system.css';
 import { DesignSystemProviders } from './DesignSystemRuntime.jsx';
 import AudioEditorWorkspace from './workspace/AudioEditorWorkspace.jsx';
 
+const MonoConversionConfirmationDialog = lazyEditorModule(
+	() => import('./dialogs/MonoConversionConfirmationDialog.tsx'),
+);
+const DeleteBehaviorOnboardingDialog = lazyEditorModule(
+	() => import('./dialogs/DeleteBehaviorOnboardingDialog.tsx'),
+);
+
 /** Presentation-only seam for a product-owned, already-constructed runtime. */
 export function BoundAudioEditorApp(props) {
 	return <AudioEditorFrame copy={props.copy} controller={props.controller}>
 		<AudioEditorWorkspace {...props} />
+		{props.monoConversionConfirmation && <ConfirmationDialogMount
+			Component={MonoConversionConfirmationDialog}
+			confirmation={props.monoConversionConfirmation}
+			copy={props.copy}
+			cancelDecision={{ accepted: false, dontShowAgain: false }}
+		/>}
+		{props.deleteBehaviorConfirmation && <ConfirmationDialogMount
+			Component={DeleteBehaviorOnboardingDialog}
+			confirmation={props.deleteBehaviorConfirmation}
+			copy={props.copy}
+			cancelDecision={{ accepted: false }}
+		/>}
 	</AudioEditorFrame>;
+}
+
+function ConfirmationDialogMount({ Component, confirmation, copy, cancelDecision }) {
+	const prompt = useSyncExternalStore(
+		confirmation.subscribe,
+		confirmation.getSnapshot,
+		confirmation.getSnapshot,
+	);
+	if (!prompt) return null;
+	return <Suspense fallback={null}>
+		<Component
+			confirmation={confirmation}
+			copy={copy}
+			onClose={() => { confirmation.settle(prompt, cancelDecision); }}
+		/>
+	</Suspense>;
 }
 
 function AudioEditorFrame({ copy, children, controller }) {
