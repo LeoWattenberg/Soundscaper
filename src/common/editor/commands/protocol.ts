@@ -294,6 +294,7 @@ type LegacyNonBatchAudioEditorCommandPayloads = {
 	readonly 'clip/replace-source': { readonly clipId: string; readonly sourceId: string };
 	readonly 'clip/render-replace-many': {
 		readonly entries: readonly Readonly<{ clipId: string; source: CommandObject }>[];
+		readonly rippleMode?: 'none' | 'track';
 	};
 	readonly 'clip/move': { readonly clipId: string; readonly trackId?: string; readonly timelineStartFrame: number };
 	readonly 'clip/transform-many': {
@@ -354,6 +355,7 @@ type LegacyNonBatchAudioEditorCommandPayloads = {
 		readonly clipboard: AudioEditorClipboard;
 		readonly atFrame: number;
 		readonly mode?: ClipboardPasteMode;
+		readonly pasteIntoExistingClip?: boolean;
 		readonly trackMap?: Readonly<Record<string, string>>;
 		readonly clipIds?: StableIdMap;
 		readonly groupIds?: StableIdMap;

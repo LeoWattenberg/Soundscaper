@@ -29,6 +29,10 @@ import {
 	migrateAudioEditorShortcutDefaults,
 } from './shortcut-default-migration.ts';
 import {
+	normalizeAudioEditorEditingPreferences,
+	validateAudioEditorEditingPreferences,
+} from './editing-preferences.ts';
+import {
 	audioEditorShortcutParts,
 	audioEditorShortcutConflictKey,
 	collectAudioEditorShortcutConflicts,
@@ -55,20 +59,28 @@ export {
 	normalizeAudioEditorShortcut,
 };
 
+export {
+	AUDIO_EDITOR_DEFAULT_ZOOM_PRECISION,
+	AUDIO_EDITOR_MAXIMUM_ZOOM_PRECISION,
+	AUDIO_EDITOR_MINIMUM_ZOOM_PRECISION,
+	AUDIO_EDITOR_ASYMMETRIC_STEREO_HEIGHTS,
+	AUDIO_EDITOR_CLOSE_GAP_BEHAVIORS,
+	AUDIO_EDITOR_DELETE_BEHAVIORS,
+	AUDIO_EDITOR_PASTE_BEHAVIORS,
+	AUDIO_EDITOR_PASTE_INSERT_BEHAVIORS,
+	AUDIO_EDITOR_RIPPLE_MODES,
+	AUDIO_EDITOR_ZOOM_TOGGLE_PRESETS,
+	audioEditorZoomPresetPixelsPerSecond,
+	normalizeAudioEditorEditingPreferences,
+	resolveAudioEditorDefaultDelete,
+	resolveAudioEditorDefaultPaste,
+	resolveAudioEditorZoomToggleTarget,
+	validateAudioEditorEditingPreferences,
+} from './editing-preferences.ts';
+
 export const AUDIO_EDITOR_PREFERENCES_SCHEMA_VERSION = 1;
 
 export const AUDIO_EDITOR_PLAY_AT_SPEED_MODES = Object.freeze(['naive', 'staffpad']);
-/**
- * Audacity's mouse zoom precision: one wheel notch multiplies the zoom by
- * 2^(1/precision), so the precision is how many notches double it.
- *
- * The default is 1 — a whole octave a notch — rather than Audacity's 6. The
- * control is ported so the speed can be changed; the speed this editor already
- * had is what it keeps until someone changes it.
- */
-export const AUDIO_EDITOR_DEFAULT_ZOOM_PRECISION = 1;
-export const AUDIO_EDITOR_MINIMUM_ZOOM_PRECISION = 1;
-export const AUDIO_EDITOR_MAXIMUM_ZOOM_PRECISION = 16;
 export { AUDIO_EDITOR_STARTUP_MODES };
 /**
  * Audacity's Effect menu organization. Upstream offers seven arrangements, four
@@ -119,7 +131,6 @@ const LEGACY_SHORTCUT_ACTION_IDS = Object.freeze({
 const PLAY_AT_SPEED_MODE_SET = new Set(AUDIO_EDITOR_PLAY_AT_SPEED_MODES);
 const STARTUP_MODE_SET = new Set(AUDIO_EDITOR_STARTUP_MODES);
 const EFFECT_MENU_ORGANIZATION_SET = new Set(AUDIO_EDITOR_EFFECT_MENU_ORGANIZATIONS);
-const RIPPLE_MODE_SET = new Set(['off', 'per-track', 'all-tracks']);
 const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
 	'account',
 	'audio',
@@ -152,7 +163,7 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
  * @typedef {Object} AudioEditorPreferencesV1
  * @property {1} schemaVersion
  * @property {number} shortcutDefaultsVersion
- * @property {{rippleMode: 'off'|'per-track'|'all-tracks', collisionBehavior: 'audacity', snapToZeroCrossings: boolean, zoomPrecision: number}} editing
+ * @property {import('./editing-preferences.ts').AudioEditorEditingPreferences} editing
  * @property {Record<string, string[]>} shortcuts
  * @property {import('./appearance-preferences.ts').AppearancePreferences} appearance
  * @property {{showMasterTrack: boolean, showMarkers: boolean}} view
@@ -247,14 +258,6 @@ export function createAudioEditorPreferencesV1(options = {}) {
 	if (typeof showMasterTrack !== 'boolean') throw new TypeError('view.showMasterTrack must be boolean.');
 	const showMarkers = options.view?.showMarkers ?? false;
 	if (typeof showMarkers !== 'boolean') throw new TypeError('view.showMarkers must be boolean.');
-	const zoomPrecision = integer(
-		options.editing?.zoomPrecision ?? AUDIO_EDITOR_DEFAULT_ZOOM_PRECISION,
-		AUDIO_EDITOR_MINIMUM_ZOOM_PRECISION,
-		'editing.zoomPrecision',
-	);
-	if (zoomPrecision > AUDIO_EDITOR_MAXIMUM_ZOOM_PRECISION) {
-		throw new RangeError(`editing.zoomPrecision must be at most ${AUDIO_EDITOR_MAXIMUM_ZOOM_PRECISION}.`);
-	}
 	const startupProjectId = options.startup?.projectId ?? '';
 	if (typeof startupProjectId !== 'string') throw new TypeError('startup.projectId must be a string.');
 	return {
@@ -267,12 +270,7 @@ export function createAudioEditorPreferencesV1(options = {}) {
 				'shortcutDefaultsVersion',
 			),
 		),
-		editing: {
-			rippleMode: oneOf(options.editing?.rippleMode ?? 'off', RIPPLE_MODE_SET, 'editing.rippleMode'),
-			collisionBehavior: 'audacity',
-			snapToZeroCrossings: Boolean(options.editing?.snapToZeroCrossings),
-			zoomPrecision,
-		},
+		editing: normalizeAudioEditorEditingPreferences(options.editing),
 		shortcuts: normalizeShortcuts(options.shortcuts === undefined ? AUDIO_EDITOR_DEFAULT_SHORTCUTS : options.shortcuts),
 		appearance: normalizeAppearancePreferences(options.appearance),
 		view: {
@@ -398,6 +396,10 @@ export function deleteCustomAudioEditorWorkspace(preferences, workspaceId) {
 	}
 	const custom = preferences.workspace.custom.filter((workspace) => workspace.id !== workspaceId);
 	const next = createAudioEditorPreferencesV1(mergePreferences(preferences, {
+		editing: {
+			asymmetricStereoHeightWorkspaces: preferences.editing.asymmetricStereoHeightWorkspaces
+				.filter((id) => id !== workspaceId),
+		},
 		workspace: { activeId: preferences.workspace.activeId === workspaceId ? 'modern' : preferences.workspace.activeId, custom },
 	}));
 	return preferences.workspace.activeId === workspaceId ? applyAudioEditorWorkspace(next, 'modern') : next;
@@ -442,17 +444,7 @@ export function validateAudioEditorPreferencesV1(preferences) {
 	for (const key of FORBIDDEN_TOP_LEVEL_KEYS) {
 		if (Object.hasOwn(preferences, key)) throw new RangeError(`${key} is not an editor preference.`);
 	}
-	if (preferences.editing.collisionBehavior !== 'audacity') {
-		throw new RangeError('editing.collisionBehavior must use Audacity behavior.');
-	}
-	if (typeof preferences.editing.snapToZeroCrossings !== 'boolean') {
-		throw new TypeError('editing.snapToZeroCrossings must be boolean.');
-	}
-	// Preferences saved before the zoom-speed control existed carry no
-	// precision; normalization supplies Audacity's default.
-	if (preferences.editing.zoomPrecision !== undefined) {
-		integer(preferences.editing.zoomPrecision, AUDIO_EDITOR_MINIMUM_ZOOM_PRECISION, 'editing.zoomPrecision');
-	}
+	validateAudioEditorEditingPreferences(preferences.editing);
 	if (typeof preferences.import.detectTempo !== 'boolean') throw new TypeError('import.detectTempo must be boolean.');
 	if (preferences.view !== undefined) {
 		if (!preferences.view || typeof preferences.view !== 'object' || Array.isArray(preferences.view)) {

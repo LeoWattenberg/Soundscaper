@@ -2,7 +2,7 @@ import { applyAudacityParityToMenus } from '../audacity-action-parity.js';
 import { audacitySpectrogramTrackSelected } from '../audacity-action-enablement.ts';
 import { AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS } from './application-menu-registry.ts';
 import { createApplicationViewMenu } from './application-view-menu.js';
-import { createEffectMenuEntries } from './effect-menu-organization.js';
+import { createEffectMenuEntries, resolveEffectMenuTargeting } from './effect-menu-organization.js';
 import { filterProductMenus } from './application-menu-product-filter.js';
 import {
 	createApplicationMenuProductItems,
@@ -27,6 +27,7 @@ import { createCrossProductHandoffMenuItems } from './cross-product-handoff-menu
 import { projectHasTimelineAudio, projectHasTimelineVideo } from './timeline-media-presence.ts';
 import { exportSurfaceMenuLabel } from './export-surface-copy.ts';
 import { createNyquistPluginMenuItems } from './nyquist-plugin-menu-items.js';
+import { audioSelectionEffectAppliesToAllAudio } from '../effects.js';
 
 /**
  * The video tracks an edit list would describe.
@@ -129,6 +130,13 @@ export default function createApplicationMenus({
 	// picture-only project of its one route into the export.
 	const exportableTimelineMedia = projectHasTimelineAudio(project) || projectHasTimelineVideo(project);
 	const preferences = snapshot.preferences;
+	const effectTargeting = resolveEffectMenuTargeting({
+		project, preferences, selectedTrack, selectedAudioTrack, selectionActive, clipSelectionActive,
+	});
+	const genericDeleteTargetAvailable = clipSelectionActive
+		|| (selectionActive && (Boolean(effectTargeting.selectionAudioTrack)
+			|| (!effectTargeting.selectionNamesTracks && (!selectedTrack || selectedTrack.type === 'audio'))))
+		|| (!selectionActive && Boolean(selectedTrack));
 	const framescaperEditControls = createFramescaperEditControlMenuItems({
 		productId, project, selectedClipId: selectedClip?.id ?? null,
 		selectedTrackId: snapshot.selectedTrackId ?? null, editBlocked,
@@ -152,17 +160,16 @@ export default function createApplicationMenus({
 	const analyzerBlocked = (blocked && !snapshot.analysisProcessing) || !project?.clips.length;
 	const importAnalysisMenuContext = { productId, copy, snapshot, editBlocked, blocked, analyzerBlocked, actionRuntime };
 	const effectLabels = new Map((snapshot.effects?.selectionTypes || []).map(({ type, label }) => [type, label]));
-	// A destructive effect processes the audio the selection names, so without
-	// a time range or a selected clip it has nothing to work on: opening it
-	// would only reach the dialog to refuse there.
 	const effectGroups = createEffectMenuEntries({
 		organization: preferences?.effects?.menuOrganization,
 		copy, effectLabels, productId, locale,
-		disabled: editBlocked || !selectedAudioTrack || !editSelectionActive,
+		disabled: editBlocked || !effectTargeting.effectAudioTrack,
+		selectionActive: effectTargeting.explicitEffectSelectionActive,
+		allAudioTarget: effectTargeting.effectPreferenceTargetsAll,
 	}, actions.openSelectionEffect);
 	const nyquistItems = createNyquistPluginMenuItems({
-		editBlocked, blocked, selectedAudioTrack, frequencySelectionActive,
-		selectionActive: editSelectionActive,
+		editBlocked, blocked, selectedAudioTrack: effectTargeting.effectAudioTrack, frequencySelectionActive,
+		selectionActive: effectTargeting.effectSelectionActive,
 	}, actions);
 	const menus = applyAudacityParityToMenus([
 		{
@@ -297,19 +304,21 @@ export default function createApplicationMenus({
 						id: 'cut',
 						label: copy.cut,
 						items: [
-							{ id: 'cut-leave-gap', label: copy.cutLeaveGap, shortcut: 'Ctrl+X', disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('cutLeaveGap') },
+							{ id: 'action://cut', label: copy.cut, shortcut: 'Ctrl+X', disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('cut') },
+							{ id: 'cut-leave-gap', label: copy.cutLeaveGap, disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('cutLeaveGap') },
 							{ id: 'cut-per-clip-ripple', label: copy.cutPerClipRipple, disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('cutPerClipRipple') },
-							{ id: 'cut-per-track-ripple', label: copy.cutPerTrackRipple, shortcut: 'Shift+X', disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('cutPerTrackRipple') },
-							{ id: 'cut-all-tracks-ripple', label: copy.cutAllTracksRipple, shortcut: 'Shift+Ctrl+X', disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('cutAllTracksRipple') },
+							{ id: 'cut-per-track-ripple', label: copy.cutPerTrackRipple, shortcut: 'Ctrl+Shift+X', disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('cutPerTrackRipple') },
+							{ id: 'cut-all-tracks-ripple', label: copy.cutAllTracksRipple, disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('cutAllTracksRipple') },
 						],
 					},
 					{
 						id: 'delete',
 						label: copy.liftDelete,
 						items: [
-							{ id: 'delete-leave-gap', label: copy.deleteLeaveGap, shortcut: 'Delete', disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('deleteLeaveGap') },
+							{ id: 'action://delete', label: copy.liftDelete, shortcut: 'Delete, Backspace', disabled: editBlocked || !genericDeleteTargetAvailable, onClick: () => actions.executeEdit('delete') },
+							{ id: 'delete-leave-gap', label: copy.deleteLeaveGap, disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('deleteLeaveGap') },
 							{ id: 'delete-per-clip-ripple', label: copy.deletePerClipRipple, disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('deletePerClipRipple') },
-							{ id: 'delete-per-track-ripple', label: copy.deletePerTrackRipple, shortcut: 'Backspace', disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('deletePerTrackRipple') },
+							{ id: 'delete-per-track-ripple', label: copy.deletePerTrackRipple, shortcut: 'Shift+Delete, Shift+Backspace', disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('deletePerTrackRipple') },
 							{ id: 'delete-all-tracks-ripple', label: copy.deleteAllTracksRipple, shortcut: 'Ctrl+Delete, Ctrl+Backspace', disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('deleteAllTracksRipple') },
 						],
 					},
@@ -450,13 +459,13 @@ export default function createApplicationMenus({
 			label: copy.effectMenu,
 			items: [
 				{ id: 'realtime-effects', label: copy.addRealtimeEffects, disabled: !selectedAudioTrack, onClick: actions.openEffects },
-				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.repeatLastEffect, label: copy.repeatLastEffect, disabled: editBlocked || !editSelectionActive || !snapshot.effects?.canRepeatLast, onClick: actions.repeatLastEffect },
+				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.repeatLastEffect, label: copy.repeatLastEffect, disabled: editBlocked || !effectTargeting.effectAudioTrack || !snapshot.effects?.canRepeatLast || (!effectTargeting.explicitEffectSelectionActive && !(effectTargeting.effectPreferenceTargetsAll && audioSelectionEffectAppliesToAllAudio(snapshot.effects?.lastSelectionType))), onClick: actions.repeatLastEffect },
 				divider(),
 				...productItems.effect,
 				...effectGroups,
 				{ id: 'pitch-tempo', label: copy.pitchTempo, items: createPitchAndTempoApplicationMenuItems({
 					productId, capabilities, project, selectedClipId: selectedClip?.id ?? null,
-					selectedAudioTrack, editingBlocked: editBlocked, selectionActive: editSelectionActive,
+					selectedAudioTrack: effectTargeting.effectAudioTrack, editingBlocked: editBlocked, selectionActive: effectTargeting.effectSelectionActive,
 					copy, effectLabels, actions,
 				}) },
 				{

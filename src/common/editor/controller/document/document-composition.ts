@@ -72,6 +72,7 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 		getRecentProjectIds: () => state.recentProjectIds,
 		setRecentProjectIds: (projectIds) => { state.recentProjectIds = projectIds; },
 		getActiveProjectId: () => dependencies.getProject()?.id ?? null,
+		getActiveProject: dependencies.getProject,
 		state,
 		findTrack,
 		findClip,

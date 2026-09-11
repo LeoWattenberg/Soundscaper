@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { centeredTimelinePlayheadScroll } from './timeline-navigation-geometry.js';
+import { centeredTimelinePlayheadScroll, timelineFrameStartScroll } from './timeline-navigation-geometry.js';
 
 export function useWorkspaceParityRequests({
 	controller,
@@ -80,6 +80,11 @@ export function useWorkspaceParityRequests({
 			if (scroll) scroll.scrollLeft = centeredTimelinePlayheadScroll(scroll, {
 				positionFrame, sampleRate, pixelsPerSecond,
 			});
+		} else if (request.type === 'focus-timeline-zoom') {
+			const scroll = workspaceRef.current?.querySelector('.audio-editor-timeline-scroll');
+			if (scroll) scroll.scrollLeft = payload.mode === 'start'
+				? timelineFrameStartScroll(scroll, payload)
+				: centeredTimelinePlayheadScroll(scroll, payload);
 		} else if (request.type === 'open-context-menu') {
 			const selectedId = payload.clipId || payload.trackId;
 			const attribute = payload.clipId ? 'data-clip-id' : 'data-track-id';

@@ -67,6 +67,7 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		clipboard: null,
 		effectClipboard: null,
 		pixelsPerSecond: defaultPixelsPerSecond,
+		allowBelowProjectFitZoom: false,
 		timelineViewportWidth: 0,
 		autoFitTrackHeight: true,
 		visibleTrackHeights: {},

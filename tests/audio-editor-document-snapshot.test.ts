@@ -30,6 +30,7 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 	const project: SnapshotProject = {
 		id: 'project',
 		selection: { startFrame: 10, endFrame: 20 },
+		tracks: [{ id: 'track' }, { id: 'second-track' }],
 	};
 	const videoPreviewProject = Object.freeze({ ...project, transientVideoFallback: true });
 	const state = stateFixture({
@@ -40,6 +41,7 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 		recordingPreviews: [null, { frames: 4 }],
 		history: { undoStack: ['old', 'new'], redoStack: ['redo'] },
 		clipboard: { sourceIds: [] },
+		lastAudacityEffect: { type: 'audacity-noise-reduction', params: {}, controlTrackId: null },
 		recordingKind: 'take-cycle',
 		archiveManifest: { manifest: { members: [{ id: 'project.json' }] }, unavailable: null },
 		takeCycleRecovery: Object.freeze({
@@ -60,6 +62,11 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 			projectId: 'project', title: 'Project', dirty: true, readOnly: false,
 		}],
 		getCurrentTabMetadata: () => ({
+			trackChannelHeightRatios: {
+				track: 0.7,
+				'second-track': Number.NaN,
+				missing: 0.25,
+			},
 			aup4CompatibilityReport: { direction: 'import' },
 			aup4CompatibilityReportDismissed: true,
 			featureRequirementsReport: { compatible: false, items: [{ featureId: 'unknown' }] },
@@ -129,6 +136,8 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 	assert.strictEqual(snapshot.recordingInputs.soundActivation, SOUND_ACTIVATION_SNAPSHOT);
 	assert.deepEqual(snapshot.recordingPreviews, [{ frames: 4 }]);
 	assert.deepEqual(snapshot.history.undoEntries, ['summary:new', 'summary:old']);
+	assert.deepEqual(snapshot.timeline.trackChannelHeightRatios, { track: 0.7 });
+	assert.equal(Object.isFrozen(snapshot.timeline.trackChannelHeightRatios), true);
 	assert.equal(snapshot.storage.ephemeral, true);
 	// The File entry that saves the archive's checksums is enabled from this, so a
 	// manifest that never reached the snapshot left that entry disabled for the
@@ -173,6 +182,7 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 	assert.strictEqual(snapshot.capture, CAPTURE_SNAPSHOT);
 	assert.equal(Object.isFrozen(snapshot), true);
 	assert.equal(Object.isFrozen(snapshot.effects), true);
+	assert.equal(snapshot.effects.lastSelectionType, 'audacity-noise-reduction');
 });
 
 test('document snapshots hide collapsed selections and prepared recorders', () => {

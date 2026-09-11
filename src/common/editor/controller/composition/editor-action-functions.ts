@@ -230,6 +230,7 @@ export interface EditorActionFunctions {
 	readonly setTimelineView: ReturnType<typeof createDocumentComposition>['view']['setTimelineView'];
 	readonly setTimelineViewportWidth: ReturnType<typeof createTransportComposition>['view']['setTimelineViewportWidth'];
 	readonly setToolbarButtonPreference: ReturnType<typeof createPreferencesComposition>['actions']['setToolbarButtonPreference'];
+	readonly setTrackChannelHeightRatio: ReturnType<typeof createDocumentComposition>['session']['setTrackChannelHeightRatio'];
 	readonly setTrackDisplayMode: ReturnType<typeof createTrackAudioComposition>['trackActions']['setTrackDisplayMode'];
 	readonly setTrackRate: ReturnType<typeof createTrackAudioComposition>['trackActions']['setTrackRate'];
 	readonly setVisibleTrackHeights: ReturnType<typeof createTransportComposition>['view']['setVisibleTrackHeights'];

@@ -86,7 +86,10 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	const { get: getTelemetrySnapshot } = deferControllerMethods(() => services.telemetryChannel(), ['get']);
 	const { getClipVisualData, getProjectBinClipVisualData, revokeVideoVisuals, revokeVideoVisual, activateVideoSource, hasMissingTimelineSources, getVisibleClips } = deferControllerMethods(() => services.sources().projectVisual, ['getClipVisualData', 'getProjectBinClipVisualData', 'revokeVideoVisuals', 'revokeVideoVisual', 'activateVideoSource', 'hasMissingTimelineSources', 'getVisibleClips']);
 	const { update: updatePreferences, revertFactorySettings } = deferControllerMethods(() => services.preferencesService(), ['update', 'revertFactorySettings']);
-	const { sessionTab, persistActiveSessionUiState } = deferControllerMethods(() => services.doc().session, ['sessionTab', 'persistActiveSessionUiState']);
+	const { sessionTab, persistActiveSessionUiState, setTrackChannelHeightRatio } = deferControllerMethods(
+		() => services.doc().session,
+		['sessionTab', 'persistActiveSessionUiState', 'setTrackChannelHeightRatio'],
+	);
 	const { dismissAup4CompatibilitySummary } = deferControllerMethods(() => services.nativeProjectService(), ['dismissAup4CompatibilitySummary']);
 	const { cacheSourceBuffer, clearWaveformPcmWindows } = deferControllerMethods(() => services.sources().sourceLifecycle, ['cacheSourceBuffer', 'clearWaveformPcmWindows']);
 	const { renameProjectBinClip, removeProjectBinClip, setProjectBinClipColor, projectBinInstanceCount, selectProjectBinInstances, removeProjectBinSource } = deferControllerMethods(() => services.imports().projectBin, ['renameProjectBinClip', 'removeProjectBinClip', 'setProjectBinClipColor', 'projectBinInstanceCount', 'selectProjectBinInstances', 'removeProjectBinSource']);
@@ -138,7 +141,8 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 		applyProjectToPlaybackEngine, stopRecording, getSnapshot, getTelemetrySnapshot,
 		getClipVisualData, getProjectBinClipVisualData, revokeVideoVisuals, revokeVideoVisual,
 		activateVideoSource, hasMissingTimelineSources, getVisibleClips, updatePreferences,
-		revertFactorySettings, sessionTab, persistActiveSessionUiState, dismissAup4CompatibilitySummary,
+		revertFactorySettings, sessionTab, persistActiveSessionUiState, setTrackChannelHeightRatio,
+		dismissAup4CompatibilitySummary,
 		cacheSourceBuffer, clearWaveformPcmWindows, renameProjectBinClip, removeProjectBinClip,
 		setProjectBinClipColor, projectBinInstanceCount, selectProjectBinInstances, removeProjectBinSource,
 		mixAndRenderTracks, resampleTrack, resampleClip, swapTrackChannels,

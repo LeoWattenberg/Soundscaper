@@ -7,6 +7,7 @@ import {
 	accumulateTimelineZoomWheel,
 	centeredTimelinePlayheadScroll,
 	resolveTimelineViewportGeometry,
+	timelineFrameStartScroll,
 	timelineWheelZoomFactor,
 } from '../src/common/editor/ui/workspace/timeline-navigation-geometry.js';
 
@@ -28,6 +29,9 @@ test('playhead centring accounts for the sticky track panel and clip content off
 		assert.equal(centeredTimelinePlayheadScroll(scroll, {
 			positionFrame: 480_000, sampleRate: 48_000, pixelsPerSecond: 120,
 		}), 812);
+		assert.equal(timelineFrameStartScroll(scroll, {
+			positionFrame: 48_000, sampleRate: 48_000, pixelsPerSecond: 120,
+		}), 132);
 	} finally {
 		globalThis.getComputedStyle = original;
 	}

@@ -161,6 +161,10 @@ export function replaceRenderedClips(project, command) {
 	if (!Array.isArray(command.entries) || !command.entries.length) {
 		throw new TypeError('Rendered clip replacement entries are required.');
 	}
+	const rippleMode = command.rippleMode ?? 'track';
+	if (rippleMode !== 'none' && rippleMode !== 'track') {
+		throw new RangeError(`Unsupported rendered clip replacement ripple mode: ${String(rippleMode)}.`);
+	}
 	const entries = command.entries.map((entry) => {
 		const clip = requireClip(project, entry.clipId);
 		if (clip.kind === 'video') throw new RangeError('Rendered audio cannot replace a video clip.');
@@ -190,21 +194,23 @@ export function replaceRenderedClips(project, command) {
 		const newEnd = anchor + Math.max(1, Math.round((oldEnd - anchor) * component.ratio));
 		const delta = newEnd - oldEnd;
 		const relatedTrackIds = new Set(related.map((clip) => requireClipTrack(project, clip.id).id));
-		// The rendered span ripples the rest of its tracks, so the take graph on
-		// those tracks travels with it; a group the span runs through refuses.
-		planTakeGraphRangeRipple(
-			project,
-			new Map([...relatedTrackIds].map((trackId) => [
-				String(trackId),
-				{ startFrame: anchor, endFrame: oldEnd },
-			])),
-			delta,
-		)?.();
-		for (const clip of project.clips) {
-			if (component.relatedIds.has(clip.id)) continue;
-			const track = requireClipTrack(project, clip.id);
-			if (relatedTrackIds.has(track.id) && clip.timelineStartFrame >= oldEnd) {
-				clip.timelineStartFrame += delta;
+		if (rippleMode === 'track') {
+			// The rendered span ripples the rest of its tracks, so the take graph on
+			// those tracks travels with it; a group the span runs through refuses.
+			planTakeGraphRangeRipple(
+				project,
+				new Map([...relatedTrackIds].map((trackId) => [
+					String(trackId),
+					{ startFrame: anchor, endFrame: oldEnd },
+				])),
+				delta,
+			)?.();
+			for (const clip of project.clips) {
+				if (component.relatedIds.has(clip.id)) continue;
+				const track = requireClipTrack(project, clip.id);
+				if (relatedTrackIds.has(track.id) && clip.timelineStartFrame >= oldEnd) {
+					clip.timelineStartFrame += delta;
+				}
 			}
 		}
 		for (const original of related) {

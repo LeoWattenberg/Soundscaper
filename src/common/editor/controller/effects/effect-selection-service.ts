@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { hasCoreEditingProjectAuthority } from '../../project-schema-version.ts';
+import { audioSelectionEffectAppliesToAllAudio } from '../../effects.js';
 
 export interface EffectSelectionFrequencyRange {
 	readonly minimumFrequency: number;
@@ -69,6 +70,11 @@ export interface EffectSelectionState {
 	selectedTrackId: string | null;
 	selectedClipId: string | null;
 	audacityEffectType: string;
+	preferences?: Readonly<{
+		editing?: Readonly<{
+			applyEffectsToAllAudio?: boolean;
+		}>;
+	}>;
 }
 
 interface EditingSelection {
@@ -201,23 +207,41 @@ export function createEffectSelectionService(runtime: EffectSelectionServiceRunt
 				};
 			}).filter(isEffectTarget);
 		}
-		if (!selection?.trackIds?.length) {
-			const target = audacityEffectTarget();
-			return target ? [target] : [];
+		if (selection?.trackIds?.length) {
+			return effectTargetsForRange(project, selection, new Set(selection.trackIds), options);
 		}
-		const selectedTrackIds = new Set(selection.trackIds);
+		if (runtime.state.preferences?.editing?.applyEffectsToAllAudio === true
+			&& audioSelectionEffectAppliesToAllAudio(runtime.state.audacityEffectType)) {
+			if (selection) return effectTargetsForRange(project, selection, null, options);
+			const range = projectAudioRange(project);
+			if (!range) return [];
+			const selectedTrackIds = project.selection?.trackIds?.length
+				? new Set(project.selection.trackIds)
+				: null;
+			return effectTargetsForRange(project, range, selectedTrackIds, options);
+		}
+		const target = audacityEffectTarget();
+		return target ? [target] : [];
+	}
+
+	function effectTargetsForRange(
+		project: EffectSelectionProject,
+		range: Pick<EffectSelection, 'startFrame' | 'endFrame'>,
+		selectedTrackIds: ReadonlySet<string> | null,
+		options: EffectTargetOptions,
+	): EffectTarget[] {
 		return project.tracks.map((track): EffectTarget | null => {
-			if (track.type !== 'audio' || !selectedTrackIds.has(track.id)) return null;
+			if (track.type !== 'audio' || (selectedTrackIds && !selectedTrackIds.has(track.id))) return null;
 			const channelCount = runtime.audacitySelectionChannelCount(
-				project, track.id, selection.startFrame, selection.endFrame,
+				project, track.id, range.startFrame, range.endFrame,
 			);
 			const hasAudio = Boolean(channelCount);
 			if (!hasAudio && !options.includeSilentTracks) return null;
 			return {
 				track,
-				startFrame: selection.startFrame,
-				endFrame: selection.endFrame,
-				durationFrames: selection.endFrame - selection.startFrame,
+				startFrame: range.startFrame,
+				endFrame: range.endFrame,
+				durationFrames: range.endFrame - range.startFrame,
 				channelCount: channelCount || runtime.audioTrackChannelCount(project, track, 1),
 				hasAudio,
 			};
@@ -368,6 +392,22 @@ function findClip(project: EffectSelectionProject, clipId: string | null | undef
 
 function findClipTrack(project: EffectSelectionProject, clipId: string): EffectSelectionTrack | null {
 	return project.tracks.find((track) => track.clipIds?.includes(clipId)) ?? null;
+}
+
+function projectAudioRange(
+	project: EffectSelectionProject,
+): Pick<EffectSelection, 'startFrame' | 'endFrame'> | null {
+	let endFrame = 0;
+	for (const track of project.tracks) {
+		if (track.type !== 'audio') continue;
+		for (const clipId of track.clipIds ?? []) {
+			const clip = findClip(project, clipId);
+			if (!clip) continue;
+			const clipEndFrame = clip.timelineStartFrame + clip.durationFrames;
+			if (Number.isSafeInteger(clipEndFrame)) endFrame = Math.max(endFrame, clipEndFrame);
+		}
+	}
+	return endFrame > 0 ? { startFrame: 0, endFrame } : null;
 }
 
 function isEffectTarget(value: EffectTarget | null): value is EffectTarget {

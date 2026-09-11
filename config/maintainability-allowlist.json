@@ -72,7 +72,7 @@
 		"src/common/editor/assistance/transcript-scape-asset-extension-v1.ts": 576,
 		"src/common/editor/assistance/workflow.ts": 597,
 		"src/common/editor/audacity-binary-xml.js": 559,
-		"src/common/editor/audacity-effects/manifest.js": 578,
+		"src/common/editor/audacity-effects/manifest.js": 577,
 		"src/common/editor/automation-lane-interval-edit-v21.ts": 568,
 		"src/common/editor/broadcast-wave.ts": 583,
 		"src/common/editor/browser-audio-codec-runtime.ts": 589,

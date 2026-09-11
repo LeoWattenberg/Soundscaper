@@ -90,3 +90,42 @@ test('spectral selection covers the clip body below its header', () => {
 		else Reflect.deleteProperty(globalThis, 'React');
 	}
 });
+
+test('spectral overlays cover the full body when the design-system clip header truncates', () => {
+	const runtimeGlobal = globalThis as typeof globalThis & { React?: typeof React };
+	const priorReact = Object.getOwnPropertyDescriptor(globalThis, 'React');
+	runtimeGlobal.React = React;
+	try {
+		const shared = {
+			track: { spectrogram: { scale: 'linear', minimumFrequency: 0, maximumFrequency: 24_000 } },
+			displayMode: 'spectrogram',
+			trackHeight: 40,
+			windowWidth: 400,
+			overscanStartFrame: 0,
+			pixelsPerSecond: 100,
+			sampleRate: 48_000,
+			disabled: false,
+			onCommit: () => undefined,
+		} as const;
+		const brush = renderToStaticMarkup(<SpectralBrushOverlay
+			{...shared}
+			copy={{ spectralBrush: 'Spectral brush' }}
+		/>);
+		const selection = renderToStaticMarkup(<SpectralSelectionOverlay
+			{...shared}
+			selection={{
+				startFrame: 0,
+				endFrame: 48_000,
+				frequencyRange: { minimumFrequency: 0, maximumFrequency: 24_000 },
+			}}
+			maximumFrame={48_000}
+			copy={{}}
+		/>);
+
+		assert.match(brush, /data-spectral-brush="true"[^>]*style="top:0;height:40px"/u);
+		assert.match(selection, /data-spectral-selection="true" style="[^"]*top:0;[^"]*height:40px/u);
+	} finally {
+		if (priorReact) Object.defineProperty(globalThis, 'React', priorReact);
+		else Reflect.deleteProperty(globalThis, 'React');
+	}
+});

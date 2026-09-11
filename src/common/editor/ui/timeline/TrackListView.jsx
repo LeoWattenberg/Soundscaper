@@ -4,6 +4,7 @@ import { AudioTrackRow } from './AudioTrackRow.jsx';
 import { EMPTY_TIMELINE_CLIPS } from './constants.ts';
 import { normalizeWaveformRulerState } from './geometry.ts';
 import { LabelTrackRow } from './LabelTrackRow.jsx';
+import { audioEditorAsymmetricStereoHeightsAvailable } from './stereo-channel-height-runtime.ts';
 import { TrackFolderRow } from './TrackFolderRow.jsx';
 import {
 	planTrackListRows,
@@ -71,6 +72,10 @@ export function TrackListView({
 	displayAudioSupported,
 }) {
 	const rowCopy = useMemo(() => ({ ...copy, ...resolveTrackAutomationCopy(locale) }), [copy, locale]);
+	const asymmetricStereoHeightsAvailable = audioEditorAsymmetricStereoHeightsAvailable(
+		snapshot.preferences?.editing,
+		snapshot.preferences?.workspace?.activeId,
+	);
 	const [activeFolderId, setActiveFolderId] = useState(null);
 	const [editingFolderId, setEditingFolderId] = useState(null);
 	const plan = useMemo(
@@ -219,6 +224,8 @@ export function TrackListView({
 					selectedClipId={snapshot.selectedClipId}
 					selectedClipIdSet={selectedClipIdSet}
 					timelineView={snapshot.timeline?.view}
+					asymmetricStereoHeightsAvailable={asymmetricStereoHeightsAvailable}
+					channelHeightRatio={snapshot.timeline?.trackChannelHeightRatios?.[track.id]}
 					showRms={Boolean(snapshot.timeline?.showRms)}
 					waveformRulerFormat={normalizeWaveformRulerState(waveformRulerState[track.id]).format}
 					waveformZoom={normalizeWaveformRulerState(waveformRulerState[track.id]).zoom}

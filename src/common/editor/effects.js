@@ -166,6 +166,11 @@ export function audioSelectionEffectDefinition(type) {
 	return definition;
 }
 
+/** Whether Audacity permits this effect to use the Edit preference's implicit all-audio target. */
+export function audioSelectionEffectAppliesToAllAudio(type) {
+	return ownMapValue(AUDIO_SELECTION_EFFECT_DEFINITIONS, type)?.applyToAllAudio !== false;
+}
+
 /**
  * @param {string | null | undefined} type
  * @param {string | object} [copyOrLocale]

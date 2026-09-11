@@ -1,5 +1,4 @@
-import { useRef } from 'react';
-import { FrequencyRuler } from '@soundscaper/design-system/VerticalRuler';
+import { useEffect, useRef, useState } from 'react';
 import { TrackNew } from '@soundscaper/design-system/Track/TrackNew';
 
 import { editorTimelineDurationFrames } from '../../project.js';
@@ -10,11 +9,16 @@ import { ClipFadeOverlays } from './ClipFadeOverlays.tsx';
 import { AudacityWaveformCanvases } from './TimelineCanvasRenderer.jsx';
 import { SpectralBrushOverlay } from './SpectralBrushOverlay.jsx';
 import { SpectralSelectionOverlay } from './SpectralSelectionOverlay.jsx';
-import { CLIP_HEADER_HEIGHT } from './geometry.ts';
+import { StereoChannelDivider } from './StereoChannelDivider.tsx';
+import { audioEditorClipBodyGeometry } from './geometry.ts';
 import { createSpectrogramCanvasOptions } from './spectrogram-canvas-options.ts';
+import {
+	audioEditorStereoChannelDividerRegions,
+	audioEditorStereoChannelHeightRatioForDisplay,
+} from './stereo-channel-height-runtime.ts';
 import { timelineContentLeft } from './timeline-scroll-space.ts';
 import { clipGroups, focusFirst } from './timeline-navigation.js';
-import { renderAmplitudeRulers } from './track-row-helpers.jsx';
+import { renderAmplitudeRulers, renderFrequencyRulers } from './track-row-helpers.jsx';
 import { useAudioTrackRowNavigation } from './useAudioTrackRowNavigation.js';
 import { useAudioTrackRowViewModel } from './useAudioTrackRowViewModel.js';
 import { resolveAudioEditorColor, TimeSelectionOverlay } from './TimelineOverlayComponents.jsx';
@@ -47,6 +51,8 @@ export function AudioTrackRow({
 	selectedClipId,
 	selectedClipIdSet,
 	timelineView,
+	asymmetricStereoHeightsAvailable,
+	channelHeightRatio,
 	showRms,
 	waveformRulerFormat,
 	waveformZoom,
@@ -81,8 +87,19 @@ export function AudioTrackRow({
 	onFocusSelectionToolbar,
 }) {
 	const trackWindowRef = useRef(null);
+	const [channelHeightRatioPreview, setChannelHeightRatioPreview] = useState(null);
 	const trackHeight = visualHeight;
+	const {
+		top: channelBodyTop,
+		height: channelBodyHeight,
+	} = audioEditorClipBodyGeometry(trackHeight);
 	const displayMode = track.displayMode && track.displayMode !== 'waveform' ? track.displayMode : timelineView;
+	const storedChannelHeightRatio = channelHeightRatio ?? 0.5;
+	const displayChannelHeightRatio = audioEditorStereoChannelHeightRatioForDisplay(
+		channelHeightRatioPreview ?? storedChannelHeightRatio,
+		asymmetricStereoHeightsAvailable,
+		displayMode,
+	);
 	const spectrogramOptions = createSpectrogramCanvasOptions(track.spectrogram, sampleRate);
 	const spectrogramScale = spectrogramOptions.scale;
 	const {
@@ -122,6 +139,18 @@ export function AudioTrackRow({
 		blocked,
 		automationToolEnabled,
 	});
+	const stereoDividerEnabled = rulerChannelCount === 2
+		&& asymmetricStereoHeightsAvailable
+		&& !blocked;
+	useEffect(() => {
+		setChannelHeightRatioPreview(null);
+	}, [asymmetricStereoHeightsAvailable, displayMode, track.id]);
+	useEffect(() => {
+		if (asymmetricStereoHeightsAvailable
+			|| channelHeightRatio === undefined
+			|| storedChannelHeightRatio === 0.5) return;
+		run(() => controller.actions.timeline.setChannelHeightRatio(track.id, 0.5));
+	}, [asymmetricStereoHeightsAvailable, channelHeightRatio, controller, run, storedChannelHeightRatio, track.id]);
 	const activeSpectralSelection = spectralSelection?.frequencyRange && selectedTrackId === track.id
 		? spectralSelection
 		: null;
@@ -210,6 +239,8 @@ export function AudioTrackRow({
 				data-spectrogram-window-type={track.spectrogram?.windowType ?? 'hann'}
 				data-spectrogram-gain={track.spectrogram?.gain ?? 20}
 				data-spectrogram-range={track.spectrogram?.range ?? 80}
+				data-channel-body-top={channelBodyTop}
+				data-channel-height-ratio={displayChannelHeightRatio}
 				aria-label={track.name}
 				data-selected={selectedTrackId === track.id}
 				style={{ marginLeft: panelWidth, width: timelineWidth + verticalRulerWidth, height: trackHeight }}
@@ -277,6 +308,7 @@ export function AudioTrackRow({
 						width={windowWidth}
 						spectrogramMode={displayMode === 'spectrogram' && !recordingPreview}
 						splitView={displayMode === 'multiview'}
+						channelSplitRatio={displayChannelHeightRatio}
 						spectrogramScale={spectrogramScale}
 						timeSelection={projectedSelection}
 						clipStyle={clipStyle === 'classic' ? 'classic' : 'colourful'}
@@ -335,8 +367,23 @@ export function AudioTrackRow({
 						showRms={showRms}
 						halfWave={displayMode === 'half-wave'}
 						verticalZoom={waveformZoom}
+						channelHeightRatio={displayChannelHeightRatio}
 						spectrogramOptions={spectrogramOptions}
 					/>
+					{audioEditorStereoChannelDividerRegions(
+						channelBodyTop, channelBodyHeight, displayMode,
+					).map((region, index) => <StereoChannelDivider
+						key={index}
+						enabled={stereoDividerEnabled}
+						top={region.top}
+						height={region.height}
+						ratio={displayChannelHeightRatio}
+						label={`${copy.trackChannels}: ${track.name}`}
+						onPreview={setChannelHeightRatioPreview}
+						onCommit={(ratio) => run(() => (
+							controller.actions.timeline.setChannelHeightRatio(track.id, ratio)
+						))}
+					/>)}
 					<AutomaticCrossfadeOverlays overlays={crossfadeOverlays} />
 					<ClipFadeOverlays rootRef={trackWindowRef} clips={projection.clips}
 						selectedIds={selectedClipIdSet.size ? selectedClipIdSet : new Set([selectedClipId])}
@@ -414,7 +461,7 @@ export function AudioTrackRow({
 					role="region"
 					aria-label={`${track.name}: ${displayMode === 'spectrogram' ? copy.spectrogramView : displayMode === 'multiview' ? copy.multiview : copy.waveformView}`}
 					tabIndex={tabIndexFor(3)}
-					style={{ paddingTop: CLIP_HEADER_HEIGHT }}
+					style={{ paddingTop: channelBodyTop }}
 					onContextMenu={(event) => onOpenRulerFlyout(displayMode, event)}
 					onKeyDown={(event) => {
 						if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
@@ -434,39 +481,45 @@ export function AudioTrackRow({
 					}}
 				>
 					{displayMode === 'spectrogram' ? (
-						<FrequencyRuler
-							height={Math.max(0, trackHeight - CLIP_HEADER_HEIGHT)}
-							minFreq={track.spectrogram?.minimumFrequency || 0}
-							maxFreq={track.spectrogram?.maximumFrequency || sampleRate / 2}
-							scale={spectrogramScale}
-							width={verticalRulerWidth}
-						/>
+						renderFrequencyRulers(
+							rulerChannelCount,
+							channelBodyHeight,
+							verticalRulerWidth,
+							track.spectrogram?.minimumFrequency || 0,
+							track.spectrogram?.maximumFrequency || sampleRate / 2,
+							spectrogramScale,
+							displayChannelHeightRatio,
+						)
 					) : displayMode === 'multiview' ? (
 						<>
-							<FrequencyRuler
-								height={Math.floor((trackHeight - CLIP_HEADER_HEIGHT) / 2)}
-								minFreq={track.spectrogram?.minimumFrequency || 0}
-								maxFreq={track.spectrogram?.maximumFrequency || sampleRate / 2}
-								scale={spectrogramScale}
-								width={verticalRulerWidth}
-							/>
+							{renderFrequencyRulers(
+								rulerChannelCount,
+								Math.floor(channelBodyHeight / 2),
+								verticalRulerWidth,
+								track.spectrogram?.minimumFrequency || 0,
+								track.spectrogram?.maximumFrequency || sampleRate / 2,
+								spectrogramScale,
+								displayChannelHeightRatio,
+							)}
 							{renderAmplitudeRulers(
 								rulerChannelCount,
-								trackHeight - CLIP_HEADER_HEIGHT - Math.floor((trackHeight - CLIP_HEADER_HEIGHT) / 2),
+								channelBodyHeight - Math.floor(channelBodyHeight / 2),
 								verticalRulerWidth,
 								displayMode,
 								waveformRulerFormat,
 								waveformZoom,
+								displayChannelHeightRatio,
 							)}
 						</>
 					) : (
 						renderAmplitudeRulers(
 							rulerChannelCount,
-							Math.max(0, trackHeight - CLIP_HEADER_HEIGHT),
+							channelBodyHeight,
 							verticalRulerWidth,
 							displayMode,
 							waveformRulerFormat,
 							waveformZoom,
+							displayChannelHeightRatio,
 						)
 					)}
 				</div>}

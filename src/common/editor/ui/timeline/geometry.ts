@@ -7,6 +7,7 @@ export const DEFAULT_WAVEFORM_RULER_STATE = Object.freeze({
 	zoom: 0,
 });
 export const CLIP_HEADER_HEIGHT = 20;
+const TRUNCATED_CLIP_MAXIMUM_HEIGHT = 44;
 export const MAXIMUM_WAVEFORM_VERTICAL_ZOOM = 8;
 export const MINIMUM_TRACK_HEIGHT = 40;
 export const DEFAULT_TRACK_HEIGHT = 114;
@@ -35,6 +36,18 @@ export interface TimelineFrequencySelection {
 		minimumFrequency: number;
 		maximumFrequency: number;
 	}>;
+}
+
+/** Match the design-system clip body when its header collapses at small track heights. */
+export function audioEditorClipBodyGeometry(trackHeight: number): Readonly<{
+	top: number;
+	height: number;
+}> {
+	const height = Math.max(0, Number.isFinite(trackHeight) ? trackHeight : 0);
+	const top = height > TRUNCATED_CLIP_MAXIMUM_HEIGHT
+		? Math.min(CLIP_HEADER_HEIGHT, height)
+		: 0;
+	return { top, height: height - top };
 }
 
 export function normalizeSpectrogramScale(value: unknown): SpectrogramScale {

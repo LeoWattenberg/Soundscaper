@@ -363,5 +363,5 @@ test('legacy UI aliases resolve to stable upstream IDs and share one policy reco
 test('Nyquist spectral processors require an editable frequency selection', () => {
 	assert.equal(audacityActionDefinition('nyquist:spectral-delete').enableWhen, 'editable-frequency-selection');
 	assert.equal(audacityActionDefinition('nyquist:spectraleditmulti').enableWhen, 'editable-frequency-selection');
-	assert.equal(audacityActionDefinition('nyquist:lowpass').enableWhen, 'editable-selection-or-clip');
+	assert.equal(audacityActionDefinition('nyquist:lowpass').enableWhen, 'editable-effect-target');
 });

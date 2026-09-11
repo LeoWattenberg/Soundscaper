@@ -142,7 +142,7 @@ export interface ClipboardEditService {
 	setSessionClipboard(descriptor: AudioEditorClipboard): AudioEditorClipboard;
 	splitAtFrame(frame: unknown, trackIds?: string | readonly string[] | null): unknown;
 	commitSplitAtFrames(frames: readonly unknown[], trackIds?: string | readonly string[] | null): unknown;
-	prepareControllerPaste(mode: ClipboardPasteMode, atFrame?: number): AudioEditorCommand;
+	prepareControllerPaste(mode: ClipboardPasteMode, atFrame?: number, pasteAsNewClip?: boolean): AudioEditorCommand;
 	disjoinSelectedClip(): Promise<void>;
 	disjoinLabeledRegions(
 		regions: readonly Readonly<{ startFrame: number; endFrame: number }>[],
@@ -228,7 +228,7 @@ export function createClipboardEditService(
 
 	function prepareControllerPaste(
 		mode: ClipboardPasteMode,
-		atFrame = dependencies.getPositionFrames(),
+		atFrame = dependencies.getPositionFrames(), pasteAsNewClip = true,
 	): AudioEditorCommand {
 		dependencies.lifetime.assertActive();
 		const project = dependencies.getProject();
@@ -354,7 +354,7 @@ export function createClipboardEditService(
 			if (!target) target = createTargetTrack(clipboardTrack);
 			assignTarget(clipboardTrack, target);
 		}
-		commands.push(preparePaste(clipboard, project, atFrame, trackMap, mode));
+		commands.push(preparePaste(clipboard, project, atFrame, trackMap, mode, pasteAsNewClip));
 		const command: AudioEditorCommand = commands.length === 1 ? commands[0]! : { type: 'batch', commands };
 		if (!editSessionClipboard
 			|| !sameClipboardDescriptor(editSessionClipboard.descriptor, clipboard)
@@ -516,11 +516,11 @@ export function createClipboardEditService(
 		project: ClipboardEditProject,
 		atFrame: number,
 		trackMap: Readonly<Record<string, string>>,
-		mode: ClipboardPasteMode,
+		mode: ClipboardPasteMode, pasteAsNewClip: boolean,
 	): Extract<AudioEditorCommand, { readonly type: 'clipboard/paste' }> {
 		return prepareLegacyPasteCommand(
 			clipboard,
-			{ project, atFrame, trackMap, mode },
+			{ project, atFrame, trackMap, mode, pasteAsNewClip },
 			dependencies.createId,
 		) as Extract<AudioEditorCommand, { readonly type: 'clipboard/paste' }>;
 	}

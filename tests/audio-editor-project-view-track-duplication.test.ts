@@ -41,6 +41,36 @@ test('project view publication clamps timeline geometry and updates dependent st
 	assert.deepEqual(events, ['sample-mode', 'playhead:42:100', 'publish']);
 });
 
+test('project view publication preserves an explicit zoom below project fit', () => {
+	const project = { id: 'project', tracks: [{ id: 'audio', type: 'audio' }] };
+	const state = {
+		pixelsPerSecond: 5,
+		allowBelowProjectFitZoom: true,
+		timelineViewportWidth: 500,
+		timelineWidth: 0,
+		timelineView: 'waveform' as const,
+	};
+	const service = createProjectViewService({
+		lifetime: { assertActive: () => undefined },
+		state,
+		getProject: () => project,
+		projectDurationFrames: () => 100,
+		editorTimelineDurationFrames: () => 1_000,
+		projectSampleRate: () => 100,
+		maximumPixelsPerSecond: 6_000_000,
+		synchronizeAutomaticSampleEditMode: () => undefined,
+		getEnginePositionFrames: () => 0,
+		updatePlayhead: () => undefined,
+		publishDocumentSnapshot: () => undefined,
+		editingBlocked: () => false,
+		commit: () => undefined,
+	});
+
+	service.publishProjectState();
+	assert.equal(state.pixelsPerSecond, 5);
+	assert.equal(state.timelineWidth, 50);
+});
+
 test('project view setters normalize modes and commit all changed audio tracks atomically', () => {
 	const project = {
 		id: 'project',

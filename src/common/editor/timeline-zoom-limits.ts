@@ -11,3 +11,9 @@
 export const AUDIO_EDITOR_MAX_PIXELS_PER_SECOND = 6_000_000;
 
 export const AUDIO_EDITOR_DEFAULT_PIXELS_PER_SECOND = 120;
+
+/** Audacity's global horizontal zoom floor, including dynamic fit presets. */
+export const AUDIO_EDITOR_MIN_PIXELS_PER_SECOND = 0.001;
+
+/** Audacity's coarsest fixed preset: five pixels represent one minute. */
+export const AUDIO_EDITOR_MINUTES_PRESET_PIXELS_PER_SECOND = 5 / 60;

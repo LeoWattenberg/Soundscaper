@@ -5,6 +5,7 @@ import {
 	type EditorProjectToken,
 	type EditorTaskScope,
 } from '../../shared/lifecycle.ts';
+import { createSelectionEffectPreviewService } from './effect-preview-service.ts';
 
 const SELECTION_EFFECT_TASK = 'selection-effect-apply';
 /** The registry name a Nyquist evaluation holds while the evaluator runs. */
@@ -20,172 +21,19 @@ type RuntimeValue = SelectionEffectExecutionRuntime[string];
 
 export function createSelectionEffectExecutionService(runtime: SelectionEffectExecutionRuntime) {
 	const {
-		AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES, AUDIO_SELECTION_EFFECT_DEFINITIONS, NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES, abortError,
-		activeSelection, assertAudacityEffectOutput, audacityEffectMemoryError, audacityEffectSelectionDetails,
-		audacityEffectTarget, audacityEffectTargets, audacitySpectralEffectContext, bufferFromChannels,
+		AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES, AUDIO_SELECTION_EFFECT_DEFINITIONS, NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES,
+		activeSelection, audacityEffectMemoryError, audacityEffectSelectionDetails,
+		audacityEffectTargets, audacitySpectralEffectContext,
 		cancelAudacityEffectPreview, copy, currentAudacityEffectParams, editingBlocked,
-		engine, estimateAudioSelectionEffectOutputFrames, estimateAudioSelectionEffectPeakBytes, freezeNyquistResult,
+		estimateAudioSelectionEffectOutputFrames, estimateAudioSelectionEffectPeakBytes, freezeNyquistResult,
 		mixNyquistPreviewChannels, normalizeAudioSelectionEffectParams, normalizeNyquistRole, nyquistAudioResultBytes,
 		nyquistEvaluator, nyquistHostProperties, nyquistMaximumOutputFrames, nyquistResultStatus,
 		persistAudacityEffectResults, persistNyquistGeneratedAudio, persistNyquistLabels, playNyquistPreview,
 		preflightStorage, getProject, projectDurationFrames, projectSampleRate,
 		publishDocumentSnapshot, renderDryTrackRange, resolveInteractiveAudacityParams, runSelectionEffectWorker,
-		setAudacityControlTrack, setAudacityEffectParamsFromController, setAudacityEffectType, setStatus,
-		state, throwIfAborted, updateTaskProgress,
+		setStatus, state, throwIfAborted, updateTaskProgress,
 	} = runtime;
-	async function previewAudacityEffectFromController(request: RuntimeValue = {}) {
-		if (state.audacityEffectProcessing) return false;
-		cancelAudacityEffectPreview({ publish: false });
-		const previewGeneration = state.audacityPreviewGeneration;
-		const requireCurrentPreview = (source: RuntimeValue = null) => {
-			if (previewGeneration === state.audacityPreviewGeneration) return;
-			if (source) {
-				try { source.onended = null; source.onerror = null; source.stop?.(); } catch { /* A stale source may not have started. */ }
-				try { source.disconnect?.(); } catch { /* A stale source may already be disconnected. */ }
-			}
-			throw abortError();
-		};
-		if (request.type) setAudacityEffectType(request.type);
-		if (request.params) setAudacityEffectParamsFromController(request.params);
-		if ('controlTrackId' in request) setAudacityControlTrack(request.controlTrackId);
-		const fullTarget = audacityEffectTarget();
-		if (!fullTarget) throw new Error(copy.audacitySelectionHint);
-		const type = state.audacityEffectType;
-		const definition = AUDIO_SELECTION_EFFECT_DEFINITIONS[type];
-		const sampleRate = projectSampleRate();
-		const spectralSelection = audacitySpectralEffectContext(fullTarget, definition);
-		const durationFrames = Math.min(fullTarget.durationFrames, sampleRate * 6);
-		const target = {
-			...fullTarget,
-			endFrame: fullTarget.startFrame + durationFrames,
-			durationFrames,
-		};
-		let params = normalizeAudioSelectionEffectParams(type, currentAudacityEffectParams());
-		const resolveFromFullSelection = type === 'audacity-amplify'
-			&& !state.audacityEffectTouchedParams.get(type)?.has('gainDb')
-			&& durationFrames < fullTarget.durationFrames;
-		if (definition.requiresNoiseProfile && !state.audacityNoiseProfile) throw new Error(copy.noiseProfileMissing);
-		if (definition.requiresControlTrack && !state.audacityControlTrackId) throw new Error(copy.autoDuckControlTrack);
-		const contextFrames = definition.preRollSeconds
-			? Math.min(fullTarget.startFrame, Math.ceil(definition.preRollSeconds * sampleRate))
-			: definition.requiresStaffPad
-			? sampleRate
-			: definition.requiresContext ? 128 : 0;
-		const afterContextFrames = definition.preRollSeconds ? 0 : contextFrames;
-		const estimatedPeakBytes = estimateAudioSelectionEffectPeakBytes(type,
-			resolveFromFullSelection ? fullTarget.durationFrames : durationFrames, params, {
-			channelCount: target.channelCount,
-			controlChannelCount: definition.requiresControlTrack ? 2 : undefined,
-			sampleRate,
-			beforeFrames: contextFrames,
-			afterFrames: afterContextFrames,
-			spectralWindowSize: spectralSelection?.windowSize,
-		});
-		if (estimatedPeakBytes > AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES) throw audacityEffectMemoryError(copy);
-		state.audacityEffectProcessing = true;
-		setStatus(copy.audacityPreviewProcessing || copy.audacityProcessing);
-		publishDocumentSnapshot();
-		try {
-			const fullSelectionChannels = resolveFromFullSelection
-				? await renderDryTrackRange(fullTarget.track.id, fullTarget.startFrame, fullTarget.endFrame,
-					fullTarget.channelCount, fullTarget.clipIds)
-				: null;
-			requireCurrentPreview();
-			const channels = await renderDryTrackRange(target.track.id, target.startFrame, target.endFrame, target.channelCount, target.clipIds);
-			requireCurrentPreview();
-			params = resolveInteractiveAudacityParams(type, params, fullSelectionChannels ?? channels);
-			if (type === 'eq') {
-				engine.pause();
-				const context = await engine.getAudioContext({ resume: true });
-				requireCurrentPreview();
-				const buffer = await bufferFromChannels(channels, sampleRate, context, copy);
-				requireCurrentPreview();
-				if (typeof engine.createParametricEqPreview !== 'function') {
-					throw new Error('This browser cannot preview the parametric EQ without bypassing it.');
-				}
-				const preview = await engine.createParametricEqPreview(buffer, params, {
-					effectId: 'selection-preview-eq',
-				});
-				requireCurrentPreview(preview);
-				preview.onended = () => {
-					if (state.audacityPreviewSource !== preview) return;
-					state.audacityPreviewSource = null;
-					preview.disconnect?.();
-					setStatus(copy.audacityPreviewComplete || copy.ready, 'success');
-					publishDocumentSnapshot();
-				};
-				state.audacityPreviewSource = preview;
-				preview.onerror = () => {
-					if (state.audacityPreviewSource !== preview) return;
-					state.audacityPreviewSource = null;
-					preview.onended = null;
-					try { preview.stop?.(); } catch { /* A failed preview may already have ended. */ }
-					preview.disconnect?.();
-					publishDocumentSnapshot();
-				};
-				if (state.audacityPreviewSource !== preview) return false;
-				if (state.audacityPreviewAuditionBandId != null) {
-					preview.audition?.(state.audacityPreviewAuditionBandId);
-				}
-				preview.start();
-				setStatus(copy.audacityPreviewPlaying || copy.playing, 'success');
-				return true;
-			}
-			const effectContext: RuntimeValue = {};
-			if (spectralSelection) effectContext.spectralSelection = spectralSelection;
-			if (definition.requiresControlTrack) {
-				effectContext.controlChannels = await renderDryTrackRange(
-					state.audacityControlTrackId,
-					target.startFrame,
-					target.endFrame,
-				);
-			}
-			if (definition.requiresNoiseProfile) effectContext.noiseProfile = state.audacityNoiseProfile;
-			if (contextFrames > 0) {
-				const beforeStart = Math.max(0, target.startFrame - contextFrames);
-				effectContext.beforeChannels = beforeStart < target.startFrame
-					? await renderDryTrackRange(target.track.id, beforeStart, target.startFrame, target.channelCount, target.clipIds)
-					: channels.map(() => new Float32Array(0));
-				if (afterContextFrames > 0) {
-					const afterEnd = Math.min(projectDurationFrames(getProject()), target.endFrame + afterContextFrames);
-					effectContext.afterChannels = target.endFrame < afterEnd
-						? await renderDryTrackRange(target.track.id, target.endFrame, afterEnd, target.channelCount, target.clipIds)
-						: channels.map(() => new Float32Array(0));
-				}
-			}
-			const result = await runSelectionEffectWorker({
-				operation: 'apply', effectType: type, channels, sampleRate, params, context: effectContext,
-			});
-			requireCurrentPreview();
-			assertAudacityEffectOutput(result.channels);
-			const context = await engine.getAudioContext({ resume: true });
-			await context.resume?.();
-			requireCurrentPreview();
-			const buffer = await bufferFromChannels(result.channels, sampleRate, context, copy);
-			requireCurrentPreview();
-			const source = context.createBufferSource();
-			source.buffer = buffer;
-			source.connect(context.destination);
-			source.onended = () => {
-				if (state.audacityPreviewSource !== source) return;
-				state.audacityPreviewSource = null;
-				source.disconnect?.();
-				setStatus(copy.audacityPreviewComplete || copy.ready, 'success');
-				publishDocumentSnapshot();
-			};
-			engine.pause();
-			state.audacityPreviewSource = source;
-			source.start();
-			setStatus(copy.audacityPreviewPlaying || copy.playing, 'success');
-			return true;
-		} catch (error) {
-			if ((error as Readonly<{ name?: string }>)?.name === 'AbortError') return false;
-			throw error;
-		} finally {
-			state.audacityEffectProcessing = false;
-			publishDocumentSnapshot();
-		}
-	}
+	const previewAudacityEffectFromController = createSelectionEffectPreviewService(runtime);
 
 	async function applySelectedAudacityEffect() {
 		if (editingBlocked()) return;

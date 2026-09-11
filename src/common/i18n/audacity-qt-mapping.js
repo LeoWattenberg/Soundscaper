@@ -5,12 +5,11 @@
 // Audacity contexts. The set intentionally favors high-value editor commands
 // that are complete in both a representative LTR locale and an RTL locale.
 //
-// Adding, removing or editing an entry changes the mapping digest, which no
-// longer matches the published translation release. Desktop preparation then
-// refuses to stage a snapshot and every packaging job fails. Dispatch
-// `sync-audacity-translations.yml` with `operation: sync` in the same change so
-// a matching release is published before the next nightly.
-export const AUDACITY_QT_MAPPING_VERSION = 2;
+// Adding, removing or editing an entry changes the mapping digest. Rerun the
+// converter from a verified artifact in the same change so every committed
+// catalog carries matching provenance; desktop packaging refuses a snapshot
+// whose catalogs disagree.
+export const AUDACITY_QT_MAPPING_VERSION = 3;
 
 export const AUDACITY_QT_MAPPING = deepFreeze([
 	entry('addEffect', 'projectscene', 'Add effect'),
@@ -24,6 +23,49 @@ export const AUDACITY_QT_MAPPING = deepFreeze([
 	entry('delay', 'effects-nyquist', 'Delay'),
 	entry('deleteTrack', 'action', 'Delete track'),
 	entry('duplicateAudio', 'action', 'Duplicate'),
+	entry('editingAlwaysConvertToMono', 'preferences', 'Always convert to mono without prompt'),
+	entry('editingAlwaysPasteAsNewClip', 'preferences', 'Always paste audio as a new clip'),
+	entry('editingApplyEffectsToAllAudio', 'preferences', 'Apply effects to all audio when no selection is made'),
+	entry('editingAsymmetricAlways', 'preferences', 'Always'),
+	entry('editingAsymmetricNever', 'preferences', 'Never'),
+	entry('editingAsymmetricStereoHeights', 'preferences', 'Asymmetric stereo heights'),
+	entry('editingAsymmetricStereoHeightsDescription', 'preferences', 'Dragging on the center line may adjust the height of the channel:'),
+	entry('editingAsymmetricWorkspace', 'preferences', 'Depending on workspace'),
+	entry('editingCloseGapAllTracks', 'trackedit/preferences', 'All clips on all tracks move back to fill the gap'),
+	entry('editingCloseGapBehavior', 'trackedit/preferences', 'When closing the gap, do the following'),
+	entry('editingCloseGapClip', 'trackedit/preferences', 'The selected clip moves back to fill the gap'),
+	entry('editingCloseGapRipple', 'trackedit/preferences', 'Close gap (ripple)'),
+	entry('editingCloseGapTrack', 'trackedit/preferences', 'All clips on the same track move back to fill the gap'),
+	entry('editingDeleteBehavior', 'trackedit/preferences', 'Choose behavior when deleting a portion of a clip'),
+	entry('editingEffectBehavior', 'preferences', 'Effect behavior'),
+	entry('editingLeaveGap', 'trackedit/preferences', 'Leave gap'),
+	entry('editingMonoStereoConversion', 'preferences', 'Mono & stereo conversion'),
+	entry('editingPasteBehavior', 'trackedit/preferences', 'Choose behavior when pasting audio'),
+	entry('editingPasteInsertAllTracks', 'trackedit/preferences', 'Pasting audio pushes all clips on all tracks'),
+	entry('editingPasteInsertBehavior', 'trackedit/preferences', 'When making room for pasted audio, do the following'),
+	entry('editingPasteInsertTrack', 'trackedit/preferences', 'Pasting audio pushes other clips on the same track'),
+	entry('editingPasteOverlaps', 'trackedit/preferences', 'Paste overlaps other clips'),
+	entry('editingPastePushes', 'trackedit/preferences', 'Paste pushes other clips'),
+	entry('editingWorkspaces', 'workspace', 'Workspaces'),
+	entry('editingZoomDefault', 'appshell/preferences', 'Zoom Default'),
+	entry('editingZoomFitToWidth', 'appshell/preferences', 'Fit to Width'),
+	entry('editingZoomFourPixelsPerSample', 'appshell/preferences', '4 Pixels per Sample'),
+	entry('editingZoomMax', 'appshell/preferences', 'Max Zoom'),
+	entry('editingZoomMilliseconds', 'appshell/preferences', 'MilliSeconds'),
+	entry('editingZoomMinutes', 'appshell/preferences', 'Minutes'),
+	entry('editingZoomPreset100ths', 'appshell/preferences', '100ths of Seconds'),
+	entry('editingZoomPreset10ths', 'appshell/preferences', '10ths of Seconds'),
+	entry('editingZoomPreset20ths', 'appshell/preferences', '20ths of Seconds'),
+	entry('editingZoomPreset500ths', 'appshell/preferences', '500ths of Seconds'),
+	entry('editingZoomPreset50ths', 'appshell/preferences', '50ths of Seconds'),
+	entry('editingZoomPreset5ths', 'appshell/preferences', '5ths of Seconds'),
+	entry('editingZoomSamples', 'appshell/preferences', 'Samples'),
+	entry('editingZoomSeconds', 'appshell/preferences', 'Seconds'),
+	entry('editingZoomState1', 'appshell/preferences', 'Zoom state 1:'),
+	entry('editingZoomState2', 'appshell/preferences', 'Zoom state 2:'),
+	entry('editingZoomToSelection', 'appshell/preferences', 'Zoom to Selection'),
+	entry('editingZoomToggle', 'appshell/preferences', 'Zoom toggle (magnifying glass)'),
+	entry('editingZoomToggleDescription', 'appshell/preferences', 'A special tool in the top bar that toggles between two different zoom states.'),
 	entry('effectParamFrequency', 'effects/tone', 'Frequency'),
 	entry('effectParamRatio', 'effects', 'Ratio'),
 	entry('exportAudio', 'export', 'Export audio'),
@@ -39,6 +81,10 @@ export const AUDACITY_QT_MAPPING = deepFreeze([
 	entry('metadataTagColumn', 'export', 'Tag'),
 	entry('metadataYear', 'metadata', 'Year'),
 	entry('metronome', 'action', 'Metronome'),
+	entry('monoConversionDontShowAgain', 'global', 'Don’t show again'),
+	entry('monoConversionPrompt', 'trackedit', 'This action requires one or more clips to be converted to mono. Would you like to proceed?'),
+	entry('monoConversionTitle', 'trackedit', 'Mix down to mono'),
+	entry('monoConversionYes', 'global', 'Yes'),
 	entry('newProject', 'project', 'New project'),
 	entry('openProject', 'action', 'Open…', '', ['stripEllipsis']),
 	entry('pan', 'playback', 'Pan'),

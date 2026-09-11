@@ -8,17 +8,13 @@ import { Separator } from '@soundscaper/design-system/Separator';
 
 import { productProfile } from '../../../products.js';
 import { iconNameToChar } from '../../audacity-iconcodes.js';
-import {
-	AUDIO_EDITOR_DEFAULT_ZOOM_PRECISION,
-	AUDIO_EDITOR_MAXIMUM_ZOOM_PRECISION,
-	AUDIO_EDITOR_MINIMUM_ZOOM_PRECISION,
-} from '../../preferences.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import { workspacePanelAvailable } from '../workspace/workspace-product-panel-runtime.ts';
 import { workspacePreferencesPage } from '../workspace/workspace-preferences-routing.ts';
 import AudioSettingsPreferencesPage from './AudioSettingsPreferencesPage.jsx';
+import EditingPreferencesPage from './EditingPreferencesPage.tsx';
 import EffectsPreferencesPage from './EffectsPreferencesPage.jsx';
 import GeneralPreferencesPage from './GeneralPreferencesPage.jsx';
 import PlaybackRecordingPreferencesPage from './PlaybackRecordingPreferencesPage.jsx';
@@ -290,53 +286,12 @@ export default function WorkspacePreferencesDialog({
 						)}
 
 						{selectedPage === 'editing' && (
-							<>
-							<PreferencePanel title={copy.preferencesEditing}>
-								<div className="kw-audio-editor-preferences__grid">
-									<PreferenceDropdownField
-										label={copy.rippleEditing}
-										value={preferences.editing.rippleMode}
-										onChange={(value) => run(() => controller.actions.preferences.update({ editing: { rippleMode: value } }))}
-										options={[
-											{ value: 'off', label: copy.preferenceOff },
-											{ value: 'per-track', label: copy.preferencePerTrack },
-											{ value: 'all-tracks', label: copy.allTracks },
-										]}
-									/>
-								</div>
-								<div className="kw-audio-editor-preferences__checks">
-									<PreferenceCheckbox
-										label={copy.snapZeroCrossings}
-										checked={preferences.editing.snapToZeroCrossings}
-										onChange={(checked) => run(() => controller.actions.preferences.update({ editing: { snapToZeroCrossings: checked } }))}
-									/>
-								</div>
-							</PreferencePanel>
-							<Separator />
-							<PreferencePanel title={copy.zoomPreferences}>
-								<div className="kw-audio-editor-preferences__grid">
-									<label className="kw-audio-editor-preferences__field">
-										<span>{copy.mouseZoomPrecision}</span>
-										<input
-											type="number"
-											min={AUDIO_EDITOR_MINIMUM_ZOOM_PRECISION}
-											max={AUDIO_EDITOR_MAXIMUM_ZOOM_PRECISION}
-											step="1"
-											aria-label={copy.mouseZoomPrecision}
-											value={preferences.editing.zoomPrecision ?? AUDIO_EDITOR_DEFAULT_ZOOM_PRECISION}
-											onChange={(event) => {
-												const value = Number(event.currentTarget.value);
-												if (!Number.isInteger(value)
-													|| value < AUDIO_EDITOR_MINIMUM_ZOOM_PRECISION
-													|| value > AUDIO_EDITOR_MAXIMUM_ZOOM_PRECISION) return;
-												run(() => controller.actions.preferences.update({ editing: { zoomPrecision: value } }));
-											}}
-										/>
-									</label>
-								</div>
-								<p className="kw-audio-editor-preferences__note">{copy.mouseZoomPrecisionNote}</p>
-							</PreferencePanel>
-							</>
+							<EditingPreferencesPage
+								controller={controller}
+								preferences={preferences}
+								copy={copy}
+								run={run}
+							/>
 						)}
 
 						{selectedPage === 'effects' && (

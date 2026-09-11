@@ -511,12 +511,12 @@ test('snap settings, legacy frame clamping, and zoom remain bounded', () => {
 	assert.deepEqual(fixture.playheads, [20, 20]);
 });
 
-test('the zoom ceiling stays reachable however long the project is', () => {
-	// Ten minutes of timeline at this fixture's rate. The ceiling used to be a
-	// total pixel budget divided by the duration, so a long project could not be
-	// zoomed anywhere near a single sample.
-	const fixture = createFixture({ timelineDurationFrames: 600_000 });
+test('zoom bounds preserve both the ceiling and exact presets below project fit', () => {
+	const fixture = createFixture({ timelineDurationFrames: 100_000 });
 	assert.equal(fixture.service.setZoom(10_000), 10_000);
+	fixture.state.timelineViewportWidth = 1_000;
+	assert.equal(fixture.service.setZoom(5, { allowBelowProjectFit: true }), 5);
+	assert.equal(fixture.service.setZoom(5), 10);
 });
 
 test('zero-crossing alignment commits success and reports render failures', async () => {

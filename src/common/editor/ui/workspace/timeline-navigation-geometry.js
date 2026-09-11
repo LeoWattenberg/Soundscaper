@@ -38,6 +38,16 @@ export function centeredTimelinePlayheadScroll(scroll, {
 		- viewportWidth / 2);
 }
 
+/** Place one project frame at the visible timeline's leading edge. */
+export function timelineFrameStartScroll(scroll, {
+	positionFrame,
+	sampleRate,
+	pixelsPerSecond,
+}) {
+	return timelineDomScrollForElement(scroll, CLIP_CONTENT_OFFSET
+		+ positionFrame / sampleRate * pixelsPerSecond);
+}
+
 /**
  * Audacity's wheel zoom speed: one notch multiplies the zoom by 2^(1/precision),
  * so a precision of 1 doubles on every notch and 16 needs sixteen of them.

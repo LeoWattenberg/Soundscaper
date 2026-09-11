@@ -23,6 +23,15 @@ import { createLabelService } from './internal/label-service.ts';
 import { bindControllerEditClipboardRuntime, type ControllerRuntimeHistory } from '../document/project-runtime.ts';
 import { bufferFromChannels, writeBuffer } from '../source/source-audio.ts';
 import { generateWaveformPeaks, peakCacheKey } from '../source/waveform-analysis.ts';
+import { EDITOR_PROJECT_TASK_SCOPE } from '../shared/lifecycle.ts';
+import { commitMonoConvertingPasteCommand } from './paste-mono-conversion-service.ts';
+import { commitPasteIntoExistingClipCommand } from './paste-existing-clip-service.ts';
+import {
+	completeDeleteBehaviorOnboarding,
+	type ConfiguredDeleteEditAction,
+	type DefaultDeleteEditAction,
+} from './delete-behavior-onboarding-service.ts';
+import { normalizeAudioEditorEditingPreferences } from '../../editing-preferences.ts';
 
 export type {
 	EditCommandProject,
@@ -117,9 +126,90 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 			? projectRuntime.projectForEditClipboardConsumers(requireProject())
 			: commandProject
 	);
+	const commitPreparedPaste = (command: Parameters<typeof commitMonoConvertingPasteCommand>[0]['command']) => {
+		const project = dependencies.getCommandProject();
+		const token = projectGeneration.capture(project.id);
+		const revision = project.revision;
+		const task = lifetime.startTask('edit-paste', { scope: EDITOR_PROJECT_TASK_SCOPE });
+		const assertCurrent = () => {
+			task.assertCurrent();
+			projectGeneration.assertCurrent(token);
+			const current = dependencies.getCommandProject();
+			if (current.id !== project.id || current.revision !== revision) {
+				throw new DOMException('The project changed while audio was being pasted.', 'AbortError');
+			}
+		};
+		const commitExistingClipPaste = (prepared: Parameters<typeof commitPasteIntoExistingClipCommand>[0]['command']) => (
+			commitPasteIntoExistingClipCommand({
+				command: prepared,
+				project,
+				derivedSources: dependencies.derivedSources,
+				preflightStorage: dependencies.preflightStorage,
+				assertCurrent,
+				commit: dependencies.commit,
+			})
+		);
+		try {
+			const result = commitMonoConvertingPasteCommand({
+				command,
+				project,
+				alwaysConvertToMono: dependencies.state.preferences?.editing?.alwaysConvertToMono === true,
+				derivedSources: dependencies.derivedSources,
+				confirmConversion: (plan) => dependencies.confirmMonoConversion({
+					title: copy.monoConversionTitle,
+					body: copy.monoConversionPrompt,
+					plan,
+					signal: task.signal,
+				}),
+				preflightStorage: dependencies.preflightStorage,
+				updateAlwaysConvertToMono: async () => {
+					await dependencies.updatePreferences({ editing: { alwaysConvertToMono: true } });
+				},
+				assertCurrent,
+				commit: commitExistingClipPaste,
+			});
+			if (result && typeof (result as PromiseLike<unknown>).then === 'function') {
+				return Promise.resolve(result).finally(task.finish);
+			}
+			task.finish();
+			return result;
+		} catch (error) {
+			task.finish();
+			throw error;
+		}
+	};
+	const requestDeleteBehaviorChoice = (
+		action: DefaultDeleteEditAction,
+		apply: (configuredAction: ConfiguredDeleteEditAction) => unknown,
+	) => {
+		const project = dependencies.getCommandProject();
+		const token = projectGeneration.capture(project.id);
+		const revision = project.revision;
+		const task = lifetime.startTask('edit-delete-behavior', { scope: EDITOR_PROJECT_TASK_SCOPE });
+		const assertCurrent = () => {
+			task.assertCurrent();
+			projectGeneration.assertCurrent(token);
+			const current = dependencies.getCommandProject();
+			if (current.id !== project.id || current.revision !== revision) {
+				throw new DOMException('The project changed while delete behavior was being chosen.', 'AbortError');
+			}
+		};
+		const editing = normalizeAudioEditorEditingPreferences(state.preferences?.editing);
+		return completeDeleteBehaviorOnboarding({
+			action,
+			title: copy.editingDeleteBehavior,
+			initialCloseGapBehavior: editing.closeGapBehavior,
+			signal: task.signal,
+			confirm: dependencies.confirmDeleteBehavior,
+			updatePreferences: (preference) => dependencies.updatePreferences({ editing: preference }),
+			assertCurrent,
+			apply,
+		}).finally(task.finish);
+	};
 	const handleEdit = createEditorEditService({
 		activeSelection: dependencies.activeSelection,
 		commit: dependencies.commit,
+		commitPreparedPaste,
 		commitSplitAtFrames: clipboard.commitSplitAtFrames,
 		compactLiveSourceState: dependencies.compactLiveSourceState,
 		copy,
@@ -155,6 +245,7 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 		prepareKeepRangeCommand,
 		prepareLinkedSplitCommand,
 		prepareRangeDeleteCommand,
+		requestDeleteBehaviorChoice,
 		getProject: dependencies.getCommandProject,
 		projectChanged: dependencies.projectChanged,
 		publishDocumentSnapshot: dependencies.publishDocumentSnapshot,

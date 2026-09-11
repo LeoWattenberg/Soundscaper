@@ -78,6 +78,7 @@ export interface ControllerWorkspaceState<Preferences, EffectPresets, History = 
 	spectralWorker: EffectsCompositionState['spectralWorker'];
 	preferencesReadOnly: boolean;
 	pixelsPerSecond: number;
+	allowBelowProjectFitZoom: boolean;
 	timelineViewportWidth: number;
 	autoFitTrackHeight: boolean;
 	timelineWidth: number;

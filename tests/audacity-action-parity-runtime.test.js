@@ -57,7 +57,8 @@ test('the complete enableWhen vocabulary evaluates from runtime state', () => {
 			readOnly: false,
 			recentProjects: [{ id: 'recent-1' }],
 			history: { canUndo: true, canRedo: false, hasClipboard: true },
-			effects: { canRepeatLast: true, presets: [] },
+			effects: { canRepeatLast: true, lastSelectionType: 'audacity-amplify', presets: [] },
+			preferences: { editing: { applyEffectsToAllAudio: true } },
 			timeline: { view: 'waveform' },
 		},
 		telemetry: { transportState: 'stopped', recording: false },
@@ -94,6 +95,47 @@ test('the complete enableWhen vocabulary evaluates from runtime state', () => {
 	const unselectedContext = structuredClone(clipOnlyContext);
 	unselectedContext.snapshot.selectedClipId = null;
 	unselectedContext.snapshot.project.selection.clipIds = [];
+	assert.equal(evaluateAudacityActionEnablement('action://delete', unselectedContext), true,
+		'Delete remains available for the selected track');
+	for (const id of [
+		'effect://builtin/processors', 'effect://builtin/change-pitch',
+		'nyquist:lowpass', 'repeat-last-effect',
+	]) {
+		assert.equal(evaluateAudacityActionEnablement(id, unselectedContext), true, `${id}: project audio target`);
+	}
+	const noiseReductionRepeatContext = structuredClone(unselectedContext);
+	noiseReductionRepeatContext.snapshot.effects.lastSelectionType = 'audacity-noise-reduction';
+	assert.equal(evaluateAudacityActionEnablement('repeat-last-effect', noiseReductionRepeatContext), false);
+	const selectionRequiredContext = structuredClone(unselectedContext);
+	selectionRequiredContext.snapshot.preferences.editing.applyEffectsToAllAudio = false;
+	for (const id of [
+		'effect://builtin/processors', 'effect://builtin/change-pitch',
+		'nyquist:lowpass', 'repeat-last-effect',
+	]) {
+		assert.equal(evaluateAudacityActionEnablement(id, selectionRequiredContext), false, `${id}: selection required`);
+	}
+	const tracklessRangeContext = structuredClone(unselectedContext);
+	tracklessRangeContext.snapshot.selectedTrackId = null;
+	tracklessRangeContext.snapshot.project.selection = {
+		startFrame: 100, endFrame: 200, trackIds: [], clipIds: [], frequencyRange: null,
+	};
+	for (const id of ['effect://builtin/processors', 'effect://builtin/change-pitch', 'nyquist:lowpass']) {
+		assert.equal(evaluateAudacityActionEnablement(id, tracklessRangeContext), true, `${id}: trackless range`);
+	}
+	tracklessRangeContext.snapshot.preferences.editing.applyEffectsToAllAudio = false;
+	for (const id of ['effect://builtin/processors', 'effect://builtin/change-pitch', 'nyquist:lowpass']) {
+		assert.equal(evaluateAudacityActionEnablement(id, tracklessRangeContext), false, `${id}: trackless range requires preference`);
+	}
+	const labelRangeContext = structuredClone(unselectedContext);
+	labelRangeContext.snapshot.selectedTrackId = 'labels-1';
+	labelRangeContext.snapshot.project.selection = {
+		startFrame: 100, endFrame: 200, trackIds: ['labels-1'], clipIds: [], frequencyRange: null,
+	};
+	for (const id of ['effect://builtin/processors', 'effect://builtin/change-pitch', 'nyquist:lowpass']) {
+		assert.equal(evaluateAudacityActionEnablement(id, labelRangeContext), false, `${id}: label-only range`);
+	}
+	assert.equal(evaluateAudacityActionEnablement('action://delete', labelRangeContext), false,
+		'label-only ranges are not generic audio delete targets');
 	for (const id of [
 		'trim-audio-outside-selection', 'zero-cross', 'zoom-to-selection',
 		'set-loop-region-to-selection', 'skip-to-selection-start', 'skip-to-selection-end',

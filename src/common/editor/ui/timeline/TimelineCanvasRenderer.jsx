@@ -17,6 +17,7 @@ import {
 import { MAXIMUM_WAVEFORM_VERTICAL_ZOOM } from './geometry.ts';
 import { createAnimationFrameCoalescer } from './animation-frame-coalescer.ts';
 import { spectrogramCanvasDrawKey } from './spectrogram-canvas-options.ts';
+import { audioEditorStereoChannelGeometry } from './stereo-channel-height-runtime.ts';
 
 export function AudacityWaveformCanvases({
 	rootRef,
@@ -27,6 +28,7 @@ export function AudacityWaveformCanvases({
 	showRms,
 	halfWave,
 	verticalZoom,
+	channelHeightRatio,
 	spectrogramOptions,
 }) {
 	const { theme } = useTheme();
@@ -71,6 +73,7 @@ export function AudacityWaveformCanvases({
 				showRms,
 				halfWave,
 				verticalZoom,
+				channelHeightRatio,
 				spectrogramDrawKey,
 				spectrogramRevision,
 				themeDrawKey,
@@ -99,6 +102,7 @@ export function AudacityWaveformCanvases({
 						showRms,
 						halfWave,
 						verticalZoom,
+						channelHeightRatio,
 						spectrogramOptions: renderSpectrogramOptions,
 						bounds,
 					});
@@ -129,7 +133,7 @@ export function AudacityWaveformCanvases({
 			resizeObserver?.disconnect();
 			scheduler.dispose();
 		};
-	}, [clips, displayMode, halfWave, pixelsPerSecond, renderSpectrogramOptions, rootRef, showRms, spectrogramDrawKey, spectrogramRevision, themeDrawKey, timeSelection, verticalZoom]);
+	}, [channelHeightRatio, clips, displayMode, halfWave, pixelsPerSecond, renderSpectrogramOptions, rootRef, showRms, spectrogramDrawKey, spectrogramRevision, themeDrawKey, timeSelection, verticalZoom]);
 	return null;
 }
 
@@ -204,7 +208,9 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 		: options.displayMode === 'multiview' ? height / 2 : 0;
 	const waveformHeight = height - splitY;
 	const channelCount = Math.min(2, rendering.channels.length);
-	const channelHeight = waveformHeight / channelCount;
+	const channelGeometry = channelCount > 1
+		? audioEditorStereoChannelGeometry(waveformHeight, options.channelHeightRatio)
+		: [{ top: 0, height: waveformHeight }];
 	const amplitudeScale = 2 ** Math.max(0, Math.min(MAXIMUM_WAVEFORM_VERTICAL_ZOOM, Number(options.verticalZoom) || 0));
 	const evaluateEnvelope = rendering.envelope?.length
 		? createEnvelopeValueEvaluator(rendering.envelope, rendering.durationFrames)
@@ -238,6 +244,7 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 			backgroundColor: cssColor(style, '--spectrogram-background', '#010101'),
 			dividerColor: divider,
 			...options.spectrogramOptions,
+			channelHeightRatio: options.channelHeightRatio,
 		});
 	} else delete canvas.dataset.spectrogramRenderer;
 	if (waveformHeight > 0 && selection.end > selection.start) {
@@ -245,7 +252,8 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 		context.fillRect(selection.start, splitY, selection.end - selection.start, waveformHeight);
 	}
 	for (let channel = 0; waveformHeight > 0 && channel < channelCount; channel += 1) {
-		const channelTop = splitY + channelHeight * channel;
+		const channelTop = splitY + channelGeometry[channel].top;
+		const channelHeight = channelGeometry[channel].height;
 		const geometry = audacityWaveformChannelGeometry(
 			channelTop,
 			channelHeight,
@@ -272,7 +280,9 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 	}
 	context.strokeStyle = divider;
 	context.lineWidth = 1;
-	if (waveformHeight > 0 && channelCount > 1) drawHorizontalCanvasLine(context, splitY + channelHeight, width);
+	if (waveformHeight > 0 && channelCount > 1) {
+		drawHorizontalCanvasLine(context, splitY + channelGeometry[1].top, width);
+	}
 	if (splitY > 0 && waveformHeight > 0) {
 		context.strokeStyle = splitSeparator;
 		drawHorizontalCanvasLine(context, splitY, width);
@@ -302,16 +312,19 @@ export function drawAudacityClipSpectrogram(context, channels, options) {
 		sampleRate: options.sampleRate,
 	};
 	const channelCount = Math.min(2, channels.length);
-	const channelHeight = options.height / channelCount;
+	const channelGeometry = channelCount > 1
+		? audioEditorStereoChannelGeometry(options.height, options.channelHeightRatio)
+		: [{ top: 0, height: options.height }];
 	let pffftRendered = true;
 	for (let channel = 0; channel < channelCount; channel += 1) {
+		const geometry = channelGeometry[channel];
 		pffftRendered = renderPffftSpectrogram(
 			context,
 			channels[channel],
 			0,
-			channel * channelHeight,
+			geometry.top,
 			options.width,
-			channelHeight,
+			geometry.height,
 			spectrogramOptions,
 		) && pffftRendered;
 	}
@@ -319,7 +332,7 @@ export function drawAudacityClipSpectrogram(context, channels, options) {
 	if (channelCount > 1) {
 		context.strokeStyle = options.dividerColor;
 		context.lineWidth = 1;
-		drawHorizontalCanvasLine(context, channelHeight, options.width);
+		drawHorizontalCanvasLine(context, channelGeometry[1].top, options.width);
 	}
 }
 

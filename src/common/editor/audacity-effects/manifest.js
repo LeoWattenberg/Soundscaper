@@ -134,8 +134,7 @@ const definitions = {
 		},
 	},
 	'audacity-auto-duck': {
-		category: 'volume',
-		requiresControlTrack: true,
+		category: 'volume', requiresControlTrack: true, applyToAllAudio: false,
 		params: {
 			duckAmountDb: number(-12, -24, 0, { unit: 'dB', step: 0.1 }),
 			innerFadeDown: number(0, 0, 3, { unit: 's', step: 0.01 }),
@@ -304,7 +303,7 @@ const definitions = {
 		},
 	},
 	'audacity-noise-reduction': {
-		category: 'repair',
+		category: 'repair', applyToAllAudio: false,
 		requiresNoiseProfile: true,
 		params: {
 			reductionDb: number(6, 0, 48, { unit: 'dB', step: 0.1 }),

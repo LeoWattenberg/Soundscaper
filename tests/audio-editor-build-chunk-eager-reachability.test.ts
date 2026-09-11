@@ -52,6 +52,8 @@ test('the eager graph is walked from the page entry and both product bootstraps'
 	]) assert.ok(reachable.has(path), `${path} must be in the eager graph`);
 	for (const path of [
 		'src/common/editor/ui/inspector/ExportDialog.jsx',
+		'src/common/editor/ui/dialogs/DeleteBehaviorOnboardingDialog.tsx',
+		'src/common/editor/ui/dialogs/MonoConversionConfirmationDialog.tsx',
 		'src/common/editor/ui/dialogs/NyquistDialog.jsx',
 	]) assert.ok(!reachable.has(path), `${path} is reached only through a dynamic import`);
 });

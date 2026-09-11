@@ -12,6 +12,56 @@ import {
 	validateAudacityQtMapping,
 	validateMappingAgainstSourceCatalog,
 } from '../scripts/audacity-qt-translations.mjs';
+import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+import {
+	AUDACITY_QT_MAPPING,
+	AUDACITY_QT_MAPPING_VERSION,
+} from '../src/common/i18n/audacity-qt-mapping.js';
+
+const EDITING_PREFERENCE_KEYS_BY_CONTEXT = Object.freeze({
+	'appshell/preferences': Object.freeze([
+		'editingZoomDefault', 'editingZoomFitToWidth', 'editingZoomFourPixelsPerSample',
+		'editingZoomMax', 'editingZoomMilliseconds', 'editingZoomMinutes',
+		'editingZoomPreset100ths', 'editingZoomPreset10ths', 'editingZoomPreset20ths',
+		'editingZoomPreset500ths', 'editingZoomPreset50ths', 'editingZoomPreset5ths',
+		'editingZoomSamples', 'editingZoomSeconds', 'editingZoomState1', 'editingZoomState2',
+		'editingZoomToSelection', 'editingZoomToggle', 'editingZoomToggleDescription',
+	]),
+	global: Object.freeze(['monoConversionDontShowAgain', 'monoConversionYes']),
+	preferences: Object.freeze([
+		'editingAlwaysConvertToMono', 'editingAlwaysPasteAsNewClip',
+		'editingApplyEffectsToAllAudio', 'editingAsymmetricAlways', 'editingAsymmetricNever',
+		'editingAsymmetricStereoHeights', 'editingAsymmetricStereoHeightsDescription',
+		'editingAsymmetricWorkspace', 'editingEffectBehavior', 'editingMonoStereoConversion',
+	]),
+	trackedit: Object.freeze(['monoConversionPrompt', 'monoConversionTitle']),
+	'trackedit/preferences': Object.freeze([
+		'editingCloseGapAllTracks', 'editingCloseGapBehavior', 'editingCloseGapClip',
+		'editingCloseGapRipple', 'editingCloseGapTrack', 'editingDeleteBehavior',
+		'editingLeaveGap', 'editingPasteBehavior', 'editingPasteInsertAllTracks',
+		'editingPasteInsertBehavior', 'editingPasteInsertTrack', 'editingPasteOverlaps',
+		'editingPastePushes',
+	]),
+	workspace: Object.freeze(['editingWorkspaces']),
+});
+
+test('Audacity 4 editing preferences use the reviewed Qt identities', () => {
+	assert.equal(AUDACITY_QT_MAPPING_VERSION, 3);
+	const byKey = new Map(AUDACITY_QT_MAPPING.map((entry) => [entry.key, entry]));
+	const expectedKeys = Object.values(EDITING_PREFERENCE_KEYS_BY_CONTEXT).flat();
+	assert.equal(expectedKeys.length, 47);
+
+	for (const [context, keys] of Object.entries(EDITING_PREFERENCE_KEYS_BY_CONTEXT)) {
+		for (const key of keys) {
+			assert.deepEqual(byKey.get(key), {
+				key,
+				context,
+				source: ENGLISH_COPY[key],
+				comment: '',
+			});
+		}
+	}
+});
 
 test('Qt TS conversion uses exact identities and excludes unsafe translation states', () => {
 	const mapping = [
@@ -196,4 +246,3 @@ test('Qt locale normalization emits canonical BCP-47 tags', () => {
 	assert.equal(normalizeQtLocale('sr@latin'), 'sr-Latn');
 	assert.throws(() => normalizeQtLocale('../../de'), (error) => error.code === 'QT_LOCALE');
 });
-

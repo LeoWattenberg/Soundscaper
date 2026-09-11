@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	audioEditorClipBodyGeometry,
 	compatibleMediaTrack,
 	dbToLinear,
 	linearToDb,
@@ -17,6 +18,13 @@ import {
 	trackOptionalControlsHeight,
 	trackVisualHeight,
 } from '../src/common/editor/ui/timeline/geometry.ts';
+
+test('clip body geometry follows the design-system truncated-header threshold', () => {
+	assert.deepEqual(audioEditorClipBodyGeometry(40), { top: 0, height: 40 });
+	assert.deepEqual(audioEditorClipBodyGeometry(44), { top: 0, height: 44 });
+	assert.deepEqual(audioEditorClipBodyGeometry(45), { top: 20, height: 25 });
+	assert.deepEqual(audioEditorClipBodyGeometry(114), { top: 20, height: 94 });
+});
 
 test('timeline frequency geometry round-trips every supported ruler scale', () => {
 	for (const scale of ['linear', 'logarithmic', 'mel', 'bark', 'erb', 'period'] as const) {

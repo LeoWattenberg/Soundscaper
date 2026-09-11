@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "sr-Cyrl-RS",
 	"provenance": {
-		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":2,"mappingSha256":"cbe2965af5f2ddd7c6f3624bbb3045775c46abae4e8a5428e118d74557b22193"}
+		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
 		"clipping": ["audacity","Clipping","Одсецање"],
@@ -10,6 +10,21 @@
 		"cut": ["audacity","Cut","Исеци"],
 		"delay": ["audacity","Delay","Кашњење"],
 		"duplicateAudio": ["audacity","Duplicate","Удвостручи"],
+		"editingZoomDefault": ["audacity","Zoom Default","Основно увећавање"],
+		"editingZoomFitToWidth": ["audacity","Fit to Width","Уклопи у прозор"],
+		"editingZoomFourPixelsPerSample": ["audacity","4 Pixels per Sample","4 пиксела по узорку"],
+		"editingZoomMax": ["audacity","Max Zoom","Највеће увеличање"],
+		"editingZoomMilliseconds": ["audacity","MilliSeconds","милисекунде"],
+		"editingZoomMinutes": ["audacity","Minutes","Минути"],
+		"editingZoomPreset100ths": ["audacity","100ths of Seconds","стоти део секунде"],
+		"editingZoomPreset10ths": ["audacity","10ths of Seconds","десети део секунде"],
+		"editingZoomPreset20ths": ["audacity","20ths of Seconds","двадесети део секунде"],
+		"editingZoomPreset500ths": ["audacity","500ths of Seconds","петстоти део секунде"],
+		"editingZoomPreset50ths": ["audacity","50ths of Seconds","педесети део секунде"],
+		"editingZoomPreset5ths": ["audacity","5ths of Seconds","пети део секунде"],
+		"editingZoomSamples": ["audacity","Samples","Узорци"],
+		"editingZoomSeconds": ["audacity","Seconds","Секунде"],
+		"editingZoomToSelection": ["audacity","Zoom to Selection","Увећај избор"],
 		"effectParamFrequency": ["audacity","Frequency","Учесталост"],
 		"effectParamRatio": ["audacity","Ratio","Однос"],
 		"gain": ["audacity","Gain","Појачање"],
@@ -20,6 +35,7 @@
 		"metadataComments": ["audacity","Comments","Напомена"],
 		"metadataTagColumn": ["audacity","Tag","Ознака"],
 		"metadataYear": ["audacity","Year","Година"],
+		"monoConversionYes": ["audacity","Yes","Да"],
 		"pan": ["audacity","Pan","Каналисање"],
 		"panelHistory": ["audacity","History","Историјат"],
 		"pause": ["audacity","Pause","Паузирај"],

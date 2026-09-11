@@ -4,6 +4,7 @@ import type { CommandObject } from '../../../commands/protocol.ts';
 import type { RenderedAudio } from '../../../rendered-audio-channels.ts';
 import { hasCoreEditingProjectAuthority, isActiveAudioEditorProjectSchema } from '../../../project-schema-version.ts';
 import { resolveSelectionRange } from '../../../selection-range.ts';
+import { AUDIO_EDITOR_MIN_PIXELS_PER_SECOND } from '../../../timeline-zoom-limits.ts';
 import { createClipSelectionNavigationService } from './clip-selection-navigation-service.ts';
 import type {
 	SelectionViewClipOptions,
@@ -471,11 +472,17 @@ export function createSelectionViewService<
 		return snapAudioEditorFrameWithProject(rounded, project, { minimumFrame: 0, ...overrides });
 	}
 
-	function setZoom(pixelsPerSecond: unknown) {
+	function setZoom(
+		pixelsPerSecond: unknown,
+		options: Readonly<{ allowBelowProjectFit?: boolean }> = {},
+	) {
 		const project = getProject();
 		if (!project) return state.pixelsPerSecond;
 		const durationSeconds = editorTimelineDurationFrames(project, projectSampleRate()) / projectSampleRate();
-		const minimum = state.timelineViewportWidth > 0 ? state.timelineViewportWidth / durationSeconds : 1;
+		const minimum = options.allowBelowProjectFit === true
+			? AUDIO_EDITOR_MIN_PIXELS_PER_SECOND
+			: state.timelineViewportWidth > 0 ? state.timelineViewportWidth / durationSeconds : 1;
+		state.allowBelowProjectFitZoom = options.allowBelowProjectFit === true;
 		state.pixelsPerSecond = Math.max(
 			minimum,
 			Math.min(MAX_PIXELS_PER_SECOND, Number(pixelsPerSecond) || DEFAULT_PIXELS_PER_SECOND),

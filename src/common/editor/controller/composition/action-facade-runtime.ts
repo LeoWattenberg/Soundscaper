@@ -206,6 +206,7 @@ export const EDITOR_ACTION_FUNCTION_NAMES = [
 	'setTimelineView',
 	'setTimelineViewportWidth',
 	'setToolbarButtonPreference',
+	'setTrackChannelHeightRatio',
 	'setTrackDisplayMode',
 	'setTrackRate',
 	'setVisibleTrackHeights',

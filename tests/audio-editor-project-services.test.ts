@@ -454,6 +454,7 @@ test('preferences service recovers invalid storage and preserves the read-only s
 
 test('project session service deduplicates legacy recents and persists active UI metadata', async () => {
 	interface SessionProject {
+		readonly id: string;
 		readonly schemaVersion?: unknown;
 		readonly timelineAnnotations?: unknown;
 		readonly tracks: readonly Readonly<{ id: string; type: string }>[];
@@ -467,6 +468,11 @@ test('project session service deduplicates legacy recents and persists active UI
 	};
 	const persisted: Array<[string, unknown]> = [];
 	const metadata: Array<[string, Record<string, unknown>]> = [];
+	let publications = 0;
+	let tabMetadata: Record<string, unknown> = {};
+	const activeProject: SessionProject = {
+		id: 'first', tracks: [{ id: 'track', type: 'audio' }], clips: [{ id: 'clip' }],
+	};
 	const settings = new Map<string, unknown>([
 		['audio-editor-recent-project-ids', ['first', 'first', '', 'second']],
 		['last-project-id', 'second'],
@@ -478,14 +484,18 @@ test('project session service deduplicates legacy recents and persists active UI
 		getRecentProjectIds: () => recent,
 		setRecentProjectIds: (value) => { recent = value; },
 		getActiveProjectId: () => 'first',
+		getActiveProject: () => activeProject,
 		state: selectionState,
 		findTrack: (project: SessionProject, trackId) => project.tracks.find((track) => track.id === trackId) ?? null,
 		findClip: (project: SessionProject, clipId) => project.clips.find((clip) => clip.id === clipId) ?? null,
-		getTabs: () => [{ projectId: 'first', metadata: {} }],
-		updateProjectMetadata: (projectId, value) => { metadata.push([projectId, value]); },
+		getTabs: () => [{ projectId: 'first', metadata: tabMetadata }],
+		updateProjectMetadata: (projectId, value) => {
+			tabMetadata = { ...tabMetadata, ...value };
+			metadata.push([projectId, value]);
+		},
 		loadSetting: async (key, fallback) => settings.get(key) ?? fallback,
 		persistSetting: async (key, value) => { persisted.push([key, value]); },
-		publish: () => undefined,
+		publish: () => { publications += 1; },
 	});
 
 	const lastProjectId = await service.loadRecentProjectState(async (value) => value);
@@ -497,7 +507,13 @@ test('project session service deduplicates legacy recents and persists active UI
 		selectedClipId: 'clip',
 		selectedAnnotationId: 'annotation',
 	}]]);
+	assert.equal(service.setTrackChannelHeightRatio('track', 0.7), 0.7);
+	assert.deepEqual(tabMetadata.trackChannelHeightRatios, { track: 0.7 });
+	assert.equal(publications, 1);
+	assert.throws(() => service.setTrackChannelHeightRatio('missing', 0.4), /Unknown track/u);
+	assert.throws(() => service.setTrackChannelHeightRatio('track', 1), /between zero and one/u);
 	service.restoreProjectSelection({
+		id: 'restored',
 		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		timelineAnnotations: [{ id: 'restored-annotation' }],
 		tracks: [{ id: 'labels', type: 'label' }, { id: 'audio', type: 'audio' }],
