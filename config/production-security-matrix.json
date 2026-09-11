@@ -3,7 +3,7 @@
 	"groundedAt": "2026-08-30",
 	"modelDocument": "docs/production-threat-model.md",
 	"productVersions": {
-		"version": "1.0.0-rc.3",
+		"version": "1.0.0-rc.4",
 		"stableTarget": "1.0.0"
 	},
 	"projectIdentityBaseline": {
