@@ -35,6 +35,7 @@ interface ActiveSeek {
 	failure: Error | null;
 	settled: boolean;
 	frameCallbackId: number | null;
+	retryAfterDrain: (() => void) | null;
 	timer: ReturnType<typeof setTimeout> | null;
 	readonly onSeeked: () => void;
 	readonly onMediaError: () => void;
@@ -163,20 +164,26 @@ export function createVideoRetimeHtmlVideoSeekPort(
 						// WebKit can snap an interior seek forward to the following
 						// frame. Retry once at the interval start after the seek drains;
 						// the replacement callback must authenticate the same interval.
-						if (seek.seekIssued && !video.seeking && !retriedAtIntervalStart
+						if (seek.seekIssued && !retriedAtIntervalStart
 							&& mediaTime >= request.intervalEndSeconds
 							&& targetSeconds > request.intervalStartSeconds) {
 							retriedAtIntervalStart = true;
 							cancelFrame(frameCallbackId);
 							seek.frameCallbackId = null;
-							seek.seekComplete = false;
-							try {
-								assertCurrent();
-								requestPresentedFrame();
-								video.currentTime = request.intervalStartSeconds;
-							} catch (error) {
-								requestFailure(seek, errorValue(error, 'The retime preview boundary seek failed.'));
-							}
+							const retry = (): void => {
+								seek.seekComplete = false;
+								try {
+									assertCurrent();
+									requestPresentedFrame();
+									video.currentTime = request.intervalStartSeconds;
+								} catch (error) {
+									requestFailure(seek, errorValue(error, 'The retime preview boundary seek failed.'));
+								}
+							};
+							// A paused video need not present another frame after seeked.
+							// Retain the retry when its first callback arrives before drain.
+							if (video.seeking) seek.retryAfterDrain = retry;
+							else retry();
 							return;
 						}
 						// The callback is armed before currentTime is assigned so a pending
@@ -259,10 +266,17 @@ export function createVideoRetimeHtmlVideoSeekPort(
 			failure: null,
 			settled: false,
 			frameCallbackId: null,
+			retryAfterDrain: null,
 			timer: null,
 			onSeeked: () => {
-				if (seek.settled) return;
+				if (seek.settled || video.seeking) return;
 				seek.seekComplete = true;
+				const retry = seek.retryAfterDrain;
+				seek.retryAfterDrain = null;
+				if (seek.failure === null && retry !== null) {
+					retry();
+					return;
+				}
 				maybeSettle(seek);
 			},
 			onMediaError: () => {
