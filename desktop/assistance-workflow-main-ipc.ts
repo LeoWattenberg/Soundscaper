@@ -12,7 +12,7 @@ import {
 import { createAssistanceWorkflowConsentAuthority } from './assistance-workflow-consent.ts';
 import type { createAssistanceWorkflowService } from './assistance-workflow-service.ts';
 import type { AssistanceWorkflowTransfers } from './assistance-workflow-transfers.ts';
-import type { HelperDataPlaneIoPort } from './helper-data-plane-io.ts';
+import { assistanceElectronEventPort } from './assistance-electron-data-port.ts';
 
 export const ASSISTANCE_WORKFLOW_IPC_CHANNELS = Object.freeze({
 	create: 'soundscaper:v1:assistance:workflow:create',
@@ -131,13 +131,13 @@ export function registerAssistanceWorkflowIpc(options: AssistanceWorkflowIpcOpti
 			return resolve().release(jobId);
 		}, 'The assistance workflow could not be released.'));
 		options.on(options.channels.inputPort, (event, value) => {
-			const port = exactEventPort(event);
+			const port = assistanceElectronEventPort(event);
 			if (!port) return;
 			try { void resolveTransfers().acceptInputPort(value, port).catch(() => undefined); }
 			catch { port.close(); }
 		});
 		options.on(options.channels.outputPort, (event, value) => {
-			const port = exactEventPort(event);
+			const port = assistanceElectronEventPort(event);
 			if (!port) return;
 			try { void resolveTransfers().acceptOutputPort(value, port).catch(() => undefined); }
 			catch { port.close(); }
@@ -204,25 +204,6 @@ function assertExactKeys(row: Record<string, unknown>, keys: readonly string[], 
 	if (keys.length === 0 || Object.keys(row).length !== keys.length
 		|| Object.keys(row).some((key) => !keys.includes(key))) {
 		throw new TypeError(`The ${label} carries unsupported fields.`);
-	}
-}
-
-function exactEventPort(event: unknown): HelperDataPlaneIoPort | null {
-	if (!event || typeof event !== 'object') return null;
-	const ports = (event as Readonly<{ ports?: unknown }>).ports;
-	if (!Array.isArray(ports) || ports.length !== 1) {
-		if (Array.isArray(ports)) for (const port of ports) closePort(port);
-		return null;
-	}
-	const port = ports[0] as Partial<HelperDataPlaneIoPort> | null;
-	if (!port || typeof port.postMessage !== 'function' || typeof port.on !== 'function'
-		|| typeof port.close !== 'function') { closePort(port); return null; }
-	return port as HelperDataPlaneIoPort;
-}
-
-function closePort(value: unknown): void {
-	if (value && typeof value === 'object' && typeof (value as { close?: unknown }).close === 'function') {
-		try { (value as { close(): void }).close(); } catch { /* already closed */ }
 	}
 }
 

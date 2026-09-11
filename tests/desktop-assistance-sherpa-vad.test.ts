@@ -16,7 +16,8 @@ test('Sherpa VAD measures exact speech sample ranges from authenticated 16 kHz a
 		{ start: 2_048, samples: new Float32Array(1_024) },
 	];
 	const runtime = {
-		readWave: (path: string) => {
+		readWave: (path: string, enableExternalBuffer = true) => {
+			assert.equal(enableExternalBuffer, false, 'Electron requires V8-owned audio buffers');
 			assert.equal(path, '/private/selected.wav');
 			return { sampleRate: 16_000, samples: new Float32Array(4_096) };
 		},
@@ -26,7 +27,10 @@ test('Sherpa VAD measures exact speech sample ranges from authenticated 16 kHz a
 			}
 			acceptWaveform(samples: Float32Array) { accepted.push(samples.length); }
 			isEmpty() { return queued.length === 0; }
-			front() { return queued[0]; }
+			front(enableExternalBuffer = true) {
+				assert.equal(enableExternalBuffer, false, 'Electron requires V8-owned segment buffers');
+				return queued[0];
+			}
 			pop() { queued.shift(); }
 			flush() { flushed = true; }
 			clear() { cleared = true; }

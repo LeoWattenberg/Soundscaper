@@ -25,7 +25,7 @@ interface SherpaDiarizerInstance {
 
 interface SherpaDiarizerModule {
 	readonly OfflineSpeakerDiarization: new (config: unknown) => SherpaDiarizerInstance;
-	readWave(path: string): Readonly<{ samples: Float32Array; sampleRate: number }>;
+	readWave(path: string, enableExternalBuffer: false): Readonly<{ samples: Float32Array; sampleRate: number }>;
 }
 
 function exposesDiarizer(value: unknown): value is SherpaDiarizerModule {
@@ -53,7 +53,8 @@ export function createSherpaDiarizerFactory(runtime: unknown): Readonly<{
 				throw new TypeError('Speaker diarization needs audio, segmentation, and embedding files.');
 			}
 			request.signal?.throwIfAborted();
-			const wave = module.readWave(request.audioPath);
+			// Electron's V8 sandbox requires V8-owned buffers.
+			const wave = module.readWave(request.audioPath, false);
 			if (wave.sampleRate !== SAMPLE_RATE || !(wave.samples instanceof Float32Array)) {
 				throw new RangeError('Speaker diarization requires exact 16 kHz selected audio.');
 			}

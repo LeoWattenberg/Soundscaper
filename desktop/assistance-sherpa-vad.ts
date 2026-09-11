@@ -19,7 +19,7 @@ interface SherpaSpeechSegment {
 interface SherpaVadInstance {
 	acceptWaveform(samples: Float32Array): void;
 	isEmpty(): boolean;
-	front(): SherpaSpeechSegment;
+	front(enableExternalBuffer: false): SherpaSpeechSegment;
 	pop(): void;
 	flush(): void;
 	clear(): void;
@@ -27,7 +27,7 @@ interface SherpaVadInstance {
 
 interface SherpaVadModule {
 	readonly Vad: new (config: unknown, bufferSizeInSeconds: number) => SherpaVadInstance;
-	readWave(path: string): Readonly<{ samples: Float32Array; sampleRate: number }>;
+	readWave(path: string, enableExternalBuffer: false): Readonly<{ samples: Float32Array; sampleRate: number }>;
 }
 
 function exposesVad(value: unknown): value is SherpaVadModule {
@@ -53,7 +53,8 @@ export function createSherpaVadFactory(runtime: unknown): Readonly<{
 				throw new TypeError('Voice activity needs one audio file and one Silero model.');
 			}
 			request.signal?.throwIfAborted();
-			const wave = module.readWave(request.audioPath);
+			// Electron's V8 sandbox requires V8-owned buffers.
+			const wave = module.readWave(request.audioPath, false);
 			if (wave.sampleRate !== SAMPLE_RATE) {
 				throw new RangeError('Voice activity requires exact 16 kHz selected audio.');
 			}
@@ -68,7 +69,7 @@ export function createSherpaVadFactory(runtime: unknown): Readonly<{
 			const segments: Array<{ startSample: number; sampleCount: number }> = [];
 			const drain = (): void => {
 				while (!vad.isEmpty()) {
-					const segment = vad.front();
+					const segment = vad.front(false);
 					segments.push({ startSample: segment.start, sampleCount: segment.samples.length });
 					vad.pop();
 				}

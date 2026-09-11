@@ -164,7 +164,8 @@ test('the factory drives the runtime and returns a conformable result', async ()
 
 			getResult() { return MEASURED; }
 		},
-		readWave: (path: string) => {
+		readWave: (path: string, enableExternalBuffer = true) => {
+			assert.equal(enableExternalBuffer, false, 'Electron requires V8-owned audio buffers');
 			calls.push(`readWave:${path}`);
 			return { samples: new Float32Array(40_000), sampleRate: 16_000 };
 		},

@@ -5,6 +5,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-authenticated-source-snapshot.js',
 	'desktop/assistance-data-claims.js',
 	'desktop/assistance-diarization-runtime.js',
+	'desktop/assistance-electron-data-port.js',
 	'desktop/assistance-external-ffmpeg-shot-runtime.js',
 	'desktop/assistance-external-ffmpeg-video-materializer.js',
 	'desktop/assistance-float32-mono-wave-file-reader.js',

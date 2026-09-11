@@ -9,7 +9,7 @@ import {
 } from './assistance-operation-contract.ts';
 import type { createAssistanceOperationService } from './assistance-operation-service.ts';
 import { AssistanceOperationTransfers } from './assistance-operation-transfers.ts';
-import type { HelperDataPlaneIoPort } from './helper-data-plane-io.ts';
+import { assistanceElectronEventPort } from './assistance-electron-data-port.ts';
 
 export const ASSISTANCE_OPERATION_IPC_CHANNELS = Object.freeze({
 	models: 'soundscaper:v1:assistance:operation:models',
@@ -99,13 +99,13 @@ export function registerAssistanceOperationIpc(options: AssistanceOperationIpcOp
 	}, 'The assistance operation job could not be released.'));
 
 	options.on(options.channels.inputPort, (event, value) => {
-		const port = exactEventPort(event);
+		const port = assistanceElectronEventPort(event);
 		if (!port) return;
 		try { void resolve().transfers.acceptInputPort(value, port).catch(() => undefined); }
 		catch { port.close(); }
 	});
 	options.on(options.channels.outputPort, (event, value) => {
-		const port = exactEventPort(event);
+		const port = assistanceElectronEventPort(event);
 		if (!port) return;
 		try { void resolve().transfers.acceptOutputPort(value, port).catch(() => undefined); }
 		catch { port.close(); }
@@ -132,26 +132,6 @@ function stageRequest(value: unknown): StageRequest {
 		throw new TypeError('An assistance input stage request carries unsupported fields.');
 	}
 	return record as StageRequest;
-}
-
-function exactEventPort(event: unknown): HelperDataPlaneIoPort | null {
-	if (!event || typeof event !== 'object') return null;
-	const portsValue = (event as Readonly<{ ports?: unknown }>).ports;
-	if (!Array.isArray(portsValue)) return null;
-	if (portsValue.length !== 1) {
-		for (const candidate of portsValue) closePort(candidate);
-		return null;
-	}
-	const port = portsValue[0] as Partial<HelperDataPlaneIoPort> | null;
-	if (!port || typeof port.postMessage !== 'function' || typeof port.on !== 'function'
-		|| typeof port.close !== 'function') { closePort(port); return null; }
-	return port as HelperDataPlaneIoPort;
-}
-
-function closePort(value: unknown): void {
-	if (value && typeof value === 'object' && typeof (value as { close?: unknown }).close === 'function') {
-		try { (value as { close(): void }).close(); } catch { /* already closed */ }
-	}
 }
 
 async function pathless<T>(operation: () => PromiseLike<T> | T, message: string): Promise<T> {

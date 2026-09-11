@@ -10,7 +10,8 @@ test('Sherpa diarization measures ordered speaker turns from authenticated 16 kH
 	const configurations: unknown[] = [];
 	const processed: Float32Array[] = [];
 	const runtime = {
-		readWave: (path: string) => {
+		readWave: (path: string, enableExternalBuffer = true) => {
+			assert.equal(enableExternalBuffer, false, 'Electron requires V8-owned audio buffers');
 			assert.equal(path, '/private/selected.wav');
 			return { sampleRate: 16_000, samples: new Float32Array(64_000) };
 		},

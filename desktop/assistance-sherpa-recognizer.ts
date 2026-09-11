@@ -135,7 +135,7 @@ export interface SherpaRuntimeModule {
 		decode(stream: unknown): void;
 		getResult(stream: unknown): SherpaTransducerResult;
 	};
-	readWave(path: string): { samples: Float32Array; sampleRate: number };
+	readWave(path: string, enableExternalBuffer: false): { samples: Float32Array; sampleRate: number };
 }
 
 export interface SherpaFactoryOptions {
@@ -198,7 +198,8 @@ export function createSherpaRecognizerFactory(
 					voiceActivityPath?: string,
 				): Promise<SpeechRecognitionResult> {
 					request.signal?.throwIfAborted();
-					const wave = module.readWave(audioPath);
+					// Electron's V8 sandbox requires V8-owned buffers.
+					const wave = module.readWave(audioPath, false);
 					if (wave.sampleRate !== 16_000 || !(wave.samples instanceof Float32Array)
 						|| wave.samples.length < 1) {
 						throw new RangeError('Speech recognition requires exact 16 kHz mono selected audio.');
