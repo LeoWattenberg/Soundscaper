@@ -32,7 +32,7 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 		prepareControllerPaste, prepareDisjointRangeDeleteCommand, prepareGroupClipsCommand, prepareKeepRangeCommand,
 		prepareLinkedSplitCommand, prepareRangeDeleteCommand, getProject, projectChanged,
 		publishDocumentSnapshot, redoEditorCommand, resolveEditingSelection, setSessionClipboard,
-		state, undoEditorCommand, requestDeleteBehaviorChoice,
+		state, undoEditorCommand,
 	} = runtime;
 	const executeLabeledAudioEdit = createLabeledAudioEditService(runtime);
 
@@ -125,40 +125,13 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 			const selectedRangeTrackIds = Array.isArray(getProject().selection?.trackIds)
 				? getProject().selection.trackIds
 				: [];
-			const onboardingAudioTrackIds = getProject().tracks
-				.filter((track: RuntimeValue) => track.type === 'audio')
-				.map((track: RuntimeValue) => track.id);
-			const selectedAudioClipIds = selectedClips
-				.filter((clip: RuntimeValue) => clip.kind !== 'video'
-					&& findClipTrack(getProject(), clip.id)?.type === 'audio')
-				.map((clip: RuntimeValue) => clip.id);
-			const hasAudioSelection = selectedAudioClipIds.length > 0 || Boolean(baseSelection && (
-				selectedRangeTrackIds.some((trackId: RuntimeValue) => onboardingAudioTrackIds.includes(trackId))
-				|| (selectedRangeTrackIds.length === 0
-					&& (!selectedTrack || selectedTrack.type === 'audio'))
-			));
 			const hasOnlyLabelRange = Boolean(baseSelection
 				&& selectedClipIds.length === 0
 				&& selectedRangeTrackIds.length > 0
 				&& selectedRangeTrackIds.every((trackId: RuntimeValue) => findTrack(getProject(), trackId)?.type === 'label'));
 			if ((action === 'cut' || action === 'delete') && hasOnlyLabelRange) return;
-			if (
-				(action === 'cut' || action === 'delete')
-				&& selection
-				&& editingPreferences.deleteBehavior === 'not-set'
-			) {
-				if (hasAudioSelection) {
-					if (typeof requestDeleteBehaviorChoice !== 'function') {
-						throw new Error('Delete behavior onboarding is unavailable.');
-					}
-					const pending = requestDeleteBehaviorChoice(action, (configuredAction: string) => (
-						handleEdit(configuredAction)
-					));
-					return pending && typeof pending.then === 'function'
-						? Promise.resolve(pending).catch(handleError)
-						: pending;
-				}
-			}
+			// NotSet remains a visible preference state, not permission to interrupt
+			// the first edit with onboarding. Until explicitly chosen, leave a gap.
 			const preferredDelete = editingPreferences.deleteBehavior === 'not-set'
 				? { rippleMode: 'none', allTracks: false }
 				: resolveAudioEditorDefaultDelete(editingPreferences);

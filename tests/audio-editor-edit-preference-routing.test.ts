@@ -241,33 +241,18 @@ test('generic Delete removes every selected track in one atomic batch', () => {
 	assert.equal(selected.state.selectedClipId, null);
 });
 
-test('fresh generic Cut and Delete park the original audio edit until onboarding applies', async () => {
+test('fresh generic Cut and Delete use Leave gap without triggering onboarding', () => {
 	for (const action of ['cut', 'delete'] as const) {
-		let applyChoice: ((choice: string) => unknown) | null = null;
-		let release!: () => void;
-		const gate = new Promise<void>((resolve) => { release = resolve; });
 		const selected = harness(
 			{ deleteBehavior: 'not-set', closeGapBehavior: 'clip' },
 			{
-				onboardDeleteBehavior: async (_requestedAction, apply) => {
-					applyChoice = apply;
-					await gate;
-					return apply(action === 'cut' ? 'cut-per-track-ripple' : 'delete-per-track-ripple');
-				},
+				onboardDeleteBehavior: () => { throw new Error('must not prompt'); },
 			},
 		);
 
-		const pending = selected.handleEdit(action) as PromiseLike<unknown>;
-		assert.equal(typeof pending?.then, 'function');
-		assert.deepEqual(selected.onboardingRequests, [action]);
-		assert.deepEqual(selected.commits, []);
-		assert.deepEqual(selected.clipboardDescriptors, []);
-		assert.ok(applyChoice);
-
-		release();
-		await pending;
-		assert.equal(committedDelete(selected.commits[0]).options.rippleMode, 'track');
-		assert.deepEqual(selected.onboardingRequests, [action]);
+		selected.handleEdit(action);
+		assert.equal(committedDelete(selected.commits[0]).options.rippleMode, 'none');
+		assert.deepEqual(selected.onboardingRequests, []);
 		assert.equal(selected.clipboardDescriptors.length, action === 'cut' ? 1 : 0);
 	}
 
@@ -282,14 +267,7 @@ test('fresh generic Cut and Delete park the original audio edit until onboarding
 	}]);
 });
 
-test('dismissed onboarding and track-only edits never enter the wrong path', async () => {
-	const dismissed = harness(
-		{ deleteBehavior: 'not-set' },
-		{ onboardDeleteBehavior: () => Promise.resolve(null) },
-	);
-	await dismissed.handleEdit('delete');
-	assert.deepEqual(dismissed.commits, []);
-
+test('track-only and label-only edits never enter delete onboarding', () => {
 	const trackDelete = harness(
 		{ deleteBehavior: 'not-set' },
 		{ trackOnly: true, onboardDeleteBehavior: () => { throw new Error('must not prompt'); } },
