@@ -8,16 +8,19 @@ export { isProjectFileName };
 
 const LEGACY_AUDACITY_PROJECT_PATTERN = /\.(?:aup3|aup4|dawproject)$/iu;
 const LABEL_PATTERN = /\.(?:srt|txt|vtt)$/iu;
+const CUE_PATTERN = /\.cue$/iu;
 
 export function partitionWorkspaceFiles(files) {
 	const projects = [];
 	const media = [];
 	const labels = [];
+	const cues = [];
 	for (const file of files || []) {
 		const name = file?.name || '';
 		if (isProjectFileName(name) || LEGACY_AUDACITY_PROJECT_PATTERN.test(name)) projects.push(file);
 		else if (LABEL_PATTERN.test(name)) labels.push(file);
+		else if (CUE_PATTERN.test(name)) cues.push(file);
 		else media.push(file);
 	}
-	return { projects, media, labels };
+	return { projects, media, labels, cues };
 }

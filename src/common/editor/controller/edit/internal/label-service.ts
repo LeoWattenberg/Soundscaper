@@ -1,8 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAddLabelTrackCommand } from '../../../commands/factories.ts';
+import {
+	createAddLabelTrackCommand,
+	createAddTimelineAnnotationCommand,
+} from '../../../commands/factories.ts';
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
+import { parseAudioEditorCueSheet } from '../../../cue-import.ts';
 import { parseAudioEditorLabels, serializeAudioEditorLabels } from '../../../label-io.js';
+import { AUDIO_EDITOR_TIMELINE_ANNOTATION_LIMITS } from '../../../timeline-annotation.ts';
 import {
 	labelExportFileName,
 	labelMimeType,
@@ -35,6 +40,8 @@ export interface LabelProjectDocument {
 	readonly id: string;
 	readonly title: string;
 	readonly sampleRate: number;
+	readonly primarySequenceId: string;
+	readonly timelineAnnotations: readonly unknown[];
 	readonly tracks: readonly (LabelTrack | Readonly<Record<string, unknown>>)[];
 }
 
@@ -50,6 +57,7 @@ export interface LabelServiceCopy {
 	readonly labelsImported: string;
 	readonly labelsImportEmpty: string;
 	readonly labelsImporting: string;
+	readonly panelMarkers: string;
 }
 
 export interface LabelInputFile {
@@ -76,6 +84,14 @@ export interface LabelImportResult {
 	readonly labels: readonly LabelValue[];
 	readonly warnings: readonly unknown[];
 	readonly trackId: string;
+}
+
+export type CueImportDestination = 'markers' | 'labels';
+
+export interface CueImportResult {
+	readonly destination: CueImportDestination;
+	readonly count: number;
+	readonly trackId?: string;
 }
 
 export interface LabelExportResult {
@@ -109,6 +125,7 @@ export interface LabelServiceDependencies {
 
 export interface LabelService {
 	importLabelFile(file: LabelInputFile | null | undefined, options?: LabelImportOptions): Promise<LabelImportResult | null>;
+	importCueFile(file: LabelInputFile | null | undefined, destination: CueImportDestination): Promise<CueImportResult | null>;
 	exportLabels(options?: LabelExportOptions): Promise<LabelExportResult>;
 }
 
@@ -121,7 +138,7 @@ interface ParsedLabels {
 export function createLabelService(dependencies: LabelServiceDependencies): Readonly<LabelService> {
 	let importGeneration = 0;
 
-	return Object.freeze({ importLabelFile, exportLabels });
+	return Object.freeze({ importLabelFile, importCueFile, exportLabels });
 
 	async function importLabelFile(
 		file: LabelInputFile | null | undefined,
@@ -160,6 +177,77 @@ export function createLabelService(dependencies: LabelServiceDependencies): Read
 				parsed.warnings.length ? 'info' : 'success',
 			);
 			return { ...parsed, trackId };
+		} finally {
+			ownership.task.finish();
+			if (generation === importGeneration) {
+				dependencies.state.importing = false;
+				if (!dependencies.lifetime.inactive) dependencies.publish();
+			}
+		}
+	}
+
+	async function importCueFile(
+		file: LabelInputFile | null | undefined,
+		destination: CueImportDestination,
+	): Promise<CueImportResult | null> {
+		dependencies.lifetime.assertActive();
+		if (destination !== 'markers' && destination !== 'labels') {
+			throw new RangeError('CUE import destination must be markers or labels.');
+		}
+		if (!file || dependencies.editingBlocked()) return null;
+		const ownership = captureOwnership('cue:import');
+		const generation = ++importGeneration;
+		dependencies.state.importing = true;
+		dependencies.publish();
+		dependencies.setStatus(dependencies.copy.labelsImporting);
+		try {
+			const data = await readLabelFile(file);
+			assertOwnership(ownership);
+			const parsed = parseAudioEditorCueSheet(data, { sampleRate: ownership.project.sampleRate });
+			if (!parsed.cues.length) throw new Error(dependencies.copy.labelsImportEmpty);
+			if (destination === 'labels') {
+				const labels = parsed.cues.map((cue) => ({
+					id: dependencies.createId('label'),
+					title: cue.title,
+					startFrame: cue.positionFrame,
+					endFrame: cue.positionFrame,
+					color: 'auto',
+				}));
+				const trackId = dependencies.createId('label-track');
+				assertOwnership(ownership);
+				dependencies.commit(createAddLabelTrackCommand({
+					id: trackId,
+					name: parsed.title || stripExtension(file.name) || dependencies.copy.labels,
+					labels,
+				}), { selectTrackId: trackId });
+				dependencies.setStatus(
+					dependencies.copy.labelsImported.replace('{count}', String(labels.length)),
+					'success',
+				);
+				return Object.freeze({ destination, count: labels.length, trackId });
+			}
+			if (!ownership.project.primarySequenceId || !Array.isArray(ownership.project.timelineAnnotations)) {
+				throw new Error('This project does not support timeline markers.');
+			}
+			if (ownership.project.timelineAnnotations.length + parsed.cues.length
+				> AUDIO_EDITOR_TIMELINE_ANNOTATION_LIMITS.maximumAnnotations) {
+				throw new RangeError('The CUE sheet exceeds the remaining timeline marker capacity.');
+			}
+			const commands = parsed.cues.map((cue) => createAddTimelineAnnotationCommand({
+				id: dependencies.createId('annotation'),
+				sequenceId: ownership.project.primarySequenceId,
+				name: cue.title,
+				color: 'auto',
+				batchId: null,
+				opaqueExtensions: {},
+				kind: 'marker',
+				anchor: 'sample',
+				positionFrame: cue.positionFrame,
+			}));
+			assertOwnership(ownership);
+			dependencies.commit({ type: 'batch', commands });
+			dependencies.setStatus(`${dependencies.copy.panelMarkers}: ${String(commands.length)}`, 'success');
+			return Object.freeze({ destination, count: commands.length });
 		} finally {
 			ownership.task.finish();
 			if (generation === importGeneration) {

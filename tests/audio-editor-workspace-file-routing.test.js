@@ -9,10 +9,12 @@ test('workspace drops route AUP3, AUP4 and DAWproject files as projects instead 
 	const dawproject = { name: 'session.DawProject' };
 	const audio = { name: 'take.wav' };
 	const labels = { name: 'markers.vtt' };
-	assert.deepEqual(partitionWorkspaceFiles([aup3, audio, aup4, dawproject, labels]), {
+	const cue = { name: 'album.CUE' };
+	assert.deepEqual(partitionWorkspaceFiles([aup3, audio, aup4, dawproject, labels, cue]), {
 		projects: [aup3, aup4, dawproject],
 		media: [audio],
 		labels: [labels],
+		cues: [cue],
 	});
 });
 
@@ -28,5 +30,6 @@ test('workspace drops route every accepted project suffix as a project', () => {
 		projects,
 		media,
 		labels: [],
+		cues: [],
 	});
 });

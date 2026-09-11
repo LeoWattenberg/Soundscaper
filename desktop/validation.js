@@ -34,8 +34,8 @@ const FILE_PURPOSES = Object.freeze({
 		filters: Object.freeze([{ name: 'Video', extensions: ['m4v', 'mp4', 'webm'] }]),
 	}),
 	media: Object.freeze({
-		extensions: Object.freeze(['aac', 'aif', 'aiff', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'rf64', 'srt', 'txt', 'vtt', 'wav', 'webm', 'wv']),
-		filters: Object.freeze([{ name: 'Audio, video, and labels', extensions: ['aac', 'aif', 'aiff', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'rf64', 'srt', 'txt', 'vtt', 'wav', 'webm', 'wv'] }]),
+		extensions: Object.freeze(['aac', 'aif', 'aiff', 'cue', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'rf64', 'srt', 'txt', 'vtt', 'wav', 'webm', 'wv']),
+		filters: Object.freeze([{ name: 'Audio, video, CUE sheets, and labels', extensions: ['aac', 'aif', 'aiff', 'cue', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'rf64', 'srt', 'txt', 'vtt', 'wav', 'webm', 'wv'] }]),
 	}),
 	labels: Object.freeze({
 		extensions: Object.freeze(['srt', 'txt', 'vtt']),
@@ -108,6 +108,7 @@ const MIME_TYPES = Object.freeze({
 	'.aup3': 'application/x-audacity-project',
 	'.aup4': 'application/vnd.audacity.aup4',
 	'.bw64': 'audio/bw64',
+	'.cue': 'application/x-cue',
 	'.csv': 'text/csv',
 	'.edl': 'text/plain',
 	'.fcpxml': 'application/xml',

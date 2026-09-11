@@ -36,6 +36,7 @@ import { openWorkspaceProjectFile } from './open-workspace-project-file.ts';
 import { desktopExternalDestination, formatDateTimeLocalInput } from '../workspace-runtime.js';
 import { useTrackHeaderDrawerFlag, useWorkspaceCompactLayout } from './useWorkspaceCompactLayout.js';
 import { createWorkspaceEditItems } from './workspace-edit-items.js';
+import { useCueImportWorkspace } from './cue-import-workspace.tsx';
 const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr';
 export default function AudioEditorWorkspace({
 	locale,
@@ -77,7 +78,7 @@ export default function AudioEditorWorkspace({
 	const [editorOverlayTarget, setEditorOverlayTarget] = useState(null);
 	const [playbackMeterSettings, setPlaybackMeterSettings] = useState(() => loadPlaybackMeterSettings(productId));
 	const [recordingMeterSettings, setRecordingMeterSettings] = useState(() => loadRecordingMeterSettings(productId));
-	const importInputRef = useRef(null);
+	const { cueImportDialog, importInputRef, requestCueImport } = useCueImportWorkspace(controller, snapshot.project?.id);
 	const aup4InputRef = useRef(null);
 	const legacyAupInputRef = useRef(null);
 	const legacyDataInputRef = useRef(null);
@@ -242,10 +243,9 @@ export default function AudioEditorWorkspace({
 			});
 		}
 		for (const file of routed.labels) await controller.actions.labels.importFile(file);
+		for (const file of routed.cues) await requestCueImport(file);
 		return files.length;
-	}, [controller, openProjectFile, projectBinEffectivelyOpen]);
-	// The operating system launches this editor with the files a person
-	// double-clicked, and they take the routing a dropped batch already has.
+	}, [controller, openProjectFile, projectBinEffectivelyOpen, requestCueImport]);
 	useLaunchedFileImports({
 		controller, importFiles: importRoutedFiles, onError, desktop: fileService.isDesktop,
 	});
@@ -511,7 +511,7 @@ export default function AudioEditorWorkspace({
 		floatingToolbarPosition,
 		floatingToolbarRef,
 		generatorType,
-		importInputRef,
+		cueImportDialog, importInputRef,
 		importRoutedFiles,
 		isCompact,
 		isFullscreen,

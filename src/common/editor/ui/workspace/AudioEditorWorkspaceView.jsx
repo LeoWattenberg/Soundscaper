@@ -23,11 +23,11 @@ import { handleWorkspaceKeyboard } from '../workspace-shortcuts.ts';
 import { TrackAutomationRuntimeProvider } from '../soundscaper-workflow-product-runtime.tsx';
 import { useSplitToolShortcut } from '../timeline/useSplitToolShortcut.ts';
 import EditorSurfaceBoundary from '../EditorSurfaceBoundary.jsx';
+import { CueImportDestinationDialog, WorkspaceImportInput } from './cue-import-workspace.tsx';
 
 const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.webm,.wv';
-const AUDIO_EDITOR_IMPORT_FILE_ACCEPT = `${AUDIO_EDITOR_AUDIO_FILE_ACCEPT},.txt,.srt,.vtt,text/plain,text/vtt,application/x-subrip`;
+const AUDIO_EDITOR_IMPORT_FILE_ACCEPT = `${AUDIO_EDITOR_AUDIO_FILE_ACCEPT},.cue,.txt,.srt,.vtt,application/x-cue,text/plain,text/vtt,application/x-subrip`;
 const EMPTY_SPLIT_TOOL_SHORTCUTS = Object.freeze([]);
-
 export default function AudioEditorWorkspaceView({ model }) {
 	const skin = useEditorSkin();
 	const {
@@ -43,6 +43,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		chromeDrawer,
 		compactLayout,
 		controller,
+		cueImportDialog,
 		copy,
 		displayAudioSupported,
 		desktopChrome,
@@ -248,21 +249,8 @@ export default function AudioEditorWorkspaceView({ model }) {
 				}}
 			/>
 
-			<input
-				ref={importInputRef}
-				className="kw-audio-editor__file-input"
-				data-import-input
-				aria-label={copy.importFile}
-				type="file"
-				tabIndex={-1}
-				accept={AUDIO_EDITOR_IMPORT_FILE_ACCEPT}
-				multiple
-				onChange={(event) => {
-					const files = [...event.currentTarget.files];
-					event.currentTarget.value = '';
-					if (files.length) run(() => importRoutedFiles(files));
-				}}
-			/>
+			<WorkspaceImportInput accept={AUDIO_EDITOR_IMPORT_FILE_ACCEPT} copy={copy} importInputRef={importInputRef} importRoutedFiles={importRoutedFiles} run={run} />
+			<CueImportDestinationDialog copy={copy} runtime={cueImportDialog} />
 
 			{!compactLayout && actionBar}
 

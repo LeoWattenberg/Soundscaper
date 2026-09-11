@@ -42,7 +42,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 	fileService, findTrack, persistSetting, publishDocumentSnapshot, flushProject, generateSelectionSilence,
 	generateSignal, repeatLastGenerator, getClipVisualData, getProjectBinClipVisualData, getVisibleClips,
 	handleClipAction, handleEdit, handleExportAction, handlePlayAtSpeed, handleTransport,
-	hasMissingTimelineSources, importFiles, importLabelFile, inspectScape, listProjects, makeStereoTrack,
+	hasMissingTimelineSources, importFiles, importLabelFile, importCueFile, inspectScape, listProjects, makeStereoTrack,
 	mixAndRenderTracks, moveClips, moveClipsToNewTrack, moveClipsToProjectBin, moveTrack, newProject,
 	normalizePlaybackFrame, openAudacityProject, openAup4, openProject, openScape, openScapeFile, overwriteClips,
 	openDawproject, saveDawproject, pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip,
@@ -399,6 +399,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			update: (trackId: string | null, labelId: string, changes: Readonly<Record<string, unknown>>) => commit({ type: 'label/update', trackId, labelId, changes }),
 			remove: (trackId: string | null, labelId: string) => commit({ type: 'label/remove', trackId, labelId }),
 			importFile: importLabelFile,
+			importCueFile,
 			export: exportLabels,
 		}),
 		metadata: Object.freeze({

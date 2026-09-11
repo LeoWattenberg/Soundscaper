@@ -63,6 +63,7 @@ export const COPY = Object.freeze({
 	labelsImported: 'Imported {count} labels.',
 	labelsExported: 'Exported {count} labels.',
 	labelsImportEmpty: 'No readable labels.',
+	panelMarkers: 'Markers',
 	labelTrackMissing: 'No label track.',
 	labelsRequireV2: 'Labels require V2.',
 	v2Required: 'This feature requires V2.',

@@ -149,7 +149,6 @@
 		"src/common/editor/ui/video-preview-compositor.js": 595,
 		"src/common/editor/ui/video-preview-effects.js": 596,
 		"src/common/editor/ui/workspace/AudioEditorWorkspace.jsx": 572,
-		"src/common/editor/ui/workspace/AudioEditorWorkspaceView.jsx": 561,
 		"src/common/editor/ui/workspace/ProjectBinPanel.jsx": 550,
 		"src/common/editor/ui/workspace/VideoPreviewPanel.jsx": 558,
 		"src/common/editor/ui/workspace/soundscaper-routing-graph-candidates.ts": 593,

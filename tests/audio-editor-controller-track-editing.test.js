@@ -188,6 +188,20 @@ test('controller imports and exports label formats and applies the project snap 
 	assert.equal(savedLabelFile.blob.type, 'application/x-subrip;charset=utf-8');
 	assert.equal(await savedLabelFile.blob.text(), exported.text);
 
+	const cueImport = await controller.actions.labels.importCueFile({
+		name: 'album.cue',
+		async text() {
+			return 'TRACK 01 AUDIO\n TITLE "Intro"\n INDEX 01 00:00:00\nTRACK 02 AUDIO\n TITLE "Song"\n INDEX 01 00:01:00';
+		},
+	}, 'markers');
+	assert.deepEqual(cueImport, { destination: 'markers', count: 2 });
+	assert.deepEqual(controller.getSnapshot().project.timelineAnnotations.map(({ name, positionFrame }) => ({ name, positionFrame })), [
+		{ name: 'Intro', positionFrame: 0 },
+		{ name: 'Song', positionFrame: 48_000 },
+	]);
+	controller.actions.edit.undo();
+	assert.equal(controller.getSnapshot().project.timelineAnnotations.length, 0, 'the marker import is one undo step');
+
 	await controller.dispose();
 });
 

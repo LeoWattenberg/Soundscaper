@@ -74,7 +74,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	const { loadProjectSources } = deferAsyncControllerMethods(() => services.sources().sourceLifecycle, ['loadProjectSources']);
 	const { listProjects, clearRecentProjects, renameProject, duplicateProject, garbageCollectSources } = deferAsyncControllerMethods(() => services.projectAdminService(), ['listProjects', 'clearRecentProjects', 'renameProject', 'duplicateProject', 'garbageCollectSources']);
 	const { prepareProjectBinReplacement, cancelProjectBinReplacement, playPauseProjectBinClip } = deferAsyncControllerMethods(() => services.imports().projectBin, ['prepareProjectBinReplacement', 'cancelProjectBinReplacement', 'playPauseProjectBinClip']);
-	const { importLabelFile, exportLabels } = deferAsyncControllerMethods(() => services.edits().labels, ['importLabelFile', 'exportLabels']);
+	const { importLabelFile, importCueFile, exportLabels } = deferAsyncControllerMethods(() => services.edits().labels, ['importLabelFile', 'importCueFile', 'exportLabels']);
 	const { disjoinSelectedClip } = deferAsyncControllerMethods(() => services.edits().clipboard, ['disjoinSelectedClip']);
 	const { generateSelectionSilence, generateSignal, repeatLastGenerator } = deferAsyncControllerMethods(() => services.edits(), ['generateSelectionSilence', 'generateSignal', 'repeatLastGenerator']);
 	const { requestInputAccess, setPreferredInputDevice, configureDisplayInput, setPreferredInputChannelCount, setAudioOutputDevice, setRecordingSourceLatency, setRetainInputs } = deferAsyncControllerMethods(() => services.recording().routing, ['requestInputAccess', 'setPreferredInputDevice', 'configureDisplayInput', 'setPreferredInputChannelCount', 'setAudioOutputDevice', 'setRecordingSourceLatency', 'setRetainInputs']);
@@ -134,7 +134,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 		stopProjectBinPreview, bootstrap, openProject, claimProjectLock,
 		loadProjectSources, listProjects, clearRecentProjects, renameProject,
 		duplicateProject, garbageCollectSources, prepareProjectBinReplacement, cancelProjectBinReplacement,
-		playPauseProjectBinClip, importLabelFile, exportLabels, disjoinSelectedClip,
+		playPauseProjectBinClip, importLabelFile, importCueFile, exportLabels, disjoinSelectedClip,
 		generateSelectionSilence, generateSignal, repeatLastGenerator, requestInputAccess,
 		setPreferredInputDevice, configureDisplayInput, setPreferredInputChannelCount, setAudioOutputDevice,
 		setRecordingSourceLatency, setRetainInputs, setRecordingTrackInput, setMicrophoneMetering,

@@ -11,6 +11,7 @@ import {
 	assertNoSeriousAxeViolations,
 	bootEditor,
 	chooseCommandAction,
+	chooseFileAction,
 	chooseNestedCommandAction,
 	collectClientErrors,
 	chooseExportProjectFileAction,
@@ -23,6 +24,34 @@ const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 
 test.describe('native timeline annotations', () => {
 	registerAudioEditorHooks(test);
+
+	test('imports a CUE sheet as markers or labels through the normal Import command', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const cueFile = {
+			name: 'album.cue',
+			mimeType: 'application/x-cue',
+			buffer: Buffer.from('TITLE "Album"\nTRACK 01 AUDIO\n TITLE "Intro"\n INDEX 01 00:00:00\nTRACK 02 AUDIO\n TITLE "Song"\n INDEX 01 00:01:00'),
+		};
+
+		let choosingFile = page.waitForEvent('filechooser');
+		await chooseFileAction(page, editor, 'Import');
+		await (await choosingFile).setFiles(cueFile);
+		let dialog = page.getByRole('dialog', { name: 'Import', exact: true });
+		await expect(dialog).toContainText('album.cue');
+		await dialog.getByRole('button', { name: 'Markers', exact: true }).click();
+		await expect(editor.locator('[data-status]')).toHaveText('Markers: 2');
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
+		await expect(editor.locator('[data-timeline-annotation-panel] [data-timeline-annotation]')).toHaveCount(2);
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+
+		choosingFile = page.waitForEvent('filechooser');
+		await chooseFileAction(page, editor, 'Import');
+		await (await choosingFile).setFiles(cueFile);
+		dialog = page.getByRole('dialog', { name: 'Import', exact: true });
+		await dialog.getByRole('button', { name: 'Labels', exact: true }).click();
+		await expect(editor.locator('[data-status]')).toHaveText('Imported 2 label(s).');
+		await expect(editor.locator('[data-label-track] [data-label-id]')).toHaveCount(2);
+	});
 
 	test('removes the marker lane and its layout offset when markers are hidden', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
@@ -321,4 +350,3 @@ async function openScapeArchive(editor, archive, name) {
 		buffer: archive,
 	});
 }
-

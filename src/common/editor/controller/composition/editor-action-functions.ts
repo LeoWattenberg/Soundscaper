@@ -113,6 +113,7 @@ export interface EditorActionFunctions {
 	readonly importEffectPresets: ReturnType<typeof createEffectsComposition>['controls']['importEffectPresets'];
 	readonly importFiles: ReturnType<typeof createImportComposition>['importFiles'];
 	readonly importLabelFile: ReturnType<typeof createEditComposition>['labels']['importLabelFile'];
+	readonly importCueFile: ReturnType<typeof createEditComposition>['labels']['importCueFile'];
 	readonly inspectScape: ReturnType<typeof createScapeProjectFileService>['inspectScape'];
 	readonly listAudioEditorEffectPresets: typeof listAudioEditorEffectPresets;
 	readonly listProjects: ReturnType<typeof createProjectAdminService>['listProjects'];

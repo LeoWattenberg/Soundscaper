@@ -64,6 +64,8 @@ test('native file filters cover the editor import and export formats', () => {
 	assert.equal(acceptsFile('media', '/tmp/captions.srt'), true);
 	assert.equal(acceptsFile('media', '/tmp/labels.TXT'), true);
 	assert.equal(acceptsFile('labels', '/tmp/captions.vtt'), true);
+	assert.equal(acceptsFile('media', '/tmp/album.CUE'), true);
+	assert.equal(mimeTypeForPath('/tmp/album.cue'), 'application/x-cue');
 	assert.equal(acceptsFile('labels', '/tmp/captions.csv'), false);
 	assert.equal(validateSaveChoice({ purpose: 'audio', suggestedName: 'stems.zip' }).suggestedName, 'stems.zip');
 	const stemArchive = validateSaveChoice({ purpose: 'audio', suggestedName: 'stems.7z' });

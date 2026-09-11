@@ -30,6 +30,8 @@ function project(id = 'project-a'): LabelProjectDocument {
 		id,
 		title: 'Session.wav',
 		sampleRate: 1_000,
+		primarySequenceId: 'sequence-a',
+		timelineAnnotations: [],
 		tracks: [{
 			type: 'label',
 			id: 'labels-a',
@@ -70,6 +72,7 @@ function createFixture(overrides: Partial<LabelServiceDependencies> = {}) {
 			labelsImported: 'Imported {count} labels.',
 			labelsImportEmpty: 'No labels.',
 			labelsImporting: 'Importing labels.',
+			panelMarkers: 'Markers',
 		},
 		getProject: () => activeProject,
 		editingBlocked: () => false,
@@ -118,6 +121,70 @@ test('label import parses once and commits one prepared label-track command', as
 		{ message: 'Importing labels.', state: undefined },
 		{ message: 'Imported 1 labels.', state: 'success' },
 	]);
+});
+
+test('CUE import converts tracks to one label track in one commit', async () => {
+	const fixture = createFixture();
+	const service = createLabelService(fixture.dependencies);
+	const file = {
+		name: 'album.cue',
+		text: async () => `TITLE "Album"
+TRACK 01 AUDIO
+ TITLE "Intro"
+ INDEX 01 00:00:00
+TRACK 02 AUDIO
+ TITLE "Song"
+ INDEX 01 00:01:00`,
+	};
+
+	const result = await service.importCueFile(file, 'labels');
+
+	assert.equal(result?.destination, 'labels');
+	assert.equal(result?.count, 2);
+	assert.equal(result?.trackId, 'label-track-3');
+	assert.deepEqual(fixture.commits[0]?.command, {
+		type: 'track/add',
+		track: {
+			id: 'label-track-3', type: 'label', name: 'Album', collapsed: false, height: 96, opaqueExtensions: {}, laneGroupId: null,
+			labels: [
+				{ id: 'label-1', title: 'Intro', startFrame: 0, endFrame: 0, color: 'auto', opaqueExtensions: {}, anchor: 'sample', startBeat: null, endBeat: null },
+				{ id: 'label-2', title: 'Song', startFrame: 1_000, endFrame: 1_000, color: 'auto', opaqueExtensions: {}, anchor: 'sample', startBeat: null, endBeat: null },
+			],
+		},
+	});
+	assert.deepEqual(fixture.commits[0]?.selection, { selectTrackId: 'label-track-3' });
+	assert.deepEqual(fixture.statuses.at(-1), { message: 'Imported 2 labels.', state: 'success' });
+});
+
+test('CUE import converts tracks to one undoable marker command batch', async () => {
+	const fixture = createFixture();
+	const service = createLabelService(fixture.dependencies);
+	const result = await service.importCueFile({
+		name: 'album.cue',
+		text: async () => `TRACK 01 AUDIO
+ TITLE "Intro"
+ INDEX 01 00:00:00
+TRACK 02 AUDIO
+ INDEX 01 00:00:01`,
+	}, 'markers');
+
+	assert.equal(result?.destination, 'markers');
+	assert.equal(result?.count, 2);
+	assert.equal(result?.trackId, undefined);
+	assert.deepEqual(fixture.commits[0]?.command, {
+		type: 'batch',
+		commands: [
+			{ type: 'timeline-annotation/add', annotation: {
+				id: 'annotation-1', sequenceId: 'sequence-a', name: 'Intro', color: 'auto',
+				batchId: null, opaqueExtensions: {}, kind: 'marker', anchor: 'sample', positionFrame: 0,
+			} },
+			{ type: 'timeline-annotation/add', annotation: {
+				id: 'annotation-2', sequenceId: 'sequence-a', name: 'Track 02', color: 'auto',
+				batchId: null, opaqueExtensions: {}, kind: 'marker', anchor: 'sample', positionFrame: 13,
+			} },
+		],
+	});
+	assert.deepEqual(fixture.statuses.at(-1), { message: 'Markers: 2', state: 'success' });
 });
 
 test('project switching suppresses a late label import commit and clears owned busy state', async () => {
