@@ -369,6 +369,8 @@ test('Playwright exit mapping and result envelopes distinguish failures from inf
 			packagedRuntimeRaw: 'packaged-runtime/raw.json',
 			packagedRuntimeSummary: 'packaged-runtime/summary.json',
 			packagedRuntimeTestResults: 'packaged-runtime/test-results',
+			localAssistanceConsoleLog: 'local-assistance/console.log', localAssistanceHtmlReport: 'local-assistance/playwright-report/index.html',
+			localAssistanceJsonReport: 'local-assistance/results.json', localAssistanceJunitReport: 'local-assistance/junit.xml', localAssistanceTestResults: 'local-assistance/test-results',
 		},
 	});
 	assert.equal(Object.isFrozen(envelope), true);
@@ -428,15 +430,13 @@ test('the injected nightly runtime records terminal results and always closes it
 	assert.equal(closeCalls, 2);
 	assert.equal(metricsEvidenceCalls, 1);
 	assert.equal(packagedEvidenceCalls, 1);
-	assert.equal(plansSeen.length, 3);
+	assert.equal(plansSeen.length, 4);
 	assert.equal(plansSeen[0]?.env.SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT, completed.runRoot);
 	const productOrigins = JSON.stringify({
 		soundscaper: 'http://127.0.0.1:47777',
 		framescaper: 'http://127.0.0.1:47778',
 	});
-	assert.equal(plansSeen[0]?.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS, productOrigins);
-	assert.equal(plansSeen[1]?.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS, productOrigins);
-	assert.equal(plansSeen[2]?.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS, productOrigins);
+	for (const plan of plansSeen) assert.equal(plan.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS, productOrigins);
 	assert.match(plansSeen[1]?.args.at(-1) ?? '', /playwright\.nightly-metrics\.config\.mjs$/u);
 	assert.match(plansSeen[2]?.args.at(-1) ?? '', /playwright\.nightly-packaged-metrics\.config\.mjs$/u);
 	assert.deepEqual(
@@ -589,7 +589,7 @@ test('a failed diagnostic metric gate fails an otherwise passing nightly run', a
 		writePackagedMetricsDiagnostics: async () => ({ passed: true }),
 	});
 
-	assert.equal(childCalls, 3);
+	assert.equal(childCalls, 4);
 	assert.equal(completed.exitCode, 1);
 	assert.equal(completed.result.status, 'failed');
 });

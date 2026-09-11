@@ -16,8 +16,12 @@ module.exports = {
 	},
 	files: [
 		'desktop/nightly-tests-main.mjs',
+		'desktop/nightly-tests-assistance-host.mjs',
+		'desktop/nightly-tests-assistance.html',
 		'desktop/nightly-tests-manifest.mjs',
 		'scripts/lib/desktop-nightly-tests-runtime.mjs',
+		'scripts/lib/desktop-nightly-tests-phases.mjs',
+		'scripts/lib/desktop-nightly-tests-local-assistance.mjs',
 		'scripts/lib/desktop-nightly-tests-static-response.mjs',
 		'scripts/lib/static-site-content-types.mjs',
 		'scripts/lib/desktop-nightly-tests-product-sites.mjs',
@@ -55,6 +59,7 @@ module.exports = {
 				'package.json',
 				'playwright.nightly-metrics.config.mjs',
 				'playwright.nightly-packaged-metrics.config.mjs',
+				'playwright.nightly-local-assistance.config.mjs',
 				'playwright.nightly-tests.config.mjs',
 				// The browser specs import spec-support helpers from here. The
 				// launcher's own modules reach the main process through `files`

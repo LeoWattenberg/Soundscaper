@@ -34,7 +34,7 @@ test('partial packaged-runtime metadata does not abort diagnostics', async (cont
 		writePackagedMetricsDiagnostics: async () => ({ passed: true }),
 	});
 
-	assert.equal(childCalls, 3);
+	assert.equal(childCalls, 4);
 	assert.equal(completed.exitCode, 0);
 	assert.equal(completed.result.status, 'passed');
 	assert.equal(completed.result.failure, null);

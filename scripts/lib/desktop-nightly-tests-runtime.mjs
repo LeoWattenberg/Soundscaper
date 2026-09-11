@@ -8,9 +8,10 @@ import { extname, isAbsolute, join, posix, win32 } from 'node:path';
 import { startDesktopNightlyTestsProductSites } from './desktop-nightly-tests-product-sites.mjs';
 import { resolveDesktopNightlyTestsStaticRequestFile, StaticRequestError } from './desktop-nightly-tests-static-route.mjs';
 import { pipeDesktopNightlyTestsStaticResponse } from './desktop-nightly-tests-static-response.mjs';
-import { runDesktopNightlyTestsMetricsPhase } from './desktop-nightly-tests-metrics.mjs';
+import { runDesktopNightlyTestsDiagnosticPhases } from './desktop-nightly-tests-phases.mjs';
 import { staticSiteContentType } from './static-site-content-types.mjs';
-import { PACKAGED_RUNTIME_ARTIFACT_PATHS, runDesktopNightlyTestsPackagedMetricsPhase } from './desktop-nightly-tests-packaged-runtime.mjs';
+import { PACKAGED_RUNTIME_ARTIFACT_PATHS } from './desktop-nightly-tests-packaged-runtime.mjs';
+import { LOCAL_ASSISTANCE_ARTIFACT_PATHS } from './desktop-nightly-tests-local-assistance.mjs';
 
 const RESULT_KIND = 'soundscaper-desktop-nightly-tests';
 const PRODUCT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/u;
@@ -225,6 +226,7 @@ export function createDesktopNightlyTestsResultEnvelope({
 			metricsSummary: 'metrics/summary.json',
 			metricsTestResults: 'metrics/test-results',
 			...PACKAGED_RUNTIME_ARTIFACT_PATHS,
+			...LOCAL_ASSISTANCE_ARTIFACT_PATHS,
 		}),
 	});
 }
@@ -284,23 +286,15 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 		signal = child.signal ?? null;
 		outcome = mapDesktopNightlyTestsExit({ code: child.code, signal });
 		if (outcome.status === 'passed' || outcome.status === 'failed') {
-			const metrics = await runDesktopNightlyTestsMetricsPhase({
-				executablePath: options.executablePath, payloadRoot: options.payloadRoot, runRoot,
-				baseURL: sites.origins.soundscaper, esbuildBinaryPath, environment: sites.browserEnvironment,
-				sourceRevision: options.sourceRevision ?? null,
-			}, { runPlaywright, writeDiagnostics: dependencies.writeMetricsDiagnostics });
-			const metricsOutcome = mapDesktopNightlyTestsExit(metrics.child);
-			signal = metrics.child.signal ?? signal;
-			outcome = combineOutcomes(outcome, metricsOutcome, metrics.diagnostics.passed);
-			const packagedMetrics = await runDesktopNightlyTestsPackagedMetricsPhase({
+			for await (const phase of runDesktopNightlyTestsDiagnosticPhases({
 				executablePath: options.executablePath, payloadRoot: options.payloadRoot, runRoot,
 				baseURL: sites.origins.soundscaper, esbuildBinaryPath,
 				environment: sites.browserEnvironment, platform, arch,
 				sourceRevision: options.sourceRevision ?? null,
-			}, { runPlaywright, writeDiagnostics: dependencies.writePackagedMetricsDiagnostics });
-			const packagedOutcome = mapDesktopNightlyTestsExit(packagedMetrics.child);
-			signal = packagedMetrics.child.signal ?? signal;
-			outcome = combineOutcomes(outcome, packagedOutcome, packagedMetrics.diagnostics.passed);
+			}, { ...dependencies, runPlaywright })) {
+				signal = phase.child.signal ?? signal;
+				outcome = combineOutcomes(outcome, mapDesktopNightlyTestsExit(phase.child), phase.diagnostics.passed);
+			}
 		}
 	} catch (error) {
 		outcome = Object.freeze({ status: 'error', exitCode: 2 }); failure = message(error);

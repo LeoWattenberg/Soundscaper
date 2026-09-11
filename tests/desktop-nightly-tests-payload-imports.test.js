@@ -41,7 +41,8 @@ test('the nightly payload carries the data file its release-line reader opens at
 });
 
 test('the nightly test payload satisfies every import its browser specs reach', async () => {
-	const browserTests = (await collectTestFiles(BROWSER_TESTS))
+	const browserTests = [...await collectTestFiles(BROWSER_TESTS),
+		...await collectTestFiles(join(REPOSITORY_ROOT, 'tests/electron/local-assistance-models'))]
 		.filter((path) => isStagedInput(relative(REPOSITORY_ROOT, path)));
 	const entryPoints = [
 		...browserTests,

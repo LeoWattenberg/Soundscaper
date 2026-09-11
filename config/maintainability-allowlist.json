@@ -55,7 +55,7 @@
 		"native/framescaper-openfx-host/src/v12_host_invocation.cpp": 599,
 		"native/soundscaper-helper-addon/src/addon.c": 551,
 		"scripts/lib/desktop-bundled-codec-corresponding-source.mjs": 587,
-		"scripts/lib/desktop-nightly-tests-runtime.mjs": 590,
+		"scripts/lib/desktop-nightly-tests-runtime.mjs": 584,
 		"scripts/lib/desktop-package-content-manifest.mjs": 573,
 		"scripts/lib/desktop-project-library-runtime.mjs": 586,
 		"scripts/lib/desktop-scape-open-smoke.mjs": 598,

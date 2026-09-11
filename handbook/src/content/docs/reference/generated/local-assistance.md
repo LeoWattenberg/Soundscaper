@@ -33,7 +33,7 @@ A workflow is a fixed graph of steps. A step that names an operation runs a mode
 
 ## Operations
 
-Every operation can also be run on its own, without a surrounding workflow, under the advanced ID below.
+Each operation has the advanced entry below for use without a surrounding workflow. Execution requires its model and a compatible packaged native engine; an entry alone does not establish current availability.
 
 | Operation | Operation ID | Run on its own as |
 | --- | --- | --- |
@@ -56,7 +56,9 @@ Every operation can also be run on its own, without a surrounding workflow, unde
 
 ## Published models
 
-Models are published from `https://assets.soundscaper.org/models/` and verified against a recorded SHA-256 digest before use. “Minimum memory” is the free memory a model needs to load; it is not a claim about how fast it will run. A task below is what one model does, which is not always spelled the same as the operation that uses it, and a single operation may draw on more than one model.
+Model weights and native engines are separate requirements. See the [individual model guides and current native availability](/reference/local-models/) before relying on a model download to enable a task.
+
+Models are published from `https://assets.soundscaper.org/models/` and verified against a recorded SHA-256 digest before use. “Minimum memory” is the total system memory required for catalog availability. Inference also needs sufficient free memory; neither value is a claim about how fast it will run. A task below is what one model does, which is not always spelled the same as the operation that uses it, and a single operation may draw on more than one model.
 
 | Model | Task | Version | Distribution | Minimum memory | Platforms |
 | --- | --- | --- | --- | --- | --- |

@@ -150,9 +150,9 @@ function assistanceBackgroundPriority(pid) {
 export function registerAssistance({
 	channels, handle, on, sendToRenderer, app, settings, dialog, windowFor,
 	externalFfmpegPreferences,
+	runtimeRoot = join(process.resourcesPath, 'runtime'),
 }) {
 	let child = null;
-	const runtimeRoot = join(process.resourcesPath, 'runtime');
 	const targetId = assistanceNativeRuntimeTargetId({ platform: process.platform, arch: process.arch });
 	const host = createAssistanceJobHost({
 		// The executable closure stays outside the asar, so main authenticates every

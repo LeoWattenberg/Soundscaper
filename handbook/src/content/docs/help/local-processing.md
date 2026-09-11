@@ -7,6 +7,11 @@ Local assistance runs on your device in the Soundscaper and Framescaper desktop
 editors. Select media, then choose the task from its menu. The dialog shows the
 selection, the task settings, and whether its models are installed.
 
+Model downloads and native processing engines are separate requirements. Some
+published models currently lack a packaged native engine, including dialogue
+enhancement and the visual models. Check each model's
+[current availability](/reference/local-models/) before installing it for a task.
+
 ## Find a task {#find-a-task}
 
 | Menu | Tasks |
@@ -44,6 +49,10 @@ Install models explicitly. Downloads show progress and can be cancelled. Returni
 to a task preserves its settings and refreshes model availability; it does not
 start processing. Expand **Storage and verification** for repair, cleanup,
 storage relocation, license notices, and offline installation from a folder.
+
+See the [individual model guides](/reference/local-models/) for each published
+model's purpose, menu entry, download size, requirements, limitations, and the
+real inference checks performed by the nightly-with-tests desktop package.
 
 ## Manage plugins and devices {#manage-plugins-and-devices}
 

@@ -72,6 +72,11 @@ export interface DesktopNightlyTestsResultEnvelope {
 		readonly packagedRuntimeRaw: 'packaged-runtime/raw.json';
 		readonly packagedRuntimeSummary: 'packaged-runtime/summary.json';
 		readonly packagedRuntimeTestResults: 'packaged-runtime/test-results';
+		readonly localAssistanceConsoleLog: 'local-assistance/console.log';
+		readonly localAssistanceHtmlReport: 'local-assistance/playwright-report/index.html';
+		readonly localAssistanceJsonReport: 'local-assistance/results.json';
+		readonly localAssistanceJunitReport: 'local-assistance/junit.xml';
+		readonly localAssistanceTestResults: 'local-assistance/test-results';
 	};
 }
 

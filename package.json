@@ -30,8 +30,8 @@
 	"scripts": {
 		"dev": "vite",
 		"docs:dev": "npm run dev --workspace @soundscaper/handbook --",
-		"docs:generate": "node scripts/docs-reference.mjs",
-		"docs:reference:check": "node scripts/docs-reference.mjs --check",
+		"docs:generate": "node scripts/docs-reference.mjs && node scripts/docs-local-models.mjs",
+		"docs:reference:check": "node scripts/docs-reference.mjs --check && node scripts/docs-local-models.mjs --check",
 		"docs:content:check": "node scripts/check-handbook-content.mjs",
 		"docs:ai:draft": "node scripts/docs-ai.mjs draft",
 		"docs:translate": "node scripts/docs-ai.mjs translate",

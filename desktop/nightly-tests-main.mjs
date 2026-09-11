@@ -2,7 +2,7 @@
 
 import { resolve } from 'node:path';
 
-import { app, dialog } from 'electron/main';
+import * as electron from 'electron/main';
 
 import { readDesktopNightlyTestsSourceRevision } from './nightly-tests-manifest.mjs';
 import {
@@ -10,8 +10,12 @@ import {
 	resolveDesktopNightlyTestsPresentation,
 } from '../scripts/lib/desktop-nightly-tests-presentation.mjs';
 import { runDesktopNightlyTests } from '../scripts/lib/desktop-nightly-tests-runtime.mjs';
+import { NIGHTLY_ASSISTANCE_HOST_FLAG, startNightlyAssistanceHost } from './nightly-tests-assistance-host.mjs';
 
-void startNightlyTests();
+const { app, dialog } = electron;
+if (process.argv.includes(NIGHTLY_ASSISTANCE_HOST_FLAG)) {
+	void startNightlyAssistanceHost(electron).catch((error) => { console.error(error); app.exit(2); });
+} else void startNightlyTests();
 
 async function startNightlyTests() {
 	const { unattended } = resolveDesktopNightlyTestsPresentation({
@@ -50,9 +54,9 @@ async function startNightlyTests() {
 				type: run.exitCode === 0 ? 'info' : 'error',
 				title: 'Soundscaper Nightly Tests',
 				message: run.exitCode === 0
-					? 'Playwright tests and diagnostic metric gates passed.'
-					: 'Playwright tests or diagnostic metric gates did not pass.',
-				detail: `Browser and packaged-runtime results were written to:\n${run.runRoot}`,
+					? 'Browser tests, diagnostic metrics, and real model tests passed.'
+					: 'Browser tests, diagnostic metrics, or real model tests did not pass.',
+				detail: `Browser, packaged-runtime, and local assistance results were written to:\n${run.runRoot}`,
 			});
 		}
 		app.exit(run.exitCode);

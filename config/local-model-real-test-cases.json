@@ -1,0 +1,161 @@
+{
+	"schemaVersion": 1,
+	"cases": [
+		{
+			"id": "silero-voice-activity",
+			"modelIds": ["silero-vad-v6"],
+			"operation": "voice-activity-detection",
+			"fixtureId": "speech-16khz",
+			"validation": "voice-activity",
+			"documentation": {
+				"modelTitles": { "silero-vad-v6": "Silero VAD v6" },
+				"summary": "Find speech regions before transcription or removal of long pauses.",
+				"menu": "Effect → Noise removal and repair → Clean Filler & Silence, or Analyze → Speech → Transcribe & Captions",
+				"steps": ["Select an audio region containing speech and pauses.", "Open the task and install Silero VAD through Manage Models.", "Run locally, then review the detected regions or the cleanup proposals before applying changes."],
+				"limitations": ["Voice activity detection finds when speech occurs. It does not transcribe words, repair noise, or identify speakers.", "Music and background voices can affect the proposed boundaries; review cuts before applying them."]
+			}
+		},
+		{
+			"id": "parakeet-v2-transcript",
+			"modelIds": ["parakeet-tdt-0.6b-v2"],
+			"operation": "speech-recognition",
+			"fixtureId": "speech-16khz",
+			"validation": "transcript",
+			"documentation": {
+				"modelTitles": { "parakeet-tdt-0.6b-v2": "Parakeet TDT 0.6B v2" },
+				"summary": "Turn selected speech into a timed transcript for captions and transcript editing.",
+				"menu": "Analyze → Speech → Transcribe & Captions",
+				"steps": ["Select the speech to transcribe.", "Use Manage Models to install this model. Tools → Advanced Local Processing lets you choose a specific speech-recognition model.", "Run locally, then review the text and timing before accepting the transcript."],
+				"limitations": ["Check names, punctuation, numbers, and timing against the recording.", "A successful test requires readable text and valid timing, not an exact reference transcription. It does not measure recognition accuracy across languages or recording conditions."]
+			}
+		},
+		{
+			"id": "parakeet-v3-transcript",
+			"modelIds": ["parakeet-tdt-0.6b-v3"],
+			"operation": "speech-recognition",
+			"fixtureId": "speech-16khz",
+			"validation": "transcript",
+			"documentation": {
+				"modelTitles": { "parakeet-tdt-0.6b-v3": "Parakeet TDT 0.6B v3" },
+				"summary": "Provide another local speech-recognition model for transcripts and captions.",
+				"menu": "Analyze → Speech → Transcribe & Captions",
+				"steps": ["Select a region with speech.", "Install Parakeet v3 through Manage Models. Choose its exact model identity in Tools → Advanced Local Processing when comparing models.", "Run locally and review the proposed transcript before applying it."],
+				"limitations": ["Recognition depends on the recording and language; review the words rather than treating generated text as authoritative.", "The packaged test uses a short speech sample and does not certify every language, accent, or noise condition."]
+			}
+		},
+		{
+			"id": "whisper-turbo-transcript",
+			"modelIds": ["whisper-large-v3-turbo-ggml"],
+			"operation": "speech-recognition",
+			"fixtureId": "speech-16khz",
+			"validation": "transcript",
+			"documentation": {
+				"modelTitles": { "whisper-large-v3-turbo-ggml": "Whisper large-v3 turbo" },
+				"summary": "Transcribe selected speech locally through the packaged whisper.cpp runtime.",
+				"menu": "Analyze → Speech → Transcribe & Captions",
+				"steps": ["Select speech and install Whisper large-v3 turbo through Manage Models.", "Choose this speech-recognition model under Tools → Advanced Local Processing when you want to select Whisper explicitly.", "Run locally and review both the text and segment boundaries before accepting."],
+				"limitations": ["Whisper can produce incorrect text, particularly on noise or material without clear speech. Listen while reviewing.", "The test checks that the real runtime returns a nonempty, timed transcript; it does not guarantee a particular spelling or recognition score."]
+			}
+		},
+		{
+			"id": "speaker-diarization",
+			"modelIds": ["pyannote-segmentation-3.0", "speech-3d-speaker-eres2net"],
+			"operation": "speaker-diarization",
+			"fixtureId": "speech-16khz",
+			"validation": "speaker-turns",
+			"documentation": {
+				"modelTitles": { "pyannote-segmentation-3.0": "Pyannote segmentation 3.0", "speech-3d-speaker-eres2net": "ERes2Net speaker embedding" },
+				"modelDetails": { "pyannote-segmentation-3.0": "Pyannote supplies the speech segmentation used by the diarization runtime. ERes2Net supplies the speaker embeddings used to group those segments.", "speech-3d-speaker-eres2net": "ERes2Net turns speech segments into numerical speaker representations. The diarization runtime combines them with Pyannote segmentation to group the recording into speaker turns." },
+				"summary": "Group speech into speaker turns so you can review who speaks when.",
+				"menu": "Analyze → Speech → Identify Speakers",
+				"steps": ["Select the conversation to analyze.", "Install both Pyannote segmentation and ERes2Net speaker embedding through Manage Models; the operation uses the pair.", "Run locally, review the proposed speaker turns, and apply the wanted results."],
+				"limitations": ["Speaker IDs are groups inferred from the recording, not verified real-world identities.", "Short utterances, overlapping voices, and similar voices can be grouped incorrectly. The test checks valid nonempty turns, not an exact speaker count."]
+			}
+		},
+		{
+			"id": "deepfilter-enhancement",
+			"modelIds": ["deepfilternet3"],
+			"operation": "speech-enhancement",
+			"fixtureId": "noisy-speech-48khz",
+			"validation": "changed-audio",
+			"documentation": {
+				"modelTitles": { "deepfilternet3": "DeepFilterNet3" },
+				"summary": "Reduce background noise in dialogue with a local speech-enhancement model.",
+				"menu": "Effect → Noise removal and repair → Enhance Dialogue",
+				"steps": ["Select the dialogue you want to enhance.", "Install DeepFilterNet3 through Manage Models and choose Run locally.", "Audition the proposed result against the original before applying it. Undo restores an accepted project edit."],
+				"limitations": ["This model is for speech enhancement. It is not a music denoiser or a noise-profile-based restoration tool.", "Changed, audible output shows that processing ran, but does not prove that all noise was removed or that no wanted detail was lost."]
+			}
+		},
+		{
+			"id": "subject-detection",
+			"modelIds": ["yunet-face-detection-2026may", "dfine-nano-coco"],
+			"operation": "subject-detection",
+			"fixtureId": "visual-subject-frames",
+			"validation": "subject-detections",
+			"documentation": {
+				"modelTitles": { "yunet-face-detection-2026may": "YuNet face detection", "dfine-nano-coco": "D-FINE Nano object detection" },
+				"modelDetails": { "yunet-face-detection-2026may": "YuNet detects faces and their locations. The subject-detection operation combines these results with D-FINE object detections.", "dfine-nano-coco": "D-FINE detects object categories and their locations. The subject-detection operation combines these results with YuNet face detections." },
+				"summary": "Locate faces and objects in sampled video frames to help propose a new framing.",
+				"menu": "Framescaper: Effect → Video effects → Reframe",
+				"steps": ["Select a video clip in Framescaper.", "Install both YuNet and D-FINE for subject detection. The guided Reframe task also uses U²-Net-P saliency detection.", "Run locally and review the proposed crop. Tools → Advanced Local Processing can run subject detection on its own."],
+				"limitations": ["Faces and objects can be missed or misclassified. Detection is sampled and does not guarantee that a moving subject stays inside every proposed crop.", "The operation runs both models together; neither model is a face-recognition system for identifying people."]
+			}
+		},
+		{
+			"id": "saliency-detection",
+			"modelIds": ["u2netp-saliency"],
+			"operation": "saliency-detection",
+			"fixtureId": "visual-subject-frames",
+			"validation": "saliency",
+			"documentation": {
+				"modelTitles": { "u2netp-saliency": "U²-Net-P saliency" },
+				"summary": "Estimate the visually prominent area of sampled frames to help with reframing.",
+				"menu": "Framescaper: Effect → Video effects → Reframe",
+				"steps": ["Select a video clip and install U²-Net-P through Manage Models.", "The guided Reframe task also needs YuNet and D-FINE; Tools → Advanced Local Processing can run saliency detection separately.", "Run locally and review the proposed framing before applying it."],
+				"limitations": ["A visually prominent region is not necessarily the subject you want to keep. Review the whole selection.", "The test validates finite, bounded saliency results and source-frame timing, not the artistic quality of a crop."]
+			}
+		},
+		{
+			"id": "ppocr-recognized-text",
+			"modelIds": ["ppocr-v4-mobile"],
+			"operation": "optical-character-recognition",
+			"fixtureId": "visual-text-frames",
+			"validation": "ocr",
+			"documentation": {
+				"modelTitles": { "ppocr-v4-mobile": "PP-OCRv4 mobile" },
+				"summary": "Read visible text from sampled video frames for review and indexing.",
+				"menu": "Framescaper: Tools → Search → Index Video, or Tools → Advanced Local Processing → Optical character recognition",
+				"steps": ["Select video containing readable on-screen text.", "Install PP-OCRv4 mobile through Manage Models. It is an optional step of Index Video, which also uses SigLIP2.", "Run locally and review recognized text and its frame locations before accepting the results."],
+				"limitations": ["Small, blurred, rotated, stylized, or partially hidden text can be missed or misread.", "The packaged test requires text regions, so the detector, orientation model, and recognizer all execute. It does not demand a character-for-character match."]
+			}
+		},
+		{
+			"id": "nomic-text-embedding",
+			"modelIds": ["nomic-embed-text-v1.5"],
+			"operation": "text-embedding",
+			"fixtureId": "transcript-text",
+			"validation": "embeddings",
+			"documentation": {
+				"modelTitles": { "nomic-embed-text-v1.5": "Nomic Embed Text v1.5" },
+				"summary": "Create local numerical representations of transcript passages and search queries for semantic search.",
+				"menu": "Tools → Search → Index Transcript, then Tools → Search → Indexed Search",
+				"steps": ["Create or import a transcript, then install Nomic Embed Text through Manage Models.", "Run Index Transcript to prepare the text for semantic search.", "Use Indexed Search and review the matched passages in context. Advanced Local Processing also exposes the embedding operation."],
+				"limitations": ["Embeddings are numerical search data, not a rewritten transcript or generated answer.", "Related passages may rank differently between runs or recordings. Finite, nonconstant vectors validate execution, not the relevance of every match."]
+			}
+		},
+		{
+			"id": "siglip-image-text-embedding",
+			"modelIds": ["siglip2-base-patch16-224"],
+			"operation": "image-text-embedding",
+			"fixtureId": "visual-subject-frames",
+			"validation": "embeddings",
+			"documentation": {
+				"modelTitles": { "siglip2-base-patch16-224": "SigLIP2 base patch16 224" },
+				"summary": "Represent sampled video images and text in a shared numerical space for local visual search.",
+				"menu": "Framescaper: Tools → Search → Index Video, then Tools → Search → Indexed Search",
+				"steps": ["Select video and install SigLIP2 through Manage Models.", "Run Index Video to analyze sampled frames. Install PP-OCRv4 too if you want its optional text-reading step.", "Use Indexed Search and review the matching video moments before deciding how to use them."],
+				"limitations": ["This model produces embeddings, not captions or an authoritative description of every frame.", "The packaged test uses frame input and text tag prototypes, exercising both the image and text networks. It checks valid vectors rather than an exact ranking."]
+			}
+		}
+	]
+}
