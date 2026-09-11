@@ -3,8 +3,9 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { captureMacSigningInputs, signVerifiedMacStage } from './lib/desktop-mac-signing-stage.mjs';
+import { verifyDesktopAssistanceRuntimeFamilyPackage } from './lib/desktop-assistance-runtime-family-verification.mjs';
 
-import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
+import { desktopAssistanceNativeManifest } from './lib/desktop-assistance-speech-runtime.mjs';
 import {
 	assistanceNativeRuntimeStageSummary,
 	verifyAssistanceNativeRuntimePayload,
@@ -113,18 +114,31 @@ export async function verifyStagedAssistanceNativeRuntime({
 	packagedTarget,
 }) {
 	const stage = JSON.parse(await readFile(stageManifestPath, 'utf8'));
+	const manifest = desktopAssistanceNativeManifest(stage, packagedTarget);
 	const expected = assistanceNativeRuntimeStageSummary(
-		assistanceNativeRuntimeManifest,
+		manifest,
 		packagedTarget,
 	);
 	if (JSON.stringify(stage.assistanceNativeRuntime) !== JSON.stringify(expected)) {
 		throw new Error('The desktop stage manifest has invalid assistance native-runtime evidence.');
 	}
-	return verifyAssistanceNativeRuntimePayload({
-		manifest: assistanceNativeRuntimeManifest,
+	const packagedManifest = JSON.parse(await readFile(resolve(repositoryRoot,
+		'.desktop-build/app/config/assistance-native-runtime-manifest.json'), 'utf8'));
+	if (JSON.stringify(packagedManifest) !== JSON.stringify(manifest)) {
+		throw new Error('The packaged speech runtime manifest differs from its source or build receipt.');
+	}
+	const native = await verifyAssistanceNativeRuntimePayload({
+		manifest,
 		targetId: packagedTarget,
 		outputRoot: resolve(repositoryRoot, '.desktop-build/runtime'),
 	});
+	await verifyDesktopAssistanceRuntimeFamilyPackage({
+		manifestBytes: await readFile(resolve(repositoryRoot, '.desktop-build/app/config/assistance-runtime-family-supply-candidates.json')),
+		summary: stage.assistanceRuntimeFamilies,
+		targetId: packagedTarget,
+		runtimeRoot: resolve(repositoryRoot, '.desktop-build/runtime'),
+	});
+	return native;
 }
 
 export async function auditStagedDesktopCodecPolicy({ repositoryRoot, stageManifestPath }) {

@@ -11,6 +11,7 @@ import {
 	isForbiddenDesktopFfmpegPath,
 } from './desktop-codec-policy.mjs';
 import { assertAssistanceNativeRuntimeClosure } from './desktop-package-assistance-closure.mjs';
+import { assertDesktopPackageAssistanceFamilies } from './desktop-package-assistance-families.mjs';
 import { assertDesktopPackageOsAudioCodecClosure } from './desktop-package-os-audio-codec-closure.mjs';
 import {
 	normalizeDesktopPackageInstalledClosure,
@@ -46,7 +47,7 @@ export async function writeDesktopPackageContentManifest({
 	const runtimeManifest = canonicalJson(runtimeManifestBytes, 'desktop runtime manifest');
 	validateRuntimeManifest(runtimeManifest, productId, targetId);
 	const files = await collectClosure(root, [DESKTOP_PACKAGE_CONTENT_MANIFEST_NAME]);
-	assertRuntimePayloadClosure(runtimeManifest, files, dependencies);
+	await assertRuntimePayloadClosure(runtimeManifest, files, dependencies, root);
 	const closureSha256 = digest(Buffer.from(JSON.stringify(files), 'utf8'));
 	const value = {
 		schemaVersion: 1,
@@ -120,7 +121,7 @@ export async function auditExtractedDesktopPackageContent({
 		DESKTOP_PACKAGE_CONTENT_MANIFEST_NAME,
 		...packageResourceExclusions,
 	]);
-	assertRuntimePayloadClosure(adjacent, files, dependencies);
+	await assertRuntimePayloadClosure(adjacent, files, dependencies, resourcesRoot);
 	if (JSON.stringify(files) !== JSON.stringify(content.files)
 		|| content.fileCount !== files.length
 		|| content.totalBytes !== files.reduce((total, file) => total + file.byteLength, 0)
@@ -200,7 +201,8 @@ async function collectInstalledClosure(root) {
 	return files;
 }
 
-function assertRuntimePayloadClosure(runtime, files, dependencies = {}) {
+async function assertRuntimePayloadClosure(runtime, files, dependencies, resourcesRoot) {
+	await assertDesktopPackageAssistanceFamilies({ resourcesRoot, runtime, files });
 	const inventory = new Map(files.map((file) => [file.path, file]));
 	const expectedByPrefix = new Map();
 	const requireFile = (path, descriptor, label, prefix = null) => {
@@ -229,7 +231,6 @@ function assertRuntimePayloadClosure(runtime, files, dependencies = {}) {
 	if (forbiddenCodecPayloads.length > 0) {
 		throw new Error(`The installed desktop resource closure contains forbidden bundled FFmpeg/libav content: ${forbiddenCodecPayloads.join(', ')}.`);
 	}
-
 	const nativeTarget = `${runtime.target.platform}-${runtime.target.arch}`;
 	const nativePrefix = `runtime/native/${nativeTarget}/`;
 	const native = runtime.nativeAddons;
@@ -259,7 +260,6 @@ function assertRuntimePayloadClosure(runtime, files, dependencies = {}) {
 	assertDesktopPackageOsAudioCodecClosure({
 		runtime, target: nativeTarget, requireFile, expectedByPrefix,
 	});
-
 	const professional = runtime.soundscaperProfessionalNative;
 	if (runtime.productId === 'soundscaper') {
 		if (!plainRecord(professional) || professional.target !== nativeTarget

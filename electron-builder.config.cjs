@@ -32,6 +32,7 @@ const macPreAuthenticatedRuntimePayload = [
 	'|',
 	`${regexEscape(assistanceNativeRuntimeManifest.runtimePrefix)}/node_modules/`,
 	`${regexEscape(macAssistancePackage.name)}/(?:${macAssistanceNativeFiles})`,
+	'|assistance/(?:onnxruntime-node/1\\.29\\.0|whisper-cpp/v1\\.9\\.3)/mac-arm64/.*',
 	')$',
 ].join('');
 
@@ -104,6 +105,9 @@ module.exports = {
 	],
 	win: {
 		...signing.win,
+		// The signed application archive authenticates this exact CPU executable.
+		// Copy-time signing would change its bytes after the inventory is sealed.
+		signExts: ['!whisper-cli.exe'],
 		icon: '.desktop-build/icons/icon.png',
 		target: ['nsis', 'zip'],
 	},

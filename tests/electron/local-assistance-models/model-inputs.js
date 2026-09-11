@@ -8,6 +8,7 @@ import { createAssistanceVisualFramePackV2 } from '../../../src/common/editor/as
 const HASHES = Object.freeze({
 	'jfk.wav': '59dfb9a4acb36fe2a2affc14bacbee2920ff435cb13cc314a08c13f66ba7860e',
 	'astronaut.png': '88431cd9653ccd539741b555fb0a46b61558b301d4110412b5bc28b5e3ea6cb5',
+	'chelsea.png': '596aa1e7cb875eb79f437e310381d26b338a81c2da23439704a73c4651e8c4bb',
 });
 
 export function digest(bytes) { return createHash('sha256').update(bytes).digest('hex'); }
@@ -70,27 +71,36 @@ export async function prepareModelInput(fixtureId, page) {
 		role: 'text', mediaType: 'text/plain', frameCount: 1,
 	};
 	assert.ok(['visual-subject-frames', 'visual-text-frames'].includes(fixtureId), `Unknown fixture ${fixtureId}`);
-	const photo = fixtureId === 'visual-subject-frames' ? (await authenticatedFixture('astronaut.png')).toString('base64') : null;
-	const pixels = await page.evaluate(async (base64) => {
+	const photos = fixtureId === 'visual-subject-frames'
+		? await Promise.all(['astronaut.png', 'chelsea.png'].map(async (name) => (await authenticatedFixture(name)).toString('base64')))
+		: [null];
+	const rasters = await page.evaluate(async (sources) => {
 		const canvas = document.createElement('canvas');
 		canvas.width = 512; canvas.height = 512;
 		const context = canvas.getContext('2d');
-		if (base64) {
-			const image = new Image();
-			image.src = `data:image/png;base64,${base64}`;
-			await image.decode();
-			context.drawImage(image, 0, 0, 512, 512);
-		} else {
+		const frames = [];
+		for (const base64 of sources) {
 			context.fillStyle = 'white'; context.fillRect(0, 0, 512, 512);
-			context.fillStyle = 'black'; context.font = 'bold 54px sans-serif';
-			context.fillText('LOCAL MODEL', 35, 200);
-			context.fillText('TEST', 175, 280);
+			if (base64) {
+				const image = new Image();
+				image.src = `data:image/png;base64,${base64}`;
+				await image.decode();
+				const scale = Math.min(512 / image.naturalWidth, 512 / image.naturalHeight);
+				const width = image.naturalWidth * scale; const height = image.naturalHeight * scale;
+				context.drawImage(image, (512 - width) / 2, (512 - height) / 2, width, height);
+			} else {
+				context.fillStyle = 'black'; context.font = 'bold 54px sans-serif';
+				context.fillText('LOCAL MODEL', 35, 200);
+				context.fillText('TEST', 175, 280);
+			}
+			frames.push(Array.from(context.getImageData(0, 0, 512, 512).data));
 		}
-		return Array.from(context.getImageData(0, 0, 512, 512).data);
-	}, photo);
-	const authority = { width: 512, height: 512, timescale: 30, frames: [{ sourceFrame: 0, presentationTick: '0' }] };
+		return frames;
+	}, photos);
+	const frames = rasters.map((pixels, index) => ({ sourceFrame: index, presentationTick: String(index), rgba: Uint8Array.from(pixels) }));
+	const authority = { width: 512, height: 512, timescale: 30,
+		frames: frames.map(({ sourceFrame, presentationTick }) => ({ sourceFrame, presentationTick })) };
 	const chunks = createAssistanceVisualFramePackV2({ sourceWidth: 512, sourceHeight: 512,
-		rasterWidth: 512, rasterHeight: 512, timescale: 30,
-		frames: [{ ...authority.frames[0], rgba: Uint8Array.from(pixels) }] });
-	return { bytes: Buffer.concat(chunks), role: 'frame-pack', mediaType: 'application/vnd.soundscaper.frame-pack', frameCount: 1, authority };
+		rasterWidth: 512, rasterHeight: 512, timescale: 30, frames });
+	return { bytes: Buffer.concat(chunks), role: 'frame-pack', mediaType: 'application/vnd.soundscaper.frame-pack', frameCount: frames.length, authority };
 }

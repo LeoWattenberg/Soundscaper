@@ -10,7 +10,7 @@ import {
 	isForbiddenDesktopFfmpegPath,
 } from './lib/desktop-codec-policy.mjs';
 import { stageDesktopBundledCodecCorrespondingSource } from './lib/desktop-bundled-codec-corresponding-source.mjs';
-import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
+import { desktopAssistanceNativeManifest } from './lib/desktop-assistance-speech-runtime.mjs';
 import { assistanceNativeRuntimeStageSummary } from '../desktop/assistance-native-runtime-payload.mjs';
 import { signedAssistanceAuthority } from './lib/desktop-signed-assistance-authority.mjs';
 import {
@@ -283,7 +283,7 @@ export function validateDesktopRuntimeManifests(
 		}
 		assert(JSON.stringify(manifest.value.assistanceNativeRuntime)
 			=== JSON.stringify(assistanceNativeRuntimeStageSummary(signedAssistanceAuthority(
-				assistanceNativeRuntimeManifest, manifest.value.nativeSigning, targetId,
+				desktopAssistanceNativeManifest(manifest.value, targetId), manifest.value.nativeSigning, targetId,
 			), targetId)),
 			`${manifest.name} has invalid assistance native-runtime evidence.`);
 		validateDesktopNativeAddonSummary(manifest, targetId, {

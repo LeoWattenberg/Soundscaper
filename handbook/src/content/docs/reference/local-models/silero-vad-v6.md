@@ -10,7 +10,7 @@ Find speech regions before transcription or removal of long pauses.
 
 ## Current availability {#current-availability}
 
-The native runtime inventory contains sherpa-onnx-node 1.13.5 payloads for macOS arm64, Linux arm64, Linux x64, Windows x64. This is package availability, not a claim that a test passed on your machine. No admitted native payload is recorded for macOS x64 even though model weights are listed for those platforms.
+Desktop builds package the required sherpa-onnx-node 1.13.5 engine for macOS arm64, Linux arm64, Linux x64, Windows x64. Install this model’s weights through Model Manager, then run its task locally. These are supported build targets; consult the nightly test report for results on a particular package and machine. The desktop build does not package this engine for macOS x64 even though model weights are listed for those platforms.
 
 ## Use this model {#use-this-model}
 
@@ -27,6 +27,8 @@ Model identity: `silero-vad-v6`, version **6.2.1**.
 Approximate download size: **2.22 MiB**. Minimum system memory: **2 GiB**. This catalog requirement refers to total memory, not currently free memory. Inference also needs sufficient free memory, and installation needs working space; memory is not a speed guarantee.
 
 Published platforms: macOS arm64, macOS x64, Linux arm64, Linux x64, Windows x64. A matching packaged runtime is also required.
+
+On Windows, install the latest supported [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) matching the desktop app: **x64** for an x64 build or **ARM64** for an ARM64 build. The native ONNX and Sherpa engines require these libraries; model downloads do not include them. Visual Studio itself is not required to use the app.
 
 Tools → Model Manager downloads the published artifacts and verifies their recorded SHA-256 digests. Processing uses the installed files locally. Open Storage and verification in Model Manager to inspect notices, repair an installation, or change the storage location.
 

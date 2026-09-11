@@ -81,6 +81,7 @@ test('afterPack verifies the packaged native addon payload before any fuse work'
 		stageManifestPath,
 		verifyPackagedElectronAlternateFfmpeg: async () => {},
 		verifyPackagedOsAudioCodecNativeResources: async () => {},
+		verifyPackagedAssistanceNativeRuntime: async () => {},
 		flipFuses: async (...args) => { fuseCalls.push(args); },
 		writeDesktopPackageContentManifest: async (options) => { contentManifestCalls.push(options); },
 	});

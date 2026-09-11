@@ -1,0 +1,61 @@
+{
+	"schemaVersion": 1,
+	"recipeId": "sherpa-onnx-node-win-arm64-package-build-v1",
+	"version": "1.13.5",
+	"sourceRevision": "3dc7c569f31ca2cd4a20ed6f7db780327e6714c5",
+	"nodeHeadersVersion": "26.5.0",
+	"nodeAddonApiVersion": "8.3.1",
+	"cmakeSha256": "45f1dc978b3721b4022c5680c61d1a7d66dea4500011bf697d1c7654f077f229",
+	"sources": [
+		{
+			"id": "sherpa-source",
+			"url": "https://codeload.github.com/k2-fsa/sherpa-onnx/tar.gz/3dc7c569f31ca2cd4a20ed6f7db780327e6714c5",
+			"byteLength": 11451260,
+			"sha256": "33723a7195bc3d3ecf127dac2675293e578a12fdb1d3de891ff17628c118b66c",
+			"integrity": "sha512-Pu5IhMT9dOkU8nXAb3kUQ0X+8RubN+KR3Q1AgwmV/wmXKnW/PSe5IZGf///Gr/7WLVioUZ/urhhW5KiBDVHANw=="
+		},
+		{
+			"id": "sherpa-native",
+			"url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.5/sherpa-onnx-v1.13.5-win-arm64-shared-MD-Release-no-tts-lib.tar.bz2",
+			"byteLength": 6419409,
+			"sha256": "42112e75ca3baf647047929f704960587cf6ed22fbd046643d66d33d7c74c123"
+		},
+		{
+			"id": "node-addon-api",
+			"url": "https://registry.npmjs.org/node-addon-api/-/node-addon-api-8.3.1.tgz",
+			"byteLength": 60027,
+			"sha256": "7ca0aa7ad8e07f8134d1b0b5d8677cdd5cf2c4ded5c8e035f337b9e8a97bbde6",
+			"integrity": "sha512-lytcDEdxKjGJPTLEfW4mYMigRezMlyJY8W4wxJK8zE533Jlb8L8dRuObJFWg2P+AuOIxoCgKF+2Oq4d4Zd0OUA=="
+		},
+		{
+			"id": "node-headers",
+			"url": "https://nodejs.org/dist/v26.5.0/node-v26.5.0-headers.tar.gz",
+			"byteLength": 9963460,
+			"sha256": "b02b9c5922e7fd7bae30d9e97c293059175aa9d267b81d2866d52696445b5cbd"
+		},
+		{
+			"id": "node-arm64-lib",
+			"url": "https://nodejs.org/dist/v26.5.0/win-arm64/node.lib",
+			"byteLength": 3026634,
+			"sha256": "c01ce0d5e4e956f0e5e73cdba925d15a6d6f86883aa49f8f0b0de87aa93508ce"
+		},
+		{
+			"id": "node-delay-hook",
+			"url": "https://raw.githubusercontent.com/nodejs/node-gyp/v11.5.0/src/win_delay_load_hook.cc",
+			"byteLength": 1003,
+			"sha256": "ec2357ffdf512151c21a52326ad3396aaa650b83e5c4a31153d216a155f68ecc"
+		},
+		{
+			"id": "node-gyp-license",
+			"url": "https://raw.githubusercontent.com/nodejs/node-gyp/v11.5.0/LICENSE",
+			"byteLength": 1102,
+			"sha256": "662a1b0115251cfb29c6aed0f221f8847bc49c6365d1c53a62c9f4bccc2489c3"
+		},
+		{
+			"id": "node-license",
+			"url": "https://raw.githubusercontent.com/nodejs/node/v26.5.0/LICENSE",
+			"byteLength": 157606,
+			"sha256": "148eacf7863ef4329224a29398623077200a27194aa075569faf4a0a85566ca5"
+		}
+	]
+}

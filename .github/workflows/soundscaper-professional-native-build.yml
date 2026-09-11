@@ -85,6 +85,11 @@ jobs:
         with:
           name: ${{ inputs.source-cache-artifact }}
           path: ${{ runner.temp }}/soundscaper-native-sources
+      - name: Install local-model CPU build tools
+        if: runner.os == 'Linux'
+        timeout-minutes: 10
+        run: bash scripts/ci-apt-install.sh build-essential cmake
+
       - name: Build a non-publishable Electron self-test harness
         shell: bash
         env:

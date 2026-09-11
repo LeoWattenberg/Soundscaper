@@ -13,11 +13,11 @@ import {
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
-import { stageAssistanceNativeRuntimePayload } from '../desktop/assistance-native-runtime-payload.mjs';
 import { generateDesktopIcon } from './desktop-icons.mjs';
 import { listTranslationCatalogLocales, readTranslationCatalog } from './i18n-ai/catalog.mjs';
 import { stageDesktopBundledCodecNotices } from './lib/desktop-bundled-codec-notices.mjs';
+import { stageDesktopAssistanceRuntimeFamilies } from './lib/desktop-assistance-runtime-families.mjs';
+import { stageDesktopAssistanceSpeechRuntime } from './lib/desktop-assistance-speech-runtime.mjs';
 import {
 	prepareDesktopOsAudioCodecNativeRelease,
 	resolveDesktopOsAudioCodecNativeRequirement,
@@ -150,11 +150,17 @@ async function main() {
 		repositoryRoot: ROOT,
 		outputRoot: DESKTOP_RUNTIME_ROOT,
 	});
-	const assistanceNativeRuntime = await stageAssistanceNativeRuntimePayload({
-		manifest: assistanceNativeRuntimeManifest,
+	const assistanceSpeechRuntime = await stageDesktopAssistanceSpeechRuntime({
+		repositoryRoot: ROOT,
 		targetId: nativeTarget.id,
 		nodeModulesRoot: resolve(ROOT, 'node_modules'),
-		outputRoot: RUNTIME_ROOT,
+		runtimeRoot: RUNTIME_ROOT,
+		cacheRoot: resolve(ROOT, '.native-build/assistance-runtimes'),
+	});
+	const assistanceRuntimeFamilies = await stageDesktopAssistanceRuntimeFamilies({
+		targetId: nativeTarget.id,
+		runtimeRoot: RUNTIME_ROOT,
+		cacheRoot: resolve(ROOT, '.native-build/assistance-runtimes'),
 	});
 	const nativeAddons = nativeAddonRelease === null ? null : await stageNativeAddons(nativeAddonRelease);
 	const osAudioCodecNative = osAudioCodecNativeRelease === null
@@ -187,7 +193,7 @@ async function main() {
 	await buildRenderer();
 	const desktopRuntime = await stageApplication(
 		projectPackage, applicationVersion, productMetadata, framescaperNativeHostRelease,
-		compiledDesktopRuntime,
+		compiledDesktopRuntime, assistanceRuntimeFamilies, assistanceSpeechRuntime,
 	);
 
 	const stageManifest = {
@@ -200,7 +206,9 @@ async function main() {
 		sourceRevision,
 		target: resolveDesktopStageTarget(nativeTarget),
 		desktopRuntime,
-		assistanceNativeRuntime,
+		assistanceNativeRuntime: assistanceSpeechRuntime.summary,
+		assistanceNativeBuild: assistanceSpeechRuntime.buildReceipt,
+		assistanceRuntimeFamilies: assistanceRuntimeFamilies.summary,
 		desktopCodecPolicy: DESKTOP_CODEC_POLICY,
 		desktopNotices,
 		nativeAddons,
@@ -339,7 +347,7 @@ async function buildRenderer() {
 
 async function stageApplication(
 	projectPackage, applicationVersion, productMetadata, framescaperNativeHostRelease,
-	compiledDesktopRuntime,
+	compiledDesktopRuntime, assistanceRuntimeFamilies, assistanceSpeechRuntime,
 ) {
 	await mkdir(APP_ROOT, { recursive: true });
 	const desktopRuntime = await stageDesktopApplicationSources({
@@ -353,7 +361,11 @@ async function stageApplication(
 	await writeJson(resolve(APP_ROOT, 'desktop/product.json'), productMetadata);
 	await mkdir(resolve(APP_ROOT, 'config'), { recursive: true });
 	for (const register of desktopProductConfigFiles(PRODUCT_ID, productMetadata)) {
-		const verifiedBytes = framescaperNativeHostRelease === null
+		const verifiedBytes = register === 'config/assistance-runtime-family-supply-candidates.json'
+			? assistanceRuntimeFamilies.manifestBytes
+			: register === 'config/assistance-native-runtime-manifest.json'
+				? Buffer.from(`${JSON.stringify(assistanceSpeechRuntime.manifest, null, 2)}\n`)
+			: framescaperNativeHostRelease === null
 			? null
 			: register === 'config/framescaper-media-host-payload-manifest.json'
 				? framescaperNativeHostRelease.mediaHost.manifestBytes

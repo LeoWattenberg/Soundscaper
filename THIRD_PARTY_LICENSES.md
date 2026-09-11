@@ -673,20 +673,33 @@ release targets.
 - `sherpa-onnx-win-x64` 1.13.5 — Apache-2.0; prebuilt platform binary;
   source and license: <https://github.com/k2-fsa/sherpa-onnx>
 
-Upstream publishes no `win32-arm64` Node prebuild, so Windows on ARM reports
-the Sherpa-backed models as unavailable rather than installing a binary that
-cannot load.
+Upstream publishes no `win32-arm64` Node prebuild. Windows on ARM packages build
+the Node-API wrapper from the pinned Sherpa source and link it to the official
+ARM64 libraries. Its build receipt includes the source and tool identities and
+the exact resulting file hashes; the upstream license notices accompany it.
 
-Three additional CPU runtime families have reviewed source/version identities
-and isolated host code, but every target payload row remains
-`pending-external`; these candidates are not yet redistributed:
+Desktop packages also redistribute these CPU runtimes. Their exact upstream
+sources, license files, and target payloads are authenticated during packaging;
+the generated inventories ship inside the application archive:
 
 - `onnxruntime-node` 1.29.0 — MIT; source and license:
   <https://github.com/microsoft/onnxruntime/tree/v1.29.0>
 - whisper.cpp v1.9.3 — MIT; source and license:
   <https://github.com/ggml-org/whisper.cpp/tree/v1.9.3>
-- llama.cpp revision `b10509` — MIT; source and license:
-  <https://github.com/ggml-org/llama.cpp/tree/b10509>
+
+ONNX Runtime is extracted from its pinned npm archives without running the
+optional accelerator installer. The runtime includes the upstream MIT license
+and third-party notices. whisper.cpp is built from its pinned source revision,
+with a recorded inherited-stdout compatibility patch, and includes its MIT
+license, the compiled miniaudio/stb_vorbis and YaRN notices, and build provenance.
+Linux builds also include copyright, license, and runtime exception notices for
+the statically linked GNU libgcc and libstdc++ libraries. These notices accompany
+the CLI and are included in its authenticated file inventory.
+The independent public-supply candidate register
+does not describe these application-local builds.
+
+llama.cpp revision `b10509` remains an unbundled candidate; source and MIT license:
+<https://github.com/ggml-org/llama.cpp/tree/b10509>.
 
 The Milestone 7 supply-candidate register pins upstream identities for
 wav2vec2-base-960h, TIGER-DnR, PANNs Cnn10 and its AudioSet map, Beat This

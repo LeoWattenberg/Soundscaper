@@ -10,11 +10,11 @@ Transcribe selected speech locally through the packaged whisper.cpp runtime.
 
 ## Current availability {#current-availability}
 
-**The model weights are published, but the required native engine is not yet packaged.** The runtime inventory records no admitted whisper-cpp v1.9.3 target for this model. Downloading its weights does not enable processing. The real-model test reports a failure on catalog-supported platforms until the verified native package is supplied.
+Desktop builds package the required whisper-cpp v1.9.3 engine for macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64. Install this model’s weights through Model Manager, then run its task locally. These are supported build targets; consult the nightly test report for results on a particular package and machine. The desktop build does not package this engine for macOS x64 even though model weights are listed for those platforms.
 
 ## Use this model {#use-this-model}
 
-Once a compatible native runtime is packaged, the intended workflow is **Analyze → Speech → Transcribe & Captions**. The steps below describe that workflow; it cannot currently complete with the supplied runtime inventory.
+Open **Analyze → Speech → Transcribe & Captions** on a platform with the required native runtime. Local assistance runs in the desktop editor.
 
 1. Select speech and install Whisper large-v3 turbo through Manage Models.
 2. Choose this speech-recognition model under Tools → Advanced Local Processing when you want to select Whisper explicitly.

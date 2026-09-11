@@ -3,9 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { validateModelOutput } from './electron/local-assistance-models/model-output-validation.js';
-import { encodeFloatWave, loadSpeechFixture } from './electron/local-assistance-models/model-inputs.js';
+import { digest, encodeFloatWave, loadSpeechFixture, prepareModelInput } from './electron/local-assistance-models/model-inputs.js';
 import { createAssistanceEmbeddingMatrixV1 } from '../src/common/editor/assistance/binary-formats-v1.ts';
 import { ASSISTANCE_VISUAL_TAG_PROMPTS_V1 } from '../src/common/editor/assistance/visual-tag-classification-v1.ts';
+import { reviewAssistanceVisualFramePackV2 } from '../src/common/editor/assistance/visual-frame-pack-v2.ts';
 
 const json = (value) => Buffer.from(JSON.stringify(value));
 const speech = { bytes: Buffer.from('input'), sampleRate: 16_000, frameCount: 160_000 };
@@ -68,4 +69,24 @@ test('licensed speech fixtures are authenticated, voiced and prepared at exact r
 	assert.equal(noisyInput.frameCount, speechInput.frameCount * 3);
 	assert.ok(speechInput.frameCount > 160_000);
 	assert.deepEqual((await loadSpeechFixture(true)).bytes, noisyInput.bytes);
+});
+
+test('subject fixtures retain two authenticated photographs and distinct frame timing', async () => {
+	// Normal-suite check of fixture custody; actual image decoding and inference run in Electron.
+	const rasters = [new Uint8Array(512 * 512 * 4).fill(64), new Uint8Array(512 * 512 * 4).fill(192)];
+	const input = await prepareModelInput('visual-subject-frames', { async evaluate(_render, photos) {
+		assert.deepEqual(photos.map((photo) => digest(Buffer.from(photo, 'base64'))), [
+			'88431cd9653ccd539741b555fb0a46b61558b301d4110412b5bc28b5e3ea6cb5',
+			'596aa1e7cb875eb79f437e310381d26b338a81c2da23439704a73c4651e8c4bb',
+		]);
+		return rasters;
+	} });
+	const reviewed = reviewAssistanceVisualFramePackV2(input.bytes);
+	assert.equal(input.frameCount, 2);
+	assert.equal(reviewed.frameCount, 2);
+	assert.deepEqual(input.authority.frames, [{ sourceFrame: 0, presentationTick: '0' }, { sourceFrame: 1, presentationTick: '1' }]);
+	for (let ordinal = 0; ordinal < 2; ordinal += 1) {
+		assert.deepEqual(reviewed.frameTiming(ordinal), input.authority.frames[ordinal]);
+		assert.deepEqual(reviewed.frame(ordinal).rgba, rasters[ordinal]);
+	}
 });

@@ -8,26 +8,43 @@ These expensive checks use `playwright.nightly-local-assistance.config.mjs` and
 in the normal Node suite validate the case manifest, output checks, package
 integration, and generated documentation without downloading models.
 
-**Current limitation: native runtime packaging is incomplete.** The committed
-`config/assistance-runtime-family-supply-candidates.json` marks every ONNX Runtime
-and whisper.cpp target as `pending-external`; those verified native packages are
-not supplied by `desktop-prepare`. This affects seven cases covering eight models:
-Whisper, DeepFilterNet3, YuNet, D-FINE, U²-Net-P, PP-OCRv4, Nomic, and SigLIP2.
-Their model weights are downloadable, but the current package cannot execute
-their inference. The real tests expose this as failures on catalog-supported
-platforms; a complete run cannot pass until the native packages are admitted and
-shipped. The suite does not substitute Node-installed engines or simulated output.
+Desktop packaging supplies native engines for all 13 published models. ONNX
+Runtime 1.29.0 is staged from the integrity-verified official npm packages with
+target-specific file hashes in `config/assistance-onnx-runtime-payloads.json`.
+Whisper v1.9.3 is built from pinned source on the package runner; its executable,
+license, and build provenance are recorded in the package's authenticated runtime
+manifest. Both staging paths support Linux x64/arm64, macOS arm64, and Windows
+x64/arm64. The existing Sherpa runtime inventory supplies Silero, Parakeet, and
+Pyannote/ERes2Net on its built targets; Windows ARM64 packaging compiles its
+Node-API wrapper using `config/assistance-sherpa-win-arm64-build.json` and the
+recipe's verified native libraries. Each generated model guide lists the exact
+platform intersection between the model catalog and native packaging support.
 
-The Sherpa runtime inventory has built payloads for Linux x64/arm64, macOS arm64,
-and Windows x64. It supports Silero, Parakeet v2/v3, and the paired Pyannote/ERes2Net
-case on those targets. Model publication also lists macOS x64, but the native
-runtime inventory has no corresponding admitted target. These statements describe
-the committed inventories, not a claim that all inference tests have passed.
+**Windows ARM64 catalog approval is pending.** Native build recipes are prepared,
+but the existing signed catalog admits only Whisper on Windows ARM64. The other
+12 models require a refreshed catalog signed by the existing authorized signer.
+Until it is published, those cases report explicit platform skips on Windows
+ARM64. All 13 models are admitted on macOS arm64, Linux x64/arm64, and Windows
+x64. The committed catalog keeps its valid signature; packaging support does not
+override its platform scope or establish that an ARM64 build has passed inference.
+
+The legacy public-supply candidate register can still say `pending-external`:
+it tracks separately published runtime payloads. `desktop-prepare` generates
+authenticated manifests for the native files actually placed in each package's
+runtime directory and includes those manifests in its ASAR. The tests use these
+packaged engines, without substituting development dependencies or simulated
+output. Packaging support is separate from a successful test result on each
+platform; retain the report from the actual package run.
 
 ## Requirements
 
 - Use the repository's Node.js 26.5.0 and npm 12.0.1.
 - Run on the platform and architecture of the packaged product runtimes.
+- On Windows, install the latest supported
+  [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)
+  matching the desktop app: **x64** for the x64 package or **ARM64** for the ARM64
+  package. ONNX and Sherpa require these runtime libraries; model downloads do
+  not include them. Using the distributed app does not require Visual Studio.
 - Allow approximately **2.36 GiB** for the 13 published model downloads, plus
   packaged runtimes, installation working space, fixtures, and reports. Model
   files come from the public catalog URLs; no model-service account, API key,
@@ -69,6 +86,11 @@ failure contributes to the package's failed verdict.
 
 Prepare the current product archives first. These commands package the host's
 platform and architecture and replace the generated nightly product directory:
+
+Building Whisper also requires CMake and a native C/C++ toolchain: GCC or Clang
+on Linux, Xcode command-line tools on macOS, or Visual Studio C++ build tools
+on Windows. Native staging downloads its pinned public sources during packaging.
+End users of a distributed package do not need these development tools.
 
 ```sh
 npm run build
@@ -159,7 +181,11 @@ small fixture does not guarantee lossless denoising or accurate transcription.
 
 The English [individual model guides](../handbook/src/content/docs/reference/local-models/index.md)
 are generated from `config/local-model-catalog.json`, the same real-test case
-manifest, and the native runtime inventories. Edit those sources and run
+manifest, the Sherpa native inventory and Windows ARM64 build recipe, the ONNX
+payload inventory, and the Whisper stager's exported version and build targets.
+These staging sources describe
+packaged capabilities independently of public runtime publication. Edit the
+appropriate source and run
 `npm run docs:generate`; do not hand-edit
 the generated pages. `npm run docs:reference:check` and the normal manifest tests
 reject missing model coverage or stale documentation.

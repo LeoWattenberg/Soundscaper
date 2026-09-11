@@ -188,7 +188,7 @@ function validateManifestAndTarget(value, targetId) {
 
 function validatePackage(value, version, common) {
 	if (!plainRecord(value) || !PACKAGE_NAME.test(String(value.name)) || value.version !== version
-		|| typeof value.sourceUrl !== 'string' || !value.sourceUrl.startsWith('https://registry.npmjs.org/')
+		|| !validPackageSource(value, common)
 		|| typeof value.integrity !== 'string' || !/^sha512-[A-Za-z\d+/]+={0,2}$/u.test(value.integrity)
 		|| !plainRecord(value.files)
 		|| (common && (value.name !== 'sherpa-onnx-node' || value.entry !== 'sherpa-onnx.js'))
@@ -206,6 +206,23 @@ function validatePackage(value, version, common) {
 			throw new TypeError(`The assistance package ${value.name} file descriptor is invalid.`);
 		}
 	}
+}
+
+function validPackageSource(value, common) {
+	if (typeof value.sourceUrl !== 'string') return false;
+	if (value.sourceBuild === undefined) return value.sourceUrl.startsWith('https://registry.npmjs.org/');
+	const source = value.sourceBuild;
+	return !common && value.name === 'sherpa-onnx-win-arm64' && value.version === '1.13.5'
+		&& plainRecord(source)
+		&& JSON.stringify(Object.keys(source).sort()) === JSON.stringify([
+			'nativeAssetSha256', 'recipeId', 'sourceRevision', 'sourceSha256',
+		])
+		&& source.recipeId === 'sherpa-onnx-node-win-arm64-package-build-v1'
+		&& source.sourceRevision === '3dc7c569f31ca2cd4a20ed6f7db780327e6714c5'
+		&& source.sourceSha256 === '33723a7195bc3d3ecf127dac2675293e578a12fdb1d3de891ff17628c118b66c'
+		&& source.nativeAssetSha256 === '42112e75ca3baf647047929f704960587cf6ed22fbd046643d66d33d7c74c123'
+		&& value.sourceUrl === `https://codeload.github.com/k2-fsa/sherpa-onnx/tar.gz/${source.sourceRevision}`
+		&& value.integrity === 'sha512-Pu5IhMT9dOkU8nXAb3kUQ0X+8RubN+KR3Q1AgwmV/wmXKnW/PSe5IZGf///Gr/7WLVioUZ/urhhW5KiBDVHANw==';
 }
 
 async function verifyPackageDirectory(packageRoot, descriptor) {

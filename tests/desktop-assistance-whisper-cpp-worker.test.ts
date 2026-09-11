@@ -236,6 +236,50 @@ test('malformed or oversized CLI output is refused before the reservation is pop
 	assert.equal((await readFile(paths.output)).byteLength, 0);
 });
 
+test('empty, truncated, polluted, or failed CLI pipes never produce a fallback transcript', async (context) => {
+	const valid = JSON.stringify({ result: { language: 'en' }, transcription: [
+		{ offsets: { from: 0, to: 1000 }, text: ' Speech' },
+	] });
+	for (const [body, code] of [['', 0], [valid.slice(0, -3), 0], [`diagnostic\n${valid}`, 0], [valid, 1]] as const) {
+		const { job, paths } = await fixture(context);
+		let spawns = 0;
+		const spawn: AssistanceWhisperCppSpawn = () => {
+			spawns += 1;
+			const child = new FakeChild();
+			queueMicrotask(() => {
+				child.stdout.end(body);
+				child.emit('close', code, null);
+			});
+			return child;
+		};
+		await assert.rejects(createAssistanceWhisperCppWorkerSpawnerV1({ spawn })(job, {
+			onProgress: () => undefined,
+		}).completion, /malformed.*JSON|did not complete successfully/iu);
+		assert.equal(spawns, 1, 'a failed authenticated pipe does not retry another input or model');
+		assert.equal((await readFile(paths.output)).byteLength, 0);
+	}
+});
+
+test('Whisper preserves UTF-8 JSON split across individual pipe bytes', async (context) => {
+	const { job, paths } = await fixture(context);
+	const text = ' Grüße 世界';
+	const bytes = Buffer.from(JSON.stringify({ result: { language: 'en' }, transcription: [
+		{ offsets: { from: 0, to: 1000 }, text },
+	] }));
+	const spawn: AssistanceWhisperCppSpawn = () => {
+		const child = new FakeChild();
+		queueMicrotask(() => {
+			for (const byte of bytes) child.stdout.write(Buffer.from([byte]));
+			child.stdout.end();
+			child.emit('close', 0, null);
+		});
+		return child;
+	};
+	await createAssistanceWhisperCppWorkerSpawnerV1({ spawn })(job, { onProgress: () => undefined }).completion;
+	const output = JSON.parse((await readFile(paths.output)).toString('utf8')) as { segments: { text: string }[] };
+	assert.equal(output.segments[0]?.text, text);
+});
+
 test('termination kills and quiesces the exact CLI child', async (context) => {
 	const { job } = await fixture(context);
 	const children: FakeChild[] = [];

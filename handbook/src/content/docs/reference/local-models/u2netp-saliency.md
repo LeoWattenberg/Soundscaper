@@ -10,11 +10,11 @@ Estimate the visually prominent area of sampled frames to help with reframing.
 
 ## Current availability {#current-availability}
 
-**The model weights are published, but the required native engine is not yet packaged.** The runtime inventory records no admitted onnxruntime-node 1.29.0 target for this model. Downloading its weights does not enable processing. The real-model test reports a failure on catalog-supported platforms until the verified native package is supplied.
+Desktop builds package the required onnxruntime-node 1.29.0 engine for macOS arm64, Linux arm64, Linux x64, Windows x64. Install this model’s weights through Model Manager, then run its task locally. These are supported build targets; consult the nightly test report for results on a particular package and machine. The desktop build does not package this engine for macOS x64 even though model weights are listed for those platforms.
 
 ## Use this model {#use-this-model}
 
-Once a compatible native runtime is packaged, the intended workflow is **Framescaper: Effect → Video effects → Reframe**. The steps below describe that workflow; it cannot currently complete with the supplied runtime inventory.
+Open **Framescaper: Effect → Video effects → Reframe** on a platform with the required native runtime. Local assistance runs in the desktop editor.
 
 1. Select a video clip and install U²-Net-P through Manage Models.
 2. The guided Reframe task also needs YuNet and D-FINE; Tools → Advanced Local Processing can run saliency detection separately.
@@ -28,6 +28,8 @@ Approximate download size: **4.36 MiB**. Minimum system memory: **2 GiB**. This 
 
 Published platforms: macOS arm64, macOS x64, Linux arm64, Linux x64, Windows x64. A matching packaged runtime is also required.
 
+On Windows, install the latest supported [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) matching the desktop app: **x64** for an x64 build or **ARM64** for an ARM64 build. The native ONNX and Sherpa engines require these libraries; model downloads do not include them. Visual Studio itself is not required to use the app.
+
 Tools → Model Manager downloads the published artifacts and verifies their recorded SHA-256 digests. Processing uses the installed files locally. Open Storage and verification in Model Manager to inspect notices, repair an installation, or change the storage location.
 
 | Artifact | Approximate download size |
@@ -38,7 +40,7 @@ Tools → Model Manager downloads the published artifacts and verifies their rec
 
 Case: `saliency-detection`; operation: `saliency-detection`.
 
-Input: The public-domain NASA photograph of astronaut Eileen Collins, placed into a frame pack with explicit source-frame timing.
+Input: Two photographs: the public-domain NASA portrait of astronaut Eileen Collins and the CC0 Chelsea cat photograph. Each is fitted into a separate frame with explicit source-frame timing, giving the detectors a human face and a clear object.
 
 Frame results must retain their source timing and contain a finite, bounded saliency point for the subject fixture.
 

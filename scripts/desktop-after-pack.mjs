@@ -7,8 +7,10 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
 import { flipFuses as flipElectronFuses, FuseVersion, FuseV1Options } from '@electron/fuses';
+import { extractFile } from '@electron/asar';
+import { verifyDesktopAssistanceRuntimeFamilyPackage } from './lib/desktop-assistance-runtime-family-verification.mjs';
 
-import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
+import { desktopAssistanceNativeManifest } from './lib/desktop-assistance-speech-runtime.mjs';
 import { verifyAssistanceNativeRuntimePayload } from '../desktop/assistance-native-runtime-payload.mjs';
 import {
 	assertDesktopCodecPolicy,
@@ -128,11 +130,27 @@ export async function verifyPackagedAssistanceNativeRuntime(context, dependencie
 	}
 	const targetId = nativeAddonPayloadTargetForPackagingContext(context);
 	try {
-		return await verifyAssistanceNativeRuntimePayload({
-			manifest: dependencies.assistanceNativeRuntimeManifest ?? assistanceNativeRuntimeManifest,
+		const repositoryRoot = resolve(dependencies.repositoryRoot ?? REPOSITORY_ROOT);
+		const stage = JSON.parse(await readFile(dependencies.stageManifestPath
+			?? resolve(repositoryRoot, '.desktop-build/stage-manifest.json'), 'utf8'));
+		const manifest = dependencies.assistanceNativeRuntimeManifest ?? desktopAssistanceNativeManifest(stage, targetId);
+		const packagedManifest = JSON.parse(extractFile(resolve(resourcesRoot, 'app.asar'),
+			'config/assistance-native-runtime-manifest.json').toString('utf8'));
+		if (JSON.stringify(packagedManifest) !== JSON.stringify(manifest)) {
+			throw new Error('The packaged speech runtime manifest differs from its build receipt.');
+		}
+		const native = await verifyAssistanceNativeRuntimePayload({
+			manifest,
 			targetId,
 			outputRoot: resolve(resourcesRoot, 'runtime'),
 		});
+		await verifyDesktopAssistanceRuntimeFamilyPackage({
+			manifestBytes: extractFile(resolve(resourcesRoot, 'app.asar'), 'config/assistance-runtime-family-supply-candidates.json'),
+			summary: stage.assistanceRuntimeFamilies,
+			targetId,
+			runtimeRoot: resolve(resourcesRoot, 'runtime'),
+		});
+		return native;
 	} catch (error) {
 		throw packagedResourceError(error);
 	}

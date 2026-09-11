@@ -15,7 +15,7 @@ export function rebindSigningPins(value, replacements) {
 	const replacement = replacements.get(value.sha256);
 	if (replacement && Object.hasOwn(value, 'byteLength')) result.byteLength = replacement.byteLength;
 	// Assistance package totals are derived from their file descriptors.
-	if (value.files && !Array.isArray(value.files) && Object.hasOwn(value, 'byteLength')) {
+	if (value.files && typeof value.files === 'object' && !Array.isArray(value.files) && Object.hasOwn(value, 'byteLength')) {
 		const files = Object.values(result.files);
 		if (files.every(file => Number.isSafeInteger(file?.byteLength))) {
 			result.byteLength = files.reduce((sum, file) => sum + file.byteLength, 0);

@@ -7,10 +7,10 @@ Local assistance runs on your device in the Soundscaper and Framescaper desktop
 editors. Select media, then choose the task from its menu. The dialog shows the
 selection, the task settings, and whether its models are installed.
 
-Model downloads and native processing engines are separate requirements. Some
-published models currently lack a packaged native engine, including dialogue
-enhancement and the visual models. Check each model's
-[current availability](/reference/local-models/) before installing it for a task.
+Desktop packages include the native processing engines for the published local
+models. Install the model weights through Model Manager, then run the task on
+your selected media. See each model's [guide](/reference/local-models/) for its
+supported platforms, menu entry, and requirements.
 
 ## Find a task {#find-a-task}
 

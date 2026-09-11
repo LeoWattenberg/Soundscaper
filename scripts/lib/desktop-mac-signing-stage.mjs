@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 import { extractFile, listPackage, statFile } from '@electron/asar';
 import { assistanceNativeRuntimeStageSummary } from '../../desktop/assistance-native-runtime-payload.mjs';
 import { canonicalSigningJson, rebindSigningPins, signingDigest } from './desktop-signing-pins.mjs';
+import { signedAssistanceFamilySummary } from './desktop-signed-assistance-family-summary.mjs';
 
 const execute = promisify(execFile);
 const signedStages = new WeakMap();
@@ -95,6 +96,10 @@ export async function signVerifiedMacStage(context, dependencies = {}) {
 	const stagePath = join(root, 'stage-manifest.json');
 	const stage = JSON.parse(await readFile(stagePath, 'utf8'));
 	stage.assistanceNativeRuntime = assistanceNativeRuntimeStageSummary(assistance, `mac-${stage.target.arch}`);
+	if (stage.assistanceRuntimeFamilies !== undefined) {
+		const families = JSON.parse(await readFile(join(root, 'app/config/assistance-runtime-family-supply-candidates.json'), 'utf8'));
+		stage.assistanceRuntimeFamilies = signedAssistanceFamilySummary(stage.assistanceRuntimeFamilies, families);
+	}
 	stage.nativeSigning = { schemaVersion: 1, teamId: team, files: signingFiles };
 	await writeFile(stagePath, canonicalSigningJson(stage));
 	signedStages.set(context.packager, {

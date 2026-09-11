@@ -5,9 +5,10 @@ import { tmpdir } from 'node:os';
 import test from 'node:test';
 import { createPackage } from '@electron/asar';
 import assistance from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
+import familyCandidates from '../config/assistance-runtime-family-supply-candidates.json' with { type: 'json' };
 import { assistanceNativeRuntimeStageSummary } from '../desktop/assistance-native-runtime-payload.mjs';
 import { captureMacSigningInputs, signVerifiedMacStage, verifySignedMacPackage, repinStageDocuments } from '../scripts/lib/desktop-mac-signing-stage.mjs';
-import { canonicalSigningJson, signingDigest } from '../scripts/lib/desktop-signing-pins.mjs';
+import { canonicalSigningJson, rebindSigningPins, signingDigest } from '../scripts/lib/desktop-signing-pins.mjs';
 import { signedAssistanceAuthority } from '../scripts/lib/desktop-signed-assistance-authority.mjs';
 
 async function fixture(t) {
@@ -109,4 +110,52 @@ test('distribution pins propagate through nested manifest digests', async t => {
 	const updated = await readFile(join(root, 'inner.json'));
 	assert.equal(actual.payloadManifest.sha256, signingDigest(updated));
 	assert.equal(actual.payloadManifest.byteLength, updated.length);
+});
+
+test('signing refreshes ONNX and Whisper runtime totals from their repinned file inventories', async t => {
+	const f = await fixture(t);
+	const binary = await readFile(f.path);
+	const descriptor = { byteLength: binary.length, sha256: signingDigest(binary) };
+	const manifests = {};
+	const families = [];
+	for (const familyId of ['onnxruntime-node', 'whisper-cpp']) {
+		const manifest = structuredClone(familyCandidates.manifests[familyId]);
+		const entrypoint = familyId === 'onnxruntime-node' ? 'runtime.node' : 'whisper-cli';
+		const file = { path: entrypoint, executable: familyId === 'whisper-cpp', ...descriptor };
+		manifest.targets = manifest.targets.map(target => target.id !== 'mac-arm64' ? target : {
+			id: target.id, status: 'authenticated', entrypoint, files: [file],
+		});
+		manifests[familyId] = manifest;
+		const path = join(f.root, '.desktop-build/runtime', manifest.runtimePrefix, 'mac-arm64', entrypoint);
+		await mkdir(join(path, '..'), { recursive: true });
+		await writeFile(path, binary);
+		families.push({ familyId, runtimeVersion: manifest.runtimeVersion, targetId: 'mac-arm64', files: 1,
+			byteLength: binary.length, provenance: familyId === 'whisper-cpp'
+				? { files: [file], installedBytes: binary.length }
+				: { fileCount: 1, byteLength: binary.length } });
+	}
+	const manifestPath = 'config/assistance-runtime-family-supply-candidates.json';
+	const familyBytes = canonicalSigningJson({ schemaVersion: 1, manifests });
+	await writeFile(join(f.app, manifestPath), familyBytes);
+	const stagePath = join(f.root, '.desktop-build/stage-manifest.json');
+	const stage = JSON.parse(await readFile(stagePath));
+	stage.assistanceRuntimeFamilies = { targetId: 'mac-arm64', families,
+		manifest: { path: manifestPath, byteLength: familyBytes.length, sha256: signingDigest(familyBytes) } };
+	await writeFile(stagePath, canonicalSigningJson(stage));
+	await captureMacSigningInputs(f.context);
+	await signVerifiedMacStage(f.context, { executeFile: f.executeFile });
+	const signed = JSON.parse(await readFile(stagePath)).assistanceRuntimeFamilies;
+	const signedManifestBytes = await readFile(join(f.app, manifestPath));
+	assert.equal(signed.manifest.sha256, signingDigest(signedManifestBytes));
+	assert.equal(signed.manifest.byteLength, signedManifestBytes.length);
+	for (const family of signed.families) {
+		assert.equal(family.byteLength, binary.length + 9);
+		if (family.familyId === 'whisper-cpp') assert.equal(family.provenance.installedBytes, family.byteLength);
+		else assert.equal(family.provenance.byteLength, family.byteLength);
+	}
+});
+
+test('signing pin replacement preserves numeric file counts without inventing an empty inventory', () => {
+	const summary = { files: 17, byteLength: 1234, sourceSha256: 'unchanged-source' };
+	assert.deepEqual(rebindSigningPins(summary, new Map()), summary);
 });
