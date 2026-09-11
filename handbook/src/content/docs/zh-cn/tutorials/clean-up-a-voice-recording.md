@@ -1,0 +1,68 @@
+---
+title: "清理语音录音"
+description: "消除录音中的嗡嗡声，减少低频噪音，将其调整至播客音量并导出为 MP3 格式。"
+editUrl: false
+sidebar:
+  order: 2
+head:
+  - tag: script
+    attrs:
+      type: "application/ld+json"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Clean up a voice recording\",\"description\":\"Take the hum out of a take, cut the rumble, bring it to podcast loudness and export an MP3.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick guide-noisy-take.wav — a short take whose first half second is room noise before the voice starts. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick guide-noisy-take.wav — a short take whose first half second is room noise before the voice starts. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. Half a second of hiss, then a steady tone standing in for a voice, with the hiss underneath it.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Drag in the ruler above the clip, from the start to the 15% mark, to select the noise-only lead-in.\",\"text\":\"Drag in the ruler above the clip, from the start to the 15% mark, to select the noise-only lead-in. The profile must contain nothing but the noise you want gone — no voice at all.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. The profile is kept; now the effect needs to know what to clean.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection. Twelve decibels is a good first setting. More removes more noise but makes voices sound hollow. The lead-in is nearly flat and the tone is untouched.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Choose Effect → Legacy effects → Classic Filters. In the Classic Filters dialog, choose High-pass for Filter type and set Cutoff frequency to 100, then press Apply to selection.\",\"text\":\"Choose Effect → Legacy effects → Classic Filters. In the Classic Filters dialog, choose High-pass for Filter type and set Cutoff frequency to 100, then press Apply to selection. Everything below 100 Hz — traffic, handling, air conditioning — is rolled off. Speech lives well above it.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Effect → Volume and compression → Loudness Normalization. In the Loudness Normalization dialog, set Target loudness to -16, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Loudness Normalization. In the Loudness Normalization dialog, set Target loudness to -16, then press Apply to selection. −16 LUFS is the common target for stereo podcasts. Loudness measures how loud the whole take feels, not how tall its peaks are. The waveform is taller and the take plays at a comfortable level.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. A clean, level take with a quiet lead-in.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. The file is encoded in the browser; nothing leaves your computer.\"}]}"
+---
+<!-- docs-ai-provenance: {"factPacketSha256":"c5796e3d5fbad38b7da2c37f485446c249614bc1a0dfbd708ef188c61f522c63","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"c5796e3d5fbad38b7da2c37f485446c249614bc1a0dfbd708ef188c61f522c63","targetLocale":"zh-CN"} -->
+
+<!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
+
+大多数在家录制的音频都需要同样的三种修复：去除持续的背景噪音、过滤低沉的嗡嗡声，并将音量提升到标准水平。本教程将对一个三秒的示例进行这三种修复，该示例的前0.5秒只有环境噪音，然后导出结果为MP3格式。
+
+:::tip[所需准备]
+- 下载[`guide-noisy-take.wav`](https://assets.soundscaper.org/guides/examples/guide-noisy-take.wav) — 一个短段，其前0.5秒为环境噪音，然后才开始人声。
+
+以下每个步骤都可直接在这些文件上进行，因此你看到的效果应与教程描述一致。Soundscaper在浏览器中运行，无需安装。
+:::
+
+## 学习目标
+
+- 为什么噪音减少需要配置文件，以及如何创建它。
+- 高通滤波器去除什么，以及如何为语音设置其阈值。
+- 峰值音量与响度之间的区别，以及如何达到响度目标。
+- 如何导出MP3文件。
+
+## 步骤
+
+1. 打开Soundscaper。编辑器加载后，一个新的空项目已准备就绪。
+2. 选择**文件 → 导入音频**，并选择`guide-noisy-take.wav` — 一个短段，其前0.5秒为环境噪音，然后才开始人声。文件将作为片段添加到单独的轨道上。
+3. 按**播放**收听，然后按**停止**。
+   *你应该看到：* 0.5秒的嘶嘶声，然后是一个稳定的音调（代替人声），嘶嘶声在其下方。
+4. 从片段开始到15%标记处，在片段上方拖动尺子，以选择仅包含噪音的引言部分。配置文件中只能包含要去除的噪音，不能有任何人声。
+5. 选择**效果 → 噪音去除和修复 → 噪音减少**，并按**获取噪音配置文件**。状态行显示配置文件已准备就绪。按**关闭**暂时离开对话框。
+6. 选择**选择 → 全选**。配置文件被保留；现在效果需要知道要清洁什么。
+7. 选择**效果 → 噪音去除和修复 → 噪音减少**。在**噪音减少**对话框中，将**噪音减少**设置为`12`，然后按**应用到选择**。12分贝是一个不错的初始设置。减少更多的噪音会使人声听起来空洞。
+   *你应该看到：* 引言部分几乎是平的，音调未受到影响。
+8. 选择**效果 → 传统效果 → 经典滤波器**。在**经典滤波器**对话框中，选择**高通**作为**滤波器类型**，并将**截断频率**设置为`100`，然后按**应用到选择**。所有低于100 Hz的频率（交通、处理、空调等）都被削减。语音信号位于更高频率。
+9. 选择**效果 → 音量和压缩 → 响度归一化**。在**响度归一化**对话框中，将**目标响度**设置为`-16`，然后按**应用到选择**。-16 LUFS是立体声播客的常见目标。响度测量整个片段的感知音量，而非峰值音量。
+   *你应该看到：* 波形更高，片段以舒适的音量播放。
+10. 按**播放**收听，然后按**停止**。
+   *你应该看到：* 一个干净、平稳的片段，带有安静的引言。
+11. 选择**文件 → 导出音频**，将**格式**设置为**MP3**，并按**导出**。渲染完成后，文件立即下载，其链接在对话框中保留。文件在浏览器中编码，电脑上不会留下任何数据。
+
+## 下一步
+
+- 使用如何操作指南在你自己的片段上进行：[去除背景噪音](/guides/cleaning-up/remove-background-noise/)，[去除低沉的嗡嗡声](/guides/cleaning-up/remove-low-rumble/)，[为播客归一化响度](/guides/volume/normalize-loudness-for-podcasts/)。
+- 使用平台的方式检查结果：[测量混响的响度](/guides/analysis/measure-loudness/)。
+
+## 其他教程
+
+[你的第一个Soundscaper项目](/tutorials/your-first-project/) — 导入录音，收听，分割，淡出，导出文件并保存项目。
+[在人声下方添加音乐](/tutorials/put-music-under-a-voice/) — 层叠两个轨道，自动将一个轨道压低，混合并导出。
+
+## 参考
+
+- [在此处查看在此教程中使用的所有效果的参数、默认值和范围。](/reference/generated/audio-effects/#parameters)
+- [导出格式、容器及其通道限制在此处列出。](/reference/generated/formats/)
+- [每个菜单命令及其键盘快捷键在此处列出。](/reference/generated/commands/)
+
+## 关于本教程
+
+本教程在Soundscaper的每个版本中都按步骤逐一回放，由浏览器套件(`tests/browser/soundscaper-tutorials.spec.js`)执行。如果某个步骤不再有效，则构建将失败，直到教程得到纠正，因此你所阅读的内容与编辑器的功能一致。
