@@ -50,6 +50,10 @@ export const NIGHTLY_TEST_RUNTIME_PACKAGE_ROOTS = Object.freeze([
 const ESBUILD_BINARY_SCOPE = '@esbuild';
 
 export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
+	...['flac', 'mpeg-audio', 'opus', 'vorbis', 'wavpack'].map((format) => ({
+		source: `desktop/bundled-${format}-stream.ts`, destination: `desktop/bundled-${format}-stream.ts`,
+		kind: 'file', label: `${format} browser import fixture support`,
+	})),
 	{ source: 'desktop/nightly-tests-main.mjs', destination: 'desktop/nightly-tests-main.mjs', kind: 'file', label: 'nightly test launcher' },
 	{ source: 'desktop/nightly-tests-manifest.mjs', destination: 'desktop/nightly-tests-manifest.mjs', kind: 'file', label: 'nightly test manifest reader' },
 	{ source: 'scripts/lib/desktop-nightly-tests-runtime.mjs', destination: 'scripts/lib/desktop-nightly-tests-runtime.mjs', kind: 'file', label: 'nightly test runtime' },

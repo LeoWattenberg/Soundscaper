@@ -47,6 +47,9 @@ export async function createFixture(context) {
 		['config/quality-budgets.json', '{"measurementPolicy":{"timingWorkers":1,"benchmarkRetries":0}}\n'],
 		['desktop/nightly-tests-main.mjs', 'export const launcher = true;\n'],
 		['desktop/nightly-tests-manifest.mjs', 'export const manifest = true;\n'],
+		...['flac', 'mpeg-audio', 'opus', 'vorbis', 'wavpack'].map((format) => [
+			`desktop/bundled-${format}-stream.ts`, 'export const fixtureSupport = true;\n',
+		]),
 		['scripts/lib/desktop-nightly-tests-runtime.mjs', 'export const runtime = true;\n'],
 		['scripts/lib/desktop-nightly-tests-static-response.mjs', 'export const staticResponse = true;\n'],
 		['scripts/lib/static-site-content-types.mjs', 'export const staticSiteContentTypes = true;\n'],

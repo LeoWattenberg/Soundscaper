@@ -47,6 +47,7 @@ module.exports = {
 			filter: [
 				'.local-browsers/**/*',
 				'config/**/*',
+				'desktop/bundled-*-stream.ts',
 				// The guide specs replay handbook step data, which lives outside `tests/`.
 				'handbook/**/*',
 				'sites/**/*',

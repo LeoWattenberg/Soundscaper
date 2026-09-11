@@ -97,6 +97,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 	});
 
 	for (const relativePath of [
+		...['flac', 'mpeg-audio', 'opus', 'vorbis', 'wavpack'].map((format) => `desktop/bundled-${format}-stream.ts`),
 		'desktop/nightly-tests-main.mjs',
 		'desktop/nightly-tests-manifest.mjs',
 		'scripts/lib/desktop-nightly-tests-runtime.mjs',
