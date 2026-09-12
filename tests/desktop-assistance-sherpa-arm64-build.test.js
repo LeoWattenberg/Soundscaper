@@ -90,7 +90,7 @@ test('Sherpa ARM64 native extraction uses a relative archive name accepted by BS
 			cwd: String.raw`C:\a\_temp`,
 			args: [
 				'-xf', 'sherpa-native.tar.bz2',
-				'-C', String.raw`C:\a\_temp\native`, '--strip-components=1',
+				'-C', 'native', '--strip-components=1',
 			],
 		},
 	);

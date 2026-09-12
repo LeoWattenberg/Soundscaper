@@ -32,9 +32,10 @@ export function desktopSherpaArm64BuildPlan({ targetId, platform = process.platf
 }
 
 export function desktopSherpaArm64NativeArchiveInvocation(archive, destination) {
+	const cwd = win32.dirname(archive);
 	return {
-		cwd: win32.dirname(archive),
-		args: ['-xf', win32.basename(archive), '-C', destination, '--strip-components=1'],
+		cwd,
+		args: ['-xf', win32.basename(archive), '-C', win32.relative(cwd, destination) || '.', '--strip-components=1'],
 	};
 }
 
