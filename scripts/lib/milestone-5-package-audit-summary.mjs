@@ -54,11 +54,19 @@ export function summarizeMilestone5PackageAudits(values, productIdsValue) {
 	});
 	const first = audits[0];
 	for (const audit of audits) {
-		if (audit.sourceRevision !== first.sourceRevision
-			|| audit.package.applicationVersion !== first.package.applicationVersion) {
-			throw new Error('Milestone 5 package audits disagree on revision or application version.');
+		if (audit.sourceRevision !== first.sourceRevision) {
+			throw new Error('Milestone 5 package audits disagree on source revision.');
 		}
 	}
+	const applicationVersions = Object.fromEntries(productIds.map((productId) => {
+		const versions = new Set(audits.filter(
+			(audit) => audit.assessmentScope.productId === productId,
+		).map((audit) => audit.package.applicationVersion));
+		if (versions.size !== 1) {
+			throw new Error('Milestone 5 package audits disagree on product versions.');
+		}
+		return [productId, [...versions][0]];
+	}));
 	const packageNames = audits.flatMap(({ package: packageAudit }) => (
 		packageAudit.packages.map(({ name }) => name)
 	));
@@ -73,13 +81,13 @@ export function summarizeMilestone5PackageAudits(values, productIdsValue) {
 		&& audits.every((audit) => audit.passed)
 		&& failures.length === 0;
 	return deepFreeze({
-		schemaVersion: 1,
+		schemaVersion: 2,
 		kind: 'milestone-5-package-audit-summary',
 		products: [...productIds],
 		targets: [...MILESTONE_5_TARGETS],
 		auditCount: audits.length,
 		sourceRevision: first.sourceRevision,
-		applicationVersion: first.package.applicationVersion,
+		applicationVersions,
 		packageFilesRevalidated,
 		passed,
 		status: passed ? 'passed' : packageFilesRevalidated ? 'failed' : 'unverified',
@@ -222,6 +230,8 @@ function validatePackage(packageAudit, identity, sourceRevision) {
 	if (!packageAudit || packageAudit.productId !== identity.productId
 		|| packageAudit.targetId !== identity.targetId
 		|| packageAudit.sourceRevision !== sourceRevision
+		|| typeof packageAudit.applicationVersion !== 'string'
+		|| packageAudit.applicationVersion.length === 0
 		|| packageAudit.status !== 'installed-application-closure-audited'
 		|| !Array.isArray(packageAudit.packages) || packageAudit.packages.length < 1
 		|| packageAudit.packageCount !== packageAudit.packages.length

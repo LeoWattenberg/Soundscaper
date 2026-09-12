@@ -21,8 +21,13 @@ test('the package-audit summary covers every product target without release sema
 		MILESTONE_5_PACKAGE_AUDIT_IDENTITIES.map(audit),
 	);
 
-	assert.equal(summary.schemaVersion, 1);
+	assert.equal(summary.schemaVersion, 2);
 	assert.equal(summary.kind, 'milestone-5-package-audit-summary');
+	assert.deepEqual(summary.applicationVersions, {
+		soundscaper: '1.0.0-rc.5',
+		framescaper: '1.0.0-rc.1',
+	});
+	assert.equal(Object.hasOwn(summary, 'applicationVersion'), false);
 	assert.equal(summary.auditCount, 10);
 	assert.equal(summary.packageFilesRevalidated, false);
 	assert.equal(summary.passed, false);
@@ -42,6 +47,23 @@ test('the package-audit summary rejects duplicate identities and malformed resul
 	const malformed = MILESTONE_5_PACKAGE_AUDIT_IDENTITIES.map(audit);
 	malformed[0].status = 'failed';
 	assert.throws(() => summarizeMilestone5PackageAudits(malformed), /result state/iu);
+
+	const inconsistentProductVersion = MILESTONE_5_PACKAGE_AUDIT_IDENTITIES.map(audit);
+	inconsistentProductVersion[1].package.applicationVersion = '1.0.0-rc.4';
+	assert.throws(
+		() => summarizeMilestone5PackageAudits(inconsistentProductVersion),
+		/product versions/iu,
+	);
+
+	const inconsistentRevision = MILESTONE_5_PACKAGE_AUDIT_IDENTITIES.map(audit);
+	inconsistentRevision[1].sourceRevision = 'c'.repeat(40);
+	inconsistentRevision[1].observedHeadRevision = 'c'.repeat(40);
+	inconsistentRevision[1].sourceRevisionBinding.sourceRevision = 'c'.repeat(40);
+	inconsistentRevision[1].package.sourceRevision = 'c'.repeat(40);
+	assert.throws(
+		() => summarizeMilestone5PackageAudits(inconsistentRevision),
+		/source revision/iu,
+	);
 });
 
 test('package re-auditing accepts the exact local or downloaded artifact directory inventory', () => {
@@ -103,7 +125,9 @@ function audit(identity) {
 			status: 'installed-application-closure-audited',
 			productId: identity.productId,
 			targetId: identity.targetId,
-			applicationVersion: '1.0.0',
+			applicationVersion: identity.productId === 'soundscaper'
+				? '1.0.0-rc.5'
+				: '1.0.0-rc.1',
 			sourceRevision: REVISION,
 			runtimeManifest: {
 				name: `runtime-manifest-${identity.productId}-${identity.targetId}.json`,
