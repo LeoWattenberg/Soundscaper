@@ -285,6 +285,14 @@ const assistanceInput = Object.freeze({
 				minimumMemoryBytes: 2 * 1024 ** 3,
 				distribution: Object.freeze({ kind: 'identity-mirrored' }),
 			}),
+			Object.freeze({
+				modelId: 'tiger-dnr',
+				version: '1.0.0',
+				task: 'source-separation',
+				platforms: Object.freeze(['linux-x64']),
+				minimumMemoryBytes: 4 * 1024 ** 3,
+				distribution: Object.freeze({ kind: 'reproducibly-derived' }),
+			}),
 		]),
 	}),
 });
@@ -296,6 +304,7 @@ test('assistance reference orders required operations and separates the optional
 	assert.match(rendered, /Voice activity detection → Speech recognition \| Word alignment \|/u);
 	assert.match(rendered, /\| Word alignment \| `word-alignment` \| `advanced:word-alignment` \|/u);
 	assert.match(rendered, /\| `silero-vad-v6` \| Voice activity detection \| 6\.2\.1 \| Mirrored byte-for-byte from upstream \| 2 GiB \| Linux x64; Windows x64 \|/u);
+	assert.match(rendered, /\| `tiger-dnr` \| Source separation \| 1\.0\.0 \| Reproducibly derived from pinned upstream inputs \| 4 GiB \| Linux x64 \|/u);
 });
 
 test('assistance reference refuses a workflow or distribution it has no reviewed wording for', () => {

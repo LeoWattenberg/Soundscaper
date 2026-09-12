@@ -80,8 +80,11 @@ export function localModelRuntimeAvailability(entry, { nativeRuntime, onnxRuntim
 		availablePlatforms, missingPlatforms: entry.platforms.filter((platform) => !availablePlatforms.includes(platform)) };
 }
 
-function runtimeNotice(availability, published = true) {
+function runtimeNotice(availability, published = true, activationPending = false) {
 	const { familyId, version, availablePlatforms, missingPlatforms } = availability;
+	if (published && activationPending) {
+		return `The catalog entry is published, but activation remains blocked until the exact ${familyId} ${version} runtime target closure is authenticated. Prepared package inputs cover ${availablePlatforms.map((platform) => PLATFORM_NAMES[platform]).join(', ') || 'no supported platform yet'}; installing the weights alone does not enable processing. Consult the nightly test report for the exact package and machine exercised.`;
+	}
 	if (availablePlatforms.length === 0) {
 		return `**The required native engine is not yet packaged.** The desktop build has no ${familyId} ${version} target for this model. Downloading weights does not enable processing. The required real-model test reports a failure until the model and verified native package are supplied.`;
 	}
@@ -114,7 +117,8 @@ function modelPage(entry, cases, runtimeSources) {
 	const artifacts = entry.artifacts.map((artifact) => [artifact.fileName, downloadSize(artifact.byteLength)]);
 	const availability = localModelRuntimeAvailability(entry, runtimeSources);
 	const published = !entry.pendingPublication;
-	const blocked = !published || availability.availablePlatforms.length === 0;
+	const activationPending = published && entry.activationStatus === 'pending-external';
+	const blocked = !published || activationPending || availability.availablePlatforms.length === 0;
 	const downloadBytes = entry.artifacts.every(({ byteLength }) => Number.isSafeInteger(byteLength))
 		? entry.artifacts.reduce((total, artifact) => total + artifact.byteLength, 0) : null;
 	const checks = applicable.flatMap((testCase) => [
@@ -128,9 +132,9 @@ function modelPage(entry, cases, runtimeSources) {
 		'## Current availability {#current-availability}', '',
 		...(!published ? ['**This model’s digest-pinned catalog publication is pending.** Model Manager cannot currently install it. Required test coverage does not authorize downloads or permit substitute model files.'
 			+ (entry.modelId === 'dereverb-room' ? ' Its upstream GPL-3.0 declaration, license text, and source notices are recorded.' : ''), ''] : []),
-		runtimeNotice(availability, published), '',
+		runtimeNotice(availability, published, activationPending), '',
 		'## Use this model {#use-this-model}', '',
-		blocked ? `Once the model is admitted in the catalog and its native runtime is available, the intended workflow is **${documentation.menu}**. The steps below describe that workflow; this installation cannot currently complete.`
+		blocked ? `${published ? 'The model is admitted in the catalog, but its exact native runtime closure is not yet authenticated.' : 'Once the model is admitted in the catalog and its native runtime is available,'} The intended workflow is **${documentation.menu}**. The steps below describe that workflow; processing cannot currently complete.`
 			: `Open **${documentation.menu}** on a platform with the required native runtime. Local assistance runs in the desktop editor.`, '',
 		...documentation.steps.map((step, index) => `${String(index + 1)}. ${step}`), '',
 		...(pairedIds.length ? ['This operation also requires '
@@ -159,29 +163,33 @@ function indexPage(catalog, cases, runtimeSources) {
 	const candidates = catalog.entries.filter((entry) => entry.pendingPublication);
 	const availability = new Map(catalog.entries.map((entry) =>
 		[entry.modelId, localModelRuntimeAvailability(entry, runtimeSources)]));
-	const pending = catalog.entries.filter((entry) => availability.get(entry.modelId).availablePlatforms.length === 0);
+	const pending = catalog.entries.filter((entry) => entry.activationStatus === 'pending-external'
+		|| availability.get(entry.modelId).availablePlatforms.length === 0);
 	const pendingCases = cases.filter(({ modelIds }) => modelIds.some((id) =>
-		availability.get(id).availablePlatforms.length === 0));
+		catalog.entries.find(({ modelId }) => modelId === id)?.activationStatus === 'pending-external'
+			|| availability.get(id).availablePlatforms.length === 0));
 	const windowsArm64Pending = published.filter(({ platforms }) => !platforms.includes('win32-arm64'));
 	const rows = catalog.entries.map((entry) => [
 		`[${modelTitle(entry.modelId, cases)}](/reference/local-models/${entry.modelId}/)`,
 		entry.task.replaceAll('-', ' '),
-		entry.pendingPublication ? 'Catalog publication pending' : availability.get(entry.modelId).availablePlatforms.length === 0 ? 'Native engine pending' : 'Packaged; see supported platforms',
+		entry.pendingPublication ? 'Catalog publication pending' : entry.activationStatus === 'pending-external'
+			? 'Runtime target closure pending' : availability.get(entry.modelId).availablePlatforms.length === 0
+				? 'Native engine pending' : 'Packaged; see supported platforms',
 		cases.filter(({ modelIds }) => modelIds.includes(entry.modelId)).map(({ id }) => `\`${id}\``).join(', '),
 	]);
 	return page('Local model guides and real execution tests',
 		'Check the availability, intended workflow, and required real execution test of every published and planned local model.', [
 		'These guides describe the published catalog and the additional models required by the nightly tests. Desktop packages include native inference engines; Model Manager separately downloads and verifies weights admitted by the digest-pinned catalog. A prepared runtime and a required test do not grant model publication authority.', '',
-		...(pending.length ? [`**Native runtime packaging is incomplete: ${String(pending.length)} required models in ${String(pendingCases.length)} cases have no supported native engine target.** Their tests fail until both catalog admission and the verified engine package are provided.`, '']
+		...(pending.length ? [`**Native runtime activation is incomplete: ${String(pending.length)} required models in ${String(pendingCases.length)} cases have no admitted native engine closure.** Their tests fail until the exact runtime target is authenticated; catalog admission and prepared package inputs do not close that gate.`, '']
 			: ['All published models have a packaged native engine on supported desktop targets. Install their weights and use the task menus or Tools → Advanced Local Processing. This build capability does not claim that every platform has passed the real-model tests.', '']),
 		...(candidates.length ? [`**${String(candidates.length)} additional models await catalog publication.** Their individual guides and real inference cases are prepared, but Model Manager cannot install them yet. A full nightly run reports missing required catalog entries as failures. Room dereverberation's GPL-3.0 declaration, license text, and source notices are recorded.`, ''] : []),
-		...(windowsArm64Pending.length ? [`**Windows ARM64 catalog approval is pending.** Native build recipes are prepared, but the catalog does not yet admit ${String(windowsArm64Pending.length)} of the published models on Windows ARM64. Enabling them requires a reviewed catalog update with exact SHA-256 pins. Their Windows ARM64 tests report explicit platform skips until that catalog is published; the published-model subset is admitted on macOS arm64, Linux x64/arm64, and Windows x64. Entirely unpublished required identities still fail on every target.`, ''] : []),
+		...(windowsArm64Pending.length ? [`**Windows ARM64 catalog approval is pending.** Native build recipes are prepared, but the catalog does not yet admit ${String(windowsArm64Pending.length)} of the published models on Windows ARM64. Enabling them requires a reviewed catalog update with exact SHA-256 pins. Their Windows ARM64 tests report explicit platform skips until that catalog is published; all published models are admitted on macOS arm64, Linux x64/arm64, and Windows x64.${candidates.length ? ' Entirely unpublished required identities still fail on every target.' : ''}`, ''] : []),
 		table(['Model guide', 'Purpose', 'Packaged runtime support', 'Packaged execution case'], rows), '',
 		WINDOWS_REQUIREMENT, '',
 		'## Test scope {#test-scope}', '',
 		`The required suite covers ${String(catalog.entries.length)} model identities in ${String(cases.length)} execution cases: ${String(published.length)} published models and ${String(candidates.length)} publication candidates. Speaker diarization uses a segmentation model and an embedding model together. Subject detection uses face and object models together. SigLIP2 testing exercises its image and text networks. Each Beat This variant has a separate case.`, '',
 		'The ordinary browser tests check the interface with a simulated desktop backend. The nightly-with-tests Electron package separately downloads verified model files and requests real inference. Missing native engines are reported as failures on catalog-supported platforms. Expensive model runs are excluded from the normal browser suite. Read the report from a particular package run for its actual results; these pages describe the required checks, not a claim that every build or machine has passed.', '',
-		`The published model artifacts total approximately **${downloadSize(published.reduce((total, entry) => total + entry.artifacts.reduce((size, artifact) => size + artifact.byteLength, 0), 0))}** before candidate models, runtime files, fixtures, temporary space, and test output. Candidate sizes remain provisional until authenticated artifacts are published. Qwen alone adds about **2.33 GiB** and requires at least **16 GiB total system memory**. Allow at least **12 GiB free memory** for the full planned run; individual operations enforce their own reservations. Models run sequentially.`, '',
+		`The published model artifacts total approximately **${downloadSize(published.reduce((total, entry) => total + entry.artifacts.reduce((size, artifact) => size + artifact.byteLength, 0), 0))}** before ${candidates.length ? 'candidate models, ' : ''}runtime files, fixtures, temporary space, and test output.${candidates.length ? ' Candidate sizes remain provisional until authenticated artifacts are published.' : ''} Qwen alone adds about **2.33 GiB** and requires at least **16 GiB total system memory**. Allow at least **12 GiB free memory** for the full planned run; individual operations enforce their own reservations. Models run sequentially.`, '',
 		'Audio checks reject silence, non-finite samples, and output identical to the input. Text checks require meaningful nonempty result fields. Embedding, detection, and timing checks validate their appropriate numerical structure. Exact sample values, spelling, and rankings are not used as golden outputs.', '',
 		'Passing these checks proves basic operation on a small fixture. It does not prove accurate transcription, correct object labels, lossless denoising, or subjective quality. Review results on your own media before applying them.', '',
 		'## Publication and test coverage {#publication-and-test-coverage}', '',
@@ -202,7 +210,12 @@ export async function generateLocalModelTestDocuments(repositoryRoot, { write = 
 	]);
 	const cases = validateLocalModelRealTestCases(manifest, catalog, { candidateTasks: catalogTasks.tasks });
 	const publishedIds = new Set(catalog.entries.map(({ modelId }) => modelId));
-	const entries = [...catalog.entries, ...catalogTasks.tasks.filter(({ catalogModelId }) => !publishedIds.has(catalogModelId))
+	const tasksById = new Map(catalogTasks.tasks.map((task) => [task.catalogModelId, task]));
+	const entries = [...catalog.entries.map((entry) => {
+		const task = tasksById.get(entry.modelId);
+		return task ? { ...entry, activationStatus: task.activationStatus,
+			activationBlockedBy: task.activationBlockedBy } : entry;
+	}), ...catalogTasks.tasks.filter(({ catalogModelId }) => !publishedIds.has(catalogModelId))
 		.map((task) => ({ ...task, modelId: task.catalogModelId, pendingPublication: true,
 			artifacts: task.artifacts.map((artifact) => ({ ...artifact, fileName: artifact.distributionFileName })) }))];
 	const runtimeSources = { nativeRuntime, onnxRuntime, sherpaArm64Build,

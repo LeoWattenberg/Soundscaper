@@ -10,27 +10,25 @@ Suggest titles, hooks, chapters, and explanations for existing highlight candida
 
 ## Current availability {#current-availability}
 
-**This model’s digest-pinned catalog publication is pending.** Model Manager cannot currently install it. Required test coverage does not authorize downloads or permit substitute model files.
-
-Desktop builds package the required llama-cpp b10509 engine for macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. Model installation still requires its digest-pinned catalog publication. These are supported build targets; consult the nightly test report for results on a particular package and machine.
+The catalog entry is published, but activation remains blocked until the exact llama-cpp b10509 runtime target closure is authenticated. Prepared package inputs cover macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64; installing the weights alone does not enable processing. Consult the nightly test report for the exact package and machine exercised.
 
 ## Use this model {#use-this-model}
 
-Once the model is admitted in the catalog and its native runtime is available, the intended workflow is **Framescaper: Tools → Advanced Local Processing → Editorial generation**. The steps below describe that workflow; this installation cannot currently complete.
+The model is admitted in the catalog, but its exact native runtime closure is not yet authenticated. The intended workflow is **Framescaper: Tools → Advanced Local Processing → Editorial generation**. The steps below describe that workflow; processing cannot currently complete.
 
 1. Prepare and review highlight candidates from your selected media.
-2. Once its catalog entry is available, install Qwen through Model Manager and opt into editorial generation.
+2. Install Qwen through Model Manager and opt into editorial generation.
 3. Review every text proposal before accepting it. Only the authorized candidate identities and requested text fields are eligible.
 
 ## Download and requirements {#download-and-requirements}
 
 Model identity: `qwen3-4b-q4-k-m`, version **1.0.0**.
 
-Approximate candidate artifact size: **2.33 GiB**. Minimum system memory: **16 GiB**. This candidate requirement refers to total memory, not currently free memory. Inference also needs sufficient free memory, and installation needs working space; memory is not a speed guarantee.
+Approximate download size: **2.33 GiB**. Minimum system memory: **16 GiB**. This catalog requirement refers to total memory, not currently free memory. Inference also needs sufficient free memory, and installation needs working space; memory is not a speed guarantee.
 
-Planned platforms: macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. A matching packaged runtime and catalog publication are required.
+Published platforms: macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. A matching packaged runtime is also required.
 
-These candidate artifact names describe the required package. They are not download instructions. Model Manager will expose verified installation only after the digest-pinned catalog admits them.
+Tools → Model Manager downloads the published artifacts and verifies their recorded SHA-256 digests. Processing uses the installed files locally. Open Storage and verification in Model Manager to inspect notices, repair an installation, or change the storage location.
 
 | Artifact | Approximate download size |
 | --- | --- |

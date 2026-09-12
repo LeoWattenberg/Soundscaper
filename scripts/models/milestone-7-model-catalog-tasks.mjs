@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Closed, non-activating catalog tasks for the remaining Milestone 7 model supply. */
+/** Closed catalog evidence and non-activating tasks for the Milestone 7 model supply. */
 
+import { createHash } from 'node:crypto';
+
+import { canonicalJson } from '../lib/canonical-json.mjs';
 import {
 	validateMilestone7ConversionExecutionRegister,
 } from './milestone-7-conversion-execution.mjs';
@@ -84,25 +87,32 @@ export function validateMilestone7ModelCatalogTaskRegister(value, options) {
 		'Milestone 7 model catalog-task register');
 	if (record.schemaVersion !== 1
 		|| record.registerId !== 'milestone-7-model-catalog-tasks-v1'
-		|| record.productionCatalogChanged !== false
+		|| typeof record.productionCatalogChanged !== 'boolean'
 		|| !Array.isArray(record.tasks) || record.tasks.length !== TASKS.length) {
 		throw new TypeError('The Milestone 7 model catalog-task register identity is invalid.');
 	}
 	const tasks = record.tasks.map((task, index) => validateTask(
 		task, TASKS[index], inputs,
 	));
+	const productionCatalogChanged = tasks.some(({ catalogStatus }) =>
+		catalogStatus === 'ready');
+	if (record.productionCatalogChanged !== productionCatalogChanged) {
+		throw new Error('productionCatalogChanged must be derived from the catalog tasks.');
+	}
 	return deepFreeze({
 		schemaVersion: 1,
 		registerId: record.registerId,
-		productionCatalogChanged: false,
+		productionCatalogChanged,
 		tasks,
 	});
 }
 
 function validateOptions(options) {
-	if (!plainRecord(options) || !Array.isArray(options.offeredModelIds)
-		|| options.offeredModelIds.some((id) => typeof id !== 'string' || !IDENTIFIER.test(id))
-		|| new Set(options.offeredModelIds).size !== options.offeredModelIds.length) {
+	if (!plainRecord(options) || !Array.isArray(options.catalogEntries)
+		|| options.catalogEntries.some((entry) => !plainRecord(entry)
+			|| typeof entry.modelId !== 'string' || !IDENTIFIER.test(entry.modelId))
+		|| new Set(options.catalogEntries.map(({ modelId }) => modelId)).size
+			!== options.catalogEntries.length) {
 		throw new TypeError('Catalog-task validation needs a bounded offered-model inventory.');
 	}
 	const supply = validateMilestone7ModelSupplyRegister(options.modelSupply);
@@ -116,7 +126,7 @@ function validateOptions(options) {
 		fixtures,
 		execution,
 		runtimes,
-		offeredModelIds: options.offeredModelIds,
+		catalogEntries: options.catalogEntries,
 	};
 }
 
@@ -140,12 +150,14 @@ function validateTask(value, expected, inputs) {
 	const sourceAuthorities = validateSourceAuthorities(
 		row.sourceAuthorities, expected, inputs.supply,
 	);
-	const releaseEvidence = validateReleaseEvidence(row.releaseEvidence);
+	const releaseEvidence = validateReleaseEvidence(
+		row.releaseEvidence, expected, inputs.catalogEntries,
+	);
 	const catalogBlockedBy = deriveCatalogBlockers({
 		expected,
 		execution: inputs.execution,
 		fixtures: inputs.fixtures,
-		offeredModelIds: inputs.offeredModelIds,
+		catalogEntries: inputs.catalogEntries,
 		releaseEvidence,
 	});
 	if (!sameArray(row.catalogBlockedBy, catalogBlockedBy)) {
@@ -267,7 +279,7 @@ function validateArtifact(value, expected, output) {
 	return { ...row };
 }
 
-function validateReleaseEvidence(value) {
+function validateReleaseEvidence(value, expected, catalogEntries) {
 	const row = exactRecord(value,
 		['catalogEntrySha256', 'publicReadbackSha256'], 'catalog release evidence');
 	for (const field of ['catalogEntrySha256', 'publicReadbackSha256']) {
@@ -275,10 +287,18 @@ function validateReleaseEvidence(value) {
 			throw new TypeError('Catalog release evidence must be null or one exact SHA-256.');
 		}
 	}
+	if (row.catalogEntrySha256 !== null) {
+		const entry = catalogEntries.find(({ modelId }) =>
+			modelId === expected.catalogModelId);
+		if (!entry || createHash('sha256').update(canonicalJson(entry)).digest('hex')
+			!== row.catalogEntrySha256) {
+			throw new Error(`${expected.catalogModelId} catalog-entry SHA-256 does not match the offered entry.`);
+		}
+	}
 	return { ...row };
 }
 
-function deriveCatalogBlockers({ expected, execution, fixtures, offeredModelIds, releaseEvidence }) {
+function deriveCatalogBlockers({ expected, execution, fixtures, catalogEntries, releaseEvidence }) {
 	const blockers = [];
 	if (expected.supplyBinding.kind === 'converted-output') {
 		const recipe = execution.recipes.find(({ candidateId }) =>
@@ -297,7 +317,7 @@ function deriveCatalogBlockers({ expected, execution, fixtures, offeredModelIds,
 		blockers.push('immutable-public-readback');
 	}
 	if (releaseEvidence.catalogEntrySha256 === null
-		|| !offeredModelIds.includes(expected.catalogModelId)) {
+		|| !catalogEntries.some(({ modelId }) => modelId === expected.catalogModelId)) {
 		blockers.push('catalog-publication');
 	}
 	return [...new Set(blockers)].sort();

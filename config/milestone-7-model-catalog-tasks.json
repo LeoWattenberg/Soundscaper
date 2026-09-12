@@ -1,7 +1,7 @@
 {
 	"schemaVersion": 1,
 	"registerId": "milestone-7-model-catalog-tasks-v1",
-	"productionCatalogChanged": false,
+	"productionCatalogChanged": true,
 	"tasks": [
 		{
 			"catalogModelId": "wav2vec2-base-960h",
@@ -33,15 +33,12 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "aa45bb08f2a6b3a239ff274e784d88aa1572d90bf038f6e966f8836c7a910ecd",
-				"catalogEntrySha256": null
+				"catalogEntrySha256": "316f521e08fc9863b827dc7ca47e65fe2465941be5ff8b439e78c4c812444dad"
 			},
-			"catalogStatus": "pending-external",
-			"catalogBlockedBy": [
-				"catalog-publication"
-			],
+			"catalogStatus": "ready",
+			"catalogBlockedBy": [],
 			"activationStatus": "pending-external",
 			"activationBlockedBy": [
-				"catalog-publication",
 				"runtime-target-closure"
 			]
 		},
@@ -76,15 +73,12 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "5b6804fd3d62d0fc0369350de2e051f4056a3b9c0668cf78ff0b8869df325410",
-				"catalogEntrySha256": null
+				"catalogEntrySha256": "d93bc878a6a45d6a308291d39391d7418ee67185d824b0dbe8521720e4d108f9"
 			},
-			"catalogStatus": "pending-external",
-			"catalogBlockedBy": [
-				"catalog-publication"
-			],
+			"catalogStatus": "ready",
+			"catalogBlockedBy": [],
 			"activationStatus": "pending-external",
 			"activationBlockedBy": [
-				"catalog-publication",
 				"runtime-target-closure"
 			]
 		},
@@ -132,15 +126,12 @@
 			],
 			"releaseEvidence": {
 				"publicReadbackSha256": "b4346dc5d91f81369b4ed66755f08a9c6f95e9700f31a9192ac280c1d10661a6",
-				"catalogEntrySha256": null
+				"catalogEntrySha256": "b62ea3b83d25aac991ef9dd147c7311bb1fff0663d727d805fe5d703cd3f5f04"
 			},
-			"catalogStatus": "pending-external",
-			"catalogBlockedBy": [
-				"catalog-publication"
-			],
+			"catalogStatus": "ready",
+			"catalogBlockedBy": [],
 			"activationStatus": "pending-external",
 			"activationBlockedBy": [
-				"catalog-publication",
 				"runtime-target-closure"
 			]
 		},
@@ -175,15 +166,12 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "12116fc8bf0dcbf53ed2be431250d2e46c500c606c03a86def8a84982f0be913",
-				"catalogEntrySha256": null
+				"catalogEntrySha256": "4ab7f57db4548535a7dd7d7082e71c3ca15a56d5d9e988201b32aebe9d602b12"
 			},
-			"catalogStatus": "pending-external",
-			"catalogBlockedBy": [
-				"catalog-publication"
-			],
+			"catalogStatus": "ready",
+			"catalogBlockedBy": [],
 			"activationStatus": "pending-external",
 			"activationBlockedBy": [
-				"catalog-publication",
 				"runtime-target-closure"
 			]
 		},
@@ -218,15 +206,12 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "1f6c73508ffab6d965b73e337f4518c3c8587201c6b1e9ba3a04a650d12213f5",
-				"catalogEntrySha256": null
+				"catalogEntrySha256": "9bd20a974fbfb5fe0db30a503614a2fc6c8b2d3ed71ef0403620fe9aa210e293"
 			},
-			"catalogStatus": "pending-external",
-			"catalogBlockedBy": [
-				"catalog-publication"
-			],
+			"catalogStatus": "ready",
+			"catalogBlockedBy": [],
 			"activationStatus": "pending-external",
 			"activationBlockedBy": [
-				"catalog-publication",
 				"runtime-target-closure"
 			]
 		},
@@ -261,15 +246,12 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "f82d93f91afb69ee6a5303b837512f07c3b3a6465f26663c99d8d173ce469c86",
-				"catalogEntrySha256": null
+				"catalogEntrySha256": "473159e3b57ee620488e2167aec7f7694eb457030c4a9898c00c7a8e046032d0"
 			},
-			"catalogStatus": "pending-external",
-			"catalogBlockedBy": [
-				"catalog-publication"
-			],
+			"catalogStatus": "ready",
+			"catalogBlockedBy": [],
 			"activationStatus": "pending-external",
 			"activationBlockedBy": [
-				"catalog-publication",
 				"runtime-target-closure"
 			]
 		},
@@ -303,15 +285,12 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "a314685196f54a415920366655890d8245a6564985db4a9e4623438904ca1bad",
-				"catalogEntrySha256": null
+				"catalogEntrySha256": "35dfc2938f8d9c632cc721fa9f28f6ac641e64be008875a11afa10f8a0b652a9"
 			},
-			"catalogStatus": "pending-external",
-			"catalogBlockedBy": [
-				"catalog-publication"
-			],
+			"catalogStatus": "ready",
+			"catalogBlockedBy": [],
 			"activationStatus": "pending-external",
 			"activationBlockedBy": [
-				"catalog-publication",
 				"runtime-target-closure"
 			]
 		},
@@ -346,15 +325,12 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "b064e04ea9640aa3f2df94ebfb5876be6d31ff14c5929d959754f8f7e272843c",
-				"catalogEntrySha256": null
+				"catalogEntrySha256": "74496b1c04bde1a304276b2adc433d0a853cbe142255be18ea218457605ca94f"
 			},
-			"catalogStatus": "pending-external",
-			"catalogBlockedBy": [
-				"catalog-publication"
-			],
+			"catalogStatus": "ready",
+			"catalogBlockedBy": [],
 			"activationStatus": "pending-external",
 			"activationBlockedBy": [
-				"catalog-publication",
 				"runtime-target-closure"
 			]
 		}

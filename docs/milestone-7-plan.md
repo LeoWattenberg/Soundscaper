@@ -9,6 +9,14 @@
 > artifact, runtime, selection, and consent checks still apply. Consult the
 > [nightly model tests](local-model-nightly-tests.md) for current execution coverage.
 
+> **Catalog publication update (2026-09-12):** the reviewed 21-entry catalog
+> now includes wav2vec2, TIGER-DnR, PANNs Cnn10, both Beat This checkpoints,
+> TransNetV2, Qwen3, and Dereverb Room. Their immutable public read-back,
+> licensing-row pins, artifact identities, and canonical catalog-entry SHA-256
+> values are recorded. Catalog admission permits authenticated installation;
+> the catalog-task register keeps execution activation `pending-external` until
+> the exact selected-target runtime closure is authenticated.
+
 > **Current release note (2026-08-31):** this historical work plan's formal
 > qualification and release-admission language is not current policy. Real
 > correctness and privacy failures still fail their tests; performance reports
@@ -50,14 +58,14 @@ Qwen augmentation is reduced to bounded inert title/hook/chapter/explanation
 metadata; raw and unselected output never enters `.scape`.
 
 That is conditional implementation, not a packaged production-activation
-claim. A hash-locked CPython 3.12 conversion/parity runner now exists for
-TIGER, PANNs, Beat This `small0`, and TransNetV2, but no converted artifacts or
-live parity evidence are retained; their reviewed catalog entries do
-not exist.
+claim. The hash-locked CPython 3.12 conversion/parity runner and retained
+evidence bind exact artifacts and source-framework parity for TIGER, PANNs,
+both Beat This checkpoints, TransNetV2, and Dereverb Room. Their reviewed
+catalog entries and full-digest public read-backs now exist.
 Every target payload for ONNX Runtime 1.29.0, whisper.cpp v1.9.3, and llama.cpp
 b10509 is `pending-external`, and Sherpa still lacks a Windows-arm64 Node
-addon. Live EU R2 publication/full-digest public read-back, five-target
-packaged canaries, and owner-lab qualification are also absent. Each affected
+addon. Five-target packaged canaries and owner-lab qualification are also
+absent. Each affected
 workflow fails closed only when its exact catalog entry, model artifact,
 runtime payload, platform, selected-media authority, storage, consent, or
 external-FFmpeg machine admission is unavailable; no substitute inference or
@@ -280,21 +288,23 @@ below is permissive or CC-BY. Each is a separately downloadable,
 individually removable pack. Sizes are the shipped (quantized) artifacts.
 
 The digest-pinned catalog is the authority for what the current product may offer. It
-currently contains thirteen permitted entries: Silero VAD; Parakeet v2 and v3;
+contains 21 permitted entries: the original Silero VAD; Parakeet v2 and v3;
 Whisper large-v3-turbo; pyannote segmentation; ERes2Net; DeepFilterNet3;
-YuNet; D-FINE; U²-Net-P; PP-OCRv4 mobile; nomic-embed-text; and SigLIP 2.
+YuNet; D-FINE; U²-Net-P; PP-OCRv4 mobile; nomic-embed-text; and SigLIP 2,
+plus wav2vec2, TIGER-DnR, PANNs Cnn10, both Beat This checkpoints, TransNetV2,
+Qwen3, and Dereverb Room.
 Catalog presence permits authenticated install and custody, not execution.
 The two Parakeet entries match the active Sherpa recognition adapter, Silero
 matches the active VAD adapter, and pyannote segmentation plus ERes2Net form the
 admitted diarization pair. Whisper, DeepFilterNet3, and the current
 vision/semantic entries have conditional adapters, but those routes refuse with
 typed unavailability until their authenticated target runtime payloads exist;
-catalog presence alone never activates execution. The six supply candidates
-additionally await catalog publication, and the four converted candidates
-await retained artifact/parity evidence. Fast shot detection is model-free and
+catalog presence alone never activates execution. The newly published entries
+retain `runtime-target-closure` as their only catalog-task activation blocker.
+Fast shot detection is model-free and
 relies on separately admitted external FFmpeg authority. The catalog's mirror
-URLs and publisher describe the authorized distribution path, but this plan
-does not claim the remote R2 objects have been uploaded or read back durably.
+URLs, publication receipts, and publisher describe the authorized distribution
+path and bind full public read-back for the eight additions.
 
 ### Speech (7A primary)
 
@@ -604,12 +614,12 @@ manual sign-off as an execution switch:
 
 | Area | Current implementation |
 | --- | --- |
-| Catalog and licensing | The digest-pinned catalog V2 retains thirteen verified entries. Supply candidates now pin wav2vec2 and Qwen sources plus conversion recipes for TIGER, PANNs, Beat This, and TransNetV2, but none joins the executable catalog before converted-artifact/parity closure, versioned-download notices and hashes, and digest-pinned catalog publication. Malformed SHA-256 pins and artifact drift fail closed. Owner licensing notes remain a non-gating worksheet; missing artifact-specific integrity and distribution inputs keep only that model unavailable. |
+| Catalog and licensing | The digest-pinned catalog V2 retains 21 verified entries. The eight additions bind complete licensing rows, versioned notices, immutable public read-back, exact artifacts, and canonical entry SHA-256 values; converted models also retain their exact conversion and parity evidence. Malformed SHA-256 pins and catalog-entry drift fail closed. Catalog admission permits authenticated installation, while the separate runtime-target closure still blocks activation for these additions. |
 | Model lifecycle | A user-settable, content-addressed filesystem store supports capacity preflight, explicit resumable install, cancellation after quiescence, preseed, relocation by copy/verify/swap, removal, garbage collection, notices, and reconciliation after external deletion. **Tools > Local Models > Manage Models…** is lazy and desktop-only. No model is installed or repaired implicitly. |
 | Native runtime | Sherpa ONNX 1.13.5 remains authenticated on linux-x64, linux-arm64, mac-arm64, and win-x64; its Windows-arm64 Node addon is pending. Isolated, supervised CPU-only family contracts, workers, memory admission, crash quarantine, and termination cancellation exist for ONNX Runtime 1.29.0, whisper.cpp v1.9.3, and llama.cpp b10509, but every five-target payload row remains `pending-external`. Fast shots retain the separately admitted external-FFmpeg path. |
 | Job and data boundary | `AssistanceWorkflow` adds a closed workflow graph, one aggregate fence, versioned settings, slotted claims, exact model roles, stage progress, one main-owned consent authority, strict frame-pack/embedding formats, bounded semantic reviewers, and project-isolated disposable custody over all guided and fifteen Advanced recipes. Review media is incrementally hashed and bound to its exact stage/slot claim before native execution. Adapter-owned preprocessing preserves each model's required sample rate/channels; long media remains under one whole-selection fence. VFR and monotonic forward retimes use source-time authority; reverse, ambiguous nested, multicamera, and live inputs refuse. |
 | Product state | Guided recipes and lazy review surfaces are menu-reached; Advanced exposes validated one-stage primitive recipes. Acceptance starts unselected, revalidates the aggregate fence, and reuses ordinary transcript, label, derived-source, annotation, tempo, sequence, crop, and keyframe commands. Disposable indexes, accepted reframe evidence, saliency/tracker state, and ranking checkpoints support deterministic reuse without a schema change. Raw/unselected Qwen output never enters `.scape`; only bounded sanitized editorial metadata belonging to an accepted proposal may be retained. |
-| Implemented feature domains | Workers, deterministic preprocess/postprocess, reviewers, and publishers cover the full planned transcription/alignment, cleanup/diarization, enhancement/separation, reactions, beats, cuts, search/OCR, reframe, highlight, and editorial workflow set. Both ASRs consume reviewed VAD; auto-language alignment admits only detected English; long DeepFilter/TIGER runs spool bounded chunks; cleanup/audio/visual review is mutation-free and editable. Existing Sherpa and fast-shot routes are production-admitted; each new model-backed route remains unavailable in packages until its exact converted model, catalog entry, and authenticated target runtime arrive. |
+| Implemented feature domains | Workers, deterministic preprocess/postprocess, reviewers, and publishers cover the full planned transcription/alignment, cleanup/diarization, enhancement/separation, reactions, beats, cuts, search/OCR, reframe, highlight, and editorial workflow set. Both ASRs consume reviewed VAD; auto-language alignment admits only detected English; long DeepFilter/TIGER runs spool bounded chunks; cleanup/audio/visual review is mutation-free and editable. Existing Sherpa and fast-shot routes are production-admitted; the new model-backed routes have their exact converted or direct artifacts and reviewed catalog entries, but remain unavailable in packages until their authenticated target runtime closures arrive. |
 
 Activation has four explicit boundaries:
 

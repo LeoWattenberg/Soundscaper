@@ -1,5 +1,13 @@
 # Milestone 7B: video model licence review and upstream pins
 
+> **Catalog publication update (2026-09-12):** TransNetV2 now has a retained
+> repository-owned ONNX conversion, passing source-framework parity, immutable
+> public read-back, complete notice evidence, and a reviewed catalog entry. Its
+> canonical entry SHA-256 is task-bound, while execution remains
+> `pending-external` on the authenticated ONNX Runtime target closure. The
+> dated review below remains provenance for the earlier decision and the six
+> original video/semantic entries.
+
 > **Activation status (2026-08-27):** this remains the provenance record for
 > the six permitted video/semantic catalog entries, not evidence that their
 > operation adapters or remote objects are production-admitted. Later work now

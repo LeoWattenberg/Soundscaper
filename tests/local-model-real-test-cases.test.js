@@ -21,6 +21,7 @@ const sherpaArm64Build = JSON.parse(await readFile(resolve(root, 'config/assista
 const runtimeSources = { nativeRuntime, onnxRuntime, sherpaArm64Build,
 	whisperBuild: { version: WHISPER_RUNTIME_VERSION, targets: WHISPER_RUNTIME_BUILD_TARGETS },
 	llamaBuild: { version: LLAMA_RUNTIME_VERSION, targets: LLAMA_RUNTIME_BUILD_TARGETS } };
+const catalogTaskIds = new Set(candidateTasks.map(({ catalogModelId }) => catalogModelId));
 
 test('real model cases cover every published and explicitly required candidate model', () => {
 	const cases = validateLocalModelRealTestCases(manifest, catalog, options);
@@ -64,13 +65,19 @@ test('every model handbook page stays derived from its real test and catalog', a
 test('every published model has packaged runtime support reflected in its guide', async () => {
 	const availability = catalog.entries.map((entry) => ({ entry,
 		...localModelRuntimeAvailability(entry, runtimeSources) }));
-	for (const { entry, availablePlatforms } of availability) {
+	for (const { entry, availablePlatforms, familyId } of availability) {
 		assert.ok(availablePlatforms.includes('linux-x64'), `${entry.modelId} must be usable on Linux x64.`);
 		const page = await readFile(resolve(root,
 			`handbook/src/content/docs/reference/local-models/${entry.modelId}.md`), 'utf8');
-		assert.match(page, /Desktop builds package the required/u);
+		if (catalogTaskIds.has(entry.modelId)) {
+			assert.match(page, /activation remains blocked.*runtime target closure/isu);
+		} else {
+			assert.match(page, /Desktop builds package the required/u);
+		}
 		assert.doesNotMatch(page, /Once a compatible native runtime is packaged/u);
-		if (!entry.modelId.startsWith('whisper-')) assert.match(page, /learn\.microsoft\.com\/en-us\/cpp\/windows\/latest-supported-vc-redist/u);
+		if (['onnxruntime-node', 'sherpa-onnx-node'].includes(familyId)) {
+			assert.match(page, /learn\.microsoft\.com\/en-us\/cpp\/windows\/latest-supported-vc-redist/u);
+		}
 	}
 	const silero = availability.find(({ entry }) => entry.modelId === 'silero-vad-v6');
 	assert.deepEqual(silero.availablePlatforms.toSorted(),
@@ -91,23 +98,24 @@ test('every real model case is admitted on the four currently published desktop 
 	}
 });
 
-test('required candidates add test coverage without becoming published model authority', () => {
-	assert.throws(() => validateLocalModelRealTestCases(manifest, catalog), /unpublished model/u);
+test('published former candidates retain required test coverage and exact task metadata', () => {
+	assert.doesNotThrow(() => validateLocalModelRealTestCases(manifest, catalog));
 	const missing = { ...manifest, cases: manifest.cases.filter(({ modelIds }) => !modelIds.includes('qwen3-4b-q4-k-m')) };
-	assert.throws(() => validateLocalModelRealTestCases(missing, catalog, options), /qwen3.*no real execution case/u);
+	assert.throws(() => validateLocalModelRealTestCases(missing, catalog), /qwen3.*no real execution case/u);
 	const duplicate = [...candidateTasks, candidateTasks[0]];
 	assert.throws(() => validateLocalModelRealTestCases(manifest, catalog, { candidateTasks: duplicate }), /duplicate candidate/u);
 	const conflict = { ...candidateTasks[0], catalogModelId: catalog.entries[0].modelId };
 	assert.throws(() => validateLocalModelRealTestCases(manifest, catalog, { candidateTasks: [conflict] }), /conflicting task/u);
-	assert.equal(catalog.entries.some(({ modelId }) => modelId === 'qwen3-4b-q4-k-m'), false);
+	assert.equal(catalog.entries.some(({ modelId }) => modelId === 'qwen3-4b-q4-k-m'), true);
 });
 
-test('candidate guides distinguish required tests and packaged engines from catalog publication', async () => {
+test('newly published guides distinguish catalog admission from packaged-engine support', async () => {
 	for (const task of candidateTasks) {
 		const page = await readFile(resolve(root, `handbook/src/content/docs/reference/local-models/${task.catalogModelId}.md`), 'utf8');
-		assert.match(page, /digest-pinned catalog publication is pending/u);
-		assert.match(page, /cannot currently install/u);
-		assert.match(page, /Required test coverage does not authorize/u);
+		assert.doesNotMatch(page, /catalog publication is pending|cannot currently install/u);
+		assert.match(page, /catalog entry is published.*activation remains blocked/isu);
+		assert.match(page, /installing the weights alone does not enable processing/u);
+		assert.match(page, /consult the nightly test report/iu);
 		if (task.catalogModelId === 'qwen3-4b-q4-k-m') assert.match(page, /llama-cpp b10509/u);
 		if (task.catalogModelId === 'dereverb-room') {
 			assert.match(page, /GPL-3.0/u);

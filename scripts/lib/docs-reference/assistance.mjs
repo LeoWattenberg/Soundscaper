@@ -67,6 +67,7 @@ const PLATFORM_LABELS = Object.freeze({
 
 const DISTRIBUTION_LABELS = Object.freeze({
 	'identity-mirrored': 'Mirrored byte-for-byte from upstream',
+	'reproducibly-derived': 'Reproducibly derived from pinned upstream inputs',
 });
 
 function operationSequence(stages, wanted) {

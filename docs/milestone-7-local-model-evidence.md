@@ -9,6 +9,14 @@
 > artifact, runtime, selection, and consent checks still apply. Consult the
 > [nightly model tests](local-model-nightly-tests.md) for current execution coverage.
 
+> **Catalog publication update (2026-09-12):** the later reviewed release now
+> admits wav2vec2, TIGER-DnR, PANNs Cnn10, both Beat This checkpoints,
+> TransNetV2, Qwen3, and Dereverb Room. Each complete licensing row is pinned by
+> its catalog entry, and the task register binds the canonical entry SHA-256 plus
+> retained public read-back. This changes the current distribution state, not
+> the historical slice below; runtime-target authentication remains a separate
+> pending activation gate.
+
 > **Historical slice record:** delivered on 2026-08-13 as the first
 > milestone-7 slice. Its disabled-gate and all-records-blocked statements
 > describe that exact historical checkpoint, not current admission. As of

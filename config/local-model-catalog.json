@@ -11,9 +11,18 @@
 			"modelId": "silero-vad-v6",
 			"version": "6.2.1",
 			"task": "voice-activity-detection",
-			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"platforms": [
+				"darwin-arm64",
+				"darwin-x64",
+				"linux-arm64",
+				"linux-x64",
+				"win32-x64"
+			],
 			"minimumMemoryBytes": 2147483648,
-			"licensingEvidence": { "id": "silero-vad-v6", "sha256": "34d87d2875d93363af327b75580b5405f3a15f422096c60382ae7230745a7b7a" },
+			"licensingEvidence": {
+				"id": "silero-vad-v6",
+				"sha256": "34d87d2875d93363af327b75580b5405f3a15f422096c60382ae7230745a7b7a"
+			},
 			"upstream": {
 				"source": "https://github.com/snakers4/silero-vad",
 				"revision": "7e30209a3e901f9842f81b225f3e93d8199902b1",
@@ -26,7 +35,9 @@
 					}
 				]
 			},
-			"distribution": { "kind": "identity-mirrored" },
+			"distribution": {
+				"kind": "identity-mirrored"
+			},
 			"artifacts": [
 				{
 					"fileName": "silero_vad.onnx",
@@ -40,9 +51,18 @@
 			"modelId": "parakeet-tdt-0.6b-v2",
 			"version": "2.0.0",
 			"task": "speech-recognition",
-			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"platforms": [
+				"darwin-arm64",
+				"darwin-x64",
+				"linux-arm64",
+				"linux-x64",
+				"win32-x64"
+			],
 			"minimumMemoryBytes": 4294967296,
-			"licensingEvidence": { "id": "parakeet-tdt-0.6b-v2", "sha256": "a3718fadb4f7cddba04aed5e351fe6680682bf2b94385a6b435828c1fc987be6" },
+			"licensingEvidence": {
+				"id": "parakeet-tdt-0.6b-v2",
+				"sha256": "a3718fadb4f7cddba04aed5e351fe6680682bf2b94385a6b435828c1fc987be6"
+			},
 			"upstream": {
 				"source": "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8",
 				"revision": "1ab9323565ddb038682214b292f588070a538ce2",
@@ -73,7 +93,9 @@
 					}
 				]
 			},
-			"distribution": { "kind": "identity-mirrored" },
+			"distribution": {
+				"kind": "identity-mirrored"
+			},
 			"artifacts": [
 				{
 					"fileName": "encoder.int8.onnx",
@@ -105,9 +127,18 @@
 			"modelId": "parakeet-tdt-0.6b-v3",
 			"version": "3.0.0",
 			"task": "speech-recognition",
-			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"platforms": [
+				"darwin-arm64",
+				"darwin-x64",
+				"linux-arm64",
+				"linux-x64",
+				"win32-x64"
+			],
 			"minimumMemoryBytes": 4294967296,
-			"licensingEvidence": { "id": "parakeet-tdt-0.6b-v3", "sha256": "9eb9705914683f53faeca12fe5ea2cc60cf95793c54881f14f0d0c705ccdb70c" },
+			"licensingEvidence": {
+				"id": "parakeet-tdt-0.6b-v3",
+				"sha256": "9eb9705914683f53faeca12fe5ea2cc60cf95793c54881f14f0d0c705ccdb70c"
+			},
 			"upstream": {
 				"source": "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
 				"revision": "2bda32ec70b097a55adaa07d9a7173915b43cc78",
@@ -138,7 +169,9 @@
 					}
 				]
 			},
-			"distribution": { "kind": "identity-mirrored" },
+			"distribution": {
+				"kind": "identity-mirrored"
+			},
 			"artifacts": [
 				{
 					"fileName": "encoder.int8.onnx",
@@ -170,9 +203,19 @@
 			"modelId": "whisper-large-v3-turbo-ggml",
 			"version": "1.0.0",
 			"task": "speech-recognition",
-			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-arm64", "win32-x64"],
+			"platforms": [
+				"darwin-arm64",
+				"darwin-x64",
+				"linux-arm64",
+				"linux-x64",
+				"win32-arm64",
+				"win32-x64"
+			],
 			"minimumMemoryBytes": 4294967296,
-			"licensingEvidence": { "id": "whisper-large-v3-turbo-ggml", "sha256": "e0662f6656bd0020d35280c6c50a2fc7092c8f8a4c70d2ece208c602686a8bbb" },
+			"licensingEvidence": {
+				"id": "whisper-large-v3-turbo-ggml",
+				"sha256": "e0662f6656bd0020d35280c6c50a2fc7092c8f8a4c70d2ece208c602686a8bbb"
+			},
 			"upstream": {
 				"source": "https://huggingface.co/ggerganov/whisper.cpp",
 				"revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
@@ -185,7 +228,9 @@
 					}
 				]
 			},
-			"distribution": { "kind": "identity-mirrored" },
+			"distribution": {
+				"kind": "identity-mirrored"
+			},
 			"artifacts": [
 				{
 					"fileName": "ggml-large-v3-turbo-q5_0.bin",
@@ -199,9 +244,18 @@
 			"modelId": "pyannote-segmentation-3.0",
 			"version": "3.0.0",
 			"task": "speaker-segmentation",
-			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"platforms": [
+				"darwin-arm64",
+				"darwin-x64",
+				"linux-arm64",
+				"linux-x64",
+				"win32-x64"
+			],
 			"minimumMemoryBytes": 2147483648,
-			"licensingEvidence": { "id": "pyannote-segmentation-3.0", "sha256": "4a1488908595c2dca59229ec691f8913012b53e03cc8d6e39b8dfc75ea6094b8" },
+			"licensingEvidence": {
+				"id": "pyannote-segmentation-3.0",
+				"sha256": "4a1488908595c2dca59229ec691f8913012b53e03cc8d6e39b8dfc75ea6094b8"
+			},
 			"upstream": {
 				"source": "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0",
 				"revision": "9403a6902bb58e3d5ae8c7e77c3422de279db2e0",
@@ -220,7 +274,9 @@
 					}
 				]
 			},
-			"distribution": { "kind": "identity-mirrored" },
+			"distribution": {
+				"kind": "identity-mirrored"
+			},
 			"artifacts": [
 				{
 					"fileName": "model.onnx",
@@ -240,9 +296,18 @@
 			"modelId": "speech-3d-speaker-eres2net",
 			"version": "1.0.0",
 			"task": "speaker-embedding",
-			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"platforms": [
+				"darwin-arm64",
+				"darwin-x64",
+				"linux-arm64",
+				"linux-x64",
+				"win32-x64"
+			],
 			"minimumMemoryBytes": 2147483648,
-			"licensingEvidence": { "id": "speech-3d-speaker-eres2net", "sha256": "938eee976ee775cd34549cd92ba3329485db63b6f149985258b244880a124b4f" },
+			"licensingEvidence": {
+				"id": "speech-3d-speaker-eres2net",
+				"sha256": "938eee976ee775cd34549cd92ba3329485db63b6f149985258b244880a124b4f"
+			},
 			"upstream": {
 				"source": "https://huggingface.co/csukuangfj/speaker-embedding-models",
 				"revision": "0743f301363dec56491a490f6d6cbc9d67f9a3bf",
@@ -255,7 +320,9 @@
 					}
 				]
 			},
-			"distribution": { "kind": "identity-mirrored" },
+			"distribution": {
+				"kind": "identity-mirrored"
+			},
 			"artifacts": [
 				{
 					"fileName": "3dspeaker_speech_eres2net_sv_en_voxceleb_16k.onnx",
@@ -269,9 +336,18 @@
 			"modelId": "deepfilternet3",
 			"version": "3.0.0",
 			"task": "speech-enhancement",
-			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"platforms": [
+				"darwin-arm64",
+				"darwin-x64",
+				"linux-arm64",
+				"linux-x64",
+				"win32-x64"
+			],
 			"minimumMemoryBytes": 2147483648,
-			"licensingEvidence": { "id": "deepfilternet3", "sha256": "9928f51340bb6b36b4aabbe2500a61292e423f9e4709fa9f5be1f26eab2e8cb9" },
+			"licensingEvidence": {
+				"id": "deepfilternet3",
+				"sha256": "9928f51340bb6b36b4aabbe2500a61292e423f9e4709fa9f5be1f26eab2e8cb9"
+			},
 			"upstream": {
 				"source": "https://huggingface.co/soniqo/DeepFilterNet3-ONNX",
 				"revision": "63d8ba442ba900143c468b798e94a04009b2f0c9",
@@ -296,7 +372,9 @@
 					}
 				]
 			},
-			"distribution": { "kind": "identity-mirrored" },
+			"distribution": {
+				"kind": "identity-mirrored"
+			},
 			"artifacts": [
 				{
 					"fileName": "deepfilter.onnx",
@@ -322,9 +400,18 @@
 			"modelId": "yunet-face-detection-2026may",
 			"version": "2026.5.0",
 			"task": "face-detection",
-			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"platforms": [
+				"darwin-arm64",
+				"darwin-x64",
+				"linux-arm64",
+				"linux-x64",
+				"win32-x64"
+			],
 			"minimumMemoryBytes": 2147483648,
-			"licensingEvidence": { "id": "yunet-face-detection-2026may", "sha256": "9a272cf5015e34bfb3a4668622c82ca3f712d19bd2f0ff5e8b59f1a033e0c783" },
+			"licensingEvidence": {
+				"id": "yunet-face-detection-2026may",
+				"sha256": "9a272cf5015e34bfb3a4668622c82ca3f712d19bd2f0ff5e8b59f1a033e0c783"
+			},
 			"upstream": {
 				"source": "https://github.com/opencv/opencv_zoo",
 				"revision": "47534e27c9851bb1128ccc0102f1145e27f23f98",
@@ -337,7 +424,9 @@
 					}
 				]
 			},
-			"distribution": { "kind": "identity-mirrored" },
+			"distribution": {
+				"kind": "identity-mirrored"
+			},
 			"artifacts": [
 				{
 					"fileName": "face_detection_yunet_2026may.onnx",
@@ -351,9 +440,18 @@
 			"modelId": "dfine-nano-coco",
 			"version": "1.0.0",
 			"task": "object-detection",
-			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"platforms": [
+				"darwin-arm64",
+				"darwin-x64",
+				"linux-arm64",
+				"linux-x64",
+				"win32-x64"
+			],
 			"minimumMemoryBytes": 2147483648,
-			"licensingEvidence": { "id": "dfine-nano-coco", "sha256": "4be06a757af7e858a8a101cd339b2e33093c0fc307b571cea530c46e7f7c850e" },
+			"licensingEvidence": {
+				"id": "dfine-nano-coco",
+				"sha256": "4be06a757af7e858a8a101cd339b2e33093c0fc307b571cea530c46e7f7c850e"
+			},
 			"upstream": {
 				"source": "https://huggingface.co/onnx-community/dfine_n_coco-ONNX",
 				"revision": "380d2839c327efaf65dd0fe0c2c10ab7fadd5473",
@@ -378,7 +476,9 @@
 					}
 				]
 			},
-			"distribution": { "kind": "identity-mirrored" },
+			"distribution": {
+				"kind": "identity-mirrored"
+			},
 			"artifacts": [
 				{
 					"fileName": "model.onnx",
@@ -404,9 +504,18 @@
 			"modelId": "u2netp-saliency",
 			"version": "1.0.0",
 			"task": "saliency-detection",
-			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"platforms": [
+				"darwin-arm64",
+				"darwin-x64",
+				"linux-arm64",
+				"linux-x64",
+				"win32-x64"
+			],
 			"minimumMemoryBytes": 2147483648,
-			"licensingEvidence": { "id": "u2netp-saliency", "sha256": "17f8bd8f2eecfd601d5ae9448c9fa7410e2197c7fc339d134337fe9182fe132a" },
+			"licensingEvidence": {
+				"id": "u2netp-saliency",
+				"sha256": "17f8bd8f2eecfd601d5ae9448c9fa7410e2197c7fc339d134337fe9182fe132a"
+			},
 			"upstream": {
 				"source": "https://github.com/danielgatis/rembg",
 				"revision": "v0.0.0",
@@ -419,7 +528,9 @@
 					}
 				]
 			},
-			"distribution": { "kind": "identity-mirrored" },
+			"distribution": {
+				"kind": "identity-mirrored"
+			},
 			"artifacts": [
 				{
 					"fileName": "u2netp.onnx",
@@ -433,9 +544,18 @@
 			"modelId": "ppocr-v4-mobile",
 			"version": "4.0.0",
 			"task": "optical-character-recognition",
-			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"platforms": [
+				"darwin-arm64",
+				"darwin-x64",
+				"linux-arm64",
+				"linux-x64",
+				"win32-x64"
+			],
 			"minimumMemoryBytes": 2147483648,
-			"licensingEvidence": { "id": "ppocr-v4-mobile", "sha256": "d0db2a16304077e9bd260d257615d8c683efd2e2cd379574570b25faeeeac086" },
+			"licensingEvidence": {
+				"id": "ppocr-v4-mobile",
+				"sha256": "d0db2a16304077e9bd260d257615d8c683efd2e2cd379574570b25faeeeac086"
+			},
 			"upstream": {
 				"source": "https://huggingface.co/SWHL/RapidOCR",
 				"revision": "1cfba2e90fc938db55889873735088de210cc173",
@@ -466,7 +586,9 @@
 					}
 				]
 			},
-			"distribution": { "kind": "identity-mirrored" },
+			"distribution": {
+				"kind": "identity-mirrored"
+			},
 			"artifacts": [
 				{
 					"fileName": "text_detection.onnx",
@@ -498,9 +620,18 @@
 			"modelId": "nomic-embed-text-v1.5",
 			"version": "1.5.0",
 			"task": "text-embedding",
-			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"platforms": [
+				"darwin-arm64",
+				"darwin-x64",
+				"linux-arm64",
+				"linux-x64",
+				"win32-x64"
+			],
 			"minimumMemoryBytes": 4294967296,
-			"licensingEvidence": { "id": "nomic-embed-text-v1.5", "sha256": "2c193151c5b07d9850b08b480ab7b2623f34d523351992ad86e622410891ac03" },
+			"licensingEvidence": {
+				"id": "nomic-embed-text-v1.5",
+				"sha256": "2c193151c5b07d9850b08b480ab7b2623f34d523351992ad86e622410891ac03"
+			},
 			"upstream": {
 				"source": "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5",
 				"revision": "e9b6763023c676ca8431644204f50c2b100d9aab",
@@ -537,7 +668,9 @@
 					}
 				]
 			},
-			"distribution": { "kind": "identity-mirrored" },
+			"distribution": {
+				"kind": "identity-mirrored"
+			},
 			"artifacts": [
 				{
 					"fileName": "model_quantized.onnx",
@@ -575,9 +708,18 @@
 			"modelId": "siglip2-base-patch16-224",
 			"version": "2.0.0",
 			"task": "image-text-embedding",
-			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"platforms": [
+				"darwin-arm64",
+				"darwin-x64",
+				"linux-arm64",
+				"linux-x64",
+				"win32-x64"
+			],
 			"minimumMemoryBytes": 8589934592,
-			"licensingEvidence": { "id": "siglip2-base-patch16-224", "sha256": "f067a0be2a584d716b9f071e0b1181849d1c678cfe0c3e8fe640764135e87cd3" },
+			"licensingEvidence": {
+				"id": "siglip2-base-patch16-224",
+				"sha256": "f067a0be2a584d716b9f071e0b1181849d1c678cfe0c3e8fe640764135e87cd3"
+			},
 			"upstream": {
 				"source": "https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX",
 				"revision": "ba1f3b0843f24bc5417d38e19c37b287d719b2f4",
@@ -614,7 +756,9 @@
 					}
 				]
 			},
-			"distribution": { "kind": "identity-mirrored" },
+			"distribution": {
+				"kind": "identity-mirrored"
+			},
 			"artifacts": [
 				{
 					"fileName": "vision_model_int8.onnx",
@@ -645,6 +789,380 @@
 					"byteLength": 394,
 					"sha256": "9b36b57ebaf20f09bf4c22100ccc21877ea6bfe5aead0c00c59f8af8ccefacfc",
 					"url": "https://assets.soundscaper.org/models/siglip2-base-patch16-224/2.0.0/preprocessor_config.json"
+				}
+			]
+		},
+		{
+			"modelId": "wav2vec2-base-960h",
+			"version": "1.0.0",
+			"task": "word-alignment",
+			"platforms": [
+				"darwin-arm64",
+				"linux-x64",
+				"linux-arm64",
+				"win32-x64",
+				"win32-arm64"
+			],
+			"minimumMemoryBytes": 4294967296,
+			"licensingEvidence": {
+				"id": "wav2vec2-base-960h",
+				"sha256": "257a4f3ffd784d78495a61dfcbb45848ca6f5017411d3ec6e7b3ba585194fd1a"
+			},
+			"upstream": {
+				"source": "https://huggingface.co/facebook/wav2vec2-base-960h",
+				"revision": "6d2b9ffaac8aabc45934584ee608c5fb5ee34a4e",
+				"artifacts": [
+					{
+						"fileName": "model.onnx",
+						"byteLength": 377887594,
+						"sha256": "b73fe60ddcd3fd07f91d65d50b4f10ba99039104c4fb5db5bdafbb27610bb6eb",
+						"url": "https://huggingface.co/facebook/wav2vec2-base-960h/resolve/6d2b9ffaac8aabc45934584ee608c5fb5ee34a4e/onnx/model.onnx"
+					}
+				]
+			},
+			"distribution": {
+				"kind": "identity-mirrored"
+			},
+			"artifacts": [
+				{
+					"fileName": "model.onnx",
+					"byteLength": 377887594,
+					"sha256": "b73fe60ddcd3fd07f91d65d50b4f10ba99039104c4fb5db5bdafbb27610bb6eb",
+					"url": "https://assets.soundscaper.org/models/wav2vec2-base-960h/1.0.0/model.onnx"
+				}
+			]
+		},
+		{
+			"modelId": "tiger-dnr",
+			"version": "1.0.0",
+			"task": "source-separation",
+			"platforms": [
+				"darwin-arm64",
+				"linux-x64",
+				"linux-arm64",
+				"win32-x64",
+				"win32-arm64"
+			],
+			"minimumMemoryBytes": 4294967296,
+			"licensingEvidence": {
+				"id": "tiger-dnr",
+				"sha256": "208ed46195cca9043cac89c950a17ffa56b2e4bbac2406593680426ece786aa3"
+			},
+			"upstream": {
+				"source": "https://github.com/JusperLee/TIGER",
+				"revision": "9f18d4a10a7137e1ce8052cfb62215179f1287b6",
+				"artifacts": [
+					{
+						"fileName": "model.safetensors",
+						"byteLength": 17130568,
+						"sha256": "dd1c696e72f6adea0085ef1af640882a8260519ad666422835e387a5b4abdd2a",
+						"url": "https://huggingface.co/JusperLee/TIGER-DnR/resolve/b7a59560bbca10febbcd46fb01600f868e587f57/model.safetensors"
+					}
+				]
+			},
+			"distribution": {
+				"kind": "reproducibly-derived",
+				"recipe": "config/milestone-7-model-conversion-execution.json",
+				"revision": "fbf2f30b8d9f246b5c6724a31125a2de5a84e010",
+				"environmentSha256": "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"
+			},
+			"artifacts": [
+				{
+					"fileName": "network.onnx",
+					"byteLength": 29623224,
+					"sha256": "df29b0e41e461eae1b43542ea374886ac0228af9e35eeed9914121d544d619ef",
+					"url": "https://assets.soundscaper.org/models/tiger-dnr/1.0.0/network.onnx"
+				}
+			]
+		},
+		{
+			"modelId": "panns-cnn10",
+			"version": "1.0.0",
+			"task": "audio-tagging",
+			"platforms": [
+				"darwin-arm64",
+				"linux-x64",
+				"linux-arm64",
+				"win32-x64",
+				"win32-arm64"
+			],
+			"minimumMemoryBytes": 2147483648,
+			"licensingEvidence": {
+				"id": "panns-cnn10",
+				"sha256": "673e11018f5306dcb9861284587c57fc2fc4c7498402250d060ddff42c91fb3e"
+			},
+			"upstream": {
+				"source": "https://github.com/qiuqiangkong/audioset_tagging_cnn",
+				"revision": "d2f4b8c18eab44737fcc0de1248ae21eb43f6aa4",
+				"artifacts": [
+					{
+						"fileName": "Cnn10_mAP-0.380.pth",
+						"byteLength": 25237595,
+						"sha256": "5240bdc47444e331bbeb54fd741d2b3f933a4526e84b0c17bf3593df94b13962",
+						"url": "https://zenodo.org/api/records/3987831/files/Cnn10_mAP=0.380.pth/content"
+					},
+					{
+						"fileName": "class_labels_indices.csv",
+						"byteLength": 14675,
+						"sha256": "cdd1049833c4b86127c2773ac0d14a2754b6a6d0d1798002ed5c66e699708429",
+						"url": "https://raw.githubusercontent.com/qiuqiangkong/audioset_tagging_cnn/d2f4b8c18eab44737fcc0de1248ae21eb43f6aa4/metadata/class_labels_indices.csv"
+					}
+				]
+			},
+			"distribution": {
+				"kind": "reproducibly-derived",
+				"recipe": "config/milestone-7-model-conversion-execution.json",
+				"revision": "fbf2f30b8d9f246b5c6724a31125a2de5a84e010",
+				"environmentSha256": "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"
+			},
+			"artifacts": [
+				{
+					"fileName": "panns-cnn10.onnx",
+					"byteLength": 25217285,
+					"sha256": "b6aec410d3be2764228e910fabd7f853dd7309d2454f595a6c3f7422b4c56e24",
+					"url": "https://assets.soundscaper.org/models/panns-cnn10/1.0.0/panns-cnn10.onnx"
+				}
+			]
+		},
+		{
+			"modelId": "beat-this-small0",
+			"version": "1.1.0",
+			"task": "beat-tracking",
+			"platforms": [
+				"darwin-arm64",
+				"linux-x64",
+				"linux-arm64",
+				"win32-x64",
+				"win32-arm64"
+			],
+			"minimumMemoryBytes": 2147483648,
+			"licensingEvidence": {
+				"id": "beat-this-small0",
+				"sha256": "3b088c2e6e75bac951948a5e89fa7eec375699648f9b61e3ccd0af33b3c4d60c"
+			},
+			"upstream": {
+				"source": "https://github.com/CPJKU/beat_this",
+				"revision": "ad7974846029835307ba19a3d5cefbf40b243041",
+				"artifacts": [
+					{
+						"fileName": "small0.ckpt",
+						"byteLength": 8451101,
+						"sha256": "6074be2c4d490c5f6101fcc374a1ec72ae93456e23bb6019783b849f5dc7d47b",
+						"url": "https://cloud.cp.jku.at/public.php/dav/files/7ik4RrBKTS273gp/small0.ckpt"
+					},
+					{
+						"fileName": "final0.ckpt",
+						"byteLength": 81058141,
+						"sha256": "8c328b45f59d8dd3dff219253ff6a8d6482be57d0133a29140e2febbf8eb8331",
+						"url": "https://cloud.cp.jku.at/public.php/dav/files/7ik4RrBKTS273gp/final0.ckpt"
+					}
+				]
+			},
+			"distribution": {
+				"kind": "reproducibly-derived",
+				"recipe": "config/milestone-7-model-conversion-execution.json",
+				"revision": "fbf2f30b8d9f246b5c6724a31125a2de5a84e010",
+				"environmentSha256": "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"
+			},
+			"artifacts": [
+				{
+					"fileName": "beat-this-small0.onnx",
+					"byteLength": 10569824,
+					"sha256": "8e649b7f764873863ddef0115cf121308ef461b70e7a015a3461edf6f8552471",
+					"url": "https://assets.soundscaper.org/models/beat-this-small0/1.1.0/beat-this-small0.onnx"
+				}
+			]
+		},
+		{
+			"modelId": "beat-this-final0",
+			"version": "1.1.0",
+			"task": "beat-tracking",
+			"platforms": [
+				"darwin-arm64",
+				"linux-x64",
+				"linux-arm64",
+				"win32-x64",
+				"win32-arm64"
+			],
+			"minimumMemoryBytes": 4294967296,
+			"licensingEvidence": {
+				"id": "beat-this-final0",
+				"sha256": "f8ac8ebc31ef67f1ef67f929df933b8ab24dad0225206c003a174ec8381b44d9"
+			},
+			"upstream": {
+				"source": "https://github.com/CPJKU/beat_this",
+				"revision": "ad7974846029835307ba19a3d5cefbf40b243041",
+				"artifacts": [
+					{
+						"fileName": "small0.ckpt",
+						"byteLength": 8451101,
+						"sha256": "6074be2c4d490c5f6101fcc374a1ec72ae93456e23bb6019783b849f5dc7d47b",
+						"url": "https://cloud.cp.jku.at/public.php/dav/files/7ik4RrBKTS273gp/small0.ckpt"
+					},
+					{
+						"fileName": "final0.ckpt",
+						"byteLength": 81058141,
+						"sha256": "8c328b45f59d8dd3dff219253ff6a8d6482be57d0133a29140e2febbf8eb8331",
+						"url": "https://cloud.cp.jku.at/public.php/dav/files/7ik4RrBKTS273gp/final0.ckpt"
+					}
+				]
+			},
+			"distribution": {
+				"kind": "reproducibly-derived",
+				"recipe": "config/milestone-7-model-conversion-execution.json",
+				"revision": "fbf2f30b8d9f246b5c6724a31125a2de5a84e010",
+				"environmentSha256": "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"
+			},
+			"artifacts": [
+				{
+					"fileName": "beat-this-final0.onnx",
+					"byteLength": 83176882,
+					"sha256": "62e8445705e1ea0cdf20bf15e02a58f40aa1f1c3d1369291ebc72739425d0128",
+					"url": "https://assets.soundscaper.org/models/beat-this-final0/1.1.0/beat-this-final0.onnx"
+				}
+			]
+		},
+		{
+			"modelId": "transnetv2",
+			"version": "1.0.0",
+			"task": "shot-detection",
+			"platforms": [
+				"darwin-arm64",
+				"linux-x64",
+				"linux-arm64",
+				"win32-x64",
+				"win32-arm64"
+			],
+			"minimumMemoryBytes": 2147483648,
+			"licensingEvidence": {
+				"id": "transnetv2",
+				"sha256": "38a533341c09cc1566f41c1490737ac82fe00e6ec26eac2270d7fa8084226101"
+			},
+			"upstream": {
+				"source": "https://github.com/soCzech/TransNetV2",
+				"revision": "85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed",
+				"artifacts": [
+					{
+						"fileName": "saved_model.pb",
+						"byteLength": 5933260,
+						"sha256": "8ac2a52c5719690d512805b6eaf5ce12097c1d8860b3d9de245dcbbc3100f554",
+						"url": "https://github.com/soCzech/TransNetV2/raw/85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed/inference/transnetv2-weights/saved_model.pb"
+					},
+					{
+						"fileName": "variables.data-00000-of-00001",
+						"byteLength": 30516656,
+						"sha256": "b8c9dc3eb807583e6215cabee9ca61737b3eb1bceff68418b43bf71459669367",
+						"url": "https://github.com/soCzech/TransNetV2/raw/85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed/inference/transnetv2-weights/variables/variables.data-00000-of-00001"
+					},
+					{
+						"fileName": "variables.index",
+						"byteLength": 5526,
+						"sha256": "8b99e28b4ad11372d9a1ad9703298c2e370df14859da4245fdbe818e92dd403f",
+						"url": "https://github.com/soCzech/TransNetV2/raw/85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed/inference/transnetv2-weights/variables/variables.index"
+					}
+				]
+			},
+			"distribution": {
+				"kind": "reproducibly-derived",
+				"recipe": "config/milestone-7-model-conversion-execution.json",
+				"revision": "fbf2f30b8d9f246b5c6724a31125a2de5a84e010",
+				"environmentSha256": "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"
+			},
+			"artifacts": [
+				{
+					"fileName": "network.onnx",
+					"byteLength": 31255509,
+					"sha256": "dd3b4314ac16bb23e7432d934a8695cf8d0f8a2720b5b639ed1a915480736fe2",
+					"url": "https://assets.soundscaper.org/models/transnetv2/1.0.0/network.onnx"
+				}
+			]
+		},
+		{
+			"modelId": "qwen3-4b-q4-k-m",
+			"version": "1.0.0",
+			"task": "editorial-generation",
+			"platforms": [
+				"darwin-arm64",
+				"linux-x64",
+				"linux-arm64",
+				"win32-x64",
+				"win32-arm64"
+			],
+			"minimumMemoryBytes": 17179869184,
+			"licensingEvidence": {
+				"id": "qwen3-4b-q4-k-m",
+				"sha256": "85df28b775c2f4987811c6f45698039f5cf5a4edf8b3999fb246465045a92022"
+			},
+			"upstream": {
+				"source": "https://huggingface.co/Qwen/Qwen3-4B-GGUF",
+				"revision": "bc640142c66e1fdd12af0bd68f40445458f3869b",
+				"artifacts": [
+					{
+						"fileName": "model.gguf",
+						"byteLength": 2497280256,
+						"sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+						"url": "https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/bc640142c66e1fdd12af0bd68f40445458f3869b/Qwen3-4B-Q4_K_M.gguf"
+					}
+				]
+			},
+			"distribution": {
+				"kind": "identity-mirrored"
+			},
+			"artifacts": [
+				{
+					"fileName": "model.gguf",
+					"byteLength": 2497280256,
+					"sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+					"url": "https://assets.soundscaper.org/models/qwen3-4b-q4-k-m/1.0.0/model.gguf"
+				}
+			]
+		},
+		{
+			"modelId": "dereverb-room",
+			"version": "1.0.0",
+			"task": "dereverberation",
+			"platforms": [
+				"darwin-arm64",
+				"linux-x64",
+				"linux-arm64",
+				"win32-x64",
+				"win32-arm64"
+			],
+			"minimumMemoryBytes": 2147483648,
+			"licensingEvidence": {
+				"id": "dereverb-room",
+				"sha256": "d5fadc0a02fbc2325793f79193fdbe0fd822d782b68499a09fee6dcbe7f0cfef"
+			},
+			"upstream": {
+				"source": "https://github.com/ZFTurbo/MSS_ONNX_TensorRT",
+				"revision": "43d939e7671d8ff6cf1922f98c2f2e4b56908e47",
+				"artifacts": [
+					{
+						"fileName": "dereverb_room_anvuew_sdr_13.7432.ckpt",
+						"byteLength": 118128452,
+						"sha256": "2edec521f09e26341c1923dc82c8c52dbc86478b42b9999f679535743c970cb3",
+						"url": "https://huggingface.co/anvuew/dereverb_room/resolve/0b85f5b80b7f779b2dfe80f33a1b35b38af9376d/dereverb_room_anvuew_sdr_13.7432.ckpt"
+					},
+					{
+						"fileName": "dereverb_room_anvuew.yaml",
+						"byteLength": 1991,
+						"sha256": "c37e3039521d79cd1daff129857f69fa80c6a1f383a0fe8cda757f2dfc5032f8",
+						"url": "https://huggingface.co/anvuew/dereverb_room/resolve/0b85f5b80b7f779b2dfe80f33a1b35b38af9376d/dereverb_room_anvuew.yaml"
+					}
+				]
+			},
+			"distribution": {
+				"kind": "reproducibly-derived",
+				"recipe": "config/milestone-7-model-conversion-execution.json",
+				"revision": "fbf2f30b8d9f246b5c6724a31125a2de5a84e010",
+				"environmentSha256": "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"
+			},
+			"artifacts": [
+				{
+					"fileName": "network.onnx",
+					"byteLength": 120133400,
+					"sha256": "da957df2e796612cb77c76ec3f026b8fa7c750a0792ab7cb971df192f368e820",
+					"url": "https://assets.soundscaper.org/models/dereverb-room/1.0.0/network.onnx"
 				}
 			]
 		}

@@ -8,7 +8,7 @@ These expensive checks use `playwright.nightly-local-assistance.config.mjs` and
 in the normal Node suite validate the case manifest, output checks, package
 integration, and generated documentation without downloading models.
 
-Desktop packaging supplies native engines for all 13 published models. ONNX
+Desktop packaging supplies native-engine inputs for all 21 published models. ONNX
 Runtime 1.29.0 is staged from the integrity-verified official npm packages with
 target-specific file hashes in `config/assistance-onnx-runtime-payloads.json`.
 Whisper v1.9.3 is built from pinned source on the package runner; its executable,
@@ -20,12 +20,14 @@ Node-API wrapper using `config/assistance-sherpa-win-arm64-build.json` and the
 recipe's verified native libraries. Each generated model guide lists the exact
 platform intersection between the model catalog and native packaging support.
 
-The required suite now includes **19 cases covering 21 model identities**. Eight
-additional models have prepared cases and guides: wav2vec2 alignment, TIGER,
-room dereverberation, PANNs, both Beat This variants, TransNetV2, and Qwen3.
-Their catalog entries are still pending. A required entry missing from
-the digest-pinned catalog **fails its case**; defining a case does not authorize
-installation, substitute an upstream download, or bypass the catalog's artifact SHA-256 pins.
+The required suite now includes **19 cases covering 21 published model identities**.
+The catalog admits the eight additional models with exact entry and artifact
+SHA-256 pins: wav2vec2 alignment, TIGER, room dereverberation, PANNs, both Beat
+This variants, TransNetV2, and Qwen3. Their catalog-task register deliberately
+keeps activation `pending-external` on `runtime-target-closure`. A required
+catalog entry or authenticated runtime missing from a package **fails its case**;
+defining a case does not authorize a substitute upstream download or bypass any
+artifact or runtime pin.
 Room dereverberation's upstream GPL-3.0 declaration, full license text, and source
 directions are recorded in `LICENSES/local-models/` and `THIRD_PARTY_LICENSES.md`.
 Its dry training corpus and base-checkpoint lineage remain unknown.
@@ -38,13 +40,12 @@ out of JSON output. These changes have input, output, and patch hashes in the
 build receipt. Qwen's production worker still validates strict JSON and candidate
 authority. Packaging the engine does not itself publish the model weights.
 
-**Windows ARM64 catalog approval is pending.** Native build recipes are prepared,
-but the existing digest-pinned catalog admits only Whisper on Windows ARM64. The other
-12 models require a reviewed catalog update with exact SHA-256 pins.
-Until it is published, those published-model cases report explicit platform skips
-on Windows ARM64. The eight entirely unpublished models fail their required cases
-on every target. All 13 published models are admitted on macOS arm64, Linux x64/arm64, and Windows
-x64. The committed catalog keeps its exact artifact pins; packaging support does not
+**Windows ARM64 catalog approval remains pending for 12 existing models.** The
+catalog admits Whisper and the eight newly published models on Windows ARM64;
+the other 12 published identities require a separate reviewed platform update.
+Their cases report explicit platform skips on Windows ARM64. All 21 published
+models are admitted on macOS arm64, Linux x64/arm64, and Windows x64. The
+committed catalog keeps its exact artifact pins; packaging support does not
 override its platform scope or establish that an ARM64 build has passed inference.
 
 The legacy public-supply candidate register can still say `pending-external`:
@@ -64,12 +65,11 @@ platform; retain the report from the actual package run.
   matching the desktop app: **x64** for the x64 package or **ARM64** for the ARM64
   package. ONNX and Sherpa require these runtime libraries; model downloads do
   not include them. Using the distributed app does not require Visual Studio.
-- Allow approximately **2.36 GiB** for the 13 published model downloads, plus
+- Allow approximately **5.32 GiB** for the 21 published model downloads, plus
   packaged runtimes, installation working space, fixtures, and reports. Model
   files come from the public catalog URLs; no model-service account, API key,
-  download token, or other secret is required. Candidate artifacts need additional
-  space once published; Qwen alone adds about **2.33 GiB**. Converted artifact
-  sizes are provisional until their exact published bytes are authenticated.
+  download token, or other secret is required. Qwen alone accounts for about
+  **2.33 GiB**. Every cataloged artifact has an exact authenticated byte length.
 - Keep at least **12 GiB of memory free** for the full planned suite. Qwen
   requires at least **16 GiB total system memory**. The model
   catalog's `minimumMemoryBytes` checks total system memory; the operation host
@@ -213,8 +213,8 @@ runs. A failed or skipped test is not evidence of model quality, and a passing
 small fixture does not guarantee lossless denoising or accurate transcription.
 
 The English [individual model guides](../handbook/src/content/docs/reference/local-models/index.md)
-are generated from `config/local-model-catalog.json`, the required candidate
-identities in `config/milestone-7-model-catalog-tasks.json`, the same real-test case
+are generated from `config/local-model-catalog.json`, the catalog and activation
+evidence in `config/milestone-7-model-catalog-tasks.json`, the same real-test case
 manifest, the Sherpa native inventory and Windows ARM64 build recipe, the ONNX
 payload inventory, and the Whisper and llama stagers' exported versions and build targets.
 These staging sources describe

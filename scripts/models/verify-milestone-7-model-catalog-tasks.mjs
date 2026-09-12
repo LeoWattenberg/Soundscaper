@@ -22,7 +22,7 @@ const register = validateMilestone7ModelCatalogTaskRegister(catalogTaskRegister,
 	parityFixtures,
 	conversionExecution: executionRegister,
 	runtimeSupply,
-	offeredModelIds: checkedCatalog.entries.map(({ modelId }) => modelId),
+	catalogEntries: checkedCatalog.entries,
 });
 
 const report = Object.freeze({

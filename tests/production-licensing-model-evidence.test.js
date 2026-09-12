@@ -179,13 +179,18 @@ test('upstream ambiguity is recorded factually without a named or dated approval
 	const matrix = await readJson(matrixUrl);
 	const byId = new Map(matrix.localModelEvidence.map((record) => [record.id, record]));
 
-	for (const id of ['spleeter', 'demucs-v4-htdemucs', 'transnetv2']) {
+	for (const id of ['spleeter', 'demucs-v4-htdemucs']) {
 		const record = byId.get(id);
 		assert.ok(record, `${id} must be recorded rather than silently omitted`);
 		assert.equal(record.requirements['weights-and-code-license-review'].status, 'recorded');
 		assert.deepEqual(record.blockedBy, ['versioned-download-notices-and-hashes']);
 		assert.equal(record.distributionStatus, 'blocked');
 	}
+	const transnet = byId.get('transnetv2');
+	assert.equal(transnet.requirements['weights-and-code-license-review'].status, 'recorded');
+	assert.equal(transnet.requirements['versioned-download-notices-and-hashes'].status, 'recorded');
+	assert.deepEqual(transnet.blockedBy, []);
+	assert.equal(transnet.distributionStatus, 'permitted');
 	const summaries = matrix.localModelEvidence.flatMap(({ requirements }) =>
 		Object.values(requirements).map(({ summary }) => summary)).join('\n');
 	assert.doesNotMatch(summaries, /kw\.media owner|owner (?:accepted|approved)|on 2026-08-28/iu);
@@ -198,7 +203,9 @@ test('dereverb retains the declared GPL terms and source identities without inve
 	assert.equal(record.codeLicense, 'MIT');
 	assert.equal(record.requirements['weights-and-code-license-review'].status, 'recorded');
 	assert.equal(record.requirements['training-data-provenance-record'].status, 'recorded');
-	assert.deepEqual(record.blockedBy, ['versioned-download-notices-and-hashes']);
+	assert.deepEqual(record.blockedBy, []);
+	assert.equal(record.distributionStatus, 'permitted');
+	assert.equal(record.requirements['versioned-download-notices-and-hashes'].status, 'recorded');
 	assert.match(record.requirements['training-data-provenance-record'].summary, /pyroomacoustics/u);
 	assert.match(record.requirements['training-data-provenance-record'].summary, /unknown/u);
 	assert.doesNotMatch(record.requirements['weights-and-code-license-review'].summary, /author confirmation|stays pending/u);

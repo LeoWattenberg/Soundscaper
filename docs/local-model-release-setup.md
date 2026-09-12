@@ -1,9 +1,12 @@
 # Publishing the additional local models
 
-The eight additional models now have real conversion or native-worker evidence
-and required nightly execution cases. This does not authorize installation:
-Model Manager accepts only entries in the checked-in production catalog, whose
-artifacts and licensing evidence are pinned by SHA-256.
+The eight additional models now have real conversion or native-worker evidence,
+required nightly execution cases, and reviewed entries in the checked-in
+production catalog. Model Manager may install their SHA-256-pinned artifacts;
+execution remains separately fail-closed on the selected target's authenticated
+runtime closure. The catalog-task register therefore records catalog status as
+`ready` while activation remains `pending-external` on
+`runtime-target-closure`.
 
 All eight artifacts have been uploaded to the versioned product asset server and
 verified with public HEAD, byte-range, CORS, and full SHA-256 readback. Their
@@ -20,58 +23,30 @@ licenses. Its instructions reproduce the exact distributed model bytes; public
 readback and clean-extraction verification are in `evidence/model-source-publication/`.
 Keep this source link with the model's download and offline notices.
 
-## Prepare the exact review bundle
+## Applied review record
 
-Commit the reproduced converter, artifact registers, evidence, and notices first.
-Use that commit as the recipe revision. The preparation command refuses a
-revision whose converter and evidence inputs differ from the working tree.
+The reviewed release was prepared from catalog SHA-256
+`fdcd0c72162926611093596708daf6d588e75fb2321a082f0c02b4ec4a6ad01f`
+at recipe revision `fbf2f30b8d9f246b5c6724a31125a2de5a84e010`.
+Its canonical 21-entry payload SHA-256 is
+`3f2d8e731f8a8ee0f7fb828ae95f591bf67814cd3fe0c807a6e1e9f42bfdfed2`.
+Exact verification passed before the catalog and its complete licensing rows
+were applied together. Each task also pins the SHA-256 of its canonical catalog
+entry, and validation recomputes that digest from the offered entry instead of
+trusting a merely well-formed recorded value.
 
-```sh
-node --import tsx scripts/models/prepare-local-model-release.mjs \
-  --output /tmp/soundscaper-local-model-release \
-  --recipe-revision <committed-recipe-sha> \
-  --models wav2vec2-base-960h,tiger-dnr,panns-cnn10,beat-this-small0,beat-this-final0,transnetv2,qwen3-4b-q4-k-m,dereverb-room
-```
+The payload preserves every prior catalog entry and appends only the eight
+reviewed models. It does not broaden prior models' platform admission; a
+separate Windows ARM64 catalog update remains necessary for those identities.
+Generated model guides and runtime-evidence pins are refreshed from the applied
+state. The next distinct model release must use a fresh external output directory
+and unpublished model IDs; the preparation tool deliberately refuses an entry
+already present in the production catalog.
 
-This writes `catalog.payload.json` and `release-bundle.json` in the selected
-fresh directory outside the checkout (use an equivalent temporary path on
-Windows). It verifies the current catalog, public-readback
-receipts, exact source/conversion identities, retained conversion evidence,
-and offline artifact notices. The bundle contains proposed licensing rows
-bound by the candidate catalog. Those rows describe the state after publication;
-preparation does not write them into the production matrix or claim release
-completion. The existing catalog remains intact.
-
-The payload preserves every existing catalog entry and appends the selected
-models. This release does not broaden existing models' platform admission.
-The separate Windows ARM64 catalog update can be reviewed later.
-
-## Review and verify
-
-Review `catalog.payload.json` and its `payloadSha256` in `release-bundle.json`.
-Do not alter the reviewed catalog. Verify the resulting full catalog before
-applying it:
-
-```sh
-node --import tsx scripts/models/prepare-local-model-release.mjs \
-  --output /tmp/soundscaper-local-model-release \
-  --verify-catalog /path/to/reviewed-catalog.json
-```
-
-Verification checks the exact reviewed payload and its SHA-256, its
-licensing-row bindings, and that the base catalog has not changed
-since preparation. It does not replace production files. After it succeeds,
-apply the reviewed catalog and set the matrix's `localModelEvidence` to the
-bundle's `licensingEvidence` rows together, retaining the rest of the matrix. Record each
-entry's canonical SHA-256 in its catalog task and regenerate that task's
-derived blockers. Retain the verified public-readback identities unchanged.
-
-Run policy-narrative synchronization, regenerate the model guides, refresh
-runtime evidence pins, and run the canonical quality gate. Build the
-nightly-with-tests package and execute its real-model phase to verify actual
-catalog installation, Electron IPC, inference, and output validation. The eight
-candidate cases fail explicitly until their required catalog entries exist;
-their direct Linux worker probes are not substitutes for this package test.
+The nightly-with-tests real-model phase remains the executable check for actual
+installation, Electron IPC, inference, and output validation on a particular
+package. Direct Linux worker probes and catalog admission do not substitute for
+the selected target's authenticated runtime closure or packaged test result.
 
 ## Asset publishing credentials
 

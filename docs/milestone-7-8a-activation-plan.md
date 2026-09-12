@@ -9,6 +9,12 @@
 > artifact, runtime, selection, and consent checks still apply. Consult the
 > [nightly model tests](local-model-nightly-tests.md) for current execution coverage.
 
+> **Catalog publication update (2026-09-12):** the reviewed catalog now admits
+> wav2vec2, TIGER-DnR, PANNs Cnn10, both Beat This checkpoints, TransNetV2,
+> Qwen3, and Dereverb Room with complete publication read-back, licensing-row,
+> artifact, and canonical entry SHA-256 evidence. Their catalog tasks remain
+> activation-pending on the separate exact runtime-target closure.
+
 > **Current release note (2026-08-31):** owner-lab, qualification-evidence, and
 > release-admission passages below are historical provenance. They do not gate
 > a release or activate a feature. Current behavior is enforced by the runtime
@@ -40,14 +46,13 @@ cross into ordinary project metadata; raw and unselected output never enters
 shots remain active.
 
 Every implemented model-backed route is visible and enabled for testing. The
-repository has a CPython 3.12,
-hash-locked, offline runner for TIGER, PANNs, Beat This `small0`, and
-TransNetV2 source-framework/ONNX parity, but no converted artifacts or live
-parity result have been retained; their catalog entries do not exist.
+repository has a CPython 3.12 hash-locked offline runner and retained exact
+conversion and source-framework/ONNX parity evidence for TIGER, PANNs, both
+Beat This checkpoints, TransNetV2, and Dereverb Room. Their reviewed catalog
+entries, notices, immutable publication, and full public read-back now exist.
 All five target payload closures for `onnxruntime-node`
 1.29.0, whisper.cpp v1.9.3, and llama.cpp b10509 remain
-`pending-external`, as does the Windows-arm64 Sherpa Node addon. No live EU R2
-publication and public full-SHA-256 read-back has been recorded, and the five
+`pending-external`, as does the Windows-arm64 Sherpa Node addon. The five
 packaged target canaries and owner-device workflows have not run. Those states
 produce typed machine unavailability rather than substitute inference or an
 implicit download. The selected F31 capture route remains active; real-device

@@ -479,15 +479,15 @@ A source pin, direct artifact digest, conversion recipe, parity-fixture shape,
 or locally generated catalog candidate is not an executable machine payload.
 The owner has completed the human license, training-data, and model-card review
 for wav2vec2, TIGER-DnR, PANNs Cnn10, Beat This small0/final0, TransNetV2, and
-Qwen3. Each row still records `versioned-download-notices-and-hashes` as pending.
-TIGER-DnR, PANNs Cnn10, Beat This, and TransNetV2 remain technically unavailable
-until their converted artifact digests and source-framework parity results are
-recorded; wav2vec2 and Qwen remain candidates until executable catalog entries
-land. Reviewed catalog entries and artifact notice/read-back checks
-remain required before model publication. Cataloged byte lengths and hashes authenticate
-downloads and offline preseed, but do not assert that an EU R2 write or public
-read-back occurred. The release publisher must complete public HEAD, Range, and
-full SHA-256 read-back before a catalog is handed to review.
+Qwen3, and Dereverb Room. Their versioned download notices, immutable publication
+receipts, full public SHA-256 read-backs, conversion and parity evidence where
+applicable, and reviewed catalog entries are now recorded. The catalog binds each
+complete licensing row and exact artifact identity by SHA-256. Catalog presence
+authorizes authenticated download and offline preseed, not native execution: the
+additional models remain fail-closed until the selected target's exact runtime
+closure is authenticated. The release publisher must still complete public HEAD,
+Range, and full SHA-256 read-back before any future catalog change is handed to
+review.
 
 Opaque placeholders do not make an unimplemented native feature available, and
 a loader must not accept a missing, changed, wrong-platform, uncontained, or

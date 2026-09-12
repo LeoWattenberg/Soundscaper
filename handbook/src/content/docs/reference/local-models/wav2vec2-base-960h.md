@@ -10,29 +10,27 @@ Align an existing English transcript to the spoken words in a recording.
 
 ## Current availability {#current-availability}
 
-**This model’s digest-pinned catalog publication is pending.** Model Manager cannot currently install it. Required test coverage does not authorize downloads or permit substitute model files.
-
-Desktop builds package the required onnxruntime-node 1.29.0 engine for macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. Model installation still requires its digest-pinned catalog publication. These are supported build targets; consult the nightly test report for results on a particular package and machine.
+The catalog entry is published, but activation remains blocked until the exact onnxruntime-node 1.29.0 runtime target closure is authenticated. Prepared package inputs cover macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64; installing the weights alone does not enable processing. Consult the nightly test report for the exact package and machine exercised.
 
 ## Use this model {#use-this-model}
 
-Once the model is admitted in the catalog and its native runtime is available, the intended workflow is **Analyze → Speech → Transcribe & Captions, or Tools → Advanced Local Processing → Word alignment**. The steps below describe that workflow; this installation cannot currently complete.
+The model is admitted in the catalog, but its exact native runtime closure is not yet authenticated. The intended workflow is **Analyze → Speech → Transcribe & Captions, or Tools → Advanced Local Processing → Word alignment**. The steps below describe that workflow; processing cannot currently complete.
 
 1. Select the speech and prepare or review its English transcript.
-2. Install the alignment model through Model Manager once its catalog entry is available.
+2. Install the alignment model through Model Manager.
 3. Run alignment, then listen while reviewing the proposed word boundaries before accepting them.
 
 ## Download and requirements {#download-and-requirements}
 
 Model identity: `wav2vec2-base-960h`, version **1.0.0**.
 
-Approximate candidate artifact size: **360.38 MiB**. Minimum system memory: **4 GiB**. This candidate requirement refers to total memory, not currently free memory. Inference also needs sufficient free memory, and installation needs working space; memory is not a speed guarantee.
+Approximate download size: **360.38 MiB**. Minimum system memory: **4 GiB**. This catalog requirement refers to total memory, not currently free memory. Inference also needs sufficient free memory, and installation needs working space; memory is not a speed guarantee.
 
-Planned platforms: macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. A matching packaged runtime and catalog publication are required.
+Published platforms: macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. A matching packaged runtime is also required.
 
 On Windows, install the latest supported [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) matching the desktop app: **x64** for an x64 build or **ARM64** for an ARM64 build. The native ONNX and Sherpa engines require these libraries; model downloads do not include them. Visual Studio itself is not required to use the app.
 
-These candidate artifact names describe the required package. They are not download instructions. Model Manager will expose verified installation only after the digest-pinned catalog admits them.
+Tools → Model Manager downloads the published artifacts and verifies their recorded SHA-256 digests. Processing uses the installed files locally. Open Storage and verification in Model Manager to inspect notices, repair an installation, or change the storage location.
 
 | Artifact | Approximate download size |
 | --- | --- |

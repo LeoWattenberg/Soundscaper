@@ -25,7 +25,9 @@ const digest = (value) => createHash('sha256').update(value).digest('hex');
 const runFile = promisify(execFile);
 
 function fixture(modelId = 'qwen3-4b-q4-k-m') {
-	const options = structuredClone({ catalog, licensingEvidence, tasks, supply, execution, parityFixtures,
+	const baseCatalog = { ...catalog,
+		entries: catalog.entries.filter((entry) => entry.modelId !== modelId) };
+	const options = structuredClone({ catalog: baseCatalog, licensingEvidence, tasks, supply, execution, parityFixtures,
 		conversionEvidence, modelIds: [modelId], recipeRevision: '1'.repeat(40) });
 	const task = options.tasks.find(({ catalogModelId }) => catalogModelId === modelId);
 	const artifacts = task.artifacts.map((artifact) => ({ fileName: artifact.distributionFileName,
@@ -47,7 +49,7 @@ test('release preparation preserves the base and derives only reviewed additions
 	assert.equal(bundle.status, 'awaiting-catalog-review');
 	assert.equal(bundle.baseCatalogSha256, digest(before));
 	assert.equal(bundle.payloadSha256, digest(canonicalJson(bundle.payload)));
-	assert.deepEqual(bundle.payload.entries.slice(0, -1), catalog.entries);
+	assert.deepEqual(bundle.payload.entries.slice(0, -1), options.catalog.entries);
 	const added = bundle.payload.entries.at(-1);
 	assert.equal(added.modelId, 'qwen3-4b-q4-k-m');
 	assert.equal(added.distribution.kind, 'identity-mirrored');

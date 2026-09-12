@@ -20,13 +20,13 @@ const FIVE_PLATFORMS = Object.freeze([
 	'darwin-arm64', 'linux-x64', 'linux-arm64', 'win32-x64', 'win32-arm64',
 ]);
 
-function validate(value = catalogTasks) {
+function validate(value = catalogTasks, catalogEntries = checkedCatalog.entries) {
 	return validateMilestone7ModelCatalogTaskRegister(value, {
 		modelSupply,
 		parityFixtures,
 		conversionExecution: executionRegister,
 		runtimeSupply,
-		offeredModelIds: checkedCatalog.entries.map(({ modelId }) => modelId),
+		catalogEntries,
 	});
 }
 
@@ -34,7 +34,7 @@ function clone(value) {
 	return structuredClone(value);
 }
 
-test('eight pending catalog tasks map every Milestone 7 supply identity exactly', () => {
+test('eight published catalog tasks map every Milestone 7 supply identity exactly', () => {
 	const register = validate();
 	assert.deepEqual(register.tasks.map(({ catalogModelId }) => catalogModelId), [
 		'wav2vec2-base-960h',
@@ -52,14 +52,13 @@ test('eight pending catalog tasks map every Milestone 7 supply identity exactly'
 	]);
 	for (const task of register.tasks) {
 		assert.deepEqual(task.platforms, FIVE_PLATFORMS);
-		assert.equal(task.catalogStatus, 'pending-external');
+		assert.equal(task.catalogStatus, 'ready');
 		assert.equal(task.activationStatus, 'pending-external');
 		assert.ok(!task.catalogBlockedBy.includes('licensing-evidence'));
 		assert.ok(!Object.keys(task).some((field) => /releaseReview/iu.test(field)));
-		assert.equal(task.catalogBlockedBy.includes('immutable-public-readback'), task.releaseEvidence.publicReadbackSha256 === null);
-		assert.ok(task.catalogBlockedBy.includes('catalog-publication'));
-		assert.ok(task.activationBlockedBy.includes('runtime-target-closure'));
-		assert.ok(!checkedCatalog.entries.some(({ modelId }) =>
+		assert.deepEqual(task.catalogBlockedBy, []);
+		assert.deepEqual(task.activationBlockedBy, ['runtime-target-closure']);
+		assert.ok(checkedCatalog.entries.some(({ modelId }) =>
 			modelId === task.catalogModelId));
 	}
 });
@@ -156,10 +155,22 @@ test('every recorded public readback binds retained proof and exact distribution
 	}
 });
 
-test('task validation rejects optimistic publication, invented outputs, and platform drift', () => {
-	const optimistic = clone(catalogTasks);
-	optimistic.tasks[0].catalogStatus = 'ready';
-	assert.throws(() => validate(optimistic), /catalogStatus|pending|blocker/iu);
+test('recorded catalog-entry evidence pins the canonical offered entry', () => {
+	assert.doesNotThrow(() => validate());
+	const entries = clone(checkedCatalog.entries);
+	const entry = entries.find(({ modelId }) =>
+		modelId === catalogTasks.tasks[0].catalogModelId);
+	entry.minimumMemoryBytes += 1;
+	assert.throws(
+		() => validate(catalogTasks, entries),
+		/catalog.entry.*SHA-256|catalog.*digest/iu,
+	);
+});
+
+test('task validation rejects pessimistic publication, invented outputs, and platform drift', () => {
+	const pessimistic = clone(catalogTasks);
+	pessimistic.tasks[0].catalogStatus = 'pending-external';
+	assert.throws(() => validate(pessimistic), /catalogStatus|ready|blocker/iu);
 
 	const invented = clone(catalogTasks);
 	invented.tasks[1].artifacts[0].sha256 = 'ab'.repeat(32);
@@ -184,7 +195,7 @@ test('task validation rejects optimistic publication, invented outputs, and plat
 	assert.throws(() => validate(omittedBlocker), /activationBlockedBy|blocker/iu);
 });
 
-test('the catalog-task verifier is non-activating and reports every external blocker', () => {
+test('the catalog-task verifier reports publication while preserving runtime blockers', () => {
 	const result = spawnSync(process.execPath,
 		['scripts/models/verify-milestone-7-model-catalog-tasks.mjs'], {
 			cwd: new URL('..', import.meta.url), encoding: 'utf8',
@@ -192,9 +203,10 @@ test('the catalog-task verifier is non-activating and reports every external blo
 	assert.equal(result.status, 0, result.stderr);
 	const report = JSON.parse(result.stdout);
 	assert.equal(report.schemaVersion, 1);
-	assert.equal(report.productionCatalogChanged, false);
+	assert.equal(report.productionCatalogChanged, true);
 	assert.equal(report.tasks.length, 8);
-	assert.ok(report.tasks.every(({ catalogStatus }) => catalogStatus === 'pending-external'));
+	assert.ok(report.tasks.every(({ catalogStatus }) => catalogStatus === 'ready'));
 	assert.ok(report.tasks.every(({ activationBlockedBy }) =>
-		activationBlockedBy.includes('runtime-target-closure')));
+		activationBlockedBy.length === 1
+			&& activationBlockedBy[0] === 'runtime-target-closure'));
 });

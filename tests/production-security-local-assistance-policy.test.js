@@ -93,6 +93,14 @@ test('Milestone 7 policy records conditional workflow activation and its machine
 	assert.ok(supplyControl);
 	assert.match(supplyControl.summary,
 		/stream.*disk.*multipart.*public.*SHA-256 read-back.*repository-external review.*recorded per artifact.*unit tests.*do not establish remote availability/isu);
+	assert.match(supplyControl.summary,
+		/reviewed wav2vec2.*TIGER.*PANNs.*Beat This.*TransNetV2.*Qwen3.*Dereverb.*complete versioned notices.*immutable public read-back.*catalog tasks recompute.*canonical offered entry.*runtime-target closure/isu);
+	for (const path of [
+		'config/milestone-7-model-catalog-tasks.json',
+		'scripts/models/milestone-7-model-catalog-tasks.mjs',
+		'tests/milestone-7-model-catalog-tasks.test.mjs',
+	]) assert.ok(supplyControl.evidence.some(({ path: evidencePath }) =>
+		evidencePath === path), path);
 	assert.ok(diagnosticsRisk);
 	assert.match(diagnosticsRisk.exposure,
 		/Retained Linux x64 conversions.*TIGER.*both Beat This checkpoints.*passing source-framework\/ONNX comparisons.*direct production-worker smoke.*Windows ARM64.*generated target manifests/isu);

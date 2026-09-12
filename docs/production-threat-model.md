@@ -1563,19 +1563,23 @@ dynamic-library closure, malicious selected executable, broad interoperability,
 performance, aggregate codec memory, or patent clearance.
 
 The active local-model path adds a distinct authenticated supply boundary. A
-canonical catalog is verified against pinned current and successor
-public keys before its thirteen permitted entries are parsed. Every entry pins
-one complete licensing row, immutable upstream provenance, its distribution
-method, and exact artifact geometry and digests; refused or incomplete rows do
-not enter the catalog. Install and offline preseed are explicit. Resumable
+canonical V2 catalog and its licensing register are validated before its 21
+permitted entries are parsed. Every entry pins one complete licensing row,
+immutable upstream provenance, its distribution method, and exact artifact
+geometry and digests; refused or incomplete rows do not enter the catalog. The
+eight additional catalog tasks also recompute each recorded entry SHA-256 over
+the canonical offered entry and remain activation-pending on the independent
+runtime-target closure. Install and offline preseed are explicit. Resumable
 downloads publish only after full SHA-256 verification into a content-addressed
 filesystem store, and execution-time resolution reauthenticates the installed
 manifest and every blob. Corruption or external deletion makes the model
 unavailable rather than triggering silent repair or execution. Relocation
 copies, verifies, and swaps; cancellation waits for download quiescence. The
-catalog and publisher bind an EU R2 bucket and immutable public URLs, but no
-real remote write or read-back is recorded here. Missing mirror objects are an
-availability failure and do not authorize an unpinned upstream fallback. The
+catalog and publisher bind an EU R2 bucket and immutable public URLs. Retained
+publication receipts record public HEAD, Range, CORS, and full-digest read-back
+for the eight newly admitted models; those receipts do not authenticate a
+native runtime target. Missing mirror objects are an availability failure and
+do not authorize an unpinned upstream fallback. The
 separately packaged Sherpa runtime has its own exact target manifest and double
 verification described under native helpers.
 
