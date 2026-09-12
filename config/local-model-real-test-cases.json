@@ -9,7 +9,7 @@
 				"modelTitles": { "wav2vec2-base-960h": "wav2vec2 base 960h word alignment" },
 				"summary": "Align an existing English transcript to the spoken words in a recording.",
 				"menu": "Analyze → Speech → Transcribe & Captions, or Tools → Advanced Local Processing → Word alignment",
-				"steps": ["Select the speech and prepare or review its English transcript.", "Install the alignment model through Model Manager once its signed catalog entry is available.", "Run alignment, then listen while reviewing the proposed word boundaries before accepting them."],
+				"steps": ["Select the speech and prepare or review its English transcript.", "Install the alignment model through Model Manager once its catalog entry is available.", "Run alignment, then listen while reviewing the proposed word boundaries before accepting them."],
 				"limitations": ["This model aligns supplied English words; it does not translate or repair an incorrect transcript.", "Repeated words, background speech, and missing transcript words can produce incorrect boundaries. The test checks ordered in-range word timings against the supplied word inventory, not a perfect timing match."]
 			}
 		},
@@ -21,7 +21,7 @@
 				"modelTitles": { "tiger-dnr": "TIGER dialogue, music, and effects" },
 				"summary": "Separate a mixed soundtrack into dialogue, music, and effects proposals.",
 				"menu": "Tools → Advanced Local Processing → Source separation",
-				"steps": ["Select the mixed audio to separate.", "Install TIGER through Model Manager once its signed catalog entry is available, then run source separation.", "Audition each proposed stem before adding the wanted results to the project."],
+				"steps": ["Select the mixed audio to separate.", "Install TIGER through Model Manager once its catalog entry is available, then run source separation.", "Audition each proposed stem before adding the wanted results to the project."],
 				"limitations": ["Separation can leave leakage or artifacts; it is not lossless recovery of original recording tracks.", "The mixed fixture test requires all three stems, finite correctly sized audio, and changed non-silent samples in each stem. It also rejects duplicated stems; it does not measure separation quality."]
 			}
 		},
@@ -33,7 +33,7 @@
 				"modelTitles": { "dereverb-room": "Room dereverberation" },
 				"summary": "Reduce room reflections in recorded speech with a local dereverberation model.",
 				"menu": "Tools → Advanced Local Processing → Dereverberation",
-				"steps": ["Select speech affected by room reflections.", "After signed catalog publication, install the model through Model Manager and run dereverberation.", "Compare the result with the original and accept it only if the speech sounds better."],
+				"steps": ["Select speech affected by room reflections.", "After catalog publication, install the model through Model Manager and run dereverberation.", "Compare the result with the original and accept it only if the speech sounds better."],
 				"limitations": ["Strong reflections, music, and unfamiliar rooms can produce artifacts or remove wanted detail.", "Changed, non-silent audio confirms processing, not complete reverb removal or perceptual improvement.", "The model declares GPL-3.0; preserve its license and corresponding-source directions when redistributing it. The dry training corpus and base-checkpoint lineage are unknown."]
 			}
 		},
@@ -45,7 +45,7 @@
 				"modelTitles": { "panns-cnn10": "PANNs CNN10 audio tags" },
 				"summary": "Suggest audible event categories for indexing and reaction markers.",
 				"menu": "Tools → Advanced Local Processing → Audio tagging",
-				"steps": ["Select the audio you want to analyze.", "Install PANNs through Model Manager once its signed catalog entry is available, then run audio tagging.", "Review the proposed labels and their time ranges before accepting markers or using them to search."],
+				"steps": ["Select the audio you want to analyze.", "Install PANNs through Model Manager once its catalog entry is available, then run audio tagging.", "Review the proposed labels and their time ranges before accepting markers or using them to search."],
 				"limitations": ["Labels are uncertain predictions from a fixed category list, not a detailed transcript or verified description.", "The test requires readable supported labels and finite bounded scores; it does not prescribe one exact label or ranking."]
 			}
 		},
@@ -57,7 +57,7 @@
 				"modelTitles": { "beat-this-small0": "Beat This small" },
 				"summary": "Find beat positions in music using the smaller Beat This model.",
 				"menu": "Tools → Advanced Local Processing → Beat tracking",
-				"steps": ["Select a passage of rhythmic music.", "Install Beat This small through Model Manager once its signed catalog entry is available and select that exact model for beat tracking.", "Listen to the proposed beat grid before accepting beat markers or a tempo proposal."],
+				"steps": ["Select a passage of rhythmic music.", "Install Beat This small through Model Manager once its catalog entry is available and select that exact model for beat tracking.", "Listen to the proposed beat grid before accepting beat markers or a tempo proposal."],
 				"limitations": ["Beat tracking can follow half-time or double-time patterns, and irregular music can produce missed beats.", "The separate small-model test checks ordered beat positions within the audio and finite positive tempo data, without requiring exact beat times."]
 			}
 		},
@@ -69,7 +69,7 @@
 				"modelTitles": { "beat-this-final0": "Beat This final" },
 				"summary": "Find music beats with the larger optional Beat This model.",
 				"menu": "Tools → Advanced Local Processing → Beat tracking",
-				"steps": ["Select music with a clear rhythmic passage.", "Install Beat This final through Model Manager once its signed catalog entry is available and choose its exact model identity.", "Review the proposed beats and tempo against the music before accepting them."],
+				"steps": ["Select music with a clear rhythmic passage.", "Install Beat This final through Model Manager once its catalog entry is available and choose its exact model identity.", "Review the proposed beats and tempo against the music before accepting them."],
 				"limitations": ["The larger model needs more memory and is not guaranteed to improve every recording.", "This model has its own real inference case. Its test cannot be satisfied by running the smaller model instead."]
 			}
 		},
@@ -81,7 +81,7 @@
 				"modelTitles": { "transnetv2": "TransNetV2 shot detection" },
 				"summary": "Find shot transitions in video using the accurate local model path.",
 				"menu": "Framescaper: Tools → Advanced Local Processing → Shot detection",
-				"steps": ["Select video in Framescaper.", "Install TransNetV2 through Model Manager once its signed catalog entry is available and choose model-based shot detection.", "Review proposed shot boundaries before adding annotations or using them to plan edits."],
+				"steps": ["Select video in Framescaper.", "Install TransNetV2 through Model Manager once its catalog entry is available and choose model-based shot detection.", "Review proposed shot boundaries before adding annotations or using them to plan edits."],
 				"limitations": ["Fades, flashes, camera movement, and very short shots can confuse boundary detection.", "The test supplies a known visual cut and requires valid nonempty model-derived boundaries within the source frames. It does not substitute the separate model-free fast-shot detector."]
 			}
 		},
@@ -93,7 +93,7 @@
 				"modelTitles": { "qwen3-4b-q4-k-m": "Qwen3 4B editorial proposals" },
 				"summary": "Suggest titles, hooks, chapters, and explanations for existing highlight candidates.",
 				"menu": "Framescaper: Tools → Advanced Local Processing → Editorial generation",
-				"steps": ["Prepare and review highlight candidates from your selected media.", "Once its signed catalog entry is available, install Qwen through Model Manager and opt into editorial generation.", "Review every text proposal before accepting it. Only the authorized candidate identities and requested text fields are eligible."],
+				"steps": ["Prepare and review highlight candidates from your selected media.", "Once its catalog entry is available, install Qwen through Model Manager and opt into editorial generation.", "Review every text proposal before accepting it. Only the authorized candidate identities and requested text fields are eligible."],
 				"limitations": ["Generated wording can be misleading or repetitive. It is a proposal based on supplied evidence, not verified factual analysis.", "The model runs locally on the CPU and requires at least 16 GiB total system memory plus sufficient free memory. Short requests can still take minutes.", "The test requires strict JSON, every authorized candidate exactly once, and readable requested fields. It rejects commands, paths, markup, new timings, foreign candidates, and malformed output rather than applying them."]
 			}
 		},

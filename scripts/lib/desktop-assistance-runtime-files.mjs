@@ -86,7 +86,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/external-ffmpeg-shot-detector.js',
 	'desktop/local-model-capacity.js',
 	'desktop/local-model-catalog.js',
-	'desktop/local-model-catalog-signature.js',
+	'desktop/local-model-catalog-integrity.js',
 	'desktop/local-model-download.js',
 	'desktop/local-model-garbage-collection.js',
 	'desktop/local-model-install-plan.js',

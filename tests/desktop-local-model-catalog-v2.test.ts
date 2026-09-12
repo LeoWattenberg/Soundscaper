@@ -1,30 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { createPublicKey, generateKeyPairSync, sign } from 'node:crypto';
 import test from 'node:test';
 
 import {
 	canonicalJson,
-	LOCAL_MODEL_CATALOG_CURRENT_KEY_ID,
-	LOCAL_MODEL_CATALOG_NEXT_KEY_ID,
-	LOCAL_MODEL_CATALOG_TRUSTED_KEYS,
 	localModelEvidenceSha256,
-	verifyLocalModelCatalogSignature,
-} from '../desktop/local-model-catalog-signature.ts';
+} from '../desktop/local-model-catalog-integrity.ts';
 import {
 	LOCAL_MODEL_CATALOG_SCHEMA_VERSION,
 	LOCAL_MODEL_TASKS,
 	validateLocalModelCatalog,
 } from '../desktop/local-model-catalog.ts';
-
-const { privateKey, publicKey } = generateKeyPairSync('ed25519');
-const TEST_KEY_ID = 'test-catalog-key';
-const TEST_TRUST = Object.freeze({
-	trustedKeys: Object.freeze({
-		[TEST_KEY_ID]: publicKey.export({ format: 'pem', type: 'spki' }).toString(),
-	}),
-});
 
 const ARTIFACT = Object.freeze({
 	fileName: 'model.onnx',
@@ -81,8 +68,8 @@ function entryFor(
 	};
 }
 
-function signedCatalog(entries: readonly unknown[], signatureOverrides: Record<string, unknown> = {}): unknown {
-	const payload = {
+function catalog(entries: readonly unknown[]): unknown {
+	return {
 		schemaVersion: LOCAL_MODEL_CATALOG_SCHEMA_VERSION,
 		publication: {
 			bucket: 'soundscaper-assets',
@@ -92,28 +79,19 @@ function signedCatalog(entries: readonly unknown[], signatureOverrides: Record<s
 		},
 		entries,
 	};
-	return {
-		...payload,
-		signature: {
-			algorithm: 'Ed25519',
-			keyId: TEST_KEY_ID,
-			value: sign(null, Buffer.from(canonicalJson(payload)), privateKey).toString('base64'),
-			...signatureOverrides,
-		},
-	};
 }
 
 function validate(value: unknown, licensingEvidence: readonly unknown[], refusedIds: readonly string[] = []) {
-	return validateLocalModelCatalog(value, { licensingEvidence, refusedIds }, TEST_TRUST);
+	return validateLocalModelCatalog(value, { licensingEvidence, refusedIds });
 }
 
-test('V2 admits a signed identity mirror bound to its exact permitted evidence', () => {
+test('V2 admits an identity mirror bound to its exact permitted evidence SHA-256', () => {
 	const record = evidence();
-	const catalog = validate(signedCatalog([entryFor(record)]), [record]);
+	const validated = validate(catalog([entryFor(record)]), [record]);
 
-	assert.equal(catalog.schemaVersion, 2);
-	assert.equal(catalog.entries[0]?.distribution.kind, 'identity-mirrored');
-	assert.equal(catalog.entries[0]?.artifacts[0]?.sha256, ARTIFACT.sha256);
+	assert.equal(validated.schemaVersion, 2);
+	assert.equal(validated.entries[0]?.distribution.kind, 'identity-mirrored');
+	assert.equal(validated.entries[0]?.artifacts[0]?.sha256, ARTIFACT.sha256);
 	assert.equal(
 		localModelEvidenceSha256({ requirements: record.requirements, id: record.id,
 			evidence: record.evidence, blockedBy: record.blockedBy, distributionStatus: record.distributionStatus }),
@@ -144,61 +122,36 @@ test('V2 distinguishes a reproducibly derived artifact from an identity mirror',
 		environmentSha256: 'c'.repeat(64),
 	};
 
-	const catalog = validate(signedCatalog([entryFor(record, {
+	const validated = validate(catalog([entryFor(record, {
 		distribution: derivation,
 		artifacts: [derivedArtifact],
 	})]), [record]);
-	assert.deepEqual(catalog.entries[0]?.distribution, derivation);
+	assert.deepEqual(validated.entries[0]?.distribution, derivation);
 
 	assert.throws(
-		() => validate(signedCatalog([entryFor(record, {
+		() => validate(catalog([entryFor(record, {
 			distribution: { kind: 'reproducibly-derived' },
 			artifacts: [derivedArtifact],
 		})]), [record]),
 		/derived distribution needs a pinned recipe/iu,
 	);
 	assert.throws(
-		() => validate(signedCatalog([entryFor(record, { artifacts: [derivedArtifact] })]), [record]),
+		() => validate(catalog([entryFor(record, { artifacts: [derivedArtifact] })]), [record]),
 		/identity-mirrored .* does not match its upstream bytes/iu,
 	);
 });
 
-test('an unsigned, corruptly signed, or unknown-key catalog is refused', () => {
-	const record = evidence();
-	const signed = signedCatalog([entryFor(record)]) as Record<string, unknown>;
-	const { signature: _signature, ...unsigned } = signed;
-
-	assert.throws(() => validate(unsigned, [record]), /needs an Ed25519 signature/iu);
-	assert.throws(
-		() => validate({ ...signed, entries: [] }, [record]),
-		/signature is invalid/iu,
-	);
-	assert.throws(
-		() => validate(signedCatalog([entryFor(record)], { keyId: 'unknown-key' }), [record]),
-		/signing key is not trusted/iu,
-	);
-});
-
-test('production pins distinct current and successor Ed25519 catalog keys', async () => {
-	assert.deepEqual(Object.keys(LOCAL_MODEL_CATALOG_TRUSTED_KEYS), [
-		LOCAL_MODEL_CATALOG_CURRENT_KEY_ID,
-		LOCAL_MODEL_CATALOG_NEXT_KEY_ID,
-	]);
-	assert.notEqual(
-		LOCAL_MODEL_CATALOG_TRUSTED_KEYS[LOCAL_MODEL_CATALOG_CURRENT_KEY_ID],
-		LOCAL_MODEL_CATALOG_TRUSTED_KEYS[LOCAL_MODEL_CATALOG_NEXT_KEY_ID],
-	);
-	for (const pem of Object.values(LOCAL_MODEL_CATALOG_TRUSTED_KEYS)) {
-		assert.equal(createPublicKey(pem).asymmetricKeyType, 'ed25519');
-	}
-
+test('the catalog is plain data and retains deterministic SHA-256 review pins', async () => {
 	const checkedIn = (await import('../config/local-model-catalog.json', {
 		with: { type: 'json' },
-	})).default;
-	assert.equal(checkedIn.signature.keyId, LOCAL_MODEL_CATALOG_CURRENT_KEY_ID);
-	assert.doesNotThrow(() => verifyLocalModelCatalogSignature(checkedIn, {
-		trustedKeys: { [LOCAL_MODEL_CATALOG_CURRENT_KEY_ID]: TEST_TRUST.trustedKeys[TEST_KEY_ID]! },
-	}));
+	})).default as Record<string, unknown>;
+	assert.equal(checkedIn.signature, undefined);
+	assert.match(localModelEvidenceSha256(checkedIn), /^[a-f\d]{64}$/u);
+	assert.equal(localModelEvidenceSha256(checkedIn), localModelEvidenceSha256(JSON.parse(canonicalJson(checkedIn))));
+	assert.throws(
+		() => validate({ ...checkedIn, signature: { algorithm: 'Ed25519' } }, []),
+		/contain only schemaVersion, publication, and entries/iu,
+	);
 });
 
 test('distribution metadata does not override fail-closed evidence identity', () => {
@@ -211,23 +164,23 @@ test('distribution metadata does not override fail-closed evidence identity', ()
 		[evidence('example-model', 'permitted', 'unresolved'), []],
 	] as const) {
 		assert.doesNotThrow(() => validate(
-			signedCatalog([entryFor(record)]), [record], [...refusedIds],
+			catalog([entryFor(record)]), [record], [...refusedIds],
 		));
 	}
 	assert.throws(
-		() => validate(signedCatalog([entry]), []),
+		() => validate(catalog([entry]), []),
 		/needs exactly one licensing evidence record/iu,
 	);
 	assert.throws(
-		() => validate(signedCatalog([entry]), [permitted, permitted]),
+		() => validate(catalog([entry]), [permitted, permitted]),
 		/needs exactly one licensing evidence record/iu,
 	);
 	assert.throws(
-		() => validate(signedCatalog([entry]), [{ ...permitted, blockedBy: ['unresolved-review'] }]),
+		() => validate(catalog([entry]), [{ ...permitted, blockedBy: ['unresolved-review'] }]),
 		/licensing evidence digest does not match/iu,
 	);
 	assert.throws(
-		() => validate(signedCatalog([entry]), [{ ...permitted, purpose: 'Evidence changed after signing.' }]),
+		() => validate(catalog([entry]), [{ ...permitted, purpose: 'Evidence changed after publication.' }]),
 		/licensing evidence digest does not match/iu,
 	);
 });
@@ -235,7 +188,7 @@ test('distribution metadata does not override fail-closed evidence identity', ()
 test('an offered V2 entry cannot leave its distribution artifacts unresolved', () => {
 	const record = evidence();
 	assert.throws(
-		() => validate(signedCatalog([entryFor(record, { artifacts: null })]), [record]),
+		() => validate(catalog([entryFor(record, { artifacts: null })]), [record]),
 		/distribution artifacts must be a non-empty array/iu,
 	);
 });

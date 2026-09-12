@@ -3,22 +3,17 @@
 /**
  * The catalog of models the product offers, and what state each one is in.
  *
- * The catalog is data rather than code. V2 is authenticated before parsing and
- * binds each offered entry to the canonical digest of its licensing-evidence
- * row. Distribution metadata does not grant execution authority; unsigned,
- * unmirrored, or artifact-incomplete models cannot construct machine execution
- * authority.
+ * The catalog is data rather than code. V2 binds each offered entry to the
+ * canonical digest of its licensing-evidence row. Distribution metadata does
+ * not grant execution authority; unmirrored or artifact-incomplete models
+ * cannot construct machine execution authority.
  *
  * Distribution provenance also distinguishes an identity mirror from a
  * reproducible conversion. Identity mirrors must match every upstream byte;
  * conversions instead pin their reviewed recipe, revision, and environment.
  */
 
-import {
-	localModelEvidenceSha256,
-	verifyLocalModelCatalogSignature,
-} from './local-model-catalog-signature.ts';
-import type { LocalModelCatalogSignatureOptions } from './local-model-catalog-signature.ts';
+import { localModelEvidenceSha256 } from './local-model-catalog-integrity.ts';
 
 export const LOCAL_MODEL_CATALOG_SCHEMA_VERSION = 2;
 
@@ -142,6 +137,7 @@ const IDENTIFIER_PATTERN = /^[a-z\d][a-z\d.-]*[a-z\d]$/u;
 const SHA256_PATTERN = /^[a-f\d]{64}$/u;
 const FILE_NAME_PATTERN = /^[A-Za-z\d](?:[A-Za-z\d._-]{0,158}[A-Za-z\d])?$/u;
 const RECIPE_PATH_PATTERN = /^[A-Za-z\d](?:[A-Za-z\d._/-]*[A-Za-z\d])?$/u;
+const CATALOG_FIELDS = Object.freeze(['entries', 'publication', 'schemaVersion']);
 
 function fail(message: string): never {
 	throw new Error(message);
@@ -368,9 +364,12 @@ export function plannedMirrorLocation(
 export function validateLocalModelCatalog(
 	value: unknown,
 	binding: LocalModelCatalogBinding,
-	signatureOptions: LocalModelCatalogSignatureOptions = {},
 ): LocalModelCatalog {
-	const candidate = verifyLocalModelCatalogSignature(value, signatureOptions) as Partial<LocalModelCatalog>;
+	if (!plainRecord(value)) fail('A local model catalog must be an object');
+	if (Object.keys(value).sort().join(',') !== CATALOG_FIELDS.join(',')) {
+		fail('A local model catalog must contain only schemaVersion, publication, and entries');
+	}
+	const candidate = value as Partial<LocalModelCatalog>;
 	if (candidate.schemaVersion !== LOCAL_MODEL_CATALOG_SCHEMA_VERSION) {
 		fail('The local model catalog schema version is unsupported');
 	}

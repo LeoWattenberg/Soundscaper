@@ -10,5 +10,5 @@ package file list as recorded in the receipt.
 
 The reproduced ONNX is byte-identical to the distributed model. A separate
 waveform comparison passes against the source framework. These checks establish
-source availability and reproducibility; they do not replace catalog signing,
+source availability and reproducibility; they do not replace catalog publication,
 Electron installation tests, or perceptual-quality review.

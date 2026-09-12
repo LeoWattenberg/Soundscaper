@@ -3,7 +3,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { prepareLocalModelReleaseBundle, verifySignedLocalModelReleaseBundle,
+import { prepareLocalModelReleaseBundle, verifyReviewedLocalModelReleaseBundle,
 	verifyLocalModelRecipeRevision, writeLocalModelReleaseReview } from './local-model-release-bundle.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
@@ -11,21 +11,21 @@ const options = new Map();
 for (let index = 2; index < process.argv.length; index += 2) {
 	const flag = process.argv[index];
 	const value = process.argv[index + 1];
-	if (!['--output', '--models', '--recipe-revision', '--verify-signed'].includes(flag) || !value || options.has(flag)) {
-		throw new Error('Use --output directory --models comma-separated-ids --recipe-revision committed-sha, or --output directory --verify-signed file.');
+	if (!['--output', '--models', '--recipe-revision', '--verify-catalog'].includes(flag) || !value || options.has(flag)) {
+		throw new Error('Use --output directory --models comma-separated-ids --recipe-revision committed-sha, or --output directory --verify-catalog file.');
 	}
 	options.set(flag, value);
 }
-if (!options.has('--output')) throw new Error('Choose an --output directory for the unsigned review bundle.');
+if (!options.has('--output')) throw new Error('Choose an --output directory for the review bundle.');
 const output = resolve(options.get('--output'));
 const read = async (file) => JSON.parse(await readFile(resolve(root, file), 'utf8'));
 const catalog = await read('config/local-model-catalog.json');
-if (options.has('--verify-signed')) {
-	if (options.size !== 2) throw new Error('Signed verification accepts only --output and --verify-signed.');
+if (options.has('--verify-catalog')) {
+	if (options.size !== 2) throw new Error('Catalog verification accepts only --output and --verify-catalog.');
 	const bundle = JSON.parse(await readFile(resolve(output, 'release-bundle.json'), 'utf8'));
-	const signed = JSON.parse(await readFile(resolve(options.get('--verify-signed')), 'utf8'));
-	const result = verifySignedLocalModelReleaseBundle(bundle, signed, catalog);
-	console.log(`Verified the authorized signature and exact reviewed payload (${result.entries.length} models). Production files were not changed.`);
+	const reviewed = JSON.parse(await readFile(resolve(options.get('--verify-catalog')), 'utf8'));
+	const result = verifyReviewedLocalModelReleaseBundle(bundle, reviewed, catalog);
+	console.log(`Verified the reviewed catalog and its exact SHA-256-pinned payload (${result.entries.length} models). Production files were not changed.`);
 } else {
 	if (!options.has('--models') || !options.has('--recipe-revision')) throw new Error('Preparation requires --models and --recipe-revision.');
 	await verifyLocalModelRecipeRevision({ repositoryRoot: root, recipeRevision: options.get('--recipe-revision') });
@@ -48,5 +48,5 @@ if (options.has('--verify-signed')) {
 		notices: await readFile(resolve(root, 'THIRD_PARTY_LICENSES.md'), 'utf8'),
 		recipeRevision: options.get('--recipe-revision') });
 	await writeLocalModelReleaseReview({ repositoryRoot: root, output, bundle });
-	console.log(`Prepared ${modelIds.length} additions for the existing authorized catalog signer. Payload SHA-256: ${bundle.payloadSha256}. Production files were not changed.`);
+	console.log(`Prepared ${modelIds.length} catalog additions for review. Payload SHA-256: ${bundle.payloadSha256}. Production files were not changed.`);
 }

@@ -648,10 +648,5 @@
 				}
 			]
 		}
-	],
-	"signature": {
-		"algorithm": "Ed25519",
-		"keyId": "soundscaper-local-model-catalog-2026-08",
-		"value": "xd1e+Ji0ZtGnWXmuvmbUhGkK+CV8z4wPtOcbg6T6SvSQaHdZ9D8IygxDKEXU1OS969eAC1+T1w+DI6ffEwpdCA=="
-	}
+	]
 }

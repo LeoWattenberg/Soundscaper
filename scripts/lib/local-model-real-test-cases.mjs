@@ -84,7 +84,7 @@ export function validateLocalModelRealTestCases(value, catalogValue, { candidate
 		if (candidateIds.has(modelId)) throw new TypeError(`${modelId} is a duplicate candidate model.`);
 		candidateIds.add(modelId);
 		const published = models.get(modelId);
-		if (published && published.task !== task.task) throw new TypeError(`${modelId} has a conflicting task in the signed catalog.`);
+		if (published && published.task !== task.task) throw new TypeError(`${modelId} has a conflicting task in the catalog.`);
 		// Required coverage is not model installation or runtime admission authority.
 		if (!published) models.set(modelId, task);
 	}

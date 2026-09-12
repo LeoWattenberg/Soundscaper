@@ -490,7 +490,7 @@ test('an authenticated but incompatible speech model is a typed model-unavailabl
 test('model disappearance is unavailable while catalog and artifact integrity failures remain hard', async (t) => {
 	for (const [message, unavailable] of [
 		[`${MODEL_ID} is not installed.`, true],
-		[`${MODEL_ID} does not match the current authenticated catalog entry.`, false],
+		[`${MODEL_ID} does not match the current catalog entry.`, false],
 		[`${MODEL_ID} artifact model.onnx failed its integrity check.`, false],
 	] as const) {
 		const next = await fixture(t, { models: {

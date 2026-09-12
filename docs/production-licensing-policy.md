@@ -38,7 +38,7 @@ or a bundled native FFmpeg media host is not redistributed. Consequently every
 native FFmpeg tuple stays blocked despite the broader codec and patent-risk notes.
 The Spleeter, Demucs, TransNetV2, PANNs, and other model records preserve their
 documented upstream licence ambiguities as factual limitations. No missing
-converted artifact, parity result, mirror read-back, catalog signature, notice,
+converted artifact, parity result, mirror read-back, catalog publication, notice,
 or runtime evidence is fabricated or inferred from a recorded requirement.
 
 The repository owner records licensing judgment as editable notes.
@@ -483,11 +483,11 @@ Qwen3. Each row still records `versioned-download-notices-and-hashes` as pending
 TIGER-DnR, PANNs Cnn10, Beat This, and TransNetV2 remain technically unavailable
 until their converted artifact digests and source-framework parity results are
 recorded; wav2vec2 and Qwen remain candidates until executable catalog entries
-land. Externally signed catalog entries and artifact notice/read-back checks
+land. Reviewed catalog entries and artifact notice/read-back checks
 remain required before model publication. Cataloged byte lengths and hashes authenticate
 downloads and offline preseed, but do not assert that an EU R2 write or public
 read-back occurred. The release publisher must complete public HEAD, Range, and
-full SHA-256 read-back before a catalog is handed to the external signer.
+full SHA-256 read-back before a catalog is handed to review.
 
 Opaque placeholders do not make an unimplemented native feature available, and
 a loader must not accept a missing, changed, wrong-platform, uncontained, or

@@ -9,7 +9,7 @@
 	"scope": {
 		"verified": "Real CPU inference with authenticated file grants, pinned GGUF, strict production editorial review, output claim authentication, and the nightly editorial validator.",
 		"notEstablished": [
-			"Signed catalog admission or model-manager installation",
+			"Catalog admission or model-manager installation",
 			"Electron IPC integration",
 			"Other desktop platforms",
 			"Subjective editorial quality"

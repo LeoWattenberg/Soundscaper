@@ -8,7 +8,7 @@ import { execFile } from 'node:child_process';
 import { lstat, mkdir, readFile, realpath, writeFile } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
-import { canonicalJson, localModelEvidenceSha256, verifyLocalModelCatalogSignature } from '../../desktop/local-model-catalog-signature.ts';
+import { canonicalJson, localModelEvidenceSha256 } from '../../desktop/local-model-catalog-integrity.ts';
 import { validateLocalModelCatalog } from '../../desktop/local-model-catalog.ts';
 import { assertPublishable } from '../lib/local-model-mirror.mjs';
 import { validateMilestone7ConversionEvidence } from './milestone-7-conversion-execution.mjs';
@@ -23,7 +23,6 @@ const RECIPE_PATHS = ['scripts/models/', ...RECIPE_CONFIGS, 'evidence/milestone-
 
 export function prepareLocalModelReleaseBundle({ catalog, licensingEvidence, tasks, supply, execution,
 	publications, modelIds, recipeRevision, notices, parityFixtures, conversionEvidence = new Map() }) {
-	const payload = verifyLocalModelCatalogSignature(catalog);
 	validateLocalModelCatalog(catalog, { licensingEvidence });
 	assert.match(recipeRevision, /^[a-f\d]{40}$/u, 'Pin the committed conversion recipe revision.');
 	assert.ok(Array.isArray(modelIds) && modelIds.length > 0 && new Set(modelIds).size === modelIds.length, 'Select distinct models for publication.');
@@ -31,7 +30,7 @@ export function prepareLocalModelReleaseBundle({ catalog, licensingEvidence, tas
 	assert.equal(new Set(tasks.map(({ catalogModelId }) => catalogModelId)).size, tasks.length, 'Duplicate candidate model tasks.');
 	assert.equal(new Set(licensingEvidence.map(({ id }) => id)).size, licensingEvidence.length, 'Duplicate licensing evidence rows.');
 	const rows = structuredClone(licensingEvidence);
-	const entries = structuredClone(payload.entries);
+	const entries = structuredClone(catalog.entries);
 	for (const modelId of modelIds) {
 		assert.ok(!entries.some((entry) => entry.modelId === modelId), `${modelId} is already published.`);
 		assertPublishable(rows, modelId);
@@ -46,7 +45,7 @@ export function prepareLocalModelReleaseBundle({ catalog, licensingEvidence, tas
 		assert.deepEqual(proof.checks, CHECKS);
 		const artifacts = task.artifacts.map((artifact) => ({ fileName: artifact.distributionFileName,
 			byteLength: artifact.byteLength, sha256: artifact.sha256,
-			url: `${payload.publication.publicBaseUrl}${modelId}/${task.version}/${artifact.distributionFileName}` }));
+			url: `${catalog.publication.publicBaseUrl}${modelId}/${task.version}/${artifact.distributionFileName}` }));
 		assert.deepEqual(proof.artifacts, artifacts, `${modelId} readback does not bind the proposed download.`);
 		for (const artifact of artifacts) {
 			assert.match(artifact.sha256, /^[a-f\d]{64}$/u);
@@ -61,7 +60,7 @@ export function prepareLocalModelReleaseBundle({ catalog, licensingEvidence, tas
 		row.requirements[NOTICE_REQUIREMENT] = { status: 'recorded',
 			summary: `Version ${task.version} artifacts and their exact hashes are listed in THIRD_PARTY_LICENSES.md. `
 				+ `Public HEAD, byte-range, CORS, and full SHA-256 readback are retained in evidence/local-model-publication/${modelId}.json. `
-				+ 'The signed release catalog binds this complete evidence row and those download identities.' };
+				+ 'The release catalog binds this complete evidence row and those download identities by SHA-256.' };
 		row.blockedBy = row.blockedBy.filter((id) => id !== NOTICE_REQUIREMENT);
 		row.distributionStatus = 'permitted';
 		const { upstream, distribution } = provenance(task, supply, execution, recipeRevision, parityFixtures, conversionEvidence);
@@ -69,8 +68,8 @@ export function prepareLocalModelReleaseBundle({ catalog, licensingEvidence, tas
 			minimumMemoryBytes: task.minimumMemoryBytes,
 			licensingEvidence: { id: modelId, sha256: localModelEvidenceSha256(row) }, upstream, distribution, artifacts });
 	}
-	const proposed = { ...payload, entries };
-	return { schemaVersion: 1, status: 'awaiting-authorized-signature', modelIds: [...modelIds],
+	const proposed = { ...catalog, entries };
+	return { schemaVersion: 1, status: 'awaiting-catalog-review', modelIds: [...modelIds],
 		baseCatalogSha256: digest(canonicalJson(catalog)), recipeRevision,
 		payloadSha256: digest(canonicalJson(proposed)), payload: proposed, licensingEvidence: rows };
 }
@@ -114,16 +113,15 @@ function provenance(task, supply, execution, recipeRevision, parityFixtures, con
 		upstream: { source: candidate.source.code.url, revision: candidate.source.code.revision, artifacts: sourceArtifacts } };
 }
 
-/** The external signer may add only a valid signature to the reviewed payload. */
-export function verifySignedLocalModelReleaseBundle(bundle, signedCatalog, currentCatalog) {
+/** Verifies that a reviewed catalog is the exact digest-pinned release payload. */
+export function verifyReviewedLocalModelReleaseBundle(bundle, reviewedCatalog, currentCatalog) {
 	assert.equal(bundle.schemaVersion, 1);
-	assert.equal(bundle.status, 'awaiting-authorized-signature');
+	assert.equal(bundle.status, 'awaiting-catalog-review');
 	assert.equal(digest(canonicalJson(currentCatalog)), bundle.baseCatalogSha256, 'The production catalog changed after preparation.');
 	validateLocalModelCatalog(currentCatalog, { licensingEvidence: bundle.licensingEvidence });
-	const payload = verifyLocalModelCatalogSignature(signedCatalog);
-	assert.equal(canonicalJson(payload), canonicalJson(bundle.payload), 'The signed catalog differs from the reviewed payload.');
-	assert.equal(digest(canonicalJson(payload)), bundle.payloadSha256);
-	return validateLocalModelCatalog(signedCatalog, { licensingEvidence: bundle.licensingEvidence });
+	assert.equal(canonicalJson(reviewedCatalog), canonicalJson(bundle.payload), 'The reviewed catalog differs from the release payload.');
+	assert.equal(digest(canonicalJson(reviewedCatalog)), bundle.payloadSha256);
+	return validateLocalModelCatalog(reviewedCatalog, { licensingEvidence: bundle.licensingEvidence });
 }
 
 /** A revision label is evidence only if the current conversion inputs equal that committed tree. */

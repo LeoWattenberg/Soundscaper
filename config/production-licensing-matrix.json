@@ -1744,7 +1744,7 @@
 				"weights-and-code-license-review": { "status": "recorded", "summary": "The pinned facebook/wav2vec2-base-960h repository declares Apache-2.0 for the model and weights." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "The model card identifies LibriSpeech 960 hours as the English fine-tuning corpus and the wav2vec2 family documentation as the pretraining authority." },
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The model card states no additional use restriction beyond Apache-2.0. Soundscaper restricts this artifact to English alignment as a product contract, not a licence condition." },
-				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The upstream ONNX artifact is digest-pinned, but no immutable product mirror read-back, externally signed catalog entry, or matching offline notice for the distributed artifact is recorded." }
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The upstream ONNX artifact is digest-pinned, but no immutable product mirror read-back, reviewed catalog entry, or matching offline notice for the distributed artifact is recorded." }
 			},
 			"provenanceSources": ["https://huggingface.co/facebook/wav2vec2-base-960h"],
 			"evidence": ["docs/legalchecklist.md", "docs/milestone-7-plan.md", "config/milestone-7-model-supply-candidates.json"]
@@ -1762,7 +1762,7 @@
 				"weights-and-code-license-review": { "status": "recorded", "summary": "The pinned TIGER source repository is MIT and the author-published TIGER-DnR weight repository declares Apache-2.0." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "The upstream repository, model card, and paper document DnR separation evaluation and the related EchoSet data; no complete per-file training manifest is published, and that limitation is accepted as recorded provenance." },
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The MIT and Apache-2.0 terms add no use restriction, and the model card states none." },
-				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The source checkpoint is pinned, but the repository-owned ONNX output, parity evidence, immutable product mirror read-back, signed catalog entry, and exact offline notice do not yet exist." }
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The source checkpoint is pinned, but the repository-owned ONNX output, parity evidence, immutable product mirror read-back, catalog entry, and exact offline notice do not yet exist." }
 			},
 			"provenanceSources": ["https://github.com/JusperLee/TIGER", "https://huggingface.co/JusperLee/TIGER-DnR"],
 			"evidence": ["docs/legalchecklist.md", "docs/milestone-7-plan.md", "config/milestone-7-model-supply-candidates.json"]
@@ -1780,7 +1780,7 @@
 				"weights-and-code-license-review": { "status": "recorded", "summary": "The source repository carries MIT terms and publishes the pinned pretrained Cnn10 checkpoint through its documented Zenodo record without separate checkpoint terms. That absence of separate checkpoint terms remains explicit in this record." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream states that PANNs is trained on AudioSet and documents the 527-class label map. Availability drift in the underlying YouTube-derived corpus is part of the recorded provenance." },
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Upstream publishes no additional model-card use restriction beyond the MIT repository posture; no separate checkpoint terms are published." },
-				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The source checkpoint and class map are pinned, but the converted ONNX identity, parity evidence, immutable product mirror read-back, signed catalog entry, and exact offline notice do not yet exist." }
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The source checkpoint and class map are pinned, but the converted ONNX identity, parity evidence, immutable product mirror read-back, catalog entry, and exact offline notice do not yet exist." }
 			},
 			"provenanceSources": ["https://github.com/qiuqiangkong/audioset_tagging_cnn", "https://zenodo.org/records/3987831"],
 			"evidence": ["docs/legalchecklist.md", "docs/milestone-7-plan.md", "config/milestone-7-model-supply-candidates.json"]
@@ -1798,7 +1798,7 @@
 				"weights-and-code-license-review": { "status": "recorded", "summary": "The upstream Beat This repository explicitly releases both code and published model weights under MIT." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "The upstream documentation identifies the training datasets and warns that some training files are fully copyrighted or carry limited Creative Commons terms. That warning remains part of the recorded provenance for the released weights." },
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The released model carries MIT terms with no additional use restriction; upstream's training-file warning is retained as provenance rather than converted into a weight-use restriction." },
-				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The small0 checkpoint is pinned, but the converted ONNX identity, parity evidence, immutable product mirror read-back, signed catalog entry, and exact offline notice do not yet exist." }
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The small0 checkpoint is pinned, but the converted ONNX identity, parity evidence, immutable product mirror read-back, catalog entry, and exact offline notice do not yet exist." }
 			},
 			"provenanceSources": ["https://github.com/CPJKU/beat_this"],
 			"evidence": ["docs/legalchecklist.md", "docs/milestone-7-plan.md", "config/milestone-7-model-supply-candidates.json"]
@@ -1816,7 +1816,7 @@
 				"weights-and-code-license-review": { "status": "recorded", "summary": "The upstream Beat This repository explicitly releases both code and published model weights under MIT." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "The upstream documentation identifies the training datasets and warns that some training files are fully copyrighted or carry limited Creative Commons terms. That warning remains part of the recorded provenance for the released weights." },
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The released model carries MIT terms with no additional use restriction; upstream's training-file warning is retained as provenance rather than converted into a weight-use restriction." },
-				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The final0 checkpoint is pinned, but the converted ONNX identity, parity evidence, immutable product mirror read-back, signed catalog entry, and exact offline notice do not yet exist." }
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The final0 checkpoint is pinned, but the converted ONNX identity, parity evidence, immutable product mirror read-back, catalog entry, and exact offline notice do not yet exist." }
 			},
 			"provenanceSources": ["https://github.com/CPJKU/beat_this"],
 			"evidence": ["docs/legalchecklist.md", "docs/milestone-7-plan.md", "config/milestone-7-model-supply-candidates.json"]
@@ -1834,7 +1834,7 @@
 				"weights-and-code-license-review": { "status": "recorded", "summary": "The exact Qwen3-4B-GGUF repository and pinned Q4_K_M weights carry Apache-2.0." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "The model card and Qwen3 technical report describe the training stages and data categories without publishing a complete corpus inventory; that limitation is accepted as the recorded provenance." },
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The repository carries Apache-2.0 and states no additional model-use restriction. Soundscaper's constrained local editorial role is a product boundary, not a licence condition." },
-				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The GGUF artifact is digest-pinned, but no immutable product mirror read-back, externally signed catalog entry, packaged runtime canary, or matching offline notice is recorded." }
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The GGUF artifact is digest-pinned, but no immutable product mirror read-back, reviewed catalog entry, packaged runtime canary, or matching offline notice is recorded." }
 			},
 			"provenanceSources": ["https://huggingface.co/Qwen/Qwen3-4B-GGUF"],
 			"evidence": ["docs/legalchecklist.md", "docs/milestone-7-plan.md", "config/milestone-7-model-supply-candidates.json"]
@@ -1852,7 +1852,7 @@
 				"weights-and-code-license-review": { "status": "recorded", "summary": "The originating repository is MIT and publishes its TensorFlow and PyTorch weights. No author-published ONNX build exists, and a third-party CoreML redistribution states conflicting terms. Only a repository-owned ONNX conversion directly from the pinned MIT upstream is accepted; no third-party conversion bytes are accepted." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream names the public shot-transition corpora it trains and evaluates on in its paper; that documentation is the recorded provenance." },
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The MIT terms carry no use restriction; the open item is which converted bytes may be shipped, not what they may be used for." },
-				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "No repository-owned converted artifact, parity evidence, immutable mirror read-back, signed catalog entry, or exact offline notice is recorded yet." }
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "No repository-owned converted artifact, parity evidence, immutable mirror read-back, catalog entry, or exact offline notice is recorded yet." }
 			},
 			"provenanceSources": ["https://github.com/soCzech/TransNetV2"],
 			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-video-model-evidence.md"]
@@ -1870,7 +1870,7 @@
 				"weights-and-code-license-review": { "status": "recorded", "summary": "The anvuew dereverb_room model card at revision 0b85f5b80b7f779b2dfe80f33a1b35b38af9376d declares gpl-3.0 through Hugging Face's supported license metadata. That upstream GPL-3.0 declaration is the recorded weight license; the pinned card and complete GNU GPL version 3 text are retained in LICENSES/local-models. The MSS_ONNX_TensorRT converter at 43d939e7671d8ff6cf1922f98c2f2e4b56908e47 is MIT, with its complete copyright and permission notice retained. THIRD_PARTY_LICENSES.md identifies the original checkpoint, YAML, converter revision and repository conversion recipe, records the ONNX modification, and describes source delivery and preservation of GPL terms." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "The pinned upstream model card says the reverb training examples use convolutional room responses generated with pyroomacoustics. The dry source corpus and any base-checkpoint lineage are unknown: upstream does not identify them. This record preserves those limits of the available provenance; it does not claim complete training-data provenance or an additional approval." },
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The model card states no use restriction; GPL-3.0 imposes distribution conditions, not use restrictions, and is compatible with this AGPL-3.0-only product as a separately downloaded asset." },
-				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The source checkpoint and YAML, repository-owned ONNX output, conversion parity evidence, and exact offline notice are recorded. Immutable public mirror read-back and the externally signed catalog entry remain required before installation." }
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The source checkpoint and YAML, repository-owned ONNX output, conversion parity evidence, and exact offline notice are recorded. Immutable public mirror read-back and the reviewed catalog entry remain required before installation." }
 			},
 			"provenanceSources": ["https://huggingface.co/anvuew/dereverb_room/tree/0b85f5b80b7f779b2dfe80f33a1b35b38af9376d", "https://huggingface.co/docs/hub/repositories-licenses", "https://github.com/ZFTurbo/MSS_ONNX_TensorRT/tree/43d939e7671d8ff6cf1922f98c2f2e4b56908e47", "https://www.gnu.org/licenses/gpl-3.0.html"],
 			"evidence": ["docs/dereverb-plan.md", "docs/dereverb-bakeoff-evidence.md", "config/milestone-7-model-supply-candidates.json", "LICENSES/local-models/README.md", "LICENSES/local-models/dereverb-room-MODEL-CARD.md", "LICENSES/local-models/GPL-3.0.txt", "LICENSES/local-models/dereverb-room-converter-LICENSE.txt", "THIRD_PARTY_LICENSES.md"]

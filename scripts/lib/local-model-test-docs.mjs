@@ -85,7 +85,7 @@ function runtimeNotice(availability, published = true) {
 	if (availablePlatforms.length === 0) {
 		return `**The required native engine is not yet packaged.** The desktop build has no ${familyId} ${version} target for this model. Downloading weights does not enable processing. The required real-model test reports a failure until the model and verified native package are supplied.`;
 	}
-	return `Desktop builds package the required ${familyId} ${version} engine for ${availablePlatforms.map((platform) => PLATFORM_NAMES[platform]).join(', ')}. ${published ? 'Install this model’s weights through Model Manager, then run its task locally.' : 'Model installation still requires its signed catalog publication.'} These are supported build targets; consult the nightly test report for results on a particular package and machine.`
+	return `Desktop builds package the required ${familyId} ${version} engine for ${availablePlatforms.map((platform) => PLATFORM_NAMES[platform]).join(', ')}. ${published ? 'Install this model’s weights through Model Manager, then run its task locally.' : 'Model installation still requires its digest-pinned catalog publication.'} These are supported build targets; consult the nightly test report for results on a particular package and machine.`
 		+ (missingPlatforms.length ? ` The desktop build does not package this engine for ${missingPlatforms.map((platform) => PLATFORM_NAMES[platform]).join(', ')} even though model weights are listed for those platforms.` : '');
 }
 
@@ -126,11 +126,11 @@ function modelPage(entry, cases, runtimeSources) {
 		documentation.summary, '',
 		...(documentation.modelDetails?.[entry.modelId] ? [documentation.modelDetails[entry.modelId], ''] : []),
 		'## Current availability {#current-availability}', '',
-		...(!published ? ['**This model’s signed catalog publication is pending.** Model Manager cannot currently install it. Required test coverage does not authorize downloads, bypass catalog signatures, or permit substitute model files.'
+		...(!published ? ['**This model’s digest-pinned catalog publication is pending.** Model Manager cannot currently install it. Required test coverage does not authorize downloads or permit substitute model files.'
 			+ (entry.modelId === 'dereverb-room' ? ' Its upstream GPL-3.0 declaration, license text, and source notices are recorded.' : ''), ''] : []),
 		runtimeNotice(availability, published), '',
 		'## Use this model {#use-this-model}', '',
-		blocked ? `Once the model is admitted in the signed catalog and its native runtime is available, the intended workflow is **${documentation.menu}**. The steps below describe that workflow; this installation cannot currently complete.`
+		blocked ? `Once the model is admitted in the catalog and its native runtime is available, the intended workflow is **${documentation.menu}**. The steps below describe that workflow; this installation cannot currently complete.`
 			: `Open **${documentation.menu}** on a platform with the required native runtime. Local assistance runs in the desktop editor.`, '',
 		...documentation.steps.map((step, index) => `${String(index + 1)}. ${step}`), '',
 		...(pairedIds.length ? ['This operation also requires '
@@ -138,14 +138,14 @@ function modelPage(entry, cases, runtimeSources) {
 		'## Download and requirements {#download-and-requirements}', '',
 		`Model identity: \`${entry.modelId}\`, version **${entry.version}**.`, '',
 		`Approximate ${published ? 'download' : 'candidate artifact'} size: **${downloadSize(downloadBytes)}**. Minimum system memory: **${formatBinaryBytes(entry.minimumMemoryBytes)}**. This ${published ? 'catalog' : 'candidate'} requirement refers to total memory, not currently free memory. Inference also needs sufficient free memory, and installation needs working space; memory is not a speed guarantee.`, '',
-		`${published ? 'Published' : 'Planned'} platforms: ${entry.platforms.map((platform) => PLATFORM_NAMES[platform] ?? platform).join(', ')}. A matching packaged runtime ${published ? 'is also' : 'and signed catalog approval are'} required.`, '',
+		`${published ? 'Published' : 'Planned'} platforms: ${entry.platforms.map((platform) => PLATFORM_NAMES[platform] ?? platform).join(', ')}. A matching packaged runtime ${published ? 'is also' : 'and catalog publication are'} required.`, '',
 		...(['onnxruntime-node', 'sherpa-onnx-node'].includes(availability.familyId) ? [WINDOWS_REQUIREMENT, ''] : []),
 		published ? 'Tools → Model Manager downloads the published artifacts and verifies their recorded SHA-256 digests. Processing uses the installed files locally. Open Storage and verification in Model Manager to inspect notices, repair an installation, or change the storage location.'
-			: 'These candidate artifact names describe the required package. They are not download instructions. Model Manager will expose verified installation only after the authenticated catalog admits them.', '',
+			: 'These candidate artifact names describe the required package. They are not download instructions. Model Manager will expose verified installation only after the digest-pinned catalog admits them.', '',
 		table(['Artifact', 'Approximate download size'], artifacts), '',
 		'## What the packaged test checks {#what-the-packaged-test-checks}', '',
 		...checks,
-		'The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. A required model missing from the signed catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.', '',
+		'The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. A required model missing from the catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.', '',
 		'## Review the result {#review-the-result}', '',
 		...documentation.limitations.map((limitation) => `- ${limitation}`), '',
 		'[Model test coverage and limitations](/reference/local-models/) · [Local processing guide](/help/local-processing/)',
@@ -166,16 +166,16 @@ function indexPage(catalog, cases, runtimeSources) {
 	const rows = catalog.entries.map((entry) => [
 		`[${modelTitle(entry.modelId, cases)}](/reference/local-models/${entry.modelId}/)`,
 		entry.task.replaceAll('-', ' '),
-		entry.pendingPublication ? 'Signed catalog publication pending' : availability.get(entry.modelId).availablePlatforms.length === 0 ? 'Native engine pending' : 'Packaged; see supported platforms',
+		entry.pendingPublication ? 'Catalog publication pending' : availability.get(entry.modelId).availablePlatforms.length === 0 ? 'Native engine pending' : 'Packaged; see supported platforms',
 		cases.filter(({ modelIds }) => modelIds.includes(entry.modelId)).map(({ id }) => `\`${id}\``).join(', '),
 	]);
 	return page('Local model guides and real execution tests',
 		'Check the availability, intended workflow, and required real execution test of every published and planned local model.', [
-		'These guides describe the published catalog and the additional models required by the nightly tests. Desktop packages include native inference engines; Model Manager separately downloads and verifies weights admitted by the signed catalog. A prepared runtime and a required test do not grant model publication authority.', '',
-		...(pending.length ? [`**Native runtime packaging is incomplete: ${String(pending.length)} required models in ${String(pendingCases.length)} cases have no supported native engine target.** Their tests fail until both signed model admission and the verified engine package are provided.`, '']
+		'These guides describe the published catalog and the additional models required by the nightly tests. Desktop packages include native inference engines; Model Manager separately downloads and verifies weights admitted by the digest-pinned catalog. A prepared runtime and a required test do not grant model publication authority.', '',
+		...(pending.length ? [`**Native runtime packaging is incomplete: ${String(pending.length)} required models in ${String(pendingCases.length)} cases have no supported native engine target.** Their tests fail until both catalog admission and the verified engine package are provided.`, '']
 			: ['All published models have a packaged native engine on supported desktop targets. Install their weights and use the task menus or Tools → Advanced Local Processing. This build capability does not claim that every platform has passed the real-model tests.', '']),
-		...(candidates.length ? [`**${String(candidates.length)} additional models await signed catalog publication.** Their individual guides and real inference cases are prepared, but Model Manager cannot install them yet. A full nightly run reports missing required catalog entries as failures. Room dereverberation's GPL-3.0 declaration, license text, and source notices are recorded.`, ''] : []),
-		...(windowsArm64Pending.length ? [`**Windows ARM64 catalog approval is pending.** Native build recipes are prepared, but the signed catalog does not yet admit ${String(windowsArm64Pending.length)} of the published models on Windows ARM64. Enabling them requires a refreshed catalog signed by the existing authorized signer. Their Windows ARM64 tests report explicit platform skips until that signed catalog is published; the published-model subset is admitted on macOS arm64, Linux x64/arm64, and Windows x64. Entirely unpublished required identities still fail on every target.`, ''] : []),
+		...(candidates.length ? [`**${String(candidates.length)} additional models await catalog publication.** Their individual guides and real inference cases are prepared, but Model Manager cannot install them yet. A full nightly run reports missing required catalog entries as failures. Room dereverberation's GPL-3.0 declaration, license text, and source notices are recorded.`, ''] : []),
+		...(windowsArm64Pending.length ? [`**Windows ARM64 catalog approval is pending.** Native build recipes are prepared, but the catalog does not yet admit ${String(windowsArm64Pending.length)} of the published models on Windows ARM64. Enabling them requires a reviewed catalog update with exact SHA-256 pins. Their Windows ARM64 tests report explicit platform skips until that catalog is published; the published-model subset is admitted on macOS arm64, Linux x64/arm64, and Windows x64. Entirely unpublished required identities still fail on every target.`, ''] : []),
 		table(['Model guide', 'Purpose', 'Packaged runtime support', 'Packaged execution case'], rows), '',
 		WINDOWS_REQUIREMENT, '',
 		'## Test scope {#test-scope}', '',
@@ -185,7 +185,7 @@ function indexPage(catalog, cases, runtimeSources) {
 		'Audio checks reject silence, non-finite samples, and output identical to the input. Text checks require meaningful nonempty result fields. Embedding, detection, and timing checks validate their appropriate numerical structure. Exact sample values, spelling, and rankings are not used as golden outputs.', '',
 		'Passing these checks proves basic operation on a small fixture. It does not prove accurate transcription, correct object labels, lossless denoising, or subjective quality. Review results on your own media before applying them.', '',
 		'## Publication and test coverage {#publication-and-test-coverage}', '',
-		candidates.length ? `Required candidate guides: ${candidates.map(({ modelId }) => `[${modelTitle(modelId, cases)}](/reference/local-models/${modelId}/)`).join(', ')}. Their tests exercise the exact model once signed catalog admission is available and fail explicitly while it is missing. The separate model-free shot detector cannot satisfy the TransNetV2 case.`
+		candidates.length ? `Required candidate guides: ${candidates.map(({ modelId }) => `[${modelTitle(modelId, cases)}](/reference/local-models/${modelId}/)`).join(', ')}. Their tests exercise the exact model once catalog admission is available and fail explicitly while it is missing. The separate model-free shot detector cannot satisfy the TransNetV2 case.`
 			: 'Every required model identity is present in the published catalog. The per-package test report remains the authority for successful downloads and inference on a particular platform.', '',
 		'[Local processing guide](/help/local-processing/) · [Workflows and operations](/reference/generated/local-assistance/)',
 	].join('\n'));

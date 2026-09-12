@@ -172,4 +172,4 @@ missing digest.
 
 Only after this verification passes may the bundle digest and converted
 artifact identities feed the separate immutable mirror, public readback,
-external catalog signing, packaged runtime canary, notice, and artifact checks.
+catalog publication, packaged runtime canary, notice, and artifact checks.

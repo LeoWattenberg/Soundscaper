@@ -43,7 +43,7 @@ Every implemented model-backed route is visible and enabled for testing. The
 repository has a CPython 3.12,
 hash-locked, offline runner for TIGER, PANNs, Beat This `small0`, and
 TransNetV2 source-framework/ONNX parity, but no converted artifacts or live
-parity result have been retained; their signed catalog entries do not exist.
+parity result have been retained; their catalog entries do not exist.
 All five target payload closures for `onnxruntime-node`
 1.29.0, whisper.cpp v1.9.3, and llama.cpp b10509 remain
 `pending-external`, as does the Windows-arm64 Sherpa Node addon. No live EU R2
@@ -51,7 +51,7 @@ publication and public full-SHA-256 read-back has been recorded, and the five
 packaged target canaries and owner-device workflows have not run. Those states
 produce typed machine unavailability rather than substitute inference or an
 implicit download. The selected F31 capture route remains active; real-device
-behavior remains an optional owner QA observation. External catalog signature,
+behavior remains an optional owner QA observation. Catalog publication,
 artifact digest, runtime/platform compatibility, selected-media authority,
 storage integrity, consent, and external-FFmpeg machine admission remain fail
 closed. Owner QA is optional and never grants runtime authority.
@@ -71,12 +71,11 @@ closed. Owner QA is optional and never grants runtime authority.
 ## Model supply chain and native runtime
 
 - Enable the complete implemented model catalog for testing. An offered model
-  must still have an authenticated catalog entry, exact runtime compatibility,
+  must still have a digest-pinned catalog entry, exact runtime compatibility,
   and mirrored artifact pins. Distribution metadata cannot hide a
-  machine-complete model or substitute for an authenticated one.
-- Introduce signed catalog V2: Ed25519 over canonical JSON, pinned current and
-  next public keys, repository-external release private keys, and explicit
-  rotation. Separate upstream source artifacts from distributable artifacts.
+	machine-complete model or substitute for a digest-pinned one.
+- Introduce digest-pinned catalog V2 with canonical SHA-256 review pins. Separate
+  upstream source artifacts from distributable artifacts.
   Reproducible conversions record source digests, locked build environment,
   recipe and version, output digest, notices, and parity evidence.
 - Keep Spleeter and Demucs as historical blocked evidence rows and remove them
@@ -161,7 +160,7 @@ status:
   search, and beat/tempo routes with bounded review and ordinary acceptance.
 - 7B retains active fast FFmpeg shots and adds conditional accurate shots,
   visual/OCR indexing, reframe, deterministic highlights, and optional Qwen
-  editorial augmentation. Missing signed model or runtime evidence makes only
+  editorial augmentation. Missing model digest or runtime evidence makes only
   the affected route unavailable.
 - 8A is active on selected F31 web and desktop, default-hidden and menu-opt-in;
   real-device observations belong in optional owner QA.
@@ -200,7 +199,7 @@ status:
 
 ## Verification and evidence
 
-- Test signed-catalog admission, converted-artifact provenance, downloads and
+- Test digest-pinned catalog admission, converted-artifact provenance, downloads and
   relocation, notices, helper containment, malformed messages,
   crash/restart/quarantine, output claims, and cancellation p95 at or below two
   seconds.

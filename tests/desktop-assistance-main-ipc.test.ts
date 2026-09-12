@@ -11,10 +11,9 @@ import {
 	registerAssistanceIpc,
 } from '../desktop/assistance-main-ipc.ts';
 import {
-	signedTestLocalModelCatalog,
+	testLocalModelCatalog,
 	testLocalModelEvidence,
 	testLocalModelEvidencePin,
-	TEST_LOCAL_MODEL_CATALOG_SIGNATURE_OPTIONS,
 } from './helpers/local-model-catalog-v2-fixture.ts';
 
 const CHANNELS = Object.freeze({
@@ -31,7 +30,7 @@ const CHANNELS = Object.freeze({
 });
 
 const EVIDENCE = testLocalModelEvidence('silero-vad-v6');
-const CATALOG = signedTestLocalModelCatalog({
+const CATALOG = testLocalModelCatalog({
 	schemaVersion: 2,
 	publication: {
 		bucket: 'soundscaper-assets',
@@ -313,7 +312,6 @@ test('the licensing binding comes from the shipped register', async (t) => {
 			localModelEvidence: [EVIDENCE],
 			refusedLocalModels: [{ id: 'crisperwhisper' }],
 		},
-		catalogSignatureOptions: TEST_LOCAL_MODEL_CATALOG_SIGNATURE_OPTIONS,
 		runtime,
 		totalMemoryBytes: 8 * 1024 ** 3,
 	});
@@ -330,7 +328,6 @@ test('the service factory injects verified directory persistence', async (t) => 
 		settingsDirectory: null,
 		catalog: CATALOG,
 		licensingMatrix: { localModelEvidence: [EVIDENCE], refusedLocalModels: [] },
-		catalogSignatureOptions: TEST_LOCAL_MODEL_CATALOG_SIGNATURE_OPTIONS,
 		runtime: {
 			status: async () => ({ available: false, reason: null, moduleId: 'sherpa-onnx-node' }),
 			recognize: async () => ({ language: null, segments: [] }),
@@ -357,7 +354,6 @@ test('a register with no model evidence is refused rather than assumed empty', a
 			settingsDirectory: null,
 			catalog: CATALOG,
 			licensingMatrix: {},
-			catalogSignatureOptions: TEST_LOCAL_MODEL_CATALOG_SIGNATURE_OPTIONS,
 			runtime,
 			totalMemoryBytes: 1024,
 		}),

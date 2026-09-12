@@ -61,9 +61,9 @@ Sherpa JavaScript package and official ARM64 libraries. The package receipt
 records the source, compiler and resulting file hashes. Other platforms retain
 the existing upstream Sherpa package inventories.
 
-The current signed model catalog admits only Whisper on Windows ARM64. The
-other twelve entries still need platform approval from the existing catalog
-signer; building the engines does not override that signed restriction. All
+The current digest-pinned model catalog admits only Whisper on Windows ARM64. The
+other twelve entries still need a reviewed catalog update; building the engines
+does not override that catalog restriction. All
 thirteen models are admitted on macOS ARM64, Linux x64/ARM64 and Windows x64.
 
 ## Package integrity and signing

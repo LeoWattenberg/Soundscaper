@@ -12,7 +12,7 @@
 > **Current release note (2026-08-31):** this historical work plan's formal
 > qualification and release-admission language is not current policy. Real
 > correctness and privacy failures still fail their tests; performance reports
-> are diagnostics, owner QA is optional, and signed model-catalog and artifact
+> are diagnostics, owner QA is optional, and digest-pinned model-catalog and artifact
 > authentication remain runtime integrity controls rather than release approval.
 
 > Owning source for milestone-7 sequencing, the runtime and model-catalog
@@ -52,13 +52,13 @@ metadata; raw and unselected output never enters `.scape`.
 That is conditional implementation, not a packaged production-activation
 claim. A hash-locked CPython 3.12 conversion/parity runner now exists for
 TIGER, PANNs, Beat This `small0`, and TransNetV2, but no converted artifacts or
-live parity evidence are retained; their externally signed catalog entries do
+live parity evidence are retained; their reviewed catalog entries do
 not exist.
 Every target payload for ONNX Runtime 1.29.0, whisper.cpp v1.9.3, and llama.cpp
 b10509 is `pending-external`, and Sherpa still lacks a Windows-arm64 Node
 addon. Live EU R2 publication/full-digest public read-back, five-target
 packaged canaries, and owner-lab qualification are also absent. Each affected
-workflow fails closed only when its exact signed catalog entry, model artifact,
+workflow fails closed only when its exact catalog entry, model artifact,
 runtime payload, platform, selected-media authority, storage, consent, or
 external-FFmpeg machine admission is unavailable; no substitute inference or
 implicit download is allowed. Licensing and owner-lab review are reported by
@@ -279,7 +279,7 @@ model packs stay portable outside the AGPL boundary, and every entry
 below is permissive or CC-BY. Each is a separately downloadable,
 individually removable pack. Sizes are the shipped (quantized) artifacts.
 
-The signed catalog is the authority for what the current product may offer. It
+The digest-pinned catalog is the authority for what the current product may offer. It
 currently contains thirteen permitted entries: Silero VAD; Parakeet v2 and v3;
 Whisper large-v3-turbo; pyannote segmentation; ERes2Net; DeepFilterNet3;
 YuNet; D-FINE; U²-Net-P; PP-OCRv4 mobile; nomic-embed-text; and SigLIP 2.
@@ -290,7 +290,7 @@ admitted diarization pair. Whisper, DeepFilterNet3, and the current
 vision/semantic entries have conditional adapters, but those routes refuse with
 typed unavailability until their authenticated target runtime payloads exist;
 catalog presence alone never activates execution. The six supply candidates
-additionally await external catalog signing, and the four converted candidates
+additionally await catalog publication, and the four converted candidates
 await retained artifact/parity evidence. Fast shot detection is model-free and
 relies on separately admitted external FFmpeg authority. The catalog's mirror
 URLs and publisher describe the authorized distribution path, but this plan
@@ -341,7 +341,7 @@ upstream bytes, not estimates.
 | Task | Model | Disk | License | State |
 | --- | --- | --- | --- | --- |
 | Shot cuts, fast mode | ffmpeg scene score (`scdet`) | 0 (pinned ffmpeg) | existing posture | no model needed |
-| Shot cuts, accurate mode | TransNetV2 | pending converted artifact | MIT upstream | owned TF→PyTorch→ONNX runner exists; live three-runtime parity and catalog signing pending |
+| Shot cuts, accurate mode | TransNetV2 | pending converted artifact | MIT upstream | owned TF→PyTorch→ONNX runner exists; live three-runtime parity and catalog publication pending |
 | Face detection | YuNet 2026may (ONNX) | 0.22 MiB | MIT | pinned |
 | Person/object detection | D-FINE-N COCO (ONNX) | 14.6 MiB | Apache-2.0 | pinned |
 | Track interpolation | ByteTrack/OC-SORT (algorithm port, no weights) | 0 | MIT code | no weights |
@@ -416,7 +416,7 @@ This answers "how are we shipping them."
   auto-update channel; an app update ships a new catalog, never model
   bytes. Manifest compatibility keys (GGUF version, ORT opset) let an app
   update mark a model stale instead of silently breaking it.
-- **Catalog:** a versioned, signed catalog manifest ships with the app:
+- **Catalog:** a versioned, digest-pinned catalog manifest ships with the app:
   model id → version, download URL, byte size, SHA-256, license id,
   attribution text, capability requirements (RAM floor, platform), and
   the licensing-evidence pointers milestone-9 stable 1.0 admission reports.
@@ -433,10 +433,8 @@ This answers "how are we shipping them."
   statfs preflight precedent in `desktop/project-library-media-capacity.ts`).
   Known residuals from that review (no independent authenticity root,
   hard-coded versions) are narrowed rather than inherited: the catalog is
-  the version authority, digests pin every blob, and the catalog's own
-  signing scheme (authority, pinned verification key, rotation) is a
-  named WP-7.0.1 design item — at minimum it inherits the application's
-  signing chain.
+  the version authority, and SHA-256 digests pin every catalog payload,
+  licensing row, and model blob.
 - **Hosting target:** an artifact may be published to a first-party bucket
   behind our domain (Cloudflare R2: zero egress, Range support) only through
   the separately credentialed, digest/read-back-verified publisher. The current
@@ -606,25 +604,25 @@ manual sign-off as an execution switch:
 
 | Area | Current implementation |
 | --- | --- |
-| Catalog and licensing | The authenticated Ed25519 catalog V2 retains thirteen verified entries. Supply candidates now pin wav2vec2 and Qwen sources plus conversion recipes for TIGER, PANNs, Beat This, and TransNetV2, but none joins the executable catalog before converted-artifact/parity closure, versioned-download notices and hashes, and signed catalog publication. Unknown keys and artifact drift fail closed. Owner licensing notes remain a non-gating worksheet; missing artifact-specific integrity and distribution inputs keep only that model unavailable. |
+| Catalog and licensing | The digest-pinned catalog V2 retains thirteen verified entries. Supply candidates now pin wav2vec2 and Qwen sources plus conversion recipes for TIGER, PANNs, Beat This, and TransNetV2, but none joins the executable catalog before converted-artifact/parity closure, versioned-download notices and hashes, and digest-pinned catalog publication. Malformed SHA-256 pins and artifact drift fail closed. Owner licensing notes remain a non-gating worksheet; missing artifact-specific integrity and distribution inputs keep only that model unavailable. |
 | Model lifecycle | A user-settable, content-addressed filesystem store supports capacity preflight, explicit resumable install, cancellation after quiescence, preseed, relocation by copy/verify/swap, removal, garbage collection, notices, and reconciliation after external deletion. **Tools > Local Models > Manage Models…** is lazy and desktop-only. No model is installed or repaired implicitly. |
 | Native runtime | Sherpa ONNX 1.13.5 remains authenticated on linux-x64, linux-arm64, mac-arm64, and win-x64; its Windows-arm64 Node addon is pending. Isolated, supervised CPU-only family contracts, workers, memory admission, crash quarantine, and termination cancellation exist for ONNX Runtime 1.29.0, whisper.cpp v1.9.3, and llama.cpp b10509, but every five-target payload row remains `pending-external`. Fast shots retain the separately admitted external-FFmpeg path. |
 | Job and data boundary | `AssistanceWorkflow` adds a closed workflow graph, one aggregate fence, versioned settings, slotted claims, exact model roles, stage progress, one main-owned consent authority, strict frame-pack/embedding formats, bounded semantic reviewers, and project-isolated disposable custody over all guided and fifteen Advanced recipes. Review media is incrementally hashed and bound to its exact stage/slot claim before native execution. Adapter-owned preprocessing preserves each model's required sample rate/channels; long media remains under one whole-selection fence. VFR and monotonic forward retimes use source-time authority; reverse, ambiguous nested, multicamera, and live inputs refuse. |
 | Product state | Guided recipes and lazy review surfaces are menu-reached; Advanced exposes validated one-stage primitive recipes. Acceptance starts unselected, revalidates the aggregate fence, and reuses ordinary transcript, label, derived-source, annotation, tempo, sequence, crop, and keyframe commands. Disposable indexes, accepted reframe evidence, saliency/tracker state, and ranking checkpoints support deterministic reuse without a schema change. Raw/unselected Qwen output never enters `.scape`; only bounded sanitized editorial metadata belonging to an accepted proposal may be retained. |
-| Implemented feature domains | Workers, deterministic preprocess/postprocess, reviewers, and publishers cover the full planned transcription/alignment, cleanup/diarization, enhancement/separation, reactions, beats, cuts, search/OCR, reframe, highlight, and editorial workflow set. Both ASRs consume reviewed VAD; auto-language alignment admits only detected English; long DeepFilter/TIGER runs spool bounded chunks; cleanup/audio/visual review is mutation-free and editable. Existing Sherpa and fast-shot routes are production-admitted; each new model-backed route remains unavailable in packages until its exact converted model, signed catalog entry, and authenticated target runtime arrive. |
+| Implemented feature domains | Workers, deterministic preprocess/postprocess, reviewers, and publishers cover the full planned transcription/alignment, cleanup/diarization, enhancement/separation, reactions, beats, cuts, search/OCR, reframe, highlight, and editorial workflow set. Both ASRs consume reviewed VAD; auto-language alignment admits only detected English; long DeepFilter/TIGER runs spool bounded chunks; cleanup/audio/visual review is mutation-free and editable. Existing Sherpa and fast-shot routes are production-admitted; each new model-backed route remains unavailable in packages until its exact converted model, catalog entry, and authenticated target runtime arrive. |
 
 Activation has four explicit boundaries:
 
 1. **Implementation is not payload admission.** The full guided workflow and
    adapter layer exists, while verified Sherpa and model-free fast shots remain
    the only currently package-admitted execution baseline. A new route requires
-   its exact externally signed catalog entry and authenticated target payload;
+   its exact reviewed catalog entry and authenticated target payload;
    absent evidence returns the corresponding typed unavailable result without
    substituting a model, runtime, or result.
 2. **Catalog publication metadata is not upload evidence.** The mirror
    publisher streams upstream bodies to disk, stages large objects with
    resumable multipart upload, and requires HEAD, Range, and full public
-   SHA-256 read-back before catalog output for external signing. This branch
+   SHA-256 read-back before catalog output for review. This branch
    records no live R2 write or read-back. Explicit preseed remains a supported
    zero-network path; a missing object never permits an unpinned upstream fetch.
 3. **Qualification is open but nonblocking.** The owner-qualified fixed-GPU
@@ -673,7 +671,7 @@ record, `blockedBy` and `distributionStatus` are derived from the
 recorded statuses, the audio launch set and two upstream-ambiguous
 models are recorded, and eleven refused weights are named with reasons. Later
 evidence work completed every mandatory row for the thirteen models now in the
-signed catalog; those rows derive `distributionStatus: permitted`, while
+digest-pinned catalog; those rows derive `distributionStatus: permitted`, while
 refused and incomplete candidates remain uncataloged. Versioned notice and hash
 evidence authorizes distribution but is not proof that the catalog's R2 objects
 were uploaded.
@@ -685,15 +683,15 @@ were uploaded.
   review, training-data provenance, model card and use restrictions, and
   versioned download notices and hashes
   (config/production-licensing-matrix.json:339-342). The human fields feed
-  milestone-9 release admission, while signed catalog identity and artifact
+  milestone-9 release admission, while digest-pinned catalog identity and artifact
   hashes remain machine-verifiable activation requirements. The first records
   authored for the launch set (Silero VAD, Parakeet v2/v3, Whisper
   turbo, pyannote segmentation, ERes2Net, DeepFilterNet3, Spleeter).
 - **Invariants:** The `#7-optional-local-assistance` anchor is preserved
   (roadmap.md:961). Unknown, conflicting, or incomplete human license evidence
   is surfaced in milestone 9 and blocks stable 1.0 admission, never current
-  catalog visibility or testing. No loader or capability flag bypasses signed
-  catalog identity, exact artifact digest, runtime, platform, storage, or
+  catalog visibility or testing. No loader or capability flag bypasses
+  digest-pinned catalog identity, exact artifact digest, runtime, platform, storage, or
   consent checks.
 - **Acceptance:** Licensing matrix tests cover accept/reject paths for
   model evidence records; the landed roadmap edit keeps
@@ -702,24 +700,24 @@ were uploaded.
   7.0.0a defers to the first slice that mirrors an artifact.
 - **Non-goals:** No download code, no runtime, no UI beyond notices.
 - **Stop condition:** Stop stable 1.0 admission if a launch-set model fails
-  license review. Stop current execution only when signed catalog, artifact,
+  license review. Stop current execution only when digest-pinned catalog, artifact,
   runtime, platform, storage, consent, or selected-media checks fail.
 
 ### WP-7.0.1 — Model manager and storage
 
 **Current status:** active. The outcome below is implemented, including the
-signed-catalog rotation successor, complete lifecycle controls, and the lazy
+digest-pinned catalog, complete lifecycle controls, and the lazy
 desktop menu dialog. Remote mirror availability remains external to this
 activation; explicit preseed is the authenticated offline path.
 
 - **Outcome:** The user-settable models directory (default
   `<userData>/models`, settings-exposed, relocatable via
   copy-verify-swap); the content-addressed blob store with per-model
-  manifests; the signed catalog; resumable digest-verified downloads with
+  manifests; the digest-pinned catalog; resumable digest-verified downloads with
   capacity preflight; per-model install/remove; a menu-reached model
   manager dialog listing state, size, license, and attribution per model.
-  The catalog signing scheme — signing authority, pinned verification
-  key, rotation — is a named design item of this packet.
+	Catalog review retains canonical serialization and SHA-256 payload pins as a
+	separate operational protocol.
 - **Invariants:** Models are plain files the user can inspect and delete
   externally; the app self-heals from external deletion by re-marking the
   model uninstalled. Download is user-action-only and never implicit
@@ -729,8 +727,8 @@ activation; explicit preseed is the authenticated offline path.
   (`assistance.acceptedDigestMismatches eq 0`).
 - **Acceptance:** Kill/resume mid-download leaves either a resumable
   partial or nothing; a tampered blob is rejected with a typed error; a
-  catalog with a missing or invalid signature is rejected with a typed
-  error;
+	a catalog with malformed or inconsistent SHA-256 pins is rejected with a
+	typed error;
   relocation preserves every installed model or aborts whole; removal
   reclaims bytes and leaves the editor complete; offline installs from a
   pre-seeded directory work with zero network.
@@ -749,7 +747,7 @@ progress, cancellation, Parakeet transcription, Silero speech ranges, and
 pyannote/ERes2Net speaker turns exist. Whisper, wav2vec2, DeepFilterNet/TIGER,
 the ONNX vision/semantic stack, and Qwen now have bounded conditional family
 workers and deterministic adapters; every affected package route remains typed
-unavailable until its exact signed model and authenticated target payload are
+unavailable until its exact digest-pinned model and authenticated target payload are
 admitted. Long enhancement/separation processing uses bounded spooled chunks,
 and cancellation terminates the worker/process rather than waiting for whole
 media completion. Background scheduling priority applies to every assistance
@@ -861,7 +859,7 @@ result and remains documentary rather than an activation switch.
   into either ASR. Automatic-language Whisper keeps the optional wav2vec2 stage,
   but the alignment worker loads it only for detected English and returns no
   fabricated alignment for other languages. Parakeet is admitted today;
-  Whisper/alignment remain typed unavailable until their signed catalog/runtime
+  Whisper/alignment remain typed unavailable until their digest-pinned catalog/runtime
   payload evidence is admitted.
   The word-error-rate and word-timing bounds are registered as
   `m7-local-assistance-speech-accuracy`; measuring them against a real model,
@@ -920,7 +918,7 @@ result and remains documentary rather than an activation switch.
   original/result or stem audition, and atomic Project Bin, range-replacement,
   or initially-muted D/M/E placement publishers. The existing DeepFilterNet
   artifact may be admitted independently; TIGER remains unavailable until its
-  converted graph/parity and signed catalog/runtime evidence lands.
+  converted graph/parity and digest-pinned catalog/runtime evidence lands.
 - **7A-5 — Semantic transcript search.** Outcome: transcript embeddings
   (nomic-embed) in a local disposable index; palette-integrated "find
   where I said…" jumping to timestamps. Invariants: index is rebuildable,
@@ -945,7 +943,7 @@ result and remains documentary rather than an activation switch.
   exactly representable held-tempo diffs are implemented. The MIDI/signature
   fence remains untouched. `small0` is the exact CPU default and `final0` is an
   optional quality pack with no substitution between them. Converted artifacts,
-  live parity, catalog signing, and runtime payload evidence still block
+	live parity, catalog publication, and runtime payload evidence still block
   packaged execution.
 - **7A-7 — Exit evidence.** The privacy workload run end-to-end on the
   full 7A surface, results recorded without relabeling pending rows.
@@ -974,7 +972,7 @@ entries and ONNX Runtime payloads pass release admission.
   commits ordinary timeline annotations, and reject, stale authority, or an
   empty result does not fabricate cuts. Accurate mode has an owned TransNetV2
   adapter and the same canonical boundary publisher, but its converted graph,
-  three-runtime parity, signed catalog entry, and payload remain pending.
+  three-runtime parity, catalog entry, and payload remain pending.
 - **7B-2 — Frame semantics: tagging and search.** Outcome: shot-aware
   sampled SigLIP 2 embeddings and tags; OCR of overlays on shot keyframes
   as searchable text; palette-integrated visual search fused with 7A-5's
@@ -1140,7 +1138,7 @@ entries and ONNX Runtime payloads pass release admission.
   labels, tempo, shots, crops/keyframes, and highlight sequences publish through
   existing commands. Disposable indexes and retained ranking/reframe evidence
   do not widen `.scape`. A conditional route stays unavailable until its exact
-  artifact, signed catalog entry, and target payload pass their own hard gates.
+  artifact, catalog entry, and target payload pass their own hard gates.
 - **The browser has custody but no inference.** Web Soundscaper and
   Framescaper preserve the schema-defined ordinary project state, while new
   model execution and the filesystem model manager remain Electron-only. The

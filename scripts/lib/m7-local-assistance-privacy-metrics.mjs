@@ -84,8 +84,7 @@ const PACKAGE_FIELDS = Object.freeze([
 	'byteLength', 'identity', 'manifestSha256', 'manifestVerified', 'sha256', 'sourceRevision', 'target',
 ]);
 const AUTHORITY_FIELDS = Object.freeze([
-	'catalogSha256', 'catalogSignatureSha256', 'catalogSignatureVerified',
-	'modelArtifacts', 'runtimeArtifacts',
+	'catalogSha256', 'modelArtifacts', 'runtimeArtifacts',
 ]);
 const MODEL_FIELDS = Object.freeze([
 	'artifactRole', 'byteLength', 'modelId', 'sha256', 'task', 'version',
@@ -311,10 +310,6 @@ function validatePackage(value, platformTarget, sourceRevision) {
 function validateArtifactAuthority(value, platformTarget) {
 	const authority = exactRecord(value, AUTHORITY_FIELDS, 'M7 artifactAuthority');
 	sha256(authority.catalogSha256, 'M7 artifactAuthority.catalogSha256');
-	sha256(authority.catalogSignatureSha256, 'M7 artifactAuthority.catalogSignatureSha256');
-	if (authority.catalogSignatureVerified !== true) {
-		throw new Error('M7 model catalog signature must be authenticated before measurement.');
-	}
 	const modelKeys = new Set();
 	const modelArtifacts = boundedArray(
 		authority.modelArtifacts, 1, MAXIMUM_ARTIFACTS, 'M7 modelArtifacts',

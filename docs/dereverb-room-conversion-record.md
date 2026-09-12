@@ -9,7 +9,7 @@ the de-reverb bake-off's scratch assets are $B). This is an external run
 record in the style of docs/milestone-7-model-conversion-reproduction.md; it
 does not by itself authorize a production catalog entry — the register rows
 stay pending-external until the locked `soundscaper-model-conversion-v1`
-toolchain reproduces it and the catalog is externally signed. Every digest,
+toolchain reproduces it and the catalog entry is reviewed. Every digest,
 command, and DSP constant needed to reproduce the run is recorded here.
 
 ## Source artifacts

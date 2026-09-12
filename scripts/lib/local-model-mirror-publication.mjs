@@ -3,9 +3,8 @@
 /**
  * Public-delivery verification for mirrored local-model artifacts.
  *
- * The release signer is deliberately not part of this module. A publisher
- * must finish these public checks before handing the resulting catalog to the
- * repository-external signer.
+ * A publisher must finish these public checks before handing the resulting
+ * digest-pinned catalog to repository review.
  */
 
 import { createHash } from 'node:crypto';
@@ -117,7 +116,7 @@ async function verifyFullBody({ url, artifact, fetchImpl, signal }) {
 }
 
 /**
- * Proves the public object contract that must precede external catalog signing:
+ * Proves the public object contract that must precede catalog publication:
  * browser-readable HEAD, a one-byte Range response, then a streamed full hash.
  */
 export async function verifyMirroredArtifact({ url, artifact, fetchImpl = fetch, signal }) {

@@ -542,7 +542,7 @@
 			},
 			"minimumSystemMemoryBytes": 0,
 			"activationStatus": "catalog-publication-pending",
-			"blockedBy": "No externally signed production-catalog entry or immutable mirror readback is recorded."
+			"blockedBy": "No reviewed production-catalog entry or immutable mirror readback is recorded."
 		},
 		{
 			"id": "qwen3-4b-q4-k-m",
@@ -556,7 +556,7 @@
 			},
 			"minimumSystemMemoryBytes": 17179869184,
 			"activationStatus": "catalog-publication-pending",
-			"blockedBy": "No externally signed production-catalog entry, immutable mirror readback, or packaged llama.cpp canary is recorded."
+			"blockedBy": "No reviewed production-catalog entry, immutable mirror readback, or packaged llama.cpp canary is recorded."
 		}
 	]
 }

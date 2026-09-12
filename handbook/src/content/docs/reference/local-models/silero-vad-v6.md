@@ -44,7 +44,7 @@ Input: A public-domain excerpt from John F. Kennedy’s inaugural address, with 
 
 Speech regions must be nonempty and have valid, ordered boundaries inside the input audio.
 
-The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. A required model missing from the signed catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.
+The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. A required model missing from the catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.
 
 ## Review the result {#review-the-result}
 

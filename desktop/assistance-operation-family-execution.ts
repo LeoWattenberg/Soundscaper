@@ -462,6 +462,6 @@ function resourceLimits(task: AssistanceRuntimeFamilyTask): Readonly<{
 
 function modelUnavailable(error: unknown): boolean {
 	return error instanceof Error
-		&& /is not installed|does not match the current authenticated catalog entry|failed its integrity check/u
+		&& /is not installed|does not match the current catalog entry|failed its integrity check/u
 			.test(error.message);
 }

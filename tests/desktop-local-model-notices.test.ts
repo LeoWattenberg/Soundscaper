@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { LocalModelCatalog } from '../desktop/local-model-catalog.ts';
-import { localModelEvidenceSha256 } from '../desktop/local-model-catalog-signature.ts';
+import { localModelEvidenceSha256 } from '../desktop/local-model-catalog-integrity.ts';
 import { createInstalledLocalModelNotices } from '../desktop/local-model-notices.ts';
 import type { InstalledLocalModel } from '../desktop/local-model-store.ts';
 
@@ -51,7 +51,7 @@ const INSTALLED: InstalledLocalModel = Object.freeze({
 	})]),
 });
 
-test('installed-model notices derive only bounded authenticated catalog and evidence fields', () => {
+test('installed-model notices derive only bounded catalog and evidence fields', () => {
 	const notices = createInstalledLocalModelNotices({
 		catalog: CATALOG, licensingEvidence: [EVIDENCE], installed: [INSTALLED],
 	});
@@ -66,7 +66,7 @@ test('installed-model notices derive only bounded authenticated catalog and evid
 	assert.equal(Object.isFrozen(notices[0]?.provenanceSources), true);
 });
 
-test('distribution status does not suppress authenticated notices', () => {
+test('distribution status does not suppress catalog notices', () => {
 	const pendingEvidence = Object.freeze({
 		...EVIDENCE,
 		distributionStatus: 'blocked',
@@ -86,8 +86,8 @@ test('distribution status does not suppress authenticated notices', () => {
 	})[0]?.modelId, 'model-v1');
 });
 
-test('notice derivation refuses evidence changed after catalog authentication', () => {
-	const changed = { ...EVIDENCE, purpose: 'Changed after signing.' };
+test('notice derivation refuses evidence changed after its catalog digest was recorded', () => {
+	const changed = { ...EVIDENCE, purpose: 'Changed after catalog publication.' };
 	assert.throws(
 		() => createInstalledLocalModelNotices({
 			catalog: CATALOG, licensingEvidence: [changed], installed: [INSTALLED],
@@ -105,18 +105,18 @@ test('stale or altered installations cannot inherit a current catalog notice', (
 			() => createInstalledLocalModelNotices({
 				catalog: CATALOG, licensingEvidence: [EVIDENCE], installed: [installed],
 			}),
-			/does not match.*authenticated catalog/iu,
+			/does not match.*catalog/iu,
 		);
 	}
 });
 
-test('an installed model outside the current authenticated catalog is refused', () => {
+test('an installed model outside the current catalog is refused', () => {
 	assert.throws(
 		() => createInstalledLocalModelNotices({
 			catalog: CATALOG,
 			licensingEvidence: [EVIDENCE],
 			installed: [{ ...INSTALLED, modelId: 'removed-model' }],
 		}),
-		/no authenticated catalog notice/iu,
+		/no catalog notice/iu,
 	);
 });

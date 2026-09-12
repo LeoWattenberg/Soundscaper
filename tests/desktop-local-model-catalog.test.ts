@@ -1,11 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { generateKeyPairSync, sign } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import { canonicalJson, localModelEvidenceSha256 } from '../desktop/local-model-catalog-signature.ts';
+import { localModelEvidenceSha256 } from '../desktop/local-model-catalog-integrity.ts';
 import {
 	catalogEntryDownloadBytes,
 	describeModelAvailability,
@@ -18,13 +17,6 @@ const catalogUrl = new URL('../config/local-model-catalog.json', import.meta.url
 const matrixUrl = new URL('../config/production-licensing-matrix.json', import.meta.url);
 
 const GIB = 1024 ** 3;
-const { privateKey, publicKey } = generateKeyPairSync('ed25519');
-const TEST_KEY_ID = 'local-model-catalog-test';
-const TEST_SIGNATURE_OPTIONS = Object.freeze({
-	trustedKeys: Object.freeze({
-		[TEST_KEY_ID]: publicKey.export({ type: 'spki', format: 'pem' }).toString(),
-	}),
-});
 
 async function readJson(url: URL): Promise<Record<string, unknown>> {
 	return JSON.parse(String(await readFile(url)));
@@ -92,19 +84,11 @@ function catalogOf(
 	publication: unknown = PUBLICATION,
 	schemaVersion: unknown = LOCAL_MODEL_CATALOG_SCHEMA_VERSION,
 ): unknown {
-	const payload = { schemaVersion, publication, entries };
-	return {
-		...payload,
-		signature: {
-			algorithm: 'Ed25519',
-			keyId: TEST_KEY_ID,
-			value: sign(null, Buffer.from(canonicalJson(payload)), privateKey).toString('base64'),
-		},
-	};
+	return { schemaVersion, publication, entries };
 }
 
 function validateLocalModelCatalog(value: unknown, catalogBinding: Parameters<typeof validateCatalog>[1]) {
-	return validateCatalog(value, catalogBinding, TEST_SIGNATURE_OPTIONS);
+	return validateCatalog(value, catalogBinding);
 }
 
 test('the checked-in catalog agrees with the licensing register', async () => {
@@ -112,7 +96,7 @@ test('the checked-in catalog agrees with the licensing register', async () => {
 		localModelEvidence: { id: string }[];
 		refusedLocalModels: { id: string }[];
 	};
-	const catalog = validateLocalModelCatalog(await readJson(catalogUrl), {
+	const catalog = validateCatalog(await readJson(catalogUrl), {
 		licensingEvidence: matrix.localModelEvidence,
 		refusedIds: matrix.refusedLocalModels.map(({ id }) => id),
 	});
@@ -128,7 +112,7 @@ test('the checked-in catalog agrees with the licensing register', async () => {
 
 test('every offered catalog model is installable because V2 requires pinned artifacts', async () => {
 	const matrix = await readJson(matrixUrl) as { localModelEvidence: { id: string }[] };
-	const catalog = validateLocalModelCatalog(await readJson(catalogUrl), {
+	const catalog = validateCatalog(await readJson(catalogUrl), {
 		licensingEvidence: matrix.localModelEvidence,
 	});
 
@@ -158,7 +142,7 @@ test('a model without a licensing evidence record cannot be cataloged', () => {
 	);
 });
 
-test('distribution metadata cannot disable an authenticated test catalog', () => {
+test('distribution metadata cannot disable a digest-bound test catalog', () => {
 	assert.doesNotThrow(() => validateLocalModelCatalog(
 		catalogOf([entry({ modelId: 'crisperwhisper' })]),
 		binding({ evidenceIds: ['crisperwhisper'], refusedIds: ['crisperwhisper'] }),

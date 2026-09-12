@@ -16,7 +16,7 @@ for (const modelCase of validateLocalModelRealTestCases(manifest, catalog, { can
 		const target = `${process.env.SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM ?? process.platform}-${process.env.SOUNDSCAPER_PACKAGED_RUNTIME_ARCH ?? process.arch}`;
 		const models = modelCase.modelIds.map((id) => catalog.entries.find((entry) => entry.modelId === id));
 		for (const [index, model] of models.entries()) expect(model,
-			`${modelCase.modelIds[index]} needs a published, signed catalog entry before its real installation test can run.`).toBeDefined();
+			`${modelCase.modelIds[index]} needs a published catalog entry before its real installation test can run.`).toBeDefined();
 		const unsupported = models.filter((entry) => !entry.platforms.includes(target));
 		test.skip(unsupported.length > 0, `Catalog does not publish ${unsupported.map((entry) => entry.modelId).join(', ')} on ${target}.`);
 		const productId = process.env.SOUNDSCAPER_LOCAL_ASSISTANCE_PRODUCT_ID ?? 'framescaper';

@@ -577,6 +577,6 @@ function modelEvidenceUnavailable(error: unknown): boolean {
 
 function modelChoiceEvidenceUnavailable(error: unknown): boolean {
 	if (!(error instanceof Error)) return false;
-	return /is not installed|does not match the current authenticated catalog entry|failed its integrity check/u
+	return /is not installed|does not match the current catalog entry|failed its integrity check/u
 		.test(error.message);
 }

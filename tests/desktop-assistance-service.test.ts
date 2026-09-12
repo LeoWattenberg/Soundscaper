@@ -14,10 +14,9 @@ import {
 import { LocalModelCapacity } from '../desktop/local-model-capacity.ts';
 import { localModelBlobName } from '../desktop/local-model-store.ts';
 import {
-	signedTestLocalModelCatalog,
+	testLocalModelCatalog,
 	testLocalModelEvidence,
 	testLocalModelEvidencePin,
-	TEST_LOCAL_MODEL_CATALOG_SIGNATURE_OPTIONS,
 } from './helpers/local-model-catalog-v2-fixture.ts';
 
 const GIB = 1024 ** 3;
@@ -35,7 +34,7 @@ const EVIDENCE = testLocalModelEvidence('silero-vad-v6', {
 	weightsLicense: 'MIT',
 	provenanceSources: Object.freeze(['https://upstream.invalid/repo']),
 });
-const CATALOG = signedTestLocalModelCatalog({
+const CATALOG = testLocalModelCatalog({
 	schemaVersion: 2,
 	publication: {
 		bucket: 'soundscaper-assets',
@@ -99,7 +98,6 @@ async function serviceIn(t: { after: (fn: () => unknown) => void }, overrides = 
 		userDataPath,
 		catalog: CATALOG,
 		licensingEvidence: [EVIDENCE],
-		catalogSignatureOptions: TEST_LOCAL_MODEL_CATALOG_SIGNATURE_OPTIONS,
 		runtime: runtimeStub(true),
 		platform: 'linux-x64',
 		totalMemoryBytes: 16 * GIB,
@@ -281,7 +279,7 @@ test('direct content-addressed pre-seeds reconcile with zero network', { timeout
 	assert.equal((await service.status()).models[0]?.availability, 'installed');
 });
 
-test('a model outside the authenticated catalog cannot be installed', { timeout: 20_000 }, async (t) => {
+test('a model outside the catalog cannot be installed', { timeout: 20_000 }, async (t) => {
 	const service = await serviceIn(t);
 
 	await assert.rejects(service.install('absent-model'), /not offered by this build/iu);
@@ -322,7 +320,7 @@ test('a stale installed manifest does not impersonate the current catalog entry'
 	assert.equal(model?.installedBytes, null);
 	await assert.rejects(
 		service.resolveModelPaths('silero-vad-v6'),
-		/does not match the current authenticated catalog/iu,
+		/does not match the current catalog/iu,
 	);
 });
 
@@ -402,7 +400,6 @@ test('a catalog that disagrees with the licensing register fails at construction
 			userDataPath,
 			catalog: CATALOG,
 			licensingEvidence: [],
-			catalogSignatureOptions: TEST_LOCAL_MODEL_CATALOG_SIGNATURE_OPTIONS,
 			runtime: runtimeStub(true),
 		}),
 		/needs exactly one licensing evidence record/iu,

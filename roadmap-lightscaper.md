@@ -557,7 +557,7 @@ acceptance evidence, and this milestone adds no product capability.
 | Catalog scale | Recorded import/scroll/filter/search budgets over the pinned large-library fixture; bounded memory over soak. |
 | Interrupted mutation | Abort, kill, or reload at import, preview-build, develop, and export boundaries leaves a valid recoverable catalog. |
 | Shared-effect parity | Every Lightscaper operation authorable and renderable from Framescaper in the same suite run. |
-| Distribution | Browser and desktop workflows, licenses, notices, SHA-256 sums, authenticated runtime/catalog payloads, and unsigned package smoke. |
+| Distribution | Browser and desktop workflows, licenses, notices, SHA-256 sums, digest-pinned runtime/catalog payloads, and unsigned package smoke. |
 
 ## Platform feasibility references
 

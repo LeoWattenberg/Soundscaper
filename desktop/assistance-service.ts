@@ -19,7 +19,6 @@ import type {
 	LocalModelCatalog,
 	LocalModelCatalogEntry,
 } from './local-model-catalog.ts';
-import type { LocalModelCatalogSignatureOptions } from './local-model-catalog-signature.ts';
 import { LocalModelCapacity } from './local-model-capacity.ts';
 import { downloadLocalModelArtifact } from './local-model-download.ts';
 import { collectLocalModelGarbage } from './local-model-garbage-collection.ts';
@@ -106,7 +105,6 @@ export interface AssistanceServiceOptions {
 	readonly catalog: unknown;
 	readonly licensingEvidence: readonly unknown[];
 	readonly refusedIds?: readonly string[];
-	readonly catalogSignatureOptions?: LocalModelCatalogSignatureOptions;
 	readonly runtime: SpeechRuntimeAdapter;
 	readonly platform?: string;
 	readonly totalMemoryBytes?: number;
@@ -158,7 +156,7 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 	const catalog: LocalModelCatalog = validateLocalModelCatalog(options.catalog, {
 		licensingEvidence: options.licensingEvidence,
 		refusedIds: options.refusedIds,
-	}, options.catalogSignatureOptions);
+	});
 	let rootPath = resolveLocalModelRoot({
 		userDataPath: options.userDataPath,
 		settingsDirectory: options.settingsDirectory ?? null,
@@ -388,7 +386,7 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 		}));
 	}
 
-	/** Current installed notices are rebuilt from the authenticated catalog binding. */
+	/** Current installed notices are rebuilt from the digest-bound catalog. */
 	async function installedNotices(): Promise<readonly InstalledLocalModelNotice[]> {
 		return createInstalledLocalModelNotices({
 			catalog, licensingEvidence: options.licensingEvidence, installed: await store.listInstalled(),
@@ -426,7 +424,7 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 		const entry = entryFor(modelId);
 		assertMachineCompatible(entry);
 		if (!currentInstallation(entry, [manifest])) {
-			throw new Error(`${modelId} does not match the current authenticated catalog entry.`);
+			throw new Error(`${modelId} does not match the current catalog entry.`);
 		}
 		const paths: Record<string, string> = {};
 		for (const artifact of manifest.artifacts) {

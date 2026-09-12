@@ -269,8 +269,8 @@ function validateArtifact(value, expected, output) {
 
 function validateReleaseEvidence(value) {
 	const row = exactRecord(value,
-		['publicReadbackSha256', 'signedCatalogEntrySha256'], 'catalog release evidence');
-	for (const field of ['publicReadbackSha256', 'signedCatalogEntrySha256']) {
+		['catalogEntrySha256', 'publicReadbackSha256'], 'catalog release evidence');
+	for (const field of ['catalogEntrySha256', 'publicReadbackSha256']) {
 		if (row[field] !== null && !SHA256.test(row[field])) {
 			throw new TypeError('Catalog release evidence must be null or one exact SHA-256.');
 		}
@@ -296,9 +296,9 @@ function deriveCatalogBlockers({ expected, execution, fixtures, offeredModelIds,
 	if (releaseEvidence.publicReadbackSha256 === null) {
 		blockers.push('immutable-public-readback');
 	}
-	if (releaseEvidence.signedCatalogEntrySha256 === null
+	if (releaseEvidence.catalogEntrySha256 === null
 		|| !offeredModelIds.includes(expected.catalogModelId)) {
-		blockers.push('external-catalog-signature');
+		blockers.push('catalog-publication');
 	}
 	return [...new Set(blockers)].sort();
 }

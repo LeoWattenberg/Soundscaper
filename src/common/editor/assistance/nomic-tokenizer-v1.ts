@@ -51,7 +51,7 @@ const NONSPACING_MARK = /\p{Mn}/u;
 /**
  * Executes only the local artifacts pinned at nomic-ai/nomic-embed-text-v1.5
  * revision e9b6763023c676ca8431644204f50c2b100d9aab. Artifact authentication
- * remains owned by the signed catalog and the worker's exact file grant.
+ * remains owned by the digest-pinned catalog and the worker's exact file grant.
  * https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/tree/e9b6763023c676ca8431644204f50c2b100d9aab
  * BERT semantics: https://github.com/huggingface/tokenizers/blob/v0.15.0/tokenizers/src/normalizers/bert.rs
  */

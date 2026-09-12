@@ -215,7 +215,7 @@
 				"electron-only": {
 					"status": "partial",
 					"evidence": [
-						"desktop/local-model-catalog-signature.ts",
+						"desktop/local-model-catalog-integrity.ts",
 						"desktop/local-model-store.ts",
 						"desktop/assistance-operation-service.ts",
 						"desktop/assistance-workflow-service.ts",
@@ -604,7 +604,7 @@
 				"electron-only": {
 					"status": "partial",
 					"evidence": [
-						"desktop/local-model-catalog-signature.ts",
+						"desktop/local-model-catalog-integrity.ts",
 						"desktop/local-model-store.ts",
 						"desktop/assistance-operation-service.ts",
 						"desktop/assistance-workflow-service.ts",

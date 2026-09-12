@@ -102,10 +102,10 @@ test('required candidates add test coverage without becoming published model aut
 	assert.equal(catalog.entries.some(({ modelId }) => modelId === 'qwen3-4b-q4-k-m'), false);
 });
 
-test('candidate guides distinguish required tests and packaged engines from signed publication', async () => {
+test('candidate guides distinguish required tests and packaged engines from catalog publication', async () => {
 	for (const task of candidateTasks) {
 		const page = await readFile(resolve(root, `handbook/src/content/docs/reference/local-models/${task.catalogModelId}.md`), 'utf8');
-		assert.match(page, /signed catalog publication is pending/u);
+		assert.match(page, /digest-pinned catalog publication is pending/u);
 		assert.match(page, /cannot currently install/u);
 		assert.match(page, /Required test coverage does not authorize/u);
 		if (task.catalogModelId === 'qwen3-4b-q4-k-m') assert.match(page, /llama-cpp b10509/u);
@@ -116,7 +116,7 @@ test('candidate guides distinguish required tests and packaged engines from sign
 	}
 });
 
-test('the Windows ARM64 build recipe cannot widen signed catalog platform admission', () => {
+test('the Windows ARM64 build recipe cannot widen catalog platform admission', () => {
 	const silero = catalog.entries.find(({ modelId }) => modelId === 'silero-vad-v6');
 	assert.ok(!silero.platforms.includes('win32-arm64'));
 	assert.ok(!localModelRuntimeAvailability(silero, runtimeSources).availablePlatforms.includes('win32-arm64'));

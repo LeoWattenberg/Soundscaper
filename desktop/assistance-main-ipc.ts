@@ -213,14 +213,13 @@ export interface AssistanceServiceFactoryOptions {
 	readonly licensingMatrix: unknown;
 	readonly runtime: Parameters<typeof createAssistanceService>[0]['runtime'];
 	readonly totalMemoryBytes: number;
-	readonly catalogSignatureOptions?: Parameters<typeof createAssistanceService>[0]['catalogSignatureOptions'];
 	readonly persistModelsDirectory?: (directory: string) => PromiseLike<void> | void;
 }
 
 /**
  * Binds catalog metadata to the exact register the build ships. Distribution
  * metadata does not grant execution authority; runtime checks authenticate the
- * catalog, artifacts, platform, memory, and evidence digest.
+ * catalog artifacts, platform, memory, and evidence digest.
  */
 export function assistanceServiceFrom(options: AssistanceServiceFactoryOptions): AssistanceService {
 	const register = options.licensingMatrix as {
@@ -236,9 +235,6 @@ export function assistanceServiceFrom(options: AssistanceServiceFactoryOptions):
 		catalog: options.catalog,
 		licensingEvidence: register.localModelEvidence,
 		refusedIds: (register.refusedLocalModels ?? []).map(({ id }) => id),
-		...(options.catalogSignatureOptions
-			? { catalogSignatureOptions: options.catalogSignatureOptions }
-			: {}),
 		runtime: options.runtime,
 		totalMemoryBytes: options.totalMemoryBytes,
 		...(options.persistModelsDirectory

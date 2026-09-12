@@ -15,9 +15,9 @@
  * Publishing reads R2_MODELS_* S3 credentials from the process environment.
  * The token is provisioned outside this repository with Object Read & Write
  * access scoped only to the cataloged bucket, and its endpoint must name that
- * bucket's EU jurisdiction. This command never reads a catalog signing key:
+ * bucket's EU jurisdiction. This command never changes the model catalog:
  * after its public HEAD, Range, CORS, and full-digest checks pass, the changed
- * catalog is handed to the repository-external signer.
+ * digest-pinned catalog is handed to repository review.
  */
 
 import { readFile, writeFile } from 'node:fs/promises';
@@ -159,7 +159,7 @@ async function main() {
 	if (options.writeCatalog) {
 		await writeFile(catalogPath, serializeCatalog(catalog), 'utf8');
 		process.stdout.write(`\nRecorded mirrored artifacts in ${catalogPath}\n`);
-		process.stdout.write('Externally re-sign the catalog, review the diff, then run its gates.\n');
+		process.stdout.write('Review the digest-pinned catalog diff, then run its gates.\n');
 	}
 }
 

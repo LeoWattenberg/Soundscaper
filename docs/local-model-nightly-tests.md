@@ -23,9 +23,9 @@ platform intersection between the model catalog and native packaging support.
 The required suite now includes **19 cases covering 21 model identities**. Eight
 additional models have prepared cases and guides: wav2vec2 alignment, TIGER,
 room dereverberation, PANNs, both Beat This variants, TransNetV2, and Qwen3.
-Their signed catalog entries are still pending. A required entry missing from
-the authenticated catalog **fails its case**; defining a case does not authorize
-installation, substitute an upstream download, or bypass the catalog signature.
+Their catalog entries are still pending. A required entry missing from
+the digest-pinned catalog **fails its case**; defining a case does not authorize
+installation, substitute an upstream download, or bypass the catalog's artifact SHA-256 pins.
 Room dereverberation's upstream GPL-3.0 declaration, full license text, and source
 directions are recorded in `LICENSES/local-models/` and `THIRD_PARTY_LICENSES.md`.
 Its dry training corpus and base-checkpoint lineage remain unknown.
@@ -39,12 +39,12 @@ build receipt. Qwen's production worker still validates strict JSON and candidat
 authority. Packaging the engine does not itself publish the model weights.
 
 **Windows ARM64 catalog approval is pending.** Native build recipes are prepared,
-but the existing signed catalog admits only Whisper on Windows ARM64. The other
-12 models require a refreshed catalog signed by the existing authorized signer.
+but the existing digest-pinned catalog admits only Whisper on Windows ARM64. The other
+12 models require a reviewed catalog update with exact SHA-256 pins.
 Until it is published, those published-model cases report explicit platform skips
 on Windows ARM64. The eight entirely unpublished models fail their required cases
 on every target. All 13 published models are admitted on macOS arm64, Linux x64/arm64, and Windows
-x64. The committed catalog keeps its valid signature; packaging support does not
+x64. The committed catalog keeps its exact artifact pins; packaging support does not
 override its platform scope or establish that an ARM64 build has passed inference.
 
 The legacy public-supply candidate register can still say `pending-external`:

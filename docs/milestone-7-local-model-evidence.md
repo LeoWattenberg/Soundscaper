@@ -13,7 +13,7 @@
 > milestone-7 slice. Its disabled-gate and all-records-blocked statements
 > describe that exact historical checkpoint, not current admission. As of
 > 2026-08-27, `local-models` is enabled, thirteen complete permitted evidence
-> records supply the signed catalog, and Spleeter, Demucs, and TransNetV2 remain
+> records supply the digest-pinned catalog, and Spleeter, Demucs, and TransNetV2 remain
 > blocked and absent from the offered set. The later workflow implementation
 > adds conditional workers, reviewers, and publishers across all 7A/7B recipes;
 > it does not turn this historical evidence set into catalog authority for
@@ -21,7 +21,7 @@
 > 3.12 runner now implements the four required conversion/source-framework/ORT
 > comparisons, but no converted artifact or live parity evidence has been
 > retained. Those candidates still need the applicable external evidence and
-> externally signed catalog entries, and the new runtime families have no
+> reviewed catalog entries, and the new runtime families have no
 > authenticated target payload closure. Existing Parakeet/Silero/diarization
 > and model-free fast-shot execution remains admitted. Catalog metadata is not
 > durable R2 publication or public read-back evidence. Five-target canaries,

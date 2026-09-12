@@ -10,16 +10,16 @@ Separate a mixed soundtrack into dialogue, music, and effects proposals.
 
 ## Current availability {#current-availability}
 
-**This model’s signed catalog publication is pending.** Model Manager cannot currently install it. Required test coverage does not authorize downloads, bypass catalog signatures, or permit substitute model files.
+**This model’s digest-pinned catalog publication is pending.** Model Manager cannot currently install it. Required test coverage does not authorize downloads or permit substitute model files.
 
-Desktop builds package the required onnxruntime-node 1.29.0 engine for macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. Model installation still requires its signed catalog publication. These are supported build targets; consult the nightly test report for results on a particular package and machine.
+Desktop builds package the required onnxruntime-node 1.29.0 engine for macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. Model installation still requires its digest-pinned catalog publication. These are supported build targets; consult the nightly test report for results on a particular package and machine.
 
 ## Use this model {#use-this-model}
 
-Once the model is admitted in the signed catalog and its native runtime is available, the intended workflow is **Tools → Advanced Local Processing → Source separation**. The steps below describe that workflow; this installation cannot currently complete.
+Once the model is admitted in the catalog and its native runtime is available, the intended workflow is **Tools → Advanced Local Processing → Source separation**. The steps below describe that workflow; this installation cannot currently complete.
 
 1. Select the mixed audio to separate.
-2. Install TIGER through Model Manager once its signed catalog entry is available, then run source separation.
+2. Install TIGER through Model Manager once its catalog entry is available, then run source separation.
 3. Audition each proposed stem before adding the wanted results to the project.
 
 ## Download and requirements {#download-and-requirements}
@@ -28,11 +28,11 @@ Model identity: `tiger-dnr`, version **1.0.0**.
 
 Approximate candidate artifact size: **28.25 MiB**. Minimum system memory: **4 GiB**. This candidate requirement refers to total memory, not currently free memory. Inference also needs sufficient free memory, and installation needs working space; memory is not a speed guarantee.
 
-Planned platforms: macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. A matching packaged runtime and signed catalog approval are required.
+Planned platforms: macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. A matching packaged runtime and catalog publication are required.
 
 On Windows, install the latest supported [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) matching the desktop app: **x64** for an x64 build or **ARM64** for an ARM64 build. The native ONNX and Sherpa engines require these libraries; model downloads do not include them. Visual Studio itself is not required to use the app.
 
-These candidate artifact names describe the required package. They are not download instructions. Model Manager will expose verified installation only after the authenticated catalog admits them.
+These candidate artifact names describe the required package. They are not download instructions. Model Manager will expose verified installation only after the digest-pinned catalog admits them.
 
 | Artifact | Approximate download size |
 | --- | --- |
@@ -46,7 +46,7 @@ Input: The Kennedy speech resampled to 44.1 kHz and mixed with reproducible synt
 
 All dialogue, music, and effects stems must have the expected audio geometry, finite samples, and a non-silent signal. Each must differ from the mixture, and duplicated stems are rejected.
 
-The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. A required model missing from the signed catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.
+The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. A required model missing from the catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.
 
 ## Review the result {#review-the-result}
 

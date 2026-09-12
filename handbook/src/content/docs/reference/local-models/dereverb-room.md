@@ -10,16 +10,16 @@ Reduce room reflections in recorded speech with a local dereverberation model.
 
 ## Current availability {#current-availability}
 
-**This model’s signed catalog publication is pending.** Model Manager cannot currently install it. Required test coverage does not authorize downloads, bypass catalog signatures, or permit substitute model files. Its upstream GPL-3.0 declaration, license text, and source notices are recorded.
+**This model’s digest-pinned catalog publication is pending.** Model Manager cannot currently install it. Required test coverage does not authorize downloads or permit substitute model files. Its upstream GPL-3.0 declaration, license text, and source notices are recorded.
 
-Desktop builds package the required onnxruntime-node 1.29.0 engine for macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. Model installation still requires its signed catalog publication. These are supported build targets; consult the nightly test report for results on a particular package and machine.
+Desktop builds package the required onnxruntime-node 1.29.0 engine for macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. Model installation still requires its digest-pinned catalog publication. These are supported build targets; consult the nightly test report for results on a particular package and machine.
 
 ## Use this model {#use-this-model}
 
-Once the model is admitted in the signed catalog and its native runtime is available, the intended workflow is **Tools → Advanced Local Processing → Dereverberation**. The steps below describe that workflow; this installation cannot currently complete.
+Once the model is admitted in the catalog and its native runtime is available, the intended workflow is **Tools → Advanced Local Processing → Dereverberation**. The steps below describe that workflow; this installation cannot currently complete.
 
 1. Select speech affected by room reflections.
-2. After signed catalog publication, install the model through Model Manager and run dereverberation.
+2. After catalog publication, install the model through Model Manager and run dereverberation.
 3. Compare the result with the original and accept it only if the speech sounds better.
 
 ## Download and requirements {#download-and-requirements}
@@ -28,11 +28,11 @@ Model identity: `dereverb-room`, version **1.0.0**.
 
 Approximate candidate artifact size: **114.57 MiB**. Minimum system memory: **2 GiB**. This candidate requirement refers to total memory, not currently free memory. Inference also needs sufficient free memory, and installation needs working space; memory is not a speed guarantee.
 
-Planned platforms: macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. A matching packaged runtime and signed catalog approval are required.
+Planned platforms: macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. A matching packaged runtime and catalog publication are required.
 
 On Windows, install the latest supported [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) matching the desktop app: **x64** for an x64 build or **ARM64** for an ARM64 build. The native ONNX and Sherpa engines require these libraries; model downloads do not include them. Visual Studio itself is not required to use the app.
 
-These candidate artifact names describe the required package. They are not download instructions. Model Manager will expose verified installation only after the authenticated catalog admits them.
+These candidate artifact names describe the required package. They are not download instructions. Model Manager will expose verified installation only after the digest-pinned catalog admits them.
 
 | Artifact | Approximate download size |
 | --- | --- |
@@ -46,7 +46,7 @@ Input: The Kennedy speech resampled to 44.1 kHz with four reproducible delayed r
 
 Decoded audio must contain finite samples, preserve the expected audio geometry, differ from the input samples, and have a nonzero audible signal. Different file headers alone do not count as a change.
 
-The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. A required model missing from the signed catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.
+The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. A required model missing from the catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.
 
 ## Review the result {#review-the-result}
 

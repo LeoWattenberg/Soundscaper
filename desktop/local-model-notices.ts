@@ -3,7 +3,7 @@
 /** Pathless installed-model notice descriptors bound to authenticated evidence. */
 
 import type { LocalModelCatalog, LocalModelCatalogEntry } from './local-model-catalog.ts';
-import { localModelEvidenceSha256 } from './local-model-catalog-signature.ts';
+import { localModelEvidenceSha256 } from './local-model-catalog-integrity.ts';
 import type { InstalledLocalModel } from './local-model-store.ts';
 
 export const LOCAL_MODEL_NOTICE_SCHEMA_VERSION = 1;
@@ -75,7 +75,7 @@ function assertInstallationMatches(entry: LocalModelCatalogEntry, installed: Ins
 				&& expected.sha256 === artifact.sha256;
 		});
 	if (!matches) {
-		throw new Error(`Installed local model ${installed.modelId} does not match its authenticated catalog entry.`);
+		throw new Error(`Installed local model ${installed.modelId} does not match its catalog entry.`);
 	}
 }
 
@@ -109,7 +109,7 @@ export function createInstalledLocalModelNotices(
 			seen.add(installed.modelId);
 			const entry = options.catalog.entries.find(({ modelId }) => modelId === installed.modelId);
 			if (!entry) {
-				throw new Error(`Installed local model ${installed.modelId} has no authenticated catalog notice.`);
+				throw new Error(`Installed local model ${installed.modelId} has no catalog notice.`);
 			}
 			assertInstallationMatches(entry, installed);
 			const evidence = evidenceFor(entry, options.licensingEvidence);

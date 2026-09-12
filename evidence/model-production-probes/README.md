@@ -12,7 +12,7 @@ The two Beat This results are retained together in
 Both produce 32 beats within the 16-second fixture, eight downbeats, and a
 120 BPM proposal after the selection-end regression was fixed.
 
-Direct worker execution does not exercise signed-catalog admission, Model
+Direct worker execution does not exercise digest-pinned catalog admission, Model
 Manager downloads, or Electron IPC. Those remain the job of the required
 nightly-with-tests package cases. These records also do not establish accuracy,
 perceptual quality, licensing permission, or cross-platform performance.

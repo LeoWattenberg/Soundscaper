@@ -57,7 +57,7 @@ test('eight pending catalog tasks map every Milestone 7 supply identity exactly'
 		assert.ok(!task.catalogBlockedBy.includes('licensing-evidence'));
 		assert.ok(!Object.keys(task).some((field) => /releaseReview/iu.test(field)));
 		assert.equal(task.catalogBlockedBy.includes('immutable-public-readback'), task.releaseEvidence.publicReadbackSha256 === null);
-		assert.ok(task.catalogBlockedBy.includes('external-catalog-signature'));
+		assert.ok(task.catalogBlockedBy.includes('catalog-publication'));
 		assert.ok(task.activationBlockedBy.includes('runtime-target-closure'));
 		assert.ok(!checkedCatalog.entries.some(({ modelId }) =>
 			modelId === task.catalogModelId));

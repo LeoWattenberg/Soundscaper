@@ -33,15 +33,15 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "aa45bb08f2a6b3a239ff274e784d88aa1572d90bf038f6e966f8836c7a910ecd",
-				"signedCatalogEntrySha256": null
+				"catalogEntrySha256": null
 			},
 			"catalogStatus": "pending-external",
 			"catalogBlockedBy": [
-				"external-catalog-signature"
+				"catalog-publication"
 			],
 			"activationStatus": "pending-external",
 			"activationBlockedBy": [
-				"external-catalog-signature",
+				"catalog-publication",
 				"runtime-target-closure"
 			]
 		},
@@ -76,15 +76,15 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "5b6804fd3d62d0fc0369350de2e051f4056a3b9c0668cf78ff0b8869df325410",
-				"signedCatalogEntrySha256": null
+				"catalogEntrySha256": null
 			},
 			"catalogStatus": "pending-external",
 			"catalogBlockedBy": [
-				"external-catalog-signature"
+				"catalog-publication"
 			],
 			"activationStatus": "pending-external",
 			"activationBlockedBy": [
-				"external-catalog-signature",
+				"catalog-publication",
 				"runtime-target-closure"
 			]
 		},
@@ -132,15 +132,15 @@
 			],
 			"releaseEvidence": {
 				"publicReadbackSha256": "b4346dc5d91f81369b4ed66755f08a9c6f95e9700f31a9192ac280c1d10661a6",
-				"signedCatalogEntrySha256": null
+				"catalogEntrySha256": null
 			},
 			"catalogStatus": "pending-external",
 			"catalogBlockedBy": [
-				"external-catalog-signature"
+				"catalog-publication"
 			],
 			"activationStatus": "pending-external",
 			"activationBlockedBy": [
-				"external-catalog-signature",
+				"catalog-publication",
 				"runtime-target-closure"
 			]
 		},
@@ -175,15 +175,15 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "12116fc8bf0dcbf53ed2be431250d2e46c500c606c03a86def8a84982f0be913",
-				"signedCatalogEntrySha256": null
+				"catalogEntrySha256": null
 			},
 			"catalogStatus": "pending-external",
 			"catalogBlockedBy": [
-				"external-catalog-signature"
+				"catalog-publication"
 			],
 			"activationStatus": "pending-external",
 			"activationBlockedBy": [
-				"external-catalog-signature",
+				"catalog-publication",
 				"runtime-target-closure"
 			]
 		},
@@ -218,15 +218,15 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "1f6c73508ffab6d965b73e337f4518c3c8587201c6b1e9ba3a04a650d12213f5",
-				"signedCatalogEntrySha256": null
+				"catalogEntrySha256": null
 			},
 			"catalogStatus": "pending-external",
 			"catalogBlockedBy": [
-				"external-catalog-signature"
+				"catalog-publication"
 			],
 			"activationStatus": "pending-external",
 			"activationBlockedBy": [
-				"external-catalog-signature",
+				"catalog-publication",
 				"runtime-target-closure"
 			]
 		},
@@ -261,15 +261,15 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "f82d93f91afb69ee6a5303b837512f07c3b3a6465f26663c99d8d173ce469c86",
-				"signedCatalogEntrySha256": null
+				"catalogEntrySha256": null
 			},
 			"catalogStatus": "pending-external",
 			"catalogBlockedBy": [
-				"external-catalog-signature"
+				"catalog-publication"
 			],
 			"activationStatus": "pending-external",
 			"activationBlockedBy": [
-				"external-catalog-signature",
+				"catalog-publication",
 				"runtime-target-closure"
 			]
 		},
@@ -303,15 +303,15 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "a314685196f54a415920366655890d8245a6564985db4a9e4623438904ca1bad",
-				"signedCatalogEntrySha256": null
+				"catalogEntrySha256": null
 			},
 			"catalogStatus": "pending-external",
 			"catalogBlockedBy": [
-				"external-catalog-signature"
+				"catalog-publication"
 			],
 			"activationStatus": "pending-external",
 			"activationBlockedBy": [
-				"external-catalog-signature",
+				"catalog-publication",
 				"runtime-target-closure"
 			]
 		},
@@ -346,15 +346,15 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "b064e04ea9640aa3f2df94ebfb5876be6d31ff14c5929d959754f8f7e272843c",
-				"signedCatalogEntrySha256": null
+				"catalogEntrySha256": null
 			},
 			"catalogStatus": "pending-external",
 			"catalogBlockedBy": [
-				"external-catalog-signature"
+				"catalog-publication"
 			],
 			"activationStatus": "pending-external",
 			"activationBlockedBy": [
-				"external-catalog-signature",
+				"catalog-publication",
 				"runtime-target-closure"
 			]
 		}

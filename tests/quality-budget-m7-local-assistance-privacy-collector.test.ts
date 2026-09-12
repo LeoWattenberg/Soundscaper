@@ -131,8 +131,6 @@ function makeMeasurement(): MutableMeasurement {
 		},
 		artifactAuthority: {
 			catalogSha256: '7'.repeat(64),
-			catalogSignatureSha256: 'e'.repeat(64),
-			catalogSignatureVerified: true,
 			modelArtifacts: [{
 				modelId: 'parakeet-tdt-0.6b-v2', task: 'speech-recognition',
 				artifactRole: 'model', version: '2', byteLength: 20_000, sha256: 'a'.repeat(64),

@@ -594,7 +594,7 @@ power loss, and cross-tab concurrent reservation remain unqualified.
 
 ### Electron renderer, IPC, and filesystem capabilities
 
-`electron-renderer-ipc-boundary` is **enforced for the current v1 bridges only**. The window uses sandboxing, context isolation, no Node integration, sender/root-document checks, denied navigation and new-window paths, and a frozen input-validating preload API. Shared-project methods are bounded pathless list, read, bundle, commit, delete, and managed-media transfer operations for the closed canonical-PCM and retained-original-video encodings; main independently sanitizes their values, caps transfer bodies at 64 GiB and chunks at 4 MiB, and permits at most four active uploads and four active reads across the bridge service. Linked-original load requests are closed pathless DTOs with mandatory kind-specific Boolean modes: whole-Blob materialization requires `range: false` for audio or `playback: false` for video, while ranged access requires the corresponding true mode and a non-null exact locator revision. Main and preload independently validate the mode, returned revision, profile-bound descriptor, safe size, canonical URL, and kind-specific MIME/name contract, and they retire a descriptor that cannot be returned safely. Upload capacity remains charged through publication or abort settlement, and service disposal waits for finishing publications. Upload sessions and linked-original reads remain bound to their renderer owner for authorization and revocation. Navigation, renderer loss, and window close revoke the owner, fence new work, abort its uploads, and drain admitted operations and range reads. The external-video addition exposes nine separately validated owner-scoped methods for capabilities, begin, input write, input close, execute, stat, bounded range read, delete, and cancel. It admits opaque operation ids, exact closed plans, and at-most-1-MiB chunks, never renderer-selected paths, executables, or argv; at most two sessions exist globally and one per owner. Navigation, renderer loss, window close, disposal, and shutdown fence new work, cancel and drain the child/session lifecycle, and remove main-private scratch. The desktop local-assistance and additive workflow bridges likewise expose only opaque jobs, aggregate selected-media fences, authenticated slotted claims/reservations, closed operations and workflow graphs, progress, typed unavailable outcomes, and MessagePort byte transfers. Main-private staging, model/runtime/video/executable paths, and project-isolated derivative storage stay outside renderer authority; cancellation and release drain transfers and helper or external-process work before cleanup. No renderer receives a filesystem path. Implemented workflow code creates no authority for a runtime payload or signed model that has not passed admission.
+`electron-renderer-ipc-boundary` is **enforced for the current v1 bridges only**. The window uses sandboxing, context isolation, no Node integration, sender/root-document checks, denied navigation and new-window paths, and a frozen input-validating preload API. Shared-project methods are bounded pathless list, read, bundle, commit, delete, and managed-media transfer operations for the closed canonical-PCM and retained-original-video encodings; main independently sanitizes their values, caps transfer bodies at 64 GiB and chunks at 4 MiB, and permits at most four active uploads and four active reads across the bridge service. Linked-original load requests are closed pathless DTOs with mandatory kind-specific Boolean modes: whole-Blob materialization requires `range: false` for audio or `playback: false` for video, while ranged access requires the corresponding true mode and a non-null exact locator revision. Main and preload independently validate the mode, returned revision, profile-bound descriptor, safe size, canonical URL, and kind-specific MIME/name contract, and they retire a descriptor that cannot be returned safely. Upload capacity remains charged through publication or abort settlement, and service disposal waits for finishing publications. Upload sessions and linked-original reads remain bound to their renderer owner for authorization and revocation. Navigation, renderer loss, and window close revoke the owner, fence new work, abort its uploads, and drain admitted operations and range reads. The external-video addition exposes nine separately validated owner-scoped methods for capabilities, begin, input write, input close, execute, stat, bounded range read, delete, and cancel. It admits opaque operation ids, exact closed plans, and at-most-1-MiB chunks, never renderer-selected paths, executables, or argv; at most two sessions exist globally and one per owner. Navigation, renderer loss, window close, disposal, and shutdown fence new work, cancel and drain the child/session lifecycle, and remove main-private scratch. The desktop local-assistance and additive workflow bridges likewise expose only opaque jobs, aggregate selected-media fences, authenticated slotted claims/reservations, closed operations and workflow graphs, progress, typed unavailable outcomes, and MessagePort byte transfers. Main-private staging, model/runtime/video/executable paths, and project-isolated derivative storage stay outside renderer authority; cancellation and release drain transfers and helper or external-process work before cleanup. No renderer receives a filesystem path. Implemented workflow code creates no authority for a runtime payload or digest-pinned model that has not passed admission.
 
 `AssistanceWorkflow` v1 binds each guided run to one closed workflow graph,
 aggregate source/range/timing/transcript/settings/model fence, slotted claims,
@@ -645,8 +645,8 @@ or publication failure refuses the edit and rolls back newly owned output.
 Existing transcript custody and AUP4 omission reporting remain unchanged.
 
 Each distributed model must retain versioned notices and full-digest public
-read-back, and its catalog signature and installed bytes are authenticated at
-use. The separate nightly suite downloads and executes real models in Electron;
+read-back, and its catalog artifact pins and installed bytes are verified by
+SHA-256 at use. The separate nightly suite downloads and executes real models in Electron;
 its results identify the exact package, models, workloads, and target exercised.
 Those fixture results do not establish a complete five-target privacy or
 cancellation study. Optional owner QA grants no runtime authority.
@@ -1111,7 +1111,7 @@ to that partial risk. Main authenticates the Sherpa ONNX 1.13.5 closure before
 its lazy utility process and the worker verifies it again before native import.
 Stable regular-file grants bind selected media and every installed model;
 supervision enforces one job, heartbeat/RSS checks, termination cancellation,
-and quiescent staging cleanup. Catalog-authenticated Parakeet, Silero, and exact
+and quiescent staging cleanup. Catalog-bound Parakeet, Silero, and exact
 Pyannote/ERes2Net remain the active Sherpa routes. The additional ONNX Runtime,
 whisper.cpp, and llama.cpp families implement equivalent isolated grants,
 process/thread protocols, memory admission, quarantine, and termination.
@@ -1143,13 +1143,13 @@ pinned ONNX Runtime, whisper.cpp, and llama.cpp CPU engines and the Windows
 ARM64 Sherpa addon; generated target manifests bind the actual packaged files.
 Historical external-supply candidate statuses are not substitutes for those
 generated package identities. Model distribution still requires versioned
-notices, full-digest public read-back, and an authenticated catalog; runtime
+notices, full-digest public read-back, and a digest-pinned catalog; runtime
 execution rechecks the selected model and target closure. Successful fixture
 runs prove only the model, runtime, workload, and target actually exercised. No
 complete five-target packaged privacy/cancellation workload or owner-device
 observation set establishes network-after-install behavior, unselected-media
 isolation, cancellation p95, canonical-state loss, or general model correctness.
-Optional owner QA does not grant runtime authority. Missing catalog signature,
+Optional owner QA does not grant runtime authority. Missing catalog entry,
 artifact, selected-media, runtime, storage, executable, or consent authority
 remains a hard machine refusal. Reviewed canonical acceptance spans transcript,
 link-aware cleanup, speaker attribution, derived audio/stems, reactions,
@@ -1563,7 +1563,7 @@ dynamic-library closure, malicious selected executable, broad interoperability,
 performance, aggregate codec memory, or patent clearance.
 
 The active local-model path adds a distinct authenticated supply boundary. A
-canonical Ed25519 catalog is verified against pinned current and successor
+canonical catalog is verified against pinned current and successor
 public keys before its thirteen permitted entries are parsed. Every entry pins
 one complete licensing row, immutable upstream provenance, its distribution
 method, and exact artifact geometry and digests; refused or incomplete rows do

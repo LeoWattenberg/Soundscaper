@@ -10,16 +10,16 @@ Suggest titles, hooks, chapters, and explanations for existing highlight candida
 
 ## Current availability {#current-availability}
 
-**This model’s signed catalog publication is pending.** Model Manager cannot currently install it. Required test coverage does not authorize downloads, bypass catalog signatures, or permit substitute model files.
+**This model’s digest-pinned catalog publication is pending.** Model Manager cannot currently install it. Required test coverage does not authorize downloads or permit substitute model files.
 
-Desktop builds package the required llama-cpp b10509 engine for macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. Model installation still requires its signed catalog publication. These are supported build targets; consult the nightly test report for results on a particular package and machine.
+Desktop builds package the required llama-cpp b10509 engine for macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. Model installation still requires its digest-pinned catalog publication. These are supported build targets; consult the nightly test report for results on a particular package and machine.
 
 ## Use this model {#use-this-model}
 
-Once the model is admitted in the signed catalog and its native runtime is available, the intended workflow is **Framescaper: Tools → Advanced Local Processing → Editorial generation**. The steps below describe that workflow; this installation cannot currently complete.
+Once the model is admitted in the catalog and its native runtime is available, the intended workflow is **Framescaper: Tools → Advanced Local Processing → Editorial generation**. The steps below describe that workflow; this installation cannot currently complete.
 
 1. Prepare and review highlight candidates from your selected media.
-2. Once its signed catalog entry is available, install Qwen through Model Manager and opt into editorial generation.
+2. Once its catalog entry is available, install Qwen through Model Manager and opt into editorial generation.
 3. Review every text proposal before accepting it. Only the authorized candidate identities and requested text fields are eligible.
 
 ## Download and requirements {#download-and-requirements}
@@ -28,9 +28,9 @@ Model identity: `qwen3-4b-q4-k-m`, version **1.0.0**.
 
 Approximate candidate artifact size: **2.33 GiB**. Minimum system memory: **16 GiB**. This candidate requirement refers to total memory, not currently free memory. Inference also needs sufficient free memory, and installation needs working space; memory is not a speed guarantee.
 
-Planned platforms: macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. A matching packaged runtime and signed catalog approval are required.
+Planned platforms: macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. A matching packaged runtime and catalog publication are required.
 
-These candidate artifact names describe the required package. They are not download instructions. Model Manager will expose verified installation only after the authenticated catalog admits them.
+These candidate artifact names describe the required package. They are not download instructions. Model Manager will expose verified installation only after the digest-pinned catalog admits them.
 
 | Artifact | Approximate download size |
 | --- | --- |
@@ -44,7 +44,7 @@ Input: Two fixed highlight candidates about restoring and comparing a recording,
 
 Strict JSON must contain every authorized candidate exactly once and readable titles, hooks, and explanations with valid chapter text. The production reviewer rejects unsafe or foreign content.
 
-The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. A required model missing from the signed catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.
+The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. A required model missing from the catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.
 
 ## Review the result {#review-the-result}
 

@@ -277,7 +277,7 @@ Disposition of the rest of the slate, measured:
 
 ### Work items
 
-1. **Catalog + licensing:** signed entry in `config/local-model-catalog.json`
+1. **Catalog + licensing:** reviewed entry in `config/local-model-catalog.json`
    (id, version, digest, byte size, license id, attribution) for the selected
    model(s); per-model license/provenance record for the `local-models` gate in
    `config/production-licensing-matrix.json`; FoxJoy weights added to the
@@ -332,7 +332,7 @@ three engines.
 
 The GPL-3.0 declaration, source directions, locked-toolchain conversion, and parity
 evidence are now recorded. Remaining distribution work is immutable public
-readback and the externally signed `config/local-model-catalog.json` entry that
+readback and the reviewed `config/local-model-catalog.json` entry that
 fill the pending publication evidence and
 let `resolveExactModel` stop returning typed unavailability; blind listening
 before defaults ship; and an RTF measurement on hosted-CI-class hardware.

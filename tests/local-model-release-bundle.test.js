@@ -2,14 +2,14 @@
 
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { createHash, generateKeyPairSync, sign } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import test from 'node:test';
-import { canonicalJson, localModelEvidenceSha256, verifyLocalModelCatalogSignature } from '../desktop/local-model-catalog-signature.ts';
-import { prepareLocalModelReleaseBundle, verifySignedLocalModelReleaseBundle,
+import { canonicalJson, localModelEvidenceSha256 } from '../desktop/local-model-catalog-integrity.ts';
+import { prepareLocalModelReleaseBundle, verifyReviewedLocalModelReleaseBundle,
 	verifyLocalModelRecipeRevision, writeLocalModelReleaseReview } from '../scripts/models/local-model-release-bundle.mjs';
 
 const root = resolve(import.meta.dirname, '..');
@@ -39,13 +39,12 @@ function fixture(modelId = 'qwen3-4b-q4-k-m') {
 	return options;
 }
 
-test('release preparation preserves the signed base and derives only unsigned additions and licensing pins', () => {
+test('release preparation preserves the base and derives only reviewed additions and SHA-256 licensing pins', () => {
 	const options = fixture();
 	const before = canonicalJson(options.catalog);
 	const rowsBefore = canonicalJson(options.licensingEvidence);
 	const bundle = prepareLocalModelReleaseBundle(options);
-	assert.equal(bundle.status, 'awaiting-authorized-signature');
-	assert.equal(bundle.payload.signature, undefined);
+	assert.equal(bundle.status, 'awaiting-catalog-review');
 	assert.equal(bundle.baseCatalogSha256, digest(before));
 	assert.equal(bundle.payloadSha256, digest(canonicalJson(bundle.payload)));
 	assert.deepEqual(bundle.payload.entries.slice(0, -1), catalog.entries);
@@ -61,9 +60,9 @@ test('release preparation preserves the signed base and derives only unsigned ad
 	assert.equal(canonicalJson(options.licensingEvidence), rowsBefore);
 });
 
-test('release preparation rejects untrusted base data, license blockers and malformed explicit selections', () => {
+test('release preparation rejects inconsistent base data, license blockers and malformed explicit selections', () => {
 	for (const [change, expected] of [
-		[(value) => { value.catalog.entries[0].version = '9.9.9'; }, /signature/u],
+		[(value) => { value.catalog.entries[0].artifacts[0].sha256 = 'f'.repeat(64); }, /upstream bytes/u],
 		[(value) => { value.licensingEvidence.find(({ id }) => id === catalog.entries[0].modelId).summary = 'changed'; }, /evidence|digest/u],
 		[(value) => { value.modelIds = []; }, /Select distinct/u],
 		[(value) => { value.modelIds.push(value.modelIds[0]); }, /Select distinct/u],
@@ -115,18 +114,14 @@ test('converted release additions bind retained reproduction, parity, source and
 	}
 });
 
-test('signed verification accepts the trusted unchanged base and rejects foreign keys and review drift', () => {
-	const payload = verifyLocalModelCatalogSignature(catalog);
-	const bundle = { schemaVersion: 1, status: 'awaiting-authorized-signature', modelIds: [],
-		baseCatalogSha256: digest(canonicalJson(catalog)), payload, payloadSha256: digest(canonicalJson(payload)), licensingEvidence };
-	assert.equal(verifySignedLocalModelReleaseBundle(bundle, catalog, catalog).entries.length, catalog.entries.length);
-	const { privateKey } = generateKeyPairSync('ed25519');
-	const foreign = { ...payload, signature: { algorithm: 'Ed25519', keyId: 'ephemeral-release-test',
-		value: sign(null, Buffer.from(canonicalJson(payload)), privateKey).toString('base64') } };
-	assert.throws(() => verifySignedLocalModelReleaseBundle(bundle, foreign, catalog), /not trusted/u);
-	assert.throws(() => verifySignedLocalModelReleaseBundle({ ...bundle, payloadSha256: 'f'.repeat(64) }, catalog, catalog));
-	assert.throws(() => verifySignedLocalModelReleaseBundle({ ...bundle, payload: { ...payload, entries: [] } }, catalog, catalog), /reviewed payload/u);
-	assert.throws(() => verifySignedLocalModelReleaseBundle(bundle, catalog, { ...catalog, extra: 'changed' }), /production catalog changed/u);
+test('review verification accepts the unchanged SHA-256 payload and rejects review drift', () => {
+	const bundle = { schemaVersion: 1, status: 'awaiting-catalog-review', modelIds: [],
+		baseCatalogSha256: digest(canonicalJson(catalog)), payload: catalog,
+		payloadSha256: digest(canonicalJson(catalog)), licensingEvidence };
+	assert.equal(verifyReviewedLocalModelReleaseBundle(bundle, catalog, catalog).entries.length, catalog.entries.length);
+	assert.throws(() => verifyReviewedLocalModelReleaseBundle({ ...bundle, payloadSha256: 'f'.repeat(64) }, catalog, catalog));
+	assert.throws(() => verifyReviewedLocalModelReleaseBundle({ ...bundle, payload: { ...catalog, entries: [] } }, catalog, catalog), /release payload/u);
+	assert.throws(() => verifyReviewedLocalModelReleaseBundle(bundle, catalog, { ...catalog, extra: 'changed' }), /production catalog changed/u);
 });
 
 test('recipe revisions must be real commits with exact tracked converter and config bytes', async (context) => {
@@ -176,5 +171,5 @@ test('the CLI rejects nonexistent recipe commits before creating review files', 
 		'--output', output, '--models', 'qwen3-4b-q4-k-m', '--recipe-revision', 'f'.repeat(40)], { cwd: root }), /not a committed/u);
 	await assert.rejects(readFile(join(output, 'release-bundle.json')), /ENOENT/u);
 	await assert.rejects(runFile(process.execPath, [join(root, 'scripts/models/prepare-local-model-release.mjs'),
-		'--output', output, '--verify-signed', join(root, 'config/local-model-catalog.json'), '--models', 'qwen'], { cwd: root }), /only --output/u);
+		'--output', output, '--verify-catalog', join(root, 'config/local-model-catalog.json'), '--models', 'qwen'], { cwd: root }), /only --output/u);
 });

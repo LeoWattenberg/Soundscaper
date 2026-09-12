@@ -14,8 +14,8 @@ Desktop packaging copies this directory into its offline licenses inventory.
 Model-specific attribution, weight/code distinctions, artifact modifications,
 and distribution limitations are in
 [THIRD_PARTY_LICENSES.md](../../THIRD_PARTY_LICENSES.md#mirrored-assistance-models).
-The catalog signature remains required for model installation. The dereverb source
-directions identify the original checkpoint, configuration, and exact converter;
+The digest-pinned catalog entry remains required for model installation. The
+dereverb source directions identify the original checkpoint, configuration, and exact converter;
 the dry training corpus and base-checkpoint lineage remain unknown.
 
 | File | Upstream source | Bytes | SHA-256 |

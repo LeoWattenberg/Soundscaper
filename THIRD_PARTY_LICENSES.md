@@ -729,12 +729,12 @@ environment's applicable licenses and notices before its evidence can be
 admitted. Actual conversion identities, source-framework parity results, command
 logs, and raw comparison outputs are retained in
 `evidence/milestone-7-model-conversion/`. The additional models still need their
-externally signed production catalog entries before Model Manager can offer them.
+reviewed digest-pinned production catalog entries before Model Manager can offer them.
 
 Model weights are separately downloaded, never bundled, and each is recorded in
 `config/production-licensing-matrix.json`. Published catalog models and additional
 published artifacts are distinguished below. An artifact notice or successful
-public download does not substitute for the signed catalog entry required to
+public download does not substitute for the catalog entry required to
 install and execute a model.
 
 ### Mirrored assistance models
@@ -742,7 +742,7 @@ install and execute a model.
 Each model below has exact artifact digests. Public HEAD, byte-range, CORS, and
 full SHA-256 readback records for the additional artifacts are retained in
 `evidence/local-model-publication/`; those records cover only their named files.
-This heading is retained as the signed catalog's stable offline notice anchor.
+This heading is retained as the catalog's stable offline notice anchor.
 
 - Silero VAD 6.2.1 — MIT; Copyright © Silero Team; voice activity detection;
   source and license: <https://github.com/snakers4/silero-vad/tree/7e30209a3e901f9842f81b225f3e93d8199902b1>.
@@ -880,10 +880,10 @@ This heading is retained as the signed catalog's stable offline notice anchor.
   - `preprocessor_config.json`, 394 bytes, SHA-256
     `9b36b57ebaf20f09bf4c22100ccc21877ea6bfe5aead0c00c59f8af8ccefacfc`
 
-#### Additional published model artifacts awaiting catalog signing
+#### Additional published model artifacts awaiting catalog publication
 
 These eight artifacts have verified public readbacks. Installation still requires
-the authorized catalog signature. Full retained license texts are in
+the reviewed catalog entry. Full retained license texts are in
 [`LICENSES/local-models/`](LICENSES/local-models/README.md).
 
 - wav2vec2-base-960h — Apache-2.0; Facebook/Meta wav2vec2 authors;
@@ -986,7 +986,7 @@ license, attribution, modification notice, and access to the corresponding sourc
 when redistributing it. GPL-3.0 section 6(d) permits equivalent source downloads
 from another server with clear directions, while the distributor remains
 responsible for their continued availability. Installation additionally requires
-the authorized catalog signature.
+the reviewed catalog entry.
 
 The model card identifies convolutional room responses generated with
 pyroomacoustics. The dry training corpus and any base-checkpoint lineage are
