@@ -87,10 +87,9 @@ test('Sherpa ARM64 native extraction uses a relative archive name accepted by BS
 			String.raw`C:\a\_temp\native`,
 		),
 		{
-			cwd: String.raw`C:\a\_temp`,
+			cwd: String.raw`C:\a\_temp\native`,
 			args: [
-				'-xf', 'sherpa-native.tar.bz2',
-				'-C', 'native', '--strip-components=1',
+				'-xf', '../sherpa-native.tar.bz2', '--strip-components=1',
 			],
 		},
 	);

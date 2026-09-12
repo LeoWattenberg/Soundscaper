@@ -32,10 +32,11 @@ export function desktopSherpaArm64BuildPlan({ targetId, platform = process.platf
 }
 
 export function desktopSherpaArm64NativeArchiveInvocation(archive, destination) {
-	const cwd = win32.dirname(archive);
+	const localArchive = win32.relative(destination, archive).replaceAll('\\', '/');
+	if (win32.isAbsolute(localArchive)) throw new Error('The Sherpa native archive must share its extraction drive.');
 	return {
-		cwd,
-		args: ['-xf', win32.basename(archive), '-C', win32.relative(cwd, destination) || '.', '--strip-components=1'],
+		cwd: destination,
+		args: ['-xf', localArchive, '--strip-components=1'],
 	};
 }
 
