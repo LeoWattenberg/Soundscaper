@@ -20,13 +20,17 @@ export function resolveNightlyAssistanceHostPlan({ argv, environment, platform =
 	const profile = absolute(readArgument(argv, '--user-data-dir='), 'Nightly assistance profile');
 	const modelCache = absolute(environment.SOUNDSCAPER_LOCAL_ASSISTANCE_MODEL_CACHE, 'Nightly assistance model cache');
 	const productId = environment.SOUNDSCAPER_LOCAL_ASSISTANCE_PRODUCT_ID;
+	const productRoot = absolute(environment.SOUNDSCAPER_PACKAGED_PRODUCT_ROOT, 'Packaged product root');
 	const executable = resolvePackagedProductExecutable({
-		productRoot: absolute(environment.SOUNDSCAPER_PACKAGED_PRODUCT_ROOT, 'Packaged product root'),
+		productRoot,
 		productId, platform, arch,
 	});
 	const resources = platform === 'darwin'
 		? resolve(dirname(executable), '../Resources') : join(dirname(executable), 'resources');
-	const productApp = join(resources, 'app.asar');
+	// electron-builder can only embed integrity metadata for an ASAR at the
+	// root of a directory-valued extraResource. The product packager places this
+	// host-only copy there while the product executable keeps its original ASAR.
+	const productApp = join(productRoot, `${productId}.asar`);
 	return Object.freeze({ productId, profile, modelCache, productApp, runtimeRoot: join(resources, 'runtime'),
 		preload: join(productApp, 'desktop/preload.mjs'),
 		document: join(import.meta.dirname, 'nightly-tests-assistance.html') });

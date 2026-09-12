@@ -19,9 +19,9 @@ const ENVIRONMENT = {
 test('the diagnostic host requires explicit model mode, an isolated profile, and loopback debugging', () => {
 	const options = { argv: ARGV, environment: ENVIRONMENT, platform: 'linux', arch: 'x64' };
 	const plan = resolveNightlyAssistanceHostPlan(options);
-	assert.equal(plan.productApp, '/opt/products/soundscaper/linux-unpacked/resources/app.asar');
+	assert.equal(plan.productApp, '/opt/products/soundscaper.asar');
 	assert.equal(plan.runtimeRoot, '/opt/products/soundscaper/linux-unpacked/resources/runtime');
-	assert.equal(plan.preload, '/opt/products/soundscaper/linux-unpacked/resources/app.asar/desktop/preload.mjs');
+	assert.equal(plan.preload, '/opt/products/soundscaper.asar/desktop/preload.mjs');
 	assert.equal(plan.profile, '/tmp/model-profile');
 	assert.equal(plan.modelCache, '/tmp/model-cache');
 	assert.throws(() => resolveNightlyAssistanceHostPlan({ ...options, environment: { ...ENVIRONMENT, SOUNDSCAPER_LOCAL_ASSISTANCE_REAL_MODELS: '0' } }), /explicit/u);

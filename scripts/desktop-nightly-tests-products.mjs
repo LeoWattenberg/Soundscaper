@@ -41,12 +41,18 @@ export async function packageDesktopNightlyTestProducts({
 			`--config.directories.output=${productOutput}`,
 		], { cwd: repositoryRoot, environment });
 		await copyFile(resolve(repositoryRoot, '.desktop-build/stage-manifest.json'), resolve(productOutput, 'stage-manifest.json'));
-		await assertProductExecutable({ productOutput, productId, platform, arch });
+		const executable = await resolveProductExecutable({ productOutput, productId, platform, arch });
+		const resources = platform === 'mac'
+			? resolve(dirname(executable), '../Resources') : resolve(dirname(executable), 'resources');
+		// The nightly Electron host imports the product archive itself. Keeping a
+		// top-level copy lets electron-builder bind the archive's exact path into
+		// the host executable's ASAR-integrity resource on Windows and macOS.
+		await copyFile(resolve(resources, 'app.asar'), resolve(outputRoot, `${productId}.asar`));
 	}
 	return Object.freeze({ outputRoot, platform, arch });
 }
 
-async function assertProductExecutable({ productOutput, productId, platform, arch }) {
+async function resolveProductExecutable({ productOutput, productId, platform, arch }) {
 	const productName = productId === 'framescaper' ? 'Framescaper' : 'Soundscaper';
 	const hostPlatform = Object.freeze({ win: 'win32', mac: 'darwin', linux: 'linux' })[platform];
 	const candidates = packagedExecutableCandidates({
@@ -57,7 +63,7 @@ async function assertProductExecutable({ productOutput, productId, platform, arc
 		productName,
 	});
 	for (const candidate of candidates) {
-		try { await access(candidate); return; } catch { /* Try the next builder convention. */ }
+		try { await access(candidate); return candidate; } catch { /* Try the next builder convention. */ }
 	}
 	throw new Error(`Packaged ${productName} executable was not produced for ${platform}/${arch}.`);
 }

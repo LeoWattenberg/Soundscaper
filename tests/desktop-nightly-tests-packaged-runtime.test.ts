@@ -196,8 +196,9 @@ test('nightly product staging builds isolated Soundscaper and Framescaper trees'
 			const outputArgument = args.find((value) => value.startsWith('--config.directories.output='));
 			assert.ok(outputArgument);
 			const productOutput = outputArgument.slice('--config.directories.output='.length);
-			await mkdir(join(productOutput, 'linux-unpacked'), { recursive: true });
+			await mkdir(join(productOutput, 'linux-unpacked', 'resources'), { recursive: true });
 			await writeFile(join(productOutput, 'linux-unpacked', productId), 'executable');
+			await writeFile(join(productOutput, 'linux-unpacked', 'resources', 'app.asar'), `${productId} archive`);
 		},
 	});
 
@@ -209,5 +210,6 @@ test('nightly product staging builds isolated Soundscaper and Framescaper trees'
 			JSON.parse(await readFile(join(outputRoot, productId, 'stage-manifest.json'), 'utf8')).productId,
 			productId,
 		);
+		assert.equal(await readFile(join(outputRoot, `${productId}.asar`), 'utf8'), `${productId} archive`);
 	}
 });
