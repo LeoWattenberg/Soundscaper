@@ -14,7 +14,7 @@ import recipe from '../config/assistance-sherpa-win-arm64-build.json' with { typ
 import { assistanceNativeRuntimeStageSummary } from '../desktop/assistance-native-runtime-payload.mjs';
 import {
 	assertArm64PortableExecutable,
-	desktopSherpaArm64NativeArchiveArgs,
+	desktopSherpaArm64NativeArchiveInvocation,
 	desktopSherpaArm64BuildPlan,
 	prepareDesktopAssistanceSherpaArm64,
 	validateDesktopAssistanceSherpaArm64BuildReceipt,
@@ -80,16 +80,19 @@ test('Sherpa ARM64 build explicitly targets ARM64 from a Windows host', async ()
 	await assert.rejects(prepareDesktopAssistanceSherpaArm64({ targetId: 'win-arm64', platform: 'linux' }), /Windows package runner/u);
 });
 
-test('Sherpa ARM64 native extraction treats a Windows drive path as a local archive', () => {
+test('Sherpa ARM64 native extraction uses a relative archive name accepted by BSD and GNU tar', () => {
 	assert.deepEqual(
-		desktopSherpaArm64NativeArchiveArgs(
+		desktopSherpaArm64NativeArchiveInvocation(
 			String.raw`C:\a\_temp\sherpa-native.tar.bz2`,
 			String.raw`C:\a\_temp\native`,
 		),
-		[
-			'--force-local', '-xf', String.raw`C:\a\_temp\sherpa-native.tar.bz2`,
-			'-C', String.raw`C:\a\_temp\native`, '--strip-components=1',
-		],
+		{
+			cwd: String.raw`C:\a\_temp`,
+			args: [
+				'-xf', 'sherpa-native.tar.bz2',
+				'-C', String.raw`C:\a\_temp\native`, '--strip-components=1',
+			],
+		},
 	);
 });
 

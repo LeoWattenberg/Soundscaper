@@ -5,7 +5,7 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { copyFile, cp, lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
+import { isAbsolute, join, resolve, win32 } from 'node:path';
 import { promisify } from 'node:util';
 import { extract } from 'tar';
 
@@ -31,8 +31,11 @@ export function desktopSherpaArm64BuildPlan({ targetId, platform = process.platf
 	};
 }
 
-export function desktopSherpaArm64NativeArchiveArgs(archive, destination) {
-	return ['--force-local', '-xf', archive, '-C', destination, '--strip-components=1'];
+export function desktopSherpaArm64NativeArchiveInvocation(archive, destination) {
+	return {
+		cwd: win32.dirname(archive),
+		args: ['-xf', win32.basename(archive), '-C', destination, '--strip-components=1'],
+	};
 }
 
 export function validateDesktopAssistanceSherpaArm64BuildReceipt(value) {
@@ -101,9 +104,8 @@ export async function prepareDesktopAssistanceSherpaArm64({
 			(path) => path.startsWith('include/node/') && path.endsWith('.h'));
 		await extractFiles(downloads.get('node-addon-api'), nodeApi, () => true);
 		await mkdir(native);
-		await command('tar', desktopSherpaArm64NativeArchiveArgs(
-			downloads.get('sherpa-native'), native,
-		), work);
+		const nativeArchive = desktopSherpaArm64NativeArchiveInvocation(downloads.get('sherpa-native'), native);
+		await command('tar', nativeArchive.args, nativeArchive.cwd);
 		for (const name of DLLS) assertArm64PortableExecutable(await readFile(join(native, 'lib', name)));
 		const build = join(work, 'compiled');
 		const cmakeRoot = join(repositoryRoot, 'native', 'assistance-sherpa-node-api');
