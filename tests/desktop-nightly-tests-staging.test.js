@@ -127,6 +127,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'playwright.nightly-tests.config.mjs',
 		'sites/soundscaper/en/index.html',
 		'sites/framescaper/en/index.html',
+		'handbook/src/content/docs/reference/macro-programs.md',
 		'tests/browser/example.spec.js',
 		'tests/electron/local-assistance-models/example.spec.js',
 		'tests/browser/example.spec.js-snapshots/example-chromium-linux.png',
@@ -187,6 +188,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 	assert.deepEqual(manifest.payload.map(({ path }) => path), [
 		'.local-browsers',
 		'config',
+		'handbook',
 		'sites',
 		'licenses',
 		'node_modules',

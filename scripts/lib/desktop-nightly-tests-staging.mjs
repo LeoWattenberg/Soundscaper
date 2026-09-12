@@ -103,6 +103,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'src', destination: 'src', kind: 'directory', label: 'browser-test source tree' },
 	{ source: 'vendor/audacity-design-system/tokens', destination: 'vendor/audacity-design-system/tokens', kind: 'directory', label: 'design-system tokens used by browser assertions' },
 	{ source: 'handbook/guides', destination: 'handbook/guides', kind: 'directory', label: 'handbook guide step data the browser suite replays' },
+	{ source: 'handbook/src/content/docs/reference/macro-programs.md', destination: 'handbook/src/content/docs/reference/macro-programs.md', kind: 'file', label: 'macro-program reference the browser suite replays' },
 	{ source: 'tests/browser', destination: 'tests/browser', kind: 'directory', label: 'browser test tree', exclude: new Set(['AGENTS.md', 'audio-editor-soak-debug.spec.js', 'handbook']) },
 	{ source: 'tests/electron/local-assistance-models', destination: 'tests/electron/local-assistance-models', kind: 'directory', label: 'real local assistance model tests', exclude: new Set(['AGENTS.md']) },
 	{ source: 'tests/aup3-fixture.js', destination: 'tests/aup3-fixture.js', kind: 'file', label: 'AUP3 browser support fixture' },
@@ -171,6 +172,7 @@ export async function stageDesktopNightlyTests({
 		const payloadPaths = [
 			'.local-browsers',
 			'config',
+			'handbook',
 			'sites',
 			'licenses',
 			'node_modules',
