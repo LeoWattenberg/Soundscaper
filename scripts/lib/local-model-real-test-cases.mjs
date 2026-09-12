@@ -12,6 +12,13 @@ const OPERATIONS = Object.freeze({
 	'optical-character-recognition': spec(['optical-character-recognition'], 'visual-text-frames', 'ocr'),
 	'text-embedding': spec(['text-embedding'], 'transcript-text', 'embeddings'),
 	'image-text-embedding': spec(['image-text-embedding'], 'visual-subject-frames', 'embeddings'),
+	'word-alignment': spec(['word-alignment'], 'aligned-speech-16khz', 'word-alignment'),
+	'source-separation': spec(['source-separation'], 'mixed-speech-44100hz', 'separated-audio'),
+	'dereverberation': spec(['dereverberation'], 'reverberant-speech-44100hz', 'changed-audio'),
+	'audio-tagging': spec(['audio-tagging'], 'speech-tags-32khz', 'audio-tags'),
+	'beat-tracking': spec(['beat-tracking'], 'rhythmic-music-22050hz', 'beat-grid'),
+	'shot-detection': spec(['shot-detection'], 'visual-shot-frames', 'shot-boundaries'),
+	'editorial-generation': spec(['editorial-generation'], 'editorial-candidates', 'editorial-proposal'),
 });
 
 function spec(tasks, fixtureId, validation) {
@@ -57,7 +64,7 @@ function validateDocumentation(value, modelIds, label) {
 	textList(documentation.limitations, `${label} limitations`);
 }
 
-export function validateLocalModelRealTestCases(value, catalogValue) {
+export function validateLocalModelRealTestCases(value, catalogValue, { candidateTasks = [] } = {}) {
 	const manifest = record(value, 'Real model test manifest');
 	const catalog = record(catalogValue, 'Local model catalog');
 	if (manifest.schemaVersion !== 1 || !Array.isArray(manifest.cases) || manifest.cases.length === 0) {
@@ -68,6 +75,19 @@ export function validateLocalModelRealTestCases(value, catalogValue) {
 	}
 	const models = new Map(catalog.entries.map((entry) => [entry.modelId, entry]));
 	if (models.size !== catalog.entries.length) throw new TypeError('The local model catalog has duplicate model identities.');
+	if (!Array.isArray(candidateTasks)) throw new TypeError('Required candidate tasks must be a list.');
+	const candidateIds = new Set();
+	for (const candidate of candidateTasks) {
+		const task = record(candidate, 'Required candidate task');
+		const modelId = text(task.catalogModelId, 'Required candidate model ID');
+		text(task.task, `${modelId} required task`);
+		if (candidateIds.has(modelId)) throw new TypeError(`${modelId} is a duplicate candidate model.`);
+		candidateIds.add(modelId);
+		const published = models.get(modelId);
+		if (published && published.task !== task.task) throw new TypeError(`${modelId} has a conflicting task in the signed catalog.`);
+		// Required coverage is not model installation or runtime admission authority.
+		if (!published) models.set(modelId, task);
+	}
 	const caseIds = new Set();
 	const covered = new Set();
 	for (const candidate of manifest.cases) {

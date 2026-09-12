@@ -23,7 +23,7 @@ RUNNER_INVENTORY = {
         "sourceFrameworks": ["source-pytorch"], "onnxFramework": "onnxruntime-cpu",
     },
     "beat-this": {
-        "runner": "beat-this-small0-v1", "fixtureKind": "float32-wave",
+        "runner": "beat-this-small0-final0-v1", "fixtureKind": "float32-wave",
         "sourceFrameworks": ["source-pytorch"], "onnxFramework": "onnxruntime-cpu",
     },
     "transnetv2": {

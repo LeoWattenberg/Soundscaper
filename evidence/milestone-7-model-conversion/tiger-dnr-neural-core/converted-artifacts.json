@@ -1,0 +1,1 @@
+{"artifacts":[{"byteLength":29623224,"fileName":"tiger-dnr.onnx","required":true,"role":"network","sha256":"df29b0e41e461eae1b43542ea374886ac0228af9e35eeed9914121d544d619ef"}],"candidateId":"tiger-dnr-neural-core","planSha256":"2c0b500221d2cb205ca9776d1a5b8ad0b30e905dd0f85a6ac4e61c413ce1f44d","schemaVersion":1}

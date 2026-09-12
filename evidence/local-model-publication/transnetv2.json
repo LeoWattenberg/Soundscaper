@@ -1,0 +1,20 @@
+{
+	"schemaVersion": 1,
+	"checkedAt": "2026-09-12T05:48:26.347Z",
+	"modelId": "transnetv2",
+	"version": "1.0.0",
+	"checks": [
+		"public-head",
+		"byte-range",
+		"cors",
+		"full-sha256"
+	],
+	"artifacts": [
+		{
+			"fileName": "network.onnx",
+			"byteLength": 31255509,
+			"sha256": "dd3b4314ac16bb23e7432d934a8695cf8d0f8a2720b5b639ed1a915480736fe2",
+			"url": "https://assets.soundscaper.org/models/transnetv2/1.0.0/network.onnx"
+		}
+	]
+}

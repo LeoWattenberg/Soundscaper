@@ -20,7 +20,7 @@ async function fixture() {
 	const root = await mkdtemp(join(tmpdir(), 'assistance-package-'));
 	async function stage(familyId: AssistanceRuntimeFamilyId) {
 		const manifest = validateAssistanceRuntimeFamilyManifestV1(candidates.manifests[familyId]);
-		const entrypoint = familyId === 'onnxruntime-node' ? 'index.js' : 'whisper-cli';
+		const entrypoint = familyId === 'onnxruntime-node' ? 'index.js' : familyId === 'llama-cpp' ? 'llama-completion' : 'whisper-cli';
 		const bytes = Buffer.from(`test payload for ${familyId}`);
 		const targetRoot = join(root, manifest.runtimePrefix, 'linux-x64');
 		await mkdir(targetRoot, { recursive: true });
@@ -43,24 +43,24 @@ async function fixture() {
 	return { root, stage, clean: () => rm(root, { recursive: true, force: true }) };
 }
 
-test('desktop packaging binds both real-engine inventories to the packaged target and exact bytes', async () => {
+test('desktop packaging binds all real-engine inventories to the packaged target and exact bytes', async () => {
 	const f = await fixture();
 	try {
 		const result = await stageDesktopAssistanceRuntimeFamilies({
 			targetId: 'linux-x64', runtimeRoot: f.root,
 			stageOnnx: () => f.stage('onnxruntime-node'),
 			stageWhisper: () => f.stage('whisper-cpp'),
+			stageLlama: () => f.stage('llama-cpp'),
 		});
 		const packaged = JSON.parse(result.manifestBytes.toString()) as {
 			manifests: Record<AssistanceRuntimeFamilyId, unknown>;
 		};
 		assert.deepEqual(result.summary.families.map((family: { familyId: string }) => family.familyId),
-			['onnxruntime-node', 'whisper-cpp']);
-		for (const familyId of ['onnxruntime-node', 'whisper-cpp'] as const) {
+			['onnxruntime-node', 'whisper-cpp', 'llama-cpp']);
+		for (const familyId of ['onnxruntime-node', 'whisper-cpp', 'llama-cpp'] as const) {
 			const manifest = validateAssistanceRuntimeFamilyManifestV1(packaged.manifests[familyId]);
 			assert.equal(manifest.targets.find(({ id }) => id === 'linux-x64')?.status, 'authenticated');
 		}
-		assert.deepEqual(packaged.manifests['llama-cpp'], candidates.manifests['llama-cpp']);
 		assert.equal(result.summary.manifest.sha256,
 			createHash('sha256').update(result.manifestBytes).digest('hex'));
 		assert.equal(candidates.manifests['onnxruntime-node'].targets[1]?.status, 'pending-external');
@@ -80,6 +80,24 @@ test('desktop packaging binds both real-engine inventories to the packaged targe
 	} finally { await f.clean(); }
 });
 
+test('desktop packaging fails when the editorial engine is missing or changed', async () => {
+	for (const mode of ['missing', 'changed']) {
+		const f = await fixture();
+		try {
+			await assert.rejects(stageDesktopAssistanceRuntimeFamilies({
+				targetId: 'linux-x64', runtimeRoot: f.root,
+				stageOnnx: () => f.stage('onnxruntime-node'), stageWhisper: () => f.stage('whisper-cpp'),
+				stageLlama: async () => {
+					if (mode === 'missing') return { manifest: candidates.manifests['llama-cpp'] };
+					const result = await f.stage('llama-cpp');
+					await writeFile(join(f.root, result.manifest.runtimePrefix, 'linux-x64/llama-completion'), 'changed');
+					return result;
+				},
+			}), /Cannot package llama-cpp/u);
+		} finally { await f.clean(); }
+	}
+});
+
 test('desktop packaging rejects a missing engine instead of shipping an unusable model catalog', async () => {
 	const f = await fixture();
 	try {
@@ -87,6 +105,7 @@ test('desktop packaging rejects a missing engine instead of shipping an unusable
 			targetId: 'linux-x64', runtimeRoot: f.root,
 			stageOnnx: () => f.stage('onnxruntime-node'),
 			stageWhisper: () => Promise.resolve({ manifest: candidates.manifests['whisper-cpp'] }),
+			stageLlama: () => f.stage('llama-cpp'),
 		}), /Cannot package whisper-cpp/u);
 	} finally { await f.clean(); }
 });
@@ -102,6 +121,7 @@ test('desktop packaging authenticates staged bytes instead of trusting the provi
 				return result;
 			},
 			stageWhisper: () => f.stage('whisper-cpp'),
+			stageLlama: () => f.stage('llama-cpp'),
 		}), /Cannot package onnxruntime-node.*authentication/u);
 	} finally { await f.clean(); }
 });

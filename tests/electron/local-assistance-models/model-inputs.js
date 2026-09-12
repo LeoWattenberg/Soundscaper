@@ -4,6 +4,9 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createAssistanceVisualFramePackV2 } from '../../../src/common/editor/assistance/visual-frame-pack-v2.ts';
+import { createAssistanceEditorialGenerationPlanV1 } from '../../../src/common/editor/assistance/editorial-generation-v1.ts';
+import { reviewAssistanceFloat32MonoWaveV1 } from '../../../src/common/editor/assistance/float32-mono-wave-v1.ts';
+import { createAssistanceFramePackV1 } from '../../../src/common/editor/assistance/binary-formats-v1.ts';
 
 const HASHES = Object.freeze({
 	'jfk.wav': '59dfb9a4acb36fe2a2affc14bacbee2920ff435cb13cc314a08c13f66ba7860e',
@@ -66,41 +69,100 @@ export async function loadSpeechFixture(noisy) {
 export async function prepareModelInput(fixtureId, page) {
 	if (fixtureId === 'speech-16khz') return loadSpeechFixture(false);
 	if (fixtureId === 'noisy-speech-48khz') return loadSpeechFixture(true);
+	if (fixtureId === 'aligned-speech-16khz') {
+		const input = await loadSpeechFixture(false);
+		const text = 'And so my fellow Americans ask not what your country can do for you ask what you can do for your country';
+		return { ...input, expectedWords: text.split(' '), additionalInputs: [{ role: 'transcript',
+			mediaType: 'application/vnd.soundscaper.transcript+json',
+			bytes: Buffer.from(JSON.stringify({ language: 'en', segments: [{ startSeconds: 1,
+				endSeconds: input.frameCount / input.sampleRate - 1, text }] })),
+		}] };
+	}
+	if (['mixed-speech-44100hz', 'reverberant-speech-44100hz', 'speech-tags-32khz', 'rhythmic-music-22050hz'].includes(fixtureId)) {
+		return additionalAudioInput(fixtureId);
+	}
+	if (fixtureId === 'editorial-candidates') {
+		const plan = createAssistanceEditorialGenerationPlanV1([
+			{ candidateId: 'restoration', evidenceMode: 'transcript',
+				transcriptExcerpt: 'Here is how we restored the old recording and brought the speech back.', visualSummary: null },
+			{ candidateId: 'comparison', evidenceMode: 'transcript',
+				transcriptExcerpt: 'Listen to the original and the cleaned recording before deciding which sounds better.', visualSummary: null },
+		]);
+		return { bytes: Buffer.from(JSON.stringify(plan)), role: 'editorial-context',
+			mediaType: 'application/vnd.soundscaper.editorial-context+json', frameCount: 1, candidateIds: plan.authorizedCandidateIds };
+	}
 	if (fixtureId === 'transcript-text') return {
 		bytes: Buffer.from('A speaker explains how to restore a noisy recording and find the spoken words.'),
 		role: 'text', mediaType: 'text/plain', frameCount: 1,
 	};
-	assert.ok(['visual-subject-frames', 'visual-text-frames'].includes(fixtureId), `Unknown fixture ${fixtureId}`);
-	const photos = fixtureId === 'visual-subject-frames'
+	assert.ok(['visual-subject-frames', 'visual-text-frames', 'visual-shot-frames'].includes(fixtureId), `Unknown fixture ${fixtureId}`);
+	const shots = fixtureId === 'visual-shot-frames';
+	const width = shots ? 48 : 512;
+	const height = shots ? 27 : 512;
+	const photos = fixtureId !== 'visual-text-frames'
 		? await Promise.all(['astronaut.png', 'chelsea.png'].map(async (name) => (await authenticatedFixture(name)).toString('base64')))
 		: [null];
-	const rasters = await page.evaluate(async (sources) => {
+	const rasters = await page.evaluate(async ({ sources, width, height }) => {
 		const canvas = document.createElement('canvas');
-		canvas.width = 512; canvas.height = 512;
+		canvas.width = width; canvas.height = height;
 		const context = canvas.getContext('2d');
 		const frames = [];
 		for (const base64 of sources) {
-			context.fillStyle = 'white'; context.fillRect(0, 0, 512, 512);
+			context.fillStyle = 'white'; context.fillRect(0, 0, width, height);
 			if (base64) {
 				const image = new Image();
 				image.src = `data:image/png;base64,${base64}`;
 				await image.decode();
-				const scale = Math.min(512 / image.naturalWidth, 512 / image.naturalHeight);
-				const width = image.naturalWidth * scale; const height = image.naturalHeight * scale;
-				context.drawImage(image, (512 - width) / 2, (512 - height) / 2, width, height);
+				const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
+				const drawnWidth = image.naturalWidth * scale; const drawnHeight = image.naturalHeight * scale;
+				context.drawImage(image, (width - drawnWidth) / 2, (height - drawnHeight) / 2, drawnWidth, drawnHeight);
 			} else {
 				context.fillStyle = 'black'; context.font = 'bold 54px sans-serif';
 				context.fillText('LOCAL MODEL', 35, 200);
 				context.fillText('TEST', 175, 280);
 			}
-			frames.push(Array.from(context.getImageData(0, 0, 512, 512).data));
+			frames.push(Array.from(context.getImageData(0, 0, width, height).data));
 		}
 		return frames;
-	}, photos);
-	const frames = rasters.map((pixels, index) => ({ sourceFrame: index, presentationTick: String(index), rgba: Uint8Array.from(pixels) }));
-	const authority = { width: 512, height: 512, timescale: 30,
+	}, { sources: photos, width, height });
+	const sequence = shots ? Array.from({ length: 120 }, (_, index) => rasters[index < 60 ? 0 : 1]) : rasters;
+	const frames = sequence.map((pixels, index) => ({ sourceFrame: index, presentationTick: String(index), rgba: Uint8Array.from(pixels) }));
+	const authority = { width, height, timescale: 30,
 		frames: frames.map(({ sourceFrame, presentationTick }) => ({ sourceFrame, presentationTick })) };
-	const chunks = createAssistanceVisualFramePackV2({ sourceWidth: 512, sourceHeight: 512,
-		rasterWidth: 512, rasterHeight: 512, timescale: 30, frames });
+	const chunks = shots ? createAssistanceFramePackV1({ width, height, timescale: 30, frames })
+		: createAssistanceVisualFramePackV2({ sourceWidth: width, sourceHeight: height,
+			rasterWidth: width, rasterHeight: height, timescale: 30, frames });
 	return { bytes: Buffer.concat(chunks), role: 'frame-pack', mediaType: 'application/vnd.soundscaper.frame-pack', frameCount: frames.length, authority };
+}
+
+async function additionalAudioInput(fixtureId) {
+	const rhythmic = fixtureId === 'rhythmic-music-22050hz';
+	const sampleRate = rhythmic ? 22_050 : fixtureId === 'speech-tags-32khz' ? 32_000 : 44_100;
+	const original = await loadSpeechFixture(false);
+	const speech = reviewAssistanceFloat32MonoWaveV1(original.bytes, original.sampleRate).samples;
+	const samples = new Float32Array(rhythmic ? sampleRate * 16 : Math.round(speech.length * sampleRate / original.sampleRate));
+	for (let index = 0; index < samples.length; index += 1) {
+		const time = index / sampleRate;
+		const position = index * original.sampleRate / sampleRate;
+		const left = Math.floor(position);
+		const fraction = position - left;
+		let sample = rhythmic ? 0 : speech[left] * (1 - fraction) + speech[Math.min(left + 1, speech.length - 1)] * fraction;
+		if (rhythmic || fixtureId === 'mixed-speech-44100hz') {
+			const beatTime = time % 0.5;
+			const beat = Math.floor(time * 2);
+			const kick = 0.35 * Math.exp(-beatTime * 22) * Math.sin(2 * Math.PI * (55 * beatTime + 3 * (1 - Math.exp(-beatTime * 30))));
+			const hat = 0.08 * Math.exp(-(time % 0.25) * 100) * Math.sin(2 * Math.PI * 6_000 * time);
+			const chord = 0.035 * Math.sin(2 * Math.PI * [220, 261.6256, 329.6276, 293.6648][Math.floor(beat / 4) % 4] * time);
+			sample = sample * 0.65 + kick + hat + chord;
+		}
+		samples[index] = sample;
+	}
+	if (fixtureId === 'reverberant-speech-44100hz') {
+		const dry = samples.slice();
+		for (const [delay, gain] of [[0.07, 0.35], [0.13, 0.22], [0.23, 0.15], [0.37, 0.08]]) {
+			const offset = Math.round(delay * sampleRate);
+			for (let index = offset; index < samples.length; index += 1) samples[index] += dry[index - offset] * gain;
+		}
+	}
+	return { bytes: encodeFloatWave(samples, sampleRate), role: 'audio', mediaType: 'audio/wav', sampleRate, frameCount: samples.length };
 }

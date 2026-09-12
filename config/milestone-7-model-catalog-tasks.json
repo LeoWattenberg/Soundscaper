@@ -8,9 +8,18 @@
 			"version": "1.0.0",
 			"task": "word-alignment",
 			"installTier": "baseline",
-			"supplyBinding": { "kind": "direct-pin", "supplyId": "wav2vec2-base-960h-english-alignment" },
+			"supplyBinding": {
+				"kind": "direct-pin",
+				"supplyId": "wav2vec2-base-960h-english-alignment"
+			},
 			"runtimeFamily": "onnxruntime-node",
-			"platforms": ["darwin-arm64", "linux-x64", "linux-arm64", "win32-x64", "win32-arm64"],
+			"platforms": [
+				"darwin-arm64",
+				"linux-x64",
+				"linux-arm64",
+				"win32-x64",
+				"win32-arm64"
+			],
 			"minimumMemoryBytes": 4294967296,
 			"artifacts": [
 				{
@@ -22,42 +31,90 @@
 				}
 			],
 			"sourceAuthorities": [],
-			"releaseEvidence": { "publicReadbackSha256": null, "signedCatalogEntrySha256": null },
+			"releaseEvidence": {
+				"publicReadbackSha256": "aa45bb08f2a6b3a239ff274e784d88aa1572d90bf038f6e966f8836c7a910ecd",
+				"signedCatalogEntrySha256": null
+			},
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["external-catalog-signature", "immutable-public-readback"],
+			"catalogBlockedBy": [
+				"external-catalog-signature"
+			],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["external-catalog-signature", "immutable-public-readback", "runtime-target-closure"]
+			"activationBlockedBy": [
+				"external-catalog-signature",
+				"runtime-target-closure"
+			]
 		},
 		{
 			"catalogModelId": "tiger-dnr",
 			"version": "1.0.0",
 			"task": "source-separation",
 			"installTier": "baseline",
-			"supplyBinding": { "kind": "converted-output", "supplyId": "tiger-dnr-neural-core", "outputRole": "network" },
+			"supplyBinding": {
+				"kind": "converted-output",
+				"supplyId": "tiger-dnr-neural-core",
+				"outputRole": "network"
+			},
 			"runtimeFamily": "onnxruntime-node",
-			"platforms": ["darwin-arm64", "linux-x64", "linux-arm64", "win32-x64", "win32-arm64"],
+			"platforms": [
+				"darwin-arm64",
+				"linux-x64",
+				"linux-arm64",
+				"win32-x64",
+				"win32-arm64"
+			],
 			"minimumMemoryBytes": 4294967296,
 			"artifacts": [
-				{ "role": "network", "sourceFileName": "tiger-dnr.onnx", "distributionFileName": "network.onnx", "byteLength": null, "sha256": null }
+				{
+					"role": "network",
+					"sourceFileName": "tiger-dnr.onnx",
+					"distributionFileName": "network.onnx",
+					"byteLength": 29623224,
+					"sha256": "df29b0e41e461eae1b43542ea374886ac0228af9e35eeed9914121d544d619ef"
+				}
 			],
 			"sourceAuthorities": [],
-			"releaseEvidence": { "publicReadbackSha256": null, "signedCatalogEntrySha256": null },
+			"releaseEvidence": {
+				"publicReadbackSha256": "5b6804fd3d62d0fc0369350de2e051f4056a3b9c0668cf78ff0b8869df325410",
+				"signedCatalogEntrySha256": null
+			},
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "source-code-archive-identity", "source-framework-parity"],
+			"catalogBlockedBy": [
+				"external-catalog-signature"
+			],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-code-archive-identity", "source-framework-parity"]
+			"activationBlockedBy": [
+				"external-catalog-signature",
+				"runtime-target-closure"
+			]
 		},
 		{
 			"catalogModelId": "panns-cnn10",
 			"version": "1.0.0",
 			"task": "audio-tagging",
 			"installTier": "baseline",
-			"supplyBinding": { "kind": "converted-output", "supplyId": "panns-cnn10", "outputRole": "network" },
+			"supplyBinding": {
+				"kind": "converted-output",
+				"supplyId": "panns-cnn10",
+				"outputRole": "network"
+			},
 			"runtimeFamily": "onnxruntime-node",
-			"platforms": ["darwin-arm64", "linux-x64", "linux-arm64", "win32-x64", "win32-arm64"],
+			"platforms": [
+				"darwin-arm64",
+				"linux-x64",
+				"linux-arm64",
+				"win32-x64",
+				"win32-arm64"
+			],
 			"minimumMemoryBytes": 2147483648,
 			"artifacts": [
-				{ "role": "panns-cnn10", "sourceFileName": "panns-cnn10.onnx", "distributionFileName": "panns-cnn10.onnx", "byteLength": null, "sha256": null }
+				{
+					"role": "panns-cnn10",
+					"sourceFileName": "panns-cnn10.onnx",
+					"distributionFileName": "panns-cnn10.onnx",
+					"byteLength": 25217285,
+					"sha256": "b6aec410d3be2764228e910fabd7f853dd7309d2454f595a6c3f7422b4c56e24"
+				}
 			],
 			"sourceAuthorities": [
 				{
@@ -73,77 +130,166 @@
 					"catalogDistribution": false
 				}
 			],
-			"releaseEvidence": { "publicReadbackSha256": null, "signedCatalogEntrySha256": null },
+			"releaseEvidence": {
+				"publicReadbackSha256": "b4346dc5d91f81369b4ed66755f08a9c6f95e9700f31a9192ac280c1d10661a6",
+				"signedCatalogEntrySha256": null
+			},
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "source-artifact-sha256-readback", "source-code-archive-identity", "source-framework-parity"],
+			"catalogBlockedBy": [
+				"external-catalog-signature"
+			],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-artifact-sha256-readback", "source-code-archive-identity", "source-framework-parity"]
+			"activationBlockedBy": [
+				"external-catalog-signature",
+				"runtime-target-closure"
+			]
 		},
 		{
 			"catalogModelId": "beat-this-small0",
 			"version": "1.1.0",
 			"task": "beat-tracking",
 			"installTier": "baseline",
-			"supplyBinding": { "kind": "converted-output", "supplyId": "beat-this", "outputRole": "small0-network" },
+			"supplyBinding": {
+				"kind": "converted-output",
+				"supplyId": "beat-this",
+				"outputRole": "small0-network"
+			},
 			"runtimeFamily": "onnxruntime-node",
-			"platforms": ["darwin-arm64", "linux-x64", "linux-arm64", "win32-x64", "win32-arm64"],
+			"platforms": [
+				"darwin-arm64",
+				"linux-x64",
+				"linux-arm64",
+				"win32-x64",
+				"win32-arm64"
+			],
 			"minimumMemoryBytes": 2147483648,
 			"artifacts": [
-				{ "role": "beat-this-small0", "sourceFileName": "beat-this-small0.onnx", "distributionFileName": "beat-this-small0.onnx", "byteLength": null, "sha256": null }
+				{
+					"role": "beat-this-small0",
+					"sourceFileName": "beat-this-small0.onnx",
+					"distributionFileName": "beat-this-small0.onnx",
+					"byteLength": 10569824,
+					"sha256": "8e649b7f764873863ddef0115cf121308ef461b70e7a015a3461edf6f8552471"
+				}
 			],
 			"sourceAuthorities": [],
-			"releaseEvidence": { "publicReadbackSha256": null, "signedCatalogEntrySha256": null },
+			"releaseEvidence": {
+				"publicReadbackSha256": "12116fc8bf0dcbf53ed2be431250d2e46c500c606c03a86def8a84982f0be913",
+				"signedCatalogEntrySha256": null
+			},
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "source-artifact-sha256-readback", "source-code-archive-identity", "source-framework-parity"],
+			"catalogBlockedBy": [
+				"external-catalog-signature"
+			],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-artifact-sha256-readback", "source-code-archive-identity", "source-framework-parity"]
+			"activationBlockedBy": [
+				"external-catalog-signature",
+				"runtime-target-closure"
+			]
 		},
 		{
 			"catalogModelId": "beat-this-final0",
 			"version": "1.1.0",
 			"task": "beat-tracking",
 			"installTier": "optional-quality",
-			"supplyBinding": { "kind": "converted-output", "supplyId": "beat-this", "outputRole": "final0-network" },
+			"supplyBinding": {
+				"kind": "converted-output",
+				"supplyId": "beat-this",
+				"outputRole": "final0-network"
+			},
 			"runtimeFamily": "onnxruntime-node",
-			"platforms": ["darwin-arm64", "linux-x64", "linux-arm64", "win32-x64", "win32-arm64"],
+			"platforms": [
+				"darwin-arm64",
+				"linux-x64",
+				"linux-arm64",
+				"win32-x64",
+				"win32-arm64"
+			],
 			"minimumMemoryBytes": 4294967296,
 			"artifacts": [
-				{ "role": "beat-this-final0", "sourceFileName": "beat-this-final0.onnx", "distributionFileName": "beat-this-final0.onnx", "byteLength": null, "sha256": null }
+				{
+					"role": "beat-this-final0",
+					"sourceFileName": "beat-this-final0.onnx",
+					"distributionFileName": "beat-this-final0.onnx",
+					"byteLength": 83176882,
+					"sha256": "62e8445705e1ea0cdf20bf15e02a58f40aa1f1c3d1369291ebc72739425d0128"
+				}
 			],
 			"sourceAuthorities": [],
-			"releaseEvidence": { "publicReadbackSha256": null, "signedCatalogEntrySha256": null },
+			"releaseEvidence": {
+				"publicReadbackSha256": "1f6c73508ffab6d965b73e337f4518c3c8587201c6b1e9ba3a04a650d12213f5",
+				"signedCatalogEntrySha256": null
+			},
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "source-artifact-sha256-readback", "source-code-archive-identity", "source-framework-parity"],
+			"catalogBlockedBy": [
+				"external-catalog-signature"
+			],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-artifact-sha256-readback", "source-code-archive-identity", "source-framework-parity"]
+			"activationBlockedBy": [
+				"external-catalog-signature",
+				"runtime-target-closure"
+			]
 		},
 		{
 			"catalogModelId": "transnetv2",
 			"version": "1.0.0",
 			"task": "shot-detection",
 			"installTier": "baseline",
-			"supplyBinding": { "kind": "converted-output", "supplyId": "transnetv2", "outputRole": "network" },
+			"supplyBinding": {
+				"kind": "converted-output",
+				"supplyId": "transnetv2",
+				"outputRole": "network"
+			},
 			"runtimeFamily": "onnxruntime-node",
-			"platforms": ["darwin-arm64", "linux-x64", "linux-arm64", "win32-x64", "win32-arm64"],
+			"platforms": [
+				"darwin-arm64",
+				"linux-x64",
+				"linux-arm64",
+				"win32-x64",
+				"win32-arm64"
+			],
 			"minimumMemoryBytes": 2147483648,
 			"artifacts": [
-				{ "role": "network", "sourceFileName": "transnetv2.onnx", "distributionFileName": "network.onnx", "byteLength": null, "sha256": null }
+				{
+					"role": "network",
+					"sourceFileName": "transnetv2.onnx",
+					"distributionFileName": "network.onnx",
+					"byteLength": 31255509,
+					"sha256": "dd3b4314ac16bb23e7432d934a8695cf8d0f8a2720b5b639ed1a915480736fe2"
+				}
 			],
 			"sourceAuthorities": [],
-			"releaseEvidence": { "publicReadbackSha256": null, "signedCatalogEntrySha256": null },
+			"releaseEvidence": {
+				"publicReadbackSha256": "f82d93f91afb69ee6a5303b837512f07c3b3a6465f26663c99d8d173ce469c86",
+				"signedCatalogEntrySha256": null
+			},
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "source-code-archive-identity", "source-framework-parity"],
+			"catalogBlockedBy": [
+				"external-catalog-signature"
+			],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-code-archive-identity", "source-framework-parity"]
+			"activationBlockedBy": [
+				"external-catalog-signature",
+				"runtime-target-closure"
+			]
 		},
 		{
 			"catalogModelId": "qwen3-4b-q4-k-m",
 			"version": "1.0.0",
 			"task": "editorial-generation",
 			"installTier": "optional-editorial",
-			"supplyBinding": { "kind": "direct-pin", "supplyId": "qwen3-4b-q4-k-m" },
+			"supplyBinding": {
+				"kind": "direct-pin",
+				"supplyId": "qwen3-4b-q4-k-m"
+			},
 			"runtimeFamily": "llama-cpp",
-			"platforms": ["darwin-arm64", "linux-x64", "linux-arm64", "win32-x64", "win32-arm64"],
+			"platforms": [
+				"darwin-arm64",
+				"linux-x64",
+				"linux-arm64",
+				"win32-x64",
+				"win32-arm64"
+			],
 			"minimumMemoryBytes": 17179869184,
 			"artifacts": [
 				{
@@ -155,30 +301,62 @@
 				}
 			],
 			"sourceAuthorities": [],
-			"releaseEvidence": { "publicReadbackSha256": null, "signedCatalogEntrySha256": null },
+			"releaseEvidence": {
+				"publicReadbackSha256": "a314685196f54a415920366655890d8245a6564985db4a9e4623438904ca1bad",
+				"signedCatalogEntrySha256": null
+			},
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["external-catalog-signature", "immutable-public-readback"],
+			"catalogBlockedBy": [
+				"external-catalog-signature"
+			],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["external-catalog-signature", "immutable-public-readback", "runtime-target-closure"]
+			"activationBlockedBy": [
+				"external-catalog-signature",
+				"runtime-target-closure"
+			]
 		},
 		{
 			"catalogModelId": "dereverb-room",
 			"version": "1.0.0",
 			"task": "dereverberation",
 			"installTier": "baseline",
-			"supplyBinding": { "kind": "converted-output", "supplyId": "dereverb-room", "outputRole": "network" },
+			"supplyBinding": {
+				"kind": "converted-output",
+				"supplyId": "dereverb-room",
+				"outputRole": "network"
+			},
 			"runtimeFamily": "onnxruntime-node",
-			"platforms": ["darwin-arm64", "linux-x64", "linux-arm64", "win32-x64", "win32-arm64"],
+			"platforms": [
+				"darwin-arm64",
+				"linux-x64",
+				"linux-arm64",
+				"win32-x64",
+				"win32-arm64"
+			],
 			"minimumMemoryBytes": 2147483648,
 			"artifacts": [
-				{ "role": "network", "sourceFileName": "dereverb-room.onnx", "distributionFileName": "network.onnx", "byteLength": null, "sha256": null }
+				{
+					"role": "network",
+					"sourceFileName": "dereverb-room.onnx",
+					"distributionFileName": "network.onnx",
+					"byteLength": 120133400,
+					"sha256": "da957df2e796612cb77c76ec3f026b8fa7c750a0792ab7cb971df192f368e820"
+				}
 			],
 			"sourceAuthorities": [],
-			"releaseEvidence": { "publicReadbackSha256": null, "signedCatalogEntrySha256": null },
+			"releaseEvidence": {
+				"publicReadbackSha256": "b064e04ea9640aa3f2df94ebfb5876be6d31ff14c5929d959754f8f7e272843c",
+				"signedCatalogEntrySha256": null
+			},
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "source-code-archive-identity", "source-framework-parity"],
+			"catalogBlockedBy": [
+				"external-catalog-signature"
+			],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-code-archive-identity", "source-framework-parity"]
+			"activationBlockedBy": [
+				"external-catalog-signature",
+				"runtime-target-closure"
+			]
 		}
 	]
 }

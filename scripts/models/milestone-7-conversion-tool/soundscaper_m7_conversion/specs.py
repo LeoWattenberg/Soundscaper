@@ -6,7 +6,7 @@ PROTOCOL = "soundscaper-model-conversion-v1"
 
 CANDIDATES = {
     "tiger-dnr-neural-core": {
-        "plan": "83c625591151d8c73975ba32022ac7068b73cfd9dfee03eee379d6611d08cb28",
+        "plan": "2c0b500221d2cb205ca9776d1a5b8ad0b30e905dd0f85a6ac4e61c413ce1f44d",
         "revision": "9f18d4a10a7137e1ce8052cfb62215179f1287b6",
         "archive": "tiger-9f18d4a10a7137e1ce8052cfb62215179f1287b6.tar.gz",
         "artifacts": [
@@ -26,7 +26,7 @@ CANDIDATES = {
         ],
     },
     "panns-cnn10": {
-        "plan": "03f4d0feb664ac4a409a126b6eb81efc94231475e9d1354fce5d3f725f4724fc",
+        "plan": "21c11d5603d7c6599be1ba06a303a02cffe984565d77807d5bb0d5ac77be177f",
         "revision": "d2f4b8c18eab44737fcc0de1248ae21eb43f6aa4",
         "archive": "audioset-tagging-cnn-d2f4b8c18eab44737fcc0de1248ae21eb43f6aa4.tar.gz",
         "artifacts": [
@@ -49,7 +49,7 @@ CANDIDATES = {
         ],
     },
     "beat-this": {
-        "plan": "3d9f0a1a130fece450c64c01cfc6393aef9b2ab02a6af9114709e553322b9497",
+        "plan": "638546ecced289b8c4c95659321bcf2966ff2438a6d0f44079e0b5fea76ef2e0",
         "revision": "ad7974846029835307ba19a3d5cefbf40b243041",
         "archive": "beat-this-ad7974846029835307ba19a3d5cefbf40b243041.tar.gz",
         "artifacts": [
@@ -65,21 +65,23 @@ CANDIDATES = {
         "fixture": ("beat-this-parity-v1", 705_644,
                     "dac09d315142aab6d80d5ec653519a480414e06feff4412e6006252883dc567a"),
         "frameworks": ["source-pytorch", "onnxruntime-cpu"],
-        "roles": ["beat-logits", "downbeat-logits", "beat-points", "downbeat-points"],
-        "counts": {"beat-logits": 401, "downbeat-logits": 401},
+        "roles": [prefix + role for prefix in ("", "final0-")
+                  for role in ("beat-logits", "downbeat-logits", "beat-points", "downbeat-points")],
+        "counts": {prefix + role: 401 for prefix in ("", "final0-")
+                   for role in ("beat-logits", "downbeat-logits")},
         "comparisons": [
-            ("source-pytorch", "onnxruntime-cpu", "beat-logits",
-             "maximum-absolute-error", 0.0001),
-            ("source-pytorch", "onnxruntime-cpu", "downbeat-logits",
-             "maximum-absolute-error", 0.0001),
-            ("source-pytorch", "onnxruntime-cpu", "beat-points",
-             "symmetric-index-difference", 0),
-            ("source-pytorch", "onnxruntime-cpu", "downbeat-points",
-             "symmetric-index-difference", 0),
+            ("source-pytorch", "onnxruntime-cpu", prefix + role, metric, maximum)
+            for prefix in ("", "final0-")
+            for role, metric, maximum in (
+                ("beat-logits", "maximum-absolute-error", 0.0001),
+                ("downbeat-logits", "maximum-absolute-error", 0.0001),
+                ("beat-points", "symmetric-index-difference", 0),
+                ("downbeat-points", "symmetric-index-difference", 0),
+            )
         ],
     },
     "transnetv2": {
-        "plan": "220564344d458cdf44ad5c10e7194e9469609735d4ec63a8617086daed9570eb",
+        "plan": "ccb5b5760bb66848f4c387f37e0215f189fb807057518a01cc7a21cc817a4a35",
         "revision": "85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed",
         "archive": "transnetv2-85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed.tar.gz",
         "artifacts": [
@@ -110,7 +112,7 @@ CANDIDATES = {
         ],
     },
     "dereverb-room": {
-        "plan": "4b1f08019ca7edc8977bf720bb377a243324a9ae0fd9dd0e67fdd933cc6182da",
+        "plan": "2630468856719b28f7e694b9800c4fa435ca06f63613103be3bf21a60666c7fd",
         "revision": "43d939e7671d8ff6cf1922f98c2f2e4b56908e47",
         "archive": "mss-onnx-tensorrt-43d939e7671d8ff6cf1922f98c2f2e4b56908e47.tar.gz",
         "artifacts": [

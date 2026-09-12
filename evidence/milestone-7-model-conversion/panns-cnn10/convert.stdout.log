@@ -1,0 +1,1 @@
+{"artifacts":[{"byteLength":25217285,"fileName":"panns-cnn10.onnx","required":true,"role":"network","sha256":"b6aec410d3be2764228e910fabd7f853dd7309d2454f595a6c3f7422b4c56e24"}],"candidateId":"panns-cnn10","manifest":"converted-artifacts.json","schemaVersion":1,"status":"converted"}

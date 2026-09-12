@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "execution": "production-runtime-family-worker",
+  "platform": "linux",
+  "architecture": "x64",
+  "runtimeFamily": "onnxruntime-node",
+  "runtimeVersion": "1.29.0",
+  "runs": [
+    {
+      "modelId": "tiger-dnr",
+      "fixtureId": "mixed-speech-44100hz",
+      "elapsedMs": 530615,
+      "modelSha256": "df29b0e41e461eae1b43542ea374886ac0228af9e35eeed9914121d544d619ef",
+      "result": {
+        "resultVersion": 1,
+        "jobId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "familyId": "onnxruntime-node",
+        "task": "source-separation",
+        "outputs": [
+          {
+            "claimId": "1111111111111111111111111111111111111111",
+            "role": "separated-audio",
+            "mediaType": "audio/wav",
+            "byteLength": 2293244,
+            "sha256": "ef51bf6cf24f06941a20da6edadbcf602cfc46a40b9d57eeacfdf7ca7ecc4b67"
+          },
+          {
+            "claimId": "2222222222222222222222222222222222222222",
+            "role": "separated-audio",
+            "mediaType": "audio/wav",
+            "byteLength": 2293244,
+            "sha256": "eda19f54ed978e50df22b3476251bb0eceeffe2314320755bc8038ee71ad7248"
+          },
+          {
+            "claimId": "3333333333333333333333333333333333333333",
+            "role": "separated-audio",
+            "mediaType": "audio/wav",
+            "byteLength": 2293244,
+            "sha256": "c3ff1c422cc2305d85134c4f5df225ee472d8a1663f7e6fee5fc73cc4cb18c3c"
+          }
+        ]
+      },
+      "summary": [
+        {
+          "rms": 0.08302780760937986,
+          "changedSamples": 573300,
+          "sha256": "ef51bf6cf24f06941a20da6edadbcf602cfc46a40b9d57eeacfdf7ca7ecc4b67"
+        },
+        {
+          "rms": 0.056057313567553904,
+          "changedSamples": 573292,
+          "sha256": "eda19f54ed978e50df22b3476251bb0eceeffe2314320755bc8038ee71ad7248"
+        },
+        {
+          "rms": 0.00945840168251002,
+          "changedSamples": 573300,
+          "sha256": "c3ff1c422cc2305d85134c4f5df225ee472d8a1663f7e6fee5fc73cc4cb18c3c"
+        }
+      ]
+    }
+  ]
+}

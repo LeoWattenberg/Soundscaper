@@ -1,5 +1,14 @@
 # Milestone 7.0.0a: local model evidence records
 
+> **Conversion evidence update (2026-09-12):** the pending-conversion and
+> missing-runtime statements in the dated account below describe its historical
+> checkpoint. [Retained conversion evidence](../evidence/milestone-7-model-conversion/README.md)
+> now records actual Linux x64 exports and source-framework parity for TIGER-DnR,
+> PANNs Cnn10, both Beat This checkpoints, TransNetV2, and Dereverb Room. Desktop
+> preparation provisions the selected-target CPU runtimes; exact catalog,
+> artifact, runtime, selection, and consent checks still apply. Consult the
+> [nightly model tests](local-model-nightly-tests.md) for current execution coverage.
+
 > **Historical slice record:** delivered on 2026-08-13 as the first
 > milestone-7 slice. Its disabled-gate and all-records-blocked statements
 > describe that exact historical checkpoint, not current admission. As of

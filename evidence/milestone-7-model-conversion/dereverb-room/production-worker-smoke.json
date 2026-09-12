@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "execution": "production-runtime-family-worker",
+  "platform": "linux",
+  "architecture": "x64",
+  "runtimeFamily": "onnxruntime-node",
+  "runtimeVersion": "1.29.0",
+  "runs": [
+    {
+      "modelId": "dereverb-room",
+      "fixtureId": "reverberant-speech-44100hz",
+      "elapsedMs": 39712,
+      "modelSha256": "da957df2e796612cb77c76ec3f026b8fa7c750a0792ab7cb971df192f368e820",
+      "result": {
+        "resultVersion": 1,
+        "jobId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "familyId": "onnxruntime-node",
+        "task": "dereverberation",
+        "outputs": [
+          {
+            "claimId": "1111111111111111111111111111111111111111",
+            "role": "enhanced-audio",
+            "mediaType": "audio/wav",
+            "byteLength": 2293244,
+            "sha256": "702c5f266618a0c3d41a90e21d4d119808cb1d49dd27959fa644fb0b7b9285b3"
+          }
+        ]
+      },
+      "summary": [
+        {
+          "rms": 0.07759672299910911,
+          "changedSamples": 503295,
+          "sha256": "702c5f266618a0c3d41a90e21d4d119808cb1d49dd27959fa644fb0b7b9285b3"
+        }
+      ]
+    }
+  ]
+}

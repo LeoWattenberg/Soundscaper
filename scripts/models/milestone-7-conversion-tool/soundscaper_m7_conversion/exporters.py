@@ -8,7 +8,6 @@ from contextlib import contextmanager
 import inspect
 import os
 from pathlib import Path
-import shutil
 import sys
 import tempfile
 
@@ -94,6 +93,7 @@ def torch_runtime():
 
 
 def export_tiger(_source_root: Path, checkpoint: Path, output_root: Path, file_name: str) -> Path:
+    from .tiger_onnx import adaptive_average_pool_onnx
     torch = torch_runtime()
     try:
         from safetensors.torch import load_file
@@ -105,10 +105,11 @@ def export_tiger(_source_root: Path, checkpoint: Path, output_root: Path, file_n
         model.load_state_dict(state, strict=True)
         wrapper = create_tiger_neural_core(model, torch)
         example = torch.zeros((1, 2, 1_025, 64), dtype=torch.float32)
-        return export_torch_onnx(wrapper, (example,), output_root, file_name,
-                                 ["spectrum_ri"], ["complex_masks"],
-                                 {"spectrum_ri": {0: "batch-channel", 3: "frames"},
-                                  "complex_masks": {0: "batch-channel", 4: "frames"}})
+        with adaptive_average_pool_onnx(torch):
+            return export_torch_onnx(wrapper, (example,), output_root, file_name,
+                                     ["spectrum_ri"], ["complex_masks"],
+                                     {"spectrum_ri": {0: "batch-channel", 3: "frames"},
+                                      "complex_masks": {0: "batch-channel", 4: "frames"}})
 
 
 def export_panns(_source_root: Path, checkpoint: Path, output_root: Path, file_name: str) -> Path:
@@ -158,56 +159,14 @@ def export_beat(_source_root: Path, checkpoint: Path, output_root: Path, file_na
     example = torch.zeros((1, 1_500, 128), dtype=torch.float32)
     return export_torch_onnx(BeatOutputs(model).eval(), (example,), output_root, file_name,
                              ["log_mel_spectrogram"], ["beat_logits", "downbeat_logits"],
-                             {"log_mel_spectrogram": {0: "batch", 1: "frames"},
-                              "beat_logits": {0: "batch", 1: "frames"},
-                              "downbeat_logits": {0: "batch", 1: "frames"}})
+                             {"log_mel_spectrogram": {1: "frames"},
+                              "beat_logits": {1: "frames"},
+                              "downbeat_logits": {1: "frames"}})
 
 
-def export_transnet(_source_root: Path, artifacts: dict, output_root: Path, file_name: str) -> Path:
-    torch = torch_runtime()
-    try:
-        import tensorflow as tf
-        import tf2onnx
-        import onnx2torch
-    except ImportError as error:
-        raise ContractError("The locked TransNetV2 bridge dependencies are incomplete.") from error
-    with tempfile.TemporaryDirectory(prefix="transnet-source-", dir=output_root) as temporary:
-        model_root = Path(temporary) / "saved-model"
-        variables = model_root / "variables"
-        variables.mkdir(parents=True)
-        shutil.copyfile(artifacts["tensorflow-saved-model"], model_root / "saved_model.pb")
-        shutil.copyfile(artifacts["tensorflow-variables-data"],
-                        variables / "variables.data-00000-of-00001")
-        shutil.copyfile(artifacts["tensorflow-variables-index"], variables / "variables.index")
-        source = tf.saved_model.load(str(model_root))
-        signature = [tf.TensorSpec([None, 100, 27, 48, 3], tf.float32, name="frames_float")]
-
-        @tf.function(input_signature=signature)
-        def tensorflow_forward(frames_float):
-            logits, outputs = source(frames_float)
-            return logits, outputs["many_hot"]
-
-        intermediate = Path(temporary) / "tensorflow.onnx"
-        tensorflow_onnx, _ = tf2onnx.convert.from_function(
-            tensorflow_forward, input_signature=signature, opset=17, output_path=str(intermediate))
-        pytorch_model = onnx2torch.convert(tensorflow_onnx).cpu().eval()
-
-        class TransNetOutputs(torch.nn.Module):
-            def __init__(self, bridged):
-                super().__init__()
-                self.bridged = bridged
-
-            def forward(self, frames):
-                outputs = self.bridged(frames.float())
-                return outputs[0], outputs[1]
-
-        example = torch.zeros((1, 100, 27, 48, 3), dtype=torch.uint8)
-        return export_torch_onnx(TransNetOutputs(pytorch_model).eval(), (example,), output_root,
-                                 file_name, ["frames"],
-                                 ["single_frame_logits", "all_frame_logits"],
-                                 {"frames": {0: "batch"},
-                                  "single_frame_logits": {0: "batch"},
-                                  "all_frame_logits": {0: "batch"}})
+def export_transnet(source_root: Path, artifacts: dict, output_root: Path, file_name: str) -> Path:
+    from .transnet_onnx import export_transnet_source
+    return export_transnet_source(source_root, artifacts, output_root, file_name)
 
 
 def export_torch_onnx(model, inputs: tuple, output_root: Path, file_name: str,

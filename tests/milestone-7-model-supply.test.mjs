@@ -7,6 +7,7 @@ import test from 'node:test';
 
 import parityFixtures from '../config/milestone-7-model-parity-fixtures.json' with { type: 'json' };
 import modelSupply from '../config/milestone-7-model-supply-candidates.json' with { type: 'json' };
+import conversionExecution from '../config/milestone-7-model-conversion-execution.json' with { type: 'json' };
 import {
 	canonicalMilestone7ConversionPlan,
 	validateMilestone7ModelSupplyRegister,
@@ -20,13 +21,6 @@ import {
 const SHA256 = 'ab'.repeat(32);
 const OTHER_SHA256 = 'cd'.repeat(32);
 const TOOLCHAIN_SHA256 = 'b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a';
-const EXPECTED_PLAN_SHA256 = Object.freeze({
-	'tiger-dnr-neural-core': '83c625591151d8c73975ba32022ac7068b73cfd9dfee03eee379d6611d08cb28',
-	'panns-cnn10': '03f4d0feb664ac4a409a126b6eb81efc94231475e9d1354fce5d3f725f4724fc',
-	'beat-this': '3d9f0a1a130fece450c64c01cfc6393aef9b2ab02a6af9114709e553322b9497',
-	transnetv2: '220564344d458cdf44ad5c10e7194e9469609735d4ec63a8617086daed9570eb',
-	'dereverb-room': '4b1f08019ca7edc8977bf720bb377a243324a9ae0fd9dd0e67fdd933cc6182da',
-});
 
 function clone(value) {
 	return structuredClone(value);
@@ -40,7 +34,7 @@ function directPin(register, id) {
 	return register.directPins.find((entry) => entry.id === id);
 }
 
-test('derived model supply keeps exact primary-source pins separate from pending conversions', () => {
+test('derived model supply binds exact primary-source pins and reproduced conversions', () => {
 	const register = validateMilestone7ModelSupplyRegister(modelSupply);
 	assert.deepEqual(register.candidates.map(({ id }) => id), [
 		'tiger-dnr-neural-core', 'panns-cnn10', 'beat-this', 'transnetv2', 'dereverb-room',
@@ -48,7 +42,7 @@ test('derived model supply keeps exact primary-source pins separate from pending
 	assert.deepEqual(register.candidates.map(({ sourceStatus }) => sourceStatus),
 		Array(5).fill('source-pinned'));
 	assert.deepEqual(register.candidates.map(({ conversion }) => conversion.status),
-		Array(5).fill('converted-artifact-pending'));
+		Array(5).fill('converted-artifact-ready'));
 
 	const tiger = candidate(register, 'tiger-dnr-neural-core');
 	assert.equal(tiger.source.code.revision, '9f18d4a10a7137e1ce8052cfb62215179f1287b6');
@@ -87,13 +81,13 @@ test('derived model supply keeps exact primary-source pins separate from pending
 	const transnet = candidate(register, 'transnetv2');
 	assert.equal(transnet.source.code.revision, '85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed');
 	assert.deepEqual(transnet.conversion.recipe.graph.inputs[0], {
-		name: 'frames', dataType: 'uint8', dimensions: ['batch', 100, 27, 48, 3],
+		name: 'frames', dataType: 'uint8', dimensions: [1, 100, 27, 48, 3],
 	});
 	assert.deepEqual(transnet.conversion.recipe.sourceFrameworks,
 		['tensorflow', 'pytorch']);
 });
 
-test('every derived recipe is CPU-only ONNX and cannot imply an unbuilt artifact', () => {
+test('every derived recipe is CPU-only ONNX and binds its captured execution plan', () => {
 	const register = validateMilestone7ModelSupplyRegister(modelSupply);
 	for (const row of register.candidates) {
 		assert.deepEqual(row.conversion.recipe.onnx, {
@@ -108,18 +102,18 @@ test('every derived recipe is CPU-only ONNX and cannot imply an unbuilt artifact
 			'scripts/models/milestone-7-conversion-tool/uv.lock');
 		assert.equal(row.conversion.recipe.toolchain.sha256, TOOLCHAIN_SHA256);
 		for (const output of row.conversion.outputs) {
-			assert.equal(output.byteLength, null);
-			assert.equal(output.sha256, null);
+			assert.ok(Number.isSafeInteger(output.byteLength) && output.byteLength > 0);
+			assert.match(output.sha256, /^[a-f\d]{64}$/u);
 		}
 		assert.equal(canonicalMilestone7ConversionPlan(register, row.id).sha256,
-			EXPECTED_PLAN_SHA256[row.id]);
+			conversionExecution.recipes.find(({ candidateId }) => candidateId === row.id).conversionPlanSha256);
 	}
 
 	const gpu = clone(modelSupply);
 	gpu.candidates[0].conversion.recipe.onnx.executionProvider = 'cuda';
 	assert.throws(() => validateMilestone7ModelSupplyRegister(gpu), /CPU|provider|ONNX/iu);
 	const fabricated = clone(modelSupply);
-	fabricated.candidates[0].conversion.outputs[0].sha256 = SHA256;
+	fabricated.candidates[0].conversion.outputs[0].byteLength = null;
 	assert.throws(() => validateMilestone7ModelSupplyRegister(fabricated),
 		/pending|digest|artifact/iu);
 	const changedSource = clone(modelSupply);
@@ -147,7 +141,7 @@ test('wav2vec and Qwen identity pins remain non-activated direct candidates', ()
 		activationStatus === 'catalog-publication-pending'));
 });
 
-test('parity fixture inputs reproduce exact bytes while evidence remains pending', () => {
+test('parity fixture inputs reproduce exact bytes and bind retained evidence', () => {
 	const supply = validateMilestone7ModelSupplyRegister(modelSupply);
 	const fixtures = validateMilestone7ParityFixtureRegister(parityFixtures, supply);
 	assert.deepEqual(fixtures.fixtures.map(({ candidateId }) => candidateId),
@@ -156,8 +150,8 @@ test('parity fixture inputs reproduce exact bytes while evidence remains pending
 		const bytes = createMilestone7ParityFixture(fixture.generator);
 		assert.equal(bytes.byteLength, fixture.input.byteLength);
 		assert.equal(createHash('sha256').update(bytes).digest('hex'), fixture.input.sha256);
-		assert.equal(fixture.evidenceStatus, 'pending-external');
-		assert.equal(fixture.evidenceSha256, null);
+		assert.equal(fixture.evidenceStatus, 'verified');
+		assert.match(fixture.evidenceSha256, /^[a-f\d]{64}$/u);
 		assert.ok(fixture.comparisons.length >= 1);
 	}
 });
@@ -166,7 +160,10 @@ test('parity evidence is exact, threshold-bound, and cannot bless pending artifa
 	const supply = validateMilestone7ModelSupplyRegister(modelSupply);
 	const fixtures = validateMilestone7ParityFixtureRegister(parityFixtures, supply);
 	const fixture = fixtures.fixtures.find(({ candidateId }) => candidateId === 'panns-cnn10');
-	const pending = candidate(supply, fixture.candidateId);
+	const pending = clone(candidate(supply, fixture.candidateId));
+	pending.conversion.status = 'converted-artifact-pending';
+	pending.conversion.blockedBy = 'converted-output-not-published';
+	for (const output of pending.conversion.outputs) { output.byteLength = null; output.sha256 = null; }
 	const evidence = {
 		schemaVersion: 1, candidateId: fixture.candidateId, fixtureId: fixture.id,
 		recipeVersion: pending.conversion.recipe.version,
@@ -207,8 +204,8 @@ test('the deterministic verifier reports pins and blockers without producing art
 	const report = JSON.parse(result.stdout);
 	assert.equal(report.schemaVersion, 1);
 	assert.deepEqual(report.candidates.map(({ status }) => status),
-		Array(5).fill('converted-artifact-pending'));
-	assert.equal(report.parityFixtures.every(({ status }) => status === 'pending-external'), true);
+		Array(5).fill('converted-artifact-ready'));
+	assert.equal(report.parityFixtures.every(({ status }) => status === 'verified'), true);
 	assert.equal(report.productionCatalogChanged, false);
 	assert.deepEqual(report.runtimeFamilies.map(({ status }) => status),
 		Array(3).fill('pending-external'));

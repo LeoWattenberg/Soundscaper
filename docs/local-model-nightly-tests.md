@@ -20,11 +20,30 @@ Node-API wrapper using `config/assistance-sherpa-win-arm64-build.json` and the
 recipe's verified native libraries. Each generated model guide lists the exact
 platform intersection between the model catalog and native packaging support.
 
+The required suite now includes **19 cases covering 21 model identities**. Eight
+additional models have prepared cases and guides: wav2vec2 alignment, TIGER,
+room dereverberation, PANNs, both Beat This variants, TransNetV2, and Qwen3.
+Their signed catalog entries are still pending. A required entry missing from
+the authenticated catalog **fails its case**; defining a case does not authorize
+installation, substitute an upstream download, or bypass the catalog signature.
+Room dereverberation's upstream GPL-3.0 declaration, full license text, and source
+directions are recorded in `LICENSES/local-models/` and `THIRD_PARTY_LICENSES.md`.
+Its dry training corpus and base-checkpoint lineage remain unknown.
+
+The Qwen engine is llama.cpp b10509, compiled from a byte-pinned source archive
+for all five desktop targets. Packaging selects the static CPU completion
+helper, records compiler and license provenance, and applies two exact-source
+compatibility changes: honor disabled thinking and keep a human status trailer
+out of JSON output. These changes have input, output, and patch hashes in the
+build receipt. Qwen's production worker still validates strict JSON and candidate
+authority. Packaging the engine does not itself publish the model weights.
+
 **Windows ARM64 catalog approval is pending.** Native build recipes are prepared,
 but the existing signed catalog admits only Whisper on Windows ARM64. The other
 12 models require a refreshed catalog signed by the existing authorized signer.
-Until it is published, those cases report explicit platform skips on Windows
-ARM64. All 13 models are admitted on macOS arm64, Linux x64/arm64, and Windows
+Until it is published, those published-model cases report explicit platform skips
+on Windows ARM64. The eight entirely unpublished models fail their required cases
+on every target. All 13 published models are admitted on macOS arm64, Linux x64/arm64, and Windows
 x64. The committed catalog keeps its valid signature; packaging support does not
 override its platform scope or establish that an ARM64 build has passed inference.
 
@@ -48,18 +67,24 @@ platform; retain the report from the actual package run.
 - Allow approximately **2.36 GiB** for the 13 published model downloads, plus
   packaged runtimes, installation working space, fixtures, and reports. Model
   files come from the public catalog URLs; no model-service account, API key,
-  download token, or other secret is required.
-- Keep at least **8 GiB of memory free** for the complete suite. A machine with
-  **16 GiB system memory or more** is a practical starting point. The model
+  download token, or other secret is required. Candidate artifacts need additional
+  space once published; Qwen alone adds about **2.33 GiB**. Converted artifact
+  sizes are provisional until their exact published bytes are authenticated.
+- Keep at least **12 GiB of memory free** for the full planned suite. Qwen
+  requires at least **16 GiB total system memory**. The model
   catalog's `minimumMemoryBytes` checks total system memory; the operation host
   separately requires enough currently free memory for its reservation.
 - Linux Electron needs a display. Use `xvfb-run -a` for a machine without a
   graphical session. The tests use hidden windows and a loopback debugger.
 
 The dedicated configuration runs one worker, without retries, with a 30-minute
-timeout per case. Eleven cases cover all 13 catalog models: speaker diarization
+timeout per case. Nineteen cases cover 21 required identities: speaker diarization
 and subject detection each execute a pair, and SigLIP2's frame case executes both
-its vision network and text network. See the
+its vision network and text network. Both Beat This variants run independently.
+Word alignment supplies speech and a known transcript; separation expects three
+stems; dereverberation supplies reflected speech; tagging supplies speech;
+beat tracking supplies synthesized rhythmic music; TransNetV2 receives a visual
+cut; Qwen receives two existing editorial candidates. See the
 [case manifest](../config/local-model-real-test-cases.json) and
 [fixture provenance](../tests/electron/local-assistance-models/fixtures/README.md).
 
@@ -87,9 +112,10 @@ failure contributes to the package's failed verdict.
 Prepare the current product archives first. These commands package the host's
 platform and architecture and replace the generated nightly product directory:
 
-Building Whisper also requires CMake and a native C/C++ toolchain: GCC or Clang
+Building Whisper and Qwen also requires CMake and a native C/C++ toolchain: GCC
 on Linux, Xcode command-line tools on macOS, or Visual Studio C++ build tools
-on Windows. Native staging downloads its pinned public sources during packaging.
+on Windows. Windows ARM64 uses the ClangCL toolset with C++ exception support.
+Native staging downloads its pinned public sources during packaging.
 End users of a distributed package do not need these development tools.
 
 ```sh
@@ -158,7 +184,14 @@ nonzero, nonconstant vectors. Subject and saliency fixtures must produce useful
 detections. No exact waveform, spelling, detection box, or ranking is a golden
 reference; these are execution checks, not perceptual-quality benchmarks.
 
-A case is skipped only when the catalog explicitly does not publish one of its
+Alignment checks every supplied word and bounded timing. Separation checks all
+three stems and rejects unchanged, silent, or duplicated stems. Tagging requires
+valid labels and scores; beat and shot checks require ordered in-range events.
+Editorial generation requires the exact candidate inventory and readable
+requested text fields in strict JSON, preserving production content restrictions.
+
+A missing required catalog identity fails before platform checks. A case is
+skipped only when the catalog explicitly does not publish one of its
 required models for the target platform. The report names that model and target.
 On a catalog-supported platform, unavailable runtimes, failed downloads,
 insufficient resources, adapter errors, empty results, and inference failures
@@ -180,9 +213,10 @@ runs. A failed or skipped test is not evidence of model quality, and a passing
 small fixture does not guarantee lossless denoising or accurate transcription.
 
 The English [individual model guides](../handbook/src/content/docs/reference/local-models/index.md)
-are generated from `config/local-model-catalog.json`, the same real-test case
+are generated from `config/local-model-catalog.json`, the required candidate
+identities in `config/milestone-7-model-catalog-tasks.json`, the same real-test case
 manifest, the Sherpa native inventory and Windows ARM64 build recipe, the ONNX
-payload inventory, and the Whisper stager's exported version and build targets.
+payload inventory, and the Whisper and llama stagers' exported versions and build targets.
 These staging sources describe
 packaged capabilities independently of public runtime publication. Edit the
 appropriate source and run

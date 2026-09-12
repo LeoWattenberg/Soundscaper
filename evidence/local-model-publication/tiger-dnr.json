@@ -1,0 +1,20 @@
+{
+	"schemaVersion": 1,
+	"checkedAt": "2026-09-12T06:05:24.182Z",
+	"modelId": "tiger-dnr",
+	"version": "1.0.0",
+	"checks": [
+		"public-head",
+		"byte-range",
+		"cors",
+		"full-sha256"
+	],
+	"artifacts": [
+		{
+			"fileName": "network.onnx",
+			"byteLength": 29623224,
+			"sha256": "df29b0e41e461eae1b43542ea374886ac0228af9e35eeed9914121d544d619ef",
+			"url": "https://assets.soundscaper.org/models/tiger-dnr/1.0.0/network.onnx"
+		}
+	]
+}

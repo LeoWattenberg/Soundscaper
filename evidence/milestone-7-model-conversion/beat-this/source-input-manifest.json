@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "protocol": "soundscaper-model-conversion-v1",
+  "candidateId": "beat-this",
+  "planSha256": "638546ecced289b8c4c95659321bcf2966ff2438a6d0f44079e0b5fea76ef2e0",
+  "sourceCodeArchive": {
+    "path": "inputs/beat-this-ad7974846029835307ba19a3d5cefbf40b243041.tar.gz",
+    "revision": "ad7974846029835307ba19a3d5cefbf40b243041",
+    "byteLength": 4937860,
+    "sha256": "06260c766f4770f98557b11f3f6b780ccb567297f90e1b2ce322a93f537bfa69"
+  },
+  "sourceArtifacts": [
+    {
+      "role": "small0-checkpoint",
+      "path": "inputs/small0.ckpt",
+      "byteLength": 8451101,
+      "sha256": "6074be2c4d490c5f6101fcc374a1ec72ae93456e23bb6019783b849f5dc7d47b"
+    },
+    {
+      "role": "final0-checkpoint",
+      "path": "inputs/final0.ckpt",
+      "byteLength": 81058141,
+      "sha256": "8c328b45f59d8dd3dff219253ff6a8d6482be57d0133a29140e2febbf8eb8331"
+    }
+  ]
+}

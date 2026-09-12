@@ -24,6 +24,8 @@ import {
 	tokenizeAssistanceWav2Vec2EnglishWordV1,
 } from '../src/common/editor/assistance/wav2vec2-english-tokenizer-v1.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
+import { prepareLocalAssistanceAlignmentContext } from
+	'../src/common/editor/controller/assistance/internal/local-assistance-alignment-context.ts';
 
 const JOB_ID = '1'.repeat(40);
 const AUDIO_ID = '2'.repeat(40);
@@ -170,6 +172,41 @@ test('wav2vec2 normalizes each segment, runs the exact CPU graph, and publishes 
 		assert.deepEqual(progress, [0, 0.5, 1]);
 		assert.equal(released, 1);
 	});
+
+test('Advanced stored-transcript projection reaches the strict wav2vec2 runtime contract', async (context) => {
+	const projected = await prepareLocalAssistanceAlignmentContext({
+		mediaType: 'application/vnd.soundscaper.transcript+json',
+		bytes: new Blob([JSON.stringify({ schemaVersion: 1, sourceId: 'voice-source',
+			sampleRate: 48_000, language: 'en', modelId: 'whisper-large-v3-turbo-ggml',
+			segments: [{ startFrame: 48_960, endFrame: 53_040, text: 'A B', words: [], speaker: null }],
+		})]),
+		fence: { projectId: 'project-1', schemaFamily: 'soundscaper', schemaVersion: 1,
+			revision: 1, sequenceId: 'sequence-1', occurrenceIds: ['clip-1'], sourceId: 'voice-source',
+			sourceSha256: 'a'.repeat(64), sourceStartFrame: 48_000, sourceEndFrame: 54_000,
+			linkMembershipSha256: 'b'.repeat(64), timingAuthoritySha256: 'c'.repeat(64) },
+	}, 48_000);
+	assert.ok(projected);
+	const value = await fixture(context, { transcript: JSON.parse(await projected.bytes.text()) as unknown });
+	let calls = 0;
+	const runtime = fakeRuntime(['input_values'], ['logits'], async (feeds) => {
+		calls += 1;
+		assert.deepEqual(feeds.input_values!.dims, [1, 1_360]);
+		const logits = new Float32Array(4 * 32).fill(-10);
+		for (const [frame, token] of [[0, 0], [1, 7], [2, 24], [3, 0]] as const) {
+			logits[frame * 32 + token] = 0;
+		}
+		return { logits: tensor(logits, [1, 4, 32]) };
+	});
+	await runAssistanceRuntimeFamilyWorkerJobV1({ job: value.job,
+		execute: createAssistanceOnnxRuntimeWorkerAdapterV1({ loadRuntime: async () => runtime }),
+	});
+	assert.equal(calls, 1);
+	const output = JSON.parse(await readFile(value.paths.output, 'utf8')) as {
+		words: Array<{ text: string; startSample: number; endSample: number }>;
+	};
+	assert.deepEqual(output.words.map(({ text, startSample, endSample }) => [text, startSample, endSample]),
+		[['A', 640, 960], ['B', 960, 1_280]]);
+});
 
 test('wav2vec2 chunks a long selection by exact ordered Whisper segment authority',
 	async (context) => {

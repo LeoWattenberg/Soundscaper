@@ -686,6 +686,8 @@ the generated inventories ship inside the application archive:
   <https://github.com/microsoft/onnxruntime/tree/v1.29.0>
 - whisper.cpp v1.9.3 — MIT; source and license:
   <https://github.com/ggml-org/whisper.cpp/tree/v1.9.3>
+- llama.cpp b10509 — MIT; source and license:
+  <https://github.com/ggml-org/llama.cpp/tree/fe8156f789011f6ea0baf6917ea09f88b89d9554>
 
 ONNX Runtime is extracted from its pinned npm archives without running the
 optional accelerator installer. The runtime includes the upstream MIT license
@@ -698,8 +700,16 @@ the CLI and are included in its authenticated file inventory.
 The independent public-supply candidate register
 does not describe these application-local builds.
 
-llama.cpp revision `b10509` remains an unbundled candidate; source and MIT license:
-<https://github.com/ggml-org/llama.cpp/tree/b10509>.
+llama.cpp is built as the static CPU `llama-completion` helper from its exact
+36,871,166-byte source archive (SHA-256
+`e26beb2d3e45ea6fc3d611fa98b69159e1c3ca15473197375bd2af8b1cd281c1`).
+Two source compatibility changes honor disabled thinking and remove a human
+status trailer from JSON output; the build receipt records their input, output,
+and patch hashes. The package preserves llama.cpp's MIT license, nlohmann JSON,
+cpp-httplib, and YaRN MIT notices. Linux packages include GCC copyright and
+runtime exception notices for static libgcc/libstdc++. Server and multimodal
+targets are not built. The authenticated generated package inventory binds
+every executable and notice file to its exact bytes.
 
 The Milestone 7 supply-candidate register pins upstream identities for
 wav2vec2-base-960h, TIGER-DnR, PANNs Cnn10 and its AudioSet map, Beat This
@@ -716,24 +726,23 @@ version- and hash-locked in the conversion tool's `pyproject.toml` and
 distributed in the Soundscaper/Framescaper application, runtime packs, model
 packs, Pages bundle, or ASAR. A retained external run must archive the exact
 environment's applicable licenses and notices before its evidence can be
-admitted. No converted artifact or live parity result is checked in, and none
-of these six tasks has the required new externally signed production catalog
-entry; they are deliberately absent from the cataloged inventory below.
+admitted. Actual conversion identities, source-framework parity results, command
+logs, and raw comparison outputs are retained in
+`evidence/milestone-7-model-conversion/`. The additional models still need their
+externally signed production catalog entries before Model Manager can offer them.
 
 Model weights are separately downloaded, never bundled, and each is recorded in
-`config/production-licensing-matrix.json`. A model is listed below only once its
-artifacts, notices, and signed-catalog identity are pinned. The checked-in
-digests authenticate install and preseed bytes; they are not evidence that an
-EU R2 object was uploaded or read back from its public URL.
+`config/production-licensing-matrix.json`. Published catalog models and additional
+published artifacts are distinguished below. An artifact notice or successful
+public download does not substitute for the signed catalog entry required to
+install and execute a model.
 
 ### Mirrored assistance models
 
-Each model below has an immutable catalog key and exact artifact digests. No
-accepted live R2 publication/full-SHA-256 public read-back record is checked in;
-remote availability must not be inferred from this notice.
-The heading is retained as the signed catalog's stable notice anchor; "mirrored"
-here names that catalog distribution identity, not evidence of a completed live
-bucket publication.
+Each model below has exact artifact digests. Public HEAD, byte-range, CORS, and
+full SHA-256 readback records for the additional artifacts are retained in
+`evidence/local-model-publication/`; those records cover only their named files.
+This heading is retained as the signed catalog's stable offline notice anchor.
 
 - Silero VAD 6.2.1 — MIT; Copyright © Silero Team; voice activity detection;
   source and license: <https://github.com/snakers4/silero-vad/tree/7e30209a3e901f9842f81b225f3e93d8199902b1>.
@@ -870,6 +879,119 @@ bucket publication.
     `e43a9f7692d3819886a82cb2097048258d444f123c67d37ec825f9345b019cf2`
   - `preprocessor_config.json`, 394 bytes, SHA-256
     `9b36b57ebaf20f09bf4c22100ccc21877ea6bfe5aead0c00c59f8af8ccefacfc`
+
+#### Additional published model artifacts awaiting catalog signing
+
+These eight artifacts have verified public readbacks. Installation still requires
+the authorized catalog signature. Full retained license texts are in
+[`LICENSES/local-models/`](LICENSES/local-models/README.md).
+
+- wav2vec2-base-960h — Apache-2.0; Facebook/Meta wav2vec2 authors;
+  English word alignment. Source and model license:
+  <https://huggingface.co/facebook/wav2vec2-base-960h/tree/6d2b9ffaac8aabc45934584ee608c5fb5ee34a4e>.
+  The upstream ONNX bytes are unchanged; the distributed filename is `model.onnx`.
+  Version 1.0.0: `model.onnx`, 377,887,594 bytes, SHA-256
+  `b73fe60ddcd3fd07f91d65d50b4f10ba99039104c4fb5db5bdafbb27610bb6eb`.
+
+- TIGER-DnR — MIT code, Apache-2.0 weights; code Copyright © 2026 Kai Li;
+  dialogue/music/effects separation. Code:
+  <https://github.com/JusperLee/TIGER/tree/9f18d4a10a7137e1ce8052cfb62215179f1287b6>;
+  weights: <https://huggingface.co/JusperLee/TIGER-DnR/tree/b7a59560bbca10febbcd46fb01600f868e587f57>.
+  The repository conversion extracts an ONNX neural core; the application owns
+  spectrum preparation and waveform reconstruction. The weights are not retrained.
+  Version 1.0.0: `network.onnx`, 29,623,224 bytes, SHA-256
+  `df29b0e41e461eae1b43542ea374886ac0228af9e35eeed9914121d544d619ef`.
+
+- PANNs Cnn10 — MIT; Copyright © 2018–2020 Qiuqiang Kong; AudioSet tagging.
+  Source and license: <https://github.com/qiuqiangkong/audioset_tagging_cnn/tree/d2f4b8c18eab44737fcc0de1248ae21eb43f6aa4>;
+  checkpoint: <https://zenodo.org/records/3987831>.
+  Upstream publishes the checkpoint through the MIT source repository without
+  separate checkpoint terms; that limitation is retained in the licensing matrix.
+  The conversion exports the original network and its audio frontend to ONNX.
+  Version 1.0.0: `panns-cnn10.onnx`, 25,217,285 bytes, SHA-256
+  `b6aec410d3be2764228e910fabd7f853dd7309d2454f595a6c3f7422b4c56e24`.
+
+- Beat This small0 and final0 — MIT; Copyright © 2024 Institute of Computational
+  Perception, JKU Linz, Austria; beat and downbeat tracking. Source and license:
+  <https://github.com/CPJKU/beat_this/tree/ad7974846029835307ba19a3d5cefbf40b243041>.
+  Both v1.1.0 checkpoints are converted to ONNX with batch size one and variable
+  frame counts. Upstream's training-data limitations remain recorded in the matrix.
+  Version 1.1.0 artifacts:
+  - `beat-this-small0.onnx`, 10,569,824 bytes, SHA-256
+    `8e649b7f764873863ddef0115cf121308ef461b70e7a015a3461edf6f8552471`.
+  - `beat-this-final0.onnx`, 83,176,882 bytes, SHA-256
+    `62e8445705e1ea0cdf20bf15e02a58f40aa1f1c3d1369291ebc72739425d0128`.
+
+- TransNetV2 — MIT; Copyright © 2020 Tomáš Souček; accurate shot detection.
+  Source and license: <https://github.com/soCzech/TransNetV2/tree/85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed>.
+  The original TensorFlow checkpoint is converted through the upstream PyTorch
+  converter to ONNX; retained comparisons cover all three frameworks.
+  Version 1.0.0: `network.onnx`, 31,255,509 bytes, SHA-256
+  `dd3b4314ac16bb23e7432d934a8695cf8d0f8a2720b5b639ed1a915480736fe2`.
+
+- Qwen3-4B Q4_K_M — Apache-2.0; Qwen Team, Alibaba Cloud; local editorial text.
+  Source and license: <https://huggingface.co/Qwen/Qwen3-4B-GGUF/tree/bc640142c66e1fdd12af0bd68f40445458f3869b>.
+  Upstream GGUF bytes are unchanged; the distributed filename is `model.gguf`.
+  Version 1.0.0: `model.gguf`, 2,497,280,256 bytes, SHA-256
+  `7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5`.
+
+#### Dereverb room model and corresponding source
+
+- dereverb-room — GPL-3.0 weights declared by anvuew in the
+  [pinned model card](https://huggingface.co/anvuew/dereverb_room/blob/0b85f5b80b7f779b2dfe80f33a1b35b38af9376d/README.md).
+  Hugging Face documents model-card metadata as its supported license declaration.
+  The unmodified declaration and full GNU GPL version 3 text are retained in
+  [`LICENSES/local-models/`](LICENSES/local-models/README.md).
+  Soundscaper's conversion changes the checkpoint into an ONNX graph with an
+  explicit spectrum boundary; application code supplies the spectrum preparation
+  and waveform reconstruction. The weights are not retrained. This conversion
+  was prepared on 2026-09-12 and remains under GPL-3.0, without warranty.
+  Version 1.0.0: `network.onnx`, 120,133,400 bytes, SHA-256
+  `da957df2e796612cb77c76ec3f026b8fa7c750a0792ab7cb971df192f368e820`.
+
+The complete [corresponding-source archive](https://assets.soundscaper.org/models/dereverb-room/1.0.0/corresponding-source.tar.gz)
+is also available from the model download server: 135,886,483 bytes, SHA-256
+`ca86ebde5d248f92a7c9ae1ce599586f592e930ebdeb4fdf876ff3f7d1c47c73`.
+It includes the original checkpoint, configuration, upstream converter sources,
+Soundscaper conversion sources, frozen dependencies, fixtures, and licenses.
+Its README commands reproduced the exact published ONNX bytes from a clean
+extraction and passed source-framework parity. Public download verification and
+the reproduction receipt are retained in `evidence/model-source-publication/`.
+
+The original editable checkpoint and model configuration are available without
+charge at upstream revision `0b85f5b80b7f779b2dfe80f33a1b35b38af9376d`:
+
+- [dereverb_room_anvuew_sdr_13.7432.ckpt](https://huggingface.co/anvuew/dereverb_room/resolve/0b85f5b80b7f779b2dfe80f33a1b35b38af9376d/dereverb_room_anvuew_sdr_13.7432.ckpt),
+  118,128,452 bytes, SHA-256
+  `2edec521f09e26341c1923dc82c8c52dbc86478b42b9999f679535743c970cb3`.
+- [dereverb_room_anvuew.yaml](https://huggingface.co/anvuew/dereverb_room/resolve/0b85f5b80b7f779b2dfe80f33a1b35b38af9376d/dereverb_room_anvuew.yaml),
+  1,991 bytes, SHA-256
+  `c37e3039521d79cd1daff129857f69fa80c6a1f383a0fe8cda757f2dfc5032f8`.
+
+The converter is [MSS_ONNX_TensorRT at
+43d939e7671d8ff6cf1922f98c2f2e4b56908e47](https://github.com/ZFTurbo/MSS_ONNX_TensorRT/tree/43d939e7671d8ff6cf1922f98c2f2e4b56908e47),
+MIT, Copyright © 2024 Roman Solovyev (ZFTurbo). Its complete notice is retained
+alongside the GPL text. The source archive is 21,820,038 bytes, SHA-256
+`2b17e00308e602eaaff9fc8a8f0c8517bcff7cc6af8fe566108b13a40c6a83e8`.
+The Soundscaper source release containing this notice also supplies the conversion
+implementation and locked dependencies in
+[`scripts/models/milestone-7-conversion-tool/`](scripts/models/milestone-7-conversion-tool/),
+the exact recipe in
+[`config/milestone-7-model-conversion-execution.json`](config/milestone-7-model-conversion-execution.json),
+and [reproduction instructions](docs/milestone-7-model-conversion-reproduction.md).
+The reviewed release payload binds that recipe to its committed source revision.
+
+Keep these source directions next to the downloadable model and preserve the
+license, attribution, modification notice, and access to the corresponding source
+when redistributing it. GPL-3.0 section 6(d) permits equivalent source downloads
+from another server with clear directions, while the distributor remains
+responsible for their continued availability. Installation additionally requires
+the authorized catalog signature.
+
+The model card identifies convolutional room responses generated with
+pyroomacoustics. The dry training corpus and any base-checkpoint lineage are
+unknown; no complete training-data provenance or additional author approval is
+claimed.
 
 The vendored design system bundles `MusescoreIcon.ttf` at
 `vendor/audacity-design-system/components/src/assets/fonts/MusescoreIcon.ttf`

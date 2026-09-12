@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "protocol": "soundscaper-model-conversion-v1",
+  "candidateId": "tiger-dnr-neural-core",
+  "planSha256": "2c0b500221d2cb205ca9776d1a5b8ad0b30e905dd0f85a6ac4e61c413ce1f44d",
+  "sourceCodeArchive": {
+    "path": "tiger-9f18d4a10a7137e1ce8052cfb62215179f1287b6.tar.gz",
+    "revision": "9f18d4a10a7137e1ce8052cfb62215179f1287b6",
+    "byteLength": 85443477,
+    "sha256": "7a52f9f9cae9fc718c67c208c2624b87d7dd5f098727cdf9802a200baa87796b"
+  },
+  "sourceArtifacts": [
+    {
+      "role": "dnr-weights",
+      "path": "model.safetensors",
+      "byteLength": 17130568,
+      "sha256": "dd1c696e72f6adea0085ef1af640882a8260519ad666422835e387a5b4abdd2a"
+    }
+  ]
+}

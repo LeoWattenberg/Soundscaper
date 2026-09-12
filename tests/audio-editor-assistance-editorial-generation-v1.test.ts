@@ -129,6 +129,23 @@ test('ranked highlight candidates become a closed editorial plan without grantin
 	}), /selected|candidate/iu);
 });
 
+test('requested editorial text cannot be an empty successful model response', () => {
+	const plan = createAssistanceEditorialGenerationPlanV1(EVIDENCE);
+	assert.match(plan.prompt, /requested title, hook, and explanation must contain nonempty text/u);
+	assert.doesNotMatch(plan.runtime.grammar, /nullable-text/u);
+	assert.match(plan.runtime.grammar, /text-char\+/u);
+	for (const field of ['title', 'hook', 'explanation'] as const) {
+		for (const empty of [null, '', '   ']) {
+			const candidates = EVIDENCE.map(({ candidateId }) => ({
+				candidateId, title: 'The reveal', hook: 'Hear the difference',
+				chapters: [], explanation: 'The comparison demonstrates the change.', [field]: empty,
+			}));
+			assert.throws(() => reviewAssistanceEditorialGenerationOutputV1(plan,
+				JSON.stringify({ schemaVersion: 1, candidates })), /nonempty|text|requested/iu);
+		}
+	}
+});
+
 test('editorial evidence is bounded, unique, and never fabricates speech for speechless footage', () => {
 	assert.throws(() => createAssistanceEditorialGenerationPlanV1([]), /candidate|evidence|bound/iu);
 	assert.throws(() => createAssistanceEditorialGenerationPlanV1([
@@ -187,9 +204,9 @@ test('editorial output parser admits one exact reranking and bounded generated p
 		}, {
 			candidateId: 'highlight-2',
 			title: 'The question that changed the room',
-			hook: null,
+			hook: 'Hear the question and the reaction.',
 			chapters: [],
-			explanation: null,
+			explanation: 'The question establishes the spoken context.',
 		}],
 	});
 	const reviewed = reviewAssistanceEditorialGenerationOutputV1(

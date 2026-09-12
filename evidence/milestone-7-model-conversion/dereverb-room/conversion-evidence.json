@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "candidateId": "dereverb-room",
+  "executionPlanSha256": "6e5ab5c8ec823a8f061501cbe4ac77d431d03e702a78450672e85659d9a4aac1",
+  "toolchain": {
+    "lockFile": "scripts/models/milestone-7-conversion-tool/uv.lock",
+    "sha256": "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"
+  },
+  "sourceCodeArchive": {
+    "path": "mss-onnx-tensorrt-43d939e7671d8ff6cf1922f98c2f2e4b56908e47.tar.gz",
+    "byteLength": 21820038,
+    "sha256": "2b17e00308e602eaaff9fc8a8f0c8517bcff7cc6af8fe566108b13a40c6a83e8"
+  },
+  "sourceArtifacts": [
+    {
+      "role": "bs-roformer-checkpoint",
+      "path": "dereverb_room_anvuew_sdr_13.7432.ckpt",
+      "byteLength": 118128452,
+      "sha256": "2edec521f09e26341c1923dc82c8c52dbc86478b42b9999f679535743c970cb3"
+    },
+    {
+      "role": "bs-roformer-config",
+      "path": "dereverb_room_anvuew.yaml",
+      "byteLength": 1991,
+      "sha256": "c37e3039521d79cd1daff129857f69fa80c6a1f383a0fe8cda757f2dfc5032f8"
+    }
+  ],
+  "commandRuns": [
+    {
+      "id": "convert",
+      "commandSha256": "c8c24b4b883f217dab35b8bbed2252fd6d1441d201123d6e20893638f9fd6446",
+      "exitCode": 0,
+      "stdout": {
+        "path": "convert.stdout.log",
+        "byteLength": 289,
+        "sha256": "336805376ac577aa691bd55d630c5eaaa1df131d4c0a1b3c536e204eb0ea40c5"
+      },
+      "stderr": {
+        "path": "convert.stderr.log",
+        "byteLength": 4135,
+        "sha256": "4dd19c3b137ca16b46f85679bcc34b0a8b03e1fcc29a0bbb4e78aa87b856210b"
+      }
+    },
+    {
+      "id": "parity",
+      "commandSha256": "a11847fef791d60072a4247064f5304be379468b0b2cd7ce8bd2007d95fd5366",
+      "exitCode": 0,
+      "stdout": {
+        "path": "parity.stdout.log",
+        "byteLength": 104,
+        "sha256": "94ebcfc24ef0d5ef14078ecb5d0ec12a78bcac2ef9a02cd959210d2dfe0d7b54"
+      },
+      "stderr": {
+        "path": "parity.stderr.log",
+        "byteLength": 289,
+        "sha256": "8f3b237f92bf3af68fd0402e43f11998b792d81e1829118d0022faa7609638ef"
+      }
+    }
+  ],
+  "convertedArtifacts": [
+    {
+      "role": "network",
+      "path": "dereverb-room.onnx",
+      "byteLength": 120133400,
+      "sha256": "da957df2e796612cb77c76ec3f026b8fa7c750a0792ab7cb971df192f368e820"
+    }
+  ],
+  "parityEvidence": {
+    "candidateId": "dereverb-room",
+    "comparisons": [
+      {
+        "baseline": "source-pytorch",
+        "candidate": "onnxruntime-cpu",
+        "maximum": 0.002,
+        "metric": "maximum-absolute-error",
+        "observed": 3.8743019104003906e-7,
+        "outputRole": "noreverb-waveform"
+      }
+    ],
+    "convertedArtifacts": [
+      {
+        "byteLength": 120133400,
+        "role": "network",
+        "sha256": "da957df2e796612cb77c76ec3f026b8fa7c750a0792ab7cb971df192f368e820"
+      }
+    ],
+    "fixtureId": "dereverb-room-parity-v1",
+    "recipeVersion": 1,
+    "runs": [
+      {
+        "framework": "source-pytorch",
+        "outputs": [
+          {
+            "byteLength": 1536000,
+            "role": "noreverb-waveform",
+            "sha256": "d28ec1bc13f8351736643b7efcf672b52137ab7b2581ebdc734fb564d01bb150"
+          }
+        ]
+      },
+      {
+        "framework": "onnxruntime-cpu",
+        "outputs": [
+          {
+            "byteLength": 1536000,
+            "role": "noreverb-waveform",
+            "sha256": "ef6eed22480d1fd1ef07d88ef5ecd913c1a16613cc9b193ee2bda8b2e28fdbcc"
+          }
+        ]
+      }
+    ],
+    "schemaVersion": 1
+  }
+}

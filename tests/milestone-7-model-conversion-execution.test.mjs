@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import executionRegister from '../config/milestone-7-model-conversion-execution.json' with { type: 'json' };
 import parityFixtures from '../config/milestone-7-model-parity-fixtures.json' with { type: 'json' };
@@ -45,15 +46,12 @@ test('conversion execution recipes bind the five pinned supply candidates exactl
 		'tiger-dnr-neural-core', 'panns-cnn10', 'beat-this', 'transnetv2', 'dereverb-room',
 	]);
 	for (const recipe of register.recipes) {
-		assert.equal(recipe.evidenceStatus, 'pending-external');
-		assert.ok(recipe.blockedBy.includes('source-code-archive-identity'));
-		assert.equal(recipe.blockedBy.includes('toolchain-lock'), false);
+		assert.equal(recipe.evidenceStatus, 'verified');
+		assert.deepEqual(recipe.blockedBy, []);
 		assert.equal(modelSupply.candidates.find(({ id }) => id === recipe.candidateId)
 			.conversion.recipe.toolchain.status, 'locked');
-		assert.ok(recipe.blockedBy.includes('converted-output-identity'));
-		assert.ok(recipe.blockedBy.includes('source-framework-parity'));
-		assert.equal(recipe.sourceCode.archive.byteLength, null);
-		assert.equal(recipe.sourceCode.archive.sha256, null);
+		assert.ok(recipe.sourceCode.archive.byteLength > 0);
+		assert.match(recipe.sourceCode.archive.sha256, /^[a-f\d]{64}$/u);
 		assert.equal(recipe.commands.length, 2);
 		assert.deepEqual(recipe.commands.map(({ id }) => id), ['convert', 'parity']);
 		for (const command of recipe.commands) {
@@ -71,6 +69,25 @@ test('conversion execution recipes bind the five pinned supply candidates exactl
 	}
 });
 
+test('retained model conversions bind actual logs and raw framework comparisons', async () => {
+	for (const recipe of executionRegister.recipes) {
+		const root = new URL(`../evidence/milestone-7-model-conversion/${recipe.candidateId}/`, import.meta.url);
+		const evidence = JSON.parse(await readFile(new URL('conversion-evidence.json', root), 'utf8'));
+		const admitted = validateMilestone7ConversionEvidence(evidence, {
+			executionRegister, modelSupply, parityFixtures,
+		});
+		const retained = [
+			...admitted.parityOutputFiles,
+			...admitted.commandRuns.flatMap(({ stdout, stderr }) => [stdout, stderr]),
+		];
+		await verifyPinnedConversionEvidenceFiles(fileURLToPath(root), retained);
+		const manifest = JSON.parse(await readFile(new URL('converted-artifacts.json', root), 'utf8'));
+		assert.equal(manifest.planSha256, recipe.conversionPlanSha256);
+		assert.deepEqual(manifest.artifacts, recipe.outputManifest.artifacts);
+		assert.ok(admitted.parityEvidence.comparisons.every(({ observed, maximum }) => observed <= maximum));
+	}
+});
+
 test('weak upstream checksums require a separately retained SHA-256 readback', () => {
 	const register = validateMilestone7ConversionExecutionRegister(
 		executionRegister, modelSupply, parityFixtures,
@@ -81,13 +98,17 @@ test('weak upstream checksums require a separately retained SHA-256 readback', (
 		candidateId === 'tiger-dnr-neural-core');
 
 	assert.equal(panns.sourceArtifacts[0].upstreamIntegrity.algorithm, 'md5');
-	assert.equal(panns.sourceArtifacts[0].sha256Readback, null);
-	assert.ok(panns.blockedBy.includes('source-artifact-sha256-readback'));
+	assert.match(panns.sourceArtifacts[0].sha256Readback, /^[a-f\d]{64}$/u);
 	assert.deepEqual(beats.sourceArtifacts.map(({ upstreamIntegrity }) =>
 		upstreamIntegrity.algorithm), ['sha1', 'sha1']);
-	assert.ok(beats.sourceArtifacts.every(({ sha256Readback }) => sha256Readback === null));
+	assert.ok(beats.sourceArtifacts.every(({ sha256Readback }) => /^[a-f\d]{64}$/u.test(sha256Readback)));
 	assert.equal(tiger.sourceArtifacts[0].sha256Readback,
 		tiger.sourceArtifacts[0].upstreamIntegrity.value);
+	const missingReadback = clone(executionRegister);
+	missingReadback.recipes[1].sourceArtifacts[0].sha256Readback = null;
+	assert.throws(() => validateMilestone7ConversionExecutionRegister(
+		missingReadback, modelSupply, parityFixtures,
+	), /blockedBy|readback/iu);
 });
 
 test('commands, source pins, output manifests, and blockers fail closed on drift', () => {
@@ -110,16 +131,20 @@ test('commands, source pins, output manifests, and blockers fail closed on drift
 	), /converted|output|pending|identity/iu);
 
 	const understated = clone(executionRegister);
-	understated.recipes[3].blockedBy = understated.recipes[3].blockedBy
-		.filter((value) => value !== 'source-framework-parity');
+	understated.recipes[3].blockedBy = ['source-framework-parity'];
 	assert.throws(() => validateMilestone7ConversionExecutionRegister(
 		understated, modelSupply, parityFixtures,
 	), /blockedBy|blocker/iu);
 });
 
-test('today\'s pending register cannot admit fabricated conversion evidence', () => {
+test('a pending source archive cannot admit fabricated conversion evidence', () => {
+	const pending = clone(executionRegister);
+	pending.recipes[0].sourceCode.archive.byteLength = null;
+	pending.recipes[0].sourceCode.archive.sha256 = null;
+	pending.recipes[0].evidenceStatus = 'pending-external';
+	pending.recipes[0].blockedBy = ['source-code-archive-identity'];
 	const register = validateMilestone7ConversionExecutionRegister(
-		executionRegister, modelSupply, parityFixtures,
+		pending, modelSupply, parityFixtures,
 	);
 	const recipe = register.recipes[0];
 	const evidence = {
@@ -302,7 +327,7 @@ test('file verification rejects traversal, symlinks, wrong lengths, and wrong di
 	}
 });
 
-test('the repository checker reports external work without manufacturing evidence', async () => {
+test('the repository checker reports verified identities without fetching model artifacts', async () => {
 	const result = spawnSync(process.execPath,
 		['scripts/models/verify-milestone-7-conversion-execution.mjs'], {
 			cwd: new URL('..', import.meta.url), encoding: 'utf8',
@@ -311,10 +336,10 @@ test('the repository checker reports external work without manufacturing evidenc
 	const report = JSON.parse(result.stdout);
 	assert.equal(report.schemaVersion, 1);
 	assert.equal(report.recipes.length, 5);
-	assert.ok(report.recipes.every(({ status }) => status === 'pending-external'));
+	assert.ok(report.recipes.every(({ status }) => status === 'verified'));
 	assert.ok(report.recipes.every(({ outputArtifacts }) =>
 		outputArtifacts.every(({ byteLength, sha256 }) =>
-			byteLength === null && sha256 === null)));
+			byteLength > 0 && /^[a-f\d]{64}$/u.test(sha256))));
 
 	const source = await readFile(new URL(
 		'../scripts/models/verify-milestone-7-conversion-execution.mjs', import.meta.url), 'utf8');

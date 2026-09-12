@@ -41,7 +41,7 @@ const VALID_PROPOSAL = Object.freeze({
 	candidates: Object.freeze([
 		Object.freeze({ candidateId: 'candidate-b', title: 'The reveal', hook: 'Wait for it',
 			chapters: Object.freeze(['Setup', 'Reveal']), explanation: 'Strong visual payoff.' }),
-		Object.freeze({ candidateId: 'candidate-a', title: null, hook: null,
+		Object.freeze({ candidateId: 'candidate-a', title: 'The opening promise', hook: 'Hear the opening',
 			chapters: Object.freeze([]), explanation: 'A clear spoken promise.' }),
 	]),
 });
@@ -104,8 +104,8 @@ async function fixture(
 		maximumDurationMs: 60_000, grant,
 		descriptor: {
 			familyId: 'llama-cpp' as const, runtimeVersion: 'b10509', target: 'linux-x64' as const,
-			executionProvider: 'cpu' as const, entrypoint: '/runtime/llama-cli',
-			files: [{ path: '/runtime/llama-cli', relativePath: 'llama-cli',
+			executionProvider: 'cpu' as const, entrypoint: '/runtime/llama-completion',
+			files: [{ path: '/runtime/llama-completion', relativePath: 'llama-completion',
 				byteLength: 1, sha256: '4'.repeat(64), executable: true }],
 		},
 	});
@@ -171,7 +171,7 @@ test('the llama.cpp worker runs one offline CPU-only greedy grammar invocation',
 	});
 	const result = await worker.completion as { outputs: readonly { sha256: string }[] };
 	assert.equal(seen.length, 1);
-	assert.equal(seen[0]?.executable, '/runtime/llama-cli');
+	assert.equal(seen[0]?.executable, '/runtime/llama-completion');
 	assert.equal(seen[0]?.shell, false);
 	assert.equal(seen[0]?.prompt, plan.prompt);
 	assert.equal(seen[0]?.grammar, plan.runtime.grammar);
@@ -180,11 +180,10 @@ test('the llama.cpp worker runs one offline CPU-only greedy grammar invocation',
 	assert.deepEqual(seen[0]?.args, [
 		'--model', paths.model, '--file', promptPath, '--grammar-file', grammarPath,
 		'--offline', '--device', 'none', '--gpu-layers', '0', '--no-kv-offload',
-		'--no-op-offload', '--spec-type', 'none',
-		'--no-mmproj', '--threads', '4', '--predict', '32768', '--temp', '0',
+		'--no-op-offload', '--threads', '4', '--predict', '32768', '--temp', '0',
 		'--top-k', '1', '--top-p', '1', '--seed', '0', '--reasoning', 'off',
 		'--reasoning-budget', '0', '--single-turn', '--no-context-shift',
-		'--no-display-prompt', '--no-show-timings', '--no-perf', '--no-warmup',
+		'--no-display-prompt', '--no-perf', '--no-warmup', '--jinja',
 		'--no-escape', '--color', 'off', '--simple-io', '--log-verbosity', '1',
 	]);
 	assert.equal(seen[0]?.env?.LLAMA_ARG_HF_REPO, undefined);

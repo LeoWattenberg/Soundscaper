@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "candidateId": "panns-cnn10",
+  "executionPlanSha256": "71ad041e58c00243e39ed03938b89b3e3bc9201355e2f97d99b0be0a57a443f8",
+  "toolchain": {
+    "lockFile": "scripts/models/milestone-7-conversion-tool/uv.lock",
+    "sha256": "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"
+  },
+  "sourceCodeArchive": {
+    "path": "inputs/audioset-tagging-cnn-d2f4b8c18eab44737fcc0de1248ae21eb43f6aa4.tar.gz",
+    "byteLength": 1704806,
+    "sha256": "620717cb74a72e93355c6561b076859ac4c5b7681bbc1bc54e21bfb399f3eda4"
+  },
+  "sourceArtifacts": [
+    {
+      "role": "cnn10-checkpoint",
+      "path": "inputs/Cnn10_mAP=0.380.pth",
+      "byteLength": 25237595,
+      "sha256": "5240bdc47444e331bbeb54fd741d2b3f933a4526e84b0c17bf3593df94b13962"
+    },
+    {
+      "role": "audioset-class-map",
+      "path": "inputs/class_labels_indices.csv",
+      "byteLength": 14675,
+      "sha256": "cdd1049833c4b86127c2773ac0d14a2754b6a6d0d1798002ed5c66e699708429"
+    }
+  ],
+  "commandRuns": [
+    {
+      "id": "convert",
+      "commandSha256": "308d69b7ac08d1d69006b6168b3ffb80ce5eb3db26fbd92614a469136d0251c2",
+      "exitCode": 0,
+      "stdout": {
+        "path": "convert.stdout.log",
+        "byteLength": 284,
+        "sha256": "93708bac32ceff44ba554819480866815cace3a78e820613fa6bc1c4ac4d1441"
+      },
+      "stderr": {
+        "path": "convert.stderr.log",
+        "byteLength": 1321,
+        "sha256": "4479458c3bdfd02e557db09b4fb279e9b00256b25c5cb83cee8e4f8e3baa69dc"
+      }
+    },
+    {
+      "id": "parity",
+      "commandSha256": "79b3bbb1d90b0203411899fd2b5716df611673c6e8ddd18fe53204a21db4a91e",
+      "exitCode": 0,
+      "stdout": {
+        "path": "parity.stdout.log",
+        "byteLength": 102,
+        "sha256": "bbfc1a8f3d9d9ec64fd685b63ab7294e6bbf1852c7b87b2cfe6cc205aae250a5"
+      },
+      "stderr": {
+        "path": "parity.stderr.log",
+        "byteLength": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ],
+  "convertedArtifacts": [
+    {
+      "role": "network",
+      "path": "panns-cnn10.onnx",
+      "byteLength": 25217285,
+      "sha256": "b6aec410d3be2764228e910fabd7f853dd7309d2454f595a6c3f7422b4c56e24"
+    }
+  ],
+  "parityEvidence": {
+    "candidateId": "panns-cnn10",
+    "comparisons": [
+      {
+        "baseline": "source-pytorch",
+        "candidate": "onnxruntime-cpu",
+        "maximum": 0.00001,
+        "metric": "maximum-absolute-error",
+        "observed": 1.1920928955078125e-7,
+        "outputRole": "clipwise-probabilities"
+      },
+      {
+        "baseline": "source-pytorch",
+        "candidate": "onnxruntime-cpu",
+        "maximum": 0.0001,
+        "metric": "maximum-absolute-error",
+        "observed": 0.0000014901161193847656,
+        "outputRole": "embedding"
+      }
+    ],
+    "convertedArtifacts": [
+      {
+        "byteLength": 25217285,
+        "role": "network",
+        "sha256": "b6aec410d3be2764228e910fabd7f853dd7309d2454f595a6c3f7422b4c56e24"
+      }
+    ],
+    "fixtureId": "panns-cnn10-parity-v1",
+    "recipeVersion": 1,
+    "runs": [
+      {
+        "framework": "source-pytorch",
+        "outputs": [
+          {
+            "byteLength": 2108,
+            "role": "clipwise-probabilities",
+            "sha256": "513e31a470508c3e812834214cc489b75d59562b1262ba3e733f3d9eec4a855f"
+          },
+          {
+            "byteLength": 2048,
+            "role": "embedding",
+            "sha256": "da61030e8f59ffcd34f53cec25a7ff74d96517156c714784a078b2c32af665e8"
+          }
+        ]
+      },
+      {
+        "framework": "onnxruntime-cpu",
+        "outputs": [
+          {
+            "byteLength": 2108,
+            "role": "clipwise-probabilities",
+            "sha256": "0ee44afcceeba31cc5b15da4d232d81b33f79b549e0c57aba3ffec2625f64f8f"
+          },
+          {
+            "byteLength": 2048,
+            "role": "embedding",
+            "sha256": "d8c05019b74ef49b6118fa99756503d8b5a2a18957ef7fe590532e4b79ff4876"
+          }
+        ]
+      }
+    ],
+    "schemaVersion": 1
+  }
+}

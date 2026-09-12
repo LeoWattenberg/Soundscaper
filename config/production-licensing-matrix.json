@@ -1865,15 +1865,15 @@
 			"weightsLicense": "GPL-3.0",
 			"attributionRequired": false,
 			"distributionStatus": "blocked",
-			"blockedBy": ["training-data-provenance-record", "versioned-download-notices-and-hashes", "weights-and-code-license-review"],
+			"blockedBy": ["versioned-download-notices-and-hashes"],
 			"requirements": {
-				"weights-and-code-license-review": { "status": "pending", "summary": "The pinned Music-Source-Separation-Training inference framework is MIT. The anvuew dereverb_room weight repository declares GPL-3.0 only through Hugging Face card metadata (repository revision 0b85f5b80b7f779b2dfe80f33a1b35b38af9376d) and ships no licence text; the review stays pending until a recorded licence text or author confirmation exists." },
-				"training-data-provenance-record": { "status": "pending", "summary": "The model card documents the reverb side of training (convolutional room impulse responses generated with pyroomacoustics) but not the dry source corpus or any base-checkpoint lineage, so a provenance record cannot be completed from published material." },
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The anvuew dereverb_room model card at revision 0b85f5b80b7f779b2dfe80f33a1b35b38af9376d declares gpl-3.0 through Hugging Face's supported license metadata. That upstream GPL-3.0 declaration is the recorded weight license; the pinned card and complete GNU GPL version 3 text are retained in LICENSES/local-models. The MSS_ONNX_TensorRT converter at 43d939e7671d8ff6cf1922f98c2f2e4b56908e47 is MIT, with its complete copyright and permission notice retained. THIRD_PARTY_LICENSES.md identifies the original checkpoint, YAML, converter revision and repository conversion recipe, records the ONNX modification, and describes source delivery and preservation of GPL terms." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "The pinned upstream model card says the reverb training examples use convolutional room responses generated with pyroomacoustics. The dry source corpus and any base-checkpoint lineage are unknown: upstream does not identify them. This record preserves those limits of the available provenance; it does not claim complete training-data provenance or an additional approval." },
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The model card states no use restriction; GPL-3.0 imposes distribution conditions, not use restrictions, and is compatible with this AGPL-3.0-only product as a separately downloaded asset." },
-				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The source checkpoint is digest-pinned, but the repository-owned ONNX output, parity evidence, immutable product mirror read-back, signed catalog entry, and exact offline notice do not yet exist." }
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The source checkpoint and YAML, repository-owned ONNX output, conversion parity evidence, and exact offline notice are recorded. Immutable public mirror read-back and the externally signed catalog entry remain required before installation." }
 			},
-			"provenanceSources": ["https://huggingface.co/anvuew/dereverb_room", "https://github.com/ZFTurbo/Music-Source-Separation-Training"],
-			"evidence": ["docs/dereverb-plan.md", "docs/dereverb-bakeoff-evidence.md", "config/milestone-7-model-supply-candidates.json"]
+			"provenanceSources": ["https://huggingface.co/anvuew/dereverb_room/tree/0b85f5b80b7f779b2dfe80f33a1b35b38af9376d", "https://huggingface.co/docs/hub/repositories-licenses", "https://github.com/ZFTurbo/MSS_ONNX_TensorRT/tree/43d939e7671d8ff6cf1922f98c2f2e4b56908e47", "https://www.gnu.org/licenses/gpl-3.0.html"],
+			"evidence": ["docs/dereverb-plan.md", "docs/dereverb-bakeoff-evidence.md", "config/milestone-7-model-supply-candidates.json", "LICENSES/local-models/README.md", "LICENSES/local-models/dereverb-room-MODEL-CARD.md", "LICENSES/local-models/GPL-3.0.txt", "LICENSES/local-models/dereverb-room-converter-LICENSE.txt", "THIRD_PARTY_LICENSES.md"]
 		}
 	],
 	"refusedLocalModels": [

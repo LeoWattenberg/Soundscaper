@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
@@ -188,6 +189,31 @@ test('upstream ambiguity is recorded factually without a named or dated approval
 	const summaries = matrix.localModelEvidence.flatMap(({ requirements }) =>
 		Object.values(requirements).map(({ summary }) => summary)).join('\n');
 	assert.doesNotMatch(summaries, /kw\.media owner|owner (?:accepted|approved)|on 2026-08-28/iu);
+});
+
+test('dereverb retains the declared GPL terms and source identities without inventing training provenance', async () => {
+	const matrix = await readJson(matrixUrl);
+	const record = matrix.localModelEvidence.find(({ id }) => id === 'dereverb-room');
+	assert.equal(record.weightsLicense, 'GPL-3.0');
+	assert.equal(record.codeLicense, 'MIT');
+	assert.equal(record.requirements['weights-and-code-license-review'].status, 'recorded');
+	assert.equal(record.requirements['training-data-provenance-record'].status, 'recorded');
+	assert.deepEqual(record.blockedBy, ['versioned-download-notices-and-hashes']);
+	assert.match(record.requirements['training-data-provenance-record'].summary, /pyroomacoustics/u);
+	assert.match(record.requirements['training-data-provenance-record'].summary, /unknown/u);
+	assert.doesNotMatch(record.requirements['weights-and-code-license-review'].summary, /author confirmation|stays pending/u);
+	for (const [file, expected] of [
+		['dereverb-room-MODEL-CARD.md', '7c12fe33b3e22930edf1765940c16a919ee182b4d633c4106ba5dd298974a66a'],
+		['dereverb-room-converter-LICENSE.txt', '3282dc057695ef5b9a64909a7092ca40b2c292c232580fc6ace6e5d665cc0207'],
+		['GPL-3.0.txt', '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986'],
+	]) {
+		const bytes = await readFile(new URL(`LICENSES/local-models/${file}`, repositoryUrl));
+		assert.equal(createHash('sha256').update(bytes).digest('hex'), expected, file);
+	}
+	const notice = await readFile(noticesUrl, 'utf8');
+	for (const identity of ['2edec521f09e26341c1923dc82c8c52dbc86478b42b9999f679535743c970cb3',
+		'c37e3039521d79cd1daff129857f69fa80c6a1f383a0fe8cda757f2dfc5032f8',
+		'43d939e7671d8ff6cf1922f98c2f2e4b56908e47']) assert.ok(notice.includes(identity));
 });
 
 test('refused weights are recorded and never appear as evidence records', async () => {

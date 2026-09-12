@@ -46,11 +46,11 @@ test('Milestone 7 policy records conditional workflow activation and its machine
 	assert.match(control.summary,
 		/Whisper.*alignment.*enhancement.*TIGER.*PANNs.*Beat This.*TransNetV2.*embedding.*OCR.*reframe.*highlight.*Qwen/isu);
 	assert.match(control.summary,
-		/converted.*parity.*signed catalog.*target payload.*pending-external/isu);
+		/Retained Linux x64 conversions.*both Beat This checkpoints.*passing source-framework parity.*selected-target.*generated manifests.*exact signed catalog entry/isu);
 	assert.match(control.summary,
 		/explicit reviewed acceptance.*content-addressed transcript body.*cleanup.*speaker attribution.*derived audio.*reactions.*beats.*tempo.*shot.*indexes.*reframe.*secondary sequences/isu);
 	assert.match(control.summary,
-		/owner-device observations.*pending.*nonblocking/isu);
+		/owner-device observations.*unrecorded.*owner QA.*optional.*nonblocking/isu);
 	assert.match(control.summary,
 		/licensing.*catalog signature.*artifact digest.*runtime.*selected-media.*consent.*fail[- ]closed/isu);
 	for (const path of [
@@ -85,17 +85,21 @@ test('Milestone 7 policy records conditional workflow activation and its machine
 	assert.match(threatClaims,
 		/AssistanceWorkflow.*aggregate.*fence.*Guided.*Advanced.*runtime families/isu);
 	assert.match(threatClaims,
-		/conditional.*Whisper.*TIGER.*PANNs.*Beat This.*TransNetV2.*OCR.*Qwen.*pending-external/isu);
+		/CPU runtime families.*Whisper.*TIGER.*PANNs.*Beat This.*TransNetV2.*OCR.*Qwen.*selected-target CPU engine.*generated file manifest/isu);
 	assert.match(threatClaims,
 		/semantic review.*explicit acceptance.*transcript.*cleanup.*speaker.*derived audio.*reactions.*beats.*tempo.*shots.*indexes.*reframe.*highlight/isu);
 	assert.match(threatClaims,
-		/owner-device observations.*remain absent.*Owner QA.*optional/isu);
+		/No complete five-target packaged privacy\/cancellation workload or owner-device observation set.*Optional owner QA does not grant runtime authority/isu);
 	assert.ok(supplyControl);
 	assert.match(supplyControl.summary,
-		/stream.*disk.*multipart.*public.*SHA-256 read-back.*external.*sign.*no real R2 write.*no remote-availability claim/isu);
+		/stream.*disk.*multipart.*public.*SHA-256 read-back.*external.*sign.*recorded per artifact.*unit tests.*do not establish remote availability/isu);
 	assert.ok(diagnosticsRisk);
 	assert.match(diagnosticsRisk.exposure,
-		/TIGER.*converted artifacts.*parity.*signed catalog.*five target.*payload closures.*Windows ARM64.*No owner-device observations.*five-target packaged canary/isu);
+		/Retained Linux x64 conversions.*TIGER.*both Beat This checkpoints.*passing source-framework\/ONNX comparisons.*direct production-worker smoke.*Windows ARM64.*generated target manifests/isu);
+	assert.match(diagnosticsRisk.exposure,
+		/do not create an operating-system sandbox.*No complete five-target.*Optional owner QA does not grant runtime authority/isu);
+	assert.match(diagnosticsRisk.requiredControl,
+		/authenticated catalog entries.*verified converted artifacts and parity.*exact selected-target native runtime closure.*artifact.*platform.*selected-media.*consent check/isu);
 	assert.ok(externalExecutableRisk);
 	assert.match(externalExecutableRisk.exposure,
 		/assistance shot.*scdet.*canary.*path-based runners.*replacement.*dynamically loaded libraries/isu);

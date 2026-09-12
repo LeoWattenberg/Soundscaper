@@ -60,13 +60,22 @@ async function verifyHead({ url, artifact, fetchImpl, signal }) {
 
 async function verifyRange({ url, artifact, fetchImpl, signal }) {
 	throwIfAborted(signal);
-	const response = await fetchImpl(url, requestOptions('GET', signal, { Range: 'bytes=0-0' }));
+	let response = await fetchImpl(url, requestOptions('GET', signal, { Range: 'bytes=0-0' }));
 	assertResponse(response, `${url} ranged GET`);
+	if (response.status === 200) {
+		// A cold R2 custom-domain edge can ignore its first range request for a
+		// large object. Cancel that full body; only a proved 206 may pass below.
+		await response.body?.cancel();
+		throwIfAborted(signal);
+		response = await fetchImpl(url, requestOptions('GET', signal, { Range: 'bytes=0-0' }));
+		assertResponse(response, `${url} retried ranged GET`);
+	}
+	if (response.status !== 206) await response.body?.cancel();
 	assert(response.status === 206,
 		`${url} ranged GET returned HTTP ${String(response.status)}, not 206`);
 	assertCors(response, url, PUBLIC_CORS_ORIGIN, 'ranged GET');
-	assert(response.headers.get('accept-ranges')?.toLowerCase() === 'bytes',
-		`${url} ranged GET does not advertise byte ranges`);
+	// RFC 9110 section 14.3 makes Accept-Ranges advisory. R2 can omit it on
+	// partial responses; the exact 206, Content-Range and body prove support.
 	assert(response.headers.get('content-range') === `bytes 0-0/${String(artifact.byteLength)}`,
 		`${url} ranged GET returned an invalid Content-Range`);
 	assertExactLength(response, 1, `${url} ranged GET`);

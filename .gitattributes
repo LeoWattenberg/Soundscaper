@@ -49,3 +49,10 @@ patches/**/*.patch text eol=lf
 /src/common/editor/*/SOURCE.md text eol=lf
 /src/common/editor/*/source-manifest.json text eol=lf
 /src/common/editor/*/licenses/*.txt text eol=lf
+
+# Model evidence and upstream notices retain their exact recorded bytes,
+# including upstream CRLF endings and intentional Markdown trailing spaces.
+/LICENSES/local-models/** -text whitespace=-blank-at-eol
+/evidence/** -text
+/scripts/models/** text eol=lf
+/config/milestone-7-model-*.json text eol=lf

@@ -109,24 +109,27 @@ def run_beat(source_root: Path, artifacts: dict, converted: dict,
             from beat_this.preprocessing import LogMelSpect
         except ImportError as error:
             raise ContractError("The locked Beat This parity dependencies are incomplete.") from error
-        model = load_model(str(artifacts["small0-checkpoint"]), device="cpu").cpu().eval()
         preprocessing = LogMelSpect(device="cpu")
         with torch.inference_mode():
             spectrogram = preprocessing(torch.from_numpy(wave[0]).to(dtype=torch.float32))
-            source = model(spectrogram.unsqueeze(0))
-        if not isinstance(source, dict) or set(source) != {"beat", "downbeat"}:
-            raise ContractError("The Beat This source result tensor inventory is invalid.")
-        onnx = ort_run(converted["small0-network"], ["log_mel_spectrogram"],
-                       ["beat_logits", "downbeat_logits"],
-                       {"log_mel_spectrogram": spectrogram.unsqueeze(0).cpu().numpy()})
-    source_beats = tensor_numpy(source["beat"]).reshape(-1)
-    source_downbeats = tensor_numpy(source["downbeat"]).reshape(-1)
-    onnx_beats = onnx["beat_logits"].reshape(-1)
-    onnx_downbeats = onnx["downbeat_logits"].reshape(-1)
-    return {
-        "source-pytorch": beat_roles(source_beats, source_downbeats),
-        "onnxruntime-cpu": beat_roles(onnx_beats, onnx_downbeats),
-    }
+        runs = {"source-pytorch": {}, "onnxruntime-cpu": {}}
+        for variant, prefix in (("small0", ""), ("final0", "final0-")):
+            model = load_model(str(artifacts[f"{variant}-checkpoint"]), device="cpu").cpu().eval()
+            with torch.inference_mode():
+                source = model(spectrogram.unsqueeze(0))
+            if not isinstance(source, dict) or set(source) != {"beat", "downbeat"}:
+                raise ContractError("The Beat This source result tensor inventory is invalid.")
+            onnx = ort_run(converted[f"{variant}-network"], ["log_mel_spectrogram"],
+                           ["beat_logits", "downbeat_logits"],
+                           {"log_mel_spectrogram": spectrogram.unsqueeze(0).cpu().numpy()})
+            source_roles = beat_roles(tensor_numpy(source["beat"]).reshape(-1),
+                                      tensor_numpy(source["downbeat"]).reshape(-1))
+            onnx_roles = beat_roles(onnx["beat_logits"].reshape(-1),
+                                    onnx["downbeat_logits"].reshape(-1))
+            for framework, roles in (("source-pytorch", source_roles),
+                                     ("onnxruntime-cpu", onnx_roles)):
+                runs[framework].update({prefix + role: values for role, values in roles.items()})
+    return runs
 
 
 def beat_roles(beats, downbeats) -> dict:

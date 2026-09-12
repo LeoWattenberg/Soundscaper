@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "execution": "production-runtime-family-worker",
+  "platform": "linux",
+  "architecture": "x64",
+  "runtimeFamily": "onnxruntime-node",
+  "runtimeVersion": "1.29.0",
+  "runs": [
+    {
+      "modelId": "transnetv2",
+      "fixtureId": "visual-shot-frames",
+      "elapsedMs": 646,
+      "modelSha256": "dd3b4314ac16bb23e7432d934a8695cf8d0f8a2720b5b639ed1a915480736fe2",
+      "inputSha256": "5e5c59bc0c07c2369fd061570c47ec7e5fdaeafc6b5c84e79849cc3179efd95d",
+      "output": {
+        "schemaVersion": 1,
+        "detector": "transnetv2",
+        "timescale": 30,
+        "sourceFrameCount": 120,
+        "boundaries": [
+          {
+            "sourceFrame": 59,
+            "presentationTick": "59",
+            "score": 0.9749680757522583
+          }
+        ]
+      },
+      "result": {
+        "resultVersion": 1,
+        "jobId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "familyId": "onnxruntime-node",
+        "task": "shot-detection",
+        "outputs": [
+          {
+            "claimId": "cccccccccccccccccccccccccccccccccccccccc",
+            "role": "shot-boundaries",
+            "mediaType": "application/vnd.soundscaper.shot-boundaries+json",
+            "byteLength": 166,
+            "sha256": "3a5068875b5027a52a52a246d41df5f01612ebc25812df102f0fc7852560fb25"
+          }
+        ]
+      }
+    }
+  ]
+}

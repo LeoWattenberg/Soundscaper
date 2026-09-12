@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "protocol": "soundscaper-model-conversion-v1",
+  "candidateId": "panns-cnn10",
+  "planSha256": "21c11d5603d7c6599be1ba06a303a02cffe984565d77807d5bb0d5ac77be177f",
+  "sourceCodeArchive": {
+    "path": "inputs/audioset-tagging-cnn-d2f4b8c18eab44737fcc0de1248ae21eb43f6aa4.tar.gz",
+    "revision": "d2f4b8c18eab44737fcc0de1248ae21eb43f6aa4",
+    "byteLength": 1704806,
+    "sha256": "620717cb74a72e93355c6561b076859ac4c5b7681bbc1bc54e21bfb399f3eda4"
+  },
+  "sourceArtifacts": [
+    {
+      "role": "cnn10-checkpoint",
+      "path": "inputs/Cnn10_mAP=0.380.pth",
+      "byteLength": 25237595,
+      "sha256": "5240bdc47444e331bbeb54fd741d2b3f933a4526e84b0c17bf3593df94b13962"
+    },
+    {
+      "role": "audioset-class-map",
+      "path": "inputs/class_labels_indices.csv",
+      "byteLength": 14675,
+      "sha256": "cdd1049833c4b86127c2773ac0d14a2754b6a6d0d1798002ed5c66e699708429"
+    }
+  ]
+}

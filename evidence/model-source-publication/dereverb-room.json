@@ -1,0 +1,22 @@
+{
+	"schemaVersion": 1,
+	"checkedAt": "2026-09-12T06:42:49.317Z",
+	"modelId": "dereverb-room",
+	"version": "1.0.0",
+	"checks": [
+		"public-head",
+		"byte-range",
+		"cors",
+		"full-sha256"
+	],
+	"artifact": {
+		"fileName": "corresponding-source.tar.gz",
+		"byteLength": 135886483,
+		"sha256": "ca86ebde5d248f92a7c9ae1ce599586f592e930ebdeb4fdf876ff3f7d1c47c73",
+		"url": "https://assets.soundscaper.org/models/dereverb-room/1.0.0/corresponding-source.tar.gz"
+	},
+	"sourceInventory": {
+		"files": 70,
+		"sha256": "5d1311dec125027e53ca4391709b4895a95428c5ac9df43c94ae701a9b067d9d"
+	}
+}

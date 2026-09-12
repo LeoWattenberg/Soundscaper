@@ -239,10 +239,13 @@ async function executeBeatThis(
 			if (assigned.some((value) => value !== 1)) {
 				throw new Error('Beat This chunks did not retain one exact authority for every frame.');
 			}
+			// A centered STFT frame exactly at the source end is padding, not a publishable beat.
+			const retainedFrames = Math.ceil(wave.sampleCount / ASSISTANCE_BEAT_THIS_HOP_SAMPLES);
 			const result = createAssistanceBeatThisGridV1({
 				schemaVersion: 1, sampleRate: BEAT_SAMPLE_RATE,
 				framesPerSecond: ASSISTANCE_BEAT_THIS_FRAMES_PER_SECOND,
-				beatLogits, downbeatLogits,
+				beatLogits: beatLogits.subarray(0, retainedFrames),
+				downbeatLogits: downbeatLogits.subarray(0, retainedFrames),
 			});
 			return await publishJson(context, result);
 		} finally {

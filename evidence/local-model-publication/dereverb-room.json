@@ -1,0 +1,20 @@
+{
+	"schemaVersion": 1,
+	"checkedAt": "2026-09-12T06:27:59.616Z",
+	"modelId": "dereverb-room",
+	"version": "1.0.0",
+	"checks": [
+		"public-head",
+		"byte-range",
+		"cors",
+		"full-sha256"
+	],
+	"artifacts": [
+		{
+			"fileName": "network.onnx",
+			"byteLength": 120133400,
+			"sha256": "da957df2e796612cb77c76ec3f026b8fa7c750a0792ab7cb971df192f368e820",
+			"url": "https://assets.soundscaper.org/models/dereverb-room/1.0.0/network.onnx"
+		}
+	]
+}

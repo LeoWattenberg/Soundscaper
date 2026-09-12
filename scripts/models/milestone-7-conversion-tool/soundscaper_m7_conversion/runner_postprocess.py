@@ -70,7 +70,7 @@ def unique_sorted(values) -> list[int]:
 
 def transnet_boundaries(single_logits, all_frame_logits) -> list[int]:
     """Fuse logits and collapse contiguous TransNetV2 transition runs."""
-    if len(single_logits) != len(all_frame_logits) or not single_logits:
+    if len(single_logits) != len(all_frame_logits) or len(single_logits) == 0:
         raise ValueError("TransNetV2 parity logit geometry is invalid.")
     selected = []
     active = None

@@ -21,8 +21,8 @@
 				"byteLength": 705644,
 				"sha256": "aa4a0d814269fb6024f7985c1466f204ec915242b5340a7c99fdca8b866c92ad"
 			},
-			"frameworks": ["source-pytorch", "onnxruntime-cpu"],
-			"outputRoles": ["dialogue-waveform", "effects-waveform", "music-waveform"],
+			"frameworks": ["source-pytorch","onnxruntime-cpu"],
+			"outputRoles": ["dialogue-waveform","effects-waveform","music-waveform"],
 			"comparisons": [
 				{
 					"baseline": "source-pytorch",
@@ -46,9 +46,9 @@
 					"maximum": 0.0001
 				}
 			],
-			"evidenceStatus": "pending-external",
-			"evidenceSha256": null,
-			"blockedBy": "No PyTorch-to-ONNX waveform parity run is retained for the converted graphs."
+			"evidenceStatus": "verified",
+			"evidenceSha256": "d7b95edd4ab62f778832616ab3e7605e1020b5db4ddb9f505a2d58ef1849dc6c",
+			"blockedBy": null
 		},
 		{
 			"id": "panns-cnn10-parity-v1",
@@ -69,8 +69,8 @@
 				"byteLength": 256044,
 				"sha256": "1cb40bf7dd77139b6d40733794f6005d0f3fcb6c69d1e0d8e257c0ba86440d48"
 			},
-			"frameworks": ["source-pytorch", "onnxruntime-cpu"],
-			"outputRoles": ["clipwise-probabilities", "embedding"],
+			"frameworks": ["source-pytorch","onnxruntime-cpu"],
+			"outputRoles": ["clipwise-probabilities","embedding"],
 			"comparisons": [
 				{
 					"baseline": "source-pytorch",
@@ -87,9 +87,9 @@
 					"maximum": 0.0001
 				}
 			],
-			"evidenceStatus": "pending-external",
-			"evidenceSha256": null,
-			"blockedBy": "No PyTorch-to-ONNX probability and embedding parity run is retained."
+			"evidenceStatus": "verified",
+			"evidenceSha256": "dc787a391737b981958d7d364fa481dc20e8fc73952e6feb1968ee4c9a18cd8f",
+			"blockedBy": null
 		},
 		{
 			"id": "beat-this-parity-v1",
@@ -110,8 +110,8 @@
 				"byteLength": 705644,
 				"sha256": "dac09d315142aab6d80d5ec653519a480414e06feff4412e6006252883dc567a"
 			},
-			"frameworks": ["source-pytorch", "onnxruntime-cpu"],
-			"outputRoles": ["beat-logits", "downbeat-logits", "beat-points", "downbeat-points"],
+			"frameworks": ["source-pytorch","onnxruntime-cpu"],
+			"outputRoles": ["beat-logits","downbeat-logits","beat-points","downbeat-points","final0-beat-logits","final0-downbeat-logits","final0-beat-points","final0-downbeat-points"],
 			"comparisons": [
 				{
 					"baseline": "source-pytorch",
@@ -140,11 +140,39 @@
 					"outputRole": "downbeat-points",
 					"metric": "symmetric-index-difference",
 					"maximum": 0
+				},
+				{
+					"baseline": "source-pytorch",
+					"candidate": "onnxruntime-cpu",
+					"outputRole": "final0-beat-logits",
+					"metric": "maximum-absolute-error",
+					"maximum": 0.0001
+				},
+				{
+					"baseline": "source-pytorch",
+					"candidate": "onnxruntime-cpu",
+					"outputRole": "final0-downbeat-logits",
+					"metric": "maximum-absolute-error",
+					"maximum": 0.0001
+				},
+				{
+					"baseline": "source-pytorch",
+					"candidate": "onnxruntime-cpu",
+					"outputRole": "final0-beat-points",
+					"metric": "symmetric-index-difference",
+					"maximum": 0
+				},
+				{
+					"baseline": "source-pytorch",
+					"candidate": "onnxruntime-cpu",
+					"outputRole": "final0-downbeat-points",
+					"metric": "symmetric-index-difference",
+					"maximum": 0
 				}
 			],
-			"evidenceStatus": "pending-external",
-			"evidenceSha256": null,
-			"blockedBy": "No PyTorch-to-ONNX logits and postprocessed point parity run is retained for small0 or final0."
+			"evidenceStatus": "verified",
+			"evidenceSha256": "bf7d5ef47c9999bcf11329b9377ea6f73d3efdd3928cf2d0a2d211bc07298b31",
+			"blockedBy": null
 		},
 		{
 			"id": "transnetv2-parity-v1",
@@ -166,8 +194,8 @@
 				"byteLength": 467712,
 				"sha256": "22695a91ca7749fc034f0a043746dc869a1403ffddd4f0e60f407ee0b61d82d8"
 			},
-			"frameworks": ["source-tensorflow", "source-pytorch", "onnxruntime-cpu"],
-			"outputRoles": ["single-frame-logits", "all-frame-logits", "boundaries"],
+			"frameworks": ["source-tensorflow","source-pytorch","onnxruntime-cpu"],
+			"outputRoles": ["single-frame-logits","all-frame-logits","boundaries"],
 			"comparisons": [
 				{
 					"baseline": "source-tensorflow",
@@ -212,9 +240,9 @@
 					"maximum": 0
 				}
 			],
-			"evidenceStatus": "pending-external",
-			"evidenceSha256": null,
-			"blockedBy": "No retained TensorFlow-to-PyTorch-to-ONNX logits and boundary parity run exists."
+			"evidenceStatus": "verified",
+			"evidenceSha256": "ac9d703de77818cad76878aa24269f079fb646cf2e6560f69fda38fe8d1e1a3e",
+			"blockedBy": null
 		},
 		{
 			"id": "dereverb-room-parity-v1",
@@ -235,7 +263,7 @@
 				"byteLength": 1536044,
 				"sha256": "6d13831e2cc01f77e96ade4306f77029e1a5002b5ed75e1ac87049d22f984d06"
 			},
-			"frameworks": ["source-pytorch", "onnxruntime-cpu"],
+			"frameworks": ["source-pytorch","onnxruntime-cpu"],
 			"outputRoles": ["noreverb-waveform"],
 			"comparisons": [
 				{
@@ -246,9 +274,9 @@
 					"maximum": 0.002
 				}
 			],
-			"evidenceStatus": "pending-external",
-			"evidenceSha256": null,
-			"blockedBy": "No PyTorch-to-ONNX dereverberated-waveform parity run is retained for the converted graph."
+			"evidenceStatus": "verified",
+			"evidenceSha256": "e85f06ca1ff56a03ea248a285efebb7ea7e1bd91c17a4e318bf86a28378dfa9b",
+			"blockedBy": null
 		}
 	]
 }

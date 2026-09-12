@@ -1,0 +1,232 @@
+{
+	"schemaVersion": 1,
+	"execution": "production-runtime-family-worker",
+	"platform": "linux",
+	"architecture": "x64",
+	"observedAt": "2026-09-12T06:00:02.683Z",
+	"runtimeFamily": "llama-cpp",
+	"runtimeVersion": "b10509",
+	"scope": {
+		"verified": "Real CPU inference with authenticated file grants, pinned GGUF, strict production editorial review, output claim authentication, and the nightly editorial validator.",
+		"notEstablished": [
+			"Signed catalog admission or model-manager installation",
+			"Electron IPC integration",
+			"Other desktop platforms",
+			"Subjective editorial quality"
+		]
+	},
+	"runtime": {
+		"files": [
+			{
+				"path": "llama-completion",
+				"byteLength": 12317752,
+				"sha256": "3d69b6f93460c2510bd6074bf891332902c5aa5de9d50d4feff9cd41afce8f26",
+				"executable": true
+			},
+			{
+				"path": "LICENSE",
+				"byteLength": 1078,
+				"sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d",
+				"executable": false
+			},
+			{
+				"path": "build-provenance.json",
+				"byteLength": 2830,
+				"sha256": "8296fd025d3a63951f1b5170cfad51ec6f9cc6ae986840a8ac10c5b30e4e259b",
+				"executable": false
+			},
+			{
+				"path": "THIRD_PARTY_NOTICES.txt",
+				"byteLength": 3517,
+				"sha256": "55f848e06741d5e69b8d0872ff6fe0fa4d65931d7e97c9afc97c73cee934dbd9",
+				"executable": false
+			},
+			{
+				"path": "GCC-COPYRIGHT.txt",
+				"byteLength": 69100,
+				"sha256": "08c6f3dee4c19aa1e57eb7d4ad45829b2e99656313bd07fa0922e2553f500be5",
+				"executable": false
+			},
+			{
+				"path": "GCC-GPL-3.txt",
+				"byteLength": 35149,
+				"sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+				"executable": false
+			}
+		],
+		"provenance": {
+			"schemaVersion": 1,
+			"recipeId": "llama-cpp-cpu-package-build-v1",
+			"targetId": "linux-x64",
+			"source": {
+				"url": "https://codeload.github.com/ggml-org/llama.cpp/tar.gz/fe8156f789011f6ea0baf6917ea09f88b89d9554",
+				"commit": "fe8156f789011f6ea0baf6917ea09f88b89d9554",
+				"sha256": "e26beb2d3e45ea6fc3d611fa98b69159e1c3ca15473197375bd2af8b1cd281c1",
+				"byteLength": 36871166
+			},
+			"cmakeVersion": "cmake version 3.28.3",
+			"compiler": {
+				"id": "GNU",
+				"version": "13.3.0"
+			},
+			"sourceDateEpoch": 1787141097,
+			"configureArgs": [
+				"-DCMAKE_BUILD_TYPE=Release",
+				"-DLLAMA_BUILD_COMMON=ON",
+				"-DLLAMA_BUILD_TOOLS=ON",
+				"-DLLAMA_BUILD_NUMBER=10509",
+				"-DLLAMA_BUILD_COMMIT=fe8156f789011f6ea0baf6917ea09f88b89d9554",
+				"-DBUILD_SHARED_LIBS=OFF",
+				"-DLLAMA_BUILD_TESTS=OFF",
+				"-DLLAMA_BUILD_EXAMPLES=OFF",
+				"-DLLAMA_BUILD_APP=OFF",
+				"-DLLAMA_BUILD_SERVER=OFF",
+				"-DLLAMA_BUILD_UI=OFF",
+				"-DLLAMA_USE_PREBUILT_UI=OFF",
+				"-DLLAMA_OPENSSL=OFF",
+				"-DLLAMA_SUBPROCESS=OFF",
+				"-DLLAMA_LLGUIDANCE=OFF",
+				"-DLLAMA_USE_SYSTEM_GGML=OFF",
+				"-DGGML_NATIVE=OFF",
+				"-DGGML_BACKEND_DL=OFF",
+				"-DGGML_OPENMP=OFF",
+				"-DGGML_METAL=OFF",
+				"-DGGML_BLAS=OFF",
+				"-DGGML_LLAMAFILE=OFF",
+				"-DGGML_CCACHE=OFF",
+				"-DGGML_CPU_KLEIDIAI=OFF",
+				"-DGGML_CUDA=OFF",
+				"-DGGML_HIP=OFF",
+				"-DGGML_MUSA=OFF",
+				"-DGGML_VULKAN=OFF",
+				"-DGGML_WEBGPU=OFF",
+				"-DGGML_SYCL=OFF",
+				"-DGGML_OPENCL=OFF",
+				"-DGGML_RPC=OFF",
+				"-DGGML_CANN=OFF",
+				"-DGGML_ZENDNN=OFF",
+				"-DGGML_AVX=OFF",
+				"-DGGML_AVX2=OFF",
+				"-DGGML_FMA=OFF",
+				"-DGGML_F16C=OFF",
+				"-DGGML_BMI2=OFF",
+				"-DGGML_SSE42=OFF",
+				"-DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -static-libstdc++"
+			],
+			"notices": [
+				{
+					"path": "THIRD_PARTY_NOTICES.txt",
+					"sources": [
+						"LICENSE",
+						"licenses/LICENSE-jsonhpp",
+						"vendor/cpp-httplib/LICENSE",
+						"ggml/src/ggml-cpu/ops.cpp"
+					],
+					"byteLength": 3517,
+					"sha256": "55f848e06741d5e69b8d0872ff6fe0fa4d65931d7e97c9afc97c73cee934dbd9"
+				},
+				{
+					"path": "GCC-COPYRIGHT.txt",
+					"sources": [
+						"/usr/share/doc/gcc-13-base/copyright"
+					],
+					"byteLength": 69100,
+					"sha256": "08c6f3dee4c19aa1e57eb7d4ad45829b2e99656313bd07fa0922e2553f500be5"
+				},
+				{
+					"path": "GCC-GPL-3.txt",
+					"sources": [
+						"/usr/share/common-licenses/GPL-3"
+					],
+					"byteLength": 35149,
+					"sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+				}
+			],
+			"patches": [
+				{
+					"id": "completion-reasoning-and-json-stdout-v1",
+					"file": "tools/completion/completion.cpp",
+					"inputSha256": "290ae2ba7e3960fd6a7f7e066ba1d6726caec423188627a9740e1a47a4fd08db",
+					"outputSha256": "6cd2864987394a679242ef2b4a45dffac8dfe0dd79886b4dafb37ba857216f3a",
+					"patchSha256": "516b6c0141f5c33f8e777403d012548759f08929b04ed983c4b01d9d80b77ebf"
+				}
+			],
+			"reproducibleFlags": [
+				"-ffile-prefix-map=<work>=/usr/src/llama-build",
+				"-fno-ident"
+			]
+		}
+	},
+	"sourceSnapshotNote": "Source file digests were captured when retaining this evidence. Recreating the editorial fixture at that time matched the exact input bytes submitted for the recorded run.",
+	"sources": [
+		{
+			"path": "desktop/assistance-llama-cpp-worker.ts",
+			"byteLength": 13091,
+			"sha256": "1e4bc712bf2a80a4f325c10375dd45340c42a902feee97e510456a3d549a2aee"
+		},
+		{
+			"path": "src/common/editor/assistance/editorial-generation-v1.ts",
+			"byteLength": 18884,
+			"sha256": "fc78e9a2787cb98e308e5e24c83f07b31b383ccd1071134ff544811e9890c50c"
+		},
+		{
+			"path": "tests/electron/local-assistance-models/model-inputs.js",
+			"byteLength": 9345,
+			"sha256": "5218e30cb133f6b543acafcfdd4a0de50cf1128ad531d6f17d04cfafafba6f11"
+		}
+	],
+	"runs": [
+		{
+			"modelId": "qwen3-4b-q4-k-m",
+			"fixtureId": "editorial-candidates",
+			"elapsedMs": 96671,
+			"modelByteLength": 2497280256,
+			"modelSha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+			"input": {
+				"byteLength": 2582,
+				"sha256": "1f069a2c0ea22203fce07e7e8d9606b9eb8211f0b2878046b179e1d59fcfd8ec",
+				"candidateIds": [
+					"restoration",
+					"comparison"
+				]
+			},
+			"result": {
+				"resultVersion": 1,
+				"jobId": "1111111111111111111111111111111111111111",
+				"familyId": "llama-cpp",
+				"task": "editorial-generation",
+				"outputs": [
+					{
+						"claimId": "3333333333333333333333333333333333333333",
+						"role": "editorial-proposal",
+						"mediaType": "application/vnd.soundscaper.editorial-proposal+json",
+						"byteLength": 641,
+						"sha256": "35937780bb955a34efa8477d8c3f27d2553935e8471a4e7969e81c43ace13017"
+					}
+				]
+			},
+			"validation": {
+				"candidates": 2
+			},
+			"output": {
+				"schemaVersion": 1,
+				"candidates": [
+					{
+						"candidateId": "restoration",
+						"title": "Restoration of the Old Recording",
+						"hook": "Here is how we restored the old recording and brought the speech back.",
+						"chapters": [],
+						"explanation": "The process involved restoring the old recording and bringing the speech back to its original state."
+					},
+					{
+						"candidateId": "comparison",
+						"title": "Comparison of Original and Cleaned Recording",
+						"hook": "Listen to the original and the cleaned recording before deciding which sounds better.",
+						"chapters": [],
+						"explanation": "The comparison allows listeners to evaluate the original and cleaned recordings to determine which sounds better."
+					}
+				]
+			}
+		}
+	]
+}

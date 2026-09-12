@@ -2,14 +2,14 @@
 
 /** Recompute derived totals after signing updates native file descriptors. */
 export function signedAssistanceFamilySummary(summary, packageManifest) {
-	if (!Array.isArray(summary?.families) || summary.families.length !== 2
-		|| new Set(summary.families.map(({ familyId }) => familyId)).size !== 2) {
+	if (!Array.isArray(summary?.families) || summary.families.length !== 3
+		|| new Set(summary.families.map(({ familyId }) => familyId)).size !== 3) {
 		throw new Error('Signed Local Assistance runtime summaries are incomplete.');
 	}
 	return { ...summary, families: summary.families.map((family) => {
 		const manifest = packageManifest.manifests?.[family.familyId];
 		const target = manifest?.targets.find(({ id }) => id === summary.targetId);
-		if (!['onnxruntime-node', 'whisper-cpp'].includes(family.familyId)
+		if (!['onnxruntime-node', 'whisper-cpp', 'llama-cpp'].includes(family.familyId)
 			|| family.targetId !== summary.targetId || family.runtimeVersion !== manifest?.runtimeVersion
 			|| target?.status !== 'authenticated' || !Array.isArray(target.files)) {
 			throw new Error('Signed Local Assistance runtime summary disagrees with its manifest.');

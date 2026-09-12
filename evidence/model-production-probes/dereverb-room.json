@@ -1,0 +1,30 @@
+{
+	"schemaVersion": 1,
+	"date": "2026-09-12",
+	"modelId": "dereverb-room",
+	"fixtureId": "reverberant-speech-44100hz",
+	"scope": "Direct production TypeScript worker and real native ONNX Runtime on Linux x64 under WSL2. This is not Electron catalog-installation or cross-platform qualification.",
+	"runtimeVersion": "1.29.0",
+	"executionProvider": "cpu",
+	"modelVersion": "1.0.0",
+	"modelSha256": "da957df2e796612cb77c76ec3f026b8fa7c750a0792ab7cb971df192f368e820",
+	"elapsedMs": 39712,
+	"input": {
+		"byteLength": 2293244,
+		"sha256": "9837a41b96144ca6295abcfe1bad7aea6c944371ff61b06557e0a7feb41a8295"
+	},
+	"additionalInputs": [],
+	"outputs": [
+		{
+			"byteLength": 2293244,
+			"sha256": "702c5f266618a0c3d41a90e21d4d119808cb1d49dd27959fa644fb0b7b9285b3"
+		}
+	],
+	"validation": "changed-audio",
+	"summary": {
+		"frames": 573300,
+		"sampleRate": 44100,
+		"rms": 0.07759672299910911,
+		"changedSamples": 503295
+	}
+}

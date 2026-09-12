@@ -1,0 +1,214 @@
+{
+	"schemaVersion": 1,
+	"date": "2026-09-12",
+	"modelId": "wav2vec2-base-960h",
+	"fixtureId": "aligned-speech-16khz",
+	"scope": "Direct production TypeScript worker and real native ONNX Runtime on Linux x64 under WSL2. This is not Electron catalog-installation or cross-platform qualification.",
+	"runtimeVersion": "1.29.0",
+	"executionProvider": "cpu",
+	"modelVersion": "1.0.0",
+	"modelSha256": "b73fe60ddcd3fd07f91d65d50b4f10ba99039104c4fb5db5bdafbb27610bb6eb",
+	"input": {
+		"byteLength": 832044,
+		"sha256": "c02c21a96d38260e0631fd3419b5b5378e5a75dcecb04fab65384b610ece3a88"
+	},
+	"additionalInputs": [
+		{
+			"role": "transcript",
+			"byteLength": 179,
+			"sha256": "ee66009ff7f81bdb7c4c47a94e3c0a1f7662c81e5aeaee2a47738e26249fbb5e"
+		}
+	],
+	"outputs": [
+		{
+			"byteLength": 2568,
+			"sha256": "b074a891c59057173c2e86d22be992620c851c6256718539362105fd6f1bff53",
+			"value": {
+				"schemaVersion": 1,
+				"sampleRate": 16000,
+				"words": [
+					{
+						"segmentIndex": 0,
+						"wordIndex": 0,
+						"text": "And",
+						"startSample": 22720,
+						"endSample": 24320,
+						"confidence": 0.976244321612
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 1,
+						"text": "so",
+						"startSample": 26240,
+						"endSample": 29440,
+						"confidence": 0.998452690938
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 2,
+						"text": "my",
+						"startSample": 32320,
+						"endSample": 34880,
+						"confidence": 0.997185334909
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 3,
+						"text": "fellow",
+						"startSample": 37120,
+						"endSample": 41280,
+						"confidence": 0.996734181757
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 4,
+						"text": "Americans",
+						"startSample": 43200,
+						"endSample": 51200,
+						"confidence": 0.9448969927
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 5,
+						"text": "ask",
+						"startSample": 72640,
+						"endSample": 75200,
+						"confidence": 0.93574041818
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 6,
+						"text": "not",
+						"startSample": 80320,
+						"endSample": 84800,
+						"confidence": 0.991041409612
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 7,
+						"text": "what",
+						"startSample": 102400,
+						"endSample": 104960,
+						"confidence": 0.941726709506
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 8,
+						"text": "your",
+						"startSample": 106240,
+						"endSample": 109120,
+						"confidence": 0.991457889415
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 9,
+						"text": "country",
+						"startSample": 111040,
+						"endSample": 117760,
+						"confidence": 0.926473811238
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 10,
+						"text": "can",
+						"startSample": 119680,
+						"endSample": 121600,
+						"confidence": 0.999739326241
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 11,
+						"text": "do",
+						"startSample": 122880,
+						"endSample": 124800,
+						"confidence": 0.989402740276
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 12,
+						"text": "for",
+						"startSample": 127360,
+						"endSample": 129280,
+						"confidence": 0.960664735479
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 13,
+						"text": "you",
+						"startSample": 130240,
+						"endSample": 133440,
+						"confidence": 0.942828929897
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 14,
+						"text": "ask",
+						"startSample": 134720,
+						"endSample": 152000,
+						"confidence": 0.573203270703
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 15,
+						"text": "what",
+						"startSample": 153920,
+						"endSample": 156480,
+						"confidence": 0.983717412447
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 16,
+						"text": "you",
+						"startSample": 158080,
+						"endSample": 160320,
+						"confidence": 0.998976757261
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 17,
+						"text": "can",
+						"startSample": 163520,
+						"endSample": 165440,
+						"confidence": 0.999605014959
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 18,
+						"text": "do",
+						"startSample": 166720,
+						"endSample": 168640,
+						"confidence": 0.916659102302
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 19,
+						"text": "for",
+						"startSample": 170880,
+						"endSample": 172480,
+						"confidence": 0.998981295275
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 20,
+						"text": "your",
+						"startSample": 173440,
+						"endSample": 175680,
+						"confidence": 0.998559198702
+					},
+					{
+						"segmentIndex": 0,
+						"wordIndex": 21,
+						"text": "country",
+						"startSample": 176960,
+						"endSample": 182720,
+						"confidence": 0.999484525068
+					}
+				]
+			}
+		}
+	],
+	"validation": "word-alignment",
+	"summary": {
+		"words": 22
+	}
+}

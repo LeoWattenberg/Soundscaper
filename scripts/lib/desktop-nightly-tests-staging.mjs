@@ -64,6 +64,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'scripts/lib/local-model-real-test-cases.mjs', destination: 'scripts/lib/local-model-real-test-cases.mjs', kind: 'file', label: 'real local model case validation' },
 	{ source: 'config/local-model-catalog.json', destination: 'config/local-model-catalog.json', kind: 'file', label: 'published local model catalog' },
 	{ source: 'config/local-model-real-test-cases.json', destination: 'config/local-model-real-test-cases.json', kind: 'file', label: 'real local model case manifest' },
+	{ source: 'config/milestone-7-model-catalog-tasks.json', destination: 'config/milestone-7-model-catalog-tasks.json', kind: 'file', label: 'required additional model test identities' },
 	{ source: 'scripts/lib/desktop-nightly-tests-static-response.mjs', destination: 'scripts/lib/desktop-nightly-tests-static-response.mjs', kind: 'file', label: 'nightly test static response piping' },
 	{ source: 'scripts/lib/static-site-content-types.mjs', destination: 'scripts/lib/static-site-content-types.mjs', kind: 'file', label: 'static site content types' },
 	{ source: 'scripts/lib/desktop-nightly-tests-product-sites.mjs', destination: 'scripts/lib/desktop-nightly-tests-product-sites.mjs', kind: 'file', label: 'nightly browser product sites' },

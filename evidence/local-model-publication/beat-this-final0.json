@@ -1,0 +1,20 @@
+{
+	"schemaVersion": 1,
+	"checkedAt": "2026-09-12T05:48:23.006Z",
+	"modelId": "beat-this-final0",
+	"version": "1.1.0",
+	"checks": [
+		"public-head",
+		"byte-range",
+		"cors",
+		"full-sha256"
+	],
+	"artifacts": [
+		{
+			"fileName": "beat-this-final0.onnx",
+			"byteLength": 83176882,
+			"sha256": "62e8445705e1ea0cdf20bf15e02a58f40aa1f1c3d1369291ebc72739425d0128",
+			"url": "https://assets.soundscaper.org/models/beat-this-final0/1.1.0/beat-this-final0.onnx"
+		}
+	]
+}

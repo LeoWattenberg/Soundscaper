@@ -1,0 +1,54 @@
+{
+	"schemaVersion": 1,
+	"date": "2026-09-12",
+	"modelId": "tiger-dnr",
+	"fixtureId": "mixed-speech-44100hz",
+	"scope": "Direct production TypeScript worker and real native ONNX Runtime on Linux x64 under WSL2. This is not Electron catalog-installation or cross-platform qualification.",
+	"runtimeVersion": "1.29.0",
+	"executionProvider": "cpu",
+	"modelVersion": "1.0.0",
+	"modelSha256": "df29b0e41e461eae1b43542ea374886ac0228af9e35eeed9914121d544d619ef",
+	"elapsedMs": 530615,
+	"input": {
+		"byteLength": 2293244,
+		"sha256": "d0fef8149ee8e5e291c32b6c16fa2a6d9ee7c994f9b540426897ccc563120987"
+	},
+	"additionalInputs": [],
+	"outputs": [
+		{
+			"byteLength": 2293244,
+			"sha256": "ef51bf6cf24f06941a20da6edadbcf602cfc46a40b9d57eeacfdf7ca7ecc4b67"
+		},
+		{
+			"byteLength": 2293244,
+			"sha256": "eda19f54ed978e50df22b3476251bb0eceeffe2314320755bc8038ee71ad7248"
+		},
+		{
+			"byteLength": 2293244,
+			"sha256": "c3ff1c422cc2305d85134c4f5df225ee472d8a1663f7e6fee5fc73cc4cb18c3c"
+		}
+	],
+	"validation": "separated-audio",
+	"summary": {
+		"stems": [
+			{
+				"frames": 573300,
+				"sampleRate": 44100,
+				"rms": 0.08302780760937986,
+				"changedSamples": 573300
+			},
+			{
+				"frames": 573300,
+				"sampleRate": 44100,
+				"rms": 0.056057313567553904,
+				"changedSamples": 573292
+			},
+			{
+				"frames": 573300,
+				"sampleRate": 44100,
+				"rms": 0.00945840168251002,
+				"changedSamples": 573300
+			}
+		]
+	}
+}

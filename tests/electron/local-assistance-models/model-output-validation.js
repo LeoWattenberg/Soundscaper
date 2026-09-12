@@ -5,6 +5,25 @@ import { reviewAssistanceEmbeddingMatrixV1 } from '../../../src/common/editor/as
 import { reviewAssistanceFloat32MonoWaveV1 } from '../../../src/common/editor/assistance/float32-mono-wave-v1.ts';
 import { ASSISTANCE_VISUAL_TAG_PROMPTS_V1 } from '../../../src/common/editor/assistance/visual-tag-classification-v1.ts';
 import { reviewAssistanceOcrResultV1, reviewAssistanceSaliencyResultV1, reviewAssistanceSubjectResultV1 } from '../../../src/common/editor/assistance/visual-semantic-results-v1.ts';
+import { reviewAssistanceWordAlignmentV1, reviewAssistanceAudioTagsV1, reviewAssistanceBeatGridV1,
+	reviewAssistanceEditorialProposalV1 } from '../../../src/common/editor/assistance/m7-semantic-results.ts';
+import { reviewAssistanceShotBoundariesV1 } from '../../../src/common/editor/assistance/shot-boundaries-v1.ts';
+
+export function validateModelOutputs(validation, outputs, input) {
+	if (validation !== 'separated-audio') {
+		assert.equal(outputs.length, 1, 'Expected one model output.');
+		return validateModelOutput(validation, outputs[0], input);
+	}
+	assert.equal(outputs.length, 3, 'Expected dialogue, music, and effects stems.');
+	const stems = outputs.map((output) => validateModelOutput('changed-audio', output, input));
+	const samples = outputs.map((output) => reviewAssistanceFloat32MonoWaveV1(output, input.sampleRate).samples);
+	for (let index = 0; index < samples.length; index += 1) {
+		for (let other = 0; other < index; other += 1) {
+			assert.notDeepEqual(samples[index], samples[other], 'Separation returned duplicated stems.');
+		}
+	}
+	return { stems };
+}
 
 /** Smoke checks for real inference, deliberately independent of exact model predictions. */
 export function validateModelOutput(validation, bytes, input) {
@@ -23,6 +42,52 @@ export function validateModelOutput(validation, bytes, input) {
 		return { rows: matrix.rowCount, dimensions: matrix.dimensions };
 	}
 	const value = JSON.parse(Buffer.from(bytes).toString('utf8'));
+	if (validation === 'word-alignment') {
+		const result = reviewAssistanceWordAlignmentV1(value);
+		assert.deepEqual(result.words.map(({ text }) => text), input.expectedWords, 'Alignment changed or omitted transcript words.');
+		assert.ok(result.words.length > 0);
+		assert.equal(result.sampleRate, input.sampleRate);
+		assert.ok(result.words.every(({ endSample }) => endSample <= input.frameCount), 'Alignment exceeds the source.');
+		return { words: result.words.length };
+	}
+	if (validation === 'audio-tags') {
+		const result = reviewAssistanceAudioTagsV1(value);
+		assert.equal(result.sampleRate, input.sampleRate);
+		assert.equal(result.windows.length, Math.ceil(input.frameCount / result.windowSamples), 'Missing audio-tag windows.');
+		for (const [index, window] of result.windows.entries()) assert.equal(window.startSample, index * result.windowSamples);
+		const scores = result.windows.flatMap(({ scores }) => Object.values(scores));
+		assert.ok(scores.some((score) => score > 0), 'Audio tagging returned only zero probabilities.');
+		assert.ok(scores.some((score) => score !== scores[0]), 'Audio tagging returned constant probabilities.');
+		return { windows: result.windows.length };
+	}
+	if (validation === 'beat-grid') {
+		const result = reviewAssistanceBeatGridV1(value);
+		assert.equal(result.sampleRate, input.sampleRate);
+		assert.ok(result.points.length > 0, 'No beats detected in the rhythmic fixture.');
+		assert.ok(result.points.every(({ sample }) => sample < input.frameCount), 'Beat lies outside the source.');
+		return { points: result.points.length, tempoProposal: result.tempoProposal };
+	}
+	if (validation === 'shot-boundaries') {
+		const result = reviewAssistanceShotBoundariesV1(value);
+		assert.equal(result.detector, 'transnetv2');
+		assert.equal(result.timescale, input.authority.timescale);
+		assert.equal(result.sourceFrameCount, input.frameCount);
+		assert.ok(result.boundaries.length > 0, 'No boundary detected in the shot-change fixture.');
+		for (const boundary of result.boundaries) {
+			assert.equal(boundary.presentationTick, input.authority.frames.find(({ sourceFrame }) =>
+				sourceFrame === boundary.sourceFrame)?.presentationTick, 'Shot lost its source-frame timing.');
+		}
+		return { boundaries: result.boundaries.length };
+	}
+	if (validation === 'editorial-proposal') {
+		const result = reviewAssistanceEditorialProposalV1(value, input.candidateIds);
+		for (const candidate of result.candidates) {
+			for (const field of ['title', 'hook', 'explanation']) {
+				assert.ok(typeof candidate[field] === 'string' && /[\p{L}\p{N}]/u.test(candidate[field]), `No readable editorial ${field}.`);
+			}
+		}
+		return { candidates: result.candidates.length };
+	}
 	if (validation === 'transcript') {
 		assert.ok(value.segments?.length > 0, 'No speech recognized.');
 		for (const segment of value.segments) {

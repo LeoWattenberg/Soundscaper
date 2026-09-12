@@ -9,6 +9,7 @@ import {
 } from '../../desktop/assistance-runtime-family-manifest.ts';
 import { stageDesktopAssistanceOnnxRuntime } from './desktop-assistance-onnx-runtime.mjs';
 import { stageDesktopWhisperCppRuntime } from './desktop-assistance-whisper-runtime.mjs';
+import { stageDesktopLlamaCppRuntime } from './desktop-assistance-llama-runtime.mjs';
 
 /**
  * Build-time inventory is sealed inside app.asar; executable bytes remain outside
@@ -18,13 +19,15 @@ import { stageDesktopWhisperCppRuntime } from './desktop-assistance-whisper-runt
  * @param {{
  *   targetId: string, runtimeRoot: string, cacheRoot?: string,
  *   stageOnnx?: (options: {targetId: string, outputRoot: string, cacheRoot: string | undefined}) => Promise<{manifest: unknown, summary?: unknown}>,
- *   stageWhisper?: (options: {targetId: string, runtimeRoot: string, cacheRoot: string | undefined, platform: string, architecture: string}) => Promise<{manifest: unknown, summary?: unknown, provenance?: unknown}>
+ *   stageWhisper?: (options: {targetId: string, runtimeRoot: string, cacheRoot: string | undefined, platform: string, architecture: string}) => Promise<{manifest: unknown, summary?: unknown, provenance?: unknown}>,
+ *   stageLlama?: (options: {targetId: string, runtimeRoot: string, cacheRoot: string | undefined, platform: string, architecture: string}) => Promise<{manifest: unknown, summary?: unknown, provenance?: unknown}>
  * }} options
  */
 export async function stageDesktopAssistanceRuntimeFamilies({
 	targetId, runtimeRoot, cacheRoot,
 	stageOnnx = stageDesktopAssistanceOnnxRuntime,
 	stageWhisper = stageDesktopWhisperCppRuntime,
+	stageLlama = stageDesktopLlamaCppRuntime,
 }) {
 	const match = /^(mac|linux|win)-(x64|arm64)$/u.exec(targetId);
 	if (!match) throw new TypeError('The Local Assistance desktop target is invalid.');
@@ -35,6 +38,9 @@ export async function stageDesktopAssistanceRuntimeFamilies({
 	for (const [familyId, stage] of [
 		['onnxruntime-node', () => stageOnnx({ targetId, outputRoot: runtimeRoot, cacheRoot })],
 		['whisper-cpp', () => stageWhisper({
+			targetId, runtimeRoot, cacheRoot, platform: process.platform, architecture: process.arch,
+		})],
+		['llama-cpp', () => stageLlama({
 			targetId, runtimeRoot, cacheRoot, platform: process.platform, architecture: process.arch,
 		})],
 	]) {

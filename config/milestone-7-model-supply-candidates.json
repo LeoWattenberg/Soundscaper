@@ -28,8 +28,8 @@
 				]
 			},
 			"conversion": {
-				"status": "converted-artifact-pending",
-				"blockedBy": "No converted ONNX digests or source-framework parity evidence has been recorded.",
+				"status": "converted-artifact-ready",
+				"blockedBy": null,
 				"recipe": {
 					"id": "tiger-dnr-neural-core-onnx-v1",
 					"version": 1,
@@ -84,8 +84,8 @@
 						"role": "network",
 						"required": true,
 						"fileName": "tiger-dnr.onnx",
-						"byteLength": null,
-						"sha256": null
+						"byteLength": 29623224,
+						"sha256": "df29b0e41e461eae1b43542ea374886ac0228af9e35eeed9914121d544d619ef"
 					}
 				]
 			}
@@ -127,8 +127,8 @@
 				]
 			},
 			"conversion": {
-				"status": "converted-artifact-pending",
-				"blockedBy": "No converted ONNX digest or source-framework parity evidence has been recorded.",
+				"status": "converted-artifact-ready",
+				"blockedBy": null,
 				"recipe": {
 					"id": "panns-cnn10-onnx-v1",
 					"version": 1,
@@ -188,8 +188,8 @@
 						"role": "network",
 						"required": true,
 						"fileName": "panns-cnn10.onnx",
-						"byteLength": null,
-						"sha256": null
+						"byteLength": 25217285,
+						"sha256": "b6aec410d3be2764228e910fabd7f853dd7309d2454f595a6c3f7422b4c56e24"
 					}
 				]
 			}
@@ -231,8 +231,8 @@
 				]
 			},
 			"conversion": {
-				"status": "converted-artifact-pending",
-				"blockedBy": "No converted ONNX digests or source-framework parity evidence has been recorded.",
+				"status": "converted-artifact-ready",
+				"blockedBy": null,
 				"recipe": {
 					"id": "beat-this-onnx-v1",
 					"version": 1,
@@ -253,19 +253,19 @@
 							{
 								"name": "log_mel_spectrogram",
 								"dataType": "float32",
-								"dimensions": ["batch", "frames", 128]
+								"dimensions": [1, "frames", 128]
 							}
 						],
 						"outputs": [
 							{
 								"name": "beat_logits",
 								"dataType": "float32",
-								"dimensions": ["batch", "frames"]
+								"dimensions": [1, "frames"]
 							},
 							{
 								"name": "downbeat_logits",
 								"dataType": "float32",
-								"dimensions": ["batch", "frames"]
+								"dimensions": [1, "frames"]
 							}
 						]
 					},
@@ -296,15 +296,15 @@
 						"role": "small0-network",
 						"required": true,
 						"fileName": "beat-this-small0.onnx",
-						"byteLength": null,
-						"sha256": null
+						"byteLength": 10569824,
+						"sha256": "8e649b7f764873863ddef0115cf121308ef461b70e7a015a3461edf6f8552471"
 					},
 					{
 						"role": "final0-network",
 						"required": false,
 						"fileName": "beat-this-final0.onnx",
-						"byteLength": null,
-						"sha256": null
+						"byteLength": 83176882,
+						"sha256": "62e8445705e1ea0cdf20bf15e02a58f40aa1f1c3d1369291ebc72739425d0128"
 					}
 				]
 			}
@@ -358,8 +358,8 @@
 				]
 			},
 			"conversion": {
-				"status": "converted-artifact-pending",
-				"blockedBy": "No converted ONNX digest or three-runtime parity evidence has been recorded.",
+				"status": "converted-artifact-ready",
+				"blockedBy": null,
 				"recipe": {
 					"id": "transnetv2-onnx-v1",
 					"version": 1,
@@ -380,19 +380,19 @@
 							{
 								"name": "frames",
 								"dataType": "uint8",
-								"dimensions": ["batch", 100, 27, 48, 3]
+								"dimensions": [1, 100, 27, 48, 3]
 							}
 						],
 						"outputs": [
 							{
 								"name": "single_frame_logits",
 								"dataType": "float32",
-								"dimensions": ["batch", 100, 1]
+								"dimensions": [1, 100, 1]
 							},
 							{
 								"name": "all_frame_logits",
 								"dataType": "float32",
-								"dimensions": ["batch", 100, 1]
+								"dimensions": [1, 100, 1]
 							}
 						]
 					},
@@ -424,8 +424,8 @@
 						"role": "network",
 						"required": true,
 						"fileName": "transnetv2.onnx",
-						"byteLength": null,
-						"sha256": null
+						"byteLength": 31255509,
+						"sha256": "dd3b4314ac16bb23e7432d934a8695cf8d0f8a2720b5b639ed1a915480736fe2"
 					}
 				]
 			}
@@ -467,8 +467,8 @@
 				]
 			},
 			"conversion": {
-				"status": "converted-artifact-pending",
-				"blockedBy": "No converted ONNX digests or source-framework parity evidence has been recorded under the locked toolchain.",
+				"status": "converted-artifact-ready",
+				"blockedBy": null,
 				"recipe": {
 					"id": "dereverb-room-onnx-v1",
 					"version": 1,
@@ -522,8 +522,8 @@
 						"role": "network",
 						"required": true,
 						"fileName": "dereverb-room.onnx",
-						"byteLength": null,
-						"sha256": null
+						"byteLength": 120133400,
+						"sha256": "da957df2e796612cb77c76ec3f026b8fa7c750a0792ab7cb971df192f368e820"
 					}
 				]
 			}

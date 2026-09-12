@@ -25,7 +25,8 @@ from .contract import ContractError
 from .exporters import (
     configure_framework_environment, export_torch_onnx, source_import_root, torch_runtime,
 )
-from .runner_io import load_audio_fixture, ort_run
+from .runner_io import load_audio_fixture
+from .runner_audio import ort_run
 
 N_FFT = 2_048
 HOP_LENGTH = 512

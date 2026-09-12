@@ -16,20 +16,21 @@ async function fixture(context) {
 	const runtimeRoot = join(value.resourcesRoot, 'runtime');
 	const stage = async (familyId) => {
 		const manifest = structuredClone(candidates.manifests[familyId]);
-		const entrypoint = familyId === 'onnxruntime-node' ? 'index.js' : 'whisper-cli';
+		const entrypoint = familyId === 'onnxruntime-node' ? 'index.js' : familyId === 'llama-cpp' ? 'llama-completion' : 'whisper-cli';
 		const bytes = Buffer.from(`authenticated test engine ${familyId}`);
 		const targetRoot = join(runtimeRoot, manifest.runtimePrefix, 'linux-x64');
 		await mkdir(targetRoot, { recursive: true });
 		await writeFile(join(targetRoot, entrypoint), bytes);
 		manifest.targets = manifest.targets.map((target) => target.id !== 'linux-x64' ? target : {
 			id: target.id, status: 'authenticated', entrypoint,
-			files: [{ path: entrypoint, executable: familyId === 'whisper-cpp', byteLength: bytes.length,
+			files: [{ path: entrypoint, executable: familyId !== 'onnxruntime-node', byteLength: bytes.length,
 				sha256: createHash('sha256').update(bytes).digest('hex') }],
 		});
 		return { manifest };
 	};
 	const families = await stageDesktopAssistanceRuntimeFamilies({ targetId: 'linux-x64', runtimeRoot,
-		stageOnnx: () => stage('onnxruntime-node'), stageWhisper: () => stage('whisper-cpp') });
+		stageOnnx: () => stage('onnxruntime-node'), stageWhisper: () => stage('whisper-cpp'),
+		stageLlama: () => stage('llama-cpp') });
 	const application = join(value.extractedRoot, '..', 'application');
 	await mkdir(join(application, 'config'), { recursive: true });
 	await writeFile(join(application, families.summary.manifest.path), families.manifestBytes);
@@ -43,7 +44,7 @@ async function fixture(context) {
 	}) };
 }
 
-test('release audit binds ONNX and Whisper files to the manifest inside the actual ASAR', async (context) => {
+test('release audit binds ONNX, Whisper and llama files to the manifest inside the actual ASAR', async (context) => {
 	const value = await fixture(context);
 	const written = await value.write();
 	const audited = await auditExtractedDesktopPackageContent({ extractedRoot: value.extractedRoot,
@@ -52,11 +53,12 @@ test('release audit binds ONNX and Whisper files to the manifest inside the actu
 });
 
 test('release audit refuses missing, modified or extra engine bytes before sealing content', async (context) => {
-	for (const mode of ['missing', 'modified', 'extra-target']) {
+	for (const mode of ['missing', 'modified', 'extra-target', 'changed-llama']) {
 		const value = await fixture(context);
 		const engine = join(value.runtimeRoot, 'assistance/whisper-cpp/v1.9.3/linux-x64/whisper-cli');
 		if (mode === 'missing') await rm(engine);
 		if (mode === 'modified') await writeFile(engine, 'replaced engine');
+		if (mode === 'changed-llama') await writeFile(join(value.runtimeRoot, 'assistance/llama-cpp/b10509/linux-x64/llama-completion'), 'replaced editorial engine');
 		if (mode === 'extra-target') {
 			const foreign = join(value.runtimeRoot, 'assistance/onnxruntime-node/1.29.0/win-x64');
 			await mkdir(foreign, { recursive: true });

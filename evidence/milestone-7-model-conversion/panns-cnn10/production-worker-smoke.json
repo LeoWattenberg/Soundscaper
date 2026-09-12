@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "execution": "production-runtime-family-worker",
+  "platform": "linux",
+  "architecture": "x64",
+  "runtimeFamily": "onnxruntime-node",
+  "runtimeVersion": "1.29.0",
+  "runs": [
+    {
+      "modelId": "panns-cnn10",
+      "fixtureId": "speech-tags-32khz",
+      "elapsedMs": 169,
+      "modelSha256": "b6aec410d3be2764228e910fabd7f853dd7309d2454f595a6c3f7422b4c56e24",
+      "inputSha256": "25b799778f2af78702d67cadf516a33cefdc9ea271f3db68900e0f03e163b418",
+      "output": {
+        "schemaVersion": 1,
+        "sampleRate": 32000,
+        "windowSamples": 32000,
+        "windows": [
+          {
+            "startSample": 0,
+            "scores": {
+              "laughter": 0.000521242619,
+              "applause": 0.00114274025,
+              "cheering": 0.000313848257
+            }
+          },
+          {
+            "startSample": 32000,
+            "scores": {
+              "laughter": 0.002417951822,
+              "applause": 0.001311093569,
+              "cheering": 0.000412493944
+            }
+          },
+          {
+            "startSample": 64000,
+            "scores": {
+              "laughter": 0.002040982246,
+              "applause": 0.00116199255,
+              "cheering": 0.000364392996
+            }
+          },
+          {
+            "startSample": 96000,
+            "scores": {
+              "laughter": 0.000923424959,
+              "applause": 0.000365704298,
+              "cheering": 0.000154256821
+            }
+          },
+          {
+            "startSample": 128000,
+            "scores": {
+              "laughter": 0.00255137682,
+              "applause": 0.00051215291,
+              "cheering": 0.000325322151
+            }
+          },
+          {
+            "startSample": 160000,
+            "scores": {
+              "laughter": 0.001742213964,
+              "applause": 0.000590890646,
+              "cheering": 0.000187277794
+            }
+          },
+          {
+            "startSample": 192000,
+            "scores": {
+              "laughter": 0.001743018627,
+              "applause": 0.000435888767,
+              "cheering": 0.000113427639
+            }
+          },
+          {
+            "startSample": 224000,
+            "scores": {
+              "laughter": 0.001780033112,
+              "applause": 0.001024484634,
+              "cheering": 0.000302106142
+            }
+          },
+          {
+            "startSample": 256000,
+            "scores": {
+              "laughter": 0.001079469919,
+              "applause": 0.00049290061,
+              "cheering": 0.000118941069
+            }
+          },
+          {
+            "startSample": 288000,
+            "scores": {
+              "laughter": 0.002246886492,
+              "applause": 0.000567436218,
+              "cheering": 0.00023496151
+            }
+          },
+          {
+            "startSample": 320000,
+            "scores": {
+              "laughter": 0.001550167799,
+              "applause": 0.00062122941,
+              "cheering": 0.000169605017
+            }
+          },
+          {
+            "startSample": 352000,
+            "scores": {
+              "laughter": 0.005993098021,
+              "applause": 0.003853112459,
+              "cheering": 0.001747786999
+            }
+          },
+          {
+            "startSample": 384000,
+            "scores": {
+              "laughter": 0.000521242619,
+              "applause": 0.00114274025,
+              "cheering": 0.000313848257
+            }
+          }
+        ]
+      },
+      "result": {
+        "resultVersion": 1,
+        "jobId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "familyId": "onnxruntime-node",
+        "task": "audio-tagging",
+        "outputs": [
+          {
+            "claimId": "cccccccccccccccccccccccccccccccccccccccc",
+            "role": "audio-tags",
+            "mediaType": "application/vnd.soundscaper.audio-tags+json",
+            "byteLength": 1512,
+            "sha256": "a1727994136de75e21cd5f3d075d3597d90bd0239335838e98d6e609c3b6f35e"
+          }
+        ]
+      }
+    }
+  ]
+}

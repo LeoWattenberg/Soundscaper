@@ -346,7 +346,8 @@ export function validateMilestone7ConversionEvidence(value, options) {
 
 function retainedParityOutputFiles(parityEvidence) {
 	return parityEvidence.runs.flatMap(({ framework, outputs }) => outputs.map((output) => {
-		const extension = ['beat-points', 'downbeat-points', 'boundaries'].includes(output.role)
+		const extension = ['beat-points', 'downbeat-points', 'boundaries',
+			'final0-beat-points', 'final0-downbeat-points'].includes(output.role)
 			? 'i64le' : 'f32le';
 		return evidenceFile({
 			path: `source-framework-runs/${framework}/${output.role}.${extension}`,

@@ -59,6 +59,7 @@ export async function createFixture(context) {
 		['scripts/lib/local-model-real-test-cases.mjs', 'export const modelCases = true;\n'],
 		['config/local-model-catalog.json', '{"entries":[]}\n'],
 		['config/local-model-real-test-cases.json', '{"cases":[]}\n'],
+		['config/milestone-7-model-catalog-tasks.json', await readFile(new URL('../../config/milestone-7-model-catalog-tasks.json', import.meta.url), 'utf8')],
 		['scripts/lib/desktop-nightly-tests-static-response.mjs', 'export const staticResponse = true;\n'],
 		['scripts/lib/static-site-content-types.mjs', 'export const staticSiteContentTypes = true;\n'],
 		['scripts/lib/desktop-nightly-tests-product-sites.mjs', 'export const productSites = true;\n'],

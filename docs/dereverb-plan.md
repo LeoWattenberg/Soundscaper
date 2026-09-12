@@ -252,12 +252,17 @@ framework). It won speech outright on every intrusive metric family, its
 advantage held on plugin-style reverb, and its measured CPU RTF (~4.5 on the
 owner workstation) fits an offline derived-source render. Stereo is handled
 per-channel (the MVSEP precedent for this exact model). Known duties before
-catalog admission: obtain/record a proper license text (the HF repo has only
-a metadata tag), owned ONNX export via the upstream MSST exporter with parity
+catalog admission: preserve the declared GPL-3.0 terms and corresponding-source
+directions, owned ONNX export via the upstream MSST exporter with parity
 evidence, and verification that its STFT/attention ops run under the admitted
 onnxruntime-node CPU EP — if they do not, the fallback is a pinned
 Python-free native runner decision, which would be a new runtime-family
-question for the owner, not a quiet addition.
+question for the owner, not a quiet addition. The license record now retains the
+pinned card, full GNU GPL version 3 text, and converter MIT notice in
+`LICENSES/local-models/`. Hugging Face supports the card's license metadata as an
+upstream declaration; separate author confirmation is not required. The card names
+pyroomacoustics-generated room responses, while the dry corpus and base-checkpoint
+lineage remain unknown.
 
 Disposition of the rest of the slate, measured:
 
@@ -325,11 +330,10 @@ workflow (project-bin or replace-selection placement) through custody,
 review, acceptance, and publication; and browser qualification across the
 three engines.
 
-Still external, exactly the D5/D1/D8 shape the checklist recorded: the
-upstream licence text or author confirmation for the GPL-tagged weights (the
-licensing row's review requirement stays pending); the locked-toolchain
-conversion re-run, R2 mirroring, and the externally signed
-`config/local-model-catalog.json` entry that fill the pending digests and
+The GPL-3.0 declaration, source directions, locked-toolchain conversion, and parity
+evidence are now recorded. Remaining distribution work is immutable public
+readback and the externally signed `config/local-model-catalog.json` entry that
+fill the pending publication evidence and
 let `resolveExactModel` stop returning typed unavailability; blind listening
 before defaults ship; and an RTF measurement on hosted-CI-class hardware.
 
@@ -371,7 +375,7 @@ is concrete when wanted, not to commit to it:
 2. **A2** — Track A wiring: definition, menu, worker dispatch, progress,
    browser spec. Ships the always-available web effect.
 3. **B1** — catalog/licensing/exclusion-table changes for anvuew
-   dereverb_room (license-text resolution first — it can stop the track).
+   dereverb_room (GPL-3.0 notice and corresponding-source directions retained).
 4. **B2** — conversion + parity evidence, including CPU-EP operability of the
    exported graph.
 5. **B3** — helper adapter + recipe UI + evidence, riding 7A-4 machinery.

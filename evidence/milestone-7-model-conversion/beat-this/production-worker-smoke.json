@@ -1,0 +1,394 @@
+{
+  "schemaVersion": 1,
+  "execution": "production-runtime-family-worker",
+  "platform": "linux",
+  "architecture": "x64",
+  "runtimeFamily": "onnxruntime-node",
+  "runtimeVersion": "1.29.0",
+  "runs": [
+    {
+      "modelId": "beat-this-small0",
+      "fixtureId": "rhythmic-music-22050hz",
+      "elapsedMs": 692,
+      "modelSha256": "8e649b7f764873863ddef0115cf121308ef461b70e7a015a3461edf6f8552471",
+      "inputSha256": "39d0381430f21312813f5af05e6284b5a58e6262f72a8adacc82c0686bc3a228",
+      "output": {
+        "schemaVersion": 1,
+        "sampleRate": 22050,
+        "points": [
+          {
+            "sample": 441,
+            "kind": "downbeat",
+            "confidence": null
+          },
+          {
+            "sample": 11466,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 22050,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 33075,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 44100,
+            "kind": "downbeat",
+            "confidence": null
+          },
+          {
+            "sample": 55125,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 66150,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 77175,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 88200,
+            "kind": "downbeat",
+            "confidence": null
+          },
+          {
+            "sample": 99225,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 110250,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 121275,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 132300,
+            "kind": "downbeat",
+            "confidence": null
+          },
+          {
+            "sample": 143325,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 154350,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 165375,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 176400,
+            "kind": "downbeat",
+            "confidence": null
+          },
+          {
+            "sample": 187425,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 198450,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 209475,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 220500,
+            "kind": "downbeat",
+            "confidence": null
+          },
+          {
+            "sample": 231525,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 242550,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 253575,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 264600,
+            "kind": "downbeat",
+            "confidence": null
+          },
+          {
+            "sample": 275625,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 286650,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 297675,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 308700,
+            "kind": "downbeat",
+            "confidence": null
+          },
+          {
+            "sample": 319725,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 330750,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 341775,
+            "kind": "beat",
+            "confidence": null
+          }
+        ],
+        "tempoProposal": {
+          "kind": "constant",
+          "bpm": 120
+        }
+      },
+      "result": {
+        "resultVersion": 1,
+        "jobId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "familyId": "onnxruntime-node",
+        "task": "beat-tracking",
+        "outputs": [
+          {
+            "claimId": "cccccccccccccccccccccccccccccccccccccccc",
+            "role": "beat-grid",
+            "mediaType": "application/vnd.soundscaper.beat-grid+json",
+            "byteLength": 1715,
+            "sha256": "0557c8ec86bda45c73fb87437f446acb38e55ab6f0235da01305333fba504f16"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "beat-this-final0",
+      "fixtureId": "rhythmic-music-22050hz",
+      "elapsedMs": 851,
+      "modelSha256": "62e8445705e1ea0cdf20bf15e02a58f40aa1f1c3d1369291ebc72739425d0128",
+      "inputSha256": "39d0381430f21312813f5af05e6284b5a58e6262f72a8adacc82c0686bc3a228",
+      "output": {
+        "schemaVersion": 1,
+        "sampleRate": 22050,
+        "points": [
+          {
+            "sample": 0,
+            "kind": "downbeat",
+            "confidence": null
+          },
+          {
+            "sample": 11025,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 22050,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 33075,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 44100,
+            "kind": "downbeat",
+            "confidence": null
+          },
+          {
+            "sample": 55125,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 66150,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 77175,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 88200,
+            "kind": "downbeat",
+            "confidence": null
+          },
+          {
+            "sample": 99225,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 110250,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 121275,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 132300,
+            "kind": "downbeat",
+            "confidence": null
+          },
+          {
+            "sample": 143325,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 154350,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 165375,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 176400,
+            "kind": "downbeat",
+            "confidence": null
+          },
+          {
+            "sample": 187425,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 198450,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 209475,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 220500,
+            "kind": "downbeat",
+            "confidence": null
+          },
+          {
+            "sample": 231525,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 242550,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 253575,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 264600,
+            "kind": "downbeat",
+            "confidence": null
+          },
+          {
+            "sample": 275625,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 286650,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 297675,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 308700,
+            "kind": "downbeat",
+            "confidence": null
+          },
+          {
+            "sample": 319725,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 330750,
+            "kind": "beat",
+            "confidence": null
+          },
+          {
+            "sample": 341775,
+            "kind": "beat",
+            "confidence": null
+          }
+        ],
+        "tempoProposal": {
+          "kind": "constant",
+          "bpm": 120
+        }
+      },
+      "result": {
+        "resultVersion": 1,
+        "jobId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "familyId": "onnxruntime-node",
+        "task": "beat-tracking",
+        "outputs": [
+          {
+            "claimId": "cccccccccccccccccccccccccccccccccccccccc",
+            "role": "beat-grid",
+            "mediaType": "application/vnd.soundscaper.beat-grid+json",
+            "byteLength": 1713,
+            "sha256": "e4587f3def60ac445bc7bb548d593096f0fb6dda8c4e12b52f479d0b37a310e7"
+          }
+        ]
+      }
+    }
+  ]
+}

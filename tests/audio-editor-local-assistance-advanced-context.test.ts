@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import {
@@ -57,6 +58,13 @@ test('Advanced alignment composes authenticated transcript and audio into one pr
 	}) as Readonly<Record<string, unknown>>;
 	assert.deepEqual((prepared.inputs as Array<Readonly<Record<string, unknown>>>).map(({ role }) => role),
 		['audio', 'transcript']);
+	const alignment = (prepared as unknown as Prepared).inputs[1]!;
+	assert.deepEqual(JSON.parse(await alignment.bytes.text()), {
+		language: 'en', segments: [{ startSeconds: 0, endSeconds: 0.5,
+			text: 'Selected words for editorial generation' }],
+	});
+	assert.deepEqual(JSON.parse(new TextDecoder().decode(transcript.transcriptBytes)).segments[0].startFrame,
+		24_000, 'stored transcript timing remains absolute and unchanged');
 	assert.deepEqual(fixture.preparedOperations, ['word-alignment']);
 });
 
@@ -87,7 +95,7 @@ test('Advanced transcript embedding and editorial generation stage bounded inert
 });
 
 test('selected linked video authenticates Advanced transcript context against its audio source', async () => {
-	const transcript = transcriptAssetFixture();
+	const transcript = timedTranscriptFixture();
 	const project = { ...linkedProject(),
 		assistanceAssets: transcript.transcriptProject.assistanceAssets };
 	let renders = 0;
@@ -110,7 +118,7 @@ test('selected linked video authenticates Advanced transcript context against it
 });
 
 test('composed runtime exposes linked-audio Advanced context without video decoding or rendering', async () => {
-	const transcript = transcriptAssetFixture();
+	const transcript = timedTranscriptFixture();
 	const project = { ...linkedProject(),
 		assistanceAssets: transcript.transcriptProject.assistanceAssets };
 	let renders = 0;
@@ -165,6 +173,27 @@ test('selected-media router keeps visual embedding and OCR on authenticated vide
 interface Prepared {
 	readonly inputs: readonly Readonly<{ role: string; bytes: Blob }>[];
 	readonly outputs: readonly Readonly<Record<string, unknown>>[];
+}
+
+function timedTranscriptFixture() {
+	const original = transcriptAssetFixture();
+	const body = JSON.parse(new TextDecoder().decode(original.transcriptBytes)) as {
+		segments: Array<{ words: Array<{ text: string; startFrame: number;
+			endFrame: number; confidence: null }> }>;
+	};
+	body.segments[0]!.words = ['Selected', 'words', 'for', 'editorial', 'generation']
+		.map((text, index) => ({ text, startFrame: 24_000 + index * 4_800,
+			endFrame: 28_800 + index * 4_800, confidence: null }));
+	const transcriptBytes = new TextEncoder().encode(JSON.stringify(body));
+	const sha256 = createHash('sha256').update(transcriptBytes).digest('hex');
+	const storageKey = `assistance-transcript-sha256:${sha256}`;
+	const references = original.transcriptProject.assistanceAssets as readonly Readonly<Record<string, unknown>>[];
+	const reference = references[0]!;
+	return { transcriptBytes, storageKey, transcriptProject: {
+		...original.transcriptProject, assistanceAssets: [{ ...reference,
+			body: { ...(reference.body as Record<string, unknown>), storageKey,
+				byteLength: transcriptBytes.byteLength, sha256 } }],
+	} };
 }
 
 function contextFixture(project: Readonly<Record<string, unknown>>, storageKey: string,

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { extractFile } from '@electron/asar';
 import { verifyDesktopAssistanceRuntimeFamilyPackage } from './desktop-assistance-runtime-family-verification.mjs';
 
-const FAMILIES = Object.freeze(['onnxruntime-node', 'whisper-cpp']);
+const FAMILIES = Object.freeze(['onnxruntime-node', 'whisper-cpp', 'llama-cpp']);
 const MANIFEST_PATH = 'config/assistance-runtime-family-supply-candidates.json';
 
 /** Bind release-audit resources to the native authority inside their actual ASAR. */

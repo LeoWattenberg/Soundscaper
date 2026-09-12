@@ -74,8 +74,9 @@ test('licensed speech fixtures are authenticated, voiced and prepared at exact r
 test('subject fixtures retain two authenticated photographs and distinct frame timing', async () => {
 	// Normal-suite check of fixture custody; actual image decoding and inference run in Electron.
 	const rasters = [new Uint8Array(512 * 512 * 4).fill(64), new Uint8Array(512 * 512 * 4).fill(192)];
-	const input = await prepareModelInput('visual-subject-frames', { async evaluate(_render, photos) {
-		assert.deepEqual(photos.map((photo) => digest(Buffer.from(photo, 'base64'))), [
+	const input = await prepareModelInput('visual-subject-frames', { async evaluate(_render, { sources, width, height }) {
+		assert.deepEqual({ width, height }, { width: 512, height: 512 });
+		assert.deepEqual(sources.map((photo) => digest(Buffer.from(photo, 'base64'))), [
 			'88431cd9653ccd539741b555fb0a46b61558b301d4110412b5bc28b5e3ea6cb5',
 			'596aa1e7cb875eb79f437e310381d26b338a81c2da23439704a73c4651e8c4bb',
 		]);
@@ -84,6 +85,8 @@ test('subject fixtures retain two authenticated photographs and distinct frame t
 	const reviewed = reviewAssistanceVisualFramePackV2(input.bytes);
 	assert.equal(input.frameCount, 2);
 	assert.equal(reviewed.frameCount, 2);
+	assert.equal(input.authority.timescale, 30);
+	assert.equal(reviewed.timescale, input.authority.timescale);
 	assert.deepEqual(input.authority.frames, [{ sourceFrame: 0, presentationTick: '0' }, { sourceFrame: 1, presentationTick: '1' }]);
 	for (let ordinal = 0; ordinal < 2; ordinal += 1) {
 		assert.deepEqual(reviewed.frameTiming(ordinal), input.authority.frames[ordinal]);

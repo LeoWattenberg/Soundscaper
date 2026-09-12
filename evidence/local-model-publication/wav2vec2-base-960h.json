@@ -1,0 +1,20 @@
+{
+	"schemaVersion": 1,
+	"checkedAt": "2026-09-12T05:37:16.910Z",
+	"modelId": "wav2vec2-base-960h",
+	"version": "1.0.0",
+	"checks": [
+		"public-head",
+		"byte-range",
+		"cors",
+		"full-sha256"
+	],
+	"artifacts": [
+		{
+			"fileName": "model.onnx",
+			"byteLength": 377887594,
+			"sha256": "b73fe60ddcd3fd07f91d65d50b4f10ba99039104c4fb5db5bdafbb27610bb6eb",
+			"url": "https://assets.soundscaper.org/models/wav2vec2-base-960h/1.0.0/model.onnx"
+		}
+	]
+}

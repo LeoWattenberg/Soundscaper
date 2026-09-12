@@ -44,7 +44,7 @@ Input: Two photographs: the public-domain NASA portrait of astronaut Eileen Coll
 
 Frame results must retain their source timing and contain a finite, bounded saliency point for the subject fixture.
 
-The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. Missing native engines fail the case on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.
+The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. A required model missing from the signed catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.
 
 ## Review the result {#review-the-result}
 

@@ -2,6 +2,8 @@
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import runtimeSupply from '../config/assistance-runtime-family-supply-candidates.json' with { type: 'json' };
@@ -54,7 +56,7 @@ test('eight pending catalog tasks map every Milestone 7 supply identity exactly'
 		assert.equal(task.activationStatus, 'pending-external');
 		assert.ok(!task.catalogBlockedBy.includes('licensing-evidence'));
 		assert.ok(!Object.keys(task).some((field) => /releaseReview/iu.test(field)));
-		assert.ok(task.catalogBlockedBy.includes('immutable-public-readback'));
+		assert.equal(task.catalogBlockedBy.includes('immutable-public-readback'), task.releaseEvidence.publicReadbackSha256 === null);
 		assert.ok(task.catalogBlockedBy.includes('external-catalog-signature'));
 		assert.ok(task.activationBlockedBy.includes('runtime-target-closure'));
 		assert.ok(!checkedCatalog.entries.some(({ modelId }) =>
@@ -88,15 +90,15 @@ test('derived tasks split grouped conversions into install-safe catalog artifact
 	const byId = new Map(register.tasks.map((entry) => [entry.catalogModelId, entry]));
 	assert.deepEqual(byId.get('tiger-dnr').artifacts, [{
 		role: 'network', sourceFileName: 'tiger-dnr.onnx',
-		distributionFileName: 'network.onnx', byteLength: null, sha256: null,
+		distributionFileName: 'network.onnx', ...outputIdentity('tiger-dnr-neural-core'),
 	}]);
 	assert.deepEqual(byId.get('transnetv2').artifacts, [{
 		role: 'network', sourceFileName: 'transnetv2.onnx',
-		distributionFileName: 'network.onnx', byteLength: null, sha256: null,
+		distributionFileName: 'network.onnx', ...outputIdentity('transnetv2'),
 	}]);
 	assert.deepEqual(byId.get('panns-cnn10').artifacts, [{
 		role: 'panns-cnn10', sourceFileName: 'panns-cnn10.onnx',
-		distributionFileName: 'panns-cnn10.onnx', byteLength: null, sha256: null,
+		distributionFileName: 'panns-cnn10.onnx', ...outputIdentity('panns-cnn10'),
 	}]);
 	assert.deepEqual(byId.get('panns-cnn10').sourceAuthorities, [{
 		role: 'audioset-class-map',
@@ -123,14 +125,34 @@ test('derived tasks split grouped conversions into install-safe catalog artifact
 	for (const id of ['tiger-dnr', 'panns-cnn10', 'beat-this-small0',
 		'beat-this-final0', 'transnetv2']) {
 		const task = byId.get(id);
-		assert.ok(task.catalogBlockedBy.includes('converted-artifact-identity'));
-		assert.ok(task.catalogBlockedBy.includes('source-framework-parity'));
+		assert.ok(!task.catalogBlockedBy.includes('converted-artifact-identity'));
+		assert.ok(!task.catalogBlockedBy.includes('source-framework-parity'));
 		const recipe = executionRegister.recipes.find(({ candidateId }) =>
 			candidateId === task.supplyBinding.supplyId);
 		for (const blocker of recipe.blockedBy) {
 			assert.ok(task.catalogBlockedBy.includes(blocker),
 				`${id} must retain its conversion-recipe blocker ${blocker}`);
 		}
+	}
+});
+
+function outputIdentity(candidateId) {
+	const { byteLength, sha256 } = modelSupply.candidates.find(({ id }) => id === candidateId).conversion.outputs[0];
+	return { byteLength, sha256 };
+}
+
+test('every recorded public readback binds retained proof and exact distribution bytes', async () => {
+	for (const task of validate().tasks) {
+		if (task.releaseEvidence.publicReadbackSha256 === null) continue;
+		const bytes = await readFile(new URL(`../evidence/local-model-publication/${task.catalogModelId}.json`, import.meta.url));
+		assert.equal(createHash('sha256').update(bytes).digest('hex'), task.releaseEvidence.publicReadbackSha256);
+		const proof = JSON.parse(bytes.toString('utf8'));
+		assert.equal(proof.modelId, task.catalogModelId);
+		assert.equal(proof.version, task.version);
+		assert.deepEqual(proof.checks, ['public-head', 'byte-range', 'cors', 'full-sha256']);
+		assert.deepEqual(proof.artifacts, task.artifacts.map((artifact) => ({ fileName: artifact.distributionFileName,
+			byteLength: artifact.byteLength, sha256: artifact.sha256,
+			url: `${checkedCatalog.publication.publicBaseUrl}${task.catalogModelId}/${task.version}/${artifact.distributionFileName}` })));
 	}
 });
 

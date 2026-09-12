@@ -32,7 +32,7 @@ const macPreAuthenticatedRuntimePayload = [
 	'|',
 	`${regexEscape(assistanceNativeRuntimeManifest.runtimePrefix)}/node_modules/`,
 	`${regexEscape(macAssistancePackage.name)}/(?:${macAssistanceNativeFiles})`,
-	'|assistance/(?:onnxruntime-node/1\\.29\\.0|whisper-cpp/v1\\.9\\.3)/mac-arm64/.*',
+	'|assistance/(?:onnxruntime-node/1\\.29\\.0|whisper-cpp/v1\\.9\\.3|llama-cpp/b10509)/mac-arm64/.*',
 	')$',
 ].join('');
 

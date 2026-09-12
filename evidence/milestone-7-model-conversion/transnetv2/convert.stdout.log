@@ -1,0 +1,1 @@
+{"artifacts":[{"byteLength":31255509,"fileName":"transnetv2.onnx","required":true,"role":"network","sha256":"dd3b4314ac16bb23e7432d934a8695cf8d0f8a2720b5b639ed1a915480736fe2"}],"candidateId":"transnetv2","manifest":"converted-artifacts.json","schemaVersion":1,"status":"converted"}

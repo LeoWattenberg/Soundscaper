@@ -626,11 +626,14 @@ Whisper/wav2vec2 alignment, DeepFilterNet enhancement, TIGER separation, PANNs
 reactions, Beat This, TransNetV2 accurate shots, nomic/SigLIP embeddings, OCR,
 subject/saliency reframe, deterministic highlights, and bounded Qwen editorial
 JSON. Their isolated process/thread protocols enforce exact file grants, memory
-admission, supervision, crash quarantine, and termination cancellation. Every
-target payload remains `pending-external`; TIGER, PANNs, Beat This, and
-TransNetV2 also lack conversion/parity closure and new externally signed catalog
-entries, while Sherpa lacks its Windows-arm64 Node addon. Unmet combinations
-return typed unavailability without substitution or fabricated output.
+admission, supervision, crash quarantine, and termination cancellation. Desktop
+preparation provisions the exact selected-target CPU engine and authenticates
+its generated file manifest, including the Windows ARM64 Sherpa addon. The
+[retained conversion evidence](../evidence/milestone-7-model-conversion/README.md)
+binds TIGER, PANNs, both Beat This checkpoints, TransNetV2, and Dereverb Room to
+actual source-framework comparisons and exact converted artifacts. Unmet model,
+runtime, or target combinations still return typed unavailability without
+substitution or fabricated output.
 
 Every reviewed choice starts unselected. Explicit acceptance revalidates the
 aggregate fence and uses ordinary atomic commands for transcript/captions,
@@ -641,11 +644,12 @@ never enters `.scape`. Stale authority, semantic failure, ownership collision,
 or publication failure refuses the edit and rolls back newly owned output.
 Existing transcript custody and AUP4 omission reporting remain unchanged.
 
-Live EU R2 publication/full-digest public read-back, five packaged target
-canaries, and owner-device observations remain absent. Owner QA is optional,
-but missing conversion/parity, external catalog
-signature, artifact, runtime/platform, selected-media, storage, executable, or
-consent authority remains a hard refusal.
+Each distributed model must retain versioned notices and full-digest public
+read-back, and its catalog signature and installed bytes are authenticated at
+use. The separate nightly suite downloads and executes real models in Electron;
+its results identify the exact package, models, workloads, and target exercised.
+Those fixture results do not establish a complete five-target privacy or
+cancellation study. Optional owner QA grants no runtime authority.
 
 <!-- policy-narrative:framescaper-capture-desktop-consent-authority -->
 The Framescaper family v1 packaged Framescaper capture route uses a separate frozen v1 control plane whose status, source-list, grant, and teardown methods accept or return no media bytes, native source IDs, filesystem paths, or Electron objects. Main and the sandbox preload independently validate every closed request and response. IPC and Chromium permission handlers require the exact Framescaper product, current owner, focused trusted main document and origin; display delivery additionally requires the main frame, a direct user gesture, requested video, and an unconsumed role grant. The fallback chooser admits at most 64 sanitized screen/window descriptors, exposes only pathless 32-hex tokens, retains its inventory for at most five minutes, never chooses the first source implicitly, and consumes it into an owner- and generation-bound 15-second single-use grant. Replayed, stale, expired, wrong-owner, wrong-role, unfocused, non-gesture, and malformed requests fail closed. macOS 15 or newer delegates display choice to the system picker; other supported desktop platforms use the explicit bounded list. Only Windows advertises and may return loopback system audio, and other platforms report it unavailable. Owner revocation, explicit generation teardown, renderer navigation or loss, window close, registration disposal, and application shutdown retire grants, permission handlers, the capture preload, and IPC handlers; capture-session downloads remain denied. The packaged protocol gives a standalone Framescaper editor document self camera, microphone, and display-capture policy, retains Soundscaper's self microphone/display policy with camera denied, and makes embedded, non-editor, capability, error, and remote responses deny all capture features. Mutually exclusive Pages rules mirror the standalone Framescaper and embedded denial split without overlapping Permissions-Policy values. Framescaper macOS configuration declares camera, microphone, and audio-capture usage text plus camera and audio-input entitlements, while Soundscaper retains its microphone-only entitlement. Framescaper family v1 sets the Framescaper product capability framescaperCapture true and is active on standalone web and desktop through its controller, app binding, and runtime probe. Recording Setup remains default-hidden and is reached only by opting in through View > Panels. The selected capture route authority uses this desktop control plane, but only that menu opt-in exposes the capture surface. framescaperWebVcr is true and exposes its default-hidden Record-menu surface lazily for testing; its real-runtime behavior belongs in optional owner QA. A real packaged, no-device smoke loads the standalone Framescaper artifact and exercises pathless control-plane availability, status, grant, and teardown as active-boundary defense-in-depth evidence. The smoke does not establish general device behavior: actual packaged cameras, microphones, operating-system picker and loopback behavior, encoder and timing behavior, teardown and long-session performance remain unverified while owner-device observations are unrecorded.
@@ -1110,9 +1114,10 @@ supervision enforces one job, heartbeat/RSS checks, termination cancellation,
 and quiescent staging cleanup. Catalog-authenticated Parakeet, Silero, and exact
 Pyannote/ERes2Net remain the active Sherpa routes. The additional ONNX Runtime,
 whisper.cpp, and llama.cpp families implement equivalent isolated grants,
-process/thread protocols, memory admission, quarantine, and termination, but
-all five target payload closures remain `pending-external`. Sherpa Windows ARM64
-also lacks its authenticated Node addon.
+process/thread protocols, memory admission, quarantine, and termination.
+Package preparation provisions these CPU engines and the Windows ARM64 Sherpa
+addon, records the actual target file identities inside the protected archive,
+and verifies the same closure before native execution.
 
 The conditional external-FFmpeg shot adapter is a separate ordinary child
 process, not a Sherpa job. A current main-only executable-pair admission,
@@ -1123,17 +1128,35 @@ TOCTOU window, authenticate dynamically loaded libraries, or sandbox the
 selected executable's ambient account authority. Authentication or executable
 loss returns typed unavailable; malformed actual detection remains hard.
 
-The conditional operation layer covers Whisper/alignment, enhancement/TIGER,
-PANNs reactions, Beat This, TransNetV2, embeddings/OCR, reframe, highlights, and
-Qwen. TIGER, PANNs, Beat This, and TransNetV2 lack converted artifacts/parity
-and new externally signed catalog entries, so the code cannot turn into package
-authority. Incompatible model/runtime/admission/target states return typed
-unavailability without spawning a substitute, installing a model, or publishing
-canonical state. Neither ordinary processes nor the new families claim an OS
-filesystem/network sandbox, aggregate resource bounds, or long-session quality.
-The privacy workload, five-target packaged canaries, live EU R2 publication and
-public read-back remain absent. Optional owner QA is not an activation switch;
-every hard machine gate remains.
+<!-- policy-narrative:local-assistance-runtime-diagnostics -->
+The Sherpa helper, CPU runtime-family hosts, and external-FFmpeg shot detector
+execute ordinary native code with ambient account authority. Exact payload,
+selected-file, model-artifact, and executable authentication plus supervision
+contain accidental faults but do not create an operating-system sandbox, close
+the FFmpeg hash-to-path/dynamic-library gaps, or establish aggregate CPU/RSS and
+long-session bounds. Retained Linux x64 conversions now authenticate TIGER-DnR,
+PANNs Cnn10, both Beat This checkpoints, TransNetV2, and Dereverb Room, with
+exact artifact identities and passing source-framework/ONNX comparisons. The
+conversion evidence directory also retains direct production-worker smoke
+results, separately from packaged Electron tests. Desktop preparation provisions
+pinned ONNX Runtime, whisper.cpp, and llama.cpp CPU engines and the Windows
+ARM64 Sherpa addon; generated target manifests bind the actual packaged files.
+Historical external-supply candidate statuses are not substitutes for those
+generated package identities. Model distribution still requires versioned
+notices, full-digest public read-back, and an authenticated catalog; runtime
+execution rechecks the selected model and target closure. Successful fixture
+runs prove only the model, runtime, workload, and target actually exercised. No
+complete five-target packaged privacy/cancellation workload or owner-device
+observation set establishes network-after-install behavior, unselected-media
+isolation, cancellation p95, canonical-state loss, or general model correctness.
+Optional owner QA does not grant runtime authority. Missing catalog signature,
+artifact, selected-media, runtime, storage, executable, or consent authority
+remains a hard machine refusal. Reviewed canonical acceptance spans transcript,
+link-aware cleanup, speaker attribution, derived audio/stems, reactions,
+beats/tempo, shots, indexes, reframe, and highlights; that wider stale-safe
+mutation surface does not itself verify runtime privacy, performance, or target
+compatibility.
+<!-- /policy-narrative:local-assistance-runtime-diagnostics -->
 
 Semantic review and explicit acceptance now cover transcript, link-aware
 cleanup, speaker attribution, derived audio/stems, reactions, beats/tempo,

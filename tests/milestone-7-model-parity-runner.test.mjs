@@ -43,7 +43,7 @@ test('the parity runner inventory is closed over all five conversion candidates'
 	assert.deepEqual(JSON.parse(result.stdout), {
 		'beat-this': {
 			fixtureKind: 'float32-wave', sourceFrameworks: ['source-pytorch'],
-			onnxFramework: 'onnxruntime-cpu', runner: 'beat-this-small0-v1',
+			onnxFramework: 'onnxruntime-cpu', runner: 'beat-this-small0-final0-v1',
 		},
 		'dereverb-room': {
 			fixtureKind: 'float32-wave', sourceFrameworks: ['source-pytorch'],
@@ -139,6 +139,24 @@ test('owned beat and TransNet postprocessing is stable and source-framework-neut
 	assert.deepEqual(JSON.parse(result.stdout), {
 		beat: { beats: [1_103, 3_528], downbeats: [1_103] }, cuts: [3, 7],
 	});
+});
+
+test('TransNet postprocessing accepts array tensors without coercing their truth value', () => {
+	const result = python(['-c', `
+import json
+from soundscaper_m7_conversion.runner_postprocess import transnet_boundaries
+class Tensor(list):
+    def __bool__(self):
+        raise ValueError("tensor truth value is ambiguous")
+print(json.dumps(transnet_boundaries(Tensor([-10, 2, 3, -10]), Tensor([-10]*4))))
+try:
+    transnet_boundaries(Tensor(), Tensor())
+    raise AssertionError("empty tensors were accepted")
+except ValueError as error:
+    assert "geometry" in str(error)
+`]);
+	assert.equal(result.status, 0, result.stderr);
+	assert.deepEqual(JSON.parse(result.stdout), [2]);
 });
 
 test('registered parity commands execute authenticated source inputs with the uv lock',

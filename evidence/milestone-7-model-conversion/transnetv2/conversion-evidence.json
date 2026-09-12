@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 1,
+  "candidateId": "transnetv2",
+  "executionPlanSha256": "deefa2b3aec0d117a16581b49cb7404f560716f5878c096e85cfe6f99a64637f",
+  "toolchain": {
+    "lockFile": "scripts/models/milestone-7-conversion-tool/uv.lock",
+    "sha256": "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"
+  },
+  "sourceCodeArchive": {
+    "path": "inputs/transnetv2-85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed.tar.gz",
+    "byteLength": 44538,
+    "sha256": "929c779126a8e7a485816954c5afad2a99f1a71c2ef70cf9bacc9ce213588902"
+  },
+  "sourceArtifacts": [
+    {
+      "role": "tensorflow-saved-model",
+      "path": "inputs/saved_model.pb",
+      "byteLength": 5933260,
+      "sha256": "8ac2a52c5719690d512805b6eaf5ce12097c1d8860b3d9de245dcbbc3100f554"
+    },
+    {
+      "role": "tensorflow-variables-data",
+      "path": "inputs/variables.data-00000-of-00001",
+      "byteLength": 30516656,
+      "sha256": "b8c9dc3eb807583e6215cabee9ca61737b3eb1bceff68418b43bf71459669367"
+    },
+    {
+      "role": "tensorflow-variables-index",
+      "path": "inputs/variables.index",
+      "byteLength": 5526,
+      "sha256": "8b99e28b4ad11372d9a1ad9703298c2e370df14859da4245fdbe818e92dd403f"
+    }
+  ],
+  "commandRuns": [
+    {
+      "id": "convert",
+      "commandSha256": "e7826afb4621ffdb42da5d4b28a858870664447018205663af58f8b0f01d93d0",
+      "exitCode": 0,
+      "stdout": {
+        "path": "convert.stdout.log",
+        "byteLength": 282,
+        "sha256": "e9eb2c15a630c9634a3ce505f30465ec6f1c46ee1a71455e1f553fb87192f567"
+      },
+      "stderr": {
+        "path": "convert.stderr.log",
+        "byteLength": 3428,
+        "sha256": "405890145e020427620ceecee924171d37ef98b1b4efc3cba36c823f7d315639"
+      }
+    },
+    {
+      "id": "parity",
+      "commandSha256": "206bd9b3f58249c4e4a285bea84e8b4f5fb7405fa7e8e5fdb6730ad4deba5ecf",
+      "exitCode": 0,
+      "stdout": {
+        "path": "parity.stdout.log",
+        "byteLength": 101,
+        "sha256": "55e4ca369435d85e40a89e434236ef9c29ea5076f6000b072470d078e71c0de0"
+      },
+      "stderr": {
+        "path": "parity.stderr.log",
+        "byteLength": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ],
+  "convertedArtifacts": [
+    {
+      "role": "network",
+      "path": "transnetv2.onnx",
+      "byteLength": 31255509,
+      "sha256": "dd3b4314ac16bb23e7432d934a8695cf8d0f8a2720b5b639ed1a915480736fe2"
+    }
+  ],
+  "parityEvidence": {
+    "candidateId": "transnetv2",
+    "comparisons": [
+      {
+        "baseline": "source-tensorflow",
+        "candidate": "source-pytorch",
+        "maximum": 0.0001,
+        "metric": "maximum-absolute-error",
+        "observed": 0.00000476837158203125,
+        "outputRole": "single-frame-logits"
+      },
+      {
+        "baseline": "source-tensorflow",
+        "candidate": "source-pytorch",
+        "maximum": 0.0001,
+        "metric": "maximum-absolute-error",
+        "observed": 0.000003814697265625,
+        "outputRole": "all-frame-logits"
+      },
+      {
+        "baseline": "source-tensorflow",
+        "candidate": "source-pytorch",
+        "maximum": 0,
+        "metric": "symmetric-index-difference",
+        "observed": 0,
+        "outputRole": "boundaries"
+      },
+      {
+        "baseline": "source-pytorch",
+        "candidate": "onnxruntime-cpu",
+        "maximum": 0.0001,
+        "metric": "maximum-absolute-error",
+        "observed": 0.00000286102294921875,
+        "outputRole": "single-frame-logits"
+      },
+      {
+        "baseline": "source-pytorch",
+        "candidate": "onnxruntime-cpu",
+        "maximum": 0.0001,
+        "metric": "maximum-absolute-error",
+        "observed": 0.00000286102294921875,
+        "outputRole": "all-frame-logits"
+      },
+      {
+        "baseline": "source-pytorch",
+        "candidate": "onnxruntime-cpu",
+        "maximum": 0,
+        "metric": "symmetric-index-difference",
+        "observed": 0,
+        "outputRole": "boundaries"
+      }
+    ],
+    "convertedArtifacts": [
+      {
+        "byteLength": 31255509,
+        "role": "network",
+        "sha256": "dd3b4314ac16bb23e7432d934a8695cf8d0f8a2720b5b639ed1a915480736fe2"
+      }
+    ],
+    "fixtureId": "transnetv2-parity-v1",
+    "recipeVersion": 1,
+    "runs": [
+      {
+        "framework": "source-tensorflow",
+        "outputs": [
+          {
+            "byteLength": 480,
+            "role": "single-frame-logits",
+            "sha256": "5b32a9c2f7e6749f89740ae7acb604db81683429425bd23fdbf3d945025f3518"
+          },
+          {
+            "byteLength": 480,
+            "role": "all-frame-logits",
+            "sha256": "1d022c6aaa30c05610ebecd4d2006264fd901ec7d4220827cae9b32e333b19df"
+          },
+          {
+            "byteLength": 32,
+            "role": "boundaries",
+            "sha256": "41c99826793b64f6d3c61de74baff26ad033eb4a4559c6d12265f7304fd149e1"
+          }
+        ]
+      },
+      {
+        "framework": "source-pytorch",
+        "outputs": [
+          {
+            "byteLength": 480,
+            "role": "single-frame-logits",
+            "sha256": "d1ce89f9c5772faef40b6b68d7ebe75c5daeaf0a9f7eec5a92c3247022f35990"
+          },
+          {
+            "byteLength": 480,
+            "role": "all-frame-logits",
+            "sha256": "b14a83177aba5db07c4e80cf7f2bf94ef59e0d19d643c5c5daa10b5de89386f6"
+          },
+          {
+            "byteLength": 32,
+            "role": "boundaries",
+            "sha256": "41c99826793b64f6d3c61de74baff26ad033eb4a4559c6d12265f7304fd149e1"
+          }
+        ]
+      },
+      {
+        "framework": "onnxruntime-cpu",
+        "outputs": [
+          {
+            "byteLength": 480,
+            "role": "single-frame-logits",
+            "sha256": "b49e2c52b56dedb945af4472845cd3025d3d8430d65577c6f131afe05e8ad0b2"
+          },
+          {
+            "byteLength": 480,
+            "role": "all-frame-logits",
+            "sha256": "640efc56d6deba8d2ecc57549013ba13da5ce9f592f08abf3f3a1e43b24e3f52"
+          },
+          {
+            "byteLength": 32,
+            "role": "boundaries",
+            "sha256": "41c99826793b64f6d3c61de74baff26ad033eb4a4559c6d12265f7304fd149e1"
+          }
+        ]
+      }
+    ],
+    "schemaVersion": 1
+  }
+}

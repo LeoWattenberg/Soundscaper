@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "candidateId": "tiger-dnr-neural-core",
+  "executionPlanSha256": "f4e6b6f646ed351241de77a64cc9ed22748311d81bddc527afcc28ef52e74a02",
+  "toolchain": {
+    "lockFile": "scripts/models/milestone-7-conversion-tool/uv.lock",
+    "sha256": "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"
+  },
+  "sourceCodeArchive": {
+    "path": "tiger-9f18d4a10a7137e1ce8052cfb62215179f1287b6.tar.gz",
+    "byteLength": 85443477,
+    "sha256": "7a52f9f9cae9fc718c67c208c2624b87d7dd5f098727cdf9802a200baa87796b"
+  },
+  "sourceArtifacts": [
+    {
+      "role": "dnr-weights",
+      "path": "model.safetensors",
+      "byteLength": 17130568,
+      "sha256": "dd1c696e72f6adea0085ef1af640882a8260519ad666422835e387a5b4abdd2a"
+    }
+  ],
+  "commandRuns": [
+    {
+      "id": "convert",
+      "commandSha256": "9cbf7a2cfc35aa5d106b6c2b57f50f09c6d854187fd89f3158a132035cd30090",
+      "exitCode": 0,
+      "stdout": {
+        "path": "convert.stdout.log",
+        "byteLength": 892,
+        "sha256": "d8cf83bfe7045c86c78f98c9292d4712671bc77e6479c92afa56ace682bda704"
+      },
+      "stderr": {
+        "path": "convert.stderr.log",
+        "byteLength": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "id": "parity",
+      "commandSha256": "7062ece9921cf3a08208b03c08e26cbee528836ae025898bc8df5e31830fda1b",
+      "exitCode": 0,
+      "stdout": {
+        "path": "parity.stdout.log",
+        "byteLength": 712,
+        "sha256": "9583e92cbe511c262272ad03dafb98bc37f0523b0fd9d61b29b48cafa2a41942"
+      },
+      "stderr": {
+        "path": "parity.stderr.log",
+        "byteLength": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ],
+  "convertedArtifacts": [
+    {
+      "role": "network",
+      "path": "tiger-dnr.onnx",
+      "byteLength": 29623224,
+      "sha256": "df29b0e41e461eae1b43542ea374886ac0228af9e35eeed9914121d544d619ef"
+    }
+  ],
+  "parityEvidence": {
+    "candidateId": "tiger-dnr-neural-core",
+    "comparisons": [
+      {
+        "baseline": "source-pytorch",
+        "candidate": "onnxruntime-cpu",
+        "maximum": 0.0001,
+        "metric": "maximum-absolute-error",
+        "observed": 1.420557964593172e-7,
+        "outputRole": "dialogue-waveform"
+      },
+      {
+        "baseline": "source-pytorch",
+        "candidate": "onnxruntime-cpu",
+        "maximum": 0.0001,
+        "metric": "maximum-absolute-error",
+        "observed": 7.897615432739258e-7,
+        "outputRole": "effects-waveform"
+      },
+      {
+        "baseline": "source-pytorch",
+        "candidate": "onnxruntime-cpu",
+        "maximum": 0.0001,
+        "metric": "maximum-absolute-error",
+        "observed": 0.0000013560056686401367,
+        "outputRole": "music-waveform"
+      }
+    ],
+    "convertedArtifacts": [
+      {
+        "byteLength": 29623224,
+        "role": "network",
+        "sha256": "df29b0e41e461eae1b43542ea374886ac0228af9e35eeed9914121d544d619ef"
+      }
+    ],
+    "fixtureId": "tiger-dnr-parity-v1",
+    "recipeVersion": 1,
+    "runs": [
+      {
+        "framework": "source-pytorch",
+        "outputs": [
+          {
+            "byteLength": 705600,
+            "role": "dialogue-waveform",
+            "sha256": "5676b0bb09d0a62a49e410beb4c1a0ab5d5d2a14a62023fdf43475a72b6acc19"
+          },
+          {
+            "byteLength": 705600,
+            "role": "effects-waveform",
+            "sha256": "7a42717f97c07246c5fdb6910d3d0c0ea6196b06d94dd974d5c94733359628a6"
+          },
+          {
+            "byteLength": 705600,
+            "role": "music-waveform",
+            "sha256": "30f3ff9ca4e085b853a0c68de7cc02402bc226d049315eab0c2f61eda2b005a1"
+          }
+        ]
+      },
+      {
+        "framework": "onnxruntime-cpu",
+        "outputs": [
+          {
+            "byteLength": 705600,
+            "role": "dialogue-waveform",
+            "sha256": "358125b1401da31586d80a758e74a54aac25a063a8638d309f8f7163c247c5ed"
+          },
+          {
+            "byteLength": 705600,
+            "role": "effects-waveform",
+            "sha256": "f1b7b2ce7e4d721fb94a225315affd4553f9311a48e6ef8762abcf9b6736a9d7"
+          },
+          {
+            "byteLength": 705600,
+            "role": "music-waveform",
+            "sha256": "b5c2f353997bfa18b9fedfe52d473d5c459099404b5d1561378d5a4e78b862c4"
+          }
+        ]
+      }
+    ],
+    "schemaVersion": 1
+  }
+}

@@ -7,13 +7,14 @@ are a runnable reproducibility and artifact-verification contract. The CPython
 3.12 direct dependencies and complete transitive resolution are hash-locked in
 `pyproject.toml` and `uv.lock`; candidate-specific runners execute authenticated
 source-framework and CPU ONNX Runtime comparisons for TIGER-DnR, PANNs Cnn10,
-Beat This `small0`, and TransNetV2. This alone does not show that a conversion or
-parity run occurred. Those four candidates remain `pending-external`: no
-recorded installed exporter environment, retained source-tree archive,
-converted ONNX identity, live framework output, or parity result is present.
-Beat This `final0` remains a separately optional converted artifact outside the
-baseline retained fixture run. Consequently none of these records authorizes a
-production catalog entry.
+both Beat This checkpoints, TransNetV2, and Dereverb Room. Actual Linux x64
+conversions and parity runs now pass for all five candidates. The
+[retained evidence](../evidence/milestone-7-model-conversion/README.md) records
+the installed lock, source archives and checkpoint readbacks, exact commands,
+separate output streams, converted graph identities, raw framework outputs,
+and comparison results. Both Beat This `small0` and `final0` have independent
+parity results. These conversion records feed the separate catalog and artifact
+authentication checks; they do not claim inference was tested on every target.
 
 The non-fetching repository check is:
 
@@ -21,10 +22,10 @@ The non-fetching repository check is:
 node scripts/models/verify-milestone-7-conversion-execution.mjs
 ```
 
-It validates the configuration and prints the exact blockers, command digests,
-and still-null output identities. A successful exit means that the pending
-contract is internally consistent; it does not mean that a model passed
-conversion or parity.
+It validates the configuration and prints the command digests, verified output
+identities, and any remaining blockers. This configuration-only check does not
+re-execute inference or authenticate files that are absent from the checkout;
+use the full bundle verification below to check a complete retained workspace.
 
 ## Reproduction inputs
 
@@ -45,11 +46,11 @@ Each run must retain:
 - every converted output with byte length and SHA-256; and
 - outputs from every required source framework and ONNX Runtime comparison.
 
-The PANNs checkpoint and both Beat This checkpoints currently have only their
-upstream MD5/SHA-1 identities. Their separate SHA-256 readbacks intentionally
-remain null and are explicit blockers. The PANNs AudioSet class map, TIGER
-weights, and TransNetV2 SavedModel files already have upstream SHA-256 pins,
-which the execution configuration repeats as their required readbacks.
+The PANNs checkpoint and both Beat This checkpoints retain their upstream
+MD5/SHA-1 identities alongside independently recorded SHA-256 readbacks. Both
+checks must pass. The PANNs AudioSet class map, TIGER weights, Dereverb weights,
+and TransNetV2 SavedModel files also retain full SHA-256 identities. Every
+source archive is bound to its actual byte length and SHA-256.
 
 ## Owned command protocol
 
@@ -92,9 +93,10 @@ archive, exports opset-17 graphs without external tensor data or custom
 domains, loads each result in CPU ONNX Runtime, and publishes artifacts and
 canonical JSON with no-clobber semantics. The TIGER exporter retains only its
 three neural mask cores in D/M/E order; owned application STFT, complex mask
-application, ISTFT, and overlap-add remain outside the graph. TransNetV2 is
-bridged TensorFlow → ONNX → PyTorch → final ONNX so all three retained runtime
-runs remain independently comparable. These executions do not make a model
+application, ISTFT, and overlap-add remain outside the graph. TransNetV2 uses
+the pinned upstream TensorFlow-to-PyTorch weight converter before ONNX export;
+its independent TensorFlow, PyTorch, and ONNX runs retain both logits and shot
+boundaries. These executions do not make a model
 eligible for the production catalog until their exact artifacts and parity
 results pass the configured checks.
 
@@ -116,8 +118,9 @@ Float matrices must be finite and geometry-exact. Beat/downbeat points and
 shot boundaries are strictly increasing signed 64-bit little-endian indexes.
 The runner compares TIGER source/ORT neural masks through the same owned
 STFT/mask/ISTFT reconstruction and retains the resulting waveforms; it retains
-PANNs probabilities and embeddings, Beat This `small0` logits plus owned beat
-points, and TransNetV2 TensorFlow/PyTorch/ORT logits plus owned boundaries. The
+PANNs probabilities and embeddings, separate Beat This `small0` and `final0`
+logits plus owned beat points, Dereverb waveforms, and TransNetV2
+TensorFlow/PyTorch/ORT logits plus owned boundaries. The
 parity command checks every required framework/role, computes the configured
 maximum-error or symmetric-index-difference metric, refuses a failed threshold,
 atomically publishes the complete raw-run directory, and exclusively creates
@@ -133,16 +136,21 @@ The configured files are:
 
 TIGER conversion covers only the neural core; STFT, ISTFT, and overlap-add stay
 in owned application code. PANNs retains the pinned 527-entry AudioSet map.
-Beat This retains required `small0` and optional `final0` identities separately.
+Beat This retains `small0` and `final0` identities and parity separately. Its
+graphs accept one batch with variable frame length; TransNetV2 accepts one
+fixed 100-frame batch, matching the production adapters.
 TransNetV2 requires TensorFlow-to-PyTorch and PyTorch-to-ONNX comparisons,
 including both logits and the deterministic boundary result.
 
 ## Artifact verification
 
-The dependency lock is recorded, but no installed environment or model run has
-been observed. After an external conversion environment exists, retain the
-source archive, command results, converted output, and parity identities
-together. Do not fill only one half of an identity: a byte length without a
+The retained runs were produced with the frozen dependency lock on Linux x64.
+The checkout includes their reviewable command records, logs, raw comparison
+outputs, and file identities. Upstream source archives, checkpoints, and
+converted model binaries remain in the complete external workspaces and are
+not committed. Retain those source files, command results, converted outputs,
+and parity identities together when reproducing a run. Do not fill only one
+half of an identity: a byte length without a
 SHA-256, or a SHA-256 without a byte length, is rejected. Do not mark the bundle
 verified while any derived blocker remains.
 

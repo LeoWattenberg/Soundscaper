@@ -6,7 +6,7 @@ import {
 	validateAssistanceRuntimeFamilyManifestV1,
 } from '../../desktop/assistance-runtime-family-manifest.ts';
 
-/** Recheck the packaged manifest and both engine closures at each packaging boundary. */
+/** Recheck the packaged manifest and every engine closure at each packaging boundary. */
 export async function verifyDesktopAssistanceRuntimeFamilyPackage({
 	manifestBytes, summary, targetId, runtimeRoot,
 }) {
@@ -20,7 +20,7 @@ export async function verifyDesktopAssistanceRuntimeFamilyPackage({
 	const platform = { mac: 'darwin', linux: 'linux', win: 'win32' }[operatingSystem];
 	const packageManifest = JSON.parse(manifestBytes.toString('utf8'));
 	if (packageManifest?.schemaVersion !== 1) throw new Error('The packaged Local Assistance manifest is invalid.');
-	for (const familyId of ['onnxruntime-node', 'whisper-cpp']) {
+	for (const familyId of ['onnxruntime-node', 'whisper-cpp', 'llama-cpp']) {
 		const manifest = validateAssistanceRuntimeFamilyManifestV1(packageManifest.manifests?.[familyId]);
 		const availability = await describeAssistanceRuntimeFamilyAvailability({
 			familyId, manifest, runtimeRoot, platform, architecture,

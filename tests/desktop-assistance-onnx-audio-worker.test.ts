@@ -173,6 +173,39 @@ test('Beat This rejects insufficient reflect-padding geometry before loading its
 	assert.equal(loaded, false);
 });
 
+test('Beat This excludes reflect-padded endpoint peaks before downbeat and tempo decoding', async (context) => {
+	for (const modelId of ['beat-this-small0', 'beat-this-final0']) {
+		for (const extraSample of [0, 1]) {
+			const sampleCount = 44_100 + extraSample;
+			const value = await fixture(context, 'beat-tracking', new Float32Array(sampleCount), {
+				modelId, artifactRole: modelId,
+			});
+			const runtime = fakeRuntime(['log_mel_spectrogram'], ['beat_logits', 'downbeat_logits'],
+				async (feeds) => {
+					const frames = feeds.log_mel_spectrogram!.dims[1]!;
+					const beats = new Float32Array(frames).fill(-10);
+					const downbeats = new Float32Array(frames).fill(-10);
+					for (const frame of [25, 75, 100]) beats[frame + 6] = 2;
+					downbeats[100 + 6] = 3;
+					return { beat_logits: tensorValue(beats, [1, frames]),
+						downbeat_logits: tensorValue(downbeats, [1, frames]) };
+				});
+			await runAssistanceRuntimeFamilyWorkerJobV1({ job: value.job,
+				execute: createAssistanceOnnxRuntimeWorkerAdapterV1({ loadRuntime: async () => runtime }),
+			});
+			const result = JSON.parse(await readFile(value.output, 'utf8')) as {
+				points: Array<{ sample: number; kind: string }>; tempoProposal: { bpm: number };
+			};
+			assert.deepEqual(result.points.map(({ sample, kind }) => [sample, kind]), [
+				[11_025, 'beat'], [33_075, 'beat'],
+				...(extraSample ? [[44_100, 'downbeat']] : []),
+			]);
+			assert.ok(result.points.every(({ sample }) => sample < sampleCount));
+			assert.equal(result.tempoProposal.bpm, extraSample ? 80 : 60);
+		}
+	}
+});
+
 test('ONNX audio adapters reject substitutions, foreign graphs, and malformed tensors', async (context) => {
 	const substituted = await fixture(context, 'audio-tagging', new Float32Array(32_000), {
 		modelId: 'substitute-tagger',

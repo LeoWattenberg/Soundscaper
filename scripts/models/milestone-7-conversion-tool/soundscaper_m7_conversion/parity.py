@@ -163,7 +163,8 @@ def read_indexes(path: Path) -> set[int]:
 
 
 def output_kind(role: str) -> str:
-    return "int64" if role in ("beat-points", "downbeat-points", "boundaries") else "float32"
+    return "int64" if role in ("beat-points", "downbeat-points", "boundaries",
+                                "final0-beat-points", "final0-downbeat-points") else "float32"
 
 
 def validate_fixture_format(path: Path, candidate_id: str) -> None:

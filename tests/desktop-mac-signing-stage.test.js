@@ -112,16 +112,16 @@ test('distribution pins propagate through nested manifest digests', async t => {
 	assert.equal(actual.payloadManifest.byteLength, updated.length);
 });
 
-test('signing refreshes ONNX and Whisper runtime totals from their repinned file inventories', async t => {
+test('signing refreshes ONNX, Whisper and llama runtime totals from their repinned file inventories', async t => {
 	const f = await fixture(t);
 	const binary = await readFile(f.path);
 	const descriptor = { byteLength: binary.length, sha256: signingDigest(binary) };
 	const manifests = {};
 	const families = [];
-	for (const familyId of ['onnxruntime-node', 'whisper-cpp']) {
+	for (const familyId of ['onnxruntime-node', 'whisper-cpp', 'llama-cpp']) {
 		const manifest = structuredClone(familyCandidates.manifests[familyId]);
-		const entrypoint = familyId === 'onnxruntime-node' ? 'runtime.node' : 'whisper-cli';
-		const file = { path: entrypoint, executable: familyId === 'whisper-cpp', ...descriptor };
+		const entrypoint = familyId === 'onnxruntime-node' ? 'runtime.node' : familyId === 'llama-cpp' ? 'llama-completion' : 'whisper-cli';
+		const file = { path: entrypoint, executable: familyId !== 'onnxruntime-node', ...descriptor };
 		manifest.targets = manifest.targets.map(target => target.id !== 'mac-arm64' ? target : {
 			id: target.id, status: 'authenticated', entrypoint, files: [file],
 		});
@@ -130,7 +130,7 @@ test('signing refreshes ONNX and Whisper runtime totals from their repinned file
 		await mkdir(join(path, '..'), { recursive: true });
 		await writeFile(path, binary);
 		families.push({ familyId, runtimeVersion: manifest.runtimeVersion, targetId: 'mac-arm64', files: 1,
-			byteLength: binary.length, provenance: familyId === 'whisper-cpp'
+			byteLength: binary.length, provenance: familyId !== 'onnxruntime-node'
 				? { files: [file], installedBytes: binary.length }
 				: { fileCount: 1, byteLength: binary.length } });
 	}
@@ -150,7 +150,7 @@ test('signing refreshes ONNX and Whisper runtime totals from their repinned file
 	assert.equal(signed.manifest.byteLength, signedManifestBytes.length);
 	for (const family of signed.families) {
 		assert.equal(family.byteLength, binary.length + 9);
-		if (family.familyId === 'whisper-cpp') assert.equal(family.provenance.installedBytes, family.byteLength);
+		if (family.familyId !== 'onnxruntime-node') assert.equal(family.provenance.installedBytes, family.byteLength);
 		else assert.equal(family.provenance.byteLength, family.byteLength);
 	}
 });

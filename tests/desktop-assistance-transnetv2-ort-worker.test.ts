@@ -11,6 +11,7 @@ import { captureAssistanceRuntimeFamilyJobGrantV1 } from '../desktop/assistance-
 import {
 	createAssistanceOnnxRuntimeWorkerAdapterV1,
 	type AssistanceOnnxRuntimeModuleV1,
+	type AssistanceOnnxTensorV1,
 } from '../desktop/assistance-onnx-runtime-worker.ts';
 import {
 	runAssistanceRuntimeFamilyWorkerJobV1,
@@ -91,7 +92,7 @@ async function fixture(context: TestContext, inputValue: Uint8Array | readonly U
 	};
 }
 
-test('the authenticated TransNetV2 worker runs exact CPU tensors and publishes canonical VFR shots', async (context) => {
+test('the TransNetV2 worker accepts runtime Tensor instances and publishes canonical VFR shots', async (context) => {
 	const value = await fixture(context);
 	const seen: Array<Readonly<{ type: string; dims: readonly number[]; firstPixel: readonly number[] }>> = [];
 	let released = 0;
@@ -103,8 +104,8 @@ test('the authenticated TransNetV2 worker runs exact CPU tensors and publishes c
 		const all = new Float32Array(100).fill(-20);
 		if (seen.length === 1) single[35] = 4;
 		if (seen.length === 2) all[25] = 3;
-		return { single_frame_logits: { type: 'float32', dims: [1, 100, 1], data: single },
-			all_frame_logits: { type: 'float32', dims: [1, 100, 1], data: all } };
+		return { single_frame_logits: new runtime.Tensor('float32', single, [1, 100, 1]),
+			all_frame_logits: new runtime.Tensor('float32', all, [1, 100, 1]) };
 	}, () => { released += 1; });
 	const progress: number[] = [];
 	const result = await runAssistanceRuntimeFamilyWorkerJobV1({
@@ -243,12 +244,14 @@ test('subject detection fails closed when its composite authenticated artifact s
 });
 
 function fakeRuntime(
-	run: (feeds: Readonly<Record<string, TensorValue>>) => Promise<Readonly<Record<string, TensorValue>>>,
+	run: (feeds: Readonly<Record<string, AssistanceOnnxTensorV1>>) => Promise<Readonly<Record<string, AssistanceOnnxTensorV1>>>,
 	release: (() => void) | undefined = undefined,
 	inputNames: readonly string[] = ['frames'],
 	outputNames: readonly string[] = ['single_frame_logits', 'all_frame_logits'],
 ): AssistanceOnnxRuntimeModuleV1 {
-	class Tensor implements TensorValue {
+	class Tensor implements AssistanceOnnxTensorV1 {
+		readonly location = 'cpu';
+
 		constructor(
 			readonly type: 'uint8' | 'float32' | 'int64',
 			readonly data: Uint8Array | Float32Array | BigInt64Array,
@@ -265,12 +268,6 @@ function fakeRuntime(
 			},
 		},
 	};
-}
-
-interface TensorValue {
-	readonly type: 'uint8' | 'float32' | 'int64';
-	readonly data: Uint8Array | Float32Array | BigInt64Array;
-	readonly dims: readonly number[];
 }
 
 function concatenate(chunks: readonly Uint8Array[]): Uint8Array {

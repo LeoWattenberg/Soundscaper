@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "modelId": "dereverb-room",
+  "version": "1.0.0",
+  "status": "verified-from-clean-archive-extraction",
+  "scope": "Linux x64 CPU; frozen CPython 3.12 environment installed from archived uv.lock; exact commands copied from archived README; no original checkout module imports.",
+  "archive": {
+    "fileName": "corresponding-source.tar.gz",
+    "byteLength": 135886483,
+    "sha256": "ca86ebde5d248f92a7c9ae1ce599586f592e930ebdeb4fdf876ff3f7d1c47c73"
+  },
+  "deterministicRepack": "byte-identical",
+  "verifiedInventoryFiles": 69,
+  "postBuildSourceFiles": "unchanged; setuptools regenerated only its SOURCES.txt package file list",
+  "buildMetadataRewritten": [
+    "source/scripts/models/milestone-7-conversion-tool/soundscaper_m7_conversion.egg-info/SOURCES.txt"
+  ],
+  "sourceManifest": {
+    "byteLength": 14875,
+    "sha256": "5d1311dec125027e53ca4391709b4895a95428c5ac9df43c94ae701a9b067d9d"
+  },
+  "sourceInputs": [
+    {
+      "path": "mss-onnx-tensorrt-43d939e7671d8ff6cf1922f98c2f2e4b56908e47.tar.gz",
+      "revision": "43d939e7671d8ff6cf1922f98c2f2e4b56908e47",
+      "byteLength": 21820038,
+      "sha256": "2b17e00308e602eaaff9fc8a8f0c8517bcff7cc6af8fe566108b13a40c6a83e8"
+    },
+    {
+      "role": "bs-roformer-checkpoint",
+      "path": "dereverb_room_anvuew_sdr_13.7432.ckpt",
+      "byteLength": 118128452,
+      "sha256": "2edec521f09e26341c1923dc82c8c52dbc86478b42b9999f679535743c970cb3"
+    },
+    {
+      "role": "bs-roformer-config",
+      "path": "dereverb_room_anvuew.yaml",
+      "byteLength": 1991,
+      "sha256": "c37e3039521d79cd1daff129857f69fa80c6a1f383a0fe8cda757f2dfc5032f8"
+    }
+  ],
+  "fixture": {
+    "byteLength": 1536044,
+    "sha256": "6d13831e2cc01f77e96ade4306f77029e1a5002b5ed75e1ac87049d22f984d06"
+  },
+  "toolchainLock": {
+    "byteLength": 128825,
+    "sha256": "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"
+  },
+  "instructions": {
+    "byteLength": 4724,
+    "sha256": "963162ddf23a47efa99786f146b21c93dd0f672064f5550142c251507a171f2e"
+  },
+  "convertedArtifact": {
+    "fileName": "network.onnx",
+    "byteLength": 120133400,
+    "sha256": "da957df2e796612cb77c76ec3f026b8fa7c750a0792ab7cb971df192f368e820"
+  },
+  "parity": {
+    "verdict": "passed",
+    "comparisons": [
+      {
+        "baseline": "source-pytorch",
+        "candidate": "onnxruntime-cpu",
+        "maximum": 0.002,
+        "metric": "maximum-absolute-error",
+        "observed": 3.8743019104003906e-07,
+        "outputRole": "noreverb-waveform"
+      }
+    ],
+    "evidence": {
+      "byteLength": 788,
+      "sha256": "d49e311c000986f7eb1ae3f5673df2a494d4a3bc7f99cd44417b22067102731c"
+    }
+  },
+  "reproductionLog": {
+    "byteLength": 8726,
+    "sha256": "32e154d2cd5bb8177356753a288284e62746c84087755f40199c883f1366c791"
+  }
+}

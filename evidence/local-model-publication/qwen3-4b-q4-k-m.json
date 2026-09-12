@@ -1,0 +1,20 @@
+{
+	"schemaVersion": 1,
+	"checkedAt": "2026-09-12T05:59:44.473Z",
+	"modelId": "qwen3-4b-q4-k-m",
+	"version": "1.0.0",
+	"checks": [
+		"public-head",
+		"byte-range",
+		"cors",
+		"full-sha256"
+	],
+	"artifacts": [
+		{
+			"fileName": "model.gguf",
+			"byteLength": 2497280256,
+			"sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+			"url": "https://assets.soundscaper.org/models/qwen3-4b-q4-k-m/1.0.0/model.gguf"
+		}
+	]
+}

@@ -85,10 +85,14 @@ async function createFixture(context, { summary, block }) {
 		}
 		let risk = register.risks.find(({ id }) => id === binding.riskId);
 		if (!risk) {
-			risk = { id: binding.riskId, currentControls: [] };
+			risk = { id: binding.riskId, currentControls: [], residualRisks: [] };
 			register.risks.push(risk);
 		}
-		risk.currentControls.push({ id: binding.controlId, [binding.field]: summary });
+		if (binding.residualRiskId) {
+			risk.residualRisks.push({ id: binding.residualRiskId, [binding.field]: summary });
+		} else {
+			risk.currentControls.push({ id: binding.controlId, [binding.field]: summary });
+		}
 	}
 	const documents = new Map();
 	for (const { marker, document } of POLICY_NARRATIVE_BINDINGS) {

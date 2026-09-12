@@ -1,0 +1,120 @@
+[
+  {
+    "id": "convert",
+    "argv": [
+      "-I",
+      "-B",
+      "-m",
+      "soundscaper_m7_conversion",
+      "convert",
+      "--protocol",
+      "soundscaper-model-conversion-v1",
+      "--candidate",
+      "beat-this",
+      "--plan-sha256",
+      "638546ecced289b8c4c95659321bcf2966ff2438a6d0f44079e0b5fea76ef2e0",
+      "--source-manifest",
+      "source-input-manifest.json",
+      "--output-manifest",
+      "converted-artifacts.json"
+    ],
+    "program": "/home/splowatt/git/Soundscaper/.native-build/model-conversion/.venv/bin/python",
+    "environment": [
+      {
+        "name": "CUBLAS_WORKSPACE_CONFIG",
+        "value": ":4096:8"
+      },
+      {
+        "name": "CUDA_VISIBLE_DEVICES",
+        "value": ""
+      },
+      {
+        "name": "MKL_NUM_THREADS",
+        "value": "1"
+      },
+      {
+        "name": "OMP_NUM_THREADS",
+        "value": "1"
+      },
+      {
+        "name": "OPENBLAS_NUM_THREADS",
+        "value": "1"
+      },
+      {
+        "name": "PYTHONHASHSEED",
+        "value": "0"
+      },
+      {
+        "name": "TF_DETERMINISTIC_OPS",
+        "value": "1"
+      }
+    ],
+    "started": "2026-09-12T05:45:40.608Z",
+    "ended": "2026-09-12T05:45:52.459Z",
+    "exitCode": 0
+  },
+  {
+    "id": "parity",
+    "argv": [
+      "-I",
+      "-B",
+      "-m",
+      "soundscaper_m7_conversion",
+      "parity",
+      "--protocol",
+      "soundscaper-model-conversion-v1",
+      "--candidate",
+      "beat-this",
+      "--plan-sha256",
+      "638546ecced289b8c4c95659321bcf2966ff2438a6d0f44079e0b5fea76ef2e0",
+      "--fixture",
+      "parity-fixture.bin",
+      "--source-runs",
+      "source-framework-runs",
+      "--converted-manifest",
+      "converted-artifacts.json",
+      "--evidence",
+      "parity-evidence.json",
+      "--source-manifest",
+      "source-input-manifest.json",
+      "--toolchain-lock",
+      "uv.lock",
+      "--toolchain-sha256",
+      "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"
+    ],
+    "program": "/home/splowatt/git/Soundscaper/.native-build/model-conversion/.venv/bin/python",
+    "environment": [
+      {
+        "name": "CUBLAS_WORKSPACE_CONFIG",
+        "value": ":4096:8"
+      },
+      {
+        "name": "CUDA_VISIBLE_DEVICES",
+        "value": ""
+      },
+      {
+        "name": "MKL_NUM_THREADS",
+        "value": "1"
+      },
+      {
+        "name": "OMP_NUM_THREADS",
+        "value": "1"
+      },
+      {
+        "name": "OPENBLAS_NUM_THREADS",
+        "value": "1"
+      },
+      {
+        "name": "PYTHONHASHSEED",
+        "value": "0"
+      },
+      {
+        "name": "TF_DETERMINISTIC_OPS",
+        "value": "1"
+      }
+    ],
+    "started": "2026-09-12T05:45:52.460Z",
+    "ended": "2026-09-12T05:45:57.772Z",
+    "exitCode": 0
+  }
+]

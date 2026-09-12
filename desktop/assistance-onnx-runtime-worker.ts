@@ -187,8 +187,8 @@ async function executeTransNetV2(
 				completedBatches += 1;
 				context.onProgress(completedBatches / (batchCount + 1));
 				return Object.freeze({
-					singleFrame: output.single_frame_logits,
-					allFrame: output.all_frame_logits,
+					singleFrame: outputTensorFields(output.single_frame_logits),
+					allFrame: outputTensorFields(output.all_frame_logits),
 				});
 			},
 		});
@@ -341,6 +341,14 @@ function tensor(
 		throw new TypeError('The reviewed TransNetV2 graph requires uint8 CPU input.');
 	}
 	return new runtime.Tensor('uint8', batch.data, batch.dims);
+}
+
+function outputTensorFields(value: AssistanceOnnxTensorV1 | undefined): AssistanceOnnxTensorV1 {
+	if (!value || typeof value !== 'object') {
+		throw new TypeError('The TransNetV2 runtime returned a missing output tensor.');
+	}
+	// Runtime tensors carry storage metadata; the domain validates these three payload fields.
+	return Object.freeze({ type: value.type, dims: value.dims, data: value.data });
 }
 
 async function loadOnnxRuntime(entrypoint: string): Promise<AssistanceOnnxRuntimeModuleV1> {

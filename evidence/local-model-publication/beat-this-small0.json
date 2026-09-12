@@ -1,0 +1,20 @@
+{
+	"schemaVersion": 1,
+	"checkedAt": "2026-09-12T05:48:13.575Z",
+	"modelId": "beat-this-small0",
+	"version": "1.1.0",
+	"checks": [
+		"public-head",
+		"byte-range",
+		"cors",
+		"full-sha256"
+	],
+	"artifacts": [
+		{
+			"fileName": "beat-this-small0.onnx",
+			"byteLength": 10569824,
+			"sha256": "8e649b7f764873863ddef0115cf121308ef461b70e7a015a3461edf6f8552471",
+			"url": "https://assets.soundscaper.org/models/beat-this-small0/1.1.0/beat-this-small0.onnx"
+		}
+	]
+}

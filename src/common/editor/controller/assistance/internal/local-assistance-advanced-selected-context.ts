@@ -19,6 +19,7 @@ import {
 	prepareLocalAssistanceGuidedTranscriptInput,
 } from './guided/local-assistance-guided-transcript-context.ts';
 import { enumValue, exactRecord, id, text } from '../local-assistance-prepared-media.ts';
+import { prepareLocalAssistanceAlignmentContext } from './local-assistance-alignment-context.ts';
 
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
 const MEDIA_KINDS = Object.freeze([
@@ -100,7 +101,7 @@ export function createLocalAssistanceAdvancedSelectedContextPreparation<
 			if (context !== null) {
 				if (context.transcript !== null) {
 					admitted.add('text-embedding');
-					if (source.mediaKind === 'audio'
+					if (context.alignment !== null && source.mediaKind === 'audio'
 						&& source.operations.includes('word-alignment')) admitted.add('word-alignment');
 				}
 				if (context.editorial !== null) admitted.add('editorial-generation');
@@ -134,7 +135,7 @@ export function createLocalAssistanceAdvancedSelectedContextPreparation<
 			throw new LocalAssistanceAdvancedContextUnavailableError();
 		}
 		if (request.operation === 'word-alignment') {
-			if (context.transcript === null) throw new LocalAssistanceAdvancedContextUnavailableError();
+			if (context.alignment === null) throw new LocalAssistanceAdvancedContextUnavailableError();
 			const base = dataRecord(await dependencies.selected.prepareSelectedMedia(request),
 				'Advanced alignment audio preparation');
 			if (!Array.isArray(base.inputs)
@@ -142,8 +143,8 @@ export function createLocalAssistanceAdvancedSelectedContextPreparation<
 				throw new TypeError('Advanced alignment requires one uncomposed selected-audio preparation.');
 			}
 			return Object.freeze({ ...base, inputs: Object.freeze([...base.inputs, Object.freeze({
-				role: 'transcript' as const, mediaType: context.transcript.mediaType,
-				bytes: context.transcript.bytes,
+				role: 'transcript' as const, mediaType: context.alignment.mediaType,
+				bytes: context.alignment.bytes,
 			})]) });
 		}
 		const input = request.operation === 'text-embedding' ? context.transcript : context.editorial;
@@ -171,6 +172,7 @@ export function createLocalAssistanceAdvancedSelectedContextPreparation<
 		sourceId: string;
 		fence: AssistanceSelectionFence;
 		transcript: Awaited<ReturnType<typeof prepareLocalAssistanceGuidedTranscriptInput>>;
+		alignment: Awaited<ReturnType<typeof prepareLocalAssistanceAlignmentContext>>;
 		editorial: Awaited<ReturnType<typeof prepareLocalAssistanceGuidedEditorialContext>>;
 	}> | null> {
 		if (!dependencies.loadTranscriptBody) return null;
@@ -187,7 +189,10 @@ export function createLocalAssistanceAdvancedSelectedContextPreparation<
 			prepareLocalAssistanceGuidedEditorialContext(options),
 		]);
 		if (transcript === null && editorial === null) return null;
-		return Object.freeze({ sourceId: fence.sourceId, fence, transcript, editorial });
+		const alignment = transcript === null || !inventory.sources.some((source) =>
+			source.sourceId === sourceId && source.mediaKind === 'audio') ? null
+			: await prepareLocalAssistanceAlignmentContext(transcript, project.sampleRate);
+		return Object.freeze({ sourceId: fence.sourceId, fence, transcript, alignment, editorial });
 	}
 
 	return Object.freeze({ ...dependencies.selected, listSelectedMedia, prepareSelectedMedia }) as

@@ -1,0 +1,20 @@
+{
+	"schemaVersion": 1,
+	"checkedAt": "2026-09-12T05:48:11.088Z",
+	"modelId": "panns-cnn10",
+	"version": "1.0.0",
+	"checks": [
+		"public-head",
+		"byte-range",
+		"cors",
+		"full-sha256"
+	],
+	"artifacts": [
+		{
+			"fileName": "panns-cnn10.onnx",
+			"byteLength": 25217285,
+			"sha256": "b6aec410d3be2764228e910fabd7f853dd7309d2454f595a6c3f7422b4c56e24",
+			"url": "https://assets.soundscaper.org/models/panns-cnn10/1.0.0/panns-cnn10.onnx"
+		}
+	]
+}

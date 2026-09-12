@@ -1,0 +1,250 @@
+{
+  "schemaVersion": 1,
+  "candidateId": "beat-this",
+  "executionPlanSha256": "e4b830f692597a207c7659640c0c2df528431ead3485da016b94c241ccd25561",
+  "toolchain": {
+    "lockFile": "scripts/models/milestone-7-conversion-tool/uv.lock",
+    "sha256": "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"
+  },
+  "sourceCodeArchive": {
+    "path": "inputs/beat-this-ad7974846029835307ba19a3d5cefbf40b243041.tar.gz",
+    "byteLength": 4937860,
+    "sha256": "06260c766f4770f98557b11f3f6b780ccb567297f90e1b2ce322a93f537bfa69"
+  },
+  "sourceArtifacts": [
+    {
+      "role": "small0-checkpoint",
+      "path": "inputs/small0.ckpt",
+      "byteLength": 8451101,
+      "sha256": "6074be2c4d490c5f6101fcc374a1ec72ae93456e23bb6019783b849f5dc7d47b"
+    },
+    {
+      "role": "final0-checkpoint",
+      "path": "inputs/final0.ckpt",
+      "byteLength": 81058141,
+      "sha256": "8c328b45f59d8dd3dff219253ff6a8d6482be57d0133a29140e2febbf8eb8331"
+    }
+  ],
+  "commandRuns": [
+    {
+      "id": "convert",
+      "commandSha256": "bcc51d0ac701939b0c2e26ce16c345cb92b1850aa1ccdadd220d4870ef4d0d43",
+      "exitCode": 0,
+      "stdout": {
+        "path": "convert.stdout.log",
+        "byteLength": 470,
+        "sha256": "297a84ba4d573edfab3f4221a6af3f51cd13130ae49c532ccdad6bcac4d9d715"
+      },
+      "stderr": {
+        "path": "convert.stderr.log",
+        "byteLength": 3745,
+        "sha256": "1c2c291aed2eb50fb7389ed23da5987b0c8c08b8316d2cefebafde2e9d670656"
+      }
+    },
+    {
+      "id": "parity",
+      "commandSha256": "8845c84313a5bc0422b67a2328062c862e902204b87a1d4c44157a16964dc5c1",
+      "exitCode": 0,
+      "stdout": {
+        "path": "parity.stdout.log",
+        "byteLength": 100,
+        "sha256": "e1e8b7342c6baeab909e8924fb1cb73cef77cf7eaf5e1aaacf4b0a42ff25878d"
+      },
+      "stderr": {
+        "path": "parity.stderr.log",
+        "byteLength": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ],
+  "convertedArtifacts": [
+    {
+      "role": "small0-network",
+      "path": "beat-this-small0.onnx",
+      "byteLength": 10569824,
+      "sha256": "8e649b7f764873863ddef0115cf121308ef461b70e7a015a3461edf6f8552471"
+    },
+    {
+      "role": "final0-network",
+      "path": "beat-this-final0.onnx",
+      "byteLength": 83176882,
+      "sha256": "62e8445705e1ea0cdf20bf15e02a58f40aa1f1c3d1369291ebc72739425d0128"
+    }
+  ],
+  "parityEvidence": {
+    "candidateId": "beat-this",
+    "comparisons": [
+      {
+        "baseline": "source-pytorch",
+        "candidate": "onnxruntime-cpu",
+        "maximum": 0.0001,
+        "metric": "maximum-absolute-error",
+        "observed": 0.000025272369384765625,
+        "outputRole": "beat-logits"
+      },
+      {
+        "baseline": "source-pytorch",
+        "candidate": "onnxruntime-cpu",
+        "maximum": 0.0001,
+        "metric": "maximum-absolute-error",
+        "observed": 0.0000209808349609375,
+        "outputRole": "downbeat-logits"
+      },
+      {
+        "baseline": "source-pytorch",
+        "candidate": "onnxruntime-cpu",
+        "maximum": 0,
+        "metric": "symmetric-index-difference",
+        "observed": 0,
+        "outputRole": "beat-points"
+      },
+      {
+        "baseline": "source-pytorch",
+        "candidate": "onnxruntime-cpu",
+        "maximum": 0,
+        "metric": "symmetric-index-difference",
+        "observed": 0,
+        "outputRole": "downbeat-points"
+      },
+      {
+        "baseline": "source-pytorch",
+        "candidate": "onnxruntime-cpu",
+        "maximum": 0.0001,
+        "metric": "maximum-absolute-error",
+        "observed": 0.000023186206817626953,
+        "outputRole": "final0-beat-logits"
+      },
+      {
+        "baseline": "source-pytorch",
+        "candidate": "onnxruntime-cpu",
+        "maximum": 0.0001,
+        "metric": "maximum-absolute-error",
+        "observed": 0.000026047229766845703,
+        "outputRole": "final0-downbeat-logits"
+      },
+      {
+        "baseline": "source-pytorch",
+        "candidate": "onnxruntime-cpu",
+        "maximum": 0,
+        "metric": "symmetric-index-difference",
+        "observed": 0,
+        "outputRole": "final0-beat-points"
+      },
+      {
+        "baseline": "source-pytorch",
+        "candidate": "onnxruntime-cpu",
+        "maximum": 0,
+        "metric": "symmetric-index-difference",
+        "observed": 0,
+        "outputRole": "final0-downbeat-points"
+      }
+    ],
+    "convertedArtifacts": [
+      {
+        "byteLength": 10569824,
+        "role": "small0-network",
+        "sha256": "8e649b7f764873863ddef0115cf121308ef461b70e7a015a3461edf6f8552471"
+      },
+      {
+        "byteLength": 83176882,
+        "role": "final0-network",
+        "sha256": "62e8445705e1ea0cdf20bf15e02a58f40aa1f1c3d1369291ebc72739425d0128"
+      }
+    ],
+    "fixtureId": "beat-this-parity-v1",
+    "recipeVersion": 1,
+    "runs": [
+      {
+        "framework": "source-pytorch",
+        "outputs": [
+          {
+            "byteLength": 1604,
+            "role": "beat-logits",
+            "sha256": "5fa4d52b690ef7a8e64556ed5de2105cc3eecbbba8007acb6a1a2de341becae7"
+          },
+          {
+            "byteLength": 1604,
+            "role": "downbeat-logits",
+            "sha256": "5782646b854373f4cb03e42186acc900c270f3a2dc6ba170234c0d17dca70b24"
+          },
+          {
+            "byteLength": 136,
+            "role": "beat-points",
+            "sha256": "1fd5b3d7533551a5fd96e7c0a6a9ea36718778c9b3212bc96ef9bf4520952dfb"
+          },
+          {
+            "byteLength": 64,
+            "role": "downbeat-points",
+            "sha256": "07c3be8f7eb96bc5a5b0d8193da2af33da2ff7512c1c8ca7a9a280c2c8849ad3"
+          },
+          {
+            "byteLength": 1604,
+            "role": "final0-beat-logits",
+            "sha256": "7eee594833bd51aa472c3109ff3dcd72ddf07a5a0436f263e2afd09da1f85028"
+          },
+          {
+            "byteLength": 1604,
+            "role": "final0-downbeat-logits",
+            "sha256": "ff54d00dd2f4098ec02a0ecdbc32c2125a08233b2531a8684a082c8d10ccda18"
+          },
+          {
+            "byteLength": 136,
+            "role": "final0-beat-points",
+            "sha256": "9750839a21f33baccff2a66dc585c12d7bea28fa0735a4667251e24965a85ed5"
+          },
+          {
+            "byteLength": 136,
+            "role": "final0-downbeat-points",
+            "sha256": "9750839a21f33baccff2a66dc585c12d7bea28fa0735a4667251e24965a85ed5"
+          }
+        ]
+      },
+      {
+        "framework": "onnxruntime-cpu",
+        "outputs": [
+          {
+            "byteLength": 1604,
+            "role": "beat-logits",
+            "sha256": "d8d8c24e177b15cf16e5edf252a8712a2663dc777b123983c2ea2e9d86f692db"
+          },
+          {
+            "byteLength": 1604,
+            "role": "downbeat-logits",
+            "sha256": "d71c2ecd7f5a6eaa5b61d516c86cf7c202c438bd0171208ebb13f6083bcbf844"
+          },
+          {
+            "byteLength": 136,
+            "role": "beat-points",
+            "sha256": "1fd5b3d7533551a5fd96e7c0a6a9ea36718778c9b3212bc96ef9bf4520952dfb"
+          },
+          {
+            "byteLength": 64,
+            "role": "downbeat-points",
+            "sha256": "07c3be8f7eb96bc5a5b0d8193da2af33da2ff7512c1c8ca7a9a280c2c8849ad3"
+          },
+          {
+            "byteLength": 1604,
+            "role": "final0-beat-logits",
+            "sha256": "25433e4285bd5111fec4d5f67201d147f2d4112a2464aef6dec07b35c82814ab"
+          },
+          {
+            "byteLength": 1604,
+            "role": "final0-downbeat-logits",
+            "sha256": "8b83cfae87cc4b5c8e7006b0f6f4a7b72abd729cec439d6323f2b29bcc1f1aae"
+          },
+          {
+            "byteLength": 136,
+            "role": "final0-beat-points",
+            "sha256": "9750839a21f33baccff2a66dc585c12d7bea28fa0735a4667251e24965a85ed5"
+          },
+          {
+            "byteLength": 136,
+            "role": "final0-downbeat-points",
+            "sha256": "9750839a21f33baccff2a66dc585c12d7bea28fa0735a4667251e24965a85ed5"
+          }
+        ]
+      }
+    ],
+    "schemaVersion": 1
+  }
+}
