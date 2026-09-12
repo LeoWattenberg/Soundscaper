@@ -2,11 +2,12 @@
 
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 
 import {
-	NIGHTLY_ASSISTANCE_HOST_FLAG, resolveNightlyAssistanceHostPlan, startNightlyAssistanceHost,
+	NIGHTLY_ASSISTANCE_DOCUMENT_URL, NIGHTLY_ASSISTANCE_HOST_FLAG,
+	NIGHTLY_ASSISTANCE_SCHEME, registerNightlyAssistanceScheme,
+	resolveNightlyAssistanceHostPlan, startNightlyAssistanceHost,
 } from '../desktop/nightly-tests-assistance-host.mjs';
 
 const ARGV = [NIGHTLY_ASSISTANCE_HOST_FLAG, '--user-data-dir=/tmp/model-profile',
@@ -30,11 +31,23 @@ test('the diagnostic host requires explicit model mode, an isolated profile, and
 	assert.throws(() => resolveNightlyAssistanceHostPlan({ ...options, argv: ARGV.map((arg) => arg.replace('=/tmp/model-profile', '=relative')) }), /absolute/u);
 });
 
+test('the diagnostic document scheme is registered before Electron becomes ready', () => {
+	let registrations;
+	registerNightlyAssistanceScheme({ registerSchemesAsPrivileged: (value) => { registrations = value; } });
+	assert.deepEqual(registrations, [{
+		scheme: NIGHTLY_ASSISTANCE_SCHEME,
+		privileges: { standard: true, secure: true },
+	}]);
+});
+
 test('the isolated host uses production registration and preload with guarded real IPC', async () => {
 	let window;
 	let registration;
 	let windowOptions;
+	let documentHandler;
+	let loadedUrl;
 	let removed = 0;
+	let protocolRemoved = 0;
 	const verifiedFiles = [];
 	const handlers = new Map();
 	const mainFrame = { url: '' };
@@ -45,12 +58,16 @@ test('the isolated host uses production registration and preload with guarded re
 				on: () => undefined, session: { setPermissionRequestHandler: () => undefined } };
 		}
 		on() {}
-		async loadFile(path) { mainFrame.url = pathToFileURL(path).href; }
+		async loadURL(url) { loadedUrl = url; mainFrame.url = url; }
 	}
 	const hosted = await startNightlyAssistanceHost({
 		app: { setPath: () => undefined, whenReady: async () => undefined }, BrowserWindow: Window,
 		ipcMain: { handle: (channel, listener) => handlers.set(channel, listener),
 			on: () => undefined, removeHandler: () => { removed += 1; }, removeListener: () => undefined },
+		session: { defaultSession: { protocol: {
+			handle: (scheme, handler) => { assert.equal(scheme, NIGHTLY_ASSISTANCE_SCHEME); documentHandler = handler; },
+			unhandle: (scheme) => { assert.equal(scheme, NIGHTLY_ASSISTANCE_SCHEME); protocolRemoved += 1; },
+		} } },
 	}, {
 		argv: ARGV, environment: ENVIRONMENT, access: async (path) => { verifiedFiles.push(path); }, mkdir: async () => undefined,
 		loadProductModules: async () => ({ IPC: {}, registerAssistance: (options) => {
@@ -60,6 +77,13 @@ test('the isolated host uses production registration and preload with guarded re
 		} }),
 	});
 	assert.equal(windowOptions.webPreferences.preload, hosted.plan.preload);
+	assert.equal(loadedUrl, NIGHTLY_ASSISTANCE_DOCUMENT_URL);
+	const documentResponse = await documentHandler({ method: 'GET', url: NIGHTLY_ASSISTANCE_DOCUMENT_URL });
+	assert.equal(documentResponse.status, 200);
+	assert.equal(documentResponse.headers.get('content-type'), 'text/html; charset=utf-8');
+	assert.match(await documentResponse.text(), /Local assistance real model tests/u);
+	assert.equal((await documentHandler({ method: 'GET', url: `${NIGHTLY_ASSISTANCE_DOCUMENT_URL}missing` })).status, 404);
+	assert.equal((await documentHandler({ method: 'POST', url: NIGHTLY_ASSISTANCE_DOCUMENT_URL })).status, 405);
 	assert.deepEqual(verifiedFiles, [hosted.plan.preload], 'Electron can access archive entries, not the empty archive root');
 	for (const key of ['contextIsolation', 'sandbox', 'webSecurity']) assert.equal(windowOptions.webPreferences[key], true);
 	assert.equal(windowOptions.webPreferences.nodeIntegration, false);
@@ -76,6 +100,7 @@ test('the isolated host uses production registration and preload with guarded re
 	await hosted.dispose();
 	await hosted.dispose();
 	assert.equal(removed, 1);
+	assert.equal(protocolRemoved, 1);
 });
 
 test('production assistance keeps its real runtime root as the default and no test consent branch', async () => {

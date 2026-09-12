@@ -70,8 +70,8 @@ export async function launchModelTestElectron({ testInfo, productId = 'framescap
 		const page = context.pages()[0] ?? await context.waitForEvent('page', {
 			timeout: STARTUP_TIMEOUT_MS,
 		});
-		await page.waitForURL((url) => url.protocol === 'file:'
-			&& url.pathname.endsWith('/nightly-tests-assistance.html'), {
+		await page.waitForURL((url) => url.protocol === 'soundscaper-nightly-assistance:'
+			&& url.hostname === 'host' && url.pathname === '/', {
 			timeout: STARTUP_TIMEOUT_MS,
 		});
 		await page.waitForFunction(() =>

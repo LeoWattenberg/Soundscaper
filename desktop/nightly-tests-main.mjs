@@ -10,10 +10,15 @@ import {
 	resolveDesktopNightlyTestsPresentation,
 } from '../scripts/lib/desktop-nightly-tests-presentation.mjs';
 import { runDesktopNightlyTests } from '../scripts/lib/desktop-nightly-tests-runtime.mjs';
-import { NIGHTLY_ASSISTANCE_HOST_FLAG, startNightlyAssistanceHost } from './nightly-tests-assistance-host.mjs';
+import {
+	NIGHTLY_ASSISTANCE_HOST_FLAG,
+	registerNightlyAssistanceScheme,
+	startNightlyAssistanceHost,
+} from './nightly-tests-assistance-host.mjs';
 
 const { app, dialog } = electron;
 if (process.argv.includes(NIGHTLY_ASSISTANCE_HOST_FLAG)) {
+	registerNightlyAssistanceScheme(electron.protocol);
 	void startNightlyAssistanceHost(electron).catch((error) => { console.error(error); app.exit(2); });
 } else void startNightlyTests();
 

@@ -1,12 +1,24 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { access, mkdir } from 'node:fs/promises';
+import { access, mkdir, readFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { resolvePackagedProductExecutable } from '../scripts/lib/desktop-nightly-tests-packaged-runtime.mjs';
 
 export const NIGHTLY_ASSISTANCE_HOST_FLAG = '--soundscaper-nightly-assistance-host';
+export const NIGHTLY_ASSISTANCE_SCHEME = 'soundscaper-nightly-assistance';
+export const NIGHTLY_ASSISTANCE_DOCUMENT_URL = `${NIGHTLY_ASSISTANCE_SCHEME}://host/`;
+
+export function registerNightlyAssistanceScheme(protocolApi) {
+	if (typeof protocolApi?.registerSchemesAsPrivileged !== 'function') {
+		throw new TypeError('The nightly assistance protocol API is unavailable.');
+	}
+	protocolApi.registerSchemesAsPrivileged([{
+		scheme: NIGHTLY_ASSISTANCE_SCHEME,
+		privileges: { standard: true, secure: true },
+	}]);
+}
 
 export function resolveNightlyAssistanceHostPlan({ argv, environment, platform = process.platform, arch = process.arch }) {
 	if (!argv.includes(NIGHTLY_ASSISTANCE_HOST_FLAG) || environment.SOUNDSCAPER_LOCAL_ASSISTANCE_REAL_MODELS !== '1') {
@@ -37,7 +49,7 @@ export function resolveNightlyAssistanceHostPlan({ argv, environment, platform =
 }
 
 /** This host is packaged only in the diagnostic launcher, never in either editor. */
-export async function startNightlyAssistanceHost({ app, BrowserWindow, ipcMain }, dependencies = {}) {
+export async function startNightlyAssistanceHost({ app, BrowserWindow, ipcMain, session }, dependencies = {}) {
 	const plan = resolveNightlyAssistanceHostPlan({
 		argv: dependencies.argv ?? process.argv, environment: dependencies.environment ?? process.env,
 	});
@@ -45,9 +57,15 @@ export async function startNightlyAssistanceHost({ app, BrowserWindow, ipcMain }
 	// Electron treats an archive root as its virtual directory, whose empty entry
 	// cannot be passed to fs.access. Check readability through its preload entry.
 	await verifyFile(plan.preload);
+	const documentBody = await (dependencies.readFile ?? readFile)(plan.document);
 	await (dependencies.mkdir ?? mkdir)(plan.profile, { recursive: true, mode: 0o700 });
 	app.setPath('userData', plan.profile);
 	await app.whenReady();
+	const documentProtocol = session?.defaultSession?.protocol;
+	if (typeof documentProtocol?.handle !== 'function' || typeof documentProtocol.unhandle !== 'function') {
+		throw new TypeError('The nightly assistance session protocol is unavailable.');
+	}
+	documentProtocol.handle(NIGHTLY_ASSISTANCE_SCHEME, createDocumentHandler(documentBody));
 	const { registerAssistance, IPC } = await (dependencies.loadProductModules ?? loadProductModules)(plan.productApp);
 	const window = new BrowserWindow({
 		width: 960, height: 640, show: false,
@@ -59,7 +77,7 @@ export async function startNightlyAssistanceHost({ app, BrowserWindow, ipcMain }
 			backgroundThrottling: false,
 		},
 	});
-	const documentUrl = pathToFileURL(plan.document).href;
+	const documentUrl = NIGHTLY_ASSISTANCE_DOCUMENT_URL;
 	const assertSender = (event) => {
 		if (event.sender !== window.webContents || !event.senderFrame
 			|| event.senderFrame !== window.webContents.mainFrame || event.senderFrame.url !== documentUrl) {
@@ -109,10 +127,36 @@ export async function startNightlyAssistanceHost({ app, BrowserWindow, ipcMain }
 		await assistance.dispose();
 		for (const channel of handled) ipcMain.removeHandler(channel);
 		for (const [channel, listener] of listeners) ipcMain.removeListener(channel, listener);
+		documentProtocol.unhandle(NIGHTLY_ASSISTANCE_SCHEME);
 	};
 	window.on('closed', () => { void dispose().then(() => app.exit(0), (error) => { console.error(error); app.exit(2); }); });
-	await window.loadFile(plan.document);
+	try {
+		await window.loadURL(documentUrl);
+	} catch (error) {
+		await dispose();
+		throw error;
+	}
 	return Object.freeze({ window, dispose, plan });
+}
+
+function createDocumentHandler(documentBody) {
+	if (!(documentBody instanceof Uint8Array)) throw new TypeError('The nightly assistance document is not binary data.');
+	return (request) => {
+		if (request.method !== 'GET') {
+			return new Response(null, { status: 405, headers: { Allow: 'GET' } });
+		}
+		if (request.url !== NIGHTLY_ASSISTANCE_DOCUMENT_URL) return new Response(null, { status: 404 });
+		return new Response(documentBody, {
+			status: 200,
+			headers: {
+				'Cache-Control': 'no-store',
+				'Content-Length': String(documentBody.byteLength),
+				'Content-Security-Policy': "default-src 'none'; img-src data:; base-uri 'none'; form-action 'none'",
+				'Content-Type': 'text/html; charset=utf-8',
+				'X-Content-Type-Options': 'nosniff',
+			},
+		});
+	};
 }
 
 async function loadProductModules(productApp) {

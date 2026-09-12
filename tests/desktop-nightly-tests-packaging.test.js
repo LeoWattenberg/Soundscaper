@@ -112,11 +112,18 @@ test('the production package keeps RunAsNode disabled and excludes the nightly p
 
 test('the nightly test launcher delegates to the pure runtime and never opens an editor window', async () => {
 	const source = await readFile(resolve(ROOT, 'desktop/nightly-tests-main.mjs'), 'utf8');
+	const schemeRegistration = source.indexOf('\tregisterNightlyAssistanceScheme(electron.protocol);');
+	const assistanceStart = source.indexOf('\tvoid startNightlyAssistanceHost(electron)');
+	const readyWait = source.indexOf('\tawait app.whenReady();');
 
 	assert.match(source, /runDesktopNightlyTests/u);
 	assert.match(source, /readDesktopNightlyTestsSourceRevision/u);
 	assert.match(source, /scripts\/lib\/desktop-nightly-tests-runtime\.mjs/u);
 	assert.match(source, /await app\.whenReady\(\)/u);
+	assert.ok(schemeRegistration >= 0 && schemeRegistration < assistanceStart,
+		'the privileged assistance scheme must be registered before its host starts');
+	assert.ok(schemeRegistration < readyWait,
+		'the privileged assistance scheme must be registered before Electron can become ready');
 	assert.match(source, /process\.resourcesPath/u);
 	assert.match(source, /sourceRevision/u);
 	assert.match(source, /app\.exit/u);
