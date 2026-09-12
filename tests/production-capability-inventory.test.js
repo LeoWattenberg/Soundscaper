@@ -57,9 +57,9 @@ test('product release metadata is descriptive and contains no admission state', 
 		stableTarget: soundscaperLine.stable.version,
 	});
 	assert.deepEqual(inventory.products.framescaper.release, {
-		softwareStatus: 'pre-release-deferred',
-		channel: 'deferred',
-		candidateVersion: '1.0.0-rc.1',
+		softwareStatus: 'pre-release',
+		channel: releaseLines.products.framescaper.releaseChannel,
+		candidateVersion: releaseLines.products.framescaper.candidate.version,
 		stableTarget: null,
 	});
 	assert.doesNotMatch(JSON.stringify(inventory.productVersions), /admission/iu);
