@@ -14,6 +14,7 @@ import recipe from '../config/assistance-sherpa-win-arm64-build.json' with { typ
 import { assistanceNativeRuntimeStageSummary } from '../desktop/assistance-native-runtime-payload.mjs';
 import {
 	assertArm64PortableExecutable,
+	desktopSherpaArm64NativeArchiveArgs,
 	desktopSherpaArm64BuildPlan,
 	prepareDesktopAssistanceSherpaArm64,
 	validateDesktopAssistanceSherpaArm64BuildReceipt,
@@ -77,6 +78,19 @@ test('Sherpa ARM64 build explicitly targets ARM64 from a Windows host', async ()
 	assert.ok(plan.buildArgs.includes('sherpa-onnx'));
 	assert.throws(() => desktopSherpaArm64BuildPlan({ targetId: 'win-x64', platform: 'win32' }), /win-arm64/u);
 	await assert.rejects(prepareDesktopAssistanceSherpaArm64({ targetId: 'win-arm64', platform: 'linux' }), /Windows package runner/u);
+});
+
+test('Sherpa ARM64 native extraction treats a Windows drive path as a local archive', () => {
+	assert.deepEqual(
+		desktopSherpaArm64NativeArchiveArgs(
+			String.raw`C:\a\_temp\sherpa-native.tar.bz2`,
+			String.raw`C:\a\_temp\native`,
+		),
+		[
+			'--force-local', '-xf', String.raw`C:\a\_temp\sherpa-native.tar.bz2`,
+			'-C', String.raw`C:\a\_temp\native`, '--strip-components=1',
+		],
+	);
 });
 
 test('Sherpa ARM64 build receipt preserves every existing package and binds exact source and recipe pins', async () => {

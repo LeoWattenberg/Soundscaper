@@ -31,6 +31,10 @@ export function desktopSherpaArm64BuildPlan({ targetId, platform = process.platf
 	};
 }
 
+export function desktopSherpaArm64NativeArchiveArgs(archive, destination) {
+	return ['--force-local', '-xf', archive, '-C', destination, '--strip-components=1'];
+}
+
 export function validateDesktopAssistanceSherpaArm64BuildReceipt(value) {
 	if (!value || value.schemaVersion !== 1 || value.targetId !== TARGET || !value.manifest || !value.provenance) {
 		throw new TypeError('The Sherpa ARM64 build receipt identity is invalid.');
@@ -97,7 +101,9 @@ export async function prepareDesktopAssistanceSherpaArm64({
 			(path) => path.startsWith('include/node/') && path.endsWith('.h'));
 		await extractFiles(downloads.get('node-addon-api'), nodeApi, () => true);
 		await mkdir(native);
-		await command('tar', ['-xf', downloads.get('sherpa-native'), '-C', native, '--strip-components=1'], work);
+		await command('tar', desktopSherpaArm64NativeArchiveArgs(
+			downloads.get('sherpa-native'), native,
+		), work);
 		for (const name of DLLS) assertArm64PortableExecutable(await readFile(join(native, 'lib', name)));
 		const build = join(work, 'compiled');
 		const cmakeRoot = join(repositoryRoot, 'native', 'assistance-sherpa-node-api');
