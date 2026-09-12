@@ -23,16 +23,16 @@ test('product release lines select versions without an admission state machine',
 	const soundscaper = RELEASE_LINES.products.soundscaper;
 	assert.equal(resolveProductApplicationVersion('soundscaper', RELEASE_LINES),
 		soundscaper[soundscaper.applicationVersionChannel].version);
-	assert.equal(resolveProductApplicationVersion('framescaper', RELEASE_LINES), '1.0.0-rc.4');
+	assert.equal(resolveProductApplicationVersion('framescaper', RELEASE_LINES), '1.0.0-rc.5');
 	assert.equal(expectedProductReleaseTag('soundscaper', RELEASE_LINES, 'candidate'),
 		`soundscaper-v${soundscaper.candidate.version}`);
 	assert.equal(expectedProductReleaseTag('soundscaper', RELEASE_LINES, 'stable'),
 		'v1.0.0');
 	assert.equal(RELEASE_LINES.products.framescaper.releaseChannel, 'candidate');
-	assert.deepEqual(resolveProductReleaseTag('framescaper-v1.0.0-rc.4', RELEASE_LINES), {
+	assert.deepEqual(resolveProductReleaseTag('framescaper-v1.0.0-rc.5', RELEASE_LINES), {
 		productId: 'framescaper',
 		channel: 'candidate',
-		version: '1.0.0-rc.4',
+		version: '1.0.0-rc.5',
 	});
 	assert.throws(() => resolveProductReleaseTag('v1.0.0', RELEASE_LINES), /not active/iu);
 	assert.doesNotMatch(JSON.stringify(RELEASE_LINES), /admission|status/iu);
@@ -45,7 +45,7 @@ test('the resolver supports divergent product versions without package metadata'
 	divergent.products.soundscaper.candidate.version = '1.0.0-rc.2';
 	const validated = validateProductReleaseLines(divergent);
 	assert.equal(resolveProductApplicationVersion('soundscaper', validated), '1.0.0-rc.2');
-	assert.equal(resolveProductApplicationVersion('framescaper', validated), '1.0.0-rc.4');
+	assert.equal(resolveProductApplicationVersion('framescaper', validated), '1.0.0-rc.5');
 	assert.deepEqual(resolveProductDesktopMetadata('soundscaper', validated), {
 		schemaVersion: 1,
 		id: 'soundscaper',
