@@ -41,8 +41,8 @@ test('the container demuxer reads the pinned CFR MP4 timing exactly', async () =
 		'a constant-rate track has one coded rate, and 12800/512 is exactly 25/1');
 	assert.deepEqual(result.characteristics, {
 		backend: 'container',
-		codedWidth: 32,
-		codedHeight: 24,
+		codedWidth: 192,
+		codedHeight: 144,
 		rotationDegrees: null,
 		pixelAspectRatio: { num: 1, den: 1 },
 		fieldOrder: null,

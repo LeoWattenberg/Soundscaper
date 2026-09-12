@@ -79,8 +79,8 @@ test.describe('3B-2b source display geometry qualification', () => {
 		await editor.getByRole('button', { name: 'Source properties', exact: true }).focus();
 		await page.keyboard.press('Enter');
 		const properties = page.getByRole('dialog', { name: 'Source properties', exact: true });
-		await expect(properties.locator('[data-source-property="Coded size"] dd')).toHaveText('32 × 24');
-		await expect(properties.locator('[data-source-property="Display size"] dd')).toHaveText('24 × 64');
+		await expect(properties.locator('[data-source-property="Coded size"] dd')).toHaveText('192 × 144');
+		await expect(properties.locator('[data-source-property="Display size"] dd')).toHaveText('144 × 384');
 		await expect(properties.locator('[data-source-note]')).toHaveCount(0);
 	});
 

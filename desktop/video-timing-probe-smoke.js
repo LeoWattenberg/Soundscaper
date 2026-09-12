@@ -15,7 +15,7 @@ const EXPECTED_FIXTURES = Object.freeze([
 		id: 'cfr-25fps-mp4-v1',
 		kind: 'cfr',
 		name: 'timing-probe-cfr-25fps.mp4',
-		sourceSha256: '28978274c947a886046d7f7bd42f836fb7de2556dc9bac239d950b273b283140',
+		sourceSha256: '216d2748682d236b45fc6c0712be44acdd4d0b14aa3e714cc67153dcc82a79e2',
 		nominalRate: Object.freeze({ num: 25, den: 1 }),
 		timescale: 12_800,
 		presentationTicks: Object.freeze(Array.from({ length: 22 }, (_value, index) => String(index * 512))),

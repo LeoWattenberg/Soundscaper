@@ -17,12 +17,12 @@ test('the pinned decoder reads an upright frame without relying on browser compo
 	assert.ok(ROTATED_ANAMORPHIC);
 	const decoded = await decodePinnedVideoRgbFrame(ROTATED_ANAMORPHIC.file.buffer);
 
-	assert.deepEqual({ width: decoded.width, height: decoded.height }, { width: 24, height: 32 });
+	assert.deepEqual({ width: decoded.width, height: decoded.height }, { width: 144, height: 192 });
 	assert.equal(decoded.rgb.byteLength, decoded.width * decoded.height * 3);
-	assert.deepEqual(readRgbPixel(decoded, { x: 6, y: 8 }), [0, 253, 0]);
-	assert.deepEqual(readRgbPixel(decoded, { x: 18, y: 8 }), [253, 253, 253]);
-	assert.deepEqual(readRgbPixel(decoded, { x: 6, y: 24 }), [252, 0, 0]);
-	assert.deepEqual(readRgbPixel(decoded, { x: 18, y: 24 }), [0, 0, 253]);
+	assert.deepEqual(readRgbPixel(decoded, { x: 36, y: 48 }), [0, 254, 0]);
+	assert.deepEqual(readRgbPixel(decoded, { x: 108, y: 48 }), [253, 253, 253]);
+	assert.deepEqual(readRgbPixel(decoded, { x: 36, y: 144 }), [252, 0, 0]);
+	assert.deepEqual(readRgbPixel(decoded, { x: 108, y: 144 }), [0, 0, 253]);
 });
 
 test('RGB pixel reads reject malformed geometry and out-of-bounds coordinates', () => {

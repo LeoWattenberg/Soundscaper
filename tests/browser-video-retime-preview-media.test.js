@@ -10,12 +10,18 @@ import {
 
 test('the VFR fixture uses a broadly supported 8-bit AVC profile', () => {
 	const bytes = videoRetimePreviewMedia.file.buffer;
+	assert.ok(videoRetimePreviewMedia.width >= 128);
+	assert.ok(videoRetimePreviewMedia.height >= 128);
 	const avcConfigurationOffset = bytes.indexOf(Buffer.from('avcC'));
 	assert.notEqual(avcConfigurationOffset, -1);
 	assert.equal(bytes[avcConfigurationOffset + 4], 1, 'AVCDecoderConfigurationRecord version');
 	assert.equal(bytes[avcConfigurationOffset + 5], 66, 'Constrained Baseline profile_idc');
 
 	const arguments_ = videoRetimePreviewMedia.generation.arguments;
+	const videoSizeOption = arguments_.indexOf('-video_size');
+	assert.notEqual(videoSizeOption, -1);
+	assert.equal(arguments_[videoSizeOption + 1],
+		`${String(videoRetimePreviewMedia.width)}x${String(videoRetimePreviewMedia.height)}`);
 	const profileOption = arguments_.indexOf('-profile:v');
 	assert.notEqual(profileOption, -1);
 	assert.equal(arguments_[profileOption + 1], 'baseline');

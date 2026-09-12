@@ -67,14 +67,14 @@ test('an unrotated probe run states coded size, sample aspect, and rotation sepa
 	// rotated anamorphic geometry fixture with the product's own probe arguments.
 	const characteristics = parseFfmpegVideoSourceCharacteristics([
 		'  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), '
-			+ '32x24 [SAR 1:1 DAR 4:3], 22 kb/s, SAR 2:1 DAR 8:3, 25 fps, 25 tbr, 12800 tbn (default)',
+			+ '192x144, 41 kb/s, SAR 2:1 DAR 8:3, 25 fps, 25 tbr, 12800 tbn (default)',
 		'      displaymatrix: rotation of 90.00 degrees',
-		'[Parsed_showinfo_0 @ 0xecc5c0] config in time_base: 1/12800, frame_rate: 25/1',
-		'[Parsed_showinfo_0 @ 0xecc5c0] n:   0 pts:      0 pts_time:0       pos:       48 '
-			+ 'fmt:yuv420p sar:2/1 s:32x24 i:P iskey:1 type:I checksum:4E1037DE',
+		'[Parsed_showinfo_0 @ 0xee4460] config in time_base: 1/12800, frame_rate: 25/1',
+		'[Parsed_showinfo_0 @ 0xee4460] n:   0 pts:      0 pts_time:0       pos:      922 '
+			+ 'fmt:yuv420p sar:2/1 s:192x144 i:P iskey:1 type:I checksum:058EF6A1',
 	], { rate: PAL });
-	assert.equal(characteristics.codedWidth, 32, 'autorotation is disabled, so this is the coded width');
-	assert.equal(characteristics.codedHeight, 24);
+	assert.equal(characteristics.codedWidth, 192, 'autorotation is disabled, so this is the coded width');
+	assert.equal(characteristics.codedHeight, 144);
 	assert.deepEqual(characteristics.pixelAspectRatio, { num: 2, den: 1 });
 	assert.equal(characteristics.rotationDegrees, 270);
 });

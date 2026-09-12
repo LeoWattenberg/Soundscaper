@@ -252,7 +252,7 @@ that every exact interval midpoint, especially the final one, produces rVFC
 `mediaTime` in that interval and the matching ordinal pixels. Do not rewrite or
 truncate the existing WebM fixture to make it pass.
 
-The qualified recipe uses four 64×32 RGB ordinal frames and exact timescale
+The qualified recipe uses four 256×128 RGB ordinal frames and exact timescale
 1,000 PTS `[0, 40, 130, 200]` with final duration 70 ticks: intervals are
 40/90/70/70 ms and media end is 270 ms. Pinned FFmpeg must use VFR mode,
 `settb=1/1000`, the explicit PTS expression, all-I Constrained Baseline H.264
@@ -260,9 +260,9 @@ with `-profile:v baseline -crf 1 -pix_fmt yuv420p`, and
 `-enc_time_base 1/1000 -video_track_timescale 1000`; omitting encoder time base
 silently quantizes the intended PTS and refuses qualification. Midpoint rVFC
 times must be `0/.04/.13/.2`, with the four encoded color/bit ordinals. The raw
-RGB SHA-256 is `191afca830eff27f7bb057e46256b775e64fa5c143abc7e17f38ec394bc65203`;
-the three-times-reproduced 3,967-byte MP4 SHA-256 is
-`8800d170f366faadbf9e8b28523e1294c8ec5cbf470f957698d95259a0450205`.
+RGB SHA-256 is `6e2ed29cdfc616120eae644f48df7ec6d5b52bc1c8cb5b9f852b5c6976237932`;
+the three-times-reproduced 4,610-byte MP4 SHA-256 is
+`7f9c32cf0550053cd25f53e5194ffb48ef41e2eac06946aa25eb75a935eebdde`.
 
 The focused spec
 `tests/browser/audio-editor-video-retime-preview-executor.spec.js` remains

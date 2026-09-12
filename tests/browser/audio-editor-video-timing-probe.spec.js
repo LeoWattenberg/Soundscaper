@@ -64,8 +64,8 @@ test.describe('WP-0.3 browser timing-probe qualification', () => {
 			// frames are; an unreported characteristic stays null rather than
 			// arriving as a plausible default.
 			expect(source.characteristics.backend).toBe('container');
-			expect(source.characteristics.codedWidth).toBe(32);
-			expect(source.characteristics.codedHeight).toBe(24);
+			expect(source.characteristics.codedWidth).toBe(fixture.coded.width);
+			expect(source.characteristics.codedHeight).toBe(fixture.coded.height);
 			expect(source.characteristics.fieldOrder).toBeNull();
 			expect(source.characteristics.hasAlpha).toBe(fixture.kind === 'vfr');
 			expect(source.characteristics.videoCodec).toBe(fixture.kind === 'cfr' ? 'h264' : 'vp8');
@@ -101,7 +101,7 @@ test.describe('WP-0.3 browser timing-probe qualification', () => {
 		await page.keyboard.press('Enter');
 		const properties = page.getByRole('dialog', { name: 'Source properties', exact: true });
 		await expect(properties).toBeVisible();
-		await expect(properties.locator('[data-source-property="Coded size"] dd')).toHaveText('32 × 24');
+		await expect(properties.locator('[data-source-property="Coded size"] dd')).toHaveText('192 × 144');
 		await expect(properties.locator('[data-source-property="Field order"] dd'))
 			.toHaveAttribute('data-reported', 'false');
 		await expect(properties.locator('[data-source-property="Source start timecode"] dd'))

@@ -34,6 +34,8 @@ test('WP-0.3 geometry fixtures state one picture under three declarations', () =
 	const codedSizes = new Set(videoSourceGeometryMedia.map(({ coded }) => `${coded.width}x${coded.height}`));
 	assert.equal(codedSizes.size, 1, 'the coded picture is the constant the declarations vary against');
 	for (const fixture of videoSourceGeometryMedia) {
+		assert.ok(fixture.coded.width >= 128 && fixture.coded.height >= 128,
+			`${fixture.id} must remain decodable by Windows Firefox's H.264 backend`);
 		const turned = fixture.rotationDegrees === 90 || fixture.rotationDegrees === 270;
 		const stretched = Math.round(
 			(fixture.coded.width * fixture.pixelAspectRatio.num) / fixture.pixelAspectRatio.den,
@@ -45,4 +47,10 @@ test('WP-0.3 geometry fixtures state one picture under three declarations', () =
 			assert.ok(presented.width <= fixture.display.width && presented.height <= fixture.display.height);
 		}
 	}
+});
+
+test('WP-0.3 CFR H.264 media keeps both coded axes portable', () => {
+	const cfr = videoTimingProbeMedia.find(({ kind }) => kind === 'cfr');
+	assert.ok(cfr);
+	assert.ok(cfr.coded.width >= 128 && cfr.coded.height >= 128);
 });
