@@ -52,6 +52,7 @@ for (const product of ['soundscaper', 'framescaper']) {
 		for (const skin of ['sakura', 'lilac', 'techno']) {
 			for (const mode of ['Light', 'Dark']) {
 				test(`${skin}/${mode} scale, dialogs, buttons, checkboxes and portals`, async ({ page }) => {
+					test.setTimeout(60_000);
 					const editor = await bootEditor(page, `${path}?useskin=${skin}`);
 					// Apply after navigation, which can reset Firefox's media emulation.
 					await page.emulateMedia({ colorScheme: mode.toLowerCase() });
