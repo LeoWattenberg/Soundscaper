@@ -6,7 +6,7 @@
 			"applicationVersionChannel": "candidate",
 			"releaseChannel": "candidate",
 			"candidate": {
-				"version": "1.0.0-rc.7",
+				"version": "1.0.0-rc.8",
 				"tagPrefix": "soundscaper-v"
 			},
 			"stable": {
@@ -19,7 +19,7 @@
 			"applicationVersionChannel": "candidate",
 			"releaseChannel": "candidate",
 			"candidate": {
-				"version": "1.0.0-rc.3",
+				"version": "1.0.0-rc.4",
 				"tagPrefix": "framescaper-v"
 			},
 			"stable": {
