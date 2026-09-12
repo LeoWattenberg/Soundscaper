@@ -21,9 +21,11 @@ Use the repository's Node.js 26.5.0 and npm 12.0.1. Install dependencies with
 - macOS: Xcode command-line tools and CMake. Build the macOS ARM64 package on
   Apple Silicon.
 - Windows: Visual Studio 2022 or later with the C++ build tools and CMake.
-  Include the ARM64 compiler tools when building Windows ARM64. The target
-  architecture is passed to CMake explicitly, so x64 build-time Node.js can
-  prepare an ARM64 package on the Windows ARM runner.
+  Include the ARM64 compiler tools and **C++ Clang tools for Windows** when
+  building Windows ARM64. Whisper requires the ClangCL toolset on ARM64; the
+  Windows ARM64 CI image already includes it. The target architecture is passed
+  to CMake explicitly, so x64 build-time Node.js can prepare an ARM64 package
+  on the Windows ARM runner.
 
 The first preparation downloads pinned upstream inputs. Verified inputs are
 cached under `.native-build/assistance-runtimes/`, outside the disposable

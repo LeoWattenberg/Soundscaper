@@ -52,11 +52,11 @@ export async function stageDesktopWhisperCppRuntime({
 		if (hash(cliSource) !== CLI_SOURCE_SHA256) throw new Error('Whisper CLI compatibility patch source changed.');
 		const patchedCli = patchWhisperCppPipedStdout(cliSource);
 		await writeFile(cliPath, patchedCli);
-		const reproducibleFlags = platform === 'win32' ? ['/Brepro']
-			: [`-ffile-prefix-map=${work}=/usr/src/whisper-build`, '-fno-ident'];
-		const configureArgs = ['-S', source, '-B', build, ...plan.configureArgs,
-			`-DCMAKE_C_FLAGS=${reproducibleFlags.join(' ')}`,
-			`-DCMAKE_CXX_FLAGS=${reproducibleFlags.join(' ')}`];
+		const configureArgs = ['-S', source, '-B', build, ...plan.configureArgs];
+		if (platform !== 'win32') {
+			const reproducibleFlags = `-ffile-prefix-map=${work}=/usr/src/whisper-build -fno-ident`;
+			configureArgs.push(`-DCMAKE_C_FLAGS=${reproducibleFlags}`, `-DCMAKE_CXX_FLAGS=${reproducibleFlags}`);
+		}
 		const environment = { ...process.env, SOURCE_DATE_EPOCH: '1787225940', TZ: 'UTC', LC_ALL: 'C' };
 		const cmakeVersion = (await command('cmake', ['--version'], work, environment)).stdout.split('\n')[0].trim();
 		await command('cmake', configureArgs, work, environment);
@@ -131,7 +131,10 @@ export function desktopWhisperCppBuildPlan({ targetId, platform, architecture })
 	const configureArgs = ['-DCMAKE_BUILD_TYPE=Release', '-DWHISPER_BUILD_EXAMPLES=ON',
 		...DISABLED_OPTIONS.map((name) => `-D${name}=OFF`)];
 	if (platform === 'win32') configureArgs.push('-A', targetId === 'win-arm64' ? 'ARM64' : 'x64',
-		'-DCMAKE_POLICY_DEFAULT_CMP0091=NEW', '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded', '-DCMAKE_EXE_LINKER_FLAGS=/Brepro');
+		'-DCMAKE_POLICY_DEFAULT_CMP0091=NEW', '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded', '-DCMAKE_EXE_LINKER_FLAGS=/Brepro',
+		'-DCMAKE_C_FLAGS=/Brepro', '-DCMAKE_CXX_FLAGS=/Brepro /EHsc');
+	// ggml rejects MSVC on ARM; ClangCL uses the same Windows SDK and static CRT.
+	if (targetId === 'win-arm64') configureArgs.push('-T', 'ClangCL');
 	if (platform === 'darwin') configureArgs.push('-DCMAKE_OSX_ARCHITECTURES=arm64');
 	if (platform === 'linux') configureArgs.push('-DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -static-libstdc++');
 	return { targetId, executable: platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli', configureArgs };

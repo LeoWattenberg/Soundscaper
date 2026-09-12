@@ -27,6 +27,26 @@ test('Whisper build plans retain CPU-only portable targets and static runtime li
 	assert.throws(() => desktopWhisperCppBuildPlan({ targetId: 'linux-arm64', platform: 'linux', architecture: 'x64' }), /native/u);
 });
 
+test('Whisper Windows ARM64 selects ClangCL because ggml rejects the MSVC ARM compiler', () => {
+	for (const architecture of ['x64', 'arm64']) {
+		const plan = desktopWhisperCppBuildPlan({ targetId: 'win-arm64', platform: 'win32', architecture });
+		assert.ok(plan.configureArgs.includes('-T'));
+		assert.equal(plan.configureArgs[plan.configureArgs.indexOf('-T') + 1], 'ClangCL');
+		assert.equal(plan.configureArgs[plan.configureArgs.indexOf('-A') + 1], 'ARM64');
+		assert.ok(plan.configureArgs.includes('-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded'));
+	}
+	const x64 = desktopWhisperCppBuildPlan({ targetId: 'win-x64', platform: 'win32', architecture: 'x64' });
+	assert.ok(!x64.configureArgs.includes('-T'));
+});
+
+test('Whisper Windows compilers retain exception support with reproducible object files', () => {
+	for (const targetId of ['win-x64', 'win-arm64']) {
+		const plan = desktopWhisperCppBuildPlan({ targetId, platform: 'win32', architecture: 'x64' });
+		assert.ok(plan.configureArgs.includes('-DCMAKE_C_FLAGS=/Brepro'));
+		assert.ok(plan.configureArgs.includes('-DCMAKE_CXX_FLAGS=/Brepro /EHsc'));
+	}
+});
+
 test('Whisper JSON output uses its inherited stdout pipe on every platform and rejects patch drift', () => {
 	const source = '#include <fstream>\n#ifdef _WIN32\n                    fout = std::ofstream{"CON"};\n#else\n                    fout = std::ofstream{"/dev/stdout"};\n#endif\n';
 	const patched = patchWhisperCppPipedStdout(source);
