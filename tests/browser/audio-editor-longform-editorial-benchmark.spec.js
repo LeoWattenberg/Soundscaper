@@ -12,7 +12,6 @@ import {
 } from '../../src/common/editor/quality/m3-longform-editorial-workload.ts';
 import {
 	bootEditor,
-	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { deterministicAvMedia } from './fixtures/deterministic-av-media.js';
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
@@ -46,8 +45,10 @@ test('collects the opt-in two-hour editorial diagnostic without qualifying the h
 	const expectedPositions = workload.editPlan.expectedClipPositions;
 	const fixture = fixtureIdentity(workload);
 
-	if (process.env.SOUNDSCAPER_PACKAGED_RUNTIME_METRICS === '1') await waitForEditor(page);
-	else await bootEditor(page, '/embed/en/');
+	await bootEditor(page, '/embed/en/');
+	if (process.env.SOUNDSCAPER_PACKAGED_RUNTIME_METRICS === '1') {
+		expect(page.url()).toMatch(/^http:\/\/127\.0\.0\.1:/u);
+	}
 	await seedProject(page, workload.project);
 	await page.reload();
 	const editor = await waitForSeededEditor(page);

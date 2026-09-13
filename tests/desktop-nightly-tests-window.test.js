@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import { createDesktopNightlyTestsWindow } from '../desktop/nightly-tests-window.mjs';
 
-test('packaged diagnostic window is loopback-only, sandboxed, and bridge-free', async () => {
+test('packaged diagnostic window is visible, loopback-only, sandboxed, and bridge-free', async () => {
 	const observations = { options: null, url: null, openHandler: null };
 	class FakeWindow {
 		webContents = {
@@ -33,6 +33,7 @@ test('packaged diagnostic window is loopback-only, sandboxed, and bridge-free', 
 		devTools: false,
 		backgroundThrottling: false,
 	});
+	assert.equal(observations.options.show, true);
 	assert.equal(Object.hasOwn(observations.options.webPreferences, 'preload'), false);
 	assert.deepEqual(observations.openHandler(), { action: 'deny' });
 });

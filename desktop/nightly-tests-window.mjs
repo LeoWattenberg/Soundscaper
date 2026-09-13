@@ -10,7 +10,9 @@ export async function createDesktopNightlyTestsWindow({ argv, BrowserWindow }) {
 	const window = new BrowserWindow({
 		width: 1280,
 		height: 720,
-		show: false,
+		// A native-unmapped Electron window drops decoded-video presentation
+		// callbacks even when background throttling is disabled.
+		show: true,
 		webPreferences: {
 			nodeIntegration: false,
 			contextIsolation: true,

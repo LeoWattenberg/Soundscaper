@@ -247,8 +247,8 @@ function m1DiagnosticFixture() {
 		},
 		diagnostic: {
 			schemaVersion: 1,
-			profile: 'deterministic-video-preview-12fx-v2',
-			observationClass: 'fresh-context-presentation-cadence-and-retained-js-heap-v1',
+			profile: 'deterministic-video-preview-12fx-v3',
+			observationClass: 'reset-document-presentation-cadence-and-retained-js-heap-v1',
 			workloadId: 'm1-video-preview-12fx-720p',
 			fixtureId: 'video-preview-12fx-720p-v1',
 			environmentId: 'packaged-runtime-win32-x64',

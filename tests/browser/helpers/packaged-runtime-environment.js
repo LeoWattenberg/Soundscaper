@@ -7,19 +7,17 @@ const OWNER_ENVIRONMENT_FIELDS = Object.freeze({
 	displayMode: 'SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE',
 });
 
-export function packagedRuntimeEnvironmentFingerprint(browser, renderer) {
-	const packaged = process.env.SOUNDSCAPER_PACKAGED_RUNTIME_METRICS === '1';
+export function packagedRuntimeEnvironmentFingerprint(browser, renderer, environment = process.env) {
 	const ownerIdentity = Object.fromEntries(Object.entries(OWNER_ENVIRONMENT_FIELDS).map(([field, name]) => {
-		const value = process.env[name];
-		if (packaged && (typeof value !== 'string' || value.length < 1)) {
-			throw new Error(`${name} is required for packaged-runtime qualification.`);
-		}
-		return [field, value ?? 'not-recorded-local-correctness'];
+		const value = environment[name];
+		return [field, typeof value === 'string' && value.length > 0
+			? value
+			: 'not-recorded-local-correctness'];
 	}));
 	return Object.freeze({
 		browserVersion: browser.version(),
-		platform: process.env.SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM ?? process.platform,
-		architecture: process.env.SOUNDSCAPER_PACKAGED_RUNTIME_ARCH ?? process.arch,
+		platform: environment.SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM ?? process.platform,
+		architecture: environment.SOUNDSCAPER_PACKAGED_RUNTIME_ARCH ?? process.arch,
 		webglVendor: String(renderer.vendor ?? ''),
 		webglRenderer: String(renderer.renderer ?? ''),
 		...ownerIdentity,

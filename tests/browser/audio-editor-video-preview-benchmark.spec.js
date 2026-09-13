@@ -1,5 +1,9 @@
 import { createHash } from 'node:crypto';
 
+import {
+	firstLaunchSetupSeedValue,
+	firstLaunchSetupStorageKey,
+} from '../../src/common/editor/ui/first-launch-setup.ts';
 import { createVideoEffect } from '../../src/common/editor/video-effects.js';
 import { FRAMESCAPER_ASSISTANCE_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-domain-runtime-profile.ts';
 import {
@@ -14,7 +18,10 @@ import {
 	videoPreviewBenchmarkMedia,
 } from './fixtures/video-preview-benchmark-media.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
-import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import {
+	FRAMESCAPER_DATABASE_NAME,
+	FRAMESCAPER_OPFS_DIRECTORY_NAME,
+} from './helpers/editor-databases.js';
 import { packagedRuntimeEnvironmentFingerprint } from './helpers/packaged-runtime-environment.js';
 import { waitForPreviewFrameSample } from './helpers/preview-frame-sampling.js';
 
@@ -23,6 +30,7 @@ const MEASURED_TRIAL_COUNT = 5;
 const MEASURED_FRAMES_PER_TRIAL = 121;
 const MEASURED_INTERVALS_PER_TRIAL = MEASURED_FRAMES_PER_TRIAL - 1;
 const FORCED_COLLECTIONS_PER_SNAPSHOT = 3;
+const RESET_ROUTE = '/__m1-video-preview-benchmark__/reset.html';
 const EFFECT_TYPES = Object.freeze([
 	'color-adjust',
 	'pixelate',
@@ -41,7 +49,12 @@ const EFFECT_STACK = Object.freeze(EFFECT_TYPES.map((type, index) => createVideo
 	id: `m1-video-effect-${String(index + 1)}`,
 })));
 
-test('benchmarks the complete 720p video preview effect stack', async ({ runtimeBrowser, runtimeBaseURL }) => {
+test('benchmarks the complete 720p video preview effect stack', async ({
+	context,
+	page,
+	runtimeBrowser,
+	runtimeBaseURL,
+}) => {
 	test.skip(
 		process.env.SOUNDSCAPER_VIDEO_PREVIEW_BENCHMARK !== '1',
 		'Run explicitly with SOUNDSCAPER_VIDEO_PREVIEW_BENCHMARK=1.',
@@ -52,21 +65,32 @@ test('benchmarks the complete 720p video preview effect stack', async ({ runtime
 	const runtimeFixtureSha256 = createHash('sha256').update(fixture.buffer).digest('hex');
 	expect(fixture.buffer.byteLength, 'runtime fixture byte length').toBe(videoPreviewBenchmarkMedia.byteLength);
 	expect(runtimeFixtureSha256, 'runtime fixture SHA-256').toBe(videoPreviewBenchmarkMedia.sourceSha256);
+	const resolvedProductUrl = resolveBrowserProductTestUrl('/framescaper/de/');
+	const productUrl = /^https?:\/\//u.test(resolvedProductUrl)
+		? resolvedProductUrl
+		: new URL(resolvedProductUrl, runtimeBaseURL).href;
+	const resetUrl = new URL(RESET_ROUTE, productUrl).href;
+	await page.setViewportSize({ width: 1_280, height: 720 });
+	await installBenchmarkRoutes(page, context, resetUrl);
 
 	const warmup = await runPreviewTrial({
-		runtimeBrowser,
-		runtimeBaseURL,
+		context,
 		fixture,
 		measured: false,
+		page,
+		productUrl,
+		resetUrl,
 		trial: 0,
 	});
 	const trials = [];
 	for (let trialIndex = 0; trialIndex < MEASURED_TRIAL_COUNT; trialIndex += 1) {
 		const trial = await runPreviewTrial({
-			runtimeBrowser,
-			runtimeBaseURL,
+			context,
 			fixture,
 			measured: true,
+			page,
+			productUrl,
+			resetUrl,
 			trial: trialIndex + 1,
 		});
 		expect(trial.renderer, `trial ${String(trialIndex + 1)} renderer`).toEqual(warmup.renderer);
@@ -77,8 +101,8 @@ test('benchmarks the complete 720p video preview effect stack', async ({ runtime
 	const environmentFingerprint = packagedRuntimeEnvironmentFingerprint(runtimeBrowser, warmup.renderer);
 	const diagnostic = {
 		schemaVersion: 1,
-		profile: 'deterministic-video-preview-12fx-v2',
-		observationClass: 'fresh-context-presentation-cadence-and-retained-js-heap-v1',
+		profile: 'deterministic-video-preview-12fx-v3',
+		observationClass: 'reset-document-presentation-cadence-and-retained-js-heap-v1',
 		workloadId: 'm1-video-preview-12fx-720p',
 		fixtureId: videoPreviewBenchmarkMedia.id,
 		environmentId: process.env.SOUNDSCAPER_M1_OBSERVED_ENVIRONMENT_ID ?? 'local-runtime-diagnostics',
@@ -114,7 +138,7 @@ test('benchmarks the complete 720p video preview effect stack', async ({ runtime
 		));
 		expect(
 			nearestRankP95(retainedHeapDeltas),
-			'retained JS heap growth p95 across five fresh-context trials',
+			'retained JS heap growth p95 across five reset-document trials',
 		).toBeLessThanOrEqual(1024 * 1024);
 		expect(
 			nearestRankP95(frameIntervals),
@@ -123,28 +147,18 @@ test('benchmarks the complete 720p video preview effect stack', async ({ runtime
 	}
 });
 
-async function runPreviewTrial({ runtimeBrowser, runtimeBaseURL, fixture, measured, trial }) {
-	const context = await runtimeBrowser.newContext({
-		viewport: { width: 1_280, height: 720 },
-		deviceScaleFactor: 1,
-		serviceWorkers: 'block',
-	});
+async function runPreviewTrial({ context, fixture, measured, page, productUrl, resetUrl, trial }) {
+	await resetPreviewBenchmarkTrial(page, { productUrl, resetUrl });
+	let editor = await bootVideoEditor(page);
+	await importTimelineFiles(editor, [fixture]);
+	await seedPreviewBenchmarkEffectStack(page, editor, EFFECT_STACK);
+	await page.reload();
+	editor = await bootVideoEditor(page);
+	await enablePreviewBenchmarkLoop(editor);
+	const canvas = await configurePreviewViewport(editor);
+	const renderer = await previewRenderer(canvas);
+	const cdp = measured ? await context.newCDPSession(page) : null;
 	try {
-		const page = await context.newPage();
-		await installBenchmarkRoutes(page);
-		const productUrl = resolveBrowserProductTestUrl('/framescaper/de/');
-		await page.goto(/^https?:\/\//u.test(productUrl)
-			? productUrl
-			: new URL(productUrl, runtimeBaseURL).href);
-		let editor = await bootVideoEditor(page);
-		await importTimelineFiles(editor, [fixture]);
-		await seedPreviewBenchmarkEffectStack(page, editor, EFFECT_STACK);
-		await page.reload();
-		editor = await bootVideoEditor(page);
-		await enablePreviewBenchmarkLoop(editor);
-		const canvas = await configurePreviewViewport(editor);
-		const renderer = await previewRenderer(canvas);
-		const cdp = measured ? await context.newCDPSession(page) : null;
 		if (cdp !== null) await cdp.send('HeapProfiler.enable');
 		const heapBefore = cdp === null
 			? null
@@ -180,7 +194,7 @@ async function runPreviewTrial({ runtimeBrowser, runtimeBaseURL, fixture, measur
 			renderer,
 		});
 	} finally {
-		await context.close();
+		if (cdp !== null) await cdp.detach();
 	}
 }
 
@@ -202,8 +216,22 @@ async function startPreviewBenchmarkPlayback(editor) {
 	return play;
 }
 
-async function installBenchmarkRoutes(page) {
+async function installBenchmarkRoutes(page, context, resetUrl) {
+	await page.route(resetUrl, (route) => route.fulfill({
+		status: 200,
+		contentType: 'text/html',
+		body: '<!doctype html><meta charset="utf-8"><title>Preview benchmark reset</title>',
+	}));
+	const cdp = await context.newCDPSession(page);
+	await cdp.send('Network.enable');
+	await cdp.send('Network.setBypassServiceWorker', { bypass: true });
 	await page.addInitScript(() => {
+		if (globalThis.ServiceWorkerContainer) {
+			ServiceWorkerContainer.prototype.register = () => Promise.reject(new DOMException(
+				'Service workers are disabled for the reset-document preview benchmark.',
+				'NotSupportedError',
+			));
+		}
 		globalThis.__soundscaperPreviewFrameTimes = [];
 		globalThis.__soundscaperMeasurePreviewFrames = false;
 		const originalGetContext = HTMLCanvasElement.prototype.getContext;
@@ -233,6 +261,39 @@ async function installBenchmarkRoutes(page) {
 			return renderingContext;
 		};
 	});
+}
+
+async function resetPreviewBenchmarkTrial(page, { productUrl, resetUrl }) {
+	await page.goto(resetUrl);
+	await page.evaluate(async ({ databaseName, firstLaunchKey, firstLaunchValue, opfsDirectoryName }) => {
+		localStorage.clear();
+		sessionStorage.clear();
+		localStorage.setItem(firstLaunchKey, firstLaunchValue);
+		for (const registration of await navigator.serviceWorker?.getRegistrations?.() ?? []) {
+			await registration.unregister();
+		}
+		for (const name of await globalThis.caches?.keys?.() ?? []) await caches.delete(name);
+		await new Promise((resolve, reject) => {
+			const deletion = indexedDB.deleteDatabase(databaseName);
+			deletion.onsuccess = () => resolve();
+			deletion.onerror = () => reject(deletion.error);
+			deletion.onblocked = () => reject(new Error(`Preview benchmark database ${databaseName} is blocked.`));
+		});
+		if (navigator.storage?.getDirectory) {
+			const root = await navigator.storage.getDirectory();
+			try {
+				await root.removeEntry(opfsDirectoryName, { recursive: true });
+			} catch (error) {
+				if (error?.name !== 'NotFoundError') throw error;
+			}
+		}
+	}, {
+		databaseName: FRAMESCAPER_DATABASE_NAME,
+		firstLaunchKey: firstLaunchSetupStorageKey('framescaper'),
+		firstLaunchValue: firstLaunchSetupSeedValue('video-editor'),
+		opfsDirectoryName: FRAMESCAPER_OPFS_DIRECTORY_NAME,
+	});
+	await page.goto(productUrl);
 }
 
 async function bootVideoEditor(page) {

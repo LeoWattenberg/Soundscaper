@@ -266,6 +266,16 @@ selection. The packaged-runtime phase uses the
 Chromium embedded in each real Electron application. Every diagnostic records
 the observed renderer so software fallback or an unknown renderer is visible in
 the report without pretending that one host qualifies other hardware.
+Electron's CDP endpoint cannot create auxiliary browser contexts or pages. The
+packaged M1 collector therefore clears its local and session storage, reseeds the
+first-launch choice, resets its browser-owned IndexedDB and OPFS data, bypasses
+service workers, prevents replacement worker registration, and navigates the
+visible, bridge-free diagnostic window to a new document before every warmup and
+measured trial. Keeping that nightly-only window visible ensures Chromium
+actually presents decoded video frames. Its profile describes reset-document
+sampling, not an incognito-context observation. The ordinary Chromium collector
+uses that same profile so its raw observations remain comparable with the
+packaged phase.
 
 Those two launcher files are attempted even for infrastructure failures. Once
 Playwright starts, the directory also contains `results.json` and `junit.xml`

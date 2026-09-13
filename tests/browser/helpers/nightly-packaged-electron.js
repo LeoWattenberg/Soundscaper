@@ -13,6 +13,10 @@ import {
 	packagedRuntimeChromiumArguments,
 	resolvePackagedProductExecutable,
 } from '../../../scripts/lib/desktop-nightly-tests-packaged-runtime.mjs';
+import {
+	packagedRuntimeProductBaseURL,
+	usesPackagedRuntimeDiagnosticPage,
+} from './packaged-runtime-page.js';
 import { terminatePackagedRuntime } from './packaged-runtime-process.js';
 
 const standardTest = base.extend({
@@ -26,6 +30,7 @@ const packagedTest = base.extend({
 	// single-instance/CDP transition between serial tests on Windows.
 	packagedRuntime: [async ({ browserName: _browserName }, use, workerInfo) => {
 		const productId = workerInfo.project.metadata.productId;
+		const baseURL = packagedRuntimeProductBaseURL(productId);
 		const executablePath = resolvePackagedProductExecutable({
 			productRoot: requiredEnvironment('SOUNDSCAPER_PACKAGED_PRODUCT_ROOT'),
 			productId,
@@ -43,7 +48,7 @@ const packagedTest = base.extend({
 			`--soundscaper-nightly-tests-app-data=${join(profile, 'application-data')}`,
 			'--remote-debugging-address=127.0.0.1',
 			`--remote-debugging-port=${String(port)}`,
-			`--soundscaper-nightly-tests-base-url=${requiredEnvironment('SOUNDSCAPER_NIGHTLY_TESTS_BASE_URL')}`,
+			`--soundscaper-nightly-tests-base-url=${baseURL}`,
 		], {
 			env: environment,
 			stdio: ['ignore', 'pipe', 'pipe'],
@@ -61,7 +66,7 @@ const packagedTest = base.extend({
 			} catch (cause) {
 				throw new Error(`Packaged runtime CDP connection failed.\n${output}`, { cause });
 			}
-			await use(Object.freeze({ browser, executablePath, output: () => output }));
+			await use(Object.freeze({ baseURL, browser, executablePath, output: () => output }));
 		} finally {
 			await browser?.close().catch(() => undefined);
 			await terminatePackagedRuntime(child);
@@ -79,22 +84,20 @@ const packagedTest = base.extend({
 		await use(context);
 	},
 	page: async ({ context }, use, testInfo) => {
-		const standaloneHarness = /audio-editor-m4(?:b2)?-/u.test(testInfo.file);
-		const page = await waitForRuntimePage(context, standaloneHarness);
+		const diagnosticPage = usesPackagedRuntimeDiagnosticPage(testInfo.file);
+		const page = await waitForRuntimePage(context, diagnosticPage);
 		await use(page);
 	},
 	runtimeBrowser: async ({ packagedRuntime }, use) => use(Object.freeze({
 		version: () => packagedRuntime.browser.version(),
 		browserType: () => Object.freeze({ executablePath: () => packagedRuntime.executablePath }),
-		newContext: (options) => packagedRuntime.browser.newContext(options),
 	})),
 	runtimeBrowserName: async ({ packagedRuntime }, use) => {
 		void packagedRuntime;
 		await use('chromium');
 	},
 	runtimeBaseURL: async ({ packagedRuntime }, use) => {
-		void packagedRuntime;
-		await use(requiredEnvironment('SOUNDSCAPER_NIGHTLY_TESTS_BASE_URL'));
+		await use(packagedRuntime.baseURL);
 	},
 });
 

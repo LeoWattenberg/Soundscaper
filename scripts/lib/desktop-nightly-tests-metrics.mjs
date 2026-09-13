@@ -120,8 +120,8 @@ export function createPendingM1VideoPreviewResult(diagnosticValue, configValue) 
 	const specification = requireRecord(fixture.specification, 'M1 preview fixture specification');
 	const expectedIdentity = {
 		schemaVersion: 1,
-		profile: 'deterministic-video-preview-12fx-v2',
-		observationClass: 'fresh-context-presentation-cadence-and-retained-js-heap-v1',
+		profile: 'deterministic-video-preview-12fx-v3',
+		observationClass: 'reset-document-presentation-cadence-and-retained-js-heap-v1',
 		workloadId: 'm1-video-preview-12fx-720p',
 		fixtureId: 'video-preview-12fx-720p-v1',
 	};
@@ -139,7 +139,7 @@ export function createPendingM1VideoPreviewResult(diagnosticValue, configValue) 
 		forcedCollectionsPerSnapshot: 3,
 	};
 	if (!isDeepStrictEqual(diagnostic.sampling, expectedSampling)) {
-		throw new Error('M1 preview diagnostic does not use one warmup and five measured fresh-context trials.');
+		throw new Error('M1 preview diagnostic does not use one warmup and five measured reset-document trials.');
 	}
 	if (!Array.isArray(diagnostic.trials) || diagnostic.trials.length !== 5) {
 		throw new Error('M1 preview diagnostic must retain five measured trials.');

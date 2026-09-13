@@ -36,7 +36,7 @@ test('the preview benchmark does not start browser capture APIs during fixture s
 	assert.doesNotMatch(source, /\bMediaRecorder\b|\.captureStream\(|new AudioContext\(/u);
 });
 
-test('the preview benchmark uses fresh-context trials without synchronously draining the GPU', () => {
+test('the preview benchmark uses reset-document trials without synchronously draining the GPU', () => {
 	const source = readFileSync(
 		new URL('browser/audio-editor-video-preview-benchmark.spec.js', import.meta.url),
 		'utf8',
@@ -44,7 +44,17 @@ test('the preview benchmark uses fresh-context trials without synchronously drai
 
 	assert.match(source, /const MEASURED_TRIAL_COUNT = 5;/u);
 	assert.match(source, /const FORCED_COLLECTIONS_PER_SNAPSHOT = 3;/u);
-	assert.match(source, /runtimeBrowser\.newContext\(/u);
+	assert.match(source, /resetPreviewBenchmarkTrial\(/u);
+	assert.match(source, /localStorage\.clear\(\)/u);
+	assert.match(source, /sessionStorage\.clear\(\)/u);
+	assert.match(source, /indexedDB\.deleteDatabase/u);
+	assert.match(source, /root\.removeEntry\(opfsDirectoryName,\s*\{\s*recursive:\s*true\s*\}\)/u);
+	assert.match(source, /await cdp\.detach\(\)/u);
+	assert.match(source, /ServiceWorkerContainer\.prototype\.register/u);
+	assert.match(source, /NotSupportedError/u);
+	assert.match(source, /reset-document-presentation-cadence-and-retained-js-heap-v1/u);
+	assert.doesNotMatch(source, /runtimeBrowser\.newContext\(/u);
+	assert.doesNotMatch(source, /(?:context|runtimeBrowser)\.newPage\(/u);
 	assert.match(source, /trialIndex < MEASURED_TRIAL_COUNT/u);
 	assert.match(source, /usedHeapAfterCollections\([^,]+, FORCED_COLLECTIONS_PER_SNAPSHOT\)/u);
 	assert.match(source, /canvas\.evaluate\(waitForPreviewFrameSample/u);

@@ -14,6 +14,11 @@ import {
 	packagedRuntimeChromiumArguments,
 	resolvePackagedProductExecutable,
 } from '../scripts/lib/desktop-nightly-tests-packaged-runtime.mjs';
+import { packagedRuntimeEnvironmentFingerprint } from './browser/helpers/packaged-runtime-environment.js';
+import {
+	packagedRuntimeProductBaseURL,
+	usesPackagedRuntimeDiagnosticPage,
+} from './browser/helpers/packaged-runtime-page.js';
 import { terminatePackagedRuntime } from './browser/helpers/packaged-runtime-process.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -111,6 +116,64 @@ test('packaged-runtime diagnostics allow partial best-effort host metadata', () 
 	assert.equal('SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID' in plan.env, false);
 });
 
+test('packaged-runtime fingerprints preserve optional and partial host metadata', () => {
+	const browser = { version: () => 'Chromium 140' };
+	const renderer = { vendor: 'Observed vendor', renderer: 'Observed renderer' };
+	const environment = {
+		SOUNDSCAPER_PACKAGED_RUNTIME_METRICS: '1',
+		SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM: 'win32',
+		SOUNDSCAPER_PACKAGED_RUNTIME_ARCH: 'x64',
+	};
+	assert.deepEqual(packagedRuntimeEnvironmentFingerprint(browser, renderer, environment), {
+		browserVersion: 'Chromium 140',
+		platform: 'win32',
+		architecture: 'x64',
+		webglVendor: 'Observed vendor',
+		webglRenderer: 'Observed renderer',
+		gpuDriverVersion: 'not-recorded-local-correctness',
+		gpuDeviceId: 'not-recorded-local-correctness',
+		powerMode: 'not-recorded-local-correctness',
+		displayMode: 'not-recorded-local-correctness',
+	});
+	assert.deepEqual(packagedRuntimeEnvironmentFingerprint(browser, renderer, {
+		...environment,
+		SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION: '32.0.15.6094',
+	}), {
+		browserVersion: 'Chromium 140',
+		platform: 'win32',
+		architecture: 'x64',
+		webglVendor: 'Observed vendor',
+		webglRenderer: 'Observed renderer',
+		gpuDriverVersion: '32.0.15.6094',
+		gpuDeviceId: 'not-recorded-local-correctness',
+		powerMode: 'not-recorded-local-correctness',
+		displayMode: 'not-recorded-local-correctness',
+	});
+});
+
+test('packaged-runtime page routing keeps benchmark documents on each product origin', () => {
+	for (const file of [
+		'audio-editor-longform-editorial-benchmark.spec.js',
+		'audio-editor-video-preview-benchmark.spec.js',
+		'audio-editor-m4-production-parity.spec.js',
+		'C:\\payload\\tests\\browser\\audio-editor-m4b2-keyframe-parity.spec.js',
+	]) assert.equal(usesPackagedRuntimeDiagnosticPage(file), true, file);
+	assert.equal(usesPackagedRuntimeDiagnosticPage('desktop-packaged-runtime-smoke.spec.js'), false);
+
+	const environment = {
+		SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS: JSON.stringify({
+			soundscaper: 'http://127.0.0.1:4101',
+			framescaper: 'http://127.0.0.1:4102',
+		}),
+	};
+	assert.equal(packagedRuntimeProductBaseURL('soundscaper', environment), 'http://127.0.0.1:4101/');
+	assert.equal(packagedRuntimeProductBaseURL('framescaper', environment), 'http://127.0.0.1:4102/');
+	assert.throws(
+		() => packagedRuntimeProductBaseURL('framescaper', {}),
+		/product origins/iu,
+	);
+});
+
 test('packaged-runtime Chromium arguments admit WebGL on hosted Linux renderers', () => {
 	assert.deepEqual(packagedRuntimeChromiumArguments('linux'), [
 		'--enable-gpu',
@@ -135,7 +198,9 @@ test('packaged-runtime tests reuse one Electron process per product worker', asy
 	assert.match(source, /productId = workerInfo\.project\.metadata\.productId/u);
 	assert.match(source, /connectOverCDP\(endpoint,\s*\{\s*timeout:\s*90_000\s*\}\)/u);
 	assert.match(source, /Packaged runtime CDP connection failed\./u);
-	assert.match(source, /newContext:\s*\(options\) => packagedRuntime\.browser\.newContext\(options\)/u);
+	assert.match(source, /usesPackagedRuntimeDiagnosticPage\(testInfo\.file\)/u);
+	assert.match(source, /packagedRuntimeProductBaseURL\(productId/u);
+	assert.doesNotMatch(source, /packagedRuntime\.browser\.newContext\(/u);
 	assert.match(source, /\{ scope: 'worker' \}\]/u);
 	assert.match(source, /auto: true/u);
 });
@@ -168,9 +233,19 @@ test('packaged video benchmark seeds exact effects and drives localized controls
 	assert.match(source, /validateFramescaperProject\(/u);
 	assert.match(source, /\[data-transport="play"\]/u);
 	assert.match(source, /\[data-transport="stop"\]/u);
-	assert.match(source, /runtimeBrowser\.newContext\(/u);
+	assert.match(source, /resetPreviewBenchmarkTrial\(/u);
+	assert.match(source, /localStorage\.clear\(\)/u);
+	assert.match(source, /sessionStorage\.clear\(\)/u);
+	assert.match(source, /indexedDB\.deleteDatabase/u);
+	assert.match(source, /root\.removeEntry\(opfsDirectoryName,\s*\{\s*recursive:\s*true\s*\}\)/u);
+	assert.match(source, /await cdp\.detach\(\)/u);
+	assert.match(source, /ServiceWorkerContainer\.prototype\.register/u);
+	assert.match(source, /NotSupportedError/u);
+	assert.match(source, /reset-document-presentation-cadence-and-retained-js-heap-v1/u);
+	assert.doesNotMatch(source, /runtimeBrowser\.newContext\(/u);
+	assert.doesNotMatch(source, /(?:context|runtimeBrowser)\.newPage\(/u);
 	assert.match(source, /resolveBrowserProductTestUrl\('\/framescaper\/de\/'\)/u);
-	assert.match(source, /new URL\(productUrl, runtimeBaseURL\)/u);
+	assert.match(source, /new URL\(resolvedProductUrl, runtimeBaseURL\)/u);
 	assert.doesNotMatch(source, /name: '(?:Clip properties|Add effect|Play|Stop)'/u);
 });
 
