@@ -78,13 +78,13 @@ export const CLEAN_UP_GUIDES = Object.freeze([
 		title: 'Silence part of a recording',
 		description: 'Replace a stretch of audio with silence while keeping everything in place.',
 		audacity: 'Edit → Remove Special → Silence Audio',
-		intro: 'Sometimes you want a passage gone but not the time it occupies — a phone ringing under a pause, a name you need to bleep. Silencing keeps the clip exactly as long as it was and only flattens the selected part.',
+		intro: 'Sometimes you want a passage gone but not the time it occupies — a phone ringing under a pause, a name you need to bleep. Silencing keeps the recording exactly as long as it was and only flattens the selected part.',
 		steps: [
 			open(),
 			importAudio('music-loop', { what: 'the recording with the passage to mute' }),
 			selectRange(0.4, 0.6, { where: 'just the part you want to mute' }),
 			menu(['Edit', 'Remove special', 'Silence audio']),
-			check({ clips: 1 }, { see: 'The waveform is flat across the selection and the clip is still one piece.' }),
+			check({ clips: 3 }, { see: 'The waveform is flat in the new middle clip, between the unchanged audio on either side.' }),
 		],
 		tips: [
 			'Silence is a normal edit: **Edit → Undo** brings the audio back.',
