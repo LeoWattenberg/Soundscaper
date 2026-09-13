@@ -22,7 +22,7 @@ test('seeks exact ordinary and retimed VFR pictures through occurrence-owned rea
 	test.skip(browserName !== 'chromium', 'The dormant source resolver owns a Chromium HTMLVideo seek path.');
 	await installRoutes(page);
 	await page.goto(`${ROUTE_ROOT}/index.html`);
-	const actual = await page.evaluate(async ({ fixturePath, root, sha256 }) => {
+	const actual = await page.evaluate(async ({ decodedHeight, decodedWidth, fixturePath, root, sha256 }) => {
 		const { createVideoKeyframeOfflineHtmlVideoSourceResolver } = await import(
 			`${root}/src/common/editor/ui/video-keyframe-offline-html-video-source-resolver.ts`
 		);
@@ -40,8 +40,8 @@ test('seeks exact ordinary and retimed VFR pictures through occurrence-owned rea
 				identity: sha256,
 				blob,
 				clipIds: ['ordinary-clip', 'retimed-clip'],
-				decodedWidth: 64,
-				decodedHeight: 32,
+				decodedWidth,
+				decodedHeight,
 				displayWidth: 80,
 				displayHeight: 32,
 				presentationForEntry: (entry) => entry.exactPresentation,
@@ -130,7 +130,13 @@ test('seeks exact ordinary and retimed VFR pictures through occurrence-owned rea
 		function exact(numerator, denominator = 1n) {
 			return Object.freeze({ numerator, denominator });
 		}
-	}, { fixturePath: FIXTURE_PATH, root: ROUTE_ROOT, sha256: videoRetimePreviewMedia.outputSha256 });
+	}, {
+		decodedHeight: videoRetimePreviewMedia.height,
+		decodedWidth: videoRetimePreviewMedia.width,
+		fixturePath: FIXTURE_PATH,
+		root: ROUTE_ROOT,
+		sha256: videoRetimePreviewMedia.outputSha256,
+	});
 
 	expect(actual.videoCount).toBe(2);
 	expect(actual.urlCreations).toBe(2);
@@ -142,7 +148,9 @@ test('seeks exact ordinary and retimed VFR pictures through occurrence-owned rea
 		expect(actual.frames[index].currentTime).toBe(expected.midpointSeconds);
 		expect(actual.frames[index].isConnected).toBe(true);
 		expect(actual.frames[index].paused).toBe(true);
-		expect(actual.frames[index].decoded).toEqual([64, 32]);
+		expect(actual.frames[index].decoded).toEqual([
+			videoRetimePreviewMedia.width, videoRetimePreviewMedia.height,
+		]);
 		expect(actual.frames[index].display).toEqual([80, 32]);
 	}
 });
