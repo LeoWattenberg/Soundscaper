@@ -23,17 +23,17 @@ export const PLATFORM_DELIVERY_LICENSING_ROWS: readonly PlatformDeliveryLicensin
 	Object.freeze({
 		id: "codec-encode-hevc-mp4-main10-hdr10",
 		status: "blocked",
-		blocker: "No encoder implementation or build flag is selected, no HEVC pool review is recorded, and HDR10, payload, and five-target evidence is absent.",
+		blocker: "x265 Main10 encode and MP4 mux are enabled for authenticated build and testing, an actual 10-bit Main10 encode is a runtime canary, and the five-target producer owns source, notice, and binary verification; stable redistribution remains disabled by the recorded HEVC patent-pool and HDR10-metadata posture.",
 	}),
 	Object.freeze({
 		id: "codec-encode-hevc-mp4-main10-sdr",
 		status: "blocked",
-		blocker: "No encoder implementation or build flag is selected, no HEVC pool review is recorded, and 10-bit SDR, payload, and five-target evidence is absent.",
+		blocker: "x265 Main10 encode and MP4 mux are enabled for authenticated build and testing, an actual 10-bit Main10 encode is a runtime canary, and the five-target producer owns source, notice, and binary verification; stable redistribution remains disabled by the recorded HEVC patent-pool and color-interoperability posture.",
 	}),
 	Object.freeze({
 		id: "codec-native-ffmpeg-current-set",
 		status: "blocked",
-		blocker: "The distribution policy permits WebCodecs, operating-system providers, and user-installed FFmpeg but disables bundled FFmpeg and a redistributed native FFmpeg media host. Corresponding source, notices, payload, and target verification also remain incomplete. The authenticated native FFmpeg 9.0.1 recipe remains enabled for build and testing only.",
+		blocker: "The stable distribution policy deliberately excludes a redistributed native FFmpeg media host. Authenticated source, notices, a closed component recipe, target-native five-target CI production, binary inspection, runtime self-test, and package staging are enabled for build and testing.",
 	}),
 	Object.freeze({
 		id: "codec-hardware-acceleration",
@@ -43,17 +43,17 @@ export const PLATFORM_DELIVERY_LICENSING_ROWS: readonly PlatformDeliveryLicensin
 	Object.freeze({
 		id: "codec-encode-prores-mov-422-hq",
 		status: "blocked",
-		blocker: "The recipe names the encoder and muxer, but 422 HQ interoperability, payload, and target verification remain incomplete.",
+		blocker: "ProRes 422 HQ encode and MOV mux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded format and interoperability posture.",
 	}),
 	Object.freeze({
 		id: "codec-encode-prores-mov-4444",
 		status: "blocked",
-		blocker: "The recipe names the encoder and muxer, but 4444 alpha interoperability, payload, and target verification remain incomplete.",
+		blocker: "ProRes 4444 encode and MOV mux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded format and alpha-interoperability posture.",
 	}),
 	Object.freeze({
 		id: "codec-encode-png-image-sequence",
 		status: "blocked",
-		blocker: "PNG encode is enabled for authenticated build and testing; distribution interoperability and target verification remain incomplete.",
+		blocker: "PNG encode and image-sequence mux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded alpha-interoperability posture.",
 	}),]);
 
 /** The same rows in the shape the availability resolver reads a matrix in. */

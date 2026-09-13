@@ -31,13 +31,21 @@ test('Framescaper package audit binds media, OpenFX and isolation payload closur
 		fixture.packageAudit, fixture.payloadAudit, INPUT_PATHS,
 	));
 	const changedIsolation = structuredClone(fixture.packageAudit);
-	changedIsolation.runtimeManifest.value.framescaperNativeHosts.mediaHost.payloads[1].sha256 =
+	changedIsolation.runtimeManifest.value.framescaperNativeHosts.mediaHost.payloads[2].sha256 =
 		'b'.repeat(64);
 	assert.throws(
 		() => validateMilestone5PackagePayloadBinding(
 			changedIsolation, fixture.payloadAudit, INPUT_PATHS,
 		),
 		/media host target/iu,
+	);
+	const missingBuildReceipt = structuredClone(fixture.payloadAudit);
+	delete missingBuildReceipt.manifests.mediaHost.targets[0].buildResult;
+	assert.throws(
+		() => validateMilestone5PackagePayloadBinding(
+			fixture.packageAudit, missingBuildReceipt, INPUT_PATHS,
+		),
+		/authenticated package payload descriptor is invalid/iu,
 	);
 });
 
@@ -80,7 +88,13 @@ function soundscaperFixture() {
 function framescaperFixture() {
 	const payloadAudit = basePayloadAudit();
 	const native = payload('native/addon.node', 'addon.node');
+	const mediaBuildResult = payload(
+		'native/media-build-result.json', 'media-build-result.json',
+	);
 	const media = payload('native/media-host', 'media-host');
+	const openFxBuildResult = payload(
+		'native/openfx-build-result.json', 'openfx-build-result.json',
+	);
 	const scanner = payload('native/scanner', 'scanner');
 	const runtime = payload('native/runtime-host', 'runtime-host');
 	const mediaIsolation = isolationPayload('native/media-isolation');
@@ -89,12 +103,14 @@ function framescaperFixture() {
 		id: 'linux-x64', status: 'built', blockedBy: null, payload: native.source,
 	}];
 	payloadAudit.manifests.mediaHost.targets = [{
-		id: 'linux-x64', status: 'built', blockedBy: null, payload: media.source,
+		id: 'linux-x64', status: 'built', blockedBy: null,
+		buildResult: mediaBuildResult.source, payload: media.source,
 		isolationPayload: mediaIsolation.source,
 	}];
 	payloadAudit.manifests.openFxHost.targets = [{
 		id: 'linux-x64', status: 'built', blockedBy: null,
 		payload: {
+			buildResult: openFxBuildResult.source,
 			scannerPayload: scanner.source, runtimeHostPayload: runtime.source,
 			isolationPayload: openFxIsolation.source,
 		},
@@ -122,12 +138,18 @@ function framescaperFixture() {
 					target: 'linux-x64',
 					mediaHost: {
 						payloadManifest: { id: 'media', sha256: DIGEST }, status: 'built',
-						blockedBy: null, payloads: [media.packaged, ...mediaIsolation.packaged],
+						blockedBy: null,
+						payloads: [
+							mediaBuildResult.packaged, media.packaged, ...mediaIsolation.packaged,
+						],
 					},
 					openFxHost: {
 						payloadManifest: { id: 'openfx', sha256: DIGEST }, status: 'built',
 						blockedBy: null,
-						payloads: [scanner.packaged, runtime.packaged, ...openFxIsolation.packaged],
+						payloads: [
+							openFxBuildResult.packaged, scanner.packaged, runtime.packaged,
+							...openFxIsolation.packaged,
+						],
 					},
 				},
 			} },

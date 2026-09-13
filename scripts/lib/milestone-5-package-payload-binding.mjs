@@ -83,6 +83,11 @@ function exactTarget(manifest, targetId, label) {
 }
 
 function packagePayload(descriptor) {
+	assert(descriptor !== null && typeof descriptor === 'object'
+		&& typeof descriptor.path === 'string'
+		&& Number.isSafeInteger(descriptor.byteLength) && descriptor.byteLength > 0
+		&& typeof descriptor.sha256 === 'string',
+	'Authenticated package payload descriptor is invalid.');
 	return {
 		name: descriptor.path.slice(descriptor.path.lastIndexOf('/') + 1),
 		byteLength: descriptor.byteLength,

@@ -41,7 +41,7 @@ test('Milestone 5 reports a machine package audit without qualification state', 
 	assert.equal(audit.sourceInputsVerified, false);
 	assert.equal(audit.package, null);
 	assert.equal(audit.payloads.total, 20);
-	assert.equal(audit.sources.total, 10);
+	assert.equal(audit.sources.total, 11);
 	assert.equal(audit.licensing.distributionPolicies.length, 3);
 	assert.equal(audit.licensing.nativeFormatPolicies.length, 38);
 	assert.equal(Object.hasOwn(audit.licensing, 'disabledGates'), false);

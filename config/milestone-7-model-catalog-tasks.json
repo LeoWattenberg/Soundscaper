@@ -71,7 +71,7 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "5b6804fd3d62d0fc0369350de2e051f4056a3b9c0668cf78ff0b8869df325410",
-				"catalogEntrySha256": "d93bc878a6a45d6a308291d39391d7418ee67185d824b0dbe8521720e4d108f9"
+				"catalogEntrySha256": "fffd87b1406c5c4938aae36bc9164978cbe532584b511a5bba83453a7029bd7e"
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
@@ -122,7 +122,7 @@
 			],
 			"releaseEvidence": {
 				"publicReadbackSha256": "b4346dc5d91f81369b4ed66755f08a9c6f95e9700f31a9192ac280c1d10661a6",
-				"catalogEntrySha256": "b62ea3b83d25aac991ef9dd147c7311bb1fff0663d727d805fe5d703cd3f5f04"
+				"catalogEntrySha256": "7231facf78b5d6d9d18a40e3aad936eeff6fd4ce40802d6c25452cd5ea437284"
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
@@ -160,7 +160,7 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "12116fc8bf0dcbf53ed2be431250d2e46c500c606c03a86def8a84982f0be913",
-				"catalogEntrySha256": "4ab7f57db4548535a7dd7d7082e71c3ca15a56d5d9e988201b32aebe9d602b12"
+				"catalogEntrySha256": "d42ec5a429a7228d2674ffc93be9abf1f58cb09fe73d7bde682b5027be8efb5c"
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
@@ -198,7 +198,7 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "1f6c73508ffab6d965b73e337f4518c3c8587201c6b1e9ba3a04a650d12213f5",
-				"catalogEntrySha256": "9bd20a974fbfb5fe0db30a503614a2fc6c8b2d3ed71ef0403620fe9aa210e293"
+				"catalogEntrySha256": "c0531ec65172b908c46f26f8f6bcd2942da33ea2e741ec75e2f7c624064e7cf4"
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
@@ -236,7 +236,7 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "f82d93f91afb69ee6a5303b837512f07c3b3a6465f26663c99d8d173ce469c86",
-				"catalogEntrySha256": "473159e3b57ee620488e2167aec7f7694eb457030c4a9898c00c7a8e046032d0"
+				"catalogEntrySha256": "75d6e6f2fa3a12fa13fd764b2e7efb3fd8f2ac52f9cef641f96779c10295af8c"
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
@@ -311,7 +311,7 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "b064e04ea9640aa3f2df94ebfb5876be6d31ff14c5929d959754f8f7e272843c",
-				"catalogEntrySha256": "74496b1c04bde1a304276b2adc433d0a853cbe142255be18ea218457605ca94f"
+				"catalogEntrySha256": "077628bd56065cb257415be8f57fb35f0be3723713d674f9d8e062a1c4881cef"
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],

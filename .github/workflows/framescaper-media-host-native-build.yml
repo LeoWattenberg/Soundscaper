@@ -47,6 +47,7 @@ jobs:
           fetch-depth: 0
       - name: Install Linux media build tools
         if: runner.os == 'Linux'
+        timeout-minutes: 10
         run: >-
           bash scripts/ci-apt-install.sh
           build-essential bzip2 cmake ninja-build pkg-config xz-utils
