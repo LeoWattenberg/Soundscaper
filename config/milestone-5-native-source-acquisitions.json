@@ -1,7 +1,7 @@
 {
 	"schemaVersion": 1,
 	"groundedAt": "2026-08-24",
-	"purpose": "Authenticated source inputs for Milestone 5 native build recipes. Authentication does not grant redistribution, trademark, patent, signing, activation, or qualification approval.",
+	"purpose": "Exact source identities for Milestone 5 native build recipes. Source authentication is separate from redistribution terms, patent considerations, and runtime activation.",
 	"sources": [
 		{
 			"id": "electron-node-api-headers",
@@ -226,7 +226,7 @@
 			"authenticationStatus": "pinned-metadata",
 			"activationStatus": "accepted",
 			"blockedBy": null,
-			"uses": ["ffmpeg-vp9-decoder", "ffmpeg-vp9-encoder"]
+			"uses": ["ffmpeg-vp9-encoder"]
 		},
 		{
 			"id": "libopus",
@@ -251,7 +251,32 @@
 			"authenticationStatus": "pinned-metadata",
 			"activationStatus": "accepted",
 			"blockedBy": null,
-			"uses": ["ffmpeg-opus-decoder", "ffmpeg-opus-encoder"]
+			"uses": ["ffmpeg-opus-encoder"]
+		},
+		{
+			"id": "zlib",
+			"version": "1.3.1",
+			"git": {
+				"tag": "v1.3.1",
+				"commit": "51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf"
+			},
+			"archive": {
+				"url": "https://zlib.net/fossils/zlib-1.3.1.tar.gz",
+				"fileName": "zlib-1.3.1.tar.gz",
+				"byteLength": 1512791,
+				"sha256": "9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23"
+			},
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 253,
+				"sha256": "85dd44f5108708f967d0d5aba1205eb54c20347a4b8417c4d1b87921822acae9"
+			},
+			"license": "Zlib",
+			"licenseSelection": "Zlib",
+			"authenticationStatus": "pinned-metadata",
+			"activationStatus": "accepted",
+			"blockedBy": null,
+			"uses": ["ffmpeg-png-codec", "ffmpeg-openexr-codec"]
 		}
 	],
 	"delegatedSources": [

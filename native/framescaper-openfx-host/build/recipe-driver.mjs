@@ -41,6 +41,7 @@ const OPTION_FIELDS = Object.freeze([
 const TOOL_ROLES = Object.freeze(['c', 'cmake', 'cxx', 'ninja']);
 const TOOLCHAIN_ENVIRONMENT = new Set([
 	'INCLUDE', 'LIB', 'LIBPATH', 'MACOSX_DEPLOYMENT_TARGET', 'PATH', 'SDKROOT', 'SYSTEMROOT',
+	'TEMP', 'TMP',
 ]);
 const RECIPES = new WeakMap();
 const EXECUTED = new WeakSet();
@@ -63,7 +64,7 @@ export function createFramescaperOpenFxHostBuildRecipe(value) {
 		witnessFile(join(hostRoot, 'source-manifest.json'), witnesses),
 		'OpenFX-host source manifest',
 	);
-	assertPendingTargets(manifest);
+	assertCiGeneratedTargets(manifest);
 	verifyPinnedSourceClosure(hostRoot, manifest, witnesses);
 	const mediaContract = verifyMediaContractClosure(
 		repositoryRoot, hostRoot, manifest, witnesses,
@@ -195,19 +196,18 @@ function expectedToolchain(targetId) {
 		'linux-arm64': 'set(CMAKE_SYSTEM_NAME Linux)\nset(CMAKE_SYSTEM_PROCESSOR aarch64)',
 		'mac-arm64': 'set(CMAKE_SYSTEM_NAME Darwin)\nset(CMAKE_OSX_ARCHITECTURES arm64)\nset(CMAKE_OSX_DEPLOYMENT_TARGET 13.0)',
 		'win-x64': 'set(CMAKE_SYSTEM_NAME Windows)\nset(CMAKE_SYSTEM_PROCESSOR AMD64)',
-		'win-arm64': 'set(CMAKE_SYSTEM_NAME Windows)\nset(CMAKE_SYSTEM_PROCESSOR ARM64EC)',
+		'win-arm64': 'set(CMAKE_SYSTEM_NAME Windows)\nset(CMAKE_SYSTEM_PROCESSOR ARM64EC)\nset(CMAKE_C_FLAGS_INIT "/arm64EC")\nset(CMAKE_CXX_FLAGS_INIT "/arm64EC")\nset(CMAKE_EXE_LINKER_FLAGS_INIT "/MACHINE:ARM64EC")\nset(CMAKE_SHARED_LINKER_FLAGS_INIT "/MACHINE:ARM64EC")',
 	}[targetId];
-	return `# SPDX-License-Identifier: AGPL-3.0-only\n${platform}\nif(NOT IS_ABSOLUTE "\${FRAMESCAPER_C_COMPILER}" OR NOT IS_ABSOLUTE "\${FRAMESCAPER_CXX_COMPILER}")\n\tmessage(FATAL_ERROR "The recipe must supply absolute authenticated C and C++ compilers")\nendif()\nset(CMAKE_C_COMPILER "\${FRAMESCAPER_C_COMPILER}" CACHE FILEPATH "" FORCE)\nset(CMAKE_CXX_COMPILER "\${FRAMESCAPER_CXX_COMPILER}" CACHE FILEPATH "" FORCE)\n`;
+	return `# SPDX-License-Identifier: AGPL-3.0-only\n${platform}\nset(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES FRAMESCAPER_C_COMPILER FRAMESCAPER_CXX_COMPILER)\nif(NOT IS_ABSOLUTE "\${FRAMESCAPER_C_COMPILER}" OR NOT IS_ABSOLUTE "\${FRAMESCAPER_CXX_COMPILER}")\n\tmessage(FATAL_ERROR "The recipe must supply absolute authenticated C and C++ compilers")\nendif()\nset(CMAKE_C_COMPILER "\${FRAMESCAPER_C_COMPILER}" CACHE FILEPATH "" FORCE)\nset(CMAKE_CXX_COMPILER "\${FRAMESCAPER_CXX_COMPILER}" CACHE FILEPATH "" FORCE)\n`;
 }
-
-function assertPendingTargets(manifest) {
+function assertCiGeneratedTargets(manifest) {
 	closedRecord(manifest, [
 		'schemaVersion', 'hostVersion', 'helperContractVersion', 'license', 'sourceDateEpoch',
 		'openfx', 'sourceFiles', 'targets',
 	], 'OpenFX-host source manifest');
 	closedRecord(manifest.openfx, [
-		'version', 'tag', 'commit', 'commitSha', 'tagObjectSha', 'signedTagApiUrl',
-		'signedTagVerifiedAt', 'url', 'byteLength', 'sha256', 'extractedTree', 'license',
+		'version', 'tag', 'commit', 'commitSha', 'tagObjectSha', 'url', 'byteLength',
+		'sha256', 'extractedTree', 'license',
 	], 'OpenFX-host source pin');
 	closedRecord(manifest.targets, TARGETS.map(({ id }) => id), 'OpenFX-host target states');
 	if (manifest.schemaVersion !== 1 || manifest.hostVersion !== '1.0.0'
@@ -223,14 +223,14 @@ function assertPendingTargets(manifest) {
 		const state = manifest.targets[target.id];
 		closedRecord(state, [
 			'runtime', 'status', 'blockedBy', 'toolchainIdentity', 'scannerPayload',
-			'runtimeHostPayload', 'isolationPayload',
+			'runtimeHostPayload', 'isolationPayload', 'buildResult',
 		], `OpenFX-host ${target.id} target state`);
-		if (state?.status !== 'pending-external' || state.toolchainIdentity !== null
+		if (state?.status !== 'ci-generated' || state.toolchainIdentity !== null
 			|| state.scannerPayload !== null || state.runtimeHostPayload !== null
-			|| state.isolationPayload !== null
+			|| state.isolationPayload !== null || state.buildResult !== null
 			|| state.runtime !== target.runtime
-			|| typeof state.blockedBy !== 'string' || state.blockedBy.length === 0) {
-			throw new Error(`Target ${target.id} must remain pending-external with no payload claim.`);
+			|| state.blockedBy !== null) {
+			throw new Error(`Target ${target.id} must remain ci-generated with no payload claim.`);
 		}
 	}
 }

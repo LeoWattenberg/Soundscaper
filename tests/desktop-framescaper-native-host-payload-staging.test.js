@@ -23,6 +23,7 @@ const MEDIA_ROOT = 'native/framescaper-media-host';
 const OPENFX_ROOT = 'native/framescaper-openfx-host';
 const MEDIA_PATH = `${MEDIA_ROOT}/prebuilt/${TARGET}/framescaper-media-host`;
 const MEDIA_FILES = Object.freeze([
+	[`${MEDIA_ROOT}/prebuilt/${TARGET}/framescaper-media-host-build-result.json`, Buffer.from('media-build-result')],
 	[MEDIA_PATH, Buffer.from('verified-media-host')],
 	[`${MEDIA_ROOT}/prebuilt/${TARGET}/isolation/milestone5-native-isolation-launcher`, Buffer.from('media-launcher')],
 	[`${MEDIA_ROOT}/prebuilt/${TARGET}/isolation/milestone5-native-isolation-profile.json`, Buffer.from('media-profile')],
@@ -30,6 +31,7 @@ const MEDIA_FILES = Object.freeze([
 	[`${MEDIA_ROOT}/prebuilt/${TARGET}/lib/libframescaper-media.so`, Buffer.from('media-library')],
 ]);
 const OPENFX_FILES = Object.freeze([
+	[`${OPENFX_ROOT}/prebuilt/${TARGET}/framescaper-openfx-host-build-result.json`, Buffer.from('ofx-build-result')],
 	[`${OPENFX_ROOT}/prebuilt/${TARGET}/bin/framescaper-ofx-scanner`, Buffer.from('verified-ofx-scanner')],
 	[`${OPENFX_ROOT}/prebuilt/${TARGET}/bin/framescaper-ofx-runtime-host`, Buffer.from('verified-ofx-runtime')],
 	[`${OPENFX_ROOT}/prebuilt/${TARGET}/isolation/milestone5-native-isolation-launcher`, Buffer.from('ofx-launcher')],
@@ -59,12 +61,13 @@ test('built targets stage only their closed payload and isolation inventories', 
 	assert.deepEqual(Object.keys(summary.mediaHost).sort(), ['blockedBy', 'payloadManifest', 'payloads', 'status']);
 	assert.deepEqual(Object.keys(summary.openFxHost).sort(), ['blockedBy', 'payloadManifest', 'payloads', 'status']);
 	assert.deepEqual((await readdir(join(outputRoot, 'native/framescaper-media-host', TARGET))).sort(), [
-		'framescaper-media-host', 'libframescaper-media.so',
+		'framescaper-media-host', 'framescaper-media-host-build-result.json', 'libframescaper-media.so',
 		'milestone5-native-isolation-broker.json', 'milestone5-native-isolation-launcher',
 		'milestone5-native-isolation-profile.json',
 	]);
 	assert.deepEqual((await readdir(join(outputRoot, 'native/framescaper-openfx-host', TARGET))).sort(), [
-		'framescaper-ofx-runtime-host', 'framescaper-ofx-scanner', 'ld-linux-x86-64.so.2',
+		'framescaper-ofx-runtime-host', 'framescaper-ofx-scanner',
+		'framescaper-openfx-host-build-result.json', 'ld-linux-x86-64.so.2',
 		'milestone5-native-isolation-broker.json', 'milestone5-native-isolation-launcher',
 		'milestone5-native-isolation-profile.json',
 	]);
@@ -138,12 +141,13 @@ function fixture(context, built) {
 	if (built) media.targets[TARGET] = {
 		runtime: TARGET, status: 'built', blockedBy: null,
 		toolchainIdentity: digest(Buffer.from('media-toolchain')),
-		payload: descriptor(...MEDIA_FILES[0]),
+		buildResult: descriptor(...MEDIA_FILES[0]),
+		payload: descriptor(...MEDIA_FILES[1]),
 		isolationPayload: {
-			launcherPayload: descriptor(...MEDIA_FILES[1]),
-			sandboxProfilePayload: descriptor(...MEDIA_FILES[2]),
-			brokerPolicyPayload: descriptor(...MEDIA_FILES[3]),
-			runtimeLibraryPayloads: [descriptor(...MEDIA_FILES[4])],
+			launcherPayload: descriptor(...MEDIA_FILES[2]),
+			sandboxProfilePayload: descriptor(...MEDIA_FILES[3]),
+			brokerPolicyPayload: descriptor(...MEDIA_FILES[4]),
+			runtimeLibraryPayloads: [descriptor(...MEDIA_FILES[5])],
 		},
 	};
 	writeJson(mediaPath, media);
@@ -154,13 +158,14 @@ function fixture(context, built) {
 	if (built) openFx.targets[TARGET] = {
 		runtime: TARGET, status: 'built', blockedBy: null,
 		toolchainIdentity: digest(Buffer.from('openfx-toolchain')),
-		scannerPayload: descriptor(...OPENFX_FILES[0]),
-		runtimeHostPayload: descriptor(...OPENFX_FILES[1]),
+		buildResult: descriptor(...OPENFX_FILES[0]),
+		scannerPayload: descriptor(...OPENFX_FILES[1]),
+		runtimeHostPayload: descriptor(...OPENFX_FILES[2]),
 		isolationPayload: {
-			launcherPayload: descriptor(...OPENFX_FILES[2]),
-			sandboxProfilePayload: descriptor(...OPENFX_FILES[3]),
-			brokerPolicyPayload: descriptor(...OPENFX_FILES[4]),
-			runtimeLibraryPayloads: [descriptor(...OPENFX_FILES[5])],
+			launcherPayload: descriptor(...OPENFX_FILES[3]),
+			sandboxProfilePayload: descriptor(...OPENFX_FILES[4]),
+			brokerPolicyPayload: descriptor(...OPENFX_FILES[5]),
+			runtimeLibraryPayloads: [descriptor(...OPENFX_FILES[6])],
 		},
 	};
 	writeJson(openFxPath, openFx);

@@ -15,9 +15,10 @@ if (audit.findings.length > 0) {
 } else {
 	const verified = verifyFramescaperOpenFxPayloadManifest({ repositoryRoot });
 	const built = verified.payload.payloads.length;
-	const pending = verified.payload.targets.length - built;
+	const generated = verified.payload.targets.length - built;
 	process.stdout.write(
 		`Framescaper OpenFX host: ${String(built)} built target(s), `
-		+ `${String(pending)} pending-external; source and payload identities are pinned.\n`,
+		+ `${String(generated)} CI-generated target(s) awaiting a staged result; `
+		+ 'source and payload identities are pinned.\n',
 	);
 }

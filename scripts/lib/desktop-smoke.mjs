@@ -81,15 +81,16 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'rescanExternalFfmpeg',
 	'respondToClose',
 	'restoreNativePluginState',
-	'reviewNativePluginInstallation',
 	'runDesktopAudioCodecOperation',
 	'runNativePluginOffline',
 	'runWindowAction',
 	'scanNativePlugins',
+	'selectNativePluginInstallation',
 	'setLocale',
 	'setNativeAudioHelperEnabled',
 	'setNativePluginBypassed',
 	'setNativePluginConsent',
+	'setNativePluginInstallationAllowed',
 	'signalReady',
 	'statDesktopVideoCodecOutput',
 	'writeChunk',
@@ -169,7 +170,7 @@ export function assertDesktopSmokePayload(payload, expected) {
 	assert(payload?.saveOwnerReady === true, 'Smoke did not activate the main-document save owner.');
 	assert(
 		JSON.stringify(payload?.bridge) === JSON.stringify(expected.bridge),
-		'Smoke bridge surface does not match the reviewed v1 contract.',
+		'Smoke bridge surface does not match the v1 contract.',
 	);
 	assert(
 		payload?.environment?.platform === expected.platform,

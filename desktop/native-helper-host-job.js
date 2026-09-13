@@ -10,7 +10,7 @@
  * live stream, and pretending otherwise would put audio on the control channel.
  *
  * The binary is re-hashed here even though main already verified it. Main proves
- * the file it granted was the reviewed one; this proves the bytes about to be
+ * the file it granted was the explicitly allowed one; this proves the bytes about to be
  * dlopened still are. Between those two moments the file could have changed,
  * and the whole point of a digest-keyed registry is that it cannot.
  */
@@ -45,8 +45,8 @@ export function createNativePluginHostJobRunner({ loadAddon, addonPath, addonSha
 		const completion = (async () => {
 			const digest = await hashFile(grant.binaryPath);
 			if (digest.sha256 !== grant.binarySha256 || digest.byteLength !== grant.binaryBytes) {
-				// Not an error to recover from: the reviewed bytes are gone, so
-				// this digest has to be treated as an unreviewed installation.
+				// Not an error to recover from: the allowed bytes are gone, so
+				// this digest has to be treated as a new installation needing allowance.
 				throw Object.assign(new Error('The plug-in binary changed after it was granted.'), {
 					code: 'HELPER_PLUGIN_DIGEST_MISMATCH',
 				});

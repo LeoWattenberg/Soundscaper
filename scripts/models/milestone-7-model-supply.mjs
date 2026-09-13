@@ -70,7 +70,7 @@ export function validateMilestone7ParityEvidence(value, fixture, candidate) {
 	if (!definition) throw new TypeError('Parity evidence selected a foreign model candidate.');
 	const admittedCandidate = validateCandidate(candidate, candidate.id);
 	if (admittedCandidate.conversion.status !== 'converted-artifact-ready') {
-		throw new Error('Parity evidence cannot bless a pending converted artifact.');
+		throw new Error('Parity evidence cannot admit a converted artifact that was not generated.');
 	}
 	const admittedFixture = validateParityFixture(fixture, admittedCandidate, definition);
 	const record = exactRecord(value, [
@@ -196,7 +196,7 @@ function validateSourceArtifact(value) {
 function validateConversion(value, definition) {
 	const row = exactRecord(value, ['status', 'blockedBy', 'recipe', 'outputs'],
 		'derived conversion');
-	if (row.status !== 'converted-artifact-pending'
+	if (row.status !== 'converted-artifact-not-generated'
 		&& row.status !== 'converted-artifact-ready') {
 		throw new TypeError('The converted-artifact status is invalid.');
 	}
@@ -210,7 +210,7 @@ function validateConversion(value, definition) {
 	if (!outputs.some(({ required }) => required)) {
 		throw new TypeError('A derived conversion must produce at least one required artifact.');
 	}
-	if (row.status === 'converted-artifact-pending') {
+	if (row.status === 'converted-artifact-not-generated') {
 		boundedBlocker(row.blockedBy, 'converted-artifact blocker');
 	} else if (row.blockedBy !== null || recipe.toolchain.status !== 'locked') {
 		throw new Error('A ready converted artifact requires one digest-pinned toolchain.');
@@ -263,9 +263,9 @@ function validateRecipe(value, definition) {
 function validateToolchain(value) {
 	const row = exactRecord(value, ['status', 'lockFile', 'sha256', 'blockedBy'],
 		'conversion toolchain');
-	if (row.status === 'lock-pending-external') {
+	if (row.status === 'toolchain-lock-not-generated') {
 		if (row.lockFile !== null || row.sha256 !== null) {
-			throw new Error('A pending toolchain cannot carry invented lock-file evidence.');
+			throw new Error('A not-generated toolchain lock cannot carry invented lock-file evidence.');
 		}
 		boundedBlocker(row.blockedBy, 'toolchain blocker');
 	} else if (row.status === 'locked') {
@@ -302,9 +302,9 @@ function validateConvertedOutput(value, status) {
 	if (!SLUG.test(row.role) || typeof row.required !== 'boolean' || !FILE_NAME.test(row.fileName)) {
 		throw new TypeError('A converted-artifact descriptor is invalid.');
 	}
-	if (status === 'converted-artifact-pending') {
+	if (status === 'converted-artifact-not-generated') {
 		if (row.byteLength !== null || row.sha256 !== null) {
-			throw new Error('A pending converted artifact cannot carry a digest or byte length.');
+			throw new Error('A not-generated converted artifact cannot carry a digest or byte length.');
 		}
 	} else if (!safeBytes(row.byteLength) || !SHA256.test(row.sha256)) {
 		throw new TypeError('A ready converted artifact needs an exact SHA-256 identity.');
@@ -325,10 +325,9 @@ function validateDirectPin(value, expectedId) {
 		|| artifact.fileName !== expected.fileName || artifact.byteLength !== expected.byteLength
 		|| artifact.sha256 !== expected.sha256
 		|| row.minimumSystemMemoryBytes !== expected.minimumSystemMemoryBytes
-		|| row.activationStatus !== 'catalog-publication-pending') {
-		throw new TypeError('A direct model identity pin changed or falsely claims activation.');
+		|| row.activationStatus !== 'ready' || row.blockedBy !== null) {
+		throw new TypeError('A published direct model identity pin changed or falsely claims incomplete activation.');
 	}
-	boundedBlocker(row.blockedBy, 'direct model activation blocker');
 	return { ...row, artifact: { ...artifact } };
 }
 
@@ -372,9 +371,9 @@ function validateParityFixture(value, candidate, definition) {
 		return { ...comparison };
 	});
 	unique(comparisons.map((entry) => JSON.stringify(entry)), 'parity comparison');
-	if (row.evidenceStatus === 'pending-external') {
+	if (row.evidenceStatus === 'parity-evidence-not-generated') {
 		if (row.evidenceSha256 !== null) {
-			throw new Error('Pending parity cannot carry an evidence digest.');
+			throw new Error('Not-generated parity evidence cannot carry a digest.');
 		}
 		boundedBlocker(row.blockedBy, 'parity blocker');
 	} else if (row.evidenceStatus === 'verified') {

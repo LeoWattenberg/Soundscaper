@@ -5,8 +5,8 @@
  * Builds the native helper addon for the host target and repins the source
  * manifest. This needs a compiler and therefore never runs in the canonical
  * gate: `npm run audit:native-helper-addon` verifies the checked-in bytes
- * instead. Only the host's own target is produced — the other claimed targets
- * stay `pending-external` until a real build host exists for them.
+ * instead. The dedicated target-native CI workflow produces stageable results
+ * for all five package targets; this command remains the local host shortcut.
  */
 
 import { resolve } from 'node:path';

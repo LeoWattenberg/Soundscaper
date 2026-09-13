@@ -38,9 +38,10 @@ function harness(options: { unstableLatency?: boolean } = {}) {
 		binaryPath: '/usr/lib/vst3/native-effect.vst3', binaryBytes: 4_096,
 		binarySha256: BINARY_SHA256, identity: { dev: 1, ino: 2 }, classification: 'effect',
 		topologies: [{ inputChannels: 2, outputChannels: 2 }], realtimeSupported: true,
-		offlineSupported: true, reportedLatencyFrames: 64, signature: 'trusted',
+		offlineSupported: true, reportedLatencyFrames: 64,
 		compatibility: 'compatible', descriptorVersion: 1,
 	}))
+	registry.allow(installation)
 	const isolation = new PluginHostIsolationRegistry({
 		isEnabled: () => true,
 		mintId: () => `opaque_${String(++minted).padStart(4, '0')}`,

@@ -10,7 +10,6 @@ import {
 	type DesktopPluginRegistryOptions,
 	PLUGIN_CLASSIFICATIONS,
 	PLUGIN_COMPATIBILITY_VERDICTS,
-	PLUGIN_TRUST_VERDICTS,
 	type PluginEntryView,
 	type PluginRegistryAdmission,
 	PluginRegistryError,
@@ -24,7 +23,6 @@ import {
 	MAXIMUM_PLUGIN_PATH_BYTES,
 	PLUGIN_CLASSIFICATIONS as SCAN_PLUGIN_CLASSIFICATIONS,
 	PLUGIN_COMPATIBILITY_RESULTS,
-	PLUGIN_SIGNATURE_RESULTS,
 	isAdmissiblePluginPath,
 	type PluginScanEntry,
 } from '../desktop/plugin-scan-results.ts';
@@ -42,7 +40,6 @@ const SCAN_ENTRY: PluginScanEntry = Object.freeze({
 	realtime: true,
 	offline: true,
 	reportedLatencyFrames: 64,
-	signature: 'signed-valid',
 	compatibility: 'compatible',
 	descriptorVersion: 3,
 });
@@ -76,7 +73,6 @@ function observation(overrides: Partial<PluginScanObservation> = {}): PluginScan
 		realtimeSupported: true,
 		offlineSupported: true,
 		reportedLatencyFrames: 64,
-		signature: 'trusted',
 		compatibility: 'compatible',
 		descriptorVersion: 3,
 		...overrides,
@@ -86,7 +82,7 @@ function observation(overrides: Partial<PluginScanObservation> = {}): PluginScan
 function recorded(admission: PluginRegistryAdmission): Readonly<{
 	entryId: string;
 	installationId: string;
-	unreviewed: boolean;
+	allowanceRequired: boolean;
 	selectionRequired: boolean;
 }> {
 	assert.equal(admission.status, 'recorded', JSON.stringify(admission));
@@ -140,28 +136,29 @@ test('identity is the format plus the format-native stable id, never the path', 
 	const rescanned = recorded(registry.record(observation({ binaryPath: '/opt/vst3/RoomReverb.vst3' })));
 	assert.equal(rescanned.installationId, first.installationId);
 	assert.equal(entry(registry, first.entryId).installations.length, 1);
+	registry.allow(first.installationId);
 	assert.equal(registry.hostGrantFor(first.installationId).binaryPath, '/opt/vst3/RoomReverb.vst3');
 });
 
-test('a changed digest is a new unreviewed installation, never an update of the reviewed one', () => {
+test('a changed digest needs a new allowance and never inherits the old digest allowance', () => {
 	const registry = createRegistry();
-	const original = recorded(registry.record(observation({ signature: 'unsigned' })));
+	const original = recorded(registry.record(observation()));
 	registry.allow(original.installationId);
 	assert.equal(entry(registry, original.entryId).eligible, true);
 
-	const changed = recorded(registry.record(observation({ binarySha256: DIGEST_B, signature: 'unsigned' })));
+	const changed = recorded(registry.record(observation({ binarySha256: DIGEST_B })));
 	assert.notEqual(changed.installationId, original.installationId);
-	assert.equal(changed.unreviewed, true);
+	assert.equal(changed.allowanceRequired, true);
 	assert.equal(changed.selectionRequired, true);
 	const view = entry(registry, original.entryId);
 	assert.equal(view.installations.length, 2);
-	assert.deepEqual(view.installations.map((installation) => installation.reviewed), [true, false]);
+	assert.deepEqual(view.installations.map((installation) => installation.allowed), [true, false]);
 	assert.equal(view.ineligibleReason, 'identity-collision');
 
-	// With the old binary gone, the warning-and-allow decision is plainly not
-	// inherited: the new digest is untrusted code until the user allows it too.
+	// With the old binary gone, the allowance decision is plainly not
+	// inherited: the new digest cannot run until the user allows it too.
 	registry.forget(original.installationId);
-	assert.equal(entry(registry, original.entryId).ineligibleReason, 'untrusted-code');
+	assert.equal(entry(registry, original.entryId).ineligibleReason, 'allowance-required');
 	registry.allow(changed.installationId);
 	assert.equal(entry(registry, original.entryId).eligible, true);
 });
@@ -186,6 +183,7 @@ test('a stable-id collision is ineligible until the user selects, whatever the s
 
 		const chosen = installationIdFor(DIGEST_B, 'com.example.reverb');
 		registry.select(chosen);
+		registry.allow(chosen);
 		assert.equal(entry(registry, entryId).eligible, true);
 		assert.equal(registry.hostGrantFor(chosen).binaryPath, '/opt/vendor/RoomReverb.vst3');
 		assert.equal(registryErrorCode(() => registry.hostGrantFor(installationIdFor(DIGEST_A, 'com.example.reverb'))),
@@ -198,6 +196,7 @@ test('a further installation re-opens a choice the user already made', () => {
 	const first = recorded(registry.record(observation()));
 	recorded(registry.record(observation({ binarySha256: DIGEST_B, binaryPath: '/opt/vendor/RoomReverb.vst3' })));
 	registry.select(first.installationId);
+	registry.allow(first.installationId);
 	assert.equal(entry(registry, first.entryId).eligible, true);
 
 	const third = recorded(registry.record(observation({ binarySha256: DIGEST_C, binaryPath: '/srv/RoomReverb.vst3' })));
@@ -212,7 +211,6 @@ test('an instrument is recorded and is never materializable', () => {
 		stableId: 'com.example.synth',
 		name: 'Example Synth',
 		classification: 'instrument',
-		signature: 'trusted',
 	})));
 	const view = entry(registry, instrument.entryId);
 	assert.equal(view.classification, 'instrument');
@@ -237,20 +235,21 @@ test('an instrument is recorded and is never materializable', () => {
 	assert.equal(registryErrorCode(() => mixed.hostGrantFor(effect.installationId)), 'instrument-not-offered');
 });
 
-test('unsigned or unverifiable code is never silently eligible', () => {
-	for (const signature of ['unsigned', 'unverifiable', 'untrusted'] as const) {
-		const registry = createRegistry();
-		const admission = recorded(registry.record(observation({ signature })));
-		assert.equal(entry(registry, admission.entryId).ineligibleReason, 'untrusted-code');
-		assert.equal(registryErrorCode(() => registry.hostGrantFor(admission.installationId)), 'untrusted-code');
-		registry.allow(admission.installationId);
-		assert.equal(entry(registry, admission.entryId).eligible, true);
-		registry.withdrawAllowance(admission.installationId);
-		assert.equal(entry(registry, admission.entryId).ineligibleReason, 'untrusted-code');
-	}
-	const trusted = createRegistry();
-	const admission = recorded(trusted.record(observation()));
-	assert.equal(entry(trusted, admission.entryId).eligible, true, 'trusted code needs no warning-and-allow');
+test('every newly discovered digest requires an explicit user allowance with no signature bypass', () => {
+	const registry = createRegistry();
+	const admission = recorded(registry.record({
+		...observation(),
+		// A legacy or hostile caller cannot recover the removed signed-valid bypass.
+		signature: 'signed-valid',
+	} as PluginScanObservation));
+	assert.equal(admission.allowanceRequired, true);
+	assert.equal(entry(registry, admission.entryId).ineligibleReason, 'allowance-required');
+	assert.equal(registryErrorCode(() => registry.hostGrantFor(admission.installationId)), 'allowance-required');
+	registry.allow(admission.installationId);
+	assert.equal(entry(registry, admission.entryId).eligible, true);
+	assert.equal(entry(registry, admission.entryId).installations[0]?.allowed, true);
+	registry.withdrawAllowance(admission.installationId);
+	assert.equal(entry(registry, admission.entryId).ineligibleReason, 'allowance-required');
 });
 
 test('classification, compatibility and supported modes each block eligibility', () => {
@@ -274,6 +273,8 @@ test('one bundle may expose its exact descriptor set without ambiguous installat
 	const reverb = recorded(registry.record(observation({ stableId: ids[1], bundleStableIds: ids })));
 	assert.notEqual(delay.entryId, reverb.entryId);
 	assert.notEqual(delay.installationId, reverb.installationId);
+	registry.allow(delay.installationId);
+	registry.allow(reverb.installationId);
 	assert.equal(registry.hostGrantFor(delay.installationId).stableId, ids[0]);
 	assert.equal(registry.hostGrantFor(reverb.installationId).stableId, ids[1]);
 	assert.equal(rejection(registry.record(observation({
@@ -291,7 +292,7 @@ test('one bundle may expose its exact descriptor set without ambiguous installat
 test('a quarantined digest is refused at admission and ineligible afterwards', () => {
 	const quarantined = new Set<string>();
 	const registry = createRegistry(quarantined);
-	const admission = recorded(registry.record(observation({ signature: 'unsigned' })));
+	const admission = recorded(registry.record(observation()));
 	quarantined.add(DIGEST_A);
 	assert.equal(entry(registry, admission.entryId).ineligibleReason, 'quarantined');
 	assert.equal(entry(registry, admission.entryId).installations[0].quarantined, true);
@@ -307,7 +308,6 @@ test('the registry records the whole scan report and projects it back', () => {
 		realtimeSupported: true,
 		offlineSupported: false,
 		reportedLatencyFrames: 512,
-		signature: 'trusted',
 		compatibility: 'compatible',
 		descriptorVersion: 7,
 	})));
@@ -323,9 +323,9 @@ test('the registry records the whole scan report and projects it back', () => {
 	assert.equal(installation.realtimeSupported, true);
 	assert.equal(installation.offlineSupported, false);
 	assert.equal(installation.reportedLatencyFrames, 512);
-	assert.equal(installation.signature, 'trusted');
 	assert.equal(installation.compatibility, 'compatible');
 	assert.equal(installation.descriptorVersion, 7);
+	assert.equal(installation.allowed, false);
 	assert.equal(installation.selected, true);
 	assert.equal(registry.digestFor(admission.installationId), DIGEST_A);
 	assert.deepEqual(registry.hostDescriptorFor(admission.installationId), {
@@ -338,6 +338,7 @@ test('the registry records the whole scan report and projects it back', () => {
 		outputChannels: 2,
 		reportedLatencyFrames: 512,
 	});
+	registry.allow(admission.installationId);
 	assert.deepEqual(registry.hostGrantFor(admission.installationId), {
 		binaryPath: '/usr/lib/vst3/RoomReverb.vst3',
 		binaryBytes: 4_096,
@@ -358,7 +359,6 @@ test('a scanner answer outside its bounds is rejected rather than recorded', () 
 		{ platform: 'plan9' },
 		{ architecture: 'mips' },
 		{ classification: 'sampler' },
-		{ signature: 'probably-fine' },
 		{ compatibility: 'maybe' },
 		{ topologies: [] },
 		{ topologies: [{ inputChannels: -1, outputChannels: 2 }] },
@@ -408,6 +408,7 @@ test('hostile scanner text never reaches renderer-facing state as a path', () =>
 	assert.equal(serialized.includes('/opt/secret/plugin.vst3'), false);
 	assert.equal(serialized.includes(DIGEST_A), false, 'the binary digest is not renderer-facing state');
 	// Main still holds every raw fact behind its own accessors.
+	registry.allow(admission.installationId);
 	assert.equal(registry.hostGrantFor(admission.installationId).binaryPath, '/opt/secret/plugin.vst3');
 	assert.equal(registry.digestFor(admission.installationId), DIGEST_A);
 });
@@ -467,6 +468,8 @@ test('an entry the registry does not hold is named unknown, not a collision', ()
 	assert.deepEqual(registry.eligibility('enosuchentry'), { eligible: false, reason: 'unknown-entry' },
 		'an unknown id must not borrow the reason of a plug-in waiting for the user to choose');
 	const admission = recorded(registry.record(observation()));
+	assert.deepEqual(registry.eligibility(admission.entryId), { eligible: false, reason: 'allowance-required' });
+	registry.allow(admission.installationId);
 	assert.deepEqual(registry.eligibility(admission.entryId), { eligible: true, reason: null });
 	registry.forget(admission.installationId);
 	assert.deepEqual(registry.eligibility(admission.entryId), { eligible: false, reason: 'unknown-entry' });
@@ -483,11 +486,7 @@ test('an unknown installation is an error rather than a silent no-op', () => {
 	assert.deepEqual(registry.describe().entries, [], 'an identity with no installations is not an entry');
 });
 
-test('the registry names its own trust vocabulary, never the scanner\'s words', () => {
-	// A caller importing the wrong sibling must not type-check: the two modules
-	// answer different questions, so nothing that means something different may
-	// be exported under the same name from both.
-	assert.notDeepEqual([...PLUGIN_TRUST_VERDICTS], [...PLUGIN_SIGNATURE_RESULTS]);
+test('the registry and scanner share classification but keep compatibility vocabularies distinct', () => {
 	assert.notDeepEqual([...PLUGIN_COMPATIBILITY_VERDICTS], [...PLUGIN_COMPATIBILITY_RESULTS]);
 	const registrySource = readFileSync(new URL('../desktop/plugin-registry.ts', import.meta.url), 'utf8');
 	const scanSource = readFileSync(new URL('../desktop/plugin-scan-results.ts', import.meta.url), 'utf8');
@@ -537,14 +536,8 @@ test('a scan entry becomes an observation through one explicit, total translatio
 	assert.equal(recorded(createRegistry().record(observed)).entryId, entryIdFor('vst3', SCAN_ENTRY.stableId));
 });
 
-test('every scanner verdict lands on a registry verdict, and the gaps are loud', () => {
+test('every scanner compatibility verdict lands on a registry verdict, and the gaps are loud', () => {
 	const context = { format: 'vst3', platform: 'linux', architecture: 'x64', identity: { dev: 1, ino: 2 } } as const;
-	for (const [signature, expected] of [
-		['signed-valid', 'trusted'], ['signed-invalid', 'untrusted'],
-		['unsigned', 'unsigned'], ['unverifiable', 'unverifiable'],
-	] as const) {
-		assert.equal(pluginObservationFromScanEntry({ ...SCAN_ENTRY, signature }, context).signature, expected);
-	}
 	for (const [compatibility, expected] of [
 		['compatible', 'compatible'], ['wrong-architecture', 'incompatible-architecture'],
 		['unsupported-format', 'incompatible-format'], ['malformed', 'unusable-binary'],
@@ -554,13 +547,11 @@ test('every scanner verdict lands on a registry verdict, and the gaps are loud',
 	}
 	// Every member of both scanner vocabularies is covered, so the translation
 	// cannot be total today and silently default tomorrow.
-	assert.equal(PLUGIN_SIGNATURE_RESULTS.length, 4);
 	assert.equal(PLUGIN_COMPATIBILITY_RESULTS.length, 5);
 
 	// A verdict outside the scanner's own set, a context this build cannot name,
 	// and an entry claiming no channel layout are refusals, never defaults.
 	for (const broken of [
-		() => pluginObservationFromScanEntry({ ...SCAN_ENTRY, signature: 'notarized' as never }, context),
 		() => pluginObservationFromScanEntry({ ...SCAN_ENTRY, compatibility: 'maybe' as never }, context),
 		() => pluginObservationFromScanEntry({ ...SCAN_ENTRY, channelSupport: [] }, context),
 		() => pluginObservationFromScanEntry(SCAN_ENTRY, { ...context, platform: 'plan9' as never }),

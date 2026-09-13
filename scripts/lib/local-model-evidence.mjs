@@ -47,8 +47,8 @@ const IDENTIFIER_PATTERN = /^[a-z\d][a-z\d.-]*[a-z\d]$/u;
 
 /**
  * Licence markers that forbid redistribution in a commercial product. The
- * check is deliberately coarse and refuses on suspicion: a licence it cannot
- * recognise as redistributable is a licence a reviewer must name explicitly.
+ * check is deliberately coarse and refuses on suspicion: the evidence record
+ * must name an exact licence that the machine policy admits as redistributable.
  */
 const NON_REDISTRIBUTABLE_PATTERN = /non[- ]?commercial|\bnc\b|-nc-|research[- ](?:use[- ])?only|no[- ]derivatives|\bnd\b/iu;
 

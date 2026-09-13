@@ -12,6 +12,9 @@ test('nightly IPC harness preserves multiple input claims and ordered, separatel
 		assert.deepEqual(harness.runs[0].inputs.map(({ role }) => role), ['audio', 'transcript']);
 		assert.deepEqual(result.outputs.map(({ claim }) => claim.claimId), ['output-0', 'output-1', 'output-2']);
 		assert.deepEqual(result.outputs.map(({ bytes }) => bytes), [[0], [1], [2]]);
+		assert.deepEqual(result.models, [{
+			modelId: 'test-model', version: '1.0.0', artifactSha256s: ['a'.repeat(64)],
+		}], 'The evidence must retain the runtime-reauthenticated model binding.');
 		assert.equal(harness.released.length, 1);
 	} finally { harness.restore(); }
 });

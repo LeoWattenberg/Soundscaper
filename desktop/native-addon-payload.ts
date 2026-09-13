@@ -31,7 +31,7 @@ export type NativeAddonTargetId = (typeof NATIVE_ADDON_RUNTIME_TARGETS)[NativeAd
 
 export type NativeAddonUnavailableReason =
 	| 'unsupported-platform'
-	| 'payload-pending-external'
+	| 'payload-not-generated'
 	| 'payload-missing'
 	| 'payload-digest-mismatch'
 	| 'manifest-unreadable';
@@ -116,8 +116,8 @@ export async function describeNativeAddonAvailability(
 		return unavailable('unsupported-platform', `The native addon payload manifest has no ${target} target.`);
 	}
 	if (record.status !== 'built' || record.payload === null) {
-		return unavailable('payload-pending-external',
-			record.blockedBy ?? `No native addon payload has been built for ${target}.`);
+		return unavailable('payload-not-generated',
+			`The target-native CI payload has not been generated and staged for ${target}.`);
 	}
 	const path = location.packaged
 		? join(location.resourcesPath, 'runtime', 'native', target, manifest.addon.payloadName)

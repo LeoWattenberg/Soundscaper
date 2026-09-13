@@ -37,12 +37,13 @@ for (const target of NATIVE_HELPER_ADDON_TARGETS) {
 }
 
 const built = Object.entries(manifest.targets).filter(([, record]) => record.status === 'built');
-const pending = Object.entries(manifest.targets).filter(([, record]) => record.status === 'pending-external');
+const generated = Object.entries(manifest.targets).filter(([, record]) => record.status === 'ci-generated');
 console.log(`Native helper addon ${manifest.addonVersion} (Node-API ${manifest.napiVersion}): `
-	+ `${manifest.sourceFiles.length} pinned sources, ${built.length} built target(s), ${pending.length} pending-external.`);
+	+ `${manifest.sourceFiles.length} pinned sources, ${built.length} built target(s), `
+	+ `${generated.length} target-native CI result(s) not staged.`);
 for (const [id, record] of built) {
 	console.log(`  built  ${id}  ${record.payload.sha256}`);
 }
-for (const [id, record] of pending) {
-	console.log(`  pending ${id}  ${record.blockedBy}`);
+for (const [id] of generated) {
+	console.log(`  generate ${id}  .github/workflows/native-helper-addon-build.yml`);
 }

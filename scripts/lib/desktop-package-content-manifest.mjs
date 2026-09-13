@@ -253,7 +253,10 @@ async function assertRuntimePayloadClosure(runtime, files, dependencies, resourc
 		if (native.status === 'built') {
 			requireFile(`${nativePrefix}${native.payload?.name}`, native.payload,
 				'native-addon payload', nativePrefix);
-		} else if (native.status !== 'pending-external' || native.payload !== null) {
+			if (native.buildResult !== null && native.buildResult !== undefined) {
+				requireFile(`${nativePrefix}${native.buildResult?.name}`, native.buildResult, 'native-addon build result', nativePrefix);
+			}
+		} else if (native.status !== 'ci-generated' || native.payload !== null || (native.buildResult !== null && native.buildResult !== undefined)) {
 			throw new Error('The desktop runtime manifest has invalid native-addon target state.');
 		}
 	}
@@ -276,7 +279,7 @@ async function assertRuntimePayloadClosure(runtime, files, dependencies, resourc
 			assertProfessionalNativeBuiltClosure({
 				professional, target: nativeTarget, prefix: professionalPrefix, requireFile,
 			});
-		} else if (professional.status !== 'pending-external' || professional.payload !== null) {
+		} else if (professional.status !== 'ci-generated' || professional.payload !== null || professional.blockedBy !== null) {
 			throw new Error('The desktop runtime manifest has invalid professional native target state.');
 		}
 	} else if (professional !== null && professional !== undefined) {
@@ -303,18 +306,15 @@ async function assertRuntimePayloadClosure(runtime, files, dependencies, resourc
 				`The Framescaper ${key} content authority is invalid.`);
 			if (host.status === 'built') {
 				for (const descriptor of host.payloads) {
-					requireFile(`${prefix}${descriptor.name}`, descriptor,
-						`Framescaper ${key} payload`, prefix);
+					requireFile(`${prefix}${descriptor.name}`, descriptor, `Framescaper ${key} payload`, prefix);
 				}
-			} else if (host.status !== 'pending-external' || host.payloads.length !== 0) {
-				throw new Error(`Invalid Framescaper ${key} content state.`);
-			}
+			} else if (host.status !== 'ci-generated' || host.payloads.length !== 0) throw new Error(
+				`Invalid Framescaper ${key} content state.`);
 		}
-	} else if (runtime.framescaperNativeHosts !== null
+		} else if (runtime.framescaperNativeHosts !== null
 		&& runtime.framescaperNativeHosts !== undefined) {
 		throw new Error('The Soundscaper runtime manifest carries Framescaper native-host authority.');
 	}
-
 	// Audacity's reviewed strings are committed source bundled into the renderer,
 	// so the package carries no translation resource tree to verify: the asar and
 	// renderer closure checks above already cover those bytes. What the manifest

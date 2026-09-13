@@ -7,21 +7,16 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import {
 	resolveSoundscaperNativeServicesBridge,
-	type NativePluginAvailability,
-	type SoundscaperNativeServicesBridge,
+	type NativePluginAvailability, type SoundscaperNativeServicesBridge,
 } from '../src/common/editor/ui/soundscaper-native-services-bridge.ts';
 import {
 	EMPTY_SOUNDSCAPER_NATIVE_SERVICES_DIALOG_STATE,
-	reduceSoundscaperNativeServicesDialog,
-	runSoundscaperNativeServicesAction,
+	reduceSoundscaperNativeServicesDialog, runSoundscaperNativeServicesAction,
 	soundscaperNativeServicesActionKey,
-	type SoundscaperNativeServicesDialogAction,
-	type SoundscaperNativeServicesDialogState,
+	type SoundscaperNativeServicesDialogAction, type SoundscaperNativeServicesDialogState,
 } from '../src/common/editor/ui/soundscaper-native-services-dialog-model.ts';
 import SoundscaperNativeServicesDialog from '../src/common/editor/ui/dialogs/SoundscaperNativeServicesDialog.tsx';
-import {
-	createSoundscaperNativeServicesSurfaceHost,
-} from '../src/common/editor/ui/workspace/SoundscaperNativeServicesSurface.tsx';
+import { createSoundscaperNativeServicesSurfaceHost } from '../src/common/editor/ui/workspace/SoundscaperNativeServicesSurface.tsx';
 
 function availability(overrides: Partial<NativePluginAvailability> = {}): NativePluginAvailability {
 	return {
@@ -97,7 +92,7 @@ function fakeBridge(overrides: Partial<SoundscaperNativeServicesBridge> = {}) {
 					detail: 'two plug-ins',
 					entries: [{
 						stableId: 's1', name: 'Proof Gain', vendor: 'Soundscaper', version: '1.0.0',
-						classification: 'effect', signature: 'unsigned', compatibility: 'compatible',
+						classification: 'effect', compatibility: 'compatible',
 					}],
 				},
 			});
@@ -142,8 +137,12 @@ function fakeBridge(overrides: Partial<SoundscaperNativeServicesBridge> = {}) {
 			calls.push(['closeNativeAudioSession', request]);
 			return Promise.resolve(true);
 		},
-		reviewNativePluginInstallation: (request: unknown) => {
-			calls.push(['reviewNativePluginInstallation', request]);
+		setNativePluginInstallationAllowed: (request: unknown) => {
+			calls.push(['setNativePluginInstallationAllowed', request]);
+			return Promise.resolve({ entries: [] });
+		},
+		selectNativePluginInstallation: (request: unknown) => {
+			calls.push(['selectNativePluginInstallation', request]);
 			return Promise.resolve({ entries: [] });
 		},
 		instantiateNativePlugin: (request: unknown) => {
@@ -301,9 +300,10 @@ test('the menu dialog drives the complete native audio session lifecycle through
 
 test('the menu dialog drives isolated hosting, DSP, bypass and opaque state custody', async () => {
 	const { bridge, calls } = fakeBridge();
-	let state = await settle(EMPTY_SOUNDSCAPER_NATIVE_SERVICES_DIALOG_STATE, bridge, {
-		type: 'review-plugin', installationId: 'i0123456789abcde', review: 'allow',
-	});
+	let state = await settle(EMPTY_SOUNDSCAPER_NATIVE_SERVICES_DIALOG_STATE, bridge,
+		{ type: 'set-plugin-allowed', installationId: 'i0123456789abcde', allowed: true });
+	state = await settle(state, bridge,
+		{ type: 'select-plugin-installation', installationId: 'i0123456789abcde' });
 	state = await settle(state, bridge, {
 		type: 'instantiate-plugin', installationId: 'i0123456789abcde',
 	});
@@ -338,12 +338,12 @@ test('the menu dialog drives isolated hosting, DSP, bypass and opaque state cust
 	assert.equal(state.pluginStateGeneration, 0,
 		'a later instance must not inherit the closed instance state generation');
 	assert.deepEqual(calls.filter(([name]) => [
-		'reviewNativePluginInstallation', 'instantiateNativePlugin', 'runNativePluginOffline',
+		'setNativePluginInstallationAllowed', 'selectNativePluginInstallation', 'instantiateNativePlugin', 'runNativePluginOffline',
 		'setNativePluginBypassed', 'persistNativePluginState', 'restoreNativePluginState',
 		'openNativePluginVendorUi', 'closeNativePluginVendorUi',
 		'closeNativePluginInstance',
 	].includes(String(name))).map(([name]) => name), [
-		'reviewNativePluginInstallation', 'instantiateNativePlugin', 'runNativePluginOffline',
+		'setNativePluginInstallationAllowed', 'selectNativePluginInstallation', 'instantiateNativePlugin', 'runNativePluginOffline',
 		'setNativePluginBypassed', 'persistNativePluginState', 'restoreNativePluginState',
 		'openNativePluginVendorUi', 'closeNativePluginVendorUi',
 		'closeNativePluginInstance',
@@ -453,7 +453,7 @@ test('the dialog is an accessible modal that shows progress, results, consent an
 			entries: [{
 				entryId: 'e1', format: 'fixture', name: 'Proof Gain', vendor: 'Soundscaper',
 				eligible: true, ineligibleReason: null,
-				installations: [{ installationId: 'i1', version: '1.0.0', reviewed: true, selected: true, quarantined: false }],
+				installations: [{ installationId: 'i1', version: '1.0.0', allowed: true, selected: true, quarantined: false }],
 			}],
 		},
 		scans: {

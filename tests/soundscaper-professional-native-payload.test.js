@@ -31,14 +31,12 @@ import { describeSoundscaperProfessionalNativePayload } from '../desktop/soundsc
 
 const ROOT = resolve(import.meta.dirname, '..');
 
-test('professional payload authority is closed for every unbuilt target', async () => {
+test('professional payload authority delegates every target to its repository CI build', async () => {
 	for (const target of PROFESSIONAL_NATIVE_TARGETS) {
 		const release = await verifySoundscaperProfessionalNativePayload({ repositoryRoot: ROOT, target });
-		assert.equal(release.target.status, 'pending-external');
+		assert.equal(release.target.status, 'ci-generated');
 		assert.equal(release.payload, null);
-		assert.match(release.target.blockedBy, /authenticated.*payload.*built/iu);
-		assert.doesNotMatch(release.target.blockedBy,
-			/licens|review|readiness|signing|notari|qualification|manual|patent|notice/iu);
+		assert.equal(release.target.blockedBy, null);
 	}
 });
 
@@ -135,7 +133,7 @@ test('runtime resolution selects only the authenticated professional payload', a
 		applicationRoot: ROOT, packaged: false, resourcesPath: '',
 		platform: 'darwin', arch: 'arm64',
 	});
-	assert.deepEqual([pending.status, pending.reason], ['unavailable', 'payload-pending-external']);
+	assert.deepEqual([pending.status, pending.reason], ['unavailable', 'payload-not-generated']);
 });
 
 test('a built payload cannot substitute well-shaped source digests for the pinned closure', async (context) => {

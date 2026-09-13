@@ -67,7 +67,7 @@ test('Plugin Manager stays available with processing off and supports keyboard a
 	await expect.poll(() => page.evaluate(() => globalThis.__soundscaperNativeRuntimeCalls)).toEqual([]);
 });
 
-test('Plugin Manager filters installed rows and reviews only the selected installation', async ({ page }) => {
+test('Plugin Manager filters installed rows and allows only the selected installation', async ({ page }) => {
 	await installNativeServicesFixture(page, true);
 	const editor = await bootEditor(page, '/embed/en/');
 	await chooseCommandAction(page, editor, 'Effect', 'Plugin Manager');
@@ -78,15 +78,15 @@ test('Plugin Manager filters installed rows and reviews only the selected instal
 	await page.getByRole('option', { name: 'Needs attention', exact: true }).click();
 	await expect(dialog.locator('[data-native-plugin-entry]')).toHaveCount(1);
 	await dialog.getByRole('button', { name: 'Echo', exact: true }).click();
-	await expect(dialog.getByRole('region', { name: 'Plugin details' })).toContainText('Review this installation before use.');
+	await expect(dialog.getByRole('region', { name: 'Plugin details' })).toContainText('Allow this installation before use.');
 	await search.fill('absent');
 	await expect(dialog.getByRole('region', { name: 'Plugin details' })).toHaveCount(0);
 	await expect(dialog.getByText('No plugins match these filters.', { exact: true })).toBeVisible();
 	await search.fill('Echo');
 	await expect.poll(() => page.evaluate(() => globalThis.__soundscaperNativeRuntimeCalls)).toEqual([]);
-	await dialog.locator('[data-native-plugin-review="allow"]').click();
-	await expect.poll(() => page.evaluate(() => globalThis.__soundscaperNativeRuntimeCalls)).toEqual(['review:echo-install:allow']);
-	await expect(dialog.locator('[data-native-plugin-review="revoke"]')).toBeVisible();
+	await dialog.locator('[data-native-plugin-allowance="allow"]').click();
+	await expect.poll(() => page.evaluate(() => globalThis.__soundscaperNativeRuntimeCalls)).toEqual(['allowance:echo-install:true']);
+	await expect(dialog.locator('[data-native-plugin-allowance="revoke"]')).toBeVisible();
 	await expect(dialog.locator('[data-native-plugin-instantiate]')).toHaveCount(0);
 });
 
@@ -126,11 +126,11 @@ async function installNativeServicesFixture(page, withPlugins = false) {
 		});
 		let registry = { entries: includePlugins ? [
 			{ entryId: 'echo', format: 'VST3', name: 'Echo', vendor: 'Fixture', eligible: false,
-				ineligibleReason: 'Review this installation before use.', installations: [{ installationId: 'echo-install',
-					version: '1.0', reviewed: false, selected: true, quarantined: false }] },
+				ineligibleReason: 'Allow this installation before use.', installations: [{ installationId: 'echo-install',
+					version: '1.0', allowed: false, selected: true, quarantined: false }] },
 			{ entryId: 'gain', format: 'LV2', name: 'Gain', vendor: 'Fixture', eligible: true,
 				ineligibleReason: null, installations: [{ installationId: 'gain-install',
-					version: '2.0', reviewed: true, selected: true, quarantined: false }] },
+					version: '2.0', allowed: true, selected: true, quarantined: false }] },
 		] : [] };
 		const refused = async (name) => {
 			runtimeCalls.push(name);
@@ -170,14 +170,15 @@ async function installNativeServicesFixture(page, withPlugins = false) {
 			reportNativeAudioSessionTransfer: () => refused('reportNativeAudioSessionTransfer'),
 			reportNativeAudioSessionLoss: () => refused('reportNativeAudioSessionLoss'),
 			closeNativeAudioSession: () => refused('closeNativeAudioSession'),
-			reviewNativePluginInstallation: async ({ installationId, action: review }) => {
-				runtimeCalls.push(`review:${installationId}:${review}`);
+			setNativePluginInstallationAllowed: async ({ installationId, allowed }) => {
+				runtimeCalls.push(`allowance:${installationId}:${String(allowed)}`);
 				registry = { entries: registry.entries.map((entry) => ({ ...entry,
 					installations: entry.installations.map((installation) => installation.installationId === installationId
-						? { ...installation, reviewed: review === 'allow' } : installation),
+						? { ...installation, allowed } : installation),
 				})) };
 				return registry;
 			},
+			selectNativePluginInstallation: () => refused('selectNativePluginInstallation'),
 			instantiateNativePlugin: () => refused('instantiateNativePlugin'),
 			runNativePluginOffline: () => refused('runNativePluginOffline'),
 			setNativePluginBypassed: () => refused('setNativePluginBypassed'),

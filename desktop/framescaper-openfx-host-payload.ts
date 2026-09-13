@@ -22,7 +22,7 @@ export type FramescaperOpenFxHostTargetId =
 
 export type FramescaperOpenFxHostUnavailableReason =
 	| 'unsupported-platform'
-	| 'payload-pending-external'
+	| 'payload-not-generated'
 	| 'isolation-launcher-unavailable'
 	| 'payload-missing'
 	| 'payload-digest-mismatch'
@@ -89,6 +89,7 @@ interface PayloadIdentity {
 }
 
 interface PayloadPair {
+	readonly buildResult: PayloadIdentity;
 	readonly scannerPayload: PayloadIdentity;
 	readonly runtimeHostPayload: PayloadIdentity;
 	readonly isolationPayload: Readonly<{
@@ -107,7 +108,7 @@ interface PayloadRecord extends PayloadPair {
 interface TargetRecord {
 	readonly id: FramescaperOpenFxHostTargetId;
 	readonly runtime: string;
-	readonly status: 'built' | 'pending-external';
+	readonly status: 'built' | 'ci-generated';
 	readonly blockedBy: string | null;
 	readonly payload: PayloadPair | null;
 }
@@ -178,15 +179,18 @@ export async function describeFramescaperOpenFxHostAvailability(
 	const target = manifest.targets.find(({ id }) => id === targetId)!;
 	if (target.status !== 'built') {
 		return unavailable(
-			'payload-pending-external',
-			target.blockedBy ?? `No Framescaper OpenFX-host payload has been built for ${targetId}.`,
+			'payload-not-generated',
+			target.blockedBy ?? `No Framescaper OpenFX-host CI result is staged for ${targetId}.`,
 		);
 	}
 	const payload = manifest.payloads.find(({ id }) => id === targetId)!;
+	const buildResultPath = payloadPath(location, targetId, payload.buildResult.path);
 	const scannerPath = payloadPath(location, targetId, payload.scannerPayload.path);
 	const runtimePath = payloadPath(location, targetId, payload.runtimeHostPayload.path);
 	try {
-		const [scanner, runtimeHost, launcher, sandboxProfile, brokerPolicy, ...runtimeLibraries] = await Promise.all([
+		const [, scanner, runtimeHost, launcher, sandboxProfile, brokerPolicy,
+			...runtimeLibraries] = await Promise.all([
+			verifyPayload(buildResultPath, payload.buildResult, ports),
 			verifyPayload(scannerPath, payload.scannerPayload, ports),
 			verifyPayload(runtimePath, payload.runtimeHostPayload, ports),
 			...isolationPayloads(payload.isolationPayload).map((identity) => verifyPayload(
@@ -287,8 +291,8 @@ function payloadManifest(value: unknown): PayloadManifest {
 				|| !samePair(target.payload, matchingPayloads[0]!)) {
 				throw new TypeError(`Built OpenFX-host target ${id} has inconsistent payload identities.`);
 			}
-		} else if (target.payload !== null || typeof target.blockedBy !== 'string'
-			|| target.blockedBy.length < 16 || matchingPayloads.length !== 0
+		} else if (target.payload !== null || target.blockedBy !== null
+			|| matchingPayloads.length !== 0
 			) {
 			throw new TypeError(`Pending OpenFX-host target ${id} carries a payload claim.`);
 		}
@@ -308,7 +312,7 @@ function targetRecord(value: unknown): TargetRecord {
 	const runtime = record.runtime;
 	const status = record.status;
 	if (typeof runtime !== 'string' || runtime !== TARGET_RUNTIME[id]
-		|| (status !== 'built' && status !== 'pending-external')
+		|| (status !== 'built' && status !== 'ci-generated')
 		|| (record.blockedBy !== null && typeof record.blockedBy !== 'string')) {
 		throw new TypeError('An OpenFX-host target row is invalid.');
 	}
@@ -323,7 +327,7 @@ function targetRecord(value: unknown): TargetRecord {
 
 function payloadRecord(value: unknown): PayloadRecord {
 	const record = closedRecord(value, [
-		'id', 'runtime', 'scannerPayload', 'runtimeHostPayload', 'isolationPayload',
+		'id', 'runtime', 'buildResult', 'scannerPayload', 'runtimeHostPayload', 'isolationPayload',
 	]);
 	const id = targetId(record.id);
 	const runtime = record.runtime;
@@ -334,6 +338,7 @@ function payloadRecord(value: unknown): PayloadRecord {
 		id,
 		runtime,
 		...payloadPair({
+			buildResult: record.buildResult,
 			scannerPayload: record.scannerPayload,
 			runtimeHostPayload: record.runtimeHostPayload,
 			isolationPayload: record.isolationPayload,
@@ -342,8 +347,12 @@ function payloadRecord(value: unknown): PayloadRecord {
 }
 
 function payloadPair(value: unknown, id: FramescaperOpenFxHostTargetId): PayloadPair {
-	const record = closedRecord(value, ['scannerPayload', 'runtimeHostPayload', 'isolationPayload']);
+	const record = closedRecord(value, [
+		'buildResult', 'scannerPayload', 'runtimeHostPayload', 'isolationPayload',
+	]);
 	return Object.freeze({
+		buildResult: payloadIdentity(record.buildResult, id,
+			'framescaper-openfx-host-build-result.json', ''),
 		scannerPayload: payloadIdentity(record.scannerPayload, id, 'framescaper-ofx-scanner'),
 		runtimeHostPayload: payloadIdentity(record.runtimeHostPayload, id, 'framescaper-ofx-runtime-host'),
 		isolationPayload: isolationPayload(record.isolationPayload, id),
@@ -385,7 +394,9 @@ function isolationPayload(value: unknown, id: FramescaperOpenFxHostTargetId): Pa
 function payloadIdentity(value: unknown, id: FramescaperOpenFxHostTargetId,
 	executableName: string | null, directory = 'bin'): PayloadIdentity {
 	const record = closedRecord(value, ['path', 'byteLength', 'sha256']);
-	const prefix = `${RUNTIME_PREFIX}/prebuilt/${id}/${directory}/`;
+	const prefix = directory === ''
+		? `${RUNTIME_PREFIX}/prebuilt/${id}/`
+		: `${RUNTIME_PREFIX}/prebuilt/${id}/${directory}/`;
 	const name = typeof record.path === 'string' ? record.path.slice(prefix.length) : '';
 	const expectedName = executableName ?? name;
 	if (record.path !== `${prefix}${expectedName}` || (executableName === null
@@ -409,7 +420,8 @@ function targetId(value: unknown): FramescaperOpenFxHostTargetId {
 }
 
 function samePair(left: PayloadPair, right: PayloadPair): boolean {
-	return samePayload(left.scannerPayload, right.scannerPayload)
+	return samePayload(left.buildResult, right.buildResult)
+		&& samePayload(left.scannerPayload, right.scannerPayload)
 		&& samePayload(left.runtimeHostPayload, right.runtimeHostPayload)
 		&& sameIsolationPayload(left.isolationPayload, right.isolationPayload);
 }

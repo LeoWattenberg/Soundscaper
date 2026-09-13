@@ -106,6 +106,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'scripts/lib/desktop-nightly-tests-phases.mjs',
 		'scripts/lib/desktop-nightly-tests-local-assistance.mjs',
 		'scripts/lib/local-model-real-test-cases.mjs',
+		'scripts/lib/local-model-mirror-publication.mjs',
 		'config/local-model-catalog.json',
 		'config/local-model-real-test-cases.json',
 		'config/milestone-7-model-catalog-tasks.json',

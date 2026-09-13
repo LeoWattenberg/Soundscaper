@@ -275,11 +275,11 @@ async function stageVerifiedBuildResult(verified, repositoryRoot) {
 		}
 		throw new Error('The professional native target is already staged from a different build result.');
 	}
-	if (current.status !== 'pending-external' || current.payload !== null
+	if (current.status !== 'ci-generated' || current.blockedBy !== null || current.payload !== null
 		|| current.osAudioCodec !== null || current.pluginPeer !== null
 		|| current.deliveryFilesystem !== null || current.isolation !== null
 		|| (current.buildResult !== undefined && current.buildResult !== null)) {
-		throw new Error('Only one exact pending professional native target can be staged.');
+		throw new Error('Only one exact CI-generated professional native target can be staged.');
 	}
 	await mkdir(dirname(targetRoot), { recursive: true, mode: 0o700 });
 	let targetCreated = false;

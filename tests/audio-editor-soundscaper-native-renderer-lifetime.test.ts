@@ -8,8 +8,7 @@ import type { EnginePublicApi } from '../src/common/editor/engine/public-api.ts'
 import { createDefaultMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
 import type { NativeAudioInventory } from '../src/common/editor/controller/recording/native-audio-inventory.ts';
 import type {
-	NativeAudioSessionOpenRequestV1,
-	SoundscaperNativeServicesBridge,
+	NativeAudioSessionOpenRequestV1, SoundscaperNativeServicesBridge,
 } from '../src/common/editor/ui/soundscaper-native-services-bridge.ts';
 import { createSoundscaperNativeRendererBridge } from '../src/common/editor/ui/soundscaper-native-renderer-bridge.ts';
 
@@ -410,7 +409,8 @@ function rendererFixture(options: Readonly<{
 			}
 			return audio.delete(sessionId);
 		},
-		reviewNativePluginInstallation: async () => ({ entries: [] }),
+		setNativePluginInstallationAllowed: async () => ({ entries: [] }),
+		selectNativePluginInstallation: async () => ({ entries: [] }),
 		instantiateNativePlugin: async (request: Readonly<{ instanceId: string | null }>) => {
 			const instanceId = request.instanceId ?? 'plugin-instance-1';
 			plugins.add(instanceId);

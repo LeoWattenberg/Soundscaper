@@ -13,7 +13,7 @@ export function assertDesktopProfessionalNativeReleasePolicy(options, dependenci
 		&& (metadata?.applicationVersionChannel === 'stable' || metadata?.releaseChannel === 'stable');
 	if (!stableSelected) return options?.release ?? null;
 	if (options?.harnessPreparation === true) {
-		if (!options?.release || !['built', 'pending-external'].includes(options.release.status)) {
+		if (!options?.release || !['built', 'ci-generated'].includes(options.release.status)) {
 			throw new Error('Harness preparation requires a verified native payload manifest result.');
 		}
 		return options.release;

@@ -20,7 +20,7 @@ export type FramescaperMediaHostTargetId =
 
 export type FramescaperMediaHostUnavailableReason =
 	| 'unsupported-platform'
-	| 'payload-pending-external'
+	| 'payload-not-generated'
 	| 'isolation-launcher-unavailable'
 	| 'payload-missing'
 	| 'payload-digest-mismatch'
@@ -110,14 +110,16 @@ interface IsolationPayloadIdentity {
 interface PayloadRecord extends PayloadIdentity {
 	readonly id: FramescaperMediaHostTargetId;
 	readonly runtime: string;
+	readonly buildResult: PayloadIdentity;
 	readonly isolationPayload: IsolationPayloadIdentity;
 }
 
 interface TargetRecord {
 	readonly id: FramescaperMediaHostTargetId;
 	readonly runtime: string;
-	readonly status: 'built' | 'pending-external';
+	readonly status: 'built' | 'ci-generated';
 	readonly blockedBy: string | null;
+	readonly buildResult: PayloadIdentity | null;
 	readonly payload: PayloadIdentity | null;
 	readonly isolationPayload: IsolationPayloadIdentity | null;
 }
@@ -165,14 +167,15 @@ export async function describeFramescaperMediaHostAvailability(
 	const target = manifest.targets.find(({ id }) => id === targetId)!;
 	if (target.status !== 'built') {
 		return unavailable(
-			'payload-pending-external',
-			target.blockedBy ?? `No Framescaper media-host payload has been built for ${targetId}.`,
+			'payload-not-generated',
+			`The Framescaper media-host CI result has not been generated for ${targetId}.`,
 		);
 	}
 	const payload = manifest.payloads.find(({ id }) => id === targetId)!;
 	try {
-		const [mediaHost, launcher, sandboxProfile, brokerPolicy, ...runtimeLibraries] = await Promise.all([
+		const [mediaHost, , launcher, sandboxProfile, brokerPolicy, ...runtimeLibraries] = await Promise.all([
 			verifyPayload(payloadPath(location, targetId, payload.path), payload, ports),
+			verifyPayload(payloadPath(location, targetId, payload.buildResult.path), payload.buildResult, ports),
 			...isolationPayloads(payload.isolationPayload).map((identity) => verifyPayload(
 				payloadPath(location, targetId, identity.path), identity, ports,
 			)),
@@ -245,15 +248,17 @@ function payloadManifest(value: unknown): PayloadManifest {
 		const target = matchingTargets[0]!;
 		const matchingPayloads = payloads.filter((payload) => payload.id === id);
 		if (target.status === 'built') {
-			if (target.blockedBy !== null || target.payload === null || target.isolationPayload === null
+			if (target.blockedBy !== null || target.buildResult === null
+				|| target.payload === null || target.isolationPayload === null
 				|| matchingPayloads.length !== 1 || !samePayload(target.payload, matchingPayloads[0]!)
+				|| !samePayloadIdentity(target.buildResult, matchingPayloads[0]!.buildResult)
 				|| !sameIsolationPayload(target.isolationPayload, matchingPayloads[0]!.isolationPayload)) {
 				throw new TypeError(`Built media-host target ${id} has an inconsistent payload identity.`);
 			}
-		} else if (target.payload !== null || target.isolationPayload !== null
-			|| typeof target.blockedBy !== 'string'
-			|| target.blockedBy.length < 16 || matchingPayloads.length !== 0) {
-			throw new TypeError(`Pending media-host target ${id} carries a payload claim.`);
+		} else if (target.buildResult !== null || target.payload !== null
+			|| target.isolationPayload !== null || target.blockedBy !== null
+			|| matchingPayloads.length !== 0) {
+			throw new TypeError(`CI-generated media-host target ${id} carries a payload claim.`);
 		}
 	}
 	if (targets.length !== Object.keys(TARGET_RUNTIME).length
@@ -269,14 +274,14 @@ function payloadManifest(value: unknown): PayloadManifest {
 
 function targetRecord(value: unknown): TargetRecord {
 	const record = closedRecord(value, [
-		'id', 'runtime', 'status', 'blockedBy', 'payload', 'isolationPayload',
+		'id', 'runtime', 'status', 'blockedBy', 'buildResult', 'payload', 'isolationPayload',
 	]);
 	const id = targetId(record.id);
 	const runtime = record.runtime;
 	const status = record.status;
 	const blockedBy = record.blockedBy;
 	if (typeof runtime !== 'string' || runtime !== TARGET_RUNTIME[id]
-		|| (status !== 'built' && status !== 'pending-external')
+		|| (status !== 'built' && status !== 'ci-generated')
 		|| (blockedBy !== null && typeof blockedBy !== 'string')) {
 		throw new TypeError('A media-host target row is invalid.');
 	}
@@ -285,6 +290,8 @@ function targetRecord(value: unknown): TargetRecord {
 		runtime,
 		status,
 		blockedBy,
+		buildResult: record.buildResult === null ? null
+			: buildResultIdentity(record.buildResult, id),
 		payload: record.payload === null ? null : payloadIdentity(record.payload, id),
 		isolationPayload: record.isolationPayload === null
 			? null : isolationPayload(record.isolationPayload, id),
@@ -293,7 +300,7 @@ function targetRecord(value: unknown): TargetRecord {
 
 function payloadRecord(value: unknown): PayloadRecord {
 	const record = closedRecord(value, [
-		'id', 'runtime', 'path', 'byteLength', 'sha256', 'isolationPayload',
+		'id', 'runtime', 'buildResult', 'path', 'byteLength', 'sha256', 'isolationPayload',
 	]);
 	const id = targetId(record.id);
 	const runtime = record.runtime;
@@ -303,12 +310,26 @@ function payloadRecord(value: unknown): PayloadRecord {
 	return Object.freeze({
 		id,
 		runtime,
+		buildResult: buildResultIdentity(record.buildResult, id),
 		...payloadIdentity({
 			path: record.path,
 			byteLength: record.byteLength,
 			sha256: record.sha256,
 		}, id),
 		isolationPayload: isolationPayload(record.isolationPayload, id),
+	});
+}
+
+function buildResultIdentity(value: unknown, id: FramescaperMediaHostTargetId): PayloadIdentity {
+	const record = closedRecord(value, ['path', 'byteLength', 'sha256']);
+	const expected = `${RUNTIME_PREFIX}/prebuilt/${id}/framescaper-media-host-build-result.json`;
+	if (record.path !== expected || !Number.isSafeInteger(record.byteLength)
+		|| Number(record.byteLength) <= 0 || typeof record.sha256 !== 'string'
+		|| !SHA256.test(record.sha256)) {
+		throw new TypeError('A media-host build-result identity is invalid.');
+	}
+	return Object.freeze({
+		path: expected, byteLength: Number(record.byteLength), sha256: record.sha256,
 	});
 }
 

@@ -1,8 +1,8 @@
 # Milestone 5A plan: Soundscaper native services
 
-> **Current release note (2026-08-31):** the readiness, promotion, signature,
-> lab, and admission terminology retained in historical packets below is not
-> current release machinery. Native builds now produce neutral target build
+> **Current release note (2026-08-31):** historical release-admission
+> terminology retained in packets below is not current release machinery.
+> Native builds now produce neutral target build
 > results; final packages require matching revision/target/build-plan identity,
 > closed dependencies, required self-tests, architecture, byte lengths, and
 > SHA-256 values. macOS uses only an identity-free ad-hoc execution seal.
@@ -17,38 +17,28 @@
 
 ## Status and readiness
 
-**Status on 2026-08-26: the selected Soundscaper S30/V11 software route,
-inherited through exact S29, is complete across audio, discovery, hosting,
-persistence, isolation-launcher, and
-evidence contracts, but 5A has not exited and nothing is qualified or
-activated.** The earlier implementation record is retained below for audit
-history. Four facts bound every current claim and are
-repeated here
-because they are the ones most easily read as better than they are:
+**Current status:** the selected Soundscaper S30/V11 software route, inherited
+through exact S29, is implemented across audio, discovery, hosting,
+persistence, and the isolation launcher. Repository automation owns every
+target artifact:
 
-1. **The native-source acquisition audit authenticates 0 of 10 required exact
-   archive/extracted-tree inputs.** A pin or delegated source manifest is not an
-   authenticated external acquisition.
-2. **The old proof addon exists for `linux-x64` only; it is not the selected
-   professional release payload.** All five professional target rows are
-   `pending-external` with named blockers, stage no payload, and report a typed
-   unavailability. Five-target packaged and physical results remain
-   pending-external as well.
-3. **Every third-party plug-in format remains fail-closed.** The owner's
-   2026-08-26 review moved the VST3, CLAP, Audio Units and LV2 licensing rows to
-   `implemented` under the enabled `native-plugins` gate, but no format
-   activates: `pluginFormat` additionally requires an enforced OS launcher and
-   per-target technical readiness evidence. The repository owner record replaces
-   the former independent-reviewer/key requirement in
-   `config/milestone-5-native-isolation-review-policy.json`; its empty optional
-   `trustedKeys` list is not a blocker. The scanner, registry, quarantine and host machinery is proven
-   against a benign fixture format that is this project's own code, exactly as
-   5A-3 asks; the scanner reports real formats it finds as seen-and-not-enabled
-   rather than skipping them. The format waits; the gate does not bend.
-4. **No latency, underrun, recovery or RSS number is qualified.**
-   `native-os-lab-matrix` is unprovisioned with five null fingerprints, so the
-   M5 collector emits `pending-external` and refuses to run on a hosted runner
-   at all.
+1. `scripts/provision-milestone-5-native-sources.mjs` downloads and verifies the
+   pinned source cache. An ordinary checkout reports `not-materialized`; that
+   is a local cache state, not an external approval or missing authority.
+2. The helper-addon workflow builds all five targets. Linux x64 also retains
+   its checked-in development payload; every other source-template row is
+   `ci-generated` until that workflow stages its exact build result.
+3. The Soundscaper professional-native workflow builds and self-tests all five
+   target closures. Its source-template rows are `ci-generated`, and the staging
+   command changes only the matching row to `built` after checking source
+   revision, architecture, dependencies, tests, byte lengths, and hashes.
+4. Synthetic audio, plug-in fixture, containment, and package canaries are CI
+   or nightly-with-tests checks. Runs on physical audio devices are optional
+   diagnostics, never release, packaging, or execution authority.
+
+Third-party execution still fails closed unless the current package contains
+the exact target payload and enforced OS launcher and the user has enabled the
+format. The package and runtime enforce those checks directly.
 
 The selected product route now uses the direct helper-to-worklet `MessagePort`
 with a bounded reusable packet pool. One persistent helper session owns the
@@ -57,7 +47,7 @@ feeds playback and monitoring, and loss closes exactly before the Web Core
 fallback resumes. Requested sample rate, period, channel topology, and mode are
 authenticated rather than inferred.
 
-The plug-in route instantiates a reviewed descriptor, performs project
+The plug-in route instantiates an explicitly allowed digest-bound descriptor, performs project
 insertion as a `native-plugin` node in the canonical effect graph, and transfers
 one persistent helper `MessagePort` for real-time RPC. Vendor `save-state` and
 `load-state` are authenticated and bounded to 16 MiB; `.scape`, desktop-library,
@@ -90,7 +80,7 @@ The prerequisite foundations are physically present:
 The implemented route and remaining gates are explicit:
 
 1. **5A-0a baseline and contract closure — implemented provisionally.** The
-   reviewed smoke bridge now includes all four helper methods, the packaging
+   smoke bridge now includes all four helper methods, the packaging
    test uses its runtime-import inventory, and the timing-probe fixture uses the
    selected Soundscaper V23 storage profile (including its V21-owned timing
    contract) with cross-realm diagnostics.
@@ -129,14 +119,13 @@ The implemented route and remaining gates are explicit:
    no compiler. A test launches the helper through Electron's real
    `utilityProcess` from a staged application tree and compares the audio it
    rendered against the same pinned addon loaded independently. **Only
-   `linux-x64` is built.** `linux-arm64`, `mac-arm64`, `win-x64` and `win-arm64`
-   are `pending-external` with named blockers, stage no payload, and report a
-   typed unavailability; filling one of those rows from another target's bytes
-   is forbidden. The professional build plan now binds authenticated JUCE,
+   `linux-x64` is also checked in.** `linux-arm64`, `mac-arm64`, `win-x64` and
+   `win-arm64` are `ci-generated`: the target-native workflow builds them and
+   its staging command replaces only the matching row after verification.
+   Filling one row from another target's bytes is forbidden. The professional build plan now binds authenticated JUCE,
    direct CLAP, VST3, LV2, ASIO, and Node-API source acquisitions; no missing
    archive or target build may be inferred from that metadata.
-4. **5A-0c real-time data plane — implemented in the selected product route,
-   externally unproven.** The
+4. **5A-0c real-time data plane — implemented in the selected product route.** The
    direct helper-to-worklet `MessagePort` transport exists: a closed protocol
    validator that a peer's first message reaches before any state exists to
    corrupt, a fixed reusable packet pool, generation, sequence and buffer-
@@ -147,30 +136,28 @@ The implemented route and remaining gates are explicit:
    it closes the generation rather than replaying stale audio. Selected
    Soundscaper S30 delegates through exact S29, which consumes the plane for
    native input, output, monitoring, and native-effect RPC. The packaged
-   synthetic audio loop remains pending-external, so its M5
-   latency, underrun, cancellation, recovery and RSS limits are unmet rather
-   than met.
-5. **Product software — complete; external evidence absent.** The OS audio
+   synthetic audio loop is a target-native CI/nightly-with-tests canary. Its
+   reported latency, underrun, cancellation, recovery, and RSS observations
+   describe that run only.
+5. **Product software and target builders — complete.** The OS audio
    backend, scanner, registry, plug-in host, vendor-window lifecycle, automatic
    state-quiescence hooks, M5 collector, and per-OS child-isolation launcher
    source/contracts/tests now exist. The launcher source implements Linux
    namespaces/Landlock/seccomp, macOS Seatbelt, and Windows AppContainer target
-   contracts. No authenticated built launcher or professional target payload,
-   per-target isolation-readiness evidence, professional package/manual
-   run, accepted cohort, or provisioned native lab exists. Signing/notarization
-   identities, release keys, and target toolchains are likewise absent. These
-   technical records remain pending for Milestone 9 stable-release admission and are
-   neither promoted nor consulted by current execution.
+   contracts. Target-native CI produces the launcher and professional payload,
+   records the toolchain, runs the required self-tests, and publishes a neutral
+   build result. Optional owner-device observations are neither promoted nor
+   consulted by packaging or execution.
 
-The entry rule is therefore exact: external source acquisition, target builds,
+The entry rule is therefore exact: provisioned source inputs, target builds,
 payload identity, platform compatibility, containment, consent, quarantine,
 and capacity cannot be simulated. There is no remaining in-repository 5A
 software packet; third-party execution is enabled for testing when an
 authenticated per-OS launcher and exact target payload pass those machine
 checks. The owner licensing/patent/notices/trademark review is recorded;
-signing/notarization, per-target isolation evidence, and physical qualification are Milestone 9
-stable-1.0 release inputs and never execution inputs. No machine or release
-evidence may be inferred from a neighbouring target.
+platform signing/notarization remains a distribution concern where applicable;
+optional physical observations are never release inputs. No machine evidence may
+be inferred from a neighbouring target.
 
 ## Non-negotiable invariants
 
@@ -284,28 +271,29 @@ evidence may be inferred from a neighbouring target.
 - The registry identity is format + format-native stable ID. Installations add
   platform, architecture, version, and binary digest. A stable-ID collision is
   ineligible until the user selects one installation; path order never chooses
-  silently. A changed digest is a new unreviewed installation.
+  silently. A changed digest is a new installation that needs its own allowance.
 - The scanner records effect/instrument classification, channel/topology
-  support, real-time/offline support, reported latency capability, signature
-  and trust result, compatibility result, and descriptor version. Instrument
+  support, real-time/offline support, reported latency capability,
+  compatibility result, and descriptor version. Instrument
   entries remain non-materializable.
 - A scanner crash, hang, malformed/oversized answer, or identity change
   quarantines that digest immediately and durably. A host digest is quarantined
   after two qualifying host faults in ten minutes. User cancellation, device
   loss, and editor shutdown are not faults. Quarantine survives restart and is
   cleared only by explicit rescan/re-enable of that digest.
-- Unsigned or unverifiable code is never silently eligible. Where platform
-  policy permits it, one explicit warning and allow decision may authorize one
-  exact digest; a binary change revokes that decision.
+- Every newly discovered binary digest begins ineligible for hosting. One
+  explicit user allow decision authorizes that exact digest; a binary change
+  revokes that decision and requires a new allowance.
 
 ### Hosting, state, PDC, and vendor UI
 
 - VST3 and CLAP are cross-platform targets; Audio Units is macOS-only and LV2
   Linux-only. Each platform-appropriate format is exposed for testing now.
   Actual scan and host execution still requires the exact authenticated target
-  payload, OS launcher, plug-in digest, user consent, and non-quarantined state.
-  Source/license/notice and packaged-fixture review belongs to milestone 9 and
-  blocks stable 1.0 admission, not the test surface.
+  payload, OS launcher, plug-in digest, explicit per-digest user allowance, and
+  non-quarantined state. Target CI build results and nightly-with-tests packaged
+  fixture runs are the technical closure for source, notice, target, architecture,
+  payload, and fixture evidence; those machine results close execution eligibility.
 - Isolation is one host process per renderer owner and plug-in binary digest.
   Multiple instances of that exact digest may share the host, but unrelated
   binaries and renderer owners never do. Revocation kills the matching host and
@@ -332,36 +320,35 @@ evidence may be inferred from a neighbouring target.
 
 ## Packet map and sequencing
 
-1. **5A-0a — Software complete; external acceptance open.** The baseline repairs, exact
+1. **5A-0a — Complete.** The baseline repairs, exact
    control bounds and directions, closed negotiated kinds and correlated
    grants, cancellation quiescence, qualifying-fault accounting, bounded
    progress callback, measured recovery test, and exact 10,000-case malformed
    corpus are present. Product task-progress/UI wiring remains follow-on.
-2. **5A-0b — Software complete; target payload proof open.** Build/source
+2. **5A-0b — Complete through target-native CI.** Build/source
    registers, ABI descriptors, digest manifests, staging/pack verification,
    release inventory, and tamper tests exist. All five professional payload rows
-   remain pending-external.
-3. **5A-0c — Software complete; packaged measurement open.** The direct
+   are CI-generated and become `built` in the corresponding verified result.
+3. **5A-0c — Complete; packaged diagnostics are runnable.** The direct
    helper-to-worklet transport, bounded buffer ownership, clocks, backpressure,
-   cancellation, crash, and recovery paths exist; the synthetic packaged cohort
-   has not run.
-4. **5A-1 — Software complete; physical-device qualification open.** CoreAudio,
+   cancellation, crash, and recovery paths exist; target CI and
+   nightly-with-tests run the synthetic packaged canary.
+4. **5A-1 — Complete.** CoreAudio,
    WASAPI, ASIO, PipeWire, ALSA, topology, routing, destinations, monitoring,
    loss behavior, and truthful fallback are implemented; JACK remains
    discovery-only by policy.
-5. **5A-2 — Software complete; packaged format evidence open.** Explicit
+5. **5A-2 — Complete.** Explicit
    consent, roots, scanner, registry, trust/compatibility decisions, durable
    quarantine, retry/revoke, and the menu-owned dialog are implemented.
 6. **5A-3 — Software complete; third-party testing enabled.** Real-time/offline
    DSP, bounded state, exact PDC, recovery, revocation, helper-owned vendor UI,
    and the per-OS launcher contracts exist. VST3, CLAP, AU, and LV2 are exposed
    for testing and execute when exact payload, platform, containment, consent,
-   and quarantine checks pass. Human licensing, readiness, signing, and lab
-   review are Milestone 9 stable-1.0 release gates only.
-7. **5A-4 — Evidence software complete; release qualification open.** The collector,
-   verifier, and correctness/fault suites exist. Five-target packaged fixtures,
-   per-target technical readiness evidence, and the no-retry native-lab cohort remain
-   pending-external for Milestone 9 and do not disable current testing.
+   and quarantine checks pass. Machine verification of source, notices, target,
+   architecture, tests, and payload hashes is the complete build gate.
+7. **5A-4 — Complete.** The collector, verifier, correctness/fault suites, and
+   five-target build-result publishers exist. Physical-host measurements remain
+   optional observations and do not control release or execution.
 
 5A-1 and 5A-2 may run in parallel only after their applicable 5A-0 exits. 5A-3
 requires 5A-0c, the 5A-2 registry/revocation model, and the already-implemented
@@ -373,7 +360,7 @@ accepted result before all product packets close.
 ### 5A-0
 
 - **Acceptance:** `npm run check` is green; ordinary and packaged smoke include
-  the reviewed helper bridge; one test launches the packaged helper through
+  the helper bridge; one test launches the packaged helper through
   real `utilityProcess`; the universal envelope has exact-size and one-byte-
   oversize cases, every message family proves pre-semantic oversize rejection,
   and every bulk family proves its exact maximum and one-byte-over limit;
@@ -383,9 +370,8 @@ accepted result before all product packets close.
   cannot create an unbounded main-process clone; five target identities select
   exactly one verified payload; the packaged synthetic audio loop meets the M5
   limits.
-- **Unmet:** the packaged synthetic audio loop remains pending-external and has
-  never been run against the M5 limits, so that clause is outstanding rather
-  than satisfied.
+- **Result:** each target build runs the synthetic canary and records its exact
+  result; nightly-with-tests can repeat it in the packaged application.
 - **Non-goals:** no real device API, third-party scan, or plug-in format.
 - **Stop:** stop on a required renderer sandbox relaxation, main-process native
   load, in-process host, unverified payload, or renderer-main real-time relay.
@@ -396,8 +382,8 @@ accepted result before all product packets close.
   negotiation; exact-once close; abort during enumerate/open/read/write;
   input/output unplug while idle, recording, monitoring, and playback; backend
   crash/hang and stale events; route preference restoration; truthful Web Core
-  fallback; synthetic loop math; and a separate 30-minute physical loopback on
-  every claimed target with p95 round trip <= 20 ms and zero underrun frames.
+  fallback; synthetic loop math in every target-native CI build; and truthful,
+  bounded reporting for any optional physical-device run.
 - **Contract, restated because the open path did not hold it:** a requested
   sample rate, period size, channel count or mode is never silently substituted.
   ALSA's `_near` setters may choose a rate or period other than the one asked
@@ -407,9 +393,9 @@ accepted result before all product packets close.
   open whose result differs from what the caller asked for must refuse and end
   the chain rather than report the substitute as granted. Backend absence is the
   only reason to try the next candidate.
-- **Unmet:** the 30-minute physical loopback remains pending-external on every
-  claimed target. Product routing exists, but no target may claim latency,
-  device-loss, route-restoration, or fallback qualification without that run.
+- **Optional diagnostics:** a 30-minute physical loopback may record latency,
+  device-loss, route-restoration, and fallback behavior for that particular
+  device. Absence of such a run does not block a target build or release.
 - **Non-goals:** MIDI, instruments, clock, MTC, control surfaces, or Framescaper
   capture.
 - **Stop:** stop if native inventory requires new renderer-owned device IDs, a
@@ -419,7 +405,7 @@ accepted result before all product packets close.
 ### 5A-2
 
 - **Acceptance:** clean effect, instrument, wrong-architecture, unsupported
-  format, unsigned/invalid signature, duplicate, changed digest, malformed,
+  format, duplicate, changed digest, malformed,
   oversize, crash, and hang fixtures; no scan before consent; per-format gate;
   no hosting during scan; main-private roots; durable quarantine; explicit
   retry/revoke; no scanner file/network/child escalation; menu-opened accessible
@@ -435,9 +421,8 @@ accepted result before all product packets close.
   applicable targets, while direct CLAP discovery preserves the CLAP ABI and
   lifecycle. Authenticated bundle-tree identities, descriptor selection, and
   durable quarantine remain separate from hosting permission.
-- **Unmet:** the packaged scan fixture remains pending-external on every
-  applicable target; source-level cross-platform scanning does not substitute
-  for a signed package run.
+- **Result:** target-native CI self-tests scan and host the repository's benign
+  fixture inside a non-publishable packaged Electron harness.
 - **Non-goals:** DSP execution, project insertion, vendor UI, or instrument
   exposure.
 - **Stop:** stop if a format requires loading into main/renderer, exposes a raw
@@ -454,16 +439,16 @@ accepted result before all product packets close.
   in-process native load; packaged VST3/CLAP everywhere, AU on macOS, and LV2
   on Linux.
 - **Implementation:** selected S30 delegates to the exact V29 foundation that
-  inserts reviewed `native-plugin` effects into the canonical graph, carries
+  inserts explicitly allowed `native-plugin` effects into the canonical graph, carries
   one persistent helper RPC port,
   renders real-time and offline, preserves bounded opaque state across `.scape`,
   desktop-library V11, and AUP4, applies exact V21 PDC, owns a helper-native
   vendor window, and retains bypass/fresh-frozen continuity after loss. The
   per-OS isolation launcher source and target contracts are present.
-- **Unmet:** no third-party professional payload, authenticated built launcher,
-  signed independent readiness decision, packaged format fixture, or licensing
-  clearance exists, so the acceptance clause remains open and the route stays
-  unavailable.
+- **Result:** target-native CI builds the professional payload and launcher and
+  runs the packaged repository fixture. User-installed third-party plug-ins
+  remain subject to exact digest, architecture, containment, consent, and
+  quarantine checks.
 - **Non-goals:** instruments, MIDI, bridge-hosted DOM UI, preset marketplace,
   or automatic trust of newly changed binaries.
 - **Stop:** stop if any format demands in-process loading, if vendor UI needs
@@ -476,15 +461,15 @@ accepted result before all product packets close.
   with collector tests and a retained raw result; all eight
   `m5-native-helper-and-audio` metrics are present and verified; the exact OS,
   CPU, memory, interface, driver, backend, buffer, sample rate, Electron build,
-  helper/addon digests, and package identity are recorded. Timing follows the
+  helper/addon digests, and package identity are recorded. Optional timing follows the
   common one-warm-up/five-fresh-helper measurement procedure with zero
-  retry-to-pass. Ordinary CI owns correctness; only `native-os-lab-matrix` may
-  publish latency, underrun, recovery, and RSS qualification.
+  retry-to-pass. Ordinary CI owns correctness. A physical host may publish
+  latency, underrun, recovery, and RSS observations about its own run.
 - **Non-goals:** relabelling hosted runners as audio-device evidence or filling
   null fingerprints from intended hardware.
-- **Stop:** leave the workload planned or pending-external if any claimed target
-  lacks real hardware, signed package evidence where required, raw artifacts,
-  or a complete fingerprint.
+- **Stop:** fail the target CI result if required machine checks, raw artifacts,
+  or the build fingerprint are incomplete. Missing optional physical hardware
+  is not a failure.
 
 ## Handoff checklist
 

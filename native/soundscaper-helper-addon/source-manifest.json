@@ -32,7 +32,13 @@
 			"root": "vendor/pipewire-headers",
 			"upstream": "PipeWire 1.0.5",
 			"license": "MIT",
-			"reason": "The SPA format builders are static inline functions in the headers, so dlopen alone cannot reach them. Only headers are vendored; the library is never linked and never redistributed."
+			"reason": "The SPA format builders are static inline functions in the headers, so dlopen alone cannot reach them. Only headers are vendored; the library is never linked and never redistributed.",
+			"closure": {
+				"algorithm": "soundscaper-native-helper-vendored-header-closure-sha256-v1",
+				"fileCount": 197,
+				"byteLength": 807213,
+				"sha256": "70354238cd0f64204751b7ef34b53a200413c27e5bcb86d8bbabf9029bcc3567"
+			}
 		}
 	},
 	"sourceFiles": [
@@ -48,8 +54,18 @@
 		},
 		{
 			"path": "addon_napi.h",
-			"byteLength": 1120,
-			"sha256": "63c0292338ac33a92734e7bbe07d936d68c70b9159367b7b8ab491b66ad8c86f"
+			"byteLength": 1153,
+			"sha256": "903cea49a1c4a4d77108189e586099382e109db11d6f80db8276a2d9959a77bc"
+		},
+		{
+			"path": "addon_napi_runtime.c",
+			"byteLength": 4325,
+			"sha256": "fd16d60d5d49facca91118fd469cb66416d592efe43c1971f74831fecd487eeb"
+		},
+		{
+			"path": "addon_napi_runtime.h",
+			"byteLength": 5146,
+			"sha256": "db5f7312d42d384f7798f08ddaa041d04b56eae109b5c649bae500a43af9da4b"
 		},
 		{
 			"path": "addon_plugin.c",
@@ -118,8 +134,8 @@
 		},
 		{
 			"path": "plugin_host.c",
-			"byteLength": 5735,
-			"sha256": "c237187398ca7a3b37643fbe56d3a5a299becb22d7ae6f441194b990114e7245"
+			"byteLength": 7362,
+			"sha256": "284ea50ba29a3b54eec1f2c6da058baa9f76da746ea8eedd7569a47d740ffebe"
 		},
 		{
 			"path": "plugin_host.h",
@@ -128,8 +144,8 @@
 		},
 		{
 			"path": "plugin_scan.c",
-			"byteLength": 5789,
-			"sha256": "576c80c2653faa9b2ab512b52c61f8a266c9e786d4fdee5477a0186ee0902935"
+			"byteLength": 11241,
+			"sha256": "f42edfc422638a5a47f63320c7f3294d561e49df81a3ffd5fd2fc0eb58f9c99b"
 		},
 		{
 			"path": "plugin_scan.h",
@@ -151,36 +167,41 @@
 		"linux-x64": {
 			"status": "built",
 			"blockedBy": null,
-			"toolchainIdentity": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+			"toolchainIdentity": "GNU 13.3.0 (Unix Makefiles; Linux x86_64)",
 			"payload": {
 				"name": "soundscaper_helper.node",
-				"byteLength": 89600,
-				"sha256": "d5f10c7d133ad4f02f8e62adc038d553a4e78b7f330204b93480d6a6b1665b30"
-			}
+				"byteLength": 89624,
+				"sha256": "b908713db224780c94ac5d13656a7fb5420c8ace2a91cd612ace3eb08bd95461"
+			},
+			"buildResult": null
 		},
 		"linux-arm64": {
-			"status": "pending-external",
-			"blockedBy": "No authenticated Linux ARM64 helper-addon payload has been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
-			"payload": null
+			"payload": null,
+			"buildResult": null
 		},
 		"mac-arm64": {
-			"status": "pending-external",
-			"blockedBy": "No authenticated macOS ARM64 helper-addon payload has been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
-			"payload": null
+			"payload": null,
+			"buildResult": null
 		},
 		"win-x64": {
-			"status": "pending-external",
-			"blockedBy": "No authenticated Windows x64 helper-addon payload has been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
-			"payload": null
+			"payload": null,
+			"buildResult": null
 		},
 		"win-arm64": {
-			"status": "pending-external",
-			"blockedBy": "No authenticated Windows ARM64 helper-addon payload has been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
-			"payload": null
+			"payload": null,
+			"buildResult": null
 		}
 	},
 	"fixturePlugins": {
@@ -200,53 +221,53 @@
 				"files": [
 					{
 						"name": "clean-effect.scapefx",
-						"byteLength": 15912,
-						"sha256": "adf04c0bb769081d846cc916c7f4f20c92ce972cf30e11ea3569460a170967ee"
+						"byteLength": 15960,
+						"sha256": "0b80c1d04df49b5bc713eeca3edd4f4a1ec5778b6b0f4d4e2bf780d6b9303395"
 					},
 					{
 						"name": "gain-effect.scapefx",
-						"byteLength": 15912,
-						"sha256": "052e52410dba9910493926a2f3c70e8c5b924d0a3c09ef2398b3d0ac9ea5f5cd"
+						"byteLength": 15960,
+						"sha256": "550360d47bdcf141ea2805ce0ab38a5b74b8952dbfbdda68ac18e962f15af10c"
 					},
 					{
 						"name": "impulse-effect.scapefx",
 						"byteLength": 15912,
-						"sha256": "2c11925a489c5cf5b52dbec533ce1b7f94dfd347d84e2e27d5f067bd05f40bba"
+						"sha256": "bdbf5c5e1bdb619ae720cfc8f39504ab38fd78650c4bc05e2115993647a9d6a8"
 					},
 					{
 						"name": "instrument.scapefx",
-						"byteLength": 15912,
-						"sha256": "c15406a07fd5e977f7ad3d4a52d4171a883e4f4e19dec203c06d2e36e5cb66e9"
+						"byteLength": 15960,
+						"sha256": "fb6af6126450712ba78a18b8b6b9d1abc6e40b793a673da488cd8d95f1d9fcd8"
 					},
 					{
 						"name": "duplicate-identity.scapefx",
-						"byteLength": 15912,
-						"sha256": "a46ebb988624acf3e9c9def82231433d75abe7b83f00d90478e182351b6cc7da"
+						"byteLength": 15960,
+						"sha256": "3731945512d9bc96e2e628be0ae4a3fe38c33c75c7369aa0078e396425754ac7"
 					},
 					{
 						"name": "crash-on-scan.scapefx",
 						"byteLength": 15424,
-						"sha256": "b9b3ba1e251fbb33d41cf15e3f3f9a35c7d302cbc459fa8e75e704795ca9b11b"
+						"sha256": "01ee1c12148951928854b5007f8303e92cd7926c3b5d42837081b526765c5a92"
 					},
 					{
 						"name": "hang-on-scan.scapefx",
-						"byteLength": 15424,
-						"sha256": "95f778d41fcab04a7382d4eaa6dc9d216865c71864494ea2dbd65ac88fe08618"
+						"byteLength": 15496,
+						"sha256": "d900bc55969241c09dbb67a89148c9b29c56e91f6e9e26395347e00ac53c82eb"
 					},
 					{
 						"name": "crash-on-process.scapefx",
-						"byteLength": 15960,
-						"sha256": "f4d3bfffea2e2e456bb45678577a39f250ffa50ac11c872c92680c11e4b97312"
+						"byteLength": 16056,
+						"sha256": "50be44c9121a842e8f14fbfa18ad09ee0b0e78c6e8551cfd7a0b004ab6cad323"
 					},
 					{
 						"name": "oversize-state.scapefx",
-						"byteLength": 15912,
-						"sha256": "d0dd8ef0ae36e0463ea363d82f504d3b8f6fc33d5eefdcd2dbc274982df17bee"
+						"byteLength": 15960,
+						"sha256": "fffe6339b5094d5d0bc82acd50e33d5035ee11ef0453b5f690f4977313602182"
 					},
 					{
 						"name": "unstable-latency.scapefx",
-						"byteLength": 15912,
-						"sha256": "0945dfd257da03e4e1b294efd5a53b7b7336c322078e538af6e5dd20c2e5f98b"
+						"byteLength": 15960,
+						"sha256": "65c1f1e142aeb078233f5684310c26b1e601c056873eacfbd33dbdd81731fc0b"
 					},
 					{
 						"name": "not-a-module.scapefx",
@@ -255,25 +276,25 @@
 					},
 					{
 						"name": "no-entry-point.scapefx",
-						"byteLength": 15144,
-						"sha256": "cbbdd7c8927ccf57bfaa191b2e7ed24b9a2cc41f54e05539103d5349f04d885d"
+						"byteLength": 15056,
+						"sha256": "9fa51de77774a066c75d88e6765ab525ee02662ac344c83d86ccb59f826e5707"
 					}
 				]
 			},
 			"linux-arm64": {
-				"status": "pending-external",
+				"status": "ci-generated",
 				"files": []
 			},
 			"mac-arm64": {
-				"status": "pending-external",
+				"status": "ci-generated",
 				"files": []
 			},
 			"win-x64": {
-				"status": "pending-external",
+				"status": "ci-generated",
 				"files": []
 			},
 			"win-arm64": {
-				"status": "pending-external",
+				"status": "ci-generated",
 				"files": []
 			}
 		}

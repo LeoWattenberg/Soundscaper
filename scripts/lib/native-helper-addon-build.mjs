@@ -8,9 +8,8 @@
  * checked-in per-target payloads without needing a compiler, so a tampered
  * source file or a swapped binary fails the canonical gate. `buildNativeHelperAddon`
  * needs a toolchain and only ever produces the payload for the host's own
- * target — cross-building the other four claimed targets is external work, and
- * their rows stay `pending-external` with a named blocker rather than being
- * filled in from a convenient local build.
+ * target. The five target-native CI jobs produce immutable build results; a
+ * checkout that has not staged one records `ci-generated` and carries no bytes.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -107,10 +106,12 @@ function auditTarget(repositoryRoot, manifest, target) {
 	const record = manifest.targets[target.id];
 	const findings = [];
 	if (!record || typeof record !== 'object') return [`Missing target record: ${target.id}`];
-	if (record.status === 'pending-external') {
-		if (record.payload !== null) findings.push(`${target.id}: a pending-external target must not pin a payload.`);
-		if (typeof record.blockedBy !== 'string' || record.blockedBy.trim().length < 8) {
-			findings.push(`${target.id}: a pending-external target requires a named blocker.`);
+	if (record.status === 'ci-generated') {
+		if (record.payload !== null || record.toolchainIdentity !== null || record.buildResult !== null) {
+			findings.push(`${target.id}: a ci-generated target must not pin build output.`);
+		}
+		if (record.blockedBy !== null) {
+			findings.push(`${target.id}: a ci-generated target must not carry a blocker.`);
 		}
 		return findings;
 	}
@@ -131,6 +132,24 @@ function auditTarget(repositoryRoot, manifest, target) {
 	if (typeof record.toolchainIdentity !== 'string' || !record.toolchainIdentity.trim()) {
 		findings.push(`${target.id}: a built target must record the toolchain that produced it.`);
 	}
+	if (record.buildResult !== null && record.buildResult !== undefined) {
+		const result = record.buildResult;
+		if (!result || result.name !== 'native-helper-addon-build-result.json'
+			|| !Number.isSafeInteger(result.byteLength) || result.byteLength < 1
+			|| !SHA256_PATTERN.test(String(result.sha256))) {
+			findings.push(`${target.id}: the build-result descriptor is invalid.`);
+		} else {
+			try {
+				const bytes = readFileSync(resolve(repositoryRoot, NATIVE_HELPER_ADDON_ROOT,
+					'prebuilt', target.id, result.name));
+				if (bytes.byteLength !== result.byteLength || sha256(bytes) !== result.sha256) {
+					findings.push(`${target.id}: build-result digest mismatch.`);
+				}
+			} catch {
+				findings.push(`${target.id}: the staged build-result receipt is missing.`);
+			}
+		}
+	}
 	return findings;
 }
 
@@ -145,7 +164,7 @@ export function buildNativeHelperAddon({
 	const selected = target ?? nativeHelperAddonTargetForRuntime(process.platform, process.arch);
 	assert(selected, `The build host ${process.platform}-${process.arch} is not a claimed native helper target.`);
 	assert(selected.runtime === `${process.platform}-${process.arch}`,
-		'The native helper addon is built only for the host target; cross-building is external work.');
+		'The local helper command builds only its host target; use the target-native CI workflow for other targets.');
 	const identity = toolchainIdentity(compiler, run);
 	const sourceRoot = resolve(repositoryRoot, NATIVE_HELPER_ADDON_ROOT, 'src');
 	const outputRoot = resolve(repositoryRoot, NATIVE_HELPER_ADDON_ROOT, 'prebuilt', selected.id);
@@ -201,6 +220,7 @@ export function repinNativeHelperAddonSources({ repositoryRoot, build = null, fi
 			blockedBy: null,
 			toolchainIdentity: build.toolchainIdentity,
 			payload: { name: manifest.payloadName, ...build.payload },
+			buildResult: null,
 		};
 	}
 	const fixturePlugins = { ...manifest.fixturePlugins };

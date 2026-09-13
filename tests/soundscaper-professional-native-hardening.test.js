@@ -221,7 +221,7 @@ test('desktop preparation verifies native package inputs only for Soundscaper st
 		productMetadata: { applicationVersionChannel: 'stable', releaseChannel: 'stable' },
 		release: null,
 	}, { assertPackageInputs }), /stable Soundscaper.*professional native/iu);
-	const harnessRelease = Object.freeze({ status: 'pending-external' });
+	const harnessRelease = Object.freeze({ status: 'ci-generated' });
 	assert.equal(assertDesktopProfessionalNativeReleasePolicy({
 		productId: 'soundscaper',
 		productMetadata: { applicationVersionChannel: 'stable', releaseChannel: 'stable' },

@@ -128,7 +128,7 @@ test('commands, source pins, output manifests, and blockers fail closed on drift
 	invented.recipes[2].outputManifest.artifacts[0].sha256 = SHA256;
 	assert.throws(() => validateMilestone7ConversionExecutionRegister(
 		invented, modelSupply, parityFixtures,
-	), /converted|output|pending|identity/iu);
+	), /converted|output|not.generated|identity/iu);
 
 	const understated = clone(executionRegister);
 	understated.recipes[3].blockedBy = ['source-framework-parity'];
@@ -137,14 +137,14 @@ test('commands, source pins, output manifests, and blockers fail closed on drift
 	), /blockedBy|blocker/iu);
 });
 
-test('a pending source archive cannot admit fabricated conversion evidence', () => {
-	const pending = clone(executionRegister);
-	pending.recipes[0].sourceCode.archive.byteLength = null;
-	pending.recipes[0].sourceCode.archive.sha256 = null;
-	pending.recipes[0].evidenceStatus = 'pending-external';
-	pending.recipes[0].blockedBy = ['source-code-archive-identity'];
+test('a missing source archive cannot admit fabricated conversion evidence', () => {
+	const incomplete = clone(executionRegister);
+	incomplete.recipes[0].sourceCode.archive.byteLength = null;
+	incomplete.recipes[0].sourceCode.archive.sha256 = null;
+	incomplete.recipes[0].evidenceStatus = 'conversion-evidence-incomplete';
+	incomplete.recipes[0].blockedBy = ['source-code-archive-identity'];
 	const register = validateMilestone7ConversionExecutionRegister(
-		pending, modelSupply, parityFixtures,
+		incomplete, modelSupply, parityFixtures,
 	);
 	const recipe = register.recipes[0];
 	const evidence = {
@@ -174,7 +174,7 @@ test('a pending source archive cannot admit fabricated conversion evidence', () 
 		executionRegister: register,
 		modelSupply,
 		parityFixtures,
-	}), /pending|cannot admit|release evidence/iu);
+	}), /incomplete|cannot admit|release evidence/iu);
 });
 
 test('complete exact identities admit one bounded retained evidence record', () => {

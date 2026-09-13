@@ -13,36 +13,36 @@
 		{
 			"id": "linux-x64",
 			"runtime": "linux-x64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated Linux x64 OpenFX scanner and runtime-host payloads have been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"payload": null
 		},
 		{
 			"id": "linux-arm64",
 			"runtime": "linux-arm64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated Linux ARM64 OpenFX scanner and runtime-host payloads have been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"payload": null
 		},
 		{
 			"id": "mac-arm64",
 			"runtime": "darwin-arm64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated macOS ARM64 OpenFX scanner and runtime-host payloads have been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"payload": null
 		},
 		{
 			"id": "win-x64",
 			"runtime": "win32-x64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated Windows x64 OpenFX scanner and runtime-host payloads have been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"payload": null
 		},
 		{
 			"id": "win-arm64",
 			"runtime": "win32-arm64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated Windows Arm64EC OpenFX scanner and runtime-host payloads have been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"payload": null
 		}
 	]

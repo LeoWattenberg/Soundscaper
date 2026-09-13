@@ -126,7 +126,7 @@ function ScanReport({ copy, scan }: Readonly<{
 		</p>
 		{scan.entries.length > 0 && <ul aria-label={copy.scanEntries}>
 			{scan.entries.map((entry) => <li key={entry.stableId}>
-				{`${entry.name} — ${entry.vendor} ${entry.version} (${entry.signature}, ${entry.compatibility})`}
+				{`${entry.name} — ${entry.vendor} ${entry.version} (${entry.compatibility})`}
 			</li>)}
 		</ul>}
 	</div>;
@@ -174,15 +174,15 @@ export function SoundscaperNativeEffectManagePanel({
 				key={installation.installationId} data-native-plugin-installation={installation.installationId}>
 				<strong>{installation.version}</strong>
 				<div className="kw-processing-actions">
-				{mode === 'manage' ? <>
-					<Button variant="secondary" disabled={disabled} data-native-plugin-review={installation.reviewed ? 'revoke' : 'allow'}
-						onClick={() => perform({ type: 'review-plugin', installationId: installation.installationId,
-							review: installation.reviewed ? 'revoke' : 'allow' })}>
-						{installation.reviewed ? copy.revokePluginInstallation : copy.allowPluginInstallation}</Button>
-					{selected.installations.length > 1 && !installation.selected && <Button variant="secondary"
-						disabled={disabled} data-native-plugin-review="select" onClick={() => perform({
-							type: 'review-plugin', installationId: installation.installationId, review: 'select',
-						})}>{copy.selectPluginInstallation}</Button>}
+					{mode === 'manage' ? <>
+						<Button variant="secondary" disabled={disabled} data-native-plugin-allowance={installation.allowed ? 'revoke' : 'allow'}
+							onClick={() => perform({ type: 'set-plugin-allowed', installationId: installation.installationId,
+								allowed: !installation.allowed })}>
+							{installation.allowed ? copy.revokePluginInstallation : copy.allowPluginInstallation}</Button>
+						{selected.installations.length > 1 && !installation.selected && <Button variant="secondary"
+							disabled={disabled} data-native-plugin-select onClick={() => perform({
+								type: 'select-plugin-installation', installationId: installation.installationId,
+							})}>{copy.selectPluginInstallation}</Button>}
 				</> : <Button variant="primary"
 					disabled={disabled || !selected.eligible || state.pluginInstance !== null
 						|| (selected.installations.length > 1 && !installation.selected)}

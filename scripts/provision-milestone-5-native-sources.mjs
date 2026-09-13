@@ -19,11 +19,11 @@ import { materializeMilestone5SourceArchive } from './lib/milestone-5-source-arc
 /**
  * Provision the Milestone 5 native source acquisition cache.
  *
- * `config/milestone-5-native-source-acquisitions.json` pins ten upstream inputs
+ * `config/milestone-5-native-source-acquisitions.json` pins eleven upstream inputs
  * by archive digest and by the portable identity of the tree that archive
  * extracts to, and `auditMilestone5NativeSourceAcquisitions` authenticates a
  * cache against those pins. Until this script existed the register named what a
- * cache must contain but nothing assembled one, so the audit reported 0/10 on
+ * cache must contain but nothing assembled one, so the audit reported 0/11 on
  * every machine and native builds could not use the pinned source set.
  *
  * The cache is deliberately outside the repository and outside the product's
@@ -39,10 +39,10 @@ import { materializeMilestone5SourceArchive } from './lib/milestone-5-source-arc
  *   node scripts/provision-milestone-5-native-sources.mjs --source juce --source lv2
  *   node scripts/provision-milestone-5-native-sources.mjs --archive-directory ~/m5-archives
  *
- * `--archive-directory` reads each pinned archive from local storage instead of
- * fetching it. Some upstreams — the Steinberg ASIO SDK most of all — are behind
- * terms a person has to read and accept, so acquiring those bytes by hand and
- * pointing this script at them has to stay a first-class path.
+ * `--archive-directory` is the offline/repeatable path for any pinned archive.
+ * The ordinary path, including the Steinberg ASIO SDK used by target-native CI,
+ * downloads the registered HTTPS URL and verifies the exact archive and
+ * extracted-tree identities before admitting it to the cache.
  */
 
 const repositoryRoot = resolve(import.meta.dirname, '..');

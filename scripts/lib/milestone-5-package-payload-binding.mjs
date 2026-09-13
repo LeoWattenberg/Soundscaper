@@ -22,6 +22,9 @@ export function validateMilestone5PackagePayloadBinding(
 			&& runtime.nativeAddons.blockedBy === nativeTarget.blockedBy
 			&& JSON.stringify(runtime.nativeAddons.payload) === JSON.stringify(
 				nativeTarget.payload === null ? null : packagePayload(nativeTarget.payload),
+			)
+			&& JSON.stringify(runtime.nativeAddons.buildResult ?? null) === JSON.stringify(
+				nativeTarget.buildResult == null ? null : packagePayload(nativeTarget.buildResult),
 			), 'Milestone 5 package native-addon target disagrees with the authenticated payload audit.');
 	}
 
@@ -94,7 +97,8 @@ function hostPayloads(target, manifestKey) {
 	assert(isolation && Array.isArray(isolation.runtimeLibraryPayloads),
 		'Milestone 5 built native-host target has no authenticated isolation payload closure.');
 	return [
-		...(openFx ? [target.payload.scannerPayload, target.payload.runtimeHostPayload] : [target.payload]),
+		...(openFx ? [target.payload.buildResult, target.payload.scannerPayload,
+			target.payload.runtimeHostPayload] : [target.buildResult, target.payload]),
 		isolation.launcherPayload,
 		isolation.sandboxProfilePayload,
 		isolation.brokerPolicyPayload,

@@ -96,8 +96,12 @@ Each tuple is intentionally a separate legal row; approval of one must not autho
 - [x] Approve the common FFmpeg 9.0.1 GPL/corresponding-source/notice posture covering whichever tuples survive review.
 -- approved if we don't ship FFmpeg ourselves (having users download it from winget/third party sources is fine)
 
-All these rows remain blocked. Legal approval cannot substitute for missing
-implementation, payload, interoperability, and target verification.
+These rows are technically enabled for testing. Repository CI builds the exact
+FFmpeg 9.0.1, x264, x265 Main10, libvpx, libopus, and zlib closure on all five
+targets, runs codec and component canaries, and stages the verified target
+result for packaging. Whether to include that bundled-video provider in a
+stable distribution remains the owner's explicit product and legal choice; it
+does not make the implemented producer or its passing target evidence pending.
 
 ### Local AI models
 

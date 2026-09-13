@@ -9,7 +9,9 @@ import test from 'node:test';
 
 import {
 	FRAMESCAPER_BOOST_CI_ADMISSION,
+	FRAMESCAPER_BOOST_VERSION_HEADER_ADMISSION,
 	downloadPinnedFramescaperBoost,
+	materializePinnedFramescaperBoostVersionHeader,
 	materializeVerifiedFramescaperBoostClosure,
 	runFramescaperBoostCiProvisioning,
 } from '../scripts/lib/framescaper-boost-ci.mjs';
@@ -29,6 +31,35 @@ test('Framescaper CI pins the official Boost 1.92.0 archive identity', () => {
 	});
 	assert.equal(Object.isFrozen(FRAMESCAPER_BOOST_CI_ADMISSION), true);
 	assert.equal(Object.isFrozen(FRAMESCAPER_BOOST_CI_ADMISSION.archive), true);
+	assert.deepEqual(FRAMESCAPER_BOOST_VERSION_HEADER_ADMISSION, {
+		path: 'boost/version.hpp',
+		byteLength: 1_117,
+		sha256: 'cf992d9d2c4f2294b69d8819e334927644a48b978bfea3c525e3f9c6dbc7cb9f',
+	});
+	assert.equal(Object.isFrozen(FRAMESCAPER_BOOST_VERSION_HEADER_ADMISSION), true);
+});
+
+test('the pinned Boost version header is materialized beside the verified closure', async (context) => {
+	const temporary = await mkdtemp(join(tmpdir(), 'soundscaper-boost-version-'));
+	context.after(() => rm(temporary, { recursive: true, force: true }));
+	const extracted = join(temporary, 'extracted');
+	const closureRoot = join(temporary, 'closure');
+	const bytes = Buffer.from('#define BOOST_VERSION 109200\n');
+	const admission = {
+		path: 'boost/version.hpp',
+		byteLength: bytes.byteLength,
+		sha256: createHash('sha256').update(bytes).digest('hex'),
+	};
+	await mkdir(join(extracted, 'boost'), { recursive: true });
+	await mkdir(closureRoot);
+	await writeFile(join(extracted, 'boost', 'version.hpp'), bytes);
+	assert.equal(await materializePinnedFramescaperBoostVersionHeader({
+		sourceRoot: extracted, closureRoot, admission,
+	}), join(closureRoot, 'boost', 'version.hpp'));
+	assert.deepEqual(await readFile(join(closureRoot, 'boost', 'version.hpp')), bytes);
+	await assert.rejects(materializePinnedFramescaperBoostVersionHeader({
+		sourceRoot: extracted, closureRoot, admission: { ...admission, sha256: '0'.repeat(64) },
+	}), /changed after archive admission/iu);
 });
 
 test('the Boost downloader publishes only exact URL, length, and digest bytes', async (context) => {
@@ -136,6 +167,7 @@ test('CI verifies the extracted closure before exporting its source root', async
 	let extractedRoot;
 	let verificationCount = 0;
 	const closure = Object.freeze({ files: Object.freeze([]) });
+	const versionBytes = Buffer.from('#define BOOST_VERSION 109200\n');
 	const result = await runFramescaperBoostCiProvisioning({
 		repositoryRoot: ROOT,
 		runnerTemp,
@@ -150,7 +182,8 @@ test('CI verifies the extracted closure before exporting its source root', async
 			calls.push('extract');
 			assert.equal(String(await readFile(archivePath)), 'authenticated archive');
 			extractedRoot = sourceRoot;
-			await mkdir(sourceRoot);
+			await mkdir(join(sourceRoot, 'boost'), { recursive: true });
+			await writeFile(join(sourceRoot, 'boost', 'version.hpp'), versionBytes);
 		},
 		async verify({ repositoryRoot, boostSourceRoot }) {
 			verificationCount += 1;
@@ -166,10 +199,16 @@ test('CI verifies the extracted closure before exporting its source root', async
 			await mkdir(closureRoot);
 			return closureRoot;
 		},
+		versionHeaderAdmission: {
+			path: 'boost/version.hpp',
+			byteLength: versionBytes.byteLength,
+			sha256: createHash('sha256').update(versionBytes).digest('hex'),
+		},
 	});
 
 	assert.deepEqual(calls, ['download', 'extract', 'verify-1', 'materialize', 'verify-2']);
 	assert.equal(result.sourceRoot, assertContainedSourceRoot(runnerTemp, result.sourceRoot));
+	assert.deepEqual(await readFile(join(result.sourceRoot, 'boost', 'version.hpp')), versionBytes);
 	await assert.rejects(lstat(extractedRoot), /ENOENT/u,
 		'the broader extracted source tree must be removed before export');
 	assert.equal(String(await readFile(githubEnvironmentPath)), [

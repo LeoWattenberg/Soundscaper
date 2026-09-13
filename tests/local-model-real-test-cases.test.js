@@ -76,17 +76,17 @@ test('every published model has packaged runtime support reflected in its guide'
 	}
 	const silero = availability.find(({ entry }) => entry.modelId === 'silero-vad-v6');
 	assert.deepEqual(silero.availablePlatforms.toSorted(),
-		['darwin-arm64', 'linux-arm64', 'linux-x64', 'win32-x64']);
+		['darwin-arm64', 'linux-arm64', 'linux-x64', 'win32-arm64', 'win32-x64']);
 	assert.ok(silero.missingPlatforms.includes('darwin-x64'));
 });
 
-test('every real model case is admitted on the four currently published desktop targets', () => {
+test('every real model case is admitted on all five supported desktop targets', () => {
 	const entries = new Map(catalog.entries.map((entry) => [entry.modelId, entry]));
 	for (const { id, modelIds } of manifest.cases) for (const modelId of modelIds) {
 		const entry = entries.get(modelId);
 		if (!entry) continue;
 		const availability = localModelRuntimeAvailability(entry, runtimeSources);
-		for (const platform of ['darwin-arm64', 'linux-arm64', 'linux-x64', 'win32-x64']) {
+		for (const platform of ['darwin-arm64', 'linux-arm64', 'linux-x64', 'win32-arm64', 'win32-x64']) {
 			assert.ok(entry.platforms.includes(platform), `${id}: ${modelId} must not be skipped on ${platform}.`);
 			assert.ok(availability.availablePlatforms.includes(platform), `${id}: ${modelId} must have native packaging support on ${platform}.`);
 		}
@@ -120,14 +120,15 @@ test('newly published guides describe their working packaged-engine support', as
 	}
 });
 
-test('the Windows ARM64 build recipe cannot widen catalog platform admission', () => {
+test('Windows ARM64 catalog admission requires its package-generated native runtime', async () => {
 	const silero = catalog.entries.find(({ modelId }) => modelId === 'silero-vad-v6');
-	assert.ok(!silero.platforms.includes('win32-arm64'));
-	assert.ok(!localModelRuntimeAvailability(silero, runtimeSources).availablePlatforms.includes('win32-arm64'));
-	const proposed = { ...silero, platforms: [...silero.platforms, 'win32-arm64'] };
-	assert.ok(localModelRuntimeAvailability(proposed, runtimeSources).availablePlatforms.includes('win32-arm64'));
-	assert.ok(localModelRuntimeAvailability(proposed,
+	assert.ok(silero.platforms.includes('win32-arm64'));
+	assert.ok(localModelRuntimeAvailability(silero, runtimeSources).availablePlatforms.includes('win32-arm64'));
+	assert.ok(localModelRuntimeAvailability(silero,
 		{ ...runtimeSources, sherpaArm64Build: undefined }).missingPlatforms.includes('win32-arm64'));
+	const nightly = await readFile(resolve(root, 'docs/local-model-nightly-tests.md'), 'utf8');
+	assert.doesNotMatch(nightly, /Windows ARM64 catalog approval.*pending|separate reviewed platform update/iu);
+	assert.match(nightly, /All 21 published models.*Windows ARM64/isu);
 });
 
 test('native availability follows packaged file inventories and build recipes', () => {
@@ -141,4 +142,20 @@ test('native availability follows packaged file inventories and build recipes', 
 	assert.ok(localModelRuntimeAvailability(whisper, runtimeSources).availablePlatforms.includes('linux-x64'));
 	assert.deepEqual(localModelRuntimeAvailability(whisper,
 		{ ...runtimeSources, whisperBuild: { version: WHISPER_RUNTIME_VERSION, targets: [] } }).availablePlatforms, []);
+});
+
+test('milestone status records route runtime proof through package and nightly automation', async () => {
+	const [plan, roadmap, videoEvidence] = await Promise.all([
+		readFile(resolve(root, 'docs/milestone-7-plan.md'), 'utf8'),
+		readFile(resolve(root, 'roadmap.md'), 'utf8'),
+		readFile(resolve(root, 'docs/milestone-7-video-model-evidence.md'), 'utf8'),
+	]);
+	assert.match(plan, /package-generated authenticated target runtimes/iu);
+	assert.match(plan, /nightly-with-tests/iu);
+	assert.doesNotMatch(plan,
+		/only currently package-admitted execution baseline|qualification await runtime payloads|catalog entry, and payload remain pending|sherpa-onnx win-arm64 prebuild gap/iu);
+	assert.doesNotMatch(plan, /pending-external|manual sign-off as an execution switch/iu);
+	assert.doesNotMatch(videoEvidence, /are reviewed, pinned, and awaiting their first upload/iu);
+	assert.match(roadmap, /target packages generate and authenticate.*all five/isu);
+	assert.doesNotMatch(roadmap, /All five target closures.*remain pending/isu);
 });

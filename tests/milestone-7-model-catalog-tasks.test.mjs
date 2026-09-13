@@ -169,12 +169,12 @@ test('recorded catalog-entry evidence pins the canonical offered entry', () => {
 
 test('task validation rejects pessimistic publication, invented outputs, and platform drift', () => {
 	const pessimistic = clone(catalogTasks);
-	pessimistic.tasks[0].catalogStatus = 'pending-external';
+	pessimistic.tasks[0].catalogStatus = 'catalog-evidence-incomplete';
 	assert.throws(() => validate(pessimistic), /catalogStatus|ready|blocker/iu);
 
 	const invented = clone(catalogTasks);
 	invented.tasks[1].artifacts[0].sha256 = 'ab'.repeat(32);
-	assert.throws(() => validate(invented), /artifact|conversion|identity|pending/iu);
+	assert.throws(() => validate(invented), /artifact|conversion|identity|not.generated/iu);
 
 	const substitutedClassMap = clone(catalogTasks);
 	substitutedClassMap.tasks[2].sourceAuthorities[0].integrity.value = 'cd'.repeat(32);
@@ -189,9 +189,23 @@ test('task validation rejects pessimistic publication, invented outputs, and pla
 	assert.throws(() => validate(extraPlatform), /platform|target/iu);
 
 	const pessimisticActivation = clone(catalogTasks);
-	pessimisticActivation.tasks[5].activationStatus = 'pending-external';
-	pessimisticActivation.tasks[5].activationBlockedBy = ['runtime-target-closure'];
+	pessimisticActivation.tasks[5].activationStatus = 'runtime-payload-not-generated';
+	pessimisticActivation.tasks[5].activationBlockedBy = ['runtime-payload-not-generated'];
 	assert.throws(() => validate(pessimisticActivation), /activationStatus|activationBlockedBy|ready/iu);
+});
+
+test('model contracts use machine-local failure states rather than external approval vocabulary', async () => {
+	const sources = await Promise.all([
+		'milestone-7-model-supply.mjs',
+		'milestone-7-conversion-execution.mjs',
+		'milestone-7-model-catalog-tasks.mjs',
+	].map((fileName) => readFile(new URL(`../scripts/models/${fileName}`, import.meta.url), 'utf8')));
+	const combined = sources.join('\n');
+	assert.doesNotMatch(combined,
+		/pending-external|lock-pending-external|runtime-target-closure/iu);
+	assert.match(combined, /runtime-payload-not-generated/u);
+	assert.match(combined, /conversion-evidence-incomplete/u);
+	assert.match(combined, /catalog-evidence-incomplete/u);
 });
 
 test('the catalog-task verifier reports published models as ready on packaged runtimes', () => {

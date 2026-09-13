@@ -37,7 +37,7 @@ export async function describeSoundscaperProfessionalNativePayload(location, rea
 	}
 	const selected = manifest.targets.find((entry) => entry.id === target);
 	if (!selected || selected.status !== 'built' || selected.payload === null) {
-		return unavailable('payload-pending-external', selected?.blockedBy ?? 'No payload is built for this target.');
+		return unavailable('payload-not-generated', selected?.blockedBy ?? 'No CI build result is staged for this target.');
 	}
 	let payload;
 	let osAudioCodec;
@@ -114,7 +114,7 @@ function validateManifest(value, sourceRegister) {
 		if (!exactKeys(target, TARGET_FIELDS)) {
 			throw new TypeError(`The professional native ${String(target?.id)} target record is not closed.`);
 		}
-		if (target.status !== 'built' && target.status !== 'pending-external') {
+		if (target.status !== 'built' && target.status !== 'ci-generated') {
 			throw new TypeError(`The professional native ${String(target.id)} status is invalid.`);
 		}
 		if (target.status === 'built' && (target.blockedBy !== null
@@ -132,11 +132,12 @@ function validateManifest(value, sourceRegister) {
 				|| !validSourceAuthentication(target.sourceAuthentication, target.id, sourceRegister))) {
 			throw new TypeError(`The professional native ${String(target.id)} built record is invalid.`);
 		}
-		if (target.status === 'pending-external'
-			&& (target.sourceAuthentication !== null || target.buildResult !== null || target.payload !== null
+		if (target.status === 'ci-generated'
+			&& (target.blockedBy !== null || target.sourceAuthentication !== null
+					|| target.buildResult !== null || target.payload !== null
 					|| target.osAudioCodec !== null || target.pluginPeer !== null
 					|| target.deliveryFilesystem !== null || target.isolation !== null)) {
-			throw new TypeError(`The pending professional native ${String(target.id)} target cannot claim source authentication.`);
+			throw new TypeError(`The CI-generated professional native ${String(target.id)} target cannot claim source authentication.`);
 		}
 	}
 }

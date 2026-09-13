@@ -142,8 +142,8 @@ test('checked-in policy exposes third-party formats and defers execution to mach
 	const admission = registration.tier.plugins.registry.record(pluginObservation({ format: 'vst3' }));
 	assert.equal(admission.status, 'recorded');
 	if (admission.status !== 'recorded') return;
-	await registration.invoke(IPC.nativePluginReviewInstallation, {
-		installationId: admission.installationId, action: 'allow',
+	await registration.invoke(IPC.nativePluginSetInstallationAllowed, {
+		installationId: admission.installationId, allowed: true,
 	});
 	await assert.rejects(
 		() => registration.invoke(IPC.nativePluginInstantiate, {
@@ -173,8 +173,8 @@ test('checked-in production policy never offers or executes the fixture format',
 	const admission = registration.tier.plugins.registry.record(pluginObservation());
 	assert.equal(admission.status, 'recorded');
 	if (admission.status !== 'recorded') return;
-	await assert.rejects(() => registration.invoke(IPC.nativePluginReviewInstallation, {
-		installationId: admission.installationId, action: 'allow',
+	await assert.rejects(() => registration.invoke(IPC.nativePluginSetInstallationAllowed, {
+		installationId: admission.installationId, allowed: true,
 	}), /blocked by production policy/u);
 	await assert.rejects(() => registration.invoke(IPC.nativePluginInstantiate, {
 		installationId: admission.installationId, instanceId: null, sampleRate: 48_000,
@@ -210,8 +210,14 @@ test('production plug-in IPC instantiates, runs, stores state and drains its iso
 	assert.equal(admission.status, 'recorded');
 	if (admission.status !== 'recorded') return;
 	assert.deepEqual(
-		await registration.invoke(IPC.nativePluginReviewInstallation, {
-			installationId: admission.installationId, action: 'allow',
+		await registration.invoke(IPC.nativePluginSetInstallationAllowed, {
+			installationId: admission.installationId, allowed: true,
+		}),
+		registration.tier.plugins.registry.describe(),
+	);
+	assert.deepEqual(
+		await registration.invoke(IPC.nativePluginSelectInstallation, {
+			installationId: admission.installationId,
 		}),
 		registration.tier.plugins.registry.describe(),
 	);
@@ -387,9 +393,11 @@ test('described scan entries reach the inventory the renderer lists', async () =
 	const view = registry.describe();
 	assert.equal(view.entries.length, 1, 'an inventory nothing is ever recorded into is permanently empty');
 	assert.equal(view.entries[0].name, 'Fixture Reverb');
-	assert.equal(view.entries[0].installations[0].signature, 'trusted');
+	assert.equal(Object.hasOwn(view.entries[0].installations[0], 'signature'), false);
 	assert.equal(view.entries[0].installations[0].compatibility, 'compatible');
-	assert.equal(view.entries[0].eligible, true);
+	assert.equal(view.entries[0].installations[0].allowed, false);
+	assert.equal(view.entries[0].eligible, false);
+	assert.equal(view.entries[0].ineligibleReason, 'allowance-required');
 	assert.deepEqual(
 		recordScannedPlugins(registry, result, { identityFor: () => null })
 			.map((admission) => admission.status),

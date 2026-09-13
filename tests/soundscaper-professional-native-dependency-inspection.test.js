@@ -94,8 +94,8 @@ test('Linux dependency closure admits only slash-free case-sensitive system SONA
 			architecture: LINUX_ARCHITECTURE, imports, rpaths: ['$ORIGIN/runtime'],
 		}),
 	});
-	const admitted = await validate(['libX11.so.6', 'libXcursor.so.1']);
-	assert.deepEqual(admitted[0].imports, ['libX11.so.6', 'libXcursor.so.1']);
+	const admitted = await validate(['libX11.so.6', 'libXcursor.so.1', 'libmvec.so.1']);
+	assert.deepEqual(admitted[0].imports, ['libX11.so.6', 'libXcursor.so.1', 'libmvec.so.1']);
 	await assert.rejects(validate(['/opt/attacker/libc.so.6']),
 		/ambient runtime dependency \/opt\/attacker\/libc\.so\.6/u);
 	await assert.rejects(validate(['libx11.so.6']),

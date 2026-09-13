@@ -24,6 +24,7 @@ test('reusable professional-native workflow produces five verified build results
 	}
 	assert.match(source, /SOUNDSCAPER_NATIVE_HARNESS_PREPARATION: 'true'/u);
 	assert.match(source, /build-soundscaper-professional-native\.mjs/u);
+	assert.match(source, /stage-soundscaper-professional-native-build-result\.mjs/u);
 	assert.match(source, /soundscaper-professional-native-build-result-\$\{\{ matrix\.target \}\}/u);
 	assert.doesNotMatch(source, /signing-identity|certificate|notari[sz]/iu);
 	assert.doesNotMatch(source,
@@ -35,10 +36,11 @@ test('reusable professional-native workflow produces five verified build results
 	assert.doesNotMatch(source, /uses:\s+actions\/[a-z-]+@v\d+/u);
 });
 
-test('manual native-build workflow is debug-only and has no promotion controls', async () => {
+test('dispatchable native-build workflow produces results without promotion controls', async () => {
 	const source = await readFile(new URL(
 		'.github/workflows/soundscaper-professional-native-build-run.yml', ROOT,
 	), 'utf8');
+	assert.match(source, /^name: Soundscaper professional native target builds$/mu);
 	assert.match(source, /workflow_dispatch:/u);
 	assert.match(source, /soundscaper-professional-native-build\.yml/u);
 	assert.doesNotMatch(source, /promot|signing|certificate|secrets: inherit/iu);

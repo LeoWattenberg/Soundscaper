@@ -12,14 +12,15 @@ const LAUNCHER = Buffer.from('synthetic-native-isolation-launcher');
 const PROFILE = Buffer.from('synthetic-isolation-profile');
 const BROKER = Buffer.from('synthetic-isolation-broker');
 const LOADER = Buffer.from('synthetic-runtime-loader');
+const BUILD_RESULT = Buffer.from('synthetic-openfx-build-result');
 
-test('an empty pending-external manifest creates no OpenFX manager or child authority', async () => {
+test('an unstaged CI-generated manifest creates no OpenFX manager or child authority', async () => {
 	const runtime = await startFramescaperOpenFxRuntime({
 		location: location(), payloadPorts: ports(manifest(false)),
 	});
 	assert.equal(runtime.available(), false);
 	assert.equal(runtime.manager, null);
-	assert.match(runtime.reason ?? '', /pending-external/iu);
+	assert.match(runtime.reason ?? '', /payload-not-generated/iu);
 	assert.equal(runtime.dispose(), true);
 });
 
@@ -81,6 +82,10 @@ function ports(value: unknown) {
 }
 
 function manifest(built: boolean) {
+	const buildResult = payload(
+		'native/framescaper-openfx-host/prebuilt/linux-x64/framescaper-openfx-host-build-result.json',
+		BUILD_RESULT,
+	);
 	const scannerPayload = payload(
 		'native/framescaper-openfx-host/prebuilt/linux-x64/bin/framescaper-ofx-scanner', SCANNER,
 	);
@@ -104,13 +109,13 @@ function manifest(built: boolean) {
 			'native/framescaper-openfx-host/prebuilt/linux-x64/lib/ld-linux-x86-64.so.2', LOADER,
 		)],
 	};
-	const pair = { scannerPayload, runtimeHostPayload, isolationPayload };
+	const pair = { buildResult, scannerPayload, runtimeHostPayload, isolationPayload };
 	const targets = [
 		['linux-x64', 'linux-x64'], ['linux-arm64', 'linux-arm64'], ['mac-arm64', 'darwin-arm64'],
 		['win-x64', 'win32-x64'], ['win-arm64', 'win32-arm64'],
 	].map(([id, runtime], index) => ({
-		id, runtime, status: index === 0 && built ? 'built' : 'pending-external',
-		blockedBy: index === 0 && built ? null : 'No verified synthetic OpenFX payload exists.',
+		id, runtime, status: index === 0 && built ? 'built' : 'ci-generated',
+		blockedBy: null,
 		payload: index === 0 && built ? pair : null,
 	}));
 	return {
@@ -131,6 +136,7 @@ function payload(path: string, bytes: Uint8Array) {
 }
 
 function payloadBytes(path: string): Buffer {
+	if (path.includes('build-result')) return BUILD_RESULT;
 	if (path.includes('scanner')) return SCANNER;
 	if (path.includes('runtime-host')) return RUNTIME;
 	if (path.includes('isolation-launcher')) return LAUNCHER;

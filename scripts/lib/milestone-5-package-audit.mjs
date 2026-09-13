@@ -269,7 +269,7 @@ function validateSourceAcquisitions(register, audited, engineeringScope) {
 		'Milestone 5 native source IDs are incomplete or out of order.');
 	for (const source of register.sources) {
 		assert((audited
-			? ['authenticated', 'pending-external'].includes(source.authenticationStatus)
+			? ['authenticated', 'not-materialized'].includes(source.authenticationStatus)
 			: source.authenticationStatus === 'pinned-metadata'),
 		`Milestone 5 native source ${source.id} has invalid audit state.`);
 	}
@@ -300,7 +300,7 @@ function validatePayloadManifest(manifest, product) {
 	assert(JSON.stringify(manifest.targets.map(({ id }) => id)) === JSON.stringify(TARGET_IDS),
 		`Milestone 5 ${product} payload targets must be the exact five-target inventory.`);
 	return manifest.targets.map((target) => {
-		assert(['built', 'pending-external'].includes(target.status),
+		assert(['built', 'ci-generated'].includes(target.status),
 			`Milestone 5 ${product} payload ${target.id} has an invalid status.`);
 		return {
 			identity: `${product}:${target.id}`,
@@ -322,6 +322,7 @@ function machinePayload(target, product) {
 		toolchainIdentity: target.toolchainIdentity,
 	});
 	if (product === 'framescaper-media') return structuredClone({
+		buildResult: target.buildResult,
 		payload: target.payload,
 		isolationPayload: target.isolationPayload,
 	});

@@ -1,0 +1,157 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import test from 'node:test';
+
+import {
+	createModelInstallEvidence,
+	readNightlyPackageIdentity,
+	verifyCatalogModelDelivery,
+} from './electron/local-assistance-models/model-delivery-evidence.js';
+
+const bytes = Buffer.from('nightly model bytes');
+const model = Object.freeze({
+	modelId: 'nightly-model',
+	version: '1.0.0',
+	artifacts: Object.freeze([Object.freeze({
+		fileName: 'model.onnx',
+		byteLength: bytes.length,
+		sha256: createHash('sha256').update(bytes).digest('hex'),
+		url: 'https://assets.soundscaper.org/models/nightly-model/1.0.0/model.onnx',
+	})]),
+});
+const sourceRevision = 'a'.repeat(40);
+const packageIdentity = Object.freeze({
+	productId: 'framescaper',
+	applicationVersion: '1.0.0-rc.5',
+	sourceRevision,
+	target: 'linux-x64',
+	application: Object.freeze({ fileName: 'framescaper.asar', byteLength: 12, sha256: 'b'.repeat(64) }),
+	stageManifest: Object.freeze({ fileName: 'stage-manifest.json', byteLength: 34, sha256: 'c'.repeat(64) }),
+});
+
+function publicDelivery(requests) {
+	return async (url, init) => {
+		requests.push({ url, method: init.method, range: init.headers.Range ?? null });
+		const ranged = init.headers.Range === 'bytes=0-0';
+		return new Response(init.method === 'HEAD' ? null : bytes.subarray(0, 1), {
+			status: ranged ? 206 : 200,
+			headers: {
+				'Access-Control-Allow-Origin': 'https://soundscaper.org',
+				'Access-Control-Expose-Headers': 'Content-Range',
+				'Content-Length': String(ranged ? 1 : bytes.length),
+				...(ranged ? { 'Content-Range': `bytes 0-0/${String(bytes.length)}` } : {}),
+			},
+		});
+	};
+}
+
+test('nightly evidence combines live public delivery with the packaged installer full-hash result', async () => {
+	const requests = [];
+	const delivery = await verifyCatalogModelDelivery(model, { fetchImpl: publicDelivery(requests) });
+	assert.deepEqual(requests, [
+		{ url: model.artifacts[0].url, method: 'HEAD', range: null },
+		{ url: model.artifacts[0].url, method: 'GET', range: 'bytes=0-0' },
+	], 'Public evidence must not issue another full-body GET.');
+	const installation = {
+		model: { modelId: model.modelId, version: model.version, availability: 'installed',
+			installedBytes: bytes.length, artifactSha256s: [model.artifacts[0].sha256] },
+		elapsedMs: 42,
+		artifacts: [{ modelId: model.modelId, fileName: 'model.onnx',
+			completedBytes: bytes.length, totalBytes: bytes.length }],
+	};
+	assert.deepEqual(createModelInstallEvidence({
+		model, delivery, installation, packageIdentity,
+		checkedAt: '2026-09-13T00:00:00.000Z',
+	}), {
+		schemaVersion: 1,
+		kind: 'soundscaper-nightly-local-model-install',
+		checkedAt: '2026-09-13T00:00:00.000Z',
+		sourceRevision,
+		modelId: 'nightly-model',
+		version: '1.0.0',
+		target: 'linux-x64',
+		package: packageIdentity,
+		checks: ['public-head', 'byte-range', 'cors', 'full-sha256'],
+		artifacts: model.artifacts,
+		installation: {
+			availability: 'installed', installedBytes: bytes.length, elapsedMs: 42,
+			artifactSha256s: [model.artifacts[0].sha256],
+			progress: installation.artifacts,
+		},
+	});
+});
+
+test('nightly evidence rejects a public descriptor or installed byte count that differs from the catalog', async () => {
+	const delivery = await verifyCatalogModelDelivery(model, { fetchImpl: publicDelivery([]) });
+	const installation = { model: { modelId: model.modelId, version: model.version,
+		availability: 'installed', installedBytes: bytes.length,
+		artifactSha256s: [model.artifacts[0].sha256] }, elapsedMs: 1,
+	artifacts: [{ modelId: model.modelId, fileName: 'model.onnx',
+		completedBytes: bytes.length, totalBytes: bytes.length }] };
+	assert.throws(() => createModelInstallEvidence({ model, delivery: [{ ...delivery[0], sha256: 'f'.repeat(64) }],
+		installation, packageIdentity }), /public delivery.*catalog/u);
+	assert.throws(() => createModelInstallEvidence({ model, delivery,
+		installation: { ...installation, model: { ...installation.model, installedBytes: bytes.length - 1 } },
+		packageIdentity }), /installed byte count/u);
+	assert.throws(() => createModelInstallEvidence({ model, delivery, installation,
+		packageIdentity: { ...packageIdentity, unchecked: true } }), /package identity.*fields/u);
+});
+
+test('nightly evidence requires complete artifact progress and authenticated installed hashes', async () => {
+	const delivery = await verifyCatalogModelDelivery(model, { fetchImpl: publicDelivery([]) });
+	const installation = { model: { modelId: model.modelId, version: model.version,
+		availability: 'installed', installedBytes: bytes.length,
+		artifactSha256s: [model.artifacts[0].sha256] }, elapsedMs: 1,
+	artifacts: [{ modelId: model.modelId, fileName: 'model.onnx',
+		completedBytes: bytes.length, totalBytes: bytes.length }] };
+	assert.throws(() => createModelInstallEvidence({ model, delivery,
+		installation: { ...installation, artifacts: [] }, packageIdentity }),
+	/artifact filename set/u);
+	assert.throws(() => createModelInstallEvidence({ model, delivery,
+		installation: { ...installation, model: { ...installation.model,
+			artifactSha256s: ['f'.repeat(64)] } }, packageIdentity }),
+	/installed artifact SHA-256s/u);
+	assert.throws(() => createModelInstallEvidence({ model, delivery,
+		installation: { ...installation, model: { ...installation.model,
+			artifactSha256s: undefined } }, packageIdentity }),
+	/installed artifact SHA-256s/u);
+});
+
+test('package identity binds the exact staged application, manifest, target, and source revision', async (context) => {
+	const payloadRoot = await mkdtemp(join(tmpdir(), 'nightly-package-identity-'));
+	context.after(() => rm(payloadRoot, { recursive: true, force: true }));
+	const productRoot = join(payloadRoot, 'products');
+	await mkdir(join(productRoot, 'framescaper'), { recursive: true });
+	const nightlyManifest = Buffer.from(`${JSON.stringify({
+		schemaVersion: 1, kind: 'soundscaper-desktop-nightly-tests', applicationVersion: '1.0.0-rc.9',
+		sourceRevision, target: { platform: 'linux', arch: 'x64' },
+	})}\n`);
+	const productManifest = Buffer.from(`${JSON.stringify({
+		schemaVersion: 1, productId: 'framescaper', applicationVersion: '1.0.0-rc.5',
+		sourceRevision, target: { platform: 'linux', arch: 'x64' },
+	})}\n`);
+	const application = Buffer.from('packaged app');
+	await writeFile(join(payloadRoot, 'stage-manifest.json'), nightlyManifest);
+	await writeFile(join(productRoot, 'framescaper/stage-manifest.json'), productManifest);
+	await writeFile(join(productRoot, 'framescaper.asar'), application);
+	assert.deepEqual(await readNightlyPackageIdentity({
+		payloadRoot, productRoot, productId: 'framescaper', target: 'linux-x64',
+	}), {
+		productId: 'framescaper', applicationVersion: '1.0.0-rc.5', sourceRevision,
+		target: 'linux-x64',
+		application: { fileName: 'framescaper.asar', byteLength: application.byteLength,
+			sha256: createHash('sha256').update(application).digest('hex') },
+		stageManifest: { fileName: 'stage-manifest.json', byteLength: productManifest.byteLength,
+			sha256: createHash('sha256').update(productManifest).digest('hex') },
+	});
+	await writeFile(join(productRoot, 'framescaper/stage-manifest.json'),
+		Buffer.from(productManifest.toString().replace(sourceRevision, 'd'.repeat(40))));
+	await assert.rejects(readNightlyPackageIdentity({
+		payloadRoot, productRoot, productId: 'framescaper', target: 'linux-x64',
+	}), /source revision/u);
+});

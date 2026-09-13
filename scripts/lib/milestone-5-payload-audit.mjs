@@ -84,6 +84,7 @@ export async function auditMilestone5Payloads(repositoryRootValue, productIdsVal
 		...(media === null ? [] : media.payload.targets.map((target) => createMilestone5PayloadAuditRow({
 			product: 'framescaper-media', targetId: target.id, status: target.status,
 			blockedBy: target.blockedBy, payload: target.status === 'built' ? {
+				buildResult: target.buildResult,
 				payload: target.payload,
 				isolationPayload: target.isolationPayload,
 			} : null,
@@ -149,11 +150,11 @@ export function createMilestone5PayloadAuditRow({
 	blockedBy,
 	payload,
 }) {
-	if (!['built', 'pending-external'].includes(status)) {
+	if (!['built', 'ci-generated'].includes(status)) {
 		throw new Error(`Milestone 5 payload ${product}:${targetId} has an unsupported status.`);
 	}
 	if (status === 'built' ? payload === null || blockedBy !== null
-		: payload !== null || typeof blockedBy !== 'string' || blockedBy.trim().length < 8) {
+		: payload !== null || blockedBy !== null) {
 		throw new Error(`Milestone 5 payload ${product}:${targetId} has inconsistent build state.`);
 	}
 	return {

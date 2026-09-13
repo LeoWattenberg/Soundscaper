@@ -40,10 +40,11 @@ function recordFixtureInstallation(registry) {
 		binaryPath: '/tmp/example.clap', binaryBytes: 4, binarySha256: 'ab'.repeat(32),
 		identity: { dev: 1, ino: 2 }, classification: 'effect',
 		topologies: [{ inputChannels: 2, outputChannels: 2 }], realtimeSupported: true,
-		offlineSupported: true, reportedLatencyFrames: 0, signature: 'trusted',
+		offlineSupported: true, reportedLatencyFrames: 0,
 		compatibility: 'compatible', descriptorVersion: 1,
 	});
 	assert.equal(admission.status, 'recorded');
+	if (admission.status === 'recorded') registry.allow(admission.installationId);
 	return admission;
 }
 
@@ -300,13 +301,13 @@ test('active revocation kills the matching host and only an explicit re-allow re
 	assert.equal(instance.state, 'hosted');
 	// The 5A-3 acceptance names active revocation: the allowance is withdrawn,
 	// the matching host dies, and nothing restarts the digest by itself.
-	await handlers.get('nativePluginReviewInstallation')(event, {
-		installationId: admission.installationId, action: 'revoke',
+	await handlers.get('nativePluginSetInstallationAllowed')(event, {
+		installationId: admission.installationId, allowed: false,
 	});
 	assert.deepEqual(disposals, ['host'], 'revocation must kill the matching host');
 	await assert.rejects(instantiate);
-	await handlers.get('nativePluginReviewInstallation')(event, {
-		installationId: admission.installationId, action: 'allow',
+	await handlers.get('nativePluginSetInstallationAllowed')(event, {
+		installationId: admission.installationId, allowed: true,
 	});
 	const rehosted = await instantiate();
 	assert.equal(rehosted.state, 'hosted', 'the explicit re-allow is the one way back');
@@ -321,7 +322,7 @@ test('an oversized root still records the prefix of plug-ins it reported', () =>
 	};
 	// The renderer projection lists these entries, so dropping them from the
 	// registry made every plug-in from a large folder visible in the results
-	// dialog yet impossible to review, select, or host, with no stated reason.
+	// dialog yet impossible to allow, select, or host, with no stated reason.
 	assert.deepEqual(
 		recordScannedPlugins(registry, result, { identityFor: () => ({ dev: 7, ino: 11 }) })
 			.map(({ status }) => status),

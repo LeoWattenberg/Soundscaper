@@ -95,9 +95,9 @@ export async function verifySoundscaperProfessionalNativePayload({
 		});
 		assertBuildResultMatchesTarget(resultReceipt, selected);
 	} else {
-		assert(selected.status === 'pending-external' && selected.payload === null
-			&& typeof selected.blockedBy === 'string' && selected.blockedBy.length > 0,
-		`The professional native ${target} target has an invalid pending state.`);
+		assert(selected.status === 'ci-generated' && selected.payload === null
+			&& selected.blockedBy === null,
+		`The professional native ${target} target has an invalid CI-generated state.`);
 	}
 	const release = Object.freeze({
 		repositoryRoot: root, manifest, manifestBytes,
@@ -269,7 +269,7 @@ function validateManifest(value, sourceRegister) {
 	for (const target of value.targets) {
 		assert(exactKeys(target, TARGET_FIELDS),
 			`The professional native ${String(target?.id)} target record is not closed.`);
-		assert(target.status === 'built' || target.status === 'pending-external',
+		assert(target.status === 'built' || target.status === 'ci-generated',
 			`The professional native ${target.id} status is invalid.`);
 		if (target.status === 'built') {
 			const root = `native/soundscaper-professional-host/prebuilt/${target.id}`;
@@ -286,10 +286,11 @@ function validateManifest(value, sourceRegister) {
 				&& validSourceAuthentication(target.sourceAuthentication, target.id, sourceRegister),
 			`The professional native ${target.id} built record is invalid.`);
 		} else {
-			assert(target.sourceAuthentication === null && target.buildResult === null && target.payload === null
+			assert(target.blockedBy === null && target.sourceAuthentication === null
+				&& target.buildResult === null && target.payload === null
 				&& target.osAudioCodec === null && target.pluginPeer === null
 				&& target.deliveryFilesystem === null && target.isolation === null,
-				`The pending professional native ${target.id} target cannot claim source authentication.`);
+				`The CI-generated professional native ${target.id} target cannot claim source authentication.`);
 		}
 	}
 	return value;

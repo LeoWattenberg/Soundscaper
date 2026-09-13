@@ -12,7 +12,7 @@ D-FINE detects object categories and their locations. The subject-detection oper
 
 ## Current availability {#current-availability}
 
-Desktop builds package the required onnxruntime-node 1.29.0 engine for macOS arm64, Linux arm64, Linux x64, Windows x64. Install this model’s weights through Model Manager, then run its task locally. These are supported build targets; consult the nightly test report for results on a particular package and machine. The desktop build does not package this engine for macOS x64 even though model weights are listed for those platforms.
+Desktop builds package the required onnxruntime-node 1.29.0 engine for macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64. Install this model’s weights through Model Manager, then run its task locally. These are supported build targets; consult the nightly test report for results on a particular package and machine. The desktop build does not package this engine for macOS x64 even though model weights are listed for those platforms.
 
 ## Use this model {#use-this-model}
 
@@ -30,7 +30,7 @@ Model identity: `dfine-nano-coco`, version **1.0.0**.
 
 Approximate download size: **14.56 MiB**. Minimum system memory: **2 GiB**. This catalog requirement refers to total memory, not currently free memory. Inference also needs sufficient free memory, and installation needs working space; memory is not a speed guarantee.
 
-Published platforms: macOS arm64, macOS x64, Linux arm64, Linux x64, Windows x64. A matching packaged runtime is also required.
+Published platforms: macOS arm64, macOS x64, Linux arm64, Linux x64, Windows arm64, Windows x64. A matching packaged runtime is also required.
 
 On Windows, install the latest supported [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) matching the desktop app: **x64** for an x64 build or **ARM64** for an ARM64 build. The native ONNX and Sherpa engines require these libraries; model downloads do not include them. Visual Studio itself is not required to use the app.
 

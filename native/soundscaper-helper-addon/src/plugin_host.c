@@ -6,14 +6,75 @@
 #include <string.h>
 
 #if defined(_WIN32)
-#define SOUNDSCAPER_PLUGIN_HAS_DLOPEN 0
+#define SOUNDSCAPER_PLUGIN_HAS_WIN32 1
+#include <windows.h>
 #else
-#define SOUNDSCAPER_PLUGIN_HAS_DLOPEN 1
+#define SOUNDSCAPER_PLUGIN_HAS_WIN32 0
 #include <dlfcn.h>
 #endif
 
+#if SOUNDSCAPER_PLUGIN_HAS_WIN32
+typedef HMODULE soundscaper_plugin_library;
+
+static wchar_t *wide_path(const char *path)
+{
+	const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, NULL, 0);
+	if (length <= 0) return NULL;
+	wchar_t *wide = calloc((size_t)length, sizeof(*wide));
+	if (wide == NULL) return NULL;
+	if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide, length) != length) {
+		free(wide);
+		return NULL;
+	}
+	return wide;
+}
+
+static soundscaper_plugin_library open_plugin_library(const char *path)
+{
+	wchar_t *wide = wide_path(path);
+	if (wide == NULL) return NULL;
+	const DWORD attributes = GetFileAttributesW(wide);
+	if (attributes == INVALID_FILE_ATTRIBUTES
+		|| (attributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) != 0u) {
+		free(wide);
+		return NULL;
+	}
+	HMODULE library = LoadLibraryExW(wide, NULL,
+		LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
+	free(wide);
+	return library;
+}
+
+static soundscaper_fixture_entry_fn plugin_entry(soundscaper_plugin_library library)
+{
+	return (soundscaper_fixture_entry_fn)GetProcAddress(library, SOUNDSCAPER_FIXTURE_ENTRY_SYMBOL);
+}
+
+static void close_plugin_library(soundscaper_plugin_library library)
+{
+	FreeLibrary(library);
+}
+#else
+typedef void *soundscaper_plugin_library;
+
+static soundscaper_plugin_library open_plugin_library(const char *path)
+{
+	return dlopen(path, RTLD_NOW | RTLD_LOCAL);
+}
+
+static soundscaper_fixture_entry_fn plugin_entry(soundscaper_plugin_library library)
+{
+	return (soundscaper_fixture_entry_fn)dlsym(library, SOUNDSCAPER_FIXTURE_ENTRY_SYMBOL);
+}
+
+static void close_plugin_library(soundscaper_plugin_library library)
+{
+	dlclose(library);
+}
+#endif
+
 struct soundscaper_plugin_host {
-	void *library;
+	soundscaper_plugin_library library;
 	const soundscaper_fixture_descriptor *descriptor;
 	soundscaper_fixture_instance *instance;
 	uint32_t maximum_frames;
@@ -30,18 +91,16 @@ soundscaper_plugin_host_status soundscaper_plugin_host_open(
 	if (path == NULL || maximum_frames == 0u || maximum_frames > 65536u) {
 		return SOUNDSCAPER_PLUGIN_HOST_REFUSED;
 	}
-#if SOUNDSCAPER_PLUGIN_HAS_DLOPEN
-	void *library = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+	soundscaper_plugin_library library = open_plugin_library(path);
 	if (library == NULL) return SOUNDSCAPER_PLUGIN_HOST_UNREADABLE;
-	soundscaper_fixture_entry_fn entry =
-		(soundscaper_fixture_entry_fn)dlsym(library, SOUNDSCAPER_FIXTURE_ENTRY_SYMBOL);
+	soundscaper_fixture_entry_fn entry = plugin_entry(library);
 	if (entry == NULL) {
-		dlclose(library);
+		close_plugin_library(library);
 		return SOUNDSCAPER_PLUGIN_HOST_NO_ENTRY;
 	}
 	const soundscaper_fixture_descriptor *descriptor = entry();
 	if (descriptor == NULL || descriptor->abi_version != SOUNDSCAPER_FIXTURE_ABI_VERSION) {
-		dlclose(library);
+		close_plugin_library(library);
 		return SOUNDSCAPER_PLUGIN_HOST_ABI_MISMATCH;
 	}
 	/* Instruments are identified by scanning but never instantiated before
@@ -51,18 +110,18 @@ soundscaper_plugin_host_status soundscaper_plugin_host_open(
 		|| descriptor->create == NULL || descriptor->destroy == NULL || descriptor->process == NULL
 		|| descriptor->output_channels == 0u || descriptor->output_channels > 64u
 		|| descriptor->input_channels > 64u) {
-		dlclose(library);
+		close_plugin_library(library);
 		return SOUNDSCAPER_PLUGIN_HOST_REFUSED;
 	}
 	soundscaper_fixture_instance *instance = descriptor->create(sample_rate, maximum_frames);
 	if (instance == NULL) {
-		dlclose(library);
+		close_plugin_library(library);
 		return SOUNDSCAPER_PLUGIN_HOST_REFUSED;
 	}
 	soundscaper_plugin_host *host = calloc(1u, sizeof(*host));
 	if (host == NULL) {
 		descriptor->destroy(instance);
-		dlclose(library);
+		close_plugin_library(library);
 		return SOUNDSCAPER_PLUGIN_HOST_REFUSED;
 	}
 	host->library = library;
@@ -71,19 +130,13 @@ soundscaper_plugin_host_status soundscaper_plugin_host_open(
 	host->maximum_frames = maximum_frames;
 	*out_host = host;
 	return SOUNDSCAPER_PLUGIN_HOST_OK;
-#else
-	(void)sample_rate;
-	return SOUNDSCAPER_PLUGIN_HOST_UNREADABLE;
-#endif
 }
 
 void soundscaper_plugin_host_close(soundscaper_plugin_host *host)
 {
 	if (host == NULL) return;
 	if (host->descriptor != NULL && host->instance != NULL) host->descriptor->destroy(host->instance);
-#if SOUNDSCAPER_PLUGIN_HAS_DLOPEN
-	if (host->library != NULL) dlclose(host->library);
-#endif
+	if (host->library != NULL) close_plugin_library(host->library);
 	free(host);
 }
 

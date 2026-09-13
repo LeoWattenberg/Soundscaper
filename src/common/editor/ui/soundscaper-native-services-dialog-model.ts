@@ -72,7 +72,8 @@ export type SoundscaperNativeServicesDialogAction =
 		rootId?: string;
 	}>
 	| Readonly<{ type: 'scan'; format: string; rootId: string }>
-	| Readonly<{ type: 'review-plugin'; installationId: string; review: 'allow' | 'select' | 'revoke' }>
+	| Readonly<{ type: 'set-plugin-allowed'; installationId: string; allowed: boolean }>
+	| Readonly<{ type: 'select-plugin-installation'; installationId: string }>
 	| Readonly<{ type: 'instantiate-plugin'; installationId: string }>
 	| Readonly<{ type: 'run-plugin-offline'; instanceId: string }>
 	| Readonly<{ type: 'set-plugin-bypassed'; instanceId: string; bypassed: boolean }>
@@ -147,7 +148,8 @@ export function soundscaperNativeServicesActionKey(
 	if (action.type === 'audio-session-status') return `audio-session-status:${action.sessionId}`;
 	if (action.type === 'calibrate-audio-session') return `calibrate-audio-session:${action.sessionId}`;
 	if (action.type === 'close-audio-session') return `close-audio-session:${action.sessionId}`;
-	if (action.type === 'review-plugin') return `review-plugin:${action.review}:${action.installationId}`;
+	if (action.type === 'set-plugin-allowed') return `set-plugin-allowed:${String(action.allowed)}:${action.installationId}`;
+	if (action.type === 'select-plugin-installation') return `select-plugin-installation:${action.installationId}`;
 	if (action.type === 'instantiate-plugin') return `instantiate-plugin:${action.installationId}`;
 	if (action.type === 'run-plugin-offline') return `run-plugin-offline:${action.instanceId}`;
 	if (action.type === 'set-plugin-bypassed') return `bypass-plugin:${action.instanceId}:${String(action.bypassed)}`;
@@ -334,11 +336,16 @@ async function perform(
 				}),
 		});
 	}
-	if (action.type === 'review-plugin') {
+	if (action.type === 'set-plugin-allowed') {
 		return Object.freeze({
-			registry: await bridge.reviewNativePluginInstallation({
-				installationId: action.installationId, action: action.review,
+			registry: await bridge.setNativePluginInstallationAllowed({
+				installationId: action.installationId, allowed: action.allowed,
 			}),
+		});
+	}
+	if (action.type === 'select-plugin-installation') {
+		return Object.freeze({
+			registry: await bridge.selectNativePluginInstallation({ installationId: action.installationId }),
 		});
 	}
 	if (action.type === 'instantiate-plugin') {

@@ -341,7 +341,7 @@ async function makeMediaHostPending(fixture) {
 		recursive: true, force: true,
 	});
 	fixture.runtimeManifest.framescaperNativeHosts.mediaHost = {
-		status: 'pending-external', blockedBy: 'Static FFmpeg hosts are not distributable.',
+		status: 'ci-generated', blockedBy: null,
 		payloads: [],
 	};
 	await writeFile(fixture.runtimeManifestPath,
@@ -479,8 +479,8 @@ async function framescaperPackageTree(context) {
 /**
  * A target that could not be built carries no payload, and the manifest admits
  * three ways for that to be true. This gate knew only one of them, so packaging
- * Windows ARM64 — where the assistance runtime is pending-external because no
- * upstream build exists for it — failed on a target the manifest itself calls
+ * Windows ARM64 — where the assistance runtime is package-generated — failed
+ * on a target the manifest itself calls
  * valid, while Windows x64 packaged from the same run.
  */
 test('a payload-free assistance target packages under every status the manifest admits', async (context) => {

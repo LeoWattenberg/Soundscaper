@@ -36,15 +36,17 @@ const ENABLED_FFMPEG_LIBRARIES = [
 	'zimg',
 ];
 
-test('human licensing checks inform the owner without becoming an admission gate', async () => {
+test('machine-verifiable licensing material gates distribution without an approval ceremony', async () => {
 	const policy = await readFile(policyUrl, 'utf8');
 	assert.match(
 		policy,
-		/human licensing checks inform the repository owner's release decision/iu,
+		/the repository owner decides what to distribute/iu,
 	);
+	assert.match(policy,
+		/required machine-verifiable license text, notice, corresponding source, or\s+delivery material/iu);
 	assert.doesNotMatch(policy, /stable 1\.0 admission|notarization/iu);
 	assert.doesNotMatch(policy, /config\/production-legal-review\.json/iu);
-	assert.match(policy, /machine.*artifact.*payload.*platform.*containment.*consent.*fail closed/isu);
+	assert.match(policy, /machine.*artifact.*payload.*platform.*containment.*consent.*fail\s+closed/isu);
 });
 
 test('production licensing matrix is versioned and distinguishes every distribution surface', async () => {
@@ -192,6 +194,7 @@ test('runtime provenance entries and distribution checks fail closed without cla
 			'desktop source delivery must retain exact assembly evidence');
 	}
 	const desktopRelease = matrix.distributionSurfaces.find(({ id }) => id === 'desktop-release-assets');
+	assert.equal(desktopRelease.artifactStatus, 'build-only');
 	assert.match(desktopRelease.description, /preferred corresponding-source ZIP/iu);
 	assert.ok(checks.get('ffmpeg-runtime-manifest-integrity').evidence.includes('scripts/publish-runtime-assets.mjs'));
 	assert.equal(checks.get('ffmpeg-runtime-manifest-integrity').evidence.includes('scripts/desktop-prepare.mjs'), false);
@@ -377,6 +380,13 @@ test('runtime provenance entries and distribution checks fail closed without cla
 			'tests/audio-editor-reviewed-effects.test.ts',
 		],
 	});
+	for (const id of [
+		'framescaper-media-host-ffmpeg-9-0-1-source-candidate',
+		'framescaper-openfx-1-5-1-source-candidate',
+	]) {
+		assert.equal(provenance.get(id).status, 'documented', id);
+		assert.equal(provenance.get(id).provenanceKind, 'ci-generated-target-build-results', id);
+	}
 
 	for (const artifact of matrix.runtimeProvenance) {
 		assert.match(artifact.status, /^(documented|blocked)$/u);

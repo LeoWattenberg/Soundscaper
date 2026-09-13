@@ -1,4 +1,4 @@
-name: Debug Soundscaper professional native build
+name: Soundscaper professional native target builds
 
 on:
   workflow_dispatch:
@@ -27,11 +27,11 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          npm run provision:milestone-5-native-sources -- \
+          node scripts/provision-milestone-5-native-sources.mjs \
             --root "$RUNNER_TEMP/soundscaper-professional-native-source-cache" \
             --source electron-node-api-headers --source juce --source clap \
             --source vst3-sdk --source asio-sdk --source lv2
-          npm run provision:milestone-5-native-sources -- --check \
+          node scripts/provision-milestone-5-native-sources.mjs --check \
             --root "$RUNNER_TEMP/soundscaper-professional-native-source-cache" \
             --source electron-node-api-headers --source juce --source clap \
             --source vst3-sdk --source asio-sdk --source lv2

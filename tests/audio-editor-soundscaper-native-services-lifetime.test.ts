@@ -199,7 +199,8 @@ function lifetimeFixture() {
 			calls.push(['closeNativeAudioSession', sessionId]);
 			return audio.delete(sessionId);
 		},
-		reviewNativePluginInstallation: async () => ({ entries: [] }),
+		setNativePluginInstallationAllowed: async () => ({ entries: [] }),
+		selectNativePluginInstallation: async () => ({ entries: [] }),
 		instantiateNativePlugin: async () => {
 			plugins.add('plugin-instance-1');
 			project.tracks[0]!.effects.push({ id: 'effect-1', bypassed: false });

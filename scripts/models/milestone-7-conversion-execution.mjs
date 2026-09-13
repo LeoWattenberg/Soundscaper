@@ -108,7 +108,7 @@ function validateRecipe(value, candidate, fixture) {
 	if (!sameArray(row.blockedBy, blockedBy)) {
 		throw new Error(`The ${candidate.id} blockedBy inventory is not derived from its evidence.`);
 	}
-	const evidenceStatus = blockedBy.length === 0 ? 'verified' : 'pending-external';
+	const evidenceStatus = blockedBy.length === 0 ? 'verified' : 'conversion-evidence-incomplete';
 	if (row.evidenceStatus !== evidenceStatus) {
 		throw new Error(`${candidate.id} evidenceStatus must be ${evidenceStatus}.`);
 	}
@@ -230,7 +230,7 @@ function validateOutputManifest(value, candidate) {
 		return { ...admitted };
 	});
 	const status = artifacts.every(({ byteLength, sha256: digest }) =>
-		safeBytes(byteLength) && SHA256.test(digest)) ? 'verified' : 'pending-external';
+		safeBytes(byteLength) && SHA256.test(digest)) ? 'verified' : 'conversion-output-not-generated';
 	if (row.status !== status) {
 		throw new Error(`The converted output manifest status must be ${status}.`);
 	}
@@ -290,7 +290,7 @@ export function validateMilestone7ConversionEvidence(value, options) {
 	const recipe = register.recipes.find(({ candidateId }) => candidateId === row.candidateId);
 	if (!recipe) throw new TypeError('Conversion evidence selected a foreign candidate.');
 	if (recipe.evidenceStatus !== 'verified') {
-		throw new Error(`${recipe.candidateId} cannot admit release evidence while its recipe is pending.`);
+		throw new Error(`${recipe.candidateId} cannot admit release evidence while its recipe is incomplete.`);
 	}
 	const supply = validateMilestone7ModelSupplyRegister(options.modelSupply);
 	const fixtureRegister = validateMilestone7ParityFixtureRegister(options.parityFixtures, supply);
@@ -478,7 +478,7 @@ async function digestFile(path) {
 function validatePendingOrPinnedIdentity(value, label) {
 	if (value.byteLength === null && value.sha256 === null) return;
 	if (!safeBytes(value.byteLength) || !SHA256.test(value.sha256)) {
-		throw new TypeError(`The ${label} must be wholly pending or carry an exact SHA-256 identity.`);
+		throw new TypeError(`The ${label} must be wholly not-generated or carry an exact SHA-256 identity.`);
 	}
 }
 

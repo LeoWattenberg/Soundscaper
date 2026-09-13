@@ -1,7 +1,7 @@
 # Publishing the additional local models
 
 The eight additional models now have real conversion or native-worker evidence,
-required nightly execution cases, and reviewed entries in the checked-in
+required nightly execution cases, and machine-verified entries in the checked-in
 production catalog. Model Manager may install their SHA-256-pinned artifacts;
 execution remains separately fail-closed on the selected target's authenticated
 runtime closure. Target packages generate and verify that closure, so the
@@ -22,25 +22,29 @@ licenses. Its instructions reproduce the exact distributed model bytes; public
 readback and clean-extraction verification are in `evidence/model-source-publication/`.
 Keep this source link with the model's download and offline notices.
 
-## Applied review record
+## Repository verification
 
-The reviewed release was prepared from catalog SHA-256
-`fdcd0c72162926611093596708daf6d588e75fb2321a082f0c02b4ec4a6ad01f`
-at recipe revision `fbf2f30b8d9f246b5c6724a31125a2de5a84e010`.
-Its canonical 21-entry payload SHA-256 is
-`3f2d8e731f8a8ee0f7fb828ae95f591bf67814cd3fe0c807a6e1e9f42bfdfed2`.
-Exact verification passed before the catalog and its complete licensing rows
-were applied together. Each task also pins the SHA-256 of its canonical catalog
-entry, and validation recomputes that digest from the offered entry instead of
-trusting a merely well-formed recorded value.
+Run the complete catalog-inclusion check from an ordinary checkout:
 
-The payload preserves every prior catalog entry and appends only the eight
-reviewed models. It does not broaden prior models' platform admission; a
-separate Windows ARM64 catalog update remains necessary for those identities.
-Generated model guides and runtime-evidence pins are refreshed from the applied
-state. The next distinct model release must use a fresh external output directory
-and unpublished model IDs; the preparation tool deliberately refuses an entry
-already present in the production catalog.
+```console
+npm run audit:local-model-release
+```
+
+The command derives each of the eight release-task entries from the checked-in
+model-supply and conversion registers, retained conversion and parity evidence,
+complete licensing rows, exact offline notices, and digest-pinned public
+read-back receipts. It then requires the production catalog entry to equal that
+derived value and its canonical SHA-256 to equal the task register pin. Use
+`--models qwen3-4b-q4-k-m` (or another comma-separated subset) for a focused
+check.
+
+Success prints a `catalog-inclusion-verified` JSON receipt to standard output.
+The verifier neither writes a candidate catalog nor publishes an artifact, and
+there is no separate review directory or catalog-acceptance step outside the
+checkout. The repository inputs and their exact digests are the complete
+catalog-inclusion authority. Generated model guides reflect the checked-in
+catalog state; all published entries now include Windows ARM64 where their
+package-generated runtime closure is available.
 
 The nightly-with-tests real-model phase remains the executable check for actual
 installation, Electron IPC, inference, and output validation on a particular

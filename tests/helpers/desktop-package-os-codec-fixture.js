@@ -52,11 +52,11 @@ export async function osCodecPackageTree(context, target) {
 			professionalNative: typedUnavailableSoundscaperProfessionalNativeNotices(target),
 		},
 		nativeAddons: {
-			target, status: 'pending-external', payload: null,
+			target, status: 'ci-generated', payload: null, buildResult: null,
 			payloadManifest: { sha256: descriptor(`${nativePrefix}/native-addon-payload-manifest.json`).sha256 },
 		},
 		soundscaperProfessionalNative: {
-			target, status: 'pending-external', payload: null,
+			target, status: 'ci-generated', blockedBy: null, payload: null,
 			payloadManifest: descriptor(
 				`${professionalPrefix}/soundscaper-professional-native-payload-manifest.json`,
 			),

@@ -10,8 +10,6 @@ These guides describe the published catalog and the additional models required b
 
 All published models have a packaged native engine on supported desktop targets. Install their weights and use the task menus or Tools → Advanced Local Processing. This build capability does not claim that every platform has passed the real-model tests.
 
-**Windows ARM64 catalog approval is pending.** Native build recipes are prepared, but the catalog does not yet admit 12 of the published models on Windows ARM64. Enabling them requires a reviewed catalog update with exact SHA-256 pins. Their Windows ARM64 tests report explicit platform skips until that catalog is published; all published models are admitted on macOS arm64, Linux x64/arm64, and Windows x64.
-
 | Model guide | Purpose | Packaged runtime support | Packaged execution case |
 | --- | --- | --- | --- |
 | [Silero VAD v6](/reference/local-models/silero-vad-v6/) | voice activity detection | Packaged; see supported platforms | `silero-voice-activity` |

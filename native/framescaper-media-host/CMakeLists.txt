@@ -5,16 +5,19 @@ project(framescaper_media_host VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+if(MSVC)
+	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
 
 find_package(Boost 1.92.0 EXACT REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(FFMPEG_901 REQUIRED IMPORTED_TARGET
-	libavcodec=63.1.100
-	libavfilter=12.1.100
-	libavformat=63.1.100
-	libavutil=61.1.100
-	libswresample=7.1.100
-	libswscale=10.1.100
+	libavcodec=63.1.101
+	libavfilter=12.1.101
+	libavformat=63.1.101
+	libavutil=61.1.101
+	libswresample=7.1.101
+	libswscale=10.1.101
 )
 
 add_executable(framescaper-media-host
@@ -135,6 +138,33 @@ if(BUILD_TESTING)
 		NAME framescaper-professional-source-probe-test
 		COMMAND framescaper-professional-source-probe-test
 	)
+	add_executable(framescaper-codec-closure-canary
+		tests/codec_closure_canary.cpp
+	)
+	target_link_libraries(framescaper-codec-closure-canary PRIVATE PkgConfig::FFMPEG_901)
+	if(MSVC)
+		target_compile_options(framescaper-codec-closure-canary PRIVATE /W4 /WX /permissive-)
+	else()
+		target_compile_options(framescaper-codec-closure-canary PRIVATE
+			-Wall -Wextra -Wpedantic -Werror
+		)
+	endif()
+	add_test(
+		NAME framescaper-codec-closure-canary
+		COMMAND framescaper-codec-closure-canary
+	)
+	foreach(FRAMESCAPER_ASSERTING_TEST
+		framescaper-exact-retime-ordinal-test
+		framescaper-selected-v20-frame-executor-test
+		framescaper-selected-v20-v8-visual-semantics-test
+		framescaper-professional-source-probe-test
+	)
+		if(MSVC)
+			target_compile_options(${FRAMESCAPER_ASSERTING_TEST} PRIVATE /UNDEBUG)
+		else()
+			target_compile_options(${FRAMESCAPER_ASSERTING_TEST} PRIVATE -UNDEBUG)
+		endif()
+	endforeach()
 	add_test(
 		NAME framescaper-selected-v20-operation-self-test
 		COMMAND ${CMAKE_COMMAND}

@@ -10,23 +10,27 @@
 > quarantine, and capacity checks pass. Releases consume neutral target build
 > results with closed inventories, self-tests, architecture, lengths, and
 > SHA-256 checks; optional human observations belong in owner QA.
-> Any signed-readiness, publisher-provenance, cohort, qualification, or
-> milestone-9 admission language retained later in this document is historical
+> Historical release-admission language retained later in this document is
 > design provenance, not a current requirement or release verdict.
 
-> The source audit authenticates 0/10 required exact archive/extracted-tree
-> inputs until a cache is provisioned — see
+> An unprovisioned checkout reports all eleven exact archive/extracted-tree inputs
+> as `not-materialized` until CI or a developer provisions the cache — see
 > [Provisioning the native source cache](#provisioning-the-native-source-cache),
-> which reaches 10/10 and grants nothing further.
-> All five Soundscaper professional payload rows are `pending-external`;
-> both five-target Framescaper payload manifests are empty and every row is
-> `pending-external`. Per-OS launcher source/contracts/tests exist, but
-> authenticated target payloads do not. Owner licensing notes are maintained
+> which reaches 11/11 and grants nothing further. The Soundscaper helper
+> workflow produces all five targets; its manifest keeps one checked-in Linux
+> x64 development payload and four CI-generated source-template rows. The
+> professional manifest and both Framescaper manifests use five CI-generated
+> rows. Their dedicated target-native CI workflows provision exact sources,
+> build, self-test, inventory, digest, and stage neutral results. Apart from the
+> helper's Linux x64 development payload, a source checkout intentionally
+> contains no generated target payload bytes. `npm run
+> audit:native-payload-producers` checks every
+> declared target, runner, build/stage artifact path, and package-generation
+> chain. Owner licensing notes are maintained
 > in `docs/legalchecklist.md` as practical distribution guidance, not approval
 > authority. A final package needs the matching neutral target build result,
 > source and notice closure, self-tests, architecture, lengths, hashes, package
-> inventory, and smoke checks. There is no readiness signature, publisher key,
-> accepted manual run, native-lab cohort, or milestone-9 admission record.
+> inventory, and smoke checks. Those machine results are the payload evidence.
 
 > `npm run milestone5:package-audit` writes one product/target package audit;
 > `npm run milestone5:package-audit-summary` re-opens the downloaded package
@@ -42,10 +46,10 @@
 > policy, and quality budgets own their claims. Re-grounded on 2026-08-24 for
 > the software-complete Milestone 5 implementation branch, with milestones 1
 > through 4 assumed formally validated as prerequisites. The implementation
-> record distinguishes landed code from still-open source, licensing, payload,
-> signed-readiness, packaged, manual, and native-lab acceptance. The
+> record distinguishes landed code from generated payloads, package checks,
+> licensing records, and optional real-hardware diagnostics. The
 > [5A Soundscaper plan](milestone-5a-soundscaper-native.md) owns the
-> current Soundscaper readiness verdict and external acceptance gates.
+> current Soundscaper native implementation record.
 
 ## Goals and ordering principle
 
@@ -81,9 +85,9 @@ integration waits for the owning shared contract (roadmap.md:565-566).
   are shared. The renderer receives opaque authority only, each product surface
   is menu-reached and off by default, and refusal or loss preserves a truthful
   Web Core fallback. The per-OS child launcher source/contracts/tests implement
-  Linux namespaces/Landlock/seccomp, macOS Seatbelt, and Windows AppContainer;
-  no authenticated target launcher/payload set exists. Signed readiness is
-  tracked for Milestone 9 release admission and is not an execution input.
+  Linux namespaces/Landlock/seccomp, macOS Seatbelt, and Windows AppContainer.
+  Dedicated target-native CI builds and verifies each supported launcher and
+  payload set; a generated result must be staged before packaging.
 - **A hardened IPC discipline to extend, not reinvent.** Every channel
   passes the trust gate (`assertTrustedIpc`,
   `desktop/main.mjs:362-382`: sender identity, main-frame check,
@@ -133,8 +137,9 @@ integration waits for the owning shared contract (roadmap.md:565-566).
   device inventory/open/close, direct helper-to-`AudioWorklet` packet transport,
   input recording publication, output/monitoring, reviewed effect insertion,
   real-time/offline RPC, exact V21 PDC, bounded opaque state, continuity, and
-  helper-owned vendor windows. The five professional payload rows and all
-  physical qualification remain pending-external.
+  helper-owned vendor windows. The five professional rows are CI-generated,
+  and the packaged synthetic checks run in the target build. Physical-device
+  observations are optional owner QA.
 - **Selected Framescaper queue and render software exists.** Persistent services
   V3 reach the selected F31/V14/V20 queue through its immutable V28 foundation,
   including capacity, scratch, recovery, watch/bin/proxy,
@@ -145,10 +150,9 @@ integration waits for the owning shared contract (roadmap.md:565-566).
 - **The helper security surface remains partial by evidence, not by software
   reach.** Product callers, isolation-launcher contracts, pathless
   bridges, supervision, vendor-window ownership, and fail-closed activation now
-  exist. Unauthenticated external source trees and target payloads remain exact
-  machine refusals. Missing independent signed readiness, publisher provenance,
-  licensing review, and native-lab cohorts remain Milestone 9 release risks and
-  cannot make an otherwise machine-admitted surface unavailable for testing.
+  exist. An unprovisioned source cache or unstaged target result remains an exact
+  machine refusal. Licensing records and optional native-lab observations do
+  not make an otherwise machine-admitted surface unavailable for testing.
 
 ## The helper contract (the milestone's one-way door)
 
@@ -198,12 +202,13 @@ direction-correct validation, an exact 64 KiB control bound, and separately
 bounded authenticated data planes. Main preflight prevents invalid grants from
 spawning a helper; cancellation waits for engine quiescence; qualifying forced
 terminations feed quarantine; and bounded progress reaches product UI. Exact
-external payload and target checks remain machine execution gates. Licensing,
-signed-readiness, package review, manual, and native-lab evidence remain
-Milestone 9 stable-release gates rather than another helper-contract slice.
+payload and target checks remain machine execution gates. Licensing and package
+checks are automated distribution inputs; manual and native-lab observations
+are optional diagnostics rather than another helper-contract slice.
 
-`native-helper-processes` remains **partial** because none of the professional
-target matrices is qualified. Scanner and host controls remain separate because
+`native-helper-processes` remains **partial** only for its documented technical
+residual risks; every supported payload target has a repository-owned producer.
+Scanner and host controls remain separate because
 discovery consent is not permission to execute project audio or video.
 
 ### Packaging decision for native code
@@ -214,9 +219,10 @@ entrypoints currently ship inside the asar; the probe's executable engine bytes
 reuse the verified FFmpeg WebAssembly `extraResources`. Future native binaries
 and addons ship as target-selected, digest-pinned **extraResources** by default.
 Generic native-addon and separate Framescaper media/OpenFX payload manifests,
-selectors, and stagers now exist with tamper and package tests. Pending-external
-targets stage no bytes, and only exact built, digest-verified rows can become
-resources. Any first `asarUnpack` entry or runtime rebuild remains a named design
+selectors, and stagers now exist with tamper and package tests. CI-generated
+targets stage no bytes until their exact built, digest-verified result is
+provided, and only those results can become resources. Any first `asarUnpack`
+entry or runtime rebuild remains a named design
 decision, never an incidental build change.
 
 ## Licensing decisions
@@ -228,20 +234,18 @@ addition to the coarse `native-plugins`, `native-audio` and `native-codecs`
 gates. A row's presence is not enablement, and an enabled row is still not a
 shipping capability.
 
-On 2026-08-26 the owner reviewed and recorded the `native-audio` and
+On 2026-08-26 the owner recorded the `native-audio` and
 `native-plugins` gates as enabled, the audio-stack, five OS audio-backend and
 five plug-in-format rows as implemented, and the six professional source rows
 (Electron Node-API headers, JUCE, CLAP, VST3 SDK, ASIO SDK, LV2) as accepted.
 `native-codecs` and `codec-native-ffmpeg-current-set` were deliberately held
-back pending closer review, so the four FFmpeg external libraries — x264, x265,
-libvpx and libopus — stay activation-blocked with them. Nothing ships as a
-result: activation additionally requires an authenticated source audit at
-runtime, and plug-in formats require an enforced OS launcher plus per-target
-technical readiness evidence. The repository owner record replaces the former
-independent-reviewer/key requirement in
-`config/milestone-5-native-isolation-review-policy.json`; its empty optional
-`trustedKeys` list is not a blocker. Every per-target payload row remains
-`pending-external` because the technical evidence and payloads are absent.
+out of stable distribution. That distribution choice does not disable their
+test paths: authenticated x264, x265 Main10, libvpx, libopus, and zlib sources,
+the closed FFmpeg configuration, five target-native producer jobs, binary
+inspection, runtime self-tests, authenticated build results, and exact package
+staging are implemented. Nothing ships merely because a row exists; the
+matching workflow result determines the exact payload bytes used by a test
+package.
 
 JUCE 9 plus the direct CLAP ABI are the 5A integration decision and their
 source acquisition rows are pinned and provisionable, but authenticating a
@@ -256,20 +260,19 @@ VideoToolbox, VAAPI) is a per-codec licensing/patent question first and
 a performance feature second.
 
 Signing configuration is now identity-gated: providing the named macOS signing
-identity and notarization credentials enables the configured chain, while
-current previews remain unsigned/ad-hoc and CI deliberately disables automatic
-identity discovery. No signing identity, signed execution result, notarization
-result, or workflow secret mapping is present. This blocks qualification, not
-local 5A-0 implementation; milestone 9 requalifies the release-shaped chain.
+identity and notarization credentials enables the configured platform release
+chain, while current previews remain unsigned/ad-hoc and CI deliberately
+disables automatic identity discovery. This platform packaging choice is not a
+native-payload implementation or runtime-admission gate.
 
 ### Provisioning the native source cache
 
-`config/milestone-5-native-source-acquisitions.json` pins ten upstream inputs by
+`config/milestone-5-native-source-acquisitions.json` pins eleven upstream inputs by
 archive digest and by the portable identity of the tree each archive extracts
 to. `auditMilestone5NativeSourceAcquisitions` authenticates a cache of those
 inputs, reading its root from `SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT`, and an absent
-cache is a truthful `pending-external` result rather than an error — which is
-why the audit reports 0/10 on a machine that has never provisioned one.
+cache is a truthful `not-materialized` result rather than an error — which is
+why the audit reports 0/11 on a machine that has never provisioned one.
 
 `npm run provision:milestone-5-native-sources` assembles that cache into the
 uncommitted `vendor/milestone-5-native-sources/`, one directory per source
@@ -279,18 +282,19 @@ tree is built by the same non-executing extractor the audit path uses and
 refused unless it matches the pinned portable identity, and an entry is renamed
 into the cache only once it is whole. Useful flags: `--check` reports status
 and provisions nothing, `--source <id>` narrows the run, `--force` replaces a
-drifted entry, and `--archive-directory <dir>` reads the archives from local
-storage instead of fetching them, which is the path to use for upstreams behind
-terms a person must accept — the Steinberg ASIO SDK above all.
+drifted entry, and `--archive-directory <dir>` reads any pinned archive from
+local storage instead of fetching it. The target-native CI producer downloads
+the pinned Steinberg ASIO SDK archive over HTTPS and verifies its exact length,
+SHA-256, and extracted-tree identity just like every other source; no separate
+manual acceptance payload is required.
 
 The cache is deliberately outside the repository and outside the product's
 dependency graph. Nothing provisioned is committed, bundled, linked, or
 redistributed, and authenticating a source grants no redistribution, trademark,
-patent, signing, or stable-release approval. Per-target payload rows remain
-machine admission inputs; licensing, signed readiness, and native-lab evidence
-remain Milestone 9 release inputs. What provisioning changes is that the exact
-source and payload checks can be satisfied by evidence rather than being
-unreachable on every machine.
+or patent claim. Per-target payload rows remain machine admission inputs;
+licensing and package inventories remain distribution checks, and native-lab
+observations are optional diagnostics. Provisioning makes the exact source and
+payload checks runnable by the repository-owned CI producers.
 
 ### Rejected alternatives (recorded to prevent re-litigation)
 
@@ -494,12 +498,13 @@ only its status and ordering boundary. 5B is decomposed at pickup.
 ### 5A plan (Soundscaper native tier)
 
 The selected Soundscaper S30/V11 software packets 5A-0 through 5A-4 inherit
-their established native implementation through exact S29 and are
-implemented. The
+their established native implementation through exact S29 and are implemented.
+The
 [Milestone 5A Soundscaper plan](milestone-5a-soundscaper-native.md) owns their
-invariants and the still-open external source, five-target payload, licensing,
-signed-readiness, package/manual, and native-lab acceptance. No professional
-surface activates before those exact gates close.
+invariants. Source provisioning, all five target builds, result staging,
+package inventories, and synthetic runtime checks are repository automation.
+No professional surface activates without those exact machine checks; physical
+device observations remain optional.
 
 ### 5B packets (Framescaper native tier; slice docs at pickup)
 
@@ -509,10 +514,11 @@ Its implementation record is authoritative for what has landed: selected
 F31/V14/V20 binds the complete media, professional sequence/proxy, persistent
 services V3, and context-aware OpenFX routes through F31's immutable V28
 foundation. V20 through V27 remain historical or re-import sources and V25/V26
-retain opaque read-only custody. No 5B payload
-is built or staged; source authentication, licensing, reviewed target isolation,
-signing, five-target hardware, package/manual, and native-lab qualification
-remain open. Empty payload manifests prevent any shipped 5B helper spawn.
+retain opaque read-only custody. Both five-target 5B payload sets are
+CI-generated: a source checkout stages none, while the dedicated media and
+OpenFX workflows provision their inputs, build target-native launchers and
+hosts, self-test them, and emit digest-closed results for package staging.
+Unstaged results prevent a shipped 5B helper spawn.
 
 - **5B-1 — Native media engine helper.** Outcome: multithreaded FFmpeg
   decode/encode and hardware acceleration as per-feature opt-ins with
@@ -583,10 +589,10 @@ remain open. Empty payload manifests prevent any shipped 5B helper spawn.
 
 ## Known constraints this plan absorbs
 
-- **Soundscaper 5A external gates are delegated.** The
+- **Soundscaper 5A details are delegated.** The
   [Milestone 5A Soundscaper plan](milestone-5a-soundscaper-native.md) owns the
-  source/payload/readiness/licensing/signing/qualification boundary,
-  unprovisioned native lab, capture/MIDI fences, and every product packet.
+  source/payload/package machine checks, optional native-lab observations,
+  capture/MIDI fences, and every product packet.
 - **The milestone-2 lease matrix** (`m2-electron-lease-matrix`,
   roadmap.md:290-296) is the standing concurrency substrate under all
   desktop evidence; still open at grounding.

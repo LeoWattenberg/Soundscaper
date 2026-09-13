@@ -10,8 +10,6 @@
 		"commit": "ab77951",
 		"commitSha": "ab779510b2655b4d11a7e01e5c521f9aa8c88976",
 		"tagObjectSha": "43d93ea99255cc61177b0632e421e899e802995e",
-		"signedTagApiUrl": "https://api.github.com/repos/AcademySoftwareFoundation/openfx/git/tags/43d93ea99255cc61177b0632e421e899e802995e",
-		"signedTagVerifiedAt": "2025-11-20T18:14:02Z",
 		"url": "https://codeload.github.com/AcademySoftwareFoundation/openfx/tar.gz/ab77951",
 		"byteLength": 9837777,
 		"sha256": "7f4fcde6c4bff3ee1f95a0b73a805e662a3e030999523165b40cfbe76c1ab9f5",
@@ -25,8 +23,8 @@
 	"sourceFiles": [
 		{
 			"path": "CMakeLists.txt",
-			"byteLength": 2962,
-			"sha256": "7f92dbb4b43ccde6ccf1dc96148d067acdfca3df36a284976799528b68505dfd"
+			"byteLength": 3053,
+			"sha256": "6c7d68a627d151919629abe63baa348fd2d310430e7400be86f127fab0ba9ce7"
 		},
 		{
 			"path": "CMakePresets.json",
@@ -35,13 +33,13 @@
 		},
 		{
 			"path": "THIRD_PARTY_NOTICES.md",
-			"byteLength": 1087,
-			"sha256": "b0a131d09d266babcda6822788d6bc0071d9d5b151f51117a7717d8b8bdba753"
+			"byteLength": 1197,
+			"sha256": "97d802b49dde6ec32f3fedbe9ec873466440420e119267799907916e494ba1d5"
 		},
 		{
 			"path": "build/recipe-driver.mjs",
-			"byteLength": 28415,
-			"sha256": "78e8729d98794f7335a256e8dfa3851fbf290a178aa767c64d0459e1183772cb"
+			"byteLength": 28664,
+			"sha256": "64b1e48e48142107ac0a8552d647875723b41e1c0aeabfd9d7b1d2c2b9e30b9e"
 		},
 		{
 			"path": "build/source-authentication.mjs",
@@ -55,28 +53,28 @@
 		},
 		{
 			"path": "build/toolchains/linux-arm64.cmake",
-			"byteLength": 453,
-			"sha256": "f4b4c453e0a0edb7664db9b36fe529ee1c60566ac0a02412a217e5ec1d263163"
+			"byteLength": 543,
+			"sha256": "907af06001d47494063987287c0221a2b116c27b8728d2d335141913c0240238"
 		},
 		{
 			"path": "build/toolchains/linux-x64.cmake",
-			"byteLength": 452,
-			"sha256": "e9a909e154778538d3d250afa903944db3dea7dfecbb246cb4469de5588d9701"
+			"byteLength": 542,
+			"sha256": "caa476969d1c01d571cd5f31ce1de09a23d91b754a01193da124551a17546b5c"
 		},
 		{
 			"path": "build/toolchains/mac-arm64.cmake",
-			"byteLength": 491,
-			"sha256": "4b4cb6dd0768a1c36f7a0ef9b1258d839b115e1b4e37d25c6d059e882a4be6df"
+			"byteLength": 581,
+			"sha256": "a5b6c8ac050887a0617ce7f842a61a7be8bc60c5271c59ee94685794742d779d"
 		},
 		{
 			"path": "build/toolchains/win-arm64.cmake",
-			"byteLength": 455,
-			"sha256": "2dbeb9844e99431f96092047d9f391e19eaad42251f7a00ec4c9bb3ba5ec2197"
+			"byteLength": 724,
+			"sha256": "2b69b9efc872bb1fb2ea90db72d80756a93f949d862cc3ae4fc35dc67f3b7f50"
 		},
 		{
 			"path": "build/toolchains/win-x64.cmake",
-			"byteLength": 453,
-			"sha256": "6c855769b6c354d441497b108f5344bf02db7e6b037ea9e59511cbb008367588"
+			"byteLength": 543,
+			"sha256": "9c4970be569da491d10dcc73d86c731e1c90bdd55ef517c7699fbb7fba2c7879"
 		},
 		{
 			"path": "fixtures/conformance_interact.inc",
@@ -277,45 +275,50 @@
 	"targets": {
 		"linux-x64": {
 			"runtime": "linux-x64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated Linux x64 OpenFX scanner and runtime-host payloads have been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
+			"buildResult": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,
 			"isolationPayload": null
 		},
 		"linux-arm64": {
 			"runtime": "linux-arm64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated Linux ARM64 OpenFX scanner and runtime-host payloads have been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
+			"buildResult": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,
 			"isolationPayload": null
 		},
 		"mac-arm64": {
 			"runtime": "darwin-arm64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated macOS ARM64 OpenFX scanner and runtime-host payloads have been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
+			"buildResult": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,
 			"isolationPayload": null
 		},
 		"win-x64": {
 			"runtime": "win32-x64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated Windows x64 OpenFX scanner and runtime-host payloads have been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
+			"buildResult": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,
 			"isolationPayload": null
 		},
 		"win-arm64": {
 			"runtime": "win32-arm64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated Windows Arm64EC OpenFX scanner and runtime-host payloads have been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
+			"buildResult": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,
 			"isolationPayload": null

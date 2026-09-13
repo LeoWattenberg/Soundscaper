@@ -74,7 +74,8 @@ function fakeBridge(overrides: Readonly<Record<string, unknown>> = {}) {
 			sessionId: 'audio_session_01', state: 'open', backend: 'alsa', calibrationFrames: null,
 		}),
 		closeNativeAudioSession: () => Promise.resolve(true),
-		reviewNativePluginInstallation: () => Promise.resolve({ entries: [] }),
+		setNativePluginInstallationAllowed: () => Promise.resolve({ entries: [] }),
+		selectNativePluginInstallation: () => Promise.resolve({ entries: [] }),
 		instantiateNativePlugin: () => Promise.resolve({
 			instanceId: 'plugin_instance_01', format: 'fixture', state: 'hosted',
 			bypassed: false, latencySamples: 0,

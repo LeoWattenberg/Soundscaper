@@ -156,7 +156,7 @@ test('the addon verifier leaves the codec-only OS subtree to its owner', async (
 	));
 });
 
-test('a target whose payload is pending-external packages its manifest and nothing else', async (context) => {
+test('a target whose payload has not been CI-generated packages its manifest and nothing else', async (context) => {
 	const { root, resources, stageManifestPath } = await packagedResources(context, PENDING_TARGET);
 	const summary = await verifyPackagedNativeAddonResources(packagingContext(root, resources, PENDING_TARGET), {
 		repositoryRoot: process.cwd(),
@@ -164,8 +164,5 @@ test('a target whose payload is pending-external packages its manifest and nothi
 	});
 	assert.equal(summary.target, PENDING_TARGET);
 	assert.equal(summary.payload, null);
-	assert.match(summary.blockedBy,
-		/No authenticated macOS ARM64 helper-addon payload has been built/u);
-	assert.doesNotMatch(summary.blockedBy,
-		/licens|review|readiness|signing|notari|qualification|manual|patent|notice/iu);
+	assert.equal(summary.blockedBy, null);
 });

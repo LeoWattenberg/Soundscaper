@@ -313,15 +313,14 @@ export function validateFramescaperNativeHostSummary(manifest, targetId) {
 		`${manifest.name} has an invalid Framescaper target or target source.`);
 	for (const [field, label] of [['mediaHost', 'media host'], ['openFxHost', 'OpenFX host']]) {
 		const host = summary[field];
-		assert(host && typeof host === 'object' && ['built', 'pending-external'].includes(host.status),
+		assert(host && typeof host === 'object' && ['built', 'ci-generated'].includes(host.status),
 			`${manifest.name} has an invalid Framescaper ${label} status.`);
 		assert(host.payloadManifest && typeof host.payloadManifest.id === 'string'
 			&& /^[a-f\d]{64}$/u.test(host.payloadManifest.sha256),
 		`${manifest.name} has an invalid Framescaper ${label} manifest pin.`);
 		assert(host.status === 'built'
 			? host.blockedBy === null && Array.isArray(host.payloads) && host.payloads.length > 0
-			: typeof host.blockedBy === 'string' && host.blockedBy.trim().length >= 8
-				&& Array.isArray(host.payloads) && host.payloads.length === 0,
+			: host.blockedBy === null && Array.isArray(host.payloads) && host.payloads.length === 0,
 		`${manifest.name} has inconsistent Framescaper ${label} payload state.`);
 	}
 }
@@ -344,7 +343,7 @@ export function validateDesktopNativeAddonSummary(manifest, targetId, options = 
 		`${manifest.name} records the native addon payload for ${String(summary.target)} rather than ${targetId}.`);
 	assert(summary.targetSource === 'declared',
 		`${manifest.name} records a build-host native addon target; package assembly requires a declared target.`);
-	assert(summary.status === 'built' || summary.status === 'pending-external',
+	assert(summary.status === 'built' || summary.status === 'ci-generated',
 		`${manifest.name} records an unsupported native addon payload status.`);
 	assert(summary.status === 'built'
 		? summary.payload !== null && summary.blockedBy === null

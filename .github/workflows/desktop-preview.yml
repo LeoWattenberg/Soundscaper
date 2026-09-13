@@ -902,6 +902,7 @@ jobs:
         env:
           SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
           SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
+          SOUNDSCAPER_SOURCE_REVISION: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Preserve the nested Chromium sandboxes
         if: runner.os == 'Linux'

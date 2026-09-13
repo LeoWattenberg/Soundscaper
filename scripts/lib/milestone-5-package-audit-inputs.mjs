@@ -95,7 +95,7 @@ function authenticateSourceRegister(audited, expected) {
 		for (const [field, value] of Object.entries(source)) {
 			if (field === 'authenticationStatus') {
 				if (value !== 'pinned-metadata'
-					|| !['authenticated', 'pending-external'].includes(
+					|| !['authenticated', 'not-materialized'].includes(
 						auditedSource.authenticationStatus,
 					)) {
 					throw new Error(`Milestone 5 native-source auditor changed ${source.id}.${field}.`);

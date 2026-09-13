@@ -44,6 +44,8 @@ const EXPECTED_PINS = {
 		'7a479a3c66b9f5d5542a4c6a1b7d3768a983b1e5c14c60a9396edc9b649e015c'],
 	libopus: ['1.6', 'a8b13e40d751c7b40833b94fc9437c5c3439da89', 36317446,
 		'b7637334527201fdfd6dd6a02e67aceffb0e5e60155bbd89175647a80301c92c'],
+	zlib: ['1.3.1', '51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf', 1512791,
+		'9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23'],
 };
 // Every pinned source is available to the build/test path. Human licensing and
 // distribution licensing metadata is recorded separately.
@@ -60,6 +62,7 @@ const EXPECTED_LICENSE_SELECTIONS = {
 	x265: 'GPL-2.0-or-later',
 	libvpx: 'BSD-3-Clause',
 	libopus: 'BSD-3-Clause',
+	zlib: 'Zlib',
 };
 
 test('milestone-5 source packet pins and test-enables every native dependency', () => {
@@ -102,6 +105,7 @@ test('milestone-5 source packet pins and test-enables every native dependency', 
 	assert.equal(requireMilestone5NativeSource(register, 'x265').version, '4.2');
 	assert.equal(requireMilestone5NativeSource(register, 'libvpx').version, '1.16.0');
 	assert.equal(requireMilestone5NativeSource(register, 'libopus').version, '1.6');
+	assert.equal(requireMilestone5NativeSource(register, 'zlib').version, '1.3.1');
 
 	assert.deepEqual(register.delegatedSources.map(({ id }) => id), [
 		'boost-multiprecision',
@@ -115,14 +119,14 @@ test('milestone-5 source packet pins and test-enables every native dependency', 
 	}
 });
 
-test('an absent source cache is audited as pending and cannot inherit checked-in authentication prose', () => {
+test('an absent source cache is not materialized and cannot inherit checked-in authentication prose', () => {
 	const audit = auditMilestone5NativeSourceAcquisitions(repositoryRoot, null);
 	assert.equal(isAuditedMilestone5NativeSourceAcquisitions(audit), true);
 	assert.equal(isAuditedMilestone5NativeSourceAcquisitions(structuredClone(audit)), false);
-	assert.equal(audit.status, 'pending-external');
+	assert.equal(audit.status, 'not-materialized');
 	assert.equal(audit.cacheRoot, null);
 	assert.ok(audit.sources.every(({ authenticationStatus, authenticationBlockedBy }) => (
-		authenticationStatus === 'pending-external' && authenticationBlockedBy.length > 0
+		authenticationStatus === 'not-materialized' && authenticationBlockedBy.length > 0
 	)));
 });
 
@@ -139,7 +143,9 @@ test('Soundscaper source audit excludes every deferred Framescaper native input'
 	assert.deepEqual(Object.keys(audit.inputDigests), [
 		'config/milestone-5-native-source-acquisitions.json',
 	]);
-	assert.ok(!audit.sources.some(({ id }) => ['x264', 'x265', 'libvpx', 'libopus'].includes(id)));
+	assert.ok(!audit.sources.some(({ id }) => [
+		'x264', 'x265', 'libvpx', 'libopus', 'zlib',
+	].includes(id)));
 });
 
 test('source authentication binds one exact archive and extracted tree and rechecks mutable inputs', () => {

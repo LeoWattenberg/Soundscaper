@@ -175,7 +175,7 @@ test('empty manifests and failed self-tests remain unavailable without spawning 
 		spawnHelper: () => { throw new Error('must not spawn'); },
 	});
 	assert.equal(repository.available(), false);
-	assert.match(repository.reason ?? '', /payload-pending-external/u);
+	assert.match(repository.reason ?? '', /payload-not-generated/u);
 	assert.equal(repository.snapshot(), null);
 	assert.equal(repository.selfTestResult(), null);
 	assert.equal(repository.selectedV20RenderSelfTestResult(), null);
@@ -329,6 +329,9 @@ async function runtimeFixture() {
 	const profile = Buffer.from('synthetic profile');
 	const broker = Buffer.from('synthetic broker');
 	const library = Buffer.from('synthetic runtime library');
+	const buildResultBytes = Buffer.from('{"kind":"synthetic-build-result"}\n');
+	const buildResultPath = join(root,
+		'native/framescaper-media-host/prebuilt/linux-x64/framescaper-media-host-build-result.json');
 	await mkdir(join(root, 'config'), { recursive: true });
 	await mkdir(join(root, 'native/framescaper-media-host/prebuilt/linux-x64'), { recursive: true });
 	await mkdir(isolationRoot, { recursive: true });
@@ -337,6 +340,7 @@ async function runtimeFixture() {
 		writeFile(payloadPath, bytes, { mode: 0o700 }),
 		writeFile(launcherPath, launcher, { mode: 0o700 }),
 		writeFile(profilePath, profile), writeFile(brokerPath, broker), writeFile(libraryPath, library),
+		writeFile(buildResultPath, buildResultBytes),
 	]);
 	const sha256 = createHash('sha256').update(bytes).digest('hex');
 	const identity = await stat(payloadPath);
@@ -364,15 +368,19 @@ async function runtimeFixture() {
 			'native/framescaper-media-host/prebuilt/linux-x64/lib/libframescaper-media.so', library,
 		)],
 	};
+	const buildResult = descriptor(
+		'native/framescaper-media-host/prebuilt/linux-x64/framescaper-media-host-build-result.json',
+		buildResultBytes,
+	);
 	const targets = [
-		{ id: 'linux-x64', runtime: 'linux-x64', status: 'built', blockedBy: null, payload,
+		{ id: 'linux-x64', runtime: 'linux-x64', status: 'built', blockedBy: null,
+			buildResult, payload,
 			isolationPayload },
 		...[
 			['linux-arm64', 'linux-arm64'], ['mac-arm64', 'darwin-arm64'],
 			['win-x64', 'win32-x64'], ['win-arm64', 'win32-arm64'],
 		].map(([id, runtime]) => ({
-			id, runtime, status: 'pending-external',
-			blockedBy: 'No synthetic payload has been built.', payload: null,
+			id, runtime, status: 'ci-generated', blockedBy: null, buildResult: null, payload: null,
 			isolationPayload: null,
 		})),
 	];
@@ -385,7 +393,8 @@ async function runtimeFixture() {
 			sha256: 'cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635',
 		},
 		runtimePrefix: 'native/framescaper-media-host',
-		payloads: [{ id: 'linux-x64', runtime: 'linux-x64', ...payload, isolationPayload }],
+		payloads: [{ id: 'linux-x64', runtime: 'linux-x64', buildResult,
+			...payload, isolationPayload }],
 		targets,
 	}));
 	return {

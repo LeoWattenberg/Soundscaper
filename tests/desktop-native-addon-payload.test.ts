@@ -67,14 +67,11 @@ test('an unsupported platform reports unavailability instead of failing', async 
 	assert.match(availability.detail, /darwin-x64 is not a claimed native helper target/u);
 });
 
-test('a target with no built payload reports its named blocker', async () => {
+test('a target with no generated payload reports runtime unavailability without a policy blocker', async () => {
 	const availability = await describeNativeAddonAvailability({ ...developmentLocation, platform: 'win32', arch: 'arm64' });
 	assert.equal(availability.status, 'unavailable');
-	assert.equal(availability.reason, 'payload-pending-external');
-	assert.match(availability.detail,
-		/No authenticated Windows ARM64 helper-addon payload has been built/u);
-	assert.doesNotMatch(availability.detail,
-		/licens|review|readiness|signing|notari|qualification|manual|patent|notice/iu);
+	assert.equal(availability.reason, 'payload-not-generated');
+	assert.match(availability.detail, /target-native CI payload has not been generated and staged/u);
 });
 
 test('a missing or altered payload is reported rather than loaded', async () => {
@@ -124,5 +121,5 @@ test('the spawn-time verifier throws so a supervisor records a binary mismatch',
 	const verify = createNativeAddonVerifier(developmentLocation);
 	assert.equal((await verify()).target, 'linux-x64');
 	const pending = createNativeAddonVerifier({ ...developmentLocation, platform: 'win32', arch: 'x64' });
-	await assert.rejects(pending, /native helper addon is unavailable \(payload-pending-external\)/u);
+	await assert.rejects(pending, /native helper addon is unavailable \(payload-not-generated\)/u);
 });

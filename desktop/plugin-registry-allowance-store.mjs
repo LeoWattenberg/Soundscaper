@@ -3,17 +3,19 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, statSync } from 'node:fs';
 
-const VERSION = 3;
+const VERSION = 4;
 const ID = /^[a-z][a-f\d]{15}$/u;
 const DIGEST = /^[a-f\d]{64}$/u;
 const MAXIMUM_FILE_BYTES = 32 * 1_024 * 1_024;
 
 /** Durable observations are rehashed and restatted before registry admission. */
-export function createPluginRegistryReviewStore({ filePath, fileSystem, authenticateBinary }) {
-	let records = readState(filePath);
+export function createPluginRegistryAllowanceStore({
+	filePath, legacyFilePath = /** @type {string | null} */ (null), fileSystem, authenticateBinary,
+}) {
+	let records = readState(filePath, legacyFilePath);
 	const applyRecord = (registry, record) => {
 		try {
-			if (record.reviewed) registry.allow(record.installationId);
+			if (record.allowed) registry.allow(record.installationId);
 			if (record.selected) registry.select(record.installationId);
 			return true;
 		} catch { return false; }
@@ -26,9 +28,9 @@ export function createPluginRegistryReviewStore({ filePath, fileSystem, authenti
 				digest: observation.binarySha256,
 				entryId: admission.entryId,
 				installationId: admission.installationId,
-				reviewed: previous?.reviewed === true,
+				allowed: previous?.allowed === true,
 				selected: previous?.selected === true,
-				observation: Object.freeze({ ...observation }),
+				observation: Object.freeze(withoutLegacySignature(observation)),
 			}));
 		},
 		apply(registry) {
@@ -62,7 +64,7 @@ export function createPluginRegistryReviewStore({ filePath, fileSystem, authenti
 				const decision = decisions.get(record.installationId);
 				return [installationId, Object.freeze({
 					...record,
-					reviewed: decision?.reviewed ?? record.reviewed,
+					allowed: decision?.allowed ?? record.allowed,
 					selected: decision?.selected ?? record.selected,
 				})];
 			}));
@@ -73,46 +75,77 @@ export function createPluginRegistryReviewStore({ filePath, fileSystem, authenti
 	});
 }
 
-function readState(filePath) {
-	let parsed;
+function readState(filePath, legacyFilePath) {
+	const primary = readFile(filePath, 'allowance');
+	if (primary.status === 'loaded') return validateState(primary.parsed);
+	if (primary.status === 'refused' || legacyFilePath === null) return new Map();
+	const legacy = readFile(legacyFilePath, 'legacy allowance');
+	return legacy.status === 'loaded' ? validateState(legacy.parsed) : new Map();
+}
+
+function readFile(filePath, label) {
 	try {
-		if (statSync(filePath).size > MAXIMUM_FILE_BYTES) throw new RangeError('Plug-in review state is too large.');
-		parsed = JSON.parse(readFileSync(filePath, 'utf8'));
+		if (statSync(filePath).size > MAXIMUM_FILE_BYTES) throw new RangeError(`Plug-in ${label} state is too large.`);
+		return { status: 'loaded', parsed: JSON.parse(readFileSync(filePath, 'utf8')) };
 	} catch (error) {
-		if (error?.code !== 'ENOENT') console.error('The plug-in review store was refused:', error);
-		return new Map();
+		if (error?.code === 'ENOENT') return { status: 'missing' };
+		console.error(`The plug-in ${label} store was refused:`, error);
+		return { status: 'refused' };
 	}
+}
+
+function validateState(parsed) {
 	try {
-		if (![2, VERSION].includes(parsed?.schemaVersion) || !Array.isArray(parsed.records)
-			|| parsed.records.length > 65_536) throw new TypeError('Unsupported plug-in review state.');
+		if (![2, 3, VERSION].includes(parsed?.schemaVersion) || !Array.isArray(parsed.records)
+			|| parsed.records.length > 65_536) throw new TypeError('Unsupported plug-in allowance state.');
+		const legacy = parsed.schemaVersion < VERSION;
 		const records = new Map();
 		const storedIds = new Set();
 		for (const value of parsed.records) {
+			const expectedKeys = legacy
+				? 'digest,entryId,installationId,observation,reviewed,selected'
+				: 'allowed,digest,entryId,installationId,observation,selected';
+			const allowed = legacy ? value?.reviewed : value?.allowed;
 			if (!value || typeof value !== 'object' || Array.isArray(value)
-				|| Object.keys(value).sort().join(',') !== 'digest,entryId,installationId,observation,reviewed,selected'
+				|| Object.keys(value).sort().join(',') !== expectedKeys
 				|| !DIGEST.test(value.digest) || !ID.test(value.entryId) || !ID.test(value.installationId)
-				|| typeof value.reviewed !== 'boolean' || typeof value.selected !== 'boolean'
+				|| typeof allowed !== 'boolean' || typeof value.selected !== 'boolean'
 				|| !value.observation || typeof value.observation !== 'object' || Array.isArray(value.observation)
-				|| value.observation.binarySha256 !== value.digest || storedIds.has(value.installationId)) {
-				throw new TypeError('Malformed plug-in review state.');
+				|| value.observation.binarySha256 !== value.digest || storedIds.has(value.installationId)
+				|| (!legacy && Object.hasOwn(value.observation, 'signature'))) {
+				throw new TypeError('Malformed plug-in allowance state.');
 			}
 			storedIds.add(value.installationId);
-			const observation = value.observation.bundleStableIds === undefined
-				? { ...value.observation, bundleStableIds: [value.observation.stableId] }
-				: { ...value.observation };
+			const withoutSignature = legacy ? withoutLegacySignature(value.observation) : { ...value.observation };
+			const observation = withoutSignature.bundleStableIds === undefined
+				? { ...withoutSignature, bundleStableIds: [withoutSignature.stableId] }
+				: withoutSignature;
 			const installationId = parsed.schemaVersion === 2
 				? descriptorInstallationId(value.digest, observation.stableId)
 				: value.installationId;
-			if (!ID.test(installationId) || records.has(installationId)) throw new TypeError('Ambiguous plug-in review state.');
+			if (!ID.test(installationId) || records.has(installationId)) {
+				throw new TypeError('Ambiguous plug-in allowance state.');
+			}
 			records.set(installationId, Object.freeze({
-				...value, installationId, observation: Object.freeze(observation),
+				digest: value.digest,
+				entryId: value.entryId,
+				installationId,
+				allowed,
+				selected: value.selected,
+				observation: Object.freeze(observation),
 			}));
 		}
 		return records;
 	} catch (error) {
-		console.error('The plug-in review store was refused:', error);
+		console.error('The plug-in allowance store was refused:', error);
 		return new Map();
 	}
+}
+
+function withoutLegacySignature(observation) {
+	const result = { ...observation };
+	delete result.signature;
+	return result;
 }
 
 function descriptorInstallationId(digest, stableId) {

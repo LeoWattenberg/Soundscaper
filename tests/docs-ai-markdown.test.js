@@ -161,3 +161,14 @@ test('translated slash-separated prose is not mistaken for a symbolic identifier
 		/changed protected content/u,
 	);
 });
+
+test('translated prose may inflect an exactly preserved symbolic identifier', () => {
+	assert.doesNotThrow(() => assertStructuralParity(
+		'Use audio.com, then return to audio.com.\n',
+		'Käytä audio.comia ja palaa sitten audio.com-palveluun.\n',
+	));
+	assert.throws(
+		() => assertStructuralParity('Use audio.com once.\n', 'Käytä audio.comia kahdesti: audio.comiin.\n'),
+		/changed protected content/u,
+	);
+});

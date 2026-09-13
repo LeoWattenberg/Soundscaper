@@ -21,7 +21,7 @@ test('required Linux native mode rejects every implicit prerequisite skip', () =
 	for (const reason of [
 		'A C++20 compiler is unavailable.',
 		'A C++ compiler is not installed on this source-audit host.',
-		'no native addon payload for this host: target is pending-external',
+		'no native addon payload for this host: target is ci-generated',
 		'The pinned Boost closure is not provisioned on this source-audit host.',
 		'No complete five-target recipe pair executes on linux-x64.',
 		'This checkout carries no Git metadata to resolve attributes against.',

@@ -9,9 +9,8 @@
 > platform, containment, consent, quarantine, project, and capacity checks stay
 > fail-closed. Releases use neutral build results; optional human observations
 > belong in owner QA and do not grant runtime authority.
-> Any readiness, signing, notarization, release-key, cohort, qualification, or
-> admission language retained later in this document is historical design
-> provenance, not current repository policy.
+> Historical release-admission language retained later in this document is
+> design provenance, not current repository policy.
 
 > Owning pickup contract for the Framescaper half of milestone 5. The
 > [milestone-5 plan](milestone-5-plan.md) owns the shared 5.0 helper contract
@@ -22,14 +21,14 @@
 
 ## Pickup status and sequencing
 
-**Audited status on 2026-08-25:** the selected Framescaper F31/V14/V20 Milestone
-5B source route is complete and enabled for testing, while stable-release
-qualification remains open in Milestone 9. F31 delegates
+**Audited status on 2026-09-13:** the selected Framescaper F31/V14/V20 Milestone
+5B source route and its five-target CI producers are complete and enabled for
+testing. F31 delegates
 the native route through its immutable V28 foundation. V20 through
 V27 remain historical implementation foundations or explicit re-import sources;
 V25/V26 documents retain opaque, read-only custody and provide no activation
-shortcut. This record distinguishes source-complete product software from every
-external payload, readiness, platform, and release claim.
+shortcut. This record distinguishes source-complete product software and
+CI-generated payload templates from payload bytes staged for one exact target.
 
 Framescaper F31 is therefore the selected Milestone 5 route with exact V14
 render authority and desktop library V20; immutable V28/V14 is its native
@@ -61,28 +60,27 @@ normalized pointer/keyboard/focus events, and no native plug-in window. Authored
 state selects bypass or an already-verified frozen result while preserving every
 parameter when a binary is missing, changed, crashed, or quarantined.
 
-The native-source audit authenticates 0 of 10 required exact
-archive/extracted-tree inputs. Both five-target 5B payload manifests are empty,
-every target is `pending-external`, and every OpenFX target has null production
-readiness. Per-OS launcher source/contracts/tests exist, but authenticated built
-launchers do not. Per-target technical readiness evidence is a Milestone 9 stable-1.0
-release input, not a test activation input; the repository owner record replaces
-the former independent-reviewer/key requirement. Source execution tests therefore
-create no release, performance, GPU, or platform-support claim.
+An ordinary source checkout has no generated native-source cache or target
+payload bytes: the acquisition audit therefore reports 0/11 `not-materialized`
+inputs and both payload arrays are empty. That is not an external blocker.
+Every media and OpenFX target row is `ci-generated`; the dedicated target-native
+workflows provision the pinned inputs, build the host and per-OS launcher,
+self-test the result, close its dependency inventory and hashes, and prove that
+the result stages into the matching manifest. No reviewer, signature, readiness
+record, lab cohort, or manual acceptance grants those build results authority.
 
 For this implementation branch, milestones 1 through 4 are accepted as
-formally validated prerequisites. Milestone 5.0 acceptance; codec/container,
-hardware, FFmpeg corresponding-source/patent/notices, OpenFX, and trademark
-clearance; payload and target toolchains; signed/notarized packages and release
-keys; per-target isolation evidence; technical readiness evidence; manual runs; and
-native-lab qualification remain independent and open as Milestone 9 stable-1.0
-release inputs. No accepted cohort or manual package exists, but those facts do
-not disable build, test, packaging, visibility, or execution. Native media,
+formally validated prerequisites. Codec/container, hardware, FFmpeg
+corresponding-source/patent/notices, OpenFX, and trademark records remain
+distribution inputs where applicable. Platform signing/notarization is a
+separate packaging concern. Optional manual or native-lab runs record only the
+hardware actually observed and never grant build or runtime authority. Native media,
 hardware decode/encode, and OpenFX remain menu-reached and user-controlled;
 execution fails closed only on exact machine checks such as payload, platform,
 containment, consent, quarantine, project authority, and capacity. Runtime
 manifests may name only payloads that were actually built and digest-verified;
-an unavailable target remains absent or `pending-external`.
+an unstaged source-template target remains `ci-generated` and reports
+`payload-not-generated`.
 
 The milestone-7 assistance implementation is not a 5.0-conformant substrate
 unless it has first been re-audited and revised under the shared helper
@@ -158,7 +156,7 @@ registered evidence row is not a measured result.
 | V26 | V16 / 18 / `v16` | V10 | V12 | Dormant OpenFX candidate |
 | V27 | V18 / 20 / `v18` | V11 | V13 | Maintained historical re-import source for V28 |
 | V28 | V19 / 21 / `v19` | V12 | V14 | Immutable direct re-import source and native foundation for F31 |
-| F31 | V20 / 22 / `v20` | V12 | V14 | Selected active product route; native testing enabled and release qualification open |
+| F31 | V20 / 22 / `v20` | V12 | V14 | Selected active product route; native testing and five-target payload CI enabled |
 
 V18 and V19 project media still requires typed re-import; the historical
 desktop V10 library is not migrated. Future schemas remain opaque read-only,
@@ -177,37 +175,37 @@ generation identity is authenticated inside each handshake.
 | Milestone-4 prerequisites | V22 transition and dissolve state plus V24 still/generator/adjustment/preset/mask/matte/freeze models include validation, commands/history where applicable, clipboard, archive, storage, desktop transport, and dormant capability profiles. |
 | Exact render authority | Unified V9–V12 validators, canonical serializers/fingerprints, native envelopes, Web/native summaries and goldens exist. The exact retime ordinal oracle uses bounded arbitrary-precision rational arithmetic with a pinned Boost.Multiprecision 1.92.0 header closure. |
 | Helper/media contract | Contract v1 owns exact media/OFX grants and results, 64 KiB control messages and a digest/length-bound 16 MiB-chunk MessagePort data plane. The one-to-four-worker pool defaults to two, runs one job per worker, self-tests before work, and permits hardware → native CPU without plan drift. Exhausting both native attempts returns a typed requirement for the existing renderer-owned Web Core route rather than executing Web work in main or claiming a native result. |
-| Native media source | The selected F31 route binds immutable exact V28/V14 authority, an evaluated-RGBA carrier plus optional float32 WAV, current-project/body/timing custody, bounded helper execution, and broker-relative no-clobber publication. OS-native hardware encode dispatch covers the admitted Windows MF/QSV/NVENC/AMF, macOS VideoToolbox, and Linux VAAPI/QSV/NVENC/AMF paths; decode-only mechanisms are refused for encode. A typed hardware failure permits one exact native-CPU retry with identical plan/fingerprint. If both native attempts fail, production reports `web-core-required` and directs the user to the existing renderer-owned Web Core export route; it does not synthesize a native receipt or automatically execute that renderer route. An image-sequence output tree is created only in helper scratch, seals the exact regular-file inventory and aggregate digest, detects symlink/replacement/tamper/replay, and is revalidated before main-owned destination publication. Completed broker trees cannot replace one another, but Node's lack of a portable directory no-replace rename leaves external same-user empty-destination races unqualified. Source recipes and local contract fixtures exist, but the external acquisition audit remains 0/10 and the media payload manifest remains empty. |
+| Native media source | The selected F31 route binds immutable exact V28/V14 authority, an evaluated-RGBA carrier plus optional float32 WAV, current-project/body/timing custody, bounded helper execution, and broker-relative no-clobber publication. OS-native hardware encode dispatch covers the admitted Windows MF/QSV/NVENC/AMF, macOS VideoToolbox, and Linux VAAPI/QSV/NVENC/AMF paths; decode-only mechanisms are refused for encode. A typed hardware failure permits one exact native-CPU retry with identical plan/fingerprint. If both native attempts fail, production reports `web-core-required` and directs the user to the existing renderer-owned Web Core export route; it does not synthesize a native receipt or automatically execute that renderer route. An image-sequence output tree is created only in helper scratch, seals the exact regular-file inventory and aggregate digest, detects symlink/replacement/tamper/replay, and is revalidated before main-owned destination publication. Completed broker trees cannot replace one another, but Node's lack of a portable directory no-replace rename leaves external same-user empty-destination races unqualified. The five-target media workflow provisions the exact FFmpeg and Boost inputs, builds and self-tests the target-native host and launcher, and emits a digest-closed result; an ordinary checkout intentionally leaves the media payload array empty until one result is staged. |
 | Persistent services | Persistent services V3 mount exact F31/V14/V20 project authority through F31's immutable V28 foundation, selected queue admission, current-project/body custody, physical-capacity sampling, pathless watch/bin/proxy mutation, scratch reservations, checkpoint recovery, idempotent lease-fenced publication, and external display. The watch broker binds exact project-bin/proxy digests, records landed state before acknowledgement, and resumes proxy-only work after restart without replaying a project mutation. Missing capacity, authenticated payload, platform, containment, consent, quarantine, or capability authority leaves operations unavailable without mutating the project; optional owner QA records observations only. |
-| Professional media | F31 consumes the V25 characteristics, image-sequence, and proxy contracts through its V28 foundation and selected menu-owned actions. Pathless selection, numeric ordering, gap/duplicate refusal, Project Bin CAS, exact inventory/pack identity, generate/attach/detach/relink/reattest/adaptive/offline/cleanup, and authenticated sequence publication are source-complete. The selected decode carrier admits only opaque 8-bit sRGB/RGB/full-range pixels; 16-bit PNG/TIFF, float OpenEXR, HDR, alpha, and incompatible or unreported color are typed refusals before project mutation, not silently flattened. Image-sequence export may preserve the evaluated RGBA8 carrier's 8-bit alpha, but does not upgrade its precision or HDR metadata. No authenticated PNG, TIFF, OpenEXR, codec, hardware, signing, or package payload evidence exists, so originals remain export authority and the shipped capability stays unavailable. |
-| OpenFX | The selected F31 route delegates through its immutable V28 foundation and retains fingerprint-bound state, descriptors, all 16 parameter types, keyframes, named inputs, fallback, one-shot scan, per-fingerprint supervision, exact V14 frame grants, and the menu-owned scan/enable/Add OFX flow. A shared context-aware exact graph maps Generator, Filter, Transition, Paint, Retimer, and General at true intermediate planes for preview, browser export, and native carrier execution, including transition SourceFrom/SourceTo, Retimer SourceTime, masks, and named inputs. The bounded React Interact route uses Interact Suite V1/custom parameters/DrawSuite V1 and normalized events without native windows. The payload manifest is empty, production readiness is null on every target, and no shipped process loads a third-party binary. |
-| Product/evidence surfaces | Framescaper-only menu models, lazy native-services dialogs, default-off settings, and strict workload runners/validators/writers are implemented for F31 through its V28 foundation. Accepted evidence publication still requires the exact lab, target fingerprint, fixture, threshold cohort, and observed measurement. The audit currently reports zero accepted cohorts and no manual or readiness-signature evidence. Soundscaper receives no 5B surface. |
+| Professional media | F31 consumes the V25 characteristics, image-sequence, and proxy contracts through its V28 foundation and selected menu-owned actions. Pathless selection, numeric ordering, gap/duplicate refusal, Project Bin CAS, exact inventory/pack identity, generate/attach/detach/relink/reattest/adaptive/offline/cleanup, and authenticated sequence publication are source-complete. The selected decode carrier admits only opaque 8-bit sRGB/RGB/full-range pixels; 16-bit PNG/TIFF, float OpenEXR, HDR, alpha, and incompatible or unreported color are typed refusals before project mutation, not silently flattened. Image-sequence export may preserve the evaluated RGBA8 carrier's 8-bit alpha, but does not upgrade its precision or HDR metadata. Exact codec and hardware claims come only from the target build result and its runtime canaries; originals remain export authority whenever the admitted native route refuses. |
+| OpenFX | The selected F31 route delegates through its immutable V28 foundation and retains fingerprint-bound state, descriptors, all 16 parameter types, keyframes, named inputs, fallback, one-shot scan, per-fingerprint supervision, exact V14 frame grants, and the menu-owned scan/enable/Add OFX flow. A shared context-aware exact graph maps Generator, Filter, Transition, Paint, Retimer, and General at true intermediate planes for preview, browser export, and native carrier execution, including transition SourceFrom/SourceTo, Retimer SourceTime, masks, and named inputs. The bounded React Interact route uses Interact Suite V1/custom parameters/DrawSuite V1 and normalized events without native windows. The five-target OpenFX workflow provisions the pinned source, builds and self-tests the target-native host and launcher, and emits a digest-closed result; an ordinary checkout intentionally leaves the payload array empty until one result is staged. |
+| Product/evidence surfaces | Framescaper-only menu models, lazy native-services dialogs, default-off settings, and strict workload runners/validators/writers are implemented for F31 through its V28 foundation. CI publishes exact build and fixture results. Optional hardware measurements must retain their target fingerprint and observed values but are never an acceptance authority. Soundscaper receives no 5B surface. |
 
 The `PersistentRenderQueuePortV1` and `ExternalDisplayPortV1` contracts remain
 registered in platform policy. HEVC/AV1, image-sequence still formats,
 MOV/MXF/Matroska, hardware codecs and OpenFX keep named licensing review rows for
 Milestone 9, but those rows do not disable a machine-admitted test route.
 
-### Still open for distribution and real-runtime diagnostics
+### Runtime availability and distribution diagnostics
 
-- **Native sources and payloads.** The acquisition audit authenticates 0/10
-  exact archive/extracted-tree inputs. Both 5B payload manifests contain zero
-  payloads; all five targets are `pending-external`. The complete selected media, hardware retry, professional
-  sequence/proxy, persistent V3, OpenFX frame-graph, and Interact software routes
-  therefore remain non-shipping source implementation rather than codec,
-  third-party execution, GPU, performance, or platform evidence.
+- **Native sources and payloads.** An ordinary checkout reports the eleven exact
+  archive/extracted-tree inputs `not-materialized`, and both source-template
+  manifests contain zero payload bytes with five `ci-generated` target rows.
+  The dedicated media and OpenFX workflows provision, build, self-test, and
+  stage-verify all five targets. A package gains runtime authority only after
+  downloading and staging its matching result.
 - **Distribution checks.** Professional codec/container, hardware, FFmpeg
   corresponding-source, and OpenFX rows still require their applicable source,
   notice, and licensing checks. Those checks do not claim patent clearance or
   make a release decision.
-- **Provisioned measurement.** Every 5B workload remains `planned`; the bounded
-  runners exist, but without a real native payload the five collectors report
-  the operation unavailable or failed. The `native-os-diagnostics` environment
+- **Provisioned measurement.** The bounded runners report the operation
+  unavailable when no matching build result is staged. The
+  `native-os-diagnostics` environment
   records only the target and observations actually supplied; it defines no
   fixed hardware profile or cohort. No throughput, timing, RSS, display, GPU,
   or hardware claim extends beyond the measured run.
-- **Packaging.** No authenticated built launcher or target payload exists.
-  Distribution requires a matching neutral target build result with a closed
+- **Packaging.** Each supported target has a repository-owned producer.
+  Distribution consumes its matching neutral target build result with a closed
   dependency inventory, required self-tests, architecture, byte lengths, and
   SHA-256 values, followed by package-content and smoke checks. Optional owner
   QA can add observations but is never package authority.
@@ -218,9 +216,9 @@ Milestone 9, but those rows do not disable a machine-admitted test route.
   owner QA never become operational authorities.
 
 Security and threat-model rows follow the enacted pathless controller and
-source candidates while retaining these blockers. A build recipe is never
-treated as a payload, and a locally green candidate is never treated as release
-qualification.
+source candidates. A build recipe is never treated as a payload: only the
+target-native workflow result, reverified during staging, can populate a
+package manifest.
 
 ## 5B packet map
 
@@ -663,9 +661,10 @@ helper/audio workload as sufficient:
 - clean external-display timing and correctness; and
 - OpenFX conformance, failure isolation, and packaging.
 
-Correctness and fault suites run in ordinary CI. Timing, RSS, display, hardware,
-and GPU numbers qualify only on provisioned, fingerprinted, no-retry hardware.
-Hosted packaging jobs are distribution evidence, not hardware qualification.
+Correctness, fault, timing, RSS, and packaged fixture suites run in ordinary
+target CI. Measurements describe only the runner and backend recorded in that
+result; optional owner-hardware diagnostics may add observations but do not
+gate a payload or package.
 
 ### Required test layers
 
@@ -699,22 +698,20 @@ desktop and browser suites, and packaged smoke on all five targets.
 
 ### Exit decision
 
-5B is complete only when:
+The repository-owned 5B implementation is complete when:
 
-- all required codec and OFX policy rows are clear;
-- all five platform packages pass their applicable functional and packaging
-  suites;
-- provisioned performance evidence meets the registered thresholds;
+- required source, license, and notice audits pass for the bytes being packaged;
+- all five target-native build results pass their applicable functional,
+  containment, architecture, inventory, and staging suites;
 - helper, queue, watch, scratch, display, and OFX fault tests recover without
   corrupt state or partial publication;
 - native/Web plan parity and plug-in bypass/frozen behavior pass; and
 - disabling every helper leaves Web Core usable with an accurate capability
   report.
 
-An unprovisioned target, blocked professional codec, failed Windows Arm64EC or
-Linux aarch64 OFX host, missing signature/notarization evidence, or unresolved
-semantic divergence leaves the packet or milestone open. No row is waived or
-relabeled to manufacture completion.
+An unprovisioned build input, failed Windows ARM64 or Linux ARM64 host, failed
+required machine check, or unresolved semantic divergence fails its CI result.
+Missing optional owner-hardware observations do not change that result.
 
 ## Explicit non-goals
 

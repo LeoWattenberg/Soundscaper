@@ -12,8 +12,14 @@ import { isAbsolute, join } from 'node:path';
 import { chromium } from '@playwright/test';
 
 import { terminatePackagedRuntime } from '../../browser/helpers/packaged-runtime-process.js';
+import {
+	createModelInstallEvidence,
+	readNightlyPackageIdentity,
+	verifyCatalogModelDelivery,
+} from './model-delivery-evidence.js';
 
 const STARTUP_TIMEOUT_MS = 90_000;
+const PUBLIC_DELIVERY_TIMEOUT_MS = 120_000;
 const LOG_LIMIT = 1_048_576;
 
 export async function launchModelTestElectron({ testInfo, productId = 'framescaper' }) {
@@ -25,6 +31,13 @@ export async function launchModelTestElectron({ testInfo, productId = 'framescap
 	}
 	const executablePath = requiredPath('SOUNDSCAPER_NIGHTLY_TESTS_EXECUTABLE');
 	await access(executablePath);
+	const target = `${process.env.SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM ?? process.platform}-${process.env.SOUNDSCAPER_PACKAGED_RUNTIME_ARCH ?? process.arch}`;
+	const packageIdentity = await readNightlyPackageIdentity({
+		payloadRoot: requiredPath('SOUNDSCAPER_NIGHTLY_TESTS_PAYLOAD_ROOT'),
+		productRoot: requiredPath('SOUNDSCAPER_PACKAGED_PRODUCT_ROOT'),
+		productId,
+		target,
+	});
 	const profile = await mkdtemp(join(tmpdir(), 'scape-real-models-'));
 	let child;
 	let browser;
@@ -78,8 +91,8 @@ export async function launchModelTestElectron({ testInfo, productId = 'framescap
 			typeof globalThis.soundscaperDesktop?.v1?.localAssistance?.createJob === 'function'
 			&& typeof globalThis.soundscaperDesktop?.v1?.installAssistanceModel === 'function',
 		undefined, { timeout: STARTUP_TIMEOUT_MS });
-		return Object.freeze({ page, processLog, close,
-			installModel: (modelId) => installModel(page, modelId, testInfo),
+		return Object.freeze({ page, processLog, close, packageIdentity,
+			installModel: (model) => installModel(page, model, packageIdentity, testInfo),
 		});
 	} catch (cause) {
 		await close();
@@ -87,7 +100,11 @@ export async function launchModelTestElectron({ testInfo, productId = 'framescap
 	}
 }
 
-async function installModel(page, modelId, testInfo) {
+async function installModel(page, model, packageIdentity, testInfo) {
+	const modelId = model.modelId;
+	const delivery = await verifyCatalogModelDelivery(model, {
+		signal: AbortSignal.timeout(PUBLIC_DELIVERY_TIMEOUT_MS),
+	});
 	const installation = await page.evaluate(async (id) => {
 		const desktop = globalThis.soundscaperDesktop.v1;
 		const started = performance.now();
@@ -96,7 +113,13 @@ async function installModel(page, modelId, testInfo) {
 			if (event.modelId === id) progress.set(event.fileName, event);
 		});
 		try {
-			const model = await desktop.installAssistanceModel(id);
+			const installed = await desktop.installAssistanceModel(id);
+			const authenticated = (await desktop.localAssistance.models())
+				.filter((candidate) => candidate.modelId === id);
+			if (authenticated.length !== 1 || authenticated[0].version !== installed.version) {
+				throw new Error(`The installed model ${id} has no exact full-hash readback.`);
+			}
+			const model = { ...installed, artifactSha256s: authenticated[0].artifactSha256s };
 			return { model, elapsedMs: performance.now() - started,
 				artifacts: Array.from(progress.values()) };
 		} finally {
@@ -106,10 +129,11 @@ async function installModel(page, modelId, testInfo) {
 	if (installation.model.modelId !== modelId || installation.model.availability !== 'installed') {
 		throw new Error(`The real installer did not install ${String(modelId)}.`);
 	}
+	const evidence = createModelInstallEvidence({ model, delivery, installation, packageIdentity });
 	if (testInfo) await testInfo.attach(`model-install-${modelId}.json`, {
-		body: JSON.stringify(installation, null, 2), contentType: 'application/json',
+		body: JSON.stringify(evidence, null, 2), contentType: 'application/json',
 	});
-	return installation.model;
+	return Object.freeze({ installed: installation.model, evidence });
 }
 
 async function reserveLoopbackPort() {

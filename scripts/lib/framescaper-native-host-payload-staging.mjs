@@ -147,6 +147,9 @@ async function snapshotMediaHost(root, release, manifestBytes, targetId) {
 	const expectedPath = `${FRAMESCAPER_MEDIA_HOST_ROOT}/prebuilt/${targetId}/framescaper-media-host${suffix}`;
 	const payloads = target.status === 'built'
 		? await Promise.all([
+			snapshotPayload(root, target.buildResult,
+				`${FRAMESCAPER_MEDIA_HOST_ROOT}/prebuilt/${targetId}/framescaper-media-host-build-result.json`,
+				`Framescaper media-host ${targetId} build result`),
 			snapshotPayload(root, target.payload, expectedPath, `Framescaper media-host ${targetId}`),
 			...mediaIsolationPayloads(target.isolationPayload).map(([label, payload]) => (
 				snapshotPayload(root, payload, payload.path, `Framescaper media-host ${targetId} ${label}`)
@@ -165,6 +168,9 @@ async function snapshotOpenFxHost(root, release, manifestBytes, targetId) {
 	const prefix = `${FRAMESCAPER_OPENFX_HOST_ROOT}/prebuilt/${targetId}/bin/`;
 	const payloads = target.status === 'built'
 		? await Promise.all([
+			snapshotPayload(root, target.payload?.buildResult,
+				`${FRAMESCAPER_OPENFX_HOST_ROOT}/prebuilt/${targetId}/framescaper-openfx-host-build-result.json`,
+				`Framescaper OpenFX ${targetId} build result`),
 			snapshotPayload(root, target.payload?.scannerPayload,
 				`${prefix}framescaper-ofx-scanner${suffix}`, `Framescaper OpenFX ${targetId} scanner`),
 			snapshotPayload(root, target.payload?.runtimeHostPayload,
@@ -214,9 +220,10 @@ function selectedTarget(manifest, targetId, label) {
 	const matches = manifest.targets.filter(({ id }) => id === targetId);
 	assert(matches.length === 1, `The Framescaper ${label} manifest must contain exactly one ${targetId} target.`);
 	const target = matches[0];
-	if (target.status === 'pending-external') {
-		assert(target.payload === null && typeof target.blockedBy === 'string',
-			`The Framescaper ${label} pending target carries a payload claim.`);
+	if (target.status === 'ci-generated') {
+		assert(target.payload === null
+			&& (target.blockedBy === null || typeof target.blockedBy === 'string'),
+			`The Framescaper ${label} CI-generated target carries a payload claim.`);
 	} else {
 		assert(target.status === 'built' && target.payload !== null && target.blockedBy === null,
 			`The Framescaper ${label} target has an unsupported payload state.`);

@@ -1,0 +1,13 @@
+prefix=${pcfiledir}/../..
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: vpx
+Description: WebM VP8/VP9 Codec SDK
+Version: 1.16.0
+Requires:
+Conflicts:
+Libs: -L${libdir} -lvpx
+Libs.private:
+Cflags: -I${includedir}

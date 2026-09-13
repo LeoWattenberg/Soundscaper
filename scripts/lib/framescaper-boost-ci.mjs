@@ -26,6 +26,12 @@ export const FRAMESCAPER_BOOST_CI_ADMISSION = deepFreeze({
 	archiveRoot: 'boost_1_92_0',
 });
 
+export const FRAMESCAPER_BOOST_VERSION_HEADER_ADMISSION = deepFreeze({
+	path: 'boost/version.hpp',
+	byteLength: 1_117,
+	sha256: 'cf992d9d2c4f2294b69d8819e334927644a48b978bfea3c525e3f9c6dbc7cb9f',
+});
+
 const DOWNLOAD_TIMEOUT_MS = 300_000;
 const MAXIMUM_CLOSURE_FILES = 4_096;
 const MAXIMUM_CLOSURE_FILE_BYTES = 16 * 1024 * 1024;
@@ -55,6 +61,8 @@ export async function runFramescaperBoostCiProvisioning(options, dependencies = 
 	const extract = dependencies.extract ?? extractPinnedFramescaperBoost;
 	const verify = dependencies.verify ?? verifyFramescaperMediaHostBoostClosure;
 	const materialize = dependencies.materialize ?? materializeVerifiedFramescaperBoostClosure;
+	const versionHeaderAdmission = dependencies.versionHeaderAdmission
+		?? FRAMESCAPER_BOOST_VERSION_HEADER_ADMISSION;
 
 	await download({
 		destination: plan.archivePath,
@@ -73,13 +81,61 @@ export async function runFramescaperBoostCiProvisioning(options, dependencies = 
 		sourceRoot: extractedSourceRoot, closureRoot: plan.closureRoot, closure,
 	});
 	const sourceRoot = await canonicalDirectory(materialized, 'Boost closure root');
+	await materializePinnedFramescaperBoostVersionHeader({
+		sourceRoot: extractedSourceRoot, closureRoot: sourceRoot, admission: versionHeaderAdmission,
+	});
 	await verify({ repositoryRoot, boostSourceRoot: sourceRoot });
+	await writeFile(join(sourceRoot, '.framescaper-source-identity.json'), `${JSON.stringify({
+		schemaVersion: 1,
+		component: 'boost',
+		version: FRAMESCAPER_BOOST_CI_ADMISSION.version,
+		archiveSha256: FRAMESCAPER_BOOST_CI_ADMISSION.archive.sha256,
+		headerClosureSha256: readFramescaperMediaHostSourceManifest(repositoryRoot)
+			.boost.headerClosure.sha256,
+		root: sourceRoot,
+	}, null, '\t')}\n`, { flag: 'wx', mode: 0o400 });
 	await Promise.all([
 		rm(plan.archivePath, { force: true }),
 		rm(extractedSourceRoot, { recursive: true, force: true }),
 	]);
 	await publishBoostEnvironment({ githubEnvironmentPath, sourceRoot });
 	return deepFreeze({ workspace, sourceRoot });
+}
+
+/** Add the exact release-version header that the recipe verifies before compiling. */
+export async function materializePinnedFramescaperBoostVersionHeader({
+	sourceRoot: sourceValue, closureRoot: closureValue,
+	admission = FRAMESCAPER_BOOST_VERSION_HEADER_ADMISSION,
+}) {
+	const sourceRoot = await canonicalDirectory(sourceValue, 'extracted Boost source root');
+	const closureRoot = await canonicalDirectory(closureValue, 'Boost closure root');
+	const header = normalizeVersionHeaderAdmission(admission);
+	const source = containedPath(sourceRoot, header.path, 'Boost version header source');
+	const metadata = await lstat(source);
+	if (!metadata.isFile() || metadata.isSymbolicLink() || await realpath(source) !== source) {
+		throw new Error('The Boost version header must be one canonical regular file.');
+	}
+	const bytes = await readFile(source);
+	if (bytes.byteLength !== header.byteLength
+		|| createHash('sha256').update(bytes).digest('hex') !== header.sha256) {
+		throw new Error('The Boost version header changed after archive admission.');
+	}
+	const destination = containedPath(closureRoot, header.path, 'Boost version header destination');
+	await mkdir(dirname(destination), { recursive: true, mode: 0o700 });
+	try {
+		await writeFile(destination, bytes, { flag: 'wx', mode: 0o600 });
+	} catch (error) {
+		if (error?.code !== 'EEXIST') throw error;
+		const existing = await lstat(destination);
+		if (!existing.isFile() || existing.isSymbolicLink()
+			|| await realpath(destination) !== destination
+			|| !Buffer.from(await readFile(destination)).equals(bytes)) {
+			throw new Error('The materialized Boost version header conflicts with the pinned release.', {
+				cause: error,
+			});
+		}
+	}
+	return destination;
 }
 
 /** Stream one pinned archive to an absent path and remove it on every admission failure. */
@@ -232,6 +288,16 @@ function normalizeClosureFiles(closure) {
 		previous = file.path;
 	}
 	return closure.files;
+}
+
+function normalizeVersionHeaderAdmission(admission) {
+	if (!admission || typeof admission !== 'object' || admission.path !== 'boost/version.hpp'
+		|| !Number.isSafeInteger(admission.byteLength) || admission.byteLength < 1
+		|| admission.byteLength > MAXIMUM_CLOSURE_FILE_BYTES
+		|| typeof admission.sha256 !== 'string' || !/^[a-f\d]{64}$/u.test(admission.sha256)) {
+		throw new TypeError('The Boost version-header admission is invalid.');
+	}
+	return admission;
 }
 
 async function publishBoostEnvironment({ githubEnvironmentPath, sourceRoot }) {

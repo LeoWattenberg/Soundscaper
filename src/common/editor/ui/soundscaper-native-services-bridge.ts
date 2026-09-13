@@ -86,7 +86,6 @@ export interface NativePluginScanEntry {
 	readonly vendor: string;
 	readonly version: string;
 	readonly classification: string;
-	readonly signature: string;
 	readonly compatibility: string;
 }
 
@@ -105,7 +104,7 @@ export type NativePluginScanOutcome =
 export interface NativePluginInstallationView {
 	readonly installationId: string;
 	readonly version: string;
-	readonly reviewed: boolean;
+	readonly allowed: boolean;
 	readonly selected: boolean;
 	readonly quarantined: boolean;
 }
@@ -226,8 +225,11 @@ export interface SoundscaperNativeAudioRuntimeBridgeV1 {
 }
 
 export interface SoundscaperNativePluginHostBridgeV1 {
-	reviewNativePluginInstallation(request: Readonly<{
-		installationId: string; action: 'allow' | 'select' | 'revoke';
+	setNativePluginInstallationAllowed(request: Readonly<{
+		installationId: string; allowed: boolean;
+	}>): Promise<NativePluginRegistryView>;
+	selectNativePluginInstallation(request: Readonly<{
+		installationId: string;
 	}>): Promise<NativePluginRegistryView>;
 	instantiateNativePlugin(request: Readonly<{
 		installationId: string; instanceId: string | null; sampleRate?: number;
@@ -286,7 +288,8 @@ const REQUIRED_BRIDGE_METHODS: readonly (keyof SoundscaperNativeServicesBridge)[
 	'reportNativeAudioSessionTransfer',
 	'reportNativeAudioSessionLoss',
 	'closeNativeAudioSession',
-	'reviewNativePluginInstallation',
+	'setNativePluginInstallationAllowed',
+	'selectNativePluginInstallation',
 	'instantiateNativePlugin',
 	'runNativePluginOffline',
 	'setNativePluginBypassed',

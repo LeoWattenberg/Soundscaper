@@ -17,6 +17,7 @@ import {
 	regularDesktopReleaseFileNames,
 	validateSoundscaperStableProfessionalNativeSummary,
 	validateDesktopNativeAddonSummary,
+	validateFramescaperNativeHostSummary,
 	validateDesktopReleaseInputInventory,
 	validateDesktopStableReleaseSelection,
 	validateDesktopReleasePackageInventory,
@@ -240,6 +241,33 @@ test('stable Soundscaper assembly rejects the legacy development addon summary',
 	assert.throws(() => validateDesktopNativeAddonSummary(
 		manifest, 'linux-x64', { stableSoundscaper: true },
 	), /legacy development native addon/iu);
+});
+
+test('Framescaper release summaries admit built or CI-generated native hosts only', () => {
+	const descriptor = (status) => ({
+		status, blockedBy: null,
+		payloadManifest: { id: `${status}-manifest`, sha256: 'a'.repeat(64) },
+		payloads: status === 'built' ? [{ name: 'native-host' }] : [],
+	});
+	const manifest = {
+		name: 'runtime-manifest-framescaper-linux-x64.json',
+		value: { framescaperNativeHosts: {
+			target: 'linux-x64', targetSource: 'declared',
+			mediaHost: descriptor('built'), openFxHost: descriptor('ci-generated'),
+		} },
+	};
+	assert.doesNotThrow(() => validateFramescaperNativeHostSummary(manifest, 'linux-x64'));
+	for (const mutate of [
+		(value) => { value.mediaHost.status = 'pending-external'; },
+		(value) => { value.openFxHost.blockedBy = 'external target build required'; },
+		(value) => { value.openFxHost.payloads = [{ name: 'unstaged' }]; },
+		(value) => { value.mediaHost.payloads = []; },
+	]) {
+		const changed = structuredClone(manifest);
+		mutate(changed.value.framescaperNativeHosts);
+		assert.throws(() => validateFramescaperNativeHostSummary(changed, 'linux-x64'),
+			/status|payload state/iu);
+	}
 });
 
 test('suite release inventory requires exact packages for both desktop products', () => {

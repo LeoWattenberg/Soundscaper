@@ -25,7 +25,6 @@ const ENTRY = Object.freeze({
 	realtime: true,
 	offline: true,
 	reportedLatencyFrames: 512,
-	signature: 'signed-valid',
 	compatibility: 'compatible',
 	descriptorVersion: 3,
 });
@@ -72,8 +71,6 @@ test('the closed vocabulary of a scan result is enforced in every position', () 
 	assert.throws(() => validateHelperPluginScanResult(scanWith({ status: 'partial' })), /known plug-in scan status/u);
 	assert.throws(() => validateHelperPluginScanResult(scanWith({ entries: [entryWith({ classification: 'synth' })] })),
 		/known plug-in classification/u);
-	assert.throws(() => validateHelperPluginScanResult(scanWith({ entries: [entryWith({ signature: 'notarized' })] })),
-		/known plug-in signature result/u);
 	assert.throws(() => validateHelperPluginScanResult(scanWith({ entries: [entryWith({ compatibility: 'maybe' })] })),
 		/known plug-in compatibility result/u);
 });
@@ -86,6 +83,8 @@ test('a result or entry with extra, missing or non-record shape is refused', () 
 	assert.throws(() => validateHelperPluginScanResult(scanWith({ entries: 'none' })), /must carry its entry list/u);
 	assert.throws(() => validateHelperPluginScanResult(scanWith({ entries: [entryWith({ extra: true })] })),
 		/exactly its schema keys/u);
+	assert.throws(() => validateHelperPluginScanResult(scanWith({ entries: [entryWith({ signature: 'signed-valid' })] })),
+		/exactly its schema keys/u, 'a signature must not re-enter the scan contract as an extra field');
 	const { binaryPath: _binaryPath, ...withoutPath } = ENTRY;
 	assert.throws(() => validateHelperPluginScanResult(scanWith({ entries: [withoutPath] })), /exactly its schema keys/u);
 });
@@ -114,7 +113,6 @@ function smallestEntry(index: number): Record<string, unknown> {
 		realtime: false,
 		offline: false,
 		reportedLatencyFrames: null,
-		signature: 'unverifiable',
 		compatibility: 'compatible',
 		descriptorVersion: 0,
 	};
@@ -294,7 +292,7 @@ test('the renderer projection strips the binary path and keeps everything else',
 		'no raw path may survive anywhere in the projection');
 	assert.deepEqual(Object.keys(projected.entries[0]), [
 		'stableId', 'name', 'vendor', 'version', 'binaryBytes', 'binarySha256', 'classification',
-		'channelSupport', 'realtime', 'offline', 'reportedLatencyFrames', 'signature', 'compatibility',
+		'channelSupport', 'realtime', 'offline', 'reportedLatencyFrames', 'compatibility',
 		'descriptorVersion',
 	]);
 	// An instrument is identified by the scan and stays identified; refusing to

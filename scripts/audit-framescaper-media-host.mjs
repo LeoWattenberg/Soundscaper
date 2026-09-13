@@ -18,9 +18,9 @@ if (boostSourceRoot !== undefined) {
 	await verifyFramescaperMediaHostBoostClosure({ repositoryRoot, boostSourceRoot });
 }
 const built = verified.payload.payloads.length;
-const pending = verified.payload.targets.length - built;
+const generated = verified.payload.targets.length - built;
 const boost = boostSourceRoot === undefined ? 'pin-bound' : 'closure-verified';
 console.log(
 	`Framescaper media host: ${String(built)} built target(s), `
-	+ `${String(pending)} pending-external; Boost 1.92.0 ${boost}.`,
+	+ `${String(generated)} CI-generated target(s); Boost 1.92.0 ${boost}.`,
 );

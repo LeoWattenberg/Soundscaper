@@ -163,19 +163,22 @@ function validateTask(value, expected, inputs) {
 	if (!sameArray(row.catalogBlockedBy, catalogBlockedBy)) {
 		throw new Error(`${expected.catalogModelId} catalogBlockedBy is not derived from release evidence.`);
 	}
-	const catalogStatus = catalogBlockedBy.length === 0 ? 'ready' : 'pending-external';
+	const catalogStatus = catalogBlockedBy.length === 0 ? 'ready' : 'catalog-evidence-incomplete';
 	if (row.catalogStatus !== catalogStatus) {
 		throw new Error(`${expected.catalogModelId} catalogStatus must be ${catalogStatus}.`);
 	}
 	const activationBlockedBy = [...catalogBlockedBy];
-	if (!runtimeReady(inputs.runtimes, expected.runtimeFamily)) {
-		activationBlockedBy.push('runtime-target-closure');
+	const hasRuntimePayload = runtimeReady(inputs.runtimes, expected.runtimeFamily);
+	if (!hasRuntimePayload) {
+		activationBlockedBy.push('runtime-payload-not-generated');
 	}
 	activationBlockedBy.sort();
 	if (!sameArray(row.activationBlockedBy, activationBlockedBy)) {
 		throw new Error(`${expected.catalogModelId} activationBlockedBy is not derived from runtime evidence.`);
 	}
-	const activationStatus = activationBlockedBy.length === 0 ? 'ready' : 'pending-external';
+	const activationStatus = catalogBlockedBy.length > 0
+		? 'catalog-evidence-incomplete'
+		: hasRuntimePayload ? 'ready' : 'runtime-payload-not-generated';
 	if (row.activationStatus !== activationStatus) {
 		throw new Error(`${expected.catalogModelId} activationStatus must be ${activationStatus}.`);
 	}
@@ -274,7 +277,7 @@ function validateArtifact(value, expected, output) {
 	if ((row.byteLength === null) !== (row.sha256 === null)
 		|| row.byteLength !== null && (!Number.isSafeInteger(row.byteLength)
 			|| row.byteLength < 1 || !SHA256.test(row.sha256))) {
-		throw new TypeError('A catalog task artifact must be wholly pending or exact.');
+		throw new TypeError('A catalog task artifact must be wholly not-generated or exact.');
 	}
 	return { ...row };
 }

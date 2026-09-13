@@ -163,7 +163,6 @@ function indexPage(catalog, cases, runtimeSources) {
 		availability.get(entry.modelId).availablePlatforms.length === 0);
 	const pendingCases = cases.filter(({ modelIds }) => modelIds.some((id) =>
 		availability.get(id).availablePlatforms.length === 0));
-	const windowsArm64Pending = published.filter(({ platforms }) => !platforms.includes('win32-arm64'));
 	const rows = catalog.entries.map((entry) => [
 		`[${modelTitle(entry.modelId, cases)}](/reference/local-models/${entry.modelId}/)`,
 		entry.task.replaceAll('-', ' '),
@@ -177,7 +176,6 @@ function indexPage(catalog, cases, runtimeSources) {
 		...(pending.length ? [`**Native runtime packaging is incomplete: ${String(pending.length)} required models in ${String(pendingCases.length)} cases have no packaged native engine.** Their tests fail until the selected target package supplies the engine.`, '']
 			: ['All published models have a packaged native engine on supported desktop targets. Install their weights and use the task menus or Tools → Advanced Local Processing. This build capability does not claim that every platform has passed the real-model tests.', '']),
 		...(candidates.length ? [`**${String(candidates.length)} additional models await catalog publication.** Their individual guides and real inference cases are prepared, but Model Manager cannot install them yet. A full nightly run reports missing required catalog entries as failures. Room dereverberation's GPL-3.0 declaration, license text, and source notices are recorded.`, ''] : []),
-		...(windowsArm64Pending.length ? [`**Windows ARM64 catalog approval is pending.** Native build recipes are prepared, but the catalog does not yet admit ${String(windowsArm64Pending.length)} of the published models on Windows ARM64. Enabling them requires a reviewed catalog update with exact SHA-256 pins. Their Windows ARM64 tests report explicit platform skips until that catalog is published; all published models are admitted on macOS arm64, Linux x64/arm64, and Windows x64.${candidates.length ? ' Entirely unpublished required identities still fail on every target.' : ''}`, ''] : []),
 		table(['Model guide', 'Purpose', 'Packaged runtime support', 'Packaged execution case'], rows), '',
 		WINDOWS_REQUIREMENT, '',
 		'## Test scope {#test-scope}', '',

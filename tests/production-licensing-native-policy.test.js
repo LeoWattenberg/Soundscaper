@@ -47,7 +47,12 @@ test('only the evidenced local-model surface is enabled among future distributio
 	assert.equal(gates.get('native-codecs').scope,
 		'additional-bundled-video-codec-execution');
 	assert.match(gates.get('native-codecs').blocker,
-		/Seven exact reviewed compressed-audio WebAssembly providers.*isolated.*utility process.*libsndfile is not bundled.*Media Foundation.*AudioToolbox.*target-native.*macOS ARM64.*Windows x64.*Windows ARM64.*ad-hoc.*manifest.*payload.*Linux.*no uniform OS tier.*external.*keyed-RGBA.*H\.264\/AAC MP4.*VP9\/Opus WebM.*no libwebm.*dav1d.*SVT-AV1.*libaom.*bundled and operating-system WebM\/AV1 execution fails closed.*Electron.*rather than a provider tier.*user-installed external FFmpeg.*outside/iu);
+		/stable bundled-video distribution remains deliberately disabled.*Framescaper media host.*x264.*x265.*libvpx.*libopus.*zlib.*five-target.*CI.*binary inspection.*runtime self-test.*package staging.*do(?:es)? not make.*stable.*provider/iu);
+	for (const evidence of [
+		'native/framescaper-media-host/build/ffmpeg-9.0.1-external-sources.json',
+		'native/framescaper-media-host/tests/codec_closure_canary.cpp',
+		'.github/workflows/framescaper-media-host-native-build.yml',
+	]) assert.ok(gates.get('native-codecs').evidence.includes(evidence));
 	for (const path of [
 		'src/common/editor/reviewed-effects/catalog.ts',
 		'src/common/editor/reviewed-effects/utility-gain-package.ts',
@@ -70,6 +75,27 @@ test('reviewed browser codec notices name the web and Electron renderer surfaces
 		const next = notices.indexOf('\n## ', start + 4);
 		assert.match(notices.slice(start, next < 0 ? undefined : next), /Web\s+and\s+Electron\s+renderer/u, heading);
 	}
+});
+
+test('active native policy records CI closure without a reviewer or manual-acquisition gate', async () => {
+	const [policy, checklist, threatModel, milestonePlan, provisioner] = await Promise.all([
+		readFile(new URL('docs/production-licensing-policy.md', repositoryUrl), 'utf8'),
+		readFile(new URL('docs/legalchecklist.md', repositoryUrl), 'utf8'),
+		readFile(new URL('docs/production-threat-model.md', repositoryUrl), 'utf8'),
+		readFile(new URL('docs/milestone-5-plan.md', repositoryUrl), 'utf8'),
+		readFile(new URL('scripts/provision-milestone-5-native-sources.mjs', repositoryUrl), 'utf8'),
+	]);
+
+	assert.doesNotMatch(policy, /future review must name[\s\S]{0,200}\breviewer\b/iu);
+	assert.doesNotMatch(policy,
+		/`blocked` means a required review|human matrix requirements|recorded human requirements must be resolved/iu);
+	assert.match(policy,
+		/`blocked` means required machine-verifiable license, source, notice,\s+or delivery material is absent/iu);
+	assert.doesNotMatch(checklist, /all these rows remain blocked[\s\S]{0,160}missing[\s\S]{0,80}(?:payload|target verification)/iu);
+	assert.doesNotMatch(threatModel, /there is no libwebm, libvpx[\s\S]{0,100}five-target AV1 evidence/iu);
+	assert.doesNotMatch(milestonePlan, /terms a person must accept[\s\S]{0,80}Steinberg ASIO/iu);
+	assert.doesNotMatch(provisioner, /terms a person has to read and accept[\s\S]{0,100}acquiring those bytes by hand/iu);
+	assert.match(milestonePlan, /workflow produces all five targets/iu);
 });
 
 test('native policy rows separate distribution requirements from test activation', async () => {
@@ -157,12 +183,7 @@ test('native policy rows separate distribution requirements from test activation
 	assert.equal(ffmpegRow.testActivation, 'enabled');
 	assert.equal(Object.hasOwn(ffmpegRow, 'humanReviewMilestone'), false);
 	assert.match(ffmpegRow.blocker, /enabled for build and testing/iu);
-	for (const id of [
-		'codec-hardware-acceleration',
-		'codec-decode-png-image-sequence', 'codec-decode-tiff-image-sequence',
-		'codec-decode-openexr-image-sequence', 'codec-encode-png-image-sequence',
-		'codec-encode-tiff-image-sequence', 'codec-encode-openexr-image-sequence',
-	]) {
+	for (const id of ['codec-hardware-acceleration']) {
 		const row = matrix.nativeFormatPolicies.find((candidate) => candidate.id === id);
 		assert.equal(row.testActivation, 'enabled', id);
 		assert.equal(Object.hasOwn(row, 'humanReviewMilestone'), false, id);
@@ -179,6 +200,17 @@ test('native policy rows separate distribution requirements from test activation
 		assert.match(row.container, /^(?:mp4|mov|webm|mxf|matroska|image-sequence)$/u, row.id);
 		assert.match(row.profile, /^(?:decode|encode)-[a-z0-9-]+$/u, row.id);
 		assert.equal(row.execution, 'software', row.id);
+		assert.equal(row.testActivation, 'enabled', `${row.id} has a CI-buildable test path`);
+		assert.equal(Object.hasOwn(row, 'humanReviewMilestone'), false, row.id);
+		assert.match(row.blocker, /enabled.*build.*test/iu, row.id);
+		assert.doesNotMatch(row.blocker,
+			/(?:does not enable|enables neither|disabled in the native recipe|no encoder implementation|payload.*(?:absent|incomplete)|five-target.*(?:absent|incomplete)|target verification remain incomplete)/iu,
+			`${row.id} cannot describe a repository-owned CI producer as missing`);
+		for (const evidence of [
+			'native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json',
+			'native/framescaper-media-host/tests/codec_closure_canary.cpp',
+			'.github/workflows/framescaper-media-host-native-build.yml',
+		]) assert.ok(row.evidence.includes(evidence), `${row.id} needs ${evidence}`);
 	}
 	assert.equal(matrix.nativeFormatPolicies.some(({ id }) => [
 		'codec-mezzanine-and-longform',

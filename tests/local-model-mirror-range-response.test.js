@@ -3,7 +3,10 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
-import { verifyMirroredArtifact } from '../scripts/lib/local-model-mirror-publication.mjs';
+import {
+	verifyMirroredArtifact,
+	verifyMirroredArtifactDelivery,
+} from '../scripts/lib/local-model-mirror-publication.mjs';
 
 const bytes = Buffer.from('model bytes');
 const artifact = { byteLength: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
@@ -23,6 +26,20 @@ function delivery({ rangeStatus = 206, contentRange = `bytes 0-0/${bytes.length}
 
 test('a real partial response proves range support without an optional Accept-Ranges advertisement', async () => {
 	assert.deepEqual(await verifyMirroredArtifact({ url, artifact, fetchImpl: delivery() }), { url, ...artifact });
+});
+
+test('delivery-only verification proves live HEAD, CORS, and range without a second full download', async () => {
+	const requests = [];
+	const fetchImpl = async (address, init) => {
+		requests.push({ address, method: init.method, range: init.headers.Range ?? null,
+			origin: init.headers.Origin });
+		return delivery()(address, init);
+	};
+	assert.deepEqual(await verifyMirroredArtifactDelivery({ url, artifact, fetchImpl }), { url, ...artifact });
+	assert.deepEqual(requests, [
+		{ address: url, method: 'HEAD', range: null, origin: 'https://soundscaper.org' },
+		{ address: url, method: 'GET', range: 'bytes=0-0', origin: 'https://soundscaper.org' },
+	]);
 });
 
 test('a cold CDN full response is cancelled and retried once before requiring a valid partial response', async () => {

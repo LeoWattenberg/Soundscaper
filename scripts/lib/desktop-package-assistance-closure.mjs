@@ -8,9 +8,9 @@ import { ASSISTANCE_TARGET_STATUSES } from '../../desktop/assistance-native-runt
  *
  * The manifest admits three statuses for a target, and only one of them means a
  * payload exists. Naming a smaller set here refuses a target the manifest
- * itself considers valid: Windows ARM64 is pending-external because no upstream
- * build exists for it, and packaging it failed while Windows x64 succeeded from
- * the same run. The set has one owner so the two gates cannot drift apart.
+ * itself considers valid: Windows ARM64 is package-generated because its target
+ * package compiles and verifies the addon before staging. The set has one owner
+ * so the two gates cannot drift apart.
  */
 export function assertAssistanceNativeRuntimeClosure({ assistance, target, requireFile }) {
 	if (!plainRecord(assistance) || assistance.target !== target) {

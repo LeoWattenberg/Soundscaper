@@ -25,48 +25,53 @@
 			"arch": "x64",
 			"status": "built",
 			"blockedBy": null,
-			"toolchainIdentity": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+			"toolchainIdentity": "GNU 13.3.0 (Unix Makefiles; Linux x86_64)",
 			"payload": {
 				"path": "native/soundscaper-helper-addon/prebuilt/linux-x64/soundscaper_helper.node",
-				"byteLength": 89600,
-				"sha256": "d5f10c7d133ad4f02f8e62adc038d553a4e78b7f330204b93480d6a6b1665b30"
-			}
+				"byteLength": 89624,
+				"sha256": "b908713db224780c94ac5d13656a7fb5420c8ace2a91cd612ace3eb08bd95461"
+			},
+			"buildResult": null
 		},
 		{
 			"id": "linux-arm64",
 			"platform": "linux",
 			"arch": "arm64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated Linux ARM64 helper-addon payload has been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
-			"payload": null
+			"payload": null,
+			"buildResult": null
 		},
 		{
 			"id": "mac-arm64",
 			"platform": "darwin",
 			"arch": "arm64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated macOS ARM64 helper-addon payload has been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
-			"payload": null
+			"payload": null,
+			"buildResult": null
 		},
 		{
 			"id": "win-x64",
 			"platform": "win32",
 			"arch": "x64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated Windows x64 helper-addon payload has been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
-			"payload": null
+			"payload": null,
+			"buildResult": null
 		},
 		{
 			"id": "win-arm64",
 			"platform": "win32",
 			"arch": "arm64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated Windows ARM64 helper-addon payload has been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
-			"payload": null
+			"payload": null,
+			"buildResult": null
 		}
 	]
 }

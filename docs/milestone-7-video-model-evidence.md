@@ -2,7 +2,7 @@
 
 > **Catalog publication update (2026-09-12):** TransNetV2 now has a retained
 > repository-owned ONNX conversion, passing source-framework parity, immutable
-> public read-back, complete notice evidence, and a reviewed catalog entry. Its
+> public read-back, complete notice evidence, and a machine-verified catalog entry. Its
 > canonical entry SHA-256 is task-bound, and target packages generate and
 > authenticate the ONNX Runtime closure required for execution. The
 > dated review below remains provenance for the earlier decision and the six
@@ -18,11 +18,11 @@
 > by editable highlight crops, while only sanitized editorial metadata from an
 > accepted proposal may enter ordinary project state. Fast FFmpeg shots remain
 > the admitted model-free baseline. TransNetV2 now has its converted graph,
-> source-framework parity, reviewed catalog entry, and immutable public
+> source-framework parity, exact catalog entry, and immutable public
 > read-back. Target packages generate and authenticate the ONNX Runtime closure
 > used by it and the other visual models.
-> Package-specific inference reports and optional owner-device QA remain
-> execution evidence rather than activation authorities;
+> Package-specific inference reports remain execution evidence rather than an
+> activation authority;
 > licensing, catalog SHA-256 pins, digests, selection, consent, runtime, and
 > result authentication stay fail closed when the feature is used.
 
@@ -62,8 +62,9 @@ breaks either fails in the repository rather than on a user's disk.
 
 ## The models
 
-Six models are reviewed, pinned, and awaiting their first upload. Sizes are
-the upstream bytes that will be mirrored.
+At this dated checkpoint, six models were pinned before their first upload.
+They are now published with immutable read-back receipts; the sizes below are
+the exact upstream bytes mirrored by the current catalog.
 
 | Model | Task | Size | Code | Weights |
 | --- | --- | --- | --- | --- |

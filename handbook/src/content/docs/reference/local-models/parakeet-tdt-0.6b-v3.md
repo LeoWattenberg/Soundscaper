@@ -10,7 +10,7 @@ Provide another local speech-recognition model for transcripts and captions.
 
 ## Current availability {#current-availability}
 
-Desktop builds package the required sherpa-onnx-node 1.13.5 engine for macOS arm64, Linux arm64, Linux x64, Windows x64. Install this model’s weights through Model Manager, then run its task locally. These are supported build targets; consult the nightly test report for results on a particular package and machine. The desktop build does not package this engine for macOS x64 even though model weights are listed for those platforms.
+Desktop builds package the required sherpa-onnx-node 1.13.5 engine for macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64. Install this model’s weights through Model Manager, then run its task locally. These are supported build targets; consult the nightly test report for results on a particular package and machine. The desktop build does not package this engine for macOS x64 even though model weights are listed for those platforms.
 
 ## Use this model {#use-this-model}
 
@@ -26,7 +26,7 @@ Model identity: `parakeet-tdt-0.6b-v3`, version **3.0.0**.
 
 Approximate download size: **639.42 MiB**. Minimum system memory: **4 GiB**. This catalog requirement refers to total memory, not currently free memory. Inference also needs sufficient free memory, and installation needs working space; memory is not a speed guarantee.
 
-Published platforms: macOS arm64, macOS x64, Linux arm64, Linux x64, Windows x64. A matching packaged runtime is also required.
+Published platforms: macOS arm64, macOS x64, Linux arm64, Linux x64, Windows arm64, Windows x64. A matching packaged runtime is also required.
 
 On Windows, install the latest supported [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) matching the desktop app: **x64** for an x64 build or **ARM64** for an ARM64 build. The native ONNX and Sherpa engines require these libraries; model downloads do not include them. Visual Studio itself is not required to use the app.
 

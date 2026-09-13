@@ -23,8 +23,8 @@ test('5B generation prose remains provenance beneath the Framescaper-v1 authorit
 	assert.match(roadmap, /Framescaper F31.*immutable V28 foundation.*exact V14.*evaluated-RGBA.*carrier/isu);
 	assert.match(parentPlan, /selected F31.*immutable V28 foundation.*V14.*render queue.*persistent services V3/isu);
 	for (const document of [pickup, roadmap, parentPlan]) {
-		assert.match(document, /five.*target.*pending-external/isu);
-		assert.match(document, /payload.*(?:empty|no authenticated)/isu);
+		assert.match(document, /five.*target.*(?:CI-generated|ci-generated|target-native CI)/isu);
+		assert.match(document, /payload.*(?:empty|no generated|staged)/isu);
 		assert.doesNotMatch(document, /whole 5B software substrate.*implemented/iu);
 	}
 
@@ -44,7 +44,7 @@ test('5B generation prose remains provenance beneath the Framescaper-v1 authorit
 		assert.deepEqual(manifest.payloads, []);
 		assert.equal(manifest.targets.length, 5);
 		assert.ok(manifest.targets.every(({ status, payload }) => (
-			status === 'pending-external' && payload === null
+			status === 'ci-generated' && payload === null
 		)));
 	}
 	assert.ok(openFxPayloads.targets.every((target) => !Object.hasOwn(target, 'productionReadiness')));
@@ -58,7 +58,7 @@ test('5B status preserves the OpenFX route while keeping execution unavailable',
 	for (const document of [pickup, roadmap]) {
 		assert.match(document, /scan.*enable.*Add OFX.*menu/isu);
 		assert.match(document, /all six contexts.*Interact Suite V1.*DrawSuite V1/isu);
-		assert.match(document, /payload.*empty.*third-party.*unavailable/isu);
+		assert.match(document, /payload.*empty.*(?:until|in this checkout).*stage/isu);
 		assert.match(document, /state.*(?:bypass|frozen).*preserv/isu);
 	}
 });

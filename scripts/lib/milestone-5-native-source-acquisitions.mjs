@@ -31,7 +31,7 @@ export const MILESTONE_5_NATIVE_SOURCE_IDS = Object.freeze([
 	'x264',
 	'x265',
 	'libvpx',
-	'libopus',
+	'libopus', 'zlib',
 ]);
 
 const DELEGATED_SOURCE_IDS = Object.freeze([
@@ -90,8 +90,8 @@ export function readMilestone5NativeSourceAcquisitions(
 }
 
 /**
- * Audit the exact registered source cache. An absent cache is a truthful pending
- * result; a supplied partial, symbolic, changed, or foreign cache fails closed.
+ * Audit the exact registered source cache. An absent cache is truthfully not
+ * materialized; a supplied partial, symbolic, changed, or foreign cache fails closed.
  */
 export function auditMilestone5NativeSourceAcquisitions(
 	repositoryRoot,
@@ -126,8 +126,8 @@ function auditSelectedMilestone5NativeSourceAcquisitions(
 	const configured = typeof cacheRootValue === 'string' ? cacheRootValue.trim() : '';
 	if (configured === '') return brandedAudit(register, null, register.sources.map((source) => ({
 		...source,
-		authenticationStatus: 'pending-external',
-		authenticationBlockedBy: `No exact archive and extracted source tree were supplied for ${source.id}.`,
+		authenticationStatus: 'not-materialized',
+		authenticationBlockedBy: `Run the repository source-provisioning command for ${source.id}; this checkout has no materialized cache entry.`,
 		archiveEvidence: null,
 		extractedTreeEvidence: null,
 	})));
@@ -403,7 +403,7 @@ function brandedAudit(register, cacheRoot, sources) {
 	const audit = deepFreeze({
 		schemaVersion: 1,
 		status: sources.every(({ authenticationStatus }) => authenticationStatus === 'authenticated')
-			? 'authenticated' : 'pending-external',
+			? 'authenticated' : 'not-materialized',
 		cacheRoot,
 		groundedAt: register.groundedAt,
 		purpose: register.purpose,
@@ -509,7 +509,7 @@ function validateFramescaperExternalSourceClosure(register, delegatedBytes) {
 	assert(manifest.schemaVersion === 1, 'The FFmpeg external-source schemaVersion must be 1.');
 	assert(manifest.activation === 'test-enabled',
 		'FFmpeg external-source activation must stay enabled for authenticated build/test use.');
-	const expectedIds = ['x264', 'x265', 'libvpx', 'libopus'];
+	const expectedIds = ['x264', 'x265', 'libvpx', 'libopus', 'zlib'];
 	assertExactIds(manifest.libraries, expectedIds, 'FFmpeg external library');
 	for (const library of manifest.libraries) {
 		const source = requireMilestone5NativeSource(register, library.id);

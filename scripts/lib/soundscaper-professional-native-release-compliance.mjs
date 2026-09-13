@@ -23,7 +23,7 @@ export const SOUNDSCAPER_PROFESSIONAL_NATIVE_COMPLIANCE_NAME =
 const SOURCE_IDS = Object.freeze([
 	'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'asio-sdk', 'lv2',
 ]);
-const FORBIDDEN_SOURCE_IDS = new Set(['x264', 'x265', 'libvpx', 'libopus']);
+const FORBIDDEN_SOURCE_IDS = new Set(['x264', 'x265', 'libvpx', 'libopus', 'zlib']);
 const MAXIMUM_ARCHIVE_BYTES = 64 * 1024 * 1024;
 
 export async function stageSoundscaperProfessionalNativeReleaseCompliance(options, dependencies = {}) {

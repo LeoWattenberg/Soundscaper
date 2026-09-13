@@ -110,7 +110,6 @@ jobs:
         with:
           node-version-file: .nvmrc
           architecture: ${{ matrix.node_arch }}
-          package-manager-cache: false
       - name: Pin target-native npm
         if: matrix.tooling_node_arch != matrix.node_arch
         run: npm install --global npm@12.0.1
@@ -165,6 +164,12 @@ jobs:
           --output="$RUNNER_TEMP/soundscaper-professional-native-build-result"
           --packaged-app="$RUNNER_TEMP/soundscaper-packaged-app"
           --macos-sdk="$(xcrun --sdk macosx --show-sdk-path)"
+      - name: Prove the result stages as package authority
+        shell: bash
+        run: >-
+          node scripts/stage-soundscaper-professional-native-build-result.mjs
+          --result="$RUNNER_TEMP/soundscaper-professional-native-build-result"
+          --root="$GITHUB_WORKSPACE"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: soundscaper-professional-native-build-result-${{ matrix.target }}

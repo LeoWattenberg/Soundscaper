@@ -5,12 +5,14 @@ opset-17 ONNX neural core plus owned pre/post DSP, with CPU parity and
 operability evidence for the milestone-7 catalog (docs/dereverb-plan.md,
 Track B; selection evidence in docs/dereverb-bakeoff-evidence.md). Executed
 2026-09-02 on the owner workstation in a session scratch directory ($C below;
-the de-reverb bake-off's scratch assets are $B). This is an external run
-record in the style of docs/milestone-7-model-conversion-reproduction.md; it
-does not by itself authorize a production catalog entry — the register rows
-stay pending-external until the locked `soundscaper-model-conversion-v1`
-toolchain reproduces it and the catalog entry is reviewed. Every digest,
-command, and DSP constant needed to reproduce the run is recorded here.
+the de-reverb bake-off's scratch assets are $B). This is a historical external
+run record in the style of docs/milestone-7-model-conversion-reproduction.md;
+it is not catalog authority by itself. The locked
+`soundscaper-model-conversion-v1` toolchain subsequently reproduced the
+selected model, retained its conversion/parity evidence in the repository, and
+the machine verifier now derives the catalog entry from those exact records.
+Every digest, command, and DSP constant needed to explain this earlier run is
+recorded here.
 
 ## Source artifacts
 
@@ -261,13 +263,13 @@ tensors — same upstream ORT build. Loads: yes. Runs: yes. Matches within
 5. Upstream MD5/SHA-1 for the checkpoint were not published; the SHA-256 above
    is the bake-off download's digest, re-verified locally this run.
 6. This record was produced by the standalone driver in $C, not by the
-   repository's `soundscaper-model-conversion-v1` locked module. The repo-side
-   registers and tool support have since landed (`dereverb-room` rows in
-   config/milestone-7-model-supply-candidates.json,
-   config/milestone-7-model-parity-fixtures.json,
-   config/milestone-7-model-conversion-execution.json, and the
-   `soundscaper_m7_conversion` exporter/runner); the authoritative
-   locked-toolchain re-run that fills the pending digests remains external.
-   Note the locked toolchain pins rotary-embedding-torch 0.8.5 while this run
-   used 0.6.5; the strict state_dict load pins the architecture either way,
-   and the re-run will re-measure parity under the locked pin.
+   repository's `soundscaper-model-conversion-v1` locked module. The later
+   authoritative locked-toolchain run is retained under
+   `evidence/milestone-7-model-conversion/dereverb-room/` and bound by the
+   `dereverb-room` rows in
+   `config/milestone-7-model-supply-candidates.json`,
+   `config/milestone-7-model-parity-fixtures.json`, and
+   `config/milestone-7-model-conversion-execution.json`. It produced the
+   cataloged `dereverb-room.onnx` identity and measured parity under the locked
+   rotary-embedding-torch 0.8.5 environment. There is no remaining external
+   digest or catalog-review step.

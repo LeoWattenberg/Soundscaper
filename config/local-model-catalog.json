@@ -16,6 +16,7 @@
 				"darwin-x64",
 				"linux-arm64",
 				"linux-x64",
+				"win32-arm64",
 				"win32-x64"
 			],
 			"minimumMemoryBytes": 2147483648,
@@ -56,6 +57,7 @@
 				"darwin-x64",
 				"linux-arm64",
 				"linux-x64",
+				"win32-arm64",
 				"win32-x64"
 			],
 			"minimumMemoryBytes": 4294967296,
@@ -132,6 +134,7 @@
 				"darwin-x64",
 				"linux-arm64",
 				"linux-x64",
+				"win32-arm64",
 				"win32-x64"
 			],
 			"minimumMemoryBytes": 4294967296,
@@ -249,6 +252,7 @@
 				"darwin-x64",
 				"linux-arm64",
 				"linux-x64",
+				"win32-arm64",
 				"win32-x64"
 			],
 			"minimumMemoryBytes": 2147483648,
@@ -301,6 +305,7 @@
 				"darwin-x64",
 				"linux-arm64",
 				"linux-x64",
+				"win32-arm64",
 				"win32-x64"
 			],
 			"minimumMemoryBytes": 2147483648,
@@ -341,6 +346,7 @@
 				"darwin-x64",
 				"linux-arm64",
 				"linux-x64",
+				"win32-arm64",
 				"win32-x64"
 			],
 			"minimumMemoryBytes": 2147483648,
@@ -405,6 +411,7 @@
 				"darwin-x64",
 				"linux-arm64",
 				"linux-x64",
+				"win32-arm64",
 				"win32-x64"
 			],
 			"minimumMemoryBytes": 2147483648,
@@ -445,6 +452,7 @@
 				"darwin-x64",
 				"linux-arm64",
 				"linux-x64",
+				"win32-arm64",
 				"win32-x64"
 			],
 			"minimumMemoryBytes": 2147483648,
@@ -509,6 +517,7 @@
 				"darwin-x64",
 				"linux-arm64",
 				"linux-x64",
+				"win32-arm64",
 				"win32-x64"
 			],
 			"minimumMemoryBytes": 2147483648,
@@ -549,6 +558,7 @@
 				"darwin-x64",
 				"linux-arm64",
 				"linux-x64",
+				"win32-arm64",
 				"win32-x64"
 			],
 			"minimumMemoryBytes": 2147483648,
@@ -625,6 +635,7 @@
 				"darwin-x64",
 				"linux-arm64",
 				"linux-x64",
+				"win32-arm64",
 				"win32-x64"
 			],
 			"minimumMemoryBytes": 4294967296,
@@ -713,6 +724,7 @@
 				"darwin-x64",
 				"linux-arm64",
 				"linux-x64",
+				"win32-arm64",
 				"win32-x64"
 			],
 			"minimumMemoryBytes": 8589934592,

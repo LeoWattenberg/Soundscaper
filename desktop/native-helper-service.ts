@@ -213,7 +213,7 @@ const FAILURE_MESSAGES: Readonly<Record<NativeAudioFailureCode, string>> = Objec
 
 const PAYLOAD_UNAVAILABLE_MESSAGES: Readonly<Record<NativeAddonUnavailableReason, string>> = Object.freeze({
 	'unsupported-platform': 'No native audio helper is built for this kind of machine.',
-	'payload-pending-external': 'No native audio helper has been built for this target yet.',
+	'payload-not-generated': 'This package was assembled without its target-native audio helper.',
 	'payload-missing': 'The native audio helper is not installed alongside this build.',
 	'payload-digest-mismatch': 'The installed native audio helper does not match this build.',
 	'manifest-unreadable': 'This build does not describe a native audio helper.',

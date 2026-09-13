@@ -62,6 +62,21 @@
 				"sha256": "9c0e596e8baa8281d7728c8d27d3ae98624de30254bf9767f07b4d76a1a9869a"
 			},
 			"ffmpegConfigureFlag": "--enable-libopus"
+		},
+		{
+			"id": "zlib",
+			"version": "1.3.1",
+			"revision": "51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf",
+			"tag": "v1.3.1",
+			"url": "https://zlib.net/fossils/zlib-1.3.1.tar.gz",
+			"byteLength": 1512791,
+			"sha256": "9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23",
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 253,
+				"sha256": "85dd44f5108708f967d0d5aba1205eb54c20347a4b8417c4d1b87921822acae9"
+			},
+			"ffmpegConfigureFlag": "--enable-zlib"
 		}
 	]
 }

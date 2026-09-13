@@ -103,7 +103,7 @@ export function deriveNativeAddonPayloadManifest(sourceManifest) {
 			riskId: 'native-helper-processes',
 			controlId: 'verified-native-helper-payload-selection',
 		},
-		targets: NATIVE_HELPER_ADDON_TARGETS.map(({ id, runtime }) => {
+			targets: NATIVE_HELPER_ADDON_TARGETS.map(({ id, runtime }) => {
 			const record = sourceManifest.targets[id];
 			const [platform, architecture] = runtime.split('-');
 			return record.status === 'built'
@@ -119,15 +119,23 @@ export function deriveNativeAddonPayloadManifest(sourceManifest) {
 						byteLength: record.payload.byteLength,
 						sha256: record.payload.sha256,
 					},
+					buildResult: record.buildResult === null || record.buildResult === undefined
+						? null
+						: {
+							path: `${NATIVE_HELPER_ADDON_ROOT}/prebuilt/${id}/${record.buildResult.name}`,
+							byteLength: record.buildResult.byteLength,
+							sha256: record.buildResult.sha256,
+						},
 				}
 				: {
 					id,
 					platform,
 					arch: architecture,
-					status: 'pending-external',
+					status: 'ci-generated',
 					blockedBy: record.blockedBy,
 					toolchainIdentity: null,
 					payload: null,
+					buildResult: null,
 				};
 		}),
 	};
@@ -191,10 +199,22 @@ export async function verifyNativeAddonPayloadManifest({ repositoryRoot, target,
 	const selected = manifest.targets.find(({ id }) => id === target);
 	assert(selected, `The native addon payload manifest has no ${target} target.`);
 	let payload = null;
+	let buildResult = null;
 	if (selected.status === 'built') {
 		const bytes = await readRegularFile(root, selected.payload.path, `native addon payload ${target}`);
 		verifyDescriptorBytes(bytes, selected.payload, `native addon payload ${target}`);
 		payload = Object.freeze({ ...selected.payload, name: manifest.addon.payloadName, bytes });
+		if (selected.buildResult !== null) {
+			const receiptBytes = await readRegularFile(root, selected.buildResult.path,
+				`native addon build result ${target}`);
+			verifyDescriptorBytes(receiptBytes, selected.buildResult, `native addon build result ${target}`);
+			const receipt = parseJson(receiptBytes, `native addon build result ${target}`);
+			assert(receipt.kind === 'soundscaper-native-helper-addon-build-result'
+				&& receipt.target === target && receipt.payload?.sha256 === selected.payload.sha256,
+			`native addon build result ${target} is target or payload misbound`);
+			buildResult = Object.freeze({ ...selected.buildResult,
+				name: selected.buildResult.path.split('/').at(-1), bytes: receiptBytes, receipt });
+		}
 	}
 	deepFreeze(manifest);
 	const release = Object.freeze({
@@ -205,6 +225,7 @@ export async function verifyNativeAddonPayloadManifest({ repositoryRoot, target,
 		target: selected,
 		targetSource,
 		payload,
+		buildResult,
 	});
 	VERIFIED_RELEASES.add(release);
 	return release;
@@ -225,6 +246,10 @@ export function nativeAddonPayloadStageSummary(release) {
 		payload: release.payload === null
 			? null
 			: { name: release.payload.name, byteLength: release.payload.byteLength, sha256: release.payload.sha256 },
+		buildResult: release.buildResult === null
+			? null
+			: { name: release.buildResult.name, byteLength: release.buildResult.byteLength,
+				sha256: release.buildResult.sha256 },
 	};
 }
 
@@ -237,6 +262,10 @@ export function verifyBufferedNativeAddonPayload(release) {
 	if (release.payload) {
 		verifyDescriptorBytes(release.payload.bytes, release.payload, `buffered native addon payload ${release.target.id}`);
 	}
+	if (release.buildResult) {
+		verifyDescriptorBytes(release.buildResult.bytes, release.buildResult,
+			`buffered native addon build result ${release.target.id}`);
+	}
 	return release;
 }
 
@@ -245,6 +274,8 @@ export function snapshotVerifiedNativeAddonPayload(release) {
 	return {
 		manifestBytes: Buffer.from(release.manifestBytes),
 		payload: release.payload === null ? null : { ...release.payload, bytes: Buffer.from(release.payload.bytes) },
+		buildResult: release.buildResult === null ? null
+			: { ...release.buildResult, bytes: Buffer.from(release.buildResult.bytes) },
 	};
 }
 
@@ -256,6 +287,10 @@ export async function stageVerifiedNativeAddonPayload({ release, outputRoot }) {
 		if (snapshot.payload) {
 			await writeFile(resolve(temporary, snapshot.payload.name), snapshot.payload.bytes, { flag: 'wx', mode: 0o755 });
 		}
+		if (snapshot.buildResult) {
+			await writeFile(resolve(temporary, snapshot.buildResult.name), snapshot.buildResult.bytes,
+				{ flag: 'wx', mode: 0o444 });
+		}
 		return temporary;
 	});
 	return nativeAddonPayloadStageSummary(release);
@@ -266,6 +301,7 @@ export async function verifyStagedNativeAddonPayload({ release, outputRoot, stag
 	const expectedNames = [
 		release.manifest.staging.manifestName,
 		...(release.payload ? [release.payload.name] : []),
+		...(release.buildResult ? [release.buildResult.name] : []),
 	].sort();
 	const entries = await readdir(outputRoot, { withFileTypes: true });
 	const actualNames = entries.map(({ name }) => name).sort();
@@ -280,6 +316,11 @@ export async function verifyStagedNativeAddonPayload({ release, outputRoot, stag
 	if (release.payload) {
 		const bytes = await readFile(resolve(outputRoot, release.payload.name));
 		verifyDescriptorBytes(bytes, release.payload, `staged native addon payload ${release.target.id}`);
+	}
+	if (release.buildResult) {
+		const bytes = await readFile(resolve(outputRoot, release.buildResult.name));
+		verifyDescriptorBytes(bytes, release.buildResult,
+			`staged native addon build result ${release.target.id}`);
 	}
 	if (stageManifestPath) {
 		const stage = parseJson(await readStagedRegularFile(stageManifestPath, 'desktop stage manifest'), 'desktop stage manifest');
@@ -314,15 +355,17 @@ function validateManifestShape(manifest) {
 
 function validateTargetShape(target, payloadName) {
 	assertPlainObject(target, 'target');
-	assertExactKeys(target, ['id', 'platform', 'arch', 'status', 'blockedBy', 'toolchainIdentity', 'payload'], `target ${target.id}`);
+	assertExactKeys(target,
+		['id', 'platform', 'arch', 'status', 'blockedBy', 'toolchainIdentity', 'payload', 'buildResult'],
+		`target ${target.id}`);
 	const claimed = NATIVE_HELPER_ADDON_TARGETS.find(({ id }) => id === target.id);
 	assert(claimed && claimed.runtime === `${target.platform}-${target.arch}`,
 		`target ${target.id} does not name its runtime platform and architecture`);
-	if (target.status === 'pending-external') {
-		assert(target.payload === null && target.toolchainIdentity === null,
-			`target ${target.id} is pending-external and must pin nothing`);
-		assert(typeof target.blockedBy === 'string' && target.blockedBy.trim().length >= 8,
-			`target ${target.id} requires a named blocker`);
+	if (target.status === 'ci-generated') {
+		assert(target.payload === null && target.toolchainIdentity === null && target.buildResult === null,
+			`target ${target.id} is ci-generated and must pin nothing`);
+		assert(target.blockedBy === null,
+			`target ${target.id} is ci-generated and must not carry a blocker`);
 		return;
 	}
 	assert(target.status === 'built', `target ${target.id} has an unsupported status`);
@@ -337,6 +380,17 @@ function validateTargetShape(target, payloadName) {
 		&& target.payload.byteLength > 0 && target.payload.byteLength <= MAXIMUM_PAYLOAD_BYTES,
 		`target ${target.id} payload byte length is invalid`);
 	assert(SHA256_PATTERN.test(target.payload.sha256), `target ${target.id} payload digest is invalid`);
+	if (target.buildResult !== null) {
+		assertPlainObject(target.buildResult, `target ${target.id} buildResult`);
+		assertExactKeys(target.buildResult, ['path', 'byteLength', 'sha256'], `target ${target.id} buildResult`);
+		assert(target.buildResult.path === `${NATIVE_HELPER_ADDON_ROOT}/prebuilt/${target.id}/native-helper-addon-build-result.json`,
+			`target ${target.id} build-result path is invalid`);
+		assert(Number.isSafeInteger(target.buildResult.byteLength) && target.buildResult.byteLength > 0
+			&& target.buildResult.byteLength <= MAXIMUM_PAYLOAD_BYTES,
+			`target ${target.id} build-result byte length is invalid`);
+		assert(SHA256_PATTERN.test(target.buildResult.sha256),
+			`target ${target.id} build-result digest is invalid`);
+	}
 }
 
 function verifyDescriptorBytes(bytes, descriptor, label) {

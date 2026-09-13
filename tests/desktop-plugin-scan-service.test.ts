@@ -51,7 +51,6 @@ const ENTRY = Object.freeze({
 	realtime: true,
 	offline: true,
 	reportedLatencyFrames: 0,
-	signature: 'signed-valid',
 	compatibility: 'compatible',
 	descriptorVersion: 3,
 });
@@ -192,14 +191,14 @@ test('availability reports the per-format consent gate without naming a path', a
 		consented: ['vst3'],
 		payload: Object.freeze({
 			status: 'unavailable',
-			reason: 'payload-pending-external',
-			detail: 'No Windows ARM64 build host is provisioned.',
+			reason: 'payload-not-generated',
+			detail: 'Run the target-native CI workflow and stage its verified build result.',
 		}),
 	});
 	const availability = await service.availability();
 	assert.equal(availability.enabled, true);
 	assert.equal(availability.quarantined, false);
-	assert.equal(availability.payload.reason, 'payload-pending-external');
+	assert.equal(availability.payload.reason, 'payload-not-generated');
 	// Derived from the contract, not snapshotted from it: every format the wire
 	// admits is listed, and exactly the consented ones are marked so.
 	assert.deepEqual(availability.formats.map(({ format }) => format), [...HELPER_PLUGIN_FORMATS]);

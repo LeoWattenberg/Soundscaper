@@ -486,38 +486,58 @@ separately loaded runtime binary, and its presence does not claim that any
 native media-host or OpenFX-host payload has been built, self-tested, or
 shipped.
 
-## Framescaper native FFmpeg source candidate
+## Framescaper native media-host source closure
 
-The dormant Framescaper media-host candidate pins FFmpeg 9.0.1 “Lei” from
+The Framescaper media-host build pins FFmpeg 9.0.1 “Lei” from
 <https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz> (12,036,420 bytes; SHA-256
 `cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635`).
 FFmpeg is available under LGPL-2.1-or-later, or GPL-2.0-or-later when GPL
-components are enabled; the pinned candidate recipe selects the GPL mode,
-disables network support and external libraries, and admits codec/container
-flags only after their licensing rows clear.
+components are enabled. The target-native recipe selects GPL-2.0-or-later,
+disables network support, and statically links these exact source releases:
+
+- x264 stable `b35605ac`, GPL-2.0-or-later, 1,040,327-byte archive SHA-256
+  `cd71a7515b0e9a012e1ac9b1f8415bebcaf6fc97d4db32286642ac4c0fbe24f9`;
+- x265 4.2, GPL-2.0-or-later, 1,833,442-byte archive SHA-256
+  `40b1ea0453e0309f0eba934e0ddf533f8f6295966679e8894e8f1c1c8d5e1210`;
+- libvpx 1.16.0, BSD-3-Clause, 5,635,379-byte archive SHA-256
+  `7a479a3c66b9f5d5542a4c6a1b7d3768a983b1e5c14c60a9396edc9b649e015c`;
+- Opus 1.6, BSD-3-Clause, 36,317,446-byte archive SHA-256
+  `b7637334527201fdfd6dd6a02e67aceffb0e5e60155bbd89175647a80301c92c`;
+- zlib 1.3.1, Zlib, 1,512,791-byte archive SHA-256
+  `9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23`.
+
+The archive URLs, exact revisions, extracted-tree digests, and selected license
+identifiers are recorded in
+[`native/framescaper-media-host/build/ffmpeg-9.0.1-external-sources.json`](native/framescaper-media-host/build/ffmpeg-9.0.1-external-sources.json)
+and the shared native-source acquisition register. Each source archive contains
+its complete upstream copyright and license text.
 
 [`native/framescaper-media-host/source-manifest.json`](native/framescaper-media-host/source-manifest.json)
-and the host-local notice pin the candidate source and five build recipes.
+and the host-local notice pin the source and five build recipes.
 [`config/framescaper-media-host-payload-manifest.json`](config/framescaper-media-host-payload-manifest.json)
-contains no payloads: every target is `pending-external`. This source record
-does not activate the development-only legacy `@ffmpeg/core` 0.12.10 / FFmpeg
-5.1.4 evidence above and does not authorize native codec distribution.
+is a payload-free `ci-generated` source template. The dedicated target-native
+workflow builds and tests each target, records its exact hashes and complete
+linked-source identities, and embeds this notice plus a corresponding-source
+descriptor in the result that staging revalidates before changing that target
+to `built`. This source record does not activate the development-only legacy
+`@ffmpeg/core` 0.12.10 / FFmpeg 5.1.4 evidence above.
 
 ## OpenFX 1.5.1 source candidate
 
-The dormant Framescaper scanner/runtime-host candidate pins the signed OpenFX
-tag `OFX_Release_1.5.1`, requested commit prefix `ab77951` (full commit
+The Framescaper scanner/runtime-host build pins OpenFX tag
+`OFX_Release_1.5.1`, requested commit prefix `ab77951` (full commit
 `ab779510b2655b4d11a7e01e5c521f9aa8c88976`), under BSD-3-Clause. The pinned
 commit archive is 9,837,777 bytes with SHA-256
 `7f4fcde6c4bff3ee1f95a0b73a805e662a3e030999523165b40cfbe76c1ab9f5`.
 
 [`native/framescaper-openfx-host/source-manifest.json`](native/framescaper-openfx-host/source-manifest.json)
-and its host-local notice retain the tag, signature identity, source digest,
-and five build recipes. Framescaper does not redistribute user-installed OFX
-plug-ins, and
+and its host-local notice retain the tag, source digest, and five build recipes.
+Framescaper does not redistribute user-installed OFX plug-ins, and
 [`config/framescaper-openfx-host-payload-manifest.json`](config/framescaper-openfx-host-payload-manifest.json)
-contains no scanner or runtime-host payload. All targets remain unavailable
-until their licensing, isolation, conformance, payload, and target checks pass.
+is a payload-free `ci-generated` source template. The dedicated target-native
+workflow builds and tests each target, records its exact hashes and conformance
+evidence, and produces a result that the staging command revalidates before
+changing that target to `built`.
 
 ## Video-effect behavioral references
 

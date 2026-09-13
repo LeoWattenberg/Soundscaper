@@ -20,7 +20,7 @@ import {
 const repositoryRoot = resolve(import.meta.dirname, '..');
 const hostRoot = join(repositoryRoot, 'native/framescaper-openfx-host');
 
-test('OpenFX 1.5.1 is pinned to its signed ab77951 release tag and the source closure audits', () => {
+test('OpenFX 1.5.1 is pinned to commit, archive, and extracted-tree digests', () => {
 	const audit = auditFramescaperOpenFxHost({ repositoryRoot });
 	assert.deepEqual(audit.findings, []);
 	assert.deepEqual(audit.manifest.openfx, {
@@ -29,8 +29,6 @@ test('OpenFX 1.5.1 is pinned to its signed ab77951 release tag and the source cl
 		commit: 'ab77951',
 		commitSha: 'ab779510b2655b4d11a7e01e5c521f9aa8c88976',
 		tagObjectSha: '43d93ea99255cc61177b0632e421e899e802995e',
-		signedTagApiUrl: 'https://api.github.com/repos/AcademySoftwareFoundation/openfx/git/tags/43d93ea99255cc61177b0632e421e899e802995e',
-		signedTagVerifiedAt: '2025-11-20T18:14:02Z',
 		url: 'https://codeload.github.com/AcademySoftwareFoundation/openfx/tar.gz/ab77951',
 		byteLength: 9_837_777,
 		sha256: '7f4fcde6c4bff3ee1f95a0b73a805e662a3e030999523165b40cfbe76c1ab9f5',
@@ -50,17 +48,29 @@ test('native OpenFX loading delegates machine isolation to the enforced launcher
 	assert.match(source, /Distribution metadata is intentionally not an in-process execution oracle/iu);
 });
 
-test('scanner and runtime are distinct C++20 targets and no unbuilt payload is packaged', () => {
+test('scanner and runtime are distinct C++20 targets and CI-generated payloads are not packaged', () => {
 	const cmake = readFileSync(join(hostRoot, 'CMakeLists.txt'), 'utf8');
 	assert.match(cmake, /add_executable\(framescaper-ofx-scanner/iu);
 	assert.match(cmake, /add_executable\(framescaper-ofx-runtime-host/iu);
+	assert.doesNotMatch(cmake, /file\s*\(\s*GLOB|aux_source_directory/iu);
 	assert.doesNotMatch(cmake, /Electron|node\.h|napi/iu);
 	const release = verifyFramescaperOpenFxPayloadManifest({ repositoryRoot });
 	assert.deepEqual(release.payload.payloads, []);
 	assert.equal(release.payload.targets.length, 5);
 	assert.equal(release.payload.targets.every(({ status, payload }) => (
-		status === 'pending-external' && payload === null
+		status === 'ci-generated' && payload === null
 	)), true);
+});
+
+test('the source audit rejects an unpinned local translation-unit input', (context) => {
+	const directory = mkdtempSync(join(tmpdir(), 'framescaper-openfx-unpinned-source-'));
+	context.after(() => rmSync(directory, { recursive: true, force: true }));
+	cpSync(hostRoot, join(directory, 'native/framescaper-openfx-host'), { recursive: true });
+	cpSync(join(repositoryRoot, '.gitattributes'), join(directory, '.gitattributes'));
+	writeFileSync(join(directory,
+		'native/framescaper-openfx-host/src/unpinned-translation-unit.cpp'), 'int unpinned = 1;\n');
+	assert.match(auditFramescaperOpenFxHost({ repositoryRoot: directory }).findings.join('\n'),
+		/local source closure is incomplete/iu);
 });
 
 test('future built targets require two exact target-root payloads before derivation', (context) => {
@@ -79,9 +89,11 @@ test('future built targets require two exact target-root payloads before derivat
 		copiedHost, 'linux-x64', 'framescaper-ofx-runtime-host', 'runtime',
 	);
 	const isolation = isolationPayload(copiedHost, 'linux-x64');
+	const buildResult = payloadAt(copiedHost, 'linux-x64',
+		'framescaper-openfx-host-build-result.json', 'build-result');
 	manifest.targets['linux-x64'] = {
 		runtime: 'linux-x64', status: 'built', blockedBy: null,
-		toolchainIdentity: '12'.repeat(32), scannerPayload: scanner,
+		toolchainIdentity: '12'.repeat(32), buildResult, scannerPayload: scanner,
 		runtimeHostPayload: runtime, isolationPayload: isolation,
 	};
 	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, '\t')}\n`);
@@ -91,10 +103,10 @@ test('future built targets require two exact target-root payloads before derivat
 	const derived = deriveFramescaperOpenFxPayloadManifest(audit.manifest);
 	assert.deepEqual(derived.payloads, [{
 		id: 'linux-x64', runtime: 'linux-x64',
-		scannerPayload: scanner, runtimeHostPayload: runtime, isolationPayload: isolation,
+		buildResult, scannerPayload: scanner, runtimeHostPayload: runtime, isolationPayload: isolation,
 	}]);
 	assert.deepEqual(derived.targets[0].payload, {
-		scannerPayload: scanner, runtimeHostPayload: runtime, isolationPayload: isolation,
+		buildResult, scannerPayload: scanner, runtimeHostPayload: runtime, isolationPayload: isolation,
 	});
 	manifest.targets['linux-x64'].obsoleteReleaseField = null;
 	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, '\t')}\n`);

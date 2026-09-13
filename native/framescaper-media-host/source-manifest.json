@@ -9,8 +9,6 @@
 		"releaseName": "Lei",
 		"released": "2026-08-12",
 		"url": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz",
-		"signatureUrl": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz.asc",
-		"signingKeyFingerprint": "FCF986EA15E6E293A5644F10B4322F04D67658D8",
 		"byteLength": 12036420,
 		"sha256": "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635",
 		"extractedTree": {
@@ -37,8 +35,8 @@
 	"sourceFiles": [
 		{
 			"path": "CMakeLists.txt",
-			"byteLength": 5034,
-			"sha256": "f9f42a33cda5625854f4dfba7f5a53d95837914d71b28e2d093eced2ec22abfe"
+			"byteLength": 6029,
+			"sha256": "513d5b2d5effe0c38c2d63b2cca26fd09604142f51e81aafad159eaf67ea88aa"
 		},
 		{
 			"path": "CMakePresets.json",
@@ -47,28 +45,33 @@
 		},
 		{
 			"path": "THIRD_PARTY_NOTICES.md",
-			"byteLength": 834,
-			"sha256": "6ab6b5496d5b8cfc5e84d629f6ca2d0479b84de0f1b9e36c70b97a73eed5171a"
+			"byteLength": 1600,
+			"sha256": "2d5d8d323fb6fff8b764eeb23f98eb16934627b5225017b44372bf290af1cb72"
 		},
 		{
 			"path": "build/external-source-authentication.mjs",
-			"byteLength": 5098,
-			"sha256": "955181249912e311c0db5ff73c421347ddd42dd4b7d37936002abc214ec048dc"
+			"byteLength": 4602,
+			"sha256": "450df777d71f7f7fdcdc01a812969927311da53810c4267c17afdc6c9021824c"
 		},
 		{
 			"path": "build/ffmpeg-9.0.1-configure.json",
-			"byteLength": 1556,
-			"sha256": "f3052756420cb1feef08e2f8b4a41874a2804f8f7333e6acb2efe30f13a7ef56"
+			"byteLength": 2745,
+			"sha256": "ba6c938c18a0f0c49acb345c64e18135ee88d56f5d4d40342c25f553cae3db06"
 		},
 		{
 			"path": "build/ffmpeg-9.0.1-external-sources.json",
-			"byteLength": 2402,
-			"sha256": "9acdd925d5cea0e205bc2184a9a0ab106b87a6eb586bd44f8682adfbb2f7e2ca"
+			"byteLength": 2929,
+			"sha256": "feb2daa581936e74579255040e415f2f6acb52f57a864ca448ba1a53f71774e4"
+		},
+		{
+			"path": "build/media-build-commands.mjs",
+			"byteLength": 16024,
+			"sha256": "78f91fe061782a83b3434c0b10d2c5a89568f86adfcccd82e8a75716298102fa"
 		},
 		{
 			"path": "build/recipe-driver.mjs",
-			"byteLength": 28983,
-			"sha256": "9da8fe02bb166c64077da5e432e9769315f844fd0e36267cae32ba926c3d737e"
+			"byteLength": 28005,
+			"sha256": "96be5c3e99315b938e3f29dbb3de0455dc8d56507297cd84e783ddbe8637b4f8"
 		},
 		{
 			"path": "build/source-authentication.mjs",
@@ -78,32 +81,37 @@
 		{
 			"path": "build/targets.json",
 			"byteLength": 1362,
-			"sha256": "d5f23adc0f3154fc4f5c6534eafd77414e998f5e382dd4ac68225db277ba73cd"
+			"sha256": "f35623fefe01d963edb3f3b724e5574a6135cf91fc69bbd64191256e2b7d02ad"
 		},
 		{
 			"path": "build/toolchains/linux-arm64.cmake",
-			"byteLength": 453,
-			"sha256": "f4b4c453e0a0edb7664db9b36fe529ee1c60566ac0a02412a217e5ec1d263163"
+			"byteLength": 543,
+			"sha256": "907af06001d47494063987287c0221a2b116c27b8728d2d335141913c0240238"
 		},
 		{
 			"path": "build/toolchains/linux-x64.cmake",
-			"byteLength": 452,
-			"sha256": "e9a909e154778538d3d250afa903944db3dea7dfecbb246cb4469de5588d9701"
+			"byteLength": 542,
+			"sha256": "caa476969d1c01d571cd5f31ce1de09a23d91b754a01193da124551a17546b5c"
 		},
 		{
 			"path": "build/toolchains/mac-arm64.cmake",
-			"byteLength": 491,
-			"sha256": "4b4cb6dd0768a1c36f7a0ef9b1258d839b115e1b4e37d25c6d059e882a4be6df"
+			"byteLength": 581,
+			"sha256": "a5b6c8ac050887a0617ce7f842a61a7be8bc60c5271c59ee94685794742d779d"
 		},
 		{
 			"path": "build/toolchains/win-arm64.cmake",
-			"byteLength": 455,
-			"sha256": "2dbeb9844e99431f96092047d9f391e19eaad42251f7a00ec4c9bb3ba5ec2197"
+			"byteLength": 543,
+			"sha256": "753b96b8606b59f1df813d4e2e0134d671942ec7106848222c8b126998b4443b"
 		},
 		{
 			"path": "build/toolchains/win-x64.cmake",
-			"byteLength": 453,
-			"sha256": "6c855769b6c354d441497b108f5344bf02db7e6b037ea9e59511cbb008367588"
+			"byteLength": 543,
+			"sha256": "9c4970be569da491d10dcc73d86c731e1c90bdd55ef517c7699fbb7fba2c7879"
+		},
+		{
+			"path": "build/windows-vpx.pc",
+			"byteLength": 244,
+			"sha256": "6fee3eb6c3e8b129b19174ca7e3f01222b57690c197183012ba0ce07f443f670"
 		},
 		{
 			"path": "src/exact_retime_ordinal.hpp",
@@ -386,6 +394,11 @@
 			"sha256": "b636d9357bbceedd7aa8aca88e6cce1b4f989d5c91323a05a266fd94eab3ac72"
 		},
 		{
+			"path": "tests/codec_closure_canary.cpp",
+			"byteLength": 4352,
+			"sha256": "686f9d08c709b38a966775a9b2e4fa68bb5a9c178698353d4cf420111b1d85b3"
+		},
+		{
 			"path": "tests/exact_retime_ordinal_fixture.cpp",
 			"byteLength": 1080,
 			"sha256": "3be7958db0c5e059aa697d54a4678476c317e497f0ed2de5b90225780d7e6be3"
@@ -424,41 +437,46 @@
 	"targets": {
 		"linux-x64": {
 			"runtime": "linux-x64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated Linux x64 FFmpeg 9.0.1-linked media payload has been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
+			"buildResult": null,
 			"payload": null,
 			"isolationPayload": null
 		},
 		"linux-arm64": {
 			"runtime": "linux-arm64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated Linux ARM64 FFmpeg 9.0.1-linked media payload has been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
+			"buildResult": null,
 			"payload": null,
 			"isolationPayload": null
 		},
 		"mac-arm64": {
 			"runtime": "darwin-arm64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated macOS ARM64 FFmpeg 9.0.1-linked media payload has been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
+			"buildResult": null,
 			"payload": null,
 			"isolationPayload": null
 		},
 		"win-x64": {
 			"runtime": "win32-x64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated Windows x64 FFmpeg 9.0.1-linked media payload has been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
+			"buildResult": null,
 			"payload": null,
 			"isolationPayload": null
 		},
 		"win-arm64": {
 			"runtime": "win32-arm64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated Windows Arm64EC FFmpeg 9.0.1-linked media payload has been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
+			"buildResult": null,
 			"payload": null,
 			"isolationPayload": null
 		}

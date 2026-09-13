@@ -9,13 +9,14 @@
 > artifact, runtime, selection, and consent checks still apply. Consult the
 > [nightly model tests](local-model-nightly-tests.md) for current execution coverage.
 
-> **Catalog publication update (2026-09-12):** the reviewed 21-entry catalog
+> **Catalog publication update (2026-09-12):** the 21-entry catalog
 > now includes wav2vec2, TIGER-DnR, PANNs Cnn10, both Beat This checkpoints,
 > TransNetV2, Qwen3, and Dereverb Room. Their immutable public read-back,
 > licensing-row pins, artifact identities, and canonical catalog-entry SHA-256
 > values are recorded. Catalog admission permits authenticated installation;
 > target packages generate and authenticate the exact selected-target runtime
-> closure, and the catalog-task register marks execution activation `ready`.
+> closure on all five targets, and the catalog-task register marks execution
+> activation `ready`. The nightly-with-tests package runs the real model cases.
 
 > **Current release note (2026-08-31):** this historical work plan's formal
 > qualification and release-admission language is not current policy. Real
@@ -67,9 +68,8 @@ Sherpa Node addon. Each affected
 workflow fails closed only when its exact catalog entry, model artifact,
 runtime payload, platform, selected-media authority, storage, consent, or
 external-FFmpeg machine admission is unavailable; no substitute inference or
-implicit download is allowed. Licensing and owner-lab review are reported by
-milestone 9 and block stable 1.0 admission, not build, packaging, catalog
-visibility, or testing.
+implicit download is allowed. Repository CI and nightly-with-tests report the
+package and real-inference result for the exact revision and target.
 Low-disk Whisper, GTCRN/RNNoise, CUDA Cacophony, GPU execution providers, and a
 fine-tuned highlight classifier remain research/watch items outside this
 delivery, not hidden prerequisites.
@@ -235,8 +235,9 @@ not a fifth inference family:
   heartbeats, cancellation deadline, RSS sampling, and exact file grants; no
   renderer receives spawn, binary, or filesystem-path authority. The threat
   model retains `native-helper-processes` as partial because process separation
-  is crash containment rather than an operating-system sandbox and external
-  qualification remains open.
+  is crash containment rather than an operating-system sandbox. Target
+  packaging and nightly-with-tests exercise the maintained runtime boundary on
+  their exact platform.
 - **IPC data discipline:** selected input bytes cross the renderer boundary
   through a digest- and byte-length-bound MessagePort reservation into a
   main-private staging file. The renderer sees only opaque job/claim/stream
@@ -335,10 +336,10 @@ output is needed from it.
 | --- | --- | --- | --- |
 | Denoise, 48 kHz quality | DeepFilterNet3 (ONNX) | ~10 MB | MIT/Apache-2.0 dual |
 | Denoise, lower-cost alternatives | GTCRN and RNNoise are excluded from this delivery | — | — |
-| Stem separation, default | TIGER-DnR neural cores (ONNX) with owned STFT/ISTFT/overlap-add; Dialogue/Music/Effects | pending converted artifacts | MIT code and weights |
+| Stem separation, default | TIGER-DnR neural cores (ONNX) with owned STFT/ISTFT/overlap-add; Dialogue/Music/Effects | cataloged converted artifacts | MIT code and weights |
 | Refused historical separators | Spleeter and Demucs v4 `htdemucs` | — | unresolved weight grants; absent from offered catalog |
-| Audio tagging (laughter/applause/cheer) | PANNs Cnn10 (ONNX) with pinned 527-class AudioSet map | pending converted artifact | Apache-2.0 code / CC-BY-4.0 weights |
-| Beat/downbeat | Beat This `small0` CPU baseline; optional `final0` quality pack | pending converted artifacts | MIT code and weights |
+| Audio tagging (laughter/applause/cheer) | PANNs Cnn10 (ONNX) with pinned 527-class AudioSet map | cataloged converted artifact | Apache-2.0 code / CC-BY-4.0 weights |
+| Beat/downbeat | Beat This `small0` CPU baseline; optional `final0` quality pack | cataloged converted artifacts | MIT code and weights |
 
 ### Vision and semantics (7B)
 
@@ -350,7 +351,7 @@ upstream bytes, not estimates.
 | Task | Model | Disk | License | State |
 | --- | --- | --- | --- | --- |
 | Shot cuts, fast mode | ffmpeg scene score (`scdet`) | 0 (pinned ffmpeg) | existing posture | no model needed |
-| Shot cuts, accurate mode | TransNetV2 | pending converted artifact | MIT upstream | owned TF→PyTorch→ONNX runner exists; live three-runtime parity and catalog publication pending |
+| Shot cuts, accurate mode | TransNetV2 | cataloged converted artifact | MIT upstream | retained conversion/parity evidence and real-model nightly case |
 | Face detection | YuNet 2026may (ONNX) | 0.22 MiB | MIT | pinned |
 | Person/object detection | D-FINE-N COCO (ONNX) | 14.6 MiB | Apache-2.0 | pinned |
 | Track interpolation | ByteTrack/OC-SORT (algorithm port, no weights) | 0 | MIT code | no weights |
@@ -429,7 +430,7 @@ This answers "how are we shipping them."
   model id → version, download URL, byte size, SHA-256, license id,
   attribution text, capability requirements (RAM floor, platform), and
   the licensing-evidence pointers milestone-9 stable 1.0 admission reports.
-  Machine activation depends on the signed entry, exact artifact, platform,
+  Machine activation depends on the digest-pinned entry, exact artifact, platform,
   and runtime compatibility, not completion of that human review. The catalog
   is data, so adding a model is a catalog change, not a code change.
 - **Downloads:** user-action-only, size-bounded, digest-verified,
@@ -608,8 +609,8 @@ Long VOD in, ranked short-clip proposals out, TikTok-shaped export.
 
 ## Delivered so far
 
-The current branch activates the bounded foundation rather than treating
-manual sign-off as an execution switch:
+The current branch activates the bounded foundation without adding any
+non-machine execution switch:
 
 | Area | Current implementation |
 | --- | --- |
@@ -618,27 +619,26 @@ manual sign-off as an execution switch:
 | Native runtime | Target packaging authenticates Sherpa ONNX 1.13.5, including its built Windows-arm64 Node addon, and the isolated, supervised CPU-only ONNX Runtime 1.29.0, whisper.cpp v1.9.3, and llama.cpp b10509 families on all five desktop targets. Their contracts retain memory admission, crash quarantine, and termination cancellation. Fast shots retain the separately admitted external-FFmpeg path. |
 | Job and data boundary | `AssistanceWorkflow` adds a closed workflow graph, one aggregate fence, versioned settings, slotted claims, exact model roles, stage progress, one main-owned consent authority, strict frame-pack/embedding formats, bounded semantic reviewers, and project-isolated disposable custody over all guided and fifteen Advanced recipes. Review media is incrementally hashed and bound to its exact stage/slot claim before native execution. Adapter-owned preprocessing preserves each model's required sample rate/channels; long media remains under one whole-selection fence. VFR and monotonic forward retimes use source-time authority; reverse, ambiguous nested, multicamera, and live inputs refuse. |
 | Product state | Guided recipes and lazy review surfaces are menu-reached; Advanced exposes validated one-stage primitive recipes. Acceptance starts unselected, revalidates the aggregate fence, and reuses ordinary transcript, label, derived-source, annotation, tempo, sequence, crop, and keyframe commands. Disposable indexes, accepted reframe evidence, saliency/tracker state, and ranking checkpoints support deterministic reuse without a schema change. Raw/unselected Qwen output never enters `.scape`; only bounded sanitized editorial metadata belonging to an accepted proposal may be retained. |
-| Implemented feature domains | Workers, deterministic preprocess/postprocess, reviewers, and publishers cover the full planned transcription/alignment, cleanup/diarization, enhancement/separation, reactions, beats, cuts, search/OCR, reframe, highlight, and editorial workflow set. Both ASRs consume reviewed VAD; auto-language alignment admits only detected English; long DeepFilter/TIGER runs spool bounded chunks; cleanup/audio/visual review is mutation-free and editable. Existing Sherpa and fast-shot routes are production-admitted; the new model-backed routes have their exact converted or direct artifacts, reviewed catalog entries, and package-generated authenticated target runtimes. |
+| Implemented feature domains | Workers, deterministic preprocess/postprocess, reviewers, and publishers cover the full planned transcription/alignment, cleanup/diarization, enhancement/separation, reactions, beats, cuts, search/OCR, reframe, highlight, and editorial workflow set. Both ASRs consume reviewed VAD; auto-language alignment admits only detected English; long DeepFilter/TIGER runs spool bounded chunks; cleanup/audio/visual review is mutation-free and editable. Existing Sherpa and fast-shot routes are production-admitted; the new model-backed routes have their exact converted or direct artifacts, machine-verified catalog entries, and package-generated authenticated target runtimes. |
 
 Activation has four explicit boundaries:
 
 1. **Implementation is not payload admission.** The full guided workflow and
-   adapter layer exists, while verified Sherpa and model-free fast shots remain
-   the only currently package-admitted execution baseline. A new route requires
-   its exact reviewed catalog entry and authenticated target payload;
+   adapter layer exists, and packages generate the Sherpa, ONNX Runtime,
+   whisper.cpp, and llama.cpp target closures. A route still requires its exact
+   catalog entry, model artifact, and authenticated target payload;
    absent evidence returns the corresponding typed unavailable result without
    substituting a model, runtime, or result.
-2. **Catalog publication metadata is not upload evidence.** The mirror
+2. **Catalog publication is machine-verified.** The mirror
    publisher streams upstream bodies to disk, stages large objects with
    resumable multipart upload, and requires HEAD, Range, and full public
-   SHA-256 read-back before catalog output for review. This branch
-   records no live R2 write or read-back. Explicit preseed remains a supported
+   SHA-256 read-back before emitting catalog output. Every published catalog row
+   records that immutable read-back evidence. Explicit preseed remains a supported
    zero-network path; a missing object never permits an unpinned upstream fetch.
-3. **Qualification is open but nonblocking.** The owner-qualified fixed-GPU
-   environment remains unprovisioned for the M7 workload and there is no
-   accepted external result. That state is disclosed as documentary evidence;
-   it does not disable the bounded optional foundation or weaken any hard
-   admission check.
+3. **Machine results stay scoped.** CI proves package construction and the
+   nightly-with-tests suite exercises real inference for the exact target and
+   revision. A failed case fails that run; a passing small fixture makes no
+   claim about every input or device.
 4. **No result applies itself.** Assistance can read only explicitly selected
    persisted media under the aggregate fence. Every proposal starts unselected;
    acceptance revalidates source/range/timing/transcript/settings/model authority
@@ -656,8 +656,8 @@ Activation has four explicit boundaries:
 
 The activation decision admits implemented 7A/7B slices once their hard
 authenticity, artifact, selected-media, compatibility, and consent checks pass;
-it does not wait for licensing, manual, or owner-lab review. An incomplete adapter
-still refuses rather than bypassing those checks. The speech stack is shared:
+those executable machine checks determine availability. An incomplete adapter
+still refuses rather than bypassing them. The speech stack is shared:
 7A owns the speech services and 7B consumes them read-only through their
 published service interfaces; ownership stays file-disjoint per the
 coordination rules below.
@@ -725,8 +725,8 @@ activation; explicit preseed is the authenticated offline path.
   manifests; the digest-pinned catalog; resumable digest-verified downloads with
   capacity preflight; per-model install/remove; a menu-reached model
   manager dialog listing state, size, license, and attribution per model.
-	Catalog review retains canonical serialization and SHA-256 payload pins as a
-	separate operational protocol.
+	Repository verification retains canonical serialization and SHA-256 payload
+	pins and checks them against the published artifact record.
 - **Invariants:** Models are plain files the user can inspect and delete
   externally; the app self-heals from external deletion by re-marking the
   model uninstalled. Download is user-action-only and never implicit
@@ -755,9 +755,11 @@ Utility-process supervision, runtime authentication, exact file grants,
 progress, cancellation, Parakeet transcription, Silero speech ranges, and
 pyannote/ERes2Net speaker turns exist. Whisper, wav2vec2, DeepFilterNet/TIGER,
 the ONNX vision/semantic stack, and Qwen now have bounded conditional family
-workers and deterministic adapters; every affected package route remains typed
-unavailable until its exact digest-pinned model and authenticated target payload are
-admitted. Long enhancement/separation processing uses bounded spooled chunks,
+workers and deterministic adapters. Their catalog entries and authenticated
+five-target package closures are admitted; at execution time a route remains
+fail-closed unless its exact installed model and selected-target files pass the
+same checks exercised by CI and `nightly-with-tests`. Long
+enhancement/separation processing uses bounded spooled chunks,
 and cancellation terminates the worker/process rather than waiting for whole
 media completion. Background scheduling priority applies to every assistance
 helper; the runtime-family router additionally holds new jobs under battery or
@@ -817,8 +819,9 @@ their exact catalog/runtime gates. Reviewed results can publish the ordinary
 transcript, labels, edits, derived sources, tempo, annotations, indexes,
 crop/keyframes, and secondary sequences named by their recipe. The registered
 privacy workload now has a runnable fail-closed local collector for authenticated
-real-path trace evidence. It has no accepted owner-lab or five-target packaged
-result and remains documentary rather than an activation switch.
+real-path trace evidence. The ordinary `nightly-with-tests` packages the five
+target closures and executes the real-model cases; collector output remains
+diagnostic rather than an activation switch.
 
 - **Outcome:** The `assistance` task kind in the progress coordinator;
   the consent surface (per-job media selection, explicit model choice);
@@ -827,13 +830,13 @@ result and remains documentary rather than an activation switch.
   `m7-local-assistance-privacy` collectors — network requests after
   install, unselected-media bytes read, digest mismatches, cancellation
   p95, canonical-state losses (config/quality-budgets.json:1047-1060) —
-  runnable locally even while the owner-qualified fixed-GPU host does not
-  admit the M7 workload.
+  runnable locally and in the same packaged nightly path that exercises the
+  selected target's authenticated runtime and model closure.
 - **Invariants:** `optional` status semantics hold: no other milestone's
   gate depends on any of this (status rule docs/quality-budgets.md:42;
   never-blocks semantics roadmap.md:744). Evidence
   stays honest — local evidence never widens the active host's workload
-  admission (the milestone-3 pending-external precedent,
+  admission (the milestone-3 typed-failure precedent,
   docs/milestone-3b-work-packets.md:15-17).
 - **Acceptance:** The collectors produce the five workload metrics
   against the fixture's two selected and two deliberately unselected
@@ -867,12 +870,13 @@ result and remains documentary rather than an activation switch.
   replacement plus owned caption labels. The exact reviewed VAD output is fed
   into either ASR. Automatic-language Whisper keeps the optional wav2vec2 stage,
   but the alignment worker loads it only for detected English and returns no
-  fabricated alignment for other languages. Parakeet is admitted today;
-  Whisper/alignment remain typed unavailable until their digest-pinned catalog/runtime
-  payload evidence is admitted.
+  fabricated alignment for other languages. Parakeet, Whisper, and the optional
+  English alignment model have digest-pinned catalog entries; target packages
+  generate their runtime closures and `nightly-with-tests` executes the real-model
+  cases against those packaged inputs.
   The word-error-rate and word-timing bounds are registered as
-  `m7-local-assistance-speech-accuracy`; measuring them against a real model,
-  packaged cancellation, and owner-lab evidence remain open.
+  `m7-local-assistance-speech-accuracy`; each nightly result records the real
+  model, target package, accuracy observations, and packaged cancellation result.
 - **7A-2 — Filler and silence cleanup proposals.** Outcome: disfluency +
   silence proposal list with audition; accept commits one disjoint-range
   ripple batch. Invariants: proposals are session state; only accepted
@@ -894,8 +898,8 @@ result and remains documentary rather than an activation switch.
   settings are implemented. Balanced retains the established defaults;
   Conservative uses 1.5 s/100 ms/0.8 confidence and Aggressive uses
   300 ms/30 ms/0 confidence. The planted-fixture precision and recall bounds are
-  registered as `m7-local-assistance-speech-accuracy`; running the fixture and
-  manual qualification remain open.
+  registered as `m7-local-assistance-speech-accuracy`; the packaged real-model
+  fixture is run by nightly-with-tests.
 - **7A-3 — Diarization and speaker labels.** Outcome: speaker turns as
   labeled regions; transcript segments gain speakers. Invariants: local
   clustering only; speaker names are user-editable labels, never claimed
@@ -909,8 +913,8 @@ result and remains documentary rather than an activation switch.
   the same digest-bound transcript with anonymous speaker attribution and its
   owned label track in one batch. Cross-project voice identity is absent. The
   diarization-error-rate and label-stability criteria are registered as
-  `m7-local-assistance-speech-accuracy`; measuring them and the owner-lab run
-  remain open.
+  `m7-local-assistance-speech-accuracy`; nightly-with-tests owns the packaged
+  real-model execution case.
 - **7A-4 — Enhancement and stems as derived sources.** Outcome: denoise
   (DeepFilterNet3/GTCRN) and separation (Spleeter; htdemucs behind its
   legal gate) render derived sources the user swaps in; original media
@@ -926,8 +930,9 @@ result and remains documentary rather than an activation switch.
   bounded chunk spooling under one whole-selection fence, capacity preflight,
   original/result or stem audition, and atomic Project Bin, range-replacement,
   or initially-muted D/M/E placement publishers. The existing DeepFilterNet
-  artifact may be admitted independently; TIGER remains unavailable until its
-  converted graph/parity and digest-pinned catalog/runtime evidence lands.
+  artifact and TIGER graph have retained conversion/parity evidence and
+  digest-pinned catalog entries; the selected package supplies their target
+  runtime before either route can execute.
 - **7A-5 — Semantic transcript search.** Outcome: transcript embeddings
   (nomic-embed) in a local disposable index; palette-integrated "find
   where I said…" jumping to timestamps. Invariants: index is rebuildable,
@@ -939,8 +944,8 @@ result and remains documentary rather than an activation switch.
   custody, expiring main-authorized query sessions, stale-query cancellation,
   rank fusion, and exact timeline jumps are implemented. Project/source/range,
   timing, recipe/settings, and model digests key deterministic rebuilds; retained
-  indexes never alter `.scape`. Packaged execution is conditional on the pending
-  ONNX Runtime payload closure.
+  indexes never alter `.scape`. The selected-target package supplies the
+  authenticated ONNX Runtime closure used by this route.
 - **7A-6 — Beat and tempo suggestions.** Outcome: Beat This! beats and
   downbeats as a label track; optional reviewed tempo-map suggestion
   command. Invariants: the MIDI fence is untouched; no automatic
@@ -952,8 +957,8 @@ result and remains documentary rather than an activation switch.
   exactly representable held-tempo diffs are implemented. The MIDI/signature
   fence remains untouched. `small0` is the exact CPU default and `final0` is an
   optional quality pack with no substitution between them. Converted artifacts,
-	live parity, catalog publication, and runtime payload evidence still block
-  packaged execution.
+	live parity, catalog publication read-back, and five-target runtime payload
+	evidence are recorded; `nightly-with-tests` executes the packaged cases.
 - **7A-7 — Exit evidence.** The privacy workload run end-to-end on the
   full 7A surface, results recorded without relabeling pending rows.
 
@@ -961,8 +966,9 @@ result and remains documentary rather than an activation switch.
 
 The complete 7B workflow, review, and publication layer is implemented. Fast
 shots remain the admitted model-free baseline; accurate shots and the other
-model-backed routes stay conditionally unavailable until their exact catalog
-entries and ONNX Runtime payloads pass release admission.
+model-backed routes have exact catalog entries and package-generated ONNX Runtime
+payloads, and become available when those installed inputs pass their runtime
+integrity and compatibility checks.
 
 - **7B-1 — Shot detection and markers.** Outcome: ffmpeg scene scores
   (fast) and TransNetV2 (accurate) produce shot boundaries as timeline
@@ -980,8 +986,8 @@ entries and ONNX Runtime payloads pass release admission.
   Exact authenticated boundaries receive semantic review; explicit acceptance
   commits ordinary timeline annotations, and reject, stale authority, or an
   empty result does not fabricate cuts. Accurate mode has an owned TransNetV2
-  adapter and the same canonical boundary publisher, but its converted graph,
-  three-runtime parity, catalog entry, and payload remain pending.
+  adapter, the same canonical boundary publisher, retained conversion/parity
+  evidence, a digest-pinned catalog entry, and a packaged ONNX runtime.
 - **7B-2 — Frame semantics: tagging and search.** Outcome: shot-aware
   sampled SigLIP 2 embeddings and tags; OCR of overlays on shot keyframes
   as searchable text; palette-integrated visual search fused with 7A-5's
@@ -1020,8 +1026,8 @@ entries and ONNX Runtime payloads pass release admission.
   subject/saliency/tracker evidence is retained with strict source, range,
   timing, model, settings, and crop-authority provenance and can be reused by
   highlights; edited keyframes deliberately replace model provenance with
-  reviewed centre authority. Production availability and subject-retention
-  qualification await runtime payloads and packaged fixtures.
+  reviewed centre authority. Target packages provide the runtime payloads and
+  nightly-with-tests runs the packaged subject/saliency fixtures.
 - **7B-4 — Highlight assembly: the clip maker.** Outcome: the full
   composition above — excitement + heuristic + embedding ranking,
   optional LLM re-rank/titles, boundary snapping, proposal review,
@@ -1042,8 +1048,8 @@ entries and ONNX Runtime payloads pass release admission.
   authenticated fallback chain. Optional Qwen can only rerank known candidates
   and emit bounded grammar-constrained JSON. Raw/unselected output is discarded;
   an accepted proposal may retain only sanitized inert title, hook, chapter, and
-  explanation metadata. PANNs and Qwen remain unavailable until exact model,
-  runtime, catalog, and package evidence passes.
+  explanation metadata. PANNs and Qwen execute only after their exact model,
+  runtime, catalog, and package checks pass; nightly-with-tests runs both cases.
 - **7B-5 — Vertical delivery lookahead.** Outcome: the render plan gains
   a crop stage and an explicit vertical canvas (1080×1920-class,
   deliberately above today's 1280×720 default ceiling,
@@ -1062,8 +1068,9 @@ entries and ONNX Runtime payloads pass release admission.
   system or hardware encode (milestone 5/6 scope).
   **Current implementation:** reframe/highlight acceptance uses existing crop,
   keyframe, composition, and sequence commands; no assistance-only project
-  schema was added. Crop-correct 9:16 golden export and five-target package
-  evidence remain qualification work rather than inferred success.
+  schema was added. The ordinary browser/package tests own crop-correct 9:16
+  export, while each target's nightly-with-tests result reports its packaged
+  model execution without inference from another target.
 - **7B-6 — Exit evidence.** Privacy workload over the 7B surface,
   including the clip maker end-to-end, recorded honestly.
 
@@ -1078,13 +1085,14 @@ entries and ONNX Runtime payloads pass release admission.
   `cancellationP95Ms lte 2000`, `canonicalStateLosses eq 0`. WP-7.0.3
   supplies the checked-in collector at
   `npm run quality:collect:m7-assistance-privacy -- --measurement <record.json>`;
-  7A-7/7B-6 retain actual packaged and owner-lab runs. The collector accepts only
+  7A-7/7B-6 retain actual packaged nightly runs and optional device diagnostics.
+  The collector accepts only
   one warm-up plus five fresh no-retry runs, exact package/catalog/runtime/model
   and media digests, whole-workflow post-install network observation, two selected
   plus two unselected assets, and bounded acceptance/canonical/cancellation
-  ledgers. It writes raw and aggregate development evidence as `pending-external`
-  or `failed`; it has no accepted-evidence mode and synthesizes no model or
-  platform result.
+  ledgers. The collector emits only `passed` or `failed`; it cannot gate
+  activation or replace the pass/fail result emitted by the packaged nightly
+  case, and it synthesizes no model or platform result.
 - The accuracy each model-backed route owes is registered rather than left in
   prose: `m7-local-assistance-speech-accuracy` carries the word-error-rate,
   word-timing, filler precision/recall, diarization-error-rate, label-stability,
@@ -1097,13 +1105,10 @@ entries and ONNX Runtime payloads pass release admission.
   Both are `planned` with specified rather than provisioned corpora and no
   collector: registering a criterion states what a route owes, and is never
   evidence that it is met.
-- The named environment `owner-qualified-windows-x64-rtx3090-01` retains
-  historical earlier-workload diagnostics but is currently unprovisioned and
-  does not admit `m7-local-assistance-privacy`.
-  Local runs produce development evidence; a formal M7 profile and accepted
-  run may later qualify the surface but do not control activation. Missing
-  evidence is recorded as unqualified and is never simulated with a software
-  renderer. No benchmark retry converts a failure into a pass
+- Historical device labels are not required targets or admission profiles.
+  Package and nightly records identify the target they actually ran;
+  missing evidence is never simulated with a software renderer, and no benchmark
+  retry converts a failure into a pass
   (docs/quality-budgets.md:102-104).
 - Bundle gates are untouched by design: no model or runtime byte enters
   the Pages bundle or any JS chunk (roadmap.md:101-103;
@@ -1154,16 +1159,15 @@ entries and ONNX Runtime payloads pass release admission.
   current desktop UI can accept every reviewed workflow result whose exact
   runtime/model gates are admitted into ordinary project state; web routes
   retain and edit that state but cannot run new inference.
-- **Remote model availability is not established here.** A real R2 upload and
-  read-back require the separately scoped publisher credentials and evidence;
-  the product continues to fail closed or use explicit authenticated preseed
-  when mirror objects are absent.
+- **Remote model availability is verified per artifact.** Catalog publication
+  receipts bind immutable public full-digest read-back. Installation still
+  fails closed, and explicit authenticated preseed remains the zero-network
+  alternative when a mirror object cannot be reached.
 
 ## Watch items (not gates yet)
 
 - ONNX Runtime's native WebGPU EP maturing out of experimental — the
   intended successor to DirectML (maintenance mode) for Windows GPU.
-- sherpa-onnx win-arm64 prebuild gap; Snapdragon-class Windows machines.
 - Qwen3.5 small series and Gemma 4 E4B as LLM-pack upgrades; re-verify
   GGUF/llama.cpp support at 7B-4 pickup.
 - Voxtral-Mini-4B-Realtime for a future live-caption feature (GPU-class

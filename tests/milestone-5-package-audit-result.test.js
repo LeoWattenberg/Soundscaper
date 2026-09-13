@@ -31,7 +31,7 @@ test('source, payload, and package failures change checks and fail the package a
 	const baseline = assessMilestone5PackageAuditResult(fixture());
 	for (const [id, mutate] of [
 		['source-authentication:native-source', (value) => {
-			value.sources[0].authenticationStatus = 'pending-external';
+			value.sources[0].authenticationStatus = 'not-materialized';
 			value.sources[0].archiveEvidence = null;
 			value.sources[0].extractedTreeEvidence = null;
 		}],

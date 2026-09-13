@@ -368,8 +368,7 @@ acceptance checks pass.
 
 The foundation's browser and Node gates are green. CI retains bounded timing
 evidence for both selected product routes on Linux and Windows; all four matrix
-rows remain `pending-external` until successful artifacts are reviewed and
-revision-bound.
+rows are machine-produced and revision-bound by the run that exercises them.
 
 ### Soundscaper track (3A, parallel after 3.0)
 
@@ -607,15 +606,15 @@ clearance does not close either track or milestone exit gate.
 **Depends on:** milestones 2–4. Research may begin after milestone 2, but product
 integration waits for the owning shared contract.
 
-**Status:** **Soundscaper's five-target build, install, self-test, receipt, and
-package-validation software is implemented.** The authenticated target-native
-command covers Linux x64/ARM64, macOS ARM64, and Windows x64/ARM64 and accepts
-only Soundscaper's exact source subset, isolation assets, runtime closure,
-professional addon/peer, and applicable OS audio-codec addon. Stable packaging
-requires a matching build result bound to the tag commit, target, build plan,
-closed dependency inventory, required self-tests, architecture, byte lengths,
-and SHA-256 values. Harness-only payloads may support development but cannot be
-packaged. Framescaper native release work remains on its independent line.
+**Status:** **All repository-owned milestone-5 native payload sets have
+five-target producers.** Dedicated CI covers Linux x64/ARM64, macOS ARM64, and
+Windows x64/ARM64 for the Soundscaper helper addon, Soundscaper professional
+closure, Framescaper media host, and Framescaper OpenFX host. Each producer
+provisions its pinned sources, builds on the target-native runner, runs required
+self-tests, closes architecture/dependency/length/SHA-256 inventories, and
+stage-verifies its neutral result. Source-template manifests remain payload-free
+and `ci-generated`; staging one matching result changes only that target to
+`built`. Harness-only payloads may support development but cannot be packaged.
 
 The licensing matrix records the native audio, plug-in, hardware,
 operating-system, and user-installed provider positions. It does not approve
@@ -642,12 +641,12 @@ The [milestone-5 plan](docs/milestone-5-plan.md) owns sequencing and the shared 
   instruments, control surfaces, clock, and MTC are not implemented and do not
   block stable 1.0.
 
-### Framescaper native tier (deferred from Soundscaper Stable 1.0)
+### Framescaper native tier
 
-- **Electron Enhanced — Selected route enabled for testing:** Framescaper F31 delegates through its immutable V28 foundation to exact V14 authority and authenticates one evaluated-RGBA carrier plus optional float32 audio through persistent services V3. Native Windows/macOS/Linux hardware encode permits exactly one identical-plan CPU retry. If both native attempts fail, production returns a typed `web-core-required` result and directs the user to the existing renderer-owned Web Core export route; it neither runs that route in main nor publishes a false native receipt. Empty payload rows remain a machine reason for typed unavailability and make no codec/performance claim.
+- **Electron Enhanced — Selected route enabled for testing:** Framescaper F31 delegates through its immutable V28 foundation to exact V14 authority and authenticates one evaluated-RGBA carrier plus optional float32 audio through persistent services V3. Native Windows/macOS/Linux hardware encode permits exactly one identical-plan CPU retry. If both native attempts fail, production returns a typed `web-core-required` result and directs the user to the existing renderer-owned Web Core export route; it neither runs that route in main nor publishes a false native receipt. The five-target CI-generated media result must be staged before execution; an unstaged checkout reports typed unavailability and makes no codec/performance claim.
 - **Electron Enhanced — Professional media enabled for testing:** pathless sequence/proxy actions are menu-owned. Helper scratch seals an exact regular-file output tree and main revalidates it before no-clobber publication; actual decode/encode still requires an authenticated target payload and compatible profile.
 - **Electron Only — Persistent services V3 enabled:** F31 reaches the V28-founded queue, capacity, scratch, checkpoints, watch/bin/proxy flow, lease-fenced publication, and external display; missing machine authority preserves project state and reports unavailable.
-- **Electron Only — OpenFX enabled for testing:** menu-owned scan, enable, and Add OFX use a shared context-aware exact frame graph for all six contexts across preview/export/carrier. The bounded React route uses Interact Suite V1, custom parameters, DrawSuite V1, normalized events, and no native window; missing/crashed effects preserve state with bypass or verified frozen continuity. The empty payload manifest keeps actual third-party execution machine-unavailable in this checkout, while human review no longer closes the surface.
+- **Electron Only — OpenFX enabled for testing:** menu-owned scan, enable, and Add OFX use a shared context-aware exact frame graph for all six contexts across preview/export/carrier. The bounded React route uses Interact Suite V1, custom parameters, DrawSuite V1, normalized events, and no native window; missing/crashed effects preserve state with bypass or verified frozen continuity. The source-template payload array is empty until the matching five-target CI-generated result is staged; no human review closes the surface.
 - **Delivered in milestone 8A:** the selected F31 web and desktop capture route
   reuses the pathless consent boundary without activating the native-media tier.
 
@@ -753,12 +752,12 @@ invariants, and the bounded work packets are owned by the
 ## 7. Optional local assistance
 
 **Depends on:** milestone 2. **Optional:** never blocks milestones 8 or 9.
-The optional milestone-7 assistance helper uses the milestone-5 supervision and pathless-data-plane foundation; real model and helper checks may be recorded in owner QA when those inputs are available.
+The optional milestone-7 assistance helper uses the milestone-5 supervision and pathless-data-plane foundation; package CI and nightly-with-tests run its target runtime and real-model checks.
 
 **Status:** **The complete menu-reached Milestone 7 workflow layer is implemented on selected Soundscaper S30 and Framescaper F31, but new model-backed routes are only conditionally active.** `AssistanceWorkflow` v1 now governs every guided recipe and all fifteen Advanced primitives with one aggregate fence, exact slotted model/media claims, stage progress, and one main-owned consent authority. Existing Parakeet, Silero, diarization, cleanup, and model-free fast-shot execution remains active.
 Conditional workers cover Whisper/alignment, DeepFilterNet enhancement, TIGER separation, PANNs reactions, Beat This beats, TransNetV2 accurate shots, nomic/SigLIP search, OCR, subject/saliency reframe, deterministic highlights, and bounded Qwen editorial output. VAD feeds either selected ASR; automatic-language Whisper preserves optional wav2vec2 alignment and admits it only for detected English. Long DeepFilter/TIGER runs spool bounded chunks while retaining one whole-selection fence. Strict review binds every audition/preview asset to its exact stage, slot, length, and digest; acceptance revalidates the aggregate fence before one undoable publication.
 Disposable custody retains normalized indexes, OCR/tags, shot tables, saliency/tracker state, accepted reframe evidence, and ranking checkpoints for deterministic reuse. Reframe and highlight review provide editable crops and transport/audition; accepted highlights reuse authenticated reframe paths and may retain only sanitized bounded Qwen title/hook/chapter/explanation metadata, never raw or unselected model output.
-The repository includes hash-locked runnable conversion/parity tooling and retained exact artifacts and live parity for TIGER, PANNs, both Beat This checkpoints, TransNetV2, and Dereverb Room, plus a fail-closed local collector for the registered privacy workload's authenticated real-path trace. The reviewed 21-entry catalog now includes those models together with wav2vec2 and Qwen, binding versioned notices, immutable EU R2 publication, full-digest public read-back, licensing rows, and canonical entry SHA-256 values. All five target closures for ONNX Runtime/whisper.cpp/llama.cpp, the Windows-arm64 Sherpa Node addon, packaged privacy/canary results, and owner-device results remain pending; catalog admission does not activate those runtimes. Authenticated preseed remains the established zero-network path.
+The repository includes hash-locked runnable conversion/parity tooling and retained exact artifacts and live parity for TIGER, PANNs, both Beat This checkpoints, TransNetV2, and Dereverb Room, plus a fail-closed local collector for the registered privacy workload's authenticated real-path trace. The 21-entry catalog now includes those models together with wav2vec2 and Qwen, binding versioned notices, immutable EU R2 publication, full-digest public read-back, licensing rows, and canonical entry SHA-256 values. Target packages generate and authenticate ONNX Runtime, whisper.cpp, and llama.cpp closures on all five targets, including the Windows-arm64 Sherpa Node addon. Nightly-with-tests runs every packaged real-model canary on its selected target and reports the result. Authenticated preseed remains the established zero-network path.
 Catalog identity, artifact digest, runtime/platform compatibility, selected-media authority, storage integrity, explicit consent, and external-FFmpeg machine validation remain fail-closed execution checks. The licensing worksheet is owner-only and non-gating; candidate versioned-download notices and hashes remain concrete distribution requirements. None disables unrelated build, packaging, catalog visibility, or testing.
 
 Sequencing, runtime and model-catalog decisions, lifecycle invariants, and bounded work packets
@@ -767,9 +766,9 @@ are owned by the [milestone-7 plan](docs/milestone-7-plan.md).
 - **Electron Only — Optional:** the closed operation vocabulary and guided workflows
   cover transcription, diarization, enhancement/separation, cleanup, reactions,
   beats, shots, indexed search/OCR, reframe, highlights, and editorial proposals.
-  Their contracts, reviewed CPU adapters, and publishers are implemented; only the
-  existing Sherpa and fast-FFmpeg baseline is available until each new exact
-  model and runtime payload passes its integrity and runtime checks.
+  Their contracts, reviewed CPU adapters, and publishers are implemented. Each
+  route becomes available when its exact installed model and package-generated
+  runtime pass their integrity and runtime checks.
   Re-tiered from Web Enhanced / Electron Enhanced by user decision on 2026-08-11:
   inference is native-only. The web products run no inference, but retain and edit
   explicitly accepted ordinary labels, annotations, edits, and transcript references.
@@ -951,8 +950,7 @@ keeps an independent release line and does not gate Soundscaper.
 
 **Status:** **Soundscaper software is feature-complete and the Stable 1.0
 workflow is automated.** Pushing `v1.0.0` is the repository owner's release
-decision; no qualification campaign, signed readiness record, fixed lab matrix,
-or human attestation is required.
+decision. Repository checks report the revision's build and test results.
 
 **Goal:** rebuild, test, package, and publish one coherent Soundscaper revision
 while giving the owner useful optional QA and debugging tools.

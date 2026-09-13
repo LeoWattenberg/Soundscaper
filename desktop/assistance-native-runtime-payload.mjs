@@ -36,7 +36,7 @@ export function assistanceNativeRuntimeTargetId({ platform, arch }) {
 export const ASSISTANCE_TARGET_STATUSES = Object.freeze([
 	'built',
 	'unsupported',
-	'pending-external',
+	'package-generated',
 ]);
 
 export function assistanceNativeRuntimeStageSummary(manifestValue, targetId) {
@@ -178,7 +178,9 @@ function validateManifestAndTarget(value, targetId) {
 			throw new TypeError(`The assistance native runtime target ${id} is invalid.`);
 		}
 		if (candidate.status === 'built') validatePackage(candidate.package, value.version, false);
-		else if (typeof candidate.blockedBy !== 'string' || candidate.blockedBy.trim().length < 16
+		else if ((candidate.status === 'package-generated'
+				? candidate.blockedBy !== null
+				: typeof candidate.blockedBy !== 'string' || candidate.blockedBy.trim().length < 16)
 			|| Object.hasOwn(candidate, 'package')) {
 			throw new TypeError(`The unavailable assistance target ${id} is invalid.`);
 		}

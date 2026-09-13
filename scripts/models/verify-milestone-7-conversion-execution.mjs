@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Verifies conversion recipes, or audits a retained external evidence bundle. */
+/** Verifies conversion recipes, or audits a retained machine evidence bundle. */
 
 import { readFile } from 'node:fs/promises';
 

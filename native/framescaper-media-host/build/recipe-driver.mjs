@@ -4,7 +4,7 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import {
-	lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync,
+	cpSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync,
 } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -15,8 +15,18 @@ import {
 	verifySourceAuthenticationWitness,
 } from './source-authentication.mjs';
 import {
+	authenticateFramescaperMediaHostExternalSourceRoot,
+	FRAMESCAPER_MEDIA_HOST_EXTERNAL_SOURCE_IDS,
 	validateFramescaperMediaHostExternalSourceManifest,
 } from './external-source-authentication.mjs';
+import {
+	createFramescaperMediaHostBuildCommands,
+	FRAMESCAPER_FFMPEG_CONFIGURE_FLAGS,
+	FRAMESCAPER_FFMPEG_POLICY,
+	framescaperMediaHostBuildPaths,
+	framescaperMediaHostLocalSourceInventory,
+	verifyFramescaperFfmpegConfiguration,
+} from './media-build-commands.mjs';
 
 const HOST_ROOT = 'native/framescaper-media-host';
 const SOURCE_RECEIPT = '.framescaper-source-identity.json';
@@ -29,45 +39,18 @@ const TARGETS = Object.freeze([
 	Object.freeze({ id: 'linux-arm64', runtime: 'linux-arm64', hostRuntime: 'linux-arm64', cmakePreset: 'linux-arm64', toolchainFile: 'build/toolchains/linux-arm64.cmake', ffmpegTarget: 'aarch64-linux-gnu', payloadName: 'framescaper-media-host' }),
 	Object.freeze({ id: 'mac-arm64', runtime: 'darwin-arm64', hostRuntime: 'darwin-arm64', cmakePreset: 'mac-arm64', toolchainFile: 'build/toolchains/mac-arm64.cmake', ffmpegTarget: 'arm64-apple-darwin', payloadName: 'framescaper-media-host' }),
 	Object.freeze({ id: 'win-x64', runtime: 'win32-x64', hostRuntime: 'win32-x64', cmakePreset: 'win-x64', toolchainFile: 'build/toolchains/win-x64.cmake', ffmpegTarget: 'x86_64-w64-mingw32', payloadName: 'framescaper-media-host.exe' }),
-	Object.freeze({ id: 'win-arm64', runtime: 'win32-arm64', hostRuntime: 'win32-arm64', cmakePreset: 'win-arm64', toolchainFile: 'build/toolchains/win-arm64.cmake', ffmpegTarget: 'arm64ec-windows-msvc', payloadName: 'framescaper-media-host.exe' }),
+	Object.freeze({ id: 'win-arm64', runtime: 'win32-arm64', hostRuntime: 'win32-arm64', cmakePreset: 'win-arm64', toolchainFile: 'build/toolchains/win-arm64.cmake', ffmpegTarget: 'aarch64-windows-msvc', payloadName: 'framescaper-media-host.exe' }),
 ]);
 const OPTION_FIELDS = Object.freeze([
 	'repositoryRoot', 'targetId', 'hostRuntime', 'toolchainReceipt', 'toolchainIdentity',
-	'ffmpegSourceRoot', 'boostSourceRoot', 'outputRoot',
+	'ffmpegSourceRoot', 'boostSourceRoot', 'externalSourceRoot', 'outputRoot',
 ]);
-const TOOL_ROLES = Object.freeze([
+const BASE_TOOL_ROLES = Object.freeze([
 	'ar', 'c', 'cmake', 'cxx', 'make', 'ninja', 'pkgConfig', 'ranlib', 'shell',
 ]);
 const TOOLCHAIN_ENVIRONMENT = new Set([
 	'INCLUDE', 'LIB', 'LIBPATH', 'MACOSX_DEPLOYMENT_TARGET', 'PATH', 'SDKROOT', 'SYSTEMROOT',
 ]);
-const FFMPEG_CONFIGURE_FLAGS = Object.freeze([
-	'--disable-everything', '--disable-autodetect', '--disable-doc', '--disable-debug',
-	'--disable-programs', '--disable-shared', '--disable-network', '--enable-static',
-	'--enable-pic', '--enable-gpl', '--enable-avcodec', '--enable-avfilter',
-	'--enable-avformat', '--enable-swresample', '--enable-swscale',
-	'--enable-decoder=prores', '--enable-decoder=pcm_f32le',
-	'--enable-decoder=png', '--enable-decoder=tiff', '--enable-decoder=exr',
-	'--enable-encoder=prores_ks', '--enable-encoder=pcm_s16le',
-	'--enable-encoder=png', '--enable-encoder=tiff', '--enable-encoder=exr',
-	'--enable-demuxer=mov', '--enable-demuxer=wav',
-	'--enable-muxer=mov', '--enable-muxer=image2',
-	'--enable-protocol=file', '--enable-protocol=pipe',
-]);
-const FFMPEG_POLICY = Object.freeze({
-	rawFfmpegArguments: false,
-	network: false,
-	externalLibraries: Object.freeze([]),
-	enabledDecoders: Object.freeze(['prores', 'pcm_f32le', 'png', 'tiff', 'exr']),
-	enabledEncoders: Object.freeze(['prores_ks', 'pcm_s16le', 'png', 'tiff', 'exr']),
-	enabledDemuxers: Object.freeze(['mov', 'wav']),
-	enabledMuxers: Object.freeze(['mov', 'image2']),
-	enabledProtocols: Object.freeze(['file', 'pipe']),
-	blockedComponents: Object.freeze([
-		'av1', 'h264', 'hevc', 'libvpx-vp9', 'libx264', 'vp9',
-	]),
-	payloadPublicationRequiresVerifiedBuildResult: true,
-});
 const RECIPES = new WeakMap();
 const EXECUTED = new WeakSet();
 
@@ -89,7 +72,7 @@ export function createFramescaperMediaHostBuildRecipe(value) {
 		witnessFile(join(hostRoot, 'source-manifest.json'), witnesses),
 		'media-host source manifest',
 	);
-	assertPendingTargets(manifest);
+	assertCiGeneratedTargets(manifest);
 	verifyPinnedSourceClosure(hostRoot, manifest, witnesses);
 	const target = exactTarget(hostRoot, manifest, options.targetId, witnesses);
 	if (options.hostRuntime !== target.hostRuntime) {
@@ -98,26 +81,28 @@ export function createFramescaperMediaHostBuildRecipe(value) {
 	const outputRoot = emptyOutputRoot(options.outputRoot, repositoryRoot);
 	const ffmpegSourceRoot = existingDirectory(options.ffmpegSourceRoot, 'FFmpeg source root');
 	const boostSourceRoot = existingDirectory(options.boostSourceRoot, 'Boost source root');
-	assertSeparateRoots([hostRoot, outputRoot, ffmpegSourceRoot, boostSourceRoot]);
+	const externalSourceRoot = existingDirectory(
+		options.externalSourceRoot, 'media-host external-source root',
+	);
+	assertSeparateRoots([hostRoot, outputRoot, ffmpegSourceRoot, boostSourceRoot, externalSourceRoot]);
 	const configure = pinnedJson(hostRoot, manifest, 'build/ffmpeg-9.0.1-configure.json', witnesses);
 	assertFfmpegConfigure(configure, manifest);
-	validateFramescaperMediaHostExternalSourceManifest(pinnedJson(
+	const externalManifest = validateFramescaperMediaHostExternalSourceManifest(pinnedJson(
 		hostRoot, manifest, configure.externalSourceManifest, witnesses,
 	));
 	verifyFfmpegSource(ffmpegSourceRoot, manifest, witnesses);
 	verifyBoostSource(boostSourceRoot, manifest, witnesses);
+	const externalSourceRoots = verifyExternalSources(
+		externalSourceRoot, externalManifest, witnesses,
+	);
 	const tools = verifyToolchain(
 		options.toolchainReceipt, options.toolchainIdentity, target, witnesses,
 	);
-	const paths = Object.freeze({
-		ffmpegBuild: join(outputRoot, 'ffmpeg-build'),
-		ffmpegInstall: join(outputRoot, 'ffmpeg-install'),
-		hostBuild: join(outputRoot, 'host-build'),
-		hostInstall: join(outputRoot, 'host-install'),
-	});
+	const paths = framescaperMediaHostBuildPaths(outputRoot);
 	const environment = exactEnvironment(tools.environment, manifest.sourceDateEpoch, configure.environment);
-	const commands = mediaCommands({
-		target, hostRoot, ffmpegSourceRoot, boostSourceRoot, paths, tools, environment,
+	const commands = createFramescaperMediaHostBuildCommands({
+		target, hostRoot, ffmpegSourceRoot, boostSourceRoot, externalSourceRoots,
+		paths, tools, environment,
 		configureFlags: configure.configureFlags,
 	});
 	const recipe = deepFreeze({
@@ -132,6 +117,9 @@ export function createFramescaperMediaHostBuildRecipe(value) {
 	RECIPES.set(recipe, Object.freeze({
 		hostRuntime: target.hostRuntime,
 		outputRoot,
+		paths,
+		zlibSourceRoot: externalSourceRoots.zlib,
+		externalManifest,
 		witnesses: Object.freeze(witnesses),
 	}));
 	return recipe;
@@ -145,17 +133,35 @@ export function executeFramescaperMediaHostBuildRecipe(
 	if (!state || EXECUTED.has(recipe)) {
 		throw new TypeError('Only one fresh authentic media-host build recipe may execute.');
 	}
-	const fields = closedRecord(options, ['run'], 'media-host execution options', true);
+	const fields = closedRecord(
+		options, ['run', 'verifyFfmpegConfiguration'], 'media-host execution options', true,
+	);
 	if (currentHostRuntime() !== state.hostRuntime) throw new Error(`Build host drifted from ${state.hostRuntime}.`);
 	const run = fields.run ?? spawnSync;
+	const verifyConfiguration = fields.verifyFfmpegConfiguration
+		?? verifyFramescaperFfmpegConfiguration;
 	if (typeof run !== 'function') throw new TypeError('The media-host command runner must be callable.');
+	if (typeof verifyConfiguration !== 'function') {
+		throw new TypeError('The FFmpeg configuration verifier must be callable.');
+	}
 	verifyWitnesses(state.witnesses);
 	existingDirectory(state.outputRoot, 'output root');
 	if (readdirSync(state.outputRoot).length !== 0) throw new Error('The explicit output root is no longer empty.');
 	EXECUTED.add(recipe);
-	for (const path of ['ffmpeg-build', 'ffmpeg-install', 'host-build', 'host-install']) {
+	for (const path of [
+		'x264-build', 'x264-install', 'x265-build', 'x265-install',
+		'libvpx-build', 'libvpx-install', 'libopus-build', 'libopus-install',
+		'zlib-build', 'zlib-install', 'ffmpeg-build', 'ffmpeg-install',
+		'host-build', 'host-install',
+	]) {
 		mkdirSync(join(state.outputRoot, path), { mode: 0o700 });
 	}
+	cpSync(state.zlibSourceRoot, state.paths.zlibSource, {
+		recursive: true, force: false, errorOnExist: true, preserveTimestamps: true,
+	});
+	authenticateFramescaperMediaHostExternalSourceRoot(
+		state.externalManifest, 'zlib', state.paths.zlibSource,
+	);
 	for (const command of recipe.commands) {
 		verifyWitnesses(state.witnesses);
 		const result = run(command.executable, [...command.args], {
@@ -164,54 +170,8 @@ export function executeFramescaperMediaHostBuildRecipe(
 		if (!result || result.status !== 0) {
 			throw new Error(`Media-host ${command.phase} failed with status ${String(result?.status)}.`);
 		}
+		if (command.phase === 'ffmpeg-configure') verifyConfiguration(state.paths.ffmpegBuild);
 	}
-}
-
-function mediaCommands(input) {
-	const { target, hostRoot, ffmpegSourceRoot, boostSourceRoot, paths, tools, environment } = input;
-	const ffmpegArguments = [
-		join(ffmpegSourceRoot, 'configure'),
-		...input.configureFlags,
-		`--prefix=${paths.ffmpegInstall}`,
-		...ffmpegTargetArguments(target),
-		`--cc=${tools.executables.c.path}`,
-		`--cxx=${tools.executables.cxx.path}`,
-		`--ar=${tools.executables.ar.path}`,
-		`--ranlib=${tools.executables.ranlib.path}`,
-	];
-	const cmakeArguments = [
-		'--preset', target.cmakePreset, '-S', hostRoot, '-B', paths.hostBuild, '--fresh',
-		`-DCMAKE_MAKE_PROGRAM=${tools.executables.ninja.path}`,
-		`-DFRAMESCAPER_C_COMPILER=${tools.executables.c.path}`,
-		`-DFRAMESCAPER_CXX_COMPILER=${tools.executables.cxx.path}`,
-		`-DCMAKE_INSTALL_PREFIX=${paths.hostInstall}`,
-		`-DBOOST_ROOT=${boostSourceRoot}`, '-DBoost_NO_SYSTEM_PATHS=ON',
-		`-DPKG_CONFIG_EXECUTABLE=${tools.executables.pkgConfig.path}`,
-		`-DCMAKE_PREFIX_PATH=${paths.ffmpegInstall}`,
-	];
-	const hostEnvironment = Object.freeze({
-		...environment,
-		PKG_CONFIG_PATH: join(paths.ffmpegInstall, 'lib', 'pkgconfig'),
-	});
-	return Object.freeze([
-		command('ffmpeg-configure', tools.executables.shell.path, ffmpegArguments, paths.ffmpegBuild, environment),
-		command('ffmpeg-build', tools.executables.make.path, ['-C', paths.ffmpegBuild, '-j1'], paths.ffmpegBuild, environment),
-		command('ffmpeg-install', tools.executables.make.path, ['-C', paths.ffmpegBuild, 'install'], paths.ffmpegBuild, environment),
-		command('host-configure', tools.executables.cmake.path, cmakeArguments, hostRoot, hostEnvironment),
-		command('host-build', tools.executables.cmake.path, ['--build', paths.hostBuild, '--config', 'Release', '--target', 'framescaper-media-host', '--parallel', '1'], hostRoot, hostEnvironment),
-		command('host-install', tools.executables.cmake.path, ['--install', paths.hostBuild, '--config', 'Release', '--prefix', paths.hostInstall], hostRoot, hostEnvironment),
-	]);
-}
-
-function ffmpegTargetArguments(target) {
-	if (target.id === 'linux-x64') return ['--target-os=linux', '--arch=x86_64'];
-	if (target.id === 'linux-arm64') return ['--target-os=linux', '--arch=aarch64'];
-	if (target.id === 'mac-arm64') return ['--target-os=darwin', '--arch=arm64'];
-	if (target.id === 'win-x64') return ['--target-os=win64', '--arch=x86_64', '--toolchain=msvc'];
-	return [
-		'--target-os=win64', '--arch=arm64', '--toolchain=msvc',
-		'--extra-cflags=/arm64EC', '--extra-ldflags=/machine:arm64EC',
-	];
 }
 
 function exactTarget(hostRoot, manifest, value, witnesses) {
@@ -255,19 +215,19 @@ function expectedToolchain(targetId) {
 		'linux-arm64': 'set(CMAKE_SYSTEM_NAME Linux)\nset(CMAKE_SYSTEM_PROCESSOR aarch64)',
 		'mac-arm64': 'set(CMAKE_SYSTEM_NAME Darwin)\nset(CMAKE_OSX_ARCHITECTURES arm64)\nset(CMAKE_OSX_DEPLOYMENT_TARGET 13.0)',
 		'win-x64': 'set(CMAKE_SYSTEM_NAME Windows)\nset(CMAKE_SYSTEM_PROCESSOR AMD64)',
-		'win-arm64': 'set(CMAKE_SYSTEM_NAME Windows)\nset(CMAKE_SYSTEM_PROCESSOR ARM64EC)',
+		'win-arm64': 'set(CMAKE_SYSTEM_NAME Windows)\nset(CMAKE_SYSTEM_PROCESSOR ARM64)',
 	}[targetId];
-	return `# SPDX-License-Identifier: AGPL-3.0-only\n${platform}\nif(NOT IS_ABSOLUTE "\${FRAMESCAPER_C_COMPILER}" OR NOT IS_ABSOLUTE "\${FRAMESCAPER_CXX_COMPILER}")\n\tmessage(FATAL_ERROR "The recipe must supply absolute authenticated C and C++ compilers")\nendif()\nset(CMAKE_C_COMPILER "\${FRAMESCAPER_C_COMPILER}" CACHE FILEPATH "" FORCE)\nset(CMAKE_CXX_COMPILER "\${FRAMESCAPER_CXX_COMPILER}" CACHE FILEPATH "" FORCE)\n`;
+	return `# SPDX-License-Identifier: AGPL-3.0-only\n${platform}\nset(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES FRAMESCAPER_C_COMPILER FRAMESCAPER_CXX_COMPILER)\nif(NOT IS_ABSOLUTE "\${FRAMESCAPER_C_COMPILER}" OR NOT IS_ABSOLUTE "\${FRAMESCAPER_CXX_COMPILER}")\n\tmessage(FATAL_ERROR "The recipe must supply absolute authenticated C and C++ compilers")\nendif()\nset(CMAKE_C_COMPILER "\${FRAMESCAPER_C_COMPILER}" CACHE FILEPATH "" FORCE)\nset(CMAKE_CXX_COMPILER "\${FRAMESCAPER_CXX_COMPILER}" CACHE FILEPATH "" FORCE)\n`;
 }
 
-function assertPendingTargets(manifest) {
+function assertCiGeneratedTargets(manifest) {
 	closedRecord(manifest, [
 		'schemaVersion', 'hostVersion', 'helperContractVersion', 'license', 'sourceDateEpoch',
 		'ffmpeg', 'boost', 'sourceFiles', 'targets',
 	], 'media-host source manifest');
 	closedRecord(manifest.ffmpeg, [
-		'version', 'releaseName', 'released', 'url', 'signatureUrl', 'signingKeyFingerprint',
-		'byteLength', 'sha256', 'extractedTree', 'configureRecipe', 'licenceMode',
+		'version', 'releaseName', 'released', 'url', 'byteLength', 'sha256', 'extractedTree',
+		'configureRecipe', 'licenceMode',
 	], 'media-host FFmpeg pin');
 	closedRecord(manifest.boost, [
 		'version', 'sourceManifest', 'archiveSha256', 'headerClosure',
@@ -291,14 +251,14 @@ function assertPendingTargets(manifest) {
 	for (const target of TARGETS) {
 		const state = manifest.targets[target.id];
 		closedRecord(state, [
-			'runtime', 'status', 'blockedBy', 'toolchainIdentity', 'payload',
+			'runtime', 'status', 'blockedBy', 'toolchainIdentity', 'buildResult', 'payload',
 			'isolationPayload',
 		], `media-host ${target.id} target state`);
-		if (state?.status !== 'pending-external' || state.toolchainIdentity !== null
+		if (state?.status !== 'ci-generated' || state.toolchainIdentity !== null
+			|| state.buildResult !== null || state.blockedBy !== null
 			|| state.payload !== null || state.isolationPayload !== null
-			|| state.runtime !== target.runtime
-			|| typeof state.blockedBy !== 'string' || state.blockedBy.length === 0) {
-			throw new Error(`Target ${target.id} must remain pending-external with no payload claim.`);
+			|| state.runtime !== target.runtime) {
+			throw new Error(`Target ${target.id} must remain CI-generated with no payload claim.`);
 		}
 	}
 }
@@ -309,12 +269,12 @@ function assertFfmpegConfigure(recipe, manifest) {
 		'environment', 'configureFlags', 'policy',
 	], 'pinned FFmpeg configure recipe');
 	closedRecord(recipe.environment, ['TZ', 'LC_ALL', 'ARFLAGS', 'ZERO_AR_DATE'], 'FFmpeg environment');
-	closedRecord(recipe.policy, Object.keys(FFMPEG_POLICY), 'FFmpeg component policy');
+	closedRecord(recipe.policy, Object.keys(FRAMESCAPER_FFMPEG_POLICY), 'FFmpeg component policy');
 	if (recipe.schemaVersion !== 1 || recipe.sourceVersion !== manifest.ffmpeg.version
 		|| recipe.sourceDateEpoch !== manifest.sourceDateEpoch
 		|| recipe.externalSourceManifest !== 'build/ffmpeg-9.0.1-external-sources.json'
-		|| canonicalJson(recipe.configureFlags) !== canonicalJson(FFMPEG_CONFIGURE_FLAGS)
-		|| canonicalJson(recipe.policy) !== canonicalJson(FFMPEG_POLICY)) {
+		|| canonicalJson(recipe.configureFlags) !== canonicalJson(FRAMESCAPER_FFMPEG_CONFIGURE_FLAGS)
+		|| canonicalJson(recipe.policy) !== canonicalJson(FRAMESCAPER_FFMPEG_POLICY)) {
 		throw new Error('The pinned FFmpeg configure recipe is not closed.');
 	}
 	for (const argument of recipe.configureFlags) {
@@ -341,10 +301,15 @@ function verifyPinnedSourceClosure(root, manifest, witnesses) {
 	if (canonicalJson(paths) !== canonicalJson([...paths].sort())) {
 		throw new Error('The media-host source-file inventory must be path sorted.');
 	}
+	const actual = framescaperMediaHostLocalSourceInventory(root);
+	if (canonicalJson(actual) !== canonicalJson(paths)) {
+		throw new Error('The media-host source-file inventory omits or invents a local build input.');
+	}
 	for (const required of [
 		'CMakeLists.txt', 'CMakePresets.json', 'build/ffmpeg-9.0.1-configure.json',
 		'build/external-source-authentication.mjs', 'build/ffmpeg-9.0.1-external-sources.json',
-		'build/recipe-driver.mjs', 'build/source-authentication.mjs', 'build/targets.json',
+		'build/media-build-commands.mjs', 'build/recipe-driver.mjs',
+		'build/source-authentication.mjs', 'build/targets.json', 'build/windows-vpx.pc',
 		...TARGETS.map(({ toolchainFile }) => toolchainFile),
 	]) if (!paths.includes(required)) throw new Error(`Required build input ${required} is not pinned.`);
 }
@@ -377,6 +342,33 @@ function verifyBoostSource(root, manifest, witnesses) {
 	addBoostClosureWitness(root, manifest.boost.headerClosure, witnesses, 'Boost 1.92.0 header closure');
 }
 
+function verifyExternalSources(root, manifest, witnesses) {
+	const entries = readdirSync(root, { withFileTypes: true });
+	if (canonicalJson(entries.map(({ name }) => name).sort())
+		!== canonicalJson([...FRAMESCAPER_MEDIA_HOST_EXTERNAL_SOURCE_IDS].sort())
+		|| entries.some((entry) => !entry.isDirectory() || entry.isSymbolicLink())) {
+		throw new Error('The media-host external-source root must contain exactly five source trees.');
+	}
+	const result = {};
+	for (const id of FRAMESCAPER_MEDIA_HOST_EXTERNAL_SOURCE_IDS) {
+		const sourceRoot = existingDirectory(join(root, id), `${id} source root`);
+		const row = manifest.libraries.find((entry) => entry.id === id);
+		const receipt = sourceReceipt(sourceRoot, witnesses);
+		const expected = {
+			schemaVersion: 1, component: id, version: row.version, revision: row.revision,
+			archiveSha256: row.sha256, extractedTreeSha256: row.extractedTree.sha256,
+			root: sourceRoot,
+		};
+		if (canonicalJson(receipt) !== canonicalJson(expected)) {
+			throw new Error(`The ${id} source receipt is not the pinned identity.`);
+		}
+		authenticateFramescaperMediaHostExternalSourceRoot(manifest, id, sourceRoot);
+		addSourceTreeWitness(sourceRoot, row.extractedTree, witnesses, `${id} extracted source tree`);
+		result[id] = sourceRoot;
+	}
+	return Object.freeze(result);
+}
+
 function verifyToolchain(pathValue, identityValue, target, witnesses) {
 	const path = existingFile(pathValue, 'toolchain receipt');
 	const receipt = jsonFile(path, 'toolchain receipt');
@@ -392,8 +384,9 @@ function verifyToolchain(pathValue, identityValue, target, witnesses) {
 		|| row.identitySha256 !== identitySha256 || identityValue !== identitySha256) {
 		throw new Error('The provisioned media-host toolchain identity drifted.');
 	}
-	const executables = closedRecord(row.executables, TOOL_ROLES, 'toolchain executables');
-	for (const role of TOOL_ROLES) {
+	const roles = toolRoles(target.id);
+	const executables = closedRecord(row.executables, roles, 'toolchain executables');
+	for (const role of roles) {
 		const entry = closedRecord(executables[role], ['path', 'sha256'], `toolchain executable ${role}`);
 		const executable = existingFile(entry.path, `toolchain executable ${role}`);
 		const bytes = witnessFile(executable, witnesses);
@@ -403,6 +396,12 @@ function verifyToolchain(pathValue, identityValue, target, witnesses) {
 	const environment = closedEnvironment(row.environment);
 	witnessFile(path, witnesses);
 	return Object.freeze({ identitySha256, executables: Object.freeze(executables), environment });
+}
+
+function toolRoles(targetId) {
+	return targetId.startsWith('win-')
+		? Object.freeze([...BASE_TOOL_ROLES, 'msbuild', 'rc'])
+		: BASE_TOOL_ROLES;
 }
 
 function exactEnvironment(toolchain, sourceDateEpoch, ffmpeg) {
@@ -514,16 +513,6 @@ function jsonBytes(bytes, name) {
 	try { result = JSON.parse(bytes.toString('utf8')); }
 	catch { throw new TypeError(`${name} must be valid JSON.`); }
 	return closedRecord(result, Object.keys(result ?? {}), name);
-}
-
-function command(phase, executable, args, cwd, environment) {
-	if (!Array.isArray(args) || args.some((value) => typeof value !== 'string' || value.includes('\0'))) {
-		throw new TypeError(`Build phase ${phase} has unsafe arguments.`);
-	}
-	return Object.freeze({
-		phase, executable, args: Object.freeze(args), cwd,
-		environment: Object.freeze({ ...environment }),
-	});
 }
 
 function closedRecord(value, fields, name, optional = false) {

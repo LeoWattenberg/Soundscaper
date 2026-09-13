@@ -225,14 +225,26 @@ function structuralSignature(markdown) {
 	};
 }
 
+/** Resolve a translated identifier-shaped word to the exact protected source prefix. */
+function sourceIdentifierPrefix(identifier, sourceIdentifiers) {
+	if (sourceIdentifiers.has(identifier)) return identifier;
+	return [...sourceIdentifiers]
+		.sort((left, right) => right.length - left.length)
+		.find((sourceIdentifier) => identifier.startsWith(sourceIdentifier)
+			&& /^(?:[\p{L}\p{M}]+|-[\p{L}\p{M}]+)$/u.test(identifier.slice(sourceIdentifier.length)));
+}
+
 export function assertStructuralParity(source, target) {
 	const sourceSignature = structuralSignature(source);
 	const targetSignature = structuralSignature(target);
+	// Natural translated prose can introduce identifier-shaped compounds or add
+	// a grammatical suffix directly after an opaque identifier token. Ignore the
+	// former while still requiring every exact source byte sequence as often and
+	// in the same order; generation separately protects each token itself.
 	const sourceIdentifiers = new Set(sourceSignature.identifiers);
-	// Natural translated prose can introduce identifier-shaped compounds. Keep
-	// those, while still requiring every source identifier exactly as often and
-	// in the same order; generation also protects each one with an opaque token.
-	targetSignature.identifiers = targetSignature.identifiers.filter((identifier) => sourceIdentifiers.has(identifier));
+	targetSignature.identifiers = targetSignature.identifiers
+		.map((identifier) => sourceIdentifierPrefix(identifier, sourceIdentifiers))
+		.filter(Boolean);
 	assert.deepEqual(
 		targetSignature,
 		sourceSignature,

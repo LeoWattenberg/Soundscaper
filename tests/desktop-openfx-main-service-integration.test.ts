@@ -526,8 +526,8 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 					},
 					supportedGpuBackends: ['opengl', 'opencl', 'cuda'] as const,
 				} }
-				: { status: 'unavailable' as const, reason: 'payload-pending-external' as const,
-					detail: 'No authenticated OpenFX payload.' }; },
+				: { status: 'unavailable' as const, reason: 'payload-not-generated' as const,
+					detail: 'No OpenFX CI result is staged.' }; },
 			reason: null, manager,
 			available: () => runtimeAvailable.available,
 			selfTestPassed: () => true, dispose: () => true,

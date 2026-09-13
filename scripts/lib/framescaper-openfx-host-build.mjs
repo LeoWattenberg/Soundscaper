@@ -23,7 +23,7 @@ const LINUX_RUNTIME_LOADERS = Object.freeze({
 const SHA256 = /^[a-f0-9]{64}$/u;
 const TARGET_FIELDS = Object.freeze([
 	'runtime', 'status', 'blockedBy', 'toolchainIdentity', 'scannerPayload',
-	'runtimeHostPayload', 'isolationPayload',
+	'runtimeHostPayload', 'isolationPayload', 'buildResult',
 ]);
 const REQUIRED_CONTRACT_FILES = Object.freeze([
 	'CMakeLists.txt',
@@ -86,8 +86,6 @@ export function auditFramescaperOpenFxHost({ repositoryRoot }) {
 		version: '1.5.1', tag: 'OFX_Release_1.5.1', commit: 'ab77951',
 		commitSha: 'ab779510b2655b4d11a7e01e5c521f9aa8c88976',
 		tagObjectSha: '43d93ea99255cc61177b0632e421e899e802995e',
-		signedTagApiUrl: 'https://api.github.com/repos/AcademySoftwareFoundation/openfx/git/tags/43d93ea99255cc61177b0632e421e899e802995e',
-		signedTagVerifiedAt: '2025-11-20T18:14:02Z',
 		url: 'https://codeload.github.com/AcademySoftwareFoundation/openfx/tar.gz/ab77951',
 		byteLength: 9_837_777,
 		sha256: '7f4fcde6c4bff3ee1f95a0b73a805e662a3e030999523165b40cfbe76c1ab9f5',
@@ -99,7 +97,7 @@ export function auditFramescaperOpenFxHost({ repositoryRoot }) {
 		license: 'BSD-3-Clause',
 	};
 	if (JSON.stringify(manifest.openfx) !== JSON.stringify(expectedOpenFx)) {
-		findings.push('The OpenFX 1.5.1 signed-tag source pin drifted.');
+		findings.push('The OpenFX 1.5.1 release source pin drifted.');
 	}
 	const hostRoot = join(repositoryRoot, FRAMESCAPER_OPENFX_HOST_ROOT);
 	const tree = sourceTree(hostRoot);
@@ -218,12 +216,12 @@ export function auditFramescaperOpenFxHost({ repositoryRoot }) {
 		if (!expected || target.runtime !== expected.runtime) {
 			findings.push(`OpenFX target ${id} runtime identity drifted.`);
 		}
-		if (target.status === 'pending-external') {
+		if (target.status === 'ci-generated') {
 			if (target.toolchainIdentity !== null || target.scannerPayload !== null
 				|| target.runtimeHostPayload !== null || target.isolationPayload !== null
-				|| typeof target.blockedBy !== 'string'
-				|| target.blockedBy.length < 16) {
-				findings.push(`OpenFX target ${id} has an invalid pending-external record.`);
+				|| target.buildResult !== null
+				|| target.blockedBy !== null) {
+				findings.push(`OpenFX target ${id} has an invalid ci-generated record.`);
 			}
 		} else if (target.status === 'built') {
 			findings.push(...auditBuiltTarget(repositoryRoot, id, target));
@@ -241,13 +239,14 @@ export function deriveFramescaperOpenFxPayloadManifest(sourceManifest) {
 			? {
 				id, runtime: target.runtime, status: 'built', blockedBy: null,
 				payload: {
+					buildResult: { ...target.buildResult },
 					scannerPayload: { ...target.scannerPayload },
 					runtimeHostPayload: { ...target.runtimeHostPayload },
 					isolationPayload: cloneIsolationPayload(target.isolationPayload),
 				},
 			}
 			: {
-				id, runtime: target.runtime, status: 'pending-external',
+				id, runtime: target.runtime, status: 'ci-generated',
 				blockedBy: target.blockedBy, payload: null,
 			};
 	});
@@ -263,6 +262,7 @@ export function deriveFramescaperOpenFxPayloadManifest(sourceManifest) {
 		runtimePrefix: FRAMESCAPER_OPENFX_HOST_ROOT,
 		payloads: targets.filter(({ status }) => status === 'built').map((target) => ({
 			id: target.id, runtime: target.runtime,
+			buildResult: { ...target.payload.buildResult },
 			scannerPayload: { ...target.payload.scannerPayload },
 			runtimeHostPayload: { ...target.payload.runtimeHostPayload },
 			isolationPayload: cloneIsolationPayload(target.payload.isolationPayload),
@@ -322,6 +322,8 @@ function auditBuiltTarget(repositoryRoot, id, target) {
 		findings.push(`OpenFX target ${id} has an invalid isolationPayload identity.`);
 	}
 	const declarations = [
+		['buildResult', target.buildResult,
+			`${FRAMESCAPER_OPENFX_HOST_ROOT}/prebuilt/${id}/framescaper-openfx-host-build-result.json`],
 		['scannerPayload', target.scannerPayload, `${prefix}framescaper-ofx-scanner${suffix}`],
 		['runtimeHostPayload', target.runtimeHostPayload, `${prefix}framescaper-ofx-runtime-host${suffix}`],
 		['isolation launcherPayload', isolation?.launcherPayload,
@@ -384,6 +386,7 @@ function cloneIsolationPayload(value) {
 
 function payloadDescriptors(entry) {
 	return [
+		['buildResult', entry.buildResult],
 		['scannerPayload', entry.scannerPayload],
 		['runtimeHostPayload', entry.runtimeHostPayload],
 		['isolation launcherPayload', entry.isolationPayload.launcherPayload],

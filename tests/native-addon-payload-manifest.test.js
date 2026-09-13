@@ -124,7 +124,7 @@ test('a built target stages its payload and its manifest, and the staged tree re
 	}
 });
 
-test('a pending-external target stages no payload and reports its named blocker', async () => {
+test('a CI-generated target stages no payload and carries no policy blocker', async () => {
 	const release = await verifyNativeAddonPayloadManifest({ repositoryRoot, target: PENDING_TARGET });
 	assert.equal(release.payload, null);
 	const { root, outputRoot } = await stageRoot(release);
@@ -132,10 +132,8 @@ test('a pending-external target stages no payload and reports its named blocker'
 		assert.deepEqual(await readdir(outputRoot), ['native-addon-payload-manifest.json']);
 		const summary = await verifyStagedNativeAddonPayload({ release, outputRoot });
 		assert.equal(summary.payload, null);
-		assert.equal(summary.status, 'pending-external');
-		assert.match(summary.blockedBy, /authenticated.*payload.*built/iu);
-		assert.doesNotMatch(summary.blockedBy,
-			/licens|review|readiness|signing|notari|qualification|manual|patent|notice/iu);
+		assert.equal(summary.status, 'ci-generated');
+		assert.equal(summary.blockedBy, null);
 	} finally {
 		rmSync(root, { recursive: true, force: true });
 	}

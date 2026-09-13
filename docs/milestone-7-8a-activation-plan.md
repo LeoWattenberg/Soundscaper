@@ -9,22 +9,22 @@
 > artifact, runtime, selection, and consent checks still apply. Consult the
 > [nightly model tests](local-model-nightly-tests.md) for current execution coverage.
 
-> **Catalog publication update (2026-09-12):** the reviewed catalog now admits
+> **Catalog publication update (2026-09-12):** the catalog now admits
 > wav2vec2, TIGER-DnR, PANNs Cnn10, both Beat This checkpoints, TransNetV2,
 > Qwen3, and Dereverb Room with complete publication read-back, licensing-row,
-> artifact, and canonical entry SHA-256 evidence. Their catalog tasks remain
-> activation-pending on the separate exact runtime-target closure.
+> artifact, and canonical entry SHA-256 evidence. Their catalog tasks are ready,
+> and target packages generate and authenticate the matching runtime closure on
+> all five targets; nightly-with-tests exercises the packaged canaries.
 
-> **Current release note (2026-08-31):** owner-lab, qualification-evidence, and
-> release-admission passages below are historical provenance. They do not gate
-> a release or activate a feature. Current behavior is enforced by the runtime
-> integrity checks and ordinary automated tests it actually executes.
+> **Current release note (2026-08-31):** dated qualification and release-admission
+> passages below are historical provenance. Current behavior is enforced by the
+> runtime integrity checks and ordinary automated tests it actually executes.
 
 ## Delivered boundary (2026-08-27)
 
-This branch conditionally activates the complete Milestone 7 workflow layer
-without using manual or owner-lab qualification as an execution switch. The
-versioned `AssistanceWorkflow` contract now owns every guided recipe and all
+This branch conditionally activates the complete Milestone 7 workflow layer from
+executable catalog, artifact, runtime, selection, consent, and compatibility
+checks. The versioned `AssistanceWorkflow` contract now owns every guided recipe and all
 fifteen Advanced primitive recipes through one aggregate selection fence,
 slotted claims, exact model bindings, main-owned consent, and stage progress.
 VAD feeds either explicitly selected Parakeet or Whisper; automatic-language
@@ -67,7 +67,7 @@ closed. Owner QA is optional and never grants runtime authority.
   inference remains desktop-only.
 - Activate Framescaper capture for standalone web and desktop on the final
   selected Framescaper schema.
-- Treat owner-device and other manual observations as optional QA. Diagnostics
+- Treat device-specific observations as optional QA. Diagnostics
   report what ran and what remains unavailable without certifying a release.
 - Keep artifact integrity, explicit consent, selected-media authority, runtime
   compatibility, storage durability, and security checks fail-closed.
@@ -78,7 +78,7 @@ closed. Owner QA is optional and never grants runtime authority.
   must still have a digest-pinned catalog entry, exact runtime compatibility,
   and mirrored artifact pins. Distribution metadata cannot hide a
 	machine-complete model or substitute for a digest-pinned one.
-- Introduce digest-pinned catalog V2 with canonical SHA-256 review pins. Separate
+- Introduce digest-pinned catalog V2 with canonical entry SHA-256 pins. Separate
   upstream source artifacts from distributable artifacts.
   Reproducible conversions record source digests, locked build environment,
   recipe and version, output digest, notices, and parity evidence.
@@ -198,8 +198,8 @@ status:
   review is a milestone-9 stable 1.0 input, not an activation switch.
 - Land atomic staged commits in this order: plan; model policy and manager; job
   and runtime substrate; S30 and 7A slices; F31 and 7B slices; M8A activation;
-  evidence and documentation closure. Flip each slice only after automated hard
-  gates pass; never consult manual qualification for admission.
+  evidence and documentation closure. Flip each slice only after its automated
+  hard gates pass.
 
 ## Verification and evidence
 
@@ -228,8 +228,8 @@ status:
   require zero post-install network requests, zero unselected bytes read, zero
   accepted digest mismatches, cancellation p95 at or below two seconds, and zero
   canonical-state losses.
-- Treat M7 and M8A owner-device runs as optional QA; do not fabricate
-  measurements for environments that were not exercised. Update roadmap,
+- Device-specific diagnostic runs are optional QA; do not fabricate measurements
+  for environments that were not exercised. Update roadmap,
   milestone plans, and policy registers truthfully. Run policy-narrative synchronization,
   documentation reference generation, and runtime-evidence repinning in that
   order before their checks.
@@ -245,6 +245,6 @@ status:
   complete, but the delivered boundary above explicitly does not claim
   packaged production activation until the named artifact, catalog,
   publication, payload, and canary evidence exists.
-- Manual qualification remains visible only in documentation and diagnostics;
-  users see ordinary availability, consent, integrity, and hardware errors.
+- Users see ordinary availability, consent, integrity, and hardware errors derived
+  from executable machine checks.
 - Existing user-owned work is preserved and reconciled rather than reset.

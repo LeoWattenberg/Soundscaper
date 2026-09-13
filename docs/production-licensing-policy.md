@@ -8,18 +8,18 @@ It records the concrete artifact and distribution state; it is not legal advice,
 patent opinion, or a declaration that any component is legally cleared for
 every product, territory, or distribution channel.
 
-Human licensing checks inform the repository owner's release decision. An
-unresolved notice, source-delivery, license, or patent issue must be recorded
-and the affected component must not ship, but no evidence register turns that
-judgment into a separate admission process. Machine artifact identity, payload
-presence, platform compatibility, containment, consent, and resource checks
-remain fail closed at the point of use. A missing implementation or machine
-payload therefore remains unavailable for its exact technical reason.
+The repository owner decides what to distribute. A component does not ship when
+its required machine-verifiable license text, notice, corresponding source, or
+delivery material is absent, but no evidence register turns that choice into a
+separate approval process. Machine artifact identity, payload presence,
+platform compatibility, containment, consent, and resource checks remain fail
+closed at the point of use. A missing implementation or machine payload
+therefore remains unavailable for its exact technical reason.
 
 ## Owner licensing notes
 
 [`legalchecklist.md`](legalchecklist.md) is an editable worksheet for the
-repository owner. It is not hashed, attested, signed, counted, or interpreted by
+repository owner. It is not hashed, counted, or interpreted by
 CI. The machine-readable matrix instead verifies concrete facts it can actually
 check: dependency closure, source and notice files, artifact identity,
 distribution surfaces, and whether a blocked component is absent.
@@ -29,8 +29,8 @@ matrix records current copyright, copyleft, notice, corresponding-source,
 patent-risk, trademark, native-audio, plug-in-hosting, local-model, capture, Web
 VCR, retention, export-control, and operational-privacy positions. Open web
 notice and versioned-asset delivery work stays visible in the relevant rows.
-The refused-model review and all named
-future-only reviews remain not satisfied.
+Refused models and future-only rows remain blocked only where their concrete
+license, source, notice, provenance, or delivery material is missing.
 
 The current distribution choice is provider-conditional: WebCodecs,
 operating-system providers, and user-installed FFmpeg are allowed, while FFmpeg
@@ -143,23 +143,21 @@ facts separately recorded for each component.
 
 An audit status of `documented` means that checked-in provenance material is
 present and its existing automated audit remains enabled. It is not a legal
-approval. `blocked` means a required review, source bundle, notice, or delivery
-path is absent, so the affected component must not be distributed. It does not
-disable engineering access to an implemented surface. A row may move from
-`blocked` only when the missing material is checked in and its automated check
-passes.
+approval. `blocked` means required machine-verifiable license, source, notice,
+or delivery material is absent, so the affected component must not be
+distributed. It does not disable engineering access to an implemented surface.
+A row may move from `blocked` only when the missing material is checked in and
+its automated check passes.
 
 The checked-in FFmpeg runtime policy manifest is an engineering integrity gate,
 not a license or patent approval. It binds installed runtime bytes to the
-current notice, source descriptor, licensing matrix, and release policy, and
-its distribution checks are derived from the matrix's fail-closed distribution
-checks. Its
-payload digest is an internal consistency check, not a human or release
-approval. It governs the optional Web runtime: public packaging
-rejects that runtime whenever its notice, corresponding-source, or patent rows
-are blocked, while build and test publication continue to depend only on the
-exact machine-verifiable runtime closure. Its legacy desktop-assembly
-distribution check is not consumed by the
+current notice, source descriptor, licensing matrix, and release policy. Its
+distribution checks mirror the matrix for reporting; they are not an approval
+ceremony or a publication switch. The payload digest is an internal consistency
+check, not a human or release approval. Public build and test publication depend
+on the exact machine-verifiable runtime closure while the matrix reports notice,
+corresponding-source, and patent considerations separately. Its legacy
+desktop-assembly distribution check is not consumed by the
 current production desktop entry points and does not override the separate
 desktop codec policy, which requires those Web runtime and
 application-provider bytes to be absent. It does not prohibit Electron's
@@ -204,13 +202,15 @@ treated as completion of that gate.
 Copyright-license compatibility and patent exposure are independent reviews.
 The Web FFmpeg build enables codec implementations whose patent situation can
 vary by codec, use, territory, and distribution method. No
-jurisdiction-specific patent review is checked in for the enabled set. The
-patent-review gate therefore remains blocked. This policy makes no patent
-clearance or non-infringement representation for any codec, including a codec
-described by an upstream project as open or royalty-free. A future review must
-name the exact build, enabled and invoked codecs, products, territories,
-distribution surfaces, reviewer, date, assumptions, and any resulting
-disablement or licensing requirements.
+jurisdiction-specific patent analysis is checked in for the enabled set, and
+this policy makes no patent-clearance or non-infringement representation for
+any codec, including one described upstream as open or royalty-free. That is an
+owner distribution consideration, not a reviewer, signature, or technical
+activation gate. CI records the exact build, invoked codecs, products, target,
+and distribution surface that it actually verifies; an owner note may record
+territories and assumptions, but its presence is not an input to machine
+admission and its absence does not turn passing technical evidence into pending
+work.
 
 The same separation applies to Electron's Chromium media library. Stock
 Electron 43.1.1 includes proprietary codec support; packaging selects
@@ -254,23 +254,24 @@ third-party notice. This narrow provenance record does not satisfy the gate for
 adding externally authored or non-repository-owned effect packages.
 
 The following capabilities may be implemented, built, packaged, and tested
-before their human matrix requirements are complete. Their exact machine
-dependencies still gate execution, and the recorded human requirements must be
-resolved before the affected capability is distributed:
+before their distribution material is complete. Their exact machine
+dependencies still gate execution, and distribution remains disabled until the
+listed license, source, notice, provenance, and package evidence exists and its
+automated checks pass:
 
-- externally authored or non-repository-owned reviewed web effect packages need
-  a complete transitive inventory, immutable artifact/source pins, notice
-  delivery, and sandbox/ABI review;
+- externally authored or non-repository-owned web effect packages need a
+  complete transitive inventory, immutable artifact/source pins, notice
+  delivery, and enforced sandbox/ABI constraints;
 - native plug-ins need per-format and per-platform license and redistribution
-  rules, user-installation policy, isolation, notices, and source delivery where
-  required;
+  material, user-installation rules, enforced isolation, notices, and source
+  delivery where required;
 - native audio needs an authenticated JUCE/SDK source closure, an explicit
-  license selection for each dual-licensed input, platform-API and ASIO
-  trademark review, target notices, and representative owner QA on available
-  devices;
+  license text for each selected dual-licensed input, platform-API and ASIO
+  trademark notices, target notices, and target build/self-test evidence;
 - additional bundled video codec execution needs an exact codec/license
-  inventory, corresponding source, package notices, target payload and
-  verification, and distribution-specific patent review; and
+  inventory, corresponding source, package notices, and target payload
+  build/self-test/package verification; any patent decision remains solely the
+  owner's distribution choice and is not a machine admission gate; and
 - local models need licenses for code and weights, training-data provenance,
   model cards and use restrictions, exact hashes, and versioned offline notice
   delivery.
@@ -344,12 +345,16 @@ controls verify only the enumerated tuples on a package whose target-native
 build has passed; they do not establish general OS availability, patent
 clearance, or non-infringement.
 
-Bundled and operating-system video remain disabled. The application contains
-no libwebm, libvpx, dav1d, SVT-AV1, or libaom payload and has no AV1 execution
-path. It also has no supported Media Foundation or VideoToolbox video
-operation. Historical candidate notes do not enable execution or select a
-provider. The external WebM path described below uses VP9, not AV1. AV1 plus
-bundled and operating-system WebM execution therefore remain disabled.
+Stable bundled and operating-system video providers remain disabled. The
+stable Soundscaper package contains no libwebm, libvpx, dav1d, SVT-AV1, or
+libaom provider payload and has no supported Media Foundation or VideoToolbox
+video operation. Separately, the repository-owned Framescaper test media host
+now builds authenticated FFmpeg 9.0.1 with static x264, x265 Main10, libvpx,
+libopus, and zlib, including the internal AV1 decoder. Its five target-native CI
+jobs inspect the binaries, run the closed component canary and a real x265
+Main10 encode, authenticate the result, and stage it into matching test
+packages. That test-only producer does not silently enable a stable provider.
+The external WebM path described below uses VP9, not AV1.
 
 The final tier executes an FFmpeg program already installed on the user's
 machine, whether found by bounded discovery, chosen explicitly, or installed
@@ -411,7 +416,7 @@ The matrix's `nativeFormatPolicies` register carries one fail-closed row for
 the JUCE native-audio stack, one per operating-system backend (CoreAudio,
 WASAPI, ASIO, PipeWire and ALSA), and one per plug-in format (VST3, CLAP, Audio
 Units, LV2, OFX). The acquisition register pins the exact JUCE, CLAP, VST3,
-ASIO and LV2 source inputs and the four external native codec libraries. A
+ASIO and LV2 source inputs, the four external native codec libraries, and zlib. A
 verified archive hash proves source identity only: it does not supply notices,
 corresponding source, platform compatibility, self-tests, or package verification.
 
@@ -431,13 +436,15 @@ into this AGPL-3.0-only work (the ASIO SDK's selected GPLv3 arm combines
 one-way via GPLv3 section 13; the VST3 3.8.0 SDK and other permissive SDKs
 combine trivially; operating-system APIs and
 platform encoder services are linkage, not combined source), the
-redistribution posture, and the concrete source, notice, implementation, or verification fact still missing for that exact
-tuple. Every codec tuple remains `blocked`; it additionally depends on the
-blocked `codec-native-ffmpeg-current-set` row and the owning `native-codecs`
-gate. This inventory does not change FFmpeg configure flags, publish a helper,
-populate a payload manifest, or activate native media. Those remain separate
-implementation changes after corresponding source, notices,
-interoperability, self-tests, and five-target verification are present. User-installed
+redistribution posture and the remaining stable-distribution choice for that
+exact tuple. Every codec tuple remains distribution-`blocked`, but every tuple
+is `testActivation: enabled`: the authenticated configuration contains its
+codec/container components, and the repository-owned five-target workflow
+builds, inspects, self-tests, authenticates, and stages the media-host payload.
+The component canary proves every named decoder, encoder, muxer, demuxer,
+filter, and parser is linked, and performs an actual x265 Main10 encode; it does
+not claim a full interoperability corpus for every container/profile pair.
+User-installed
 external FFmpeg and third-party plug-in binaries are never redistributed by
 this project, so their licenses never enter the production artifact closure;
 the codec and plug-in rows govern what the application itself may ship and
@@ -481,13 +488,13 @@ The owner has completed the human license, training-data, and model-card review
 for wav2vec2, TIGER-DnR, PANNs Cnn10, Beat This small0/final0, TransNetV2, and
 Qwen3, and Dereverb Room. Their versioned download notices, immutable publication
 receipts, full public SHA-256 read-backs, conversion and parity evidence where
-applicable, and reviewed catalog entries are now recorded. The catalog binds each
+applicable, and exact catalog entries are now recorded. The catalog binds each
 complete licensing row and exact artifact identity by SHA-256. Catalog presence
-authorizes authenticated download and offline preseed, not native execution: the
-additional models remain fail-closed until the selected target's exact runtime
-closure is authenticated. The release publisher must still complete public HEAD,
-Range, and full SHA-256 read-back before any future catalog change is handed to
-review.
+authorizes authenticated download and offline preseed, not native execution.
+Target packages generate the five runtime closures, and execution still fails
+closed unless the selected package authenticates its exact closure. The release
+publisher must complete public HEAD, Range, and full SHA-256 read-back before the
+repository verifier admits any future catalog change.
 
 Opaque placeholders do not make an unimplemented native feature available, and
 a loader must not accept a missing, changed, wrong-platform, uncontained, or

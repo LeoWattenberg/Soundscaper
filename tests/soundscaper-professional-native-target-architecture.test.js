@@ -197,6 +197,23 @@ test('isolation configuration selects one exact native generator architecture', 
 		'-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Release',
 		'-DSOUNDSCAPER_NATIVE_TARGET=linux-arm64',
 	]);
+	assert.deepEqual(soundscaperProfessionalNativeIsolationConfigureArguments({
+		...request,
+		target: 'win-arm64',
+		ninja: '/tools/ninja.exe',
+		cCompiler: '/tools/cl.exe',
+		cxxCompiler: '/tools/cl.exe',
+	}), [
+		'-S', '/source', '-B', '/build', '-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Release',
+		'-DCMAKE_SYSTEM_NAME=Windows', '-DCMAKE_SYSTEM_PROCESSOR=ARM64',
+		'-DCMAKE_MAKE_PROGRAM=/tools/ninja.exe',
+		'-DCMAKE_C_COMPILER=/tools/cl.exe',
+		'-DCMAKE_CXX_COMPILER=/tools/cl.exe',
+		'-DSOUNDSCAPER_NATIVE_TARGET=win-arm64',
+	]);
+	assert.throws(() => soundscaperProfessionalNativeIsolationConfigureArguments({
+		...request, target: 'win-x64', ninja: '/tools/ninja.exe',
+	}), /compiler|toolchain/iu);
 });
 
 test('test orchestration permits only target-native Node', () => {

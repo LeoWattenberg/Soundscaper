@@ -24,7 +24,7 @@ test('the roadmap records selected S30 over the exact S29 native-audio foundatio
 	assert.doesNotMatch(roadmap, /no helper job reaches the open path/iu);
 });
 
-test('the 5A plan distinguishes reached real-time routes from external qualification', async () => {
+test('the 5A plan records reached real-time routes and repository-owned target builds', async () => {
 	const plan = await flattened(planUrl);
 	assert.match(
 		plan,
@@ -32,7 +32,7 @@ test('the 5A plan distinguishes reached real-time routes from external qualifica
 	);
 	assert.match(
 		plan,
-		/five-target.*packaged.*physical.*remain.*pending-external/iu,
+		/helper-addon workflow.*all five targets.*ci-generated.*professional-native workflow.*all five/iu,
 	);
 	assert.doesNotMatch(plan, /no product surface consumes the (?:real-time )?plane/iu);
 });
@@ -53,17 +53,17 @@ test('the 5A plan records production plug-in insertion, vendor state and continu
 	);
 });
 
-test('the 5A-0 and 5A-1 gates keep physical evidence open', async () => {
+test('the 5A-0 and 5A-1 gates are automated and physical observations are optional', async () => {
 	const plan = await flattened(planUrl);
-	assert.match(plan, /packaged synthetic audio loop.*pending-external/iu);
+	assert.match(plan, /packaged synthetic audio loop.*target-native CI\/nightly-with-tests canary/iu);
 	assert.match(
 		plan,
 		/never silently substituted.*`_near`.*PipeWire negotiates its quantum.*granted record must carry what the device actually gave.*refuse/iu,
 	);
-	assert.match(plan, /30-minute physical loopback.*pending-external/iu);
+	assert.match(plan, /optional diagnostics.*30-minute physical loopback.*does not block a target build or release/iu);
 });
 
-test('the 5A-2 gate records cross-platform scanning and unqualified packages', async () => {
+test('the 5A-2 gate records cross-platform scanning and packaged CI fixtures', async () => {
 	const plan = await flattened(planUrl);
 	assert.match(
 		plan,
@@ -71,5 +71,5 @@ test('the 5A-2 gate records cross-platform scanning and unqualified packages', a
 	);
 	assert.match(plan, /JUCE.*VST3.*Audio Units.*LV2.*direct CLAP/iu);
 	assert.doesNotMatch(plan, /refusal on `win32`/iu);
-	assert.match(plan, /packaged scan fixture.*pending-external/iu);
+	assert.match(plan, /target-native CI self-tests.*repository's benign fixture.*packaged Electron harness/iu);
 });

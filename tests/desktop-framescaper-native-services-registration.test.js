@@ -62,8 +62,8 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	const controller = Object.freeze({ kind: 'controller' });
 	const mediaRuntime = {
 		available: () => mediaAvailable,
-		payloadAvailability: { status: 'unavailable', reason: 'payload-pending-external', detail: 'No payload.' },
-		reason: 'payload-pending-external: No payload.',
+		payloadAvailability: { status: 'unavailable', reason: 'payload-not-generated', detail: 'No payload.' },
+		reason: 'payload-not-generated: No payload.',
 		snapshot: () => null,
 		selfTestResult: () => null,
 		selectedV20RenderSelfTestResult: () => null,
@@ -76,8 +76,8 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	const openFxRuntime = {
 		available: () => false,
 		selfTestPassed: () => false,
-		payloadAvailability: { status: 'unavailable', reason: 'payload-pending-external', detail: 'No OFX payload.' },
-		reason: 'payload-pending-external: No OFX payload.',
+		payloadAvailability: { status: 'unavailable', reason: 'payload-not-generated', detail: 'No OFX payload.' },
+		reason: 'payload-not-generated: No OFX payload.',
 		manager: null,
 		dispose: () => { openFxDisposals += 1; },
 	};

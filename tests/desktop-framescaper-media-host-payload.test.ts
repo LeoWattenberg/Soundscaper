@@ -12,6 +12,7 @@ import {
 
 const FILES = Object.freeze({
 	'framescaper-media-host': Buffer.from('synthetic-framescaper-media-host'),
+	'framescaper-media-host-build-result.json': Buffer.from('{"kind":"synthetic-build-result"}\n'),
 	'milestone5-native-isolation-launcher': Buffer.from('synthetic-media-launcher'),
 	'milestone5-native-isolation-profile.json': Buffer.from('synthetic-media-profile'),
 	'milestone5-native-isolation-broker.json': Buffer.from('synthetic-media-broker'),
@@ -42,7 +43,7 @@ test('a built target exposes only the hash-verified media and isolation closure'
 	assert.equal(availability.descriptor.sha256, digest(FILES['framescaper-media-host']));
 	assert.equal(availability.descriptor.isolation.runtimeLibraries.length, 1);
 	assert.equal(Object.hasOwn(availability.descriptor, 'm9ReleaseReview'), false);
-	assert.equal(reads.length, 6);
+	assert.equal(reads.length, 7);
 });
 
 test('packaged and prepared payloads stay inside their selected runtime root', async () => {
@@ -58,9 +59,9 @@ test('packaged and prepared payloads stay inside their selected runtime root', a
 	}
 });
 
-test('pending, malformed, wrong-target, and altered media closures fail closed', async () => {
+test('ungenerated, malformed, wrong-target, and altered media closures fail closed', async () => {
 	const pending = await describeFramescaperMediaHostAvailability(location(), ports(manifest(false)));
-	assert.equal(pending.status === 'unavailable' ? pending.reason : null, 'payload-pending-external');
+	assert.equal(pending.status === 'unavailable' ? pending.reason : null, 'payload-not-generated');
 	for (const [label, value, alteredName, expected] of [
 		['extra target field', mutateManifest((row) => { row.productionReadiness = null; }), '', 'manifest-unreadable'],
 		['missing payload row', { ...manifest(), payloads: [] }, '', 'manifest-unreadable'],
@@ -101,6 +102,8 @@ function location() {
 
 function manifest(built = true) {
 	const payload = descriptor(`${SOURCE_PREFIX}/framescaper-media-host`, FILES['framescaper-media-host']);
+	const buildResult = descriptor(`${SOURCE_PREFIX}/framescaper-media-host-build-result.json`,
+		FILES['framescaper-media-host-build-result.json']);
 	const isolationPayload = {
 		launcherPayload: descriptor(`${SOURCE_PREFIX}/isolation/milestone5-native-isolation-launcher`,
 			FILES['milestone5-native-isolation-launcher']),
@@ -113,16 +116,16 @@ function manifest(built = true) {
 	};
 	const targets = [
 		{
-			id: 'linux-x64', runtime: 'linux-x64', status: built ? 'built' : 'pending-external',
-			blockedBy: built ? null : 'No verified synthetic media payload exists.',
+			id: 'linux-x64', runtime: 'linux-x64', status: built ? 'built' : 'ci-generated',
+			blockedBy: null, buildResult: built ? buildResult : null,
 			payload: built ? payload : null, isolationPayload: built ? isolationPayload : null,
 		},
 		...[
 			['linux-arm64', 'linux-arm64'], ['mac-arm64', 'darwin-arm64'],
 			['win-x64', 'win32-x64'], ['win-arm64', 'win32-arm64'],
 		].map(([id, runtime]) => ({
-			id, runtime, status: 'pending-external',
-			blockedBy: 'No verified synthetic media payload exists.', payload: null, isolationPayload: null,
+			id, runtime, status: 'ci-generated', blockedBy: null, buildResult: null,
+			payload: null, isolationPayload: null,
 		})),
 	];
 	return {
@@ -133,7 +136,8 @@ function manifest(built = true) {
 			sha256: 'cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635',
 		},
 		runtimePrefix: 'native/framescaper-media-host',
-		payloads: built ? [{ id: 'linux-x64', runtime: 'linux-x64', ...payload, isolationPayload }] : [],
+		payloads: built ? [{ id: 'linux-x64', runtime: 'linux-x64', buildResult,
+			...payload, isolationPayload }] : [],
 		targets,
 	};
 }

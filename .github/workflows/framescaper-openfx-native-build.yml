@@ -1,0 +1,132 @@
+name: Framescaper OpenFX target-native build
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: framescaper-openfx-native-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            runner: ubuntu-24.04
+            node_arch: x64
+            vs_arch: none
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+            node_arch: arm64
+            vs_arch: none
+          - target: mac-arm64
+            runner: macos-15
+            node_arch: arm64
+            vs_arch: none
+          - target: win-x64
+            runner: windows-2025
+            node_arch: x64
+            vs_arch: amd64
+          - target: win-arm64
+            runner: windows-11-vs2026-arm
+            node_arch: arm64
+            vs_arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install Linux build tools
+        if: runner.os == 'Linux'
+        run: bash scripts/ci-apt-install.sh build-essential bzip2 cmake ninja-build
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          architecture: ${{ matrix.node_arch }}
+          cache: npm
+      - run: npm install --global npm@12.0.1
+      - run: npm ci
+      - name: Activate the target-native MSVC environment
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          FRAMESCAPER_VS_ARCH: ${{ matrix.vs_arch }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $installation = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $installation) { throw 'Visual Studio C++ tools are unavailable.' }
+          $devCmd = Join-Path $installation 'Common7\Tools\VsDevCmd.bat'
+          $activation = Join-Path $env:RUNNER_TEMP 'framescaper-openfx-vs.cmd'
+          Set-Content -LiteralPath $activation -Encoding ascii -Value "@call `"$devCmd`" -no_logo -arch=$env:FRAMESCAPER_VS_ARCH`r`n@set"
+          $lines = & cmd.exe /d /c $activation
+          foreach ($key in @('INCLUDE', 'LIB', 'LIBPATH', 'PATH', 'SYSTEMROOT')) {
+            $line = $lines | Where-Object { $_ -like "$key=*" } | Select-Object -Last 1
+            if (-not $line) { throw "The MSVC environment omitted $key." }
+            Add-Content -LiteralPath $env:GITHUB_ENV -Value $line
+          }
+      - name: Provision exact Boost headers
+        run: node scripts/ci-provision-framescaper-boost.mjs
+      - name: Provision exact OpenFX source
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/ci-provision-framescaper-openfx-source.mjs \
+            --output="$RUNNER_TEMP/framescaper-openfx-source"
+          echo "FRAMESCAPER_OPENFX_SOURCE_ROOT=$RUNNER_TEMP/framescaper-openfx-source" >> "$GITHUB_ENV"
+      - name: Build, self-test, and verify target result
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/build-framescaper-openfx-host.mjs \
+            --target=${{ matrix.target }} \
+            --openfx-source="$FRAMESCAPER_OPENFX_SOURCE_ROOT" \
+            --boost-source="$FRAMESCAPER_BOOST_192_SOURCE_ROOT" \
+            --work-root="$RUNNER_TEMP/framescaper-openfx-work" \
+            --output="$RUNNER_TEMP/framescaper-openfx-build-result"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: framescaper-openfx-native-build-result-${{ matrix.target }}
+          path: ${{ runner.temp }}/framescaper-openfx-build-result
+          if-no-files-found: error
+          retention-days: 14
+
+  verify-staging:
+    name: Verify package staging (${{ matrix.target }})
+    needs: build
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [linux-x64, linux-arm64, mac-arm64, win-x64, win-arm64]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install --global npm@12.0.1
+      - run: npm ci
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: framescaper-openfx-native-build-result-${{ matrix.target }}
+          path: ${{ runner.temp }}/framescaper-openfx-build-result
+      - name: Reverify and stage the target result
+        shell: bash
+        run: >-
+          node scripts/stage-framescaper-openfx-host-build-result.mjs
+          --result="$RUNNER_TEMP/framescaper-openfx-build-result"
+      - name: Audit the staged package inputs
+        run: npm run audit:framescaper-openfx-host

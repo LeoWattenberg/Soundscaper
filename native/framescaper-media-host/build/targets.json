@@ -43,7 +43,7 @@
 			"hostRuntime": "win32-arm64",
 			"cmakePreset": "win-arm64",
 			"toolchainFile": "build/toolchains/win-arm64.cmake",
-			"ffmpegTarget": "arm64ec-windows-msvc",
+			"ffmpegTarget": "aarch64-windows-msvc",
 			"payloadName": "framescaper-media-host.exe"
 		}
 	]

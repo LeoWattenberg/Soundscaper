@@ -16,7 +16,7 @@ export const SOUNDSCAPER_MILESTONE_5_WORKLOAD_IDS = Object.freeze([
 	'm5-native-helper-and-audio',
 ]);
 const ALL_SOURCE_IDS = Object.freeze([
-	...SOUNDSCAPER_MILESTONE_5_SOURCE_IDS, 'x264', 'x265', 'libvpx', 'libopus',
+	...SOUNDSCAPER_MILESTONE_5_SOURCE_IDS, 'x264', 'x265', 'libvpx', 'libopus', 'zlib',
 ]);
 const ALL_PAYLOAD_PRODUCTS = Object.freeze([
 	'soundscaper', 'soundscaper-professional', 'framescaper-media', 'framescaper-openfx',

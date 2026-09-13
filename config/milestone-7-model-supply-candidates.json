@@ -541,8 +541,8 @@
 				"sha256": "b73fe60ddcd3fd07f91d65d50b4f10ba99039104c4fb5db5bdafbb27610bb6eb"
 			},
 			"minimumSystemMemoryBytes": 0,
-			"activationStatus": "catalog-publication-pending",
-			"blockedBy": "No reviewed production-catalog entry or immutable mirror readback is recorded."
+			"activationStatus": "ready",
+			"blockedBy": null
 		},
 		{
 			"id": "qwen3-4b-q4-k-m",
@@ -555,8 +555,8 @@
 				"sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5"
 			},
 			"minimumSystemMemoryBytes": 17179869184,
-			"activationStatus": "catalog-publication-pending",
-			"blockedBy": "No reviewed production-catalog entry, immutable mirror readback, or packaged llama.cpp canary is recorded."
+			"activationStatus": "ready",
+			"blockedBy": null
 		}
 	]
 }

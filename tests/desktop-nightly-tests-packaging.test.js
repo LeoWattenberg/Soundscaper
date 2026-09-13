@@ -171,6 +171,13 @@ test('desktop CI exposes one quality-gated five-target nightly-with-tests artifa
 	// The packaged commit must be the verified one, not whatever main moved to.
 	assert.match(testJob, /ref: \$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}/u);
 	assert.match(testJob, new RegExp(
+		String.raw`- name: Package the product runtimes exercised by nightly-with-tests\s+run: node scripts/desktop-nightly-tests-products\.mjs`
+		+ String.raw`\s+env:\s+SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: \$\{\{ matrix\.target\.platform \}\}`
+		+ String.raw`\s+SOUNDSCAPER_DESKTOP_TARGET_ARCH: \$\{\{ matrix\.target\.arch \}\}`
+		+ String.raw`\s+SOUNDSCAPER_SOURCE_REVISION: \$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}`,
+		'u',
+	), 'the exercised product manifests must name the same revision that the job checked out');
+	assert.match(testJob, new RegExp(
 		String.raw`- name: Stage the nightly-with-tests application\s+run: node scripts/desktop-nightly-tests-prepare\.mjs`
 		+ String.raw`\s+env:[\s\S]*?SOUNDSCAPER_SOURCE_REVISION: \$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}`,
 		'u',

@@ -32,8 +32,8 @@
 	"targets": [
 		{
 			"id": "linux-x64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated Linux x64 professional Node-API payload has been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
 			"sourceAuthentication": null,
 			"buildResult": null,
@@ -45,8 +45,8 @@
 		},
 		{
 			"id": "linux-arm64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated Linux ARM64 professional Node-API payload has been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
 			"sourceAuthentication": null,
 			"buildResult": null,
@@ -58,8 +58,8 @@
 		},
 		{
 			"id": "mac-arm64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated macOS ARM64 professional Node-API payload has been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
 			"sourceAuthentication": null,
 			"buildResult": null,
@@ -71,8 +71,8 @@
 		},
 		{
 			"id": "win-x64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated Windows x64 professional Node-API payload has been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
 			"sourceAuthentication": null,
 			"buildResult": null,
@@ -84,8 +84,8 @@
 		},
 		{
 			"id": "win-arm64",
-			"status": "pending-external",
-			"blockedBy": "No authenticated Windows ARM64 professional Node-API payload has been built for the exact target.",
+			"status": "ci-generated",
+			"blockedBy": null,
 			"toolchainIdentity": null,
 			"sourceAuthentication": null,
 			"buildResult": null,

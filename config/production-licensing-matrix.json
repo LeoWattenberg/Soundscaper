@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-28",
+	"groundedAt": "2026-09-13",
 	"policyDocument": "docs/production-licensing-policy.md",
 	"lockfile": {
 		"path": "package-lock.json",
@@ -46,7 +46,7 @@
 		{
 			"id": "desktop-release-assets",
 			"description": "Public desktop packages, notices, checksums, and source archives required for content actually redistributed. Each package contains the seven exact reviewed compressed-audio WebAssembly providers, the exact verified Electron alternate framework libffmpeg for its target, and the target-supported manifest-authenticated sherpa-onnx 1.13.5 local-assistance Node and native runtime. Release assembly emits one preferred corresponding-source ZIP for those seven providers before SHA256SUMS: it fail-closed validates their exact shipped WASM identities, source manifests, upstream archives, Soundscaper wrappers, in-tree WavPack snapshot, build scripts and transitive helpers, configuration, relink instructions, and license texts, and records every included source byte in a deterministic internal receipt. This desktop source delivery does not enable any future reactivation of the retained legacy FFmpeg WebAssembly publication tooling. macOS ARM64 and Windows x64/ARM64 Soundscaper packages additionally require a target-native, canary-tested repository-owned operating-system codec addon whose exact manifest, payload, target, byte length, and SHA-256 are authenticated through staging and packaging; Linux has no OS codec payload and macOS x64 is unsupported. User-installed external FFmpeg remains outside this artifact closure and is not copied into the release set.",
-			"artifactStatus": "blocked",
+			"artifactStatus": "build-only",
 			"noticeDeliveryStatus": "implemented",
 			"evidence": ["config/assistance-native-runtime-manifest.json", "desktop/assistance-native-runtime-payload.mjs", "config/electron-alternate-ffmpeg-manifest.json", "config/desktop-bundled-codec-corresponding-source.json", "docs/desktop-bundled-codec-corresponding-source.md", "src/common/editor/flac/source-manifest.json", "src/common/editor/opus/source-manifest.json", "src/common/editor/vorbis/source-manifest.json", "src/common/editor/wavpack/source-manifest.json", "src/common/editor/mpg123/source-manifest.json", "src/common/editor/lame/source-manifest.json", "src/common/editor/twolame/source-manifest.json", "scripts/lib/desktop-codec-policy.mjs", "scripts/lib/desktop-bundled-audio-runtime.mjs", "scripts/lib/desktop-bundled-codec-notices.mjs", "scripts/lib/desktop-bundled-codec-corresponding-source.mjs", "scripts/lib/bundled-codec-source-input.mjs", "scripts/lib/electron-alternate-ffmpeg.mjs", "scripts/desktop-release-assets.mjs", "tests/assistance-native-runtime-payload.test.js", "tests/desktop-release-package-inventory.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-bundled-codec-notices.test.js", "tests/desktop-bundled-codec-corresponding-source.test.js", "THIRD_PARTY_LICENSES.md"]
 		}
@@ -493,19 +493,19 @@
 		},
 		{
 			"id": "framescaper-media-host-ffmpeg-9-0-1-source-candidate",
-			"status": "blocked",
+			"status": "documented",
 			"artifactSurfaces": [],
-			"provenanceKind": "source-and-build-recipe-only-no-runtime-payload",
+			"provenanceKind": "ci-generated-target-build-results",
 			"license": "GPL-2.0-or-later",
-			"evidence": ["native/framescaper-media-host/source-manifest.json", "native/framescaper-media-host/THIRD_PARTY_NOTICES.md", "config/framescaper-media-host-payload-manifest.json", "scripts/audit-framescaper-media-host.mjs", "tests/framescaper-media-host-source-manifest.test.js", "tests/framescaper-native-host-build-recipes.test.js", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["native/framescaper-media-host/source-manifest.json", "native/framescaper-media-host/THIRD_PARTY_NOTICES.md", "config/framescaper-media-host-payload-manifest.json", ".github/workflows/framescaper-media-host-native-build.yml", "scripts/audit-framescaper-media-host.mjs", "scripts/lib/framescaper-media-host-build-result.mjs", "tests/framescaper-media-host-source-manifest.test.js", "tests/framescaper-media-host-build-result.test.js", "tests/framescaper-native-host-build-recipes.test.js", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "framescaper-openfx-1-5-1-source-candidate",
-			"status": "blocked",
+			"status": "documented",
 			"artifactSurfaces": [],
-			"provenanceKind": "source-and-build-recipe-only-no-runtime-payload",
+			"provenanceKind": "ci-generated-target-build-results",
 			"license": "BSD-3-Clause",
-			"evidence": ["native/framescaper-openfx-host/source-manifest.json", "native/framescaper-openfx-host/THIRD_PARTY_NOTICES.md", "config/framescaper-openfx-host-payload-manifest.json", "scripts/audit-framescaper-openfx-host.mjs", "tests/framescaper-openfx-host-source-manifest.test.js", "tests/framescaper-native-host-build-recipes.test.js", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["native/framescaper-openfx-host/source-manifest.json", "native/framescaper-openfx-host/THIRD_PARTY_NOTICES.md", "config/framescaper-openfx-host-payload-manifest.json", ".github/workflows/framescaper-openfx-native-build.yml", "scripts/audit-framescaper-openfx-host.mjs", "scripts/lib/framescaper-openfx-host-build-result.mjs", "tests/framescaper-openfx-host-source-manifest.test.js", "tests/framescaper-openfx-host-build-result.test.js", "tests/framescaper-native-host-build-recipes.test.js", "THIRD_PARTY_LICENSES.md"]
 		}
 	],
 	"ffmpeg": {
@@ -940,9 +940,9 @@
 			"id": "native-codecs",
 			"status": "disabled",
 			"scope": "additional-bundled-video-codec-execution",
-			"blocker": "Seven exact reviewed compressed-audio WebAssembly providers are verified outside this future gate and execute in authenticated, isolated one-shot Electron utility processes: libFLAC, libopus/libogg, libvorbis/libogg, WavPack, mpg123, LAME, and TwoLAME. Specialized first-party PCM readers remain application code and libsndfile is not bundled. Windows Media Foundation and macOS ARM64 AudioToolbox use a target-native codec-only build for macOS ARM64, Windows x64, and Windows ARM64; the build runs native canaries, applies and checks the macOS ad-hoc execution seal before hashing, and staging, package, content-manifest, and startup checks bind one exact manifest and payload. Linux has no uniform OS tier and macOS x64 is unsupported. User-installed external FFmpeg has exact live-checked keyed-RGBA H.264/AAC MP4 and VP9/Opus WebM paths, but those external bytes remain outside the production artifact closure. There is no bundled or operating-system video provider and no libwebm, libvpx, dav1d, SVT-AV1, or libaom payload or AV1 execution path, so bundled and operating-system WebM/AV1 execution fails closed. Electron's exact alternate framework libffmpeg is Chromium infrastructure rather than a provider tier, while user-installed external FFmpeg remains outside the production artifact closure.",
+			"blocker": "Stable bundled-video distribution remains deliberately disabled. The repository-owned Framescaper media host is a separate test tier with authenticated static x264, x265 Main10, libvpx, libopus, and zlib sources; its five-target CI producer performs exact-source construction, binary inspection, runtime self-test, result authentication, and package staging. Successful test artifacts do not make that host a stable Soundscaper provider. Existing compressed-audio WebAssembly providers, target-native operating-system audio providers, and live-checked user-installed FFmpeg routes remain independently governed and do not admit a bundled-video release.",
 			"enableRequires": ["codec-license-inventory", "corresponding-source-where-required", "jurisdiction-specific-patent-review", "package-notice-delivery", "supported-target-payload-build-self-test-and-package-verification"],
-			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md", "docs/desktop-codec-provider-plan.md", "desktop/desktop-audio-codec-registration.mjs", "desktop/bundled-audio-codec-runtime.ts", "desktop/bundled-audio-codec-helper-process.ts", "desktop/bundled-audio-codec-operation-runner.ts", "desktop/bundled-audio-codec-runtime-payload.mjs", "desktop/os-audio-codec-runtime.ts", "desktop/os-audio-codec-native-payload.mjs", "desktop/external-ffmpeg-video-operation-service.ts", "desktop/external-ffmpeg-video-verification.ts", "desktop/external-ffmpeg-video-canary-inspection.ts", "desktop/desktop-video-codec-main-ipc.ts", "src/common/editor/desktop-video-codec-runtime.ts", "native/os-audio-codec-host/CMakeLists.txt", "scripts/lib/os-audio-codec-host-ci.mjs", "scripts/lib/desktop-os-audio-codec-native-staging.mjs", "scripts/lib/desktop-os-audio-codec-native-package-verification.mjs", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-bundled-audio-codec-operation-runner.test.ts", "tests/desktop-packaged-os-audio-codec-native.test.js", "tests/external-ffmpeg-video-verification.test.ts", "tests/external-ffmpeg-video-canary-inspection.test.ts", "tests/desktop-video-codec-main-ipc.test.ts", "tests/production-security-desktop-codec-policy.test.js"]
+			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md", "docs/desktop-codec-provider-plan.md", "desktop/desktop-audio-codec-registration.mjs", "desktop/bundled-audio-codec-runtime.ts", "desktop/bundled-audio-codec-helper-process.ts", "desktop/bundled-audio-codec-operation-runner.ts", "desktop/bundled-audio-codec-runtime-payload.mjs", "desktop/os-audio-codec-runtime.ts", "desktop/os-audio-codec-native-payload.mjs", "desktop/external-ffmpeg-video-operation-service.ts", "desktop/external-ffmpeg-video-verification.ts", "desktop/external-ffmpeg-video-canary-inspection.ts", "desktop/desktop-video-codec-main-ipc.ts", "src/common/editor/desktop-video-codec-runtime.ts", "native/os-audio-codec-host/CMakeLists.txt", "scripts/lib/os-audio-codec-host-ci.mjs", "scripts/lib/desktop-os-audio-codec-native-staging.mjs", "scripts/lib/desktop-os-audio-codec-native-package-verification.mjs", "native/framescaper-media-host/build/ffmpeg-9.0.1-external-sources.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-bundled-audio-codec-operation-runner.test.ts", "tests/desktop-packaged-os-audio-codec-native.test.js", "tests/external-ffmpeg-video-verification.test.ts", "tests/external-ffmpeg-video-canary-inspection.test.ts", "tests/desktop-video-codec-main-ipc.test.ts", "tests/production-security-desktop-codec-policy.test.js"]
 		},
 		{
 			"id": "local-models",
@@ -1080,13 +1080,13 @@
 		{
 			"id": "codec-native-ffmpeg-current-set",
 			"kind": "codec-capability",
-			"upstreamLicensing": "The former browser FFmpeg GPL build with thirteen enabled external libraries remains only as development-time legacy publication and audit material; it is outside the production closure and browser artifact surfaces. The separate native build pins FFmpeg 9.0.1 in GPL mode with no external libraries and is enabled for testing only.",
+			"upstreamLicensing": "The former browser FFmpeg GPL build with thirteen enabled external libraries remains only as development-time legacy publication and audit material; it is outside the production closure and browser artifact surfaces. The separate native build pins FFmpeg 9.0.1 in GPL mode with authenticated static x264, x265 Main10, libvpx, libopus, and zlib sources and is enabled for testing only.",
 			"agplCompatibilityDirection": "Each GPL-2.0-or-later build combines into this AGPL-3.0-only work compatibly; the native 9.0.1 source and recipe are a separate blocked provenance record and do not replace or upgrade the browser runtime.",
 			"redistribution": "An exact target-built Framescaper media host may enter a test package; general-purpose FFmpeg programs, WebAssembly, archives, and loose libav payloads remain forbidden. Each desktop package also contains Electron's exact verified alternate framework libffmpeg, intended upstream to omit proprietary codec support; it is Chromium infrastructure, not this provider row. User-installed external FFmpeg is executed in place and is not copied into an artifact. Any future bundled media host must carry corresponding source and notices and pass target self-tests and package-content verification.",
 			"status": "blocked",
-			"blocker": "The distribution policy permits WebCodecs, operating-system providers, and user-installed FFmpeg but disables bundled FFmpeg and a redistributed native FFmpeg media host. Corresponding source, notices, payload, and target verification also remain incomplete. The authenticated native FFmpeg 9.0.1 recipe remains enabled for build and testing only.",
+			"blocker": "The stable distribution policy deliberately excludes a redistributed native FFmpeg media host. Authenticated source, notices, a closed component recipe, target-native five-target CI production, binary inspection, runtime self-test, and package staging are enabled for build and testing.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "config/ffmpeg-runtime-manifest.json", "desktop/ffmpeg-corresponding-source.json", "native/framescaper-media-host/source-manifest.json", "native/framescaper-media-host/THIRD_PARTY_NOTICES.md", "config/framescaper-media-host-payload-manifest.json", "config/electron-alternate-ffmpeg-manifest.json", "scripts/lib/desktop-codec-policy.mjs", "scripts/lib/electron-alternate-ffmpeg.mjs", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["docs/production-licensing-policy.md", "config/ffmpeg-runtime-manifest.json", "desktop/ffmpeg-corresponding-source.json", "native/framescaper-media-host/source-manifest.json", "native/framescaper-media-host/THIRD_PARTY_NOTICES.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-external-sources.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json", "config/electron-alternate-ffmpeg-manifest.json", "scripts/lib/desktop-codec-policy.mjs", "scripts/lib/electron-alternate-ffmpeg.mjs", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "codec-hardware-acceleration",
@@ -1111,8 +1111,9 @@
 			"agplCompatibilityDirection": "The decoder and MP4 demuxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No H.264-in-MP4 decoder binary ships until corresponding source, notices, and distribution-specific AVC patent review are recorded.",
 			"status": "blocked",
-			"blocker": "The native recipe does not enable H.264 decode, no AVC patent review is recorded, and no reviewed payload or five-target evidence exists.",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"blocker": "H.264 decode and MP4 demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded AVC patent-distribution posture.",
+			"testActivation": "enabled",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-h264-mov",
@@ -1126,8 +1127,9 @@
 			"agplCompatibilityDirection": "The decoder and demuxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No H.264-in-MOV decoder binary ships until corresponding source, notices, and distribution-specific AVC patent review are recorded.",
 			"status": "blocked",
-			"blocker": "The native recipe does not enable H.264 decode, no AVC patent review is recorded, and no reviewed payload or five-target evidence exists.",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"blocker": "H.264 decode and MOV demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded AVC patent-distribution posture.",
+			"testActivation": "enabled",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-hevc-mp4",
@@ -1141,8 +1143,9 @@
 			"agplCompatibilityDirection": "The decoder and MP4 demuxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No HEVC-in-MP4 decoder binary ships until corresponding source, notices, and per-pool, per-jurisdiction patent review are recorded.",
 			"status": "blocked",
-			"blocker": "The native recipe does not enable HEVC decode, no HEVC pool review is recorded, and no reviewed payload or five-target evidence exists.",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"blocker": "HEVC decode and MP4 demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded HEVC patent-pool posture.",
+			"testActivation": "enabled",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-hevc-mov",
@@ -1156,8 +1159,9 @@
 			"agplCompatibilityDirection": "The decoder and demuxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No HEVC-in-MOV decoder binary ships until corresponding source, notices, and per-pool, per-jurisdiction patent review are recorded.",
 			"status": "blocked",
-			"blocker": "The native recipe does not enable HEVC decode, no HEVC pool review is recorded, and no reviewed payload or five-target evidence exists.",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"blocker": "HEVC decode and MOV demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded HEVC patent-pool posture.",
+			"testActivation": "enabled",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-vp9-webm",
@@ -1171,8 +1175,9 @@
 			"agplCompatibilityDirection": "The decoder and demuxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No VP9-in-WebM decoder binary ships until corresponding source, notices, patent review, and payload evidence are recorded.",
 			"status": "blocked",
-			"blocker": "The native recipe enables neither VP9 nor WebM demux, and patent, payload, and five-target reviews remain absent.",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"blocker": "VP9 decode and WebM demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded patent-distribution posture.",
+			"testActivation": "enabled",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-av1-mp4",
@@ -1186,8 +1191,9 @@
 			"agplCompatibilityDirection": "The decoder and MP4 demuxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No AV1-in-MP4 decoder binary ships until corresponding source, notices, patent-licence review, and payload evidence are recorded.",
 			"status": "blocked",
-			"blocker": "The native recipe does not enable AV1 decode, no AV1 patent-licence review is recorded, and no reviewed payload or five-target evidence exists.",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"blocker": "AV1 decode and MP4 demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded AV1 patent-licence posture.",
+			"testActivation": "enabled",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-av1-webm",
@@ -1201,8 +1207,9 @@
 			"agplCompatibilityDirection": "The decoder and demuxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No AV1-in-WebM decoder binary ships until corresponding source, notices, patent-licence review, and payload evidence are recorded.",
 			"status": "blocked",
-			"blocker": "The native recipe enables neither AV1 nor WebM demux, and patent, payload, and five-target reviews remain absent.",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"blocker": "AV1 decode and WebM demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded AV1 patent-licence posture.",
+			"testActivation": "enabled",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-prores-mov",
@@ -1216,8 +1223,9 @@
 			"agplCompatibilityDirection": "The decoder and demuxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No ProRes-in-MOV decoder binary ships until corresponding source, notices, format review, and payload evidence are recorded.",
 			"status": "blocked",
-			"blocker": "The recipe names this pair, but format, interoperability, payload, and target verification remain incomplete.",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"blocker": "ProRes decode and MOV demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded format and interoperability posture.",
+			"testActivation": "enabled",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-dnxhr-mxf",
@@ -1231,8 +1239,9 @@
 			"agplCompatibilityDirection": "The decoder and demuxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No DNxHR-in-MXF decoder binary ships until corresponding source, notices, format and patent review, and payload evidence are recorded.",
 			"status": "blocked",
-			"blocker": "The native recipe enables neither DNxHR nor MXF demux, and format, patent, payload, and five-target reviews remain absent.",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"blocker": "DNxHR decode and MXF demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded format and patent posture.",
+			"testActivation": "enabled",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-png-image-sequence",
@@ -1246,9 +1255,9 @@
 			"agplCompatibilityDirection": "The decoder combines into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "The built-in PNG decoder is enabled in build and test payloads. Distribution remains unavailable until corresponding source, notices, interoperability checks, and target verification are present.",
 			"status": "blocked",
-			"blocker": "PNG decode is enabled for build and testing; sequence interoperability and target verification remain incomplete.",
+			"blocker": "PNG decode and image-sequence demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded sequence-interoperability posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-tiff-image-sequence",
@@ -1262,9 +1271,9 @@
 			"agplCompatibilityDirection": "The decoder combines into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "The built-in TIFF decoder is enabled in build and test payloads. Distribution remains unavailable until corresponding source, notices, interoperability checks, and target verification are present.",
 			"status": "blocked",
-			"blocker": "TIFF decode is enabled for build and testing; sequence interoperability and target verification remain incomplete.",
+			"blocker": "TIFF decode and image-sequence demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded sequence-interoperability posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-openexr-image-sequence",
@@ -1278,9 +1287,9 @@
 			"agplCompatibilityDirection": "The internal decoder combines under FFmpeg's GPL posture; permissive OpenEXR code would combine into this AGPL-3.0-only work.",
 			"redistribution": "The built-in OpenEXR decoder is enabled in build and test payloads. Distribution remains unavailable until corresponding source, notices, interoperability checks, and target verification are present.",
 			"status": "blocked",
-			"blocker": "The internal EXR decoder is enabled for build and testing without libOpenEXR; notices, interoperability, and target verification remain incomplete.",
+			"blocker": "The internal EXR decoder and image-sequence demux are enabled for authenticated build and testing without libOpenEXR, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded HDR-interoperability posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "codec-encode-h264-mp4",
@@ -1290,12 +1299,13 @@
 			"container": "mp4",
 			"profile": "encode-mp4-h264",
 			"execution": "software",
-			"upstreamLicensing": "The planned native profile uses libx264 under GPL-2.0-or-later through the pinned FFmpeg GPL candidate; AVC patent licensing is separate.",
+			"upstreamLicensing": "The native profile uses authenticated libx264 under GPL-2.0-or-later through the pinned FFmpeg GPL build; AVC patent licensing is separate.",
 			"agplCompatibilityDirection": "libx264 and FFmpeg GPL code combine into this AGPL-3.0-only work compatibly.",
 			"redistribution": "No native H.264-in-MP4 encoder ships until libx264 source/notices and distribution-specific AVC patent review are recorded.",
 			"status": "blocked",
-			"blocker": "libx264 and MP4 mux are disabled in the native recipe, and corresponding-source, AVC patent, payload, and five-target reviews remain incomplete.",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"blocker": "libx264 encode and MP4 mux are enabled for authenticated build and testing, and the five-target producer owns source, notice, and binary verification; stable redistribution remains disabled by the recorded AVC patent-distribution posture.",
+			"testActivation": "enabled",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-vp9-webm",
@@ -1305,12 +1315,13 @@
 			"container": "webm",
 			"profile": "encode-webm-vp9",
 			"execution": "software",
-			"upstreamLicensing": "The planned native profile uses libvpx-vp9 under BSD-3-Clause through the pinned FFmpeg GPL candidate.",
+			"upstreamLicensing": "The native profile uses authenticated libvpx-vp9 under BSD-3-Clause through the pinned FFmpeg GPL build.",
 			"agplCompatibilityDirection": "Permissive libvpx code combines into the FFmpeg GPL build and this AGPL-3.0-only work compatibly.",
 			"redistribution": "No native VP9-in-WebM encoder ships until libvpx source/notices, patent review, and payload evidence are recorded.",
 			"status": "blocked",
-			"blocker": "libvpx-vp9 and WebM mux are disabled in the native recipe, and corresponding-source, patent, payload, and five-target reviews remain incomplete.",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"blocker": "libvpx-vp9 encode and WebM mux are enabled for authenticated build and testing, and the five-target producer owns source, notice, and binary verification; stable redistribution remains disabled by the recorded patent-distribution posture.",
+			"testActivation": "enabled",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-hevc-mp4-main10-hdr10",
@@ -1320,12 +1331,13 @@
 			"container": "mp4",
 			"profile": "encode-hevc-main10-hdr10",
 			"execution": "software",
-			"upstreamLicensing": "A future Main10 HEVC software encoder through the pinned FFmpeg GPL candidate; the implementation and HEVC patent-pool terms require separate review.",
-			"agplCompatibilityDirection": "Only a GPL-compatible reviewed encoder may combine into this AGPL-3.0-only work; no implementation is selected by this row.",
+			"upstreamLicensing": "The native profile uses authenticated x265 Main10 under GPL-2.0-or-later through the pinned FFmpeg GPL build; HEVC patent-pool terms are separate.",
+			"agplCompatibilityDirection": "x265 and FFmpeg GPL code combine into this AGPL-3.0-only work compatibly.",
 			"redistribution": "No HDR10 HEVC-in-MP4 encoder ships until an implementation, corresponding source, notices, metadata interoperability, and per-pool patent review are recorded.",
 			"status": "blocked",
-			"blocker": "No encoder implementation or build flag is selected, no HEVC pool review is recorded, and HDR10, payload, and five-target evidence is absent.",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"blocker": "x265 Main10 encode and MP4 mux are enabled for authenticated build and testing, an actual 10-bit Main10 encode is a runtime canary, and the five-target producer owns source, notice, and binary verification; stable redistribution remains disabled by the recorded HEVC patent-pool and HDR10-metadata posture.",
+			"testActivation": "enabled",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-hevc-mp4-main10-sdr",
@@ -1335,12 +1347,13 @@
 			"container": "mp4",
 			"profile": "encode-hevc-main10-sdr",
 			"execution": "software",
-			"upstreamLicensing": "A future Main10 HEVC software encoder through the pinned FFmpeg GPL candidate; the implementation and HEVC patent-pool terms require separate review.",
-			"agplCompatibilityDirection": "Only a GPL-compatible reviewed encoder may combine into this AGPL-3.0-only work; no implementation is selected by this row.",
+			"upstreamLicensing": "The native profile uses authenticated x265 Main10 under GPL-2.0-or-later through the pinned FFmpeg GPL build; HEVC patent-pool terms are separate.",
+			"agplCompatibilityDirection": "x265 and FFmpeg GPL code combine into this AGPL-3.0-only work compatibly.",
 			"redistribution": "No 10-bit SDR HEVC-in-MP4 encoder ships until an implementation, corresponding source, notices, color interoperability, and per-pool patent review are recorded.",
 			"status": "blocked",
-			"blocker": "No encoder implementation or build flag is selected, no HEVC pool review is recorded, and 10-bit SDR, payload, and five-target evidence is absent.",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"blocker": "x265 Main10 encode and MP4 mux are enabled for authenticated build and testing, an actual 10-bit Main10 encode is a runtime canary, and the five-target producer owns source, notice, and binary verification; stable redistribution remains disabled by the recorded HEVC patent-pool and color-interoperability posture.",
+			"testActivation": "enabled",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-prores-mov-proxy",
@@ -1354,8 +1367,9 @@
 			"agplCompatibilityDirection": "The encoder and muxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No ProRes Proxy MOV encoder binary ships until corresponding source, notices, format review, and payload evidence are recorded.",
 			"status": "blocked",
-			"blocker": "The recipe names this pair, but ProRes Proxy interoperability, payload, and target verification remain incomplete.",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"blocker": "ProRes Proxy encode and MOV mux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded format and interoperability posture.",
+			"testActivation": "enabled",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-prores-mov-422-hq",
@@ -1369,8 +1383,9 @@
 			"agplCompatibilityDirection": "The encoder and muxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No ProRes 422 HQ MOV encoder binary ships until corresponding source, notices, format review, and payload evidence are recorded.",
 			"status": "blocked",
-			"blocker": "The recipe names the encoder and muxer, but 422 HQ interoperability, payload, and target verification remain incomplete.",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"blocker": "ProRes 422 HQ encode and MOV mux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded format and interoperability posture.",
+			"testActivation": "enabled",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-prores-mov-4444",
@@ -1384,8 +1399,9 @@
 			"agplCompatibilityDirection": "The encoder and muxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No ProRes 4444 MOV encoder binary ships until corresponding source, notices, alpha interoperability, format review, and payload evidence are recorded.",
 			"status": "blocked",
-			"blocker": "The recipe names the encoder and muxer, but 4444 alpha interoperability, payload, and target verification remain incomplete.",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"blocker": "ProRes 4444 encode and MOV mux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded format and alpha-interoperability posture.",
+			"testActivation": "enabled",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-dnxhr-mxf-hqx",
@@ -1399,8 +1415,9 @@
 			"agplCompatibilityDirection": "The encoder and muxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No DNxHR HQX MXF encoder binary ships until corresponding source, notices, format and patent review, and payload evidence are recorded.",
 			"status": "blocked",
-			"blocker": "DNxHR encode and MXF mux are disabled in the native recipe, and HQX interoperability, patent, payload, and five-target reviews remain absent.",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"blocker": "DNxHR HQX encode and MXF mux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded format, patent, and interoperability posture.",
+			"testActivation": "enabled",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-ffv1-matroska",
@@ -1414,8 +1431,9 @@
 			"agplCompatibilityDirection": "The encoder and muxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No FFV1-in-Matroska encoder binary ships until corresponding source, notices, lossless interoperability, and payload evidence are recorded.",
 			"status": "blocked",
-			"blocker": "FFV1 encode and Matroska mux are disabled in the native recipe, and lossless, payload, and target verification remain absent.",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"blocker": "FFV1 encode and Matroska mux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded lossless-interoperability posture.",
+			"testActivation": "enabled",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-png-image-sequence",
@@ -1429,9 +1447,9 @@
 			"agplCompatibilityDirection": "The encoder combines into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "The built-in PNG encoder and image2 muxer are enabled in build and test payloads. Distribution remains unavailable until corresponding source, notices, alpha interoperability checks, and target verification are present.",
 			"status": "blocked",
-			"blocker": "PNG encode is enabled for authenticated build and testing; distribution interoperability and target verification remain incomplete.",
+			"blocker": "PNG encode and image-sequence mux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded alpha-interoperability posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-tiff-image-sequence",
@@ -1445,9 +1463,9 @@
 			"agplCompatibilityDirection": "The encoder combines into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "The built-in TIFF encoder and image2 muxer are enabled in build and test payloads. Distribution remains unavailable until corresponding source, notices, alpha interoperability checks, and target verification are present.",
 			"status": "blocked",
-			"blocker": "TIFF encode is enabled for authenticated build and testing; distribution interoperability and target verification remain incomplete.",
+			"blocker": "TIFF encode and image-sequence mux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded alpha-interoperability posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-openexr-image-sequence",
@@ -1461,9 +1479,9 @@
 			"agplCompatibilityDirection": "The internal encoder combines under FFmpeg's GPL posture; permissive OpenEXR code would combine into this AGPL-3.0-only work.",
 			"redistribution": "The built-in OpenEXR encoder and image2 muxer are enabled in build and test payloads. Distribution remains unavailable until corresponding source, notices, alpha/HDR interoperability checks, and target verification are present.",
 			"status": "blocked",
-			"blocker": "The internal EXR encoder is enabled for authenticated build and testing without libOpenEXR; distribution alpha/HDR interoperability and target verification remain incomplete.",
+			"blocker": "The internal EXR encoder and image-sequence mux are enabled for authenticated build and testing without libOpenEXR, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded alpha/HDR-interoperability posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json", "THIRD_PARTY_LICENSES.md"]
 		}
 	],
 	"localModelEvidence": [
@@ -1595,12 +1613,12 @@
 			"weightsLicense": "MIT",
 			"attributionRequired": false,
 			"distributionStatus": "blocked",
-			"blockedBy": ["versioned-download-notices-and-hashes"],
+			"blockedBy": ["weights-and-code-license-review"],
 			"requirements": {
-				"weights-and-code-license-review": { "status": "recorded", "summary": "The repository is MIT and ships its pretrained models from its own releases, while upstream question deezer/spleeter#898 records ambiguity over whether that licence covers the weights. That unresolved scope is recorded as a distribution risk, not as an upstream clarification." },
+				"weights-and-code-license-review": { "status": "unresolved", "summary": "The repository is MIT and ships its pretrained models from its own releases, while upstream question deezer/spleeter#898 records ambiguity over whether that licence covers the weights. The offered catalog retires this model instead of treating that unresolved scope as future publication work." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream describes training on an internal music corpus it does not publish; that absence is the recorded provenance." },
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "No use restriction is stated beyond the repository licence. The unresolved weight-licence scope remains explicit in the separate licence-review requirement." },
-				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "No artifact is mirrored yet, so no byte length, SHA-256, or offline notice exists. WP-7.0.1 mirrors and pins the artifact." }
+				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "No artifact is intentionally produced because the model is retired from the offered catalog; no payload is owed while its weight rights remain unresolved." }
 			},
 			"provenanceSources": ["https://github.com/deezer/spleeter", "https://github.com/deezer/spleeter/issues/898"],
 			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]
@@ -1613,12 +1631,12 @@
 			"weightsLicense": "Unstated by upstream",
 			"attributionRequired": false,
 			"distributionStatus": "blocked",
-			"blockedBy": ["versioned-download-notices-and-hashes"],
+			"blockedBy": ["weights-and-code-license-review"],
 			"requirements": {
-				"weights-and-code-license-review": { "status": "recorded", "summary": "Upstream code is MIT but the pretrained weights were never given explicit terms, and the repository was archived in January 2025. The missing weight grant is recorded as a distribution risk without representing that upstream supplied terms." },
+				"weights-and-code-license-review": { "status": "unresolved", "summary": "Upstream code is MIT but the pretrained weights were never given explicit terms, and the repository was archived in January 2025. The offered catalog retires this model instead of treating that missing grant as future publication work." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream names a public music separation corpus plus additional unpublished data for the fine-tuned variants; that description is the recorded provenance." },
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "No model-card use restriction is published. The missing weight terms and the owner's risk acceptance remain explicit in the licence-review requirement." },
-				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "No artifact is mirrored yet, so no byte length, SHA-256, or offline notice exists. WP-7.0.1 mirrors and pins the artifact." }
+				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "No artifact is intentionally produced because the model is retired from the offered catalog; no payload is owed while its weight rights remain unresolved." }
 			},
 			"provenanceSources": ["https://github.com/facebookresearch/demucs"],
 			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]

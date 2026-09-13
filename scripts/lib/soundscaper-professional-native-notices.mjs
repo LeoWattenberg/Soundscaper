@@ -22,7 +22,7 @@ export const SOUNDSCAPER_PROFESSIONAL_NATIVE_NOTICE_MANIFEST_PATH =
 const ALL_SOURCE_IDS = Object.freeze([
 	'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'asio-sdk', 'lv2',
 ]);
-const FORBIDDEN_SOURCE_IDS = new Set(['x264', 'x265', 'libvpx', 'libopus']);
+const FORBIDDEN_SOURCE_IDS = new Set(['x264', 'x265', 'libvpx', 'libopus', 'zlib']);
 const SHA256 = /^[a-f\d]{64}$/u;
 const SAFE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$/u;
 const MAXIMUM_NOTICE_BYTES = 2 * 1024 * 1024;

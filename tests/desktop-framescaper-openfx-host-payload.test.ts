@@ -11,6 +11,7 @@ import {
 } from '../desktop/framescaper-openfx-host-payload.ts';
 
 const FILES = Object.freeze({
+	'framescaper-openfx-host-build-result.json': Buffer.from('synthetic-openfx-build-result'),
 	'framescaper-ofx-scanner': Buffer.from('synthetic-openfx-scanner'),
 	'framescaper-ofx-runtime-host': Buffer.from('synthetic-openfx-runtime'),
 	'milestone5-native-isolation-launcher': Buffer.from('synthetic-openfx-launcher'),
@@ -42,7 +43,7 @@ test('a built target exposes only the hash-verified OpenFX and isolation closure
 	assert.equal(availability.descriptor.runtimeHost.sha256, digest(FILES['framescaper-ofx-runtime-host']));
 	assert.deepEqual(availability.descriptor.supportedGpuBackends, ['opengl', 'opencl', 'cuda']);
 	assert.equal(Object.hasOwn(availability.descriptor, 'm9ReleaseReview'), false);
-	assert.equal(reads.length, 7);
+	assert.equal(reads.length, 8);
 });
 
 test('packaged and prepared OpenFX payloads stay inside their selected runtime root', async () => {
@@ -62,7 +63,7 @@ test('packaged and prepared OpenFX payloads stay inside their selected runtime r
 
 test('pending, malformed, wrong-target, and altered OpenFX closures fail closed', async () => {
 	const pending = await describeFramescaperOpenFxHostAvailability(location(), ports(manifest(false)));
-	assert.equal(pending.status === 'unavailable' ? pending.reason : null, 'payload-pending-external');
+	assert.equal(pending.status === 'unavailable' ? pending.reason : null, 'payload-not-generated');
 	for (const [label, value, alteredName, expected] of [
 		['extra target field', mutateManifest((row) => { row.obsoleteReleaseField = null; }), '', 'manifest-unreadable'],
 		['missing payload row', { ...manifest(), payloads: [] }, '', 'manifest-unreadable'],
@@ -103,6 +104,8 @@ function location() {
 }
 
 function manifest(built = true) {
+	const buildResult = descriptor(`${SOURCE_PREFIX}/framescaper-openfx-host-build-result.json`,
+		FILES['framescaper-openfx-host-build-result.json']);
 	const scannerPayload = descriptor(`${SOURCE_PREFIX}/bin/framescaper-ofx-scanner`,
 		FILES['framescaper-ofx-scanner']);
 	const runtimeHostPayload = descriptor(`${SOURCE_PREFIX}/bin/framescaper-ofx-runtime-host`,
@@ -117,19 +120,19 @@ function manifest(built = true) {
 		runtimeLibraryPayloads: [descriptor(`${SOURCE_PREFIX}/lib/ld-linux-x86-64.so.2`,
 			FILES['ld-linux-x86-64.so.2'])],
 	};
-	const payload = { scannerPayload, runtimeHostPayload, isolationPayload };
+	const payload = { buildResult, scannerPayload, runtimeHostPayload, isolationPayload };
 	const targets = [
 		{
-			id: 'linux-x64', runtime: 'linux-x64', status: built ? 'built' : 'pending-external',
-			blockedBy: built ? null : 'No verified synthetic OpenFX payload exists.',
+			id: 'linux-x64', runtime: 'linux-x64', status: built ? 'built' : 'ci-generated',
+			blockedBy: null,
 			payload: built ? payload : null,
 		},
 		...[
 			['linux-arm64', 'linux-arm64'], ['mac-arm64', 'darwin-arm64'],
 			['win-x64', 'win32-x64'], ['win-arm64', 'win32-arm64'],
 		].map(([id, runtime]) => ({
-			id, runtime, status: 'pending-external',
-			blockedBy: 'No verified synthetic OpenFX payload exists.', payload: null,
+			id, runtime, status: 'ci-generated',
+			blockedBy: null, payload: null,
 		})),
 	];
 	return {

@@ -51,8 +51,15 @@ function createFixture(mutate = () => undefined) {
 					blockedBy: null,
 					toolchainIdentity: 'cc (fixture) 1.0',
 					payload: { name: 'soundscaper_helper.node', byteLength: payload.byteLength, sha256: digest(payload) },
+					buildResult: null,
 				}
-				: { status: 'pending-external', blockedBy: 'No build host is provisioned for this target.', toolchainIdentity: null, payload: null },
+				: {
+					status: 'ci-generated',
+					blockedBy: null,
+					toolchainIdentity: null,
+					payload: null,
+					buildResult: null,
+				},
 		])),
 	};
 	mutate(manifest, { root, sourceRoot, payloadRoot });
@@ -113,7 +120,7 @@ test('a tampered source, an unpinned source and a tampered payload each fail clo
 	}
 });
 
-test('a built target without its payload and a pending target that pins one are both rejected', () => {
+test('a built target without its payload and a CI-generated target that pins one are both rejected', () => {
 	const missing = createFixture((manifest, { payloadRoot }) => {
 		void manifest;
 		rmSync(join(payloadRoot, 'soundscaper_helper.node'));
@@ -121,15 +128,15 @@ test('a built target without its payload and a pending target that pins one are 
 	const overclaimed = createFixture((manifest) => {
 		manifest.targets['win-x64'].payload = { name: 'soundscaper_helper.node', byteLength: 4, sha256: 'b'.repeat(64) };
 	});
-	const unexplained = createFixture((manifest) => {
-		manifest.targets['mac-arm64'].blockedBy = '';
+	const blocked = createFixture((manifest) => {
+		manifest.targets['mac-arm64'].blockedBy = 'A policy gate';
 	});
 	try {
 		assert.match(auditNativeHelperAddon({ repositoryRoot: missing }).findings.join('\n'), /linux-x64: the built payload is missing/u);
-		assert.match(auditNativeHelperAddon({ repositoryRoot: overclaimed }).findings.join('\n'), /win-x64: a pending-external target must not pin a payload/u);
-		assert.match(auditNativeHelperAddon({ repositoryRoot: unexplained }).findings.join('\n'), /mac-arm64: a pending-external target requires a named blocker/u);
+		assert.match(auditNativeHelperAddon({ repositoryRoot: overclaimed }).findings.join('\n'), /win-x64: a ci-generated target must not pin build output/u);
+		assert.match(auditNativeHelperAddon({ repositoryRoot: blocked }).findings.join('\n'), /mac-arm64: a ci-generated target must not carry a blocker/u);
 	} finally {
-		for (const root of [missing, overclaimed, unexplained]) rmSync(root, { recursive: true, force: true });
+		for (const root of [missing, overclaimed, blocked]) rmSync(root, { recursive: true, force: true });
 	}
 });
 
@@ -151,7 +158,7 @@ test('the addon is never cross-built: a foreign target is refused', () => {
 			target: NATIVE_HELPER_ADDON_TARGETS.find(({ runtime }) => runtime !== `${process.platform}-${process.arch}`),
 			run: () => ({ status: 0, stdout: 'cc (test) 1.0\n' }),
 		}),
-		/built only for the host target/u,
+		/local helper command builds only its host target.*target-native CI workflow/u,
 	);
 });
 

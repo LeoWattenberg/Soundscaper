@@ -169,13 +169,13 @@ test('a candidate that will not load keeps a digest-keyed identity and reports w
 	assert.equal(entry.reportedLatencyFrames, null);
 });
 
-test('no scan claims a signature verdict it did not compute', async () => {
+test('scan results carry no signature claim or policy bypass', async () => {
 	const scan = runner(fakeAddon(['/roots/one.scapefx']));
 	const result = await scan({
 		grant: { rootPath: '/roots', format: 'fixture', identity: { dev: 1, ino: 2 } },
 		onProgress: () => {},
 	}).completion;
-	assert.equal(result.entries[0].signature, 'unverifiable');
+	assert.equal(Object.hasOwn(result.entries[0], 'signature'), false);
 });
 
 test('a cancelled scan stops early and keeps what it already inspected', async () => {

@@ -38,8 +38,9 @@ No model weights are bundled or downloaded during ordinary application builds.
 | Engine | Models |
 | --- | --- |
 | Sherpa ONNX 1.13.5 | Silero VAD, both Parakeet models, Pyannote segmentation and ERes2Net speaker embeddings |
-| ONNX Runtime Node 1.29.0 | DeepFilterNet3, YuNet, D-FINE, U²-Net-P, PP-OCRv4, Nomic and SigLIP2 |
+| ONNX Runtime Node 1.29.0 | DeepFilterNet3, YuNet, D-FINE, U²-Net-P, PP-OCRv4, Nomic, SigLIP2, wav2vec2, TIGER-DnR, PANNs CNN10, both Beat This checkpoints, TransNetV2 and Dereverb Room |
 | whisper.cpp v1.9.3 | Whisper large-v3 turbo GGML |
+| llama.cpp b10509 | Qwen3 4B Q4_K_M |
 
 ONNX Runtime comes from the exact npm archives and file hashes in
 `config/assistance-onnx-runtime-payloads.json`. Packaging extracts the selected
@@ -61,10 +62,10 @@ Sherpa JavaScript package and official ARM64 libraries. The package receipt
 records the source, compiler and resulting file hashes. Other platforms retain
 the existing upstream Sherpa package inventories.
 
-The current digest-pinned model catalog admits only Whisper on Windows ARM64. The
-other twelve entries still need a reviewed catalog update; building the engines
-does not override that catalog restriction. All
-thirteen models are admitted on macOS ARM64, Linux x64/ARM64 and Windows x64.
+The current digest-pinned model catalog admits all 21 models on Windows ARM64
+as well as macOS ARM64, Linux x64/ARM64 and Windows x64. Catalog admission
+and package-runtime authentication remain independent checks; building an
+engine does not override either one.
 
 ## Package integrity
 

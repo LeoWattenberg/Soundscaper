@@ -34,7 +34,7 @@ test('the native plug-in hosting row describes the out-of-process host that ship
 	);
 	assert.match(
 		fence.summary,
-		/no authenticated built target payload\/launcher.*machine.*unavailable/iu,
+		/repository-owned five-target workflows.*build.*self-test.*architecture-check.*hash.*staging-verify.*source templates.*no generated target bytes.*payload-not-generated.*human review does not gate/iu,
 	);
 	assertEvidence(fence, [
 		'desktop/preload.mjs',
@@ -137,7 +137,7 @@ test('the native plug-in hosting row enables testing while keeping machine gaps 
 	assert.ok(authority, 'ambient authority must remain a named residual risk');
 	assert.match(
 		authority.exposure,
-		/launcher source.*Linux namespaces\/Landlock\/seccomp.*macOS Seatbelt.*Windows AppContainer.*no authenticated built launcher.*machine-unavailable/iu,
+		/launcher source.*Linux namespaces\/Landlock\/seccomp.*macOS Seatbelt.*Windows AppContainer.*repository-owned five-target professional workflow.*produces and self-tests.*staging check.*payload-not-generated.*no human approval or policy signature/iu,
 	);
 	assert.match(
 		authority.exposure,
@@ -152,7 +152,7 @@ test('the native plug-in hosting row enables testing while keeping machine gaps 
 	);
 	assert.match(
 		unexercised.exposure,
-		/external source audit is 0\/10.*OpenFX payload manifest is empty.*no authenticated built per-OS launcher.*machine payload/iu,
+		/source cache `not-materialized`.*five-target repository producer.*matching result must be staged/iu,
 	);
 	assert.match(
 		unexercised.requiredControl,
@@ -175,7 +175,10 @@ test('the native helper row stops describing hosting and device opening as absen
 		residual.exposure,
 		/Soundscaper family-v1 route.*native audio.*native-effect hosting.*direct unversioned baseline.*Framescaper family-v1 and exact V14-render route.*persistent services V3.*direct unversioned native baseline.*native media.*OpenFX frame graph/iu,
 	);
-	assert.match(residual.exposure, /0\/10.*all five Soundscaper professional rows.*both Framescaper payload manifests are empty.*no verified OpenFX build result/iu);
+	assert.match(
+		residual.exposure,
+		/0\/11.*source-template manifests.*five `ci-generated` targets.*workflow results populate only their matching target/iu,
+	);
 	assert.match(
 		residual.acceptanceCriteria.join(' '),
 		/crash, hang, malformed message, oversized payload, binary mismatch, and cancellation tests.*matching verified build result.*required self-tests/iu,
@@ -194,14 +197,17 @@ test('the threat-model narrative separates enabled testing from machine checks a
 		threatModel,
 		/1\.0 project-identity boundary.*schemaFamily:'soundscaper'.*schemaFamily:'framescaper'.*ordinary automated gate/isu,
 	);
-	assert.match(threatModel, /shared source audit authenticates 0\/10.*no matching\s+target build result exists/isu);
+	assert.match(
+		threatModel,
+		/all eleven required archive\/extracted-tree inputs.*not-materialized.*repository-owned five-target producers.*exact target result must be staged/isu,
+	);
 	assert.match(
 		threatModel,
 		/source and notices.*matching target build result.*required self-tests.*architecture checks.*hashes.*package verification/iu,
 	);
 	assert.match(
 		threatModel,
-		/launcher source.*Landlock.*Seatbelt.*AppContainer.*no authenticated built.*machine payload/iu,
+		/launcher source.*CI results.*Landlock.*Seatbelt.*AppContainer/iu,
 	);
 });
 

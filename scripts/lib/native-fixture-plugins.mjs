@@ -89,8 +89,8 @@ export function auditFixturePlugins({ repositoryRoot, manifest, targetId }) {
 	const findings = [];
 	const record = manifest.fixturePlugins?.targets?.[targetId];
 	if (!record) return [`Missing fixture plug-in record for ${targetId}`];
-	if (record.status === 'pending-external') {
-		if ((record.files ?? []).length > 0) findings.push(`${targetId}: a pending-external fixture set must pin no files.`);
+	if (record.status === 'ci-generated') {
+		if ((record.files ?? []).length > 0) findings.push(`${targetId}: a ci-generated fixture set must pin no files.`);
 		return findings;
 	}
 	if (record.status !== 'built') return [`${targetId}: unsupported fixture status ${String(record.status)}`];

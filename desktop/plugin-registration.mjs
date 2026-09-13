@@ -24,12 +24,13 @@ import {
 import { DesktopPluginScanService } from './project-library-runtime/desktop/plugin-scan-service.js';
 import { createDesktopNativeAddonHelperSupervisor } from './native-helper-registration.mjs';
 import { productionSoundscaperPluginFormatActivated } from './soundscaper-native-activation-policy.mjs';
-import { createPluginRegistryReviewStore } from './plugin-registry-review-store.mjs';
+import { createPluginRegistryAllowanceStore } from './plugin-registry-allowance-store.mjs';
 import { authenticatePluginBinary } from './plugin-binary-authentication.mjs';
 
 const CONSENT_FILE = 'native-plugin-consent-v1.json';
 const QUARANTINE_FILE = 'native-plugin-quarantine-v1.json';
-const REVIEW_FILE = 'native-plugin-review-v1.json';
+const ALLOWANCE_FILE = 'native-plugin-allowance-v1.json';
+const LEGACY_ALLOWANCE_FILE = 'native-plugin-review-v1.json';
 
 /**
  * The scan service names a fault in the vocabulary of a scan; the durable store
@@ -95,7 +96,7 @@ export function recordScannedPlugins(registry, result, {
 } = {}) {
 	// An oversized root still reports the prefix that fits; those entries are
 	// shown to the user, so refusing to record them left every plug-in from a
-	// large folder visible in the results yet impossible to review or host.
+	// large folder visible in the results yet impossible to allow or host.
 	if (!['scanned', 'root-oversized'].includes(result.status)) return [];
 	return result.entries.map((entry) => {
 		const identity = identityFor(entry.binaryPath);
@@ -206,15 +207,16 @@ export function registerDesktopPluginDiscovery({
 		return consentWrites;
 	};
 	const registry = new DesktopPluginRegistry({ isQuarantined: (digest) => quarantine.isQuarantined(digest) });
-	const reviews = createPluginRegistryReviewStore({
-		filePath: join(userDataPath, REVIEW_FILE), fileSystem: durable,
+	const allowances = createPluginRegistryAllowanceStore({
+		filePath: join(userDataPath, ALLOWANCE_FILE),
+		legacyFilePath: join(userDataPath, LEGACY_ALLOWANCE_FILE), fileSystem: durable,
 		authenticateBinary: authenticatePluginBinary,
 	});
 	const scannerQuarantine = createScannerQuarantinePort(quarantine);
 	const formatIsActive = (format) => isPluginHostFormatActivated(format) === true;
 	const service = new DesktopPluginScanService({
 		supervisor: observeScannedPlugins(supervisor, registry, {
-			isFormatActivated: formatIsActive, onRecorded: reviews.observe,
+			isFormatActivated: formatIsActive, onRecorded: allowances.observe,
 			onIdentityChanged: (digest) => scannerQuarantine.quarantine(digest, 'identity-change'),
 		}),
 		consent: Object.freeze({
@@ -287,8 +289,8 @@ export function registerDesktopPluginDiscovery({
 		// in a log: a quarantine that did not persist is one the next start will
 		// not honour, and the scan would have looked clean either way.
 		await scannerQuarantine.settle();
-		reviews.apply(registry);
-		await reviews.capture(registry);
+		allowances.apply(registry);
+		await allowances.capture(registry);
 		return outcome;
 	});
 	handle(channels.nativePluginInventory, () => registry.describe());
@@ -308,31 +310,40 @@ export function registerDesktopPluginDiscovery({
 		const restored = hosting ? hosting.isolation.restoreDigest(digest) : false;
 		return Object.freeze({ cleared: cleared || restored });
 	});
-	handle(channels.nativePluginReviewInstallation, async (event, value) => {
+	handle(channels.nativePluginSetInstallationAllowed, async (event, value) => {
 		void ownerFor(event);
 		const format = pluginInstallationFormat(registry, value?.installationId);
 		if (!formatIsActive(format)) {
 			throw new Error('That plug-in format remains blocked by production policy and source activation.');
 		}
-		if (value?.action === 'allow') {
+		if (value?.allowed === true) {
 			registry.allow(value.installationId);
 			// An explicit re-allow is the one way back from an active revocation.
 			hosting?.isolation.restoreDigest(registry.installationDigest(value.installationId));
 		}
-		else if (value?.action === 'select') registry.select(value.installationId);
-		else if (value?.action === 'revoke') {
+		else if (value?.allowed === false) {
 			// Active revocation, as 5A-3 acceptance names it: the allowance is
 			// withdrawn, every matching host dies, and nothing restarts the
 			// digest until the user explicitly re-allows this installation.
 			registry.withdrawAllowance(value.installationId);
 			hosting?.isolation.revokeDigest(registry.installationDigest(value.installationId));
 		}
-		else throw new Error('A plug-in installation may only be allowed, selected, or revoked explicitly.');
-		await reviews.capture(registry);
+		else throw new Error('A plug-in installation allowance must be an explicit boolean.');
+		await allowances.capture(registry);
+		return registry.describe();
+	});
+	handle(channels.nativePluginSelectInstallation, async (event, value) => {
+		void ownerFor(event);
+		const format = pluginInstallationFormat(registry, value?.installationId);
+		if (!formatIsActive(format)) {
+			throw new Error('That plug-in format remains blocked by production policy and source activation.');
+		}
+		registry.select(value.installationId);
+		await allowances.capture(registry);
 		return registry.describe();
 	});
 	handle(channels.nativePluginInstantiate, async (event, value) => {
-		await rebindPluginInstallation(reviews, registry, value?.installationId);
+		await rebindPluginInstallation(allowances, registry, value?.installationId);
 		const runtime = requireHosting(hosting);
 		const owner = ownerFor(event);
 		const instance = await runtime.service.instantiate(owner, value);
@@ -424,8 +435,8 @@ function requireHosting(hosting) {
 	return hosting;
 }
 
-async function rebindPluginInstallation(reviews, registry, installationId) {
-	if (await reviews.rebind(registry, installationId)) return;
+async function rebindPluginInstallation(allowances, registry, installationId) {
+	if (await allowances.rebind(registry, installationId)) return;
 	try { registry.hostDescriptorFor(installationId); }
 	catch { throw new Error('That persisted plug-in installation could not be re-authenticated.'); }
 }

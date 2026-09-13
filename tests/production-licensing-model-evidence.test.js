@@ -144,10 +144,14 @@ test('a model is distributable exactly when its artifacts are mirrored', async (
 			'blocked',
 			`${record.id} must stay blocked while nothing is mirrored for it`,
 		);
-		assert.ok(
-			record.blockedBy.includes('versioned-download-notices-and-hashes'),
-			`${record.id} cannot claim pinned download evidence before an artifact is mirrored`,
-		);
+		assert.ok(record.blockedBy.length > 0, `${record.id} needs a machine blocker while it is not offered`);
+		if (!record.blockedBy.includes('versioned-download-notices-and-hashes')) {
+			assert.match(
+				record.requirements['versioned-download-notices-and-hashes'].summary,
+				/intentionally (?:retired|not produced)|no payload is owed/iu,
+				`${record.id} may omit download evidence only when the payload is terminal`,
+			);
+		}
 	}
 });
 
@@ -182,8 +186,9 @@ test('upstream ambiguity is recorded factually without a named or dated approval
 	for (const id of ['spleeter', 'demucs-v4-htdemucs']) {
 		const record = byId.get(id);
 		assert.ok(record, `${id} must be recorded rather than silently omitted`);
-		assert.equal(record.requirements['weights-and-code-license-review'].status, 'recorded');
-		assert.deepEqual(record.blockedBy, ['versioned-download-notices-and-hashes']);
+		assert.equal(record.requirements['weights-and-code-license-review'].status, 'unresolved');
+		assert.equal(record.requirements['versioned-download-notices-and-hashes'].status, 'recorded');
+		assert.deepEqual(record.blockedBy, ['weights-and-code-license-review']);
 		assert.equal(record.distributionStatus, 'blocked');
 	}
 	const transnet = byId.get('transnetv2');

@@ -115,14 +115,14 @@ test('every derived recipe is CPU-only ONNX and binds its captured execution pla
 	const fabricated = clone(modelSupply);
 	fabricated.candidates[0].conversion.outputs[0].byteLength = null;
 	assert.throws(() => validateMilestone7ModelSupplyRegister(fabricated),
-		/pending|digest|artifact/iu);
+		/not.generated|digest|artifact/iu);
 	const changedSource = clone(modelSupply);
 	changedSource.candidates[2].source.artifacts[0].integrity.value = OTHER_SHA256.slice(0, 40);
 	assert.throws(() => validateMilestone7ModelSupplyRegister(changedSource),
 		/source.*artifact|closure|pin/iu);
 });
 
-test('wav2vec and Qwen identity pins remain non-activated direct candidates', () => {
+test('wav2vec and Qwen identity pins record their published catalog state', () => {
 	const register = validateMilestone7ModelSupplyRegister(modelSupply);
 	const wav2vec = directPin(register, 'wav2vec2-base-960h-english-alignment');
 	assert.equal(wav2vec.revision, '6d2b9ffaac8aabc45934584ee608c5fb5ee34a4e');
@@ -138,7 +138,13 @@ test('wav2vec and Qwen identity pins remain non-activated direct candidates', ()
 	});
 	assert.equal(qwen.minimumSystemMemoryBytes, 16 * 1024 ** 3);
 	assert.ok(register.directPins.every(({ activationStatus }) =>
-		activationStatus === 'catalog-publication-pending'));
+		activationStatus === 'ready'));
+	assert.ok(register.directPins.every(({ blockedBy }) => blockedBy === null));
+
+	const stale = clone(modelSupply);
+	stale.directPins[0].activationStatus = 'catalog-evidence-incomplete';
+	stale.directPins[0].blockedBy = 'catalog-entry-not-generated';
+	assert.throws(() => validateMilestone7ModelSupplyRegister(stale), /direct model|activation|published|ready/iu);
 });
 
 test('parity fixture inputs reproduce exact bytes and bind retained evidence', () => {
@@ -156,18 +162,18 @@ test('parity fixture inputs reproduce exact bytes and bind retained evidence', (
 	}
 });
 
-test('parity evidence is exact, threshold-bound, and cannot bless pending artifacts', () => {
+test('parity evidence is exact, threshold-bound, and cannot bless not-generated artifacts', () => {
 	const supply = validateMilestone7ModelSupplyRegister(modelSupply);
 	const fixtures = validateMilestone7ParityFixtureRegister(parityFixtures, supply);
 	const fixture = fixtures.fixtures.find(({ candidateId }) => candidateId === 'panns-cnn10');
-	const pending = clone(candidate(supply, fixture.candidateId));
-	pending.conversion.status = 'converted-artifact-pending';
-	pending.conversion.blockedBy = 'converted-output-not-published';
-	for (const output of pending.conversion.outputs) { output.byteLength = null; output.sha256 = null; }
+	const incomplete = clone(candidate(supply, fixture.candidateId));
+	incomplete.conversion.status = 'converted-artifact-not-generated';
+	incomplete.conversion.blockedBy = 'converted-output-not-generated';
+	for (const output of incomplete.conversion.outputs) { output.byteLength = null; output.sha256 = null; }
 	const evidence = {
 		schemaVersion: 1, candidateId: fixture.candidateId, fixtureId: fixture.id,
-		recipeVersion: pending.conversion.recipe.version,
-		convertedArtifacts: pending.conversion.outputs.map(({ role }) => ({
+		recipeVersion: incomplete.conversion.recipe.version,
+		convertedArtifacts: incomplete.conversion.outputs.map(({ role }) => ({
 			role, byteLength: 1, sha256: SHA256,
 		})),
 		runs: fixture.frameworks.map((framework) => ({
@@ -176,9 +182,9 @@ test('parity evidence is exact, threshold-bound, and cannot bless pending artifa
 		})),
 		comparisons: fixture.comparisons.map((comparison) => ({ ...comparison, observed: 0 })),
 	};
-	assert.throws(() => validateMilestone7ParityEvidence(evidence, fixture, pending),
-		/pending|converted artifact/iu);
-	const ready = clone(pending);
+	assert.throws(() => validateMilestone7ParityEvidence(evidence, fixture, incomplete),
+		/not.generated|converted artifact/iu);
+	const ready = clone(incomplete);
 	ready.conversion.status = 'converted-artifact-ready';
 	ready.conversion.blockedBy = null;
 	ready.conversion.recipe.toolchain = {
@@ -206,6 +212,8 @@ test('the deterministic verifier reports pins and package-generated runtimes wit
 	assert.deepEqual(report.candidates.map(({ status }) => status),
 		Array(5).fill('converted-artifact-ready'));
 	assert.equal(report.parityFixtures.every(({ status }) => status === 'verified'), true);
+	assert.equal(report.directPins.every(({ status, blockedBy }) =>
+		status === 'ready' && blockedBy === null), true);
 	assert.equal(report.productionCatalogChanged, false);
 	assert.deepEqual(report.runtimeFamilies.map(({ status }) => status),
 		Array(3).fill('package-generated'));

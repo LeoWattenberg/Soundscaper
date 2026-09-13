@@ -37,11 +37,6 @@ const REPORTING_STATUSES: readonly PluginScanStatus[] = Object.freeze(['scanned'
 export const PLUGIN_CLASSIFICATIONS = Object.freeze(['effect', 'instrument', 'unknown'] as const);
 export type PluginClassification = (typeof PLUGIN_CLASSIFICATIONS)[number];
 
-export const PLUGIN_SIGNATURE_RESULTS = Object.freeze([
-	'signed-valid', 'signed-invalid', 'unsigned', 'unverifiable',
-] as const);
-export type PluginSignatureResult = (typeof PLUGIN_SIGNATURE_RESULTS)[number];
-
 export const PLUGIN_COMPATIBILITY_RESULTS = Object.freeze([
 	'compatible', 'wrong-architecture', 'unsupported-format', 'malformed', 'oversize',
 ] as const);
@@ -68,7 +63,7 @@ export const MAXIMUM_PLUGIN_SCAN_RESULT_BYTES: number = MAXIMUM_HELPER_WIRE_MESS
 const SMALLEST_SCAN_ENTRY_BYTES = JSON.stringify({
 	stableId: 'a', name: 'a', vendor: 'a', version: 'a', binaryPath: '/a', binaryBytes: 1,
 	binarySha256: '0'.repeat(64), classification: 'unknown', channelSupport: [], realtime: false,
-	offline: false, reportedLatencyFrames: null, signature: 'unverifiable', compatibility: 'compatible',
+	offline: false, reportedLatencyFrames: null, compatibility: 'compatible',
 	descriptorVersion: 0,
 }).length + 1;
 
@@ -104,7 +99,6 @@ export interface PluginScanEntry {
 	readonly realtime: boolean;
 	readonly offline: boolean;
 	readonly reportedLatencyFrames: number | null;
-	readonly signature: PluginSignatureResult;
 	readonly compatibility: PluginCompatibilityResult;
 	readonly descriptorVersion: number;
 }
@@ -129,7 +123,7 @@ const RESULT_KEYS = Object.freeze(['format', 'status', 'detail', 'entries']);
 const ENTRY_KEYS = Object.freeze([
 	'stableId', 'name', 'vendor', 'version', 'binaryPath', 'binaryBytes', 'binarySha256',
 	'classification', 'channelSupport', 'realtime', 'offline', 'reportedLatencyFrames',
-	'signature', 'compatibility', 'descriptorVersion',
+	'compatibility', 'descriptorVersion',
 ]);
 const CHANNEL_KEYS = Object.freeze(['inputs', 'outputs']);
 const SHA256 = /^[a-f\d]{64}$/u;
@@ -191,7 +185,6 @@ export function projectPluginScanForRenderer(result: HelperPluginScanResult): Re
 			realtime: entry.realtime,
 			offline: entry.offline,
 			reportedLatencyFrames: entry.reportedLatencyFrames,
-			signature: entry.signature,
 			compatibility: entry.compatibility,
 			descriptorVersion: entry.descriptorVersion,
 		}))),
@@ -233,7 +226,6 @@ function validatePluginScanEntry(value: unknown, stableIds: Set<string>): Plugin
 		reportedLatencyFrames: record.reportedLatencyFrames === null
 			? null
 			: boundedInteger(record.reportedLatencyFrames, 0, MAXIMUM_PLUGIN_LATENCY_FRAMES, 'plug-in reported latency'),
-		signature: enumValue(record.signature, PLUGIN_SIGNATURE_RESULTS, 'plug-in signature result'),
 		compatibility: enumValue(record.compatibility, PLUGIN_COMPATIBILITY_RESULTS, 'plug-in compatibility result'),
 		descriptorVersion: boundedInteger(record.descriptorVersion, 0, MAXIMUM_PLUGIN_DESCRIPTOR_VERSION,
 			'plug-in descriptor version'),

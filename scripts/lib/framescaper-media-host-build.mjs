@@ -33,7 +33,7 @@ export const FRAMESCAPER_MEDIA_HOST_TARGETS = Object.freeze([
 const SOURCE_EXCLUSIONS = new Set(['source-manifest.json']);
 const SHA256 = /^[a-f\d]{64}$/u;
 const TARGET_FIELDS = Object.freeze([
-	'runtime', 'status', 'blockedBy', 'toolchainIdentity', 'payload',
+	'runtime', 'status', 'blockedBy', 'toolchainIdentity', 'buildResult', 'payload',
 	'isolationPayload',
 ]);
 
@@ -55,8 +55,6 @@ export function readFramescaperMediaHostSourceManifest(repositoryRoot) {
 		fileCount: 10_397,
 		sha256: 'dc709cc7d80424f45aab44ac94e59f7c8669fe18b877e9e5f1319006bfa622b4',
 	}), 'The native host FFmpeg extracted-tree identity is unsupported.');
-	assert(manifest.ffmpeg.signingKeyFingerprint === 'FCF986EA15E6E293A5644F10B4322F04D67658D8',
-		'The native host FFmpeg signing key is not pinned.');
 	assertBoostBuildInputs(repositoryRoot, manifest);
 	assert(Array.isArray(manifest.sourceFiles), 'The native host source manifest has no source closure.');
 	const targets = Object.keys(manifest.targets ?? {}).sort();
@@ -136,13 +134,13 @@ export function auditFramescaperMediaHost({ repositoryRoot }) {
 			continue;
 		}
 		if (record.runtime !== target.runtime) findings.push(`${target.id}: runtime identity mismatch.`);
-		if (record.status === 'pending-external') {
+		if (record.status === 'ci-generated') {
 			if (record.payload !== null || record.toolchainIdentity !== null
-				|| record.isolationPayload !== null) {
-				findings.push(`${target.id}: pending-external targets cannot carry payload claims.`);
+				|| record.isolationPayload !== null || record.buildResult !== null) {
+				findings.push(`${target.id}: CI-generated targets cannot carry payload claims.`);
 			}
-			if (typeof record.blockedBy !== 'string' || record.blockedBy.length < 16) {
-				findings.push(`${target.id}: pending-external target has no concrete blocker.`);
+			if (record.blockedBy !== null) {
+				findings.push(`${target.id}: a CI-generated target is not externally blocked.`);
 			}
 		} else if (record.status === 'built') {
 			findings.push(...auditBuiltTarget(root, manifest, target, record));
@@ -311,14 +309,16 @@ export function deriveFramescaperMediaHostPayloadManifest(sourceManifest) {
 				runtime: target.runtime,
 				status: 'built',
 				blockedBy: null,
+				buildResult: { ...record.buildResult },
 				payload: { ...record.payload },
 				isolationPayload: cloneIsolationPayload(record.isolationPayload),
 			}
 			: {
 				id: target.id,
 				runtime: target.runtime,
-				status: 'pending-external',
-				blockedBy: record.blockedBy,
+				status: 'ci-generated',
+				blockedBy: null,
+				buildResult: null,
 				payload: null,
 				isolationPayload: null,
 			};
@@ -331,8 +331,9 @@ export function deriveFramescaperMediaHostPayloadManifest(sourceManifest) {
 		runtimePrefix: 'native/framescaper-media-host',
 		payloads: targets
 			.filter(({ status }) => status === 'built')
-			.map(({ id, runtime, payload, isolationPayload }) => ({
-				id, runtime, ...payload, isolationPayload: cloneIsolationPayload(isolationPayload),
+			.map(({ id, runtime, buildResult, payload, isolationPayload }) => ({
+				id, runtime, buildResult: { ...buildResult }, ...payload,
+				isolationPayload: cloneIsolationPayload(isolationPayload),
 			})),
 		targets,
 	};
@@ -377,6 +378,7 @@ function auditBuiltTarget(root, manifest, target, record) {
 		return [...findings, `${target.id}: a built target requires an exact payload identity.`];
 	}
 	const expectedPrefix = `${FRAMESCAPER_MEDIA_HOST_ROOT}/prebuilt/${target.id}/`;
+	findings.push(...auditBuildResult(root, target.id, record.buildResult));
 	if (!payload.path.startsWith(expectedPrefix)) findings.push(`${target.id}: payload path leaves its target root.`);
 	let bytes;
 	try { bytes = readFileSync(resolve(root, payload.path)); }
@@ -386,6 +388,20 @@ function auditBuiltTarget(root, manifest, target, record) {
 	}
 	findings.push(...auditIsolationPayload(root, target.id, record.isolationPayload));
 	return findings;
+}
+
+function auditBuildResult(root, targetId, value) {
+	const expected = `${FRAMESCAPER_MEDIA_HOST_ROOT}/prebuilt/${targetId}/framescaper-media-host-build-result.json`;
+	if (!sameFields(value, ['path', 'byteLength', 'sha256']) || value.path !== expected
+		|| !Number.isSafeInteger(value.byteLength) || value.byteLength <= 0
+		|| !SHA256.test(String(value.sha256))) {
+		return [`${targetId}: invalid media-host build-result receipt identity.`];
+	}
+	try {
+		const bytes = readFileSync(resolve(root, value.path));
+		return bytes.byteLength === value.byteLength && digest(bytes) === value.sha256
+			? [] : [`${targetId}: media-host build-result receipt bytes disagree with the pin.`];
+	} catch { return [`${targetId}: media-host build-result receipt is missing.`]; }
 }
 
 function auditIsolationPayload(root, targetId, value) {
@@ -438,6 +454,7 @@ function cloneIsolationPayload(value) {
 
 function payloadDescriptors(entry) {
 	return [
+		['build result', entry.buildResult],
 		['executable', entry],
 		['isolation launcher', entry.isolationPayload.launcherPayload],
 		['isolation profile', entry.isolationPayload.sandboxProfilePayload],

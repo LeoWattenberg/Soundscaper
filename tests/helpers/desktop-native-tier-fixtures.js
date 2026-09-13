@@ -8,7 +8,7 @@ export function nativeTierPluginObservation({ format = 'fixture' } = {}) {
 		binaryPath: '/opt/soundscaper/production-route.fixture', binaryBytes: 4_096,
 		binarySha256: 'e'.repeat(64), identity: { dev: 9, ino: 11 }, classification: 'effect',
 		topologies: [{ inputChannels: 2, outputChannels: 2 }], realtimeSupported: true,
-		offlineSupported: true, reportedLatencyFrames: 0, signature: 'trusted',
+		offlineSupported: true, reportedLatencyFrames: 0,
 		compatibility: 'compatible', descriptorVersion: 1,
 	};
 }
@@ -18,7 +18,7 @@ export function nativeTierScanEntry({ binaryPath = '/opt/plug-ins/reverb.fixture
 		stableId: 'fixture:reverb', name: 'Fixture Reverb', vendor: 'Soundscaper', version: '1.0.0',
 		binaryPath, binaryBytes: 4_096, binarySha256: 'd'.repeat(64), classification: 'effect',
 		channelSupport: [{ inputs: 2, outputs: 2 }], realtime: true, offline: true,
-		reportedLatencyFrames: 0, signature: 'signed-valid', compatibility: 'compatible',
+		reportedLatencyFrames: 0, compatibility: 'compatible',
 		descriptorVersion: 1,
 	};
 }

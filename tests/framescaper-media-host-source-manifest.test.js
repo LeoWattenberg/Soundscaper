@@ -7,6 +7,8 @@ import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
+import { FRAMESCAPER_FFMPEG_POLICY } from '../native/framescaper-media-host/build/media-build-commands.mjs';
+
 import {
 	auditFramescaperMediaHost,
 	deriveFramescaperMediaHostPayloadManifest,
@@ -26,8 +28,6 @@ test('the native host pins official FFmpeg 9.0.1 source and its complete local s
 		releaseName: 'Lei',
 		released: '2026-08-12',
 		url: 'https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz',
-		signatureUrl: 'https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz.asc',
-		signingKeyFingerprint: 'FCF986EA15E6E293A5644F10B4322F04D67658D8',
 		byteLength: 12_036_420,
 		sha256: 'cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635',
 		extractedTree: {
@@ -51,13 +51,14 @@ test('the native host pins official FFmpeg 9.0.1 source and its complete local s
 	});
 });
 
-test('five target recipes exist but runtime packaging contains no unbuilt payload', () => {
+test('five target recipes are CI-generated while runtime packaging contains no unbuilt payload', () => {
 	const release = verifyFramescaperMediaHostPayloadManifest({ repositoryRoot });
 	assert.deepEqual(release.payload.targets.map(({ id }) => id), [
 		'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
 	]);
 	assert.equal(release.payload.targets.every(
-		({ status, payload, blockedBy }) => status === 'pending-external' && payload === null && blockedBy.length > 0,
+		({ status, buildResult, payload, blockedBy }) => status === 'ci-generated'
+			&& buildResult === null && payload === null && blockedBy === null,
 	), true);
 	assert.deepEqual(release.payload.payloads, []);
 	assert.deepEqual(
@@ -68,24 +69,14 @@ test('five target recipes exist but runtime packaging contains no unbuilt payloa
 	assert.equal(framescaperMediaHostTargetForRuntime('darwin', 'x64'), null);
 });
 
-test('the candidate recipe enables built-in image sequences without external codec growth', () => {
+test('the target-native recipe closes the full professional codec and image-sequence set', () => {
 	const recipe = JSON.parse(readFileSync(join(hostRoot, 'build/ffmpeg-9.0.1-configure.json'), 'utf8'));
 	assert.ok(recipe.configureFlags.includes('--disable-network'));
 	assert.ok(recipe.configureFlags.includes('--disable-autodetect'));
-	assert.deepEqual(recipe.policy, {
-		rawFfmpegArguments: false,
-		network: false,
-		externalLibraries: [],
-		enabledDecoders: ['prores', 'pcm_f32le', 'png', 'tiff', 'exr'],
-		enabledEncoders: ['prores_ks', 'pcm_s16le', 'png', 'tiff', 'exr'],
-		enabledDemuxers: ['mov', 'wav'],
-		enabledMuxers: ['mov', 'image2'],
-		enabledProtocols: ['file', 'pipe'],
-		blockedComponents: [
-			'av1', 'h264', 'hevc', 'libvpx-vp9', 'libx264', 'vp9',
-		],
-		payloadPublicationRequiresVerifiedBuildResult: true,
-	});
+	assert.ok(recipe.configureFlags.includes('--disable-x86asm'));
+	assert.deepEqual(recipe.policy, FRAMESCAPER_FFMPEG_POLICY);
+	assert.ok(recipe.configureFlags.includes('--enable-libx265'));
+	assert.ok(recipe.configureFlags.includes('--enable-encoder=libvpx_vp9'));
 	const targets = JSON.parse(readFileSync(join(hostRoot, 'build/targets.json'), 'utf8'));
 	assert.deepEqual(targets.targets.map(({ cmakePreset }) => cmakePreset), [
 		'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',

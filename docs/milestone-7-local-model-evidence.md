@@ -9,13 +9,14 @@
 > artifact, runtime, selection, and consent checks still apply. Consult the
 > [nightly model tests](local-model-nightly-tests.md) for current execution coverage.
 
-> **Catalog publication update (2026-09-12):** the later reviewed release now
+> **Catalog publication update (2026-09-12):** the later catalog update now
 > admits wav2vec2, TIGER-DnR, PANNs Cnn10, both Beat This checkpoints,
 > TransNetV2, Qwen3, and Dereverb Room. Each complete licensing row is pinned by
 > its catalog entry, and the task register binds the canonical entry SHA-256 plus
 > retained public read-back. This changes the current distribution state, not
-> the historical slice below; runtime-target authentication remains a separate
-> pending activation gate.
+> the historical slice below. Target packages now generate and authenticate the
+> matching runtime closures on all five targets, and `nightly-with-tests` runs
+> their real-model cases.
 
 > **Historical slice record:** delivered on 2026-08-13 as the first
 > milestone-7 slice. Its disabled-gate and all-records-blocked statements
@@ -24,18 +25,13 @@
 > records supply the digest-pinned catalog, and Spleeter, Demucs, and TransNetV2 remain
 > blocked and absent from the offered set. The later workflow implementation
 > adds conditional workers, reviewers, and publishers across all 7A/7B recipes;
-> it does not turn this historical evidence set into catalog authority for
-> TIGER, PANNs, Beat This, TransNetV2, wav2vec2, or Qwen. A hash-locked CPython
-> 3.12 runner now implements the four required conversion/source-framework/ORT
-> comparisons, but no converted artifact or live parity evidence has been
-> retained. Those candidates still need the applicable external evidence and
-> reviewed catalog entries, and the new runtime families have no
-> authenticated target payload closure. Existing Parakeet/Silero/diarization
-> and model-free fast-shot execution remains admitted. Catalog metadata is not
-> durable R2 publication or public read-back evidence. Five-target canaries,
-> privacy diagnostics, and optional owner-device QA remain to be run. They do
-> not certify or gate a release; catalog, artifact, runtime, selection, consent,
-> and result-integrity checks stay fail closed when the feature is used.
+> it did not itself turn that historical evidence set into catalog authority for
+> TIGER, PANNs, Beat This, TransNetV2, wav2vec2, or Qwen. Subsequent repository
+> work retained the converted artifacts and live parity, published the immutable
+> R2 objects with full read-back receipts, added exact catalog entries, generated
+> all five runtime closures, and added the packaged real-model cases. Catalog,
+> artifact, runtime, selection, consent, and result-integrity checks still stay
+> fail closed when the feature is used.
 >
 > **Implemented:** delivered on 2026-08-13, the first milestone-7 slice.
 > Decomposes the licensing half of WP-7.0.0 in

@@ -41,13 +41,11 @@ out of JSON output. These changes have input, output, and patch hashes in the
 build receipt. Qwen's production worker still validates strict JSON and candidate
 authority. Packaging the engine does not itself publish the model weights.
 
-**Windows ARM64 catalog approval remains pending for 12 existing models.** The
-catalog admits Whisper and the eight newly published models on Windows ARM64;
-the other 12 published identities require a separate reviewed platform update.
-Their cases report explicit platform skips on Windows ARM64. All 21 published
-models are admitted on macOS arm64, Linux x64/arm64, and Windows x64. The
-committed catalog keeps its exact artifact pins; packaging support does not
-override its platform scope or establish that an ARM64 build has passed inference.
+All 21 published models are admitted on Windows ARM64 now that the package
+generates and authenticates its Sherpa and ONNX runtime closures. Their cases run
+on Windows ARM64 instead of reporting catalog platform skips. The committed
+catalog keeps its exact artifact pins, and the package-specific nightly report
+records whether inference actually passed on that build and machine.
 
 The source runtime-family register describes package-generated targets.
 `desktop-prepare` generates authenticated manifests for the native files
@@ -170,6 +168,16 @@ ASAR and runtime directory**. Tests install through the real model manager,
 stage inputs through the production renderer-to-main IPC bridge, run real
 inference, read the authenticated output, and verify its digest and size.
 
+Before each fresh install, the nightly case repeats public HEAD, one-byte Range,
+and browser-origin CORS checks against every exact catalog URL. The production
+installer's streamed download supplies the full-file SHA-256 check, so the test
+does not download a model twice. Its schema-closed install receipt binds those
+delivery checks and installed artifact digests to the exact source revision,
+product id/version/target, packaged ASAR SHA-256 and length, and product-stage
+manifest SHA-256 and length. The inference attachment repeats that package
+identity and the runtime-reauthenticated model digests. A copied result from a
+different commit or package therefore cannot satisfy the case.
+
 The diagnostic host automatically accepts its native local-assistance consent
 dialog. This is the consent test double; model downloads, model bytes, IPC, and
 inference results are real. It does not replace the existing browser UI tests
@@ -204,8 +212,9 @@ Under `<run directory>/local-assistance/`, inspect:
 
 - `results.json`, `junit.xml`, and `playwright-report/index.html` for results,
   failures, and explicit platform skips.
-- `test-results/` for per-case install records, Electron logs, inference evidence,
-  validation summaries, and the processed audio or model output attachments.
+- `test-results/` for per-case source/package-bound install records, Electron
+  logs, inference evidence, validation summaries, and the processed audio or
+  model output attachments.
 - `console.log` for the packaged launcher's captured phase output. Direct
   Playwright invocations print their console output in the terminal.
 

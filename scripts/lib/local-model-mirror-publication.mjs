@@ -3,8 +3,8 @@
 /**
  * Public-delivery verification for mirrored local-model artifacts.
  *
- * A publisher must finish these public checks before handing the resulting
- * digest-pinned catalog to repository review.
+ * A publisher must finish these public checks before the repository verifier
+ * can admit the resulting digest-pinned catalog.
  */
 
 import { createHash } from 'node:crypto';
@@ -115,17 +115,31 @@ async function verifyFullBody({ url, artifact, fetchImpl, signal }) {
 	return Object.freeze({ url, byteLength: bytes, sha256: digest });
 }
 
-/**
- * Proves the public object contract that must precede catalog publication:
- * browser-readable HEAD, a one-byte Range response, then a streamed full hash.
- */
-export async function verifyMirroredArtifact({ url, artifact, fetchImpl = fetch, signal }) {
+function assertVerificationInput({ url, artifact, fetchImpl }) {
 	assert(typeof url === 'string' && url.startsWith('https://'), 'Mirrored model URL must use HTTPS');
 	assert(Number.isSafeInteger(artifact?.byteLength) && artifact.byteLength > 0,
 		'Mirrored model byte length is invalid');
 	assert(SHA256_PATTERN.test(artifact?.sha256 ?? ''), 'Mirrored model SHA-256 is invalid');
 	assert(typeof fetchImpl === 'function', 'Mirrored model fetch implementation is invalid');
+}
+
+/**
+ * Proves the public browser-delivery contract with metadata and one byte only.
+ * A caller that already downloads and hashes the complete object can use this
+ * without transferring a second model body.
+ */
+export async function verifyMirroredArtifactDelivery({ url, artifact, fetchImpl = fetch, signal }) {
+	assertVerificationInput({ url, artifact, fetchImpl });
 	await verifyHead({ url, artifact, fetchImpl, signal });
 	await verifyRange({ url, artifact, fetchImpl, signal });
+	return Object.freeze({ url, byteLength: artifact.byteLength, sha256: artifact.sha256 });
+}
+
+/**
+ * Proves the public object contract that must precede catalog publication:
+ * browser-readable HEAD, a one-byte Range response, then a streamed full hash.
+ */
+export async function verifyMirroredArtifact({ url, artifact, fetchImpl = fetch, signal }) {
+	await verifyMirroredArtifactDelivery({ url, artifact, fetchImpl, signal });
 	return verifyFullBody({ url, artifact, fetchImpl, signal });
 }

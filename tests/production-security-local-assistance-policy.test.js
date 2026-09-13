@@ -92,9 +92,9 @@ test('Milestone 7 policy records conditional workflow activation and its machine
 		/No complete five-target packaged privacy\/cancellation workload or owner-device observation set.*Optional owner QA does not grant runtime authority/isu);
 	assert.ok(supplyControl);
 	assert.match(supplyControl.summary,
-		/stream.*disk.*multipart.*public.*SHA-256 read-back.*repository-external review.*recorded per artifact.*unit tests.*do not establish remote availability/isu);
+		/stream.*disk.*multipart.*public.*SHA-256 read-back.*machine-verified catalog output.*recorded per artifact.*unit tests.*do not establish remote availability/isu);
 	assert.match(supplyControl.summary,
-		/reviewed wav2vec2.*TIGER.*PANNs.*Beat This.*TransNetV2.*Qwen3.*Dereverb.*complete versioned notices.*immutable public read-back.*catalog tasks recompute.*canonical offered entry.*runtime-target closure/isu);
+		/reviewed wav2vec2.*TIGER.*PANNs.*Beat This.*TransNetV2.*Qwen3.*Dereverb.*complete versioned notices.*immutable public read-back.*catalog tasks recompute.*canonical offered entry.*ready.*target packages generate.*runtime closure.*all five targets/isu);
 	for (const path of [
 		'config/milestone-7-model-catalog-tasks.json',
 		'scripts/models/milestone-7-model-catalog-tasks.mjs',

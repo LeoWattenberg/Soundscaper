@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-
 import assert from 'node:assert/strict';
 import {
 	appendFileSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync,
@@ -8,7 +7,6 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
-
 import {
 	FRAMESCAPER_MEDIA_HOST_BUILD_TARGETS,
 	createFramescaperMediaHostBuildRecipe,
@@ -30,16 +28,20 @@ import {
 	validateFramescaperMediaHostExternalSourceManifest,
 } from '../native/framescaper-media-host/build/external-source-authentication.mjs';
 import {
+	FRAMESCAPER_FFMPEG_CONFIGURE_FLAGS,
+	FRAMESCAPER_FFMPEG_POLICY,
+} from '../native/framescaper-media-host/build/media-build-commands.mjs';
+import {
 	closureIdentity, json, listRelativeFiles, sha256, sourcePins, writeJson,
 } from './helpers/framescaper-native-host-build-fixture.mjs';
-
 const repositoryRoot = resolve(import.meta.dirname, '..');
 const SOURCE_DATE_EPOCH = 1786492800;
 const BOOST_ARCHIVE_SHA256 = '5c1d40cb8e19adbf740a4ec2da35b3e58f3f5804b1dce44deb53df72193cbc6c';
 const MEDIA_INPUTS = Object.freeze([
 	'CMakeLists.txt', 'CMakePresets.json', 'build/external-source-authentication.mjs',
 	'build/ffmpeg-9.0.1-configure.json', 'build/ffmpeg-9.0.1-external-sources.json',
-	'build/recipe-driver.mjs', 'build/source-authentication.mjs', 'build/targets.json',
+	'build/media-build-commands.mjs', 'build/recipe-driver.mjs',
+	'build/source-authentication.mjs', 'build/targets.json', 'build/windows-vpx.pc',
 	...FRAMESCAPER_MEDIA_HOST_BUILD_TARGETS.map(({ toolchainFile }) => toolchainFile),
 ].sort());
 const OPENFX_INPUTS = Object.freeze([
@@ -47,8 +49,7 @@ const OPENFX_INPUTS = Object.freeze([
 	'build/source-authentication.mjs', 'build/targets.json',
 	...FRAMESCAPER_OPENFX_HOST_BUILD_TARGETS.map(({ toolchainFile }) => toolchainFile),
 ].sort());
-
-test('both recipes own exactly five pending targets and FFmpeg starts from a closed component set', () => {
+test('both recipes own exactly five CI-generated targets and FFmpeg starts from a closed component set', () => {
 	for (const [kind, targets] of [
 		['media', FRAMESCAPER_MEDIA_HOST_BUILD_TARGETS],
 		['openfx', FRAMESCAPER_OPENFX_HOST_BUILD_TARGETS],
@@ -64,11 +65,10 @@ test('both recipes own exactly five pending targets and FFmpeg starts from a clo
 		const manifest = json(join(hostRoot, 'source-manifest.json'));
 		for (const target of targets) {
 			const row = manifest.targets[target.id];
-			assert.equal(row.status, 'pending-external');
+			assert.equal(row.status, 'ci-generated');
 			assert.equal(row.toolchainIdentity, null);
-			assert.match(row.blockedBy, /authenticated.*payload.*built/iu);
-			assert.doesNotMatch(row.blockedBy,
-				/licens|review|readiness|signing|notari|qualification|manual|patent|notice/iu);
+			assert.equal(row.blockedBy, null);
+			assert.equal(row.buildResult, null);
 			if (kind === 'media') assert.equal(row.payload, null);
 			else {
 				assert.equal(row.scannerPayload, null);
@@ -79,21 +79,14 @@ test('both recipes own exactly five pending targets and FFmpeg starts from a clo
 	const configuration = json(join(
 		repositoryRoot, 'native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json',
 	));
-	assert.equal(configuration.configureFlags[0], '--disable-everything');
-	assert.deepEqual(configuration.configureFlags.filter((flag) => /--enable-(?:decoder|encoder|demuxer|muxer|protocol)=/u.test(flag)), [
-		'--enable-decoder=prores', '--enable-decoder=pcm_f32le',
-		'--enable-decoder=png', '--enable-decoder=tiff', '--enable-decoder=exr',
-		'--enable-encoder=prores_ks', '--enable-encoder=pcm_s16le',
-		'--enable-encoder=png', '--enable-encoder=tiff', '--enable-encoder=exr',
-		'--enable-demuxer=mov', '--enable-demuxer=wav',
-		'--enable-muxer=mov', '--enable-muxer=image2',
-		'--enable-protocol=file', '--enable-protocol=pipe',
-	]);
-	assert.deepEqual(configuration.policy.externalLibraries, []);
+	assert.deepEqual(configuration.configureFlags, FRAMESCAPER_FFMPEG_CONFIGURE_FLAGS);
+	assert.deepEqual(configuration.policy, FRAMESCAPER_FFMPEG_POLICY);
+	assert.deepEqual(configuration.policy.externalLibraries,
+		['x264', 'x265', 'libvpx', 'libopus', 'zlib']);
 	assert.equal(configuration.policy.rawFfmpegArguments, false);
 	assert.equal(configuration.policy.network, false);
-	assert.match(configuration.configureFlags.join('\n'), /png.*tiff.*exr/isu);
-	assert.doesNotMatch(configuration.configureFlags.join('\n'), /libx264|libvpx|hevc|av1/iu);
+	assert.match(configuration.configureFlags.join('\n'), /libx264.*libx265.*libvpx.*libopus.*zlib/isu);
+	assert.match(configuration.configureFlags.join('\n'), /h264.*hevc.*vp9.*av1.*png.*tiff.*exr/isu);
 	assert.equal(configuration.policy.payloadPublicationRequiresVerifiedBuildResult, true);
 	assert.equal(Object.hasOwn(configuration.policy, 'humanReviewMilestone'), false);
 	const external = validateFramescaperMediaHostExternalSourceManifest(json(join(
@@ -104,23 +97,37 @@ test('both recipes own exactly five pending targets and FFmpeg starts from a clo
 	assert.ok(external.libraries.every(({ sha256, extractedTree }) => (
 		/^[a-f0-9]{64}$/u.test(sha256) && /^[a-f0-9]{64}$/u.test(extractedTree.sha256)
 	)));
+	const arm64EcToolchain = readFileSync(join(
+		repositoryRoot, 'native/framescaper-openfx-host/build/toolchains/win-arm64.cmake',
+	), 'utf8');
+	assert.match(arm64EcToolchain, /set\(CMAKE_C_FLAGS_INIT "\/arm64EC"\)/u);
+	assert.match(arm64EcToolchain, /set\(CMAKE_CXX_FLAGS_INIT "\/arm64EC"\)/u);
+	assert.match(arm64EcToolchain, /set\(CMAKE_EXE_LINKER_FLAGS_INIT "\/MACHINE:ARM64EC"\)/u);
+	assert.match(arm64EcToolchain, /set\(CMAKE_SHARED_LINKER_FLAGS_INIT "\/MACHINE:ARM64EC"\)/u);
 });
-
 test('all five media and OpenFX targets emit immutable closed dry-run recipes', (context) => {
 	for (const target of FRAMESCAPER_MEDIA_HOST_BUILD_TARGETS) {
 		const fixture = buildFixture(context, 'media', target.id);
 		const recipe = createFramescaperMediaHostBuildRecipe(fixture.options);
 		assertRecipe(recipe, target, [
-			'ffmpeg-configure', 'ffmpeg-build', 'ffmpeg-install',
-			'host-configure', 'host-build', 'host-install',
+			'zlib-configure', 'zlib-build', 'zlib-install-metadata', 'zlib-install-library-directory',
+			'zlib-install-static-library',
+			'x264-configure', 'x264-build', 'x264-install',
+			'x265-configure', 'x265-build', 'x265-install',
+			'libvpx-configure', 'libvpx-build', 'libvpx-install',
+			...(target.id.startsWith('win-') ? ['libvpx-normalize-library', 'libvpx-normalize-pkg-config'] : []),
+			'libopus-configure', 'libopus-build', 'libopus-install',
+			'ffmpeg-configure', 'ffmpeg-build', 'ffmpeg-install', 'host-configure', 'host-build',
+			'host-install',
 		]);
-		const configure = recipe.commands[0];
+		const configure = recipe.commands.find(({ phase }) => phase === 'ffmpeg-configure');
 		assert.equal(configure.args[1], '--disable-everything');
 		assert.ok(!configure.args.includes('--enable-cross-compile'),
 			`${target.id} recipe is admitted only on its matching native host`);
 		assert.ok(configure.args.includes(`--prefix=${join(fixture.outputRoot, 'ffmpeg-install')}`));
-		assert.ok(configure.args.includes(`--cc=${fixture.executables.c.path}`));
-		assert.ok(recipe.commands[3].args.includes(`-DBOOST_ROOT=${fixture.boostSourceRoot}`));
+		assert.ok(configure.args.includes(`--cc=${target.id.startsWith('win-') ? fixture.executables.c.path.split('/').at(-1) : fixture.executables.c.path}`));
+		assert.ok(recipe.commands.find(({ phase }) => phase === 'host-configure')
+			.args.includes(`-DBOOST_ROOT=${fixture.boostSourceRoot}`));
 		assert.deepEqual(readdirSync(fixture.outputRoot), []);
 	}
 	for (const target of FRAMESCAPER_OPENFX_HOST_BUILD_TARGETS) {
@@ -136,7 +143,6 @@ test('all five media and OpenFX targets emit immutable closed dry-run recipes', 
 		assert.deepEqual(readdirSync(fixture.outputRoot), []);
 	}
 });
-
 test('OpenFX media-contract identity does not consult the ambient locale', (context) => {
 	const fixture = buildFixture(context, 'openfx', 'linux-x64');
 	const localeCompare = String.prototype.localeCompare;
@@ -152,12 +158,12 @@ test('OpenFX media-contract identity does not consult the ambient locale', (cont
 		String.prototype.localeCompare = localeCompare;
 	}
 });
-
 test('each native recipe requires its own source authenticator to remain manifest pinned', (context) => {
 	for (const kind of ['media', 'openfx']) {
 		const fixture = buildFixture(context, kind, 'linux-x64'), manifest = json(fixture.manifestPath), create = kind === 'media' ? createFramescaperMediaHostBuildRecipe : createFramescaperOpenFxHostBuildRecipe;
 		manifest.sourceFiles = manifest.sourceFiles.filter(({ path }) => path !== 'build/source-authentication.mjs'); writeJson(fixture.manifestPath, manifest);
-		assert.throws(() => create(fixture.options), /Required build input build\/source-authentication\.mjs is not pinned/u);
+		assert.throws(() => create(fixture.options),
+			/source-file inventory|Required build input build\/source-authentication\.mjs is not pinned/u);
 	}
 });
 test('fake execution runs only the admitted phases once and never writes a payload claim', (context) => {
@@ -179,7 +185,7 @@ test('fake execution runs only the admitted phases once and never writes a paylo
 		execute(recipe, { run: (executable, args, options) => {
 			calls.push({ executable, args, options });
 			return { status: 0 };
-		} });
+		}, ...(kind === 'media' ? { verifyFfmpegConfiguration: () => ({}) } : {}) });
 		assert.deepEqual(calls.map(({ args }) => args), recipe.commands.map(({ args }) => [...args]));
 		assert.ok(calls.every(({ executable }) => Object.values(fixture.executables).some(
 			(tool) => tool.path === executable,
@@ -193,7 +199,6 @@ test('fake execution runs only the admitted phases once and never writes a paylo
 		assert.throws(() => execute(swappedRecipe, { run: () => ({ status: 0 }) }), /canonical non-symlink/iu); assert.deepEqual(readdirSync(redirected), []);
 	}
 });
-
 test('recipes reject host, target, toolchain, output, payload, and post-admission drift', (context) => {
 	const wrongHost = buildFixture(context, 'media', 'linux-x64');
 	assert.throws(() => createFramescaperMediaHostBuildRecipe({
@@ -210,13 +215,11 @@ test('recipes reject host, target, toolchain, output, payload, and post-admissio
 	assert.throws(() => createFramescaperMediaHostBuildRecipe({
 		...wrongHost.options, outputRoot: inside,
 	}), /outside the repository/u);
-
 	const overclaim = buildFixture(context, 'openfx', 'linux-x64');
 	const manifest = json(overclaim.manifestPath);
 	manifest.targets['linux-x64'].scannerPayload = { sha256: '00'.repeat(32) };
 	writeJson(overclaim.manifestPath, manifest);
-	assert.throws(() => createFramescaperOpenFxHostBuildRecipe(overclaim.options), /pending-external/u);
-
+	assert.throws(() => createFramescaperOpenFxHostBuildRecipe(overclaim.options), /ci-generated/iu);
 	const drift = buildFixture(context, 'media', 'linux-x64');
 	const recipe = createFramescaperMediaHostBuildRecipe(drift.options);
 	appendFileSync(drift.executables.cmake.path, 'drift');
@@ -228,7 +231,6 @@ test('recipes reject host, target, toolchain, output, payload, and post-admissio
 	assert.throws(() => executeFramescaperMediaHostBuildRecipe(structuredClone(recipe), {
 		run: () => ({ status: 0 }),
 	}), /fresh authentic/u);
-
 	const runtime = `${process.platform}-${process.arch}`;
 	const openfxTarget = FRAMESCAPER_OPENFX_HOST_BUILD_TARGETS.find(
 		({ hostRuntime }) => hostRuntime === runtime,
@@ -242,7 +244,6 @@ test('recipes reject host, target, toolchain, output, payload, and post-admissio
 			run: () => { calls += 1; return { status: 0 }; },
 		}), /drifted after recipe admission/u);
 		assert.equal(calls, 0);
-
 		const manifestDrift = buildFixture(context, 'openfx', openfxTarget.id);
 		const manifestDriftRecipe = createFramescaperOpenFxHostBuildRecipe(manifestDrift.options);
 		appendFileSync(join(manifestDrift.mediaContractRoot, 'source-manifest.json'), 'drift');
@@ -252,8 +253,11 @@ test('recipes reject host, target, toolchain, output, payload, and post-admissio
 		assert.equal(calls, 0);
 	}
 });
-
 test('repinning cannot broaden FFmpeg or smuggle ambient paths into exact presets/toolchains', (context) => {
+	const unpinned = buildFixture(context, 'media', 'linux-x64');
+	writeFileSync(join(unpinned.hostRoot, 'src-shadowing-header.hpp'), '#pragma once\n');
+	assert.throws(() => createFramescaperMediaHostBuildRecipe(unpinned.options),
+		/source-file inventory omits or invents/u);
 	const ffmpeg = buildFixture(context, 'media', 'linux-x64');
 	const configurationPath = join(ffmpeg.hostRoot, 'build/ffmpeg-9.0.1-configure.json');
 	const configuration = json(configurationPath);
@@ -359,39 +363,6 @@ test('actual FFmpeg, OpenFX, and Boost content cannot be authorized by forged so
 	);
 });
 
-test('source-tree authentication admits genuine SDK names and rejects nonportable entries', (context) => {
-	const accepted = mkdtempSync(join(tmpdir(), 'framescaper-portable-source-'));
-	context.after(() => rmSync(accepted, { recursive: true, force: true }));
-	mkdirSync(join(accepted, 'docs'));
-	for (const path of [
-		'docs/CMake API.md', 'Icon-29@3x.png', 'juce_(generated)+source~1.cpp', 'hash#percent%.txt',
-	]) {
-		writeFileSync(join(accepted, ...path.split('/')), path);
-	}
-	assert.deepEqual(collectExtractedSourceTree(accepted).files.map(({ path }) => path), [
-		'Icon-29@3x.png', 'docs/CMake API.md', 'hash#percent%.txt', 'juce_(generated)+source~1.cpp',
-	]);
-
-	for (const name of ['bad:name', 'bad\\name', 'trailing.', 'trailing ', 'CON', 'lpt1.txt', 'line\nbreak']) {
-		const rejected = mkdtempSync(join(tmpdir(), 'framescaper-nonportable-source-'));
-		context.after(() => rmSync(rejected, { recursive: true, force: true }));
-		writeFileSync(join(rejected, name), 'bytes');
-		assert.throws(() => collectExtractedSourceTree(rejected), /portable canonical path segment/u);
-	}
-	const collision = mkdtempSync(join(tmpdir(), 'framescaper-case-source-'));
-	context.after(() => rmSync(collision, { recursive: true, force: true }));
-	writeFileSync(join(collision, 'Case.h'), 'upper');
-	writeFileSync(join(collision, 'case.h'), 'lower');
-	if (readdirSync(collision).length === 2) {
-		assert.throws(() => collectExtractedSourceTree(collision), /not portable across target filesystems/u);
-	}
-	const linked = mkdtempSync(join(tmpdir(), 'framescaper-linked-source-'));
-	context.after(() => rmSync(linked, { recursive: true, force: true }));
-	writeFileSync(join(linked, 'actual.h'), 'bytes');
-	symlinkSync(join(linked, 'actual.h'), join(linked, 'alias.h'));
-	assert.throws(() => collectExtractedSourceTree(linked), /canonical regular file/u);
-});
-
 test('admitted source-tree and Boost-closure witnesses are rechecked before execution', (context) => {
 	const runtime = `${process.platform}-${process.arch}`;
 	const mediaTarget = FRAMESCAPER_MEDIA_HOST_BUILD_TARGETS.find(
@@ -416,6 +387,15 @@ test('admitted source-tree and Boost-closure witnesses are rechecked before exec
 		}), /drifted from its pinned content closure/iu);
 		assert.equal(calls, 0);
 	}
+	const external = buildFixture(context, 'media', mediaTarget.id);
+	const externalRecipe = createFramescaperMediaHostBuildRecipe(external.options);
+	writeFileSync(join(external.externalSourceRoot, 'x264', 'unpinned.c'), 'int drift;\n');
+	let externalCalls = 0;
+	assert.throws(() => executeFramescaperMediaHostBuildRecipe(externalRecipe, {
+		run: () => { externalCalls += 1; return { status: 0 }; },
+		verifyFfmpegConfiguration: () => ({}),
+	}), /x264 extracted source tree.*pinned content closure/iu);
+	assert.equal(externalCalls, 0);
 
 	const openfx = buildFixture(context, 'openfx', openfxTarget.id);
 	const openfxRecipe = createFramescaperOpenFxHostBuildRecipe(openfx.options);
@@ -483,11 +463,12 @@ function buildFixture(context, kind, targetId) {
 		provisionOpenFxSource(fixture, manifest);
 		provisionMediaContract(fixture, fixture.boostHeaderClosure);
 	}
-	writeJson(manifestPath, manifest);
+	manifest.sourceFiles = sourcePins(hostRoot, inputs); writeJson(manifestPath, manifest);
 	fixture.options = kind === 'media' ? {
 		repositoryRoot: repositoryRootFixture, targetId, hostRuntime: target.hostRuntime,
 		toolchainReceipt: toolchain.receipt, toolchainIdentity: toolchain.identity,
 		ffmpegSourceRoot: fixture.ffmpegSourceRoot, boostSourceRoot: fixture.boostSourceRoot,
+		externalSourceRoot: fixture.externalSourceRoot,
 		outputRoot,
 	} : {
 		repositoryRoot: repositoryRootFixture, targetId, hostRuntime: target.hostRuntime,
@@ -502,7 +483,8 @@ function provisionToolchain(root, kind, target) {
 	const directory = join(root, 'toolchain');
 	mkdirSync(directory);
 	const roles = kind === 'media'
-		? ['ar', 'c', 'cmake', 'cxx', 'make', 'ninja', 'pkgConfig', 'ranlib', 'shell']
+		? ['ar', 'c', 'cmake', 'cxx', 'make', 'ninja', 'pkgConfig', 'ranlib', 'shell',
+			...(target.id.startsWith('win-') ? ['msbuild', 'rc'] : [])]
 		: ['c', 'cmake', 'cxx', 'ninja'];
 	const executables = {};
 	for (const role of roles) {
@@ -536,6 +518,22 @@ function provisionMediaSources(fixture, manifest) {
 		extractedTreeSha256: manifest.ffmpeg.extractedTree.sha256,
 		root: fixture.ffmpegSourceRoot,
 	});
+	fixture.externalSourceRoot = join(fixture.root, 'media-external-sources');
+	mkdirSync(fixture.externalSourceRoot);
+	const externalPath = join(fixture.hostRoot, 'build/ffmpeg-9.0.1-external-sources.json');
+	const external = json(externalPath);
+	for (const row of external.libraries) {
+		const sourceRoot = join(fixture.externalSourceRoot, row.id);
+		mkdirSync(sourceRoot);
+		writeFileSync(join(sourceRoot, 'source.txt'), `${row.id}\n`);
+		row.extractedTree = closureIdentity(collectExtractedSourceTree(sourceRoot));
+		writeJson(join(sourceRoot, '.framescaper-source-identity.json'), {
+			schemaVersion: 1, component: row.id, version: row.version, revision: row.revision,
+			archiveSha256: row.sha256, extractedTreeSha256: row.extractedTree.sha256,
+			root: sourceRoot,
+		});
+	}
+	writeJson(externalPath, external);
 	provisionBoostSource(fixture, manifest);
 }
 

@@ -9,6 +9,8 @@
 
 #include <node_api.h>
 
+#include "addon_napi_runtime.h"
+
 #include <stddef.h>
 #include <stdint.h>
 

@@ -62,7 +62,7 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	assert.match(milestoneNine, /nine unsigned.*five runtime manifests/isu);
 	assert.match(milestoneNine, /npm run qa:new.*CI never reads completed worksheets/isu);
 	assert.match(milestoneNine, /npm run debug:soak.*diagnostic, not release certification/isu);
-	assert.match(milestoneNine, /no qualification campaign.*human attestation is required/isu);
+	assert.match(milestoneNine, /repository owner's release\s+decision.*Repository checks report/isu);
 	assert.doesNotMatch(milestoneNine, /required.*(?:cohort|notarization|signed readiness)/iu);
 	assert.match(postRelease, /### 8B\. MIDI.*legacy packet identifier.*excluded from stable 1\.0/isu);
 	assert.match(roadmap, /### Frozen closure scope/iu);

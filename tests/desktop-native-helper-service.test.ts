@@ -99,14 +99,14 @@ test('availability reports the payload reason without naming a path or library',
 	const { service } = createService({
 		payload: Object.freeze({
 			status: 'unavailable',
-			reason: 'payload-pending-external',
+			reason: 'payload-not-generated',
 			detail: 'No Windows ARM64 build host is provisioned.',
 		}),
 	});
 	const availability = await service.availability();
 	assert.equal(availability.enabled, true);
 	assert.equal(availability.payload.status, 'unavailable');
-	assert.equal(availability.payload.reason, 'payload-pending-external');
+	assert.equal(availability.payload.reason, 'payload-not-generated');
 	assert.deepEqual(availability.backends, PUBLISHABLE_NATIVE_AUDIO_BACKENDS);
 });
 
@@ -120,13 +120,13 @@ test('a disabled, quarantined or unbuilt surface degrades with a typed status', 
 	assert.equal(quarantined.requests.length, 0);
 
 	const unbuilt = createService({
-		payload: Object.freeze({ status: 'unavailable', reason: 'payload-pending-external', detail: 'No build host.' }),
+		payload: Object.freeze({ status: 'unavailable', reason: 'payload-not-generated', detail: 'No build result.' }),
 		run: () => Promise.reject(new HelperSupervisionError('binary-mismatch',
 			'The helper executable payload failed verification: no build host.')),
 	});
 	const outcome = failed(await unbuilt.service.describeBackend({ owner: {}, backend: 'alsa' }));
 	assert.equal(outcome.code, 'helper-unavailable');
-	assert.equal((await unbuilt.service.availability()).payload.reason, 'payload-pending-external');
+	assert.equal((await unbuilt.service.availability()).payload.reason, 'payload-not-generated');
 });
 
 test('an unavailable payload never carries its filesystem path to the renderer', async () => {

@@ -22,9 +22,11 @@ for (const modelCase of validateLocalModelRealTestCases(manifest, catalog, { can
 		const productId = process.env.SOUNDSCAPER_LOCAL_ASSISTANCE_PRODUCT_ID ?? 'framescaper';
 		const electron = await launchModelTestElectron({ testInfo, productId });
 		try {
+			const modelDelivery = [];
 			for (const model of models) await test.step(`Download and authenticate ${model.modelId}`, async () => {
-				const installed = await electron.installModel(model.modelId);
+				const { installed, evidence } = await electron.installModel(model);
 				expect(installed.version).toBe(model.version);
+				modelDelivery.push(evidence);
 			});
 			const input = await prepareModelInput(modelCase.fixtureId, electron.page);
 			const sourceSha256 = digest(input.bytes);
@@ -42,8 +44,11 @@ for (const modelCase of validateLocalModelRealTestCases(manifest, catalog, { can
 					role: entry.role, mediaType: entry.mediaType, sha256: digest(entry.bytes) })),
 				outputs: modelOutputReservations(modelCase.operation),
 			}));
+			const { models: runtimeModels, ...execution } = run;
 			await testInfo.attach('inference-evidence.json', { body: JSON.stringify({ caseId: modelCase.id,
-				fixtureId: modelCase.fixtureId, sourceSha256, models, ...run,
+				fixtureId: modelCase.fixtureId, sourceSha256, sourceRevision: electron.packageIdentity.sourceRevision,
+				package: electron.packageIdentity, models, target, modelDelivery,
+				runtimeReadback: { checks: ['full-sha256'], models: runtimeModels }, ...execution,
 				outputs: run.outputs.map(({ claim }) => claim) }, null, 2), contentType: 'application/json' });
 			expect(run.outcome.outcome, JSON.stringify(run.outcome)).toBe('completed');
 			const outputs = [];

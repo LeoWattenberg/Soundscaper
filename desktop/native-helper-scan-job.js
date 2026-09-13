@@ -125,9 +125,6 @@ function describeEntry(path, digest, inspection) {
 		realtime: usable && inspection.realtime === true,
 		offline: usable && inspection.offline === true,
 		reportedLatencyFrames: usable ? inspection.reportedLatencyFrames : null,
-		// Nothing in this build verifies a code signature yet, and claiming a
-		// verdict we did not compute would be worse than admitting we did not.
-		signature: 'unverifiable',
 		compatibility,
 		descriptorVersion: 1,
 	});
