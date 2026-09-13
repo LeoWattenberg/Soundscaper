@@ -52,12 +52,12 @@ const report = Object.freeze({
 	})),
 	runtimeFamilies: Object.values(runtimes.manifests).map((manifest) => Object.freeze({
 		id: manifest.familyId,
-		status: 'pending-external',
-		pendingTargets: manifest.targets.length,
+		status: 'package-generated',
+		packageGeneratedTargets: manifest.targets.length,
 	})),
 	sherpaWindowsArm64: Object.freeze({
 		status: runtimes.sherpaWindowsArm64.payloadStatus,
-		blockedBy: runtimes.sherpaWindowsArm64.blockedBy,
+		packageBehavior: runtimes.sherpaWindowsArm64.packageBehavior,
 	}),
 });
 

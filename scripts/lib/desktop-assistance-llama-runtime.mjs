@@ -117,7 +117,7 @@ export async function stageDesktopLlamaCppRuntime({
 				executionProvider: 'cpu', runtimePrefix: `assistance/llama-cpp/${LLAMA_RUNTIME_VERSION}`,
 				targets: LLAMA_RUNTIME_BUILD_TARGETS.map((id) => id === targetId
 					? { id, status: 'authenticated', entrypoint: plan.executable, files }
-					: { id, status: 'pending-external', blockedBy: 'This package contains only the CPU runtime compiled for its own target.' }),
+					: { id, status: 'package-generated', packageBehavior: 'The CPU runtime is compiled and verified by its own target package build.' }),
 			},
 			summary: { familyId: 'llama-cpp', targetId, runtimeVersion: LLAMA_RUNTIME_VERSION, provenance,
 				files, installedBytes: files.reduce((total, file) => total + file.byteLength, 0) },

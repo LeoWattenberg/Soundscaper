@@ -3,8 +3,8 @@
 > **Catalog publication update (2026-09-12):** TransNetV2 now has a retained
 > repository-owned ONNX conversion, passing source-framework parity, immutable
 > public read-back, complete notice evidence, and a reviewed catalog entry. Its
-> canonical entry SHA-256 is task-bound, while execution remains
-> `pending-external` on the authenticated ONNX Runtime target closure. The
+> canonical entry SHA-256 is task-bound, and target packages generate and
+> authenticate the ONNX Runtime closure required for execution. The
 > dated review below remains provenance for the earlier decision and the six
 > original video/semantic entries.
 
@@ -17,12 +17,12 @@
 > disposable digest-keyed derivatives; accepted reframe evidence can be reused
 > by editable highlight crops, while only sanitized editorial metadata from an
 > accepted proposal may enter ordinary project state. Fast FFmpeg shots remain
-> the admitted model-free baseline. A hash-locked TransNetV2 runner now exists,
-> but the model still lacks its converted graph, live three-runtime parity, a
-> reviewed catalog entry, and authenticated ONNX Runtime target payloads; the same
-> payload closure blocks the other visual models in packages. Intended EU R2
-> URLs and digests remain metadata, not durable publication/read-back evidence.
-> Five-target canaries and optional owner-device QA remain open and nonblocking;
+> the admitted model-free baseline. TransNetV2 now has its converted graph,
+> source-framework parity, reviewed catalog entry, and immutable public
+> read-back. Target packages generate and authenticate the ONNX Runtime closure
+> used by it and the other visual models.
+> Package-specific inference reports and optional owner-device QA remain
+> execution evidence rather than activation authorities;
 > licensing, catalog SHA-256 pins, digests, selection, consent, runtime, and
 > result authentication stay fail closed when the feature is used.
 

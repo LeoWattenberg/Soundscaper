@@ -10,11 +10,11 @@ Find shot transitions in video using the accurate local model path.
 
 ## Current availability {#current-availability}
 
-The catalog entry is published, but activation remains blocked until the exact onnxruntime-node 1.29.0 runtime target closure is authenticated. Prepared package inputs cover macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64; installing the weights alone does not enable processing. Consult the nightly test report for the exact package and machine exercised.
+Desktop builds package the required onnxruntime-node 1.29.0 engine for macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. Install this model’s weights through Model Manager, then run its task locally. These are supported build targets; consult the nightly test report for results on a particular package and machine.
 
 ## Use this model {#use-this-model}
 
-The model is admitted in the catalog, but its exact native runtime closure is not yet authenticated. The intended workflow is **Framescaper: Tools → Advanced Local Processing → Shot detection**. The steps below describe that workflow; processing cannot currently complete.
+Open **Framescaper: Tools → Advanced Local Processing → Shot detection** on a platform with the required native runtime. Local assistance runs in the desktop editor.
 
 1. Select video in Framescaper.
 2. Install TransNetV2 through Model Manager and choose model-based shot detection.

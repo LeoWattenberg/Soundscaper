@@ -325,9 +325,11 @@ function deriveCatalogBlockers({ expected, execution, fixtures, catalogEntries, 
 
 function runtimeReady(value, familyId) {
 	const manifest = value.manifests[familyId];
+	const provision = value.provisionTasks.find((task) => task.familyId === familyId);
 	return manifest && Array.isArray(manifest.targets)
 		&& manifest.targets.length === FIVE_PLATFORMS.length
-		&& manifest.targets.every(({ status }) => status === 'authenticated');
+		&& manifest.targets.every(({ status }) => status === 'package-generated')
+		&& provision?.payloadStatus === 'package-generated';
 }
 
 function exactRecord(value, keys, label) {

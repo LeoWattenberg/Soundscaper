@@ -21,8 +21,6 @@ const sherpaArm64Build = JSON.parse(await readFile(resolve(root, 'config/assista
 const runtimeSources = { nativeRuntime, onnxRuntime, sherpaArm64Build,
 	whisperBuild: { version: WHISPER_RUNTIME_VERSION, targets: WHISPER_RUNTIME_BUILD_TARGETS },
 	llamaBuild: { version: LLAMA_RUNTIME_VERSION, targets: LLAMA_RUNTIME_BUILD_TARGETS } };
-const catalogTaskIds = new Set(candidateTasks.map(({ catalogModelId }) => catalogModelId));
-
 test('real model cases cover every published and explicitly required candidate model', () => {
 	const cases = validateLocalModelRealTestCases(manifest, catalog, options);
 	assert.equal(cases.length, 19);
@@ -69,11 +67,8 @@ test('every published model has packaged runtime support reflected in its guide'
 		assert.ok(availablePlatforms.includes('linux-x64'), `${entry.modelId} must be usable on Linux x64.`);
 		const page = await readFile(resolve(root,
 			`handbook/src/content/docs/reference/local-models/${entry.modelId}.md`), 'utf8');
-		if (catalogTaskIds.has(entry.modelId)) {
-			assert.match(page, /activation remains blocked.*runtime target closure/isu);
-		} else {
-			assert.match(page, /Desktop builds package the required/u);
-		}
+		assert.match(page, /Desktop builds package the required/u);
+		assert.doesNotMatch(page, /runtime target closure pending|activation remains blocked/iu);
 		assert.doesNotMatch(page, /Once a compatible native runtime is packaged/u);
 		if (['onnxruntime-node', 'sherpa-onnx-node'].includes(familyId)) {
 			assert.match(page, /learn\.microsoft\.com\/en-us\/cpp\/windows\/latest-supported-vc-redist/u);
@@ -109,12 +104,13 @@ test('published former candidates retain required test coverage and exact task m
 	assert.equal(catalog.entries.some(({ modelId }) => modelId === 'qwen3-4b-q4-k-m'), true);
 });
 
-test('newly published guides distinguish catalog admission from packaged-engine support', async () => {
+test('newly published guides describe their working packaged-engine support', async () => {
 	for (const task of candidateTasks) {
 		const page = await readFile(resolve(root, `handbook/src/content/docs/reference/local-models/${task.catalogModelId}.md`), 'utf8');
 		assert.doesNotMatch(page, /catalog publication is pending|cannot currently install/u);
-		assert.match(page, /catalog entry is published.*activation remains blocked/isu);
-		assert.match(page, /installing the weights alone does not enable processing/u);
+		assert.match(page, /Desktop builds package the required/iu);
+		assert.match(page, /Install this model.s weights through Model Manager, then run its task locally/iu);
+		assert.doesNotMatch(page, /pending-external|runtime target closure|externally signed/iu);
 		assert.match(page, /consult the nightly test report/iu);
 		if (task.catalogModelId === 'qwen3-4b-q4-k-m') assert.match(page, /llama-cpp b10509/u);
 		if (task.catalogModelId === 'dereverb-room') {

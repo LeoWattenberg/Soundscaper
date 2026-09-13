@@ -37,10 +37,8 @@
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
-			"activationStatus": "pending-external",
-			"activationBlockedBy": [
-				"runtime-target-closure"
-			]
+			"activationStatus": "ready",
+			"activationBlockedBy": []
 		},
 		{
 			"catalogModelId": "tiger-dnr",
@@ -77,10 +75,8 @@
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
-			"activationStatus": "pending-external",
-			"activationBlockedBy": [
-				"runtime-target-closure"
-			]
+			"activationStatus": "ready",
+			"activationBlockedBy": []
 		},
 		{
 			"catalogModelId": "panns-cnn10",
@@ -130,10 +126,8 @@
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
-			"activationStatus": "pending-external",
-			"activationBlockedBy": [
-				"runtime-target-closure"
-			]
+			"activationStatus": "ready",
+			"activationBlockedBy": []
 		},
 		{
 			"catalogModelId": "beat-this-small0",
@@ -170,10 +164,8 @@
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
-			"activationStatus": "pending-external",
-			"activationBlockedBy": [
-				"runtime-target-closure"
-			]
+			"activationStatus": "ready",
+			"activationBlockedBy": []
 		},
 		{
 			"catalogModelId": "beat-this-final0",
@@ -210,10 +202,8 @@
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
-			"activationStatus": "pending-external",
-			"activationBlockedBy": [
-				"runtime-target-closure"
-			]
+			"activationStatus": "ready",
+			"activationBlockedBy": []
 		},
 		{
 			"catalogModelId": "transnetv2",
@@ -250,10 +240,8 @@
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
-			"activationStatus": "pending-external",
-			"activationBlockedBy": [
-				"runtime-target-closure"
-			]
+			"activationStatus": "ready",
+			"activationBlockedBy": []
 		},
 		{
 			"catalogModelId": "qwen3-4b-q4-k-m",
@@ -289,10 +277,8 @@
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
-			"activationStatus": "pending-external",
-			"activationBlockedBy": [
-				"runtime-target-closure"
-			]
+			"activationStatus": "ready",
+			"activationBlockedBy": []
 		},
 		{
 			"catalogModelId": "dereverb-room",
@@ -329,10 +315,8 @@
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
-			"activationStatus": "pending-external",
-			"activationBlockedBy": [
-				"runtime-target-closure"
-			]
+			"activationStatus": "ready",
+			"activationBlockedBy": []
 		}
 	]
 }

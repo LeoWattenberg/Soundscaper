@@ -14,8 +14,8 @@ import { stageDesktopLlamaCppRuntime } from './desktop-assistance-llama-runtime.
 /**
  * Build-time inventory is sealed inside app.asar; executable bytes remain outside
  * it and are authenticated again by main and the inference helper before use.
- * The source supply register describes independently published candidates. It
- * is never rewritten to claim that a locally built package was published there.
+ * The source register describes package-generated targets. Each build replaces
+ * its selected target with the exact file inventory it produced and verified.
  * @param {{
  *   targetId: string, runtimeRoot: string, cacheRoot?: string,
  *   stageOnnx?: (options: {targetId: string, outputRoot: string, cacheRoot: string | undefined}) => Promise<{manifest: unknown, summary?: unknown}>,

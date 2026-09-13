@@ -23,9 +23,10 @@ platform intersection between the model catalog and native packaging support.
 The required suite now includes **19 cases covering 21 published model identities**.
 The catalog admits the eight additional models with exact entry and artifact
 SHA-256 pins: wav2vec2 alignment, TIGER, room dereverberation, PANNs, both Beat
-This variants, TransNetV2, and Qwen3. Their catalog-task register deliberately
-keeps activation `pending-external` on `runtime-target-closure`. A required
-catalog entry or authenticated runtime missing from a package **fails its case**;
+This variants, TransNetV2, and Qwen3. Their catalog-task register marks
+activation `ready` because target packages generate and verify the required
+runtime closures. A required catalog entry or authenticated runtime missing from
+a package **fails its case**;
 defining a case does not authorize a substitute upstream download or bypass any
 artifact or runtime pin.
 Room dereverberation's upstream GPL-3.0 declaration, full license text, and source
@@ -48,9 +49,9 @@ models are admitted on macOS arm64, Linux x64/arm64, and Windows x64. The
 committed catalog keeps its exact artifact pins; packaging support does not
 override its platform scope or establish that an ARM64 build has passed inference.
 
-The legacy public-supply candidate register can still say `pending-external`:
-it tracks separately published runtime payloads. `desktop-prepare` generates
-authenticated manifests for the native files actually placed in each package's
+The source runtime-family register describes package-generated targets.
+`desktop-prepare` generates authenticated manifests for the native files
+actually placed in each package's
 runtime directory and includes those manifests in its ASAR. The tests use these
 packaged engines, without substituting development dependencies or simulated
 output. Packaging support is separate from a successful test result on each

@@ -63,7 +63,7 @@ test('desktop packaging binds all real-engine inventories to the packaged target
 		}
 		assert.equal(result.summary.manifest.sha256,
 			createHash('sha256').update(result.manifestBytes).digest('hex'));
-		assert.equal(candidates.manifests['onnxruntime-node'].targets[1]?.status, 'pending-external');
+		assert.equal(candidates.manifests['onnxruntime-node'].targets[1]?.status, 'package-generated');
 		await verifyDesktopAssistanceRuntimeFamilyPackage({
 			...result, targetId: 'linux-x64', runtimeRoot: f.root,
 		});

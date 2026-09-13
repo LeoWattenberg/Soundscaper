@@ -4,9 +4,8 @@ The eight additional models now have real conversion or native-worker evidence,
 required nightly execution cases, and reviewed entries in the checked-in
 production catalog. Model Manager may install their SHA-256-pinned artifacts;
 execution remains separately fail-closed on the selected target's authenticated
-runtime closure. The catalog-task register therefore records catalog status as
-`ready` while activation remains `pending-external` on
-`runtime-target-closure`.
+runtime closure. Target packages generate and verify that closure, so the
+catalog-task register records both catalog and activation status as `ready`.
 
 All eight artifacts have been uploaded to the versioned product asset server and
 verified with public HEAD, byte-range, CORS, and full SHA-256 readback. Their
@@ -45,8 +44,9 @@ already present in the production catalog.
 
 The nightly-with-tests real-model phase remains the executable check for actual
 installation, Electron IPC, inference, and output validation on a particular
-package. Direct Linux worker probes and catalog admission do not substitute for
-the selected target's authenticated runtime closure or packaged test result.
+package. A package's verified runtime closure establishes runtime availability;
+direct Linux worker probes and catalog admission do not substitute for that
+package's inference result.
 
 ## Asset publishing credentials
 

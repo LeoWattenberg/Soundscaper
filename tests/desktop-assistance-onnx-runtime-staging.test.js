@@ -81,7 +81,7 @@ test('ONNX upstream pins produce exact CPU manifests for all five desktop target
 		assert.ok(target.files.some(({ path }) => path === 'licenses/ONNXRuntime-ThirdPartyNotices.txt'));
 		assert.ok(target.files.every(({ path }) => !/\/script\/|cuda|DirectML|dxcompiler|dxil/u.test(path)));
 		assert.ok(manifest.targets.filter(({ id }) => id !== targetId)
-			.every(({ status }) => status === 'pending-external'));
+			.every(({ status }) => status === 'package-generated'));
 	}
 });
 

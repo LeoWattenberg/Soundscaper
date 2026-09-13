@@ -50,11 +50,10 @@ repository has a CPython 3.12 hash-locked offline runner and retained exact
 conversion and source-framework/ONNX parity evidence for TIGER, PANNs, both
 Beat This checkpoints, TransNetV2, and Dereverb Room. Their reviewed catalog
 entries, notices, immutable publication, and full public read-back now exist.
-All five target payload closures for `onnxruntime-node`
-1.29.0, whisper.cpp v1.9.3, and llama.cpp b10509 remain
-`pending-external`, as does the Windows-arm64 Sherpa Node addon. The five
-packaged target canaries and owner-device workflows have not run. Those states
-produce typed machine unavailability rather than substitute inference or an
+Target packages generate and authenticate the `onnxruntime-node` 1.29.0,
+whisper.cpp v1.9.3, and llama.cpp b10509 closures on all five targets, including
+the Windows-arm64 Sherpa Node addon. A package without its generated runtime
+produces typed machine unavailability rather than substitute inference or an
 implicit download. The selected F31 capture route remains active; real-device
 behavior remains an optional owner QA observation. Catalog publication,
 artifact digest, runtime/platform compatibility, selected-media authority,

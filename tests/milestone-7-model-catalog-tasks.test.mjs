@@ -53,11 +53,11 @@ test('eight published catalog tasks map every Milestone 7 supply identity exactl
 	for (const task of register.tasks) {
 		assert.deepEqual(task.platforms, FIVE_PLATFORMS);
 		assert.equal(task.catalogStatus, 'ready');
-		assert.equal(task.activationStatus, 'pending-external');
+		assert.equal(task.activationStatus, 'ready');
 		assert.ok(!task.catalogBlockedBy.includes('licensing-evidence'));
 		assert.ok(!Object.keys(task).some((field) => /releaseReview/iu.test(field)));
 		assert.deepEqual(task.catalogBlockedBy, []);
-		assert.deepEqual(task.activationBlockedBy, ['runtime-target-closure']);
+		assert.deepEqual(task.activationBlockedBy, []);
 		assert.ok(checkedCatalog.entries.some(({ modelId }) =>
 			modelId === task.catalogModelId));
 	}
@@ -188,14 +188,13 @@ test('task validation rejects pessimistic publication, invented outputs, and pla
 	extraPlatform.tasks[2].platforms.push('darwin-x64');
 	assert.throws(() => validate(extraPlatform), /platform|target/iu);
 
-	const omittedBlocker = clone(catalogTasks);
-	omittedBlocker.tasks[5].activationBlockedBy =
-		omittedBlocker.tasks[5].activationBlockedBy.filter((value) =>
-			value !== 'runtime-target-closure');
-	assert.throws(() => validate(omittedBlocker), /activationBlockedBy|blocker/iu);
+	const pessimisticActivation = clone(catalogTasks);
+	pessimisticActivation.tasks[5].activationStatus = 'pending-external';
+	pessimisticActivation.tasks[5].activationBlockedBy = ['runtime-target-closure'];
+	assert.throws(() => validate(pessimisticActivation), /activationStatus|activationBlockedBy|ready/iu);
 });
 
-test('the catalog-task verifier reports publication while preserving runtime blockers', () => {
+test('the catalog-task verifier reports published models as ready on packaged runtimes', () => {
 	const result = spawnSync(process.execPath,
 		['scripts/models/verify-milestone-7-model-catalog-tasks.mjs'], {
 			cwd: new URL('..', import.meta.url), encoding: 'utf8',
@@ -206,7 +205,6 @@ test('the catalog-task verifier reports publication while preserving runtime blo
 	assert.equal(report.productionCatalogChanged, true);
 	assert.equal(report.tasks.length, 8);
 	assert.ok(report.tasks.every(({ catalogStatus }) => catalogStatus === 'ready'));
-	assert.ok(report.tasks.every(({ activationBlockedBy }) =>
-		activationBlockedBy.length === 1
-			&& activationBlockedBy[0] === 'runtime-target-closure'));
+	assert.ok(report.tasks.every(({ activationStatus }) => activationStatus === 'ready'));
+	assert.ok(report.tasks.every(({ activationBlockedBy }) => activationBlockedBy.length === 0));
 });

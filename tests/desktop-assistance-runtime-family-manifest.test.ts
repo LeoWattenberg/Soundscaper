@@ -21,7 +21,7 @@ const SHA256 = createHash('sha256').update(BYTES).digest('hex');
 
 function manifest(
 	familyId: keyof typeof ASSISTANCE_RUNTIME_FAMILY_DEFINITIONS = 'onnxruntime-node',
-	status: 'authenticated' | 'pending-external' = 'authenticated',
+	status: 'authenticated' | 'package-generated' = 'authenticated',
 ) {
 	const definition = ASSISTANCE_RUNTIME_FAMILY_DEFINITIONS[familyId];
 	return {
@@ -44,7 +44,7 @@ function manifest(
 		} : {
 			id,
 			status,
-			blockedBy: `External payload digests for ${familyId} ${id} have not been admitted.`,
+			packageBehavior: `The ${familyId} ${id} payload is generated and verified by its target package build.`,
 		}),
 	};
 }
@@ -94,17 +94,17 @@ test('manifest admission is closed, CPU-only, complete, and binds every entrypoi
 	}
 });
 
-test('pending targets carry an honest blocker but no invented payload closure', () => {
-	const admitted = validateAssistanceRuntimeFamilyManifestV1(manifest('whisper-cpp', 'pending-external'));
-	assert.equal(admitted.targets[0]!.status, 'pending-external');
+test('package-generated targets describe build behavior without inventing payload bytes', () => {
+	const admitted = validateAssistanceRuntimeFamilyManifestV1(manifest('whisper-cpp', 'package-generated'));
+	assert.equal(admitted.targets[0]!.status, 'package-generated');
 	assert.throws(() => validateAssistanceRuntimeFamilyManifestV1({
-		...manifest('whisper-cpp', 'pending-external'),
-		targets: manifest('whisper-cpp', 'pending-external').targets.map((target, index) => index === 0
+		...manifest('whisper-cpp', 'package-generated'),
+		targets: manifest('whisper-cpp', 'package-generated').targets.map((target, index) => index === 0
 			? { ...target, files: [] } : target),
-	}), /pending|target/iu);
+	}), /package|target/iu);
 });
 
-test('availability is typed for unsupported, missing, pending, and memory-refused families', async () => {
+test('availability is typed for unsupported, missing, unpackaged, and memory-refused families', async () => {
 	const unsupported = await describeAssistanceRuntimeFamilyAvailability({
 		familyId: 'onnxruntime-node', manifest: manifest(), runtimeRoot: '/runtime',
 		platform: 'darwin', architecture: 'x64', totalMemoryBytes: 32 * GIB,
@@ -121,12 +121,12 @@ test('availability is typed for unsupported, missing, pending, and memory-refuse
 	assert.equal(missing.status, 'unavailable');
 	if (missing.status === 'unavailable') assert.equal(missing.reason, 'manifest-missing');
 
-	const pending = await describeAssistanceRuntimeFamilyAvailability({
-		familyId: 'whisper-cpp', manifest: manifest('whisper-cpp', 'pending-external'), runtimeRoot: '/runtime',
+	const unpackaged = await describeAssistanceRuntimeFamilyAvailability({
+		familyId: 'whisper-cpp', manifest: manifest('whisper-cpp', 'package-generated'), runtimeRoot: '/runtime',
 		platform: 'linux', architecture: 'x64', totalMemoryBytes: 32 * GIB,
 	});
-	assert.equal(pending.status, 'unavailable');
-	if (pending.status === 'unavailable') assert.equal(pending.reason, 'payload-pending-external');
+	assert.equal(unpackaged.status, 'unavailable');
+	if (unpackaged.status === 'unavailable') assert.equal(unpackaged.reason, 'payload-not-packaged');
 
 	const memory = await describeAssistanceRuntimeFamilyAvailability({
 		familyId: 'llama-cpp', manifest: manifest('llama-cpp'), runtimeRoot: '/runtime',

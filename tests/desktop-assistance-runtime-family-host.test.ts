@@ -180,11 +180,11 @@ test('missing and unsupported payload states remain typed and never spawn', asyn
 	const { router, processes } = harness({
 		availability: async () => Object.freeze({
 			status: 'unavailable' as const,
-			reason: 'payload-pending-external' as const,
-			detail: 'No reviewed digest closure has been supplied.',
+			reason: 'payload-not-packaged' as const,
+			detail: 'The target package has not supplied its runtime files.',
 		}),
 	});
-	await assert.rejects(router.run(request()), typed('payload-pending-external'));
+	await assert.rejects(router.run(request()), typed('payload-not-packaged'));
 	assert.equal(processes['onnxruntime-node'].length, 0);
 	router.dispose();
 });

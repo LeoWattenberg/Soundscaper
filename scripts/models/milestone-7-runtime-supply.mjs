@@ -13,8 +13,7 @@ const STEPS = Object.freeze([
 	'inventory-regular-files',
 	'sha256-every-file',
 	'pack-immutable-runtime-prefix',
-	'public-readback',
-	'externally-sign-manifest',
+	'verify-packaged-runtime',
 ]);
 const SHERPA_ARM64_STEPS = Object.freeze([
 	'verify-pinned-native-asset',
@@ -23,8 +22,7 @@ const SHERPA_ARM64_STEPS = Object.freeze([
 	'inventory-regular-files',
 	'sha256-every-file',
 	'assemble-node-package-closure',
-	'public-readback',
-	'externally-sign-manifest',
+	'verify-packaged-runtime',
 ]);
 
 const FAMILIES = Object.freeze({
@@ -98,7 +96,7 @@ export function validateMilestone7RuntimeSupplyRegister(value) {
 	}
 	const familyIds = Object.keys(FAMILIES);
 	const manifests = exactRecord(row.manifests, familyIds, 'runtime manifest inventory');
-	for (const familyId of familyIds) validatePendingManifest(manifests[familyId], familyId);
+	for (const familyId of familyIds) validatePackageGeneratedManifest(manifests[familyId], familyId);
 	if (!Array.isArray(row.provisionTasks) || row.provisionTasks.length !== familyIds.length) {
 		throw new TypeError('The runtime provision-task inventory is not exact.');
 	}
@@ -107,12 +105,12 @@ export function validateMilestone7RuntimeSupplyRegister(value) {
 	return deepFreeze(structuredClone(row));
 }
 
-function validatePendingManifest(value, familyId) {
+function validatePackageGeneratedManifest(value, familyId) {
 	const definition = FAMILIES[familyId];
 	const row = exactRecord(value, [
 		'schemaVersion', 'familyId', 'runtimeVersion', 'source', 'executionProvider',
 		'runtimePrefix', 'targets',
-	], 'pending runtime manifest');
+	], 'package-generated runtime manifest');
 	const source = exactRecord(row.source, ['url', 'revision'], 'runtime manifest source');
 	if (row.schemaVersion !== 1 || row.familyId !== familyId
 		|| row.runtimeVersion !== definition.version
@@ -120,14 +118,14 @@ function validatePendingManifest(value, familyId) {
 		|| row.executionProvider !== 'cpu'
 		|| row.runtimePrefix !== `assistance/${familyId}/${definition.version}`
 		|| !Array.isArray(row.targets) || row.targets.length !== TARGET_IDS.length) {
-		throw new TypeError('A pending runtime manifest changed its reviewed identity.');
+		throw new TypeError('A package-generated runtime manifest changed its reviewed identity.');
 	}
 	row.targets.forEach((target, index) => {
-		const entry = exactRecord(target, ['id', 'status', 'blockedBy'], 'pending runtime target');
-		if (entry.id !== TARGET_IDS[index] || entry.status !== 'pending-external') {
-			throw new TypeError('A runtime target falsely claims payload authority.');
+		const entry = exactRecord(target, ['id', 'status', 'packageBehavior'], 'package-generated runtime target');
+		if (entry.id !== TARGET_IDS[index] || entry.status !== 'package-generated') {
+			throw new TypeError('A runtime target changed its package-generated authority.');
 		}
-		blocker(entry.blockedBy, 'runtime target blocker');
+		description(entry.packageBehavior, 'runtime target package behavior');
 	});
 }
 
@@ -136,7 +134,7 @@ function validateProvisionTask(value, familyId) {
 	const row = exactRecord(value, [
 		'schemaVersion', 'id', 'familyId', 'source', 'targetIds', 'executionProvider',
 		'recipeId', 'steps', 'toolchain', 'payloadStatus', 'payloadManifestSha256',
-		'blockedBy',
+		'packageBehavior',
 	], 'runtime provision task');
 	const source = exactRecord(row.source,
 		['kind', 'url', 'revision', 'commit', 'integrity'], 'runtime provision source');
@@ -149,19 +147,19 @@ function validateProvisionTask(value, familyId) {
 		|| JSON.stringify(row.targetIds) !== JSON.stringify(TARGET_IDS)
 		|| row.executionProvider !== 'cpu' || row.recipeId !== definition.recipeId
 		|| JSON.stringify(row.steps) !== JSON.stringify(STEPS)
-		|| toolchain.status !== 'lock-pending-external'
+		|| toolchain.status !== 'target-runner'
 		|| toolchain.lockFile !== null || toolchain.sha256 !== null
-		|| row.payloadStatus !== 'pending-external' || row.payloadManifestSha256 !== null) {
-		throw new TypeError('A runtime provision task changed or falsely claims a payload.');
+		|| row.payloadStatus !== 'package-generated' || row.payloadManifestSha256 !== null) {
+		throw new TypeError('A runtime provision task changed its target-package contract.');
 	}
-	blocker(row.blockedBy, 'runtime provision blocker');
+	description(row.packageBehavior, 'runtime provision package behavior');
 }
 
 function validateSherpaArm64(value) {
 	const row = exactRecord(value, [
 		'schemaVersion', 'runtimeId', 'version', 'targetId', 'source',
 		'upstreamNativeAsset', 'nodeAddonProvision', 'payloadStatus',
-		'payloadManifestSha256', 'blockedBy',
+		'payloadManifestSha256', 'packageBehavior',
 	], 'Sherpa Windows ARM64 candidate');
 	const source = exactRecord(row.source, ['url', 'revision', 'commit'], 'Sherpa source');
 	const asset = exactRecord(row.upstreamNativeAsset,
@@ -173,16 +171,16 @@ function validateSherpaArm64(value) {
 		|| JSON.stringify(source) !== JSON.stringify(SHERPA_ARM64.source)
 		|| JSON.stringify(asset) !== JSON.stringify(SHERPA_ARM64.upstreamNativeAsset)
 		|| !SHA256.test(asset.sha256)
-		|| row.payloadStatus !== 'pending-external' || row.payloadManifestSha256 !== null) {
-		throw new TypeError('The Sherpa Windows ARM64 candidate falsely claims Node payload authority.');
+		|| row.payloadStatus !== 'package-generated' || row.payloadManifestSha256 !== null) {
+		throw new TypeError('The Sherpa Windows ARM64 candidate changed its target-package contract.');
 	}
-	blocker(row.blockedBy, 'Sherpa Windows ARM64 blocker');
+	description(row.packageBehavior, 'Sherpa Windows ARM64 package behavior');
 }
 
 function validateSherpaNodeAddonProvision(value) {
 	const row = exactRecord(value, [
 		'schemaVersion', 'recipeId', 'steps', 'toolchain', 'nodeAddon',
-		'packageClosureManifestSha256', 'status', 'blockedBy',
+		'packageClosureManifestSha256', 'status', 'packageBehavior',
 	], 'Sherpa Windows ARM64 Node-addon provision');
 	const toolchain = exactRecord(row.toolchain,
 		['status', 'lockFile', 'sha256'], 'Sherpa Windows ARM64 toolchain');
@@ -191,15 +189,15 @@ function validateSherpaNodeAddonProvision(value) {
 	if (row.schemaVersion !== 1
 		|| row.recipeId !== 'sherpa-onnx-node-win-arm64-locked-build-v1'
 		|| JSON.stringify(row.steps) !== JSON.stringify(SHERPA_ARM64_STEPS)
-		|| toolchain.status !== 'lock-pending-external'
+		|| toolchain.status !== 'target-runner'
 		|| toolchain.lockFile !== null || toolchain.sha256 !== null
 		|| addon.fileName !== 'sherpa-onnx.node'
 		|| addon.byteLength !== null || addon.sha256 !== null
 		|| row.packageClosureManifestSha256 !== null
-		|| row.status !== 'pending-external') {
-		throw new TypeError('The Sherpa Windows ARM64 Node-addon provision falsely claims payload identity.');
+		|| row.status !== 'package-generated') {
+		throw new TypeError('The Sherpa Windows ARM64 Node-addon provision changed its target-package contract.');
 	}
-	blocker(row.blockedBy, 'Sherpa Windows ARM64 Node-addon provision blocker');
+	description(row.packageBehavior, 'Sherpa Windows ARM64 Node-addon package behavior');
 }
 
 function exactRecord(value, keys, label) {
@@ -215,7 +213,7 @@ function plainRecord(value) {
 		&& Object.getPrototypeOf(value) === Object.prototype;
 }
 
-function blocker(value, label) {
+function description(value, label) {
 	if (typeof value !== 'string' || value.trim().length < 24 || value.length > 1_024) {
 		throw new TypeError(`The ${label} is invalid.`);
 	}

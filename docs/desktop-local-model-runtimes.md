@@ -66,14 +66,15 @@ other twelve entries still need a reviewed catalog update; building the engines
 does not override that catalog restriction. All
 thirteen models are admitted on macOS ARM64, Linux x64/ARM64 and Windows x64.
 
-## Package integrity and signing
+## Package integrity
 
 Executable files stay outside `app.asar`, under `runtime/assistance/`.
 Preparation generates a target-specific manifest inside
 `app.asar/config/assistance-runtime-family-supply-candidates.json`. This packaged
 file contains the actual ONNX Runtime and Whisper inventories; the similarly
-named source register remains a record of independent public-supply candidates.
-No public readback or external signature is claimed for a locally built package.
+named source register defines how each target package generates those runtime
+inventories. The verified package manifest is the authority for the runtime it
+contains; no separately signed public runtime payload is required.
 
 The stage receipt records the packaged manifest's size and SHA-256. Before and
 after package assembly, the build verifies the manifest and the complete file

@@ -10,11 +10,11 @@ Suggest titles, hooks, chapters, and explanations for existing highlight candida
 
 ## Current availability {#current-availability}
 
-The catalog entry is published, but activation remains blocked until the exact llama-cpp b10509 runtime target closure is authenticated. Prepared package inputs cover macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64; installing the weights alone does not enable processing. Consult the nightly test report for the exact package and machine exercised.
+Desktop builds package the required llama-cpp b10509 engine for macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. Install this model’s weights through Model Manager, then run its task locally. These are supported build targets; consult the nightly test report for results on a particular package and machine.
 
 ## Use this model {#use-this-model}
 
-The model is admitted in the catalog, but its exact native runtime closure is not yet authenticated. The intended workflow is **Framescaper: Tools → Advanced Local Processing → Editorial generation**. The steps below describe that workflow; processing cannot currently complete.
+Open **Framescaper: Tools → Advanced Local Processing → Editorial generation** on a platform with the required native runtime. Local assistance runs in the desktop editor.
 
 1. Prepare and review highlight candidates from your selected media.
 2. Install Qwen through Model Manager and opt into editorial generation.

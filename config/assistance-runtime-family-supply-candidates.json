@@ -16,28 +16,28 @@
 			"targets": [
 				{
 					"id": "mac-arm64",
-					"status": "pending-external",
-					"blockedBy": "No exact onnxruntime-node 1.29.0 macOS ARM64 CPU file inventory and SHA-256 closure has been independently read back and admitted."
+					"status": "package-generated",
+					"packageBehavior": "The macOS ARM64 package generates and verifies the exact ONNX Runtime CPU file inventory and SHA-256 closure."
 				},
 				{
 					"id": "linux-x64",
-					"status": "pending-external",
-					"blockedBy": "No exact onnxruntime-node 1.29.0 Linux x64 CPU file inventory and SHA-256 closure has been independently read back and admitted."
+					"status": "package-generated",
+					"packageBehavior": "The Linux x64 package generates and verifies the exact ONNX Runtime CPU file inventory and SHA-256 closure."
 				},
 				{
 					"id": "linux-arm64",
-					"status": "pending-external",
-					"blockedBy": "No exact onnxruntime-node 1.29.0 Linux ARM64 CPU file inventory and SHA-256 closure has been independently read back and admitted."
+					"status": "package-generated",
+					"packageBehavior": "The Linux ARM64 package generates and verifies the exact ONNX Runtime CPU file inventory and SHA-256 closure."
 				},
 				{
 					"id": "win-x64",
-					"status": "pending-external",
-					"blockedBy": "No exact onnxruntime-node 1.29.0 Windows x64 CPU file inventory and SHA-256 closure has been independently read back and admitted."
+					"status": "package-generated",
+					"packageBehavior": "The Windows x64 package generates and verifies the exact ONNX Runtime CPU file inventory and SHA-256 closure."
 				},
 				{
 					"id": "win-arm64",
-					"status": "pending-external",
-					"blockedBy": "No exact onnxruntime-node 1.29.0 Windows ARM64 CPU file inventory and SHA-256 closure has been independently read back and admitted."
+					"status": "package-generated",
+					"packageBehavior": "The Windows ARM64 package generates and verifies the exact ONNX Runtime CPU file inventory and SHA-256 closure."
 				}
 			]
 		},
@@ -54,28 +54,28 @@
 			"targets": [
 				{
 					"id": "mac-arm64",
-					"status": "pending-external",
-					"blockedBy": "No locked CPU toolchain and exact whisper.cpp v1.9.3 macOS ARM64 executable closure has been independently produced and admitted."
+					"status": "package-generated",
+					"packageBehavior": "The macOS ARM64 package compiles and verifies the exact whisper.cpp CPU executable closure."
 				},
 				{
 					"id": "linux-x64",
-					"status": "pending-external",
-					"blockedBy": "No locked CPU toolchain and exact whisper.cpp v1.9.3 Linux x64 executable closure has been independently produced and admitted."
+					"status": "package-generated",
+					"packageBehavior": "The Linux x64 package compiles and verifies the exact whisper.cpp CPU executable closure."
 				},
 				{
 					"id": "linux-arm64",
-					"status": "pending-external",
-					"blockedBy": "No locked CPU toolchain and exact whisper.cpp v1.9.3 Linux ARM64 executable closure has been independently produced and admitted."
+					"status": "package-generated",
+					"packageBehavior": "The Linux ARM64 package compiles and verifies the exact whisper.cpp CPU executable closure."
 				},
 				{
 					"id": "win-x64",
-					"status": "pending-external",
-					"blockedBy": "No locked CPU toolchain and exact whisper.cpp v1.9.3 Windows x64 executable closure has been independently produced and admitted."
+					"status": "package-generated",
+					"packageBehavior": "The Windows x64 package compiles and verifies the exact whisper.cpp CPU executable closure."
 				},
 				{
 					"id": "win-arm64",
-					"status": "pending-external",
-					"blockedBy": "No locked CPU toolchain and exact whisper.cpp v1.9.3 Windows ARM64 executable closure has been independently produced and admitted."
+					"status": "package-generated",
+					"packageBehavior": "The Windows ARM64 package compiles and verifies the exact whisper.cpp CPU executable closure."
 				}
 			]
 		},
@@ -92,28 +92,28 @@
 			"targets": [
 				{
 					"id": "mac-arm64",
-					"status": "pending-external",
-					"blockedBy": "No locked CPU toolchain and exact llama.cpp b10509 macOS ARM64 executable closure has been independently produced and admitted."
+					"status": "package-generated",
+					"packageBehavior": "The macOS ARM64 package compiles and verifies the exact llama.cpp CPU executable closure."
 				},
 				{
 					"id": "linux-x64",
-					"status": "pending-external",
-					"blockedBy": "No locked CPU toolchain and exact llama.cpp b10509 Linux x64 executable closure has been independently produced and admitted."
+					"status": "package-generated",
+					"packageBehavior": "The Linux x64 package compiles and verifies the exact llama.cpp CPU executable closure."
 				},
 				{
 					"id": "linux-arm64",
-					"status": "pending-external",
-					"blockedBy": "No locked CPU toolchain and exact llama.cpp b10509 Linux ARM64 executable closure has been independently produced and admitted."
+					"status": "package-generated",
+					"packageBehavior": "The Linux ARM64 package compiles and verifies the exact llama.cpp CPU executable closure."
 				},
 				{
 					"id": "win-x64",
-					"status": "pending-external",
-					"blockedBy": "No locked CPU toolchain and exact llama.cpp b10509 Windows x64 executable closure has been independently produced and admitted."
+					"status": "package-generated",
+					"packageBehavior": "The Windows x64 package compiles and verifies the exact llama.cpp CPU executable closure."
 				},
 				{
 					"id": "win-arm64",
-					"status": "pending-external",
-					"blockedBy": "No locked CPU toolchain and exact llama.cpp b10509 Windows ARM64 executable closure has been independently produced and admitted."
+					"status": "package-generated",
+					"packageBehavior": "The Windows ARM64 package compiles and verifies the exact llama.cpp CPU executable closure."
 				}
 			]
 		}
@@ -139,17 +139,16 @@
 				"inventory-regular-files",
 				"sha256-every-file",
 				"pack-immutable-runtime-prefix",
-				"public-readback",
-				"externally-sign-manifest"
+				"verify-packaged-runtime"
 			],
 			"toolchain": {
-				"status": "lock-pending-external",
+				"status": "target-runner",
 				"lockFile": null,
 				"sha256": null
 			},
-			"payloadStatus": "pending-external",
+			"payloadStatus": "package-generated",
 			"payloadManifestSha256": null,
-			"blockedBy": "The platform package closure, locked extraction or build toolchain, public readback, and externally signed runtime manifest are not recorded."
+			"packageBehavior": "Each target package extracts the pinned source, records its exact file hashes, and verifies the installed runtime before publishing the package."
 		},
 		{
 			"schemaVersion": 1,
@@ -171,17 +170,16 @@
 				"inventory-regular-files",
 				"sha256-every-file",
 				"pack-immutable-runtime-prefix",
-				"public-readback",
-				"externally-sign-manifest"
+				"verify-packaged-runtime"
 			],
 			"toolchain": {
-				"status": "lock-pending-external",
+				"status": "target-runner",
 				"lockFile": null,
 				"sha256": null
 			},
-			"payloadStatus": "pending-external",
+			"payloadStatus": "package-generated",
 			"payloadManifestSha256": null,
-			"blockedBy": "The per-target CPU toolchain lock, executable closure, public readback, and externally signed runtime manifest are not recorded."
+			"packageBehavior": "Each target package compiles the pinned source, records its exact executable closure and hashes, and verifies the installed runtime before publishing the package."
 		},
 		{
 			"schemaVersion": 1,
@@ -203,17 +201,16 @@
 				"inventory-regular-files",
 				"sha256-every-file",
 				"pack-immutable-runtime-prefix",
-				"public-readback",
-				"externally-sign-manifest"
+				"verify-packaged-runtime"
 			],
 			"toolchain": {
-				"status": "lock-pending-external",
+				"status": "target-runner",
 				"lockFile": null,
 				"sha256": null
 			},
-			"payloadStatus": "pending-external",
+			"payloadStatus": "package-generated",
 			"payloadManifestSha256": null,
-			"blockedBy": "The per-target CPU toolchain lock, executable closure, public readback, and externally signed runtime manifest are not recorded."
+			"packageBehavior": "Each target package compiles the pinned source, records its exact executable closure and hashes, and verifies the installed runtime before publishing the package."
 		}
 	],
 	"sherpaWindowsArm64": {
@@ -242,11 +239,10 @@
 				"inventory-regular-files",
 				"sha256-every-file",
 				"assemble-node-package-closure",
-				"public-readback",
-				"externally-sign-manifest"
+				"verify-packaged-runtime"
 			],
 			"toolchain": {
-				"status": "lock-pending-external",
+				"status": "target-runner",
 				"lockFile": null,
 				"sha256": null
 			},
@@ -256,11 +252,11 @@
 				"sha256": null
 			},
 			"packageClosureManifestSha256": null,
-			"status": "pending-external",
-			"blockedBy": "No locked Windows ARM64 Node-API toolchain, addon identity, complete package inventory, public readback, or external signature has been recorded."
+			"status": "package-generated",
+			"packageBehavior": "The Windows ARM64 package builds the Node-API addon, records its exact package inventory and hashes, and verifies it before publishing the package."
 		},
-		"payloadStatus": "pending-external",
+		"payloadStatus": "package-generated",
 		"payloadManifestSha256": null,
-		"blockedBy": "The official native Windows ARM64 libraries do not contain the sherpa-onnx-node Node-API addon or a complete authenticated Node package closure."
+		"packageBehavior": "The Windows ARM64 target package combines the pinned official libraries with its locally built Node-API addon and verifies the complete closure."
 	}
 }

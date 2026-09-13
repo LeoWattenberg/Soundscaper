@@ -101,7 +101,7 @@ export async function stageDesktopWhisperCppRuntime({
 				source: { url: `https://github.com/ggml-org/whisper.cpp/releases/tag/${VERSION}`, revision: VERSION },
 				executionProvider: 'cpu', runtimePrefix: `assistance/whisper-cpp/${VERSION}`,
 				targets: TARGETS.map((id) => id === targetId ? target : {
-					id, status: 'pending-external', blockedBy: 'This package contains only the CPU runtime compiled for its own target.',
+					id, status: 'package-generated', packageBehavior: 'The CPU runtime is compiled and verified by its own target package build.',
 				}),
 			},
 			summary: { familyId: 'whisper-cpp', targetId, runtimeVersion: VERSION, provenance,

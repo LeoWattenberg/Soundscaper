@@ -14,7 +14,7 @@ export type AssistanceRuntimeFamilyErrorCode =
 	| 'unsupported-platform'
 	| 'manifest-missing'
 	| 'manifest-invalid'
-	| 'payload-pending-external'
+	| 'payload-not-packaged'
 	| 'payload-missing'
 	| 'payload-digest-mismatch'
 	| 'insufficient-memory'

@@ -57,15 +57,15 @@ export interface AssistanceRuntimeFamilyAuthenticatedTargetV1 {
 	readonly files: readonly AssistanceRuntimeFamilyFileV1[];
 }
 
-export interface AssistanceRuntimeFamilyPendingTargetV1 {
+export interface AssistanceRuntimeFamilyPackageGeneratedTargetV1 {
 	readonly id: AssistanceRuntimeFamilyTargetId;
-	readonly status: 'pending-external';
-	readonly blockedBy: string;
+	readonly status: 'package-generated';
+	readonly packageBehavior: string;
 }
 
 export type AssistanceRuntimeFamilyTargetV1 =
 	| AssistanceRuntimeFamilyAuthenticatedTargetV1
-	| AssistanceRuntimeFamilyPendingTargetV1;
+	| AssistanceRuntimeFamilyPackageGeneratedTargetV1;
 
 export interface AssistanceRuntimeFamilyManifestV1 {
 	readonly schemaVersion: typeof ASSISTANCE_RUNTIME_FAMILY_MANIFEST_SCHEMA_VERSION;
@@ -95,7 +95,7 @@ export type AssistanceRuntimeFamilyUnavailableReason =
 	| 'unsupported-platform'
 	| 'manifest-missing'
 	| 'manifest-invalid'
-	| 'payload-pending-external'
+	| 'payload-not-packaged'
 	| 'payload-missing'
 	| 'payload-digest-mismatch'
 	| 'insufficient-system-memory';
@@ -200,8 +200,8 @@ export async function describeAssistanceRuntimeFamilyAvailability(
 		return unavailable('manifest-invalid', errorMessage(error));
 	}
 	const target = manifest.targets.find(({ id }) => id === targetId)!;
-	if (target.status === 'pending-external') {
-		return unavailable('payload-pending-external', target.blockedBy);
+	if (target.status === 'package-generated') {
+		return unavailable('payload-not-packaged', target.packageBehavior);
 	}
 	const minimumMemory = ASSISTANCE_RUNTIME_FAMILY_DEFINITIONS[manifest.familyId]
 		.minimumSystemMemoryBytes;
@@ -245,13 +245,13 @@ function validateTarget(
 		throw new TypeError('A runtime-family target identity is invalid.');
 	}
 	const id = value.id as AssistanceRuntimeFamilyTargetId;
-	if (value.status === 'pending-external') {
-		exactKeys(value, ['id', 'status', 'blockedBy'], 'pending runtime-family target');
-		if (typeof value.blockedBy !== 'string' || value.blockedBy.trim().length < 24
-			|| value.blockedBy.length > 1_024) {
-			throw new TypeError('A pending runtime-family target needs one bounded external blocker.');
+	if (value.status === 'package-generated') {
+		exactKeys(value, ['id', 'status', 'packageBehavior'], 'package-generated runtime-family target');
+		if (typeof value.packageBehavior !== 'string' || value.packageBehavior.trim().length < 24
+			|| value.packageBehavior.length > 1_024) {
+			throw new TypeError('A package-generated runtime-family target needs one bounded build description.');
 		}
-		return Object.freeze({ id, status: 'pending-external', blockedBy: value.blockedBy });
+		return Object.freeze({ id, status: 'package-generated', packageBehavior: value.packageBehavior });
 	}
 	if (value.status !== 'authenticated') throw new TypeError('A runtime-family target status is invalid.');
 	exactKeys(value, ['id', 'status', 'entrypoint', 'files'], 'authenticated runtime-family target');

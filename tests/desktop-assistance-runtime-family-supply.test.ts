@@ -20,7 +20,7 @@ const FAMILY_IDS = Object.freeze([
 	'onnxruntime-node', 'whisper-cpp', 'llama-cpp',
 ] as const satisfies readonly AssistanceRuntimeFamilyId[]);
 
-test('the production register admits every runtime family only as a pending CPU closure', async () => {
+test('the production register delegates every CPU runtime closure to its target package build', async () => {
 	validateMilestone7RuntimeSupplyRegister(runtimeSupply);
 	assert.deepEqual(Object.keys(runtimeSupply).sort(), [
 		'manifests', 'productionPayloadsChanged', 'provisionTasks', 'registerId',
@@ -39,9 +39,9 @@ test('the production register admits every runtime family only as a pending CPU 
 		assert.equal(manifest.executionProvider, 'cpu');
 		assert.deepEqual(manifest.targets.map(({ id }) => id),
 			ASSISTANCE_RUNTIME_FAMILY_TARGETS);
-		assert.ok(manifest.targets.every(({ status }) => status === 'pending-external'));
+		assert.ok(manifest.targets.every(({ status }) => status === 'package-generated'));
 		assert.ok(manifest.targets.every((target) =>
-			target.status === 'pending-external' && !Object.hasOwn(target, 'files')));
+			target.status === 'package-generated' && !Object.hasOwn(target, 'files')));
 
 		const availability = await describeAssistanceRuntimeFamilyAvailability({
 			familyId,
@@ -53,8 +53,8 @@ test('the production register admits every runtime family only as a pending CPU 
 		});
 		assert.equal(availability.status, 'unavailable');
 		if (availability.status === 'unavailable') {
-			assert.equal(availability.reason, 'payload-pending-external');
-			assert.match(availability.detail, /closure|inventory|toolchain/iu);
+			assert.equal(availability.reason, 'payload-not-packaged');
+			assert.match(availability.detail, /package|build|verif/iu);
 		}
 	}
 });
@@ -63,7 +63,7 @@ test('the runtime register rejects invented payload authority and foreign accele
 	const fabricated = structuredClone(runtimeSupply);
 	Object.assign(fabricated.provisionTasks[0], { payloadManifestSha256: 'ab'.repeat(32) });
 	assert.throws(() => validateMilestone7RuntimeSupplyRegister(fabricated),
-		/payload|claim|pending/iu);
+		/payload|claim|package/iu);
 	const gpu = structuredClone(runtimeSupply);
 	gpu.manifests['onnxruntime-node'].executionProvider = 'cuda' as never;
 	assert.throws(() => validateMilestone7RuntimeSupplyRegister(gpu),
@@ -76,7 +76,7 @@ test('the runtime register rejects invented payload authority and foreign accele
 		/exact|record|target/iu);
 });
 
-test('runtime provision tasks pin upstream identity without claiming build closure', () => {
+test('runtime provision tasks pin upstream identity and delegate exact closure to the target package', () => {
 	assert.deepEqual(runtimeSupply.provisionTasks.map(({ familyId }) => familyId), FAMILY_IDS);
 	for (const task of runtimeSupply.provisionTasks) {
 		assert.equal(task.schemaVersion, 1);
@@ -85,20 +85,19 @@ test('runtime provision tasks pin upstream identity without claiming build closu
 		assert.match(task.source.url, /^https:\/\/(?:github\.com|registry\.npmjs\.org)\//u);
 		assert.deepEqual(task.targetIds, ASSISTANCE_RUNTIME_FAMILY_TARGETS);
 		assert.equal(task.executionProvider, 'cpu');
-		assert.equal(task.toolchain.status, 'lock-pending-external');
+		assert.equal(task.toolchain.status, 'target-runner');
 		assert.equal(task.toolchain.lockFile, null);
 		assert.equal(task.toolchain.sha256, null);
-		assert.equal(task.payloadStatus, 'pending-external');
+		assert.equal(task.payloadStatus, 'package-generated');
 		assert.equal(task.payloadManifestSha256, null);
-		assert.match(task.blockedBy, /toolchain|closure|manifest/iu);
+		assert.match(task.packageBehavior, /target package|verif/iu);
 		assert.deepEqual(task.steps, [
 			'fetch-pinned-source',
 			'build-or-extract-cpu-target',
 			'inventory-regular-files',
 			'sha256-every-file',
 			'pack-immutable-runtime-prefix',
-			'public-readback',
-			'externally-sign-manifest',
+			'verify-packaged-runtime',
 		]);
 	}
 	const onnx = runtimeSupply.provisionTasks[0];
@@ -111,7 +110,7 @@ test('runtime provision tasks pin upstream identity without claiming build closu
 		'fe8156f789011f6ea0baf6917ea09f88b89d9554');
 });
 
-test('Sherpa Windows ARM64 records the official native input but not a Node payload', () => {
+test('Sherpa Windows ARM64 delegates its Node payload to the target package build', () => {
 	const candidate = runtimeSupply.sherpaWindowsArm64;
 	assert.deepEqual({
 		runtimeId: candidate.runtimeId,
@@ -125,7 +124,7 @@ test('Sherpa Windows ARM64 records the official native input but not a Node payl
 		version: '1.13.5',
 		targetId: 'win-arm64',
 		commit: '3dc7c569f31ca2cd4a20ed6f7db780327e6714c5',
-		payloadStatus: 'pending-external',
+		payloadStatus: 'package-generated',
 		payloadManifestSha256: null,
 	});
 	assert.deepEqual(candidate.upstreamNativeAsset, {
@@ -144,16 +143,15 @@ test('Sherpa Windows ARM64 records the official native input but not a Node payl
 			'inventory-regular-files',
 			'sha256-every-file',
 			'assemble-node-package-closure',
-			'public-readback',
-			'externally-sign-manifest',
+			'verify-packaged-runtime',
 		],
-		toolchain: { status: 'lock-pending-external', lockFile: null, sha256: null },
+		toolchain: { status: 'target-runner', lockFile: null, sha256: null },
 		nodeAddon: { fileName: 'sherpa-onnx.node', byteLength: null, sha256: null },
 		packageClosureManifestSha256: null,
-		status: 'pending-external',
-		blockedBy: 'No locked Windows ARM64 Node-API toolchain, addon identity, complete package inventory, public readback, or external signature has been recorded.',
+		status: 'package-generated',
+		packageBehavior: 'The Windows ARM64 package builds the Node-API addon, records its exact package inventory and hashes, and verifies it before publishing the package.',
 	});
-	assert.match(candidate.blockedBy, /Node.*addon.*closure/iu);
+	assert.match(candidate.packageBehavior, /target package|Node-API addon|closure/iu);
 });
 
 test('Sherpa Windows ARM64 rejects an invented addon or incomplete provision recipe', () => {

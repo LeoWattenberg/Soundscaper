@@ -80,11 +80,8 @@ export function localModelRuntimeAvailability(entry, { nativeRuntime, onnxRuntim
 		availablePlatforms, missingPlatforms: entry.platforms.filter((platform) => !availablePlatforms.includes(platform)) };
 }
 
-function runtimeNotice(availability, published = true, activationPending = false) {
+function runtimeNotice(availability, published = true) {
 	const { familyId, version, availablePlatforms, missingPlatforms } = availability;
-	if (published && activationPending) {
-		return `The catalog entry is published, but activation remains blocked until the exact ${familyId} ${version} runtime target closure is authenticated. Prepared package inputs cover ${availablePlatforms.map((platform) => PLATFORM_NAMES[platform]).join(', ') || 'no supported platform yet'}; installing the weights alone does not enable processing. Consult the nightly test report for the exact package and machine exercised.`;
-	}
 	if (availablePlatforms.length === 0) {
 		return `**The required native engine is not yet packaged.** The desktop build has no ${familyId} ${version} target for this model. Downloading weights does not enable processing. The required real-model test reports a failure until the model and verified native package are supplied.`;
 	}
@@ -117,8 +114,7 @@ function modelPage(entry, cases, runtimeSources) {
 	const artifacts = entry.artifacts.map((artifact) => [artifact.fileName, downloadSize(artifact.byteLength)]);
 	const availability = localModelRuntimeAvailability(entry, runtimeSources);
 	const published = !entry.pendingPublication;
-	const activationPending = published && entry.activationStatus === 'pending-external';
-	const blocked = !published || activationPending || availability.availablePlatforms.length === 0;
+	const blocked = !published || availability.availablePlatforms.length === 0;
 	const downloadBytes = entry.artifacts.every(({ byteLength }) => Number.isSafeInteger(byteLength))
 		? entry.artifacts.reduce((total, artifact) => total + artifact.byteLength, 0) : null;
 	const checks = applicable.flatMap((testCase) => [
@@ -132,9 +128,9 @@ function modelPage(entry, cases, runtimeSources) {
 		'## Current availability {#current-availability}', '',
 		...(!published ? ['**This model’s digest-pinned catalog publication is pending.** Model Manager cannot currently install it. Required test coverage does not authorize downloads or permit substitute model files.'
 			+ (entry.modelId === 'dereverb-room' ? ' Its upstream GPL-3.0 declaration, license text, and source notices are recorded.' : ''), ''] : []),
-		runtimeNotice(availability, published, activationPending), '',
+		runtimeNotice(availability, published), '',
 		'## Use this model {#use-this-model}', '',
-		blocked ? `${published ? 'The model is admitted in the catalog, but its exact native runtime closure is not yet authenticated.' : 'Once the model is admitted in the catalog and its native runtime is available,'} The intended workflow is **${documentation.menu}**. The steps below describe that workflow; processing cannot currently complete.`
+		blocked ? `${published ? 'The model is admitted in the catalog, but no packaged runtime is available on its declared platforms.' : 'Once the model is admitted in the catalog and its native runtime is available,'} The intended workflow is **${documentation.menu}**. The steps below describe that workflow; processing cannot currently complete.`
 			: `Open **${documentation.menu}** on a platform with the required native runtime. Local assistance runs in the desktop editor.`, '',
 		...documentation.steps.map((step, index) => `${String(index + 1)}. ${step}`), '',
 		...(pairedIds.length ? ['This operation also requires '
@@ -163,24 +159,22 @@ function indexPage(catalog, cases, runtimeSources) {
 	const candidates = catalog.entries.filter((entry) => entry.pendingPublication);
 	const availability = new Map(catalog.entries.map((entry) =>
 		[entry.modelId, localModelRuntimeAvailability(entry, runtimeSources)]));
-	const pending = catalog.entries.filter((entry) => entry.activationStatus === 'pending-external'
-		|| availability.get(entry.modelId).availablePlatforms.length === 0);
+	const pending = catalog.entries.filter((entry) =>
+		availability.get(entry.modelId).availablePlatforms.length === 0);
 	const pendingCases = cases.filter(({ modelIds }) => modelIds.some((id) =>
-		catalog.entries.find(({ modelId }) => modelId === id)?.activationStatus === 'pending-external'
-			|| availability.get(id).availablePlatforms.length === 0));
+		availability.get(id).availablePlatforms.length === 0));
 	const windowsArm64Pending = published.filter(({ platforms }) => !platforms.includes('win32-arm64'));
 	const rows = catalog.entries.map((entry) => [
 		`[${modelTitle(entry.modelId, cases)}](/reference/local-models/${entry.modelId}/)`,
 		entry.task.replaceAll('-', ' '),
-		entry.pendingPublication ? 'Catalog publication pending' : entry.activationStatus === 'pending-external'
-			? 'Runtime target closure pending' : availability.get(entry.modelId).availablePlatforms.length === 0
+		entry.pendingPublication ? 'Catalog publication pending' : availability.get(entry.modelId).availablePlatforms.length === 0
 				? 'Native engine pending' : 'Packaged; see supported platforms',
 		cases.filter(({ modelIds }) => modelIds.includes(entry.modelId)).map(({ id }) => `\`${id}\``).join(', '),
 	]);
 	return page('Local model guides and real execution tests',
 		'Check the availability, intended workflow, and required real execution test of every published and planned local model.', [
 		'These guides describe the published catalog and the additional models required by the nightly tests. Desktop packages include native inference engines; Model Manager separately downloads and verifies weights admitted by the digest-pinned catalog. A prepared runtime and a required test do not grant model publication authority.', '',
-		...(pending.length ? [`**Native runtime activation is incomplete: ${String(pending.length)} required models in ${String(pendingCases.length)} cases have no admitted native engine closure.** Their tests fail until the exact runtime target is authenticated; catalog admission and prepared package inputs do not close that gate.`, '']
+		...(pending.length ? [`**Native runtime packaging is incomplete: ${String(pending.length)} required models in ${String(pendingCases.length)} cases have no packaged native engine.** Their tests fail until the selected target package supplies the engine.`, '']
 			: ['All published models have a packaged native engine on supported desktop targets. Install their weights and use the task menus or Tools → Advanced Local Processing. This build capability does not claim that every platform has passed the real-model tests.', '']),
 		...(candidates.length ? [`**${String(candidates.length)} additional models await catalog publication.** Their individual guides and real inference cases are prepared, but Model Manager cannot install them yet. A full nightly run reports missing required catalog entries as failures. Room dereverberation's GPL-3.0 declaration, license text, and source notices are recorded.`, ''] : []),
 		...(windowsArm64Pending.length ? [`**Windows ARM64 catalog approval is pending.** Native build recipes are prepared, but the catalog does not yet admit ${String(windowsArm64Pending.length)} of the published models on Windows ARM64. Enabling them requires a reviewed catalog update with exact SHA-256 pins. Their Windows ARM64 tests report explicit platform skips until that catalog is published; all published models are admitted on macOS arm64, Linux x64/arm64, and Windows x64.${candidates.length ? ' Entirely unpublished required identities still fail on every target.' : ''}`, ''] : []),

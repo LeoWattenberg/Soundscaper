@@ -3,8 +3,8 @@
 Status: research complete; empirical bake-off run on the owner workstation
 (RTX 3090) with results recorded below; **Track B is source-complete** — the
 dereverb-room registers, owned signal DSP, desktop worker, and the
-Reduce Reverb guided workflow are implemented and gated pending-external,
-exactly like the DFN3/TIGER 7A-4 routes (see "Track B implementation status"
+Reduce Reverb guided workflow are implemented and activation-ready in packages
+with the generated authenticated runtime, like the DFN3/TIGER 7A-4 routes (see "Track B implementation status"
 below). Track A (the deterministic web effect) is not started. This plan
 was requested as a standalone feature plan; it registers no roadmap row and
 claims no milestone gate. Where it touches milestone-7 machinery it follows

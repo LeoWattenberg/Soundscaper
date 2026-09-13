@@ -42,8 +42,8 @@ export function createDesktopAssistanceOnnxManifest(targetId, payloads = pinnedP
 		targets: TARGETS.map((id) => id === targetId ? {
 			id, status: 'authenticated', entrypoint: ENTRYPOINT, files,
 		} : {
-			id, status: 'pending-external',
-			blockedBy: `This ${targetId} desktop package does not contain the ${id} ONNX Runtime payload.`,
+			id, status: 'package-generated',
+			packageBehavior: `The ${id} ONNX Runtime payload is generated and verified by its own target package build.`,
 		}),
 	};
 }

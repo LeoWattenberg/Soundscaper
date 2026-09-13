@@ -195,7 +195,7 @@ test('parity evidence is exact, threshold-bound, and cannot bless pending artifa
 		/threshold|parity/iu);
 });
 
-test('the deterministic verifier reports pins and blockers without producing artifacts', () => {
+test('the deterministic verifier reports pins and package-generated runtimes without producing artifacts', () => {
 	const result = spawnSync(process.execPath,
 		['scripts/models/verify-milestone-7-model-supply.mjs'], {
 			cwd: new URL('..', import.meta.url), encoding: 'utf8',
@@ -208,6 +208,9 @@ test('the deterministic verifier reports pins and blockers without producing art
 	assert.equal(report.parityFixtures.every(({ status }) => status === 'verified'), true);
 	assert.equal(report.productionCatalogChanged, false);
 	assert.deepEqual(report.runtimeFamilies.map(({ status }) => status),
-		Array(3).fill('pending-external'));
-	assert.equal(report.sherpaWindowsArm64.status, 'pending-external');
+		Array(3).fill('package-generated'));
+	assert.deepEqual(report.runtimeFamilies.map(({ packageGeneratedTargets }) => packageGeneratedTargets),
+		Array(3).fill(5));
+	assert.equal(report.sherpaWindowsArm64.status, 'package-generated');
+	assert.match(report.sherpaWindowsArm64.packageBehavior, /Windows ARM64 target package/u);
 });

@@ -8,7 +8,7 @@ editUrl: false
 
 These guides describe the published catalog and the additional models required by the nightly tests. Desktop packages include native inference engines; Model Manager separately downloads and verifies weights admitted by the digest-pinned catalog. A prepared runtime and a required test do not grant model publication authority.
 
-**Native runtime activation is incomplete: 8 required models in 8 cases have no admitted native engine closure.** Their tests fail until the exact runtime target is authenticated; catalog admission and prepared package inputs do not close that gate.
+All published models have a packaged native engine on supported desktop targets. Install their weights and use the task menus or Tools → Advanced Local Processing. This build capability does not claim that every platform has passed the real-model tests.
 
 **Windows ARM64 catalog approval is pending.** Native build recipes are prepared, but the catalog does not yet admit 12 of the published models on Windows ARM64. Enabling them requires a reviewed catalog update with exact SHA-256 pins. Their Windows ARM64 tests report explicit platform skips until that catalog is published; all published models are admitted on macOS arm64, Linux x64/arm64, and Windows x64.
 
@@ -27,14 +27,14 @@ These guides describe the published catalog and the additional models required b
 | [PP-OCRv4 mobile](/reference/local-models/ppocr-v4-mobile/) | optical character recognition | Packaged; see supported platforms | `ppocr-recognized-text` |
 | [Nomic Embed Text v1.5](/reference/local-models/nomic-embed-text-v1.5/) | text embedding | Packaged; see supported platforms | `nomic-text-embedding` |
 | [SigLIP2 base patch16 224](/reference/local-models/siglip2-base-patch16-224/) | image text embedding | Packaged; see supported platforms | `siglip-image-text-embedding` |
-| [wav2vec2 base 960h word alignment](/reference/local-models/wav2vec2-base-960h/) | word alignment | Runtime target closure pending | `wav2vec2-word-alignment` |
-| [TIGER dialogue, music, and effects](/reference/local-models/tiger-dnr/) | source separation | Runtime target closure pending | `tiger-dialogue-music-effects` |
-| [PANNs CNN10 audio tags](/reference/local-models/panns-cnn10/) | audio tagging | Runtime target closure pending | `panns-audio-tags` |
-| [Beat This small](/reference/local-models/beat-this-small0/) | beat tracking | Runtime target closure pending | `beat-this-small-beats` |
-| [Beat This final](/reference/local-models/beat-this-final0/) | beat tracking | Runtime target closure pending | `beat-this-final-beats` |
-| [TransNetV2 shot detection](/reference/local-models/transnetv2/) | shot detection | Runtime target closure pending | `transnet-accurate-shots` |
-| [Qwen3 4B editorial proposals](/reference/local-models/qwen3-4b-q4-k-m/) | editorial generation | Runtime target closure pending | `qwen-editorial-proposals` |
-| [Room dereverberation](/reference/local-models/dereverb-room/) | dereverberation | Runtime target closure pending | `dereverb-room-speech` |
+| [wav2vec2 base 960h word alignment](/reference/local-models/wav2vec2-base-960h/) | word alignment | Packaged; see supported platforms | `wav2vec2-word-alignment` |
+| [TIGER dialogue, music, and effects](/reference/local-models/tiger-dnr/) | source separation | Packaged; see supported platforms | `tiger-dialogue-music-effects` |
+| [PANNs CNN10 audio tags](/reference/local-models/panns-cnn10/) | audio tagging | Packaged; see supported platforms | `panns-audio-tags` |
+| [Beat This small](/reference/local-models/beat-this-small0/) | beat tracking | Packaged; see supported platforms | `beat-this-small-beats` |
+| [Beat This final](/reference/local-models/beat-this-final0/) | beat tracking | Packaged; see supported platforms | `beat-this-final-beats` |
+| [TransNetV2 shot detection](/reference/local-models/transnetv2/) | shot detection | Packaged; see supported platforms | `transnet-accurate-shots` |
+| [Qwen3 4B editorial proposals](/reference/local-models/qwen3-4b-q4-k-m/) | editorial generation | Packaged; see supported platforms | `qwen-editorial-proposals` |
+| [Room dereverberation](/reference/local-models/dereverb-room/) | dereverberation | Packaged; see supported platforms | `dereverb-room-speech` |
 
 On Windows, install the latest supported [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) matching the desktop app: **x64** for an x64 build or **ARM64** for an ARM64 build. The native ONNX and Sherpa engines require these libraries; model downloads do not include them. Visual Studio itself is not required to use the app.
 

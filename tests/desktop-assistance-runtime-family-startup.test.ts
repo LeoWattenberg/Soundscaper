@@ -15,7 +15,7 @@ import {
 
 const GIB = 1024 ** 3;
 
-function pendingManifest(familyId: AssistanceRuntimeFamilyId) {
+function packageGeneratedManifest(familyId: AssistanceRuntimeFamilyId) {
 	const definition = ASSISTANCE_RUNTIME_FAMILY_DEFINITIONS[familyId];
 	return {
 		schemaVersion: 1,
@@ -25,8 +25,8 @@ function pendingManifest(familyId: AssistanceRuntimeFamilyId) {
 		executionProvider: 'cpu',
 		runtimePrefix: `assistance/${familyId}/${definition.runtimeVersion}`,
 		targets: ASSISTANCE_RUNTIME_FAMILY_TARGETS.map((id) => ({
-			id, status: 'pending-external',
-			blockedBy: 'Awaiting authenticated external payload publication and readback.',
+			id, status: 'package-generated',
+			packageBehavior: 'The target package build generates and verifies this runtime payload.',
 		})),
 	};
 }
@@ -38,7 +38,7 @@ function startup(manifests?: Readonly<Partial<Record<AssistanceRuntimeFamilyId, 
 		helperPath: resolve('fixture-runtime-family-helper.js'),
 		...(manifests === undefined ? {} : { manifests }),
 		platform: 'linux', architecture: 'x64',
-		fork: () => { forks += 1; throw new Error('No pending runtime may fork.'); },
+		fork: () => { forks += 1; throw new Error('No unpackaged runtime may fork.'); },
 		totalMemoryBytes: () => 32 * GIB,
 		availableMemoryBytes: () => 24 * GIB,
 	});
@@ -66,19 +66,19 @@ test('desktop startup reports every absent runtime manifest as typed unavailable
 	assert.equal(runtime.snapshot('onnxruntime-node').state, 'disposed');
 });
 
-test('pending runtime manifests retain their external blocker and cannot become spawn authority', async () => {
+test('package-generated runtime templates cannot spawn before packaging supplies their bytes', async () => {
 	const manifests = Object.freeze({
-		'onnxruntime-node': pendingManifest('onnxruntime-node'),
-		'whisper-cpp': pendingManifest('whisper-cpp'),
-		'llama-cpp': pendingManifest('llama-cpp'),
+		'onnxruntime-node': packageGeneratedManifest('onnxruntime-node'),
+		'whisper-cpp': packageGeneratedManifest('whisper-cpp'),
+		'llama-cpp': packageGeneratedManifest('llama-cpp'),
 	});
 	const { runtime, forkCount } = startup(manifests);
 	for (const familyId of Object.keys(manifests) as AssistanceRuntimeFamilyId[]) {
 		const status = await runtime.availability(familyId);
 		assert.equal(status.status, 'unavailable');
 		if (status.status === 'unavailable') {
-			assert.equal(status.reason, 'payload-pending-external');
-			assert.match(status.detail, /external payload publication/iu);
+			assert.equal(status.reason, 'payload-not-packaged');
+			assert.match(status.detail, /package build/iu);
 		}
 	}
 	assert.equal(forkCount(), 0);
@@ -86,7 +86,7 @@ test('pending runtime manifests retain their external blocker and cannot become 
 });
 
 test('startup refuses foreign manifest keys before exposing operation routing', () => {
-	assert.throws(() => startup({ shell: pendingManifest('onnxruntime-node') } as never),
+	assert.throws(() => startup({ shell: packageGeneratedManifest('onnxruntime-node') } as never),
 		/manifest.*family|key|inventory/iu);
 });
 

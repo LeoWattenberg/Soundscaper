@@ -10,11 +10,11 @@ Reduce room reflections in recorded speech with a local dereverberation model.
 
 ## Current availability {#current-availability}
 
-The catalog entry is published, but activation remains blocked until the exact onnxruntime-node 1.29.0 runtime target closure is authenticated. Prepared package inputs cover macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64; installing the weights alone does not enable processing. Consult the nightly test report for the exact package and machine exercised.
+Desktop builds package the required onnxruntime-node 1.29.0 engine for macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. Install this model’s weights through Model Manager, then run its task locally. These are supported build targets; consult the nightly test report for results on a particular package and machine.
 
 ## Use this model {#use-this-model}
 
-The model is admitted in the catalog, but its exact native runtime closure is not yet authenticated. The intended workflow is **Tools → Advanced Local Processing → Dereverberation**. The steps below describe that workflow; processing cannot currently complete.
+Open **Tools → Advanced Local Processing → Dereverberation** on a platform with the required native runtime. Local assistance runs in the desktop editor.
 
 1. Select speech affected by room reflections.
 2. Install the model through Model Manager and run dereverberation.
