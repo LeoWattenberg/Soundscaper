@@ -7,6 +7,11 @@ import {
 	createFramescaperNativeWatchImportClient,
 } from '../src/framescaper/editor-native-watch-import-client.ts';
 import { digestMediaContent } from '../src/common/editor/storage/media-content-digest.ts';
+import {
+	enabledNativeWatchAdmission,
+	nativeServicesSnapshot,
+	nativeWatchCapabilitySnapshot,
+} from './helpers/native-watch-admission-fixture.ts';
 
 type Data = Record<string, unknown>;
 
@@ -19,6 +24,15 @@ const PROJECT: Data = Object.freeze({
 	projectBin: { clips: [] },
 });
 
+function enabledBridge(overrides: Data = {}): Data {
+	return {
+		...enabledNativeWatchAdmission(),
+		claimWatchImport: async () => null,
+		completeWatchImport: async () => undefined,
+		...overrides,
+	};
+}
+
 function options(overrides: Data = {}): never {
 	return {
 		controller: {
@@ -26,10 +40,7 @@ function options(overrides: Data = {}): never {
 			actions: { project: { importFiles: async () => undefined } },
 		},
 		linkedVideoOriginalPort: { load: async () => null },
-		bridge: {
-			claimWatchImport: async () => null,
-			completeWatchImport: async () => undefined,
-		},
+		bridge: enabledBridge(),
 		autoStart: false,
 		...overrides,
 	} as unknown as never;
@@ -48,11 +59,19 @@ test('a client missing any required port reports itself unavailable', () => {
 	assert.equal(client({ linkedVideoOriginalPort: null }).available, false);
 	assert.equal(client({ linkedVideoOriginalPort: {} }).available, false);
 	assert.equal(
-		client({ bridge: { completeWatchImport: async () => undefined } }).available,
+		client({ bridge: enabledBridge({ claimWatchImport: undefined }) }).available,
 		false,
 	);
 	assert.equal(
-		client({ bridge: { claimWatchImport: async () => null } }).available,
+		client({ bridge: enabledBridge({ completeWatchImport: undefined }) }).available,
+		false,
+	);
+	assert.equal(
+		client({ bridge: enabledBridge({ snapshot: undefined }) }).available,
+		false,
+	);
+	assert.equal(
+		client({ bridge: enabledBridge({ capabilities: undefined }) }).available,
 		false,
 	);
 });
@@ -105,10 +124,9 @@ test('an unavailable client resolves a poll to no work without touching its port
 	let claimed = 0;
 	const watcher = client({
 		controller: null,
-		bridge: {
+		bridge: enabledBridge({
 			claimWatchImport: async () => { claimed += 1; return null; },
-			completeWatchImport: async () => undefined,
-		},
+		}),
 	});
 
 	assert.equal(await (watcher.pollNow as () => Promise<boolean>)(), false);
@@ -119,17 +137,66 @@ test('a poll that finds no claim reports no work', async () => {
 	assert.equal(await (client().pollNow as () => Promise<boolean>)(), false);
 });
 
+test('polling follows the live native watch admission without claiming while it is disabled', async () => {
+	let enabled = false;
+	let snapshots = 0;
+	let capabilities = 0;
+	let claims = 0;
+	const watcher = client({
+		bridge: enabledBridge({
+			snapshot: async () => {
+				snapshots += 1;
+				return nativeServicesSnapshot(enabled);
+			},
+			capabilities: async () => {
+				capabilities += 1;
+				return nativeWatchCapabilitySnapshot(enabled);
+			},
+			claimWatchImport: async () => { claims += 1; return null; },
+		}),
+	});
+	const poll = watcher.pollNow as () => Promise<boolean>;
+
+	assert.equal(await poll(), false);
+	assert.deepEqual(
+		{ snapshots, capabilities, claims },
+		{ snapshots: 0, capabilities: 1, claims: 0 },
+		'the off master switch must stop before the full service snapshot or claim request',
+	);
+
+	enabled = true;
+	assert.equal(await poll(), false);
+	assert.deepEqual(
+		{ snapshots, capabilities, claims },
+		{ snapshots: 1, capabilities: 2, claims: 1 },
+		'a later opt-in must be observed without reconstructing the client',
+	);
+});
+
+test('an unusable live watch capability never reaches the claim handler', async () => {
+	let claims = 0;
+	const unusable = nativeWatchCapabilitySnapshot(true, false);
+	const watcher = client({
+		bridge: enabledBridge({
+			capabilities: async () => unusable,
+			claimWatchImport: async () => { claims += 1; return null; },
+		}),
+	});
+
+	assert.equal(await (watcher.pollNow as () => Promise<boolean>)(), false);
+	assert.equal(claims, 0);
+});
+
 test('concurrent polls share one in-flight claim rather than racing the bridge', async () => {
 	let claimed = 0;
 	const watcher = client({
-		bridge: {
+		bridge: enabledBridge({
 			claimWatchImport: async () => {
 				claimed += 1;
 				await new Promise((resolve) => { setTimeout(resolve, 5); });
 				return null;
 			},
-			completeWatchImport: async () => undefined,
-		},
+		}),
 	});
 
 	const poll = watcher.pollNow as () => Promise<boolean>;
@@ -149,10 +216,9 @@ test('a poll after disposal reports no work', async () => {
 test('a fresh poll runs once the previous one has settled', async () => {
 	let claimed = 0;
 	const watcher = client({
-		bridge: {
+		bridge: enabledBridge({
 			claimWatchImport: async () => { claimed += 1; return null; },
-			completeWatchImport: async () => undefined,
-		},
+		}),
 	});
 
 	const poll = watcher.pollNow as () => Promise<boolean>;
@@ -191,7 +257,7 @@ test('disposal stops a committed watch import after its in-flight acknowledgemen
 		linkedVideoOriginalPort: {
 			load: async () => ({ blob: file, locatorRevision: 'c'.repeat(32) }),
 		},
-		bridge: {
+		bridge: enabledBridge({
 			claimWatchImport: async () => ({
 				schemaFamily: 'framescaper', schemaVersion: 1,
 				claimId: 'd'.repeat(32), projectId: 'project-1', projectRevision: 2,
@@ -208,7 +274,7 @@ test('disposal stops a committed watch import after its in-flight acknowledgemen
 				}
 				return false;
 			},
-		},
+		}),
 	});
 
 	const poll = (watcher.pollNow as () => Promise<boolean>)();

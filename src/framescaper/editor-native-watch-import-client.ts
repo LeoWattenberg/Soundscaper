@@ -2,6 +2,12 @@
 
 import { digestMediaContent } from '../common/editor/storage/media-content-digest.ts';
 import type { LinkedVideoOriginalPort } from '../common/editor/storage/linked-video-original-resolver.ts';
+import {
+	NATIVE_MEDIA_CAPABILITY_IDS,
+	assertNativeMediaCapabilitySnapshotV1,
+	isNativeMediaCapabilityUsable,
+	nativeMediaCapabilityEntry,
+} from '../common/editor/native-media-capability-snapshot.ts';
 import type {
 	FramescaperNativeServicesBridge,
 } from '../common/editor/ui/framescaper-native-services-bridge.ts';
@@ -43,7 +49,10 @@ export interface FramescaperNativeWatchImportController {
 export interface FramescaperNativeWatchImportClientOptions {
 	readonly controller: FramescaperNativeWatchImportController;
 	readonly linkedVideoOriginalPort: LinkedVideoOriginalPort | null;
-	readonly bridge: Pick<FramescaperNativeServicesBridge, 'claimWatchImport' | 'completeWatchImport'> | null;
+	readonly bridge: Pick<
+		FramescaperNativeServicesBridge,
+		'snapshot' | 'capabilities' | 'claimWatchImport' | 'completeWatchImport'
+	> | null;
 	readonly intervalMs?: number;
 	readonly autoStart?: boolean;
 	readonly schedule?: (callback: () => void, delayMs: number) => unknown;
@@ -65,6 +74,8 @@ export function createFramescaperNativeWatchImportClient(
 	const port = options?.linkedVideoOriginalPort;
 	const bridge = options?.bridge;
 	const available = Boolean(controller && port && typeof port.load === 'function'
+		&& typeof bridge?.snapshot === 'function'
+		&& typeof bridge.capabilities === 'function'
 		&& typeof bridge?.claimWatchImport === 'function'
 		&& typeof bridge.completeWatchImport === 'function');
 	const intervalMs = positiveInteger(options.intervalMs ?? 1_000, 'watch-import poll interval');
@@ -106,6 +117,7 @@ export function createFramescaperNativeWatchImportClient(
 	async function poll(): Promise<boolean> {
 		const before = exactProject(controller.project);
 		if (!before) return false;
+		if (!await watchImportsAuthorized()) return false;
 		const claimValue = await bridge!.claimWatchImport!({
 			schemaFamily: 'framescaper', schemaVersion: 1,
 			projectId: before.id, projectRevision: before.revision,
@@ -163,6 +175,20 @@ export function createFramescaperNativeWatchImportClient(
 			}
 			return false;
 		}
+	}
+
+	async function watchImportsAuthorized(): Promise<boolean> {
+		const capabilities = await bridge!.capabilities!();
+		assertNativeMediaCapabilitySnapshotV1(capabilities);
+		if (!capabilities.masterEnabled) return false;
+		const watch = nativeMediaCapabilityEntry(
+			capabilities,
+			NATIVE_MEDIA_CAPABILITY_IDS.watchFolders.domain,
+			NATIVE_MEDIA_CAPABILITY_IDS.watchFolders.id,
+		);
+		if (!isNativeMediaCapabilityUsable(watch)) return false;
+		const services = await bridge!.snapshot();
+		return services.runtimeAvailable === true && services.nativeMediaEnabled === true;
 	}
 
 	async function materializeClaim(

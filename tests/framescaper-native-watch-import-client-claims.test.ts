@@ -1,11 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/*
- * The sibling file framescaper-native-watch-import-client.test.ts owns the
- * client lifecycle. This one covers the poll body it never reaches: claim
- * validation, materialization, commit verification, proxy work, completion
- * acknowledgement and the retry loop.
- */
+/** Claim validation and processing; the sibling watch-import test owns the client lifecycle. */
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -19,6 +14,7 @@ import {
 	createFramescaperNativeWatchImportClient,
 	type FramescaperNativeWatchImportClient,
 } from '../src/framescaper/editor-native-watch-import-client.ts';
+import { enabledNativeWatchAdmission } from './helpers/native-watch-admission-fixture.ts';
 
 type Data = Record<string, unknown>;
 
@@ -136,6 +132,7 @@ function rig(config: RigConfig = {}): Rig {
 			load: config.load ?? (async () => ({ blob: watchedFile(), locatorRevision: LOCATOR_REVISION })),
 		},
 		bridge: {
+			...enabledNativeWatchAdmission(),
 			claimWatchImport: async (request: Data) => {
 				rec.claims.push(request);
 				config.onClaim?.();
