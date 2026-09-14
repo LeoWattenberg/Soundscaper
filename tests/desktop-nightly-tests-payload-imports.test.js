@@ -24,7 +24,12 @@ const BROWSER_TESTS = join(REPOSITORY_ROOT, 'tests/browser');
 const FRAMESCAPER_LIFECYCLE_SPEC = join(BROWSER_TESTS, 'audio-editor-framescaper-product-lifecycle.spec.js');
 // The `testMatch` of playwright.nightly-tests.config.mjs.
 const TEST_FILE = /\.(?:spec|test)\.[cm]?[jt]sx?$/u;
-const BUILTIN_MODULES = new Set(builtinModules.flatMap((name) => [name, `node:${name}`]));
+const BUILTIN_MODULES = new Set([
+	...builtinModules.flatMap((name) => [name, `node:${name}`]),
+	// Every nightly Playwright phase runs through Electron with RunAsNode enabled.
+	// Electron supplies this raw-filesystem builtin in addition to Node's set.
+	'node:original-fs',
+]);
 
 test('the nightly runtime carries the browser-native container fixture dependency', async () => {
 	const staged = new Set((await resolveNightlyTestRuntimePackages(REPOSITORY_ROOT)).map(({ name }) => name));

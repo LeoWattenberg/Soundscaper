@@ -1,11 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { pathToFileURL } from 'node:url';
+import { promisify } from 'node:util';
+
+import { createPackage } from '@electron/asar';
+import electronPath from 'electron';
 
 import {
 	createModelInstallEvidence,
@@ -25,6 +31,7 @@ const model = Object.freeze({
 	})]),
 });
 const sourceRevision = 'a'.repeat(40);
+const execFileAsync = promisify(execFile);
 const packageIdentity = Object.freeze({
 	productId: 'framescaper',
 	applicationVersion: '1.0.0-rc.5',
@@ -154,4 +161,44 @@ test('package identity binds the exact staged application, manifest, target, and
 	await assert.rejects(readNightlyPackageIdentity({
 		payloadRoot, productRoot, productId: 'framescaper', target: 'linux-x64',
 	}), /source revision/u);
+});
+
+test('package identity hashes raw ASAR bytes when the nightly tests run through Electron', async (context) => {
+	const payloadRoot = await mkdtemp(join(tmpdir(), 'nightly-package-electron-'));
+	context.after(() => rm(payloadRoot, { recursive: true, force: true }));
+	const productRoot = join(payloadRoot, 'products');
+	const applicationSource = join(payloadRoot, 'application');
+	await mkdir(join(productRoot, 'framescaper'), { recursive: true });
+	await mkdir(applicationSource);
+	const stagePlatform = { darwin: 'mac', linux: 'linux', win32: 'win' }[process.platform];
+	assert.ok(stagePlatform);
+	const target = `${process.platform}-${process.arch}`;
+	const nightlyManifest = {
+		schemaVersion: 1, kind: 'soundscaper-desktop-nightly-tests', sourceRevision,
+		target: { platform: stagePlatform, arch: process.arch },
+	};
+	const productManifest = {
+		schemaVersion: 1, productId: 'framescaper', applicationVersion: '1.0.0-rc.5', sourceRevision,
+		target: { platform: stagePlatform, arch: process.arch },
+	};
+	await writeFile(join(payloadRoot, 'stage-manifest.json'), `${JSON.stringify(nightlyManifest)}\n`);
+	await writeFile(join(productRoot, 'framescaper/stage-manifest.json'), `${JSON.stringify(productManifest)}\n`);
+	await writeFile(join(applicationSource, 'package.json'), '{"name":"nightly-product-fixture"}\n');
+	const applicationPath = join(productRoot, 'framescaper.asar');
+	await createPackage(applicationSource, applicationPath);
+	const moduleUrl = pathToFileURL(join(import.meta.dirname,
+		'electron/local-assistance-models/model-delivery-evidence.js')).href;
+	const options = JSON.stringify({ payloadRoot, productRoot, productId: 'framescaper', target });
+	const { stdout } = await execFileAsync(electronPath, [
+		'--input-type=module', '--eval',
+		'const api = await import(process.argv[1]);'
+			+ 'process.stdout.write(JSON.stringify(await api.readNightlyPackageIdentity(JSON.parse(process.argv[2]))));',
+		moduleUrl, options,
+	], { env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } });
+	const identity = JSON.parse(stdout);
+	const applicationBytes = await readFile(applicationPath);
+	assert.deepEqual(identity.application, {
+		fileName: 'framescaper.asar', byteLength: applicationBytes.byteLength,
+		sha256: createHash('sha256').update(applicationBytes).digest('hex'),
+	});
 });

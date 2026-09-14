@@ -26,15 +26,16 @@ export async function readNightlyPackageIdentity({ payloadRoot, productRoot, pro
 		'The packaged product root is detached from the nightly payload.');
 	assert.ok(['framescaper', 'soundscaper'].includes(productId), 'The packaged product identity is invalid.');
 	assert.ok(typeof target === 'string' && TARGET.test(target), 'The nightly model target is invalid.');
+	const fileSystem = await rawFileSystem();
 	const stageTarget = stagedTarget(target);
 	const nightlyPath = join(payloadRoot, 'stage-manifest.json');
 	const productPath = join(productRoot, productId, 'stage-manifest.json');
 	const applicationPath = join(productRoot, `${productId}.asar`);
-	await assertRegularFile(nightlyPath, 'nightly stage manifest');
-	await assertRegularFile(productPath, 'packaged product stage manifest');
-	await assertRegularFile(applicationPath, 'packaged product application');
+	await assertRegularFile(fileSystem, nightlyPath, 'nightly stage manifest');
+	await assertRegularFile(fileSystem, productPath, 'packaged product stage manifest');
+	await assertRegularFile(fileSystem, applicationPath, 'packaged product application');
 	const [nightlyBytes, productBytes, applicationBytes] = await Promise.all([
-		readFile(nightlyPath), readFile(productPath), readFile(applicationPath),
+		fileSystem.readFile(nightlyPath), fileSystem.readFile(productPath), fileSystem.readFile(applicationPath),
 	]);
 	const nightly = parseManifest(nightlyBytes, 'nightly stage manifest');
 	const product = parseManifest(productBytes, 'packaged product stage manifest');
@@ -185,9 +186,16 @@ function stagedTarget(target) {
 	return Object.freeze({ platform: { darwin: 'mac', linux: 'linux', win32: 'win' }[platform], arch });
 }
 
-async function assertRegularFile(path, label) {
-	const metadata = await lstat(path);
+async function assertRegularFile(fileSystem, path, label) {
+	const metadata = await fileSystem.lstat(path);
 	assert.ok(metadata.isFile() && !metadata.isSymbolicLink(), `The ${label} must be a regular file.`);
+}
+
+async function rawFileSystem() {
+	if (!process.versions.electron) return { lstat, readFile };
+	// Electron's patched fs exposes an ASAR as a virtual directory. Identity
+	// evidence needs the archive file itself so its exact packaged bytes are hashed.
+	return (await import('node:original-fs')).promises;
 }
 
 function parseManifest(bytes, label) {
