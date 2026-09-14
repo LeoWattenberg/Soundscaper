@@ -347,7 +347,7 @@ export function validateDesktopNativeAddonSummary(manifest, targetId, options = 
 		`${manifest.name} records an unsupported native addon payload status.`);
 	assert(summary.status === 'built'
 		? summary.payload !== null && summary.blockedBy === null
-		: summary.payload === null && typeof summary.blockedBy === 'string' && summary.blockedBy.trim().length >= 8,
+		: summary.payload === null && summary.buildResult === null && summary.blockedBy === null,
 	`${manifest.name} records a native addon payload status that disagrees with its payload.`);
 }
 

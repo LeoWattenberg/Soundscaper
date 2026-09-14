@@ -224,6 +224,16 @@ test('desktop release assembly requires the immutable no-FFmpeg provider policy'
 		},
 	}];
 	assert.doesNotThrow(() => validateDesktopRuntimeManifests(identified({ nativeAddons })));
+	const ciGeneratedNativeAddons = {
+		...nativeAddons,
+		status: 'ci-generated',
+		blockedBy: null,
+		payload: null,
+		buildResult: null,
+	};
+	assert.doesNotThrow(() => validateDesktopRuntimeManifests(identified({
+		nativeAddons: ciGeneratedNativeAddons,
+	})));
 	assert.throws(
 		() => validateDesktopRuntimeManifests(identified({ ffmpeg: {}, nativeAddons })),
 		/legacy bundled FFmpeg runtime summary/iu,
@@ -254,6 +264,18 @@ test('desktop release assembly requires the immutable no-FFmpeg provider policy'
 	);
 	assert.throws(
 		() => validateDesktopRuntimeManifests(identified({ nativeAddons: { ...nativeAddons, payload: null } })),
+		/status that disagrees with its payload/iu,
+	);
+	assert.throws(
+		() => validateDesktopRuntimeManifests(identified({
+			nativeAddons: { ...ciGeneratedNativeAddons, payload: nativeAddons.payload },
+		})),
+		/status that disagrees with its payload/iu,
+	);
+	assert.throws(
+		() => validateDesktopRuntimeManifests(identified({
+			nativeAddons: { ...ciGeneratedNativeAddons, blockedBy: 'obsolete blocker' },
+		})),
 		/status that disagrees with its payload/iu,
 	);
 });
