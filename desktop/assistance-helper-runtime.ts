@@ -28,6 +28,7 @@ import {
 	type SpeechRuntimeStatus,
 } from './assistance-speech-runtime.ts';
 import {
+	ASSISTANCE_SPEECH_FILE_MAXIMUM_BYTES,
 	validateAssistanceSpeechJobResult,
 	type AssistanceSpeechFileGrant,
 	type AssistanceSpeechJobGrant,
@@ -37,6 +38,7 @@ import {
 	type VoiceActivityResult,
 	type VoiceActivityRuntimeAdapter,
 } from './assistance-vad-runtime.ts';
+import { nativeChildFileIdentityFromStat } from './native-child-file-identity.ts';
 
 export interface AssistanceSpeechHostPort {
 	start(
@@ -195,10 +197,13 @@ async function fileGrant(
 ): Promise<AssistanceSpeechFileGrant> {
 	if (typeof path !== 'string' || path === '') throw new TypeError(`Recognition needs the ${role} path.`);
 	signal?.throwIfAborted();
-	const before = await lstat(path);
+	const before = await lstat(path, { bigint: true });
 	signal?.throwIfAborted();
 	if (!before.isFile() || before.isSymbolicLink()) {
 		throw new TypeError(`The assistance ${role} grant must name one regular file.`);
+	}
+	if (before.size < 1n || before.size > BigInt(ASSISTANCE_SPEECH_FILE_MAXIMUM_BYTES)) {
+		throw new RangeError(`The assistance ${role} grant byte length is out of range.`);
 	}
 	const hash = createHash('sha256');
 	const stream = openFileReadStream(path);
@@ -216,7 +221,7 @@ async function fileGrant(
 	} finally {
 		signal?.removeEventListener('abort', abortStream);
 	}
-	const after = await lstat(path);
+	const after = await lstat(path, { bigint: true });
 	signal?.throwIfAborted();
 	if (!after.isFile() || after.isSymbolicLink()
 		|| before.dev !== after.dev || before.ino !== after.ino || before.size !== after.size) {
@@ -225,9 +230,9 @@ async function fileGrant(
 	return Object.freeze({
 		role,
 		path,
-		bytes: after.size,
+		bytes: Number(after.size),
 		sha256: hash.digest('hex'),
-		identity: Object.freeze({ dev: after.dev, ino: after.ino }),
+		identity: nativeChildFileIdentityFromStat(after),
 	});
 }
 

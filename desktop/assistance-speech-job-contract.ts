@@ -20,8 +20,13 @@ import {
 	HelperContractViolationError,
 	assertHelperWireEnvelope,
 } from './helper-wire-admission.ts';
+import {
+	canonicalNativeChildFileIdentity,
+	type CanonicalNativeChildFileIdentity,
+} from './native-child-file-identity.ts';
 
 export const ASSISTANCE_SPEECH_JOB_SUBCONTRACT_VERSION = 1;
+export const ASSISTANCE_SPEECH_FILE_MAXIMUM_BYTES = 4 * 1024 ** 3;
 export const ASSISTANCE_SPEECH_FILE_ROLES = Object.freeze([
 	'audio', 'voice-activity', 'encoder', 'decoder', 'joiner', 'tokens', 'vad-model',
 	'segmentation-model', 'embedding-model',
@@ -34,7 +39,7 @@ export interface AssistanceSpeechFileGrant {
 	readonly path: string;
 	readonly bytes: number;
 	readonly sha256: string;
-	readonly identity: Readonly<{ dev: number; ino: number }>;
+	readonly identity: CanonicalNativeChildFileIdentity;
 }
 
 export interface AssistanceSpeechStatusGrant {
@@ -97,7 +102,6 @@ const RECOGNITION_KEYS = Object.freeze([
 const VOICE_ACTIVITY_KEYS = Object.freeze(['operation', 'moduleId', 'modelId', 'audio', 'model']);
 const DIARIZATION_KEYS = Object.freeze(['operation', 'moduleId', 'modelIds', 'audio', 'models']);
 const FILE_KEYS = Object.freeze(['role', 'path', 'bytes', 'sha256', 'identity']);
-const IDENTITY_KEYS = Object.freeze(['dev', 'ino']);
 const MODEL_KEYS = Object.freeze(['encoder', 'decoder', 'joiner', 'tokens']);
 const DIARIZATION_MODEL_KEYS = Object.freeze(['segmentation', 'embedding']);
 const STATUS_RESULT_KEYS = Object.freeze(['available', 'reason', 'moduleId']);
@@ -227,16 +231,17 @@ function validateFileGrant(value: unknown, role: AssistanceSpeechFileRole): Assi
 		|| record.path.split(/[\\/]/u).includes('..') || Buffer.byteLength(record.path, 'utf8') > 4_096) {
 		throw unsafe(`The assistance ${role} grant needs one bounded absolute path.`);
 	}
-	if (!Number.isSafeInteger(record.bytes) || (record.bytes as number) < 1 || (record.bytes as number) > 4 * 1024 ** 3) {
+	if (!Number.isSafeInteger(record.bytes) || (record.bytes as number) < 1
+		|| (record.bytes as number) > ASSISTANCE_SPEECH_FILE_MAXIMUM_BYTES) {
 		throw unsafe(`The assistance ${role} grant byte length is out of range.`);
 	}
 	if (typeof record.sha256 !== 'string' || !SHA256.test(record.sha256)) {
 		throw unsafe(`The assistance ${role} grant needs a lowercase SHA-256 digest.`);
 	}
-	const identity = plainRecord(record.identity, `The assistance ${role} identity must be a plain record.`);
-	exactKeys(identity, IDENTITY_KEYS, `The assistance ${role} identity`);
-	if (!Number.isSafeInteger(identity.dev) || (identity.dev as number) < 0
-		|| !Number.isSafeInteger(identity.ino) || (identity.ino as number) < 0) {
+	let identity: CanonicalNativeChildFileIdentity;
+	try {
+		identity = canonicalNativeChildFileIdentity(record.identity);
+	} catch {
 		throw unsafe(`The assistance ${role} grant needs an exact file identity.`);
 	}
 	return Object.freeze({
@@ -244,7 +249,7 @@ function validateFileGrant(value: unknown, role: AssistanceSpeechFileRole): Assi
 		path: record.path,
 		bytes: record.bytes as number,
 		sha256: record.sha256,
-		identity: Object.freeze({ dev: identity.dev as number, ino: identity.ino as number }),
+		identity,
 	});
 }
 

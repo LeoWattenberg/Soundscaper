@@ -14,6 +14,7 @@ import { createSherpaRecognizerFactory } from './project-library-runtime/desktop
 import { createSherpaVadFactory } from './project-library-runtime/desktop/assistance-sherpa-vad.js';
 import { createSpeechRuntimeAdapter } from './project-library-runtime/desktop/assistance-speech-runtime.js';
 import { validateAssistanceSpeechJobGrant } from './project-library-runtime/desktop/assistance-speech-job-contract.js';
+import { nativeChildFileIdentityFromStat } from './project-library-runtime/desktop/native-child-file-identity.js';
 
 const runtime = createSpeechRuntimeAdapter({
 	createFactory: createSherpaRecognizerFactory,
@@ -98,16 +99,20 @@ async function loadVerifiedRuntime() {
 }
 
 async function verifyGrantedFile(grant) {
-	const before = await lstat(grant.path);
+	const before = await lstat(grant.path, { bigint: true });
+	const beforeIdentity = nativeChildFileIdentityFromStat(before);
 	if (!before.isFile() || before.isSymbolicLink()
-		|| before.dev !== grant.identity.dev || before.ino !== grant.identity.ino || before.size !== grant.bytes) {
+		|| beforeIdentity.dev !== grant.identity.dev || beforeIdentity.ino !== grant.identity.ino
+		|| before.size !== BigInt(grant.bytes)) {
 		throw new Error(`The granted assistance ${grant.role} file no longer matches its captured identity.`);
 	}
 	const hash = createHash('sha256');
 	for await (const chunk of createReadStream(grant.path)) hash.update(chunk);
-	const after = await lstat(grant.path);
+	const after = await lstat(grant.path, { bigint: true });
+	const afterIdentity = nativeChildFileIdentityFromStat(after);
 	if (!after.isFile() || after.isSymbolicLink()
-		|| before.dev !== after.dev || before.ino !== after.ino || before.size !== after.size
+		|| beforeIdentity.dev !== afterIdentity.dev || beforeIdentity.ino !== afterIdentity.ino
+		|| before.size !== after.size
 		|| hash.digest('hex') !== grant.sha256) {
 		throw new Error(`The granted assistance ${grant.role} file no longer matches its captured digest.`);
 	}

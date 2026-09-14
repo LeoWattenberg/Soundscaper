@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { lstat, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -10,6 +10,7 @@ import test from 'node:test';
 import { createAssistanceHelperRuntimeAdapter } from '../desktop/assistance-helper-runtime.ts';
 import { validateAssistanceJobRequest } from '../desktop/assistance-job-protocol.ts';
 import { SPEECH_RUNTIME_MODULE_ID } from '../desktop/assistance-speech-runtime.ts';
+import { nativeChildFileIdentityFromStat } from '../desktop/native-child-file-identity.ts';
 
 const RESULT = Object.freeze({ language: null, segments: Object.freeze([]) });
 
@@ -59,8 +60,40 @@ test('main grants exact digest-bound audio and model artifacts to the speech hel
 		const bytes = await readFile(file.path);
 		assert.equal(file.bytes, bytes.byteLength);
 		assert.equal(file.sha256, createHash('sha256').update(bytes).digest('hex'));
-		assert.ok(file.identity.dev >= 0 && file.identity.ino >= 0);
+		assert.deepEqual(file.identity,
+			nativeChildFileIdentityFromStat(await lstat(file.path, { bigint: true })));
 	}
+});
+
+test('speech grant admission preserves unsigned 64-bit file identities without numeric rounding', async (t) => {
+	const root = await mkdtemp(join(tmpdir(), 'scape-speech-identity-'));
+	t.after(() => rm(root, { recursive: true, force: true }));
+	const audioPath = join(root, 'selected.wav');
+	const modelPath = join(root, 'silero_vad.onnx');
+	await Promise.all([writeFile(audioPath, 'wave'), writeFile(modelPath, 'model')]);
+	let request: unknown = null;
+	const runtime = createAssistanceHelperRuntimeAdapter({
+		host: {
+			start(value) {
+				request = value;
+				return { jobId: '34'.repeat(20), completed: Promise.resolve({
+					sampleRate: 16_000, segments: [],
+				}), cancel: () => Promise.resolve() };
+			},
+			dispose() {},
+		},
+	});
+	await runtime.detect({ audioPath, model: { model: modelPath } });
+	const captured = structuredClone(request) as {
+		grant: { audio: { identity: { dev: string; ino: string } } };
+	};
+	captured.grant.audio.identity = {
+		dev: '18446744073709551615', ino: '34902897112982204',
+	};
+	const admitted = validateAssistanceJobRequest(captured);
+	assert.equal(admitted.grant.operation, 'detect-voice-activity');
+	if (admitted.grant.operation !== 'detect-voice-activity') return;
+	assert.deepEqual(admitted.grant.audio.identity, captured.grant.audio.identity);
 });
 
 test('main grants exact digest-bound selected audio and Silero model to the VAD helper', async (t) => {

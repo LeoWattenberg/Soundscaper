@@ -9,6 +9,7 @@ import {
 	ASSISTANCE_WORKFLOW_OWNED_VIDEO_HIGHLIGHT_STAGE_IDS,
 	createAssistanceWorkflowOwnedVideoHighlightStageRuntime,
 } from '../desktop/assistance-workflow-owned-video-highlight-stage-runtime.ts';
+import { nativeChildFileIdentityFromStat } from '../desktop/native-child-file-identity.ts';
 import { createAssistanceHeldFramePlanStoreV1 } from
 	'../desktop/assistance-held-frame-plan-store.ts';
 import { openAssistanceOnnxVisualFrameSourceV1 } from
@@ -265,14 +266,14 @@ test('guided dense-shot sampling crosses one producer as ordered strict frame pa
 		{ outcome: 'completed' });
 		const path = harness.outputPath('sample-shot-frames', 'frame-pack');
 		const body = await readFile(path);
-		const file = await stat(path);
+		const file = await stat(path, { bigint: true });
 		const packs = reviewAssistanceVisualFramePackInventory(body);
 		assert.deepEqual(packs.map(({ frameCount }) => frameCount), [1_024, 2]);
 		const source = await openAssistanceOnnxVisualFrameSourceV1([{
 			claimId: '11'.repeat(20),
 			role: 'frame-pack', mediaType: 'application/vnd.soundscaper.frame-pack',
-			byteLength: file.size, sha256: digest(body), path,
-			identity: { dev: Number(file.dev), ino: Number(file.ino) },
+			byteLength: Number(file.size), sha256: digest(body), path,
+			identity: nativeChildFileIdentityFromStat(file),
 		}]);
 		try {
 			assert.equal(source.frameCount, 1_026);

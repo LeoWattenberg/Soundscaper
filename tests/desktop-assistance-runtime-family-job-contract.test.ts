@@ -89,7 +89,29 @@ test('one generic grant binds exact staged inputs, models, outputs, settings, fa
 	assert.equal(admitted.inputs[0]!.path, '/private/input.mp4');
 	assert.equal(admitted.models[0]!.modelId, 'transnetv2');
 	assert.equal(admitted.outputs[0]!.initialByteLength, 0);
-	assert.deepEqual(validateAssistanceRuntimeFamilyJobRequestV1(request()), request());
+	assert.deepEqual(validateAssistanceRuntimeFamilyJobRequestV1(request()), {
+		...request(),
+		grant: {
+			...grant(),
+			inputs: [{ ...grant().inputs[0], identity: { dev: '1', ino: '2' } }],
+			models: [{ ...grant().models[0], identity: { dev: '1', ino: '3' } }],
+			outputs: [{ ...grant().outputs[0], identity: { dev: '1', ino: '4' } }],
+		},
+	});
+});
+
+test('grant admission preserves unsigned 64-bit file identities without numeric rounding', () => {
+	const maximum = '18446744073709551615';
+	const beyondSafeInteger = '34902897112982204';
+	const admitted = validateAssistanceRuntimeFamilyJobGrantV1({
+		...grant(),
+		inputs: [{ ...grant().inputs[0], identity: { dev: maximum, ino: beyondSafeInteger } }],
+	});
+	assert.deepEqual(admitted.inputs[0]!.identity, { dev: maximum, ino: beyondSafeInteger });
+	assert.throws(() => validateAssistanceRuntimeFamilyJobGrantV1({
+		...grant(),
+		inputs: [{ ...grant().inputs[0], identity: { dev: maximum, ino: '18446744073709551616' } }],
+	}), /identity|inode/iu);
 });
 
 test('grant admission rejects foreign tasks, unknown fields, aliases, unsafe paths, and unauthenticated output files', () => {

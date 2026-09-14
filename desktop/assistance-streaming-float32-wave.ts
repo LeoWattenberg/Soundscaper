@@ -9,9 +9,11 @@ import { basename, dirname, join } from 'node:path';
 
 import { createWavHeader } from '../src/common/editor/wav.js';
 import type {
+	AssistanceRuntimeFamilyFileIdentityV1,
 	AssistanceRuntimeFamilyInputGrantV1,
 	AssistanceRuntimeFamilyOutputGrantV1,
 } from './assistance-runtime-family-job-contract.ts';
+import { nativeChildFileIdentityFromStat } from './native-child-file-identity.ts';
 
 export const ASSISTANCE_WAVE_RANGE_IO_MAXIMUM_BYTES = 1024 * 1024;
 export const ASSISTANCE_WAVE_PCM_WINDOW_MAXIMUM_BYTES = 192 * 1024 ** 2;
@@ -327,7 +329,7 @@ function createSink(
 async function openVerified(
 	path: string,
 	flags: number,
-	identity: Readonly<{ readonly dev: number; readonly ino: number }>,
+	identity: AssistanceRuntimeFamilyFileIdentityV1,
 	expectedBytes: number | null,
 	label: string,
 ): Promise<FileHandle> {
@@ -335,9 +337,10 @@ async function openVerified(
 	const noFollow = process.platform === 'win32' ? 0 : constants.O_NOFOLLOW;
 	const handle = await open(path, flags | noFollow);
 	try {
-		const stat = await handle.stat();
-		if (!stat.isFile() || Number(stat.dev) !== identity.dev || Number(stat.ino) !== identity.ino
-			|| expectedBytes !== null && stat.size !== expectedBytes) {
+		const stat = await handle.stat({ bigint: true });
+		const observedIdentity = nativeChildFileIdentityFromStat(stat);
+		if (!stat.isFile() || observedIdentity.dev !== identity.dev || observedIdentity.ino !== identity.ino
+			|| expectedBytes !== null && stat.size !== BigInt(expectedBytes)) {
 			throw new Error(`The ${label} identity or exact length changed.`);
 		}
 		return handle;

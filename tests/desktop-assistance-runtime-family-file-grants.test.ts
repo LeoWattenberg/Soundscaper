@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -12,6 +12,7 @@ import {
 	authenticateAssistanceRuntimeFamilyJobResultFilesV1,
 	captureAssistanceRuntimeFamilyJobGrantV1,
 } from '../desktop/assistance-runtime-family-file-grants.ts';
+import { nativeChildFileIdentityFromStat } from '../desktop/native-child-file-identity.ts';
 
 const JOB_ID = '1'.repeat(40);
 const INPUT_ID = '2'.repeat(40);
@@ -72,6 +73,8 @@ test('main captures and the worker re-authenticates exact regular input, model, 
 	assert.equal(grant.models[0]!.sha256, digest(MODEL));
 	assert.equal(grant.outputs[0]!.initialByteLength, 0);
 	assert.notEqual(grant.inputs[0]!.identity.ino, grant.outputs[0]!.identity.ino);
+	assert.deepEqual(grant.inputs[0]!.identity,
+		nativeChildFileIdentityFromStat(await lstat(paths.input, { bigint: true })));
 	assert.deepEqual(await authenticateAssistanceRuntimeFamilyJobGrantFilesV1(grant), grant);
 });
 

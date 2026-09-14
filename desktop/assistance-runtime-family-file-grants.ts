@@ -27,6 +27,10 @@ import type {
 import {
 	validateAssistanceRuntimeFamilyDescriptorV1,
 } from './assistance-runtime-family-process-protocol.ts';
+import {
+	nativeChildFileIdentityFromStat,
+	type CanonicalNativeChildFileIdentity,
+} from './native-child-file-identity.ts';
 
 export interface AssistanceRuntimeFamilyInputCapture {
 	readonly claim: AssistanceStagedInputClaim;
@@ -61,7 +65,7 @@ export interface AssistanceRuntimeFamilyGrantCaptureOptions {
 interface InspectedFile {
 	readonly byteLength: number;
 	readonly sha256: string;
-	readonly identity: Readonly<{ readonly dev: number; readonly ino: number }>;
+	readonly identity: CanonicalNativeChildFileIdentity;
 }
 
 const EMPTY_SHA256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
@@ -182,7 +186,7 @@ async function inspectFile(
 		readonly minimumBytes: number;
 		readonly maximumBytes: number;
 		readonly expectedSha256: string;
-		readonly expectedIdentity?: Readonly<{ readonly dev: number; readonly ino: number }>;
+		readonly expectedIdentity?: CanonicalNativeChildFileIdentity;
 		readonly label: string;
 		readonly signal?: AbortSignal;
 	}>,
@@ -192,12 +196,12 @@ async function inspectFile(
 		|| path.includes('\0') || await realpath(path) !== path) {
 		throw new TypeError(`The ${options.label} path is not absolute and canonical.`);
 	}
-	const before = await lstat(path);
+	const before = await lstat(path, { bigint: true });
 	if (!before.isFile() || before.isSymbolicLink()
-		|| before.size < options.minimumBytes || before.size > options.maximumBytes) {
+		|| before.size < BigInt(options.minimumBytes) || before.size > BigInt(options.maximumBytes)) {
 		throw new Error(`The ${options.label} is not a regular file within its exact length.`);
 	}
-	const identity = Object.freeze({ dev: Number(before.dev), ino: Number(before.ino) });
+	const identity = nativeChildFileIdentityFromStat(before);
 	if (options.expectedIdentity && !sameIdentity(identity, options.expectedIdentity)) {
 		throw new Error(`The ${options.label} file identity changed.`);
 	}
@@ -205,40 +209,41 @@ async function inspectFile(
 	try {
 		const noFollow = process.platform === 'win32' ? 0 : constants.O_NOFOLLOW;
 		handle = await open(path, constants.O_RDONLY | noFollow);
-		const opened = await handle.stat();
+		const opened = await handle.stat({ bigint: true });
 		if (!opened.isFile() || opened.size !== before.size
-			|| !sameIdentity(identity, { dev: Number(opened.dev), ino: Number(opened.ino) })) {
+			|| !sameIdentity(identity, nativeChildFileIdentityFromStat(opened))) {
 			throw new Error(`The ${options.label} changed while opening.`);
 		}
 		const hash = createHash('sha256');
-		const buffer = Buffer.allocUnsafe(Math.min(1024 * 1024, Math.max(1, opened.size)));
+		const byteLength = Number(opened.size);
+		const buffer = Buffer.allocUnsafe(Math.min(1024 * 1024, Math.max(1, byteLength)));
 		let position = 0;
-		while (position < opened.size) {
+		while (position < byteLength) {
 			options.signal?.throwIfAborted();
-			const length = Math.min(buffer.byteLength, opened.size - position);
+			const length = Math.min(buffer.byteLength, byteLength - position);
 			const { bytesRead } = await handle.read(buffer, 0, length, position);
 			if (bytesRead < 1) throw new Error(`The ${options.label} ended during authentication.`);
 			hash.update(buffer.subarray(0, bytesRead));
 			position += bytesRead;
 		}
-		const after = await handle.stat();
-		const pathAfter = await lstat(path);
+		const after = await handle.stat({ bigint: true });
+		const pathAfter = await lstat(path, { bigint: true });
 		const sha256 = hash.digest('hex');
 		if (after.size !== opened.size || after.mtimeMs !== opened.mtimeMs
 			|| after.ctimeMs !== opened.ctimeMs || pathAfter.size !== opened.size
-			|| !sameIdentity(identity, { dev: Number(pathAfter.dev), ino: Number(pathAfter.ino) })
+			|| !sameIdentity(identity, nativeChildFileIdentityFromStat(pathAfter))
 			|| sha256 !== options.expectedSha256) {
 			throw new Error(`The ${options.label} digest, identity, or length changed.`);
 		}
-		return Object.freeze({ byteLength: opened.size, sha256, identity });
+		return Object.freeze({ byteLength, sha256, identity });
 	} finally {
 		await handle?.close();
 	}
 }
 
 function sameIdentity(
-	left: Readonly<{ readonly dev: number; readonly ino: number }>,
-	right: Readonly<{ readonly dev: number; readonly ino: number }>,
+	left: CanonicalNativeChildFileIdentity,
+	right: CanonicalNativeChildFileIdentity,
 ): boolean {
 	return left.dev === right.dev && left.ino === right.ino;
 }

@@ -10,6 +10,7 @@ import { createNodeAssistanceFloat32WaveStorageV1 } from
 	'../desktop/assistance-streaming-float32-wave.ts';
 import type { AssistanceRuntimeFamilyOutputGrantV1 } from
 	'../desktop/assistance-runtime-family-job-contract.ts';
+import { nativeChildFileIdentityFromStat } from '../desktop/native-child-file-identity.ts';
 
 const EMPTY_SHA256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 
@@ -18,12 +19,12 @@ test('rollback preserves an assistance WAV after its publication was committed',
 	context.after(() => rm(root, { recursive: true, force: true }));
 	const outputPath = join(await realpath(root), 'output.wav');
 	await writeFile(outputPath, new Uint8Array());
-	const metadata = await stat(outputPath);
+	const metadata = await stat(outputPath, { bigint: true });
 	const output: AssistanceRuntimeFamilyOutputGrantV1 = Object.freeze({
 		claimId: '1'.repeat(40), role: 'enhanced-audio', mediaType: 'audio/wav',
 		path: outputPath, maximumByteLength: 1_024, initialByteLength: 0,
 		initialSha256: EMPTY_SHA256,
-		identity: Object.freeze({ dev: Number(metadata.dev), ino: Number(metadata.ino) }),
+		identity: nativeChildFileIdentityFromStat(metadata),
 	});
 	const geometry = Object.freeze({
 		sampleRate: 48_000, channelCount: 1, frameCount: 2, byteLength: 52,

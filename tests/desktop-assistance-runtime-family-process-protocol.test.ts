@@ -31,14 +31,14 @@ function grant() {
 		grantVersion: 1, jobId: JOB_ID, familyId: 'onnxruntime-node', task: 'shot-detection',
 		settingsJson: '{}',
 		inputs: [{ claimId: '3'.repeat(40), role: 'video', mediaType: 'video/mp4',
-			path: '/private/input', byteLength: 1, sha256: SHA, identity: { dev: 1, ino: 1 } }],
+			path: '/private/input', byteLength: 1, sha256: SHA, identity: { dev: '1', ino: '1' } }],
 		models: [{ modelId: 'transnetv2', version: '1.0.0', artifactRole: 'network',
-			path: '/private/model', byteLength: 1, sha256: SHA, identity: { dev: 1, ino: 2 } }],
+			path: '/private/model', byteLength: 1, sha256: SHA, identity: { dev: '1', ino: '2' } }],
 		outputs: [{ claimId: '4'.repeat(40), role: 'shot-boundaries',
 			mediaType: 'application/vnd.soundscaper.shot-boundaries+json', path: '/private/output',
 			maximumByteLength: 1_024, initialByteLength: 0,
 			initialSha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-			identity: { dev: 1, ino: 3 } }],
+			identity: { dev: '1', ino: '3' } }],
 	};
 }
 

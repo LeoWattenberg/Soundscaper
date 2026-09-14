@@ -16,6 +16,10 @@ import {
 	type AssistanceRuntimeFamilyDescriptor,
 	type AssistanceRuntimeFamilyId,
 } from './assistance-runtime-family-manifest.ts';
+import {
+	canonicalNativeChildFileIdentity,
+	type CanonicalNativeChildFileIdentity,
+} from './native-child-file-identity.ts';
 
 export const ASSISTANCE_RUNTIME_FAMILY_PROTOCOL_VERSION = 1;
 export const ASSISTANCE_RUNTIME_FAMILY_GRANT_VERSION = 1;
@@ -37,10 +41,7 @@ type WhisperTask = (typeof ASSISTANCE_RUNTIME_FAMILY_TASKS)['whisper-cpp'][numbe
 type LlamaTask = (typeof ASSISTANCE_RUNTIME_FAMILY_TASKS)['llama-cpp'][number];
 export type AssistanceRuntimeFamilyTask = OnnxTask | WhisperTask | LlamaTask;
 
-export interface AssistanceRuntimeFamilyFileIdentityV1 {
-	readonly dev: number;
-	readonly ino: number;
-}
+export type AssistanceRuntimeFamilyFileIdentityV1 = CanonicalNativeChildFileIdentity;
 
 export interface AssistanceRuntimeFamilyInputGrantV1 {
 	readonly claimId: string;
@@ -329,12 +330,11 @@ function taskFor(
 }
 
 function identity(value: unknown): AssistanceRuntimeFamilyFileIdentityV1 {
-	const record = exactRecord(value, ['dev', 'ino'], 'runtime-family file identity');
-	if (!integer(record.dev, 0, Number.MAX_SAFE_INTEGER)
-		|| !integer(record.ino, 0, Number.MAX_SAFE_INTEGER)) {
+	try {
+		return canonicalNativeChildFileIdentity(value);
+	} catch {
 		throw new TypeError('A runtime-family file identity is invalid.');
 	}
-	return Object.freeze({ dev: record.dev as number, ino: record.ino as number });
 }
 
 function settings(value: unknown): string {
