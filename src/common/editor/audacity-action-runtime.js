@@ -189,8 +189,9 @@ export function createAudacityActionRuntime(controller, options = {}) {
 	const navigateItem = (action) => import('./audacity-shortcut-actions/item-navigation.ts')
 		.then(({ applyAudacityItemNavigationAction }) => applyAudacityItemNavigationAction(action, controller));
 	function openEffect(type = null) {
-		if (type) controllerActions.effects.setSelectionType(type);
-		return openSurface('selection-effect', type ? { type } : {});
+		const preparation = type ? controllerActions.effects.setSelectionType(type) : null;
+		const surface = openSurface('selection-effect', type ? { type } : {});
+		return preparation ? Promise.resolve(preparation).then(() => surface) : surface;
 	}
 
 	function openGenerator(type = 'tone') {

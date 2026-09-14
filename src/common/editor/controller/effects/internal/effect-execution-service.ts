@@ -31,9 +31,56 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		persistAudacityEffectResults, persistNyquistGeneratedAudio, persistNyquistLabels, playNyquistPreview,
 		preflightStorage, getProject, projectDurationFrames, projectSampleRate,
 		publishDocumentSnapshot, renderDryTrackRange, resolveInteractiveAudacityParams, runSelectionEffectWorker,
-		setStatus, state, throwIfAborted, updateTaskProgress,
+		setAudacityEffectType, setStatus, state, throwIfAborted, updateTaskProgress,
 	} = runtime;
 	const previewAudacityEffectFromController = createSelectionEffectPreviewService(runtime);
+	let preparationGeneration = 0;
+
+	async function prepareAudacityEffectFromController(type: string) {
+		const generation = ++preparationGeneration;
+		setAudacityEffectType(type);
+		if (type !== 'audacity-amplify') return currentAudacityEffectParams(type);
+		// Amplify is the one destructive effect whose dialog default belongs to
+		// the current audio, not the preceding invocation. A change made while
+		// this asynchronous scan runs restores the marker and wins in the resolver.
+		state.audacityEffectTouchedParams.get(type)?.delete('gainDb');
+		const previewGeneration = state.audacityPreviewGeneration;
+		const projectToken = runtime.captureProject();
+		const targets = audacityEffectTargets();
+		if (!targets.length) return currentAudacityEffectParams(type);
+		const sampleRate = projectSampleRate();
+		const params = normalizeAudioSelectionEffectParams(type, currentAudacityEffectParams(type));
+		const estimatedPeakBytes = targets.reduce((sum: number, target: RuntimeValue) => (
+			sum + estimateAudioSelectionEffectPeakBytes(type, target.durationFrames, params, {
+				channelCount: target.channelCount,
+				sampleRate,
+			})
+		), 0);
+		if (estimatedPeakBytes > AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES) throw audacityEffectMemoryError(copy);
+		const channels = [];
+		for (const target of targets) {
+			channels.push(...await renderDryTrackRange(
+				target.track.id,
+				target.startFrame,
+				target.endFrame,
+				target.channelCount,
+				target.clipIds,
+			));
+			runtime.assertProject(projectToken);
+			if (generation !== preparationGeneration
+				|| previewGeneration !== state.audacityPreviewGeneration
+				|| state.audacityEffectType !== type) {
+				return currentAudacityEffectParams();
+			}
+		}
+		const resolved = resolveInteractiveAudacityParams(
+			type,
+			normalizeAudioSelectionEffectParams(type, currentAudacityEffectParams(type)),
+			channels,
+		);
+		publishDocumentSnapshot();
+		return resolved;
+	}
 
 	async function applySelectedAudacityEffect() {
 		if (editingBlocked()) return;
@@ -335,6 +382,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 	}
 	return Object.freeze({
 		applySelectedAudacityEffect,
+		prepareAudacityEffectFromController,
 		previewAudacityEffectFromController,
 		runNyquistEvaluation,
 	});

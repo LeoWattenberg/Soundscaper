@@ -12,7 +12,7 @@ import {
 import { mixNyquistPreviewChannels } from '../src/common/editor/controller/effects/internal/nyquist/nyquist-audio.ts';
 import { estimateAudioSelectionEffectPeakBytes } from '../src/common/editor/selection-effects.js';
 
-test('Amplify preview processes every target and derives automatic gain from all complete selections', async () => {
+test('Amplify preview and dialog preparation derive automatic gain from every complete target', async () => {
 	const state = {
 		audacityEffectType: 'audacity-amplify',
 		audacityEffectParams: {} as Record<string, Readonly<Record<string, unknown>>>,
@@ -42,6 +42,10 @@ test('Amplify preview processes every target and derives automatic gain from all
 	});
 	const renderRequests: Array<readonly [string, number, number]> = [];
 	const workerGainDb: unknown[] = [];
+	let publications = 0;
+	let blockNextFullRender = false;
+	let releaseFullRender!: () => void;
+	const fullRenderGate = new Promise<void>((resolve) => { releaseFullRender = resolve; });
 	let previewChannels: Float32Array[] = [];
 	const previewSource = {
 		onended: null as (() => void) | null,
@@ -56,6 +60,8 @@ test('Amplify preview processes every target and derives automatic gain from all
 		AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES: 1_000_000_000,
 		AUDIO_SELECTION_EFFECT_DEFINITIONS,
 		abortError: () => Object.assign(new Error('aborted'), { name: 'AbortError' }),
+		captureProject: () => ({ id: 'project-a' }),
+		assertProject: () => undefined,
 		assertAudacityEffectOutput: () => undefined,
 		audacityEffectMemoryError: () => new Error('Effect is too large'),
 		audacityEffectTargets: () => [
@@ -92,9 +98,13 @@ test('Amplify preview processes every target and derives automatic gain from all
 		normalizeAudioSelectionEffectParams,
 		projectDurationFrames: () => 8,
 		projectSampleRate: () => 1,
-		publishDocumentSnapshot: () => undefined,
+		publishDocumentSnapshot: () => { publications += 1; },
 		renderDryTrackRange: async (trackId: string, startFrame: number, endFrame: number) => {
 			renderRequests.push([trackId, startFrame, endFrame]);
+			if (blockNextFullRender && endFrame === 8) {
+				blockNextFullRender = false;
+				await fullRenderGate;
+			}
 			if (endFrame === 8) {
 				return [trackId === 'track-a'
 					? new Float32Array([0.1, 0.9])
@@ -114,7 +124,7 @@ test('Amplify preview processes every target and derives automatic gain from all
 		},
 		setAudacityControlTrack: () => undefined,
 		setAudacityEffectParamsFromController: () => undefined,
-		setAudacityEffectType: () => undefined,
+		setAudacityEffectType: controls.setAudacityEffectType,
 		setStatus: () => undefined,
 		state,
 	});
@@ -133,6 +143,27 @@ test('Amplify preview processes every target and derives automatic gain from all
 	assert.ok(Math.abs((previewChannels[0]?.[0] ?? 0) - 0.3) < 1e-6);
 	assert.ok(Math.abs((previewChannels[0]?.[1] ?? 0) - 0.2) < 1e-6);
 	assert.deepEqual(Array.from(previewChannels[0]?.slice(2) ?? []), [0, 0, 0, 0]);
+
+	controls.setAudacityEffectParamsFromController({ gainDb: -12 });
+	assert.equal(state.audacityEffectTouchedParams.get('audacity-amplify')?.has('gainDb'), true);
+	const beforePreparationPublications = publications;
+	const prepared = await execution.prepareAudacityEffectFromController('audacity-amplify');
+	assert.equal(prepared.gainDb, expectedGainDb);
+	assert.equal(state.audacityEffectParams['audacity-amplify']?.gainDb, expectedGainDb);
+	assert.equal(state.audacityEffectTouchedParams.get('audacity-amplify')?.has('gainDb'), false);
+	assert.deepEqual(renderRequests.slice(-2), [
+		['track-a', 0, 8],
+		['track-b', 0, 8],
+	]);
+	assert.equal(publications, beforePreparationPublications + 1);
+
+	blockNextFullRender = true;
+	const pendingPreparation = execution.prepareAudacityEffectFromController('audacity-amplify');
+	await Promise.resolve();
+	controls.setAudacityEffectParamsFromController({ gainDb: -4 });
+	releaseFullRender();
+	assert.equal((await pendingPreparation).gainDb, -4);
+	assert.equal(state.audacityEffectTouchedParams.get('audacity-amplify')?.has('gainDb'), true);
 });
 
 test('multi-clip previews preserve disjoint timeline offsets for processed and EQ mixes', async () => {

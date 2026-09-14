@@ -589,7 +589,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		moveToolbarPreference, moveTrack, normalizePlaybackFrame,
 		openScapeFile, openDawproject: (file) => taskProgress.run('project-io', copy.importing, () => nativeProjectService.openDawproject(file)), saveDawproject: (saveOptions) => taskProgress.run('project-io', copy.dawprojectSaving, () => nativeProjectService.saveDawproject(saveOptions)),
 		pauseLoudnessMeasurement,
-		prepareProjectHandoff, assertProjectHandoffAllowed, previewAudacityEffectFromController: effects.execution.previewAudacityEffectFromController,
+		prepareProjectHandoff, assertProjectHandoffAllowed, prepareAudacityEffectFromController: effects.execution.prepareAudacityEffectFromController, previewAudacityEffectFromController: effects.execution.previewAudacityEffectFromController,
 		product, productId: product.id, locale: options.locale, macroScriptStartedAt: () => new Date().toISOString(), getProject: () => documentState.project, projectSampleRate, beginMacroTransaction: () => doc.mutation.beginMacroTransaction(), timelineDurationFrames: () => projectDurationFrames(documentState.project),
 		releaseVideoSourceVisual: bindings.revokeVideoVisual, reloadVideoSourceVisual, reportVideoPreviewPressure: options.reportProductVideoPreviewPressure || (() => undefined), canRelinkLinkedAudio: imports.projectBin.canRelinkLinkedAudio, classifyLinkedAudioRelink: imports.projectBin.classifyLinkedAudioRelink, relinkLinkedAudio: imports.projectBin.relinkLinkedAudio, canRelinkLinkedVideo: imports.projectBin.canRelinkLinkedVideo, classifyLinkedVideoRelink: imports.projectBin.classifyLinkedVideoRelink, relinkLinkedVideo: imports.projectBin.relinkLinkedVideo,
 		reorderTrack,

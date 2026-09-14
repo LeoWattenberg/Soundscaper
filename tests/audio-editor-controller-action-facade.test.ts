@@ -97,6 +97,28 @@ test('controller action facade enforces product capabilities at invocation', () 
 	assert.throws(() => addEffect(), /does not support audioEffects/u);
 });
 
+test('opening a destructive selection effect prepares its selection-dependent defaults', async () => {
+	const calls: string[] = [];
+	const runtime = new Proxy(createActionFacadeRuntime(), {
+		get(target, name, receiver) {
+			if (name === 'prepareAudacityEffectFromController') return async (type: string) => {
+				calls.push(type);
+				return { gainDb: 6 };
+			};
+			if (name === 'setAudacityEffectType') return () => {
+				throw new Error('The raw remembered-value setter must not open the dialog.');
+			};
+			return Reflect.get(target, name, receiver);
+		},
+	});
+
+	assert.deepEqual(
+		await createGroupedEditorActions(runtime).effects.setSelectionType('audacity-amplify'),
+		{ gainDb: 6 },
+	);
+	assert.deepEqual(calls, ['audacity-amplify']);
+});
+
 test('timeline actions retain the per-project stereo channel height ratio owner', () => {
 	const calls: unknown[][] = [];
 	const base = createActionFacadeRuntime();

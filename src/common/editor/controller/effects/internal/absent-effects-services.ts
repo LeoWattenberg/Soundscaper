@@ -47,6 +47,7 @@ export function createAbsentSelectionEffectExecutionService(context: AbsentSubsy
 	const reject = createAsyncAbsentSubsystemRefusal(context, 'selection effect');
 	return Object.freeze({
 		applySelectedAudacityEffect: reject,
+		prepareAudacityEffectFromController: reject,
 		previewAudacityEffectFromController: reject,
 		runNyquistEvaluation: reject,
 	});

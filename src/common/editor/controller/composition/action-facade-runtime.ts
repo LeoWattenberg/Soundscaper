@@ -114,6 +114,7 @@ export const EDITOR_ACTION_FUNCTION_NAMES = [
 	'persistSetting',
 	'placeProjectBinClip',
 	'playPauseProjectBinClip',
+	'prepareAudacityEffectFromController',
 	'prepareProjectBinReplacement',
 	'prepareProjectHandoff',
 	'previewAudacityEffectFromController',

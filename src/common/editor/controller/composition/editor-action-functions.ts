@@ -139,6 +139,7 @@ export interface EditorActionFunctions {
 	readonly persistSetting: ReturnType<typeof createSettingPersistence>['persist'];
 	readonly placeProjectBinClip: ReturnType<typeof createImportComposition>['projectBin']['placeProjectBinClip'];
 	readonly playPauseProjectBinClip: ReturnType<typeof createImportComposition>['projectBin']['playPauseProjectBinClip'];
+	readonly prepareAudacityEffectFromController: ReturnType<typeof createEffectsComposition>['execution']['prepareAudacityEffectFromController'];
 	readonly prepareProjectBinReplacement: ReturnType<typeof createImportComposition>['projectBin']['prepareProjectBinReplacement'];
 	readonly prepareProjectHandoff: ReturnType<typeof createProjectAdminService>['prepareProjectHandoff'];
 	readonly previewAudacityEffectFromController: ReturnType<typeof createEffectsComposition>['execution']['previewAudacityEffectFromController'];
