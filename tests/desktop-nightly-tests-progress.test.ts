@@ -1,0 +1,80 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import test from 'node:test';
+
+import {
+	createDesktopNightlyTestsProgressBar,
+} from '../scripts/lib/desktop-nightly-tests-presentation.mjs';
+import { runDesktopNightlyTests } from '../scripts/lib/desktop-nightly-tests-runtime.mjs';
+
+test('the nightly CLI progress bar preserves every update when output is redirected', () => {
+	const writes: string[] = [];
+	const progress = createDesktopNightlyTestsProgressBar({
+		output: { isTTY: false, write: (value: string) => { writes.push(value); return true; } },
+	});
+
+	progress.update({ completed: 0, total: 4, label: 'Application launched' });
+	progress.update({ completed: 1, total: 4, label: 'Performance diagnostics' });
+	progress.finish({ completed: 4, total: 4, label: 'Tests passed' });
+
+	assert.deepEqual(writes, [
+		'[--------------------] 0/4 0% Application launched\n',
+		'[#####---------------] 1/4 25% Performance diagnostics\n',
+		'[####################] 4/4 100% Tests passed\n',
+	]);
+});
+
+test('the nightly CLI progress bar redraws one line on a terminal and refuses invalid updates', () => {
+	const writes: string[] = [];
+	const progress = createDesktopNightlyTestsProgressBar({
+		output: { isTTY: true, write: (value: string) => { writes.push(value); return true; } },
+	});
+
+	progress.update({ completed: 0, total: 4, label: 'Application launched' });
+	progress.finish({ completed: 3, total: 4, label: 'Tests interrupted' });
+
+	assert.equal(writes[0], '\r[--------------------] 0/4 0% Application launched\u001B[K');
+	assert.equal(writes[1], '\r[###############-----] 3/4 75% Tests interrupted\u001B[K\n');
+	assert.throws(
+		() => progress.update({ completed: 5, total: 4, label: 'Invalid' }),
+		/progress.*completed/iu,
+	);
+});
+
+test('the nightly runtime reports which serial test phase is active', async (context) => {
+	const outputRoot = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-progress-'));
+	context.after(() => rm(outputRoot, { recursive: true, force: true }));
+	const updates: Array<{ completed: number; total: number; label: string }> = [];
+	let siteStarts = 0;
+
+	const completed = await runDesktopNightlyTests({
+		executablePath: '/opt/soundscaper-tests',
+		payloadRoot: '/opt/resources/nightly-tests',
+		outputRoot,
+		product: { id: 'soundscaper', name: 'Soundscaper', version: '1.0.0-rc.1' },
+		platform: 'linux',
+		arch: 'x64',
+		environment: {},
+		onProgress: (update) => { updates.push(update); },
+	}, {
+		startStaticServer: async () => ({
+			baseURL: `http://127.0.0.1:${String(50100 + siteStarts++)}`,
+			close: async () => undefined,
+		}),
+		runPlaywright: async () => ({ code: 0, signal: null }),
+		writeMetricsDiagnostics: async () => ({ passed: true }),
+		writePackagedMetricsDiagnostics: async () => ({ passed: true }),
+	});
+
+	assert.equal(completed.exitCode, 0);
+	assert.deepEqual(updates, [
+		{ completed: 0, total: 4, label: 'Browser tests' },
+		{ completed: 1, total: 4, label: 'Performance diagnostics' },
+		{ completed: 2, total: 4, label: 'Packaged app diagnostics' },
+		{ completed: 3, total: 4, label: 'Local model tests' },
+	]);
+});

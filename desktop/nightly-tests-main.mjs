@@ -6,6 +6,7 @@ import * as electron from 'electron/main';
 
 import { readDesktopNightlyTestsSourceRevision } from './nightly-tests-manifest.mjs';
 import {
+	createDesktopNightlyTestsProgressBar,
 	formatDesktopNightlyTestsSummary,
 	resolveDesktopNightlyTestsPresentation,
 } from '../scripts/lib/desktop-nightly-tests-presentation.mjs';
@@ -23,6 +24,10 @@ if (process.argv.includes(NIGHTLY_ASSISTANCE_HOST_FLAG)) {
 } else void startNightlyTests();
 
 async function startNightlyTests() {
+	const progress = createDesktopNightlyTestsProgressBar();
+	let latestProgress = { completed: 0, total: 4, label: 'Application launched' };
+	const reportProgress = (value) => { latestProgress = value; progress.update(value); };
+	reportProgress(latestProgress);
 	const { unattended } = resolveDesktopNightlyTestsPresentation({
 		argv: process.argv,
 		environment: process.env,
@@ -47,10 +52,19 @@ async function startNightlyTests() {
 			platform: process.platform,
 			arch: process.arch,
 			sourceRevision,
+			onProgress: reportProgress,
+		});
+		const status = run.result?.status ?? (run.exitCode === 0 ? 'passed' : 'failed');
+		progress.finish({
+			...latestProgress,
+			completed: status === 'passed' || status === 'failed' ? latestProgress.total : latestProgress.completed,
+			label: status === 'passed' ? 'Tests passed'
+				: status === 'failed' ? 'Tests finished with failures'
+					: status === 'interrupted' ? 'Tests interrupted' : 'Tests stopped with an error',
 		});
 		if (unattended) {
 			console.log(formatDesktopNightlyTestsSummary({
-				status: run.result?.status ?? (run.exitCode === 0 ? 'passed' : 'failed'),
+				status,
 				exitCode: run.exitCode,
 				runRoot: run.runRoot,
 			}));
@@ -67,6 +81,7 @@ async function startNightlyTests() {
 		app.exit(run.exitCode);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
+		progress.finish({ ...latestProgress, label: 'Tests could not start' });
 		console.error('Soundscaper nightly tests failed to start:', message);
 		if (unattended) {
 			console.log(formatDesktopNightlyTestsSummary({

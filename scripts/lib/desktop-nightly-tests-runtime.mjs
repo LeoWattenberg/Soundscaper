@@ -261,7 +261,6 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 		...common,
 		status: 'running',
 	}));
-
 	const startStaticServer = dependencies.startStaticServer ?? startDesktopNightlyTestsStaticServer;
 	const runPlaywright = dependencies.runPlaywright ?? runPlaywrightChild;
 	let sites = null;
@@ -269,6 +268,7 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 	let signal = null;
 	let failure = null;
 	try {
+		options.onProgress?.(Object.freeze({ completed: 0, total: 4, label: 'Browser tests' }));
 		sites = await startDesktopNightlyTestsProductSites({
 			payloadRoot: options.payloadRoot, environment, startStaticServer,
 		});
@@ -290,7 +290,7 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 				executablePath: options.executablePath, payloadRoot: options.payloadRoot, runRoot,
 				baseURL: sites.origins.soundscaper, esbuildBinaryPath,
 				environment: sites.browserEnvironment, platform, arch,
-				sourceRevision: options.sourceRevision ?? null,
+				sourceRevision: options.sourceRevision ?? null, onProgress: options.onProgress,
 			}, { ...dependencies, runPlaywright })) {
 				signal = phase.child.signal ?? signal;
 				outcome = combineOutcomes(outcome, mapDesktopNightlyTestsExit(phase.child), phase.diagnostics.passed);

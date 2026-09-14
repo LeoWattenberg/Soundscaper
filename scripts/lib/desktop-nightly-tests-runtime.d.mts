@@ -37,6 +37,12 @@ export interface DesktopNightlyTestsPlaywrightPlan {
 
 export type DesktopNightlyTestsStatus = 'running' | 'passed' | 'failed' | 'error' | 'interrupted';
 
+export interface DesktopNightlyTestsProgress {
+	readonly completed: number;
+	readonly total: number;
+	readonly label: string;
+}
+
 export interface DesktopNightlyTestsResultEnvelope {
 	readonly schemaVersion: 2;
 	readonly kind: 'soundscaper-desktop-nightly-tests';
@@ -149,6 +155,7 @@ export interface DesktopNightlyTestsRunOptions {
 	readonly arch?: string;
 	readonly environment?: DesktopNightlyTestsEnvironment;
 	readonly sourceRevision?: string | null;
+	readonly onProgress?: (progress: DesktopNightlyTestsProgress) => void;
 }
 
 export interface DesktopNightlyTestsDependencies {

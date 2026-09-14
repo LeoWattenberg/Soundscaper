@@ -8,6 +8,34 @@ const UNATTENDED_FLAG = '--unattended';
 const UNATTENDED_VARIABLE = 'SOUNDSCAPER_NIGHTLY_TESTS_UNATTENDED';
 
 export const DESKTOP_NIGHTLY_TESTS_RESULT_MARKER = 'SOUNDSCAPER_NIGHTLY_TESTS_RESULT ';
+const PROGRESS_BAR_WIDTH = 20;
+
+/**
+ * Render phase progress in place on a terminal and as durable lines when piped.
+ * @param {{ output?: { readonly isTTY?: boolean, write(value: string): unknown } }} [options]
+ */
+export function createDesktopNightlyTestsProgressBar({ output = process.stdout } = {}) {
+	if (!output || typeof output.write !== 'function') {
+		throw new TypeError('Nightly tests progress output must be writable.');
+	}
+	let finished = false;
+	const write = (value, final) => {
+		const progress = validateProgress(value);
+		if (finished) return;
+		const filled = Math.round((progress.completed / progress.total) * PROGRESS_BAR_WIDTH);
+		const percent = Math.round((progress.completed / progress.total) * 100);
+		const line = `[${'#'.repeat(filled)}${'-'.repeat(PROGRESS_BAR_WIDTH - filled)}] `
+			+ `${String(progress.completed)}/${String(progress.total)} ${String(percent)}% ${progress.label}`;
+		output.write(output.isTTY === true
+			? `\r${line}\u001B[K${final ? '\n' : ''}`
+			: `${line}\n`);
+		finished = final;
+	};
+	return Object.freeze({
+		update: (value) => { write(value, false); },
+		finish: (value) => { write(value, true); },
+	});
+}
 
 /** Decide whether the run reports through a dialog or through stdout alone. */
 export function resolveDesktopNightlyTestsPresentation({ argv = [], environment = {} } = {}) {
@@ -63,6 +91,19 @@ export function parseDesktopNightlyTestsSummary(output) {
 		throw new Error(`Expected exactly one nightly tests summary; received ${String(matches.length)}.`);
 	}
 	return Object.freeze(matches[0]);
+}
+
+function validateProgress(value) {
+	if (!value || typeof value !== 'object' || !Number.isInteger(value.completed)
+		|| !Number.isInteger(value.total) || value.total <= 0
+		|| value.completed < 0 || value.completed > value.total) {
+		throw new TypeError('Nightly tests progress completed and total must be valid integers.');
+	}
+	if (typeof value.label !== 'string' || !value.label
+		|| value.label.includes('\n') || value.label.includes('\r')) {
+		throw new TypeError('Nightly tests progress label must be one line of text.');
+	}
+	return value;
 }
 
 function readOwnString(environment, key) {

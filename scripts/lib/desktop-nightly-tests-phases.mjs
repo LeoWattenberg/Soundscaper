@@ -7,11 +7,13 @@ import { runDesktopNightlyTestsLocalAssistancePhase } from './desktop-nightly-te
 // Collect independent diagnostics even after a failed assertion, but never
 // launch another expensive phase after interruption or an infrastructure error.
 export async function* runDesktopNightlyTestsDiagnosticPhases(options, dependencies) {
-	for (const [runPhase, writeDiagnostics] of [
-		[runDesktopNightlyTestsMetricsPhase, dependencies.writeMetricsDiagnostics],
-		[runDesktopNightlyTestsPackagedMetricsPhase, dependencies.writePackagedMetricsDiagnostics],
-		[runDesktopNightlyTestsLocalAssistancePhase, undefined],
-	]) {
+	const phases = [
+		[runDesktopNightlyTestsMetricsPhase, dependencies.writeMetricsDiagnostics, 'Performance diagnostics'],
+		[runDesktopNightlyTestsPackagedMetricsPhase, dependencies.writePackagedMetricsDiagnostics, 'Packaged app diagnostics'],
+		[runDesktopNightlyTestsLocalAssistancePhase, undefined, 'Local model tests'],
+	];
+	for (const [index, [runPhase, writeDiagnostics, label]] of phases.entries()) {
+		options.onProgress?.(Object.freeze({ completed: index + 1, total: 4, label }));
 		const result = await runPhase(options, { runPlaywright: dependencies.runPlaywright, writeDiagnostics });
 		yield result;
 		if (result.child.signal || ![0, 1].includes(result.child.code)) return;
