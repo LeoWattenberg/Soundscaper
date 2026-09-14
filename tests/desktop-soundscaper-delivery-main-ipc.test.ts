@@ -31,6 +31,7 @@ test('persistent delivery ordinary IPC is closed, pathless and contains only sca
 	const calls: { name: string; value: unknown }[] = [];
 	let summary: Record<string, unknown> | null = null;
 	let claim: Record<string, unknown> | null = null;
+	let projectAuthorityAvailable = true;
 	const service = {
 		authorizeRoot: async (value: unknown) => { assert.equal(value, '/private/output'); return { grantId: '1'.repeat(48) }; },
 		destinationGrantIdForJob: () => '1'.repeat(48),
@@ -89,7 +90,8 @@ test('persistent delivery ordinary IPC is closed, pathless and contains only sca
 		ownerFor: (event) => event === 'other' ? OTHER_OWNER
 			: (event as { owner?: object })?.owner ?? OWNER,
 		service: service as never,
-		readProjectAuthority: async () => ({ projectIdentity: PROJECT, projectName: 'Album' }),
+		readProjectAuthority: async () => projectAuthorityAvailable
+			? { projectIdentity: PROJECT, projectName: 'Album' } : null,
 		dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: ['/private/output'] }) },
 		windowFor: () => ({}),
 	});
@@ -208,9 +210,12 @@ test('persistent delivery ordinary IPC is closed, pathless and contains only sca
 		projectIdentity: PROJECT, planFingerprint: queuedDescription.planFingerprint,
 	} });
 	assert.equal((await receive(active.port2)).type, 'claimed');
-	assert.equal(await invoke(CHANNELS.projectIdentity, { projectId: null }), null);
+	projectAuthorityAvailable = false;
+	assert.equal(await invoke(CHANNELS.projectIdentity, { projectId: PROJECT.projectId }), null,
+		'an absent named committed project is an unavailable identity, not an IPC rejection');
 	assert.equal((await receive(active.port2)).type, 'closed',
-		'clearing the renderer open generation revokes its active claim');
+		'an unavailable renderer open generation revokes its active claim');
+	assert.equal(await invoke(CHANNELS.projectIdentity, { projectId: null }), null);
 	await until(() => calls.some(({ name }) => name === 'releaseClaim'));
 	await registration.revokeOwner(OWNER);
 	await registration.dispose();

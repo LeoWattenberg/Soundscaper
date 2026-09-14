@@ -103,7 +103,13 @@ export function registerSoundscaperDeliveryMainIpc(options: SoundscaperDeliveryM
 			await worker.bindOwnerProject(owner, null);
 			return null;
 		}
-		const project = (await projectAuthority(options, projectId(request.projectId))).projectIdentity;
+		const authority = await availableProjectAuthority(options, projectId(request.projectId));
+		if (authority === null) {
+			openProjects.delete(owner);
+			await worker.bindOwnerProject(owner, null);
+			return null;
+		}
+		const project = authority.projectIdentity;
 		openProjects.set(owner, project);
 		await worker.bindOwnerProject(owner, project);
 		return project;
@@ -193,7 +199,17 @@ async function projectAuthority(
 	options: SoundscaperDeliveryMainIpcOptions,
 	project: string,
 ): Promise<SoundscaperDeliveryProjectAuthority> {
+	const authority = await availableProjectAuthority(options, project);
+	if (authority === null) throw new Error('Persistent delivery requires one named committed project.');
+	return authority;
+}
+
+async function availableProjectAuthority(
+	options: SoundscaperDeliveryMainIpcOptions,
+	project: string,
+): Promise<SoundscaperDeliveryProjectAuthority | null> {
 	const authority = await options.readProjectAuthority(project);
+	if (authority === null) return null;
 	if (!authority || typeof authority.projectName !== 'string' || !authority.projectName.trim()) {
 		throw new Error('Persistent delivery requires one named committed project.');
 	}
