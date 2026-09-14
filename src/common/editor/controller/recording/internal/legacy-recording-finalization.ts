@@ -101,6 +101,9 @@ export function createLegacyRecordingFinalization(runtime: RecordingFinalization
 			const frames = transaction.writer.framesWritten;
 			if (frames <= transaction.sourceOffsetFrames) {
 				await transaction.writer.abort();
+				if (transaction.preview?.timelineMode === 'compacted') {
+					runtime.setTransportPosition(transaction.startFrame);
+				}
 				return;
 			}
 			const projectRate = runtime.projectSampleRate(projectScope.project);
@@ -158,6 +161,9 @@ export function createLegacyRecordingFinalization(runtime: RecordingFinalization
 				selectTrackId: transaction.trackId,
 				selectClipId: clipId,
 			});
+			if (transaction.preview?.timelineMode === 'compacted') {
+				runtime.setTransportPosition(transaction.startFrame + durationFrames);
+			}
 			runtime.setStatusDone();
 		} catch (error) {
 			await transaction.writer.abort().catch(() => undefined);

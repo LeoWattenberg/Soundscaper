@@ -270,6 +270,7 @@ export interface RecordingCaptureCommonRuntime {
 		readonly startFrame: number;
 		readonly channelCount: number;
 		readonly framesToSkip: number;
+		readonly timelineMode?: 'continuous' | 'compacted';
 	}>) => RecordingPreview;
 	readonly createPreviewResampler: (
 		inputSampleRate: number,

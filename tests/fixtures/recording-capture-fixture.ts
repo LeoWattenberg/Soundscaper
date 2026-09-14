@@ -33,10 +33,16 @@ export function deferred<T>() {
 	return { promise, resolve, reject };
 }
 
-function createPreview(trackId: string, startFrame: number, framesToSkip = 0): RecordingPreview {
+function createPreview(
+	trackId: string,
+	startFrame: number,
+	framesToSkip = 0,
+	timelineMode: RecordingPreview['timelineMode'] = 'continuous',
+): RecordingPreview {
 	return {
 		trackId,
 		startFrame,
+		timelineMode,
 		framesToSkip,
 		frames: 0,
 		framesPerBucket: 64,
@@ -240,10 +246,11 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 			writerRecords.push(Object.freeze({ sourceId, writes, writer }));
 			return writer;
 		},
-		createPreview: ({ trackId, startFrame, framesToSkip }) => createPreview(
+		createPreview: ({ trackId, startFrame, framesToSkip, timelineMode }) => createPreview(
 			trackId,
 			startFrame,
 			framesToSkip,
+			timelineMode,
 		),
 		createPreviewResampler: () => ({ push: (channels) => channels, finish: () => [] }),
 		appendPreview: (preview, channels) => {

@@ -213,6 +213,10 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		},
 		projectSampleRate: projectSampleRateOf,
 		pauseTransport: () => engine.pause(),
+		setTransportPosition: (frame) => {
+			engine.seek(frame);
+			dependencies.updatePlayhead(frame);
+		},
 		disposeRecorder: async (recorder) => { await recorder.dispose?.({ stopTracks: false }); },
 		appendPreview: appendRecordingPreview,
 		scaleFrames: scaleRecordingFrames,

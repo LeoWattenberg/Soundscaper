@@ -21,7 +21,11 @@ function createFixture() {
 		tracks: [{ id: 'track', height: 100 }, { id: 'second', height: 114 }],
 	};
 	const state = {
-		recordingPreviews: [] as Array<{ startFrame: number; frames: number }>,
+		recordingPreviews: [] as Array<{
+			startFrame: number;
+			frames: number;
+			timelineMode?: 'continuous' | 'compacted';
+		}>,
 		recorder: null as object | null,
 		positionFrame: 0,
 		durationFrames: 0,
@@ -76,6 +80,19 @@ test('recording previews extend playhead and duration in project coordinates', (
 	assert.equal(fixture.state.positionFrame, 150);
 	assert.equal(fixture.state.durationFrames, 150);
 	assert.equal(fixture.telemetryPublishes(), 1);
+});
+
+test('compacted recording previews override elapsed transport time', () => {
+	const fixture = createFixture();
+	fixture.state.recorder = {};
+	fixture.state.recordingPreviews = [{ startFrame: 100, frames: 50, timelineMode: 'compacted' }];
+	fixture.service.updatePlayhead(400, 500);
+	assert.equal(fixture.state.positionFrame, 150);
+	assert.equal(fixture.state.durationFrames, 500);
+
+	fixture.state.recordingPreviews = [{ startFrame: 100, frames: 0, timelineMode: 'compacted' }];
+	fixture.service.updatePlayhead(450, 500);
+	assert.equal(fixture.state.positionFrame, 100);
 });
 
 test('transport state delegates microphone-meter policy to its owner', () => {

@@ -139,12 +139,16 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 			const projectRate = runtime.projectSampleRate(projectScope.project);
 			const commands: unknown[] = [];
 			const clipIds: string[] = [];
+			let compactedEndFrame: number | null = null;
 			for (const entry of transaction.entries) {
 				const frames = entry.writer.framesWritten;
 				if (frames <= entry.sourceOffsetFrames) {
 					await entry.writer.abort();
 					projectScope.assertCurrent();
 					runtime.setRouteHealth(entry.trackId, 'skipped');
+					if (entry.preview.timelineMode === 'compacted') {
+						compactedEndFrame = Math.max(compactedEndFrame ?? 0, entry.recordingStartFrame);
+					}
 					continue;
 				}
 				const storedMetadata = await entry.writer.commit({
@@ -200,6 +204,9 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 				});
 				commands.push(sourceCommand, clipCommand);
 				clipIds.push(clipId);
+				if (entry.preview.timelineMode === 'compacted') {
+					compactedEndFrame = Math.max(compactedEndFrame ?? 0, entry.recordingStartFrame + durationFrames);
+				}
 			}
 			projectScope.assertCurrent();
 			if (commands.length) {
@@ -209,6 +216,7 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 				});
 				runtime.setStatusDone();
 			}
+			if (compactedEndFrame !== null) runtime.setTransportPosition(compactedEndFrame);
 		} catch (error) {
 			for (const entry of transaction.entries) {
 				await entry.writer.abort().catch(() => undefined);

@@ -22,7 +22,11 @@ export interface ViewStateServiceState extends Pick<ControllerTransportState,
 	visibleTrackHeights: Record<string, number>;
 	sampleEditMode: unknown;
 	readonly recorder: unknown;
-	readonly recordingPreviews: readonly Readonly<{ readonly startFrame: number; readonly frames: number }>[];
+	readonly recordingPreviews: readonly Readonly<{
+		readonly startFrame: number;
+		readonly frames: number;
+		readonly timelineMode?: 'continuous' | 'compacted';
+	}>[];
 }
 
 export interface ViewStateServiceRuntime<Project extends ViewStateProject = ViewStateProject> {
@@ -65,7 +69,10 @@ export function createViewStateService<Project extends ViewStateProject = ViewSt
 		const recordingEndFrame = state.recordingPreviews.reduce((end, preview) => (
 			Math.max(end, preview.startFrame + preview.frames)
 		), 0);
-		if (state.recorder && recordingEndFrame > 0) {
+		if (state.recorder && state.recordingPreviews.some(({ timelineMode }) => timelineMode === 'compacted')) {
+			nextFrame = recordingEndFrame;
+			nextDuration = Math.max(nextDuration, recordingEndFrame);
+		} else if (state.recorder && recordingEndFrame > 0) {
 			nextFrame = Math.max(nextFrame, recordingEndFrame);
 			nextDuration = Math.max(nextDuration, recordingEndFrame);
 		}

@@ -281,8 +281,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 					sampleRate,
 					captureSampleRate,
 				);
-				// Exact punch owns the whole selected deletion range. Gated source PCM
-				// stays disabled here until storage can retain discontinuous offsets.
+				// Exact punch stays ungated until storage can retain discontinuous offsets.
 				const soundActivation = createSoundActivatedRecordingCaptureSession(
 					selection ? undefined : runtime.soundActivation,
 					{
@@ -317,6 +316,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 						startFrame: session.recordingStartFrame,
 						channelCount: route.channelCount,
 						framesToSkip: persistedSourceOffsetProjectFrames,
+						timelineMode: soundActivation.enabled ? 'compacted' : 'continuous',
 					});
 					const entry: RoutedRecordingEntry = Object.freeze({
 						trackId: track.id,

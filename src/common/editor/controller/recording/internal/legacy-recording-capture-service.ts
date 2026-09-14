@@ -136,6 +136,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 				startFrame: recordingStartFrame,
 				channelCount,
 				framesToSkip: persistedSourceOffsetProjectFrames,
+				timelineMode: soundActivation.enabled ? 'compacted' : 'continuous',
 			});
 			const createdRecorder = await runtime.createRecorder({
 				context,

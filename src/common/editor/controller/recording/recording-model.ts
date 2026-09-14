@@ -28,6 +28,7 @@ export interface AudioDevicePreferences {
 export interface RecordingPreview {
 	readonly trackId: string;
 	readonly startFrame: number;
+	readonly timelineMode: 'continuous' | 'compacted';
 	framesToSkip: number;
 	frames: number;
 	framesPerBucket: number;
@@ -121,16 +122,19 @@ export function createRecordingPreview({
 	startFrame,
 	channelCount,
 	framesToSkip = 0,
+	timelineMode = 'continuous',
 }: {
 	readonly trackId: string;
 	readonly startFrame: unknown;
 	readonly channelCount: unknown;
 	readonly framesToSkip?: unknown;
+	readonly timelineMode?: unknown;
 }): RecordingPreview {
 	const channels = Math.max(1, Math.min(2, Number(channelCount) || 1));
 	return {
 		trackId,
 		startFrame: Math.max(0, Math.floor(Number(startFrame) || 0)),
+		timelineMode: timelineMode === 'compacted' ? 'compacted' : 'continuous',
 		framesToSkip: Math.max(0, Math.floor(Number(framesToSkip) || 0)),
 		frames: 0,
 		framesPerBucket: LIVE_RECORDING_WAVEFORM_BUCKET_FRAMES,

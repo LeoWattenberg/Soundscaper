@@ -160,7 +160,7 @@ export interface RecordingCompositionDependencies {
 	readonly publishDocumentSnapshot: () => void;
 	readonly publishTelemetrySnapshot: () => void;
 	readonly publishProjectState: () => void;
-	readonly updatePlayhead: () => unknown;
+	readonly updatePlayhead: (frame?: number) => unknown;
 	readonly updateTransportState: (state: string) => void;
 	readonly setStatus: (message: string, state?: 'info' | 'success' | 'error') => void;
 	readonly handleError: (error: unknown) => void;

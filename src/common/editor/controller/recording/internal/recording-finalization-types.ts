@@ -50,6 +50,7 @@ export interface RecordingFinalizationCommonRuntime {
 	readonly captureProjectScope: () => RecordingProjectTransactionScope;
 	readonly projectSampleRate: (project: RecordingProject) => number;
 	readonly pauseTransport: () => void;
+	readonly setTransportPosition: (frame: number) => void;
 	readonly disposeRecorder: (recorder: RecordingControllerLike) => Promise<void>;
 	readonly appendPreview: (
 		preview: RecordingPreview | null,

@@ -24,10 +24,14 @@ import type {
 } from '../src/common/editor/controller/recording/recording-transaction-types.ts';
 import type { RecordingPreview } from '../src/common/editor/controller/recording/recording-model.ts';
 
-function createPreview(trackId = 'track-1'): RecordingPreview {
+function createPreview(
+	trackId = 'track-1',
+	timelineMode: RecordingPreview['timelineMode'] = 'continuous',
+): RecordingPreview {
 	return {
 		trackId,
 		startFrame: 10,
+		timelineMode,
 		framesToSkip: 0,
 		frames: 0,
 		framesPerBucket: 64,
@@ -123,6 +127,7 @@ function createRuntime() {
 	const routeHealth: Array<[string, string]> = [];
 	let statusCalls = 0;
 	let pauses = 0;
+	const transportPositions: number[] = [];
 	const common: RecordingFinalizationCommonRuntime = {
 		sourceChunkFrames: 65_536,
 		captureProjectScope: () => ({
@@ -134,6 +139,7 @@ function createRuntime() {
 		}),
 		projectSampleRate: () => 48_000,
 		pauseTransport: () => { pauses += 1; },
+		setTransportPosition: (frame) => { transportPositions.push(frame); },
 		disposeRecorder: async (recorder) => { await recorder.dispose?.({ stopTracks: false }); },
 		appendPreview: () => {},
 		scaleFrames: (frames, inputRate, outputRate) => Math.round(frames * outputRate / inputRate),
@@ -164,6 +170,7 @@ function createRuntime() {
 		routeHealth,
 		statusCalls: () => statusCalls,
 		pauses: () => pauses,
+		transportPositions,
 		setCurrent: (value: boolean) => { current = value; },
 		setActivateHook: (hook: (() => void) | null) => { activateHook = hook; },
 	};
@@ -236,6 +243,23 @@ test('legacy finalization commits an atomic source and punch batch against the c
 		selectClipId: 'clip-1',
 	});
 	assert.equal(fixture.statusCalls(), 1);
+});
+
+test('legacy finalization aligns compacted capture time with its committed clip', async () => {
+	const fixture = createRuntime();
+	const writer = createWriter(105);
+	await createLegacyRecordingFinalization(fixture.common).finalize(createSnapshot({
+		writer: writer.writer,
+		preview: createPreview('track-1', 'compacted'),
+	}));
+	assert.deepEqual(fixture.transportPositions, [110]);
+
+	const emptyFixture = createRuntime();
+	await createLegacyRecordingFinalization(emptyFixture.common).finalize(createSnapshot({
+		writer: createWriter(5).writer,
+		preview: createPreview('track-1', 'compacted'),
+	}));
+	assert.deepEqual(emptyFixture.transportPositions, [10]);
 });
 
 test('legacy finalization suppresses a late project commit and rolls back the stored source', async () => {
@@ -371,6 +395,28 @@ test('routed finalization snapshots entries and publishes one atomic batch', asy
 	}>;
 	assert.equal(punch.options.startFrame, 10);
 	assert.equal(punch.options.endFrame, 105);
+});
+
+test('routed finalization aligns compacted capture time with the longest committed clip', async () => {
+	const fixture = createRuntime();
+	const first = createWriter(25);
+	const second = createWriter(45);
+	const entries = [
+		createRoutedEntry(first.writer, {
+			preview: createPreview('track-1', 'compacted'),
+		}),
+		createRoutedEntry(second.writer, {
+			trackId: 'track-2',
+			sourceId: 'source-2',
+			recordingStartFrame: 20,
+			preview: createPreview('track-2', 'compacted'),
+		}),
+	];
+	await createRoutedRecordingFinalization(fixture.routed).finalize({
+		...createSnapshot(),
+		entries,
+	});
+	assert.deepEqual(fixture.transportPositions, [60]);
 });
 
 test('routed finalization rejects malformed entries before disposing the recorder', () => {

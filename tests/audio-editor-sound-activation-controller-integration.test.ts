@@ -183,6 +183,53 @@ test('legacy capture freezes policy settings and blocks mutation through active 
 	}
 });
 
+test('sound-activated capture keeps the live and stopped playhead at the compacted clip end', async () => {
+	const store = createProjectStore({ databaseName: 'sound-activation-controller-playhead' });
+	const input = createMockStream([createMockTrack('audio', { channelCount: 1 })]);
+	const pool = createCapturePool({ hardware: { default: input } });
+	const created: CreatedRecorder[] = [];
+	const engine = createRecordingEngine();
+	const controller = createAudioEditorController(null, {
+		store,
+		engine,
+		recordingCapturePool: pool,
+		recordingControllerFactory: createRecordingControllerFactory(created),
+	});
+
+	try {
+		await controller.ready;
+		const actions = soundActivationActions(controller);
+		await actions.setEnabled(true);
+		await actions.setHoldMilliseconds(0);
+		const trackId = firstProjectTrackId(controller);
+		await controller.actions.recording.start({ trackId });
+		const recorder = created[0];
+		assert.ok(recorder?.startOptions?.startFrame != null);
+		await recorder.onChunk({
+			frameStart: recorder.startOptions.startFrame,
+			frames: 2,
+			channels: [Float32Array.of(0.5, 0)],
+		});
+		engine.seek(48_000);
+		const preview = controller.getSnapshot().recordingPreviews[0] as Readonly<{
+			durationFrames: number;
+		}> | undefined;
+		assert.equal(preview?.durationFrames, 1);
+		assert.equal(controller.getTelemetrySnapshot().positionFrame, 1);
+
+		await controller.actions.recording.stop();
+		const clip = controller.getSnapshot().project?.clips[0] as unknown as Readonly<{
+			timelineStartFrame: number;
+			durationFrames: number;
+		}>;
+		assert.equal(clip.timelineStartFrame + clip.durationFrames, 1);
+		assert.equal(controller.getTelemetrySnapshot().positionFrame, 1);
+		assert.equal(engine.getPositionFrames(), 1);
+	} finally {
+		await controller.dispose();
+	}
+});
+
 test('scheduled and routed capture report guarded, isolated source state through the public snapshot', async () => {
 	const store = createProjectStore({ databaseName: 'sound-activation-controller-routed' });
 	const display = createMockStream([
