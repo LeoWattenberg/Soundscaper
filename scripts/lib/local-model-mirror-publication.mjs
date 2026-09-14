@@ -50,7 +50,8 @@ function requestOptions(method, signal, headers = {}) {
 
 async function verifyHead({ url, artifact, fetchImpl, signal }) {
 	throwIfAborted(signal);
-	const response = await fetchImpl(url, requestOptions('HEAD', signal));
+	const response = await fetchImpl(url,
+		requestOptions('HEAD', signal, { 'Accept-Encoding': 'identity' }));
 	assertResponse(response, `${url} HEAD`);
 	assert(response.status === 200, `${url} HEAD returned HTTP ${String(response.status)}`);
 	assertCors(response, url, PUBLIC_CORS_ORIGIN, 'HEAD');

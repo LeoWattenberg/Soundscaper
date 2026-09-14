@@ -12,12 +12,18 @@ const bytes = Buffer.from('model bytes');
 const artifact = { byteLength: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
 const url = 'https://assets.soundscaper.org/models/test/1/model.onnx';
 
-function delivery({ rangeStatus = 206, contentRange = `bytes 0-0/${bytes.length}`, rangeBody = bytes.subarray(0, 1), body = bytes } = {}) {
+function delivery({
+	rangeStatus = 206,
+	contentRange = `bytes 0-0/${bytes.length}`,
+	rangeBody = bytes.subarray(0, 1),
+	headLength = bytes.length,
+	body = bytes,
+} = {}) {
 	return async (_url, init) => {
 		const ranged = init.headers.Range === 'bytes=0-0';
 		const headers = { 'Access-Control-Allow-Origin': 'https://soundscaper.org',
 			'Access-Control-Expose-Headers': 'Content-Length,Content-Range,ETag',
-			'Content-Length': String(ranged ? rangeBody.length : bytes.length) };
+			'Content-Length': String(ranged ? rangeBody.length : init.method === 'HEAD' ? headLength : bytes.length) };
 		if (ranged) headers['Content-Range'] = contentRange;
 		return new Response(init.method === 'HEAD' ? null : ranged ? rangeBody : body,
 			{ status: ranged ? rangeStatus : 200, headers });
@@ -32,14 +38,24 @@ test('delivery-only verification proves live HEAD, CORS, and range without a sec
 	const requests = [];
 	const fetchImpl = async (address, init) => {
 		requests.push({ address, method: init.method, range: init.headers.Range ?? null,
-			origin: init.headers.Origin });
+			acceptEncoding: init.headers['Accept-Encoding'] ?? null, origin: init.headers.Origin });
 		return delivery()(address, init);
 	};
 	assert.deepEqual(await verifyMirroredArtifactDelivery({ url, artifact, fetchImpl }), { url, ...artifact });
 	assert.deepEqual(requests, [
-		{ address: url, method: 'HEAD', range: null, origin: 'https://soundscaper.org' },
-		{ address: url, method: 'GET', range: 'bytes=0-0', origin: 'https://soundscaper.org' },
+		{ address: url, method: 'HEAD', range: null,
+			acceptEncoding: 'identity', origin: 'https://soundscaper.org' },
+		{ address: url, method: 'GET', range: 'bytes=0-0',
+			acceptEncoding: null, origin: 'https://soundscaper.org' },
 	]);
+});
+
+test('an identity HEAD still requires the exact catalog byte length', async () => {
+	await assert.rejects(verifyMirroredArtifactDelivery({
+		url,
+		artifact,
+		fetchImpl: delivery({ headLength: bytes.length - 1 }),
+	}), /HEAD Content-Length is not/iu);
 });
 
 test('a cold CDN full response is cancelled and retried once before requiring a valid partial response', async () => {
