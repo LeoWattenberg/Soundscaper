@@ -2,10 +2,11 @@
 	"schemaVersion": 2,
 	"locale": "eu",
 	"provenance": {
-		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
+		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
 		"addEffect": ["audacity","Add effect","Gehitu efektua"],
+		"applyEffectPreset": ["audacity","Apply preset","Aplikatu aurrezarpena"],
 		"clipping": ["audacity","Clipping","Asetasun-distortsioa"],
 		"copy": ["audacity","Copy","Kopiatu"],
 		"cut": ["audacity","Cut","Ebaki"],
@@ -37,6 +38,7 @@
 		"metadataComments": ["audacity","Comments","Iruzkinak"],
 		"metadataTagColumn": ["audacity","Tag","Etiketa"],
 		"metadataYear": ["audacity","Year","Urtea"],
+		"metronome": ["audacity","Metronome","Metronomoa"],
 		"monoConversionYes": ["audacity","Yes","Bai"],
 		"pan": ["audacity","Pan","Panoramika"],
 		"panelHistory": ["audacity","History","Historia"],
@@ -46,10 +48,16 @@
 		"project": ["audacity","Project","Egitasmoa"],
 		"projectSaving": ["audacity","Saving project","Proiektua gordetzen"],
 		"redo": ["audacity","Redo","Berregin"],
+		"repeatLastEffect": ["audacity","Repeat last effect","Errepikatu azken efektua"],
 		"reverse": ["audacity","Reverse","Atzekoz aurrera jarri"],
+		"selectAll": ["audacity","All","Hautatu dena"],
 		"spectralGain": ["audacity","Gain (dB)","Irabazia (dB)"],
+		"statusBar": ["audacity","Status bar","Egoera-barra"],
 		"stop": ["audacity","Stop","Gelditu"],
 		"theme": ["audacity","Theme","Gaia"],
-		"undo": ["audacity","Undo","Desegin"]
+		"timecode": ["audacity","Timecode","Denbora-kodea"],
+		"undo": ["audacity","Undo","Desegin"],
+		"zoomIn": ["audacity","Zoom in","Handiagotu"],
+		"zoomOut": ["audacity","Zoom out","Txikiagotu"]
 	}
 }

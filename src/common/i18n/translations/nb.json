@@ -2,10 +2,12 @@
 	"schemaVersion": 2,
 	"locale": "nb",
 	"provenance": {
-		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
+		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
 		"addEffect": ["audacity","Add effect","Legg til effekt"],
+		"applyEffectPreset": ["audacity","Apply preset","Bruk forhåndsinnstilling"],
+		"clearLoopRegion": ["audacity","Clear loop region","Fjern valgt løkkeområde"],
 		"clipping": ["audacity","Clipping","Klipping"],
 		"copy": ["audacity","Copy","Kopier"],
 		"cut": ["audacity","Cut","Klipp ut"],
@@ -34,9 +36,11 @@
 		"generatorPink": ["audacity","Pink","Rosa"],
 		"generatorWhite": ["audacity","White","Hvit"],
 		"level": ["audacity","Level","Nivå"],
+		"loopToSelection": ["audacity","Set loop region to selection","Sett løkkeområde til valgt område"],
 		"metadataComments": ["audacity","Comments","Kommentarer"],
 		"metadataTagColumn": ["audacity","Tag","Tagg"],
 		"metadataYear": ["audacity","Year","År"],
+		"metronome": ["audacity","Metronome","Metronom"],
 		"monoConversionYes": ["audacity","Yes","Ja"],
 		"pan": ["audacity","Pan","Panorering"],
 		"panelHistory": ["audacity","History","Historie"],
@@ -46,10 +50,18 @@
 		"project": ["audacity","Project","Prosjekt"],
 		"projectSaving": ["audacity","Saving project","Lagrer prosjekt"],
 		"redo": ["audacity","Redo","Gjør om"],
+		"repeatLastEffect": ["audacity","Repeat last effect","Gjenta forrige effekt"],
 		"reverse": ["audacity","Reverse","Baklengs"],
+		"selectAll": ["audacity","All","Velg alt"],
+		"selectionFollowsLoop": ["audacity","Creating a loop also selects audio","Når du lager et løkkeområde velges også lyden"],
 		"spectralGain": ["audacity","Gain (dB)","Forsterking (dB):"],
+		"splitIntoNewTrack": ["audacity","Split into new track","Splitt til nytt spor"],
+		"statusBar": ["audacity","Status bar","Statuslinje"],
 		"stop": ["audacity","Stop","Stopp"],
 		"theme": ["audacity","Theme","Tema"],
-		"undo": ["audacity","Undo","Angre"]
+		"timecode": ["audacity","Timecode","Tidskode"],
+		"undo": ["audacity","Undo","Angre"],
+		"zoomIn": ["audacity","Zoom in","Zoom inn"],
+		"zoomOut": ["audacity","Zoom out","Zoom ut"]
 	}
 }

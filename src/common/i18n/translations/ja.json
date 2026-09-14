@@ -3,7 +3,7 @@
 	"locale": "ja",
 	"provenance": {
 		"machine": {"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","promptVersion":"i18n-machine-v1"},
-		"audacity": {"repository":"audacity/audacity","headSha":"bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1","runId":33856855087,"artifactId":9930639959,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/33856855087","archiveName":"Audacity_locale_262470911.zip","archiveSha256":"6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e","archiveByteLength":14059711,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
+		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
 		"aboutEditor": ["machine","About Soundscaper","Soundscaper について"],
@@ -691,19 +691,19 @@
 		"editingAsymmetricStereoHeightsDescription": ["audacity","Dragging on the center line may adjust the height of the channel:","センターラインをドラッグしてチャンネルの高さを調整:"],
 		"editingAsymmetricWorkspace": ["audacity","Depending on workspace","ワークスペースに応じる"],
 		"editingCloseGapAllTracks": ["audacity","All clips on all tracks move back to fill the gap","すべてのトラックのすべてのクリップが後ろにずれてギャップを埋める"],
-		"editingCloseGapBehavior": ["audacity","When closing the gap, do the following","ギャップを閉じる場合に行なう動作"],
+		"editingCloseGapBehavior": ["audacity","When closing the gap, do the following","ギャップを閉じるときに行なう動作"],
 		"editingCloseGapClip": ["audacity","The selected clip moves back to fill the gap","選択したクリップが後ろにずれてギャップを埋める"],
 		"editingCloseGapRipple": ["audacity","Close gap (ripple)","ギャップを閉じる（リップル）"],
 		"editingCloseGapTrack": ["audacity","All clips on the same track move back to fill the gap","同じトラックのすべてのクリップが後ろにずれてギャップを埋める"],
-		"editingDeleteBehavior": ["audacity","Choose behavior when deleting a portion of a clip","クリップの一部を削除する場合の動作を選択"],
+		"editingDeleteBehavior": ["audacity","Choose behavior when deleting a portion of a clip","クリップの一部を削除するときの動作を選択"],
 		"editingEffectBehavior": ["audacity","Effect behavior","エフェクトの動作"],
 		"editingLeaveGap": ["audacity","Leave gap","ギャップを残す"],
 		"editingMonoStereoConversion": ["audacity","Mono & stereo conversion","モノラルとステレオの変換"],
-		"editingPasteBehavior": ["audacity","Choose behavior when pasting audio","オーディオをペーストする場合の動作を選択"],
+		"editingPasteBehavior": ["audacity","Choose behavior when pasting audio","オーディオをペーストするときの動作を選択"],
 		"editingPasteInsertAllTracks": ["audacity","Pasting audio pushes all clips on all tracks","ペーストしたオーディオがすべてのトラックのすべてのクリップを押し出す"],
-		"editingPasteInsertBehavior": ["audacity","When making room for pasted audio, do the following","ペーストするオーディオのスペースを作成する場合の動作"],
+		"editingPasteInsertBehavior": ["audacity","When making room for pasted audio, do the following","ペーストするオーディオのスペースを作成するときの動作"],
 		"editingPasteInsertTrack": ["audacity","Pasting audio pushes other clips on the same track","ペーストしたオーディオが同じトラックのほかのクリップを押し出す"],
-		"editingPasteOverlaps": ["audacity","Paste overlaps other clips","ペースト（ほかのクリップをオーバーラップ）"],
+		"editingPasteOverlaps": ["audacity","Paste overlaps other clips","ペースト（ほかのクリップにオーバーラップ）"],
 		"editingPastePushes": ["audacity","Paste pushes other clips","ペースト（ほかのクリップを押し出す）"],
 		"editingWorkspaces": ["audacity","Workspaces","ワークスペース"],
 		"editingZoomDefault": ["audacity","Zoom Default","デフォルト倍率"],

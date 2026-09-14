@@ -3,9 +3,9 @@
 The `audacity` entries of the JSON catalogs in this directory carry translations from the Audacity project, converted from the Qt TS catalogs Audacity publishes for its translators' reviewed work. They are used under the GNU General Public License version 3 (`GPL-3.0-only`), whose text is in `LICENSE.txt` beside this file, and combined with this AGPL-3.0-only application under section 13 of both licences. The Audacity-derived strings remain governed by the GPLv3; the `machine` and `human` entries beside them are this project's own.
 
 - upstream project: <https://github.com/audacity/audacity>
-- upstream licence and notices: <https://github.com/audacity/audacity/blob/bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1/LICENSE.txt>
-- source commit: `bc62dc3c8809ce9430b95bdfa0e066b42cc8e9b1`
-- translation artifact: `Audacity_locale_262470911.zip` (artifact 9930639959 of workflow run 33856855087, <https://github.com/audacity/audacity/actions/runs/33856855087>), SHA-256 `6fb6fd3a3cf27738ec6d4dbb0db046230f2265d67bb146287ff196b28691107e`, 14059711 bytes
+- upstream licence and notices: <https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt>
+- source commit: `06595b4fddf92d1f0732bd37ff4fe90f58d8d25b`
+- translation artifact: `Audacity_locale_262540913.zip` (artifact 10192470311 of workflow run 34582633440, <https://github.com/audacity/audacity/actions/runs/34582633440>), SHA-256 `84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86`, 14412832 bytes
 - reviewed key mapping: version 3, SHA-256 `f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c` (`src/common/i18n/audacity-qt-mapping.js`)
 
 Modification notice: Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.
