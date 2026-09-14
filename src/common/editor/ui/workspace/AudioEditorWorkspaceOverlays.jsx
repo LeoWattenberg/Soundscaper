@@ -52,7 +52,7 @@ const LocalDiagnosticsDialog = lazyEditorModule(() => import('../dialogs/LocalDi
 const PrivacyPolicyDialog = lazyEditorModule(() => import('../dialogs/PrivacyPolicyDialog.tsx'));
 
 function LazyInspectorFallback({ copy }) {
-	return <div className="audio-editor-timeline-loading" role="status" aria-live="polite">{copy.loading}</div>;
+	return <span className="kw-audio-editor-sr-only" role="status" aria-live="polite">{copy.loading}</span>;
 }
 
 export default function AudioEditorWorkspaceOverlays({ model }) {
@@ -102,7 +102,8 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		&& isCurrentProjectSchemaIdentity(snapshot.project, FRAMESCAPER_PROJECT_SCHEMA_FAMILY);
 	// A dialog that cannot draw the document shows the refusal in the dialog
 	// layer; the workspace behind it stays.
-	return <EditorSurfaceBoundary copy={copy} surface="dialogs" resetKey={snapshot.project}>
+	return <React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+		<EditorSurfaceBoundary copy={copy} surface="dialogs" resetKey={snapshot.project}>
 			{productId === 'soundscaper' && activeSurface === 'mastering-sequences'
 				&& SoundscaperMasteringSequenceDialog && (
 				<div data-editor-surface="mastering-sequences">
@@ -528,5 +529,6 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 					onSettle={settleScapeOpenDecision}
 				/>
 			)}
-	</EditorSurfaceBoundary>;
+		</EditorSurfaceBoundary>
+	</React.Suspense>;
 }

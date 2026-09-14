@@ -32,6 +32,53 @@ test.describe('Inspector lazy feature boundaries', () => {
 		await expect.poll(() => requestedScripts.some((name) => name.startsWith('ExportDialog-'))).toBe(true);
 		expectLoadedOnly(requestedScripts, 'ExportDialog');
 	});
+
+	test('keeps lazy dialog loading from painting a timeline-sized placeholder', async ({ page }) => {
+		let releaseChunk;
+		let chunkRequested = false;
+		const heldChunk = new Promise((resolve) => { releaseChunk = resolve; });
+		await page.route('**/ExportDialog-*.js', async (route) => {
+			chunkRequested = true;
+			await heldChunk;
+			await route.continue();
+		});
+		const editor = await bootEditorWithTone(page);
+
+		try {
+			await chooseCommand(page, editor, 'File', 'Export audio');
+			await expect.poll(() => chunkRequested).toBe(true);
+			await expect(editor).toBeVisible();
+			await expect(page.locator(
+				'[data-editor-surface="export"] .audio-editor-timeline-loading',
+			)).toHaveCount(0);
+		} finally {
+			releaseChunk();
+		}
+
+		await expect(page.getByRole('dialog', { name: 'Export audio', exact: true })).toBeVisible();
+	});
+
+	test('keeps the editor mounted while a shared dialog chunk loads', async ({ page }) => {
+		let releaseChunk;
+		let chunkRequested = false;
+		const heldChunk = new Promise((resolve) => { releaseChunk = resolve; });
+		await page.route('**/WorkspacePreferencesDialog-*.js', async (route) => {
+			chunkRequested = true;
+			await heldChunk;
+			await route.continue();
+		});
+		const editor = await bootEditorWithTone(page);
+
+		try {
+			await chooseCommand(page, editor, 'Edit', 'Preferences');
+			await expect.poll(() => chunkRequested).toBe(true);
+			await expect(editor).toBeVisible();
+		} finally {
+			releaseChunk();
+		}
+
+		await expect(page.getByRole('dialog', { name: 'Editor preferences', exact: true })).toBeVisible();
+	});
 });
 
 function collectRequestedScripts(page) {
