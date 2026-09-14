@@ -74,7 +74,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	const currentOperationOwner = useRef(operationOwner);
 	const activeExportSubmission = useRef(null);
 	const downloadRef = useRef(null);
-	const startedDownloadUrl = useRef(null);
+	const startedDownloadUrl = useRef(snapshot.export?.output?.url || null);
 	currentOperationOwner.current = operationOwner;
 	const desktop = fileService?.isDesktop === true;
 	const projectChannelCount = snapshot.project?.masterChannels || 2;

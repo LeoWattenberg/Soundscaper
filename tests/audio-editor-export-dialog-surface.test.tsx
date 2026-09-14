@@ -183,9 +183,28 @@ test('a finished export starts its own download exactly once', async () => {
 	}
 });
 
+test('reopening the dialog does not restart its previous download', async () => {
+	const fixture = await mountedExportDialog({
+		output: { url: 'blob:previous', fileName: 'mix.wav' },
+	});
+	try {
+		const link = fixture.dom.one('[data-export-download]');
+		assert.equal(link.clickCount, 0);
+		assert.equal(link.getAttribute('href'), 'blob:previous');
+
+		// An unchanged project may produce the same name and bytes. Its fresh URL,
+		// not the artifact's identity, distinguishes the newly completed operation.
+		await fixture.publish({ url: 'blob:next', fileName: 'mix.wav' });
+		assert.equal(link.clickCount, 1);
+	} finally {
+		await fixture.unmount();
+	}
+});
+
 interface ExportDialogFixtureOptions {
 	readonly labels?: readonly Readonly<Record<string, unknown>>[];
 	readonly masteringSequences?: readonly Readonly<Record<string, unknown>>[];
+	readonly output?: Readonly<Record<string, unknown>>;
 	readonly video?: boolean;
 }
 
@@ -297,7 +316,7 @@ async function mountedExportDialog(options: ExportDialogFixtureOptions = {}) {
 			onClose={() => undefined}
 		/>));
 	};
-	await render();
+	await render(options.output ?? null);
 	const click = async (element: ReactTestElement) => {
 		await act(async () => {
 			reactProps(element).onClick({});
