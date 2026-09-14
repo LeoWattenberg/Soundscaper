@@ -14,6 +14,7 @@ import {
 	resolvePackagedProductExecutable,
 } from '../../../scripts/lib/desktop-nightly-tests-packaged-runtime.mjs';
 import {
+	bypassPackagedRuntimeServiceWorker,
 	packagedRuntimeProductBaseURL,
 	usesPackagedRuntimeDiagnosticPage,
 } from './packaged-runtime-page.js';
@@ -86,7 +87,16 @@ const packagedTest = base.extend({
 	page: async ({ context }, use, testInfo) => {
 		const diagnosticPage = usesPackagedRuntimeDiagnosticPage(testInfo.file);
 		const page = await waitForRuntimePage(context, diagnosticPage);
-		await use(page);
+		// The preceding product diagnostic may leave this shared HTTP origin under
+		// service-worker control, which would hide synthetic route requests from Playwright.
+		const releaseBypass = diagnosticPage
+			? await bypassPackagedRuntimeServiceWorker(context, page)
+			: null;
+		try {
+			await use(page);
+		} finally {
+			await releaseBypass?.();
+		}
 	},
 	runtimeBrowser: async ({ packagedRuntime }, use) => use(Object.freeze({
 		version: () => packagedRuntime.browser.version(),

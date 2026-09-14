@@ -16,6 +16,7 @@ import {
 } from '../scripts/lib/desktop-nightly-tests-packaged-runtime.mjs';
 import { packagedRuntimeEnvironmentFingerprint } from './browser/helpers/packaged-runtime-environment.js';
 import {
+	bypassPackagedRuntimeServiceWorker,
 	packagedRuntimeProductBaseURL,
 	usesPackagedRuntimeDiagnosticPage,
 } from './browser/helpers/packaged-runtime-page.js';
@@ -172,6 +173,34 @@ test('packaged-runtime page routing keeps benchmark documents on each product or
 		() => packagedRuntimeProductBaseURL('framescaper', {}),
 		/product origins/iu,
 	);
+});
+
+test('packaged-runtime diagnostic routes bypass an existing product service worker', async () => {
+	const calls: Array<readonly unknown[]> = [];
+	const page = {};
+	const session = {
+		async send(method: string, parameters?: unknown) {
+			calls.push(['send', method, parameters]);
+		},
+		async detach() {
+			calls.push(['detach']);
+		},
+	};
+	const context = {
+		async newCDPSession(candidate: unknown) {
+			calls.push(['session', candidate]);
+			return session;
+		},
+	};
+
+	const release = await bypassPackagedRuntimeServiceWorker(context, page);
+	assert.deepEqual(calls, [
+		['session', page],
+		['send', 'Network.enable', undefined],
+		['send', 'Network.setBypassServiceWorker', { bypass: true }],
+	]);
+	await release();
+	assert.deepEqual(calls.at(-1), ['detach']);
 });
 
 test('packaged-runtime Chromium arguments admit WebGL on hosted Linux renderers', () => {

@@ -14,6 +14,18 @@ export function usesPackagedRuntimeDiagnosticPage(file) {
 	return DIAGNOSTIC_PAGE_SPECS.has(file.split(/[\\/]/u).at(-1));
 }
 
+export async function bypassPackagedRuntimeServiceWorker(context, page) {
+	const session = await context.newCDPSession(page);
+	try {
+		await session.send('Network.enable');
+		await session.send('Network.setBypassServiceWorker', { bypass: true });
+	} catch (error) {
+		await session.detach().catch(() => undefined);
+		throw error;
+	}
+	return () => session.detach();
+}
+
 export function packagedRuntimeProductBaseURL(productId, environment = process.env) {
 	if (!['soundscaper', 'framescaper'].includes(productId)) {
 		throw new TypeError('Packaged-runtime product ID is invalid.');
