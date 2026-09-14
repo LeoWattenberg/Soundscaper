@@ -34,6 +34,10 @@ test('nightly-with-tests packaging is isolated, portable, and keeps its payload 
 	assert.equal(config.fileAssociations, undefined);
 	assert.ok(config.files.includes('desktop/nightly-tests-main.mjs'));
 	assert.ok(config.files.includes('desktop/nightly-tests-manifest.mjs'));
+	assert.ok(config.files.includes('desktop/nightly-tests-progress-window.mjs'));
+	assert.ok(config.files.includes('desktop/nightly-tests-progress.html'));
+	assert.ok(config.files.includes('desktop/nightly-tests-progress-renderer.js'));
+	assert.ok(config.files.includes('desktop/nightly-tests-progress.css'));
 	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-runtime.mjs'));
 	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-static-response.mjs'));
 	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-product-sites.mjs'));
@@ -127,7 +131,8 @@ test('the nightly test launcher delegates to the pure runtime and never opens an
 	assert.match(source, /process\.resourcesPath/u);
 	assert.match(source, /sourceRevision/u);
 	assert.match(source, /app\.exit/u);
-	assert.doesNotMatch(source, /BrowserWindow/u);
+	assert.match(source, /createDesktopNightlyTestsProgressWindow/u);
+	assert.doesNotMatch(source, /desktop\/main\.mjs|createMainWindow/u);
 });
 
 test('desktop CI exposes one quality-gated five-target nightly-with-tests artifact matrix', async () => {

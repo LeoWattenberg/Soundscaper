@@ -90,8 +90,10 @@ cut; Qwen receives two existing editorial candidates. See the
 ## Run the distributed package
 
 Launch the nightly-with-tests application. The local-model phase starts
-automatically; no environment setup is needed. When launched from a terminal,
-the application immediately prints a progress bar naming the active test phase.
+automatically; no environment setup is needed. An ordinary launch opens a small
+progress window before the tests start and keeps the active test phase visible.
+When launched from a terminal, the application also immediately prints a
+progress bar naming the active test phase.
 On a TTY the bar redraws in place; redirected output retains one line per phase.
 Use `--unattended` or set
 `SOUNDSCAPER_NIGHTLY_TESTS_UNATTENDED=1` to write the final verdict to stdout

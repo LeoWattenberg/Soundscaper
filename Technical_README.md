@@ -215,8 +215,9 @@ It does not need npm or a checkout on the test machine.
 
 Unpack the Actions artifact to a writable directory. Run the portable `.exe` on
 Windows; unpack and run the `.app` from the inner macOS ZIP; or mark the Linux
-AppImage executable (`chmod +x`) and run it. A completion dialog reports the
-outcome and exact output path. Every invocation creates, in the same directory
+AppImage executable (`chmod +x`) and run it. A visible progress window opens
+before the test processes and names the active phase; a completion dialog reports
+the outcome and exact output path. Every invocation creates, in the same directory
 as the executable (or beside the macOS `.app`), a unique
 `soundscaper-nightly-tests-playwright-<UTC timestamp>-<suffix>/` directory with:
 

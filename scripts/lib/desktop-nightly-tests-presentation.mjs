@@ -20,7 +20,7 @@ export function createDesktopNightlyTestsProgressBar({ output = process.stdout }
 	}
 	let finished = false;
 	const write = (value, final) => {
-		const progress = validateProgress(value);
+		const progress = validateDesktopNightlyTestsProgress(value);
 		if (finished) return;
 		const filled = Math.round((progress.completed / progress.total) * PROGRESS_BAR_WIDTH);
 		const percent = Math.round((progress.completed / progress.total) * 100);
@@ -93,7 +93,7 @@ export function parseDesktopNightlyTestsSummary(output) {
 	return Object.freeze(matches[0]);
 }
 
-function validateProgress(value) {
+export function validateDesktopNightlyTestsProgress(value) {
 	if (!value || typeof value !== 'object' || !Number.isInteger(value.completed)
 		|| !Number.isInteger(value.total) || value.total <= 0
 		|| value.completed < 0 || value.completed > value.total) {

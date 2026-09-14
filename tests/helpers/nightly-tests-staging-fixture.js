@@ -50,6 +50,10 @@ export async function createFixture(context) {
 		['desktop/nightly-tests-assistance-host.mjs', 'export const assistanceHost = true;\n'],
 		['desktop/nightly-tests-assistance.html', '<!doctype html><title>Model tests</title>\n'],
 		['desktop/nightly-tests-manifest.mjs', 'export const manifest = true;\n'],
+		['desktop/nightly-tests-progress-window.mjs', 'export const progressWindow = true;\n'],
+		['desktop/nightly-tests-progress.html', '<!doctype html><title>Test progress</title>\n'],
+		['desktop/nightly-tests-progress-renderer.js', 'globalThis.progress = true;\n'],
+		['desktop/nightly-tests-progress.css', 'progress { width: 100%; }\n'],
 		...['flac', 'mpeg-audio', 'opus', 'vorbis', 'wavpack'].map((format) => [
 			`desktop/bundled-${format}-stream.ts`, 'export const fixtureSupport = true;\n',
 		]),

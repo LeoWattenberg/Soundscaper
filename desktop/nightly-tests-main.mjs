@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import * as electron from 'electron/main';
 
 import { readDesktopNightlyTestsSourceRevision } from './nightly-tests-manifest.mjs';
+import { createDesktopNightlyTestsProgressWindow } from './nightly-tests-progress-window.mjs';
 import {
 	createDesktopNightlyTestsProgressBar,
 	formatDesktopNightlyTestsSummary,
@@ -25,8 +26,13 @@ if (process.argv.includes(NIGHTLY_ASSISTANCE_HOST_FLAG)) {
 
 async function startNightlyTests() {
 	const progress = createDesktopNightlyTestsProgressBar();
+	let progressWindow = null;
 	let latestProgress = { completed: 0, total: 4, label: 'Application launched' };
-	const reportProgress = (value) => { latestProgress = value; progress.update(value); };
+	const reportProgress = (value) => {
+		latestProgress = value;
+		progress.update(value);
+		progressWindow?.update(value);
+	};
 	reportProgress(latestProgress);
 	const { unattended } = resolveDesktopNightlyTestsPresentation({
 		argv: process.argv,
@@ -34,6 +40,12 @@ async function startNightlyTests() {
 	});
 	await app.whenReady();
 	try {
+		if (!unattended) {
+			progressWindow = await createDesktopNightlyTestsProgressWindow({
+				BrowserWindow: electron.BrowserWindow,
+				initialProgress: latestProgress,
+			});
+		}
 		const applicationVersion = app.getVersion();
 		const payloadRoot = resolve(process.resourcesPath, 'nightly-tests');
 		const sourceRevision = await readDesktopNightlyTestsSourceRevision({
@@ -55,13 +67,15 @@ async function startNightlyTests() {
 			onProgress: reportProgress,
 		});
 		const status = run.result?.status ?? (run.exitCode === 0 ? 'passed' : 'failed');
-		progress.finish({
+		const terminalProgress = {
 			...latestProgress,
 			completed: status === 'passed' || status === 'failed' ? latestProgress.total : latestProgress.completed,
 			label: status === 'passed' ? 'Tests passed'
 				: status === 'failed' ? 'Tests finished with failures'
 					: status === 'interrupted' ? 'Tests interrupted' : 'Tests stopped with an error',
-		});
+		};
+		progress.finish(terminalProgress);
+		progressWindow?.finish(terminalProgress, status);
 		if (unattended) {
 			console.log(formatDesktopNightlyTestsSummary({
 				status,
@@ -81,7 +95,9 @@ async function startNightlyTests() {
 		app.exit(run.exitCode);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		progress.finish({ ...latestProgress, label: 'Tests could not start' });
+		const terminalProgress = { ...latestProgress, label: 'Tests could not start' };
+		progress.finish(terminalProgress);
+		progressWindow?.finish(terminalProgress, 'error');
 		console.error('Soundscaper nightly tests failed to start:', message);
 		if (unattended) {
 			console.log(formatDesktopNightlyTestsSummary({

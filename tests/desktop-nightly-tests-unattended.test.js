@@ -53,8 +53,11 @@ test('the launcher chooses between the dialog and the summary line', async () =>
 	const main = await readFile(new URL('desktop/nightly-tests-main.mjs', ROOT), 'utf8');
 	assert.match(main, /resolveDesktopNightlyTestsPresentation/u);
 	assert.match(main, /createDesktopNightlyTestsProgressBar/u);
+	assert.match(main, /createDesktopNightlyTestsProgressWindow/u);
 	assert.ok(main.indexOf("label: 'Application launched'") < main.indexOf('await app.whenReady()'),
 		'the CLI must confirm launch before Electron readiness can delay the runner');
+	assert.ok(main.indexOf('createDesktopNightlyTestsProgressWindow') < main.indexOf('runDesktopNightlyTests({'),
+		'the attended runner window must open before the first test phase starts');
 	assert.equal((main.match(/if \(unattended\) \{/gu) ?? []).length, 2,
 		'both the finished and the failed-to-start path must branch on the unattended decision');
 	assert.equal((main.match(/dialog\.showMessageBox/gu) ?? []).length, 2);
