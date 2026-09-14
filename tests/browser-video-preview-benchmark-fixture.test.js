@@ -75,6 +75,17 @@ test('the preview benchmark loops its pinned source and fails fast with partial 
 	assert.doesNotMatch(source, /timeout:\s*240_000/u);
 });
 
+test('the preview benchmark leaves observational performance thresholds to the collector', () => {
+	const source = readFileSync(
+		new URL('browser/audio-editor-video-preview-benchmark.spec.js', import.meta.url),
+		'utf8',
+	);
+
+	assert.doesNotMatch(source, /retained JS heap growth p95 across five reset-document trials/u);
+	assert.doesNotMatch(source, /complete 1280x720 effect stack frame-interval p95/u);
+	assert.doesNotMatch(source, /nearestRankP95/u);
+});
+
 test('the quality-budget fixture registration pins the shipped benchmark media', () => {
 	const quality = JSON.parse(readFileSync(
 		new URL('../config/quality-budgets.json', import.meta.url),

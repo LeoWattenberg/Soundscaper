@@ -128,23 +128,6 @@ test('benchmarks the complete 720p video preview effect stack', async ({
 		trials: trials.map(({ renderer: _renderer, ...trial }) => trial),
 	};
 	console.log(`SOUNDSCAPER_VIDEO_PREVIEW_BENCHMARK ${JSON.stringify(diagnostic)}`);
-
-	if (rendererClass === 'hardware') {
-		const frameIntervals = diagnostic.trials.flatMap(({ frameTimestampsMs }) => (
-			frameTimestampsMs.slice(1).map((time, index) => time - frameTimestampsMs[index])
-		));
-		const retainedHeapDeltas = diagnostic.trials.map(({ heapBefore, heapAfter }) => (
-			heapAfter.usedSize - heapBefore.usedSize
-		));
-		expect(
-			nearestRankP95(retainedHeapDeltas),
-			'retained JS heap growth p95 across five reset-document trials',
-		).toBeLessThanOrEqual(1024 * 1024);
-		expect(
-			nearestRankP95(frameIntervals),
-			'complete 1280x720 effect stack frame-interval p95',
-		).toBeLessThanOrEqual(33.34);
-	}
 });
 
 async function runPreviewTrial({ context, fixture, measured, page, productUrl, resetUrl, trial }) {
@@ -408,11 +391,6 @@ async function importTimelineFiles(editor, files) {
 	await editor.locator('[data-import-input]').setInputFiles(files);
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 30_000 });
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 30_000 });
-}
-
-function nearestRankP95(samples) {
-	const sorted = samples.toSorted((left, right) => left - right);
-	return sorted[Math.ceil(sorted.length * 0.95) - 1];
 }
 
 function softwareRenderer(renderer) {
