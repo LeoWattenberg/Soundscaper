@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createEffect } from '../src/common/editor/effects.js';
+import { selectLabeledAudioEditTrackIds } from '../src/common/editor/labeled-audio-regions.ts';
 
 import { createMemoryFfmpeg } from './helpers/audio-editor-controller-fixtures.js';
 import { createMemoryStore } from './helpers/audio-editor-memory-store-baseline.js';
@@ -162,7 +163,7 @@ void test('Duplicate retains the source track mixer, envelope and independent ef
 });
 
 void test('Duplicate includes selected label tracks and clips region labels to the time range', async (context) => {
-	const { controller, first } = await fixture();
+	const { controller, first, second, unrelated } = await fixture();
 	context.after(async () => { await controller.dispose(); });
 	const labels = controller.actions.track.addLabel({ name: 'Annotations' })!;
 	for (const [id, startFrame, endFrame] of [
@@ -176,12 +177,17 @@ void test('Duplicate includes selected label tracks and clips region labels to t
 	assert.equal(project.tracks.length, 6);
 	const copied = project.tracks[5]!;
 	assert.equal(copied.type, 'label');
+	for (const field of ['clipIds', 'effects', 'armed']) {
+		assert.equal(Object.hasOwn(copied, field), false, `Label copies must omit the audio-only ${field} field`);
+	}
 	assert.deepEqual(copied.labels.map((label) => [label.title, label.startFrame, label.endFrame]), [
 		['crossing', 750, 1_250], ['start-point', 750, 750], ['inside', 900, 1_000], ['end-point', 1_250, 1_250],
 	]);
 	assert.equal(copied.labels.some((label) => before.labels.some((original) => original.id === label.id)), false);
 	assert.deepEqual(project.tracks.find((track) => track.id === labels), before);
 	assert.deepEqual(project.selection.trackIds, [first, labels, project.tracks[4]!.id, copied.id]);
+	assert.deepEqual(selectLabeledAudioEditTrackIds(project, [copied.id]), [first, second, unrelated, project.tracks[4]!.id],
+		'Labeled audio edits from a duplicated label track still target every audio track');
 });
 
 void test('Duplicate preserves overlapping clips on one source track without altering the originals', async (context) => {

@@ -93,9 +93,9 @@ export function prepareDuplicateSelectionCommand(
 		const labels = track.type === 'label' ? duplicateLabels(runtime, track.labels ?? [], range) : undefined;
 		commands.push({
 			...createAddTrackCommand({
-				...structuredClone(track), id: trackId, armed: false, effects, clipIds: [],
+				...structuredClone(track), id: trackId,
+				...(track.type === 'label' ? { labels } : { armed: false, effects, clipIds: [] }),
 				laneGroupId: track.laneGroupId ? laneGroups.get(track.laneGroupId) : null,
-				...(labels ? { labels } : {}),
 			}),
 			...duplicatePlacement(project, track.id),
 			...(track.type === 'audio' ? {
