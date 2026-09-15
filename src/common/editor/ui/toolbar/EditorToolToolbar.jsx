@@ -8,7 +8,6 @@ import { Toolbar, ToolbarButtonGroup, ToolbarDivider } from '@soundscaper/design
 import { ToolButton } from '@soundscaper/design-system/ToolButton';
 
 import { iconNameToChar } from '../../audacity-iconcodes.js';
-import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
 import {
 	PlaybackMeterToolbarGroup,
 	RecordingMeterToolbarGroup,
@@ -293,18 +292,24 @@ export default function EditorToolToolbar({
 				<div className="kw-audio-editor__toolbar-settings-content">
 					<strong>{copy.toolbarButtons}</strong>
 					<div className="kw-audio-editor__toolbar-settings-list">
-						{toolbarButtonOptions.map((button) => <div key={button.id} className="kw-audio-editor__toolbar-settings-option">
-							<span aria-hidden="true">
+						{toolbarButtonOptions.map((button) => <button
+							key={button.id}
+							type="button"
+							role="checkbox"
+							aria-checked={isToolbarButtonVisible(button.id)}
+							className="kw-audio-editor__toolbar-settings-option"
+							onClick={() => run(() => controller.actions.preferences.setToolbarButton(button.id, !isToolbarButtonVisible(button.id)))}
+						>
+							<span className="musescore-icon" aria-hidden="true">
+								{iconNameToChar(isToolbarButtonVisible(button.id) ? 'EYE_OPEN' : 'EYE_CLOSED')}
+							</span>
+							<span className="kw-audio-editor__toolbar-settings-icon" aria-hidden="true">
 								{button.icon.length === 1
 									? <span className="musescore-icon">{button.icon}</span>
 									: <Icon name={button.icon} size={16} />}
 							</span>
-							<PreferenceCheckbox
-								label={button.label}
-								checked={isToolbarButtonVisible(button.id)}
-								onChange={(visible) => run(() => controller.actions.preferences.setToolbarButton(button.id, visible))}
-							/>
-						</div>)}
+							<span>{button.label}</span>
+						</button>)}
 					</div>
 				</div>
 			</Flyout>
