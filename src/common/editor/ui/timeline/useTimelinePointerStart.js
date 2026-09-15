@@ -190,7 +190,7 @@ export function useTimelinePointerStart({
 			}
 			const startFrame = frameAtClientX(event.clientX, lane);
 			pointerSession.current = { kind: 'selection', startFrame, startX: event.clientX, lane };
-			setSelectionPreview({ startFrame, endFrame: startFrame });
+			setSelectionPreview({ startFrame, endFrame: startFrame, ...(trackId ? { trackIds: [trackId] } : {}) });
 			event.currentTarget.setPointerCapture?.(event.pointerId);
 			return;
 		}
@@ -287,7 +287,7 @@ export function useTimelinePointerStart({
 			run(() => controller.actions.timeline.selectClip(null));
 			const startFrame = frameAtClientX(event.clientX, lane);
 			pointerSession.current = { kind: 'selection', startFrame, startX: event.clientX, lane };
-			setSelectionPreview({ startFrame, endFrame: startFrame });
+			setSelectionPreview({ startFrame, endFrame: startFrame, trackIds: [trackId] });
 			event.currentTarget.setPointerCapture?.(event.pointerId);
 			return;
 		}

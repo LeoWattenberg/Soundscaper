@@ -164,8 +164,8 @@ export function TimelineWorkspaceView({
 	// Only selected tracks shade their selected range, so the highlight names
 	// the tracks the next edit would act on rather than the whole timeline.
 	const selectedTrackIds = useMemo(
-		() => timelineSelectedTrackIds(project?.selection, snapshot.selectedTrackId),
-		[project?.selection, snapshot.selectedTrackId],
+		() => timelineSelectedTrackIds(documentSelection?.trackIds ? documentSelection : project?.selection, snapshot.selectedTrackId),
+		[documentSelection, project?.selection, snapshot.selectedTrackId],
 	);
 
 	// In the compact layout the sticky ruler corner is the track-header drawer's

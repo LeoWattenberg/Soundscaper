@@ -26,6 +26,93 @@ async function dragRulerSelection(page, editor) {
 test.describe('Soundscaper timeline selection rendering', () => {
 	registerAudioEditorHooks();
 
+	for (const entry of ['Ctrl+A', 'Select menu']) {
+		test(`${entry} selects the full audio on every track`, async ({ page }) => {
+			const errors = collectClientErrors(page);
+			const editor = await bootEditor(page, '/embed/en/');
+			await importFiles(editor, [toneA, toneB]);
+			await clickClipInterior(page, clipByName(editor, toneA.name), 0.5);
+			if (entry === 'Ctrl+A') await page.keyboard.press('Control+a');
+			else await chooseNestedCommandAction(page, editor, 'Select', ['Select all']);
+
+			await expect(editor.locator('[data-time-selection-overlay]')).toHaveCount(3);
+			await chooseNestedCommandAction(page, editor, 'Edit', ['Delete', 'Delete and leave gap']);
+			await expect(clipByName(editor, toneA.name)).toHaveCount(0);
+			await expect(clipByName(editor, toneB.name)).toHaveCount(0);
+			expect(errors).toEqual([]);
+		});
+	}
+
+	for (const direction of ['down', 'up']) {
+		test(`dragging ${direction} selects every crossed track and shrinks when reversed`, async ({ page }) => {
+			const errors = collectClientErrors(page);
+			const editor = await bootEditor(page, '/embed/en/');
+			await importFiles(editor, [toneA, toneB]);
+			const rows = editor.locator('.audio-editor-track-row');
+			await expect(rows).toHaveCount(3);
+			const first = await rows.nth(direction === 'down' ? 0 : 2).locator('[data-track-lane]').boundingBox();
+			const last = await rows.nth(direction === 'down' ? 2 : 0).locator('[data-track-lane]').boundingBox();
+			const middle = await rows.nth(1).locator('[data-track-lane]').boundingBox();
+			const startX = first.x + 32;
+			const endX = first.x + 60;
+			const startY = first.y + first.height * 0.55;
+			const endY = last.y + last.height * 0.55;
+			await page.mouse.move(startX, startY);
+			await page.mouse.down();
+			await page.mouse.move(endX, endY, { steps: 6 });
+			const bands = editor.locator('[data-time-selection-overlay]');
+			await expect(bands).toHaveCount(3);
+			await page.mouse.move(endX, middle.y + middle.height * 0.55, { steps: 3 });
+			await expect(bands).toHaveCount(2);
+			await page.mouse.move(endX, startY, { steps: 3 });
+			await expect(bands).toHaveCount(1);
+			await page.mouse.move(endX, endY, { steps: 6 });
+			await page.mouse.up();
+			await expect(bands).toHaveCount(3);
+
+			// The edit must use the same track scope as the preview and final highlight.
+			await chooseNestedCommandAction(page, editor, 'Edit', ['Delete', 'Delete and leave gap']);
+			await expect(clipByName(editor, toneA.name)).toHaveCount(2);
+			await expect(clipByName(editor, toneB.name)).toHaveCount(2);
+			expect(errors).toEqual([]);
+		});
+	}
+
+	test('a single-track drag replaces a previous all-track selection', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA, toneB]);
+		await chooseNestedCommandAction(page, editor, 'Select', ['Tracks', 'Select all tracks']);
+		const clip = clipByName(editor, toneA.name);
+		const box = await clip.boundingBox();
+		const y = box.y + box.height * 0.55;
+		await page.mouse.move(box.x + box.width * 0.3, y);
+		await page.mouse.down();
+		await page.mouse.move(box.x + box.width * 0.7, y, { steps: 4 });
+		await expect(editor.locator('[data-time-selection-overlay]')).toHaveCount(1);
+		await page.mouse.up();
+		await expect(editor.locator('[data-time-selection-overlay]')).toHaveCount(1);
+		await chooseNestedCommandAction(page, editor, 'Edit', ['Delete', 'Delete and leave gap']);
+		await expect(clipByName(editor, toneA.name)).toHaveCount(2);
+		await expect(clipByName(editor, toneB.name)).toHaveCount(1);
+	});
+
+	test('a vertical drag selects crossed tracks even without changing the time range', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA, toneB]);
+		const lanes = editor.locator('.audio-editor-track-row [data-track-lane]');
+		const first = await lanes.nth(0).boundingBox();
+		const last = await lanes.nth(2).boundingBox();
+		const x = first.x + 32;
+		await page.mouse.move(x, first.y + first.height * 0.55);
+		await page.mouse.down();
+		await page.mouse.move(x, last.y + last.height * 0.55, { steps: 6 });
+		await page.mouse.up();
+
+		// A ruler drag keeps the chosen tracks and makes their time range visible.
+		await dragRulerSelection(page, editor);
+		await expect(editor.locator('[data-time-selection-overlay]')).toHaveCount(3);
+	});
+
 	test('shades the selected range only in the tracks the selection acts on', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');

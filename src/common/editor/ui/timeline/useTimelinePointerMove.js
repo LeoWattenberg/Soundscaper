@@ -11,6 +11,7 @@ import { resolveTimelineRollRippleTrimPointerPreview } from './roll-ripple-trim-
 import { resolveTimelineSlipSlidePointerPreview } from './slip-slide-pointer-routing.ts';
 import { samplePointAtPointer } from './track-row-helpers.jsx';
 import { resolveTimelineTrimPointerPreview } from './trim-pointer-routing.ts';
+import { timelineSelectionDragTrackIds } from './track-selection-scope.ts';
 
 const NOOP = () => undefined;
 
@@ -220,6 +221,7 @@ export function useTimelinePointerMove({
 			setSelectionPreview({
 				startFrame: Math.min(session.startFrame, endFrame),
 				endFrame: Math.max(session.startFrame, endFrame),
+				trackIds: timelineSelectionDragTrackIds(session.lane, scrollRef.current, event.clientY),
 			});
 		} else if (session?.kind === 'move') {
 			if (session.slipSlideMode) {

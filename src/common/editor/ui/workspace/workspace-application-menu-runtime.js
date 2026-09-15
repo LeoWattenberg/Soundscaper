@@ -250,7 +250,7 @@ export function createWorkspaceApplicationMenus({
 				openMetadata: () => openWorkspacePanel('metadata'),
 				openClipProperties: () => openSurface('clip'),
 				openPreferences: () => openSurface('preferences'),
-				selectAll: () => run(() => controller.actions.timeline.setSelection(0, durationFrames)),
+				selectAll: () => run(() => controller.actions.timeline.selectAll()),
 				selectNone: () => run(() => controller.actions.timeline.clearSelection()),
 				selectAllTracks: () => run(() => controller.actions.timeline.selectAllTracks()),
 				selectNoTracks: () => run(() => controller.actions.timeline.selectNoTracks()),

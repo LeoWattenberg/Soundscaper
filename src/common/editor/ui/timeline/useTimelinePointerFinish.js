@@ -16,6 +16,7 @@ import {
 	splitToolTrackHasClipAt,
 } from './timeline-tool-precedence.ts';
 import { commitTimelineTrimPointer } from './trim-pointer-routing.ts';
+import { timelineSelectionDragTrackIds } from './track-selection-scope.ts';
 
 export function useTimelinePointerFinish({
 	controller,
@@ -30,6 +31,7 @@ export function useTimelinePointerFinish({
 }) {
 	const {
 		pointerSession,
+		scrollRef,
 		touchPointers,
 		pinchSession,
 		setDraggingClipIds,
@@ -136,14 +138,16 @@ export function useTimelinePointerFinish({
 		}
 		if (session.kind === 'selection') {
 			const endFrame = frameAtClientX(event.clientX, session.lane);
-			if (Math.abs(endFrame - session.startFrame) < Math.max(1, secondsToFrames(3 / pixelsPerSecond, { sampleRate }))) {
+			const draggedTrackIds = timelineSelectionDragTrackIds(session.lane, scrollRef.current, event.clientY);
+			const trackIds = draggedTrackIds ?? project.selection?.trackIds;
+			if ((draggedTrackIds?.length ?? 0) <= 1 && Math.abs(endFrame - session.startFrame) < Math.max(1, secondsToFrames(3 / pixelsPerSecond, { sampleRate }))) {
 				run(() => controller.actions.transport.seek(endFrame));
 				run(() => controller.actions.timeline.clearSelection());
 				if (session.lane.dataset.rulerInteraction !== undefined && snapshot.timeline?.playbackOnRulerClick !== false && transportState === 'stopped') {
 					run(() => controller.actions.transport.playPause());
 				}
 			} else {
-				run(() => controller.actions.timeline.setSelection(session.startFrame, endFrame));
+				run(() => controller.actions.timeline.setSelection(session.startFrame, endFrame, trackIds ? { trackIds } : {}));
 			}
 			return;
 		}

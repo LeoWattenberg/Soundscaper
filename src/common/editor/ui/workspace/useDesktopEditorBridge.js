@@ -7,7 +7,6 @@ export function useDesktopEditorBridge({
 	copy,
 	controller,
 	desktopEnvironment,
-	durationFrames,
 	fileService,
 	isFullscreen,
 	onError,
@@ -48,7 +47,7 @@ export function useDesktopEditorBridge({
 				'edit:paste': () => edit('paste'),
 				'edit:select-all': () => isDesktopTextEditingElement(document.activeElement, 'selectAll')
 					? fileService.editText('selectAll')
-					: controller.actions.timeline.setSelection(0, durationFrames),
+					: controller.actions.timeline.selectAll(),
 				preferences: () => openSurface('preferences'),
 				'view:toggle-fullscreen': toggleFullscreen,
 			};
@@ -102,7 +101,7 @@ export function useDesktopEditorBridge({
 			active = false;
 			for (const unsubscribe of unsubscribers) unsubscribe();
 		};
-	}, [controller, copy, durationFrames, fileService, onError, openDesktopFiles, openDesktopProjectDescriptor, openSurface, run, snapshot.readOnly, toggleFullscreen]);
+	}, [controller, copy, fileService, onError, openDesktopFiles, openDesktopProjectDescriptor, openSurface, run, snapshot.readOnly, toggleFullscreen]);
 	if (!fileService.isDesktop) return null;
 	return {
 		platform: desktopEnvironment?.platform,
