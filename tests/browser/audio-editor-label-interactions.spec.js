@@ -111,18 +111,25 @@ test.describe('label interactions', () => {
 
 	test('Add label remains available during recording and labels the live recording cursor', async ({ page }) => {
 		await page.addInitScript(() => {
-			Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
-				configurable: true,
-				value: async () => {
+			const mediaDevices = {
+				enumerateDevices: async () => [{ kind: 'audioinput', deviceId: 'default', groupId: 'fixture', label: 'Fixture microphone' }],
+				getUserMedia: async () => {
 					const context = new AudioContext();
 					const destination = context.createMediaStreamDestination();
 					const oscillator = context.createOscillator();
 					oscillator.connect(destination);
 					oscillator.start();
 					await context.resume();
+					const [track] = destination.stream.getAudioTracks();
+					const getSettings = track.getSettings.bind(track);
+					Object.defineProperty(track, 'getSettings', {
+						configurable: true,
+						value: () => ({ ...getSettings(), channelCount: destination.channelCount, sampleRate: context.sampleRate }),
+					});
 					return destination.stream;
 				},
-			});
+			};
+			Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: mediaDevices });
 		});
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
