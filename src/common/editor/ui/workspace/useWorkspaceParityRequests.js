@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { centeredTimelinePlayheadScroll, timelineFrameStartScroll } from './timeline-navigation-geometry.js';
+import { startLabelInlineEdit } from '../timeline/label-inline-edit.ts';
 
 export function useWorkspaceParityRequests({
 	controller,
@@ -59,6 +60,8 @@ export function useWorkspaceParityRequests({
 		} else if (request.type === 'rename-track') {
 			setDialogValue(selectedTrack?.name || '');
 			setDialog('track-rename');
+		} else if (request.type === 'edit-label') {
+			startLabelInlineEdit(workspaceRef.current, payload);
 		} else if (request.type === 'focus-panel') {
 			if (payload.panel) openWorkspacePanel(payload.panel);
 			else requestAnimationFrame(() => {

@@ -39,9 +39,9 @@ test('the Audacity compatibility profile accounts for every imported shortcut re
 		stale: 73,
 	});
 	assert.deepEqual(countBy(AUDACITY_SHORTCUT_PROFILE, 'disposition'), {
-		action: 131,
+		action: 133,
 		native: 13,
-		unavailable: 31,
+		unavailable: 29,
 	});
 });
 

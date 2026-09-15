@@ -38,6 +38,7 @@ import {
 import { playbackOutputDestination } from './playback-output.ts';
 import { sampleProductionMeterSessionV21 } from './production-meter-runtime-session-v21.ts';
 import { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
+import { isCutPreviewActive, releaseCutPreview } from './cut-preview.ts';
 import {
 	ENGINE_CANCEL_SCRUB,
 	ENGINE_EMIT_METERS,
@@ -60,7 +61,6 @@ import type {
 	EngineRuntimeHost,
 } from './runtime-types.ts';
 import type { EngineMeterReading } from './public-api.ts';
-
 
 const meterReadBuffers = new WeakMap<AnalyserNode, Float32Array>();
 
@@ -398,7 +398,6 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 		this[ENGINE_SET_STATE](this.project ? 'stopped' : 'empty');
 		globalThis.console?.error?.(error);
 	},
-
 [ENGINE_START_TICKER]() {
 		this[ENGINE_STOP_TICKER]();
 		this.ticker = globalThis.setInterval(() => {
@@ -406,7 +405,7 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 			const frame = this.getPositionFrames();
 			this[ENGINE_EMIT_POSITION](frame);
 			this[ENGINE_EMIT_METERS]();
-			if (this.loop.enabled && this.loop.endFrame > this.loop.startFrame) {
+			if (!isCutPreviewActive(this) && this.loop.enabled && this.loop.endFrame > this.loop.startFrame) {
 				this[ENGINE_SCHEDULE_LOOP_AHEAD]();
 				return;
 			}
@@ -486,6 +485,7 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 	},
 
 [ENGINE_HALT_GRAPH]() {
+		releaseCutPreview(this);
 		this.masterLoudnessMeter?.setRunning(false);
 		this[ENGINE_STOP_TICKER]();
 		if (this.scrubTimer !== null) {

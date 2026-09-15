@@ -29,7 +29,7 @@ export type TrackAudioCompositionProject =
 	& ReturnType<AudioWarpControllerCompositionDependencies['getProject']>
 	& SelectionViewProject;
 
-export type TrackAudioCompositionState = SelectionViewState & {
+export type TrackAudioCompositionState = SelectionViewState & Pick<ControllerTransportState, 'positionFrame' | 'transportState'> & {
 	readonly audacityEffectProcessing: boolean;
 	timelineView: Parameters<EditorTrackServiceDependencies['setTimelineView']>[0];
 };
@@ -122,6 +122,7 @@ export interface TrackAudioCompositionDependencies {
 	readonly getProject: () => TrackAudioCompositionProject | null;
 	readonly getCommandProject: DerivedAudioCompositionDependencies['getProject'];
 	readonly editingBlocked: () => boolean;
+	readonly labelEditingBlocked?: () => boolean;
 	readonly commit:
 		& DerivedAudioCompositionDependencies['commit']
 		& EditorTrackServiceDependencies['commit']

@@ -31,6 +31,7 @@ import {
 	buildProjectGraph,
 } from './project-graph.ts';
 import { playbackOutputDestination } from './playback-output.ts';
+import { isCutPreviewActive, isCutPreviewPaused, pauseCutPreview, readCutPreviewPosition, resumeCutPreview } from './cut-preview.ts';
 import { resetProductionMeterSessionV21 } from './production-meter-runtime-session-v21.ts';
 import {
 	disposeGraph,
@@ -58,10 +59,7 @@ import type {
 	EngineRuntimeMethodMap,
 	EngineRuntimeHost,
 } from './runtime-types.ts';
-
-
 const DEFAULT_SCRUB_FRAME_MS = 50;
-
 function monotonicMilliseconds(): number {
 	return globalThis.performance?.now?.() ?? Date.now();
 }
@@ -77,12 +75,12 @@ function playbackRequestIsCurrent(engine: EngineRuntimeHost, generation: number)
 function assertPlaybackRequestCurrent(engine: EngineRuntimeHost, generation: number): void {
 	if (!playbackRequestIsCurrent(engine, generation)) throw createAbortError();
 }
-
 export const engineTransportControlMethods = {
 async play() {
 		this[ENGINE_ASSERT_ACTIVE]();
 		if (!this.project) throw new Error('Load an audio editor project before playback.');
-		if (this.state === 'playing') return;
+		const previewResume = this.state === 'paused' ? resumeCutPreview(this) : null;
+		if (this.state === 'playing' || previewResume) return previewResume ?? undefined;
 		this[ENGINE_CANCEL_SCRUB]();
 		const generation = this.scrubGeneration;
 		// The request stays marked while this method is suspended. A project
@@ -270,10 +268,10 @@ pause() {
 		this[ENGINE_ASSERT_ACTIVE]();
 		this[ENGINE_CANCEL_SCRUB]();
 		if (this.state !== 'playing') return;
-		// Pausing ends the run the range was set for. Resuming is a fresh start
-		// that says for itself what bounds it, so nothing inherits this one.
+		// A selection-only range retires on pause. A cut preview keeps its joined
+		// buffer so resuming can finish the same audition.
 		this.playRange = null;
-		this.positionFrame = this.getPositionFrames();
+		this.positionFrame = pauseCutPreview(this) ?? this.getPositionFrames();
 		this[ENGINE_HALT_GRAPH]();
 		this.masterLoudnessMeter?.setRunning(false);
 		this[ENGINE_SET_STATE]('paused');
@@ -309,7 +307,7 @@ seek(frame) {
 		this.positionFrame = nextFrame;
 		if (wasPlaying && nextFrame < this.playbackDurationFrames) void this[ENGINE_SCHEDULE_CURRENT_PLAYBACK](nextFrame).catch((error) => this[ENGINE_HANDLE_SCHEDULING_ERROR](error));
 		else {
-			this[ENGINE_SET_STATE](this.project ? 'paused' : 'empty');
+			this[ENGINE_SET_STATE](this.project ? (wasPlaying || this.state === 'paused' ? 'paused' : 'stopped') : 'empty');
 			this[ENGINE_EMIT_POSITION]();
 		}
 		return this.positionFrame;
@@ -471,6 +469,8 @@ setPlayRange(range) {
 
 getPositionFrames() {
 		if (this.state !== 'playing' || !this.context) return this.positionFrame;
+		const previewPosition = readCutPreviewPosition(this);
+		if (previewPosition !== null) return previewPosition;
 		if (this.context.currentTime <= this.playbackStartTime) return this.playbackStartFrame;
 		const elapsedFrames = Math.floor((this.context.currentTime - this.playbackStartTime) * this.sampleRate * this.playbackRate);
 		if (this.loop.enabled && this.loop.endFrame > this.loop.startFrame) {
@@ -481,10 +481,10 @@ getPositionFrames() {
 		}
 		return clampFrame(this.playbackStartFrame + elapsedFrames, 0, this.playEndFrame);
 	},
-
 getState() {
 		return {
 			state: this.state,
+			cutPreview: isCutPreviewActive(this) || isCutPreviewPaused(this),
 			positionFrame: this.getPositionFrames(),
 			durationFrames: this.durationFrames,
 			loop: { ...this.loop },

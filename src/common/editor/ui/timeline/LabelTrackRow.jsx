@@ -9,6 +9,8 @@ import { framesToSeconds } from '../../design-system-adapters.js';
 import { TimeSelectionOverlay } from './TimelineOverlayComponents.jsx';
 import { TrackNameEditor } from './TrackControls.jsx';
 import { timelineContentLeft } from './timeline-scroll-space.ts';
+import { LabelContextMenu } from './LabelContextMenu.tsx';
+import { selectAudioEditorLabelEditBlock } from '../../label-edit-blocking.ts';
 
 export function LabelTrackRow({
 	controller,
@@ -22,7 +24,6 @@ export function LabelTrackRow({
 	pixelsPerSecond,
 	sampleRate,
 	renderOriginX = 0,
-	selection,
 	timeSelection,
 	rangeSelected,
 	selected,
@@ -32,21 +33,19 @@ export function LabelTrackRow({
 	onMenu,
 }) {
 	const trackHeight = visualHeight;
+	const labelBlocked = selectAudioEditorLabelEditBlock(controller.getSnapshot()).blocked;
 	const laneRef = useRef(null);
 	const [editingName, setEditingName] = useState(false);
 	const [selectedLabelId, setSelectedLabelId] = useState(null);
 	const [editingLabelId, setEditingLabelId] = useState(null);
 	const addLabel = (event = null) => {
-		if (blocked) return;
+		if (labelBlocked) return;
 		const pointerFrame = event?.clientX != null && laneRef.current
 			? frameAtLabelClientX(event.clientX, laneRef.current, pixelsPerSecond, sampleRate, renderOriginX)
 			: null;
-		const startFrame = pointerFrame ?? selection?.startFrame ?? 0;
-		const endFrame = pointerFrame ?? selection?.endFrame ?? startFrame;
 		const labelId = run(() => controller.actions.labels.add(track.id, {
 			title: '',
-			startFrame,
-			endFrame,
+			...(pointerFrame != null ? { startFrame: pointerFrame, endFrame: pointerFrame } : {}),
 		}));
 		if (labelId) {
 			setSelectedLabelId(labelId);
@@ -97,7 +96,7 @@ export function LabelTrackRow({
 					/>
 				</div>
 				<div className="audio-editor-label-track-actions">
-					<Button variant="secondary" size="small" aria-label={copy.addLabel} disabled={blocked} onClick={() => addLabel()}>
+					<Button variant="secondary" size="small" aria-label={copy.addLabel} disabled={labelBlocked} onClick={() => addLabel()}>
 						{copy.addLabel}
 					</Button>
 				</div>
@@ -139,7 +138,8 @@ export function LabelTrackRow({
 						laneRef={laneRef}
 						selected={selectedLabelId === label.id}
 						editing={editingLabelId === label.id}
-						blocked={blocked}
+						blocked={labelBlocked}
+						audioBlocked={blocked}
 						copy={copy}
 						run={run}
 						onSelect={() => setSelectedLabelId(label.id)}
@@ -170,6 +170,7 @@ export function AudacityLabelMarker({
 	selected,
 	editing,
 	blocked,
+	audioBlocked = blocked,
 	copy,
 	run,
 	onSelect,
@@ -178,9 +179,11 @@ export function AudacityLabelMarker({
 	onRemove,
 }) {
 	const inputRef = useRef(null);
+	const markerRef = useRef(null);
 	const baselineRef = useRef(label);
 	const pendingRef = useRef(null);
 	const [preview, setPreview] = useState(null);
+	const [contextMenu, setContextMenu] = useState(null);
 	const point = label.startFrame === label.endFrame;
 	const displayed = preview || label;
 	const displayedLeft = left + (displayed.startFrame - label.startFrame) / sampleRate * pixelsPerSecond;
@@ -225,8 +228,10 @@ export function AudacityLabelMarker({
 	};
 	return (
 		<div
+			ref={markerRef}
 			className="audio-editor-label-marker"
 			data-label-id={label.id}
+			data-selected-label={selected ? 'true' : 'false'}
 			data-point-label={point ? 'true' : 'false'}
 			onMouseUp={finishDrag}
 			onPointerUp={finishDrag}
@@ -234,10 +239,30 @@ export function AudacityLabelMarker({
 			role="group"
 			tabIndex={0}
 			aria-label={`${copy.editLabels}: ${label.title || copy.newLabel}`}
+			onFocus={(event) => {
+				if (event.target === event.currentTarget) select();
+			}}
+			onDoubleClick={(event) => {
+				event.stopPropagation();
+				if (!blocked) { onSelect(); onEdit(); }
+			}}
+			onContextMenu={(event) => {
+				event.preventDefault();
+				event.stopPropagation();
+				select();
+				setContextMenu({ x: event.clientX, y: event.clientY, target: event.currentTarget });
+			}}
 			onKeyDown={(event) => {
-				if (event.key === 'Enter') {
+				if ((event.key === 'Enter' || event.key === 'F2') && !editing && !blocked) {
 					event.preventDefault();
+					event.stopPropagation();
 					onEdit();
+				} else if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
+					event.preventDefault();
+					event.stopPropagation();
+					const rect = event.currentTarget.getBoundingClientRect();
+					select();
+					setContextMenu({ x: rect.left, y: rect.top + 18, target: event.currentTarget });
 				} else if ((event.key === 'Delete' || event.key === 'Backspace') && !editing && !blocked) {
 					event.preventDefault();
 					onRemove();
@@ -251,7 +276,6 @@ export function AudacityLabelMarker({
 				stalkHeight={Math.max(24, trackHeight - 18)}
 				selected={selected}
 				onClick={select}
-				onDoubleClick={() => !blocked && onEdit()}
 				onSelect={() => {
 					select();
 					baselineRef.current = preview || label;
@@ -282,13 +306,21 @@ export function AudacityLabelMarker({
 					onFinishEdit();
 				}}
 				onKeyDown={(event) => {
-					if (event.key === 'Enter') event.currentTarget.blur();
-					else if (event.key === 'Escape') {
+					event.stopPropagation();
+					if (event.key === 'Enter') {
+						event.currentTarget.blur();
+						markerRef.current?.focus();
+					} else if (event.key === 'Escape') {
 						event.currentTarget.value = label.title;
 						event.currentTarget.blur();
+						markerRef.current?.focus();
 					}
 				}}
 			/>}
+			<LabelContextMenu position={contextMenu} copy={copy} blocked={blocked} audioBlocked={audioBlocked} point={point}
+				audioEditing={controller.getSnapshot().project?.schemaFamily !== 'framescaper'}
+				run={run} editActions={controller.actions.edit} onEdit={onEdit} onRemove={onRemove}
+				onClose={() => setContextMenu(null)} />
 		</div>
 	);
 }

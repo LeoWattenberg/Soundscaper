@@ -22,7 +22,7 @@ import { createAddTrackCommand } from './commands.js';
 import { createAudioEditorEffectPresets, listAudioEditorEffectPresets } from './effect-presets.js';
 import { audioSelectionEffectTypes } from './effects.js';
 import { createControllerPresentationState } from './controller/composition/presentation-state.ts';
-import { selectAudioEditorControllerEditBlock } from './edit-blocking.ts';
+import { selectAudioEditorControllerEditBlock } from './edit-blocking.ts'; import { selectAudioEditorControllerLabelEditBlock } from './label-edit-blocking.ts';
 import { AUDIO_EDITOR_DEFAULT_SHORTCUTS, createAudioEditorPreferencesV1 } from './preferences.js';
 import {
 	AUDIO_EDITOR_SAMPLE_RATE,
@@ -477,7 +477,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		abortError, activeSelection, assertPlayAtSpeedStaffPadMemorySafe, beginPlaybackCachePreparation: bindings.beginPlaybackCachePreparation, calculateAudioEditorMetronomeSchedule,
 		cancelPlaybackCachePreparation: bindings.cancelPlaybackCachePreparation, playbackCachePreparationPending: sources.timePitchCaches.isPlaybackCachePreparationPending, cancelTimedRecording: bindings.cancelTimedRecording, commit: bindings.commit, editingBlocked, editorTimelineDurationFrames, findTrack, formatPlaybackRate,
 		hasMissingTimelineSources: bindings.hasMissingTimelineSources, persistSetting, playAtSpeedPitchPreserver, productSettingKey, getProject: () => documentState.project,
-		projectDurationFrames, publishDocumentSnapshot, publishProjectState: bindings.publishProjectState, publishTelemetrySnapshot, sampleEditingAvailable: bindings.sampleEditingAvailable, setSelection: bindings.setSelection, setStatus: bindings.setStatus,
+		projectDurationFrames, publishDocumentSnapshot, publishProjectState: bindings.publishProjectState, publishTelemetrySnapshot, sampleEditingAvailable: bindings.sampleEditingAvailable, setSelection: bindings.setSelection, setExactSelection: (startFrame, endFrame, details) => tracks.selectionView.setExactSelection(startFrame, endFrame, details), setStatus: bindings.setStatus,
 		startRecording: bindings.startRecording, stopProjectBinPreview: bindings.stopProjectBinPreview, stopRecording: bindings.stopRecording, throwIfAborted,
 	});
 	const viewStateService = transportComposition.view;
@@ -523,7 +523,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			normalizeExportSettings, toggleExport: bindings.toggleExport, updateExportProgress: bindings.updateExportProgress, setPersistentExportProgressObserver: (observer) => { persistentExportProgressObserver = observer; },
 		},
 		createRenderEngine: bindings.createCacheAwareRenderEngine, createPreviewEngine: (previewOptions) => renderEngineFactory(previewOptions), prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches,
-		getProject: () => documentState.project, getCommandProject, editingBlocked, commit: bindings.commit, setStatus: bindings.setStatus, publishDocumentSnapshot, publishProjectState: bindings.publishProjectState, handleError: bindings.handleError, preflightStorage: bindings.preflightStorage,
+		getProject: () => documentState.project, getCommandProject, editingBlocked, labelEditingBlocked: () => selectAudioEditorControllerLabelEditBlock(state).blocked || Boolean(framescaperCapture?.originSnapshot(documentState.project?.id ?? null).editBlocked), commit: bindings.commit, setStatus: bindings.setStatus, publishDocumentSnapshot, publishProjectState: bindings.publishProjectState, handleError: bindings.handleError, preflightStorage: bindings.preflightStorage,
 		projectSampleRate, projectDurationFrames, editorTimelineDurationFrames, normalizeTimelineFrame, persistSetting, productSettingKey, activeSelection,
 		activateStoredSource: bindings.activateStoredSource, cacheSourceBuffer: bindings.cacheSourceBuffer, retireSourceChunkProvider: sources.sourceLifecycle.retireSourceChunkProvider, renderDryTrackRange: bindings.renderDryTrackRange,
 		hasMissingTimelineSources: bindings.hasMissingTimelineSources, updatePlayhead, updateSelection: bindings.updateSelection, synchronizeAutomaticSampleEditMode: bindings.synchronizeAutomaticSampleEditMode, updateRecordingDeviceRows: bindings.updateRecordingDeviceRows, persistRecordingRouting: bindings.persistRecordingRouting,

@@ -29,7 +29,7 @@ export interface TransportProject {
 }
 
 export type TransportEngine = Pick<EnginePublicApi,
-	| 'getAudioContext' | 'getPositionFrames' | 'getState' | 'pause' | 'play' | 'playAtSpeed'
+	| 'getAudioContext' | 'getPositionFrames' | 'getState' | 'pause' | 'play' | 'playAtSpeed' | 'playCutPreview'
 	| 'seek' | 'setLoop' | 'setPlayRange' | 'stop'
 >;
 
@@ -99,6 +99,11 @@ export interface TransportServiceRuntime<Project extends TransportProject = Tran
 	readonly projectDurationFrames: (project: Project | null) => number;
 	readonly publishDocumentSnapshot: () => void;
 	readonly setSelection: (startFrame: number, endFrame: number) => unknown;
+	readonly setExactSelection: (startFrame: number, endFrame: number, details?: Readonly<{
+		trackIds?: readonly string[];
+		clipIds?: readonly string[];
+		frequencyRange?: null;
+	}>) => unknown;
 	readonly setStatus: (message: string, state?: 'info' | 'success' | 'error') => void;
 	readonly startRecording: () => unknown;
 	readonly state: TransportServiceState;

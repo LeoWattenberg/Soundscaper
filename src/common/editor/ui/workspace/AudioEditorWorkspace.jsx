@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { productProfile } from '../../../products.js';
-import { createAudacityActionRuntime } from '../../audacity-action-runtime.js';
+import { createAudacityActionRuntime } from '../../audacity-action-runtime.js'; import { focusedOrSelectedTimelineLabel } from '../timeline/label-inline-edit.ts';
 import { projectDurationFrames } from '../../project.js';
 import { useAudioEditorSnapshot, useAudioEditorThemeVariables } from '../DesignSystemRuntime.jsx';
 import {
@@ -54,7 +54,7 @@ export default function AudioEditorWorkspace({
 	const aboutLabel = productId === 'framescaper' ? copy.aboutFramescaper : copy.aboutEditor;
 	const editorThemeVariables = useAudioEditorThemeVariables();
 	const parityRuntime = useMemo(
-		() => createAudacityActionRuntime(controller, { productId, locale }),
+		() => createAudacityActionRuntime(controller, { productId, locale, getFocusedLabel: () => focusedOrSelectedTimelineLabel(document, controller.getSnapshot().selectedTrackId) }),
 		[controller, productId, locale],
 	);
 	const snapshot = useAudioEditorSnapshot(controller);

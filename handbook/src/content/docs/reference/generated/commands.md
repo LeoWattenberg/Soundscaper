@@ -70,6 +70,7 @@ Product availability follows each product profile’s command filters. “—”
 | Cut and leave gap | `cut-leave-gap` | — | Edit > Cut | Soundscaper, Framescaper | Audacity |
 | Cut labeled audio | `cut-labels` | Alt+X | Edit > Labeled audio | Soundscaper | Audacity |
 | Cut labeled audio and leave gap | `split-cut-labels` | Alt+Shift+X | Edit > Labeled audio | Soundscaper | Audacity |
+| Cut preview | `play-cut-preview` | C | Transport | Soundscaper, Framescaper | Soundscaper local |
 | DTMF tones | `generator://dtmf` | — | Generate | Soundscaper | Audacity |
 | Decrease Gain on Focused Track | `track-gain-dec` | Alt+Shift+Down | Track context | Soundscaper, Framescaper | Audacity |
 | Decrease all track heights | `decrease-all-track-heights` | Ctrl+Shift+Down | View > Zoom | Soundscaper, Framescaper | Soundscaper local |
@@ -187,6 +188,7 @@ Product availability follows each product profile’s command filters. “—”
 | Play selection | `action://playback/play-selection` | — | Transport | Soundscaper, Framescaper | Audacity |
 | Play/Pause from cursor | `action://playback/toggle-play-from-cursor` | Shift+Space | Transport | Soundscaper, Framescaper | Audacity |
 | Play/Stop | `action://playback/toggle-play-stop` | Space | Transport | Soundscaper, Framescaper | Audacity |
+| Play/Stop and set cursor | `play-stop-select` | X | Transport | Soundscaper, Framescaper | Soundscaper local |
 | Playback controls | `toggle-transport` | — | View > Toolbars | Soundscaper, Framescaper | Audacity |
 | Playback level | `action://playback/level` | — | Mixer toolbar | Soundscaper, Framescaper | Audacity |
 | Playback time | `playback-time` | — | Transport toolbar | Soundscaper, Framescaper | Audacity |

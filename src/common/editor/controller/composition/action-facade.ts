@@ -209,7 +209,9 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			labeledDisjoin: () => handleEdit('labeled-disjoin'),
 		}),
 		transport: Object.freeze({
-			playPause: yieldProgramPlayhead(() => handleTransport('play')),
+			playPause: yieldProgramPlayhead(() => state.recorder ? scope.toggleRecordingPause() : handleTransport('play')),
+			playStopSelect: yieldProgramPlayhead(() => handleTransport('play-stop-select')),
+			playCutPreview: yieldProgramPlayhead(() => handleTransport('cut-preview')),
 			playSelection: yieldProgramPlayhead(() => handleTransport('play-selection')),
 			playAtSpeed: yieldProgramPlayhead((rate: number = state.playAtSpeedRate) => handlePlayAtSpeed(rate)),
 			setPlayAtSpeedRate,

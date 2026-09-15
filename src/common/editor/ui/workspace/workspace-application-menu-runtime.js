@@ -246,6 +246,7 @@ export function createWorkspaceApplicationMenus({
 					),
 				} : {}),
 				executeEdit,
+				addLabel: () => run(() => parityRuntime.actions.labels.add()),
 				openLabels: () => openWorkspacePanel('labels'),
 				openMetadata: () => openWorkspacePanel('metadata'),
 				openClipProperties: () => openSurface('clip'),

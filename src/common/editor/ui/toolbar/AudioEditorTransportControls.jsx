@@ -20,6 +20,8 @@ import { createTakeCycleRecordingMenuItems } from '../take-cycle-recording-menu.
 import { AudioDevicesFlyout } from './AudioEditorMeterControls.jsx';
 import EditorTaskProgressBar from './EditorTaskProgressBar.tsx';
 import WorkspaceSwitcherControl from './WorkspaceSwitcherControl.jsx';
+import TransportAuditionMenu from './TransportAuditionMenu.tsx';
+import { transportShortcutDisplayActionId } from '../../transport-shortcut-display.ts';
 
 export function TelemetryPlayTransportControl({ copy, snapshot, blocked, controller, run }) {
 	const transportState = useAudioEditorTelemetrySelector(
@@ -77,6 +79,7 @@ export function PlaySpeedFlyout({ copy, snapshot, blocked, controller, run, clos
 					run(() => controller.actions.transport.playSelection());
 				}}
 			/>
+			<TransportAuditionMenu copy={copy} snapshot={snapshot} blocked={blocked} transportState={transportState} controller={controller} run={run} close={close} />
 			<ContextMenuItem isDivider />
 			<ContextMenuItem
 				label={copy.playAtSpeedPreservePitch}
@@ -117,7 +120,7 @@ export function RecordFlyout({
 	onClose,
 }) {
 	const shortcut = (actionId) => {
-		const bindings = snapshot.preferences?.shortcuts?.[actionId];
+		const bindings = snapshot.preferences?.shortcuts?.[transportShortcutDisplayActionId(actionId)];
 		return bindings?.length ? bindings.join(', ') : undefined;
 	};
 	const recoveryBlocked = Boolean(snapshot.takeCycleRecovery);
@@ -155,6 +158,7 @@ export function RecordFlyout({
 		{
 			id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.pauseRecording,
 			label: snapshot.recordingOptions?.paused ? (copy.resumeRecording || copy.record) : copy.pauseRecording,
+			shortcut: shortcut(AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.pauseRecording),
 			disabled: !snapshot.recording || !ordinaryRecording,
 			checked: Boolean(snapshot.recordingOptions?.paused),
 			onClick: () => run(() => controller.actions.recording.pause()),

@@ -71,6 +71,19 @@ test('an explicitly named label track always receives the label', () => {
 	assert.equal(service.lastLabelTrackId(), 'first-labels');
 });
 
+test('adding during playback or recording labels the live cursor instead of an old selection', () => {
+	for (const transportState of ['playing', 'recording']) {
+		const service = labelServiceFixture(['audio', 'labels'], 'audio', { startFrame: 1_000, endFrame: 5_000 }, transportState);
+		assert.equal(service.addLabel(), 'label-1');
+		assert.deepEqual(service.lastLabelRange(), [24_000, 24_000], transportState);
+		service.addLabel(null, { startFrame: 8_000, endFrame: 9_000 });
+		assert.deepEqual(service.lastLabelRange(), [8_000, 9_000], 'explicit boundaries still win');
+	}
+	const firstRecordingLabel = labelServiceFixture(['audio'], 'audio', null, 'recording');
+	assert.equal(firstRecordingLabel.addLabel(), 'label-2');
+	assert.deepEqual(firstRecordingLabel.commands(), ['track/add', 'label/add']);
+});
+
 interface LabelServiceFixture {
 	addLabel(trackId?: string | null, options?: Record<string, unknown>): string | null;
 	commands(): readonly string[];
@@ -83,6 +96,7 @@ function labelServiceFixture(
 	trackIds: readonly string[],
 	selectedTrackId: string,
 	selection: Readonly<{ startFrame: number; endFrame: number }> | null = null,
+	transportState = 'stopped',
 ): LabelServiceFixture {
 	let project = projectFixture(trackIds, selection);
 	const commits: AudioEditorCommand[] = [];
@@ -98,7 +112,8 @@ function labelServiceFixture(
 		trackColors: ['blue'],
 		getProject: () => project,
 		getSelectedTrackId: () => selectedTrackId,
-		editingBlocked: () => false,
+		editingBlocked: () => transportState === 'recording',
+		labelEditingBlocked: () => false,
 		createId: (prefix) => `${prefix}-${++sequence}`,
 		commit: (command) => {
 			commits.push(command);
@@ -111,6 +126,7 @@ function labelServiceFixture(
 			return command;
 		},
 		getPositionFrames: () => 24_000,
+		getTransportState: () => transportState,
 		snapTimelineFrame: (frame) => frame,
 		setTimelineView() {},
 		recording: recordingPortFixture(),

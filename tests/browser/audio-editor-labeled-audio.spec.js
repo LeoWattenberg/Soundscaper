@@ -29,6 +29,7 @@ async function labelTheSelection(page, editor) {
 	await expect(editor.locator('[data-time-selection-overlay]')).toBeVisible();
 	await page.keyboard.press('Control+b');
 	await expect(editor.locator('[data-label-track] .audio-editor-label-marker')).toHaveCount(1);
+	await editor.getByRole('textbox', { name: /^Edit labels:/ }).press('Enter');
 }
 
 /** The submenu's rows in Audacity's order, addressed by position rather than name. */

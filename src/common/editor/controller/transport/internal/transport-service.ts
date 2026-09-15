@@ -39,7 +39,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 		commit, copy, editorTimelineDurationFrames, engine,
 		formatPlaybackRate, hasMissingTimelineSources, persistSetting, playAtSpeedPitchPreserver,
 		productSettingKey, getProject, projectDurationFrames, publishDocumentSnapshot,
-		setSelection, setStatus, startRecording, state,
+		setSelection, setExactSelection, setStatus, startRecording, state,
 		stopProjectBinPreview, stopRecording, throwIfAborted,
 	} = runtime;
 	let metronomeSchedulerGeneration = 0;
@@ -158,17 +158,35 @@ export function createEditorTransportService<Project extends TransportProject = 
 	async function handleTransport(action: string) {
 		if ((state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder)
 			&& action !== 'stop' && action !== 'record') return;
-		if ((action === 'play' || action === 'play-selection' || action === 'record') && state.projectBinPreview) {
+		if (action === 'play-stop-select') {
+			if (!['playing', 'paused'].includes(engine.getState().state)) return handleTransport('play');
+			const frame = engine.getPositionFrames();
+			const trackIds = getProject()?.selection?.trackIds ?? [];
+			await handleTransport('stop');
+			engine.seek(frame);
+			return setExactSelection(frame, frame, { trackIds, clipIds: [], frequencyRange: null });
+		}
+		if ((action === 'play' || action === 'play-selection' || action === 'cut-preview' || action === 'record') && state.projectBinPreview) {
 			await stopProjectBinPreview();
 		}
-		if (hasMissingTimelineSources() && (action === 'play' || action === 'play-selection')) {
+		if (hasMissingTimelineSources() && (action === 'play' || action === 'play-selection' || action === 'cut-preview')) {
 			throw new Error(copy.localSourcesMissing);
+		}
+		if (action === 'cut-preview') {
+			const selection = activeSelection();
+			if (!selection || selection.endFrame <= selection.startFrame) throw new Error(copy.timeSelectionRequired);
+			cancelPlayAtSpeedPreparation();
+			cancelPlaybackCachePreparation();
+			const snapshot = requireProject();
+			await beginPlaybackCachePreparation(snapshot);
+			if (snapshot !== getProject()) return;
+			return engine.playCutPreview({ startFrame: selection.startFrame, endFrame: selection.endFrame, trackIds: selection.trackIds });
 		}
 		if (action === 'play' || action === 'play-selection') {
 			// The transport has a single play control. Once the speed slider leaves the
 			// neutral rate that control owns play-at-speed instead: it starts, pauses and
 			// cancels the rate-changed playback, so no separate command is needed.
-			if (action === 'play' && state.playAtSpeedRate !== 1) return handlePlayAtSpeed();
+			if (action === 'play' && state.playAtSpeedRate !== 1 && !engine.getState().cutPreview) return handlePlayAtSpeed();
 			cancelPlayAtSpeedPreparation();
 			if (engine.getState().state === 'playing') {
 				cancelPlaybackCachePreparation();

@@ -5,6 +5,8 @@ import { localeLanguage } from './locale.js';
 // Canonical effect/layout and Audacity parity copy. The exported catalogs are flat.
 const COPY_ENTRIES = Object.freeze([
 	...STANDARD_EFFECT_COPY_ENTRIES,
+	['audacityParityLabelCutPreview', 'Cut preview', 'Schnitt vorhören'],
+	['audacityParityLabelPlayStopAndSetCursor', 'Play/Stop and set cursor', 'Wiedergabe/Stopp und Cursor setzen'],
 	["effectNameDeesser","De-esser","De-Esser"],
 	["effectNameMultibandCompressor","Multiband compressor","Multiband-Kompressor"],
 	["effectCardDeesser","Sibilance reduction","Zischlautreduktion"],

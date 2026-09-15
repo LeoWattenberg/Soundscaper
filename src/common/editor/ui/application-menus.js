@@ -29,6 +29,7 @@ import { projectHasTimelineAudio, projectHasTimelineVideo } from './timeline-med
 import { exportSurfaceMenuLabel } from './export-surface-copy.ts';
 import { createNyquistPluginMenuItems } from './nyquist-plugin-menu-items.js';
 import { audioSelectionEffectAppliesToAllAudio } from '../effects.js';
+import { selectAudioEditorLabelEditBlock } from '../label-edit-blocking.ts';
 
 /**
  * The video tracks an edit list would describe.
@@ -359,6 +360,7 @@ export default function createApplicationMenus({
 					],
 				},
 				...labeledAudioItems,
+				{ id: 'label-add', label: copy.addLabel, shortcut: 'Ctrl+B', disabled: selectAudioEditorLabelEditBlock(snapshot).blocked, onClick: actions.addLabel },
 				divider(),
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.openLabelEditor, label: copy.editLabels, onClick: actions.openLabels },
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.openMetadataEditor, label: copy.metadata, onClick: actions.openMetadata },

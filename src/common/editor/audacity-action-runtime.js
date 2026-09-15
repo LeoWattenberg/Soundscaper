@@ -7,6 +7,7 @@ import { documentationUrl } from './documentation-links.ts';
 import { createTransportActionGroup } from './audacity-action-runtime-transport.js';
 import { applyAudacityZoomToggle } from './audacity-zoom-toggle-runtime.ts';
 import { resolveSelectionRange } from './selection-range.ts';
+import { createAudacityLabelActionRuntime } from './audacity-label-action-runtime.ts';
 const STAFFPAD_EFFECT_TYPES = Object.freeze({
 	changePitch: 'audacity-change-pitch',
 	changeTempo: 'audacity-change-tempo',
@@ -183,6 +184,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		getUiFlags: () => uiController.getSnapshot().flags, setUiFlag: ui.setFlag,
 	});
 	const clipPitch = createAudacityClipPitchActionRuntime({ getSelectedClip: selectedClip, setTimePitch: controllerActions.clip.setTimePitch });
+	const labelActions = createAudacityLabelActionRuntime({ getProject: project, getFocusedLabel: options.getFocusedLabel, hasSelectedClip: () => Boolean(selectedClip()), addLabel: controllerActions.labels.add, updateLabel: controllerActions.labels.update, issue: ui.issue, renameClip: (title) => title == null ? openSurface('clip') : updateSelectedClip({ title: String(title) }) });
 	const selectEntireProject = () => setSelection(0, projectDurationFrames(project()));
 	const nudgeFrame = (frame, direction) => audacityTimelineStepFrame(frame, direction, project(), snapshot().timeline?.pixelsPerSecond);
 	const cursorActions = createAudacityCursorActionRuntime(controller, project, setSelection, nudgeFrame);
@@ -278,7 +280,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		getActionContext: () => Object.freeze({
 			snapshot: snapshot(),
 			telemetry: controller.getTelemetrySnapshot?.() || null,
-			ui: uiController.getSnapshot(),
+			ui: uiController.getSnapshot(), focusedLabel: options.getFocusedLabel?.() || null,
 		}),
 		project: {
 			...controllerActions.project,
@@ -324,7 +326,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			...controllerActions.clip,
 			group: controllerActions.edit.group,
 			ungroup: controllerActions.edit.ungroup,
-			rename: (title = null) => title == null ? openSurface('clip') : updateSelectedClip({ title: String(title) }),
+			rename: labelActions.renameItem,
 			openProperties: () => openSurface('clip'),
 			openPitchSpeed: () => openSurface('clip', { section: 'pitch-speed' }),
 			setGain: (gain = 1) => updateSelectedClip({ gain: Number(gain) }),
@@ -333,7 +335,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		},
 		labels: {
 			...controllerActions.labels,
-			pasteNew: (text = '') => controllerActions.labels.add(null, { text: String(text) }),
+			...labelActions,
 		},
 		panels: {
 			labels: () => openPanel('labels'),

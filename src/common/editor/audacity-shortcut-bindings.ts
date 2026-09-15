@@ -92,6 +92,8 @@ export const AUDACITY_SHORTCUT_BINDINGS_BY_ACTION = freezeBindings([
 	['track-solo', 'Shift+S'],
 	['remove-tracks', 'Shift+C'],
 	['action://playback/play', 'P'],
+	['play-stop-select', 'X'],
+	['play-cut-preview', 'C'],
 	['record-on-current-track', 'R'],
 	['action://record/lead-in-recording', 'Shift+D'],
 	['toggle-loop-region', 'L'],

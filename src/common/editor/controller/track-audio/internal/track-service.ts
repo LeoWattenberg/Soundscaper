@@ -105,9 +105,11 @@ export interface EditorTrackServiceDependencies {
 	getProject(): ControllerProject;
 	getSelectedTrackId(): string | null;
 	editingBlocked(): boolean;
+	labelEditingBlocked?(): boolean;
 	createId(prefix: string): string;
 	commit(command: AudioEditorCommand, selection?: CommitSelection): unknown;
 	getPositionFrames(): number;
+	getTransportState?(): string;
 	snapTimelineFrame(frame: number): number;
 	setTimelineView(displayMode: TrackDisplayMode): void;
 	resampleTrack?(trackId?: string | null, requestedSampleRate?: unknown): Promise<string | null>;
@@ -243,7 +245,7 @@ export function createEditorTrackService(
 
 	function addLabelTrack(options: TrackCreateOptions = {}): string | null {
 		dependencies.lifetime.assertActive();
-		if (dependencies.editingBlocked()) return null;
+		if (dependencies.labelEditingBlocked?.() ?? dependencies.editingBlocked()) return null;
 		const trackId = options.id || dependencies.createId('label-track');
 		dependencies.commit(createAddLabelTrackCommand({
 			...options,
@@ -316,7 +318,7 @@ export function createEditorTrackService(
 
 	function addLabel(trackId: string | null = null, options: LabelCreateOptions = {}): string | null {
 		dependencies.lifetime.assertActive();
-		if (dependencies.editingBlocked()) return null;
+		if (dependencies.labelEditingBlocked?.() ?? dependencies.editingBlocked()) return null;
 		let project = dependencies.getProject();
 		const focused = findControllerTrack(project, trackId || dependencies.getSelectedTrackId());
 		let target = focused?.type === 'label' ? focused : labelTrackFrom(project, focused);
@@ -326,11 +328,10 @@ export function createEditorTrackService(
 			target = findControllerTrack(project, createdTrackId);
 		}
 		if (!target || target.type !== 'label') throw new Error(dependencies.copy.trackNotFound);
-		// Audacity's OnAddLabel hands DoAddLabel the selected region, so a label
-		// added over a time selection spans it and a label added without one is
-		// a point at the cursor. The Labeled audio commands act on whole labels
-		// inside a selection, and only region labels can carry audio.
-		const region = timeSelectionRegion(project);
+		// A running transport labels what is being heard or recorded. A stopped
+		// transport labels the selected region, or the cursor when it has no span.
+		const live = ['playing', 'recording'].includes(dependencies.getTransportState?.() || 'stopped');
+		const region = live ? null : timeSelectionRegion(project);
 		const startFrame = dependencies.snapTimelineFrame(
 			options.startFrame ?? region?.startFrame ?? dependencies.getPositionFrames(),
 		);

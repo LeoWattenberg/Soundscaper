@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { engineAutomationControlMethods } from './automation-control-v21.ts';
+import { engineCutPreviewMethods } from './cut-preview.ts';
 import { engineEffectControlMethods } from './effect-control.ts';
 import { engineLifecycleMethods } from './lifecycle.ts';
 import { installEngineMethodMaps } from './method-installer.ts';
@@ -29,6 +30,7 @@ export const ENGINE_PUBLIC_METHOD_NAMES = [
 	'setPlaybackGain',
 	'getPlaybackGain',
 	'play',
+	'playCutPreview',
 	'playAtSpeed',
 	'playAt',
 	'pause',
@@ -75,6 +77,7 @@ export function installEngineRuntimeMethods(target: object): void {
 		engineLifecycleMethods,
 		enginePlaybackOutputMethods,
 		engineTransportControlMethods,
+		engineCutPreviewMethods,
 		engineTransportAccessors,
 		engineAutomationControlMethods,
 		engineEffectControlMethods,

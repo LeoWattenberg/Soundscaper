@@ -63,6 +63,8 @@ test('every implemented local-origin action ships its documented default shortcu
 		'local://mute-all': ['Ctrl+U'],
 		'local://unmute-all': ['Ctrl+Shift+U'],
 		'mix-render': ['Ctrl+Shift+M'],
+		'play-cut-preview': ['C'],
+		'play-stop-select': ['X'],
 	});
 
 	const installedLocalDefaults = {};

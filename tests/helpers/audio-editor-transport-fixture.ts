@@ -16,7 +16,7 @@ export function createTransportFixture() {
 		};
 		signatureMap: { events: Array<{ bar: number; numerator: number; denominator: number }> };
 	};
-	type PlaybackState = { state: string; playbackMode: string; playbackRate: number };
+	type PlaybackState = { state: string; playbackMode: string; playbackRate: number; cutPreview?: boolean };
 	let project: TestProject = {
 		id: 'project-a',
 		schemaVersion: 5,
@@ -67,6 +67,8 @@ export function createTransportFixture() {
 		seeks: [] as number[],
 		playRanges: [] as unknown[],
 		selections: [] as number[][],
+		exactSelections: [] as number[][],
+		exactSelectionDetails: [] as unknown[],
 		statuses: [] as unknown[][],
 		previewStops: 0,
 		timedCancellations: 0,
@@ -161,6 +163,11 @@ export function createTransportFixture() {
 		publishDocumentSnapshot: () => { calls.publishes += 1; },
 		setSelection: (start: number, end: number) => {
 			calls.selections.push([start, end]);
+			return { startFrame: start, endFrame: end };
+		},
+		setExactSelection: (start: number, end: number, details?: unknown) => {
+			calls.exactSelections.push([start, end]);
+			calls.exactSelectionDetails.push(details);
 			return { startFrame: start, endFrame: end };
 		},
 		setStatus: (...args: unknown[]) => { calls.statuses.push(args); },

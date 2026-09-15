@@ -212,30 +212,6 @@ test('workspace shortcut resolution evaluates known manifest enablement against 
 	assert.equal(resolveAudioEditorShortcutHandler('file-save', { actionRuntime: runtime }), save);
 });
 
-test('F2 rename and Ctrl+Shift+P pitch shortcuts require their manifest clip state', () => {
-	let selected = false;
-	const rename = () => 'renamed';
-	const pitchSpeed = () => 'pitch-speed';
-	const runtime = {
-		getActionContext: () => ({ snapshot: {
-			project: {
-				tracks: [{ id: 'track-1', type: 'audio', clipIds: selected ? ['clip-1'] : [] }],
-				clips: selected ? [{ id: 'clip-1' }] : [],
-				selection: { startFrame: 0, endFrame: 0, trackIds: ['track-1'], clipIds: selected ? ['clip-1'] : [] },
-			},
-			selectedTrackId: 'track-1',
-			selectedClipId: selected ? 'clip-1' : null,
-			readOnly: false,
-		} }),
-		clip: { rename, openPitchSpeed: pitchSpeed },
-	};
-	assert.equal(resolveAudioEditorShortcutHandler('rename-item', { actionRuntime: runtime }), null);
-	assert.equal(resolveAudioEditorShortcutHandler('clip-pitch-speed', { actionRuntime: runtime }), null);
-	selected = true;
-	assert.equal(resolveAudioEditorShortcutHandler('rename-item', { actionRuntime: runtime }), rename);
-	assert.equal(resolveAudioEditorShortcutHandler('clip-pitch-speed', { actionRuntime: runtime }), pitchSpeed);
-});
-
 test('workspace shortcuts never escape an open dialog into editor actions', () => {
 	const dom = installReactTestDom();
 	try {

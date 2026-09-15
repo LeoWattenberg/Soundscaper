@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export const AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION = 1;
+export const AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION = 2;
+
+// New manifest metadata for these previously unavailable commands is not a
+// former installed default, even in the legacy table derived from the manifest.
+const VERSION_TWO_ADDITIONS = ['play-cut-preview', 'play-stop-select'] as const;
 
 type ShortcutMap = Readonly<Record<string, readonly string[]>>;
 type MutableShortcutMap = Record<string, string[]>;
@@ -61,10 +65,25 @@ export function migrateAudioEditorShortcutDefaults({
 			!reservedKeys.has(conflictKey(binding))
 		)));
 	}
-	if (shortcutDefaultsVersion >= AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION) {
+	if (shortcutDefaultsVersion >= 1) {
 		const current = {} as MutableShortcutMap;
 		for (const [actionId, bindings] of Object.entries(availableShortcuts)) {
 			defineShortcut(current, actionId, bindings);
+		}
+		// The Audacity profile already owns every other missing action at v1:
+		// those omissions are user removals. Only these newly available commands
+		// receive defaults, and a customized chord still owns its binding.
+		if (shortcutDefaultsVersion < AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION) {
+			const occupied = new Set(Object.values(current).flat().map(conflictKey));
+			for (const actionId of VERSION_TWO_ADDITIONS) {
+				if (Object.hasOwn(current, actionId)) continue;
+				const bindings = currentDefaults[actionId]?.filter((binding) => (
+					!occupied.has(conflictKey(binding)) && !reservedKeys.has(conflictKey(binding))
+				)) ?? [];
+				if (!bindings.length) continue;
+				defineShortcut(current, actionId, bindings);
+				for (const binding of bindings) occupied.add(conflictKey(binding));
+			}
 		}
 		return current;
 	}
@@ -72,7 +91,7 @@ export function migrateAudioEditorShortcutDefaults({
 	const migrated = {} as MutableShortcutMap;
 	const customBindingOwners = new Map<string, string>();
 	for (const [actionId, bindings] of Object.entries(availableShortcuts)) {
-		const formerDefault = Object.hasOwn(formerDefaults, actionId)
+		const formerDefault = !VERSION_TWO_ADDITIONS.some((id) => id === actionId) && Object.hasOwn(formerDefaults, actionId)
 			? formerDefaults[actionId]
 			: undefined;
 		if (formerDefault && equivalentBindings(bindings, formerDefault, normalizedKey)) continue;
@@ -85,7 +104,7 @@ export function migrateAudioEditorShortcutDefaults({
 
 	const installedBindingOwners = new Map(customBindingOwners);
 	for (const [actionId, bindings] of Object.entries(currentDefaults)) {
-		const formerDefault = Object.hasOwn(formerDefaults, actionId)
+		const formerDefault = !VERSION_TWO_ADDITIONS.some((id) => id === actionId) && Object.hasOwn(formerDefaults, actionId)
 			? formerDefaults[actionId]
 			: undefined;
 		const savedBindings = availableShortcuts[actionId];

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { normalizeAudioEditorShortcut } from '../src/common/editor/preferences.js';
+import { createAudioEditorPreferencesV1, loadAudioEditorPreferencesV1, normalizeAudioEditorShortcut } from '../src/common/editor/preferences.js';
 import {
 	AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION,
 	migrateAudioEditorShortcutDefaults,
@@ -108,4 +108,32 @@ test('migration uses runtime conflict equivalence without mistaking Meta customi
 		'file-new': ['Meta+N'],
 		'custom-search': ['Ctrl+Meta+K'],
 	});
+});
+
+test('version one preferences gain C and X while preserving previous explicit removals and custom bindings', () => {
+	const options = {
+		currentDefaults: { 'file-new': ['Ctrl+N'], 'play-cut-preview': ['C'], 'play-stop-select': ['X'] },
+		formerDefaults: {}, shortcutDefaultsVersion: 1, normalizedKey,
+	};
+	const upgraded = migrateAudioEditorShortcutDefaults({
+		...options, shortcuts: { 'custom-action': ['Alt+P'] },
+	});
+	assert.deepEqual(upgraded, { 'custom-action': ['Alt+P'], 'play-cut-preview': ['C'], 'play-stop-select': ['X'] });
+	assert.equal(Object.hasOwn(upgraded, 'file-new'), false);
+	assert.deepEqual(migrateAudioEditorShortcutDefaults({
+		...options, shortcuts: { 'custom-action': ['C'], 'play-stop-select': [] },
+	}), { 'custom-action': ['C'], 'play-stop-select': [] });
+	assert.deepEqual(migrateAudioEditorShortcutDefaults({
+		...options, shortcuts: { 'play-cut-preview': ['Alt+C'], 'play-stop-select': ['Alt+X'] },
+	}), { 'play-cut-preview': ['Alt+C'], 'play-stop-select': ['Alt+X'] });
+});
+
+test('preferences saved before the profile gain new audition keys even though the manifest now documents them', () => {
+	const saved = createAudioEditorPreferencesV1();
+	delete saved.shortcuts['play-cut-preview'];
+	delete saved.shortcuts['play-stop-select'];
+	const legacy = { ...saved, shortcutDefaultsVersion: 0 };
+	const loaded = loadAudioEditorPreferencesV1(legacy).preferences;
+	assert.deepEqual(loaded.shortcuts['play-cut-preview'], ['C']);
+	assert.deepEqual(loaded.shortcuts['play-stop-select'], ['X']);
 });

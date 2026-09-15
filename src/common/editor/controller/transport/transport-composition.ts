@@ -87,6 +87,7 @@ export function createTransportComposition<Project extends TransportCompositionP
 		projectDurationFrames: dependencies.projectDurationFrames,
 		publishDocumentSnapshot: dependencies.publishDocumentSnapshot,
 		setSelection: dependencies.setSelection,
+		setExactSelection: dependencies.setExactSelection,
 		setStatus: dependencies.setStatus,
 		startRecording: dependencies.startRecording,
 		state,

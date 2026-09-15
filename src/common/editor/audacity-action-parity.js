@@ -7,6 +7,7 @@
  * AUDACITY_ACTION_SOURCE.commit.
  */
 
+import { transportShortcutDisplayActionId } from './transport-shortcut-display.ts';
 import {
 	AUDACITY_DISABLED_REASONS as DISABLED_REASONS,
 	localizedAudacityParityLabel,
@@ -20,6 +21,7 @@ import {
 import { audacityShortcutCommandDisabled } from './audacity-shortcut-command-inventory.ts';
 import { selectLabeledAudioRegions } from './labeled-audio-regions.ts';
 import { selectAudioEditorEditBlock } from './edit-blocking.ts';
+import { selectAudioEditorLabelEditBlock } from './label-edit-blocking.ts';
 import { audioTrackChannelCount } from './project-audio-factory.js';
 import { audioSelectionEffectAppliesToAllAudio } from './effects.js';
 import { AUDACITY_ACTION_ALIASES } from './audacity-action-aliases.js';
@@ -83,6 +85,9 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 	const recording = Boolean(snapshot.recording || snapshot.recordingStarting || telemetry.recording);
 	const playing = telemetry.transportState === 'playing';
 	const editable = projectWritable && !selectAudioEditorEditBlock(snapshot).blocked && !telemetry.recording;
+	const labelsEditable = projectWritable && !selectAudioEditorLabelEditBlock(snapshot).blocked;
+	const labelTarget = resolvedContext?.focusedLabel;
+	const labelSelected = Boolean(labelTarget && tracks.some((track) => track.type === 'label' && track.id === labelTarget.trackId && track.labels?.some((label) => label.id === labelTarget.labelId)));
 	const effectPreferenceTarget = projectHasAudio
 		&& snapshot.preferences?.editing?.applyEffectsToAllAudio === true
 		&& selectedClipIds.length === 0
@@ -111,6 +116,8 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		'project-opened': projectOpened,
 		'project-writable': projectWritable,
 		'editable-project': editable,
+		'editable-label-project': labelsEditable,
+		'editable-item-selected': (labelsEditable && labelSelected) || (editable && Boolean(selectedClip)),
 		'project-writable-and-not-recording': projectWritable && !recording,
 		'project-has-audio': projectHasAudio,
 		'recent-projects': Boolean(snapshot.recentProjects?.length),
@@ -118,6 +125,8 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		'history-can-redo': Boolean(snapshot.history?.canRedo),
 		selection: hasSelection,
 		'time-selection': timeSelection,
+		'time-selection-and-not-recording': timeSelection && !recording,
+		'project-opened-and-not-recording': projectOpened && !recording,
 		// What every command that acts on "the selection" asks: a drawn time
 		// range or a set of selected clips. Selecting a clip leaves the time
 		// range collapsed on frame zero, so a predicate that reads only the
@@ -152,6 +161,7 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		'loop-region': Boolean(project?.loop?.enabled && project.loop.endFrame > project.loop.startFrame),
 		playing,
 		'playing-or-recording': playing || recording,
+		'playing-or-paused-or-recording': playing || (telemetry.transportState ?? snapshot.transportState) === 'paused' || recording,
 		recording,
 		'not-recording': !recording,
 		'sound-activation-preferences-available': projectOpened && snapshot.productId === 'soundscaper' && Boolean(snapshot.recordingInputs?.soundActivation),
@@ -281,8 +291,8 @@ function decorateMenuItem(item, localization, actionRuntime, actionContext, cano
 		result.parityActionId = definition.id;
 		result.parityStatus = definition.status;
 		const bindings = shortcuts === null
-			? AUDACITY_SHORTCUT_BINDINGS_BY_ACTION[definition.id]
-			: shortcuts?.[definition.id];
+			? AUDACITY_SHORTCUT_BINDINGS_BY_ACTION[transportShortcutDisplayActionId(definition.id)]
+			: shortcuts?.[transportShortcutDisplayActionId(definition.id)];
 		if (bindings?.length) result.shortcut = bindings.join(', ');
 		else if (shortcuts !== null || definition.origin === 'upstream') delete result.shortcut;
 		// The reviewed parity manifest owns upstream command labels. Keeping a

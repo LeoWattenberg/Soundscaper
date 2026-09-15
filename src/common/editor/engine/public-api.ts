@@ -56,11 +56,18 @@ export interface EngineOutputDeviceState {
 
 export interface EngineStateSnapshot {
 	readonly state: string;
+	readonly cutPreview?: boolean;
 	readonly positionFrame: number;
 	readonly durationFrames: number;
 	readonly loop: NormalizedLoop;
 	readonly playbackRate: number;
 	readonly playbackMode: 'normal' | 'naive' | 'staffpad' | 'audio-warp-exact';
+}
+
+export interface EngineCutPreviewSelection {
+	readonly startFrame: number;
+	readonly endFrame: number;
+	readonly trackIds?: readonly string[];
 }
 
 export interface EngineLoudnessMeasurementState {
@@ -200,6 +207,8 @@ export interface EnginePublicApi {
 	getPlaybackGain(): number;
 	getAudioWarpRenderStatus(): Readonly<AudioWarpRenderPathStatus>;
 	play(): Promise<void>;
+	/** Audition the join around a selected gap without changing the project. */
+	playCutPreview(selection: EngineCutPreviewSelection): Promise<void>;
 	playAtSpeed(rate: number, options?: EnginePlayAtSpeedOptions): Promise<void>;
 	/** Resolves to the actual context start after asynchronous playback priming. */
 	playAt(contextTime: number, fromFrame?: number): Promise<number>;

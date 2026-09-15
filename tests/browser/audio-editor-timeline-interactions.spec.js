@@ -422,19 +422,19 @@ test.describe('audio editor React/design-system workflows', () => {
 		const playhead = editor.getByRole('slider', { name: 'Playhead' });
 		await expect.poll(async () => Number(await playhead.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
 		await page.keyboard.press('Control+b');
-
 		const markers = editor.locator('[data-label-track] .audio-editor-label-marker');
 		await expect(markers).toHaveCount(1);
+		await editor.getByRole('textbox', { name: /^Edit labels:/ }).press('Enter');
 		const stalkBox = await markers.locator('.label-marker__stalk-line').boundingBox();
 		const playheadLineBox = await editor.locator('[data-playhead] .playhead-cursor__line').boundingBox();
 		expect(stalkBox).not.toBeNull();
 		expect(playheadLineBox).not.toBeNull();
 		expect(Math.abs(stalkBox.x - playheadLineBox.x)).toBeLessThanOrEqual(1);
-
 		// A label added from an audio track joins the label track already there.
 		await page.mouse.click(audioLaneBox.x + 192, audioLaneBox.y + 40);
 		await page.keyboard.press('Control+b');
 		await expect(markers).toHaveCount(2);
+		await editor.getByRole('textbox', { name: /^Edit labels:/ }).press('Enter');
 		await expect(editor.locator('[data-label-track]')).toHaveCount(1);
 		expect(errors).toEqual([]);
 	});
