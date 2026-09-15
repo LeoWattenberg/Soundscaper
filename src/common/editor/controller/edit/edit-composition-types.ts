@@ -70,6 +70,7 @@ export type EditDeleteBehaviorConfirmationRequest = DeleteBehaviorConfirmationRe
 
 export interface EditCompositionRuntime<History extends ControllerRuntimeHistory> extends ControllerEditClipboardRuntimeBindings {
 	readonly prepareEditClipboardDescriptor: ControllerProjectRuntime['prepareEditClipboardDescriptor'];
+	readonly prepareTrackDuplicateCarrier?: ControllerProjectRuntime['prepareTrackDuplicateCarrier'];
 	readonly projectForEditClipboardConsumers?: (project: EditCompositionProject) => Readonly<Record<string, unknown>>;
 	readonly undo: (history: History, options?: ControllerRuntimeCommandOptions) => History;
 	readonly redo: (history: History, options?: ControllerRuntimeCommandOptions) => History;

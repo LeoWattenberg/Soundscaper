@@ -222,6 +222,11 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 			)
 		),
 		createStableId,
+		prepareTrackDuplicateCarrier: projectRuntime.prepareTrackDuplicateCarrier
+			? (_project: unknown, request: Parameters<NonNullable<typeof projectRuntime.prepareTrackDuplicateCarrier>>[1]) => (
+				projectRuntime.prepareTrackDuplicateCarrier!(requireProject(), request)
+			)
+			: undefined,
 		labeledClipboard: createLabeledAudioClipboardPort({
 			getProject: dependencies.getProject,
 			getCommandProject: dependencies.getCommandProject,

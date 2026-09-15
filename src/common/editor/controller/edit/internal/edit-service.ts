@@ -5,6 +5,7 @@ import {
 	isLabeledAudioEditAction,
 } from './labeled-audio-edit-service.ts';
 import { prepareSplitRangeIntoNewTrackCommand } from '../../track-audio/split-into-new-track-plan.ts';
+import { prepareDuplicateSelectionCommand } from './duplicate-selection-command.ts';
 import {
 	normalizeAudioEditorEditingPreferences,
 	resolveAudioEditorDefaultDelete,
@@ -203,33 +204,16 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 			if (action === 'duplicate') {
 				if (!selection) throw new Error(copy.timeSelectionRequired);
 				const exactClipEdit = !baseSelection && selectedClipIds.length > 0;
-				setSessionClipboard(createClipboardDescriptor(getProject(), {
-					...selection,
-					trackIds: exactClipEdit ? selectedClipTrackIds : trackIds,
-					...(exactClipEdit ? { clipIds: selectedClipIds } : {}),
-				}));
-				const duplicateCommand = prepareControllerPaste('overlap', selection.endFrame);
-				if (exactClipEdit) {
-					const pasteCommand = duplicateCommand.type === 'clipboard/paste'
-						? duplicateCommand
-						: duplicateCommand.commands.find((command: RuntimeValue) => command.type === 'clipboard/paste');
-					const pastedClipIds = Object.values(pasteCommand?.clipIds || {});
-					const pastedTrackIds = [...new Set(Object.values(pasteCommand?.trackMap || {}))];
-					commit({
-						type: 'batch',
-						commands: [
-							...(duplicateCommand.type === 'batch' ? duplicateCommand.commands : [duplicateCommand]),
-							{
-								type: 'selection/set',
-								startFrame: 0,
-								endFrame: 0,
-								trackIds: pastedTrackIds,
-								clipIds: pastedClipIds,
-								frequencyRange: null,
-							},
-						],
-					}, { selectClipId: pastedClipIds[0] || null });
-				} else commit(duplicateCommand);
+				const plan = prepareDuplicateSelectionCommand({
+					getProject, createStableId, createClipboardDescriptor,
+					prepareTrackDuplicateCarrier: runtime.prepareTrackDuplicateCarrier,
+				}, {
+					startFrame: selection.startFrame, endFrame: selection.endFrame,
+					trackIds: exactClipEdit ? selectedClipTrackIds : selectedProjectTrackIds.length ? selectedProjectTrackIds : trackIds,
+					clipIds: selectedClipIds, exactClips: exactClipEdit,
+					frequencyRange: selection.frequencyRange,
+				});
+				if (plan) commit(plan.command, { selectTrackId: plan.selectTrackId, selectClipId: plan.selectClipId });
 				return;
 			}
 			if (action === 'split') {

@@ -377,9 +377,10 @@ test('cut and delete accept clip selections without a time range', async () => {
 	controller.actions.timeline.selectClip('clip-edit-target');
 	controller.actions.edit.duplicate();
 	const duplicateSelection = controller.getSnapshot().project.selection.clipIds;
-	assert.equal(duplicateSelection.length, 2);
-	assert.equal(duplicateSelection.includes('clip-edit-target'), false);
-	assert.equal(duplicateSelection.includes('clip-edit-companion'), false);
+	assert.equal(duplicateSelection.length, 4);
+	assert.equal(duplicateSelection.includes('clip-edit-target'), true);
+	assert.equal(duplicateSelection.includes('clip-edit-companion'), true);
 	assert.equal(controller.getSnapshot().project.clips.length, 5);
+	assert.equal(controller.getSnapshot().project.tracks.length, 2);
 	await controller.dispose();
 });

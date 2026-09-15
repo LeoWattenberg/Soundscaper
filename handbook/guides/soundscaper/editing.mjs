@@ -143,13 +143,13 @@ export const EDITING_GUIDES = Object.freeze([
 		title: 'Duplicate a selection to a new track',
 		description: 'Copy a passage onto its own track so you can process it separately.',
 		audacity: 'Edit → Duplicate (Ctrl+D)',
-		intro: 'Duplicate copies the selection onto a new track directly below, at the same position in time. It is the usual first step for parallel processing — a heavily compressed copy mixed under the original, a reverb-only track, a doubled vocal.',
+		intro: 'Duplicate copies the selection onto new tracks at the bottom of the project, at the same position in time. It is the usual first step for parallel processing — a heavily compressed copy mixed under the original, a reverb-only track, a doubled vocal.',
 		steps: [
 			open(),
 			importAudio('music-loop', { what: 'the recording with the passage to duplicate' }),
 			selectRange(0.25, 0.75, { where: 'the passage to duplicate' }),
 			menu(['Edit', 'Duplicate']),
-			check({ clips: 2 }, { see: 'A second clip holding just the selection, on a new track under the first, lined up in time.' }),
+			check({ clips: 2 }, { see: 'A second clip holding just the selection, on a new track at the bottom of the project, lined up in time.' }),
 		],
 		tips: [
 			'Mute one of the two tracks to hear the other on its own while you shape it.',
