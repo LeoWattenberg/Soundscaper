@@ -101,6 +101,7 @@ export async function startNightlyAssistanceHost({ app, BrowserWindow, ipcMain, 
 	let modelsDirectory = plan.modelCache;
 	const assistance = registerAssistance({
 		channels: IPC, handle, on, app, runtimeRoot: plan.runtimeRoot,
+		onOperationError: (error) => console.error('Local assistance operation failed:', error),
 		sendToRenderer: (channel, payload) => {
 			if (!window.isDestroyed()) window.webContents.send(channel, payload);
 		},

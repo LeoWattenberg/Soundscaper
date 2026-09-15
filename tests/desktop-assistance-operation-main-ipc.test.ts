@@ -11,6 +11,7 @@ import {
 function harness(
 	overrides: Readonly<Record<string, unknown>> = {},
 	confirmOperation: (request: unknown) => Promise<boolean> = async () => true,
+	onError?: (error: unknown) => void,
 ) {
 	const handlers = new Map<string, (event: unknown, value?: unknown) => unknown>();
 	const listeners = new Map<string, (event: unknown, value?: unknown) => void>();
@@ -49,6 +50,7 @@ function harness(
 		},
 		createTransfers: () => transfers as never,
 		confirmOperation,
+		onError,
 	});
 	return { handlers, listeners, sent, order, registration, built: () => built, operations, transfers };
 }
@@ -120,13 +122,82 @@ test('stage prepare and await use one closed control channel while ports stay ou
 });
 
 test('native failures are redacted before crossing the control bridge', async () => {
-	const fixture = harness({ run: async () => { throw new Error('ENOENT /Users/alice/private.wav'); } });
+	const original = new Error('ENOENT /Users/alice/private.wav');
+	const observed: unknown[] = [];
+	const fixture = harness({ run: async () => { throw original; } }, async () => true,
+		(error) => { observed.push(error); });
 	await assert.rejects(Promise.resolve(fixture.handlers.get(
-		ASSISTANCE_OPERATION_IPC_CHANNELS.run)?.(null, {})), (error: unknown) => {
+		ASSISTANCE_OPERATION_IPC_CHANNELS.run)?.(null, operationRequest())), (error: unknown) => {
 		assert.equal(error instanceof Error ? error.message : '', 'The assistance operation could not be completed.');
+		assert.notEqual(error, original);
+		assert.equal(error instanceof Error ? error.cause : undefined, undefined);
 		assert.doesNotMatch(String(error), /alice|private|ENOENT/u);
+		assert.doesNotMatch(error instanceof Error ? error.stack ?? '' : '', /alice|private|ENOENT/u);
 		return true;
 	});
+	assert.equal(observed.length, 1);
+	assert.equal(observed[0], original);
+});
+
+test('failure observer exceptions cannot replace the redacted reply', async () => {
+	const original = new Error('ENOENT /Users/alice/private.wav');
+	let observed: unknown;
+	const fixture = harness({ run: async () => { throw original; } }, async () => true,
+		(error) => {
+			observed = error;
+			throw new Error('Observer failed /Users/alice/diagnostics.log');
+		});
+	await assert.rejects(Promise.resolve(fixture.handlers.get(
+		ASSISTANCE_OPERATION_IPC_CHANNELS.run)?.(null, operationRequest())), {
+		message: 'The assistance operation could not be completed.',
+	});
+	assert.equal(observed, original);
+});
+
+test('invalid requests report their original validation failure without creating a service', async () => {
+	const observed: unknown[] = [];
+	const fixture = harness({}, async () => true, (error) => { observed.push(error); });
+	await assert.rejects(Promise.resolve(fixture.handlers.get(
+		ASSISTANCE_OPERATION_IPC_CHANNELS.run)?.(null, {})), {
+		message: 'The assistance operation could not be completed.',
+	});
+	assert.equal(observed.length, 1);
+	assert.ok(observed[0] instanceof TypeError);
+	assert.equal(fixture.built(), 0);
+});
+
+test('every pathless handler reports its original operation or transfer failure', async () => {
+	const original = new Error('Native operation failed /private/input');
+	const observed: unknown[] = [];
+	const fail = (): never => { throw original; };
+	const fixture = harness({ models: fail, createJob: fail, reserveOutput: fail,
+		run: fail, cancel: fail, release: fail }, async () => true,
+	(error) => { observed.push(error); });
+	fixture.transfers.prepareInput = fail;
+	fixture.transfers.awaitInput = fail;
+	fixture.transfers.prepareOutput = fail;
+	const calls = [
+		[ASSISTANCE_OPERATION_IPC_CHANNELS.models, undefined],
+		[ASSISTANCE_OPERATION_IPC_CHANNELS.create, undefined],
+		[ASSISTANCE_OPERATION_IPC_CHANNELS.stage, { operation: 'prepare', jobId: '1'.repeat(40),
+			role: 'audio', mediaType: 'audio/wav', byteLength: 4, sha256: 'a'.repeat(64) }],
+		[ASSISTANCE_OPERATION_IPC_CHANNELS.stage, { operation: 'await', jobId: '1'.repeat(40),
+			streamId: '2'.repeat(40) }],
+		[ASSISTANCE_OPERATION_IPC_CHANNELS.reserve, {}],
+		[ASSISTANCE_OPERATION_IPC_CHANNELS.run, operationRequest()],
+		[ASSISTANCE_OPERATION_IPC_CHANNELS.cancel, '1'.repeat(40)],
+		[ASSISTANCE_OPERATION_IPC_CHANNELS.readOutput, {}],
+		[ASSISTANCE_OPERATION_IPC_CHANNELS.release, '1'.repeat(40)],
+	] as const;
+	for (const [channel, value] of calls) {
+		await assert.rejects(Promise.resolve(fixture.handlers.get(channel)?.(null, value)),
+			(error: unknown) => {
+				assert.doesNotMatch(String(error), /Native|private/u);
+				return true;
+			});
+	}
+	assert.equal(observed.length, calls.length);
+	assert.ok(observed.every((error) => error === original));
 });
 
 function operationRequest() {

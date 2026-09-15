@@ -41,6 +41,8 @@ export interface AssistanceOperationIpcOptions {
 	readonly createTransfers?: (operations: AssistanceOperations) => AssistanceOperationTransfers;
 	/** Trusted native confirmation for this exact validated selection and operation. */
 	readonly confirmOperation: (request: AssistanceOperationRequest) => PromiseLike<boolean>;
+	/** Main-only diagnostics receive the original failure before renderer redaction. */
+	readonly onError?: (error: unknown) => void;
 }
 
 export function registerAssistanceOperationIpc(options: AssistanceOperationIpcOptions): Readonly<{
@@ -58,9 +60,9 @@ export function registerAssistanceOperationIpc(options: AssistanceOperationIpcOp
 	};
 
 	options.handle(options.channels.models, () => pathless(
-		() => resolve().operations.models(), 'Authenticated assistance models could not be listed.'));
+		() => resolve().operations.models(), 'Authenticated assistance models could not be listed.', options.onError));
 	options.handle(options.channels.create, () => pathless(
-		() => resolve().operations.createJob(), 'An assistance operation job could not be created.'));
+		() => resolve().operations.createJob(), 'An assistance operation job could not be created.', options.onError));
 	options.handle(options.channels.stage, (_event, value) => pathless(async () => {
 		const request = stageRequest(value);
 		if (request.operation === 'prepare') {
@@ -69,10 +71,10 @@ export function registerAssistanceOperationIpc(options: AssistanceOperationIpcOp
 		}
 		const { operation: _operation, ...identity } = request;
 		return resolve().transfers.awaitInput(identity);
-	}, 'The assistance input could not be staged.'));
+	}, 'The assistance input could not be staged.', options.onError));
 	options.handle(options.channels.reserve, (_event, value) => pathless(
 		() => resolve().operations.reserveOutput(value as never),
-		'The assistance output could not be reserved.'));
+		'The assistance output could not be reserved.', options.onError));
 	options.handle(options.channels.run, (_event, value) => pathless(async () => {
 		const request = validateAssistanceOperationRequest(value);
 		if (!await options.confirmOperation(request)) {
@@ -84,19 +86,19 @@ export function registerAssistanceOperationIpc(options: AssistanceOperationIpcOp
 			});
 		}
 		return resolve().operations.run(request);
-	}, 'The assistance operation could not be completed.'));
+	}, 'The assistance operation could not be completed.', options.onError));
 	options.handle(options.channels.cancel, (_event, value) => pathless(async () => {
 		const jobId = opaqueId(value);
 		await resolve().transfers.cancelJob(jobId);
 		return resolve().operations.cancel(jobId);
-	}, 'The assistance operation could not be cancelled.'));
+	}, 'The assistance operation could not be cancelled.', options.onError));
 	options.handle(options.channels.readOutput, (_event, value) => pathless(
-		() => resolve().transfers.prepareOutput(value), 'The assistance output could not be read.'));
+		() => resolve().transfers.prepareOutput(value), 'The assistance output could not be read.', options.onError));
 	options.handle(options.channels.release, (_event, value) => pathless(async () => {
 		const jobId = opaqueId(value);
 		await resolve().transfers.cancelJob(jobId);
 		return resolve().operations.release(jobId);
-	}, 'The assistance operation job could not be released.'));
+	}, 'The assistance operation job could not be released.', options.onError));
 
 	options.on(options.channels.inputPort, (event, value) => {
 		const port = assistanceElectronEventPort(event);
@@ -134,9 +136,18 @@ function stageRequest(value: unknown): StageRequest {
 	return record as StageRequest;
 }
 
-async function pathless<T>(operation: () => PromiseLike<T> | T, message: string): Promise<T> {
+async function pathless<T>(
+	operation: () => PromiseLike<T> | T,
+	message: string,
+	onError?: (error: unknown) => void,
+): Promise<T> {
 	try { return await operation(); }
-	catch { throw new Error(message); }
+	catch (error) {
+		try { onError?.(error); }
+		catch { /* Observer failures must not bypass renderer redaction. */ }
+		// eslint-disable-next-line preserve-caught-error -- Renderer replies must not carry private error causes.
+		throw new Error(message);
+	}
 }
 
 function opaqueId(value: unknown): string {

@@ -149,7 +149,7 @@ function assistanceBackgroundPriority(pid) {
 
 export function registerAssistance({
 	channels, handle, on, sendToRenderer, app, settings, dialog, windowFor,
-	externalFfmpegPreferences,
+	externalFfmpegPreferences, onOperationError,
 	runtimeRoot = join(process.resourcesPath, 'runtime'),
 }) {
 	let child = null;
@@ -281,6 +281,7 @@ export function registerAssistance({
 		sendToRenderer,
 		createOperations: (onProgress) => resolveOperations(onProgress),
 		confirmOperation: (request) => confirmOperation(dialog, windowFor(), request),
+		onError: onOperationError,
 	});
 	const workflowCustody = new AssistanceWorkflowCustody({ staging });
 	const workflowPrimitive = createAssistanceWorkflowOperationStageRuntime({

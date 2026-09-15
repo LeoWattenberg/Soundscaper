@@ -40,7 +40,7 @@ test('the diagnostic document scheme is registered before Electron becomes ready
 	}]);
 });
 
-test('the isolated host uses production registration and preload with guarded real IPC', async () => {
+test('the isolated host uses production registration and preload with guarded real IPC', async (context) => {
 	let window;
 	let registration;
 	let windowOptions;
@@ -50,6 +50,8 @@ test('the isolated host uses production registration and preload with guarded re
 	let protocolRemoved = 0;
 	const verifiedFiles = [];
 	const handlers = new Map();
+	const reportedErrors = [];
+	context.mock.method(console, 'error', (...args) => { reportedErrors.push(args); });
 	const mainFrame = { url: '' };
 	class Window {
 		constructor(options) {
@@ -89,6 +91,9 @@ test('the isolated host uses production registration and preload with guarded re
 	assert.equal(windowOptions.webPreferences.nodeIntegration, false);
 	assert.equal(registration.runtimeRoot, hosted.plan.runtimeRoot);
 	assert.equal(registration.settings.snapshot().modelsDirectory, '/tmp/model-cache');
+	const operationError = new Error('The runtime-family model failed authentication.');
+	registration.onOperationError(operationError);
+	assert.deepEqual(reportedErrors, [['Local assistance operation failed:', operationError]]);
 	const invoke = handlers.get('model-test');
 	assert.equal(invoke({ sender: window.webContents, senderFrame: mainFrame }), 'real handler');
 	assert.throws(() => invoke({ sender: {}, senderFrame: mainFrame }), /sender/u);
@@ -106,6 +111,7 @@ test('the isolated host uses production registration and preload with guarded re
 test('production assistance keeps its real runtime root as the default and no test consent branch', async () => {
 	const source = await readFile(new URL('../desktop/assistance-registration.mjs', import.meta.url), 'utf8');
 	assert.match(source, /runtimeRoot = join\(process\.resourcesPath, 'runtime'\)/u);
+	assert.match(source, /onError: onOperationError/u);
 	assert.doesNotMatch(source, /SOUNDSCAPER_LOCAL_ASSISTANCE_REAL_MODELS|nightly-assistance-host/u);
 });
 
