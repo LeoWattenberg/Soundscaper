@@ -15,7 +15,8 @@ import { AUDIO_EDITOR_SAMPLE_RATE } from '../../project.js';
 import { AudacityEffectLayout } from '../AudacityEffectLayout.jsx';
 import { ParametricEqEditor } from '../ParametricEqEditor.jsx';
 import FilterCurveEqEditor from './FilterCurveEqEditor.tsx';
-import { DesignCheckbox, LabeledDropdown, SteppedSlider } from './inspector-controls.jsx';
+import GraphicEqEditor from './GraphicEqEditor.tsx';
+import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
 import ParameterNumber, { timeCodeUnit } from './EffectParameterNumber.jsx';
 import {
 	audacityParameterPresentation,
@@ -359,50 +360,8 @@ function AudacityParameter({ name, effectType, descriptor, value, effectParams, 
 	}
 	if (descriptor.kind === 'bands') {
 		return (
-			<fieldset className="audio-editor-graphic-eq">
-				<legend>{label}</legend>
-				<div className="audio-editor-graphic-eq__faders">
-					{descriptor.frequencies.map((frequency, index) => {
-						const gain = value?.[index] ?? 0;
-						const elementId = `frequency:${String(frequency)}`;
-						const gestures = gestureFor('gains', elementId);
-						return (
-							<div className="audio-editor-graphic-eq__fader" data-effect-param={`${name}.${index}`} key={frequency}>
-								<output>{Number(gain).toFixed(1)}</output>
-								<div className="audio-editor-graphic-eq__slider">
-									<SteppedSlider
-										value={gain}
-										min={descriptor.minimum}
-										max={descriptor.maximum}
-										step={descriptor.step}
-										ariaLabel={`${frequency} Hz`}
-										disabled={disabled}
-											onChange={(next) => {
-												const values = Array.isArray(value) ? [...value] : [...descriptor.default];
-												values[index] = Math.round(next / descriptor.step) * descriptor.step;
-												if (gestures.onGesturePreview) {
-													gestures.onGesturePreview(values[index]);
-													return;
-												}
-												onCommit(values, {
-													controlValue: values[index],
-													elementId,
-													parameterId: 'gains',
-												});
-											}}
-											{...gestures}
-									/>
-								</div>
-								<span>{frequency >= 1_000 ? `${frequency / 1_000}k` : frequency}</span>
-							</div>
-						);
-					})}
-				</div>
-				<div className="audio-editor-panel-actions audio-editor-graphic-eq__actions">
-					<Button variant="secondary" disabled={disabled} onClick={() => onCommit(descriptor.frequencies.map(() => 0))}>{copy.reset}</Button>
-					<Button variant="secondary" disabled={disabled} onClick={() => onCommit((value || descriptor.default).map((gain) => -gain))}>{copy.invert}</Button>
-				</div>
-			</fieldset>
+			<GraphicEqEditor name={name} label={label} descriptor={descriptor} value={value}
+				copy={copy} disabled={disabled} gestureFor={gestureFor} onCommit={onCommit} />
 		);
 	}
 	const range = audioEffectParamRange(effectType, name) || audioEffectParamRangeFromDescriptor(descriptor);

@@ -43,6 +43,8 @@ Original code is copyright the Audacity Team and the individual authors named in
 
 The Filter Curve EQ envelope model and actual FIR response display in `filter-curve.ts` and `filter-curve-response.ts` also adapt `libraries/lib-builtin-effects/EqualizationCurvesList.cpp` and `src/effects/EqualizationPanel.cpp` at that same revision, retaining their authorship and GPLv3 notices. They share interpolation with the audio processor and support the browser curve editor's point controls.
 
+The Graphic EQ fader board in `src/common/editor/ui/inspector/GraphicEqEditor.tsx` and its gesture controller in `src/common/editor/controller/effects/graphic-eq-gesture.ts` adapt the Audacity Team's `GraphicEqBoard.qml`, `GraphicEqFader.qml` and `GraphicEqGridLines.qml` from `src/effects/builtin_collection/graphiceq/` at exact commit `16f2713979809abe7308b4e1e0d487afeece84f2`, under GPLv3. The 2026 browser adaptation uses the vendored mixer faders, adds cancellable gestures and samples crossed bands between sparse pointer events.
+
 The implementations were translated from C/C++ to JavaScript, separated from Audacity's application and UI construction, and integrated into the kw.media browser audio editor on 2026-07-13. The distributed source code is the preferred form for modification.
 
 Audacity's Compressor and Limiter incorporate SimpleCompressor code:

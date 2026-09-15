@@ -473,7 +473,7 @@ export function AudioEditorMacroManagerDialog({
 					isOpen
 					title={safeEffectLabel(selectedEffect, copy)}
 					onClose={() => setSelectedEffectId(null)}
-					width={selectedEffect.type === 'eq' ? 920 : 620}
+					width={selectedEffect.type === 'audacity-graphic-eq' ? 1120 : selectedEffect.type === 'eq' ? 920 : 620}
 					className="audio-editor-effect-settings-dialog audio-editor-macro-effect-settings-dialog"
 					dataAttributes={{ 'data-macro-effect': selectedEffect.id }}
 				>

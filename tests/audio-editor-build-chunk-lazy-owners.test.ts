@@ -378,7 +378,9 @@ test('effect parameter surfaces share one cycle-free lazy owner', () => {
 		'src/common/editor/ui/ParametricEqEditor.jsx',
 		'src/common/editor/ui/inspector/EffectParameterEditor.jsx',
 		'src/common/editor/ui/inspector/FilterCurveEqEditor.tsx',
+		'src/common/editor/ui/inspector/GraphicEqEditor.tsx',
 		'src/common/editor/controller/effects/filter-curve-gesture.ts',
+		'src/common/editor/controller/effects/graphic-eq-gesture.ts',
 	]) {
 		assert.ok(EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST.test(path));
 		assert.equal(chunkGroupForModulePath(path), 'editor-effect-parameter-surfaces');

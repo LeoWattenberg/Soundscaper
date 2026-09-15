@@ -13,6 +13,7 @@
 @import './audio-editor-design-system/09-dialogs-effects.css';
 @import './audio-editor-design-system/09a-dialog-parametric-eq.css';
 @import './audio-editor-design-system/09b-dialog-filter-curve.css';
+@import './audio-editor-design-system/09c-dialog-graphic-eq.css';
 @import './audio-editor-design-system/10-effects-vendor-overrides.css';
 @import './audio-editor-design-system/10a-dialog-macro-manager.css';
 @import './audio-editor-design-system/10b-dialog-export.css';

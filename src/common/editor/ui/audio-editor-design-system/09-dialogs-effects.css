@@ -350,69 +350,6 @@
 	font-weight: 700;
 }
 
-.audio-editor-graphic-eq {
-	min-width: 0;
-	padding: 8px;
-	margin: 0;
-	overflow-x: auto;
-	background: color-mix(in srgb, var(--control) 70%, transparent);
-	border: 1px solid var(--line);
-	border-radius: 4px;
-}
-
-.audio-editor-graphic-eq legend {
-	padding-inline: 4px;
-	color: var(--muted);
-	font-size: 10px;
-	font-weight: 700;
-}
-
-.audio-editor-graphic-eq__faders {
-	display: grid;
-	grid-template-columns: repeat(31, minmax(30px, 1fr));
-	min-width: 930px;
-	gap: 1px;
-}
-
-.audio-editor-graphic-eq__fader {
-	display: grid;
-	grid-template-rows: 18px 106px 18px;
-	justify-items: center;
-	min-width: 0;
-	color: var(--muted);
-	font: 650 8px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-
-.audio-editor-graphic-eq__fader output {
-	font-size: 7px;
-}
-
-.audio-editor-graphic-eq__slider {
-	display: grid;
-	width: 30px;
-	height: 104px;
-	place-items: center;
-}
-
-.audio-editor-graphic-eq__slider .slider {
-	width: 96px;
-	transform: rotate(-90deg);
-}
-
-.audio-editor-graphic-eq__actions {
-	justify-content: flex-end;
-	margin-top: 8px;
-}
-
-.audio-editor-audacity-layout--audacity-graphic-eq .audio-editor-audacity-layout__card:first-child {
-	overflow-x: auto;
-}
-
-.audio-editor-audacity-layout--audacity-graphic-eq [data-audacity-parameter='gains'] {
-	grid-column: 1 / -1;
-	overflow: hidden;
-}
-
 .audio-editor-effect-parameters > .audio-editor-audacity-layout {
 	grid-column: 1 / -1;
 }

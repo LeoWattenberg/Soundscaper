@@ -424,7 +424,7 @@ export function AudioEditorEffectsOverlay({
 					isOpen
 					title={safeEffectLabel(effect, copy)}
 					onClose={() => setSelectedEffect(null)}
-					width={effect.type === 'eq' ? 920 : 620}
+					width={effect.type === 'audacity-graphic-eq' ? 1120 : effect.type === 'eq' ? 920 : 620}
 					modal={false}
 					draggable
 					className="audio-editor-effect-settings-dialog"

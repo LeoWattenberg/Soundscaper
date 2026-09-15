@@ -182,7 +182,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 				controller.actions.effects.cancelPreview();
 				onClose?.();
 			}}
-			width={selectionType === 'eq' ? 920 : 720}
+			width={selectionType === 'audacity-graphic-eq' ? 1120 : selectionType === 'eq' ? 920 : 720}
 			className="audio-editor-selection-effects-dialog"
 			dataAttributes={{ 'data-selection-effects-dialog': '' }}
 			headerSlot={(

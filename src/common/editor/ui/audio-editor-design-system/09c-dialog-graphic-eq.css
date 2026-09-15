@@ -1,0 +1,109 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+.audio-editor-graphic-eq {
+	--graphic-eq-fader-height: 352px;
+	min-width: 0;
+}
+
+.audio-editor-graphic-eq__viewport {
+	min-width: 0;
+	overflow-x: auto;
+}
+
+.audio-editor-graphic-eq__board {
+	position: relative;
+	display: grid;
+	grid-template-columns: repeat(31, 16px);
+	column-gap: 16px;
+	width: max-content;
+	min-width: 1024px;
+	padding-left: 48px;
+	padding-bottom: 8px;
+	touch-action: none;
+	user-select: none;
+}
+
+.audio-editor-graphic-eq__fader {
+	position: relative;
+	z-index: 1;
+	display: grid;
+	grid-template-rows: 16px var(--graphic-eq-fader-height) 16px;
+	row-gap: 16px;
+	justify-items: center;
+	width: 16px;
+	color: var(--muted);
+	font: 500 10px/16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.audio-editor-graphic-eq__fader > span,
+.audio-editor-graphic-eq__fader > output {
+	width: max-content;
+	text-align: center;
+}
+
+.audio-editor-graphic-eq__fader .mixer-fader {
+	width: 16px;
+	height: var(--graphic-eq-fader-height);
+}
+
+.audio-editor-graphic-eq__grid {
+	position: absolute;
+	top: 32px;
+	right: 0;
+	left: 48px;
+	height: var(--graphic-eq-fader-height);
+	pointer-events: none;
+}
+
+.audio-editor-graphic-eq__gridline {
+	position: absolute;
+	right: 0;
+	left: 0;
+	height: 1px;
+	background: var(--line);
+}
+
+.audio-editor-graphic-eq__gridline--zero {
+	background: var(--muted);
+}
+
+.audio-editor-graphic-eq__gridline > span {
+	position: absolute;
+	top: -8px;
+	left: -40px;
+	width: 32px;
+	color: var(--muted);
+	font: 500 10px/16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	text-align: right;
+}
+
+.audio-editor-graphic-eq__unit {
+	position: absolute;
+	top: -32px;
+	left: -32px;
+	color: var(--muted);
+	font-size: 10px;
+}
+
+.audio-editor-graphic-eq__actions {
+	display: flex;
+	justify-content: center;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+.audio-editor-graphic-eq__actions .button {
+	width: auto;
+	min-width: 80px;
+}
+
+.audio-editor-audacity-layout--audacity-graphic-eq [data-audacity-parameter='gains'] {
+	grid-column: 1 / -1;
+	min-width: 0;
+}
+
+@media (max-height: 800px) {
+	.audio-editor-graphic-eq {
+		--graphic-eq-fader-height: 240px;
+	}
+}

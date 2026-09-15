@@ -16,6 +16,7 @@ import { dbToLinear } from './basic-channel-math.js';
 import { filterCurveGain } from './filter-curve.ts';
 
 const AUDACITY_EQ_FFT_SIZE = 16_384;
+const AUDACITY_GRAPHIC_EQ_POINTS = 180;
 
 export const GRAPHIC_EQ_FREQUENCIES = Object.freeze([
 	20, 25, 31, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630,
@@ -78,13 +79,30 @@ export function createGraphicEqCurve(allGains, interpolation, nyquist) {
 		cubic = createNaturalCubicSpline(cubicPositions, cubicGains);
 	}
 
-	return (frequency) => {
-		const x = frequency <= 20
-			? 0
-			: Math.min(1, (Math.log10(frequency) - Math.log10(20)) / denominator);
+	const atPosition = (x) => {
 		if (interpolation === 'cosine') return graphicCosine(x, positions, gains);
 		if (interpolation === 'cubic') return cubic(x);
 		return graphicBspline(x, positions, gains);
+	};
+	// GraphicEQ samples its spline into a dB envelope. CalcFilter evaluates
+	// that piecewise-linear envelope, rather than the spline directly.
+	const envelopePositions = [];
+	if (interpolation === 'cubic') {
+		// Preserve Audacity's double-precision loop, including its final point
+		// just below 1; truncating this to 180 points changes the upper gain.
+		for (let x = 0; x < 1; x += 1 / AUDACITY_GRAPHIC_EQ_POINTS) envelopePositions.push(x);
+	} else {
+		for (let index = 0; index < AUDACITY_GRAPHIC_EQ_POINTS; index += 1) {
+			envelopePositions.push(index / (AUDACITY_GRAPHIC_EQ_POINTS - 1));
+		}
+	}
+	const envelope = envelopePositions.map(atPosition);
+	return (frequency) => {
+		const x = frequency <= 20 ? 0 : Math.min(1, (Math.log10(frequency) - Math.log10(20)) / denominator);
+		if (x >= envelopePositions.at(-1)) return envelope.at(-1);
+		const left = intervalAt(envelopePositions, x);
+		const amount = (x - envelopePositions[left]) / (envelopePositions[left + 1] - envelopePositions[left]);
+		return envelope[left] + (envelope[left + 1] - envelope[left]) * amount;
 	};
 }
 
@@ -122,7 +140,6 @@ function graphicBspline(x, positions, gains) {
 		if (amount > 0.5) return gains[last] * (amount - 1.5) ** 2 / 2;
 		return gains[last] * (0.75 - amount ** 2) + gains[last - 1] * (amount - 0.5) ** 2 / 2;
 	}
-	if (x === positions[last]) return gains[last];
 	const left = intervalAt(positions, x);
 	const amount = (x - positions[left]) / (positions[left + 1] - positions[left]);
 	if (amount < 0.5) {
