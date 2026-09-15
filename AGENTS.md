@@ -117,5 +117,5 @@
   pins and the review payload digest in the same commit; never hand-edit those
   pins. `--check` verifies without writing.
 - Use tabs in existing JavaScript/JSX sources and keep changes narrowly scoped.
-- Make atomic commits.
+- Before declaring an implementation task complete, commit your changes in atomic commits.
 - When committing, explicitly select your own files to avoid sweeping up someone else's changes.
