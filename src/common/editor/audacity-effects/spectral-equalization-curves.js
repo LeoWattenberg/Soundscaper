@@ -8,11 +8,12 @@
  * src/effects/EqualizationBandSliders.cpp, by Mitch Golden, Vaughan Johnson,
  * Martyn Shaw, and Paul Licameli, GPL-2.0-or-later upstream. This modified
  * JavaScript adaptation was created for kw.media in 2026 and selects GPL
- * version 3. Split out of spectral.js; no behaviour changes here.
+ * version 3. The shared curve model preserves Audacity's 20 Hz log boundary.
  */
 
 import { fft } from '../pffft.js';
 import { dbToLinear } from './basic-channel-math.js';
+import { filterCurveGain } from './filter-curve.ts';
 
 const AUDACITY_EQ_FFT_SIZE = 16_384;
 
@@ -48,42 +49,11 @@ export function buildEqualizationKernel(sampleRate, filterLength, gainAtFrequenc
 }
 
 export function interpolateLogFrequencyCurve(points, frequency) {
-	if (points.length === 0) return 0;
-	if (points.length === 1) return points[0].gain;
-	if (frequency <= points[0].frequency) return points[0].gain;
-	const last = points[points.length - 1];
-	if (frequency >= last.frequency) return last.gain;
-	let low = 0;
-	let high = points.length - 1;
-	while (high - low > 1) {
-		const middle = (low + high) >> 1;
-		if (points[middle].frequency <= frequency) low = middle;
-		else high = middle;
-	}
-	const left = points[low];
-	const right = points[high];
-	const amount = (Math.log(frequency) - Math.log(left.frequency))
-		/ (Math.log(right.frequency) - Math.log(left.frequency));
-	return left.gain + (right.gain - left.gain) * amount;
+	return filterCurveGain(points, frequency);
 }
 
 export function interpolateLinearFrequencyCurve(points, frequency) {
-	if (points.length === 0) return 0;
-	if (points.length === 1) return points[0].gain;
-	if (frequency <= points[0].frequency) return points[0].gain;
-	const last = points[points.length - 1];
-	if (frequency >= last.frequency) return last.gain;
-	let low = 0;
-	let high = points.length - 1;
-	while (high - low > 1) {
-		const middle = (low + high) >> 1;
-		if (points[middle].frequency <= frequency) low = middle;
-		else high = middle;
-	}
-	const left = points[low];
-	const right = points[high];
-	const amount = (frequency - left.frequency) / (right.frequency - left.frequency);
-	return left.gain + (right.gain - left.gain) * amount;
+	return filterCurveGain(points, frequency, true);
 }
 
 export function createGraphicEqCurve(allGains, interpolation, nyquist) {

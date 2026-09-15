@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "vi",
 	"provenance": {
-		"machine": {"model":"codex-agent","modelDigest":"sha256:05e3c1f0b6d2b220a806599187ccd391ba68da8566fc631c0f0fa92a8308f687","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:0733c2be09d170d2d8014604f4f5dfcaefeb5f6da60635790274939f05cab2c1","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -801,6 +801,13 @@
 		"effectCardVocoder": ["machine","Vocoder","Vocoder"],
 		"effectChannelLayoutChanged": ["machine","The effect changed the selection channel layout.","Hiệu ứng đã thay đổi bố cục kênh của vùng chọn."],
 		"effectChannelLengthsMismatch": ["machine","The effect channels have mismatched lengths.","Các kênh của hiệu ứng có độ dài không khớp nhau."],
+		"effectCurveGrid": ["machine","Show gridlines","Hiện đường lưới"],
+		"effectCurveInstructions": ["machine","Click to add a point; drag to move it or drag outside to remove it. Arrow keys adjust a focused point; Delete removes it; Escape cancels a drag.","Nhấp để thêm điểm; kéo để di chuyển hoặc kéo ra ngoài đồ thị để xóa. Phím mũi tên điều chỉnh điểm đang được chọn; Delete xóa điểm; Escape hủy thao tác kéo."],
+		"effectCurveMaximumDb": ["machine","Maximum gain (dB)","Độ khuếch đại tối đa (dB)"],
+		"effectCurveMinimumDb": ["machine","Minimum gain (dB)","Độ khuếch đại tối thiểu (dB)"],
+		"effectCurvePoint": ["machine","{frequency} Hz, {gain} dB","{frequency} Hz, {gain} dB"],
+		"effectCurveRequested": ["machine","Drawn curve","Đường cong đã vẽ"],
+		"effectCurveResponse": ["machine","Actual filter response","Đáp ứng thực tế của bộ lọc"],
 		"effectEngineUnsupported": ["machine","This effect is not supported by the local audio engine.","Hiệu ứng này không được hỗ trợ bởi công cụ audio cục bộ."],
 		"effectGroupByCategory": ["machine","Group by category","Nhóm theo danh mục"],
 		"effectInvalidAudio": ["machine","The effect did not produce valid audio.","Hiệu ứng không tạo ra audio hợp lệ."],

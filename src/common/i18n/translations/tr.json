@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "tr",
 	"provenance": {
-		"machine": {"model":"codex-agent","modelDigest":"sha256:cd7dba9631a39919fd6a55410b9580581324a26fd3c5bb79593968a6bb9cb22d","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:d190b219e76be23878e940b05f3c276c0e79f1731fe863f46f0bce62af24ff88","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -801,6 +801,13 @@
 		"effectCardVocoder": ["machine","Vocoder","Vokoder"],
 		"effectChannelLayoutChanged": ["machine","The effect changed the selection channel layout.","Etki, seçimin kanal düzenini değiştirdi."],
 		"effectChannelLengthsMismatch": ["machine","The effect channels have mismatched lengths.","Etki kanallarının uzunlukları eşleşmiyor."],
+		"effectCurveGrid": ["machine","Show gridlines","Izgara çizgilerini göster"],
+		"effectCurveInstructions": ["machine","Click to add a point; drag to move it or drag outside to remove it. Arrow keys adjust a focused point; Delete removes it; Escape cancels a drag.","Nokta eklemek için tıklayın; taşımak için sürükleyin veya silmek için grafiğin dışına sürükleyin. Ok tuşları odaktaki noktayı ayarlar; Delete siler; Escape sürüklemeyi iptal eder."],
+		"effectCurveMaximumDb": ["machine","Maximum gain (dB)","En yüksek kazanç (dB)"],
+		"effectCurveMinimumDb": ["machine","Minimum gain (dB)","En düşük kazanç (dB)"],
+		"effectCurvePoint": ["machine","{frequency} Hz, {gain} dB","{frequency} Hz, {gain} dB"],
+		"effectCurveRequested": ["machine","Drawn curve","Çizilen eğri"],
+		"effectCurveResponse": ["machine","Actual filter response","Gerçek filtre yanıtı"],
 		"effectEngineUnsupported": ["machine","This effect is not supported by the local audio engine.","Bu etki, yerel ses motoru tarafından desteklenmiyor."],
 		"effectGroupByCategory": ["machine","Group by category","Kategoriye göre grupla"],
 		"effectInvalidAudio": ["machine","The effect did not produce valid audio.","Etki geçerli bir ses üretmedi."],

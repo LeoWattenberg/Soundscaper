@@ -413,53 +413,6 @@
 	overflow: hidden;
 }
 
-.audio-editor-filter-curve {
-	display: grid;
-	gap: 9px;
-}
-
-.audio-editor-filter-curve svg {
-	display: block;
-	width: 100%;
-	height: 220px;
-	color: var(--accent-strong);
-	background: color-mix(in srgb, var(--control) 72%, transparent);
-	border: 1px solid var(--line);
-	border-radius: 4px;
-}
-
-.audio-editor-filter-curve__grid {
-	fill: none;
-	stroke: var(--line);
-	stroke-width: 1;
-}
-
-.audio-editor-filter-curve__line {
-	fill: none;
-	stroke: currentColor;
-	stroke-linecap: round;
-	stroke-linejoin: round;
-	stroke-width: 3;
-}
-
-.audio-editor-filter-curve details {
-	color: var(--muted);
-	font-size: 10px;
-}
-
-.audio-editor-filter-curve summary {
-	cursor: pointer;
-	font-weight: 700;
-}
-
-.audio-editor-filter-curve details[open] .audio-editor-field {
-	margin-top: 8px;
-}
-
-.audio-editor-filter-curve__actions {
-	justify-content: flex-end;
-}
-
 .audio-editor-effect-parameters > .audio-editor-audacity-layout {
 	grid-column: 1 / -1;
 }

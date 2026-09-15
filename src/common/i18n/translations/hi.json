@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "hi",
 	"provenance": {
-		"machine": {"model":"codex-agent","modelDigest":"sha256:6c9fb6e4860003ec049b1fc0dade515ee0b5e59decbdcb50d2173ef3f8d08417","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:4032839051f6dfe27d48b4d682d0af301e729e9823456b84e2398e4efe463cf4","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -801,6 +801,13 @@
 		"effectCardVocoder": ["machine","Vocoder","वोकोडर"],
 		"effectChannelLayoutChanged": ["machine","The effect changed the selection channel layout.","प्रभाव ने चयन के चैनल लेआउट को बदल दिया।"],
 		"effectChannelLengthsMismatch": ["machine","The effect channels have mismatched lengths.","प्रभाव चैनलों की लंबाई मेल नहीं खाती।"],
+		"effectCurveGrid": ["machine","Show gridlines","ग्रिड रेखाएँ दिखाएँ"],
+		"effectCurveInstructions": ["machine","Click to add a point; drag to move it or drag outside to remove it. Arrow keys adjust a focused point; Delete removes it; Escape cancels a drag.","बिंदु जोड़ने के लिए क्लिक करें; उसे खींचकर ले जाएँ या हटाने के लिए ग्राफ़ के बाहर खींचें। तीर कुंजियाँ फ़ोकस वाले बिंदु को समायोजित करती हैं; Delete उसे हटाता है; Escape खींचना रद्द करता है।"],
+		"effectCurveMaximumDb": ["machine","Maximum gain (dB)","अधिकतम गेन (dB)"],
+		"effectCurveMinimumDb": ["machine","Minimum gain (dB)","न्यूनतम गेन (dB)"],
+		"effectCurvePoint": ["machine","{frequency} Hz, {gain} dB","{frequency} Hz, {gain} dB"],
+		"effectCurveRequested": ["machine","Drawn curve","खींची गई वक्र रेखा"],
+		"effectCurveResponse": ["machine","Actual filter response","फ़िल्टर की वास्तविक प्रतिक्रिया"],
 		"effectEngineUnsupported": ["machine","This effect is not supported by the local audio engine.","यह प्रभाव स्थानीय ऑडियो इंजन द्वारा समर्थित नहीं है।"],
 		"effectGroupByCategory": ["machine","Group by category","श्रेणी के अनुसार समूहित करें"],
 		"effectInvalidAudio": ["machine","The effect did not produce valid audio.","प्रभाव ने वैध ऑडियो उत्पन्न नहीं किया।"],

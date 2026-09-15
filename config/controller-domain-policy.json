@@ -119,6 +119,7 @@
 		"effects/effects-composition-types.ts",
 		"effects/effects-composition.ts",
 		"effects/effects-state.ts",
+		"effects/filter-curve-gesture.ts",
 		"effects/macro-script-library-service.ts",
 		"effects/macro-transaction-metadata.ts",
 		"export/deferred-export-service.ts",

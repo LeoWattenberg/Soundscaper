@@ -542,7 +542,7 @@ function normalizeCurve(value, name) {
 	const points = value.map((point, index) => {
 		const frequency = Number(point?.frequency);
 		const gain = Number(point?.gain);
-		if (!Number.isFinite(frequency) || frequency < 1 || frequency > 24_000) throw new RangeError(`${name}[${index}].frequency must be between 1 and 24000.`);
+		if (!Number.isFinite(frequency) || frequency < 0 || frequency > 24_000) throw new RangeError(`${name}[${index}].frequency must be between 0 and 24000.`);
 		if (!Number.isFinite(gain) || gain < -120 || gain > 60) throw new RangeError(`${name}[${index}].gain must be between -120 and 60.`);
 		return { frequency, gain };
 	}).sort((left, right) => left.frequency - right.frequency);

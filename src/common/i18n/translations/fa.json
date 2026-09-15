@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "fa",
 	"provenance": {
-		"machine": {"model":"codex-agent","modelDigest":"sha256:4c57b5626fc9d6d0cb249cf4af57f1233a755b1a635b69818f7f3df7d8ca19df","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:3134340615d56c4ec79fd8cd35025d8929eb15f8b0f4641f28de680eee1f421c","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -801,6 +801,13 @@
 		"effectCardVocoder": ["machine","Vocoder","ووکودر"],
 		"effectChannelLayoutChanged": ["machine","The effect changed the selection channel layout.","افکت چیدمان کانال انتخاب را تغییر داد."],
 		"effectChannelLengthsMismatch": ["machine","The effect channels have mismatched lengths.","طول کانال‌های افکت با هم مطابقت ندارد."],
+		"effectCurveGrid": ["machine","Show gridlines","نمایش خطوط شبکه"],
+		"effectCurveInstructions": ["machine","Click to add a point; drag to move it or drag outside to remove it. Arrow keys adjust a focused point; Delete removes it; Escape cancels a drag.","برای افزودن نقطه کلیک کنید؛ برای جابه‌جایی آن را بکشید یا برای حذف به بیرون نمودار بکشید. کلیدهای جهت نقطهٔ متمرکز را تنظیم می‌کنند؛ Delete آن را حذف و Escape کشیدن را لغو می‌کند."],
+		"effectCurveMaximumDb": ["machine","Maximum gain (dB)","حداکثر بهره (dB)"],
+		"effectCurveMinimumDb": ["machine","Minimum gain (dB)","حداقل بهره (dB)"],
+		"effectCurvePoint": ["machine","{frequency} Hz, {gain} dB","{frequency} Hz, {gain} dB"],
+		"effectCurveRequested": ["machine","Drawn curve","منحنی رسم‌شده"],
+		"effectCurveResponse": ["machine","Actual filter response","پاسخ واقعی فیلتر"],
 		"effectEngineUnsupported": ["machine","This effect is not supported by the local audio engine.","این افکت توسط موتور صوتی محلی پشتیبانی نمی‌شود."],
 		"effectGroupByCategory": ["machine","Group by category","گروه‌بندی بر اساس دسته"],
 		"effectInvalidAudio": ["machine","The effect did not produce valid audio.","افکت صدای معتبری تولید نکرد."],

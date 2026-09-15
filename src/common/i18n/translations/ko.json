@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ko",
 	"provenance": {
-		"machine": {"model":"codex-agent","modelDigest":"sha256:abf43e6d31ecc382ffec88679a09f0148b2953f8314b16f53e23f2f4096e37a7","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:05d8aef038652a3330933c1ecd6328bbd76b4c1f9d1deb88c9b71d99ff66bd08","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -801,6 +801,13 @@
 		"effectCardVocoder": ["machine","Vocoder","보코더"],
 		"effectChannelLayoutChanged": ["machine","The effect changed the selection channel layout.","이펙트가 선택 채널 레이아웃을 변경했습니다."],
 		"effectChannelLengthsMismatch": ["machine","The effect channels have mismatched lengths.","이펙트 채널의 길이가 일치하지 않습니다."],
+		"effectCurveGrid": ["machine","Show gridlines","격자선 표시"],
+		"effectCurveInstructions": ["machine","Click to add a point; drag to move it or drag outside to remove it. Arrow keys adjust a focused point; Delete removes it; Escape cancels a drag.","클릭하여 점을 추가하고, 드래그하여 이동하거나 그래프 밖으로 드래그하여 제거합니다. 방향키로 포커스된 점을 조정하고, Delete로 제거하며, Escape로 드래그를 취소합니다."],
+		"effectCurveMaximumDb": ["machine","Maximum gain (dB)","최대 게인 (dB)"],
+		"effectCurveMinimumDb": ["machine","Minimum gain (dB)","최소 게인 (dB)"],
+		"effectCurvePoint": ["machine","{frequency} Hz, {gain} dB","{frequency} Hz, {gain} dB"],
+		"effectCurveRequested": ["machine","Drawn curve","그린 곡선"],
+		"effectCurveResponse": ["machine","Actual filter response","실제 필터 응답"],
 		"effectEngineUnsupported": ["machine","This effect is not supported by the local audio engine.","이 이펙트는 로컬 오디오 엔진에서 지원되지 않습니다."],
 		"effectGroupByCategory": ["machine","Group by category","카테고리별로 그룹화"],
 		"effectInvalidAudio": ["machine","The effect did not produce valid audio.","이펙트가 유효한 오디오를 생성하지 않았습니다."],

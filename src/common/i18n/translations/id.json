@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "id",
 	"provenance": {
-		"machine": {"model":"codex-agent","modelDigest":"sha256:925271d5012814bb8304c2fb4e982dac8d5588edf7a802458da452a119d1eba2","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:48276d0aefec26f51ba007aae67459c1b0d8bca725976198536e5cb2d8c06c79","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -801,6 +801,13 @@
 		"effectCardVocoder": ["machine","Vocoder","Vokoder"],
 		"effectChannelLayoutChanged": ["machine","The effect changed the selection channel layout.","Efek ini mengubah tata letak kanal pada seleksi."],
 		"effectChannelLengthsMismatch": ["machine","The effect channels have mismatched lengths.","Kanal efek memiliki panjang yang tidak cocok."],
+		"effectCurveGrid": ["machine","Show gridlines","Tampilkan garis kisi"],
+		"effectCurveInstructions": ["machine","Click to add a point; drag to move it or drag outside to remove it. Arrow keys adjust a focused point; Delete removes it; Escape cancels a drag.","Klik untuk menambahkan titik; seret untuk memindahkannya atau ke luar grafik untuk menghapusnya. Tombol panah menyesuaikan titik yang difokuskan; Delete menghapusnya; Escape membatalkan penyeretan."],
+		"effectCurveMaximumDb": ["machine","Maximum gain (dB)","Penguatan maksimum (dB)"],
+		"effectCurveMinimumDb": ["machine","Minimum gain (dB)","Penguatan minimum (dB)"],
+		"effectCurvePoint": ["machine","{frequency} Hz, {gain} dB","{frequency} Hz, {gain} dB"],
+		"effectCurveRequested": ["machine","Drawn curve","Kurva yang digambar"],
+		"effectCurveResponse": ["machine","Actual filter response","Respons filter sebenarnya"],
 		"effectEngineUnsupported": ["machine","This effect is not supported by the local audio engine.","Efek ini tidak didukung oleh mesin audio lokal."],
 		"effectGroupByCategory": ["machine","Group by category","Kelompokkan menurut kategori"],
 		"effectInvalidAudio": ["machine","The effect did not produce valid audio.","Efek tidak menghasilkan audio yang valid."],

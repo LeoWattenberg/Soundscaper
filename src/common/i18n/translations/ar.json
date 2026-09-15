@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ar",
 	"provenance": {
-		"machine": {"model":"codex-agent","modelDigest":"sha256:54919c11e3c3f73931a4e65dd20382ebb3370f9070e3566a91bf1150dcc7b203","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:e1152a6f4af645ec78b2d0d5ec3ac57382acde30ffa8b888dd967506ddcf3e59","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -801,6 +801,13 @@
 		"effectCardVocoder": ["machine","Vocoder","فوكودر"],
 		"effectChannelLayoutChanged": ["machine","The effect changed the selection channel layout.","غير التأثير تخطيط القنوات للاختيار."],
 		"effectChannelLengthsMismatch": ["machine","The effect channels have mismatched lengths.","تختلف قنوات التأثير في الطول."],
+		"effectCurveGrid": ["machine","Show gridlines","إظهار خطوط الشبكة"],
+		"effectCurveInstructions": ["machine","Click to add a point; drag to move it or drag outside to remove it. Arrow keys adjust a focused point; Delete removes it; Escape cancels a drag.","انقر لإضافة نقطة؛ اسحب لتحريكها أو اسحبها خارج الرسم لإزالتها. تضبط مفاتيح الأسهم النقطة المحددة؛ يزيلها Delete؛ ويلغي Escape السحب."],
+		"effectCurveMaximumDb": ["machine","Maximum gain (dB)","أقصى كسب (dB)"],
+		"effectCurveMinimumDb": ["machine","Minimum gain (dB)","أدنى كسب (dB)"],
+		"effectCurvePoint": ["machine","{frequency} Hz, {gain} dB","{frequency} Hz, {gain} dB"],
+		"effectCurveRequested": ["machine","Drawn curve","المنحنى المرسوم"],
+		"effectCurveResponse": ["machine","Actual filter response","استجابة المرشح الفعلية"],
 		"effectEngineUnsupported": ["machine","This effect is not supported by the local audio engine.","هذا التأثير غير مدعوم من قبل محرك الصوت المحلي."],
 		"effectGroupByCategory": ["machine","Group by category","المجموعة حسب الفئة"],
 		"effectInvalidAudio": ["machine","The effect did not produce valid audio.","لم ينتج التأثير صوتًا صالحًا."],

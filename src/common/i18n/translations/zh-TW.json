@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "zh-TW",
 	"provenance": {
-		"machine": {"model":"codex-agent","modelDigest":"sha256:8ca15f9bfce224cc28fc8e76378913f9bb2a13b2581519a8ba0080049b83a0ad","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:12e775753eea37d0240836778615222763f0d564c44e8f9b4c1c3e4e89e73ad9","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -801,6 +801,13 @@
 		"effectCardVocoder": ["machine","Vocoder","聲碼器"],
 		"effectChannelLayoutChanged": ["machine","The effect changed the selection channel layout.","此效果已變更選取範圍的聲道配置。"],
 		"effectChannelLengthsMismatch": ["machine","The effect channels have mismatched lengths.","效果聲道的長度不一致。"],
+		"effectCurveGrid": ["machine","Show gridlines","顯示格線"],
+		"effectCurveInstructions": ["machine","Click to add a point; drag to move it or drag outside to remove it. Arrow keys adjust a focused point; Delete removes it; Escape cancels a drag.","點擊以新增控制點；拖曳可移動控制點，拖到圖表外可刪除。方向鍵調整目前聚焦的控制點；Delete 刪除控制點；Escape 取消拖曳。"],
+		"effectCurveMaximumDb": ["machine","Maximum gain (dB)","最大增益 (dB)"],
+		"effectCurveMinimumDb": ["machine","Minimum gain (dB)","最小增益 (dB)"],
+		"effectCurvePoint": ["machine","{frequency} Hz, {gain} dB","{frequency} Hz, {gain} dB"],
+		"effectCurveRequested": ["machine","Drawn curve","繪製的曲線"],
+		"effectCurveResponse": ["machine","Actual filter response","實際濾波器響應"],
 		"effectEngineUnsupported": ["machine","This effect is not supported by the local audio engine.","本機音訊引擎不支援此效果。"],
 		"effectGroupByCategory": ["machine","Group by category","依類別分組"],
 		"effectInvalidAudio": ["machine","The effect did not produce valid audio.","此效果未產生有效的音訊。"],

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ja",
 	"provenance": {
-		"machine": {"model":"codex-agent","modelDigest":"sha256:66b74484524d2f75e790ce0c3938c1b8882537025266604d6decb0cf021596a2","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:40c25337fdd856f83d62ad64645d7cac1bce3e2e67d36f0074358ed0e0a6a7a5","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -801,6 +801,13 @@
 		"effectCardVocoder": ["machine","Vocoder","ボコーダー"],
 		"effectChannelLayoutChanged": ["machine","The effect changed the selection channel layout.","このエフェクトは選択チャンネルのレイアウトを変更しました。"],
 		"effectChannelLengthsMismatch": ["machine","The effect channels have mismatched lengths.","エフェクトチャンネルの長さが一致しません。"],
+		"effectCurveGrid": ["machine","Show gridlines","グリッド線を表示"],
+		"effectCurveInstructions": ["machine","Click to add a point; drag to move it or drag outside to remove it. Arrow keys adjust a focused point; Delete removes it; Escape cancels a drag.","クリックで点を追加し、ドラッグで移動、グラフの外へドラッグすると削除します。矢印キーでフォーカス中の点を調整し、Deleteで削除、Escapeでドラッグをキャンセルします。"],
+		"effectCurveMaximumDb": ["machine","Maximum gain (dB)","最大ゲイン (dB)"],
+		"effectCurveMinimumDb": ["machine","Minimum gain (dB)","最小ゲイン (dB)"],
+		"effectCurvePoint": ["machine","{frequency} Hz, {gain} dB","{frequency} Hz, {gain} dB"],
+		"effectCurveRequested": ["machine","Drawn curve","描画したカーブ"],
+		"effectCurveResponse": ["machine","Actual filter response","実際のフィルター応答"],
 		"effectEngineUnsupported": ["machine","This effect is not supported by the local audio engine.","このエフェクトはローカルオーディオエンジンによってサポートされていません。"],
 		"effectGroupByCategory": ["machine","Group by category","カテゴリ別グループ化"],
 		"effectInvalidAudio": ["machine","The effect did not produce valid audio.","このエフェクトは有効なオーディオを生成しませんでした。"],

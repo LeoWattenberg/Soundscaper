@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "uk",
 	"provenance": {
-		"machine": {"model":"codex-agent","modelDigest":"sha256:3e37caad3a7c81fc98cececb58af57f07ad17d2da7fb24e8a5be13a930e1d390","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:52a636ae8615938c84d5b0987c0d87feafa33228cd25226f9e7f0641e2d02bdd","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -801,6 +801,13 @@
 		"effectCardVocoder": ["machine","Vocoder","Вокодер"],
 		"effectChannelLayoutChanged": ["machine","The effect changed the selection channel layout.","Ефект змінив розкладку каналів позначеної ділянки."],
 		"effectChannelLengthsMismatch": ["machine","The effect channels have mismatched lengths.","Канали ефекту мають різну довжину."],
+		"effectCurveGrid": ["machine","Show gridlines","Показати лінії сітки"],
+		"effectCurveInstructions": ["machine","Click to add a point; drag to move it or drag outside to remove it. Arrow keys adjust a focused point; Delete removes it; Escape cancels a drag.","Клацніть, щоб додати точку; перетягніть її для переміщення або за межі графіка для видалення. Стрілки змінюють точку у фокусі; Delete видаляє її; Escape скасовує перетягування."],
+		"effectCurveMaximumDb": ["machine","Maximum gain (dB)","Максимальне підсилення (dB)"],
+		"effectCurveMinimumDb": ["machine","Minimum gain (dB)","Мінімальне підсилення (dB)"],
+		"effectCurvePoint": ["machine","{frequency} Hz, {gain} dB","{frequency} Hz, {gain} dB"],
+		"effectCurveRequested": ["machine","Drawn curve","Намальована крива"],
+		"effectCurveResponse": ["machine","Actual filter response","Фактична характеристика фільтра"],
 		"effectEngineUnsupported": ["machine","This effect is not supported by the local audio engine.","Цей ефект не підтримується локальним аудіодвигуном."],
 		"effectGroupByCategory": ["machine","Group by category","Групувати за категорією"],
 		"effectInvalidAudio": ["machine","The effect did not produce valid audio.","Ефект не створив коректного звуку."],

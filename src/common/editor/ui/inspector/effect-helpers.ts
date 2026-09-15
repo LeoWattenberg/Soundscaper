@@ -40,11 +40,6 @@ interface NumberDescriptor {
 	readonly maximum?: number;
 }
 
-interface CurvePoint {
-	readonly frequency: number;
-	readonly gain: number;
-}
-
 /**
  * Presets as the preset bar wants them: a label to show and whether the entry
  * is one this project saved. A factory preset names its catalog key instead of
@@ -139,24 +134,6 @@ export function audioEffectParamRangeFromDescriptor(
 	return Number.isFinite(descriptor.minimum) && Number.isFinite(descriptor.maximum)
 		? [descriptor.minimum as number, descriptor.maximum as number]
 		: null;
-}
-
-export function audacityCurvePolyline(
-	points: readonly CurvePoint[] | null | undefined,
-	linearFrequencyScale = false,
-): string {
-	const values = Array.isArray(points) && points.length
-		? points
-		: [{ frequency: 20, gain: 0 }, { frequency: 20_000, gain: 0 }];
-	return values.map((point) => {
-		const frequency = Math.max(20, Math.min(20_000, Number(point.frequency) || 20));
-		const gain = Math.max(-30, Math.min(30, Number(point.gain) || 0));
-		const x = linearFrequencyScale
-			? 16 + (frequency - 20) / (20_000 - 20) * 608
-			: 16 + Math.log10(frequency / 20) / 3 * 608;
-		const y = 110 - gain / 30 * 94;
-		return `${x.toFixed(2)},${y.toFixed(2)}`;
-	}).join(' ');
 }
 
 export function audacityParameterVisible(effect: EffectLike, name: string): boolean {

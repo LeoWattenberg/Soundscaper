@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "es",
 	"provenance": {
-		"machine": {"model":"codex-agent","modelDigest":"sha256:a59e8e5095188d722a4bb6708871fe4273a9fc3ddf965bdda909929a783e320a","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:6cd33a315992986d0f3edb0653e7b8fcfac8248085b4895d57c0f14b94a27044","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -801,6 +801,13 @@
 		"effectCardVocoder": ["machine","Vocoder","Vocodificador"],
 		"effectChannelLayoutChanged": ["machine","The effect changed the selection channel layout.","El efecto ha cambiado el diseño de canales de la selección."],
 		"effectChannelLengthsMismatch": ["machine","The effect channels have mismatched lengths.","Los canales del efecto tienen longitudes incompatibles."],
+		"effectCurveGrid": ["machine","Show gridlines","Mostrar cuadrícula"],
+		"effectCurveInstructions": ["machine","Click to add a point; drag to move it or drag outside to remove it. Arrow keys adjust a focused point; Delete removes it; Escape cancels a drag.","Haz clic para añadir un punto; arrástralo para moverlo o fuera del gráfico para eliminarlo. Las flechas ajustan el punto enfocado; Supr lo elimina; Esc cancela el arrastre."],
+		"effectCurveMaximumDb": ["machine","Maximum gain (dB)","Ganancia máxima (dB)"],
+		"effectCurveMinimumDb": ["machine","Minimum gain (dB)","Ganancia mínima (dB)"],
+		"effectCurvePoint": ["machine","{frequency} Hz, {gain} dB","{frequency} Hz, {gain} dB"],
+		"effectCurveRequested": ["machine","Drawn curve","Curva dibujada"],
+		"effectCurveResponse": ["machine","Actual filter response","Respuesta real del filtro"],
 		"effectEngineUnsupported": ["machine","This effect is not supported by the local audio engine.","Este efecto no es compatible con el motor de audio local."],
 		"effectGroupByCategory": ["machine","Group by category","Agrupar por categoría"],
 		"effectInvalidAudio": ["machine","The effect did not produce valid audio.","El efecto no produjo audio válido."],

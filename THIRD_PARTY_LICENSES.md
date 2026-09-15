@@ -31,7 +31,7 @@ are retained with the assets; [GPLv3 terms](LICENSES/GPL-3.0.txt) are bundled.
 
 ## Audacity-derived native audio effects
 
-Parts of `src/common/editor/audacity-effects/` are JavaScript translations and adaptations of native effect implementations from Audacity 3.7.7, exact commit `5ef610ed23260d6d648175735bb16b32536eb30b`:
+Parts of `src/common/editor/audacity-effects/` are JavaScript and TypeScript translations and adaptations of native effect implementations from Audacity 3.7.7, exact commit `5ef610ed23260d6d648175735bb16b32536eb30b`:
 
 - source: <https://github.com/audacity/audacity/tree/Audacity-3.7.7>
 - upstream license and notices: <https://github.com/audacity/audacity/blob/Audacity-3.7.7/LICENSE.txt>
@@ -40,6 +40,8 @@ Parts of `src/common/editor/audacity-effects/` are JavaScript translations and a
 Audacity is distributed under GPLv3. Many individual source files are GPL-2.0-or-later; the GPLv3 option is selected for the adapted portions so they can be combined with this AGPLv3 application under section 13 of both licenses. The Audacity-derived portions remain governed by GPLv3. Upstream authorship, source paths, and modification notices are retained in the corresponding JavaScript source files.
 
 Original code is copyright the Audacity Team and the individual authors named in the retained source-file headers. The SimpleCompressor portion retains its separate notice below.
+
+The Filter Curve EQ envelope model and actual FIR response display in `filter-curve.ts` and `filter-curve-response.ts` also adapt `libraries/lib-builtin-effects/EqualizationCurvesList.cpp` and `src/effects/EqualizationPanel.cpp` at that same revision, retaining their authorship and GPLv3 notices. They share interpolation with the audio processor and support the browser curve editor's point controls.
 
 The implementations were translated from C/C++ to JavaScript, separated from Audacity's application and UI construction, and integrated into the kw.media browser audio editor on 2026-07-13. The distributed source code is the preferred form for modification.
 

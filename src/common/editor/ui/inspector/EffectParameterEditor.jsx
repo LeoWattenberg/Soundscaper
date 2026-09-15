@@ -10,16 +10,14 @@ import {
 	AUDACITY_EFFECT_DEFINITIONS,
 	audacityEffectOptionLabel,
 	audacityEffectParameterLabel,
-	formatAudacityCurve,
-	parseAudacityCurve,
 } from '../../audacity-effects/manifest.js';
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../../project.js';
 import { AudacityEffectLayout } from '../AudacityEffectLayout.jsx';
 import { ParametricEqEditor } from '../ParametricEqEditor.jsx';
-import { CommitField, DesignCheckbox, LabeledDropdown, SteppedSlider } from './inspector-controls.jsx';
+import FilterCurveEqEditor from './FilterCurveEqEditor.tsx';
+import { DesignCheckbox, LabeledDropdown, SteppedSlider } from './inspector-controls.jsx';
 import ParameterNumber, { timeCodeUnit } from './EffectParameterNumber.jsx';
 import {
-	audacityCurvePolyline,
 	audacityParameterPresentation,
 	audacityParameterVisible,
 	audioEffectParamRangeFromDescriptor,
@@ -354,31 +352,9 @@ function AudacityParameter({ name, effectType, descriptor, value, effectParams, 
 	}
 	if (descriptor.kind === 'curve') {
 		return (
-			<div className="audio-editor-filter-curve" data-effect-param={name}>
-				<svg viewBox="0 0 640 220" preserveAspectRatio="none" role="img" aria-label={label}>
-					<g className="audio-editor-filter-curve__grid">
-						<path d="M16 16 H624 M16 63 H624 M16 110 H624 M16 157 H624 M16 204 H624" />
-						<path d="M16 16 V204 M117 16 V204 M218 16 V204 M320 16 V204 M421 16 V204 M522 16 V204 M624 16 V204" />
-					</g>
-					<polyline className="audio-editor-filter-curve__line" points={audacityCurvePolyline(value, Boolean(effectParams?.linearFrequencyScale))} />
-				</svg>
-				<details>
-					<summary>{label}</summary>
-					<CommitField
-						label={label}
-						name={name}
-						value={formatAudacityCurve(value)}
-						disabled={disabled}
-						multiline
-						hookName="effect-param"
-						onCommit={(_field, next) => onCommit(parseAudacityCurve(next))}
-					/>
-				</details>
-				<div className="audio-editor-panel-actions audio-editor-filter-curve__actions">
-					<Button variant="secondary" disabled={disabled} onClick={() => onCommit([{ frequency: 20, gain: 0 }, { frequency: 20_000, gain: 0 }])}>{copy.reset}</Button>
-					<Button variant="secondary" disabled={disabled} onClick={() => onCommit((value || []).map((point) => ({ ...point, gain: -point.gain })))}>{copy.invert}</Button>
-				</div>
-			</div>
+			<FilterCurveEqEditor name={name} label={label} value={value} copy={copy} disabled={disabled}
+				sampleRate={sampleRate} linearFrequencyScale={Boolean(effectParams?.linearFrequencyScale)}
+				filterLength={effectParams?.filterLength ?? 8191} onCommit={onCommit} />
 		);
 	}
 	if (descriptor.kind === 'bands') {
