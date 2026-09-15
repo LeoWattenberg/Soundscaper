@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import { createExternalFfmpegPreferenceNodeProbe } from '../desktop/external-ffmpeg-preference-node-probe.ts';
@@ -84,6 +87,27 @@ test('macOS x64 is rejected before discovery or process execution', () => {
 	assert.throws(() => createExternalFfmpegPreferenceNodeProbe({
 		platform: 'darwin', architecture: 'x64', workingDirectory: '/scratch', environment: {},
 	}), /unsupported.*darwin-x64/iu);
+});
+
+test('a preference rescan admits an unlinked Homebrew Cellar installation without PATH', { skip: process.platform === 'win32' }, async () => {
+	const prefix = await mkdtemp(join(tmpdir(), 'soundscaper-ffmpeg-rescan-'));
+	try {
+		const bin = join(prefix, 'Cellar', 'ffmpeg', '8.1.2', 'bin');
+		await mkdir(bin, { recursive: true });
+		for (const name of ['ffmpeg', 'ffprobe']) await writeFile(join(bin, name), name, { mode: 0o700 });
+		const probe = createExternalFfmpegPreferenceNodeProbe({
+			platform: 'linux', architecture: 'x64', workingDirectory: prefix,
+			environment: { HOMEBREW_PREFIX: prefix }, runner: runner([]),
+		});
+		const result = await probe(null);
+		assert.equal(result.status, 'available');
+		if (result.status !== 'available') return;
+		assert.equal(result.evidence.executablePath, join(bin, 'ffmpeg'));
+		assert.equal(result.evidence.identity.ffprobePath, join(bin, 'ffprobe'));
+		assert.equal(result.evidence.identity.version, '8.1.2');
+	} finally {
+		await rm(prefix, { recursive: true, force: true });
+	}
 });
 
 function runner(

@@ -2,7 +2,7 @@
 
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { access, stat } from 'node:fs/promises';
+import { access, readdir, stat } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { createReadStream } from 'node:fs';
 import { delimiter, posix, win32 } from 'node:path';
@@ -73,6 +73,7 @@ interface LocatorOptions {
 	readonly managedPath?: string | null;
 	readonly environment?: Readonly<Record<string, string | undefined>>;
 	readonly isExecutable?: (path: string) => Promise<boolean>;
+	readonly listSubdirectories?: (path: string) => Promise<readonly string[]>;
 }
 
 const SHA256 = /^[0-9a-f]{64}$/u;
@@ -121,10 +122,12 @@ export function createExternalFfmpegCandidateLocator(
 			}>[] = [];
 			if (options.selectedPath) pending.push({ source: 'user-selected', ffmpegPath: options.selectedPath });
 			if (options.managedPath) pending.push({ source: 'managed-package', ffmpegPath: options.managedPath });
-			for (const directory of packageManagerDirectories(options.platform, environment)) pending.push({
+			for (const directory of await packageManagerDirectories(
+				options.platform, environment, options.listSubdirectories ?? defaultSubdirectories,
+			)) pending.push({
 				source: 'package-manager', ffmpegPath: executableIn(directory, options.platform, 'ffmpeg'),
 			});
-			for (const directory of pathDirectories(options.platform, environment.PATH)) pending.push({
+			for (const directory of pathDirectories(options.platform, environmentValue(environment, 'PATH', options.platform))) pending.push({
 				source: 'system-path', ffmpegPath: executableIn(directory, options.platform, 'ffmpeg'),
 			});
 			const result: ExternalFfmpegCandidateInput[] = [];
@@ -266,16 +269,91 @@ export function externalFfmpegExecutablePairClosureSha256(value: Readonly<{
 	]));
 }
 
-function packageManagerDirectories(
+async function packageManagerDirectories(
 	platform: NodeJS.Platform,
 	environment: Readonly<Record<string, string | undefined>>,
-): readonly string[] {
-	if (platform === 'darwin') return Object.freeze(['/opt/homebrew/bin']);
-	if (platform === 'linux') return Object.freeze(['/home/linuxbrew/.linuxbrew/bin']);
-	if (platform === 'win32' && environment.LOCALAPPDATA) {
-		return Object.freeze([win32.join(environment.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Links')]);
+	list: (path: string) => Promise<readonly string[]>,
+): Promise<readonly string[]> {
+	const read = async (path: string): Promise<readonly string[]> => {
+		try {
+			return [...new Set(await list(path))].filter((name) => (
+				name.length > 0 && name !== '.' && name !== '..' && !/[\\/\0]/u.test(name)
+			)).sort(asciiOrder);
+		} catch { return []; }
+	};
+	const value = (key: string): string | undefined => {
+		const path = environmentValue(environment, key, platform);
+		const paths = platform === 'win32' ? win32 : posix;
+		return path && path.length <= 4_096 && !path.includes('\0') && paths.isAbsolute(path)
+			? paths.normalize(path) : undefined;
+	};
+	if (platform === 'win32') {
+		const profile = value('USERPROFILE');
+		const local = value('LOCALAPPDATA') ?? (profile
+			? win32.join(profile, 'AppData', 'Local') : undefined);
+		const roots = [...new Set([
+			...(local ? [win32.join(local, 'Microsoft', 'WinGet')] : []),
+			win32.join(value('ProgramW6432') ?? value('ProgramFiles') ?? 'C:\\Program Files', 'WinGet'),
+			win32.join(value('ProgramFiles(x86)') ?? 'C:\\Program Files (x86)', 'WinGet'),
+		])];
+		const result = roots.map((root) => win32.join(root, 'Links'));
+		const walk = async (path: string, depth: number): Promise<void> => {
+			result.push(path, win32.join(path, 'bin'));
+			if (depth === 2) return;
+			for (const name of await read(path)) {
+				if (name.toLowerCase() !== 'bin') await walk(win32.join(path, name), depth + 1);
+			}
+		};
+		for (const root of roots) {
+			const packages = win32.join(root, 'Packages');
+			for (const name of await read(packages)) {
+				if (/(?:^|[._-])ffmpeg(?:[._-]|$)/iu.test(name)) await walk(win32.join(packages, name), 0);
+			}
+		}
+		return Object.freeze(result);
 	}
-	return Object.freeze([]);
+	const prefix = value('HOMEBREW_PREFIX');
+	const cellar = value('HOMEBREW_CELLAR');
+	const home = value('HOME');
+	const prefixes = [...new Set([
+		...(prefix ? [prefix] : []),
+		...(platform === 'darwin' ? ['/opt/homebrew', '/usr/local'] : [
+			'/home/linuxbrew/.linuxbrew', ...(home ? [posix.join(home, '.linuxbrew')] : []),
+		]),
+	])];
+	const result: string[] = [];
+	const formula = /^ffmpeg(?:-full|@\d+(?:\.\d+)*)?$/u;
+	const scanCellar = async (path: string): Promise<void> => {
+		for (const name of (await read(path)).filter((entry) => formula.test(entry))) {
+			const rack = posix.join(path, name);
+			const versions = [...await read(rack)].sort((left, right) => right.localeCompare(left, 'en', { numeric: true }));
+			for (const version of versions) result.push(posix.join(rack, version, 'bin'));
+		}
+	};
+	for (const root of prefixes) {
+		result.push(posix.join(root, 'bin'), posix.join(root, 'opt', 'ffmpeg', 'bin'));
+		const opt = posix.join(root, 'opt');
+		for (const name of (await read(opt)).filter((entry) => entry !== 'ffmpeg' && formula.test(entry))) {
+			result.push(posix.join(opt, name, 'bin'));
+		}
+		await scanCellar(root === prefix && cellar ? cellar : posix.join(root, 'Cellar'));
+	}
+	if (cellar && !prefix) await scanCellar(cellar);
+	return Object.freeze(result);
+}
+
+async function defaultSubdirectories(path: string): Promise<readonly string[]> {
+	return (await readdir(path, { withFileTypes: true }))
+		.filter((entry) => entry.isDirectory() || entry.isSymbolicLink()).map((entry) => entry.name);
+}
+
+function environmentValue(
+	environment: Readonly<Record<string, string | undefined>>,
+	key: string,
+	platform: NodeJS.Platform,
+): string | undefined {
+	if (platform !== 'win32') return environment[key];
+	return Object.entries(environment).find(([name]) => name.toLowerCase() === key.toLowerCase())?.[1];
 }
 
 function pathDirectories(platform: NodeJS.Platform, value: string | undefined): readonly string[] {
