@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Checkbox } from '@soundscaper/design-system/Checkbox';
 import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
 import { Icon } from '@soundscaper/design-system/Icon';
 // This file renders .add-track-flyout* markup by class name without mounting
@@ -136,7 +137,9 @@ export function ContainerAddTrackFlyout({
 						disabled={mutationsBlocked}
 						onClick={onToggleMasterTrack}
 					>
-						<span className="add-track-flyout__checkbox-box" aria-hidden="true" />
+						<span className="add-track-flyout__checkbox-box" aria-hidden="true">
+							<Checkbox checked={showMasterTrack} disabled={mutationsBlocked} tabIndex={-1} />
+						</span>
 						<span>{copy.masterTrack}</span>
 					</button>
 				</div>
@@ -150,7 +153,9 @@ export function ContainerAddTrackFlyout({
 						tabIndex={-1}
 						onClick={onToggleMarkers}
 					>
-						<span className="add-track-flyout__checkbox-box" aria-hidden="true" />
+						<span className="add-track-flyout__checkbox-box" aria-hidden="true">
+							<Checkbox checked={showMarkers} tabIndex={-1} />
+						</span>
 						<span>{copy.showMarkers}</span>
 					</button>
 				</div>}

@@ -63,7 +63,7 @@
 	cursor: pointer;
 }
 
-.add-track-flyout__checkbox-control:disabled {
+.add-track-flyout__checkbox-control:disabled > :not(.add-track-flyout__checkbox-box) {
 	opacity: 0.5;
 }
 
@@ -77,17 +77,7 @@
 	outline-offset: -2px;
 }
 
-/* The toggles are menu items, not form controls, so the box is drawn here. */
+/* The menu item owns interaction; the vendored checkbox supplies its visual. */
 .add-track-flyout__checkbox-box {
 	flex: none;
-	width: 13px;
-	height: 13px;
-	background: var(--control);
-	border: 1px solid var(--line);
-	border-radius: 2px;
-}
-
-[aria-checked='true'] > .add-track-flyout__checkbox-box {
-	background: var(--accent);
-	box-shadow: inset 0 0 0 2px var(--control);
 }

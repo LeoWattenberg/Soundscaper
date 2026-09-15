@@ -6,10 +6,9 @@
 [data-local-model-manager] .kw-local-model-manager__maintenance,
 [data-local-model-manager] .kw-local-model-manager__result,
 [data-local-model-manager] .kw-local-model-manager__notices {
-	padding: 10px;
+	padding-block: 10px;
 	margin-block: 0 12px;
-	border: 1px solid var(--line);
-	border-radius: 6px;
+	border-block-start: 1px solid var(--line);
 }
 
 [data-local-model-manager] .kw-local-model-manager__runtime p,
@@ -70,9 +69,8 @@
 	grid-template-columns: minmax(160px, 1.4fr) minmax(190px, 1fr) auto;
 	align-items: center;
 	gap: 12px;
-	padding: 12px;
-	border: 1px solid var(--line);
-	border-radius: 7px;
+	padding-block: 12px;
+	border-bottom: 1px solid var(--line);
 }
 
 [data-local-model-manager] .kw-local-model-manager__identity {

@@ -62,13 +62,15 @@ for (const product of ['soundscaper', 'framescaper']) {
 					await contrast(dialog.locator('.editor-skin-choice, .labeled-checkbox__label'));
 					const checkbox = dialog.getByRole('checkbox', { name: 'Follow system theme', exact: true });
 					await expect(checkbox).toBeVisible();
-					await contrast(checkbox, 'borderTopColor', 3, true);
+					await expect(checkbox).toHaveCSS('border-width', '0px');
 					await checkbox.hover();
-					await contrast(checkbox, 'borderTopColor', 3, true);
+					await expect(checkbox).toHaveCSS('border-width', '0px');
 					// Space tests the real checkbox keyboard path without the high-contrast override.
 					await checkbox.focus();
 					await page.keyboard.press('Space');
 					await expect(checkbox).toHaveAttribute('aria-checked', 'true');
+					await expect(checkbox).toHaveCSS('border-width', '0px');
+					await expect(checkbox).not.toHaveCSS('box-shadow', 'none');
 					await contrast(dialog.locator('.checkbox__icon'), 'color', 3);
 					await page.mouse.down();
 					await contrast(dialog.locator('.checkbox__icon'), 'color', 3);
@@ -95,7 +97,7 @@ for (const product of ['soundscaper', 'framescaper']) {
 					if (product === 'soundscaper') {
 						await chooseNestedCommandAction(page, editor, 'View', ['Workspace', 'Audacity']);
 						await contrast(editor.locator('.kw-audio-editor__snap-control .labeled-checkbox__label'));
-						await contrast(editor.locator('.kw-audio-editor__snap-control .checkbox'), 'borderTopColor', 3, true);
+						await expect(editor.locator('.kw-audio-editor__snap-control .checkbox')).toHaveCSS('border-width', '0px');
 						await chooseCommandAction(page, editor, 'Generate', 'Tone');
 						const generator = page.getByRole('dialog', { name: 'Tone', exact: true });
 						await expect(generator).toBeVisible();

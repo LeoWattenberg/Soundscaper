@@ -92,7 +92,7 @@
 	position: fixed;
 	z-index: var(--flyout-z);
 	min-width: 220px;
-	background: var(--flyout-bg, var(--bg));
+	background: var(--panel);
 	border: 1px solid var(--flyout-border, var(--line));
 	box-shadow: var(--shadow);
 }
@@ -229,20 +229,14 @@
 	display: none !important;
 }
 
-/* The package fills an unchecked checkbox with the same colour as the surfaces
- * it sits on, which leaves it invisible until it is checked. The theme carries
- * a control-border colour for exactly this; the package's own stylesheet just
- * never spends it. */
-.checkbox {
-	border: 1px solid var(--checkbox-border);
+/* Flyout's default-surface token is also the dark checkbox fill. Use the
+ * elevated surface for floating content, including its pointing arrow. */
+.flyout {
+	background: var(--panel);
 }
 
-/* ContextMenuItem uses its own checkmark cell instead of Checkbox, including
- * toggles in transport flyouts such as Preserve pitch. Give that empty cell
- * the same visible boundary. */
-.context-menu-item-checkmark {
-	border: 1px solid var(--checkbox-border);
-	border-radius: 2px;
+.flyout__arrow {
+	--flyout-bg: var(--panel);
 }
 
 .kw-audio-editor__button-tooltip {
@@ -252,7 +246,7 @@
 	position: fixed;
 	z-index: 10010;
 	pointer-events: none;
-	background: var(--flyout-bg, var(--bg));
+	background: var(--panel);
 	border: 1px solid var(--flyout-border, var(--line));
 	border-radius: 4px;
 	box-shadow: var(--shadow);

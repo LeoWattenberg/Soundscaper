@@ -6,11 +6,11 @@
 }
 
 .audio-editor-audio-warp section,
-.audio-editor-audio-warp fieldset,
-.audio-editor-audio-warp__map {
-	border: 1px solid var(--audio-editor-border, CanvasText);
-	border-radius: 6px;
-	padding: 10px;
+.audio-editor-audio-warp fieldset {
+	border: 0;
+	border-top: 1px solid var(--line);
+	padding: 10px 0 0;
+	margin: 0;
 }
 
 .audio-editor-audio-warp fieldset,
@@ -52,8 +52,13 @@
 
 .audio-editor-audio-warp__map {
 	width: 100%;
-	border-collapse: separate;
+	border-collapse: collapse;
 	border-spacing: 0;
+}
+
+.audio-editor-audio-warp__map thead,
+.audio-editor-audio-warp__map tbody > tr:not(:last-child) {
+	border-bottom: 1px solid var(--line);
 }
 
 .audio-editor-audio-warp__map th,
@@ -79,7 +84,8 @@
 @media (forced-colors: active) {
 	.audio-editor-audio-warp section,
 	.audio-editor-audio-warp fieldset,
-	.audio-editor-audio-warp__map {
+	.audio-editor-audio-warp__map thead,
+	.audio-editor-audio-warp__map tbody > tr:not(:last-child) {
 		border-color: CanvasText;
 		forced-color-adjust: none;
 	}

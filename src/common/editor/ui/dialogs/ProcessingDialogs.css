@@ -39,9 +39,8 @@
 .kw-processing-summary,
 .kw-processing-details {
 	margin-block: 12px;
-	padding: 12px;
-	border: 1px solid var(--line);
-	border-radius: 4px;
+	padding-block: 12px;
+	border-block-start: 1px solid var(--line);
 	font-size: 13px;
 }
 .kw-processing-summary p { margin: 6px 0; }
@@ -102,11 +101,12 @@
 .audio-editor-soundscaper-native-manage [data-native-plugin-instance] > h3,
 .audio-editor-soundscaper-native-manage [data-native-plugin-instance] > details { width: 100%; }
 .kw-local-assistance__guided-settings-controls {
-	border: 1px solid var(--line);
-	border-radius: 4px;
-	padding: 16px;
+	border: 0;
+	border-block-start: 1px solid var(--line);
+	padding: 16px 0;
 	font-size: 13px;
 }
+.kw-local-assistance__guided-settings-controls legend { padding: 0; }
 .kw-local-assistance__selections select,
 .kw-local-assistance__guided-settings-controls input[type='number'],
 .audio-editor-soundscaper-native-services select {

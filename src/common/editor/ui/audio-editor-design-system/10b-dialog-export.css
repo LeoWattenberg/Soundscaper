@@ -79,14 +79,13 @@
 	display: grid;
 	min-width: 0;
 	margin: 0;
-	padding: 10px;
+	padding: 0;
 	gap: 10px;
-	border: 1px solid var(--line);
-	border-radius: 5px;
+	border: 0;
 }
 
 .audio-editor-label-export-dialog__tracks legend {
-	padding: 0 4px;
+	padding: 0 0 10px;
 	color: var(--text);
 	font-size: 11px;
 	font-weight: 700;
@@ -175,10 +174,7 @@
 }
 
 .audio-editor-export-details {
-	padding: 9px 10px;
-	background: var(--bg);
-	border: 1px solid var(--line);
-	border-radius: 5px;
+	padding: 0;
 }
 
 .audio-editor-export-details summary {

@@ -59,6 +59,13 @@
 	border-radius: 5px;
 }
 
+.kw-audio-editor-dialog :is(.audio-editor-adm-routing, .audio-editor-adm-objects) {
+	padding: 12px 0;
+	border: 0;
+	border-block-start: 1px solid var(--line);
+	border-radius: 0;
+}
+
 .audio-editor-adm-object {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));

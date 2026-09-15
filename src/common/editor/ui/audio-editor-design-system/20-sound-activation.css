@@ -1,11 +1,10 @@
 .kw-audio-editor-sound-activation {
 	display: grid;
 	gap: 12px;
-	padding: 14px;
+	padding: 14px 0 0;
 	margin-top: 14px;
-	background: color-mix(in srgb, var(--control) 76%, transparent);
-	border: 1px solid var(--line);
-	border-radius: 6px;
+	background: transparent;
+	border-top: 1px solid var(--line);
 }
 
 .kw-audio-editor-sound-activation h3,

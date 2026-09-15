@@ -5,16 +5,16 @@
 	display: grid;
 	gap: 14px;
 	min-width: 0;
-	padding: 14px;
+	padding: 14px 0 0;
 	color: var(--text);
-	background: var(--panel);
-	border: 1px solid var(--line);
-	border-radius: 6px;
+	background: transparent;
+	border: 0;
+	border-top: 1px solid var(--line);
 }
 
 [data-soundscaper-mastering-sequence-dialog]
 	[data-soundscaper-mastering-sequence-editor] legend {
-	padding: 0 6px;
+	padding: 0;
 	color: var(--text);
 	font-size: 14px;
 	font-weight: 600;
@@ -80,10 +80,9 @@
 	[data-soundscaper-mastering-sequence-editor] section > form {
 	display: grid;
 	gap: 10px;
-	padding: 12px;
-	background: var(--control);
-	border: 1px solid var(--line);
-	border-radius: 6px;
+	padding: 12px 0 0;
+	background: transparent;
+	border-top: 1px solid var(--line);
 }
 
 [data-soundscaper-mastering-sequence-dialog]

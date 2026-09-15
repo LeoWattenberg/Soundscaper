@@ -75,31 +75,12 @@ test('the inline video clip rename field does not inherit its light-on-dark head
 	assert.match(rule[1], /color:\s*#14151a/u);
 });
 
-/**
- * The package fills an unchecked checkbox with the same colour the dark theme
- * paints whole panels and dialog cards, and gives it no outline, so on those
- * surfaces the control is simply not there until somebody checks it. The theme
- * carries a control-border colour for exactly this; the package's own
- * stylesheet never spends it, so the editor does.
- */
-test('an unchecked checkbox is outlined, because its fill matches a dark surface', async () => {
-	const { darkTheme } = await import(
-		new URL('vendor/audacity-design-system/tokens/src/themes/dark.v2.ts', ROOT).href
-	);
-	const fill = darkTheme.background.control.checkbox.idle.toLowerCase();
-	const surfaces = Object.values(darkTheme.background.surface).map((colour) => colour.toLowerCase());
-	assert.ok(surfaces.includes(fill), 'the fill is indistinguishable from a surface it sits on');
-	assert.ok(darkTheme.border.control.checkbox, 'the theme states a checkbox border colour');
-
+test('checkboxes keep their design-system appearance without editor border overrides', async () => {
 	const css = await readFile(new URL('01-tokens-base.css', DESIGN_SYSTEM_STYLES), 'utf8');
-	const rule = /\.checkbox\s*\{([^}]*)\}/u.exec(css);
-	assert.ok(rule, 'the editor outlines the package checkbox');
-	assert.match(rule[1], /border:\s*1px solid var\(--checkbox-border\)/u);
+	assert.doesNotMatch(css, /\.checkbox\s*\{/u, 'the design system owns checkbox styling');
 });
 
-test('an unchecked context-menu toggle is outlined in dark flyouts', async () => {
+test('context-menu checkmark cells keep their design-system appearance', async () => {
 	const css = await readFile(new URL('01-tokens-base.css', DESIGN_SYSTEM_STYLES), 'utf8');
-	const rule = /\.context-menu-item-checkmark\s*\{([^}]*)\}/u.exec(css);
-	assert.ok(rule, 'the editor outlines context-menu toggle cells');
-	assert.match(rule[1], /border:\s*1px solid var\(--checkbox-border\)/u);
+	assert.doesNotMatch(css, /\.context-menu-item-checkmark\s*\{/u);
 });

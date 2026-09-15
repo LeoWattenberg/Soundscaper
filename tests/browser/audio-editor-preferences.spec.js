@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { darkTheme } from '../../vendor/audacity-design-system/tokens/src/themes/dark.v2.ts';
+import { lightTheme } from '../../vendor/audacity-design-system/tokens/src/themes/light.v2.ts';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
@@ -48,6 +50,58 @@ test('browser Preferences opens General without the desktop-only FFmpeg location
 	await expect(preferences.getByRole('group', { name: 'Language', exact: true })).toBeVisible();
 	await expect(preferences.locator('[data-external-ffmpeg-preference="true"]')).toHaveCount(0);
 });
+
+for (const mode of ['Light', 'Dark']) {
+	test(`${mode} Appearance uses flat sections, separators and design-system checkboxes`, async ({ page }, testInfo) => {
+		await page.setViewportSize({ width: 1440, height: 1000 });
+		const editor = await bootEditor(page, '/embed/en/');
+		await page.emulateMedia({ colorScheme: mode.toLowerCase() });
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await preferences.getByRole('tab', { name: /Appearance$/u }).click();
+		await preferences.getByRole('radio', { name: mode, exact: true }).check();
+		await expect(page.locator('html')).toHaveAttribute('data-theme', mode.toLowerCase());
+
+		const theme = preferences.getByRole('heading', { name: 'Theme', exact: true }).locator('..');
+		const clipStyle = preferences.getByRole('heading', { name: 'Clip style', exact: true }).locator('..');
+		for (const section of [theme, clipStyle]) {
+			await expect(section).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+			await expect(section).toHaveCSS('border-width', '0px');
+			await expect(section).toHaveCSS('border-radius', '0px');
+		}
+		const separator = theme.locator('xpath=following-sibling::*[1]');
+		await expect(separator).toHaveAttribute('role', 'separator');
+		await expect(separator).toBeVisible();
+		const palette = mode === 'Dark' ? darkTheme : lightTheme;
+		const separatorColor = `rgb(${[1, 3, 5].map((offset) =>
+			Number.parseInt(palette.border.onElevated.slice(offset, offset + 2), 16)).join(', ')})`;
+		expect(await separator.evaluate((node) => {
+			const line = getComputedStyle(node, '::after');
+			return { height: line.height, color: line.backgroundColor };
+		})).toEqual({ height: '1px', color: separatorColor });
+
+		const checkbox = preferences.getByRole('checkbox', { name: 'Follow system theme', exact: true });
+		await expect(checkbox).not.toBeChecked();
+		await expect(checkbox).toHaveCSS('border-width', '0px');
+		await expect(checkbox).toHaveCSS('outline-style', 'none');
+		await preferences.screenshot({ path: testInfo.outputPath(`appearance-${mode}.png`) });
+		const idleFill = await checkbox.evaluate((node) => getComputedStyle(node).backgroundColor);
+		await checkbox.hover();
+		await expect(checkbox).toHaveCSS('border-width', '0px');
+		await expect(checkbox).not.toHaveCSS('background-color', idleFill);
+		await page.mouse.move(0, 0);
+		await page.keyboard.press('Tab');
+		await checkbox.focus();
+		await expect(checkbox).not.toHaveCSS('box-shadow', 'none');
+		await page.keyboard.press('Space');
+		await expect(checkbox).toBeChecked();
+		await expect(checkbox.locator('.checkbox__icon')).toBeVisible();
+		await expect(checkbox).toHaveCSS('border-width', '0px');
+		await expect(checkbox).toHaveCSS('background-color', idleFill);
+		await page.keyboard.press('Space');
+		await expect(checkbox).not.toBeChecked();
+	});
+}
 
 test('Program start chooses what the next session opens with', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');

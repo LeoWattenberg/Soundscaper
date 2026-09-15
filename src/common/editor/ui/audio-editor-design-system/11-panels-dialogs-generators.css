@@ -122,6 +122,44 @@
 	line-height: 1.5;
 }
 
+/* Simple dialog sections already have separator lines. Keep their contents on
+	the dialog surface instead of nesting another rounded panel around them. */
+.kw-audio-editor-dialog .preference-panel {
+	padding: 0;
+	background: transparent;
+	border: 0;
+	border-radius: 0;
+}
+
+.kw-audio-editor-dialog .separator::after {
+	background-color: var(--dialog-separator);
+}
+
+/* Browser fieldsets otherwise add a recessed frame to plain radio choices and
+	settings. Low specificity lets explicit effect control groups keep theirs. */
+:where(.kw-audio-editor-dialog) fieldset {
+	min-width: 0;
+	padding: 12px 0;
+	margin: 0;
+	border: 0;
+	border-block-start: 1px solid var(--line);
+}
+
+:where(.kw-audio-editor-dialog) legend {
+	padding: 0;
+	color: var(--text);
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.kw-audio-editor-dialog .audio-editor-clip-properties__card {
+	padding: 12px 0;
+	background: transparent;
+	border: 0;
+	border-block-start: 1px solid var(--line);
+	border-radius: 0;
+}
+
 .kw-audio-editor-compatibility-counts {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));

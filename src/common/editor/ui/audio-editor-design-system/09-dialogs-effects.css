@@ -371,8 +371,13 @@
 	min-width: 0;
 	align-content: start;
 	gap: 10px;
+	padding-block: 12px;
+	border-block-start: 1px solid var(--line);
+}
+
+.audio-editor-audacity-layout__card--knobs {
 	padding: 12px;
-	background: var(--bg);
+	background: var(--panel);
 	border: 1px solid var(--line);
 	border-radius: 5px;
 }

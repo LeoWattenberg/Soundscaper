@@ -38,8 +38,47 @@ async function bootStableEditor(page) {
 	return editor;
 }
 
+function cssColor(hex) {
+	return `rgb(${[1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`;
+}
+
 test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
+
+	test('floating controls use the elevated surface and original checkbox styling in both themes', async ({ page }) => {
+		const editor = await bootStableEditor(page);
+		for (const theme of THEMES) {
+			await setDocumentTheme(page, theme);
+			const palette = theme === 'dark' ? darkTheme : lightTheme;
+			await editor.getByRole('button', { name: 'Record level', exact: true }).click();
+			const flyout = editor.getByRole('dialog', { name: 'Record level', exact: true });
+			await expect(flyout).toBeVisible();
+			await expect(flyout).toHaveCSS('background-color', cssColor(palette.background.surface.elevated));
+			await expect(flyout.locator('.flyout__arrow')).toHaveCSS('border-bottom-color', cssColor(palette.background.surface.elevated));
+			const checkbox = flyout.getByRole('checkbox', { name: 'Show mic metering when not recording', exact: true });
+			await page.mouse.move(0, 0);
+			await expect(checkbox).toHaveCSS('border-top-width', '0px');
+			await expect(checkbox).toHaveCSS('background-color', cssColor(palette.background.control.checkbox.idle));
+			await checkbox.hover();
+			await expect(checkbox).toHaveCSS('background-color', cssColor(palette.background.control.checkbox.hover));
+			await expect(checkbox).toHaveCSS('border-top-width', '0px');
+			await page.mouse.move(0, 0);
+			await page.keyboard.press('Tab');
+			await checkbox.focus();
+			await expect(checkbox).not.toHaveCSS('box-shadow', 'none');
+			await page.keyboard.press('Escape');
+			await expect(flyout).toBeHidden();
+
+			await editor.getByRole('button', { name: 'Play options', exact: true }).click();
+			const playOptions = editor.getByRole('menu', { name: 'Play options', exact: true });
+			await expect(playOptions).toHaveCSS('background-color', cssColor(palette.background.surface.elevated));
+			await expect(playOptions.locator('.flyout__arrow')).toHaveCSS('border-bottom-color', cssColor(palette.background.surface.elevated));
+			const preservePitch = playOptions.getByRole('menuitem', { name: 'Preserve pitch', exact: true });
+			await expect(preservePitch.locator('.context-menu-item-checkmark')).toHaveCSS('border-top-width', '0px');
+			await page.keyboard.press('Escape');
+			await expect(playOptions).toBeHidden();
+		}
+	});
 
 	test('matches the mixer panel with a sends footer row in light and dark themes', async ({ page }, testInfo) => {
 		skipUnlessCanonicalBaselineRun(testInfo);
@@ -135,6 +174,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		for (const theme of THEMES) {
 			await setDocumentTheme(page, theme);
 			await expect(tooltip).toBeVisible();
+			const palette = theme === 'dark' ? darkTheme : lightTheme;
+			await expect(tooltip).toHaveCSS('background-color', cssColor(palette.background.surface.elevated));
+			await expect(tooltip.locator('.flyout__arrow')).toHaveCSS('border-bottom-color', cssColor(palette.background.surface.elevated));
 			const box = await tooltip.boundingBox();
 			expect(box).not.toBeNull();
 			// Clip a padded region around the tooltip so the baseline keeps the
