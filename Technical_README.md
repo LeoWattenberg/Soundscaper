@@ -217,7 +217,16 @@ Unpack the Actions artifact to a writable directory. Run the portable `.exe` on
 Windows; unpack and run the `.app` from the inner macOS ZIP; or mark the Linux
 AppImage executable (`chmod +x`) and run it. A visible progress window opens
 before the test processes and names the active phase; a completion dialog reports
-the outcome and exact output path. Every invocation creates, in the same directory
+the outcome and exact output path. On Windows, a separate "Launcher started"
+splash appears while the portable EXE extracts its bundled test tools, before
+Electron can open the progress window. This extraction can take a minute or more.
+Once Electron starts, it writes `startup.log` in a unique
+`soundscaper-nightly-tests-startup-<suffix>/` directory beside the launcher,
+before importing the test runner. Startup errors remain in a dialog until
+acknowledged; the dialog gives the log path. If the launcher directory is not
+writable, the startup log goes into the system temporary directory instead.
+An unusable GUI-launch stdout handle does not abort the tests.
+Every invocation that reaches the test runner creates, in the same directory
 as the executable (or beside the macOS `.app`), a unique
 `soundscaper-nightly-tests-playwright-<UTC timestamp>-<suffix>/` directory with:
 

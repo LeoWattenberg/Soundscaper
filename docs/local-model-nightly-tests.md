@@ -92,6 +92,12 @@ cut; Qwen receives two existing editorial candidates. See the
 Launch the nightly-with-tests application. The local-model phase starts
 automatically; no environment setup is needed. An ordinary launch opens a small
 progress window before the tests start and keeps the active test phase visible.
+The Windows portable launcher first shows an extraction splash; the test window
+cannot open until its bundled tools have been unpacked. Once Electron starts,
+a `soundscaper-nightly-tests-startup-<suffix>/startup.log` beside the launcher
+records loading and failures, even if no test report directory can be created.
+Startup errors wait for acknowledgement and display this log path. An unwritable
+launcher directory puts the startup log in the system temporary directory.
 When launched from a terminal, the application also immediately prints a
 progress bar naming the active test phase.
 On a TTY the bar redraws in place; redirected output retains one line per phase.

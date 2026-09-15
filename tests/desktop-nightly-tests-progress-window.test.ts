@@ -23,7 +23,10 @@ test('the attended nightly runner opens a locked-down visible progress window', 
 		async loadFile(file: string) { observed.file = file; }
 		show() { observed.shown += 1; }
 		setTitle(title: string) { observed.titles.push(title); }
-		setProgressBar(value: number, options?: unknown) { observed.bars.push([value, options]); }
+		setProgressBar(value: number, ...options: unknown[]) {
+			assert.ok(options.length === 0 || options[0] !== undefined, 'omit absent native options');
+			observed.bars.push([value, options[0]]);
+		}
 		isDestroyed() { return false; }
 		destroy() { throw new Error('must not destroy a loaded window'); }
 	}
@@ -68,4 +71,31 @@ test('the progress document is self-contained, script-restricted, and visibly ex
 	assert.match(html, /nightly-tests-progress\.css/u);
 	assert.match(renderer, /renderNightlyTestsProgress/u);
 	assert.match(stylesheet, /progress/u);
+});
+
+test('a native taskbar error cannot prevent the window from showing its current phase', async () => {
+	const errors: unknown[] = [];
+	const scripts: string[] = [];
+	let shown = false;
+	class TaskbarFailureWindow {
+		webContents = {
+			executeJavaScript: async (source: string) => { scripts.push(source); },
+			setWindowOpenHandler: () => undefined, on: () => undefined,
+		};
+		async loadFile() {}
+		show() { shown = true; }
+		setTitle() {}
+		setProgressBar() { throw new Error('Native taskbar API failed'); }
+		isDestroyed() { return false; }
+		destroy() {}
+	}
+	const window = await createDesktopNightlyTestsProgressWindow({
+		BrowserWindow: TaskbarFailureWindow,
+		initialProgress: { completed: 0, total: 4, label: 'Application launched' },
+		onError: (error) => { errors.push(error); },
+	});
+	window.update({ completed: 1, total: 4, label: 'Performance diagnostics' });
+	assert.equal(shown, true);
+	assert.equal(errors.length, 2);
+	assert.match(scripts.at(-1) ?? '', /Performance diagnostics/u);
 });

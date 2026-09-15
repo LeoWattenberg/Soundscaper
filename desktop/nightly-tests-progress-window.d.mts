@@ -29,4 +29,5 @@ export interface DesktopNightlyTestsProgressWindow {
 export function createDesktopNightlyTestsProgressWindow(options: {
 	readonly BrowserWindow: new (options: Readonly<Record<string, unknown>>) => NightlyTestsBrowserWindow;
 	readonly initialProgress: DesktopNightlyTestsProgress;
+	readonly onError?: (error: unknown) => void;
 }): Promise<DesktopNightlyTestsProgressWindow>;

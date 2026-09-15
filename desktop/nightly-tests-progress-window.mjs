@@ -10,7 +10,7 @@ const DOCUMENT_URL = pathToFileURL(DOCUMENT).href;
 const TITLE = 'Soundscaper Nightly Tests';
 
 /** Open the attended runner surface before any test processes are launched. */
-export async function createDesktopNightlyTestsProgressWindow({ BrowserWindow, initialProgress }) {
+export async function createDesktopNightlyTestsProgressWindow({ BrowserWindow, initialProgress, onError = () => undefined }) {
 	if (typeof BrowserWindow !== 'function') {
 		throw new TypeError('The nightly tests progress window requires Electron BrowserWindow.');
 	}
@@ -51,12 +51,17 @@ export async function createDesktopNightlyTestsProgressWindow({ BrowserWindow, i
 		const progress = validateDesktopNightlyTestsProgress(value);
 		if (window.isDestroyed()) return;
 		window.setTitle(`${TITLE} — ${progress.label}`);
-		window.setProgressBar(progress.completed / progress.total, mode ? { mode } : undefined);
+		try {
+			if (mode) window.setProgressBar(progress.completed / progress.total, { mode });
+			else window.setProgressBar(progress.completed / progress.total);
+		} catch (error) {
+			onError(error);
+		}
 		const payload = JSON.stringify(progress).replaceAll('<', '\\u003c');
 		void window.webContents.executeJavaScript(
 			`globalThis.renderNightlyTestsProgress(${payload})`,
 			false,
-		).catch(() => undefined);
+		).catch(onError);
 	};
 	render(first, null);
 	window.show();

@@ -12,7 +12,7 @@ import {
 } from '../scripts/lib/desktop-nightly-tests-presentation.mjs';
 
 const ROOT = new URL('../', import.meta.url);
-const RELATIVE_IMPORT = /from '(\.{1,2}\/[\w./-]+\.mjs)'/gu;
+const RELATIVE_IMPORT = /(?:from |import\()'(\.{1,2}\/[\w./-]+\.mjs)'/gu;
 
 test('the launcher reports unattended when asked by flag or by environment', () => {
 	assert.deepEqual(
@@ -51,7 +51,8 @@ test('the summary line round trips through its marker', () => {
 
 test('the launcher chooses between the dialog and the summary line', async () => {
 	const main = await readFile(new URL('desktop/nightly-tests-main.mjs', ROOT), 'utf8');
-	assert.match(main, /resolveDesktopNightlyTestsPresentation/u);
+	assert.match(main, /process\.argv\.includes\('--unattended'\)/u);
+	assert.match(main, /process\.env\.SOUNDSCAPER_NIGHTLY_TESTS_UNATTENDED === '1'/u);
 	assert.match(main, /createDesktopNightlyTestsProgressBar/u);
 	assert.match(main, /createDesktopNightlyTestsProgressWindow/u);
 	assert.ok(main.indexOf("label: 'Application launched'") < main.indexOf('await app.whenReady()'),
@@ -60,9 +61,11 @@ test('the launcher chooses between the dialog and the summary line', async () =>
 		'the attended runner window must open before the first test phase starts');
 	assert.equal((main.match(/if \(unattended\) \{/gu) ?? []).length, 2,
 		'both the finished and the failed-to-start path must branch on the unattended decision');
-	assert.equal((main.match(/dialog\.showMessageBox/gu) ?? []).length, 2);
-	assert.equal((main.match(/formatDesktopNightlyTestsSummary\(/gu) ?? []).length, 2,
+	assert.equal((main.match(/await showMessage\(/gu) ?? []).length, 2);
+	assert.equal((main.match(/writeSummary\(\{/gu) ?? []).length, 2,
 		'both paths must print the summary line when unattended');
+	assert.ok(main.indexOf('const startupLog = createStartupLog()') < main.indexOf("await import('../scripts/lib/desktop-nightly-tests-presentation.mjs')"),
+		'payload imports must not precede durable startup diagnostics');
 });
 
 // A module the launcher imports but the package does not list is a crash on

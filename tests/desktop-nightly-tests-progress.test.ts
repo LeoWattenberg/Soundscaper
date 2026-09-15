@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,6 +11,22 @@ import {
 	createDesktopNightlyTestsProgressBar,
 } from '../scripts/lib/desktop-nightly-tests-presentation.mjs';
 import { runDesktopNightlyTests } from '../scripts/lib/desktop-nightly-tests-runtime.mjs';
+
+test('unavailable GUI-launch stdout cannot abort nightly tests', () => {
+	for (const asynchronous of [false, true]) {
+		const errors: unknown[] = [];
+		const output = Object.assign(new EventEmitter(), {
+			write: () => { if (!asynchronous) throw new Error('stdout is unavailable'); },
+		});
+		const progress = createDesktopNightlyTestsProgressBar({
+			output, onError: (error: unknown) => { errors.push(error); },
+		});
+		assert.doesNotThrow(() => progress.update({ completed: 0, total: 4, label: 'Application launched' }));
+		if (asynchronous) assert.doesNotThrow(() => output.emit('error', new Error('stdout is unavailable')));
+		assert.doesNotThrow(() => progress.finish({ completed: 4, total: 4, label: 'Tests passed' }));
+		assert.equal(errors.length, 1);
+	}
+});
 
 test('the nightly CLI progress bar preserves every update when output is redirected', () => {
 	const writes: string[] = [];

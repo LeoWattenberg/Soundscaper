@@ -4,7 +4,7 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { generateDesktopIcon } from './desktop-icons.mjs';
+import { generateDesktopIcon, generateDesktopNightlyTestsSplash } from './desktop-icons.mjs';
 import { stageDesktopNightlyTests } from './lib/desktop-nightly-tests-staging.mjs';
 
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -22,6 +22,9 @@ export async function prepareDesktopNightlyTests({
 	await generateDesktopIcon({
 		sourcePath: resolve(root, 'public/logo/logo-klein-schwarz.svg'),
 		outputPath: resolve(root, '.desktop-build/icons/icon.png'),
+	});
+	await generateDesktopNightlyTestsSplash({
+		outputPath: resolve(root, '.desktop-build/icons/nightly-tests-splash.bmp'),
 	});
 	return stageDesktopNightlyTests({
 		repositoryRoot: root,

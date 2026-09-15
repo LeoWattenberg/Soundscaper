@@ -91,6 +91,9 @@ module.exports = {
 		icon: '.desktop-build/icons/icon.png',
 		target: ['portable'],
 	},
+	portable: {
+		splashImage: '.desktop-build/icons/nightly-tests-splash.bmp',
+	},
 	mac: {
 		icon: '.desktop-build/icons/icon.png',
 		identity: '-',

@@ -52,6 +52,50 @@ export async function generateDesktopIcon({
 	return outputPath;
 }
 
+/** NSIS displays this before Electron exists, while the large payload extracts. */
+export async function generateDesktopNightlyTestsSplash({
+	outputPath = resolve(ROOT, '.desktop-build/icons/nightly-tests-splash.bmp'),
+} = {}) {
+	const width = 600;
+	const height = 220;
+	const image = new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="220">
+		<rect width="600" height="220" fill="#11131a"/>
+		<rect x="28" y="30" width="5" height="160" rx="2" fill="#8aa9ff"/>
+		<g fill="#f4f5f8" font-family="sans-serif">
+			<text x="50" y="58" font-size="18">Launcher started</text>
+			<text x="50" y="100" font-size="28" font-weight="bold">Soundscaper Nightly Tests</text>
+			<text x="50" y="142" font-size="19">Extracting the bundled test tools…</text>
+			<text x="50" y="179" font-size="15" fill="#b7bdcc">Please wait. The test progress window opens next.</text>
+		</g>
+	</svg>`, { font: { loadSystemFonts: true } }).render();
+	// The portable launcher accepts BMP, not PNG. Emit opaque bottom-up BGR
+	// scanlines with the standard 54-byte header; the width is four-byte aligned.
+	const stride = width * 3;
+	const bitmap = Buffer.alloc(54 + stride * height);
+	bitmap.write('BM', 0, 'ascii');
+	bitmap.writeUInt32LE(bitmap.length, 2);
+	bitmap.writeUInt32LE(54, 10);
+	bitmap.writeUInt32LE(40, 14);
+	bitmap.writeInt32LE(width, 18);
+	bitmap.writeInt32LE(height, 22);
+	bitmap.writeUInt16LE(1, 26);
+	bitmap.writeUInt16LE(24, 28);
+	bitmap.writeUInt32LE(stride * height, 34);
+	const pixels = image.pixels;
+	for (let y = 0; y < height; y += 1) {
+		for (let x = 0; x < width; x += 1) {
+			const source = (y * width + x) * 4;
+			const target = 54 + (height - 1 - y) * stride + x * 3;
+			bitmap[target] = pixels[source + 2];
+			bitmap[target + 1] = pixels[source + 1];
+			bitmap[target + 2] = pixels[source];
+		}
+	}
+	await mkdir(dirname(outputPath), { recursive: true });
+	await writeFile(outputPath, bitmap);
+	return outputPath;
+}
+
 function isMainModule() {
 	return process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url;
 }

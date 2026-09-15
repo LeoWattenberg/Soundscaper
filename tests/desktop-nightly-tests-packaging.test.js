@@ -27,6 +27,7 @@ test('nightly-with-tests packaging is isolated, portable, and keeps its payload 
 	assert.equal(config.asar, true);
 	assert.equal(config.afterPack, './scripts/desktop-nightly-tests-after-pack.mjs');
 	assert.deepEqual(config.win.target, ['portable']);
+	assert.equal(config.portable.splashImage, '.desktop-build/icons/nightly-tests-splash.bmp');
 	assert.deepEqual(config.mac.target, ['zip']);
 	assert.deepEqual(config.linux.target, ['AppImage']);
 	assert.equal(config.linux.executableName, 'soundscaper-nightly-tests');
@@ -116,8 +117,8 @@ test('the production package keeps RunAsNode disabled and excludes the nightly p
 
 test('the nightly test launcher delegates to the pure runtime and never opens an editor window', async () => {
 	const source = await readFile(resolve(ROOT, 'desktop/nightly-tests-main.mjs'), 'utf8');
-	const schemeRegistration = source.indexOf('\tregisterNightlyAssistanceScheme(electron.protocol);');
-	const assistanceStart = source.indexOf('\tvoid startNightlyAssistanceHost(electron)');
+	const schemeRegistration = source.indexOf('\telectron.protocol.registerSchemesAsPrivileged(');
+	const assistanceStart = source.indexOf("\tvoid import('./nightly-tests-assistance-host.mjs')");
 	const readyWait = source.indexOf('\tawait app.whenReady();');
 
 	assert.match(source, /runDesktopNightlyTests/u);

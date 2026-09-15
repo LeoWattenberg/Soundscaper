@@ -12,23 +12,38 @@ const PROGRESS_BAR_WIDTH = 20;
 
 /**
  * Render phase progress in place on a terminal and as durable lines when piped.
- * @param {{ output?: { readonly isTTY?: boolean, write(value: string): unknown } }} [options]
+ * @param {{ output?: { readonly isTTY?: boolean, write(value: string): unknown,
+ * on?(event: 'error', listener: (error: unknown) => void): unknown },
+ * onError?: (error: unknown) => void }} [options]
  */
-export function createDesktopNightlyTestsProgressBar({ output = process.stdout } = {}) {
+export function createDesktopNightlyTestsProgressBar({ output = process.stdout, onError = () => undefined } = {}) {
 	if (!output || typeof output.write !== 'function') {
 		throw new TypeError('Nightly tests progress output must be writable.');
 	}
 	let finished = false;
+	let unavailable = false;
+	const failed = (error) => {
+		if (unavailable) return;
+		unavailable = true;
+		onError(error);
+	};
+	// A Windows GUI executable may have no usable stdout handle. Its stream
+	// errors must not kill the attended runner or its diagnostic dialog.
+	output.on?.('error', failed);
 	const write = (value, final) => {
 		const progress = validateDesktopNightlyTestsProgress(value);
-		if (finished) return;
+		if (finished || unavailable) return;
 		const filled = Math.round((progress.completed / progress.total) * PROGRESS_BAR_WIDTH);
 		const percent = Math.round((progress.completed / progress.total) * 100);
 		const line = `[${'#'.repeat(filled)}${'-'.repeat(PROGRESS_BAR_WIDTH - filled)}] `
 			+ `${String(progress.completed)}/${String(progress.total)} ${String(percent)}% ${progress.label}`;
-		output.write(output.isTTY === true
-			? `\r${line}\u001B[K${final ? '\n' : ''}`
-			: `${line}\n`);
+		try {
+			output.write(output.isTTY === true
+				? `\r${line}\u001B[K${final ? '\n' : ''}`
+				: `${line}\n`);
+		} catch (error) {
+			failed(error);
+		}
 		finished = final;
 	};
 	return Object.freeze({

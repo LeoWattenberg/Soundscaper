@@ -232,6 +232,8 @@ test('nightly test preparation creates the clean-checkout desktop icon and defau
 	assert.equal(result.outputRoot, join(fixture.repositoryRoot, '.desktop-build/nightly-tests'));
 	const icon = await readFile(join(fixture.repositoryRoot, '.desktop-build/icons/icon.png'));
 	assert.deepEqual([...icon.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+	const splash = await readFile(join(fixture.repositoryRoot, '.desktop-build/icons/nightly-tests-splash.bmp'));
+	assert.equal(splash.toString('ascii', 0, 2), 'BM');
 });
 
 test('nightly test staging rejects missing inputs before replacing an existing payload', async (context) => {

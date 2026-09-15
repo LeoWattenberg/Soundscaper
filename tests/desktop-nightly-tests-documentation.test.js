@@ -10,6 +10,9 @@ test('desktop documentation explains how to run and find nightly-with-tests resu
 	assert.match(documentation, /choose\s+`nightly-with-tests`/iu);
 	assert.match(documentation, /nightly-with-tests-(?:win|mac|linux)-<architecture>/iu);
 	assert.match(documentation, /visible progress window.*active phase/isu);
+	assert.match(documentation, /splash.*extracts.*before\s+Electron/isu);
+	assert.match(documentation, /`startup\.log`.*before importing the test runner/isu);
+	assert.match(documentation, /Startup errors remain in a dialog until\s+acknowledged/iu);
 	assert.match(documentation, /same directory.*`soundscaper-nightly-tests-playwright-/isu);
 	for (const resultPath of [
 		'run.json',
