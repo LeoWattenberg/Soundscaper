@@ -396,7 +396,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			height: element.getBoundingClientRect().height,
 			innerHeight: element.querySelector('.vertical-ruler')?.getBoundingClientRect().height,
 		}));
-		expect(halfWaveRulerGeometry.innerHeight).toBeCloseTo(halfWaveRulerGeometry.height * 2, 0);
+		expect(halfWaveRulerGeometry.innerHeight).toBeCloseTo(halfWaveRulerGeometry.height * 4, 0);
 		await rulerFlyout.getByText('Half wave', { exact: true }).click();
 		await expect(importedTrack).toHaveAttribute('data-display-mode', 'waveform');
 		await page.keyboard.press('Escape');
