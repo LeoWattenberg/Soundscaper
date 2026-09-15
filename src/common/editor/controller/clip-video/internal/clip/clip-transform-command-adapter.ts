@@ -24,11 +24,16 @@ export function trimCommand(
 	return { type: 'clip/trim', clipId, ...changes } as Extract<AudioEditorCommand, { readonly type: 'clip/trim' }>;
 }
 
-export function collectClipTransformIds(project: ClipTransformProject, activeClipId: string): string[] {
+export function collectClipTransformIds(
+	project: ClipTransformProject,
+	activeClipId: string,
+	options: Readonly<{ allOnTrack?: boolean; clipIds?: readonly string[] }> = {},
+): string[] {
 	return (collectLegacyClipTransformIds as (
 		project: ClipTransformProject,
 		activeClipId: string,
-	) => string[])(project, activeClipId);
+		options: Readonly<{ allOnTrack?: boolean; clipIds?: readonly string[] }>,
+	) => string[])(project, activeClipId, options);
 }
 
 export function collectClipTrimIds(

@@ -189,12 +189,14 @@ export function useTimelinePointerFinish({
 				return;
 			}
 			if (dragPreview?.createTrack) {
-				run(() => controller.actions.clip.moveToNewTrack(clip.id, dragPreview.timelineStartFrame));
+				run(() => controller.actions.clip.moveToNewTrack(clip.id, dragPreview.timelineStartFrame, session.moveOptions));
 				return;
 			}
 			const trackId = dragPreview?.trackId || trackAtClientY(event.clientY, session.trackId);
-			const timelineStartFrame = dragPreview?.timelineStartFrame ?? Math.max(0, session.original.timelineStartFrame + deltaFrames);
-			run(() => controller.actions.clip.move(clip.id, trackId, timelineStartFrame));
+			const timelineStartFrame = session.moveOptions?.preserveTime
+				? session.original.timelineStartFrame
+				: dragPreview?.timelineStartFrame ?? Math.max(0, session.original.timelineStartFrame + deltaFrames);
+			run(() => controller.actions.clip.move(clip.id, trackId, timelineStartFrame, session.moveOptions));
 		} else if (session.kind === 'stretch-left') {
 			const change = Math.max(
 				-session.original.timelineStartFrame,

@@ -7,6 +7,7 @@ import { DELIVERY_QUEUE_COPY_BY_LOCALE } from './delivery-queue-copy.js';
 import { EXPORT_CHANNEL_MAPPING_COPY_BY_LOCALE } from './export-channel-mapping-copy.js';
 import { MIX_RENDER_COPY_BY_LOCALE } from './mix-render-copy.js';
 import { CLIP_PROPERTIES_COPY_BY_LOCALE } from './clip-properties-copy.js';
+import { CLIP_DRAG_COPY_BY_LOCALE } from './clip-drag-copy.js';
 import { MUSICAL_TIMELINE_COPY_BY_LOCALE } from './musical-timeline-copy.js';
 import { SEQUENCE_TIMING_COPY_BY_LOCALE } from './sequence-timing-copy.js';
 import { SITE_COPY_BY_LOCALE } from './site-copy.js';
@@ -37,6 +38,7 @@ import { APPEARANCE_COPY_BY_LOCALE } from './appearance-copy.js';
 // User-visible copy intentionally omits ellipsis punctuation.
 export const COPY_BY_LOCALE = deepFreeze({
 	de: {
+		...CLIP_DRAG_COPY_BY_LOCALE.de,
 		...APPEARANCE_COPY_BY_LOCALE.de,
 		...ANALYSIS_COPY_BY_LOCALE.de,
 		...PROJECT_COMMAND_COPY_BY_LOCALE.de,
@@ -251,6 +253,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		keyboardHelp: 'Leertaste: Wiedergabe · R: Aufnahme · S: Teilen · Entf: Löschen · Strg/Cmd + Z: Rückgängig',
 	},
 	en: {
+		...CLIP_DRAG_COPY_BY_LOCALE.en,
 		...APPEARANCE_COPY_BY_LOCALE.en,
 		...ANALYSIS_COPY_BY_LOCALE.en,
 		...PROJECT_COMMAND_COPY_BY_LOCALE.en,

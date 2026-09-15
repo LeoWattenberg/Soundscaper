@@ -266,7 +266,7 @@ export function useTimelinePointerMove({
 				session.projectBinDrop = false;
 				setProjectBinDropActive(false);
 			}
-			const deltaFrames = secondsToFrames(
+			const deltaFrames = session.moveOptions?.preserveTime ? 0 : secondsToFrames(
 				Math.abs(event.clientX - session.startX) / pixelsPerSecond,
 				{ sampleRate },
 			) * Math.sign(event.clientX - session.startX);
@@ -288,16 +288,8 @@ export function useTimelinePointerMove({
 				: mediaTracks.findIndex((track) => track.id === requestedTrackId);
 			const minimumTrackDelta = -Math.min(...sourceTrackIndices);
 			const maximumTrackDelta = mediaTracks.length - 1 - Math.max(...sourceTrackIndices);
-			const movingAvLinks = new Set(movingClips.map((clip) => clip.avLinkId).filter(Boolean));
-			const movesLinkedAvPair = [...movingAvLinks].some((avLinkId) => {
-				const linked = movingClips.filter((clip) => clip.avLinkId === avLinkId);
-				return linked.some((clip) => clip.kind === 'video')
-					&& linked.some((clip) => clip.kind === 'audio');
-			});
 			const trackDelta = createsTrack
-				? movesLinkedAvPair
-					? mediaTracks.length - Math.min(...sourceTrackIndices)
-					: requestedTrackIndex - activeTrackIndex
+				? mediaTracks.length - Math.min(...sourceTrackIndices)
 				: Math.max(
 					minimumTrackDelta,
 					Math.min(maximumTrackDelta, requestedTrackIndex - activeTrackIndex),

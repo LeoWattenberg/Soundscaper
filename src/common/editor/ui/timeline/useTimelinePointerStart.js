@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { collectClipTransformIds, collectClipTrimIds } from '../../commands.js';
+import { collectClipTransformIds, collectClipTrimIds } from '../../commands/clip-basic-runtime.js';
 import { fadeField } from './clip-fade-geometry.ts';
 import {
 	MINIMUM_TRACK_HEIGHT,
@@ -243,12 +243,17 @@ export function useTimelinePointerStart({
 			else if (clipEditHandle.classList.contains('clip-display__handle--stretch-left')) kind = 'stretch-left';
 			else if (clipEditHandle.classList.contains('clip-display__handle--stretch-right')) kind = 'stretch-right';
 		}
-		const transformClipIds = collectClipTransformIds(project, clip.id);
+		const moveOptions = kind === 'move' && event.target.closest('.clip-header') && !event.altKey
+			&& (event.shiftKey || event.ctrlKey || event.metaKey)
+			? { allOnTrack: Boolean(event.shiftKey), preserveTime: Boolean(event.ctrlKey || event.metaKey) }
+			: undefined;
+		const transformClipIds = collectClipTransformIds(project, clip.id, moveOptions);
 		const interactionClipIds = kind === 'trim-left' || kind === 'trim-right'
 			? collectClipTrimIds(project, clip.id, kind === 'trim-left' ? 'left' : 'right')
 			: transformClipIds;
 		const session = {
 			kind,
+			moveOptions: moveOptions ? { ...moveOptions, clipIds: transformClipIds } : undefined,
 			clipId: clip.id,
 			clipIds: interactionClipIds,
 			trackId,

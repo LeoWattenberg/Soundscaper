@@ -30,7 +30,9 @@ This is Audacity's **The Time Shift tool (F5), or dragging the clip bar in Audac
 ## Tips
 
 - Turn on snapping from the transport bar so a dragged clip locks to seconds, beats or frames.
-- Hold Shift while dragging to keep the clip on its own track.
+- Hold Shift while dragging the name bar to move every clip on its track together.
+- Hold Ctrl while dragging to another track to preserve the exact start time. Combine Ctrl and Shift to move the whole track without changing its timing.
+- The clip menu also offers **Select all clips on this track** and **Move to track (preserve time)**.
 
 ## Related guides
 

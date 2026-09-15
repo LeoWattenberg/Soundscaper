@@ -2,6 +2,7 @@
 
 import { clipTrimSourceFrameCount } from '../../clip-trim-source-frame-count.ts';
 import { hasProjectBinMediaAuthority } from '../../../../project-schema-version.ts';
+import { clipMoveSelection, type ClipMoveOptions } from './clip-move-options.ts';
 
 import {
 	collectClipTransformIds, collectClipTrimIds, prepareOverwriteClipCommand,
@@ -56,9 +57,9 @@ export interface ClipTransformService {
 		clipId?: string | null,
 		trackId?: string | null,
 		timelineStartFrame?: unknown,
-		options?: Readonly<{ overwrite?: boolean }>,
+		options?: ClipMoveOptions,
 	): unknown;
-	moveClipsToNewTrack(clipId?: string | null, timelineStartFrame?: unknown): string | null;
+	moveClipsToNewTrack(clipId?: string | null, timelineStartFrame?: unknown, options?: ClipMoveOptions): string | null;
 	trimClips(
 		clipId?: string | null,
 		changes?: ClipTransformChanges,
@@ -80,7 +81,7 @@ export function createClipTransformService(
 		clipId: string | null = dependencies.getSelectedClipId(),
 		trackId?: string | null,
 		timelineStartFrame?: unknown,
-		options: Readonly<{ overwrite?: boolean }> = {},
+		options: ClipMoveOptions = {},
 	): unknown {
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return null;
@@ -97,8 +98,8 @@ export function createClipTransformService(
 		if (!clip || !oldTrack || !targetTrack || !Array.isArray(targetTrack.clipIds)) {
 			throw new Error(dependencies.copy.audioClipNotFound);
 		}
-		const requestedStartFrame = dependencies.snapTimelineFrame(timelineStartFrame);
-		const clipIds = collectClipTransformIds(project, clip.id);
+		const requestedStartFrame = options.preserveTime ? clip.timelineStartFrame : dependencies.snapTimelineFrame(timelineStartFrame);
+		const clipIds = collectClipTransformIds(project, clip.id, options);
 		const audioTracks = timelineTracks(project);
 		const oldTrackIndex = audioTracks.findIndex((item) => item.id === oldTrack.id);
 		const targetTrackIndex = audioTracks.findIndex((item) => item.id === targetTrack?.id);
@@ -108,7 +109,7 @@ export function createClipTransformService(
 		const trackDelta = targetTrackIndex - oldTrackIndex;
 		const clips = clipIds.map((id) => findClip(project, id)).filter(isClip);
 		const selection = dependencies.activeSelection();
-		const clipSelection = project.selection;
+		const clipSelection = clipMoveSelection(project, clipIds, options);
 		const movesClipSelection = Boolean(clipSelection?.clipIds?.includes(clip.id));
 		const requestedDelta = requestedStartFrame - clip.timelineStartFrame;
 		const earliestMovingFrame = Math.min(
@@ -144,6 +145,7 @@ export function createClipTransformService(
 	function moveClipsToNewTrack(
 		clipId: string | null = dependencies.getSelectedClipId(),
 		timelineStartFrame: unknown = 0,
+		options: ClipMoveOptions = {},
 	): string | null {
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return null;
@@ -154,7 +156,7 @@ export function createClipTransformService(
 		const audioTracks = timelineTracks(project);
 		const activeTrackIndex = audioTracks.findIndex((track) => track.id === sourceTrack.id);
 		if (activeTrackIndex < 0) throw new RangeError('Clip source must be an audio track.');
-		const clipIds = collectClipTransformIds(project, clip.id);
+		const clipIds = collectClipTransformIds(project, clip.id, options);
 		const clips = clipIds.map((id) => findClip(project, id)).filter(isClip);
 		const sourceTrackIndices = clips.map((item) => (
 			audioTracks.findIndex((track) => track.clipIds.includes(item.id))
@@ -162,9 +164,9 @@ export function createClipTransformService(
 		if (sourceTrackIndices.some((index) => index < 0)) {
 			throw new Error(dependencies.copy.audioClipNotFound);
 		}
-		const requestedStartFrame = dependencies.snapTimelineFrame(timelineStartFrame);
+		const requestedStartFrame = options.preserveTime ? clip.timelineStartFrame : dependencies.snapTimelineFrame(timelineStartFrame);
 		const selection = dependencies.activeSelection();
-		const clipSelection = project.selection;
+		const clipSelection = clipMoveSelection(project, clipIds, options);
 		const movesClipSelection = Boolean(clipSelection?.clipIds?.includes(clip.id));
 		const requestedDelta = requestedStartFrame - clip.timelineStartFrame;
 		const earliestMovingFrame = Math.min(

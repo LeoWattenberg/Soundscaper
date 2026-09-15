@@ -32,6 +32,7 @@ This is Audacity's **View → Zoom (Ctrl+1, Ctrl+2, Ctrl+3)**. The names below a
 ## Tips
 
 - Ctrl and the mouse wheel zoom around the pointer, which is the quickest way to dive into one spot.
+- Over a vertical ruler, Ctrl and the mouse wheel zoom the waveform amplitude or spectrogram frequency range. Right-click the ruler for the same zoom controls.
 - Zooming changes nothing in the project; it is only your view.
 
 ## Related guides

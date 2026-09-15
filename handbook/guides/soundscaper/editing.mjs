@@ -193,7 +193,7 @@ export const EDITING_GUIDES = Object.freeze([
 		],
 		tips: [
 			'**Align together** does the opposite: it moves the selected clips to start at the same time.',
-			'Drag a clip by its name bar to place it by hand; hold Shift to keep it on the same track.',
+			'Drag a clip by its name bar to place it by hand; hold Shift to move every clip on its track together.',
 		],
 	},
 	{
@@ -213,6 +213,7 @@ export const EDITING_GUIDES = Object.freeze([
 		],
 		tips: [
 			'Ctrl and the mouse wheel zoom around the pointer, which is the quickest way to dive into one spot.',
+			'Over a vertical ruler, Ctrl and the mouse wheel zoom the waveform amplitude or spectrogram frequency range. Right-click the ruler for the same zoom controls.',
 			'Zooming changes nothing in the project; it is only your view.',
 		],
 	},
@@ -272,7 +273,9 @@ export const EDITING_GUIDES = Object.freeze([
 		],
 		tips: [
 			'Turn on snapping from the transport bar so a dragged clip locks to seconds, beats or frames.',
-			'Hold Shift while dragging to keep the clip on its own track.',
+			'Hold Shift while dragging the name bar to move every clip on its track together.',
+			'Hold Ctrl while dragging to another track to preserve the exact start time. Combine Ctrl and Shift to move the whole track without changing its timing.',
+			'The clip menu also offers **Select all clips on this track** and **Move to track (preserve time)**.',
 		],
 	},
 

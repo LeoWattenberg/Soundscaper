@@ -311,7 +311,72 @@ test('group overwrite delegates to atomic trim and move transforms and edit bloc
 	assert.equal(harness.service.trimClips('active', { durationFrames: 1 }), null);
 });
 
-function createHarness(project: ClipTransformProject) {
+test('time-preserving moves bypass grid snapping, including drops onto a new track', () => {
+	const project = projectFixture({ selection: null });
+	const harness = createHarness(project, () => 999);
+	harness.service.moveClips('active', 'track-b', 999, { preserveTime: true });
+	const command = harness.commits[0]?.command;
+	if (command?.type !== 'clip/transform-many') assert.fail('Expected a clip transform.');
+	assert.equal(command.transforms[0]?.changes.timelineStartFrame, 100);
+	assert.equal(command.transforms[0]?.trackId, 'track-b');
+	harness.service.moveClipsToNewTrack('active', 999, { preserveTime: true });
+	const batch = harness.commits[1]?.command;
+	if (batch?.type !== 'batch') assert.fail('Expected a new-track batch.');
+	const transform = batch.commands.find((entry) => entry.type === 'clip/transform-many');
+	if (transform?.type !== 'clip/transform-many') assert.fail('Expected a clip transform.');
+	assert.equal(transform.transforms[0]?.changes.timelineStartFrame, 100);
+});
+
+test('all-on-track moves include separated clips and related companions without unrelated selections', () => {
+	const project = projectFixture({
+		tracks: [{ id: 'track-a', name: 'A', type: 'audio', clipIds: ['active', 'same'] }, {
+			id: 'track-b', name: 'B', type: 'audio', clipIds: ['companion', 'unrelated'],
+		}, { id: 'track-c', name: 'C', type: 'audio', clipIds: [] }],
+		clips: [clipFixture({ id: 'active', timelineStartFrame: 100 }),
+			clipFixture({ id: 'same', timelineStartFrame: 2000, groupId: 'group' }),
+			clipFixture({ id: 'companion', timelineStartFrame: 2000, groupId: 'group' }),
+			clipFixture({ id: 'unrelated', timelineStartFrame: 3000 })],
+		selection: { startFrame: 0, endFrame: 0, trackIds: ['track-a', 'track-b'],
+			clipIds: ['active', 'unrelated'], frequencyRange: null },
+	});
+	const harness = createHarness(project);
+	harness.service.moveClips('active', 'track-b', 150, { allOnTrack: true });
+	const command = harness.commits[0]?.command;
+	if (command?.type !== 'batch') assert.fail('Expected an atomic move batch.');
+	const transform = command.commands[0];
+	if (transform?.type !== 'clip/transform-many') assert.fail('Expected a clip transform.');
+	assert.deepEqual(transform.transforms.map(({ clipId, trackId, changes }) => ({
+		clipId, trackId, start: changes.timelineStartFrame,
+	})), [
+		{ clipId: 'active', trackId: 'track-b', start: 150 },
+		{ clipId: 'same', trackId: 'track-b', start: 2050 },
+		{ clipId: 'companion', trackId: 'track-c', start: 2050 },
+	]);
+	const selection = command.commands[1];
+	if (selection?.type !== 'selection/set') assert.fail('Expected participant selection.');
+	assert.deepEqual(selection.clipIds, ['active', 'same', 'companion']);
+	assert.deepEqual(selection.trackIds, ['track-b', 'track-c']);
+	harness.service.moveClipsToNewTrack('active', 150, { allOnTrack: true });
+	const batch = harness.commits[1]?.command;
+	if (batch?.type !== 'batch') assert.fail('Expected a new-track batch.');
+	const newTransform = batch.commands.find((entry) => entry.type === 'clip/transform-many');
+	if (newTransform?.type !== 'clip/transform-many') assert.fail('Expected a clip transform.');
+	assert.deepEqual(newTransform.transforms.map((entry) => entry.clipId), ['active', 'same', 'companion']);
+});
+
+test('a captured drag participant set survives modifier-click selection changes', () => {
+	const harness = createHarness(projectFixture());
+	harness.service.moveClips('active', 'track-b', 500, { preserveTime: true, clipIds: ['active'] });
+	const command = harness.commits[0]?.command;
+	if (command?.type !== 'batch') assert.fail('Expected an atomic move batch.');
+	const transform = command.commands[0];
+	if (transform?.type !== 'clip/transform-many') assert.fail('Expected a clip transform.');
+	assert.deepEqual(transform.transforms, [{
+		clipId: 'active', trackId: 'track-b', changes: { timelineStartFrame: 100 },
+	}]);
+});
+
+function createHarness(project: ClipTransformProject, snap = (frame: unknown) => Math.round(Number(frame))) {
 	const lifetime = new EditorControllerLifetime();
 	lifetime.markReady();
 	const commits: Array<{
@@ -330,7 +395,7 @@ function createHarness(project: ClipTransformProject) {
 		getSelectedClipId: () => 'active',
 		editingBlocked: () => blocked,
 		createId: (prefix) => `${prefix}-${++nextId}`,
-		snapTimelineFrame: (frame) => Math.round(Number(frame)),
+		snapTimelineFrame: snap,
 		activeSelection: () => project.selection?.endFrame !== project.selection?.startFrame
 			? project.selection ?? null
 			: null,

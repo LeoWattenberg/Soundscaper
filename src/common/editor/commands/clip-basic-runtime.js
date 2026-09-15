@@ -285,11 +285,13 @@ export function moveClip(project, command) {
  * clip; grouped companions of every participating clip are then included.
  */
 
-export function collectClipTransformIds(project, activeClipId) {
+export function collectClipTransformIds(project, activeClipId, options = {}) {
 	const activeClip = findClip(project, activeClipId);
 	if (!activeClip) return [];
 	const ids = new Set([activeClip.id]);
-	const selectedIds = project.selection?.clipIds || [];
+	const selectedIds = options.clipIds || (options.allOnTrack
+		? findClipTrack(project, activeClip.id)?.clipIds || []
+		: project.selection?.clipIds || []);
 	if (selectedIds.includes(activeClip.id)) {
 		for (const clipId of selectedIds) if (findClip(project, clipId)) ids.add(clipId);
 	}

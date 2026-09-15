@@ -19,6 +19,7 @@ import {
 import { TrackColorPicker } from './TimelineFlyouts.jsx';
 import { audioClipEditUnavailable } from './timeline-menu-model.js';
 import { viewportMenuPlacement } from './interaction-helpers.js';
+import { createClipDragMenuItems } from './clip-drag-menu-model.ts';
 
 export function TimelineMenus({
 	controller,
@@ -82,6 +83,15 @@ export function TimelineMenus({
 		: null;
 	const trackMenuRect = trackMenuPlacement?.anchorEl?.getBoundingClientRect?.();
 	const trackMenuHasNestedItems = trackMenuItems.some((item) => item.items?.length);
+	const clipDragMenuItems = createClipDragMenuItems({
+		project, clipId: menuClip?.id, blocked: mutationsBlocked, copy,
+		select: (clipIds) => run(() => {
+			clipIds.forEach((clipId, index) => controller.actions.timeline.selectClip(clipId, { additive: index > 0 }));
+		}),
+		move: (clipId, trackId) => run(() => controller.actions.clip.move(
+			clipId, trackId, menuClip?.timelineStartFrame, { preserveTime: true },
+		)),
+	});
 
 	return (
 			<TimelineOverlayPortal target={overlayTarget}>
@@ -285,6 +295,7 @@ export function TimelineMenus({
 					}}
 					onClose={() => setClipMenu(null)}
 				/>
+				{clipDragMenuItems.map((item, index) => renderTrackMenuItem(item, index, setClipMenu))}
 				<ContextMenuItem isDivider />
 				<ManifestContextMenuItem
 					actionId={AUDACITY_CLIP_CONTEXT_ACTION_IDS.split}

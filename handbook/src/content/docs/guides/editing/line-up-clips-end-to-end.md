@@ -32,7 +32,7 @@ This is Audacity's **Tracks → Align Tracks → Align End to End**. The names b
 ## Tips
 
 - **Align together** does the opposite: it moves the selected clips to start at the same time.
-- Drag a clip by its name bar to place it by hand; hold Shift to keep it on the same track.
+- Drag a clip by its name bar to place it by hand; hold Shift to move every clip on its track together.
 
 ## Related guides
 
