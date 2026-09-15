@@ -408,16 +408,16 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await importFiles(editor, [monoTone]);
 		await chooseCommandAction(page, editor, 'Select', 'Select all');
-		await chooseNestedCommandAction(page, editor, 'Effect', ['Nyquist', 'Tremolo']);
-		dialog = page.getByRole('dialog', { name: 'Tremolo', exact: true });
-		await expect(dialog.getByRole('spinbutton', { name: 'Frequency (Hz)', exact: true })).toBeVisible();
+		await chooseNestedCommandAction(page, editor, 'Effect', ['Nyquist', 'Adjustable Fade']);
+		dialog = page.getByRole('dialog', { name: 'Adjustable Fade', exact: true });
+		await expect(dialog.getByRole('spinbutton', { name: 'Mid-fade Adjust (%)', exact: true })).toBeVisible();
 		await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
 		await expect(editor.locator('[data-status]')).toHaveText('Applied the Nyquist result.', { timeout: 20_000 });
 		await expect(dialog).toBeHidden();
 		await expect(editor).toHaveAttribute('data-clip-count', '1');
 		await expect(clipByName(editor, 'Audio clip')).toBeVisible();
 		await expect.poll(async () => (
-			(await effectSourceMetadata(page)).find((storedSource) => storedSource.name.includes('Tremolo'))?.channelCount
+			(await effectSourceMetadata(page)).find((storedSource) => storedSource.name.includes('Adjustable Fade'))?.channelCount
 		)).toBe(1);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		await expect(clipByName(editor, monoTone.name)).toHaveCount(1);
@@ -444,7 +444,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const sourceRequested = new Promise((resolve) => { markRequested = resolve; });
 		const routeDone = new Promise((resolve) => { markRouteDone = resolve; });
 		let wasmRequests = 0;
-		await page.route(/tremolo[^/]*\.ny(?:\?.*)?$/i, async (route) => {
+		await page.route(/adjustable-fade[^/]*\.ny(?:\?.*)?$/i, async (route) => {
 			markRequested();
 			await fetchGate;
 			try {
@@ -465,8 +465,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await chooseCommandAction(page, editor, 'Select', 'Select all');
 		const originalClip = clipByName(editor, monoTone.name);
 		const originalClipId = await originalClip.getAttribute('data-clip-id');
-		await chooseNestedCommandAction(page, editor, 'Effect', ['Nyquist', 'Tremolo']);
-		const dialog = page.getByRole('dialog', { name: 'Tremolo', exact: true });
+		await chooseNestedCommandAction(page, editor, 'Effect', ['Nyquist', 'Adjustable Fade']);
+		const dialog = page.getByRole('dialog', { name: 'Adjustable Fade', exact: true });
 		await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
 		await sourceRequested;
 		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
@@ -477,8 +477,8 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await expect(editor.locator('[data-status]')).toHaveText('Effect preview cancelled.');
 		await expect(clipByName(editor, monoTone.name)).toHaveAttribute('data-clip-id', originalClipId);
-		await expect(editor.locator('[data-clip-id]')).not.toContainText('Tremolo');
-		expect((await effectSourceMetadata(page)).some((storedSource) => storedSource.name.includes('Tremolo'))).toBe(false);
+		await expect(editor.locator('[data-clip-id]')).not.toContainText('Adjustable Fade');
+		expect((await effectSourceMetadata(page)).some((storedSource) => storedSource.name.includes('Adjustable Fade'))).toBe(false);
 		expect(wasmRequests).toBe(0);
 		expect(errors).toEqual([]);
 	});

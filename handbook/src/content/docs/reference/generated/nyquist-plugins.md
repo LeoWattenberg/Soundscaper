@@ -10,7 +10,7 @@ sidebar:
 
 These Nyquist plug-ins ship with the editor. Each `.ny` file is a byte-for-byte copy of the Audacity source at `5ef610ed2326`, recorded with its SHA-256 digest, and is run by the in-tree Nyquist runtime rather than by Audacity.
 
-Each plug-in is invoked by the command ID below; see [Commands and shortcuts](/reference/generated/commands/) for where it appears in the menus.
+Plug-ins with a regular realtime replacement retain their pinned source for compatibility; use their replacement in the Effect menu or a realtime rack. See [Audio effects](/reference/generated/audio-effects/) for the replacement controls. Other plug-ins are invoked by the command ID below; see [Commands and shortcuts](/reference/generated/commands/) for where they appear in the menus.
 
 ## Plug-ins
 
@@ -21,26 +21,26 @@ Each plug-in is invoked by the command ID below; see [Commands and shortcuts](/r
 | Clip Fix | `nyquist:clipfix` | Process | Soundscaper | Benjamin Schwartz and Steve Daulton | 2.3.0-2 | GNU General Public License v2.0 | — |
 | Crossfade Clips | `nyquist:crossfadeclips` | Process | Soundscaper | Steve Daulton | 3.0.4-1 | GNU General Public License v2.0 or later | — |
 | Crossfade Tracks | `nyquist:crossfadetracks` | Process | Soundscaper | Steve Daulton | 3.0.4-2 | GNU General Public License v2.0 or later | — |
-| Delay | `nyquist:delay` | Process | Soundscaper | Steve Daulton | 2.4.2-2 | GNU General Public License v2.0 | — |
-| High-Pass Filter | `nyquist:highpass` | Process | Soundscaper | Dominic Mazzoni | 2.3.0-2 | GNU General Public License v2.0 | — |
+| Delay | `nyquist:delay` | Process | Soundscaper | Steve Daulton | 2.4.2-2 | GNU General Public License v2.0 | Menu replaced by regular realtime effect `multi-tap-delay` |
+| High-Pass Filter | `nyquist:highpass` | Process | Soundscaper | Dominic Mazzoni | 2.3.0-2 | GNU General Public License v2.0 | Menu replaced by regular realtime effect `highpass-filter` |
 | Label Sounds | `nyquist:label-sounds` | Analyze | Soundscaper | Steve Daulton | 3.0.4-2 | GNU General Public License v2.0 or later | — |
 | Legacy Limiter | `nyquist:legacy-limiter` | Process | Soundscaper | Steve Daulton | 3.0.4-2 | GNU General Public License v2.0 or later | — |
-| Low-Pass Filter | `nyquist:lowpass` | Process | Soundscaper | Dominic Mazzoni | 2.3.0-2 | GNU General Public License v2.0 | — |
+| Low-Pass Filter | `nyquist:lowpass` | Process | Soundscaper | Dominic Mazzoni | 2.3.0-2 | GNU General Public License v2.0 | Menu replaced by regular realtime effect `lowpass-filter` |
 | Measure RMS | `nyquist:rms` | Analyze | Soundscaper | Steve Daulton | 2.3.1-1 | GNU General Public License v2.0 or later | — |
-| Noise Gate | `nyquist:noisegate` | Process | Soundscaper | Steve Daulton | 3.0.4-2 | GNU General Public License v2.0 or later | — |
-| Notch Filter | `nyquist:notch` | Process | Soundscaper | Steve Daulton and Bill Wharrie | 2.3.0-2 | GNU General Public License v2.0 or later | — |
+| Noise Gate | `nyquist:noisegate` | Process | Soundscaper | Steve Daulton | 3.0.4-2 | GNU General Public License v2.0 or later | Menu replaced by regular realtime effect `noise-gate` |
+| Notch Filter | `nyquist:notch` | Process | Soundscaper | Steve Daulton and Bill Wharrie | 2.3.0-2 | GNU General Public License v2.0 or later | Menu replaced by regular realtime effect `notch-filter` |
 | Pluck | `nyquist:pluck` | Generate | Soundscaper | David R.Sky | 2.4.2 | GNU General Public License v2.0 | — |
 | Regular Interval Labels | `nyquist:equalabel` | Analyze | Soundscaper | Steve Daulton | 2.3.1-2 | GNU General Public License v2.0 or later | Tool rather than a processing effect |
 | Rhythm Track | `nyquist:rhythmtrack` | Generate | Soundscaper | Dominic Mazzoni, David R. Sky and Steve Daulton | 3.0.0-2 | GNU General Public License v2.0 | — |
 | Risset Drum | `nyquist:rissetdrum` | Generate | Soundscaper | Steven Jones | 2.3.0-2 | GNU General Public License v2.0 or later | — |
-| Shelf Filter | `nyquist:shelffilter` | Process | Soundscaper | Steve Daulton | 2.4.0-1 | GNU General Public License v2.0 | — |
+| Shelf Filter | `nyquist:shelffilter` | Process | Soundscaper | Steve Daulton | 2.4.0-1 | GNU General Public License v2.0 | Menu replaced by regular realtime effect `shelf-filter` |
 | Spectral Delete | `nyquist:spectral-delete` | Process | Soundscaper | Steve Daulton | 3.0.4-1 | GNU General Public License v2.0 or later | Needs a spectral selection |
 | Spectral Edit Multi Tool | `nyquist:spectraleditmulti` | Process | Soundscaper | Paul Licameli | 2.3.0-1 | GNU General Public License v2.0 | Needs a spectral selection |
 | Spectral Edit Parametric EQ | `nyquist:spectraleditparametriceq` | Process | Soundscaper | Paul Licameli | 2.3.0-2 | GNU General Public License v2.0 | Needs a spectral selection |
 | Spectral Edit Shelves | `nyquist:spectraleditshelves` | Process | Soundscaper | Paul Licameli | 2.3.0-2 | GNU General Public License v2.0 or later | Needs a spectral selection |
 | Studio Fade Out | `nyquist:studiofadeout` | Process | Soundscaper | Steve Daulton | 3.7.4 | GNU General Public License v2.0 or later | — |
-| Tremolo | `nyquist:tremolo` | Process | Soundscaper | Steve Daulton | 2.4.0 | GNU General Public License v2.0 or later | — |
-| Vocoder | `nyquist:vocoder` | Process | Soundscaper | Edgar-RFT and Steve Daulton | 3.1.2-1 | GNU General Public License v2.0 | — |
+| Tremolo | `nyquist:tremolo` | Process | Soundscaper | Steve Daulton | 2.4.0 | GNU General Public License v2.0 or later | Menu replaced by regular realtime effect `tremolo` |
+| Vocoder | `nyquist:vocoder` | Process | Soundscaper | Edgar-RFT and Steve Daulton | 3.1.2-1 | GNU General Public License v2.0 | Menu replaced by regular realtime effect `vocoder` |
 
 ## Controls
 

@@ -73,6 +73,7 @@ const RUNTIME_MODULES = Object.freeze({
 	locales: 'src/common/i18n/locales.js',
 	media: 'src/common/editor/media-export.js',
 	nyquist: 'src/common/editor/nyquist/plugin-registry.js',
+	nyquistReplacements: 'src/common/editor/first-party-effects/standard/nyquist-replacements.ts',
 	panels: 'src/common/editor/ui/workspace/workspace-panel-model.ts',
 	products: 'src/common/products.js',
 	projectFiles: 'src/common/project-file-extensions.ts',
@@ -209,6 +210,7 @@ export function renderReferenceDocuments(sources) {
 		})],
 		['nyquist-plugins.md', renderNyquistReference({
 			plugins: nyquist.NYQUIST_BUNDLED_PLUGINS,
+			regularEffectReplacement: sources.nyquistReplacements.regularEffectReplacementForNyquistPlugin,
 			products: productProfiles,
 			isProductCommandDisabled: actions.isAudacityShortcutCommandDisabled,
 		})],

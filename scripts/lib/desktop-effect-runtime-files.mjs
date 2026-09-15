@@ -5,4 +5,10 @@ export const DESKTOP_EFFECT_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/first-party-effects/bitcrusher/definition.js',
 	'src/common/editor/first-party-effects/dynamics/definition.js',
 	'src/common/editor/first-party-effects/parametric-eq/definition.js',
+	'src/common/editor/first-party-effects/standard/filters-definition.js',
+	'src/common/editor/first-party-effects/standard/filters-coefficients.js',
+	'src/common/editor/first-party-effects/standard/effect-tail.js',
+	'src/common/editor/first-party-effects/standard/modulation-definition.js',
+	'src/common/editor/first-party-effects/standard/noise-gate-definition.js',
+	'src/common/editor/first-party-effects/standard/delay-definition.js',
 ]);

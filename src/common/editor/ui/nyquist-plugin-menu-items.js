@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { listNyquistPlugins } from '../nyquist/plugin-registry.js';
+import { regularEffectReplacementForNyquistPlugin } from '../first-party-effects/standard/nyquist-replacements.ts';
 
 /**
  * Builds the per-category reader the menu tree calls for its Nyquist submenus.
@@ -27,7 +28,7 @@ export function createNyquistPluginMenuItems(
 		return editBlocked || !selectedAudioTrack || !selectionActive;
 	};
 	return (category) => plugins
-		.filter((plugin) => plugin.category === category)
+		.filter((plugin) => plugin.category === category && !regularEffectReplacementForNyquistPlugin(plugin.id))
 		.map((plugin) => ({
 			id: plugin.id,
 			label: plugin.name,

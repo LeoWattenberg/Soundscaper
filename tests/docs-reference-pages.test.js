@@ -132,6 +132,15 @@ test('audio effect reference refuses a local effect with no reviewed category', 
 	);
 });
 
+test('regular noise gate documentation explains causal realtime detection', () => {
+	const rendered = renderAudioEffectReference(audioEffectInput({
+		localDefinitions: { 'noise-gate': { defaults: { threshold: -40 }, ranges: { threshold: [-96, -6] } } },
+		rackEffectTypes: ['noise-gate'],
+		selectionEffectTypes: ['noise-gate'],
+	}));
+	assert.match(rendered, /Causal attack and release; no lookahead/u);
+});
+
 test('audio effect reference refuses a structured local parameter with no reviewed shape', () => {
 	assert.throws(
 		() => renderAudioEffectReference(audioEffectInput({
@@ -259,6 +268,17 @@ test('nyquist reference refuses a catalog that spans more than one upstream comm
 		}),
 		/no longer share one upstream commit/u,
 	);
+});
+
+test('nyquist reference distinguishes retained source controls from regular realtime replacements', () => {
+	const rendered = renderNyquistReference({
+		plugins: nyquistPlugins,
+		products,
+		isProductCommandDisabled: () => false,
+		regularEffectReplacement: (id) => id === 'nyquist:beat' ? 'example-regular-effect' : null,
+	});
+	assert.match(rendered, /Menu replaced by regular realtime effect `example-regular-effect`/u);
+	assert.match(rendered, /retain their pinned source for compatibility/u);
 });
 
 const assistanceInput = Object.freeze({

@@ -24,8 +24,9 @@ const CONTROL_KIND_LABELS = Object.freeze({
 	text: 'Text',
 });
 
-function pluginNotes(plugin) {
+function pluginNotes(plugin, replacement) {
 	const notes = [];
+	if (replacement) notes.push(`Menu replaced by regular realtime effect \`${replacement}\``);
 	if (plugin.isTool === true) notes.push('Tool rather than a processing effect');
 	if (plugin.spectral === true) notes.push('Needs a spectral selection');
 	return notes.join('; ') || '—';
@@ -64,7 +65,7 @@ function pinnedCommit(plugins) {
 	return commits[0];
 }
 
-export function renderNyquistReference({ plugins, products, isProductCommandDisabled }) {
+export function renderNyquistReference({ plugins, products, isProductCommandDisabled, regularEffectReplacement = () => null }) {
 	assertProducts(products);
 	if (!Array.isArray(plugins) || plugins.length === 0) throw new TypeError('The bundled Nyquist plug-in catalog is required.');
 	if (typeof isProductCommandDisabled !== 'function') throw new TypeError('The product command filter is required.');
@@ -79,7 +80,7 @@ export function renderNyquistReference({ plugins, products, isProductCommandDisa
 			release: plugin.release,
 			copyright: plugin.copyright,
 			fileName: plugin.fileName,
-			notes: pluginNotes(plugin),
+			notes: pluginNotes(plugin, regularEffectReplacement(plugin.id ?? plugin.actionId)),
 			products: productNames(products.filter((product) => !isProductCommandDisabled(
 				plugin.actionId,
 				product.shortcuts?.disabledCommandIds ?? [],
@@ -91,7 +92,7 @@ export function renderNyquistReference({ plugins, products, isProductCommandDisa
 	const body = [
 		`These Nyquist plug-ins ship with the editor. Each \`.ny\` file is a byte-for-byte copy of the Audacity source at \`${commit.slice(0, 12)}\`, recorded with its SHA-256 digest, and is run by the in-tree Nyquist runtime rather than by Audacity.`,
 		'',
-		'Each plug-in is invoked by the command ID below; see [Commands and shortcuts](/reference/generated/commands/) for where it appears in the menus.',
+		'Plug-ins with a regular realtime replacement retain their pinned source for compatibility; use their replacement in the Effect menu or a realtime rack. See [Audio effects](/reference/generated/audio-effects/) for the replacement controls. Other plug-ins are invoked by the command ID below; see [Commands and shortcuts](/reference/generated/commands/) for where they appear in the menus.',
 		'',
 		'## Plug-ins',
 		'',

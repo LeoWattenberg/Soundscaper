@@ -347,6 +347,9 @@ export const chunkGroups = [
 /** Saxes and the XML character tables it imports inside maintained workers. */
 export const WORKER_XML_VENDOR_CHUNK_TEST = /node_modules[\\/](?:saxes|xmlchars)[\\/]/;
 
+/** Effect metadata and the dependency-closed canonical copy registry used by workers. */
+export const WORKER_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/]i18n[\\/](?:canonical-extras(?:-(?:audacity-(?:effects|presets)|standard-effects))?|locale)\.js|src[\\/]common[\\/]editor[\\/]first-party-effects[\\/]standard[\\/](?:definition|filters-definition|filters-coefficients|modulation-definition|noise-gate-definition|delay-definition|effect-tail|nyquist-replacements|selection-contract)\.ts)$/;
+
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const workerChunkGroups = [
 	{
@@ -362,6 +365,16 @@ export const workerChunkGroups = [
 		name: 'vendor-xml-worker',
 		test: WORKER_XML_VENDOR_CHUNK_TEST,
 		priority: 99,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		// Archive workers describe imported effects without running their DSP.
+		// Keep that shared metadata and its complete copy dependency closure apart
+		// from the database protocol, without absorbing their consumers recursively.
+		name: 'editor-effect-contracts-worker',
+		test: WORKER_EFFECT_CONTRACT_CHUNK_TEST,
+		priority: 98,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
 	},

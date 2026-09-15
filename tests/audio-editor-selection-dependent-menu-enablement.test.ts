@@ -29,7 +29,8 @@ const SELECTION_DEPENDENT_COMMANDS = Object.freeze([
 	'repeat-effect',
 	'audacity-amplify',
 	'change-pitch',
-	'nyquist:tremolo',
+	'tremolo',
+	'nyquist:adjustable-fade',
 	'nyquist:clipfix',
 ]);
 
@@ -37,7 +38,8 @@ const EFFECT_COMMANDS_WITH_DEFAULT_TARGET = new Set([
 	'repeat-effect',
 	'audacity-amplify',
 	'change-pitch',
-	'nyquist:tremolo',
+	'tremolo',
+	'nyquist:adjustable-fade',
 	'nyquist:clipfix',
 ]);
 
@@ -210,6 +212,7 @@ function menuInput(
 		history: { canUndo: true, canRedo: true, hasClipboard: true },
 		effects: {
 			selectionTypes: [
+				{ type: 'tremolo', label: 'Tremolo' },
 				{ type: 'audacity-amplify', label: 'Amplify' },
 				{ type: 'audacity-auto-duck', label: 'Auto Duck' },
 				{ type: 'audacity-noise-reduction', label: 'Noise Reduction' },

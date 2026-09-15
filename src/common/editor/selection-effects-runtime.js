@@ -18,10 +18,21 @@ import { BITCRUSHER_EFFECT_TYPE } from './first-party-effects/bitcrusher/definit
 import { isBandDynamicsEffect } from './first-party-effects/dynamics/definition.ts';
 import { applyDeesser } from './first-party-effects/deesser/dsp.ts';
 import { applyMultibandCompressor } from './first-party-effects/multiband-compressor/dsp.ts';
+import { isStandardEffect } from './first-party-effects/standard/definition.ts';
+import { applyStandardEffect } from './first-party-effects/standard/dsp.ts';
 
 export async function applyAudioSelectionEffectAsync(type, channels, sampleRate, params = {}, context = {}) {
 	if (!AUDIO_SELECTION_EFFECT_DEFINITIONS[type]) {
 		throw new RangeError(`Unsupported selection effect: ${type}.`);
+	}
+	if (isStandardEffect(type)) {
+		const output = applyStandardEffect(type, assertAudacityEffectOutput(channels), sampleRate,
+			normalizeAudioSelectionEffectParams(type, params));
+		if (!context?.spectralSelection) return assertAudacityEffectOutput(output);
+		await initializePffft();
+		return assertAudacityEffectOutput(applySpectralReplacement(channels, output, {
+			...context.spectralSelection, sampleRate,
+		}));
 	}
 	if (isBandDynamicsEffect(type)) {
 		const apply = type === 'deesser' ? applyDeesser : applyMultibandCompressor;

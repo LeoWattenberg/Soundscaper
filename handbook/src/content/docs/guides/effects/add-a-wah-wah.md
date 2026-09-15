@@ -45,7 +45,7 @@ More [effects](/guides/effects/) guides:
 - [Change speed like a tape machine](/guides/effects/change-speed-like-a-tape/) — Speed a recording up or slow it down with the pitch following, the way tape does.
 - [Stretch a sound into a drone](/guides/effects/stretch-a-sound-into-a-drone/) — Slow a short sound down enormously with Paulstretch to make ambient textures.
 - [Add distortion](/guides/effects/add-distortion/) — Overdrive a sound from gentle warmth to full fuzz.
-- [Use a Nyquist plug-in](/guides/effects/use-a-nyquist-plugin/) — Run one of the bundled Nyquist effects — here, a tremolo.
+- [Use a Nyquist plug-in](/guides/effects/use-a-nyquist-plugin/) — Run one of the bundled Nyquist effects — here, an adjustable fade.
 - [Add a realtime effect to a track](/guides/effects/add-a-realtime-effect-to-a-track/) — Put an effect on a track so it runs while you play, without rendering.
 - [Add a phaser](/guides/effects/add-a-phaser/) — Sweep a set of notches through a sound for the classic swirling guitar and keyboard effect.
 - [Apply the same chain of effects every time](/guides/effects/apply-the-same-effects-every-time/) — Save a sequence of effects as a macro and run it on any selection with one command.

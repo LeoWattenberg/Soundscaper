@@ -4,6 +4,8 @@ import { isAudacityLiveEffect } from '../audacity-effects/live-capabilities.js';
 import { BITCRUSHER_EFFECT_TYPE } from '../first-party-effects/bitcrusher/definition.js';
 import { isBandDynamicsEffect } from '../first-party-effects/dynamics/definition.ts';
 import { ensureBandDynamicsWorklet, isBandDynamicsWorkletLoaded } from './band-dynamics-node.ts';
+import { isStandardEffect } from '../first-party-effects/standard/definition.ts';
+import { ensureStandardEffectWorklet, isStandardEffectWorkletLoaded } from './standard-effect-node.ts';
 import { loadParametricEqWasmModule } from '../parametric-eq/wasm-loader.js';
 import { loadPffftWasmModule } from '../pffft-wasm-loader.js';
 import { isParametricEqType, projectEffectRacks } from './project-effects.ts';
@@ -63,6 +65,7 @@ export async function ensureProjectWorklets(
 	const needsDelay = projectUsesDelayWorklet(project) && !delayWorkletContexts.has(context);
 	const needsBitcrusher = projectUsesBitcrusherWorklet(project) && !bitcrusherWorkletContexts.has(context);
 	const needsBandDynamics = projectUsesEffect(project, isBandDynamicsEffect) && !isBandDynamicsWorkletLoaded(context);
+	const needsStandard = projectUsesEffect(project, isStandardEffect) && !isStandardEffectWorkletLoaded(context);
 	const usesAudacity = projectUsesAudacityWorklet(project);
 	const needsAudacity = usesAudacity && !audacityReadyContexts.has(context);
 	const usesParametricEq = projectUsesParametricEqWorklet(project);
@@ -70,8 +73,9 @@ export async function ensureProjectWorklets(
 	const needsParametricEqWasm = usesParametricEq && !parametricEqWasmModules.has(context);
 	const usesNativePlugin = projectUsesNativePluginWorklet(project);
 	if (!needsDynamics && !needsDelay && !needsBitcrusher && !needsBandDynamics && !needsAudacity && !needsParametricEq
-		&& !needsParametricEqWasm && !usesNativePlugin) return;
+		&& !needsParametricEqWasm && !usesNativePlugin && !needsStandard) return;
 	if (!context.audioWorklet?.addModule || typeof globalThis.AudioWorkletNode !== 'function') {
+		if (needsStandard) throw new Error('This browser cannot run the selected real-time effect without bypassing it.');
 		if (needsBandDynamics) throw new Error('This browser cannot run the de-esser or multiband compressor without bypassing it.');
 		if (needsAudacity) throw new Error('This browser cannot run Audacity real-time effects without bypassing them.');
 		if (needsParametricEq || needsParametricEqWasm) throw new Error('This browser cannot run the parametric EQ without bypassing it.');
@@ -80,6 +84,7 @@ export async function ensureProjectWorklets(
 		return;
 	}
 	const loads: Promise<unknown>[] = [];
+	if (needsStandard) loads.push(ensureStandardEffectWorklet(context));
 	if (needsBandDynamics) loads.push(ensureBandDynamicsWorklet(context));
 	if (usesNativePlugin) loads.push(ensureNativePluginRealtimeWorklet(context));
 	if (usesParametricEq) loads.push(ensureParametricEqWorklet(context));

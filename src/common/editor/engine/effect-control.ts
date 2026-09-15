@@ -36,6 +36,8 @@ import {
 import type {
 	EngineRuntimeMethodMap,
 } from './runtime-types.ts';
+import { isStandardEffect } from '../first-party-effects/standard/definition.ts';
+import { standardEffectStateBytes } from '../first-party-effects/standard/selection-contract.ts';
 
 /** Rack effects whose processors accept a live parameter frame over their port. */
 const CONFIGURABLE_RACK_EFFECT_TYPES = new Set(['delay', 'bitcrusher', 'deesser', 'multiband-compressor']);
@@ -47,11 +49,15 @@ configureRackEffect(scope, targetId, effectId, params, options = {}) {
 		}
 		const effect = projectRackEffect(this.project, scope, targetId, effectId);
 		const configurable = String(effect?.type || '').toLowerCase();
-		if (!effect || !CONFIGURABLE_RACK_EFFECT_TYPES.has(configurable)) return false;
+		if (!effect || (!CONFIGURABLE_RACK_EFFECT_TYPES.has(configurable) && !isStandardEffect(configurable))) return false;
 		const normalized = normalizeEffect({
 			...effect,
 			params: { ...(effect.params || {}), ...params },
 		}).params;
+		if (isStandardEffect(configurable)) {
+			const node = this.graph?.effectNodes?.get(effectGraphKey(scope, targetId, effectId));
+			standardEffectStateBytes(configurable, normalized, this.context?.sampleRate || this.sampleRate, node?.channelCount || 2);
+		}
 		const sequence = postEffectMessage(
 			this.graph,
 			scope,

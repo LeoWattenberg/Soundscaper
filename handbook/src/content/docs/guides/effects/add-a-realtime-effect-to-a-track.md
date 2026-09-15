@@ -31,6 +31,8 @@ This is Audacity's **Effect → Add Realtime Effects**. The names below are Soun
 
 - Add several effects to a rack and drag them to change their order; each feeds the next.
 - The master rack, at the bottom of the Effects panel, processes the whole mix.
+- The rack also offers Delay, high-pass and low-pass filters, Noise gate, Notch filter, Shelf filter, Tremolo and Vocoder. Their selection and rack controls are shared.
+- The [audio effects reference](/reference/generated/audio-effects/#regular-streaming-replacements) explains the causal Delay, Noise gate and Vocoder behavior and their differences from the former Nyquist scripts.
 
 ## Related guides
 
@@ -45,7 +47,7 @@ More [effects](/guides/effects/) guides:
 - [Stretch a sound into a drone](/guides/effects/stretch-a-sound-into-a-drone/) — Slow a short sound down enormously with Paulstretch to make ambient textures.
 - [Add distortion](/guides/effects/add-distortion/) — Overdrive a sound from gentle warmth to full fuzz.
 - [Add a wah-wah](/guides/effects/add-a-wah-wah/) — Sweep a resonant filter across a sound for the classic funk effect.
-- [Use a Nyquist plug-in](/guides/effects/use-a-nyquist-plugin/) — Run one of the bundled Nyquist effects — here, a tremolo.
+- [Use a Nyquist plug-in](/guides/effects/use-a-nyquist-plugin/) — Run one of the bundled Nyquist effects — here, an adjustable fade.
 - [Add a phaser](/guides/effects/add-a-phaser/) — Sweep a set of notches through a sound for the classic swirling guitar and keyboard effect.
 - [Apply the same chain of effects every time](/guides/effects/apply-the-same-effects-every-time/) — Save a sequence of effects as a macro and run it on any selection with one command.
 - [Slide from one tempo to another](/guides/effects/slide-from-one-tempo-to-another/) — Speed a passage up or slow it down gradually across its length, with or without a pitch slide.

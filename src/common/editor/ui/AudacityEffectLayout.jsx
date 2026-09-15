@@ -123,6 +123,34 @@ const EFFECT_LAYOUTS = Object.freeze({
 		{ titleKey: 'effectCardSweep', names: ['frequency', 'phaseDegrees', 'depthPercent', 'frequencyOffsetPercent'], knobs: true },
 		{ titleKey: 'effectCardCharacter', names: ['resonance', 'outputGainDb'], knobs: true },
 	],
+	'highpass-filter': [
+		{ titleKey: 'effectCardHighPassFilter', names: ['frequency', 'rolloff'], wide: true },
+	],
+	'lowpass-filter': [
+		{ titleKey: 'effectCardLowPassFilter', names: ['frequency', 'rolloff'], wide: true },
+	],
+	'notch-filter': [
+		{ titleKey: 'effectCardNotchFilter', names: ['frequency', 'q'], knobs: true, wide: true },
+	],
+	'shelf-filter': [
+		{ titleKey: 'effectCardShelfFilter', names: ['filterType', 'frequency', 'gain'], wide: true },
+	],
+	'noise-gate': [
+		{ titleKey: 'effectCardDetection', names: ['threshold', 'rangeDb', 'gateFrequency', 'stereoLink'], wide: true },
+		{ titleKey: 'effectCardEnvelope', names: ['attack', 'hold', 'release'], knobs: true, wide: true },
+	],
+	'multi-tap-delay': [
+		{ titleKey: 'effectCardDelay', names: ['delayType', 'time', 'echoes', 'echoGain'], wide: true },
+		{ titleKey: 'effectCardPitchShift', names: ['pitchShift', 'pitchQuality'], wide: true },
+		{ titleKey: 'effectCardMix', names: ['mix'], knobs: true, wide: true },
+	],
+	tremolo: [
+		{ titleKey: 'effectCardModulation', names: ['waveform', 'frequency', 'depth', 'phase'], wide: true },
+	],
+	vocoder: [
+		{ titleKey: 'effectCardVocoder', names: ['bands', 'distance', 'outputMode', 'outputGain'], wide: true },
+		{ titleKey: 'effectCardCarrier', names: ['carrierLevel', 'noiseLevel', 'radarLevel', 'radarFrequency'], knobs: true, wide: true },
+	],
 	highpass: [
 		{ titleKey: 'effectCardHighPassFilter', names: ['frequency', 'q'], response: 'highpass', wide: true },
 	],

@@ -213,7 +213,7 @@ test('supplemental browser effects survive AUP4 and native missing-effect rewrit
 	const rack = createAup4EffectsNode([local]);
 	const nativeNode = audacityXmlChildren(rack, 'effect')[0];
 	const nativeId = audacityXmlAttribute(nativeNode, 'id');
-	assert.match(nativeId, /^Effect_kw\.media_kw\.media_High-pass filter_kw\.media Browser Effect: /);
+	assert.match(nativeId, /^Effect_kw\.media_kw\.media_Resonant high-pass filter_kw\.media Browser Effect: /);
 	assert.equal(nativeId.split('_').length, 5);
 	// RealtimeEffectState keeps active + id for an unavailable effect but drops
 	// its parameters. The extension deliberately needs no parameter children.

@@ -35,6 +35,14 @@ const LOCAL_EFFECT_CATEGORIES = Object.freeze({
 	'multiband-compressor': 'volume',
 	highpass: 'eq',
 	lowpass: 'eq',
+	'highpass-filter': 'eq',
+	'lowpass-filter': 'eq',
+	'notch-filter': 'eq',
+	'shelf-filter': 'eq',
+	'noise-gate': 'repair',
+	'multi-tap-delay': 'delay',
+	tremolo: 'modulation',
+	vocoder: 'modulation',
 	eq: 'eq',
 	compressor: 'volume',
 	limiter: 'volume',
@@ -52,6 +60,12 @@ const STRUCTURED_LOCAL_PARAMETERS = Object.freeze({
 
 const BROWSER_ADAPTATION_NOTES = Object.freeze({
 	schroeder: 'Browser build uses a Schroeder reverb network',
+});
+
+const LOCAL_EFFECT_NOTES = Object.freeze({
+	'multi-tap-delay': ['Finite echoes with per-echo pitch shift; selection keeps its duration'],
+	'noise-gate': ['Causal attack and release; no lookahead', 'Linked or independent channels; optional frequency-selective gating'],
+	vocoder: ['Stereo uses the left channel as voice and the right as carrier; mono uses a synthesized carrier', 'Output keeps the input channel count'],
 });
 
 const CURVE_RANGE_NOTE = 'Frequency and gain pairs';
@@ -180,7 +194,7 @@ function collectEffects(context) {
 			rack: rack.has(type),
 			selection: selection.has(type),
 			origin: audacity ? 'Audacity' : 'Soundscaper local',
-			notes: audacity ? audacityNotes(type, audacity, staffPadEffectTypes) : [],
+			notes: audacity ? audacityNotes(type, audacity, staffPadEffectTypes) : LOCAL_EFFECT_NOTES[type] ?? [],
 			// A selection-only Audacity effect already explains itself in the
 			// runtime, because the realtime rack has to refuse it with a reason.
 			selectionOnlyReason: capability && !capability.live ? capability.reason : null,
@@ -228,6 +242,18 @@ export function renderAudioEffectReference(context) {
 		'',
 		inventory,
 		'',
+		'## Regular streaming replacements {#regular-streaming-replacements}',
+		'',
+		'Delay, High-pass filter, Low-pass filter, Noise gate, Notch filter, Shelf filter, Tremolo and Vocoder have regular selection effects and realtime rack processors. Choose them from their Effect menu categories, or open a track’s Effects panel and choose them in its rack. Their controls are shared across both uses. Existing programmatic Nyquist IDs and user plug-ins remain available, and the bundled scripts retain their pinned source and notices.',
+		'',
+		'Delay makes a finite number of echoes with regular, bouncing-ball or reverse bouncing-ball spacing and a pitch shift for each echo. Pitch quality selects a causal grain window: Fast uses 20 milliseconds and Smooth uses 80 milliseconds. The former Nyquist resampling and phase-vocoder pitch modes are not part of this streaming processor. Applying Delay to a selection keeps the selected duration; rack playback and export include tails subject to the existing combined 10-second tail limit. Feedback delay remains available as a separate rack effect.',
+		'',
+		'High-pass filter, Low-pass filter, Notch filter and Shelf filter include their filter release in rack playback and export, subject to the existing combined 10-second tail limit. Applying them to a selection keeps its duration.',
+		'',
+		'Noise gate detects the incoming level and applies attack, hold and release as the audio arrives. It has no lookahead or built-in Analyze operation; use the Analyze menu for separate measurements. Gate frequencies above uses a complementary split made from two one-pole filters to leave lower frequencies ungated. Channels can be linked or detected independently. Rack playback and export include the split filters’ release, subject to the existing combined 10-second tail limit.',
+		'',
+		'Vocoder uses up to 240 bands. In stereo, the left channel supplies the voice envelope and the right channel supplies the carrier. Mono input uses a synthesized carrier. Both channels preserves the voice on the left and puts vocoded audio on the right; Vocoded audio duplicates the processed signal into the first stereo pair. Additional channels pass through unchanged. Output gain is a fixed level control and does not peak-normalize the selection. The output keeps the input channel count. Rack playback and export include its filter and envelope release, subject to the existing combined 10-second tail limit.',
+		'',
 		'## Why some effects are selection-only',
 		'',
 		'These effects cannot be a realtime insert, because each one needs more of the selection than a live block gives it.',
@@ -242,7 +268,7 @@ export function renderAudioEffectReference(context) {
 		// written out and travels through the translator as protected text.
 		'## Parameters {#parameters}',
 		'',
-		'Defaults and limits come from the same definitions the editor validates against, so a value outside a listed range is refused rather than clamped. Each parameter is named the way the editor names it.',
+		'Defaults and limits come from the same definitions the editor validates against, so a value outside a listed range is refused rather than clamped. Filter cutoffs must also stay below half the project sample rate, and Delay settings must fit the bounded delay buffer for the channel count. Each parameter is named the way the editor names it.',
 		'',
 		table(['Effect', 'Effect ID', 'Parameter', 'Default', 'Range', 'Unit'], parameterRows),
 		'',

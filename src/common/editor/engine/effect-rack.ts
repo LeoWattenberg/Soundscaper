@@ -47,6 +47,8 @@ import { isParametricEqType } from './project-effects.ts';
 import { BITCRUSHER_EFFECT_TYPE, createBitcrusherEffectNode } from './bitcrusher-node.ts';
 import { isBandDynamicsEffect } from '../first-party-effects/dynamics/definition.ts';
 import { createBandDynamicsNode } from './band-dynamics-node.ts';
+import { isStandardEffect } from '../first-party-effects/standard/definition.ts';
+import { createStandardEffectNode } from './standard-effect-node.ts';
 import type { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import type { EngineEffect, UnknownRecord } from './types.ts';
 import { effectSupportsExplicitSidechain } from '../effect-explicit-sidechain-capability.ts';
@@ -235,6 +237,19 @@ export function applyEffect(
 					fallbackMessage: 'The real-time effect processor failed.',
 					processorErrorMessage: 'The real-time effect AudioWorklet processor failed.',
 				},
+			));
+		}
+		return processor;
+	}
+	if (isStandardEffect(type)) {
+		const width = clamp(positiveInteger(options.effectChannelCount, 2), 1, 32);
+		const processor = addNode(nodes, createStandardEffectNode(context, audioWorkletNodeConstructor(), type, params, width));
+		connect(input, processor);
+		registerEffectNode(effect, processor, options);
+		if (typeof options.onParametricEqError === 'function') {
+			attachEffectProcessorErrorPort(processor, options.onParametricEqError, effectProcessorErrorContext(
+				options, effect.id, { fallbackMessage: 'The real-time effect processor failed.',
+					processorErrorMessage: 'The real-time effect AudioWorklet processor failed.' },
 			));
 		}
 		return processor;

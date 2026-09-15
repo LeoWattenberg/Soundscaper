@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-
 import { spawn } from 'node:child_process';
 import { cp, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, extname, join, resolve } from 'node:path';
@@ -315,6 +314,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/i18n/canonical-extras.js',
 	'src/common/i18n/canonical-extras-audacity-effects.js',
 	'src/common/i18n/canonical-extras-audacity-presets.js',
+	'src/common/i18n/canonical-extras-standard-effects.js',
 	'src/common/i18n/locale.js',
 	...DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES,
 	'src/common/editor/native-durable-root-grant.js',

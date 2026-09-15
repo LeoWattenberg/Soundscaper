@@ -4,6 +4,7 @@ import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 import type { EngineEffectScope } from '../../../engine/public-api.ts';
 import type { EditorProjectToken } from '../../shared/lifecycle.ts';
 import type { ParameterGestureSession } from './parameter-gesture-adapter.ts';
+import type { TerminalWidthProject } from '../../../terminal-channel-widths.ts';
 
 export type RackEffectScope = EngineEffectScope;
 export type EffectParameters = Readonly<Record<string, unknown>>;
@@ -31,18 +32,24 @@ export interface RackEffectDraft extends Readonly<Record<string, unknown>> {
 
 export interface RackEffectOwner {
 	readonly id: string;
+	readonly channelCount?: number;
 	readonly effects?: readonly ControllerRackEffect[];
 }
 export interface RackEffectTrack extends RackEffectOwner {
 	readonly type: string;
+	readonly clipIds?: readonly unknown[];
 }
-export interface RackEffectProject {
+export interface RackEffectProject extends TerminalWidthProject {
 	readonly id: string;
+	readonly sampleRate?: number;
+	readonly masterChannels?: number;
+	readonly automationLanes?: readonly unknown[];
 	readonly tracks: readonly RackEffectTrack[];
 	readonly master?: Readonly<{ readonly effects?: readonly ControllerRackEffect[] }>;
 	readonly mixer?: Readonly<{
 		readonly groups?: readonly RackEffectOwner[];
 		readonly sends?: readonly RackEffectOwner[];
+		readonly routes?: NonNullable<TerminalWidthProject['mixer']>['routes'];
 	}>;
 }
 
@@ -80,6 +87,7 @@ export interface RackEffectCopy {
 }
 
 export interface RackEffectPreviewEngine {
+	readonly sampleRate?: number;
 	configureRackEffect?(
 		scope: RackEffectScope,
 		targetId: string | null,
@@ -135,4 +143,3 @@ export interface MaterializeRackEffectOptions {
 	readonly forceEnabled?: boolean;
 	readonly requireNoiseProfile?: boolean;
 }
-

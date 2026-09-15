@@ -227,6 +227,11 @@
 
 [data-effect-rack] :is(.effects-panel__effect-stack, .effects-panel__track-section, .effects-panel__master-section) {
 	min-width: 0;
+	min-height: 0;
+}
+
+[data-effect-rack] .effects-panel__track-section > .effects-panel__track-section {
+	overflow: hidden;
 }
 
 .audio-editor-effects-overlay__adapters {

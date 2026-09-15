@@ -42,7 +42,7 @@ import {
 
 		await openRackPicker(effectsPanel, 'track');
 		const picker = page.getByRole('menu', { name: 'Choose an effect' });
-		await expect(picker.getByRole('menuitem')).toHaveCount(25);
+		await expect(picker.getByRole('menuitem')).toHaveCount(33);
 		await expect(picker.getByRole('menuitem', { name: 'Invert' })).toHaveCount(1);
 		await expect(picker.getByRole('menuitem', { name: 'Bitcrusher' })).toHaveCount(1);
 		await expect(picker.getByRole('menuitem', { name: 'Paulstretch' })).toHaveCount(0);
@@ -111,7 +111,7 @@ import {
 		expect(errors).toEqual([]);
 	});
 
-	test('keeps rack knob updates live and ends Delay gestures when the window blurs', async ({ page }) => {
+	test('keeps rack knob updates live and ends Feedback delay gestures when the window blurs', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		const effectsPanel = await openEffectsForTrack(editor, 0);
@@ -137,8 +137,8 @@ import {
 		}
 		await closeDialog(reverb);
 
-		await addRackEffect(page, effectsPanel, 'track', 'Delay');
-		const delay = page.getByRole('dialog', { name: 'Delay', exact: true });
+		await addRackEffect(page, effectsPanel, 'track', 'Feedback delay');
+		const delay = page.getByRole('dialog', { name: 'Feedback delay', exact: true });
 		const mixField = delay.locator('[data-effect-param="mix"]');
 		const mixInput = mixField.locator('input');
 		const mixKnob = mixField.getByRole('slider', { name: /Mix:/ });

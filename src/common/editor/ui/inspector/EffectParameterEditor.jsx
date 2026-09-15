@@ -29,6 +29,8 @@ import {
 	safeEffectLabel,
 } from './effect-helpers.ts';
 import { createParameterAutomationControlRouterV21 } from '../soundscaper-workflow-product-runtime.tsx';
+import { nativeRackEffectCommit } from './live-rack-effect-gesture.ts';
+import { nativeEffectParamRange } from './native-effect-param-range.ts';
 
 export default function EffectParameterEditor({
 	effect,
@@ -96,7 +98,9 @@ export default function EffectParameterEditor({
 		const address = parameterAddress(automation.parameterId || name, automation.elementId);
 		if (address && Number.isFinite(automation.controlValue)
 			&& automationRouter.performAtomic(address, automation.controlValue)) return undefined;
-		return update({ params: { [name]: value } });
+		const commit = nativeRackEffectCommit(effect, { [name]: value },
+			onRackEffectGestureBegin, onRackEffectCommit, onRackEffectCancel);
+		return commit ? invoke(commit) : update({ params: { [name]: value } });
 	};
 	const parameterGestureProps = (parameterId, elementId = null, fallback = null) => {
 		const address = parameterAddress(parameterId, elementId);
@@ -198,7 +202,8 @@ export default function EffectParameterEditor({
 			const descriptor = AUDIO_EFFECT_DEFINITIONS[effect.type]?.ranges?.[name]
 				|| AUDIO_SELECTION_EFFECT_DEFINITIONS[effect.type]?.ranges?.[name];
 				const unit = descriptor?.[2]?.unit;
-				const range = audioEffectParamRange(effect.type, name) || descriptor?.slice(0, 2);
+				const range = nativeEffectParamRange(effect.type, name,
+					audioEffectParamRange(effect.type, name) || descriptor?.slice(0, 2), sampleRate, descriptor?.[2]?.step);
 				const fallback = onRackEffectGestureBegin && onRackEffectPreview && onRackEffectCommit
 					? {
 						begin: () => invoke(onRackEffectGestureBegin),

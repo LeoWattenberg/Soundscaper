@@ -28,37 +28,57 @@ Audio effects are registered by Soundscaper. Effects whose ID begins with `audac
 | Compressor | `compressor` | Volume and dynamics | Yes | No | — |
 | Compressor (Audacity) | `audacity-compressor` | Volume and dynamics | Yes | Yes | — |
 | De-esser | `deesser` | Noise and repair | Yes | Yes | — |
-| Delay | `delay` | Delay and reverb | Yes | No | — |
+| Delay | `multi-tap-delay` | Delay and reverb | Yes | Yes | Finite echoes with per-echo pitch shift; selection keeps its duration |
 | Distortion | `audacity-distortion` | Special | Yes | Yes | — |
 | Echo | `audacity-echo` | Delay and reverb | Yes | Yes | — |
 | Fade In | `audacity-fade-in` | Fades | No | Yes | — |
 | Fade Out | `audacity-fade-out` | Fades | No | Yes | — |
+| Feedback delay | `delay` | Delay and reverb | Yes | No | — |
 | Filter Curve EQ | `audacity-filter-curve-eq` | EQ and filters | Yes | Yes | — |
 | Four-band parametric EQ | `eq` | EQ and filters | Yes | Yes | — |
 | Gate | `gate` | Volume and dynamics | Yes | No | — |
 | Graphic EQ | `audacity-graphic-eq` | EQ and filters | Yes | Yes | — |
-| High-pass filter | `highpass` | EQ and filters | Yes | No | — |
+| High-pass filter | `highpass-filter` | EQ and filters | Yes | Yes | — |
 | Invert | `audacity-invert` | Special | Yes | Yes | — |
 | Legacy Compressor | `audacity-legacy-compressor` | Volume and dynamics | No | Yes | — |
 | Limiter | `limiter` | Volume and dynamics | Yes | No | — |
 | Limiter (Audacity) | `audacity-limiter` | Volume and dynamics | Yes | Yes | — |
 | Loudness Normalization | `audacity-loudness-normalization` | Volume and dynamics | No | Yes | — |
-| Low-pass filter | `lowpass` | EQ and filters | Yes | No | — |
+| Low-pass filter | `lowpass-filter` | EQ and filters | Yes | Yes | — |
 | Multiband compressor | `multiband-compressor` | Volume and dynamics | Yes | Yes | — |
 | Noise Reduction | `audacity-noise-reduction` | Noise and repair | Yes | Yes | Needs a captured noise profile |
+| Noise gate | `noise-gate` | Noise and repair | Yes | Yes | Causal attack and release; no lookahead; Linked or independent channels; optional frequency-selective gating |
 | Normalize | `audacity-normalize` | Volume and dynamics | No | Yes | — |
+| Notch filter | `notch-filter` | EQ and filters | Yes | Yes | — |
 | Paulstretch | `audacity-paulstretch` | Special | No | Yes | Changes the selection length |
 | Phaser | `audacity-phaser` | Distortion and modulation | Yes | Yes | — |
 | Remove DC Offset | `audacity-remove-dc-offset` | Noise and repair | No | Yes | — |
 | Repair | `audacity-repair` | Noise and repair | No | Yes | Needs audio on either side of the selection |
 | Repeat | `audacity-repeat` | Special | No | Yes | Changes the selection length |
+| Resonant high-pass filter | `highpass` | EQ and filters | Yes | No | — |
+| Resonant low-pass filter | `lowpass` | EQ and filters | Yes | No | — |
 | Reverb | `reverb` | Delay and reverb | Yes | No | — |
 | Reverb (Audacity) | `audacity-reverb` | Delay and reverb | No | Yes | Browser build uses a Schroeder reverb network |
 | Reverse | `audacity-reverse` | Special | No | Yes | — |
+| Shelf filter | `shelf-filter` | EQ and filters | Yes | Yes | — |
 | Sliding Stretch | `audacity-sliding-stretch` | Pitch and tempo | No | Yes | Changes the selection length; Uses the StaffPad time and pitch library |
+| Tremolo | `tremolo` | Distortion and modulation | Yes | Yes | — |
 | Truncate Silence | `audacity-truncate-silence` | Special | No | Yes | Changes the selection length |
 | Utility Gain (Reviewed) | `reviewed-utility-gain` | Volume and dynamics | No | Yes | — |
+| Vocoder | `vocoder` | Distortion and modulation | Yes | Yes | Stereo uses the left channel as voice and the right as carrier; mono uses a synthesized carrier; Output keeps the input channel count |
 | Wahwah | `audacity-wahwah` | Distortion and modulation | Yes | Yes | — |
+
+## Regular streaming replacements {#regular-streaming-replacements}
+
+Delay, High-pass filter, Low-pass filter, Noise gate, Notch filter, Shelf filter, Tremolo and Vocoder have regular selection effects and realtime rack processors. Choose them from their Effect menu categories, or open a track’s Effects panel and choose them in its rack. Their controls are shared across both uses. Existing programmatic Nyquist IDs and user plug-ins remain available, and the bundled scripts retain their pinned source and notices.
+
+Delay makes a finite number of echoes with regular, bouncing-ball or reverse bouncing-ball spacing and a pitch shift for each echo. Pitch quality selects a causal grain window: Fast uses 20 milliseconds and Smooth uses 80 milliseconds. The former Nyquist resampling and phase-vocoder pitch modes are not part of this streaming processor. Applying Delay to a selection keeps the selected duration; rack playback and export include tails subject to the existing combined 10-second tail limit. Feedback delay remains available as a separate rack effect.
+
+High-pass filter, Low-pass filter, Notch filter and Shelf filter include their filter release in rack playback and export, subject to the existing combined 10-second tail limit. Applying them to a selection keeps its duration.
+
+Noise gate detects the incoming level and applies attack, hold and release as the audio arrives. It has no lookahead or built-in Analyze operation; use the Analyze menu for separate measurements. Gate frequencies above uses a complementary split made from two one-pole filters to leave lower frequencies ungated. Channels can be linked or detected independently. Rack playback and export include the split filters’ release, subject to the existing combined 10-second tail limit.
+
+Vocoder uses up to 240 bands. In stereo, the left channel supplies the voice envelope and the right channel supplies the carrier. Mono input uses a synthesized carrier. Both channels preserves the voice on the left and puts vocoded audio on the right; Vocoded audio duplicates the processed signal into the first stereo pair. Additional channels pass through unchanged. Output gain is a fixed level control and does not peak-normalize the selection. The output keeps the input channel count. Rack playback and export include its filter and envelope release, subject to the existing combined 10-second tail limit.
 
 ## Why some effects are selection-only
 
@@ -86,7 +106,7 @@ These effects cannot be a realtime insert, because each one needs more of the se
 
 ## Parameters {#parameters}
 
-Defaults and limits come from the same definitions the editor validates against, so a value outside a listed range is refused rather than clamped. Each parameter is named the way the editor names it.
+Defaults and limits come from the same definitions the editor validates against, so a value outside a listed range is refused rather than clamped. Filter cutoffs must also stay below half the project sample rate, and Delay settings must fit the bounded delay buffer for the channel count. Each parameter is named the way the editor names it.
 
 | Effect | Effect ID | Parameter | Default | Range | Unit |
 | --- | --- | --- | --- | --- | --- |
@@ -137,9 +157,13 @@ Defaults and limits come from the same definitions the editor validates against,
 | De-esser | `deesser` | Maximum reduction | 9 | 0 to 24 | dB |
 | De-esser | `deesser` | Attack | 0.001 | 0.0001 to 0.1 | s |
 | De-esser | `deesser` | Release | 0.08 | 0.01 to 1 | s |
-| Delay | `delay` | Delay time | 0.25 | 0.001 to 5 | s |
-| Delay | `delay` | Feedback | 0.3 | 0 to 0.95 | ratio |
-| Delay | `delay` | Mix | 0.2 | 0 to 1 | ratio |
+| Delay | `multi-tap-delay` | Delay time | 0.3 | 0 to 5 | s |
+| Delay | `multi-tap-delay` | Gain per echo | -6 | -30 to 1 | dB |
+| Delay | `multi-tap-delay` | Number of echoes | 5 | 1 to 30 | echoes |
+| Delay | `multi-tap-delay` | Pitch shift per echo | 0 | -2 to 2 | semitones |
+| Delay | `multi-tap-delay` | Mix | 1 | 0 to 1 | ratio |
+| Delay | `multi-tap-delay` | Delay type | Regular | Regular; Bouncing ball; Reverse bouncing ball | — |
+| Delay | `multi-tap-delay` | Pitch quality | Smooth | Fast; Smooth | — |
 | Distortion | `audacity-distortion` | Distortion type | Hard Clipping | Hard Clipping; Soft Clipping; Soft Overdrive; Medium Overdrive; Hard Overdrive; Cubic Curve (odd harmonics); Even Harmonics; Expand and Compress; Leveller; Rectifier Distortion; Hard Limiter 1413 | — |
 | Distortion | `audacity-distortion` | DC block | Off | On or off | — |
 | Distortion | `audacity-distortion` | Threshold | -6 | -100 to 0 | dB |
@@ -149,6 +173,9 @@ Defaults and limits come from the same definitions the editor validates against,
 | Distortion | `audacity-distortion` | Repeats | 1 | 0 to 5 | — |
 | Echo | `audacity-echo` | Delay time | 1 | 0.001 or more | s |
 | Echo | `audacity-echo` | Decay factor | 0.5 | 0 or more | — |
+| Feedback delay | `delay` | Delay time | 0.25 | 0.001 to 5 | s |
+| Feedback delay | `delay` | Feedback | 0.3 | 0 to 0.95 | ratio |
+| Feedback delay | `delay` | Mix | 0.2 | 0 to 1 | ratio |
 | Filter Curve EQ | `audacity-filter-curve-eq` | Curve points (Hz:dB) | 20:0, 20000:0 | Frequency and gain pairs | Hz and dB |
 | Filter Curve EQ | `audacity-filter-curve-eq` | Linear frequency scale | Off | On or off | — |
 | Filter Curve EQ | `audacity-filter-curve-eq` | FIR filter length | 8191 | 21 to 8191 | — |
@@ -165,8 +192,8 @@ Defaults and limits come from the same definitions the editor validates against,
 | Graphic EQ | `audacity-graphic-eq` | Third-octave bands | 0 on each of the 31 bands | -20 to 20 | dB |
 | Graphic EQ | `audacity-graphic-eq` | Interpolation | B-spline | B-spline; Cosine; Cubic | — |
 | Graphic EQ | `audacity-graphic-eq` | FIR filter length | 8191 | 21 to 8191 | — |
-| High-pass filter | `highpass` | Frequency | 80 | 10 to 20000 | Hz |
-| High-pass filter | `highpass` | Q | 0.707 | 0.1 to 30 | Q |
+| High-pass filter | `highpass-filter` | Cutoff frequency | 1000 | 0.1 to 24000 | Hz |
+| High-pass filter | `highpass-filter` | Rolloff | 6 dB/octave | 6 dB/octave; 12 dB/octave; 24 dB/octave; 36 dB/octave; 48 dB/octave | — |
 | Legacy Compressor | `audacity-legacy-compressor` | Threshold | -12 | -60 to -1 | dB |
 | Legacy Compressor | `audacity-legacy-compressor` | Noise floor | -40 | -80 to -20 | dB |
 | Legacy Compressor | `audacity-legacy-compressor` | Ratio | 2 | 1.1 to 10 | — |
@@ -187,8 +214,8 @@ Defaults and limits come from the same definitions the editor validates against,
 | Loudness Normalization | `audacity-loudness-normalization` | Target RMS | -20 | -145 to 0 | dB |
 | Loudness Normalization | `audacity-loudness-normalization` | Normalize stereo channels independently | Off | On or off | — |
 | Loudness Normalization | `audacity-loudness-normalization` | Treat mono as dual-mono | On | On or off | — |
-| Low-pass filter | `lowpass` | Frequency | 18000 | 10 to 24000 | Hz |
-| Low-pass filter | `lowpass` | Q | 0.707 | 0.1 to 30 | Q |
+| Low-pass filter | `lowpass-filter` | Cutoff frequency | 1000 | 0.1 to 24000 | Hz |
+| Low-pass filter | `lowpass-filter` | Rolloff | 6 dB/octave | 6 dB/octave; 12 dB/octave; 24 dB/octave; 36 dB/octave; 48 dB/octave | — |
 | Multiband compressor | `multiband-compressor` | Low crossover | 250 | 40 to 2000 | Hz |
 | Multiband compressor | `multiband-compressor` | High crossover | 4000 | 2500 to 16000 | Hz |
 | Multiband compressor | `multiband-compressor` | Low threshold | -24 | -60 to 0 | dB |
@@ -206,10 +233,19 @@ Defaults and limits come from the same definitions the editor validates against,
 | Noise Reduction | `audacity-noise-reduction` | Sensitivity | 6 | 0.01 to 24 | — |
 | Noise Reduction | `audacity-noise-reduction` | Frequency smoothing | 6 | 0 to 12 | bands |
 | Noise Reduction | `audacity-noise-reduction` | Output | Reduce noise | Reduce noise; Residue | — |
+| Noise gate | `noise-gate` | Threshold | -40 | -96 to -6 | dB |
+| Noise gate | `noise-gate` | Attack | 0.01 | 0.001 to 1 | s |
+| Noise gate | `noise-gate` | Hold | 0.05 | 0 to 2 | s |
+| Noise gate | `noise-gate` | Release | 0.1 | 0.01 to 4 | s |
+| Noise gate | `noise-gate` | Level reduction | -24 | -100 to 0 | dB |
+| Noise gate | `noise-gate` | Gate frequencies above | 0 | 0 to 10000 | Hz |
+| Noise gate | `noise-gate` | Stereo linking | Link channels | Link channels; Independent channels | — |
 | Normalize | `audacity-normalize` | Peak amplitude | -1 | -145 to 0 | dBFS |
 | Normalize | `audacity-normalize` | Remove DC offset | On | On or off | — |
 | Normalize | `audacity-normalize` | Normalize peak amplitude | On | On or off | — |
 | Normalize | `audacity-normalize` | Normalize stereo channels independently | Off | On or off | — |
+| Notch filter | `notch-filter` | Notch frequency | 60 | 0.1 to 24000 | Hz |
+| Notch filter | `notch-filter` | Q | 1 | 0.1 to 1000 | Q |
 | Paulstretch | `audacity-paulstretch` | Stretch factor | 10 | 1 or more | — |
 | Paulstretch | `audacity-paulstretch` | Time resolution | 0.25 | 0.00099 or more | s |
 | Phaser | `audacity-phaser` | Stages | 2 | 2 to 24 | — |
@@ -220,6 +256,10 @@ Defaults and limits come from the same definitions the editor validates against,
 | Phaser | `audacity-phaser` | Feedback | 0 | -100 to 100 | % |
 | Phaser | `audacity-phaser` | Output gain | -6 | -30 to 30 | dB |
 | Repeat | `audacity-repeat` | Number of repeats | 1 | 1 to 2147483647 | — |
+| Resonant high-pass filter | `highpass` | Frequency | 80 | 10 to 20000 | Hz |
+| Resonant high-pass filter | `highpass` | Q | 0.707 | 0.1 to 30 | Q |
+| Resonant low-pass filter | `lowpass` | Frequency | 18000 | 10 to 24000 | Hz |
+| Resonant low-pass filter | `lowpass` | Q | 0.707 | 0.1 to 30 | Q |
 | Reverb | `reverb` | Mix | 0.2 | 0 to 1 | ratio |
 | Reverb | `reverb` | Decay | 2 | 0.1 to 10 | s |
 | Reverb | `reverb` | Pre-delay | 0.01 | 0 to 1 | s |
@@ -233,11 +273,18 @@ Defaults and limits come from the same definitions the editor validates against,
 | Reverb (Audacity) | `audacity-reverb` | Dry gain | 0 | -60 to 12 | dB |
 | Reverb (Audacity) | `audacity-reverb` | Stereo width | 100 | 0 to 100 | % |
 | Reverb (Audacity) | `audacity-reverb` | Wet only | Off | On or off | — |
+| Shelf filter | `shelf-filter` | Shelf frequency | 1000 | 10 to 10000 | Hz |
+| Shelf filter | `shelf-filter` | Gain | -6 | -72 to 72 | dB |
+| Shelf filter | `shelf-filter` | Filter type | Low shelf | Low shelf; High shelf | — |
 | Sliding Stretch | `audacity-sliding-stretch` | Initial tempo change | 0 | -50 to 100 | % |
 | Sliding Stretch | `audacity-sliding-stretch` | Final tempo change | 0 | -50 to 100 | % |
 | Sliding Stretch | `audacity-sliding-stretch` | Initial pitch shift | 0 | -12 to 12 | st |
 | Sliding Stretch | `audacity-sliding-stretch` | Final pitch shift | 0 | -12 to 12 | st |
 | Sliding Stretch | `audacity-sliding-stretch` | Preserve formants | On | On or off | — |
+| Tremolo | `tremolo` | Starting phase | 0 | -180 to 180 | ° |
+| Tremolo | `tremolo` | Depth | 40 | 0 to 100 | % |
+| Tremolo | `tremolo` | Frequency | 4 | 0.001 to 1000 | Hz |
+| Tremolo | `tremolo` | Waveform | Sine | Sine; Triangle; Sawtooth; Inverse sawtooth; Square | — |
 | Truncate Silence | `audacity-truncate-silence` | Threshold | -20 | -80 to -20 | dB |
 | Truncate Silence | `audacity-truncate-silence` | Action | Truncate detected silence | Truncate detected silence; Compress excess silence | — |
 | Truncate Silence | `audacity-truncate-silence` | Minimum silence | 0.5 | 0.001 to 10000 | s |
@@ -245,6 +292,14 @@ Defaults and limits come from the same definitions the editor validates against,
 | Truncate Silence | `audacity-truncate-silence` | Compress to | 50 | 0 to 99.9 | % |
 | Truncate Silence | `audacity-truncate-silence` | Truncate tracks independently | Off | On or off | — |
 | Utility Gain (Reviewed) | `reviewed-utility-gain` | Gain | 1 | 0 to 4 | ratio |
+| Vocoder | `vocoder` | Vocoder bands | 40 | 10 to 240 | — |
+| Vocoder | `vocoder` | Distance | 20 | 1 to 120 | — |
+| Vocoder | `vocoder` | Audio carrier level | 100 | 0 to 100 | % |
+| Vocoder | `vocoder` | White noise level | 0 | 0 to 100 | % |
+| Vocoder | `vocoder` | Radar pulse level | 0 | 0 to 100 | % |
+| Vocoder | `vocoder` | Radar pulse frequency | 30 | 1 to 100 | Hz |
+| Vocoder | `vocoder` | Output gain | 0 | -24 to 24 | dB |
+| Vocoder | `vocoder` | Output | Both channels | Both channels; Vocoded audio | — |
 | Wahwah | `audacity-wahwah` | LFO frequency | 1.5 | 0.1 to 4 | Hz |
 | Wahwah | `audacity-wahwah` | Starting phase | 0 | 0 to 360 | ° |
 | Wahwah | `audacity-wahwah` | Depth | 70 | 0 to 100 | % |

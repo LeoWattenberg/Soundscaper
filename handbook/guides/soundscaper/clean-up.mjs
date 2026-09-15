@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { check, effect, importAudio, menu, noiseProfile, nyquist, open, play, selectRange } from '../steps.mjs';
+import { check, effect, importAudio, menu, noiseProfile, open, play, selectRange } from '../steps.mjs';
 
 const selectAll = (extras) => menu(['Select', 'Select all'], extras);
 
@@ -145,10 +145,10 @@ export const CLEAN_UP_GUIDES = Object.freeze([
 			open(),
 			importAudio('noisy-take', { what: 'the recording with the hum' }),
 			selectAll(),
-			nyquist({
-				menu: 'Effect',
-				name: 'Notch Filter',
-				fields: [{ label: 'Frequency (Hz)', value: '50' }, { label: 'Q (higher value reduces width)', value: '4' }],
+			effect({
+				group: 'EQ and filters',
+				name: 'Notch filter',
+				settings: [{ label: 'Notch frequency', value: '50' }, { label: 'Q', value: '4' }],
 			}, { why: 'Use 60 if your mains is 60 Hz. A Q of 4 is a narrow notch; lower it if the hum wanders, raise it if the cut is audible on the voice.' }),
 			play({ see: 'The hum is gone and the voice sounds the same.' }),
 		],
@@ -167,15 +167,15 @@ export const CLEAN_UP_GUIDES = Object.freeze([
 			open(),
 			importAudio('gapped-take', { what: 'the take with noisy pauses' }),
 			selectAll(),
-			nyquist({
-				menu: 'Effect',
-				name: 'Noise Gate',
-				fields: [{ label: 'Gate threshold (dB)', value: '-35' }, { label: 'Level reduction (dB)', value: '-30' }],
+			effect({
+				group: 'Noise removal and repair',
+				name: 'Noise gate',
+				settings: [{ label: 'Threshold', value: '-35' }, { label: 'Level reduction', value: '-30' }],
 			}, { why: 'The threshold should sit above the noise and below the quietest speech; −35 dB suits most voice recordings. The reduction sets how far the gaps are turned down — not all the way, which sounds unnatural.' }),
 			play({ see: 'The pauses are quiet and every phrase comes through untouched.' }),
 		],
 		tips: [
-			'If the ends of words are being cut off, raise **Hold (ms)** or **Decay (ms)** so the gate closes more slowly.',
+			'If the ends of words are being cut off, raise **Hold** or **Release** so the gate closes more slowly; these controls use seconds.',
 			'For noise that continues under the voice, use [Noise Reduction](guide:remove-background-noise) instead, or both together.',
 		],
 	},

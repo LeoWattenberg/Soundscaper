@@ -3,10 +3,10 @@
 export const EFFECT_MENU_GROUPS = Object.freeze([
 	['volumeCompression', ['audacity-amplify', 'audacity-auto-duck', 'audacity-compressor', 'multiband-compressor', 'audacity-limiter', 'audacity-loudness-normalization', 'audacity-normalize', 'audacity-remove-dc-offset']],
 	['fading', ['audacity-fade-in', 'audacity-fade-out']],
-	['eqFilters', ['eq', 'audacity-bass-treble', 'audacity-filter-curve-eq', 'audacity-graphic-eq']],
-	['noiseRepair', ['deesser', 'audacity-click-removal', 'audacity-noise-reduction', 'audacity-repair']],
-	['delayReverb', ['audacity-echo', 'audacity-reverb']],
-	['distortionModulation', ['audacity-distortion', 'bitcrusher', 'audacity-phaser', 'audacity-wahwah']],
+	['eqFilters', ['eq', 'highpass-filter', 'lowpass-filter', 'notch-filter', 'shelf-filter', 'audacity-bass-treble', 'audacity-filter-curve-eq', 'audacity-graphic-eq']],
+	['noiseRepair', ['deesser', 'noise-gate', 'audacity-click-removal', 'audacity-noise-reduction', 'audacity-repair']],
+	['delayReverb', ['multi-tap-delay', 'audacity-echo', 'audacity-reverb']],
+	['distortionModulation', ['audacity-distortion', 'bitcrusher', 'tremolo', 'vocoder', 'audacity-phaser', 'audacity-wahwah']],
 	['specialEffects', ['audacity-invert', 'audacity-repeat', 'audacity-reverse', 'audacity-truncate-silence', 'reviewed-utility-gain']],
 	['legacyEffects', ['audacity-legacy-compressor', 'audacity-classic-filters']],
 ]);

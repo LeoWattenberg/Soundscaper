@@ -218,23 +218,24 @@ export const EFFECT_GUIDES = Object.freeze([
 	{
 		id: 'use-a-nyquist-plugin',
 		title: 'Use a Nyquist plug-in',
-		description: 'Run one of the bundled Nyquist effects — here, a tremolo.',
-		audacity: 'Effect → Tremolo (a Nyquist plug-in)',
-		intro: 'Audacity’s Nyquist plug-ins are small scripts that add effects, generators and analyzers, and Soundscaper bundles the same ones under a Nyquist submenu of each menu. Tremolo is a good first one: it wobbles the volume at a set rate.',
+		description: 'Run one of the bundled Nyquist effects — here, an adjustable fade.',
+		audacity: 'Effect → Adjustable Fade (a Nyquist plug-in)',
+		intro: 'Audacity’s Nyquist plug-ins are small scripts that add effects, generators and analyzers. Soundscaper keeps the bundled scripts that need selection processing under a Nyquist submenu. Adjustable Fade shapes how the recording fades in or out.',
 		steps: [
 			open(),
 			importAudio('music-loop', { what: 'the recording to try the plug-in on' }),
 			selectAll(),
 			nyquist({
 				menu: 'Effect',
-				name: 'Tremolo',
-				fields: [{ label: 'Frequency (Hz)', value: '6' }],
-			}, { why: 'Six wobbles a second is a classic amp tremolo. Nyquist dialogs use **Apply** rather than Apply to selection.' }),
-			play({ see: 'The recording pulses in volume.' }),
+				name: 'Adjustable Fade',
+				fields: [{ label: 'Mid-fade Adjust (%)', value: '25' }],
+			}, { why: 'A positive adjustment rounds the fade. Nyquist dialogs use **Apply** rather than Apply to selection.' }),
+			play({ see: 'The recording fades in.' }),
 		],
 		tips: [
 			'The Generate and Analyze menus have Nyquist submenus of their own, with plug-ins such as Pluck and Beat Finder.',
 			'**Tools → Nyquist prompt** runs a script you type yourself.',
+			'Delay, high-pass and low-pass filters, Noise gate, Notch filter, Shelf filter, Tremolo and Vocoder have regular effects in their Effect menu categories and run in [realtime racks](guide:add-a-realtime-effect-to-a-track).',
 		],
 	},
 	{
@@ -252,6 +253,8 @@ export const EFFECT_GUIDES = Object.freeze([
 		tips: [
 			'Add several effects to a rack and drag them to change their order; each feeds the next.',
 			'The master rack, at the bottom of the Effects panel, processes the whole mix.',
+			'The rack also offers Delay, high-pass and low-pass filters, Noise gate, Notch filter, Shelf filter, Tremolo and Vocoder. Their selection and rack controls are shared.',
+			'The [audio effects reference](/reference/generated/audio-effects/#regular-streaming-replacements) explains the causal Delay, Noise gate and Vocoder behavior and their differences from the former Nyquist scripts.',
 		],
 	},
 

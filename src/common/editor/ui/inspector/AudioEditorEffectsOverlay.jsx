@@ -11,6 +11,7 @@ import EffectPresetBar from './EffectPresetBar.jsx';
 import EffectParameterEditor from './EffectParameterEditor.jsx';
 import EffectPicker from './EffectPicker.jsx';
 import { createAudacityRealtimeEffectShortcutHandler } from './audacity-realtime-effect-shortcut.ts';
+import { nativeRackEffectCommit, supportsLiveRackEffectGesture } from './live-rack-effect-gesture.ts';
 import { SteppedSlider } from './inspector-controls.jsx';
 import {
 	effectHasEditableSettings,
@@ -251,12 +252,22 @@ export function AudioEditorEffectsOverlay({
 	const effect = effectRack.find((candidate) => candidate.id === selectedEffect?.id) || null;
 	const effectScope = selectedEffect?.scope || scope;
 	const effectOwner = effectScope === 'master' ? project?.master : channel;
-	const supportsLiveRackGesture = (
-		effect?.type === 'delay'
-		&& effect.enabled !== false
-		&& effectOwner?.effectsActive !== false
-		&& Number(effect.params?.mix) > 0
-	);
+	const supportsLiveRackGesture = supportsLiveRackEffectGesture(effect, effectOwner);
+	const gestureOwnerId = effectScope === 'master' ? null : targetId;
+	const rackGestureBegin = supportsLiveRackGesture
+		? () => controller.actions.effects.beginRackEffectGesture?.(effectScope, gestureOwnerId, effect.id)
+		: null;
+	const rackGesturePreview = supportsLiveRackGesture
+		? (params) => controller.actions.effects.previewRackEffect?.(effectScope, gestureOwnerId, effect.id, params)
+		: null;
+	const rackGestureCommit = supportsLiveRackGesture
+		? (params) => controller.actions.effects.commitRackEffectGesture
+			? controller.actions.effects.commitRackEffectGesture(effectScope, gestureOwnerId, effect.id, params)
+			: controller.actions.effects.update(effectScope, gestureOwnerId, effect.id, { params })
+		: null;
+	const rackGestureCancel = supportsLiveRackGesture
+		? () => controller.actions.effects.cancelRackEffectGesture?.(effectScope, gestureOwnerId, effect.id)
+		: null;
 	const rackPresets = effect && effect.type !== 'missing'
 		? controller.actions.effects.presets.list(effect.type)
 		: [];
@@ -268,12 +279,14 @@ export function AudioEditorEffectsOverlay({
 		effect?.params, selectedRackPreset.preset.params,
 	);
 	const rackPresetOptions = rackPresetChoices.map(({ id, label, custom }) => ({ id, label, custom }));
-	const writeRackParams = (params) => run(() => controller.actions.effects.update(
+	const writeRackParams = (params) => run(nativeRackEffectCommit(
+		effect, params, rackGestureBegin, rackGestureCommit, rackGestureCancel,
+	) || (() => controller.actions.effects.update(
 		effectScope,
 		effectScope === 'master' ? null : targetId,
 		effect.id,
 		{ params },
-	));
+	)));
 	const selectRackPreset = (id) => {
 		if (!effect || blocked) return;
 		setRackPresetId(id);
@@ -468,43 +481,10 @@ export function AudioEditorEffectsOverlay({
 								: null}
 							noiseProfileLabel={effect.context?.noiseProfile ? copy.replaceNoiseProfile : copy.getNoiseProfile}
 							sampleRate={project?.sampleRate || AUDIO_EDITOR_SAMPLE_RATE}
-							onRackEffectGestureBegin={supportsLiveRackGesture
-								? () => controller.actions.effects.beginRackEffectGesture?.(
-									effectScope,
-									effectScope === 'master' ? null : targetId,
-									effect.id,
-								)
-								: null}
-							onRackEffectPreview={supportsLiveRackGesture
-								? (params) => controller.actions.effects.previewRackEffect?.(
-									effectScope,
-									effectScope === 'master' ? null : targetId,
-									effect.id,
-									params,
-								)
-								: null}
-							onRackEffectCommit={supportsLiveRackGesture
-								? (params) => controller.actions.effects.commitRackEffectGesture
-									? controller.actions.effects.commitRackEffectGesture(
-										effectScope,
-										effectScope === 'master' ? null : targetId,
-										effect.id,
-										params,
-									)
-									: controller.actions.effects.update(
-										effectScope,
-										effectScope === 'master' ? null : targetId,
-										effect.id,
-										{ params },
-									)
-								: null}
-							onRackEffectCancel={supportsLiveRackGesture
-								? () => controller.actions.effects.cancelRackEffectGesture?.(
-									effectScope,
-									effectScope === 'master' ? null : targetId,
-									effect.id,
-								)
-								: null}
+							onRackEffectGestureBegin={rackGestureBegin}
+							onRackEffectPreview={rackGesturePreview}
+							onRackEffectCommit={rackGestureCommit}
+							onRackEffectCancel={rackGestureCancel}
 							onParametricEqGestureBegin={() => controller.actions.effects.beginParametricEqGesture?.(
 								effectScope,
 								effectScope === 'master' ? null : targetId,

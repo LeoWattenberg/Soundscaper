@@ -12,6 +12,8 @@ import {
 } from './reviewed-effects/selection-effect-contract.ts';
 import { BITCRUSHER_EFFECT_TYPE } from './first-party-effects/bitcrusher/definition.js';
 import { isBandDynamicsEffect } from './first-party-effects/dynamics/definition.ts';
+import { isStandardEffect } from './first-party-effects/standard/definition.ts';
+import { standardSelectionEffectPeakBytes } from './first-party-effects/standard/selection-contract.ts';
 
 const FLOAT32_BYTES = Float32Array.BYTES_PER_ELEMENT;
 const MEMORY_ESTIMATE_OVERHEAD_BYTES = 2 * 1024 ** 2;
@@ -20,7 +22,7 @@ export function estimateAudioSelectionEffectOutputFrames(type, inputFrames, para
 	if (type === REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE) {
 		return estimateReviewedUtilityGainOutputFrames(inputFrames, params);
 	}
-	if (type === BITCRUSHER_EFFECT_TYPE || isBandDynamicsEffect(type)) {
+	if (type === BITCRUSHER_EFFECT_TYPE || isBandDynamicsEffect(type) || isStandardEffect(type)) {
 		const bitcrusherFrames = positiveInteger(inputFrames, 'inputFrames');
 		normalizeAudioSelectionEffectParams(type, params);
 		return bitcrusherFrames;
@@ -32,6 +34,8 @@ export function estimateAudioSelectionEffectOutputFrames(type, inputFrames, para
 }
 
 export function estimateAudioSelectionEffectPeakBytes(type, inputFrames, params = {}, options = {}) {
+	if (isStandardEffect(type)) return standardSelectionEffectPeakBytes(type, inputFrames,
+		normalizeAudioSelectionEffectParams(type, params), options);
 	if (type === REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE) {
 		return estimateReviewedUtilityGainPeakBytes(inputFrames, params, options.channelCount ?? 2);
 	}

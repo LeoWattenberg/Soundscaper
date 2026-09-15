@@ -116,8 +116,8 @@ test.describe('Soundscaper exact timing and freeze workflows', () => {
 		await commitInput(limiter.locator('[data-effect-param="ceiling"] input'), '0');
 		await commitInput(limiter.locator('[data-effect-param="lookahead"] input'), '0.005');
 		await closeDialog(limiter);
-		await addRackEffect(page, effectsPanel, 'track', 'Delay');
-		const delay = page.getByRole('dialog', { name: 'Delay', exact: true });
+		await addRackEffect(page, effectsPanel, 'track', 'Feedback delay');
+		const delay = page.getByRole('dialog', { name: 'Feedback delay', exact: true });
 		await commitInput(delay.locator('[data-effect-param="time"] input'), '0.001');
 		await commitInput(delay.locator('[data-effect-param="feedback"] input'), '0');
 		await commitInput(delay.locator('[data-effect-param="mix"] input'), '0.5');

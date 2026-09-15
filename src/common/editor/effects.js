@@ -17,6 +17,11 @@ import {
 } from './reviewed-effects/selection-effect-contract.ts';
 import { projectEffectTailFramesV21 } from './project-effect-tail-v21.ts';
 import { DEESSER_EFFECT_DEFINITION, MULTIBAND_COMPRESSOR_EFFECT_DEFINITION } from './first-party-effects/dynamics/definition.ts';
+import { STANDARD_FILTER_EFFECT_DEFINITIONS } from './first-party-effects/standard/filters-definition.ts';
+import { STANDARD_MODULATION_EFFECT_DEFINITIONS } from './first-party-effects/standard/modulation-definition.ts';
+import { NOISE_GATE_EFFECT_DEFINITION } from './first-party-effects/standard/noise-gate-definition.ts';
+import { STANDARD_DELAY_EFFECT_DEFINITION } from './first-party-effects/standard/delay-definition.ts';
+import { standardEffectTailSeconds } from './first-party-effects/standard/effect-tail.ts';
 import {
 	BITCRUSHER_EFFECT_DEFINITION, BITCRUSHER_EFFECT_TYPE,
 } from './first-party-effects/bitcrusher/definition.js';
@@ -47,6 +52,10 @@ export { PARAMETRIC_EQ_BAND_TYPES, PARAMETRIC_EQ_MAXIMUM_BANDS, PARAMETRIC_EQ_SL
  */
 
 export const AUDIO_EFFECT_DEFINITIONS = Object.freeze({
+	...STANDARD_FILTER_EFFECT_DEFINITIONS,
+	...STANDARD_MODULATION_EFFECT_DEFINITIONS,
+	'noise-gate': NOISE_GATE_EFFECT_DEFINITION,
+	'multi-tap-delay': STANDARD_DELAY_EFFECT_DEFINITION,
 	deesser: DEESSER_EFFECT_DEFINITION,
 	'multiband-compressor': MULTIBAND_COMPRESSOR_EFFECT_DEFINITION,
 	highpass: {
@@ -140,6 +149,10 @@ export const AUDIO_RACK_EFFECT_DEFINITIONS = Object.freeze({
 
 /** All effects which can be previewed and destructively applied to a selection. */
 export const AUDIO_SELECTION_EFFECT_DEFINITIONS = Object.freeze({
+	...STANDARD_FILTER_EFFECT_DEFINITIONS,
+	...STANDARD_MODULATION_EFFECT_DEFINITIONS,
+	'noise-gate': NOISE_GATE_EFFECT_DEFINITION,
+	'multi-tap-delay': STANDARD_DELAY_EFFECT_DEFINITION,
 	deesser: DEESSER_EFFECT_DEFINITION,
 	'multiband-compressor': MULTIBAND_COMPRESSOR_EFFECT_DEFINITION,
 	...AUDACITY_EFFECT_DEFINITIONS,
@@ -344,6 +357,8 @@ export function effectTailFrames(effect, sampleRate = AUDIO_EDITOR_SAMPLE_RATE) 
 	if (isAudacityRackEffectType(normalized.type)) {
 		return Math.ceil(audacityLiveEffectTailFrames(normalized.type, sampleRate, normalized.params));
 	}
+	const standardTailSeconds = standardEffectTailSeconds(normalized.type, normalized.params, sampleRate);
+	if (standardTailSeconds !== null) return Math.ceil(standardTailSeconds * sampleRate);
 	if (normalized.type === 'reverb' && normalized.params.mix > 0) {
 		return Math.ceil((normalized.params.preDelay + normalized.params.decay) * sampleRate);
 	}

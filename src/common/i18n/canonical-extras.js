@@ -1,8 +1,10 @@
 import { AUDACITY_EFFECT_COPY_ENTRIES } from './canonical-extras-audacity-effects.js';
 import { AUDACITY_EFFECT_PRESET_COPY_ENTRIES } from './canonical-extras-audacity-presets.js';
+import { STANDARD_EFFECT_COPY_ENTRIES } from './canonical-extras-standard-effects.js';
 import { localeLanguage } from './locale.js';
 // Canonical effect/layout and Audacity parity copy. The exported catalogs are flat.
 const COPY_ENTRIES = Object.freeze([
+	...STANDARD_EFFECT_COPY_ENTRIES,
 	["effectNameDeesser","De-esser","De-Esser"],
 	["effectNameMultibandCompressor","Multiband compressor","Multiband-Kompressor"],
 	["effectCardDeesser","Sibilance reduction","Zischlautreduktion"],
@@ -33,14 +35,14 @@ const COPY_ENTRIES = Object.freeze([
 	["loudnessNormalizationR128","EBU R 128 (-23 LUFS)","EBU R 128 (−23 LUFS)"],
 	["loudnessNormalizationA85","ATSC A/85 (-24 LUFS)","ATSC A/85 (−24 LUFS)"],
 	["loudnessNormalizationStreaming","Streaming (-14 LUFS)","Streaming (−14 LUFS)"],
-	["effectNameHighpass","High-pass filter","Hochpass"],
-	["effectNameLowpass","Low-pass filter","Tiefpass"],
+	["effectNameHighpass","Resonant high-pass filter","Resonanter Hochpassfilter"],
+	["effectNameLowpass","Resonant low-pass filter","Resonanter Tiefpassfilter"],
 	["effectNameEq","Four-band parametric EQ","Parametrischer 4-Band-EQ"],
 	["effectNameCompressor","Compressor","Kompressor"],
 	["effectNameLimiter","Limiter","Limiter"],
 	["effectNameGate","Gate","Gate"],
 	["effectNameReverb","Reverb","Hall"],
-	["effectNameDelay","Delay","Delay"],
+	["effectNameDelay","Feedback delay","Feedback-Delay"],
 	...AUDACITY_EFFECT_COPY_ENTRIES,
 	...AUDACITY_EFFECT_PRESET_COPY_ENTRIES,
 	["effectCardAmplification","Amplification","Verstärkung"],

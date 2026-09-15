@@ -11,6 +11,7 @@ import { audioEffectTypes, createEffect, normalizeEffect } from '../../../effect
 import { createStableId } from '../../../stable-id.js';
 import { serializeAudacityNoiseProfile } from '../../source/source-audio.ts';
 import { createNativePluginEffect } from '../../../native-plugin-effect.ts';
+import { assertStandardRackEffectConfiguration, assertStandardRackEffectUpdate } from './rack-standard-effect-admission.ts';
 
 import type {
 	RackEffectScope,
@@ -114,6 +115,7 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 			if (!effectOptions.context.noiseProfile) effectOptions.enabled = false;
 		}
 		const effect = (type === 'native-plugin' ? createNativePluginEffect(effectOptions) : createEffect(type, effectOptions)) as ControllerRackEffect;
+		assertStandardRackEffectConfiguration(project, scope, trackId, effect, engine.sampleRate);
 		commit(rackCommand('effect/add', scope, trackId, { effect: effect as unknown as CommandObject }));
 		if (type === 'audacity-noise-reduction' && !effectOptions.context?.noiseProfile) {
 			setStatus(copy.noiseReductionAddedDisabled);
@@ -136,6 +138,7 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 			const activationOnly = keys.every((key) => key === 'enabled');
 			if (!replacing && !activationOnly) throw new Error(copy.missingEffectReadOnly);
 		}
+		assertStandardRackEffectUpdate(requireProject(), rackScope(scope), trackId, effect, changes, engine.sampleRate);
 		const result = commit(rackCommand('effect/update', rackScope(scope), trackId, { effectId, changes }), {}, options);
 		state.rackEffectGestures.delete(effectGestureKey(scope, trackId, effectId));
 		state.parametricEqGestures.delete(effectGestureKey(scope, trackId, effectId));
@@ -190,12 +193,14 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 			normalize: (target, params) => {
 				const resolved = resolveLocation(target.identity);
 				if (!resolved) throw new EffectGestureTargetChangedError();
-				return normalizeRackEffect({
+				const normalized = normalizeRackEffect({
 					...resolved.effect,
 					params: expectedType === 'eq'
 						? params
 						: { ...resolved.effect.params, ...params },
-				}).params;
+				});
+				assertStandardRackEffectConfiguration(requireProject(), resolved.scope, resolved.targetId, normalized, engine.sampleRate);
+				return normalized.params;
 			},
 			valuesEqual: effectParametersMatch,
 			applyPreview: (target, params) => {
@@ -417,7 +422,9 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 			if (noiseProfile) effectOptions.context = { ...effectOptions.context, noiseProfile };
 			else effectOptions.enabled = false;
 		}
-		return createEffect(effect.type, effectOptions) as ControllerRackEffect;
+		const materialized = createEffect(effect.type, effectOptions) as ControllerRackEffect;
+		assertStandardRackEffectConfiguration(requireProject(), rackScope(scope), trackId, materialized, engine.sampleRate);
+		return materialized;
 	}
 
 	return Object.freeze({

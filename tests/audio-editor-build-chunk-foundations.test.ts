@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { chunkGroupForModulePath, chunkGroups } from '../scripts/lib/build-chunk-groups.mjs';
+import { chunkGroupForModulePath, chunkGroups, workerChunkGroups } from '../scripts/lib/build-chunk-groups.mjs';
 
 test('optional editor ownership is independent of path separator', () => {
 	for (const [path, owner] of [
@@ -16,6 +16,71 @@ test('optional editor ownership is independent of path separator', () => {
 		const windowsPath = path.replaceAll('/', '\\');
 		assert.equal(chunkGroupForModulePath(windowsPath), owner, windowsPath);
 	}
+});
+
+test('regular effect contracts and copy stay shared instead of following a product bootstrap', () => {
+	for (const [path, owner] of [
+		['src/common/editor/first-party-effects/standard/definition.ts', 'editor-effect-contracts'],
+		['src/common/editor/first-party-effects/standard/filters-definition.ts', 'editor-effect-contracts'],
+		['src/common/editor/first-party-effects/standard/filters-coefficients.ts', 'editor-effect-contracts'],
+		['src/common/editor/first-party-effects/standard/effect-tail.ts', 'editor-effect-contracts'],
+		['src/common/editor/first-party-effects/standard/modulation-definition.ts', 'editor-effect-contracts'],
+		['src/common/editor/first-party-effects/standard/noise-gate-definition.ts', 'editor-effect-contracts'],
+		['src/common/editor/first-party-effects/standard/delay-definition.ts', 'editor-effect-contracts'],
+		['src/common/editor/first-party-effects/standard/nyquist-replacements.ts', 'editor-effect-contracts'],
+		['src/common/editor/first-party-effects/standard/selection-contract.ts', 'editor-effect-contracts'],
+		['src/common/i18n/canonical-extras-standard-effects.js', 'editor-copy'],
+	] as const) {
+		assert.equal(chunkGroupForModulePath(path), owner, path);
+		const windowsPath = path.replaceAll('/', '\\');
+		assert.equal(chunkGroupForModulePath(windowsPath), owner, windowsPath);
+	}
+	for (const path of [
+		'src/common/editor/first-party-effects/standard/dsp.ts',
+		'src/common/editor/first-party-effects/standard/vocoder-dsp.ts',
+	]) {
+		assert.notEqual(chunkGroupForModulePath(path), 'editor-effect-contracts', `${path} must stay with its runtime consumer`);
+	}
+	for (const name of ['editor-effect-contracts', 'editor-copy']) {
+		const group = chunkGroups.find(candidate => candidate.name === name);
+		assert.ok(group);
+		assert.equal(group.includeDependenciesRecursively, false);
+	}
+});
+
+test('workers give effect definitions and the complete canonical copy registry a bounded owner', () => {
+	const group = workerChunkGroups.find(candidate => candidate.name === 'editor-effect-contracts-worker');
+	assert.ok(group);
+	assert.ok(group.test instanceof RegExp);
+	for (const path of [
+		'src/common/editor/first-party-effects/standard/definition.ts',
+		'src/common/editor/first-party-effects/standard/filters-definition.ts',
+		'src/common/editor/first-party-effects/standard/filters-coefficients.ts',
+		'src/common/editor/first-party-effects/standard/effect-tail.ts',
+		'src/common/editor/first-party-effects/standard/modulation-definition.ts',
+		'src/common/editor/first-party-effects/standard/noise-gate-definition.ts',
+		'src/common/editor/first-party-effects/standard/delay-definition.ts',
+		'src/common/editor/first-party-effects/standard/nyquist-replacements.ts',
+		'src/common/editor/first-party-effects/standard/selection-contract.ts',
+		'src/common/i18n/canonical-extras.js',
+		'src/common/i18n/canonical-extras-audacity-effects.js',
+		'src/common/i18n/canonical-extras-audacity-presets.js',
+		'src/common/i18n/canonical-extras-standard-effects.js',
+		'src/common/i18n/locale.js',
+	]) {
+		assert.equal(group.test.test(path), true, path);
+		const windowsPath = path.replaceAll('/', '\\');
+		assert.equal(group.test.test(windowsPath), true, windowsPath);
+	}
+	for (const path of [
+		'src/common/editor/first-party-effects/standard/dsp.ts',
+		'src/common/editor/first-party-effects/standard/vocoder-dsp.ts',
+		'src/common/editor/aup4-worker.js',
+		'src/common/editor/aup4-database.js',
+	]) assert.equal(group.test.test(path), false, path);
+	assert.equal(group.includeDependenciesRecursively, false);
+	assert.equal(group.maxSize, 400_000);
+	assert.equal(group.minSize, undefined);
 });
 
 test('small product-ready foundations have non-recursive semantic owners', () => {
