@@ -26,6 +26,13 @@ async function clickPoint(page, at) {
 	await page.mouse.click(at.x, at.y);
 }
 
+async function curveGain(graph) {
+	const label = await graph.getByRole('button').getAttribute('aria-label');
+	const gain = Number(label?.match(/, (-?[\d.]+) dB$/)?.[1]);
+	expect(Number.isFinite(gain)).toBe(true);
+	return gain;
+}
+
 test.describe('Audacity Filter Curve EQ', () => {
 	registerAudioEditorHooks();
 
@@ -77,22 +84,25 @@ test.describe('Audacity Filter Curve EQ', () => {
 		const { graph, at } = await curveBox(dialog);
 		await expect(graph.getByRole('button')).toHaveCount(0);
 		await clickPoint(page, at(0.4, 0.3));
-		const handle = graph.getByRole('button', { name: /12\.0 dB$/ });
-		await expect(handle).toHaveCount(1);
+		await expect(graph.getByRole('button')).toHaveCount(1);
+		// Firefox rounds pointer coordinates to pixels, shifting the gain slightly.
+		await expect.poll(() => curveGain(graph)).toBeCloseTo(12, 0);
 		const start = at(0.4, 0.3);
 		await page.mouse.move(start.x, start.y); await page.mouse.down();
 		const moved = at(0.5, 0.4);
 		await page.mouse.move(moved.x, moved.y); await page.mouse.up();
-		await expect(graph.getByRole('button', { name: /6\.0 dB$/ })).toHaveCount(1);
+		await expect.poll(() => curveGain(graph)).toBeCloseTo(6, 0);
+		const movedGain = await curveGain(graph);
+		const movedLabel = await graph.getByRole('button').getAttribute('aria-label');
 		await page.mouse.move(moved.x, moved.y); await page.mouse.down();
 		const preview = at(0.7, 0.2);
 		await page.mouse.move(preview.x, preview.y);
 		await page.keyboard.press('Escape'); await page.mouse.up();
 		await expect(dialog).toBeVisible();
-		const restored = graph.getByRole('button', { name: /6\.0 dB$/ });
-		await expect(restored).toHaveCount(1);
+		const restored = graph.getByRole('button');
+		await expect(restored).toHaveAttribute('aria-label', movedLabel);
 		await restored.focus(); await page.keyboard.press('ArrowUp');
-		await expect(graph.getByRole('button', { name: /6\.1 dB$/ })).toHaveCount(1);
+		await expect.poll(() => curveGain(graph)).toBeCloseTo(movedGain + 0.1, 10);
 		await page.keyboard.press('Delete');
 		await expect(graph.getByRole('button')).toHaveCount(0);
 		await clickPoint(page, at(0.4, 0.3));
@@ -101,12 +111,15 @@ test.describe('Audacity Filter Curve EQ', () => {
 		await page.mouse.move(outside.x, outside.y); await page.mouse.up();
 		await expect(graph.getByRole('button')).toHaveCount(0);
 		await clickPoint(page, at(0.5, 0.4));
+		await expect(graph.getByRole('button')).toHaveCount(1);
+		await expect.poll(() => curveGain(graph)).toBeCloseTo(6, 0);
+		const invertedGain = -await curveGain(graph);
 		await dialog.getByRole('button', { name: 'Invert', exact: true }).click();
-		await expect(graph.getByRole('button', { name: /-6\.0 dB$/ })).toHaveCount(1);
+		await expect.poll(() => curveGain(graph)).toBeCloseTo(invertedGain, 10);
 		await dialog.getByRole('button', { name: 'Apply to selection', exact: true }).click();
 		await expect(dialog).toBeHidden({ timeout: 20_000 });
 		await expect.poll(async () => (await effectSourceMetadata(page)).length).toBeGreaterThan(originalSources.length);
-		await expect.poll(() => effectSourcePeak(page, 'Filter Curve EQ')).toBeCloseTo(0.35 * 10 ** (-6 / 20), 2);
+		await expect.poll(() => effectSourcePeak(page, 'Filter Curve EQ')).toBeCloseTo(0.35 * 10 ** (invertedGain / 20), 2);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		await expect(clipByName(editor, toneA.name)).toBeVisible();
 		expect(errors).toEqual([]);
@@ -120,9 +133,11 @@ test.describe('Audacity Filter Curve EQ', () => {
 		await addRackEffect(page, panel, 'track', 'Filter Curve EQ');
 		let dialog = page.getByRole('dialog', { name: 'Filter Curve EQ', exact: true });
 		await dialog.getByRole('button', { name: 'Reset', exact: true }).click();
-		const { at } = await curveBox(dialog);
+		const { graph, at } = await curveBox(dialog);
 		await clickPoint(page, at(0.4, 0.7));
-		await expect(dialog.getByRole('button', { name: /-12\.0 dB$/ })).toBeVisible();
+		await expect(graph.getByRole('button')).toHaveCount(1);
+		await expect.poll(() => curveGain(graph)).toBeCloseTo(-12, 0);
+		const pointLabel = await graph.getByRole('button').getAttribute('aria-label');
 		await closeDialog(dialog);
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 		await page.reload();
@@ -130,7 +145,8 @@ test.describe('Audacity Filter Curve EQ', () => {
 		panel = await openEffectsForTrack(editor, 1);
 		await panel.getByRole('group', { name: 'Filter Curve EQ', exact: true }).getByRole('button', { name: 'Select effect', exact: true }).click();
 		dialog = page.getByRole('dialog', { name: 'Filter Curve EQ', exact: true });
-		await expect(dialog.getByRole('button', { name: /-12\.0 dB$/ })).toBeVisible();
+		await expect(dialog.getByRole('group', { name: 'Equalization curve', exact: true }).getByRole('button'))
+			.toHaveAttribute('aria-label', pointLabel);
 		expect(errors).toEqual([]);
 	});
 });
