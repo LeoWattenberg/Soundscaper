@@ -12,4 +12,8 @@ export const DESKTOP_EFFECT_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/first-party-effects/standard/modulation-definition.js',
 	'src/common/editor/first-party-effects/standard/noise-gate-definition.js',
 	'src/common/editor/first-party-effects/standard/delay-definition.js',
+	'src/common/editor/first-party-effects/standard/delay-pitch-admission.js',
+	'src/common/editor/first-party-effects/standard/delay-selection-contract.js',
+	'src/common/editor/first-party-effects/standard/parameter-range.js',
+	'src/common/editor/staffpad/parameters.js',
 ]);

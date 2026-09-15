@@ -5,7 +5,29 @@ import { standardEffectStateBytes } from '../first-party-effects/standard/select
 
 const loaded = new WeakSet<BaseAudioContext>();
 const pending = new WeakMap<BaseAudioContext, Promise<void>>();
+const staffPadModules = new WeakMap<BaseAudioContext, WebAssembly.Module>();
+const staffPadLoads = new WeakMap<BaseAudioContext, Promise<void>>();
+const standardNodes = new WeakSet<AudioWorkletNode>();
 export const isStandardEffectWorkletLoaded = (context: BaseAudioContext): boolean => loaded.has(context);
+
+/** Release native echo sessions before a stopped rack becomes unreachable. */
+export function disposeStandardEffectNode(node: AudioNode): void {
+	const processor = node as AudioWorkletNode;
+	if (!standardNodes.delete(processor)) return;
+	try { processor.port.postMessage({ type: 'dispose' }); }
+	catch { /* The context may have already closed its message port. */ }
+}
+
+export async function ensureStandardDelayRuntime(context: BaseAudioContext): Promise<void> {
+	if (staffPadModules.has(context)) return;
+	let operation = staffPadLoads.get(context);
+	if (!operation) {
+		operation = import('../staffpad/runtime.js').then(async runtime => { staffPadModules.set(context, await runtime.loadStaffPadWasmModule()); });
+		staffPadLoads.set(context, operation);
+	}
+	try { await operation; }
+	finally { if (staffPadLoads.get(context) === operation) staffPadLoads.delete(context); }
+}
 
 export async function ensureStandardEffectWorklet(context: BaseAudioContext): Promise<void> {
 	if (loaded.has(context)) return;
@@ -32,9 +54,12 @@ export function createStandardEffectNode(context: BaseAudioContext, WorkletNode:
 	type: StandardEffectType, params: Record<string, unknown>, channelCount: number): AudioWorkletNode {
 	if (!loaded.has(context) || !WorkletNode) throw new Error('The standard effect processor was not loaded.');
 	standardEffectStateBytes(type, params, context.sampleRate, channelCount);
-	return new WorkletNode(context, 'kw-standard-effect', {
+	const node = new WorkletNode(context, 'kw-standard-effect', {
 		numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [channelCount],
 		channelCount, channelCountMode: 'explicit', channelInterpretation: 'discrete',
-		processorOptions: { type, params, channelCount },
+		processorOptions: { type, params, channelCount,
+			...(type === 'multi-tap-delay' && staffPadModules.has(context) ? { staffPadWasmModule: staffPadModules.get(context) } : {}) },
 	});
+	standardNodes.add(node);
+	return node;
 }

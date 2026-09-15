@@ -132,13 +132,16 @@ test('audio effect reference refuses a local effect with no reviewed category', 
 	);
 });
 
-test('regular noise gate documentation explains causal realtime detection', () => {
+test('regular noise gate documentation explains onset preview and compensated timing', () => {
 	const rendered = renderAudioEffectReference(audioEffectInput({
 		localDefinitions: { 'noise-gate': { defaults: { threshold: -40 }, ranges: { threshold: [-96, -6] } } },
 		rackEffectTypes: ['noise-gate'],
 		selectionEffectTypes: ['noise-gate'],
 	}));
-	assert.match(rendered, /Causal attack and release; no lookahead/u);
+	assert.match(rendered, /Lookahead opens the gate before transients; rack and selection timing are compensated/u);
+	assert.match(rendered, /preview equals the attack time.*fully open at the start of a word or transient/u);
+	assert.match(rendered, /set lookahead to zero for causal gating/u);
+	assert.match(rendered, /There is no built-in noise-analysis mode/u);
 });
 
 test('audio effect reference refuses a structured local parameter with no reviewed shape', () => {

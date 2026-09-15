@@ -19,9 +19,10 @@ import { projectEffectTailFramesV21 } from './project-effect-tail-v21.ts';
 import { DEESSER_EFFECT_DEFINITION, MULTIBAND_COMPRESSOR_EFFECT_DEFINITION } from './first-party-effects/dynamics/definition.ts';
 import { STANDARD_FILTER_EFFECT_DEFINITIONS } from './first-party-effects/standard/filters-definition.ts';
 import { STANDARD_MODULATION_EFFECT_DEFINITIONS } from './first-party-effects/standard/modulation-definition.ts';
-import { NOISE_GATE_EFFECT_DEFINITION } from './first-party-effects/standard/noise-gate-definition.ts';
+import { NOISE_GATE_EFFECT_DEFINITION, normalizeNoiseGateParams } from './first-party-effects/standard/noise-gate-definition.ts';
 import { STANDARD_DELAY_EFFECT_DEFINITION } from './first-party-effects/standard/delay-definition.ts';
 import { standardEffectTailSeconds } from './first-party-effects/standard/effect-tail.ts';
+import { delaySelectionPitchMode, delaySelectionDuration } from './first-party-effects/standard/delay-selection-contract.ts';
 import {
 	BITCRUSHER_EFFECT_DEFINITION, BITCRUSHER_EFFECT_TYPE,
 } from './first-party-effects/bitcrusher/definition.js';
@@ -205,10 +206,15 @@ export function audioSelectionEffectDefaults(type, effectId = null) {
 export function normalizeAudioSelectionEffectParams(type, params = {}, effectId = null) {
 	if (ownMapValue(AUDACITY_EFFECT_DEFINITIONS, type)) return normalizeAudacityEffectParams(type, params);
 	const definition = audioSelectionEffectDefinition(type);
-	return normalizeEffectParams(type, {
+	const normalized = normalizeEffectParams(type, {
 		...clone(definition.defaults),
-		...clone(params),
+		...clone(type === 'noise-gate' ? normalizeNoiseGateParams(params) : params),
 	}, effectId);
+	if (type === 'multi-tap-delay') {
+		if (params.pitchMode != null) normalized.pitchMode = delaySelectionPitchMode(params.pitchMode);
+		if (params.duration != null) normalized.duration = delaySelectionDuration(params.duration);
+	}
+	return normalized;
 }
 
 export function isAudacityRackEffectType(type) {
@@ -255,7 +261,7 @@ export function createEffect(type, options = {}) {
 		})
 		: normalizeEffectParams(type, {
 			...clone(definition.defaults),
-			...(options.params || {}),
+			...(type === 'noise-gate' ? normalizeNoiseGateParams(options.params || {}) : options.params || {}),
 		}, id);
 	const effect = {
 		id,

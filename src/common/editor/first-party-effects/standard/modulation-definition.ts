@@ -2,6 +2,14 @@
 
 const LIVE_CONTROL_REASON = 'This processor supports live controls but not timeline automation.';
 export const STANDARD_VOCODER_MAXIMUM_BANDS = 240;
+/** Bound causal normalization to 80 dB of makeup; quiet tails stay finite. */
+export const STANDARD_VOCODER_NORMALIZATION_FLOOR = .0001;
+
+export function standardVocoderBandGeometry(sampleRate: number, bands: number) {
+	const octaves = Math.log2(sampleRate / 2.205 / 20);
+	const ratio = 2 ** (octaves / bands);
+	return { ratio, firstFrequency: 20 * Math.sqrt(ratio), q: Math.SQRT2 * bands / octaves };
+}
 type Range = [number, number, {
 	unit: string; step: number; taper: string; integer?: boolean;
 	automatable: false; automationBlockReason: string;
@@ -90,35 +98,40 @@ export function normalizeStandardModulationParams(type: StandardModulationEffect
 	return result as unknown as TremoloParams | VocoderParams;
 }
 
-/** Conservative -80 dB release for a fresh bank with fixed controls. The
- * lowest band has the slowest biquad radius sqrt((1-alpha)/(1+alpha)); its
- * exact decay rate is sampleRate * atanh(alpha). Envelope poles decay at
- * 2*pi*frequency/distance. Four slow stages cover analysis ringing, both
- * envelope poles and synthesis ringing. Their normalized release envelope
- * is exp(-x)*(1+x+x²/2+x³/6). Each unit-peak biquad's positive impulse
- * envelope has gain below 3 for this bank's Q >= 1.46, so 27x headroom
- * covers all three filters, summed bands and bounded carrier mixtures
- * before the explicit makeup/output gain. Rack rendering applies its cap.
+/** Conservative -80 dB release for fixed controls. The lowest analysis band
+ * and highest-Q envelope section determine the slowest pole radius. Twelve
+ * positive exponential stages bound the three band-pass sections and four
+ * second-order Butterworth envelope sections, including repeated poles.
+ * 27x filter and 4096x envelope headroom cover ringing before the bounded
+ * causal normalization and explicit output gain. Rack rendering applies
+ * its separate 10-second cap.
  */
 export function standardVocoderTailSeconds(params: Readonly<Record<string, unknown>>, sampleRate = 48000): number {
 	if (!Number.isFinite(sampleRate) || sampleRate < 8000 || sampleRate > 384000) throw new RangeError('Invalid sample rate.');
 	const settings = normalizeStandardModulationParams('vocoder', params);
 	if (settings.carrierLevel === 0 && settings.noiseLevel === 0 && settings.radarLevel === 0) return 0;
-	const ratio = (Math.min(16000, sampleRate * .45) / 20) ** (1 / settings.bands);
-	const frequency = 20 * Math.sqrt(ratio);
-	const q = Math.sqrt(ratio) / (ratio - 1);
+	const { firstFrequency: frequency, q } = standardVocoderBandGeometry(sampleRate, settings.bands);
 	const alpha = Math.sin(2 * Math.PI * frequency / sampleRate) / (2 * q);
 	const bandpassRate = sampleRate * .5 * (Math.log1p(alpha) - Math.log1p(-alpha));
-	const envelopeRate = 2 * Math.PI * Math.min(frequency / settings.distance, sampleRate * .1);
+	const envelopeQ = 1 / (2 * Math.cos(7 * Math.PI / 16));
+	const envelopeAlpha = Math.sin(2 * Math.PI * frequency / settings.distance / sampleRate) / (2 * envelopeQ);
+	const envelopeRate = sampleRate * .5 * (Math.log1p(envelopeAlpha) - Math.log1p(-envelopeAlpha));
 	const carrierMagnitude = Math.sqrt(settings.carrierLevel / 100)
 		+ (settings.noiseLevel / 100) ** 2 + Math.sqrt(settings.radarLevel / 100);
-	const headroom = 27 * settings.bands * carrierMagnitude * 2 * 10 ** (settings.outputGain / 20);
+	const headroom = 27 * 4096 * settings.bands * carrierMagnitude
+		/ STANDARD_VOCODER_NORMALIZATION_FLOOR * 10 ** (settings.outputGain / 20);
 	const threshold = .0001 / Math.max(1, headroom);
 	let lower = 0;
 	let upper = 64;
 	for (let iteration = 0; iteration < 32; iteration += 1) {
 		const x = (lower + upper) / 2;
-		const release = Math.exp(-x) * (1 + x + x * x / 2 + x * x * x / 6);
+		let term = 1;
+		let polynomial = 1;
+		for (let stage = 1; stage < 12; stage += 1) {
+			term *= x / stage;
+			polynomial += term;
+		}
+		const release = Math.exp(-x) * polynomial;
 		if (release > threshold) lower = x;
 		else upper = x;
 	}

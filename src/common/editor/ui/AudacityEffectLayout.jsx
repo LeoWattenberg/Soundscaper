@@ -1,6 +1,7 @@
 import React from 'react';
 import { canonicalCopyValue } from '../../i18n/canonical-extras.js';
 import DynamicsActivityPanel, { supportsDynamicsActivity } from './DynamicsActivityPanel.jsx';
+import EditorHelpTooltip from './EditorHelpTooltip.tsx';
 
 const EFFECT_LAYOUTS = Object.freeze({
 	deesser: [
@@ -137,11 +138,12 @@ const EFFECT_LAYOUTS = Object.freeze({
 	],
 	'noise-gate': [
 		{ titleKey: 'effectCardDetection', names: ['threshold', 'rangeDb', 'gateFrequency', 'stereoLink'], wide: true },
-		{ titleKey: 'effectCardEnvelope', names: ['attack', 'hold', 'release'], knobs: true, wide: true },
+		{ titleKey: 'effectCardEnvelope', names: ['attack', 'lookahead', 'hold', 'release'], knobs: true, wide: true,
+			helpKey: 'effectNoiseGateLookaheadHint', helpSubjectKey: 'effectParamNoiseGateLookahead' },
 	],
 	'multi-tap-delay': [
 		{ titleKey: 'effectCardDelay', names: ['delayType', 'time', 'echoes', 'echoGain'], wide: true },
-		{ titleKey: 'effectCardPitchShift', names: ['pitchShift', 'pitchQuality'], wide: true },
+		{ titleKey: 'effectCardPitchShift', names: ['pitchShift'], wide: true },
 		{ titleKey: 'effectCardMix', names: ['mix'], knobs: true, wide: true },
 	],
 	tremolo: [
@@ -353,6 +355,12 @@ export function AudacityEffectLayout({
 						<section className={className} key={`${group.titleKey}-${groupIndex}`}>
 							<h3 className="audio-editor-audacity-layout__heading">
 								{localizedCardTitle(group.titleKey, copy)}
+								{group.helpKey && <EditorHelpTooltip
+									subject={canonicalCopyValue(group.helpSubjectKey, copy)}
+									description={canonicalCopyValue(group.helpKey, copy)}
+									helpLabel={copy?.helpMenu || 'Help'}
+									hook={`${effectType}-lookahead`}
+								/>}
 							</h3>
 							{group.names.length > 0 && (
 								<div className="audio-editor-audacity-layout__parameters">

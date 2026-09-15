@@ -106,7 +106,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		let estimatedOutputBytes = 0;
 		let estimatedPeakBytes = 0;
 		for (const target of targets) {
-			const estimatedFrames = estimateAudioSelectionEffectOutputFrames(type, target.durationFrames, params);
+			const estimatedFrames = estimateAudioSelectionEffectOutputFrames(type, target.durationFrames, params, { sampleRate });
 			if (target.hasAudio !== false) {
 				estimatedOutputBytes += estimatedFrames * target.channelCount * Float32Array.BYTES_PER_ELEMENT;
 			}

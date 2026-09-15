@@ -1,53 +1,58 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { normalizeStandardModulationParams, STANDARD_VOCODER_MAXIMUM_BANDS, type StandardModulationOptions } from './modulation-definition.ts';
+import { normalizeStandardModulationParams, standardVocoderBandGeometry, STANDARD_VOCODER_MAXIMUM_BANDS,
+	STANDARD_VOCODER_NORMALIZATION_FLOOR, type StandardModulationOptions } from './modulation-definition.ts';
 
 /** Unit-peak biquad, from the bilinear transform of the analog band-pass
  * (s/Q) / (s² + s/Q + 1). Transposed state uses double precision.
  * These are original equations; no Nyquist implementation is embedded here.
  */
-class Bandpass {
+class Biquad {
 	private b0 = 0;
+	private b1 = 0;
+	private b2 = 0;
 	private a1 = 0;
 	private a2 = 0;
 	private z1 = 0;
 	private z2 = 0;
-	configure(rate: number, frequency: number, q: number): void {
+	configure(rate: number, frequency: number, q: number, lowpass = false): void {
 		const angle = 2 * Math.PI * frequency / rate;
 		const alpha = Math.sin(angle) / (2 * q);
 		const inverse = 1 / (1 + alpha);
-		this.b0 = alpha * inverse;
+		this.b0 = lowpass ? (1 - Math.cos(angle)) * .5 * inverse : alpha * inverse;
+		this.b1 = lowpass ? 2 * this.b0 : 0;
+		this.b2 = lowpass ? this.b0 : -this.b0;
 		this.a1 = -2 * Math.cos(angle) * inverse;
 		this.a2 = (1 - alpha) * inverse;
 	}
 	process(sample: number): number {
 		const output = this.b0 * sample + this.z1;
-		this.z1 = this.z2 - this.a1 * output;
-		this.z2 = -this.b0 * sample - this.a2 * output;
+		this.z1 = this.b1 * sample + this.z2 - this.a1 * output;
+		this.z2 = this.b2 * sample - this.a2 * output;
 		return output;
 	}
 	reset(): void { this.z1 = 0; this.z2 = 0; }
 }
 
 /** A bounded analysis/synthesis bank transfers the left-channel envelope onto
- * the right-channel carrier. Mono uses a bank of 110 Hz harmonics, selecting
- * the nearest harmonic to each band. Noise and pulse carriers may be mixed in.
+ * the right-channel carrier. Mono accumulates sine carriers at the logarithmic
+ * band centers, with a total amplitude of 0.5. Noise and pulses may be mixed in.
  * Tracks with more than two channels retain their additional channels dry.
- * Two envelope poles reject rectification ripple; a final band-pass confines
- * sidebands. Fixed 6 dB makeup preserves streaming causality; output gain is
- * explicit, rather than using a whole-selection peak normalization pass.
+ * Eight Butterworth envelope poles reject rectification ripple; a final
+ * band-pass confines sidebands. Bounded running-peak normalization approaches
+ * the offline effect's unity peak once the carrier settles. It cannot see
+ * future peaks, so earlier samples may be louder than whole-selection
+ * normalization. The held peak preserves subsequent fades and release tails.
  */
 export function createVocoderProcessor({ sampleRate, channelCount, params = {} }: StandardModulationOptions) {
 	if (!Number.isFinite(sampleRate) || sampleRate < 8000 || sampleRate > 384000) throw new RangeError('Invalid sample rate.');
 	if (!Number.isInteger(channelCount) || channelCount < 1 || channelCount > 32) throw new RangeError('Invalid channel count.');
 	let settings = normalizeStandardModulationParams('vocoder', params);
 	const capacity = STANDARD_VOCODER_MAXIMUM_BANDS;
-	const analysis = Array.from({ length: capacity }, () => new Bandpass());
-	const carrier = Array.from({ length: capacity }, () => new Bandpass());
-	const synthesis = Array.from({ length: capacity }, () => new Bandpass());
-	const envelope = new Float64Array(capacity);
-	const smoothedEnvelope = new Float64Array(capacity);
-	const envelopeCoefficient = new Float64Array(capacity);
+	const analysis = Array.from({ length: capacity }, () => new Biquad());
+	const carrier = Array.from({ length: capacity }, () => new Biquad());
+	const synthesis = Array.from({ length: capacity }, () => new Biquad());
+	const envelope = Array.from({ length: capacity }, () => Array.from({ length: 4 }, () => new Biquad()));
 	const oscillatorReal = new Float64Array(capacity);
 	const oscillatorImaginary = new Float64Array(capacity);
 	const rotationReal = new Float64Array(capacity);
@@ -59,19 +64,19 @@ export function createVocoderProcessor({ sampleRate, channelCount, params = {} }
 	let radarGain = 0;
 	let outputGain = 0;
 	let radarIncrement = 0;
+	let normalizationPeak = STANDARD_VOCODER_NORMALIZATION_FLOOR;
 	function configureBank(): void {
-		const low = 20;
-		const high = Math.min(16000, sampleRate * 0.45);
-		const ratio = (high / low) ** (1 / settings.bands);
-		const q = Math.sqrt(ratio) / (ratio - 1);
+		const { ratio, firstFrequency, q } = standardVocoderBandGeometry(sampleRate, settings.bands);
 		for (let band = 0; band < settings.bands; band += 1) {
-			const frequency = low * ratio ** (band + 0.5);
+			const frequency = firstFrequency * ratio ** band;
 			analysis[band].configure(sampleRate, frequency, q);
 			carrier[band].configure(sampleRate, frequency, q);
 			synthesis[band].configure(sampleRate, frequency, q);
-			envelopeCoefficient[band] = 1 - Math.exp(-2 * Math.PI * Math.min(frequency / settings.distance, sampleRate * 0.1) / sampleRate);
-			const harmonic = Math.min(110 * Math.max(1, Math.round(frequency / 110)), sampleRate * 0.45);
-			const angle = 2 * Math.PI * harmonic / sampleRate;
+			for (let section = 0; section < 4; section += 1) {
+				const envelopeQ = 1 / (2 * Math.cos((2 * section + 1) * Math.PI / 16));
+				envelope[band][section].configure(sampleRate, frequency / settings.distance, envelopeQ, true);
+			}
+			const angle = 2 * Math.PI * frequency / sampleRate;
 			rotationReal[band] = Math.cos(angle);
 			rotationImaginary[band] = Math.sin(angle);
 		}
@@ -80,17 +85,18 @@ export function createVocoderProcessor({ sampleRate, channelCount, params = {} }
 		trackGain = Math.sqrt(settings.carrierLevel / 100);
 		noiseGain = (settings.noiseLevel / 100) ** 2;
 		radarGain = Math.sqrt(settings.radarLevel / 100);
-		outputGain = 2 * 10 ** (settings.outputGain / 20);
+		outputGain = 10 ** (settings.outputGain / 20);
 		radarIncrement = settings.radarFrequency / sampleRate;
 	}
 	function reset(): void {
 		for (let band = 0; band < capacity; band += 1) {
 			analysis[band].reset(); carrier[band].reset(); synthesis[band].reset();
+			for (const section of envelope[band]) section.reset();
 		}
-		envelope.fill(0); smoothedEnvelope.fill(0);
 		oscillatorReal.fill(1); oscillatorImaginary.fill(0);
 		noiseState = 0x6d2b79f5;
 		radarPhase = 1;
+		normalizationPeak = STANDARD_VOCODER_NORMALIZATION_FLOOR;
 	}
 	configureBank(); configureLevels(); reset();
 	return {
@@ -118,21 +124,21 @@ export function createVocoderProcessor({ sampleRate, channelCount, params = {} }
 				if (pulse) radarPhase -= 1;
 				radarPhase += radarIncrement;
 				const additionalCarrier = noise * noiseGain + pulse * radarGain;
+				let mixedCarrier = externalCarrier * trackGain + additionalCarrier;
 				let vocoded = 0;
 				for (let band = 0; band < settings.bands; band += 1) {
-					const detected = Math.abs(analysis[band].process(modulator));
-					const coefficient = envelopeCoefficient[band];
-					envelope[band] += coefficient * (detected - envelope[band]);
-					smoothedEnvelope[band] += coefficient * (envelope[band] - smoothedEnvelope[band]);
+					let detected = Math.abs(analysis[band].process(modulator));
+					for (const section of envelope[band]) detected = section.process(detected);
 					const real = oscillatorReal[band];
 					const imaginary = oscillatorImaginary[band];
 					oscillatorReal[band] = real * rotationReal[band] - imaginary * rotationImaginary[band];
 					oscillatorImaginary[band] = imaginary * rotationReal[band] + real * rotationImaginary[band];
-					const source = channelCount === 1 ? imaginary * 0.35 : externalCarrier;
-					const carried = carrier[band].process(source * trackGain + additionalCarrier);
-					vocoded += synthesis[band].process(carried * smoothedEnvelope[band]);
+					if (channelCount === 1) mixedCarrier += imaginary * .5 * trackGain / settings.bands;
+					const carried = carrier[band].process(mixedCarrier);
+					vocoded += synthesis[band].process(carried * detected);
 				}
-				vocoded *= outputGain;
+				normalizationPeak = Math.max(normalizationPeak, Math.abs(vocoded));
+				vocoded = vocoded / normalizationPeak * outputGain;
 				for (let channel = 0; channel < output.length; channel += 1) {
 					if (channel >= channelCount) output[channel][frame] = 0;
 					else if (channel >= 2) {

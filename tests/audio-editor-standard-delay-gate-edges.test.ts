@@ -8,7 +8,7 @@ import { createNoiseGateProcessor } from '../src/common/editor/first-party-effec
 import { standardEffectStateBytes } from '../src/common/editor/first-party-effects/standard/selection-contract.ts';
 
 const sampleRate = 8000;
-type Processor = ReturnType<typeof createStandardDelayProcessor>;
+type Processor = Pick<ReturnType<typeof createStandardDelayProcessor>, 'processBlock'>;
 function render(processor: Processor, input: readonly Float32Array[]): Float32Array[] {
 	const output = input.map(channel => new Float32Array(channel.length));
 	processor.processBlock(input, output, input[0].length);
@@ -170,7 +170,7 @@ test('a rejected live delay update leaves its parameters and queued echoes intac
 
 test('a gate holds for the complete configured count of samples after the last threshold crossing', () => {
 	const processor = createNoiseGateProcessor({ sampleRate, channelCount: 1,
-		params: { attack: .001, hold: .001, release: .01, rangeDb: -100 } });
+		params: { attack: .001, lookahead: 0, hold: .001, release: .01, rangeDb: -100 } });
 	render(processor, [new Float32Array(800).fill(.2)]);
 	const quiet = new Float32Array(16).fill(.001);
 	const output = render(processor, [quiet])[0];

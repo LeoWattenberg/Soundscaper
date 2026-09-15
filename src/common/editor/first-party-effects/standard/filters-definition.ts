@@ -34,7 +34,10 @@ function choice(options: readonly (string | number)[]): ParameterChoice {
 	return Object.freeze({ options: Object.freeze(options), automatable: false, automationBlockReason: LIVE_CONTROL_REASON });
 }
 
-const CUTOFF_RANGES = Object.freeze({ frequency: range(0.1, 24_000, 'Hz', 0.1, 'logarithmic') });
+// The catalog admits every supported sample rate. Editors and DSP constrain
+// the actual cutoff to below the current sample rate's Nyquist frequency.
+const MAXIMUM_SUPPORTED_NYQUIST = 384_000 / 2;
+const CUTOFF_RANGES = Object.freeze({ frequency: range(0.1, MAXIMUM_SUPPORTED_NYQUIST, 'Hz', 0.1, 'logarithmic') });
 const ROLLOFF_CHOICES = Object.freeze({ rolloff: choice([6, 12, 24, 36, 48]) });
 
 export type StandardFilterEffectType = 'highpass-filter' | 'lowpass-filter' | 'notch-filter' | 'shelf-filter';
@@ -53,7 +56,7 @@ export const STANDARD_FILTER_EFFECT_DEFINITIONS: Readonly<Record<StandardFilterE
 	'notch-filter': Object.freeze({
 		defaults: Object.freeze({ frequency: 60, q: 1 }),
 		ranges: Object.freeze({
-			frequency: range(0.1, 24_000, 'Hz', 0.1, 'logarithmic'),
+			frequency: range(0.1, MAXIMUM_SUPPORTED_NYQUIST, 'Hz', 0.1, 'logarithmic'),
 			q: range(0.1, 1000, 'Q', 0.1, 'logarithmic'),
 		}),
 		choices: Object.freeze({}),

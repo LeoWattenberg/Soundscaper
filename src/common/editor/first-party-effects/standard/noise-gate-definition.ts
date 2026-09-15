@@ -6,11 +6,12 @@ function range(minimum: number, maximum: number, unit: string, step: number, tap
 }
 
 export const NOISE_GATE_EFFECT_DEFINITION = Object.freeze({
-	defaults: { threshold: -40, attack: .01, hold: .05, release: .1, rangeDb: -24,
+	defaults: { threshold: -40, attack: .01, lookahead: .01, hold: .05, release: .1, rangeDb: -24,
 		gateFrequency: 0, stereoLink: 'linked' },
 	ranges: {
 		threshold: range(-96, -6, 'dB', .1, 'decibel'),
 		attack: range(.001, 1, 's', .001, 'logarithmic'),
+		lookahead: range(0, 1, 's', .001),
 		hold: range(0, 2, 's', .001),
 		release: range(.01, 4, 's', .001, 'logarithmic'),
 		rangeDb: range(-100, 0, 'dB', .1, 'decibel'),
@@ -24,7 +25,7 @@ export function normalizeNoiseGateParams(params: Readonly<Record<string, unknown
 	const defaults: Readonly<Record<string, unknown>> = NOISE_GATE_EFFECT_DEFINITION.defaults;
 	const result: Record<string, number | string> = {};
 	for (const [name, [minimum, maximum]] of Object.entries(NOISE_GATE_EFFECT_DEFINITION.ranges)) {
-		const value = Number(params[name] ?? defaults[name]);
+		const value = Number(params[name] ?? (name === 'lookahead' ? params.attack ?? defaults.attack : defaults[name]));
 		if (!Number.isFinite(value) || value < minimum || value > maximum) {
 			throw new RangeError(`noise-gate.${name} must be between ${String(minimum)} and ${String(maximum)}.`);
 		}
@@ -33,6 +34,12 @@ export function normalizeNoiseGateParams(params: Readonly<Record<string, unknown
 	const stereoLink = params.stereoLink ?? defaults.stereoLink;
 	if (stereoLink !== 'linked' && stereoLink !== 'independent') throw new RangeError('Invalid noise-gate.stereoLink.');
 	return { ...result, stereoLink };
+}
+
+/** Nyquist's gate previews its attack duration; an explicit zero disables preview. */
+export function noiseGateLatencyFrames(params: Readonly<Record<string, unknown>>, sampleRate = 48000): number {
+	if (!Number.isFinite(sampleRate) || sampleRate < 8000 || sampleRate > 384000) throw new RangeError('Invalid sample rate.');
+	return Math.ceil(Number(normalizeNoiseGateParams(params).lookahead) * sampleRate);
 }
 
 /** Silent release for bounded source PCM with fixed gate controls. Each

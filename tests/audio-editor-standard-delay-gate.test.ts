@@ -45,19 +45,6 @@ test('bouncing delays shorten or lengthen successive echo intervals', () => {
 	}
 });
 
-test('delay pitch shift changes the carrier frequency without changing stream geometry', () => {
-	const input = Float32Array.from({ length: 16000 }, (_, frame) => Math.sin(2 * Math.PI * 200 * frame / sampleRate));
-	const processor = createStandardDelayProcessor({ sampleRate, channelCount: 1,
-		params: { time: .1, echoes: 1, echoGain: 0, pitchShift: 2 } });
-	const output = render(processor, [input])[0];
-	// Subtract the undelayed original to inspect only the pitched echo.
-	let crossings = 0;
-	for (let frame = 4001; frame < 12000; frame += 1) {
-		if (output[frame - 1] - input[frame - 1] <= 0 && output[frame] - input[frame] > 0) crossings += 1;
-	}
-	assert.ok(crossings > 213 && crossings < 236, `pitched echo crossings: ${String(crossings)}`);
-});
-
 test('noise gate attenuates quiet material, opens for loud material, and links channels on request', () => {
 	const quiet = new Float32Array(2400).fill(.001);
 	const loud = new Float32Array(2400).fill(.2);
@@ -76,12 +63,12 @@ test('noise gate hold protects the gap before release, and a zero reduction reco
 	const input = new Float32Array(3200).fill(.0001);
 	input.fill(.2, 0, 800);
 	const processor = createNoiseGateProcessor({ sampleRate, channelCount: 1,
-		params: { attack: .001, hold: .1, release: .01, rangeDb: -100 } });
+		params: { attack: .001, lookahead: 0, hold: .1, release: .01, rangeDb: -100 } });
 	const output = render(processor, [input])[0];
 	assert.ok(output[1500] > .00009);
 	assert.ok(output[3000] < 1e-9);
 	const transparent = createNoiseGateProcessor({ sampleRate, channelCount: 1,
-		params: { rangeDb: 0, gateFrequency: 1000 } });
+		params: { rangeDb: 0, lookahead: 0, gateFrequency: 1000 } });
 	assert.deepEqual(render(transparent, [input])[0], input);
 });
 
@@ -99,9 +86,10 @@ test('frequency-selective gating retains bass while reducing high frequencies', 
 test('delay and gate preserve state across blocks, reset deterministically, and accept live controls', () => {
 	const input = [Float32Array.from({ length: 3072 }, (_, frame) => .1 * Math.sin(frame * .09)), new Float32Array(3072)];
 	for (const create of [createStandardDelayProcessor, createNoiseGateProcessor]) {
-		const first = create({ sampleRate, channelCount: 2 });
+		const params = create === createNoiseGateProcessor ? { lookahead: 0 } : {};
+		const first = create({ sampleRate, channelCount: 2, params });
 		const expected = render(first, input);
-		const chunked = create({ sampleRate, channelCount: 2 });
+		const chunked = create({ sampleRate, channelCount: 2, params });
 		assert.deepEqual(render(chunked, input, 128), expected);
 		chunked.reset();
 		assert.deepEqual(render(chunked, input, 73), expected);

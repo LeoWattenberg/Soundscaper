@@ -21,7 +21,7 @@ test('gate release contract follows its exact crossover poles and reduction rang
 
 test('frequency-selective gate tails retain genuine silent crossover release below -80 dB', () => {
 	for (const [sampleRate, gateFrequency, frequency] of [[48000, 100, 50], [48000, 20, 5], [8000, 3999, 1000], [8000, 2000, 500]]) {
-		const params = { threshold: -6, rangeDb: -100, gateFrequency };
+		const params = { threshold: -6, rangeDb: -100, gateFrequency, lookahead: 0 };
 		const tailFrames = effectTailFrames(createEffect('noise-gate', { params }), sampleRate);
 		assert.ok(tailFrames > 0, 'a closed gate retains its crossover filter history after the source stops');
 		const frames = sampleRate + tailFrames + 128;

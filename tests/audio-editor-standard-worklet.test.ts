@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
@@ -15,7 +16,7 @@ import {
 import type { EngineEffect, EngineProject } from '../src/common/editor/engine/types.ts';
 import { audioSelectionEffectDefaults, normalizeAudioSelectionEffectParams } from '../src/common/editor/effects.js';
 import type { StandardEffectType } from '../src/common/editor/first-party-effects/standard/definition.ts';
-import { STANDARD_DELAY_MEMORY_LIMIT_BYTES, standardDelayTailSeconds } from '../src/common/editor/first-party-effects/standard/delay-definition.ts';
+import { STANDARD_DELAY_MEMORY_LIMIT_BYTES, standardDelayLatencyFrames, standardDelayTailSeconds } from '../src/common/editor/first-party-effects/standard/delay-definition.ts';
 import { applyStandardEffect, createStandardEffectProcessor } from '../src/common/editor/first-party-effects/standard/dsp.ts';
 import {
 	applyAudioSelectionEffectAsync,
@@ -38,6 +39,7 @@ interface HostedProcessor extends ProcessorHost {
 }
 type HostedConstructor = new (options: { processorOptions: {
 	type: StandardEffectType; channelCount: number; params?: Readonly<Record<string, unknown>>;
+	staffPadWasmModule?: WebAssembly.Module;
 } }) => HostedProcessor;
 
 function installGlobal(name: string, value: unknown): () => void {
@@ -74,14 +76,33 @@ function signal(frames: number): Float32Array[] {
 	];
 }
 
-function hostedRender(type: StandardEffectType, input: readonly Float32Array[], params: Readonly<Record<string, unknown>>): Float32Array[] {
-	const processor = new StandardEffectProcessor({ processorOptions: { type, channelCount: input.length, params } });
+async function installStaffPadFetch(): Promise<() => void> {
+	const bytes = new Uint8Array(await readFile(new URL('../src/common/editor/staffpad/staffpad.wasm', import.meta.url)));
+	return installGlobal('fetch', async (source: RequestInfo | URL): Promise<Response> => {
+		assert.match(String(source), /staffpad\/staffpad\.wasm$/);
+		return new Response(bytes);
+	});
+}
+
+function rawRender(type: StandardEffectType, input: readonly Float32Array[], params: Readonly<Record<string, unknown>>): Float32Array[] {
+	const processor = createStandardEffectProcessor({ type, sampleRate: SAMPLE_RATE, channelCount: input.length, params });
+	const output = input.map((channel) => new Float32Array(channel.length));
+	try { processor.processBlock(input, output, input[0].length); }
+	finally { processor.dispose?.(); }
+	return output;
+}
+
+function hostedRender(type: StandardEffectType, input: readonly Float32Array[], params: Readonly<Record<string, unknown>>,
+	staffPadWasmModule?: WebAssembly.Module): Float32Array[] {
+	const processor = new StandardEffectProcessor({ processorOptions: { type, channelCount: input.length, params, staffPadWasmModule } });
 	const output = input.map((channel) => new Float32Array(channel.length));
 	for (let offset = 0; offset < input[0].length; offset += 128) {
 		const end = Math.min(input[0].length, offset + 128);
 		assert.equal(processor.process([input.map((channel) => channel.subarray(offset, end))],
 			[output.map((channel) => channel.subarray(offset, end))]), true);
 	}
+	processor.port.onmessage?.({ data: { type: 'dispose' } });
+	assert.deepEqual(processor.messages, []);
 	return output;
 }
 
@@ -95,12 +116,35 @@ test('all eight actual worklet processors match shared DSP and asynchronous sele
 				const normalized = normalizeAudioSelectionEffectParams(type, params) as Record<string, unknown>;
 				if (Object.keys(params).length === 0) assert.deepEqual(normalized, audioSelectionEffectDefaults(type));
 				const expected = applyStandardEffect(type, input, SAMPLE_RATE, normalized);
-				assert.deepEqual(hostedRender(type, input, normalized), expected, `${type}: worklet`);
+				assert.deepEqual(hostedRender(type, input, normalized), rawRender(type, input, normalized), `${type}: worklet`);
 				assert.deepEqual(await applyAudioSelectionEffectAsync(type, input, SAMPLE_RATE, params), expected, `${type}: selection`);
 			}
 		}
 		assert.deepEqual(input, untouched, 'selection processing never mutates the source PCM');
 	} finally { restoreSampleRate(); }
+});
+
+test('actual pitched delay worklet receives cloned StaffPad WASM and matches selection after latency compensation', async () => {
+	const restoreSampleRate = installGlobal('sampleRate', SAMPLE_RATE);
+	const restoreFetch = await installStaffPadFetch();
+	try {
+		const module = await WebAssembly.compile(new Uint8Array(await readFile(new URL('../src/common/editor/staffpad/staffpad.wasm', import.meta.url))));
+		const input = signal(16384);
+		for (const pitchShift of [-1, 1]) {
+			const params = { ...CUSTOM_PARAMS['multi-tap-delay'], pitchShift, echoes: 2 };
+			const latency = standardDelayLatencyFrames(params, SAMPLE_RATE);
+			assert.ok(latency > 0);
+			const padded = input.map(channel => {
+				const result = new Float32Array(channel.length + latency);
+				result.set(channel);
+				return result;
+			});
+			const raw = hostedRender('multi-tap-delay', padded, params, structuredClone(module));
+			const compensated = raw.map(channel => channel.slice(latency, latency + input[0].length));
+			assert.ok(compensated[0].some(sample => Math.abs(sample) > .01));
+			assert.deepEqual(await applyAudioSelectionEffectAsync('multi-tap-delay', input, SAMPLE_RATE, params), compensated);
+		}
+	} finally { restoreFetch(); restoreSampleRate(); }
 });
 
 test('standard selection estimates preserve frame count and account for transfers, output and delay history', () => {
@@ -127,7 +171,7 @@ test('delay estimates reject configurations above the 64 MiB processor limit bef
 	const params = { time: 5, echoes: 30, pitchShift: 0 };
 	const frames = 128;
 	const fitting = estimateAudioSelectionEffectPeakBytes('multi-tap-delay', frames, params, { sampleRate: SAMPLE_RATE, channelCount: 2 });
-	assert.equal(fitting, STANDARD_DELAY_MEMORY_LIMIT_BYTES + frames * 2 * Float32Array.BYTES_PER_ELEMENT * 3 + 2 * 1024 ** 2);
+	assert.equal(fitting, STANDARD_DELAY_MEMORY_LIMIT_BYTES + frames * 2 * Float32Array.BYTES_PER_ELEMENT * 4 + 2 * 1024 ** 2);
 	for (const options of [{ sampleRate: SAMPLE_RATE, channelCount: 3 }, { sampleRate: 384_000, channelCount: 2 }]) {
 		assert.throws(() => estimateAudioSelectionEffectPeakBytes('multi-tap-delay', frames, params, options), /processor memory limit/);
 	}
@@ -195,10 +239,11 @@ test('actual worklet configure and reset messages update processing and reject i
 			const output = input.map(() => new Float32Array(512));
 			worklet.process([input], [output]);
 			assert.ok(worklet.port.onmessage);
-			worklet.port.onmessage({ data: { type: 'configure', params: CUSTOM_PARAMS[type] } });
+			const params = normalizeAudioSelectionEffectParams(type, CUSTOM_PARAMS[type]) as Record<string, unknown>;
+			worklet.port.onmessage({ data: { type: 'configure', params } });
 			worklet.port.onmessage({ data: { type: 'reset' } });
 			worklet.process([input], [output]);
-			assert.deepEqual(output, applyStandardEffect(type, input, SAMPLE_RATE, CUSTOM_PARAMS[type]), type);
+			assert.deepEqual(output, rawRender(type, input, params), type);
 			const invalid = type === 'multi-tap-delay' ? { echoes: 0 } : type === 'noise-gate' ? { threshold: 1 }
 				: type === 'vocoder' ? { bands: 1 } : { frequency: -1 };
 			worklet.port.onmessage({ data: { type: 'configure', params: invalid } });
@@ -207,7 +252,7 @@ test('actual worklet configure and reset messages update processing and reject i
 			assert.equal(typeof worklet.messages[0].message, 'string');
 			worklet.port.onmessage({ data: { type: 'reset' } });
 			worklet.process([input], [output]);
-			assert.deepEqual(output, applyStandardEffect(type, input, SAMPLE_RATE, CUSTOM_PARAMS[type]), type);
+			assert.deepEqual(output, rawRender(type, input, params), type);
 		}
 	} finally { restoreSampleRate(); }
 });
@@ -339,6 +384,7 @@ test('prepared nodes reject invalid cutoffs and excessive delay memory before co
 
 test('invalid live cutoffs and excessive delay memory leave messages, revisions and authored parameters unchanged', async () => {
 	const restoreNode = installGlobal('AudioWorkletNode', MockAudioWorkletNode);
+	const restoreFetch = await installStaffPadFetch();
 	try {
 		for (const type of ['highpass-filter', 'lowpass-filter', 'notch-filter', 'shelf-filter', 'noise-gate', 'multi-tap-delay'] as const) {
 			const context = new MockAudioContext({ sampleRate: type === 'multi-tap-delay' ? 96_000 : 8000 });
@@ -364,11 +410,12 @@ test('invalid live cutoffs and excessive delay memory leave messages, revisions 
 				assert.equal(engine.configureRackEffect('track', 'track-1', type, valid), 2, 'failed validation consumes no revision');
 			} finally { await engine.dispose(); }
 		}
-	} finally { restoreNode(); }
+	} finally { restoreFetch(); restoreNode(); }
 });
 
 test('playback and offline racks install standard effects and live changes deliver complete configure messages', async () => {
 	const restoreNode = installGlobal('AudioWorkletNode', MockAudioWorkletNode);
+	const restoreFetch = await installStaffPadFetch();
 	const context = new MockAudioContext();
 	const offlineContexts: MockOfflineAudioContext[] = [];
 	const effects = EFFECTS.map((type) => ({ id: type, type, enabled: true, params: audioSelectionEffectDefaults(type) as Record<string, unknown> }));
@@ -396,7 +443,7 @@ test('playback and offline racks install standard effects and live changes deliv
 			assert.ok(incomingConnections(runtime.graph.nodes, node, 0).length > 0, type);
 			assert.ok(node.connectionDetails.length > 0, type);
 			assert.equal(engine.configureRackEffect('track', 'track-1', type, CUSTOM_PARAMS[type]), 1);
-			const params = normalizeAudioSelectionEffectParams(type, CUSTOM_PARAMS[type]);
+			const params = normalizeAudioSelectionEffectParams(type, { ...effects[index].params, ...CUSTOM_PARAMS[type] });
 			assert.deepEqual(node.messages, [{ type: 'configure', params, revision: 1, sequence: 1 }], type);
 			assert.deepEqual(runtime.project?.tracks?.[0].effects?.[index].params, params);
 			assert.equal(engine.configureRackEffect('track', 'track-1', type, {}, { revision: 1 }), false, 'stale revisions are ignored');
@@ -410,6 +457,7 @@ test('playback and offline racks install standard effects and live changes deliv
 		assert.deepEqual(offlineContexts[0].workletNodes.map((node) => node.options.processorOptions.type), EFFECTS);
 	} finally {
 		await engine.dispose();
+		restoreFetch();
 		restoreNode();
 	}
 });

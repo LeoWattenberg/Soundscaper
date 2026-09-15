@@ -28,7 +28,7 @@ Audio effects are registered by Soundscaper. Effects whose ID begins with `audac
 | Compressor | `compressor` | Volume and dynamics | Yes | No | — |
 | Compressor (Audacity) | `audacity-compressor` | Volume and dynamics | Yes | Yes | — |
 | De-esser | `deesser` | Noise and repair | Yes | Yes | — |
-| Delay | `multi-tap-delay` | Delay and reverb | Yes | Yes | Finite echoes with per-echo pitch shift; selection keeps its duration |
+| Delay | `multi-tap-delay` | Delay and reverb | Yes | Yes | Finite echoes with StaffPad pitch shift; selections also offer changed-speed echoes and optional complete tails |
 | Distortion | `audacity-distortion` | Special | Yes | Yes | — |
 | Echo | `audacity-echo` | Delay and reverb | Yes | Yes | — |
 | Fade In | `audacity-fade-in` | Fades | No | Yes | — |
@@ -47,7 +47,7 @@ Audio effects are registered by Soundscaper. Effects whose ID begins with `audac
 | Low-pass filter | `lowpass-filter` | EQ and filters | Yes | Yes | — |
 | Multiband compressor | `multiband-compressor` | Volume and dynamics | Yes | Yes | — |
 | Noise Reduction | `audacity-noise-reduction` | Noise and repair | Yes | Yes | Needs a captured noise profile |
-| Noise gate | `noise-gate` | Noise and repair | Yes | Yes | Causal attack and release; no lookahead; Linked or independent channels; optional frequency-selective gating |
+| Noise gate | `noise-gate` | Noise and repair | Yes | Yes | Lookahead opens the gate before transients; rack and selection timing are compensated; Linked or independent channels; optional frequency-selective gating |
 | Normalize | `audacity-normalize` | Volume and dynamics | No | Yes | — |
 | Notch filter | `notch-filter` | EQ and filters | Yes | Yes | — |
 | Paulstretch | `audacity-paulstretch` | Special | No | Yes | Changes the selection length |
@@ -70,15 +70,15 @@ Audio effects are registered by Soundscaper. Effects whose ID begins with `audac
 
 ## Regular streaming replacements {#regular-streaming-replacements}
 
-Delay, High-pass filter, Low-pass filter, Noise gate, Notch filter, Shelf filter, Tremolo and Vocoder have regular selection effects and realtime rack processors. Choose them from their Effect menu categories, or open a track’s Effects panel and choose them in its rack. Their controls are shared across both uses. Existing programmatic Nyquist IDs and user plug-ins remain available, and the bundled scripts retain their pinned source and notices.
+Delay, High-pass filter, Low-pass filter, Noise gate, Notch filter, Shelf filter, Tremolo and Vocoder have regular selection effects and realtime rack processors. Choose them from their Effect menu categories, or open a track’s Effects panel and choose them in its rack. Their core controls are shared across both uses; Delay also offers selection-only speed and duration controls. Existing programmatic Nyquist IDs and user plug-ins remain available, and the bundled scripts retain their pinned source and notices.
 
-Delay makes a finite number of echoes with regular, bouncing-ball or reverse bouncing-ball spacing and a pitch shift for each echo. Pitch quality selects a causal grain window: Fast uses 20 milliseconds and Smooth uses 80 milliseconds. The former Nyquist resampling and phase-vocoder pitch modes are not part of this streaming processor. Applying Delay to a selection keeps the selected duration; rack playback and export include tails subject to the existing combined 10-second tail limit. Feedback delay remains available as a separate rack effect.
+Delay makes finite echoes with regular, bouncing-ball or reverse bouncing-ball spacing. Pitched echoes use the same StaffPad engine as Change Pitch, with formant preservation off, instead of moving delay heads. Rack playback keeps the incoming tempo. In the selection dialog, Pitch change effect also offers Pitch/Tempo using the Change Speed algorithm. Echo duration can keep the selected duration or include complete echoes; existing selections keep their duration by default. Rack playback and export include tails subject to the existing combined 10-second tail limit. Large echo counts or channel counts may exceed the bounded native pitch or delay memory; reduce the count, delay time, channels or sample rate. Feedback delay remains a separate rack effect.
 
 High-pass filter, Low-pass filter, Notch filter and Shelf filter include their filter release in rack playback and export, subject to the existing combined 10-second tail limit. Applying them to a selection keeps its duration.
 
-Noise gate detects the incoming level and applies attack, hold and release as the audio arrives. It has no lookahead or built-in Analyze operation; use the Analyze menu for separate measurements. Gate frequencies above uses a complementary split made from two one-pole filters to leave lower frequencies ungated. Channels can be linked or detected independently. Rack playback and export include the split filters’ release, subject to the existing combined 10-second tail limit.
+Noise gate applies attack, hold and release with configurable lookahead. By default the preview equals the attack time, allowing the gate to be fully open at the start of a word or transient; set lookahead to zero for causal gating. Playback, export and selections compensate the preview latency to preserve alignment. Gate frequencies above uses a complementary split of two one-pole filters to leave lower frequencies ungated. Channels can be linked or detected independently. There is no built-in noise-analysis mode. Rack playback and export include the split filters’ release, subject to the existing combined 10-second tail limit.
 
-Vocoder uses up to 240 bands. In stereo, the left channel supplies the voice envelope and the right channel supplies the carrier. Mono input uses a synthesized carrier. Both channels preserves the voice on the left and puts vocoded audio on the right; Vocoded audio duplicates the processed signal into the first stereo pair. Additional channels pass through unchanged. Output gain is a fixed level control and does not peak-normalize the selection. The output keeps the input channel count. Rack playback and export include its filter and envelope release, subject to the existing combined 10-second tail limit.
+Vocoder uses 10 to 240 logarithmically spaced bands from 20 Hz to just below half the sample rate, with the same band-width settings as the bundled Nyquist effect. Distance controls an eighth-order envelope low-pass filter: higher values smooth the voice envelope more slowly. In stereo, the left channel supplies the voice envelope and the right channel supplies the carrier. Mono input uses sine carriers at the band centers, mixed with optional white noise and radar pulses. Both channels preserves the voice on the left and puts vocoded audio on the right; Vocoded audio duplicates the processed signal into the first stereo pair. Additional channels pass through unchanged. The processor normalizes against its largest output peak since playback began, with a bounded gain, then applies Output gain. Unlike Nyquist’s whole-selection normalization, this cannot anticipate later peaks, so the beginning may be louder. The output keeps the input channel count. Rack playback and export include its filter and envelope release, subject to the existing combined 10-second tail limit.
 
 ## Why some effects are selection-only
 
@@ -163,7 +163,6 @@ Defaults and limits come from the same definitions the editor validates against,
 | Delay | `multi-tap-delay` | Pitch shift per echo | 0 | -2 to 2 | semitones |
 | Delay | `multi-tap-delay` | Mix | 1 | 0 to 1 | ratio |
 | Delay | `multi-tap-delay` | Delay type | Regular | Regular; Bouncing ball; Reverse bouncing ball | — |
-| Delay | `multi-tap-delay` | Pitch quality | Smooth | Fast; Smooth | — |
 | Distortion | `audacity-distortion` | Distortion type | Hard Clipping | Hard Clipping; Soft Clipping; Soft Overdrive; Medium Overdrive; Hard Overdrive; Cubic Curve (odd harmonics); Even Harmonics; Expand and Compress; Leveller; Rectifier Distortion; Hard Limiter 1413 | — |
 | Distortion | `audacity-distortion` | DC block | Off | On or off | — |
 | Distortion | `audacity-distortion` | Threshold | -6 | -100 to 0 | dB |
@@ -192,7 +191,7 @@ Defaults and limits come from the same definitions the editor validates against,
 | Graphic EQ | `audacity-graphic-eq` | Third-octave bands | 0 on each of the 31 bands | -20 to 20 | dB |
 | Graphic EQ | `audacity-graphic-eq` | Interpolation | B-spline | B-spline; Cosine; Cubic | — |
 | Graphic EQ | `audacity-graphic-eq` | FIR filter length | 8191 | 21 to 8191 | — |
-| High-pass filter | `highpass-filter` | Cutoff frequency | 1000 | 0.1 to 24000 | Hz |
+| High-pass filter | `highpass-filter` | Cutoff frequency | 1000 | 0.1 to 192000 | Hz |
 | High-pass filter | `highpass-filter` | Rolloff | 6 dB/octave | 6 dB/octave; 12 dB/octave; 24 dB/octave; 36 dB/octave; 48 dB/octave | — |
 | Legacy Compressor | `audacity-legacy-compressor` | Threshold | -12 | -60 to -1 | dB |
 | Legacy Compressor | `audacity-legacy-compressor` | Noise floor | -40 | -80 to -20 | dB |
@@ -214,7 +213,7 @@ Defaults and limits come from the same definitions the editor validates against,
 | Loudness Normalization | `audacity-loudness-normalization` | Target RMS | -20 | -145 to 0 | dB |
 | Loudness Normalization | `audacity-loudness-normalization` | Normalize stereo channels independently | Off | On or off | — |
 | Loudness Normalization | `audacity-loudness-normalization` | Treat mono as dual-mono | On | On or off | — |
-| Low-pass filter | `lowpass-filter` | Cutoff frequency | 1000 | 0.1 to 24000 | Hz |
+| Low-pass filter | `lowpass-filter` | Cutoff frequency | 1000 | 0.1 to 192000 | Hz |
 | Low-pass filter | `lowpass-filter` | Rolloff | 6 dB/octave | 6 dB/octave; 12 dB/octave; 24 dB/octave; 36 dB/octave; 48 dB/octave | — |
 | Multiband compressor | `multiband-compressor` | Low crossover | 250 | 40 to 2000 | Hz |
 | Multiband compressor | `multiband-compressor` | High crossover | 4000 | 2500 to 16000 | Hz |
@@ -235,6 +234,7 @@ Defaults and limits come from the same definitions the editor validates against,
 | Noise Reduction | `audacity-noise-reduction` | Output | Reduce noise | Reduce noise; Residue | — |
 | Noise gate | `noise-gate` | Threshold | -40 | -96 to -6 | dB |
 | Noise gate | `noise-gate` | Attack | 0.01 | 0.001 to 1 | s |
+| Noise gate | `noise-gate` | Lookahead | 0.01 | 0 to 1 | s |
 | Noise gate | `noise-gate` | Hold | 0.05 | 0 to 2 | s |
 | Noise gate | `noise-gate` | Release | 0.1 | 0.01 to 4 | s |
 | Noise gate | `noise-gate` | Level reduction | -24 | -100 to 0 | dB |
@@ -244,7 +244,7 @@ Defaults and limits come from the same definitions the editor validates against,
 | Normalize | `audacity-normalize` | Remove DC offset | On | On or off | — |
 | Normalize | `audacity-normalize` | Normalize peak amplitude | On | On or off | — |
 | Normalize | `audacity-normalize` | Normalize stereo channels independently | Off | On or off | — |
-| Notch filter | `notch-filter` | Notch frequency | 60 | 0.1 to 24000 | Hz |
+| Notch filter | `notch-filter` | Notch frequency | 60 | 0.1 to 192000 | Hz |
 | Notch filter | `notch-filter` | Q | 1 | 0.1 to 1000 | Q |
 | Paulstretch | `audacity-paulstretch` | Stretch factor | 10 | 1 or more | — |
 | Paulstretch | `audacity-paulstretch` | Time resolution | 0.25 | 0.00099 or more | s |

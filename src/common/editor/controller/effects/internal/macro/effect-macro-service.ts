@@ -258,7 +258,7 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		let frames = durationFrames;
 		for (const effect of effects) {
 			if (isRealtimeEffectMacroStepType(effect.type)) continue;
-			frames = estimateAudioSelectionEffectOutputFrames(effect.type, frames, effect.params);
+			frames = estimateAudioSelectionEffectOutputFrames(effect.type, frames, effect.params, { sampleRate: runtime.projectSampleRate() });
 		}
 		return frames;
 	}
@@ -293,7 +293,7 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 				effect.params,
 				{ channelCount: target.channelCount, sampleRate },
 			));
-			frames = estimateAudioSelectionEffectOutputFrames(effect.type, frames, effect.params);
+			frames = estimateAudioSelectionEffectOutputFrames(effect.type, frames, effect.params, { sampleRate: runtime.projectSampleRate() });
 		}
 		return peakBytes;
 	}

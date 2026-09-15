@@ -20,14 +20,17 @@ import { applyDeesser } from './first-party-effects/deesser/dsp.ts';
 import { applyMultibandCompressor } from './first-party-effects/multiband-compressor/dsp.ts';
 import { isStandardEffect } from './first-party-effects/standard/definition.ts';
 import { applyStandardEffect } from './first-party-effects/standard/dsp.ts';
+import { applyStandardDelaySelection } from './first-party-effects/standard/delay-selection.ts';
 
 export async function applyAudioSelectionEffectAsync(type, channels, sampleRate, params = {}, context = {}) {
 	if (!AUDIO_SELECTION_EFFECT_DEFINITIONS[type]) {
 		throw new RangeError(`Unsupported selection effect: ${type}.`);
 	}
 	if (isStandardEffect(type)) {
-		const output = applyStandardEffect(type, assertAudacityEffectOutput(channels), sampleRate,
-			normalizeAudioSelectionEffectParams(type, params));
+		const normalized = normalizeAudioSelectionEffectParams(type, params);
+		const output = type === 'multi-tap-delay'
+			? await applyStandardDelaySelection(assertAudacityEffectOutput(channels), sampleRate, normalized, context)
+			: applyStandardEffect(type, assertAudacityEffectOutput(channels), sampleRate, normalized);
 		if (!context?.spectralSelection) return assertAudacityEffectOutput(output);
 		await initializePffft();
 		return assertAudacityEffectOutput(applySpectralReplacement(channels, output, {

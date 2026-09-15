@@ -48,7 +48,9 @@ import { BITCRUSHER_EFFECT_TYPE, createBitcrusherEffectNode } from './bitcrusher
 import { isBandDynamicsEffect } from '../first-party-effects/dynamics/definition.ts';
 import { createBandDynamicsNode } from './band-dynamics-node.ts';
 import { isStandardEffect } from '../first-party-effects/standard/definition.ts';
-import { createStandardEffectNode } from './standard-effect-node.ts';
+import { noiseGateLatencyFrames } from '../first-party-effects/standard/noise-gate-definition.ts';
+import { standardDelayLatencyFrames } from '../first-party-effects/standard/delay-definition.ts';
+import { createStandardEffectNode, disposeStandardEffectNode } from './standard-effect-node.ts';
 import type { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import type { EngineEffect, UnknownRecord } from './types.ts';
 import { effectSupportsExplicitSidechain } from '../effect-explicit-sidechain-capability.ts';
@@ -124,6 +126,8 @@ export function effectLatencyFrames(effect: EngineEffect, sampleRate: number): n
 	if (effect.type === 'limiter') {
 		return Math.max(0, Math.ceil(finite(effect.params?.lookahead, 0) * sampleRate));
 	}
+	if (effect.type === 'noise-gate') return noiseGateLatencyFrames(effect.params || {}, sampleRate);
+	if (effect.type === 'multi-tap-delay') return standardDelayLatencyFrames(effect.params || {}, sampleRate);
 	if (!isAudacityLiveEffect(effect.type)) return 0;
 	const capability = audacityLiveEffectCapability(effect.type);
 	const latency = typeof capability?.latencyFrames === 'function'
@@ -469,6 +473,7 @@ export function safeMessageSequence(value: unknown, name: string): number {
 }
 
 export function disposeEffectNodeBindings(node: AudioNode): void {
+	disposeStandardEffectNode(node);
 	releaseDynamicsAnalysisTelemetry(node as AudioWorkletNode);
 	releaseEffectProcessorErrorPort(node);
 }

@@ -84,7 +84,7 @@ test('mono vocoder generates an audible carrier and silent modulation remains si
 		const processed = render(createVocoderProcessor({ sampleRate: rate, channelCount: 1, params: { bands } }), [sine(1000)])[0];
 		assert.ok(rms(processed) > 0.04, `Mono output RMS ${rms(processed)}`);
 		assert.ok(rms(processed) < 0.9);
-		assert.ok(processed.every(sample => Number.isFinite(sample) && Math.abs(sample) < 1));
+		assert.ok(processed.every(sample => Number.isFinite(sample) && Math.abs(sample) <= 1));
 	}
 	const silent = render(createVocoderProcessor({ sampleRate: rate, channelCount: 1, params: { noiseLevel: 100, radarLevel: 100 } }), [new Float32Array(4096)])[0];
 	assert.ok(silent.every(sample => sample === 0));

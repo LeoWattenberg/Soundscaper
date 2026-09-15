@@ -14,6 +14,7 @@ import { readDynamicsAnalysisTelemetry } from './dynamics-analysis-telemetry.ts'
 import {
 	applyEffect,
 	effectGraphKey,
+	effectLatencyFrames,
 	postEffectMessage,
 	readParametricEqSpectrumEntry,
 	safeMessageSequence,
@@ -56,7 +57,10 @@ configureRackEffect(scope, targetId, effectId, params, options = {}) {
 		}).params;
 		if (isStandardEffect(configurable)) {
 			const node = this.graph?.effectNodes?.get(effectGraphKey(scope, targetId, effectId));
-			standardEffectStateBytes(configurable, normalized, this.context?.sampleRate || this.sampleRate, node?.channelCount || 2);
+			const sampleRate = this.context?.sampleRate || this.sampleRate;
+			standardEffectStateBytes(configurable, normalized, sampleRate, node?.channelCount || 2);
+			// The controller rebuilds the graph when a live edit changes compensation.
+			if (effectLatencyFrames(effect, sampleRate) !== effectLatencyFrames({ ...effect, params: normalized }, sampleRate)) return false;
 		}
 		const sequence = postEffectMessage(
 			this.graph,

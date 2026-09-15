@@ -6,9 +6,15 @@ function waveformValue(waveform: TremoloParams['waveform'], phase: number): numb
 	switch (waveform) {
 		case 'sine': return -Math.cos(2 * Math.PI * phase);
 		case 'triangle': return 1 - 4 * Math.abs(phase - 0.5);
-		case 'sawtooth': return 2 * phase - 1;
-		case 'inverse-sawtooth': return 1 - 2 * phase;
-		case 'square': return phase < 0.5 ? -1 : 1;
+		// The original tables soften each edge over 0.5% of a cycle. Inverse
+		// sawtooth also starts at its trough and rises through this short ramp.
+		case 'sawtooth': return phase < .995 ? -1 + 2 * phase / .995 : 1 - 2 * (phase - .995) / .005;
+		case 'inverse-sawtooth': return phase < .005 ? -1 + 2 * phase / .005 : 1 - 2 * (phase - .005) / .995;
+		case 'square':
+			if (phase < .005) return -1 + 2 * phase / .005;
+			if (phase < .5) return 1;
+			if (phase < .505) return 1 - 2 * (phase - .5) / .005;
+			return -1;
 	}
 }
 

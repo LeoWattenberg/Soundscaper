@@ -24,6 +24,9 @@ import {
 	type ParameterTaper,
 	type StripRef,
 } from './parameter-address.ts';
+import { standardEffectParamRange } from './first-party-effects/standard/parameter-range.ts';
+import { noiseGateLatencyFrames } from './first-party-effects/standard/noise-gate-definition.ts';
+import { standardDelayLatencyFrames } from './first-party-effects/standard/delay-definition.ts';
 
 const DEFAULT_SAMPLE_RATE = 48_000;
 const WORKLET_PARAMETER_AUTOMATION_BLOCK_REASON =
@@ -202,11 +205,13 @@ export function effectParameterInventory(
 	if (!definition) return frozenInventory(descriptors, revisionInputs);
 	for (const [parameterId, sourceRange] of Object.entries(definition.ranges)) {
 		const range = numericRange(sourceRange);
+		const editableRange = standardEffectParamRange(type, parameterId, [range.minimum, range.maximum],
+			rate, stepOf(range.metadata) ?? undefined)!;
 		const defaultValue = finiteNumber(
 			(definition.defaults as Readonly<Record<string, unknown>>)[parameterId],
 			`${type}.${parameterId}.default`,
 		);
-		add(parameterId, range.metadata, range.minimum, range.maximum, defaultValue);
+		add(parameterId, range.metadata, editableRange[0]!, editableRange[1]!, defaultValue);
 	}
 	const choices = (definition as { choices?: Readonly<Record<string, NativeChoice>> }).choices;
 	for (const [parameterId, choice] of Object.entries(choices ?? {})) {
@@ -268,6 +273,8 @@ export function stripParameterDescriptor(
 
 function effectLatency(type: string, params: Readonly<Record<string, unknown>>, sampleRate: number): number {
 	if (type === 'limiter') return Math.max(0, Math.ceil(Number(params.lookahead || 0) * sampleRate));
+	if (type === 'noise-gate') return noiseGateLatencyFrames(params, sampleRate);
+	if (type === 'multi-tap-delay') return standardDelayLatencyFrames(params, sampleRate);
 	if (!isAudacityRackEffectType(type)) return 0;
 	return nonNegativeFrames(audacityLiveEffectCapability(type).latencyFrames(sampleRate, params));
 }

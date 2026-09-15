@@ -13,7 +13,7 @@ import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import EffectPresetBar from './EffectPresetBar.jsx';
 import EffectParameterEditor from './EffectParameterEditor.jsx';
 import { LabeledDropdown } from './inspector-controls.jsx';
-import { effectPresetChoices, safeEffectLabel, samePresetParams } from './effect-helpers.ts';
+import { effectPresetChoices, nativeEffectOptionLabel, nativeEffectParameterLabel, safeEffectLabel, samePresetParams } from './effect-helpers.ts';
 import { createFallbackFileService } from './inspector-helpers.ts';
 
 export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fileService, onClose }) {
@@ -268,6 +268,24 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 						hook="audacity-control-track"
 					/>
 				)}
+				{selectionType === 'multi-tap-delay' && <>
+					<LabeledDropdown
+						label={nativeEffectParameterLabel(selectionType, 'pitchMode', copy)}
+						value={selectionParams.pitchMode || 'pitch-shift'}
+						options={['pitch-shift', 'speed'].map(value => ({ value, label: nativeEffectOptionLabel(selectionType, 'pitchMode', value, copy) }))}
+						onChange={pitchMode => updateSelectionParams({ pitchMode })}
+						disabled={blocked}
+						hook="delay-selection-pitch-mode"
+					/>
+					<LabeledDropdown
+						label={nativeEffectParameterLabel(selectionType, 'duration', copy)}
+						value={selectionParams.duration || 'keep'}
+						options={['keep', 'extend'].map(value => ({ value, label: nativeEffectOptionLabel(selectionType, 'duration', value, copy) }))}
+						onChange={duration => updateSelectionParams({ duration })}
+						disabled={blocked}
+						hook="delay-selection-duration"
+					/>
+				</>}
 				<EffectParameterEditor
 					effect={{
 						type: selectionType,
