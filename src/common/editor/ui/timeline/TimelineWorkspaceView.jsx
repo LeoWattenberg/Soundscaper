@@ -402,6 +402,7 @@ export function TimelineWorkspaceView({
 						renderViewportStartFrame={renderViewportStartFrame}
 						viewportDurationFrames={viewportDurationFrames}
 						waveformRulerState={waveformRulerState}
+						updateWaveformRuler={menuModel.updateWaveformRuler}
 						recordingPreviews={recordingPreviews}
 						waveformCache={waveformCacheRef.current}
 						automationToolEnabled={automationToolEnabled}

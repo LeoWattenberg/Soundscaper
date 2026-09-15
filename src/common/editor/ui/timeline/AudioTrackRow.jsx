@@ -9,6 +9,8 @@ import { ClipFadeOverlays } from './ClipFadeOverlays.tsx';
 import { AudacityWaveformCanvases } from './TimelineCanvasRenderer.jsx';
 import { SpectralBrushOverlay } from './SpectralBrushOverlay.jsx';
 import { SpectralSelectionOverlay } from './SpectralSelectionOverlay.jsx';
+import { AudioTrackRuler } from './AudioTrackRuler.jsx';
+import { selectedTrackSpectralPeaks } from './spectral-center-gesture.ts';
 import { StereoChannelDivider } from './StereoChannelDivider.tsx';
 import { audioEditorClipBodyGeometry } from './geometry.ts';
 import { createSpectrogramCanvasOptions } from './spectrogram-canvas-options.ts';
@@ -18,7 +20,6 @@ import {
 } from './stereo-channel-height-runtime.ts';
 import { timelineContentLeft } from './timeline-scroll-space.ts';
 import { clipGroups, focusFirst } from './timeline-navigation.js';
-import { renderAmplitudeRulers, renderFrequencyRulers } from './track-row-helpers.jsx';
 import { useAudioTrackRowNavigation } from './useAudioTrackRowNavigation.js';
 import { useAudioTrackRowViewModel } from './useAudioTrackRowViewModel.js';
 import { resolveAudioEditorColor, TimeSelectionOverlay } from './TimelineOverlayComponents.jsx';
@@ -56,6 +57,7 @@ export function AudioTrackRow({
 	showRms,
 	waveformRulerFormat,
 	waveformZoom,
+	onWaveformZoom,
 	clipStyle,
 	recordingPreview,
 	draggingClipIds,
@@ -443,6 +445,7 @@ export function AudioTrackRow({
 							maximumFrame={Math.max(editorTimelineDurationFrames(project, sampleRate), activeSpectralSelection.endFrame)}
 							disabled={blocked}
 							copy={copy}
+							onFindPeaks={() => selectedTrackSpectralPeaks(controller, trackClips, activeSpectralSelection, sampleRate, track.spectrogram?.windowSize || 2_048)}
 							onCommit={(next) => run(() => {
 								controller.actions.timeline.setSelection(next.startFrame, next.endFrame);
 								controller.actions.spectral.boxSelect({
@@ -453,16 +456,26 @@ export function AudioTrackRow({
 						/>
 					)}
 				</div>
-				{verticalRulerWidth > 0 && <div
-					className="audio-editor-vertical-ruler"
-					data-track-ruler
-					data-ruler-format={waveformRulerFormat}
-					data-ruler-zoom={waveformZoom}
-					role="region"
-					aria-label={`${track.name}: ${displayMode === 'spectrogram' ? copy.spectrogramView : displayMode === 'multiview' ? copy.multiview : copy.waveformView}`}
+				{verticalRulerWidth > 0 && <AudioTrackRuler
+					track={track}
+					displayMode={displayMode}
+					bodyTop={channelBodyTop}
+					bodyHeight={channelBodyHeight}
+					width={verticalRulerWidth}
+					channelCount={rulerChannelCount}
+					channelHeightRatio={displayChannelHeightRatio}
+					sampleRate={sampleRate}
+					spectrogramScale={spectrogramScale}
+					waveformRulerFormat={waveformRulerFormat}
+					waveformZoom={waveformZoom}
+					disabled={blocked}
+					copy={copy}
 					tabIndex={tabIndexFor(3)}
-					style={{ paddingTop: channelBodyTop }}
-					onContextMenu={(event) => onOpenRulerFlyout(displayMode, event)}
+					onOpenRulerFlyout={onOpenRulerFlyout}
+					onWaveformZoom={onWaveformZoom}
+					onFrequencyRange={(range) => run(() => controller.actions.track.update(track.id, {
+						spectrogram: { ...track.spectrogram, ...range },
+					}))}
 					onKeyDown={(event) => {
 						if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
 							onOpenRulerFlyout(displayMode, event);
@@ -479,50 +492,7 @@ export function AudioTrackRow({
 							onFocusTrackContainer(trackIndex);
 						}
 					}}
-				>
-					{displayMode === 'spectrogram' ? (
-						renderFrequencyRulers(
-							rulerChannelCount,
-							channelBodyHeight,
-							verticalRulerWidth,
-							track.spectrogram?.minimumFrequency || 0,
-							track.spectrogram?.maximumFrequency || sampleRate / 2,
-							spectrogramScale,
-							displayChannelHeightRatio,
-						)
-					) : displayMode === 'multiview' ? (
-						<>
-							{renderFrequencyRulers(
-								rulerChannelCount,
-								Math.floor(channelBodyHeight / 2),
-								verticalRulerWidth,
-								track.spectrogram?.minimumFrequency || 0,
-								track.spectrogram?.maximumFrequency || sampleRate / 2,
-								spectrogramScale,
-								displayChannelHeightRatio,
-							)}
-							{renderAmplitudeRulers(
-								rulerChannelCount,
-								channelBodyHeight - Math.floor(channelBodyHeight / 2),
-								verticalRulerWidth,
-								displayMode,
-								waveformRulerFormat,
-								waveformZoom,
-								displayChannelHeightRatio,
-							)}
-						</>
-					) : (
-						renderAmplitudeRulers(
-							rulerChannelCount,
-							channelBodyHeight,
-							verticalRulerWidth,
-							displayMode,
-							waveformRulerFormat,
-							waveformZoom,
-							displayChannelHeightRatio,
-						)
-					)}
-				</div>}
+				/>}
 				{rangeSelected && <TimeSelectionOverlay
 					selection={selection}
 					pixelsPerSecond={pixelsPerSecond}

@@ -10,6 +10,7 @@ import {
 	spectrogramFrequencyFraction,
 } from './geometry.ts';
 import { clamp } from './track-row-helpers.jsx';
+import { moveSpectralBandCenter, spectralBandCenter, snapSpectralCenterToPeak } from './spectral-center-gesture.ts';
 
 export function SpectralSelectionOverlay({
 	selection,
@@ -23,6 +24,7 @@ export function SpectralSelectionOverlay({
 	maximumFrame,
 	disabled,
 	copy,
+	onFindPeaks = () => [],
 	onCommit,
 }) {
 	const dragRef = useRef(null);
@@ -64,6 +66,8 @@ export function SpectralSelectionOverlay({
 		stopClick(event);
 		dragRef.current = {
 			kind,
+			band: previewRef.current,
+			peaks: kind === 'center-frequency' ? onFindPeaks?.() || [] : [],
 			pointerId: event.pointerId,
 			windowRect: event.currentTarget.closest('.audio-editor-track-window')?.getBoundingClientRect(),
 			laneRect: event.currentTarget.closest('[data-track-lane]')?.getBoundingClientRect(),
@@ -89,7 +93,11 @@ export function SpectralSelectionOverlay({
 				1,
 			);
 			const frequency = Math.round(spectrogramFrequencyAtFraction(verticalFraction, scale, displayMinimum, displayMaximum));
-			if (drag.kind === 'minimum-frequency') {
+			if (drag.kind === 'center-frequency') {
+				const peak = snapSpectralCenterToPeak(frequency, drag.peaks.filter(value => value >= displayMinimum && value <= displayMaximum));
+				setPreviewState(moveSpectralBandCenter(drag.band, peak, scale, displayMinimum, displayMaximum));
+				return;
+			} else if (drag.kind === 'minimum-frequency') {
 				next.minimumFrequency = clamp(frequency, 0, next.maximumFrequency - 1);
 			} else next.maximumFrequency = clamp(frequency, next.minimumFrequency + 1, sampleRate / 2);
 		}
@@ -130,14 +138,19 @@ export function SpectralSelectionOverlay({
 		let requested = null;
 		const amount = event.shiftKey ? 100 : 10;
 		const name = edge === 'minimum' ? 'minimumFrequency' : 'maximumFrequency';
-		if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') requested = preview[name] - amount;
-		else if (event.key === 'ArrowRight' || event.key === 'ArrowUp') requested = preview[name] + amount;
-		else if (event.key === 'PageDown') requested = preview[name] - 1_000;
-		else if (event.key === 'PageUp') requested = preview[name] + 1_000;
-		else if (event.key === 'Home') requested = edge === 'minimum' ? 0 : preview.minimumFrequency + 1;
-		else if (event.key === 'End') requested = edge === 'minimum' ? preview.maximumFrequency - 1 : sampleRate / 2;
+		const current = edge === 'center' ? spectralBandCenter(preview, scale, displayMinimum, displayMaximum) : preview[name];
+		if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') requested = current - amount;
+		else if (event.key === 'ArrowRight' || event.key === 'ArrowUp') requested = current + amount;
+		else if (event.key === 'PageDown') requested = current - 1_000;
+		else if (event.key === 'PageUp') requested = current + 1_000;
+		else if (event.key === 'Home') requested = edge === 'center' ? displayMinimum : edge === 'minimum' ? 0 : preview.minimumFrequency + 1;
+		else if (event.key === 'End') requested = edge === 'center' ? displayMaximum : edge === 'minimum' ? preview.maximumFrequency - 1 : sampleRate / 2;
 		if (requested == null) return;
 		stopClick(event);
+		if (edge === 'center') {
+			publish(moveSpectralBandCenter(preview, requested, scale, displayMinimum, displayMaximum));
+			return;
+		}
 		publish({
 			...preview,
 			[name]: edge === 'minimum'
@@ -176,6 +189,18 @@ export function SpectralSelectionOverlay({
 			data-spectral-selection
 			style={{ left, top, width: Math.max(2, right - left), height }}
 		>
+			<button
+				{...handleProps('center-frequency')}
+				className="audio-editor-spectral-selection__handle audio-editor-spectral-selection__handle--frequency-center"
+				role="slider"
+				aria-orientation="vertical"
+				aria-label={copy.spectralCenterHandle}
+				aria-valuemin={displayMinimum}
+				aria-valuemax={displayMaximum}
+				aria-valuenow={spectralBandCenter(preview, scale, displayMinimum, displayMaximum)}
+				aria-valuetext={`${Math.round(spectralBandCenter(preview, scale, displayMinimum, displayMaximum))} Hz`}
+				onKeyDown={(event) => adjustFrequency('center', event)}
+			/>
 			<button
 				{...handleProps('start-time')}
 				className="audio-editor-spectral-selection__handle audio-editor-spectral-selection__handle--time-start"

@@ -84,6 +84,7 @@ export function useTimelineNavigation({ controller, editorRef, project, run, sna
 		if (!editor) return undefined;
 		wheelZoomRef.current = null;
 		const onWheel = (event) => {
+			if (event.target.closest?.('.audio-editor-vertical-ruler')) return;
 			if (event.altKey || (!event.ctrlKey && !event.metaKey) || event.deltaY === 0) return;
 			event.preventDefault();
 			const accumulated = accumulateTimelineZoomWheel(

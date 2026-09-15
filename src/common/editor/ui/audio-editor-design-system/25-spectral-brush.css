@@ -22,3 +22,12 @@
 	box-shadow: 0 0 0 1px #111;
 	pointer-events: none;
 }
+
+.audio-editor-spectral-selection__handle--frequency-center {
+	z-index: 3;
+	left: calc(50% - 9px);
+	top: calc(50% - 6px);
+	width: 18px;
+	height: 12px;
+	cursor: ns-resize;
+}

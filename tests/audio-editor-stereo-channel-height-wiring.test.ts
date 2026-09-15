@@ -28,8 +28,10 @@ test('one display ratio drives clip, canvas, ruler, pointer, and divider geometr
 	assert.match(row, /audioEditorStereoChannelDividerRegions\([\s\S]*?\.map\([\s\S]*?<StereoChannelDivider/u);
 	assert.match(row, /<StereoChannelDivider[\s\S]*?ratio=\{displayChannelHeightRatio\}/u);
 	assert.match(row, /setChannelHeightRatio\(track\.id, ratio\)/u);
-	assert.match(row, /renderFrequencyRulers\([\s\S]*?displayChannelHeightRatio/u);
-	assert.match(row, /renderAmplitudeRulers\([\s\S]*?displayChannelHeightRatio/u);
+	assert.match(row, /<AudioTrackRuler[\s\S]*?channelHeightRatio=\{displayChannelHeightRatio\}/u);
+	const ruler = await source('AudioTrackRuler.jsx');
+	assert.match(ruler, /renderFrequencyRulers\([\s\S]*?channelHeightRatio/u);
+	assert.match(ruler, /renderAmplitudeRulers\([\s\S]*?channelHeightRatio/u);
 });
 
 test('Audacity canvases resolve stereo waveform and spectrogram bands through shared geometry', async () => {

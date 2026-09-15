@@ -8,7 +8,8 @@ import {
 
 export { findNearestAudioZeroCrossing } from './zero-crossing.js';
 
-export const ANALYSIS_FLOOR_DB = -120;
+export { ANALYSIS_FLOOR_DB, amplitudeToDb, calculateAudioSpectrum } from './audio-spectrum.ts';
+import { amplitudeToDb, validateAnalysisChannels } from './audio-spectrum.ts';
 
 /**
  * @typedef {Object} AudioAnalysisResult
@@ -24,10 +25,6 @@ export const ANALYSIS_FLOOR_DB = -120;
  * @property {number | null} integratedLufs
  * @property {number | null} loudnessRangeLufs
  */
-
-export function amplitudeToDb(amplitude) {
-	return amplitude > 0 ? Math.max(ANALYSIS_FLOOR_DB, 20 * Math.log10(amplitude)) : ANALYSIS_FLOOR_DB;
-}
 
 export function energyToLufs(energy) {
 	return energy > 0 ? -0.691 + 10 * Math.log10(energy) : null;
@@ -262,77 +259,6 @@ export function analyzeAudioContrast(foregroundChannels, backgroundChannels, opt
 		minimumDifferenceDb,
 		passes: differenceDb >= minimumDifferenceDb,
 	});
-}
-
-/** Windowed radix-2 spectrum for Plot Spectrum and spectral panels. */
-export function calculateAudioSpectrum(channels, sampleRate, options = {}) {
-	validateAnalysisChannels(channels);
-	if (!Number.isFinite(sampleRate) || sampleRate <= 0) throw new RangeError('Spectrum sample rate must be positive.');
-	const requestedSize = Number(options.size ?? 2_048);
-	if (!Number.isSafeInteger(requestedSize) || requestedSize < 32 || requestedSize > 65_536 || (requestedSize & (requestedSize - 1))) {
-		throw new RangeError('Spectrum size must be a power of two from 32 through 65536.');
-	}
-	const offset = Math.max(0, Math.min(channels[0].length, Number(options.offsetFrame) || 0));
-	const real = new Float64Array(requestedSize);
-	const imaginary = new Float64Array(requestedSize);
-	for (let index = 0; index < requestedSize; index += 1) {
-		const frame = offset + index;
-		let sample = 0;
-		if (frame < channels[0].length) for (const channel of channels) sample += channel[frame] / channels.length;
-		const window = 0.5 - 0.5 * Math.cos(2 * Math.PI * index / (requestedSize - 1));
-		real[index] = sample * window;
-	}
-	fftInPlace(real, imaginary);
-	const bins = Array.from({ length: requestedSize / 2 + 1 }, (_, index) => {
-		const amplitude = Math.hypot(real[index], imaginary[index]) * 2 / requestedSize;
-		return Object.freeze({
-			frequency: index * sampleRate / requestedSize,
-			amplitude,
-			db: amplitudeToDb(amplitude),
-		});
-	});
-	return Object.freeze({ sampleRate, size: requestedSize, bins: Object.freeze(bins) });
-}
-
-function fftInPlace(real, imaginary) {
-	const length = real.length;
-	for (let index = 1, reversed = 0; index < length; index += 1) {
-		let bit = length >> 1;
-		while (reversed & bit) { reversed ^= bit; bit >>= 1; }
-		reversed ^= bit;
-		if (index >= reversed) continue;
-		[real[index], real[reversed]] = [real[reversed], real[index]];
-		[imaginary[index], imaginary[reversed]] = [imaginary[reversed], imaginary[index]];
-	}
-	for (let size = 2; size <= length; size <<= 1) {
-		const angle = -2 * Math.PI / size;
-		const stepReal = Math.cos(angle);
-		const stepImaginary = Math.sin(angle);
-		for (let start = 0; start < length; start += size) {
-			let weightReal = 1;
-			let weightImaginary = 0;
-			for (let index = 0; index < size / 2; index += 1) {
-				const even = start + index;
-				const odd = even + size / 2;
-				const oddReal = real[odd] * weightReal - imaginary[odd] * weightImaginary;
-				const oddImaginary = real[odd] * weightImaginary + imaginary[odd] * weightReal;
-				real[odd] = real[even] - oddReal;
-				imaginary[odd] = imaginary[even] - oddImaginary;
-				real[even] += oddReal;
-				imaginary[even] += oddImaginary;
-				const nextWeightReal = weightReal * stepReal - weightImaginary * stepImaginary;
-				weightImaginary = weightReal * stepImaginary + weightImaginary * stepReal;
-				weightReal = nextWeightReal;
-			}
-		}
-	}
-}
-
-function validateAnalysisChannels(channels) {
-	if (!Array.isArray(channels) || !channels.length || channels.some((channel) => !(channel instanceof Float32Array))) {
-		throw new TypeError('Planar Float32 audio channels are required.');
-	}
-	if (channels.some((channel) => channel.length !== channels[0].length)) throw new RangeError('Audio channels must have equal lengths.');
 }
 
 function rmsDb(channels) {

@@ -61,6 +61,28 @@ test('a queued spectral submission cannot apply after its project is replaced', 
 	}
 });
 
+test('the menu dialog moves a spectral center while keeping its bandwidth', async () => {
+	const fixture = await mountedSpectralSelectionFixture();
+	try {
+		await fixture.render(spectralSnapshot('project-a', 48_000, 100, 900, 'linear'));
+		const center = fixture.field(ENGLISH_COPY.centerFrequency);
+		const label = center.closest('label');
+		assert.ok(label);
+		await act(async () => { reactProps(label).onFocus({}); });
+		await change(center, '');
+		assert.equal(center.value, '');
+		await change(center, '1');
+		assert.equal(center.value, '1');
+		await change(fixture.field(ENGLISH_COPY.centerFrequency), '1500');
+		assert.equal(fixture.field(ENGLISH_COPY.minimumFrequency).value, '1100');
+		assert.equal(fixture.field(ENGLISH_COPY.maximumFrequency).value, '1900');
+		await click(fixture.button(ENGLISH_COPY.selectFrequencyRange));
+		assert.deepEqual(fixture.selections, [{ minimumFrequency: 1_100, maximumFrequency: 1_900 }]);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 async function mountedSpectralSelectionFixture(options: Readonly<{ deferRun?: boolean }> = {}) {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
@@ -126,6 +148,7 @@ function spectralSnapshot(
 	sampleRate: number,
 	minimumFrequency: number,
 	maximumFrequency: number,
+	scale = 'mel',
 ) {
 	const trackId = `${id}-track`;
 	return {
@@ -136,7 +159,7 @@ function spectralSnapshot(
 			tracks: [{
 				id: trackId,
 				type: 'audio',
-				spectrogram: { minimumFrequency, maximumFrequency },
+				spectrogram: { minimumFrequency, maximumFrequency, scale },
 			}],
 		},
 		selectedTrackId: trackId,

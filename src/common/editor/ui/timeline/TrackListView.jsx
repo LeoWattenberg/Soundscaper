@@ -61,6 +61,7 @@ export function TrackListView({
 	renderViewportStartFrame,
 	viewportDurationFrames,
 	waveformRulerState,
+	updateWaveformRuler,
 	recordingPreviews,
 	waveformCache,
 	automationToolEnabled,
@@ -229,6 +230,7 @@ export function TrackListView({
 					showRms={Boolean(snapshot.timeline?.showRms)}
 					waveformRulerFormat={normalizeWaveformRulerState(waveformRulerState[track.id]).format}
 					waveformZoom={normalizeWaveformRulerState(waveformRulerState[track.id]).zoom}
+					onWaveformZoom={(zoom) => updateWaveformRuler(track.id, { zoom })}
 					clipStyle={snapshot.preferences?.appearance?.clipStyle}
 					recordingPreview={recordingPreviews.find((preview) => preview.trackId === track.id) || null}
 					draggingClipIds={draggingClipIds}

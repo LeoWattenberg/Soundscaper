@@ -5,6 +5,8 @@ import { NumberStepper } from '@soundscaper/design-system/NumberStepper';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
+import { normalizeSpectrogramScale } from '../timeline/geometry.ts';
+import { moveSpectralBandCenter, spectralBandCenter } from '../timeline/spectral-center-gesture.ts';
 
 export default function SpectralSelectionDialog({ controller, snapshot, copy, run, onClose }) {
 	const project = snapshot.project;
@@ -22,6 +24,20 @@ export default function SpectralSelectionDialog({ controller, snapshot, copy, ru
 	const [minimumFrequency, setMinimumFrequency] = useState(defaultMinimumFrequency);
 	const [maximumFrequency, setMaximumFrequency] = useState(defaultMaximumFrequency);
 	const [gainDb, setGainDb] = useState(6);
+	const scale = normalizeSpectrogramScale(track?.spectrogram?.scale);
+	const band = { minimumFrequency: Number(minimumFrequency), maximumFrequency: Number(maximumFrequency) };
+	const centerText = String(Math.round(spectralBandCenter(band, scale, 0, nyquist)));
+	const [centerInput, setCenterInput] = useState(centerText);
+	const centerEditing = useRef(false);
+	const moveCenter = (value) => {
+		setCenterInput(value);
+		if (!value.trim()) return;
+		const center = Number(value);
+		if (!Number.isFinite(center)) return;
+		const moved = moveSpectralBandCenter(band, center, scale, 0, nyquist);
+		setMinimumFrequency(moved.minimumFrequency);
+		setMaximumFrequency(moved.maximumFrequency);
+	};
 
 	useEffect(() => {
 		if (stateProjectIdentity.current === projectIdentity) return;
@@ -29,7 +45,12 @@ export default function SpectralSelectionDialog({ controller, snapshot, copy, ru
 		setMinimumFrequency(defaultMinimumFrequency);
 		setMaximumFrequency(defaultMaximumFrequency);
 		setGainDb(6);
-	}, [defaultMaximumFrequency, defaultMinimumFrequency, projectIdentity]);
+		centerEditing.current = false;
+		setCenterInput(String(Math.round(spectralBandCenter({ minimumFrequency: defaultMinimumFrequency, maximumFrequency: defaultMaximumFrequency }, scale, 0, nyquist))));
+	}, [defaultMaximumFrequency, defaultMinimumFrequency, nyquist, projectIdentity, scale]);
+	useEffect(() => {
+		if (!centerEditing.current) setCenterInput(centerText);
+	}, [centerText]);
 	useEffect(() => {
 		currentProjectOwnership.current ??= { projectIdentity: stateProjectIdentity.current };
 		return () => { currentProjectOwnership.current = null; };
@@ -76,6 +97,17 @@ export default function SpectralSelectionDialog({ controller, snapshot, copy, ru
 				</>}
 			/>}
 		>
+					<label className="kw-audio-editor-dialog__field"
+						onFocus={() => { centerEditing.current = true; }}
+						onBlur={(event) => {
+							if (event.currentTarget.contains(event.relatedTarget)) return;
+							centerEditing.current = false;
+							setCenterInput(centerText);
+						}}
+					>
+						<span>{copy.centerFrequency}</span>
+						<NumberStepper value={centerInput} min={0} max={nyquist} step={10} width="100%" onChange={moveCenter} />
+					</label>
 					<label className="kw-audio-editor-dialog__field">
 						<span>{copy.minimumFrequency}</span>
 						<NumberStepper value={String(minimumFrequency)} min={0} max={Math.max(0, nyquist - 1)} step={10} width="100%" onChange={setMinimumFrequency} />

@@ -68,18 +68,21 @@ export function renderAmplitudeRulers(
 	return Array.from({ length: normalizedChannelCount }, (_, channel) => {
 		const rulerHeight = channelGeometry[channel].height;
 		if (rulerFormat !== 'linear-amp') {
+			const magnification = 2 ** normalizedZoom;
 			const ruler = <DbRuler
-				height={halfWave ? rulerHeight * 2 : rulerHeight}
+				height={(halfWave ? rulerHeight * 2 : rulerHeight) * magnification}
 				scale={rulerFormat === 'linear-db' ? 'linear' : 'logarithmic'}
 				width={width}
 			/>;
-			return halfWave ? (
+			return halfWave || normalizedZoom > 0 ? (
 				<div
-					className="audio-editor-half-wave-ruler"
+					className={halfWave ? 'audio-editor-half-wave-ruler' : 'audio-editor-zoomed-db-ruler'}
 					key={channel}
-					style={{ height: rulerHeight, overflow: 'hidden' }}
+					style={{ height: rulerHeight, overflow: 'hidden', position: 'relative' }}
 				>
-					{ruler}
+					<div style={{ position: 'absolute', top: (rulerHeight - rulerHeight * magnification) / (halfWave ? 1 : 2) }}>
+						{ruler}
+					</div>
 				</div>
 			) : React.cloneElement(ruler, { key: channel });
 		}
