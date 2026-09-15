@@ -32,8 +32,11 @@ for attempt in {1..50}; do
 done
 
 sink_name='soundscaper_ci_sink'
+# Disable rewinds to cap null-sink buffering at 50 ms instead of two seconds.
+# Firefox restarts this clock for every realtime-export backpressure pause.
 pactl load-module module-null-sink \
 	sink_name="$sink_name" \
+	norewinds=1 \
 	rate=48000 \
 	channels=2 \
 	sink_properties=device.description=Soundscaper_CI_Null_Sink

@@ -411,7 +411,7 @@ test('realtime engine reserves hard-bound capacity while suspension is pending',
 	}, async (contexts) => {
 		const engine = createRealtimeFixtureEngine();
 		const pending = engine.renderMixToSink({
-			sink: async (_channels, metadata) => { writes.push(metadata.frameOffset); },
+			sink: async (_channels, metadata) => { assert.equal(contexts[0].state, 'suspended'); writes.push(metadata.frameOffset); },
 			outputFrames: 3,
 			maximumPendingChunks: 4,
 		});

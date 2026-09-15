@@ -31,6 +31,7 @@ import {
 	projectGraphLatencyFrames,
 } from './project-graph.ts';
 import type { ProjectGraph } from './project-graph.ts';
+import type { EnginePcmChunkMetadata } from './public-api.ts';
 import {
 	disposeGraph,
 } from './transport-scheduler.ts';
@@ -257,6 +258,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 			settled(): Promise<void>;
 		}
 		let sinkQueue: SinkQueue | null = null;
+		let sinkSuspension: Promise<void> | null = null;
 		const failRender = (error: unknown) => {
 			const failure = error instanceof Error ? error : new Error('The realtime render failed.');
 			sinkQueue?.abort(failure);
@@ -267,7 +269,14 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		failStreamedRender = failRender;
 		if (parametricEqFailure) failRender(parametricEqFailure);
 		if (streamUnderrunFailure) failRender(streamUnderrunFailure);
-		sinkQueue = createAsyncPlanarPcmSinkQueue(onChunk, {
+		sinkQueue = createAsyncPlanarPcmSinkQueue(async (channels: readonly Float32Array[], metadata: EnginePcmChunkMetadata) => {
+			// A requested pause still leaves the audio thread running until it
+			// settles. Keep encoder work behind that barrier so it cannot delay
+			// the streamed-source packets needed by those remaining quanta.
+			if (sinkSuspension) await sinkSuspension;
+			if (sinkQueue?.failure) throw sinkQueue.failure;
+			await onChunk(channels, metadata);
+		}, {
 			maximumPendingChunks: sinkAdmission.maximumPendingChunks,
 			maximumPendingFrames: sinkAdmission.maximumPendingFrames,
 			maximumPendingBytes: sinkAdmission.maximumPendingBytes,
@@ -293,7 +302,8 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 			const cycle = (async () => {
 				let suspendedForBackpressure = false;
 				if (context.state === 'running') {
-					await context.suspend();
+					sinkSuspension = context.suspend();
+					await sinkSuspension;
 					suspendedForBackpressure = true;
 				}
 				await queue.settled();
@@ -313,6 +323,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 					&& !graph.abortController.signal.aborted
 				) failRender(error);
 			}).finally(() => {
+				sinkSuspension = null;
 				flowControl = null;
 				requestSinkDrain();
 			});

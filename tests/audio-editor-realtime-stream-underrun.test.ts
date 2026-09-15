@@ -327,6 +327,47 @@ test('realtime setup freezes the clock, arms capture from the scheduled start, a
 	}
 });
 
+test('realtime cancellation skips a sink still waiting for the clock to suspend', async () => {
+	const previousAudioContext = globalThis.AudioContext;
+	const previousAudioWorkletNode = globalThis.AudioWorkletNode;
+	const context = new MockRealtimeAudioContext();
+	const suspensionStarted = deferred<void>();
+	const releaseSuspension = deferred<void>();
+	const abort = new AbortController();
+	let sinkWrites = 0;
+	let engine: WebAudioEditorEngine | null = null;
+	context.suspend = async () => {
+		suspensionStarted.resolve();
+		await releaseSuspension.promise;
+		if (context.state !== 'closed') context.state = 'suspended';
+	};
+	globalThis.AudioContext = function MockAudioContextFactory() { return context; } as unknown as typeof AudioContext;
+	globalThis.AudioWorkletNode = MockCaptureNode as unknown as typeof AudioWorkletNode;
+	try {
+		engine = createAudioEditorEngine();
+		engine.loadProject({ ...streamProject(), tracks: [], clips: [] });
+		const rendering = engine.renderMixRealtime({
+			outputFrames: 1, maximumPendingChunks: 1, signal: abort.signal,
+			onChunk: () => { sinkWrites += 1; },
+		});
+		void rendering.catch(() => undefined);
+		await suspensionStarted.promise;
+		abort.abort();
+		releaseSuspension.resolve();
+		await assert.rejects(rendering, { name: 'AbortError' });
+		assert.equal(sinkWrites, 0);
+		assert.equal(context.resumeCalls, 1);
+		assert.equal(context.closeCalls, 1);
+	} finally {
+		releaseSuspension.resolve();
+		await engine?.dispose();
+		if (previousAudioContext === undefined) Reflect.deleteProperty(globalThis, 'AudioContext');
+		else globalThis.AudioContext = previousAudioContext;
+		if (previousAudioWorkletNode === undefined) Reflect.deleteProperty(globalThis, 'AudioWorkletNode');
+		else globalThis.AudioWorkletNode = previousAudioWorkletNode;
+	}
+});
+
 class MockChunkStreamClient {
 	readonly opened = deferred<void>();
 	readonly completion = deferred<void>();
