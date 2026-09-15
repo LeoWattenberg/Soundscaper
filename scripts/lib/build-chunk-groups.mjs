@@ -348,7 +348,7 @@ export const chunkGroups = [
 export const WORKER_XML_VENDOR_CHUNK_TEST = /node_modules[\\/](?:saxes|xmlchars)[\\/]/;
 
 /** Effect metadata and the dependency-closed canonical copy registry used by workers. */
-export const WORKER_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/]i18n[\\/](?:canonical-extras(?:-(?:audacity-(?:effects|presets)|standard-effects))?|locale)\.js|src[\\/]common[\\/]editor[\\/]first-party-effects[\\/]standard[\\/](?:definition|filters-definition|filters-coefficients|modulation-definition|noise-gate-definition|delay-definition|delay-pitch-admission|delay-selection-contract|parameter-range|effect-tail|nyquist-replacements|selection-contract)\.ts)$/;
+export const WORKER_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/]i18n[\\/](?:canonical-extras(?:-(?:audacity-(?:effects|presets)|standard-effects))?|locale)\.js|src[\\/]common[\\/]editor[\\/]staffpad[\\/]parameters\.js|src[\\/]common[\\/]editor[\\/]first-party-effects[\\/]standard[\\/](?:definition|filters-definition|filters-coefficients|modulation-definition|noise-gate-definition|delay-definition|delay-pitch-admission|delay-selection-contract|parameter-range|effect-tail|nyquist-replacements|selection-contract)\.ts)$/;
 
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const workerChunkGroups = [
@@ -372,6 +372,8 @@ export const workerChunkGroups = [
 		// Archive workers describe imported effects without running their DSP.
 		// Keep that shared metadata and its complete copy dependency closure apart
 		// from the database protocol, without absorbing their consumers recursively.
+		// Delay capacity also reads StaffPad parameters; leaving that leaf unowned
+		// creates a cycle back into the worker entry during contract initialization.
 		name: 'editor-effect-contracts-worker',
 		test: WORKER_EFFECT_CONTRACT_CHUNK_TEST,
 		priority: 98,

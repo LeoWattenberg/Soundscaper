@@ -12,6 +12,7 @@ import {
 	EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST,
 	EDITOR_PRODUCTION_METER_CHUNK_TEST,
 	workerChunkGroups,
+	WORKER_EFFECT_CONTRACT_CHUNK_TEST,
 	WORKER_XML_VENDOR_CHUNK_TEST,
 } from '../scripts/lib/build-chunk-groups.mjs';
 import { productResolveAliases } from '../scripts/lib/product-aliases.mjs';
@@ -23,7 +24,9 @@ import {
 import {
 	eagerImportsOfLazyOwners,
 	importsOnlyTypes,
+	resolveRelativeModule,
 	sourceModules,
+	staticRelativeDependencies,
 } from './helpers/eager-chunk-group-crossings.ts';
 
 /**
@@ -303,6 +306,20 @@ test('worker XML parsing dependencies share one bounded vendor owner', () => {
 	assert.equal(group.test, WORKER_XML_VENDOR_CHUNK_TEST);
 	assert.equal(group.includeDependenciesRecursively, false);
 	assert.equal(group.maxSize, 400_000);
+});
+
+test('worker effect contracts own every static dependency without the StaffPad runtime', () => {
+	const directories = [EDITOR_DIRECTORY, fileURLToPath(new URL('../src/common/i18n/', import.meta.url))];
+	const unowned: string[] = [];
+	for (const path of directories.flatMap(sourceModules).filter((path) => WORKER_EFFECT_CONTRACT_CHUNK_TEST.test(path))) {
+		for (const specifier of staticRelativeDependencies(readFileSync(path, 'utf8'))) {
+			const target = resolveRelativeModule(path, specifier);
+			assert.ok(target, `${path} must resolve ${specifier}`);
+			if (!WORKER_EFFECT_CONTRACT_CHUNK_TEST.test(target)) unowned.push(`${path} -> ${specifier}`);
+		}
+	}
+	assert.deepEqual(unowned, [], 'contract dependencies must not initialize through a worker entry');
+	assert.equal(WORKER_EFFECT_CONTRACT_CHUNK_TEST.test('src/common/editor/staffpad/runtime.js'), false);
 });
 
 test('editor UI imports exact internal design-system modules', () => {
