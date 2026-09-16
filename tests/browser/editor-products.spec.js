@@ -97,6 +97,11 @@ test.describe('Soundscaper product surface', () => {
 		});
 		expect(soundIntent.destination.projectId).not.toBe(soundscaperProjectId);
 
+		// Let the sender finish opening and closing its project stores before
+		// another navigation interrupts its deferred module imports in WebKit.
+		await expect(page.getByRole('checkbox', { checked: true })).toHaveCount(1);
+		await expect(page.getByRole('button', { name: 'Download the ticked archives', exact: true })).toBeEnabled();
+
 		await expect.poll(() => storedProject(page, SOUNDSCAPER_DATABASE_NAME, soundscaperProjectId))
 			.toEqual({ id: soundscaperProjectId, schemaFamily: 'soundscaper', schemaVersion: 1 });
 
