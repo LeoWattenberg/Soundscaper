@@ -108,6 +108,13 @@ test.describe('label interactions', () => {
 		await expect(editor.getByRole('textbox', { name: /^Edit labels:/ })).toHaveCount(0);
 		expect(errors).toEqual([]);
 	});
+});
+
+test.describe('label interactions during recording', () => {
+	// Precise coverage profiling can starve realtime capture and overflow its
+	// bounded storage queue on CI. Keep this workflow on the ordinary audio clock.
+	test.use({ browserCoverage: false });
+	registerAudioEditorHooks();
 
 	test('Add label remains available during recording and labels the live recording cursor', async ({ page }) => {
 		await page.addInitScript(() => {
