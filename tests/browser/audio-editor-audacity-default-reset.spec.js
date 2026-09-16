@@ -61,9 +61,20 @@ test.describe('Audacity selection default preset', () => {
 		const changeEffect = async (category, effect) => {
 			await page.keyboard.press(accessKey);
 			const menu = page.getByRole('menu', { name: 'Effect', exact: true });
+			await expect(menu).toBeVisible();
+			await expect(menu.getByRole('menuitem', { disabled: false }).first()).toBeFocused();
 			const parent = getMenuItem(menu, category);
 			await parent.press('ArrowRight');
-			await getMenuItem(parent.getByRole('menu'), effect).press('Enter');
+			const submenu = parent.getByRole('menu');
+			await expect(submenu).toBeVisible();
+			// Opening a submenu schedules focus on its first item. Wait for that
+			// before choosing another item so delayed focus cannot redirect Enter.
+			await expect(submenu.getByRole('menuitem').first()).toBeFocused();
+			const target = getMenuItem(submenu, effect);
+			await target.focus();
+			await expect(target).toBeFocused();
+			await target.press('Enter');
+			await expect(menu).toBeHidden();
 		};
 		await changeEffect('Delay and reverb', 'Reverb');
 		await expect(dialog.locator('[data-audacity-effect-layout="audacity-reverb"]')).toBeVisible();
