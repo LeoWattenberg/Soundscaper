@@ -20,7 +20,7 @@ import {
 } from './helpers/soundscaper-delivery-adapter-fixtures.ts';
 
 const signal = new AbortController().signal;
-const message = (type: string, payload: unknown) => createBoundedPortMessage(type, payload, {
+const message = <Payload>(type: string, payload: Payload) => createBoundedPortMessage(type, payload, {
 	sequence: 0, maximumEncodedBytes: 4_096,
 });
 
