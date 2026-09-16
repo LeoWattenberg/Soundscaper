@@ -164,15 +164,15 @@ function audioEffectInputs(sources, productProfiles) {
 		factoryPresets: factoryPresets.AUDACITY_EFFECT_FACTORY_PRESETS,
 		factoryPresetSource: factoryPresets.AUDACITY_FACTORY_PRESET_SOURCE,
 		liveCapability: (type) => liveEffects.audacityLiveEffectCapability(type),
-		// The rack and selection registries each merge the Audacity inventory
-		// into the local one, so their union is every documented definition and
+		// Definitions include processors retained for saved-project playback.
+		// The available type lists below determine which effects are documented;
 		// the Audacity manifest still wins wherever both describe a type.
 		localDefinitions: {
 			...effects.AUDIO_RACK_EFFECT_DEFINITIONS,
 			...effects.AUDIO_SELECTION_EFFECT_DEFINITIONS,
 		},
-		rackEffectTypes: Object.keys(effects.AUDIO_RACK_EFFECT_DEFINITIONS),
-		selectionEffectTypes: Object.keys(effects.AUDIO_SELECTION_EFFECT_DEFINITIONS),
+		rackEffectTypes: effects.audioEffectTypes(),
+		selectionEffectTypes: effects.audioSelectionEffectTypes(),
 		effectLabel: (type) => effects.audioSelectionEffectLabel(type, 'en'),
 		parameterLabel: (type, name) => effectHelpers.nativeEffectParameterLabel(type, name, englishCopy),
 		optionLabel: (type, name, value) => resolveCopy(copyKeys.effectOptionCopyKey(type, name, value)),

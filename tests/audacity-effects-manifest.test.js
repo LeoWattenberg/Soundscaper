@@ -89,9 +89,9 @@ test('browser Reverb avoids SoX while StaffPad replaces SoundTouch and SBSMS eff
 });
 
 test('Audacity labels suffix only collisions and provide German names', () => {
-	assert.equal(audacityEffectLabel('audacity-compressor'), 'Compressor (Audacity)');
-	assert.equal(audacityEffectLabel('audacity-limiter'), 'Limiter (Audacity)');
-	assert.equal(audacityEffectLabel('audacity-compressor', 'de'), 'Kompressor (Audacity)');
+	assert.equal(audacityEffectLabel('audacity-compressor'), 'Compressor');
+	assert.equal(audacityEffectLabel('audacity-limiter'), 'Limiter');
+	assert.equal(audacityEffectLabel('audacity-compressor', 'de'), 'Kompressor');
 	assert.equal(audacityEffectLabel('audacity-bass-treble', 'de'), 'Bass und Höhen');
 	assert.equal(AUDACITY_EFFECT_DEFINITIONS['audacity-compressor'].collision, true);
 	assert.equal(AUDACITY_EFFECT_DEFINITIONS['audacity-limiter'].collision, true);

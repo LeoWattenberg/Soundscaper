@@ -58,7 +58,8 @@ function macroStepDefinitions(): Readonly<Record<string, unknown>> {
 export const EFFECT_MACRO_STEP_DEFINITIONS = macroStepDefinitions();
 
 export function effectMacroStepTypes(): readonly string[] {
-	return Object.keys(EFFECT_MACRO_STEP_DEFINITIONS);
+	// Saved macros still normalize native dynamics, but new steps use Audacity's processors.
+	return Object.keys(EFFECT_MACRO_STEP_DEFINITIONS).filter(type => type !== 'compressor' && type !== 'limiter');
 }
 
 export function isEffectMacroStepType(type: unknown): type is string {

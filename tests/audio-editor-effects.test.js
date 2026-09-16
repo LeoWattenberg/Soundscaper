@@ -80,9 +80,9 @@ test('rack registry exposes the existing effects and exactly the live-capable Au
 	assert.deepEqual(AUDACITY_RACK_EFFECT_TYPES, EXPECTED_AUDACITY_RACK_TYPES);
 	assert.deepEqual(
 		audioEffectTypes(),
-		[...Object.keys(AUDIO_EFFECT_DEFINITIONS), ...EXPECTED_AUDACITY_RACK_TYPES],
+		[...Object.keys(AUDIO_EFFECT_DEFINITIONS).filter((type) => type !== 'compressor' && type !== 'limiter'), ...EXPECTED_AUDACITY_RACK_TYPES],
 	);
-	assert.deepEqual(Object.keys(AUDIO_RACK_EFFECT_DEFINITIONS), audioEffectTypes());
+	assert.deepEqual(Object.keys(AUDIO_RACK_EFFECT_DEFINITIONS).filter((type) => type !== 'compressor' && type !== 'limiter'), audioEffectTypes());
 	assert.equal(new Set(audioEffectTypes()).size, audioEffectTypes().length);
 
 	for (const type of EXPECTED_AUDACITY_RACK_TYPES) {
@@ -360,13 +360,13 @@ test('selection effect registry includes regular streaming effects, canonical EQ
 	assert.throws(() => audioSelectionEffectDefaults('compressor'), /Unsupported selection effect/);
 });
 
-test('rack labels keep studio collisions distinct from their Audacity implementations', () => {
+test('rack labels name the standard dynamics and retain saved native labels', () => {
 	assert.equal(audioEffectLabel('compressor', 'en'), 'Compressor');
-	assert.equal(audioEffectLabel('audacity-compressor', 'en'), 'Compressor (Audacity)');
+	assert.equal(audioEffectLabel('audacity-compressor', 'en'), 'Compressor');
 	assert.equal(audioEffectLabel('compressor', 'de'), 'Kompressor');
-	assert.equal(audioEffectLabel('audacity-compressor', 'de'), 'Kompressor (Audacity)');
+	assert.equal(audioEffectLabel('audacity-compressor', 'de'), 'Kompressor');
 	assert.equal(audioEffectLabel('limiter', 'en'), 'Limiter');
-	assert.equal(audioEffectLabel('audacity-limiter', 'en'), 'Limiter (Audacity)');
+	assert.equal(audioEffectLabel('audacity-limiter', 'en'), 'Limiter');
 	assert.equal(audioEffectLabel('compressor', { effectNameCompressor: 'Remote dynamics' }), 'Remote dynamics');
 	for (const type of EXPECTED_AUDACITY_RACK_TYPES) {
 		assert.equal(audioEffectLabel(type, 'en'), audacityEffectLabel(type, 'en'));

@@ -83,7 +83,7 @@ export const VOLUME_GUIDES = Object.freeze([
 			selectAll(),
 			effect({
 				group: 'Volume and compression',
-				name: 'Compressor (Audacity)',
+				name: 'Compressor',
 				settings: [
 					{ label: 'Threshold', value: '-18' },
 					{ label: 'Ratio', value: '4' },
@@ -129,7 +129,7 @@ export const VOLUME_GUIDES = Object.freeze([
 			selectAll(),
 			effect({
 				group: 'Volume and compression',
-				name: 'Limiter (Audacity)',
+				name: 'Limiter',
 				settings: [{ label: 'Threshold', value: '-6' }],
 			}, { why: 'Nothing will exceed −6 dB. The make-up target then lifts the result so the ceiling sits near full scale.' }),
 			play({ see: 'The loudest moments are held down; the rest is unchanged.' }),

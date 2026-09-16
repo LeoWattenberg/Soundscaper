@@ -48,8 +48,8 @@ test('controller copies and atomically replaces realtime effect stacks across tr
 	const replacedId = controller.actions.effects.add({
 		scope: 'track',
 		trackId: destinationTrackId,
-		type: 'compressor',
-		options: { params: { threshold: -18, knee: 12, ratio: 3, attack: 0.01, release: 0.2, makeupGain: 2 } },
+		type: 'audacity-compressor',
+		options: { params: { thresholdDb: -18, kneeWidthDb: 12, ratio: 3, attackMs: 10, releaseMs: 200, makeupGainDb: 2 } },
 	});
 
 	const copied = controller.actions.effects.copyStack('track', sourceTrackId);
@@ -79,7 +79,7 @@ test('controller copies and atomically replaces realtime effect stacks across tr
 	snapshot = controller.getSnapshot();
 	destinationEffects = snapshot.project.tracks.find((track) => track.id === destinationTrackId).effects;
 	assert.deepEqual(destinationEffects.map(({ id, type }) => ({ id, type })), [
-		{ id: replacedId, type: 'compressor' },
+		{ id: replacedId, type: 'audacity-compressor' },
 	]);
 	controller.actions.edit.redo();
 	snapshot = controller.getSnapshot();

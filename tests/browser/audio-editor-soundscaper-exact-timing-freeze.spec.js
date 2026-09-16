@@ -4,6 +4,7 @@ import { expect } from '@playwright/test';
 import { test } from './audio-editor-test-fixtures.js';
 
 import { PROJECT_SCHEMA_VERSION } from '../../src/common/editor/project-schema-version.ts';
+import { reconcileProjectOwnedFeatureRequirements } from '../../src/common/editor/project-owned-feature-requirements.ts';
 import {
 	addRackEffect,
 	bootEditor,
@@ -20,6 +21,7 @@ import {
 	openClipProperties,
 	openEffectsForTrack,
 	registerAudioEditorHooks,
+	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
@@ -81,6 +83,15 @@ test.describe('Soundscaper exact timing and freeze workflows', () => {
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(trackId).toBeTruthy();
 		expect(projectId).toBeTruthy();
+		await chooseFileAction(page, editor, 'Save project');
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+		// Native dynamics remain readable in saved projects after the rack replaces
+		// their menu entries with the Audacity processors.
+		await restoreLegacyLimiterProject(page, projectId, trackId);
+		await page.reload();
+		await waitForEditor(page);
+		await track.locator('[data-track-header]').click();
+		await expect(track.locator('[data-track-lane]')).toHaveAttribute('data-selected', 'true');
 		const history = await openHistoryPanel(page, editor);
 		const historyBeforeResample = await history.locator('[data-history-list] > li').count();
 		// Import decodes through the device AudioContext, so the material arrives at
@@ -111,11 +122,6 @@ test.describe('Soundscaper exact timing and freeze workflows', () => {
 		await closeWorkspacePanel(editor, 'history');
 
 		const effectsPanel = await openEffectsForTrack(editor, 1);
-		await addRackEffect(page, effectsPanel, 'track', 'Limiter');
-		const limiter = page.getByRole('dialog', { name: 'Limiter', exact: true });
-		await commitInput(limiter.locator('[data-effect-param="ceiling"] input'), '0');
-		await commitInput(limiter.locator('[data-effect-param="lookahead"] input'), '0.005');
-		await closeDialog(limiter);
 		await addRackEffect(page, effectsPanel, 'track', 'Feedback delay');
 		const delay = page.getByRole('dialog', { name: 'Feedback delay', exact: true });
 		await commitInput(delay.locator('[data-effect-param="time"] input'), '0.001');
@@ -404,6 +410,32 @@ async function assertFreezeStatus(page, editor, label) {
 	const tracks = await openMenu(page, editor, 'Tracks');
 	await expect(getMenuItem(tracks, label)).toBeVisible();
 	await page.keyboard.press('Escape');
+}
+
+async function restoreLegacyLimiterProject(page, projectId, trackId) {
+	const project = await readStoredSoundscaperProject(page, projectId);
+	project.tracks.find(({ id }) => id === trackId).effects.push({
+		id: 'legacy-limiter-freeze', type: 'limiter', enabled: true,
+		params: { ceiling: 0, lookahead: 0.005, release: 0.1 },
+	});
+	project.featureRequirements = reconcileProjectOwnedFeatureRequirements(project, project.featureRequirements);
+	await page.evaluate(({ databaseName, storedProject }) => new Promise((resolve, reject) => {
+		const open = indexedDB.open(databaseName);
+		open.onerror = () => reject(open.error || new Error(`Could not open ${databaseName}.`));
+		open.onsuccess = () => {
+			const database = open.result;
+			const transaction = database.transaction('projects', 'readwrite');
+			transaction.oncomplete = () => {
+				database.close();
+				resolve();
+			};
+			transaction.onabort = transaction.onerror = () => {
+				database.close();
+				reject(transaction.error || new Error('Could not restore the legacy limiter project.'));
+			};
+			transaction.objectStore('projects').put(storedProject);
+		};
+	}), { databaseName: SOUNDSCAPER_DATABASE_NAME, storedProject: project });
 }
 
 async function readStoredSoundscaperProject(page, projectId) {

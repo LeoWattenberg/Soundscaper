@@ -4,7 +4,7 @@ import { expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	addRackEffect, bootEditor, chooseCommandAction, chooseNestedCommandAction,
 	closeDialog, collectClientErrors, commitInput, importFiles, openEffectsForTrack,
-	registerAudioEditorHooks,
+	openRackPicker, registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 
 const historyName = 'Input, output and compression history';
@@ -70,14 +70,36 @@ test.describe('ported Audacity effect layouts', () => {
 	registerAudioEditorHooks();
 	test.use({ viewport: { width: 1600, height: 1000 } });
 
+	test('offers one Compressor and Limiter and opens their Audacity realtime controls', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const panel = await openEffectsForTrack(editor, 1);
+		for (const name of ['Compressor', 'Limiter']) {
+			await openRackPicker(panel, 'track');
+			const picker = page.getByRole('menu', { name: 'Choose an effect', exact: true });
+			await expect(picker.getByRole('menuitem', { name: /^Compressor(?: \(Audacity\))?$/u })).toHaveCount(1);
+			await expect(picker.getByRole('menuitem', { name: /^Limiter(?: \(Audacity\))?$/u })).toHaveCount(1);
+			await picker.getByRole('menuitem', { name, exact: true }).click();
+			const dialog = page.getByRole('dialog', { name, exact: true });
+			await expect(dialog.getByRole('img', { name: historyName, exact: true })).toBeVisible();
+			await expect(parameter(dialog, 'Threshold')).toBeVisible();
+			await expect(parameter(dialog, 'Knee width')).toBeVisible();
+			await expect(parameter(dialog, 'Lookahead')).toBeVisible();
+			await expect(parameter(dialog, name === 'Compressor' ? 'Make-up gain' : 'Make-up target')).toBeVisible();
+			await closeDialog(dialog);
+		}
+		expect(errors).toEqual([]);
+	});
+
 	test('compressor places history above its two knob grids and compression curve', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await useAudacityDarkTheme(page, editor);
 		await importFiles(editor, [toneA]);
 		const panel = await openEffectsForTrack(editor, 1);
-		await addRackEffect(page, panel, 'track', 'Compressor (Audacity)');
-		const dialog = page.getByRole('dialog', { name: 'Compressor (Audacity)', exact: true });
+		await addRackEffect(page, panel, 'track', 'Compressor');
+		const dialog = page.getByRole('dialog', { name: 'Compressor', exact: true });
 		const history = await expectHistoryControls(dialog);
 		const historyBox = await box(history);
 		const curve = dialog.getByRole('img', { name: curveName, exact: true });
@@ -134,8 +156,8 @@ test.describe('ported Audacity effect layouts', () => {
 		await useAudacityDarkTheme(page, editor);
 		await importFiles(editor, [toneA]);
 		const panel = await openEffectsForTrack(editor, 1);
-		await addRackEffect(page, panel, 'track', 'Limiter (Audacity)');
-		const dialog = page.getByRole('dialog', { name: 'Limiter (Audacity)', exact: true });
+		await addRackEffect(page, panel, 'track', 'Limiter');
+		const dialog = page.getByRole('dialog', { name: 'Limiter', exact: true });
 		const historyBox = await box(await expectHistoryControls(dialog));
 		const labels = ['Threshold', 'Make-up target', 'Lookahead', 'Knee width', 'Release'];
 		const bounds = await Promise.all(labels.map(label => box(parameter(dialog, label))));
@@ -154,7 +176,7 @@ test.describe('ported Audacity effect layouts', () => {
 		expect(errors).toEqual([]);
 	});
 
-	for (const name of ['Compressor (Audacity)', 'Limiter (Audacity)']) {
+	for (const name of ['Compressor', 'Limiter']) {
 		test(`${name} selection dialog only shows the controls Audacity uses destructively`, async ({ page }) => {
 			const errors = collectClientErrors(page);
 			const editor = await bootEditor(page, '/embed/en/');

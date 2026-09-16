@@ -42,7 +42,7 @@ import {
 
 		await openRackPicker(effectsPanel, 'track');
 		const picker = page.getByRole('menu', { name: 'Choose an effect' });
-		await expect(picker.getByRole('menuitem')).toHaveCount(33);
+		await expect(picker.getByRole('menuitem')).toHaveCount(31);
 		await expect(picker.getByRole('menuitem', { name: 'Invert' })).toHaveCount(1);
 		await expect(picker.getByRole('menuitem', { name: 'Bitcrusher' })).toHaveCount(1);
 		await expect(picker.getByRole('menuitem', { name: 'Paulstretch' })).toHaveCount(0);
@@ -398,8 +398,8 @@ import {
 		await importFiles(editor, [longTone]);
 		// The import lands on its own track; track 0 is the empty default.
 		const effectsPanel = await openEffectsForTrack(editor, 1);
-		await addRackEffect(page, effectsPanel, 'track', 'Compressor (Audacity)');
-		const dialog = page.getByRole('dialog', { name: 'Compressor (Audacity)', exact: true });
+		await addRackEffect(page, effectsPanel, 'track', 'Compressor');
+		const dialog = page.getByRole('dialog', { name: 'Compressor', exact: true });
 		await expect(dialog).toBeVisible();
 
 		// The response curve alone cannot say whether the effect is doing anything,

@@ -166,7 +166,8 @@ export const AUDIO_SELECTION_EFFECT_DEFINITIONS = Object.freeze({
 });
 
 export function audioEffectTypes() {
-	return Object.keys(AUDIO_RACK_EFFECT_DEFINITIONS);
+	// Keep native dynamics definitions for saved projects; offer the Audacity processors.
+	return Object.keys(AUDIO_RACK_EFFECT_DEFINITIONS).filter((type) => type !== 'compressor' && type !== 'limiter');
 }
 
 export function audioSelectionEffectTypes() {

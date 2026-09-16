@@ -25,8 +25,7 @@ Audio effects are registered by Soundscaper. Effects whose ID begins with `audac
 | Change Tempo | `audacity-change-tempo` | Pitch and tempo | No | Yes | Changes the selection length; Uses the StaffPad time and pitch library |
 | Classic Filters | `audacity-classic-filters` | EQ and filters | Yes | Yes | — |
 | Click Removal | `audacity-click-removal` | Noise and repair | Yes | Yes | — |
-| Compressor | `compressor` | Volume and dynamics | Yes | No | — |
-| Compressor (Audacity) | `audacity-compressor` | Volume and dynamics | Yes | Yes | — |
+| Compressor | `audacity-compressor` | Volume and dynamics | Yes | Yes | — |
 | De-esser | `deesser` | Noise and repair | Yes | Yes | — |
 | Delay | `multi-tap-delay` | Delay and reverb | Yes | Yes | Finite echoes with StaffPad pitch shift; selections also offer changed-speed echoes and optional complete tails |
 | Distortion | `audacity-distortion` | Special | Yes | Yes | — |
@@ -41,8 +40,7 @@ Audio effects are registered by Soundscaper. Effects whose ID begins with `audac
 | High-pass filter | `highpass-filter` | EQ and filters | Yes | Yes | — |
 | Invert | `audacity-invert` | Special | Yes | Yes | — |
 | Legacy Compressor | `audacity-legacy-compressor` | Volume and dynamics | No | Yes | — |
-| Limiter | `limiter` | Volume and dynamics | Yes | No | — |
-| Limiter (Audacity) | `audacity-limiter` | Volume and dynamics | Yes | Yes | — |
+| Limiter | `audacity-limiter` | Volume and dynamics | Yes | Yes | — |
 | Loudness Normalization | `audacity-loudness-normalization` | Volume and dynamics | No | Yes | — |
 | Low-pass filter | `lowpass-filter` | EQ and filters | Yes | Yes | — |
 | Multiband compressor | `multiband-compressor` | Volume and dynamics | Yes | Yes | — |
@@ -139,19 +137,13 @@ Defaults and limits come from the same definitions the editor validates against,
 | Classic Filters | `audacity-classic-filters` | Stopband attenuation | 30 | 0 to 100 | dB |
 | Click Removal | `audacity-click-removal` | Threshold | 200 | 0 to 900 | — |
 | Click Removal | `audacity-click-removal` | Maximum spike width | 20 | 0 to 40 | samples |
-| Compressor | `compressor` | Threshold | -24 | -100 to 0 | dB |
-| Compressor | `compressor` | Knee | 30 | 0 to 40 | dB |
-| Compressor | `compressor` | Ratio | 4 | 1 to 20 | :1 |
-| Compressor | `compressor` | Attack | 0.003 | 0 to 1 | s |
-| Compressor | `compressor` | Release | 0.25 | 0.01 to 2 | s |
-| Compressor | `compressor` | Makeup gain | 0 | -24 to 24 | dB |
-| Compressor (Audacity) | `audacity-compressor` | Threshold | -12 | -60 to 0 | dB |
-| Compressor (Audacity) | `audacity-compressor` | Make-up gain | 9 | -30 to 30 | dB |
-| Compressor (Audacity) | `audacity-compressor` | Knee width | 6 | 0 to 30 | dB |
-| Compressor (Audacity) | `audacity-compressor` | Ratio | 4 | 1 to 100 | — |
-| Compressor (Audacity) | `audacity-compressor` | Lookahead | 3 | 0 to 1000 | ms |
-| Compressor (Audacity) | `audacity-compressor` | Attack | 3 | 0 to 200 | ms |
-| Compressor (Audacity) | `audacity-compressor` | Release | 100 | 0 to 1000 | ms |
+| Compressor | `audacity-compressor` | Threshold | -12 | -60 to 0 | dB |
+| Compressor | `audacity-compressor` | Make-up gain | 9 | -30 to 30 | dB |
+| Compressor | `audacity-compressor` | Knee width | 6 | 0 to 30 | dB |
+| Compressor | `audacity-compressor` | Ratio | 4 | 1 to 100 | — |
+| Compressor | `audacity-compressor` | Lookahead | 3 | 0 to 1000 | ms |
+| Compressor | `audacity-compressor` | Attack | 3 | 0 to 200 | ms |
+| Compressor | `audacity-compressor` | Release | 100 | 0 to 1000 | ms |
 | De-esser | `deesser` | Frequency | 6000 | 1000 to 16000 | Hz |
 | De-esser | `deesser` | Threshold | -30 | -60 to 0 | dB |
 | De-esser | `deesser` | Maximum reduction | 9 | 0 to 24 | dB |
@@ -200,14 +192,11 @@ Defaults and limits come from the same definitions the editor validates against,
 | Legacy Compressor | `audacity-legacy-compressor` | Release time | 1 | 1 to 30 | s |
 | Legacy Compressor | `audacity-legacy-compressor` | Make-up gain to 0 dB | On | On or off | — |
 | Legacy Compressor | `audacity-legacy-compressor` | Compress based on peaks | Off | On or off | — |
-| Limiter | `limiter` | Ceiling | -1 | -24 to 0 | dB |
-| Limiter | `limiter` | Lookahead | 0.005 | 0 to 0.1 | s |
-| Limiter | `limiter` | Release | 0.1 | 0.01 to 2 | s |
-| Limiter (Audacity) | `audacity-limiter` | Threshold | -6 | -30 to 0 | dB |
-| Limiter (Audacity) | `audacity-limiter` | Make-up target | -1 | -30 to 0 | dB |
-| Limiter (Audacity) | `audacity-limiter` | Knee width | 2 | 0 to 10 | dB |
-| Limiter (Audacity) | `audacity-limiter` | Lookahead | 1 | 0 to 50 | ms |
-| Limiter (Audacity) | `audacity-limiter` | Release | 20 | 0 to 1000 | ms |
+| Limiter | `audacity-limiter` | Threshold | -6 | -30 to 0 | dB |
+| Limiter | `audacity-limiter` | Make-up target | -1 | -30 to 0 | dB |
+| Limiter | `audacity-limiter` | Knee width | 2 | 0 to 10 | dB |
+| Limiter | `audacity-limiter` | Lookahead | 1 | 0 to 50 | ms |
+| Limiter | `audacity-limiter` | Release | 20 | 0 to 1000 | ms |
 | Loudness Normalization | `audacity-loudness-normalization` | Normalize | Perceived loudness | Perceived loudness; RMS | — |
 | Loudness Normalization | `audacity-loudness-normalization` | Target loudness | -23 | -145 to 0 | LUFS |
 | Loudness Normalization | `audacity-loudness-normalization` | Target RMS | -20 | -145 to 0 | dB |
@@ -313,9 +302,9 @@ These effects arrive with the presets Audacity ships, transcribed from Audacity 
 
 | Effect | Effect ID | Presets |
 | --- | --- | --- |
-| Compressor (Audacity) | `audacity-compressor` | Modern; Glue Compressor; Gentle; Beat Booster; Deep Dive Master; Beefy Master; Make It Right Master; Brick Wall Master; Lead Vocals; Fat Vocals; Power Vocals; Vocal Control; Vocal Touch-Up; Voice Memos Balancer; Podcast/Radio; Piano; Acoustic Guitar; Bass Guitar; Strings; Kick Drums; Drums Control; Climax Impulser SFX; Engine Breathing SFX; Great Impact SFX; Great Body SFX; Great Tail SFX; Smack Explosion SFX |
+| Compressor | `audacity-compressor` | Modern; Glue Compressor; Gentle; Beat Booster; Deep Dive Master; Beefy Master; Make It Right Master; Brick Wall Master; Lead Vocals; Fat Vocals; Power Vocals; Vocal Control; Vocal Touch-Up; Voice Memos Balancer; Podcast/Radio; Piano; Acoustic Guitar; Bass Guitar; Strings; Kick Drums; Drums Control; Climax Impulser SFX; Engine Breathing SFX; Great Impact SFX; Great Body SFX; Great Tail SFX; Smack Explosion SFX |
 | Distortion | `audacity-distortion` | Hard clip -12dB, 80% make-up gain; Soft clip -12dB, 80% make-up gain; Fuzz Box; Walkie-talkie; Blues drive sustain; Light Crunch Overdrive; Heavy Overdrive; 3rd Harmonic (Perfect Fifth); Valve Overdrive; 2nd Harmonic (Octave); Gated Expansion Distortion; Leveller, Light, -70dB noise floor; Leveller, Moderate, -70dB noise floor; Leveller, Heavy, -70dB noise floor; Leveller, Heavier, -70dB noise floor; Leveller, Heaviest, -70dB noise floor; Half-wave Rectifier; Full-wave Rectifier; Full-wave Rectifier (DC blocked); Percussion Limiter |
 | Filter Curve EQ | `audacity-filter-curve-eq` | 100Hz Rumble; AM Radio; Bass Boost; Bass Cut; Low rolloff for speech; RIAA; Telephone; Treble Boost; Treble Cut; Walkie-talkie |
 | Graphic EQ | `audacity-graphic-eq` | Bass Boost; Bass Cut; RIAA; Treble Boost; Treble Cut |
-| Limiter (Audacity) | `audacity-limiter` | Master Limiter; SFX Limiter; VO Limiter; Modern; Modern Punch; Modern Punch 2; Play it Loud |
+| Limiter | `audacity-limiter` | Master Limiter; SFX Limiter; VO Limiter; Modern; Modern Punch; Modern Punch 2; Play it Loud |
 | Reverb (Audacity) | `audacity-reverb` | Acoustic; Ambience; Artificial; Clean; Modern; Vocal I; Vocal II; Dance Vocal; Modern Vocal; Voice Tail; Bathroom; Small Room Bright; Small Room Dark; Medium Room; Large Room; Church Hall; Cathedral; Big Cave |
