@@ -1,7 +1,17 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
-export default function ProjectTabs({ projects, activeProjectId, copy, disabled, onSelect, onNew }) {
+export default function ProjectTabs({ projects, activeProjectId, copy, disabled, onSelect, onClose, onNew }) {
 	const tabListRef = useRef(null);
+	const closingProjectRef = useRef(null);
+	useEffect(() => {
+		const closing = closingProjectRef.current;
+		if (!closing || closing.isConnected) return;
+		closingProjectRef.current = null;
+		const ownerDocument = closing.ownerDocument;
+		if (ownerDocument.activeElement === ownerDocument.body) {
+			tabListRef.current?.querySelector('[aria-selected="true"]')?.focus({ preventScroll: true });
+		}
+	}, [projects]);
 	const unique = [];
 	const seen = new Set();
 	for (const project of projects || []) {
@@ -30,16 +40,29 @@ export default function ProjectTabs({ projects, activeProjectId, copy, disabled,
 	return (
 		<nav className="kw-audio-editor__project-tabs" aria-label={copy.projectTabs}>
 			<div ref={tabListRef} role="tablist" aria-label={copy.projectTabs}>
-				{unique.map((project, index) => <button
-					key={project.id}
-					type="button"
-					role="tab"
-					aria-selected={project.id === activeProjectId}
-					tabIndex={project.id === focusableProjectId ? 0 : -1}
-					disabled={disabled}
-					onClick={() => onSelect(project.id)}
-					onKeyDown={(event) => handleTabKeyDown(event, index)}
-				>{project.title}</button>)}
+				{unique.map((project, index) => <div key={project.id} role="presentation" className="kw-audio-editor__project-tab">
+					<button
+						type="button"
+						role="tab"
+						aria-selected={project.id === activeProjectId}
+						tabIndex={project.id === focusableProjectId ? 0 : -1}
+						disabled={disabled}
+						onClick={() => onSelect(project.id)}
+						onKeyDown={(event) => handleTabKeyDown(event, index)}
+					>{project.title}</button>
+					<button
+						type="button"
+						className="kw-audio-editor__project-tab-close"
+						aria-label={`${copy.closeProject}: ${project.title}`}
+						title={copy.closeProject}
+						tabIndex={project.id === focusableProjectId ? 0 : -1}
+						disabled={disabled}
+						onClick={(event) => {
+							closingProjectRef.current = event.currentTarget;
+							onClose(project.id);
+						}}
+					>×</button>
+				</div>)}
 			</div>
 			<button type="button" className="kw-audio-editor__project-tab-new" disabled={disabled} onClick={onNew} aria-label={copy.newProject}>+</button>
 		</nav>

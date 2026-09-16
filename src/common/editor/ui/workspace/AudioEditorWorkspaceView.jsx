@@ -193,11 +193,11 @@ export default function AudioEditorWorkspaceView({ model }) {
 					copy={copy}
 					disabled={blocked}
 					onSelect={(projectId) => run(() => controller.actions.project.openById(projectId))}
+					onClose={(projectId) => run(() => controller.actions.project.close(projectId))}
 					onNew={() => run(() => controller.actions.project.create())}
 				/>}
 			/>
 			</EditorSurfaceBoundary>
-
 			<input
 				ref={aup4InputRef}
 				className="kw-audio-editor__file-input"
