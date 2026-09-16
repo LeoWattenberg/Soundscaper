@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ko",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:824f126d8a68917a9bf403c750999be3222ee46c386a95a0668fc475c8a6e567","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:770bfeb6fb744f75c2e0af5b7d606a4a0e62f871cb986f47aab174078d322ebd","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -239,7 +239,6 @@
 		"audacityProcessing": ["machine","Processing the Audacity effect locally","Audacity 이펙트를 로컬에서 처리"],
 		"audacityProfileProcessing": ["machine","Analyzing a noise profile locally","노이즈 프로필을 로컬에서 분석"],
 		"audacityProjectTooLong": ["machine","The Audacity project is too long to resample safely in this browser.","이 Audacity 프로젝트는 이 브라우저에서 안전하게 재샘플링하기에 너무 길습니다."],
-		"audacityProjects": ["machine","Audacity projects","Audacity 프로젝트"],
 		"audacitySelectionHint": ["machine","Select a track and a time range or clip.","트랙과 시간 범위 또는 클립을 선택하세요."],
 		"audioAnalysisFailed": ["machine","Audio analysis failed.","오디오 분석에 실패했습니다."],
 		"audioAnalysisWorkerFailed": ["machine","Audio analysis worker failed.","오디오 분석 작업자가 실패했습니다."],
@@ -1807,8 +1806,6 @@
 		"ofxConsent": ["machine","Allow OpenFX plugin scanning and execution","OpenFX 플러그인 스캔 및 실행 허용"],
 		"ofxManage": ["machine","Plugin Manager","플러그인 관리자"],
 		"open": ["machine","Open","열기"],
-		"openAup4": ["machine","Open Audacity project (.aup3, .aup4)","Audacity 프로젝트 열기 (.aup3, .aup4)"],
-		"openLegacyAup": ["machine","Open legacy Audacity project (.aup + _data)","레거시 Audacity 프로젝트 열기 (.aup + _data)"],
 		"openProject": ["machine","Open projects","프로젝트 열기"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Scape 프로젝트 파일 열기 ({projectExtension})"],
 		"options": ["machine","Options","옵션"],
@@ -1943,6 +1940,7 @@
 		"projectCompatibilityReport": ["machine","Project compatibility report","프로젝트 호환성 보고서"],
 		"projectCopySuffix": ["machine","copy","복사본"],
 		"projectDirty": ["machine","Unsaved changes","저장하지 않은 변경 사항"],
+		"projectManagement": ["machine","Project management","프로젝트 관리"],
 		"projectName": ["machine","Project name","프로젝트 이름"],
 		"projectNotFound": ["machine","The project was not found.","프로젝트를 찾을 수 없습니다."],
 		"projectOpenOtherTab": ["machine","This project is already open in another tab.","이 프로젝트는 이미 다른 탭에서 열려 있습니다."],

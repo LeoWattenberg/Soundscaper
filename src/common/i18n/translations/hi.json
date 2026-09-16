@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "hi",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:77d2af5cdc793bfbf30577b7d74bc11c97e0eabb1ac9bf0aa9e8adaf3dcba527","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:7568e7c52bab7dbb70344ff99c7661340349301f14b672280b8455bb68640462","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -239,7 +239,6 @@
 		"audacityProcessing": ["machine","Processing the Audacity effect locally","Audacity प्रभाव स्थानीय रूप से प्रोसेस हो रहा है"],
 		"audacityProfileProcessing": ["machine","Analyzing a noise profile locally","शोर प्रोफ़ाइल का स्थानीय रूप से विश्लेषण हो रहा है"],
 		"audacityProjectTooLong": ["machine","The Audacity project is too long to resample safely in this browser.","Audacity परियोजना इतनी लंबी है कि इसे इस ब्राउज़र में सुरक्षित रूप से रीसैम्पल नहीं किया जा सकता।"],
-		"audacityProjects": ["machine","Audacity projects","Audacity परियोजनाएं"],
 		"audacitySelectionHint": ["machine","Select a track and a time range or clip.","एक ट्रैक और समय सीमा या क्लिप चुनें।"],
 		"audioAnalysisFailed": ["machine","Audio analysis failed.","ऑडियो विश्लेषण विफल हुआ।"],
 		"audioAnalysisWorkerFailed": ["machine","Audio analysis worker failed.","ऑडियो विश्लेषण वर्कर विफल हुआ।"],
@@ -1807,8 +1806,6 @@
 		"ofxConsent": ["machine","Allow OpenFX plugin scanning and execution","ओपनएफएक्स प्लगइन्स की खोज और कार्यान्वयन की अनुमति दें"],
 		"ofxManage": ["machine","Plugin Manager","प्लगइन प्रबंधक"],
 		"open": ["machine","Open","खोलें"],
-		"openAup4": ["machine","Open Audacity project (.aup3, .aup4)","Audacity परियोजना खोलें (.aup3, .aup4)"],
-		"openLegacyAup": ["machine","Open legacy Audacity project (.aup + _data)","पुरानी Audacity परियोजना खोलें (.aup + _data)"],
 		"openProject": ["machine","Open projects","परियोजनाएं खोलें"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Scape परियोजना फ़ाइल खोलें ({projectExtension})"],
 		"options": ["machine","Options","विकल्प"],
@@ -1943,6 +1940,7 @@
 		"projectCompatibilityReport": ["machine","Project compatibility report","परियोजना संगतता रिपोर्ट"],
 		"projectCopySuffix": ["machine","copy","प्रतिलिपि"],
 		"projectDirty": ["machine","Unsaved changes","असहेजे गए परिवर्तन"],
+		"projectManagement": ["machine","Project management","परियोजना प्रबंधन"],
 		"projectName": ["machine","Project name","परियोजना का नाम"],
 		"projectNotFound": ["machine","The project was not found.","परियोजना नहीं मिली।"],
 		"projectOpenOtherTab": ["machine","This project is already open in another tab.","यह परियोजना पहले से ही किसी अन्य टैब में खुली है।"],

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "el",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:f5a078c951125d2e9730199b92dddab2a22a3051603bfa7e7c7b1048e330dd73","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:81039c2779327517c46d5e142e2dfba55ed9c7920c0905a415ea9e8d24adf85c","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -239,7 +239,6 @@
 		"audacityProcessing": ["machine","Processing the Audacity effect locally","Τοπική επεξεργασία του εφέ Audacity"],
 		"audacityProfileProcessing": ["machine","Analyzing a noise profile locally","Τοπική ανάλυση προφίλ θορύβου"],
 		"audacityProjectTooLong": ["machine","The Audacity project is too long to resample safely in this browser.","Το έργο Audacity είναι πολύ μεγάλο για ασφαλή επαναδειγματοληψία σε αυτό το πρόγραμμα περιήγησης."],
-		"audacityProjects": ["machine","Audacity projects","Έργα Audacity"],
 		"audacitySelectionHint": ["machine","Select a track and a time range or clip.","Επίλεξε ένα κομμάτι και ένα χρονικό εύρος ή κλιπ."],
 		"audioAnalysisFailed": ["machine","Audio analysis failed.","Η ανάλυση ήχου απέτυχε."],
 		"audioAnalysisWorkerFailed": ["machine","Audio analysis worker failed.","Ο worker ανάλυσης ήχου απέτυχε."],
@@ -1807,8 +1806,6 @@
 		"ofxConsent": ["machine","Allow OpenFX plugin scanning and execution","Επιτρέψτε την σάρωση και εκτέλεση πρόσθετων OpenFX"],
 		"ofxManage": ["machine","Plugin Manager","Διαχείριση Plugin"],
 		"open": ["machine","Open","Άνοιγμα"],
-		"openAup4": ["machine","Open Audacity project (.aup3, .aup4)","Άνοιγμα έργου Audacity (.aup3, .aup4)"],
-		"openLegacyAup": ["machine","Open legacy Audacity project (.aup + _data)","Άνοιγμα παλαιού έργου Audacity (.aup + _data)"],
 		"openProject": ["machine","Open projects","Άνοιγμα έργων"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Άνοιγμα αρχείου έργου Scape ({projectExtension})"],
 		"options": ["machine","Options","Επιλογές"],
@@ -1943,6 +1940,7 @@
 		"projectCompatibilityReport": ["machine","Project compatibility report","Αναφορά συμβατότητας έργου"],
 		"projectCopySuffix": ["machine","copy","αντίγραφο"],
 		"projectDirty": ["machine","Unsaved changes","Μη αποθηκευμένες αλλαγές"],
+		"projectManagement": ["machine","Project management","Διαχείριση έργων"],
 		"projectName": ["machine","Project name","Όνομα έργου"],
 		"projectNotFound": ["machine","The project was not found.","Το έργο δεν βρέθηκε."],
 		"projectOpenOtherTab": ["machine","This project is already open in another tab.","Αυτό το έργο είναι ήδη ανοιχτό σε άλλη καρτέλα."],

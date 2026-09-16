@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "zh-CN",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:4a0408c36f91f128b639d60c958cdea9626ae36e251c6074b8dde827520ee374","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:34cb0a0258b9959549298277db6d5d22fceba800087c73d2923dff29ac0764e8","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -239,7 +239,6 @@
 		"audacityProcessing": ["machine","Processing the Audacity effect locally","正在本地处理 Audacity 效果器"],
 		"audacityProfileProcessing": ["machine","Analyzing a noise profile locally","正在本地分析噪声特征"],
 		"audacityProjectTooLong": ["machine","The Audacity project is too long to resample safely in this browser.","Audacity 项目过长，无法在此浏览器中安全地重新采样。"],
-		"audacityProjects": ["machine","Audacity projects","Audacity 项目"],
 		"audacitySelectionHint": ["machine","Select a track and a time range or clip.","请选择一条音轨以及一个时间范围或片段。"],
 		"audioAnalysisFailed": ["machine","Audio analysis failed.","音频分析失败。"],
 		"audioAnalysisWorkerFailed": ["machine","Audio analysis worker failed.","音频分析工作进程失败。"],
@@ -1807,8 +1806,6 @@
 		"ofxConsent": ["machine","Allow OpenFX plugin scanning and execution","允许 OpenFX 插件扫描和执行"],
 		"ofxManage": ["machine","Plugin Manager","插件管理"],
 		"open": ["machine","Open","打开"],
-		"openAup4": ["machine","Open Audacity project (.aup3, .aup4)","打开 Audacity 项目（.aup3、.aup4）"],
-		"openLegacyAup": ["machine","Open legacy Audacity project (.aup + _data)","打开旧版 Audacity 项目（.aup + _data）"],
 		"openProject": ["machine","Open projects","打开项目"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","打开 Scape 项目文件（{projectExtension}）"],
 		"options": ["machine","Options","选项"],
@@ -1943,6 +1940,7 @@
 		"projectCompatibilityReport": ["machine","Project compatibility report","项目兼容性报告"],
 		"projectCopySuffix": ["machine","copy","副本"],
 		"projectDirty": ["machine","Unsaved changes","有未保存的更改"],
+		"projectManagement": ["machine","Project management","项目管理"],
 		"projectName": ["machine","Project name","项目名称"],
 		"projectNotFound": ["machine","The project was not found.","未找到该项目。"],
 		"projectOpenOtherTab": ["machine","This project is already open in another tab.","该项目已在另一个标签页中打开。"],

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "fi",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:55fbb5aa6753ac005ec21e6c87623c5899e7901d401ec95b54f56aaa616c5627","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:70c1d578c250e40adef73b9aba3901a502a3464356ddf3d6a1c03e41710e6098","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -239,7 +239,6 @@
 		"audacityProcessing": ["machine","Processing the Audacity effect locally","Käsitellään Audacity-tehostetta paikallisesti"],
 		"audacityProfileProcessing": ["machine","Analyzing a noise profile locally","Analysoidaan kohinaprofiilia paikallisesti"],
 		"audacityProjectTooLong": ["machine","The Audacity project is too long to resample safely in this browser.","Audacity-projekti on liian pitkä, jotta sen näytteenottotaajuutta voisi muuttaa turvallisesti tässä selaimessa."],
-		"audacityProjects": ["machine","Audacity projects","Audacity-projektit"],
 		"audacitySelectionHint": ["machine","Select a track and a time range or clip.","Valitse raita ja aikaväli tai leike."],
 		"audioAnalysisFailed": ["machine","Audio analysis failed.","Äänianalyysi epäonnistui."],
 		"audioAnalysisWorkerFailed": ["machine","Audio analysis worker failed.","Äänianalyysin taustaprosessi epäonnistui."],
@@ -1807,8 +1806,6 @@
 		"ofxConsent": ["machine","Allow OpenFX plugin scanning and execution","Salli OpenFX-lisäosien haku ja suoritus"],
 		"ofxManage": ["machine","Plugin Manager","Lisäosien hallinta"],
 		"open": ["machine","Open","Avaa"],
-		"openAup4": ["machine","Open Audacity project (.aup3, .aup4)","Avaa Audacity-projekti (.aup3, .aup4)"],
-		"openLegacyAup": ["machine","Open legacy Audacity project (.aup + _data)","Avaa vanha Audacity-projekti (.aup + _data)"],
 		"openProject": ["machine","Open projects","Avaa projektit"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Avaa Scape-projektitiedosto ({projectExtension})"],
 		"options": ["machine","Options","Asetukset"],
@@ -1943,6 +1940,7 @@
 		"projectCompatibilityReport": ["machine","Project compatibility report","Projektin yhteensopivuusraportti"],
 		"projectCopySuffix": ["machine","copy","kopio"],
 		"projectDirty": ["machine","Unsaved changes","Tallentamattomia muutoksia"],
+		"projectManagement": ["machine","Project management","Projektinhallinta"],
 		"projectName": ["machine","Project name","Projektin nimi"],
 		"projectNotFound": ["machine","The project was not found.","Projektia ei löytynyt."],
 		"projectOpenOtherTab": ["machine","This project is already open in another tab.","Tämä projekti on jo avoinna toisessa välilehdessä."],

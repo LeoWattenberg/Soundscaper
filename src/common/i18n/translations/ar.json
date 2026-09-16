@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ar",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:e383e5f79d721d539709d75c49f87fa693e2ac79492bf6443e5f1475b6d6345c","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:65df6f96e233ec00a10339ebda1a736090fffc661b8dff4c3867ca6ee332f639","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -239,7 +239,6 @@
 		"audacityProcessing": ["machine","Processing the Audacity effect locally","جاري معالجة تأثير Audacity محليًا"],
 		"audacityProfileProcessing": ["machine","Analyzing a noise profile locally","جاري تحليل ملف الضجيج محليًا"],
 		"audacityProjectTooLong": ["machine","The Audacity project is too long to resample safely in this browser.","مشروع Audacity طويل جدًا لإعادة أخذ العينات بأمان في هذا المتصفح."],
-		"audacityProjects": ["machine","Audacity projects","مشاريع Audacity"],
 		"audacitySelectionHint": ["machine","Select a track and a time range or clip.","حدد مسارًا ونطاقًا زمنيًا أو مقطعًا."],
 		"audioAnalysisFailed": ["machine","Audio analysis failed.","فشلت تحليلات الصوت."],
 		"audioAnalysisWorkerFailed": ["machine","Audio analysis worker failed.","فشل عامل تحليلات الصوت."],
@@ -1807,8 +1806,6 @@
 		"ofxConsent": ["machine","Allow OpenFX plugin scanning and execution","السماح بمسح وتنفيذ إضافات OpenFX"],
 		"ofxManage": ["machine","Plugin Manager","مدير المكونات الإضافية"],
 		"open": ["machine","Open","فتح"],
-		"openAup4": ["machine","Open Audacity project (.aup3, .aup4)","فتح مشروع Audacity (.aup3, .aup4)"],
-		"openLegacyAup": ["machine","Open legacy Audacity project (.aup + _data)","فتح مشروع Audacity القديم (.aup + _data)"],
 		"openProject": ["machine","Open projects","فتح المشاريع"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","فتح ملف مشروع Scape ({projectExtension})"],
 		"options": ["machine","Options","الخيارات"],
@@ -1943,6 +1940,7 @@
 		"projectCompatibilityReport": ["machine","Project compatibility report","تقرير توافق المشروع"],
 		"projectCopySuffix": ["machine","copy","نسخة"],
 		"projectDirty": ["machine","Unsaved changes","تغييرات غير محفوظة"],
+		"projectManagement": ["machine","Project management","إدارة المشاريع"],
 		"projectName": ["machine","Project name","اسم المشروع"],
 		"projectNotFound": ["machine","The project was not found.","لم يتم العثور على المشروع."],
 		"projectOpenOtherTab": ["machine","This project is already open in another tab.","تم فتح هذا المشروع بالفعل في علامة تبويب أخرى."],

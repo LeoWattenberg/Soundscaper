@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "id",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:aa69185a3f813a6118ad0e163049f986d472626e4da4e41c2f6cacd1c90a6733","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:1f299e2eefbc733d933577e3be64dd0a22b02ca3e7ca8b69b8aec6389e1806d1","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -239,7 +239,6 @@
 		"audacityProcessing": ["machine","Processing the Audacity effect locally","Memproses efek Audacity secara lokal"],
 		"audacityProfileProcessing": ["machine","Analyzing a noise profile locally","Menganalisis profil derau secara lokal"],
 		"audacityProjectTooLong": ["machine","The Audacity project is too long to resample safely in this browser.","Proyek Audacity terlalu panjang untuk di-resample dengan aman di peramban ini."],
-		"audacityProjects": ["machine","Audacity projects","Proyek Audacity"],
 		"audacitySelectionHint": ["machine","Select a track and a time range or clip.","Pilih trek serta rentang waktu atau klip."],
 		"audioAnalysisFailed": ["machine","Audio analysis failed.","Analisis audio gagal."],
 		"audioAnalysisWorkerFailed": ["machine","Audio analysis worker failed.","Worker analisis audio gagal."],
@@ -1807,8 +1806,6 @@
 		"ofxConsent": ["machine","Allow OpenFX plugin scanning and execution","Izinkan pemindaian dan eksekusi plugin OpenFX"],
 		"ofxManage": ["machine","Plugin Manager","Manajer Plugin"],
 		"open": ["machine","Open","Buka"],
-		"openAup4": ["machine","Open Audacity project (.aup3, .aup4)","Buka proyek Audacity (.aup3, .aup4)"],
-		"openLegacyAup": ["machine","Open legacy Audacity project (.aup + _data)","Buka proyek Audacity lama (.aup + _data)"],
 		"openProject": ["machine","Open projects","Buka proyek"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Buka berkas proyek Scape ({projectExtension})"],
 		"options": ["machine","Options","Opsi"],
@@ -1943,6 +1940,7 @@
 		"projectCompatibilityReport": ["machine","Project compatibility report","Laporan kompatibilitas proyek"],
 		"projectCopySuffix": ["machine","copy","salinan"],
 		"projectDirty": ["machine","Unsaved changes","Perubahan belum disimpan"],
+		"projectManagement": ["machine","Project management","Pengelolaan proyek"],
 		"projectName": ["machine","Project name","Nama proyek"],
 		"projectNotFound": ["machine","The project was not found.","Proyek tidak ditemukan."],
 		"projectOpenOtherTab": ["machine","This project is already open in another tab.","Proyek ini sudah terbuka di tab lain."],

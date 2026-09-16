@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "uk",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:6ccd7e336e1d250c70d4709f43a8eab1d80125faf25ef9e04bb77ffaa1d3c647","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:b61ea19f7856f1f39f2e2c919f77eadc33532dc18df9d989397b1659aaa96063","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -239,7 +239,6 @@
 		"audacityProcessing": ["machine","Processing the Audacity effect locally","Локальна обробка ефекту Audacity"],
 		"audacityProfileProcessing": ["machine","Analyzing a noise profile locally","Локальний аналіз профілю шуму"],
 		"audacityProjectTooLong": ["machine","The Audacity project is too long to resample safely in this browser.","Проєкт Audacity надто довгий, щоб безпечно змінити частоту дискретизації в цьому браузері."],
-		"audacityProjects": ["machine","Audacity projects","Проєкти Audacity"],
 		"audacitySelectionHint": ["machine","Select a track and a time range or clip.","Виберіть доріжку та часовий діапазон або кліп."],
 		"audioAnalysisFailed": ["machine","Audio analysis failed.","Аналіз звуку не вдався."],
 		"audioAnalysisWorkerFailed": ["machine","Audio analysis worker failed.","Воркер аналізу звуку не вдався."],
@@ -1807,8 +1806,6 @@
 		"ofxConsent": ["machine","Allow OpenFX plugin scanning and execution","Дозволити сканування та виконання плагінів OpenFX"],
 		"ofxManage": ["machine","Plugin Manager","Керування плагінами"],
 		"open": ["machine","Open","Відкрити"],
-		"openAup4": ["machine","Open Audacity project (.aup3, .aup4)","Відкрити проєкт Audacity (.aup3, .aup4)"],
-		"openLegacyAup": ["machine","Open legacy Audacity project (.aup + _data)","Відкрити застарілий проєкт Audacity (.aup + _data)"],
 		"openProject": ["machine","Open projects","Відкрити проєкти"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Відкрити файл проєкту Scape ({projectExtension})"],
 		"options": ["machine","Options","Параметри"],
@@ -1943,6 +1940,7 @@
 		"projectCompatibilityReport": ["machine","Project compatibility report","Звіт про сумісність проєкту"],
 		"projectCopySuffix": ["machine","copy","копія"],
 		"projectDirty": ["machine","Unsaved changes","Незбережені зміни"],
+		"projectManagement": ["machine","Project management","Керування проєктами"],
 		"projectName": ["machine","Project name","Назва проєкту"],
 		"projectNotFound": ["machine","The project was not found.","Проєкт не знайдено."],
 		"projectOpenOtherTab": ["machine","This project is already open in another tab.","Цей проєкт вже відкрито в іншій вкладці."],

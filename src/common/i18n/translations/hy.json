@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "hy",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:e635ded63ad2db008f7f5d4b20fb7ecbe5e8b59983074002ba59445086fdd676","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:e8e5a5b5ea7768c7772c58cd684e1698f5c793d52e20431a5d1043e9ae74005e","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -239,7 +239,6 @@
 		"audacityProcessing": ["machine","Processing the Audacity effect locally","Audacity էֆեկտը մշակվում է տեղական եղանակով"],
 		"audacityProfileProcessing": ["machine","Analyzing a noise profile locally","Աղմուկի պրոֆիլը վերլուծվում է տեղական եղանակով"],
 		"audacityProjectTooLong": ["machine","The Audacity project is too long to resample safely in this browser.","Audacity նախագիծը չափազանց երկար է՝ այս բրաուզերում այն անվտանգ վերանմուշառելու համար։"],
-		"audacityProjects": ["machine","Audacity projects","Audacity նախագծեր"],
 		"audacitySelectionHint": ["machine","Select a track and a time range or clip.","Ընտրեք թրեք և ժամանակահատված կամ կլիպ։"],
 		"audioAnalysisFailed": ["machine","Audio analysis failed.","Աուդիո վերլուծությունը ձախողվեց։"],
 		"audioAnalysisWorkerFailed": ["machine","Audio analysis worker failed.","Աուդիո վերլուծության worker-ը ձախողվեց։"],
@@ -1807,8 +1806,6 @@
 		"ofxConsent": ["machine","Allow OpenFX plugin scanning and execution","Թույլատրել OpenFX խմբավորումների փնտրտուքը և գործարկումը"],
 		"ofxManage": ["machine","Plugin Manager","Խմբավորումների կառավարիչ"],
 		"open": ["machine","Open","Բացել"],
-		"openAup4": ["machine","Open Audacity project (.aup3, .aup4)","Բացել Audacity նախագիծ (.aup3, .aup4)"],
-		"openLegacyAup": ["machine","Open legacy Audacity project (.aup + _data)","Բացել հին Audacity նախագիծ (.aup + _data)"],
 		"openProject": ["machine","Open projects","Բացել նախագծեր"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Բացել Scape նախագծի ֆայլ ({projectExtension})"],
 		"options": ["machine","Options","Ընտրանքներ"],
@@ -1943,6 +1940,7 @@
 		"projectCompatibilityReport": ["machine","Project compatibility report","Նախագծի համատեղելիության հաշվետվություն"],
 		"projectCopySuffix": ["machine","copy","պատճեն"],
 		"projectDirty": ["machine","Unsaved changes","Չպահպանված փոփոխություններ"],
+		"projectManagement": ["machine","Project management","Նախագծերի կառավարում"],
 		"projectName": ["machine","Project name","Նախագծի անվանում"],
 		"projectNotFound": ["machine","The project was not found.","Նախագիծը չի գտնվել։"],
 		"projectOpenOtherTab": ["machine","This project is already open in another tab.","Այս նախագիծն արդեն բացված է մեկ այլ ներդիրում։"],

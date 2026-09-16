@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "vi",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:02859f72064c4aa31fcede682297898f823b20a86eb9506c3f085d9a6cc47b38","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:f2e62f4831a85278a846d785daa1bea2ddc391a630a1dffb2a94caa7e39c9d28","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -239,7 +239,6 @@
 		"audacityProcessing": ["machine","Processing the Audacity effect locally","Đang xử lý hiệu ứng Audacity cục bộ"],
 		"audacityProfileProcessing": ["machine","Analyzing a noise profile locally","Đang phân tích hồ sơ tiếng ồn cục bộ"],
 		"audacityProjectTooLong": ["machine","The Audacity project is too long to resample safely in this browser.","Dự án Audacity quá dài để có thể lấy mẫu lại an toàn trong trình duyệt này."],
-		"audacityProjects": ["machine","Audacity projects","Dự án Audacity"],
 		"audacitySelectionHint": ["machine","Select a track and a time range or clip.","Chọn một track và một khoảng thời gian hoặc clip."],
 		"audioAnalysisFailed": ["machine","Audio analysis failed.","Phân tích audio thất bại."],
 		"audioAnalysisWorkerFailed": ["machine","Audio analysis worker failed.","Worker phân tích audio thất bại."],
@@ -1807,8 +1806,6 @@
 		"ofxConsent": ["machine","Allow OpenFX plugin scanning and execution","Cho phép quét và thực thi plugin OpenFX"],
 		"ofxManage": ["machine","Plugin Manager","Quản lý Plugin"],
 		"open": ["machine","Open","Mở"],
-		"openAup4": ["machine","Open Audacity project (.aup3, .aup4)","Mở dự án Audacity (.aup3, .aup4)"],
-		"openLegacyAup": ["machine","Open legacy Audacity project (.aup + _data)","Mở dự án Audacity cũ (.aup + _data)"],
 		"openProject": ["machine","Open projects","Mở dự án"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Mở tệp dự án Scape ({projectExtension})"],
 		"options": ["machine","Options","Tuỳ chọn"],
@@ -1943,6 +1940,7 @@
 		"projectCompatibilityReport": ["machine","Project compatibility report","Báo cáo tương thích dự án"],
 		"projectCopySuffix": ["machine","copy","bản sao"],
 		"projectDirty": ["machine","Unsaved changes","Thay đổi chưa lưu"],
+		"projectManagement": ["machine","Project management","Quản lý dự án"],
 		"projectName": ["machine","Project name","Tên dự án"],
 		"projectNotFound": ["machine","The project was not found.","Không tìm thấy dự án."],
 		"projectOpenOtherTab": ["machine","This project is already open in another tab.","Dự án này đã được mở trong một tab khác."],
