@@ -41,6 +41,7 @@ test('diagnostics reports and image preview implementations retain their lazy ca
 		...['preview', 'filmstrip', 'preview-resources'].map(name => `src/framescaper/editor-selected-timeline-image-image-${name}.ts`),
 	]) assert.equal(chunkGroupForModulePath(path), 'editor-optional-surfaces', path);
 	assert.equal(chunkGroupForModulePath('src/common/editor/delivery-conversion-inventory.ts'), 'editor-optional-export');
+	assert.equal(chunkGroupForModulePath('src/common/editor/binaural-render.ts'), 'editor-optional-export');
 	assert.equal(chunkGroupForModulePath('src/common/editor/scape-export-plan.ts'), null);
 	assert.equal(chunkGroupForModulePath('src/framescaper/editor-selected-timeline-image-image-preview-controller.ts'),
 		'framescaper-timeline-images', 'the eager preview port keeps its dynamic implementation imports');

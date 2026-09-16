@@ -34,8 +34,11 @@ const editorOptionalExportControllerModule = String.raw`export[\\/](?:${controll
  * the conversion inventory, the burn-in font loader and the encoder tier. Note that
  * `video-burn-in-font-subsets.ts` is a different module the caption pipeline reads
  * eagerly; the trailing `\.ts$` anchor is what keeps it out of this alternation.
+ * Binaural rendering and its decision descriptors are read only by deferred
+ * audio encoding and the delivery conversion inventory, so they belong to the
+ * same export owner rather than either product's startup graph.
  */
-const editorOptionalExportFlatModule = String.raw`(?:audio-export-output|delivery-conformance|delivery-conversion-inventory|delivery-video-conversion-inventory|file-backed-audio-export|loudness-normalization-render|video-burn-in-font|video-delivery-encoder-tier)`;
+const editorOptionalExportFlatModule = String.raw`(?:audio-export-output|binaural-render|delivery-conformance|delivery-conversion-inventory|delivery-video-conversion-inventory|file-backed-audio-export|loudness-normalization-render|video-burn-in-font|video-delivery-encoder-tier)`;
 export const editorOptionalControllerModule = String.raw`(?:analysis[\\/]analysis-service|document[\\/]internal[\\/]cross-product-handoff-action|import[\\/]internal[\\/]dawproject[\\/]dawproject-service|${editorOptionalExportControllerModule})`;
 /**
  * The Framescaper capture and Web VCR implementation, loaded when a capture
