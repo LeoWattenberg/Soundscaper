@@ -46,3 +46,19 @@ test('diagnostics reports and image preview implementations retain their lazy ca
 	assert.equal(chunkGroupForModulePath('src/framescaper/editor-selected-timeline-image-image-preview-controller.ts'),
 		'framescaper-timeline-images', 'the eager preview port keeps its dynamic implementation imports');
 });
+
+test('native authoring and delivery details retain their deferred feature owners', () => {
+	for (const path of [
+		'src/common/editor/native-ofx-host-contract.ts', 'src/common/editor/native-ofx-host-contract-v2.ts',
+		'src/common/editor/native-ofx-interact-contract.ts',
+		'src/framescaper/editor-native-openfx-authoring-model.ts',
+	]) assert.equal(chunkGroupForModulePath(path), 'editor-optional-surfaces', path);
+	for (const path of [
+		'src/common/editor/platform-delivery-presets.ts', 'src/common/editor/platform-delivery-licensing.ts',
+		'src/common/editor/video-webcodecs-capability.ts',
+	]) assert.equal(chunkGroupForModulePath(path), 'editor-optional-export', path);
+});
+
+test('the optional motion accelerator retains its dynamic rendering boundary', () => {
+	assert.equal(chunkGroupForModulePath('src/common/editor/video-motion-webgl2-v27.ts'), 'editor-optional-execution');
+});

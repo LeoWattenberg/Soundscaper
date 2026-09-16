@@ -14,7 +14,7 @@
 
 export const editorPath = String.raw`src[\\/]common[\\/]editor[\\/]`;
 const editorOptionalArchiveModule = String.raw`(?:archive-media-reader|aup-legacy(?:-block-budget|-conversion|-xml)?|aup4-(?:client|opaque-merge|opaque-persistence|profile-values|profile|sanitization|time-signature|track-nodes)|audacity-(?:annotation-interchange|tempo-import)|dawproject-(?:archive|export(?:-context|-lanes)?|format|import(?:-maps|-project|-structure|-timeline)?|xml)|scape-(?:archive-(?:copy|layout(?:-witness)?|manifest|reader)|export-(?:destination|plan)|import-capacity|import-transaction|project-admission|project-source-remap)|scape-project(?:-canonical-inspection|-timing-assets)?)`;
-const editorOptionalExecutionModule = String.raw`(?:audacity-effects[\\/]reverb-live-processor|controller[\\/]effects[\\/](?:effect-macro-defaults-service|internal[\\/]macro[\\/]effect-macro-defaults)|effect-macro-templates|controller[\\/]import[\\/]internal[\\/]streamed-audio-import-service|analysis|browser-(?:native-aac-encoder|native-streamed-aac-import|audio-encode-stream-client|audio-streamed-encode|dedicated-audio-(?:codec|output-validation|profiles|worker-client)|reviewed-streamed-audio-decoders|streamed-audio-(?:import|output-validation)|streamed-wavpack-import|webcodecs-aac(?:-stream)?)|dedicated-audio-encode-session|desktop-audio-(?:range-blob|stream-encoder|stream-request)|desktop-mpeg-layer-ii-import|aac-source-geometry|(?:mp3|ogg)-gapless-import|loudness-measurement-report|pffft|selection-effects-runtime|spectral-edit(?:-admission)?|video-(?:keyframe-mediabunny-execution|mediabunny-muxer))`;
+const editorOptionalExecutionModule = String.raw`(?:audacity-effects[\\/]reverb-live-processor|controller[\\/]effects[\\/](?:effect-macro-defaults-service|internal[\\/]macro[\\/]effect-macro-defaults)|effect-macro-templates|controller[\\/]import[\\/]internal[\\/]streamed-audio-import-service|analysis|browser-(?:native-aac-encoder|native-streamed-aac-import|audio-encode-stream-client|audio-streamed-encode|dedicated-audio-(?:codec|output-validation|profiles|worker-client)|reviewed-streamed-audio-decoders|streamed-audio-(?:import|output-validation)|streamed-wavpack-import|webcodecs-aac(?:-stream)?)|dedicated-audio-encode-session|desktop-audio-(?:range-blob|stream-encoder|stream-request)|desktop-mpeg-layer-ii-import|aac-source-geometry|(?:mp3|ogg)-gapless-import|loudness-measurement-report|pffft|selection-effects-runtime|spectral-edit(?:-admission)?|video-(?:keyframe-mediabunny-execution|mediabunny-muxer|motion-webgl2-v27))`;
 const controllerInternalPath = String.raw`internal[\\/](?:[^\\/]+[\\/])*`;
 const editorOptionalExportControllerBasename = String.raw`(?:audio-export-delivery-admission|audio-export-progress|audio-export-render-orchestration|audio-realtime-encoded-export|audio-rendered-fallback-export|bw64-render-project|delivery-conformance-action|desktop-audio-export-capability|direct-(?:aiff-export|audio-render-plan|broadcast-wave-export|bw64-export|bwf-export|compressed-export|compressed-plan|compressed-stem-archive-plan|export-dispatch|mp3-export|native-stem-archive-plan|offline-compressed-export|offline-pcm-export|pcm-export|stem-archive-export|video-export|video-plan-contract|wav-export)|export-service|mastering-sequence-export-render|persistent-audio-delivery-execution|persistent-export-progress|realtime-export-pcm-transform|rendered-audio-encoding|streaming-stem-archive-export|video-export-captions|video-export-original-loader|video-export-service|video-export-staged-audio|video-rendered-fallback-export)`;
 const editorOptionalExportControllerModule = String.raw`export[\\/](?:${controllerInternalPath})?${editorOptionalExportControllerBasename}`;
@@ -37,8 +37,10 @@ const editorOptionalExportControllerModule = String.raw`export[\\/](?:${controll
  * Binaural rendering and its decision descriptors are read only by deferred
  * audio encoding and the delivery conversion inventory, so they belong to the
  * same export owner rather than either product's startup graph.
+ * Delivery preset/licensing tables and WebCodecs capability probes also have
+ * only deferred delivery consumers and share that export boundary.
  */
-const editorOptionalExportFlatModule = String.raw`(?:audio-export-output|binaural-render|delivery-conformance|delivery-conversion-inventory|delivery-video-conversion-inventory|file-backed-audio-export|loudness-normalization-render|video-burn-in-font|video-delivery-encoder-tier)`;
+const editorOptionalExportFlatModule = String.raw`(?:audio-export-output|binaural-render|delivery-conformance|delivery-conversion-inventory|delivery-video-conversion-inventory|file-backed-audio-export|loudness-normalization-render|platform-delivery-(?:licensing|presets)|video-burn-in-font|video-delivery-encoder-tier|video-webcodecs-capability)`;
 export const editorOptionalControllerModule = String.raw`(?:analysis[\\/]analysis-service|document[\\/]internal[\\/]cross-product-handoff-action|import[\\/]internal[\\/]dawproject[\\/]dawproject-service|${editorOptionalExportControllerModule})`;
 /**
  * The Framescaper capture and Web VCR implementation, loaded when a capture
@@ -127,9 +129,9 @@ export const EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST = new RegExp(
 	`(?:${editorPath}(?:controller[\\\\/]${editorOptionalAssistanceModule}|assistance[\\\\/](?!${editorEagerAssistanceModule}\\.ts$)[^\\\\/]+|storage[\\\\/]assistance-derivative-(?:codec|key-value-port|repository))|src[\\\\/]soundscaper[\\\\/]local-assistance-deferred-publication)\\.ts$`,
 );
 
-/** Menu-opened UI implementations that remain behind existing React.lazy surfaces. */
+/** Menu-opened UI implementations and their deferred native authoring contracts. */
 export const EDITOR_OPTIONAL_SURFACE_CHUNK_TEST = new RegExp(
-	`(?:${editorPath}(?:${editorOptionalSurfaceModule}|ui[\\\\/]local-assistance-review-authority\\.ts|local-diagnostics-(?:report|contract)\\.ts)|src[\\\\/]framescaper[\\\\/]editor-selected-timeline-image-image-(?:preview|filmstrip|preview-resources)\\.ts)$`,
+	`(?:${editorPath}(?:${editorOptionalSurfaceModule}|ui[\\\\/]local-assistance-review-authority\\.ts|local-diagnostics-(?:report|contract)\\.ts|native-ofx-(?:host-contract(?:-v2)?|interact-contract)\\.ts)|src[\\\\/]framescaper[\\\\/](?:editor-selected-timeline-image-image-(?:preview|filmstrip|preview-resources)|editor-native-openfx-authoring-model)\\.ts)$`,
 );
 
 /** Split Tool interaction runtimes kept out of the product-ready startup graph. */
@@ -195,7 +197,6 @@ const framescaperProjectFoundationModules = Object.freeze([
 	'editor-audio-finishing-finishing',
 	'editor-captured-video-proxy-preservation',
 	'editor-domain-runtime-profile',
-	'editor-native-openfx-authoring-model',
 	'editor-native-project-action-requests',
 	'editor-project-assistance-foundation',
 	'editor-project-assistance-validation',
