@@ -2,7 +2,7 @@ import { expect } from '../audio-editor-test-fixtures.js';
 import {
 	assertAccessibleBasics,
 	assertNoSeriousAxeViolations,
-	chooseCommandAction,
+	openNestedCommandMenu,
 } from '../audio-editor-test-helpers.js';
 
 /** Verify the opt-in report while keeping the editor workspace geometry stable. */
@@ -49,13 +49,18 @@ export async function inspectProjectCompatibilityReport(page, editor) {
 	await page.keyboard.press('Escape');
 	await expect(reportDialog).toBeHidden();
 	await expect(viewReport).toBeFocused();
+	await viewReport.click();
+	await expect(reportDialog).toBeVisible();
+	await expect(rendered).toContainText('Future mixer');
+	await page.keyboard.press('Escape');
+	await expect(reportDialog).toBeHidden();
 
 	await summary.getByRole('button', { name: 'Dismiss compatibility summary', exact: true }).click();
 	await expect(summary).toHaveCount(0);
 	expect(await workspace.boundingBox()).toEqual(workspaceBefore);
-	await chooseCommandAction(page, editor, 'File', 'Project compatibility report');
-	await expect(reportDialog).toBeVisible();
-	await expect(rendered).toContainText('Future mixer');
+	const fileMenu = await openNestedCommandMenu(page, editor, 'File', []);
+	await expect(fileMenu.getByRole('menuitem', { name: 'Project compatibility report', exact: true })).toHaveCount(0);
+	await expect(fileMenu.getByRole('menuitem', { name: 'AUP4 Compatibility Report', exact: true })).toHaveCount(0);
 	await page.keyboard.press('Escape');
 	await expect(reportDialog).toBeHidden();
 	await expect(editor.getByRole('menuitem', { name: 'File', exact: true })).toBeFocused();
@@ -64,6 +69,7 @@ export async function inspectProjectCompatibilityReport(page, editor) {
 
 
 export async function openProjectCompatibilityReport(page, editor) {
-	await chooseCommandAction(page, editor, 'File', 'Project compatibility report');
+	await editor.locator('[data-project-feature-compatibility-summary]')
+		.getByRole('button', { name: 'View report', exact: true }).click();
 	await expect(page.getByRole('dialog', { name: 'Project compatibility report', exact: true })).toBeVisible();
 }

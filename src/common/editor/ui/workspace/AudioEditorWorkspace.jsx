@@ -77,7 +77,6 @@ export default function AudioEditorWorkspace({
 	const [recordingMeterSettings, setRecordingMeterSettings] = useState(() => loadRecordingMeterSettings(productId));
 	const { cueImportDialog, importInputRef, requestCueImport } = useCueImportWorkspace(controller, snapshot.project?.id);
 	const aup4InputRef = useRef(null);
-	const legacyAupInputRef = useRef(null);
 	const legacyDataInputRef = useRef(null);
 	const pendingLegacyProjectRef = useRef(null);
 	const editorRef = useRef(null);
@@ -223,7 +222,10 @@ export default function AudioEditorWorkspace({
 		controller.actions.project.openScapeFile(file, requestScapeOpenDecision)
 	), [controller, requestScapeOpenDecision]);
 	const openProjectFile = useCallback((file) => openWorkspaceProjectFile(
-		controller, file, openScapeProjectFile), [controller, openScapeProjectFile]);
+		controller, file, openScapeProjectFile, (legacyFile) => {
+			pendingLegacyProjectRef.current = legacyFile;
+			legacyDataInputRef.current?.click();
+		}), [controller, openScapeProjectFile]);
 	const openDesktopProjectDescriptor = useCallback((descriptor) => withDesktopProjectReadDescriptor(
 		fileService,
 		descriptor,
@@ -400,7 +402,6 @@ export default function AudioEditorWorkspace({
 		executeEdit,
 		fileService,
 		importInputRef,
-		legacyAupInputRef,
 		locale,
 		openDesktopFiles,
 		openEffects, openAssistanceSearch: assistanceSearchRuntime.openAssistanceSearch,
@@ -513,7 +514,6 @@ export default function AudioEditorWorkspace({
 		isCompact,
 		isFullscreen,
 		isVideoEditorWorkspace,
-		legacyAupInputRef,
 		legacyDataInputRef,
 		locale,
 		macroDraft,

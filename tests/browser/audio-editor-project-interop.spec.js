@@ -218,12 +218,14 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('opens an uppercase AUP3 project through the shared Audacity worker', async ({ page }) => {
+	test('opens an uppercase AUP3 project through File Open and the shared Audacity worker', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		const fixture = await createAup3Fixture();
 
-		await editor.locator('[data-aup4-input]').setInputFiles({
+		const chooser = page.waitForEvent('filechooser');
+		await chooseFileAction(page, editor, 'Open');
+		await (await chooser).setFiles({
 			name: 'Browser project.AUP3',
 			mimeType: 'application/x-audacity-project',
 			buffer: Buffer.from(fixture),
@@ -242,7 +244,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		test.setTimeout(60_000);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
-		await editor.locator('[data-aup4-input]').setInputFiles({
+		const chooser = page.waitForEvent('filechooser');
+		await chooseFileAction(page, editor, 'Open');
+		await (await chooser).setFiles({
 			name: 'audacity-native-rich.aup4',
 			mimeType: 'application/x-audacity-project',
 			buffer: Buffer.from(aup4NativeRichFixture()),
@@ -256,12 +260,14 @@ test.describe('audio editor React/design-system workflows', () => {
 			value: undefined,
 		}));
 		const downloadPromise = page.waitForEvent('download');
-		await chooseNestedCommandAction(page, editor, 'File', ['Audacity projects', 'Export AUP4']);
+		await chooseNestedCommandAction(page, editor, 'File', ['Export other', 'Export AUP4']);
 		const download = await downloadPromise;
 		expect(download.suggestedFilename()).toMatch(/\.aup4$/i);
 		const snapshotPath = await download.path();
 		expect(snapshotPath).toBeTruthy();
-		await editor.locator('[data-aup4-input]').setInputFiles({
+		const reopenChooser = page.waitForEvent('filechooser');
+		await chooseFileAction(page, editor, 'Open');
+		await (await reopenChooser).setFiles({
 			name: download.suggestedFilename(),
 			mimeType: 'application/x-audacity-project',
 			buffer: await readFile(snapshotPath),
@@ -290,7 +296,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor).toHaveAttribute('data-track-count', '1');
 		const compatibilityToast = await expectCompatibilityToastWithinEditor(editor);
 		await compatibilityToast.getByRole('button', { name: 'View report', exact: true }).click();
-		let reportDialog = page.getByRole('dialog', { name: 'AUP4 Compatibility Report', exact: true });
+		const reportDialog = page.getByRole('dialog', { name: 'AUP4 Compatibility Report', exact: true });
 		await expect(reportDialog.locator('[data-aup4-compatibility-report]')).toContainText('Missing: SuperVerb');
 		await closeAup4CompatibilityReport(reportDialog);
 
@@ -304,11 +310,12 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.getByRole('menubar', { name: 'Application menu', exact: true })
 			.getByRole('menuitem', { name: 'File', exact: true })).toBeFocused();
 		await expect.poll(() => timeline.boundingBox()).toEqual(timelineWithToast);
-		await chooseNestedCommandAction(page, editor, 'File', ['Audacity projects', 'AUP4 Compatibility Report']);
-		reportDialog = page.getByRole('dialog', { name: 'AUP4 Compatibility Report', exact: true });
-		await expect(reportDialog.locator('[data-aup4-compatibility-report]')).toContainText('Missing: SuperVerb');
-		await closeAup4CompatibilityReport(reportDialog);
-		await expect(compatibilitySummary).toBeHidden();
+		const fileMenu = await openNestedCommandMenu(page, editor, 'File', []);
+		await expect(fileMenu.getByRole('menuitem', { name: 'Audacity projects', exact: true })).toHaveCount(0);
+		await expect(fileMenu.getByRole('menuitem', { name: 'AUP4 Compatibility Report', exact: true })).toHaveCount(0);
+		await expect(fileMenu.getByRole('menuitem', { name: 'Project compatibility report', exact: true })).toHaveCount(0);
+		await page.keyboard.press('Escape');
+		await expect(reportDialog).toBeHidden();
 
 		let effectsPanel = await openEffectsForTrack(editor, 0);
 		let rack = effectsPanel.locator('[data-effect-rack]');
@@ -337,7 +344,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			value: undefined,
 		}));
 		const downloadPromise = page.waitForEvent('download');
-		await chooseNestedCommandAction(page, editor, 'File', ['Audacity projects', 'Export AUP4']);
+		await chooseNestedCommandAction(page, editor, 'File', ['Export other', 'Export AUP4']);
 		const download = await downloadPromise;
 		const snapshotPath = await download.path();
 		expect(snapshotPath).toBeTruthy();

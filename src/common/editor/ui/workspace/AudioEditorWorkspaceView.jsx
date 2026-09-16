@@ -3,7 +3,7 @@ import EditorToast, { EditorWarningToast } from '../EditorToast.tsx';
 import ProjectLockToast from '../ProjectLockToast.tsx';
 
 import { productProfile } from '../../../products.js';
-import { ACCEPTED_PROJECT_FILE_EXTENSION_LIST } from '../../../project-file-extensions.ts';
+import { WORKSPACE_PROJECT_FILE_ACCEPT } from './workspace-file-routing.js';
 import AudioEditorButtonTooltips from '../AudioEditorButtonTooltips.jsx';
 import EditorOverlayHost from '../EditorOverlayHost.tsx';
 import AudioEditorMenuBar from '../AudioEditorMenuBar.jsx';
@@ -65,7 +65,6 @@ export default function AudioEditorWorkspaceView({ model }) {
 		isCompact,
 		isFullscreen,
 		isVideoEditorWorkspace,
-		legacyAupInputRef,
 		legacyDataInputRef,
 		locale,
 		moveWorkspacePanel,
@@ -207,28 +206,11 @@ export default function AudioEditorWorkspaceView({ model }) {
 				aria-label={copy.open}
 				type="file"
 				tabIndex={-1}
-				accept={`${ACCEPTED_PROJECT_FILE_EXTENSION_LIST},.aup3,.aup4,.dawproject,application/vnd.soundscaper.scape+zip,application/x-audacity-project,application/vnd.audacity.aup4`}
+				accept={WORKSPACE_PROJECT_FILE_ACCEPT}
 				onChange={(event) => {
 					const file = event.currentTarget.files?.[0];
 					event.currentTarget.value = '';
 					if (file) run(() => openProjectFile(file));
-				}}
-			/>
-
-			<input
-				ref={legacyAupInputRef}
-				className="kw-audio-editor__file-input"
-				data-legacy-aup-input
-				aria-label={copy.openLegacyAup}
-				type="file"
-				tabIndex={-1}
-				accept=".aup,application/xml,text/xml"
-				onChange={(event) => {
-					const file = event.currentTarget.files?.[0];
-					event.currentTarget.value = '';
-					if (!file) return;
-					pendingLegacyProjectRef.current = file;
-					legacyDataInputRef.current?.click();
 				}}
 			/>
 

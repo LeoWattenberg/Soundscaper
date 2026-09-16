@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { isProjectFileName } from '../../../project-file-extensions.ts';
+import { ACCEPTED_PROJECT_FILE_EXTENSION_LIST, isProjectFileName } from '../../../project-file-extensions.ts';
 
 // The workspace routes single files and dropped batches through the same
 // classifier, so both reach it from this one module.
 export { isProjectFileName };
+
+export const WORKSPACE_PROJECT_FILE_ACCEPT = `${ACCEPTED_PROJECT_FILE_EXTENSION_LIST},.aup,.aup3,.aup4,.dawproject,application/vnd.soundscaper.scape+zip,application/x-audacity-project,application/vnd.audacity.aup4`;
 
 const LEGACY_AUDACITY_PROJECT_PATTERN = /\.(?:aup3|aup4|dawproject)$/iu;
 const LABEL_PATTERN = /\.(?:srt|txt|vtt)$/iu;

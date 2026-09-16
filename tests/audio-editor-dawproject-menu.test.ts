@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
-import { partitionWorkspaceFiles } from '../src/common/editor/ui/workspace/workspace-file-routing.js';
+import { partitionWorkspaceFiles, WORKSPACE_PROJECT_FILE_ACCEPT } from '../src/common/editor/ui/workspace/workspace-file-routing.js';
 import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 
@@ -70,30 +70,32 @@ test('both locales carry every DAWproject status string, and none of the retired
 	}
 });
 
-test('the File menu holds no DAWproject category, and the export sits in the Export other bucket', () => {
+test('the File menu holds no project format categories, and exports sit in the Export other bucket', () => {
 	const calls: string[] = [];
 	const menus = createApplicationMenus(menuInput(null, {
 		saveDawproject: () => { calls.push('save'); },
+		saveAup4: () => { calls.push('aup4'); },
 	})) as unknown[];
 	const items = fileMenu(menus).items!;
 	assert.equal(items.find((item) => item.id === 'dawproject'), undefined, 'the DAWproject submenu is gone');
+	assert.equal(items.find((item) => item.id === 'audacity-projects'), undefined, 'the Audacity projects submenu is gone');
 	const exportOther = submenu(menus, 'export-other');
 	const entry = exportOther.items?.find((item) => item.id === 'export-dawproject');
 	assert.ok(entry, 'Export other offers the DAWproject export');
 	assert.equal(entry.label, ENGLISH_COPY.saveDawproject);
 	assert.equal(entry.disabled, false);
 	(entry.onClick as () => void)();
-	assert.deepEqual(calls, ['save']);
+	const aup4 = exportOther.items?.find((item) => item.id === 'save-aup4');
+	assert.ok(aup4, 'Export other offers the AUP4 export');
+	assert.equal(aup4.label, ENGLISH_COPY.saveAsAup4);
+	assert.equal(aup4.disabled, false);
+	(aup4.onClick as () => void)();
+	assert.deepEqual(calls, ['save', 'aup4']);
 });
 
 test('the delivery report answers for every profile from the File menu itself', () => {
 	const opened: string[] = [];
 	const actions = { openDeliveryReport: () => { opened.push('report'); } };
-	const audacity = submenu(createApplicationMenus(menuInput(null, actions)) as unknown[], 'audacity-projects');
-	assert.equal(
-		audacity.items?.find((item) => item.id === 'delivery-report'), undefined,
-		'a DAWproject delivery no longer reports itself under the Audacity projects name',
-	);
 	const without = fileMenu(createApplicationMenus(menuInput(null, actions)) as unknown[])
 		.items!.find((item) => item.id === 'delivery-report');
 	assert.equal(without?.disabled, true);
@@ -112,7 +114,8 @@ test('the ordinary Open command takes a .dawproject file', async () => {
 	);
 	const view = await readFile(new URL('src/common/editor/ui/workspace/AudioEditorWorkspaceView.jsx', ROOT), 'utf8');
 	const openInput = view.slice(view.indexOf('data-aup4-input'));
-	assert.match(openInput.slice(0, openInput.indexOf('/>')), /accept=\{`[^`]*\.dawproject/u);
+	assert.match(openInput.slice(0, openInput.indexOf('/>')), /accept=\{WORKSPACE_PROJECT_FILE_ACCEPT\}/u);
+	assert.ok(WORKSPACE_PROJECT_FILE_ACCEPT.split(',').includes('.dawproject'));
 	const workspace = await readFile(new URL('src/common/editor/ui/workspace/AudioEditorWorkspace.jsx', ROOT), 'utf8');
 	assert.match(workspace, /const openProjectFile = useCallback\(\(file\) => openWorkspaceProjectFile\(/u);
 	const menus = await readFile(new URL('src/common/editor/ui/application-menus.js', ROOT), 'utf8');

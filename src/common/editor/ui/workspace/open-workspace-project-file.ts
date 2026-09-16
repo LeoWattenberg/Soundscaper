@@ -16,9 +16,11 @@ export async function openWorkspaceProjectFile(
 	controller: ProjectFileController,
 	file: File,
 	openScape: (file: File) => unknown,
+	openLegacyAup?: (file: File) => unknown,
 ): Promise<unknown> {
 	// The file picker and drop target mount before the initial project exists.
 	await controller.ready;
+	if (/\.aup$/iu.test(file.name) && openLegacyAup) return openLegacyAup(file);
 	if (isProjectFileName(file.name)) return openScape(file);
 	if (/\.dawproject$/iu.test(file.name)) return controller.actions.project.openDawproject(file);
 	return controller.actions.project.openAudacityProject(file);

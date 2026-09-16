@@ -31,7 +31,6 @@ import { exportSurfaceMenuLabel } from './export-surface-copy.ts';
 import { createNyquistPluginMenuItems } from './nyquist-plugin-menu-items.js';
 import { audioSelectionEffectAppliesToAllAudio } from '../effects.js';
 import { selectAudioEditorLabelEditBlock } from '../label-edit-blocking.ts';
-import { createProjectCompatibilityReportMenuItem } from './workspace/project-feature-compatibility-notice.ts';
 
 /**
  * The video tracks an edit list would describe.
@@ -181,22 +180,6 @@ export default function createApplicationMenus({
 				{ id: 'open-project', label: copy.open, shortcut: 'Ctrl+O', disabled: blocked, onClick: actions.openFile },
 				...(snapshot.lockReadOnly ? [{ id: 'claim-project-lock', label: copy.claimProjectLock, onClick: actions.claimProjectLock }] : []),
 				{
-					id: 'audacity-projects',
-					label: copy.audacityProjects,
-					disabled: blocked,
-					items: [
-						{ id: 'open-aup4', label: copy.openAup4, disabled: blocked, onClick: actions.openAup4 },
-						{ id: 'open-legacy-aup', label: copy.openLegacyAup, disabled: blocked, onClick: actions.openLegacyAup },
-						...(productId === 'soundscaper' ? [{ id: 'save-aup4', label: copy.saveAsAup4, preserveLabel: true, disabled: blocked, onClick: actions.saveAup4 }] : []),
-						{
-							id: 'aup4-compatibility-report',
-							label: copy.aup4CompatibilityReport,
-							disabled: !snapshot.aup4Compatibility?.report,
-							onClick: actions.openAup4CompatibilityReport,
-						},
-					],
-				},
-				{
 					id: 'recent-projects',
 					label: copy.recentProjects,
 					disabled: blocked,
@@ -234,13 +217,13 @@ export default function createApplicationMenus({
 					onClick: actions.exportAudio,
 				},
 				{ id: 'delivery-queue', label: copy.deliveryQueue, disabled: blocked, onClick: actions.openDeliveryQueue },
-				createProjectCompatibilityReportMenuItem(copy, snapshot.featureRequirementsCompatibility, actions.openProjectCompatibilityReport),
 				{ id: 'delivery-report', label: copy.deliveryReport, disabled: !snapshot.deliveryReport, onClick: actions.openDeliveryReport },
 				{
 					id: 'export-other',
 					label: copy.exportOther,
 					parityLabel: copy.audacityParityMatchExportOther,
 					items: [
+						...(productId === 'soundscaper' ? [{ id: 'save-aup4', label: copy.saveAsAup4, preserveLabel: true, disabled: blocked, onClick: actions.saveAup4 }] : []),
 						{
 							id: 'export-labels',
 							label: copy.exportLabels,

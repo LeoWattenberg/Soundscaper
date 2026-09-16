@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect, test, createWavFixture } from './audio-editor-test-fixtures.js';
 import {
-	bootEditor, chooseFileAction, chooseNestedCommandAction, collectClientErrors,
+	bootEditor, chooseFileAction, collectClientErrors,
 	registerAudioEditorHooks, trackNameText, waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { writeDawprojectArchive } from '../../src/common/editor/dawproject-archive.ts';
@@ -58,7 +58,7 @@ test.describe('project import formats', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('opens a legacy AUP and its data directory through both file pickers', async ({ page }, testInfo) => {
+	test('opens a legacy AUP through File Open and requests its data directory next', async ({ page }, testInfo) => {
 		const folder = testInfo.outputPath('Legacy_data');
 		const nested = join(folder, 'e00', 'd00');
 		await mkdir(nested, { recursive: true });
@@ -76,7 +76,7 @@ test.describe('project import formats', () => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		const projectChooser = page.waitForEvent('filechooser');
-		await chooseNestedCommandAction(page, editor, 'File', ['Audacity projects', 'Open legacy Audacity project (.aup + _data)']);
+		await chooseFileAction(page, editor, 'Open');
 		const dataChooser = page.waitForEvent('filechooser');
 		await (await projectChooser).setFiles({ name: 'Legacy.aup', mimeType: 'application/xml', buffer: Buffer.from(xml) });
 		await (await dataChooser).setFiles(folder);

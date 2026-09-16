@@ -8,9 +8,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
 import type { ProjectFeatureRequirementsReport } from '../src/common/editor/project-feature-requirements.ts';
+import { createAudioEditorPreferencesV1 } from '../src/common/editor/preferences.js';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
+import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
 import ProjectFeatureCompatibilityNotice from '../src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx';
-import { createProjectCompatibilityReportMenuItem } from '../src/common/editor/ui/workspace/project-feature-compatibility-notice.ts';
+import { hasProjectFeatureCompatibilityReport } from '../src/common/editor/ui/workspace/project-feature-compatibility-notice.ts';
 
 const incompatible: ProjectFeatureRequirementsReport = {
 	schemaVersion: 1,
@@ -27,20 +29,33 @@ const incompatible: ProjectFeatureRequirementsReport = {
 	}],
 } as unknown as ProjectFeatureRequirementsReport;
 
-test('project compatibility reports are available through a localized menu after toast dismissal', () => {
-	let opened = 0;
+test('project and AUP4 compatibility reports have no permanent menu entry', () => {
 	for (const copy of [ENGLISH_COPY, GERMAN_COPY]) {
-		const entry = createProjectCompatibilityReportMenuItem(copy, incompatible, () => { opened += 1; });
-		assert.equal(entry.id, 'project-compatibility-report');
-		assert.equal(entry.label, copy.projectCompatibilityReport);
-		assert.ok(entry.label.length > 0);
-		assert.equal(entry.disabled, false);
-		entry.onClick();
+		for (const productId of ['soundscaper', 'framescaper']) {
+			const menus = createApplicationMenus({
+				productId, copy, aboutLabel: 'About', capabilities: {}, locale: 'en',
+				project: null,
+				snapshot: {
+					project: null, selectedTrackId: null, deliveryReport: null,
+					featureRequirementsCompatibility: incompatible,
+					aup4Compatibility: { counts: { converted: 0, missing: 1, omitted: 0 } },
+					preferences: createAudioEditorPreferencesV1(),
+					history: { canUndo: false, canRedo: false, hasClipboard: false },
+					effects: { selectionTypes: [], canRepeatLast: false },
+				},
+				blocked: false, editBlocked: false, handoffBlocked: false,
+				showArmControls: false, selectionActive: false, selectedClip: null,
+				durationFrames: 0, effectsPanelOpen: false, projectBinEffectivelyOpen: false,
+				uiFlags: {}, actionRuntime: null,
+				actions: new Proxy({}, { get: () => () => undefined }),
+			});
+			assert.doesNotMatch(JSON.stringify(menus), /"(?:project-compatibility-report|aup4-compatibility-report|audacity-projects)"/u);
+		}
 	}
-	assert.equal(opened, 2);
 });
 
-test('project compatibility menu refuses absent, compatible, and native-only reports', () => {
+test('project compatibility notification refuses absent, compatible, and native-only reports', () => {
+	assert.equal(hasProjectFeatureCompatibilityReport(incompatible), true);
 	for (const candidate of [
 		null,
 		undefined,
@@ -48,7 +63,7 @@ test('project compatibility menu refuses absent, compatible, and native-only rep
 		{ ...incompatible, items: [] },
 		{ ...incompatible, items: incompatible.items.map((item) => ({ ...item, availability: 'available' as const, disposition: 'native' as const })) },
 	]) {
-		assert.equal(createProjectCompatibilityReportMenuItem(ENGLISH_COPY, candidate, () => undefined).disabled, true);
+		assert.equal(hasProjectFeatureCompatibilityReport(candidate), false);
 	}
 });
 

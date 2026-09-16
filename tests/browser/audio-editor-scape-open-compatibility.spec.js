@@ -96,7 +96,7 @@ test.describe('Scape open feature decisions', () => {
 		await capacity.locator('summary').click();
 		await expect(capacity).toContainText(/(?:Import|Project saving): .+ requested · .+ required free · Ready/u);
 
-		const { notice, rendered } = await inspectProjectCompatibilityReport(page, editor);
+		const { notice } = await inspectProjectCompatibilityReport(page, editor);
 
 		const originalTab = editor.getByRole('tab', { name: 'Untitled project', exact: true });
 		await originalTab.focus();
@@ -108,11 +108,7 @@ test.describe('Scape open feature decisions', () => {
 		await page.keyboard.press('Enter');
 		await expect(editor).toHaveAttribute('data-project-id', incomingId);
 		await expect(editor.locator('[data-project-feature-compatibility-summary]')).toHaveCount(0);
-		await chooseCommandAction(page, editor, 'File', 'Project compatibility report');
-		await expect(notice).toBeVisible();
-		await expect(rendered).toBeVisible();
-		await expect(rendered).toContainText('Future mixer');
-		await page.keyboard.press('Escape');
+		await expect(notice).toHaveCount(0);
 		expect(errors).toEqual([]);
 	});
 

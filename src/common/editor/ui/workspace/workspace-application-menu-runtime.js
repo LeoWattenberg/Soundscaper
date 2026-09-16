@@ -36,7 +36,6 @@ export function createWorkspaceApplicationMenus({
 		executeEdit,
 		fileService,
 		importInputRef,
-		legacyAupInputRef,
 		locale,
 		openDesktopFiles,
 		openEffects,
@@ -189,16 +188,10 @@ export function createWorkspaceApplicationMenus({
 				clearRecentProjects: () => run(() => controller.actions.project.clearRecent()),
 				closeProject: () => run(() => controller.actions.project.close()),
 				claimProjectLock: () => run(() => controller.actions.project.claimLock()),
-				openAup4: () => fileService.isDesktop
-					? run(() => openDesktopFiles('project'))
-					: aup4InputRef.current?.click(),
-				openLegacyAup: () => legacyAupInputRef.current?.click(),
 				saveDawproject: () => run(() => controller.actions.project.saveDawproject()),
 				saveProject: () => run(() => controller.actions.project.save()),
 				saveScape: () => run(() => controller.actions.project.saveScape({ saveCopy: snapshot.readOnly })),
 				saveAup4: () => run(() => controller.actions.project.saveAup4({ saveCopy: snapshot.readOnly })),
-				openAup4CompatibilityReport: () => setDialog('aup4-compatibility'),
-				openProjectCompatibilityReport: () => setDialog('project-compatibility'),
 				openDeliveryReport: () => setDialog('delivery-report'),
 				importFiles: () => fileService.isDesktop
 					? run(() => openDesktopFiles('media', true))

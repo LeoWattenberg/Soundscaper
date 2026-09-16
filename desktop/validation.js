@@ -19,10 +19,10 @@ const NATIVE_PROJECT_EXTENSION = PROJECT_FILE_EXTENSION.slice(1);
 const FILE_PURPOSES = Object.freeze({
 	project: Object.freeze({
 		// Every product opens every product's projects; only saving is native.
-		extensions: Object.freeze([...PROJECT_EXTENSIONS, 'aup3', 'aup4', 'dawproject']),
+		extensions: Object.freeze([...PROJECT_EXTENSIONS, 'aup', 'aup3', 'aup4', 'dawproject']),
 		filters: Object.freeze([{
 			name: 'Scape, Audacity and DAWproject projects',
-			extensions: [...PROJECT_EXTENSIONS, 'aup3', 'aup4', 'dawproject'],
+			extensions: [...PROJECT_EXTENSIONS, 'aup', 'aup3', 'aup4', 'dawproject'],
 		}]),
 	}),
 	audio: Object.freeze({
