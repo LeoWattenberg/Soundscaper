@@ -62,6 +62,15 @@ export const DESKTOP_AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	DESKTOP_BUNDLED_TWOLAME_WASM.file,
 	DESKTOP_BUNDLED_VORBIS_WASM.file,
 	DESKTOP_BUNDLED_WAVPACK_WASM.file,
+	'desktop/audio-codec-stream-helper.js',
+	'desktop/desktop-audio-stream-contract.js',
+	'src/common/editor/browser-dedicated-audio-codec.js',
+	'src/common/editor/browser-dedicated-audio-profiles.js',
+	'src/common/editor/browser-dedicated-audio-output-validation.js',
+	'src/common/editor/dedicated-audio-encode-session.js',
+	'src/common/editor/large-audio-policy.js',
+	'desktop/desktop-audio-stream-service.js',
+	'desktop/desktop-audio-stream-job-runner.js',
 ]);
 
 const DESKTOP_EXTERNAL_FFMPEG_CONTROL_RUNTIME_FILES = Object.freeze([

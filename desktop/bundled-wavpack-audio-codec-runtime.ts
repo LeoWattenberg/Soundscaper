@@ -35,8 +35,8 @@ import { DESKTOP_BUNDLED_WAVPACK_COMPRESSION_LEVEL } from '../src/common/editor/
 import { loadWavPackWasm } from '../src/common/editor/wavpack/runtime.js';
 
 export const BUNDLED_WAVPACK_VERSION = '5.9.0';
-export const BUNDLED_WAVPACK_WASM_BYTE_LENGTH = 145_537;
-export const BUNDLED_WAVPACK_WASM_SHA256 = 'c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908';
+export const BUNDLED_WAVPACK_WASM_BYTE_LENGTH = 148_868;
+export const BUNDLED_WAVPACK_WASM_SHA256 = '5197fb8fd8e6cbef210acad11eb2a9dd8395a519b5fd64ba14a1b4978041b0c5';
 // The reviewed ABI fixes libwavpack at CONFIG_FAST_FLAG. Soundscaper's existing
 // WavPack default (level 2) is the sole explicit product mapping to that mode.
 export const BUNDLED_WAVPACK_COMPRESSION_LEVEL = DESKTOP_BUNDLED_WAVPACK_COMPRESSION_LEVEL;

@@ -328,7 +328,7 @@ export function materializeBundledWavPackDecodeGroup(
 	return bytes;
 }
 
-function parseBlock(input: Uint8Array, view: DataView, offset: number, state: WavPackProfileState): Readonly<{
+export function parseBlock(input: Uint8Array, view: DataView, offset: number, state: WavPackProfileState, maximumTotalFrames = WAVPACK_MAXIMUM_FRAME_COUNT): Readonly<{
 	readonly byteLength: number;
 	readonly totalFrames: number;
 	readonly blockIndex: number;
@@ -350,7 +350,7 @@ function parseBlock(input: Uint8Array, view: DataView, offset: number, state: Wa
 	const flags = view.getUint32(offset + 24, true);
 	if (version < WAVPACK_MINIMUM_VERSION || version > WAVPACK_MAXIMUM_VERSION
 		|| blockIndexHigh !== 0 || totalFramesHigh !== 0 || totalFrames === 0xffff_ffff
-		|| totalFrames < 1 || totalFrames > WAVPACK_MAXIMUM_FRAME_COUNT
+		|| totalFrames < 1 || totalFrames > maximumTotalFrames
 		|| blockFrames < 1 || blockFrames > WAVPACK_MAXIMUM_BLOCK_FRAMES
 		|| blockIndex + blockFrames > totalFrames) {
 		throw invalidStream('The WavPack block header declares invalid bounded geometry.');

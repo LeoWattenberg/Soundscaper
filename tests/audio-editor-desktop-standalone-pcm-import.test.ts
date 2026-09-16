@@ -135,7 +135,7 @@ function importFixture(options: Readonly<{
 			_source: unknown,
 			_metadata: unknown,
 			activation: Readonly<{ requireChunkStream?: boolean }>,
-		) => { activations += 1; activationOptions.push(activation); },
+		) => { activations += 1; activationOptions.push({ requireChunkStream: activation.requireChunkStream }); },
 		bufferFromChannels: async () => decoded,
 		canonicalizeBuffer: async () => decoded,
 		commit: () => undefined,

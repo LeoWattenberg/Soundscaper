@@ -20,8 +20,8 @@ test('bundled Ogg Opus is an exact libopus 1.6.1 plus libogg 1.3.6 artifact', as
 	assert.equal(result.oggRevision, 'be05b13e98b048f0b5a0f5fa8ce514d56db5f822');
 	assert.equal(result.opusArchiveSha256, '6ffcb593207be92584df15b32466ed64bbec99109f007c82205f0194572411a1');
 	assert.equal(result.oggArchiveSha256, '5c8253428e181840cd20d41f3ca16557a9cc04bad4a3d04cce84808677fa1061');
-	assert.equal(result.wasmBytes, 385_914);
-	assert.equal(result.wasmSha256, 'c972c5019a7f56dfe9c712cb15c25ebb54b55b16b19b3b99a5b02c31ef311685');
+	assert.equal(result.wasmBytes, 388_526);
+	assert.equal(result.wasmSha256, 'cc5577fa2a6c74781b7eb57bd754f7d9b50b2355a83d85b0f0cfe96415607dce');
 });
 
 test('bundled Ogg Opus build remains reproducible and excludes wider codec features', async () => {
@@ -49,6 +49,9 @@ test('bundled Ogg Opus build remains reproducible and excludes wider codec featu
 		'scop_maximum_channels', 'scop_maximum_frames', 'scop_maximum_vbr_mode',
 		'scop_initial_memory_bytes', 'scop_maximum_memory_bytes', 'scop_allocate', 'scop_free',
 		'scop_encode_float32', 'scop_decode_float32',
+		'scop_stream_open', 'scop_stream_write', 'scop_stream_finish',
+		'scop_stream_read', 'scop_stream_patch', 'scop_stream_close',
+		'scop_stream_decode_open', 'scop_stream_decode_push', 'scop_stream_decode_close',
 	]);
 	assert.deepEqual(manifest.configureArguments.opus, [
 		'--disable-shared', '--enable-static', '--disable-dependency-tracking', '--disable-doc',

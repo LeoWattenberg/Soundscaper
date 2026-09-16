@@ -42,6 +42,9 @@ test('bundled FLAC build remains reproducible and excludes Ogg, files, threads, 
 		'memory', '_initialize', 'scfl_abi_version', 'scfl_maximum_channels',
 		'scfl_maximum_frames', 'scfl_initial_memory_bytes', 'scfl_maximum_memory_bytes',
 		'scfl_allocate', 'scfl_free', 'scfl_encode_float32', 'scfl_decode_float32',
+		'scfl_stream_open', 'scfl_stream_write', 'scfl_stream_finish',
+		'scfl_stream_read', 'scfl_stream_patch', 'scfl_stream_close',
+		'scfl_stream_decode_open', 'scfl_stream_decode_push', 'scfl_stream_decode_close',
 	]);
 	assert.doesNotMatch(
 		manifest.compiledSources.join('\n'),

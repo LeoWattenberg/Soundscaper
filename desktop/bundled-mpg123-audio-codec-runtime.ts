@@ -31,8 +31,8 @@ import {
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 
 export const BUNDLED_MPG123_VERSION = 'mpg123-1.33.7';
-export const BUNDLED_MPG123_WASM_BYTE_LENGTH = 172_329;
-export const BUNDLED_MPG123_WASM_SHA256 = 'd2b5686a16141ec97dbeb4e4f2a1ce28b756dd3eaf6438b31379356c8dd958ae';
+export const BUNDLED_MPG123_WASM_BYTE_LENGTH = 173_764;
+export const BUNDLED_MPG123_WASM_SHA256 = '1aa30e6e25a9503be94ce3720ce6c4af649b2412c191a6f800f36dd619270bc2';
 export const BUNDLED_MPG123_WASM_URL = new URL(
 	'../src/common/editor/mpg123/mpg123.wasm', import.meta.url,
 );

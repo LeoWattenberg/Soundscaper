@@ -3,7 +3,7 @@
 import { inspectDecodedAudioSampleRate, inspectEncodedAudioSampleRate } from '../../audio-file-metadata.js';
 import { inspectWavBlobPcm, streamWavBlobPcm } from '../../wav-import.js';
 import { audioBufferChannels, bufferFromChannels, type AudioBufferLike } from '../source/source-audio.ts';
-import { decodeStandaloneAudioForImport } from './internal/standalone-audio-import-decoder.ts';
+import { loadImportAdmissionExecution } from './internal/import-admission-loader.ts';
 
 /**
  * Decoding for the audio files inside a DAWproject archive.
@@ -48,8 +48,9 @@ export function createDawprojectAudioDecoder(dependencies: Readonly<{
 	engine: DecoderEngine;
 	ffmpeg: DecoderCodecRuntime;
 	copy: DecoderCopy;
-}>): DawprojectAudioFileDecoder {
+	}>): DawprojectAudioFileDecoder {
 	return async (file, name) => {
+		const { decodeStandaloneAudioForImport } = await loadImportAdmissionExecution();
 		const named = typeof File === 'function' && !(file instanceof File)
 			? new File([file], name, { type: file.type })
 			: file;

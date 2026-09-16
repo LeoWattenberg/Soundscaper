@@ -11,6 +11,7 @@ import {
 } from '../rendered-audio-encoding.ts';
 import { renderMasteringSequenceExport } from '../mastering-sequence-export-render.ts';
 import type { MasteringSequenceDeliveryPlan } from '../../../../mastering-sequence-delivery.ts';
+import type { AudioEncodingProgressRange } from './audio-export-progress.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
@@ -88,6 +89,7 @@ export interface AudioExportRenderOrchestrationRuntime {
 		directDestination: DirectPcmDestination | null,
 		directCompressedDestination: DirectCompressedDestination | null,
 		assertDirectCurrent: () => void,
+		encodingProgressRange?: AudioEncodingProgressRange,
 	): Awaitable<ExportEncodedOutput>;
 	renderSnapshot(
 		snapshot: ExportRenderSnapshot,
@@ -103,6 +105,7 @@ export interface AudioExportRenderOrchestrationRuntime {
 			readonly start: number;
 			readonly value: number;
 		}>): unknown;
+		updateActive?(value: number): unknown;
 	}>;
 }
 
@@ -144,6 +147,7 @@ export async function renderAndEncodeAudioExport(
 	const { copy, setStatus, throwIfAborted } = encodingRuntime;
 	throwIfAborted(signal);
 	const progressSpan = progressRange.end - progressRange.start;
+	const encodingProgressRange = { start: progressRange.start + progressSpan * 0.7, end: progressRange.start + progressSpan * 0.95 };
 	taskProgress?.setActivePhase?.(copy.rendering, {
 		start: progressRange.start,
 		end: progressRange.start + progressSpan * 0.7,
@@ -155,7 +159,7 @@ export async function renderAndEncodeAudioExport(
 		return renderRealtimeEncoded(
 			snapshot, plan, settings, signal, renderSources,
 			renderTarget,
-			directDestination, directCompressedDestination, assertDirectCurrent,
+			directDestination, directCompressedDestination, assertDirectCurrent, encodingProgressRange,
 		);
 	}
 	let rendered: ExportRenderSnapshot;
@@ -208,13 +212,13 @@ export async function renderAndEncodeAudioExport(
 		return renderRealtimeEncoded(
 			snapshot, plan, settings, signal, renderSources,
 			renderTarget,
-			directDestination, directCompressedDestination, assertDirectCurrent,
+			directDestination, directCompressedDestination, assertDirectCurrent, encodingProgressRange,
 		);
 	}
 	try {
 		taskProgress?.setActivePhase?.(copy.encoding, {
 			start: progressRange.start + progressSpan * 0.7,
-			end: progressRange.start + progressSpan * 0.9,
+			end: encodingProgressRange.end,
 			value: 0,
 		});
 		return await encodeRenderedAudio(encodingRuntime, {
@@ -225,6 +229,7 @@ export async function renderAndEncodeAudioExport(
 			rendered,
 			settings,
 			signal,
+			onProgress: (value) => { taskProgress?.updateActive?.(value); },
 		});
 	} catch (error) {
 		if (signal.aborted
@@ -238,7 +243,7 @@ export async function renderAndEncodeAudioExport(
 		return renderRealtimeEncoded(
 			snapshot, plan, settings, signal, renderSources,
 			renderTarget,
-			directDestination, directCompressedDestination, assertDirectCurrent,
+			directDestination, directCompressedDestination, assertDirectCurrent, encodingProgressRange,
 		);
 	}
 }

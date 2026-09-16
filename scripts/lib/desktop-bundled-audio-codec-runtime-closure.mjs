@@ -15,6 +15,7 @@ import {
 } from '../../desktop/bundled-audio-codec-runtime-payload.mjs';
 
 const HELPER_PATH = 'project-library-runtime/desktop/bundled-audio-codec-helper-process.js';
+const AUDIO_STREAM_HELPER_PATH = 'project-library-runtime/desktop/audio-codec-stream-helper.js';
 const AUTHENTICATED_DYNAMIC_IMPORTS = new Set([
 	'pathToFileURL(path).href',
 	'__rewriteRelativeImportExtension(pathToFileURL(path).href)',
@@ -41,6 +42,7 @@ export async function assertBundledAudioCodecRuntimeClosure(options) {
 		if (entry === undefined) throw new Error(`Bundled codec ${codec} has no execution entry module.`);
 		const visited = new Set();
 		await visitModule({ desktopRoot, codec, path: entry, expected, visited });
+		await visitModule({ desktopRoot, codec, path: AUDIO_STREAM_HELPER_PATH, expected, visited });
 		const actual = [...visited].sort();
 		if (actual.length !== expectedFiles.length
 			|| actual.some((path, index) => path !== expectedFiles[index])) {
@@ -60,6 +62,8 @@ async function assertControlClosure(desktopRoot) {
 		'bundled-audio-codec-runtime-payload.mjs',
 		HELPER_PATH,
 		'project-library-runtime/desktop/bundled-audio-codec-isolated-runtime.js',
+		'project-library-runtime/desktop/desktop-audio-stream-service.js',
+		'project-library-runtime/desktop/desktop-audio-stream-job-runner.js',
 	]) await visitModule({ desktopRoot, codec: 'control', path, expected, visited });
 	const actual = [...visited].sort();
 	const expectedFiles = [...expected].sort();

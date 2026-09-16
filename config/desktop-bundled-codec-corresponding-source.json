@@ -4,7 +4,7 @@
 	"archiveTimestamp": "1980-01-01T00:00:00.000Z",
 	"instructions": {
 		"path": "docs/desktop-bundled-codec-corresponding-source.md",
-		"sha256": "c3a94d5f2bf3dee31d10522a1dabd9660bbb7f84b03421067baf8bcf6d68a8ac"
+		"sha256": "d3203fb73522f5680a0e77020240b14b0a4aa168409646e50336763e7057c65f"
 	},
 	"soundscaperLicense": {
 		"path": "LICENSE",
@@ -25,7 +25,7 @@
 			"id": "flac",
 			"sourceManifest": {
 				"path": "src/common/editor/flac/source-manifest.json",
-				"sha256": "567233afa113fdf4be713bc45291ec65e4d82413213ca5378fb107f161ff2dea"
+				"sha256": "7f32393d8fed7ae3f87227e5ff68d87cb1197effdf875f185925497bd9cd5b77"
 			},
 			"buildScript": {
 				"path": "scripts/build-flac-wasm.mjs",
@@ -44,7 +44,7 @@
 			"id": "lame",
 			"sourceManifest": {
 				"path": "src/common/editor/lame/source-manifest.json",
-				"sha256": "350f8b6172efca4590ca464e390b36ae3c2a0238593b0eee12d1d2ecee964a88"
+				"sha256": "db4b70e0becdc76f1c4ea8fc13fab5751093c70f4249d130829620bd24a1b647"
 			},
 			"buildScript": {
 				"path": "scripts/build-lame-wasm.mjs",
@@ -63,7 +63,7 @@
 			"id": "mpg123",
 			"sourceManifest": {
 				"path": "src/common/editor/mpg123/source-manifest.json",
-				"sha256": "f81f3e4481285e4e7f0969ee54ae3b42f9f5d75c7e69937b57d660508e7603dd"
+				"sha256": "f0b9b1046717c07f9cf1a6382a1c9b5fc25f1c3c10c0a50b94cea8fea2081b10"
 			},
 			"buildScript": {
 				"path": "scripts/build-mpg123-wasm.mjs",
@@ -94,7 +94,7 @@
 			"id": "opus",
 			"sourceManifest": {
 				"path": "src/common/editor/opus/source-manifest.json",
-				"sha256": "a0c3dd4d36d175fbb9b0fda11cda1744038fbccfbb938390f7d1e65825a5add6"
+				"sha256": "b208252974166210339d4e1f3c593a42084d49f5462caa290f2a37062a745a89"
 			},
 			"buildScript": {
 				"path": "scripts/build-opus-wasm.mjs",
@@ -119,7 +119,7 @@
 			"id": "twolame",
 			"sourceManifest": {
 				"path": "src/common/editor/twolame/source-manifest.json",
-				"sha256": "f5818e4421642ce8f6756835a62574f0f0a1e6373441d4296bc975612a6b4049"
+				"sha256": "244cd6f1fa8bc13947c18a938c293048c9d9be80d7a100bb9a300d49fc90b16b"
 			},
 			"buildScript": {
 				"path": "scripts/build-twolame-wasm.mjs",
@@ -138,7 +138,7 @@
 			"id": "vorbis",
 			"sourceManifest": {
 				"path": "src/common/editor/vorbis/source-manifest.json",
-				"sha256": "6df823dd769e33a4d284c019a23a5b24f217eb4ae38aecf006345627800dc5c9"
+				"sha256": "11fb0bede1d9b73275b3e11e0ea313971dd2d8465186abc3af5d6693456ddda7"
 			},
 			"buildScript": {
 				"path": "scripts/build-vorbis-wasm.mjs",
@@ -163,7 +163,7 @@
 			"id": "wavpack",
 			"sourceManifest": {
 				"path": "src/common/editor/wavpack/source-manifest.json",
-				"sha256": "9b2125389bbdb96c2c0d96c891389659fc3049197c9b42b2bf87add82ae2dbf8"
+				"sha256": "e84eee22e06ba5562510e37b36e4b83b11b2306eb3841d3687a8fce2998ed381"
 			},
 			"buildScript": {
 				"path": "scripts/build-wavpack-wasm.mjs",

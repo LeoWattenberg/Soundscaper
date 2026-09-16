@@ -93,6 +93,7 @@ export function createAudioEditorFileService(options = {}) {
 		installExternalFfmpeg: () => bridge?.installExternalFfmpeg?.() ?? null,
 		getDesktopAudioCodecCapabilities: (request) => bridge?.getDesktopAudioCodecCapabilities?.(request) ?? null,
 		getDesktopVideoExportCapabilities: () => bridge?.getDesktopVideoExportCapabilities?.() ?? null,
+		runDesktopAudioCodecStreamCommand: (request) => bridge?.runDesktopAudioCodecStreamCommand?.(request) ?? null,
 		runDesktopAudioCodecOperation: (request) => bridge?.runDesktopAudioCodecOperation?.(request) ?? null,
 		cancelDesktopAudioCodecOperation: (requestId) => bridge?.cancelDesktopAudioCodecOperation?.(requestId) ?? null,
 		beginDesktopVideoCodecOperation: (request) => bridge?.beginDesktopVideoCodecOperation?.(request) ?? null,
@@ -146,6 +147,7 @@ export function createAudioEditorFileService(options = {}) {
 			let aggregateBytes = 0;
 			for (const descriptor of descriptors) {
 				if (!isReadDescriptor(descriptor)) throw new TypeError('A valid desktop read descriptor is required.');
+				if (descriptor.readProfile === 'linked-audio-range-v1') continue;
 				assertDesktopMaterializedReadProfile(descriptor);
 				if (descriptor.size > readMaximumBytes - aggregateBytes) {
 					throw new RangeError('The desktop read aggregate exceeds its admitted maximum.');
@@ -153,12 +155,19 @@ export function createAudioEditorFileService(options = {}) {
 				aggregateBytes += descriptor.size;
 			}
 			throwIfAborted(request.signal);
+			const audioRanges = descriptors.some((descriptor) => descriptor.readProfile === 'linked-audio-range-v1')
+				? await import('./desktop-audio-range-blob.ts') : null;
 			const files = [];
 			for (const descriptor of descriptors) {
-				const blob = await materializeReadDescriptor(descriptor, request.signal);
-				files.push(createNamedFile(blob, descriptor, scope));
+				if (descriptor.readProfile === 'linked-audio-range-v1') {
+					files.push(audioRanges.createDesktopAudioRangeBlob(descriptor, { fetch: fetchFile, signal: request.signal }));
+				} else {
+					const blob = await materializeReadDescriptor(descriptor, request.signal);
+					files.push(createNamedFile(blob, descriptor, scope));
+				}
 			}
-			return consume(Object.freeze(files));
+			try { return await consume(Object.freeze(files)); }
+			finally { for (const file of files) audioRanges?.retireDesktopAudioRangeBlob(file); }
 		});
 	}
 
@@ -217,7 +226,7 @@ export function createAudioEditorFileService(options = {}) {
 		const blob = toBlob(input, request.mimeType);
 		const fileName = sanitizeSuggestedName(request.suggestedName || request.fileName || target?.name);
 		if (!target) return { cancelled: true, fileName, size: blob.size };
-		if (bridge) return writeDesktopFile(target, blob, fileName, request.signal);
+		if (bridge) return writeDesktopFile(target, blob, fileName, request.signal, request.onProgress);
 		if (typeof target.createWritable === 'function') return writeFileSystemHandle(target, blob, fileName, request.signal);
 		return triggerBrowserDownload(blob, fileName, request.signal);
 	}
@@ -285,7 +294,7 @@ export function createAudioEditorFileService(options = {}) {
 		};
 	}
 
-	async function writeDesktopFile(target, blob, fileName, signal) {
+	async function writeDesktopFile(target, blob, fileName, signal, onProgress) {
 		throwIfAborted(signal);
 		const persistent = bindSoundscaperPersistentDeliverySave(target, fileName);
 		const saveBridge = persistent?.bridge ?? bridge;
@@ -298,6 +307,7 @@ export function createAudioEditorFileService(options = {}) {
 		const chunkSize = Math.max(1, Math.min(DEFAULT_WRITE_CHUNK_BYTES, Number(session.chunkSize) || DEFAULT_WRITE_CHUNK_BYTES));
 		let offset = 0;
 		try {
+			onProgress?.(0);
 			throwIfAborted(signal);
 			while (offset < blob.size) {
 				throwIfAborted(signal);
@@ -308,10 +318,12 @@ export function createAudioEditorFileService(options = {}) {
 				const expectedOffset = offset + bytes.byteLength;
 				if (Number(result?.nextOffset) !== expectedOffset) throw new Error('The desktop save stream lost synchronization.');
 				offset = expectedOffset;
+				onProgress?.(Math.min(0.999, offset / blob.size));
 			}
 			throwIfAborted(signal);
 			const result = await saveBridge.finishWrite(session.writeId);
 			if (Number(result?.byteLength) !== blob.size) throw new Error('The desktop save completed with an unexpected size.');
+			onProgress?.(1);
 			return { method: 'desktop', fileName: saveTarget.name || fileName, size: blob.size };
 		} catch (error) {
 			await Promise.resolve(saveBridge.abortWrite?.(session.writeId)).catch(() => undefined);

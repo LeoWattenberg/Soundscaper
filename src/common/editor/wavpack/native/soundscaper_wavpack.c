@@ -193,6 +193,8 @@ static WavpackStreamReader64 memory_reader = {
     input_close
 };
 
+#include "stream_encode.h"
+
 SCWP_EXPORT uint32_t scwp_abi_version(void)
 {
     return SCWP_ABI_VERSION;

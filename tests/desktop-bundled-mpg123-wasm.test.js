@@ -40,5 +40,6 @@ test('the mpg123 build is feed-only float32 with no wider authority', async () =
 		'memory', '_initialize', 'scmp_abi_version', 'scmp_maximum_frames',
 		'scmp_initial_memory_bytes', 'scmp_maximum_memory_bytes', 'scmp_allocate',
 		'scmp_free', 'scmp_decode_float32',
+		'scmp_stream_decode_open', 'scmp_stream_decode_push', 'scmp_stream_decode_close',
 	]);
 });

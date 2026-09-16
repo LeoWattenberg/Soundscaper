@@ -38,7 +38,7 @@ test('the pinned WavPack artifact has the audited narrow ABI and memory budget',
 	const audit = await auditWavPackWasm();
 	assert.deepEqual(audit.findings, []);
 	assert.equal(audit.ok, true);
-	assert.equal(audit.wasmSha256, 'c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908');
+	assert.equal(audit.wasmSha256, '5197fb8fd8e6cbef210acad11eb2a9dd8395a519b5fd64ba14a1b4978041b0c5');
 	assert.ok(audit.wasmBytes > 0 && audit.wasmBytes < 1024 * 1024);
 });
 

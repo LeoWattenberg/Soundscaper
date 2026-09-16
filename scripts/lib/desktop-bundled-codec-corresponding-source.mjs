@@ -346,7 +346,7 @@ function localSourceDescriptors(codecId, manifestPath, manifest) {
 	for (const item of manifest.localExtensions ?? []) rows.push(localDescriptor(codecRoot, item));
 	for (const item of manifest.sourceFiles ?? []) rows.push(localDescriptor(`${codecRoot}/native`, item));
 	if (codecId === 'wavpack') {
-		if (manifest.sourceFiles?.length !== 20 || manifest.localExtensions?.length !== 7
+		if (manifest.sourceFiles?.length !== 21 || manifest.localExtensions?.length !== 7
 			|| manifest.licenseFiles?.length !== 5) {
 			throw new Error('WavPack corresponding-source snapshot is incomplete.');
 		}

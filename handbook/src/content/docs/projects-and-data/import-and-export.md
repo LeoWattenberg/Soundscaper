@@ -17,6 +17,23 @@ the active product and runtime.
 Importing media adds a project-owned source. It does not make the original file
 your editable project document.
 
+Compressed audio imports and exports support up to one hour or 1 GB
+(1,000,000,000 file bytes), whichever limit is reached first. A one-hour
+48 kHz stereo file is supported when it fits that file limit. Long jobs read,
+encode, and save in chunks; large browser exports require origin-private file
+storage and enough free space. Large imports require persistent local storage
+for the decoded audio. PCM formats retain their separate limits.
+
+The browser tier covers MP3, MP2, FLAC, WavPack, Opus, and Ogg Vorbis. Browser
+AAC/M4A support depends on the browser codec. Desktop streaming exports cover
+the six bundled formats, with 24-bit FLAC and float32 lossless WavPack. Desktop
+imports depend on native decoder availability; MP2 uses the smaller utility
+compatibility tier. Desktop AAC and compatibility providers retain their
+separate limits.
+
+An active job shows a progress bar even when **View → Status bar** is hidden.
+Choose **Cancel** beside the bar to stop an import or audio export.
+
 ## Editable project files
 
 - Scape (`.sscape` from Soundscaper, `.fscape` from Framescaper, and either one openable in both) is the portable, full-fidelity project format shared by Soundscaper

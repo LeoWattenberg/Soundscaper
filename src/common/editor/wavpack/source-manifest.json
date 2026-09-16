@@ -46,14 +46,15 @@
 		{ "path": "pack_floats.c", "sha256": "626cf1aef8fa7f4e1440400fc08336c834443b7d53f9cbb0c072a5c5747d12a9", "origin": "wavpack" },
 		{ "path": "pack_utils.c", "sha256": "b8540ef73bb39bed9a32e5065b4b4a985a236102293d6f43cd59df1b06bac987", "origin": "wavpack" },
 		{ "path": "read_words.c", "sha256": "f35764aebeb8f0a304b453b4a86b4193093551f629f9c5cc8dcb4f444ff6cc1b", "origin": "wavpack" },
-		{ "path": "soundscaper_wavpack.c", "sha256": "1eb205017371af4f44522c078d16c71ba405063de1189720dc0e71524372eec3", "origin": "soundscaper" },
+		{ "path": "soundscaper_wavpack.c", "sha256": "c09ae10f892c4a6c25242da74fc1bf22d25452eddc3573b59584d0a2d3fca4ce", "origin": "soundscaper" },
 		{ "path": "unpack.c", "sha256": "bba495a5c33f432d8acd82a36a52d79d0d2ff7d05a1a5bc6e110ab7a92a9391c", "origin": "wavpack" },
 		{ "path": "unpack_floats.c", "sha256": "d4b7c9664d43bc284909835cf38e0a70c3a518f7eb10dc4f92e78d559505b3d1", "origin": "wavpack" },
 		{ "path": "unpack_utils.c", "sha256": "5e5487d7d97f33334f5b3e5ce719ce06dcec01ee9a08e08e3b7adacd2730190f", "origin": "wavpack" },
 		{ "path": "wavpack.h", "sha256": "3c61d65511e258c5dc120a6daaee626d6a1051f3254ca9b67ac654a8f6212a97", "origin": "wavpack" },
 		{ "path": "wavpack_local.h", "sha256": "51e187bb5ddb91723808a37c570e661b258e99947dd986481163a27d8f12fd01", "origin": "wavpack" },
 		{ "path": "wavpack_version.h", "sha256": "bfc6435383f32d4ce39d28dd82f17e823e4df63d392b0e7c2b069b3ddfbd5874", "origin": "wavpack" },
-		{ "path": "write_words.c", "sha256": "31423f8fbd9fea313172f35865235dd624f2f97f778925e25c6cefb457228b0c", "origin": "wavpack" }
+		{ "path": "write_words.c", "sha256": "31423f8fbd9fea313172f35865235dd624f2f97f778925e25c6cefb457228b0c", "origin": "wavpack" },
+		{"path": "stream_encode.h", "sha256": "baf9ddd503eeccc10462fe92d74bc7d5ec62b4b5da781c08da77d14cdc8c36a2", "origin": "soundscaper"}
 	],
 	"compiledSources": [
 		"common_utils.c",
@@ -84,7 +85,7 @@
 	],
 	"wasm": {
 		"path": "wavpack.wasm",
-		"sha256": "c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908",
+		"sha256": "5197fb8fd8e6cbef210acad11eb2a9dd8395a519b5fd64ba14a1b4978041b0c5",
 		"maximumBytes": 1048576,
 		"initialMemoryBytes": 8388608,
 		"maximumMemoryBytes": 134217728,
@@ -100,7 +101,13 @@
 			"scwp_allocate",
 			"scwp_free",
 			"scwp_encode_float32",
-			"scwp_decode_float32"
+			"scwp_decode_float32",
+			"scwp_stream_open",
+			"scwp_stream_write",
+			"scwp_stream_finish",
+			"scwp_stream_read",
+			"scwp_stream_patch",
+			"scwp_stream_close"
 		],
 		"allowedFunctionImports": [
 			"env.emscripten_notify_memory_growth",

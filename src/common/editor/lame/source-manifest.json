@@ -41,7 +41,7 @@
 	"localFiles": [
 		{
 			"path": "native/soundscaper_lame.c",
-			"sha256": "a46461db6daee97b3c8e314133026318018c8a634514cb7cf71e0d87b51d1767"
+			"sha256": "a167a0d0fdd72a341e687de7c1830588780a8a8fc6e82e20502400cc08ceadcb"
 		},
 		{
 			"path": "NOTICE.md",
@@ -54,11 +54,15 @@
 		{
 			"path": "licenses/LGPL-2.0.txt",
 			"sha256": "8e37572d65d965c218080fe4333779bd8743e0a280a2d447bce16a850f82917e"
+		},
+		{
+			"path": "native/stream_encode.h",
+			"sha256": "01925c45849ccc2d8f4bd256e661804d65249dd2b5b8dc5fb7b7eeb5ce059e32"
 		}
 	],
 	"wasm": {
 		"path": "lame.wasm",
-		"sha256": "d624f2202ce5a560ca38bc156cb80441fe93ec799e59a35d0f9379a990256123",
+		"sha256": "e8ca1786d95a56ead1fc2294be98ea68d31eed5837abd79d2a3322a0af946c6f",
 		"maximumBytes": 1048576,
 		"initialMemoryBytes": 8388608,
 		"maximumMemoryBytes": 268435456,
@@ -78,7 +82,13 @@
 			"sclm_maximum_memory_bytes",
 			"sclm_allocate",
 			"sclm_free",
-			"sclm_encode_float32"
+			"sclm_encode_float32",
+			"sclm_stream_open",
+			"sclm_stream_write",
+			"sclm_stream_finish",
+			"sclm_stream_read",
+			"sclm_stream_patch",
+			"sclm_stream_close"
 		],
 		"allowedFunctionImports": [
 			"env.emscripten_notify_memory_growth",

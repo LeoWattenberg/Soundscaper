@@ -75,7 +75,8 @@ type HelperExecutionResult = Readonly<{
 	readonly detail: string;
 }>;
 
-type HelperJobResult = HelperCanaryResult | HelperPreflightResult | HelperExecutionResult;
+type HelperJobResult = HelperCanaryResult | HelperPreflightResult | HelperExecutionResult
+	| Readonly<{ contractVersion: 1; status: 'audio-stream-executed'; outputBytes: number }>;
 
 const SHA256 = /^[a-f0-9]{64}$/u;
 const MAXIMUM_INPUT_BYTES = 32 * 1024 * 1024;
@@ -121,7 +122,8 @@ export async function createBundledAudioCodecHelperWorker(options: Readonly<{
 				return;
 			}
 			phase = 'running';
-			void runBundledAudioCodecHelperJob({ configuration, runtime, value, ports: options.ports })
+			void runBundledAudioCodecHelperJob({ configuration, runtime, value, ports: options.ports,
+				onProgress: (frames, frameCount) => options.post({ contractVersion: 1, type: 'progress', frames, frameCount }) })
 				.then((result) => {
 					if (phase !== 'running') return;
 					phase = 'terminal';
@@ -142,6 +144,7 @@ export async function runBundledAudioCodecHelperJob(options: Readonly<{
 	readonly configuration: unknown;
 	readonly runtime: DesktopAudioCodecProviderRuntime;
 	readonly value: unknown;
+	readonly onProgress?: (frames: number, frameCount: number) => void;
 	readonly ports?: HelperPorts;
 }>): Promise<HelperJobResult> {
 	const configuration = normalizeBundledAudioCodecHelperConfiguration(options.configuration);
@@ -150,6 +153,10 @@ export async function runBundledAudioCodecHelperJob(options: Readonly<{
 		const canary = exactRecord(options.value, ['contractVersion', 'type'], 'bundled audio codec canary');
 		if (canary.contractVersion !== 1) throw new TypeError('The bundled audio codec canary is invalid.');
 		return Object.freeze({ contractVersion: 1, status: 'canary' });
+	}
+	if (dataProperty(options.value, 'type', 'helper message') === 'audio-stream-job') {
+		const { runDesktopAudioStreamHelperJob } = await import('./audio-codec-stream-helper.ts');
+		return await runDesktopAudioStreamHelperJob(configuration, options.value, options.onProgress);
 	}
 	const job = exactRecord(options.value, JOB_FIELDS, 'bundled audio codec helper job');
 	if (job.contractVersion !== 1 || job.type !== 'job'

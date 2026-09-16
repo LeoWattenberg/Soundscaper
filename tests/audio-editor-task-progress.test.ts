@@ -88,3 +88,22 @@ test('run clears owned progress after success and failure', async () => {
 	await assert.rejects(coordinator.run('analysis', 'Analyzing', () => Promise.reject(new Error('failed'))));
 	assert.equal(coordinator.getSnapshot(), null);
 });
+
+test('foreground cancellation is available only to the current task and runs once', () => {
+	const coordinator = createEditorTaskProgressCoordinator();
+	let cancelled = 0;
+	const first = coordinator.begin('import', 'Reading audio');
+	first.setCancellation(() => { cancelled += 1; });
+	assert.equal(coordinator.getSnapshot()?.cancellable, true);
+	assert.equal(coordinator.cancelActive(), true);
+	assert.equal(coordinator.cancelActive(), false);
+	assert.equal(coordinator.getSnapshot()?.cancellable, undefined);
+	assert.equal(cancelled, 1);
+	const second = coordinator.begin('export', 'Rendering audio');
+	assert.equal(first.setCancellation(() => { cancelled += 1; }), false);
+	assert.equal(coordinator.cancelActive(), false);
+	second.setCancellation(() => { cancelled += 1; });
+	second.finish();
+	assert.equal(coordinator.cancelActive(), false);
+	assert.equal(cancelled, 1);
+});

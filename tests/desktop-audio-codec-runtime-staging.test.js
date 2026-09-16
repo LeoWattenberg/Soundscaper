@@ -77,6 +77,15 @@ const AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/twolame/twolame.wasm',
 	'src/common/editor/vorbis/vorbis.wasm',
 	'src/common/editor/wavpack/wavpack.wasm',
+	'desktop/audio-codec-stream-helper.js',
+	'desktop/desktop-audio-stream-contract.js',
+	'src/common/editor/browser-dedicated-audio-codec.js',
+	'src/common/editor/browser-dedicated-audio-profiles.js',
+	'src/common/editor/browser-dedicated-audio-output-validation.js',
+	'src/common/editor/dedicated-audio-encode-session.js',
+	'src/common/editor/large-audio-policy.js',
+	'desktop/desktop-audio-stream-service.js',
+	'desktop/desktop-audio-stream-job-runner.js',
 ]);
 
 test('desktop codec runtime inventory closes over both main audio entry points', async () => {
@@ -96,38 +105,38 @@ test('desktop codec runtime inventory closes over both main audio entry points',
 test('desktop codec runtime inventory contains only exact reviewed audio payloads', async () => {
 	assert.deepEqual(DESKTOP_BUNDLED_FLAC_WASM, {
 		file: 'src/common/editor/flac/flac.wasm',
-		byteLength: 153_076,
-		sha256: '0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986',
+		byteLength: 154763,
+		sha256: '6246c5d6979f25b733e399383004a6a861478802c376d59885a7b2c7130a1584',
 	});
 	assert.deepEqual(DESKTOP_BUNDLED_LAME_WASM, {
 		file: 'src/common/editor/lame/lame.wasm',
-		byteLength: 213_293,
-		sha256: 'd624f2202ce5a560ca38bc156cb80441fe93ec799e59a35d0f9379a990256123',
+		byteLength: 214198,
+		sha256: 'e8ca1786d95a56ead1fc2294be98ea68d31eed5837abd79d2a3322a0af946c6f',
 	});
 	assert.deepEqual(DESKTOP_BUNDLED_WAVPACK_WASM, {
 		file: 'src/common/editor/wavpack/wavpack.wasm',
-		byteLength: 145_537,
-		sha256: 'c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908',
+		byteLength: 148868,
+		sha256: '5197fb8fd8e6cbef210acad11eb2a9dd8395a519b5fd64ba14a1b4978041b0c5',
 	});
 	assert.deepEqual(DESKTOP_BUNDLED_OPUS_WASM, {
 		file: 'src/common/editor/opus/opus.wasm',
-		byteLength: 385_914,
-		sha256: 'c972c5019a7f56dfe9c712cb15c25ebb54b55b16b19b3b99a5b02c31ef311685',
+		byteLength: 388526,
+		sha256: 'cc5577fa2a6c74781b7eb57bd754f7d9b50b2355a83d85b0f0cfe96415607dce',
 	});
 	assert.deepEqual(DESKTOP_BUNDLED_MPG123_WASM, {
 		file: 'src/common/editor/mpg123/mpg123.wasm',
-		byteLength: 172_329,
-		sha256: 'd2b5686a16141ec97dbeb4e4f2a1ce28b756dd3eaf6438b31379356c8dd958ae',
+		byteLength: 173764,
+		sha256: '1aa30e6e25a9503be94ce3720ce6c4af649b2412c191a6f800f36dd619270bc2',
 	});
 	assert.deepEqual(DESKTOP_BUNDLED_TWOLAME_WASM, {
 		file: 'src/common/editor/twolame/twolame.wasm',
-		byteLength: 146_820,
-		sha256: 'b4b166bed688504b548adcee02cda391d4d8b25a44aec914c3fe1082f466ed1b',
+		byteLength: 148312,
+		sha256: '8b89b6a12eab302c92960865c6b1c7d33df86d6d8760c8549a8ee38a99ef2b30',
 	});
 	assert.deepEqual(DESKTOP_BUNDLED_VORBIS_WASM, {
 		file: 'src/common/editor/vorbis/vorbis.wasm',
-		byteLength: 523_227,
-		sha256: 'c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5',
+		byteLength: 526926,
+		sha256: 'cfa42717394ce29f8af676fb0ad7bff632306f75e536211eb85b7cc5aaf09aa0',
 	});
 	assert.deepEqual(
 		DESKTOP_CODEC_RUNTIME_FILES.filter((file) => file.endsWith('.wasm')),

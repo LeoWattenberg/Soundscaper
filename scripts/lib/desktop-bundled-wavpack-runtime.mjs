@@ -6,8 +6,8 @@ import { dirname, join } from 'node:path';
 
 export const DESKTOP_BUNDLED_WAVPACK_WASM = Object.freeze({
 	file: 'src/common/editor/wavpack/wavpack.wasm',
-	byteLength: 145_537,
-	sha256: 'c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908',
+	byteLength: 148_868,
+	sha256: '5197fb8fd8e6cbef210acad11eb2a9dd8395a519b5fd64ba14a1b4978041b0c5',
 });
 
 /** Copy only the exact reviewed WavPack payload into the compiled desktop graph. */

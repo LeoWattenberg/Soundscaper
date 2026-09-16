@@ -74,17 +74,30 @@ test('staged manifest closes over control, helper, runner, seven modules, and se
 		moduleBytes: fixture.manifest.files.find(({ role, codec }) => role === 'module' && codec === 'flac').byteLength,
 		moduleSha256: fixture.manifest.files.find(({ role, codec }) => role === 'module' && codec === 'flac').sha256,
 		dependencies: [
+			'desktop/audio-codec-stream-helper.js',
+			'desktop/bundled-audio-codec-helper-configuration.js',
 			'desktop/bundled-flac-stream.js',
+			'desktop/bundled-mpeg-audio-stream.js',
+			'desktop/bundled-opus-stream.js',
+			'desktop/bundled-vorbis-stream.js',
+			'desktop/bundled-wavpack-stream.js',
+			'desktop/desktop-audio-codec-capability-contract.js',
 			'desktop/desktop-audio-codec-operation-contract.js',
+			'desktop/desktop-audio-stream-contract.js',
+			'src/common/editor/browser-dedicated-audio-codec.js',
+			'src/common/editor/browser-dedicated-audio-output-validation.js',
+			'src/common/editor/browser-dedicated-audio-profiles.js',
+			'src/common/editor/dedicated-audio-encode-session.js',
 			'src/common/editor/desktop-codec-provider-catalog.js',
+			'src/common/editor/large-audio-policy.js',
 		].map((path) => {
 			const staged = fixture.manifest.files.find((file) => (
 				file.path === `project-library-runtime/${path}`
 			));
 			return { path, byteLength: staged.byteLength, sha256: staged.sha256 };
 		}),
-		wasmBytes: 153_076,
-		wasmSha256: '0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986',
+		wasmBytes: 154_763,
+		wasmSha256: '6246c5d6979f25b733e399383004a6a861478802c376d59885a7b2c7130a1584',
 	});
 });
 

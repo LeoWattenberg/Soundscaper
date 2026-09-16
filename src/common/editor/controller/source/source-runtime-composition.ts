@@ -142,8 +142,8 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 				|| !isStreamableStoredSource(source, metadata)) return null;
 			return createStoredChunkProvider(store, source, metadata);
 		},
-		generateStoredWaveformPeaks: (_store, source, workerCopy) => (
-			generateStoredWaveformPeaks(store, requireStoredAudioSource(source), requireWorkerCopy(workerCopy))
+		generateStoredWaveformPeaks: (_store, source, workerCopy, options) => (
+			generateStoredWaveformPeaks(store, requireStoredAudioSource(source), requireWorkerCopy(workerCopy), options)
 		),
 		generateWaveformPeaks: (channels, workerCopy) => (
 			generateWaveformPeaks([...channels], requireWorkerCopy(workerCopy))

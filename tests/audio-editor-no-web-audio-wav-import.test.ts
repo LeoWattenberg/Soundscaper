@@ -19,7 +19,7 @@ test('short inspectable PCM WAVs stream without Web Audio', async () => {
 
 	assert.equal(result.destination, 'timeline');
 	assert.equal(fixture.audioContextRequests(), 0);
-	assert.deepEqual(fixture.activationOptions, [{ requireChunkStream: true }]);
+	assert.equal(fixture.activationOptions[0]?.requireChunkStream, true);
 	assert.equal(fixture.writerCommits(), 1);
 });
 
@@ -31,12 +31,55 @@ test('malformed WAVs and unsupported media do not enter the PCM-only fallback', 
 		const fixture = createImportFixture();
 		await assert.rejects(
 			() => createProjectImportService(fixture.runtime).importFile(input),
-			/Web Audio is not supported/iu,
+			input.name.endsWith('.mp3') ? /unsupported or unrecognizable format/iu : /Web Audio is not supported/iu,
 		);
-		assert.equal(fixture.audioContextRequests(), 1);
+		assert.equal(fixture.audioContextRequests(), input.name.endsWith('.mp3') ? 0 : 1);
 		assert.deepEqual(fixture.activationOptions, []);
 		assert.equal(fixture.writerCommits(), 0);
 	}
+});
+
+test('foreground import cancellation finishes quietly before allocating a source', async () => {
+	const fixture = createImportFixture();
+	let cancel: (() => void) | undefined;
+	let finished = 0;
+	const errors: unknown[] = [];
+	const statuses: unknown[] = [];
+	const state = { importing: false };
+	Object.assign(fixture.runtime, {
+		state,
+		taskProgress: { begin: () => ({ setCancellation(callback: () => void) { cancel = callback; }, finish() { finished++; } }) },
+		handleError(error: unknown) { errors.push(error); },
+		setStatus(status: unknown) { statuses.push(status); },
+		preflightStorage: async () => { assert.ok(cancel); cancel(); },
+	});
+	await createProjectImportService(fixture.runtime).importFiles([tinyPcmWav()]);
+	assert.equal(fixture.writerCommits(), 0);
+	assert.equal(fixture.audioContextRequests(), 0);
+	assert.equal(state.importing, false);
+	assert.equal(finished, 1);
+	assert.deepEqual(errors, []);
+	assert.equal(statuses.at(-1), '');
+});
+
+test('foreground cancellation reports a failed rollback and preserves the error status', async () => {
+	const fixture = createImportFixture();
+	let cancel: (() => void) | undefined;
+	const errors: unknown[] = [];
+	const statuses: unknown[] = [];
+	Object.assign(fixture.runtime, {
+		state: { importing: false },
+		taskProgress: { begin: () => ({ setCancellation(callback: () => void) { cancel = callback; }, finish() {} }) },
+		handleError(error: unknown) { errors.push(error); },
+		setStatus(status: unknown) { statuses.push(status); },
+		activateStoredSource: async () => { assert.ok(cancel); cancel(); },
+		retireSourceChunkProvider: async () => { throw new Error('rollback failed'); },
+	});
+	await createProjectImportService(fixture.runtime).importFiles([tinyPcmWav()]);
+	assert.equal(errors.length, 1);
+	assert.ok(errors[0] instanceof AggregateError);
+	assert.match(errors[0].message, /rollback both failed/u);
+	assert.notEqual(statuses.at(-1), '');
 });
 
 test('chunk-required short source activation never requests an AudioContext', async () => {
@@ -108,6 +151,7 @@ function createImportFixture() {
 		) => { activationOptions.push(options); },
 		commit: () => undefined,
 		copy: {
+			importSummary: '{successes} succeeded, {failures} failed',
 			audioTrackNotFound: 'Audio track not found.',
 			timelineFramesFinite: 'Frames must be finite.',
 			track: 'Track',

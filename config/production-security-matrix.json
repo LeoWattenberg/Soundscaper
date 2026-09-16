@@ -125,7 +125,8 @@
 				"publicationMode": "browser-blob",
 				"finalRendererBlob": true,
 				"maximumBytes": 536870912,
-				"controlId": "bounded-browser-export-blob-publication"
+				"controlId": "bounded-browser-export-blob-publication",
+				"fileBackedMaximumBytes": 1000000000
 			},
 			{
 				"id": "audio-mix-direct-native-pcm",
@@ -150,7 +151,8 @@
 				"publicationMode": "browser-blob",
 				"finalRendererBlob": true,
 				"maximumBytes": 536870912,
-				"controlId": "bounded-browser-export-blob-publication"
+				"controlId": "bounded-browser-export-blob-publication",
+				"fileBackedMaximumBytes": 1000000000
 			},
 			{
 				"id": "audio-stems-direct-native-pcm-zip",
@@ -195,7 +197,8 @@
 				"finalRendererBlob": false,
 				"controlId": "exact-direct-mp4-webm-video-save"
 			}
-		]
+		],
+		"fileBackedAudioMaximumBytes": 1000000000
 	},
 	"publicationFaultVerification": {
 		"status": "implemented",
@@ -6397,7 +6400,7 @@
 				},
 				{
 					"id": "renderer-document-owned-read-lifecycle",
-					"summary": "Every pending or published desktop read capability is bound to the opaque main-owned identity of the currently committed main-frame document. Main selects one immutable profile and all four profiles share at most 128 pending or live capability slots per owner, reserved before the first file-open await. `materialized-v1` retains a non-raiseable 512 MiB aggregate declared-byte ceiling per owner. Canonical terminal Scape projects use the independent `scape-range-v1` admission of at most four capabilities and 65 GiB aggregate declared bytes both globally and per owner. Linked audio and video use one shared independent `linked-audio-range-v1` and `linked-video-range-v1` admission of at most 128 capabilities and 64 GiB aggregate declared bytes globally and per owner, at most 512 MiB per file, and 16 active range requests globally. Count reserves before open and bytes charge after stat but before publication. A failed candidate or retirement cleanup retains its range charge and fences new range admission. Wrong-owner release refuses without revealing, removing, or closing the capability. Correct release and expiry for the expiring profiles synchronously remove it from lookup before draining its handle; linked-original ranges deliberately remain owner-pinned without wall-clock expiry. Navigation, renderer loss, window close, and shutdown fence the affected owner or store before draining every admitted open and handle close; delayed dialog, open, or stat completion closes without publication. Partial multi-file registration drains every rollback release and reports primary plus cleanup failures. OS-open paths remain serially deduplicated at one visible queue head. With four real Scape descriptors admitted globally, the fifth refuses before open and remains queued; one acknowledged release redispatches it. A renderer-send failure releases its descriptor before reporting and removing that head. Transient count or aggregate-byte pressure is retryable without eviction, but an individually oversized file is not. Revocation and shutdown attempt every close before rejecting on cleanup failure, and shutdown permanently refuses new admission.",
+					"summary": "Every pending or published desktop read capability is bound to the opaque main-owned identity of the currently committed main-frame document. Main selects one immutable profile and all four profiles share at most 128 pending or live capability slots per owner, reserved before the first file-open await. `materialized-v1` retains a non-raiseable 512 MiB aggregate declared-byte ceiling per owner. Canonical terminal Scape projects use the independent `scape-range-v1` admission of at most four capabilities and 65 GiB aggregate declared bytes both globally and per owner. Linked audio and video use one shared independent `linked-audio-range-v1` and `linked-video-range-v1` admission of at most 128 capabilities and 64 GiB aggregate declared bytes globally and per owner, at most 512 MiB per linked-original audio or video file, a 1,000,000,000-byte ceiling for generic selected audio imports, and 16 active range requests globally. Count reserves before open and bytes charge after stat but before publication. A failed candidate or retirement cleanup retains its range charge and fences new range admission. Wrong-owner release refuses without revealing, removing, or closing the capability. Correct release and expiry for the expiring profiles synchronously remove it from lookup before draining its handle; linked-original ranges deliberately remain owner-pinned without wall-clock expiry. Navigation, renderer loss, window close, and shutdown fence the affected owner or store before draining every admitted open and handle close; delayed dialog, open, or stat completion closes without publication. Partial multi-file registration drains every rollback release and reports primary plus cleanup failures. OS-open paths remain serially deduplicated at one visible queue head. With four real Scape descriptors admitted globally, the fifth refuses before open and remains queued; one acknowledged release redispatches it. A renderer-send failure releases its descriptor before reporting and removing that head. Transient count or aggregate-byte pressure is retryable without eviction, but an individually oversized file is not. Revocation and shutdown attempt every close before rejecting on cleanup failure, and shutdown permanently refuses new admission.",
 					"evidence": [
 						{
 							"kind": "implementation",
@@ -6470,6 +6473,18 @@
 						{
 							"kind": "test",
 							"path": "tests/desktop-save.test.js"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/desktop-audio-range-blob.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/large-audio-policy.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-desktop-audio-range-blob.test.ts"
 						}
 					],
 					"policyAuthority": "family-v1-active"
@@ -6758,7 +6773,7 @@
 				},
 				{
 					"id": "bounded-abortable-renderer-read-materialization",
-					"summary": "This control applies only to main-assigned `materialized-v1` descriptors. Authoritative main-process admission limits their aggregate active declared selected-file bytes to a non-raiseable 512 MiB per committed-document owner before publication. The preload validates the exact materialized profile, name, MIME, safe size, and canonical profile-bearing URL. The renderer repeats profile admission before fetch and rejects any Scape name, canonical Scape MIME, `scape-range-v1`, `linked-audio-range-v1`, or `linked-video-range-v1` descriptor instead of materializing it. For admitted materialized reads it requires exact declared Content-Length, emitted-byte, and final Blob-size agreement and reads only the response body stream. Retained parts are copied and split at the non-raiseable 16 MiB platform media-chunk limit. The materializer forwards the caller's AbortSignal, promptly races and cancels a stalled body read with its exact reason, and never calls response.blob(). A scoped descriptor batch releases every capability after its callback on success, failure, or cancellation, while request abort destroys the protocol file stream. This is a bounded whole-Blob tier, not a bound on decoder amplification or whole-process RSS; Scape and linked-original audio/video ranges are excluded and handled by their separately admitted range profiles.",
+					"summary": "This control applies only to main-assigned `materialized-v1` descriptors. Authoritative main-process admission limits their aggregate active declared selected-file bytes to a non-raiseable 512 MiB per committed-document owner before publication. The preload validates the exact materialized profile, name, MIME, safe size, and canonical profile-bearing URL. The renderer repeats profile admission before fetch and rejects any Scape name, canonical Scape MIME, `scape-range-v1`, `linked-audio-range-v1`, or `linked-video-range-v1` descriptor instead of materializing it. For admitted materialized reads it requires exact declared Content-Length, emitted-byte, and final Blob-size agreement and reads only the response body stream. Retained parts are copied and split at the non-raiseable 16 MiB platform media-chunk limit. The materializer forwards the caller's AbortSignal, promptly races and cancels a stalled body read with its exact reason, and never calls response.blob(). A scoped descriptor batch releases every capability after its callback on success, failure, or cancellation, while request abort destroys the protocol file stream. This is a bounded whole-Blob tier, not a bound on decoder amplification or whole-process RSS; Scape and linked-original audio/video ranges, together with generic selected audio import ranges, are excluded and handled by their separately admitted range profiles.",
 					"evidence": [
 						{
 							"kind": "implementation",
@@ -6831,6 +6846,18 @@
 						{
 							"kind": "test",
 							"path": "tests/desktop-protocol.test.js"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/desktop-audio-range-blob.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/large-audio-policy.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-desktop-audio-range-blob.test.ts"
 						}
 					],
 					"policyAuthority": "family-v1-active"
@@ -7204,7 +7231,7 @@
 				},
 				{
 					"id": "exact-direct-compressed-mix-save",
-					"summary": "The exact compressed whole-mix route remains closed to seven canonical identities: MP3 (`audio/mpeg`, `.mp3`), FLAC (`audio/flac`, `.flac`), Ogg Vorbis (`audio/ogg; codecs=vorbis`, `.ogg`), Opus (`audio/ogg; codecs=opus`, `.opus`), WavPack (`audio/x-wavpack`, `.wv`), MP2 (`audio/mpeg`, `.mp2`), and AAC/M4A (`audio/mp4`, `.m4a`). Canonical identity, extension, full result MIME, normalized settings, mapping, and metadata are revalidated rather than trusting shared picker MIME values. In production browsers, six reviewed digest-pinned WebAssembly providers produce complete FLAC, MP3, Ogg Vorbis, Opus, WavPack, and MP2 files in a dedicated worker. Exact payload length and SHA-256 are verified before compilation, closed profiles reject unsupported tuples, and format validators reject incomplete output. AAC/M4A uses WebCodecs AudioEncoder through Mediabunny only after exact capability probing and returns one complete M4A only after demux confirms readable MP4, exactly one AAC-LC audio track, exact sample rate and channel count, and requested duration. The browser runtime advertises `ffmpegAvailable: false`; custom FFmpeg, unsupported formats or profiles, and unsupported media operations return typed unavailability with no FFmpeg fallback. A production bundle audit rejects FFmpeg package specifiers, core assets, runtime loader, URL, and cache seam. Direct publication admits the complete encoded length before opening its writer, transfers at-most-1-MiB ranges with one awaited write, closes before commit, and requires byte-count agreement without a final download Blob. Browser encoding retains mapped PCM and one complete encoded result under 128 MiB input/output bounds; it is not end-to-end streaming or a heap, RSS, GC, CPU, elapsed-time, scale, durability, crash, or power-loss qualification. Desktop bundled and user-selected external providers remain separately governed and unchanged.",
+					"summary": "The exact compressed whole-mix route remains closed to seven canonical identities: MP3 (`audio/mpeg`, `.mp3`), FLAC (`audio/flac`, `.flac`), Ogg Vorbis (`audio/ogg; codecs=vorbis`, `.ogg`), Opus (`audio/ogg; codecs=opus`, `.opus`), WavPack (`audio/x-wavpack`, `.wv`), MP2 (`audio/mpeg`, `.mp2`), and AAC/M4A (`audio/mp4`, `.m4a`). Canonical identity, extension, full result MIME, normalized settings, mapping, and metadata are revalidated rather than trusting shared picker MIME values. In production browsers, six reviewed digest-pinned WebAssembly providers produce complete FLAC, MP3, Ogg Vorbis, Opus, WavPack, and MP2 files in a dedicated worker. Exact payload length and SHA-256 are verified before compilation, closed profiles reject unsupported tuples, and format validators reject incomplete output. AAC/M4A uses WebCodecs AudioEncoder through Mediabunny only after exact capability probing and returns one complete M4A only after demux confirms readable MP4, exactly one AAC-LC audio track, exact sample rate and channel count, and requested duration. The browser runtime advertises `ffmpegAvailable: false`; custom FFmpeg, unsupported formats or profiles, and unsupported media operations return typed unavailability with no FFmpeg fallback. A production bundle audit rejects FFmpeg package specifiers, core assets, runtime loader, URL, and cache seam. Direct publication admits the complete encoded length before opening its writer, transfers at-most-1-MiB ranges with one awaited write, closes before commit, and requires byte-count agreement without a final download Blob. Production browser file encoding now reads staged PCM in at-most-16,384-frame packets, keeps one continuous codec session, and awaits each at-most-1-MiB encoded packet write into temporary file storage. AAC uses fragmented MP4 with awaited sequential mux writes. The streamed route admits one hour of audio within the closed sample-rate and channel profiles and a lower-only 1,000,000,000-byte final-file ceiling; intermediate staged PCM may exceed that ceiling on disk. Finalization repairs the required codec prefix and validates final file geometry through bounded reads before publication. The compatibility whole-buffer codec API retains its 128 MiB bounds. Desktop bundled streaming uses an owner-bound main-private scratch session and an authenticated utility process with the same reviewed codec sessions; operating-system and user-selected external providers remain separately governed. These packet bounds are not a heap, RSS, GC, CPU, elapsed-time, scale, durability, crash, or power-loss qualification.",
 					"evidence": [
 						{
 							"kind": "implementation",
@@ -7269,6 +7296,46 @@
 						{
 							"kind": "test",
 							"path": "tests/browser-bundle-codec-audit.test.js"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/large-audio-policy.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/browser-audio-streamed-encode.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/dedicated-audio-encode-session.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/audio-export-output.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/controller/shared/task-progress.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/desktop-audio-stream-service.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-dedicated-audio-encode-session.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-audio-export-output.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-export-publication-progress.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/browser/audio-editor-task-progress.spec.js"
 						}
 					],
 					"policyAuthority": "family-v1-active"
@@ -7359,7 +7426,7 @@
 				},
 				{
 					"id": "direct-stem-archive-save",
-					"summary": "The direct stem-archive slice owns exact ZIP32 and 7z Copy publication. Native PCM admits only canonical WAV, AIFF, or BWF stems with exact names, sizes, order, and recomputed layouts; 7z Copy retains its fixed 32-byte final-prefix patch. Compressed stems remain ZIP32-only and admit the same seven canonical compressed identities under owned realtime or centrally admitted offline plan fingerprints and per-entry refusal bounds. In production browsers, reviewed digest-pinned WebAssembly providers produce complete FLAC, MP3, Ogg Vorbis, Opus, WavPack, and MP2 entries; WebCodecs plus Mediabunny produces complete AAC/M4A entries after capability admission. Unsupported profiles, custom FFmpeg, and unavailable WebCodecs configurations fail closed without a browser FFmpeg fallback. Per-stem encoding is sequential and retains at most the current complete result; ZIP32 uses at-most-64-KiB slices, awaits backpressure, recomputes actual sizes/layout, closes before commit, and requires byte-count agreement. The direct route creates no final archive Blob, although browser codec generation retains complete PCM and encoded-file bytes. Prepared Blob mode uses its separately bounded archive/download path. Compressed 7z, BW64 stems, video, inexact archives, scale, heap, worker memory, RSS, GC, CPU, time, durability, crash, and power loss remain outside this control. Desktop provider composition remains unchanged.",
+					"summary": "The direct stem-archive slice owns exact ZIP32 and 7z Copy publication. Native PCM admits only canonical WAV, AIFF, or BWF stems with exact names, sizes, order, and recomputed layouts; 7z Copy retains its fixed 32-byte final-prefix patch. Compressed stems remain ZIP32-only and admit the same seven canonical compressed identities under owned realtime or centrally admitted offline plan fingerprints and per-entry refusal bounds. In production browsers, reviewed digest-pinned WebAssembly providers produce complete FLAC, MP3, Ogg Vorbis, Opus, WavPack, and MP2 entries; WebCodecs plus Mediabunny produces complete AAC/M4A entries after capability admission. Unsupported profiles, custom FFmpeg, and unavailable WebCodecs configurations fail closed without a browser FFmpeg fallback. Per-stem encoding is sequential and retains at most the current complete result; ZIP32 uses at-most-64-KiB slices, awaits backpressure, recomputes actual sizes/layout, closes before commit, and requires byte-count agreement. The direct route creates no final archive Blob. Production browser compressed encoding streams PCM packets into one continuous codec and stores each completed encoded file in temporary file storage; it does not retain the whole staged PCM or encoded file in JavaScript. The compatibility whole-buffer codec API remains separately bounded. Prepared Blob mode admits storage-backed audio archives up to 1,000,000,000 bytes and retains the 512 MiB fence for materialized archives. Compressed 7z, BW64 stems, video, inexact archives, scale, heap, worker memory, RSS, GC, CPU, time, durability, crash, and power loss remain outside this control. Desktop bundled streaming uses main-private scratch and authenticated utility-process codec sessions; other desktop providers retain their separate controls.",
 					"evidence": [
 						{
 							"kind": "implementation",
@@ -7424,6 +7491,46 @@
 						{
 							"kind": "test",
 							"path": "tests/audio-editor-sequential-zip32-stream.test.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/large-audio-policy.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/browser-audio-streamed-encode.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/dedicated-audio-encode-session.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/audio-export-output.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/controller/shared/task-progress.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/desktop-audio-stream-service.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-dedicated-audio-encode-session.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-audio-export-output.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-export-publication-progress.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/browser/audio-editor-task-progress.spec.js"
 						}
 					],
 					"policyAuthority": "family-v1-active"
@@ -7764,7 +7871,8 @@
 				},
 				{
 					"id": "packaged-cross-platform-electron-lease-matrix",
-					"summary": "The Soundscaper and Framescaper family-v1 desktop libraries each hold one renewable process-lifetime main-owned writer lease in a separate fresh root and user_version 1 database with a persistently monotonic fencing token. Startup recovers journals before renderer admission; renewal loss fences new work; shutdown drains admitted operations and releases only the exact owned lease. The CI job exercises same-project contention, cross-product isolation, lease transfer and takeover, conflicting commits, renderer loss, orderly restart, and crash recovery for both products on Windows x64, Windows ARM64, macOS ARM64, Linux x64, and Linux ARM64. Each run reports only its own revision, target, operation outcomes, and failures; no retained result set or human record certifies a later release.",					"evidence": [
+					"summary": "The Soundscaper and Framescaper family-v1 desktop libraries each hold one renewable process-lifetime main-owned writer lease in a separate fresh root and user_version 1 database with a persistently monotonic fencing token. Startup recovers journals before renderer admission; renewal loss fences new work; shutdown drains admitted operations and releases only the exact owned lease. The CI job exercises same-project contention, cross-product isolation, lease transfer and takeover, conflicting commits, renderer loss, orderly restart, and crash recovery for both products on Windows x64, Windows ARM64, macOS ARM64, Linux x64, and Linux ARM64. Each run reports only its own revision, target, operation outcomes, and failures; no retained result set or human record certifies a later release.",
+					"evidence": [
 						{
 							"kind": "implementation",
 							"path": "desktop/soundscaper-project-library-lifecycle-host.ts"
@@ -10625,7 +10733,7 @@
 				},
 				{
 					"id": "verified-helper-engine-payload",
-					"summary": "The Soundscaper application supplies no general-purpose FFmpeg helper engine: renderer, runtime-resource, package, and release audits reject unmanaged FFmpeg programs, loose libav, FFmpeg WebAssembly, and archives. Framescaper separately admits only an exact authenticated target media-host payload and containment closure for build and test packages; the distribution policy does not replace its machine checks. Electron's separately verified alternate Chromium libffmpeg is a framework exception and never a Soundscaper provider tier. The audio broker registers seven exact reviewed compressed-audio WebAssembly payloads on linux-x64, linux-arm64, mac-arm64, win-x64, and win-arm64, never mac-x64: 153,076-byte libFLAC 1.5.0, 385,914-byte libopus 1.6.1/libogg 1.3.6, 523,227-byte libvorbis 1.3.7/libogg 1.3.6, 145,537-byte WavPack 5.9.0, 172,329-byte mpg123 1.33.7, 213,293-byte LAME 4.0, and 146,820-byte TwoLAME 0.4.0. A canonical manifest authenticates each control module, transitive JavaScript dependency, and WASM payload. Before every canary, preflight, and execution fork, main reauthenticates that complete closure; the helper reauthenticates it before import. Each job receives a fresh one-shot Electron utility process, private 0700 scratch and 0600 files, exact input/output digest and geometry checks, bounded deadline, kill-on-cancel/failure behavior, and a four-job global admission ceiling. Exact settings admit only the reviewed slices; existing first-party PCM containers remain application code and libsndfile is not bundled. The wire admits at most 32 MiB input and 128 MiB output and retains whole buffers; a codec call is synchronous inside its disposable helper, and the limits do not establish aggregate JavaScript-copy, WASM-memory, CPU, elapsed-time, or RSS bounds or a hostile-code sandbox. Windows Media Foundation and macOS ARM64 AudioToolbox adapters, validators, and live MP3/AAC canaries remain target-native, ad-hoc sealed on macOS only where execution requires it, and exact-manifest/payload authenticated, unavailable on Linux, and never built for mac-x64. The last tier supports a matching user-installed FFmpeg/ffprobe 4.4 through 9.x pair configured in Edit > Preferences > General or explicitly installed through exact WinGet/Homebrew commands, without copying it into a package. Its fixed no-shell audio commands and live-verified H.264/AAC MP4 and VP9/Opus WebM plans use private scratch/pipes, bounded duration/log/output, process-tree cancellation, identity rechecks, and validated publication. The conditional Assistance shot runner separately projects the same current exact-pair authority, requires lavfi/null plus color, concat, metadata, scdet, and showinfo, hashes both executables around a fixed functional four-frame canary and detection, and emits only bounded ordered exact source-frame/presentation-tick metadata for semantic review; absence or verification loss is typed unavailable, while malformed actual detection stays hard. An exact ffprobe verifies two streams at indices 0 and 1, 16x16 `yuv420p` video, and 48 kHz stereo audio in a private, five-second, 64-KiB, tree-terminated inspection before either video tuple is exposed. They do not close hash-before-path-spawn TOCTOU, authenticate dynamic-library closure, impose an OS filesystem/network/RSS/CPU sandbox, or constrain a malicious selected executable's user-account authority. Bundled video, operating-system video, and AV1 remain disabled; external WebM is VP9, not AV1. Receipts record null timing. Exact copyright-license and technical evidence establishes neither patent clearance nor non-infringement for any provider, codec, use, or territory.",
+					"summary": "The Soundscaper application supplies no general-purpose FFmpeg helper engine: renderer, runtime-resource, package, and release audits reject unmanaged FFmpeg programs, loose libav, FFmpeg WebAssembly, and archives. Framescaper separately admits only an exact authenticated target media-host payload and containment closure for build and test packages; the distribution policy does not replace its machine checks. Electron's separately verified alternate Chromium libffmpeg is a framework exception and never a Soundscaper provider tier. The audio broker registers seven exact reviewed compressed-audio WebAssembly payloads on linux-x64, linux-arm64, mac-arm64, win-x64, and win-arm64, never mac-x64: 154,763-byte libFLAC 1.5.0, 388,526-byte libopus 1.6.1/libogg 1.3.6, 526,926-byte libvorbis 1.3.7/libogg 1.3.6, 148,868-byte WavPack 5.9.0, 173,764-byte mpg123 1.33.7, 214,198-byte LAME 4.0, and 148,312-byte TwoLAME 0.4.0. A canonical manifest authenticates each control module, transitive JavaScript dependency, and WASM payload. Before every canary, preflight, and execution fork, main reauthenticates that complete closure; the helper reauthenticates it before import. Each job receives a fresh one-shot Electron utility process, private 0700 scratch and 0600 files, exact input/output digest and geometry checks, bounded deadline, kill-on-cancel/failure behavior, and a four-job global admission ceiling. Exact settings admit only the reviewed slices; existing first-party PCM containers remain application code and libsndfile is not bundled. The compatibility request wire admits at most 32 MiB input and 128 MiB output and retains whole buffers; a codec call is synchronous inside its disposable helper, and the limits do not establish aggregate JavaScript-copy, WASM-memory, CPU, elapsed-time, or RSS bounds or a hostile-code sandbox. The separate bundled streaming wire admits a one-hour source geometry, a lower-only 1,000,000,000-byte final-file bound, exact checked intermediate PCM in main-private scratch, at-most-1-MiB uploads and output ranges, and at-most-16,384-frame continuous WASM packets. Main mints opaque owner-bound session identities under a two-session global ceiling, preflights scratch capacity, rechecks the chosen execution-verified bundled provider, and reports actual encoded frames through bounded status polling. The helper dependency closure includes 16 normal or 19 WavPack transitive modules within the 24-entry spawn DTO ceiling; every file remains manifest authenticated before fork and import. Cancellation immediately fences the session and requests utility termination. Scratch cleanup waits for an observed utility exit, attempts every owned resource, preserves the original failure, and keeps failed cleanup retryable with its reservation charged. Windows Media Foundation and macOS ARM64 AudioToolbox adapters, validators, and live MP3/AAC canaries remain target-native, ad-hoc sealed on macOS only where execution requires it, and exact-manifest/payload authenticated, unavailable on Linux, and never built for mac-x64. The last tier supports a matching user-installed FFmpeg/ffprobe 4.4 through 9.x pair configured in Edit > Preferences > General or explicitly installed through exact WinGet/Homebrew commands, without copying it into a package. Its fixed no-shell audio commands and live-verified H.264/AAC MP4 and VP9/Opus WebM plans use private scratch/pipes, bounded duration/log/output, process-tree cancellation, identity rechecks, and validated publication. The conditional Assistance shot runner separately projects the same current exact-pair authority, requires lavfi/null plus color, concat, metadata, scdet, and showinfo, hashes both executables around a fixed functional four-frame canary and detection, and emits only bounded ordered exact source-frame/presentation-tick metadata for semantic review; absence or verification loss is typed unavailable, while malformed actual detection stays hard. An exact ffprobe verifies two streams at indices 0 and 1, 16x16 `yuv420p` video, and 48 kHz stereo audio in a private, five-second, 64-KiB, tree-terminated inspection before either video tuple is exposed. They do not close hash-before-path-spawn TOCTOU, authenticate dynamic-library closure, impose an OS filesystem/network/RSS/CPU sandbox, or constrain a malicious selected executable's user-account authority. Bundled video, operating-system video, and AV1 remain disabled; external WebM is VP9, not AV1. Receipts record null timing. Exact copyright-license and technical evidence establishes neither patent clearance nor non-infringement for any provider, codec, use, or territory.",
 					"evidence": [
 						{
 							"kind": "implementation",
@@ -11034,6 +11142,26 @@
 						{
 							"kind": "test",
 							"path": "tests/production-security-desktop-codec-policy.test.js"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/desktop-audio-stream-contract.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/desktop-audio-stream-service.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/desktop-audio-stream-job-runner.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/audio-codec-stream-helper.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-audio-stream-service.test.ts"
 						}
 					],
 					"policyAuthority": "family-v1-active"
@@ -11513,7 +11641,7 @@
 			"currentControls": [
 				{
 					"id": "bounded-browser-export-blob-publication",
-					"summary": "Browser-download audio mix, stem-archive, MP4, and WebM routes share one non-raiseable 512 MiB final-output ceiling. Compressed audio is admitted as complete file bytes from the dedicated reviewed WebAssembly providers or WebCodecs plus Mediabunny; exact keyed video is admitted as one complete Mediabunny container from WebCodecs chunks. Bytes must be nonempty, within codec and publication bounds, current, and format-valid before final Blob construction; owned or temporary-file-backed Blobs are rechecked before download. Unsupported operations fail closed, and there is no production browser FFmpeg import, fetch, cache, runtime, stat, MEMFS, or whole-file FFmpeg read. This is a publication fence, not an end-to-end memory bound: audio retains mapped PCM and a complete encoded file, video retains a complete container, and heap, worker/WASM/WebCodecs memory, RSS, GC, CPU, time, conformance, scale, quota, and durability remain unqualified. Direct destinations avoid the final download Blob but browser-native generation still completes in memory before range delivery.",
+					"summary": "Browser-download storage-backed audio mix and stem-archive output has a lower-only 1,000,000,000-byte final-file ceiling. A closed temporary-file writer or native scratch session must register the storage-owned Blob before the audio publication gate admits the larger file without whole-body materialization. Materialized audio output, MP4, WebM, Scape, and project-transfer Blobs retain their non-raiseable 512 MiB ceiling. Compressed audio comes from continuous reviewed WebAssembly codec sessions with at-most-16,384-frame PCM packets and awaited at-most-1-MiB encoded writes, or fragmented AAC/M4A muxing through WebCodecs plus Mediabunny. Completed files must be nonempty, within codec and publication bounds, current, and format-valid before final Blob admission and download. Exact keyed video retains its complete Mediabunny container route. Unsupported operations fail closed, and there is no production browser FFmpeg import, fetch, cache, runtime, stat, MEMFS, or whole-file FFmpeg read. Import and export foreground tasks display progress even with the optional status bar hidden and expose cancellation only while the current task owns it. Import writes bounded decoded PCM directly into chunk storage and preflights decoded storage capacity; source audio is capped at one hour and 1,000,000,000 original-file bytes on the new compressed route. PCM routes retain their existing broader container admission. Export cancellation and currentness fence rendering, staged reads, encoding, final validation, and final destination writes; publication uses file-backed Blob slices or awaited ranges. These enumerated packet and file bounds do not qualify total browser heap, worker/WASM/WebCodecs memory, RSS, GC, CPU, time, conformance, broad scale, quota, or durability.",
 					"evidence": [
 						{
 							"kind": "implementation",
@@ -11566,6 +11694,46 @@
 						{
 							"kind": "test",
 							"path": "tests/production-pipeline-route-verification.test.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/large-audio-policy.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/browser-audio-streamed-encode.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/dedicated-audio-encode-session.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/audio-export-output.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/controller/shared/task-progress.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/desktop-audio-stream-service.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-dedicated-audio-encode-session.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-audio-export-output.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-export-publication-progress.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/browser/audio-editor-task-progress.spec.js"
 						}
 					],
 					"policyAuthority": "family-v1-active"
@@ -11644,7 +11812,7 @@
 				},
 				{
 					"id": "controller-generation-and-abort-guards",
-					"summary": "Controller tasks receive AbortSignals and generation checks prevent stale results from replacing current UI state. Matching native-import ownership clears and republishes the global importing flag even after an external project generation change, while an older owner cannot clear newer work.",
+					"summary": "Controller tasks receive AbortSignals and generation checks prevent stale results from replacing current UI state. Matching native-import ownership clears and republishes the global importing flag even after an external project generation change, while an older owner cannot clear newer work. File-menu audio imports and exports expose foreground progress and cancellation even when the status bar is hidden. Import status changes before deferred admission loads. Compressed imports admit at most one hour and 1,000,000,000 original file bytes; bounded decoder packets await each canonical source write. All incremental PCM imports above 64 MiB of decoded Float32 require an actual IndexedDB or OPFS writer before decoding, so degraded storage cannot retain hour-long PCM in the memory fallback. Import progress allocates eighty percent to source writes and twenty percent to activation and waveform generation. The same AbortSignal reaches source writing, streamed waveform reads, and analysis publication; cancellation rolls back newly stored source and waveform data before task ownership is released. Actual MPEG packet headers select the reviewed LayerII decoder even when native MP3 capability or a renamed extension would misidentify MP2. Desktop LayerII imports preserve the smaller utility tier of 32 MiB input and 128 MiB decoded PCM; large or unavailable desktop tuples fail explicitly. Streamed AAC records the exact source tuple and frame count in a bounded MP4 tag. Its parser reads at most 128 bytes at once and limits inspected box headers; AAC-LC packet continuity, 1024-sample packets, zero or 1024 leading PCM frames, and at most 1023 trailing PCM frames bind that declaration to encoded geometry. Tagged one-hour files retain exactly one hour of source frames, while inconsistent declarations and other padding profiles fail closed. Stored chunk providers retry one maintenance-released session opening against the same expected source generation, so autosave cannot retain a failed opening and block playback. Caller cancellation, provider disposal, changed generations, and real read errors remain terminal.",
 					"evidence": [
 						{
 							"kind": "implementation",
@@ -11665,6 +11833,78 @@
 						{
 							"kind": "test",
 							"path": "tests/audio-editor-worker-client-lifecycle.test.js"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/controller/import/internal/incremental-wav-import-service.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/storage/source-write-repository.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/controller/source/internal/stored-source-activation.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/ui/toolbar/EditorTaskProgressBar.tsx"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-large-import-storage-admission.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-stored-waveform-cancellation.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-stored-source-activation-progress.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/browser/audio-editor-task-progress.spec.js"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/browser-streamed-audio-import.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/desktop-mpeg-layer-ii-import.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-mpeg-layer-import.test.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/aac-source-geometry.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/browser-webcodecs-aac-stream.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-aac-source-geometry.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-browser-streamed-aac-export.test.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/controller/source/source-audio.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/storage/source-read-repository.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-stored-provider-opening-release.test.ts"
 						}
 					],
 					"policyAuthority": "family-v1-active"
@@ -12317,7 +12557,7 @@
 				},
 				{
 					"id": "direct-compressed-mix-save-rollback",
-					"summary": "The direct compressed route carries its signal and currentness through target selection, rendering, PCM staging, browser-native or desktop encoding, bounded delivery, close, and pre-commit admission for all seven formats. In production browsers, cancellation of a dedicated WebAssembly encode terminates its worker and rejects pending operations; payload, profile, validation, short-output, and bound failures remain unpublished. AAC/M4A races every awaited WebCodecs/Mediabunny probe, mux, finalization, and validation operation against cancellation; abort cancels the output or disposes the demux input, and no aborted or stale result reaches publication. No browser cleanup deletes MEMFS, unmounts WORKERFS, or terminates FFmpeg because none is present. Any pre-commit refusal or target failure aborts an acquired unpublished destination exactly once and performs no download; primary and cleanup failures remain observable together. Close, emitted/written agreement, and unchanged plan precede one non-cancellable commit. Ownership loss during commit returns the committed result without stale success UI; committed-size drift is post-publication failure. Desktop cancellation remains under existing provider controls. Crash, power loss, durable cleanup, browser lifecycle, scale, complete-buffer residency, heap, RSS, CPU, and time remain unqualified.",
+					"summary": "The direct compressed route carries its signal and currentness through target selection, rendering, PCM staging, browser-native or desktop encoding, bounded delivery, close, and pre-commit admission for all seven formats. In production browsers, cancellation of a dedicated WebAssembly encode terminates its worker and rejects pending operations; payload, profile, validation, short-output, and bound failures remain unpublished. AAC/M4A races every awaited WebCodecs/Mediabunny probe, mux, finalization, and validation operation against cancellation; abort cancels the output or disposes the demux input, and no aborted or stale result reaches publication. No browser cleanup deletes MEMFS, unmounts WORKERFS, or terminates FFmpeg because none is present. Any pre-commit refusal or target failure aborts an acquired unpublished destination exactly once and performs no download; primary and cleanup failures remain observable together. Close, emitted/written agreement, and unchanged plan precede one non-cancellable commit. Ownership loss during commit returns the committed result without stale success UI; committed-size drift is post-publication failure. Desktop bundled streaming cancellation stops the authenticated utility process and removes its owner-bound main-private scratch session; other desktop providers retain their existing cancellation controls. Crash, power loss, durable cleanup, browser lifecycle, scale, complete-buffer residency, heap, RSS, CPU, and time remain unqualified.",
 					"evidence": [
 						{
 							"kind": "implementation",
@@ -12362,6 +12602,46 @@
 						{
 							"kind": "test",
 							"path": "tests/audio-editor-export-direct-offline-compressed-service.test.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/large-audio-policy.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/browser-audio-streamed-encode.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/dedicated-audio-encode-session.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/audio-export-output.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/controller/shared/task-progress.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/desktop-audio-stream-service.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-dedicated-audio-encode-session.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-audio-export-output.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-export-publication-progress.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/browser/audio-editor-task-progress.spec.js"
 						}
 					],
 					"policyAuthority": "family-v1-active"

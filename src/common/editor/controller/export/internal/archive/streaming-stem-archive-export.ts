@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { admitBrowserExportBlob } from '../../../../browser-export-output.ts';
+import { admitAudioExportBlob } from '../../../../audio-export-output.ts';
 import { createExportChapterPlan } from '../../../../export-chapters.ts';
 import type { DeliveryConformanceFinding } from '../../../../delivery-conformance.ts';
 
@@ -82,7 +82,7 @@ export async function streamStemArchiveExport({
 		const result = await archive.finish();
 		return {
 			conformance: Object.freeze(findings),
-			blob: admitBrowserExportBlob(result.blob, 'Audio stem archive', admitOutputBytes),
+			blob: admitAudioExportBlob(result.blob, 'Audio stem archive', admitOutputBytes),
 			fileName: plan.archive.fileName,
 			cleanup: result.cleanup,
 		};

@@ -123,3 +123,5 @@ cleanup:
 	twolame_close(&options);
 	return result;
 }
+
+#include "stream_encode.h"

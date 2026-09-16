@@ -513,7 +513,7 @@ export function AccessibleSelectionToolbar({
 				<p data-status data-editor-status data-state={statusState} role="status" aria-live="polite" tabIndex={0} title={statusMessage}>
 					{showStatusbar ? statusMessage : ''}
 				</p>
-				{showStatusbar && <EditorTaskProgressBar controller={controller} snapshot={snapshot} statusMessage={statusMessage} />}
+				<EditorTaskProgressBar controller={controller} snapshot={snapshot} statusMessage={statusMessage} showLabel={!showStatusbar} cancelLabel={copy.cancel} />
 			</div>
 		);
 	}
@@ -540,8 +540,8 @@ export function AccessibleSelectionToolbar({
 				onSelectionEndChange={updateEnd}
 				showDuration
 			/>
-			{showStatusbar && statusTarget && createPortal(
-				<EditorTaskProgressBar controller={controller} snapshot={snapshot} statusMessage={statusMessage} />,
+			{statusTarget && createPortal(
+				<EditorTaskProgressBar controller={controller} snapshot={snapshot} statusMessage={statusMessage} showLabel={!showStatusbar} cancelLabel={copy.cancel} />,
 				statusTarget,
 			)}
 		</div>

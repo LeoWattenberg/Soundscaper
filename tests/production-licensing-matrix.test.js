@@ -228,13 +228,13 @@ test('runtime provenance entries and distribution checks fail closed without cla
 		'flac', 'opus', 'vorbis', 'wavpack', 'mpg123', 'lame', 'twolame',
 	]);
 	const expectedAudioPayloads = {
-		flac: ['1.5.0', 'BSD-3-Clause', 153076, '0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986'],
-		opus: ['libopus-1.6.1+libogg-1.3.6', 'BSD-3-Clause', 385914, 'c972c5019a7f56dfe9c712cb15c25ebb54b55b16b19b3b99a5b02c31ef311685'],
-		vorbis: ['libvorbis-1.3.7+libogg-1.3.6', 'BSD-3-Clause', 523227, 'c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5'],
-		wavpack: ['5.9.0', 'BSD-3-Clause', 145537, 'c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908'],
-		mpg123: ['1.33.7', 'LGPL-2.1-only', 172329, 'd2b5686a16141ec97dbeb4e4f2a1ce28b756dd3eaf6438b31379356c8dd958ae'],
-		lame: ['4.0', 'LGPL-2.0-or-later', 213293, 'd624f2202ce5a560ca38bc156cb80441fe93ec799e59a35d0f9379a990256123'],
-		twolame: ['0.4.0', 'LGPL-2.1-or-later', 146820, 'b4b166bed688504b548adcee02cda391d4d8b25a44aec914c3fe1082f466ed1b'],
+		flac: ['1.5.0', 'BSD-3-Clause', 154763, '6246c5d6979f25b733e399383004a6a861478802c376d59885a7b2c7130a1584'],
+		opus: ['libopus-1.6.1+libogg-1.3.6', 'BSD-3-Clause', 388526, 'cc5577fa2a6c74781b7eb57bd754f7d9b50b2355a83d85b0f0cfe96415607dce'],
+		vorbis: ['libvorbis-1.3.7+libogg-1.3.6', 'BSD-3-Clause', 526926, 'cfa42717394ce29f8af676fb0ad7bff632306f75e536211eb85b7cc5aaf09aa0'],
+		wavpack: ['5.9.0', 'BSD-3-Clause', 148868, '5197fb8fd8e6cbef210acad11eb2a9dd8395a519b5fd64ba14a1b4978041b0c5'],
+		mpg123: ['1.33.7', 'LGPL-2.1-only', 173764, '1aa30e6e25a9503be94ce3720ce6c4af649b2412c191a6f800f36dd619270bc2'],
+		lame: ['4.0', 'LGPL-2.0-or-later', 214198, 'e8ca1786d95a56ead1fc2294be98ea68d31eed5837abd79d2a3322a0af946c6f'],
+		twolame: ['0.4.0', 'LGPL-2.1-or-later', 148312, '8b89b6a12eab302c92960865c6b1c7d33df86d6d8760c8549a8ee38a99ef2b30'],
 	};
 	for (const [id, [version, license, byteLength, sha256]] of Object.entries(expectedAudioPayloads)) {
 		const provider = codecPolicy.bundledProviders[id];
@@ -322,8 +322,8 @@ test('runtime provenance entries and distribution checks fail closed without cla
 		provenanceKind: 'pinned-in-tree-wasm-and-desktop-bundled-codec-provider',
 		upstream: 'WavPack 5.9.0 commit 5803634a030e2a11dba602ba057b89cc34486c67',
 		license: 'BSD-3-Clause',
-		byteLength: 145537,
-		sha256: 'c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908',
+		byteLength: 148868,
+		sha256: '5197fb8fd8e6cbef210acad11eb2a9dd8395a519b5fd64ba14a1b4978041b0c5',
 		providerRole: 'soundscaper-bundled-wavpack-float32-encode-decode',
 		compressionLevel: 2,
 		targets: ['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64'],

@@ -26,7 +26,7 @@ test('the exact artifact gates a five-target signed-24 FLAC provider', async () 
 	assert.equal(runtime.provider.kind, 'bundled');
 	assert.equal(runtime.provider.implementation, 'libflac-wasm-f32-to-s24');
 	assert.match(runtime.provider.capabilityGeneration, new RegExp(BUNDLED_FLAC_WASM_SHA256, 'u'));
-	assert.equal(BUNDLED_FLAC_WASM_BYTE_LENGTH, 153_076);
+	assert.equal(BUNDLED_FLAC_WASM_BYTE_LENGTH, 154_763);
 	assert.equal(BUNDLED_FLAC_PCM_BIT_DEPTH, 24);
 	assert.equal((await runtime.provider.preflight(operation('encode'), {})).disposition, 'supported');
 	assert.equal((await runtime.provider.preflight(operation('decode'), {})).disposition, 'supported');

@@ -42,6 +42,7 @@ interface RouteRecord {
 	readonly finalRendererBlob: boolean;
 	readonly id: string;
 	readonly maximumBytes?: number;
+	readonly fileBackedMaximumBytes?: number;
 	readonly publicationMode: 'browser-blob' | 'direct-stream';
 }
 
@@ -54,6 +55,7 @@ test('milestone 2 verifies one exact unique publication-route register', async (
 	const routeIds = item.routeIds as string[];
 	const verification = matrix.publicationRouteVerification as Readonly<{
 		browserBlobMaximumBytes: number;
+		fileBackedAudioMaximumBytes: number;
 		routes: RouteRecord[];
 		status: string;
 	}>;
@@ -65,6 +67,7 @@ test('milestone 2 verifies one exact unique publication-route register', async (
 	assert.equal(verification.browserBlobMaximumBytes, 512 * 1024 * 1024);
 	assert.equal(verification.browserBlobMaximumBytes, BROWSER_EXPORT_BLOB_MAXIMUM_BYTES);
 	assert.equal(verification.browserBlobMaximumBytes, SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES);
+	assert.equal(verification.fileBackedAudioMaximumBytes, 1_000_000_000);
 	assert.deepEqual(verification.routes.map(({ id }) => id), routeIds);
 });
 
@@ -87,6 +90,8 @@ test('every browser route has one frozen Blob limit and every direct route exclu
 			assert.equal(route.publicationMode, 'browser-blob');
 			assert.equal(route.finalRendererBlob, true);
 			assert.equal(route.maximumBytes, BROWSER_EXPORT_BLOB_MAXIMUM_BYTES);
+			assert.equal(route.fileBackedMaximumBytes,
+				['audio-mix-browser-blob', 'audio-stems-browser-blob'].includes(route.id) ? 1_000_000_000 : undefined);
 		} else {
 			assert.equal(route.publicationMode, 'direct-stream');
 			assert.equal(route.finalRendererBlob, false);
@@ -102,11 +107,11 @@ test('browser audio and video publication use the shared admission boundary', as
 		readFile(new URL('../src/common/editor/browser-audio-codec-runtime.ts', import.meta.url), 'utf8'),
 		readFile(new URL('../src/common/editor/video-keyframe-mediabunny-execution.ts', import.meta.url), 'utf8'),
 	]);
-	assert.match(audio, /prepareBrowserExportBlob/u);
-	assert.match(audio, /admitBrowserExportBlob/u);
+	assert.match(audio, /prepareAudioExportBlob/u);
+	assert.match(audio, /admitAudioExportBlob/u);
 	assert.match(video, /prepareBrowserExportBlob/u);
 	assert.match(audioRuntime, /ffmpegAvailable: false/u);
-	assert.match(audioRuntime, /browser-dedicated-audio-result/u);
+	assert.match(audioRuntime, /streamBrowserAudioEncodedResult/u);
 	assert.match(nativeVideo, /executeVideoKeyframeMediabunnyEncoder/u);
 	assert.match(nativeVideo, /complete browser-native delivery/u);
 	assert.doesNotMatch(audio, /new Blob\(\[encoded\.bytes\]/u);
@@ -140,7 +145,7 @@ test('the threat model owns the route-level claim without promoting resource gua
 	}
 	assert.match(
 		documentation,
-		/five retained\s+browser-Blob fallbacks.*non-raiseable 512 MiB.*complete\s+browser-native.*before final Blob construction.*before download publication/isu,
+		/five retained\s+browser-Blob fallbacks.*non-raiseable 512 MiB.*Storage-backed audio mix and stem archives.*1,000,000,000-byte.*complete\s+browser-native.*before final Blob construction.*before download publication/isu,
 	);
 	assert.match(
 		documentation,

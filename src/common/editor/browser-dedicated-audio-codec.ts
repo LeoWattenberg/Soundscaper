@@ -73,36 +73,36 @@ const MAXIMUM_WAVPACK_BLOCK_OVERHEAD_BYTES = 64 * 1024;
 
 const PAYLOADS: Readonly<Record<BrowserDedicatedAudioFormat, PayloadDescriptor>> = Object.freeze({
 	flac: Object.freeze({
-		url: new URL('./flac/flac.wasm', import.meta.url), byteLength: 153_076,
-		sha256: '0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986', prefix: 'scfl',
+		url: new URL('./flac/flac.wasm', import.meta.url), byteLength: 154763,
+		sha256: '6246c5d6979f25b733e399383004a6a861478802c376d59885a7b2c7130a1584', prefix: 'scfl',
 	}),
 	mp3: Object.freeze({
-		url: new URL('./lame/lame.wasm', import.meta.url), byteLength: 213_293,
-		sha256: 'd624f2202ce5a560ca38bc156cb80441fe93ec799e59a35d0f9379a990256123',
+		url: new URL('./lame/lame.wasm', import.meta.url), byteLength: 214_198,
+		sha256: 'e8ca1786d95a56ead1fc2294be98ea68d31eed5837abd79d2a3322a0af946c6f',
 		prefix: 'sclm', abiVersion: 2,
 	}),
 	'ogg-vorbis': Object.freeze({
-		url: new URL('./vorbis/vorbis.wasm', import.meta.url), byteLength: 523_227,
-		sha256: 'c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5', prefix: 'scvb',
+		url: new URL('./vorbis/vorbis.wasm', import.meta.url), byteLength: 526_926,
+		sha256: 'cfa42717394ce29f8af676fb0ad7bff632306f75e536211eb85b7cc5aaf09aa0', prefix: 'scvb',
 	}),
 	opus: Object.freeze({
-		url: new URL('./opus/opus.wasm', import.meta.url), byteLength: 385_914,
-		sha256: 'c972c5019a7f56dfe9c712cb15c25ebb54b55b16b19b3b99a5b02c31ef311685',
+		url: new URL('./opus/opus.wasm', import.meta.url), byteLength: 388526,
+		sha256: 'cc5577fa2a6c74781b7eb57bd754f7d9b50b2355a83d85b0f0cfe96415607dce',
 		prefix: 'scop', abiVersion: 2,
 	}),
 	wavpack: Object.freeze({
-		url: new URL('./wavpack/wavpack.wasm', import.meta.url), byteLength: 145_537,
-		sha256: 'c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908', prefix: 'scwp',
+		url: new URL('./wavpack/wavpack.wasm', import.meta.url), byteLength: 148_868,
+		sha256: '5197fb8fd8e6cbef210acad11eb2a9dd8395a519b5fd64ba14a1b4978041b0c5', prefix: 'scwp',
 	}),
 	mp2: Object.freeze({
-		url: new URL('./twolame/twolame.wasm', import.meta.url), byteLength: 146_820,
-		sha256: 'b4b166bed688504b548adcee02cda391d4d8b25a44aec914c3fe1082f466ed1b', prefix: 'sctl',
+		url: new URL('./twolame/twolame.wasm', import.meta.url), byteLength: 148_312,
+		sha256: '8b89b6a12eab302c92960865c6b1c7d33df86d6d8760c8549a8ee38a99ef2b30', prefix: 'sctl',
 	}),
 });
 
 const MPG123_PAYLOAD: PayloadDescriptor = Object.freeze({
-	url: new URL('./mpg123/mpg123.wasm', import.meta.url), byteLength: 172_329,
-	sha256: 'd2b5686a16141ec97dbeb4e4f2a1ce28b756dd3eaf6438b31379356c8dd958ae', prefix: 'scmp',
+	url: new URL('./mpg123/mpg123.wasm', import.meta.url), byteLength: 173_764,
+	sha256: '1aa30e6e25a9503be94ce3720ce6c4af649b2412c191a6f800f36dd619270bc2', prefix: 'scmp',
 });
 
 const ALLOWED_IMPORTS: Readonly<Record<string, (...arguments_: number[]) => number | void>> = Object.freeze({
@@ -133,16 +133,32 @@ export async function encodeDedicatedAudioPcm(
 ): Promise<Uint8Array<ArrayBuffer>> {
 	const normalized = normalizeRequest(request);
 	const descriptor = PAYLOADS[normalized.format];
-	const payload = await (dependencies.loadPayload ?? fetchPayload)(normalized.format, descriptor.url);
-	await verifyPayload(payload, descriptor);
-	const module = await WebAssembly.compile(Uint8Array.from(payload).buffer);
-	const instance = await WebAssembly.instantiate(module, importsFor(module));
-	initialize(instance.exports, descriptor);
+	const instance = await instantiatePayload(normalized.format, descriptor, dependencies);
 	const output = normalized.format === 'wavpack'
 		? encodeWavPack(instance.exports, normalized)
 		: encodeOneShot(instance.exports, descriptor, normalized);
 	validateDedicatedAudioOutput(output, normalized);
 	return output;
+}
+
+/** Share the exact authenticated payload with incremental worker and utility-process sessions. */
+export async function instantiateDedicatedAudioPayload(
+	format: BrowserDedicatedAudioFormat,
+	dependencies: DedicatedAudioCodecDependencies = {},
+): Promise<Readonly<{ exports: WebAssembly.Exports; prefix: string }>> {
+	const descriptor = PAYLOADS[format];
+	if (!descriptor) throw new TypeError('A dedicated audio format is required.');
+	const instance = await instantiatePayload(format, descriptor, dependencies);
+	return Object.freeze({ exports: instance.exports, prefix: descriptor.prefix });
+}
+
+async function instantiatePayload(format: BrowserDedicatedAudioFormat, descriptor: PayloadDescriptor, dependencies: DedicatedAudioCodecDependencies): Promise<WebAssembly.Instance> {
+	const payload = await (dependencies.loadPayload ?? fetchPayload)(format, descriptor.url);
+	await verifyPayload(payload, descriptor);
+	const module = await WebAssembly.compile(Uint8Array.from(payload).buffer);
+	const instance = await WebAssembly.instantiate(module, importsFor(module));
+	initialize(instance.exports, descriptor);
+	return instance;
 }
 
 /** Decode a reviewed compressed file into interleaved little-endian Float32 PCM. */
@@ -154,11 +170,7 @@ export async function decodeDedicatedAudioFile(
 	const descriptor = request.format === 'mp3' || request.format === 'mp2'
 		? MPG123_PAYLOAD
 		: PAYLOADS[request.format];
-	const payload = await (dependencies.loadPayload ?? fetchPayload)(request.format, descriptor.url);
-	await verifyPayload(payload, descriptor);
-	const module = await WebAssembly.compile(Uint8Array.from(payload).buffer);
-	const instance = await WebAssembly.instantiate(module, importsFor(module));
-	initialize(instance.exports, descriptor);
+	const instance = await instantiatePayload(request.format, descriptor, dependencies);
 	const wavPackGeometry = request.format === 'wavpack'
 		? parseBundledWavPackStream(request.input)
 		: null;

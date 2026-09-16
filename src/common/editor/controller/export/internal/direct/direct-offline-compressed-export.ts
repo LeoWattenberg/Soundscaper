@@ -35,6 +35,7 @@ export interface EncodeDirectOfflineCompressedOptions {
 	) => Uint8Array;
 	readonly ffmpeg: DirectCompressedEncodeOptions['ffmpeg'];
 	readonly onEncoding: () => void;
+	readonly onProgress?: (value: number) => void;
 	readonly plan: DirectCompressedPlan;
 	readonly signal: AbortSignal;
 }
@@ -87,6 +88,7 @@ export async function encodeDirectOfflineCompressed(
 		destination: options.destination,
 		encodingSettings: {
 			...plan.encoding,
+			onProgress: options.onProgress,
 			bitDepth,
 			sampleRate: plan.sampleRate,
 			applyDither: plan.encoding.sampleFormat !== 'float32'

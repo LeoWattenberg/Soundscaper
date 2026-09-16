@@ -122,6 +122,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			remove: deleteProject,
 			clear: clearLocalData,
 			importFiles,
+			cancelTask: () => scope.taskProgress?.cancelActive() ?? false,
 			setTempo: (bpm: number) => commit({ type: 'tempo/set', bpm }),
 			setTimeSignature: (numerator: number, denominator: number) => commit({ type: 'tempo/set', numerator, denominator }),
 			setTempoMapMode: (mode: AudioEditorCommandPayloads['tempo-map/mode-set']['mode']) => commit({ type: 'tempo-map/mode-set', mode }),

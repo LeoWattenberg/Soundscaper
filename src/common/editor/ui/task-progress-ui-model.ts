@@ -5,6 +5,7 @@ export interface TaskProgressViewModel {
 	readonly kind: string;
 	readonly label: string;
 	readonly value: number | null;
+	readonly cancellable?: boolean;
 }
 
 export interface TaskProgressBusySnapshot {

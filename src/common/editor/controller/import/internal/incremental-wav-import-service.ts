@@ -63,7 +63,10 @@ export function createIncrementalPcmImporter(runtime: IncrementalPcmImportRuntim
 		activationOptions: Readonly<{ requireChunkStream?: boolean }> = {},
 		ownership: IncrementalPcmImportOwnership = {},
 	) {
-		const assertCurrent = ownership.assertCurrent ?? (() => undefined);
+		const assertCurrent = () => {
+			importOptions.signal?.throwIfAborted();
+			ownership.assertCurrent?.();
+		};
 		assertCurrent();
 		admitAudioImportChannelCount(descriptor?.channelCount);
 		const pcmBytes = sourcePcmBytes(descriptor);
@@ -73,10 +76,12 @@ export function createIncrementalPcmImporter(runtime: IncrementalPcmImportRuntim
 		const clipId = createStableId('clip');
 		const trackName = stripExtension(file.name) || `${copy.track} ${getProject().tracks.length + 1}`;
 		const sourceName = file.name;
-		const mimeType = descriptor.container === 'aiff' || descriptor.container === 'aifc'
+		const mimeType = descriptor.container === 'compressed-audio' ? descriptor.mimeType
+			: descriptor.container === 'aiff' || descriptor.container === 'aifc'
 			? 'audio/aiff'
 			: file.type || 'audio/wav';
 		const writer = createImportedAudioContentIdentityWriter(await store.beginSourceWrite(sourceId, {
+			requirePersistentPcm: pcmBytes > 64 * 1024 * 1024,
 			name: sourceName,
 			mimeType,
 			sampleRate: descriptor.sampleRate,
@@ -89,19 +94,23 @@ export function createIncrementalPcmImporter(runtime: IncrementalPcmImportRuntim
 		let importedResult: any;
 		try {
 			assertCurrent();
-			const streamPcm = descriptor.container === 'aiff' || descriptor.container === 'aifc'
+			const streamPcm = descriptor.container === 'compressed-audio'
+				? (_file: unknown, settings: Record<string, unknown>) => descriptor.stream(settings)
+				: descriptor.container === 'aiff' || descriptor.container === 'aifc'
 				? streamAiffBlobPcm
 				: streamWavBlobPcm;
 			if (typeof streamPcm !== 'function') throw new Error('The maintained PCM stream reader is unavailable.');
 			await streamPcm(file, {
 				descriptor,
 				chunkFrames: SOURCE_CHUNK_FRAMES,
+				signal: importOptions.signal,
+				assertCurrent,
 				onChunk: async (channels: Float32Array[]) => {
 					assertCurrent();
 					streamedFrames += channels[0]?.length || 0;
-					reportProgress(streamedFrames / Math.max(1, descriptor.frameCount));
-					await writer.write(channels);
+					await writer.write(channels, { signal: importOptions.signal });
 					assertCurrent();
+					reportProgress(0.8 * streamedFrames / Math.max(1, descriptor.frameCount));
 				},
 			});
 			assertCurrent();
@@ -109,7 +118,7 @@ export function createIncrementalPcmImporter(runtime: IncrementalPcmImportRuntim
 				sampleRate: descriptor.sampleRate,
 				channelCount: descriptor.channelCount,
 				chunkFrames: SOURCE_CHUNK_FRAMES,
-			});
+			}, { signal: importOptions.signal });
 			assertCurrent();
 			contentIdentity = writer.contentIdentity(descriptor.frameCount);
 		} catch (error) {
@@ -153,9 +162,14 @@ export function createIncrementalPcmImporter(runtime: IncrementalPcmImportRuntim
 			}, trackName, importOptions, wavMetadata.projectBext, descriptor.markers || [],
 			descriptor.sampleRate, wavMetadata.projectIxml, wavMetadata.projectCart,
 			wavMetadata.projectAdmCandidate, descriptor);
-			await activateStoredSource(source, metadata, activationOptions);
+			await activateStoredSource(source, metadata, {
+				...activationOptions,
+				signal: importOptions.signal,
+				onProgress: (value: number) => { assertCurrent(); reportProgress(0.8 + 0.19 * value); },
+			});
 			assertCurrent();
 			commit(prepared.command, prepared.selection);
+			reportProgress(1);
 			importedResult = prepared.result;
 		} catch (error) {
 			const cleanupErrors: unknown[] = [];

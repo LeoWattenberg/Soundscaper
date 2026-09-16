@@ -98,3 +98,5 @@ cleanup:
 	if (initialized) mpg123_exit();
 	return error == (int)expected_frames ? error : 0;
 }
+
+#include "soundscaper_mpg123_stream_decode.h"

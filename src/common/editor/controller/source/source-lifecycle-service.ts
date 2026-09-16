@@ -428,27 +428,14 @@ export function createSourceLifecycleService<
 		return ownership;
 	}
 
-	async function activateStoredSource(source: SourceLifecycleSource, metadata: Metadata | null | undefined, {
-		buffer = null, requireChunkStream = false,
-	}: ActivateStoredSourceOptions<Buffer> = {}): Promise<Peaks> {
-		const provider = registerStoredChunkProvider(source, metadata);
-		if (requireChunkStream && !provider) {
-			throw new Error(`Source ${source.id} requires a playable chunk provider.`);
-		}
-		let peakBuffer = buffer;
-		if (provider && (requireChunkStream
-			|| sourcePcmBytes(source) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES)) {
-			sourceBuffers.delete(source.id);
-		} else {
-			peakBuffer ||= await readStoredAudioBuffer(store, source, await engine.getAudioContext?.({ resume: false }));
-			if (peakBuffer) cacheSourceBuffer(source.id, peakBuffer);
-		}
-		const peaks = peakBuffer
-			? await generateWaveformPeaks(audioBufferChannels(peakBuffer), copy)
-			: await generateStoredWaveformPeaks(store, source, copy);
-		sourcePeaks.set(source.id, peaks);
-		await store.saveAnalysis(peakCacheKey(source.id), peaks);
-		return peaks;
+	async function activateStoredSource(source: SourceLifecycleSource, metadata: Metadata | null | undefined,
+		options: ActivateStoredSourceOptions<Buffer> = {}): Promise<Peaks> {
+		const { activateStoredSourceWithProgress } = await import('./internal/stored-source-activation.ts');
+		return activateStoredSourceWithProgress({
+			SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES, audioBufferChannels, copy, engine,
+			generateStoredWaveformPeaks, generateWaveformPeaks, peakCacheKey, readStoredAudioBuffer,
+			sourceBuffers, sourcePcmBytes, sourcePeaks, store, registerStoredChunkProvider, cacheSourceBuffer,
+		}, source, metadata, options);
 	}
 
 	async function ensureProjectSourcesAvailable(

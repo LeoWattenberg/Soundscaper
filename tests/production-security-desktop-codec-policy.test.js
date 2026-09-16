@@ -135,7 +135,7 @@ test('desktop codec security separates Electron framework, application, and exte
 	);
 	assert.match(
 		helperPayload.summary,
-		/seven exact reviewed compressed-audio WebAssembly payloads.*linux-x64.*linux-arm64.*mac-arm64.*win-x64.*win-arm64.*never mac-x64.*153,076-byte libFLAC 1\.5\.0.*385,914-byte libopus 1\.6\.1.*523,227-byte libvorbis 1\.3\.7.*145,537-byte WavPack 5\.9\.0.*172,329-byte mpg123 1\.33\.7.*213,293-byte LAME 4\.0.*146,820-byte TwoLAME 0\.4\.0.*exact settings.*libsndfile is not bundled/iu,
+		/seven exact reviewed compressed-audio WebAssembly payloads.*linux-x64.*linux-arm64.*mac-arm64.*win-x64.*win-arm64.*never mac-x64.*154,763-byte libFLAC 1\.5\.0.*388,526-byte libopus 1\.6\.1.*526,926-byte libvorbis 1\.3\.7.*148,868-byte WavPack 5\.9\.0.*173,764-byte mpg123 1\.33\.7.*214,198-byte LAME 4\.0.*148,312-byte TwoLAME 0\.4\.0.*exact settings.*libsndfile is not bundled/iu,
 	);
 	assert.match(
 		helperPayload.summary,
@@ -186,8 +186,11 @@ test('desktop codec security separates Electron framework, application, and exte
 	);
 	assert.match(
 		plan,
-		/libsndfile is intentionally not added.*runtime manifest.*WASM.*transitive JavaScript.*fresh.*supervised Electron utility process.*32 MiB.*128 MiB.*synchronous WASM.*aggregate.*RSS/isu,
+		/libsndfile is intentionally not added.*runtime manifest.*WASM.*transitive JavaScript.*fresh.*supervised Electron utility process/isu,
 	);
+	assert.match(plan, /existing canary and small-buffer operations.*32 MiB.*128 MiB.*contract/isu);
+	assert.match(plan, /small-buffer helpers.*synchronous WASM.*shared reservation.*aggregate.*RSS/isu);
+	assert.match(plan, /continuous-session route.*16,384.*same codec instance persists.*1 MiB.*one hour.*1,000,000,000 final file bytes.*cancellation.*progress.*validation/isu);
 	assert.match(
 		plan,
 		/Media Foundation.*AudioToolbox.*target-native.*mac-arm64.*win-x64.*win-arm64.*native codec canar.*identity-free ad-hoc code seal.*no\s+certificate.*package.*Linux.*no uniform OS tier.*FFmpeg CLI.*4\.4 through 9\.x.*Edit > Preferences > General.*BtbN\.FFmpeg\.GPL\.8\.1.*brew install ffmpeg/isu,

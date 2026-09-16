@@ -239,10 +239,10 @@ export function createStoredChunkProvider(
 		const signal = validAbortSignal(context.signal);
 		for (let attempt = 0; ; attempt += 1) {
 			const pending = openSession();
-			const session = await waitForStoredSourceSession(pending, signal);
-			if (disposed) throw disposedError;
-			if (!session) return store.readSourceChunk(sourceId, chunkIndex, context);
 			try {
+				const session = await waitForStoredSourceSession(pending, signal);
+				if (disposed) throw disposedError;
+				if (!session) return store.readSourceChunk(sourceId, chunkIndex, context);
 				return await session.chunk(chunkIndex, signal ? { signal } : {});
 			} catch (error) {
 				if (attempt > 0 || disposed || signal?.aborted

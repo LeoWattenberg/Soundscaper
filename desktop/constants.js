@@ -80,6 +80,7 @@ export const MAX_SCAPE_RANGE_READ_CAPABILITIES = 4;
 export const MAX_SCAPE_RANGE_READ_CAPABILITY_BYTES = 65 * 1024 ** 3;
 export const MAX_LINKED_VIDEO_PLAYBACK_CAPABILITIES = 128;
 export const MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_BYTES = 64 * 1024 ** 3;
+export const MAX_LINKED_AUDIO_IMPORT_FILE_BYTES = 1_000_000_000;
 export const MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES = 512 * 1024 ** 2;
 export const MAX_LINKED_VIDEO_PLAYBACK_RANGE_RESPONSE_BYTES = 4 * 1024 ** 2;
 export const MAX_LINKED_VIDEO_PLAYBACK_REQUESTS = 16;
@@ -241,6 +242,7 @@ export const IPC = Object.freeze({
 	externalFfmpegClear: 'soundscaper:v1:ffmpeg:clear',
 	externalFfmpegRescan: 'soundscaper:v1:ffmpeg:rescan',
 	externalFfmpegInstall: 'soundscaper:v1:ffmpeg:install',
+	desktopAudioCodecStream: 'soundscaper:v1:codecs:audio:stream',
 	desktopAudioCodecExecute: 'soundscaper:v1:codecs:audio:execute',
 	desktopAudioCodecCancel: 'soundscaper:v1:codecs:audio:cancel',
 	desktopAudioCodecCapabilities: 'soundscaper:v1:codecs:audio:capabilities',

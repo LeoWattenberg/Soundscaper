@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { WaveformPcmRange } from '../waveform-analysis.ts';
+import type { StoredWaveformAnalysisOptions, WaveformPcmRange } from '../waveform-analysis.ts';
 import type { SourceChunkProviderRegistryPort } from './source-chunk-provider-registration.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
@@ -109,7 +109,7 @@ export interface SourceLifecycleLoadOptions {
 	readonly signal?: AbortSignal;
 }
 
-export interface ActivateStoredSourceOptions<Buffer> {
+export interface ActivateStoredSourceOptions<Buffer> extends StoredWaveformAnalysisOptions {
 	readonly buffer?: Buffer | null;
 	readonly requireChunkStream?: boolean;
 }
@@ -148,6 +148,7 @@ export interface SourceLifecycleServiceRuntime<
 		store: SourceLifecycleStore<Peaks, Metadata>,
 		source: SourceLifecycleSource,
 		copy: SourceLifecycleCopy,
+		options?: StoredWaveformAnalysisOptions,
 	) => Awaitable<Peaks>;
 	readonly generateWaveformPeaks: (channels: readonly Float32Array[], copy: SourceLifecycleCopy) => Awaitable<Peaks>;
 	readonly getProject: () => Project | null;

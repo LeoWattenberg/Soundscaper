@@ -11,8 +11,9 @@ import {
 	createBundledAudioCodecHelperWorker,
 	runBundledAudioCodecHelperJob,
 } from '../desktop/bundled-audio-codec-helper-process.ts';
-import type {
-	BundledAudioCodecHelperConfiguration,
+import {
+	bundledAudioCodecSpec,
+	type BundledAudioCodecHelperConfiguration,
 } from '../desktop/bundled-audio-codec-helper-configuration.ts';
 import type { DesktopAudioCodecProviderRuntime } from '../desktop/desktop-audio-codec-broker.ts';
 
@@ -26,11 +27,8 @@ async function fixture(context: TestContext) {
 	const modulePath = join(runtimeRoot, 'desktop/bundled-flac-audio-codec-runtime.js');
 	const wasmPath = join(runtimeRoot, 'src/common/editor/flac/flac.wasm');
 	const helperPath = join(runtimeRoot, 'desktop/bundled-audio-codec-helper-process.js');
-	const dependencies = Object.freeze([
-		'desktop/bundled-flac-stream.js',
-		'desktop/desktop-audio-codec-operation-contract.js',
-		'src/common/editor/desktop-codec-provider-catalog.js',
-	].map((path) => Object.freeze({ path, bytes: Buffer.from(`reviewed ${path}`) })));
+	const dependencies = Object.freeze(bundledAudioCodecSpec('flac').dependencies
+		.map((path) => Object.freeze({ path, bytes: Buffer.from(`reviewed ${path}`) })));
 	await mkdir(join(runtimeRoot, 'desktop'), { recursive: true });
 	await mkdir(join(runtimeRoot, 'src/common/editor/flac'), { recursive: true });
 	await mkdir(join(runtimeRoot, 'src/common/editor'), { recursive: true });

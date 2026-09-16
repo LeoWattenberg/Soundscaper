@@ -10,16 +10,21 @@ import {
 interface TelemetryController {
 	readonly subscribeTelemetry: (listener: () => void) => () => void;
 	readonly getTelemetrySnapshot: () => Readonly<{ taskProgress?: TaskProgressViewModel | null }>;
+	readonly actions?: Readonly<{ project?: Readonly<{ cancelTask?: () => unknown }> }>;
 }
 
 export default function EditorTaskProgressBar({
 	controller,
 	snapshot,
 	statusMessage,
+	showLabel = false,
+	cancelLabel,
 }: Readonly<{
 	controller: TelemetryController;
 	snapshot: TaskProgressBusySnapshot;
 	statusMessage: string;
+	showLabel?: boolean;
+	cancelLabel?: string;
 }>) {
 	const telemetryProgress = useAudioEditorTelemetrySelector(
 		controller,
@@ -32,6 +37,7 @@ export default function EditorTaskProgressBar({
 		? Math.round(Math.max(0, Math.min(1, Number(progress.value) || 0)) * 100)
 		: null;
 	const label = progress.label || statusMessage;
+	const cancelTask = controller.actions?.project?.cancelTask;
 
 	return (
 		<div
@@ -39,6 +45,7 @@ export default function EditorTaskProgressBar({
 			data-editor-task-progress={progress.kind}
 			data-indeterminate={determinate ? undefined : ''}
 		>
+			{showLabel && <span className="kw-audio-editor__task-progress-label">{label}</span>}
 			<div
 				className="kw-audio-editor__task-progress-track"
 				role="progressbar"
@@ -53,6 +60,9 @@ export default function EditorTaskProgressBar({
 				/>
 			</div>
 			{percentage != null && <output aria-label={`${label}: ${percentage}%`}>{percentage}%</output>}
+			{progress.cancellable && cancelTask && cancelLabel && (
+				<button type="button" aria-disabled={false} className="kw-audio-editor__task-progress-cancel" onClick={() => { cancelTask(); }}>{cancelLabel}</button>
+			)}
 		</div>
 	);
 }

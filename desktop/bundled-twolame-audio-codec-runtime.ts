@@ -26,8 +26,8 @@ import {
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 
 export const BUNDLED_TWOLAME_VERSION = '0.4.0';
-export const BUNDLED_TWOLAME_WASM_BYTE_LENGTH = 146_820;
-export const BUNDLED_TWOLAME_WASM_SHA256 = 'b4b166bed688504b548adcee02cda391d4d8b25a44aec914c3fe1082f466ed1b';
+export const BUNDLED_TWOLAME_WASM_BYTE_LENGTH = 148_312;
+export const BUNDLED_TWOLAME_WASM_SHA256 = '8b89b6a12eab302c92960865c6b1c7d33df86d6d8760c8549a8ee38a99ef2b30';
 export const BUNDLED_TWOLAME_WASM_URL = new URL(
 	'../src/common/editor/twolame/twolame.wasm', import.meta.url,
 );

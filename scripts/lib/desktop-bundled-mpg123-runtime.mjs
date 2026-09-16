@@ -6,8 +6,8 @@ import { dirname, join } from 'node:path';
 
 export const DESKTOP_BUNDLED_MPG123_WASM = Object.freeze({
 	file: 'src/common/editor/mpg123/mpg123.wasm',
-	byteLength: 172_329,
-	sha256: 'd2b5686a16141ec97dbeb4e4f2a1ce28b756dd3eaf6438b31379356c8dd958ae',
+	byteLength: 173_764,
+	sha256: '1aa30e6e25a9503be94ce3720ce6c4af649b2412c191a6f800f36dd619270bc2',
 });
 
 /** Copy only the exact reviewed mpg123 decoder payload into the compiled desktop graph. */

@@ -5,10 +5,11 @@ import { sameStoredSourceIdentity, type StorageRecord } from './media-records.ts
 import { OwnedSourcePcmReadSessionRepository } from './owned-source-pcm-read-session.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
 import type { PcmRepository } from './pcm-repository.ts';
-import { combineSourceReadAbortSignals } from './source-pcm-read-session.ts';
+import { combineSourceReadAbortSignals, SOURCE_PCM_READ_SESSION_RELEASED_ERROR_NAME } from './source-pcm-read-session.ts';
 import type { SourceRecordRepository } from './source-record-repository.ts';
 
 const SESSION_CLEANUP_REASON = new Error('Source PCM read sessions are being released.');
+SESSION_CLEANUP_REASON.name = SOURCE_PCM_READ_SESSION_RELEASED_ERROR_NAME;
 
 export interface SourcePcmChunk {
 	readonly index: unknown;

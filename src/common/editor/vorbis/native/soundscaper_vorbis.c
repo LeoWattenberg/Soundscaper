@@ -247,6 +247,8 @@ cleanup:
 	return result;
 }
 
+#include "stream_encode.h"
+
 int scvb_decode_float32(
 	const unsigned char *input_bytes,
 	uint32_t input_length,
@@ -292,3 +294,5 @@ cleanup:
 	ov_clear(&file);
 	return result;
 }
+
+#include "soundscaper_vorbis_stream_decode.h"

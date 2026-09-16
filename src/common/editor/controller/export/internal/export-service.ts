@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { admitBrowserExportBlob, prepareBrowserExportBlob } from '../../../browser-export-output.ts';
+import { admitAudioExportBlob, prepareAudioExportBlob } from '../../../audio-export-output.ts';
+import { audioExportPublicationProgress, NO_AUDIO_EXPORT_PROGRESS as NO_TASK_PROGRESS } from './audio/audio-export-progress.ts';
 import { isVideoExportRequestFormat } from '../../../video-export-request-format.ts';
 import { inheritTrackFolderMediaStateProjectionV12 } from '../../../track-folder-media-runtime.ts';
 import { EDITOR_PROJECT_TASK_SCOPE } from '../../shared/lifecycle.ts';
@@ -52,10 +53,6 @@ export interface ExportServiceRuntime {
 }
 type RuntimeValue = ExportServiceRuntime[string];
 
-const NO_TASK_PROGRESS = Object.freeze({
-	setPhase: () => false,
-	finish: () => false,
-});
 const PERSISTENT_EXPORT_BUSY = Object.freeze({ busy: true as const });
 
 export function createEditorExportService(runtime: ExportServiceRuntime) {
@@ -109,7 +106,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		applyMediaChannelMapping, copy, createAiffStreamEncoder, createCacheAwareRenderEngine,
 		createStableId, createStreamingWindowedSincResampler, createTemporaryFileSink,
 		createWavStreamEncoder, ffmpeg, normalizeProjectSampleRate,
-		prepareCommittedTimePitchCaches, setStatus, throwIfAborted, withRenderProgress,
+		prepareCommittedTimePitchCaches, setStatus, taskProgress, throwIfAborted, withRenderProgress,
 	});
 	async function handleExportAction(
 		action: RuntimeValue,
@@ -178,6 +175,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		state.exportAbort = abort;
 		toggleExport(true);
 		const progressTask = taskProgress?.begin?.('export', copy.rendering, 0) || NO_TASK_PROGRESS;
+		progressTask.setCancellation?.(() => { abort.abort(); });
 		let exportProject = createExportRenderProject(deliveredProject);
 		let exportRenderSources: ExportRenderSources;
 		let pendingCleanup = null;
@@ -333,7 +331,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				// conformance can still say why.
 				assertDeliveryConformance(conformance);
 				if (encoded.directDestination) directOutput = encoded;
-				else blob = prepareBrowserExportBlob(encoded, 'Audio export', browserMaximumOutputBytes);
+				else blob = prepareAudioExportBlob(encoded, 'Audio export', browserMaximumOutputBytes);
 				fileName = plan.outputs[0].fileName;
 			} else if (directStemArchive) {
 				if (!plan.archive) throw new Error('The stem export plan has no archive descriptor.');
@@ -426,9 +424,10 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				publishDocumentSnapshot();
 				return result;
 			}
-			blob = admitBrowserExportBlob(blob, 'Audio export', browserMaximumOutputBytes);
+			blob = admitAudioExportBlob(blob, 'Audio export', browserMaximumOutputBytes);
 			await clearPreviousExportOutput();
 			const published = await fileService.createDownload({
+				...audioExportPublicationProgress(progressTask, copy.save, abort.signal),
 				purpose: 'audio',
 				suggestedName: fileName,
 				mimeType: blob.type || 'application/octet-stream',

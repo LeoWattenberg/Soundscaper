@@ -25,7 +25,7 @@ test('the exact artifact gates a narrow Ogg Vorbis provider on all five targets'
 		assert.equal(runtime.provider.implementation, 'libvorbis-libogg-wasm-f32');
 		assert.match(runtime.provider.capabilityGeneration, new RegExp(BUNDLED_VORBIS_WASM_SHA256, 'u'));
 	}
-	assert.equal(BUNDLED_VORBIS_WASM_BYTE_LENGTH, 523_227);
+	assert.equal(BUNDLED_VORBIS_WASM_BYTE_LENGTH, 526_926);
 	assert.equal(await loadBundledVorbisAudioCodecRuntime({
 		target: 'win-x64', readPayload: async () => new Uint8Array(BUNDLED_VORBIS_WASM_BYTE_LENGTH),
 	}), null);

@@ -81,7 +81,7 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'rescanExternalFfmpeg',
 	'respondToClose',
 	'restoreNativePluginState',
-	'runDesktopAudioCodecOperation',
+	'runDesktopAudioCodecOperation', 'runDesktopAudioCodecStreamCommand',
 	'runNativePluginOffline',
 	'runWindowAction',
 	'scanNativePlugins',

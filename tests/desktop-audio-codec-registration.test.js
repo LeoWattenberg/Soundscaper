@@ -13,6 +13,7 @@ const CHANNELS = Object.freeze({
 	desktopAudioCodecExecute: 'soundscaper:v1:codecs:audio:execute',
 	desktopAudioCodecCancel: 'soundscaper:v1:codecs:audio:cancel',
 	desktopAudioCodecCapabilities: 'soundscaper:v1:codecs:audio:capabilities',
+	desktopAudioCodecStream: 'soundscaper:v1:codecs:audio:stream',
 	externalFfmpegStatus: 'soundscaper:v1:ffmpeg:status',
 });
 
@@ -86,6 +87,8 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 		operatingSystemVersion: '15.6.1', forkUtilityProcess() {},
 		mkdir: async (...arguments_) => { directories.push(arguments_); },
 		loadModules: async () => ({
+			createDesktopAudioStreamService: emptyStream,
+			createDesktopAudioStreamJobRunner: () => async () => 1,
 			createBundledAudioCodecRuntimeVerifier(options) {
 				bundledPayloadLocations.push(options);
 				return async () => ({});
@@ -207,6 +210,8 @@ test('registration fails closed without any admitted bundled runtime', async () 
 		operatingSystemVersion: '10.0.26100', forkUtilityProcess() {},
 		mkdir: async () => undefined,
 		loadModules: async () => ({
+			createDesktopAudioStreamService: emptyStream,
+			createDesktopAudioStreamJobRunner: () => async () => 1,
 			createBundledAudioCodecRuntimeVerifier: () => async () => ({}),
 			createBundledAudioCodecElectronSpawn: () => () => ({}),
 			loadIsolatedBundledAudioCodecRuntime: async ({ target }) => {
@@ -263,6 +268,33 @@ test('unsupported targets and invalid runtime modules fail before IPC registrati
 	assert.equal(directories, 0);
 });
 
+test('registration teardown waits the streaming helper despite an earlier IPC cleanup failure', async () => {
+	const childExit = deferred(); const ipcError = new Error('IPC cleanup failed'); let entered;
+	const enteredCleanup = new Promise((resolve) => { entered = resolve; }); let settled = false;
+	const registration = await registerDesktopAudioCodecs({
+		channels: CHANNELS, handle() {}, removeHandler() {}, ownerFor: () => ({}),
+		externalFfmpegPreferences: externalPreferences(), platform: 'linux', architecture: 'x64',
+		userDataPath: '/user-data', desktopRoot: '/app/desktop', runtimeRoot: '/runtime', packaged: false,
+		resourcesPath: '/resources', operatingSystemVersion: '6.16.0', forkUtilityProcess() {}, mkdir: async () => undefined,
+		loadModules: async () => ({
+			createDesktopAudioStreamService: () => ({ command: async () => null, revokeOwner: async () => false,
+				dispose: async () => { entered(); await childExit.promise; } }),
+			createDesktopAudioStreamJobRunner: () => async () => 1,
+			createBundledAudioCodecRuntimeVerifier: () => async () => ({}),
+			createBundledAudioCodecElectronSpawn: () => () => ({}),
+			loadIsolatedBundledAudioCodecRuntime: async () => null,
+			createOperatingSystemAudioCodecElectronSpawn: () => () => ({}),
+			createOsAudioCodecNativeVerifier: () => async () => ({}), loadOperatingSystemAudioCodecRuntime: async () => null,
+			createDesktopAudioCodecRuntimeComposition: () => ({}),
+			registerDesktopAudioCodecMainIpc: () => ({ revokeOwner: async () => false, dispose: async () => { throw ipcError; } }),
+		}),
+	});
+	const disposal = registration.dispose(); void disposal.catch(() => { settled = true; });
+	await enteredCleanup; await new Promise((resolve) => setImmediate(resolve));
+	try { assert.equal(settled, false); } finally { childExit.resolve(); }
+	await assert.rejects(disposal, (error) => error instanceof AggregateError && error.errors[0] === ipcError);
+});
+
 function externalPreferences() {
 	return Object.freeze({
 		admission: () => null,
@@ -277,4 +309,8 @@ function deferred() {
 	let resolve;
 	const promise = new Promise((resolvePromise) => { resolve = resolvePromise; });
 	return { promise, resolve };
+}
+
+function emptyStream() {
+	return { command: async () => null, revokeOwner: async () => false, dispose: async () => undefined };
 }

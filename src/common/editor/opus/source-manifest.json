@@ -72,7 +72,7 @@
 	"localFiles": [
 		{
 			"path": "native/soundscaper_opus.c",
-			"sha256": "8f25945c8cfaf220059e3bd5233899af22662d1a1a2941e4680a08aa5439b7c2"
+			"sha256": "96ea1058cc0cb87d0789978c0f884bd5559db6802f324ce52b0f849d1d725a48"
 		},
 		{
 			"path": "NOTICE.md",
@@ -85,11 +85,19 @@
 		{
 			"path": "licenses/OGG.txt",
 			"sha256": "d2ab5758336489da61c12cc5bb757da5339c4ae9001f9bb0562b4370249af814"
+		},
+		{
+			"path": "native/stream_encode.h",
+			"sha256": "0fd696671221c398cc6b8c3c6a4e208891e2f73d4d84cad12bb8e1acf4347468"
+		},
+		{
+			"path": "native/soundscaper_opus_stream_decode.h",
+			"sha256": "b5e625af1b2b275a1ae3d5a2ea0f4fa5680c5a9f161170b6a3db6715cacbf9ae"
 		}
 	],
 	"wasm": {
 		"path": "opus.wasm",
-		"sha256": "c972c5019a7f56dfe9c712cb15c25ebb54b55b16b19b3b99a5b02c31ef311685",
+		"sha256": "cc5577fa2a6c74781b7eb57bd754f7d9b50b2355a83d85b0f0cfe96415607dce",
 		"maximumBytes": 524288,
 		"initialMemoryBytes": 8388608,
 		"maximumMemoryBytes": 268435456,
@@ -107,7 +115,16 @@
 			"scop_allocate",
 			"scop_free",
 			"scop_encode_float32",
-			"scop_decode_float32"
+			"scop_decode_float32",
+			"scop_stream_open",
+			"scop_stream_write",
+			"scop_stream_finish",
+			"scop_stream_read",
+			"scop_stream_patch",
+			"scop_stream_close",
+			"scop_stream_decode_open",
+			"scop_stream_decode_push",
+			"scop_stream_decode_close"
 		],
 		"allowedFunctionImports": [
 			"env.emscripten_notify_memory_growth",

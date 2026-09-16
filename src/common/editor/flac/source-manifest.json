@@ -52,7 +52,7 @@
 	"localFiles": [
 		{
 			"path": "native/soundscaper_flac.c",
-			"sha256": "cf64f09f8f6d5247594070ac9f36c7fc0267c387dabe17afb2b3d096cacff16b"
+			"sha256": "735a2408502050173f4a7d5d9a38497e14aed6bdd5eb22b92a2feb7b652d3ad9"
 		},
 		{
 			"path": "NOTICE.md",
@@ -61,11 +61,19 @@
 		{
 			"path": "licenses/FLAC.txt",
 			"sha256": "7866ee98760fc1f0156b4fe6bf530257e02be487ab3fd94e2b63799dd32d6b2c"
+		},
+		{
+			"path": "native/stream_encode.h",
+			"sha256": "e4a5839ff627c273cb590567bea8533180ad2ca5c98f9b2311f9d6b1a1bb65d2"
+		},
+		{
+			"path": "native/soundscaper_flac_stream_decode.h",
+			"sha256": "9b3c72caf7165b3e529bbf3e68e968b4864e7c308232a12ec9ef90dd3410031c"
 		}
 	],
 	"wasm": {
 		"path": "flac.wasm",
-		"sha256": "0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986",
+		"sha256": "6246c5d6979f25b733e399383004a6a861478802c376d59885a7b2c7130a1584",
 		"maximumBytes": 524288,
 		"initialMemoryBytes": 8388608,
 		"maximumMemoryBytes": 268435456,
@@ -81,7 +89,16 @@
 			"scfl_allocate",
 			"scfl_free",
 			"scfl_encode_float32",
-			"scfl_decode_float32"
+			"scfl_decode_float32",
+			"scfl_stream_open",
+			"scfl_stream_write",
+			"scfl_stream_finish",
+			"scfl_stream_read",
+			"scfl_stream_patch",
+			"scfl_stream_close",
+			"scfl_stream_decode_open",
+			"scfl_stream_decode_push",
+			"scfl_stream_decode_close"
 		],
 		"allowedFunctionImports": [
 			"env.abort",

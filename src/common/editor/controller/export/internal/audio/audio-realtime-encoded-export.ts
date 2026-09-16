@@ -23,6 +23,7 @@ import {
 	encodeDirectCompressedStagedFile, type DirectCompressedDestination,
 } from '../direct/direct-compressed-export.ts';
 import type { ExportRenderSources } from './audio-export-render-orchestration.ts';
+import type { AudioEncodingProgressRange } from './audio-export-progress.ts';
 
 export interface RealtimeEncodedExportRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -46,6 +47,7 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 	directDestination: DirectPcmDestination | null = null,
 	directCompressedDestination: DirectCompressedDestination | null = null,
 	assertDirectCurrent: () => void = () => undefined,
+	encodingProgressRange: AudioEncodingProgressRange = { start: 0.7, end: 0.95 },
 ) {
 	throwIfAborted(signal);
 	assertDirectCurrent();
@@ -121,7 +123,7 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 			includeTail: settings.includeTail ? plan.tailFrames / renderSampleRate : false,
 			sampleRate: renderSampleRate,
 			preRollFrames: Math.min(plan.range.startFrame, renderSampleRate * 10),
-			...(directDestination ? directPcmRenderQueueOptions(Number(snapshot.masterChannels || 2), containerLabel) : {}),
+			...directPcmRenderQueueOptions(Number(snapshot.masterChannels || 2), containerLabel),
 			...withRenderProgress({}),
 			signal,
 			onChunk: (channels: RuntimeValue, metadata: RuntimeValue = {}) => {
@@ -154,6 +156,7 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 				ownedOutput = { blob: stagingFile, bytes: null, mimeType: plan.mimeType, cleanup: () => sink.remove() };
 			} else {
 				setStatus(copy.encoding);
+				runtime.taskProgress?.setActivePhase?.(copy.encoding, { ...encodingProgressRange, value: 0 });
 				const transcodeSettings = {
 					...plan.encoding,
 					// The realtime PCM transform has already mapped into final staging geometry.
@@ -164,6 +167,7 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 					sampleRate: plan.sampleRate,
 					applyDither: plan.encoding.sampleFormat !== 'float32' && plan.ditherMode !== 'none' && plan.format !== 'flac',
 					signal,
+					onProgress: (value: number) => { runtime.taskProgress?.updateActive?.(value); },
 				};
 				if (directCompressedDestination) {
 					directCompressedHandoff = true;

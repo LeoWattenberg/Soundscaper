@@ -39,7 +39,7 @@ export function assertDesktopLinkedAudioReadProfile(
 		|| !descriptor.name || descriptor.name !== descriptor.name.trim()
 		|| descriptor.name.length > 255 || descriptor.name === '.' || descriptor.name === '..'
 		|| descriptor.name.includes('/') || descriptor.name.includes('\\')
-		|| /[\u0000-\u001f]/u.test(descriptor.name)) {
+		|| Array.from(descriptor.name).some((character) => character.charCodeAt(0) < 32)) {
 		throw new TypeError('A canonical linked-audio desktop read profile is required.');
 	}
 	const wav = /\.wav$/iu.test(descriptor.name) && descriptor.mimeType === 'audio/wav';

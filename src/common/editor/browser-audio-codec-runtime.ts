@@ -15,8 +15,6 @@ import {
 	type BrowserAudioEncoderProbe,
 } from './browser-webcodecs-audio-profile.ts';
 import {
-	FFMPEG_OUTPUT_STREAM_MAXIMUM_CHUNK_BYTES,
-	streamFfmpegOutputFile,
 	type FfmpegOutputSink,
 } from './ffmpeg-output-stream.ts';
 import {
@@ -62,6 +60,7 @@ export interface BrowserAudioCodecRuntimeSettings {
 	readonly frameCount?: number;
 	readonly signal?: AbortSignal;
 	readonly assertCurrent?: () => void;
+	readonly onProgress?: (value: number) => void;
 }
 
 interface NormalizedMediaSettings {
@@ -151,7 +150,10 @@ export function createBrowserAudioCodecRuntime(options: BrowserAudioCodecRuntime
 				capabilities,
 			}) as NormalizedMediaSettings;
 			const frameCount = requiredPositiveInteger(settingsValue.frameCount, 'frame count');
-			assertBrowserCodecInput(format, media, frameCount);
+			if (options.codecClient === undefined && options.encodeAac === undefined) {
+				if (format !== 'aac-m4a') assertDedicatedProfile(format, media);
+				(await import('./browser-audio-streamed-encode.ts')).assertStreamedBrowserCodecInput(format, media, frameCount);
+			} else assertBrowserCodecInput(format, media, frameCount);
 			if (format === 'aac-m4a') {
 				browserAacMetadataTags(media.metadata);
 				const supported = await probeBrowserWebCodecsAudioEncoding('aac', {
@@ -174,22 +176,7 @@ export function createBrowserAudioCodecRuntime(options: BrowserAudioCodecRuntime
 		) {
 			const signal = operationSignal(settings.signal, lifetimeAbort.signal);
 			const encoded = await encodeFile(file, format, { ...settings, signal });
-			const streamed = await streamFfmpegOutputFile({
-				async statFile() { return { size: encoded.bytes.byteLength }; },
-				async readFileRange(_path, offset, maximumBytes) {
-					return encoded.bytes.slice(offset, offset + maximumBytes);
-				},
-			}, 'browser-dedicated-audio-result', sink, {
-				signal,
-				...(settings.assertCurrent ? { assertCurrent: settings.assertCurrent } : {}),
-				maximumChunkBytes: settings.maximumOutputChunkBytes
-					?? FFMPEG_OUTPUT_STREAM_MAXIMUM_CHUNK_BYTES,
-			});
-			return Object.freeze({
-				...streamed,
-				extension: encoded.extension,
-				mimeType: encoded.mimeType,
-			});
+			return (await import('./browser-audio-streamed-encode.ts')).streamBrowserAudioEncodedResult(encoded, sink, { ...settings, signal });
 		},
 		async decode(
 			file: Blob | ArrayBuffer | ArrayBufferView,
@@ -229,6 +216,9 @@ export function createBrowserAudioCodecRuntime(options: BrowserAudioCodecRuntime
 		const signal = operationSignal(settingsValue.signal, lifetimeAbort.signal);
 		const operationSettings = { ...settingsValue, signal };
 		throwIfAborted(signal);
+		if (options.codecClient === undefined && options.encodeAac === undefined) {
+			return (await import('./browser-audio-streamed-encode.ts')).encodeBrowserAudioFileStreamed(file, format, operationSettings, capabilities);
+		}
 		const staged = await stagedPcm(file, format as BrowserAudioFileFormat, operationSettings, capabilities);
 		throwIfAborted(signal);
 		settingsValue.assertCurrent?.();

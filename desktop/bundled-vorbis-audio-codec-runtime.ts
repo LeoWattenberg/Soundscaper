@@ -31,8 +31,8 @@ import {
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 
 export const BUNDLED_VORBIS_VERSION = 'libvorbis-1.3.7+libogg-1.3.6';
-export const BUNDLED_VORBIS_WASM_BYTE_LENGTH = 523_227;
-export const BUNDLED_VORBIS_WASM_SHA256 = 'c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5';
+export const BUNDLED_VORBIS_WASM_BYTE_LENGTH = 526_926;
+export const BUNDLED_VORBIS_WASM_SHA256 = 'cfa42717394ce29f8af676fb0ad7bff632306f75e536211eb85b7cc5aaf09aa0';
 export const BUNDLED_VORBIS_WASM_URL = new URL(
 	'../src/common/editor/vorbis/vorbis.wasm', import.meta.url,
 );

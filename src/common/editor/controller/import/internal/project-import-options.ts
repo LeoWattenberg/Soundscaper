@@ -57,6 +57,7 @@ export function normalizeProjectImportOptions(
 		...(typeof candidate.trackIndex === 'number' && Number.isSafeInteger(candidate.trackIndex)
 			? { trackIndex: candidate.trackIndex } : {}),
 		...normalizeLinkedOriginalImportLocator(candidate),
+		...(candidate.signal instanceof AbortSignal ? { signal: candidate.signal } : {}),
 	}, timelineStartExplicit);
 }
 

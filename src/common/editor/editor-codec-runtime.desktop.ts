@@ -72,8 +72,10 @@ function desktopAudioCodecBridge(options: unknown): DesktopAudioCodecRendererBri
 	const execute = callable(fileService, 'runDesktopAudioCodecOperation');
 	const cancel = callable(fileService, 'cancelDesktopAudioCodecOperation');
 	const capabilities = callable(fileService, 'getDesktopAudioCodecCapabilities');
+	const stream = callable(fileService, 'runDesktopAudioCodecStreamCommand');
 	if (execute === null || cancel === null || capabilities === null) return null;
 	return Object.freeze({
+		...(stream === null ? {} : { stream: (command: Parameters<NonNullable<DesktopAudioCodecRendererBridge['stream']>>[0]) => Reflect.apply(stream, fileService, [command]) }),
 		capabilities(query: Parameters<DesktopAudioCodecRendererBridge['capabilities']>[0]) {
 			return Reflect.apply(capabilities, fileService, [query]);
 		},

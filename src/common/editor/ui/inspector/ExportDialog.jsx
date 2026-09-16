@@ -56,7 +56,7 @@ import { useDesktopVideoExportCapabilities } from '../use-desktop-video-export-c
 import { samePresetParams } from './effect-helpers.ts';
 
 export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fileService, onClose }) {
-	const exportProgress = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.exportProgress);
+	const exportProgress = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.taskProgress?.kind === 'export' ? telemetry.taskProgress.value : telemetry.exportProgress);
 	const [metadataOpen, setMetadataOpen] = useState(false);
 	const [metadataTab, setMetadataTab] = useState('general');
 	const [mappingOpen, setMappingOpen] = useState(false);

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { inspectWavContainerSignature, inspectWavForImport } from './wav-import-routing.ts';
+import { loadImportAdmissionExecution } from './import-admission-loader.ts';
 import { admitAudioImportChannelCount } from './audio-import-channel-admission.ts';
 import {
 	createImportedAdmPassthroughMetadata,
@@ -17,7 +18,6 @@ import {
 } from './project-import-options.ts';
 import { createImportResultWithWarnings } from './import-result-warnings.ts';
 import { inspectDecodedAudioSampleRate } from '../../../audio-file-metadata.js';
-import { scanEncodedAudioMarkers } from '../../../encoded-audio-marker-scan.ts';
 import { streamAiffBlobPcm } from '../../../aiff-pcm-chunk-reader.ts';
 import { inspectDesktopStandalonePcm } from './desktop-standalone-pcm-import.ts';
 import { createIncrementalPcmImporter } from './incremental-wav-import-service.ts';
@@ -30,7 +30,6 @@ import { createLegacyAudacityProjectImport } from './legacy-audacity-project-imp
 import { createLinkedAudioImportAdmission } from './linked-media/linked-audio-import-admission.ts';
 import { createLinkedPcmImporter } from './linked-media/linked-wav-import-service.ts';
 import { persistDecodedLegacyAupProject } from './legacy-aup-project-persistence.ts';
-import { decodeStandaloneAudioForImport } from './standalone-audio-import-decoder.ts';
 import { createAddTimelineAnnotationCommand } from '../../../commands/factories.ts';
 import {
 	createOmittedRiffAnnotationImportReport,
@@ -92,7 +91,10 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	});
 	async function importFiles(fileList: RuntimeValue, requestedOptions: RuntimeValue = {}) {
 		const files = [...(fileList || [])];
-		const importOptions = await normalizedImportOptionsForUse(requestedOptions);
+		if (files.length && !editingBlocked()) setStatus(copy.importing);
+		const { createImportTaskCancellation } = await loadImportAdmissionExecution();
+		const cancellation = createImportTaskCancellation(await normalizedImportOptionsForUse(requestedOptions));
+		const importOptions = cancellation.options;
 		const linkedOriginalLocator = linkedOriginalLocatorReferenceFromImportOptions(importOptions);
 		if (!files.length || editingBlocked()) {
 			if (linkedOriginalLocator) await releaseLinkedOriginalLocator(linkedOriginalLocator);
@@ -106,6 +108,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			return;
 		}
 		const progressTask = taskProgress?.begin?.('import', copy.importing) || null;
+		progressTask?.setCancellation?.(cancellation.abort);
 		activeImportProgress = progressTask;
 		state.importing = true;
 		publishDocumentSnapshot();
@@ -141,12 +144,14 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		}
 		let audioFileIndex = 0;
 		for (const file of importQueue) {
+			if (cancellation.signal.aborted) break;
 			setImportFileProgress(file, completedBytes, totalBytes);
 			try {
 				const result = await importFile(file, importFilePlacement(importOptions, audioFileIndex));
 				if (result?.notice) notices.push(result.notice);
 				successes += 1;
 			} catch (error) {
+				if (cancellation.signal.aborted && !(error instanceof AggregateError)) break;
 				failures += 1;
 				handleError(error);
 			}
@@ -155,7 +160,8 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			audioFileIndex += 1;
 		}
 		try {
-			if (!failures) setStatus(notices.length ? notices.join(' ') : copy.done, 'success');
+			if (cancellation.signal.aborted && !failures) setStatus('');
+			else if (!failures) setStatus(notices.length ? notices.join(' ') : copy.done, 'success');
 			else setStatus(copy.importSummary
 				.replace('{successes}', String(successes))
 				.replace('{failures}', String(failures)), 'error');
@@ -357,6 +363,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		const hasProjectToken = typeof captureProject === 'function' && typeof assertProject === 'function';
 		const startingProjectToken = hasProjectToken ? captureProject() : null;
 		const assertImportProjectCurrent = () => {
+			normalizedImportOptions.signal?.throwIfAborted();
 			try { if (startingProjectToken) assertProject?.(startingProjectToken); }
 			catch (error) { throw new Error('The project changed during audio import.', { cause: error }); }
 			if ((getProject()?.id ?? null) !== startingProjectId) throw new Error('The project changed during audio import.');
@@ -399,6 +406,12 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		if (wavDescriptor) {
 			return importIncrementalPcm(file, wavDescriptor, wavMetadata.importOptions, wavMetadata,
 				{ requireChunkStream }, { assertCurrent: assertImportProjectCurrent });
+		}
+		const { isStreamedAudioImportFile, scanEncodedAudioMarkers, decodeStandaloneAudioForImport } = await loadImportAdmissionExecution();
+		if (isStreamedAudioImportFile(file)) {
+			const { importStreamedAudioFile } = await import('./streamed-audio-import-service.ts');
+			return importStreamedAudioFile(file, normalizedImportOptions, ffmpeg, wavMetadata,
+				importIncrementalPcm, assertImportProjectCurrent);
 		}
 		await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
 		assertImportProjectCurrent();

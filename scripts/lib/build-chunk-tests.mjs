@@ -14,9 +14,9 @@
 
 export const editorPath = String.raw`src[\\/]common[\\/]editor[\\/]`;
 const editorOptionalArchiveModule = String.raw`(?:archive-media-reader|aup-legacy(?:-block-budget|-conversion|-xml)?|aup4-(?:client|opaque-merge|opaque-persistence|profile-values|profile|sanitization|time-signature|track-nodes)|audacity-(?:annotation-interchange|tempo-import)|dawproject-(?:archive|export(?:-context|-lanes)?|format|import(?:-maps|-project|-structure|-timeline)?|xml)|scape-(?:archive-(?:copy|layout(?:-witness)?|manifest|reader)|export-destination|import-capacity|import-transaction|project-admission|project-source-remap)|scape-project(?:-canonical-inspection|-timing-assets)?)`;
-const editorOptionalExecutionModule = String.raw`(?:analysis|browser-(?:dedicated-audio-worker-client|webcodecs-aac)|loudness-measurement-report|pffft|selection-effects-runtime|spectral-edit(?:-admission)?|video-(?:keyframe-mediabunny-execution|mediabunny-muxer))`;
+const editorOptionalExecutionModule = String.raw`(?:controller[\\/]import[\\/]internal[\\/]streamed-audio-import-service|analysis|browser-(?:audio-encode-stream-client|audio-streamed-encode|dedicated-audio-(?:codec|output-validation|worker-client)|reviewed-streamed-audio-decoders|streamed-audio-(?:import|output-validation)|streamed-wavpack-import|webcodecs-aac(?:-stream)?)|dedicated-audio-encode-session|desktop-audio-(?:range-blob|stream-encoder|stream-request)|desktop-mpeg-layer-ii-import|aac-source-geometry|(?:mp3|ogg)-gapless-import|loudness-measurement-report|pffft|selection-effects-runtime|spectral-edit(?:-admission)?|video-(?:keyframe-mediabunny-execution|mediabunny-muxer))`;
 const controllerInternalPath = String.raw`internal[\\/](?:[^\\/]+[\\/])*`;
-const editorOptionalExportControllerBasename = String.raw`(?:audio-export-delivery-admission|audio-export-render-orchestration|audio-realtime-encoded-export|audio-rendered-fallback-export|bw64-render-project|delivery-conformance-action|desktop-audio-export-capability|direct-(?:aiff-export|audio-render-plan|broadcast-wave-export|bw64-export|bwf-export|compressed-export|compressed-plan|compressed-stem-archive-plan|export-dispatch|mp3-export|native-stem-archive-plan|offline-compressed-export|offline-pcm-export|pcm-export|stem-archive-export|video-export|video-plan-contract|wav-export)|export-service|mastering-sequence-export-render|persistent-audio-delivery-execution|persistent-export-progress|realtime-export-pcm-transform|rendered-audio-encoding|streaming-stem-archive-export|video-export-captions|video-export-original-loader|video-export-service|video-export-staged-audio|video-rendered-fallback-export)`;
+const editorOptionalExportControllerBasename = String.raw`(?:audio-export-delivery-admission|audio-export-progress|audio-export-render-orchestration|audio-realtime-encoded-export|audio-rendered-fallback-export|bw64-render-project|delivery-conformance-action|desktop-audio-export-capability|direct-(?:aiff-export|audio-render-plan|broadcast-wave-export|bw64-export|bwf-export|compressed-export|compressed-plan|compressed-stem-archive-plan|export-dispatch|mp3-export|native-stem-archive-plan|offline-compressed-export|offline-pcm-export|pcm-export|stem-archive-export|video-export|video-plan-contract|wav-export)|export-service|mastering-sequence-export-render|persistent-audio-delivery-execution|persistent-export-progress|realtime-export-pcm-transform|rendered-audio-encoding|streaming-stem-archive-export|video-export-captions|video-export-original-loader|video-export-service|video-export-staged-audio|video-rendered-fallback-export)`;
 const editorOptionalExportControllerModule = String.raw`export[\\/](?:${controllerInternalPath})?${editorOptionalExportControllerBasename}`;
 /**
  * Flat editor modules the lazy export slice alone renders through.
@@ -35,7 +35,7 @@ const editorOptionalExportControllerModule = String.raw`export[\\/](?:${controll
  * `video-burn-in-font-subsets.ts` is a different module the caption pipeline reads
  * eagerly; the trailing `\.ts$` anchor is what keeps it out of this alternation.
  */
-const editorOptionalExportFlatModule = String.raw`(?:delivery-conformance|delivery-video-conversion-inventory|loudness-normalization-render|video-burn-in-font|video-delivery-encoder-tier)`;
+const editorOptionalExportFlatModule = String.raw`(?:audio-export-output|delivery-conformance|delivery-video-conversion-inventory|file-backed-audio-export|loudness-normalization-render|video-burn-in-font|video-delivery-encoder-tier)`;
 export const editorOptionalControllerModule = String.raw`(?:analysis[\\/]analysis-service|document[\\/]internal[\\/]cross-product-handoff-action|import[\\/]internal[\\/]dawproject[\\/]dawproject-service|${editorOptionalExportControllerModule})`;
 /**
  * The Framescaper capture and Web VCR implementation, loaded when a capture
@@ -88,9 +88,19 @@ export const EDITOR_PRODUCTION_METER_CHUNK_TEST = new RegExp(
 	`${editorPath}production-audio[\\\\/](?:loudness-history-session|strip-analysis-scheduler|strip-meter-session)\\.ts$`,
 );
 
+/** Import admission runs after an import starts, apart from codec execution. */
+export const EDITOR_IMPORT_ADMISSION_CHUNK_TEST = new RegExp(
+	String.raw`${editorPath}(?:controller[\\/]import[\\/]internal[\\/](?:import-task-cancellation|project-import-admission|standalone-audio-import-decoder)|encoded-audio-marker-scan|streamed-audio-import-file)\.ts$`,
+);
+
+/** Stored PCM and waveform activation reached after a source is opened. */
+export const EDITOR_SOURCE_ACTIVATION_CHUNK_TEST = new RegExp(
+	String.raw`${editorPath}controller[\\/]source[\\/]internal[\\/]stored-source-activation\.ts$`,
+);
+
 /** Effect and Analyze implementations reached only after their eager action facade runs. */
 export const EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST = new RegExp(
-	`${editorPath}(?:${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)|controller[\\\\/]analysis[\\\\/]analysis-service\\.ts)$`,
+	`(?:${editorPath}(?:${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)|(?:flac|mpg123|opus|vorbis)[\\\\/]source-manifest\\.json|controller[\\\\/]analysis[\\\\/]analysis-service\\.ts)|(?:^|[\\\\/])desktop[\\\\/]bundled-(?:mpeg-audio|opus|wavpack)-stream\\.ts)$`,
 );
 
 /** Audio and video delivery execution isolated from the effect-runtime graph. */

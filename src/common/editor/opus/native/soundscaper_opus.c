@@ -181,6 +181,8 @@ cleanup:
 	return result;
 }
 
+#include "stream_encode.h"
+
 int scop_decode_float32(
 	const unsigned char *input,
 	uint32_t input_bytes,
@@ -260,3 +262,5 @@ cleanup:
 	if (sync_initialized) ogg_sync_clear(&sync);
 	return result;
 }
+
+#include "soundscaper_opus_stream_decode.h"

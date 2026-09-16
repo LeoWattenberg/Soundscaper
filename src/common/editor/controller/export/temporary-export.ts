@@ -98,7 +98,8 @@ export async function createTemporaryFileSink(name: string, copy: TemporaryExpor
 			if (writable && handle) {
 				await writable.close();
 				const file = await handle.getFile();
-				return file.type === mimeType ? file : file.slice(0, file.size, mimeType);
+				const { registerFileBackedExport } = await import('../../file-backed-audio-export.ts');
+				return registerFileBackedExport(file.type === mimeType ? file : file.slice(0, file.size, mimeType));
 			}
 			return new Blob(chunks as BlobPart[], { type: mimeType });
 		},

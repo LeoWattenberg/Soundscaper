@@ -29,7 +29,7 @@ test('the exact artifact gates a narrow Ogg Opus provider on all five targets', 
 		assert.match(runtime.provider.capabilityGeneration, new RegExp(BUNDLED_OPUS_WASM_SHA256, 'u'));
 	}
 	assert.equal(BUNDLED_OPUS_SAMPLE_RATE, 48_000);
-	assert.equal(BUNDLED_OPUS_WASM_BYTE_LENGTH, 385_914);
+	assert.equal(BUNDLED_OPUS_WASM_BYTE_LENGTH, 388_526);
 	assert.equal(await loadBundledOpusAudioCodecRuntime({
 		target: 'win-x64', readPayload: async () => new Uint8Array(BUNDLED_OPUS_WASM_BYTE_LENGTH),
 	}), null);

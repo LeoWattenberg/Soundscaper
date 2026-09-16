@@ -168,7 +168,7 @@ export function parseBundledMpegAudioStream(
 	});
 }
 
-function parseHeader(bytes: Uint8Array, offset: number): MpegHeader {
+export function parseHeader(bytes: Uint8Array, offset: number): MpegHeader {
 	const word = new DataView(bytes.buffer, bytes.byteOffset + offset, 4).getUint32(0, false);
 	if ((word >>> 21) !== 0x7ff) fail();
 	const versionBits = word >>> 19 & 3;
@@ -202,7 +202,7 @@ function parseHeader(bytes: Uint8Array, offset: number): MpegHeader {
 	});
 }
 
-function inspectXing(frame: Uint8Array, header: MpegHeader): XingGapless | null {
+export function inspectXing(frame: Uint8Array, header: MpegHeader): XingGapless | null {
 	const markerOffset = 4 + (header.mpegVersion === 1
 		? header.channelCount === 1 ? 17 : 32
 		: header.channelCount === 1 ? 9 : 17);

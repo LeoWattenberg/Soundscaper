@@ -90,11 +90,11 @@ test('exact direct compressed publication has browser-native ownership and rollb
 	);
 	assert.match(
 		publication.summary,
-		/retains mapped PCM.*complete encoded result.*128 MiB.*not end-to-end streaming.*heap.*RSS.*qualification/isu,
+		/staged PCM.*16,384-frame packets.*continuous codec session.*1-MiB.*temporary file storage.*one hour.*1,000,000,000-byte.*bounded reads.*whole-buffer.*128 MiB.*heap.*RSS.*qualification/isu,
 	);
 	assert.match(
 		publication.summary,
-		/Desktop bundled.*external providers.*separately governed.*unchanged/isu,
+		/Desktop bundled streaming.*main-private scratch.*authenticated utility process.*external providers.*separately governed/isu,
 	);
 	assert.match(
 		rollback.summary,
@@ -193,7 +193,7 @@ test('the threat and quality documents limit direct compressed claims to the pro
 
 	assert.match(
 		threatModel,
-		/direct compressed.*seven canonical.*six reviewed.*complete FLAC.*MP3.*Vorbis.*Opus.*WavPack.*MP2.*AAC.*WebCodecs.*Mediabunny.*no FFmpeg\s+fallback/isu,
+		/compressed whole-mix.*seven canonical.*six reviewed.*complete FLAC.*MP3.*Vorbis.*Opus.*WavPack.*MP2.*AAC.*WebCodecs.*Mediabunny.*no FFmpeg\s+fallback/isu,
 	);
 	assert.match(
 		threatModel,

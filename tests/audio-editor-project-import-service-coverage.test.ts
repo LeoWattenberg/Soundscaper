@@ -14,6 +14,15 @@ import {
 	file,
 } from './audio-editor-project-import-service-fixture.ts';
 
+test('an import replaces the previous completion status before loading its admission helper', async () => {
+	const fixture = createFixture();
+	fixture.statuses.push(['Done', 'success']);
+	const operation = createProjectImportService(fixture.runtime).importFiles([file('voice.wav')]);
+	assert.equal(fixture.statuses.at(-1)?.[0], fixture.runtime.copy.importing);
+	await operation;
+	assert.equal(fixture.statuses.at(-1)?.[1], 'success');
+});
+
 test('audio imports support existing tracks, project-bin placement, and decoder fallback', async () => {
 	const fixture = createFixture();
 	const service = createProjectImportService(fixture.runtime);
@@ -446,7 +455,14 @@ test('multi-file imports skip legacy blocks, summarize failures, and offset targ
 		file('one.mp4', 'video/mp4'),
 		file('two.mp4', 'video/mp4'),
 	], { destination: 'timeline', trackId: 'target', timelineStartFrame: 9 });
-	assert.deepEqual(placement.placements, [
+	const importSignal = (placement.placements[0] as Readonly<{ signal?: unknown }>).signal;
+	assert.ok(importSignal instanceof AbortSignal);
+	assert.equal(importSignal.aborted, false);
+	assert.deepEqual(placement.placements.map((value) => {
+		const { signal, ...options } = value as Record<string, unknown>;
+		assert.strictEqual(signal, importSignal, 'Each file retains the foreground import cancellation signal.');
+		return options;
+	}), [
 		{ destination: 'timeline', trackId: 'target', timelineStartFrame: 9 },
 		{ destination: 'timeline', trackId: null, timelineStartFrame: 9, trackIndex: 1 },
 	]);

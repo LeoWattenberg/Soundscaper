@@ -26,6 +26,7 @@
 const SHARED_DESKTOP_CONTRACTS = [
 	'^desktop/desktop-audio-codec-capability-contract\\.ts$',
 	'^desktop/desktop-audio-codec-operation-contract\\.ts$',
+	'^desktop/desktop-audio-stream-contract\\.ts$',
 	'^desktop/desktop-video-codec-operation-contract\\.ts$',
 	'^desktop/bundled-flac-stream\\.ts$',
 	'^desktop/bundled-mpeg-audio-stream\\.ts$',

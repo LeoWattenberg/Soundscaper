@@ -265,7 +265,7 @@ function appendBounded(left: Uint8Array, right: Uint8Array, maximum: number): Ui
 	return result;
 }
 
-function oggPageCrc(page: Uint8Array): number {
+export function oggPageCrc(page: Uint8Array): number {
 	let crc = 0;
 	for (const [index, sourceByte] of page.entries()) {
 		const byte = index >= 22 && index < 26 ? 0 : sourceByte;

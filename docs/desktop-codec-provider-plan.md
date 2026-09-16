@@ -16,38 +16,38 @@ framework libffmpeg remains Chromium infrastructure rather than a Soundscaper
 provider tier. The supported desktop targets remain Windows x64/ARM64, macOS
 ARM64, and Linux x64/ARM64. The retired macOS x64 target remains unsupported.
 
-## Implementation status — 2026-08-25
+## Implementation status — 2026-09-16
 
 The desktop audio broker, exact provider order, main-owned settings, and seven
 reviewed compressed-audio WebAssembly payloads are implemented. All seven are
 registered for linux-x64, linux-arm64, mac-arm64, win-x64, and win-arm64;
 mac-x64 is rejected rather than treated as a compatibility alias:
 
-- libFLAC 1.5.0, 153,076 bytes, SHA-256
-  `0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986`,
+- libFLAC 1.5.0, 154,763 bytes, SHA-256
+  `6246c5d6979f25b733e399383004a6a861478802c376d59885a7b2c7130a1584`,
   for bounded FLAC encode/decode through the reviewed signed-24-bit profile;
-- libopus 1.6.1 with libogg 1.3.6, 385,914 bytes, SHA-256
-  `c972c5019a7f56dfe9c712cb15c25ebb54b55b16b19b3b99a5b02c31ef311685`,
+- libopus 1.6.1 with libogg 1.3.6, 388,526 bytes, SHA-256
+  `cc5577fa2a6c74781b7eb57bd754f7d9b50b2355a83d85b0f0cfe96415607dce`,
   for 48 kHz mono/stereo Ogg Opus encode/decode in Audacity's constant,
   variable, and constrained-variable bit-rate modes;
-- libvorbis 1.3.7 with libogg 1.3.6, 523,227 bytes, SHA-256
-  `c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5`,
+- libvorbis 1.3.7 with libogg 1.3.6, 526,926 bytes, SHA-256
+  `cfa42717394ce29f8af676fb0ad7bff632306f75e536211eb85b7cc5aaf09aa0`,
   for 8–192 kHz mono/stereo Ogg Vorbis encode/decode;
-- WavPack 5.9.0, 145,537 bytes, SHA-256
-  `c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908`,
+- WavPack 5.9.0, 148,868 bytes, SHA-256
+  `5197fb8fd8e6cbef210acad11eb2a9dd8395a519b5fd64ba14a1b4978041b0c5`,
   for 8–192 kHz, one-to-eight-channel float32 lossless `.wv`
   encode/decode at reviewed compression level 2 only;
-- mpg123 1.33.7, 172,329 bytes, SHA-256
-  `d2b5686a16141ec97dbeb4e4f2a1ce28b756dd3eaf6438b31379356c8dd958ae`,
+- mpg123 1.33.7, 173,764 bytes, SHA-256
+  `1aa30e6e25a9503be94ce3720ce6c4af649b2412c191a6f800f36dd619270bc2`,
   for feed-only float32 MPEG-1 Layer II/III decode at 32, 44.1, or 48 kHz,
   mono or stereo;
-- LAME 4.0, 213,293 bytes, SHA-256
-  `d624f2202ce5a560ca38bc156cb80441fe93ec799e59a35d0f9379a990256123`,
+- LAME 4.0, 214,198 bytes, SHA-256
+  `e8ca1786d95a56ead1fc2294be98ea68d31eed5837abd79d2a3322a0af946c6f`,
   for bounded MPEG-1 Layer III encode at 32, 44.1, or 48 kHz, mono or stereo,
   in Audacity's constant, average, variable, and preset bit-rate modes, with
   only the encoder's reviewed bitrate combinations admitted; and
-- TwoLAME 0.4.0, 146,820 bytes, SHA-256
-  `b4b166bed688504b548adcee02cda391d4d8b25a44aec914c3fe1082f466ed1b`,
+- TwoLAME 0.4.0, 148,312 bytes, SHA-256
+  `8b89b6a12eab302c92960865c6b1c7d33df86d6d8760c8549a8ee38a99ef2b30`,
   for bounded CBR MPEG-1 Layer II encode at 32, 44.1, or 48 kHz, mono or
   stereo, with invalid layer/channel/bitrate combinations rejected.
 
@@ -72,12 +72,21 @@ protocol, exit, output length, and output SHA-256 are checked before admission
 or return. WavPack also retains the strict block/checksum authority and
 independent stock decoder witness described below.
 
-These codecs still take and return whole buffers through a 32 MiB request-input
-and 128 MiB response-output contract. Except for the WavPack block loop, each
-helper performs one synchronous WASM invocation internally. Process termination
-can stop that invocation, but the buffers, WASM linear memory, codec working
-state, JavaScript copies, elapsed time, and aggregate helper-process RSS and CPU
-do not form one shared reservation.
+The existing canary and small-buffer operations retain their 32 MiB request-input
+and 128 MiB response-output contract. Bundled MP3, MP2, Opus, Vorbis, 24-bit FLAC,
+and float32 lossless WavPack file exports also have a separate
+continuous-session route: the renderer stages bounded PCM packets through the
+main process, and a fresh authenticated utility process reads at most 16,384
+frames per invocation. The same codec instance persists through the entire file.
+Encoded packets and final header patches are at most 1 MiB each, and the main
+process owns the scratch files and serves bounded output ranges. This route
+admits up to one hour and 1,000,000,000 final file bytes, with a one-hour execution
+deadline, cancellation, progress, and final codec geometry/checksum validation.
+Neither input PCM nor encoded output accumulates in one JavaScript or WASM buffer.
+
+The small-buffer helpers still perform synchronous WASM calls internally. Their
+buffers, codec working state, JavaScript copies, and elapsed time do not form one
+shared reservation for aggregate helper-process RSS and CPU.
 
 A separate Linux x64 interoperability check built stock WavPack 5.9.0
 `wvunpack` from the same pinned commit. It decoded a 1,240,560-byte,
@@ -86,6 +95,22 @@ float32 PCM; expected and actual bytes both had SHA-256
 `b7f8cd1d8e1a00374f618587eb2c5872fcd250d8686c9cbda0b46e00003ea40f`.
 This is a narrow stock-decoder witness, not broad cross-version, cross-platform,
 or producer interoperability qualification.
+
+The continuous-session reference additionally generates 172,800,000 frames of
+48 kHz stereo silence one packet at a time, writes the final MP3 and FLAC files
+to disk, validates them with bounded file reads, then checks their codec,
+channels, sample rate, and 3,600-second duration with stock FFprobe and decodes
+each entire file with stock FFmpeg. The observed maximum retained PCM packet was
+131,072 bytes. MP3's maximum encoded packet was 8,640 bytes and its final file
+86,401,152 bytes; FLAC's corresponding sizes were 134 and 757,294 bytes. Run the
+reference from the source checkout with:
+
+```sh
+SCAPE_LONG_AUDIO_ENCODE_REFERENCE=1 node --test tests/audio-editor-long-compressed-export-reference.test.ts
+```
+
+The test pins its stock decoder image by digest and verifies exact MP3 gapless
+sample counts and FLAC frame CRCs before invoking the independent decoder.
 
 Windows Media Foundation and macOS ARM64 AudioToolbox source adapters, exact
 source inspectors, output validators, and live startup canaries are implemented

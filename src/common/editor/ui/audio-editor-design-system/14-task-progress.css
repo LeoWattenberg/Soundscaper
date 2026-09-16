@@ -3,6 +3,10 @@
 	padding-bottom: 7px;
 }
 
+.selection-toolbar__status:has(.kw-audio-editor__task-progress-cancel) {
+	padding-bottom: 22px;
+}
+
 .kw-audio-editor__task-progress {
 	display: flex;
 	min-width: 0;
@@ -51,6 +55,25 @@
 	font-variant-numeric: tabular-nums;
 	line-height: 1;
 	text-align: right;
+}
+
+.kw-audio-editor__task-progress-label {
+	max-width: 45%;
+	overflow: hidden;
+	color: var(--muted);
+	font-size: 10px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.kw-audio-editor__task-progress-cancel {
+	padding: 1px 5px;
+	border: 1px solid color-mix(in srgb, var(--text) 24%, transparent);
+	background: transparent;
+	border-radius: 3px;
+	color: var(--text);
+	font-size: 10px;
+	cursor: pointer;
 }
 
 @keyframes kw-editor-task-progress {

@@ -16,8 +16,8 @@ test('bundled MP3 encode is an exact LAME 4.0 artifact', async () => {
 	assert.equal(result.ok, true);
 	assert.equal(result.version, '4.0');
 	assert.equal(result.archiveSha256, '3df5124d5ad3a98312ffd7ba6a9b36230e4f8a3e66d3ce0f425e336c32d216eb');
-	assert.equal(result.wasmBytes, 213_293);
-	assert.equal(result.wasmSha256, 'd624f2202ce5a560ca38bc156cb80441fe93ec799e59a35d0f9379a990256123');
+	assert.equal(result.wasmBytes, 214_198);
+	assert.equal(result.wasmSha256, 'e8ca1786d95a56ead1fc2294be98ea68d31eed5837abd79d2a3322a0af946c6f');
 });
 
 test('bundled LAME build remains reproducible and excludes broader authority', async () => {

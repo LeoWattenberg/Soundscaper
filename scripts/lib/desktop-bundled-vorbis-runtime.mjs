@@ -6,8 +6,8 @@ import { dirname, join } from 'node:path';
 
 export const DESKTOP_BUNDLED_VORBIS_WASM = Object.freeze({
 	file: 'src/common/editor/vorbis/vorbis.wasm',
-	byteLength: 523_227,
-	sha256: 'c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5',
+	byteLength: 526_926,
+	sha256: 'cfa42717394ce29f8af676fb0ad7bff632306f75e536211eb85b7cc5aaf09aa0',
 });
 
 /** Copy only the exact reviewed libvorbis/libogg payload into the compiled desktop graph. */

@@ -48,7 +48,7 @@ function codecConfiguration(value) {
 		|| record.moduleBytes > 2 * 1024 * 1024
 		|| typeof record.moduleSha256 !== 'string' || !SHA256.test(record.moduleSha256)
 		|| !Array.isArray(record.dependencies) || record.dependencies.length < 1
-		|| record.dependencies.length > 8
+		|| record.dependencies.length > 24
 		|| !Number.isSafeInteger(record.wasmBytes) || record.wasmBytes < 8
 		|| record.wasmBytes > 2 * 1024 * 1024
 		|| typeof record.wasmSha256 !== 'string' || !SHA256.test(record.wasmSha256)) {

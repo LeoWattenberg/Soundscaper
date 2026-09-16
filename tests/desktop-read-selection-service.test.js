@@ -82,3 +82,15 @@ test('trusted selection dispatches to an explicit store registration method', as
 	}
 	assert.equal(calls.length, 2, 'invalid purpose/path pairs never reach either store method');
 });
+
+test('trusted PCM and compressed audio selections route to a bounded range capability', async () => {
+	const calls = [];
+	const store = { registerSelectedAudioRangePath(path, options) { calls.push([path, options]); return 'ranged'; } };
+	for (const path of ['/audio/long.wav', '/audio/long.RF64', '/audio/long.aif', '/audio/long.aiff',
+		'/audio/long.aac', '/audio/long.flac', '/audio/long.m4a', '/audio/long.mp2', '/audio/long.mp3',
+		'/audio/long.oga', '/audio/long.ogg', '/audio/long.opus', '/audio/long.wv']) {
+		assert.equal(readProfileForSelectedPath('audio', path), 'linked-audio-range-v1');
+		assert.equal(await registerSelectedReadCapability(store, path, { owner: OWNER, purpose: 'audio' }), 'ranged');
+	}
+	assert.equal(calls.length, 13);
+});

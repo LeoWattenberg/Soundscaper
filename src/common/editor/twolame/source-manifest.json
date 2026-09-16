@@ -26,9 +26,15 @@
 		"decoder": false,
 		"files": false,
 		"inputConversion": "clamp-unit-f32-to-signed-16",
-		"layers": [2],
+		"layers": [
+			2
+		],
 		"maximumChannels": 2,
-		"sampleRates": [32000, 44100, 48000],
+		"sampleRates": [
+			32000,
+			44100,
+			48000
+		],
 		"simd": false,
 		"threads": false,
 		"vbr": false
@@ -40,7 +46,7 @@
 	"localFiles": [
 		{
 			"path": "native/soundscaper_twolame.c",
-			"sha256": "fad9c8d1a81fa37ccdb307183d03ce812d9cf470498ad0883843c1baef01dc75"
+			"sha256": "5ed5550c1e77491a0e906c3e3e94b7265ca4b27a3afa366d762032b03e8bef7d"
 		},
 		{
 			"path": "NOTICE.md",
@@ -53,11 +59,15 @@
 		{
 			"path": "licenses/TWOLAME.txt",
 			"sha256": "37f5f9a8837237583446fd2bf0a2896639db8a9ea527a6439e9b83e7a5492703"
+		},
+		{
+			"path": "native/stream_encode.h",
+			"sha256": "f5614b89c9bf8cdfe2ac2eb33e96f12321a754975939bbb0bbf5967e9224979e"
 		}
 	],
 	"wasm": {
 		"path": "twolame.wasm",
-		"sha256": "b4b166bed688504b548adcee02cda391d4d8b25a44aec914c3fe1082f466ed1b",
+		"sha256": "8b89b6a12eab302c92960865c6b1c7d33df86d6d8760c8549a8ee38a99ef2b30",
 		"maximumBytes": 524288,
 		"initialMemoryBytes": 8388608,
 		"maximumMemoryBytes": 268435456,
@@ -75,7 +85,13 @@
 			"sctl_maximum_memory_bytes",
 			"sctl_allocate",
 			"sctl_free",
-			"sctl_encode_float32"
+			"sctl_encode_float32",
+			"sctl_stream_open",
+			"sctl_stream_write",
+			"sctl_stream_finish",
+			"sctl_stream_read",
+			"sctl_stream_patch",
+			"sctl_stream_close"
 		],
 		"allowedFunctionImports": [
 			"env.emscripten_notify_memory_growth",

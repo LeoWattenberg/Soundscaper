@@ -6,8 +6,8 @@ import { dirname, join } from 'node:path';
 
 export const DESKTOP_BUNDLED_TWOLAME_WASM = Object.freeze({
 	file: 'src/common/editor/twolame/twolame.wasm',
-	byteLength: 146_820,
-	sha256: 'b4b166bed688504b548adcee02cda391d4d8b25a44aec914c3fe1082f466ed1b',
+	byteLength: 148_312,
+	sha256: '8b89b6a12eab302c92960865c6b1c7d33df86d6d8760c8549a8ee38a99ef2b30',
 });
 
 /** Copy only the exact reviewed TwoLAME payload into the compiled desktop graph. */

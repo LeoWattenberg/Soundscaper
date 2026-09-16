@@ -13,7 +13,7 @@ test('bundled Ogg Vorbis is an exact libvorbis 1.3.7 plus libogg 1.3.6 artifact'
 	assert.equal(manifest.vorbis.revision, '0657aee69dec8508a0011f47f3b69d7538e9d262');
 	assert.equal(manifest.ogg.archiveSha256, '5c8253428e181840cd20d41f3ca16557a9cc04bad4a3d04cce84808677fa1061');
 	assert.equal(manifest.toolchain.dockerImageDigest, 'sha256:8847dad4171ebc8a53d9ae5cda86a2546ef5b2e68834c14dc1ba2b2962e125cc');
-	assert.equal(manifest.wasm.sha256, 'c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5');
+	assert.equal(manifest.wasm.sha256, 'cfa42717394ce29f8af676fb0ad7bff632306f75e536211eb85b7cc5aaf09aa0');
 	assert.deepEqual(manifest.buildFeatures, {
 		files: false, maximumChannels: 2, maximumSampleRate: 192000, minimumSampleRate: 8000,
 		qualityMaximum: 10, qualityMinimum: 0, simd: false, threads: false,

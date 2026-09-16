@@ -56,7 +56,10 @@
 		"gapless": true,
 		"icy": false,
 		"id3": false,
-		"layers": [2, 3],
+		"layers": [
+			2,
+			3
+		],
 		"network": false,
 		"outputEncoding": "float32",
 		"reader": "feed",
@@ -70,7 +73,7 @@
 	"localFiles": [
 		{
 			"path": "native/soundscaper_mpg123.c",
-			"sha256": "e9561b824b56a9dc1e174272824276f35974808afee21780375e57275bab7f75"
+			"sha256": "3645ccedb4dcf18281bcac5e0e27133bf1140925da1de1de25a4edf589063ca3"
 		},
 		{
 			"path": "NOTICE.md",
@@ -79,11 +82,15 @@
 		{
 			"path": "licenses/MPG123.txt",
 			"sha256": "c22482728a634a8dfdb4ff72a96d4c1ed64cd8f3e79335c401751ac591609366"
+		},
+		{
+			"path": "native/soundscaper_mpg123_stream_decode.h",
+			"sha256": "850fd42c2838e1481d064345cf89941047817ebb837efb9b6776a2e723139278"
 		}
 	],
 	"wasm": {
 		"path": "mpg123.wasm",
-		"sha256": "d2b5686a16141ec97dbeb4e4f2a1ce28b756dd3eaf6438b31379356c8dd958ae",
+		"sha256": "1aa30e6e25a9503be94ce3720ce6c4af649b2412c191a6f800f36dd619270bc2",
 		"maximumBytes": 524288,
 		"initialMemoryBytes": 8388608,
 		"maximumMemoryBytes": 268435456,
@@ -97,7 +104,10 @@
 			"scmp_maximum_memory_bytes",
 			"scmp_allocate",
 			"scmp_free",
-			"scmp_decode_float32"
+			"scmp_decode_float32",
+			"scmp_stream_decode_open",
+			"scmp_stream_decode_push",
+			"scmp_stream_decode_close"
 		],
 		"allowedFunctionImports": [
 			"env.emscripten_notify_memory_growth",

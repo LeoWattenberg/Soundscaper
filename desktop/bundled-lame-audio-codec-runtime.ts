@@ -33,8 +33,8 @@ import {
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 
 export const BUNDLED_LAME_VERSION = '4.0';
-export const BUNDLED_LAME_WASM_BYTE_LENGTH = 213_293;
-export const BUNDLED_LAME_WASM_SHA256 = 'd624f2202ce5a560ca38bc156cb80441fe93ec799e59a35d0f9379a990256123';
+export const BUNDLED_LAME_WASM_BYTE_LENGTH = 214_198;
+export const BUNDLED_LAME_WASM_SHA256 = 'e8ca1786d95a56ead1fc2294be98ea68d31eed5837abd79d2a3322a0af946c6f';
 export const BUNDLED_LAME_WASM_URL = new URL(
 	'../src/common/editor/lame/lame.wasm', import.meta.url,
 );

@@ -19,6 +19,7 @@ const MODULE_METHODS = Object.freeze([
 	'loadIsolatedBundledAudioCodecRuntime',
 	'loadOperatingSystemAudioCodecRuntime',
 	'registerDesktopAudioCodecMainIpc',
+	'createDesktopAudioStreamService', 'createDesktopAudioStreamJobRunner',
 ]);
 
 /** Resolve Electron's runtime tuple to the closed, reviewed desktop target set. */
@@ -80,21 +81,38 @@ export async function registerDesktopAudioCodecs(options) {
 		ownerFor: options.ownerFor, service,
 	});
 	validateIpcRegistration(ipc);
+	const stream = modules.createDesktopAudioStreamService({
+		scratchRoot, capabilities: (query) => service.capabilities(query),
+		execute: modules.createDesktopAudioStreamJobRunner({ verifyPayload: verifyBundledPayload, spawn: spawnBundled }),
+	});
+	options.handle(options.channels.desktopAudioCodecStream, (event, command) => stream.command(options.ownerFor(event), command));
 	let disposal = null;
 	return Object.freeze({
-		revokeOwner(owner) { return ipc.revokeOwner(owner); },
+		async revokeOwner(owner) {
+			const results = await completeAudioCodecTeardown([() => ipc.revokeOwner(owner), () => stream.revokeOwner(owner)]);
+			return results.some(Boolean);
+		},
 		receiptSnapshot() { return receipts.snapshot(); },
 		dispose() {
 			if (disposal !== null) return disposal;
 			receipts.clear();
-			disposal = ipc.dispose();
+			options.removeHandler(options.channels.desktopAudioCodecStream);
+			disposal = completeAudioCodecTeardown([() => ipc.dispose(), () => stream.dispose()]).then(() => undefined)
+				.catch((error) => { disposal = null; throw error; });
 			return disposal;
 		},
 	});
 }
 
+async function completeAudioCodecTeardown(steps) {
+	const results = await Promise.allSettled(steps.map(async (step) => step()));
+	const failures = results.filter((result) => result.status === 'rejected').map((result) => result.reason);
+	if (failures.length) throw new AggregateError(failures, 'Desktop audio codec teardown failed.', { cause: failures[0] });
+	return results.map((result) => result.value);
+}
+
 async function loadRuntimeModules() {
-	const [bundled, bundledPayload, bundledSpawn, composition, ipc, operatingSystem, electronSpawn, nativePayload]
+	const [bundled, bundledPayload, bundledSpawn, composition, ipc, operatingSystem, electronSpawn, nativePayload, stream, streamRunner]
 		= await Promise.all([
 		import('./project-library-runtime/desktop/bundled-audio-codec-isolated-runtime.js'),
 		import('./bundled-audio-codec-runtime-payload.mjs'),
@@ -104,6 +122,8 @@ async function loadRuntimeModules() {
 		import('./project-library-runtime/desktop/os-audio-codec-runtime.js'),
 		import('./os-audio-codec-electron-spawn.mjs'),
 		import('./os-audio-codec-native-payload.mjs'),
+		import('./project-library-runtime/desktop/desktop-audio-stream-service.js'),
+		import('./project-library-runtime/desktop/desktop-audio-stream-job-runner.js'),
 	]);
 	return Object.freeze({
 		createBundledAudioCodecElectronSpawn: bundledSpawn.createBundledAudioCodecElectronSpawn,
@@ -114,6 +134,8 @@ async function loadRuntimeModules() {
 		loadIsolatedBundledAudioCodecRuntime: bundled.loadIsolatedBundledAudioCodecRuntime,
 		loadOperatingSystemAudioCodecRuntime: operatingSystem.loadOperatingSystemAudioCodecRuntime,
 		registerDesktopAudioCodecMainIpc: ipc.registerDesktopAudioCodecMainIpc,
+		createDesktopAudioStreamService: stream.createDesktopAudioStreamService,
+		createDesktopAudioStreamJobRunner: streamRunner.createDesktopAudioStreamJobRunner,
 	});
 }
 
@@ -122,6 +144,7 @@ function validateOptions(options) {
 		|| typeof options.channels.desktopAudioCodecExecute !== 'string'
 		|| typeof options.channels.desktopAudioCodecCancel !== 'string'
 		|| typeof options.channels.desktopAudioCodecCapabilities !== 'string'
+		|| typeof options.channels.desktopAudioCodecStream !== 'string'
 		|| typeof options.handle !== 'function' || typeof options.removeHandler !== 'function'
 		|| typeof options.ownerFor !== 'function' || !options.externalFfmpegPreferences
 		|| typeof options.externalFfmpegPreferences.admission !== 'function'

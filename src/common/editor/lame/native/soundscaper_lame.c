@@ -212,3 +212,5 @@ finish:
 	if (lame_close(encoder) != 0 && result >= 0) return -3;
 	return result;
 }
+
+#include "stream_encode.h"

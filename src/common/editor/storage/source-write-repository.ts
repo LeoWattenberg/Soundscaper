@@ -1,10 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	PCM_CONTAINER_STORAGE_TYPE,
-	PCM_CONTAINER_EXTENSION,
-	PCM_ENCODING_WAVPACK_F32_V1,
-	WAVPACK_PCM_MAXIMUM_FRAMES,
+	PCM_CONTAINER_STORAGE_TYPE, PCM_CONTAINER_EXTENSION,
+	PCM_ENCODING_WAVPACK_F32_V1, WAVPACK_PCM_MAXIMUM_FRAMES,
 	compressionStatistics,
 	crc32,
 	normalizePcmSampleRate,
@@ -86,6 +84,7 @@ export class SourceWriteRepository {
 		receiptValue: unknown,
 		metadata: Record<string, unknown> = {},
 	): Promise<OwnedAudioSourceWriter> {
+		const { requirePersistentPcm, ...persistedMetadata } = metadata;
 		const stageReceipt = normalizeAudioSourceStageReceipt(receiptValue);
 		const { sourceId, sourceToken: token } = stageReceipt;
 		const writeSampleRate = normalizePcmSampleRate(metadata.sampleRate ?? 48_000);
@@ -93,8 +92,9 @@ export class SourceWriteRepository {
 			? null
 			: normalizePcmChunkFrames(metadata.chunkFrames);
 		const database = await this.#options.database();
-		const opfsWriter = await this.#options.opfs.createPcmWriter(token, metadata);
+		const opfsWriter = await this.#options.opfs.createPcmWriter(token, persistedMetadata);
 		const persistEncodedChunks = Boolean(opfsWriter || database);
+		if (requirePersistentPcm && !persistEncodedChunks) throw new Error('Large audio imports require IndexedDB or OPFS storage.');
 		let chunkIndex = 0;
 		let totalFrames = 0;
 		let channelCount: number | null = null;
@@ -281,7 +281,7 @@ export class SourceWriteRepository {
 					rawChunkCount,
 				});
 				const record: StorageRecord = {
-					...clone(metadata),
+					...clone(persistedMetadata),
 					...clone(extraMetadata),
 					id: sourceId,
 					storage: opfsWriter ? PCM_CONTAINER_STORAGE_TYPE : 'indexeddb-chunks',

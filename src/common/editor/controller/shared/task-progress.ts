@@ -18,6 +18,7 @@ export interface EditorTaskProgress {
 	readonly kind: EditorTaskProgressKind;
 	readonly label: string;
 	readonly value: number | null;
+	readonly cancellable?: boolean;
 }
 
 export interface EditorTaskProgressPhase {
@@ -32,6 +33,7 @@ export interface EditorTaskProgressHandle {
 	setPhase(label: string, phase?: EditorTaskProgressPhase): boolean;
 	update(value: number): boolean;
 	setIndeterminate(label?: string): boolean;
+	setCancellation(cancel: () => void): boolean;
 	finish(): boolean;
 }
 
@@ -41,6 +43,7 @@ export interface EditorTaskProgressCoordinator {
 	getSnapshot(): EditorTaskProgress | null;
 	setActivePhase(label: string, phase?: EditorTaskProgressPhase): boolean;
 	updateActive(value: number): boolean;
+	cancelActive(): boolean;
 	clear(): boolean;
 }
 
@@ -69,6 +72,7 @@ export function createEditorTaskProgressCoordinator({
 			phaseStart: 0,
 			phaseEnd: 1,
 			phaseValue: value == null ? null : clampProgress(value),
+			cancel: null,
 		};
 		publish();
 
@@ -77,32 +81,22 @@ export function createEditorTaskProgressCoordinator({
 			id,
 			kind,
 			setPhase(nextLabel: string, phase: EditorTaskProgressPhase = {}): boolean {
-				if (!ownsTask()) return false;
-				const start = clampProgress(phase.start ?? active!.value ?? 0);
-				const end = clampProgress(phase.end ?? 1);
-				active!.label = normalizeLabel(nextLabel);
-				active!.phaseStart = Math.min(start, end);
-				active!.phaseEnd = Math.max(start, end);
-				active!.phaseValue = phase.value == null ? null : clampProgress(phase.value);
-				active!.value = active!.phaseValue == null
-					? null
-					: monotonicValue(active!.value, mapPhaseValue(active!));
-				publish();
-				return true;
+				return ownsTask() && setActivePhase(nextLabel, phase);
 			},
 			update(nextValue: number): boolean {
-				if (!ownsTask()) return false;
-				const normalized = clampProgress(nextValue);
-				active!.phaseValue = Math.max(active!.phaseValue ?? 0, normalized);
-				active!.value = monotonicValue(active!.value, mapPhaseValue(active!));
-				publish();
-				return true;
+				return ownsTask() && updateActive(nextValue);
 			},
 			setIndeterminate(nextLabel?: string): boolean {
 				if (!ownsTask()) return false;
 				if (nextLabel !== undefined) active!.label = normalizeLabel(nextLabel);
 				active!.phaseValue = null;
 				active!.value = null;
+				publish();
+				return true;
+			},
+			setCancellation(cancel: () => void): boolean {
+				if (!ownsTask()) return false;
+				active!.cancel = cancel;
 				publish();
 				return true;
 			},
@@ -113,6 +107,29 @@ export function createEditorTaskProgressCoordinator({
 				return true;
 			},
 		});
+	}
+
+	function setActivePhase(label: string, phase: EditorTaskProgressPhase = {}): boolean {
+		if (!active) return false;
+		const task = active;
+		const start = clampProgress(phase.start ?? task.value ?? 0);
+		const end = clampProgress(phase.end ?? 1);
+		task.label = normalizeLabel(label);
+		task.phaseStart = Math.min(start, end);
+		task.phaseEnd = Math.max(start, end);
+		task.phaseValue = phase.value == null ? null : clampProgress(phase.value);
+		task.value = task.phaseValue == null ? null : monotonicValue(task.value, mapPhaseValue(task));
+		publish();
+		return true;
+	}
+
+	function updateActive(value: number): boolean {
+		if (!active) return false;
+		const normalized = clampProgress(value);
+		active.phaseValue = Math.max(active.phaseValue ?? 0, normalized);
+		active.value = monotonicValue(active.value, mapPhaseValue(active));
+		publish();
+		return true;
 	}
 
 	return Object.freeze({
@@ -126,25 +143,14 @@ export function createEditorTaskProgressCoordinator({
 			}
 		},
 		getSnapshot: () => active ? freezeProgress(active) : null,
-		setActivePhase(label: string, phase: EditorTaskProgressPhase = {}): boolean {
-			if (!active) return false;
-			const task = active;
-			const start = clampProgress(phase.start ?? task.value ?? 0);
-			const end = clampProgress(phase.end ?? 1);
-			task.label = normalizeLabel(label);
-			task.phaseStart = Math.min(start, end);
-			task.phaseEnd = Math.max(start, end);
-			task.phaseValue = phase.value == null ? null : clampProgress(phase.value);
-			task.value = task.phaseValue == null ? null : monotonicValue(task.value, mapPhaseValue(task));
+		setActivePhase,
+		updateActive,
+		cancelActive(): boolean {
+			const cancel = active?.cancel;
+			if (!cancel) return false;
+			active!.cancel = null;
 			publish();
-			return true;
-		},
-		updateActive(value: number): boolean {
-			if (!active) return false;
-			const normalized = clampProgress(value);
-			active.phaseValue = Math.max(active.phaseValue ?? 0, normalized);
-			active.value = monotonicValue(active.value, mapPhaseValue(active));
-			publish();
+			cancel();
 			return true;
 		},
 		clear(): boolean {
@@ -162,6 +168,7 @@ interface MutableTaskProgress extends EditorTaskProgress {
 	phaseStart: number;
 	phaseEnd: number;
 	phaseValue: number | null;
+	cancel: (() => void) | null;
 }
 
 function freezeProgress(progress: MutableTaskProgress): EditorTaskProgress {
@@ -170,6 +177,7 @@ function freezeProgress(progress: MutableTaskProgress): EditorTaskProgress {
 		kind: progress.kind,
 		label: progress.label,
 		value: progress.value,
+		...(progress.cancel ? { cancellable: true } : {}),
 	});
 }
 

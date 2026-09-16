@@ -47,6 +47,18 @@ const NARRATIVE_CODE_ID_TOKENS = Object.freeze([
 ]);
 
 export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
+	...[
+		['desktop-write-path-capabilities', 'exact-direct-compressed-mix-save'],
+		['desktop-write-path-capabilities', 'direct-stem-archive-save'],
+		['long-job-cancellation', 'direct-compressed-mix-save-rollback'],
+		['long-job-cancellation', 'direct-stem-archive-save-rollback'],
+		['long-job-cancellation', 'bounded-browser-export-blob-publication'],
+	].map(([riskId, controlId]) => Object.freeze({
+		marker: controlId,
+		register: 'config/production-security-matrix.json',
+		riskId, controlId, field: 'summary',
+		document: 'docs/production-threat-model.md', intro: null, wrap: 80,
+	})),
 	Object.freeze({
 		marker: 'framescaper-v18-product-isolation',
 		register: 'config/project-compatibility.json',

@@ -62,7 +62,7 @@
 	"localFiles": [
 		{
 			"path": "native/soundscaper_vorbis.c",
-			"sha256": "c809d70d4367b1b4517c9466586539384fd03ac843cb0408ba55e78e708a1b19"
+			"sha256": "d3f32e8cc88f6cfd0c0ccbe9168e071e58df69910ff898fdd6651170a64dd217"
 		},
 		{
 			"path": "NOTICE.md",
@@ -75,11 +75,19 @@
 		{
 			"path": "licenses/OGG.txt",
 			"sha256": "d2ab5758336489da61c12cc5bb757da5339c4ae9001f9bb0562b4370249af814"
+		},
+		{
+			"path": "native/stream_encode.h",
+			"sha256": "fb24ab751266352d66d446f89454bae7d6b91d8bfe9c394c9cb816631d1cd639"
+		},
+		{
+			"path": "native/soundscaper_vorbis_stream_decode.h",
+			"sha256": "ff6bb9f67953186202e3dfb1342c4cabf73cb7856b5d1c6da90602b77eb292f7"
 		}
 	],
 	"wasm": {
 		"path": "vorbis.wasm",
-		"sha256": "c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5",
+		"sha256": "cfa42717394ce29f8af676fb0ad7bff632306f75e536211eb85b7cc5aaf09aa0",
 		"maximumBytes": 786432,
 		"initialMemoryBytes": 8388608,
 		"maximumMemoryBytes": 268435456,
@@ -99,7 +107,16 @@
 			"scvb_validate",
 			"scvb_probe",
 			"scvb_encode_float32",
-			"scvb_decode_float32"
+			"scvb_decode_float32",
+			"scvb_stream_open",
+			"scvb_stream_write",
+			"scvb_stream_finish",
+			"scvb_stream_read",
+			"scvb_stream_patch",
+			"scvb_stream_close",
+			"scvb_stream_decode_open",
+			"scvb_stream_decode_push",
+			"scvb_stream_decode_close"
 		],
 		"allowedFunctionImports": [
 			"env.emscripten_notify_memory_growth",

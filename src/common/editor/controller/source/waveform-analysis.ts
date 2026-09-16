@@ -30,6 +30,11 @@ export interface StoredWaveformStore {
 	readSourceChunks(sourceId: string): AsyncIterable<StoredPcmChunk>;
 }
 
+export interface StoredWaveformAnalysisOptions {
+	readonly signal?: AbortSignal;
+	readonly onProgress?: (value: number) => void;
+}
+
 interface ClipSourceWindow {
 	readonly durationFrames?: unknown;
 	readonly sourceDurationFrames?: unknown;
@@ -138,21 +143,32 @@ export async function generateStoredWaveformPeaks(
 	store: StoredWaveformStore,
 	source: WaveformSource,
 	copy: WorkerCopy,
+	options: StoredWaveformAnalysisOptions = {},
 ): Promise<WaveformPeaks> {
-	if (typeof Worker !== 'function') return generateStoredWaveformPeaksFallback(store, source);
+	throwIfAborted(options.signal);
+	if (typeof Worker !== 'function') return generateStoredWaveformPeaksFallback(store, source, options);
 	const worker = new Worker(new URL('../../peaks-worker.js', import.meta.url), { type: 'module' });
+	let frames = 0;
 	try {
+		const ready = waitForAnalysisWorker(worker, 'ready', copy, options);
 		worker.postMessage({ type: 'start', channelCount: source.channelCount,
 			blockSizes: waveformPeakBlockSizes(source.frameCount, source.channelCount) });
-		await waitForAnalysisWorker(worker, 'ready', copy);
+		await ready;
 		for await (const chunk of store.readSourceChunks(source.storageKey || source.id)) {
+			throwIfAborted(options.signal);
 			const channels = chunk.channels.map((channel) => channel.slice());
 			const transfer = channels.map((channel) => channel.buffer);
+			const ack = waitForAnalysisWorker(worker, 'ack', copy, options);
 			worker.postMessage({ type: 'chunk', channels: transfer }, transfer);
-			await waitForAnalysisWorker(worker, 'ack', copy);
+			await ack;
+			frames += chunk.frames;
+			options.onProgress?.(frames / Math.max(1, source.frameCount));
+			throwIfAborted(options.signal);
 		}
+		if (frames !== source.frameCount) throw new Error('The stored audio source frame count does not match its metadata.');
+		const result = waitForAnalysisWorker(worker, 'result', copy, options);
 		worker.postMessage({ type: 'finish' });
-		const message = await waitForAnalysisWorker(worker, 'result', copy);
+		const message = await result;
 		return { version: WAVEFORM_PEAKS_VERSION, channelCount: source.channelCount, levels: message.levels || [] };
 	} finally {
 		worker.terminate();
@@ -162,7 +178,9 @@ export async function generateStoredWaveformPeaks(
 export async function generateStoredWaveformPeaksFallback(
 	store: StoredWaveformStore,
 	source: WaveformSource,
+	options: StoredWaveformAnalysisOptions = {},
 ): Promise<WaveformPeaks> {
+	throwIfAborted(options.signal);
 	const levels = waveformPeakBlockSizes(source.frameCount, source.channelCount).map((blockSize) => ({
 		blockSize,
 		channels: Array.from({ length: source.channelCount }, () => ({
@@ -176,6 +194,7 @@ export async function generateStoredWaveformPeaksFallback(
 	}));
 	let frameOffset = 0;
 	for await (const chunk of store.readSourceChunks(source.storageKey || source.id)) {
+		throwIfAborted(options.signal);
 		for (let frame = 0; frame < chunk.frames; frame += 1) {
 			const absoluteFrame = frameOffset + frame;
 			for (let channel = 0; channel < source.channelCount; channel += 1) {
@@ -191,6 +210,9 @@ export async function generateStoredWaveformPeaksFallback(
 			}
 		}
 		frameOffset += chunk.frames;
+		options.onProgress?.(frameOffset / Math.max(1, source.frameCount));
+		if (options.signal || options.onProgress) await new Promise<void>((resolve) => { setTimeout(resolve, 0); });
+		throwIfAborted(options.signal);
 	}
 	if (frameOffset !== source.frameCount) throw new Error('The stored audio source frame count does not match its metadata.');
 	return {

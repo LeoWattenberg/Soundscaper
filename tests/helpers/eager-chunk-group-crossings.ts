@@ -181,20 +181,8 @@ export const REACHABILITY_PLACED_TARGETS: ReadonlyMap<string, string> = new Map(
 		'Bundled desktop FLAC stream parser reached only through `browser-dedicated-audio-codec.ts` inside the dedicated audio worker entry.',
 	],
 	[
-		'desktop/bundled-mpeg-audio-stream.ts',
-		'Bundled desktop MPEG audio stream parser reached only through `browser-dedicated-audio-codec.ts` inside the dedicated audio worker entry.',
-	],
-	[
-		'desktop/bundled-opus-stream.ts',
-		'Bundled desktop Opus stream parser reached only through `browser-dedicated-audio-codec.ts` inside the dedicated audio worker entry.',
-	],
-	[
 		'desktop/bundled-vorbis-stream.ts',
 		'Bundled desktop Vorbis stream parser reached only through `browser-dedicated-audio-codec.ts` inside the dedicated audio worker entry.',
-	],
-	[
-		'desktop/bundled-wavpack-stream.ts',
-		'Bundled desktop WavPack stream parser reached only through `browser-dedicated-audio-codec.ts` inside the dedicated audio worker entry.',
 	],
 	// The six leaves below became visible when the Framescaper command, clipboard and
 	// timeline-image groups were classified eager, which is what they are. Each is a shared

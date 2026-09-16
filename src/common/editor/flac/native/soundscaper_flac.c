@@ -291,6 +291,8 @@ cleanup:
 	return result;
 }
 
+#include "stream_encode.h"
+
 int scfl_decode_float32(
 	const FLAC__byte *input,
 	uint32_t input_bytes,
@@ -328,3 +330,5 @@ cleanup:
 	FLAC__stream_decoder_delete(decoder);
 	return result;
 }
+
+#include "soundscaper_flac_stream_decode.h"

@@ -66,7 +66,7 @@ test('direct stem archives use browser-native complete-file codecs and exact rol
 	);
 	assert.match(
 		publication.summary,
-		/no final archive Blob.*retains complete PCM and encoded-file bytes.*Prepared Blob mode.*separately bounded/isu,
+		/no final archive Blob.*continuous codec.*temporary file storage.*does not retain the whole staged PCM or encoded file.*whole-buffer.*separately bounded.*Prepared Blob mode.*1,000,000,000 bytes.*512 MiB/isu,
 	);
 	assert.match(
 		rollback.summary,
@@ -241,16 +241,16 @@ test('the threat and quality documents separate current codecs from historical f
 	]);
 
 	assert.match(
-		threatModel,
+		threatModel.replace(/\s+/gu, ' '),
 		/direct stem-archive.*ZIP32.*7z Copy.*Compressed stems.*ZIP32-only.*complete FLAC.*MP3.*Vorbis.*Opus.*WavPack.*MP2.*WebCodecs.*Mediabunny.*AAC\/M4A/isu,
 	);
 	assert.match(
-		threatModel,
-		/unsupported profiles.*custom FFmpeg.*fail closed.*no browser FFmpeg fallback.*no final archive Blob/isu,
+		threatModel.replace(/\s+/gu, ' '),
+		/unsupported profiles.*custom FFmpeg.*fail closed.*without a browser FFmpeg fallback.*no final archive Blob/isu,
 	);
 	assert.match(
-		threatModel,
-		/at-most-64-KiB.*backpressure.*not.*end-to-end.*complete.*PCM.*encoded-file bytes/isu,
+		threatModel.replace(/\s+/gu, ' '),
+		/at-most-64-KiB.*backpressure.*continuous codec.*temporary file storage.*does not retain the whole staged PCM or encoded file/isu,
 	);
 	assert.match(
 		qualityBudgets,

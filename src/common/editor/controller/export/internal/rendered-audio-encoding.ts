@@ -123,6 +123,7 @@ export interface EncodeRenderedAudioOptions {
 	readonly rendered: RenderedAudioBuffer;
 	readonly settings: RenderedAudioEncodingSettings;
 	readonly signal: AbortSignal;
+	readonly onProgress?: (value: number) => void;
 }
 
 /** Encode one admitted offline render while preserving the legacy Blob/byte result contract. */
@@ -263,6 +264,7 @@ export async function encodeRenderedAudio(
 			encodeWav,
 			ffmpeg,
 			onEncoding: () => { setStatus(copy.encoding); },
+			onProgress: options.onProgress,
 			plan,
 			signal,
 		}));
@@ -283,6 +285,7 @@ export async function encodeRenderedAudio(
 	setStatus(copy.encoding);
 	return withLoudness(await ffmpeg.encode(wav, plan.format, {
 		...plan.encoding,
+		onProgress: options.onProgress,
 		bitDepth,
 		sampleRate: plan.sampleRate,
 		applyDither: plan.encoding.sampleFormat !== 'float32'

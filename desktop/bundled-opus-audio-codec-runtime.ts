@@ -32,8 +32,8 @@ import {
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 
 export const BUNDLED_OPUS_VERSION = 'libopus-1.6.1+libogg-1.3.6';
-export const BUNDLED_OPUS_WASM_BYTE_LENGTH = 385_914;
-export const BUNDLED_OPUS_WASM_SHA256 = 'c972c5019a7f56dfe9c712cb15c25ebb54b55b16b19b3b99a5b02c31ef311685';
+export const BUNDLED_OPUS_WASM_BYTE_LENGTH = 388526;
+export const BUNDLED_OPUS_WASM_SHA256 = 'cc5577fa2a6c74781b7eb57bd754f7d9b50b2355a83d85b0f0cfe96415607dce';
 export const BUNDLED_OPUS_SAMPLE_RATE = 48_000;
 export const BUNDLED_OPUS_MAXIMUM_CHANNELS = 2;
 export const BUNDLED_OPUS_WASM_URL = new URL(

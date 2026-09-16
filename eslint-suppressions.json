@@ -557,11 +557,6 @@
       "count": 3
     }
   },
-  "src/common/editor/desktop-read-profile.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
   "src/common/editor/desktop-video-export-capability.ts": {
     "no-control-regex": {
       "count": 1

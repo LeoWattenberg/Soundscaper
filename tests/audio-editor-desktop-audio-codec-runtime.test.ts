@@ -70,6 +70,7 @@ test('all seven legacy encode calls stage interleaved f32le and map normalized s
 			...fixture.settings, sampleRate: 48_000, maximumOutputBytes: 4_096,
 		});
 		assert.equal(encoded.extension, extension(fixture.format));
+		assert.ok(encoded.bytes);
 		assert.equal(encoded.bytes.at(-1), requests.length);
 	}
 	assert.equal(requests.length, FORMAT_CASES.length);

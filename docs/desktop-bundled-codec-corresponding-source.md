@@ -15,6 +15,12 @@ compiled-source closure, toolchain, and expected output digest. The mpg123
 source archive, detached signature, and pinned signing key are all included.
 The shared libogg archive is stored once.
 
+The local wrapper closure includes each continuous encoder's `stream_encode.h`
+and the persistent decoder headers where present. WavPack's pinned native
+snapshot contains 21 source/header files, including its Soundscaper streaming
+wrapper. Those headers participate in the same exact source digest and rebuild
+checks as the existing wrappers.
+
 ## Rebuild
 
 Use Node.js 26.5.0 with `tar` and Emscripten 3.1.64. The reviewed compiler
