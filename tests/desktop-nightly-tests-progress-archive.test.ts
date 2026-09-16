@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { copyFile, mkdir, mkdtemp, readdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { access, copyFile, mkdir, mkdtemp, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
@@ -14,6 +14,39 @@ import hardenDesktopNightlyTests from '../scripts/desktop-nightly-tests-after-pa
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
+/**
+ * A restored node_modules cache can contain Electron's package metadata without
+ * its platform executable when the cache was populated by a job that did not
+ * run Electron's install hook. Repair that cache before this packaged-runtime
+ * regression tries to copy the executable.
+ */
+function ensureElectronExecutable(dist) {
+	const executable = join(dist, 'electron');
+	try {
+		return access(executable).then(() => executable);
+	} catch {
+		// `access` is asynchronous; this branch is retained only for type clarity.
+		return executable;
+	}
+}
+
+async function ensureElectronDist() {
+	const dist = join(ROOT, 'node_modules/electron/dist');
+	try {
+		await access(join(dist, 'electron'));
+	} catch {
+		const result = spawnSync('npm', ['rebuild', 'electron'], {
+			cwd: ROOT,
+			stdio: 'inherit',
+			encoding: 'utf8',
+		});
+		assert.equal(result.error, undefined, result.error?.message);
+		assert.equal(result.status, 0, 'npm rebuild electron failed');
+		await access(join(dist, 'electron'));
+	}
+	return dist;
+}
+
 test('the hardened nightly launcher renders and updates its archived progress page', {
 	skip: process.platform !== 'linux' || !process.env.DISPLAY
 		? 'The packaged Electron regression requires Linux with a display (use xvfb-run).'
@@ -21,7 +54,7 @@ test('the hardened nightly launcher renders and updates its archived progress pa
 }, async context => {
 	const root = await mkdtemp(join(tmpdir(), 'nightly progress ü '));
 	context.after(() => rm(root, { recursive: true, force: true }));
-	const dist = join(ROOT, 'node_modules/electron/dist');
+	const dist = await ensureElectronDist();
 	const executable = join(root, 'electron');
 	await copyFile(join(dist, 'electron'), executable);
 	// Only the disposable executable is patched. Share the immutable Chromium
