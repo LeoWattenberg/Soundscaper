@@ -21,6 +21,8 @@ async function launch(context: TestContext, scenario: string) {
 	const modules = {
 			'electron/main': `
 				const { root, scenario, observation } = globalThis.fixture;
+				export const protocol = { registerSchemesAsPrivileged() {} };
+				export const session = { defaultSession: { protocol: {} } };
 				export const app = {
 					whenReady: async () => { if (scenario === 'readiness') throw Error('Electron readiness failed'); },
 					getVersion: () => '1.0.0-rc.9', getPath: () => root,

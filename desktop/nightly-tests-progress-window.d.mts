@@ -9,7 +9,8 @@ interface NightlyTestsBrowserWindow {
 		setWindowOpenHandler(handler: () => { readonly action: 'deny' }): void;
 		on(event: 'will-navigate', listener: (event: { preventDefault(): void }, candidate: string) => void): void;
 	};
-	loadFile(file: string): Promise<void>;
+	loadURL(url: string): Promise<void>;
+	once(event: 'closed', listener: () => void): void;
 	show(): void;
 	setTitle(title: string): void;
 	setProgressBar(value: number, options?: { readonly mode: 'normal' | 'error' | 'paused' }): void;
@@ -26,8 +27,15 @@ export interface DesktopNightlyTestsProgressWindow {
 	): void;
 }
 
+export const NIGHTLY_TESTS_PROGRESS_SCHEME: 'soundscaper-nightly-progress';
+export const NIGHTLY_TESTS_PROGRESS_DOCUMENT_URL: string;
+
 export function createDesktopNightlyTestsProgressWindow(options: {
 	readonly BrowserWindow: new (options: Readonly<Record<string, unknown>>) => NightlyTestsBrowserWindow;
+	readonly protocol: {
+		handle(scheme: string, handler: (request: { readonly url: string; readonly method: string }) => Response): void;
+		unhandle(scheme: string): void;
+	};
 	readonly initialProgress: DesktopNightlyTestsProgress;
 	readonly onError?: (error: unknown) => void;
 }): Promise<DesktopNightlyTestsProgressWindow>;

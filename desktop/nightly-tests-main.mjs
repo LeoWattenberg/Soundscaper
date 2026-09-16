@@ -21,6 +21,11 @@ if (process.argv.includes('--soundscaper-nightly-assistance-host')) {
 		.then(({ startNightlyAssistanceHost }) => startNightlyAssistanceHost(electron))
 		.catch((error) => { console.error(error); app.exit(2); });
 } else {
+	// Register synchronously: dynamic payload imports can finish after readiness.
+	electron.protocol.registerSchemesAsPrivileged([{
+		scheme: 'soundscaper-nightly-progress',
+		privileges: { standard: true, secure: true },
+	}]);
 	void startNightlyTests();
 }
 
@@ -104,6 +109,7 @@ async function startNightlyTests() {
 			const { createDesktopNightlyTestsProgressWindow } = await import('./nightly-tests-progress-window.mjs');
 			progressWindow = await createDesktopNightlyTestsProgressWindow({
 				BrowserWindow: electron.BrowserWindow,
+				protocol: electron.session.defaultSession.protocol,
 				initialProgress: latestProgress,
 				onError: (error) => { log(`Progress renderer failed: ${errorDetails(error)}`); },
 			});

@@ -119,6 +119,8 @@ test('the nightly test launcher delegates to the pure runtime and never opens an
 	const source = await readFile(resolve(ROOT, 'desktop/nightly-tests-main.mjs'), 'utf8');
 	const schemeRegistration = source.indexOf('\telectron.protocol.registerSchemesAsPrivileged(');
 	const assistanceStart = source.indexOf("\tvoid import('./nightly-tests-assistance-host.mjs')");
+	const progressScheme = source.indexOf("scheme: 'soundscaper-nightly-progress'");
+	const runnerStart = source.indexOf('\tvoid startNightlyTests();');
 	const readyWait = source.indexOf('\tawait app.whenReady();');
 
 	assert.match(source, /runDesktopNightlyTests/u);
@@ -129,6 +131,8 @@ test('the nightly test launcher delegates to the pure runtime and never opens an
 		'the privileged assistance scheme must be registered before its host starts');
 	assert.ok(schemeRegistration < readyWait,
 		'the privileged assistance scheme must be registered before Electron can become ready');
+	assert.ok(progressScheme >= 0 && progressScheme < runnerStart && runnerStart < readyWait,
+		'the progress scheme must be registered synchronously before the runner starts');
 	assert.match(source, /process\.resourcesPath/u);
 	assert.match(source, /sourceRevision/u);
 	assert.match(source, /app\.exit/u);
