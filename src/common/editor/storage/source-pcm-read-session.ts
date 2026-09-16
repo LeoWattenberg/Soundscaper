@@ -68,6 +68,9 @@ export function createSourcePcmReadSession(
 				if (isRequestCancellation(error, signal)) {
 					throw requestCancellationReason(error, signal);
 				}
+				// Backend AbortError may omit the maintenance-release reason; closed
+				// without a primary failure identifies an intentional session release.
+				if (closed && primaryFailure === NO_PRIMARY_FAILURE && isAbortError(error)) throw closedError;
 				if (!closed) {
 					closed = true;
 					primaryFailure = error;
