@@ -16,32 +16,22 @@ const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
 /**
  * A restored node_modules cache can contain Electron's package metadata without
- * its platform executable when the cache was populated by a job that did not
- * run Electron's install hook. Repair that cache before this packaged-runtime
- * regression tries to copy the executable.
+ * its platform executable. Electron 43 exposes an explicit installer instead
+ * of a postinstall hook, so npm rebuild cannot repair it. Install that runtime
+ * before this packaged-runtime regression tries to copy the executable.
  */
-function ensureElectronExecutable(dist) {
-	const executable = join(dist, 'electron');
-	try {
-		return access(executable).then(() => executable);
-	} catch {
-		// `access` is asynchronous; this branch is retained only for type clarity.
-		return executable;
-	}
-}
-
 async function ensureElectronDist() {
 	const dist = join(ROOT, 'node_modules/electron/dist');
 	try {
 		await access(join(dist, 'electron'));
 	} catch {
-		const result = spawnSync('npm', ['rebuild', 'electron'], {
+		const result = spawnSync(process.execPath, [join(ROOT, 'node_modules/electron/install.js')], {
 			cwd: ROOT,
 			stdio: 'inherit',
 			encoding: 'utf8',
 		});
-		assert.equal(result.error, undefined, result.error?.message);
-		assert.equal(result.status, 0, 'npm rebuild electron failed');
+		assert.ifError(result.error);
+		assert.equal(result.status, 0, 'Electron runtime installation failed');
 		await access(join(dist, 'electron'));
 	}
 	return dist;

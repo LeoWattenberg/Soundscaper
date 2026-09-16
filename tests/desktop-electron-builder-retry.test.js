@@ -65,6 +65,28 @@ test('electron-builder does not retry a functional packaging failure', () => {
 	}
 });
 
+test('electron-builder retries the terse fetch failure observed while building the Windows portable installer', () => {
+	const harness = createHarness('transient-fetch');
+	try {
+		const result = harness.run(['--config', 'electron-builder.nightly-tests.config.cjs', '--win', '--x64']);
+		assert.equal(result.status, 0, result.stderr);
+		assert.equal(harness.attempts(), 2);
+	} finally {
+		harness.cleanup();
+	}
+});
+
+for (const mode of ['http-not-found', 'certificate', 'functional-fetch']) test(`electron-builder does not retry ${mode}`, () => {
+	const harness = createHarness(mode);
+	try {
+		const result = harness.run(['--win', '--x64']);
+		assert.equal(result.status, 23);
+		assert.equal(harness.attempts(), 1);
+	} finally {
+		harness.cleanup();
+	}
+});
+
 test('electron-builder stops after three transient download failures', () => {
 	const harness = createHarness('exhausted');
 	try {
@@ -104,6 +126,26 @@ case "$FAKE_NPX_MODE" in
     ;;
   functional)
     echo '  x Invalid configuration object. electron-builder.yml has an unknown property.' >&2
+    exit 23
+    ;;
+  transient-fetch)
+    echo '  • downloaded electron zip extracted successfully' >&2
+    echo '  • building target=portable file=Soundscaper-nightly-with-tests-win-x64.exe' >&2
+    if [ "$attempt" -eq 1 ]; then
+      echo '  ⨯ fetch failed failedTask=build stackTrace=TypeError: fetch failed' >&2
+      exit 19
+    fi
+    ;;
+  http-not-found)
+    echo '  x Response code 404 () for https://github.com/electron/electron/missing.zip' >&2
+    exit 23
+    ;;
+  certificate)
+    echo '  x certificate has expired downloading https://github.com/electron/electron/runtime.zip' >&2
+    exit 23
+    ;;
+  functional-fetch)
+    echo '  x Custom packaging hook: fetch failed' >&2
     exit 23
     ;;
   exhausted)

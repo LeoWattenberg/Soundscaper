@@ -35,15 +35,10 @@ const EXPECTED_FIXTURES = Object.freeze([
 	}),
 ]);
 /**
- * The nominal rate each admitted backend reports for the pinned fixtures.
- *
- * The persisted timing body — timescale, presentation ticks and final frame
- * duration — is identical whichever backend read the file, because both read the
- * same integers out of the same container, and its digest is pinned above. A
- * nominal rate is not one of those integers for variable-rate media: FFmpeg
- * estimates one from its own timestamp histogram, while the container demuxer
- * reports the track average. Admit each backend against the rate it reports
- * rather than loosening the check to whatever arrives.
+ * Backend-specific nominal rates for the pinned fixtures. The timing body is
+ * identical across backends, which read the same container integers. For VFR,
+ * FFmpeg estimates a rate from its timestamp histogram; the demuxer reports the
+ * track average. Admit their exact rates while keeping the timing digest pinned.
  */
 const BACKEND_NOMINAL_RATES = Object.freeze({
 	'cfr-25fps-mp4-v1': Object.freeze({
@@ -196,14 +191,22 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 		.find((button) => button.textContent?.trim() === 'Decline');
 	decline?.click();
 	const readyDeadline = Date.now() + 15_000;
-	let importButton = null;
+	let importButton = null, fileMenuOpened = false;
 	while (Date.now() < readyDeadline) {
-		importButton = scope.document.querySelector('[data-project-bin-import] button');
-		if (importButton && !importButton.disabled
-			&& editor.querySelector('[data-status]')?.getAttribute('data-state') === 'success') break;
+		const ready = editor.querySelector('[data-status]')?.getAttribute('data-state') === 'success';
+		importButton = scope.document.querySelector('[data-project-bin-import] button')
+			?? [...scope.document.querySelectorAll('[role="menu"] [role="menuitem"]')]
+				.find((item) => item.querySelector('.context-menu-item-label')?.textContent?.trim() === 'Import');
+		if (ready && importButton && !importButton.disabled && importButton.getAttribute?.('aria-disabled') !== 'true') break;
+		if (ready && !importButton && !fileMenuOpened) {
+			const file = [...scope.document.querySelectorAll('[role="menubar"] [role="menuitem"]')]
+				.find((item) => item.textContent?.trim() === 'File');
+			file?.click();
+			fileMenuOpened = Boolean(file);
+		}
 		await new Promise((resolve) => scope.setTimeout(resolve, 50));
 	}
-	if (!importButton || importButton.disabled
+	if (!importButton || importButton.disabled || importButton.getAttribute?.('aria-disabled') === 'true'
 		|| editor.querySelector('[data-status]')?.getAttribute('data-state') !== 'success') {
 		throw new Error('Desktop video timing-probe ordinary Import control is unavailable');
 	}
@@ -245,10 +248,7 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 		}),
 	};
 
-	// A desktop save is admitted against the local store but published to the
-	// project library, so on that path the document never lands in the renderer's
-	// `projects` store. Read it back over the same bridge the editor published
-	// through; the timing bodies themselves do stay in the local media stores.
+	// Desktop documents live in the project library; timing bodies stay local.
 	async function desktopLibraryProject(globalScope, names) {
 		const library = desktopProjectLibraryBridge(globalScope, plan.productId);
 		if (typeof library?.readProjectBundle !== 'function' || !activeProjectId) return null;

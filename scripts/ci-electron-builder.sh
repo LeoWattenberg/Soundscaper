@@ -27,7 +27,7 @@ is_transient_download_failure() {
 	local log_path="$1"
 	local download_context='download|https?://|@electron/get|app-builder'
 	local transient_http='(Response code|HTTP (response )?status( code)?|statusCode)[^0-9]*(408|425|429|500|502|503|504)([^0-9]|$)'
-	local transient_network='(^|[^[:alnum:]_])(ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENETDOWN|ENETUNREACH|ERR_STREAM_PREMATURE_CLOSE|UND_ERR_CONNECT_TIMEOUT)([^[:alnum:]_]|$)|socket hang up|disconnected before secure TLS connection'
+	local transient_network='(^|[^[:alnum:]_])(ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENETDOWN|ENETUNREACH|ERR_STREAM_PREMATURE_CLOSE|UND_ERR_CONNECT_TIMEOUT)([^[:alnum:]_]|$)|socket hang up|disconnected before secure TLS connection|fetch failed[[:space:]]+failedTask=build[[:space:]]+stackTrace=TypeError: fetch failed'
 
 	grep -Eiq "$download_context" "$log_path" || return 1
 	grep -Eiq "$transient_http|$transient_network" "$log_path"
