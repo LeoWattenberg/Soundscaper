@@ -14,22 +14,22 @@ export default function ProjectTabs({ projects, activeProjectId, copy, disabled,
 		}
 	}, [projects]);
 	const unique = [];
+	const tabIds = [];
 	const seen = new Set();
 	for (const project of projects || []) {
 		if (!project?.id || seen.has(project.id)) continue;
 		seen.add(project.id);
+		tabIds.push(`${tabListId}-${unique.length}`);
 		unique.push(project);
 	}
-	const focusableProjectId = unique.some((project) => project.id === activeProjectId)
+	const focusableProjectId = seen.has(activeProjectId)
 		? activeProjectId
 		: unique[0]?.id;
 	const handleTabKeyDown = (event, index) => {
-		let nextIndex = index;
-		if (event.key === 'ArrowRight') nextIndex = (index + 1) % unique.length;
-		else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + unique.length) % unique.length;
-		else if (event.key === 'Home') nextIndex = 0;
-		else if (event.key === 'End') nextIndex = unique.length - 1;
-		else return;
+		const nextIndex = {
+			ArrowRight: index + 1, ArrowLeft: index - 1 + unique.length,
+			Home: 0, End: unique.length - 1,
+		}[event.key] % unique.length;
 		const next = unique[nextIndex];
 		if (!next) return;
 		event.preventDefault();
@@ -42,13 +42,13 @@ export default function ProjectTabs({ projects, activeProjectId, copy, disabled,
 		<nav className="kw-audio-editor__project-tabs" aria-label={copy.projectTabs}>
 			{/* Own only selection tabs, keeping each adjacent close button independently accessible. */}
 			<div role="tablist" aria-label={copy.projectTabs} className="kw-audio-editor-sr-only"
-				aria-owns={unique.map((_project, index) => `${tabListId}-${index}`).join(' ')} />
+				aria-owns={tabIds.join(' ')} />
 			<div ref={tabListRef} className="kw-audio-editor__project-tab-strip">
 				{unique.map((project, index) => <div key={project.id} role="presentation" className="kw-audio-editor__project-tab">
 					<button
 						type="button"
 						role="tab"
-						id={`${tabListId}-${index}`}
+						id={tabIds[index]}
 						aria-selected={project.id === activeProjectId}
 						tabIndex={project.id === focusableProjectId ? 0 : -1}
 						disabled={disabled}

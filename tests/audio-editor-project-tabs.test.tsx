@@ -48,6 +48,51 @@ test('project tab close buttons identify their project and close it without sele
 	}
 });
 
+test('duplicate projects retain one tab and a missing active project has one keyboard target', async () => {
+	const mounted = await mountTabs();
+	try {
+		await mounted.render([
+			{ id: 'first', title: 'First project' },
+			{ id: 'first', title: 'Duplicate project' },
+			{ id: 'second', title: 'Second project' },
+		], 'missing');
+		const tabs = mounted.dom.container.querySelectorAll('[role="tab"]');
+		assert.deepEqual(tabs.map((tab) => tab.textContent), ['First project', 'Second project']);
+		assert.deepEqual(tabs.map((tab) => tab.getAttribute('tabindex')), ['0', '-1']);
+		assert.deepEqual(mounted.dom.one('[role="tablist"]').getAttribute('aria-owns')?.split(/\s+/u),
+			tabs.map((tab) => tab.getAttribute('id')));
+		assert.equal(mounted.dom.one('[aria-label="Close project: First project"]').getAttribute('tabindex'), '0');
+		assert.equal(mounted.dom.one('[aria-label="Close project: Second project"]').getAttribute('tabindex'), '-1');
+	} finally {
+		await mounted.cleanup();
+	}
+});
+
+test('project tab keyboard navigation wraps and ignores keys that do not select a tab', async () => {
+	const mounted = await mountTabs();
+	try {
+		const tabs = mounted.dom.container.querySelectorAll('[role="tab"]');
+		for (const [index, key, expected] of [
+			[0, 'ArrowLeft', 'second'], [0, 'ArrowRight', 'second'],
+			[1, 'Home', 'first'], [0, 'End', 'second'],
+		] as const) {
+			let prevented = false;
+			await act(async () => {
+				reactProps(tabs[index]).onKeyDown({ key, preventDefault: () => { prevented = true; } });
+			});
+			assert.equal(prevented, true);
+			assert.equal(mounted.selected.at(-1), expected);
+		}
+		const before = [...mounted.selected];
+		await act(async () => {
+			reactProps(tabs[0]).onKeyDown({ key: 'Enter', preventDefault: () => assert.fail('Enter remains native') });
+		});
+		assert.deepEqual(mounted.selected, before);
+	} finally {
+		await mounted.cleanup();
+	}
+});
+
 test('focus returns to the active tab only after the requested tab actually closes', async () => {
 	const mounted = await mountTabs();
 	try {
