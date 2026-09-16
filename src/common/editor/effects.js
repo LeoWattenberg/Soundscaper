@@ -136,6 +136,7 @@ export const AUDACITY_RACK_EFFECT_TYPES = Object.freeze([
 	'audacity-limiter',
 	'audacity-noise-reduction',
 	'audacity-phaser',
+	'audacity-reverb',
 	'audacity-classic-filters',
 	'audacity-wahwah',
 ]);

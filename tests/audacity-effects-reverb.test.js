@@ -47,8 +47,8 @@ test('reverb settings carry the upstream pre-delay and tone controls', () => {
 		damping: 50,
 		toneLow: 100,
 		toneHigh: 100,
-		wetGainDb: -6,
-		dryGainDb: 0,
+		wetGainDb: -1,
+		dryGainDb: -1,
 		stereoWidth: 100,
 		wetOnly: false,
 	});

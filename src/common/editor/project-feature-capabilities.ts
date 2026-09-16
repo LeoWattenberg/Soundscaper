@@ -150,6 +150,7 @@ export const PROJECT_FEATURE_AUDIO_EFFECT_TYPES = Object.freeze([
 	'audacity-limiter',
 	'audacity-noise-reduction',
 	'audacity-phaser',
+	'audacity-reverb',
 	'audacity-classic-filters',
 	'audacity-wahwah',
 ] as const);

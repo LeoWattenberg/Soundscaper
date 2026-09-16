@@ -15,6 +15,7 @@ const LIVE_EFFECT_TYPES = new Set([
 	'audacity-limiter',
 	'audacity-noise-reduction',
 	'audacity-phaser',
+	'audacity-reverb',
 	'audacity-classic-filters',
 	'audacity-wahwah',
 ]);

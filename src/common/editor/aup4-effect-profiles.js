@@ -20,6 +20,7 @@ import {
 	stableNumberString,
 } from './audacity-command-parameters.js';
 import { isPlainObject } from './aup4-effect-xml-values.js';
+import { normalizeReverbParams } from './audacity-effects/reverb-parameters.ts';
 
 export const AUDACITY_EFFECT_ID_PREFIX = 'Effect_Audacity_Audacity_';
 export const AUDACITY_EFFECT_PATH_PREFIX = 'Built-in Effect: ';
@@ -154,6 +155,16 @@ export const AUP4_REALTIME_EFFECT_PROFILES = deepFreeze({
 			numberParam('outputGainDb', 'Gain'),
 		],
 	},
+	'audacity-reverb': {
+		symbol: 'Reverb',
+		params: [
+			numberParam('roomSize', 'RoomSize'), numberParam('preDelay', 'Delay'),
+			numberParam('reverberance', 'Reverberance'), numberParam('damping', 'HfDamping'),
+			numberParam('toneLow', 'ToneLow'), numberParam('toneHigh', 'ToneHigh'),
+			numberParam('wetGainDb', 'WetGain'), numberParam('dryGainDb', 'DryGain'),
+			numberParam('stereoWidth', 'StereoWidth'), booleanParam('wetOnly', 'WetOnly'),
+		],
+	},
 	'audacity-classic-filters': {
 		symbol: 'Classic Filters',
 		params: [
@@ -190,6 +201,16 @@ export function canEncodeAup4NativeRealtimeEffect(effect) {
 	const profile = AUP4_REALTIME_EFFECT_PROFILES[effect?.type];
 	if (!profile || effect?.context !== undefined || effect?.state !== undefined || !isPlainObject(effect?.params)) {
 		return false;
+	}
+	if (effect.type === 'audacity-reverb') {
+		try {
+			// Keep the wider browser gain range in its portable extension. The
+			// native captured settings reject either gain outside -20..10 dB.
+			const { wetGainDb, dryGainDb } = normalizeReverbParams(effect.params);
+			if (wetGainDb < -20 || wetGainDb > 10 || dryGainDb < -20 || dryGainDb > 10) return false;
+		} catch {
+			return false;
+		}
 	}
 	const supportedParams = new Set(profile.params
 		.filter((descriptor) => descriptor.model)

@@ -4,131 +4,15 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
-const COMB_DELAYS_44K = Object.freeze([1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617]);
-const ALLPASS_DELAYS_44K = Object.freeze([556, 441, 341, 225]);
+import { ReverbLiveProcessor } from './reverb-live-processor.ts';
 
-/*
- * `Reverb_libSoX.h` positions the wet tone controls as one MIDI note range
- * either side of note 72: a high-pass whose corner falls as `toneLow` rises,
- * and a low-pass whose corner rises with `toneHigh`. Both use the same
- * single-pole forms, so keeping the upstream note arithmetic keeps a preset's
- * bright or dark character intact even though the reverberator itself is a
- * browser adaptation rather than a SoX port.
- */
-const TONE_CENTRE_NOTE = 72;
-const TONE_NOTE_SPAN = 48;
+export { normalizeReverbParams } from './reverb-parameters.ts';
 
 export function applyAudacityBrowserReverb(channels, sampleRate = 48_000, params = {}) {
 	validateAudio(channels, sampleRate);
-	const settings = normalizeReverbParams(params);
-	const room = 0.28 + settings.roomSize / 100 * 0.7;
-	const damping = Math.min(0.98, settings.damping / 100);
-	const reverberance = 0.2 + settings.reverberance / 100 * 0.78;
-	const wet = dbToLinear(settings.wetGainDb) * settings.reverberance / 100;
-	const dry = settings.wetOnly ? 0 : dbToLinear(settings.dryGainDb);
-	const width = settings.stereoWidth / 100;
-	const scale = sampleRate / 44_100;
-	// Upstream pads the reverberator's input queue with silence, so pre-delay
-	// moves the wet signal only; the dry path stays aligned with the source.
-	const preDelayFrames = Math.round(settings.preDelay / 1_000 * sampleRate);
-	const highpass = createOnePoleHighpass(toneCornerHz(-settings.toneLow), sampleRate);
-	const lowpass = createOnePoleLowpass(toneCornerHz(settings.toneHigh), sampleRate);
-	const processed = channels.map((input, channel) => {
-		const combs = COMB_DELAYS_44K.map((delay, index) => createComb(
-			Math.max(1, Math.round((delay + channel * 23 + index * channel * 3) * scale)),
-		));
-		const allpasses = ALLPASS_DELAYS_44K.map((delay, index) => createAllpass(
-			Math.max(1, Math.round((delay + channel * 17 + index * channel * 2) * scale)),
-		));
-		const tone = [createOnePoleState(highpass), createOnePoleState(lowpass)];
-		const output = new Float32Array(input.length);
-		for (let frame = 0; frame < input.length; frame += 1) {
-			const source = frame >= preDelayFrames ? input[frame - preDelayFrames] : 0;
-			let value = 0;
-			for (const comb of combs) value += processComb(comb, source, room * reverberance, damping);
-			value /= combs.length;
-			for (const allpass of allpasses) value = processAllpass(allpass, value, 0.5);
-			for (const state of tone) value = processOnePole(state, value);
-			output[frame] = value;
-		}
-		return output;
-	});
-
-	return channels.map((input, channel) => {
-		const opposite = processed.length > 1 ? processed[(channel + 1) % processed.length] : processed[channel];
-		const output = new Float32Array(input.length);
-		const directWet = 0.5 + width * 0.5;
-		const crossWet = 0.5 - width * 0.5;
-		for (let frame = 0; frame < output.length; frame += 1) {
-			output[frame] = input[frame] * dry + (processed[channel][frame] * directWet + opposite[frame] * crossWet) * wet;
-		}
-		return output;
-	});
-}
-
-export function normalizeReverbParams(params = {}) {
-	return {
-		roomSize: numberInRange(params.roomSize, 75, 0, 100, 'roomSize'),
-		preDelay: numberInRange(params.preDelay, 10, 0, 200, 'preDelay'),
-		reverberance: numberInRange(params.reverberance, 50, 0, 100, 'reverberance'),
-		damping: numberInRange(params.damping, 50, 0, 100, 'damping'),
-		toneLow: numberInRange(params.toneLow, 100, 0, 100, 'toneLow'),
-		toneHigh: numberInRange(params.toneHigh, 100, 0, 100, 'toneHigh'),
-		wetGainDb: numberInRange(params.wetGainDb, -6, -60, 12, 'wetGainDb'),
-		dryGainDb: numberInRange(params.dryGainDb, 0, -60, 12, 'dryGainDb'),
-		stereoWidth: numberInRange(params.stereoWidth, 100, 0, 100, 'stereoWidth'),
-		wetOnly: Boolean(params.wetOnly),
-	};
-}
-
-function toneCornerHz(percent) {
-	return 440 * 2 ** ((TONE_CENTRE_NOTE + percent / 100 * TONE_NOTE_SPAN - 69) / 12);
-}
-
-function createOnePoleHighpass(cornerHz, sampleRate) {
-	const a1 = -Math.exp(-2 * Math.PI * cornerHz / sampleRate);
-	const b0 = (1 - a1) / 2;
-	return Object.freeze({ b0, b1: -b0, a1 });
-}
-
-function createOnePoleLowpass(cornerHz, sampleRate) {
-	const a1 = -Math.exp(-2 * Math.PI * cornerHz / sampleRate);
-	return Object.freeze({ b0: 1 + a1, b1: 0, a1 });
-}
-
-function createOnePoleState(coefficients) {
-	return { coefficients, input: 0, output: 0 };
-}
-
-function processOnePole(state, input) {
-	const { b0, b1, a1 } = state.coefficients;
-	const output = input * b0 + state.input * b1 - state.output * a1;
-	state.input = input;
-	state.output = output;
-	return output;
-}
-
-function createComb(length) {
-	return { buffer: new Float32Array(length), position: 0, filter: 0 };
-}
-
-function processComb(state, input, feedback, damping) {
-	const output = state.buffer[state.position];
-	state.filter = output * (1 - damping) + state.filter * damping;
-	state.buffer[state.position] = input + state.filter * feedback;
-	state.position = (state.position + 1) % state.buffer.length;
-	return output;
-}
-
-function createAllpass(length) {
-	return { buffer: new Float32Array(length), position: 0 };
-}
-
-function processAllpass(state, input, feedback) {
-	const delayed = state.buffer[state.position];
-	const output = delayed - input;
-	state.buffer[state.position] = input + delayed * feedback;
-	state.position = (state.position + 1) % state.buffer.length;
+	const processor = new ReverbLiveProcessor(sampleRate, params);
+	const output = channels.map((channel) => new Float32Array(channel.length));
+	processor.process(channels, output);
 	return output;
 }
 
@@ -138,14 +22,4 @@ function validateAudio(channels, sampleRate) {
 	}
 	if (channels.some((channel) => channel.length !== channels[0].length)) throw new RangeError('Reverb channels must have equal lengths.');
 	if (!Number.isFinite(sampleRate) || sampleRate <= 0) throw new RangeError('sampleRate must be positive.');
-}
-
-function numberInRange(value, fallback, minimum, maximum, name) {
-	const number = Number(value ?? fallback);
-	if (!Number.isFinite(number) || number < minimum || number > maximum) throw new RangeError(`${name} must be between ${minimum} and ${maximum}.`);
-	return number;
-}
-
-function dbToLinear(value) {
-	return 10 ** (value / 20);
 }

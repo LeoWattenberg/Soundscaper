@@ -52,6 +52,7 @@ const EXPECTED_AUDACITY_RACK_TYPES = [
 	'audacity-limiter',
 	'audacity-noise-reduction',
 	'audacity-phaser',
+	'audacity-reverb',
 	'audacity-classic-filters',
 	'audacity-wahwah',
 ];
@@ -70,7 +71,6 @@ const EXPECTED_SELECTION_ONLY_TYPES = [
 	'audacity-paulstretch',
 	'audacity-repair',
 	'audacity-remove-dc-offset',
-	'audacity-reverb',
 	'audacity-repeat',
 	'audacity-reverse',
 	'audacity-truncate-silence',

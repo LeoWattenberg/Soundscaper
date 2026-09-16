@@ -56,7 +56,7 @@ Audio effects are registered by Soundscaper. Effects whose ID begins with `audac
 | Resonant high-pass filter | `highpass` | EQ and filters | Yes | No | — |
 | Resonant low-pass filter | `lowpass` | EQ and filters | Yes | No | — |
 | Reverb | `reverb` | Delay and reverb | Yes | No | — |
-| Reverb (Audacity) | `audacity-reverb` | Delay and reverb | No | Yes | Browser build uses a Schroeder reverb network |
+| Reverb (Audacity) | `audacity-reverb` | Delay and reverb | Yes | Yes | Browser build uses a Schroeder reverb network |
 | Reverse | `audacity-reverse` | Special | No | Yes | — |
 | Shelf filter | `shelf-filter` | EQ and filters | Yes | Yes | — |
 | Sliding Stretch | `audacity-sliding-stretch` | Pitch and tempo | No | Yes | Changes the selection length; Uses the StaffPad time and pitch library |
@@ -97,7 +97,6 @@ These effects cannot be a realtime insert, because each one needs more of the se
 | Remove DC Offset | `audacity-remove-dc-offset` | This effect requires render-ahead selection processing. |
 | Repair | `audacity-repair` | Repair requires an explicitly marked short damaged selection and surrounding context. |
 | Repeat | `audacity-repeat` | The effect changes duration and cannot be a one-in/one-out insert. |
-| Reverb (Audacity) | `audacity-reverb` | This effect requires render-ahead selection processing. |
 | Reverse | `audacity-reverse` | The first output sample depends on the end of the complete selection. |
 | Sliding Stretch | `audacity-sliding-stretch` | This effect requires render-ahead selection processing. |
 | Truncate Silence | `audacity-truncate-silence` | The effect removes time and cannot be a one-in/one-out insert. |
@@ -258,8 +257,8 @@ Defaults and limits come from the same definitions the editor validates against,
 | Reverb (Audacity) | `audacity-reverb` | Damping | 50 | 0 to 100 | % |
 | Reverb (Audacity) | `audacity-reverb` | Tone low | 100 | 0 to 100 | % |
 | Reverb (Audacity) | `audacity-reverb` | Tone high | 100 | 0 to 100 | % |
-| Reverb (Audacity) | `audacity-reverb` | Wet gain | -6 | -60 to 12 | dB |
-| Reverb (Audacity) | `audacity-reverb` | Dry gain | 0 | -60 to 12 | dB |
+| Reverb (Audacity) | `audacity-reverb` | Wet gain | -1 | -60 to 12 | dB |
+| Reverb (Audacity) | `audacity-reverb` | Dry gain | -1 | -60 to 12 | dB |
 | Reverb (Audacity) | `audacity-reverb` | Stereo width | 100 | 0 to 100 | % |
 | Reverb (Audacity) | `audacity-reverb` | Wet only | Off | On or off | — |
 | Shelf filter | `shelf-filter` | Shelf frequency | 1000 | 10 to 10000 | Hz |

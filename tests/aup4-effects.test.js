@@ -16,7 +16,7 @@ import {
 import { createEffect } from '../src/common/editor/effects.js';
 
 test('AUP4 realtime effect IDs use Audacity stable family, vendor, symbol, and path fields', () => {
-	assert.equal(Object.keys(AUP4_REALTIME_EFFECT_PROFILES).length, 14);
+	assert.equal(Object.keys(AUP4_REALTIME_EFFECT_PROFILES).length, 15);
 	assert.equal(
 		aup4NativeEffectId('audacity-compressor'),
 		'Effect_Audacity_Audacity_Compressor_Built-in Effect: Compressor',

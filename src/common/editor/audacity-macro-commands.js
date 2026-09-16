@@ -187,21 +187,6 @@ export const AUDACITY_SELECTION_EFFECT_MACRO_PROFILES = deepFreeze({
 	'audacity-remove-dc-offset': { symbol: 'Remove DC offset', params: [] },
 	'audacity-repair': { symbol: 'Repair', params: [] },
 	'audacity-repeat': { symbol: 'Repeat', params: [numberParam('count', 'Count')] },
-	'audacity-reverb': {
-		symbol: 'Reverb',
-		params: [
-			numberParam('roomSize', 'RoomSize'),
-			numberParam('preDelay', 'Delay'),
-			numberParam('reverberance', 'Reverberance'),
-			numberParam('damping', 'HfDamping'),
-			numberParam('toneLow', 'ToneLow'),
-			numberParam('toneHigh', 'ToneHigh'),
-			numberParam('wetGainDb', 'WetGain'),
-			numberParam('dryGainDb', 'DryGain'),
-			numberParam('stereoWidth', 'StereoWidth'),
-			booleanParam('wetOnly', 'WetOnly'),
-		],
-	},
 	'audacity-reverse': { symbol: 'Reverse', params: [] },
 	'audacity-sliding-stretch': {
 		symbol: 'Sliding Stretch',

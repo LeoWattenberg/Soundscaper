@@ -408,3 +408,14 @@ test('an extracted live-capability helper is owned with the contracts that use i
 		'editor-effect-contracts',
 	);
 });
+
+test('Reverb parameters and tail estimates share the eager effect contract owner', () => {
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/audacity-effects/reverb-parameters.ts'),
+		'editor-effect-contracts',
+	);
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/audacity-effects/reverb-live-processor.ts'),
+		'editor-optional-execution',
+	);
+});

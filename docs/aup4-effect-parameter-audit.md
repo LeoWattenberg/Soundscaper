@@ -14,13 +14,13 @@ commit `4c177d436e48c1d20f231eada44035593cb26292` and, for the legacy macro
 contract, Audacity 3.7.7 commit `5ef610ed23260d6d648175735bb16b32536eb30b`.
 The links below point to those revisions, not the checkout's changing HEAD.
 
-All 14 AUP4 profiles were covered: Auto Duck, Bass and Treble, Click Removal,
+The audit covered the original 14 AUP4 profiles: Auto Duck, Bass and Treble, Click Removal,
 Compressor, Distortion, Echo, Filter Curve, Graphic EQ, Invert, Limiter, Noise
 Reduction, Phaser, Classic Filters, and Wahwah. "AUP4 profile" describes
 Soundscaper's interchange inventory; it does not establish that each effect
 can be inserted into a native Audacity realtime rack.
 
-All 17 complementary selection macro profiles were covered: Amplify, Change
+The audit covered the original 17 complementary selection macro profiles: Amplify, Change
 Pitch, Change Speed and Pitch, Change Tempo, Fade In, Fade Out, Legacy
 Compressor, Loudness Normalization, Normalize, Paulstretch, Remove DC offset,
 Repair, Repeat, Reverb, Reverse, Sliding Stretch, and Truncate Silence.
@@ -54,14 +54,26 @@ these four graph flags alongside the processing controls:
 | Change Pitch / Change Tempo | The legacy `SBSMS` engine selector is saved even when that build cannot use it. | The key is recognized, but is not mapped to a browser setting. Imported `SBSMS=1` uses Soundscaper's engine; this is an algorithm interchange limitation. [Pitch contract](https://github.com/audacity/audacity/blob/5ef610ed23260d6d648175735bb16b32536eb30b/libraries/lib-builtin-effects/ChangePitchBase.cpp#L31), [tempo contract](https://github.com/audacity/audacity/blob/5ef610ed23260d6d648175735bb16b32536eb30b/libraries/lib-builtin-effects/ChangeTempoBase.cpp#L25) |
 | Amplify | Macro mode omits `AllowClipping` and forces it true. | An absent flag receives that macro default. [Batch contract](https://github.com/audacity/audacity/blob/5ef610ed23260d6d648175735bb16b32536eb30b/libraries/lib-builtin-effects/AmplifyBase.cpp#L16) |
 
-## Separate limitations
+## Reverb realtime correction
 
-Native Reverb supports realtime processing, but Soundscaper currently exposes
-its approximate browser reverb as a selection effect and excludes it from AUP4
-native rack mapping. A missing native realtime Reverb is therefore a capability
-limitation. Its ten saved keys are already represented in the macro profile.
+Native Reverb supports realtime processing. Soundscaper now exposes its browser
+adaptation in the existing rack effect menu as `Reverb (Audacity)`, using the
+same ten controls and factory presets as the selection effect. Realtime and
+offline rack rendering retain processor state across blocks. Native AUP4 Reverb
+settings are mapped to an editable rack effect and exported with Audacity's
+captured parameter names; native and browser DSP audio equivalence is not claimed.
+Moving this shared contract into the AUP4 profiles leaves 15 AUP4 profiles and
+16 complementary selection macro profiles. No new always-visible UI is added.
 See [native support](https://github.com/audacity/audacity/blob/4c177d436e48c1d20f231eada44035593cb26292/src/effects/builtin_collection/reverb/reverbeffect.cpp#L135)
 and [captured settings](https://github.com/audacity/audacity/blob/4c177d436e48c1d20f231eada44035593cb26292/src/effects/builtin_collection/reverb/reverbeffect.cpp#L48).
+
+Soundscaper preserves its existing Reverb gain range of -60 to +12 dB. Native
+Audacity accepts only -20 to +10 dB for wet and dry gain. Effects outside those
+native limits export as a browser extension that Soundscaper reopens exactly;
+native Audacity retains the extension as an unavailable effect. See the
+[native gain limits](https://github.com/audacity/audacity/blob/4c177d436e48c1d20f231eada44035593cb26292/src/effects/builtin_collection/reverb/reverbeffect.h#L169).
+
+## Separate limitations
 
 Graphic EQ saves a variable-length curve, not necessarily 31 slider gains.
 Soundscaper's AUP4 decoder only materializes gains for exactly 31 point pairs;
@@ -78,7 +90,10 @@ the metadata finding above is not evidence of a native realtime EQ import case.
 
 This is a source audit supported by literal serialization fixtures, interchange
 regression tests, and a fixture-based audio gate. Those checks exercise
-Soundscaper and its declared contract. No pinned native Audacity runner was used,
+Soundscaper and its declared contract. Reverb browser checks cover the existing
+menu, ten controls, presets, saved edits, playback, wet-only WAV rendering, and
+native AUP4 parameter import/export/reopen with zero missing effects.
+No pinned native Audacity runner was used,
 so they do not establish native runtime conformance or audio equivalence.
 Unknown future processing parameters must still preserve an unavailable effect
 opaquely rather than silently discard settings that may change its sound.
