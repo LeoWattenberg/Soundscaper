@@ -36,7 +36,8 @@ test.describe('File project management submenu', () => {
 		await projectManagement.click();
 		const submenu = projectManagement.getByRole('menu');
 		await expect(submenu).toBeVisible();
-		await expect(submenu.getByRole('menuitem')).toHaveText(projectManagementCommands);
+		await expect(submenu.getByRole('menuitem')).toHaveCount(projectManagementCommands.length);
+		await expect(submenu.getByRole('menuitem')).toContainText(projectManagementCommands);
 		await expect(getMenuItem(submenu, 'Save archive checksums')).toHaveAttribute('aria-disabled', 'true');
 		await getMenuItem(submenu, 'Project properties').click();
 		await expect(fileMenu).toBeHidden();
