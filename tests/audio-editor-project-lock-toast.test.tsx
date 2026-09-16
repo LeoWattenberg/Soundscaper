@@ -20,7 +20,7 @@ test('project locks use an actionable toast and leave selection toolbars free of
 	assert.match(toast, /<section[^>]*aria-label="This project is already open in another tab\."/u);
 	assert.match(toast, /role="alert"/u);
 	assert.match(toast, /Edit here/u);
-	assert.match(toast, /<span class="button__text">Close<\/span>/u);
+	assert.match(toast, /<span aria-hidden="true">×<\/span><span class="kw-audio-editor-sr-only">Close<\/span>/u);
 	assert.equal(renderToStaticMarkup(<ProjectLockToast
 		copy={ENGLISH_COPY} snapshot={{ lockReadOnly: false }} controller={controller} run={(operation) => operation()}
 	/>), '');
@@ -74,7 +74,7 @@ test('closing the lock toast hides it without claiming write access', async () =
 	let claims = 0;
 	const fixture = await mountedToast(() => { claims += 1; });
 	try {
-		await act(async () => { reactProps(buttonByText(fixture.dom.container, ENGLISH_COPY.close)).onClick(); });
+		await act(async () => { reactProps(fixture.dom.one('.kw-audio-editor__toast-close')).onClick(); });
 		assert.equal(fixture.dom.find('[data-editor-toast]'), null);
 		assert.equal(claims, 0);
 	} finally {

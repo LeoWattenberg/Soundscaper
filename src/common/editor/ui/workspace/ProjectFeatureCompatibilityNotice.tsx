@@ -31,6 +31,7 @@ export default function ProjectFeatureCompatibilityNotice({
 	return <>
 		{!dismissedProjects.has(projectId) && <div data-project-feature-compatibility-summary>
 			<EditorToast
+				key={projectId}
 				id="project-feature-compatibility"
 				title={copy.scapeCompatibilityTitle}
 				description={copy.projectReadOnly}

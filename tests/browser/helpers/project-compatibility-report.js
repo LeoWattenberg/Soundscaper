@@ -55,7 +55,9 @@ export async function inspectProjectCompatibilityReport(page, editor) {
 	await page.keyboard.press('Escape');
 	await expect(reportDialog).toBeHidden();
 
-	await summary.getByRole('button', { name: 'Dismiss compatibility summary', exact: true }).click();
+	const dismiss = summary.getByRole('button', { name: 'Dismiss compatibility summary', exact: true });
+	await expect(dismiss).toHaveText('×Dismiss compatibility summary');
+	await dismiss.click();
 	await expect(summary).toHaveCount(0);
 	expect(await workspace.boundingBox()).toEqual(workspaceBefore);
 	const fileMenu = await openNestedCommandMenu(page, editor, 'File', []);

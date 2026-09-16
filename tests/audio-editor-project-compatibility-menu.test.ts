@@ -99,7 +99,8 @@ test('opening the report defers its modal body until the requested surface loads
 });
 
 
-test('dismissal stays with its project when switching A to B and back to A', async () => {
+test('dismissal stays with its project when switching A to B and back to A', async (context) => {
+	context.mock.timers.enable({ apis: ['setTimeout'] });
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
@@ -118,7 +119,7 @@ test('dismissal stays with its project when switching A to B and back to A', asy
 		await render('project-a');
 		assert.ok(dom.find('[data-project-feature-compatibility-summary]'));
 		const dismiss = dom.container.querySelectorAll('button').find((button) => (
-			button.textContent === ENGLISH_COPY.aup4CompatibilityDismiss
+			button.textContent === `×${ENGLISH_COPY.aup4CompatibilityDismiss}`
 		));
 		assert.ok(dismiss);
 		await act(async () => { reactProps(dismiss).onClick({ currentTarget: dismiss }); });
@@ -129,6 +130,11 @@ test('dismissal stays with its project when switching A to B and back to A', asy
 		assert.equal(dom.find('[data-project-feature-compatibility-summary]'), null, 'A stays dismissed');
 		await render('project-b');
 		assert.ok(dom.find('[data-project-feature-compatibility-summary]'), 'B remains available');
+		await act(async () => { context.mock.timers.tick(10_000); });
+		assert.equal(dom.find('[data-project-feature-compatibility-summary]'), null, 'B expires automatically');
+		await render('project-a');
+		await render('project-b');
+		assert.equal(dom.find('[data-project-feature-compatibility-summary]'), null, 'B stays dismissed after expiry');
 	} finally {
 		await act(async () => root.unmount());
 		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;

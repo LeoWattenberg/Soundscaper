@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { Toast } from '@soundscaper/design-system/Toast/Toast';
 
@@ -24,18 +24,24 @@ export interface EditorToastProps {
 export default function EditorToast({
 	id, title, description, type = 'info', actions = [], dismissLabel, onDismiss,
 }: EditorToastProps) {
+	const dismissAutomatically = useEffectEvent(onDismiss);
+	useEffect(() => {
+		const timeout = setTimeout(() => dismissAutomatically(), 10_000);
+		return () => clearTimeout(timeout);
+	}, [id]);
+
 	return <section className="kw-audio-editor__toast" aria-label={title} data-editor-toast={id}>
 		<Toast id={id} type={type} title={title} description={description} showCloseButton={false} />
+		<Button className="kw-audio-editor__toast-close" onClick={(event) => {
+			event?.currentTarget.closest('[data-audio-editor]')?.querySelector<HTMLElement>('[data-chrome-drawer-toggle], [role="menuitem"]')?.focus({ preventScroll: true });
+			onDismiss();
+		}}><span aria-hidden="true">×</span><span className="kw-audio-editor-sr-only">{dismissLabel}</span></Button>
 		<div className="kw-audio-editor__toast-actions">
 			{actions.map((action) => <Button
 				key={action.label}
 				disabled={action.disabled}
 				onClick={action.onClick}
 			>{action.label}</Button>)}
-			<Button onClick={(event) => {
-				event?.currentTarget.closest('[data-audio-editor]')?.querySelector<HTMLElement>('[data-chrome-drawer-toggle], [role="menuitem"]')?.focus({ preventScroll: true });
-				onDismiss();
-			}}>{dismissLabel}</Button>
 		</div>
 	</section>;
 }

@@ -4,6 +4,26 @@ import { bootEditor, chooseCommandAction, chooseNestedCommandAction, collectClie
 test.describe('project lock notifications', () => {
 	registerAudioEditorHooks();
 
+	test('project lock toasts disappear after ten seconds and editing remains available through the menu', async ({ page, context }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'Audio track']);
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
+		const otherPage = await context.newPage();
+		await otherPage.goto('/embed/en/');
+		await waitForEditor(otherPage);
+		const toast = editor.getByRole('region', { name: 'This project is already open in another tab.', exact: true });
+		await expect(toast).toBeVisible();
+		await expect(toast.getByRole('button', { name: 'Close', exact: true })).toHaveText('×Close');
+		await expect(toast).toBeHidden({ timeout: 15_000 });
+		const record = editor.getByRole('button', { name: /Record.*read-only/iu });
+		await expect(record).toBeDisabled();
+		await chooseCommandAction(page, editor, 'File', 'Edit here');
+		await expect(record).toHaveCount(0);
+		await otherPage.close();
+		expect(errors).toEqual([]);
+	});
+
 	test('indexeddb-multitab-writer uses a toast to reclaim the project lock without shifting the editor', async ({ page, context }) => {
 		const errors = collectClientErrors(page);
 		const first = await bootEditor(page, '/embed/en/');

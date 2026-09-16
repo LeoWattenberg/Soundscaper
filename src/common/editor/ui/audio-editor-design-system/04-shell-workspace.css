@@ -189,6 +189,7 @@
 }
 
 .kw-audio-editor__toast {
+	position: relative;
 	flex: none;
 	min-width: 0;
 	color: var(--text);
@@ -201,11 +202,20 @@
 
 .kw-audio-editor__toast .toast {
 	width: 100%;
-	padding: 12px 12px 0;
+	padding: 12px 44px 0 12px;
 	background: transparent;
 	border-radius: 0;
 	box-shadow: none;
 	animation: none;
+}
+
+.kw-audio-editor__toast-close {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	width: 28px;
+	padding: 0;
+	font-size: 20px;
 }
 
 .kw-audio-editor__toast-actions {
