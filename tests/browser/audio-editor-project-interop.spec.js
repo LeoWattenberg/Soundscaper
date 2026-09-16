@@ -56,9 +56,9 @@ test.describe('audio editor React/design-system workflows', () => {
 	test('duplicates, deletes, and opens local projects through accessible menus and dialogs', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
-		await chooseFileAction(page, editor, 'Duplicate project');
+		await chooseNestedCommandAction(page, editor, 'File', ['Project management', 'Duplicate project']);
 		await expect(editor.locator('[data-project-name]')).toContainText('copy');
-		await chooseFileAction(page, editor, 'Delete project');
+		await chooseNestedCommandAction(page, editor, 'File', ['Project management', 'Delete project']);
 
 		const confirm = page.getByRole('dialog', { name: 'Delete this project?' });
 		await expect(confirm).toBeVisible();
@@ -66,7 +66,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(confirm).not.toBeVisible();
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 
-		await chooseFileAction(page, editor, 'Local projects');
+		await chooseNestedCommandAction(page, editor, 'File', ['Project management', 'Local projects']);
 		const projects = page.getByRole('dialog', { name: 'Local projects' });
 		await expect(projects).toBeVisible();
 		await expect(projects.locator('[data-project-list] li')).not.toHaveCount(0);

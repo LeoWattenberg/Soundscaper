@@ -85,14 +85,14 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(menu).toBeVisible();
 		await expect(file).toHaveAttribute('aria-expanded', 'true');
 		const newProject = getMenuItem(menu, 'New');
-		const clearData = getMenuItem(menu, 'Clear all local editor data');
+		const projectManagement = getMenuItem(menu, 'Project management');
 		await expect(newProject).toBeFocused();
 		await page.keyboard.press('ArrowUp');
-		await expect(clearData).toBeFocused();
+		await expect(projectManagement).toBeFocused();
 		await page.keyboard.press('Home');
 		await expect(newProject).toBeFocused();
 		await page.keyboard.press('End');
-		await expect(clearData).toBeFocused();
+		await expect(projectManagement).toBeFocused();
 		await page.keyboard.press('ArrowDown');
 		await expect(newProject).toBeFocused();
 		await page.keyboard.press('Escape');
@@ -227,7 +227,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(view).toBeFocused();
 	});
 
-	test('omits unavailable commands and opens project properties from File', async ({ page }) => {
+	test('omits unavailable commands and opens project properties from File > Project management', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const menubar = editor.getByRole('menubar', { name: 'Application menu' });
 		for (const [menuName, labels] of [
@@ -255,11 +255,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			await page.keyboard.press('Escape');
 		}
 
-		await menubar.getByRole('menuitem', { name: 'File', exact: true }).click();
-		const fileMenu = page.getByRole('menu', { name: 'File', exact: true });
-		const projectProperties = getMenuItem(fileMenu, 'Project properties');
-		await expect(projectProperties).not.toHaveAttribute('aria-disabled', 'true');
-		await projectProperties.click();
+		await chooseNestedCommandAction(page, editor, 'File', ['Project management', 'Project properties']);
 		await expect(editor.locator('[data-workspace-panel="metadata"]')).toBeVisible();
 	});
 
@@ -525,7 +521,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await chooseFileAction(page, editor, 'Open');
 		await (await openChooserPromise).setFiles([]);
 		await page.keyboard.press('Escape');
-		await chooseFileAction(page, editor, 'Local projects');
+		await chooseNestedCommandAction(page, editor, 'File', ['Project management', 'Local projects']);
 		const projectsDialog = page.getByRole('dialog', { name: 'Local projects' });
 		await expect(projectsDialog).toBeVisible();
 		await projectsDialog.getByRole('button', { name: 'Close' }).click();

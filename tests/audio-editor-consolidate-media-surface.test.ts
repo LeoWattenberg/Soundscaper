@@ -22,7 +22,7 @@ interface MenuItem {
 const MEDIA = Uint8Array.from({ length: 64 }, (_value, index) => index);
 const DIGEST = digestScapeBytes(MEDIA);
 
-test('consolidate is reachable from the File menu and blocked on a read-only project', () => {
+test('consolidate is reachable from File > Project management and blocked on a read-only project', () => {
 	let invoked = 0;
 	const menus = createApplicationMenus(menuInput({
 		editBlocked: false,
@@ -202,7 +202,8 @@ function createStore(options: { unreachable?: boolean } = {}) {
 
 function fileItem(menus: readonly MenuItem[], id: string): MenuItem | null {
 	const file = menus.find((menu) => menu.id === 'file');
-	return file?.items?.find((item) => item.id === id) ?? null;
+	const management = file?.items?.find((item) => item.id === 'project-management');
+	return management?.items?.find((item) => item.id === id) ?? null;
 }
 
 function menuInput({ editBlocked, actions }: Readonly<{ editBlocked: boolean; actions: object }>) {

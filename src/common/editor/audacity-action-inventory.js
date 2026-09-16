@@ -130,7 +130,7 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 	implemented('file-close', 'Close project', ['File'], 'session.closeProject', { shortcut: 'Ctrl+W', enableWhen: 'project-opened' }),
 	disabled('export-midi', 'Export MIDI', ['File > Export other'], DISABLED_REASONS.midi, { source: UPSTREAM.menu, menuVisible: false }),
 	implemented('insert', 'Insert', ['Edit > Paste', 'Command inventory'], 'edit.pasteInsert', { enableWhen: 'clipboard-and-project-writable', source: UPSTREAM.project }),
-	implemented('project-properties', 'Project properties', ['File'], 'panels.metadata', { enableWhen: 'project-opened', source: UPSTREAM.project }),
+	implemented('project-properties', 'Project properties', ['File > Project management'], 'panels.metadata', { enableWhen: 'project-opened', source: UPSTREAM.project }),
 	implemented('revert-factory', 'Revert to factory settings', ['Help'], 'help.revertFactorySettings', { source: UPSTREAM.application }),
 	implemented('toggle-transport', 'Playback controls', ['View > Toolbars'], 'workspace.toggleTransportToolbar', { source: UPSTREAM.application }),
 	implemented('toggle-tracks', 'Tracks panel', ['View > Panels'], 'workspace.toggleTracksPanel', { source: UPSTREAM.application, enableWhen: 'project-opened' }),

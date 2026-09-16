@@ -199,7 +199,7 @@ Product availability follows each product profile’s command filters. “—”
 | Previous clip boundary to cursor | `select-previous-clip-boundary-to-cursor` | — | Select > Audio clips | Soundscaper, Framescaper | Audacity |
 | Previous item | `local://track-view-prev-item` | — | Keyboard navigation | Soundscaper, Framescaper | Soundscaper local |
 | Previous panel | `track-view-prev-panel` | Shift+F6 | Keyboard navigation | Soundscaper, Framescaper | Audacity |
-| Project properties | `project-properties` | — | File | Soundscaper, Framescaper | Audacity |
+| Project properties | `project-properties` | — | File > Project management | Soundscaper, Framescaper | Audacity |
 | Project tempo | `playback-bpm` | — | Transport toolbar | Soundscaper, Framescaper | Audacity |
 | Range track selection | `track-view-range-selection` | Shift+Enter | Keyboard navigation | Soundscaper, Framescaper | Audacity |
 | Record level | `action://record/level` | — | Meter toolbar | Soundscaper | Audacity |

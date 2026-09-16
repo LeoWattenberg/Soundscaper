@@ -513,11 +513,11 @@ test.describe('audio editor React/design-system workflows', () => {
 		await importFiles(editor, [toneA]);
 		await assertAccessibleBasics(editor);
 		await assertNoSeriousAxeViolations(page);
-
 		await setDocumentTheme(page, 'dark');
 		await editor.getByRole('menubar', { name: 'Application menu' }).getByRole('menuitem', { name: 'File', exact: true }).click();
 		await assertAccessibleBasics(page.locator('body'));
 		await assertNoSeriousAxeViolations(page);
+		await getMenuItem(page.getByRole('menu', { name: 'File', exact: true }), 'Project management').press('ArrowRight');
 		await getMenuItem(page.getByRole('menu', { name: 'File', exact: true }), 'Local projects').click();
 		await assertAccessibleBasics(page.getByRole('dialog', { name: 'Local projects' }));
 		await assertNoSeriousAxeViolations(page);

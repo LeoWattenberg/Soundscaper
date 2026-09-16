@@ -28,7 +28,7 @@ const NOW = '2026-08-19T12:00:00.000Z';
 const SAMPLE_RATE = 48_000;
 const SEQUENCE = Object.freeze({ id: 'main', rate: Object.freeze({ num: 30, den: 1 }) });
 
-test('trim is reachable from the File menu and blocked on a read-only project', () => {
+test('trim is reachable from File > Project management and blocked on a read-only project', () => {
 	let invoked = 0;
 	const menus = createApplicationMenus(menuInput({
 		editBlocked: false,
@@ -236,7 +236,8 @@ function createStore() {
 
 function fileItem(menus: readonly MenuItem[], id: string): MenuItem | null {
 	const file = menus.find((menu) => menu.id === 'file');
-	return file?.items?.find((item) => item.id === id) ?? null;
+	const management = file?.items?.find((item) => item.id === 'project-management');
+	return management?.items?.find((item) => item.id === id) ?? null;
 }
 
 function menuInput({ editBlocked, actions }: Readonly<{ editBlocked: boolean; actions: object }>) {

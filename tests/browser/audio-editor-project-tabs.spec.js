@@ -1,7 +1,7 @@
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
-	chooseFileAction,
+	chooseNestedCommandAction,
 	clipByName,
 	collectClientErrors,
 	commitInput,
@@ -9,7 +9,7 @@ import {
 } from './audio-editor-test-helpers.js';
 
 async function renameProject(page, editor, title) {
-	await chooseFileAction(page, editor, 'Rename project');
+	await chooseNestedCommandAction(page, editor, 'File', ['Project management', 'Rename project']);
 	const dialog = page.getByRole('dialog', { name: 'Rename project', exact: true });
 	await commitInput(dialog.locator('[data-project-name-input] input'), title);
 	await dialog.getByRole('button', { name: 'Save name', exact: true }).click();
@@ -38,7 +38,7 @@ test.describe('project tab close controls', () => {
 		await expect(active).toBeFocused();
 		await expect(editor).toHaveAttribute('data-clip-count', '0');
 
-		await chooseFileAction(page, editor, 'Local projects');
+		await chooseNestedCommandAction(page, editor, 'File', ['Project management', 'Local projects']);
 		const projects = page.getByRole('dialog', { name: 'Local projects', exact: true });
 		await projects.locator('[data-project-list]').getByRole('button', { name: /^Saved audio Last edited:/u }).click();
 		await expect(projects).toHaveCount(0);
