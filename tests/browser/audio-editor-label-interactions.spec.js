@@ -1,4 +1,4 @@
-import { expect, longTone, test, toneA } from './audio-editor-test-fixtures.js';
+import { expect, halfMinuteTone, longTone, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	chooseCommandAction,
@@ -133,10 +133,11 @@ test.describe('label interactions', () => {
 		});
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
-		await importFiles(editor, [longTone]);
-		await selectTimeRange(page, editor, 24, 480);
-		await page.keyboard.press('r');
+		// Keep the selected recording interval longer than this test's 30-second budget.
+		await importFiles(editor, [halfMinuteTone]);
+		await chooseCommandAction(page, editor, 'Select', 'Select all');
 		const record = editor.getByRole('button', { name: 'Record onto the active track', exact: true });
+		await record.click();
 		await expect(record).toHaveAttribute('aria-pressed', 'true');
 		const playhead = editor.getByRole('slider', { name: 'Playhead' });
 		await expect.poll(async () => Number(await playhead.getAttribute('aria-valuenow'))).toBeGreaterThan(48000);
