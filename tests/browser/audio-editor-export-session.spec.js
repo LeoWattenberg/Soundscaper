@@ -192,7 +192,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await chooseCommandAction(page, editor, 'Select', 'Select all');
 		await chooseCommandAction(page, editor, 'Edit', 'Copy');
 		await editor.getByRole('button', { name: 'New project', exact: true }).click();
-		await expect(editor.getByRole('tablist', { name: 'Project tabs' }).getByRole('tab')).toHaveCount(2);
+		await expect(editor.getByRole('navigation', { name: 'Project tabs' }).getByRole('tab')).toHaveCount(2);
 		await expect(editor).toHaveAttribute('data-clip-count', '0');
 		await chooseNestedCommandAction(page, editor, 'Edit', ['Paste', 'Paste']);
 		await expect(editor).toHaveAttribute('data-clip-count', '1');
@@ -204,7 +204,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await editor.getByRole('button', { name: 'New project', exact: true }).click();
-		const tabs = editor.getByRole('tablist', { name: 'Project tabs' }).getByRole('tab');
+		const tabs = editor.getByRole('navigation', { name: 'Project tabs' }).getByRole('tab');
 		await expect(tabs).toHaveCount(2);
 		const first = tabs.nth(0);
 		const second = tabs.nth(1);

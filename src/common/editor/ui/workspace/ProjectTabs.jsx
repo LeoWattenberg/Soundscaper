@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 
 export default function ProjectTabs({ projects, activeProjectId, copy, disabled, onSelect, onClose, onNew }) {
 	const tabListRef = useRef(null);
+	const tabListId = useId();
 	const closingProjectRef = useRef(null);
 	useEffect(() => {
 		const closing = closingProjectRef.current;
@@ -39,11 +40,15 @@ export default function ProjectTabs({ projects, activeProjectId, copy, disabled,
 	};
 	return (
 		<nav className="kw-audio-editor__project-tabs" aria-label={copy.projectTabs}>
-			<div ref={tabListRef} role="tablist" aria-label={copy.projectTabs}>
+			{/* Own only selection tabs, keeping each adjacent close button independently accessible. */}
+			<div role="tablist" aria-label={copy.projectTabs} className="kw-audio-editor-sr-only"
+				aria-owns={unique.map((_project, index) => `${tabListId}-${index}`).join(' ')} />
+			<div ref={tabListRef} className="kw-audio-editor__project-tab-strip">
 				{unique.map((project, index) => <div key={project.id} role="presentation" className="kw-audio-editor__project-tab">
 					<button
 						type="button"
 						role="tab"
+						id={`${tabListId}-${index}`}
 						aria-selected={project.id === activeProjectId}
 						tabIndex={project.id === focusableProjectId ? 0 : -1}
 						disabled={disabled}

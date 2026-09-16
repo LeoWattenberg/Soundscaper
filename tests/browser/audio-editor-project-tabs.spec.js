@@ -1,4 +1,4 @@
-import { expect, test, toneA } from './audio-editor-test-fixtures.js';
+import { AxeBuilder, expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	chooseNestedCommandAction,
@@ -26,14 +26,17 @@ test.describe('project tab close controls', () => {
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
 		await editor.getByRole('button', { name: 'New project', exact: true }).click();
 		await renameProject(page, editor, 'Active blank');
-		const tablist = editor.getByRole('tablist', { name: 'Project tabs' });
-		const close = tablist.getByRole('button', { name: 'Close project: Saved audio', exact: true });
+		const projectTabs = editor.getByRole('navigation', { name: 'Project tabs' });
+		const accessibility = await new AxeBuilder({ page }).include('nav[aria-label="Project tabs"]')
+			.withRules(['aria-required-children', 'aria-required-parent', 'aria-valid-attr-value']).analyze();
+		expect(accessibility.violations).toEqual([]);
+		const close = projectTabs.getByRole('button', { name: 'Close project: Saved audio', exact: true });
 		await expect(close).toHaveText('×');
 		await expect(close).toHaveAttribute('title', 'Close project');
 		await close.click();
 
-		await expect(tablist.getByRole('tab')).toHaveCount(1);
-		const active = tablist.getByRole('tab', { name: 'Active blank', exact: true });
+		await expect(projectTabs.getByRole('tab')).toHaveCount(1);
+		const active = projectTabs.getByRole('tab', { name: 'Active blank', exact: true });
 		await expect(active).toHaveAttribute('aria-selected', 'true');
 		await expect(active).toBeFocused();
 		await expect(editor).toHaveAttribute('data-clip-count', '0');
@@ -43,7 +46,7 @@ test.describe('project tab close controls', () => {
 		await projects.locator('[data-project-list]').getByRole('button', { name: /^Saved audio Last edited:/u }).click();
 		await expect(projects).toHaveCount(0);
 		await expect(clipByName(editor, toneA.name)).toHaveCount(1);
-		await expect(tablist.getByRole('tab', { name: 'Saved audio', exact: true })).toHaveAttribute('aria-selected', 'true');
+		await expect(projectTabs.getByRole('tab', { name: 'Saved audio', exact: true })).toHaveAttribute('aria-selected', 'true');
 		expect(errors).toEqual([]);
 	});
 
@@ -55,23 +58,23 @@ test.describe('project tab close controls', () => {
 		await renameProject(page, editor, 'Middle');
 		await editor.getByRole('button', { name: 'New project', exact: true }).click();
 		await renameProject(page, editor, 'Last');
-		const tablist = editor.getByRole('tablist', { name: 'Project tabs' });
-		const middle = tablist.getByRole('tab', { name: 'Middle', exact: true });
+		const projectTabs = editor.getByRole('navigation', { name: 'Project tabs' });
+		const middle = projectTabs.getByRole('tab', { name: 'Middle', exact: true });
 		await middle.click();
 		await expect(middle).toHaveAttribute('aria-selected', 'true');
 		await page.keyboard.press('Tab');
-		await expect(tablist.getByRole('button', { name: 'Close project: Middle', exact: true })).toBeFocused();
+		await expect(projectTabs.getByRole('button', { name: 'Close project: Middle', exact: true })).toBeFocused();
 		await page.keyboard.press('Enter');
 
-		await expect(tablist.getByRole('tab')).toHaveCount(2);
-		const last = tablist.getByRole('tab', { name: 'Last', exact: true });
+		await expect(projectTabs.getByRole('tab')).toHaveCount(2);
+		const last = projectTabs.getByRole('tab', { name: 'Last', exact: true });
 		await expect(last).toHaveAttribute('aria-selected', 'true');
 		await expect(last).toHaveAttribute('tabindex', '0');
 		await expect(last).toBeFocused();
-		await tablist.getByRole('button', { name: 'Close project: Last', exact: true }).click();
+		await projectTabs.getByRole('button', { name: 'Close project: Last', exact: true }).click();
 
-		await expect(tablist.getByRole('tab')).toHaveCount(1);
-		const first = tablist.getByRole('tab', { name: 'First', exact: true });
+		await expect(projectTabs.getByRole('tab')).toHaveCount(1);
+		const first = projectTabs.getByRole('tab', { name: 'First', exact: true });
 		await expect(first).toHaveAttribute('aria-selected', 'true');
 		await expect(first).toHaveAttribute('tabindex', '0');
 		await expect(first).toBeFocused();
@@ -83,11 +86,11 @@ test.describe('project tab close controls', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await renameProject(page, editor, 'Only project');
 		await importFiles(editor, [toneA]);
-		const tablist = editor.getByRole('tablist', { name: 'Project tabs' });
-		await tablist.getByRole('button', { name: 'Close project: Only project', exact: true }).click();
-		await expect(tablist.getByRole('tab', { name: 'Only project', exact: true })).toHaveCount(0);
+		const projectTabs = editor.getByRole('navigation', { name: 'Project tabs' });
+		await projectTabs.getByRole('button', { name: 'Close project: Only project', exact: true }).click();
+		await expect(projectTabs.getByRole('tab', { name: 'Only project', exact: true })).toHaveCount(0);
 
-		const remaining = tablist.getByRole('tab');
+		const remaining = projectTabs.getByRole('tab');
 		await expect(remaining).toHaveCount(1);
 		await expect(remaining).not.toHaveText('Only project');
 		await expect(remaining).toHaveAttribute('aria-selected', 'true');

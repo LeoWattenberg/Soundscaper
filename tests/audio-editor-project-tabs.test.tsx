@@ -8,6 +8,27 @@ import ProjectTabs from '../src/common/editor/ui/workspace/ProjectTabs.jsx';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import { installReactTestDom, reactProps, ReactTestElement } from './helpers/react-test-dom.ts';
 
+test('the accessible project tablist owns selection tabs while close actions remain reachable outside it', async () => {
+	const mounted = await mountTabs();
+	try {
+		const tablist = mounted.dom.one('[role="tablist"]');
+		const tabs = mounted.dom.container.querySelectorAll('[role="tab"]');
+		const owned = tablist.getAttribute('aria-owns')?.split(/\s+/u);
+		assert.deepEqual(owned, tabs.map((tab) => tab.getAttribute('id')),
+			'the tablist must own every selection tab in project order');
+		assert.equal(new Set(owned).size, tabs.length, 'each selection tab has a unique ownership target');
+		assert.equal(tablist.querySelectorAll('button').length, 0,
+			'close actions must not become invalid button children of a tablist');
+		for (const title of ['First project', 'Second project']) {
+			const close = mounted.dom.one(`[aria-label="Close project: ${title}"]`);
+			assert.equal(close.nodeName, 'BUTTON');
+			assert.equal(close.getAttribute('aria-hidden'), null, 'assistive technology can reach the close action');
+		}
+	} finally {
+		await mounted.cleanup();
+	}
+});
+
 test('project tab close buttons identify their project and close it without selecting it', async () => {
 	const mounted = await mountTabs();
 	try {

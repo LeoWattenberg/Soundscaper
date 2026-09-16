@@ -547,7 +547,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			page.viewportSize().width,
 			page.viewportSize().height,
 		]);
-		const projectTabs = editor.getByRole('tablist', { name: 'Project tabs' });
+		const projectTabs = editor.getByRole('navigation', { name: 'Project tabs' });
 		await expect(projectTabs).toBeVisible();
 		const title = editor.locator('.application-header__windows-title');
 		const tabsBox = await projectTabs.boundingBox();

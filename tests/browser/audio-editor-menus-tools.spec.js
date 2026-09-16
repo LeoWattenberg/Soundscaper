@@ -504,7 +504,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.getByRole('toolbar', { name: 'Project toolbar' })).toHaveCount(0);
 		await expect(editor.getByRole('button', { name: 'Home', exact: true })).toHaveCount(0);
 		await expect(editor.getByRole('button', { name: 'Project', exact: true })).toHaveCount(0);
-		await expect(editor.getByRole('tablist', { name: 'Project tabs' })).toBeVisible();
+		await expect(editor.getByRole('navigation', { name: 'Project tabs' })).toBeVisible();
 		await expect(editor.getByRole('tab', { name: 'Untitled project' })).toHaveAttribute('aria-selected', 'true');
 		const menubar = editor.getByRole('menubar', { name: 'Application menu' });
 		await expect(menubar).toBeVisible();

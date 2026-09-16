@@ -308,7 +308,7 @@ test.describe('Framescaper v1 recoverable capture', () => {
 		await expectCapturePhase(panel, 'inactive', 30_000);
 		await expect(projectBinCaptureCard(editor, 'Microphone Capture')).toHaveCount(0);
 
-		const tabs = editor.getByRole('tablist', { name: 'Project tabs' }).getByRole('tab');
+		const tabs = editor.getByRole('navigation', { name: 'Project tabs' }).getByRole('tab');
 		await expect(tabs).toHaveCount(2);
 		await tabs.first().click();
 		await expect(editor).toHaveAttribute('data-project-id', originProjectId);

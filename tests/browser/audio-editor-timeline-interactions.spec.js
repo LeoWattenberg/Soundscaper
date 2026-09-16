@@ -530,7 +530,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBeGreaterThan(beforeWidth);
 		await expect(editor.locator('[data-inspector]')).toHaveCount(0);
 		await openChromeDrawer(editor);
-		await expect(editor.getByRole('tablist', { name: 'Project tabs' })).toBeVisible();
+		await expect(editor.getByRole('navigation', { name: 'Project tabs' })).toBeVisible();
 		await expect(editor.getByRole('tab')).toHaveCount(1);
 		await closeChromeDrawer(editor);
 

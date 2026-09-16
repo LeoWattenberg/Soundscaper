@@ -291,7 +291,7 @@
 	border: 0;
 }
 
-.kw-audio-editor__project-tabs [role='tablist'] {
+.kw-audio-editor__project-tab-strip {
 	display: flex;
 	min-width: max-content;
 	gap: 0.2rem;
