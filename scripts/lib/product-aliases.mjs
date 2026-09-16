@@ -118,6 +118,18 @@ export const PRODUCT_STAND_IN_ALIASES = Object.freeze([
 		desktopCodecRuntime: true,
 	},
 	{
+		find: /^\.\/editor-framescaper-(?:native-services|finishing-additional|visual-inspector-additional|menus-additional|finishing-surface)-copy\.ts$/u,
+		standIn: 'src/common/i18n/editor-desktop-copy.ts',
+		product: 'soundscaper',
+		desktopCodecRuntime: true,
+	},
+	{
+		find: /^\.\.\/\.\.\/(?:\.\.\/)?i18n\/editor-framescaper-(?:native-services|finishing-additional|visual-inspector-additional|menus-additional|finishing-surface)-copy\.ts$/u,
+		standIn: 'src/common/i18n/editor-desktop-copy.ts',
+		product: 'soundscaper',
+		desktopCodecRuntime: true,
+	},
+	{
 		find: /^\.\.\/\.\.\/editor-codec-runtime\.ts$/u,
 		standIn: 'src/common/editor/editor-codec-runtime.desktop.ts',
 		product: null,

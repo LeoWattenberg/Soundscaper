@@ -36,6 +36,25 @@ const COMPOSITIONS = [
 	{ productId: 'framescaper', desktopCodecComposition: true },
 ] as const;
 
+test('only desktop Soundscaper substitutes unavailable Framescaper copy owners', () => {
+	const copyModules = [
+		'native-services', 'finishing-additional', 'visual-inspector-additional',
+		'menus-additional', 'finishing-surface',
+	];
+	for (const composition of COMPOSITIONS) {
+		const rows = productStandInAliasesFor(composition);
+		for (const name of copyModules) {
+			for (const prefix of ['./', '../../i18n/', '../../../i18n/']) {
+				const specifier = `${prefix}editor-framescaper-${name}-copy.ts`;
+				const row = rows.find(candidate => candidate.find.test(specifier));
+				assert.equal(row?.standIn, composition.productId === 'soundscaper'
+					&& composition.desktopCodecComposition
+					? 'src/common/i18n/editor-desktop-copy.ts' : undefined, specifier);
+			}
+		}
+	}
+});
+
 interface ModuleImport {
 	readonly specifier: string;
 	readonly names: readonly string[];
