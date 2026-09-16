@@ -6,7 +6,7 @@ import {
 	createAudacityXmlNode,
 } from './audacity-binary-xml.js';
 import { createEffect, normalizeEffect } from './effects.js';
-import { booleanValue, finiteNumber } from './audacity-command-parameters.js';
+import { booleanValue, finiteNumber, normalizeCommandParameterName } from './audacity-command-parameters.js';
 import {
 	booleanAttribute,
 	cloneEntry,
@@ -130,8 +130,9 @@ function decodeRealtimeEffectNode(effectNode, idFactory) {
 
 function hasMalformedNativeParameterValues(profile, nativeParams) {
 	for (const descriptor of profile.params) {
-		if (!descriptor.model || !nativeParams.has(descriptor.native)) continue;
-		const value = nativeParams.get(descriptor.native);
+		const name = normalizeCommandParameterName(descriptor.native);
+		if (!descriptor.model || !nativeParams.has(name)) continue;
+		const value = nativeParams.get(name);
 		if (descriptor.kind === 'number' && finiteNumber(value) === undefined) return true;
 		if (descriptor.kind === 'boolean' && booleanValue(value) === undefined) return true;
 	}
@@ -142,11 +143,12 @@ function hasMalformedNativeParameterValues(profile, nativeParams) {
 }
 
 function hasUnsupportedNativeParameters(profile, nativeParams) {
-	const known = new Set(profile.params.map((descriptor) => descriptor.native));
+	const known = new Set(profile.params.map((descriptor) => normalizeCommandParameterName(descriptor.native)));
 	for (const descriptor of profile.params) {
-		if (descriptor.constant !== undefined
-			&& nativeParams.has(descriptor.native)
-			&& nativeParams.get(descriptor.native) !== descriptor.constant) return true;
+		const name = normalizeCommandParameterName(descriptor.native);
+		if (descriptor.constant !== undefined && !descriptor.displayOnly
+			&& nativeParams.has(name)
+			&& nativeParams.get(name) !== descriptor.constant) return true;
 	}
 	for (const name of nativeParams.keys()) {
 		if (known.has(name)) continue;
@@ -163,9 +165,10 @@ function readNativeParameters(effectNode) {
 		for (const parameter of audacityXmlChildren(container, 'parameter')) {
 			count += 1;
 			if (count > MAX_NATIVE_PARAMETERS) return null;
-			const name = String(audacityXmlAttribute(parameter, 'name', ''));
+			const declaredName = String(audacityXmlAttribute(parameter, 'name', ''));
+			const name = normalizeCommandParameterName(declaredName);
 			const value = String(audacityXmlAttribute(parameter, 'value', ''));
-			if (!name || name.length > MAX_NATIVE_PARAMETER_NAME_CODE_UNITS
+			if (!name || declaredName.length > MAX_NATIVE_PARAMETER_NAME_CODE_UNITS
 				|| value.length > MAX_NATIVE_PARAMETER_VALUE_CODE_UNITS) return null;
 			if (output.has(name)) return null;
 			output.set(name, value);
@@ -184,17 +187,27 @@ function createRealtimeEffectNode(effect, opaqueNode, rackIndex) {
 		if (!effect?.type && opaqueNode) return cloneNode(opaqueNode);
 		return createBrowserEffectNode(effect, opaqueNode, rackIndex);
 	}
-	const parameters = encodeAudacityRealtimeEffectParameters(effect.type, effect.params || {});
 	const opaqueParameters = audacityXmlChildren(opaqueNode, 'parameters')[0];
+	const opaqueNames = new Set(audacityXmlChildren(opaqueParameters, 'parameter')
+		.map((parameter) => normalizeCommandParameterName(audacityXmlAttribute(parameter, 'name', ''))));
+	const displayNames = new Set(profile.params.filter((descriptor) => descriptor.displayOnly)
+		.map((descriptor) => normalizeCommandParameterName(descriptor.native)));
+	// Use defaults for a new rack item, but keep imported display preferences.
+	const parameters = encodeAudacityRealtimeEffectParameters(effect.type, effect.params || {})
+		.filter(([name]) => !displayNames.has(name) || !opaqueNames.has(name));
 	const knownNames = new Set(parameters.map(([name]) => name));
 	const parameterContent = parameters.map(([name, value]) => ({ kind: 'node', node: createAudacityXmlNode('parameter', [
 		{ kind: 'attribute', name: 'name', type: 'string', value: name },
 		{ kind: 'attribute', name: 'value', type: 'string', value },
 	]) }));
 	for (const parameter of audacityXmlChildren(opaqueParameters, 'parameter')) {
-		const name = String(audacityXmlAttribute(parameter, 'name', ''));
+		const name = normalizeCommandParameterName(audacityXmlAttribute(parameter, 'name', ''));
 		if (!knownNames.has(name) && (!(profile.curve || profile.bands) || !/^[fv](?:0|[1-9][0-9]{0,2})$/.test(name))) {
-			parameterContent.push({ kind: 'node', node: cloneNode(parameter) });
+			const node = displayNames.has(name) ? createAudacityXmlNode('parameter', mergeAttributes([
+				{ kind: 'attribute', name: 'name', type: 'string', value: name },
+			], parameter.content), parameter.content.filter((entry) => entry.kind !== 'attribute').map(cloneEntry))
+				: cloneNode(parameter);
+			parameterContent.push({ kind: 'node', node });
 		}
 	}
 	const content = [{ kind: 'node', node: createAudacityXmlNode('parameters', [], parameterContent) }];
@@ -202,9 +215,12 @@ function createRealtimeEffectNode(effect, opaqueNode, rackIndex) {
 		if (entry.kind !== 'node' || entry.node?.name === 'parameters') continue;
 		content.push(cloneEntry(entry));
 	}
+	const importedId = String(audacityXmlAttribute(opaqueNode, 'id', ''));
+	const nativeId = realtimeEffectTypeForNativeId(importedId) === effect.type
+		? importedId : nativeEffectId(profile.symbol);
 	return createAudacityXmlNode('effect', mergeAttributes([
 		{ kind: 'attribute', name: 'active', type: 'bool', value: effect.enabled !== false },
-		{ kind: 'attribute', name: 'id', type: 'string', value: nativeEffectId(profile.symbol) },
+		{ kind: 'attribute', name: 'id', type: 'string', value: nativeId },
 	], opaqueNode?.content), content);
 }
 

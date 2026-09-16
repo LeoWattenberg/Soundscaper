@@ -14,6 +14,7 @@ import {
 	encodeCommandParameters,
 	enumParam,
 	finiteNumber,
+	normalizeCommandParameterName,
 	numberParam,
 	parameterEntries,
 	stableNumberString,
@@ -72,11 +73,11 @@ export const AUP4_REALTIME_EFFECT_PROFILES = deepFreeze({
 			numberParam('bassDb', 'Bass'),
 			numberParam('trebleDb', 'Treble'),
 			numberParam('volumeDb', 'Gain'),
-			{ native: 'Link Sliders', constant: '0' },
+			{ native: 'Link Sliders', constant: '0', displayOnly: true },
 		],
 	},
 	'audacity-click-removal': {
-		symbol: 'Click Removal',
+		symbol: 'Click removal',
 		params: [numberParam('threshold', 'Threshold'), numberParam('maximumWidth', 'Width')],
 	},
 	'audacity-compressor': {
@@ -114,7 +115,7 @@ export const AUP4_REALTIME_EFFECT_PROFILES = deepFreeze({
 		symbol: 'Graphic EQ',
 		params: [
 			numberParam('filterLength', 'FilterLength'),
-			{ native: 'InterpolateLin', constant: '0' },
+			{ native: 'InterpolateLin', constant: '0', displayOnly: true },
 			enumParam('interpolation', 'InterpolationMethod', EQ_INTERPOLATIONS, EQ_NATIVE_INTERPOLATIONS),
 		],
 		bands: true,
@@ -129,7 +130,7 @@ export const AUP4_REALTIME_EFFECT_PROFILES = deepFreeze({
 		],
 	},
 	'audacity-noise-reduction': {
-		symbol: 'Noise Reduction',
+		symbol: 'Noise reduction',
 		params: [
 			numberParam('sensitivity', 'Sensitivity'),
 			numberParam('frequencySmoothingBands', 'Frequency Smoothing Bands'),
@@ -175,10 +176,10 @@ export const AUP4_REALTIME_EFFECT_PROFILES = deepFreeze({
 
 const TYPE_BY_NATIVE_ID = new Map(Object.entries(AUP4_REALTIME_EFFECT_PROFILES)
 	.map(([type, profile]) => [nativeEffectId(profile.symbol), type]));
-// Earlier browser builds lower-cased the second word of these two symbols and
-// wrote a plugin ID Audacity does not recognize. Keep reading those files.
-TYPE_BY_NATIVE_ID.set(nativeEffectId('Click removal'), 'audacity-click-removal');
-TYPE_BY_NATIVE_ID.set(nativeEffectId('Noise reduction'), 'audacity-noise-reduction');
+// Audacity 3 and earlier browser builds capitalized both words. Qt's pinned
+// symbols use a lower-case second word; accept both generations on import.
+TYPE_BY_NATIVE_ID.set(nativeEffectId('Click Removal'), 'audacity-click-removal');
+TYPE_BY_NATIVE_ID.set(nativeEffectId('Noise Reduction'), 'audacity-noise-reduction');
 
 export function aup4NativeEffectId(type) {
 	const profile = AUP4_REALTIME_EFFECT_PROFILES[type];
@@ -207,7 +208,7 @@ export function encodeAudacityRealtimeEffectParameters(type, params = {}) {
 	const profile = requireRealtimeEffectProfile(type);
 	const output = encodeCommandParameters(profile, params);
 	appendEqualizationPoints(profile, params, output);
-	return Object.freeze(output.map((entry) => Object.freeze(entry)));
+	return Object.freeze(output.map(([name, value]) => Object.freeze([normalizeCommandParameterName(name), value])));
 }
 
 /**
@@ -218,8 +219,16 @@ export function encodeAudacityRealtimeEffectParameters(type, params = {}) {
  */
 export function decodeAudacityRealtimeEffectParameters(type, parameters) {
 	const profile = requireRealtimeEffectProfile(type);
-	const nativeParams = parameterEntries(parameters);
-	const params = decodeCommandParameters(profile, nativeParams);
+	const nativeParams = new Map([...parameterEntries(parameters)]
+		.map(([name, value]) => [normalizeCommandParameterName(name), value]));
+	// Profiles retain declared names for macros. AUP4 carries normalized names,
+	// while older browser projects may still carry the declarations verbatim.
+	const declaredParams = new Map();
+	for (const descriptor of profile.params) {
+		const name = normalizeCommandParameterName(descriptor.native);
+		if (nativeParams.has(name)) declaredParams.set(descriptor.native, nativeParams.get(name));
+	}
+	const params = decodeCommandParameters(profile, declaredParams);
 	readEqualizationPoints(profile, nativeParams, params);
 	return params;
 }

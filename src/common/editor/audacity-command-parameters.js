@@ -16,7 +16,7 @@
  * backslash, colon or equals sign therefore travels with underscores.
  */
 export function normalizeCommandParameterName(name) {
-	return String(name).replace(/[ /\\:=]/g, '_');
+	return String(name).trim().replace(/[ /\\:=]/g, '_');
 }
 
 export function stableNumberString(value) {
