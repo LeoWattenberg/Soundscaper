@@ -2,8 +2,11 @@ import { wcagContrastRatio } from '../../src/common/editor/ui/theme-contrast.ts'
 import { expect, monoTone, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, importFiles, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
 
+const toolbarExclusions = '.toggle-tool-button, .toggle-button, .kw-audio-editor__split-button-arrow, .kw-audio-editor__audacity-level-button';
 const buttonGroups = [
-	['toolbar', ':is(.tool-button, [data-editor-tool-toolbar] button):not(.toggle-tool-button, .toggle-button, .kw-audio-editor__split-button-arrow, .kw-audio-editor__audacity-level-button)'],
+	['toolbar', `.tool-button:not([data-editor-tool-toolbar] button):not(${toolbarExclusions})`],
+	['tool toolbar', `[data-editor-tool-toolbar] button.tool-button:not(${toolbarExclusions})`],
+	['other tool toolbar', `[data-editor-tool-toolbar] button:not(.tool-button):not(${toolbarExclusions})`],
 	['toggle', '.toggle-tool-button, .toggle-button'],
 	['split and meter', '.kw-audio-editor__split-button-arrow, .kw-audio-editor__audacity-level-button'],
 ];
