@@ -10,7 +10,7 @@ import { acceptsFile, validateFileChoice } from '../desktop/validation.js';
 test('normal desktop project selection admits legacy Audacity files', () => {
 	const choice = validateFileChoice({ purpose: 'project', multiple: false });
 	assert.equal(choice.extensions.includes('aup'), true);
-	assert.equal(choice.filters.some((filter) => filter.extensions.includes('aup')), true);
+	assert.equal(choice.filters.some((filter: Readonly<{ extensions: readonly string[] }>) => filter.extensions.includes('aup')), true);
 	assert.equal(acceptsFile('project', '/projects/session.aup'), true);
 	assert.equal(acceptsFile('project', '/projects/session.AUP'), true);
 	assert.equal(acceptsFile('project', '/projects/session.aup.zip'), false);
