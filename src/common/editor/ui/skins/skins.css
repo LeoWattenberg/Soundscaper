@@ -101,6 +101,7 @@ body[data-editor-skin]:not([data-editor-skin='default']) :is(.dropdown__option, 
 	font-family: var(--editor-skin-font);
 }
 
+.audio-editor-effect-preset-menu-layer[data-editor-skin]:not([data-editor-skin='default']) .context-menu,
 #kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default']) :is(
 	.button, .dropdown__trigger, .audio-editor-dialog, .context-menu
 ) {

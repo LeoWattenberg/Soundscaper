@@ -9,6 +9,7 @@ import { takeSelectedFile } from '../file-input-selection.ts';
 import { canonicalCopyValue } from '../../../i18n/canonical-extras.js';
 import { samePresetParams } from './effect-helpers.ts';
 import AudacityEffectHeader from './AudacityEffectHeader.jsx';
+import EffectPresetMenuPortal from './EffectPresetMenuPortal.tsx';
 
 /**
  * The preset bar Audacity 4 puts above every effect's controls.
@@ -40,7 +41,7 @@ export default function EffectPresetBar({
 	onDelete,
 	onImport,
 	onExport,
-	resetKey = null,
+	resetKey = /** @type {unknown} */ (null),
 	dataAttribute = 'data-effect-presets',
 }) {
 	const fileRef = useRef(null);
@@ -75,6 +76,7 @@ export default function EffectPresetBar({
 	};
 	const options = presets.map((preset) => ({ ...preset, display: labelFor(preset) }));
 	const anchor = (event) => {
+		event?.currentTarget?.focus?.({ preventScroll: true });
 		const rect = event?.currentTarget?.getBoundingClientRect?.();
 		return { x: rect?.left ?? 0, y: (rect?.bottom ?? 0) + 4 };
 	};
@@ -118,33 +120,35 @@ export default function EffectPresetBar({
 				}}
 			/>
 
-			<ContextMenu isOpen={Boolean(saveMenu)} onClose={close} x={saveMenu?.x || 0} y={saveMenu?.y || 0}>
-				<ContextMenuItem
-					label={copy.saveEffectPreset}
-					disabled={!canOverwrite}
-					onClick={() => { close(); if (canOverwrite) onSave(); }}
-				/>
-				<ContextMenuItem
-					label={copy.saveEffectPresetAs}
-					onClick={() => { close(); setSaveAsName(selected?.label || ''); }}
-				/>
-			</ContextMenu>
+			{(saveMenu || optionsMenu) && <EffectPresetMenuPortal target={fileRef.current}>
+				<ContextMenu isOpen={Boolean(saveMenu)} onClose={close} x={saveMenu?.x || 0} y={saveMenu?.y || 0}>
+					<ContextMenuItem
+						label={copy.saveEffectPreset}
+						disabled={!canOverwrite}
+						onClick={() => { close(); if (canOverwrite) onSave(); }}
+					/>
+					<ContextMenuItem
+						label={copy.saveEffectPresetAs}
+						onClick={() => { close(); setSaveAsName(selected?.label || ''); }}
+					/>
+				</ContextMenu>
 
-			<ContextMenu isOpen={Boolean(optionsMenu)} onClose={close} x={optionsMenu?.x || 0} y={optionsMenu?.y || 0}>
-				{onAdvancedSettings && <ContextMenuItem
-					label={canonicalCopyValue('effectAdvancedSettings', copy)}
-					onClick={() => { close(); onAdvancedSettings(); }}
-				/>}
-				<ContextMenuItem
-					label={copy.importEffectPreset}
-					onClick={() => { close(); fileRef.current?.click(); }}
-				/>
-				<ContextMenuItem
-					label={copy.exportEffectPreset}
-					disabled={!selectedId}
-					onClick={() => { close(); if (selectedId) onExport(); }}
-				/>
-			</ContextMenu>
+				<ContextMenu isOpen={Boolean(optionsMenu)} onClose={close} x={optionsMenu?.x || 0} y={optionsMenu?.y || 0}>
+					{onAdvancedSettings && <ContextMenuItem
+						label={canonicalCopyValue('effectAdvancedSettings', copy)}
+						onClick={() => { close(); onAdvancedSettings(); }}
+					/>}
+					<ContextMenuItem
+						label={copy.importEffectPreset}
+						onClick={() => { close(); fileRef.current?.click(); }}
+					/>
+					<ContextMenuItem
+						label={copy.exportEffectPreset}
+						disabled={!selectedId}
+						onClick={() => { close(); if (selectedId) onExport(); }}
+					/>
+				</ContextMenu>
+			</EffectPresetMenuPortal>}
 
 			<input
 				ref={fileRef}

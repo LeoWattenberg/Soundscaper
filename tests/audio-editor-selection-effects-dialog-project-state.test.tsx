@@ -429,7 +429,7 @@ function elementNamed(root: ReactTestElement, tagName: string, text: string): Re
 }
 
 function menuItemNamed(root: ReactTestElement, label: string): ReactTestElement {
-	const item = [...root.querySelectorAll('.context-menu-item')].find((candidate) => (
+	const item = [...root.ownerDocument.body.querySelectorAll('.context-menu-item')].find((candidate) => (
 		[...candidate.querySelectorAll('.context-menu-item-label')]
 			.some((text) => text.textContent.trim() === label)
 	));
