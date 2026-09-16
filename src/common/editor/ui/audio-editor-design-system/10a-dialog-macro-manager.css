@@ -34,8 +34,7 @@
 	border-bottom: 1px solid var(--line);
 }
 
-.audio-editor-macro-manager__library-header h3,
-.audio-editor-macro-manager__templates h3 {
+.audio-editor-macro-manager__library-header h3 {
 	margin: 0;
 	color: var(--muted);
 	font-size: 11px;
@@ -95,14 +94,6 @@
 	padding: 18px 12px;
 	place-items: center;
 	text-align: center;
-}
-
-.audio-editor-macro-manager__templates {
-	display: grid;
-	gap: 6px;
-	padding: 10px;
-	border-top: 1px solid var(--line);
-	justify-items: start;
 }
 
 .audio-editor-macro-manager__detail {
@@ -323,8 +314,12 @@
 
 .audio-editor-macro-manager__programs ul {
 	margin: 0;
-	padding: 0;
+	padding: 6px;
 	list-style: none;
+}
+
+.audio-editor-macro-manager__programs {
+	border-top: 1px solid var(--line);
 }
 
 .audio-editor-macro-manager__programs button[data-macro-script-id] {

@@ -19,6 +19,9 @@ import {
 } from '../../src/common/editor/controller/effects/macro-script-library-service.ts';
 import { createMacroScriptLibrary } from '../../src/common/editor/macro-script-library.ts';
 import { createEffect } from '../../src/common/editor/effects.js';
+import {
+	createEffectMacroTemplateDraft, EFFECT_MACRO_TEMPLATE_IDS,
+} from '../../src/common/editor/effect-macro-templates.ts';
 import { ENGLISH_COPY } from '../../src/common/i18n/catalogs.js';
 import {
 	installReactTestDom, reactProps, type ReactTestElement,
@@ -48,7 +51,7 @@ export async function mountedMacroManagerFixture(initialDraft: MacroEntry = {
 	id: 'macro-initial',
 	name: 'Portable chain',
 	effects: [createEffect('audacity-invert', { id: 'macro-effect-1' })],
-}, productId = 'soundscaper') {
+}, productId = 'soundscaper', includeDefaultMacros = false) {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
@@ -73,7 +76,11 @@ export async function mountedMacroManagerFixture(initialDraft: MacroEntry = {
 	// A stand-in for the controller's saved macro library: writes land in memory
 	// and republish, the way the service publishes a document snapshot.
 	const libraryPublishers = new Set<(macros: readonly MacroEntry[]) => void>();
-	let library: readonly MacroEntry[] = [initialDraft];
+	let library: readonly MacroEntry[] = [initialDraft, ...(includeDefaultMacros && productId === 'soundscaper'
+		? EFFECT_MACRO_TEMPLATE_IDS.map((templateId) => createEffectMacroTemplateDraft(templateId, {
+			idFactory: (prefix, index) => `${templateId}-${prefix}-${index ?? 0}`,
+		}))
+		: [])];
 	let mintedMacros = 0;
 	let cancels = 0;
 	const publishLibrary = () => {
@@ -230,6 +237,9 @@ export async function mountedMacroManagerFixture(initialDraft: MacroEntry = {
 		importInput: () => dom.one('[data-macro-import-file]'),
 		importScriptInput: () => dom.one('[data-macro-script-import-file]'),
 		programNames: () => dom.container.querySelectorAll('[data-macro-script-id]').map(({ textContent }) => textContent),
+		selectedProgramName: () => dom.container.querySelectorAll('[data-macro-script-id]').find((candidate) => (
+			candidate.getAttribute('aria-current') === 'true'
+		))?.textContent ?? null,
 		program: (name: string) => {
 			const entry = dom.container.querySelectorAll('[data-macro-script-id]').find((candidate) => (
 				candidate.textContent.startsWith(name)

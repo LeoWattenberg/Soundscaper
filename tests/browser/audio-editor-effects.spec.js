@@ -442,15 +442,15 @@ import {
 		await expect(library.getByRole('button', { name: 'New macro', exact: true })).toBeVisible();
 		await expect(library.getByRole('button', { name: 'Import macro', exact: true }).locator('.icon[aria-hidden="true"]')).toHaveCount(1);
 		await expect(library.getByRole('button', { name: 'Export macro', exact: true }).locator('.icon[aria-hidden="true"]')).toHaveCount(1);
-		await expect(library.getByRole('button', { name: 'Delete macro', exact: true })).toBeDisabled();
-		await expect(manager.locator('[data-macro-library-empty]')).toBeVisible();
-		await expect(manager.locator('[data-macro-unselected]')).toBeVisible();
+		await expect(library.getByRole('button', { name: 'Delete macro', exact: true })).toBeEnabled();
+		await expect(manager.locator('[data-macro-id]')).toHaveText(['Restoration', 'Fade ends']);
+		await expect(manager.getByLabel('Macro name', { exact: true })).toHaveValue('Restoration');
 		const footer = manager.locator('.audio-editor-macro-manager__footer');
 		await expect(footer.getByRole('button', { name: 'Run macro', exact: true })).toBeVisible();
 		await expect(footer.getByRole('button', { name: 'Effects', exact: true })).toHaveCount(0);
 
 		await library.getByRole('button', { name: 'New macro', exact: true }).click();
-		await expect(manager.locator('[data-macro-id]')).toHaveText(['Untitled macro']);
+		await expect(manager.locator('[data-macro-id]')).toHaveText(['Restoration', 'Fade ends', 'Untitled macro']);
 
 		// "Add effect" is the row after the last step, and it opens the same
 		// flyout the realtime effect rack uses rather than a dialog.
@@ -470,7 +470,7 @@ import {
 		});
 		await expect(manager.getByRole('status')).toHaveText('Macro imported.');
 		await expect(manager.getByLabel('Macro name', { exact: true })).toHaveValue('browser-chain');
-		await expect(manager.locator('[data-macro-id]')).toHaveText(['Untitled macro', 'browser-chain']);
+		await expect(manager.locator('[data-macro-id]')).toHaveText(['Restoration', 'Fade ends', 'Untitled macro', 'browser-chain']);
 		await expect(manager.locator('.effect-slot__name-text')).toHaveText(['Echo', 'Invert']);
 		await manager.getByLabel('Macro name', { exact: true }).focus();
 		await page.keyboard.press('Tab');
@@ -506,7 +506,7 @@ import {
 		// Export serialises the stored macro name, so the rename has to have been
 		// committed; a bare fill() leaves Export writing the imported name.
 		await commitInput(manager.getByLabel('Macro name', { exact: true }), 'Browser chain');
-		await expect(manager.locator('[data-macro-id]')).toHaveText(['Untitled macro', 'Browser chain']);
+		await expect(manager.locator('[data-macro-id]')).toHaveText(['Restoration', 'Fade ends', 'Untitled macro', 'Browser chain']);
 		const [download] = await Promise.all([
 			page.waitForEvent('download'),
 			manager.getByRole('button', { name: 'Export macro', exact: true }).click(),

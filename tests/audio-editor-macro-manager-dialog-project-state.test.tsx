@@ -20,14 +20,14 @@ import { reactProps } from './helpers/react-test-dom.ts';
 
 const MANAGER_COPY = resolveMacroManagerCopy('en');
 
-test('every built-in template is offered, including the one that moves the selection', async () => {
-	const fixture = await mountedMacroManagerFixture();
+test('default macros are ordinary list entries and selecting them does not create copies', async () => {
+	const fixture = await mountedMacroManagerFixture(undefined, 'soundscaper', true);
 	try {
 		await fixture.render(macroSnapshot('project-a'));
-		assert.equal(fixture.buttonLabels().includes('Restoration'), true);
-		assert.equal(fixture.buttonLabels().includes('Fade ends'), true);
+		assert.deepEqual(fixture.macroNames(), ['Portable chain', 'Restoration', 'Fade ends']);
+		assert.equal(fixture.find('[data-macro-templates]'), null);
 
-		await click(fixture.button('Fade ends'));
+		await click(fixture.macro('Fade ends'));
 		// A command step is named by the command it runs and what it carries; a
 		// blank row would say nothing at all.
 		assert.deepEqual(fixture.effectNames(), [
@@ -37,6 +37,16 @@ test('every built-in template is offered, including the one that moves the selec
 			'Fade Out',
 			'Select: start 0, end 0',
 		]);
+		await click(fixture.macro('Restoration'));
+		await click(fixture.macro('Fade ends'));
+		assert.deepEqual(fixture.macroNames(), ['Portable chain', 'Restoration', 'Fade ends']);
+		assert.equal(fixture.selectedMacroName(), 'Fade ends');
+
+		await changeText(fixture.nameInput(), 'My fades');
+		assert.deepEqual(fixture.macroNames(), ['Portable chain', 'Restoration', 'My fades']);
+		await click(fixture.button(ENGLISH_COPY.deleteMacro));
+		assert.deepEqual(fixture.macroNames(), ['Portable chain', 'Restoration']);
+		assert.equal(fixture.selectedMacroName(), 'Restoration');
 	} finally {
 		fixture.settlePending();
 		await fixture.cleanup();
@@ -164,18 +174,18 @@ test('a stale macro export cannot replace the current project completion message
 	}
 });
 
-test('the Restoration template saves a macro of its own, embeds its captured profile, and only then admits Run', async () => {
-	const fixture = await mountedMacroManagerFixture();
+test('the default Restoration macro embeds its captured profile and only then admits Run', async () => {
+	const fixture = await mountedMacroManagerFixture(undefined, 'soundscaper', true);
 	try {
 		await fixture.render(macroSnapshot('project-a'));
-		await click(fixture.button('Restoration'));
-		assert.deepEqual(fixture.macroNames(), ['Portable chain', 'Restoration']);
+		await click(fixture.macro('Restoration'));
+		assert.deepEqual(fixture.macroNames(), ['Portable chain', 'Restoration', 'Fade ends']);
 		assert.equal(fixture.selectedMacroName(), 'Restoration');
 		assert.deepEqual(fixture.effectNames(), ['Click Removal', 'Noise Reduction', 'Filter Curve EQ']);
 		assert.deepEqual(
 			fixture.library()[0]!.effects.map(({ type }) => type),
 			['audacity-invert'],
-			'the template must not reach into the macro that was open',
+			'selecting Restoration must preserve the macro that was open',
 		);
 		assert.equal(fixture.button(ENGLISH_COPY.runMacro).hasAttribute('disabled'), true);
 		assert.match(fixture.text(), /Capture a noise profile in every Noise Reduction step/u);
@@ -303,10 +313,10 @@ test('the picker offers the offline effects a macro runs, not only the rack', as
 });
 
 test('a failed Restoration profile capture stays gated and reports the failure in the dialog', async () => {
-	const fixture = await mountedMacroManagerFixture({ id: 'macro-initial', name: ENGLISH_COPY.untitledMacro, effects: [] });
+	const fixture = await mountedMacroManagerFixture({ id: 'macro-initial', name: ENGLISH_COPY.untitledMacro, effects: [] }, 'soundscaper', true);
 	try {
 		await fixture.render(macroSnapshot('project-a'));
-		await click(fixture.button('Restoration'));
+		await click(fixture.macro('Restoration'));
 		await click(fixture.selectEffect('Noise Reduction'));
 		fixture.failNextProfileCapture(new Error('profile worker unavailable'));
 		await click(fixture.button(ENGLISH_COPY.getNoiseProfile));
@@ -321,11 +331,11 @@ test('a failed Restoration profile capture stays gated and reports the failure i
 });
 
 test('Restoration profile recapture replaces the embedded portable profile', async () => {
-	const fixture = await mountedMacroManagerFixture({ id: 'macro-initial', name: ENGLISH_COPY.untitledMacro, effects: [] });
+	const fixture = await mountedMacroManagerFixture({ id: 'macro-initial', name: ENGLISH_COPY.untitledMacro, effects: [] }, 'soundscaper', true);
 	const replacement = Object.freeze({ ...SERIALIZED_NOISE_PROFILE, windowCount: 3 });
 	try {
 		await fixture.render(macroSnapshot('project-a'));
-		await click(fixture.button('Restoration'));
+		await click(fixture.macro('Restoration'));
 		await click(fixture.selectEffect('Noise Reduction'));
 		await click(fixture.button(ENGLISH_COPY.getNoiseProfile));
 		fixture.queueProfileResponse(Promise.resolve(replacement));
@@ -345,11 +355,11 @@ test('Restoration profile recapture replaces the embedded portable profile', asy
 });
 
 test('a stale Restoration recapture cannot replace the surviving embedded profile', async () => {
-	const fixture = await mountedMacroManagerFixture({ id: 'macro-initial', name: ENGLISH_COPY.untitledMacro, effects: [] });
+	const fixture = await mountedMacroManagerFixture({ id: 'macro-initial', name: ENGLISH_COPY.untitledMacro, effects: [] }, 'soundscaper', true);
 	const pending = deferred<unknown>();
 	try {
 		await fixture.render(macroSnapshot('project-a'));
-		await click(fixture.button('Restoration'));
+		await click(fixture.macro('Restoration'));
 		await click(fixture.selectEffect('Noise Reduction'));
 		await click(fixture.button(ENGLISH_COPY.getNoiseProfile));
 		fixture.queueProfileResponse(pending.promise);
@@ -375,7 +385,7 @@ test('a stale Restoration recapture cannot replace the surviving embedded profil
 });
 
 test('Framescaper keeps its shared Macro Manager unchanged', async () => {
-	const fixture = await mountedMacroManagerFixture(undefined, 'framescaper');
+	const fixture = await mountedMacroManagerFixture(undefined, 'framescaper', true);
 	try {
 		await fixture.render(macroSnapshot('project-a'));
 		assert.equal(fixture.find('[data-macro-templates]'), null);

@@ -7,8 +7,6 @@ import { TextInput } from '@soundscaper/design-system/TextInput';
 import { createEffectMacroStep, effectMacroStepTypes } from '../../effect-macro-steps.ts';
 import { parseAudacityEffectMacro, serializeAudacityEffectMacro } from '../../effect-macros.js';
 import {
-	EFFECT_MACRO_TEMPLATE_IDS,
-	createEffectMacroTemplateDraft,
 	effectMacroMissingEmbeddedNoiseProfile,
 } from '../../effect-macro-templates.ts';
 import { MACRO_SCRIPT_FILE_EXTENSION } from '../../macro-script-envelope.ts';
@@ -105,6 +103,14 @@ export function AudioEditorMacroManagerDialog({
 		} catch (cause) {
 			showMessage({ key: 'macroExportFailed', parameters: { message: feedbackErrorParameter(cause) } }, 'error');
 		}
+	};
+	const deleteScript = () => {
+		if (!selectedScript) return;
+		const index = scripts.findIndex((script) => script.id === selectedScript.id);
+		scriptLibrary.delete(selectedScript.id);
+		const next = scripts[index + 1] || scripts[index - 1] || null;
+		setSelectedScriptId(next?.id || null);
+		openMacro(next ? null : macros[0] || null);
 	};
 	const blocked = selectAudioEditorEditBlock(snapshot).blocked;
 	const hasRunTarget = Boolean(snapshot.selection || snapshot.selectedClipId);
@@ -221,7 +227,9 @@ export function AudioEditorMacroManagerDialog({
 	}));
 	const createMacro = (macro) => {
 		try {
-			openMacro(library.save(macro));
+			const saved = library.save(macro);
+			setSelectedScriptId(null);
+			openMacro(saved);
 		} catch (cause) {
 			showMessage(feedbackFailure(cause), 'error');
 		}
@@ -393,14 +401,6 @@ export function AudioEditorMacroManagerDialog({
 						macros={macros}
 						selectedId={draft?.id || null}
 						exportDisabled={!effects.length}
-						templates={templatesAvailable ? {
-							heading: templateCopy.templates,
-							entries: EFFECT_MACRO_TEMPLATE_IDS.map((templateId) => ({
-								id: templateId,
-								label: templateCopy.names[templateId],
-								onCreate: () => createMacro(createEffectMacroTemplateDraft(templateId)),
-							})),
-						} : null}
 						scripts={{
 							entries: scripts,
 							selectedId: selectedScriptId,
@@ -408,11 +408,13 @@ export function AudioEditorMacroManagerDialog({
 							newProgram: managerCopy.newProgram,
 							importProgram: managerCopy.importProgram,
 							exportProgram: managerCopy.exportProgram,
+							deleteProgram: managerCopy.deleteProgram,
 							notTrusted: managerCopy.notTrusted,
 							onSelect: (scriptId) => { setSelectedScriptId(scriptId); openMacro(null); },
 							onCreate: createScript,
 							onImport: () => scriptInputRef.current?.click(),
 							onExport: () => { void exportScript(); },
+							onDelete: deleteScript,
 						}}
 						onSelect={(macroId) => {
 							setSelectedScriptId(null);

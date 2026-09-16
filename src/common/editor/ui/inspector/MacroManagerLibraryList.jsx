@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { Button } from '@soundscaper/design-system/Button';
 import { Icon } from '@soundscaper/design-system/Icon';
 
 /**
@@ -15,7 +14,6 @@ export default function MacroManagerLibraryList({
 	macros,
 	selectedId,
 	exportDisabled,
-	templates,
 	scripts,
 	onSelect,
 	onCreate,
@@ -27,12 +25,12 @@ export default function MacroManagerLibraryList({
 		<section className="audio-editor-macro-manager__library" aria-label={copy.macros}>
 			<header className="audio-editor-macro-manager__library-header">
 				<h3>{copy.macros}</h3>
-				<div className="audio-editor-macro-manager__library-actions">
-					<LibraryAction icon="plus" label={copy.newMacro} onClick={onCreate} />
-					<LibraryAction icon="import" label={copy.importMacro} onClick={onImport} />
-					<LibraryAction icon="export" label={copy.exportMacro} disabled={exportDisabled} onClick={onExport} />
-					<LibraryAction icon="trash" label={copy.deleteMacro} disabled={!selectedId} onClick={onDelete} />
-				</div>
+				<LibraryActions
+					labels={{ create: copy.newMacro, import: copy.importMacro, export: copy.exportMacro, delete: copy.deleteMacro }}
+					selectedId={selectedId}
+					exportDisabled={exportDisabled}
+					onCreate={onCreate} onImport={onImport} onExport={onExport} onDelete={onDelete}
+				/>
 			</header>
 			{macros.length
 				? <ul className="audio-editor-macro-manager__macro-list" data-macro-list>
@@ -49,13 +47,15 @@ export default function MacroManagerLibraryList({
 					))}
 				</ul>
 				: <p className="audio-editor-panel-hint" data-macro-library-empty>{copy.macroLibraryEmpty}</p>}
-			{scripts && <div className="audio-editor-macro-manager__programs" data-macro-programs>
+			{scripts && <section className="audio-editor-macro-manager__programs" aria-label={scripts.heading} data-macro-programs>
 				<header className="audio-editor-macro-manager__library-header">
 					<h3>{scripts.heading}</h3>
-					<div className="audio-editor-macro-manager__library-actions">
-						<LibraryAction icon="import" label={scripts.importProgram} onClick={scripts.onImport} />
-						<LibraryAction icon="export" label={scripts.exportProgram} disabled={!scripts.selectedId} onClick={scripts.onExport} />
-					</div>
+					<LibraryActions
+						labels={{ create: scripts.newProgram, import: scripts.importProgram, export: scripts.exportProgram, delete: scripts.deleteProgram }}
+						selectedId={scripts.selectedId}
+						exportDisabled={!scripts.selectedId}
+						onCreate={scripts.onCreate} onImport={scripts.onImport} onExport={scripts.onExport} onDelete={scripts.onDelete}
+					/>
 				</header>
 				{scripts.entries.length ? <ul>
 					{scripts.entries.map((script) => (
@@ -77,15 +77,19 @@ export default function MacroManagerLibraryList({
 						</li>
 					))}
 				</ul> : null}
-				<Button variant="secondary" onClick={scripts.onCreate}>{scripts.newProgram}</Button>
-			</div>}
-			{templates?.entries?.length ? <div className="audio-editor-macro-manager__templates" data-macro-templates>
-				<h3>{templates.heading}</h3>
-				{templates.entries.map(({ id, label, onCreate }) => (
-					<Button key={id} variant="secondary" onClick={onCreate}>{label}</Button>
-				))}
-			</div> : null}
+			</section>}
 		</section>
+	);
+}
+
+function LibraryActions({ labels, selectedId, exportDisabled, onCreate, onImport, onExport, onDelete }) {
+	return (
+		<div className="audio-editor-macro-manager__library-actions">
+			<LibraryAction icon="plus" label={labels.create} onClick={onCreate} />
+			<LibraryAction icon="import" label={labels.import} onClick={onImport} />
+			<LibraryAction icon="export" label={labels.export} disabled={exportDisabled} onClick={onExport} />
+			<LibraryAction icon="trash" label={labels.delete} disabled={!selectedId} onClick={onDelete} />
+		</div>
 	);
 }
 

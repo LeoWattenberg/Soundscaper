@@ -102,10 +102,12 @@ test('the built-in Fade ends template is Audacity\'s own, step for step', () => 
 	assert.equal(effectMacroMissingEmbeddedNoiseProfile(draft.effects), false);
 });
 
-test('every built-in template is offered by id and none of them is missing', () => {
+test('every default macro has a name and the noise profile hint remains localized', () => {
 	for (const templateId of EFFECT_MACRO_TEMPLATE_IDS) {
 		const draft = createEffectMacroTemplateDraft(templateId);
 		assert.ok(draft.effects.length, `${templateId} must have steps`);
-		assert.ok(TEMPLATE_COPY.names[templateId], `${templateId} must have a label`);
+		assert.ok(draft.name, `${templateId} must have a name`);
 	}
+	assert.deepEqual(Object.keys(TEMPLATE_COPY), ['profileRequired']);
+	assert.match(resolveEffectMacroTemplateCopy('de').profileRequired, /Rauschprofil/u);
 });

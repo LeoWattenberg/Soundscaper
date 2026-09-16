@@ -160,6 +160,8 @@ test('moved controller domains preserve their optional chunk owners', () => {
 	const pathsByOwner = {
 		'editor-optional-execution': [
 			'src/common/editor/controller/analysis/analysis-service.ts',
+			'src/common/editor/controller/effects/effect-macro-defaults-service.ts',
+			'src/common/editor/controller/effects/internal/macro/effect-macro-defaults.ts',
 		],
 		'editor-optional-export': [
 			'src/common/editor/controller/export/internal/direct/direct-wav-export.ts',
@@ -185,6 +187,13 @@ test('every assistance domain module has an owning chunk group', () => {
 	const unowned = assistanceDomainModules()
 		.filter((path) => chunkGroupForModulePath(path) === null);
 	assert.deepEqual(unowned, [], 'these modules would be placed in a lazy assistance dialog');
+});
+
+test('macro default templates stay with the deferred macro migration', () => {
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/effect-macro-templates.ts'),
+		'editor-optional-execution',
+	);
 });
 
 test('the shell, controller, and storage groups keep the flat modules they name', () => {
