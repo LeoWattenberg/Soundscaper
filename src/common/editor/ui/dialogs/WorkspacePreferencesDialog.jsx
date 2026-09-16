@@ -23,6 +23,7 @@ import PlaybackRecordingPreferencesPage from './PlaybackRecordingPreferencesPage
 import PreferenceDropdownField from './PreferenceDropdownField.jsx';
 import { ShortcutEditorRow } from './ShortcutEditorRow.tsx';
 import { collectAudacityShortcutCommands } from './workspace-preferences-shortcut-commands.ts';
+import { shortcutCategoryMessageKey } from './workspace-preferences-shortcut-categories.ts';
 import {
 	DEFAULT_SHORTCUT_SORT_MODE,
 	groupAudacityShortcutCommands,
@@ -333,7 +334,8 @@ export default function WorkspacePreferencesDialog({
 								<div className="kw-audio-editor-preferences__shortcut-list">
 									{shortcutGroups.map((group) => (
 										<Fragment key={group.id}>
-											{group.label && <h5 className="kw-audio-editor-preferences__shortcut-group" data-shortcut-group={group.id}>{group.label}</h5>}
+											{group.label && <h5 className="kw-audio-editor-preferences__shortcut-group" data-shortcut-group={group.id}
+												data-translation-key={group.id.startsWith('location:') ? shortcutCategoryMessageKey(group.id.slice('location:'.length)) : undefined}>{group.label}</h5>}
 											{group.commands.map((command) => <ShortcutEditorRow key={command.id} command={command} preferences={preferences} controller={controller} copy={copy} run={run} />)}
 										</Fragment>
 									))}

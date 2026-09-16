@@ -98,9 +98,14 @@ export function menuCategoryId(root: string): string {
 
 /** Name one inventory location root, translated where the catalog carries it. */
 export function shortcutCategoryLabel(root: string, localization: unknown): string {
-	if (!root) return shortcutCategoryCopyValue(OTHER_CATEGORY_KEY, localization);
-	const key = `shortcutCategory${root.split(/[^a-zA-Z0-9]+/u).filter(Boolean)
-		.map((part) => part[0].toUpperCase() + part.slice(1)).join('')}`;
+	const key = shortcutCategoryMessageKey(root);
 	const label = shortcutCategoryCopyValue(key, localization);
 	return label === key ? root : label;
+}
+
+/** Retain the source identity alongside the rendered shortcut category label. */
+export function shortcutCategoryMessageKey(root: string): string {
+	if (!root || root === OTHER_CATEGORY_KEY) return OTHER_CATEGORY_KEY;
+	return `shortcutCategory${root.split(/[^a-zA-Z0-9]+/u).filter(Boolean)
+		.map((part) => part[0].toUpperCase() + part.slice(1)).join('')}`;
 }

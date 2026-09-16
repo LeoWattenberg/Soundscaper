@@ -28,6 +28,51 @@ async function selectMessage(surface, key, copy = en) {
 	await expect(surface.getByRole('textbox', { name: copy.key, exact: true })).toHaveValue(key);
 }
 
+test('picking Audio setup selects its own message and marks identical labels as alternatives', async ({ page }) => {
+	await page.setViewportSize({ width: 1600, height: 1100 });
+	const editor = await bootEditor(page, '/embed/en/');
+	const surface = await openTranslator(page, editor);
+	await selectMessage(surface, 'shortcutCategoryAudioSetup');
+	const setup = editor.getByRole('button', { name: 'Audio setup', exact: true });
+	await surface.getByRole('button', { name: en.pick, exact: true }).click();
+	await setup.getByText('Audio setup', { exact: true }).click();
+	await expect(surface.getByRole('textbox', { name: en.key, exact: true })).toHaveValue('audioDevices');
+	const candidates = surface.getByRole('group', { name: en.candidates, exact: true });
+	const target = candidates.getByRole('button', { name: /^audioDevices \(text\) —/u });
+	const alternative = candidates.getByRole('button', { name: /^shortcutCategoryAudioSetup \(text\) —/u });
+	await expect(target).toHaveAttribute('aria-pressed', 'true');
+	await expect(alternative).toHaveAttribute('aria-pressed', 'false');
+	await expect(target.getByText(en.clicked, { exact: true })).toBeVisible();
+	await expect(setup).toHaveCSS('outline-style', 'solid');
+	await expect(setup).toHaveAttribute('aria-expanded', 'false');
+	await alternative.click();
+	await expect(surface.getByRole('textbox', { name: en.key, exact: true })).toHaveValue('shortcutCategoryAudioSetup');
+	await expect(alternative).toHaveAttribute('aria-pressed', 'true');
+	await expect(target).toHaveAttribute('aria-pressed', 'false');
+	await surface.getByRole('button', { name: en.pick, exact: true }).click();
+	await setup.getByText('Audio setup', { exact: true }).click();
+	await expect(surface.getByRole('textbox', { name: en.key, exact: true })).toHaveValue('audioDevices');
+	await surface.getByRole('button', { name: en.close, exact: true }).click();
+	await expect(setup).toHaveCSS('outline-style', 'none');
+});
+
+test('picking a shortcut heading selects its category among identical toolbar labels', async ({ page }) => {
+	await page.setViewportSize({ width: 1600, height: 1100 });
+	const editor = await bootEditor(page, '/embed/en/');
+	const surface = await openTranslator(page, editor);
+	await selectMessage(surface, 'transportToolbar');
+	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+	const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+	await preferences.getByRole('tab', { name: /Keyboard shortcuts$/u }).click();
+	await surface.getByRole('button', { name: en.moveLeft, exact: true }).click();
+	await surface.getByRole('button', { name: en.pick, exact: true }).click();
+	await preferences.getByRole('heading', { name: 'Transport toolbar', exact: true }).click();
+	await expect(surface.getByRole('textbox', { name: en.key, exact: true })).toHaveValue('shortcutCategoryTransportToolbar');
+	const candidates = surface.getByRole('group', { name: en.candidates, exact: true });
+	await expect(candidates.getByRole('button', { name: /^shortcutCategoryTransportToolbar \(text\) —/u })).toHaveAttribute('aria-pressed', 'true');
+	await expect(candidates.getByRole('button', { name: /^transportToolbar \(text\) —/u })).toHaveAttribute('aria-pressed', 'false');
+});
+
 test('menu-only drafts preview, survive reopening and export without project data or interrupting playback', async ({ page }) => {
 	await page.setViewportSize({ width: 1600, height: 1100 });
 	const editor = await bootEditor(page, '/embed/en/');

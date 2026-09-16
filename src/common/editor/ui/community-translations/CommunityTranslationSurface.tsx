@@ -49,6 +49,7 @@ export default function CommunityTranslationSurface({ port, initialLocale, copy:
 	const [picking, setPicking] = useState(false);
 	const [side, setSide] = useState('right');
 	const [candidates, setCandidates] = useState<readonly TranslationCandidate[]>([]);
+	const [pickedObject, setPickedObject] = useState<Element | null>(null);
 	const panelRef = useRef<HTMLElement>(null);
 	const searchRef = useRef<HTMLInputElement>(null);
 	const importRef = useRef<HTMLInputElement>(null);
@@ -80,16 +81,24 @@ export default function CommunityTranslationSurface({ port, initialLocale, copy:
 		searchRef.current?.focus({ preventScroll: true });
 	}, []);
 	useEffect(() => {
+		if (!pickedObject) return undefined;
+		pickedObject.classList.add('community-translations__target');
+		return () => pickedObject.classList.remove('community-translations__target');
+	}, [pickedObject]);
+	useEffect(() => {
 		if (!picking) return undefined;
 		const inspect = (event: MouseEvent): void => {
 			if (!(event.target instanceof Element) || panelRef.current?.contains(event.target)) return;
 			event.preventDefault();
 			event.stopImmediatePropagation();
+			setPickedObject(event.target.closest('button, input, select, textarea, a, [role="menuitem"], [role="option"]') ?? event.target);
 			const matches = findTranslationCandidates(translationTextsForElement(event.target), EDITOR_ENGLISH_COPY, port.getSnapshot().copy)
 				.filter(({ key }) => isTranslatableMessageKey(key));
 			setCandidates(matches);
 			setPicking(false);
-			if (matches.length === 1) chooseCandidate(matches[0]!);
+			const target = matches.find(({ isTarget }) => isTarget);
+			if (target) chooseCandidate(target);
+			else if (matches.length === 1) chooseCandidate(matches[0]!);
 			else if (!matches.length) setMessage({ key: 'noMatch' });
 			searchRef.current?.focus({ preventScroll: true });
 		};
@@ -153,19 +162,21 @@ export default function CommunityTranslationSurface({ port, initialLocale, copy:
 		<header><h2>{copy.title}</h2><button type="button" aria-label={copy.close} onClick={onClose}>×</button></header>
 		<button type="button" onClick={() => setSide(side === 'right' ? 'left' : 'right')}>{side === 'right' ? copy.moveLeft : copy.moveRight}</button>
 		<label>{copy.language}<select value={locale} onChange={(event) => {
-			setLocale(event.target.value); setQuery(''); setFilter('all'); setCandidates([]);
+			setLocale(event.target.value); setQuery(''); setFilter('all'); setCandidates([]); setPickedObject(null);
 		}}>{translationLocales.filter(({ locale: tag }) => tag !== 'en').map(({ locale: tag, nativeName }) =>
 			<option key={tag} value={tag}>{nativeName}</option>)}</select></label>
 		<label className="community-translations__preview"><input type="checkbox" checked={preview}
 			onChange={(event) => setPreview(event.target.checked)} />{copy.preview}</label>
-		<button type="button" aria-pressed={picking} onClick={() => { setPicking(!picking); setCandidates([]); setMessage(''); }}>{copy.pick}</button>
+		<button type="button" aria-pressed={picking} onClick={() => { setPicking(!picking); setCandidates([]); setPickedObject(null); setMessage(''); }}>{copy.pick}</button>
 		{picking && <p role="status">{copy.picking}</p>}
-		{candidates.length > 1 && <fieldset><legend>{copy.candidates}</legend><p>{copy.ambiguous}</p>
+		{candidates.length > 1 && <fieldset><legend>{copy.candidates}</legend><p>{candidates.some(({ isTarget }) => isTarget) ? copy.identified : copy.ambiguous}</p>
 			{candidates.map((candidate) => <button key={`${candidate.key}:${candidate.attribute}`} type="button"
-				onClick={() => chooseCandidate(candidate)}>{candidate.key} ({candidate.attribute}) — {EDITOR_ENGLISH_COPY[candidate.key]}</button>)}
+				aria-pressed={candidate.key === selectedKey} onClick={() => chooseCandidate(candidate)}>
+				{candidate.key} ({candidate.attribute}) — {EDITOR_ENGLISH_COPY[candidate.key]}
+				{candidate.isTarget && <> — <strong>{copy.clicked}</strong></>}</button>)}
 		</fieldset>}
-		<label>{copy.search}<input ref={searchRef} type="search" value={query} onChange={(event) => { setQuery(event.target.value); setCandidates([]); }} /></label>
-		<label>{copy.filter}<select value={filter} onChange={(event) => setFilter(event.target.value)}>
+		<label>{copy.search}<input ref={searchRef} type="search" value={query} onChange={(event) => { setQuery(event.target.value); setCandidates([]); setPickedObject(null); }} /></label>
+		<label>{copy.filter}<select value={filter} onChange={(event) => { setFilter(event.target.value); setCandidates([]); setPickedObject(null); }}>
 			<option value="all">{copy.all}</option><option value="changed">{copy.changed}</option>
 			<option value="missing">{copy.missing}</option><option value="review">{copy.review}</option>
 		</select></label>

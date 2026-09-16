@@ -337,7 +337,7 @@ function ActionBarAudioDevicesButton({ copy, snapshot, controller, run }) {
 
 	return (
 		<>
-			<span ref={setTrigger} className="kw-audio-editor__action-bar-toggle" data-action="audio-devices">
+			<span ref={setTrigger} className="kw-audio-editor__action-bar-toggle" data-action="audio-devices" data-translation-key="audioDevices">
 				<Button
 					variant="secondary"
 					size="small"

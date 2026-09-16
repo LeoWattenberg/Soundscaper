@@ -3,14 +3,16 @@
 export interface TranslationPickedText {
 	readonly text: string;
 	readonly attribute: string;
+	readonly messageKey?: string;
 }
 
 export interface TranslationCandidate extends TranslationPickedText {
 	readonly key: string;
 	readonly parameters: Readonly<Record<string, string>>;
+	readonly isTarget?: boolean;
 }
 
-/** Suggest every matching key: equal display text never establishes identity. */
+/** Preserve the object's bound identity, then suggest other matching keys. */
 export function findTranslationCandidates(
 	texts: readonly TranslationPickedText[],
 	englishCopy: Readonly<Record<string, string>>,
@@ -18,6 +20,14 @@ export function findTranslationCandidates(
 ): readonly TranslationCandidate[] {
 	const result: TranslationCandidate[] = [];
 	const seen = new Set<string>();
+	for (const picked of texts) {
+		const key = picked.messageKey;
+		if (!key || !Object.hasOwn(englishCopy, key) || seen.has(`${key}:${picked.attribute}`)) continue;
+		seen.add(`${key}:${picked.attribute}`);
+		result.push({ key, ...picked, isTarget: true,
+			parameters: matchTemplate(currentCopy[key] ?? englishCopy[key]!, picked.text)
+				?? matchTemplate(englishCopy[key]!, picked.text) ?? {} });
+	}
 	for (const picked of texts) {
 		for (const [key, source] of Object.entries(englishCopy)) {
 			const identity = `${key}:${picked.attribute}`;
@@ -40,11 +50,14 @@ export function translationTextsForElement(element: Element): readonly Translati
 		if (candidate.closest('[data-community-translation-surface]')) break;
 		for (const attribute of ['title', 'aria-label', 'placeholder']) {
 			const text = candidate.getAttribute(attribute)?.trim();
-			if (text) result.push({ attribute, text });
+			const messageKey = candidate.getAttribute(`data-translation-key-${attribute}`)
+				?? candidate.getAttribute('data-translation-key');
+			if (text) result.push({ attribute, text, ...(messageKey ? { messageKey } : {}) });
 		}
 		if (!candidate.matches('input, textarea, [contenteditable="true"]')) {
 			const text = candidate.textContent?.trim();
-			if (text && text.length <= 2_000) result.push({ attribute: 'text', text });
+			const messageKey = candidate.getAttribute('data-translation-key-text') ?? candidate.getAttribute('data-translation-key');
+			if (text && text.length <= 2_000) result.push({ attribute: 'text', text, ...(messageKey ? { messageKey } : {}) });
 		}
 		if (candidate.matches('[data-audio-editor], [role="dialog"]')) break;
 	}
