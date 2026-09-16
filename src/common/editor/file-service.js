@@ -105,8 +105,10 @@ export function createAudioEditorFileService(options = {}) {
 		deleteDesktopVideoCodecOperation: (request) => bridge?.deleteDesktopVideoCodecOperation?.(request) ?? null,
 		cancelDesktopVideoCodecOperation: (operationId) => bridge?.cancelDesktopVideoCodecOperation?.(operationId) ?? null,
 		runWindowAction: (action) => bridge?.runWindowAction?.(action),
-		readNativeTierControls: () => bridge?.readNativeTierControls?.(),
-		applyNativeTierControl: (request) => bridge?.applyNativeTierControl?.(request),
+		...(typeof bridge?.readNativeTierControls === 'function' && typeof bridge?.applyNativeTierControl === 'function' ? {
+			readNativeTierControls: () => bridge.readNativeTierControls(),
+			applyNativeTierControl: (request) => bridge.applyNativeTierControl(request),
+		} : {}),
 		checkForUpdates: () => bridge?.checkForUpdates?.(),
 		openExternal: (destination) => bridge?.openExternal?.(destination),
 		editText: (command) => bridge?.editText?.(command),
