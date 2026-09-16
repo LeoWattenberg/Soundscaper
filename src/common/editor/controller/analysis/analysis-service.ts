@@ -1,7 +1,7 @@
 import {
 	calculateAudioSpectrum,
 	findAudioClippingRegions,
-} from '../../analysis.js';
+} from '../../analysis.js'; import { createLocalizedError, setLocalizedStatus } from '../../../i18n/presentation-message.ts';
 import { measureBextLoudness } from '../../broadcast-loudness.ts';
 import { EBU_R128_MAXIMUM_CHANNELS } from '../../ebu-r128.js';
 import { resolveAdmEbuChannelWeights } from '../../loudness-channel-layout.ts';
@@ -103,7 +103,7 @@ export interface AnalysisDependencies {
 	createVisuals(channels: Float32Array[], sampleRate: number): unknown;
 	showAnalysis(result: unknown, visuals?: unknown, report?: unknown): void;
 	setProcessing(processing: boolean): void;
-	setStatus(message: string, status?: string): void;
+	setStatus(message: string, status?: string, localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;
 	publish(): void;
 	handleError(error: unknown): void;
 }
@@ -143,7 +143,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 		const project = dependencies.getProject();
 		if (!project.clips.length) return null;
 		const projectToken = dependencies.captureProject();
-		const task = begin(copy.analysisRendering);
+		const task = begin('analysisRendering');
 		const range = dependencies.getRange();
 		const key = [
 			'audio-editor-analysis-v2',
@@ -161,7 +161,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 			if (cached?.result) {
 				dependencies.showAnalysis(cached.result, cached.visuals, cached.report || levelsReport(scope, range));
 				remember({ type: 'levels', scope });
-				dependencies.setStatus(copy.analysisCached, 'success');
+				setLocalizedStatus(dependencies.setStatus, copy, "analysisCached", undefined, 'success');
 				return cached.result;
 			}
 			const { channels, sampleRate, result } = await renderAndAnalyze(scope, range, task, projectToken);
@@ -176,7 +176,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 			assertCurrent(task, projectToken);
 			dependencies.showAnalysis(result, visuals, report);
 			remember({ type: 'levels', scope });
-			dependencies.setStatus(copy.done, 'success');
+			setLocalizedStatus(dependencies.setStatus, copy, "done", undefined, 'success');
 			return result;
 		} catch (error) {
 			handleTaskError(error);
@@ -189,7 +189,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 	async function runSpecialized(type: 'spectrum' | 'clipping', scope: string, options: Record<string, unknown> = {}) {
 		if (!dependencies.getProject().clips.length) return null;
 		const projectToken = dependencies.captureProject();
-		const task = begin(copy.analysisRendering);
+		const task = begin('analysisRendering');
 		try {
 			assertAnalysisChannelAdmission(dependencies.getProject());
 			const range = dependencies.getRange();
@@ -202,7 +202,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 				: clippingReport(scope, range, channels, options);
 			dependencies.showAnalysis(result, dependencies.createVisuals(channels, sampleRate), report);
 			remember({ type, scope, options: Object.freeze({ ...options }) });
-			dependencies.setStatus(copy.done, 'success');
+			setLocalizedStatus(dependencies.setStatus, copy, "done", undefined, 'success');
 			return report;
 		} catch (error) {
 			handleTaskError(error);
@@ -213,15 +213,15 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 	}
 
 	async function captureContrast(role = 'foreground', scope = 'master', options: Record<string, unknown> = {}) {
-		if (role !== 'foreground' && role !== 'background') throw new RangeError(copy.contrastRoleInvalid);
+		if (role !== 'foreground' && role !== 'background') throw createLocalizedError(RangeError, copy, 'contrastRoleInvalid');
 		const projectToken = dependencies.captureProject();
-		const task = begin(copy.contrastAnalyzing);
+		const task = begin('contrastAnalyzing');
 		// Selected clips are a selection: the measurement covers the range they
 		// span, the same range every other selection-driven command reads.
 		const selection = resolveSelectionRange(dependencies.getProject());
 		if (!selection) {
 			finish(task);
-			const error = new Error(copy.timeSelectionRequired);
+			const error = createLocalizedError(Error, copy, 'timeSelectionRequired');
 			dependencies.handleError(error);
 			return null;
 		}
@@ -248,8 +248,8 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 			});
 			dependencies.showAnalysis(result, dependencies.createVisuals(channels, sampleRate), report);
 			remember({ type: 'contrast', role, scope, options: Object.freeze({ ...options }) });
-			const roleLabel = role === 'foreground' ? copy.contrastForegroundRole : copy.contrastBackgroundRole;
-			dependencies.setStatus(copy.contrastStored.replace('{role}', roleLabel), 'success');
+			const roleLabel = { key: role === 'foreground' ? 'contrastForegroundRole' : 'contrastBackgroundRole' };
+			setLocalizedStatus(dependencies.setStatus, copy, "contrastStored", { role: roleLabel }, 'success');
 			return report;
 		} catch (error) {
 			handleTaskError(error);
@@ -277,11 +277,11 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 		const project = dependencies.getProject();
 		if (!project.clips.length) return null;
 		const projectToken = dependencies.captureProject();
-		const task = begin(copy.measuringLoudness);
+		const task = begin('measuringLoudness');
 		const range = dependencies.getRange();
 		try {
 			assertAnalysisChannelAdmission(project);
-			if (!(range.endFrame > range.startFrame)) throw new RangeError(copy.timeSelectionRequired);
+			if (!(range.endFrame > range.startFrame)) throw createLocalizedError(RangeError, copy, 'timeSelectionRequired');
 			const rendered = await dependencies.renderAudio('master', range, task.signal);
 			assertCurrent(task, projectToken);
 			const channels = Array.from(
@@ -300,7 +300,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 			});
 			assertCurrent(task, projectToken);
 			dependencies.state.deliveryReport = report;
-			dependencies.setStatus(copy.loudnessMeasured, 'success');
+			setLocalizedStatus(dependencies.setStatus, copy, "loudnessMeasured", undefined, 'success');
 			return report;
 		} catch (error) {
 			handleTaskError(error);
@@ -335,10 +335,10 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 		dependencies.assertProject(projectToken);
 	}
 
-	function begin(message: string): EditorTaskScope {
+	function begin(key: keyof AnalysisCopy): EditorTaskScope {
 		const task = lifetime.startTask('analysis', { scope: EDITOR_PROJECT_TASK_SCOPE });
 		dependencies.setProcessing(true);
-		dependencies.setStatus(message);
+		setLocalizedStatus(dependencies.setStatus, copy, key);
 		dependencies.publish();
 		return task;
 	}

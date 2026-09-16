@@ -16,7 +16,7 @@ import {
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 
-import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { usePresentationFeedback, type PresentationFeedback } from '../presentation-feedback.ts'; import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import {
 	createVideoCompositionDialogModel,
@@ -68,8 +68,8 @@ export default function VideoCompositionDialog({
 		createVideoCompositionDraft(model.composition ?? DEFAULT_VIDEO_CLIP_COMPOSITION)
 	));
 	const [pending, setPending] = useState(false);
-	const [status, setStatus] = useState('');
-	const [error, setError] = useState('');
+	const [status, setStatus] = usePresentationFeedback(copy);
+	const [error, setError] = usePresentationFeedback(copy);
 	const compositionRef = useRef(model.composition);
 	compositionRef.current = model.composition;
 	const compositionResetKey = JSON.stringify([model.clipId, model.composition]);
@@ -78,7 +78,7 @@ export default function VideoCompositionDialog({
 		setDraft(createVideoCompositionDraft(compositionRef.current ?? DEFAULT_VIDEO_CLIP_COMPOSITION));
 		setStatus('');
 		setError('');
-	}, [compositionResetKey]);
+	}, [compositionResetKey, setError, setStatus]);
 
 	const disabled = model.operationsBlocked || pending;
 	const descriptionId = 'video-composition-description';
@@ -99,7 +99,7 @@ export default function VideoCompositionDialog({
 		setDraft((current) => ({ ...current, [key]: value }));
 		setError('');
 	};
-	const commit = (composition: unknown, success: string): void => {
+	const commit = (composition: unknown, success: PresentationFeedback): void => {
 		if (!model.clipId || !model.composition || disabled) return;
 		try {
 			if (videoClipCompositionsEqual(model.composition, composition)) return;
@@ -111,21 +111,21 @@ export default function VideoCompositionDialog({
 			void runAwaitedAudioEditorOperation(run, () => controller.actions.edit.commit(command))
 				.then(() => { setStatus(success); })
 				.catch(() => {
-					setError(label(copy, 'videoCompositionApplyFailed', 'The composition could not be applied. Refresh the project and try again.'));
+					setError({ key: 'videoCompositionApplyFailed', fallback: 'The composition could not be applied. Refresh the project and try again.' });
 				})
 				.finally(() => { setPending(false); });
 		} catch {
-			setError(label(copy, 'videoCompositionApplyFailed', 'The composition could not be applied. Refresh the project and try again.'));
+			setError({ key: 'videoCompositionApplyFailed', fallback: 'The composition could not be applied. Refresh the project and try again.' });
 		}
 	};
 	const applyDraft = (): void => {
 		try {
 			commit(
 				parseVideoCompositionDraft(draft),
-				label(copy, 'videoCompositionApplied', 'Composition applied.'),
+				{ key: 'videoCompositionApplied', fallback: 'Composition applied.' },
 			);
 		} catch {
-			setError(label(copy, 'videoCompositionInvalid', 'Check that every composition value is within its displayed range.'));
+			setError({ key: 'videoCompositionInvalid', fallback: 'Check that every composition value is within its displayed range.' });
 		}
 	};
 	const apply = (event: FormEvent<HTMLFormElement>): void => {
@@ -135,7 +135,7 @@ export default function VideoCompositionDialog({
 	const reset = (): void => {
 		commit(
 			DEFAULT_VIDEO_CLIP_COMPOSITION,
-			label(copy, 'videoCompositionResetStatus', 'Composition reset.'),
+			{ key: 'videoCompositionResetStatus', fallback: 'Composition reset.' },
 		);
 	};
 

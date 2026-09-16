@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { formatPresentationMessage, type LocalizedPresentationMessage } from '../src/common/i18n/presentation-message.ts';
 
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import {
@@ -32,7 +33,7 @@ test('changed feedback formats the actual left boundary as sequence timecode and
 			labels.push([sample, sequenceId]);
 			return '01:00:00:06';
 		},
-		setStatus: (...args) => statuses.push(args),
+		setStatus: (message, state) => statuses.push([message, state]),
 	});
 
 	report(plan({
@@ -47,13 +48,16 @@ test('changed feedback formats the actual left boundary as sequence timecode and
 test('changed feedback identifies a clamped right edge without formatting the request', () => {
 	const labels: unknown[][] = [];
 	const statuses: unknown[][] = [];
+	let localization: LocalizedPresentationMessage | undefined;
 	const report = createVideoEdgeTrimResultReporter({
 		copy: COPY,
 		label: (sample, sequenceId) => {
 			labels.push([sample, sequenceId]);
 			return '01:00:00:24';
 		},
-		setStatus: (...args) => statuses.push(args),
+		setStatus: (message, state, identity?: LocalizedPresentationMessage) => {
+			statuses.push([message, state]); localization = identity;
+		},
 	});
 
 	report(plan({
@@ -65,6 +69,10 @@ test('changed feedback identifies a clamped right edge without formatting the re
 	assert.deepEqual(statuses, [[
 		'Right edge trimmed to 01:00:00:24 (clamped)', 'success',
 	]]);
+	assert.deepEqual(localization, { key: 'trimRightEdgeApplied', parameters: { timecode: '01:00:00:24' },
+		append: [' ', { key: 'trimBoundaryClamped' }] });
+	assert.equal(formatPresentationMessage({ ...COPY, trimRightEdgeApplied: 'Rechte Kante {timecode}',
+		trimBoundaryClamped: '[begrenzt]' }, localization!), 'Rechte Kante 01:00:00:24 [begrenzt]');
 });
 
 test('no-op feedback reports localized information without claiming success or reading timecode', () => {
@@ -72,7 +80,7 @@ test('no-op feedback reports localized information without claiming success or r
 	const report = createVideoEdgeTrimResultReporter({
 		copy: COPY,
 		label: () => assert.fail('A no-op has no applied timecode to format.'),
-		setStatus: (...args) => statuses.push(args),
+		setStatus: (message, state) => statuses.push([message, state]),
 	});
 
 	report(plan({ kind: 'noop', edge: 'right', boundarySample: 48_000 }));

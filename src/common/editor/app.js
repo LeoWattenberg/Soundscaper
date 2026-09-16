@@ -1,5 +1,5 @@
 // @ts-check
-import { createCaptureComposition } from './controller/capture/capture-composition.ts';
+import { createCaptureComposition } from './controller/capture/capture-composition.ts'; import { setLocalizedStatus } from '../i18n/presentation-message.ts';
 import { startController } from './controller/composition/controller-startup.ts';
 import { createControllerResources } from './controller/composition/controller-resources.ts';
 import { bindSessionHistoryAdmission } from './controller/document/session-history-admission.ts';
@@ -49,7 +49,7 @@ import {
 import { RECORDING_DEFAULT_DEVICE_ID, recordingRoutingSettingKey } from './recording-routing.js';
 import { createEbuR128MeterNode } from './ebu-r128-node.js';
 import { acquireProjectLock } from './project-lock.js';
-import { ENGLISH_COPY } from '../i18n/catalogs.js';
+import { EDITOR_ENGLISH_COPY } from '../i18n/editor-copy-inventory.ts';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
 import { EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from './controller/shared/lifecycle.ts';
 import { deferredArchiveRuntime } from './controller/document/deferred-archive-runtime.ts';
@@ -94,6 +94,8 @@ import { createSettingPersistence } from './controller/preferences/setting-persi
 import { createControllerStorageCapacityService } from './controller/shared/storage-capacity-runtime.ts';
 import { createSnapshotComposition } from './controller/composition/snapshot-composition.ts';
 import { createEditorTaskProgressCoordinator } from './controller/shared/task-progress.ts';
+import { createPresentationLocalization } from './controller/shared/presentation-localization.ts';
+import { bindPresentationLocalization, storagePresentationCopy } from './controller/composition/presentation-localization-binding.ts';
 import { SOURCE_CHUNK_FRAMES } from './controller/source/source-audio.ts';
 import { createControllerOwnedStateComposition } from './controller/composition/controller-owned-state-composition.ts';
 import { createTransportComposition } from './controller/transport/transport-composition.ts';
@@ -136,8 +138,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const projectGeneration = new EditorProjectGeneration();
 	const projectRuntime = resolveControllerProjectRuntime(options.projectRuntime);
 	const { projectDurationFrames, editorTimelineDurationFrames } = createControllerProjectRuntimeMetrics(projectRuntime);
-	const copy = Object.freeze({ ...ENGLISH_COPY, ...(options.copy || {}) });
 	const locale = normalizeBcp47Locale(options.locale);
+	/** @type {import('../i18n/editor-copy-inventory.ts').EditorCopy} */
+	const publishedCopy = { ...EDITOR_ENGLISH_COPY, ...(options.copy || {}) };
+	const localization = createPresentationLocalization({ locale, englishCopy: EDITOR_ENGLISH_COPY, publishedCopy });
+	const copy = /** @type {typeof import('../i18n/catalogs.js').ENGLISH_COPY & Readonly<Record<string, string>>} */ (localization.copy);
 	const product = productProfile(options.productId || options.product?.id || 'soundscaper');
 	const productId = product.id;
 	const capabilities = product.capabilities; const composition = resolveProductCompositionDecision(product), absentSubsystem = Object.freeze({ productName: product.name });
@@ -179,14 +184,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		store, state,
 		isInactive: () => lifetime.inactive || state.disposed,
 		publish: publishDocumentSnapshot,
-		copy: {
-			storageOperationRecording: copy.storageOperationRecording,
-			storageOperationExport: copy.storageOperationExport,
-			storageOperationEffect: copy.storageOperationEffect, storageOperationProject: copy.storageOperationProject,
-			storageOperationImport: copy.storageOperationImport,
-			insufficientStorage: copy.insufficientStorage,
-			formatBytes,
-		},
+		copy: storagePresentationCopy(copy, formatBytes),
 	});
 	const playbackProjectService = options.playbackProjectService
 		|| createPlaybackProjectService(product.capabilities, product.id);
@@ -226,10 +224,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	/** @type {((value: number) => void) | null} */
 	let persistentExportProgressObserver = null;
-	const taskProgress = createEditorTaskProgressCoordinator({ onChange: (progress) => {
+	const taskProgress = createEditorTaskProgressCoordinator({ formatMessage: localization.formatMessage, onChange: (progress) => {
 		state.taskProgress = progress; if (progress?.kind === 'export' && typeof progress.value === 'number') persistentExportProgressObserver?.(progress.value); publishTelemetrySnapshot();
 	} });
-	const presentationState = createControllerPresentationState({ state, copy, publishDocument: publishDocumentSnapshot, publishTelemetry: publishTelemetrySnapshot, updateTaskProgress: (value) => taskProgress.updateActive(value) });
+	const presentationState = createControllerPresentationState({ state, copy, formatMessage: localization.formatMessage, publishDocument: publishDocumentSnapshot, publishTelemetry: publishTelemetrySnapshot, updateTaskProgress: (value) => taskProgress.updateActive(value) });
+	const disposeLocalization = bindPresentationLocalization(localization, presentationState, taskProgress, publishDocumentSnapshot);
 	const settingPersistence = createSettingPersistence({
 		write: (key, value) => store.saveSetting(key, value),
 		isInactive: () => state.disposed,
@@ -587,7 +586,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		listAudioEditorEffectPresets,
 		movePanelPreference, activatePanelTabPreference,
 		moveToolbarPreference, moveTrack, normalizePlaybackFrame,
-		openScapeFile, openDawproject: (file) => taskProgress.run('project-io', copy.importing, () => nativeProjectService.openDawproject(file)), saveDawproject: (saveOptions) => taskProgress.run('project-io', copy.dawprojectSaving, () => nativeProjectService.saveDawproject(saveOptions)),
+		openScapeFile, openDawproject: (file) => taskProgress.run('project-io', copy.importing, () => nativeProjectService.openDawproject(file), undefined, { key: "importing" }), saveDawproject: (saveOptions) => taskProgress.run('project-io', copy.dawprojectSaving, () => nativeProjectService.saveDawproject(saveOptions), undefined, { key: "dawprojectSaving" }),
 		pauseLoudnessMeasurement,
 		prepareProjectHandoff, assertProjectHandoffAllowed, prepareAudacityEffectFromController: effects.execution.prepareAudacityEffectFromController, previewAudacityEffectFromController: effects.execution.previewAudacityEffectFromController,
 		product, productId: product.id, locale: options.locale, macroScriptStartedAt: () => new Date().toISOString(), getProject: () => documentState.project, projectSampleRate, beginMacroTransaction: () => doc.mutation.beginMacroTransaction(), timelineDurationFrames: () => projectDurationFrames(documentState.project),
@@ -614,7 +613,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		audioWarpService: tracks.audioWarp, sourceMonitorService: clips.sourceMonitor, takeCompService: tracks.takeComp, taskProgress, videoTrimServices: clips.videoTrim, videoEditService: clips.videoEdit, videoNavigationService, videoSourceReprobeService: clips.videoSourceReprobe, framescaperCaptureActions: framescaperCapture ? { ...framescaperCapture.actions, openSetup: () => { framescaperCapture.actions.openSetup(); void preferencesService.setPanelVisibility('recording-setup', true).catch(bindings.handleError); } } : undefined, framescaperWebVcrActions: framescaperCapture?.webVcrActions, ...productActionRuntime(options),
 		updateWorkspacePreference,
 	}, () => lifetime.assertActive());
-	const dispose = createControllerDisposal({
+	const disposeResources = createControllerDisposal({
 		lifetime, state, effectsState: effectsStatePorts.runtime, clearDiagnostics: () => state.localDiagnostics.clear(), clearTaskProgress: taskProgress.clear,
 		closeInspections: () => scapeInspectionQuiescence.close(lifetime.signal.reason), drainInspections: () => scapeInspectionQuiescence.drain(),
 		publish: () => publishDocumentSnapshot({ force: true }), clearDocumentChannel: documentChannel.clear, clearTelemetryChannel: telemetryChannel.clear,
@@ -662,8 +661,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getLocalDiagnosticsSnapshot: state.localDiagnostics.snapshot, recordLocalDiagnosticError: state.localDiagnostics.record,
 		getClipVisualData: bindings.getClipVisualData,
 		getProjectBinClipVisualData: bindings.getProjectBinClipVisualData, selectedMediaPreparation: effects.audio.selectedMediaPreparation,
-		actions,
-		dispose,
+		actions, presentationLocalization: localization.port,
+		dispose: () => { disposeLocalization(); return disposeResources(); },
 	};
 
 	function publishDocumentSnapshot({ force = false } = {}) { documentChannel.publish({ force }); }
@@ -685,8 +684,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function warnEnvelope() {
 		const envelope = projectEnvelope(documentState.project, { mobile: state.mobile });
-		if (!envelope.supported) bindings.setStatus(copy.capacityWarning
-			.replace('{trackCount}', String(envelope.limits.trackCount))
-			.replace('{stereoMinutes}', String(envelope.limits.stereoMinutes)));
+		if (!envelope.supported) setLocalizedStatus(bindings.setStatus, copy, "capacityWarning", { trackCount: String(envelope.limits.trackCount), stereoMinutes: String(envelope.limits.stereoMinutes) });
 	}
 }

@@ -5,6 +5,7 @@ import type {
 	EditorProjectGeneration,
 } from '../shared/lifecycle.ts';
 import type { EditorTaskProgressCoordinator } from '../shared/task-progress.ts';
+import type { LocalizedPresentationMessage } from '../../../i18n/presentation-message.ts';
 import type { BlobLike } from '../../storage/media-records.ts';
 import type { ScapeProjectInput } from '../../scape-project-input.ts';
 import type { ScapeManifest } from '../../scape-archive-envelope.ts';
@@ -391,7 +392,7 @@ export interface NativeProjectServiceRuntime {
 	readonly reportHasMissingPcm: (report: unknown) => boolean;
 	readonly sessionTab: (projectId: string) => NativeSessionTab | null;
 	readonly updateProjectMetadata: (projectId: string, metadata: Readonly<Record<string, unknown>>) => void;
-	readonly setStatus: (message: string, state?: NativeStatusState) => void;
+	readonly setStatus: (message: string, state?: NativeStatusState, localization?: LocalizedPresentationMessage) => void;
 	readonly publishDocumentSnapshot: () => void;
 	readonly sourceBuffers: ReadonlyMap<string, NativeAudioBuffer>;
 	readonly sourceChunkFrames: number;

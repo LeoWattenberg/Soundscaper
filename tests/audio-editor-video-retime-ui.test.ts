@@ -13,6 +13,7 @@ import {
 } from '../src/common/editor/ui/video-retime-exact-map-input.ts';
 import { createVideoRetimeApplicationMenuItems } from '../src/common/editor/ui/video-retime-application-menu.ts';
 import { createVideoRetimeDialogModel } from '../src/common/editor/ui/video-retime-dialog-model.ts';
+import { EDITOR_ENGLISH_COPY } from '../src/common/i18n/editor-copy-inventory.ts';
 
 function project() {
 	return {
@@ -39,6 +40,10 @@ test('video-retime menu is a maintained Framescaper-v1 capability-gated lazy ent
 	});
 	item?.onClick();
 	assert.equal(opened, 1);
+	assert.equal(EDITOR_ENGLISH_COPY['ui.videoRetime.videoRetimeMenu'], 'Video retime');
+	assert.equal(createVideoRetimeApplicationMenuItems({ ...input,
+		copy: { 'ui.videoRetime.videoRetimeMenu': 'Zeitverlauf bearbeiten' },
+	})[0]?.label, 'Zeitverlauf bearbeiten…');
 	assert.equal(createVideoRetimeApplicationMenuItems({
 		...input, project: project(),
 	})[0]?.disabled, false);
@@ -161,4 +166,15 @@ test('video-retime exact-map authoring is menu-dialog reached and submits throug
 	assert.match(markup, /data-video-retime-exact-map="true"/u);
 	assert.match(markup, /data-video-retime-set="true"/u);
 	assert.match(markup, /Exact retime map/iu);
+	const translatedMarkup = renderToStaticMarkup(React.createElement(VideoRetimeDialog, {
+		productId: 'framescaper', capability: true, editingBlocked: false,
+		controller: { actions: { sequences: {
+			retimeConstant: () => undefined, retimeReset: () => undefined,
+			retimeReverse: () => undefined, retimeFreeze: () => undefined,
+			retimeRamp: () => undefined, retimeSet: () => undefined,
+		} } }, snapshot: { project: value, selectedClipId: 'video-1' },
+		copy: { 'ui.videoRetime.videoRetimeExactMap': 'Exakter Zeitverlauf' },
+		run: (operation: () => unknown) => operation(), onClose: () => undefined,
+	}));
+	assert.match(translatedMarkup, /Exakter Zeitverlauf/u);
 });

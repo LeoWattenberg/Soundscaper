@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { SCAPE_MIME_TYPE } from '../../../../scape-project-format.ts';
+import { SCAPE_MIME_TYPE } from '../../../../scape-project-format.ts'; import { setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
 import type { ProjectFileExtension } from '../../../../../project-file-extensions.ts';
 import { recordScapeArchiveManifest } from '../scape/scape-archive-manifest-action.ts';
 import type {
@@ -141,7 +141,7 @@ export async function saveNativeScapeArchiveCopy(
 		assertReadyToCommit: request.assertReady,
 		fileName, prepared, signal: request.signal,
 	});
-	runtime.setStatus(runtime.copy.projectSaved, 'success');
+	setLocalizedStatus(runtime.setStatus, runtime.copy, "projectSaved", undefined, 'success');
 	return { ...saved, manifest: request.retained.manifest };
 }
 

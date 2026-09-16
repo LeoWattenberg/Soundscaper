@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { type FormEvent, useMemo, useState } from 'react';
+import React, { type FormEvent, useMemo, useState } from 'react'; import { usePresentationFeedback, type PresentationFeedback } from '../presentation-feedback.ts';
 
 import { addRationals, multiplyRationals } from '../../timeline-time.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
@@ -57,23 +57,23 @@ export default function VideoKeyframeDialog({
 	const [endValue, setEndValue] = useState(() => String(choices[0]?.baseValue ?? 0));
 	const [kind, setKind] = useState<CurveKind>('linear');
 	const [transferText, setTransferText] = useState('');
-	const [status, setStatus] = useState('');
-	const [error, setError] = useState('');
+	const [status, setStatus] = usePresentationFeedback(copy);
+	const [error, setError] = usePresentationFeedback(copy);
 	const [pending, setPending] = useState(false);
 	const selected = choices.find(({ key }) => key === targetKey) ?? choices[0] ?? null;
 	const disabled = model.operationsBlocked || pending;
 
-	const commit = (keyframes: unknown, message: string): void => {
+	const commit = (keyframes: unknown, message: PresentationFeedback): void => {
 		if (disabled || !model.clipId || !model.keyframes) return;
 		try {
 			const command = createVideoKeyframeSetCommand(model, keyframes);
 			setPending(true); setError('');
 			void runAwaitedAudioEditorOperation(run, () => controller.actions.edit.commit(command))
 				.then(() => { setStatus(message); })
-				.catch(() => { setError(label(copy, 'videoKeyframesApplyFailed', 'Video keyframes could not be applied.')); })
+				.catch(() => { setError({ key: 'videoKeyframesApplyFailed', fallback: 'Video keyframes could not be applied.' }); })
 				.finally(() => { setPending(false); });
 		} catch {
-			setError(label(copy, 'videoKeyframesInvalid', 'Check the exact positions, values, and curve shape.'));
+			setError({ key: 'videoKeyframesInvalid', fallback: 'Check the exact positions, values, and curve shape.' });
 		}
 	};
 	const addCurve = (event: FormEvent<HTMLFormElement>): void => {
@@ -91,9 +91,9 @@ export default function VideoKeyframeDialog({
 					control1: { position: weightedRational(start, end, 1, 3), value: parseNumber(startValue) },
 					control2: { position: weightedRational(start, end, 2, 3), value: parseNumber(endValue) },
 				} : { kind },
-			}), label(copy, 'videoKeyframesApplied', 'Video keyframes applied.'));
+			}), { key: 'videoKeyframesApplied', fallback: 'Video keyframes applied.' });
 		} catch {
-			setError(label(copy, 'videoKeyframesInvalid', 'Check the exact positions, values, and curve shape.'));
+			setError({ key: 'videoKeyframesInvalid', fallback: 'Check the exact positions, values, and curve shape.' });
 		}
 	};
 	const copyCurve = (role: 'clipboard' | 'preset'): void => {
@@ -102,19 +102,19 @@ export default function VideoKeyframeDialog({
 			setTransferText(serializeVideoKeyframeCurveTransfer(createVideoKeyframeCurveTransfer(model, {
 				role, target: selected.target,
 			})));
-			setStatus(role === 'preset'
-				? label(copy, 'videoKeyframesPresetSaved', 'Curve preset prepared.')
-				: label(copy, 'videoKeyframesCopied', 'Curve copied to the transfer field.'));
+			setStatus({ key: role === 'preset'
+				? 'videoKeyframesPresetSaved'
+				: 'videoKeyframesCopied' });
 			setError('');
-		} catch { setError(label(copy, 'videoKeyframesTransferFailed', 'The curve could not be transferred.')); }
+		} catch { setError({ key: 'videoKeyframesTransferFailed', fallback: 'The curve could not be transferred.' }); }
 	};
 	const applyTransfer = (role: 'clipboard' | 'preset'): void => {
 		if (!selected) return;
 		try {
 			const transfer = parseVideoKeyframeCurveTransfer(transferText, role);
 			commit(applyVideoKeyframeCurveTransfer(model, transfer, selected.target),
-				label(copy, 'videoKeyframesApplied', 'Video keyframes applied.'));
-		} catch { setError(label(copy, 'videoKeyframesTransferFailed', 'The curve could not be transferred.')); }
+				{ key: 'videoKeyframesApplied', fallback: 'Video keyframes applied.' });
+		} catch { setError({ key: 'videoKeyframesTransferFailed', fallback: 'The curve could not be transferred.' }); }
 	};
 
 	return <AudioEditorDialogShell
@@ -160,8 +160,8 @@ export default function VideoKeyframeDialog({
 				choices={choices}
 				copy={copy}
 				disabled={disabled}
-				commit={(keyframes) => commit(keyframes, label(copy, 'videoKeyframesApplied', 'Video keyframes applied.'))}
-				reportInvalid={() => setError(label(copy, 'videoKeyframesInvalid', 'Check the exact positions, values, and curve shape.'))}
+				commit={(keyframes) => commit(keyframes, 'videoKeyframesApplied')}
+				reportInvalid={() => setError({ key: 'videoKeyframesInvalid', fallback: 'Check the exact positions, values, and curve shape.' })}
 			/>
 			<fieldset disabled={disabled} onKeyDown={(event) => {
 				const shortcut = videoKeyframeTransferShortcut(event, disabled);

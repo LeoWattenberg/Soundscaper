@@ -118,7 +118,7 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 		})
 		: createAbsentAudioGeneratorService(dependencies.absentSubsystem);
 	const generate = <Result>(work: () => Promise<Result>) => (
-		taskProgress.run('generate', copy.generatingAudio, work)
+		taskProgress.run('generate', copy.generatingAudio, work, undefined, { key: "generatingAudio" })
 	);
 
 	/** The Edit menu's clipboard reads the product's own clipboard projection, not the raw command projection. */

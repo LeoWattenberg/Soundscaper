@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { findClip, findSource } from '../../project.js';
+import { findClip, findSource } from '../../project.js'; import { setLocalizedStatus } from '../../../i18n/presentation-message.ts';
 import { createClipTimePitchCacheService, type ClipTimePitchRenderEngine } from './clip-time-pitch-service.ts';
 import { createPlaybackProjectApplyService } from './playback-project-service.ts';
 import { createProjectVisualService } from '../document/project-visual-service.ts';
@@ -75,8 +75,8 @@ function requireWorkerCopy(copy: SourceLifecycleCopy): WorkerCopy {
 		throw new TypeError('The source lifecycle requires waveform worker error copy.');
 	}
 	return {
-		audioAnalysisWorkerFailed: copy.audioAnalysisWorkerFailed,
-		audioAnalysisFailed: copy.audioAnalysisFailed,
+		get audioAnalysisWorkerFailed() { return copy.audioAnalysisWorkerFailed!; },
+		get audioAnalysisFailed() { return copy.audioAnalysisFailed!; },
 	};
 }
 
@@ -251,7 +251,7 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 		sourceBuffers,
 		sourceChunkProviders,
 		engine,
-		setReadyStatus: () => dependencies.setStatus(copy.ready),
+		setReadyStatus: () => setLocalizedStatus(dependencies.setStatus, copy, "ready"),
 	});
 
 	return Object.freeze({

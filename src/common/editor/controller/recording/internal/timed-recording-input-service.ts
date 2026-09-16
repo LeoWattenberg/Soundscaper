@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type {
+import { createLocalizedError } from '../../../../i18n/presentation-message.ts'; import type {
 	PreparedTimedRecordingInputs,
 	TimedRecordingOptions,
 	TimedRecordingPreparationScope,
@@ -115,7 +115,7 @@ export function createTimedRecordingInputService<Stream>(
 		scope: TimedRecordingPreparationScope,
 	): Promise<PreparedTimedRecordingInputs> {
 		const track = runtime.findTrack(project, trackId);
-		if (!track || track.type !== 'audio') throw new Error(runtime.messages.armTrack);
+		if (!track || track.type !== 'audio') throw createLocalizedError(Error, { ['armTrackForRecording']: runtime.messages.armTrack }, 'armTrackForRecording');
 		const explicitRoute = routes[track.id];
 		const needsRoutedRecording = Boolean(explicitRoute && (
 			explicitRoute.kind === 'display'
@@ -138,7 +138,7 @@ export function createTimedRecordingInputService<Stream>(
 		if (options.reusePreparedInputsOnly && (!retained
 			|| (route.kind !== 'display'
 				&& runtime.streamAudioChannelCount(retained) < requestedChannels))) {
-			throw new Error(runtime.messages.preparedInputClosed);
+			throw createLocalizedError(Error, { ['recordingPreparedInputClosed']: runtime.messages.preparedInputClosed }, 'recordingPreparedInputClosed');
 		}
 		const stream = route.kind === 'display'
 			? retained || await runtime.capturePool.acquireDisplay()
@@ -148,7 +148,7 @@ export function createTimedRecordingInputService<Stream>(
 			});
 		scope.assertCurrent();
 		if (!runtime.recordingStreamIsLive(stream, route.kind)) {
-			throw new Error(runtime.messages.preparedInputClosed);
+			throw createLocalizedError(Error, { ['recordingPreparedInputClosed']: runtime.messages.preparedInputClosed }, 'recordingPreparedInputClosed');
 		}
 		return frozenInputs([runtime.recordingRouteSourceKey(route)]);
 	}
@@ -160,7 +160,7 @@ export function createTimedRecordingInputService<Stream>(
 		scope: TimedRecordingPreparationScope,
 	): Promise<PreparedTimedRecordingInputs> {
 		const armedTracks = project.tracks.filter((track) => track.type === 'audio' && track.armed);
-		if (!armedTracks.length) throw new Error(runtime.messages.armTrack);
+		if (!armedTracks.length) throw createLocalizedError(Error, { ['armTrackForRecording']: runtime.messages.armTrack }, 'armTrackForRecording');
 		const groups = new Map<string, RoutedTrack[]>();
 		for (const track of armedTracks) {
 			const route = routes[track.id];
@@ -174,13 +174,13 @@ export function createTimedRecordingInputService<Stream>(
 			groups.set(sourceKey, group);
 			runtime.setRecordingRouteHealth(track.id, 'opening');
 		}
-		if (!groups.size) throw new Error(runtime.messages.assignInput);
+		if (!groups.size) throw createLocalizedError(Error, { ['recordingAssignInput']: runtime.messages.assignInput }, 'recordingAssignInput');
 		const orderedGroups = [...groups.entries()].sort(([left], [right]) => (
 			left === 'display' ? -1 : right === 'display' ? 1 : 0
 		));
 		const acquisitions: InputAcquisition<Stream>[] = orderedGroups.map(([sourceKey, groupRoutes]) => {
 			const firstRoute = groupRoutes[0]?.route;
-			if (!firstRoute) throw new Error(runtime.messages.assignedInputsUnavailable);
+			if (!firstRoute) throw createLocalizedError(Error, { ['timedRecordingAssignedInputsUnavailable']: runtime.messages.assignedInputsUnavailable }, 'timedRecordingAssignedInputsUnavailable');
 			const requiredChannels = Math.max(...groupRoutes.map(({ route }) => (
 				route.channelStart + route.channelCount
 			)));
@@ -218,7 +218,7 @@ export function createTimedRecordingInputService<Stream>(
 			}
 		}
 		if (!availableRoutes || failedRoutes) {
-			throw new Error(runtime.messages.assignedInputsUnavailable);
+			throw createLocalizedError(Error, { ['timedRecordingAssignedInputsUnavailable']: runtime.messages.assignedInputsUnavailable }, 'timedRecordingAssignedInputsUnavailable');
 		}
 		return frozenInputs(acquisitions.map(({ sourceKey }) => sourceKey));
 	}

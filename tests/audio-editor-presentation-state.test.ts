@@ -26,7 +26,7 @@ test('progress updates stay on telemetry while failures publish a diagnostic and
 	assert.equal(presentation.handleError(error), null);
 	assert.deepEqual(failures, [error]);
 	assert.deepEqual(events, ['diagnostic', 'document']);
-	assert.deepEqual(state.status, { message: 'Error: Save failed', state: 'error' });
+	assert.deepEqual(state.status, { message: 'Error: Save failed', state: 'error', localization: { key: 'genericError', parameters: { message: 'Save failed' } } });
 	presentation.toggleExport(false);
 	assert.equal(state.exportProgress, 0);
 	assert.deepEqual(events.slice(-2), ['telemetry', 'document']);

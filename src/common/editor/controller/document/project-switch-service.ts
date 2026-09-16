@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { EDITOR_PROJECT_TASK_SCOPE, type EditorLifetimeToken } from '../shared/lifecycle.ts';
+import { EDITOR_PROJECT_TASK_SCOPE, type EditorLifetimeToken } from '../shared/lifecycle.ts'; import { publishedCopyFor } from '../shared/presentation-localization.ts'; import { setLocalizedStatus } from '../../../i18n/presentation-message.ts'; import { publishProjectReadOnlyStatus } from './project-read-only-status.ts';
 import { isActiveProjectSwitchInput, prepareProjectSwitchHistory } from './internal/project/project-switch-input.ts';
 import { createPlaybackProjectService } from '../source/playback-project-service.ts';
 import { SCAPE_OPEN_REQUEST_TASK } from './scape-open-request-service.ts';
@@ -50,10 +50,10 @@ export function createProjectSwitchService<
 	});
 
 	async function newProject(options: NewProjectOptions = {}): Promise<void> {
-		const title = String(options.title || runtime.copy.untitledProject).trim() || runtime.copy.untitledProject;
+		const title = String(options.title || publishedCopyFor(runtime.copy).untitledProject).trim() || publishedCopyFor(runtime.copy).untitledProject;
 		const trackCommand = runtime.createInitialAudioTrackCommand({
 			type: 'audio',
-			name: `${runtime.copy.track} 1`,
+			name: `${publishedCopyFor(runtime.copy).track} 1`,
 			armed: true,
 			height: 300,
 		});
@@ -373,9 +373,9 @@ export function createProjectSwitchService<
 				await guard(openRecovery.deferMaintenance(async () => { try { await runtime.maintainOpenedProject(projectId, isCurrentWritable); } catch { /* Report-only. */ } }));
 				runtime.lifetime.assertActive(token);
 			}
-			if (lockReadOnly) runtime.setStatus(runtime.copy.projectOpenOtherTab, 'error');
+			if (lockReadOnly) setLocalizedStatus(runtime.setStatus, runtime.copy, "projectOpenOtherTab", undefined, 'error');
 			else if (runtime.state.readOnly) {
-				runtime.setStatus(options.readOnlyReason || runtime.copy.projectReadOnly, 'error');
+				publishProjectReadOnlyStatus(runtime.copy, runtime.setStatus, options.readOnlyReason);
 			}
 			runtime.scheduleProjectLockRecovery(projectId, activationLock);
 		} catch (error) {

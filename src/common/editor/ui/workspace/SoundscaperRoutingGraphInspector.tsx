@@ -292,7 +292,7 @@ function EdgeInspector(props: SoundscaperRoutingGraphInspectorProps & Readonly<{
 	const destinationLabel = destinations.find(({ value }) => value === routingEndpointValue(edge.destination))?.label ?? edge.id;
 	return <>
 		<h3>{sourceLabel} → {destinationLabel}</h3>
-		<p>{edge.kind} · {edge.position} · {dbLabel(edge.level)} · {edge.enabled ? 'enabled' : 'disabled'}</p>
+		<p>{edge.kind} · {edge.position} · {dbLabel(edge.level)} · {edge.enabled ? copy.enabled : copy.disabled}</p>
 		{managed && <p>{copy.managedByFolder}</p>}
 		<form key={edgeFormKey(edge)} onSubmit={(event) => {
 			event.preventDefault();

@@ -1,4 +1,4 @@
-import { cloneProject } from '../../project.js';
+import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import { cloneProject } from '../../project.js';
 import { normalizeAutomationLaneV21 } from '../../automation-lane-v21.ts';
 import { normalizeMixerGraphV21, type MixerGraphV21 } from '../../mixer-graph-v21.ts';
 import type { ProjectFeatureRequirementsManifest } from '../../project-feature-requirements.ts';
@@ -70,7 +70,7 @@ export async function createTemporaryFileSink(name: string, copy: TemporaryExpor
 	return {
 		persistent: Boolean(writable),
 		write(chunk): Promise<void> {
-			if (closed) throw new Error(copy.temporaryExportClosed);
+			if (closed) throw createLocalizedError(Error, copy, 'temporaryExportClosed');
 			const bytes = Uint8Array.from(toUint8Array(chunk));
 			const position = scheduledByteLength;
 			scheduledByteLength = addSafeByteLengths(scheduledByteLength, bytes.byteLength);
@@ -81,7 +81,7 @@ export async function createTemporaryFileSink(name: string, copy: TemporaryExpor
 			return queue;
 		},
 		writeAt(position, chunk): Promise<void> {
-			if (closed) throw new Error(copy.temporaryExportClosed);
+			if (closed) throw createLocalizedError(Error, copy, 'temporaryExportClosed');
 			const bytes = Uint8Array.from(toUint8Array(chunk));
 			validateWriteRange(position, bytes.byteLength, scheduledByteLength);
 			if (writable) {
@@ -92,7 +92,7 @@ export async function createTemporaryFileSink(name: string, copy: TemporaryExpor
 			return queue;
 		},
 		async close(mimeType): Promise<Blob> {
-			if (closed) throw new Error(copy.temporaryExportClosed);
+			if (closed) throw createLocalizedError(Error, copy, 'temporaryExportClosed');
 			closed = true;
 			await queue;
 			if (writable && handle) {
@@ -140,7 +140,7 @@ export async function createStreamingZipArchive(
 	const sink = await createTemporaryFileSink(name, copy);
 	if (!sink.persistent && estimatedInputBytes > 96 * 1024 ** 2) {
 		await sink.abort();
-		throw new Error(copy.largeStemsStorageRequired);
+		throw createLocalizedError(Error, copy, 'largeStemsStorageRequired');
 	}
 	const archive = await createSequentialZip32Archive({
 		write: (chunk) => sink.write(chunk),

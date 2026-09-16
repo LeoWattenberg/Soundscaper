@@ -1,4 +1,4 @@
-import { ENGLISH_COPY, GERMAN_COPY } from './catalogs.js';
+import { EDITOR_ENGLISH_COPY as ENGLISH_COPY, EDITOR_GERMAN_COPY as GERMAN_COPY } from './editor-copy-inventory.ts';
 import { localeLanguage, normalizeBcp47Locale } from './locale.js';
 import { loadTranslationCatalog, sameNamedPlaceholders } from './translation-catalog.js';
 import { isModuleLoadFailure } from '../offline/stale-build.ts';

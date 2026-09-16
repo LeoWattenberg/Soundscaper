@@ -215,6 +215,6 @@ export interface EffectAudioServiceRuntime<Buffer = EffectAudioBuffer> {
 		type: null,
 		options: PersistEffectResultOptions,
 	) => Promise<unknown>;
-	readonly setStatus: (message: string, status?: string) => void;
+	readonly setStatus: (message: string, status?: string, localization?: import('../../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly publishDocumentSnapshot: () => void;
 }

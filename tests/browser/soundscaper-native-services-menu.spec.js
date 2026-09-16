@@ -17,9 +17,9 @@ test('selected Soundscaper exposes the default-off native tier only through menu
 
 	await expect(page.locator('[data-soundscaper-native-services-dialog="true"]')).toHaveCount(0);
 	await expect(page.getByText('Native audio and effects', { exact: true })).toHaveCount(0);
-	await openNativePreferences(page, editor, 'Audio settings', 'Native audio and latency…');
+	await openNativePreferences(page, editor, 'Audio settings', 'Native audio and latency');
 
-	const dialog = page.getByRole('dialog', { name: 'Audio setup', exact: true });
+	const dialog = page.getByRole('dialog', { name: 'Audio devices', exact: true });
 	await expect(dialog).toBeVisible();
 	const nativeAudio = dialog.getByRole('tab', { name: 'Native audio', exact: true });
 	await expect(nativeAudio).toBeFocused();

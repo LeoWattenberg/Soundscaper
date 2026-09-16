@@ -214,7 +214,7 @@ export interface ProjectSwitchServiceRuntime<
 	readonly synchronizeMicrophoneMeterTarget: () => void;
 	readonly publishProjectState: () => void;
 	readonly garbageCollectSources: () => PromiseLike<unknown> | unknown;
-	readonly setStatus: (message: string, state: 'error' | 'success') => void;
+	readonly setStatus: (message: string, state: 'error' | 'success', localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly isDisposedError: (error: unknown) => boolean;
 	readonly clearSourceCaches: () => PromiseLike<void> | void;
 }

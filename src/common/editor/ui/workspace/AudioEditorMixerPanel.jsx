@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'; import { publishedCopyFor } from '../../controller/shared/presentation-localization.ts';
 import { Button } from '@soundscaper/design-system/Button';
 import { Knob } from '@soundscaper/design-system/Knob';
 import { MixerPanel } from '@soundscaper/design-system/MixerPanel';
@@ -205,7 +205,7 @@ export default function AudioEditorMixerPanel({ controller, snapshot, copy, run,
 	];
 	const addBus = (type) => run(() => {
 		const id = controller.actions.mixer.addBus(type, {
-			name: `${type === 'group' ? copy.groupBus : copy.sendBus} ${(type === 'group' ? groups : sends).length + 1}`,
+			name: `${type === 'group' ? publishedCopyFor(copy).groupBus : publishedCopyFor(copy).sendBus} ${(type === 'group' ? groups : sends).length + 1}`,
 		});
 		if (routingGraphOpen && typeof id === 'string') {
 			setRequestedRoutingSelection({

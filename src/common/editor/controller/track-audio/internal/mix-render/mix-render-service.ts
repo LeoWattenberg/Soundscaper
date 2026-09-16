@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { findStereoLimitedMultichannelRenderEffects } from '../../../../adm-render-safety.ts';
+import { publishedCopyFor } from '../../../shared/presentation-localization.ts'; import { findStereoLimitedMultichannelRenderEffects } from '../../../../adm-render-safety.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
 import {
 	hasCoreEditingProjectAuthority,
 	isSoundscaperProductionProject,
@@ -111,7 +111,7 @@ export interface MixRenderServiceDependencies {
 	commit(command: AudioEditorCommand, selection?: CommitSelection): unknown;
 	preflightStorage(bytes: number, category: 'effect'): Promise<unknown>;
 	setProcessing(processing: boolean): void;
-	setStatus(message: string, state?: string): void;
+	setStatus(message: string, state?: string, localization?: import('../../../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;
 	publish(): void;
 	handleError(error: unknown): void;
 	rackTailFrames(
@@ -163,14 +163,13 @@ export function createMixRenderService(
 		const options = normalizeMixRenderOptions(requestedOptions);
 		if (dependencies.editingBlocked()) return null;
 		const project = dependencies.getProject();
-		if (!hasCoreEditingProjectAuthority(project)) throw new Error(dependencies.copy.v2Required);
+		if (!hasCoreEditingProjectAuthority(project)) throw createLocalizedError(Error, dependencies.copy, 'v2Required');
 		const targetTracks = nonemptyAudioTargets(project, selectAudioTracksForMix(
 			project,
 			dependencies.getSelectedTrackId(),
 			dependencies.getSelectedClipId(),
 		));
-		if (!targetTracks.length) throw new Error(dependencies.copy.mixRenderRequiresAudio
-			|| dependencies.copy.audacitySelectionHint || dependencies.copy.audioTrackRequired);
+		if (!targetTracks.length) throw createLocalizedError(Error, dependencies.copy, dependencies.copy.mixRenderRequiresAudio ? 'mixRenderRequiresAudio' : dependencies.copy.audacitySelectionHint ? 'audacitySelectionHint' : 'audioTrackRequired');
 		assertMixRenderPreflight(project, targetTracks, options);
 		const jobs = prepareJobs(project, targetTracks, options);
 		const outputBytes = jobs.reduce((total, job) => total + job.plan.outputBytes, 0);
@@ -182,7 +181,7 @@ export function createMixRenderService(
 			task: dependencies.lifetime.startTask(MIX_RENDER_TASK),
 		};
 		dependencies.setProcessing(true);
-		dependencies.setStatus(dependencies.copy.rendering);
+		setLocalizedStatus(dependencies.setStatus, dependencies.copy, "rendering");
 		dependencies.publish();
 		const renderedSources: DerivedSourceRecord[] = [];
 		let published = false;
@@ -242,7 +241,7 @@ export function createMixRenderService(
 				selectClipId: primary.clipId,
 			});
 			published = true;
-			dependencies.setStatus(dependencies.copy.done, 'success');
+			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
 			return primary;
 		} catch (error) {
 			let failure = error;
@@ -284,17 +283,15 @@ export function createMixRenderService(
 					project, jobTracks, options.renderEffects, options.mixDownChannelCount,
 				)
 				: predictIndividualMixRenderOutputChannelCount(project, jobTracks[0]!, options.renderEffects);
-			if (outputChannelCount === null) throw new Error(dependencies.copy.mixRenderRequiresAudio
-				|| dependencies.copy.audacitySelectionHint || dependencies.copy.audioTrackRequired);
+			if (outputChannelCount === null) throw createLocalizedError(Error, dependencies.copy, dependencies.copy.mixRenderRequiresAudio ? 'mixRenderRequiresAudio' : dependencies.copy.audacitySelectionHint ? 'audacitySelectionHint' : 'audioTrackRequired');
 			const plan = createMixRenderPlan(
 				project, jobTracks, tailFrames, dependencies.memoryLimitBytes, outputChannelCount,
 			);
-			if (!plan) throw new Error(dependencies.copy.mixRenderRequiresAudio
-				|| dependencies.copy.audacitySelectionHint || dependencies.copy.audioTrackRequired);
+			if (!plan) throw createLocalizedError(Error, dependencies.copy, dependencies.copy.mixRenderRequiresAudio ? 'mixRenderRequiresAudio' : dependencies.copy.audacitySelectionHint ? 'audacitySelectionHint' : 'audioTrackRequired');
 			const name = options.mixDown
 				? options.replaceOriginals && targetTracks.length === 1
 					? jobTracks[0]!.name
-					: dependencies.copy.mixedTrack || 'Mix'
+					: publishedCopyFor(dependencies.copy).mixedTrack || 'Mix'
 				: options.replaceOriginals
 					? jobTracks[0]!.name
 					: `${jobTracks[0]!.name} — Rendered`;
@@ -320,12 +317,12 @@ export function createMixRenderService(
 			|| channels.some((channel) => channel.length !== channels[0]!.length)
 			|| Number(rendered.length) !== outputFrames
 			|| Number(rendered.sampleRate) !== dependencies.getProject().sampleRate) {
-			throw new Error(dependencies.copy.effectInvalidAudio);
+			throw createLocalizedError(Error, dependencies.copy, 'effectInvalidAudio');
 		}
 		const normalizedChannels = normalizeMixRenderChannels(
 			channels,
 			outputChannelCount,
-			() => new Error(dependencies.copy.effectInvalidAudio),
+			() => createLocalizedError(Error, dependencies.copy, 'effectInvalidAudio'),
 		);
 		if (channels.length === outputChannelCount) return rendered;
 		const context = await dependencies.getAudioContext();
@@ -372,7 +369,7 @@ export function createMixRenderService(
 			const sink = createNormalizingMixRenderPacketSink(
 				writer,
 				plan.outputChannelCount,
-				() => new Error(dependencies.copy.effectInvalidAudio),
+				() => createLocalizedError(Error, dependencies.copy, 'effectInvalidAudio'),
 			);
 			renderEngine.loadProject(project, dependencies.sourceBuffers);
 			const result = await renderEngine.renderMixToSink({
@@ -393,7 +390,7 @@ export function createMixRenderService(
 				|| Number(result.frameCount) !== plan.outputFrames
 				|| writer.channelCount !== plan.outputChannelCount
 				|| writer.framesWritten !== plan.outputFrames) {
-				throw new Error(dependencies.copy.effectInvalidAudio);
+				throw createLocalizedError(Error, dependencies.copy, 'effectInvalidAudio');
 			}
 			const metadata = await writer.commit({
 				sampleRate,

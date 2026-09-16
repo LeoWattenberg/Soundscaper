@@ -14,7 +14,7 @@
 
 import {
 	createRealtimeExportPcmTransform, type RealtimeExportPcmTransform,
-} from '../realtime-export-pcm-transform.ts';
+} from '../realtime-export-pcm-transform.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
 import { directPcmContainerLabel } from '../direct/direct-export-dispatch.ts';
 import {
 	createDirectPcmEncoder, directPcmRenderQueueOptions, type DirectPcmDestination,
@@ -73,7 +73,7 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 	try {
 		if (sink && !sink.persistent
 			&& (plan.outputFileBytesPerRender ?? plan.outputBytesPerRender) > 96 * 1024 ** 2) {
-			throw new Error(copy.realtimeStorageRequired);
+			throw createLocalizedError(Error, copy, 'realtimeStorageRequired');
 		}
 		const bitDepth = plan.encoding.bitDepth || (plan.format === 'flac' || plan.format === 'wavpack' ? settings.bitDepth : 24);
 		const stagingFloat = !nativePcm && plan.format !== 'flac';
@@ -155,8 +155,8 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 			if (nativePcm) {
 				ownedOutput = { blob: stagingFile, bytes: null, mimeType: plan.mimeType, cleanup: () => sink.remove() };
 			} else {
-				setStatus(copy.encoding);
-				runtime.taskProgress?.setActivePhase?.(copy.encoding, { ...encodingProgressRange, value: 0 });
+				setLocalizedStatus(setStatus, copy, "encoding");
+				runtime.taskProgress?.setActivePhase?.(copy.encoding, { ...encodingProgressRange, value: 0 }, { key: 'encoding' });
 				const transcodeSettings = {
 					...plan.encoding,
 					// The realtime PCM transform has already mapped into final staging geometry.

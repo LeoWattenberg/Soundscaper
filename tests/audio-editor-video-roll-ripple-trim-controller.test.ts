@@ -78,6 +78,9 @@ test('composed Framescaper actions preserve ordinary trim and commit roll/ripple
 		assert.deepEqual(controller.getSnapshot().status, {
 			message: 'Rippled right edge by -6 frames; source cut 00:00:00:24; program edit 00:00:00:24.',
 			state: 'success',
+			localization: { key: 'rippleRightEdgeApplied', parameters: {
+				frames: '-6', sourceTimecode: '00:00:00:24', programTimecode: '00:00:00:24',
+			} },
 		});
 	} finally {
 		await controller.dispose();

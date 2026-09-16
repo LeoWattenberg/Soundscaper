@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAddSourceCommand, preparePunchCommand } from '../../commands.js';
+import { createAddSourceCommand, preparePunchCommand } from '../../commands.js'; import { publishedCopyFor } from '../shared/presentation-localization.ts'; import { setLocalizedStatus } from '../../../i18n/presentation-message.ts';
 import { createEbuR128Meter } from '../../ebu-r128.js';
 import { AUDIO_EDITOR_SAMPLE_RATE, createStableId, findSource, findTrack } from '../../project.js';
 import { RECORDING_CHANNEL_COUNT_MAXIMUM, normalizeRecordingInputGain } from '../../recording.js';
@@ -144,13 +144,13 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		defaultDeviceId: RECORDING_DEFAULT_DEVICE_ID,
 		sourceChunkFrames: SOURCE_CHUNK_FRAMES,
 		messages: {
-			armTrack: copy.armTrackForRecording,
-			preparedInputClosed: copy.recordingPreparedInputClosed,
-			recording: copy.recording,
-			recordingLabel: copy.recordingLabel,
-			timedRecordingPast: copy.timedRecordingPast,
-			assignInput: copy.recordingAssignInput,
-			noInputsAvailable: copy.recordingNoInputsAvailable,
+			get armTrack() { return copy.armTrackForRecording; },
+			get preparedInputClosed() { return copy.recordingPreparedInputClosed; },
+			get recording() { return copy.recording; },
+			recordingLabel: publishedCopyFor(copy).recordingLabel,
+			get timedRecordingPast() { return copy.timedRecordingPast; },
+			get assignInput() { return copy.recordingAssignInput; },
+			get noInputsAvailable() { return copy.recordingNoInputsAvailable; },
 		},
 		getProject: requireProject,
 		findTrack: (project, trackId) => findTrack(project, trackId) || null,
@@ -159,7 +159,7 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		beginPlaybackCachePreparation: dependencies.beginPlaybackCachePreparation,
 		currentTimeMs: dependencies.currentTimeMs,
 		createStableId,
-		createRecordingName: () => `${copy.recordingLabel} ${new Date().toLocaleTimeString(locale)}`,
+		createRecordingName: () => `${publishedCopyFor(copy).recordingLabel} ${new Date().toLocaleTimeString(locale)}`,
 		openSourceWriter: async (sourceId, metadata) => createCoalescingSourceWriter(
 			await store.beginSourceWrite(sourceId, metadata),
 		),
@@ -228,7 +228,7 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 			if (project !== dependencies.getProject()) throw abortError();
 			dependencies.commit({ type: 'batch', commands }, selection);
 		},
-		setStatusDone: () => dependencies.setStatus(copy.done, 'success'),
+		setStatusDone: () => setLocalizedStatus(dependencies.setStatus, copy, "done", undefined, 'success'),
 		deactivateSource: async (sourceId) => {
 			dependencies.sourceBuffers.delete(sourceId);
 			dependencies.sourceChunkProviders.delete(sourceId);
@@ -256,7 +256,7 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		setProject: dependencies.setProject,
 		activeSelection: activeSelectionOf,
 		findAudioSource: (project, mediaId) => findSource(project, mediaId),
-		trackName: (project, trackId) => findTrack(project, trackId)?.name || copy.recordingLabel,
+		trackName: (project, trackId) => findTrack(project, trackId)?.name || publishedCopyFor(copy).recordingLabel,
 		getRoutes: () => state.recordingRouting.routes,
 		soundActivationEnabled: () => soundActivation.getSnapshot().preferences.enabled,
 		recordingRouteSourceKey,
@@ -294,7 +294,7 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 	const takeCycleSession = createTakeCycleRecordingAppSession({
 		cycle: takeCycle,
 		prepareCurrentProject: dependencies.flushProject,
-		recordingMessage: copy.recording,
+		get recordingMessage() { return copy.recording; },
 		setTransportState: dependencies.updateTransportState,
 		setStatus: dependencies.setStatus,
 	});
@@ -348,10 +348,10 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		streamAudioChannelCount,
 		recordingStreamIsLive,
 		messages: {
-			armTrack: copy.armTrackForRecording,
-			assignInput: copy.recordingAssignInput,
-			preparedInputClosed: copy.recordingPreparedInputClosed,
-			assignedInputsUnavailable: copy.timedRecordingAssignedInputsUnavailable,
+			get armTrack() { return copy.armTrackForRecording; },
+			get assignInput() { return copy.recordingAssignInput; },
+			get preparedInputClosed() { return copy.recordingPreparedInputClosed; },
+			get assignedInputsUnavailable() { return copy.timedRecordingAssignedInputsUnavailable; },
 		},
 	});
 	const timed = createTimedRecordingService({
@@ -371,7 +371,7 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 			await engine.play();
 			try { scope.assertCurrent(); } catch (error) { engine.stop(); throw error; }
 			for (const entry of state.recordingEntries || []) state.recordingRouteHealth[entry.trackId] = 'recording';
-			dependencies.setStatus(copy.recording);
+			setLocalizedStatus(dependencies.setStatus, copy, "recording");
 			dependencies.updateTransportState('recording');
 			dependencies.publishDocumentSnapshot();
 		},
@@ -387,12 +387,12 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		abortError,
 		formatScheduledTime: (value) => new Date(value).toLocaleString(locale),
 		messages: {
-			projectReadOnly: copy.projectReadOnly,
-			past: copy.timedRecordingPast,
-			preparing: copy.timedRecordingPreparing,
-			missed: copy.timedRecordingMissed || copy.timedRecordingPast,
+			get projectReadOnly() { return copy.projectReadOnly; },
+			get past() { return copy.timedRecordingPast; },
+			get preparing() { return copy.timedRecordingPreparing; },
+			get missed() { return copy.timedRecordingMissed || copy.timedRecordingPast; },
 			scheduled: (time) => copy.timedRecordingScheduled.replace('{time}', time),
-			cancelled: copy.timedRecordingCancelled,
+			get cancelled() { return copy.timedRecordingCancelled; },
 		},
 	});
 

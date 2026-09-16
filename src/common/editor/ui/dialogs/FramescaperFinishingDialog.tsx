@@ -1,4 +1,7 @@
+import { usePresentationFeedback, feedbackFailure, type PresentationFeedback } from '../presentation-feedback.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { FRAMESCAPER_FINISHING_ADDITIONAL_COPY } from '../../../i18n/editor-framescaper-finishing-additional-copy.ts';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -64,13 +67,13 @@ export default function FramescaperFinishingDialog({
 	surface, controller, project, selectedTrackId = null, editingBlocked, readOnly,
 	copy = {}, fileService, run, onClose,
 }: FramescaperFinishingDialogProps) {
-	const model = useMemo(() => createFramescaperFinishingDialogModel({ surface, project }), [
-		project, surface,
+	const model = useMemo(() => createFramescaperFinishingDialogModel({ surface, project, copy }), [
+		project, surface, copy,
 	]);
 	const [documentText, setDocumentText] = useState(model.documentText);
 	const [pending, setPending] = useState(false);
-	const [status, setStatus] = useState('');
-	const [error, setError] = useState('');
+	const [status, setStatus] = usePresentationFeedback(copy, FRAMESCAPER_FINISHING_ADDITIONAL_COPY, 'framescaperFinishing');
+	const [error, setError] = usePresentationFeedback(copy, FRAMESCAPER_FINISHING_ADDITIONAL_COPY, 'framescaperFinishing');
 	const [captionFormat, setCaptionFormat] = useState<VideoCaptionInterchangeFormatV1>('srt');
 	const [captionTrackId, setCaptionTrackId] = useState(() => firstCaptionTrackId(project) ?? 'captions-1');
 	const [captionSequenceId, setCaptionSequenceId] = useState(() => primarySequenceId(project));
@@ -105,11 +108,11 @@ export default function FramescaperFinishingDialog({
 	useEffect(() => {
 		setStatus('');
 		setError('');
-	}, [model.surface]);
+	}, [model.surface, setError, setStatus]);
 	useEffect(() => () => { motionAbortRef.current?.abort(); }, []);
 
 	const blocked = pending || editingBlocked || readOnly;
-	const perform = (operation: () => unknown, success: string | (() => string)): void => {
+	const perform = (operation: () => unknown, success: PresentationFeedback | (() => PresentationFeedback)): void => {
 		if (blocked) return;
 		setPending(true);
 		setStatus('');
@@ -117,14 +120,14 @@ export default function FramescaperFinishingDialog({
 		void runAwaitedAudioEditorOperation(run, operation)
 			.then(() => { setStatus(typeof success === 'function' ? success() : success); })
 			.catch((operationError: unknown) => {
-				setError(operationError instanceof Error ? operationError.message : String(operationError));
+				setError(feedbackFailure(operationError));
 			})
 			.finally(() => { setPending(false); });
 	};
 	const applyDocument = (): void => perform(() => controller.actions.edit.commit(
 		createFramescaperFinishingCommand(surface, project, documentText),
-	), text(copy, 'framescaperFinishingApplied', 'Finishing state updated.'));
-	let captionImportSummary = '';
+	), { key: 'framescaperFinishingApplied' });
+	let captionImportSummary: PresentationFeedback = '';
 	const importSidecar = (): void => perform(() => {
 		const imported = importFramescaperCaptionSidecar({
 			project, format: captionFormat, text: captionSidecar,
@@ -149,7 +152,7 @@ export default function FramescaperFinishingDialog({
 				...(file ? { file } : {}), fileService,
 			});
 			if (opened === null) {
-				captionImportSummary = text(copy, 'captionFileSelectionCancelled', 'No sidecar file selected.');
+				captionImportSummary = { key: 'captionFileSelectionCancelled' };
 				return;
 			}
 			setCaptionFormat(opened.format);
@@ -164,7 +167,7 @@ export default function FramescaperFinishingDialog({
 				...captionTracks(project).filter(({ id }) => id !== imported.result.track.id),
 				imported.result.track,
 			], null, '\t'));
-			captionImportSummary = `${opened.fileName}: ${lossSummary(imported.result.losses.length)}`;
+			captionImportSummary = { ...lossSummary(imported.result.losses.length), prefix: `${opened.fileName}: ` };
 		}, () => captionImportSummary);
 	};
 	const exportSidecar = (): void => perform(async () => {
@@ -177,7 +180,7 @@ export default function FramescaperFinishingDialog({
 			});
 			captionImportSummary = lossSummary(exported.losses.length);
 		}, () => captionImportSummary);
-	let cubeLutSummary = '';
+	let cubeLutSummary: PresentationFeedback = '';
 	const importCubeLutFile = (file?: Blob): void => {
 		if (!file && !fileService.isDesktop) {
 			cubeLutFileRef.current?.click();
@@ -192,7 +195,7 @@ export default function FramescaperFinishingDialog({
 				}
 				const descriptors = await fileService.chooseFiles({ purpose: 'lut', multiple: false });
 				if (descriptors[0] === undefined) {
-					cubeLutSummary = text(copy, 'cubeLutSelectionCancelled', 'No cube LUT file selected.');
+					cubeLutSummary = { key: 'cubeLutSelectionCancelled' };
 					return;
 				}
 				if (typeof fileService.openReadDescriptor !== 'function') {
@@ -214,7 +217,7 @@ export default function FramescaperFinishingDialog({
 			endFrame = inputFrame(motionEndFrame, 'Motion-analysis end frame');
 		} catch (rangeError) {
 			setStatus('');
-			setError(rangeError instanceof Error ? rangeError.message : String(rangeError));
+			setError(feedbackFailure(rangeError));
 			return;
 		}
 		const abort = new AbortController();
@@ -238,12 +241,12 @@ export default function FramescaperFinishingDialog({
 					reference,
 				],
 			}, null, '\t'));
-			setStatus(text(copy, 'motionAnalysisPublished', 'Motion analysis published and current.'));
+			setStatus({ key: 'motionAnalysisPublished' });
 		}, (operationError: unknown) => {
 			if ((operationError as Error)?.name === 'AbortError') {
-				setStatus(text(copy, 'motionAnalysisCancelled', 'Motion analysis cancelled.'));
+				setStatus({ key: 'motionAnalysisCancelled' });
 			} else {
-				setError(operationError instanceof Error ? operationError.message : String(operationError));
+				setError(feedbackFailure(operationError));
 			}
 		}).finally(() => {
 			if (motionAbortRef.current === abort) motionAbortRef.current = null;
@@ -264,7 +267,7 @@ export default function FramescaperFinishingDialog({
 				{ scope: 'track', trackId: selectedTrackId }, chain,
 			));
 		},
-			text(copy, 'dialogueChainApplied', 'Dialogue chain applied.'));
+			{ key: 'dialogueChainApplied' });
 	};
 
 	return <AudioEditorDialogShell
@@ -280,24 +283,24 @@ export default function FramescaperFinishingDialog({
 					variant="primary"
 					disabled={blocked || !selectedTrackId || (profiledNoiseReduction && !noiseProfileText.trim())}
 					onClick={applyDialogueChain}
-				>{text(copy, 'applyDialogueChain', 'Apply dialogue chain')}</Button>
+				>{text(copy, 'applyDialogueChain', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.applyDialogueChain)}</Button>
 			</span>}
 		/>}
 	>
 		<div className="audio-editor-framescaper-finishing">
 			<p>{model.description}</p>
 			{(editingBlocked || readOnly) && <p role="status">{
-				text(copy, 'finishingReadOnly', 'Finishing changes are unavailable while the project is read-only or busy.')
+				text(copy, 'finishingReadOnly', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.finishingReadOnly)
 			}</p>}
 			{model.documentEditable && <>
 				<label>
-					<span>{text(copy, 'finishingDocument', 'Canonical finishing document')}</span>
+					<span>{text(copy, 'finishingDocument', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.finishingDocument)}</span>
 					<textarea data-framescaper-finishing-document rows={18} maxLength={4 * 1024 * 1024}
 						spellCheck={false} value={documentText} disabled={blocked}
 						onChange={(event) => setDocumentText(event.currentTarget.value)} />
 				</label>
 				<button type="button" disabled={blocked} onClick={applyDocument}>{
-					text(copy, 'apply', 'Apply')
+					text(copy, 'apply', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.apply)
 				}</button>
 			</>}
 			{surface === 'captions' && <CaptionSidecarEditor
@@ -353,17 +356,17 @@ export default function FramescaperFinishingDialog({
 				onCancel={() => { motionAbortRef.current?.abort(); }}
 			/>}
 			{surface === 'dialogue-chain' && <fieldset disabled={blocked}>
-				<legend>{text(copy, 'dialogueChain', 'Dialogue chain')}</legend>
-				<p>{text(copy, 'dialogueChainOrder', 'Highpass → gate → EQ → compressor → limiter')}</p>
+				<legend>{text(copy, 'dialogueChain', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.dialogueChain)}</legend>
+				<p>{text(copy, 'dialogueChainOrder', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.dialogueChainOrder)}</p>
 				<label><input type="checkbox" checked={profiledNoiseReduction}
 					onChange={(event) => setProfiledNoiseReduction(event.currentTarget.checked)} /> {
-					text(copy, 'profiledNoiseReduction', 'Include profiled noise reduction after highpass')
+					text(copy, 'profiledNoiseReduction', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.profiledNoiseReduction)
 				}</label>
 				{profiledNoiseReduction && <label><span>{text(copy, 'noiseProfileDocument',
-					'Canonical Audacity noise-profile document')}</span><textarea rows={8}
+					FRAMESCAPER_FINISHING_ADDITIONAL_COPY.noiseProfileDocument)}</span><textarea rows={8}
 						spellCheck={false} value={noiseProfileText}
 						onChange={(event) => setNoiseProfileText(event.currentTarget.value)} /></label>}
-				{!selectedTrackId && <p role="status">{text(copy, 'selectAudioTrack', 'Select an audio track first.')}</p>}
+				{!selectedTrackId && <p role="status">{text(copy, 'selectAudioTrack', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.selectAudioTrack)}</p>}
 			</fieldset>}
 			<div role="status" aria-live="polite" aria-atomic="true">{error || status}</div>
 		</div>
@@ -394,8 +397,9 @@ function primarySequenceId(value: unknown): string {
 		: sequenceIds(value)[0] ?? '';
 }
 
-function lossSummary(count: number): string {
-	return count === 0 ? 'No interchange losses.' : `${String(count)} interchange loss${count === 1 ? '' : 'es'} recorded.`;
+function lossSummary(count: number): Exclude<PresentationFeedback, string | { failure: unknown }> {
+	return count === 0 ? { key: 'captionNoLosses' } : count === 1 ? { key: 'captionOneLoss' }
+		: { key: 'captionManyLosses', parameters: { count } };
 }
 
 function inputFrame(value: string | number, name: string): number {
@@ -424,4 +428,3 @@ function projectSampleRate(value: unknown): number {
 	}
 	return Number(sampleRate);
 }
-

@@ -27,7 +27,7 @@ test('controller state initializes deterministic composition-root defaults', () 
 	assert.equal(state.timelineWidth, 3_600);
 	assert.equal(state.timelineView, 'waveform');
 	assert.equal(state.saveState, 'saved');
-	assert.deepEqual(state.status, { message: 'Ready', state: 'info' });
+	assert.deepEqual(state.status, { message: 'Ready', state: 'info', localization: { key: 'ready' } });
 	assert.equal(state.recordingInputGain, 1);
 	assert.equal(state.preferredInputDeviceId, 'default');
 	assert.equal(state.selectedAnnotationId, null);

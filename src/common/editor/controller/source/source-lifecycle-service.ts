@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
+import { localizedErrorMessage, publishLocalizedStatus } from '../../../i18n/presentation-message.ts'; import {
 	createPreparedProjectSources,
 	type PreparedProjectSourceEntry,
 	type PreparedRequiredProjectSources,
@@ -360,7 +360,7 @@ export function createSourceLifecycleService<
 				if (options.onlyRequiredAudioSources) throw error;
 				state.missingSourceIds.add(source.id);
 				const message = (error as Readonly<{ message?: string }> | null)?.message || String(error);
-				setStatus(`${source.name}: ${message}`, 'error');
+				publishLocalizedStatus(setStatus, `${source.name}: ${message}`, { key: 'ui.sourceStatus.loadFailed', parameters: { name: String(source.name), message: localizedErrorMessage(error) ?? message } }, 'error');
 				if (required) throw error;
 			}
 		}

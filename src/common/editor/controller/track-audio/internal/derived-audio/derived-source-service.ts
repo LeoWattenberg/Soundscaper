@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { EditorControllerLifetime, EditorProjectToken } from '../../../shared/lifecycle.ts';
+import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import type { EditorControllerLifetime, EditorProjectToken } from '../../../shared/lifecycle.ts';
 import {
 	createImportedAudioContentIdentityWriter,
 	type ImportedAudioContentIdentity,
@@ -131,7 +131,7 @@ export function createDerivedSourceService(
 		const channels = bufferChannels(rendered);
 		assertChannels(channels);
 		if (channels.length > 32 || Number(rendered.sampleRate) !== dependencies.projectSampleRate()) {
-			throw new Error(dependencies.copy.effectInvalidAudio);
+			throw createLocalizedError(Error, dependencies.copy, 'effectInvalidAudio');
 		}
 		const token = dependencies.captureProject();
 		const sourceId = dependencies.createId('mixed-source');
@@ -235,7 +235,7 @@ export function createDerivedSourceService(
 	function assertChannels(channels: readonly Float32Array[]): void {
 		if (!channels.length || !channels[0]?.length
 			|| channels.some((channel) => channel.length !== channels[0]!.length)) {
-			throw new Error(dependencies.copy.effectInvalidAudio);
+			throw createLocalizedError(Error, dependencies.copy, 'effectInvalidAudio');
 		}
 	}
 }

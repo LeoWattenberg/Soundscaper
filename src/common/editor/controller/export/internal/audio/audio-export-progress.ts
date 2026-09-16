@@ -18,8 +18,8 @@ export const NO_AUDIO_EXPORT_PROGRESS = Object.freeze({
 export function audioExportPublicationProgress(
 	task: Pick<EditorTaskProgressHandle, 'setPhase' | 'update'>,
 	label: string,
-	signal: AbortSignal,
+	signal: AbortSignal, localization?: import('../../../../../i18n/presentation-message.ts').LocalizedPresentationMessage,
 ) {
-	task.setPhase(label, { start: 0.95, end: 1, value: 0 });
+	task.setPhase(label, { start: 0.95, end: 1, value: 0 }, localization);
 	return { signal, onProgress: (value: number): void => { task.update(value); } };
 }

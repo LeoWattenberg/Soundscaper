@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type {
+import { createLocalizedError } from '../../../../i18n/presentation-message.ts'; import { publishLocalizedStatus } from '../../../../i18n/presentation-message.ts'; import type {
 	RecordingControllerLike,
 	RecordingStartOptions,
 } from './recording-session-service.ts';
@@ -105,7 +105,7 @@ export interface TimedRecordingServiceRuntime<TimerHandle = unknown> {
 	) => void;
 	readonly syncRecordingPoolSnapshot?: () => void;
 	readonly publishDocumentSnapshot?: () => void;
-	readonly setStatus?: (message: string, state?: 'info' | 'success' | 'error') => void;
+	readonly setStatus?: (message: string, state?: 'info' | 'success' | 'error', localization?: import('../../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly handleError?: (error: unknown) => void;
 	readonly abortError?: () => Error;
 }
@@ -244,7 +244,7 @@ export function createTimedRecordingService<TimerHandle>(
 			state.recordingReleaseAfterStop = false;
 			syncInputs();
 		}
-		if (options.status !== false && hadTimer) setStatus(runtime.messages.cancelled);
+		if (options.status !== false && hadTimer) publishLocalizedStatus(setStatus, runtime.messages.cancelled, { key: 'timedRecordingCancelled' });
 		else if (options.publish !== false) publish();
 		return hadTimer;
 	}
@@ -254,12 +254,12 @@ export function createTimedRecordingService<TimerHandle>(
 		options: TimedRecordingOptions = {},
 	): Promise<TimedRecordingResult | null> {
 		if (state.readOnly || state.takeCycleRecovery || state.takeCycleRecoveryInspecting) {
-			throw new Error(runtime.messages.projectReadOnly);
+			throw createLocalizedError(Error, { ['projectReadOnly']: runtime.messages.projectReadOnly }, 'projectReadOnly');
 		}
 		if (state.recordingStarting || state.recordingStartPromise || state.recorder) return null;
 		if (state.timedRecordingPreparing) return null;
 		const startTimeMs = runtime.normalizeStartTime(startTime);
-		if (startTimeMs <= runtime.currentTimeMs()) throw new RangeError(runtime.messages.past);
+		if (startTimeMs <= runtime.currentTimeMs()) throw createLocalizedError(RangeError, { ['timedRecordingPast']: runtime.messages.past }, 'timedRecordingPast');
 		const recordingOptions: Readonly<TimedRecordingOptions> = options.trackId
 			? Object.freeze({ trackId: String(options.trackId) })
 			: Object.freeze({});
@@ -268,7 +268,7 @@ export function createTimedRecordingService<TimerHandle>(
 		const projectId = runtime.getProjectId();
 		state.timedRecordingPreparing = true;
 		state.timedRecordingCancelling = false;
-		setStatus(runtime.messages.preparing);
+		publishLocalizedStatus(setStatus, runtime.messages.preparing, { key: 'timedRecordingPreparing' });
 
 		const preparationScope = Object.freeze({
 			assertCurrent: () => assertScheduledGeneration(generation, projectId),
@@ -295,11 +295,11 @@ export function createTimedRecordingService<TimerHandle>(
 			});
 			assertScheduledGeneration(generation, projectId);
 			if (state.timedRecording !== scheduled) throw abortError();
-			if (!state.recorder) throw new Error(runtime.messages.missed || runtime.messages.past);
+			if (!state.recorder) throw createLocalizedError(Error, { [runtime.messages.missed ? 'timedRecordingMissed' : 'timedRecordingPast']: runtime.messages.missed || runtime.messages.past }, runtime.messages.missed ? 'timedRecordingMissed' : 'timedRecordingPast');
 			armTimedRecordingTimer(scheduled);
 			const formatted = runtime.formatScheduledTime?.(startTimeMs)
 				|| new Date(startTimeMs).toLocaleString();
-			setStatus(runtime.messages.scheduled(formatted), 'success');
+			publishLocalizedStatus(setStatus, runtime.messages.scheduled(formatted), { key: 'timedRecordingScheduled', parameters: { time: formatted } }, 'success');
 			return Object.freeze({
 				startTimeMs,
 				startTime: new Date(startTimeMs).toISOString(),

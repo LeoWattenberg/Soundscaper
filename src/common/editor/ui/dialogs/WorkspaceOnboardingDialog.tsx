@@ -1,3 +1,4 @@
+import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import React, { useState } from 'react';
@@ -45,7 +46,7 @@ export default function WorkspaceOnboardingDialog({
 	onClose,
 	storage,
 }: WorkspaceOnboardingDialogProps) {
-	const [error, setError] = useState('');
+	const [error, setError] = usePresentationFeedback(copy);
 	const activeId = preferences.workspace.activeId;
 	const [initialFocus] = useState(() => (
 		isOption(activeId) ? `[data-workspace-onboarding-option="${activeId}"]` : '[data-workspace-onboarding-option]'
@@ -60,7 +61,7 @@ export default function WorkspaceOnboardingDialog({
 		void runAwaitedAudioEditorOperation(run, () => controller.actions.preferences.setWorkspace(workspaceId))
 			.then(() => finish(workspaceId))
 			.catch((operationError: unknown) => {
-				setError(operationError instanceof Error ? operationError.message : String(operationError));
+				setError(feedbackFailure(operationError));
 			});
 	};
 	const questionId = 'workspace-onboarding-question';

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AudioEditorCommand, CommandObject } from '../../../commands/protocol.ts';
+import type { AudioEditorCommand, CommandObject } from '../../../commands/protocol.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import { EffectGestureTargetChangedError, effectParametersMatch } from '../effect-gesture-safety.ts';
 import {
 	ParameterGestureAuthorityChangedError,
@@ -64,7 +64,7 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 			throw new RangeError('Effect stack scope must be track, master, group, or send.');
 		}
 		const track = snapshot?.tracks.find((candidate) => candidate.id === trackId);
-		if (!track || track.type !== 'audio') throw new Error(copy.audioTrackNotFound);
+		if (!track || track.type !== 'audio') throw createLocalizedError(Error, copy, 'audioTrackNotFound');
 		return track.effects || [];
 	}
 
@@ -79,21 +79,21 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 
 	function addEffect(request: AddRackEffectRequest = {}): string | null | undefined {
 		if (editingBlocked()) return undefined;
-		if (!request.type) throw new TypeError(copy.effectTypeRequired);
+		if (!request.type) throw createLocalizedError(TypeError, copy, 'effectTypeRequired');
 		const scope: RackEffectScope = ['master', 'group', 'send'].includes(request.scope || '')
 			? request.scope as RackEffectScope
 			: 'track';
 		const trackId = request.trackId ?? request.busId ?? state.selectedTrackId;
 		const project = requireProject();
-		if (scope === 'track' && !trackId) return handleError(new Error(copy.selectTrackFirst));
+		if (scope === 'track' && !trackId) return handleError(createLocalizedError(Error, copy, 'selectTrackFirst'));
 		if (scope === 'track' && project.tracks.find((track) => track.id === trackId)?.type !== 'audio') {
-			return handleError(new Error(copy.audioTrackRequired));
+			return handleError(createLocalizedError(Error, copy, 'audioTrackRequired'));
 		}
 		if ((scope === 'group' || scope === 'send') && !trackId) {
 			throw new TypeError('A mixer bus ID is required.');
 		}
 		const type = request.type;
-		if (type !== 'native-plugin' && !audioEffectTypes().includes(type)) throw new Error(copy.effectUnsupported);
+		if (type !== 'native-plugin' && !audioEffectTypes().includes(type)) throw createLocalizedError(Error, copy, 'effectUnsupported');
 		const effectOptions = { ...(request.options || {}) };
 		if (type === 'audacity-auto-duck') {
 			const candidates = project.tracks.filter((track) => (
@@ -103,7 +103,7 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 			const controlTrackId = candidates.some((track) => track.id === requestedControlTrackId)
 				? String(requestedControlTrackId)
 				: candidates[0]?.id;
-			if (!controlTrackId) return handleError(new Error(copy.autoDuckOtherControlTrack));
+			if (!controlTrackId) return handleError(createLocalizedError(Error, copy, 'autoDuckOtherControlTrack'));
 			effectOptions.context = { ...effectOptions.context, controlTrackId };
 		}
 		if (type === 'audacity-noise-reduction') {
@@ -118,7 +118,7 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 		assertStandardRackEffectConfiguration(project, scope, trackId, effect, engine.sampleRate);
 		commit(rackCommand('effect/add', scope, trackId, { effect: effect as unknown as CommandObject }));
 		if (type === 'audacity-noise-reduction' && !effectOptions.context?.noiseProfile) {
-			setStatus(copy.noiseReductionAddedDisabled);
+			setLocalizedStatus(setStatus, copy, "noiseReductionAddedDisabled");
 		}
 		return effect.id;
 	}
@@ -131,12 +131,12 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 		options: RackEffectCommitOptions = {},
 	): RackEffectProject {
 		const effect = effectStack(scope, trackId).find((candidate) => candidate.id === effectId);
-		if (!effect) throw new Error(copy.rackEffectNotFound);
+		if (!effect) throw createLocalizedError(Error, copy, 'rackEffectNotFound');
 		if (effect.type === 'missing') {
 			const keys = Object.keys(changes);
 			const replacing = typeof changes.type === 'string' && changes.type !== 'missing';
 			const activationOnly = keys.every((key) => key === 'enabled');
-			if (!replacing && !activationOnly) throw new Error(copy.missingEffectReadOnly);
+			if (!replacing && !activationOnly) throw createLocalizedError(Error, copy, 'missingEffectReadOnly');
 		}
 		assertStandardRackEffectUpdate(requireProject(), rackScope(scope), trackId, effect, changes, engine.sampleRate);
 		const result = commit(rackCommand('effect/update', rackScope(scope), trackId, { effectId, changes }), {}, options);
@@ -226,7 +226,7 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 				);
 			},
 			currentValue: requireProject,
-			createTargetMissingError: () => new Error(copy.rackEffectNotFound),
+			createTargetMissingError: () => createLocalizedError(Error, copy, 'rackEffectNotFound'),
 			createTargetChangedError: () => new EffectGestureTargetChangedError(),
 		});
 	}
@@ -257,7 +257,7 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 	): void {
 		if (!state.readOnly) return;
 		adapter.revoke(identity);
-		throw new Error(copy.projectReadOnly);
+		throw createLocalizedError(Error, copy, 'projectReadOnly');
 	}
 
 	function revokeWriteAuthority(): void {
@@ -359,7 +359,7 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 		trackId: string | null = state.selectedTrackId,
 	): ControllerRackEffect[] | null {
 		if (editingBlocked()) return null;
-		if (state.effectClipboard === null) throw new Error(copy.pasteEffects || copy.paste);
+		if (state.effectClipboard === null) throw createLocalizedError(Error, copy, copy.pasteEffects ? 'pasteEffects' : 'paste');
 		const current = effectStack(scope, trackId);
 		const effects = state.effectClipboard.map((effect) => materializeRackEffect(effect, scope, trackId));
 		const commands: AudioEditorCommand[] = [
@@ -412,13 +412,13 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 			const controlTrackId = candidates.some((track) => track.id === requestedControlTrackId)
 				? String(requestedControlTrackId)
 				: candidates[0]?.id;
-			if (!controlTrackId) throw new Error(copy.autoDuckOtherControlTrack);
+			if (!controlTrackId) throw createLocalizedError(Error, copy, 'autoDuckOtherControlTrack');
 			effectOptions.context = { ...effectOptions.context, controlTrackId };
 		}
 		if (effect.type === 'audacity-noise-reduction') {
 			const noiseProfile = effectOptions.context?.noiseProfile
 				|| serializeAudacityNoiseProfile(state.audacityNoiseProfile);
-			if (!noiseProfile && options.requireNoiseProfile) throw new Error(copy.noiseProfileMissing);
+			if (!noiseProfile && options.requireNoiseProfile) throw createLocalizedError(Error, copy, 'noiseProfileMissing');
 			if (noiseProfile) effectOptions.context = { ...effectOptions.context, noiseProfile };
 			else effectOptions.enabled = false;
 		}

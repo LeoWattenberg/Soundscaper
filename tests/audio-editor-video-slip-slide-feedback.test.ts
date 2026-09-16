@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { formatPresentationMessage, type LocalizedPresentationMessage } from '../src/common/i18n/presentation-message.ts';
 
 import {
 	createVideoSlipSlideResultReporter,
@@ -30,7 +31,7 @@ test('slip feedback reports signed applied source frames and resulting source ti
 				return '10:00:00:12';
 			},
 			programLabel: () => assert.fail('Slip feedback does not format program timecode.'),
-			setStatus: (...args) => statuses.push(args),
+			setStatus: (message, state) => statuses.push([message, state]),
 		});
 
 		report(slipPlan({ sourceFrameDelta: row.sourceFrameDelta }));
@@ -50,7 +51,7 @@ test('slide feedback reports signed applied sequence frames and resulting center
 			programLabels.push([sample, sequenceId]);
 			return sample === 24_000 ? '01:00:00:12' : '01:00:00:16';
 		},
-		setStatus: (...args) => statuses.push(args),
+		setStatus: (message, state) => statuses.push([message, state]),
 	});
 
 	report(slidePlan({ sequenceFrameDelta: -4 }));
@@ -66,11 +67,14 @@ test('slide feedback reports signed applied sequence frames and resulting center
 
 test('a clamp marker is appended once to either changed mode', () => {
 	const statuses: unknown[][] = [];
+	const localizations: LocalizedPresentationMessage[] = [];
 	const report = createVideoSlipSlideResultReporter({
 		copy: COPY,
 		sourceLabel: () => 'source',
 		programLabel: (sample) => sample === 24_000 ? 'start' : 'end',
-		setStatus: (...args) => statuses.push(args),
+		setStatus: (message, state, identity?: LocalizedPresentationMessage) => {
+			statuses.push([message, state]); if (identity) localizations.push(identity);
+		},
 	});
 
 	report(slipPlan({ sourceFrameDelta: 1, clamped: true }));
@@ -80,6 +84,10 @@ test('a clamp marker is appended once to either changed mode', () => {
 		['SLIP +1 source (clamped)', 'success'],
 		['SLIDE +2 start end (clamped)', 'success'],
 	]);
+	assert.deepEqual(localizations.map(({ key }) => key), ['slipApplied', 'slideApplied']);
+	assert.deepEqual(localizations[1]?.parameters, { frames: '+2', programStartTimecode: 'start', programEndTimecode: 'end' });
+	assert.equal(formatPresentationMessage({ ...COPY, slideApplied: 'Verschoben {frames} {programStartTimecode} {programEndTimecode}',
+		trimBoundaryClamped: '[begrenzt]' }, localizations[1]!), 'Verschoben +2 start end [begrenzt]');
 });
 
 test('no-op is informational and never formats unavailable coordinates', () => {
@@ -88,7 +96,7 @@ test('no-op is informational and never formats unavailable coordinates', () => {
 		copy: COPY,
 		sourceLabel: () => assert.fail('No-op feedback has no source coordinate.'),
 		programLabel: () => assert.fail('No-op feedback has no program coordinate.'),
-		setStatus: (...args) => statuses.push(args),
+		setStatus: (message, state) => statuses.push([message, state]),
 	});
 
 	report(slipPlan({ kind: 'noop', sourceFrameDelta: 0 }));

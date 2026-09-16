@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type {
+import { createLocalizedError } from '../../../../i18n/presentation-message.ts'; import { publishLocalizedStatus } from '../../../../i18n/presentation-message.ts'; import type {
 	RecordingCaptureCommonRuntime,
 	RecordingStartOptions,
 	RecordingStartScope,
@@ -39,7 +39,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 		const track = options.trackId
 			? runtime.findTrack(project, options.trackId)
 			: project.tracks.find((item) => item.armed) || null;
-		if (!track) throw new Error(runtime.messages.armTrack);
+		if (!track) throw createLocalizedError(Error, { ['armTrackForRecording']: runtime.messages.armTrack }, 'armTrackForRecording');
 		state.recordingStarting = true;
 		state.recordingFatalError = null;
 		state.recordingDiscardRequested = false;
@@ -63,7 +63,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			let stream = runtime.capturePool.getHardware?.(runtime.defaultDeviceId) || null;
 			if (options.reusePreparedInputsOnly
 				&& (!stream || runtime.streamAudioChannelCount(stream) < 2)) {
-				throw new Error(runtime.messages.preparedInputClosed);
+				throw createLocalizedError(Error, { ['recordingPreparedInputClosed']: runtime.messages.preparedInputClosed }, 'recordingPreparedInputClosed');
 			}
 			stream = await runtime.capturePool.acquireHardware(runtime.defaultDeviceId, {
 				channelCount: 2,
@@ -192,7 +192,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			state.recorder = recorder;
 			const remainingSeconds = timedStart ? (timedStartTimeMs - runtime.currentTimeMs()) / 1_000 : null;
 			if (timedStart && remainingSeconds !== null && remainingSeconds <= 0) {
-				throw new RangeError(runtime.messages.timedRecordingPast);
+				throw createLocalizedError(RangeError, { ['timedRecordingPast']: runtime.messages.timedRecordingPast }, 'timedRecordingPast');
 			}
 			const scheduledTime = timedStart
 				? context.currentTime + (remainingSeconds || 0)
@@ -263,7 +263,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 						: scheduledTime,
 				));
 				state.recordingPaused = false;
-				runtime.setStatus(runtime.messages.recording);
+				publishLocalizedStatus(runtime.setStatus, runtime.messages.recording, { key: 'recording' });
 				runtime.updateTransportState('recording');
 			}
 		} catch (error) {

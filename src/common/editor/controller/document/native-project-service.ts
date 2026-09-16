@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { isAudioMediaKind } from '../../audio-media-kind.ts';
+import { isAudioMediaKind } from '../../audio-media-kind.ts'; import { createLocalizedError, publishLocalizedStatus, setLocalizedStatus, type LocalizedPresentationMessage } from '../../../i18n/presentation-message.ts';
 
 import { isProjectFileName } from '../../../project-file-extensions.ts';
 import { createDeferredDawprojectService } from '../import/deferred-dawproject-service.ts';
@@ -18,7 +18,7 @@ import {
  */
 const PROJECT_SCOPED_TASK: EditorTaskOptions = Object.freeze({ scope: EDITOR_PROJECT_TASK_SCOPE });
 import { createNativeProjectOwnership, type ProjectTask } from './internal/native-project/native-project-ownership.ts';
-import { nativeProjectProgressMessage, publishAup4OpenStatus } from './internal/native-project/native-project-status.ts';
+import { nativeProjectProgressLocalization, nativeProjectProgressMessage, publishAup4OpenStatus } from './internal/native-project/native-project-status.ts';
 import {
 	bufferedNativeSourceChunks,
 	persistNativeProjectSource,
@@ -141,7 +141,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			signal.throwIfAborted();
 			operation.task.assertCurrent();
 			runtime.projectGeneration.capture(imported.project.id);
-			runtime.setStatus(runtime.state.readOnly ? runtime.copy.projectReadOnly : runtime.copy.projectSaved, runtime.state.readOnly ? 'error' : 'success');
+			setLocalizedStatus(runtime.setStatus, runtime.copy, runtime.state.readOnly ? 'projectReadOnly' : 'projectSaved', undefined, runtime.state.readOnly ? 'error' : 'success');
 			return imported;
 		} finally {
 			finishImport(operation.task);
@@ -153,7 +153,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		readonly manifest: NativeScapeManifest;
 	}) | Readonly<{ cancelled: true }>> {
 		const projectAtStart = requireProject();
-		if (runtime.state.readOnly && !options.saveCopy) throw new Error(runtime.copy.projectReadOnly);
+		if (runtime.state.readOnly && !options.saveCopy) throw createLocalizedError(Error, runtime.copy, 'projectReadOnly');
 		if (runtime.state.readOnly && futureScapeArchive?.projectId === projectAtStart.id) {
 			const operation = beginProjectTask('native-project-save', projectAtStart.id, PROJECT_SCOPED_TASK);
 			try {
@@ -163,7 +163,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 				});
 			} finally { operation.task.finish(); }
 		}
-		if (runtime.hasMissingTimelineSources(projectAtStart)) throw new Error(runtime.copy.missingSourcesPreventSave);
+		if (runtime.hasMissingTimelineSources(projectAtStart)) throw createLocalizedError(Error, runtime.copy, 'missingSourcesPreventSave');
 		const operation = beginProjectTask('native-project-save', projectAtStart.id, PROJECT_SCOPED_TASK);
 		try {
 			const { fileName, prepared } = await beginNativeScapeSave(runtime, {
@@ -180,7 +180,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 				fileName, prepared, project: snapshot, signal: operation.task.signal,
 			});
 			if (finishSave(operation.task, operation.projectToken, 'saved')) {
-				runtime.setStatus(runtime.copy.projectSaved, 'success');
+				setLocalizedStatus(runtime.setStatus, runtime.copy, "projectSaved", undefined, 'success');
 				runtime.publishDocumentSnapshot();
 			}
 			return { ...saved, manifest: exported.manifest };
@@ -203,7 +203,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		const persistedSourceIds: string[] = [];
 		let importedProject: NativeProjectDocument | null = null, activated = false;
 		beginImport(operation.task);
-		runtime.setStatus(runtime.copy.aup4Validating);
+		setLocalizedStatus(runtime.setStatus, runtime.copy, "aup4Validating");
 		try {
 			const activeClient = await getAup4Client();
 			assertOwnership(operation.task, operation.projectToken);
@@ -211,7 +211,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			assertOwnership(operation.task, operation.projectToken);
 			const opened = await activeClient.openFile(nativeId, file, { ...portableOptions(file.size, storage, (progress) => {
 				updateNativeProjectProgress(progress, runtime.copy.importing, operation.task,
-					operation.projectToken, { start: 0, end: 0.3 });
+					operation.projectToken, { start: 0, end: 0.3 }, { key: 'importing' });
 			}), signal: operation.task.signal });
 			assertOwnership(operation.task, operation.projectToken);
 			const streaming = Boolean(activeClient.planImport && activeClient.readSourceChunks);
@@ -220,7 +220,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 				title: file.name, signal: operation.task.signal,
 				onProgress: (progress) => {
 					updateNativeProjectProgress(progress, runtime.copy.importing, operation.task,
-						operation.projectToken, { start: 0.3, end: 1 });
+						operation.projectToken, { start: 0.3, end: 1 }, { key: 'importing' });
 				},
 			});
 			assertOwnership(operation.task, operation.projectToken);
@@ -245,7 +245,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 						(bytes) => {
 							completedBytes += bytes;
 							updateNativeProjectProgress({ value: decodedBytes ? completedBytes / decodedBytes : 1 },
-								runtime.copy.importing, operation.task, operation.projectToken, { start: 0.3, end: 1 });
+								runtime.copy.importing, operation.task, operation.projectToken, { start: 0.3, end: 1 }, { key: 'importing' });
 						});
 				}
 			} else for (const sourceAudio of decoded.sources) {
@@ -303,14 +303,14 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		cancelled: true;
 	}>> {
 		let snapshot = requireProject();
-		if (!hasCoreEditingProjectAuthority(snapshot)) throw new Error(runtime.copy.aup4OnlyV2);
+		if (!hasCoreEditingProjectAuthority(snapshot)) throw createLocalizedError(Error, runtime.copy, 'aup4OnlyV2');
 		if (runtime.hasMissingTimelineSources(snapshot, { audioOnly: true })) {
-			throw new Error(runtime.copy.missingSourcesPreventSave);
+			throw createLocalizedError(Error, runtime.copy, 'missingSourcesPreventSave');
 		}
 		if (runtime.reportHasMissingPcm(runtime.sessionTab(snapshot.id)?.metadata?.aup4CompatibilityReport)) {
-			throw new Error(runtime.copy.missingSourcesPreventSave);
+			throw createLocalizedError(Error, runtime.copy, 'missingSourcesPreventSave');
 		}
-		if (runtime.state.readOnly && !options.saveCopy) throw new Error(runtime.copy.projectReadOnly);
+		if (runtime.state.readOnly && !options.saveCopy) throw createLocalizedError(Error, runtime.copy, 'projectReadOnly');
 		const operation = beginProjectTask('native-project-save', snapshot.id, PROJECT_SCOPED_TASK);
 		let fileHandle = options.fileHandle;
 		let saveTarget = options.saveTarget;
@@ -360,7 +360,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			const storage = await runtime.store.estimateStorage();
 			assertOwnership(operation.task, operation.projectToken);
 			const progress = (value: NativeProgress) => {
-				updateNativeProjectProgress(value, runtime.copy.aup4Saving, operation.task, operation.projectToken);
+				updateNativeProjectProgress(value, runtime.copy.aup4Saving, operation.task, operation.projectToken, undefined, { key: 'aup4Saving' });
 			};
 			const portable = portableOptions(workingBytes, storage, progress);
 			beginSave(operation.task, operation.projectToken);
@@ -393,7 +393,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 				snapshot.id,
 			);
 			const saveFinished = finishSave(operation.task, operation.projectToken, 'saved');
-			if (saveFinished) runtime.setStatus(runtime.copy.aup4Saved, 'success');
+			if (saveFinished) setLocalizedStatus(runtime.setStatus, runtime.copy, "aup4Saved", undefined, 'success');
 			if (saveFinished) runtime.publishDocumentSnapshot();
 			return { ...saved, validation, compatibilityReport };
 		} catch (error) {
@@ -428,7 +428,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 				: await runtime.loadStoredSourceChannels(runtime.store, source);
 			assertOwnership(operation.task, operation.projectToken);
 			if (!channels?.length) {
-				throw new Error(runtime.copy.sourcePcmUnavailable.replace('{source}', source.name || source.id));
+				throw createLocalizedError(Error, runtime.copy, 'sourcePcmUnavailable', { source: source.name || source.id });
 			}
 			yield { sourceId: source.id, sampleRate: source.sampleRate, channels };
 		}
@@ -470,10 +470,12 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		task?: EditorTaskScope,
 		projectToken?: EditorProjectToken,
 		range: Readonly<{ start: number; end: number }> = { start: 0, end: 1 },
+		localization?: LocalizedPresentationMessage,
 	): void {
 		if (task && projectToken) assertOwnership(task, projectToken);
-		runtime.taskProgress?.setActivePhase(prefix, { ...range, value: progress.value });
-		runtime.setStatus(nativeProjectProgressMessage(progress, prefix));
+		const operation = localization ? { ...localization, fallback: localization.fallback ?? prefix } : prefix;
+		runtime.taskProgress?.setActivePhase(prefix, { ...range, value: progress.value }, typeof operation === 'object' ? operation : undefined);
+		publishLocalizedStatus(runtime.setStatus, nativeProjectProgressMessage(progress, prefix), nativeProjectProgressLocalization(progress, operation));
 	}
 
 	function portableOptions(

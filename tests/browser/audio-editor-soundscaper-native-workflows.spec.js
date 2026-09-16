@@ -43,7 +43,7 @@ test.describe('Soundscaper native production workflows', () => {
 
 		const toolsTrigger = editor.getByRole('menubar', { name: 'Application menu', exact: true })
 			.getByRole('menuitem', { name: 'Tools', exact: true });
-		await chooseCommandAction(page, editor, 'Tools', 'Mastering sequences…');
+		await chooseCommandAction(page, editor, 'Tools', 'Mastering sequences');
 		const mastering = page.getByRole('dialog', { name: 'Mastering sequences', exact: true });
 		await expect(mastering).toBeVisible();
 		await expect(mastering.getByRole('tablist')).toHaveCount(0);

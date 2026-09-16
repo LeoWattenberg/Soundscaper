@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { hasCoreEditingProjectAuthority, isSoundscaperProductionProject } from '../../../project-schema-version.ts';
+import { hasCoreEditingProjectAuthority, isSoundscaperProductionProject } from '../../../project-schema-version.ts'; import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 
 import {
 	createAddClipCommand,
@@ -68,7 +68,7 @@ export interface TrackTransformServiceDependencies {
 	audioTrackChannelCount(project: ControllerProject, track: ControllerTrack): number;
 	preflightStorage(bytes: number, category: 'effect'): Promise<unknown>;
 	setProcessing(processing: boolean): void;
-	setStatus(message: string, state?: string): void;
+	setStatus(message: string, state?: string, localization?: import('../../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;
 	publish(): void;
 	resampleChannels(
 		channels: Float32Array[],
@@ -124,7 +124,7 @@ export function createTrackTransformService(
 				sum + Math.max(1, scaleSampleFrame(source.frameCount, source.sampleRate, sampleRate, 'point'))
 				* source.channelCount * Float32Array.BYTES_PER_ELEMENT
 		), 0);
-		return runTransform(dependencies.copy.resamplingTrack || dependencies.copy.audacityProcessing, async (ownership) => {
+		return runTransform(dependencies.copy.resamplingTrack ? 'resamplingTrack' : 'audacityProcessing', async (ownership) => {
 			await dependencies.preflightStorage(estimatedBytes, 'effect');
 			assertOwned(ownership);
 			const derived: DerivedSourceRecord[] = [];
@@ -151,7 +151,7 @@ export function createTrackTransformService(
 				for (const clip of clips) addResampledClipCommands(commands, track, clip, replacements, sampleRate);
 				assertOwned(ownership);
 				dependencies.commit({ type: 'batch', commands }, { selectTrackId: track.id });
-				dependencies.setStatus(dependencies.copy.done, 'success');
+				setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
 				return track.id;
 			} catch (error) {
 				await dependencies.derivedSources.rollbackDerivedSources(derived);
@@ -173,7 +173,7 @@ export function createTrackTransformService(
 		if (!sources.length) return track.id;
 		const bytes = sources.reduce((sum, source) => sum
 			+ source.frameCount * 2 * Float32Array.BYTES_PER_ELEMENT, 0);
-		return runTransform(dependencies.copy.rewritingChannels || dependencies.copy.audacityProcessing, async (ownership) => {
+		return runTransform(dependencies.copy.rewritingChannels ? 'rewritingChannels' : 'audacityProcessing', async (ownership) => {
 			await dependencies.preflightStorage(bytes, 'effect');
 			assertOwned(ownership);
 			const derived: DerivedSourceRecord[] = [];
@@ -185,7 +185,7 @@ export function createTrackTransformService(
 					const record = await dependencies.derivedSources.persistDerivedSource(
 						source,
 						[channels[1]!, channels[0]!],
-						`${source.name} — ${dependencies.copy.channelsSwapped}`,
+						`${source.name} — ${publishedCopyFor(dependencies.copy).channelsSwapped}`,
 						'swapped-source',
 					);
 					derived.push(record);
@@ -199,7 +199,7 @@ export function createTrackTransformService(
 				}
 				assertOwned(ownership);
 				dependencies.commit({ type: 'batch', commands }, { selectTrackId: track.id });
-				dependencies.setStatus(dependencies.copy.done, 'success');
+				setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
 				return track.id;
 			} catch (error) {
 				await dependencies.derivedSources.rollbackDerivedSources(derived);
@@ -221,7 +221,7 @@ export function createTrackTransformService(
 		const sources = dependencies.derivedSources.uniqueClipSources(clips);
 		const bytes = sources.reduce((sum, source) => sum
 			+ source.frameCount * 2 * Float32Array.BYTES_PER_ELEMENT, 0);
-		return runTransform(dependencies.copy.rewritingChannels || dependencies.copy.audacityProcessing, async (ownership) => {
+		return runTransform(dependencies.copy.rewritingChannels ? 'rewritingChannels' : 'audacityProcessing', async (ownership) => {
 			await dependencies.preflightStorage(bytes, 'effect');
 			assertOwned(ownership);
 			const derived: DerivedSourceRecord[] = [];
@@ -231,25 +231,25 @@ export function createTrackTransformService(
 					const channels = await dependencies.derivedSources.sourceChannelsForEdit(source);
 					assertOwned(ownership);
 					const left = await dependencies.derivedSources.persistDerivedSource(
-						source, [channels[0]!], `${source.name} — ${dependencies.copy.leftChannel}`, 'left-source',
+						source, [channels[0]!], `${source.name} — ${publishedCopyFor(dependencies.copy).leftChannel}`, 'left-source',
 					);
 					derived.push(left);
 					assertOwned(ownership);
 					const right = await dependencies.derivedSources.persistDerivedSource(
-						source, [channels[1] || channels[0]!], `${source.name} — ${dependencies.copy.rightChannel}`, 'right-source',
+						source, [channels[1] || channels[0]!], `${source.name} — ${publishedCopyFor(dependencies.copy).rightChannel}`, 'right-source',
 					);
 					derived.push(right);
 					assertOwned(ownership);
 					sourcePairs.set(source.id, { left: left.source, right: right.source });
 				}
 				const rightTrackId = dependencies.createId('track');
-				const leftTrack = { ...track, clipIds: [], name: `${track.name} — ${dependencies.copy.leftChannel}`, pan: panChannels ? -1 : 0 };
+				const leftTrack = { ...track, clipIds: [], name: `${track.name} — ${publishedCopyFor(dependencies.copy).leftChannel}`, pan: panChannels ? -1 : 0 };
 				const rightTrack = {
 					...track,
 					id: rightTrackId,
 					clipIds: [],
 					laneGroupId: null,
-					name: `${track.name} — ${dependencies.copy.rightChannel}`,
+					name: `${track.name} — ${publishedCopyFor(dependencies.copy).rightChannel}`,
 					pan: panChannels ? 1 : 0,
 					armed: false,
 					effects: (track.effects || []).map((effect) => ({ ...effect, id: dependencies.createId('effect') })),
@@ -276,7 +276,7 @@ export function createTrackTransformService(
 				for (const clip of clips) addSplitClipCommands(commands, track, rightTrackId, clip, sourcePairs);
 				assertOwned(ownership);
 				dependencies.commit({ type: 'batch', commands }, { selectTrackId: track.id });
-				dependencies.setStatus(dependencies.copy.done, 'success');
+				setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
 				return Object.freeze({ leftTrackId: track.id, rightTrackId });
 			} catch (error) {
 				await dependencies.derivedSources.rollbackDerivedSources(derived);
@@ -293,12 +293,10 @@ export function createTrackTransformService(
 		if (dependencies.editingBlocked()) return null;
 		const project = dependencies.getProject();
 		const track = requireMonoTrack(project, trackId);
-		if (track.laneGroupId != null) throw new Error(dependencies.copy.compatibleMonoTrackRequired
-			|| dependencies.copy.monoTrackRequired || dependencies.copy.audioTrackRequired);
+		if (track.laneGroupId != null) throw createLocalizedError(Error, dependencies.copy, dependencies.copy.compatibleMonoTrackRequired ? 'compatibleMonoTrackRequired' : dependencies.copy.monoTrackRequired ? 'monoTrackRequired' : 'audioTrackRequired');
 		const trackIndex = project.tracks.findIndex((candidate) => candidate.id === track.id);
 		const partner = findMonoPartner(project, track, trackIndex, partnerTrackId);
-		if (!partner) throw new Error(dependencies.copy.compatibleMonoTrackRequired
-			|| dependencies.copy.monoTrackRequired || dependencies.copy.audioTrackRequired);
+		if (!partner) throw createLocalizedError(Error, dependencies.copy, dependencies.copy.compatibleMonoTrackRequired ? 'compatibleMonoTrackRequired' : dependencies.copy.monoTrackRequired ? 'monoTrackRequired' : 'audioTrackRequired');
 		const partnerIndex = project.tracks.findIndex((candidate) => candidate.id === partner.id);
 		const clips = [...(track.clipIds ?? []), ...(partner.clipIds ?? [])]
 			.map((clipId) => findControllerClip(project, clipId))
@@ -310,7 +308,7 @@ export function createTrackTransformService(
 			{ type: 'track/remove', trackId: partner.id },
 		] }, { selectTrackId: track.id });
 		const frameCount = endFrame - startFrame;
-		return runTransform(dependencies.copy.rewritingChannels || dependencies.copy.audacityProcessing, async (ownership) => {
+		return runTransform(dependencies.copy.rewritingChannels ? 'rewritingChannels' : 'audacityProcessing', async (ownership) => {
 			await dependencies.preflightStorage(frameCount * 2 * Float32Array.BYTES_PER_ELEMENT, 'effect');
 			assertOwned(ownership);
 			const derived: DerivedSourceRecord[] = [];
@@ -326,7 +324,7 @@ export function createTrackTransformService(
 					...template,
 					sampleRate: sourceRate,
 					originalSampleRate: template.originalSampleRate || template.sampleRate || sourceRate,
-				}, [leftChannels[0]!, rightChannels[0]!], `${track.name} — ${dependencies.copy.stereo}`, 'stereo-source');
+				}, [leftChannels[0]!, rightChannels[0]!], `${track.name} — ${publishedCopyFor(dependencies.copy).stereo}`, 'stereo-source');
 				derived.push(stereo);
 				assertOwned(ownership);
 				const clipId = dependencies.createId('clip');
@@ -361,7 +359,7 @@ export function createTrackTransformService(
 					}),
 				];
 				dependencies.commit({ type: 'batch', commands }, { selectTrackId: track.id, selectClipId: clipId });
-				dependencies.setStatus(dependencies.copy.done, 'success');
+				setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
 				return track.id;
 			} catch (error) {
 				await dependencies.derivedSources.rollbackDerivedSources(derived);
@@ -371,7 +369,7 @@ export function createTrackTransformService(
 	}
 
 	async function runTransform<Result>(
-		status: string,
+		status: keyof TrackTransformCopy,
 		operation: (ownership: TransformOwnership) => Promise<Result>,
 	): Promise<Result> {
 		const ownership = {
@@ -379,7 +377,7 @@ export function createTrackTransformService(
 			task: dependencies.lifetime.startTask(TRACK_TRANSFORM_TASK),
 		};
 		dependencies.setProcessing(true);
-		dependencies.setStatus(status);
+		setLocalizedStatus(dependencies.setStatus, dependencies.copy, status);
 		dependencies.publish();
 		try {
 			return await operation(ownership);
@@ -393,16 +391,16 @@ export function createTrackTransformService(
 	}
 
 	function requireAudioTrack(project: ControllerProject, trackId: string | null): ControllerTrack {
-		if (!hasCoreEditingProjectAuthority(project)) throw new Error(dependencies.copy.v2Required);
+		if (!hasCoreEditingProjectAuthority(project)) throw createLocalizedError(Error, dependencies.copy, 'v2Required');
 		const track = findControllerTrack(project, trackId);
-		if (!track || track.type !== 'audio') throw new Error(dependencies.copy.audioTrackRequired);
+		if (!track || track.type !== 'audio') throw createLocalizedError(Error, dependencies.copy, 'audioTrackRequired');
 		return track;
 	}
 
 	function requireStereoTrack(project: ControllerProject, trackId: string | null): ControllerTrack {
 		const track = requireAudioTrack(project, trackId);
 		if (dependencies.audioTrackChannelCount(project, track) !== 2) {
-			throw new Error(dependencies.copy.stereoTrackRequired || dependencies.copy.audioTrackRequired);
+			throw createLocalizedError(Error, dependencies.copy, dependencies.copy.stereoTrackRequired ? 'stereoTrackRequired' : 'audioTrackRequired');
 		}
 		return track;
 	}
@@ -410,7 +408,7 @@ export function createTrackTransformService(
 	function requireMonoTrack(project: ControllerProject, trackId: string | null): ControllerTrack {
 		const track = requireAudioTrack(project, trackId);
 		if (dependencies.audioTrackChannelCount(project, track) !== 1) {
-			throw new Error(dependencies.copy.monoTrackRequired || dependencies.copy.audioTrackRequired);
+			throw createLocalizedError(Error, dependencies.copy, dependencies.copy.monoTrackRequired ? 'monoTrackRequired' : 'audioTrackRequired');
 		}
 		return track;
 	}
@@ -468,7 +466,7 @@ export function createTrackTransformService(
 				...clip,
 				id: dependencies.createId('clip'),
 				sourceId: pair.right.id,
-				title: `${clip.title} — ${dependencies.copy.rightChannel}`,
+				title: `${clip.title} — ${publishedCopyFor(dependencies.copy).rightChannel}`,
 				avLinkId: null,
 			}),
 		);

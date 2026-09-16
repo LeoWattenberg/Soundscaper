@@ -21,6 +21,8 @@ import {
 	type ArchiveManifest,
 	type ArchiveVerification,
 } from '../../../../archive-manifest.ts';
+import type { LocalizedPresentationMessage } from '../../../../../i18n/presentation-message.ts';
+import { PROJECT_MEDIA_COPY_BY_LOCALE } from '../../../../../i18n/editor-project-media-copy.ts';
 
 export interface ScapeArchiveManifestRuntime {
 	/** Session state; the manifest is recorded on it like the delivery report. */
@@ -33,6 +35,7 @@ export interface ArchiveManifestSessionRecord {
 	readonly manifest: ArchiveManifest | null;
 	/** Why no manifest exists, when none does. */
 	readonly unavailable: string | null;
+	readonly unavailableLocalization?: LocalizedPresentationMessage;
 	readonly fileName: string;
 }
 
@@ -65,7 +68,8 @@ async function manifestRecord(
 	if (!(request.archive instanceof Blob)) {
 		return Object.freeze({
 			manifest: null,
-			unavailable: 'The archive was streamed straight to its destination and never held as readable bytes.',
+			unavailable: PROJECT_MEDIA_COPY_BY_LOCALE.en.archiveStreamed,
+			unavailableLocalization: { key: 'ui.projectMedia.archiveStreamed', fallback: PROJECT_MEDIA_COPY_BY_LOCALE.en.archiveStreamed },
 			fileName: request.fileName,
 		});
 	}
@@ -87,6 +91,8 @@ async function manifestRecord(
 		return Object.freeze({
 			manifest: null,
 			unavailable: `The written archive could not be read back: ${errorText(error)}`,
+			unavailableLocalization: { key: 'ui.projectMedia.archiveUnreadable', parameters: { message: errorText(error) },
+				fallback: PROJECT_MEDIA_COPY_BY_LOCALE.en.archiveUnreadable },
 			fileName: request.fileName,
 		});
 	}
@@ -99,11 +105,14 @@ function errorText(error: unknown): string {
 /** Save the recorded manifest as a report document. */
 export async function saveCurrentScapeArchiveManifest(
 	runtime: ScapeArchiveManifestRuntime,
-): Promise<Readonly<{ saved: boolean; reason: string | null }>> {
+): Promise<Readonly<{ saved: boolean; reason: string | null; localization?: LocalizedPresentationMessage }>> {
 	const record = (runtime.state as Record<string, unknown>)
 		.archiveManifest as ArchiveManifestSessionRecord | undefined;
 	if (!record?.manifest) {
-		return Object.freeze({ saved: false, reason: record?.unavailable ?? 'No archive has been written yet.' });
+		return Object.freeze({ saved: false, reason: record?.unavailable ?? PROJECT_MEDIA_COPY_BY_LOCALE.en.noArchive,
+			localization: record?.unavailable ? record.unavailableLocalization : {
+				key: 'ui.projectMedia.noArchive', fallback: PROJECT_MEDIA_COPY_BY_LOCALE.en.noArchive,
+			} });
 	}
 	await saveArchiveManifest(
 		record.manifest,

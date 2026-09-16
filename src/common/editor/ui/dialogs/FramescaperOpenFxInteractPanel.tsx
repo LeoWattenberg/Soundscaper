@@ -2,6 +2,8 @@
 
 /** Menu-owned, authored-instance OpenFX Interact Suite V1 surface. */
 
+import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type {
@@ -38,7 +40,7 @@ export default function FramescaperOpenFxInteractPanel({ bridge, runtime, copy }
 	const [model, setModel] = useState<FramescaperOpenFxInteractAuthoringModelNativeMedia | null>(null);
 	const [instanceId, setInstanceId] = useState('');
 	const [targetValue, setTargetValue] = useState('overlay');
-	const [status, setStatus] = useState(copy.ofxInteractLoading);
+	const [status, setStatus] = usePresentationFeedback(copy, undefined, undefined, { key: 'ofxInteractLoading' });
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const sequenceRef = useRef(0);
 	const historyRef = useRef<readonly OfxInteractEventV1[]>(Object.freeze([]));
@@ -60,16 +62,16 @@ export default function FramescaperOpenFxInteractPanel({ bridge, runtime, copy }
 			if (!active) return;
 			installModel(value);
 			const first = value.instances[0];
-			if (!first) { setStatus(copy.ofxInteractNoPlugins); return; }
+			if (!first) { setStatus({ key: 'ofxInteractNoPlugins' }); return; }
 			setInstanceId(first.effect.instanceId);
-			setStatus(copy.ofxInteractReady);
+			setStatus({ key: 'ofxInteractReady' });
 		}, (error: unknown) => {
 			if (!active) return;
 			installModel(Object.freeze({ instances: Object.freeze([]) }));
-			setStatus(message(error));
+			setStatus(feedbackFailure(error));
 		});
 		return () => { active = false; };
-	}, [copy, installModel, runtime]);
+	}, [installModel, runtime, setStatus]);
 
 	const instance = useMemo(() => model?.instances.find(({ effect }) => (
 		effect.instanceId === instanceId
@@ -80,12 +82,12 @@ export default function FramescaperOpenFxInteractPanel({ bridge, runtime, copy }
 		commitMutations = false,
 	): void => {
 		if (instance === null || typeof bridge.runOpenFxInteract !== 'function') {
-			setStatus(copy.ofxInteractUnavailable); return;
+			setStatus({ key: 'ofxInteractUnavailable' }); return;
 		}
 		const selectedId = instance.effect.instanceId;
 		const selectedTarget = target;
 		const generation = generationRef.current;
-		setStatus(copy.ofxInteractWorking);
+		setStatus({ key: 'ofxInteractWorking' });
 		serialRef.current = serialRef.current.catch(() => undefined).then(async () => {
 			try {
 				const authority = authoritiesRef.current.get(selectedId);
@@ -107,12 +109,12 @@ export default function FramescaperOpenFxInteractPanel({ bridge, runtime, copy }
 				}
 				if (!mountedRef.current || generation !== generationRef.current) return;
 				if (result.surfaceDisposition === 'drawn') paint(canvasRef.current, result.rgba);
-				setStatus(result.redrawRequested ? copy.ofxInteractRedrawn : copy.ofxInteractReady);
+				setStatus({ key: result.redrawRequested ? 'ofxInteractRedrawn' : 'ofxInteractReady' });
 			} catch (error) {
-				if (mountedRef.current && generation === generationRef.current) setStatus(message(error));
+				if (mountedRef.current && generation === generationRef.current) setStatus(feedbackFailure(error));
 			}
 		});
-	}, [bridge, copy, instance, runtime, target]);
+	}, [bridge, instance, runtime, target, setStatus]);
 
 	useEffect(() => {
 		if (instance === null) return;
@@ -125,7 +127,7 @@ export default function FramescaperOpenFxInteractPanel({ bridge, runtime, copy }
 	const event = useCallback((value: UnsequencedOfxInteractEvent): void => {
 		if (!Number.isSafeInteger(sequenceRef.current) || sequenceRef.current < 0
 			|| historyRef.current.length >= OFX_INTERACT_MAXIMUM_EVENTS_V1) {
-			setStatus(copy.ofxInteractSequenceExhausted); return;
+			setStatus({ key: 'ofxInteractSequenceExhausted' }); return;
 		}
 		const sequenced = Object.freeze({ ...value, sequence: sequenceRef.current }) as OfxInteractEventV1;
 		historyRef.current = appendOpenFxInteractReplay(historyRef.current, sequenced);
@@ -133,7 +135,7 @@ export default function FramescaperOpenFxInteractPanel({ bridge, runtime, copy }
 		const terminal = sequenced.kind === 'focus' && !sequenced.focused;
 		submit(historyRef.current, terminal);
 		if (terminal) historyRef.current = Object.freeze([]);
-	}, [copy.ofxInteractSequenceExhausted, submit]);
+	}, [setStatus, submit]);
 	const pointer = useCallback((
 		phase: 'motion' | 'down' | 'up', value: React.PointerEvent<HTMLCanvasElement>,
 	): void => {
@@ -260,4 +262,3 @@ function paint(canvas: HTMLCanvasElement | null, rgba: Uint8Array): void {
 }
 
 function clamp(value: number): number { return Math.max(0, Math.min(1, value)); }
-function message(value: unknown): string { return value instanceof Error ? value.message : String(value); }

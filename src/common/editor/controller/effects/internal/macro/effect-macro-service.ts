@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { isSoundscaperProductionProject } from '../../../../project-schema-version.ts';
+import { publishedCopyFor } from '../../../shared/presentation-localization.ts'; import { isSoundscaperProductionProject } from '../../../../project-schema-version.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
 import {
 	estimateAudioSelectionEffectOutputFrames,
 	estimateAudioSelectionEffectPeakBytes,
@@ -124,7 +124,7 @@ export interface EffectMacroServiceRuntime<Buffer = MacroRenderBuffer> {
 	) => number;
 	readonly audacityEffectMemoryError: () => Error;
 	readonly setProcessing: (processing: boolean) => void;
-	readonly setStatus: (message: string, status?: string) => void;
+	readonly setStatus: (message: string, status?: string, localization?: import('../../../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly publishDocumentSnapshot: () => void;
 	readonly preflightStorage: (bytes: number, kind: 'effect') => Promise<unknown>;
 	readonly cloneProject: (project: MacroProject) => MacroProject;
@@ -171,12 +171,12 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		if (runtime.editingBlocked()) return null;
 		const project = runtime.getProject();
 		const target = runtime.audacityEffectTarget(request.trackId);
-		if (!target) throw new Error(runtime.copy.macroSelectionRequired || runtime.copy.audacitySelectionHint);
+		if (!target) throw createLocalizedError(Error, runtime.copy, runtime.copy.macroSelectionRequired ? 'macroSelectionRequired' : 'audacitySelectionHint');
 		const enabledEffects = (Array.isArray(request.effects) ? request.effects : []).filter((effect) => (
 			effect?.enabled !== false && effect?.type !== 'missing'
 		));
 		if (!enabledEffects.length) {
-			throw new Error(runtime.copy.macroEffectsRequired || runtime.copy.effectRackEmpty);
+			throw createLocalizedError(Error, runtime.copy, runtime.copy.macroEffectsRequired ? 'macroEffectsRequired' : 'effectRackEmpty');
 		}
 		const effects = enabledEffects.map((effect) => materializeStep(effect, target.track.id));
 		const sampleRate = runtime.projectSampleRate();
@@ -195,21 +195,21 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 		const ownership = captureOwnership(runtime, project.id);
 		running = true;
 		runtime.setProcessing(true);
-		runtime.setStatus(runtime.copy.macroProcessing || runtime.copy.audacityProcessing);
+		setLocalizedStatus(runtime.setStatus, runtime.copy, (runtime.copy.macroProcessing ? "macroProcessing" : "audacityProcessing"));
 		runtime.publishDocumentSnapshot();
 		try {
 			await runtime.preflightStorage(outputBytes, 'effect');
 			assertOwnership(runtime, ownership);
 			const channels = await runChain(effects, target, project, sampleRate, preRollFrames, ownership);
-			const effectName = String(request.name || runtime.copy.untitledMacro || runtime.copy.macroManager).trim()
-				|| runtime.copy.untitledMacro
-				|| runtime.copy.macroManager;
+			const effectName = String(request.name || publishedCopyFor(runtime.copy).untitledMacro || publishedCopyFor(runtime.copy).macroManager).trim()
+				|| publishedCopyFor(runtime.copy).untitledMacro
+				|| publishedCopyFor(runtime.copy).macroManager;
 			await runtime.persistAudacityEffectResult(target, null, channels, {
 				assertCurrent: () => assertOwnership(runtime, ownership),
 				effectName,
 			});
 			assertOwnership(runtime, ownership);
-			runtime.setStatus(runtime.copy.macroApplied || runtime.copy.audacityApplied, 'success');
+			setLocalizedStatus(runtime.setStatus, runtime.copy, (runtime.copy.macroApplied ? "macroApplied" : "audacityApplied"), undefined, 'success');
 			return true;
 		} catch (error) {
 			if (ownershipIsCurrent(runtime, ownership) && !isCancellation(error)) runtime.handleError(error);
@@ -312,7 +312,7 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 	): Promise<readonly Float32Array[]> {
 		let snapshot = runtime.cloneProject(project) as MutableMacroProject;
 		const snapshotTrack = snapshot.tracks.find((track) => track.id === target.track.id);
-		if (!snapshotTrack) throw new Error(runtime.copy.audioTrackNotFound);
+		if (!snapshotTrack) throw createLocalizedError(Error, runtime.copy, 'audioTrackNotFound');
 		if (isSoundscaperProductionProject(snapshot)) {
 			snapshot = createIsolatedTrackRenderProjectV21(snapshot as never, {
 				trackId: target.track.id,

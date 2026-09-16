@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
+import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import {
 	createSequentialSevenZipCopyArchive,
 	sevenZipCopyArchiveByteLength,
 	type SevenZipCopyEntry,
@@ -133,7 +133,7 @@ function enforcePlannedEntries(
 	let finishPromise: Promise<{ readonly blob: Blob; readonly cleanup: () => Promise<void> }> | null = null;
 	return {
 		async add(fileName, input, signal = null): Promise<void> {
-			if (closed || failed) throw failed || new Error(copy.stemArchiveClosed);
+			if (closed || failed) throw failed || createLocalizedError(Error, copy, 'stemArchiveClosed');
 			if (adding) throw new Error('Stem archive additions must be awaited in order.');
 			const expected = plan.entries[nextEntryIndex];
 			validateAddition(expected, fileName, input);
@@ -152,7 +152,7 @@ function enforcePlannedEntries(
 		finish() {
 			if (finishPromise) return finishPromise;
 			if (failed) return Promise.reject(failed);
-			if (closed || adding) return Promise.reject(new Error(copy.stemArchiveClosed));
+			if (closed || adding) return Promise.reject(createLocalizedError(Error, copy, 'stemArchiveClosed'));
 			closed = true;
 			if (nextEntryIndex !== plan.entries.length) {
 				finishPromise = archive.abort().then(() => {
@@ -186,7 +186,7 @@ async function createStreamingSevenZipArchive(
 	const sink = await createTemporaryFileSink(plan.fileName, copy);
 	if (!sink.persistent && (plan.requiredTemporaryBytes ?? 0) > MEMORY_ARCHIVE_LIMIT) {
 		await sink.abort();
-		throw new Error(copy.largeStemsStorageRequired);
+		throw createLocalizedError(Error, copy, 'largeStemsStorageRequired');
 	}
 	const archive = await createSequentialSevenZipCopyArchive(entries, {
 		write: (chunk) => sink.write(chunk),

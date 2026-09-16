@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { hasCoreEditingProjectAuthority } from '../../project-schema-version.ts';
+import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import { hasCoreEditingProjectAuthority } from '../../project-schema-version.ts';
 import { audioSelectionEffectAppliesToAllAudio } from '../../effects.js';
 
 export interface EffectSelectionFrequencyRange {
@@ -271,7 +271,7 @@ export function createEffectSelectionService(runtime: EffectSelectionServiceRunt
 	): Readonly<EffectSelectionFrequencyRange & { windowSize: number }> | null {
 		const frequencyRange = runtime.activeSelection()?.frequencyRange;
 		if (!frequencyRange || runtime.state.audacityEffectType === 'eq') return null;
-		if (definition.lengthChanging) throw new Error(runtime.copy.spectralEffectLengthChanging);
+		if (definition.lengthChanging) throw createLocalizedError(Error, runtime.copy, 'spectralEffectLengthChanging');
 		return {
 			minimumFrequency: frequencyRange.minimumFrequency,
 			maximumFrequency: frequencyRange.maximumFrequency,
@@ -282,11 +282,11 @@ export function createEffectSelectionService(runtime: EffectSelectionServiceRunt
 	function setSpectralBoxSelection(options: SpectralBoxOptions = {}): EffectSelection | null {
 		if (runtime.editingBlocked()) return null;
 		const project = runtime.getProject();
-		if (!hasCoreEditingProjectAuthority(project)) throw new Error(runtime.copy.v2Required);
+		if (!hasCoreEditingProjectAuthority(project)) throw createLocalizedError(Error, runtime.copy, 'v2Required');
 		const selectedClip = runtime.state.selectedClipId ? findClip(project, runtime.state.selectedClipId) : null;
 		const clipTrack = selectedClip ? findClipTrack(project, selectedClip.id) : null;
 		const track = findTrack(project, runtime.state.selectedTrackId) ?? clipTrack;
-		if (!track || track.type !== 'audio') throw new Error(runtime.copy.audioTrackRequired);
+		if (!track || track.type !== 'audio') throw createLocalizedError(Error, runtime.copy, 'audioTrackRequired');
 		const current = runtime.activeSelection();
 		const trackRange = runtime.selectedTracksTimeRange();
 		const startFrame = current?.startFrame ?? selectedClip?.timelineStartFrame ?? trackRange?.startFrame;
@@ -294,18 +294,18 @@ export function createEffectSelectionService(runtime: EffectSelectionServiceRunt
 			?? (selectedClip ? selectedClip.timelineStartFrame + selectedClip.durationFrames : trackRange?.endFrame);
 		if (!Number.isSafeInteger(startFrame) || !Number.isSafeInteger(endFrame)
 			|| startFrame == null || endFrame == null || endFrame <= startFrame) {
-			throw new Error(runtime.copy.timeSelectionRequired);
+			throw createLocalizedError(Error, runtime.copy, 'timeSelectionRequired');
 		}
 		const nyquist = runtime.projectSampleRate() / 2;
 		const minimumFrequency = Number(options.minimumFrequency ?? track.spectrogram?.minimumFrequency ?? 0);
 		const maximumFrequency = Number(options.maximumFrequency ?? track.spectrogram?.maximumFrequency ?? nyquist);
 		if (!Number.isFinite(minimumFrequency) || minimumFrequency < 0 || minimumFrequency >= nyquist) {
-			throw new RangeError(runtime.copy.minimumFrequencyInvalid
-				|| formatRangeError(runtime.copy, runtime.copy.minimumFrequency, 0, nyquist));
+			throw createLocalizedError(RangeError, runtime.copy, runtime.copy.minimumFrequencyInvalid ? 'minimumFrequencyInvalid' : 'parameterRangeError',
+				runtime.copy.minimumFrequencyInvalid ? undefined : { label: { key: 'minimumFrequency', fallback: runtime.copy.minimumFrequency }, minimum: 0, maximum: nyquist });
 		}
 		if (!Number.isFinite(maximumFrequency) || maximumFrequency <= minimumFrequency || maximumFrequency > nyquist) {
-			throw new RangeError(runtime.copy.maximumFrequencyInvalid
-				|| formatRangeError(runtime.copy, runtime.copy.maximumFrequency, minimumFrequency, nyquist));
+			throw createLocalizedError(RangeError, runtime.copy, runtime.copy.maximumFrequencyInvalid ? 'maximumFrequencyInvalid' : 'parameterRangeError',
+				runtime.copy.maximumFrequencyInvalid ? undefined : { label: { key: 'maximumFrequency', fallback: runtime.copy.maximumFrequency }, minimum: minimumFrequency, maximum: nyquist });
 		}
 		return runtime.setSelection(startFrame, endFrame, {
 			trackIds: current?.trackIds?.length ? current.trackIds : [track.id],
@@ -319,9 +319,9 @@ export function createEffectSelectionService(runtime: EffectSelectionServiceRunt
 	): EffectSelection | null {
 		if (runtime.editingBlocked()) return null;
 		const project = runtime.getProject();
-		if (!hasCoreEditingProjectAuthority(project)) throw new Error(runtime.copy.v2Required);
+		if (!hasCoreEditingProjectAuthority(project)) throw createLocalizedError(Error, runtime.copy, 'v2Required');
 		const track = findTrack(project, runtime.state.selectedTrackId);
-		if (!track || track.type !== 'audio') throw new Error(runtime.copy.audioTrackRequired);
+		if (!track || track.type !== 'audio') throw createLocalizedError(Error, runtime.copy, 'audioTrackRequired');
 		const centerFrame = safeNonNegativeInteger(options?.centerFrame, 'spectral brush center frame');
 		const radiusFrames = safePositiveInteger(options?.radiusFrames, 'spectral brush frame radius');
 		const endFrame = centerFrame + radiusFrames;
@@ -412,16 +412,4 @@ function projectAudioRange(
 
 function isEffectTarget(value: EffectTarget | null): value is EffectTarget {
 	return value !== null;
-}
-
-function formatRangeError(
-	copy: Pick<EffectSelectionCopy, 'parameterRangeError'>,
-	label: string,
-	minimum: number,
-	maximum: number,
-): string {
-	return copy.parameterRangeError
-		.replace('{label}', label)
-		.replace('{minimum}', String(minimum))
-		.replace('{maximum}', String(maximum));
 }

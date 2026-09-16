@@ -116,7 +116,7 @@ export interface ImportCompositionDependencies {
 	readonly editingBlocked: () => boolean;
 	readonly commit: ProjectBinServiceDependencies['commit'];
 	readonly updateSelection: ProjectBinServiceDependencies['updateSelection'];
-	readonly setStatus: (message: string, state?: string) => void;
+	readonly setStatus: (message: string, state?: string, localization?: import('../../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly publishDocumentSnapshot: () => void;
 	readonly handleError: (error: unknown) => void;
 	readonly preflightStorage: (bytes: number, category: 'import') => Promise<unknown>;

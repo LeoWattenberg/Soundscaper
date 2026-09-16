@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { hasCoreEditingProjectAuthority } from '../../../project-schema-version.ts';
+import { hasCoreEditingProjectAuthority } from '../../../project-schema-version.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 import type { AudioTrackLeaf } from '../../../project-media-types.ts';
 import type {
@@ -129,7 +129,7 @@ export interface SampleEditServiceRuntime<Project extends ControllerRuntimeProje
 	readonly projectSampleRate: () => number;
 	readonly retireSourceChunkProvider: (sourceId: string) => PromiseLike<unknown> | unknown;
 	readonly publishDocumentSnapshot: () => void;
-	readonly setStatus: (message: string, state?: 'info' | 'success' | 'error') => void;
+	readonly setStatus: (message: string, state?: 'info' | 'success' | 'error', localization?: import('../../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly sourceBuffers: Pick<Map<string, unknown>, 'delete'>;
 	readonly sourcePeaks: Pick<Map<string, unknown>, 'delete'>;
 	readonly state: SampleEditServiceState;
@@ -172,7 +172,7 @@ export function createSampleEditService<Project extends ControllerRuntimeProject
 
 	function setSampleEditMode(mode: 'pencil' | null = null) {
 		if (mode != null && mode !== 'pencil') throw new RangeError('Unsupported sample-edit mode.');
-		if (mode && !sampleEditingAvailable()) throw new Error(copy.sampleEditZoomRequired);
+		if (mode && !sampleEditingAvailable()) throw createLocalizedError(Error, copy, 'sampleEditZoomRequired');
 		state.sampleEditMode = mode;
 		publishDocumentSnapshot();
 		return state.sampleEditMode;
@@ -188,7 +188,7 @@ export function createSampleEditService<Project extends ControllerRuntimeProject
 		const clipId = options.clipId || state.selectedClipId;
 		const clip = clipId ? findClip(project, clipId) : null;
 		const source = clip ? findSource(project, clip.sourceId) : null;
-		if (!clip || !source) throw new Error(copy.audioClipNotFound);
+		if (!clip || !source) throw createLocalizedError(Error, copy, 'audioClipNotFound');
 		const edits = createPencilSampleEdits({
 			clip,
 			source,
@@ -204,8 +204,8 @@ export function createSampleEditService<Project extends ControllerRuntimeProject
 		const clip = clipId ? findClip(project, clipId) : null;
 		const source = clip ? findSource(project, clip.sourceId) : null;
 		const selection = activeSelection();
-		if (!clip || !source) throw new Error(copy.audioClipNotFound);
-		if (!selection) throw new Error(copy.timeSelectionRequired);
+		if (!clip || !source) throw createLocalizedError(Error, copy, 'audioClipNotFound');
+		if (!selection) throw createLocalizedError(Error, copy, 'timeSelectionRequired');
 		const smooth = createSmoothSampleRange({
 			clip,
 			source,
@@ -220,7 +220,7 @@ export function createSampleEditService<Project extends ControllerRuntimeProject
 		clip, source, edits = null, smooth = null, radius = 2,
 	}: ImmutableSampleEditRequest): Promise<PersistedSampleEdit | null> {
 		if (editingBlocked()) return null;
-		if (!sampleEditingAvailable(clip.id)) throw new Error(copy.sampleEditZoomRequired);
+		if (!sampleEditingAvailable(clip.id)) throw createLocalizedError(Error, copy, 'sampleEditZoomRequired');
 		const projectAtStart = getProject();
 		const sourceId = createStableId('sample-edit');
 		// startTask replaces any sample edit still in flight and enrols this one
@@ -230,7 +230,7 @@ export function createSampleEditService<Project extends ControllerRuntimeProject
 		state.sampleEditAbort = abort;
 		state.sampleEditProcessing = true;
 		publishDocumentSnapshot();
-		setStatus(copy.sampleEditSaving);
+		setLocalizedStatus(setStatus, copy, "sampleEditSaving");
 		let persisted: PersistedSampleEdit | null = null;
 		let published = false;
 		try {
@@ -258,7 +258,7 @@ export function createSampleEditService<Project extends ControllerRuntimeProject
 				],
 			}, { selectTrackId: findClipTrack(project, clip.id)?.id, selectClipId: clip.id });
 			published = true;
-			setStatus(copy.sampleEditDone, 'success');
+			setLocalizedStatus(setStatus, copy, "sampleEditDone", undefined, 'success');
 			return persisted;
 		} catch (error) {
 			if (!published) {
@@ -273,7 +273,7 @@ export function createSampleEditService<Project extends ControllerRuntimeProject
 				}
 			}
 			if ((error as Readonly<{ name?: string }> | null)?.name === 'AbortError') {
-				setStatus(copy.sampleEditCancelled);
+				setLocalizedStatus(setStatus, copy, "sampleEditCancelled");
 				return null;
 			}
 			throw error;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
+import { publishedCopyFor } from '../shared/presentation-localization.ts'; import {
 	createMacroCommandService,
 	isRunnableMacroCommand,
 } from './internal/macro/macro-command-service.ts';
@@ -100,7 +100,7 @@ export function createEffectMacroActions(
 		runMacroCommand: commands.runMacroCommand,
 		beginMacroTransaction: scope.beginMacroTransaction,
 		isRunnableMacroCommand,
-		untitledMacroName: scope.copy.untitledMacro || scope.copy.macroManager || 'Untitled macro',
+		untitledMacroName: publishedCopyFor(scope.copy).untitledMacro || publishedCopyFor(scope.copy).macroManager || 'Untitled macro',
 	});
 	const scripts = createMacroScriptLibraryService({
 		state: scope.effectLibraryState,
@@ -190,6 +190,6 @@ function readScriptRequest(
 	const value = request && typeof request === 'object' ? request as Record<string, unknown> : {};
 	const source = typeof value.source === 'string' ? value.source : '';
 	if (!source.trim()) throw new RangeError('A macro program needs source to run.');
-	const name = String(value.name ?? '').trim() || scope.copy.untitledMacro || 'Untitled macro';
+	const name = String(value.name ?? '').trim() || publishedCopyFor(scope.copy).untitledMacro || 'Untitled macro';
 	return Object.freeze({ name, source });
 }

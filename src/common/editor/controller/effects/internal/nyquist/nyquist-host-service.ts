@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { RuntimePersistedClip } from '../../../../runtime-clip-projection.ts';
+import type { RuntimePersistedClip } from '../../../../runtime-clip-projection.ts'; import { setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
 import type { AudioBufferContext } from '../../../source/source-audio.ts';
 import { createAddLabelCommand, createAddLabelTrackCommand } from '../../../../commands/factories.ts';
 import type { AudioEditorCommand } from '../../../../commands/protocol.ts';
@@ -122,7 +122,7 @@ export interface NyquistHostServiceRuntime {
 		command: AudioEditorCommand,
 		options: Readonly<{ selectTrackId: string }>,
 	) => void;
-	readonly setStatus: (message: string, status?: string) => void;
+	readonly setStatus: (message: string, status?: string, localization?: import('../../../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly publishDocumentSnapshot: () => void;
 }
 
@@ -132,7 +132,7 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 		running?.abort();
 		const preview = runtime.cancelAudacityEffectPreview({ publish: false });
 		if (!running) runtime.state.audacityEffectProcessing = false;
-		runtime.setStatus(runtime.copy.audacityPreviewCancelled || runtime.copy.ready);
+		setLocalizedStatus(runtime.setStatus, runtime.copy, (runtime.copy.audacityPreviewCancelled ? "audacityPreviewCancelled" : "ready"));
 		runtime.publishDocumentSnapshot();
 		return Boolean(running || preview);
 	}
@@ -229,13 +229,13 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 			runtime.state.audacityPreviewSource = null;
 			source.disconnect?.();
 			if (!projectIsCurrent(runtime, projectToken)) return;
-			runtime.setStatus(runtime.copy.audacityPreviewComplete || runtime.copy.ready, 'success');
+			setLocalizedStatus(runtime.setStatus, runtime.copy, (runtime.copy.audacityPreviewComplete ? "audacityPreviewComplete" : "ready"), undefined, 'success');
 			runtime.publishDocumentSnapshot();
 		};
 		runtime.pauseTransport();
 		runtime.state.audacityPreviewSource = source;
 		source.start();
-		runtime.setStatus(runtime.copy.audacityPreviewPlaying || runtime.copy.playing, 'success');
+		setLocalizedStatus(runtime.setStatus, runtime.copy, (runtime.copy.audacityPreviewPlaying ? "audacityPreviewPlaying" : "playing"), undefined, 'success');
 	}
 
 	function persistNyquistLabels(labels: readonly NyquistLabel[], name: unknown = null): string | null {

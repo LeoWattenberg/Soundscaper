@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { cloneAudacityWorkerPayload } from './nyquist/nyquist-audio.ts';
+import { createLocalizedError } from '../../../../i18n/presentation-message.ts'; import { cloneAudacityWorkerPayload } from './nyquist/nyquist-audio.ts';
 import { WorkerRequestCancelledError, WorkerRequestTimeoutError } from '../../../worker-protocol.ts';
 import { loadDeferredSpectralEditAdmission } from './deferred-spectral-edit-admission.ts';
 import type { EditorProjectToken } from '../../shared/lifecycle.ts';
@@ -360,9 +360,9 @@ function executeWorker<Result>(options: ExecuteWorkerOptions<Result>): Promise<R
 		};
 		options.worker.onerror = ({ error, message }) => settle(
 			null,
-			error instanceof Error ? error : new Error(message || options.processingFailedMessage),
+			error instanceof Error ? error : message ? new Error(message) : createLocalizedError(Error, { effectProcessingFailed: options.processingFailedMessage }, 'effectProcessingFailed'),
 		);
-		options.worker.onmessageerror = () => settle(null, new Error(options.processingFailedMessage));
+		options.worker.onmessageerror = () => settle(null, createLocalizedError(Error, { effectProcessingFailed: options.processingFailedMessage }, 'effectProcessingFailed'));
 		timer = options.scheduleTimeout(
 			() => settle(null, new WorkerRequestTimeoutError(options.timeoutMs)),
 			options.timeoutMs,

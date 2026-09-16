@@ -5,7 +5,7 @@
  * keeps to the signals a user asks for by hand.
  */
 
-import { createAddClipCommand, createAddSourceCommand } from '../../../commands/factories.ts';
+import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import { createAddClipCommand, createAddSourceCommand } from '../../../commands/factories.ts'; import { setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import { projectForAudioGeneratorCommands } from './generator-project-view.ts';
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 import { prepareDisjointRangeDeleteCommand } from '../../../commands/range-runtime.js';
@@ -97,7 +97,7 @@ export function createLabeledAudioSilence<Context, Target extends AudioGenerator
 			const buffer = await dependencies.createBuffer(generated.channels, sampleRate, context);
 			ownership.assert(owned);
 			sourceId = dependencies.createId('generator');
-			const name = dependencies.copy.silenceAudio;
+			const name = publishedCopyFor(dependencies.copy).silenceAudio;
 			writer = await dependencies.store.beginSourceWrite(sourceId, {
 				name,
 				mimeType: 'audio/wav',
@@ -149,7 +149,7 @@ export function createLabeledAudioSilence<Context, Target extends AudioGenerator
 					}))),
 				],
 			});
-			dependencies.setStatus(dependencies.copy.done, 'success');
+			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
 			return true;
 		} catch (error) {
 			if (writer) await Promise.resolve(writer.abort(error)).catch(() => undefined);

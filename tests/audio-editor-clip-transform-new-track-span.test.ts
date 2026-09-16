@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createPresentationLocalization } from '../src/common/editor/controller/shared/presentation-localization.ts';
 
 import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
 import {
@@ -71,7 +72,9 @@ function newTrackDestinations(harness: ReturnType<typeof createHarness>): Array<
 	return transform.transforms.map((entry) => [entry.clipId, entry.trackId ?? '']);
 }
 
-function createHarness(project: ClipTransformProject) {
+function createHarness(project: ClipTransformProject, copy = {
+	audioClipNotFound: 'Audio clip not found.', track: 'Track', timelineFramesFinite: 'Timeline frames must be finite.',
+}) {
 	const lifetime = new EditorControllerLifetime();
 	lifetime.markReady();
 	const commits: Array<{
@@ -81,10 +84,7 @@ function createHarness(project: ClipTransformProject) {
 	let nextId = 0;
 	const service = createClipTransformService({
 		lifetime,
-		copy: {
-			audioClipNotFound: 'Audio clip not found.', track: 'Track',
-			timelineFramesFinite: 'Timeline frames must be finite.',
-		},
+		copy,
 		getProject: () => project,
 		getSelectedClipId: () => 'active',
 		editingBlocked: () => false,
@@ -100,6 +100,21 @@ function createHarness(project: ClipTransformProject) {
 	});
 	return { commits, service };
 }
+
+test('moving clips to fresh tracks preserves published names during a translation preview', () => {
+	const publishedCopy = { track: 'Track', audioClipNotFound: 'Audio clip not found.', timelineFramesFinite: 'Timeline frames must be finite.' };
+	const localization = createPresentationLocalization({ locale: 'en', publishedCopy, englishCopy: publishedCopy });
+	try {
+		const project = projectFixture();
+		const harness = createHarness(project, localization.copy);
+		localization.port.applyPreview('de', { track: 'Entwurfsspur' });
+		harness.service.moveClipsToNewTrack('active', 300);
+		const command = harness.commits[0]?.command;
+		if (command?.type !== 'batch') assert.fail('Expected new track batch.');
+		const names = command.commands.flatMap(entry => entry.type === 'track/add' ? [entry.track.name] : []);
+		assert.deepEqual(names, [`Track ${project.tracks.length + 1}`, `Track ${project.tracks.length + 2}`]);
+	} finally { localization.dispose(); }
+});
 
 function projectFixture(): ClipTransformProject {
 	return brandRuntimeProjectProjection({

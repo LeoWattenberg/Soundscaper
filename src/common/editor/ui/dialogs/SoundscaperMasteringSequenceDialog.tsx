@@ -25,6 +25,7 @@ import type { MasteringSequenceDialogOperation } from './soundscaper-mastering-s
 export interface SoundscaperMasteringSequenceDialogProps {
 	readonly isOpen?: boolean;
 	readonly controller: Readonly<{
+		readonly presentationLocalization?: Readonly<{ publishedCopy: Readonly<Record<string, string>> }>;
 		readonly actions: Readonly<{
 			readonly edit: Readonly<{
 				commit(operation: MasteringSequenceDialogOperation): unknown;
@@ -84,6 +85,7 @@ export default function SoundscaperMasteringSequenceDialog({
 	>
 		<SoundscaperMasteringSequenceEditor
 			copy={copy}
+			newSequenceName={controller.presentationLocalization?.publishedCopy['ui.mastering.newMasteringSequence'] ?? copy.newMasteringSequence}
 			disabled={operation.disabled}
 			sequences={document.sequences}
 			regions={document.regions}

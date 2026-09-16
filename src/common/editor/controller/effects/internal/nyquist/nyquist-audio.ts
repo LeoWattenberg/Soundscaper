@@ -1,4 +1,4 @@
-import { assertAudacityEffectOutput } from '../../../../audacity-effects/contracts.js';
+import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import { assertAudacityEffectOutput } from '../../../../audacity-effects/contracts.js';
 
 interface NyquistAudioResult extends Record<string, unknown> {
 	readonly type?: string;
@@ -163,5 +163,5 @@ export function cloneAudacityWorkerPayload(
 }
 
 export function audacityEffectMemoryError(copy: { readonly effectMemoryTooLarge: string }): Error {
-	return new Error(copy.effectMemoryTooLarge);
+	return createLocalizedError(Error, copy, 'effectMemoryTooLarge');
 }

@@ -1,4 +1,4 @@
-import { WAVEFORM_PEAK_BLOCK_SIZES, WAVEFORM_PEAKS_VERSION, waveformPeakBlockSizes } from '../../waveform-peak-contract.ts';
+import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import { WAVEFORM_PEAK_BLOCK_SIZES, WAVEFORM_PEAKS_VERSION, waveformPeakBlockSizes } from '../../waveform-peak-contract.ts';
 import { abortError, throwIfAborted } from '../shared/app-helpers.ts';
 
 export { WAVEFORM_PEAK_BLOCK_SIZES, WAVEFORM_PEAKS_VERSION } from '../../waveform-peak-contract.ts';
@@ -426,14 +426,14 @@ export function waitForAnalysisWorker(
 		};
 		const abort = (): void => rejectOnce(signal?.reason instanceof Error ? signal.reason : abortError());
 		const timeout = globalThis.setTimeout(() => rejectOnce(
-			Object.assign(new Error(copy.audioAnalysisWorkerFailed), { code: 'WORKER_TIMEOUT' }),
+			Object.assign(createLocalizedError(Error, copy, 'audioAnalysisWorkerFailed'), { code: 'WORKER_TIMEOUT' }),
 		), timeoutMs);
 		worker.onmessage = ({ data = {} }: MessageEvent<AnalysisWorkerMessage>) => {
 			if (data.type === 'error') rejectOnce(new Error(data.message || copy.audioAnalysisFailed));
 			else if (data.type === expectedType) resolveOnce(data);
 		};
 		worker.onerror = (event) => rejectOnce(event.error || new Error(event.message || copy.audioAnalysisWorkerFailed));
-		worker.onmessageerror = () => rejectOnce(new Error(copy.audioAnalysisWorkerFailed));
+		worker.onmessageerror = () => rejectOnce(createLocalizedError(Error, copy, 'audioAnalysisWorkerFailed'));
 		if (signal?.aborted) abort();
 		else signal?.addEventListener('abort', abort, { once: true });
 	});

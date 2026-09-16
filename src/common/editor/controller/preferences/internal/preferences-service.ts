@@ -1,4 +1,4 @@
-import {
+import { createLocalizedError } from '../../../../i18n/presentation-message.ts'; import {
 	activateWorkspacePanelTab,
 	canonicalizeWorkspacePanelGroups,
 	placeWorkspacePanel,
@@ -123,7 +123,7 @@ export function createEditorPreferencesService<Preferences extends EditorPrefere
 	}
 
 	function persist(nextPreferences: Preferences): Promise<Preferences> {
-		if (dependencies.getReadOnly()) throw new Error(dependencies.newerSchemaMessage);
+		if (dependencies.getReadOnly()) throw createLocalizedError(Error, { preferencesNewerSchema: dependencies.newerSchemaMessage }, 'preferencesNewerSchema');
 		durablePreferences ??= dependencies.getPreferences();
 		dependencies.setPreferences(nextPreferences);
 		dependencies.publish();
@@ -271,7 +271,7 @@ export function createEditorPreferencesService<Preferences extends EditorPrefere
 
 	function setShortcut(actionId: string, bindings: string | string[]): Promise<Preferences> {
 		if (typeof actionId !== 'string' || !actionId.trim()) {
-			throw new TypeError(dependencies.shortcutActionRequired || 'A shortcut action is required.');
+			throw createLocalizedError(TypeError, { shortcutActionRequired: dependencies.shortcutActionRequired || undefined }, 'shortcutActionRequired', undefined, { fallback: 'A shortcut action is required.' });
 		}
 		const shortcuts = { ...dependencies.getPreferences().shortcuts };
 		const values = (Array.isArray(bindings) ? bindings : [bindings])
@@ -284,9 +284,9 @@ export function createEditorPreferencesService<Preferences extends EditorPrefere
 			.find((entry) => entry.actionIds.includes(actionId));
 		if (conflict) {
 			const message = dependencies.shortcutConflict || 'Shortcut {binding} conflicts with {action}.';
-			throw new RangeError(message
-				.replace('{binding}', conflict.binding)
-				.replace('{action}', conflict.actionIds.find((id) => id !== actionId) || actionId));
+			throw createLocalizedError(RangeError, { shortcutConflict: message }, 'shortcutConflict', {
+				binding: conflict.binding, action: conflict.actionIds.find((id) => id !== actionId) || actionId,
+			});
 		}
 		return update({ shortcuts });
 	}

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { clipTrimSourceFrameCount } from '../../clip-trim-source-frame-count.ts';
+import { publishedCopyFor } from '../../../shared/presentation-localization.ts'; import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import { clipTrimSourceFrameCount } from '../../clip-trim-source-frame-count.ts';
 import { hasProjectBinMediaAuthority } from '../../../../project-schema-version.ts';
 import { clipMoveSelection, type ClipMoveOptions } from './clip-move-options.ts';
 
@@ -96,7 +96,7 @@ export function createClipTransformService(
 			)) ?? targetTrack;
 		}
 		if (!clip || !oldTrack || !targetTrack || !Array.isArray(targetTrack.clipIds)) {
-			throw new Error(dependencies.copy.audioClipNotFound);
+			throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		}
 		const requestedStartFrame = options.preserveTime ? clip.timelineStartFrame : dependencies.snapTimelineFrame(timelineStartFrame);
 		const clipIds = collectClipTransformIds(project, clip.id, options);
@@ -152,7 +152,7 @@ export function createClipTransformService(
 		const project = dependencies.getProject();
 		const clip = findClip(project, clipId);
 		const sourceTrack = clip ? findClipTrack(project, clip.id) : null;
-		if (!clip || !sourceTrack) throw new Error(dependencies.copy.audioClipNotFound);
+		if (!clip || !sourceTrack) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		const audioTracks = timelineTracks(project);
 		const activeTrackIndex = audioTracks.findIndex((track) => track.id === sourceTrack.id);
 		if (activeTrackIndex < 0) throw new RangeError('Clip source must be an audio track.');
@@ -162,7 +162,7 @@ export function createClipTransformService(
 			audioTracks.findIndex((track) => track.clipIds.includes(item.id))
 		));
 		if (sourceTrackIndices.some((index) => index < 0)) {
-			throw new Error(dependencies.copy.audioClipNotFound);
+			throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		}
 		const requestedStartFrame = options.preserveTime ? clip.timelineStartFrame : dependencies.snapTimelineFrame(timelineStartFrame);
 		const selection = dependencies.activeSelection();
@@ -185,7 +185,7 @@ export function createClipTransformService(
 		const newTrackCommands = Array.from({ length: newTrackCount }, (_, index) => createAddTrackCommand({
 			type: 'audio',
 			id: dependencies.createId('track'),
-			name: `${dependencies.copy.track} ${project.tracks.length + index + 1}`,
+			name: `${publishedCopyFor(dependencies.copy).track} ${project.tracks.length + index + 1}`,
 			armed: false,
 		}));
 		const virtualTracks: ClipTransformTrack[] = [
@@ -265,7 +265,7 @@ export function createClipTransformService(
 				const trackId = dependencies.createId('track');
 				newTrackCommands.push(createAddTrackCommand({
 					type: 'audio', id: trackId,
-					name: `${dependencies.copy.track} ${project.tracks.length + newTrackCommands.length + 1}`,
+					name: `${publishedCopyFor(dependencies.copy).track} ${project.tracks.length + newTrackCommands.length + 1}`,
 					channelCount: track.channelCount, color: track.color, armed: false,
 				}));
 				destinationTrackIds.set(track.id, trackId);
@@ -314,7 +314,7 @@ export function createClipTransformService(
 		const project = dependencies.getProject();
 		const clip = findClip(project, clipId);
 		const track = clip ? findClipTrack(project, clip.id) : null;
-		if (!clip || !track) throw new Error(dependencies.copy.audioClipNotFound);
+		if (!clip || !track) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		const timelineStartChanged = Object.hasOwn(changes, 'timelineStartFrame')
 			&& Math.round(Number(changes.timelineStartFrame)) !== clip.timelineStartFrame;
 		if (!timelineStartChanged && !Object.hasOwn(changes, 'durationFrames')) {
@@ -335,7 +335,7 @@ export function createClipTransformService(
 			requestedDelta = Math.round(Number(changes.timelineStartFrame)) - clip.timelineStartFrame;
 			for (const item of clips) {
 				const source = findSource(project, item.sourceId);
-				if (!source) throw new Error(dependencies.copy.audioClipNotFound);
+				if (!source) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 				const sourceFramesPerTimelineFrame = item.sourceDurationFrames / item.durationFrames;
 				const sourceExtension = item.reversed
 					? clipTrimSourceFrameCount(source) - item.sourceStartFrame - item.sourceDurationFrames
@@ -348,7 +348,7 @@ export function createClipTransformService(
 			requestedDelta = Math.round(Number(changes.durationFrames)) - clip.durationFrames;
 			for (const item of clips) {
 				const source = findSource(project, item.sourceId);
-				if (!source) throw new Error(dependencies.copy.audioClipNotFound);
+				if (!source) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 				const sourceFramesPerTimelineFrame = item.sourceDurationFrames / item.durationFrames;
 				const sourceExtension = item.reversed
 					? item.sourceStartFrame
@@ -357,7 +357,7 @@ export function createClipTransformService(
 				upperBound = Math.min(upperBound, Math.floor(sourceExtension / sourceFramesPerTimelineFrame));
 			}
 		}
-		if (!Number.isSafeInteger(requestedDelta)) throw new TypeError(dependencies.copy.timelineFramesFinite);
+		if (!Number.isSafeInteger(requestedDelta)) throw createLocalizedError(TypeError, dependencies.copy, 'timelineFramesFinite');
 		const deltaFrames = warpEditableTrimDelta(project, clip, trimsLeft, {
 			deltaFrames: Math.max(lowerBound, Math.min(upperBound, requestedDelta)),
 			lowerBound,
@@ -366,7 +366,7 @@ export function createClipTransformService(
 		if (!deltaFrames) return project;
 		const transforms = clips.map((item): PreparedTransform => {
 			const source = findSource(project, item.sourceId);
-			if (!source) throw new Error(dependencies.copy.audioClipNotFound);
+			if (!source) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 			const durationFrames = trimsLeft ? item.durationFrames - deltaFrames : item.durationFrames + deltaFrames;
 			const sourceExtension = trimsLeft
 				? (item.reversed
@@ -437,7 +437,7 @@ export function createClipTransformService(
 			}
 			return moveClips(clip.id, trackId, changes.timelineStartFrame, { overwrite: true });
 		}
-		if (!clipId) throw new Error(dependencies.copy.audioClipNotFound);
+		if (!clipId) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		return dependencies.commit(
 			prepareOverwriteClipCommand(project, clipId, { trackId, changes }, dependencies.createId),
 			{ selectTrackId: trackId, selectClipId: clipId },

@@ -16,28 +16,12 @@ import AudioEditorTimeCodeInput, {
 } from '../AudioEditorTimeCodeInput.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 
-const TEXT = Object.freeze({
-	selectAdjacent: 'Select one clip from an unlocked video track containing an adjacent pair.',
-	exactPair: 'Exact adjacent pair', outgoingIncoming: 'Outgoing → incoming', linkedAv: ' (linked A/V)',
-	duration: 'Duration (sequence frames)', applyDissolve: 'Apply dissolve', removeDissolve: 'Remove dissolve',
-	selectVideo: 'Select one timeline video clip first.', selectedVideo: 'Selected video occurrence',
-	brightness: 'Brightness', updateAdjustment: 'Update adjustment', applyAdjustment: 'Apply adjustment',
-	removeAdjustment: 'Remove adjustment', selectVisual: 'Select one timeline visual clip first.',
-	selectedAttachment: 'Selected presentation attachment', attachedMask: 'Attached mask', newMask: 'New mask',
-	shape: 'Shape', rectangle: 'Rectangle', ellipse: 'Ellipse', line: 'Line', width: 'Width', height: 'Height',
-	updateMask: 'Update attached mask', createMask: 'Create and attach mask', removeAttachment: 'Remove attachment',
-	visualPreset: 'Visual preset', presetName: 'Preset name', saveGenerator: 'Save selected generator preset',
-	savedVisualPreset: 'Saved visual preset', none: 'None', applyGenerator: 'Apply to selected generator',
-	removeVisualPreset: 'Remove visual preset', finishingPreset: 'Finishing preset',
-	savedFinishingPreset: 'Saved finishing preset', applyFresh: 'Apply as fresh presentation',
-	removeFinishingPreset: 'Remove finishing preset', exactPlayhead: 'Exact playhead picture',
-	timelineSample: 'Timeline sample', freezeDuration: 'Freeze duration (sequence frames)',
-	captureFrame: 'Capture authenticated rendered frame', removed: 'Selected authored state removed.',
-	presetSaved: 'Selected visual preset saved.', freezeCreated: 'Exact playhead freeze created.',
-	applied: 'Selected authored state applied.',
-});
+import { SELECTED_VISUAL_AUTHORING_COPY } from '../../../i18n/editor-selected-visual-authoring-copy.ts';
+import { resolveEditorCopyScope } from '../../../i18n/editor-copy-scope.ts';
+import { publishedCopyFor } from '../../controller/shared/presentation-localization.ts';
 
 interface Props {
+	readonly copy?: Readonly<Record<string, string>>;
 	readonly surface: FramescaperSelectedVisualAuthoringSurface;
 	readonly controller: FramescaperSelectedAuthoringController;
 	readonly project: unknown;
@@ -50,10 +34,11 @@ interface Props {
 }
 
 export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
+	const text = resolveEditorCopyScope('selectedVisualAuthoring', SELECTED_VISUAL_AUTHORING_COPY, props.copy);
 	const model = useMemo(() => createFramescaperSelectedVisualAuthoringModel({
-		surface: props.surface, project: props.project,
+		surface: props.surface, project: props.project, copy: props.copy,
 		selectedClipId: props.selectedClipId, playheadSample: props.playheadSample,
-	}), [props.playheadSample, props.project, props.selectedClipId, props.surface]);
+	}), [props.copy, props.playheadSample, props.project, props.selectedClipId, props.surface]);
 	const frameRate = audioEditorProjectFrameRate(props.project);
 	const [pairId, setPairId] = useState(model.selectedPairId ?? '');
 	const [durationFrames, setDurationFrames] = useState(() => selectedPair(model, pairId)?.durationFrames ?? 12);
@@ -65,7 +50,7 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 	const [maskHeight, setMaskHeight] = useState(0.75);
 	const [visualPresetId, setVisualPresetId] = useState(model.visualPresets[0]?.id ?? '');
 	const [finishingPresetId, setFinishingPresetId] = useState(model.finishingPresets[0]?.id ?? '');
-	const [presetName, setPresetName] = useState('Selected Visual Preset');
+	const [presetName, setPresetName] = useState(() => publishedCopyFor(props.copy ?? {})['ui.selectedVisualAuthoring.presetDefaultName'] || SELECTED_VISUAL_AUTHORING_COPY.presetDefaultName);
 	const [freezeDuration, setFreezeDuration] = useState(24);
 	const [pending, setPending] = useState(false);
 	const [status, setStatus] = useState('');
@@ -102,7 +87,7 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 		setStatus('');
 		setError('');
 		void runAwaitedAudioEditorOperation(props.run, () => runtime.run(props.surface, request))
-			.then(() => { setStatus(successText(operation)); })
+			.then(() => { setStatus(operation); })
 			.catch((cause: unknown) => {
 				setError(cause instanceof Error ? cause.message : String(cause));
 			})
@@ -118,6 +103,7 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 		<div className="audio-editor-clip-inspector">
 			<p>{model.description}</p>
 			<AuthoringFields
+				text={text}
 				surface={props.surface}
 				model={model}
 				frameRate={frameRate}
@@ -131,7 +117,7 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 					setFreezeDuration }}
 				onPerform={perform}
 			/>
-			<div role="status" aria-live="polite" aria-atomic="true">{error || status}</div>
+			<div role="status" aria-live="polite" aria-atomic="true">{error || (status ? successText(status, text) : '')}</div>
 		</div>
 	</AudioEditorDialogShell>;
 }
@@ -159,6 +145,7 @@ interface Setters {
 }
 
 function AuthoringFields(props: Readonly<{
+	readonly text: Readonly<{ [Key in keyof typeof SELECTED_VISUAL_AUTHORING_COPY]: string }>;
 	readonly surface: FramescaperSelectedVisualAuthoringSurface;
 	readonly model: Model; readonly blocked: boolean; readonly values: Values;
 	readonly frameRate: number;
@@ -173,123 +160,123 @@ function AuthoringFields(props: Readonly<{
 	return <FreezeFields {...props} />;
 }
 
-function DissolveFields({ model, frameRate, blocked, values, setters, onPerform }: Parameters<typeof AuthoringFields>[0]) {
+function DissolveFields({ text, model, frameRate, blocked, values, setters, onPerform }: Parameters<typeof AuthoringFields>[0]) {
 	const pair = selectedPair(model, values.pairId);
 	return model.transitionPairs.length === 0 ? <p role="alert">
-		{TEXT.selectAdjacent}
+		{text.selectAdjacent}
 	</p> : <fieldset disabled={blocked}>
-		<legend>{TEXT.exactPair}</legend>
-		<label><span>{TEXT.outgoingIncoming}</span>
+		<legend>{text.exactPair}</legend>
+		<label><span>{text.outgoingIncoming}</span>
 			<select data-framescaper-authoring-pair value={values.pairId} onChange={(event) => {
 				const pairId = event.currentTarget.value;
 				setters.setPairId(pairId);
 				setters.setDurationFrames(selectedPair(model, pairId)?.durationFrames ?? 1);
 			}}>{model.transitionPairs.map((candidate) => <option key={candidate.id} value={candidate.id}>
-				{candidate.label}{candidate.linkedAudio ? TEXT.linkedAv : ''}
+				{candidate.label}{candidate.linkedAudio ? ` (${text.linkedAv})` : ''}
 			</option>)}</select>
 		</label>
-		<label><span>{TEXT.duration}</span><span data-framescaper-authoring-duration>
-			<AudioEditorTimeCodeInput label={TEXT.duration} value={values.durationFrames}
+		<label><span>{text.duration}</span><span data-framescaper-authoring-duration>
+			<AudioEditorTimeCodeInput label={text.duration} value={values.durationFrames}
 				unit="frames" rate={frameRate} minimum={1}
 				maximum={pair?.maximumDurationFrames ?? 1} onChange={setters.setDurationFrames} />
 		</span>
 		</label>
-		<div><button data-framescaper-authoring-apply type="button" onClick={() => onPerform('apply')}>{TEXT.applyDissolve}</button>
+		<div><button data-framescaper-authoring-apply type="button" onClick={() => onPerform('apply')}>{text.applyDissolve}</button>
 			<button data-framescaper-authoring-remove type="button" disabled={!pair?.transitionId}
-				onClick={() => onPerform('remove')}>{TEXT.removeDissolve}</button></div>
+				onClick={() => onPerform('remove')}>{text.removeDissolve}</button></div>
 	</fieldset>;
 }
 
-function AdjustmentFields({ model, blocked, values, setters, onPerform }: Parameters<typeof AuthoringFields>[0]) {
-	if (model.selectedClipKind !== 'video') return <p role="alert">{TEXT.selectVideo}</p>;
+function AdjustmentFields({ text, model, blocked, values, setters, onPerform }: Parameters<typeof AuthoringFields>[0]) {
+	if (model.selectedClipKind !== 'video') return <p role="alert">{text.selectVideo}</p>;
 	return <fieldset disabled={blocked}>
-		<legend>{TEXT.selectedVideo}</legend>
-		<label><span>{TEXT.brightness}</span><input data-framescaper-authoring-brightness type="number"
+		<legend>{text.selectedVideo}</legend>
+		<label><span>{text.brightness}</span><input data-framescaper-authoring-brightness type="number"
 			min="-1" max="1" step="0.05" value={values.brightness}
 			onChange={(event) => setters.setBrightness(event.currentTarget.valueAsNumber)} /></label>
 		<div><button data-framescaper-authoring-apply type="button" onClick={() => onPerform('apply')}>
-			{values.adjustmentLayerId ? 'Update adjustment' : 'Apply adjustment'}</button>
+			{values.adjustmentLayerId ? text.updateAdjustment : text.applyAdjustment}</button>
 		<button data-framescaper-authoring-remove type="button" disabled={!values.adjustmentLayerId}
-			onClick={() => onPerform('remove')}>{TEXT.removeAdjustment}</button></div>
+			onClick={() => onPerform('remove')}>{text.removeAdjustment}</button></div>
 	</fieldset>;
 }
 
-function MaskFields({ model, blocked, values, setters, onPerform }: Parameters<typeof AuthoringFields>[0]) {
+function MaskFields({ text, model, blocked, values, setters, onPerform }: Parameters<typeof AuthoringFields>[0]) {
 	if (!['video', 'still', 'generator'].includes(model.selectedClipKind ?? '')) {
-		return <p role="alert">{TEXT.selectVisual}</p>;
+		return <p role="alert">{text.selectVisual}</p>;
 	}
 	return <fieldset disabled={blocked}>
-		<legend>{TEXT.selectedAttachment}</legend>
-		<label><span>{TEXT.attachedMask}</span><select data-framescaper-authoring-mask value={values.maskId}
+		<legend>{text.selectedAttachment}</legend>
+		<label><span>{text.attachedMask}</span><select data-framescaper-authoring-mask value={values.maskId}
 			onChange={(event) => setters.setMaskId(event.currentTarget.value)}>
-			<option value="">{TEXT.newMask}</option>
+			<option value="">{text.newMask}</option>
 			{model.attachedMaskIds.map((id) => <option key={id} value={id}>{id}</option>)}
 		</select></label>
-		<label><span>{TEXT.shape}</span><select data-framescaper-authoring-mask-shape value={values.shape}
+		<label><span>{text.shape}</span><select data-framescaper-authoring-mask-shape value={values.shape}
 			onChange={(event) => setters.setShape(event.currentTarget.value as Values['shape'])}>
-			<option value="rectangle">{TEXT.rectangle}</option><option value="ellipse">{TEXT.ellipse}</option>
-			<option value="line">{TEXT.line}</option>
+			<option value="rectangle">{text.rectangle}</option><option value="ellipse">{text.ellipse}</option>
+			<option value="line">{text.line}</option>
 		</select></label>
-		<label><span>{TEXT.width}</span><input data-framescaper-authoring-mask-width type="number" min="0.01"
+		<label><span>{text.width}</span><input data-framescaper-authoring-mask-width type="number" min="0.01"
 			max="1" step="0.01" value={values.maskWidth}
 			onChange={(event) => setters.setMaskWidth(event.currentTarget.valueAsNumber)} /></label>
-		<label><span>{TEXT.height}</span><input data-framescaper-authoring-mask-height type="number" min="0.01"
+		<label><span>{text.height}</span><input data-framescaper-authoring-mask-height type="number" min="0.01"
 			max="1" step="0.01" value={values.maskHeight}
 			onChange={(event) => setters.setMaskHeight(event.currentTarget.valueAsNumber)} /></label>
 		<div><button data-framescaper-authoring-apply type="button" onClick={() => onPerform('apply')}>
-			{values.maskId ? TEXT.updateMask : TEXT.createMask}</button>
+			{values.maskId ? text.updateMask : text.createMask}</button>
 		<button data-framescaper-authoring-remove type="button" disabled={!values.maskId}
-			onClick={() => onPerform('remove')}>{TEXT.removeAttachment}</button></div>
+			onClick={() => onPerform('remove')}>{text.removeAttachment}</button></div>
 	</fieldset>;
 }
 
-function PresetFields({ model, blocked, values, setters, onPerform }: Parameters<typeof AuthoringFields>[0]) {
+function PresetFields({ text, model, blocked, values, setters, onPerform }: Parameters<typeof AuthoringFields>[0]) {
 	const generatorSelected = model.selectedClipKind === 'generator';
 	return <>
 		<fieldset disabled={blocked || !generatorSelected}>
-			<legend>{TEXT.visualPreset}</legend>
-			<label><span>{TEXT.presetName}</span><input data-framescaper-authoring-preset-name value={values.presetName}
+			<legend>{text.visualPreset}</legend>
+			<label><span>{text.presetName}</span><input data-framescaper-authoring-preset-name value={values.presetName}
 				onChange={(event) => setters.setPresetName(event.currentTarget.value)} /></label>
 			<button data-framescaper-authoring-save-visual type="button" onClick={() => onPerform('save-visual')}>
-				{TEXT.saveGenerator}</button>
-			<label><span>{TEXT.savedVisualPreset}</span><select data-framescaper-authoring-visual-preset
+				{text.saveGenerator}</button>
+			<label><span>{text.savedVisualPreset}</span><select data-framescaper-authoring-visual-preset
 				value={values.visualPresetId} onChange={(event) => setters.setVisualPresetId(event.currentTarget.value)}>
-				<option value="">{TEXT.none}</option>{model.visualPresets.map(({ id, name }) => (
+				<option value="">{text.none}</option>{model.visualPresets.map(({ id, name }) => (
 					<option key={id} value={id}>{name}</option>
 				))}</select></label>
 			<button data-framescaper-authoring-apply-visual type="button" disabled={!values.visualPresetId}
-				onClick={() => onPerform('apply-visual')}>{TEXT.applyGenerator}</button>
+				onClick={() => onPerform('apply-visual')}>{text.applyGenerator}</button>
 			<button data-framescaper-authoring-remove-visual type="button" disabled={!values.visualPresetId}
-				onClick={() => onPerform('remove-visual')}>{TEXT.removeVisualPreset}</button>
+				onClick={() => onPerform('remove-visual')}>{text.removeVisualPreset}</button>
 		</fieldset>
 		<fieldset disabled={blocked || model.selectedClipId === null}>
-			<legend>{TEXT.finishingPreset}</legend>
-			<label><span>{TEXT.savedFinishingPreset}</span><select data-framescaper-authoring-finishing-preset
+			<legend>{text.finishingPreset}</legend>
+			<label><span>{text.savedFinishingPreset}</span><select data-framescaper-authoring-finishing-preset
 				value={values.finishingPresetId}
 				onChange={(event) => setters.setFinishingPresetId(event.currentTarget.value)}>
-				<option value="">{TEXT.none}</option>{model.finishingPresets.map(({ id, name }) => (
+				<option value="">{text.none}</option>{model.finishingPresets.map(({ id, name }) => (
 					<option key={id} value={id}>{name}</option>
 				))}</select></label>
 			<button data-framescaper-authoring-apply-finishing type="button" disabled={!values.finishingPresetId}
-				onClick={() => onPerform('apply-finishing')}>{TEXT.applyFresh}</button>
+				onClick={() => onPerform('apply-finishing')}>{text.applyFresh}</button>
 			<button data-framescaper-authoring-remove-finishing type="button" disabled={!values.finishingPresetId}
-				onClick={() => onPerform('remove-finishing')}>{TEXT.removeFinishingPreset}</button>
+				onClick={() => onPerform('remove-finishing')}>{text.removeFinishingPreset}</button>
 		</fieldset>
 	</>;
 }
 
-function FreezeFields({ model, frameRate, blocked, values, setters, onPerform }: Parameters<typeof AuthoringFields>[0]) {
-	if (model.selectedClipKind !== 'video') return <p role="alert">{TEXT.selectVideo}</p>;
+function FreezeFields({ text, model, frameRate, blocked, values, setters, onPerform }: Parameters<typeof AuthoringFields>[0]) {
+	if (model.selectedClipKind !== 'video') return <p role="alert">{text.selectVideo}</p>;
 	return <fieldset disabled={blocked}>
-		<legend>{TEXT.exactPlayhead}</legend>
-		<p data-framescaper-authoring-freeze-playhead>{TEXT.timelineSample} {model.fence.playheadSample}</p>
-		<label><span>{TEXT.freezeDuration}</span><span data-framescaper-authoring-freeze-duration>
-			<AudioEditorTimeCodeInput label={TEXT.freezeDuration} value={values.freezeDuration}
+		<legend>{text.exactPlayhead}</legend>
+		<p data-framescaper-authoring-freeze-playhead>{text.timelineSample} {model.fence.playheadSample}</p>
+		<label><span>{text.freezeDuration}</span><span data-framescaper-authoring-freeze-duration>
+			<AudioEditorTimeCodeInput label={text.freezeDuration} value={values.freezeDuration}
 				unit="frames" rate={frameRate} minimum={1} maximum={10_000}
 				onChange={setters.setFreezeDuration} />
 		</span></label>
 		<button data-framescaper-authoring-freeze type="button" onClick={() => onPerform('create')}>
-			{TEXT.captureFrame}</button>
+			{text.captureFrame}</button>
 	</fieldset>;
 }
 
@@ -322,9 +309,9 @@ function initialFocus(surface: FramescaperSelectedVisualAuthoringSurface): strin
 	return '[data-framescaper-authoring-pair]';
 }
 
-function successText(operation: string): string {
-	if (operation.startsWith('remove')) return TEXT.removed;
-	if (operation === 'save-visual') return TEXT.presetSaved;
-	if (operation === 'create') return TEXT.freezeCreated;
-	return TEXT.applied;
+function successText(operation: string, text: Parameters<typeof AuthoringFields>[0]['text']): string {
+	if (operation.startsWith('remove')) return text.removed;
+	if (operation === 'save-visual') return text.presetSaved;
+	if (operation === 'create') return text.freezeCreated;
+	return text.applied;
 }

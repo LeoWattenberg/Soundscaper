@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createHash } from 'node:crypto';
-
+import { EDITOR_ENGLISH_COPY } from '../../src/common/i18n/editor-copy-inventory.ts';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	assertNoSeriousAxeViolations,
@@ -52,7 +52,7 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		expect(projectId).toBeTruthy();
 
 		await chooseNestedCommandAction(
-			page, editor, 'Generate', ['Video Generators', 'Add Solid…'], VISUAL_COMMAND_OPTIONS,
+			page, editor, 'Generate', ['Video Generators', EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoSolid']], VISUAL_COMMAND_OPTIONS,
 		);
 		await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(1, {
 			timeout: VISUAL_READINESS_TIMEOUT,
@@ -86,7 +86,7 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		expect(redPixels).not.toBe(originalPixels);
 
 		await chooseNestedCommandAction(
-			page, editor, 'Generate', ['Video Generators', 'Save Visual Preset…'], VISUAL_COMMAND_OPTIONS,
+			page, editor, 'Generate', ['Video Generators', EDITOR_ENGLISH_COPY['ui.framescaperMenus.saveVideoVisualPreset']], VISUAL_COMMAND_OPTIONS,
 		);
 		let authoring = page.getByRole('dialog', { name: 'Selected Visual Presets', exact: true });
 		await expect(authoring).toBeVisible(VISUAL_COMMAND_OPTIONS);
@@ -99,7 +99,7 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		await saveProjectAndWait(page, editor);
 		await waitForStoredVisualState(page, projectId, { presetCount: 1 });
 		await chooseNestedCommandAction(
-			page, editor, 'Effect', ['Edit Video Mask/Matte…'], VISUAL_COMMAND_OPTIONS,
+			page, editor, 'Effect', [EDITOR_ENGLISH_COPY['ui.framescaperMenus.editVideoMaskMatte']], VISUAL_COMMAND_OPTIONS,
 		);
 		authoring = page.getByRole('dialog', { name: 'Selected Mask / Matte', exact: true });
 		await expect(authoring).toBeVisible(VISUAL_COMMAND_OPTIONS);
@@ -129,7 +129,7 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		expect(maskedPixels).not.toBe(redPixels);
 
 		await chooseNestedCommandAction(
-			page, editor, 'Generate', ['Video Generators', 'Add Solid…'], VISUAL_COMMAND_OPTIONS,
+			page, editor, 'Generate', ['Video Generators', EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoSolid']], VISUAL_COMMAND_OPTIONS,
 		);
 		await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(2, {
 			timeout: VISUAL_READINESS_TIMEOUT,
@@ -143,7 +143,7 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		await expectExactVisualFrame(preview, 1);
 		const beforePreset = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
 		await chooseNestedCommandAction(
-			page, editor, 'Generate', ['Video Generators', 'Save Visual Preset…'], VISUAL_COMMAND_OPTIONS,
+			page, editor, 'Generate', ['Video Generators', EDITOR_ENGLISH_COPY['ui.framescaperMenus.saveVideoVisualPreset']], VISUAL_COMMAND_OPTIONS,
 		);
 		authoring = page.getByRole('dialog', { name: 'Selected Visual Presets', exact: true });
 		await expect(authoring).toBeVisible(VISUAL_COMMAND_OPTIONS);
@@ -226,7 +226,7 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		const beforeAdjustment = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
 
 		await chooseNestedCommandAction(
-			page, editor, 'Tracks', ['Add Video Adjustment Layer…'], VISUAL_COMMAND_OPTIONS,
+			page, editor, 'Tracks', [EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoAdjustmentLayer']], VISUAL_COMMAND_OPTIONS,
 		);
 		let authoring = page.getByRole('dialog', { name: 'Selected Video Adjustment Layer', exact: true });
 		await expect(authoring).toBeVisible(VISUAL_COMMAND_OPTIONS);
@@ -254,7 +254,7 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		await waitForStoredVisualState(page, projectId, { adjustmentCount: 1 });
 
 		await chooseNestedCommandAction(
-			page, editor, 'Effect', ['Freeze Video…'], VISUAL_COMMAND_OPTIONS,
+			page, editor, 'Effect', [EDITOR_ENGLISH_COPY['ui.framescaperMenus.freezeVideo']], VISUAL_COMMAND_OPTIONS,
 		);
 		authoring = page.getByRole('dialog', { name: 'Freeze Selected Video', exact: true });
 		await expect(authoring).toBeVisible(VISUAL_COMMAND_OPTIONS);
@@ -299,7 +299,7 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
 		await chooseNestedCommandAction(
-			page, editor, 'Generate', ['Video Generators', 'Add Solid…'], VISUAL_COMMAND_OPTIONS,
+			page, editor, 'Generate', ['Video Generators', EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoSolid']], VISUAL_COMMAND_OPTIONS,
 		);
 		await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true }))
 			.toBeVisible(VISUAL_COMMAND_OPTIONS);
@@ -349,7 +349,7 @@ test.describe('Framescaper v1 visual state without WebGL2', () => {
 		const clientErrors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/framescaper/embed/en/');
 		await chooseNestedCommandAction(
-			page, editor, 'Generate', ['Video Generators', 'Add Solid…'], VISUAL_COMMAND_OPTIONS,
+			page, editor, 'Generate', ['Video Generators', EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoSolid']], VISUAL_COMMAND_OPTIONS,
 		);
 		await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(1, {
 			timeout: VISUAL_READINESS_TIMEOUT,
@@ -411,7 +411,7 @@ async function waitForVideoPublication(page, editor, download, timeout, clientEr
 
 async function openVisualInspector(page, editor) {
 	await chooseNestedCommandAction(page, editor, 'Effect', [
-		'Video Finishing', 'Selected Visual Inspector…',
+		'Video Finishing', EDITOR_ENGLISH_COPY['ui.framescaperMenus.videoVisualInspector'],
 	], VISUAL_COMMAND_OPTIONS);
 	const dialog = page.getByRole('dialog', { name: 'Selected Visual Inspector', exact: true });
 	await expect(dialog).toBeVisible({ timeout: VISUAL_READINESS_TIMEOUT });

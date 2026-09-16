@@ -1,3 +1,4 @@
+import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import React, { useState } from 'react';
@@ -38,7 +39,7 @@ export default function TakeCycleRecoveryDialog({
 	onClose,
 }: TakeCycleRecoveryDialogProps) {
 	const [pendingAction, setPendingAction] = useState<'recover' | 'discard' | null>(null);
-	const [error, setError] = useState('');
+	const [error, setError] = usePresentationFeedback(copy);
 	if (productId !== 'soundscaper') return null;
 	const perform = (decision: 'recover' | 'discard'): void => {
 		setPendingAction(decision);
@@ -49,7 +50,7 @@ export default function TakeCycleRecoveryDialog({
 		)
 			.then(onClose)
 			.catch((operationError: unknown) => {
-				setError(operationError instanceof Error ? operationError.message : String(operationError));
+				setError(feedbackFailure(operationError));
 			})
 			.finally(() => setPendingAction(null));
 	};

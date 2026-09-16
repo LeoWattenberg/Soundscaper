@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { collectClipTransformIds as collectLegacyClipTransformIds } from '../../../commands/clip-basic-runtime.js';
+import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import { collectClipTransformIds as collectLegacyClipTransformIds } from '../../../commands/clip-basic-runtime.js'; import { setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import { preparePasteCommand as prepareLegacyPasteCommand } from '../../../commands/clipboard-runtime.js';
 import {
 	prepareLinkedSplitCommand as prepareLegacyLinkedSplitCommand,
@@ -135,7 +135,7 @@ export interface ClipboardEditServiceDependencies {
 		createId: (prefix?: string) => string,
 	): unknown;
 	commit(command: AudioEditorCommand, selection?: CommitSelection): unknown;
-	setStatus(message: string, state?: string): void;
+	setStatus(message: string, state?: string, localization?: import('../../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;
 }
 
 export interface ClipboardEditService {
@@ -308,7 +308,7 @@ export function createClipboardEditService(
 					type,
 					id: trackId,
 					name: clipboardTrack.sourceTrackName
-						|| `${dependencies.copy.track} ${project.tracks.length + addedTrackCount}`,
+						|| `${publishedCopyFor(dependencies.copy).track} ${project.tracks.length + addedTrackCount}`,
 					laneGroupId,
 				}),
 				...(placement === null ? {} : placement),
@@ -392,7 +392,7 @@ export function createClipboardEditService(
 			commands.push(...detachCommandsForClip(clip, findClipSilenceRegions(clip, buffer, region)));
 		}
 		if (!commands.length) {
-			dependencies.setStatus(dependencies.copy.noSilencesFound, 'info');
+			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "noSilencesFound", undefined, 'info');
 			return;
 		}
 		dependencies.commit({ type: 'batch', commands }, { selectClipId: clips[0]?.id ?? null });
@@ -449,7 +449,7 @@ export function createClipboardEditService(
 			}
 		}
 		if (!commands.length) {
-			dependencies.setStatus(dependencies.copy.noSilencesInLabels ?? dependencies.copy.noSilencesFound, 'info');
+			setLocalizedStatus(dependencies.setStatus, dependencies.copy, (dependencies.copy.noSilencesInLabels ? "noSilencesInLabels" : "noSilencesFound"), undefined, 'info');
 			return false;
 		}
 		dependencies.commit({ type: 'batch', commands });

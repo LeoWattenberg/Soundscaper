@@ -24,6 +24,7 @@ import {
 	DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST,
 	EDITOR_ASSISTANCE_SEMANTIC_SEARCH_RUNTIME_CHUNK_TEST,
 	EDITOR_CODEC_FOUNDATION_CHUNK_TEST,
+	EDITOR_COMMUNITY_TRANSLATIONS_CHUNK_TEST,
 	EDITOR_COPY_CHUNK_TEST,
 	EDITOR_DOMAIN_CHUNK_TEST,
 	EDITOR_EFFECT_CONTRACT_CHUNK_TEST,
@@ -37,6 +38,7 @@ import {
 	EDITOR_OPTIONAL_SPLIT_TOOL_CHUNK_TEST,
 	EDITOR_OPTIONAL_SURFACE_CHUNK_TEST,
 	EDITOR_PFFFT_RUNTIME_CHUNK_TEST,
+	EDITOR_PRESENTATION_CHUNK_TEST,
 	EDITOR_PRODUCTION_METER_CHUNK_TEST,
 	EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST,
 	EDITOR_SOURCE_ACTIVATION_CHUNK_TEST,
@@ -77,6 +79,24 @@ export {
 
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const chunkGroups = [
+	{
+		// Project validation and storage publish tagged errors without importing the
+		// controller composition or a selected product bootstrap to obtain a helper.
+		name: 'editor-presentation',
+		test: EDITOR_PRESENTATION_CHUNK_TEST,
+		priority: 98,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		name: 'editor-community-translations',
+		test: EDITOR_COMMUNITY_TRANSLATIONS_CHUNK_TEST,
+		priority: 98,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
 	{
 		name: 'vendor-mediabunny',
 		test: /node_modules[\\/]mediabunny[\\/]/,

@@ -122,7 +122,7 @@ export interface RackEffectServiceRuntime {
 	) => RackEffectProject;
 	readonly handleError: (error: Error) => null;
 	readonly publishDocumentSnapshot: () => void;
-	readonly setStatus: (message: string, status?: string) => void;
+	readonly setStatus: (message: string, status?: string, localization?: import('../../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 }
 
 export interface AddRackEffectRequest {

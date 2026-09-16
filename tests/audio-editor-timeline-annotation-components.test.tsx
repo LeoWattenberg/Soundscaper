@@ -29,6 +29,8 @@ import { DEFAULT_PANELS } from '../src/common/editor/workspace-layout-defaults.t
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 } from '../src/common/editor/project-schema-version.ts';
+import { formatPresentationMessage } from '../src/common/i18n/presentation-message.ts';
+import { timelineAnnotationCreationMessage, timelineAnnotationNavigationMessage } from '../src/common/editor/ui/timeline/timeline-annotation-presentation.ts';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import type { RuntimeTimelineAnnotationProjection } from '../src/common/editor/runtime-timeline-annotation-projection.ts';
 
@@ -517,3 +519,15 @@ function marker(id: string, positionFrame: number): RuntimeTimelineAnnotationPro
 		durationFrames: 0, coordinateDomain: 'resolved-samples',
 	});
 }
+
+
+test('annotation announcement identities translate kind, unnamed text, templates and units after creation', () => {
+	const annotation = { ...REGION, name: '' };
+	const copy = { ...ENGLISH_COPY, timelineAnnotationCreated: '{kind} {name} erstellt: {timing}',
+		timelineRegion: 'Bereich', unnamedTimelineAnnotation: 'Ohne Namen', annotationSecondsUnit: 'Sek.',
+		'ui.timeline.navigationDescription': '{kind}: {name} ({timing})' };
+	assert.equal(formatPresentationMessage(copy, timelineAnnotationCreationMessage(annotation, 48_000, 'en')),
+		'Bereich Ohne Namen erstellt: 0.500–1.000 Sek.');
+	assert.equal(formatPresentationMessage(copy, timelineAnnotationNavigationMessage(annotation, '0.500–1.000 s', 's')),
+		'Bereich: Ohne Namen (0.500–1.000 Sek.)');
+});

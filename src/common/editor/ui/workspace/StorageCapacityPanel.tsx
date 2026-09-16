@@ -14,6 +14,7 @@ interface StorageActionGroup {
 interface StorageCapacityPanelProps {
 	readonly snapshot: EditorSnapshot;
 	readonly locale: string;
+	readonly copy?: Readonly<Record<string, string | undefined>>;
 	readonly controller: Readonly<{ actions: Readonly<{ storage: StorageActionGroup }> }>;
 	run(action: () => unknown): unknown;
 }
@@ -21,10 +22,11 @@ interface StorageCapacityPanelProps {
 export default function StorageCapacityPanel({
 	snapshot,
 	locale,
+	copy,
 	controller,
 	run,
 }: StorageCapacityPanelProps) {
-	const model = createStorageCapacityViewModel(snapshot.storage, locale);
+	const model = createStorageCapacityViewModel(snapshot.storage, locale, copy);
 	return <details
 		className="kw-audio-editor__storage-capacity"
 		data-storage-capacity

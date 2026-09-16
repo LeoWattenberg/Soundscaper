@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
+import { useEffect, useRef } from 'react';
 import {
 	AUDIO_EFFECT_DEFINITIONS,
 	AUDIO_SELECTION_EFFECT_DEFINITIONS,
@@ -63,7 +64,7 @@ export default function EffectParameterEditor({
 	automationStrip,
 	onChange,
 }) {
-	const [error, setError] = useState('');
+	const [error, setError] = usePresentationFeedback(copy);
 	const automationRouterRef = useRef(null);
 	if (!automationRouterRef.current) {
 		automationRouterRef.current = createParameterAutomationControlRouterV21();
@@ -72,7 +73,7 @@ export default function EffectParameterEditor({
 	automationRouter.setContext({
 		runtime: automationRuntime,
 		project: automationProject,
-		onError: (cause) => setError(cause instanceof Error ? cause.message : String(cause)),
+		onError: (cause) => setError(feedbackFailure(cause)),
 	});
 	useEffect(() => () => { automationRouter.cancel(); }, [automationProject?.id, automationRouter, effect.id]);
 	if (effect.type === 'missing') {
@@ -87,7 +88,7 @@ export default function EffectParameterEditor({
 	const invoke = (callback) => {
 		setError('');
 		return Promise.resolve().then(callback).catch((cause) => {
-			setError(cause instanceof Error ? cause.message : String(cause));
+			setError(feedbackFailure(cause));
 			return false;
 		});
 	};

@@ -1,3 +1,4 @@
+import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
@@ -85,7 +86,7 @@ export default function MixRenderDialog({
 	const defaultOutputChannelCountRef = useRef(predictedOutputChannelCount ?? 2);
 	defaultOutputChannelCountRef.current = predictedOutputChannelCount ?? 2;
 	const [pending, setPending] = useState(false);
-	const [error, setError] = useState('');
+	const [error, setError] = usePresentationFeedback(copy);
 	const activeOperationRef = useRef<symbol | null>(null);
 	const outputChannelCounts = useMemo(
 		() => project ? mixRenderOutputChannelChoices(project) : Object.freeze([1, 2]),
@@ -104,7 +105,7 @@ export default function MixRenderDialog({
 		setMixDownChannelCount(defaultOutputChannelCountRef.current);
 		setPending(false);
 		setError('');
-	}, [projectId]);
+	}, [projectId, setError]);
 	useEffect(() => () => { activeOperationRef.current = null; }, []);
 
 	const emptyOperation = !mixDown && !renderEffects;
@@ -132,7 +133,7 @@ export default function MixRenderDialog({
 		}).catch((operationError: unknown) => {
 			if (activeOperationRef.current !== operationId
 				|| currentProjectIdRef.current !== submittedProjectId) return;
-			setError(operationError instanceof Error ? operationError.message : String(operationError));
+			setError(feedbackFailure(operationError));
 		}).finally(() => {
 			if (activeOperationRef.current !== operationId) return;
 			activeOperationRef.current = null;

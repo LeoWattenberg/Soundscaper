@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { CommandObject } from '../../../../commands/protocol.ts';
+import { setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
 import { createAudioPreviewProject } from '../../../../engine/audio-preview-project.ts';
 import { createAudioClip, createAudioSource } from '../../../../project-media-factory.ts';
 import { readTakeCompProjectGroups, type TakeCompProject } from './take-comp-project.ts';
@@ -25,6 +26,7 @@ import type {
 const TAKE_COMP_FLATTEN_TASK = 'take-comp-flatten';
 
 export interface TakeCompFlattenServiceDependencies {
+	readonly copy?: object;
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive' | 'startTask'>;
 	readonly service: Pick<TakeCompService, 'prepareFlatten' | 'publishFlatten'>;
 	readonly derivedSources: Pick<DerivedSourceService, 'persistRenderedMixSource' | 'rollbackDerivedSources'>;
@@ -47,7 +49,7 @@ export interface TakeCompFlattenServiceDependencies {
 		preparation: PreparedTakeCompFlatten,
 		context: Readonly<{ readonly project: TakeCompProject; readonly signal: AbortSignal }>,
 	): Promise<TakeCompFlattenPublication>;
-	setStatus?(message: string, state?: string): void;
+	setStatus?(message: string, state?: string, localization?: import('../../../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;
 }
 
 export interface TakeCompFlattenResult {
@@ -74,7 +76,8 @@ export function createTakeCompFlattenService(dependencies: TakeCompFlattenServic
 		});
 		let derived: DerivedSourceRecord | null = null;
 		try {
-			dependencies.setStatus?.('Rendering take comp');
+			if (dependencies.setStatus) setLocalizedStatus(dependencies.setStatus, dependencies.copy ?? {},
+				'ui.takeComp.rendering', undefined, undefined, { fallback: 'Rendering take comp' });
 			const publication = dependencies.renderPublication
 				? await dependencies.renderPublication(preparation, { project, signal: ownership.task.signal })
 				: await renderPublication(project, group, preparation, ownership);
@@ -83,7 +86,8 @@ export function createTakeCompFlattenService(dependencies: TakeCompFlattenServic
 				derived = publicationRecord(publication);
 			}
 			const commitResult = dependencies.service.publishFlatten(preparation, publication);
-			dependencies.setStatus?.('Take comp flattened', 'success');
+			if (dependencies.setStatus) setLocalizedStatus(dependencies.setStatus, dependencies.copy ?? {},
+				'ui.takeComp.flattened', undefined, 'success', { fallback: 'Take comp flattened' });
 			return Object.freeze({ preparation, publication, commitResult });
 		} catch (error) {
 			if (derived) await dependencies.derivedSources.rollbackDerivedSources([derived]);

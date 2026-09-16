@@ -38,7 +38,7 @@ export interface VideoTrimCompositionDependencies {
 	label(sample: number, sequenceId?: string): string;
 	/** Optional seam for focused composition tests; production reads the source's persisted origin. */
 	sourceLabel?(sourceId: string, sourceFrame: number): string;
-	setStatus(message: string, state: 'info' | 'success'): void;
+	setStatus(message: string, state: 'info' | 'success', localization?: import('../../../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;
 }
 
 export interface VideoTrimServices {

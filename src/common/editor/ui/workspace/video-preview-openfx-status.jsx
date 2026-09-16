@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { VIDEO_PREVIEW_ADDITIONAL_COPY } from '../../../i18n/editor-video-preview-additional-copy.ts';
 import { useCallback, useRef, useState } from 'react';
 
 export function useVideoPreviewOpenFxIssue() {
@@ -34,8 +36,7 @@ export function VideoPreviewOpenFxStatus({ issue, copy }) {
 		.map(({ instanceId, mode }) => `${instanceId}:${mode}`);
 	return (
 		<div className="kw-audio-editor__video-preview-status" data-video-preview-openfx-warning role="status">
-			{copy.videoPreviewOpenFxDegraded
-				|| 'OpenFX preview is using an authenticated CPU retry, frozen frame, or bypass.'}
+			{(copy['ui.videoPreview.videoPreviewOpenFxDegraded'] || copy.videoPreviewOpenFxDegraded || VIDEO_PREVIEW_ADDITIONAL_COPY.videoPreviewOpenFxDegraded)}
 			<small>{boundedVideoPreviewOmissionSummary(rows)}</small>
 		</div>
 	);

@@ -4,7 +4,8 @@ import type {
 	ProjectLifecycleLock,
 	ProjectLifecycleTabMetadata,
 	ProjectReadOnlyUpdate,
-} from './project-lifecycle-types.ts';
+} from './project-lifecycle-types.ts'; import { setLocalizedStatus } from '../../../i18n/presentation-message.ts';
+import { publishProjectReadOnlyStatus } from './project-read-only-status.ts';
 import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from '../import/project-bin-linked-video-relink-service.ts';
 import { TAKE_CYCLE_RECORDING_TASK } from '../recording/take-cycle-recording-service.ts';
 
@@ -26,7 +27,7 @@ export interface ProjectLockServiceRuntime {
 	) => Promise<ProjectLifecycleLock>;
 	readonly setProjectReadOnly: (projectId: string, update: ProjectReadOnlyUpdate) => void;
 	readonly publishProjectState: () => void;
-	readonly setStatus: (message: string, state: 'error' | 'success') => void;
+	readonly setStatus: (message: string, state: 'error' | 'success', localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly handleError: (error: unknown) => void;
 	readonly invalidateRecordingAuthority?: (reason: unknown) => PromiseLike<unknown> | unknown;
 	readonly revokeWriteAuthority?: (reason: unknown) => void;
@@ -135,7 +136,7 @@ export function createProjectLockService(runtime: ProjectLockServiceRuntime) {
 			enterReadOnly(new DOMException('Project write access is unavailable.', 'AbortError'));
 			scheduleProjectLockRecovery(projectId, nextLock);
 			runtime.publishProjectState();
-			runtime.setStatus(runtime.copy.projectOpenOtherTab, 'error');
+			setLocalizedStatus(runtime.setStatus, runtime.copy, "projectOpenOtherTab", undefined, 'error');
 			return false;
 		}
 		watchProjectLockLoss(projectId, nextLock);
@@ -146,7 +147,7 @@ export function createProjectLockService(runtime: ProjectLockServiceRuntime) {
 			lockMethod: nextLock.method,
 		});
 		runtime.publishProjectState();
-		runtime.setStatus(runtime.copy.ready, 'success');
+		setLocalizedStatus(runtime.setStatus, runtime.copy, "ready", undefined, 'success');
 		return true;
 	}
 
@@ -172,7 +173,7 @@ export function createProjectLockService(runtime: ProjectLockServiceRuntime) {
 			});
 			scheduleProjectLockRecovery(projectId, nextLock);
 			runtime.publishProjectState();
-			runtime.setStatus(runtime.copy.projectOpenOtherTab, 'error');
+			setLocalizedStatus(runtime.setStatus, runtime.copy, "projectOpenOtherTab", undefined, 'error');
 			return;
 		}
 		watchProjectLockLoss(projectId, nextLock);
@@ -191,10 +192,8 @@ export function createProjectLockService(runtime: ProjectLockServiceRuntime) {
 			lockMethod: nextLock.method,
 		});
 		runtime.publishProjectState();
-		runtime.setStatus(
-			intrinsicReadOnly ? intrinsicReadOnlyReason || runtime.copy.projectReadOnly : runtime.copy.ready,
-			intrinsicReadOnly ? 'error' : 'success',
-		);
+		if (intrinsicReadOnly) publishProjectReadOnlyStatus(runtime.copy, runtime.setStatus, intrinsicReadOnlyReason);
+		else setLocalizedStatus(runtime.setStatus, runtime.copy, 'ready', undefined, 'success');
 	}
 
 	function handleProjectLockRecoveryError(

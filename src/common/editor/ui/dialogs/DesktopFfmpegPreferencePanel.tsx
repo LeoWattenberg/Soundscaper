@@ -4,8 +4,11 @@ import { Button } from '@soundscaper/design-system/Button';
 import { PreferencePanel } from '@soundscaper/design-system/PreferencePanel';
 import { useEffect, useMemo, useState } from 'react';
 
-import { resolveCopyCatalogOverrides } from '../copy-catalog-overrides.ts';
+import { resolveEditorCopyScope } from '../../../i18n/editor-copy-scope.ts';
+import { DESKTOP_FFMPEG_COPY } from '../../../i18n/editor-desktop-ffmpeg-copy.ts';
 import './DesktopFfmpegPreferencePanel.css';
+
+type DesktopFfmpegPreferenceCopy = Readonly<{ [Key in keyof typeof DESKTOP_FFMPEG_COPY]: string }>;
 
 export type DesktopFfmpegState =
 	| 'unconfigured'
@@ -35,27 +38,6 @@ export interface DesktopFfmpegPreferenceFileService {
 	readonly installExternalFfmpeg?: () => Promise<unknown>;
 }
 
-interface DesktopFfmpegPreferenceCopy {
-	readonly [key: string]: string;
-	readonly externalFfmpeg: string;
-	readonly externalFfmpegDescription: string;
-	readonly externalFfmpegLocation: string;
-	readonly externalFfmpegNoLocation: string;
-	readonly externalFfmpegVersion: string;
-	readonly externalFfmpegUnconfigured: string;
-	readonly externalFfmpegProbing: string;
-	readonly externalFfmpegReady: string;
-	readonly externalFfmpegUnsupported: string;
-	readonly externalFfmpegQuarantined: string;
-	readonly externalFfmpegUnavailable: string;
-	readonly externalFfmpegInstalling: string;
-	readonly externalFfmpegError: string;
-	readonly externalFfmpegControlsUnavailable: string;
-	readonly externalFfmpegBrowse: string;
-	readonly externalFfmpegClear: string;
-	readonly externalFfmpegRescan: string;
-	readonly externalFfmpegInstall: string;
-}
 
 export interface DesktopFfmpegPreferencePanelProps {
 	readonly fileService: DesktopFfmpegPreferenceFileService;
@@ -67,26 +49,7 @@ const STATES = new Set<DesktopFfmpegState>([
 	'unconfigured', 'probing', 'ready', 'unsupported', 'quarantined', 'unavailable',
 	'installing', 'error',
 ]);
-const DEFAULT_COPY: DesktopFfmpegPreferenceCopy = Object.freeze({
-	externalFfmpeg: 'External FFmpeg',
-	externalFfmpegDescription: 'Used only when bundled and system media codecs cannot complete an operation.',
-	externalFfmpegLocation: 'FFmpeg location',
-	externalFfmpegNoLocation: 'No location selected',
-	externalFfmpegVersion: 'Detected version',
-	externalFfmpegUnconfigured: 'No external FFmpeg is configured.',
-	externalFfmpegProbing: 'Checking external FFmpeg…',
-	externalFfmpegReady: 'FFmpeg {version} is ready.',
-	externalFfmpegUnsupported: 'The selected FFmpeg version is unsupported.',
-	externalFfmpegQuarantined: 'The selected FFmpeg installation must be reviewed again.',
-	externalFfmpegUnavailable: 'External FFmpeg is unavailable.',
-	externalFfmpegInstalling: 'Installing external FFmpeg…',
-	externalFfmpegError: 'External FFmpeg could not be configured.',
-	externalFfmpegControlsUnavailable: 'External FFmpeg controls are unavailable in this desktop build.',
-	externalFfmpegBrowse: 'Browse',
-	externalFfmpegClear: 'Clear',
-	externalFfmpegRescan: 'Rescan',
-	externalFfmpegInstall: 'Install',
-});
+
 const PROBING_STATUS: DesktopFfmpegStatus = Object.freeze({
 	state: 'probing', location: null, version: null, detail: '',
 	canInstall: false, canBrowse: false, canClear: false,
@@ -98,7 +61,7 @@ export default function DesktopFfmpegPreferencePanel({
 	initialStatus = PROBING_STATUS,
 }: DesktopFfmpegPreferencePanelProps) {
 	const copy = useMemo(
-		() => resolveCopyCatalogOverrides(DEFAULT_COPY, hostCopy),
+		() => resolveEditorCopyScope('desktopFfmpeg', DESKTOP_FFMPEG_COPY, hostCopy),
 		[hostCopy],
 	);
 	const [status, setStatus] = useState(() => normalizeDesktopFfmpegStatus(initialStatus));

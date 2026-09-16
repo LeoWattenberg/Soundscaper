@@ -1,3 +1,4 @@
+import { usePresentationFeedback, feedbackFailure, feedbackErrorParameter } from '../presentation-feedback.ts';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
@@ -21,6 +22,7 @@ import MacroManagerStepList from './MacroManagerStepList.jsx';
 import MacroScriptPanel from './MacroScriptPanel.jsx';
 import { resolveEffectMacroTemplateCopy } from './effect-macro-template-copy.ts';
 import { resolveMacroManagerCopy } from './macro-manager-copy.ts';
+import { publishedCopyFor } from '../../controller/shared/presentation-localization.ts';
 import { resolveSupportedEffectType, safeEffectLabel } from './effect-helpers.ts';
 import { downloadTextFile, macroFileName } from './inspector-helpers.ts';
 
@@ -54,15 +56,15 @@ export function AudioEditorMacroManagerDialog({
 		() => macroEffectTypes.map((type) => ({ id: type, name: safeEffectLabel(type, copy) })),
 		[copy, macroEffectTypes],
 	);
-	const templateCopy = resolveEffectMacroTemplateCopy(locale);
-	const managerCopy = resolveMacroManagerCopy(locale);
+	const templateCopy = resolveEffectMacroTemplateCopy(locale, copy);
+	const managerCopy = resolveMacroManagerCopy(locale, copy);
 	const scripts = snapshot.macros?.scripts || [];
 	const [selectedScriptId, setSelectedScriptId] = useState(null);
 	const selectedScript = scripts.find((script) => script.id === selectedScriptId) || null;
 	const scriptLibrary = controller.actions.macros.scripts;
 	const createScript = () => {
 		const created = scriptLibrary.save({
-			name: managerCopy.newProgram,
+			name: resolveMacroManagerCopy(locale, publishedCopyFor(copy)).newProgram,
 			source: '// A macro program. `sound` is the editor.\n'
 				+ 'await sound.select.all();\n',
 		});
@@ -84,10 +86,9 @@ export function AudioEditorMacroManagerDialog({
 			const created = scriptLibrary.import(await file.text(), file.name);
 			setSelectedScriptId(created.id);
 			openMacro(null);
-			showMessage(managerCopy.programImported, 'warning');
+			showMessage({ key: 'ui.macroManager.programImported', fallback: managerCopy.programImported }, 'warning');
 		} catch (cause) {
-			showMessage(managerCopy.programImportFailed
-				.replace('{message}', cause instanceof Error ? cause.message : String(cause)), 'error');
+			showMessage({ key: 'ui.macroManager.programImportFailed', fallback: managerCopy.programImportFailed, parameters: { message: feedbackErrorParameter(cause) } }, 'error');
 		}
 	};
 	const exportScript = async () => {
@@ -100,10 +101,9 @@ export function AudioEditorMacroManagerDialog({
 				'macro',
 			);
 			if (saved?.cancelled) return;
-			showMessage(copy.macroExported, 'success');
+			showMessage({ key: 'macroExported' }, 'success');
 		} catch (cause) {
-			showMessage(copy.macroExportFailed
-				.replace('{message}', cause instanceof Error ? cause.message : String(cause)), 'error');
+			showMessage({ key: 'macroExportFailed', parameters: { message: feedbackErrorParameter(cause) } }, 'error');
 		}
 	};
 	const blocked = selectAudioEditorEditBlock(snapshot).blocked;
@@ -112,7 +112,7 @@ export function AudioEditorMacroManagerDialog({
 	const missingEmbeddedNoiseProfile = templatesAvailable
 		&& effectMacroMissingEmbeddedNoiseProfile(effects);
 	const [selectedEffectId, setSelectedEffectId] = useState(null);
-	const [message, setMessage] = useState('');
+	const [message, setMessage] = usePresentationFeedback(copy);
 	const [messageState, setMessageState] = useState('info');
 	const [isRunning, setIsRunning] = useState(false);
 	const [isCapturingProfile, setIsCapturingProfile] = useState(false);
@@ -161,7 +161,7 @@ export function AudioEditorMacroManagerDialog({
 			setIsRunning(false);
 			setIsCapturingProfile(false);
 		}
-	}, [isOpen]);
+	}, [isOpen, setMessage]);
 
 	useLayoutEffect(() => {
 		if (stateProjectIdentityRef.current === projectIdentity) return;
@@ -174,7 +174,7 @@ export function AudioEditorMacroManagerDialog({
 		setMessageState('info');
 		setIsRunning(false);
 		setIsCapturingProfile(false);
-	}, [projectIdentity]);
+	}, [projectIdentity, setMessage]);
 
 	// A macro the library no longer holds cannot be edited, so the manager opens
 	// on the first saved macro instead of on a draft with nowhere to save to.
@@ -223,7 +223,7 @@ export function AudioEditorMacroManagerDialog({
 		try {
 			openMacro(library.save(macro));
 		} catch (cause) {
-			showMessage(cause instanceof Error ? cause.message : String(cause), 'error');
+			showMessage(feedbackFailure(cause), 'error');
 		}
 	};
 	const deleteMacro = () => {
@@ -273,7 +273,7 @@ export function AudioEditorMacroManagerDialog({
 		} catch (cause) {
 			if (!ownsOperation(activeProfileRef, operation)) return;
 			const detail = cause instanceof Error ? cause.message : String(cause);
-			showMessage(`${copy.effectProcessingFailed || 'Noise profile capture failed.'} ${detail}`, 'error');
+			showMessage({ key: 'effectProcessingFailed', suffix: ` ${detail}`, fallback: 'Noise profile capture failed.' }, 'error');
 		} finally {
 			if (ownsOperation(activeProfileRef, operation)) {
 				activeProfileRef.current = null;
@@ -284,7 +284,7 @@ export function AudioEditorMacroManagerDialog({
 	const replaceFromRegistry = (effectId, candidate) => {
 		const type = resolveSupportedEffectType(candidate, locale, copy, macroEffectTypes);
 		if (!type) {
-			showMessage(copy.effectEngineUnsupported, 'error');
+			showMessage({ key: 'effectEngineUnsupported' }, 'error');
 			return;
 		}
 		changeEffectType(effectId, type);
@@ -303,61 +303,59 @@ export function AudioEditorMacroManagerDialog({
 			const parsed = parseAudacityEffectMacro(await file.text());
 			if (!ownsOperation(activeImportRef, operation)) return;
 			createMacro({
-				name: file.name.replace(/\.txt$/i, '') || copy.untitledMacro,
+				name: file.name.replace(/\.txt$/i, '') || publishedCopyFor(copy).untitledMacro,
 				effects: [...parsed.effects],
 			});
 			const warning = parsed.ignoredCommands.length
-				? ` ${copy.macroUnsupportedCommands.replace('{commands}', parsed.ignoredCommands.join(', '))}`
-				: '';
-			showMessage(`${copy.macroImported}${warning}`, parsed.ignoredCommands.length ? 'warning' : 'success');
+				? [' ', { key: 'macroUnsupportedCommands', parameters: { commands: parsed.ignoredCommands.join(', ') } }]
+				: [];
+			showMessage({ key: 'macroImported', append: warning }, parsed.ignoredCommands.length ? 'warning' : 'success');
 		} catch (cause) {
 			if (!ownsOperation(activeImportRef, operation)) return;
 			const detail = cause instanceof Error ? cause.message : String(cause);
 			showMessage(/no supported effects/i.test(detail)
-				? copy.macroImportEmpty
-				: copy.macroImportFailed.replace('{message}', detail), 'error');
+				? { key: 'macroImportEmpty' }
+				: { key: 'macroImportFailed', parameters: { message: feedbackErrorParameter(cause) } }, 'error');
 		}
 	};
 	const exportMacro = async () => {
 		const operation = startOperation(activeExportRef);
 		try {
 			const encoded = serializeAudacityEffectMacro(effects);
-			const saved = await downloadTextFile(encoded, `${macroFileName(draft?.name || copy.untitledMacro)}.txt`, fileService, 'macro');
+			const saved = await downloadTextFile(encoded, `${macroFileName(draft?.name || publishedCopyFor(copy).untitledMacro)}.txt`, fileService, 'macro');
 			if (!ownsOperation(activeExportRef, operation)) return;
 			if (saved?.cancelled) return;
-			showMessage(copy.macroExported, 'success');
+			showMessage({ key: 'macroExported' }, 'success');
 		} catch (cause) {
 			if (!ownsOperation(activeExportRef, operation)) return;
-			const detail = cause instanceof Error ? cause.message : String(cause);
-			showMessage(copy.macroExportFailed.replace('{message}', detail), 'error');
+			showMessage({ key: 'macroExportFailed', parameters: { message: feedbackErrorParameter(cause) } }, 'error');
 		}
 	};
 	const runMacro = async () => {
 		if (runningRef.current) return;
 		if (missingEmbeddedNoiseProfile) {
-			showMessage(templateCopy.profileRequired, 'warning');
+			showMessage({ key: 'ui.effectMacroTemplate.profileRequired', fallback: templateCopy.profileRequired }, 'warning');
 			return;
 		}
 		const operation = startOperation(runningRef);
 		setIsRunning(true);
-		showMessage(copy.macroProcessing);
+		showMessage({ key: 'macroProcessing' });
 		try {
 			const applied = await controller.actions.macros.run({
-				name: draft?.name || copy.untitledMacro,
+				name: draft?.name || publishedCopyFor(copy).untitledMacro,
 				effects,
 			});
 			if (!ownsOperation(runningRef, operation)) return;
-			if (applied) showMessage(copy.macroApplied, 'success');
+			if (applied) showMessage({ key: 'macroApplied' }, 'success');
 		} catch (cause) {
 			if (!ownsOperation(runningRef, operation)) return;
 			// A cancelled run is the user's own doing, not a failure to report as
 			// one: the runner aborts it exactly the way a superseding run does.
 			if (cause instanceof Error && cause.name === 'AbortError') {
-				showMessage(managerCopy.runCancelled, 'warning');
+				showMessage({ key: 'ui.macroManager.runCancelled', fallback: managerCopy.runCancelled }, 'warning');
 				return;
 			}
-			const detail = cause instanceof Error ? cause.message : String(cause);
-			showMessage(copy.macroRunFailed.replace('{message}', detail), 'error');
+			showMessage({ key: 'macroRunFailed', parameters: { message: feedbackErrorParameter(cause) } }, 'error');
 		} finally {
 			if (ownsOperation(runningRef, operation)) {
 				runningRef.current = null;
@@ -420,7 +418,7 @@ export function AudioEditorMacroManagerDialog({
 							setSelectedScriptId(null);
 							openMacro(macros.find((macro) => macro.id === macroId) || null);
 						}}
-						onCreate={() => createMacro({ name: copy.untitledMacro, effects: [] })}
+						onCreate={() => createMacro({ name: publishedCopyFor(copy).untitledMacro, effects: [] })}
 						onDelete={deleteMacro}
 						onExport={exportMacro}
 						onImport={() => fileInputRef.current?.click()}

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { useRef, useState } from 'react';
+import { formatPresentationMessage } from '../../../i18n/presentation-message.ts'; import { timelineAnnotationNavigationMessage } from './timeline-annotation-presentation.ts'; import React, { useRef, useState } from 'react'; import { usePresentationFeedback } from '../presentation-feedback.ts';
 
 import { AUDIO_EDITOR_TIMELINE_ANNOTATION_COLORS } from '../../timeline-annotation.ts';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
@@ -42,7 +42,7 @@ export function TimelineAnnotationPanel({
 	const renameCompletionRef = useRef(null);
 	const [editingId, setEditingId] = useState(null);
 	const [draftName, setDraftName] = useState('');
-	const [status, setStatus] = useState('');
+	const [status, setStatus] = usePresentationFeedback(copy);
 	const titleId = React.useId();
 	const projected = model.rows.map(({ annotation }) => annotation);
 	const focusCreated = (annotationId) => {
@@ -62,8 +62,8 @@ export function TimelineAnnotationPanel({
 				? actions.toggle(annotation.id)
 				: actions.select(annotation.id, event.shiftKey);
 			setStatus(message(
-				ids.includes(annotation.id) ? copy.timelineAnnotationSelected : copy.timelineAnnotationDeselected,
-				{ name: annotation.name || copy.unnamedTimelineAnnotation },
+				ids.includes(annotation.id) ? 'timelineAnnotationSelected' : 'timelineAnnotationDeselected',
+				{ name: annotation.name || { key: 'unnamedTimelineAnnotation' } },
 			));
 			return result;
 		});
@@ -77,8 +77,8 @@ export function TimelineAnnotationPanel({
 		if (!blocked && save && draftName !== annotation.name) {
 			run(() => {
 				const result = actions.rename([annotation.id], draftName);
-				setStatus(message(copy.timelineAnnotationRenamed, {
-					name: draftName || copy.unnamedTimelineAnnotation,
+				setStatus(message('timelineAnnotationRenamed', {
+					name: draftName || { key: 'unnamedTimelineAnnotation' },
 				}));
 				return result;
 			});
@@ -99,7 +99,7 @@ export function TimelineAnnotationPanel({
 			|| null;
 		run(() => {
 			const result = actions.remove(ids);
-			setStatus(message(copy.timelineAnnotationRemoved, { count: ids.length }));
+			setStatus(message('timelineAnnotationRemoved', { count: ids.length }));
 			requestAnimationFrame(() => (
 				targetId ? itemRefs.current.get(targetId) : addMarkerRef.current
 			)?.focus({ preventScroll: true }));
@@ -113,8 +113,8 @@ export function TimelineAnnotationPanel({
 			const deltaFrames = frame - annotation.timelineStartFrame;
 			if (!deltaFrames) return null;
 			const result = actions.move(selectedEditIds(annotation.id), deltaFrames, annotation.id);
-			setStatus(message(copy.timelineAnnotationMoved, {
-				name: annotation.name || copy.unnamedTimelineAnnotation, frames: deltaFrames,
+			setStatus(message('timelineAnnotationMoved', {
+				name: annotation.name || { key: 'unnamedTimelineAnnotation' }, frames: deltaFrames,
 			}));
 			return result;
 		});
@@ -128,8 +128,8 @@ export function TimelineAnnotationPanel({
 				: annotation.timelineEndFrame;
 			if (frame === currentFrame) return null;
 			const result = actions.resize(annotation.id, edge, frame);
-			setStatus(message(copy.timelineAnnotationResized, {
-				name: annotation.name || copy.unnamedTimelineAnnotation, frame,
+			setStatus(message('timelineAnnotationResized', {
+				name: annotation.name || { key: 'unnamedTimelineAnnotation' }, frame,
 			}));
 			return result;
 		});
@@ -138,8 +138,8 @@ export function TimelineAnnotationPanel({
 		if (blocked || !deltaFrames) return;
 		run(() => {
 			const result = actions.move(bounds.ids, deltaFrames, annotation.id);
-			setStatus(message(copy.timelineAnnotationMoved, {
-				name: annotation.name || copy.unnamedTimelineAnnotation, frames: deltaFrames,
+			setStatus(message('timelineAnnotationMoved', {
+				name: annotation.name || { key: 'unnamedTimelineAnnotation' }, frames: deltaFrames,
 			}));
 			return result;
 		});
@@ -185,8 +185,8 @@ export function TimelineAnnotationPanel({
 			run(() => {
 				const result = actions.toggle(annotation.id);
 				setStatus(message(
-					row.selected ? copy.timelineAnnotationDeselected : copy.timelineAnnotationSelected,
-					{ name: annotation.name || copy.unnamedTimelineAnnotation },
+					row.selected ? 'timelineAnnotationDeselected' : 'timelineAnnotationSelected',
+					{ name: annotation.name || { key: 'unnamedTimelineAnnotation' } },
 				));
 				return result;
 			});
@@ -198,7 +198,7 @@ export function TimelineAnnotationPanel({
 		run(() => {
 			const result = batch ? actions.batch(model.selectedIds) : actions.unbatch(model.selectedIds);
 			setStatus(message(
-				batch ? copy.timelineAnnotationBatched : copy.timelineAnnotationUnbatched,
+				batch ? 'timelineAnnotationBatched' : 'timelineAnnotationUnbatched',
 				{ count: model.selectedIds.length },
 			));
 			return result;
@@ -209,7 +209,7 @@ export function TimelineAnnotationPanel({
 			? actions.previous(project.primarySequenceId)
 			: actions.next(project.primarySequenceId));
 		completeTimelineAnnotationNavigation(
-			target, model.rows, copy, itemRefs.current, setStatus,
+			target, model.rows, copy, itemRefs.current, (message, identity) => setStatus(identity ?? message),
 		);
 	};
 	const expandedId = editingId ?? model.focusedId;
@@ -345,9 +345,8 @@ export function completeTimelineAnnotationNavigation(
 	if (!target) return null;
 	const row = rows.find(({ id }) => id === target.id);
 	if (!row) return null;
-	setStatus(`${target.name || copy.unnamedTimelineAnnotation}, ${
-		target.kind === 'marker' ? copy.timelineMarker : copy.timelineRegion
-	}, ${row.timingLabel}`);
+	const identity = timelineAnnotationNavigationMessage(target, row.timingLabel, copy.annotationSecondsUnit);
+	setStatus(formatPresentationMessage(copy, identity), identity);
 	schedule(() => {
 		const item = itemRefs.get(target.id);
 		item?.focus({ preventScroll: true });
@@ -373,9 +372,4 @@ function colorLabel(copy, color) {
 	return copy[`annotationColor${color[0].toUpperCase()}${color.slice(1)}`] || color;
 }
 
-function message(template, values) {
-	return Object.entries(values).reduce(
-		(output, [key, value]) => output.replace(`{${key}}`, String(value)),
-		String(template || ''),
-	);
-}
+function message(key, parameters) { return { key, parameters }; }

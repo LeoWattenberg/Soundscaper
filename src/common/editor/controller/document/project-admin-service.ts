@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { FramescaperCaptureAdminInterlockLease } from '../capture/framescaper-capture-admin-interlock.ts';
+import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import type { FramescaperCaptureAdminInterlockLease } from '../capture/framescaper-capture-admin-interlock.ts'; import { publishedCopyFor } from '../shared/presentation-localization.ts';
 import type { AdminProject, AdminHistory, AdminSessionTab, AdminCloseOptions, ProjectAdminServiceRuntime } from './internal/project/project-admin-runtime.ts';
 export type { ProjectAdminServiceRuntime } from './internal/project/project-admin-runtime.ts';
 
@@ -38,9 +38,9 @@ export function createProjectAdminService<
 	}
 
 	function projectHandoffPreflight(expected?: Readonly<ProjectHandoffExpectation>) {
-		if (recoveryBlocked()) throw new Error(copy.projectReadOnly);
+		if (recoveryBlocked()) throw createLocalizedError(Error, copy, 'projectReadOnly');
 		const project = getProject();
-		if (!project) throw new Error(copy.projectNotFound);
+		if (!project) throw createLocalizedError(Error, copy, 'projectNotFound');
 		assertExpectedHandoffProject(project, expected);
 		const metadata = sessionTab(project.id)?.metadata;
 		const featureRequirementReadOnly = Boolean(
@@ -52,7 +52,7 @@ export function createProjectAdminService<
 			&& state.projectLock.readOnly === false,
 		);
 		if (state.projectLock?.readOnly || (state.readOnly && !featureRequirementReadOnly)) {
-			throw new Error(copy.projectReadOnly);
+			throw createLocalizedError(Error, copy, 'projectReadOnly');
 		}
 		return Object.freeze({ project, featureRequirementReadOnly });
 	}
@@ -66,10 +66,10 @@ export function createProjectAdminService<
 		const interlock = beginCaptureInterlockedAdminOperation?.({ kind: 'handoff', projectId: project.id });
 		try {
 			if (!featureRequirementReadOnly) await flushProject();
-			if (getProject() !== project) throw new Error(copy.projectNotFound);
+			if (getProject() !== project) throw createLocalizedError(Error, copy, 'projectNotFound');
 			assertExpectedHandoffProject(project, expected);
 			await store.prepareProjectHandoff?.(project);
-			if (getProject() !== project) throw new Error(copy.projectNotFound);
+			if (getProject() !== project) throw createLocalizedError(Error, copy, 'projectNotFound');
 			assertExpectedHandoffProject(project, expected);
 			interlock?.assertCurrent();
 			await releaseProjectLock();
@@ -94,10 +94,10 @@ export function createProjectAdminService<
 	}
 
 	async function closeProjectTab(projectId: string | undefined = getProject()?.id, closeOptions: AdminCloseOptions = {}) {
-		if (!projectId) throw new Error(copy.projectNotFound);
+		if (!projectId) throw createLocalizedError(Error, copy, 'projectNotFound');
 		const project = getProject();
 		const tab = sessionTab(projectId);
-		if (!tab) throw new Error(copy.projectNotFound);
+		if (!tab) throw createLocalizedError(Error, copy, 'projectNotFound');
 		const interlock = beginCaptureInterlockedAdminOperation?.({ kind: 'close', projectId });
 		try { return await closeProjectTabReserved(project, tab, projectId, closeOptions, interlock); }
 		finally { interlock?.release(); }
@@ -123,7 +123,7 @@ export function createProjectAdminService<
 			if (active) {
 				const tabs = sessionController.getSnapshot().tabs;
 				const index = tabs.findIndex((candidate) => candidate.projectId === projectId);
-				if (index < 0) throw new Error(copy.projectNotFound);
+				if (index < 0) throw createLocalizedError(Error, copy, 'projectNotFound');
 				const nextTab = tabs[index + 1] ?? tabs[index - 1] ?? null;
 				if (nextTab) {
 					await switchProject(nextTab.history.present, { skipFlush: discard });
@@ -159,7 +159,7 @@ export function createProjectAdminService<
 
 	async function renameProject(requestedTitle: unknown) {
 		if (state.readOnly) return;
-		if (requestedTitle == null) throw new TypeError(copy.projectTitleRequired);
+		if (requestedTitle == null) throw createLocalizedError(TypeError, copy, 'projectTitleRequired');
 		const title = String(requestedTitle).trim();
 		if (title) commit({ type: 'project/rename', title });
 	}
@@ -171,7 +171,7 @@ export function createProjectAdminService<
 		const recordingRouting = structuredClone(getRecordingRouting());
 		await saveNow();
 		if (getProject() !== project) return null;
-		const title = String(requestedTitle || `${project.title} ${copy.projectCopySuffix}`).trim();
+		const title = String(requestedTitle || `${project.title} ${publishedCopyFor(copy).projectCopySuffix}`).trim();
 		const duplicated = await store.duplicateProject(project.id, { title });
 		await persistSetting(recordingRoutingSettingKey(duplicated.id), recordingRouting, { policy: 'required' });
 		if (getProject() !== project) {

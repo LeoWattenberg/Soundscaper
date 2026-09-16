@@ -161,7 +161,7 @@ export interface SourceLifecycleServiceRuntime<
 		context: unknown,
 	) => Awaitable<Buffer | null>;
 	readonly readWaveformPcmWindow: (provider: Provider, range: WaveformPcmRange) => Awaitable<readonly Float32Array[]>;
-	readonly setStatus: (message: string, state: 'error') => void;
+	readonly setStatus: (message: string, state: 'error', localization?: import('../../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly sourceAudioBufferBytes: (buffer: Buffer) => number;
 	readonly sourceBuffers: SourceLifecycleBufferCache<Buffer>;
 	readonly sourceChunkProviders: SourceChunkProviderRegistryPort<string, Provider>;

@@ -1,3 +1,4 @@
+import { usePresentationFeedback, feedbackFailure } from '../presentation-feedback.ts';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
@@ -28,7 +29,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 		snapshot.effects?.selectionParams || audioSelectionEffectDefaults(initialType)
 	));
 	const [controlTrackId, setControlTrackId] = useState(snapshot.effects?.controlTrackId || '');
-	const [message, setMessage] = useState('');
+	const [message, setMessage] = usePresentationFeedback(copy);
 	const [selectedPresetId, setSelectedPresetId] = useState('');
 	const [presetName, setPresetName] = useState('');
 	const projectIdentity = project?.id ?? null;
@@ -68,7 +69,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 			setSelectedPresetId('');
 			setPresetName('');
 		}
-	}, [projectIdentity, selectedPresetId, snapshot.effects]);
+	}, [projectIdentity, selectedPresetId, snapshot.effects, setMessage]);
 	useEffect(() => () => { activeOperation.current = null; }, []);
 
 	const liveProjectIdentity = () => ('project' in controller
@@ -94,7 +95,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 			.catch((cause) => {
 				if (!ownsOperation()) return;
 				activeOperation.current = null;
-				setMessage(cause instanceof Error ? cause.message : String(cause));
+				setMessage(feedbackFailure(cause));
 			});
 	};
 	const updateSelectionParams = (changes) => {

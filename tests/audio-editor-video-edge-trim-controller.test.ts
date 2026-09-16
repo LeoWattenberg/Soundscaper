@@ -80,6 +80,7 @@ test('composed Framescaper trim actions preview and commit one canonical V15 his
 		assert.deepEqual(snapshot.status, {
 			message: 'Trimmed right edge to 00:00:00:24.',
 			state: 'success',
+			localization: { key: 'trimRightEdgeApplied', parameters: { timecode: '00:00:00:24' } },
 		});
 		const persistedVideo = mediaClip(snapshot.project, 'persisted-timeline-video');
 		assert.deepEqual([

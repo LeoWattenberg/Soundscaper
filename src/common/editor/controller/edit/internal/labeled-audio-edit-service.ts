@@ -10,7 +10,7 @@
  * silences reuse the primitives their unlabelled counterparts already use.
  */
 
-import {
+import { createLocalizedError } from '../../../../i18n/presentation-message.ts'; import {
 	labeledAudioSpanRegions,
 	selectLabeledAudioTargets,
 	type LabeledAudioRegion,
@@ -79,15 +79,15 @@ export function createLabeledAudioEditService(runtime: LabeledAudioEditRuntime):
 			...(state.selectedTrackId ? [state.selectedTrackId] : []),
 		];
 		const targets = selectLabeledAudioTargets(project, activeSelection(), selectedTrackIds);
-		if (!targets) throw new Error(copy.labeledAudioRequired);
+		if (!targets) throw createLocalizedError(Error, copy, 'labeledAudioRequired');
 		return targets;
 	}
 
 	/** Fill the clipboard with the labelled regions, gaps and all. */
 	function copyRegions(targets: LabeledAudioTargets, spans: readonly LabeledAudioRegion[]): void {
-		if (spans.length === 0) throw new Error(copy.labeledAudioRequired);
+		if (spans.length === 0) throw createLocalizedError(Error, copy, 'labeledAudioRequired');
 		const descriptor = labeledClipboard.create(spans, targets.trackIds);
-		if (!descriptor) throw new Error(copy.labeledAudioRequired);
+		if (!descriptor) throw createLocalizedError(Error, copy, 'labeledAudioRequired');
 		setSessionClipboard(descriptor);
 		compactLiveSourceState();
 		void garbageCollectSources().catch(handleError);
@@ -103,7 +103,7 @@ export function createLabeledAudioEditService(runtime: LabeledAudioEditRuntime):
 		targets: LabeledAudioTargets,
 		spans: readonly LabeledAudioRegion[],
 	): void {
-		if (spans.length === 0) throw new Error(copy.labeledAudioRequired);
+		if (spans.length === 0) throw createLocalizedError(Error, copy, 'labeledAudioRequired');
 		const ripples = action === 'labeled-cut' || action === 'labeled-delete';
 		const command = runtime.prepareDisjointRangeDeleteCommand(getProject(), {
 			ranges: spans.map((region) => ({ startFrame: region.startFrame, endFrame: region.endFrame })),

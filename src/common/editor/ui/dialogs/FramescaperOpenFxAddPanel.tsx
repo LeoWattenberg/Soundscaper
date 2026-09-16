@@ -1,3 +1,4 @@
+import { feedbackFailure, presentationFeedbackText, usePresentationFeedback, type PresentationFeedback } from '../presentation-feedback.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /** Lazy, menu-owned authoring surface for every baseline OpenFX context. */
@@ -31,7 +32,7 @@ export interface FramescaperOpenFxFormState {
 interface FramescaperOpenFxModelLoad {
 	readonly runtime: FramescaperNativeOpenFxAuthoringRuntimeNativeMedia;
 	readonly model: FramescaperOpenFxAuthoringModelNativeMedia | null;
-	readonly error: string;
+	readonly error: PresentationFeedback;
 }
 
 export default function FramescaperOpenFxAddPanel({ runtime, copy }: Readonly<{
@@ -47,13 +48,13 @@ export default function FramescaperOpenFxAddPanel({ runtime, copy }: Readonly<{
 		void runtime.model().then(
 			(value) => { if (live) setLoaded({ runtime, model: value, error: '' }); },
 			(failure: unknown) => {
-				if (live) setLoaded({ runtime, model: null, error: message(failure) });
+				if (live) setLoaded({ runtime, model: null, error: feedbackFailure(failure) });
 			},
 		);
 		return () => { live = false; };
 	}, [runtime]);
 	const model = loaded.runtime === runtime ? loaded.model : null;
-	const error = loaded.runtime === runtime ? loaded.error : '';
+	const error = loaded.runtime === runtime ? presentationFeedbackText(loaded.error, copy) : '';
 	if (error) return <p role="alert">{error}</p>;
 	if (model === null) return <p role="status" aria-live="polite">{copy.ofxLoading}</p>;
 	const compatibleModel = compatibleAuthoringModel(model);
@@ -83,7 +84,7 @@ function CompatibleFramescaperOpenFxAddForm({ model, onAuthor, copy }: Required<
 	const initial = useMemo(() => createFramescaperOpenFxFormState(model), [model]);
 	const [state, setState] = useState(initial);
 	const [status, setStatus] = useState<'ready' | 'working' | 'complete'>('ready');
-	const [error, setError] = useState('');
+	const [error, setError] = usePresentationFeedback(copy);
 	const plugin = pluginFor(model, state.pluginHandle);
 	const contexts = plugin.supportedContexts.filter((context) => (
 		model.targets.some((target) => target.context === context)
@@ -95,7 +96,7 @@ function CompatibleFramescaperOpenFxAddForm({ model, onAuthor, copy }: Required<
 			setState(stateForPlugin(model, pluginHandle));
 			setStatus('ready'); setError('');
 		} catch (failure) {
-			setError(message(failure));
+			setError(feedbackFailure(failure));
 		}
 	};
 	const selectContext = (contextValue: string): void => {
@@ -109,10 +110,10 @@ function CompatibleFramescaperOpenFxAddForm({ model, onAuthor, copy }: Required<
 		event.preventDefault(); setStatus('working'); setError('');
 		let request: FramescaperOpenFxAuthoringRequestNativeMedia;
 		try { request = buildFramescaperOpenFxAuthoringRequestNativeMedia(model, state); }
-		catch (failure) { setStatus('ready'); setError(message(failure)); return; }
+		catch (failure) { setStatus('ready'); setError(feedbackFailure(failure)); return; }
 		void Promise.resolve(onAuthor(request)).then(
 			() => setStatus('complete'),
-			(failure: unknown) => { setStatus('ready'); setError(message(failure)); },
+			(failure: unknown) => { setStatus('ready'); setError(feedbackFailure(failure)); },
 		);
 	};
 	return <form onSubmit={submit} data-framescaper-openfx-add-form="true">
@@ -337,5 +338,3 @@ function pluginLabel(plugin: ReturnType<typeof framescaperOpenFxPluginProjection
 function template(value: string, parameter: OfxParameterDescriptorV1): string {
 	return value.replace('{name}', parameter.name).replace('{type}', parameter.type);
 }
-
-function message(value: unknown): string { return value instanceof Error ? value.message : String(value); }

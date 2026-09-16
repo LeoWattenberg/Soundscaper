@@ -15,7 +15,7 @@ import {
 } from './helpers/eager-chunk-group-crossings.ts';
 
 /**
- * Six delivery leaves that rode the boot graph for a feature nobody had opened.
+ * Delivery leaves that rode the boot graph for a feature nobody had opened.
  *
  * A flat editor module is claimed by `editor-domain` by default, and `editor-domain` is
  * eager, so a module split out of an export or analysis slice keeps riding the startup
@@ -34,9 +34,11 @@ const REPOSITORY_ROOT = fileURLToPath(new URL('../', import.meta.url));
 const DELIVERY_PASSENGERS: readonly (readonly [string, string | null])[] = [
 	['src/common/editor/delivery-conformance.ts', 'editor-optional-export'],
 	['src/common/editor/delivery-video-conversion-inventory.ts', 'editor-optional-export'],
+	['src/common/editor/delivery-conversion-inventory.ts', 'editor-optional-export'],
 	['src/common/editor/video-burn-in-font.ts', 'editor-optional-export'],
 	['src/common/editor/video-delivery-encoder-tier.ts', 'editor-optional-export'],
 	['src/common/editor/loudness-measurement-report.ts', 'editor-optional-execution'],
+	['src/common/editor/browser-dedicated-audio-profiles.ts', 'editor-optional-execution'],
 	// The archive slice has no group of its own: its modules are deliberately unowned so
 	// dynamic reachability places them with the lazy action that opened them.
 	['src/common/editor/aup4-time-signature.ts', null],
@@ -75,10 +77,6 @@ test('the burn-in font subsets stay eager, because the caption pipeline reads th
 	// `video-caption-burn-in.ts` both read it outside the export slice.
 	assert.equal(
 		chunkGroupForModulePath('src/common/editor/video-burn-in-font-subsets.ts'),
-		'editor-domain',
-	);
-	assert.equal(
-		chunkGroupForModulePath('src/common/editor/delivery-conversion-inventory.ts'),
 		'editor-domain',
 	);
 });

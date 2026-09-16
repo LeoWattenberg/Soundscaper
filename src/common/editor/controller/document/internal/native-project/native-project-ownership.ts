@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { EditorDisposedError, type EditorProjectToken, type EditorTaskOptions, type EditorTaskScope } from '../../../shared/lifecycle.ts';
+import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import { EditorDisposedError, type EditorProjectToken, type EditorTaskOptions, type EditorTaskScope } from '../../../shared/lifecycle.ts';
 import type { NativeProjectDocument, NativeProjectServiceRuntime } from '../../native-project-types.ts';
 
 /** A started operation, paired with the project generation it began against. */
@@ -41,7 +41,7 @@ export function createNativeProjectOwnership(runtime: NativeProjectServiceRuntim
 
 	function requireProject(): NativeProjectDocument {
 		const activeProject = runtime.getProject();
-		if (!activeProject) throw new Error(runtime.copy.projectNotFound);
+		if (!activeProject) throw createLocalizedError(Error, runtime.copy, 'projectNotFound');
 		return activeProject;
 	}
 

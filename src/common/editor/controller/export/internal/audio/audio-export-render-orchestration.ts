@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { isProjectAudioFallbackIntegrityError } from '../../../../project-fallback-integrity-audio.ts';
+import { isProjectAudioFallbackIntegrityError } from '../../../../project-fallback-integrity-audio.ts'; import { setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
 import type { LoudnessNormalizationDecision } from '../../../../loudness-normalization.ts';
 import type { DirectCompressedDestination } from '../direct/direct-compressed-export.ts';
 import type { DirectPcmDestination } from '../direct/direct-pcm-export.ts';
@@ -104,7 +104,7 @@ export interface AudioExportRenderOrchestrationRuntime {
 			readonly end: number;
 			readonly start: number;
 			readonly value: number;
-		}>): unknown;
+		}>, localization?: import('../../../../../i18n/presentation-message.ts').LocalizedPresentationMessage): unknown;
 		updateActive?(value: number): unknown;
 	}>;
 }
@@ -152,10 +152,10 @@ export async function renderAndEncodeAudioExport(
 		start: progressRange.start,
 		end: progressRange.start + progressSpan * 0.7,
 		value: 0,
-	});
+	}, { key: 'rendering' });
 	const renderSampleRate = normalizeProjectSampleRate(snapshot.sampleRate);
 	if (plan.render.strategy === 'realtime-stream') {
-		setStatus(copy.largeProjectRealtimeExport);
+		setLocalizedStatus(setStatus, copy, "largeProjectRealtimeExport");
 		return renderRealtimeEncoded(
 			snapshot, plan, settings, signal, renderSources,
 			renderTarget,
@@ -208,7 +208,7 @@ export async function renderAndEncodeAudioExport(
 			|| !directRenderFallbackAvailable(directDestination, directCompressedDestination)) {
 			throw error;
 		}
-		setStatus(copy.realtimeExportFallback);
+		setLocalizedStatus(setStatus, copy, "realtimeExportFallback");
 		return renderRealtimeEncoded(
 			snapshot, plan, settings, signal, renderSources,
 			renderTarget,
@@ -220,7 +220,7 @@ export async function renderAndEncodeAudioExport(
 			start: progressRange.start + progressSpan * 0.7,
 			end: encodingProgressRange.end,
 			value: 0,
-		});
+		}, { key: 'encoding' });
 		return await encodeRenderedAudio(encodingRuntime, {
 			assertCurrent: assertDirectCurrent,
 			directCompressedDestination,
@@ -239,7 +239,7 @@ export async function renderAndEncodeAudioExport(
 			|| directCompressedDestination
 			|| !allowsRealtimeFallback(plan, settings)) throw error;
 		assertDirectCurrent();
-		setStatus(copy.realtimeExportFallback);
+		setLocalizedStatus(setStatus, copy, "realtimeExportFallback");
 		return renderRealtimeEncoded(
 			snapshot, plan, settings, signal, renderSources,
 			renderTarget,

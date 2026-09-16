@@ -1,3 +1,4 @@
+import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
@@ -59,7 +60,7 @@ function ClipProperties({ controller, snapshot, copy }) {
 	const blocked = selectAudioEditorEditBlock(snapshot).blocked;
 	const disabled = blocked || !clip;
 	const isVideoClip = clip?.kind === 'video';
-	const [error, setError] = useState('');
+	const [error, setError] = usePresentationFeedback(copy);
 	const [resampleOpen, setResampleOpen] = useState(false);
 	// A pitch shift is stored in cents, but musicians reach for semitones and
 	// sound designers for a percentage of the original frequency. The unit is a
@@ -80,7 +81,7 @@ function ClipProperties({ controller, snapshot, copy }) {
 		setError('');
 		setResampleOpen(false);
 		return () => { activeOperation.current = null; };
-	}, [clipIdentity, projectIdentity]);
+	}, [clipIdentity, projectIdentity, setError]);
 
 	const commitField = (name, rawValue) => {
 		if (!clip || !track || disabled) return;
@@ -123,7 +124,7 @@ function ClipProperties({ controller, snapshot, copy }) {
 			}
 			setError('');
 		} catch (cause) {
-			setError(cause instanceof Error ? cause.message : String(cause));
+			setError(feedbackFailure(cause));
 		}
 	};
 
@@ -147,7 +148,7 @@ function ClipProperties({ controller, snapshot, copy }) {
 			}, (cause) => {
 				if (!ownsOperation()) return;
 				activeOperation.current = null;
-				setError(cause instanceof Error ? cause.message : String(cause));
+				setError(feedbackFailure(cause));
 			});
 	};
 

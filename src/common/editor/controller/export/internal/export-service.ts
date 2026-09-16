@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { admitAudioExportBlob, prepareAudioExportBlob } from '../../../audio-export-output.ts';
+import { admitAudioExportBlob, prepareAudioExportBlob } from '../../../audio-export-output.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import { audioExportPublicationProgress, NO_AUDIO_EXPORT_PROGRESS as NO_TASK_PROGRESS } from './audio/audio-export-progress.ts';
 import { isVideoExportRequestFormat } from '../../../video-export-request-format.ts';
 import { inheritTrackFolderMediaStateProjectionV12 } from '../../../track-folder-media-runtime.ts';
@@ -160,7 +160,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		if (!admission.hasMaterial) { releaseExportOwner(executionOwner); return; }
 		if (admission.localSourcesMissing) {
 			releaseExportOwner(executionOwner);
-			throw new Error(copy.localSourcesMissing);
+			throw createLocalizedError(Error, copy, 'localSourcesMissing');
 		}
 		const generation = ++state.exportGeneration;
 		const projectToken = projectGeneration.capture(canonicalProject.id);
@@ -174,7 +174,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		};
 		state.exportAbort = abort;
 		toggleExport(true);
-		const progressTask = taskProgress?.begin?.('export', copy.rendering, 0) || NO_TASK_PROGRESS;
+		const progressTask = taskProgress?.begin?.('export', copy.rendering, 0, { key: 'rendering' }) || NO_TASK_PROGRESS;
 		progressTask.setCancellation?.(() => { abort.abort(); });
 		let exportProject = createExportRenderProject(deliveredProject);
 		let exportRenderSources: ExportRenderSources;
@@ -282,7 +282,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			// The delivery is committed to rendering: from here a failure has
 			// something to describe, so the report becomes the session's.
 			state.deliveryReport = plannedReport;
-			setStatus(copy.rendering);
+			setLocalizedStatus(setStatus, copy, "rendering");
 			let blob: Blob | null = null;
 			let fileName;
 			let outputCleanup = null;
@@ -420,14 +420,14 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				});
 				try { assertExportCurrent(); } catch { return result; }
 				state.exportOutput = result;
-				setStatus(copy.done, 'success');
+				setLocalizedStatus(setStatus, copy, "done", undefined, 'success');
 				publishDocumentSnapshot();
 				return result;
 			}
 			blob = admitAudioExportBlob(blob, 'Audio export', browserMaximumOutputBytes);
 			await clearPreviousExportOutput();
 			const published = await fileService.createDownload({
-				...audioExportPublicationProgress(progressTask, copy.save, abort.signal),
+				...audioExportPublicationProgress(progressTask, copy.save, abort.signal, { key: 'save' }),
 				purpose: 'audio',
 				suggestedName: fileName,
 				mimeType: blob.type || 'application/octet-stream',
@@ -457,7 +457,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				size: blob.size,
 				method: published.method,
 			});
-			setStatus(copy.done, 'success');
+			setLocalizedStatus(setStatus, copy, "done", undefined, 'success');
 			publishDocumentSnapshot();
 			return state.exportOutput;
 		} catch (caughtError) {
@@ -499,7 +499,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		}
 		const admission = admitAudioExportDelivery(runtime, requestedSettings);
 		if (!admission.hasMaterial) throw new Error('Persistent delivery requires audible project material.');
-		if (admission.localSourcesMissing) throw new Error(copy.localSourcesMissing);
+		if (admission.localSourcesMissing) throw createLocalizedError(Error, copy, 'localSourcesMissing');
 		const { settings } = admission;
 		const exportProject = createExportRenderProject(admission.deliveredProject);
 		const exportPlan = createExportPlan(exportProject, {

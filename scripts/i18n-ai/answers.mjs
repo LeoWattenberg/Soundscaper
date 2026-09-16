@@ -12,7 +12,7 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { InvalidModelOutputError } from '../docs-ai/generation.mjs';
-import { ENGLISH_COPY, GERMAN_COPY } from '../../src/common/i18n/catalogs.js';
+import { EDITOR_ENGLISH_COPY as ENGLISH_COPY, EDITOR_GERMAN_COPY as GERMAN_COPY } from '../../src/common/i18n/editor-copy-inventory.ts';
 import {
 	TRANSLATION_CATALOG_DIRECTORY,
 	assertMachineTranslatableLocale,

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { EditorLifetimeToken } from '../../../shared/lifecycle.ts';
+import type { EditorLifetimeToken } from '../../../shared/lifecycle.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
 import type { ProjectSessionGuard } from './project-session-service.ts';
 import { DELIVERY_PRESETS_SETTING_KEY } from '../../../export/delivery-preset-service.ts';
 import {
@@ -125,7 +125,7 @@ export interface ProjectBootstrapServiceRuntime<
 	readonly saveNow: () => PromiseLike<unknown> | unknown;
 	readonly refreshStorageUsage: () => PromiseLike<unknown> | unknown;
 	readonly hasMissingTimelineSources: () => boolean;
-	readonly setStatus: (message: string, state: 'error' | 'success') => void;
+	readonly setStatus: (message: string, state: 'error' | 'success', localization?: import('../../../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly handleError: (error: unknown) => void;
 	readonly isDisposed: () => boolean;
 	readonly isDisposedError: (error: unknown) => boolean;
@@ -158,7 +158,7 @@ export function createProjectBootstrapService<
 	async function bootstrap(token: EditorLifetimeToken): Promise<void> {
 		const guard = <Value>(value: PromiseLike<Value> | Value) => runtime.guard(value, token);
 		if (!runtime.engine || typeof runtime.engine.loadProject !== 'function') {
-			throw new Error(runtime.copy.webAudioUnsupported);
+			throw createLocalizedError(Error, runtime.copy, 'webAudioUnsupported');
 		}
 		await guard(runtime.store.ready());
 		const reconcileLinkedOriginalLocators = runtime.store.reconcileLinkedOriginalLocators
@@ -303,9 +303,9 @@ export function createProjectBootstrapService<
 			() => runtime.store.cleanupTemporaryAssets?.(),
 		));
 		await guard(runtime.refreshStorageUsage());
-		if (runtime.hasMissingTimelineSources()) runtime.setStatus(runtime.copy.missingSourcesBlocked, 'error');
+		if (runtime.hasMissingTimelineSources()) setLocalizedStatus(runtime.setStatus, runtime.copy, "missingSourcesBlocked", undefined, 'error');
 		else if (!runtime.state.readOnly && !runtime.state.takeCycleRecovery
-			&& !runtime.state.takeCycleRecoveryInspecting) runtime.setStatus(runtime.copy.ready, 'success');
+			&& !runtime.state.takeCycleRecoveryInspecting) setLocalizedStatus(runtime.setStatus, runtime.copy, "ready", undefined, 'success');
 	}
 
 	function registerDeviceChangeListener(): void {

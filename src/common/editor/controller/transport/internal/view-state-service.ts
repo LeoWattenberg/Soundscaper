@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { ControllerTransportMeters, ControllerTransportState } from '../transport-state.ts';
+import { createLocalizedError } from '../../../../i18n/presentation-message.ts'; import type { ControllerTransportMeters, ControllerTransportState } from '../transport-state.ts';
 
 export interface ViewStateTrack {
 	readonly id: string;
@@ -154,7 +154,7 @@ export function createViewStateService<Project extends ViewStateProject = ViewSt
 	function adjustTrackHeight(trackId: unknown, delta: number) {
 		const project = getProject();
 		const track = findTrack(project, trackId);
-		if (!track) throw new Error(copy.trackNotFound);
+		if (!track) throw createLocalizedError(Error, copy, 'trackNotFound');
 		const currentHeight = state.visibleTrackHeights[track.id] ?? track.height ?? 114;
 		return resizeTrackHeight(track.id, currentHeight + delta, state.visibleTrackHeights);
 	}
@@ -180,7 +180,7 @@ export function createViewStateService<Project extends ViewStateProject = ViewSt
 		if (editingBlocked()) return null;
 		const project = getProject();
 		const selectedTrack = findTrack(project, trackId);
-		if (!project || !selectedTrack) throw new Error(copy.trackNotFound);
+		if (!project || !selectedTrack) throw createLocalizedError(Error, copy, 'trackNotFound');
 		const commands = project.tracks
 			.map((track) => {
 				const value = track.id === trackId ? requestedHeight : fittedHeights[track.id];

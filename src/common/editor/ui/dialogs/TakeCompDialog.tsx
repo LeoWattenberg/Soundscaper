@@ -1,3 +1,4 @@
+import { usePresentationFeedback, feedbackFailure, type PresentationFeedback } from '../presentation-feedback.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -84,8 +85,8 @@ export default function TakeCompDialog({
 		sharedBoundaryDrafts(group)
 	));
 	const [pending, setPending] = useState<string | null>(null);
-	const [status, setStatus] = useState('');
-	const [error, setError] = useState('');
+	const [status, setStatus] = usePresentationFeedback(copy);
+	const [error, setError] = usePresentationFeedback(copy);
 	const activeOperationRef = useRef<symbol | null>(null);
 	const draftedProjectId = useRef(projectId);
 
@@ -104,7 +105,7 @@ export default function TakeCompDialog({
 		setStatus('');
 		setError('');
 		return () => { activeOperationRef.current = null; };
-	}, [projectId]);
+	}, [projectId, setError, setStatus]);
 	const draftIdentity = JSON.stringify([projectId, takeCompDialogDraftIdentity(group)]);
 	const draftedIdentity = useRef(draftIdentity);
 	useEffect(() => {
@@ -138,7 +139,7 @@ export default function TakeCompDialog({
 		setGroupId(nextGroupId);
 	};
 
-	const perform = (name: string, operation: () => unknown, success = copy.takeCompOperationComplete): void => {
+	const perform = (name: string, operation: () => unknown, success: PresentationFeedback = { key: 'takeCompOperationComplete' }): void => {
 		if (activeOperationRef.current !== null) return;
 		const operationId = Symbol(name);
 		activeOperationRef.current = operationId;
@@ -151,7 +152,7 @@ export default function TakeCompDialog({
 			})
 			.catch((operationError: unknown) => {
 				if (activeOperationRef.current !== operationId) return;
-				setError(operationError instanceof Error ? operationError.message : String(operationError));
+				setError(feedbackFailure(operationError));
 			})
 			.finally(() => {
 				if (activeOperationRef.current !== operationId) return;
@@ -240,10 +241,10 @@ export default function TakeCompDialog({
 					}}
 					onFlatten={() => perform('flatten', () => (
 						controller.actions.takeComp.flatten(group.id)
-					), copy.takeCompFlattenComplete)}
+					), { key: 'takeCompFlattenComplete' })}
 					onRemove={() => perform('remove', () => (
 						controller.actions.takeComp.removeGroup(group.id)
-					), copy.takeCompRemoveComplete)}
+					), { key: 'takeCompRemoveComplete' })}
 				/>}
 			</>}
 			<div className="audio-editor-take-comp__status" role="status" aria-live="polite" aria-atomic="true">

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
+import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import {
 	AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
 	assertAudacityEffectOutput,
 	estimateAudacityEffectPeakBytes,
@@ -297,7 +297,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 			// The worker answers an apply request with channels; a reply without them is a failed effect.
 			runSelectionEffectWorker: async (request) => {
 				const outcome = await worker.runSelectionEffectWorker({ ...request, channels: [...request.channels] });
-				if (!outcome.channels) throw new Error(copy.effectProcessingFailed);
+				if (!outcome.channels) throw createLocalizedError(Error, copy, 'effectProcessingFailed');
 				return { channels: outcome.channels };
 			},
 			projectFrameCount: () => dependencies.projectDurationFrames(dependencies.getProject()),
@@ -382,22 +382,22 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 		execution,
 		persistAudacityEffectResult,
 		runEffectMacro: (request: Parameters<EffectMacro['runEffectMacro']>[0]) => (
-			taskProgress.run('effect', processing(copy.macroProcessing), () => macro.runEffectMacro(request))
+			taskProgress.run('effect', processing(copy.macroProcessing), () => macro.runEffectMacro(request), undefined, { key: copy.macroProcessing ? 'macroProcessing' : 'audacityProcessing' })
 		),
 		applyAudacityEffectFromController: (...args: Parameters<EffectControls['applyAudacityEffectFromController']>) => (
-			taskProgress.run('effect', copy.audacityProcessing, () => controls.applyAudacityEffectFromController(...args))
+			taskProgress.run('effect', copy.audacityProcessing, () => controls.applyAudacityEffectFromController(...args), undefined, { key: "audacityProcessing" })
 		),
 		repeatLastAudacityEffect: (...args: Parameters<EffectControls['repeatLastAudacityEffect']>) => (
-			taskProgress.run('effect', copy.audacityProcessing, () => controls.repeatLastAudacityEffect(...args))
+			taskProgress.run('effect', copy.audacityProcessing, () => controls.repeatLastAudacityEffect(...args), undefined, { key: "audacityProcessing" })
 		),
 		applySpectralSelection: (...args: Parameters<EffectAudio['applySpectralSelection']>) => (
-			taskProgress.run('effect', processing(copy.spectralProcessing), () => audio.applySpectralSelection(...args))
+			taskProgress.run('effect', processing(copy.spectralProcessing), () => audio.applySpectralSelection(...args), undefined, { key: copy.spectralProcessing ? 'spectralProcessing' : 'audacityProcessing' })
 		),
 		captureSelectedNoiseProfile: (...args: Parameters<EffectAudio['captureSelectedNoiseProfile']>) => (
-			taskProgress.run('effect', copy.audacityProcessing, () => audio.captureSelectedNoiseProfile(...args))
+			taskProgress.run('effect', copy.audacityProcessing, () => audio.captureSelectedNoiseProfile(...args), undefined, { key: "audacityProcessing" })
 		),
 		runNyquistEvaluation: (request: unknown) => (
-			taskProgress.run('effect', processing(copy.nyquistProcessing), () => execution.runNyquistEvaluation(request))
+			taskProgress.run('effect', processing(copy.nyquistProcessing), () => execution.runNyquistEvaluation(request), undefined, { key: copy.nyquistProcessing ? 'nyquistProcessing' : 'audacityProcessing' })
 		),
 	});
 }

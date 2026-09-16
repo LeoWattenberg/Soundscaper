@@ -49,14 +49,14 @@ npm run i18n:translate -- --locale tr --answers /tmp/answers --model claude-sonn
 
 `npm run i18n:translate` runs the tool's `translate` command, so the first line is really `node scripts/i18n-ai.mjs packets …`. An answer file is either the packet answer shape or a bare key-to-text object; files under a locale merge in name order, so a later file corrects an earlier one. `--model` names the translator in the catalog's machine provenance. Keys an answer gets wrong are skipped and named, exactly as with a live model; answer them again in a further file and rerun.
 
-Report each catalog against the current English copy, with a count per origin:
+Report each catalog against the complete editor English inventory, with a count per origin and separate coverage for the original catalog keys and additional source owners:
 
 ```sh
 npm run i18n:check
 npm run i18n:check -- --strict
 ```
 
-`--strict` fails when anything is stale, missing, orphaned or invalid; the plain form only fails on an invalid file. `tests/i18n-translation-catalog.test.js` holds every committed catalog to the file shape at gate time.
+`--strict` requires every original catalog key to be current and present, and fails on orphaned entries, an outdated prompt or an invalid file. Newly inventoried editor copy is reported as `additional` coverage and may fall back to English while community translations are collected. The aggregate report and automatic translation still cover the full inventory. The plain form fails on an invalid or absent catalog. `checkLocales` calls with an explicit `englishCopy` retain full completeness checks for that reference. `tests/i18n-translation-catalog.test.js` holds every committed catalog to the file shape at gate time.
 
 ## How a batch is translated
 

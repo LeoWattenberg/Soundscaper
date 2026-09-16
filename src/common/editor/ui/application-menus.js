@@ -1,4 +1,5 @@
 import { applyAudacityParityToMenus } from '../audacity-action-parity.js';
+import { createCommunityTranslationMenuItems } from './community-translations/community-translation-menu.ts';
 import { audacitySpectrogramTrackSelected } from '../audacity-action-enablement.ts';
 import { AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS } from './application-menu-registry.ts';
 import { createApplicationViewMenu } from './application-view-menu.js';
@@ -524,6 +525,7 @@ export default function createApplicationMenus({
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.onlineHandbook, label: copy.manual, onClick: actions.manual },
 				createPrivacyPolicyMenuItem(copy, actions.privacyPolicy),
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.support, label: copy.support, onClick: actions.support },
+				...createCommunityTranslationMenuItems(copy, productId),
 				{ id: 'diagnostics', label: copy.diagnostics, onClick: actions.openDiagnostics },
 				createInstallApplicationMenuItem({
 					productId,

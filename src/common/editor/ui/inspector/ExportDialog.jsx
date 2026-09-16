@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react'; import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { ProgressBar } from '@soundscaper/design-system/ProgressBar';
@@ -63,7 +63,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	const projectIdentity = exportDialogProjectIdentity(snapshot.project);
 	const settingsProjectIdentity = useRef(projectIdentity);
 	const [settings, setSettings] = useState(() => createExportDialogInitialSettings(snapshot.project));
-	const [error, setError] = useState('');
+	const [error, setError] = usePresentationFeedback(copy);
 	const [presetId, setPresetId] = useState('');
 	const [presetName, setPresetName] = useState('');
 	const [desktopCodecStatus, setDesktopCodecStatus] = useState(null);
@@ -158,7 +158,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 		activeExportSubmission.current = null;
 		setError('');
 		return () => { activeExportSubmission.current = null; };
-	}, [operationOwner]);
+	}, [operationOwner, setError]);
 
 	useEffect(() => {
 		if (settingsProjectIdentity.current === projectIdentity) return;
@@ -167,7 +167,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 		setError('');
 		setPresetId('');
 		setPresetName('');
-	}, [projectIdentity, snapshot.project]);
+	}, [projectIdentity, snapshot.project, setError]);
 
 	useEffect(() => {
 		if (!isOpen || !desktopCodecQuery) { setDesktopCodecStatus(null); return undefined; }
@@ -209,7 +209,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 			setMetadataTab('general');
 			setMappingOpen(false);
 		}
-	}, [isOpen]);
+	}, [isOpen, setError]);
 
 	const outputUrl = output?.url;
 	useEffect(() => {
@@ -305,7 +305,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 		const failSubmission = (cause) => {
 			if (!ownsSubmission()) return;
 			activeExportSubmission.current = null;
-			setError(cause instanceof Error ? cause.message : String(cause));
+			setError(feedbackFailure(cause));
 		};
 		try {
 			setError('');

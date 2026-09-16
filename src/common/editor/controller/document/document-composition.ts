@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAddClipCommand, createAddTrackCommand } from '../../commands.js';
+import { publishedCopyFor } from '../shared/presentation-localization.ts'; import { createAddClipCommand, createAddTrackCommand } from '../../commands.js';
 import { createHistorySourceCompactor } from '../../history-source-compaction.ts';
 import { createStableId, findClip, findTrack } from '../../project.js';
 import {
@@ -185,7 +185,7 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 		state,
 		productName: dependencies.product.name,
 		capabilities: dependencies.capabilities,
-		projectReadOnlyMessage: copy.projectReadOnly,
+		get projectReadOnlyMessage() { return copy.projectReadOnly; },
 		assertEditingAllowed: dependencies.assertEditingAllowed,
 		getProject: dependencies.getProject,
 		setProject: dependencies.setProject,
@@ -221,7 +221,7 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 	});
 	const trackDuplication = createTrackDuplicationService({
 		lifetime,
-		copySuffix: copy.projectCopySuffix,
+		copySuffix: publishedCopyFor(copy).projectCopySuffix,
 		editingBlocked: dependencies.editingBlocked,
 		getProject: requireProject,
 		createId: createStableId,

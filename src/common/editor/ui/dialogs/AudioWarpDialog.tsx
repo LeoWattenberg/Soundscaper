@@ -1,3 +1,4 @@
+import { usePresentationFeedback, feedbackFailure, type PresentationFeedback } from '../presentation-feedback.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -58,8 +59,8 @@ export default function AudioWarpDialog({
 	const projectId = typeof projectIdValue === 'string' ? projectIdValue : null;
 	const activeOperationRef = useRef<symbol | null>(null);
 	const [pending, setPending] = useState<string | null>(null);
-	const [status, setStatus] = useState('');
-	const [error, setError] = useState('');
+	const [status, setStatus] = usePresentationFeedback(copy);
+	const [error, setError] = usePresentationFeedback(copy);
 	const [transientCount, setTransientCount] = useState<number | null>(null);
 	const [markerOuter, setMarkerOuter] = useState('1');
 	const [markerSource, setMarkerSource] = useState('1');
@@ -77,7 +78,7 @@ export default function AudioWarpDialog({
 		setStatus('');
 		setError('');
 		return () => { activeOperationRef.current = null; };
-	}, [model.clipId, projectId]);
+	}, [model.clipId, projectId, setError, setStatus]);
 
 	const disabled = model.operationsBlocked || pending !== null;
 	const gridValid = Number.isSafeInteger(gridOrigin)
@@ -96,7 +97,7 @@ export default function AudioWarpDialog({
 	const perform = (
 		name: string,
 		operation: () => unknown,
-		success: string,
+		success: PresentationFeedback,
 		onSuccess?: (result: unknown) => void,
 	): void => {
 		if (activeOperationRef.current !== null) return;
@@ -112,7 +113,7 @@ export default function AudioWarpDialog({
 			})
 			.catch((operationError: unknown) => {
 				if (activeOperationRef.current !== operationId) return;
-				setError(operationError instanceof Error ? operationError.message : String(operationError));
+				setError(feedbackFailure(operationError));
 			})
 			.finally(() => {
 				if (activeOperationRef.current !== operationId) return;
@@ -144,14 +145,14 @@ export default function AudioWarpDialog({
 						type="button"
 						data-audio-warp-analyze="true"
 						disabled={disabled}
-						onClick={() => perform('analyze', () => controller.actions.audioWarp.analyze(), copy.audioWarpAnalyzed, (result) => {
+						onClick={() => perform('analyze', () => controller.actions.audioWarp.analyze(), { key: 'audioWarpAnalyzed' }, (result) => {
 							setTransientCount(transientCountFromOutcome(result));
 						})}
 					>{copy.audioWarpAnalyze}</button>
 					<button
 						type="button"
 						disabled={disabled || model.hasWarpMap}
-						onClick={() => perform('identity', () => controller.actions.audioWarp.createIdentityMap(), copy.audioWarpIdentityCreated)}
+						onClick={() => perform('identity', () => controller.actions.audioWarp.createIdentityMap(), { key: 'audioWarpIdentityCreated' })}
 					>{copy.audioWarpCreateIdentity}</button>
 				</div>
 				{transientCount !== null && <p>{copy.audioWarpTransientsFound.replace('{count}', String(transientCount))}</p>}
@@ -168,16 +169,16 @@ export default function AudioWarpDialog({
 				onAdd={() => perform('add-marker', () => controller.actions.audioWarp.addMarker({
 					outer: parseRationalInput(markerOuter, 'marker outer'),
 					source: parseRationalInput(markerSource, 'marker source'),
-				}), copy.audioWarpMarkerAdded)}
+				}), { key: 'audioWarpMarkerAdded' })}
 				onMove={(pointIndex, outer, source) => perform('move-marker', () => (
 					controller.actions.audioWarp.moveMarker(pointIndex, {
 						outer: parseRationalInput(outer, 'marker outer'),
 						source: parseRationalInput(source, 'marker source'),
 					})
-				), copy.audioWarpMarkerMoved)}
+				), { key: 'audioWarpMarkerMoved' })}
 				onDelete={(pointIndex) => perform('delete-marker', () => (
 					controller.actions.audioWarp.deleteMarker(pointIndex)
-				), copy.audioWarpMarkerDeleted)}
+				), { key: 'audioWarpMarkerDeleted' })}
 			/>
 
 			<fieldset disabled={disabled}>
@@ -197,7 +198,7 @@ export default function AudioWarpDialog({
 					disabled={!gridValid}
 					onClick={() => perform('quantize', () => (
 						controller.actions.audioWarp.quantize(quantizeOptions())
-					), copy.audioWarpQuantized)}
+					), { key: 'audioWarpQuantized' })}
 				>{copy.audioWarpQuantize}</button>
 			</fieldset>
 
@@ -225,7 +226,7 @@ export default function AudioWarpDialog({
 						...quantizeOptions(),
 						template: { offsets: parseGrooveOffsets(grooveOffsets) },
 						grooveStrength: exactStrength(grooveStrengthPercent),
-					}), copy.audioWarpGrooveApplied)}
+					}), { key: 'audioWarpGrooveApplied' })}
 				>{copy.audioWarpApplyGroove}</button>
 			</fieldset>
 
@@ -233,7 +234,7 @@ export default function AudioWarpDialog({
 				type="button"
 				className="audio-editor-audio-warp__clear"
 				disabled={disabled || !model.hasWarpMap}
-				onClick={() => perform('clear', () => controller.actions.audioWarp.clear(), copy.audioWarpCleared)}
+				onClick={() => perform('clear', () => controller.actions.audioWarp.clear(), { key: 'audioWarpCleared' })}
 			>{copy.audioWarpClear}</button>
 			<div className="audio-editor-audio-warp__status" role="status" aria-live="polite" aria-atomic="true">
 				{error || status}

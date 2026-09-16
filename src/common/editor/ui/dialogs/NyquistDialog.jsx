@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { publishedCopyFor } from '../../controller/shared/presentation-localization.ts';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 
@@ -12,7 +13,7 @@ export default function NyquistDialog({ controller, snapshot, copy, target, run,
 	const targetIdentity = plugin?.id || 'prompt';
 	const submissionRef = useRef(null);
 	const targetIdentityRef = useRef(targetIdentity);
-	const [source, setSource] = useState(() => loadNyquistPromptSource(copy.nyquistPromptDefault));
+	const [source, setSource] = useState(() => loadNyquistPromptSource(publishedCopyFor(copy).nyquistPromptDefault));
 	const [language, setLanguage] = useState('lisp');
 	const [debug, setDebug] = useState(false);
 	const [controls, setControls] = useState(() => nyquistControlDefaults(plugin));
@@ -83,7 +84,7 @@ export default function NyquistDialog({ controller, snapshot, copy, target, run,
 						pluginType: plugin?.type,
 						controls,
 						debug,
-						name: plugin?.name || copy.nyquistPrompt,
+						name: plugin?.name || publishedCopyFor(copy).nyquistPrompt,
 					};
 					return preview
 						? controller.actions.nyquist.preview(request)

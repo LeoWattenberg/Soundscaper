@@ -41,7 +41,7 @@ export interface MasteringSequenceExportRenderRuntime {
 			readonly end: number;
 			readonly start: number;
 			readonly value: number;
-		}>): unknown;
+		}>, localization?: import('../../../../i18n/presentation-message.ts').LocalizedPresentationMessage): unknown;
 	}>;
 }
 
@@ -107,7 +107,7 @@ export async function renderMasteringSequenceExport(
 			start: options.progressRange.start,
 			end: options.progressRange.end,
 			value: span > 0 ? index / total : 0,
-		});
+		}, { key: 'rendering' });
 		const key = `${segment.sourceStartFrame}:${segment.sourceEndFrame}:${segment.outputEndFrame - segment.outputStartFrame}`;
 		let channels = byRange.get(key);
 		if (!channels) {

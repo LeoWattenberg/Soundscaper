@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AudioEditorCommand, CommandObject } from '../../commands/protocol.ts';
+import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import type { AudioEditorCommand, CommandObject } from '../../commands/protocol.ts';
 import type { EditorProjectToken } from '../shared/lifecycle.ts';
 import { EffectGestureTargetChangedError, effectParametersMatch } from '../effects/effect-gesture-safety.ts';
 import { createVideoEffect, normalizeVideoEffect } from '../../video-effects.js';
@@ -218,7 +218,7 @@ export function createVideoEffectService(runtime: VideoEffectServiceRuntime) {
 		effectId: string,
 		params: Readonly<Record<string, number>> = {},
 	): VideoEffectProject {
-		if (state.readOnly) throw new Error(copy.projectReadOnly);
+		if (state.readOnly) throw createLocalizedError(Error, copy, 'projectReadOnly');
 		const { effect } = videoClipEffect(clipId, effectId);
 		const key = videoEffectGestureKey(clipId, effectId);
 		const gesture = state.videoEffectGestures.get(key);

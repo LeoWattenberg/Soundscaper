@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
+import { createLocalizedError } from '../../../../i18n/presentation-message.ts'; import {
 	createLabeledAudioEditService,
 	isLabeledAudioEditAction,
 } from './labeled-audio-edit-service.ts';
@@ -144,7 +144,7 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 				'cut-all-tracks-ripple': 'track',
 			};
 			if (action === 'copy' || Object.hasOwn(cutModes, action)) {
-				if (!selection) throw new Error(copy.timeSelectionRequired);
+				if (!selection) throw createLocalizedError(Error, copy, 'timeSelectionRequired');
 				const exactClipSelection = !baseSelection && selectedClipIds.length > 0;
 				const allTracksRipple = action === 'cut-all-tracks-ripple'
 					|| (action === 'cut' && preferredDelete.allTracks);
@@ -202,7 +202,7 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 				));
 			}
 			if (action === 'duplicate') {
-				if (!selection) throw new Error(copy.timeSelectionRequired);
+				if (!selection) throw createLocalizedError(Error, copy, 'timeSelectionRequired');
 				const exactClipEdit = !baseSelection && selectedClipIds.length > 0;
 				const plan = prepareDuplicateSelectionCommand({
 					getProject, createStableId, createClipboardDescriptor,

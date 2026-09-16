@@ -1,3 +1,4 @@
+import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 export interface SelectionEffectPreviewRuntime {
@@ -48,7 +49,7 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 		if (request.params) setAudacityEffectParamsFromController(request.params);
 		if ('controlTrackId' in request) setAudacityControlTrack(request.controlTrackId);
 		const fullTargets = audacityEffectTargets();
-		if (!fullTargets.length) throw new Error(copy.audacitySelectionHint);
+		if (!fullTargets.length) throw createLocalizedError(Error, copy, 'audacitySelectionHint');
 		const type = state.audacityEffectType;
 		const definition = AUDIO_SELECTION_EFFECT_DEFINITIONS[type];
 		const sampleRate = projectSampleRate();
@@ -82,8 +83,8 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 			&& fullTargets.some((full: RuntimeValue) => (
 				full.startFrame < previewStartFrame || full.endFrame > previewEndFrame
 			));
-		if (definition.requiresNoiseProfile && !state.audacityNoiseProfile) throw new Error(copy.noiseProfileMissing);
-		if (definition.requiresControlTrack && !state.audacityControlTrackId) throw new Error(copy.autoDuckControlTrack);
+		if (definition.requiresNoiseProfile && !state.audacityNoiseProfile) throw createLocalizedError(Error, copy, 'noiseProfileMissing');
+		if (definition.requiresControlTrack && !state.audacityControlTrackId) throw createLocalizedError(Error, copy, 'autoDuckControlTrack');
 		const contextFrames = definition.preRollSeconds
 			? Math.ceil(definition.preRollSeconds * sampleRate)
 			: definition.requiresStaffPad ? sampleRate : definition.requiresContext ? 128 : 0;
@@ -108,7 +109,7 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 		), 0);
 		if (estimatedPeakBytes > AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES) throw audacityEffectMemoryError(copy);
 		state.audacityEffectProcessing = true;
-		setStatus(copy.audacityPreviewProcessing || copy.audacityProcessing);
+		setLocalizedStatus(setStatus, copy, (copy.audacityPreviewProcessing ? "audacityPreviewProcessing" : "audacityProcessing"));
 		publishDocumentSnapshot();
 		try {
 			const fullChannelSets = resolveFromFullSelection
@@ -190,7 +191,7 @@ export function createSelectionEffectPreviewService(runtime: SelectionEffectPrev
 			engine.pause();
 			state.audacityPreviewSource = source;
 			source.start();
-			setStatus(copy.audacityPreviewPlaying || copy.playing, 'success');
+			setLocalizedStatus(setStatus, copy, (copy.audacityPreviewPlaying ? "audacityPreviewPlaying" : "playing"), undefined, 'success');
 			return true;
 		} catch (error) {
 			if ((error as Readonly<{ name?: string }>)?.name === 'AbortError') return false;
@@ -280,7 +281,7 @@ async function previewEqualizer(
 		if (state.audacityPreviewSource !== preview) return;
 		state.audacityPreviewSource = null;
 		preview.disconnect?.();
-		setStatus(copy.audacityPreviewComplete || copy.ready, 'success');
+		setLocalizedStatus(setStatus, copy, (copy.audacityPreviewComplete ? "audacityPreviewComplete" : "ready"), undefined, 'success');
 		runtime.publishDocumentSnapshot();
 	};
 	state.audacityPreviewSource = preview;
@@ -295,7 +296,7 @@ async function previewEqualizer(
 	if (state.audacityPreviewSource !== preview) return false;
 	if (state.audacityPreviewAuditionBandId != null) preview.audition?.(state.audacityPreviewAuditionBandId);
 	preview.start();
-	setStatus(copy.audacityPreviewPlaying || copy.playing, 'success');
+	setLocalizedStatus(setStatus, copy, (copy.audacityPreviewPlaying ? "audacityPreviewPlaying" : "playing"), undefined, 'success');
 	return true;
 }
 
@@ -305,7 +306,7 @@ function attachPreviewSource(source: RuntimeValue, runtime: SelectionEffectPrevi
 		if (state.audacityPreviewSource !== source) return;
 		state.audacityPreviewSource = null;
 		source.disconnect?.();
-		setStatus(copy.audacityPreviewComplete || copy.ready, 'success');
+		setLocalizedStatus(setStatus, copy, (copy.audacityPreviewComplete ? "audacityPreviewComplete" : "ready"), undefined, 'success');
 		publishDocumentSnapshot();
 	};
 }

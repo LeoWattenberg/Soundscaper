@@ -123,7 +123,7 @@ export interface SelectionViewServiceRuntime<
 	readonly publishProjectState: () => void;
 	readonly renderSnapshot: (project: Project, range: SelectionViewRenderRange) => PromiseLike<Rendered> | Rendered;
 	readonly resetRoutedInputMeter: () => void;
-	readonly setStatus: (message: string, state?: string) => void;
+	readonly setStatus: (message: string, state?: string, localization?: import('../../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly snapAudioEditorFrameWithProject: (
 		frame: number, project: Project, overrides: SelectionViewSnapOverrides,
 	) => number;

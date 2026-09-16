@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { publishedCopyFor } from '../../controller/shared/presentation-localization.ts';
 
 export function useTimelineMenuActions({
 	controller,
@@ -46,7 +47,7 @@ export function useTimelineMenuActions({
 		if (type === 'video') return run(() => controller.actions.track.addVideo());
 		if (type === 'label') return run(() => controller.actions.track.addLabel());
 		if (type === 'send') return run(() => controller.actions.mixer.addBus('send', {
-			name: `${copy.sendBus} ${(project?.mixer?.sends?.length || 0) + 1}`,
+			name: `${publishedCopyFor(copy).sendBus} ${(project?.mixer?.sends?.length || 0) + 1}`,
 		}));
 		return undefined;
 	}, [controller, copy.sendBus, project?.mixer?.sends?.length, run]);

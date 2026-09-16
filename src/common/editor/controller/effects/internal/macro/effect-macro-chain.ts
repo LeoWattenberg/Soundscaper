@@ -10,7 +10,7 @@
  * every other step is applied on its own exactly as the effect menu applies it.
  */
 
-import { AUDIO_SELECTION_EFFECT_DEFINITIONS } from '../../../../effects.js';
+import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import { AUDIO_SELECTION_EFFECT_DEFINITIONS } from '../../../../effects.js';
 import { createAudioPreviewProject } from '../../../../engine/audio-preview-project.ts';
 import { createStableId } from '../../../../project.js';
 import { isRealtimeEffectMacroStepType } from '../../../../effect-macro-steps.ts';
@@ -134,11 +134,11 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 	): Promise<readonly Float32Array[]> {
 		const definition = selectionEffectDefinitions[step.type];
 		if (!definition) throw new RangeError(`Unsupported macro effect: ${step.type}.`);
-		if (definition.requiresControlTrack) throw new Error(runtime.copy.autoDuckControlTrack);
+		if (definition.requiresControlTrack) throw createLocalizedError(Error, runtime.copy, 'autoDuckControlTrack');
 		const context: Record<string, unknown> = {};
 		if (definition.requiresNoiseProfile) {
 			const noiseProfile = step.context?.noiseProfile;
-			if (!isRecord(noiseProfile)) throw new Error(runtime.copy.noiseProfileMissing);
+			if (!isRecord(noiseProfile)) throw createLocalizedError(Error, runtime.copy, 'noiseProfileMissing');
 			context.noiseProfile = noiseProfile;
 		}
 		const contextFrames = definition.preRollSeconds
@@ -185,7 +185,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 		channels: readonly Float32Array[],
 	): Promise<readonly Float32Array[]> {
 		const frames = channels[0]?.length ?? 0;
-		if (!frames) throw new Error(runtime.copy.effectInvalidAudio);
+		if (!frames) throw createLocalizedError(Error, runtime.copy, 'effectInvalidAudio');
 		const buffer = await runtime.createAudioBuffer(channels);
 		runtime.assertCurrent();
 		const sourceId = createStableId('macro-step-source');

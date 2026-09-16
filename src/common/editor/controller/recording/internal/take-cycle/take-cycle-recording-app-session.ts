@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { TakeCycleProductionComposition } from './take-cycle-production-composition.ts';
+import { publishLocalizedStatus } from '../../../../../i18n/presentation-message.ts'; import type { TakeCycleProductionComposition } from './take-cycle-production-composition.ts';
 import type { ProjectFlushOptions } from '../../../document/project-save-service.ts';
 import type { RecordingControllerLike, RecordingStartScope } from '../recording-session-service.ts';
 
@@ -9,7 +9,7 @@ export interface TakeCycleRecordingAppSessionDependencies {
 	readonly recordingMessage: string;
 	prepareCurrentProject(options: ProjectFlushOptions): PromiseLike<unknown> | unknown;
 	setTransportState(state: 'recording'): void;
-	setStatus(message: string): void;
+	setStatus(message: string, state?: string, localization?: import('../../../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;
 }
 
 /** Adapt cycle startup to the ordinary recording session controller contract. */
@@ -25,7 +25,7 @@ export function createTakeCycleRecordingAppSession(
 			scope.assertCurrent();
 			const recorder = await dependencies.cycle.start(scope);
 			dependencies.setTransportState('recording');
-			dependencies.setStatus(dependencies.recordingMessage);
+			publishLocalizedStatus(dependencies.setStatus, dependencies.recordingMessage, { key: 'recording' });
 			return recorder;
 		},
 	});

@@ -1,4 +1,7 @@
+import { usePresentationFeedback, feedbackFailure } from '../presentation-feedback.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { VIDEO_PROXY_ADDITIONAL_COPY } from '../../../i18n/editor-video-proxy-additional-copy.ts';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -62,8 +65,8 @@ export default function FramescaperVideoProxyDialog({
 		'generate' | 'attach' | 'regenerate' | 'detach' | 'relink' | null
 	>(null);
 	const [progress, setProgress] = useState<Readonly<FramescaperVideoProxyProgress> | null>(null);
-	const [status, setStatus] = useState('');
-	const [error, setError] = useState('');
+	const [status, setStatus] = usePresentationFeedback(copy, VIDEO_PROXY_ADDITIONAL_COPY, 'videoProxy');
+	const [error, setError] = usePresentationFeedback(copy, VIDEO_PROXY_ADDITIONAL_COPY, 'videoProxy');
 	const [changedRelink, setChangedRelink] = useState<FramescaperVideoProxyOriginalRelinkCandidate | null>(null);
 	const abortRef = useRef<AbortController | null>(null);
 	const existingFileRef = useRef<HTMLInputElement | null>(null);
@@ -101,12 +104,11 @@ export default function FramescaperVideoProxyDialog({
 		modeMutationRef.current = mutation.catch(() => undefined);
 		void mutation.then(() => {
 			if (modeGenerationRef.current !== generation) return;
-			setStatus(label(copy, 'videoProxyModeUpdated',
-				'Preview mode updated and proxy trust refreshed.'));
+			setStatus({ key: 'videoProxyModeUpdated' });
 		}, (operationError: unknown) => {
 			if (modeGenerationRef.current !== generation) return;
 			setMode(runtime.mode(sourceId));
-			setError(operationError instanceof Error ? operationError.message : String(operationError));
+			setError(feedbackFailure(operationError));
 		});
 	};
 
@@ -122,16 +124,16 @@ export default function FramescaperVideoProxyDialog({
 		setError('');
 		void runAwaitedAudioEditorOperation(run, () => operation(abort?.signal)).then(() => {
 			setStatus(kind === 'detach'
-				? label(copy, 'videoProxyDetached', 'Proxy detached. Undo remains available.')
+				? { key: 'videoProxyDetached' }
 				: kind === 'attach'
-					? label(copy, 'videoProxyExistingAttached', 'Existing proxy validated and attached.')
-					: label(copy, 'videoProxyGenerated', 'Proxy generated and attached.'));
+					? { key: 'videoProxyExistingAttached' }
+					: { key: 'videoProxyGenerated' });
 		}, (operationError: unknown) => {
 			if ((operationError as Error)?.name === 'AbortError') {
-				setStatus(label(copy, 'videoProxyCancelled', 'Proxy work cancelled.'));
+				setStatus({ key: 'videoProxyCancelled' });
 				return;
 			}
-			setError(operationError instanceof Error ? operationError.message : String(operationError));
+			setError(feedbackFailure(operationError));
 		}).finally(() => {
 			if (abortRef.current === abort) abortRef.current = null;
 			setPending(null);
@@ -195,9 +197,9 @@ export default function FramescaperVideoProxyDialog({
 				setChangedRelink(choice);
 				return;
 			}
-			setStatus(label(copy, 'videoProxyOriginalRelinked', 'Original video relinked.'));
+			setStatus({ key: 'videoProxyOriginalRelinked' });
 		}).catch((operationError: unknown) => {
-			setError(operationError instanceof Error ? operationError.message : String(operationError));
+			setError(feedbackFailure(operationError));
 		}).finally(() => { setPending(null); });
 	};
 	const confirmChangedOriginal = (): void => {
@@ -211,10 +213,9 @@ export default function FramescaperVideoProxyDialog({
 			{ allowChangedContent: true },
 		)).then(() => {
 			setChangedRelink(null);
-			setStatus(label(copy, 'videoProxyOriginalRelinkedChanged',
-				'Changed original relinked. The stale proxy was detached; generate a new one.'));
+			setStatus({ key: 'videoProxyOriginalRelinkedChanged' });
 		}, (operationError: unknown) => {
-			setError(operationError instanceof Error ? operationError.message : String(operationError));
+			setError(feedbackFailure(operationError));
 		}).finally(() => { setPending(null); });
 	};
 	const mutationsDisabled = model.mutationsDisabled || !runtime || pending !== null || !selected;
@@ -224,7 +225,7 @@ export default function FramescaperVideoProxyDialog({
 	);
 
 	return <AudioEditorDialogShell
-		title={label(copy, 'videoProxyTitle', 'Video proxies')}
+		title={label(copy, 'videoProxyTitle', VIDEO_PROXY_ADDITIONAL_COPY.videoProxyTitle)}
 		onClose={onClose}
 		width={640}
 		initialFocus="[data-video-proxy-source]"
@@ -232,16 +233,16 @@ export default function FramescaperVideoProxyDialog({
 	>
 		<div className="audio-editor-video-proxy">
 			<p>{label(copy, 'videoProxyDescription',
-				'Generate lightweight preview pictures. Occurrence retime is applied after source selection; linked audio is never warped.')}</p>
+				VIDEO_PROXY_ADDITIONAL_COPY.videoProxyDescription)}</p>
 			<p data-video-proxy-selection-policy="strict">{label(copy, 'videoProxySelectionPolicy',
-				'Proxy mode refuses when a verified proxy is unavailable; Auto may fall back to the original.')}</p>
+				VIDEO_PROXY_ADDITIONAL_COPY.videoProxySelectionPolicy)}</p>
 			{!model.supported && <p role="status">{label(copy, 'videoProxyUnsupported',
-				'Video proxies are unavailable for this project version.')}</p>}
+				VIDEO_PROXY_ADDITIONAL_COPY.videoProxyUnsupported)}</p>}
 			{model.supported && model.sources.length === 0 && <p role="status">{
-				label(copy, 'videoProxyNoSources', 'Import a video source before managing proxies.')
+				label(copy, 'videoProxyNoSources', VIDEO_PROXY_ADDITIONAL_COPY.videoProxyNoSources)
 			}</p>}
 			{model.sources.length > 0 && <>
-				<label><span>{label(copy, 'videoProxySource', 'Video source')}</span>
+				<label><span>{label(copy, 'videoProxySource', VIDEO_PROXY_ADDITIONAL_COPY.videoProxySource)}</span>
 					<select data-video-proxy-source value={selectedSourceId ?? ''}
 						disabled={pending !== null}
 						onChange={(event) => {
@@ -251,32 +252,32 @@ export default function FramescaperVideoProxyDialog({
 						{model.sources.map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}
 					</select>
 				</label>
-				<label><span>{label(copy, 'videoProxyPreviewMode', 'Preview media')}</span>
+				<label><span>{label(copy, 'videoProxyPreviewMode', VIDEO_PROXY_ADDITIONAL_COPY.videoProxyPreviewMode)}</span>
 					<select value={mode} data-video-proxy-preview-mode={mode}
 						disabled={!runtime || pending !== null}
 						onChange={(event) => changeMode(event.currentTarget.value)}>
-						<option value="original">{label(copy, 'videoProxyModeOriginal', 'Original')}</option>
-						<option value="proxy">{label(copy, 'videoProxyModeProxy', 'Proxy')}</option>
-						<option value="auto">{label(copy, 'videoProxyModeAuto', 'Auto')}</option>
+						<option value="original">{label(copy, 'videoProxyModeOriginal', VIDEO_PROXY_ADDITIONAL_COPY.videoProxyModeOriginal)}</option>
+						<option value="proxy">{label(copy, 'videoProxyModeProxy', VIDEO_PROXY_ADDITIONAL_COPY.videoProxyModeProxy)}</option>
+						<option value="auto">{label(copy, 'videoProxyModeAuto', VIDEO_PROXY_ADDITIONAL_COPY.videoProxyModeAuto)}</option>
 					</select>
 				</label>
-				{selected && <section aria-label={label(copy, 'videoProxyStatus', 'Proxy status')}>
+				{selected && <section aria-label={label(copy, 'videoProxyStatus', VIDEO_PROXY_ADDITIONAL_COPY.videoProxyStatus)}>
 					<p role={previewTrust === 'stale' || previewTrust === 'unavailable' ? 'alert' : undefined}>{
 						proxyTrustLabel(copy, selected.attachmentPresent, previewTrust)
 					}</p>
 					{!selected.originalAvailable && previewTrust === 'verified' && <p role="status">{
 						label(copy, 'videoProxyOfflineEditing',
-							'The original is offline. Verified proxy pictures remain available for editing.')
+							VIDEO_PROXY_ADDITIONAL_COPY.videoProxyOfflineEditing)
 					}</p>}
 					<div>
 						{!selected.attachmentPresent && <button type="button" data-video-proxy-generate
 							disabled={mutationsDisabled || !selected.originalAvailable}
 							onClick={() => { generate(false); }}>{label(copy, 'videoProxyGenerateAttach',
-								'Generate and attach')}</button>}
+								VIDEO_PROXY_ADDITIONAL_COPY.videoProxyGenerateAttach)}</button>}
 						{!selected.attachmentPresent && <button type="button" data-video-proxy-attach-existing
 							disabled={mutationsDisabled || !selected.originalAvailable || !attachExistingAvailable}
 							onClick={chooseExisting}>{label(copy, 'videoProxyAttachExisting',
-								'Attach existing…')}</button>}
+								VIDEO_PROXY_ADDITIONAL_COPY.videoProxyAttachExisting)}</button>}
 						<input ref={existingFileRef} type="file" accept="video/*" hidden
 							data-video-proxy-existing-file
 							onChange={(event) => {
@@ -286,12 +287,12 @@ export default function FramescaperVideoProxyDialog({
 							}} />
 						{selected.attachmentPresent && <button type="button" data-video-proxy-regenerate
 							disabled={mutationsDisabled || !selected.originalAvailable}
-							onClick={() => { generate(true); }}>{label(copy, 'videoProxyRegenerate', 'Regenerate')}</button>}
+							onClick={() => { generate(true); }}>{label(copy, 'videoProxyRegenerate', VIDEO_PROXY_ADDITIONAL_COPY.videoProxyRegenerate)}</button>}
 						{selected.attachmentPresent && <button type="button" data-video-proxy-detach
-							disabled={mutationsDisabled} onClick={detach}>{label(copy, 'videoProxyDetach', 'Detach')}</button>}
+							disabled={mutationsDisabled} onClick={detach}>{label(copy, 'videoProxyDetach', VIDEO_PROXY_ADDITIONAL_COPY.videoProxyDetach)}</button>}
 						{fileService.linkedVideoOriginalsAvailable && selected.projectBinClipId && <button type="button"
 							disabled={mutationsDisabled} onClick={chooseOriginal}>{label(copy, 'videoProxyRelinkOriginal',
-								'Relink original…')}</button>}
+								VIDEO_PROXY_ADDITIONAL_COPY.videoProxyRelinkOriginal)}</button>}
 					</div>
 				</section>}
 			</>}
@@ -302,16 +303,16 @@ export default function FramescaperVideoProxyDialog({
 				onClick={() => { abortRef.current?.abort(); }}>{label(copy, 'cancel', 'Cancel')}</button>}
 			{changedRelink && <div role="alert">
 				<p>{label(copy, 'videoProxyChangedOriginalWarning',
-					'This file has different content. Relinking atomically invalidates the stale proxy at publication.')}</p>
+					VIDEO_PROXY_ADDITIONAL_COPY.videoProxyChangedOriginalWarning)}</p>
 				<button type="button" disabled={pending !== null} onClick={confirmChangedOriginal}>{
-					label(copy, 'videoProxyConfirmChangedOriginal', 'Relink changed original')
+					label(copy, 'videoProxyConfirmChangedOriginal', VIDEO_PROXY_ADDITIONAL_COPY.videoProxyConfirmChangedOriginal)
 				}</button>
 				<button type="button" disabled={pending !== null} onClick={() => { setChangedRelink(null); }}>{
 					label(copy, 'cancel', 'Cancel')
 				}</button>
 			</div>}
 			<p>{label(copy, 'videoProxyDeliveryAuthority',
-				'Export and delivery always use the original. If it is offline, delivery refuses and asks you to relink it.')}</p>
+				VIDEO_PROXY_ADDITIONAL_COPY.videoProxyDeliveryAuthority)}</p>
 			<div role="status" aria-live="polite" aria-atomic="true">{error || status}</div>
 		</div>
 	</AudioEditorDialogShell>;
@@ -326,17 +327,17 @@ function proxyTrustLabel(
 	attachmentPresent: boolean,
 	trust: FramescaperVideoProxyPreviewTrust,
 ): string {
-	if (!attachmentPresent) return label(copy, 'videoProxyNotAttached', 'No proxy is attached.');
+	if (!attachmentPresent) return label(copy, 'videoProxyNotAttached', VIDEO_PROXY_ADDITIONAL_COPY.videoProxyNotAttached);
 	if (trust === 'verified') {
-		return label(copy, 'videoProxyVerified', 'The attached proxy bodies and timing are verified for this session.');
+		return label(copy, 'videoProxyVerified', VIDEO_PROXY_ADDITIONAL_COPY.videoProxyVerified);
 	}
 	if (trust === 'stale') {
-		return label(copy, 'videoProxyStale', 'The attached proxy does not match the original. Proxy mode refuses it; regenerate or detach it.');
+		return label(copy, 'videoProxyStale', VIDEO_PROXY_ADDITIONAL_COPY.videoProxyStale);
 	}
 	if (trust === 'unavailable') {
-		return label(copy, 'videoProxyUnavailable', 'The attached proxy bodies are missing or failed verification. Proxy mode refuses them; regenerate or detach the attachment.');
+		return label(copy, 'videoProxyUnavailable', VIDEO_PROXY_ADDITIONAL_COPY.videoProxyUnavailable);
 	}
-	return label(copy, 'videoProxyUnverified', 'A proxy attachment is present but has not been verified for this preview session.');
+	return label(copy, 'videoProxyUnverified', VIDEO_PROXY_ADDITIONAL_COPY.videoProxyUnverified);
 }
 
 function relinkChoice(value: unknown): FramescaperVideoProxyOriginalRelinkCandidate | null {
@@ -354,12 +355,9 @@ function relinkChoice(value: unknown): FramescaperVideoProxyOriginalRelinkCandid
 }
 
 function phaseLabel(copy: Readonly<Record<string, string>>, phase: string): string {
-	const fallbacks: Readonly<Record<string, string>> = {
-		queued: 'Queued', generating: 'Generating proxy', validating: 'Validating proxy',
-		publishing: 'Attaching proxy',
-		cleaning: 'Cleaning up', complete: 'Complete',
-	};
-	return label(copy, `videoProxyPhase${phase[0]?.toUpperCase() ?? ''}${phase.slice(1)}`, fallbacks[phase] ?? phase);
+	const key = `videoProxyPhase${phase[0]?.toUpperCase() ?? ''}${phase.slice(1)}`;
+	const source: Readonly<Record<string, string>> = VIDEO_PROXY_ADDITIONAL_COPY;
+	return label(copy, key, source[key] ?? phase);
 }
 
 function proxyCandidate(value: unknown): Blob {
@@ -374,5 +372,5 @@ function throwIfAborted(signal?: AbortSignal): void {
 }
 
 function label(copy: Readonly<Record<string, string>>, key: string, fallback: string): string {
-	return copy[key] || fallback;
+	return copy[`ui.videoProxy.${key}`] || copy[key] || fallback;
 }

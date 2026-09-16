@@ -1,3 +1,4 @@
+import { usePresentationFeedback, feedbackFailure } from '../presentation-feedback.ts';
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
@@ -56,19 +57,19 @@ export function DeliveryQueueDialog({ isOpen, controller, snapshot, copy, onClos
 	const [targetKeys, setTargetKeys] = useState(['project']);
 	const [presetIds, setPresetIds] = useState([]);
 	const [batchId, setBatchId] = useState(null);
-	const [error, setError] = useState('');
-	const [status, setStatus] = useState('');
+	const [error, setError] = usePresentationFeedback(copy);
+	const [status, setStatus] = usePresentationFeedback(copy);
 	const [reportJobId, setReportJobId] = useState(null);
 
 	useEffect(() => {
 		if (!isOpen || !queueActions.persistent) return undefined;
 		let active = true;
 		const refresh = () => Promise.resolve(queueActions.refresh())
-			.catch((cause) => { if (active) setError(errorMessage(cause)); });
+			.catch((cause) => { if (active) setError(feedbackFailure(cause)); });
 		void refresh();
 		const timer = setInterval(() => { void refresh(); }, 1_000);
 		return () => { active = false; clearInterval(timer); };
-	}, [isOpen, queueActions]);
+	}, [isOpen, queueActions, setError]);
 
 	const selectable = selectableDeliveryBatchTargets(targets, mode);
 	const chosenTargets = selectable.filter(({ key }) => targetKeys.includes(key));
@@ -91,15 +92,15 @@ export function DeliveryQueueDialog({ isOpen, controller, snapshot, copy, onClos
 			await queueActions.enqueueBatch(batch);
 			setBatchId(batch.batchId);
 			setError('');
-			setStatus(copy.deliveryBatchQueued.replace('{members}', String(batch.members.length)));
+			setStatus({ key: 'deliveryBatchQueued', parameters: { members: batch.members.length } });
 		} catch (cause) {
-			setError(errorMessage(cause));
+			setError(feedbackFailure(cause));
 			setStatus('');
 		}
 	};
 	const run = async (operation) => {
 		try { await operation(); setError(''); }
-		catch (cause) { setError(errorMessage(cause)); }
+		catch (cause) { setError(feedbackFailure(cause)); }
 	};
 	const selectedReport = reportJobId && queueActions.persistent
 		? queueActions.report(reportJobId)
@@ -250,9 +251,6 @@ export function DeliveryQueueDialog({ isOpen, controller, snapshot, copy, onClos
 	);
 }
 
-function errorMessage(cause) {
-	return cause instanceof Error ? cause.message : String(cause);
-}
 
 function deliverySummary(copy, report) {
 	const counts = summarizeDeliveryBatchReport(report);

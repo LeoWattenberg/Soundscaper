@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { freezePresentationMessage, type LocalizedPresentationMessage } from '../../../i18n/presentation-message.ts';
+
 export type EditorTaskProgressKind =
 	| 'analysis'
 	| 'assistance'
@@ -19,6 +21,7 @@ export interface EditorTaskProgress {
 	readonly label: string;
 	readonly value: number | null;
 	readonly cancellable?: boolean;
+	readonly localization?: LocalizedPresentationMessage;
 }
 
 export interface EditorTaskProgressPhase {
@@ -30,27 +33,29 @@ export interface EditorTaskProgressPhase {
 export interface EditorTaskProgressHandle {
 	readonly id: string;
 	readonly kind: EditorTaskProgressKind;
-	setPhase(label: string, phase?: EditorTaskProgressPhase): boolean;
+	setPhase(label: string, phase?: EditorTaskProgressPhase, localization?: LocalizedPresentationMessage): boolean;
 	update(value: number): boolean;
-	setIndeterminate(label?: string): boolean;
+	setIndeterminate(label?: string, localization?: LocalizedPresentationMessage): boolean;
 	setCancellation(cancel: () => void): boolean;
 	finish(): boolean;
 }
 
 export interface EditorTaskProgressCoordinator {
-	begin(kind: EditorTaskProgressKind, label: string, value?: number | null): EditorTaskProgressHandle;
-	run<Result>(kind: EditorTaskProgressKind, label: string, operation: (task: EditorTaskProgressHandle) => Promise<Result> | Result, value?: number | null): Promise<Result>;
+	begin(kind: EditorTaskProgressKind, label: string, value?: number | null, localization?: LocalizedPresentationMessage): EditorTaskProgressHandle;
+	run<Result>(kind: EditorTaskProgressKind, label: string, operation: (task: EditorTaskProgressHandle) => Promise<Result> | Result, value?: number | null, localization?: LocalizedPresentationMessage): Promise<Result>;
 	getSnapshot(): EditorTaskProgress | null;
-	setActivePhase(label: string, phase?: EditorTaskProgressPhase): boolean;
+	setActivePhase(label: string, phase?: EditorTaskProgressPhase, localization?: LocalizedPresentationMessage): boolean;
 	updateActive(value: number): boolean;
 	cancelActive(): boolean;
 	clear(): boolean;
+	refreshLocalization?(): void;
 }
 
 /** Owns the single foreground task shown by the editor status area. */
 export function createEditorTaskProgressCoordinator({
 	onChange = () => {},
-}: Readonly<{ onChange?: (progress: EditorTaskProgress | null) => void }> = {}): EditorTaskProgressCoordinator {
+	formatMessage,
+}: Readonly<{ onChange?: (progress: EditorTaskProgress | null) => void; formatMessage?: (message: LocalizedPresentationMessage) => string }> = {}): EditorTaskProgressCoordinator & { refreshLocalization(): void } {
 	let sequence = 0;
 	let active: MutableTaskProgress | null = null;
 
@@ -62,12 +67,14 @@ export function createEditorTaskProgressCoordinator({
 		kind: EditorTaskProgressKind,
 		label: string,
 		value: number | null = null,
+		localization?: LocalizedPresentationMessage,
 	): EditorTaskProgressHandle {
 		const id = `task-${++sequence}`;
 		active = {
 			id,
 			kind,
-			label: normalizeLabel(label),
+			label: normalizeLabel(localization && formatMessage ? formatMessage(localization) : label),
+			localization: localization ? freezePresentationMessage(localization) : undefined,
 			value: normalizeOptionalProgress(value),
 			phaseStart: 0,
 			phaseEnd: 1,
@@ -80,15 +87,15 @@ export function createEditorTaskProgressCoordinator({
 		return Object.freeze({
 			id,
 			kind,
-			setPhase(nextLabel: string, phase: EditorTaskProgressPhase = {}): boolean {
-				return ownsTask() && setActivePhase(nextLabel, phase);
+			setPhase(nextLabel: string, phase: EditorTaskProgressPhase = {}, nextLocalization?: LocalizedPresentationMessage): boolean {
+				return ownsTask() && setActivePhase(nextLabel, phase, nextLocalization);
 			},
 			update(nextValue: number): boolean {
 				return ownsTask() && updateActive(nextValue);
 			},
-			setIndeterminate(nextLabel?: string): boolean {
+			setIndeterminate(nextLabel?: string, nextLocalization?: LocalizedPresentationMessage): boolean {
 				if (!ownsTask()) return false;
-				if (nextLabel !== undefined) active!.label = normalizeLabel(nextLabel);
+				if (nextLabel !== undefined) { active!.label = normalizeLabel(nextLocalization && formatMessage ? formatMessage(nextLocalization) : nextLabel); active!.localization = nextLocalization ? freezePresentationMessage(nextLocalization) : undefined; }
 				active!.phaseValue = null;
 				active!.value = null;
 				publish();
@@ -109,12 +116,13 @@ export function createEditorTaskProgressCoordinator({
 		});
 	}
 
-	function setActivePhase(label: string, phase: EditorTaskProgressPhase = {}): boolean {
+	function setActivePhase(label: string, phase: EditorTaskProgressPhase = {}, localization?: LocalizedPresentationMessage): boolean {
 		if (!active) return false;
 		const task = active;
 		const start = clampProgress(phase.start ?? task.value ?? 0);
 		const end = clampProgress(phase.end ?? 1);
-		task.label = normalizeLabel(label);
+		task.label = normalizeLabel(localization && formatMessage ? formatMessage(localization) : label);
+		task.localization = localization ? freezePresentationMessage(localization) : undefined;
 		task.phaseStart = Math.min(start, end);
 		task.phaseEnd = Math.max(start, end);
 		task.phaseValue = phase.value == null ? null : clampProgress(phase.value);
@@ -134,8 +142,8 @@ export function createEditorTaskProgressCoordinator({
 
 	return Object.freeze({
 		begin,
-		async run<Result>(kind: EditorTaskProgressKind, label: string, operation: (task: EditorTaskProgressHandle) => Promise<Result> | Result, value: number | null = null): Promise<Result> {
-			const task = begin(kind, label, value);
+		async run<Result>(kind: EditorTaskProgressKind, label: string, operation: (task: EditorTaskProgressHandle) => Promise<Result> | Result, value: number | null = null, localization?: LocalizedPresentationMessage): Promise<Result> {
+			const task = begin(kind, label, value, localization);
 			try {
 				return await operation(task);
 			} finally {
@@ -159,11 +167,17 @@ export function createEditorTaskProgressCoordinator({
 			publish();
 			return true;
 		},
+		refreshLocalization(): void {
+			if (!active?.localization || !formatMessage) return;
+			active.label = formatMessage(active.localization);
+			publish();
+		},
 	});
 }
 
 interface MutableTaskProgress extends EditorTaskProgress {
 	label: string;
+	localization?: LocalizedPresentationMessage;
 	value: number | null;
 	phaseStart: number;
 	phaseEnd: number;
@@ -178,6 +192,7 @@ function freezeProgress(progress: MutableTaskProgress): EditorTaskProgress {
 		label: progress.label,
 		value: progress.value,
 		...(progress.cancel ? { cancellable: true } : {}),
+		...(progress.localization ? { localization: progress.localization } : {}),
 	});
 }
 

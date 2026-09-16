@@ -1,3 +1,5 @@
+import { setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
+import { percentagePresentationMessage } from '../../../../i18n/presentation-progress.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /** The runtime a legacy Audacity project import reads. */
@@ -44,7 +46,7 @@ export function createLegacyAudacityProjectImport(runtime: LegacyAudacityImportR
 		if (!Number.isFinite(rawValue)) return;
 		const percentage = rawValue <= 1 ? rawValue * 100 : rawValue;
 		reportProgress(percentage / 100);
-		setStatus(`${copy.aupImporting} ${Math.max(0, Math.min(100, Math.round(percentage)))}%`);
+		setStatus(`${copy.aupImporting} ${Math.max(0, Math.min(100, Math.round(percentage)))}%`, undefined, percentagePresentationMessage(percentage / 100, { key: 'aupImporting', fallback: copy.aupImporting }));
 	}
 
 	return async function importLegacyAudacityProject(
@@ -56,7 +58,7 @@ export function createLegacyAudacityProjectImport(runtime: LegacyAudacityImportR
 		assertImportProjectCurrent();
 		await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
 		assertImportProjectCurrent();
-		setStatus(copy.aupImporting);
+		setLocalizedStatus(setStatus, copy, "aupImporting");
 		const structure = await decodeLegacyAupProject(file, legacyDataFiles, { onProgress: updateProgress });
 		assertImportProjectCurrent();
 		const decoded = await convertLegacyAupToProject(structure, {
@@ -81,6 +83,7 @@ export function createLegacyAudacityProjectImport(runtime: LegacyAudacityImportR
 			project: importedProject,
 			warnings: decoded.warnings,
 			notice: detail ? `${copy.aupImported} ${detail}` : copy.aupImported,
+			noticeLocalization: { key: 'aupImported', fallback: copy.aupImported, ...(detail ? { suffix: ` ${detail}` } : {}) },
 		};
 	};
 }

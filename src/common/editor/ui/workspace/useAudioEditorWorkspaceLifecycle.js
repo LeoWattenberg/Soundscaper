@@ -9,6 +9,7 @@ import { isExpectedWorkspaceCancellation } from './scape-open-decision-continuat
 import { useDesktopHostMenuRuntime } from './useDesktopHostMenuRuntime.ts';
 import { useWorkspaceViewDefaults } from './useWorkspaceViewDefaults.ts';
 import { workspaceSwitcherOptions } from './workspace-switcher-options.ts';
+import { workspaceErrorMessage } from './workspace-error-presentation.ts';
 
 export function useAudioEditorWorkspaceLifecycle({
 	controller,
@@ -26,7 +27,8 @@ export function useAudioEditorWorkspaceLifecycle({
 	setRecordingMeterSettings,
 }) {
 	const [parityUi, setParityUi] = useState(() => parityRuntime.uiController.getSnapshot());
-	const [localError, setLocalError] = useState('');
+	const [localFailure, setLocalError] = useState(null);
+	const localError = workspaceErrorMessage(localFailure, copy);
 	const [desktopEnvironment, setDesktopEnvironment] = useState(null);
 	const requestedProjectOpenedRef = useRef(false);
 	const launchIntentTakenRef = useRef(false);
@@ -66,9 +68,8 @@ export function useAudioEditorWorkspaceLifecycle({
 	const onError = useCallback((error) => {
 		if (isExpectedWorkspaceCancellation(error)) return;
 		controller.recordLocalDiagnosticError?.(error, 'workspace');
-		const message = error instanceof Error ? error.message : String(error || copy.unknownError);
-		setLocalError(copy.genericError.replace('{message}', message));
-	}, [controller, copy.genericError, copy.unknownError]);
+		setLocalError(() => error);
+	}, [controller]);
 	useEffect(() => {
 		if (requestedProjectOpenedRef.current) return;
 		requestedProjectOpenedRef.current = true;
@@ -95,7 +96,7 @@ export function useAudioEditorWorkspaceLifecycle({
 	}, [controller, onError, openLaunchedProjectPicker]);
 
 	const run = useCallback((action, { clearError = true } = {}) => {
-		if (clearError) setLocalError('');
+		if (clearError) setLocalError(null);
 		try {
 			const value = action();
 			if (value && typeof value.catch === 'function') value.catch(onError);

@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { createLocalizedError } from '../../../i18n/presentation-message.ts';
+
 
 export type StorageOperation = 'recording' | 'export' | 'effect' | 'project' | 'import';
 export type StoragePressure = 'normal' | 'warning' | 'critical' | 'unknown';
@@ -181,9 +183,7 @@ export function createStorageCapacityService(
 		if (capacity.free === null
 			|| (dependencies.isInactive() && operation !== 'project')
 			|| capacity.free >= requirement.requiredFreeBytes) return;
-		throw new Error(dependencies.copy.insufficientStorage
-			.replace('{operation}', operationLabel(operation))
-			.replace('{required}', dependencies.copy.formatBytes(requirement.requiredBytes)));
+		throw createLocalizedError(Error, dependencies.copy, 'insufficientStorage', { operation: operationLabel(operation), required: dependencies.copy.formatBytes(requirement.requiredBytes) });
 	}
 
 	async function requestStoragePersistence(): Promise<Readonly<StorageCapacitySnapshot> | null> {

@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { formatPresentationMessage, type LocalizedPresentationMessage } from '../src/common/i18n/presentation-message.ts';
 
 import {
 	createVideoRateStretchResultReporter,
@@ -31,7 +32,7 @@ test('both edges report the derived rate and exact conformed program timecode', 
 				labels.push([sample, sequenceId]);
 				return `TC:${String(sample)}`;
 			},
-			setStatus: (...args: [string, 'info' | 'success']) => statuses.push(args),
+			setStatus: (message, state) => statuses.push([message, state]),
 		});
 		const boundarySample = row.edge === 'left' ? 8_000 : 50_000;
 
@@ -48,10 +49,13 @@ test('both edges report the derived rate and exact conformed program timecode', 
 
 test('clamped feedback appends its localized outcome exactly once', () => {
 	const statuses: unknown[][] = [];
+	let localization: LocalizedPresentationMessage | undefined;
 	const report = createVideoRateStretchResultReporter({
 		copy: COPY,
 		label: () => '01:00:10:00',
-		setStatus: (...args: [string, 'info' | 'success']) => statuses.push(args),
+		setStatus: (message, state, identity?: LocalizedPresentationMessage) => {
+			statuses.push([message, state]); localization = identity;
+		},
 	});
 
 	report(plan({ edge: 'right', authorityPlaybackRate: 1 / 16, clamped: true }));
@@ -59,6 +63,10 @@ test('clamped feedback appends its localized outcome exactly once', () => {
 	assert.deepEqual(statuses, [[
 		'RIGHT 0.06 01:00:10:00 (clamped)', 'success',
 	]]);
+	assert.deepEqual(localization, { key: 'rateStretchRightEdgeApplied',
+		parameters: { rate: '0.06', timecode: '01:00:10:00' }, append: [' ', { key: 'rateStretchBoundaryClamped' }] });
+	assert.equal(formatPresentationMessage({ ...COPY, rateStretchRightEdgeApplied: 'Rechts {rate} {timecode}',
+		rateStretchBoundaryClamped: '[begrenzt]' }, localization!), 'Rechts 0.06 01:00:10:00 [begrenzt]');
 });
 
 test('no-op is a distinct informational outcome and formats no unavailable values', () => {
@@ -66,7 +74,7 @@ test('no-op is a distinct informational outcome and formats no unavailable value
 	const report = createVideoRateStretchResultReporter({
 		copy: COPY,
 		label: () => assert.fail('No-op feedback has no program coordinate to format.'),
-		setStatus: (...args: [string, 'info' | 'success']) => statuses.push(args),
+		setStatus: (message, state) => statuses.push([message, state]),
 	});
 
 	report(plan({ kind: 'noop', edge: 'left' }));

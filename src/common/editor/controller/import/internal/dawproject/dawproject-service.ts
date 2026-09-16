@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { readDawprojectArchive, type DawprojectArchive } from '../../../../dawproject-archive.ts';
+import { readDawprojectArchive, type DawprojectArchive } from '../../../../dawproject-archive.ts'; import { createLocalizedError, setLocalizedStatus, type LocalizedPresentationMessage } from '../../../../../i18n/presentation-message.ts';
 import { writeDawprojectArchive } from '../../../../dawproject-archive.ts';
 import { createDawprojectExport } from '../../../../dawproject-export.ts';
 import {
@@ -64,6 +64,8 @@ export interface DawprojectServiceHelpers {
 		prefix: string,
 		task?: EditorTaskScope,
 		projectToken?: EditorProjectToken,
+		range?: Readonly<{ start: number; end: number }>,
+		localization?: LocalizedPresentationMessage,
 	): void;
 	requireProject(): NativeProjectDocument;
 }
@@ -98,7 +100,7 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 		let activated = false;
 		let archive: DawprojectArchive | null = null;
 		helpers.beginImport(operation.task);
-		runtime.setStatus(runtime.copy.importing);
+		setLocalizedStatus(runtime.setStatus, runtime.copy, "importing");
 		try {
 			archive = await readDawprojectArchive(file, { signal });
 			assertReady();
@@ -129,7 +131,7 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 				decoded.set(reference.path, { info, channels: audio.channels });
 				media.set(reference.path, info);
 				helpers.updateNativeProjectProgress(
-					{ value: (index + 1) / references.length }, runtime.copy.importing, operation.task, operation.projectToken,
+					{ value: (index + 1) / references.length }, runtime.copy.importing, operation.task, operation.projectToken, undefined, { key: 'importing' },
 				);
 			}
 			await runtime.preflightStorage(decodedBytes, 'import');
@@ -156,7 +158,7 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 			operation.task.assertCurrent();
 			runtime.projectGeneration.capture(importedProject.id);
 			runtime.state.deliveryReport = plan.report;
-			runtime.setStatus(runtime.copy.dawprojectOpened ?? 'DAWproject imported.', 'success');
+			setLocalizedStatus(runtime.setStatus, runtime.copy, 'dawprojectOpened', undefined, 'success', { fallback: 'DAWproject imported.' });
 			runtime.publishDocumentSnapshot();
 			return Object.freeze({ project: importedProject, report: plan.report });
 		} catch (error) {
@@ -180,17 +182,17 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 	}>> {
 		const snapshot = helpers.requireProject();
 		if (runtime.hasMissingTimelineSources(snapshot, { audioOnly: true })) {
-			throw new Error(runtime.copy.missingSourcesPreventSave);
+			throw createLocalizedError(Error, runtime.copy, 'missingSourcesPreventSave');
 		}
 		const operation = helpers.beginProjectTask('dawproject-export', snapshot.id);
 		const assertReady = (): void => { helpers.assertOwnership(operation.task, operation.projectToken); };
 		const saving = runtime.copy.dawprojectSaving ?? 'Exporting DAWproject';
 		try {
-			runtime.setStatus(saving);
+			setLocalizedStatus(runtime.setStatus, runtime.copy, 'dawprojectSaving', undefined, undefined, { fallback: 'Exporting DAWproject' });
 			const delivered = resolveDeliveredProject({
 				getProject: () => snapshot, state: runtime.state as unknown as Record<string, unknown>,
 			});
-			if (!delivered) throw new Error(runtime.copy.projectNotFound);
+			if (!delivered) throw createLocalizedError(Error, runtime.copy, 'projectNotFound');
 			const embeddableVideoSourceIds = typeof runtime.store.loadMediaAsset === 'function'
 				? snapshot.sources.filter((source) => source.kind === 'video').map((source) => source.id)
 				: [];
@@ -214,7 +216,7 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 				files.push({ path: entry.path, blob: await mediaBlob(source, entry.kind) });
 				assertReady();
 				helpers.updateNativeProjectProgress(
-					{ value: (index + 1) / exported.media.length }, saving, operation.task, operation.projectToken,
+					{ value: (index + 1) / exported.media.length }, saving, operation.task, operation.projectToken, undefined, { key: 'dawprojectSaving', fallback: saving },
 				);
 			}
 			const blob = await writeDawprojectArchive(
@@ -230,7 +232,7 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 				signal: operation.task.signal,
 			});
 			assertReady();
-			runtime.setStatus(runtime.copy.dawprojectSaved ?? 'DAWproject exported.', 'success');
+			setLocalizedStatus(runtime.setStatus, runtime.copy, 'dawprojectSaved', undefined, 'success', { fallback: 'DAWproject exported.' });
 			runtime.publishDocumentSnapshot();
 			return Object.freeze({ ...saved, fileName: exported.fileName, report: exported.report });
 		} finally {
@@ -239,9 +241,7 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 	}
 
 	async function mediaBlob(source: NativeProjectDocument['sources'][number], kind: 'audio' | 'video'): Promise<BlobLike> {
-		const unavailable = (): Error => new Error(
-			runtime.copy.sourcePcmUnavailable.replace('{source}', source.name || source.id),
-		);
+		const unavailable = (): Error => createLocalizedError(Error, runtime.copy, 'sourcePcmUnavailable', { source: source.name || source.id });
 		if (kind === 'video') {
 			const blob = await runtime.store.loadMediaAsset?.(source.storageKey ?? source.id);
 			if (!blob) throw unavailable();

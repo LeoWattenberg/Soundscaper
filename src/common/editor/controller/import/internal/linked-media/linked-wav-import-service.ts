@@ -2,7 +2,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- This focused seam narrows the legacy import runtime without widening its public JavaScript contract. */
 
-import { linkedAudioLocatorReferenceFromImportOptions } from '../project-import-options.ts';
+import { publishedCopyFor } from '../../../shared/presentation-localization.ts'; import { linkedAudioLocatorReferenceFromImportOptions } from '../project-import-options.ts';
 import { scaleSampleFrame } from '../../../../timeline-time.ts';
 import { admitAudioImportChannelCount } from '../audio-import-channel-admission.ts';
 import { maintainedAiffMimeType } from '../aiff-file-identity.ts';
@@ -99,7 +99,7 @@ export function createLinkedPcmImporter(runtime: LinkedPcmImportRuntime) {
 			sourceId = requiredIdentity(createStableId('source'), 'Linked PCM source ID');
 			const clipId = requiredIdentity(createStableId('clip'), 'Linked PCM clip ID');
 			const trackName = stripExtension(file.name)
-				|| `${copy.track} ${startingProject.tracks.length + 1}`;
+				|| `${publishedCopyFor(copy).track} ${startingProject.tracks.length + 1}`;
 			const source = linkedAudioSource({
 				chunkFrames,
 				descriptor,

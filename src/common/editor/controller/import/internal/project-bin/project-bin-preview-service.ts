@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { resolveProjectBinAudioPreviewClip } from './project-bin-runtime.ts';
+import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import { resolveProjectBinAudioPreviewClip } from './project-bin-runtime.ts';
 import { hasProjectBinMediaAuthority } from '../../../../project-schema-version.ts';
 
 import type {
@@ -83,7 +83,7 @@ export function createProjectBinPreviewService(
 		dependencies.lifetime.assertActive();
 		const project = dependencies.getProject();
 		const clip = findProjectBinClip(project, clipId);
-		if (!clip) throw new Error(dependencies.copy.audioClipNotFound);
+		if (!clip) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		if (clip.kind === 'image') throw new Error('Image items do not support transport preview.');
 		const itemClips = hasProjectBinMediaAuthority(project)
 			? projectBinClips(project).filter((candidate) => candidate.binItemId === clip.binItemId)
@@ -113,7 +113,7 @@ export function createProjectBinPreviewService(
 		const audioClip = itemClips.find((candidate) => candidate.kind !== 'video') ?? clip;
 		const source = findProjectBinSource(project, audioClip.sourceId);
 		if (!source || dependencies.isSourceMissing(source.id)) {
-			throw new Error(dependencies.copy.localSourcesMissing);
+			throw createLocalizedError(Error, dependencies.copy, 'localSourcesMissing');
 		}
 		const task = dependencies.lifetime.startTask(PROJECT_BIN_PREVIEW_TASK);
 		try {

@@ -189,6 +189,7 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 		verifyProjectFallbackIntegrity,
 	});
 	const takeComp = createTakeCompControllerComposition({
+		copy,
 		lifetime,
 		sourceBuffers: dependencies.sourceBuffers,
 		sourceChunkProviders: dependencies.sourceChunkProviders,
@@ -299,22 +300,22 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 		mixRender,
 		selectionView,
 		mixAndRenderTracks: (...args: Parameters<MixRender['mixAndRenderTracks']>) => (
-			taskProgress.run('render', copy.rendering, () => mixRender.mixAndRenderTracks(...args))
+			taskProgress.run('render', copy.rendering, () => mixRender.mixAndRenderTracks(...args), undefined, { key: "rendering" })
 		),
 		resampleTrack: (trackId: string | null = state.selectedTrackId, requestedSampleRate: unknown = dependencies.projectSampleRate()) => (
-			taskProgress.run('transform', transform(copy.resamplingTrack), () => derivedAudio.resampleTrack(trackId, requestedSampleRate))
+			taskProgress.run('transform', transform(copy.resamplingTrack), () => derivedAudio.resampleTrack(trackId, requestedSampleRate), undefined, { key: copy.resamplingTrack ? 'resamplingTrack' : 'audacityProcessing' })
 		),
 		resampleClip: (clipId: string | null = state.selectedClipId, request: Parameters<DerivedAudio['resampleClip']>[1] = {}) => (
-			taskProgress.run('transform', transform(copy.resamplingClip), () => derivedAudio.resampleClip(clipId, request))
+			taskProgress.run('transform', transform(copy.resamplingClip), () => derivedAudio.resampleClip(clipId, request), undefined, { key: copy.resamplingClip ? 'resamplingClip' : 'audacityProcessing' })
 		),
 		swapTrackChannels: (trackId: string | null = state.selectedTrackId) => (
-			taskProgress.run('transform', transform(copy.rewritingChannels), () => derivedAudio.swapTrackChannels(trackId))
+			taskProgress.run('transform', transform(copy.rewritingChannels), () => derivedAudio.swapTrackChannels(trackId), undefined, { key: copy.rewritingChannels ? 'rewritingChannels' : 'audacityProcessing' })
 		),
 		splitStereoTrack: (trackId: string | null = state.selectedTrackId, panChannels = true) => (
-			taskProgress.run('transform', transform(copy.rewritingChannels), () => derivedAudio.splitStereoTrack(trackId, panChannels))
+			taskProgress.run('transform', transform(copy.rewritingChannels), () => derivedAudio.splitStereoTrack(trackId, panChannels), undefined, { key: copy.rewritingChannels ? 'rewritingChannels' : 'audacityProcessing' })
 		),
 		makeStereoTrack: (trackId: string | null = state.selectedTrackId, partnerTrackId: string | null = null) => (
-			taskProgress.run('transform', transform(copy.rewritingChannels), () => derivedAudio.makeStereoTrack(trackId, partnerTrackId))
+			taskProgress.run('transform', transform(copy.rewritingChannels), () => derivedAudio.makeStereoTrack(trackId, partnerTrackId), undefined, { key: copy.rewritingChannels ? 'rewritingChannels' : 'audacityProcessing' })
 		),
 	});
 }

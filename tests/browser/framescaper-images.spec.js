@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { Buffer } from 'node:buffer';
-
+import { EDITOR_ENGLISH_COPY } from '../../src/common/i18n/editor-copy-inventory.ts';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
@@ -41,7 +41,7 @@ test.describe('Framescaper selected timeline images', () => {
 
 		const chooserPromise = page.waitForEvent('filechooser');
 		const generate = await openNestedCommandMenu(page, editor, 'Generate', []);
-		await getMenuItem(generate, 'Add Images…').click();
+		await getMenuItem(generate, EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoStill']).click();
 		const chooser = await chooserPromise;
 		await chooser.setFiles({ name: 'poster.png', mimeType: 'image/png', buffer: PNG });
 

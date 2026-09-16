@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { FrameCanonicalRollRippleTrimPlan } from '../../../../frame-canonical-roll-ripple-trim-domain.ts';
+import type { FrameCanonicalRollRippleTrimPlan } from '../../../../frame-canonical-roll-ripple-trim-domain.ts'; import { setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
 import type { VideoRollRippleTrimResultReporter } from './video-roll-ripple-trim-service.ts';
 
 export interface VideoRollRippleTrimFeedbackCopy {
@@ -15,7 +15,7 @@ export interface VideoRollRippleTrimFeedbackCopy {
 export interface VideoRollRippleTrimFeedbackDependencies {
 	readonly copy: VideoRollRippleTrimFeedbackCopy;
 	label(sample: number, sequenceId?: string): string;
-	setStatus(message: string, state: 'info' | 'success'): void;
+	setStatus(message: string, state: 'info' | 'success', localization?: import('../../../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;
 }
 
 /** Format only completed roll/ripple outcomes through the existing status path. */
@@ -24,40 +24,20 @@ export function createVideoRollRippleTrimResultReporter(
 ): VideoRollRippleTrimResultReporter {
 	return (plan: FrameCanonicalRollRippleTrimPlan): void => {
 		if (plan.kind === 'noop') {
-			dependencies.setStatus(dependencies.copy.noTrimAvailable, 'info');
+			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "noTrimAvailable", undefined, 'info');
 			return;
 		}
-		const sourceTimecode = dependencies.label(plan.resolvedSourceCutSample, plan.sequenceId);
-		const programTimecode = dependencies.label(plan.programEditSample, plan.sequenceId);
-		const message = replaceValues(template(dependencies.copy, plan), {
+		const key = plan.mode === 'roll'
+			? plan.edge === 'left' ? 'rollLeftEdgeApplied' : 'rollRightEdgeApplied'
+			: plan.edge === 'left' ? 'rippleLeftEdgeApplied' : 'rippleRightEdgeApplied';
+		setLocalizedStatus(dependencies.setStatus, dependencies.copy, key, {
 			frames: signedFrames(plan.sequenceFrameDelta),
-			sourceTimecode,
-			programTimecode,
-		});
-		dependencies.setStatus(
-			plan.clamped ? `${message} ${dependencies.copy.trimBoundaryClamped}` : message,
-			'success',
-		);
+			sourceTimecode: dependencies.label(plan.resolvedSourceCutSample, plan.sequenceId),
+			programTimecode: dependencies.label(plan.programEditSample, plan.sequenceId),
+		}, 'success', plan.clamped ? { append: [' ', { key: 'trimBoundaryClamped' }] } : undefined);
 	};
-}
-
-function template(
-	copy: VideoRollRippleTrimFeedbackCopy,
-	plan: FrameCanonicalRollRippleTrimPlan,
-): string {
-	if (plan.mode === 'roll') {
-		return plan.edge === 'left' ? copy.rollLeftEdgeApplied : copy.rollRightEdgeApplied;
-	}
-	return plan.edge === 'left' ? copy.rippleLeftEdgeApplied : copy.rippleRightEdgeApplied;
 }
 
 function signedFrames(value: number): string {
 	return value > 0 ? `+${String(value)}` : String(value);
-}
-
-function replaceValues(templateValue: string, values: Readonly<Record<string, string>>): string {
-	return Object.entries(values).reduce(
-		(message, [key, value]) => message.replaceAll(`{${key}}`, value),
-		templateValue,
-	);
 }

@@ -14,8 +14,23 @@ import {
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorProjectV17, type AudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
+import { formatPresentationMessage, type LocalizedPresentationMessage } from '../src/common/i18n/presentation-message.ts';
 
 const NOW = '2026-08-12T12:00:00.000Z';
+
+test('take flatten statuses carry owned identities while published media names stay stable', async () => {
+	const statuses: Array<{ message: string; localization?: LocalizedPresentationMessage }> = [];
+	const fixture = compositionFixture({
+		copy: { 'ui.takeComp.rendering': 'Rendu de la compilation', 'ui.takeComp.flattened': 'Compilation aplatie' },
+		onStatus: (message, _state, localization) => statuses.push({ message, localization }),
+	});
+	await fixture.composition.flatten('group-a');
+	assert.deepEqual(statuses.map(({ message }) => message), ['Rendu de la compilation', 'Compilation aplatie']);
+	assert.deepEqual(statuses.map(({ localization }) => localization?.key), ['ui.takeComp.rendering', 'ui.takeComp.flattened']);
+	assert.equal(formatPresentationMessage({ 'ui.takeComp.flattened': 'Zusammenstellung gerendert' }, statuses[1]!.localization!),
+		'Zusammenstellung gerendert');
+	assert.equal(fixture.project().clips.at(-1)?.title, 'group-a — flattened take');
+});
 
 test('take and lane audition use an isolated exact-source preview and toggle without document edits', async () => {
 	const fixture = compositionFixture();
@@ -175,6 +190,8 @@ function compositionFixture(options: Readonly<{
 	onRender?(): void;
 	switchProjectAfterPersist?: boolean;
 	previewPlayFails?: boolean;
+	copy?: Readonly<Record<string, string>>;
+	onStatus?(message: string, state?: string, localization?: LocalizedPresentationMessage): void;
 }> = {}) {
 	let current = project(options.locked === true);
 	const commands: AudioEditorCommand[] = [];
@@ -187,6 +204,8 @@ function compositionFixture(options: Readonly<{
 	const lifetime = new EditorControllerLifetime();
 	const buffer = audioBuffer(400);
 	const composition = createTakeCompControllerComposition({
+		copy: options.copy,
+		setStatus: options.onStatus,
 		lifetime,
 		sourceBuffers: new Map(),
 		sourceChunkProviders: new Map(),

@@ -162,6 +162,6 @@ export interface RecordingCompositionDependencies {
 	readonly publishProjectState: () => void;
 	readonly updatePlayhead: (frame?: number) => unknown;
 	readonly updateTransportState: (state: string) => void;
-	readonly setStatus: (message: string, state?: 'info' | 'success' | 'error') => void;
+	readonly setStatus: (message: string, state?: 'info' | 'success' | 'error', localization?: import('../../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly handleError: (error: unknown) => void;
 }

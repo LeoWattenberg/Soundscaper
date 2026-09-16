@@ -98,7 +98,7 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		phase,
 		projects: [],
 		recentProjectIds: [] as string[],
-		status: { message: readyMessage, state: 'info' },
+		status: { message: readyMessage, state: 'info', localization: { key: 'ready' } },
 		saveState: 'saved',
 		storageEstimate: createInitialStorageCapacitySnapshot(),
 		analysisResult: null,

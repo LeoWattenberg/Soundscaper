@@ -147,3 +147,23 @@ test('writing a catalog and its index round-trips through the reader and the loa
 	await assert.rejects(() => writeTranslationCatalog({ locale: 'fr', provenance: { machine: MACHINE }, entries: { a: ['machine', 'A', ''] } }, directory), /acceptable/u);
 	await assert.rejects(() => writeTranslationCatalog({ locale: 'tlh', provenance: { machine: MACHINE }, entries: { a: ['machine', 'A', 'a'] } }, directory), /Unknown or non-canonical/u);
 });
+
+test('community attribution survives canonical writes and preserves upstream notices after human review', async () => {
+	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-community-attribution-'));
+	const community = {
+		a: { contributor: 'Translator', note: 'Reviewed in context', sourceOrigin: 'audacity',
+			previousEntry: ['audacity', 'A', 'old'], upstreamProvenance: AUDACITY },
+	};
+	await writeTranslationCatalog({ locale: 'fr', entries: { a: ['human', 'A', 'new'] },
+		provenance: { audacity: AUDACITY }, community }, directory);
+	const stored = await readTranslationCatalog('fr', directory);
+	assert.deepEqual(stored.community, community);
+	assert.deepEqual(stored.provenance, {}, 'upstream attribution stays with reviewed entry');
+	assert.equal(await readFile(join(directory, 'fr.json'), 'utf8'), serializeTranslationCatalog(stored));
+	assert.throws(() => assertTranslationCatalogFile({ ...stored, community: {
+		unknown: community.a,
+	} }, 'fr'), /community/i);
+	assert.throws(() => assertTranslationCatalogFile({ ...stored, community: {
+		a: { ...community.a, sourceOrigin: 'invented' },
+	} }, 'fr'), /community/i);
+});

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import React, { useState } from 'react';
+import React, { useState } from 'react'; import { usePresentationFeedback } from '../presentation-feedback.ts';
 import { SKIN_IDS, normalizeSkin, type SkinId } from '../../skin-preferences.ts';
 import { useEditorSkin } from './EditorSkinProvider.tsx';
 import { SKINS } from './skin-themes.ts';
@@ -15,7 +15,7 @@ export default function SkinPreferences({ controller, copy, run, savedSkin }: {
 }) {
 	const skin = useEditorSkin();
 	const [saving, setSaving] = useState(false);
-	const [error, setError] = useState('');
+	const [error, setError] = usePresentationFeedback(copy);
 	const effective = skin.preview ?? normalizeSkin(savedSkin);
 	const name = (id: SkinId) => id === 'default' ? copy.skinDefault : SKINS[id].name;
 	const select = (id: SkinId) => {
@@ -25,7 +25,7 @@ export default function SkinPreferences({ controller, copy, run, savedSkin }: {
 		// for their toast and intentionally do not return the operation's result.
 		const operation = skin.adopt(id, (value) => controller.actions.preferences.setSkin(value));
 		run(() => operation);
-		void operation.catch(() => { setError(copy.skinSaveError ?? 'Could not save the skin. Please try again.'); })
+		void operation.catch(() => { setError({ key: 'skinSaveError', fallback: 'Could not save the skin. Please try again.' }); })
 			.finally(() => { setSaving(false); });
 	};
 	return <section className="editor-skin-preferences" aria-label={copy.skin}>

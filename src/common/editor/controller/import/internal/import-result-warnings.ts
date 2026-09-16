@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import type { LocalizedPresentationMessage } from '../../../../i18n/presentation-message.ts';
+import { importNoticeLocalization } from './import-status-localization.ts';
 
 // Legacy controller values are narrowed as the owning import service migrates.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -15,13 +17,15 @@ export function createImportResultWithWarnings(copy: LegacyPort) {
 	return function importResultWithWarnings(result: LegacyPort, warnings: readonly LegacyPort[]) {
 		const interchangeMessages = importInterchangeMessages(result);
 		if (!warnings.length && !interchangeMessages.length) return result;
+		const localized = new Map<string, LocalizedPresentationMessage>();
+		function remember(message: string, key: string): string { localized.set(message, { key, fallback: message }); return message; }
 		const messages = [...new Set([...warnings.map((warning) => {
 			if (typeof warning === 'string') return warning;
 			if (warning?.code === 'bext-time-reference-conversion' || warning?.code === 'bext-spot-out-of-range') {
-				return warning.message;
+				return remember(warning.message, warning.code === 'bext-time-reference-conversion' ? 'bextTimeReferenceConversionWarning' : 'bextSpotOutOfRangeWarning');
 			}
 			if (isBextMetadataWarning(warning)) {
-				return copy.bextMetadataImportWarning || warning.message;
+				return remember(copy.bextMetadataImportWarning || warning.message, 'bextMetadataImportWarning');
 			}
 			if (typeof warning?.message === 'string') return warning.message;
 			return String(warning?.code || 'WAV metadata warning.');
@@ -29,7 +33,7 @@ export function createImportResultWithWarnings(copy: LegacyPort) {
 		return Object.freeze({
 			...result,
 			...(warnings.length ? { metadataWarnings: Object.freeze([...warnings]) } : {}),
-			...(messages.length ? { notice: messages.join(' ') } : {}),
+			...(messages.length ? { notice: messages.join(' '), noticeLocalization: importNoticeLocalization(messages.map((text) => ({ text, localization: localized.get(text) }))) } : {}),
 		});
 	};
 }

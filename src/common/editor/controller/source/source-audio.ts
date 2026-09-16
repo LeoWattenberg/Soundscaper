@@ -1,4 +1,4 @@
-import { createPlanarPcmChunkCoalescer } from '../../pcm-chunks.js';
+import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import { createPlanarPcmChunkCoalescer } from '../../pcm-chunks.js';
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../../project.js';
 import { createStreamingWindowedSincResampler } from '../../resample.js';
 import { isSourcePcmReadSessionReleasedError } from '../../storage/source-pcm-read-session.ts';
@@ -351,7 +351,7 @@ export async function canonicalizeBuffer(
 	targetSampleRate: number | null = AUDIO_EDITOR_SAMPLE_RATE,
 	copy: AudioCopy,
 ): Promise<AudioBufferLike> {
-	if (!input?.numberOfChannels || !input?.length) throw new Error(copy.decodedAudioEmpty);
+	if (!input?.numberOfChannels || !input?.length) throw createLocalizedError(Error, copy, 'decodedAudioEmpty');
 	let channels: Float32Array[];
 	if (input.numberOfChannels <= 2) {
 		channels = Array.from({ length: input.numberOfChannels }, (_, channel) => input.getChannelData(channel));
@@ -396,10 +396,10 @@ export async function bufferFromChannels(
 	context: AudioBufferContext | null | undefined,
 	copy: AudioCopy,
 ): Promise<AudioBufferLike> {
-	if (!channels?.length || !channels[0]?.length) throw new Error(copy.decodedAudioEmpty);
+	if (!channels?.length || !channels[0]?.length) throw createLocalizedError(Error, copy, 'decodedAudioEmpty');
 	const buffer = await createAudioBuffer(channels.length, channels[0].length, sampleRate, context, copy);
 	for (let channel = 0; channel < channels.length; channel += 1) {
-		if (channels[channel]!.length !== channels[0].length) throw new Error(copy.decodedChannelLengthsMismatch);
+		if (channels[channel]!.length !== channels[0].length) throw createLocalizedError(Error, copy, 'decodedChannelLengthsMismatch');
 		if (buffer.copyToChannel) buffer.copyToChannel(channels[channel]!, channel);
 		else buffer.getChannelData(channel).set(channels[channel]!);
 	}
@@ -460,7 +460,7 @@ export async function createAudioBuffer(
 		readonly webkitAudioContext?: typeof AudioContext;
 	};
 	const Context = globalThis.AudioContext || globalAudio.webkitAudioContext;
-	if (!Context) throw new Error(copy.audioBufferUnsupported);
+	if (!Context) throw createLocalizedError(Error, copy, 'audioBufferUnsupported');
 	const temporary = new Context({ sampleRate });
 	const buffer = temporary.createBuffer(channelCount, length, sampleRate);
 	await temporary.close?.();

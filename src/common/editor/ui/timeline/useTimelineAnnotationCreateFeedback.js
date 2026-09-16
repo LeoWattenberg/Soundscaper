@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
-import { timelineAnnotationCreationAnnouncement } from './timeline-annotation-ui-model.ts';
+import { usePresentationFeedback } from '../presentation-feedback.ts'; import { timelineAnnotationCreationMessage } from './timeline-annotation-presentation.ts'; import { timelineAnnotationCreationAnnouncement } from './timeline-annotation-ui-model.ts';
 
 export function useTimelineAnnotationCreateFeedback({ controller, copy, locale, sampleRate, run }) {
-	const [status, setStatus] = useState('');
+	const [status, setStatus] = usePresentationFeedback(copy);
 	const announcementTimerRef = useRef(null);
 	const announce = useCallback((message) => {
 		globalThis.clearTimeout(announcementTimerRef.current);
@@ -14,7 +14,7 @@ export function useTimelineAnnotationCreateFeedback({ controller, copy, locale, 
 			announcementTimerRef.current = null;
 			setStatus(message);
 		}, 0);
-	}, []);
+	}, [setStatus]);
 	useEffect(() => () => globalThis.clearTimeout(announcementTimerRef.current), []);
 	const createAnnotation = useCallback((kind, focusCreated) => {
 		const annotationId = run(() => {
@@ -25,7 +25,7 @@ export function useTimelineAnnotationCreateFeedback({ controller, copy, locale, 
 		});
 		if (typeof annotationId !== 'string' || !annotationId.length) return annotationId;
 		return completeTimelineAnnotationCreation(annotationId, {
-			snapshot: controller.getSnapshot(), copy, locale, sampleRate, setStatus: announce, focusCreated,
+			snapshot: controller.getSnapshot(), copy, locale, sampleRate, setStatus: (message, identity) => announce(identity ?? message), focusCreated,
 		});
 	}, [announce, controller, copy, locale, run, sampleRate]);
 	return Object.freeze({ createAnnotation, status });
@@ -43,6 +43,7 @@ export function completeTimelineAnnotationCreation(annotationId, {
 	if (typeof annotationId !== 'string' || !annotationId.length) return annotationId;
 	const annotation = snapshot?.timelineAnnotations?.find(({ id }) => id === annotationId);
 	if (!annotation) return annotationId;
+	const identity = timelineAnnotationCreationMessage(annotation, sampleRate, locale);
 	setStatus(timelineAnnotationCreationAnnouncement(annotation, {
 		sampleRate,
 		locale,
@@ -51,7 +52,7 @@ export function completeTimelineAnnotationCreation(annotationId, {
 		marker: copy.timelineMarker,
 		region: copy.timelineRegion,
 		template: copy.timelineAnnotationCreated,
-	}));
+	}), identity);
 	if (typeof focusCreated === 'function') schedule(() => focusCreated(annotationId));
 	return annotationId;
 }

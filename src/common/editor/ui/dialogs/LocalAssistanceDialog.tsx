@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { LOCAL_ASSISTANCE_ADDITIONAL_COPY } from '../../../i18n/editor-local-assistance-additional-copy.ts';
+
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 
@@ -241,17 +243,17 @@ export function LocalAssistanceDialogView({
 			: text(copy, 'localAssistanceDescription',
 				'Process explicitly selected media locally with an installed, compatible model.')}</p>
 		{!request && <div className="kw-local-assistance__tabs" role="tablist"
-			aria-label={text(copy, 'localAssistanceMode', 'Local Assistance mode')}>
+			aria-label={text(copy, 'localAssistanceMode', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceMode)}>
 			<button type="button" role="tab" aria-selected={activeSurface === 'guided'}
 				aria-controls="local-assistance-guided-panel"
 				disabled={guided.canCancel || busy(snapshot)} onClick={() => {
 					void onSurfaceChange('guided');
-				}}>{text(copy, 'localAssistanceGuided', 'Guided')}</button>
+				}}>{text(copy, 'localAssistanceGuided', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceGuided)}</button>
 			<button type="button" role="tab" aria-selected={activeSurface === 'advanced'}
 				aria-controls="local-assistance-advanced-panel"
 				disabled={guided.canCancel || busy(snapshot)} onClick={() => {
 					void onSurfaceChange('advanced');
-				}}>{text(copy, 'localAssistanceAdvanced', 'Advanced')}</button>
+				}}>{text(copy, 'localAssistanceAdvanced', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceAdvanced)}</button>
 		</div>}
 		{request?.mode === 'task' && <LocalAssistanceTaskSummary snapshot={snapshot}
 			settings={guided.settings} copy={copy} disabled={guided.canCancel || busy(snapshot)}
@@ -267,7 +269,7 @@ export function LocalAssistanceDialogView({
 			onHighlightCropChange={onGuidedHighlightCropChange} />}
 		{activeSurface === 'advanced' && <section id="local-assistance-advanced-panel"
 			className="kw-local-assistance__advanced" role="tabpanel"
-			aria-label={text(copy, 'localAssistanceAdvanced', 'Advanced')}>
+			aria-label={text(copy, 'localAssistanceAdvanced', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceAdvanced)}>
 		<div className="kw-local-assistance__selections">
 			<label>{text(copy, 'localAssistanceSource', 'Selected media')}
 				<select value={snapshot.selectedSourceId ?? ''} disabled={busy(snapshot)}
@@ -288,15 +290,15 @@ export function LocalAssistanceDialogView({
 			</label>
 			{snapshot.selectedOperation === 'shot-detection' && <fieldset
 				className="kw-local-assistance__shot-mode" disabled={busy(snapshot)}>
-				<legend>{text(copy, 'localAssistanceShotDetectionMode', 'Mark Cuts mode')}</legend>
+				<legend>{text(copy, 'localAssistanceShotDetectionMode', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceShotDetectionMode)}</legend>
 				<label><input type="radio" name="local-assistance-shot-mode" value="fast"
 					checked={snapshot.shotDetectionMode === 'fast'} onChange={() => {
 						void onShotDetectionModeChange('fast');
-					}} />{text(copy, 'localAssistanceShotDetectionFast', 'Fast · model-free')}</label>
+					}} />{text(copy, 'localAssistanceShotDetectionFast', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceShotDetectionFast)}</label>
 				<label><input type="radio" name="local-assistance-shot-mode" value="accurate"
 					checked={snapshot.shotDetectionMode === 'accurate'} onChange={() => {
 						void onShotDetectionModeChange('accurate');
-					}} />{text(copy, 'localAssistanceShotDetectionAccurate', 'Accurate · TransNetV2')}</label>
+					}} />{text(copy, 'localAssistanceShotDetectionAccurate', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceShotDetectionAccurate)}</label>
 			</fieldset>}
 			{modelTaskSlots.map((slot) => {
 				const compatibleModels = snapshot.models.filter((model) => slot.includes(model.task)
@@ -318,11 +320,11 @@ export function LocalAssistanceDialogView({
 				</label>;
 			})}
 			{snapshot.selectedOperation && modelTaskSlots.length === 0 && <p>
-				{text(copy, 'localAssistanceNoModelRequired', 'This operation requires no installed model binding.')}
+				{text(copy, 'localAssistanceNoModelRequired', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceNoModelRequired)}
 			</p>}
 		</div>
 		<p>{text(copy, 'localAssistanceWorkflowConsent',
-			'Run locally opens one consent dialog for this exact operation, model, input, and output selection.')}</p>
+			LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceWorkflowConsent)}</p>
 		<div className="kw-local-assistance__run-actions">
 			<Button variant="primary" disabled={!snapshot.canRun} onClick={() => { void onRun(); }}>
 				{text(copy, 'localAssistanceRun', 'Run locally')}
@@ -427,7 +429,7 @@ function busy(snapshot: LocalAssistanceSnapshot): boolean {
 const EMPTY_MODEL_TASK_SLOTS = Object.freeze([Object.freeze([])]) as readonly (readonly string[])[];
 
 function text(copy: Copy, key: string, fallback: string): string {
-	return copy[key] || fallback;
+	return copy[`ui.localAssistance.${key}`] || copy[key] || fallback;
 }
 
 function template(value: string, variables: Readonly<Record<string, string>>): string {

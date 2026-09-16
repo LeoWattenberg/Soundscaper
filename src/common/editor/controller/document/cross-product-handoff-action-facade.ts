@@ -5,17 +5,21 @@ import type {
 	CrossProductHandoffActionResult,
 	CrossProductHandoffActionScope,
 } from './internal/cross-product-handoff-action.ts';
+import { setLocalizedStatus, type LocalizedPresentationMessage } from '../../../i18n/presentation-message.ts';
+import { CROSS_PRODUCT_HANDOFF_COPY_BY_LOCALE } from '../../../i18n/editor-project-media-copy.ts';
 
 interface CrossProductHandoffActionFacadeScope extends CrossProductHandoffActionScope {
 	readonly copy: Readonly<{
 		readonly projectSaved?: unknown;
 		readonly projectSaving?: unknown;
+		readonly [key: string]: unknown;
 	}>;
-	readonly setStatus?: (message: string, kind: 'success') => unknown;
+	readonly setStatus?: (message: string, kind: 'success', localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => unknown;
 	readonly taskProgress?: Readonly<{
 		run<Result>(
 			kind: 'project-io', label: string,
 			operation: () => PromiseLike<Result> | Result,
+			value?: number | null, localization?: LocalizedPresentationMessage,
 		): PromiseLike<Result> | Result;
 	}>;
 }
@@ -57,7 +61,7 @@ export function createCrossProductHandoffActionFacade(
 			};
 			const label = String(scope.copy.projectSaving ?? 'Saving project');
 			const result = scope.taskProgress?.run
-				? await scope.taskProgress.run('project-io', label, operation)
+				? await scope.taskProgress.run('project-io', label, operation, undefined, { key: 'projectSaving', fallback: label })
 				: await operation();
 			if (result.reportFileName !== null) publishSuccess(scope, result);
 			return result;
@@ -88,9 +92,8 @@ function publishSuccess(
 		: [];
 	const omitted = roots.filter(({ disposition }) => disposition === 'omit-with-report').length;
 	const accepted = roots.length - omitted;
-	scope.setStatus(
-		`${String(scope.copy.projectSaved ?? 'Project saved')}: ${result.fileName}; `
-		+ `${String(accepted)} accepted, ${String(omitted)} omitted; ${result.reportFileName}.`,
-		'success',
-	);
+	setLocalizedStatus(scope.setStatus, scope.copy, 'ui.crossProductHandoff.savedReport', {
+		saved: { key: 'projectSaved', fallback: String(scope.copy.projectSaved ?? 'Project saved') },
+		fileName: result.fileName, accepted, omitted, reportFileName: result.reportFileName ?? '',
+	}, 'success', { fallback: CROSS_PRODUCT_HANDOFF_COPY_BY_LOCALE.en.savedReport });
 }

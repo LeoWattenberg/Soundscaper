@@ -105,7 +105,7 @@ export function LocalModelManagerDialogView({
 	const models = snapshot.models.filter((model) => (!relatedOnly || !modelFilter || modelFilter(model))
 		&& (task === 'all' || model.task === task)
 		&& (status === 'all' || (status === 'installed' ? model.installedBytes !== null : model.installedBytes === null))
-		&& `${model.modelId} ${localModelDisplayName(model.modelId)} ${modelPurpose(copy, model.task)}`.toLocaleLowerCase(locale).includes(query.toLocaleLowerCase(locale)));
+		&& `${model.modelId} ${localModelDisplayName(model.modelId, copy)} ${modelPurpose(copy, model.task)}`.toLocaleLowerCase(locale).includes(query.toLocaleLowerCase(locale)));
 	const progress = new Map(snapshot.progress.map((entry) => [entry.modelId, entry]));
 	const busy = new Set(snapshot.busyModelIds);
 	const installing = new Set(snapshot.installingModelIds);
@@ -233,7 +233,7 @@ function ModelRow({
 	return <tr aria-busy={busy} data-local-model-id={model.modelId}
 		data-local-model-availability={model.availability}>
 		<td><div className="kw-local-model-manager__identity">
-			<strong>{localModelDisplayName(model.modelId)}</strong>
+			<strong>{localModelDisplayName(model.modelId, copy)}</strong>
 			<details><summary>{text(copy, 'assistanceTechnicalDetails', 'Technical details')}</summary>
 				<code>{model.modelId} · {model.version}</code></details>
 		</div>
@@ -311,7 +311,7 @@ function MaintenanceControls({
 		{offlineModels.length > 0 && <div className="kw-processing-details">
 			<PreferenceDropdownField label={text(copy, 'assistanceOfflineInstall', 'Offline installation')}
 				value={selected?.modelId ?? ''} onChange={setOfflineModelId} disabled={busy}
-				options={offlineModels.map((model) => ({ value: model.modelId, label: localModelDisplayName(model.modelId) }))} />
+				options={offlineModels.map((model) => ({ value: model.modelId, label: localModelDisplayName(model.modelId, copy) }))} />
 			<Button variant="secondary" disabled={busy || !selected} onClick={() => { if (selected) void onInstallPreseeded(selected.modelId); }}>
 				{text(copy, 'localModelsInstallFromFolder', 'Install from folder…')}</Button>
 		</div>}

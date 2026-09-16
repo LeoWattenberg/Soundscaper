@@ -1,45 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-const ENGLISH = Object.freeze({
-	addAutomation: 'Add automation',
-	automationParameter: 'Automation parameter',
-	automationMode: 'Automation mode',
-	automationRead: 'Read',
-	automationTrim: 'Trim',
-	automationTouch: 'Touch',
-	automationLatch: 'Latch',
-	automationWrite: 'Write',
-	automationInsertPoint: 'Insert automation point',
-	automationCurveMenu: 'Automation curve',
-	automationDeleteLane: 'Delete automation lane',
-	automationSegmentHold: 'Hold',
-	automationSegmentLinear: 'Linear',
-	automationSegmentEased: 'Eased',
-	automationSegmentBezier: 'Bézier',
-	automationFirstBezierControl: 'first Bézier control',
-	automationSecondBezierControl: 'second Bézier control',
-});
+import { TRACK_AUTOMATION_COPY_BY_LOCALE } from '../../../i18n/editor-track-automation-copy.ts';
+import { resolveEditorCopyScope } from '../../../i18n/editor-copy-scope.ts';
 
-const GERMAN = Object.freeze({
-	addAutomation: 'Automation hinzufügen',
-	automationParameter: 'Automationsparameter',
-	automationMode: 'Automationsmodus',
-	automationRead: 'Lesen',
-	automationTrim: 'Trimmen',
-	automationTouch: 'Berühren',
-	automationLatch: 'Einrasten',
-	automationWrite: 'Schreiben',
-	automationInsertPoint: 'Automationspunkt einfügen',
-	automationCurveMenu: 'Automationskurve',
-	automationDeleteLane: 'Automationsspur löschen',
-	automationSegmentHold: 'Halten',
-	automationSegmentLinear: 'Linear',
-	automationSegmentEased: 'Geglättet',
-	automationSegmentBezier: 'Bézier',
-	automationFirstBezierControl: 'erster Bézier-Anfasser',
-	automationSecondBezierControl: 'zweiter Bézier-Anfasser',
-});
 
-export function resolveTrackAutomationCopy(locale: string | null | undefined) {
-	return String(locale || '').toLowerCase().startsWith('de') ? GERMAN : ENGLISH;
+export function resolveTrackAutomationCopy(locale: string | null | undefined, copy: Readonly<Record<string, string | undefined>> = {}) {
+	const base = String(locale || '').toLowerCase().startsWith('de') ? TRACK_AUTOMATION_COPY_BY_LOCALE.de : TRACK_AUTOMATION_COPY_BY_LOCALE.en;
+	return resolveEditorCopyScope('trackAutomation', base, copy);
 }

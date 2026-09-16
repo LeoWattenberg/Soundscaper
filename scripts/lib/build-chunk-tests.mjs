@@ -13,8 +13,8 @@
  */
 
 export const editorPath = String.raw`src[\\/]common[\\/]editor[\\/]`;
-const editorOptionalArchiveModule = String.raw`(?:archive-media-reader|aup-legacy(?:-block-budget|-conversion|-xml)?|aup4-(?:client|opaque-merge|opaque-persistence|profile-values|profile|sanitization|time-signature|track-nodes)|audacity-(?:annotation-interchange|tempo-import)|dawproject-(?:archive|export(?:-context|-lanes)?|format|import(?:-maps|-project|-structure|-timeline)?|xml)|scape-(?:archive-(?:copy|layout(?:-witness)?|manifest|reader)|export-destination|import-capacity|import-transaction|project-admission|project-source-remap)|scape-project(?:-canonical-inspection|-timing-assets)?)`;
-const editorOptionalExecutionModule = String.raw`(?:controller[\\/]import[\\/]internal[\\/]streamed-audio-import-service|analysis|browser-(?:audio-encode-stream-client|audio-streamed-encode|dedicated-audio-(?:codec|output-validation|worker-client)|reviewed-streamed-audio-decoders|streamed-audio-(?:import|output-validation)|streamed-wavpack-import|webcodecs-aac(?:-stream)?)|dedicated-audio-encode-session|desktop-audio-(?:range-blob|stream-encoder|stream-request)|desktop-mpeg-layer-ii-import|aac-source-geometry|(?:mp3|ogg)-gapless-import|loudness-measurement-report|pffft|selection-effects-runtime|spectral-edit(?:-admission)?|video-(?:keyframe-mediabunny-execution|mediabunny-muxer))`;
+const editorOptionalArchiveModule = String.raw`(?:archive-media-reader|aup-legacy(?:-block-budget|-conversion|-xml)?|aup4-(?:client|opaque-merge|opaque-persistence|profile-values|profile|sanitization|time-signature|track-nodes)|audacity-(?:annotation-interchange|tempo-import)|dawproject-(?:archive|export(?:-context|-lanes)?|format|import(?:-maps|-project|-structure|-timeline)?|xml)|scape-(?:archive-(?:copy|layout(?:-witness)?|manifest|reader)|export-(?:destination|plan)|import-capacity|import-transaction|project-admission|project-source-remap)|scape-project(?:-canonical-inspection|-timing-assets)?)`;
+const editorOptionalExecutionModule = String.raw`(?:controller[\\/]import[\\/]internal[\\/]streamed-audio-import-service|analysis|browser-(?:audio-encode-stream-client|audio-streamed-encode|dedicated-audio-(?:codec|output-validation|profiles|worker-client)|reviewed-streamed-audio-decoders|streamed-audio-(?:import|output-validation)|streamed-wavpack-import|webcodecs-aac(?:-stream)?)|dedicated-audio-encode-session|desktop-audio-(?:range-blob|stream-encoder|stream-request)|desktop-mpeg-layer-ii-import|aac-source-geometry|(?:mp3|ogg)-gapless-import|loudness-measurement-report|pffft|selection-effects-runtime|spectral-edit(?:-admission)?|video-(?:keyframe-mediabunny-execution|mediabunny-muxer))`;
 const controllerInternalPath = String.raw`internal[\\/](?:[^\\/]+[\\/])*`;
 const editorOptionalExportControllerBasename = String.raw`(?:audio-export-delivery-admission|audio-export-progress|audio-export-render-orchestration|audio-realtime-encoded-export|audio-rendered-fallback-export|bw64-render-project|delivery-conformance-action|desktop-audio-export-capability|direct-(?:aiff-export|audio-render-plan|broadcast-wave-export|bw64-export|bwf-export|compressed-export|compressed-plan|compressed-stem-archive-plan|export-dispatch|mp3-export|native-stem-archive-plan|offline-compressed-export|offline-pcm-export|pcm-export|stem-archive-export|video-export|video-plan-contract|wav-export)|export-service|mastering-sequence-export-render|persistent-audio-delivery-execution|persistent-export-progress|realtime-export-pcm-transform|rendered-audio-encoding|streaming-stem-archive-export|video-export-captions|video-export-original-loader|video-export-service|video-export-staged-audio|video-rendered-fallback-export)`;
 const editorOptionalExportControllerModule = String.raw`export[\\/](?:${controllerInternalPath})?${editorOptionalExportControllerBasename}`;
@@ -35,7 +35,7 @@ const editorOptionalExportControllerModule = String.raw`export[\\/](?:${controll
  * `video-burn-in-font-subsets.ts` is a different module the caption pipeline reads
  * eagerly; the trailing `\.ts$` anchor is what keeps it out of this alternation.
  */
-const editorOptionalExportFlatModule = String.raw`(?:audio-export-output|delivery-conformance|delivery-video-conversion-inventory|file-backed-audio-export|loudness-normalization-render|video-burn-in-font|video-delivery-encoder-tier)`;
+const editorOptionalExportFlatModule = String.raw`(?:audio-export-output|delivery-conformance|delivery-conversion-inventory|delivery-video-conversion-inventory|file-backed-audio-export|loudness-normalization-render|video-burn-in-font|video-delivery-encoder-tier)`;
 export const editorOptionalControllerModule = String.raw`(?:analysis[\\/]analysis-service|document[\\/]internal[\\/]cross-product-handoff-action|import[\\/]internal[\\/]dawproject[\\/]dawproject-service|${editorOptionalExportControllerModule})`;
 /**
  * The Framescaper capture and Web VCR implementation, loaded when a capture
@@ -66,7 +66,13 @@ export const editorOptionalSurfaceModule = String.raw`ui[\\/](?:AudacityEffectLa
 export const EDITOR_ASSISTANCE_SEMANTIC_SEARCH_RUNTIME_CHUNK_TEST =
 	/src[\\/]common[\\/]editor[\\/](?:assistance[\\/]local-assistance-semantic-search-bridge|ui[\\/]local-assistance-semantic-search-source)\.ts$/;
 export const EDITOR_COPY_CHUNK_TEST =
-	/(?:src[\\/]common[\\/]i18n[\\/](?:catalogs|runtime|canonical-extras(?:-standard-effects)?|(?!(?:site|site-sidebar)-copy\.js$)[^\\/]+-copy)|src[\\/]soundscaper[\\/]framescaper-capture-copy)\.js$/;
+	/(?:src[\\/]common[\\/]i18n[\\/](?:(?:catalogs|runtime|canonical-extras(?:-standard-effects)?|(?!(?:site|site-sidebar)-copy\.js$)[^\\/]+-copy)\.js|(?:editor-copy-(?:inventory|scope)|[^\\/]+-copy)\.ts)|src[\\/]soundscaper[\\/]framescaper-capture-copy\.js)$/;
+
+/** Dependency-free message descriptors shared by project models and controllers. */
+export const EDITOR_PRESENTATION_CHUNK_TEST = /src[\\/]common[\\/]i18n[\\/](?:presentation-(?:message|progress)|translation-scope)\.ts$/;
+
+/** Drafts and file interchange run only after the translation menu opens its surface. */
+export const EDITOR_COMMUNITY_TRANSLATIONS_CHUNK_TEST = /src[\\/]common[\\/](?:i18n[\\/]community-translations(?:-po)?\.ts|editor[\\/](?:controller[\\/]preferences[\\/]translation-drafts\.ts|ui[\\/]community-translations[\\/](?!(?:CommunityTranslationMount\.tsx|community-translation-(?:menu|presentation)\.ts)$)[^\\/]+))$/;
 
 /** Archive/interchange implementation modules owned only by lazy file-menu actions. */
 export const EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST = new RegExp(
@@ -120,7 +126,7 @@ export const EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST = new RegExp(
 
 /** Menu-opened UI implementations that remain behind existing React.lazy surfaces. */
 export const EDITOR_OPTIONAL_SURFACE_CHUNK_TEST = new RegExp(
-	`${editorPath}(?:${editorOptionalSurfaceModule}|ui[\\\\/]local-assistance-review-authority\\.ts)$`,
+	`(?:${editorPath}(?:${editorOptionalSurfaceModule}|ui[\\\\/]local-assistance-review-authority\\.ts|local-diagnostics-(?:report|contract)\\.ts)|src[\\\\/]framescaper[\\\\/]editor-selected-timeline-image-image-(?:preview|filmstrip|preview-resources)\\.ts)$`,
 );
 
 /** Split Tool interaction runtimes kept out of the product-ready startup graph. */

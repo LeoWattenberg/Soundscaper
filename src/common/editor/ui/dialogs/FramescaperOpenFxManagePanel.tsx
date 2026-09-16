@@ -1,3 +1,4 @@
+import { usePresentationFeedback, feedbackFailure } from '../presentation-feedback.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { ProcessingButton as Button } from './ProcessingButton.tsx';
@@ -39,7 +40,7 @@ export default function FramescaperOpenFxManagePanel({
 	const [selectedHandle, setSelectedHandle] = useState<string | null>(null);
 	const [plugins, setPlugins] = useState<readonly FramescaperOpenFxPluginProjectionV1[]>([]);
 	const [working, setWorking] = useState(false);
-	const [message, setMessage] = useState('');
+	const [message, setMessage] = usePresentationFeedback(copy);
 	const mounted = useRef(false);
 	const refreshSequence = useRef(0);
 	useEffect(() => {
@@ -67,14 +68,14 @@ export default function FramescaperOpenFxManagePanel({
 		if (mounted.current && sequence === refreshSequence.current) setPlugins(next);
 	}, [bridge]);
 	useEffect(() => { void refresh().catch((error: unknown) => {
-		if (mounted.current) setMessage(error instanceof Error ? error.message : String(error));
-	}); }, [refresh]);
+		if (mounted.current) setMessage(feedbackFailure(error));
+	}); }, [refresh, setMessage]);
 	const run = (operation: () => Promise<void>): void => {
 		setWorking(true);
 		setMessage('');
 		void operation().then(
-			() => setMessage(copy.ofxOperationComplete),
-			(error: unknown) => setMessage(error instanceof Error ? error.message : String(error)),
+			() => setMessage({ key: 'ofxOperationComplete' }),
+			(error: unknown) => setMessage(feedbackFailure(error)),
 		).finally(() => setWorking(false));
 	};
 	const scan = (): void => run(async () => {

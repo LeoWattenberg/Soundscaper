@@ -116,7 +116,7 @@ export interface EditCompositionDependencies<History extends ControllerRuntimeHi
 		& LabelServiceDependencies['commit']
 		& ClipboardEditServiceDependencies['commit']
 		& AudioGeneratorServiceDependencies['commit'];
-	readonly setStatus: (message: string, state?: string) => void;
+	readonly setStatus: (message: string, state?: string, localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly publishDocumentSnapshot: () => void;
 	readonly handleError: (error: unknown) => void;
 	readonly preflightStorage: AudioGeneratorServiceDependencies['preflightStorage'];

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { EngineParametricEqPreview } from '../../engine/public-api.ts';
+import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import type { EngineParametricEqPreview } from '../../engine/public-api.ts';
 import type { EditorActionRuntime } from './action-facade-runtime.ts';
 import type { AudioEditorCommandPayloads } from '../../commands/protocol.ts';
 import { assertEditorActionFunctions } from './action-facade-runtime.ts';
@@ -92,7 +92,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 	const sequenceExtensions = snapshotProductActionExtensions<(...args: unknown[]) => unknown>(scope, 'productSequenceActions', [
 		'label', 'setActive', 'stepFrame', 'seekLabel',
 	]);
-	const crossProductHandoffActions = createCrossProductHandoffActionFacade({ ...scope, copy: { projectSaved: copy.projectSaved, projectSaving: copy.projectSaving } });
+	const crossProductHandoffActions = createCrossProductHandoffActionFacade({ ...scope, copy: { get projectSaved() { return copy.projectSaved; }, get projectSaving() { return copy.projectSaving; } } });
 	const macros = createEffectMacroActions(effectLibraryScope, restricted);
 	const actions = Object.freeze({
 		project: Object.freeze({
@@ -222,7 +222,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 				if (state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder) {
 					return engine.getPositionFrames();
 				}
-				if (hasMissingTimelineSources()) throw new Error(copy.localSourcesMissing);
+				if (hasMissingTimelineSources()) throw createLocalizedError(Error, copy, 'localSourcesMissing');
 				cancelPlaybackCachePreparation();
 				const nextFrame = normalizePlaybackFrame(frame);
 				return typeof engine.scrub === 'function' ? engine.scrub(nextFrame) : engine.seek(nextFrame);

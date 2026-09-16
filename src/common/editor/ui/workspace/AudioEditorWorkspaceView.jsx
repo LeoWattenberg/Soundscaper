@@ -286,7 +286,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 				</div>
 			)}
 			{uiFlags.storagePanel && (
-				<StorageCapacityPanel snapshot={snapshot} locale={locale} controller={controller} run={run} />
+				<StorageCapacityPanel snapshot={snapshot} locale={locale} copy={copy} controller={controller} run={run} />
 			)}
 			<ProjectFeatureCompatibilityNotice
 				key={project?.id || 'no-project'}

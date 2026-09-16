@@ -300,6 +300,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 				<div data-editor-surface="framescaper-selected-authoring">
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 						<FramescaperSelectedVisualAuthoringDialog
+							copy={copy}
 							surface={selectedAuthoringSurface}
 							controller={controller}
 							project={snapshot.project}

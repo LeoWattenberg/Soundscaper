@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { isAudioMediaKind } from '../../audio-media-kind.ts';
+import { publishedCopyFor } from '../shared/presentation-localization.ts'; import { isAudioMediaKind } from '../../audio-media-kind.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../i18n/presentation-message.ts';
 
 import {
 	clipNeedsTimePitchRender as legacyClipNeedsTimePitchRender,
@@ -127,7 +127,7 @@ export interface ClipTimePitchRenderServiceDependencies {
 	cacheSourceBuffer(sourceId: string, buffer: AudioBufferLike): void;
 	commit(command: AudioEditorCommand, selection?: CommitSelection): unknown;
 	setProcessing(processing: boolean): void;
-	setStatus(message: string, kind?: string): void;
+	setStatus(message: string, kind?: string, localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;
 	publish(): void;
 }
 
@@ -150,14 +150,14 @@ export function createClipTimePitchRenderService(
 		const clip = findRenderClip(project, clipId);
 		const track = clip ? findClipTrack(project, clip.id) : null;
 		const source = clip ? findRenderSource(project, clip.sourceId) : null;
-		if (!clip || !track || !source) throw new Error(dependencies.copy.audioClipNotFound);
+		if (!clip || !track || !source) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		if (!clipNeedsTimePitchRender(clip)) return clip.id;
 		const task = dependencies.lifetime.startTask('clip-time-pitch-render');
 		const operation = ++renderGeneration;
 		const projectToken = dependencies.captureProject();
 		const fingerprint = fingerprintClip(project, clip);
 		dependencies.setProcessing(true);
-		dependencies.setStatus(dependencies.copy.rendering);
+		setLocalizedStatus(dependencies.setStatus, dependencies.copy, "rendering");
 		dependencies.publish();
 		let renderedSourceId: string | null = null;
 		let writer: ClipTimePitchSourceWriter | null = null;
@@ -182,7 +182,7 @@ export function createClipTimePitchRenderService(
 			assertOwned(task, projectToken, fingerprint);
 			const channels = audioBufferChannels(buffer).map((channel) => channel.slice());
 			renderedSourceId = dependencies.createId('rendered-clip');
-			const name = `${source.name || clip.title || track.name} — ${dependencies.copy.renderPitchSpeed}`;
+			const name = `${source.name || clip.title || track.name} — ${publishedCopyFor(dependencies.copy).renderPitchSpeed}`;
 			writer = await dependencies.store.beginSourceWrite(renderedSourceId, {
 				name,
 				mimeType: 'audio/wav',
@@ -215,7 +215,7 @@ export function createClipTimePitchRenderService(
 					createAddClipCommand(track.id, nextClip),
 				],
 			}, { selectTrackId: track.id, selectClipId: clip.id });
-			dependencies.setStatus(dependencies.copy.done, 'success');
+			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
 			return clip.id;
 		} catch (error) {
 			if (writer && !writerCommitted) await Promise.resolve(writer.abort(error)).catch(() => undefined);

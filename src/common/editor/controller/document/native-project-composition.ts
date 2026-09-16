@@ -46,18 +46,18 @@ export function createNativeProjectComposition(dependencies: NativeProjectCompos
 	});
 	const { taskProgress, copy } = dependencies;
 	const openAudacityProject = (...args: Parameters<typeof service.openAudacityProject>) => (
-		taskProgress.run('project-io', copy.importing, () => service.openAudacityProject(...args))
+		taskProgress.run('project-io', copy.importing, () => service.openAudacityProject(...args), undefined, { key: "importing" })
 	);
 	return Object.freeze({
 		...service, openAudacityProject, openAup4: openAudacityProject,
 		openScape: (...args: Parameters<typeof service.openScape>) => (
-			taskProgress.run('project-io', copy.importing, () => service.openScape(...args))
+			taskProgress.run('project-io', copy.importing, () => service.openScape(...args), undefined, { key: "importing" })
 		),
 		saveScape: (...args: Parameters<typeof service.saveScape>) => (
-			taskProgress.run('project-io', copy.projectSaving, () => service.saveScape(...args))
+			taskProgress.run('project-io', copy.projectSaving, () => service.saveScape(...args), undefined, { key: "projectSaving" })
 		),
 		saveAup4: (...args: Parameters<typeof service.saveAup4>) => (
-			taskProgress.run('project-io', copy.aup4Saving, () => service.saveAup4(...args))
+			taskProgress.run('project-io', copy.aup4Saving, () => service.saveAup4(...args), undefined, { key: "aup4Saving" })
 		),
 	});
 }

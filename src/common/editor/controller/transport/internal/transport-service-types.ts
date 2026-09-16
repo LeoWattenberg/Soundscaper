@@ -104,7 +104,7 @@ export interface TransportServiceRuntime<Project extends TransportProject = Tran
 		clipIds?: readonly string[];
 		frequencyRange?: null;
 	}>) => unknown;
-	readonly setStatus: (message: string, state?: 'info' | 'success' | 'error') => void;
+	readonly setStatus: (message: string, state?: 'info' | 'success' | 'error', localization?: import('../../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly startRecording: () => unknown;
 	readonly state: TransportServiceState;
 	readonly stopProjectBinPreview: () => PromiseLike<unknown> | unknown;

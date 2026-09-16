@@ -24,8 +24,8 @@ English copy has and the catalog lacks or holds a stale automatic entry for (a h
 then regenerates the loader index. With --answers DIR the
 answers under DIR/<locale>/*.json stand in for the model and are held to the same rules. packets writes the
 closed packets such a run would send, one file per batch under DIR/<locale>/, for another translator to
-answer. check reports each catalog against the current English copy; --strict fails when anything is stale,
-missing, orphaned or invalid.`;
+answer. check reports legacy and additional inventory coverage separately. --strict requires legacy strings
+to be current and present, and fails on orphaned entries, outdated prompts or invalid files.`;
 
 export function parseCliArguments(argv) {
 	const [command, ...rest] = argv;
@@ -76,7 +76,7 @@ export async function runCli(argv, io = {}) {
 	const options = parseCliArguments(argv);
 	if (options.command === 'check') {
 		const locales = options.locales ?? await listTranslationCatalogLocales(io.directory);
-		const reports = await checkLocales({ locales, directory: io.directory });
+		const reports = await checkLocales({ locales, directory: io.directory, englishCopy: io.englishCopy });
 		let failed = false;
 		for (const report of reports) {
 			if (report.invalid) {
@@ -87,12 +87,15 @@ export async function runCli(argv, io = {}) {
 			if (!report.present) {
 				failed = true;
 				stdout.write(`${report.locale}: no machine catalog\n`);
+				writeCoverageReport(stdout, report);
 				continue;
 			}
-			const pending = report.stale + report.missing + report.orphaned + (report.outdated ? 1 : 0);
+			const completeness = report.coverage?.legacy ?? report;
+			const pending = completeness.stale + completeness.missing + report.orphaned + (report.outdated ? 1 : 0);
 			if (options.strict && pending > 0) failed = true;
 			const origins = Object.entries(report.origins).filter(([, count]) => count > 0).map(([origin, count]) => `${count} ${origin}`).join(', ');
 			stdout.write(`${report.locale}: ${report.current} current (${origins}), ${report.stale} stale, ${report.missing} missing, ${report.orphaned} orphaned${report.outdated ? ', prompt outdated' : ''}${report.model ? ` (${report.model})` : ''}\n`);
+			writeCoverageReport(stdout, report);
 		}
 		if (failed) process.exitCode = 1;
 		return reports;
@@ -156,3 +159,10 @@ async function resolveGlossary(locale, options, { stderr }) {
 }
 
 export { HELP };
+
+
+function writeCoverageReport(stdout, report) {
+	if (!report.coverage) return;
+	const describe = scope => `${scope.total} keys (${scope.excluded} excluded), ${scope.current} current, ${scope.stale} stale, ${scope.missing} missing`;
+	stdout.write(`${report.locale} coverage: legacy ${describe(report.coverage.legacy)}; additional ${describe(report.coverage.additional)}\n`);
+}

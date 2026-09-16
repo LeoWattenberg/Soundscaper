@@ -253,13 +253,13 @@ export function createClipVideoComposition(dependencies: ClipVideoCompositionDep
 		videoEffect,
 		getVideoRetimeProgramState,
 		applySamplePencil: (...args: Parameters<SampleEdit['applySamplePencil']>) => (
-			taskProgress.run('sample-edit', copy.sampleEditSaving, () => sampleEdit.applySamplePencil(...args))
+			taskProgress.run('sample-edit', copy.sampleEditSaving, () => sampleEdit.applySamplePencil(...args), undefined, { key: "sampleEditSaving" })
 		),
 		smoothSelectedSamples: (...args: Parameters<SampleEdit['smoothSelectedSamples']>) => (
-			taskProgress.run('sample-edit', copy.sampleEditSaving, () => sampleEdit.smoothSelectedSamples(...args))
+			taskProgress.run('sample-edit', copy.sampleEditSaving, () => sampleEdit.smoothSelectedSamples(...args), undefined, { key: "sampleEditSaving" })
 		),
 		renderClipPitchSpeed: (...args: Parameters<ClipTimePitchRender['renderClipPitchSpeed']>) => (
-			taskProgress.run('render', copy.rendering, () => clipTimePitchRender.renderClipPitchSpeed(...args))
+			taskProgress.run('render', copy.rendering, () => clipTimePitchRender.renderClipPitchSpeed(...args), undefined, { key: "rendering" })
 		),
 	});
 }

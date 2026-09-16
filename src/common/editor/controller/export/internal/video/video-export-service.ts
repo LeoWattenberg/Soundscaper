@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createVisibleVideoTrackPredicate } from '../../../../video-timeline.js';
+import { createVisibleVideoTrackPredicate } from '../../../../video-timeline.js'; import { createLocalizedError, setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
 
 import { prepareBrowserExportBlob } from '../../../../browser-export-output.ts';
 import { getVideoExportFormat } from '../../../../video-export.js';
@@ -112,7 +112,7 @@ export function createEditorVideoExportAction(
 			...delivery.requiredVideoSourceIds,
 		]);
 		if (hasMissingTimelineSources(exportProject, { excludedSourceIds: fallbackSourceIds })) {
-			throw new Error(copy.localSourcesMissing);
+			throw createLocalizedError(Error, copy, 'localSourcesMissing');
 		}
 		const generation = ++state.exportGeneration;
 		const projectToken = projectGeneration.capture(canonicalProject.id);
@@ -129,7 +129,7 @@ export function createEditorVideoExportAction(
 		};
 		state.exportAbort = abort;
 		toggleExport(true);
-		const progressTask = taskProgress?.begin?.('export', copy.rendering, 0) || NO_TASK_PROGRESS;
+		const progressTask = taskProgress?.begin?.('export', copy.rendering, 0, { key: 'rendering' }) || NO_TASK_PROGRESS;
 		let pendingCleanup = null;
 		let pendingDirectDestination: DirectVideoDestination | null = null;
 		let keyedTimingIndexes: Awaited<ReturnType<typeof acquireVideoExportTimingIndexes>> | null = null;
@@ -261,8 +261,8 @@ export function createEditorVideoExportAction(
 			const rawVideoBytes = [...videoBlobs.values()]
 				.reduce((total, blob) => total + blob.size, 0);
 			await preflightStorage(Math.max(rawVideoBytes, 16 * 1024 * 1024), 'export');
-			setStatus(copy.rendering);
-			progressTask.setPhase(copy.rendering, { start: 0, end: 0.4, value: 0 });
+			setLocalizedStatus(setStatus, copy, "rendering");
+			progressTask.setPhase(copy.rendering, { start: 0, end: 0.4, value: 0 }, { key: 'rendering' });
 			let audioMixBlob = null;
 			if (includeAudio) {
 				const range = {
@@ -316,11 +316,11 @@ export function createEditorVideoExportAction(
 			const burnInSubsets = videoBurnInFontSubsetIds(plan.filterPlan?.burnIn ?? null);
 			const burnInFonts = burnInSubsets.length > 0 ? await loadBurnInFonts(burnInSubsets) : null;
 			if (burnInSubsets.some((subsetId) => !(burnInFonts?.get(subsetId) instanceof Blob))) {
-				throw new Error(copy.burnInFontUnavailable || 'The caption font could not be loaded.');
+				throw createLocalizedError(Error, { burnInFontUnavailable: copy.burnInFontUnavailable || 'The caption font could not be loaded.' }, 'burnInFontUnavailable');
 			}
 			assertVideoExportCurrent();
-			setStatus(copy.encoding);
-			progressTask.setPhase(copy.encoding, { start: 0.4, end: 1, value: 0 });
+			setLocalizedStatus(setStatus, copy, "encoding");
+			progressTask.setPhase(copy.encoding, { start: 0.4, end: 1, value: 0 }, { key: 'encoding' });
 			assertVideoExportCurrent();
 			let encoded;
 			if (pendingDirectDestination) {
@@ -407,7 +407,7 @@ export function createEditorVideoExportAction(
 				await deliverCaptionSidecar(plan, exportProject, projectSampleRate(), fileName, fileService);
 				try { assertVideoExportCurrent(); } catch { return result; }
 				state.exportOutput = result;
-				setStatus(copy.done, 'success');
+				setLocalizedStatus(setStatus, copy, "done", undefined, 'success');
 				publishDocumentSnapshot();
 				return result;
 			}
@@ -444,7 +444,7 @@ export function createEditorVideoExportAction(
 				method: published.method,
 			});
 			pendingCleanup = null;
-			setStatus(copy.done, 'success');
+			setLocalizedStatus(setStatus, copy, "done", undefined, 'success');
 			publishDocumentSnapshot();
 			return state.exportOutput;
 		} catch (caughtError) {

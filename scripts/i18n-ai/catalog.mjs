@@ -124,7 +124,34 @@ export function assertTranslationCatalogFile(catalog, locale) {
 		if (!AUTOMATIC_ORIGINS.includes(origin)) throw new Error(`Translation catalog ${locale} carries provenance for an unknown origin ${origin}.`);
 		if (!present.has(origin)) throw new Error(`Translation catalog ${locale} carries ${origin} provenance without ${origin} entries.`);
 	}
+	assertCommunityAttribution(catalog);
 	return catalog;
+}
+
+function assertCommunityAttribution(catalog) {
+	if (catalog.community === undefined) return;
+	if (!catalog.community || typeof catalog.community !== 'object' || Array.isArray(catalog.community)) {
+		throw new Error(`Translation catalog ${catalog.locale} community attribution must be an object.`);
+	}
+	for (const [key, record] of Object.entries(catalog.community)) {
+		const prefix = `Translation catalog ${catalog.locale} community attribution ${key}`;
+		if (catalog.entries[key]?.[0] !== 'human' || !record || typeof record !== 'object' || Array.isArray(record)) {
+			throw new Error(`${prefix} must describe a human entry.`);
+		}
+		if (!['machine', 'audacity', 'human', 'bundled', 'missing'].includes(record.sourceOrigin)) throw new Error(`${prefix} has an unknown source origin.`);
+		for (const field of ['contributor', 'note']) {
+			if (record[field] !== undefined && typeof record[field] !== 'string') throw new Error(`${prefix} ${field} must be text.`);
+		}
+		const previous = record.previousEntry;
+		if (previous !== null && (!Array.isArray(previous) || previous.length !== 3
+			|| !TRANSLATION_ORIGINS.includes(previous[0]) || typeof previous[1] !== 'string' || typeof previous[2] !== 'string')) {
+			throw new Error(`${prefix} previous entry must be an origin/source/translation triple or null.`);
+		}
+		if (record.upstreamProvenance !== undefined && (!record.upstreamProvenance
+			|| typeof record.upstreamProvenance !== 'object' || Array.isArray(record.upstreamProvenance))) {
+			throw new Error(`${prefix} upstream provenance must be an object.`);
+		}
+	}
 }
 
 function assertFields(record, fields, label) {
@@ -180,7 +207,7 @@ export function assessTranslationCatalog(catalog, englishCopy, options = {}) {
 }
 
 /** One entry per line, keys in code-unit order, each provenance record on one line. */
-export function serializeTranslationCatalog({ locale, provenance = {}, entries }) {
+export function serializeTranslationCatalog({ locale, provenance = {}, entries, community }) {
 	const keys = Object.keys(entries).sort(compareCodeUnits);
 	const lines = keys.map((key) => `\t\t${JSON.stringify(key)}: ${JSON.stringify([entries[key][0], entries[key][1], entries[key][2]])}`);
 	const provenanceLines = AUTOMATIC_ORIGINS
@@ -191,6 +218,11 @@ export function serializeTranslationCatalog({ locale, provenance = {}, entries }
 		`\t"schemaVersion": ${TRANSLATION_CATALOG_SCHEMA_VERSION},`,
 		`\t"locale": ${JSON.stringify(locale)},`,
 		`\t"provenance": {${provenanceLines.length ? `\n${provenanceLines.join(',\n')}\n\t` : ''}},`,
+		...(community && Object.keys(community).length ? [
+			'\t"community": {',
+			Object.keys(community).sort(compareCodeUnits).map((key) => `\t\t${JSON.stringify(key)}: ${JSON.stringify(community[key])}`).join(',\n'),
+			'\t},',
+		] : []),
 		'\t"entries": {',
 		lines.join(',\n'),
 		'\t}',
@@ -216,7 +248,9 @@ export async function writeTranslationCatalog(catalog, directory = TRANSLATION_C
 		await rm(path, { force: true });
 		return path;
 	}
-	const document = { schemaVersion: TRANSLATION_CATALOG_SCHEMA_VERSION, locale: catalog.locale, provenance, entries };
+	const community = Object.fromEntries(Object.entries(catalog.community ?? {}).filter(([key]) => entries[key]?.[0] === 'human'));
+	const document = { schemaVersion: TRANSLATION_CATALOG_SCHEMA_VERSION, locale: catalog.locale, provenance,
+		...(Object.keys(community).length ? { community } : {}), entries };
 	assertTranslationCatalogFile(document, catalog.locale);
 	await writeAtomically(path, serializeTranslationCatalog(document));
 	return path;

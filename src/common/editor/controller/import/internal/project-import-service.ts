@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { inspectWavContainerSignature, inspectWavForImport } from './wav-import-routing.ts';
+import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import { inspectWavContainerSignature, inspectWavForImport } from './wav-import-routing.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts'; import { publishImportCompletionStatus, type LocalizedImportNotice } from './import-status-localization.ts';
 import { loadImportAdmissionExecution } from './import-admission-loader.ts';
 import { admitAudioImportChannelCount } from './audio-import-channel-admission.ts';
 import {
@@ -91,7 +91,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	});
 	async function importFiles(fileList: RuntimeValue, requestedOptions: RuntimeValue = {}) {
 		const files = [...(fileList || [])];
-		if (files.length && !editingBlocked()) setStatus(copy.importing);
+		if (files.length && !editingBlocked()) setLocalizedStatus(setStatus, copy, "importing");
 		const { createImportTaskCancellation } = await loadImportAdmissionExecution();
 		const cancellation = createImportTaskCancellation(await normalizedImportOptionsForUse(requestedOptions));
 		const importOptions = cancellation.options;
@@ -107,15 +107,15 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			catch (error) { handleError(error); }
 			return;
 		}
-		const progressTask = taskProgress?.begin?.('import', copy.importing) || null;
+		const progressTask = taskProgress?.begin?.('import', copy.importing, undefined, { key: 'importing' }) || null;
 		progressTask?.setCancellation?.(cancellation.abort);
 		activeImportProgress = progressTask;
 		state.importing = true;
 		publishDocumentSnapshot();
-		setStatus(copy.importing);
+		setLocalizedStatus(setStatus, copy, "importing");
 		let failures = 0;
 		let successes = 0;
-		const notices = [];
+		const notices: LocalizedImportNotice[] = [];
 		let importQueue = files;
 		const progressFiles = files.filter((file: RuntimeValue) => !isLegacyBlockFile(file));
 		const totalBytes = Math.max(1, progressFiles.reduce((sum: number, file: RuntimeValue) => (
@@ -130,7 +130,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 					legacyProject,
 					files.filter((file: RuntimeValue) => file !== legacyProject && !isLegacyAupFile(file)),
 				);
-				if (result?.notice) notices.push(result.notice);
+				if (result?.notice) notices.push({ text: result.notice, localization: result.noticeLocalization });
 				successes += 1;
 			} catch (error) {
 				failures += 1;
@@ -148,7 +148,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			setImportFileProgress(file, completedBytes, totalBytes);
 			try {
 				const result = await importFile(file, importFilePlacement(importOptions, audioFileIndex));
-				if (result?.notice) notices.push(result.notice);
+				if (result?.notice) notices.push({ text: result.notice, localization: result.noticeLocalization });
 				successes += 1;
 			} catch (error) {
 				if (cancellation.signal.aborted && !(error instanceof AggregateError)) break;
@@ -161,10 +161,8 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		}
 		try {
 			if (cancellation.signal.aborted && !failures) setStatus('');
-			else if (!failures) setStatus(notices.length ? notices.join(' ') : copy.done, 'success');
-			else setStatus(copy.importSummary
-				.replace('{successes}', String(successes))
-				.replace('{failures}', String(failures)), 'error');
+			else if (!failures) publishImportCompletionStatus(setStatus, copy, notices);
+			else setLocalizedStatus(setStatus, copy, "importSummary", { successes: String(successes), failures: String(failures) }, 'error');
 		} finally {
 			state.importing = false;
 			publishDocumentSnapshot();
@@ -179,7 +177,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			start: completedBytes / totalBytes,
 			end: Math.min(1, (completedBytes + fileBytes) / totalBytes),
 			value: null,
-		});
+		}, { key: 'importing' });
 	}
 
 	function normalizeImportOptions(value: RuntimeValue = {}) {
@@ -300,7 +298,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		let track = null;
 		if (importOptions.trackId) {
 			track = findTrack(getProject(), importOptions.trackId);
-			if (!track || track.type !== 'audio') throw new Error(copy.audioTrackNotFound);
+			if (!track || track.type !== 'audio') throw createLocalizedError(Error, copy, 'audioTrackNotFound');
 		}
 		const trackId = track?.id || createStableId('track');
 		if (!track) {
@@ -334,7 +332,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	function validateImportTimelineTrack(importOptions: RuntimeValue) {
 		if (importOptions.destination !== 'timeline' || !importOptions.trackId) return null;
 		const track = findTrack(getProject(), importOptions.trackId);
-		if (!track || track.type !== 'audio') throw new Error(copy.audioTrackNotFound);
+		if (!track || track.type !== 'audio') throw createLocalizedError(Error, copy, 'audioTrackNotFound');
 		return track;
 	}
 
@@ -442,7 +440,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		await preflightStorage(canonical.length * canonical.numberOfChannels * Float32Array.BYTES_PER_ELEMENT, 'import');
 		assertImportProjectCurrent();
 		const sourceId = createStableId('source'), clipId = createStableId('clip');
-		const trackName = stripExtension(file.name) || `${copy.track} ${requireProject().tracks.length + 1}`;
+		const trackName = stripExtension(file.name) || `${publishedCopyFor(copy).track} ${requireProject().tracks.length + 1}`;
 		const sourceName = file.name;
 		const mimeType = file.type || 'audio/wav';
 		const writer = createImportedAudioContentIdentityWriter(await store.beginSourceWrite(sourceId, {

@@ -4,7 +4,7 @@ import {
 	createAddClipCommand,
 	createAddSourceCommand,
 	createAddTrackCommand,
-} from '../../commands/factories.ts';
+} from '../../commands/factories.ts'; import { publishedCopyFor } from '../shared/presentation-localization.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../i18n/presentation-message.ts';
 import type { AudioEditorCommand } from '../../commands/protocol.ts';
 import { prepareRangeReplacementCommand as prepareLegacyRangeReplacementCommand } from '../../commands/range-runtime.js';
 import type { LabeledAudioRegion } from '../../labeled-audio-regions.ts';
@@ -143,7 +143,7 @@ export interface AudioGeneratorServiceDependencies<Context = unknown, Target ext
 	peakCacheKey(sourceId: string): string;
 	createId(prefix?: string): string;
 	commit(command: AudioEditorCommand, selection?: CommitSelection): unknown;
-	setStatus(message: string, state?: string): void;
+	setStatus(message: string, state?: string, localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;
 	publish(): void;
 }
 
@@ -209,7 +209,7 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 		let processing = false;
 		try {
 			const targets = dependencies.effectTargets();
-			if (!targets.length) throw new Error(dependencies.copy.timeSelectionRequired);
+			if (!targets.length) throw createLocalizedError(Error, dependencies.copy, 'timeSelectionRequired');
 			const results = targets.map((target) => ({
 				target,
 				channels: Object.freeze(Array.from(
@@ -225,13 +225,13 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 			assertOwnership(ownership);
 			processing = markProcessing();
 			await dependencies.persistEffectResults(results, null, {
-				effectName: dependencies.copy.silenceAudio,
+				effectName: publishedCopyFor(dependencies.copy).silenceAudio,
 				signal: ownership.task.signal,
 				project: ownership.project,
 				assertCurrent: () => assertOwnership(ownership),
 			});
 			assertActiveProjectScope(ownership);
-			dependencies.setStatus(dependencies.copy.done, 'success');
+			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
 			return true;
 		} finally {
 			finishOperation(ownership, processing);
@@ -277,7 +277,7 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 			const buffer = await dependencies.createBuffer(generated.channels, sampleRate, context);
 			assertOwnership(ownership);
 			sourceId = dependencies.createId('generator');
-			const name = generatorName(type, dependencies.copy);
+			const name = generatorName(type, publishedCopyFor(dependencies.copy));
 			writer = await dependencies.store.beginSourceWrite(sourceId, {
 				name,
 				mimeType: 'audio/wav',
@@ -326,7 +326,7 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 				type,
 				options: Object.freeze({ ...options }),
 			});
-			dependencies.setStatus(dependencies.copy.done, 'success');
+			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
 			return prepared.clipId;
 		} catch (error) {
 			if (writer) await Promise.resolve(writer.abort(error)).catch(() => undefined);
@@ -414,7 +414,7 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 
 	function markProcessing(): true {
 		dependencies.setEffectProcessing(true);
-		dependencies.setStatus(dependencies.copy.generatingAudio);
+		setLocalizedStatus(dependencies.setStatus, dependencies.copy, "generatingAudio");
 		dependencies.publish();
 		return true;
 	}

@@ -72,7 +72,7 @@ export function TrackListView({
 	showArmControls,
 	displayAudioSupported,
 }) {
-	const rowCopy = useMemo(() => ({ ...copy, ...resolveTrackAutomationCopy(locale) }), [copy, locale]);
+	const rowCopy = useMemo(() => ({ ...copy, ...resolveTrackAutomationCopy(locale, copy) }), [copy, locale]);
 	const asymmetricStereoHeightsAvailable = audioEditorAsymmetricStereoHeightsAvailable(
 		snapshot.preferences?.editing,
 		snapshot.preferences?.workspace?.activeId,

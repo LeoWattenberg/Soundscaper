@@ -104,7 +104,7 @@ export interface ClipVideoCompositionDependencies {
 		& VideoEffectServiceRuntime['commit'];
 	readonly publishProjectState: () => void;
 	readonly publishDocumentSnapshot: () => void;
-	readonly setStatus: (message: string, state?: 'info' | 'success' | 'error') => void;
+	readonly setStatus: (message: string, state?: 'info' | 'success' | 'error', localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly handleError: (error: unknown) => void;
 	readonly normalizePlaybackFrame: (frame: unknown) => number;
 	readonly cancelPlaybackCachePreparation: () => unknown;

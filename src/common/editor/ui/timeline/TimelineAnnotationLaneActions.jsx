@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { useState } from 'react';
+import React from 'react'; import { usePresentationFeedback } from '../presentation-feedback.ts';
 
 export function TimelineAnnotationLaneActions({
 	controller, project, annotations, copy, blocked, run, createAnnotation, focusCreated,
 }) {
-	const [status, setStatus] = useState('');
+	const [status, setStatus] = usePresentationFeedback(copy);
 	const statusId = React.useId();
 	const actions = controller.actions.timelineAnnotations;
 	const requestedIds = Array.isArray(project.selection?.annotationIds)
@@ -17,7 +17,7 @@ export function TimelineAnnotationLaneActions({
 	const batch = (enabled) => run(() => {
 		const result = enabled ? actions.batch(selectedIds) : actions.unbatch(selectedIds);
 		setStatus(message(
-			enabled ? copy.timelineAnnotationBatched : copy.timelineAnnotationUnbatched,
+			enabled ? 'timelineAnnotationBatched' : 'timelineAnnotationUnbatched',
 			{ count: selectedIds.length },
 		));
 		return result;
@@ -53,9 +53,4 @@ export function primarySequenceSelectionIds(annotations, primarySequenceId, sele
 		.map(({ id }) => id);
 }
 
-function message(template, values) {
-	return Object.entries(values).reduce(
-		(output, [key, value]) => output.replace(`{${key}}`, String(value)),
-		String(template || ''),
-	);
-}
+function message(key, parameters) { return { key, parameters }; }

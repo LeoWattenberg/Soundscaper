@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { RuntimePersistedClip } from '../../../../runtime-clip-projection.ts';
+import { publishedCopyFor } from '../../../shared/presentation-localization.ts'; import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import type { RuntimePersistedClip } from '../../../../runtime-clip-projection.ts';
 import { projectForRuntimeConsumers } from '../../../../project-current-runtime.ts';
 import type { AudioBufferContext } from '../../../source/source-audio.ts';
 import {
@@ -145,7 +145,7 @@ export function createNyquistGeneratedAudioService<Buffer extends NyquistGenerat
 		assertOwnership();
 		runtime.assertAudioOutput(channels);
 		if (!channels.length || !channels[0]?.length || channels.length > 2) {
-			throw new Error(runtime.copy.effectInvalidAudio);
+			throw createLocalizedError(Error, runtime.copy, 'effectInvalidAudio');
 		}
 		const sampleRate = runtime.projectSampleRate();
 		const selection = runtime.activeSelection();
@@ -157,7 +157,7 @@ export function createNyquistGeneratedAudioService<Buffer extends NyquistGenerat
 				runtime.matchAudacitySelectionChannels(channels, replacementTarget.channelCount),
 				{
 					assertCurrent: assertOwnership,
-					effectName: String(options.name || runtime.copy.nyquistPrompt),
+					effectName: String(options.name || publishedCopyFor(runtime.copy).nyquistPrompt),
 					signal,
 				},
 			);
@@ -166,12 +166,12 @@ export function createNyquistGeneratedAudioService<Buffer extends NyquistGenerat
 		}
 		const frameCount = channels[0].length;
 		if (!channels.every((channel) => channel instanceof Float32Array && channel.length === frameCount)) {
-			throw new Error(runtime.copy.effectChannelLengthsMismatch);
+			throw createLocalizedError(Error, runtime.copy, 'effectChannelLengthsMismatch');
 		}
 		await runtime.preflightStorage(frameCount * channels.length * Float32Array.BYTES_PER_ELEMENT, 'effect');
 		assertOwnership();
 		const sourceId = runtime.createId('nyquist-generator');
-		const name = String(options.name || runtime.copy.nyquistPrompt);
+		const name = String(options.name || publishedCopyFor(runtime.copy).nyquistPrompt);
 		const context = await runtime.getAudioContext();
 		assertOwnership();
 		const buffer = await runtime.bufferFromChannels(channels, sampleRate, context);

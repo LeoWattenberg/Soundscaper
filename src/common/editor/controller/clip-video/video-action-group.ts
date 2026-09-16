@@ -4,6 +4,7 @@ import type {
 	EditorActionRuntime,
 	RestrictToCapability,
 } from '../composition/action-facade-runtime.ts';
+import { setLocalizedStatus } from '../../../i18n/presentation-message.ts';
 import { createVideoTrimActionFacade } from './internal/trim/video-trim-action-facade.ts';
 
 /**
@@ -26,21 +27,13 @@ export function createVideoActionGroup(
 		updateVideoClipEffect, videoEditService, videoNavigationService, videoSourceReprobeService,
 		videoTrimServices,
 	} = scope;
-	const videoNavigationMessage = (template: unknown, values: Readonly<Record<string, unknown>>) => (
-		Object.entries(values).reduce((message, [key, value]) => (
-			message.replace(`{${key}}`, String(value))
-		), String(template))
-	);
 	const reportVideoShuttle = (operation: typeof videoNavigationService.shuttleStop) => {
 		const view = operation();
 		const timecode = sequenceTimingService.label(view.positionFrame, view.sequenceId);
-		const message = view.rate === 0
-			? videoNavigationMessage(copy.shuttleStoppedStatus, { timecode })
-			: videoNavigationMessage(copy.shuttleStatus, {
-				direction: view.rate < 0 ? copy.shuttleBackward : copy.shuttleForward,
-				rate: Math.abs(view.rate), timecode,
-			});
-		setStatus(message, 'success');
+		setLocalizedStatus(setStatus, copy, view.rate === 0 ? 'shuttleStoppedStatus' : 'shuttleStatus', {
+			timecode, rate: Math.abs(view.rate),
+			direction: { key: view.rate < 0 ? 'shuttleBackward' : 'shuttleForward' },
+		}, 'success');
 		return view;
 	};
 	const navigateVideoEdit = (direction: 'previous' | 'next') => {
@@ -48,11 +41,9 @@ export function createVideoActionGroup(
 			? videoNavigationService.previousEditPoint()
 			: videoNavigationService.nextEditPoint();
 		const found = result !== null;
-		setStatus(found
-			? videoNavigationMessage(direction === 'previous' ? copy.previousEditStatus : copy.nextEditStatus, {
-				timecode: sequenceTimingService.playheadLabel(),
-			})
-			: direction === 'previous' ? copy.noPreviousEdit : copy.noNextEdit, found ? 'success' : 'info');
+		const key = found ? direction === 'previous' ? 'previousEditStatus' : 'nextEditStatus'
+			: direction === 'previous' ? 'noPreviousEdit' : 'noNextEdit';
+		setLocalizedStatus(setStatus, copy, key, { timecode: sequenceTimingService.playheadLabel() }, found ? 'success' : 'info');
 		return result;
 	};
 	return Object.freeze({
@@ -110,7 +101,7 @@ export function createVideoActionGroup(
 		// the current build, with every edit cut against the old grid conformed.
 		reprobeSource: (sourceId: Parameters<typeof videoSourceReprobeService.reprobe>[0], options?: Parameters<typeof videoSourceReprobeService.reprobe>[1]) => (
 			taskProgress?.run
-				? taskProgress.run('probe', copy.probingVideoSource, () => videoSourceReprobeService.reprobe(sourceId, options))
+				? taskProgress.run('probe', copy.probingVideoSource, () => videoSourceReprobeService.reprobe(sourceId, options), undefined, { key: "probingVideoSource" })
 				: videoSourceReprobeService.reprobe(sourceId, options)
 		),
 		link: (videoClipId: string, audioClipId: string) => commit({

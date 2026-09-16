@@ -13,7 +13,9 @@
 import { InvalidModelOutputError, generateValidated } from '../docs-ai/generation.mjs';
 import { readCache, writeCache } from '../docs-ai/cache.mjs';
 import { sha256 } from '../docs-ai/provenance.mjs';
-import { ENGLISH_COPY, GERMAN_COPY } from '../../src/common/i18n/catalogs.js';
+import { EDITOR_ENGLISH_COPY as ENGLISH_COPY, EDITOR_GERMAN_COPY as GERMAN_COPY } from '../../src/common/i18n/editor-copy-inventory.ts';
+import { TRANSLATION_EXCLUDED_KEYS } from '../../src/common/i18n/translation-scope.ts';
+import { editorTranslationCoverage } from './coverage.mjs';
 import { compareCodeUnits } from '../lib/canonical-json.mjs';
 import {
 	TRANSLATION_CATALOG_DIRECTORY,
@@ -39,7 +41,7 @@ export const DEFAULT_BATCH_CHARACTERS = 1_500;
  * Keys that are not prose: their English is code the editor executes, and a
  * translation could only break it. They stay English (or bundled German).
  */
-export const MACHINE_TRANSLATION_EXCLUDED_KEYS = Object.freeze(['nyquistPromptDefault']);
+export const MACHINE_TRANSLATION_EXCLUDED_KEYS = TRANSLATION_EXCLUDED_KEYS;
 /** The user's preferred translation model, and the one that covers the languages it does not. */
 export const DEFAULT_TRANSLATION_MODEL = 'aya-expanse:32b';
 export const FALLBACK_TRANSLATION_MODEL = 'qwen3.8:latest';
@@ -86,7 +88,7 @@ export async function translateLocale(options) {
 	}
 	if (!pending.length) {
 		if (existing && Object.keys(existing.entries).some((key) => !Object.hasOwn(entries, key))) {
-			await writeTranslationCatalog({ locale, provenance: existing.provenance, entries }, directory);
+			await writeTranslationCatalog({ locale, provenance: existing.provenance, community: existing.community, entries }, directory);
 		}
 		await writeTranslationCatalogIndex(directory);
 		return summary;
@@ -120,7 +122,8 @@ export async function translateLocale(options) {
 		summary.translated += Object.keys(result.translations).length;
 		summary.skipped.push(...result.skipped);
 		handled += keys.length;
-		await writeTranslationCatalog({ locale, provenance: handled === pending.length ? provenance : interimProvenance, entries }, directory);
+		await writeTranslationCatalog({ locale, provenance: handled === pending.length ? provenance : interimProvenance,
+			community: existing?.community, entries }, directory);
 		await writeTranslationCatalogIndex(directory);
 		log(`${locale}: ${handled}/${pending.length} pending keys handled (${summary.translated} translated, ${summary.skipped.length} skipped)`);
 	}
@@ -246,6 +249,8 @@ export async function checkLocales(options) {
 				orphaned: assessment.orphaned.length,
 				outdated: assessment.outdated,
 				invalid: null,
+				...(options.englishCopy === undefined ? { coverage: editorTranslationCoverage(assessment, englishCopy,
+					options.excludedKeys ?? MACHINE_TRANSLATION_EXCLUDED_KEYS) } : {}),
 			});
 		} catch (error) {
 			reports.push({ locale, present: true, model: null, current: 0, origins: { machine: 0, audacity: 0, human: 0 }, stale: 0, missing: 0, orphaned: 0, outdated: false, invalid: error.message });

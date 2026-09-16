@@ -342,3 +342,31 @@ const FOLDER_PROJECT = Object.freeze({
 		]),
 	}),
 });
+
+
+test('routing feedback follows current copy without rebuilding or committing graph data', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	let commits = 0;
+	const render = (copy: import('../src/common/editor/ui/workspace/soundscaper-routing-graph-copy.ts').SoundscaperRoutingGraphCopy = SOUNDSCAPER_ROUTING_GRAPH_COPY) => root.render(<SoundscaperRoutingGraphView
+		project={PROJECT} graph={PROJECT.mixer} disabled={false} copy={copy}
+		onCommit={() => { commits += 1; }} />);
+	try {
+		await act(async () => render());
+		await act(async () => {
+			reactProps(dom.one('[data-routing-source="master"]')).onKeyDown?.({ key: 'Enter', preventDefault() {} });
+		});
+		await act(async () => render({ ...SOUNDSCAPER_ROUTING_GRAPH_COPY,
+			chooseDestination: 'Ziel für {source} wählen.', master: 'Summe' }));
+		assert.equal(dom.one('[role="status"]').textContent, 'Ziel für Summe wählen.');
+		assert.equal(commits, 0);
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});

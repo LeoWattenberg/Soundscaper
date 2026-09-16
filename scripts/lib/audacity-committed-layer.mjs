@@ -14,7 +14,7 @@ import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 
 import { AUDACITY_QT_MAPPING, AUDACITY_QT_MAPPING_VERSION } from '../../src/common/i18n/audacity-qt-mapping.js';
-import { ENGLISH_COPY } from '../../src/common/i18n/catalogs.js';
+import { EDITOR_ENGLISH_COPY as ENGLISH_COPY } from '../../src/common/i18n/editor-copy-inventory.ts';
 import { LOCALE_BY_TAG } from '../../src/common/i18n/locales.js';
 import { asBytes, readAudacityQtCatalogsFromZip } from './audacity-qt-catalog.mjs';
 import {
@@ -135,7 +135,8 @@ export function mergeAudacityMessages(catalog, locale, messages, provenance, eng
 		entries[key] = next;
 	}
 	return {
-		catalog: { locale, provenance: { ...(catalog?.provenance ?? {}), audacity: provenance }, entries },
+		catalog: { locale, provenance: { ...(catalog?.provenance ?? {}), audacity: provenance },
+			...(catalog?.community ? { community: catalog.community } : {}), entries },
 		summary,
 	};
 }
@@ -166,7 +167,7 @@ export async function writeAudacityLayer(layer, directory = TRANSLATION_CATALOG_
 export function renderAudacityLayerNotice(provenance, locales) {
 	return `# Audacity translations
 
-The \`audacity\` entries of the JSON catalogs in this directory carry translations from the Audacity project, converted from the Qt TS catalogs Audacity publishes for its translators' reviewed work. They are used under the GNU General Public License version 3 (\`${provenance.licenseSpdx}\`), whose text is in \`LICENSE.txt\` beside this file, and combined with this AGPL-3.0-only application under section 13 of both licences. The Audacity-derived strings remain governed by the GPLv3; the \`machine\` and \`human\` entries beside them are this project's own.
+The \`audacity\` entries of the JSON catalogs in this directory carry translations from the Audacity project, converted from the Qt TS catalogs Audacity publishes for its translators' reviewed work. They are used under the GNU General Public License version 3 (\`${provenance.licenseSpdx}\`), whose text is in \`LICENSE.txt\` beside this file, and combined with this AGPL-3.0-only application under section 13 of both licences. The Audacity-derived strings remain governed by the GPLv3, including human corrections whose \`community\` metadata retains Audacity upstream provenance. Other \`machine\` and \`human\` entries are this project's own.
 
 - upstream project: <${provenance.upstreamProjectUrl}>
 - upstream licence and notices: <${provenance.upstreamLicenseUrl}>

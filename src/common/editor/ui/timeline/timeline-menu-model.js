@@ -123,7 +123,7 @@ export function createTimelineMenuModel({
 				onClick: onToggleArmControls,
 			}, contextLocale, unavailableReason),
 			...(automationControls?.targetsByTrackId.has(menuTrack.id) ? [
-				manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.addAutomation, resolveTrackAutomationCopy(contextLocale).addAutomation, {
+				manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.addAutomation, resolveTrackAutomationCopy(contextLocale, copy).addAutomation, {
 					id: 'track-add-automation',
 					checked: automationControls.isVisible(menuTrack.id),
 					onClick: () => automationControls.toggle(menuTrack.id),

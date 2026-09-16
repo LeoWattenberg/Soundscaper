@@ -136,7 +136,7 @@ export interface EditorDocumentSnapshotState {
 	readonly sampleEditProcessing: boolean;
 	readonly history: SnapshotHistory | null;
 	readonly clipboard: unknown;
-	readonly status: Readonly<{ message: string; state: string }>;
+	readonly status: Readonly<{ message: string; state: string; localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage }>;
 	readonly deliveryReport?: unknown;
 	/** The checksum manifest of the Scape this session last wrote, if it held one. */
 	readonly archiveManifest?: unknown;

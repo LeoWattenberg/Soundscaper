@@ -58,7 +58,7 @@ test('play-at-speed cancellation and preparation cover active, guarded, and pitc
 	assert.equal(fixture.calls.publishes, 1);
 	fixture.state.playAtSpeedAbort = new AbortController();
 	assert.equal(fixture.service.cancelPlayAtSpeedPreparation({ status: true }), true);
-	assert.deepEqual(fixture.calls.statuses.at(-1), ['Ready']);
+	assert.deepEqual(fixture.calls.statuses.at(-1), ['Ready', undefined, { key: 'ready' }]);
 	assert.equal(fixture.service.cancelPlayAtSpeedPreparation(), false);
 
 	fixture.state.recordingStarting = true;
@@ -76,8 +76,8 @@ test('play-at-speed cancellation and preparation cover active, guarded, and pitc
 	assert.equal(fixture.calls.memoryChecks.length, 1);
 	assert.equal(fixture.calls.playAtSpeed.length, 1);
 	assert.deepEqual(fixture.calls.statuses.slice(-2), [
-		['Preparing'],
-		['Playing at 1.5x', 'success'],
+		['Preparing', undefined, { key: 'playAtSpeedPreparing' }],
+		['Playing at 1.5x', 'success', { key: 'playAtSpeedPlaying', parameters: { rate: '1.5x' } }],
 	]);
 	assert.equal(fixture.state.playAtSpeedAbort, null);
 });

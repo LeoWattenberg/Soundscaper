@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { BinauralDeliveryPlan } from '../../../binaural-delivery.ts';
+import type { BinauralDeliveryPlan } from '../../../binaural-delivery.ts'; import { setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import { binauralSourcesForAuthoredAdm } from '../../../binaural-delivery.ts';
 import { renderBinaural } from '../../../binaural-render.ts';
 import {
@@ -111,7 +111,7 @@ export interface RenderedAudioEncodingRuntime {
 		copy: Readonly<Record<string, unknown>>,
 		outputFrames: number,
 	): Awaitable<RenderedAudioBuffer>;
-	setStatus(message: unknown): void;
+	setStatus(message: unknown, state?: string, localization?: import('../../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;
 	throwIfAborted(signal: AbortSignal): void;
 }
 
@@ -263,7 +263,7 @@ export async function encodeRenderedAudio(
 			destination: options.directCompressedDestination,
 			encodeWav,
 			ffmpeg,
-			onEncoding: () => { setStatus(copy.encoding); },
+			onEncoding: () => { setLocalizedStatus(setStatus, copy, "encoding"); },
 			onProgress: options.onProgress,
 			plan,
 			signal,
@@ -282,7 +282,7 @@ export async function encodeRenderedAudio(
 		dither: stagingFloat ? 'none' : plan.ditherMode,
 	});
 	assertActive();
-	setStatus(copy.encoding);
+	setLocalizedStatus(setStatus, copy, "encoding");
 	return withLoudness(await ffmpeg.encode(wav, plan.format, {
 		...plan.encoding,
 		onProgress: options.onProgress,

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react'; import { usePresentationFeedback } from '../presentation-feedback.ts';
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import {
@@ -58,7 +58,7 @@ export function TimelineAnnotationLayer({
 	const [preview, setPreview] = useState(null);
 	const [editingId, setEditingId] = useState(null);
 	const [draftName, setDraftName] = useState('');
-	const [status, setStatus] = useState('');
+	const [status, setStatus] = usePresentationFeedback(copy);
 	const statusId = React.useId();
 	const actions = controller.actions.timelineAnnotations;
 	const projected = React.useMemo(() => model.rows.map(({ annotation }) => annotation), [model.rows]);
@@ -92,8 +92,8 @@ export function TimelineAnnotationLayer({
 				? actions.toggle(annotation.id)
 				: actions.select(annotation.id, event.shiftKey);
 			setStatus(message(
-				ids.includes(annotation.id) ? copy.timelineAnnotationSelected : copy.timelineAnnotationDeselected,
-				{ name: annotation.name || copy.unnamedTimelineAnnotation },
+				ids.includes(annotation.id) ? 'timelineAnnotationSelected' : 'timelineAnnotationDeselected',
+				{ name: annotation.name || { key: 'unnamedTimelineAnnotation' } },
 			));
 			return result;
 		});
@@ -108,8 +108,8 @@ export function TimelineAnnotationLayer({
 		if (!blocked && save && draftName !== annotation.name) {
 			run(() => {
 				const result = actions.rename([annotation.id], draftName);
-				setStatus(message(copy.timelineAnnotationRenamed, {
-					name: draftName || copy.unnamedTimelineAnnotation,
+				setStatus(message('timelineAnnotationRenamed', {
+					name: draftName || { key: 'unnamedTimelineAnnotation' },
 				}));
 				return result;
 			});
@@ -128,7 +128,7 @@ export function TimelineAnnotationLayer({
 			|| null;
 		run(() => {
 			const result = actions.remove(ids);
-			setStatus(message(copy.timelineAnnotationRemoved, { count: ids.length }));
+			setStatus(message('timelineAnnotationRemoved', { count: ids.length }));
 			requestAnimationFrame(() => (
 				targetId ? itemRefs.current.get(targetId) : layerRef.current
 			)?.focus({ preventScroll: true }));
@@ -145,7 +145,7 @@ export function TimelineAnnotationLayer({
 			run(() => {
 				const result = event.shiftKey ? actions.unbatch(model.selectedIds) : actions.batch(model.selectedIds);
 				setStatus(message(
-					event.shiftKey ? copy.timelineAnnotationUnbatched : copy.timelineAnnotationBatched,
+					event.shiftKey ? 'timelineAnnotationUnbatched' : 'timelineAnnotationBatched',
 					{ count: model.selectedIds.length },
 				));
 				return result;
@@ -181,8 +181,8 @@ export function TimelineAnnotationLayer({
 			run(() => {
 				const result = actions.toggle(annotation.id);
 				setStatus(message(
-					row.selected ? copy.timelineAnnotationDeselected : copy.timelineAnnotationSelected,
-					{ name: annotation.name || copy.unnamedTimelineAnnotation },
+					row.selected ? 'timelineAnnotationDeselected' : 'timelineAnnotationSelected',
+					{ name: annotation.name || { key: 'unnamedTimelineAnnotation' } },
 				));
 				return result;
 			});
@@ -193,8 +193,8 @@ export function TimelineAnnotationLayer({
 			if (intent.frame === currentFrame) return;
 			run(() => {
 				const result = actions.resize(annotation.id, intent.edge, intent.frame);
-				setStatus(message(copy.timelineAnnotationResized, {
-					name: annotation.name || copy.unnamedTimelineAnnotation, frame: intent.frame,
+				setStatus(message('timelineAnnotationResized', {
+					name: annotation.name || { key: 'unnamedTimelineAnnotation' }, frame: intent.frame,
 				}));
 				return result;
 			});
@@ -202,8 +202,8 @@ export function TimelineAnnotationLayer({
 			if (!intent.deltaFrames) return;
 			run(() => {
 				const result = actions.move(bounds.ids, intent.deltaFrames, annotation.id);
-				setStatus(message(copy.timelineAnnotationMoved, {
-					name: annotation.name || copy.unnamedTimelineAnnotation, frames: intent.deltaFrames,
+				setStatus(message('timelineAnnotationMoved', {
+					name: annotation.name || { key: 'unnamedTimelineAnnotation' }, frames: intent.deltaFrames,
 				}));
 				return result;
 			});
@@ -291,8 +291,8 @@ export function TimelineAnnotationLayer({
 				: Math.max(opposite, original + drag.deltaFrames);
 			run(() => {
 				const result = actions.resize(drag.annotation.id, drag.edge, frame);
-				setStatus(message(copy.timelineAnnotationResized, {
-					name: drag.annotation.name || copy.unnamedTimelineAnnotation, frame,
+				setStatus(message('timelineAnnotationResized', {
+					name: drag.annotation.name || { key: 'unnamedTimelineAnnotation' }, frame,
 				}));
 				return result;
 			});
@@ -307,8 +307,8 @@ export function TimelineAnnotationLayer({
 			}
 			run(() => {
 				const result = actions.move(completion.ids, completion.deltaFrames, drag.annotation.id);
-				setStatus(message(copy.timelineAnnotationMoved, {
-					name: drag.annotation.name || copy.unnamedTimelineAnnotation, frames: completion.deltaFrames,
+				setStatus(message('timelineAnnotationMoved', {
+					name: drag.annotation.name || { key: 'unnamedTimelineAnnotation' }, frames: completion.deltaFrames,
 				}));
 				return result;
 			});
@@ -408,9 +408,4 @@ export function TimelineAnnotationLayer({
 	</>;
 }
 
-function message(template, values) {
-	return Object.entries(values).reduce(
-		(output, [key, value]) => output.replace(`{${key}}`, String(value)),
-		String(template || ''),
-	);
-}
+function message(key, parameters) { return { key, parameters }; }

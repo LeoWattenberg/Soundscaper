@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { LOCAL_ASSISTANCE_ADDITIONAL_COPY } from '../../../i18n/editor-local-assistance-additional-copy.ts';
+
 import {
 	ASSISTANCE_TRANSCRIPT_CLEANUP_PRESETS,
 	type LocalAssistanceTranscriptCleanupPreset,
@@ -57,7 +59,7 @@ export default function LocalAssistanceCleanupReview({
 		cleanup.usesVoiceActivity
 			? 'Nothing is applied until you select proposals and explicitly apply them. Silence choices use the reviewed VAD result from this selection.'
 			: 'Nothing is applied until you select proposals and explicitly apply them.')}</p>
-		<label>{text(copy, 'localAssistanceCleanupPreset', 'Cleanup preset')}
+		<label>{text(copy, 'localAssistanceCleanupPreset', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceCleanupPreset)}
 			<select value={cleanup.preset} disabled={accepting}
 				onChange={(event) => { void onPresetChange(
 					event.currentTarget.value as LocalAssistanceTranscriptCleanupPreset,
@@ -93,12 +95,12 @@ export default function LocalAssistanceCleanupReview({
 
 function presetLabel(copy: Copy, preset: LocalAssistanceTranscriptCleanupPreset): string {
 	if (preset === 'conservative') {
-		return text(copy, 'localAssistanceCleanupPresetConservative', 'Conservative');
+		return text(copy, 'localAssistanceCleanupPresetConservative', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceCleanupPresetConservative);
 	}
 	if (preset === 'aggressive') {
-		return text(copy, 'localAssistanceCleanupPresetAggressive', 'Aggressive');
+		return text(copy, 'localAssistanceCleanupPresetAggressive', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceCleanupPresetAggressive);
 	}
-	return text(copy, 'localAssistanceCleanupPresetBalanced', 'Balanced');
+	return text(copy, 'localAssistanceCleanupPresetBalanced', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceCleanupPresetBalanced);
 }
 
 function proposalLabel(
@@ -113,7 +115,7 @@ function proposalLabel(
 }
 
 function text(copy: Copy, key: string, fallback: string): string {
-	return copy[key] || fallback;
+	return copy[`ui.localAssistance.${key}`] || copy[key] || fallback;
 }
 
 function template(value: string, variables: Readonly<Record<string, string>>): string {

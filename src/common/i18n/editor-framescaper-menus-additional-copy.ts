@@ -1,0 +1,28 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+export const FRAMESCAPER_MENUS_ADDITIONAL_COPY = Object.freeze({
+	addDissolveTransition: "Add Dissolve Transition",
+	addVideoAdjustmentLayer: "Add Video Adjustment Layer",
+	addVideoShape: "Add Shape",
+	addVideoSolid: "Add Solid",
+	addVideoStill: "Add Images",
+	addVideoText: "Add Text",
+	addVideoTitle: "Add Title/Text",
+	addVideoTransition: "Add Video Transition",
+	automation: "Automation Lanes",
+	dialogueChain: "Dialogue Chain",
+	editVideoMaskMatte: "Edit Video Mask/Matte",
+	framescaperVideoFinishing: "Video Finishing",
+	freezeVideo: "Freeze Video",
+	routingGraph: "Mixer & Routing",
+	saveVideoVisualPreset: "Save Visual Preset",
+	videoCaptionTracks: "Caption Tracks",
+	videoColorManagement: "Managed Color & Source Interpretation",
+	videoDenoise: "Spatial & Temporal Denoise",
+	videoGenerators: "Video Generators",
+	videoGradingPresets: "Grading & Finishing Presets",
+	videoMotionTracking: "Motion Tracking",
+	videoStabilization: "Similarity Stabilization",
+	videoTransitions: "Video Transitions",
+	videoVisualInspector: "Selected Visual Inspector",
+});

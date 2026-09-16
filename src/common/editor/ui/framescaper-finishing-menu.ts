@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { FRAMESCAPER_MENUS_ADDITIONAL_COPY } from '../../i18n/editor-framescaper-menus-additional-copy.ts';
+
 import {
 	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
 	isCurrentProjectSchemaIdentity,
@@ -77,7 +79,7 @@ export function createFramescaperFinishingMenuItems(
 	): FramescaperFinishingMenuItem => {
 		const enabled = mutable && input.capabilities[capability] === true;
 		return Object.freeze({
-			id, label: copy[labelKey] ?? fallback, disabled: !enabled,
+			id, label: copy[`ui.framescaperMenus.${labelKey}`] ?? copy[labelKey] ?? fallback, disabled: !enabled,
 			onClick: () => enabled ? actions.open(surface) : undefined,
 		});
 	};
@@ -87,39 +89,39 @@ export function createFramescaperFinishingMenuItems(
 		fallback: string,
 		surface: FramescaperFinishingSurface,
 	): FramescaperFinishingMenuItem => Object.freeze({
-		id, label: copy[labelKey] ?? fallback, disabled: !mutable,
+		id, label: copy[`ui.framescaperMenus.${labelKey}`] ?? copy[labelKey] ?? fallback, disabled: !mutable,
 		onClick: () => mutable ? actions.open(surface) : undefined,
 	});
 	const videoFinishing = branch(
-		'framescaper-video-finishing', copy.framescaperVideoFinishing ?? 'Video Finishing', [
+		'framescaper-video-finishing', copy['ui.framescaperMenus.framescaperVideoFinishing'] ?? copy.framescaperVideoFinishing ?? FRAMESCAPER_MENUS_ADDITIONAL_COPY.framescaperVideoFinishing, [
 			leaf('framescaper-visual-inspector', 'videoVisualInspector',
-				'Selected Visual Inspector…', 'visual-inspector', 'videoGenerators'),
+				FRAMESCAPER_MENUS_ADDITIONAL_COPY.videoVisualInspector, 'visual-inspector', 'videoGenerators'),
 			leaf('framescaper-color-management', 'videoColorManagement',
-				'Managed Color & Source Interpretation…', 'color-management', 'videoColorManagement'),
+				FRAMESCAPER_MENUS_ADDITIONAL_COPY.videoColorManagement, 'color-management', 'videoColorManagement'),
 			leaf('framescaper-grading-presets', 'videoGradingPresets',
-				'Grading & Finishing Presets…', 'grading-presets', 'videoGrading'),
+				FRAMESCAPER_MENUS_ADDITIONAL_COPY.videoGradingPresets, 'grading-presets', 'videoGrading'),
 			leaf('framescaper-stabilization', 'videoStabilization',
-				'Similarity Stabilization…', 'stabilization', 'videoStabilization'),
+				FRAMESCAPER_MENUS_ADDITIONAL_COPY.videoStabilization, 'stabilization', 'videoStabilization'),
 			leaf('framescaper-denoise', 'videoDenoise',
-				'Spatial & Temporal Denoise…', 'denoise', 'videoDenoise'),
+				FRAMESCAPER_MENUS_ADDITIONAL_COPY.videoDenoise, 'denoise', 'videoDenoise'),
 		],
 	);
 	return Object.freeze({
 		tracks: Object.freeze([
 			leaf('framescaper-caption-tracks', 'videoCaptionTracks',
-				'Caption Tracks…', 'captions', 'videoCaptions'),
+				FRAMESCAPER_MENUS_ADDITIONAL_COPY.videoCaptionTracks, 'captions', 'videoCaptions'),
 			leaf('framescaper-audio-automation', 'automation',
-				'Automation Lanes…', 'automation', 'audioAutomation'),
+				FRAMESCAPER_MENUS_ADDITIONAL_COPY.automation, 'automation', 'audioAutomation'),
 		]),
 		effect: Object.freeze([videoFinishing]),
 		analyze: Object.freeze([
 			leaf('framescaper-motion-tracking', 'videoMotionTracking',
-				'Motion Tracking…', 'motion-tracking', 'videoMotionTracking'),
+				FRAMESCAPER_MENUS_ADDITIONAL_COPY.videoMotionTracking, 'motion-tracking', 'videoMotionTracking'),
 		]),
 		mixer: Object.freeze([
-			leaf('framescaper-mixer', 'routingGraph', 'Mixer & Routing…', 'mixer', 'audioMixerGraph'),
+			leaf('framescaper-mixer', 'routingGraph', FRAMESCAPER_MENUS_ADDITIONAL_COPY.routingGraph, 'mixer', 'audioMixerGraph'),
 			selectedLeaf('framescaper-dialogue-chain', 'dialogueChain',
-				'Dialogue Chain…', 'dialogue-chain'),
+				FRAMESCAPER_MENUS_ADDITIONAL_COPY.dialogueChain, 'dialogue-chain'),
 		]),
 		tools: Object.freeze([]),
 	});

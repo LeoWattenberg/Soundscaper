@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { RecordingRoute, RecordingRouting } from '../../../recording-routing.js';
+import { createLocalizedError } from '../../../../i18n/presentation-message.ts'; import type { RecordingRoute, RecordingRouting } from '../../../recording-routing.js'; import { publishedCopyFor } from '../../shared/presentation-localization.ts';
 import { hasCoreEditingProjectAuthority } from '../../../project-schema-version.ts';
 
 import {
@@ -155,8 +155,8 @@ export function createEditorTrackService(
 			...options,
 			type: 'audio',
 			id: trackId,
-			name: String(options.name || `${dependencies.copy.track} ${project.tracks.length + 1}`).trim()
-				|| dependencies.copy.track,
+			name: String(options.name || `${publishedCopyFor(dependencies.copy).track} ${project.tracks.length + 1}`).trim()
+				|| publishedCopyFor(dependencies.copy).track,
 			...(color ? { color } : {}),
 			armed: options.armed ?? project.tracks.length === 0,
 			height: options.height ?? 300,
@@ -176,7 +176,7 @@ export function createEditorTrackService(
 		const requestedIndex = options.index == null
 			? project.tracks.length
 			: Math.max(0, Math.min(project.tracks.length, Math.round(Number(options.index))));
-		if (!Number.isSafeInteger(requestedIndex)) throw new TypeError(dependencies.copy.trackDestinationInvalid);
+		if (!Number.isSafeInteger(requestedIndex)) throw createLocalizedError(TypeError, dependencies.copy, 'trackDestinationInvalid');
 		const baseName = String(options.name
 			|| `Video ${project.tracks.filter((track) => track.type === 'video').length + 1}`).trim();
 		const commands: AudioEditorCommand[] = [{
@@ -225,7 +225,7 @@ export function createEditorTrackService(
 			try {
 				const next = dependencies.recording.setTrackRoute(routing, track, {
 					...(displayInput
-						? { kind: 'display', label: dependencies.copy.recordingDesktopAudio }
+						? { kind: 'display', label: publishedCopyFor(dependencies.copy).recordingDesktopAudio }
 						: { kind: 'device', deviceId, deviceLabel: device?.label || '' }),
 					channelStart,
 					channelCount,
@@ -250,7 +250,7 @@ export function createEditorTrackService(
 		dependencies.commit(createAddLabelTrackCommand({
 			...options,
 			id: trackId,
-			name: String(options.name || dependencies.copy.labels).trim(),
+			name: String(options.name || publishedCopyFor(dependencies.copy).labels).trim(),
 			height: options.height ?? 300,
 		}), { selectTrackId: trackId });
 		return trackId;
@@ -261,9 +261,9 @@ export function createEditorTrackService(
 		if (dependencies.editingBlocked()) return null;
 		const project = dependencies.getProject();
 		const track = findControllerTrack(project, trackId);
-		if (!track) throw new Error(dependencies.copy.trackNotFound);
+		if (!track) throw createLocalizedError(Error, dependencies.copy, 'trackNotFound');
 		const index = Math.max(0, Math.min(project.tracks.length - 1, Math.round(Number(requestedIndex))));
-		if (!Number.isFinite(index)) throw new TypeError(dependencies.copy.trackDestinationInvalid);
+		if (!Number.isFinite(index)) throw createLocalizedError(TypeError, dependencies.copy, 'trackDestinationInvalid');
 		if (project.tracks[index]?.id === track.id) return track.id;
 		dependencies.commit({ type: 'track/reorder', trackId: track.id, index }, { selectTrackId: track.id });
 		return track.id;
@@ -274,7 +274,7 @@ export function createEditorTrackService(
 		if (!trackId) return null;
 		const project = dependencies.getProject();
 		const index = project.tracks.findIndex((track) => track.id === trackId);
-		if (index < 0) throw new Error(dependencies.copy.trackNotFound);
+		if (index < 0) throw createLocalizedError(Error, dependencies.copy, 'trackNotFound');
 		const blocks: ControllerTrack[][] = [];
 		const consumedLaneGroups = new Set<string>();
 		for (const track of project.tracks) {
@@ -299,10 +299,10 @@ export function createEditorTrackService(
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return null;
 		const project = dependencies.getProject();
-		if (!hasCoreEditingProjectAuthority(project)) throw new Error(dependencies.copy.v2Required);
+		if (!hasCoreEditingProjectAuthority(project)) throw createLocalizedError(Error, dependencies.copy, 'v2Required');
 		const track = findControllerTrack(project, trackId);
-		if (!track || track.type !== 'audio') throw new Error(dependencies.copy.audioTrackRequired);
-		if (!isTrackDisplayMode(displayMode)) throw new RangeError(dependencies.copy.unknownTrackDisplay);
+		if (!track || track.type !== 'audio') throw createLocalizedError(Error, dependencies.copy, 'audioTrackRequired');
+		if (!isTrackDisplayMode(displayMode)) throw createLocalizedError(RangeError, dependencies.copy, 'unknownTrackDisplay');
 		dependencies.setTimelineView(displayMode);
 		return dependencies.commit({ type: 'track/update', trackId: track.id, changes: { displayMode } }, { selectTrackId: track.id });
 	}
@@ -327,7 +327,7 @@ export function createEditorTrackService(
 			project = dependencies.getProject();
 			target = findControllerTrack(project, createdTrackId);
 		}
-		if (!target || target.type !== 'label') throw new Error(dependencies.copy.trackNotFound);
+		if (!target || target.type !== 'label') throw createLocalizedError(Error, dependencies.copy, 'trackNotFound');
 		// A running transport labels what is being heard or recorded. A stopped
 		// transport labels the selected region, or the cursor when it has no span.
 		const live = ['playing', 'recording'].includes(dependencies.getTransportState?.() || 'stopped');

@@ -4,7 +4,7 @@ import {
 	EDITOR_PROJECT_TASK_SCOPE,
 	type EditorProjectToken,
 	type EditorTaskScope,
-} from '../../shared/lifecycle.ts';
+} from '../../shared/lifecycle.ts'; import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import { createSelectionEffectPreviewService } from './effect-preview-service.ts';
 
 const SELECTION_EFFECT_TASK = 'selection-effect-apply';
@@ -87,7 +87,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		const type = state.audacityEffectType;
 		const definition = AUDIO_SELECTION_EFFECT_DEFINITIONS[type];
 		const targets = audacityEffectTargets({ includeSilentTracks: Boolean(definition.lengthChanging) });
-		if (!targets.length) throw new Error(copy.audacitySelectionHint);
+		if (!targets.length) throw createLocalizedError(Error, copy, 'audacitySelectionHint');
 		const sampleRate = projectSampleRate();
 		const selection = activeSelection();
 		const spectralSelections: RuntimeValue = new Map(targets.map((target: RuntimeValue) => [
@@ -95,8 +95,8 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 			audacitySpectralEffectContext(target, definition),
 		]));
 		let params = normalizeAudioSelectionEffectParams(type, currentAudacityEffectParams());
-		if (definition.requiresNoiseProfile && !state.audacityNoiseProfile) throw new Error(copy.noiseProfileMissing);
-		if (definition.requiresControlTrack && !state.audacityControlTrackId) throw new Error(copy.autoDuckControlTrack);
+		if (definition.requiresNoiseProfile && !state.audacityNoiseProfile) throw createLocalizedError(Error, copy, 'noiseProfileMissing');
+		if (definition.requiresControlTrack && !state.audacityControlTrackId) throw createLocalizedError(Error, copy, 'autoDuckControlTrack');
 		const contextFrames = definition.preRollSeconds
 			? Math.ceil(definition.preRollSeconds * sampleRate)
 			: definition.requiresStaffPad
@@ -127,7 +127,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 			return channels;
 		};
 		state.audacityEffectProcessing = true;
-		setStatus(copy.audacityProcessing);
+		setLocalizedStatus(setStatus, copy, "audacityProcessing");
 		publishDocumentSnapshot();
 		try {
 			await preflightStorage(estimatedOutputBytes, 'effect');
@@ -173,7 +173,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 					channelOffset += channels.length;
 					return { target, channels: targetChannels };
 				});
-				if (channelOffset !== processedChannels.length) throw new Error(copy.effectChannelLayoutChanged);
+				if (channelOffset !== processedChannels.length) throw createLocalizedError(Error, copy, 'effectChannelLayoutChanged');
 			} else {
 				for (const { target, channels } of dryResults) {
 					const effectContext: RuntimeValue = {};
@@ -217,7 +217,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 				params: structuredClone(params),
 				controlTrackId: state.audacityControlTrackId,
 			};
-			setStatus(copy.audacityApplied, 'success');
+			setLocalizedStatus(setStatus, copy, "audacityApplied", undefined, 'success');
 		} finally {
 			finishSelectionEffectProcessing(runtime, ownership);
 		}
@@ -226,7 +226,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 	async function runNyquistEvaluation(request: RuntimeValue = {}) {
 		if (state.audacityEffectProcessing) return null;
 		const source = String(request.source || '');
-		if (!source.trim()) throw new TypeError(copy.nyquistSource || 'Nyquist source is required.');
+		if (!source.trim()) throw createLocalizedError(TypeError, { nyquistSource: copy.nyquistSource || 'Nyquist source is required.' }, 'nyquistSource');
 		const role = normalizeNyquistRole(request.role || request.pluginType || request.type);
 		const preview = Boolean(request.preview);
 		const sampleRate = projectSampleRate();
@@ -235,7 +235,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		const targets = role === 'generate'
 			? [null]
 			: availableTargets.length ? availableTargets : role === 'prompt' ? [null] : [];
-		if (!targets.length) throw new Error(copy.nyquistSelectionRequired || copy.audacitySelectionHint);
+		if (!targets.length) throw createLocalizedError(Error, copy, copy.nyquistSelectionRequired ? 'nyquistSelectionRequired' : 'audacitySelectionHint');
 		if (!preview && editingBlocked()) return null;
 
 		cancelAudacityEffectPreview({ publish: false });
@@ -257,7 +257,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		};
 		state.audacityEffectProcessing = true;
 		state.nyquistResult = null;
-		setStatus(copy.nyquistProcessing || copy.audacityProcessing);
+		setLocalizedStatus(setStatus, copy, (copy.nyquistProcessing ? "nyquistProcessing" : "audacityProcessing"));
 		publishDocumentSnapshot();
 		try {
 			const evaluations = [];
@@ -326,7 +326,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 				if (previewChannels.length) await playNyquistPreview(previewChannels, sampleRate, abort.signal);
 				assertNyquistCurrent();
 				state.nyquistResult = freezeNyquistResult(evaluations, { summarizeAudio: true });
-				if (!audio.length) setStatus(nyquistResultStatus(evaluations, copy), 'success');
+				if (!audio.length) publishNyquistStatus(evaluations);
 				return returnedResult;
 			}
 
@@ -342,7 +342,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 				})), null, {
 					allowIndependentLengths: true,
 					assertCurrent: assertNyquistCurrent,
-					effectName: request.name || copy.nyquistPrompt,
+					effectName: request.name || publishedCopyFor(copy).nyquistPrompt,
 					selectionDetails: audacityEffectSelectionDetails(selection, replacements.map(({ target }: RuntimeValue) => target)),
 					signal: abort.signal,
 				});
@@ -350,7 +350,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 			for (const { target, result } of audio.filter(({ target }: RuntimeValue) => !target)) {
 				assertNyquistCurrent();
 				await persistNyquistGeneratedAudio(result.channels, {
-					name: request.name || copy.nyquistPrompt,
+					name: request.name || publishedCopyFor(copy).nyquistPrompt,
 					atFrame: request.atFrame,
 					trackId: request.trackId || target?.track?.id,
 					// The generator persistence owns the project this evaluation
@@ -363,13 +363,13 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 			assertNyquistCurrent();
 			if (labels.length) persistNyquistLabels(labels, request.name);
 			state.nyquistResult = freezeNyquistResult(evaluations, { summarizeAudio: true });
-			setStatus(labels.length && !audio.length
-				? copy.nyquistLabelsAdded
-				: audio.length ? copy.nyquistApplied : nyquistResultStatus(evaluations, copy), 'success');
+			if (labels.length || audio.length) setLocalizedStatus(setStatus, copy,
+				labels.length && !audio.length ? 'nyquistLabelsAdded' : 'nyquistApplied', undefined, 'success');
+			else publishNyquistStatus(evaluations);
 			return returnedResult;
 		} catch (error) {
 			if ((error as Readonly<{ name?: string }>)?.name === 'AbortError') {
-				setStatus(copy.audacityPreviewCancelled || copy.ready);
+				setLocalizedStatus(setStatus, copy, (copy.audacityPreviewCancelled ? "audacityPreviewCancelled" : "ready"));
 				return null;
 			}
 			throw error;
@@ -380,6 +380,14 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 			publishDocumentSnapshot();
 		}
 	}
+	function publishNyquistStatus(evaluations: RuntimeValue[]): void {
+		const externalOutput = evaluations.some(({ result }: RuntimeValue) => (
+			(result?.type === 'message' && result.message) || result?.type === 'number' || result?.output
+		));
+		if (externalOutput) setStatus(nyquistResultStatus(evaluations, copy), 'success');
+		else setLocalizedStatus(setStatus, copy, copy.nyquistNoOutput ? 'nyquistNoOutput' : 'done', undefined, 'success');
+	}
+
 	return Object.freeze({
 		applySelectedAudacityEffect,
 		prepareAudacityEffectFromController,

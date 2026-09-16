@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { LOCAL_ASSISTANCE_ADDITIONAL_COPY } from '../../../i18n/editor-local-assistance-additional-copy.ts';
+
 /** Semantic, read-only presentation of validated local-assistance outputs. */
 
 import React from 'react';
@@ -44,7 +46,7 @@ function SemanticReview({ copy, review }: Readonly<{
 			{review.segments.map((segment, index) => <li
 				key={`${segment.startSeconds}:${segment.endSeconds}:${index}`}>
 				<span>{segment.speaker ? `${segment.speaker}: ${segment.text}` : segment.text}</span>
-				<small>{template(text(copy, 'localAssistanceTranscriptTime', '{start}–{end} s'), {
+				<small>{template(text(copy, 'localAssistanceTranscriptTime', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceTranscriptTime), {
 					start: formatSeconds(segment.startSeconds), end: formatSeconds(segment.endSeconds),
 				})}</small>
 			</li>)}
@@ -52,7 +54,7 @@ function SemanticReview({ copy, review }: Readonly<{
 	}
 	if (review.kind === 'voice-activity') {
 		return <ol className="kw-local-assistance__voice-activity"
-			aria-label={text(copy, 'localAssistanceVoiceActivityRanges', 'Voice activity ranges')}>
+			aria-label={text(copy, 'localAssistanceVoiceActivityRanges', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceVoiceActivityRanges)}>
 			{review.segments.map((segment, index) => <li
 				key={`${segment.startSample}:${segment.sampleCount}:${index}`}>
 				<SampleRange copy={copy} range={segment} sampleRate={review.sampleRate} />
@@ -61,11 +63,11 @@ function SemanticReview({ copy, review }: Readonly<{
 	}
 	if (review.kind === 'shot-boundaries') {
 		return <ol className="kw-local-assistance__shot-boundaries"
-			aria-label={text(copy, 'localAssistanceShotBoundaries', 'Shot boundaries')}>
+			aria-label={text(copy, 'localAssistanceShotBoundaries', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceShotBoundaries)}>
 			{review.boundaries.map((boundary, index) => <li
 				key={`${boundary.sourceFrame}:${boundary.presentationTick}:${index}`}>
 				<span>{template(text(copy, 'localAssistanceShotBoundaryFrame',
-					'Source frame {sourceFrame} · {confidence}%'), {
+					LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceShotBoundaryFrame), {
 					sourceFrame: String(boundary.sourceFrame),
 					confidence: formatPercent(boundary.score),
 				})}</span>
@@ -75,14 +77,14 @@ function SemanticReview({ copy, review }: Readonly<{
 	}
 	if (review.kind === 'word-alignment') {
 		return <ol className="kw-local-assistance__word-alignment"
-			aria-label={text(copy, 'localAssistanceWordAlignment', 'Word alignment')}>
+			aria-label={text(copy, 'localAssistanceWordAlignment', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceWordAlignment)}>
 			{review.words.map((word) => <li key={`${word.segmentIndex}:${word.wordIndex}`}>
 				<span>{word.text}</span>
 				<small>{template(text(copy, 'localAssistanceAlignedWordRange',
-					'{start}–{end} samples · {confidence}'), {
+					LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceAlignedWordRange), {
 					start: String(word.startSample), end: String(word.endSample),
 					confidence: word.confidence === null
-						? text(copy, 'localAssistanceConfidenceUnreported', 'confidence unreported')
+						? text(copy, 'localAssistanceConfidenceUnreported', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceConfidenceUnreported)
 						: `${formatPercent(word.confidence)}%`,
 				})}</small>
 			</li>)}
@@ -90,13 +92,13 @@ function SemanticReview({ copy, review }: Readonly<{
 	}
 	if (review.kind === 'audio-tags') {
 		return <ol className="kw-local-assistance__audio-tags"
-			aria-label={text(copy, 'localAssistanceExcitementScores', 'Excitement scores')}>
+			aria-label={text(copy, 'localAssistanceExcitementScores', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceExcitementScores)}>
 			{review.windows.map((window) => <li key={window.startSample}>
-				<span>{template(text(copy, 'localAssistanceExcitementWindow', 'Window {start} s'), {
+				<span>{template(text(copy, 'localAssistanceExcitementWindow', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceExcitementWindow), {
 					start: formatSeconds(window.startSample / review.sampleRate),
 				})}</span>
 				<small>{template(text(copy, 'localAssistanceExcitementWindowScores',
-					'Laughter {laughter}% · Applause {applause}% · Cheering {cheering}%'), {
+					LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceExcitementWindowScores), {
 					laughter: formatPercent(window.scores.laughter),
 					applause: formatPercent(window.scores.applause),
 					cheering: formatPercent(window.scores.cheering),
@@ -106,16 +108,16 @@ function SemanticReview({ copy, review }: Readonly<{
 	}
 	if (review.kind === 'beat-grid') {
 		return <div className="kw-local-assistance__beat-grid">
-			<ol aria-label={text(copy, 'localAssistanceBeatPoints', 'Beat and downbeat points')}>
+			<ol aria-label={text(copy, 'localAssistanceBeatPoints', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceBeatPoints)}>
 				{review.points.map((point) => <li key={`${point.sample}:${point.kind}`}>
-					<span>{template(text(copy, 'localAssistanceBeatPoint', '{kind} · sample {sample}'), {
+					<span>{template(text(copy, 'localAssistanceBeatPoint', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceBeatPoint), {
 						kind: point.kind === 'downbeat'
-							? text(copy, 'localAssistanceDownbeat', 'Downbeat')
-							: text(copy, 'localAssistanceBeat', 'Beat'),
+							? text(copy, 'localAssistanceDownbeat', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceDownbeat)
+							: text(copy, 'localAssistanceBeat', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceBeat),
 						sample: String(point.sample),
 					})}</span>
 					<small>{point.confidence === null
-						? text(copy, 'localAssistanceConfidenceUnreported', 'confidence unreported')
+						? text(copy, 'localAssistanceConfidenceUnreported', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceConfidenceUnreported)
 						: `${formatPercent(point.confidence)}%`}</small>
 				</li>)}
 			</ol>
@@ -124,13 +126,13 @@ function SemanticReview({ copy, review }: Readonly<{
 	}
 	if (review.kind === 'embeddings') {
 		return <p className="kw-local-assistance__embeddings">{template(text(copy,
-			'localAssistanceEmbeddingSummary', '{rows} normalized vectors · {dimensions} dimensions'), {
+			'localAssistanceEmbeddingSummary', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceEmbeddingSummary), {
 			rows: String(review.rowCount), dimensions: String(review.dimensions),
 		})}</p>;
 	}
 	if (review.kind === 'editorial-proposal') {
 		return <ol className="kw-local-assistance__editorial"
-			aria-label={text(copy, 'localAssistanceEditorialProposals', 'Editorial proposals')}>
+			aria-label={text(copy, 'localAssistanceEditorialProposals', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceEditorialProposals)}>
 			{review.candidates.map((candidate) => <li key={candidate.candidateId}>
 				<strong>{candidate.title ?? candidate.candidateId}</strong>
 				{candidate.hook && <p>{candidate.hook}</p>}
@@ -143,7 +145,7 @@ function SemanticReview({ copy, review }: Readonly<{
 	if (review.kind === 'audio-wave') {
 		return <p className="kw-local-assistance__audio-wave">{template(text(copy,
 			'localAssistanceAudioWaveSummary',
-			'Float32 WAV · {channels} channels · {frames} frames · {sampleRate} Hz'), {
+			LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceAudioWaveSummary), {
 			channels: String(review.channelCount), frames: String(review.frameCount),
 			sampleRate: String(review.sampleRate),
 		})}</p>;
@@ -154,7 +156,7 @@ function SemanticReview({ copy, review }: Readonly<{
 				key={`${frame.sourceFrame}:${index}`}>
 				<span>{region.text}</span>
 				<small>{template(text(copy, 'localAssistanceVisualFrameEvidence',
-					'Source frame {frame} · tick {tick} · {confidence}%'), {
+					LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceVisualFrameEvidence), {
 					frame: String(frame.sourceFrame), tick: frame.presentationTick,
 					confidence: formatPercent(region.confidence),
 				})}</small>
@@ -164,22 +166,22 @@ function SemanticReview({ copy, review }: Readonly<{
 	if (review.kind === 'subject-tracks') {
 		const count = review.frames.reduce((total, frame) => total + frame.subjects.length, 0);
 		return <p className="kw-local-assistance__subjects">{template(text(copy,
-			'localAssistanceSubjectSummary', '{count} non-biometric subject detections · {frames} frames'), {
+			'localAssistanceSubjectSummary', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceSubjectSummary), {
 			count: String(count), frames: String(review.frames.length),
 		})}</p>;
 	}
 	if (review.kind === 'saliency-map') {
 		const count = review.frames.filter(({ saliency }) => saliency !== null).length;
 		return <p className="kw-local-assistance__saliency">{template(text(copy,
-			'localAssistanceSaliencySummary', '{count} saliency observations · {frames} frames'), {
+			'localAssistanceSaliencySummary', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceSaliencySummary), {
 			count: String(count), frames: String(review.frames.length),
 		})}</p>;
 	}
 	return <ol className="kw-local-assistance__speaker-turns"
-		aria-label={text(copy, 'localAssistanceSpeakerTurns', 'Speaker turns')}>
+		aria-label={text(copy, 'localAssistanceSpeakerTurns', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceSpeakerTurns)}>
 		{review.turns.map((turn, index) => <li
 			key={`${turn.startSample}:${turn.speakerId}:${turn.sampleCount}:${index}`}>
-			<span>{template(text(copy, 'localAssistanceSpeakerId', 'Speaker ID {speakerId}'), {
+			<span>{template(text(copy, 'localAssistanceSpeakerId', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceSpeakerId), {
 				speakerId: String(turn.speakerId),
 			})}</span>
 			<SampleRange copy={copy} range={turn} sampleRate={review.sampleRate} />
@@ -191,9 +193,9 @@ function tempoSummary(copy: Copy, value: Extract<LocalAssistanceOutputReview,
 { readonly kind: 'beat-grid' }>['tempoProposal']): string {
 	if (!value) return '';
 	if (value.kind === 'constant') return template(text(copy, 'localAssistanceConstantTempoProposal',
-		'Tempo proposal · {bpm} BPM'), { bpm: formatTempo(value.bpm) });
+		LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceConstantTempoProposal), { bpm: formatTempo(value.bpm) });
 	return template(text(copy, 'localAssistanceHeldTempoProposal',
-		'Tempo proposal · {count} piecewise-held changes · {tempos}'), {
+		LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHeldTempoProposal), {
 		count: String(value.changes.length),
 		tempos: value.changes.map(({ bpm }) => `${formatTempo(bpm)} BPM`).join(', '),
 	});
@@ -206,7 +208,7 @@ function SampleRange({ copy, range, sampleRate }: Readonly<{
 }>) {
 	const endSample = range.startSample + range.sampleCount;
 	return <small>{template(text(copy, 'localAssistanceSampleRange',
-		'{startSample}–{endSample} samples · {startSeconds}–{endSeconds} s'), {
+		LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceSampleRange), {
 		startSample: String(range.startSample),
 		endSample: String(endSample),
 		startSeconds: formatSeconds(range.startSample / sampleRate),
@@ -215,7 +217,7 @@ function SampleRange({ copy, range, sampleRate }: Readonly<{
 }
 
 function text(copy: Copy, key: string, fallback: string): string {
-	return copy[key] || fallback;
+	return copy[`ui.localAssistance.${key}`] || copy[key] || fallback;
 }
 
 function template(value: string, variables: Readonly<Record<string, string>>): string {

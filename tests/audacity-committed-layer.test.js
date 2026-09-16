@@ -145,6 +145,7 @@ test('the writer merges into the catalogs, refreshes the index, notice and licen
 	assert.match(notice, /GPL-3\.0-only/u);
 	assert.match(notice, new RegExp(HEAD_SHA, 'u'));
 	assert.match(notice, /section 13/u);
+	assert.match(notice, /including human corrections whose `community` metadata retains Audacity upstream provenance/u);
 	assert.match(notice, /Locales with Audacity entries: fr, zh-CN\./u);
 
 	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-audacity-layer-'));

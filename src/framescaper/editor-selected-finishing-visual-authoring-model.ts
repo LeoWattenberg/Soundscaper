@@ -67,28 +67,18 @@ export interface FramescaperSelectedVisualAuthoringModelFinishing {
 	readonly selectedFreezeSourceId: string | null;
 }
 
-const COPY = Object.freeze({
-	'video-transition': Object.freeze({ title: 'Video Transition',
-		description: 'Choose one exact adjacent picture pair and author or remove its dissolve.' }),
-	'video-transition-dissolve': Object.freeze({ title: 'Dissolve Transition',
-		description: 'Choose one exact adjacent picture pair and set its dissolve duration.' }),
-	'video-adjustment-layer': Object.freeze({ title: 'Selected Video Adjustment Layer',
-		description: 'Apply, edit, or remove the adjustment that targets the selected video occurrence.' }),
-	'video-visual-preset': Object.freeze({ title: 'Selected Visual Presets',
-		description: 'Save, apply, or remove visual and finishing presets through fresh selected state.' }),
-	'video-mask-matte': Object.freeze({ title: 'Selected Mask / Matte',
-		description: 'Create, edit, attach, or remove a mask on the selected visual presentation.' }),
-	'video-freeze': Object.freeze({ title: 'Freeze Selected Video',
-		description: 'Capture the exact authenticated picture at the current playhead.' }),
-});
+import { SELECTED_VISUAL_AUTHORING_SURFACE_COPY } from '../common/i18n/editor-selected-visual-authoring-copy.ts';
+import { resolveEditorCopyScope } from '../common/i18n/editor-copy-scope.ts';
 
 export function createFramescaperSelectedVisualAuthoringModelFinishing(input: Readonly<{
+	readonly copy?: Readonly<Record<string, string>>;
 	readonly surface: FramescaperSelectedVisualAuthoringSurfaceFinishing;
 	readonly project: unknown;
 	readonly selectedClipId?: unknown;
 	readonly playheadSample: unknown;
 }>): FramescaperSelectedVisualAuthoringModelFinishing {
 	const surface = authoringSurface(input?.surface);
+	const copy = resolveEditorCopyScope(`selectedVisualAuthoring.surfaces.${surface}`, SELECTED_VISUAL_AUTHORING_SURFACE_COPY[surface], input.copy);
 	assertFramescaperProjectIdentity(input?.project);
 	const project = record(input.project, 'selected visual authoring project');
 	const clips = records(project.clips, 'project clips');
@@ -108,8 +98,8 @@ export function createFramescaperSelectedVisualAuthoringModelFinishing(input: Re
 		.find(({ renderedSourceId }) => renderedSourceId === sourceId) ?? null;
 	return Object.freeze({
 		surface,
-		title: COPY[surface].title,
-		description: COPY[surface].description,
+		title: copy.title,
+		description: copy.description,
 		fence: createFramescaperSelectedVisualAuthoringFenceFinishing({
 			project, selectedClipId, playheadSample,
 		}),

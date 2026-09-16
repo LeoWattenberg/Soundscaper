@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { VIDEO_PROXY_ADDITIONAL_COPY } from '../../i18n/editor-video-proxy-additional-copy.ts';
+
 import { isFramescaperVideoProxyProjectSchema } from '../project-schema-version.ts';
 
 export interface FramescaperVideoProxyApplicationMenuInput {
@@ -25,7 +27,7 @@ export function createFramescaperVideoProxyApplicationMenuItems(
 	}
 	return Object.freeze([Object.freeze({
 		id: 'video-proxy-manager' as const,
-		label: input.copy.videoProxyManager || 'Video proxies…',
+		label: `${input.copy['ui.videoProxy.videoProxyManager'] || input.copy.videoProxyManager || VIDEO_PROXY_ADDITIONAL_COPY.videoProxyManager}…`,
 		disabled: false,
 		onClick: input.open,
 	})]);

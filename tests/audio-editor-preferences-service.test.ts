@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { formatPresentationMessage, localizedErrorMessage } from '../src/common/i18n/presentation-message.ts';
 
 import {
 	createEditorPreferenceActionDelegates,
@@ -508,4 +509,24 @@ test('preference action delegates keep an explicitly supplied workspace identifi
 
 	delegates.createWorkspacePreference('Mine', 'workspace-explicit');
 	assert.deepEqual(created, [['Mine', 'workspace-explicit']]);
+});
+
+
+test('preference refusals preserve identities and format current host copy', () => {
+	let current = 'Current action refusal';
+	const fixture = createFixture();
+	Object.defineProperty(fixture.dependencies, 'shortcutActionRequired', { get: () => current });
+	const service = createEditorPreferencesService(fixture.dependencies);
+	let captured: unknown;
+	try { void service.setShortcut('', []); } catch (error) { captured = error; }
+	assert.ok(captured instanceof TypeError);
+	assert.equal(captured.message, current);
+	assert.equal(localizedErrorMessage(captured)?.key, 'shortcutActionRequired');
+	current = 'Changed action refusal';
+	assert.equal(formatPresentationMessage({ shortcutActionRequired: current }, localizedErrorMessage(captured)!), current);
+	fixture.setReadOnly(true);
+	assert.throws(() => service.update({}), (error: unknown) => {
+		assert.equal(localizedErrorMessage(error)?.key, 'preferencesNewerSchema');
+		return true;
+	});
 });

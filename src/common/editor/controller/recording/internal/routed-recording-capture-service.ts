@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { RecordingCaptureControllerLike } from './recording-session-service.ts';
+import { createLocalizedError } from '../../../../i18n/presentation-message.ts'; import { publishLocalizedStatus } from '../../../../i18n/presentation-message.ts'; import type { RecordingCaptureControllerLike } from './recording-session-service.ts';
 import {
 	recordingCapturePeak,
 	recordingCapturePeakDb,
@@ -87,18 +87,18 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 		const timedStartTimeMs = Number(options.timedStartTimeMs);
 		const timedStart = Number.isFinite(timedStartTimeMs);
 		const explicitTrack = options.trackId ? runtime.findTrack(project, options.trackId) : null;
-		if (options.trackId && explicitTrack?.type !== 'audio') throw new Error(runtime.messages.armTrack);
+		if (options.trackId && explicitTrack?.type !== 'audio') throw createLocalizedError(Error, { ['armTrackForRecording']: runtime.messages.armTrack }, 'armTrackForRecording');
 		const armedTracks = explicitTrack
 			? [explicitTrack]
 			: project.tracks.filter((track) => track.type === 'audio' && track.armed);
-		if (!armedTracks.length) throw new Error(runtime.messages.armTrack);
+		if (!armedTracks.length) throw createLocalizedError(Error, { ['armTrackForRecording']: runtime.messages.armTrack }, 'armTrackForRecording');
 		const plan = planRoutedRecordingSources(
 			armedTracks,
 			state.recordingRouting.routes,
 			runtime.recordingRouteSourceKey,
 		);
 		for (const trackId of plan.skippedTrackIds) state.recordingRouteHealth[trackId] = 'skipped';
-		if (!plan.assigned.length) throw new Error(runtime.messages.assignInput);
+		if (!plan.assigned.length) throw createLocalizedError(Error, { ['recordingAssignInput']: runtime.messages.assignInput }, 'recordingAssignInput');
 
 		state.recordingStarting = true;
 		state.recordingFatalError = null;
@@ -168,7 +168,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 			// so transient user activation is retained.
 			const acquisitions = plan.groups.map(({ sourceKey, routes }) => {
 				const firstRoute = routes[0]?.route;
-				if (!firstRoute) throw new Error(runtime.messages.noInputsAvailable);
+				if (!firstRoute) throw createLocalizedError(Error, { ['recordingNoInputsAvailable']: runtime.messages.noInputsAvailable }, 'recordingNoInputsAvailable');
 				const requiredChannels = Math.max(...routes.map(({ route }) => route.channelStart + route.channelCount));
 				const retained = firstRoute.kind === 'display'
 					? runtime.capturePool.getDisplay?.()
@@ -178,7 +178,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 				let promise: Promise<RecordingMediaStream>;
 				if (reusable && retained) promise = Promise.resolve(retained);
 				else if (options.reusePreparedInputsOnly) {
-					promise = Promise.reject(new Error(runtime.messages.preparedInputClosed));
+					promise = Promise.reject(createLocalizedError(Error, { ['recordingPreparedInputClosed']: runtime.messages.preparedInputClosed }, 'recordingPreparedInputClosed'));
 				} else if (firstRoute.kind === 'display') promise = runtime.capturePool.acquireDisplay();
 				else {
 					promise = runtime.capturePool.acquireHardware(firstRoute.deviceId, {
@@ -234,7 +234,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 			runtime.syncRecordingPoolSnapshot();
 			if (!sourceSessions.length) {
 				runtime.releaseUnretainedRecordingInputs();
-				throw new Error(runtime.messages.noInputsAvailable);
+				throw createLocalizedError(Error, { ['recordingNoInputsAvailable']: runtime.messages.noInputsAvailable }, 'recordingNoInputsAvailable');
 			}
 
 			const routedChannelCount = sourceSessions.reduce((total, session) => (
@@ -250,7 +250,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 			scope.assertCurrent();
 			await dropFailedSourceSessions();
 			scope.assertCurrent();
-			if (!sourceSessions.length) throw new Error(runtime.messages.noInputsAvailable);
+			if (!sourceSessions.length) throw createLocalizedError(Error, { ['recordingNoInputsAvailable']: runtime.messages.noInputsAvailable }, 'recordingNoInputsAvailable');
 			const captureSampleRate = context.sampleRate || sampleRate;
 			const selection = runtime.activeSelection(project);
 			await runtime.preflightStorage(
@@ -342,7 +342,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 			}
 			await dropFailedSourceSessions();
 			scope.assertCurrent();
-			if (!sourceSessions.length) throw new Error(runtime.messages.noInputsAvailable);
+			if (!sourceSessions.length) throw createLocalizedError(Error, { ['recordingNoInputsAvailable']: runtime.messages.noInputsAvailable }, 'recordingNoInputsAvailable');
 			const selectedMeterEntry = entries.find((entry) => entry.trackId === state.selectedTrackId)
 				|| entries[0]
 				|| null;
@@ -454,7 +454,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 			await dropFailedSourceSessions();
 			scope.assertCurrent();
 			const readySessions = sourceSessions.filter(hasController);
-			if (!readySessions.length) throw new Error(runtime.messages.noInputsAvailable);
+			if (!readySessions.length) throw createLocalizedError(Error, { ['recordingNoInputsAvailable']: runtime.messages.noInputsAvailable }, 'recordingNoInputsAvailable');
 
 			routedRecorder = runtime.createRoutedController(readySessions);
 			state.recordingEntries = Object.freeze([...entries]);
@@ -464,7 +464,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 			state.recorder = routedRecorder;
 			const remainingSeconds = timedStart ? (timedStartTimeMs - runtime.currentTimeMs()) / 1_000 : null;
 			if (timedStart && remainingSeconds !== null && remainingSeconds <= 0) {
-				throw new RangeError(runtime.messages.timedRecordingPast);
+				throw createLocalizedError(RangeError, { ['timedRecordingPast']: runtime.messages.timedRecordingPast }, 'timedRecordingPast');
 			}
 			const scheduledTime = timedStart
 				? context.currentTime + (remainingSeconds || 0)
@@ -531,7 +531,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 				scope.assertCurrent();
 				await dropFailedSourceSessions();
 				scope.assertCurrent();
-				if (!sourceSessions.length) throw new Error(runtime.messages.noInputsAvailable);
+				if (!sourceSessions.length) throw createLocalizedError(Error, { ['recordingNoInputsAvailable']: runtime.messages.noInputsAvailable }, 'recordingNoInputsAvailable');
 				setRecorderSchedule(
 					typeof playbackStartTime === 'number' && Number.isFinite(playbackStartTime)
 						? playbackStartTime
@@ -542,7 +542,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 				state.recordingPreview = state.recordingPreviews[0] || null;
 				routedRecorder.start();
 				state.recordingPaused = false;
-				runtime.setStatus(runtime.messages.recording);
+				publishLocalizedStatus(runtime.setStatus, runtime.messages.recording, { key: 'recording' });
 				runtime.updateTransportState('recording');
 			}
 		} catch (error) {

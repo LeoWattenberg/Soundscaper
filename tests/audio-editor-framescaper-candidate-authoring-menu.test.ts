@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { EDITOR_ENGLISH_COPY } from '../src/common/i18n/editor-copy-inventory.ts';
 
 import {
 	bindFramescaperCandidateAuthoringActionRuntime,
@@ -132,7 +133,7 @@ test('the baseline exposes maintained visual workflows without the external gene
 			disabled: items.generate[0]?.disabled,
 		}, {
 			id: 'framescaper-add-video-still',
-			label: 'Add Images…',
+			label: EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoStill'],
 			disabled: false,
 		});
 		assert.deepEqual(items.generate[1]?.items?.map(({ id, disabled }) => ({ id, disabled })), [
@@ -160,7 +161,7 @@ test('the baseline exposes Add Images through Generate when the image action is 
 	assert.deepEqual({
 		label: items.generate[0]?.label,
 		disabled: items.generate[0]?.disabled,
-	}, { label: 'Add Images…', disabled: false });
+	}, { label: EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoStill'], disabled: false });
 	items.generate[0]?.onClick?.();
 	assert.deepEqual(calls, ['video-still']);
 });
@@ -199,7 +200,7 @@ test('the product menu seam places baseline authoring in Tracks, Generate, and E
 	assert.deepEqual(items.generate.map(({ id }: { id: string }) => id), [
 		'framescaper-add-video-still', 'framescaper-video-generators',
 	]);
-	assert.equal(items.generate[0]?.label, 'Add Images…');
+	assert.equal(items.generate[0]?.label, EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoStill']);
 	assert.equal(items.effect.some(({ id }: { id: string }) => (
 		id === 'framescaper-video-transitions'
 	)), true);

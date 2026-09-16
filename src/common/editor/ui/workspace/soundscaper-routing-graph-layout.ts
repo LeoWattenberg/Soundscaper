@@ -3,6 +3,8 @@
 import type { MixerEdgeV21, MixerGraphV21, MixerNodeKindV21 } from '../../mixer-graph-v21.ts';
 import type { StripRef } from '../../parameter-address.ts';
 import { resolveTerminalChannelWidths } from '../../terminal-channel-widths.ts';
+import { SOUNDSCAPER_ROUTING_GRAPH_COPY } from '../../../i18n/editor-soundscaper-routing-graph-copy.ts';
+import { resolveEditorCopyScope } from '../../../i18n/editor-copy-scope.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
 export type RoutingLayoutNodeKind = 'track' | MixerNodeKindV21 | 'master' | 'output' | 'vca';
@@ -62,7 +64,9 @@ const CONTROL_Y = 28;
 export function layoutSoundscaperRoutingGraph(
 	projectValue: unknown,
 	graph: MixerGraphV21,
+	copy: Readonly<Record<string, string | undefined>> = {},
 ): SoundscaperRoutingGraphLayout {
+	const text = resolveEditorCopyScope('routing', SOUNDSCAPER_ROUTING_GRAPH_COPY, copy);
 	const project = record(projectValue);
 	const masterChannels = positiveInteger(project?.masterChannels, 2);
 	const terminalWidths = resolveTerminalChannelWidths(projectValue as never, masterChannels);
@@ -72,30 +76,30 @@ export function layoutSoundscaperRoutingGraph(
 		if (track.type !== 'audio' || typeof track.id !== 'string' || track.id.length === 0) continue;
 		pending.push({
 			key: `track:${track.id}`, id: track.id, kind: 'track',
-			label: label(track.name, track.id), detail: 'Track',
+			label: label(track.name, track.id), detail: text.track,
 			channelCount: terminalWidths.tracks.get(track.id) ?? masterChannels,
 			semanticOrder: semanticOrder++, rail: 'audio', initialRank: 0,
 		});
 	}
-	for (const [collection, kind, detail] of NODE_COLLECTIONS) {
+	for (const [collection, kind] of NODE_COLLECTIONS) {
 		for (const node of graph[collection]) pending.push({
 			key: `mixer-node:${node.id}`, id: node.id, kind,
-			label: node.name || node.id, detail, channelCount: node.channelCount,
+			label: node.name || node.id, detail: text[kind], channelCount: node.channelCount,
 			semanticOrder: semanticOrder++, rail: 'audio', initialRank: 1,
 		});
 	}
 	pending.push({
-		key: 'master', id: 'master', kind: 'master', label: 'Master', detail: 'Master',
+		key: 'master', id: 'master', kind: 'master', label: text.master, detail: text.master,
 		channelCount: masterChannels, semanticOrder: semanticOrder++, rail: 'audio', initialRank: 1,
 	});
 	for (const output of graph.outputs) pending.push({
 		key: `output:${output.id}`, id: output.id, kind: 'output',
-		label: output.name || output.id, detail: outputDetail(output.role),
+		label: output.name || output.id, detail: outputDetail(output.role, text),
 		channelCount: output.channelCount, semanticOrder: semanticOrder++, rail: 'audio', initialRank: 2,
 	});
 	for (const vca of graph.vcas) pending.push({
 		key: `vca:${vca.id}`, id: vca.id, kind: 'vca', label: vca.name || vca.id,
-		detail: `${vca.members.length} member${vca.members.length === 1 ? '' : 's'}`,
+		detail: (vca.members.length === 1 ? text.memberCountOne : text.memberCountMany).replace('{count}', String(vca.members.length)),
 		channelCount: null, semanticOrder: semanticOrder++, rail: 'control', initialRank: 0,
 	});
 
@@ -257,8 +261,9 @@ function median(values: readonly number[]): number {
 	return sorted.length % 2 === 0 ? ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2 : sorted[middle] ?? 0;
 }
 
-function outputDetail(role: string): string {
-	return `${role === 'control-room' ? 'Control room' : role.charAt(0).toUpperCase() + role.slice(1)} output`;
+function outputDetail(role: string, text: Readonly<{ main: string; controlRoom: string; auxiliary: string; outputDescription: string }>): string {
+	const name = role === 'main' ? text.main : role === 'control-room' ? text.controlRoom : role === 'auxiliary' ? text.auxiliary : role;
+	return text.outputDescription.replace('{role}', name);
 }
 
 function label(value: unknown, fallback: string): string {
@@ -278,7 +283,7 @@ function positiveInteger(value: unknown, fallback: number): number {
 }
 
 const NODE_COLLECTIONS = [
-	['groups', 'group', 'Group'],
-	['sends', 'send', 'Send'],
-	['cues', 'cue', 'Cue'],
+	['groups', 'group'],
+	['sends', 'send'],
+	['cues', 'cue'],
 ] as const;

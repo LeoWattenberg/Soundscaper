@@ -3,7 +3,7 @@
 import {
 	createAddLabelTrackCommand,
 	createAddTimelineAnnotationCommand,
-} from '../../../commands/factories.ts';
+} from '../../../commands/factories.ts'; import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 import {
 	parseAudioEditorCueSheet,
@@ -119,7 +119,7 @@ export interface LabelServiceDependencies {
 	editingBlocked(): boolean;
 	createId(prefix: string): string;
 	commit(command: AudioEditorCommand, selection?: CommitSelection): unknown;
-	setStatus(message: string, state?: string): void;
+	setStatus(message: string, state?: string, localization?: import('../../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;
 	publish(): void;
 	saveExport(result: LabelExportResult): Promise<unknown> | unknown;
 }
@@ -151,7 +151,7 @@ export function createLabelService(dependencies: LabelServiceDependencies): Read
 		const generation = ++importGeneration;
 		dependencies.state.importing = true;
 		dependencies.publish();
-		dependencies.setStatus(dependencies.copy.labelsImporting);
+		setLocalizedStatus(dependencies.setStatus, dependencies.copy, "labelsImporting");
 		try {
 			const data = await readLabelFile(file);
 			assertOwnership(ownership);
@@ -162,10 +162,10 @@ export function createLabelService(dependencies: LabelServiceDependencies): Read
 				strict: options.strict,
 				idFactory: () => dependencies.createId('label'),
 			}) as ParsedLabels;
-			if (!parsed.labels.length) throw new Error(dependencies.copy.labelsImportEmpty);
+			if (!parsed.labels.length) throw createLocalizedError(Error, dependencies.copy, 'labelsImportEmpty');
 			const trackId = dependencies.createId('label-track');
 			const trackName = String(
-				options.name || stripExtension(file.name) || dependencies.copy.labels,
+				options.name || stripExtension(file.name) || publishedCopyFor(dependencies.copy).labels,
 			).trim();
 			assertOwnership(ownership);
 			dependencies.commit(createAddLabelTrackCommand({
@@ -173,10 +173,7 @@ export function createLabelService(dependencies: LabelServiceDependencies): Read
 				name: trackName,
 				labels: parsed.labels,
 			}), { selectTrackId: trackId });
-			dependencies.setStatus(
-				dependencies.copy.labelsImported.replace('{count}', String(parsed.labels.length)),
-				parsed.warnings.length ? 'info' : 'success',
-			);
+			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "labelsImported", { count: String(parsed.labels.length) }, parsed.warnings.length ? 'info' : 'success');
 			return { ...parsed, trackId };
 		} finally {
 			ownership.task.finish();
@@ -200,12 +197,12 @@ export function createLabelService(dependencies: LabelServiceDependencies): Read
 		const generation = ++importGeneration;
 		dependencies.state.importing = true;
 		dependencies.publish();
-		dependencies.setStatus(dependencies.copy.labelsImporting);
+		setLocalizedStatus(dependencies.setStatus, dependencies.copy, "labelsImporting");
 		try {
 			const data = await readLabelFile(file);
 			assertOwnership(ownership);
 			const parsed = parseAudioEditorCueSheet(data, { sampleRate: ownership.project.sampleRate });
-			if (!parsed.cues.length) throw new Error(dependencies.copy.labelsImportEmpty);
+			if (!parsed.cues.length) throw createLocalizedError(Error, dependencies.copy, 'labelsImportEmpty');
 			if (destination === 'labels') {
 				const labels = parsed.cues.map((cue) => ({
 					id: dependencies.createId('label'),
@@ -218,13 +215,10 @@ export function createLabelService(dependencies: LabelServiceDependencies): Read
 				assertOwnership(ownership);
 				dependencies.commit(createAddLabelTrackCommand({
 					id: trackId,
-					name: parsed.title || stripExtension(file.name) || dependencies.copy.labels,
+					name: parsed.title || stripExtension(file.name) || publishedCopyFor(dependencies.copy).labels,
 					labels,
 				}), { selectTrackId: trackId });
-				dependencies.setStatus(
-					dependencies.copy.labelsImported.replace('{count}', String(labels.length)),
-					'success',
-				);
+				setLocalizedStatus(dependencies.setStatus, dependencies.copy, "labelsImported", { count: String(labels.length) }, 'success');
 				return Object.freeze({ destination, count: labels.length, trackId });
 			}
 			if (!ownership.project.primarySequenceId || !Array.isArray(ownership.project.timelineAnnotations)) {
@@ -247,7 +241,7 @@ export function createLabelService(dependencies: LabelServiceDependencies): Read
 			}));
 			assertOwnership(ownership);
 			dependencies.commit({ type: 'batch', commands });
-			dependencies.setStatus(`${dependencies.copy.panelMarkers}: ${String(commands.length)}`, 'success');
+			setLocalizedStatus(dependencies.setStatus, dependencies.copy, 'panelMarkers', undefined, 'success', { suffix: `: ${String(commands.length)}` });
 			return Object.freeze({ destination, count: commands.length });
 		} finally {
 			ownership.task.finish();
@@ -268,7 +262,7 @@ export function createLabelService(dependencies: LabelServiceDependencies): Read
 				.filter((track) => !requestedIds || requestedIds.has(track.id));
 			const selected = tracks.find((track) => track.id === dependencies.state.selectedTrackId);
 			if (!requestedIds && selected) tracks = [selected];
-			if (!tracks.length) throw new Error(dependencies.copy.labelTrackMissing);
+			if (!tracks.length) throw createLocalizedError(Error, dependencies.copy, 'labelTrackMissing');
 			const format = String(options.format || 'txt').toLowerCase().replace(/^\./u, '');
 			const labels = tracks.flatMap((track) => track.labels);
 			const text = String(serializeAudioEditorLabels(labels, {
@@ -288,10 +282,7 @@ export function createLabelService(dependencies: LabelServiceDependencies): Read
 				: null;
 			assertOwnership(ownership);
 			if (isCancelledSave(saved)) return { ...result, cancelled: true };
-			dependencies.setStatus(
-				dependencies.copy.labelsExported.replace('{count}', String(labels.length)),
-				'success',
-			);
+			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "labelsExported", { count: String(labels.length) }, 'success');
 			return result;
 		} finally {
 			ownership.task.finish();

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'; import { publishedCopyFor } from '../../controller/shared/presentation-localization.ts'; import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
 import { EffectsPanel } from '@soundscaper/design-system/EffectsPanel';
@@ -81,7 +81,7 @@ export function AudioEditorEffectsOverlay({
 		else setInternalSelectedEffect(value);
 	}, [onSelectedEffectChange]);
 	const [rackPresetId, setRackPresetId] = useState('');
-	const [message, setMessage] = useState('');
+	const [message, setMessage] = usePresentationFeedback(copy);
 	const [stackMenu, setStackMenu] = useState(null);
 	const rackRef = useRef(null);
 	const stackMenuTriggerRef = useRef(null);
@@ -111,7 +111,7 @@ export function AudioEditorEffectsOverlay({
 		setMessage('');
 		setStackMenu(null);
 		stackMenuTriggerRef.current = null;
-	}, [projectIdentity, setSelectedEffect]);
+	}, [projectIdentity, setSelectedEffect, setMessage]);
 	useEffect(() => {
 		if (!selectedEffect) return;
 		const rack = selectedEffect.scope === 'master' ? masterEffects : channelEffects;
@@ -129,7 +129,7 @@ export function AudioEditorEffectsOverlay({
 			setStackMenu(null);
 			stackMenuTriggerRef.current = null;
 		}
-	}, [isOpen, setSelectedEffect]);
+	}, [isOpen, setSelectedEffect, setMessage]);
 
 	useEffect(() => {
 		for (const button of rackRef.current?.querySelectorAll('.effects-stack-header__menu-button') || []) {
@@ -154,7 +154,7 @@ export function AudioEditorEffectsOverlay({
 			ownsOperation() ? work(ownsOperation) : undefined
 		)).catch((cause) => {
 			if (!ownsOperation()) return;
-			setMessage(cause instanceof Error ? cause.message : String(cause));
+			setMessage(feedbackFailure(cause));
 		});
 	};
 
@@ -172,7 +172,7 @@ export function AudioEditorEffectsOverlay({
 	const replaceFromRegistry = (scope, effect, candidate) => {
 		const type = resolveSupportedEffectType(candidate, locale, copy);
 		if (!type) {
-			setMessage(copy.effectEngineUnsupported);
+			setMessage({ key: 'effectEngineUnsupported' });
 			return;
 		}
 		const fresh = createEffect(type);
@@ -187,7 +187,7 @@ export function AudioEditorEffectsOverlay({
 			const targetTrackId = scope === 'track' ? targetId : null;
 			const controlTrack = project?.tracks.find((track) => track.id !== targetTrackId);
 			if (!controlTrack) {
-				setMessage(copy.autoDuckSecondControlTrack);
+				setMessage({ key: 'autoDuckSecondControlTrack' });
 				return;
 			}
 			changes.context = { controlTrackId: controlTrack.id };
@@ -333,22 +333,22 @@ export function AudioEditorEffectsOverlay({
 	);
 	const copyStack = () => {
 		controller.actions.effects.copyStack(stackMenu.scope, menuTrackId);
-		setMessage(copy.effectsCopied);
+		setMessage({ key: 'effectsCopied' });
 		closeStackMenu();
 	};
 	const pasteStack = () => run((ownsOperation) => {
 		if (!ownsOperation()) return;
 		controller.actions.effects.pasteStack(stackMenu.scope, menuTrackId);
 		if (!ownsOperation()) return;
-		setMessage(copy.effectsPasted);
+		setMessage({ key: 'effectsPasted' });
 		closeStackMenu();
 	});
 	const exportStack = () => run(async (ownsOperation) => {
 		const encoded = serializeAudacityEffectMacro(menuEffects.filter((candidate) => candidate.type !== 'missing'));
-		const name = stackMenu.scope === 'master' ? copy.master : channel?.name;
-		const saved = await downloadTextFile(encoded, `${macroFileName(name || copy.untitledMacro)}.txt`, fileService, 'macro');
+		const name = stackMenu.scope === 'master' ? publishedCopyFor(copy).master : channel?.name;
+		const saved = await downloadTextFile(encoded, `${macroFileName(name || publishedCopyFor(copy).untitledMacro)}.txt`, fileService, 'macro');
 		if (!ownsOperation() || saved?.cancelled) return;
-		setMessage(copy.macroExported);
+		setMessage({ key: 'macroExported' });
 		closeStackMenu();
 	});
 
@@ -419,7 +419,7 @@ export function AudioEditorEffectsOverlay({
 				<AudioEditorDialogShell
 					isOpen
 					title={safeEffectLabel(effect, copy)}
-					headerTitle={`${safeEffectLabel(effect, copy).replace(/ \(Audacity\)$/u, '')} - ${effectScope === 'track' ? findTrack(project, targetId)?.name || '' : copy.masterEffects}`}
+					headerTitle={`${safeEffectLabel(effect, copy).replace(/ \(Audacity\)$/u, '')} - ${effectScope === 'track' ? findTrack(project, targetId)?.name || '' : copy['ui.effectsOverlay.masterEffects'] || copy.master}`}
 					onClose={() => setSelectedEffect(null)}
 					width={audacityEffectDialogWidth(effect.type) ?? (effect.type === 'eq' ? 920 : 620)}
 					modal={false}

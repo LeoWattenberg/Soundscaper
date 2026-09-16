@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { SOUNDSCAPER_WORKFLOW_COPY } from '../../i18n/editor-soundscaper-workflow-copy.ts';
+import { resolveEditorCopyScope } from '../../i18n/editor-copy-scope.ts';
+
 import {
 	hasMasteringSequenceProjectAuthority,
 	isSoundscaperProductionProject,
@@ -41,20 +44,8 @@ const EMPTY_ITEMS: SoundscaperWorkflowApplicationMenuItems = Object.freeze({
 	tools: Object.freeze([]),
 });
 
-const DEFAULT_COPY = Object.freeze({
-	freeze: 'Freeze',
-	freezeFresh: 'Freeze (fresh)',
-	freezeStale: 'Freeze (stale)',
-	freezeVerifying: 'Freeze (verifying)',
-	freezeUnknown: 'Freeze (status unknown)',
-	freezeTrack: 'Freeze track',
-	refreshFrozenTrack: 'Refresh frozen track',
-	unfreezeTrack: 'Unfreeze track',
-	commitFrozenTrack: 'Commit frozen track',
-	masteringSequences: 'Mastering sequences…',
-});
 
-type WorkflowCopy = typeof DEFAULT_COPY;
+type WorkflowCopy = Readonly<{ [Key in keyof typeof SOUNDSCAPER_WORKFLOW_COPY]: string }>;
 type DataRecord = Readonly<Record<string, unknown>>;
 
 export function createSoundscaperWorkflowApplicationMenuItems(
@@ -169,10 +160,7 @@ function leaf(input: Readonly<{
 }
 
 function workflowCopy(value?: Readonly<Record<string, unknown>>): WorkflowCopy {
-	return Object.freeze(Object.fromEntries(Object.entries(DEFAULT_COPY).map(([key, fallback]) => [
-		key,
-		typeof value?.[key] === 'string' && value[key] ? value[key] : fallback,
-	]))) as WorkflowCopy;
+	return resolveEditorCopyScope('soundscaperWorkflow', SOUNDSCAPER_WORKFLOW_COPY, value);
 }
 
 function freezeLabel(copy: WorkflowCopy, status: SoundscaperFreezeStatus): string {

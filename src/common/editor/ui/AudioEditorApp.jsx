@@ -5,6 +5,9 @@ import { reportStaleBuildCandidate } from '../../offline/stale-build-runtime.ts'
 import './audio-editor-design-system.css';
 import { DesignSystemProviders } from './DesignSystemRuntime.jsx';
 import AudioEditorWorkspace from './workspace/AudioEditorWorkspace.jsx';
+import CommunityTranslationMount from './community-translations/CommunityTranslationMount.tsx';
+import { useCommunityTranslationPresentation } from './community-translations/community-translation-presentation.ts';
+import { getLocaleDescriptor } from '../../i18n/locales.js';
 
 const MonoConversionConfirmationDialog = lazyEditorModule(
 	() => import('./dialogs/MonoConversionConfirmationDialog.tsx'),
@@ -15,20 +18,27 @@ const DeleteBehaviorOnboardingDialog = lazyEditorModule(
 
 /** Presentation-only seam for a product-owned, already-constructed runtime. */
 export function BoundAudioEditorApp(props) {
-	return <AudioEditorFrame copy={props.copy} controller={props.controller}>
-		<AudioEditorWorkspace {...props} />
+	const presentation = useCommunityTranslationPresentation(props.controller, props.locale, props.copy);
+	const copy = presentation.copy;
+	const locale = presentation.locale;
+	return <AudioEditorFrame copy={copy} controller={props.controller}>
+		<div dir={getLocaleDescriptor(locale)?.direction || 'ltr'} style={{ display: 'contents' }}>
+		<AudioEditorWorkspace {...props} copy={copy} locale={locale} />
 		{props.monoConversionConfirmation && <ConfirmationDialogMount
 			Component={MonoConversionConfirmationDialog}
 			confirmation={props.monoConversionConfirmation}
-			copy={props.copy}
+			copy={copy}
 			cancelDecision={{ accepted: false, dontShowAgain: false }}
 		/>}
 		{props.deleteBehaviorConfirmation && <ConfirmationDialogMount
 			Component={DeleteBehaviorOnboardingDialog}
 			confirmation={props.deleteBehaviorConfirmation}
-			copy={props.copy}
+			copy={copy}
 			cancelDecision={{ accepted: false }}
 		/>}
+		<CommunityTranslationMount controller={props.controller} copy={copy} locale={props.locale}
+			productId={props.productId} fileService={props.fileService} />
+		</div>
 	</AudioEditorFrame>;
 }
 

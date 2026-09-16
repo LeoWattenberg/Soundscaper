@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { FrameCanonicalEdgeTrimPlan } from '../../../../frame-canonical-edge-trim-domain.ts';
+import type { FrameCanonicalEdgeTrimPlan } from '../../../../frame-canonical-edge-trim-domain.ts'; import { setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
 
 export interface VideoEdgeTrimFeedbackCopy {
 	readonly trimLeftEdgeApplied: string;
@@ -12,7 +12,7 @@ export interface VideoEdgeTrimFeedbackCopy {
 export interface VideoEdgeTrimFeedbackDependencies {
 	readonly copy: VideoEdgeTrimFeedbackCopy;
 	label(sample: number, sequenceId?: string): string;
-	setStatus(message: string, state: 'info' | 'success'): void;
+	setStatus(message: string, state: 'info' | 'success', localization?: import('../../../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;
 }
 
 export type VideoEdgeTrimResultReporter = (plan: FrameCanonicalEdgeTrimPlan) => void;
@@ -23,19 +23,12 @@ export function createVideoEdgeTrimResultReporter(
 ): VideoEdgeTrimResultReporter {
 	return (plan: FrameCanonicalEdgeTrimPlan): void => {
 		if (plan.kind === 'noop') {
-			dependencies.setStatus(dependencies.copy.noTrimAvailable, 'info');
+			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "noTrimAvailable", undefined, 'info');
 			return;
 		}
-		const template = plan.edge === 'left'
-			? dependencies.copy.trimLeftEdgeApplied
-			: dependencies.copy.trimRightEdgeApplied;
-		const message = template.replace(
-			'{timecode}',
-			dependencies.label(plan.boundarySample, plan.sequenceId),
-		);
-		dependencies.setStatus(
-			plan.clamped ? `${message} ${dependencies.copy.trimBoundaryClamped}` : message,
-			'success',
-		);
+		setLocalizedStatus(dependencies.setStatus, dependencies.copy,
+			plan.edge === 'left' ? 'trimLeftEdgeApplied' : 'trimRightEdgeApplied',
+			{ timecode: dependencies.label(plan.boundarySample, plan.sequenceId) }, 'success',
+			plan.clamped ? { append: [' ', { key: 'trimBoundaryClamped' }] } : undefined);
 	};
 }

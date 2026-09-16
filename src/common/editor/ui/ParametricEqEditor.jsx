@@ -1,3 +1,4 @@
+import { PARAMETRIC_EQ_BAND_COPY } from '../../i18n/editor-parametric-eq-copy.ts';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { ParametricEqNumericInput } from './ParametricEqNumericInput.jsx';
@@ -19,14 +20,7 @@ const RESPONSE_MIN_DB = -30;
 const RESPONSE_MAX_DB = 30;
 const GRAPH_WIDTH = 1_000;
 const GRAPH_HEIGHT = 360;
-const BAND_TYPES = Object.freeze([
-	['peaking', 'Bell'],
-	['lowshelf', 'Low shelf'],
-	['highshelf', 'High shelf'],
-	['highpass', 'Low cut'],
-	['lowpass', 'High cut'],
-	['notch', 'Notch'],
-]);
+
 const CUT_SLOPES = Object.freeze([12, 24, 36, 48]);
 
 export function ParametricEqEditor({
@@ -472,7 +466,7 @@ export function ParametricEqEditor({
 
 			{selectedBand && (
 				<section className="audio-editor-parametric-eq__inspector" aria-label={copy.eqSelectedBand || 'Selected band'}>
-					<label><span>{copy.eqBandType || 'Type'}</span><select disabled={disabled} value={selectedBand.type} onChange={(event) => setSelectedValue('type', event.currentTarget.value)}>{BAND_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+					<label><span>{copy.eqBandType || 'Type'}</span><select disabled={disabled} value={selectedBand.type} onChange={(event) => setSelectedValue('type', event.currentTarget.value)}>{Object.entries(PARAMETRIC_EQ_BAND_COPY).map(([value, label]) => <option key={value} value={value}>{copy[`ui.parametricEq.band.${value}`] || label}</option>)}</select></label>
 					<label><span>{copy.effectParamFrequency || 'Frequency'} (Hz)</span><ParametricEqNumericInput disabled={disabled} min={MIN_FREQUENCY} max={MAX_FREQUENCY} step="1" value={selectedBand.frequency} onCommit={(value) => setSelectedValue('frequency', value)} /></label>
 					{bandUsesGain(selectedBand.type) && <label><span>{copy.eqGain || 'Gain'} (dB)</span><ParametricEqNumericInput disabled={disabled} min={MIN_GAIN} max={MAX_GAIN} step="0.1" value={selectedBand.gain} onCommit={(value) => setSelectedValue('gain', value)} /></label>}
 					{bandUsesQ(selectedBand.type) && <label><span>Q</span><ParametricEqNumericInput disabled={disabled} min={MIN_Q} max={MAX_Q} step="0.01" value={selectedBand.q} onCommit={(value) => setSelectedValue('q', value)} /></label>}
@@ -535,7 +529,7 @@ function bandUsesSlope(type) {
 
 function automationValue(key, value) {
 	if (key === 'enabled') return value ? 1 : 0;
-	if (key === 'type') return Math.max(0, BAND_TYPES.findIndex(([type]) => type === value));
+	if (key === 'type') return Math.max(0, Object.keys(PARAMETRIC_EQ_BAND_COPY).indexOf(value));
 	return Number(value);
 }
 

@@ -235,7 +235,7 @@ test('resampling persists one derived source and atomically rewrites clip geomet
 	assert.equal(await fixture.service.resampleTrack('track', 48_000), 'track');
 	assert.deepEqual(fixture.calls.preflights, [800]);
 	assert.deepEqual(fixture.calls.processing, [true, false]);
-	assert.deepEqual(fixture.calls.statuses, [['Resampling'], ['Done', 'success']]);
+	assert.deepEqual(fixture.calls.statuses, [['Resampling', undefined, { key: 'resamplingTrack' }], ['Done', 'success', { key: 'done' }]]);
 	assert.equal(fixture.calls.persisted[0]?.template.sampleRate, 48_000);
 	assert.equal(fixture.calls.persisted[0]?.template.originalSampleRate, 24_000);
 	const batch = fixture.calls.commits[0]?.command;
@@ -264,7 +264,7 @@ test('channel swapping persists reversed stereo data and replaces every matching
 	assert.equal(batch?.type, 'batch');
 	if (batch?.type !== 'batch') assert.fail('Expected a swap batch.');
 	assert.deepEqual(batch.commands.map((command) => command.type), ['source/add', 'clip/replace-source']);
-	assert.deepEqual(fixture.calls.statuses, [['Rewriting'], ['Done', 'success']]);
+	assert.deepEqual(fixture.calls.statuses, [['Rewriting', undefined, { key: 'rewritingChannels' }], ['Done', 'success', { key: 'done' }]]);
 });
 
 test('stereo splitting creates left and right tracks, sources, clips, and independent effects', async () => {

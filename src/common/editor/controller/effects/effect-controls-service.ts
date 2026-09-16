@@ -8,7 +8,7 @@ import {
 	importAudioEditorEffectPresets,
 	listAudioEditorEffectPresets,
 	saveAudioEditorEffectPreset,
-} from '../../effect-presets.js';
+} from '../../effect-presets.js'; import { createLocalizedError, setLocalizedStatus } from '../../../i18n/presentation-message.ts';
 import {
 	AUDIO_SELECTION_EFFECT_DEFINITIONS,
 	audioSelectionEffectDefaults,
@@ -112,7 +112,7 @@ export interface EffectControlsServiceRuntime {
 		options: Readonly<{ policy: 'required' }>,
 	) => Promise<unknown>;
 	readonly publishDocumentSnapshot: () => void;
-	readonly setStatus: (message: string, status?: string) => void;
+	readonly setStatus: (message: string, status?: string, localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly applySelectedAudacityEffect: () => Promise<unknown>;
 	readonly captureRackNoiseProfile: (
 		effect: EffectControlRackEffect,
@@ -160,7 +160,7 @@ export function createEffectControlsService(runtime: EffectControlsServiceRuntim
 	}
 
 	function setAudacityEffectType(type: string): EffectControlParameters {
-		if (!AUDIO_SELECTION_EFFECT_DEFINITIONS[type]) throw new Error(runtime.copy.selectionEffectUnsupported);
+		if (!AUDIO_SELECTION_EFFECT_DEFINITIONS[type]) throw createLocalizedError(Error, runtime.copy, 'selectionEffectUnsupported');
 		if (type !== runtime.state.audacityEffectType) runtime.state.audacityPreviewAuditionBandId = null;
 		runtime.state.audacityEffectType = type;
 		runtime.publishDocumentSnapshot();
@@ -178,7 +178,7 @@ export function createEffectControlsService(runtime: EffectControlsServiceRuntim
 
 	function setAudacityControlTrack(trackId: string | null): string | null {
 		if (trackId != null && !findTrack(runtime.getProject(), trackId)) {
-			throw new Error(runtime.copy.controlTrackNotFound);
+			throw createLocalizedError(Error, runtime.copy, 'controlTrackNotFound');
 		}
 		runtime.state.audacityControlTrackId = trackId || null;
 		runtime.publishDocumentSnapshot();
@@ -295,7 +295,7 @@ export function createEffectControlsService(runtime: EffectControlsServiceRuntim
 			try { source.disconnect?.(); } catch { /* The preview may already be disconnected. */ }
 		}
 		if (options.publish !== false) {
-			runtime.setStatus(runtime.copy.audacityPreviewCancelled || runtime.copy.ready);
+			setLocalizedStatus(runtime.setStatus, runtime.copy, (runtime.copy.audacityPreviewCancelled ? "audacityPreviewCancelled" : "ready"));
 			runtime.publishDocumentSnapshot();
 		}
 		return Boolean(source);
@@ -311,7 +311,7 @@ export function createEffectControlsService(runtime: EffectControlsServiceRuntim
 
 	async function repeatLastAudacityEffect(): Promise<unknown> {
 		const previous = runtime.state.lastAudacityEffect;
-		if (!previous) throw new Error(runtime.copy.noRepeatableEffect || runtime.copy.audacitySelectionHint);
+		if (!previous) throw createLocalizedError(Error, runtime.copy, runtime.copy.noRepeatableEffect ? 'noRepeatableEffect' : 'audacitySelectionHint');
 		setAudacityEffectType(previous.type);
 		setAudacityEffectParamsFromController(structuredClone(previous.params), { markTouched: false });
 		if (previous.controlTrackId && findTrack(runtime.getProject(), previous.controlTrackId)) {
@@ -331,7 +331,7 @@ export function createEffectControlsService(runtime: EffectControlsServiceRuntim
 			? project.master.effects
 			: findTrack(project, trackId)?.effects;
 		const effect = rack?.find((candidate) => candidate.id === effectId);
-		if (!effect) throw new Error(runtime.copy.rackEffectNotFound);
+		if (!effect) throw createLocalizedError(Error, runtime.copy, 'rackEffectNotFound');
 		return runtime.captureRackNoiseProfile(effect, normalizedScope, trackId || null);
 	}
 

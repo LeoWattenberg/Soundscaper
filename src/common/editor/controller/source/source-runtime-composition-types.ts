@@ -71,6 +71,6 @@ export interface SourceRuntimeCompositionDependencies<
 	readonly projectDurationFrames: ProjectVisualServiceDependencies['projectDurationFrames'];
 	readonly getProject: () => SourceRuntimeProject | null;
 	readonly publishDocumentSnapshot: () => void;
-	readonly setStatus: (message: string, state?: string) => void;
+	readonly setStatus: (message: string, state?: string, localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly handleError: (error: unknown) => void;
 }

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { MacroTransactionMetadata } from '../effects/macro-transaction-metadata.ts';
+import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import type { MacroTransactionMetadata } from '../effects/macro-transaction-metadata.ts';
 
 import type { AudioEditorCommand } from '../../commands/protocol.ts';
 import type { ProjectFlushOptions } from './project-save-service.ts';
@@ -392,7 +392,7 @@ export function createProjectMutationService<
 
 	function assertWritable(): void {
 		dependencies.assertEditingAllowed();
-		if (dependencies.state.readOnly) throw new Error(dependencies.projectReadOnlyMessage);
+		if (dependencies.state.readOnly) throw createLocalizedError(Error, { projectReadOnly: dependencies.projectReadOnlyMessage }, 'projectReadOnly');
 		if (dependencies.state.takeCycleRecovery || dependencies.state.takeCycleRecoveryInspecting) {
 			throw new Error('Resolve pending take cycle recovery before editing.');
 		}

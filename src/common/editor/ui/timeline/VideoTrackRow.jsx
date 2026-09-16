@@ -1,3 +1,5 @@
+
+import { TIMELINE_ADDITIONAL_COPY } from '../../../i18n/editor-timeline-additional-copy.ts';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GhostButton } from '@soundscaper/design-system/GhostButton';
 import { Icon } from '@soundscaper/design-system/Icon';
@@ -438,7 +440,7 @@ export function VideoTrackControls({
 						run(() => controller.actions.track.update(track.id, { solo: !track.solo }));
 					}}
 				>
-					{copy.soloTrack || 'Solo'}
+					{(copy['ui.timeline.soloTrack'] || copy.soloTrack || TIMELINE_ADDITIONAL_COPY.soloTrack)}
 				</button>
 				<button
 					type="button"

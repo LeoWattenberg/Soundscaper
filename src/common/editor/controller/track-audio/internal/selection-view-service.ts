@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { CommandObject } from '../../../commands/protocol.ts';
+import type { CommandObject } from '../../../commands/protocol.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import type { RenderedAudio } from '../../../rendered-audio-channels.ts';
 import { hasCoreEditingProjectAuthority, isActiveAudioEditorProjectSchema } from '../../../project-schema-version.ts';
 import { resolveSelectionRange } from '../../../selection-range.ts';
@@ -50,7 +50,7 @@ export function createSelectionViewService<
 	function selectTrack(trackId: string | null) {
 		const project = getProject();
 		if (trackId != null && (!project || !findTrack(project, trackId))) {
-			throw new Error(copy.audioTrackNotFound);
+			throw createLocalizedError(Error, copy, 'audioTrackNotFound');
 		}
 		const changed = state.selectedTrackId !== (trackId || null);
 		state.selectedTrackId = trackId || null;
@@ -88,10 +88,10 @@ export function createSelectionViewService<
 			publishProjectState();
 			return null;
 		}
-		if (!project) throw new Error(copy.audioClipNotFound);
+		if (!project) throw createLocalizedError(Error, copy, 'audioClipNotFound');
 		const clip = findClip(project, clipId);
 		const track = clip ? findClipTrack(project, clip.id) : null;
-		if (!clip || !track) throw new Error(copy.audioClipNotFound);
+		if (!clip || !track) throw createLocalizedError(Error, copy, 'audioClipNotFound');
 		state.selectedAnnotationId = null;
 		if (!hasCoreEditingProjectAuthority(project)) {
 			state.selectedTrackId = track.id;
@@ -138,7 +138,7 @@ export function createSelectionViewService<
 		details: SelectionViewSelectionDetails = {},
 	) {
 		const project = getProject();
-		if (!project) throw new Error(copy.v2Required);
+		if (!project) throw createLocalizedError(Error, copy, 'v2Required');
 		return applySelectionRange(project, startFrame, endFrame, details, true);
 	}
 
@@ -155,7 +155,7 @@ export function createSelectionViewService<
 		details: SelectionViewSelectionDetails = {},
 	) {
 		const project = getProject();
-		if (!project) throw new Error(copy.v2Required);
+		if (!project) throw createLocalizedError(Error, copy, 'v2Required');
 		return applySelectionRange(project, startFrame, endFrame, details, false);
 	}
 
@@ -183,7 +183,7 @@ export function createSelectionViewService<
 		carryPlayhead = true,
 	) {
 		if (!Number.isFinite(Number(startFrame)) || !Number.isFinite(Number(endFrame))) {
-			throw new TypeError(copy.selectionFramesFinite);
+			throw createLocalizedError(TypeError, copy, 'selectionFramesFinite');
 		}
 		const maximumFrame = project.tracks.length
 			? editorTimelineDurationFrames(project, projectSampleRate())
@@ -443,7 +443,7 @@ export function createSelectionViewService<
 				// and leaving the clip identifiers behind would claim both.
 				...(activeSelection() ? {} : { trackIds: selection.trackIds ?? [], clipIds: [] }),
 			});
-			setStatus(copy.zeroCrossingsAligned, 'success');
+			setLocalizedStatus(setStatus, copy, "zeroCrossingsAligned", undefined, 'success');
 			return next.selection;
 		} catch (error) {
 			if (generation === zeroCrossingGeneration && getProject() === projectAtStart) handleError(error);
@@ -459,14 +459,14 @@ export function createSelectionViewService<
 
 	function setSnapSettings(settings: CommandObject = {}) {
 		const project = getProject();
-		if (!project || !hasCoreEditingProjectAuthority(project)) throw new Error(copy.v2Required);
+		if (!project || !hasCoreEditingProjectAuthority(project)) throw createLocalizedError(Error, copy, 'v2Required');
 		return commit({ type: 'snap/set', settings });
 	}
 
 	function snapTimelineFrame(value: unknown, overrides: SelectionViewSnapOverrides = {}) {
 		const project = getProject();
 		const frame = Number(value);
-		if (!Number.isFinite(frame)) throw new TypeError(copy.timelineFramesFinite);
+		if (!Number.isFinite(frame)) throw createLocalizedError(TypeError, copy, 'timelineFramesFinite');
 		const rounded = Math.round(frame);
 		if (!project || !hasCoreEditingProjectAuthority(project)) return Math.max(0, rounded);
 		return snapAudioEditorFrameWithProject(rounded, project, { minimumFrame: 0, ...overrides });

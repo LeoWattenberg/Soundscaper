@@ -44,6 +44,7 @@ export const EAGER_CHUNK_GROUPS: ReadonlySet<string> = new Set([
 	'editor-effect-contracts',
 	'editor-engine',
 	'editor-production-meter',
+	'editor-presentation',
 	'editor-shell',
 	'editor-shell-design-components',
 	'editor-storage-model',

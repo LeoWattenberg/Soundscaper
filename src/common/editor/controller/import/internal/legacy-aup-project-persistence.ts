@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { createLocalizedError } from '../../../../i18n/presentation-message.ts';
+
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
@@ -77,12 +79,12 @@ export async function persistDecodedLegacyAupProject({
 			assertCurrent();
 			const source = sourceById.get(sourceAudio.sourceId);
 			if (!source) {
-				throw new Error(copy.importedSourceDescriptorMissing.replace('{source}', String(sourceAudio.sourceId)));
+				throw createLocalizedError(Error, copy, 'importedSourceDescriptorMissing', { source: String(sourceAudio.sourceId) });
 			}
 			const channels = sourceAudio.channels;
 			if (!Array.isArray(channels) || channels.length !== source.channelCount
 				|| !channels.every((channel) => channel instanceof Float32Array && channel.length === source.frameCount)) {
-				throw new Error(copy.importedSourcePcmInvalid.replace('{source}', String(source.name || source.id)));
+				throw createLocalizedError(Error, copy, 'importedSourcePcmInvalid', { source: String(source.name || source.id) });
 			}
 			const writer = await store.beginSourceWrite(source.id, {
 				name: source.name,

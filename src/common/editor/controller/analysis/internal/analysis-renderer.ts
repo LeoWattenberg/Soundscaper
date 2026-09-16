@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AnalysisAudioBuffer, AnalysisRange } from '../analysis-service.ts';
+import { createLocalizedError } from '../../../../i18n/presentation-message.ts'; import type { AnalysisAudioBuffer, AnalysisRange } from '../analysis-service.ts';
 
 /** Group, send and cue strips gate audibility exactly like tracks do. */
 export interface AnalysisRenderMixerStrip {
@@ -56,18 +56,18 @@ export function createAnalysisRenderer<Project extends AnalysisRenderProject, Bu
 	dependencies: AnalysisRenderDependencies<Project, Buffers>,
 ) {
 	return async (scope: string, range: AnalysisRange, signal: AbortSignal | null = null): Promise<AnalysisAudioBuffer> => {
-		if (dependencies.hasMissingTimelineSources()) throw new Error(dependencies.copy.localSourcesMissing);
+		if (dependencies.hasMissingTimelineSources()) throw createLocalizedError(Error, dependencies.copy, 'localSourcesMissing');
 		let snapshot = dependencies.cloneProject(dependencies.getProject());
 		if (scope === 'track') {
 			const selected = snapshot.tracks.find((track) => track.id === dependencies.getSelectedTrackId());
-			if (!selected || selected.type !== 'audio') throw new Error(dependencies.copy.audioTrackRequired);
+			if (!selected || selected.type !== 'audio') throw createLocalizedError(Error, dependencies.copy, 'audioTrackRequired');
 			snapshot = { ...snapshot,
 				tracks: snapshot.tracks.map((track) => track.type === 'audio'
 					? { ...track, mute: track.id !== selected.id, solo: false } : track),
 				master: { gain: 1, effects: [] },
 				...(snapshot.mixer ? { mixer: isolateMixer(snapshot.mixer) } : {}),
 			};
-		} else if (scope !== 'master') throw new RangeError(dependencies.copy.analysisScopeInvalid);
+		} else if (scope !== 'master') throw createLocalizedError(RangeError, dependencies.copy, 'analysisScopeInvalid');
 		return dependencies.renderSnapshot(snapshot, {
 			startFrame: range.startFrame, endFrame: range.endFrame, includeTail: false,
 			preRollFrames: Math.min(range.startFrame, dependencies.projectSampleRate() * 10),

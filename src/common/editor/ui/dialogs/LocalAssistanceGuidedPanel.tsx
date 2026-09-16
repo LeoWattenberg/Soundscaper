@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { LOCAL_ASSISTANCE_ADDITIONAL_COPY } from '../../../i18n/editor-local-assistance-additional-copy.ts';
+
 /** Accessible Guided workflow reachability; aggregate execution stays behind its explicit seam. */
 
 import { Button } from '@soundscaper/design-system/Button';
@@ -54,9 +56,9 @@ export default function LocalAssistanceGuidedPanel({
 	const message = statusMessage(copy, snapshot);
 	const configurationLocked = localAssistanceGuidedConfigurationLocked(snapshot.phase);
 	return <section id="local-assistance-guided-panel" className="kw-local-assistance__guided" role={focusedTask ? 'region' : 'tabpanel'}
-		aria-label={text(copy, 'localAssistanceGuided', 'Guided')}>
+		aria-label={text(copy, 'localAssistanceGuided', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceGuided)}>
 		{!focusedTask && <label htmlFor="local-assistance-guided-workflow">
-			{text(copy, 'localAssistanceGuidedWorkflow', 'Workflow')}
+			{text(copy, 'localAssistanceGuidedWorkflow', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceGuidedWorkflow)}
 			<select id="local-assistance-guided-workflow"
 				value={snapshot.selectedWorkflowId ?? ''} disabled={configurationLocked}
 				onChange={(event) => {
@@ -70,10 +72,10 @@ export default function LocalAssistanceGuidedPanel({
 		</label>}
 		{graph && <details className="kw-local-assistance__guided-recipe">
 			<summary>{text(copy, 'assistanceTechnicalDetails', 'Technical details')}</summary>
-			<h3>{text(copy, 'localAssistanceGuidedStages', 'Stages')}</h3>
+			<h3>{text(copy, 'localAssistanceGuidedStages', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceGuidedStages)}</h3>
 			<ol>{graph.map(({ stageId, required }) => <li key={stageId}>
 				<code>{stageId}</code>{required ? '' : ` · ${text(copy,
-					'localAssistanceOptional', 'optional')}`}
+					'localAssistanceOptional', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceOptional)}`}
 			</li>)}</ol>
 			{snapshot.error && <p>{snapshot.error}</p>}
 			{snapshot.progress && <code>{JSON.stringify(snapshot.progress)}</code>}
@@ -82,13 +84,13 @@ export default function LocalAssistanceGuidedPanel({
 			<LocalAssistanceGuidedSettings copy={copy} settings={snapshot.settings}
 				disabled={configurationLocked} onChange={onSettingsChange} />
 			<details className="kw-local-assistance__guided-settings">
-				<summary>{text(copy, 'localAssistanceExactSettings', 'Exact settings')}</summary>
+				<summary>{text(copy, 'localAssistanceExactSettings', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceExactSettings)}</summary>
 				<code>{serializeAssistanceWorkflowSettingsV1(snapshot.settings)}</code>
 			</details>
 		</>}
 		{!focusedTask && <div className="kw-local-assistance__run-actions">
 			<Button variant="secondary" disabled={!snapshot.canRun} onClick={() => { void onRun(); }}>
-				{text(copy, 'localAssistanceRunGuided', 'Run Guided workflow')}
+				{text(copy, 'localAssistanceRunGuided', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceRunGuided)}
 			</Button>
 			<Button variant="secondary" disabled={!snapshot.canCancel} onClick={() => { void onCancel(); }}>
 				{text(copy, 'localAssistanceCancel', 'Cancel')}
@@ -101,7 +103,7 @@ export default function LocalAssistanceGuidedPanel({
 			</Button>
 		</div>}
 		{snapshot.review && <Suspense fallback={<p role="status">
-			{text(copy, 'localAssistanceReviewLoading', 'Opening review…')}
+			{text(copy, 'localAssistanceReviewLoading', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceReviewLoading)}
 		</p>}><LocalAssistanceGuidedReview copy={copy} review={snapshot.review}
 			selectedChoiceIds={snapshot.selectedChoiceIds} onChoiceChange={onChoiceChange}
 			auditionAudio={snapshot.auditionAudio}
@@ -123,7 +125,7 @@ export default function LocalAssistanceGuidedPanel({
 function statusMessage(copy: Copy, snapshot: LocalAssistanceGuidedSnapshot): string | null {
 	if (snapshot.error) return text(copy, 'assistanceTaskFailed', 'Processing could not finish. Open technical details for more information.');
 	if (snapshot.phase === 'selection-required') {
-		return text(copy, 'localAssistanceGuidedChoose', 'Choose one Guided workflow.');
+		return text(copy, 'localAssistanceGuidedChoose', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceGuidedChoose);
 	}
 	if (snapshot.phase === 'preparing') return text(copy, 'localAssistanceGuidedPreparing',
 		'Preparing selected media…');
@@ -151,9 +153,9 @@ function statusMessage(copy: Copy, snapshot: LocalAssistanceGuidedSnapshot): str
 		return text(copy, 'localAssistanceWorkflowPreparationUnavailable',
 			'This task is unavailable for the selected media.');
 	}
-	return text(copy, 'localAssistanceWorkflowUnavailable', 'This task is unavailable on this device.');
+	return text(copy, 'localAssistanceWorkflowUnavailable', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceWorkflowUnavailable);
 }
 
 function text(copy: Copy, key: string, fallback: string): string {
-	return copy[key] || fallback;
+	return copy[`ui.localAssistance.${key}`] || copy[key] || fallback;
 }

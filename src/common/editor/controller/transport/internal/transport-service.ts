@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { EngineAudioContext } from '../../../engine/public-api.ts';
+import type { EngineAudioContext } from '../../../engine/public-api.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import { hasCoreEditingProjectAuthority } from '../../../project-schema-version.ts';
 import { resolveSelectionRange } from '../../../selection-range.ts';
 import type {
@@ -66,7 +66,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 		state.playAtSpeedAbort = null;
 		active?.abort();
 		if (active) {
-			if (status) setStatus(copy.ready);
+			if (status) setLocalizedStatus(setStatus, copy, "ready");
 			else publishDocumentSnapshot();
 		}
 		return Boolean(active);
@@ -80,7 +80,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 
 	async function handlePlayAtSpeed(requestedRate: unknown = state.playAtSpeedRate) {
 		if (state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder) return false;
-		if (hasMissingTimelineSources()) throw new Error(copy.localSourcesMissing);
+		if (hasMissingTimelineSources()) throw createLocalizedError(Error, copy, 'localSourcesMissing');
 		const rate = setPlayAtSpeedRate(requestedRate);
 		const currentPlayback = engine.getState();
 		const playAtSpeedActive = currentPlayback.state === 'playing'
@@ -104,7 +104,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 		const generation = ++state.playAtSpeedGeneration;
 		const abort = new AbortController();
 		state.playAtSpeedAbort = abort;
-		if (preservePitch) setStatus(copy.playAtSpeedPreparing);
+		if (preservePitch) setLocalizedStatus(setStatus, copy, "playAtSpeedPreparing");
 		else publishDocumentSnapshot();
 		try {
 			await beginPlaybackCachePreparation(snapshot, { abortController: abort });
@@ -118,7 +118,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 				signal: abort.signal,
 			});
 			if (generation === state.playAtSpeedGeneration && !abort.signal.aborted) {
-				setStatus(copy.playAtSpeedPlaying.replace('{rate}', formatPlaybackRate(rate)), 'success');
+				setLocalizedStatus(setStatus, copy, "playAtSpeedPlaying", { rate: formatPlaybackRate(rate) }, 'success');
 			}
 			return true;
 		} catch (error) {
@@ -170,11 +170,11 @@ export function createEditorTransportService<Project extends TransportProject = 
 			await stopProjectBinPreview();
 		}
 		if (hasMissingTimelineSources() && (action === 'play' || action === 'play-selection' || action === 'cut-preview')) {
-			throw new Error(copy.localSourcesMissing);
+			throw createLocalizedError(Error, copy, 'localSourcesMissing');
 		}
 		if (action === 'cut-preview') {
 			const selection = activeSelection();
-			if (!selection || selection.endFrame <= selection.startFrame) throw new Error(copy.timeSelectionRequired);
+			if (!selection || selection.endFrame <= selection.startFrame) throw createLocalizedError(Error, copy, 'timeSelectionRequired');
 			cancelPlayAtSpeedPreparation();
 			cancelPlaybackCachePreparation();
 			const snapshot = requireProject();
@@ -197,7 +197,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 				return;
 			}
 			const snapshot = requireProject();
-			if (action === 'play-selection' && !activeSelection()) throw new Error(copy.timeSelectionRequired);
+			if (action === 'play-selection' && !activeSelection()) throw createLocalizedError(Error, copy, 'timeSelectionRequired');
 			await beginPlaybackCachePreparation(snapshot);
 			if (snapshot !== getProject()) return;
 			if (action === 'play-selection') bindPlaybackToSelection();
@@ -241,7 +241,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 		// Selected clips are a selection: the loop takes the range they span
 		// when no time range was drawn, rather than refusing the command.
 		const selection = resolveSelectionRange(getProject(), { selectedClipId: state.selectedClipId });
-		if (!selection) throw new Error(copy.timeSelectionRequired);
+		if (!selection) throw createLocalizedError(Error, copy, 'timeSelectionRequired');
 		const next = commitLoopRange({
 			enabled: true,
 			startFrame: selection.startFrame,
@@ -254,7 +254,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 	function setLoopRegion(startFrame: number, endFrame: number) {
 		const start = normalizeTimelineFrame(Math.min(startFrame, endFrame));
 		const end = normalizeTimelineFrame(Math.max(startFrame, endFrame));
-		if (end <= start) throw new Error(copy.timeSelectionRequired);
+		if (end <= start) throw createLocalizedError(Error, copy, 'timeSelectionRequired');
 		const next = commitLoopRange({ enabled: true, startFrame: start, endFrame: end });
 		engine.setLoop(next.loop);
 		return next.loop;
@@ -262,7 +262,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 
 	function setSelectionToLoopRegion() {
 		const loop = requireProject().loop;
-		if (!loop?.enabled || loop.endFrame <= loop.startFrame) throw new Error(copy.timeSelectionRequired);
+		if (!loop?.enabled || loop.endFrame <= loop.startFrame) throw createLocalizedError(Error, copy, 'timeSelectionRequired');
 		return setSelection(loop.startFrame, loop.endFrame);
 	}
 
@@ -271,7 +271,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 		if (selection) return setLoopRegionToSelection();
 		const startFrame = normalizeTimelineFrame(engine.getPositionFrames());
 		const endFrame = projectDurationFrames(getProject());
-		if (endFrame <= startFrame) throw new Error(copy.timeSelectionRequired);
+		if (endFrame <= startFrame) throw createLocalizedError(Error, copy, 'timeSelectionRequired');
 		const next = commitLoopRange({ enabled: true, startFrame, endFrame });
 		engine.setLoop(next.loop);
 		return next.loop;
@@ -446,7 +446,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 		const project = getProject();
 		const maximum = project ? projectDurationFrames(project) : 0;
 		const frame = Number(value);
-		if (!Number.isFinite(frame)) throw new TypeError(copy.timelineFramesFinite);
+		if (!Number.isFinite(frame)) throw createLocalizedError(TypeError, copy, 'timelineFramesFinite');
 		return Math.max(0, Math.min(maximum, Math.round(frame)));
 	}
 
@@ -454,7 +454,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 		const project = getProject();
 		const maximum = project ? editorTimelineDurationFrames(project, projectSampleRate()) : 0;
 		const frame = Number(value);
-		if (!Number.isFinite(frame)) throw new TypeError(copy.timelineFramesFinite);
+		if (!Number.isFinite(frame)) throw createLocalizedError(TypeError, copy, 'timelineFramesFinite');
 		return Math.max(0, Math.min(maximum, Math.round(frame)));
 	}
 

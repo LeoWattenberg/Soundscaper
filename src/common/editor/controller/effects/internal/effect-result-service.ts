@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type {
+import { createLocalizedError } from '../../../../i18n/presentation-message.ts'; import type {
 	AudioEditorClipboard,
 	AudioEditorCommand,
 	ClipboardPasteMode,
@@ -229,7 +229,7 @@ export function createSelectionEffectResultService<Buffer extends AudioBufferLik
 		};
 		assertOperationCurrent();
 		const uncheckedResults: unknown = results;
-		if (!Array.isArray(uncheckedResults) || !uncheckedResults.length) throw new Error(copy.effectInvalidAudio);
+		if (!Array.isArray(uncheckedResults) || !uncheckedResults.length) throw createLocalizedError(Error, copy, 'effectInvalidAudio');
 		const sampleRate = projectSampleRate();
 		const context = await engine.getAudioContext({ resume: false });
 		assertOperationCurrent();
@@ -247,18 +247,18 @@ export function createSelectionEffectResultService<Buffer extends AudioBufferLik
 				? undefined
 				: (rawChannels[0] as Readonly<{ length?: unknown }>).length;
 			if (!targetValue || !rawChannels?.length || rawChannels.length > 2 || !firstChannelLength) {
-				throw new Error(copy.effectInvalidAudio);
+				throw createLocalizedError(Error, copy, 'effectInvalidAudio');
 			}
 			if (!rawChannels.every((channel): channel is Float32Array => (
 				channel instanceof Float32Array && channel.length === firstChannelLength
 			))) {
-				throw new Error(copy.effectChannelLengthsMismatch);
+				throw createLocalizedError(Error, copy, 'effectChannelLengthsMismatch');
 			}
 			const target = targetValue as EffectTarget;
 			const channels = rawChannels;
 			const frameCount = channels[0]!.length;
 			assertAudacityEffectOutput(channels);
-			if (channels.length !== target.channelCount) throw new Error(copy.effectChannelLayoutChanged);
+			if (channels.length !== target.channelCount) throw createLocalizedError(Error, copy, 'effectChannelLayoutChanged');
 			if (target.hasAudio === false) {
 				entries.push({
 					target,
@@ -309,7 +309,7 @@ export function createSelectionEffectResultService<Buffer extends AudioBufferLik
 		const exactClipReplacement = exactClipEntries !== null;
 		if (!exactClipReplacement && (entries.some((entry) => entry.target.startFrame !== firstEntry.target.startFrame)
 			|| (!options.allowIndependentLengths && entries.some((entry) => entry.frameCount !== firstEntry.frameCount)))) {
-			throw new Error(copy.effectTrackLengthsMismatch || 'Selected tracks produced different effect lengths and cannot be rippled together.');
+			throw createLocalizedError(Error, { effectTrackLengthsMismatch: copy.effectTrackLengthsMismatch || 'Selected tracks produced different effect lengths and cannot be rippled together.' }, 'effectTrackLengthsMismatch');
 		}
 		const selectionFrameCount = options.allowIndependentLengths
 			? Math.max(...entries.map((entry) => entry.frameCount))

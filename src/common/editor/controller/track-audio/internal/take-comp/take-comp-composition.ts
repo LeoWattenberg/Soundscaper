@@ -18,6 +18,7 @@ import {
 import { createTakeCompService } from './take-comp-service.ts';
 
 export interface TakeCompCompositionDependencies {
+	readonly copy?: object;
 	readonly lifetime: EditorControllerLifetime;
 	readonly sourceBuffers: EngineSourceBufferInput;
 	readonly sourceChunkProviders: EngineChunkSourceInput;
@@ -33,7 +34,7 @@ export interface TakeCompCompositionDependencies {
 	stopPlayback(): void;
 	renderSnapshot: TakeCompFlattenServiceDependencies['renderSnapshot'];
 	renderPublication?: TakeCompFlattenServiceDependencies['renderPublication'];
-	setStatus?(message: string, state?: string): void;
+	setStatus?(message: string, state?: string, localization?: import('../../../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;
 }
 
 /** Compose persistent take commands with isolated audition and exact flatten runtimes. */

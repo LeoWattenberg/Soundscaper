@@ -209,12 +209,13 @@ test('both the footer button and the form itself commit the composition draft', 
 	const controller = { actions: { edit: { commit: (command: unknown) => { commands.push(command); } } } };
 	const { createRoot } = await import('react-dom/client');
 	const root = createRoot(dom.container as unknown as Element);
+	let liveCopy: Readonly<Record<string, string>> = {};
 	const render = () => root.render(<VideoCompositionDialog
 		productId="framescaper"
 		capability
 		controller={controller}
 		snapshot={{ project: project(), selectedClipId: 'video' }}
-		copy={{}}
+		copy={liveCopy}
 		run={(operation) => operation()}
 		onClose={() => undefined}
 	/>);
@@ -234,6 +235,11 @@ test('both the footer button and the form itself commit the composition draft', 
 		await typeCrop('30');
 		await act(async () => { reactProps(dom.one('.button--primary')).onClick(); });
 		assert.equal(commands.length, 2);
+		assert.match(dom.container.textContent, /Composition applied\./u);
+		liveCopy = { videoCompositionApplied: 'Komposition angewendet.' };
+		await act(async () => render());
+		assert.match(dom.container.textContent, /Komposition angewendet\./u);
+		assert.equal(commands.length, 2, 'changing presentation copy does not commit again');
 	} finally {
 		await act(async () => root.unmount());
 		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;

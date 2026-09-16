@@ -34,13 +34,15 @@ import {
 	type TrimMediaProjectResult,
 	type TrimMediaStore,
 } from './trim-media-service.ts';
+import { setLocalizedStatus } from '../../../i18n/presentation-message.ts';
+import { PROJECT_MEDIA_COPY_BY_LOCALE } from '../../../i18n/editor-project-media-copy.ts';
 
 export interface ProjectMediaActionRuntime {
 	readonly state: { deliveryReport?: unknown };
 	readonly getProject: () => Readonly<Record<string, unknown>> | null | undefined;
 	readonly store: ConsolidateMediaStore | null | undefined;
 	readonly publishDocumentSnapshot?: () => void;
-	readonly setStatus?: (message: string, tone?: string) => void;
+	readonly setStatus?: (message: string, tone?: string, localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly copy?: Readonly<Record<string, string>>;
 	readonly fileService?: { saveFile?: (request: never) => unknown } | null;
 	readonly ffmpeg?: Partial<TrimMediaFfmpegHost> | null;
@@ -66,18 +68,17 @@ export function createProjectMediaActionGroup(runtime: ProjectMediaActionRuntime
 			const request = consolidateRequest(runtime, options.signal);
 			if (!request) return null;
 			const copy = runtime.copy ?? {};
-			runtime.setStatus?.(copy.consolidatingMedia ?? 'Consolidating media');
+			if (runtime.setStatus) setLocalizedStatus(runtime.setStatus, copy, 'consolidatingMedia',
+				undefined, undefined, { fallback: 'Consolidating media' });
 			const result = await consolidateProjectMedia(request);
 			// Published before the status settles, so a run that left something
 			// behind is readable the moment the message says it finished.
 			runtime.state.deliveryReport = result.run.report;
 			runtime.publishDocumentSnapshot?.();
-			runtime.setStatus?.(
-				result.run.complete
-					? copy.consolidatedMedia ?? 'Media consolidated.'
-					: copy.consolidatedMediaIncomplete ?? 'Some media could not be consolidated.',
-				result.run.complete ? 'success' : 'warning',
-			);
+			if (runtime.setStatus) setLocalizedStatus(runtime.setStatus, copy,
+				result.run.complete ? 'consolidatedMedia' : 'consolidatedMediaIncomplete', undefined,
+				result.run.complete ? 'success' : 'warning', { fallback: result.run.complete
+					? 'Media consolidated.' : 'Some media could not be consolidated.' });
 			return Object.freeze(result);
 		},
 		/** What trimming would discard, without cutting anything. */
@@ -100,7 +101,8 @@ export function createProjectMediaActionGroup(runtime: ProjectMediaActionRuntime
 			const request = trimRequest(runtime, options.signal);
 			if (!request) return null;
 			const copy = runtime.copy ?? {};
-			runtime.setStatus?.(copy.trimmingMedia ?? 'Trimming media');
+			if (runtime.setStatus) setLocalizedStatus(runtime.setStatus, copy, 'trimmingMedia',
+				undefined, undefined, { fallback: 'Trimming media' });
 			const result = await trimProjectMedia(request);
 			// The batch was computed against the document as it was when the cut
 			// began, and a cut runs for as long as the media takes. Committing it to
@@ -115,12 +117,9 @@ export function createProjectMediaActionGroup(runtime: ProjectMediaActionRuntime
 			runtime.state.deliveryReport = result.report;
 			runtime.publishDocumentSnapshot?.();
 			const complete = result.complete;
-			runtime.setStatus?.(
-				complete
-					? copy.trimmedMedia ?? 'Media trimmed.'
-					: copy.trimmedMediaIncomplete ?? 'Some media could not be trimmed.',
-				complete ? 'success' : 'warning',
-			);
+			if (runtime.setStatus) setLocalizedStatus(runtime.setStatus, copy,
+				complete ? 'trimmedMedia' : 'trimmedMediaIncomplete', undefined,
+				complete ? 'success' : 'warning', { fallback: complete ? 'Media trimmed.' : 'Some media could not be trimmed.' });
 			return result;
 		},
 		/**
@@ -139,12 +138,12 @@ export function createProjectMediaActionGroup(runtime: ProjectMediaActionRuntime
 					: {}),
 			});
 			if (result.saved) {
-				runtime.setStatus?.(
-					runtime.copy?.archiveManifestSaved ?? 'Archive checksums saved',
-					'success',
-				);
+				if (runtime.setStatus) setLocalizedStatus(runtime.setStatus, runtime.copy ?? {},
+					'archiveManifestSaved', undefined, 'success', { fallback: 'Archive checksums saved' });
 			} else if (result.reason) {
-				runtime.setStatus?.(result.reason, 'warning');
+				if (runtime.setStatus && result.localization) setLocalizedStatus(runtime.setStatus,
+					runtime.copy ?? {}, result.localization.key, result.localization.parameters, 'warning', result.localization);
+				else runtime.setStatus?.(result.reason, 'warning');
 			}
 			return result;
 		},
@@ -182,7 +181,7 @@ function projectFence(
 	return () => {
 		const current = runtime.getProject?.();
 		if (String(current?.id ?? '') === id && Number(current?.revision ?? 0) === revision) return;
-		throw new Error('The project changed while its media was being trimmed.');
+		throw new Error(runtime.copy?.['ui.projectMedia.projectChanged'] ?? PROJECT_MEDIA_COPY_BY_LOCALE.en.projectChanged);
 	};
 }
 

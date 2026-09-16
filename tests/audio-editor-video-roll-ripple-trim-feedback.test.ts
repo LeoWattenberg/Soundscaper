@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { formatPresentationMessage, type LocalizedPresentationMessage } from '../src/common/i18n/presentation-message.ts';
 
 import {
 	createVideoRollRippleTrimResultReporter,
@@ -34,7 +35,7 @@ test('localized mode and edge templates receive actual signed frames and both re
 				labels.push([sample, sequenceId]);
 				return sample === 12_000 ? '01:00:00:06' : '01:00:00:15';
 			},
-			setStatus: (...args) => statuses.push(args),
+			setStatus: (message, state) => statuses.push([message, state]),
 		});
 
 		report(transformPlan({ mode: row.mode, edge: row.edge, sequenceFrameDelta: 3 }));
@@ -51,10 +52,13 @@ test('localized mode and edge templates receive actual signed frames and both re
 
 test('negative applied frames retain their sign and a clamp marker is appended once', () => {
 	const statuses: unknown[][] = [];
+	let localization: LocalizedPresentationMessage | undefined;
 	const report = createVideoRollRippleTrimResultReporter({
 		copy: COPY,
 		label: (sample) => sample === 12_000 ? 'source' : 'program',
-		setStatus: (...args) => statuses.push(args),
+		setStatus: (message, state, identity?: LocalizedPresentationMessage) => {
+			statuses.push([message, state]); localization = identity;
+		},
 	});
 
 	report(transformPlan({
@@ -64,6 +68,11 @@ test('negative applied frames retain their sign and a clamp marker is appended o
 	assert.deepEqual(statuses, [[
 		'RIPPLE-LEFT -2 source program (clamped)', 'success',
 	]]);
+	assert.deepEqual(localization, { key: 'rippleLeftEdgeApplied',
+		parameters: { frames: '-2', sourceTimecode: 'source', programTimecode: 'program' },
+		append: [' ', { key: 'trimBoundaryClamped' }] });
+	assert.equal(formatPresentationMessage({ ...COPY, rippleLeftEdgeApplied: 'Links {frames} {sourceTimecode} {programTimecode}',
+		trimBoundaryClamped: '[begrenzt]' }, localization!), 'Links -2 source program [begrenzt]');
 });
 
 test('no-op uses existing informational copy without formatting unavailable coordinates', () => {
@@ -71,7 +80,7 @@ test('no-op uses existing informational copy without formatting unavailable coor
 	const report = createVideoRollRippleTrimResultReporter({
 		copy: COPY,
 		label: () => assert.fail('A no-op has no applied coordinates to format.'),
-		setStatus: (...args) => statuses.push(args),
+		setStatus: (message, state) => statuses.push([message, state]),
 	});
 
 	report(noopPlan());

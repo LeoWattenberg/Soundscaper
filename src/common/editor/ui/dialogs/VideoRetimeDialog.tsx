@@ -1,4 +1,7 @@
+import { usePresentationFeedback, feedbackFailure, type PresentationFeedback } from '../presentation-feedback.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { VIDEO_RETIME_ADDITIONAL_COPY } from '../../../i18n/editor-video-retime-additional-copy.ts';
 
 import React, { useEffect, useMemo, useState } from 'react';
 
@@ -59,8 +62,8 @@ export default function VideoRetimeDialog({
 	const [sourceStartFrame, setSourceStartFrame] = useState('0');
 	const [exactMapText, setExactMapText] = useState(exactMapSeed);
 	const [pending, setPending] = useState(false);
-	const [status, setStatus] = useState('');
-	const [error, setError] = useState('');
+	const [status, setStatus] = usePresentationFeedback(copy, VIDEO_RETIME_ADDITIONAL_COPY, 'videoRetime');
+	const [error, setError] = usePresentationFeedback(copy, VIDEO_RETIME_ADDITIONAL_COPY, 'videoRetime');
 
 	// The ramp start is the only field the direction decides. Resetting the freeze
 	// frame with it discarded an entry from the separate Freeze frame fieldset
@@ -75,25 +78,25 @@ export default function VideoRetimeDialog({
 		setFreezeFrame(String(model.bounds?.sourceFirstFrame ?? 0));
 		setStatus('');
 		setError('');
-	}, [model.clipId, model.bounds?.sourceFirstFrame]);
+	}, [model.clipId, model.bounds?.sourceFirstFrame, setError, setStatus]);
 	useEffect(() => {
 		setExactMapText(exactMapSeed);
 	}, [exactMapSeed]);
 
-	const perform = (operation: () => unknown, success: string): void => {
+	const perform = (operation: () => unknown, success: PresentationFeedback): void => {
 		setPending(true);
 		setError('');
 		void runAwaitedAudioEditorOperation(run, operation)
 			.then(() => { setStatus(success); })
 			.catch((operationError: unknown) => {
-				setError(operationError instanceof Error ? operationError.message : String(operationError));
+				setError(feedbackFailure(operationError));
 			})
 			.finally(() => { setPending(false); });
 	};
 	const invoke = (action: keyof VideoRetimeActions, extra: Readonly<Record<string, unknown>> = {}): void => {
 		if (!model.commandAuthority) return;
 		perform(() => controller.actions.sequences[action]({ ...model.commandAuthority, ...extra }),
-			label(copy, 'videoRetimeApplied', 'Video retime updated.'));
+			{ key: 'videoRetimeApplied' });
 	};
 	const invokeParsed = (
 		action: keyof VideoRetimeActions,
@@ -103,17 +106,17 @@ export default function VideoRetimeDialog({
 			invoke(action, buildExtra());
 		} catch (parseError: unknown) {
 			setStatus('');
-			setError(parseError instanceof Error ? parseError.message : String(parseError));
+			setError(feedbackFailure(parseError));
 		}
 	};
 	const disabled = model.blockReason !== null || pending;
 	const blockMessage = model.blockReason === 'locked'
-		? label(copy, 'videoRetimeLocked', 'The selected video track is locked.')
-		: model.blockReason === 'busy' ? label(copy, 'videoRetimeReadOnly', 'Video retime is unavailable while editing is blocked.')
-			: model.blockReason ? label(copy, 'videoRetimeNoSelection', 'Select one timeline video clip.') : '';
+		? label(copy, 'videoRetimeLocked', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeLocked)
+		: model.blockReason === 'busy' ? label(copy, 'videoRetimeReadOnly', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeReadOnly)
+			: model.blockReason ? label(copy, 'videoRetimeNoSelection', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeNoSelection) : '';
 
 	return <AudioEditorDialogShell
-		title={label(copy, 'videoRetimeTitle', 'Video retime')}
+		title={label(copy, 'videoRetimeTitle', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeTitle)}
 		onClose={onClose}
 		width={620}
 		initialFocus="[data-video-retime-constant]"
@@ -121,63 +124,63 @@ export default function VideoRetimeDialog({
 	>
 		<div className="audio-editor-video-retime">
 			<p>{label(copy, 'videoRetimeDescription',
-				'Author an exact speed curve for the selected picture occurrence. Linked audio stays unwarped.')}</p>
+				VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeDescription)}</p>
 			{blockMessage && <p role="status">{blockMessage}</p>}
-			{model.clipId && <section aria-label={label(copy, 'videoRetimeSelectedClip', 'Selected video clip')}>
+			{model.clipId && <section aria-label={label(copy, 'videoRetimeSelectedClip', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeSelectedClip)}>
 				<h3>{model.clipName}</h3>
-				<p>{label(copy, 'videoRetimeSourceRange', 'Source frame range')}: {String(model.bounds?.sourceFirstFrame)}–{String(model.bounds?.sourceLastFrame)}</p>
+				<p>{label(copy, 'videoRetimeSourceRange', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeSourceRange)}: {String(model.bounds?.sourceFirstFrame)}–{String(model.bounds?.sourceLastFrame)}</p>
 			</section>}
 			<div className="audio-editor-video-retime__primary-actions">
 				<button type="button" data-video-retime-constant disabled={disabled}
-					onClick={() => invoke('retimeConstant')}>{label(copy, 'videoRetimeConstant', 'Constant speed')}</button>
+					onClick={() => invoke('retimeConstant')}>{label(copy, 'videoRetimeConstant', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeConstant)}</button>
 				<button type="button" disabled={disabled}
-					onClick={() => invoke('retimeReverse')}>{label(copy, 'videoRetimeReverse', 'Reverse')}</button>
+					onClick={() => invoke('retimeReverse')}>{label(copy, 'videoRetimeReverse', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeReverse)}</button>
 				<button type="button" disabled={disabled || !model.hasRetimeMap}
-					onClick={() => invoke('retimeReset')}>{label(copy, 'videoRetimeReset', 'Reset')}</button>
+					onClick={() => invoke('retimeReset')}>{label(copy, 'videoRetimeReset', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeReset)}</button>
 			</div>
 			<fieldset disabled={disabled}>
-				<legend>{label(copy, 'videoRetimeFreeze', 'Freeze frame')}</legend>
-				<label><span>{label(copy, 'videoRetimeSourceFrame', 'Source frame')}</span>
+				<legend>{label(copy, 'videoRetimeFreeze', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeFreeze)}</legend>
+				<label><span>{label(copy, 'videoRetimeSourceFrame', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeSourceFrame)}</span>
 					<input type="text" inputMode="numeric" value={freezeFrame}
 						onChange={(event) => setFreezeFrame(event.currentTarget.value)} /></label>
 				<button type="button" onClick={() => invokeParsed('retimeFreeze', () => ({
 					sourceFrame: parseRational(freezeFrame, 'freeze source frame'),
-				}))}>{label(copy, 'videoRetimeApplyFreeze', 'Apply freeze')}</button>
+				}))}>{label(copy, 'videoRetimeApplyFreeze', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeApplyFreeze)}</button>
 			</fieldset>
 			<fieldset disabled={disabled}>
-				<legend>{label(copy, 'videoRetimeRamp', 'Speed ramp')}</legend>
-				<label><span>{label(copy, 'videoRetimeDirection', 'Direction')}</span>
+				<legend>{label(copy, 'videoRetimeRamp', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeRamp)}</legend>
+				<label><span>{label(copy, 'videoRetimeDirection', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeDirection)}</span>
 					<select value={direction} onChange={(event) => setDirection(
 						event.currentTarget.value === 'reverse' ? 'reverse' : 'forward',
 					)}>
-						<option value="forward">{label(copy, 'videoRetimeForward', 'Forward')}</option>
-						<option value="reverse">{label(copy, 'videoRetimeReverse', 'Reverse')}</option>
+						<option value="forward">{label(copy, 'videoRetimeForward', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeForward)}</option>
+						<option value="reverse">{label(copy, 'videoRetimeReverse', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeReverse)}</option>
 					</select></label>
-				<RationalField label={label(copy, 'videoRetimeStartVelocity', 'Start velocity')}
+				<RationalField label={label(copy, 'videoRetimeStartVelocity', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeStartVelocity)}
 					value={startVelocity} onChange={setStartVelocity} />
-				<RationalField label={label(copy, 'videoRetimeEndVelocity', 'End velocity')}
+				<RationalField label={label(copy, 'videoRetimeEndVelocity', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeEndVelocity)}
 					value={endVelocity} onChange={setEndVelocity} />
-				<RationalField label={label(copy, 'videoRetimeSourceStartFrame', 'Source start frame')}
+				<RationalField label={label(copy, 'videoRetimeSourceStartFrame', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeSourceStartFrame)}
 					value={sourceStartFrame} onChange={setSourceStartFrame} />
 				<button type="button" onClick={() => invokeParsed('retimeRamp', () => ({
 					direction,
 					startVelocity: parseRational(startVelocity, 'start velocity'),
 					endVelocity: parseRational(endVelocity, 'end velocity'),
 					sourceStartFrame: parseRational(sourceStartFrame, 'source start frame'),
-				}))}>{label(copy, 'videoRetimeApplyRamp', 'Apply ramp')}</button>
+				}))}>{label(copy, 'videoRetimeApplyRamp', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeApplyRamp)}</button>
 			</fieldset>
 			<fieldset disabled={disabled || model.bounds === null}>
-				<legend>{label(copy, 'videoRetimeExactMap', 'Exact retime map')}</legend>
+				<legend>{label(copy, 'videoRetimeExactMap', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeExactMap)}</legend>
 				<p>{label(copy, 'videoRetimeExactMapDescription',
-					'Edit a strict clip-bound V2 retime map as JSON.')}</p>
-				<label><span>{label(copy, 'videoRetimeExactMapJson', 'V2 map JSON')}</span>
+					VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeExactMapDescription)}</p>
+				<label><span>{label(copy, 'videoRetimeExactMapJson', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeExactMapJson)}</span>
 					<textarea data-video-retime-exact-map="true" value={exactMapText}
 						maxLength={VIDEO_RETIME_EXACT_MAP_INPUT_MAX_LENGTH}
 						onChange={(event) => setExactMapText(event.currentTarget.value)} /></label>
 				<button type="button" data-video-retime-set="true" onClick={() => invokeParsed('retimeSet', () => {
 					if (model.bounds === null) throw new Error('Select one timeline video clip.');
 					return { retimeMap: parseVideoRetimeExactMapInput(exactMapText, model.bounds) };
-				})}>{label(copy, 'videoRetimeApplyExactMap', 'Apply exact map')}</button>
+				})}>{label(copy, 'videoRetimeApplyExactMap', VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeApplyExactMap)}</button>
 			</fieldset>
 			<div role="status" aria-live="polite" aria-atomic="true">{error || status}</div>
 		</div>
@@ -205,5 +208,5 @@ function parseRational(value: string, name: string): Readonly<{ readonly num: nu
 }
 
 function label(copy: Readonly<Record<string, string>>, key: string, fallback: string): string {
-	return copy[key] || fallback;
+	return copy[`ui.videoRetime.${key}`] || copy[key] || fallback;
 }

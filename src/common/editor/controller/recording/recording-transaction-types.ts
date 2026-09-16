@@ -292,7 +292,7 @@ export interface RecordingCaptureCommonRuntime {
 	readonly stopRecording: () => Promise<unknown>;
 	readonly finalizeRecording: () => Promise<void>;
 	readonly handleError: (error: unknown) => void;
-	readonly setStatus: (message: string) => void;
+	readonly setStatus: (message: string, state?: 'info' | 'success' | 'error', localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly updateTransportState: (state: string) => void;
 }
 

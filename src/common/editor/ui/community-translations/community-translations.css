@@ -1,0 +1,65 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+.community-translations {
+	position: fixed;
+	inset-block: 16px;
+	right: 16px;
+	z-index: 12000;
+	width: min(390px, calc(100vw - 32px));
+	overflow: auto;
+	padding: 16px;
+	border: 1px solid var(--border, #777);
+	border-radius: 8px;
+	background: var(--panel, #eee);
+	color: var(--text, #222);
+	box-shadow: 0 8px 32px #0005;
+	font: 13px/1.45 system-ui, sans-serif;
+}
+
+.community-translations[data-side="left"] { left: 16px; right: auto; }
+
+.community-translations header,
+.community-translations__actions {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.community-translations h2 { margin: 0; font-size: 18px; }
+.community-translations label { display: grid; gap: 4px; margin-block: 10px; }
+.community-translations input,
+.community-translations textarea,
+.community-translations select {
+	box-sizing: border-box;
+	min-width: 0;
+	width: 100%;
+	padding: 6px;
+	border: 1px solid var(--border, #777);
+	border-radius: 3px;
+	background: var(--control, #fff);
+	color: inherit;
+	font: inherit;
+}
+.community-translations textarea { resize: vertical; }
+.community-translations textarea[readonly],
+.community-translations input[readonly] { opacity: .85; }
+.community-translations button {
+	padding: 7px 9px;
+	border: 1px solid var(--border, #777);
+	border-radius: 4px;
+	background: var(--control, #fff);
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+.community-translations button:disabled { opacity: .5; cursor: default; }
+.community-translations__preview { display: flex !important; align-items: center; }
+.community-translations__preview input { width: auto; }
+.community-translations__actions { flex-wrap: wrap; justify-content: flex-start; }
+.community-translations fieldset { margin-block: 10px; }
+.community-translations fieldset button { display: block; margin-block: 5px; text-align: start; overflow-wrap: anywhere; }
+.community-translations [role="alert"] { border-inline-start: 3px solid #bd5714; padding-inline-start: 8px; }
+.community-translations footer { border-block-start: 1px solid var(--border, #777); margin-block-start: 14px; }
+.community-translations a { color: inherit; text-decoration: underline; }
+.community-translations :focus-visible { outline: 2px solid var(--accent, #3678d4); outline-offset: 2px; }

@@ -1,6 +1,6 @@
 # Audacity translations
 
-The `audacity` entries of the JSON catalogs in this directory carry translations from the Audacity project, converted from the Qt TS catalogs Audacity publishes for its translators' reviewed work. They are used under the GNU General Public License version 3 (`GPL-3.0-only`), whose text is in `LICENSE.txt` beside this file, and combined with this AGPL-3.0-only application under section 13 of both licences. The Audacity-derived strings remain governed by the GPLv3; the `machine` and `human` entries beside them are this project's own.
+The `audacity` entries of the JSON catalogs in this directory carry translations from the Audacity project, converted from the Qt TS catalogs Audacity publishes for its translators' reviewed work. They are used under the GNU General Public License version 3 (`GPL-3.0-only`), whose text is in `LICENSE.txt` beside this file, and combined with this AGPL-3.0-only application under section 13 of both licences. The Audacity-derived strings remain governed by the GPLv3, including human corrections whose `community` metadata retains Audacity upstream provenance. Other `machine` and `human` entries are this project's own.
 
 - upstream project: <https://github.com/audacity/audacity>
 - upstream licence and notices: <https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt>

@@ -363,7 +363,7 @@ test('the command line translates with an injected client and reports per locale
 	assert.match(out.join(''), /^fr: translated 2, retained 0, skipped 0, dropped 0 orphaned \(1 requests, 0 cached\)\n$/u);
 	const reports = await runCli(['check', '--locale', 'fr'], { directory, stdout: { write: (text) => out.push(text) }, env: {} });
 	assert.equal(reports[0].current, 2);
-	assert.match(out.at(-1), /^fr: 2 current \(2 machine\), 0 stale, \d+ missing, 0 orphaned \(qwen3\.8:latest\)\n$/u);
+	assert.match(out.at(-2), /^fr: 2 current \(2 machine\), 0 stale, \d+ missing, 0 orphaned \(qwen3\.8:latest\)\n$/u);
 	assert.match(err.join(''), /^fr: translating with aya-expanse:32b\n/u);
 });
 

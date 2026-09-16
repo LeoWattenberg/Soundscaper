@@ -1,3 +1,4 @@
+import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
@@ -20,7 +21,7 @@ export function LabelExportDialog({ isOpen, controller, snapshot, copy, onClose 
 	const [format, setFormat] = useState('txt');
 	const [trackIds, setTrackIds] = useState(() => tracks.map(({ id }) => id));
 	const [exporting, setExporting] = useState(false);
-	const [error, setError] = useState('');
+	const [error, setError] = usePresentationFeedback(copy);
 	const selectedTrackIds = new Set(trackIds);
 	currentProjectIdentity.current = projectIdentity;
 
@@ -32,7 +33,7 @@ export function LabelExportDialog({ isOpen, controller, snapshot, copy, onClose 
 		setTrackIds(tracks.map(({ id }) => id));
 		setExporting(false);
 		setError('');
-	}, [projectIdentity, tracks]);
+	}, [projectIdentity, tracks, setError]);
 
 	useEffect(() => () => { activeSubmission.current = null; }, []);
 
@@ -42,7 +43,7 @@ export function LabelExportDialog({ isOpen, controller, snapshot, copy, onClose 
 		try {
 			request = createLabelExportRequest(format, trackIds, tracks);
 		} catch (cause) {
-			setError(cause instanceof Error ? cause.message : String(cause));
+			setError(feedbackFailure(cause));
 			return;
 		}
 		setError('');
@@ -58,7 +59,7 @@ export function LabelExportDialog({ isOpen, controller, snapshot, copy, onClose 
 			if (ownsSubmission()) {
 				activeSubmission.current = null;
 				setExporting(false);
-				setError(cause instanceof Error ? cause.message : String(cause));
+				setError(feedbackFailure(cause));
 			}
 			return;
 		}
@@ -71,7 +72,7 @@ export function LabelExportDialog({ isOpen, controller, snapshot, copy, onClose 
 			if (!ownsSubmission()) return;
 			activeSubmission.current = null;
 			setExporting(false);
-			setError(cause instanceof Error ? cause.message : String(cause));
+			setError(feedbackFailure(cause));
 		});
 	};
 

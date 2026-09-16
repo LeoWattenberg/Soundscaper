@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { hasProjectBinMediaAuthority } from '../../../../project-schema-version.ts';
+import { publishedCopyFor } from '../../../shared/presentation-localization.ts'; import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import { hasProjectBinMediaAuthority } from '../../../../project-schema-version.ts';
 
 import {
 	collectClipTransformIds as collectLegacyClipTransformIds,
@@ -164,7 +164,7 @@ export function createProjectBinService(
 		const clipIds = project.clips
 			.filter((clip) => participatingIds.has(clip.id))
 			.map((clip) => clip.id);
-		if (!clipIds.length) throw new Error(dependencies.copy.audioClipNotFound);
+		if (!clipIds.length) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		dependencies.commit({ type: 'project-bin/move-from-timeline', clipIds }, { selectClipId: null });
 		return Object.freeze(clipIds);
 	}
@@ -177,7 +177,7 @@ export function createProjectBinService(
 		if (dependencies.editingBlocked()) return null;
 		const project = dependencies.getProject();
 		const binClip = findProjectBinClip(project, binClipId);
-		if (!binClip) throw new Error(dependencies.copy.audioClipNotFound);
+		if (!binClip) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		if (binClip.kind === 'image') throw new Error('Image items require their image placement action.');
 		const itemClips = hasProjectBinMediaAuthority(project)
 			? projectBinClips(project).filter((clip) => clip.binItemId === binClip.binItemId)
@@ -185,7 +185,7 @@ export function createProjectBinService(
 		for (const itemClip of itemClips) {
 			const source = findProjectBinSource(project, itemClip.sourceId);
 			if (!source || dependencies.missingSourceIds.has(source.id)) {
-				throw new Error(dependencies.copy.localSourcesMissing);
+				throw createLocalizedError(Error, dependencies.copy, 'localSourcesMissing');
 			}
 		}
 		const videoClip = itemClips.find((clip) => clip.kind === 'video') ?? null;
@@ -228,7 +228,7 @@ export function createProjectBinService(
 				...createAddTrackCommand({
 					type: 'audio',
 					id: audioTrackId,
-					name: `${binClip.title || dependencies.copy.track} Audio`,
+					name: `${binClip.title || publishedCopyFor(dependencies.copy).track} Audio`,
 					laneGroupId,
 					armed: false,
 				}),
@@ -241,7 +241,7 @@ export function createProjectBinService(
 			commands.push(createAddTrackCommand({
 				type: 'audio',
 				id: audioTrackId,
-				name: binClip.title || `${dependencies.copy.track} ${project.tracks.length + 1}`,
+				name: binClip.title || `${publishedCopyFor(dependencies.copy).track} ${project.tracks.length + 1}`,
 			}));
 			audioTrack = { id: audioTrackId, type: 'audio', laneGroupId: null, clipIds: [] };
 		}
@@ -258,7 +258,7 @@ export function createProjectBinService(
 		}));
 		const selectedPlacement = placements.find((candidate) => candidate.binClipId === videoClip?.id)
 			?? placements[0];
-		if (!selectedPlacement) throw new Error(dependencies.copy.audioClipNotFound);
+		if (!selectedPlacement) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		commands.push({
 			type: 'project-bin/place',
 			binClipId: binClip.id,
@@ -267,7 +267,7 @@ export function createProjectBinService(
 			...(itemClips.length === 2 ? { avLinkId: dependencies.createId('av-link') } : {}),
 		});
 		const selectedTrack = videoClip ? videoTrack : audioTrack;
-		if (!selectedTrack) throw new Error(dependencies.copy.audioClipNotFound);
+		if (!selectedTrack) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		dependencies.commit(commands.length === 1 ? commands[0] : { type: 'batch', commands }, {
 			selectTrackId: selectedTrack.id,
 			selectClipId: selectedPlacement.clipId,
@@ -279,7 +279,7 @@ export function createProjectBinService(
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return null;
 		if (!findProjectBinClip(dependencies.getProject(), clipId)) {
-			throw new Error(dependencies.copy.audioClipNotFound);
+			throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		}
 		const title = String(requestedName ?? '').trim();
 		if (!title) throw new TypeError('A project-bin clip name is required.');
@@ -291,7 +291,7 @@ export function createProjectBinService(
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return null;
 		if (!findProjectBinClip(dependencies.getProject(), clipId)) {
-			throw new Error(dependencies.copy.audioClipNotFound);
+			throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		}
 		dependencies.commit({ type: 'project-bin/remove', clipId });
 		return clipId;
@@ -301,7 +301,7 @@ export function createProjectBinService(
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return null;
 		if (!findProjectBinClip(dependencies.getProject(), clipId)) {
-			throw new Error(dependencies.copy.audioClipNotFound);
+			throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		}
 		if (!dependencies.trackColors.includes(color)) throw new RangeError('Unsupported Project Bin color.');
 		dependencies.commit({ type: 'project-bin/update', clipId, changes: { color } });
@@ -310,7 +310,7 @@ export function createProjectBinService(
 
 	function projectBinSourceIds(clipId: string, project = dependencies.getProject()): Set<string> {
 		const clip = findProjectBinClip(project, clipId);
-		if (!clip) throw new Error(dependencies.copy.audioClipNotFound);
+		if (!clip) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		const itemClips = hasProjectBinMediaAuthority(project)
 			? projectBinClips(project).filter((candidate) => candidate.binItemId === clip.binItemId)
 			: [clip];

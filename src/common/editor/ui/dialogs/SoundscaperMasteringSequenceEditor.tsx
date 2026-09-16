@@ -77,6 +77,7 @@ export function masteringSequenceEntryApplyOperation(input: Readonly<{
 
 interface SoundscaperMasteringSequenceEditorProps {
 	readonly copy: SoundscaperMasteringSequenceCopy;
+	readonly newSequenceName?: string;
 	readonly disabled: boolean;
 	readonly sequences: readonly DocumentMasteringSequenceSnapshot[];
 	readonly regions: readonly DocumentMasteringSequenceRegionSnapshot[];
@@ -88,7 +89,7 @@ interface SoundscaperMasteringSequenceEditorProps {
 }
 
 export default function SoundscaperMasteringSequenceEditor({
-	copy, disabled, sequences, regions, primarySequenceId, sampleRate = 48_000, createId, onOperation,
+	copy, newSequenceName = copy.newMasteringSequence, disabled, sequences, regions, primarySequenceId, sampleRate = 48_000, createId, onOperation,
 }: SoundscaperMasteringSequenceEditorProps) {
 	const [selectedId, setSelectedId] = useState('');
 	const [regionId, setRegionId] = useState('');
@@ -111,7 +112,7 @@ export default function SoundscaperMasteringSequenceEditor({
 				</select>
 			</label>
 			<button type="button" disabled={!primarySequenceId} onClick={() => onOperation(
-				masteringSequenceAddOperation(primarySequenceId, createId(), copy.newMasteringSequence),
+				masteringSequenceAddOperation(primarySequenceId, createId(), newSequenceName),
 			)}>{copy.newMasteringSequence}</button>
 			{sequence && <button type="button" onClick={() => {
 				onOperation({ type: 'mastering-sequence/remove', sequenceId: sequence.id });

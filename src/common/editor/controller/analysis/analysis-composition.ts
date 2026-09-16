@@ -89,12 +89,12 @@ export function createAnalysisComposition<Project extends AnalysisProject, Buffe
 	}) : createAbsentAnalysisService({ productName: dependencies.productName });
 	return Object.freeze({
 		...service,
-		run: (...args) => dependencies.taskProgress.run('analysis', copy.analysisRendering, () => service.run(...args)),
-		plotSpectrum: (...args) => dependencies.taskProgress.run('analysis', copy.analysisRendering, () => service.plotSpectrum(...args)),
-		findClipping: (...args) => dependencies.taskProgress.run('analysis', copy.analysisRendering, () => service.findClipping(...args)),
-		captureContrast: (...args) => dependencies.taskProgress.run('analysis', copy.contrastAnalyzing, () => service.captureContrast(...args)),
-		repeatLast: (...args) => dependencies.taskProgress.run('analysis', copy.analysisRendering, () => service.repeatLast(...args)),
-		measureLoudness: (...args) => dependencies.taskProgress.run('analysis', copy.measuringLoudness, () => service.measureLoudness(...args)),
+		run: (...args) => dependencies.taskProgress.run('analysis', copy.analysisRendering, () => service.run(...args), undefined, { key: "analysisRendering" }),
+		plotSpectrum: (...args) => dependencies.taskProgress.run('analysis', copy.analysisRendering, () => service.plotSpectrum(...args), undefined, { key: "analysisRendering" }),
+		findClipping: (...args) => dependencies.taskProgress.run('analysis', copy.analysisRendering, () => service.findClipping(...args), undefined, { key: "analysisRendering" }),
+		captureContrast: (...args) => dependencies.taskProgress.run('analysis', copy.contrastAnalyzing, () => service.captureContrast(...args), undefined, { key: "contrastAnalyzing" }),
+		repeatLast: (...args) => dependencies.taskProgress.run('analysis', copy.analysisRendering, () => service.repeatLast(...args), undefined, { key: "analysisRendering" }),
+		measureLoudness: (...args) => dependencies.taskProgress.run('analysis', copy.measuringLoudness, () => service.measureLoudness(...args), undefined, { key: "measuringLoudness" }),
 	});
 }
 

@@ -1,3 +1,4 @@
+import { VIDEO_FILMSTRIP_COPY } from '../../../i18n/editor-video-filmstrip-copy.ts';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
@@ -133,7 +134,7 @@ export function VideoFilmstripClip({
 			data-invalid-overlap={invalidOverlap ? 'true' : undefined}
 			role="group"
 			tabIndex={-1}
-			aria-label={`${clip.kind === 'image' ? 'Image clip' : copy.videoClip || 'Video clip'}: ${clip.title}`}
+			aria-label={`${clip.kind === 'image' ? (copy['ui.videoFilmstrip.imageClip'] || VIDEO_FILMSTRIP_COPY.imageClip) : copy.videoClip || 'Video clip'}: ${clip.title}`}
 			style={{ left, width }}
 			onContextMenu={(event) => {
 				event.preventDefault();
@@ -254,7 +255,7 @@ export function VideoFilmstripClip({
 							{!presentationThumbnails.supported && fallbackPosterUrl
 								? <img src={fallbackPosterUrl} alt="" draggable="false" />
 									: <span className="audio-editor-video-clip__thumbnail-time">{
-										clip.kind === 'image' ? 'Image' : copy.videoClip || 'Video'
+										clip.kind === 'image' ? (copy['ui.videoFilmstrip.image'] || VIDEO_FILMSTRIP_COPY.image) : copy.videoClip || 'Video'
 									}</span>}
 						</span>
 					)}

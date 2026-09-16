@@ -45,21 +45,24 @@ test('the standalone mastering dialog commits ordinary mastering commands', asyn
 	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
 	const project = masteringProject();
 	const committed: unknown[] = [];
+	const previewCopy = { ...SOUNDSCAPER_MASTERING_SEQUENCE_COPY, newMasteringSequence: 'Preview sequence label' };
 	const { createRoot } = await import('react-dom/client');
 	const root = createRoot(dom.container as unknown as Element);
 	try {
 		await act(async () => root.render(<SoundscaperMasteringSequenceDialog
 			isOpen
-			controller={{ actions: { edit: { commit: (operation) => { committed.push(operation); } } } }}
+			controller={{ actions: { edit: { commit: (operation) => { committed.push(operation); } } },
+				presentationLocalization: { publishedCopy: { 'ui.mastering.newMasteringSequence': 'New sequence' } } }}
 			snapshot={{ project, masteringSequences: createDocumentMasteringSequenceSnapshot(project) }}
-			copy={SOUNDSCAPER_MASTERING_SEQUENCE_COPY}
+			copy={previewCopy}
 			run={(operation) => operation()}
 			onClose={() => undefined}
 		/>));
-		await click(buttonWithText(dom.container, SOUNDSCAPER_MASTERING_SEQUENCE_COPY.newMasteringSequence));
+		await click(buttonWithText(dom.container, previewCopy.newMasteringSequence));
 
 		assert.equal(committed.length, 1);
 		assert.equal((committed[0] as { type: string }).type, 'mastering-sequence/add');
+		assert.equal((committed[0] as { sequence: { name: string } }).sequence.name, 'New sequence');
 		assert.equal(
 			(committed[0] as { sequence: { sequenceId: string } }).sequence.sequenceId,
 			project.primarySequenceId,

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { projectForRuntimeConsumers } from '../../../project-current-runtime.ts';
+import { projectForRuntimeConsumers } from '../../../project-current-runtime.ts'; import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import { hasCoreEditingProjectAuthority, hasProductionMixerProjectAuthority } from '../../../project-schema-version.ts';
 import type {
 	EffectAudioEffect,
@@ -47,7 +47,7 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 		const project = runtime.getProject();
 		const token = runtime.captureProject();
 		const track = findTrack(project, trackId);
-		if (!track) throw new Error(runtime.copy.audioTrackNotFound);
+		if (!track) throw createLocalizedError(Error, runtime.copy, 'audioTrackNotFound');
 		const channelCount = requestedChannelCount
 			?? (runtime.audacitySelectionChannelCount(project, trackId, startFrame, endFrame) || 1);
 		// Flatten folder state before narrowing to one track: the snapshot keeps the
@@ -105,9 +105,9 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 		const trackId = requestedTrackId;
 		if (scope === 'track') {
 			const track = findMutableTrack(snapshot, trackId);
-			if (!track) throw new Error(runtime.copy.audioTrackNotFound);
+			if (!track) throw createLocalizedError(Error, runtime.copy, 'audioTrackNotFound');
 			const effectIndex = track.effects.findIndex((candidate) => candidate.id === effect.id);
-			if (effectIndex < 0) throw new Error(runtime.copy.rackEffectNotFound);
+			if (effectIndex < 0) throw createLocalizedError(Error, runtime.copy, 'rackEffectNotFound');
 			const prefix = track.effects.slice(0, effectIndex);
 			if (hasProductionMixerProjectAuthority(snapshot)) {
 				snapshot = createIsolatedTrackRenderProjectV21(snapshot as never, {
@@ -124,7 +124,7 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 			}
 		} else {
 			const effectIndex = snapshot.master.effects.findIndex((candidate) => candidate.id === effect.id);
-			if (effectIndex < 0) throw new Error(runtime.copy.rackEffectNotFound);
+			if (effectIndex < 0) throw createLocalizedError(Error, runtime.copy, 'rackEffectNotFound');
 			snapshot.master.effects = snapshot.master.effects.slice(0, effectIndex);
 			snapshot.master.gain = 1;
 		}
@@ -152,7 +152,7 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 	async function captureSelectedNoiseProfile(paramsValue?: unknown): Promise<unknown | null> {
 		if (runtime.editingBlocked()) return null;
 		const target = runtime.audacityEffectTarget();
-		if (!target) throw new Error(runtime.copy.audacitySelectionHint);
+		if (!target) throw createLocalizedError(Error, runtime.copy, 'audacitySelectionHint');
 		const sampleRate = runtime.projectSampleRate();
 		const suppliedParams = paramsValue !== null && typeof paramsValue === 'object' && !Array.isArray(paramsValue)
 			? paramsValue
@@ -166,7 +166,7 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 		);
 		if (estimatedPeakBytes > runtime.memoryLimitBytes) throw runtime.audacityEffectMemoryError();
 		const ownership = beginOwnership(runtime, NOISE_PROFILE_TASK);
-		beginProcessing(runtime, runtime.copy.audacityProfileProcessing);
+		beginProcessing(runtime, 'audacityProfileProcessing');
 		try {
 			const channels = await renderDryTrackRange(
 				target.track.id, target.startFrame, target.endFrame, target.channelCount, target.clipIds ?? null,
@@ -177,7 +177,7 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 			});
 			assertOwnership(runtime, ownership);
 			runtime.state.audacityNoiseProfile = result.profile;
-			runtime.setStatus(runtime.copy.noiseProfileReady, 'success');
+			setLocalizedStatus(runtime.setStatus, runtime.copy, "noiseProfileReady", undefined, 'success');
 			return runtime.serializeNoiseProfile(result.profile);
 		} finally {
 			finishProcessing(runtime, ownership);
@@ -200,13 +200,13 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 			?? (selectedClip ? selectedClip.timelineStartFrame + selectedClip.durationFrames : null);
 		if (!Number.isSafeInteger(startFrame) || !Number.isSafeInteger(endFrame)
 			|| startFrame == null || endFrame == null || endFrame <= startFrame) {
-			throw new Error(runtime.copy.audacitySelectionHint);
+			throw createLocalizedError(Error, runtime.copy, 'audacitySelectionHint');
 		}
 		const durationFrames = endFrame - startFrame;
 		const sampleRate = runtime.projectSampleRate();
-		if (durationFrames < 2_048) throw new Error(runtime.copy.noiseProfileMinimumSamples);
+		if (durationFrames < 2_048) throw createLocalizedError(Error, runtime.copy, 'noiseProfileMinimumSamples');
 		if (scope === 'track' && (!selectionTarget || selectionTarget.track.id !== requestedTrackId)) {
-			throw new Error(runtime.copy.audacitySelectionHint);
+			throw createLocalizedError(Error, runtime.copy, 'audacitySelectionHint');
 		}
 		const channelCount = scope === 'track'
 			? selectionTarget!.channelCount
@@ -216,7 +216,7 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 		);
 		if (estimatedPeakBytes > runtime.memoryLimitBytes) throw runtime.audacityEffectMemoryError();
 		const ownership = beginOwnership(runtime, NOISE_PROFILE_TASK);
-		beginProcessing(runtime, runtime.copy.audacityProfileProcessing);
+		beginProcessing(runtime, 'audacityProfileProcessing');
 		try {
 			const channels = await renderRackPrefixRange(
 				effect, scope, startFrame, endFrame, channelCount, requestedTrackId,
@@ -239,7 +239,7 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 					context: { noiseProfile: runtime.serializeNoiseProfile(result.profile) },
 				},
 			});
-			runtime.setStatus(runtime.copy.noiseProfileReady, 'success');
+			setLocalizedStatus(runtime.setStatus, runtime.copy, "noiseProfileReady", undefined, 'success');
 		} finally {
 			finishProcessing(runtime, ownership);
 		}
@@ -253,16 +253,16 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 			planSpectralEditWorkflowAdmission,
 		} = await loadDeferredSpectralEditAdmission();
 		const project = runtime.getProject();
-		if (!hasCoreEditingProjectAuthority(project)) throw new Error(runtime.copy.v2Required);
+		if (!hasCoreEditingProjectAuthority(project)) throw createLocalizedError(Error, runtime.copy, 'v2Required');
 		const selection = runtime.activeSelection();
 		const frequencyRange = selection?.frequencyRange;
 		const targets = runtime.audacityEffectTargets();
 		if (!targets.length || !frequencyRange) {
-			throw new Error(runtime.copy.spectralSelectionRequired || runtime.copy.audacitySelectionHint);
+			throw createLocalizedError(Error, runtime.copy, runtime.copy.spectralSelectionRequired ? 'spectralSelectionRequired' : 'audacitySelectionHint');
 		}
 		const gainDb = Number(requestedGainDb);
 		if (gainDb !== -Infinity && (!Number.isFinite(gainDb) || gainDb > 120 || gainDb < -120)) {
-			throw new RangeError(runtime.copy.spectralGainInvalid);
+			throw createLocalizedError(RangeError, runtime.copy, 'spectralGainInvalid');
 		}
 		const admission = planSpectralEditWorkflowAdmission({
 			targets: targets.map((target) => ({
@@ -282,7 +282,7 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 			await runtime.preflightStorage(admission.finalRetainedCompletedOutputBytes, 'effect');
 			assertOwnership(runtime, ownership);
 			processing = true;
-			beginProcessing(runtime, runtime.copy.spectralProcessing || runtime.copy.audacityProcessing);
+			beginProcessing(runtime, runtime.copy.spectralProcessing ? 'spectralProcessing' : 'audacityProcessing');
 			const results: Array<{ target: EffectTarget; channels: Float32Array[] }> = [];
 			for (const [targetIndex, target] of targets.entries()) {
 				const phase = admission.phases[targetIndex]!;
@@ -314,11 +314,11 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 			}
 			await runtime.persistAudacityEffectResults(results, null, {
 				assertCurrent: () => assertOwnership(runtime, ownership),
-				effectName: gainDb === -Infinity ? runtime.copy.spectralDelete : runtime.copy.spectralAmplify,
+				effectName: gainDb === -Infinity ? publishedCopyFor(runtime.copy).spectralDelete : publishedCopyFor(runtime.copy).spectralAmplify,
 				selectionDetails: runtime.audacityEffectSelectionDetails(selection, targets),
 			});
 			assertOwnership(runtime, ownership);
-			runtime.setStatus(runtime.copy.spectralApplied || runtime.copy.audacityApplied, 'success');
+			setLocalizedStatus(runtime.setStatus, runtime.copy, (runtime.copy.spectralApplied ? "spectralApplied" : "audacityApplied"), undefined, 'success');
 			return true;
 		} finally {
 			if (processing) finishProcessing(runtime, ownership);
@@ -365,9 +365,9 @@ function assertOwnership<Buffer>(runtime: EffectAudioServiceRuntime<Buffer>, own
 	runtime.assertProject(ownership.project);
 }
 
-function beginProcessing<Buffer>(runtime: EffectAudioServiceRuntime<Buffer>, status: string): void {
+function beginProcessing<Buffer>(runtime: EffectAudioServiceRuntime<Buffer>, status: keyof EffectAudioServiceRuntime<Buffer>['copy']): void {
 	runtime.state.audacityEffectProcessing = true;
-	runtime.setStatus(status);
+	setLocalizedStatus(runtime.setStatus, runtime.copy, status);
 	runtime.publishDocumentSnapshot();
 }
 

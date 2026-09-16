@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { ROUTE_LOCALES } from '../src/common/i18n/locales.js';
+import './check-editor-copy.mjs';
 
 import { auditComposedHeaders, documentRoute, webBuildRouting } from './lib/product-web-routing.mjs';
 

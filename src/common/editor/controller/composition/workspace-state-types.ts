@@ -15,6 +15,7 @@ import type { ProjectSaveStatus } from '../document/project-save-service.ts';
 import type { createInitialStorageCapacitySnapshot } from '../shared/storage-capacity-service.ts';
 import type { EditorTaskProgress } from '../shared/task-progress.ts';
 import type { TakeCyclePendingOpenRecovery } from '../recording/take-cycle-capture-orchestrator.ts';
+import type { LocalizedPresentationMessage } from '../../../i18n/presentation-message.ts';
 import type { VideoEffectServiceRuntime } from '../clip-video/video-effect-service.ts';
 import type { AudioEditorClipboard } from '../../commands/protocol.ts';
 import type { ExportActionState } from '../export/export-action-group.ts';
@@ -47,7 +48,7 @@ export type ControllerWorkspaceState<Preferences, EffectPresets, History = Contr
 	phase: EditorControllerPhase;
 	projects: EditorDocumentSnapshotRuntime<SnapshotProject>['state']['projects'];
 	recentProjectIds: string[];
-	status: { message: string; state: string };
+	status: { message: string; state: string; localization?: LocalizedPresentationMessage };
 	saveState: ProjectSaveStatus;
 	storageEstimate: ReturnType<typeof createInitialStorageCapacitySnapshot>;
 	analysisResult: unknown;

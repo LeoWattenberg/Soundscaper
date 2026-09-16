@@ -2,7 +2,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- This focused seam narrows legacy project-import ports without changing their public JavaScript contract. */
 
-import type { sourcePcmBytes } from '../../source/source-audio.ts';
+import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import type { sourcePcmBytes } from '../../source/source-audio.ts';
 import { scaleSampleFrame } from '../../../timeline-time.ts';
 import { admitAudioImportChannelCount } from './audio-import-channel-admission.ts';
 import {
@@ -74,7 +74,7 @@ export function createIncrementalPcmImporter(runtime: IncrementalPcmImportRuntim
 		assertCurrent();
 		const sourceId = createStableId('source');
 		const clipId = createStableId('clip');
-		const trackName = stripExtension(file.name) || `${copy.track} ${getProject().tracks.length + 1}`;
+		const trackName = stripExtension(file.name) || `${publishedCopyFor(copy).track} ${getProject().tracks.length + 1}`;
 		const sourceName = file.name;
 		const mimeType = descriptor.container === 'compressed-audio' ? descriptor.mimeType
 			: descriptor.container === 'aiff' || descriptor.container === 'aifc'

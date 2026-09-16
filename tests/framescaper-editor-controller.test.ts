@@ -179,7 +179,7 @@ test('the supplied locale and copy reach the controller snapshot', async () => {
 	const snapshot = (controller.getSnapshot as () => Data)();
 
 	assert.equal(snapshot.locale, 'de');
-	assert.deepEqual(snapshot.status, { message: 'Bereit', state: 'info' });
+	assert.deepEqual(snapshot.status, { message: 'Bereit', state: 'info', localization: { key: 'ready' } });
 	assert.equal(snapshot.productId, 'framescaper');
 });
 

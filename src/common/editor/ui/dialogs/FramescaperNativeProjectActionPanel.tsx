@@ -1,3 +1,4 @@
+import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import React, { type FormEvent, useState } from 'react';
@@ -17,7 +18,7 @@ export default function FramescaperNativeProjectActionPanel({
 	readonly title: string;
 }>) {
 	const [status, setStatus] = useState<'ready' | 'working' | 'complete'>('ready');
-	const [error, setError] = useState('');
+	const [error, setError] = usePresentationFeedback(copy);
 	const run = (request?: unknown): void => {
 		setStatus('working');
 		setError('');
@@ -25,7 +26,7 @@ export default function FramescaperNativeProjectActionPanel({
 			() => setStatus('complete'),
 			(failure: unknown) => {
 				setStatus('ready');
-				setError(failure instanceof Error ? failure.message : String(failure));
+				setError(feedbackFailure(failure));
 			},
 		);
 	};

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react'; import { publishedCopyFor } from '../../controller/shared/presentation-localization.ts';
 import { Button } from '@soundscaper/design-system/Button';
 
 import { EbuR128WorkspacePanel } from '../toolbar/AudioEditorMeters.jsx';
@@ -181,7 +181,7 @@ export default function WorkspacePanelContent({
 						variant="secondary"
 						disabled={snapshot.readOnly}
 						onClick={() => run(() => controller.actions.labels.add(targetTrack?.id || null, {
-							title: copy.newLabel || copy.untitledLabel,
+							title: publishedCopyFor(copy).newLabel || publishedCopyFor(copy).untitledLabel,
 							startFrame: snapshot.selection?.startFrame || 0,
 							endFrame: snapshot.selection?.endFrame || snapshot.selection?.startFrame || 0,
 						}))}

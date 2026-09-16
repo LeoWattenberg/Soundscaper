@@ -134,7 +134,7 @@
 		"src/common/editor/timeline-annotation-riff-interchange.ts": 583,
 		"src/common/editor/timeline-time.ts": 598,
 		"src/common/editor/track-hierarchy-v12.ts": 551,
-		"src/common/editor/ui/ParametricEqEditor.jsx": 600,
+		"src/common/editor/ui/ParametricEqEditor.jsx": 594,
 		"src/common/editor/ui/audio-editor-design-system/07-timeline-tracks.css": 592,
 		"src/common/editor/ui/audio-editor-design-system/08-timeline-clips-effects.css": 564,
 		"src/common/editor/ui/framescaper-native-image-sequence-source-resolver.ts": 551,
@@ -147,7 +147,7 @@
 		"src/common/editor/ui/video-keyframe-offline-video-export.ts": 593,
 		"src/common/editor/ui/video-preview-compositor.js": 595,
 		"src/common/editor/ui/video-preview-effects.js": 596,
-		"src/common/editor/ui/workspace/AudioEditorWorkspace.jsx": 572,
+		"src/common/editor/ui/workspace/AudioEditorWorkspace.jsx": 569,
 		"src/common/editor/ui/workspace/ProjectBinPanel.jsx": 550,
 		"src/common/editor/ui/workspace/VideoPreviewPanel.jsx": 558,
 		"src/common/editor/ui/workspace/soundscaper-routing-graph-candidates.ts": 593,
@@ -326,7 +326,7 @@
 	},
 	"allow": {
 		"src/common/editor/app.js": {
-			"maxLines": 692,
+			"maxLines": 689,
 			"reason": "Legacy JavaScript composition root retained while its typed services and ports complete staged migration."
 		},
 		"src/common/editor/nyquist/plugins/catalog.js": {

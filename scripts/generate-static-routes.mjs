@@ -3,7 +3,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
-import { ENGLISH_COPY, bundledCopyForLocale } from '../src/common/i18n/catalogs.js';
+import { EDITOR_ENGLISH_COPY as ENGLISH_COPY } from '../src/common/i18n/editor-copy-inventory.ts';
+import { bundledCatalogForLocale as bundledCopyForLocale } from '../src/common/i18n/runtime.js';
 import { ROUTE_LOCALES } from '../src/common/i18n/locales.js';
 import { translationCatalogLocale } from '../src/common/i18n/translation-catalog.js';
 import { productProfile } from '../src/common/products.js';

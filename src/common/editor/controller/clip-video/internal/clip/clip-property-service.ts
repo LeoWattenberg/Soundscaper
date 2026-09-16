@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { isAudioMediaKind } from '../../../../audio-media-kind.ts';
+import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import { isAudioMediaKind } from '../../../../audio-media-kind.ts';
 
 import {
 	collectClipTransformIds as collectLegacyClipTransformIds,
@@ -177,14 +177,14 @@ export function createClipPropertyService(
 		const project = dependencies.getProject();
 		const clip = findTimePitchClip(project, clipId);
 		const track = clip ? findClipTrack(project, clip.id) : null;
-		if (!clip || !track) throw new Error(dependencies.copy.audioClipNotFound);
+		if (!clip || !track) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		const pitchCents = changes.pitchCents == null ? clip.pitchCents : Number(changes.pitchCents);
 		const speedRatio = changes.speedRatio == null ? clip.speedRatio : Number(changes.speedRatio);
 		if (!Number.isFinite(pitchCents) || pitchCents < -1_200 || pitchCents > 1_200) {
-			throw new RangeError(dependencies.copy.clipPitchRange);
+			throw createLocalizedError(RangeError, dependencies.copy, 'clipPitchRange');
 		}
 		if (!Number.isFinite(speedRatio) || speedRatio <= 0) {
-			throw new RangeError(dependencies.copy.clipSpeedPositive);
+			throw createLocalizedError(RangeError, dependencies.copy, 'clipSpeedPositive');
 		}
 		const durationFrames = changes.speedRatio == null
 			? clip.durationFrames
@@ -217,7 +217,7 @@ export function createClipPropertyService(
 		const project = dependencies.getProject();
 		const clip = findTimePitchClip(project, clipId);
 		const track = clip ? findClipTrack(project, clip.id) : null;
-		if (!clip || !track) throw new Error(dependencies.copy.audioClipNotFound);
+		if (!clip || !track) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		const timelineStartFrame = changes.timelineStartFrame == null
 			? clip.timelineStartFrame
 			: Math.max(0, Math.round(Number(changes.timelineStartFrame)));
@@ -225,7 +225,7 @@ export function createClipPropertyService(
 			? clip.durationFrames
 			: Math.max(1, Math.round(Number(changes.durationFrames)));
 		if (!Number.isSafeInteger(timelineStartFrame) || !Number.isSafeInteger(durationFrames)) {
-			throw new TypeError(dependencies.copy.timelineFramesFinite);
+			throw createLocalizedError(TypeError, dependencies.copy, 'timelineFramesFinite');
 		}
 		const clipIds = collectClipTransformIds(project, clip.id);
 		if (clipIds.length > 1) {
@@ -285,7 +285,7 @@ export function createClipPropertyService(
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return null;
 		const clip = findTimePitchClip(dependencies.getProject(), clipId);
-		if (!clip) throw new Error(dependencies.copy.audioClipNotFound);
+		if (!clip) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		return dependencies.commit({
 			type: 'clip/update',
 			clipId: clip.id,

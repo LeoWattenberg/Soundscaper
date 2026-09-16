@@ -179,7 +179,7 @@ test('a queue row with a revoked destination exposes pathless root reauthorizati
 		initialSnapshot={{ ...base, services: { ...base.services, queue } }}
 		onClose={() => undefined}
 	/>);
-	assert.match(markup, />Reauthorize destination folder…</u);
+	assert.match(markup, />Reauthorize destination folder</u);
 	assert.match(markup, />Cancel</u);
 	assert.doesNotMatch(markup, />Resume</u);
 	assert.doesNotMatch(markup, />Retry</u);

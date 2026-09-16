@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { LOCAL_ASSISTANCE_ADDITIONAL_COPY } from '../../../i18n/editor-local-assistance-additional-copy.ts';
+
 /** Lazy Guided review surface; every admitted choice begins unchecked. */
 
 import { Checkbox } from '@soundscaper/design-system/Checkbox';
@@ -59,18 +61,18 @@ export default function LocalAssistanceGuidedReview({
 }: LocalAssistanceGuidedReviewProps) {
 	const selected = new Set(selectedChoiceIds);
 	return <section className="kw-local-assistance__guided-review"
-		aria-label={text(copy, 'localAssistanceGuidedReview', 'Guided workflow review')}>
+		aria-label={text(copy, 'localAssistanceGuidedReview', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceGuidedReview)}>
 		<h3>{text(copy, 'localAssistanceReview', 'Review result')}</h3>
 		<details><summary>{text(copy, 'assistanceTechnicalDetails', 'Technical details')}</summary><p>{review.outputs.map(({ slotId, byteLength }) => (
 			`${slotId} · ${String(byteLength)} bytes`
 		)).join(' · ')}</p></details>
 		{auditionAudio === null ? null : <AudioAudition body={auditionAudio}
-			label={text(copy, 'localAssistanceOriginalSelection', 'Original selection')}
+			label={text(copy, 'localAssistanceOriginalSelection', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceOriginalSelection)}
 			skipRanges={cleanupSkipRanges(review, selectedChoiceIds,
 				auditionSourceStartFrame, auditionSourceSampleRate)} />}
 		{review.workflowId === 'clean-filler-silence' && auditionAudio !== null
 			? <p>{text(copy, 'localAssistanceCleanupAudition',
-				'Audition skips checked ranges without changing the project.')}</p> : null}
+				LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceCleanupAudition)}</p> : null}
 		{review.outputs.filter(({ mediaType }) => mediaType === 'audio/wav').map((output) =>
 			<AudioAudition key={output.claim.claimId} body={output.body} label={copy[`assistanceOutput.${output.slotId}`] || output.slotId.replaceAll('-', ' ')} />)}
 		{review.workflowId === 'generate-editorial-text'
@@ -83,9 +85,9 @@ export default function LocalAssistanceGuidedReview({
 				authority={highlightSourceTimeAuthority} onTitle={onHighlightTitleChange}
 				onTrim={onHighlightTrimChange} onCrop={onHighlightCropChange} /> : null}
 		{review.choices.length === 0
-			? <p>{text(copy, 'localAssistanceNoProposals', 'No proposals were found.')}</p>
+			? <p>{text(copy, 'localAssistanceNoProposals', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceNoProposals)}</p>
 			: <fieldset>
-				<legend>{text(copy, 'localAssistanceChooseProposals', 'Choose proposals to accept')}</legend>
+				<legend>{text(copy, 'localAssistanceChooseProposals', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceChooseProposals)}</legend>
 				{review.choices.map((choice) => <label key={choice.id}>
 					<Checkbox checked={selected.has(choice.id)} disabled={!choice.enabled} aria-label={choice.label}
 						onChange={(checked) => { void onChoiceChange(choice.id, checked); }} />
@@ -104,27 +106,27 @@ function ReframePath({ copy, draft, onCrop }: Readonly<{
 	const [keyframeIndex, setKeyframeIndex] = useState(0);
 	const keyframe = draft.path.keyframes[keyframeIndex]!;
 	return <div className="kw-local-assistance__reframe-path">
-		<p>{text(copy, 'localAssistanceReframeTargetAspect', 'Target aspect')}:{' '}
+		<p>{text(copy, 'localAssistanceReframeTargetAspect', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceReframeTargetAspect)}:{' '}
 			{String(draft.path.targetAspect.width)}:{String(draft.path.targetAspect.height)}</p>
-		<p>{text(copy, 'localAssistanceReframeKeyframePosition', 'Keyframe')} {' '}
+		<p>{text(copy, 'localAssistanceReframeKeyframePosition', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceReframeKeyframePosition)} {' '}
 			{String(keyframeIndex + 1)} / {String(draft.path.keyframes.length)}</p>
 		<div className="kw-local-assistance__reframe-navigation">
 			<Button variant="secondary" disabled={keyframeIndex === 0}
 				onClick={() => setKeyframeIndex((index) => Math.max(0, index - 1))}>
-				{text(copy, 'localAssistancePreviousKeyframe', 'Previous keyframe')}
+				{text(copy, 'localAssistancePreviousKeyframe', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistancePreviousKeyframe)}
 			</Button>
 			<Button variant="secondary" disabled={keyframeIndex === draft.path.keyframes.length - 1}
 				onClick={() => setKeyframeIndex((index) => Math.min(
 					draft.path.keyframes.length - 1, index + 1,
-				))}>{text(copy, 'localAssistanceNextKeyframe', 'Next keyframe')}</Button>
+				))}>{text(copy, 'localAssistanceNextKeyframe', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceNextKeyframe)}</Button>
 		</div>
 		<fieldset key={keyframe.sourceFrame}>
-			<legend>{text(copy, 'localAssistanceReframeCropKeyframe', 'Crop keyframe')}{' '}
+			<legend>{text(copy, 'localAssistanceReframeCropKeyframe', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceReframeCropKeyframe)}{' '}
 				{String(keyframe.sourceFrame)}</legend>
 			<DraggableCropOverlay crop={keyframe.crop}
-				label={text(copy, 'localAssistanceReframeCropOverlay', 'Draggable crop overlay')}
+				label={text(copy, 'localAssistanceReframeCropOverlay', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceReframeCropOverlay)}
 				onCrop={(crop) => onCrop(keyframe.sourceFrame, crop)} />
-			<label>{text(copy, 'localAssistanceReframeHorizontalPosition', 'Horizontal position')}
+			<label>{text(copy, 'localAssistanceReframeHorizontalPosition', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceReframeHorizontalPosition)}
 				<input type="range" min={0} max={positionMaximum(keyframe.crop, 'horizontal')}
 					step={0.001} value={keyframe.crop.left} onChange={(event) => {
 						const left = Number(event.currentTarget.value);
@@ -132,7 +134,7 @@ function ReframePath({ copy, draft, onCrop }: Readonly<{
 						void onCrop(keyframe.sourceFrame, { ...keyframe.crop,
 							left, right: 1 - width - left });
 					}} /></label>
-			<label>{text(copy, 'localAssistanceReframeVerticalPosition', 'Vertical position')}
+			<label>{text(copy, 'localAssistanceReframeVerticalPosition', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceReframeVerticalPosition)}
 				<input type="range" min={0} max={positionMaximum(keyframe.crop, 'vertical')}
 					step={0.001} value={keyframe.crop.top} onChange={(event) => {
 						const top = Number(event.currentTarget.value);
@@ -188,14 +190,14 @@ function CropPositionControls({ copy, crop, onCrop }: Readonly<{
 	onCrop: (crop: ReviewCrop) => unknown;
 }>) {
 	return <>
-		<label>{text(copy, 'localAssistanceReframeHorizontalPosition', 'Horizontal position')}
+		<label>{text(copy, 'localAssistanceReframeHorizontalPosition', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceReframeHorizontalPosition)}
 			<input type="range" min={0} max={positionMaximum(crop, 'horizontal')}
 				step={0.001} value={crop.left} onChange={(event) => {
 					const left = Number(event.currentTarget.value);
 					const width = 1 - crop.left - crop.right;
 					void onCrop({ ...crop, left, right: 1 - width - left });
 				}} /></label>
-		<label>{text(copy, 'localAssistanceReframeVerticalPosition', 'Vertical position')}
+		<label>{text(copy, 'localAssistanceReframeVerticalPosition', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceReframeVerticalPosition)}
 			<input type="range" min={0} max={positionMaximum(crop, 'vertical')}
 				step={0.001} value={crop.top} onChange={(event) => {
 					const top = Number(event.currentTarget.value);
@@ -229,11 +231,11 @@ function HighlightReview({ copy, body, draft, authority, onTitle, onTrim, onCrop
 		: createLocalAssistanceGuidedHighlightPreviewPlanV1(authority, proposal);
 	return <>
 		{plan === null ? <p>{text(copy, 'localAssistanceHighlightChoosePreview',
-			'Choose a highlight proposal to preview its exact source interval and crop.')}</p>
+			LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHighlightChoosePreview)}</p>
 			: <HighlightVideoTransport body={body} plan={plan}
-				label={text(copy, 'localAssistanceHighlightTransportPreview', 'Transport preview')}
+				label={text(copy, 'localAssistanceHighlightTransportPreview', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHighlightTransportPreview)}
 				cropLabel={text(copy, 'localAssistanceHighlightCropPreview',
-					'Highlight crop preview')} />}
+					LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHighlightCropPreview)} />}
 		<HighlightProposals copy={copy} draft={draft} authority={authority} activeId={activeId}
 			onPreview={setActiveId} onTitle={onTitle} onTrim={onTrim} onCrop={onCrop} />
 	</>;
@@ -298,13 +300,13 @@ function HighlightProposals({ copy, draft, authority, activeId, onPreview, onTit
 	return <div className="kw-local-assistance__highlight-proposals">
 		{editError === '' ? null : <p role="alert" aria-live="polite">{editError}</p>}
 		{draft.proposals.map((proposal, index) => <article key={proposal.id}
-			aria-label={`${text(copy, 'localAssistanceHighlightProposal', 'Highlight proposal')} ${String(index + 1)}`}>
+			aria-label={`${text(copy, 'localAssistanceHighlightProposal', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHighlightProposal)} ${String(index + 1)}`}>
 			<Button variant="secondary" aria-pressed={activeId === proposal.id}
 				onClick={() => { void onPreview(proposal.id); }}>
-				{`${text(copy, 'localAssistanceHighlightPreview', 'Preview')} ${
-					text(copy, 'localAssistanceHighlightChoice', 'Highlight')} ${String(index + 1)}`}
+				{`${text(copy, 'localAssistanceHighlightPreview', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHighlightPreview)} ${
+					text(copy, 'localAssistanceHighlightChoice', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHighlightChoice)} ${String(index + 1)}`}
 			</Button>
-			<label>{text(copy, 'localAssistanceHighlightTitle', 'Title')}<input type="text"
+			<label>{text(copy, 'localAssistanceHighlightTitle', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHighlightTitle)}<input type="text"
 				key={proposal.title} defaultValue={proposal.title} minLength={1} maxLength={160} required
 				onBlur={(event) => {
 					const input = event.currentTarget;
@@ -313,45 +315,45 @@ function HighlightProposals({ copy, draft, authority, activeId, onPreview, onTit
 					});
 				}} /></label>
 			{proposal.hook === null ? null : <p><strong>
-				{text(copy, 'localAssistanceHighlightHook', 'Hook')}:</strong> {proposal.hook}</p>}
+				{text(copy, 'localAssistanceHighlightHook', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHighlightHook)}:</strong> {proposal.hook}</p>}
 			{proposal.chapters.length === 0 ? null : <div><strong>
-				{text(copy, 'localAssistanceHighlightChapters', 'Chapters')}:</strong><ol>
+				{text(copy, 'localAssistanceHighlightChapters', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHighlightChapters)}:</strong><ol>
 				{proposal.chapters.map((chapter) => <li key={chapter}>{chapter}</li>)}
 			</ol></div>}
 			{proposal.explanation === null ? null : <p><strong>
-				{text(copy, 'localAssistanceHighlightExplanation', 'Explanation')}:</strong>{' '}
+				{text(copy, 'localAssistanceHighlightExplanation', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHighlightExplanation)}:</strong>{' '}
 				{proposal.explanation}</p>}
 			<div className="kw-local-assistance__highlight-trim">
-				<label>{text(copy, 'localAssistanceHighlightStartFrame', 'Start frame')}
+				<label>{text(copy, 'localAssistanceHighlightStartFrame', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHighlightStartFrame)}
 					<AudioEditorTimeCodeInput key={`start:${String(proposal.startFrame)}`}
 						name={`highlight-${proposal.id}-startFrame`}
-						label={text(copy, 'localAssistanceHighlightStartFrame', 'Start frame')}
+						label={text(copy, 'localAssistanceHighlightStartFrame', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHighlightStartFrame)}
 						value={proposal.startFrame} unit="samples" rate={authority.sampleRate}
 						format="hh:mm:ss+milliseconds"
 						minimum={proposal.startFrame} maximum={proposal.endFrame - 1}
 						onCommit={(value) => applyTrim(value, proposal, 'start')} /></label>
-				<label>{text(copy, 'localAssistanceHighlightEndFrame', 'End frame')}
+				<label>{text(copy, 'localAssistanceHighlightEndFrame', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHighlightEndFrame)}
 					<AudioEditorTimeCodeInput key={`end:${String(proposal.endFrame)}`}
 						name={`highlight-${proposal.id}-endFrame`}
-						label={text(copy, 'localAssistanceHighlightEndFrame', 'End frame')}
+						label={text(copy, 'localAssistanceHighlightEndFrame', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHighlightEndFrame)}
 						value={proposal.endFrame} unit="samples" rate={authority.sampleRate}
 						format="hh:mm:ss+milliseconds"
 						minimum={proposal.startFrame + 1} maximum={proposal.endFrame}
 						onCommit={(value) => applyTrim(value, proposal, 'end')} /></label>
 			</div>
 			<small>{text(copy, 'localAssistanceHighlightTrimSnap',
-				'Trim values snap inward to exact admitted source-time boundaries.')}</small>
-			<p>{text(copy, 'localAssistanceHighlightPreviewRange', 'Preview range')}:{' '}
+				LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHighlightTrimSnap)}</small>
+			<p>{text(copy, 'localAssistanceHighlightPreviewRange', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHighlightPreviewRange)}:{' '}
 				{String(proposal.startFrame)}–{String(proposal.endFrame)}</p>
 			{proposal.transcriptExcerpt === null
-				? <p>{text(copy, 'localAssistanceHighlightSpeechless', 'Speechless footage')}</p>
+				? <p>{text(copy, 'localAssistanceHighlightSpeechless', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHighlightSpeechless)}</p>
 				: <blockquote>{proposal.transcriptExcerpt}</blockquote>}
 			<p>{proposal.visualSummary}</p>
 			{proposal.cropKeyframes.map((keyframe) => <fieldset key={keyframe.sourceFrame}>
-				<legend>{text(copy, 'localAssistanceHighlightCropKeyframe', 'Crop keyframe')}{' '}
+				<legend>{text(copy, 'localAssistanceHighlightCropKeyframe', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHighlightCropKeyframe)}{' '}
 					{String(keyframe.sourceFrame)}</legend>
 				<DraggableCropOverlay crop={keyframe.crop}
-					label={text(copy, 'localAssistanceHighlightCropOverlay', 'Draggable crop overlay')}
+					label={text(copy, 'localAssistanceHighlightCropOverlay', LOCAL_ASSISTANCE_ADDITIONAL_COPY.localAssistanceHighlightCropOverlay)}
 					onCrop={(crop) => applyEdit(() => onCrop(proposal.id, keyframe.sourceFrame, crop))} />
 				<CropPositionControls copy={copy} crop={keyframe.crop}
 					onCrop={(crop) => applyEdit(() => onCrop(proposal.id, keyframe.sourceFrame, crop))} />
@@ -538,4 +540,4 @@ function HighlightVideoTransport({ body, label, cropLabel, plan }: Readonly<{
 	</div>;
 }
 
-function text(copy: Copy, key: string, fallback: string): string { return copy[key] || fallback; }
+function text(copy: Copy, key: string, fallback: string): string { return copy[`ui.localAssistance.${key}`] || copy[key] || fallback; }

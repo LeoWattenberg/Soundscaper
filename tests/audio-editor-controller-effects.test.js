@@ -482,7 +482,7 @@ test('controller surfaces parametric EQ processor failures and unsubscribes on d
 	});
 	assert.deepEqual(controller.getSnapshot().status, {
 		message: 'Error: mock EQ processor failure',
-		state: 'error',
+		state: 'error', localization: { key: 'genericError', parameters: { message: 'mock EQ processor failure' } },
 	});
 
 	await controller.dispose();
@@ -585,13 +585,13 @@ test('parametric EQ selection preview errors stop the source and cannot be overw
 		assert.equal(controller.getSnapshot().effects.previewing, false);
 		assert.deepEqual(controller.getSnapshot().status, {
 			message: 'Error: mock selection EQ processor failure',
-			state: 'error',
+			state: 'error', localization: { key: 'genericError', parameters: { message: 'mock selection EQ processor failure' } },
 		});
 
 		lateEnded();
 		assert.deepEqual(controller.getSnapshot().status, {
 			message: 'Error: mock selection EQ processor failure',
-			state: 'error',
+			state: 'error', localization: { key: 'genericError', parameters: { message: 'mock selection EQ processor failure' } },
 		});
 		assert.equal(preview.disconnectCalls, 1);
 	} finally {

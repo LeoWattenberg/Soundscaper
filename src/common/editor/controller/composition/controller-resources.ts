@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { VideoTimingProbePort } from '../../video-timing-probe.ts';
+import type { VideoTimingProbePort } from '../../video-timing-probe.ts'; import { setLocalizedStatus } from '../../../i18n/presentation-message.ts';
 import type { StaffPadRenderClient } from '../../staffpad/client.js';
 import { createAudioEditorEngine } from '../../engine.js';
 import type { EngineMeterSnapshot, EnginePitchPreserver, EnginePublicApi } from '../../engine/public-api.ts';
@@ -47,7 +47,7 @@ export interface ControllerResourceCallbacks {
 	readonly onPosition: (frame: number, duration: number) => void;
 	readonly onMeter: (meter: EngineMeterSnapshot) => void;
 	readonly onState: (state: string) => void;
-	readonly setStatus: (message: string) => void;
+	readonly setStatus: (message: string, state?: string, localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly updateExportProgress: (value: unknown) => void;
 }
 
@@ -78,14 +78,12 @@ export function createControllerResources(options: ControllerResourceOptions, ca
 		},
 		transferLoadedSourceChannels: true,
 		maximumResidentChannelBytes: options.clipTimePitchMaximumResidentChannelBytes,
-		onWarning: (warning: Readonly<{ stageCount: number }>) => callbacks.setStatus(
-			callbacks.copy.staffPadRangeWarning.replace('{stageCount}', String(warning.stageCount)),
-		),
+		onWarning: (warning: Readonly<{ stageCount: number }>) => setLocalizedStatus(callbacks.setStatus, callbacks.copy, "staffPadRangeWarning", { stageCount: String(warning.stageCount) }),
 	});
 	const clipTimePitchSourceResolver = clipTimePitchCache.createEngineSourceResolver();
 	engine.setSourceResolver?.(clipTimePitchSourceResolver);
 	const ffmpeg: ControllerCodecRuntime = options.ffmpeg || createEditorCodecRuntime({
-		onLoading: () => callbacks.setStatus(callbacks.copy.ffmpegLoading),
+		onLoading: () => setLocalizedStatus(callbacks.setStatus, callbacks.copy, "ffmpegLoading"),
 		onProgress: callbacks.updateExportProgress, fileService,
 	});
 	const nyquistClient = options.nyquistEvaluator ? null : deferredEffectRuntime.createNyquistClient(options.nyquistClientOptions);

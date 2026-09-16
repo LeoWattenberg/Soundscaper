@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { createLocalizedError } from '../../../i18n/presentation-message.ts';
+
 
 interface StoredProject {
 	readonly id: string;
@@ -41,7 +43,7 @@ export function createStoredProjectOpenActions<Project extends StoredProject>(
 			: runtime.switchProject(openTab.history.present);
 		const saved = await runtime.store.loadProject(projectId);
 		if (generation !== requestGeneration) return null;
-		if (!saved) throw new Error(runtime.copy.projectNotFound);
+		if (!saved) throw createLocalizedError(Error, runtime.copy, 'projectNotFound');
 		return runtime.openProject(saved);
 	}
 
@@ -53,7 +55,7 @@ export function createStoredProjectOpenActions<Project extends StoredProject>(
 					.filter(Boolean);
 			}
 			if (!runtime.state.recentProjectIds.includes(projectId)) {
-				throw new Error(runtime.copy.projectNotFound);
+				throw createLocalizedError(Error, runtime.copy, 'projectNotFound');
 			}
 			return activate(projectId);
 		},

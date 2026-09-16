@@ -26,7 +26,7 @@ export function createPreferencesComposition(d: {
 }) {
 	const service = createEditorPreferencesService<Preferences>({
 		productId: d.productId, preferenceSettingKey: `${d.productId}:audio-editor-preferences-v1`, defaultWorkspace: d.defaultWorkspace,
-		newerSchemaMessage: d.copy.preferencesNewerSchema, shortcutActionRequired: d.copy.shortcutActionRequired, shortcutConflict: d.copy.shortcutConflict,
+		get newerSchemaMessage() { return d.copy.preferencesNewerSchema; }, get shortcutActionRequired() { return d.copy.shortcutActionRequired; }, get shortcutConflict() { return d.copy.shortcutConflict; },
 		getPreferences: () => d.state.preferences,
 		setPreferences: (value) => { d.state.preferences = value; },
 		getReadOnly: () => d.state.preferencesReadOnly,

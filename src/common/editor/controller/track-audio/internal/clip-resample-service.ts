@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { hasCoreEditingProjectAuthority } from '../../../project-schema-version.ts';
+import { hasCoreEditingProjectAuthority } from '../../../project-schema-version.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 
 import { createAddClipCommand, createAddSourceCommand } from '../../../commands/factories.ts';
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
@@ -53,7 +53,7 @@ export interface ClipResampleServiceDependencies {
 	normalizeProjectSampleRate(value: unknown): number;
 	preflightStorage(bytes: number, category: 'effect'): Promise<unknown>;
 	setProcessing(processing: boolean): void;
-	setStatus(message: string, state?: string): void;
+	setStatus(message: string, state?: string, localization?: import('../../../../i18n/presentation-message.ts').LocalizedPresentationMessage): void;
 	publish(): void;
 	resampleChannels(
 		channels: Float32Array[],
@@ -129,12 +129,12 @@ export function createClipResampleService(
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return null;
 		const project = dependencies.getProject();
-		if (!hasCoreEditingProjectAuthority(project)) throw new Error(dependencies.copy.v2Required);
+		if (!hasCoreEditingProjectAuthority(project)) throw createLocalizedError(Error, dependencies.copy, 'v2Required');
 		const clip = findControllerClip(project, clipId);
-		if (!clip || clip.kind === 'video') throw new Error(dependencies.copy.audioClipNotFound);
+		if (!clip || clip.kind === 'video') throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		const track = findControllerClipTrack(project, clip.id);
 		const source = findControllerSource(project, clip.sourceId);
-		if (!track || !source) throw new Error(dependencies.copy.audioClipNotFound);
+		if (!track || !source) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		const sampleRate = dependencies.normalizeProjectSampleRate(request.sampleRate ?? source.sampleRate);
 		if (sampleRate === source.sampleRate) return clip.id;
 		return runResample(track, clip, source, sampleRate);
@@ -155,7 +155,7 @@ export function createClipResampleService(
 			task: dependencies.lifetime.startTask(CLIP_RESAMPLE_TASK),
 		};
 		dependencies.setProcessing(true);
-		dependencies.setStatus(dependencies.copy.resamplingClip || dependencies.copy.audacityProcessing);
+		setLocalizedStatus(dependencies.setStatus, dependencies.copy, (dependencies.copy.resamplingClip ? "resamplingClip" : "audacityProcessing"));
 		dependencies.publish();
 		let record = null;
 		try {
@@ -178,7 +178,7 @@ export function createClipResampleService(
 					...resampledClipCommands(track.id, clip, source, record.source, sampleRate),
 				],
 			}, { selectTrackId: track.id, selectClipId: clip.id });
-			dependencies.setStatus(dependencies.copy.done, 'success');
+			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
 			return clip.id;
 		} catch (error) {
 			if (record) await dependencies.derivedSources.rollbackDerivedSources([record]);

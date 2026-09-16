@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { hasProjectBinMediaAuthority } from '../../../../project-schema-version.ts';
+import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import { hasProjectBinMediaAuthority } from '../../../../project-schema-version.ts';
 
 import { createAddSourceCommand } from '../../../../commands/factories.ts';
 import type { AudioEditorCommand, CommandObject } from '../../../../commands/protocol.ts';
@@ -111,7 +111,7 @@ export function createProjectBinReplacementService(
 		const baseDocument = dependencies.captureActiveDocument();
 		const baseProject = baseDocument.project;
 		const target = findProjectBinClip(baseProject, clipId);
-		if (!target) throw new Error(dependencies.copy.audioClipNotFound);
+		if (!target) throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		if (target.kind === 'image') throw new Error('Image items require their image replacement action.');
 		const projectToken = dependencies.captureProject();
 		const task = dependencies.lifetime.startTask(PROJECT_BIN_REPLACEMENT_TASK);
@@ -146,8 +146,8 @@ export function createProjectBinReplacementService(
 			if (!sameKinds(importedKinds, targetKinds) || importedSources.length !== targetItemClips.length) {
 				await discardImportedReplacement(importedSources, true);
 				assertCurrent(task, projectToken);
-				throw new Error(dependencies.copy.projectBinReplacementIncompatible
-					|| 'The replacement file is not compatible with this Project Bin item.');
+				throw createLocalizedError(Error, { projectBinReplacementIncompatible: dependencies.copy.projectBinReplacementIncompatible
+					|| 'The replacement file is not compatible with this Project Bin item.' }, 'projectBinReplacementIncompatible');
 			}
 			const importedByKind = new Map(importedItemClips.map((clip) => [projectBinMediaKind(clip), clip]));
 			const replacements = targetItemClips.map((clip): ProjectBinReplacementEntry => ({

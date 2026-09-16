@@ -67,7 +67,7 @@ test('the track overflow opts a track into inline automation and preserves the f
 	assert.deepEqual(automationToggleCalls, [['voice']]);
 
 	const freeze = requiredItem(model.trackMenuItems, 'soundscaper-freeze');
-	assert.equal(freeze.label, 'freeze');
+	assert.equal(freeze.label, 'ui.soundscaperWorkflow.freeze');
 	requiredItem(freeze.items, 'soundscaper-freeze-track').onClick?.();
 	assert.deepEqual(runtimeFreezeCalls, [['freeze', 'voice']]);
 });
