@@ -77,10 +77,12 @@ test('project tab keyboard navigation wraps and ignores keys that do not select 
 			[1, 'Home', 'first'], [0, 'End', 'second'],
 		] as const) {
 			let prevented = false;
+			const selectedCount = mounted.selected.length;
 			await act(async () => {
 				reactProps(tabs[index]).onKeyDown({ key, preventDefault: () => { prevented = true; } });
 			});
 			assert.equal(prevented, true);
+			assert.equal(mounted.selected.length, selectedCount + 1);
 			assert.equal(mounted.selected.at(-1), expected);
 		}
 		const before = [...mounted.selected];
