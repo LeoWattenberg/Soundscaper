@@ -42,6 +42,8 @@ export function createAudioEditorFileService(options = {}) {
 	const fetchFile = options.fetch || scope.fetch?.bind(scope);
 	const setTimer = options.setTimeout || scope.setTimeout?.bind(scope);
 	const isDesktop = Boolean(bridge);
+	const nativeTierControlsAvailable = typeof bridge?.readNativeTierControls === 'function'
+		&& typeof bridge?.applyNativeTierControl === 'function';
 	const readMaximumBytes = desktopReadMaximum(options.readMaximumBytes);
 	const scapeReadMaximumBytes = desktopScapeReadMaximum(options.scapeReadMaximumBytes);
 	const linkedVideoOriginals = createDesktopLinkedVideoOriginalAccess({
@@ -105,10 +107,8 @@ export function createAudioEditorFileService(options = {}) {
 		deleteDesktopVideoCodecOperation: (request) => bridge?.deleteDesktopVideoCodecOperation?.(request) ?? null,
 		cancelDesktopVideoCodecOperation: (operationId) => bridge?.cancelDesktopVideoCodecOperation?.(operationId) ?? null,
 		runWindowAction: (action) => bridge?.runWindowAction?.(action),
-		...(typeof bridge?.readNativeTierControls === 'function' && typeof bridge?.applyNativeTierControl === 'function' ? {
-			readNativeTierControls: () => bridge.readNativeTierControls(),
-			applyNativeTierControl: (request) => bridge.applyNativeTierControl(request),
-		} : {}),
+		readNativeTierControls: nativeTierControlsAvailable ? () => bridge.readNativeTierControls() : undefined,
+		applyNativeTierControl: nativeTierControlsAvailable ? (request) => bridge.applyNativeTierControl(request) : undefined,
 		checkForUpdates: () => bridge?.checkForUpdates?.(),
 		openExternal: (destination) => bridge?.openExternal?.(destination),
 		editText: (command) => bridge?.editText?.(command),
