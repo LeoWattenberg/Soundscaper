@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "cs",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:04befff6bddbbf91f0f07376cef2e9665933e256093706ae94e9a83325f74895","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:d0fd12c4175881152e4ad741ab0660c3a86cfd3d88db3a2b7954b4f126b26823","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -865,7 +865,7 @@
 		"effectNameAudacityChangeTempo": ["machine","Change Tempo","Změna tempa"],
 		"effectNameAudacityClassicFilters": ["machine","Classic Filters","Klasické filtry"],
 		"effectNameAudacityClickRemoval": ["machine","Click Removal","Odstranění lupanců"],
-		"effectNameAudacityCompressor": ["machine","Compressor (Audacity)","Kompresor (Audacity)"],
+		"effectNameAudacityCompressor": ["machine","Compressor","Kompresor"],
 		"effectNameAudacityDistortion": ["machine","Distortion","Zkreslení"],
 		"effectNameAudacityEcho": ["machine","Echo","Ozvěna"],
 		"effectNameAudacityFadeIn": ["machine","Fade In","Postupné zesílení"],
@@ -874,7 +874,7 @@
 		"effectNameAudacityGraphicEq": ["machine","Graphic EQ","Grafický EQ"],
 		"effectNameAudacityInvert": ["machine","Invert","Invertovat"],
 		"effectNameAudacityLegacyCompressor": ["machine","Legacy Compressor","Starší kompresor"],
-		"effectNameAudacityLimiter": ["machine","Limiter (Audacity)","Limiter (Audacity)"],
+		"effectNameAudacityLimiter": ["machine","Limiter","Limiter"],
 		"effectNameAudacityLoudnessNormalization": ["machine","Loudness Normalization","Normalizace hlasitosti"],
 		"effectNameAudacityNoiseReduction": ["machine","Noise Reduction","Redukce šumu"],
 		"effectNameAudacityNormalize": ["machine","Normalize","Normalizovat"],
@@ -1940,6 +1940,7 @@
 		"projectBinUnavailable": ["machine","The local audio is unavailable. This item cannot be added to the timeline.","Místní zvukový soubor není k dispozici. Tuto položku nelze přidat na časovou osu."],
 		"projectBinUnknownFormat": ["machine","Unknown format","Neznámý formát"],
 		"projectBinWaveform": ["machine","Waveform preview","Náhled vlnové křivky"],
+		"projectCompatibilityReport": ["machine","Project compatibility report","Zpráva o kompatibilitě projektu"],
 		"projectCopySuffix": ["machine","copy","kopie"],
 		"projectDirty": ["machine","Unsaved changes","Neuložené změny"],
 		"projectName": ["machine","Project name","Název projektu"],

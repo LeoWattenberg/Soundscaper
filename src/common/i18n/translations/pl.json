@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "pl",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:284cf7670c8f3e4cb7894eb91a6676a78ab4c277fffe14c3dcd58a14599ea542","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:6ede5095a98bf59b0a9dbb35203232921e24f05a45ab79b1f5c192fe714d0968","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -865,7 +865,7 @@
 		"effectNameAudacityChangeTempo": ["machine","Change Tempo","Zmiana tempa"],
 		"effectNameAudacityClassicFilters": ["machine","Classic Filters","Klasyczne filtry"],
 		"effectNameAudacityClickRemoval": ["machine","Click Removal","Usuwanie kliknięć"],
-		"effectNameAudacityCompressor": ["machine","Compressor (Audacity)","Kompresor (Audacity)"],
+		"effectNameAudacityCompressor": ["machine","Compressor","Kompresor"],
 		"effectNameAudacityDistortion": ["machine","Distortion","Zniekształcenie"],
 		"effectNameAudacityEcho": ["machine","Echo","Echo"],
 		"effectNameAudacityFadeIn": ["machine","Fade In","Włączanie"],
@@ -874,7 +874,7 @@
 		"effectNameAudacityGraphicEq": ["machine","Graphic EQ","Równanie graficzne"],
 		"effectNameAudacityInvert": ["machine","Invert","Inwersja"],
 		"effectNameAudacityLegacyCompressor": ["machine","Legacy Compressor","Kompresor dziedziczny"],
-		"effectNameAudacityLimiter": ["machine","Limiter (Audacity)","Limiter (Audacity)"],
+		"effectNameAudacityLimiter": ["machine","Limiter","Limiter"],
 		"effectNameAudacityLoudnessNormalization": ["machine","Loudness Normalization","Normalizacja głośności"],
 		"effectNameAudacityNoiseReduction": ["machine","Noise Reduction","Redukcja szumów"],
 		"effectNameAudacityNormalize": ["machine","Normalize","Normalizacja"],
@@ -1940,6 +1940,7 @@
 		"projectBinUnavailable": ["machine","The local audio is unavailable. This item cannot be added to the timeline.","Lokalny dźwięk jest niedostępny. Ten element nie może zostać dodany do linii czasowej."],
 		"projectBinUnknownFormat": ["machine","Unknown format","Nieznany format"],
 		"projectBinWaveform": ["machine","Waveform preview","Podgląd fali"],
+		"projectCompatibilityReport": ["machine","Project compatibility report","Raport zgodności projektu"],
 		"projectCopySuffix": ["machine","copy","kopia"],
 		"projectDirty": ["machine","Unsaved changes","Niezachowane zmiany"],
 		"projectName": ["machine","Project name","Nazwa projektu"],

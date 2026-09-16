@@ -1,5 +1,6 @@
 import { useEditorSkin } from '../skins/EditorSkinProvider.tsx';
-import { Button } from '@soundscaper/design-system/Button';
+import EditorToast, { EditorWarningToast } from '../EditorToast.tsx';
+import ProjectLockToast from '../ProjectLockToast.tsx';
 
 import { productProfile } from '../../../products.js';
 import { ACCEPTED_PROJECT_FILE_EXTENSION_LIST } from '../../../project-file-extensions.ts';
@@ -118,6 +119,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		onTogglePersistent: toggleSplitTool,
 		rootRef: editorRef,
 	});
+	const aup4Counts = aup4Compatibility?.report?.counts;
 	// In the compact layout the action bar and the tool toolbar live in the
 	// chrome drawer; the primary transport moves into the compact bar.
 	const editorToolbar = <EditorToolToolbar
@@ -273,52 +275,43 @@ export default function AudioEditorWorkspaceView({ model }) {
 
 			{!compactLayout && toolbarDock === 'top' && <div className="kw-audio-editor__toolbars" data-toolbar-dock="top">{editorToolbar}</div>}
 
-			{snapshot.monitor?.enabled && (
-				<div className="kw-audio-editor__monitor-warning" role="alert">{copy.monitorWarning}</div>
-			)}
-			{snapshot.storage?.ephemeral && (
-				<div
-					className="kw-audio-editor__storage-warning"
-					data-storage-ephemeral-warning
-					role="alert"
-				>
-					{copy.storageEphemeralWarning}
-				</div>
-			)}
 			{uiFlags.storagePanel && (
 				<StorageCapacityPanel snapshot={snapshot} locale={locale} copy={copy} controller={controller} run={run} />
 			)}
-			<ProjectFeatureCompatibilityNotice
-				key={project?.id || 'no-project'}
-				project={project}
-				report={snapshot.featureRequirementsCompatibility}
-				audioEffectPlaybackBypass={snapshot.audioEffectPlaybackBypass}
-				audioRenderedFallback={snapshot.audioRenderedFallback}
-				videoEffectPlaybackBypass={snapshot.videoEffectPlaybackBypass}
-				videoRenderedFallback={snapshot.videoRenderedFallback}
-				affectedObjects={snapshot.featureRequirementsAffectedObjects}
-				copy={copy}
-			/>
-			{aup4Compatibility?.report && !aup4Compatibility.dismissed && (
-				<aside className="kw-audio-editor__aup4-compatibility" role="status" data-aup4-compatibility-summary>
-					<div>
-						<strong>{copy.aup4CompatibilityReport}</strong>
-						<p>{formatAup4CompatibilitySummary(aup4Compatibility.report, copy)}</p>
-					</div>
-					<div className="kw-audio-editor__aup4-compatibility-actions">
-						<Button variant="secondary" onClick={() => setDialog('aup4-compatibility')}>
-							{copy.aup4CompatibilityViewReport}
-						</Button>
-						<button
-							type="button"
-							className="kw-audio-editor__aup4-compatibility-dismiss"
-							aria-label={copy.aup4CompatibilityDismiss}
-							title={copy.aup4CompatibilityDismiss}
-							onClick={() => controller.actions.project.dismissAup4CompatibilitySummary()}
-						>×</button>
-					</div>
-				</aside>
-			)}
+			<div className="kw-audio-editor__toasts">
+				{snapshot.monitor?.enabled && <EditorWarningToast id="input-monitoring" title={copy.recordLevel} description={copy.monitorWarning} dismissLabel={copy.close} />}
+				{snapshot.storage?.ephemeral && <div data-storage-ephemeral-warning>
+					<EditorWarningToast id="temporary-storage" title={copy.storageEphemeralWarning} dismissLabel={copy.close} />
+				</div>}
+				{snapshot.lockReadOnly && <div key={project?.id || 'no-project'} data-project-lock-toast>
+					<ProjectLockToast snapshot={snapshot} copy={copy} controller={controller} run={run} />
+				</div>}
+				<ProjectFeatureCompatibilityNotice
+					project={project}
+					report={snapshot.featureRequirementsCompatibility}
+					audioEffectPlaybackBypass={snapshot.audioEffectPlaybackBypass}
+					audioRenderedFallback={snapshot.audioRenderedFallback}
+					videoEffectPlaybackBypass={snapshot.videoEffectPlaybackBypass}
+					videoRenderedFallback={snapshot.videoRenderedFallback}
+					affectedObjects={snapshot.featureRequirementsAffectedObjects}
+					copy={copy}
+					reportOpen={model.dialog === 'project-compatibility'}
+					onOpenReport={() => setDialog('project-compatibility')}
+					onCloseReport={() => setDialog(null)}
+					overlayTarget={editorOverlayTarget}
+				/>
+				{aup4Compatibility?.report && !aup4Compatibility.dismissed && (
+					<div data-aup4-compatibility-summary><EditorToast
+						id="aup4-compatibility"
+						title={copy.aup4CompatibilityReport}
+						type={aup4Counts?.missing || aup4Counts?.omitted || aup4Counts?.converted ? 'warning' : 'info'}
+						description={formatAup4CompatibilitySummary(aup4Compatibility.report, copy)}
+						actions={[{ label: copy.aup4CompatibilityViewReport, onClick: () => setDialog('aup4-compatibility') }]}
+						dismissLabel={copy.aup4CompatibilityDismiss}
+						onDismiss={() => controller.actions.project.dismissAup4CompatibilitySummary()}
+					/></div>
+				)}
+			</div>
 
 			<div
 				ref={workspaceRef}
@@ -527,7 +520,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 				}}
 			>{editorToolbar}</div>}
 
-			{(uiFlags.selectionToolbar || uiFlags.statusbar || snapshot.lockReadOnly) && <AccessibleSelectionToolbar
+			{(uiFlags.selectionToolbar || uiFlags.statusbar) && <AccessibleSelectionToolbar
 				controller={controller}
 				snapshot={snapshot}
 				copy={copy}

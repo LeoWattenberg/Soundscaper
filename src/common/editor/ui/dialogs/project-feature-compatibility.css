@@ -1,20 +1,14 @@
 .kw-audio-editor__project-feature-compatibility {
-	z-index: 70;
 	display: grid;
-	flex: none;
 	grid-template-columns: minmax(180px, 1fr) minmax(260px, 2fr);
 	gap: 12px;
-	max-height: min(240px, 35vh);
-	padding: 8px 12px;
-	overflow: auto;
 	color: var(--text);
 	background: var(--panel);
-	border-block: 1px solid var(--danger-line);
 	font-size: 11px;
 }
 
 .kw-audio-editor__project-feature-compatibility:focus-visible {
-	outline: 2px solid var(--focus, var(--accent));
+	outline: 2px solid var(--accent);
 	outline-offset: -2px;
 }
 

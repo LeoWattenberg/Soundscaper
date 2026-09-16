@@ -12,12 +12,12 @@ import type { ProjectFeatureRequirementsReport } from '../src/common/editor/proj
 import type { ProjectFeatureVideoEffectBypassMetadata } from '../src/common/editor/project-feature-video-effect-bypass.ts';
 import type { ProjectFeatureVideoRenderedFallbackMetadata } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
-import ProjectFeatureCompatibilityNotice from '../src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx';
+import ProjectFeatureCompatibilityReport from '../src/common/editor/ui/dialogs/ProjectFeatureCompatibilityReport.tsx';
 import {
 	createProjectFeatureCompatibilityNotice,
 	projectFeatureAvailabilityLabel,
 	projectFeatureDispositionLabel,
-} from '../src/common/editor/ui/workspace/project-feature-compatibility-notice.ts';
+} from '../src/common/editor/ui/dialogs/project-feature-compatibility-model.ts';
 
 const COPY = Object.freeze({
 	scapeCompatibilityUnavailable: 'Unavailable',
@@ -81,16 +81,16 @@ test('an incompatible report becomes a frozen structured notice without evaluato
 	assert.equal(projectFeatureDispositionLabel(notice.items[1], COPY), 'Rendered fallback declared');
 });
 
-test('the post-open region stays structured, localized, and free of activation controls', () => {
+test('the opt-in report stays structured, localized, and free of activation controls', () => {
 	const incompatible = report(false, [
 		item('bypassed', 'org.soundscaper.capability.video-effects', 'Video effects', 'unavailable', 'bypassed'),
 		item('rendered', 'org.example.native.spectral-repair', 'Spectral repair', 'unknown', 'rendered-fallback'),
 	]);
-	const english = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	const english = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: incompatible,
 		copy: ENGLISH_COPY,
 	}));
-	const german = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	const german = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: incompatible,
 		copy: GERMAN_COPY,
 	}));
@@ -166,13 +166,13 @@ test('audio-effect playback bypass renders localized affected-object placeholder
 			'bypassed',
 		),
 	]);
-	const english = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	const english = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: incompatible,
 		copy: ENGLISH_COPY,
 		project,
 		audioEffectPlaybackBypass,
 	}));
-	const german = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	const german = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: incompatible,
 		copy: GERMAN_COPY,
 		project,
@@ -229,19 +229,19 @@ test('audio-effect placeholders require qualifying playback-bypass metadata and 
 			'rendered-fallback',
 		),
 	]);
-	const withoutMetadata = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	const withoutMetadata = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: bypassed,
 		copy: ENGLISH_COPY,
 		project,
 		audioEffectPlaybackBypass: null,
 	}));
-	const withRenderedFallback = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	const withRenderedFallback = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: renderedFallback,
 		copy: ENGLISH_COPY,
 		project,
 		audioEffectPlaybackBypass: metadata,
 	}));
-	const duplicateRequirements = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	const duplicateRequirements = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: report(false, [
 			item('audio-effects', PROJECT_FEATURE_CAPABILITY_IDS.audioEffects, 'Audio effects', 'unavailable', 'bypassed'),
 			item('audio-effects-copy', PROJECT_FEATURE_CAPABILITY_IDS.audioEffects, 'Audio effects copy', 'unavailable', 'bypassed'),
@@ -277,18 +277,18 @@ test('audio rendered fallback activation is localized and bound to its exact req
 		),
 		item('other', 'org.example.other', 'Other', 'unknown', 'rendered-fallback'),
 	]);
-	const english = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	const english = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: incompatible,
 		copy: ENGLISH_COPY,
 		audioRenderedFallback: metadata,
 	}));
-	const german = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	const german = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: incompatible,
 		copy: GERMAN_COPY,
 		audioRenderedFallback: metadata,
 	}));
 	assert.equal(internalReads, 0);
-	const mismatched = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	const mismatched = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: incompatible,
 		copy: ENGLISH_COPY,
 		audioRenderedFallback: { ...metadata, requirementId: 'missing' },
@@ -302,7 +302,7 @@ test('audio rendered fallback activation is localized and bound to its exact req
 			declaredDisposition: 'bypass',
 		}]), metadata },
 		{ report: report(false, [item('audio-spectral-editing', PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing, 'Audio spectral editing', 'unavailable', 'bypassed')]), metadata },
-	].map((candidate) => renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	].map((candidate) => renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: candidate.report,
 		copy: ENGLISH_COPY,
 		audioRenderedFallback: candidate.metadata as never,
@@ -319,7 +319,7 @@ test('audio rendered fallback activation is localized and bound to its exact req
 test('an unknown closed whole-mix role receives the active playback indicator', () => {
 	const featureId = 'org.example.future-mixer';
 	const requirementId = 'future-mixer';
-	const markup = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	const markup = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: report(false, [item(
 			requirementId,
 			featureId,
@@ -358,12 +358,12 @@ test('video rendered fallback activation is localized and bound to its exact req
 		item('video-compositing', PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing, 'Video compositing', 'unavailable', 'rendered-fallback'),
 		item('other', 'org.example.other', 'Other', 'unknown', 'rendered-fallback'),
 	]);
-	const english = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	const english = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: incompatible,
 		copy: ENGLISH_COPY,
 		videoRenderedFallback: metadata,
 	}));
-	const mismatched = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	const mismatched = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: incompatible,
 		copy: ENGLISH_COPY,
 		videoRenderedFallback: { ...metadata, requirementId: 'missing' },
@@ -372,7 +372,7 @@ test('video rendered fallback activation is localized and bound to its exact req
 		{ ...metadata, schemaVersion: 2 },
 		{ ...metadata, featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects },
 		{ ...metadata, featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects },
-	].map((candidate) => renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	].map((candidate) => renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: incompatible,
 		copy: ENGLISH_COPY,
 		videoRenderedFallback: candidate as never,
@@ -388,7 +388,7 @@ test('video rendered fallback activation is localized and bound to its exact req
 test('an unknown closed whole-project video role receives the active playback indicator', () => {
 	const featureId = 'org.example.future-video-pipeline';
 	const requirementId = 'future-video-pipeline';
-	const markup = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	const markup = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: report(false, [item(
 			requirementId,
 			featureId,
@@ -407,7 +407,7 @@ test('an unknown closed whole-project video role receives the active playback in
 			clipId: 'framescaper:rendered-video-fallback:clip',
 		},
 	}));
-	const forgedClipMarkup = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	const forgedClipMarkup = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: report(false, [item(
 			requirementId, featureId, 'Future video pipeline', 'unknown', 'rendered-fallback',
 		)]),
@@ -464,13 +464,13 @@ test('video-effect playback bypass renders localized timeline and Project Bin pl
 		'unavailable',
 		'bypassed',
 	)]);
-	const english = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	const english = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: incompatible,
 		copy: ENGLISH_COPY,
 		project,
 		videoEffectPlaybackBypass,
 	}));
-	const german = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	const german = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: incompatible,
 		copy: GERMAN_COPY,
 		project,
@@ -499,7 +499,7 @@ test('video-effect placeholders require exact qualifying metadata and render onc
 			location: 'timeline', clipId: 'clip', effectId: 'effect', effectType: 'pixelate',
 		}],
 	} satisfies ProjectFeatureVideoEffectBypassMetadata;
-	const duplicateRequirements = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	const duplicateRequirements = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: report(false, [
 			item('video-effects', PROJECT_FEATURE_CAPABILITY_IDS.videoEffects, 'Video effects', 'unavailable', 'bypassed'),
 			item('video-effects-copy', PROJECT_FEATURE_CAPABILITY_IDS.videoEffects, 'Video effects copy', 'unavailable', 'bypassed'),
@@ -508,7 +508,7 @@ test('video-effect placeholders require exact qualifying metadata and render onc
 		project,
 		videoEffectPlaybackBypass: metadata,
 	}));
-	const wrongFeature = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	const wrongFeature = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		report: report(false, [
 			item('video-effects', PROJECT_FEATURE_CAPABILITY_IDS.videoEffects, 'Video effects', 'unavailable', 'bypassed'),
 		]),

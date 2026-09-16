@@ -170,81 +170,62 @@
 	}
 }
 
-.kw-audio-editor__monitor-warning {
+.kw-audio-editor__toasts {
 	position: absolute;
 	z-index: 80;
-	right: 12px;
-	bottom: 12px;
-	max-width: min(380px, calc(100% - 24px));
-	padding: 10px 12px;
-	color: var(--danger);
-	background: var(--danger-bg);
-	border: 1px solid var(--danger-line);
-	border-radius: 7px;
-	box-shadow: var(--shadow);
-	font-size: 11px;
-	font-weight: 700;
-}
-
-.kw-audio-editor__storage-warning {
-	z-index: 70;
-	flex: none;
-	padding: 8px 12px;
-	color: var(--danger);
-	background: var(--danger-bg);
-	border-block: 1px solid var(--danger-line);
-	font-size: 11px;
-	font-weight: 700;
-}
-
-.kw-audio-editor__aup4-compatibility {
+	right: 16px;
+	bottom: 56px;
 	display: flex;
-	z-index: 70;
-	align-items: center;
-	justify-content: space-between;
+	width: min(360px, calc(100% - 32px));
+	max-height: calc(100% - 128px);
+	flex-direction: column;
 	gap: 12px;
-	padding: 8px 12px;
+	overflow: auto;
+	pointer-events: none;
+}
+
+.kw-audio-editor__toasts > :empty {
+	display: none;
+}
+
+.kw-audio-editor__toast {
+	flex: none;
+	min-width: 0;
 	color: var(--text);
 	background: var(--panel);
-	border-block: 1px solid var(--line);
-	font-size: 11px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	box-shadow: var(--shadow);
+	pointer-events: auto;
 }
 
-.kw-audio-editor__aup4-compatibility p {
-	margin: 2px 0 0;
-	color: var(--muted);
-}
-
-.kw-audio-editor__aup4-compatibility-actions {
-	display: flex;
-	flex: none;
-	align-items: center;
-	gap: 6px;
-}
-
-.kw-audio-editor__aup4-compatibility-dismiss {
-	width: 28px;
-	height: 28px;
-	padding: 0;
-	color: var(--muted);
+.kw-audio-editor__toast .toast {
+	width: 100%;
+	padding: 12px 12px 0;
 	background: transparent;
-	border: 0;
-	border-radius: 4px;
-	font: inherit;
-	font-size: 19px;
-	cursor: pointer;
+	border-radius: 0;
+	box-shadow: none;
+	animation: none;
 }
 
-.kw-audio-editor__aup4-compatibility-dismiss:hover,
-.kw-audio-editor__aup4-compatibility-dismiss:focus-visible {
-	color: var(--text);
-	background: var(--toolbar-button-hover);
+.kw-audio-editor__toast-actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 0 12px 12px;
 }
 
-/* Focus must not look like hover; the ring is what a keyboard user has. */
-.kw-audio-editor__aup4-compatibility-dismiss:focus-visible {
-	outline: var(--focus-ring-size) solid var(--accent);
-	outline-offset: 1px;
+.kw-audio-editor__toast-actions .button {
+	max-width: 100%;
+	height: auto;
+	min-height: 28px;
+	white-space: normal;
+}
+
+.kw-audio-editor__toast :is(.toast__title, .toast__description) {
+	overflow-wrap: anywhere;
 }
 
 .kw-audio-editor__video-workspace {

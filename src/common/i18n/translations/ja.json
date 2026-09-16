@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ja",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:b02d188f13561a3da1d63510e9c17d68b31c3318790281bda0071bb436707c6c","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:3f8fdd75dcab6a565ebe2d993a946703ea5352693c7347e6e935c62079feb240","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -865,7 +865,7 @@
 		"effectNameAudacityChangeTempo": ["machine","Change Tempo","テンポ変更"],
 		"effectNameAudacityClassicFilters": ["machine","Classic Filters","クラシックフィルター"],
 		"effectNameAudacityClickRemoval": ["machine","Click Removal","クリック除去"],
-		"effectNameAudacityCompressor": ["machine","Compressor (Audacity)","コンプレッサー（Audacity）"],
+		"effectNameAudacityCompressor": ["machine","Compressor","コンプレッサー"],
 		"effectNameAudacityDistortion": ["machine","Distortion","ディストーション"],
 		"effectNameAudacityEcho": ["machine","Echo","エコー"],
 		"effectNameAudacityFadeIn": ["machine","Fade In","フェードイン"],
@@ -874,7 +874,7 @@
 		"effectNameAudacityGraphicEq": ["machine","Graphic EQ","グラフィック EQ"],
 		"effectNameAudacityInvert": ["machine","Invert","反転"],
 		"effectNameAudacityLegacyCompressor": ["machine","Legacy Compressor","レガシー コンプレッサー"],
-		"effectNameAudacityLimiter": ["machine","Limiter (Audacity)","リミッター（Audacity）"],
+		"effectNameAudacityLimiter": ["machine","Limiter","リミッター"],
 		"effectNameAudacityLoudnessNormalization": ["machine","Loudness Normalization","ラウドネス正規化"],
 		"effectNameAudacityNoiseReduction": ["machine","Noise Reduction","ノイズ低減"],
 		"effectNameAudacityNormalize": ["machine","Normalize","正規化"],
@@ -1940,6 +1940,7 @@
 		"projectBinUnavailable": ["machine","The local audio is unavailable. This item cannot be added to the timeline.","ローカルオーディオが利用できません。この項目はタイムラインに追加できません。"],
 		"projectBinUnknownFormat": ["machine","Unknown format","不明な形式"],
 		"projectBinWaveform": ["machine","Waveform preview","波形プレビュー"],
+		"projectCompatibilityReport": ["machine","Project compatibility report","プロジェクト互換性レポート"],
 		"projectCopySuffix": ["machine","copy","コピー"],
 		"projectDirty": ["machine","Unsaved changes","保存されていない変更"],
 		"projectName": ["machine","Project name","プロジェクト名"],

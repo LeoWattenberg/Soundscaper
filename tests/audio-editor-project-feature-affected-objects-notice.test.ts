@@ -12,7 +12,7 @@ import type {
 	ProjectFeatureRequirementsReport,
 } from '../src/common/editor/project-feature-requirements.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
-import ProjectFeatureCompatibilityNotice from '../src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx';
+import ProjectFeatureCompatibilityReport from '../src/common/editor/ui/dialogs/ProjectFeatureCompatibilityReport.tsx';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 
 const PUBLISHER_FEATURE = 'org.example.future-mixer';
@@ -55,7 +55,7 @@ function project(): Record<string, unknown> {
 }
 
 function render(source: Record<string, unknown>, value: ProjectFeatureRequirementsReport): string {
-	return renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+	return renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
 		project: source as never,
 		report: value,
 		affectedObjects: projectFeatureAffectedObjects(source, value),

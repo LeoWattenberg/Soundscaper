@@ -30,6 +30,7 @@ import {
 	stubStorageEstimate,
 } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
+import { inspectProjectCompatibilityReport, openProjectCompatibilityReport } from './helpers/project-compatibility-report.js';
 import {
 	createScapePcmPayload,
 	prepareSoundscaperV1Foundation,
@@ -95,30 +96,7 @@ test.describe('Scape open feature decisions', () => {
 		await capacity.locator('summary').click();
 		await expect(capacity).toContainText(/(?:Import|Project saving): .+ requested · .+ required free · Ready/u);
 
-		const notice = editor.locator('[data-project-feature-compatibility]');
-		await expect(notice).toBeVisible();
-		await expect(notice).toHaveAccessibleName('Project features unavailable');
-		await expect(notice.locator('[data-project-feature-unavailable-count]')).toHaveText('1');
-		await expect(notice.locator('[data-project-feature-unknown-count]')).toHaveText('1');
-		const bypassed = notice.locator('[data-project-feature-requirement="org.soundscaper.capability.video-effects"]');
-		await expect(bypassed).toBeVisible();
-		await expect(bypassed).toContainText('Video effects');
-		await expect(bypassed).toContainText('Unavailable · Bypass declared');
-		await expect(bypassed).toHaveAttribute('data-declared-disposition', 'bypass');
-		await expect(bypassed).toHaveAttribute('data-effective-disposition', 'bypassed');
-		const rendered = notice.locator('[data-project-feature-requirement="org.example.future-mixer"]');
-		await expect(rendered).toBeVisible();
-		await expect(rendered).toContainText('Future mixer');
-		await expect(rendered).toContainText('Unknown · Rendered fallback declared');
-		await expect(rendered).toHaveAttribute('data-declared-disposition', 'rendered-fallback');
-		await expect(rendered).toHaveAttribute('data-effective-disposition', 'rendered-fallback');
-		await expect(rendered.locator('[data-project-feature-audio-rendered-fallback]')).toHaveCount(0);
-		await expect(notice.getByRole('button')).toHaveCount(0);
-		await expect(notice).not.toContainText(/plug-?in|third-party|feature code/iu);
-		await notice.focus();
-		await expect(notice).toBeFocused();
-		await assertAccessibleBasics(notice);
-		await assertNoSeriousAxeViolations(page, '[data-project-feature-compatibility]');
+		const { notice, rendered } = await inspectProjectCompatibilityReport(page, editor);
 
 		const originalTab = editor.getByRole('tab', { name: 'Untitled project', exact: true });
 		await originalTab.focus();
@@ -129,9 +107,12 @@ test.describe('Scape open feature decisions', () => {
 		await incomingTab.focus();
 		await page.keyboard.press('Enter');
 		await expect(editor).toHaveAttribute('data-project-id', incomingId);
+		await expect(editor.locator('[data-project-feature-compatibility-summary]')).toHaveCount(0);
+		await chooseCommandAction(page, editor, 'File', 'Project compatibility report');
 		await expect(notice).toBeVisible();
 		await expect(rendered).toBeVisible();
 		await expect(rendered).toContainText('Future mixer');
+		await page.keyboard.press('Escape');
 		expect(errors).toEqual([]);
 	});
 
@@ -202,7 +183,7 @@ test.describe('Scape open feature decisions', () => {
 		await expect(recipient).toHaveAttribute('data-project-id', incomingId);
 		await expect(recipient).toHaveAttribute('data-edit-block-reason', 'read-only');
 
-		await assertAffectedInvertPlaceholder(recipient);
+		await assertAffectedInvertPlaceholder(page, recipient);
 		expect(errors).toEqual([]);
 	});
 
@@ -235,6 +216,7 @@ test.describe('Scape open feature decisions', () => {
 		await expect(framescaper).toHaveAttribute('data-project-id', incomingId);
 		await expect(framescaper).toHaveAttribute('data-edit-block-reason', 'read-only');
 
+		await framescaper.locator('[data-project-feature-compatibility-summary]').getByRole('button', { name: 'View report', exact: true }).click();
 		const notice = framescaper.locator('[data-project-feature-compatibility]');
 		const requirement = notice.locator(
 			'[data-project-feature-requirement="org.soundscaper.capability.audio-effects"]',
@@ -244,6 +226,7 @@ test.describe('Scape open feature decisions', () => {
 		await expect(requirement.locator('[data-project-feature-audio-rendered-fallback]'))
 			.toHaveText('Rendered fallback active during editor playback');
 		await expect(notice.locator('[data-project-feature-audio-effect-placeholders]')).toHaveCount(0);
+		await page.keyboard.press('Escape');
 		await expect(clipByName(framescaper, toneA.name)).toBeVisible();
 		await expect(clipByName(framescaper, asymmetricStereoTone.name)).toHaveCount(0);
 
@@ -294,11 +277,13 @@ test.describe('Scape open feature decisions', () => {
 		await expect(framescaper).toHaveAttribute('data-edit-block-reason', 'read-only');
 		await expect(framescaper.getByRole('tab', { name: 'Framescaper v1 streamed fallback', exact: true }))
 			.toBeEnabled({ timeout: 60_000 });
+		await openProjectCompatibilityReport(page, framescaper);
 		const requirement = framescaper.locator(
 			'[data-project-feature-requirement="org.soundscaper.capability.audio-effects"]',
 		);
 		await expect(requirement.locator('[data-project-feature-audio-rendered-fallback]'))
 			.toHaveText('Rendered fallback active during editor playback');
+		await page.keyboard.press('Escape');
 
 		// Direct provider no-prefetch behavior remains covered at the source-lifecycle boundary.
 		await page.waitForTimeout(250);
@@ -405,7 +390,7 @@ test.describe('Scape open feature decisions', () => {
 		await expect(soundscaper).toHaveAttribute('data-project-id', incomingId);
 		await expect(soundscaper).toHaveAttribute('data-edit-block-reason', 'read-only');
 
-		await assertAffectedPixelatePlaceholder(soundscaper, effectId);
+		await assertAffectedPixelatePlaceholder(page, soundscaper, effectId);
 		const originalTab = soundscaper.getByRole('tab', { name: 'Untitled project', exact: true });
 		await expect(soundscaper.locator('[data-editor-task-progress="import"]'))
 			.toHaveCount(0, { timeout: 60_000 });
@@ -419,7 +404,7 @@ test.describe('Scape open feature decisions', () => {
 		await incomingTab.focus();
 		await page.keyboard.press('Enter');
 		await expect(soundscaper).toHaveAttribute('data-project-id', incomingId);
-		await assertAffectedPixelatePlaceholder(soundscaper, effectId);
+		await assertAffectedPixelatePlaceholder(page, soundscaper, effectId);
 		expect(errors).toEqual([]);
 	});
 
@@ -464,10 +449,12 @@ test.describe('Scape open feature decisions', () => {
 		await expect(dialog).toBeVisible();
 		await dialog.getByRole('button', { name: 'Open read-only', exact: true }).click();
 		await expect(soundscaper).toHaveAttribute('data-edit-block-reason', 'read-only');
+		await openProjectCompatibilityReport(page, soundscaper);
 		const requirement = soundscaper.locator(
 			'[data-project-feature-requirement="org.soundscaper.capability.video-retime"]',
 		);
 		await expect(requirement).toContainText('Unavailable · Bypass declared');
+		await page.keyboard.press('Escape');
 		const roundTrip = await captureScapeArchive(page, soundscaper);
 		await rewriteArchive(roundTrip, ({ project }) => {
 			expect(project.clips.find(({ kind }) => kind === 'video')?.retimeMap).toEqual(expectedCurve);
@@ -766,7 +753,8 @@ async function chunkStreamProtocolProbe(page) {
 	return page.evaluate(() => structuredClone(globalThis.__scapeCompatibilityChunkStream));
 }
 
-async function assertAffectedInvertPlaceholder(editor) {
+async function assertAffectedInvertPlaceholder(page, editor) {
+	await openProjectCompatibilityReport(page, editor);
 	const placeholders = editor.locator('[data-project-feature-audio-effect-placeholders]');
 	await expect(placeholders).toBeVisible();
 	await expect(placeholders.locator('h4')).toHaveText('Affected audio effects');
@@ -779,9 +767,11 @@ async function assertAffectedInvertPlaceholder(editor) {
 	await expect(placeholder).toHaveAttribute('data-effective-disposition', 'bypassed');
 	await expect(placeholder).toContainText(/Invert\s*Track · .+\s*Bypassed during editor playback/su);
 	await expect(placeholder.locator('button, input, select, textarea, a[href]')).toHaveCount(0);
+	await page.keyboard.press('Escape');
 }
 
-async function assertAffectedPixelatePlaceholder(editor, effectId) {
+async function assertAffectedPixelatePlaceholder(page, editor, effectId) {
+	await openProjectCompatibilityReport(page, editor);
 	const placeholders = editor.locator('[data-project-feature-video-effect-placeholders]');
 	await expect(placeholders).toBeVisible();
 	await expect(placeholders.locator('h4')).toHaveText('Affected video effects');
@@ -794,4 +784,5 @@ async function assertAffectedPixelatePlaceholder(editor, effectId) {
 	await expect(placeholder).toHaveAttribute('data-effective-disposition', 'bypassed');
 	await expect(placeholder).toContainText(/Pixelate\s*Timeline · .+\s*Bypassed during editor playback/su);
 	await expect(placeholder.locator('button, input, select, textarea, a[href]')).toHaveCount(0);
+	await page.keyboard.press('Escape');
 }

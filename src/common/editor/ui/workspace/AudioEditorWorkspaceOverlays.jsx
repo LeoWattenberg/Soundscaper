@@ -505,7 +505,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 				capabilities={capabilities} snapshot={snapshot} copy={copy} locale={locale}
 				selectedMediaPreparation={selectedMediaPreparation} setActiveSurface={setActiveSurface} />
 
-			{dialog && (
+			{dialog && dialog !== 'project-compatibility' && (
 				<EditorDialog
 					aboutLabel={aboutLabel}
 					type={dialog}

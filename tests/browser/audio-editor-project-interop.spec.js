@@ -34,6 +34,22 @@ import {
 } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
+async function expectCompatibilityToastWithinEditor(editor) {
+	const toast = editor.getByRole('region', { name: 'AUP4 Compatibility Report', exact: true });
+	await expect(toast).toBeVisible();
+	await expect(toast.getByRole('alert')).toContainText('AUP4 Compatibility Report');
+	const [editorBox, toastBox] = await Promise.all([editor.boundingBox(), toast.boundingBox()]);
+	expect(editorBox).toBeTruthy();
+	expect(toastBox).toBeTruthy();
+	expect(toastBox.width).toBeLessThan(editorBox.width);
+	expect(toastBox.x).toBeGreaterThanOrEqual(editorBox.x);
+	expect(toastBox.y).toBeGreaterThan(editorBox.y + editorBox.height / 2);
+	expect(toastBox.x + toastBox.width).toBeLessThanOrEqual(editorBox.x + editorBox.width);
+	expect(toastBox.y + toastBox.height).toBeLessThanOrEqual(editorBox.y + editorBox.height);
+	if (editorBox.width > 800) expect(toastBox.width).toBeLessThan(editorBox.width / 2);
+	return toast;
+}
+
 test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
 
@@ -272,6 +288,27 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(compatibilitySummary).toBeVisible({ timeout: 30_000 });
 		await expect(compatibilitySummary).toContainText('AUP4 open: 0 converted, 1 missing, 0 omitted.');
 		await expect(editor).toHaveAttribute('data-track-count', '1');
+		const compatibilityToast = await expectCompatibilityToastWithinEditor(editor);
+		await compatibilityToast.getByRole('button', { name: 'View report', exact: true }).click();
+		let reportDialog = page.getByRole('dialog', { name: 'AUP4 Compatibility Report', exact: true });
+		await expect(reportDialog.locator('[data-aup4-compatibility-report]')).toContainText('Missing: SuperVerb');
+		await closeAup4CompatibilityReport(reportDialog);
+
+		const timeline = editor.locator('[data-timeline]');
+		const timelineWithToast = await timeline.boundingBox();
+		expect(timelineWithToast).toBeTruthy();
+		const dismissCompatibility = compatibilityToast.getByRole('button', { name: 'Dismiss compatibility summary', exact: true });
+		await dismissCompatibility.focus();
+		await dismissCompatibility.press('Enter');
+		await expect(compatibilitySummary).toBeHidden();
+		await expect(editor.getByRole('menubar', { name: 'Application menu', exact: true })
+			.getByRole('menuitem', { name: 'File', exact: true })).toBeFocused();
+		await expect.poll(() => timeline.boundingBox()).toEqual(timelineWithToast);
+		await chooseNestedCommandAction(page, editor, 'File', ['Audacity projects', 'AUP4 Compatibility Report']);
+		reportDialog = page.getByRole('dialog', { name: 'AUP4 Compatibility Report', exact: true });
+		await expect(reportDialog.locator('[data-aup4-compatibility-report]')).toContainText('Missing: SuperVerb');
+		await closeAup4CompatibilityReport(reportDialog);
+		await expect(compatibilitySummary).toBeHidden();
 
 		let effectsPanel = await openEffectsForTrack(editor, 0);
 		let rack = effectsPanel.locator('[data-effect-rack]');
@@ -288,22 +325,12 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(missingDialog.locator('[data-missing-effect]')).toContainText('Local playback bypasses it');
 		await closeDialog(missingDialog);
 		await closeEffectsPanel(effectsPanel);
-
-		await chooseNestedCommandAction(page, editor, 'File', ['Audacity projects', 'AUP4 Compatibility Report']);
-		let reportDialog = page.getByRole('dialog', { name: 'AUP4 Compatibility Report', exact: true });
-		await expect(reportDialog.locator('[data-aup4-compatibility-report]')).toContainText('Missing: SuperVerb');
-		await closeAup4CompatibilityReport(reportDialog);
-
-		await compatibilitySummary.getByRole('button', { name: 'Dismiss compatibility summary', exact: true }).click();
 		await expect(compatibilitySummary).toBeHidden();
-		await chooseNestedCommandAction(page, editor, 'File', ['Audacity projects', 'AUP4 Compatibility Report']);
-		reportDialog = page.getByRole('dialog', { name: 'AUP4 Compatibility Report', exact: true });
-		await expect(reportDialog.locator('[data-aup4-compatibility-report]')).toContainText('Missing: SuperVerb');
-		await closeAup4CompatibilityReport(reportDialog);
 
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
 		await expect(editor.getByRole('button', { name: 'Stop', exact: true })).toBeVisible();
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+		await expect(compatibilitySummary).toBeHidden();
 
 		await page.evaluate(() => Object.defineProperty(globalThis, 'showSaveFilePicker', {
 			configurable: true,
@@ -316,6 +343,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(snapshotPath).toBeTruthy();
 		await expect(compatibilitySummary).toBeVisible({ timeout: 30_000 });
 		await expect(compatibilitySummary).toContainText('AUP4 export: 0 converted, 1 missing, 0 omitted.');
+		await expectCompatibilityToastWithinEditor(editor);
+		await compatibilityToast.getByRole('button', { name: 'Dismiss compatibility summary', exact: true }).click();
+		await expect(compatibilitySummary).toBeHidden();
 
 		await editor.locator('[data-aup4-input]').setInputFiles({
 			name: download.suggestedFilename(),
@@ -323,6 +353,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			buffer: await readFile(snapshotPath),
 		});
 		await expect(compatibilitySummary).toContainText('AUP4 open: 0 converted, 1 missing, 0 omitted.', { timeout: 30_000 });
+		await expectCompatibilityToastWithinEditor(editor);
 
 		effectsPanel = await openEffectsForTrack(editor, 0);
 		rack = effectsPanel.locator('[data-effect-rack]');
@@ -332,6 +363,15 @@ test.describe('audio editor React/design-system workflows', () => {
 			'Echo',
 		]);
 		await closeEffectsPanel(effectsPanel);
+
+		await page.setViewportSize({ width: 390, height: 844 });
+		await expectCompatibilityToastWithinEditor(editor);
+		const narrowTimelineWithToast = await timeline.boundingBox();
+		expect(narrowTimelineWithToast).toBeTruthy();
+		await compatibilityToast.getByRole('button', { name: 'Dismiss compatibility summary', exact: true }).click();
+		await expect(compatibilitySummary).toBeHidden();
+		await expect.poll(() => timeline.boundingBox()).toEqual(narrowTimelineWithToast);
+		await expect.poll(() => editor.evaluate(element => element.contains(element.ownerDocument.activeElement))).toBe(true);
 		expect(errors).toEqual([]);
 	});
 });

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "hy",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:17daab955838e3fc5bab4377b6d5e8f3a9a673ee370105253cfca746260056f7","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:e635ded63ad2db008f7f5d4b20fb7ecbe5e8b59983074002ba59445086fdd676","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -865,7 +865,7 @@
 		"effectNameAudacityChangeTempo": ["machine","Change Tempo","Փոխել տեմպը"],
 		"effectNameAudacityClassicFilters": ["machine","Classic Filters","Դասական ֆիլտրեր"],
 		"effectNameAudacityClickRemoval": ["machine","Click Removal","Կտտոցի հեռացում"],
-		"effectNameAudacityCompressor": ["machine","Compressor (Audacity)","Կոմպրեսոր (Audacity)"],
+		"effectNameAudacityCompressor": ["machine","Compressor","Կոմպրեսոր"],
 		"effectNameAudacityDistortion": ["machine","Distortion","Աղավաղում"],
 		"effectNameAudacityEcho": ["machine","Echo","Արձագանք"],
 		"effectNameAudacityFadeIn": ["machine","Fade In","Հայտնում"],
@@ -874,7 +874,7 @@
 		"effectNameAudacityGraphicEq": ["machine","Graphic EQ","Գրաֆիկական էկվալայզեր"],
 		"effectNameAudacityInvert": ["machine","Invert","Շրջել"],
 		"effectNameAudacityLegacyCompressor": ["machine","Legacy Compressor","Հին կոմպրեսոր"],
-		"effectNameAudacityLimiter": ["machine","Limiter (Audacity)","Սահմանափակիչ (Audacity)"],
+		"effectNameAudacityLimiter": ["machine","Limiter","Սահմանափակիչ"],
 		"effectNameAudacityLoudnessNormalization": ["machine","Loudness Normalization","Բարձրաձայնության նորմալացում"],
 		"effectNameAudacityNoiseReduction": ["machine","Noise Reduction","Աղմուկի նվազեցում"],
 		"effectNameAudacityNormalize": ["machine","Normalize","Նորմալացնել"],
@@ -1940,6 +1940,7 @@
 		"projectBinUnavailable": ["machine","The local audio is unavailable. This item cannot be added to the timeline.","Լոկալ աուդիոն հասանելի չէ։ Այս տարրը հնարավոր չէ ավելացնել ժամանակագծին։"],
 		"projectBinUnknownFormat": ["machine","Unknown format","Անհայտ ձևաչափ"],
 		"projectBinWaveform": ["machine","Waveform preview","Ալիքաձևի նախադիտում"],
+		"projectCompatibilityReport": ["machine","Project compatibility report","Նախագծի համատեղելիության հաշվետվություն"],
 		"projectCopySuffix": ["machine","copy","պատճեն"],
 		"projectDirty": ["machine","Unsaved changes","Չպահպանված փոփոխություններ"],
 		"projectName": ["machine","Project name","Նախագծի անվանում"],

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "id",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:a50f61ddc9536d58271257d5b3c723aecf433fa82d796731daaa80242a56e9e0","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:aa69185a3f813a6118ad0e163049f986d472626e4da4e41c2f6cacd1c90a6733","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -865,7 +865,7 @@
 		"effectNameAudacityChangeTempo": ["machine","Change Tempo","Ubah Tempo"],
 		"effectNameAudacityClassicFilters": ["machine","Classic Filters","Filter Klasik"],
 		"effectNameAudacityClickRemoval": ["machine","Click Removal","Penghapusan Klik"],
-		"effectNameAudacityCompressor": ["machine","Compressor (Audacity)","Kompresor (Audacity)"],
+		"effectNameAudacityCompressor": ["machine","Compressor","Kompresor"],
 		"effectNameAudacityDistortion": ["machine","Distortion","Distorsi"],
 		"effectNameAudacityEcho": ["machine","Echo","Gema"],
 		"effectNameAudacityFadeIn": ["machine","Fade In","Fade In"],
@@ -874,7 +874,7 @@
 		"effectNameAudacityGraphicEq": ["machine","Graphic EQ","EQ Grafis"],
 		"effectNameAudacityInvert": ["machine","Invert","Balikkan"],
 		"effectNameAudacityLegacyCompressor": ["machine","Legacy Compressor","Kompresor Legacy"],
-		"effectNameAudacityLimiter": ["machine","Limiter (Audacity)","Limiter (Audacity)"],
+		"effectNameAudacityLimiter": ["machine","Limiter","Limiter"],
 		"effectNameAudacityLoudnessNormalization": ["machine","Loudness Normalization","Normalisasi Loudness"],
 		"effectNameAudacityNoiseReduction": ["machine","Noise Reduction","Reduksi Derau"],
 		"effectNameAudacityNormalize": ["machine","Normalize","Normalisasi"],
@@ -1940,6 +1940,7 @@
 		"projectBinUnavailable": ["machine","The local audio is unavailable. This item cannot be added to the timeline.","Audio lokal tidak tersedia. Item ini tidak dapat ditambahkan ke garis waktu."],
 		"projectBinUnknownFormat": ["machine","Unknown format","Format tidak dikenal"],
 		"projectBinWaveform": ["machine","Waveform preview","Pratinjau bentuk gelombang"],
+		"projectCompatibilityReport": ["machine","Project compatibility report","Laporan kompatibilitas proyek"],
 		"projectCopySuffix": ["machine","copy","salinan"],
 		"projectDirty": ["machine","Unsaved changes","Perubahan belum disimpan"],
 		"projectName": ["machine","Project name","Nama proyek"],

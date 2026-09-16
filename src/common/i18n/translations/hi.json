@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "hi",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:d38736a832011bc49ea63440b872fe06297c922f4a0249358b947fe471edc339","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:77d2af5cdc793bfbf30577b7d74bc11c97e0eabb1ac9bf0aa9e8adaf3dcba527","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -865,7 +865,7 @@
 		"effectNameAudacityChangeTempo": ["machine","Change Tempo","टेम्पो बदलें"],
 		"effectNameAudacityClassicFilters": ["machine","Classic Filters","क्लासिक फ़िल्टर"],
 		"effectNameAudacityClickRemoval": ["machine","Click Removal","क्लिक निष्कासन"],
-		"effectNameAudacityCompressor": ["machine","Compressor (Audacity)","कंप्रेसर (Audacity)"],
+		"effectNameAudacityCompressor": ["machine","Compressor","कंप्रेसर"],
 		"effectNameAudacityDistortion": ["machine","Distortion","विरूपण"],
 		"effectNameAudacityEcho": ["machine","Echo","प्रतिध्वनि"],
 		"effectNameAudacityFadeIn": ["machine","Fade In","फ़ेड इन"],
@@ -874,7 +874,7 @@
 		"effectNameAudacityGraphicEq": ["machine","Graphic EQ","ग्राफ़िक EQ"],
 		"effectNameAudacityInvert": ["machine","Invert","प्रतिलोम करें"],
 		"effectNameAudacityLegacyCompressor": ["machine","Legacy Compressor","लिगेसी कंप्रेसर"],
-		"effectNameAudacityLimiter": ["machine","Limiter (Audacity)","लिमिटर (Audacity)"],
+		"effectNameAudacityLimiter": ["machine","Limiter","लिमिटर"],
 		"effectNameAudacityLoudnessNormalization": ["machine","Loudness Normalization","लाउडनेस सामान्यीकरण"],
 		"effectNameAudacityNoiseReduction": ["machine","Noise Reduction","शोर में कमी"],
 		"effectNameAudacityNormalize": ["machine","Normalize","सामान्यीकृत करें"],
@@ -1940,6 +1940,7 @@
 		"projectBinUnavailable": ["machine","The local audio is unavailable. This item cannot be added to the timeline.","स्थानीय ऑडियो उपलब्ध नहीं है। इस आइटम को टाइमलाइन में नहीं जोड़ा जा सकता।"],
 		"projectBinUnknownFormat": ["machine","Unknown format","अज्ञात प्रारूप"],
 		"projectBinWaveform": ["machine","Waveform preview","वेवफ़ॉर्म पूर्वावलोकन"],
+		"projectCompatibilityReport": ["machine","Project compatibility report","परियोजना संगतता रिपोर्ट"],
 		"projectCopySuffix": ["machine","copy","प्रतिलिपि"],
 		"projectDirty": ["machine","Unsaved changes","असहेजे गए परिवर्तन"],
 		"projectName": ["machine","Project name","परियोजना का नाम"],

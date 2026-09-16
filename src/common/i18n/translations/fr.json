@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "fr",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:571fbd0a80506168dae6842750cc4c61dfb23eb38fef9c721062bf8ec11dc1bc","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:6fdc3060df80c404bd95d9b5b64e46185341fbb02b805f35e4de2eabf205f49f","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -865,7 +865,7 @@
 		"effectNameAudacityChangeTempo": ["machine","Change Tempo","Changer le tempo"],
 		"effectNameAudacityClassicFilters": ["machine","Classic Filters","Filtres classiques"],
 		"effectNameAudacityClickRemoval": ["machine","Click Removal","Suppression des clics"],
-		"effectNameAudacityCompressor": ["machine","Compressor (Audacity)","Compresseur (Audacity)"],
+		"effectNameAudacityCompressor": ["machine","Compressor","Compresseur"],
 		"effectNameAudacityDistortion": ["machine","Distortion","Distorsion"],
 		"effectNameAudacityEcho": ["machine","Echo","Écho"],
 		"effectNameAudacityFadeIn": ["machine","Fade In","Fondus entrant"],
@@ -874,7 +874,7 @@
 		"effectNameAudacityGraphicEq": ["machine","Graphic EQ","Égaliseur graphique"],
 		"effectNameAudacityInvert": ["machine","Invert","Inversion"],
 		"effectNameAudacityLegacyCompressor": ["machine","Legacy Compressor","Compresseur hérité"],
-		"effectNameAudacityLimiter": ["machine","Limiter (Audacity)","Limiteur (Audacity)"],
+		"effectNameAudacityLimiter": ["machine","Limiter","Limiteur"],
 		"effectNameAudacityLoudnessNormalization": ["machine","Loudness Normalization","Normalisation de la sonorité"],
 		"effectNameAudacityNoiseReduction": ["machine","Noise Reduction","Réduction du bruit"],
 		"effectNameAudacityNormalize": ["machine","Normalize","Normaliser"],
@@ -1940,6 +1940,7 @@
 		"projectBinUnavailable": ["machine","The local audio is unavailable. This item cannot be added to the timeline.","L'audio local n'est pas disponible. Cet élément ne peut pas être ajouté à la chronologie."],
 		"projectBinUnknownFormat": ["machine","Unknown format","Format inconnu"],
 		"projectBinWaveform": ["machine","Waveform preview","Aperçu de la forme d'onde"],
+		"projectCompatibilityReport": ["machine","Project compatibility report","Rapport de compatibilité du projet"],
 		"projectCopySuffix": ["machine","copy","copie"],
 		"projectDirty": ["machine","Unsaved changes","Modifications non enregistrées"],
 		"projectName": ["machine","Project name","Nom du projet"],

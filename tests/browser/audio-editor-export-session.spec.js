@@ -388,29 +388,6 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('indexeddb-multitab-writer moves the project lock to the newest tab', async ({ page, context }) => {
-		const first = await bootEditor(page, '/embed/en/');
-		await chooseNestedCommandAction(page, first, 'Tracks', ['Add new track', 'Audio track']);
-		await expect(first.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
-
-		const secondPage = await context.newPage();
-		await secondPage.goto('/embed/en/');
-		const second = secondPage.locator('[data-audio-editor]');
-		await expect(second).toHaveAttribute('data-audio-editor-bound', 'true');
-		const secondRecord = second.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
-		await expect(secondRecord).toBeEnabled();
-		await expect(second.locator('[data-status]')).toHaveAttribute('data-state', 'success');
-		const firstRecord = first.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
-		await expect(firstRecord).toBeDisabled({ timeout: 5_000 });
-		await expect(firstRecord).toHaveAttribute('aria-label', /read-only/i);
-		await expect(first.locator('[data-status]')).toContainText('already open in another tab');
-
-		await page.close();
-		await expect(second.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 5_000 });
-		await expect(secondRecord).toBeEnabled();
-		await secondPage.close();
-	});
-
 	test('refreshes an untouched default project without becoming read-only', async ({ page }) => {
 		let editor = await bootEditor(page, '/en/');
 		let record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');

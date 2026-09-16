@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "zh-CN",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:262a1013739dcfff11ee8aad0de8469db954d91913709113d2934dc5deb6a499","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:4a0408c36f91f128b639d60c958cdea9626ae36e251c6074b8dde827520ee374","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -865,7 +865,7 @@
 		"effectNameAudacityChangeTempo": ["machine","Change Tempo","改变速度"],
 		"effectNameAudacityClassicFilters": ["machine","Classic Filters","经典滤波器"],
 		"effectNameAudacityClickRemoval": ["machine","Click Removal","消除咔嚓声"],
-		"effectNameAudacityCompressor": ["machine","Compressor (Audacity)","压缩器（Audacity）"],
+		"effectNameAudacityCompressor": ["machine","Compressor","压缩器"],
 		"effectNameAudacityDistortion": ["machine","Distortion","失真"],
 		"effectNameAudacityEcho": ["machine","Echo","回声"],
 		"effectNameAudacityFadeIn": ["machine","Fade In","淡入"],
@@ -874,7 +874,7 @@
 		"effectNameAudacityGraphicEq": ["machine","Graphic EQ","图形均衡器"],
 		"effectNameAudacityInvert": ["machine","Invert","反相（上下）"],
 		"effectNameAudacityLegacyCompressor": ["machine","Legacy Compressor","传统压缩器"],
-		"effectNameAudacityLimiter": ["machine","Limiter (Audacity)","限幅器（Audacity）"],
+		"effectNameAudacityLimiter": ["machine","Limiter","限幅器"],
 		"effectNameAudacityLoudnessNormalization": ["machine","Loudness Normalization","响度标准化"],
 		"effectNameAudacityNoiseReduction": ["machine","Noise Reduction","降噪"],
 		"effectNameAudacityNormalize": ["machine","Normalize","标准化"],
@@ -1940,6 +1940,7 @@
 		"projectBinUnavailable": ["machine","The local audio is unavailable. This item cannot be added to the timeline.","本地音频不可用。此项目无法添加到时间轴。"],
 		"projectBinUnknownFormat": ["machine","Unknown format","未知格式"],
 		"projectBinWaveform": ["machine","Waveform preview","波形预览"],
+		"projectCompatibilityReport": ["machine","Project compatibility report","项目兼容性报告"],
 		"projectCopySuffix": ["machine","copy","副本"],
 		"projectDirty": ["machine","Unsaved changes","有未保存的更改"],
 		"projectName": ["machine","Project name","项目名称"],

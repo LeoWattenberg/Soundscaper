@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "tr",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:df08a6a612dc78d745a66440cd50e9e1ec00dc205ea6662ce05f7b40c52263b7","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:07f69830135a90866b2ffae85b84fcc35c1d8a15e3762ccc39234f6ca924ce41","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -865,7 +865,7 @@
 		"effectNameAudacityChangeTempo": ["machine","Change Tempo","Tempoyu Değiştir"],
 		"effectNameAudacityClassicFilters": ["machine","Classic Filters","Klasik Filtreler"],
 		"effectNameAudacityClickRemoval": ["machine","Click Removal","Tıklama Giderme"],
-		"effectNameAudacityCompressor": ["machine","Compressor (Audacity)","Kompresör (Audacity)"],
+		"effectNameAudacityCompressor": ["machine","Compressor","Kompresör"],
 		"effectNameAudacityDistortion": ["machine","Distortion","Distorsiyon"],
 		"effectNameAudacityEcho": ["machine","Echo","Yankı"],
 		"effectNameAudacityFadeIn": ["machine","Fade In","Aç"],
@@ -874,7 +874,7 @@
 		"effectNameAudacityGraphicEq": ["machine","Graphic EQ","Grafik EQ"],
 		"effectNameAudacityInvert": ["machine","Invert","Evir"],
 		"effectNameAudacityLegacyCompressor": ["machine","Legacy Compressor","Eski Kompresör"],
-		"effectNameAudacityLimiter": ["machine","Limiter (Audacity)","Sınırlayıcı (Audacity)"],
+		"effectNameAudacityLimiter": ["machine","Limiter","Sınırlayıcı"],
 		"effectNameAudacityLoudnessNormalization": ["machine","Loudness Normalization","Ses Yüksekliği Normalleştirme"],
 		"effectNameAudacityNoiseReduction": ["machine","Noise Reduction","Gürültü Azaltma"],
 		"effectNameAudacityNormalize": ["machine","Normalize","Normalleştir"],
@@ -1940,6 +1940,7 @@
 		"projectBinUnavailable": ["machine","The local audio is unavailable. This item cannot be added to the timeline.","Yerel ses kullanılamıyor. Bu öğe zaman çizelgesine eklenemez."],
 		"projectBinUnknownFormat": ["machine","Unknown format","Bilinmeyen biçim"],
 		"projectBinWaveform": ["machine","Waveform preview","Dalga formu önizlemesi"],
+		"projectCompatibilityReport": ["machine","Project compatibility report","Proje uyumluluk raporu"],
 		"projectCopySuffix": ["machine","copy","kopya"],
 		"projectDirty": ["machine","Unsaved changes","Kaydedilmemiş değişiklikler"],
 		"projectName": ["machine","Project name","Proje adı"],

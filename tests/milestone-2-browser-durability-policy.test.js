@@ -22,6 +22,7 @@ test('milestone 2 runs configured browsers without a qualification matrix', asyn
 		Promise.all([
 			'tests/browser/milestone-2-browser-storage-durability.spec.js',
 			'tests/browser/audio-editor-export-session.spec.js',
+			'tests/browser/audio-editor-project-lock-notifications.spec.js',
 			'tests/browser/audio-editor-opfs-worker.spec.js',
 			'tests/browser/offline-application-shell.spec.js',
 		].map((path) => readFile(new URL(path, root), 'utf8'))).then((files) => files.join('\n')),

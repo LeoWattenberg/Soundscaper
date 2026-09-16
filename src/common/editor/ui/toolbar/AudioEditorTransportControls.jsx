@@ -427,10 +427,10 @@ export function AccessibleSelectionToolbar({
 }) {
 	const wrapperRef = useRef(null);
 	const [statusTarget, setStatusTarget] = useState(null);
-	const [claimingLock, setClaimingLock] = useState(false);
 	const [format, setFormat] = useState('hh:mm:ss+milliseconds');
 	const [durationFormat, setDurationFormat] = useState('hh:mm:ss+milliseconds');
 	const selection = snapshot.selection;
+	const projectLockStatus = snapshot.lockReadOnly && statusMessage === copy.projectOpenOtherTab;
 	const sampleRate = snapshot.project?.sampleRate || 48_000;
 	const canEdit = Boolean(selection && !disabled);
 	const selectionStart = selection ? framesToSeconds(selection.startFrame, { sampleRate }) : null;
@@ -485,31 +485,14 @@ export function AccessibleSelectionToolbar({
 		});
 		run(() => controller.actions.timeline.setSelection(selection.startFrame, endFrame));
 	};
-	const claimProjectLock = async () => {
-		if (claimingLock) return;
-		setClaimingLock(true);
-		try {
-			await run(() => controller.actions.project.claimLock());
-		} finally {
-			setClaimingLock(false);
-		}
-	};
-	const lockNotice = snapshot.lockReadOnly ? (
-		<div className="kw-audio-editor__project-lock-notice" data-project-lock-notice>
-			<span>{copy.projectOpenOtherTab}</span>
-			<Button variant="secondary" disabled={claimingLock} onClick={claimProjectLock}>
-				{claimingLock ? copy.claimingProjectLock : copy.claimProjectLock}
-			</Button>
-		</div>
-	) : null;
 	if (!showSelectionToolbar) {
 		return (
 			<div
 				ref={wrapperRef}
 				className="kw-audio-editor__selection-surface kw-audio-editor__selection-surface--status-only"
 				data-selection-toolbar
+				data-project-lock-status={projectLockStatus ? '' : undefined}
 			>
-				{lockNotice}
 				<p data-status data-editor-status data-state={statusState} role="status" aria-live="polite" tabIndex={0} title={statusMessage}>
 					{showStatusbar ? statusMessage : ''}
 				</p>
@@ -523,9 +506,9 @@ export function AccessibleSelectionToolbar({
 			ref={wrapperRef}
 			className="kw-audio-editor__selection-surface"
 			data-selection-toolbar
-			aria-disabled={disabled && !snapshot.lockReadOnly ? 'true' : 'false'}
+			data-project-lock-status={projectLockStatus ? '' : undefined}
+			aria-disabled={disabled ? 'true' : 'false'}
 		>
-			{lockNotice}
 			<SelectionToolbar
 				selectionStart={selectionStart}
 				selectionEnd={selectionEnd}

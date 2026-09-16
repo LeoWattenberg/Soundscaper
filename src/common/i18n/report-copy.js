@@ -9,6 +9,7 @@
  * them ends up translated and the other not.
  */
 const REPORT_COPY_ENTRIES = Object.freeze([
+	['projectCompatibilityReport', 'Project compatibility report', 'Projekt-Kompatibilitätsbericht'],
 	['aup4CompatibilityReport', 'AUP4 Compatibility Report', 'AUP4-Kompatibilitätsbericht'],
 	['aup4CompatibilityDescription', 'AUP4 is an Audacity interchange format. The local Soundscaper project remains the authoritative, fully editable version.', 'AUP4 ist ein Audacity-Austauschformat. Das lokale Soundscaper-Projekt bleibt die maßgebliche, vollständig bearbeitbare Fassung.'],
 	['aup4CompatibilitySummary', '{direction}: {converted} converted, {missing} missing, {omitted} omitted.', '{direction}: {converted} konvertiert, {missing} fehlend, {omitted} ausgelassen.'],

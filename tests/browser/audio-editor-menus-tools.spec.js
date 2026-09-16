@@ -57,25 +57,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const menubar = editor.getByRole('menubar', { name: 'Application menu' });
 		const headings = menubar.getByRole('menuitem');
-		// Audacity menubar parity was migration scaffolding and has been retired: the
-		// product is free to compose its own menubar. What must hold is that every menu
-		// the product ships is present, ordered, and behaves as a menubar heading.
-		const expectedHeadings = [
-			'File',
-			'Edit',
-			'Select',
-			'View',
-			'Tracks',
-			'Generate',
-			'Effect',
-			'Analyze',
-			'Tools',
-			'Help',
-		];
-
+		// Every shipped menu must be present, ordered, and behave as a menubar heading.
+		const expectedHeadings = ['File', 'Edit', 'Select', 'View', 'Tracks', 'Generate', 'Effect', 'Analyze', 'Tools', 'Help'];
 		await expect(menubar).toBeVisible();
-		await expect(headings).toHaveCount(expectedHeadings.length);
-		expect(await headings.allTextContents()).toEqual(expectedHeadings);
+		await expect(headings).toHaveText(expectedHeadings);
 		for (const heading of await headings.all()) {
 			await expect(heading).toHaveAttribute('aria-haspopup', 'menu');
 			await expect(heading).toHaveAttribute('aria-expanded', 'false');
@@ -153,9 +138,24 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(monitor).toHaveAttribute('aria-checked', 'false');
 		await monitor.click();
 		await expect(monitor).toHaveAttribute('aria-checked', 'true');
-		await expect(editor.getByRole('alert')).toContainText('Use headphones while monitoring');
+		const monitorWarning = editor.getByRole('region', { name: 'Record level', exact: true });
+		await expect(monitorWarning.getByRole('alert')).toContainText('Use headphones while monitoring');
+		await page.keyboard.press('Escape');
+		await expect(recordLevel).toHaveAttribute('aria-expanded', 'false');
+		await monitorWarning.getByRole('button', { name: 'Close', exact: true }).click();
+		await expect(monitorWarning).toBeHidden();
+		await expect(file).toBeFocused();
+		await recordLevel.click();
+		await expect(monitor).toHaveAttribute('aria-checked', 'true');
+		await expect(monitorWarning).toBeHidden();
+		await monitor.click();
+		await expect(monitorWarning).toBeHidden();
+		await monitor.click();
+		await expect(monitor).toHaveAttribute('aria-checked', 'true');
+		await expect(monitorWarning.getByRole('alert')).toContainText('Use headphones while monitoring');
 		await monitor.click();
 		await expect(monitor).toHaveAttribute('aria-checked', 'false');
+		await expect(monitorWarning).toBeHidden();
 		await page.keyboard.press('Escape');
 		await expect(recordLevel).toHaveAttribute('aria-expanded', 'false');
 

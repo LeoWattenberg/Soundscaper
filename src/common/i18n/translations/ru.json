@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ru",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:b69dc0f0196c72f668a52cd322ada6cb4b643b6c9559dd75c93ab4a544e94038","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:bb367afd776d060d7204c2abceee0b2562c56ba6220b2c2d9c0e46ec3e774ed0","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -865,7 +865,7 @@
 		"effectNameAudacityChangeTempo": ["machine","Change Tempo","Изменение темпа"],
 		"effectNameAudacityClassicFilters": ["machine","Classic Filters","Классические фильтры"],
 		"effectNameAudacityClickRemoval": ["machine","Click Removal","Удаление кликов"],
-		"effectNameAudacityCompressor": ["machine","Compressor (Audacity)","Компрессор (Audacity)"],
+		"effectNameAudacityCompressor": ["machine","Compressor","Компрессор"],
 		"effectNameAudacityDistortion": ["machine","Distortion","Дисторсия"],
 		"effectNameAudacityEcho": ["machine","Echo","Эхо"],
 		"effectNameAudacityFadeIn": ["machine","Fade In","Входной затухание"],
@@ -874,7 +874,7 @@
 		"effectNameAudacityGraphicEq": ["machine","Graphic EQ","Графический EQ"],
 		"effectNameAudacityInvert": ["machine","Invert","Инвертировать"],
 		"effectNameAudacityLegacyCompressor": ["machine","Legacy Compressor","Наследный компрессор"],
-		"effectNameAudacityLimiter": ["machine","Limiter (Audacity)","Лимитер (Audacity)"],
+		"effectNameAudacityLimiter": ["machine","Limiter","Лимитер"],
 		"effectNameAudacityLoudnessNormalization": ["machine","Loudness Normalization","Нормализация громкости"],
 		"effectNameAudacityNoiseReduction": ["machine","Noise Reduction","Уменьшение шума"],
 		"effectNameAudacityNormalize": ["machine","Normalize","Нормализация"],
@@ -1940,6 +1940,7 @@
 		"projectBinUnavailable": ["machine","The local audio is unavailable. This item cannot be added to the timeline.","Локальный аудио недоступен. Этот элемент не может быть добавлен на временную шкалу."],
 		"projectBinUnknownFormat": ["machine","Unknown format","Неизвестный формат"],
 		"projectBinWaveform": ["machine","Waveform preview","Предварительный просмотр формы волны"],
+		"projectCompatibilityReport": ["machine","Project compatibility report","Отчёт о совместимости проекта"],
 		"projectCopySuffix": ["machine","copy","копия"],
 		"projectDirty": ["machine","Unsaved changes","Не сохраненные изменения"],
 		"projectName": ["machine","Project name","Название проекта"],

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ko",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:1421b8f936c30103521b613035cdfb289df5a7c68c9ec44d8e83618bc3231a7b","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:824f126d8a68917a9bf403c750999be3222ee46c386a95a0668fc475c8a6e567","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -865,7 +865,7 @@
 		"effectNameAudacityChangeTempo": ["machine","Change Tempo","템포 변경"],
 		"effectNameAudacityClassicFilters": ["machine","Classic Filters","클래식 필터"],
 		"effectNameAudacityClickRemoval": ["machine","Click Removal","클릭 제거"],
-		"effectNameAudacityCompressor": ["machine","Compressor (Audacity)","컴프레서 (Audacity)"],
+		"effectNameAudacityCompressor": ["machine","Compressor","컴프레서"],
 		"effectNameAudacityDistortion": ["machine","Distortion","디스토션"],
 		"effectNameAudacityEcho": ["machine","Echo","에코"],
 		"effectNameAudacityFadeIn": ["machine","Fade In","페이드 인"],
@@ -874,7 +874,7 @@
 		"effectNameAudacityGraphicEq": ["machine","Graphic EQ","그래픽 EQ"],
 		"effectNameAudacityInvert": ["machine","Invert","반전"],
 		"effectNameAudacityLegacyCompressor": ["machine","Legacy Compressor","레거시 컴프레서"],
-		"effectNameAudacityLimiter": ["machine","Limiter (Audacity)","리미터 (Audacity)"],
+		"effectNameAudacityLimiter": ["machine","Limiter","리미터"],
 		"effectNameAudacityLoudnessNormalization": ["machine","Loudness Normalization","음량 정규화"],
 		"effectNameAudacityNoiseReduction": ["machine","Noise Reduction","노이즈 감소"],
 		"effectNameAudacityNormalize": ["machine","Normalize","정규화"],
@@ -1940,6 +1940,7 @@
 		"projectBinUnavailable": ["machine","The local audio is unavailable. This item cannot be added to the timeline.","로컬 오디오가 사용 불가능합니다. 이 항목은 타임라인에 추가할 수 없습니다."],
 		"projectBinUnknownFormat": ["machine","Unknown format","알 수 없는 형식"],
 		"projectBinWaveform": ["machine","Waveform preview","파형 미리보기"],
+		"projectCompatibilityReport": ["machine","Project compatibility report","프로젝트 호환성 보고서"],
 		"projectCopySuffix": ["machine","copy","복사본"],
 		"projectDirty": ["machine","Unsaved changes","저장하지 않은 변경 사항"],
 		"projectName": ["machine","Project name","프로젝트 이름"],

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ar",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:7eb01d44246b2079438d96ba5bc39bb3c77241eca9c172f34ae021546ffbb08d","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:e383e5f79d721d539709d75c49f87fa693e2ac79492bf6443e5f1475b6d6345c","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -865,7 +865,7 @@
 		"effectNameAudacityChangeTempo": ["machine","Change Tempo","تغيير الإيقاع"],
 		"effectNameAudacityClassicFilters": ["machine","Classic Filters","مرشحات كلاسيكية"],
 		"effectNameAudacityClickRemoval": ["machine","Click Removal","إزالة النقر"],
-		"effectNameAudacityCompressor": ["machine","Compressor (Audacity)","ضاغط (Audacity)"],
+		"effectNameAudacityCompressor": ["machine","Compressor","ضاغط"],
 		"effectNameAudacityDistortion": ["machine","Distortion","التشويه"],
 		"effectNameAudacityEcho": ["machine","Echo","الصدى"],
 		"effectNameAudacityFadeIn": ["machine","Fade In","التلاشي التدريجي للصوت"],
@@ -874,7 +874,7 @@
 		"effectNameAudacityGraphicEq": ["machine","Graphic EQ","معادل رسومي"],
 		"effectNameAudacityInvert": ["machine","Invert","العكس"],
 		"effectNameAudacityLegacyCompressor": ["machine","Legacy Compressor","ضاغط التراث"],
-		"effectNameAudacityLimiter": ["machine","Limiter (Audacity)","المحدد (Audacity)"],
+		"effectNameAudacityLimiter": ["machine","Limiter","المحدد"],
 		"effectNameAudacityLoudnessNormalization": ["machine","Loudness Normalization","تطبيع الصوت"],
 		"effectNameAudacityNoiseReduction": ["machine","Noise Reduction","تقليل الضوضاء"],
 		"effectNameAudacityNormalize": ["machine","Normalize","تطبيع"],
@@ -1940,6 +1940,7 @@
 		"projectBinUnavailable": ["machine","The local audio is unavailable. This item cannot be added to the timeline.","الملف الصوتي المحلي غير متاح. لا يمكن إضافة هذا العنصر إلى الجدول الزمني."],
 		"projectBinUnknownFormat": ["machine","Unknown format","تنسيق غير معروف"],
 		"projectBinWaveform": ["machine","Waveform preview","معاينة الموجة"],
+		"projectCompatibilityReport": ["machine","Project compatibility report","تقرير توافق المشروع"],
 		"projectCopySuffix": ["machine","copy","نسخة"],
 		"projectDirty": ["machine","Unsaved changes","تغييرات غير محفوظة"],
 		"projectName": ["machine","Project name","اسم المشروع"],

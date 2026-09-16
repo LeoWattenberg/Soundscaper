@@ -12,23 +12,6 @@
 	min-width: 0;
 }
 
-.kw-audio-editor__project-lock-notice {
-	display: flex;
-	min-width: 0;
-	align-items: center;
-	justify-content: center;
-	gap: var(--space-3, 12px);
-	padding: var(--space-2, 8px) var(--space-3, 12px);
-	border-bottom: 1px solid var(--line);
-	background: color-mix(in srgb, var(--danger, #b42318) 12%, var(--panel));
-}
-
-.kw-audio-editor__project-lock-notice span {
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
 .kw-audio-editor__selection-surface .selection-toolbar__left {
 	min-width: 0;
 	flex: 1 1 auto;
@@ -54,9 +37,9 @@
 	white-space: nowrap;
 }
 
-/* Status messages include actionable import failures. Keep every character
-   readable and selectable, with keyboard scrolling for unusually long errors. */
-.kw-audio-editor__selection-surface [data-editor-status][data-state='error'] {
+/* Import failures stay readable and selectable. Project-lock warnings have an
+   actionable toast, so their status text keeps the normal compact layout. */
+.kw-audio-editor__selection-surface:not([data-project-lock-status]) [data-editor-status][data-state='error'] {
 	max-height: min(8rem, 30vh);
 	overflow: auto;
 	text-overflow: clip;
@@ -65,20 +48,20 @@
 	user-select: text;
 }
 
-.kw-audio-editor__selection-surface:has([data-state='error']) .selection-toolbar {
+.kw-audio-editor__selection-surface:not([data-project-lock-status]):has([data-state='error']) .selection-toolbar {
 	flex-wrap: wrap;
 }
 
-.kw-audio-editor__selection-surface:has([data-state='error']) :is(.selection-toolbar, .selection-toolbar__left, .selection-toolbar__status) {
+.kw-audio-editor__selection-surface:not([data-project-lock-status]):has([data-state='error']) :is(.selection-toolbar, .selection-toolbar__left, .selection-toolbar__status) {
 	height: auto;
 	min-height: 40px;
 }
 
-.kw-audio-editor__selection-surface:has([data-state='error']) .selection-toolbar__left {
+.kw-audio-editor__selection-surface:not([data-project-lock-status]):has([data-state='error']) .selection-toolbar__left {
 	flex-basis: 100%;
 }
 
-.kw-audio-editor__selection-surface:has([data-state='error']) .selection-toolbar__instruction {
+.kw-audio-editor__selection-surface:not([data-project-lock-status]):has([data-state='error']) .selection-toolbar__instruction {
 	display: none;
 }
 

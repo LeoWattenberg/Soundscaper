@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "vi",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:a17433def9a1d1e17eee3225675c68a625e12d9ff9948d3638c11f1ae3c966b5","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:02859f72064c4aa31fcede682297898f823b20a86eb9506c3f085d9a6cc47b38","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -865,7 +865,7 @@
 		"effectNameAudacityChangeTempo": ["machine","Change Tempo","Thay đổi nhịp độ"],
 		"effectNameAudacityClassicFilters": ["machine","Classic Filters","Bộ lọc cổ điển"],
 		"effectNameAudacityClickRemoval": ["machine","Click Removal","Loại bỏ tiếng click"],
-		"effectNameAudacityCompressor": ["machine","Compressor (Audacity)","Bộ nén (Audacity)"],
+		"effectNameAudacityCompressor": ["machine","Compressor","Bộ nén"],
 		"effectNameAudacityDistortion": ["machine","Distortion","Méo tiếng"],
 		"effectNameAudacityEcho": ["machine","Echo","Vọng"],
 		"effectNameAudacityFadeIn": ["machine","Fade In","Mờ dần vào"],
@@ -874,7 +874,7 @@
 		"effectNameAudacityGraphicEq": ["machine","Graphic EQ","EQ đồ họa"],
 		"effectNameAudacityInvert": ["machine","Invert","Đảo pha"],
 		"effectNameAudacityLegacyCompressor": ["machine","Legacy Compressor","Bộ nén phiên bản cũ"],
-		"effectNameAudacityLimiter": ["machine","Limiter (Audacity)","Bộ giới hạn (Audacity)"],
+		"effectNameAudacityLimiter": ["machine","Limiter","Bộ giới hạn"],
 		"effectNameAudacityLoudnessNormalization": ["machine","Loudness Normalization","Chuẩn hóa Loudness"],
 		"effectNameAudacityNoiseReduction": ["machine","Noise Reduction","Giảm nhiễu"],
 		"effectNameAudacityNormalize": ["machine","Normalize","Chuẩn hóa"],
@@ -1940,6 +1940,7 @@
 		"projectBinUnavailable": ["machine","The local audio is unavailable. This item cannot be added to the timeline.","Audio cục bộ không khả dụng. Không thể thêm mục này vào dòng thời gian."],
 		"projectBinUnknownFormat": ["machine","Unknown format","Định dạng không xác định"],
 		"projectBinWaveform": ["machine","Waveform preview","Xem trước dạng sóng"],
+		"projectCompatibilityReport": ["machine","Project compatibility report","Báo cáo tương thích dự án"],
 		"projectCopySuffix": ["machine","copy","bản sao"],
 		"projectDirty": ["machine","Unsaved changes","Thay đổi chưa lưu"],
 		"projectName": ["machine","Project name","Tên dự án"],

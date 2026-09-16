@@ -31,6 +31,7 @@ import { exportSurfaceMenuLabel } from './export-surface-copy.ts';
 import { createNyquistPluginMenuItems } from './nyquist-plugin-menu-items.js';
 import { audioSelectionEffectAppliesToAllAudio } from '../effects.js';
 import { selectAudioEditorLabelEditBlock } from '../label-edit-blocking.ts';
+import { createProjectCompatibilityReportMenuItem } from './workspace/project-feature-compatibility-notice.ts';
 
 /**
  * The video tracks an edit list would describe.
@@ -113,8 +114,7 @@ export default function createApplicationMenus({
 	const frequencySelectionActive = Boolean(snapshot.selection?.frequencyRange);
 	const spectralTrackSelected = audacitySpectrogramTrackSelected(selectedAudioTrack, snapshot);
 	const labelTracks = project?.tracks.filter((track) => track.type === 'label') || [];
-	// Labeled audio acts on whole labels inside the time selection, so the
-	// submenu offers itself only once the selection actually contains one.
+	// Offer labeled audio only when the time selection contains whole labels.
 	const labeledAudioItems = createLabeledAudioApplicationMenuItems({
 		productId,
 		copy,
@@ -124,8 +124,6 @@ export default function createApplicationMenus({
 			...(snapshot.selectedTrackId ? [snapshot.selectedTrackId] : []),
 		]).length > 0,
 	}, { executeEdit: actions.executeEdit });
-	// An EDL describes picture, so the entry only offers itself when there is a
-	// video track that composes — a list of nothing is not a useful export.
 	const edlTracks = edlExportableVideoTracks(project);
 	// Export audio opens the delivery dialog, and that dialog offers the video
 	// containers too, so the entry withholds itself only when the timeline holds
@@ -181,6 +179,7 @@ export default function createApplicationMenus({
 			items: [
 				{ id: 'new-project', label: copy.newProject, shortcut: 'Ctrl+N', disabled: blocked, onClick: actions.newProject },
 				{ id: 'open-project', label: copy.open, shortcut: 'Ctrl+O', disabled: blocked, onClick: actions.openFile },
+				...(snapshot.lockReadOnly ? [{ id: 'claim-project-lock', label: copy.claimProjectLock, onClick: actions.claimProjectLock }] : []),
 				{
 					id: 'audacity-projects',
 					label: copy.audacityProjects,
@@ -236,6 +235,7 @@ export default function createApplicationMenus({
 					onClick: actions.exportAudio,
 				},
 				{ id: 'delivery-queue', label: copy.deliveryQueue, disabled: blocked, onClick: actions.openDeliveryQueue },
+				createProjectCompatibilityReportMenuItem(copy, snapshot.featureRequirementsCompatibility, actions.openProjectCompatibilityReport),
 				{ id: 'delivery-report', label: copy.deliveryReport, disabled: !snapshot.deliveryReport, onClick: actions.openDeliveryReport },
 				{
 					id: 'export-other',
