@@ -119,7 +119,7 @@ export const EDITOR_OPTIONAL_SPLIT_TOOL_CHUNK_TEST =
 
 /** Shared parameter editor plus its Audacity and parametric-EQ surface implementations. */
 export const EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST = new RegExp(
-	`${editorPath}(?:ui[\\/](?:AudacityEffectLayout|ParametricEqEditor|inspector[\\/]EffectParameter(?:Editor|Number))\\.jsx|ui[\\/]inspector[\\/](?:FilterCurveEqEditor|GraphicEqEditor)\\.tsx|controller[\\/]effects[\\/](?:filter-curve-gesture|graphic-eq-gesture)\\.ts)$`,
+	`${editorPath}(?:ui[\\/](?:Audacity(?:EffectLayout|DynamicsEffectLayout|PortEffectLayout|PitchControls|RateControls|SlidingStretchControls)|DynamicsActivityPanel|ParametricEqEditor|inspector[\\/]EffectParameter(?:Editor|Number))\\.jsx|ui[\\/](?:Audacity(?:ParameterKnob|LegacyEffectGraph|NoiseReductionControls)\\.tsx|audacity-(?:compression-curve|derived-controls|knob-warp|legacy-effect-graphs)\\.ts)|ui[\\/]inspector[\\/](?:FilterCurveEqEditor|GraphicEqEditor|AudacityNoiseProfileButton)\\.tsx|ui[\\/]dynamics-activity-canvas\\.ts|controller[\\/]effects[\\/](?:filter-curve-gesture|graphic-eq-gesture)\\.ts)$`,
 );
 
 /**
@@ -131,7 +131,7 @@ export const EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST = new RegExp(
  * facade-first order the rack renders against an uninitialised module and the
  * editor dies with "init_AudioEditorEffectsOverlay is not a function".
  */
-export const EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST = /(?:^|[\\/])(?:vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:EffectsPanel[\\/].*|EffectDialog[\\/]EffectHeader\.tsx|SidePanel[\\/].*)|src[\\/]common[\\/]editor[\\/]ui[\\/]inspector[\\/](?:(?:AudioEditorEffectsOverlay|AudacityEffectHeader)\.jsx|audacity-realtime-effect-shortcut\.ts))$/;
+export const EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST = /(?:^|[\\/])(?:vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:EffectsPanel[\\/].*|EffectDialog[\\/]EffectHeader\.tsx|SidePanel[\\/].*)|src[\\/]common[\\/]editor[\\/]ui[\\/]audacity-port-layouts\.ts|src[\\/]common[\\/]editor[\\/]ui[\\/]inspector[\\/](?:(?:AudioEditorEffectsOverlay|AudacityEffectHeader)\.jsx|audacity-realtime-effect-shortcut\.ts))$/;
 export const DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST = /(?:^|[\\/])vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:AddTrackFlyout|ApplicationHeader|Button|Checkbox|Clip|ClipBody|ClipHeader|CloudProjectIndicator|ContextMenu|ContextMenuItem|DialogHeader|Dropdown|EnvelopeCurve|EnvelopeInteractionLayer|EnvelopeOverlay|EnvelopePoint|Flyout|Footer|GhostButton|Icon|Knob|LabelMarker|LabeledCheckbox|LabeledRadio|MidiClipBody|MixerChannel|MixerEffect|MixerFader|MixerFaderHandle|MixerPanel|NumberStepper|PanKnob|PanelHeader|PlayheadCursor|Radio|RulerFlyout|SelectionToolbar|Separator|Slider|TextInput|TimeCode|TimelineRuler|TimelineRulerContextMenu|ToggleButton|ToggleToolButton|ToolButton|Toolbar|Tooltip|Track|TrackControlPanel|TrackMeter|TransportButton|VerticalRuler)[\\/]/;
 // The renderer/main video contract is a shared codec leaf. Reachability places
 // it in the Framescaper bootstrap and makes the desktop codec runtime import

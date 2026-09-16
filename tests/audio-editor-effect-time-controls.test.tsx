@@ -63,11 +63,8 @@ test('bounded time parameters are knobs rather than timecode fields', () => {
 		['reverb', ['decay', 'preDelay']],
 		['delay', ['time']],
 		['audacity-compressor', ['attackMs', 'releaseMs', 'lookaheadMs']],
-		['audacity-legacy-compressor', ['attackSeconds', 'releaseSeconds']],
 		['audacity-limiter', ['lookaheadMs', 'releaseMs']],
 		['audacity-reverb', ['preDelay']],
-		['audacity-auto-duck', ['innerFadeDown', 'innerFadeUp', 'outerFadeDown', 'outerFadeUp', 'maximumPause']],
-		['audacity-echo', ['delaySeconds']],
 	];
 	for (const [type, names] of cases) {
 		const parameter = parameterMarkup(type);
@@ -76,7 +73,24 @@ test('bounded time parameters are knobs rather than timecode fields', () => {
 			assert.doesNotMatch(markup, /data-timecode-input/u, `${type}.${name}`);
 			assert.match(markup, /class="knob/u, `${type}.${name}`);
 			// One field beside the knob, so a control locator stays unambiguous.
-			assert.equal(markup.match(/<input\b/gu)?.length, 1, `${type}.${name}`);
+			assert.equal(markup.match(/type="number"/gu)?.length, 1, `${type}.${name}`);
+		}
+	}
+});
+
+test('older Audacity ports retain their original numeric and slider time controls', () => {
+	for (const [type, names, presentation] of [
+		['audacity-auto-duck', ['innerFadeDown', 'innerFadeUp', 'outerFadeDown', 'outerFadeUp', 'maximumPause'], 'number'],
+		['audacity-echo', ['delaySeconds'], 'number'],
+		['audacity-legacy-compressor', ['attackSeconds', 'releaseSeconds'], 'slider'],
+	] as const) {
+		const parameter = parameterMarkup(type);
+		for (const name of names) {
+			const markup = parameter(name);
+			assert.doesNotMatch(markup, /data-timecode-input|class="knob/u, `${type}.${name}`);
+			if (presentation === 'slider') assert.match(markup, /type="range"/u);
+			else assert.doesNotMatch(markup, /type="range"/u);
+			assert.equal(markup.match(/type="number"/gu)?.length, 1, `${type}.${name}`);
 		}
 	}
 });

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Knob } from '@soundscaper/design-system/Knob';
+import AudacityParameterKnob from '../AudacityParameterKnob.tsx';
 
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../../project.js';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
@@ -18,10 +19,14 @@ import { effectParameterTakesTimeCode } from './effect-helpers.ts';
  */
 export default function ParameterNumber({
 	label,
+	displayLabel = label,
+	valueUnit,
 	value,
 	range,
 	step,
 	presentation = 'knob',
+	audacity = false,
+	defaultValue,
 	copy,
 	disabled,
 	hook,
@@ -48,6 +53,7 @@ export default function ParameterNumber({
 		? step
 		: 0.01;
 	const gestureEnabled = Boolean(onGestureBegin && onGesturePreview && onGestureCommit);
+	const ParameterKnob = audacity ? AudacityParameterKnob : Knob;
 	useEffect(() => () => {
 		if (!gestureActiveRef.current) return;
 		gestureActiveRef.current = false;
@@ -107,12 +113,13 @@ export default function ParameterNumber({
 			role="group"
 			aria-label={label}
 		>
-			<span>{label}</span>
-			{!timeUnit && knobRange && presentation === 'knob' && <Knob
+			<span>{displayLabel}</span>
+			{!timeUnit && knobRange && presentation === 'knob' && <ParameterKnob
 				value={gestureValue ?? (Number(value) || 0)}
 				min={knobRange[0]}
 				max={knobRange[1]}
 				step={knobStep}
+				{...(audacity ? { defaultValue } : {})}
 				label={label}
 				mode={knobRange[0] < 0 && knobRange[1] > 0 ? 'bipolar' : 'unipolar'}
 				disabled={disabled}
@@ -143,7 +150,8 @@ export default function ParameterNumber({
 				maximum={knobRange?.[1]}
 				disabled={disabled}
 				onCommit={commit}
-			/> : <CommitField
+			/> : <div className="audio-editor-effect-number__value" data-unit={valueUnit || undefined}>
+			<CommitField
 				label={label}
 				name={hook}
 				value={String(value ?? '')}
@@ -152,7 +160,9 @@ export default function ParameterNumber({
 				hookName="effect-number-input"
 				visuallyHiddenLabel
 				onCommit={(_name, raw) => commit(raw)}
-			/>}
+			/>
+			{valueUnit && <span className="audio-editor-effect-number__unit" style={{ left: `calc(11px + ${String(gestureValue ?? value ?? '').length} * 7.6px)` }} aria-hidden="true">{valueUnit}</span>}
+			</div>}
 		</div>
 	);
 }

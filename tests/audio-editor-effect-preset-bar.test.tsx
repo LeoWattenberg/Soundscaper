@@ -3,6 +3,12 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import test from 'node:test';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { ThemeProvider } from '@soundscaper/design-system/ThemeProvider';
+import EffectPresetBar from '../src/common/editor/ui/inspector/EffectPresetBar.jsx';
+
+Object.defineProperty(globalThis, 'React', { configurable: true, value: React });
 
 const ROOT = new URL('../', import.meta.url);
 const INSPECTOR = new URL('src/common/editor/ui/inspector/', ROOT);
@@ -22,11 +28,6 @@ test('the preset bar wires every action Audacity puts beside the dropdown', asyn
 	assert.match(source, /copy\.saveEffectPresetAs\b/u, 'the save menu offers Save as…');
 	assert.match(source, /copy\.importEffectPreset\b/u, 'the options menu offers Import');
 	assert.match(source, /copy\.exportEffectPreset\b/u, 'the options menu offers Export');
-	assert.match(
-		source,
-		/canUndo=\{Boolean\(selectedId\) && unsaved/u,
-		'Reset arms only for a preset edited away from its stored values, as upstream does',
-	);
 	assert.match(
 		source,
 		/canDelete=\{canOverwrite\}/u,
@@ -78,4 +79,50 @@ test('the bar clears a half-typed name when its subject changes', async () => {
 	assert.match(effect, /setSaveAsName\(null\)/u, 'a pending name must not follow the next subject');
 	assert.match(effect, /setSaveMenu\(null\)/u);
 	assert.match(effect, /setOptionsMenu\(null\)/u);
+});
+
+function renderBar(options: { defaultParams?: Record<string, unknown>; currentParams?: Record<string, unknown>; selectedId?: string; unsaved?: boolean } = {}): string {
+	return renderToStaticMarkup(<ThemeProvider><EffectPresetBar
+		copy={{ noEffectPreset: 'No preset', effectPresetCustom: 'custom' }}
+		presets={[{ id: 'custom', label: 'My preset', custom: true }]}
+		onSelect={() => undefined} onSave={() => undefined} onSaveAs={() => undefined}
+		onReset={() => undefined} onDelete={() => undefined} onImport={() => undefined}
+		onExport={() => undefined} onDefault={() => undefined}
+		{...options}
+	/></ThemeProvider>);
+}
+
+function resetDisabled(markup: string): boolean {
+	const button = markup.match(/<button[^>]*aria-label="Undo"[^>]*>/u)?.[0];
+	assert.ok(button);
+	return /disabled=""/u.test(button);
+}
+
+test('Audacity default baseline displays Default preset and arms Reset only for edits', () => {
+	const clean = renderBar({ defaultParams: { ratio: 10, thresholdDb: -10 }, currentParams: { thresholdDb: -10, ratio: 10 } });
+	assert.match(clean, />Default preset</u);
+	assert.doesNotMatch(clean, />Default preset\*</u);
+	assert.equal(resetDisabled(clean), true);
+	const edited = renderBar({ defaultParams: { ratio: 10, thresholdDb: -10 }, currentParams: { thresholdDb: -12, ratio: 10 } });
+	assert.match(edited, />Default preset\*</u);
+	assert.equal(resetDisabled(edited), false);
+});
+
+test('native preset bars keep the No preset baseline and named preset Reset behavior', () => {
+	const empty = renderBar({ unsaved: true });
+	assert.match(empty, />No preset</u);
+	assert.equal(resetDisabled(empty), true);
+	const edited = renderBar({ selectedId: 'custom', unsaved: true });
+	assert.match(edited, />My preset \(custom\)\*</u);
+	assert.equal(resetDisabled(edited), false);
+	assert.equal(resetDisabled(renderBar({ selectedId: 'custom', unsaved: false })), true);
+});
+
+test('selecting a named preset retains its own edit state even when Audacity defaults are supplied', () => {
+	const named = renderBar({
+		selectedId: 'custom', unsaved: false,
+		defaultParams: { ratio: 10 }, currentParams: { ratio: 4 },
+	});
+	assert.match(named, />My preset \(custom\)</u);
+	assert.equal(resetDisabled(named), true);
 });

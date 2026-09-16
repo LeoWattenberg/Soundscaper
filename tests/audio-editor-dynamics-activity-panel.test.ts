@@ -71,3 +71,10 @@ test('readouts show a level, an unmeasured dash, and true silence', () => {
 	assert.equal(formatDecibels(Number.NaN), '—');
 	assert.equal(formatDecibels(-60), '−∞ dB');
 });
+
+test('Audacity histories retain reduction throughout their labelled compressor and limiter scales', () => {
+	const compressor = appendActivityReading([], { ...READING, reductionDb: -36 }, 4, -48) as Array<{ reductionDb: number }>;
+	assert.equal(compressor[0]?.reductionDb, -36);
+	const limiter = appendActivityReading([], { ...READING, reductionDb: -36 }, 4, -12) as Array<{ reductionDb: number }>;
+	assert.equal(limiter[0]?.reductionDb, -12);
+});

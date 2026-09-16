@@ -52,6 +52,17 @@ const EDITOR_UI_DIRECTORY = fileURLToPath(new URL('../src/common/editor/ui/', im
 const EDITOR_CONTROLLER_DIRECTORY = fileURLToPath(new URL('../src/common/editor/controller/', import.meta.url));
 const FRAMESCAPER_DIRECTORY = fileURLToPath(new URL('../src/framescaper/', import.meta.url));
 const SOUNDSCAPER_DIRECTORY = fileURLToPath(new URL('../src/soundscaper/', import.meta.url));
+
+test('Audacity effect views stay with the optional parameter surface', () => {
+	for (const name of ['AudacityDynamicsEffectLayout.jsx', 'AudacityPortEffectLayout.jsx', 'AudacityPitchControls.jsx',
+		'AudacityRateControls.jsx', 'AudacitySlidingStretchControls.jsx', 'AudacityParameterKnob.tsx',
+		'AudacityNoiseReductionControls.tsx', 'AudacityLegacyEffectGraph.tsx', 'DynamicsActivityPanel.jsx',
+		'inspector/AudacityNoiseProfileButton.tsx', 'audacity-compression-curve.ts', 'audacity-derived-controls.ts',
+		'audacity-knob-warp.ts', 'audacity-legacy-effect-graphs.ts', 'dynamics-activity-canvas.ts']) {
+		assert.equal(chunkGroupForModulePath(`${EDITOR_UI_DIRECTORY}${name}`), 'editor-effect-parameter-surfaces', name);
+	}
+	assert.equal(chunkGroupForModulePath(`${EDITOR_UI_DIRECTORY}audacity-port-layouts.ts`), 'editor-effect-dialog-shell');
+});
 /**
  * The directories whose modules are all part of one product's boot path.
  *

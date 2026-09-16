@@ -583,7 +583,7 @@ import {
 		await settingsDialog.locator('[data-effect-noise-profile]').getByRole('button').click();
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
 		await expect(reduction.getByRole('button', { name: 'Disable effect' })).toBeVisible();
-		await expect(settingsDialog.locator('[data-effect-noise-profile]')).toContainText('Replace noise profile');
+		await expect(settingsDialog.locator('[data-effect-noise-profile]').getByRole('button')).toHaveAccessibleName('Replace noise profile');
 		await closeDialog(settingsDialog);
 
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });

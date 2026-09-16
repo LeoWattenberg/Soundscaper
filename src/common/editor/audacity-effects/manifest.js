@@ -4,7 +4,7 @@
  * Audacity native effect inventory and parameter contract.
  * The original inventory is based on Audacity 3.7.7 commit
  * 5ef610ed23260d6d648175735bb16b32536eb30b; StaffPad pitch-and-tempo
- * effects are pinned separately to current Audacity 4 development sources.
+ * processing and Qt dynamics defaults use the pinned Audacity 4 sources below.
  * Audacity is GPL-3.0; individual effect files are GPL-2.0-or-later unless
  * otherwise noted. This JavaScript adaptation was created for kw.media in 2026.
  */
@@ -200,13 +200,13 @@ const definitions = {
 		category: 'volume',
 		collision: true,
 		params: {
-			thresholdDb: number(-10, -60, 0, { unit: 'dB', step: 0.1 }),
-			makeupGainDb: number(0, -30, 30, { unit: 'dB', step: 0.1 }),
-			kneeWidthDb: number(5, 0, 30, { unit: 'dB', step: 0.1 }),
-			ratio: number(10, 1, 100, { step: 0.1 }),
-			lookaheadMs: number(1, 0, 1_000, { unit: 'ms', step: 0.1 }),
-			attackMs: number(30, 0, 200, { unit: 'ms', step: 0.1 }),
-			releaseMs: number(150, 0, 1_000, { unit: 'ms', step: 0.1 }),
+			thresholdDb: number(-12, -60, 0, { unit: 'dB', step: 0.1 }),
+			makeupGainDb: number(9, -30, 30, { unit: 'dB', step: 0.1 }),
+			kneeWidthDb: number(6, 0, 30, { unit: 'dB', step: 0.1 }),
+			ratio: number(4, 1, 100, { step: 0.1 }),
+			lookaheadMs: number(3, 0, 1_000, { unit: 'ms', step: 0.1 }),
+			attackMs: number(3, 0, 200, { unit: 'ms', step: 0.1 }),
+			releaseMs: number(100, 0, 1_000, { unit: 'ms', step: 0.1 }),
 		},
 	},
 	'audacity-legacy-compressor': {
@@ -285,7 +285,7 @@ const definitions = {
 		category: 'volume',
 		collision: true,
 		params: {
-			thresholdDb: number(-5, -30, 0, { unit: 'dB', step: 0.1 }),
+			thresholdDb: number(-6, -30, 0, { unit: 'dB', step: 0.1 }),
 			makeupTargetDb: number(-1, -30, 0, { unit: 'dB', step: 0.1 }),
 			kneeWidthDb: number(2, 0, 10, { unit: 'dB', step: 0.1 }),
 			lookaheadMs: number(1, 0, 50, { unit: 'ms', step: 0.1 }),

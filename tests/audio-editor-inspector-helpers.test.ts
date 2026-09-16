@@ -61,8 +61,22 @@ test('effect helpers keep labels, presets, and conditional controls deterministi
 	assert.equal(audacityParameterVisible({
 		type: 'audacity-normalize',
 		params: { applyGain: false },
-	}, 'peakDb'), false);
+	}, 'peakDb'), true);
 	assert.equal(audacityParameterPresentation('audacity-amplify', 'gainDb'), 'slider');
+});
+
+test('Audacity ports use the controls in their original effect views', () => {
+	assert.equal(audacityParameterPresentation('audacity-change-pitch', 'semitones'), 'number');
+	assert.equal(audacityParameterPresentation('audacity-sliding-stretch', 'startPitchSemitones'), 'number');
+	assert.equal(audacityParameterPresentation('audacity-sliding-stretch', 'startTempoPercent'), 'slider');
+	assert.equal(audacityParameterPresentation('audacity-normalize', 'peakDb'), 'number');
+	assert.equal(audacityParameterPresentation('audacity-auto-duck', 'outerFadeDown'), 'number');
+	assert.equal(audacityParameterPresentation('audacity-echo', 'decay'), 'number');
+	assert.equal(audacityParameterPresentation('audacity-phaser', 'frequency'), 'slider');
+	assert.equal(audacityParameterPresentation('audacity-wahwah', 'resonance'), 'slider');
+	assert.equal(audacityParameterPresentation('audacity-legacy-compressor', 'attackSeconds'), 'slider');
+	assert.equal(audacityParameterPresentation('audacity-reverb', 'preDelay'), 'knob');
+	assert.equal(audacityParameterPresentation('audacity-bass-treble', 'volumeDb'), 'knob');
 });
 
 test('preset choices name the presets Audacity ships from the catalog', () => {

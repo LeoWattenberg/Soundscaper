@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
 import { EffectsPanel } from '@soundscaper/design-system/EffectsPanel';
-import { audioEffectTypes, createEffect } from '../../effects.js';
+import { audioEffectTypes, audioSelectionEffectDefaults, createEffect } from '../../effects.js';
 import { serializeAudacityEffectMacro } from '../../effect-macros.js';
 import { AUDIO_EDITOR_SAMPLE_RATE, findTrack } from '../../project.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { audacityEffectDialogWidth, isAudacityNyquistPort } from '../audacity-port-layouts.ts';
+import { useAudacityEffectOptions } from './audacity-effect-options.ts';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import EffectPresetBar from './EffectPresetBar.jsx';
 import EffectParameterEditor from './EffectParameterEditor.jsx';
@@ -22,7 +24,6 @@ import {
 } from './effect-helpers.ts';
 import { downloadTextFile, formatDb, linearToDb, macroFileName } from './inspector-helpers.ts';
 import { useTrackAutomationRuntime } from '../soundscaper-workflow-product-runtime.tsx';
-
 const EMPTY_EFFECTS = Object.freeze([]);
 // The master fader spans silence to the +12 dB ceiling the master gain accepts.
 const MASTER_GAIN_MIN_DB = -60;
@@ -93,7 +94,6 @@ export function AudioEditorEffectsOverlay({
 		operationSessionRef.current = { projectIdentity, isOpen };
 		activeOperationRef.current = null;
 	}
-
 	useEffect(() => {
 		mountedRef.current = true;
 		return () => {
@@ -101,7 +101,6 @@ export function AudioEditorEffectsOverlay({
 			activeOperationRef.current = null;
 		};
 	}, []);
-
 	useEffect(() => {
 		if (stateProjectIdentityRef.current === projectIdentity) return;
 		stateProjectIdentityRef.current = projectIdentity;
@@ -113,13 +112,11 @@ export function AudioEditorEffectsOverlay({
 		setStackMenu(null);
 		stackMenuTriggerRef.current = null;
 	}, [projectIdentity, setSelectedEffect]);
-
 	useEffect(() => {
 		if (!selectedEffect) return;
 		const rack = selectedEffect.scope === 'master' ? masterEffects : channelEffects;
 		if (!rack.some((effect) => effect.id === selectedEffect.id)) setSelectedEffect(null);
 	}, [channelEffects, masterEffects, selectedEffect, setSelectedEffect]);
-
 	useEffect(() => {
 		setRackPresetId('');
 	}, [selectedEffect?.id]);
@@ -250,6 +247,7 @@ export function AudioEditorEffectsOverlay({
 
 	const effectRack = selectedEffect?.scope === 'master' ? masterEffects : channelEffects;
 	const effect = effectRack.find((candidate) => candidate.id === selectedEffect?.id) || null;
+	const { advancedSettings, onAdvancedSettings } = useAudacityEffectOptions(effect?.type || '', `${projectIdentity}:${effect?.id || ''}`);
 	const effectScope = selectedEffect?.scope || scope;
 	const effectOwner = effectScope === 'master' ? project?.master : channel;
 	const supportsLiveRackGesture = supportsLiveRackEffectGesture(effect, effectOwner);
@@ -273,8 +271,7 @@ export function AudioEditorEffectsOverlay({
 		: [];
 	const rackPresetChoices = effectPresetChoices(rackPresets, copy.noEffectPreset, copy);
 	const selectedRackPreset = rackPresetChoices.find((choice) => choice.id === rackPresetId);
-	// Upstream flags a preset whose parameters have been edited away from the
-	// stored values, which is what arms Reset and marks the dropdown entry.
+	// Edited presets arm Reset and mark the dropdown entry.
 	const rackPresetEdited = Boolean(selectedRackPreset) && !samePresetParams(
 		effect?.params, selectedRackPreset.preset.params,
 	);
@@ -418,13 +415,13 @@ export function AudioEditorEffectsOverlay({
 					<ContextMenuItem label={copy.exportAsMacro} disabled={!menuEffects.some((candidate) => candidate.enabled && candidate.type !== 'missing')} onClick={exportStack} />
 				</ContextMenu>
 			</div>}
-
 			{renderDialogs && effect && (
 				<AudioEditorDialogShell
 					isOpen
 					title={safeEffectLabel(effect, copy)}
+					headerTitle={`${safeEffectLabel(effect, copy).replace(/ \(Audacity\)$/u, '')} - ${effectScope === 'track' ? findTrack(project, targetId)?.name || '' : copy.masterEffects}`}
 					onClose={() => setSelectedEffect(null)}
-					width={effect.type === 'audacity-graphic-eq' ? 1120 : effect.type === 'eq' ? 920 : 620}
+					width={audacityEffectDialogWidth(effect.type) ?? (effect.type === 'eq' ? 920 : 620)}
 					modal={false}
 					draggable
 					className="audio-editor-effect-settings-dialog"
@@ -432,6 +429,7 @@ export function AudioEditorEffectsOverlay({
 					headerSlot={effect.type === 'missing' ? null : (
 						<div className="audio-editor-rack-effect-header">
 							<EffectPresetBar
+								onAdvancedSettings={onAdvancedSettings}
 								copy={copy}
 								disabled={blocked}
 								resetKey={`${projectIdentity ?? ''}:${effect.id}`}
@@ -442,7 +440,8 @@ export function AudioEditorEffectsOverlay({
 									},
 								}}
 								presets={rackPresetOptions}
-								selectedId={rackPresetId}
+								selectedId={rackPresetId} defaultParams={effect.type.startsWith('audacity-') || isAudacityNyquistPort(effect.type) ? audioSelectionEffectDefaults(effect.type) : null}
+								currentParams={effect.params} onDefault={() => { setRackPresetId(''); writeRackParams(audioSelectionEffectDefaults(effect.type)); }}
 								unsaved={rackPresetEdited}
 								onSelect={selectRackPreset}
 								onSave={() => saveRackPreset()}
@@ -462,6 +461,7 @@ export function AudioEditorEffectsOverlay({
 				>
 					<section className="audio-editor-effect-settings">
 						<EffectParameterEditor
+							advancedSettings={advancedSettings}
 							effect={effect}
 							copy={copy}
 							disabled={blocked}

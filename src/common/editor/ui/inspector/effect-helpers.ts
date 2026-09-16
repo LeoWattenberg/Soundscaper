@@ -141,7 +141,6 @@ export function audacityParameterVisible(effect: EffectLike, name: string): bool
 		if (name === 'targetLufs') return effect.params?.mode === 'lufs';
 		if (name === 'targetRmsDb') return effect.params?.mode === 'rms';
 	}
-	if (effect.type === 'audacity-normalize' && name === 'peakDb') return Boolean(effect.params?.applyGain);
 	if (effect.type === 'audacity-truncate-silence') {
 		if (name === 'truncateTo') return effect.params?.action === 'truncate';
 		if (name === 'compressPercent') return effect.params?.action === 'compress';
@@ -199,28 +198,24 @@ export function audacityParameterPresentation(effectType: string, name: string):
 	const sliderParameters: Readonly<Record<string, readonly string[]>> = {
 		'audacity-amplify': ['gainDb'],
 		'audacity-click-removal': ['threshold', 'maximumWidth'],
-		'audacity-change-pitch': ['semitones'],
 		'audacity-change-tempo': ['tempoPercent'],
 		'audacity-change-speed-pitch': ['speedPercent'],
-		'audacity-sliding-stretch': ['startTempoPercent', 'endTempoPercent', 'startPitchSemitones', 'endPitchSemitones'],
+		'audacity-sliding-stretch': ['startTempoPercent', 'endTempoPercent'],
 		'audacity-noise-reduction': ['reductionDb', 'sensitivity', 'frequencySmoothingBands'],
-		'audacity-normalize': ['peakDb'],
+		'audacity-phaser': ['stages', 'dryWet', 'frequency', 'phaseDegrees', 'depth', 'feedbackPercent', 'outputGainDb'],
+		'audacity-wahwah': ['frequency', 'phaseDegrees', 'depthPercent', 'resonance', 'frequencyOffsetPercent', 'outputGainDb'],
+		'audacity-legacy-compressor': ['thresholdDb', 'noiseFloorDb', 'ratio', 'attackSeconds', 'releaseSeconds'],
+		'audacity-distortion': ['thresholdDb', 'noiseFloorDb', 'parameter1', 'parameter2', 'repeats'],
 	};
 	if (sliderParameters[effectType]?.includes(name)) return 'slider';
 	if ([
 		'bitcrusher',
 		'deesser',
 		'multiband-compressor',
-		'audacity-auto-duck',
 		'audacity-bass-treble',
 		'audacity-compressor',
-		'audacity-legacy-compressor',
-		'audacity-distortion',
-		'audacity-echo',
 		'audacity-limiter',
-		'audacity-phaser',
 		'audacity-reverb',
-		'audacity-wahwah',
 	].includes(effectType)) return 'knob';
 	return 'number';
 }

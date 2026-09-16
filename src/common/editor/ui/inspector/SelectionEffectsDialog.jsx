@@ -9,11 +9,13 @@ import {
 } from '../../effects.js';
 import { AUDIO_EDITOR_SAMPLE_RATE, findTrack } from '../../project.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { audacityEffectDialogWidth, isAudacityNyquistPort } from '../audacity-port-layouts.ts';
+import { useAudacityEffectOptions } from './audacity-effect-options.ts';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import EffectPresetBar from './EffectPresetBar.jsx';
 import EffectParameterEditor from './EffectParameterEditor.jsx';
 import { LabeledDropdown } from './inspector-controls.jsx';
-import { effectPresetChoices, nativeEffectOptionLabel, nativeEffectParameterLabel, safeEffectLabel, samePresetParams } from './effect-helpers.ts';
+import { effectPresetChoices, safeEffectLabel, samePresetParams } from './effect-helpers.ts';
 import { createFallbackFileService } from './inspector-helpers.ts';
 
 export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fileService, onClose }) {
@@ -30,6 +32,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 	const [selectedPresetId, setSelectedPresetId] = useState('');
 	const [presetName, setPresetName] = useState('');
 	const projectIdentity = project?.id ?? null;
+	const { advancedSettings, onAdvancedSettings } = useAudacityEffectOptions(selectionType, `${projectIdentity}:${selectionType}`);
 	const currentProjectIdentity = useRef(projectIdentity);
 	const stateProjectIdentity = useRef(projectIdentity);
 	const activeOperation = useRef(null);
@@ -172,26 +175,39 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 	);
 	const presetChoices = effectPresetChoices(effectPresets, copy.noEffectPreset, copy);
 	const selectedPresetChoice = presetChoices.find((choice) => choice.id === selectedPresetId);
+	const selectionEffectParams = selectionType === 'multi-tap-delay'
+		? { pitchMode: 'pitch-shift', duration: 'keep', ...selectionParams } : selectionParams;
+	const selectionEffectDefaults = selectionType === 'multi-tap-delay'
+		? { ...audioSelectionEffectDefaults(selectionType), pitchMode: 'pitch-shift', duration: 'keep' }
+		: audioSelectionEffectDefaults(selectionType);
 
 	return (
 		<AudioEditorDialogShell
 			isOpen={isOpen}
 			title={copy.selectionEffects || copy.audacityEffectsTitle}
-			headerTitle={safeEffectLabel(selectionType, copy)}
+			headerTitle={safeEffectLabel(selectionType, copy).replace(/ \(Audacity\)$/u, '')}
 			onClose={() => {
 				controller.actions.effects.cancelPreview();
 				onClose?.();
 			}}
-			width={selectionType === 'audacity-graphic-eq' ? 1120 : selectionType === 'eq' ? 920 : 720}
+			width={audacityEffectDialogWidth(selectionType) ?? (selectionType === 'eq' ? 920 : 720)}
 			className="audio-editor-selection-effects-dialog"
 			dataAttributes={{ 'data-selection-effects-dialog': '' }}
 			headerSlot={(
 				<EffectPresetBar
 					copy={copy}
+					onAdvancedSettings={onAdvancedSettings}
 					disabled={blocked}
 					resetKey={projectIdentity}
 					presets={presetChoices.map(({ id, label, custom }) => ({ id, label, custom }))}
 					selectedId={selectedPresetId}
+					defaultParams={selectionType.startsWith('audacity-') || isAudacityNyquistPort(selectionType) ? selectionEffectDefaults : null}
+					currentParams={selectionEffectParams}
+					onDefault={() => {
+						setSelectedPresetId('');
+						setPresetName('');
+						updateSelectionParams(selectionEffectDefaults);
+					}}
 					unsaved={Boolean(selectedPresetChoice)
 						&& !samePresetParams(selectionParams, selectedPresetChoice.preset.params)}
 					onSelect={(id) => {
@@ -268,29 +284,13 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 						hook="audacity-control-track"
 					/>
 				)}
-				{selectionType === 'multi-tap-delay' && <>
-					<LabeledDropdown
-						label={nativeEffectParameterLabel(selectionType, 'pitchMode', copy)}
-						value={selectionParams.pitchMode || 'pitch-shift'}
-						options={['pitch-shift', 'speed'].map(value => ({ value, label: nativeEffectOptionLabel(selectionType, 'pitchMode', value, copy) }))}
-						onChange={pitchMode => updateSelectionParams({ pitchMode })}
-						disabled={blocked}
-						hook="delay-selection-pitch-mode"
-					/>
-					<LabeledDropdown
-						label={nativeEffectParameterLabel(selectionType, 'duration', copy)}
-						value={selectionParams.duration || 'keep'}
-						options={['keep', 'extend'].map(value => ({ value, label: nativeEffectOptionLabel(selectionType, 'duration', value, copy) }))}
-						onChange={duration => updateSelectionParams({ duration })}
-						disabled={blocked}
-						hook="delay-selection-duration"
-					/>
-				</>}
 				<EffectParameterEditor
+					advancedSettings={advancedSettings}
 					effect={{
 						type: selectionType,
-						params: selectionParams,
-						context: { noiseProfile: Boolean(snapshot.effects?.noiseProfileReady) },
+						params: selectionEffectParams,
+						context: { noiseProfile: Boolean(snapshot.effects?.noiseProfileReady),
+							selectionDuration: Math.max(0, (project?.selection?.endFrame - project?.selection?.startFrame) / (project?.sampleRate || AUDIO_EDITOR_SAMPLE_RATE)) },
 					}}
 					copy={copy}
 					disabled={blocked}

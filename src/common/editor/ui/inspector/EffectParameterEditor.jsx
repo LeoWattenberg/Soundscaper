@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@soundscaper/design-system/Button';
 import {
 	AUDIO_EFFECT_DEFINITIONS,
 	AUDIO_SELECTION_EFFECT_DEFINITIONS,
@@ -12,7 +11,9 @@ import {
 	audacityEffectParameterLabel,
 } from '../../audacity-effects/manifest.js';
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../../project.js';
+import { canonicalCopyValue } from '../../../i18n/canonical-extras.js';
 import { AudacityEffectLayout } from '../AudacityEffectLayout.jsx';
+import AudacityDynamicsEffectLayout from '../AudacityDynamicsEffectLayout.jsx';
 import { ParametricEqEditor } from '../ParametricEqEditor.jsx';
 import FilterCurveEqEditor from './FilterCurveEqEditor.tsx';
 import GraphicEqEditor from './GraphicEqEditor.tsx';
@@ -30,6 +31,9 @@ import {
 import { createParameterAutomationControlRouterV21 } from '../soundscaper-workflow-product-runtime.tsx';
 import { nativeRackEffectCommit } from './live-rack-effect-gesture.ts';
 import { nativeEffectParamRange } from './native-effect-param-range.ts';
+import { audacityAdvancedParameters } from './audacity-effect-options.ts';
+import AudacityNoiseProfileButton from './AudacityNoiseProfileButton.tsx';
+import { audacityNyquistControl, isAudacityNyquistPort } from '../audacity-port-layouts.ts';
 
 export default function EffectParameterEditor({
 	effect,
@@ -42,6 +46,7 @@ export default function EffectParameterEditor({
 	captureNoiseProfileDisabled = false,
 	noiseProfileLabel,
 	hideControlTrack = false,
+	advancedSettings = false,
 	onRackEffectGestureBegin,
 	onRackEffectPreview,
 	onRackEffectCommit,
@@ -83,6 +88,7 @@ export default function EffectParameterEditor({
 		setError('');
 		return Promise.resolve().then(callback).catch((cause) => {
 			setError(cause instanceof Error ? cause.message : String(cause));
+			return false;
 		});
 	};
 	const update = (changes) => invoke(() => onChange(changes));
@@ -173,12 +179,17 @@ export default function EffectParameterEditor({
 				</div>
 			);
 		}
+		const nyquistPort = isAudacityNyquistPort(effect.type);
+		const parameterChoices = (name) => effect.type === 'multi-tap-delay' && name === 'pitchMode'
+			? ['pitch-shift', 'speed'] : effect.type === 'multi-tap-delay' && name === 'duration'
+				? ['keep', 'extend'] : audioEffectParamChoices(effect.type, name);
 		const parameterNames = Object.entries(effect.params || {}).filter(([name, value]) => (
-			typeof value === 'number' || audioEffectParamChoices(effect.type, name) !== null
+			(typeof value === 'number' || parameterChoices(name) !== null)
+			&& (!nyquistPort || advancedSettings || !audacityAdvancedParameters(effect.type).includes(name))
 		)).map(([name]) => name);
 		const nativeDefinition = { params: Object.fromEntries(parameterNames.map((name) => [name, {}])) };
 			const renderNativeParameter = (name) => {
-			const choices = audioEffectParamChoices(effect.type, name);
+			const choices = parameterChoices(name);
 			if (choices) {
 				return (
 					<LabeledDropdown
@@ -203,6 +214,8 @@ export default function EffectParameterEditor({
 				const unit = descriptor?.[2]?.unit;
 				const range = nativeEffectParamRange(effect.type, name,
 					audioEffectParamRange(effect.type, name) || descriptor?.slice(0, 2), sampleRate, descriptor?.[2]?.step);
+				const sourceControl = audacityNyquistControl(effect.type, name);
+				const scale = sourceControl?.scale || 1;
 				const fallback = onRackEffectGestureBegin && onRackEffectPreview && onRackEffectCommit
 					? {
 						begin: () => invoke(onRackEffectGestureBegin),
@@ -214,28 +227,47 @@ export default function EffectParameterEditor({
 						})),
 						cancel: onRackEffectCancel ? () => invoke(onRackEffectCancel) : null,
 					} : null;
+				const gesture = parameterGestureProps(name, null, fallback);
+				const displayedGesture = scale === 1 ? gesture : {
+					...(gesture.onGestureBegin && { onGestureBegin: next => gesture.onGestureBegin(next / scale) }),
+					...(gesture.onGesturePreview && { onGesturePreview: next => gesture.onGesturePreview(next / scale) }),
+					...(gesture.onGestureCommit && { onGestureCommit: next => gesture.onGestureCommit(next / scale) }),
+					...(gesture.onGestureCancel && { onGestureCancel: gesture.onGestureCancel }),
+				};
+				const parameterLabel = nativeEffectParameterLabel(effect.type, name, copy);
+				const displayLabel = nyquistPort && name === 'frequency' && ['highpass-filter', 'lowpass-filter', 'notch-filter', 'shelf-filter'].includes(effect.type)
+					? nativeEffectParameterLabel('tremolo', 'frequency', copy)
+					: effect.type === 'multi-tap-delay' && name === 'pitchShift'
+						? `${parameterLabel} (${nativeEffectParameterLabel('audacity-change-pitch', 'semitones', copy)})` : parameterLabel;
+				const sourceUnit = sourceControl?.unit || unit;
 				return (
 					<ParameterNumber
-					label={nativeEffectParameterLabel(effect.type, name, copy)}
-					value={effect.params?.[name]}
-					range={range}
-					step={descriptor?.[2]?.step}
+					label={parameterLabel}
+					displayLabel={displayLabel}
+					value={sourceControl ? Number(effect.params?.[name]) * scale : effect.params?.[name]}
+					range={sourceControl && range ? range.map(value => value * scale) : range}
+					step={descriptor?.[2]?.step ? descriptor[2].step * scale : undefined}
+					presentation={sourceControl?.presentation || 'knob'}
+					valueUnit={sourceControl && ['Hz', 'kHz', 'ms', 's', 'dB', '%', '°'].includes(sourceUnit) ? sourceUnit : undefined}
 					copy={copy}
 					disabled={disabled}
 					hook={name}
-					timeCodeUnit={timeCodeUnit(effect.type, name, unit, range)}
+					timeCodeUnit={sourceControl ? null : timeCodeUnit(effect.type, name, unit, range)}
 					sampleRate={sampleRate}
-						onCommit={(next) => updateParam(name, next, { controlValue: next })}
-						{...parameterGestureProps(name, null, fallback)}
+						onCommit={(next) => updateParam(name, next / scale, { controlValue: next / scale })}
+						{...displayedGesture}
 					/>
 			);
 		};
 		return (
 			<div className="audio-editor-effect-parameters" data-effect-parameters>
 				<AudacityEffectLayout
+					key={`${effect.id || 'selection'}:${effect.type}`}
 					effectType={effect.type}
 					definition={nativeDefinition}
 					parameters={effect.params}
+					sampleRate={sampleRate}
+					disabled={disabled}
 					copy={copy}
 					renderParameter={renderNativeParameter}
 					readDynamicsAnalysis={readDynamicsAnalysis}
@@ -247,7 +279,7 @@ export default function EffectParameterEditor({
 
 	const candidates = tracks.filter((track) => track.id !== targetTrackId);
 	const renderParameter = (name) => (
-		audacityParameterVisible(effect, name) ? (
+		audacityParameterVisible(effect, name) && (advancedSettings || !audacityAdvancedParameters(effect.type).includes(name)) ? (
 			<AudacityParameter
 				name={name}
 				effectType={effect.type}
@@ -255,7 +287,9 @@ export default function EffectParameterEditor({
 				value={effect.params?.[name]}
 				effectParams={effect.params}
 				copy={copy}
-				disabled={disabled}
+				disabled={disabled || (effect.type === 'audacity-normalize'
+					&& ['peakDb', 'stereoIndependent'].includes(name) && !effect.params?.applyGain)
+					|| (effect.type === 'audacity-loudness-normalization' && name === 'dualMono' && effect.params?.mode === 'rms')}
 				sampleRate={sampleRate}
 				onCommit={(value, automation) => updateParam(name, value, automation)}
 				gestureFor={(parameterId = name, elementId = null) => (
@@ -282,24 +316,32 @@ export default function EffectParameterEditor({
 			{definition.requiresNoiseProfile && (
 				<section className="audio-editor-audacity-layout__context-card audio-editor-audacity-layout__context-card--profile">
 					<div>
-						<h3>{copy.noiseProfileStep}</h3>
-						{!effect.context?.noiseProfile && <p className="audio-editor-panel-hint">{copy.rackNoiseProfileMissing}</p>}
+						<h3>{canonicalCopyValue('effectAudacityNoiseStep1', copy)}</h3>
+						<p>{canonicalCopyValue('effectAudacityNoiseProfileInstructions', copy)}</p>
+						{!effect.context?.noiseProfile && <p className="audio-editor-panel-hint sr-only">{copy.rackNoiseProfileMissing}</p>}
 					</div>
 					{captureNoiseProfile && (
 						<span data-effect-noise-profile data-audacity-noise-profile>
-							<Button disabled={disabled || captureNoiseProfileDisabled} onClick={captureNoiseProfile}>{noiseProfileLabel}</Button>
+							<AudacityNoiseProfileButton label={noiseProfileLabel || canonicalCopyValue('effectAudacityGetNoiseProfile', copy)} disabled={disabled || captureNoiseProfileDisabled} onClick={captureNoiseProfile}>{canonicalCopyValue('effectAudacityGetNoiseProfile', copy)}</AudacityNoiseProfileButton>
 						</span>
 					)}
 				</section>
 			)}
 		</>
 	);
+	const Layout = ['audacity-compressor', 'audacity-limiter'].includes(effect.type)
+		? AudacityDynamicsEffectLayout : AudacityEffectLayout;
 	return (
 		<div className="audio-editor-effect-parameters" data-effect-parameters>
-			<AudacityEffectLayout
+			<Layout
+				key={`${effect.id || 'selection'}:${effect.type}`}
 				effectType={effect.type}
 				definition={definition}
 				parameters={effect.params}
+				disabled={disabled}
+				sampleRate={sampleRate}
+				onChangeParameters={(params) => update({ params })}
+				effectContext={effect.context}
 				copy={copy}
 				renderParameter={renderParameter}
 				readDynamicsAnalysis={readDynamicsAnalysis}
@@ -368,6 +410,10 @@ function AudacityParameter({ name, effectType, descriptor, value, effectParams, 
 	return (
 		<ParameterNumber
 			label={`${label}${descriptor.unit ? ` (${descriptor.unit})` : ''}`}
+			displayLabel={effectType === 'audacity-limiter' && name === 'makeupTargetDb' ? canonicalCopyValue('effectActivityOutput', copy) : label}
+			valueUnit={descriptor.unit}
+			audacity
+			defaultValue={descriptor.default}
 			value={value}
 			range={range}
 			step={descriptor.step}

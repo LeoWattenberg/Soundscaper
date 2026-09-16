@@ -1,0 +1,409 @@
+/* Audacity 4 built-in dialogs: shared chrome and dynamics layouts. */
+.kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) {
+	--audacity-effect-bg: var(--panel);
+	--audacity-effect-secondary: var(--bg);
+	--audacity-effect-grid: var(--line);
+	--audacity-effect-chart: color-mix(in srgb, var(--panel) 85%, #6261a0);
+	--audacity-effect-accent: #9569ff;
+	background: var(--audacity-effect-bg);
+	font-family: Inter, sans-serif;
+	font-size: 12px;
+}
+
+html[data-theme='dark'] .kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) {
+	--audacity-effect-bg: #2d3439;
+	--audacity-effect-secondary: #262d31;
+	--audacity-effect-grid: #484e56;
+	--audacity-effect-chart: #313147;
+	--text: #ebedf0;
+	--control: #2d3439;
+	--line: #484e56;
+	--knob-dial-border: #59636b;
+	--knob-dial-bg: #262d31;
+	--knob-gauge: #79848c;
+	--knob-indicator: #e6ebed;
+}
+
+.kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) .dialog-header {
+	min-height: 30px;
+	height: 30px;
+	padding-block: 0;
+	font-size: 12px;
+	font-weight: 400;
+}
+
+.kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) .kw-audio-editor-dialog__body {
+	padding: 16px;
+}
+
+.kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) :is(.dialog-header__title, .dialog-header__windows-title, .dialog-header__macos-title) {
+	font-weight: 400;
+}
+
+.kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) .effect-header {
+	min-height: 64px;
+	box-sizing: border-box;
+	padding: 16px;
+	gap: 4px;
+	background: var(--audacity-effect-bg);
+	border-color: var(--audacity-effect-grid);
+	--effect-header-automation-active-bg: #7955bd;
+	--effect-header-button-bg: #505961;
+}
+
+.kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) .effect-header__right {
+	display: flex;
+}
+
+.kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) :is(.effect-header__left .toggle-button, .effect-header__icon-button) {
+	width: 30px;
+	height: 30px;
+}
+
+.kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) .effect-header__left .toggle-button--active {
+	background: #7955bd;
+	color: #fff;
+}
+
+html[data-theme='dark'] .kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) .effect-header__icon-button {
+	background: #505961;
+}
+
+html[data-theme='dark'] .kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) .checkbox {
+	box-sizing: border-box;
+	border: 1px solid #869099;
+	background: #66717c;
+}
+
+html[data-theme='dark'] .kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) .checkbox__icon {
+	color: #ebedf0;
+}
+
+.kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) input[type='number']::-webkit-inner-spin-button {
+	opacity: 1;
+}
+
+.kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) :is(.audio-editor-field, .audio-editor-effect-number) {
+	color: var(--text);
+	font-size: 12px;
+	font-weight: 400;
+	letter-spacing: normal;
+	text-transform: none;
+}
+
+.kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) :is(.text-input__field, .dropdown__trigger) {
+	min-height: 30px;
+	font-size: 12px;
+	font-weight: 400;
+}
+
+.kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) .knob {
+	--accent: var(--audacity-effect-accent);
+	width: 32px;
+	height: 32px;
+}
+
+.kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) :is(.knob__gauge, .knob__value-sweep, .knob__knob-group) {
+	width: 100%;
+	height: 100%;
+}
+
+.kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) .knob__dial-border {
+	width: 80%;
+	height: 80%;
+}
+
+.kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) .knob__dial {
+	width: 67%;
+	height: 67%;
+}
+
+.audio-editor-effect-number__value {
+	position: relative;
+	min-width: 0;
+}
+
+.audio-editor-effect-number__unit {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	color: var(--text);
+	font-size: 12px;
+	font-weight: 400;
+	pointer-events: none;
+	text-transform: none;
+}
+
+.audio-editor-effect-number__value[data-unit] .text-input__field {
+	padding-right: 0;
+}
+
+.kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) .audio-editor-effect-number__value .text-input {
+	height: 30px;
+	box-sizing: border-box;
+	padding: 0 4px;
+}
+
+.kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) .audio-editor-effect-number__value .text-input__field {
+	min-width: 0;
+	min-height: 28px;
+	box-sizing: border-box;
+	padding-left: 7px;
+}
+
+.audio-editor-effect-settings-dialog:has(.audio-editor-audacity-dynamics--compressor) {
+	width: min(823px, calc(100vw - 32px)) !important;
+}
+
+.audio-editor-effect-settings-dialog:has(.audio-editor-audacity-dynamics--limiter) {
+	width: min(570px, calc(100vw - 32px)) !important;
+}
+
+.audio-editor-audacity-dynamics {
+	gap: 12px;
+}
+
+.audio-editor-audacity-dynamics__controls {
+	display: grid;
+	grid-template-columns: 188px 166px minmax(180px, 1fr);
+	align-items: stretch;
+	gap: 24px;
+	padding: 16px;
+	background: var(--audacity-effect-secondary);
+	border: 1px solid var(--audacity-effect-grid);
+	border-radius: 4px;
+}
+
+.audio-editor-audacity-dynamics__primary,
+.audio-editor-audacity-dynamics__secondary {
+	display: grid;
+	grid-template-columns: repeat(2, 70px);
+	justify-content: start;
+	align-content: space-between;
+	gap: 24px;
+}
+
+.audio-editor-audacity-dynamics__primary {
+	position: relative;
+}
+
+.audio-editor-audacity-dynamics__primary::after {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	right: 0;
+	width: 1px;
+	background: var(--audacity-effect-grid);
+	content: '';
+}
+
+.audio-editor-audacity-dynamics .audio-editor-effect-number {
+	grid-template-columns: 70px;
+	justify-items: center;
+	gap: 6px;
+	text-align: center;
+}
+
+.audio-editor-audacity-dynamics .audio-editor-effect-number > span:first-child {
+	height: 16px;
+	line-height: 16px;
+	overflow: visible;
+	white-space: nowrap;
+}
+
+.audio-editor-audacity-dynamics .audio-editor-effect-number__value {
+	width: 70px;
+}
+
+.audio-editor-audacity-dynamics .text-input__field {
+	padding-left: 11px;
+}
+
+.audio-editor-audacity-dynamics--limiter .audio-editor-audacity-dynamics__controls {
+	grid-template-columns: 192px minmax(0, 1fr);
+	gap: 16px;
+	align-items: center;
+}
+
+.audio-editor-audacity-dynamics--limiter .audio-editor-audacity-dynamics__primary {
+	grid-template-columns: repeat(2, 88px);
+	gap: 16px;
+	padding-block: 12px;
+}
+
+.audio-editor-audacity-dynamics--limiter .audio-editor-audacity-dynamics__secondary {
+	grid-template-columns: repeat(3, 70px);
+	gap: 16px;
+}
+
+.audio-editor-audacity-dynamics--limiter .audio-editor-audacity-dynamics__primary .audio-editor-audacity-knob {
+	width: 48px;
+	height: 48px;
+	grid-row: 1;
+}
+
+.audio-editor-audacity-dynamics--limiter .audio-editor-audacity-dynamics__primary .knob {
+	width: 48px;
+	height: 48px;
+}
+
+.audio-editor-audacity-dynamics__curve {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 22px;
+	grid-template-rows: 24px 180px;
+	font-variant-numeric: tabular-nums;
+}
+
+.audio-editor-audacity-dynamics__curve svg {
+	grid-area: 2 / 1;
+	width: 100%;
+	height: 180px;
+	min-height: 180px;
+	overflow: hidden;
+	background: var(--audacity-effect-chart);
+	border: 1px solid var(--audacity-effect-grid);
+}
+
+.audio-editor-audacity-dynamics__x-ticks {
+	grid-area: 1 / 1;
+}
+
+.audio-editor-audacity-dynamics__y-ticks {
+	grid-area: 2 / 2;
+}
+
+.audio-editor-audacity-dynamics__curve-grid {
+	fill: none;
+	stroke: var(--audacity-effect-grid);
+	stroke-width: 1;
+}
+
+.audio-editor-audacity-dynamics__curve-grid path,
+.audio-editor-audacity-dynamics__curve-line {
+	vector-effect: non-scaling-stroke;
+}
+
+.audio-editor-audacity-dynamics__curve-fill {
+	fill: #50caff;
+	fill-opacity: 0.1;
+}
+
+.audio-editor-audacity-dynamics__curve-line {
+	fill: none;
+	stroke: #50caff;
+	stroke-width: 1;
+}
+
+.audio-editor-audacity-dynamics__x-ticks,
+.audio-editor-audacity-dynamics__y-ticks,
+.audio-editor-audacity-dynamics__history-ticks {
+	display: flex;
+	justify-content: space-between;
+	font-size: 12px;
+}
+
+.audio-editor-audacity-dynamics__y-ticks,
+.audio-editor-audacity-dynamics__history-ticks {
+	flex-direction: column;
+	padding-left: 6px;
+}
+
+.audio-editor-audacity-dynamics__activity {
+	margin: 0;
+	padding: 0;
+	background: transparent;
+	border: 0;
+}
+
+.audio-editor-audacity-dynamics__show {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	height: 40px;
+	font-size: 12px;
+}
+
+.audio-editor-audacity-dynamics__history {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 26px 20px;
+	gap: 6px;
+	height: 280px;
+}
+
+.audio-editor-audacity-dynamics--limiter .audio-editor-audacity-dynamics__history {
+	height: 144px;
+}
+
+.audio-editor-audacity-dynamics__timeline {
+	position: relative;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+	background-color: var(--audacity-effect-chart);
+	background-image: linear-gradient(var(--audacity-effect-grid) 1px, transparent 1px), linear-gradient(90deg, var(--audacity-effect-grid) 1px, transparent 1px);
+	background-size: 100% 25%, calc(100% / 6) 100%;
+	border: 1px solid var(--audacity-effect-grid);
+}
+
+.audio-editor-audacity-dynamics--limiter .audio-editor-audacity-dynamics__timeline {
+	background-size: 100% 25%, 25% 100%;
+}
+
+.audio-editor-audacity-dynamics__activity .audio-editor-audacity-layout__activity-canvas {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.audio-editor-audacity-dynamics__meters {
+	display: flex;
+	gap: 4px;
+}
+
+.audio-editor-audacity-dynamics__meters > div {
+	position: relative;
+	width: 11px;
+	border: 1px solid var(--audacity-effect-grid);
+}
+
+.audio-editor-audacity-dynamics__meters span {
+	position: absolute;
+	inset: 0 0 auto;
+	background: #ffd12c;
+}
+
+.audio-editor-audacity-dynamics__meters > div:last-child span {
+	inset: auto 0 0;
+	background: #565695;
+}
+
+.audio-editor-audacity-dynamics__activity :is(.audio-editor-audacity-layout__activity-readout, .audio-editor-audacity-layout__activity-idle) {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+	.audio-editor-audacity-dynamics__controls {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 24px;
+	}
+
+	.audio-editor-audacity-dynamics__curve {
+		grid-column: 1 / -1;
+	}
+
+	.audio-editor-audacity-dynamics--limiter .audio-editor-audacity-dynamics__controls {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.audio-editor-audacity-dynamics--limiter .audio-editor-audacity-dynamics__primary::after {
+		display: none;
+	}
+}

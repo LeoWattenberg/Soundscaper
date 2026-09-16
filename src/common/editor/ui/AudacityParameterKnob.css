@@ -1,0 +1,33 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+.audio-editor-audacity-knob {
+	position: relative;
+	display: block;
+	width: fit-content;
+	border-radius: 50%;
+	outline: none;
+}
+
+.audio-editor-audacity-knob__accessible {
+	position: absolute;
+	inset: 0;
+	border-radius: 50%;
+	outline: none;
+	pointer-events: none;
+}
+
+.audio-editor-audacity-knob__accessible:focus-visible {
+	outline: 2px solid var(--focus-color);
+	outline-offset: 2px;
+}
+
+.audio-editor-audacity-knob .knob__knob-group {
+	transform: rotate(var(--audacity-knob-angle)) !important;
+}
+
+.audio-editor-audacity-knob .knob__gauge {
+	background: conic-gradient(from -140deg, var(--knob-gauge) 0deg 280deg, transparent 280deg);
+}
+
+.audio-editor-audacity-knob .knob__value-sweep {
+	background: conic-gradient(from -140deg, var(--audacity-knob-accent, #926BFF) 0deg var(--audacity-knob-sweep), transparent var(--audacity-knob-sweep)) !important;
+}

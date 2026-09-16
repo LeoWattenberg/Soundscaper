@@ -24,7 +24,7 @@ test.describe('effect presets Audacity ships', () => {
 		const dialog = page.locator('[data-selection-effects-dialog]');
 		await expect(dialog).toBeVisible();
 		const presets = dialog.getByRole('button', { name: 'Preset', exact: true });
-		await expect(presets).toContainText('No preset');
+		await expect(presets).toContainText('Default preset');
 		await presets.click();
 
 		// The list carries Audacity's own presets, and none of them is marked as

@@ -54,7 +54,7 @@ async function recordStandardEffectNodes(page) {
 
 async function configureEffect(page, dialog, effect) {
 	await expect(dialog.locator(`[data-audacity-effect-layout="${effect.type}"]`)).toBeVisible();
-	const input = dialog.locator(`[data-effect-param="${effect.parameter}"] input`);
+	const input = dialog.locator(`[data-effect-param="${effect.parameter}"]`).getByRole('spinbutton');
 	await commitInput(input, effect.value);
 	await expect(input).toHaveValue(effect.value);
 	if (effect.choice) {
@@ -82,7 +82,12 @@ test.describe('regular effects converted from Nyquist', () => {
 				const dialog = page.getByRole('dialog', { name: 'Apply effect', exact: true });
 				const label = name === 'Notch filter' ? 'Notch frequency' : 'Cutoff frequency';
 				const control = dialog.getByRole('group', { name: label, exact: true });
-				await expect(control.getByRole('slider')).toHaveAttribute('aria-valuemax', maximum);
+				await expect(control.getByRole('slider')).toHaveCount(0);
+				const before = await control.getByRole('spinbutton', { name: label, exact: true }).inputValue();
+				await commitInput(control.getByRole('spinbutton', { name: label, exact: true }), String(sampleRate / 2));
+				await closeDialog(dialog);
+				await chooseNestedCommandAction(page, editor, 'Effect', ['EQ and filters', name]);
+				await expect(control.getByRole('spinbutton', { name: label, exact: true })).toHaveValue(before);
 				await commitInput(control.getByRole('spinbutton', { name: label, exact: true }), maximum);
 				await expect(control.getByRole('spinbutton', { name: label, exact: true })).toHaveValue(maximum);
 				await dialog.getByRole('button', { name: 'Apply to selection', exact: true }).click();
@@ -156,6 +161,8 @@ test.describe('regular effects converted from Nyquist', () => {
 		const slot = panel.getByRole('group', { name: 'Noise gate', exact: true });
 		await slot.getByRole('button', { name: 'Select effect', exact: true }).click();
 		const dialog = page.getByRole('dialog', { name: 'Noise gate', exact: true });
+		await dialog.getByRole('button', { name: 'More options', exact: true }).click();
+		await page.getByRole('menuitem', { name: 'Advanced settings', exact: true }).click();
 		await commitInput(dialog.getByRole('spinbutton', { name: 'Lookahead', exact: true }), '0.03');
 		await expect(dialog.getByRole('spinbutton', { name: 'Lookahead', exact: true })).toHaveValue('0.03');
 		await expect.poll(() => page.evaluate(() => globalThis.__standardEffectNodes.created)).toBeGreaterThan(created);
@@ -168,6 +175,8 @@ test.describe('regular effects converted from Nyquist', () => {
 		editor = await waitForEditor(page);
 		panel = await openEffectsForTrack(editor, 1);
 		await panel.getByRole('group', { name: 'Noise gate', exact: true }).getByRole('button', { name: 'Select effect', exact: true }).click();
+		await page.getByRole('dialog', { name: 'Noise gate', exact: true }).getByRole('button', { name: 'More options', exact: true }).click();
+		await page.getByRole('menuitem', { name: 'Advanced settings', exact: true }).click();
 		await expect(page.getByRole('dialog', { name: 'Noise gate', exact: true }).getByRole('spinbutton', { name: 'Lookahead', exact: true })).toHaveValue('0.03');
 		expect(errors).toEqual([]);
 	});
@@ -230,12 +239,14 @@ test.describe('regular effects converted from Nyquist', () => {
 			const slot = panel.locator('[data-effect-rack]').getByRole('group', { name: effect.name, exact: true });
 			await slot.getByRole('button', { name: 'Select effect', exact: true }).click();
 			const dialog = page.getByRole('dialog', { name: effect.name, exact: true });
-			await commitInput(dialog.locator(`[data-effect-param="${effect.parameter}"] input`), effect.value);
-			const knob = dialog.locator(`[data-effect-param="${effect.parameter}"]`).getByRole('slider');
-			await knob.press('ArrowUp');
+			const number = dialog.locator(`[data-effect-param="${effect.parameter}"]`).getByRole('spinbutton');
+			await commitInput(number, effect.value);
+			const slider = dialog.locator(`[data-effect-param="${effect.parameter}"]`).getByRole('slider');
+			if (await slider.count()) await slider.press('ArrowUp');
+			else await commitInput(number, String(Number(effect.value) + 1));
 			await expect.poll(() => page.evaluate(type => globalThis.__standardEffectNodes.configured[type] || 0,
 				effect.type)).toBeGreaterThan(0);
-			await commitInput(dialog.locator(`[data-effect-param="${effect.parameter}"] input`), effect.value);
+			await commitInput(number, effect.value);
 			await closeDialog(dialog);
 			await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 			expect(await page.evaluate(() => globalThis.__standardEffectNodes.created)).toBe(created);
@@ -243,7 +254,7 @@ test.describe('regular effects converted from Nyquist', () => {
 		const tremolo = panel.locator('[data-effect-rack]').getByRole('group', { name: 'Tremolo', exact: true });
 		await tremolo.getByRole('button', { name: 'Select effect', exact: true }).click();
 		const liveSettings = page.getByRole('dialog', { name: 'Tremolo', exact: true });
-		await commitInput(liveSettings.locator('[data-effect-param="depth"] input'), '80');
+		await commitInput(liveSettings.locator('[data-effect-param="depth"]').getByRole('spinbutton'), '80');
 		await chooseDropdown(page, liveSettings.getByRole('group', { name: 'Waveform', exact: true }), 'Square');
 		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 		expect(await page.evaluate(() => globalThis.__standardEffectNodes.created)).toBe(created);
@@ -259,7 +270,7 @@ test.describe('regular effects converted from Nyquist', () => {
 			const slot = panel.locator('[data-effect-rack]').getByRole('group', { name: effect.name, exact: true });
 			await slot.getByRole('button', { name: 'Select effect', exact: true }).click();
 			const dialog = page.getByRole('dialog', { name: effect.name, exact: true });
-			await expect(dialog.locator(`[data-effect-param="${effect.parameter}"] input`)).toHaveValue(effect.type === 'tremolo' ? '80' : effect.value);
+			await expect(dialog.locator(`[data-effect-param="${effect.parameter}"]`).getByRole('spinbutton')).toHaveValue(effect.type === 'tremolo' ? '80' : effect.value);
 			if (effect.choice) {
 				await expect(dialog.getByRole('group', { name: effect.choice[0], exact: true }).getByRole('button')).toContainText(effect.type === 'tremolo' ? 'Square' : effect.choice[1]);
 			}

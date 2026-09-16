@@ -6,6 +6,8 @@ import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { takeSelectedFile } from '../file-input-selection.ts';
+import { canonicalCopyValue } from '../../../i18n/canonical-extras.js';
+import { samePresetParams } from './effect-helpers.ts';
 import AudacityEffectHeader from './AudacityEffectHeader.jsx';
 
 /**
@@ -27,6 +29,10 @@ export default function EffectPresetBar({
 	presets,
 	selectedId = '',
 	unsaved = false,
+	defaultParams = /** @type {null | Record<string, unknown>} */ (null),
+	currentParams = /** @type {null | Record<string, unknown>} */ (null),
+	onDefault = /** @type {null | (() => void)} */ (null),
+	onAdvancedSettings = /** @type {null | (() => void)} */ (null),
 	onSelect,
 	onSave,
 	onSaveAs,
@@ -53,6 +59,11 @@ export default function EffectPresetBar({
 	}, [resetKey]);
 	const selected = presets.find((preset) => preset.id === selectedId) || null;
 	const canOverwrite = Boolean(selected?.custom) && !disabled;
+	const hasDefault = defaultParams != null;
+	const defaultBaseline = hasDefault && !selected;
+	const defaultEdited = defaultBaseline && !samePresetParams(currentParams, defaultParams);
+	const baselineLabel = hasDefault ? canonicalCopyValue('effectDefaultPreset', copy) : copy.noEffectPreset;
+	const baselineDisplay = `${baselineLabel}${defaultEdited ? '*' : ''}`;
 
 	const labelFor = (preset) => {
 		// Upstream marks stored presets as custom and flags unsaved edits with a
@@ -79,20 +90,25 @@ export default function EffectPresetBar({
 				isDestructive={!automation}
 				automationEnabled={automation?.enabled ?? false}
 				onToggleAutomation={automation?.onToggle}
-				presetName={selected ? labelFor(selected) : copy.noEffectPreset}
-				presets={[copy.noEffectPreset, ...options.map(({ display }) => display)]}
+				presetName={selected ? labelFor(selected) : baselineDisplay}
+				presets={[baselineDisplay, ...options.map(({ display }) => display)]}
 				onPresetChange={(value) => {
 					if (disabled) return;
 					const choice = options.find((option) => option.display === value);
-					onSelect(choice?.id || '');
+					if (!choice && hasDefault && onDefault) onDefault();
+					else onSelect(choice?.id || '');
 				}}
 				onSavePreset={(event) => {
 					if (disabled) return;
 					setOptionsMenu(null);
 					setSaveMenu(anchor(event));
 				}}
-				canUndo={Boolean(selectedId) && unsaved && !disabled}
-				onUndo={() => { if (!disabled) onReset(); }}
+				canUndo={(Boolean(selectedId) && unsaved || defaultEdited) && !disabled}
+				onUndo={() => {
+					if (disabled) return;
+					if (defaultBaseline && onDefault) onDefault();
+					else onReset();
+				}}
 				canDelete={canOverwrite}
 				onDeletePreset={() => { if (canOverwrite) onDelete(); }}
 				onMoreOptions={(event) => {
@@ -115,6 +131,10 @@ export default function EffectPresetBar({
 			</ContextMenu>
 
 			<ContextMenu isOpen={Boolean(optionsMenu)} onClose={close} x={optionsMenu?.x || 0} y={optionsMenu?.y || 0}>
+				{onAdvancedSettings && <ContextMenuItem
+					label={canonicalCopyValue('effectAdvancedSettings', copy)}
+					onClick={() => { close(); onAdvancedSettings(); }}
+				/>}
 				<ContextMenuItem
 					label={copy.importEffectPreset}
 					onClick={() => { close(); fileRef.current?.click(); }}

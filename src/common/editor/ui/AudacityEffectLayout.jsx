@@ -2,6 +2,8 @@ import React from 'react';
 import { canonicalCopyValue } from '../../i18n/canonical-extras.js';
 import DynamicsActivityPanel, { supportsDynamicsActivity } from './DynamicsActivityPanel.jsx';
 import EditorHelpTooltip from './EditorHelpTooltip.tsx';
+import AudacityPortEffectLayout from './AudacityPortEffectLayout.jsx';
+import { isAudacityNyquistPort } from './audacity-port-layouts.ts';
 
 const EFFECT_LAYOUTS = Object.freeze({
 	deesser: [
@@ -333,7 +335,16 @@ export function AudacityEffectLayout({
 	after = null,
 	copy,
 	readDynamicsAnalysis = null,
+	disabled = false,
+	effectContext = {},
+	sampleRate = undefined,
+	onChangeParameters = null,
 }) {
+	if ((effectType?.startsWith('audacity-') || isAudacityNyquistPort(effectType)) && !['audacity-compressor', 'audacity-limiter'].includes(effectType)) {
+		return <AudacityPortEffectLayout effectType={effectType} definition={definition} parameters={parameters}
+			effectContext={effectContext} disabled={disabled} onChangeParameters={onChangeParameters} sampleRate={sampleRate}
+			renderParameter={renderParameter} before={before} after={after} copy={copy} />;
+	}
 	const parameterNames = Object.keys(definition?.params || {});
 	const groups = layoutGroups(effectType, parameterNames);
 	const effectClass = String(effectType || 'effect').replace(/[^a-z0-9_-]+/gi, '-');

@@ -1,0 +1,82 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+.audio-editor-audacity-noise__reduction {
+	padding: 16px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	background: var(--audacity-effect-secondary, var(--surface-alt));
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+.audio-editor-audacity-noise__reduction > h3 {
+	margin: 0 0 16px;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.audio-editor-audacity-noise__reduction > p {
+	margin: 0 0 16px;
+}
+
+.audio-editor-audacity-noise__parameters {
+	display: grid;
+	gap: 16px;
+}
+
+.audio-editor-audacity-noise__output {
+	display: grid;
+	gap: 8px;
+	margin-top: 16px;
+	padding-top: 16px;
+	border-top: 1px solid var(--line);
+}
+
+.audio-editor-audacity-noise__output > span {
+	margin-bottom: 2px;
+}
+
+.audio-editor-audacity-noise__choice {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 12px;
+	line-height: 20px;
+	cursor: pointer;
+}
+
+.audio-editor-audacity-noise__choice input {
+	appearance: none;
+	flex: 0 0 16px;
+	width: 16px;
+	height: 16px;
+	margin: 0;
+	border: 1px solid var(--muted);
+	border-radius: 50%;
+	background: transparent;
+	cursor: inherit;
+}
+
+.audio-editor-audacity-noise__choice input:checked {
+	background: radial-gradient(circle, var(--text) 0 3px, transparent 3.5px);
+}
+
+.audio-editor-audacity-noise__choice input:focus-visible {
+	outline: 2px solid var(--focus-color);
+	outline-offset: 2px;
+}
+
+.audio-editor-audacity-noise__choice:has(input:disabled) {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.audio-editor-audacity-layout--audacity-noise-reduction .audio-editor-panel-hint.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}

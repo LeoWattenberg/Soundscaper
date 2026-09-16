@@ -45,9 +45,9 @@ test.describe('Audacity Filter Curve EQ', () => {
 		const curve = graph.getByRole('img', { name: 'Drawn curve', exact: true });
 		await expect(graph.getByRole('img', { name: 'Actual filter response', exact: true })).toHaveCount(1);
 		await expect(graph).toContainText('24k');
-		const cardWidth = await dialog.getByRole('heading', { name: 'Equalization curve', exact: true }).evaluate((heading) => heading.parentElement.getBoundingClientRect().width);
+		const contentWidth = await graph.evaluate((element) => element.parentElement.getBoundingClientRect().width);
 		const graphWidth = (await graph.boundingBox()).width;
-		expect(graphWidth / cardWidth).toBeGreaterThan(0.9);
+		expect(graphWidth / contentWidth).toBeGreaterThan(0.9);
 		await dialog.getByRole('button', { name: 'Preset', exact: true }).click();
 		await page.getByRole('option', { name: 'Bass Cut', exact: true }).click();
 		await expect(graph.getByRole('img', { name: 'Actual filter response', exact: true })).toBeVisible();

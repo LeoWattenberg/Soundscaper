@@ -1,0 +1,119 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+.audio-editor-audacity-wx-graph {
+	width: 100%;
+	margin-block: 5px 10px;
+	font-size: 11px;
+}
+
+.audio-editor-audacity-wx-graph__plot {
+	position: relative;
+	padding: 0 8px 24px 48px;
+	min-width: 0;
+	flex: 1;
+}
+
+.audio-editor-audacity-wx-graph__plot > svg {
+	display: block;
+	width: 100%;
+	height: 200px;
+	border: 1px solid #000;
+	background: #fff;
+	overflow: hidden;
+}
+
+.audio-editor-audacity-wx-graph__line {
+	fill: none;
+	stroke: #6e6edc;
+	stroke-width: 3px;
+	vector-effect: non-scaling-stroke;
+}
+
+.audio-editor-audacity-wx-graph--filter .audio-editor-audacity-wx-graph__line {
+	stroke: #18a999;
+}
+
+.audio-editor-audacity-wx-graph__grid > path {
+	fill: none;
+	stroke: #7f7f7f;
+	stroke-width: 1px;
+	vector-effect: non-scaling-stroke;
+}
+
+.audio-editor-audacity-wx-graph__grid > .is-minor {
+	stroke: #b2b2b2;
+}
+
+.audio-editor-audacity-wx-graph__grid > .is-zero {
+	stroke: #000;
+}
+
+.audio-editor-audacity-wx-graph__y-ticks {
+	position: absolute;
+	left: 0;
+	top: 0;
+	height: 200px;
+	width: 42px;
+}
+
+.audio-editor-audacity-wx-graph__y-ticks > span {
+	position: absolute;
+	right: 0;
+	transform: translateY(-50%);
+}
+
+.audio-editor-audacity-wx-graph__x-ticks {
+	position: relative;
+	margin-top: 6px;
+}
+
+.audio-editor-audacity-wx-graph__x-ticks > span {
+	position: absolute;
+	transform: translateX(-50%);
+	white-space: nowrap;
+}
+
+.audio-editor-audacity-wx-graph--duck > svg {
+	display: block;
+	width: 100%;
+	aspect-ratio: 2;
+	background: #fff;
+	border: 1px solid #000;
+}
+
+.audio-editor-audacity-wx-graph__duck-boundaries {
+	fill: none;
+	stroke: #000;
+	stroke-dasharray: 1 2;
+	stroke-width: 1px;
+}
+
+.audio-editor-audacity-wx-graph--duck circle {
+	fill: #fff;
+	stroke: #6e6edc;
+}
+
+.audio-editor-audacity-wx-graph--duck text {
+	fill: #000;
+	font-size: 13.333px;
+}
+
+.audio-editor-audacity-wx-graph--filter {
+	display: flex;
+	gap: 8px;
+}
+
+.audio-editor-audacity-wx-graph__ranges {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	height: 200px;
+}
+
+.audio-editor-audacity-wx-graph__ranges > input {
+	min-height: 0;
+	flex: 1;
+	width: 18px;
+	writing-mode: vertical-lr;
+	direction: rtl;
+}

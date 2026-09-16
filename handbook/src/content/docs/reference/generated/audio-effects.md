@@ -121,7 +121,7 @@ Defaults and limits come from the same definitions the editor validates against,
 | Auto Duck | `audacity-auto-duck` | Maximum pause | 1 | 0 or more | s |
 | Bass and Treble | `audacity-bass-treble` | Bass | 0 | -30 to 30 | dB |
 | Bass and Treble | `audacity-bass-treble` | Treble | 0 | -30 to 30 | dB |
-| Bass and Treble | `audacity-bass-treble` | Volume | 0 | -30 to 30 | dB |
+| Bass and Treble | `audacity-bass-treble` | Output volume | 0 | -30 to 30 | dB |
 | Bitcrusher | `bitcrusher` | Bit depth | 8 | 1 to 16 | bits |
 | Bitcrusher | `bitcrusher` | Sample rate reduction | 1 | 1 to 64 | x |
 | Bitcrusher | `bitcrusher` | Mix | 100 | 0 to 100 | % |
@@ -145,13 +145,13 @@ Defaults and limits come from the same definitions the editor validates against,
 | Compressor | `compressor` | Attack | 0.003 | 0 to 1 | s |
 | Compressor | `compressor` | Release | 0.25 | 0.01 to 2 | s |
 | Compressor | `compressor` | Makeup gain | 0 | -24 to 24 | dB |
-| Compressor (Audacity) | `audacity-compressor` | Threshold | -10 | -60 to 0 | dB |
-| Compressor (Audacity) | `audacity-compressor` | Make-up gain | 0 | -30 to 30 | dB |
-| Compressor (Audacity) | `audacity-compressor` | Knee width | 5 | 0 to 30 | dB |
-| Compressor (Audacity) | `audacity-compressor` | Ratio | 10 | 1 to 100 | — |
-| Compressor (Audacity) | `audacity-compressor` | Lookahead | 1 | 0 to 1000 | ms |
-| Compressor (Audacity) | `audacity-compressor` | Attack | 30 | 0 to 200 | ms |
-| Compressor (Audacity) | `audacity-compressor` | Release | 150 | 0 to 1000 | ms |
+| Compressor (Audacity) | `audacity-compressor` | Threshold | -12 | -60 to 0 | dB |
+| Compressor (Audacity) | `audacity-compressor` | Make-up gain | 9 | -30 to 30 | dB |
+| Compressor (Audacity) | `audacity-compressor` | Knee width | 6 | 0 to 30 | dB |
+| Compressor (Audacity) | `audacity-compressor` | Ratio | 4 | 1 to 100 | — |
+| Compressor (Audacity) | `audacity-compressor` | Lookahead | 3 | 0 to 1000 | ms |
+| Compressor (Audacity) | `audacity-compressor` | Attack | 3 | 0 to 200 | ms |
+| Compressor (Audacity) | `audacity-compressor` | Release | 100 | 0 to 1000 | ms |
 | De-esser | `deesser` | Frequency | 6000 | 1000 to 16000 | Hz |
 | De-esser | `deesser` | Threshold | -30 | -60 to 0 | dB |
 | De-esser | `deesser` | Maximum reduction | 9 | 0 to 24 | dB |
@@ -203,7 +203,7 @@ Defaults and limits come from the same definitions the editor validates against,
 | Limiter | `limiter` | Ceiling | -1 | -24 to 0 | dB |
 | Limiter | `limiter` | Lookahead | 0.005 | 0 to 0.1 | s |
 | Limiter | `limiter` | Release | 0.1 | 0.01 to 2 | s |
-| Limiter (Audacity) | `audacity-limiter` | Threshold | -5 | -30 to 0 | dB |
+| Limiter (Audacity) | `audacity-limiter` | Threshold | -6 | -30 to 0 | dB |
 | Limiter (Audacity) | `audacity-limiter` | Make-up target | -1 | -30 to 0 | dB |
 | Limiter (Audacity) | `audacity-limiter` | Knee width | 2 | 0 to 10 | dB |
 | Limiter (Audacity) | `audacity-limiter` | Lookahead | 1 | 0 to 50 | ms |
@@ -241,8 +241,8 @@ Defaults and limits come from the same definitions the editor validates against,
 | Noise gate | `noise-gate` | Gate frequencies above | 0 | 0 to 10000 | Hz |
 | Noise gate | `noise-gate` | Stereo linking | Link channels | Link channels; Independent channels | — |
 | Normalize | `audacity-normalize` | Peak amplitude | -1 | -145 to 0 | dBFS |
-| Normalize | `audacity-normalize` | Remove DC offset | On | On or off | — |
-| Normalize | `audacity-normalize` | Normalize peak amplitude | On | On or off | — |
+| Normalize | `audacity-normalize` | Remove DC offset (center on 0.0 vertically) | On | On or off | — |
+| Normalize | `audacity-normalize` | Normalize peak amplitude to | On | On or off | — |
 | Normalize | `audacity-normalize` | Normalize stereo channels independently | Off | On or off | — |
 | Notch filter | `notch-filter` | Notch frequency | 60 | 0.1 to 192000 | Hz |
 | Notch filter | `notch-filter` | Q | 1 | 0.1 to 1000 | Q |

@@ -162,7 +162,7 @@ test('Audacity scalar descriptors retain manifest ranges and block every unconsu
 		step: threshold?.step,
 		automatable: threshold?.automatable,
 	}, {
-		minimum: -60, maximum: 0, defaultValue: -10, unit: 'dB', step: 0.1, automatable: false,
+		minimum: -60, maximum: 0, defaultValue: -12, unit: 'dB', step: 0.1, automatable: false,
 	});
 	assert.match(threshold?.automationBlockReason || '', /worklet|queue/iu);
 	assert.equal(lookahead?.automatable, false);

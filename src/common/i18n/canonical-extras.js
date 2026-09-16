@@ -4,6 +4,7 @@ import { STANDARD_EFFECT_COPY_ENTRIES } from './canonical-extras-standard-effect
 import { localeLanguage } from './locale.js';
 // Canonical effect/layout and Audacity parity copy. The exported catalogs are flat.
 const COPY_ENTRIES = Object.freeze([
+	['effectAdvancedSettings', 'Advanced settings', 'Erweiterte Einstellungen'],
 	...STANDARD_EFFECT_COPY_ENTRIES,
 	['audacityParityLabelCutPreview', 'Cut preview', 'Schnitt vorhören'],
 	['audacityParityLabelPlayStopAndSetCursor', 'Play/Stop and set cursor', 'Wiedergabe/Stopp und Cursor setzen'],
@@ -71,6 +72,10 @@ const COPY_ENTRIES = Object.freeze([
 	["effectActivityOutput","Output","Ausgang"],
 	["effectActivityReduction","Gain reduction","Pegelabsenkung"],
 	["effectActivityIdle","Play the project to see what this effect is doing.","Projekt abspielen, um die Wirkung dieses Effekts zu sehen."],
+	["effectActivityShow","Show:","Anzeigen:"],
+	["effectActivityCompression","Compression","Kompression"],
+	["effectActivityHistory","Input, output and compression history","Verlauf von Eingang, Ausgang und Kompression"],
+	["effectCompressionCurve","Compression curve","Kompressionskurve"],
 	["effectCardMode","Mode","Modus"],
 	["effectCardResolution","Resolution","Auflösung"],
 	["effectNameBitcrusher","Bitcrusher","Bitcrusher"],
@@ -501,6 +506,10 @@ export function audacityParityLabelCopyKey(label) {
 	return 'audacityParityLabel' + keyPart(label);
 }
 
+/**
+ * @param {string} key
+ * @param {string | Readonly<Record<string, string>>} copyOrLocale
+ */
 export function canonicalCopyValue(key, copyOrLocale = 'en') {
 	const copy = copyOrLocale && typeof copyOrLocale === 'object'
 		? copyOrLocale
