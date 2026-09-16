@@ -5,8 +5,8 @@ import test from 'node:test';
 
 import {
 	createRoutedRecordingCaptureService,
-	planRoutedRecordingSources,
 } from '../src/common/editor/controller/recording/internal/routed-recording-capture-service.ts';
+import { planRoutedRecordingSources } from '../src/common/editor/controller/recording/internal/routed-recording-source-plan.ts';
 import type { RecordingMediaStream } from '../src/common/editor/controller/recording/recording-transaction-types.ts';
 import {
 	createRecordingCaptureFixture,
@@ -97,7 +97,7 @@ test('routed capture initializes assigned entries and hands one recorder to the 
 	assert.equal(fixture.finalizeCalls(), 1);
 });
 
-test('routed capture drops a failed source controller and reports that no inputs survived', async () => {
+test('routed capture drops a failed source controller and preserves its failure', async () => {
 	const controllerFailure = new Error('worklet failed');
 	const fixture = createRecordingCaptureFixture({
 		createRecorder: async () => { throw controllerFailure; },
@@ -113,11 +113,47 @@ test('routed capture drops a failed source controller and reports that no inputs
 			{ trackId: 'track-1' },
 			createScope(() => true),
 		),
-		/No inputs/,
+		(error: unknown) => error === controllerFailure,
 	);
 	assert.equal(fixture.state.recordingRouteHealth['track-1'], 'unavailable');
 	assert.equal(fixture.state.recordingEntries, null);
 	assert.equal(fixture.state.recordingStarting, false);
+});
+
+test('routed capture preserves the display sharing failure when no inputs survive', async () => {
+	const failure = new DOMException('Could not start audio source', 'NotReadableError');
+	const fixture = createRecordingCaptureFixture({ acquireDisplay: () => Promise.reject(failure) });
+	fixture.state.recordingRouting = {
+		routes: { 'track-1': { kind: 'display', channelStart: 0, channelCount: 2 } },
+		offsets: {},
+	};
+	await assert.rejects(createRoutedRecordingCaptureService(fixture.runtime).capture(
+		{ trackId: 'track-1' }, createScope(() => true),
+	), (error: unknown) => error === failure);
+	assert.equal(fixture.state.recordingRouteHealth['track-1'], 'unavailable');
+	assert.equal(fixture.state.recordingStarting, false);
+	assert.equal(fixture.state.recorder, null);
+	assert.equal(fixture.recorderCreations(), 0);
+});
+
+test('a surviving display source reports its recorder failure instead of a skipped hardware failure', async () => {
+	const recorderFailure = new Error('Desktop recording worklet failed');
+	const fixture = createRecordingCaptureFixture({
+		acquireHardware: () => Promise.reject(new Error('Microphone denied')),
+		createRecorder: () => Promise.reject(recorderFailure),
+	});
+	fixture.state.recordingRouting = {
+		routes: {
+			'track-1': { kind: 'display', channelStart: 0, channelCount: 2 },
+			'track-2': { kind: 'device', deviceId: 'mic', channelStart: 0, channelCount: 1 },
+		},
+		offsets: {},
+	};
+	await assert.rejects(createRoutedRecordingCaptureService(fixture.runtime).capture(
+		{}, createScope(() => true),
+	), (error: unknown) => error === recorderFailure);
+	assert.equal(fixture.state.recordingStarting, false);
+	assert.equal(fixture.state.recorder, null);
 });
 
 test('routed prepared-only capture marks unavailable routes without opening a new stream', async () => {
@@ -133,7 +169,7 @@ test('routed prepared-only capture marks unavailable routes without opening a ne
 			{ trackId: 'track-1', reusePreparedInputsOnly: true },
 			createScope(() => true),
 		),
-		/No inputs/,
+		/Prepared input closed/,
 	);
 	assert.equal(fixture.hardwareRequests(), 0);
 	assert.equal(fixture.state.recordingRouteHealth['track-1'], 'unavailable');
@@ -306,7 +342,7 @@ test('routed capture classifies permission, channel, and live-stream failures', 
 			{ trackId: 'track-1' },
 			createScope(() => true),
 		),
-		/No inputs/,
+		/permission denied/,
 	);
 	assert.equal(permission.state.recordingRouteHealth['track-1'], 'unavailable');
 

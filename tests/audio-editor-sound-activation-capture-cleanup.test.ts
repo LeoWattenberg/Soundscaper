@@ -49,7 +49,7 @@ test('routed setup failure cancels every independent policy session before disca
 
 	await assert.rejects(
 		createRoutedRecordingCaptureService(fixture.runtime).capture({}, createScope(() => true)),
-		/No inputs/u,
+		/recorder construction failed/u,
 	);
 
 	assert.deepEqual(fixture.soundActivationStates.map(({ source, state }) => [source.sourceKey, state]), [

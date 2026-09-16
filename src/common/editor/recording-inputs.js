@@ -7,6 +7,7 @@
 // pairing with it. Split out of recording.js; no behaviour changes here.
 
 import { acquireSoundscaperNativeAudioCapture } from './soundscaper-native-audio-capture.ts';
+export { requestDisplayInput } from './recording-display-input.ts';
 
 const DISPLAY_REPLACEMENT_SUFFIX = ':replacement';
 
@@ -60,30 +61,6 @@ export async function requestHardwareInput({
 	}
 	return mediaDevices.getUserMedia.call(mediaDevices, { audio });
 }
-
-/**
- * Request tab/window/system audio while retaining its required video track.
- * @param {import('./recording-input-options.ts').DisplayRecordingInputOptions} [options]
- */
-export async function requestDisplayInput({
-	audioConstraints = true,
-	videoConstraints = true,
-	displayConstraints = {},
-	mediaDevices = getMediaDevices(),
-} = {}) {
-	if (!mediaDevices?.getDisplayMedia) {
-		throw new Error('Desktop audio recording is not supported in this browser.');
-	}
-	return mediaDevices.getDisplayMedia.call(mediaDevices, {
-		...displayConstraints,
-		video: videoConstraints || true,
-		audio: audioConstraints || true,
-		selfBrowserSurface: 'exclude',
-		systemAudio: 'include',
-		windowAudio: 'system',
-	});
-}
-
 
 /**
  * Normalize the browser's software recording gain. Values are linear: 1 is

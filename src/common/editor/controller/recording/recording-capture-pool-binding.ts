@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createRecordingCapturePool } from '../../recording-capture-pool.js';
-import { requestDisplayInput, requestHardwareInput } from '../../recording-inputs.js';
+import { requestHardwareInput } from '../../recording-inputs.js';
+import { requestDisplayInput } from '../../recording-display-input.ts';
 import { RECORDING_DEFAULT_DEVICE_ID } from '../../recording-routing.js';
 import type { DisplayRecordingInputOptions, HardwareRecordingInputOptions, RecordingMediaDevices } from '../../recording-input-options.ts';
 import type { RecordingPoolSource } from './internal/recording-input-coordination-service.ts';

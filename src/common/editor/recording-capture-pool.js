@@ -14,10 +14,10 @@ import {
 	hasLiveTrack,
 	normalizeDeviceId,
 	normalizeRecordingChannelCount,
-	requestDisplayInput,
 	requestHardwareInput,
 	stopStream,
 } from './recording-inputs.js';
+import { requestDisplayInput } from './recording-display-input.ts';
 
 /**
  * Keep hardware/display streams alive across controller lifetimes. The pool
@@ -243,4 +243,3 @@ function snapshotEntry(entry) {
 		state: 'open',
 	});
 }
-

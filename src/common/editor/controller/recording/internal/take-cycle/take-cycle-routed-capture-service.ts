@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { TakeCycleRecordingOptions } from '../../take-cycle-recording-service.ts';
 import { selectRoutedRecordingChannels } from '../recording-capture-channels.ts';
-import { planRoutedRecordingSources } from '../routed-recording-capture-service.ts';
+import { planRoutedRecordingSources } from '../routed-recording-source-plan.ts';
 import { observeTakeCycleRoutedCaptureLifetime } from './take-cycle-routed-capture-lifetime.ts';
 import { createTakeCycleRoutedPcmStream } from './take-cycle-routed-pcm-stream.ts';
 import type {
