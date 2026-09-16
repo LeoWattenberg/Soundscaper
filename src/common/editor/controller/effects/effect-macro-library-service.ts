@@ -18,6 +18,8 @@ export interface EffectMacroLibraryEntry extends Readonly<Record<string, unknown
 export interface EffectMacroLibraryState {
 	readonly schemaVersion: 1;
 	readonly macros: readonly EffectMacroLibraryEntry[];
+	/** Defaults are seeded once, so renaming or deleting one is a lasting edit. */
+	readonly defaultsInitialized?: true;
 }
 
 export interface EffectMacroLibraryServiceRuntime {

@@ -48,19 +48,21 @@ test('the macro library survives a controller restart and reaches the document s
 	const store = createMemoryStore();
 	const controller = openController(store);
 	await controller.ready;
+	const defaults = controller.getSnapshot().macros.library.map(({ id, name }) => ({ id, name }));
+	assert.deepEqual(defaults.map(({ name }) => name), ['Restoration', 'Fade ends']);
 	const saved = controller.actions.macros.library.save({
 		name: 'Cleanup',
 		effects: [{ type: 'audacity-invert' }],
 	});
 	assert.deepEqual(
 		controller.getSnapshot().macros.library.map(({ id, name }) => ({ id, name })),
-		[{ id: saved.id, name: 'Cleanup' }],
+		[...defaults, { id: saved.id, name: 'Cleanup' }],
 	);
 	controller.actions.macros.library.save({ ...saved, name: 'Cleanup v2' });
 	await controller.actions.macros.library.flush();
 	assert.deepEqual(
 		store.settings.get('audio-editor-effect-macros-v1').macros.map(({ name }) => name),
-		['Cleanup v2'],
+		['Restoration', 'Fade ends', 'Cleanup v2'],
 	);
 	await controller.dispose();
 
@@ -68,11 +70,14 @@ test('the macro library survives a controller restart and reaches the document s
 	await reopened.ready;
 	assert.deepEqual(
 		reopened.getSnapshot().macros.library.map(({ name }) => name),
-		['Cleanup v2'],
+		['Restoration', 'Fade ends', 'Cleanup v2'],
 		'a saved macro must still be there the next time the manager opens',
 	);
 	assert.equal(reopened.actions.macros.library.delete(saved.id), true);
 	await reopened.actions.macros.library.flush();
-	assert.deepEqual(store.settings.get('audio-editor-effect-macros-v1').macros, []);
+	assert.deepEqual(
+		store.settings.get('audio-editor-effect-macros-v1').macros.map(({ name }) => name),
+		['Restoration', 'Fade ends'],
+	);
 	await reopened.dispose();
 });

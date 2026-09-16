@@ -91,6 +91,8 @@ export interface ProjectBootstrapServiceRuntime<
 	}> | null;
 	readonly mediaDevices?: ProjectBootstrapMediaDevices | null;
 	readonly automaticAudioDeviceEnumeration?: boolean;
+	readonly effectMacroDefaults?: boolean;
+	readonly persistEffectMacroLibrary?: (key: string, value: EffectMacroLibraryState) => Promise<unknown>;
 	readonly productSettingKey: (key: string) => string;
 	readonly audioDevicePreferencesSettingKey: string;
 	readonly recordingInputGainDefault: number;
@@ -193,11 +195,22 @@ export function createProjectBootstrapService<
 			if (effectMacroLibrarySchemaIsAhead(storedMacros)) {
 				runtime.effectsState.setEffectMacros(createInitialEffectMacroLibrary(), true);
 			} else {
-				runtime.effectsState.setEffectMacros(createInitialEffectMacroLibrary(storedMacros || {}));
+				const current = createInitialEffectMacroLibrary(storedMacros || {});
+				if (runtime.effectMacroDefaults && !current.defaultsInitialized) {
+					const defaults = await guard(import('../../../effects/effect-macro-defaults-service.ts'));
+					await guard(defaults.hydrateDefaultEffectMacroLibrary(current, {
+						guard, setEffectMacros: runtime.effectsState.setEffectMacros,
+						persistEffectMacroLibrary: runtime.persistEffectMacroLibrary,
+						handleError: runtime.handleError, isDisposedError: runtime.isDisposedError,
+					}));
+				} else runtime.effectsState.setEffectMacros(current);
 			}
 		} catch (error) {
 			if (runtime.isDisposedError(error)) throw error;
-			runtime.effectsState.setEffectMacros(createInitialEffectMacroLibrary());
+			if (runtime.effectMacroDefaults) {
+				const defaults = await guard(import('../../../effects/effect-macro-defaults-service.ts'));
+				runtime.effectsState.setEffectMacros(await guard(defaults.createDefaultEffectMacroLibrary()));
+			} else runtime.effectsState.setEffectMacros(createInitialEffectMacroLibrary());
 		}
 		// Saved macro programs hydrate beside the step-list library, under their own
 		// key so an older build simply does not read them.

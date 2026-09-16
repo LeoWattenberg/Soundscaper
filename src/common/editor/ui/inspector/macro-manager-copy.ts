@@ -17,6 +17,7 @@ export interface MacroManagerCopy {
 	readonly failureAtLine: string;
 	readonly importProgram: string;
 	readonly exportProgram: string;
+	readonly deleteProgram: string;
 	readonly programImported: string;
 	readonly programImportFailed: string;
 	readonly reviewHeading: string;

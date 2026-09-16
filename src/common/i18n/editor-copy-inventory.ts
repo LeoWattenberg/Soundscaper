@@ -94,10 +94,7 @@ const { pressure: pressureGerman, preflightStatus: preflightGerman, operation: o
 const inventory = buildEditorCopyInventory(ENGLISH_COPY, GERMAN_COPY, [
 	{ owner: 'macroManager', ...MACRO_MANAGER_COPY_BY_LOCALE },
 	{ owner: 'trackAutomation', ...TRACK_AUTOMATION_COPY_BY_LOCALE },
-	{ owner: 'effectMacroTemplate', en: { templates: templateEnglish.templates, restoration: templateEnglish.restoration,
-		profileRequired: templateEnglish.profileRequired }, de: { templates: templateGerman.templates,
-		restoration: templateGerman.restoration, profileRequired: templateGerman.profileRequired } },
-	{ owner: 'effectMacroTemplate.names', en: templateEnglish.names, de: templateGerman.names },
+	{ owner: 'effectMacroTemplate', en: templateEnglish, de: templateGerman },
 	{ owner: 'soundscaperNative', en: SOUNDSCAPER_NATIVE_SERVICES_COPY, aliases: processingAliases },
 	{ owner: 'framescaperNative', en: FRAMESCAPER_NATIVE_SERVICES_COPY, aliases: processingAliases },
 	{ owner: 'mastering', en: SOUNDSCAPER_MASTERING_SEQUENCE_COPY },

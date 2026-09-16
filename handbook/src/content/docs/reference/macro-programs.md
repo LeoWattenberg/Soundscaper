@@ -16,7 +16,9 @@ Programs are a Soundscaper feature. Framescaper has no macro manager.
 ## Where programs live
 
 Choose **Tools → Macro manager**. The dialog lists step-list macros and, under
-**Programs**, the programs you have saved. **New program** creates one, and the
+**Programs**, the programs you have saved. Press **+ (New program)** in the
+Programs header to create one. The same action bar offers **Import program**,
+**Export program**, and **Delete program** for the selected program. The
 detail pane shows its **Program name**, the **Program** text, and a **Run
 program** button. The text is saved as you type; there is no separate save step.
 

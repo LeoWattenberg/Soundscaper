@@ -23,7 +23,9 @@ test('editor inventory preserves legacy identities and isolates independently ow
 	assert.equal(EDITOR_ENGLISH_COPY.confirmDelete, 'Delete permanently');
 	assert.equal(EDITOR_ENGLISH_COPY['ui.soundscaperNative.audioDevices'], 'Audio devices');
 	assert.equal(EDITOR_ENGLISH_COPY.audioDevices, 'Audio setup');
-	assert.equal(EDITOR_ENGLISH_COPY['ui.effectMacroTemplate.names.fade-ends'], 'Fade ends');
+	assert.equal(EDITOR_ENGLISH_COPY['ui.effectMacroTemplate.templates'], undefined);
+	assert.equal(EDITOR_ENGLISH_COPY['ui.effectMacroTemplate.names.fade-ends'], undefined);
+	assert.equal(EDITOR_ENGLISH_COPY['ui.macroManager.deleteProgram'], 'Delete program');
 	assert.equal(EDITOR_GERMAN_COPY['ui.macroManager.runProgram'], 'Programm ausführen');
 	assert.equal(EDITOR_COPY_METADATA['ui.macroManager.runProgram']?.owner, 'macroManager');
 	assert.deepEqual(Object.keys(EDITOR_COPY_METADATA), Object.keys(EDITOR_ENGLISH_COPY));

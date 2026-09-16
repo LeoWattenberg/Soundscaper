@@ -116,6 +116,7 @@
 		"effects/effect-controls-service.ts",
 		"effects/effect-gesture-safety.ts",
 		"effects/effect-library-action-groups.ts",
+		"effects/effect-macro-defaults-service.ts",
 		"effects/effect-macro-library-service.ts",
 		"effects/effect-selection-service.ts",
 		"effects/effects-composition-types.ts",

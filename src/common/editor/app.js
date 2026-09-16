@@ -388,7 +388,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const projectBootstrapService = createProjectBootstrapComposition({
 		state, effectsState: effectsStatePorts.bootstrap, recordingState: recordingAccess, transportState: transportAccess, lifetime, store, engine, mediaDevices, productSettingKey,
-		automaticAudioDeviceEnumeration: capabilities.audioRecording === true,
+		automaticAudioDeviceEnumeration: capabilities.audioRecording === true, effectMacroDefaults: product.id === 'soundscaper', persistEffectMacroLibrary: (key, value) => persistSetting(key, value, { policy: 'required' }),
 		loadPreferences: bindings.loadPreferences,
 		createEffectPresets: createAudioEditorEffectPresets,
 		refreshAudioDevices: bindings.refreshAudioDevices,

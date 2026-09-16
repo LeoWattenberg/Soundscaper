@@ -21,7 +21,7 @@ export function createEffectMacroLibrary(value = {}) {
 	const macros = Array.isArray(source.macros)
 		? source.macros.map((macro) => normalizeEffectMacroDraft(macro))
 		: [];
-	return freezeLibrary(macros);
+	return freezeLibrary(macros, source.defaultsInitialized === true);
 }
 
 /**
@@ -61,7 +61,7 @@ export function saveEffectMacro(state, options = {}) {
 	const macros = index < 0
 		? [...current.macros, macro]
 		: current.macros.map((candidate, at) => at === index ? macro : candidate);
-	return { state: freezeLibrary(macros), macro };
+	return { state: freezeLibrary(macros, current.defaultsInitialized === true), macro };
 }
 
 export function deleteEffectMacro(state, macroId) {
@@ -70,10 +70,10 @@ export function deleteEffectMacro(state, macroId) {
 	if (!current.macros.some((macro) => macro.id === id)) {
 		throw new ReferenceError(`Effect macro ${id} does not exist.`);
 	}
-	return freezeLibrary(current.macros.filter((macro) => macro.id !== id));
+	return freezeLibrary(current.macros.filter((macro) => macro.id !== id), current.defaultsInitialized === true);
 }
 
-function freezeLibrary(macros) {
+function freezeLibrary(macros, defaultsInitialized = false) {
 	if (new Set(macros.map(({ id }) => id)).size !== macros.length) {
 		throw new RangeError('Effect macro IDs must be unique.');
 	}
@@ -81,5 +81,6 @@ function freezeLibrary(macros) {
 	return Object.freeze({
 		schemaVersion: AUDIO_EDITOR_EFFECT_MACRO_LIBRARY_SCHEMA_VERSION,
 		macros: Object.freeze(macros),
+		...(defaultsInitialized ? { defaultsInitialized: true } : {}),
 	});
 }
