@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	audacityXmlAttribute,
-	audacityXmlChildren,
+	audacityXmlChildren as readXmlChildren,
 	createAudacityXmlNode,
 	decodeAudacityBinaryXml,
 	encodeAudacityBinaryXml,
@@ -17,6 +17,8 @@ import {
 
 type XmlNode = ReturnType<typeof createAudacityXmlNode>;
 type NativeParameter = readonly [name: string, value: string];
+// The JavaScript helper accepts a tag name despite inferring its default as null.
+const audacityXmlChildren = readXmlChildren as unknown as (node: unknown, name: string) => XmlNode[];
 
 // CapturedParameters at Audacity 4c177d436e48c1d20f231eada44035593cb26292
 // includes these display settings in CompressorEffect and LimiterEffect state.
@@ -89,6 +91,7 @@ for (const fixture of NATIVE_DYNAMICS) {
 		]);
 		const [effect] = readAup4EffectsNode(nativeRack(effectNode), { idFactory: () => 'future-dynamics' });
 		assert.equal(effect.type, 'missing');
+		assert.ok(effect.missing);
 		assert.equal(effect.missing.reason, 'unsupported-state');
 		assert.equal(effect.bypassed, true);
 		assert.deepEqual(audacityXmlChildren(createAup4EffectsNode([effect]), 'effect'), [effectNode]);
