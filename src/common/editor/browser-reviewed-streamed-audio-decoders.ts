@@ -19,7 +19,7 @@ const PAYLOADS: Readonly<Record<ReviewedCodec, Payload>> = {
 	mp3: { url: new URL('./mpg123/mpg123.wasm', import.meta.url), prefix: 'scmp', manifest: mpg123.wasm },
 };
 const enabled = new Set<ReviewedCodec>();
-let preferredConfigurations = new WeakSet<AudioDecoderConfig>();
+let preferredConfigurations = new WeakMap<AudioDecoderConfig, ReviewedCodec>();
 let registered = false;
 const MAXIMUM_PACKET_BYTES = 1024 * 1024;
 const MAXIMUM_FRAMES = 65_536;
@@ -32,12 +32,18 @@ export function enableReviewedAudioImportDecoder(codec: AudioCodec | null): bool
 	return true;
 }
 
+/** Select one audited packet decoder before any source chunks reach storage. */
+export function preferReviewedAudioImportDecoder(codec: AudioCodec | null, config: AudioDecoderConfig): boolean {
+	if (codec !== 'flac' && codec !== 'opus' && codec !== 'vorbis' && codec !== 'mp3') return false;
+	preferredConfigurations.set(config, codec);
+	if (!ReviewedAudioImportDecoder.supports(codec, config)) { preferredConfigurations.delete(config); return false; }
+	registerReviewedDecoder();
+	return true;
+}
+
 /** A LayerII track needs mpg123 even when native support advertises the shared mp3 codec. */
 export function preferReviewedMpegLayerIIImportDecoder(config: AudioDecoderConfig): boolean {
-	if (config.codec !== 'mp3') return false;
-	preferredConfigurations.add(config);
-	registerReviewedDecoder();
-	return ReviewedAudioImportDecoder.supports('mp3', config);
+	return config.codec === 'mp3' && preferReviewedAudioImportDecoder('mp3', config);
 }
 
 function registerReviewedDecoder(): void {
@@ -45,7 +51,7 @@ function registerReviewedDecoder(): void {
 }
 
 /** Desktop imports must use native WebCodecs or their main-owned utility codec. */
-export function disableReviewedAudioImportDecoders(): void { enabled.clear(); preferredConfigurations = new WeakSet(); }
+export function disableReviewedAudioImportDecoders(): void { enabled.clear(); preferredConfigurations = new WeakMap(); }
 
 class ReviewedAudioImportDecoder extends CustomAudioDecoder {
 	#exports: WebAssembly.Exports | null = null;
@@ -57,7 +63,7 @@ class ReviewedAudioImportDecoder extends CustomAudioDecoder {
 	#closed = false;
 
 	static override supports(codec: AudioCodec, config: AudioDecoderConfig): boolean {
-		if ((!enabled.has(codec as ReviewedCodec) && !(codec === 'mp3' && preferredConfigurations.has(config))) || !Number.isSafeInteger(config.sampleRate)
+		if ((!enabled.has(codec as ReviewedCodec) && preferredConfigurations.get(config) !== codec) || !Number.isSafeInteger(config.sampleRate)
 			|| config.sampleRate < 8_000 || config.sampleRate > 192_000
 			|| !Number.isSafeInteger(config.numberOfChannels) || config.numberOfChannels < 1) return false;
 		if (codec === 'flac') return config.numberOfChannels <= 8;

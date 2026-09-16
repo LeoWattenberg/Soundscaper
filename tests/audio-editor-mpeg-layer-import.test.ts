@@ -3,12 +3,13 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { ALL_FORMATS, AudioSampleSink, BufferSource, Input } from 'mediabunny';
 import { encodeDedicatedAudioPcm } from '../src/common/editor/browser-dedicated-audio-codec.ts';
 import { prepareStreamedAudioImport } from '../src/common/editor/browser-streamed-audio-import.ts';
 import { disableReviewedAudioImportDecoders } from '../src/common/editor/browser-reviewed-streamed-audio-decoders.ts';
 import { openDesktopMpegLayerIIImportSession } from '../src/common/editor/desktop-mpeg-layer-ii-import.ts';
 
-test('actual MPEG LayerII uses the reviewed decoder despite native mp3 support without changing later LayerIII imports', async () => {
+test('browser MPEG layers use audited PCM while source preferences and desktop native policy remain isolated', async () => {
 	const pcm = Float32Array.from({ length: 48_000 * 2 }, (_value, index) => Math.sin(Math.floor(index / 2) * 0.05) * 0.3);
 	const encoded = async (format: 'mp2' | 'mp3') => encodeDedicatedAudioPcm({ format,
 		input: new Uint8Array(pcm.buffer), frameCount: 48_000, channelCount: 2, sampleRate: 48_000,
@@ -39,8 +40,29 @@ test('actual MPEG LayerII uses the reviewed decoder despite native mp3 support w
 		assert.ok(energy > 100);
 		assert.equal(nativeConstructors, 0);
 		const layer3 = await prepareStreamedAudioImport(new File([mp3], 'renamed.mp2', { type: 'audio/mpeg' }));
-		await assert.rejects(layer3.stream({ chunkFrames: 16_384, onChunk() {} }), /native MP3 decoder was selected/u);
+		frames = 0; energy = 0;
+		assert.equal(layer3.descriptor.sampleRate, 48_000);
+		assert.equal(layer3.descriptor.channelCount, 2);
+		assert.equal(layer3.descriptor.frameCount, 48_000);
+		await layer3.stream({ chunkFrames: 16_384, onChunk(channels) {
+			assert.equal(channels.length, 2); assert.ok(channels[0]!.length <= 16_384);
+			frames += channels[0]!.length;
+			for (const value of channels[0]!) energy += value * value;
+		} });
+		assert.equal(frames, 48_000); assert.ok(energy > 100); assert.equal(nativeConstructors, 0);
+		// An equal-valued fresh config outside the importer cannot inherit its source preference.
+		const direct = new Input({ source: new BufferSource(mp3), formats: ALL_FORMATS });
+		try {
+			const track = await direct.getPrimaryAudioTrack(); assert.ok(track);
+			const samples = new AudioSampleSink(track).samples();
+			await assert.rejects(samples.next(), /native MP3 decoder was selected/u);
+			await samples.return(undefined);
+		} finally { direct.dispose(); }
 		assert.equal(nativeConstructors, 1);
+		globalThis.fetch = () => { throw new Error('Desktop renderer payload fetch is forbidden.'); };
+		const desktop = await prepareStreamedAudioImport(new File([mp3], 'desktop.mp3', { type: 'audio/mpeg' }), { reviewedFallback: false });
+		await assert.rejects(desktop.stream({ chunkFrames: 16_384, onChunk() { assert.fail('Failed native PCM must not reach storage.'); } }), /native MP3 decoder was selected/u);
+		assert.equal(nativeConstructors, 2);
 	} finally {
 		disableReviewedAudioImportDecoders();
 		globalThis.fetch = originalFetch;

@@ -14,6 +14,31 @@ const cases = [
 	{ format: 'ogg-vorbis', extension: 'ogg', type: 'audio/ogg', settings: { quality: 6 } },
 ] as const;
 
+test('reviewed FLAC, Vorbis and MP3 ignore native support advertisements before publication', async () => {
+	const originalDecoder = globalThis.AudioDecoder;
+	const originalFetch = globalThis.fetch;
+	let nativeOpened = 0;
+	class AdvertisedDecoder {
+		static isConfigSupported(config: AudioDecoderConfig) { return Promise.resolve({ supported: true, config }); }
+		constructor() { nativeOpened++; throw new Error('Advertised native codec cannot decode.'); }
+	}
+	globalThis.AudioDecoder = AdvertisedDecoder as unknown as typeof AudioDecoder;
+	globalThis.fetch = async (url) => { assert.ok(url instanceof URL); return new Response(await readFile(url)); };
+	try {
+		for (const entry of cases.filter(({ format }) => ['flac', 'ogg-vorbis', 'mp3'].includes(format))) {
+			const pcm = Float32Array.from({ length: 4800 * 2 }, (_value, index) => Math.sin(index / 20) / 4);
+			const encoded = await encodeDedicatedAudioPcm({ format: entry.format, input: new Uint8Array(pcm.buffer),
+				frameCount: 4800, channelCount: 2, sampleRate: 48000, settings: entry.settings, maximumOutputBytes: 1024 ** 2,
+			}, { loadPayload: async (_format, url) => new Uint8Array(await readFile(url)) });
+			const prepared = await prepareStreamedAudioImport(new File([encoded], `native.${entry.extension}`, { type: entry.type }));
+			let frames = 0;
+			await prepared.stream({ chunkFrames: 2048, onChunk(channels) { frames += channels[0]!.length; } });
+			assert.equal(frames, 4800, entry.format);
+		}
+		assert.equal(nativeOpened, 0);
+	} finally { globalThis.AudioDecoder = originalDecoder; globalThis.fetch = originalFetch; }
+});
+
 for (const entry of cases) test(`reviewed ${entry.format} fallback decodes packets into bounded source chunks without AudioDecoder`, async () => {
 	assert.equal(typeof globalThis.AudioDecoder, 'undefined');
 	const frames = 48_000;
@@ -104,4 +129,24 @@ test('desktop import refuses renderer WASM fallback even after browser decoders 
 			reviewedFallback: false,
 		}), /desktop browser cannot incrementally decode/);
 	} finally { globalThis.fetch = originalFetch; }
+});
+
+test('desktop native admission never enables browser WASM after an advertised decoder fails', async () => {
+	const output = await encodeDedicatedAudioPcm({ format: 'flac', input: new Uint8Array(4800 * 8),
+		frameCount: 4800, channelCount: 2, sampleRate: 48000, settings: { compressionLevel: 5 }, maximumOutputBytes: 1024 ** 2,
+	}, { loadPayload: async (_format, url) => new Uint8Array(await readFile(url)) });
+	const originalDecoder = globalThis.AudioDecoder;
+	const originalFetch = globalThis.fetch;
+	let nativeOpened = 0;
+	class AdvertisedDecoder {
+		static isConfigSupported(config: AudioDecoderConfig) { return Promise.resolve({ supported: true, config }); }
+		constructor() { nativeOpened++; throw new Error('Desktop native decoder failed.'); }
+	}
+	globalThis.AudioDecoder = AdvertisedDecoder as unknown as typeof AudioDecoder;
+	globalThis.fetch = () => { throw new Error('Desktop renderer payload fetch is forbidden.'); };
+	try {
+		const prepared = await prepareStreamedAudioImport(new File([output], 'desktop.flac', { type: 'audio/flac' }), { reviewedFallback: false });
+		await assert.rejects(prepared.stream({ chunkFrames: 8192, onChunk() { assert.fail('Failed native decoding must not reach storage.'); } }), /Desktop native decoder failed/u);
+		assert.equal(nativeOpened, 1);
+	} finally { globalThis.AudioDecoder = originalDecoder; globalThis.fetch = originalFetch; }
 });
