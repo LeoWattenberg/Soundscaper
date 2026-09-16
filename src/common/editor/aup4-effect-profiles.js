@@ -43,6 +43,11 @@ const FILTER_DIRECTIONS = Object.freeze(['lowpass', 'highpass']);
 const FILTER_NATIVE_DIRECTIONS = Object.freeze(['Lowpass', 'Highpass']);
 const EQ_INTERPOLATIONS = Object.freeze(['bspline', 'cosine', 'cubic']);
 const EQ_NATIVE_INTERPOLATIONS = Object.freeze(['B-spline', 'Cosine', 'Cubic']);
+// Audacity persists its dynamics graph visibility with the processing state.
+// These have no browser model value: recognize them on import and retain their
+// original values in the opaque XML when rewriting the rack.
+const DYNAMICS_DISPLAY_PARAMETERS = ['showInput', 'showOutput', 'showActual', 'showTarget']
+	.map((native) => ({ native }));
 
 // These names and symbols are the stable CommandParameters representation
 // written by RealtimeEffectState at the pinned Audacity revision. Keeping the
@@ -80,6 +85,7 @@ export const AUP4_REALTIME_EFFECT_PROFILES = deepFreeze({
 			numberParam('thresholdDb'), numberParam('makeupGainDb'), numberParam('kneeWidthDb'),
 			numberParam('ratio', 'compressionRatio'), numberParam('lookaheadMs'),
 			numberParam('attackMs'), numberParam('releaseMs'),
+			...DYNAMICS_DISPLAY_PARAMETERS,
 		],
 	},
 	'audacity-distortion': {
@@ -119,6 +125,7 @@ export const AUP4_REALTIME_EFFECT_PROFILES = deepFreeze({
 		params: [
 			numberParam('thresholdDb'), numberParam('makeupTargetDb'), numberParam('kneeWidthDb'),
 			numberParam('lookaheadMs'), numberParam('releaseMs'),
+			...DYNAMICS_DISPLAY_PARAMETERS,
 		],
 	},
 	'audacity-noise-reduction': {
