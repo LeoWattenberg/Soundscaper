@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { AppendOnlyStreamTarget, AudioSample, AudioSampleSource, Mp4OutputFormat, Output } from 'mediabunny';
+import { AppendOnlyStreamTarget, EncodedAudioPacketSource, Mp4OutputFormat, Output } from 'mediabunny';
 import { browserAacMetadataTags } from './browser-aac-metadata.ts';
 import { aacSourceMetadata, validateAacSourceGeometry } from './aac-source-geometry.ts';
-import { BROWSER_AAC_WEB_CODECS_CODEC, probeBrowserWebCodecsAudioEncoding } from './browser-webcodecs-audio-profile.ts';
+import { probeBrowserWebCodecsAudioEncoding } from './browser-webcodecs-audio-profile.ts';
+import { awaitNativeAacAbort, createNativeAacEncoder, NATIVE_AAC_ACCESS_UNIT_FRAMES, type NativeAacResources } from './browser-native-aac-encoder.ts';
 
 interface StreamedAacRequest {
 	readonly sampleRate: number;
@@ -11,6 +12,7 @@ interface StreamedAacRequest {
 	readonly frameCount: number;
 	readonly metadata: Readonly<Record<string, string>>;
 	readonly signal?: AbortSignal;
+	readonly nativeResources?: NativeAacResources;
 	readPcm(accept: (bytes: Uint8Array<ArrayBuffer>, frames: number, offset: number) => Promise<void>): Promise<void>;
 	write(bytes: Uint8Array): Promise<void>;
 }
@@ -21,25 +23,22 @@ export async function encodeBrowserAacStreamed(request: StreamedAacRequest): Pro
 		if (request.signal?.aborted) throw request.signal.reason ?? new DOMException('The AAC export was cancelled.', 'AbortError');
 	};
 	assertCurrent();
-	if (!await probeBrowserWebCodecsAudioEncoding('aac', request)) throw new Error('This browser cannot encode the requested AAC configuration.');
+	if (!await awaitNativeAacAbort(probeBrowserWebCodecsAudioEncoding('aac', request), request.signal)) throw new Error('This browser cannot encode the requested AAC configuration.');
 	assertCurrent();
+	let encoder: ReturnType<typeof createNativeAacEncoder> | undefined;
 	const output = new Output({
 		format: new Mp4OutputFormat({ fastStart: 'fragmented', minimumFragmentDuration: 1 }),
-		target: new AppendOnlyStreamTarget(new WritableStream<Uint8Array>({ write: (bytes) => request.write(bytes) })),
+		target: new AppendOnlyStreamTarget(new WritableStream<Uint8Array>({ async write(bytes) {
+			assertCurrent(); encoder?.assertCurrent();
+			const writing = request.write(bytes);
+			if (encoder) await encoder.wait(writing);
+			else await awaitNativeAacAbort(writing, request.signal);
+			assertCurrent(); encoder?.assertCurrent();
+		} })),
 	});
 	const sourceMetadata = aacSourceMetadata(request.sampleRate, request.channelCount, request.frameCount);
 	let acceptedFrames = 0;
-	let encodedFrames = 0;
-	let invalidPackets = false;
-	const source = new AudioSampleSource({
-		codec: 'aac', fullCodecString: BROWSER_AAC_WEB_CODECS_CODEC, bitrate: request.bitrate,
-		onEncodedPacket(packet) {
-			const frames = packet.duration === 0 ? 1_024 : Math.round(packet.duration * request.sampleRate);
-			if (!packet.data.length || packet.data.length > 1024 ** 2 || frames !== 1_024
-				|| Math.abs(packet.timestamp * request.sampleRate - encodedFrames) > 1e-5) invalidPackets = true;
-			encodedFrames += frames;
-		},
-	});
+	const source = new EncodedAudioPacketSource('aac');
 	output.addAudioTrack(source);
 	output.setMetadataTags({ ...browserAacMetadataTags(request.metadata), raw: { scaf: sourceMetadata } });
 	let cancellation: Promise<void> | null = null;
@@ -48,26 +47,41 @@ export async function encodeBrowserAacStreamed(request: StreamedAacRequest): Pro
 	const onAbort = (): void => { void cancel(); };
 	request.signal?.addEventListener('abort', onAbort, { once: true });
 	try {
-		await output.start();
-		await request.readPcm(async (bytes, frames, offset) => {
+		await awaitNativeAacAbort(output.start(), request.signal);
+		encoder = createNativeAacEncoder({ ...request, acceptPacket: (packet, metadata) => source.add(packet, metadata) }, request.nativeResources);
+		const activeEncoder = encoder;
+		const unit = new Uint8Array(NATIVE_AAC_ACCESS_UNIT_FRAMES * request.channelCount * 4);
+		let bufferedBytes = 0;
+		let submittedFrames = 0;
+		const submitUnit = async (): Promise<void> => {
+			await activeEncoder.add(unit, submittedFrames);
+			submittedFrames += NATIVE_AAC_ACCESS_UNIT_FRAMES;
+			bufferedBytes = 0;
+		};
+		await activeEncoder.wait(request.readPcm(async (bytes, frames, offset) => {
 			assertCurrent();
 			if (!Number.isSafeInteger(frames) || frames < 1 || frames > 16_384 || offset !== acceptedFrames
 				|| acceptedFrames + frames > request.frameCount || bytes.byteLength !== frames * request.channelCount * 4) throw new RangeError('The AAC streaming PCM geometry is invalid.');
-			const sample = new AudioSample({
-				format: 'f32', sampleRate: request.sampleRate, numberOfChannels: request.channelCount,
-				timestamp: offset / request.sampleRate, data: bytes,
-			});
-			try { await source.add(sample); } finally { sample.close(); }
+			// WebKit repeats an input block's timing for every packet it produces.
+			// One complete access unit per input preserves native packet identity.
+			for (let start = 0; start < bytes.byteLength;) {
+				const count = Math.min(unit.byteLength - bufferedBytes, bytes.byteLength - start);
+				unit.set(bytes.subarray(start, start + count), bufferedBytes);
+				bufferedBytes += count; start += count;
+				if (bufferedBytes === unit.byteLength) await submitUnit();
+			}
 			acceptedFrames += frames;
 			assertCurrent();
-		});
+		}));
 		if (acceptedFrames !== request.frameCount) throw new RangeError('The AAC streaming PCM source is incomplete.');
-		await output.finalize();
+		if (bufferedBytes) { unit.fill(0, bufferedBytes); await submitUnit(); }
+		const encodedFrames = await activeEncoder.flush();
+		validateAacSourceGeometry(sourceMetadata, { sampleRate: request.sampleRate, channelCount: request.channelCount, encodedFrames });
+		await activeEncoder.wait(output.finalize());
 		finalized = true;
 		assertCurrent();
-		if (invalidPackets) throw new RangeError('The native AAC encoded packet geometry is outside its qualified profile.');
-		validateAacSourceGeometry(sourceMetadata, { sampleRate: request.sampleRate, channelCount: request.channelCount, encodedFrames });
 	} catch (error) {
-		await cancel(); assertCurrent(); throw error;
-	} finally { request.signal?.removeEventListener('abort', onAbort); }
+		encoder?.dispose();
+		await awaitNativeAacAbort(cancel(), request.signal).catch(() => undefined); assertCurrent(); throw error;
+	} finally { encoder?.dispose(); request.signal?.removeEventListener('abort', onAbort); }
 }

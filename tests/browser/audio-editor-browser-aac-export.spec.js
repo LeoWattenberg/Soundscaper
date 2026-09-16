@@ -5,11 +5,14 @@ import {
 	bootEditor,
 	chooseDropdown,
 	collectClientErrors,
+	clipByName,
 	disableNativeSavePicker,
 	importFiles,
 	openExportDialog,
 	readDownloadBytes,
 	registerAudioEditorHooks,
+	sourcePeakChannels,
+	waitForEditor,
 } from './audio-editor-test-helpers.js';
 
 const EXACT_AAC_CONFIGURATION = Object.freeze({
@@ -17,12 +20,13 @@ const EXACT_AAC_CONFIGURATION = Object.freeze({
 	sampleRate: 48_000,
 	numberOfChannels: 2,
 	bitrate: 192_000,
+	aac: Object.freeze({ format: 'aac' }),
 });
 
 test.describe('browser-native AAC export', () => {
 	registerAudioEditorHooks();
 
-	test('generates a complete M4A file through WebCodecs', async ({ page }) => {
+	test('generates a complete M4A file through WebCodecs and reimports its audio', async ({ page }) => {
 		test.setTimeout(90_000);
 		await disableNativeSavePicker(page);
 		const errors = collectClientErrors(page);
@@ -89,8 +93,25 @@ test.describe('browser-native AAC export', () => {
 		// used to: reading it needed a page-side fetch of the blob: URL, which the
 		// shipped policy forbids, and the exporter's audio/mp4 label is asserted at
 		// its source in tests/audio-editor-media-export.test.js.
-		expect(['M4A ', 'isom', 'mp42', 'dash']).toContain(witness.brand);
-		expect(witness.boxes.map(({ type }) => type)).toEqual(expect.arrayContaining(['mdat', 'moov']));
+		expect(witness.brand).toBe('iso5');
+		expect(witness.boxes.map(({ type }) => type)).toEqual(expect.arrayContaining(['moov', 'moof', 'mdat']));
+		await exportDialog.getByRole('button', { name: 'Close', exact: true }).first().click();
+		await expect(exportDialog).toBeHidden();
+		const name = 'delivered-native-aac.m4a';
+		await importFiles(editor, [{ name, mimeType: 'audio/mp4', buffer: Buffer.from(bytes) }]);
+		await expect(clipByName(editor, name)).toBeVisible();
+		await expect(editor).toHaveAttribute('data-clip-count', '2');
+		const peaks = await sourcePeakChannels(page, name);
+		expect(peaks.channelCount).toBe(2);
+		for (const channel of peaks.channels) {
+			expect(channel.minimum).toBeLessThan(-0.25);
+			expect(channel.maximum).toBeGreaterThan(0.25);
+			expect(channel.maximum).toBeLessThan(0.45);
+		}
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+		await page.reload();
+		await expect(clipByName(await waitForEditor(page), name)).toBeVisible();
+		expect(await sourcePeakChannels(page, name)).toEqual(peaks);
 		expect(errors).toEqual([]);
 	});
 });

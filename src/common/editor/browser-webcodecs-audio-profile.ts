@@ -26,6 +26,7 @@ export function browserWebCodecsAudioConfiguration(
 		sampleRate: positiveInteger(geometry.sampleRate, 'sample rate'),
 		numberOfChannels: positiveInteger(geometry.channelCount, 'channel count'),
 		bitrate: positiveInteger(geometry.bitrate, 'bitrate'),
+		...(codec === 'aac' ? { aac: Object.freeze({ format: 'aac' }) } : {}),
 	});
 }
 

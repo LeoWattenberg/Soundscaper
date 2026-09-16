@@ -40,6 +40,7 @@ const DELIVERY_PASSENGERS: readonly (readonly [string, string | null])[] = [
 	['src/common/editor/loudness-measurement-report.ts', 'editor-optional-execution'],
 	['src/common/editor/browser-dedicated-audio-profiles.ts', 'editor-optional-execution'],
 	['src/common/editor/browser-native-streamed-aac-import.ts', 'editor-optional-execution'],
+	['src/common/editor/browser-native-aac-encoder.ts', 'editor-optional-execution'],
 	// The archive slice has no group of its own: its modules are deliberately unowned so
 	// dynamic reachability places them with the lazy action that opened them.
 	['src/common/editor/aup4-time-signature.ts', null],

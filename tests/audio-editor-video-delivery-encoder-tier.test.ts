@@ -132,6 +132,7 @@ test('an audio delivery probes the exact browser codec tuple before rendering', 
 		sampleRate: 48_000,
 		numberOfChannels: 2,
 		bitrate: 192_000,
+		aac: { format: 'aac' },
 	}]);
 });
 

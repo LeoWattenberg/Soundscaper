@@ -218,7 +218,7 @@ test('browser audio preflight proves the exact AAC tuple before render-sized wor
 		metadata: { title: 'Complete M4A', year: '2026' },
 	});
 	assert.deepEqual(configurations, [{
-		codec: 'mp4a.40.2', sampleRate: 48_000, numberOfChannels: 2, bitrate: 192_000,
+		codec: 'mp4a.40.2', sampleRate: 48_000, numberOfChannels: 2, bitrate: 192_000, aac: { format: 'aac' },
 	}]);
 	await assert.rejects(() => runtime.preflightEncodeFile('aac-m4a', {
 		frameCount: 48_000, sampleRate: 48_000, bitRate: 192,

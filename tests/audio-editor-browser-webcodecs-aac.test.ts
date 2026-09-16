@@ -45,6 +45,7 @@ test('AAC capability uses the browser exact WebCodecs configuration probe', asyn
 		sampleRate: 48_000,
 		numberOfChannels: 2,
 		bitrate: 192_000,
+		aac: { format: 'aac' },
 	}]);
 });
 
