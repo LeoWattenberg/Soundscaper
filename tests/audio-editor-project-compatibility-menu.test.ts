@@ -90,6 +90,7 @@ test('opening the report defers its modal body until the requested surface loads
 		report: incompatible,
 		copy: ENGLISH_COPY,
 		reportOpen: true,
+		onOpenReport: () => undefined,
 		onCloseReport: () => undefined,
 	}));
 	assert.ok(markup.includes(ENGLISH_COPY.loading));
@@ -120,7 +121,7 @@ test('dismissal stays with its project when switching A to B and back to A', asy
 			button.textContent === ENGLISH_COPY.aup4CompatibilityDismiss
 		));
 		assert.ok(dismiss);
-		await act(async () => { reactProps(dismiss).onClick({}); });
+		await act(async () => { reactProps(dismiss).onClick({ currentTarget: dismiss }); });
 		assert.equal(dom.find('[data-project-feature-compatibility-summary]'), null);
 		await render('project-b');
 		assert.ok(dom.find('[data-project-feature-compatibility-summary]'), 'B has its own notification');

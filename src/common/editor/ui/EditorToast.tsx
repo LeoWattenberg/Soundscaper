@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { Toast } from '@soundscaper/design-system/Toast/Toast';
 
@@ -24,28 +24,25 @@ export interface EditorToastProps {
 export default function EditorToast({
 	id, title, description, type = 'info', actions = [], dismissLabel, onDismiss,
 }: EditorToastProps) {
-	const toastRef = useRef<HTMLElement>(null);
-	const dismiss = () => {
-		toastRef.current?.closest('[data-audio-editor]')?.querySelector<HTMLElement>('[data-chrome-drawer-toggle], [role="menuitem"]')?.focus({ preventScroll: true });
-		onDismiss();
-	};
-	return <section ref={toastRef} className="kw-audio-editor__toast" aria-label={title} data-editor-toast={id}>
+	return <section className="kw-audio-editor__toast" aria-label={title} data-editor-toast={id}>
 		<Toast id={id} type={type} title={title} description={description} showCloseButton={false} />
 		<div className="kw-audio-editor__toast-actions">
 			{actions.map((action) => <Button
 				key={action.label}
-				variant="secondary"
 				disabled={action.disabled}
 				onClick={action.onClick}
 			>{action.label}</Button>)}
-			<Button variant="secondary" onClick={dismiss}>{dismissLabel}</Button>
+			<Button onClick={(event) => {
+				event?.currentTarget.closest('[data-audio-editor]')?.querySelector<HTMLElement>('[data-chrome-drawer-toggle], [role="menuitem"]')?.focus({ preventScroll: true });
+				onDismiss();
+			}}>{dismissLabel}</Button>
 		</div>
 	</section>;
 }
 
 /** Mount while the warning applies; mounting again starts a new notification. */
-export function EditorWarningToast(props: Omit<EditorToastProps, 'onDismiss'>) {
+export function EditorWarningToast(props: Omit<EditorToastProps, 'onDismiss' | 'type'>) {
 	const [dismissed, setDismissed] = useState(false);
 	if (dismissed) return null;
-	return <EditorToast {...props} type={props.type ?? 'warning'} onDismiss={() => setDismissed(true)} />;
+	return <EditorToast {...props} type="warning" onDismiss={() => setDismissed(true)} />;
 }

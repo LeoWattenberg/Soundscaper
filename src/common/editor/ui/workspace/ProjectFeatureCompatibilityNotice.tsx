@@ -11,7 +11,7 @@ const ProjectFeatureCompatibilityDialog = lazyEditorModule(() => import('../dial
 
 interface ProjectFeatureCompatibilityNoticeProps extends ProjectFeatureCompatibilityReportProps {
 	readonly reportOpen?: boolean;
-	readonly onOpenReport?: () => void;
+	readonly onOpenReport: () => void;
 	readonly onCloseReport?: () => void;
 	readonly overlayTarget?: Element | null;
 }
@@ -35,12 +35,12 @@ export default function ProjectFeatureCompatibilityNotice({
 				title={copy.scapeCompatibilityTitle}
 				description={copy.projectReadOnly}
 				type="warning"
-				actions={onOpenReport ? [{ label: copy.aup4CompatibilityViewReport, onClick: onOpenReport }] : []}
+				actions={[{ label: copy.aup4CompatibilityViewReport, onClick: onOpenReport }]}
 				dismissLabel={copy.aup4CompatibilityDismiss}
-				onDismiss={() => setDismissedProjects((current) => new Set([...current, projectId]))}
+				onDismiss={() => setDismissedProjects((current) => new Set(current).add(projectId))}
 			/>
 		</div>}
-		{reportOpen && <Suspense fallback={<span className="kw-audio-editor-sr-only" role="status" aria-live="polite">{copy.loading}</span>}>
+		{reportOpen && <Suspense fallback={<span className="kw-audio-editor-sr-only" role="status">{copy.loading}</span>}>
 			<ProjectFeatureCompatibilityDialog {...props} onClose={onCloseReport} overlayTarget={overlayTarget} />
 		</Suspense>}
 	</>;

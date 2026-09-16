@@ -11,3 +11,7 @@ test('toast presentation and progress leaves belong to the ready editor shell', 
 		'components/src/ProgressBar/ProgressBar.tsx',
 	]) assert.equal(chunkGroupForModulePath(`vendor/audacity-design-system/${path}`), 'editor-shell-design-components', path);
 });
+
+test('the project lock notification loads only when the lock warning applies', () => {
+	assert.equal(chunkGroupForModulePath('src/common/editor/ui/ProjectLockToast.tsx'), 'editor-optional-surfaces');
+});

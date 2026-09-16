@@ -1,6 +1,7 @@
 import { useEditorSkin } from '../skins/EditorSkinProvider.tsx';
 import EditorToast, { EditorWarningToast } from '../EditorToast.tsx';
-import ProjectLockToast from '../ProjectLockToast.tsx';
+import { Suspense } from 'react';
+import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 
 import { productProfile } from '../../../products.js';
 import { WORKSPACE_PROJECT_FILE_ACCEPT } from './workspace-file-routing.js';
@@ -25,6 +26,8 @@ import { TrackAutomationRuntimeProvider } from '../soundscaper-workflow-product-
 import { useSplitToolShortcut } from '../timeline/useSplitToolShortcut.ts';
 import EditorSurfaceBoundary from '../EditorSurfaceBoundary.jsx';
 import { CueImportDestinationDialog, WorkspaceImportInput } from './cue-import-workspace.tsx';
+
+const ProjectLockToast = lazyEditorModule(() => import('../ProjectLockToast.tsx'));
 
 const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.webm,.wv';
 const AUDIO_EDITOR_IMPORT_FILE_ACCEPT = `${AUDIO_EDITOR_AUDIO_FILE_ACCEPT},.cue,.txt,.srt,.vtt,application/x-cue,text/plain,text/vtt,application/x-subrip`;
@@ -266,7 +269,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 					<EditorWarningToast id="temporary-storage" title={copy.storageEphemeralWarning} dismissLabel={copy.close} />
 				</div>}
 				{snapshot.lockReadOnly && <div key={project?.id || 'no-project'} data-project-lock-toast>
-					<ProjectLockToast snapshot={snapshot} copy={copy} controller={controller} run={run} />
+					<Suspense fallback={null}><ProjectLockToast snapshot={snapshot} copy={copy} controller={controller} run={run} /></Suspense>
 				</div>}
 				<ProjectFeatureCompatibilityNotice
 					project={project}
