@@ -238,3 +238,64 @@ test('store options are validated before any measurement is trusted', () => {
 	const wallClock = createNativeAudioCalibrationStore();
 	assert.ok(wallClock.record(IDENTITY, 1).measuredAtEpochMs > 0, 'the default clock is the wall clock');
 });
+
+test('equal-distance calibration selection is independent of persisted row order', () => {
+	const entries = [
+		{ identity: identity({ bufferFrames: 512 }), offsetMilliseconds: 7, measuredAtEpochMs: 100 },
+		{ identity: identity({ bufferFrames: 128 }), offsetMilliseconds: 3, measuredAtEpochMs: 100 },
+	];
+	for (const rows of [entries, [...entries].reverse()]) {
+		const resolution = createStore(rows).resolve(IDENTITY);
+		assert.equal(resolution.status, 'stale');
+		if (resolution.status !== 'stale') throw new Error('Expected a stale measurement.');
+		assert.equal(resolution.entry.offsetMilliseconds, 3);
+		assert.deepEqual(resolution.changed, ['bufferFrames']);
+		assert.equal(resolution.offsetMilliseconds, 0, 'the chosen stale offset is never applied');
+	}
+});
+
+test('a nearer calibration takes precedence over a more recent measurement', () => {
+	const store = createStore([
+		{ identity: identity({ bufferFrames: 128 }), offsetMilliseconds: 3, measuredAtEpochMs: 100 },
+		{ identity: identity({ bufferFrames: 512, mode: 'exclusive' }), offsetMilliseconds: 7, measuredAtEpochMs: 200 },
+		{ identity: identity({ sampleRate: 44_100 }), offsetMilliseconds: 9, measuredAtEpochMs: 50 },
+	]);
+	const resolution = store.resolve(IDENTITY);
+	assert.equal(resolution.status, 'stale');
+	if (resolution.status !== 'stale') throw new Error('Expected a stale measurement.');
+	assert.equal(resolution.entry.offsetMilliseconds, 3);
+	assert.deepEqual(resolution.changed, ['bufferFrames']);
+});
+
+test('equal-age eviction retains the same measurements regardless of persisted row order', () => {
+	const limit = NATIVE_AUDIO_CALIBRATION_LIMITS.maximumEntries;
+	const entries = Array.from({ length: limit + 2 }, (_unused, index) => ({
+		identity: identity({ bufferFrames: index + 1 }),
+		offsetMilliseconds: index,
+		measuredAtEpochMs: 100,
+	}));
+	const keys = entries.map((entry) => nativeAudioCalibrationKey(entry.identity)).sort();
+	const expected = keys.slice(2);
+	for (const rows of [entries, [...entries].reverse()]) {
+		const store = createStore(rows);
+		assert.deepEqual(store.snapshot().map((entry) => entry.key), expected);
+		assert.equal(store.snapshot().length, limit);
+	}
+});
+
+test('restoring damaged calibration rows preserves valid measurements with repaired timestamps', () => {
+	const store = createStore([
+		null, [], { identity: IDENTITY, offsetMilliseconds: Number.POSITIVE_INFINITY },
+		{ identity: IDENTITY, offsetMilliseconds: 8, measuredAtEpochMs: Number.NaN },
+		{ identity: identity({ bufferFrames: 128 }), offsetMilliseconds: 5, measuredAtEpochMs: -100 },
+		{ identity: identity({ bufferFrames: 512 }), offsetMilliseconds: 6, measuredAtEpochMs: 12.7 },
+	]);
+	assert.equal(store.snapshot().length, 3);
+	for (const [bufferFrames, offsetMilliseconds, measuredAtEpochMs] of [[256, 8, 0], [128, 5, 0], [512, 6, 13]]) {
+		const resolution = store.resolve(identity({ bufferFrames }));
+		assert.equal(resolution.status, 'applied');
+		if (resolution.status !== 'applied') throw new Error('Expected an exact measurement.');
+		assert.equal(resolution.offsetMilliseconds, offsetMilliseconds);
+		assert.equal(resolution.entry.measuredAtEpochMs, measuredAtEpochMs);
+	}
+});

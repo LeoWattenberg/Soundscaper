@@ -126,3 +126,68 @@ test('deferred hydration cannot publish after its lifetime guard rejects', async
 		isDisposedError: (error) => error === disposed,
 	}), disposed);
 });
+
+test('a failed migration write keeps the user macros and defaults available for a later retry', async () => {
+	const storageFailure = new Error('storage quota exhausted');
+	let state = createInitialEffectMacroLibrary();
+	const failures: unknown[] = [];
+	await hydrateDefaultEffectMacroLibrary({ macros: [{ id: 'mine', name: 'Mine', effects: [] }] }, {
+		guard: async (value) => value,
+		setEffectMacros: (value) => { state = value; },
+		persistEffectMacroLibrary: async (_key, value) => {
+			assert.equal(state, value, 'the migrated library is available before persistence settles');
+			throw storageFailure;
+		},
+		handleError: (error) => { failures.push(error); },
+		isDisposedError: () => false,
+	});
+
+	assert.equal(state.defaultsInitialized, true);
+	assert.deepEqual(state.macros.map(({ name }) => name), ['Mine', 'Restoration', 'Fade ends']);
+	assert.deepEqual(failures, [storageFailure]);
+	assert.deepEqual(await createDefaultEffectMacroLibrary(state), state,
+		'a retry must preserve the published defaults instead of duplicating them');
+});
+
+test('disposal while persisting a migration propagates instead of reporting a storage error', async () => {
+	const disposed = new Error('disposed during persistence');
+	let state = createInitialEffectMacroLibrary();
+	await assert.rejects(hydrateDefaultEffectMacroLibrary(undefined, {
+		guard: async (value) => value,
+		setEffectMacros: (value) => { state = value; },
+		persistEffectMacroLibrary: async () => { throw disposed; },
+		handleError: () => assert.fail('disposal must propagate'),
+		isDisposedError: (error) => error === disposed,
+	}), disposed);
+
+	assert.equal(state.defaultsInitialized, true);
+	assert.deepEqual(state.macros.map(({ name }) => name), ['Restoration', 'Fade ends']);
+});
+
+test('an initialized empty library hydrates without restoring deleted defaults or writing storage', async () => {
+	const empty = createInitialEffectMacroLibrary({ schemaVersion: 1, defaultsInitialized: true, macros: [] });
+	const published: EffectMacroLibraryState[] = [];
+	await hydrateDefaultEffectMacroLibrary(empty, {
+		guard: async (value) => value,
+		setEffectMacros: (value) => { published.push(value); },
+		persistEffectMacroLibrary: async () => assert.fail('an initialized library needs no migration write'),
+		handleError: () => assert.fail('hydration should succeed'),
+		isDisposedError: () => false,
+	});
+
+	assert.deepEqual(published, [empty]);
+});
+
+test('hydration can adopt defaults without a persistence capability', async () => {
+	const published: EffectMacroLibraryState[] = [];
+	await hydrateDefaultEffectMacroLibrary(undefined, {
+		guard: async (value) => value,
+		setEffectMacros: (value) => { published.push(value); },
+		handleError: () => assert.fail('a session without storage can still hydrate defaults'),
+		isDisposedError: () => false,
+	});
+
+	assert.equal(published.length, 1);
+	assert.equal(published[0]?.defaultsInitialized, true);
+	assert.deepEqual(published[0]?.macros.map(({ name }) => name), ['Restoration', 'Fade ends']);
+});
