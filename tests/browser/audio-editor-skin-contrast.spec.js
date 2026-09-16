@@ -66,6 +66,7 @@ for (const product of ['soundscaper', 'framescaper']) {
 					await checkbox.hover();
 					await expect(checkbox).toHaveCSS('border-width', '0px');
 					// Space tests the real checkbox keyboard path without the high-contrast override.
+					await page.keyboard.press('Tab');
 					await checkbox.focus();
 					await page.keyboard.press('Space');
 					await expect(checkbox).toHaveAttribute('aria-checked', 'true');
