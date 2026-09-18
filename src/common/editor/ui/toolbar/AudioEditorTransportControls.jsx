@@ -321,6 +321,10 @@ function ActionBarAudioDevicesButton({ copy, snapshot, controller, run }) {
 			close();
 			return;
 		}
+		if (!snapshot.audioDevices?.inputAccess
+			&& typeof controller.actions.recording.requestInputAccess === 'function') {
+			run(() => controller.actions.recording.requestInputAccess());
+		}
 		const rect = triggerRef.current?.getBoundingClientRect();
 		if (!rect) return;
 		setPosition({

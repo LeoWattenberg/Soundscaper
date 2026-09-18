@@ -23,10 +23,12 @@ test.describe('audio editor React/design-system workflows', () => {
 
 	test('opens Audacity microphone and speaker flyouts', async ({ page }) => {
 		await page.addInitScript(() => {
+			window.__microphoneRequests = 0;
 			Object.defineProperty(navigator, 'mediaDevices', {
 				configurable: true,
 				value: {
 					async getUserMedia() {
+						window.__microphoneRequests += 1;
 						const context = new AudioContext({ sampleRate: 48_000 });
 						const oscillator = context.createOscillator();
 						const gain = context.createGain();
@@ -44,11 +46,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA, toneB]);
 		await editor.locator('[data-action-bar]').getByRole('button', { name: 'Audio setup', exact: true }).click();
-		const audioDevicesFlyout = editor.getByRole('dialog', { name: 'Audio setup', exact: true });
-		const allowMicrophone = audioDevicesFlyout.getByRole('button', { name: 'Enable microphones', exact: true });
-		await expect(allowMicrophone).toBeVisible();
-		await allowMicrophone.click();
-		await expect(allowMicrophone).toHaveCount(0);
+		await expect(editor.getByRole('dialog', { name: 'Audio setup', exact: true })).toBeVisible();
+		await expect.poll(() => page.evaluate(() => window.__microphoneRequests)).toBe(1);
 		await page.keyboard.press('Escape');
 
 		const recordLevel = editor.getByRole('button', { name: 'Record level', exact: true });
