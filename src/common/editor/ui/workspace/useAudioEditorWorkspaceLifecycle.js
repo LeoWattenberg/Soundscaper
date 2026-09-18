@@ -70,6 +70,7 @@ export function useAudioEditorWorkspaceLifecycle({
 		controller.recordLocalDiagnosticError?.(error, 'workspace');
 		setLocalError(() => error);
 	}, [controller]);
+	const clearError = useCallback(() => setLocalError(null), []);
 	useEffect(() => {
 		if (requestedProjectOpenedRef.current) return;
 		requestedProjectOpenedRef.current = true;
@@ -169,7 +170,7 @@ export function useAudioEditorWorkspaceLifecycle({
 			.catch(onError);
 		return () => { active = false; };
 	}, [fileService, onError]);
-	return { desktopEnvironment, desktopHostRuntime, localError, onError, parityUi, run, uiFlags };
+	return { clearError, desktopEnvironment, desktopHostRuntime, localError, onError, parityUi, run, uiFlags };
 }
 
 /**

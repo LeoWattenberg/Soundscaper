@@ -45,6 +45,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		blocked,
 		capabilities,
 		chromeDrawer,
+		clearError,
 		compactLayout,
 		controller,
 		cueImportDialog,
@@ -70,6 +71,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		isVideoEditorWorkspace,
 		legacyDataInputRef,
 		locale,
+		localError,
 		moveWorkspacePanel,
 		onError,
 		openEffects,
@@ -264,6 +266,14 @@ export default function AudioEditorWorkspaceView({ model }) {
 				<StorageCapacityPanel snapshot={snapshot} locale={locale} copy={copy} controller={controller} run={run} />
 			)}
 			<div className="kw-audio-editor__toasts">
+				{localError && <EditorToast
+					id="workspace-error"
+					title={copy.unknownError}
+					description={localError}
+					type="error"
+					dismissLabel={copy.close}
+					onDismiss={clearError}
+				/>}
 				{snapshot.monitor?.enabled && <EditorWarningToast id="input-monitoring" title={copy.recordLevel} description={copy.monitorWarning} dismissLabel={copy.close} />}
 				{snapshot.storage?.ephemeral && <div data-storage-ephemeral-warning>
 					<EditorWarningToast id="temporary-storage" title={copy.storageEphemeralWarning} dismissLabel={copy.close} />

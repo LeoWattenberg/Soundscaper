@@ -111,6 +111,7 @@ export default function AudioEditorWorkspace({
 	const toolbarPreferences = preferences?.workspace?.toolbars || {};
 	const toolbarButtonPreferences = preferences?.workspace?.toolbarButtons || {};
 	const {
+		clearError,
 		desktopEnvironment,
 		desktopHostRuntime,
 		localError,
@@ -287,8 +288,8 @@ export default function AudioEditorWorkspace({
 		});
 	}, [controller, run, setActiveSurface, snapshot.selectedTrackId]);
 
-	const statusMessage = localError || snapshot.status?.message || copy.ready;
-	const statusState = localError ? 'error' : snapshot.status?.state || 'info';
+	const statusMessage = snapshot.status?.message || copy.ready;
+	const statusState = snapshot.status?.state || 'info';
 	const aup4Compatibility = snapshot.aup4Compatibility;
 	const saveText = snapshot.save?.state === 'saving'
 		? copy.projectSaving
@@ -566,5 +567,7 @@ export default function AudioEditorWorkspace({
 		toolbarDragRef, toolbarProps, trackHeaderDrawer,
 		uiFlags,
 		workspaceRef,
+				clearError,
+				localError,
 	}} />;
 }

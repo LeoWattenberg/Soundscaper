@@ -132,7 +132,8 @@ test.describe('desktop audio recording', () => {
 			await page.evaluate((next) => { window.__desktopCaptureOutcome = next; }, outcome);
 			const record = editor.getByRole('button', { name: 'Record onto the active track', exact: true });
 			await record.click();
-			await expect(editor.getByText(outcome === 'failure'
+			await expect(editor.locator('[data-editor-toast="workspace-error"]')
+				.getByText(outcome === 'failure'
 				? 'The action failed: Could not start audio source'
 				: 'The action failed: Display capture did not provide an audio track. Firefox does not support browser audio capture; use Chrome or Edge and enable Share audio.', { exact: true })).toBeVisible();
 			await expect(record).toHaveAttribute('aria-pressed', 'false');
