@@ -353,7 +353,7 @@ test('worklet reaches a scheduled stop without input and controller overrun acco
 test('capture pool discards audio-less display capture and removes externally ended streams', async () => {
 	const videoOnly = createMockStream([createMockTrack('video')]);
 	const invalidPool = createRecordingCapturePool({ requestDisplayInput: async () => videoOnly });
-	await assert.rejects(invalidPool.acquireDisplay(), /did not include a live audio track/);
+	await assert.rejects(invalidPool.acquireDisplay(), /did not provide an audio track/u);
 	assert.equal(videoOnly.getVideoTracks()[0].stopCount, 1);
 	assert.equal(invalidPool.size, 0);
 
