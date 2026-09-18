@@ -215,7 +215,6 @@ export default function AudioEditorWorkspace({
 		setDialogSourceKey('global');
 		setDialog('recording-offset');
 	}, [snapshot.monitor?.latencyOffsetMs]);
-
 	const openProjects = useCallback(() => {
 		setDialog('projects');
 		run(() => controller.actions.project.list());
@@ -261,7 +260,6 @@ export default function AudioEditorWorkspace({
 			return files.length;
 		});
 	}, [fileService, importRoutedFiles, openDesktopProjectDescriptor]);
-
 	const openSurface = useCallback((surface, options = {}) => {
 		if (surface === 'preferences') {
 			setPreferencesPage(workspacePreferencesPage(options?.section));
@@ -269,7 +267,6 @@ export default function AudioEditorWorkspace({
 		setActiveSurface(surface);
 	}, [setActiveSurface]);
 	const soundscaperWorkflow = useSoundscaperWorkflowWorkspace({ productId, controller, project, selectedTrackId: snapshot.selectedTrackId, openSurface });
-
 	const openEffects = useCallback((trackId, _anchorRect = null, scope = 'track') => {
 		if (!trackId && scope !== 'master') return;
 		setActiveSurface(null);
@@ -287,7 +284,6 @@ export default function AudioEditorWorkspace({
 			panel.focus({ preventScroll: false });
 		});
 	}, [controller, run, setActiveSurface, snapshot.selectedTrackId]);
-
 	const statusMessage = snapshot.status?.message || copy.ready;
 	const statusState = snapshot.status?.state || 'info';
 	const aup4Compatibility = snapshot.aup4Compatibility;
