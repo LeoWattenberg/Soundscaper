@@ -284,8 +284,8 @@ export default function AudioEditorWorkspace({
 			panel.focus({ preventScroll: false });
 		});
 	}, [controller, run, setActiveSurface, snapshot.selectedTrackId]);
-	const statusMessage = snapshot.status?.message || copy.ready;
-	const statusState = snapshot.status?.state || 'info';
+	const statusMessage = localError || snapshot.status?.message || copy.ready;
+	const statusState = localError ? 'error' : snapshot.status?.state || 'info';
 	const aup4Compatibility = snapshot.aup4Compatibility;
 	const saveText = snapshot.save?.state === 'saving'
 		? copy.projectSaving
