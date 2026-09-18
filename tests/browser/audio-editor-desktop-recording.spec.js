@@ -5,6 +5,7 @@ async function installDesktopCapture(page) {
 	await page.addInitScript(() => {
 		window.__desktopMicrophoneRequests = 0;
 		window.__desktopDisplayRequests = 0;
+		window.__desktopDisplayConstraints = null;
 		window.__desktopCaptureOutcome = 'audio';
 		Object.defineProperty(window, 'CaptureController', {
 			configurable: true,
@@ -22,6 +23,7 @@ async function installDesktopCapture(page) {
 				},
 				getDisplayMedia: async (options) => {
 					window.__desktopDisplayRequests += 1;
+					window.__desktopDisplayConstraints = options;
 					window.__desktopFocusBehavior = options.controller?.focusBehavior;
 					window.dispatchEvent(new Event('blur'));
 					await new Promise((resolve) => setTimeout(resolve, 20));
@@ -81,6 +83,20 @@ test.describe('desktop audio recording', () => {
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 		await expect(record).toHaveAttribute('aria-pressed', 'false');
 		await expect(editor).toHaveAttribute('data-clip-count', '1');
+		expect(await page.evaluate(() => window.__desktopDisplayConstraints)).toMatchObject({
+			audio: true,
+			video: true,
+			selfBrowserSurface: 'exclude',
+			systemAudio: 'include',
+			windowAudio: 'system',
+		});
+		await editor.getByRole('button', { name: 'Audio setup', exact: true }).click();
+		const reopenedSetup = editor.getByRole('dialog', { name: 'Audio setup', exact: true });
+		const releaseInputButton = reopenedSetup.getByRole('button', { name: 'Disable microphones', exact: true });
+		await releaseInputButton.click();
+		await expect(releaseInputButton).toHaveCount(0);
+		expect(await page.evaluate(() => window.__desktopStream.getTracks()
+		.every((track) => track.readyState === 'ended'))).toBe(true);
 		expect(await page.evaluate(() => window.__desktopMicrophoneRequests)).toBe(0);
 		expect(await page.evaluate(() => window.__desktopDisplayRequests)).toBe(1);
 	});
