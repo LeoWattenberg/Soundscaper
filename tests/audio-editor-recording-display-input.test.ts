@@ -2,7 +2,10 @@
 
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
-import { requestDisplayInput } from '../src/common/editor/recording-display-input.ts';
+import {
+	requestDisplayInput,
+	supportsDisplayAudioCapture,
+} from '../src/common/editor/recording-display-input.ts';
 
 function installCaptureController(context: TestContext, value: unknown): void {
 	const previous = Object.getOwnPropertyDescriptor(globalThis, 'CaptureController');
@@ -12,6 +15,13 @@ function installCaptureController(context: TestContext, value: unknown): void {
 		else Reflect.deleteProperty(globalThis, 'CaptureController');
 	});
 }
+
+test('disables browser display-audio capture only on Firefox', () => {
+	const mediaDevices = { getDisplayMedia: () => Promise.resolve({}) };
+	assert.equal(supportsDisplayAudioCapture(mediaDevices, 'Mozilla/5.0 Firefox/142.0'), false);
+	assert.equal(supportsDisplayAudioCapture(mediaDevices, 'Mozilla/5.0 Chrome/140.0'), true);
+	assert.equal(supportsDisplayAudioCapture({}, 'Mozilla/5.0 Chrome/140.0'), false);
+});
 
 test('display recording keeps focus on the editor before the permission prompt opens', async (context) => {
 	const controllers: CaptureControllerStub[] = [];

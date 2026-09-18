@@ -134,7 +134,7 @@ test.describe('desktop audio recording', () => {
 			await record.click();
 			await expect(editor.getByText(outcome === 'failure'
 				? 'The action failed: Could not start audio source'
-				: 'The action failed: Display capture did not include a live audio track.', { exact: true })).toBeVisible();
+				: 'The action failed: Display capture did not provide an audio track. Firefox does not support browser audio capture; use Chrome or Edge and enable Share audio.', { exact: true })).toBeVisible();
 			await expect(record).toHaveAttribute('aria-pressed', 'false');
 			await expect(editor).toHaveAttribute('data-clip-count', '0');
 			if (outcome === 'video-only') {

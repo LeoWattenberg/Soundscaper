@@ -100,6 +100,7 @@ test('native inventory joins Web devices through the routing action without prob
 	const fixture = createFixture({
 		enumerateDevices: async () => [
 			{ kind: 'audioinput', deviceId: 'web-mic', label: 'Web mic', groupId: 'web' },
+			{ kind: 'audioinput', deviceId: 'loopback', label: 'System loopback', groupId: 'loopback' },
 			{ kind: 'audiooutput', deviceId: 'web-speaker', label: 'Web speaker', groupId: 'web' },
 		],
 		setOutputDevice: async (deviceId) => { sinkCalls.push(deviceId); return { activeDeviceId: deviceId }; },
@@ -113,12 +114,12 @@ test('native inventory joins Web devices through the routing action without prob
 	fixture.state.preferredOutputDeviceId = 'native:wasapi:out:studio-interface';
 	await fixture.service.refreshAudioDevices({ probe: false, nativeInventory });
 	assert.deepEqual(fixture.state.recordingDevices.map((device) => device.deviceId), [
-		'web-mic', 'native:wasapi:in:studio-interface',
+		'web-mic', 'loopback', 'native:wasapi:in:studio-interface',
 	]);
 	assert.deepEqual(fixture.state.audioOutputDevices.map((device) => device.deviceId), [
 		'web-speaker', 'native:wasapi:out:studio-interface',
 	]);
-	const nativeInput = fixture.state.recordingDevices[1];
+	const nativeInput = fixture.state.recordingDevices[2];
 	assert.deepEqual({
 		groupId: nativeInput.groupId, channelCount: nativeInput.channelCount,
 		channels: (nativeInput.channels || []).length, status: nativeInput.status,

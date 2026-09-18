@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { supportsDisplayAudioCapture } from '../../../recording-display-input.ts';
+
 interface VideoEffectLike {
 	readonly id: string;
 	readonly params: unknown;
@@ -130,7 +132,7 @@ export function createAudioDeviceSnapshot(
 ) {
 	const outputState = engine.getOutputDeviceState?.() || {};
 	const preferredInputAvailable = state.preferredInputDeviceId === defaultInputDeviceId
-		|| (state.preferredInputDeviceId === displayInputDeviceId && Boolean(mediaDevices?.getDisplayMedia))
+		|| (state.preferredInputDeviceId === displayInputDeviceId && supportsDisplayAudioCapture(mediaDevices))
 		|| state.audioInputDevices.some((device) => device.deviceId === state.preferredInputDeviceId);
 	const preferredOutputAvailable = !state.preferredOutputDeviceId
 		|| state.audioOutputDevices.some((device) => device.deviceId === state.preferredOutputDeviceId);
@@ -144,7 +146,7 @@ export function createAudioDeviceSnapshot(
 		inputAccess: state.audioInputAccess,
 		inputSupported: Boolean(mediaDevices?.getUserMedia || mediaDevices?.getDisplayMedia),
 		microphoneInputSupported: Boolean(mediaDevices?.getUserMedia),
-		displayInputSupported: Boolean(mediaDevices?.getDisplayMedia),
+		displayInputSupported: supportsDisplayAudioCapture(mediaDevices),
 		displayCaptureOpen: state.recordingPoolSources.some((source) => source.kind === 'display'),
 		outputSupported: Boolean(outputState.supported),
 		preferredInputAvailable,

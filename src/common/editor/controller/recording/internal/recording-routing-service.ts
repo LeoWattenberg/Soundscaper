@@ -7,6 +7,7 @@ import type {
 	RecordingRoutingServiceRuntime,
 } from './recording-routing-service-types.d.ts';
 import { setRecordingTrackRoute } from '../../../recording-routing.js';
+import { supportsDisplayAudioCapture } from '../../../recording-display-input.ts';
 
 export type {
 	PersistedRecordingRouting,
@@ -168,7 +169,7 @@ export function createRecordingRoutingService<
 			&& !state.audioInputDevices.some((device) => device.deviceId === normalized)) {
 			throw new Error('The selected audio input is unavailable.');
 		}
-		if (normalized === RECORDING_DISPLAY_SOURCE_KEY && !mediaDevices?.getDisplayMedia) {
+		if (normalized === RECORDING_DISPLAY_SOURCE_KEY && !supportsDisplayAudioCapture(mediaDevices)) {
 			throw new Error('Display audio capture is not supported in this browser.');
 		}
 		await keepSelectedRecordingInputsOpen();
@@ -209,7 +210,7 @@ export function createRecordingRoutingService<
 	}
 
 	async function configureDisplayInput() {
-		if (!mediaDevices?.getDisplayMedia) throw new Error('Display audio capture is not supported in this browser.');
+		if (!supportsDisplayAudioCapture(mediaDevices)) throw new Error('Display audio capture is not supported in this browser.');
 		if (state.recorder || state.recordingStarting || state.timedRecordingPreparing || state.timedRecording) {
 			throw new Error('The display source cannot be changed while recording is active.');
 		}

@@ -119,7 +119,7 @@ export function createRecordingCapturePool(options = {}) {
 			}
 			if (!hasLiveTrack(stream, 'audio')) {
 				stopStream(stream);
-				throw new Error('Display capture did not include a live audio track.');
+				throw new Error('Display capture did not provide an audio track. Firefox does not support browser audio capture; use Chrome or Edge and enable Share audio.');
 			}
 			if (!hasLiveTrack(stream, 'video')) {
 				stopStream(stream);
@@ -150,7 +150,7 @@ export function createRecordingCapturePool(options = {}) {
 			}
 			if (!hasLiveTrack(stream, 'audio')) {
 				stopStream(stream);
-				throw new Error('Display capture did not include a live audio track.');
+				throw new Error('Display capture did not provide an audio track. Firefox does not support browser audio capture; use Chrome or Edge and enable Share audio.');
 			}
 			if (!hasLiveTrack(stream, 'video')) {
 				stopStream(stream);

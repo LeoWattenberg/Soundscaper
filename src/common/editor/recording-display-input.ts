@@ -6,6 +6,18 @@ interface RecordingCaptureController {
 	setFocusBehavior(behavior: 'no-focus-change'): void;
 }
 
+interface DisplayMediaCapability {
+	readonly getDisplayMedia?: unknown;
+}
+
+export function supportsDisplayAudioCapture(
+	mediaDevices: DisplayMediaCapability | null | undefined = globalThis.navigator?.mediaDevices,
+	userAgent = globalThis.navigator?.userAgent,
+): boolean {
+	return typeof mediaDevices?.getDisplayMedia === 'function'
+		&& !/Firefox\//u.test(String(userAgent || ''));
+}
+
 function createCaptureController(): RecordingCaptureController | undefined {
 	const host = globalThis as typeof globalThis & {
 		CaptureController?: new () => RecordingCaptureController;
@@ -30,11 +42,12 @@ export async function requestDisplayInput({
 	displayConstraints = {},
 	mediaDevices = globalThis.navigator?.mediaDevices,
 }: DisplayRecordingInputOptions = {}): Promise<MediaStream> {
-	if (!mediaDevices?.getDisplayMedia) {
+	const getDisplayMedia = mediaDevices?.getDisplayMedia;
+	if (!supportsDisplayAudioCapture(mediaDevices) || typeof getDisplayMedia !== 'function') {
 		throw new Error('Desktop audio recording is not supported in this browser.');
 	}
 	const controller = createCaptureController();
-	return mediaDevices.getDisplayMedia.call(mediaDevices, {
+	return getDisplayMedia.call(mediaDevices, {
 		...displayConstraints,
 		...(controller ? { controller } : {}),
 		video: videoConstraints || true,

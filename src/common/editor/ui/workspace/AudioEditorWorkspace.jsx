@@ -31,6 +31,7 @@ import {
 } from './workspace-application-menu-runtime.js';
 import { usePrivacyPolicySurface } from '../use-privacy-policy-surface.ts';
 import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts'; import { useWorkspaceOnboardingSurface } from '../use-workspace-onboarding-surface.ts';
+import { supportsDisplayAudioCapture } from '../../recording-display-input.ts';
 import { partitionWorkspaceFiles } from './workspace-file-routing.js';
 import { openWorkspaceProjectFile } from './open-workspace-project-file.ts';
 import { desktopExternalDestination, formatDateTimeLocalInput } from '../workspace-runtime.js';
@@ -141,7 +142,7 @@ export default function AudioEditorWorkspace({
 	const handoffBlocked = handoffBlock.blocked;
 	const displayAudioSupported = fileService.isDesktop
 		? desktopEnvironment?.capabilities?.displayAudio === true
-		: undefined;
+		: supportsDisplayAudioCapture();
 	const selectionActive = Boolean(snapshot.selection);
 	const selectedClip = project?.clips.find((clip) => clip.id === snapshot.selectedClipId) || null;
 	const clipSelectionActive = Boolean(selectedClip || project?.selection?.clipIds?.some((clipId) => (
