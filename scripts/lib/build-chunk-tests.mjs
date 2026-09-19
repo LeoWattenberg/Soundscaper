@@ -111,7 +111,7 @@ export const EDITOR_SOURCE_ACTIVATION_CHUNK_TEST = new RegExp(
 
 /** Effect and Analyze implementations reached only after their eager action facade runs. */
 export const EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST = new RegExp(
-	`(?:${editorPath}(?:${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)|(?:flac|mpg123|opus|vorbis)[\\\\/]source-manifest\\.json|controller[\\\\/]analysis[\\\\/]analysis-service\\.ts)|(?:^|[\\\\/])desktop[\\\\/]bundled-(?:mpeg-audio|opus|wavpack)-stream\\.ts)$`,
+	`(?:${editorPath}(?:${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)|(?:flac|mpg123|opus|vorbis)[\\\\/]source-manifest\\.json|controller[\\\\/]analysis[\\\\/]analysis-service\\.ts)|(?:^|[\\\\/])desktop[\\\\/](?:bundled-(?:mpeg-audio|opus|wavpack)-stream|desktop-audio-stream-contract)\\.ts)$`,
 );
 
 /** Audio and video delivery execution isolated from the effect-runtime graph. */

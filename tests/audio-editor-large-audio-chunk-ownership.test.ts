@@ -45,3 +45,13 @@ test('stream validation parsers share their lazy execution owner', () => {
 		assert.equal(EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST.test(`/workspace/desktop/bundled-${name}-stream.ts`), true);
 	}
 });
+
+test('the desktop streaming contract shares its lazy encoder owner', () => {
+	// Leaving this renderer dependency unowned lets the encoder facade claim it
+	// by reachability. The owned implementation then imports its own facade back
+	// and packaged Soundscaper starts with an undefined chunk initializer.
+	assert.equal(
+		EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST.test('/workspace/desktop/desktop-audio-stream-contract.ts'),
+		true,
+	);
+});
