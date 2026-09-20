@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { createDeferredDesktopVampAnalysisAction } from '../src/common/editor/controller/analysis/internal/deferred-vamp-analysis-action.ts';
 import { createDesktopVampAnalysisAction } from '../src/common/editor/controller/analysis/internal/vamp-analysis-action.ts';
 
 const REQUEST = Object.freeze({
@@ -70,7 +71,7 @@ function harness(frameCount = 8) {
 		renderMix: async () => { throw new Error('unexpected master render'); },
 	};
 	const action = createDesktopVampAnalysisAction({ bridge, engine, getProject: () => project });
-	return { action, bridge, calls, project };
+	return { action, bridge, calls, engine, project };
 }
 
 test('desktop Vamp action maps the pathless native catalog to the strict renderer catalog', async () => {
@@ -186,9 +187,18 @@ test('desktop Vamp action rejects aggregate native feature floods before retaini
 });
 
 test('Vamp action stays absent when any native analyzer bridge operation is unavailable', () => {
-	assert.equal(createDesktopVampAnalysisAction({
+	const options = {
 		bridge: { listNativeVampAnalyzers: async () => [] },
 		engine: { renderTrack: async () => ({ channels: [] }), renderMix: async () => ({ channels: [] }) },
 		getProject: () => null,
-	}), null);
+	};
+	assert.equal(createDesktopVampAnalysisAction(options), null);
+	assert.equal(createDeferredDesktopVampAnalysisAction(options), null);
+});
+
+test('deferred Vamp action loads its implementation after admitting a complete bridge', async () => {
+	const { bridge, engine, project } = harness();
+	const action = createDeferredDesktopVampAnalysisAction({ bridge, engine, getProject: () => project });
+	assert.ok(action);
+	assert.equal((await action.list()).length, 1);
 });

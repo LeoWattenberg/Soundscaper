@@ -8,8 +8,8 @@ import { createDeferredAudioAnalysisService } from './internal/deferred-analysis
 import type { EditorProjectGeneration } from '../shared/lifecycle.ts';
 import type { EditorTaskProgressCoordinator } from '../shared/task-progress.ts';
 import { analyzeChannelsInWorker } from '../source/waveform-analysis.ts';
+import { createDeferredDesktopVampAnalysisAction } from './internal/deferred-vamp-analysis-action.ts';
 import {
-	createDesktopVampAnalysisAction,
 	type DesktopVampAnalysisAction,
 } from './internal/vamp-analysis-action.ts';
 
@@ -48,7 +48,7 @@ export interface AnalysisCompositionDependencies<Project extends AnalysisProject
 	readonly analyzeChannels?: typeof analyzeChannelsInWorker;
 	readonly nativeVamp?: Readonly<{
 		readonly bridge: unknown;
-		readonly engine: Parameters<typeof createDesktopVampAnalysisAction>[0]['engine'];
+		readonly engine: Parameters<typeof createDeferredDesktopVampAnalysisAction>[0]['engine'];
 	}>;
 }
 
@@ -98,7 +98,7 @@ export function createAnalysisComposition<Project extends AnalysisProject, Buffe
 		setProcessing: (processing) => { state.analysisProcessing = processing; },
 		setStatus: dependencies.setStatus, publish: dependencies.publish, handleError: dependencies.handleError,
 	}) : createAbsentAnalysisService({ productName: dependencies.productName });
-	const vamp = dependencies.nativeVamp === undefined ? null : createDesktopVampAnalysisAction({
+	const vamp = dependencies.nativeVamp === undefined ? null : createDeferredDesktopVampAnalysisAction({
 		...dependencies.nativeVamp,
 		getProject: dependencies.getProject,
 	});
