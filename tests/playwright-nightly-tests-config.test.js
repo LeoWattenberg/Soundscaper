@@ -147,9 +147,17 @@ test('packaged metrics run each formal workload in its owning product', async ()
 
 		assert.deepEqual(projects['packaged-soundscaper'], [
 			'desktop-packaged-runtime-smoke.spec.js',
+			'desktop-packaged-display-audio.spec.js',
 			'audio-editor-longform-editorial-benchmark.spec.js',
 			'audio-editor-m4-production-parity.spec.js',
 		]);
+		assert.deepEqual(projects['packaged-soundscaper-audio-devices'], [
+			'desktop-packaged-audio-io.spec.js',
+		]);
+		assert.deepEqual(
+			config.projects.find(({ name }) => name === 'packaged-soundscaper-audio-devices').metadata,
+			{ productId: 'soundscaper', packagedAudioDeviceFixture: true },
+		);
 		assert.deepEqual(projects['packaged-framescaper'], [
 			'desktop-packaged-runtime-smoke.spec.js',
 			'audio-editor-video-preview-benchmark.spec.js',

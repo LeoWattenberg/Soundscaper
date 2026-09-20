@@ -8,6 +8,8 @@ const LONGFORM = 'audio-editor-longform-editorial-benchmark.spec.js';
 const PRODUCTION = 'audio-editor-m4-production-parity.spec.js';
 const KEYED = 'audio-editor-m4b2-keyframe-parity.spec.js';
 const SMOKE = 'desktop-packaged-runtime-smoke.spec.js';
+const AUDIO_IO = 'desktop-packaged-audio-io.spec.js';
+const DISPLAY_AUDIO = 'desktop-packaged-display-audio.spec.js';
 
 function requiredRoot(environment, key) {
 	const value = environment[key];
@@ -40,7 +42,12 @@ export function createNightlyPackagedMetricsConfig(environment = process.env) {
 			{
 				name: 'packaged-soundscaper',
 				metadata: { productId: 'soundscaper' },
-				testMatch: [SMOKE, LONGFORM, PRODUCTION],
+				testMatch: [SMOKE, DISPLAY_AUDIO, LONGFORM, PRODUCTION],
+			},
+			{
+				name: 'packaged-soundscaper-audio-devices',
+				metadata: { productId: 'soundscaper', packagedAudioDeviceFixture: true },
+				testMatch: [AUDIO_IO],
 			},
 			{
 				name: 'packaged-framescaper',

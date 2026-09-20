@@ -2,7 +2,7 @@
 
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { access, mkdtemp, rm } from 'node:fs/promises';
+import { access, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -18,6 +18,10 @@ import {
 	packagedRuntimeProductBaseURL,
 	usesPackagedRuntimeDiagnosticPage,
 } from './packaged-runtime-page.js';
+import {
+	createPackagedRuntimeAudioWave,
+	packagedRuntimeAudioArguments,
+} from './packaged-runtime-audio-fixture.js';
 import { terminatePackagedRuntime } from './packaged-runtime-process.js';
 
 const standardTest = base.extend({
@@ -40,11 +44,13 @@ const packagedTest = base.extend({
 		});
 		await access(executablePath);
 		const profile = await mkdtemp(join(tmpdir(), `${productId}-packaged-metrics-`));
+		const audioFixtureArguments = await prepareAudioFixture(workerInfo, productId, profile);
 		const port = await reserveLoopbackPort();
 		const environment = { ...process.env };
 		delete environment.ELECTRON_RUN_AS_NODE;
 		const child = spawn(executablePath, [
 			...packagedRuntimeChromiumArguments(requiredEnvironment('SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM')),
+			...audioFixtureArguments,
 			`--user-data-dir=${profile}`,
 			`--soundscaper-nightly-tests-app-data=${join(profile, 'application-data')}`,
 			'--remote-debugging-address=127.0.0.1',
@@ -115,6 +121,16 @@ export const test = process.env.SOUNDSCAPER_PACKAGED_RUNTIME_METRICS === '1'
 	? packagedTest
 	: standardTest;
 export { expect };
+
+async function prepareAudioFixture(workerInfo, productId, profile) {
+	if (workerInfo.project.metadata.packagedAudioDeviceFixture !== true) return [];
+	if (productId !== 'soundscaper') {
+		throw new Error('The packaged audio-device fixture is Soundscaper-only.');
+	}
+	const wavePath = join(profile, 'fake-audio-input.wav');
+	await writeFile(wavePath, createPackagedRuntimeAudioWave());
+	return packagedRuntimeAudioArguments(wavePath);
+}
 
 async function reserveLoopbackPort() {
 	const server = createServer();
