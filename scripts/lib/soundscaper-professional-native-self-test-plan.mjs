@@ -37,7 +37,7 @@ const COMMON_AUTHORITY_SOURCE_PATHS = Object.freeze([
 	CONTAINMENT_PROBES_PATH,
 ]);
 const LOCALLY_EXECUTED_IDS = new Set([
-	'addon-exact-backend-format-inventory', 'm5f1-malformed-frame', 'launcher-refusal',
+	'addon-exact-backend-format-inventory', 'm5f2-malformed-frame', 'launcher-refusal',
 	'delivery-filesystem-protocol',
 	'os-audio-codec-ctest',
 ]);

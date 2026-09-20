@@ -6,21 +6,25 @@ import { EventEmitter, once } from 'node:events';
 import { PassThrough } from 'node:stream';
 import test from 'node:test';
 
-import { bindNativeChildProcess } from '../desktop/native-child-framed-control.ts';
+import {
+	bindNativeChildProcess,
+	type NativeChildFramedControlBinding,
+} from '../desktop/native-child-framed-control.ts';
 
 test('native-child framed control binds each admitted protocol family and version to its own magic', async () => {
-	for (const binding of [
+	const bindings = [
 		{ protocolFamily: 'M5F' as const, protocolVersion: 1 as const, magic: 'M5F1' },
 		{ protocolFamily: 'M5F' as const, protocolVersion: 2 as const, magic: 'M5F2' },
 		{ protocolFamily: 'M5A' as const, protocolVersion: 1 as const, magic: 'M5A1' },
-	]) {
+	] as const;
+	for (const binding of bindings) {
 		const fixture = child();
 		const bound = bindNativeChildProcess(fixture.process, Object.freeze({
 			protocolFamily: binding.protocolFamily,
 			protocolVersion: binding.protocolVersion,
 			maximumMessageBytes: 4_096,
 			maximumInFlightMessages: 1,
-		}));
+		}) as NativeChildFramedControlBinding);
 		const sent = once(fixture.stdin, 'data');
 		await bound.control!.send(Uint8Array.of(3, 5, 7));
 		const frame = Buffer.from((await sent)[0] as Buffer);

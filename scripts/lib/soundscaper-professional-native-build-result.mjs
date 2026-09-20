@@ -371,7 +371,7 @@ async function copyRuntimeClosure(sourceRoot, destinationRoot, buildResultRoot) 
 async function executeInstalledSelfTests({ target, copied, root, runSelfTest }) {
 	const requests = [
 		{
-			id: 'm5f1-malformed-frame', command: resolveBuildResultPath(root, copied.pluginPeer.path),
+			id: 'm5f2-malformed-frame', command: resolveBuildResultPath(root, copied.pluginPeer.path),
 			args: [], input: Buffer.from([0]), expectedStatus: 125,
 		},
 		{

@@ -34,8 +34,8 @@ const BASE_SOURCE_IDS = Object.freeze([
 ]);
 const COMMON_SELF_TEST_IDS = Object.freeze([
 	'addon-exact-backend-format-inventory',
-	'm5f1-handshake',
-	'm5f1-malformed-frame',
+	'm5f2-handshake',
+	'm5f2-malformed-frame',
 	'fixture-scan',
 	'fixture-instantiate',
 	'fixture-deterministic-process',

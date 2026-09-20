@@ -322,7 +322,7 @@ function evidence() {
 			requestedBackend: 'pipewire', resultStatus: 'server-unavailable', attempts: 1,
 		},
 		pluginIsolation: {
-			protocol: 'M5F1', fixtureSha256: 'a'.repeat(64),
+			protocol: 'M5F2', fixtureSha256: 'a'.repeat(64),
 			launcherId: 'soundscaper-linux-landlock-seccomp-namespaces-v1',
 			filesystem: 'broker-grant-only', network: 'denied', childProcesses: 'denied',
 			operations: [

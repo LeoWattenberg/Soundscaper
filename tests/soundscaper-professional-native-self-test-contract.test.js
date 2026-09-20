@@ -13,7 +13,7 @@ import {
 test('the self-test contract is closed and adds OS codec CTests only where applicable', () => {
 	const linux = requiredSoundscaperProfessionalNativeSelfTestIds('linux-x64');
 	const mac = requiredSoundscaperProfessionalNativeSelfTestIds('mac-arm64');
-	assert(linux.includes('m5f1-handshake'));
+	assert(linux.includes('m5f2-handshake'));
 	assert(linux.includes('addon-exact-backend-format-inventory'));
 	assert(linux.includes('fixture-deterministic-process'));
 	assert(linux.includes('isolation-broker-filesystem-grant'));

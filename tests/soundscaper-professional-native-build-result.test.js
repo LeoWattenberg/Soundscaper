@@ -159,7 +159,7 @@ test('a build result binds installed payloads, closed dependencies, and passing 
 		},
 	});
 	assert.deepEqual(selfTests, [
-		{ id: 'm5f1-malformed-frame', expectedStatus: 125 },
+		{ id: 'm5f2-malformed-frame', expectedStatus: 125 },
 		{ id: 'delivery-filesystem-protocol', expectedStatus: 0 },
 		{ id: 'launcher-refusal', expectedStatus: 125 },
 	]);
@@ -471,7 +471,7 @@ function fixtureToolchainReceipt(target) {
 
 function buildSelfTests(target) {
 	const candidateExecuted = new Set([
-		'm5f1-malformed-frame', 'launcher-refusal',
+		'm5f2-malformed-frame', 'launcher-refusal',
 		'delivery-filesystem-protocol',
 		'closure-recursive-inspection', 'closure-symlink-refusal',
 		'closure-ambient-dependency-refusal', 'closure-rpath-refusal',

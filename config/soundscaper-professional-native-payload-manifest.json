@@ -11,7 +11,7 @@
 	},
 	"pluginPeer": {
 		"payloadName": "soundscaper_professional_peer",
-		"protocol": "M5F1",
+		"protocol": "M5F2",
 		"license": "AGPL-3.0-only"
 	},
 	"deliveryFilesystem": {

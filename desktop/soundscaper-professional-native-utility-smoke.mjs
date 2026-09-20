@@ -304,7 +304,7 @@ function validateEvidence(value, target) {
 		|| value.description?.buildId !== 'soundscaper-professional-host'
 		|| value.description?.napiVersion !== 8
 		|| !Array.isArray(value.description?.pluginFormats)
-		|| value.pluginIsolation?.protocol !== 'M5F1'
+		|| value.pluginIsolation?.protocol !== 'M5F2'
 		|| !/^[a-f\d]{64}$/u.test(String(value.pluginIsolation?.fixtureSha256))
 		|| typeof value.pluginIsolation?.launcherId !== 'string'
 		|| value.pluginIsolation.launcherId.length < 3

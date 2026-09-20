@@ -234,7 +234,7 @@ function validateManifest(value, sourceRegister) {
 		&& value.addon?.napiVersion === 8 && value.addon?.license === 'AGPL-3.0-only',
 		'The professional native addon description is invalid.');
 	assert(value.pluginPeer?.payloadName === 'soundscaper_professional_peer'
-		&& value.pluginPeer?.protocol === 'M5F1' && value.pluginPeer?.license === 'AGPL-3.0-only'
+		&& value.pluginPeer?.protocol === 'M5F2' && value.pluginPeer?.license === 'AGPL-3.0-only'
 		&& value.deliveryFilesystem?.payloadName === 'soundscaper_delivery_fs'
 		&& value.deliveryFilesystem?.protocol === 'SDF1'
 		&& value.deliveryFilesystem?.license === 'AGPL-3.0-only'
