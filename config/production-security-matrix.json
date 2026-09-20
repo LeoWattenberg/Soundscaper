@@ -11323,7 +11323,7 @@
 				"project confidentiality",
 				"host account authority"
 			],
-			"actor": "A third-party VST3, CLAP, AU, LV2, or OFX binary is malicious, vulnerable, or incompatible.",
+			"actor": "A third-party VST3, CLAP, AU, LADSPA, LV2, Vamp, or OFX binary is malicious, vulnerable, or incompatible.",
 			"impact": "critical",
 			"status": "partial",
 			"surfaceDisposition": "conditional",
@@ -11331,7 +11331,7 @@
 			"currentControls": [
 				{
 					"id": "menu-reached-plugin-hosting-surface",
-					"summary": "The professional hosting routes are implemented, menu-reached, default-off, and enabled for testing. Renderer channels remain pathless and the preload strips path-bearing fields. The menu-owned Soundscaper family v1 route delegates through its direct unversioned Soundscaper baseline domain and can insert an eligible native-plugin effect, mint one persistent supervised host session, transfer its RPC MessagePort, render real-time and offline, apply exact V21 PDC, preserve bounded opaque state and bypass/fresh-frozen continuity, and own a top-level native vendor window without renderer authority. The Framescaper family v1 route delegates through its direct unversioned Framescaper baseline domain and owns scan, enable and Add OFX actions plus one shared context-aware V14 frame graph for all six contexts and a bounded React Interact Suite V1/custom-parameter/DrawSuite V1 route without native plug-in windows. VST3, CLAP, Audio Units, LV2 and OpenFX are enabled for testing when their exact payload, platform, containment, consent, and quarantine machine checks pass. Source and notice closure, a matching target build result, required self-tests, architecture checks, hashes, and package verification are required for distribution; optional owner QA never controls execution. Fixture binaries remain test evidence only. Repository-owned five-target workflows build, self-test, architecture-check, hash, and staging-verify the matching payload and launcher results. The committed source templates intentionally contain no generated target bytes, so an unstaged checkout reports `payload-not-generated`; human review does not gate execution.",
+					"summary": "The professional hosting routes are implemented, menu-reached, default-off, and enabled for testing. Renderer channels remain pathless and the preload strips path-bearing fields. The menu-owned Soundscaper family v1 route delegates through its direct unversioned Soundscaper baseline domain and can insert an eligible native-plugin effect, mint one persistent supervised host session, transfer its RPC MessagePort, render real-time and offline, apply exact V21 PDC, preserve bounded opaque state and bypass/fresh-frozen continuity, and own a top-level native vendor window without renderer authority. Its separate Analyze-menu route runs a finite Vamp analysis and publishes one bounded label-track result without treating the analyzer as an effect. The Framescaper family v1 route delegates through its direct unversioned Framescaper baseline domain and owns scan, enable and Add OFX actions plus one shared context-aware V14 frame graph for all six contexts and a bounded React Interact Suite V1/custom-parameter/DrawSuite V1 route without native plug-in windows. VST3, CLAP, Audio Units, Linux LADSPA, LV2, cross-platform Vamp and OpenFX are enabled for testing when their exact payload, platform, containment, consent, and quarantine machine checks pass. Source and notice closure, a matching target build result, required self-tests, architecture checks, hashes, and package verification are required for distribution; optional owner QA never controls execution. Fixture binaries remain test evidence only. Repository-owned five-target workflows build, self-test, architecture-check, hash, and staging-verify the matching payload and launcher results. The committed source templates intentionally contain no generated target bytes, so an unstaged checkout reports `payload-not-generated`; human review does not gate execution.",
 					"evidence": [
 						{
 							"kind": "implementation",
@@ -11520,6 +11520,53 @@
 						{
 							"kind": "test",
 							"path": "tests/native-fixture-plugin-format.test.js"
+						}
+					],
+					"policyAuthority": "family-v1-active"
+				},
+				{
+					"id": "ladspa-effect-and-vamp-analyzer-contracts",
+					"summary": "Linux-only LADSPA is an audio effect hosted by the persistent supervised M5F2 route for bounded real-time and offline processing, generated parameter control, and host-owned bounded state. Cross-platform Vamp is analyzer-only: it consumes finite PCM and returns timestamped features; it never becomes a rack effect, latency/PDC source, opaque project state, bypass target, or vendor window, and it uses the separate closed M5A1 protocol. The main/preload boundary exposes only pathless renderer IPC with opaque analyzer, installation, and owner-scoped session identities. Per-format consent gates discovery, raw roots and library paths remain main-private, scanner or qualifying execution faults feed digest-keyed quarantine, and a separate per-installation allowance and selection store reauthenticates the exact digest before reuse and cancels sessions when allowance is withdrawn. Each PCM message is contiguous finite Float32 data capped at 65,536 frames and 16 MiB, one configured analysis is capped at 12 hours, each returned batch is capped at 65,536 features and 1,048,576 values, and one session is capped at 1,000,000 features; malformed descriptors, parameters, outputs, timestamps, durations, labels, bins, or non-finite samples and values fail closed. The authenticated professional helper opens the exact library without ambient Vamp discovery and runs the M5A1 peer under the same operating-system containment, exact payload authentication, owner revocation, cancellation, and shutdown-drain requirements as the M5F2 effect peer.",
+					"evidence": [
+						{
+							"kind": "implementation",
+							"path": "desktop/preload.mjs"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/vamp-analyzer-contract.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/vamp-analyzer-session.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/vamp-analyzer-allowance-store.mjs"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/native-vamp-analyzer-helper-backend.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "native/soundscaper-professional-host/src/juce_plugin_adapter.cpp"
+						},
+						{
+							"kind": "implementation",
+							"path": "native/soundscaper-professional-host/src/vamp_analyzer_peer.cpp"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audio-editor-ladspa-format.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-vamp-analyzer-contract.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-preload-vamp-analyzer.test.js"
 						}
 					],
 					"policyAuthority": "family-v1-active"
