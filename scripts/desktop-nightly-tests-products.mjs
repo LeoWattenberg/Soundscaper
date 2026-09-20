@@ -7,6 +7,9 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { packagedExecutableCandidates } from './lib/desktop-smoke.mjs';
+import {
+	preserveDesktopNightlyProductCoverageEvidence,
+} from './lib/desktop-nightly-product-coverage-evidence.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUTPUT_ROOT = resolve(ROOT, 'release/desktop-nightly-products');
@@ -29,6 +32,7 @@ export async function packageDesktopNightlyTestProducts({
 		const environment = {
 			...process.env,
 			SCAPE_PRODUCT: productId,
+			SCAPE_BUILD_SOURCE_MAPS: '1',
 			SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: platform,
 			SOUNDSCAPER_DESKTOP_TARGET_ARCH: arch,
 			CSC_IDENTITY_AUTO_DISCOVERY: 'false',
@@ -41,6 +45,11 @@ export async function packageDesktopNightlyTestProducts({
 			`--config.directories.output=${productOutput}`,
 		], { cwd: repositoryRoot, environment });
 		await copyFile(resolve(repositoryRoot, '.desktop-build/stage-manifest.json'), resolve(productOutput, 'stage-manifest.json'));
+		await preserveDesktopNightlyProductCoverageEvidence({
+			buildRoot: resolve(repositoryRoot, '.desktop-build'),
+			productId,
+			productOutput,
+		});
 		const executable = await resolveProductExecutable({ productOutput, productId, platform, arch });
 		const resources = platform === 'mac'
 			? resolve(dirname(executable), '../Resources') : resolve(dirname(executable), 'resources');

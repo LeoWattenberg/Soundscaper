@@ -282,7 +282,11 @@ test('nightly product staging builds isolated Soundscaper and Framescaper trees'
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-products-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
 	const outputRoot = join(root, 'release/desktop-nightly-products');
-	const calls: Array<{ readonly args: readonly string[]; readonly productId: string }> = [];
+	const calls: Array<{
+		readonly args: readonly string[];
+		readonly productId: string;
+		readonly sourceMaps: string | undefined;
+	}> = [];
 	await mkdir(join(root, '.desktop-build'), { recursive: true });
 
 	await packageDesktopNightlyTestProducts({
@@ -292,9 +296,19 @@ test('nightly product staging builds isolated Soundscaper and Framescaper trees'
 		arch: 'x64',
 		run: async (_command: string, args: readonly string[], options: { readonly environment: NodeJS.ProcessEnv }) => {
 			const productId = String(options.environment.SCAPE_PRODUCT);
-			calls.push({ args, productId });
+			calls.push({
+				args,
+				productId,
+				sourceMaps: options.environment.SCAPE_BUILD_SOURCE_MAPS,
+			});
 			if (args.some((value) => value.endsWith('desktop-prepare.mjs'))) {
 				await writeFile(join(root, '.desktop-build/stage-manifest.json'), JSON.stringify({ productId }));
+				await mkdir(join(root, '.desktop-build/app/desktop'), { recursive: true });
+				await mkdir(join(root, '.desktop-build/renderer/assets'), { recursive: true });
+				await mkdir(join(root, '.desktop-build/renderer-source-maps'), { recursive: true });
+				await writeFile(join(root, '.desktop-build/app/desktop/main.mjs'), `${productId} main`);
+				await writeFile(join(root, '.desktop-build/renderer/assets/editor.js'), `${productId} renderer`);
+				await writeFile(join(root, '.desktop-build/renderer-source-maps/editor.js.map'), '{}');
 				return;
 			}
 			const outputArgument = args.find((value) => value.startsWith('--config.directories.output='));
@@ -309,11 +323,21 @@ test('nightly product staging builds isolated Soundscaper and Framescaper trees'
 	assert.deepEqual(calls.map(({ productId }) => productId), [
 		'soundscaper', 'soundscaper', 'framescaper', 'framescaper',
 	]);
+	assert.ok(calls.every(({ sourceMaps }) => sourceMaps === '1'));
 	for (const productId of ['soundscaper', 'framescaper']) {
 		assert.equal(
 			JSON.parse(await readFile(join(outputRoot, productId, 'stage-manifest.json'), 'utf8')).productId,
 			productId,
 		);
 		assert.equal(await readFile(join(outputRoot, `${productId}.asar`), 'utf8'), `${productId} archive`);
+		const coverageEvidence = JSON.parse(await readFile(
+			join(outputRoot, productId, 'e2e-coverage/manifest.json'),
+			'utf8',
+		));
+		assert.equal(coverageEvidence.productId, productId);
+		assert.deepEqual(
+			coverageEvidence.scripts.map(({ packagedPath }: { packagedPath: string }) => packagedPath),
+			['app.asar/desktop/main.mjs', 'renderer/assets/editor.js'],
+		);
 	}
 });
