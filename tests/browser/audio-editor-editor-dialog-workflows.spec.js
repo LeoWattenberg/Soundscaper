@@ -7,6 +7,7 @@ import {
 	chooseDropdown,
 	chooseFileAction,
 	chooseNestedCommandAction,
+	clipByName,
 	collectClientErrors,
 	disableNativeSavePicker,
 	getMenuItem,
@@ -84,6 +85,57 @@ test.describe('shared editor dialog workflows', () => {
 		await expect(dialog.locator('[data-timecode-direct-entry="true"]')).toHaveValue('137');
 		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
 		await expect(dialog).toBeHidden();
+		expect(errors).toEqual([]);
+	});
+
+	test('opens the track dialogs from the Tracks menu and assignable Audacity commands', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const track = clipByName(editor, toneA.name).locator('xpath=ancestor::*[@data-track-row][1]');
+		await track.locator('[data-track-header]').click();
+		await expect(track.locator('[data-track-lane]')).toHaveAttribute('data-selected', 'true');
+
+		await chooseCommandAction(page, editor, 'Tracks', 'Resample');
+		let rateDialog = page.getByRole('dialog', { name: 'Resample', exact: true });
+		await rateDialog.locator('input').fill('44100');
+		await rateDialog.getByRole('button', { name: 'Resample', exact: true }).click();
+		await expect(rateDialog).toBeHidden({ timeout: 10_000 });
+
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await preferences.getByRole('tab', { name: /Keyboard shortcuts$/u }).click();
+		const search = preferences.getByRole('searchbox', { name: 'Search commands', exact: true });
+		await search.fill('Rename track');
+		const renameRow = preferences.locator('[data-shortcut-action="track-rename"]');
+		await renameRow.locator('[data-shortcut-binding="0"]').fill('Ctrl+Alt+Shift+R');
+		await renameRow.getByRole('button', { name: 'Assign', exact: true }).click();
+		await search.fill('Custom track sample rate');
+		const rateRow = preferences.locator('[data-shortcut-action="track-change-rate-custom"]');
+		await rateRow.locator('[data-shortcut-binding="0"]').fill('Ctrl+Alt+Shift+G');
+		await rateRow.getByRole('button', { name: 'Assign', exact: true }).click();
+		await preferences.locator('.audio-editor-dialog-footer')
+			.getByRole('button', { name: 'Close', exact: true }).click();
+		await expect(preferences).toBeHidden();
+
+		await editor.locator('.kw-audio-editor__keyboard-help').focus();
+		await page.keyboard.press('Control+Alt+Shift+r');
+		const rename = page.getByRole('dialog', { name: 'Track name', exact: true });
+		await rename.getByRole('textbox', { name: 'Track name', exact: true }).fill('Dialog command track');
+		await rename.getByRole('textbox', { name: 'Track name', exact: true }).press('Enter');
+		await expect(rename).toBeHidden();
+		await expect(editor.getByRole('button', {
+			name: 'Rename track: Dialog command track', exact: true,
+		})).toBeVisible();
+
+		await editor.locator('.kw-audio-editor__keyboard-help').focus();
+		await page.keyboard.press('Control+Alt+Shift+g');
+		rateDialog = page.getByRole('dialog', { name: 'Sample rate', exact: true });
+		const customRate = rateDialog.locator('input');
+		await expect(customRate).toHaveValue('44100');
+		await customRate.fill('32000');
+		await rateDialog.getByRole('button', { name: 'Save', exact: true }).click();
+		await expect(rateDialog).toBeHidden({ timeout: 10_000 });
 		expect(errors).toEqual([]);
 	});
 
