@@ -28,6 +28,9 @@ export async function requestPackagedRuntimeShutdown({
 	for (const page of orderedPages) page.on?.('dialog', acceptDialog);
 	try {
 		if (checkpoint !== null) await checkpoint();
+		if (productPage !== undefined && await requestTrustedApplicationQuit(productPage)) {
+			if (await waitForPackagedRuntimeExit(child, timeoutMs)) return true;
+		}
 		try {
 			for (const page of orderedPages) await closePackagedRuntimePage(page, timeoutMs);
 		} catch {
@@ -36,6 +39,27 @@ export async function requestPackagedRuntimeShutdown({
 		return await waitForPackagedRuntimeExit(child, timeoutMs);
 	} finally {
 		for (const page of orderedPages) page.off?.('dialog', acceptDialog);
+	}
+}
+
+async function requestTrustedApplicationQuit(page) {
+	if (page.isClosed?.() === true || typeof page.evaluate !== 'function') return false;
+	try {
+		return await page.evaluate(() => {
+			const bridge = globalThis.scapeDesktop
+				?? globalThis.soundscaperDesktop
+				?? globalThis.framescaperDesktop;
+			if (typeof bridge?.v1?.runWindowAction !== 'function') return false;
+			// Delivery is synchronous even though the acknowledgement is not. The
+			// renderer is expected to disappear while Electron completes app.quit().
+			void Promise.resolve(bridge.v1.runWindowAction('quit')).catch(() => undefined);
+			return true;
+		});
+	} catch {
+		// The application may destroy the inspected context as soon as it accepts
+		// the request. The caller still waits for the child before using its close
+		// and signal fallbacks.
+		return false;
 	}
 }
 

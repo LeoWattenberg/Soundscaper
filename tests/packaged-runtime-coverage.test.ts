@@ -137,17 +137,17 @@ test('packaged coverage starts before a required product reload and records rend
 	assert.ok(page.calls.includes('CDP.detach'));
 });
 
-test('packaged shutdown checkpoints before closing every Electron window', async () => {
+test('packaged shutdown checkpoints before requesting trusted application quit', async () => {
 	const child = Object.assign(new EventEmitter(), {
 		exitCode: null as number | null,
 		signalCode: null as NodeJS.Signals | null,
 	});
 	const calls: unknown[][] = [];
-	const productPage = fakeClosablePage('product', 'soundscaper-app://bundle/', calls);
-	const diagnosticPage = fakeClosablePage('diagnostic', 'http://127.0.0.1:4567/en/', calls, () => {
+	const productPage = fakeClosablePage('product', 'soundscaper-app://bundle/', calls, undefined, () => {
 		child.exitCode = 0;
 		child.emit('exit', 0, null);
 	});
+	const diagnosticPage = fakeClosablePage('diagnostic', 'http://127.0.0.1:4567/en/', calls);
 	const graceful = await requestPackagedRuntimeShutdown({
 		child,
 		checkpoint: async () => { calls.push(['checkpoint']); },
@@ -161,6 +161,35 @@ test('packaged shutdown checkpoints before closing every Electron window', async
 		['on', 'product', 'dialog'],
 		['on', 'diagnostic', 'dialog'],
 		['checkpoint'],
+		['quit', 'product'],
+		['off', 'product', 'dialog'],
+		['off', 'diagnostic', 'dialog'],
+	]);
+});
+
+test('packaged shutdown closes remaining windows when the trusted bridge is unavailable', async () => {
+	const child = Object.assign(new EventEmitter(), {
+		exitCode: null as number | null,
+		signalCode: null as NodeJS.Signals | null,
+	});
+	const calls: unknown[][] = [];
+	const productPage = fakeClosablePage('product', 'soundscaper-app://bundle/', calls);
+	const diagnosticPage = fakeClosablePage('diagnostic', 'http://127.0.0.1:4567/en/', calls, () => {
+		child.exitCode = 0;
+		child.emit('exit', 0, null);
+	});
+	const graceful = await requestPackagedRuntimeShutdown({
+		child,
+		context: { pages: () => [diagnosticPage, productPage] },
+		productId: 'soundscaper',
+		timeoutMs: 100,
+	});
+
+	assert.equal(graceful, true);
+	assert.deepEqual(calls, [
+		['on', 'product', 'dialog'],
+		['on', 'diagnostic', 'dialog'],
+		['quit', 'product'],
 		['close', 'product', true],
 		['close', 'diagnostic', true],
 		['off', 'product', 'dialog'],
@@ -168,7 +197,13 @@ test('packaged shutdown checkpoints before closing every Electron window', async
 	]);
 });
 
-function fakeClosablePage(name: string, url: string, calls: unknown[][], onClose = () => {}) {
+function fakeClosablePage(
+	name: string,
+	url: string,
+	calls: unknown[][],
+	onClose = () => {},
+	onQuit: (() => void) | undefined = undefined,
+) {
 	let closed = false;
 	let signalClosed = () => {};
 	return {
@@ -183,6 +218,12 @@ function fakeClosablePage(name: string, url: string, calls: unknown[][], onClose
 			closed = true;
 			signalClosed();
 			onClose();
+		},
+		async evaluate() {
+			calls.push(['quit', name]);
+			if (onQuit === undefined) return false;
+			onQuit();
+			return true;
 		},
 		on(event: string) { calls.push(['on', name, event]); },
 		off(event: string) { calls.push(['off', name, event]); },
