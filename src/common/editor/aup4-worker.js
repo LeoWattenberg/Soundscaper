@@ -8,7 +8,6 @@ import {
 	listAup4History,
 	prepareAup4PortableExport,
 	prepareAudacitySerializedDatabase,
-	readAup4SampleBlock,
 	upgradeAudacityProjectDatabase,
 	validateAudacityProjectDatabase,
 } from './aup4-database.js';
@@ -18,7 +17,6 @@ import { createAup4SnapshotWrites } from './aup4-worker-snapshot.js';
 import {
 	WORKER_VALIDATION_OPTIONS,
 	mergeCompatibilityReports,
-	mergeValidationOptions,
 	normalizeProjectId,
 	operationError,
 	portableLimit,
@@ -71,8 +69,6 @@ async function handle(type, args, context) {
 	if (type === 'initialize') return environmentInfo();
 	if (type === 'create') return createProject(args, context);
 	if (type === 'open-file') return openFile(args, context);
-	if (type === 'inspect') return inspectProject(args.projectId, args.options);
-	if (type === 'decode') return decodeProject(args, context);
 	if (type === 'plan-import') return planImport(args, context);
 	if (type === 'read-import-chunk') {
 		const session = requireProject(args.projectId).importSession;
@@ -267,36 +263,6 @@ function configureDefensiveDatabase(sqlite, database) {
 		}
 	}
 	database.exec('PRAGMA trusted_schema = OFF');
-}
-
-function inspectProject(projectId, options) {
-	const entry = requireProject(projectId);
-	return portableValidation(validateAudacityProjectDatabase(entry.database, mergeValidationOptions(options)), entry);
-}
-
-async function decodeProject(args, context) {
-	const entry = requireProject(args.projectId);
-	const validation = validateAudacityProjectDatabase(entry.database, WORKER_VALIDATION_OPTIONS);
-	const decoded = await decodeAudacityProjectTree(
-		validation.document.root,
-		async (blockId) => {
-			context.checkCancelled();
-			return readAup4SampleBlock(entry.database, blockId);
-		},
-		{
-			projectId: entry.projectId,
-			title: args.title,
-			sourceGeneration: entry.sourceGeneration,
-			maxDecodedBytes: args.maxDecodedBytes,
-			onProgress(progress) { context.progress(progress.value, progress.phase, { blockId: progress.blockId }); },
-		},
-	);
-	const portable = portableValidation(validation, entry);
-	return {
-		...decoded,
-		validation: portable,
-		compatibilityReport: mergeCompatibilityReports(portable.compatibilityReport, decoded.compatibilityReport),
-	};
 }
 
 async function planImport(args, context) {

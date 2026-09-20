@@ -34,7 +34,7 @@ test('AUP4 deserialize failure leaves FREEONCLOSE buffer ownership with SQLite',
 test('AUP4 worker exposes only protocol operations reached by the application client', async () => {
 	const worker = await readFile(new URL('../src/common/editor/aup4-worker.js', import.meta.url), 'utf8');
 	for (const operation of [
-		'write-document', 'write-snapshot', 'restore-history', 'history', 'read-block', 'list-open', 'close',
+		'decode', 'inspect', 'write-document', 'write-snapshot', 'restore-history', 'history', 'read-block', 'list-open', 'close',
 	]) {
 		assert.doesNotMatch(worker, new RegExp(`type === '${operation}'`, 'u'), operation);
 	}

@@ -42,14 +42,6 @@ export class Aup4WorkerClient {
 	openFile(projectId, file, options = {}) {
 		return this.call('open-file', { projectId, file, ...deviceOptions(options) }, options);
 	}
-	inspect(projectId, options = {}) { return this.call('inspect', { projectId, options: options.validation }, options); }
-	decode(projectId, options = {}) {
-		return this.call('decode', {
-			projectId,
-			title: options.title,
-			maxDecodedBytes: options.maxDecodedBytes,
-		}, options);
-	}
 	planImport(projectId, options = {}) {
 		return this.call('plan-import', { projectId, title: options.title }, options);
 	}
@@ -161,44 +153,16 @@ export async function saveAup4Result(result, options = {}) {
 	const bytes = result?.bytes;
 	if (!(bytes instanceof Uint8Array)) throw new TypeError('A native AUP4 byte array is required.');
 	const fileName = ensureAup4Extension(options.fileName || 'audacity-project.aup4');
-	if (options.fileService?.saveFile) {
-		return options.fileService.saveFile({
-			purpose: 'project',
-			suggestedName: fileName,
-			mimeType: result.mimeType || 'application/x-audacity-project',
-			blob: new Blob([bytes], { type: result.mimeType || 'application/x-audacity-project' }),
-			target: options.saveTarget ?? options.fileHandle ?? { browserDownload: true, name: fileName },
-		});
-	}
-	if (options.fileHandle?.createWritable) {
-		const writable = await options.fileHandle.createWritable();
-		try {
-			await writable.write(bytes);
-			await writable.close();
-		} catch (error) {
-			await writable.abort?.().catch(() => undefined);
-			throw error;
-		}
-		return { method: 'file-system-access', fileName, size: bytes.byteLength };
-	}
-	const blob = new Blob([bytes], { type: result.mimeType || 'application/x-audacity-project' });
-	const url = URL.createObjectURL(blob);
-	try {
-		const anchor = document.createElement('a');
-		anchor.href = url;
-		anchor.download = fileName;
-		anchor.hidden = true;
-		document.body.append(anchor);
-		anchor.click();
-		anchor.remove();
-	} finally {
-		globalThis.setTimeout(() => URL.revokeObjectURL(url), 30_000);
-	}
-	return { method: 'download', fileName, size: bytes.byteLength };
+	return options.fileService.saveFile({
+		purpose: 'project',
+		suggestedName: fileName,
+		mimeType: result.mimeType || 'application/x-audacity-project',
+		blob: new Blob([bytes], { type: result.mimeType || 'application/x-audacity-project' }),
+		target: options.saveTarget ?? options.fileHandle ?? { browserDownload: true, name: fileName },
+	});
 }
 
 export async function requestAup4FileHandle(options = {}) {
-	if (options.fileHandle?.createWritable) return options.fileHandle;
 	if (typeof globalThis.showSaveFilePicker !== 'function') return null;
 	return globalThis.showSaveFilePicker({
 		suggestedName: ensureAup4Extension(options.fileName || 'audacity-project.aup4'),

@@ -116,7 +116,6 @@ function createDeferredAup4Client(
 		initialize: (...args: unknown[]) => invoke('initialize', args),
 		create: (...args: unknown[]) => invoke('create', args),
 		openFile: (...args: unknown[]) => invoke('openFile', args),
-		decode: (...args: unknown[]) => invoke('decode', args),
 		planImport: (...args: unknown[]) => invoke('planImport', args),
 		async *readSourceChunks(...args: Parameters<NonNullable<NativeAup4Client['readSourceChunks']>>) {
 			const client = await loadClient();
@@ -126,7 +125,6 @@ function createDeferredAup4Client(
 		writeSnapshot: (...args: unknown[]) => invoke('writeSnapshot', args),
 		commit: (...args: unknown[]) => invoke('commit', args),
 		export: (...args: unknown[]) => invoke('export', args),
-		inspect: (...args: unknown[]) => invoke('inspect', args),
 		delete: (...args: unknown[]) => invokeOptional('delete', args),
 		dispose: async () => {
 			if (!clientPromise) return;

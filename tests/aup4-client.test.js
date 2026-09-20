@@ -11,7 +11,9 @@ import {
 test('AUP4 client omits worker operations with no application caller', () => {
 	const client = createAup4Client({ worker: new FakeWorker() });
 	try {
-		for (const method of ['writeDocument', 'restoreHistory', 'history', 'readBlock', 'listOpen', 'close']) {
+		for (const method of [
+			'decode', 'inspect', 'writeDocument', 'restoreHistory', 'history', 'readBlock', 'listOpen', 'close',
+		]) {
 			assert.equal(method in client, false, `${method} must not keep an unreachable worker request alive`);
 		}
 	} finally {
@@ -31,10 +33,10 @@ test('AUP4 client routes results, progress, structured errors, and cancellation'
 		assert.deepEqual(await creating, { projectId: 'project-1' });
 		assert.deepEqual(progress, [{ value: 0.5, phase: 'creating' }]);
 
-		const inspection = client.inspect('project-1');
-		const inspectMessage = worker.messages.at(-1);
-		worker.emit({ id: inspectMessage.id, error: { name: 'Aup4Error', message: 'Unsafe schema', code: 'UNSAFE_SCHEMA', details: { table: 'x' } } });
-		await assert.rejects(inspection, (error) => error instanceof Aup4ClientError && error.code === 'UNSAFE_SCHEMA' && error.details.table === 'x');
+		const failingCreate = client.create('project-error');
+		const failingCreateMessage = worker.messages.at(-1);
+		worker.emit({ id: failingCreateMessage.id, error: { name: 'Aup4Error', message: 'Unsafe schema', code: 'UNSAFE_SCHEMA', details: { table: 'x' } } });
+		await assert.rejects(failingCreate, (error) => error instanceof Aup4ClientError && error.code === 'UNSAFE_SCHEMA' && error.details.table === 'x');
 
 		const abortController = new AbortController();
 		const opening = client.openFile('project-2', new File(['SQLite'], 'project.aup4'), { signal: abortController.signal });
@@ -46,7 +48,7 @@ test('AUP4 client routes results, progress, structured errors, and cancellation'
 		const alreadyAborted = new AbortController();
 		alreadyAborted.abort();
 		const messageCount = worker.messages.length;
-		await assert.rejects(client.inspect('project-1', { signal: alreadyAborted.signal }), (error) => error.code === 'ABORTED');
+		await assert.rejects(client.create('project-aborted', { signal: alreadyAborted.signal }), (error) => error.code === 'ABORTED');
 		assert.equal(worker.messages.length, messageCount);
 		worker.emit({ id: openMessage.id, result: { shouldBeIgnored: true } });
 	} finally {
@@ -106,23 +108,16 @@ test('AUP4 client cancellation is operation-scoped and quota failures remain str
 	}
 });
 
-test('AUP4 file-handle publication aborts the writable on failure', async () => {
-	let aborted = false;
-	let closed = false;
-	const writable = {
-		async write() { throw new Error('disk full'); },
-		async close() { closed = true; },
-		async abort() { aborted = true; },
-	};
+test('AUP4 publication has one shipped writer through the application file service', async () => {
+	let createWritableCalled = false;
 	await assert.rejects(
 		() => saveAup4Result({ bytes: Uint8Array.of(1, 2, 3) }, {
 			fileName: 'round-trip',
-			fileHandle: { async createWritable() { return writable; } },
+			fileHandle: { async createWritable() { createWritableCalled = true; } },
 		}),
-		/disk full/,
+		TypeError,
 	);
-	assert.equal(aborted, true);
-	assert.equal(closed, false);
+	assert.equal(createWritableCalled, false);
 });
 
 test('AUP4 publication delegates opaque desktop targets to the injected file service', async () => {
@@ -296,12 +291,13 @@ test('AUP4 file picker requests the native extension and remains optional', asyn
 	const original = globalThis.showSaveFilePicker;
 	try {
 		let pickerOptions;
-		const handle = { async createWritable() {} };
+		const pickerHandle = { async createWritable() {} };
+		const obsoleteHandle = { async createWritable() {} };
 		globalThis.showSaveFilePicker = async (options) => {
 			pickerOptions = options;
-			return handle;
+			return pickerHandle;
 		};
-		assert.equal(await requestAup4FileHandle({ fileName: 'session' }), handle);
+		assert.equal(await requestAup4FileHandle({ fileName: 'session', fileHandle: obsoleteHandle }), pickerHandle);
 		assert.equal(pickerOptions.suggestedName, 'session.aup4');
 		assert.deepEqual(pickerOptions.types[0].accept, { 'application/x-audacity-project': ['.aup4'] });
 		delete globalThis.showSaveFilePicker;
