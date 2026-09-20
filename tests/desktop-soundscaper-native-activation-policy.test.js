@@ -20,6 +20,8 @@ test('checked-in native policy keeps payload-backed audio closed and exposes pla
 		clap: ['darwin', 'win32', 'linux'].includes(process.platform),
 		au: process.platform === 'darwin',
 		lv2: process.platform === 'linux',
+		ladspa: process.platform === 'linux',
+		vamp: ['darwin', 'win32', 'linux'].includes(process.platform),
 		fixture: false,
 	};
 	for (const [format, available] of Object.entries(expected)) {

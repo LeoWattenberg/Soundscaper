@@ -17,6 +17,8 @@ const FORMATS = Object.freeze({
 	clap: Object.freeze({ platforms: ['darwin', 'win32', 'linux'], policy: 'plugin-format-clap', sources: ['electron-node-api-headers', 'clap'] }),
 	au: Object.freeze({ platforms: ['darwin'], policy: 'plugin-format-audio-units', sources: ['electron-node-api-headers', 'juce'] }),
 	lv2: Object.freeze({ platforms: ['linux'], policy: 'plugin-format-lv2', sources: ['electron-node-api-headers', 'juce', 'lv2'] }),
+	ladspa: Object.freeze({ platforms: ['linux'], policy: 'plugin-format-ladspa', sources: ['electron-node-api-headers', 'ladspa-sdk'] }),
+	vamp: Object.freeze({ platforms: ['darwin', 'win32', 'linux'], policy: 'plugin-format-vamp', sources: ['electron-node-api-headers', 'vamp-plugin-sdk'] }),
 });
 
 export function createSoundscaperNativeActivationPolicy({
