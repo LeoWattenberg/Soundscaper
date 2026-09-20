@@ -13,6 +13,10 @@ export const NATIVE_PLUGIN_CONTROL = Object.freeze({
 	state: 'native-plugin-state', stateLoaded: 'native-plugin-state-loaded',
 	openVendorUi: 'native-plugin-open-vendor-ui', closeVendorUi: 'native-plugin-close-vendor-ui',
 	vendorUi: 'native-plugin-vendor-ui',
+	capabilities: 'native-plugin-capabilities', capabilitiesResult: 'native-plugin-capabilities-result',
+	describeParameters: 'native-plugin-describe-parameters', parameters: 'native-plugin-parameters',
+	readParameter: 'native-plugin-read-parameter', writeParameter: 'native-plugin-write-parameter',
+	parameterValue: 'native-plugin-parameter-value',
 });
 
 /** Fixed-pool, direct MessagePort processor. Missing/faulted hosts are dry bypass. */
@@ -115,6 +119,10 @@ export class NativePluginRealtimeProcessor extends ProcessorBase {
 		if (message.type === NATIVE_PLUGIN_CONTROL.loadState) return this.#requestControl(message, 'load-state');
 		if (message.type === NATIVE_PLUGIN_CONTROL.openVendorUi) return this.#requestControl(message, 'open-vendor-ui');
 		if (message.type === NATIVE_PLUGIN_CONTROL.closeVendorUi) return this.#requestControl(message, 'close-vendor-ui');
+		if (message.type === NATIVE_PLUGIN_CONTROL.capabilities) return this.#requestControl(message, 'capabilities');
+		if (message.type === NATIVE_PLUGIN_CONTROL.describeParameters) return this.#requestControl(message, 'parameters');
+		if (message.type === NATIVE_PLUGIN_CONTROL.readParameter) return this.#requestControl(message, 'parameter-get');
+		if (message.type === NATIVE_PLUGIN_CONTROL.writeParameter) return this.#requestControl(message, 'parameter-set');
 		if (message.type !== NATIVE_PLUGIN_CONTROL.attach) return;
 		const peer = ports.length === 1 ? ports[0] : null;
 		if (!peer || typeof peer.postMessage !== 'function'
@@ -138,6 +146,8 @@ export class NativePluginRealtimeProcessor extends ProcessorBase {
 			return this.#stateReply(message);
 		}
 		if (message.kind === 'vendor-ui') return this.#vendorUiReply(message);
+		if (message.kind === 'capabilities' || message.kind === 'parameters'
+			|| message.kind === 'parameter-value') return this.#parameterReply(message);
 		if (message.kind === 'latency' && typeof message.requestId === 'string') {
 			this.#post({
 				type: NATIVE_PLUGIN_CONTROL.latency,
@@ -186,13 +196,25 @@ export class NativePluginRealtimeProcessor extends ProcessorBase {
 			}
 			request.windowHandleId = windowHandleId;
 		}
-		this.controlRequests.set(requestId, kind);
+		if (kind === 'parameter-get' || kind === 'parameter-set') {
+			if (!Number.isSafeInteger(message.index) || message.index < 0 || message.index > 4_095) {
+				return this.#post({ type: NATIVE_PLUGIN_CONTROL.fault, reason: 'invalid-parameter-index', requestId });
+			}
+			request.index = message.index;
+			if (kind === 'parameter-set') {
+				if (!normalizedParameterValue(message.value)) {
+					return this.#post({ type: NATIVE_PLUGIN_CONTROL.fault, reason: 'invalid-parameter-value', requestId });
+				}
+				request.value = message.value;
+			}
+		}
+		this.controlRequests.set(requestId, Object.freeze({ kind, index: request.index ?? null }));
 		this.#send(request, transfer);
 	}
 
 	#stateReply(message) {
 		const requestId = requestIdValue(message.requestId);
-		const kind = requestId ? this.controlRequests.get(requestId) : null;
+		const kind = requestId ? this.controlRequests.get(requestId)?.kind : null;
 		if (!kind || (kind === 'save-state') !== (message.kind === 'state')) return this.#close('state-rpc-mismatch');
 		this.controlRequests.delete(requestId);
 		if (message.kind === 'state') {
@@ -212,13 +234,47 @@ export class NativePluginRealtimeProcessor extends ProcessorBase {
 
 	#vendorUiReply(message) {
 		const requestId = requestIdValue(message.requestId);
-		const kind = requestId ? this.controlRequests.get(requestId) : null;
+		const kind = requestId ? this.controlRequests.get(requestId)?.kind : null;
 		if (!kind || !['open-vendor-ui', 'close-vendor-ui'].includes(kind)
 			|| !['opened', 'closed', 'refused'].includes(message.status)) {
 			return this.#close('vendor-ui-rpc-mismatch');
 		}
 		this.controlRequests.delete(requestId);
 		this.#post({ type: NATIVE_PLUGIN_CONTROL.vendorUi, requestId, status: message.status });
+	}
+
+	#parameterReply(message) {
+		const requestId = requestIdValue(message.requestId);
+		const claim = requestId ? this.controlRequests.get(requestId) : null;
+		if (!claim || (message.kind === 'capabilities' && claim.kind !== 'capabilities')
+			|| (message.kind === 'parameters' && claim.kind !== 'parameters')
+			|| (message.kind === 'parameter-value'
+				&& !['parameter-get', 'parameter-set'].includes(claim.kind))) {
+			return this.#close('parameter-rpc-mismatch');
+		}
+		this.controlRequests.delete(requestId);
+		if (message.kind === 'capabilities') {
+			if (!Number.isSafeInteger(message.parameterCount) || message.parameterCount < 0
+				|| message.parameterCount > 4_096 || typeof message.hasVendorUi !== 'boolean') {
+				return this.#close('invalid-plugin-capabilities');
+			}
+			return this.#post({
+				type: NATIVE_PLUGIN_CONTROL.capabilitiesResult, requestId,
+				parameterCount: message.parameterCount, hasVendorUi: message.hasVendorUi,
+			});
+		}
+		if (message.kind === 'parameters') {
+			const parameters = pluginParameters(message.parameters);
+			if (!parameters) return this.#close('invalid-plugin-parameters');
+			return this.#post({ type: NATIVE_PLUGIN_CONTROL.parameters, requestId, parameters });
+		}
+		if (message.index !== claim.index || !normalizedParameterValue(message.value)) {
+			return this.#close('invalid-plugin-parameter-value');
+		}
+		this.#post({
+			type: NATIVE_PLUGIN_CONTROL.parameterValue, requestId,
+			index: message.index, value: message.value,
+		});
 	}
 
 	#send(message, transfer = []) {
@@ -276,4 +332,29 @@ function stateAuthentication(value, requestId, byteLength) {
 	return value && typeof value === 'object' && value.requestId === requestId && value.byteLength === byteLength
 		&& typeof value.sha256 === 'string' && /^[a-f\d]{64}$/u.test(value.sha256)
 		&& typeof value.mac === 'string' && /^[a-f\d]{64}$/u.test(value.mac);
+}
+function normalizedParameterValue(value) {
+	return Number.isFinite(value) && value >= 0 && value <= 1;
+}
+function pluginParameters(value) {
+	if (!Array.isArray(value) || value.length > 4_096) return null;
+	const ids = new Set();
+	for (let index = 0; index < value.length; index += 1) {
+		const parameter = value[index];
+		if (!parameter || parameter.index !== index || !parameterText(parameter.id, false)
+			|| !parameterText(parameter.name, false) || !parameterText(parameter.label, true)
+			|| !normalizedParameterValue(parameter.minimumValue)
+			|| !normalizedParameterValue(parameter.defaultValue)
+			|| !normalizedParameterValue(parameter.maximumValue)
+			|| parameter.minimumValue > parameter.defaultValue
+			|| parameter.defaultValue > parameter.maximumValue
+			|| !Number.isSafeInteger(parameter.flags) || parameter.flags < 0 || parameter.flags > 15
+			|| ids.has(parameter.id)) return null;
+		ids.add(parameter.id);
+	}
+	return value;
+}
+function parameterText(value, allowEmpty) {
+	return typeof value === 'string' && (allowEmpty || value.length > 0)
+		&& value.length <= 512 && !value.includes('\0');
 }

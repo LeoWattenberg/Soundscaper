@@ -8,11 +8,15 @@ import {
 	acceptNativePluginPortOffer,
 	closeNativePluginRuntimeVendorUi,
 	createNativePluginEffectNode,
+	describeNativePluginRuntimeParameters,
+	nativePluginRuntimeCapabilities,
 	openNativePluginRuntimeVendorUi,
 	prepareNativePluginOfflineRuntimes,
+	readNativePluginRuntimeParameter,
 	registerNativePluginOfflineRuntimeProvider,
 	registerNativePluginRuntimeIdentity,
 	releaseNativePluginRuntime,
+	writeNativePluginRuntimeParameter,
 } from '../src/common/editor/native-plugin-realtime-node.js';
 
 const PROJECT = Object.freeze({
@@ -169,4 +173,59 @@ test('the renderer routes opaque vendor-window controls over the bound helper po
 	assert.deepEqual(helperMessages.map(({ kind, windowHandleId }) => [kind, windowHandleId]), [
 		['open-vendor-ui', 'window_1'], ['close-vendor-ui', 'window_1'],
 	]);
+});
+
+test('the renderer exposes generated native parameter controls over the bound helper port', async (context) => {
+	const original = globalThis.AudioWorkletNode;
+	const parameter = Object.freeze({
+		index: 0, id: 'gain', name: 'Gain', label: '', defaultValue: 0.5,
+		minimumValue: 0, maximumValue: 1, flags: 8,
+	});
+	class FakeNode {
+		readonly port = {
+			onmessage: null as ((event: { data: Record<string, unknown> }) => void) | null,
+			start() {},
+			postMessage: (message: Record<string, unknown>) => {
+				if (message.type === 'native-plugin-attach') queueMicrotask(() => this.port.onmessage?.({ data: {
+					type: 'native-plugin-attached', generation: 1,
+				} }));
+				const replies: Record<string, Record<string, unknown>> = {
+					'native-plugin-capabilities': {
+						type: 'native-plugin-capabilities-result', parameterCount: 1, hasVendorUi: false,
+					},
+					'native-plugin-describe-parameters': {
+						type: 'native-plugin-parameters', parameters: [parameter],
+					},
+					'native-plugin-read-parameter': {
+						type: 'native-plugin-parameter-value', index: 0, value: 0.5,
+					},
+					'native-plugin-write-parameter': {
+						type: 'native-plugin-parameter-value', index: 0, value: message.value,
+					},
+				};
+				const reply = replies[String(message.type)];
+				if (reply) queueMicrotask(() => this.port.onmessage?.({ data: {
+					...reply, requestId: message.requestId,
+				} }));
+			},
+		};
+		disconnect() {}
+	}
+	globalThis.AudioWorkletNode = FakeNode as unknown as typeof AudioWorkletNode;
+	context.after(() => { globalThis.AudioWorkletNode = original; releaseNativePluginRuntime('parameters-1'); });
+	registerNativePluginRuntimeIdentity('parameters-1', 'ladspa');
+	assert.equal(acceptNativePluginPortOffer({
+		instanceId: 'parameters-1', purpose: 'plugin-rpc', transport: 'message-port',
+		portContractVersion: 1, generation: 1, reportedLatencyFrames: 0,
+	}, [{ postMessage() {}, close() {} }]), true);
+	createNativePluginEffectNode({ sampleRate: 48_000 } as BaseAudioContext, {
+		type: 'native-plugin', bypassed: false, params: { instanceId: 'parameters-1' },
+	}, 2);
+	assert.deepEqual(await nativePluginRuntimeCapabilities('parameters-1'), {
+		parameterCount: 1, hasVendorUi: false,
+	});
+	assert.deepEqual(await describeNativePluginRuntimeParameters('parameters-1'), [parameter]);
+	assert.equal(await readNativePluginRuntimeParameter('parameters-1', 0), 0.5);
+	assert.equal(await writeNativePluginRuntimeParameter('parameters-1', 0, 0.75), 0.75);
+	await assert.rejects(writeNativePluginRuntimeParameter('parameters-1', 0, Number.NaN), /normalized/iu);
 });

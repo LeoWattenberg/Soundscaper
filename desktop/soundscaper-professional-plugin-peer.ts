@@ -16,13 +16,14 @@ import {
 import type { HelperJobResourcePolicy } from './helper-resource-policy.ts';
 import { snapshotAuthenticatedPluginCandidate } from './plugin-candidate-snapshot.mjs';
 
-const VERSION = 1;
+const VERSION = 2;
 const MAXIMUM_FRAME_BYTES = 16 * 1024 ** 2;
 const MAXIMUM_STATE_BYTES = MAXIMUM_FRAME_BYTES - 64;
 const MAXIMUM_CANDIDATES = 512;
 const MAXIMUM_DEPTH = 16;
 const OPERATION = Object.freeze({
 	scan: 1, open: 2, process: 3, latency: 4, save: 5, load: 6, close: 7, vendor: 8,
+	capabilities: 9, parameters: 10, parameterGet: 11, parameterSet: 12,
 });
 const STATUS = Object.freeze([
 	'ok', 'backend-unavailable', 'server-unavailable', 'device-unavailable', 'format-refused',
@@ -36,6 +37,26 @@ export interface ProfessionalPluginPeerContext {
 	readonly resourcePolicy: HelperJobResourcePolicy;
 }
 
+export const PROFESSIONAL_PLUGIN_PARAMETER_FLAGS = Object.freeze({
+	boolean: 1, integer: 2, logarithmic: 4, automatable: 8,
+});
+
+export interface ProfessionalPluginCapabilities {
+	readonly parameterCount: number;
+	readonly hasVendorUi: boolean;
+}
+
+export interface ProfessionalPluginParameter {
+	readonly index: number;
+	readonly id: string;
+	readonly name: string;
+	readonly label: string;
+	readonly defaultValue: number;
+	readonly minimumValue: number;
+	readonly maximumValue: number;
+	readonly flags: number;
+}
+
 export interface ProfessionalPluginPeerLauncher {
 	launch(request: Readonly<{
 		readonly executable: NativeChildIsolationArtifactDescriptor;
@@ -47,7 +68,8 @@ export interface ProfessionalPluginPeerLauncher {
 		readonly workloadPayload: NativeChildIsolationArtifactDescriptor;
 		readonly resourcePolicy: Readonly<{ maximumJobDurationMs: number; maximumRssBytes: number }>;
 		readonly framedControl: Readonly<{
-			readonly protocolVersion: 1;
+			readonly protocolFamily: 'M5F';
+			readonly protocolVersion: 2;
 			readonly maximumMessageBytes: number;
 			readonly maximumInFlightMessages: number;
 		}>;
@@ -194,6 +216,38 @@ export function createSoundscaperProfessionalPluginPeer(options: Readonly<{
 			const answer = await instance.session.request(OPERATION.latency);
 			instance.latency = answer.unsigned32(); answer.done(); return instance.latency;
 		},
+		pluginCapabilities: async (value: PeerInstance): Promise<ProfessionalPluginCapabilities> => {
+			const answer = await liveInstance(value).session.request(OPERATION.capabilities);
+			const parameterCount = answer.unsigned32();
+			const hasVendorUi = answer.unsigned32();
+			answer.done();
+			if (parameterCount > 4_096 || hasVendorUi > 1) {
+				throw new Error('The isolated peer returned malformed plug-in capabilities.');
+			}
+			return Object.freeze({ parameterCount, hasVendorUi: hasVendorUi === 1 });
+		},
+		describePluginParameters: async (value: PeerInstance): Promise<readonly ProfessionalPluginParameter[]> => {
+			const answer = await liveInstance(value).session.request(OPERATION.parameters);
+			const count = answer.unsigned32();
+			if (count > 4_096) throw new Error('The isolated peer returned too many plug-in parameters.');
+			const parameters = Array.from({ length: count }, (_, index) => readParameter(answer, index));
+			answer.done();
+			if (new Set(parameters.map(({ id }) => id)).size !== parameters.length) {
+				throw new Error('The isolated peer returned duplicate plug-in parameter IDs.');
+			}
+			return Object.freeze(parameters);
+		},
+		readPluginParameter: async (value: PeerInstance, index: number) => {
+			const answer = await liveInstance(value).session.request(OPERATION.parameterGet,
+				(writer) => writer.unsigned32(parameterIndex(index)));
+			const current = normalizedParameterValue(answer.number()); answer.done(); return current;
+		},
+		writePluginParameter: async (value: PeerInstance, index: number, next: number) => {
+			const answer = await liveInstance(value).session.request(OPERATION.parameterSet, (writer) => {
+				writer.unsigned32(parameterIndex(index)); writer.number(normalizedParameterValue(next));
+			});
+			const current = normalizedParameterValue(answer.number()); answer.done(); return current;
+		},
 		savePluginState: async (value: PeerInstance) => {
 			const answer = await liveInstance(value).session.request(OPERATION.save);
 			const state = answer.blob(MAXIMUM_STATE_BYTES); answer.done(); return state;
@@ -260,7 +314,10 @@ async function openSession(
 				maximumJobDurationMs: context.resourcePolicy.maximumJobDurationMs,
 				maximumRssBytes: context.resourcePolicy.maximumRssBytes,
 			},
-			framedControl: { protocolVersion: 1, maximumMessageBytes: MAXIMUM_FRAME_BYTES, maximumInFlightMessages: 1 },
+			framedControl: {
+				protocolFamily: 'M5F', protocolVersion: 2,
+				maximumMessageBytes: MAXIMUM_FRAME_BYTES, maximumInFlightMessages: 1,
+			},
 		});
 	} catch (error) { await snapshot.dispose(); throw error; }
 	if (!isEnforcedNativeChildLaunch(launch.enforcement) || !launch.control) {
@@ -370,6 +427,22 @@ function readDescription(reader: BinaryReader): PeerDescription {
 	});
 }
 
+function readParameter(reader: BinaryReader, index: number): ProfessionalPluginParameter {
+	const id = reader.text(512);
+	const name = reader.text(512);
+	const label = reader.text(512, true);
+	const defaultValue = normalizedParameterValue(reader.number());
+	const minimumValue = normalizedParameterValue(reader.number());
+	const maximumValue = normalizedParameterValue(reader.number());
+	const flags = reader.unsigned32();
+	if (minimumValue > defaultValue || defaultValue > maximumValue || flags > 15) {
+		throw new Error('The isolated peer returned a malformed plug-in parameter.');
+	}
+	return Object.freeze({
+		index, id, name, label, defaultValue, minimumValue, maximumValue, flags,
+	});
+}
+
 function response(value: Uint8Array, operation: number): BinaryReader {
 	const reader = new BinaryReader(value);
 	if (reader.byte() !== VERSION || reader.byte() !== operation) throw new Error('The isolated peer response is misbound.');
@@ -397,7 +470,8 @@ class BinaryReader {
 	constructor(value: Uint8Array) { this.#bytes = Buffer.from(value.buffer, value.byteOffset, value.byteLength); }
 	byte() { return this.#take(1).readUInt8(0); }
 	unsigned32() { return this.#take(4).readUInt32LE(0); }
-	text(maximum: number) { const bytes = this.blob(maximum); const value = Buffer.from(bytes).toString('utf8'); if (!value || value.includes('\0')) throw new Error('The peer returned invalid text.'); return value; }
+	number() { const value = this.#take(8).readDoubleLE(0); if (!Number.isFinite(value)) throw new Error('The peer returned a non-finite number.'); return value; }
+	text(maximum: number, allowEmpty = false) { const bytes = this.blob(maximum); const value = Buffer.from(bytes).toString('utf8'); if ((!allowEmpty && !value) || value.includes('\0')) throw new Error('The peer returned invalid text.'); return value; }
 	blob(maximum: number) { const length = this.unsigned32(); if (length > maximum) throw new Error('The peer returned an oversized blob.'); return new Uint8Array(this.#take(length)); }
 	floats(output: Float32Array) { const bytes = this.#take(output.byteLength); for (let index = 0; index < output.length; index += 1) output[index] = bytes.readFloatLE(index * 4); }
 	done() { if (this.#offset !== this.#bytes.byteLength) throw new Error('The peer response has trailing bytes.'); }
@@ -417,7 +491,7 @@ function planes(value: readonly Float32Array[], count: number, frames: number) {
 
 function pluginFormats(value: readonly Exclude<HelperPluginFormat, 'fixture'>[]) {
 	if (!Array.isArray(value) || value.length < 1 || new Set(value).size !== value.length
-		|| value.some((format) => !['vst3', 'clap', 'au', 'lv2'].includes(format))) {
+		|| value.some((format) => !['vst3', 'clap', 'au', 'lv2', 'ladspa'].includes(format))) {
 		throw new TypeError('The isolated peer needs exact professional formats.');
 	}
 	return Object.freeze([...value]);
@@ -444,5 +518,14 @@ function ordinaryBytes(value: Uint8Array) {
 
 function bounded(value: number, maximum: number) {
 	if (!Number.isSafeInteger(value) || value < 0 || value > maximum) throw new RangeError('A peer integer is out of range.');
+	return value;
+}
+
+function parameterIndex(value: number): number { return bounded(value, 4_095); }
+
+function normalizedParameterValue(value: number): number {
+	if (!Number.isFinite(value) || value < 0 || value > 1) {
+		throw new RangeError('A normalized plug-in parameter value is required.');
+	}
 	return value;
 }
