@@ -20,6 +20,7 @@ public:
 	virtual uint32_t latency() const = 0;
 	virtual soundscaper_pro_status saveState(uint8_t *bytes, size_t capacity, size_t &written) = 0;
 	virtual soundscaper_pro_status loadState(const uint8_t *bytes, size_t length) = 0;
+	virtual bool hasVendorUi() const = 0;
 	virtual soundscaper_pro_status openVendorWindow(const std::string &opaqueId) = 0;
 	virtual void closeVendorWindow() = 0;
 };

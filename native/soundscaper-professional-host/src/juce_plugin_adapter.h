@@ -20,6 +20,11 @@ public:
 	virtual uint32_t latency() const = 0;
 	virtual soundscaper_pro_status saveState(uint8_t *bytes, size_t capacity, size_t &written) = 0;
 	virtual soundscaper_pro_status loadState(const uint8_t *bytes, size_t length) = 0;
+	virtual soundscaper_pro_status capabilities(soundscaper_pro_plugin_capability_report &report) const = 0;
+	virtual soundscaper_pro_status describeParameters(
+		std::vector<soundscaper_pro_plugin_parameter> &parameters) const = 0;
+	virtual soundscaper_pro_status readParameter(uint32_t index, double &value) const = 0;
+	virtual soundscaper_pro_status writeParameter(uint32_t index, double value) = 0;
 	virtual soundscaper_pro_status openVendorWindow(const std::string &opaqueId) = 0;
 	virtual void closeVendorWindow() = 0;
 };
@@ -39,6 +44,14 @@ soundscaper_pro_status saveJucePluginState(
 	JucePluginInstance &instance, uint8_t *bytes, size_t capacity, size_t &written);
 soundscaper_pro_status loadJucePluginState(
 	JucePluginInstance &instance, const uint8_t *bytes, size_t length);
+soundscaper_pro_status jucePluginCapabilities(
+	JucePluginInstance &instance, soundscaper_pro_plugin_capability_report &report);
+soundscaper_pro_status describeJucePluginParameters(
+	JucePluginInstance &instance, std::vector<soundscaper_pro_plugin_parameter> &parameters);
+soundscaper_pro_status readJucePluginParameter(
+	JucePluginInstance &instance, uint32_t index, double &value);
+soundscaper_pro_status writeJucePluginParameter(
+	JucePluginInstance &instance, uint32_t index, double value);
 soundscaper_pro_status openJuceVendorWindow(JucePluginInstance &instance, const std::string &opaqueId);
 void closeJuceVendorWindow(JucePluginInstance &instance);
 

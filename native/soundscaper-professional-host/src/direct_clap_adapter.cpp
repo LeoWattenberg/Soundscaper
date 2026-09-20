@@ -315,6 +315,8 @@ public:
 			? SOUNDSCAPER_PRO_OK : SOUNDSCAPER_PRO_STATE_REJECTED;
 	}
 
+	bool hasVendorUi() const override { return guiExtension != nullptr; }
+
 	soundscaper_pro_status openVendorWindow(const std::string &opaqueId) override
 	{
 		if (opaqueId.empty()) return SOUNDSCAPER_PRO_UNSUPPORTED;

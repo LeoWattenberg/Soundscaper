@@ -3,6 +3,7 @@
 /** Persistent binary RPC peer; all third-party plug-in code stays in this process. */
 
 #include "professional_host_api.h"
+#include "professional_host_containment_probe.h"
 #include "juce_message_dispatcher.h"
 
 #if defined(__APPLE__)
@@ -11,10 +12,8 @@
 
 #include <algorithm>
 #include <array>
-#include <cerrno>
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -25,10 +24,6 @@
 #include <fcntl.h>
 #include <io.h>
 #else
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
 #endif
 
@@ -36,11 +31,13 @@ namespace {
 
 constexpr size_t maximumFrameBytes = 16u * 1024u * 1024u;
 constexpr size_t maximumStateBytes = maximumFrameBytes - 64u;
-constexpr std::array<uint8_t, 4> magic{ 'M', '5', 'F', '1' };
+constexpr uint8_t protocolVersion = 2u;
+constexpr std::array<uint8_t, 4> magic{ 'M', '5', 'F', '2' };
 
 enum class Operation : uint8_t {
 	scan = 1u, open = 2u, process = 3u, latency = 4u,
 	save = 5u, load = 6u, close = 7u, vendor = 8u,
+	capabilities = 9u, parameters = 10u, parameterGet = 11u, parameterSet = 12u,
 };
 
 enum class VendorOperation : uint8_t { open = 1u, close = 2u };
@@ -135,6 +132,16 @@ public:
 	{
 		uint8_t bytes[4]; encode32(bytes, value); return append(bytes, sizeof(bytes));
 	}
+	bool number(double value)
+	{
+		uint64_t encoded = 0u;
+		std::memcpy(&encoded, &value, sizeof(encoded));
+		uint8_t bytes[8];
+		for (uint32_t index = 0u; index < 8u; ++index) {
+			bytes[index] = static_cast<uint8_t>(encoded >> (index * 8u));
+		}
+		return append(bytes, sizeof(bytes));
+	}
 	bool text(const char *value)
 	{
 		const size_t length = value == nullptr ? 0u : std::strlen(value);
@@ -188,6 +195,13 @@ bool description(Writer &writer, const soundscaper_pro_plugin_description &value
 		&& writer.unsigned32(value.is_instrument) && writer.unsigned32(value.latency_frames);
 }
 
+bool parameterDescription(Writer &writer, const soundscaper_pro_plugin_parameter &value)
+{
+	return writer.text(value.id) && writer.text(value.name) && writer.text(value.label)
+		&& writer.number(value.default_value) && writer.number(value.minimum_value)
+		&& writer.number(value.maximum_value) && writer.unsigned32(value.flags);
+}
+
 soundscaper_pro_status scan(
 	const std::string &format,
 	const std::string &path,
@@ -213,15 +227,15 @@ public:
 	{
 		Reader reader(request);
 		uint8_t version = 0u, rawOperation = 0u;
-		if (!reader.byte(version) || !reader.byte(rawOperation) || version != 1u
+		if (!reader.byte(version) || !reader.byte(rawOperation) || version != protocolVersion
 			|| rawOperation < static_cast<uint8_t>(Operation::scan)
-			|| rawOperation > static_cast<uint8_t>(Operation::vendor)) return false;
+			|| rawOperation > static_cast<uint8_t>(Operation::parameterSet)) return false;
 		const auto operation = static_cast<Operation>(rawOperation);
 		Writer payload;
 		const auto status = execute(operation, reader, payload);
 		if (!reader.done()) return false;
 		Writer response;
-		if (!response.byte(1u) || !response.byte(rawOperation)
+		if (!response.byte(protocolVersion) || !response.byte(rawOperation)
 			|| !response.unsigned32(static_cast<uint32_t>(status))) return false;
 		if (status == SOUNDSCAPER_PRO_OK) {
 			if (!response.blob(payload.bytes().data(), payload.bytes().size())) return false;
@@ -241,6 +255,10 @@ private:
 		case Operation::load: return load(reader);
 		case Operation::close: close(); finished_ = true; return SOUNDSCAPER_PRO_OK;
 		case Operation::vendor: return vendor(reader, writer);
+		case Operation::capabilities: return capabilities(reader, writer);
+		case Operation::parameters: return parameters(reader, writer);
+		case Operation::parameterGet: return parameterGet(reader, writer);
+		case Operation::parameterSet: return parameterSet(reader, writer);
 		}
 		return SOUNDSCAPER_PRO_UNSUPPORTED;
 	}
@@ -356,6 +374,57 @@ private:
 		vendorWindowId_.clear();
 		return writer.byte(1u) ? SOUNDSCAPER_PRO_OK : SOUNDSCAPER_PRO_STATE_TOO_LARGE;
 	}
+	soundscaper_pro_status capabilities(Reader &, Writer &writer)
+	{
+		if (plugin_ == nullptr) return SOUNDSCAPER_PRO_PLUGIN_MALFORMED;
+		soundscaper_pro_plugin_capability_report report{};
+		const auto status = soundscaper_pro_plugin_get_capabilities(plugin_, &report);
+		if (status != SOUNDSCAPER_PRO_OK) return status;
+		if (report.parameter_count > SOUNDSCAPER_PRO_MAX_PLUGIN_PARAMETERS) {
+			return SOUNDSCAPER_PRO_PLUGIN_MALFORMED;
+		}
+		return writer.unsigned32(report.parameter_count) && writer.unsigned32(report.has_vendor_ui)
+			? SOUNDSCAPER_PRO_OK : SOUNDSCAPER_PRO_STATE_TOO_LARGE;
+	}
+	soundscaper_pro_status parameters(Reader &, Writer &writer)
+	{
+		if (plugin_ == nullptr) return SOUNDSCAPER_PRO_PLUGIN_MALFORMED;
+		size_t count = 0u;
+		auto status = soundscaper_pro_plugin_describe_parameters(plugin_, nullptr, 0u, &count);
+		if (status != SOUNDSCAPER_PRO_OK) return status;
+		if (count > SOUNDSCAPER_PRO_MAX_PLUGIN_PARAMETERS) return SOUNDSCAPER_PRO_PLUGIN_MALFORMED;
+		std::vector<soundscaper_pro_plugin_parameter> values(count);
+		status = soundscaper_pro_plugin_describe_parameters(
+			plugin_, values.data(), values.size(), &count);
+		if (status != SOUNDSCAPER_PRO_OK || count != values.size()) return SOUNDSCAPER_PRO_PLUGIN_MALFORMED;
+		if (!writer.unsigned32(static_cast<uint32_t>(count))) return SOUNDSCAPER_PRO_STATE_TOO_LARGE;
+		for (const auto &value : values) {
+			if (!parameterDescription(writer, value)) return SOUNDSCAPER_PRO_STATE_TOO_LARGE;
+		}
+		return SOUNDSCAPER_PRO_OK;
+	}
+	soundscaper_pro_status parameterGet(Reader &reader, Writer &writer)
+	{
+		uint32_t index = 0u;
+		double value = 0.0;
+		if (plugin_ == nullptr || !reader.unsigned32(index)) return SOUNDSCAPER_PRO_PLUGIN_MALFORMED;
+		const auto status = soundscaper_pro_plugin_read_parameter(plugin_, index, &value);
+		return status != SOUNDSCAPER_PRO_OK ? status
+			: writer.number(value) ? SOUNDSCAPER_PRO_OK : SOUNDSCAPER_PRO_STATE_TOO_LARGE;
+	}
+	soundscaper_pro_status parameterSet(Reader &reader, Writer &writer)
+	{
+		uint32_t index = 0u;
+		double value = 0.0;
+		if (plugin_ == nullptr || !reader.unsigned32(index) || !reader.number(value)) {
+			return SOUNDSCAPER_PRO_PLUGIN_MALFORMED;
+		}
+		auto status = soundscaper_pro_plugin_write_parameter(plugin_, index, value);
+		if (status != SOUNDSCAPER_PRO_OK) return status;
+		status = soundscaper_pro_plugin_read_parameter(plugin_, index, &value);
+		return status != SOUNDSCAPER_PRO_OK ? status
+			: writer.number(value) ? SOUNDSCAPER_PRO_OK : SOUNDSCAPER_PRO_STATE_TOO_LARGE;
+	}
 	void close()
 	{
 		if (plugin_ != nullptr && !vendorWindowId_.empty()) {
@@ -371,129 +440,6 @@ private:
 	std::string vendorWindowId_;
 	bool finished_ = false;
 };
-
-bool option(const char *value, const char *prefix, std::string &output)
-{
-	const size_t length = std::strlen(prefix);
-	if (std::strncmp(value, prefix, length) != 0 || value[length] == '\0') return false;
-	output.assign(value + length);
-	return output.find('\0') == std::string::npos;
-}
-
-int denied(const char *operation)
-{
-	return std::printf("SOUNDSCAPER_CONTAINMENT_PROBE %s denied\n", operation) > 0
-		&& std::fflush(stdout) == 0 ? 0 : 125;
-}
-
-int filesystemProbe(int argc, char **argv)
-{
-	std::string authorizedPath, unauthorizedPath;
-	if (argc != 4 || !option(argv[2], "--authorized-path=", authorizedPath)
-		|| !option(argv[3], "--unauthorized-path=", unauthorizedPath)) return 125;
-	FILE *authorized = std::fopen(authorizedPath.c_str(), "rb");
-	if (authorized == nullptr) return 125;
-	const int firstByte = std::fgetc(authorized);
-	const bool authorizedRead = firstByte != EOF && std::fclose(authorized) == 0;
-	FILE *unauthorized = std::fopen(unauthorizedPath.c_str(), "rb");
-	if (unauthorized != nullptr) {
-		(void)std::fclose(unauthorized);
-		return 126;
-	}
-	if (!authorizedRead) return 125;
-	return std::fputs(
-		"SOUNDSCAPER_CONTAINMENT_PROBE filesystem authorized-read unauthorized-denied\n",
-		stdout) >= 0 && std::fflush(stdout) == 0 ? 0 : 125;
-}
-
-int networkProbe(int argc, char **argv)
-{
-	std::string rawPort;
-	if (argc != 3 || !option(argv[2], "--loopback-port=", rawPort)) return 125;
-	char *end = nullptr;
-	errno = 0;
-	const auto parsed = std::strtoul(rawPort.c_str(), &end, 10);
-	if (errno != 0 || end == rawPort.c_str() || *end != '\0' || parsed < 1u || parsed > 65535u) return 125;
-#if defined(_WIN32)
-	WSADATA data{};
-	if (WSAStartup(MAKEWORD(2, 2), &data) != 0) return denied("network");
-	const SOCKET handle = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (handle == INVALID_SOCKET) { (void)WSACleanup(); return denied("network"); }
-#else
-	const int handle = socket(AF_INET, SOCK_STREAM, 0);
-	if (handle < 0) return denied("network");
-#endif
-	sockaddr_in address{};
-	address.sin_family = AF_INET;
-	address.sin_port = htons(static_cast<uint16_t>(parsed));
-	address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	const bool connected = connect(handle, reinterpret_cast<const sockaddr *>(&address), sizeof(address)) == 0;
-#if defined(_WIN32)
-	(void)closesocket(handle);
-	(void)WSACleanup();
-#else
-	(void)close(handle);
-#endif
-	return connected ? 126 : denied("network");
-}
-
-int childProcessProbe(int argc)
-{
-	if (argc != 2) return 125;
-#if defined(_WIN32)
-	std::array<wchar_t, 32768> executable{};
-	if (GetModuleFileNameW(nullptr, executable.data(), static_cast<DWORD>(executable.size())) == 0u) return 125;
-	std::wstring command = L"\"" + std::wstring(executable.data()) + L"\"";
-	std::vector<wchar_t> mutableCommand(command.begin(), command.end());
-	mutableCommand.push_back(L'\0');
-	STARTUPINFOW startup{}; startup.cb = sizeof(startup);
-	PROCESS_INFORMATION process{};
-	const BOOL created = CreateProcessW(executable.data(), mutableCommand.data(), nullptr, nullptr,
-		FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &startup, &process);
-	if (created) {
-		(void)TerminateProcess(process.hProcess, 126u);
-		(void)WaitForSingleObject(process.hProcess, 5000u);
-		(void)CloseHandle(process.hThread); (void)CloseHandle(process.hProcess);
-		return 126;
-	}
-#else
-	const pid_t child = fork();
-	if (child == 0) _exit(0);
-	if (child > 0) { (void)waitpid(child, nullptr, 0); return 126; }
-#endif
-	return denied("child-process");
-}
-
-#if defined(__APPLE__)
-int residentMemoryProbe(int argc)
-{
-	if (argc != 2 || std::fputs(
-		"SOUNDSCAPER_CONTAINMENT_PROBE rss-ceiling pressure-started\n", stdout) < 0
-		|| std::fflush(stdout) != 0) return 125;
-	constexpr size_t pressureBytes = 256u * 1024u * 1024u;
-	std::vector<uint8_t> pressure(pressureBytes);
-	volatile uint8_t *resident = pressure.data();
-	for (size_t offset = 0u; offset < pressure.size(); offset += 4096u) resident[offset] = 0x5au;
-	(void)sleep(1u);
-	return std::fputs("SOUNDSCAPER_CONTAINMENT_PROBE rss-ceiling survived\n", stdout) >= 0
-		&& std::fflush(stdout) == 0 ? 126 : 125;
-}
-#endif
-
-int containmentProbe(int argc, char **argv)
-{
-	if (argc == 1) return -1;
-	constexpr const char prefix[] = "--soundscaper-containment-probe=";
-	if (std::strncmp(argv[1], prefix, sizeof(prefix) - 1u) != 0) return 125;
-	const char *scenario = argv[1] + sizeof(prefix) - 1u;
-	if (std::strcmp(scenario, "filesystem") == 0) return filesystemProbe(argc, argv);
-	if (std::strcmp(scenario, "network") == 0) return networkProbe(argc, argv);
-	if (std::strcmp(scenario, "child-process") == 0) return childProcessProbe(argc);
-#if defined(__APPLE__)
-	if (std::strcmp(scenario, "rss-ceiling") == 0) return residentMemoryProbe(argc);
-#endif
-	return 125;
-}
 
 int runFramedPeer()
 {
@@ -523,7 +469,7 @@ int main(int argc, char **argv)
 #if defined(__APPLE__)
 	if (!soundscaper::professional::macosBootstrap::soundscaperProfessionalMacosBootstrap()) return 125;
 #endif
-	const int probe = containmentProbe(argc, argv);
+	const int probe = soundscaper::professionalHostContainmentProbe(argc, argv);
 	if (probe >= 0) return probe;
 #if defined(__APPLE__)
 	return soundscaper::runMacJuceMessageDispatcher(runFramedPeer);

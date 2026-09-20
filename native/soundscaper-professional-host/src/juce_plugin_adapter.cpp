@@ -1,12 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 #include "juce_plugin_adapter.h"
+#include "ladspa_host_state.h"
+#include "ladspa_plugin_metadata.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_extra/juce_gui_extra.h>
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstring>
 #include <memory>
 #include <set>
@@ -26,6 +29,7 @@ bool formatMatches(const juce::AudioPluginFormat &candidate, const std::string &
 	const std::string name = lower(candidate.getName().toStdString());
 	if (format == "vst3") return name.find("vst3") != std::string::npos;
 	if (format == "au") return name.find("audio unit") != std::string::npos;
+	if (format == "ladspa") return name.find("ladspa") != std::string::npos;
 	if (format == "lv2") return name.find("lv2") != std::string::npos;
 	return false;
 }
@@ -46,6 +50,9 @@ void registerCompiledFormats(juce::AudioPluginFormatManager &manager)
 #endif
 #if JUCE_PLUGINHOST_AU
 	manager.addFormat(std::make_unique<juce::AudioUnitPluginFormat>());
+#endif
+#if JUCE_PLUGINHOST_LADSPA
+	manager.addFormat(std::make_unique<juce::LADSPAPluginFormat>());
 #endif
 #if JUCE_PLUGINHOST_LV2
 	manager.addFormat(std::make_unique<juce::LV2PluginFormat>());
@@ -86,7 +93,8 @@ void describe(const std::string &format, const juce::PluginDescription &source,
 
 std::unique_ptr<juce::AudioPluginInstance> instantiate(
 	juce::AudioPluginFormatManager &manager, const std::string &format, const std::string &path,
-	const std::string &stableId, double sampleRate, uint32_t maximumFrames, juce::String &error)
+	const std::string &stableId, double sampleRate, uint32_t maximumFrames,
+	uint32_t &descriptorIndex, juce::String &error)
 {
 	auto *adapter = selectedFormat(manager, format);
 	if (adapter == nullptr) {
@@ -106,6 +114,8 @@ std::unique_ptr<juce::AudioPluginInstance> instantiate(
 		error = "Instrument plug-ins are recorded but never hosted as effects.";
 		return nullptr;
 	}
+	if (selected->uniqueId < 0) { error = "The descriptor index is invalid."; return nullptr; }
+	descriptorIndex = static_cast<uint32_t>(selected->uniqueId);
 	return manager.createPluginInstance(*selected, sampleRate,
 		static_cast<int>(maximumFrames), error);
 }
@@ -129,12 +139,14 @@ public:
 
 class Instance final : public JucePluginInstance {
 public:
-	Instance(std::unique_ptr<juce::AudioPluginInstance> opened, uint32_t maximumFrames)
-		: plugin(std::move(opened)), ceiling(maximumFrames)
+	Instance(std::unique_ptr<juce::AudioPluginInstance> opened, uint32_t maximumFrames,
+		bool ladspa, const std::vector<LadspaParameterHint> &ladspaHints)
+		: plugin(std::move(opened)), ceiling(maximumFrames), isLadspa(ladspa)
 	{
 		const int channels = std::max(plugin->getTotalNumInputChannels(), plugin->getTotalNumOutputChannels());
 		buffer.setSize(std::max(1, channels), static_cast<int>(maximumFrames), false, true, false);
 		plugin->prepareToPlay(plugin->getSampleRate(), static_cast<int>(maximumFrames));
+		parametersValid = cacheParameters(ladspaHints);
 	}
 
 	~Instance() override
@@ -174,6 +186,12 @@ public:
 
 	soundscaper_pro_status saveState(uint8_t *bytes, size_t capacity, size_t &written) override
 	{
+		if (isLadspa) {
+			std::vector<float> values;
+			values.reserve(parameters.size());
+			for (const auto &parameter : parameters) values.push_back(parameter.juce->getValue());
+			return saveLadspaHostState(values, bytes, capacity, written);
+		}
 		juce::MemoryBlock state;
 		plugin->getStateInformation(state);
 		written = state.getSize();
@@ -190,12 +208,57 @@ public:
 		if (length > SOUNDSCAPER_PRO_MAX_STATE_BYTES || (length > 0u && bytes == nullptr)) {
 			return SOUNDSCAPER_PRO_STATE_TOO_LARGE;
 		}
+		if (isLadspa) {
+			std::vector<float> values;
+			const auto status = decodeLadspaHostState(bytes, length, parameters.size(), values);
+			if (status != SOUNDSCAPER_PRO_OK) return status;
+			for (size_t index = 0u; index < values.size(); ++index) {
+				parameters[index].juce->setValueNotifyingHost(values[index]);
+			}
+			return SOUNDSCAPER_PRO_OK;
+		}
 		plugin->setStateInformation(bytes, static_cast<int>(length));
+		return SOUNDSCAPER_PRO_OK;
+	}
+
+	soundscaper_pro_status capabilities(soundscaper_pro_plugin_capability_report &report) const override
+	{
+		report = { static_cast<uint32_t>(parameters.size()), isLadspa ? 0u : plugin->hasEditor() ? 1u : 0u };
+		return parametersValid ? SOUNDSCAPER_PRO_OK : SOUNDSCAPER_PRO_PLUGIN_MALFORMED;
+	}
+
+	soundscaper_pro_status describeParameters(
+		std::vector<soundscaper_pro_plugin_parameter> &output) const override
+	{
+		if (!parametersValid) return SOUNDSCAPER_PRO_PLUGIN_MALFORMED;
+		output.clear();
+		output.reserve(parameters.size());
+		for (const auto &parameter : parameters) output.push_back(parameter.description);
+		return SOUNDSCAPER_PRO_OK;
+	}
+
+	soundscaper_pro_status readParameter(uint32_t index, double &value) const override
+	{
+		if (!parametersValid || index >= parameters.size()) return SOUNDSCAPER_PRO_FORMAT_REFUSED;
+		const float current = parameters[index].juce->getValue();
+		if (!std::isfinite(current) || current < 0.0F || current > 1.0F) {
+			return SOUNDSCAPER_PRO_PLUGIN_MALFORMED;
+		}
+		value = current;
+		return SOUNDSCAPER_PRO_OK;
+	}
+
+	soundscaper_pro_status writeParameter(uint32_t index, double value) override
+	{
+		if (!parametersValid || index >= parameters.size() || !std::isfinite(value)
+			|| value < 0.0 || value > 1.0) return SOUNDSCAPER_PRO_FORMAT_REFUSED;
+		parameters[index].juce->setValueNotifyingHost(static_cast<float>(value));
 		return SOUNDSCAPER_PRO_OK;
 	}
 
 	soundscaper_pro_status openVendorWindow(const std::string &opaqueId) override
 	{
+		if (isLadspa) return SOUNDSCAPER_PRO_UNSUPPORTED;
 		if (!juce::MessageManager::getInstance()->isThisTheMessageThread()) return SOUNDSCAPER_PRO_UNSUPPORTED;
 		if (window != nullptr) {
 			if (vendorWindowId != opaqueId) return SOUNDSCAPER_PRO_MODE_REFUSED;
@@ -219,11 +282,65 @@ public:
 		}
 	}
 
+	bool valid() const { return parametersValid; }
+
 private:
+	struct Parameter {
+		juce::AudioProcessorParameter *juce = nullptr;
+		soundscaper_pro_plugin_parameter description{};
+	};
+
+	bool cacheParameters(const std::vector<LadspaParameterHint> &ladspaHints)
+	{
+		const auto &juceParameters = plugin->getParameters();
+		std::set<std::string> identifiers;
+		for (int index = 0; index < juceParameters.size(); ++index) {
+			auto *parameter = juceParameters[index];
+			if (parameter == nullptr || !parameter->isAutomatable()) continue;
+			if (parameters.size() >= SOUNDSCAPER_PRO_MAX_PLUGIN_PARAMETERS) return false;
+			Parameter hosted;
+			hosted.juce = parameter;
+			juce::String identifier;
+			uint32_t flags = SOUNDSCAPER_PRO_PARAMETER_AUTOMATABLE;
+			if (isLadspa) {
+				if (parameters.size() >= ladspaHints.size()) return false;
+				identifier = juce::String(ladspaHints[parameters.size()].port);
+				flags = ladspaHints[parameters.size()].flags;
+			} else {
+				if (const auto *identified = dynamic_cast<const juce::HostedAudioProcessorParameter *>(parameter)) {
+					identifier = identified->getParameterID();
+				}
+				if (parameter->isBoolean()) flags |= SOUNDSCAPER_PRO_PARAMETER_BOOLEAN;
+				if (parameter->isDiscrete()) flags |= SOUNDSCAPER_PRO_PARAMETER_INTEGER;
+			}
+			if (identifier.isEmpty()) identifier = juce::String(index);
+			std::string encodedId = identifier.toStdString();
+			if (encodedId.size() >= SOUNDSCAPER_PRO_MAX_TEXT || !identifiers.insert(encodedId).second) {
+				encodedId = std::to_string(index);
+				identifier = encodedId;
+				if (!identifiers.insert(encodedId).second) return false;
+			}
+			const float defaultValue = parameter->getDefaultValue();
+			if (!std::isfinite(defaultValue) || defaultValue < 0.0F || defaultValue > 1.0F) return false;
+			text(hosted.description.id, identifier);
+			text(hosted.description.name, parameter->getName(SOUNDSCAPER_PRO_MAX_TEXT - 1u));
+			text(hosted.description.label, parameter->getLabel());
+			hosted.description.default_value = defaultValue;
+			hosted.description.minimum_value = 0.0;
+			hosted.description.maximum_value = 1.0;
+			hosted.description.flags = flags;
+			parameters.push_back(hosted);
+		}
+		return !isLadspa || parameters.size() == ladspaHints.size();
+	}
+
 	std::unique_ptr<juce::AudioPluginInstance> plugin;
 	const uint32_t ceiling;
+	const bool isLadspa;
 	juce::AudioBuffer<float> buffer;
 	juce::MidiBuffer midi;
+	std::vector<Parameter> parameters;
+	bool parametersValid = false;
 	std::unique_ptr<VendorWindow> window;
 	std::string vendorWindowId;
 };
@@ -266,11 +383,23 @@ soundscaper_pro_status openJucePlugin(
 	juce::AudioPluginFormatManager manager;
 	registerCompiledFormats(manager);
 	juce::String error;
-	auto plugin = instantiate(manager, format, path, stableId, sampleRate, maximumFrames, error);
+	uint32_t descriptorIndex = 0u;
+	auto plugin = instantiate(
+		manager, format, path, stableId, sampleRate, maximumFrames, descriptorIndex, error);
 	if (plugin == nullptr) return error.containsIgnoreCase("format")
 		? SOUNDSCAPER_PRO_UNSUPPORTED : SOUNDSCAPER_PRO_PLUGIN_MALFORMED;
+	std::vector<LadspaParameterHint> ladspaHints;
+#if JUCE_PLUGINHOST_LADSPA
+	if (format == "ladspa") {
+		const auto status = inspectLadspaParameters(path, descriptorIndex, ladspaHints);
+		if (status != SOUNDSCAPER_PRO_OK) return status;
+	}
+#endif
 	plugin->setRateAndBufferSizeDetails(sampleRate, static_cast<int>(maximumFrames));
-	instance = std::make_unique<Instance>(std::move(plugin), maximumFrames);
+	auto opened = std::make_unique<Instance>(
+		std::move(plugin), maximumFrames, format == "ladspa", ladspaHints);
+	if (!opened->valid()) return SOUNDSCAPER_PRO_PLUGIN_MALFORMED;
+	instance = std::move(opened);
 	return SOUNDSCAPER_PRO_OK;
 }
 
@@ -292,6 +421,30 @@ soundscaper_pro_status saveJucePluginState(
 soundscaper_pro_status loadJucePluginState(JucePluginInstance &instance, const uint8_t *bytes, size_t length)
 {
 	return instance.loadState(bytes, length);
+}
+
+soundscaper_pro_status jucePluginCapabilities(
+	JucePluginInstance &instance, soundscaper_pro_plugin_capability_report &report)
+{
+	return instance.capabilities(report);
+}
+
+soundscaper_pro_status describeJucePluginParameters(
+	JucePluginInstance &instance, std::vector<soundscaper_pro_plugin_parameter> &parameters)
+{
+	return instance.describeParameters(parameters);
+}
+
+soundscaper_pro_status readJucePluginParameter(
+	JucePluginInstance &instance, uint32_t index, double &value)
+{
+	return instance.readParameter(index, value);
+}
+
+soundscaper_pro_status writeJucePluginParameter(
+	JucePluginInstance &instance, uint32_t index, double value)
+{
+	return instance.writeParameter(index, value);
 }
 
 soundscaper_pro_status openJuceVendorWindow(JucePluginInstance &instance, const std::string &opaqueId)
