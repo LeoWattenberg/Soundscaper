@@ -46,6 +46,21 @@ function assertExactV13CarrierFoundation(
 	projected.format = expected.format;
 	projected.codecs = expected.codecs;
 	projected.output = expected.output;
+	const sequenceSourceNodeIds = new Set(plan.nodes.flatMap((node) => (
+		node.kind === 'professional-media' && node.imageSequence !== null
+			? [node.sourceNodeId] : []
+	)));
+	projected.sources = plan.sources.map((source) => {
+		if (!sequenceSourceNodeIds.has(source.nodeId)) return source;
+		const inheritedSource = expected.sources.find(({ nodeId }) => nodeId === source.nodeId);
+		if (!inheritedSource) {
+			throw new ReferenceError(`Selected nativeMedia carrier source ${source.nodeId} has no V13 foundation.`);
+		}
+		// V14 authenticates the custom pack held by the native decoder. The V13
+		// picture plan describes the constituent image format; the pathless source
+		// resolver, rather than HTMLVideoElement, consumes the pack bytes.
+		return Object.freeze({ ...source, mimeType: inheritedSource.mimeType });
+	});
 	projected.nodes = plan.nodes.filter(
 		({ kind }) => kind !== 'professional-media' && kind !== 'openfx',
 	).map((node) => {

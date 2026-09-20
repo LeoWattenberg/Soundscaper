@@ -354,6 +354,19 @@ test('a silent picture carrier ignores empty sequence audio tracks in its V13 pa
 	assert.doesNotThrow(() => assertFamilies(plan, project));
 });
 
+test('a native image-sequence pack MIME projects onto its inherited visual source MIME', () => {
+	const { project, plan } = fixture();
+	const sequence = mutablePlan(plan);
+	const source = (sequence.sources as Data[])[0]!;
+	const professional = (sequence.nodes as Data[])
+		.find(({ kind }) => kind === 'professional-media');
+	assert.ok(professional, 'the native plan contains its professional source node');
+	source.mimeType = 'application/vnd.soundscaper.image-sequence-pack';
+	professional.imageSequence = { sourceType: 'image-sequence' };
+
+	assert.doesNotThrow(() => assertFamilies(asPlan(sequence), project));
+});
+
 test('verified professional-media and OpenFX nodes project away from the V13 carrier foundation', () => {
 	const { project, plan } = fixture();
 	const drifted = mutablePlan(plan);
