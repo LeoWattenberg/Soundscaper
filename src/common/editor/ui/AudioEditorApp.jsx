@@ -12,9 +12,6 @@ import { getLocaleDescriptor } from '../../i18n/locales.js';
 const MonoConversionConfirmationDialog = lazyEditorModule(
 	() => import('./dialogs/MonoConversionConfirmationDialog.tsx'),
 );
-const DeleteBehaviorOnboardingDialog = lazyEditorModule(
-	() => import('./dialogs/DeleteBehaviorOnboardingDialog.tsx'),
-);
 
 /** Presentation-only seam for a product-owned, already-constructed runtime. */
 export function BoundAudioEditorApp(props) {
@@ -29,12 +26,6 @@ export function BoundAudioEditorApp(props) {
 			confirmation={props.monoConversionConfirmation}
 			copy={copy}
 			cancelDecision={{ accepted: false, dontShowAgain: false }}
-		/>}
-		{props.deleteBehaviorConfirmation && <ConfirmationDialogMount
-			Component={DeleteBehaviorOnboardingDialog}
-			confirmation={props.deleteBehaviorConfirmation}
-			copy={copy}
-			cancelDecision={{ accepted: false }}
 		/>}
 		<CommunityTranslationMount controller={props.controller} copy={copy} locale={props.locale}
 			productId={props.productId} fileService={props.fileService} />
