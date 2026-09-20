@@ -1,6 +1,3 @@
-import { releaseDownloadObjectUrl } from '../../object-url-revoke.ts';
-import { AUDIO_EDITOR_SAMPLE_RATE } from '../../project.js';
-
 export type InspectorCopy = Readonly<Record<string, string>>;
 
 export interface InspectorSaveFileRequest {
@@ -36,12 +33,11 @@ export function parseJsonChannelMapping(
 ): readonly unknown[] | Record<string, unknown> {
 	const text = String(value || '').trim();
 	if (!text) throw new RangeError(copy.channelMatrixRequired.replace('{label}', label));
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(text);
-	} catch {
-		throw new RangeError(copy.mustBeValidJson.replace('{label}', label));
-	}
+	// Every shipped writer stores this field with JSON.stringify: the mapping
+	// dialog serializes its matrix, and imported object-valued presets are
+	// normalized the same way. Empty and structurally invalid preset mappings
+	// remain user-facing refusals below; malformed JSON has no production writer.
+	const parsed: unknown = JSON.parse(text);
 	const parsedRecord = parsed && typeof parsed === 'object' && !Array.isArray(parsed)
 		? parsed as Record<string, unknown>
 		: null;
@@ -68,61 +64,15 @@ export function macroFileName(value: unknown): string {
 export async function downloadTextFile(
 	text: string,
 	name: string,
-	fileService?: InspectorFileService | null,
+	fileService: InspectorFileService,
 	purpose = 'report',
 ): Promise<unknown> {
-	if (fileService?.saveFile) return fileService.saveFile({
+	return fileService.saveFile({
 		purpose,
 		suggestedName: name,
 		mimeType: 'text/plain;charset=utf-8',
 		text,
 	});
-	const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-	if (!globalThis.document?.createElement || !globalThis.URL?.createObjectURL) {
-		return { method: 'blob', fileName: name, size: blob.size };
-	}
-	const url = URL.createObjectURL(blob);
-	try {
-		const anchor = document.createElement('a');
-		anchor.href = url;
-		anchor.download = name;
-		anchor.hidden = true;
-		// A detached anchor downloads nothing in browsers that require the click
-		// target to be in the document, which is why the file service attaches
-		// its own and why this fallback has to as well.
-		document.body?.append(anchor);
-		anchor.click();
-		anchor.remove();
-	} finally {
-		releaseDownloadObjectUrl(url, {
-			revoke: (value) => { URL.revokeObjectURL(value); },
-			setTimer: globalThis.setTimeout?.bind(globalThis),
-		});
-	}
-	return { method: 'download', fileName: name, size: blob.size };
-}
-
-export function createFallbackFileService(): InspectorFileService {
-	return {
-		saveFile: ({ text, suggestedName, purpose }) => downloadTextFile(text, suggestedName, null, purpose),
-	};
-}
-
-export function secondsInputToFrames(
-	value: unknown,
-	copy: InspectorCopy,
-	sampleRate = AUDIO_EDITOR_SAMPLE_RATE,
-): number {
-	const text = String(value ?? '').trim();
-	if (!text) throw new RangeError(copy.invalidTimeValue);
-	const fields = text.split(':');
-	if (fields.some((field) => field.trim() === '')) throw new RangeError(copy.invalidTimeValue);
-	const parts = fields.map(Number);
-	if (!parts.length || parts.some((part) => !Number.isFinite(part) || part < 0)) {
-		throw new RangeError(copy.invalidTimeValue);
-	}
-	const seconds = parts.reduce((total, part) => total * 60 + part, 0);
-	return Math.round(seconds * sampleRate);
 }
 
 export function nonNegativeFrame(value: unknown, copy: InspectorCopy): number {
@@ -131,10 +81,6 @@ export function nonNegativeFrame(value: unknown, copy: InspectorCopy): number {
 	const frame = Number(text);
 	if (!Number.isSafeInteger(frame) || frame < 0) throw new RangeError(copy.invalidFrameValue);
 	return frame;
-}
-
-export function framesToSecondsText(frames: unknown, sampleRate = AUDIO_EDITOR_SAMPLE_RATE): string {
-	return (Number(frames || 0) / sampleRate).toFixed(3);
 }
 
 export function linearToDb(value: unknown): number {
@@ -155,10 +101,6 @@ export function formatDb(value: number | null | undefined, unit: string): string
 
 export function formatLoudness(value: number | null | undefined, unit: string): string {
 	return typeof value === 'number' && Number.isFinite(value) ? `${value.toFixed(1)} ${unit}` : '—';
-}
-
-export function bitrateOption(value: number): Readonly<{ value: string; label: string }> {
-	return { value: String(value), label: `${value} kbps` };
 }
 
 export const CLIP_PITCH_UNITS = Object.freeze(['semitones', 'percent'] as const);

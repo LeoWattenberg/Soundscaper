@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { boundedCanvasDimensions } from '../../design-system-adapters.js';
 import {
-	createFallbackFileService,
 	formatDb,
 	formatLoudness,
 	macroFileName,
@@ -83,7 +82,7 @@ function AnalysisContent({ mode, controller, snapshot, copy, fileService }) {
 			result,
 			report,
 		}, null, 2);
-		perform(() => (fileService || createFallbackFileService()).saveFile({
+		perform(() => fileService.saveFile({
 			purpose: 'report',
 			suggestedName: `${macroFileName(snapshot.project?.title || 'soundscaper')}-analysis.json`,
 			mimeType: 'application/json',

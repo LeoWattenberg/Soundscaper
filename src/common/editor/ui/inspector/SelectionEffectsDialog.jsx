@@ -17,7 +17,6 @@ import EffectPresetBar from './EffectPresetBar.jsx';
 import EffectParameterEditor from './EffectParameterEditor.jsx';
 import { LabeledDropdown } from './inspector-controls.jsx';
 import { effectPresetChoices, safeEffectLabel, samePresetParams } from './effect-helpers.ts';
-import { createFallbackFileService } from './inspector-helpers.ts';
 
 export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fileService, onClose }) {
 	const project = snapshot.project;
@@ -160,7 +159,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 	});
 	const exportPreset = () => run(async () => {
 		const encoded = controller.actions.effects.presets.export(selectedPresetId);
-		await (fileService || createFallbackFileService()).saveFile({
+		await fileService.saveFile({
 			purpose: 'preset',
 			suggestedName: `${(presetName || 'audacity-effect-preset').replace(/[^a-z0-9_-]+/gi, '-')}.json`,
 			mimeType: 'application/json',

@@ -17,7 +17,6 @@ import {
 	dbToLinear,
 	linearToDb,
 	nonNegativeFrame,
-	secondsInputToFrames,
 } from './inspector-helpers.ts';
 
 /**
@@ -89,32 +88,23 @@ function ClipProperties({ controller, snapshot, copy }) {
 			if (name === 'name') {
 				const title = clipRenameTitle(rawValue, displayedName);
 				if (title !== null) controller.actions.clip.update(clip.id, { title });
-			} else if (name === 'start' || name === 'startFrame') {
-				const timelineStartFrame = name === 'start'
-					? secondsInputToFrames(rawValue, copy, sampleRate)
-					: nonNegativeFrame(rawValue, copy);
+			} else if (name === 'startFrame') {
+				const timelineStartFrame = nonNegativeFrame(rawValue, copy);
 				controller.actions.clip.move(clip.id, track.id, timelineStartFrame);
-			} else if (name === 'sourceIn' || name === 'sourceInFrame') {
-				const sourceStartFrame = name === 'sourceIn'
-					? secondsInputToFrames(rawValue, copy, sampleRate)
-					: nonNegativeFrame(rawValue, copy);
+			} else if (name === 'sourceInFrame') {
+				const sourceStartFrame = nonNegativeFrame(rawValue, copy);
 				controller.actions.clip.trim(clip.id, { sourceStartFrame });
-			} else if (name === 'duration' || name === 'durationFrame') {
-				const durationFrames = Math.max(1, name === 'duration'
-					? secondsInputToFrames(rawValue, copy, sampleRate)
-					: nonNegativeFrame(rawValue, copy));
+			} else if (name === 'durationFrame') {
+				const durationFrames = Math.max(1, nonNegativeFrame(rawValue, copy));
 				const sourceStartFrame = clip.reversed
 					? clip.sourceStartFrame + clip.durationFrames - durationFrames
 					: clip.sourceStartFrame;
 				controller.actions.clip.trim(clip.id, { sourceStartFrame, durationFrames });
 			} else if (name === 'gain') {
 				controller.actions.clip.update(clip.id, { gain: dbToLinear(rawValue, 16, copy) });
-			} else if (name === 'fadeIn' || name === 'fadeOut'
-				|| name === 'fadeInFrame' || name === 'fadeOutFrame') {
+			} else if (name === 'fadeInFrame' || name === 'fadeOutFrame') {
 				const field = name.startsWith('fadeIn') ? 'fadeInFrames' : 'fadeOutFrames';
-				const frames = Math.min(clip.durationFrames, name.endsWith('Frame')
-					? nonNegativeFrame(rawValue, copy)
-					: secondsInputToFrames(rawValue, copy, sampleRate));
+				const frames = Math.min(clip.durationFrames, nonNegativeFrame(rawValue, copy));
 				controller.actions.clip.update(clip.id, { [field]: frames });
 			} else if (name === 'pitchCents') {
 				const pitchCents = clipPitchUnitToCents(rawValue, pitchUnit, copy);

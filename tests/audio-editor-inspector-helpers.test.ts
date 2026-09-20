@@ -11,16 +11,17 @@ import {
 	createAudioEditorEffectPresets,
 	listAudioEditorEffectPresets,
 } from '../src/common/editor/effect-presets.js';
-import {
+import * as inspectorHelpers from '../src/common/editor/ui/inspector/inspector-helpers.ts';
+import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+
+const {
 	clipPitchUnitToCents,
 	compactFields,
 	macroFileName,
 	nonNegativeFrame,
 	parseJsonChannelMapping,
 	parseJsonObject,
-	secondsInputToFrames,
-} from '../src/common/editor/ui/inspector/inspector-helpers.ts';
-import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+} = inspectorHelpers;
 
 const copy = {
 	channelMatrixRequired: '{label} is required',
@@ -36,13 +37,20 @@ test('Inspector serialization helpers validate boundary input without UI state',
 	assert.deepEqual(parseJsonChannelMapping('{"channels":[[0,1]]}', 'Channels', copy), { channels: [[0, 1]] });
 	assert.deepEqual(compactFields({ title: 'Song', artist: '', year: null, track: 3 }), { title: 'Song', track: 3 });
 	assert.equal(macroFileName('  My noisy / macro  '), 'My-noisy-macro');
-	assert.equal(secondsInputToFrames('1:02.5', copy, 48_000), 3_000_000);
-	assert.throws(() => secondsInputToFrames('   ', copy, 48_000), /Invalid time/u);
-	assert.throws(() => secondsInputToFrames(':', copy, 48_000), /Invalid time/u);
-	assert.throws(() => secondsInputToFrames('1:', copy, 48_000), /Invalid time/u);
 	assert.throws(() => nonNegativeFrame('', copy), /Invalid frame/u);
 	assert.throws(() => parseJsonObject('[]', 'Metadata', copy), /Metadata must be an object/);
 	assert.throws(() => parseJsonChannelMapping('{}', 'Channels', copy), /wrong shape/);
+});
+
+test('the inspector helper surface carries only operations a shipped inspector calls', () => {
+	for (const name of [
+		'bitrateOption',
+		'createFallbackFileService',
+		'framesToSecondsText',
+		'secondsInputToFrames',
+	]) {
+		assert.equal(Object.hasOwn(inspectorHelpers, name), false, `${name} has no shipped caller`);
+	}
 });
 
 test('effect helpers keep labels, presets, and conditional controls deterministic', () => {

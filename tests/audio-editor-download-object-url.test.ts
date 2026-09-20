@@ -4,17 +4,13 @@
  * The blob URL behind an anchor download, and when it may be released.
  *
  * `anchor.click()` starts a save the browser completes on a later turn, so
- * revoking the URL inside the click's own turn can cancel it outright. The file
- * service has always deferred that release; the label export - the fallback
- * reached exactly when the file service cannot save - revoked immediately and
- * could lose the file it had just handed over.
+ * revoking the URL inside the click's own turn can cancel it outright.
  */
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { saveLabelExport } from '../src/common/editor/controller/shared/app-helpers.ts';
-import { downloadTextFile } from '../src/common/editor/ui/inspector/inspector-helpers.ts';
 import {
 	OBJECT_URL_REVOKE_DELAY_MS,
 	releaseDownloadObjectUrl,
@@ -148,47 +144,4 @@ test('a host without a timer releases the URL rather than leaking it', () => {
 	assert.deepEqual(deferred, ['blob:deferred']);
 
 	assert.doesNotThrow(() => releaseDownloadObjectUrl('blob:none', {}));
-});
-
-test('an inspector text download attaches its anchor and outlives the click', async () => {
-	const stub = installBrowserDownloadStub();
-	try {
-		const result = await downloadTextFile('Echo:Delay="0.25"\n', 'macro.txt');
-
-		assert.deepEqual(stub.attached, stub.created, 'a detached anchor downloads nothing in some browsers');
-		assert.deepEqual(stub.clicks, stub.created);
-		assert.deepEqual(stub.revoked, [], 'revoking in the click turn can cancel the save');
-		assert.deepEqual(stub.timers.map(({ delay }) => delay), [OBJECT_URL_REVOKE_DELAY_MS]);
-		assert.deepEqual(result, { method: 'download', fileName: 'macro.txt', size: 18 });
-
-		stub.runTimers();
-		assert.deepEqual(stub.revoked, stub.created);
-	} finally {
-		stub.restore();
-	}
-});
-
-test('an inspector text download prefers the file service and reports a host that has neither', async () => {
-	const stub = installBrowserDownloadStub();
-	try {
-		const requests: unknown[] = [];
-		await downloadTextFile('report', 'report.txt', {
-			saveFile: (request) => { requests.push(request); return 'saved'; },
-		});
-		assert.equal(requests.length, 1);
-		assert.deepEqual(stub.created, []);
-	} finally {
-		stub.restore();
-	}
-
-	const priorDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
-	Reflect.deleteProperty(globalThis, 'document');
-	try {
-		assert.deepEqual(
-			await downloadTextFile('report', 'report.txt'),
-			{ method: 'blob', fileName: 'report.txt', size: 6 },
-		);
-	} finally {
-		if (priorDocument) Object.defineProperty(globalThis, 'document', priorDocument);
-	}
 });
