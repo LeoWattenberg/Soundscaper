@@ -376,7 +376,6 @@ test('failed browser-data recovery never masks the primary destructive error', a
 	await assert.rejects(() => fixture.controller.actions.clearBrowserData(), /clear-browser-data failed/iu);
 	assert.equal(fixture.warnings.some((value) => value.includes('reopen failed')), true);
 });
-
 function harness(options: Readonly<{
 	enabled?: boolean; host?: Readonly<WebVcrSnapshot>;
 	startGate?: Promise<void>; rejectHostState?: string;
@@ -405,7 +404,8 @@ function harness(options: Readonly<{
 			const reopening = calls.includes(`open:${resolution}`);
 			calls.push(`open:${resolution}`);
 			if (reopening && options.rejectReopen) throw new Error('reopen failed');
-			if (currentHost.sessionId === null) currentHost = hostSnapshot({ sessionId: 'f'.repeat(32), generation: 2 });
+			if (currentHost.sessionId === null) currentHost = hostSnapshot({ sessionId: 'f'.repeat(32), generation: currentHost.generation + 1,
+				navigation: { generation: 1, url: 'about:blank' } });
 			return currentHost;
 		},
 		async dispatch(command) {
@@ -436,8 +436,8 @@ function harness(options: Readonly<{
 				nonce: 'c'.repeat(32), expiresAtMs: 20_000,
 			};
 			if (command.kind === 'clear-browser-data') currentHost = hostSnapshot({
-				sessionId: 'e'.repeat(32), generation: 2,
-				navigation: { generation: 1, url: 'about:blank' },
+				sessionId: null, generation: 2, phase: 'closed', visible: false,
+				target: null, navigation: { generation: 0, url: 'about:blank' },
 			});
 			return { version: 1, kind: 'snapshot', snapshot: currentHost };
 		},

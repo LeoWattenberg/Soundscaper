@@ -26,9 +26,9 @@ export async function clearFramescaperWebVcrBrowserData(
 		destructive = true;
 		options.invalidateGuest();
 		const cleared = await options.clear(nonce);
-		options.accept(cleared);
 		replacementAccepted = cleared.sessionId !== null && cleared.phase !== 'closed';
-		if (!replacementAccepted) {
+		if (replacementAccepted) options.accept(cleared);
+		else {
 			options.accept(await options.reopen(options.resolution));
 			replacementAccepted = true;
 		}
