@@ -270,7 +270,7 @@ export function AudioDevicesFlyout({
 	snapshot,
 	controller,
 	run,
-	displayAudioSupported,
+	displayAudioSupported = true,
 	heading = true,
 }) {
 	const devices = snapshot.audioDevices || {};

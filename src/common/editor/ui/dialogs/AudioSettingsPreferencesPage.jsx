@@ -13,7 +13,7 @@ import { AudioDevicesFlyout } from '../toolbar/AudioEditorMeterControls.jsx';
  * offer — the browser has only Web Audio, and the desktop backend chain is
  * discovered rather than chosen — so the page begins at the devices.
  */
-export default function AudioSettingsPreferencesPage({ controller, snapshot, copy, run, displayAudioSupported }) {
+export default function AudioSettingsPreferencesPage({ controller, snapshot, copy, run, displayAudioSupported = true }) {
 	return (
 		<PreferencePanel title={copy.preferencesAudioSettings}>
 			<AudioDevicesFlyout

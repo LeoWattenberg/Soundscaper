@@ -245,7 +245,7 @@ export function EditorActionBar({
 	onSaveAup4,
 	onExportAudio,
 	onToggleMixer,
-	displayAudioSupported,
+	displayAudioSupported = true,
 }) {
 	const canUndo = snapshot.history?.canUndo;
 	const canRedo = snapshot.history?.canRedo;

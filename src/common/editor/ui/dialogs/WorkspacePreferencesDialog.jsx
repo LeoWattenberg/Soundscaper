@@ -48,7 +48,7 @@ export default function WorkspacePreferencesDialog({
 	fileService,
 	menus,
 	run,
-	displayAudioSupported,
+	displayAudioSupported = true,
 	initialPage,
 	isPanelVisible = null,
 	onTogglePanel,
