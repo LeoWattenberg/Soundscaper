@@ -117,11 +117,17 @@ test('a null-prototype presentation record is accepted and its fields still appl
 	assert.equal((controller.getSnapshot as () => Data)().locale, 'fr');
 });
 
-test('a presentation field outside the three published names is refused', async () => {
+test('a presentation field outside the published names is refused', async () => {
 	const real = await environment();
 
 	assert.throws(
 		() => createFramescaperAudioEditorController(real, { locale: 'en', store: {} }),
+		/unsupported authority/u,
+	);
+	assert.throws(
+		() => createFramescaperAudioEditorController(real, {
+			confirmDeleteBehavior: () => ({ accepted: false }),
+		}),
 		/unsupported authority/u,
 	);
 	assert.throws(

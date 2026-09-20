@@ -104,7 +104,6 @@
 		"document/stored-project-open-actions.ts",
 		"document/timeline-annotation-action-facade.ts",
 		"document/trim-media-service.ts",
-		"edit/delete-behavior-onboarding-service.ts",
 		"edit/edit-composition-types.ts",
 		"edit/edit-composition.ts",
 		"edit/generator-service.ts",

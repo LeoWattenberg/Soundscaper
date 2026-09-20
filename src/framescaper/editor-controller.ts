@@ -52,7 +52,7 @@ import { bindFramescaperSelectedImagePreviewControllerTimelineImage } from
 	'./editor-selected-timeline-image-image-preview-controller.ts';
 
 const PRESENTATION_FIELDS = [
-	'locale', 'copy', 'fileService', 'confirmMonoConversion', 'confirmDeleteBehavior',
+	'locale', 'copy', 'fileService', 'confirmMonoConversion',
 ] as const;
 
 export interface FramescaperAudioEditorControllerPresentation {
@@ -60,7 +60,6 @@ export interface FramescaperAudioEditorControllerPresentation {
 	readonly copy?: ControllerOptions['copy'];
 	readonly fileService?: ControllerOptions['fileService'];
 	readonly confirmMonoConversion?: ControllerOptions['confirmMonoConversion'];
-	readonly confirmDeleteBehavior?: ControllerOptions['confirmDeleteBehavior'];
 }
 
 /** Bind the complete Framescaper 1.0 product runtime. */
@@ -251,10 +250,5 @@ function snapshotPresentation(value: unknown): FramescaperAudioEditorControllerP
 		&& typeof output.confirmMonoConversion !== 'function') {
 		throw new TypeError('Framescaper mono conversion confirmation must be a function.');
 	}
-	if (output.confirmDeleteBehavior !== undefined
-		&& typeof output.confirmDeleteBehavior !== 'function') {
-		throw new TypeError('Framescaper delete behavior confirmation must be a function.');
-	}
-
 	return output as FramescaperAudioEditorControllerPresentation;
 }

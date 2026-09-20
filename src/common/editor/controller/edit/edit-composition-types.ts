@@ -19,10 +19,6 @@ import type {
 	PasteMonoConfirmationDecision,
 	PasteMonoDerivedSourcesPort,
 } from './paste-mono-conversion-service.ts';
-import type {
-	DeleteBehaviorConfirmationDecision,
-	DeleteBehaviorConfirmationRequest,
-} from '../../delete-behavior-onboarding.ts';
 
 /** The document identity the label and generator services read. */
 export type EditCompositionProject =
@@ -52,7 +48,6 @@ export type EditCompositionCopy =
 	& Parameters<typeof generateWaveformPeaks>[1]
 	& Readonly<{
 		readonly generatingAudio: string;
-		readonly editingDeleteBehavior: string;
 		readonly monoConversionPrompt: string;
 		readonly monoConversionTitle: string;
 		readonly timeSelectionRequired: string;
@@ -65,8 +60,6 @@ export interface EditMonoConversionConfirmationRequest {
 	readonly plan: Readonly<PasteMonoConversionPlan>;
 	readonly signal?: AbortSignal;
 }
-
-export type EditDeleteBehaviorConfirmationRequest = DeleteBehaviorConfirmationRequest;
 
 export interface EditCompositionRuntime<History extends ControllerRuntimeHistory> extends ControllerEditClipboardRuntimeBindings {
 	readonly prepareEditClipboardDescriptor: ControllerProjectRuntime['prepareEditClipboardDescriptor'];
@@ -97,9 +90,6 @@ export interface EditCompositionDependencies<History extends ControllerRuntimeHi
 	readonly confirmMonoConversion: (
 		request: Readonly<EditMonoConversionConfirmationRequest>,
 	) => PromiseLike<PasteMonoConfirmationDecision> | PasteMonoConfirmationDecision;
-	readonly confirmDeleteBehavior: (
-		request: Readonly<EditDeleteBehaviorConfirmationRequest>,
-	) => PromiseLike<DeleteBehaviorConfirmationDecision> | DeleteBehaviorConfirmationDecision;
 	readonly updatePreferences: (patch: Readonly<Record<string, unknown>>) => PromiseLike<unknown> | unknown;
 	readonly taskProgress: Pick<EditorTaskProgressCoordinator, 'run'>;
 	readonly setEffectProcessing: (processing: boolean) => void;

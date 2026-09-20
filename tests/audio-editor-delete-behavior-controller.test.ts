@@ -25,7 +25,6 @@ interface DeleteControllerSnapshot {
 }
 
 test('controller executes a fresh generic Delete as Leave gap without onboarding', async () => {
-	let confirmationCalls = 0;
 	const controller = createAudioEditorController(null, {
 		headless: true,
 		copy: COPY,
@@ -33,10 +32,6 @@ test('controller executes a fresh generic Delete as Leave gap without onboarding
 		store: createMemoryStore(),
 		engine: createMemoryEngine(),
 		ffmpeg: createMemoryFfmpeg(),
-		confirmDeleteBehavior: () => {
-			confirmationCalls += 1;
-			throw new Error('Delete onboarding must not open automatically.');
-		},
 	} as never);
 	try {
 		await controller.ready;
@@ -45,7 +40,6 @@ test('controller executes a fresh generic Delete as Leave gap without onboarding
 		const revision = snapshot(controller).project.revision;
 		controller.actions.edit.delete();
 		const current = snapshot(controller);
-		assert.equal(confirmationCalls, 0);
 		assert.equal(current.project.revision, revision + 1);
 		assert.equal(current.preferences.editing.deleteBehavior, 'not-set');
 		assert.equal(current.preferences.editing.closeGapBehavior, 'clip');

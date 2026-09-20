@@ -26,12 +26,6 @@ import { generateWaveformPeaks, peakCacheKey } from '../source/waveform-analysis
 import { EDITOR_PROJECT_TASK_SCOPE } from '../shared/lifecycle.ts';
 import { commitMonoConvertingPasteCommand } from './paste-mono-conversion-service.ts';
 import { commitPasteIntoExistingClipCommand } from './paste-existing-clip-service.ts';
-import {
-	completeDeleteBehaviorOnboarding,
-	type ConfiguredDeleteEditAction,
-	type DefaultDeleteEditAction,
-} from './delete-behavior-onboarding-service.ts';
-import { normalizeAudioEditorEditingPreferences } from '../../editing-preferences.ts';
 
 export type {
 	EditCommandProject,
@@ -179,34 +173,6 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 			throw error;
 		}
 	};
-	const requestDeleteBehaviorChoice = (
-		action: DefaultDeleteEditAction,
-		apply: (configuredAction: ConfiguredDeleteEditAction) => unknown,
-	) => {
-		const project = dependencies.getCommandProject();
-		const token = projectGeneration.capture(project.id);
-		const revision = project.revision;
-		const task = lifetime.startTask('edit-delete-behavior', { scope: EDITOR_PROJECT_TASK_SCOPE });
-		const assertCurrent = () => {
-			task.assertCurrent();
-			projectGeneration.assertCurrent(token);
-			const current = dependencies.getCommandProject();
-			if (current.id !== project.id || current.revision !== revision) {
-				throw new DOMException('The project changed while delete behavior was being chosen.', 'AbortError');
-			}
-		};
-		const editing = normalizeAudioEditorEditingPreferences(state.preferences?.editing);
-		return completeDeleteBehaviorOnboarding({
-			action,
-			title: copy.editingDeleteBehavior,
-			initialCloseGapBehavior: editing.closeGapBehavior,
-			signal: task.signal,
-			confirm: dependencies.confirmDeleteBehavior,
-			updatePreferences: (preference) => dependencies.updatePreferences({ editing: preference }),
-			assertCurrent,
-			apply,
-		}).finally(task.finish);
-	};
 	const handleEdit = createEditorEditService({
 		activeSelection: dependencies.activeSelection,
 		commit: dependencies.commit,
@@ -251,7 +217,6 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 		prepareKeepRangeCommand,
 		prepareLinkedSplitCommand,
 		prepareRangeDeleteCommand,
-		requestDeleteBehaviorChoice,
 		getProject: dependencies.getCommandProject,
 		projectChanged: dependencies.projectChanged,
 		publishDocumentSnapshot: dependencies.publishDocumentSnapshot,

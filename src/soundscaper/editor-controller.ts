@@ -42,7 +42,7 @@ import type {
 } from '../common/editor/controller/export/soundscaper-persistent-delivery-runtime-binding.ts';
 
 const PRESENTATION_FIELDS = [
-	'locale', 'copy', 'fileService', 'confirmMonoConversion', 'confirmDeleteBehavior',
+	'locale', 'copy', 'fileService', 'confirmMonoConversion',
 ] as const;
 
 export interface SoundscaperAudioEditorControllerPresentation {
@@ -50,7 +50,6 @@ export interface SoundscaperAudioEditorControllerPresentation {
 	readonly copy?: ControllerOptions['copy'];
 	readonly fileService?: ControllerOptions['fileService'];
 	readonly confirmMonoConversion?: ControllerOptions['confirmMonoConversion'];
-	readonly confirmDeleteBehavior?: ControllerOptions['confirmDeleteBehavior'];
 }
 
 type CommonAudioEditorController = ReturnType<typeof createAudioEditorController>;
@@ -325,10 +324,5 @@ function snapshotPresentation(value: unknown): SoundscaperAudioEditorControllerP
 		&& typeof output.confirmMonoConversion !== 'function') {
 		throw new TypeError('Soundscaper mono conversion confirmation must be a function.');
 	}
-	if (output.confirmDeleteBehavior !== undefined
-		&& typeof output.confirmDeleteBehavior !== 'function') {
-		throw new TypeError('Soundscaper delete behavior confirmation must be a function.');
-	}
-
 	return output as SoundscaperAudioEditorControllerPresentation;
 }

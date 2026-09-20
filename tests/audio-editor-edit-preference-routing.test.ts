@@ -23,10 +23,6 @@ function harness(editing: Readonly<Record<string, unknown>>, options: Readonly<{
 	labelOnly?: boolean;
 	videoClip?: boolean;
 	clipboard?: boolean;
-	onboardDeleteBehavior?: (
-		action: 'cut' | 'delete',
-		apply: (action: string) => unknown,
-	) => PromiseLike<unknown> | unknown;
 }> = {}) {
 	const selectedClipIds = options.selectedClipIds
 		?? (options.videoClip ? ['video-clip'] : options.selectedClip ? ['clip-a'] : []);
@@ -62,7 +58,6 @@ function harness(editing: Readonly<Record<string, unknown>>, options: Readonly<{
 	const preparedPasteCommits: unknown[] = [];
 	const pastedModes: string[] = [];
 	const pasteAsNewClipValues: boolean[] = [];
-	const onboardingRequests: string[] = [];
 	const state = {
 		history: {},
 		videoEffectGestures: new Map(),
@@ -99,10 +94,6 @@ function harness(editing: Readonly<Record<string, unknown>>, options: Readonly<{
 		prepareRangeDeleteCommand: (_value: unknown, deleteOptions: unknown) => ({
 			type: 'range/delete', options: deleteOptions,
 		}),
-		requestDeleteBehaviorChoice: (action: 'cut' | 'delete', apply: (action: string) => unknown) => {
-			onboardingRequests.push(action);
-			return options.onboardDeleteBehavior?.(action, apply) ?? null;
-		},
 		publishDocumentSnapshot: () => undefined,
 		resolveEditingSelection: () => selectedClipIds.length ? {
 			kind: 'clips',
@@ -120,7 +111,6 @@ function harness(editing: Readonly<Record<string, unknown>>, options: Readonly<{
 		clipboardDescriptors,
 		commits,
 		handleEdit,
-		onboardingRequests,
 		pastedModes,
 		pasteAsNewClipValues,
 		preparedPasteCommits,
@@ -245,23 +235,18 @@ test('fresh generic Cut and Delete use Leave gap without triggering onboarding',
 	for (const action of ['cut', 'delete'] as const) {
 		const selected = harness(
 			{ deleteBehavior: 'not-set', closeGapBehavior: 'clip' },
-			{
-				onboardDeleteBehavior: () => { throw new Error('must not prompt'); },
-			},
 		);
 
 		selected.handleEdit(action);
 		assert.equal(committedDelete(selected.commits[0]).options.rippleMode, 'none');
-		assert.deepEqual(selected.onboardingRequests, []);
 		assert.equal(selected.clipboardDescriptors.length, action === 'cut' ? 1 : 0);
 	}
 
 	const video = harness(
 		{ deleteBehavior: 'not-set' },
-		{ videoClip: true, onboardDeleteBehavior: () => { throw new Error('must not prompt'); } },
+		{ videoClip: true },
 	);
 	video.handleEdit('delete');
-	assert.deepEqual(video.onboardingRequests, []);
 	assert.deepEqual(video.commits, [{
 		type: 'clip/remove-many', clipIds: ['video-clip'], rippleMode: 'none',
 	}]);
@@ -270,26 +255,23 @@ test('fresh generic Cut and Delete use Leave gap without triggering onboarding',
 test('track-only and label-only edits never enter delete onboarding', () => {
 	const trackDelete = harness(
 		{ deleteBehavior: 'not-set' },
-		{ trackOnly: true, onboardDeleteBehavior: () => { throw new Error('must not prompt'); } },
+		{ trackOnly: true },
 	);
 	trackDelete.handleEdit('delete');
 	assert.deepEqual(trackDelete.commits, [{ type: 'track/remove', trackId: 'audio-a' }]);
-	assert.deepEqual(trackDelete.onboardingRequests, []);
 
 	const trackCut = harness(
 		{ deleteBehavior: 'not-set' },
-		{ trackOnly: true, onboardDeleteBehavior: () => { throw new Error('must not prompt'); } },
+		{ trackOnly: true },
 	);
 	assert.throws(() => trackCut.handleEdit('cut'), /Select audio/u);
-	assert.deepEqual(trackCut.onboardingRequests, []);
 
 	for (const action of ['cut', 'delete'] as const) {
 		const labelOnly = harness(
 			{ deleteBehavior: 'not-set' },
-			{ labelOnly: true, onboardDeleteBehavior: () => { throw new Error('must not prompt'); } },
+			{ labelOnly: true },
 		);
 		labelOnly.handleEdit(action);
-		assert.deepEqual(labelOnly.onboardingRequests, []);
 		assert.deepEqual(labelOnly.commits, []);
 		assert.deepEqual(labelOnly.clipboardDescriptors, []);
 	}
