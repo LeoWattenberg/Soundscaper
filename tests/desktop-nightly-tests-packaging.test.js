@@ -219,6 +219,39 @@ test('desktop CI exposes one quality-gated five-target nightly-with-tests artifa
 			< testJob.indexOf('node scripts/desktop-nightly-tests-prepare.mjs'),
 		'product runtimes must be packaged before the test runner stages them',
 	);
+	const audioGateStart = testJob.indexOf('\n      - name: Run packaged Soundscaper audio-device browser gate');
+	const audioGateEnd = testJob.indexOf('\n      - name:', audioGateStart + 1);
+	assert.ok(audioGateStart >= 0 && audioGateEnd > audioGateStart, 'the packaged audio-device gate is missing');
+	const audioGate = testJob.slice(audioGateStart, audioGateEnd);
+	assert.ok(
+		testJob.indexOf('sudo chmod 4755 -- "${sandboxes[@]}"') < audioGateStart
+			&& audioGateStart < testJob.indexOf('node scripts/desktop-nightly-tests-prepare.mjs'),
+		'the audio-device gate must exercise the sandboxed packaged product before staging the test-runner package',
+	);
+	assert.match(
+		testJob,
+		/- name: Install virtual display for packaged audio-device browser gate\s+if: matrix\.target\.platform == 'linux' && matrix\.target\.arch == 'x64'[\s\S]*?ci-apt-install\.sh xvfb/u,
+	);
+	assert.match(audioGate, /if: matrix\.target\.platform == 'linux' && matrix\.target\.arch == 'x64'/u);
+	assert.match(audioGate, /timeout-minutes: 10/u);
+	assert.match(audioGate, /xvfb-run --auto-servernum npx playwright test/u);
+	assert.match(audioGate, /vite\.js preview \\\s+--outDir \.wrangler\/browser-products\/soundscaper[\s\S]*?--port 4322/u);
+	assert.match(audioGate, /vite\.js preview \\\s+--outDir \.wrangler\/browser-products\/framescaper[\s\S]*?--port 4323/u);
+	assert.match(audioGate, /tests\/browser\/desktop-packaged-audio-io\.spec\.js/u);
+	assert.doesNotMatch(audioGate, /desktop-packaged-display-audio/u);
+	assert.match(audioGate, /--config playwright\.nightly-packaged-metrics\.config\.mjs/u);
+	assert.match(audioGate, /--project packaged-soundscaper-audio-devices/u);
+	assert.match(audioGate, /SOUNDSCAPER_NIGHTLY_TESTS_PAYLOAD_ROOT: \$\{\{ github\.workspace \}\}/u);
+	assert.match(audioGate, /SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT: \$\{\{ runner\.temp \}\}\/packaged-audio-device-e2e/u);
+	assert.match(audioGate, /SOUNDSCAPER_PACKAGED_PRODUCT_ROOT: \$\{\{ github\.workspace \}\}\/release\/desktop-nightly-products/u);
+	assert.match(audioGate, /SOUNDSCAPER_PACKAGED_RUNTIME_METRICS: '1'/u);
+	assert.match(audioGate, /SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM: linux/u);
+	assert.match(audioGate, /SOUNDSCAPER_PACKAGED_RUNTIME_ARCH: x64/u);
+	assert.match(audioGate, /SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS: >-/u);
+	assert.match(
+		testJob,
+		/- name: Upload packaged audio-device browser diagnostics\s+if: always\(\) && matrix\.target\.platform == 'linux' && matrix\.target\.arch == 'x64'[\s\S]*?packaged-audio-device-e2e\/packaged-runtime\/[\s\S]*?if-no-files-found: ignore/u,
+	);
 	assert.match(testJob, /npx playwright install --no-shell chromium firefox webkit/u);
 	assert.doesNotMatch(testJob, /playwright install --only-shell/u);
 	assert.doesNotMatch(testJob, /qualification|admission|readiness signature/iu);

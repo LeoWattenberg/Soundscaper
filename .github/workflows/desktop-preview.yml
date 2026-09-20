@@ -892,6 +892,11 @@ jobs:
         if: runner.os == 'Linux'
         run: npx playwright install-deps chromium firefox webkit
 
+      - name: Install virtual display for packaged audio-device browser gate
+        if: matrix.target.platform == 'linux' && matrix.target.arch == 'x64'
+        timeout-minutes: 10
+        run: bash scripts/ci-apt-install.sh xvfb
+
       - name: Install the hermetic browser-engine matrix
         run: npx playwright install --no-shell chromium firefox webkit
         env:
@@ -915,6 +920,66 @@ jobs:
           fi
           sudo chown root:root -- "${sandboxes[@]}"
           sudo chmod 4755 -- "${sandboxes[@]}"
+
+      - name: Run packaged Soundscaper audio-device browser gate
+        if: matrix.target.platform == 'linux' && matrix.target.arch == 'x64'
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          set -euo pipefail
+          soundscaper_server=''
+          framescaper_server=''
+          cleanup() {
+            for server in "$soundscaper_server" "$framescaper_server"; do
+              if [[ -n "$server" ]]; then kill "$server" 2>/dev/null || true; fi
+            done
+            wait "$soundscaper_server" "$framescaper_server" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          node node_modules/vite/bin/vite.js preview \
+            --outDir .wrangler/browser-products/soundscaper \
+            --host 127.0.0.1 --port 4322 --strictPort --logLevel error \
+            >"$RUNNER_TEMP/packaged-audio-soundscaper-preview.log" 2>&1 &
+          soundscaper_server=$!
+          node node_modules/vite/bin/vite.js preview \
+            --outDir .wrangler/browser-products/framescaper \
+            --host 127.0.0.1 --port 4323 --strictPort --logLevel error \
+            >"$RUNNER_TEMP/packaged-audio-framescaper-preview.log" 2>&1 &
+          framescaper_server=$!
+          for origin in http://127.0.0.1:4322 http://127.0.0.1:4323; do
+            for attempt in {1..120}; do
+              if curl --fail --silent "$origin/en/" >/dev/null; then break; fi
+              if [[ "$attempt" -eq 120 ]]; then
+                cat "$RUNNER_TEMP"/packaged-audio-*-preview.log >&2
+                exit 1
+              fi
+              sleep 1
+            done
+          done
+          xvfb-run --auto-servernum npx playwright test \
+            tests/browser/desktop-packaged-audio-io.spec.js \
+            --config playwright.nightly-packaged-metrics.config.mjs \
+            --project packaged-soundscaper-audio-devices
+        env:
+          SOUNDSCAPER_NIGHTLY_TESTS_PAYLOAD_ROOT: ${{ github.workspace }}
+          SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT: ${{ runner.temp }}/packaged-audio-device-e2e
+          SOUNDSCAPER_PACKAGED_PRODUCT_ROOT: ${{ github.workspace }}/release/desktop-nightly-products
+          SOUNDSCAPER_PACKAGED_RUNTIME_METRICS: '1'
+          SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM: linux
+          SOUNDSCAPER_PACKAGED_RUNTIME_ARCH: x64
+          SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS: >-
+            {"soundscaper":"http://127.0.0.1:4322","framescaper":"http://127.0.0.1:4323"}
+
+      - name: Upload packaged audio-device browser diagnostics
+        if: always() && matrix.target.platform == 'linux' && matrix.target.arch == 'x64'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: packaged-audio-device-browser-diagnostics-linux-x64
+          path: |
+            ${{ runner.temp }}/packaged-audio-device-e2e/packaged-runtime/
+            ${{ runner.temp }}/packaged-audio-*-preview.log
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Stage the nightly-with-tests application
         run: node scripts/desktop-nightly-tests-prepare.mjs
