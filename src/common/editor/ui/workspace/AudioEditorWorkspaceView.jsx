@@ -29,7 +29,7 @@ import { CueImportDestinationDialog, WorkspaceImportInput } from './cue-import-w
 
 const ProjectLockToast = lazyEditorModule(() => import('../ProjectLockToast.tsx'));
 
-const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.webm,.wv';
+const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.bw64,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.webm,.wv';
 const AUDIO_EDITOR_IMPORT_FILE_ACCEPT = `${AUDIO_EDITOR_AUDIO_FILE_ACCEPT},.cue,.txt,.srt,.vtt,application/x-cue,text/plain,text/vtt,application/x-subrip`;
 const EMPTY_SPLIT_TOOL_SHORTCUTS = Object.freeze([]);
 export default function AudioEditorWorkspaceView({ model }) {

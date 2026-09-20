@@ -4,13 +4,45 @@ import { expect, test, toneA, captionLabels, readFile } from './audio-editor-tes
 import {
 	bootEditor, chooseDropdown, chooseFileAction, chooseNestedCommandAction,
 	collectClientErrors, disableNativeSavePicker, importFiles, registerAudioEditorHooks,
-	trackNameText,
+	trackNameText, waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { readDawprojectArchive } from '../../src/common/editor/dawproject-archive.ts';
 
 test.describe('label and interchange exporters', () => {
 	registerAudioEditorHooks();
+	for (const fixture of [
+		{
+			name: 'audacity-labels.txt', mimeType: 'text/plain',
+			text: '0.125\t0.750\tTXT intro\n1.000\t1.500\tTXT outro\n',
+			titles: ['TXT intro', 'TXT outro'],
+		},
+		{
+			name: 'browser-labels.vtt', mimeType: 'text/vtt',
+			text: 'WEBVTT\n\nintro\n00:00:00.250 --> 00:00:01.500\nVTT intro\n\noutro\n00:00:02.000 --> 00:00:03.250\nVTT outro\n',
+			titles: ['VTT intro', 'VTT outro'],
+		},
+	]) {
+		test(`${fixture.name} imports through File > Import and survives reload`, async ({ page }) => {
+			const errors = collectClientErrors(page);
+			let editor = await bootEditor(page, '/embed/en/');
+			const choosingFile = page.waitForEvent('filechooser');
+			await chooseFileAction(page, editor, 'Import');
+			await (await choosingFile).setFiles({
+				name: fixture.name, mimeType: fixture.mimeType, buffer: Buffer.from(fixture.text),
+			});
+			await expect(editor.locator('[data-status]')).toHaveText('Imported 2 label(s).');
+			await expect(editor.locator('[data-label-track] [data-label-id]')).toHaveCount(2);
+			await expect(editor.locator('[data-label-track] [data-label-id]')).toContainText(fixture.titles);
+			await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+			await page.reload();
+			editor = await waitForEditor(page);
+			await expect(editor.locator('[data-label-track] [data-label-id]')).toHaveCount(2);
+			await expect(editor.locator('[data-label-track] [data-label-id]')).toContainText(fixture.titles);
+			expect(errors).toEqual([]);
+		});
+	}
+
 	for (const [label, extension] of [
 		['As Audacity TXT', 'txt'], ['As SubRip (SRT)', 'srt'],
 		['As WebVTT', 'vtt'], ['As Podcast 2.0 chapters (JSON)', 'json'],
