@@ -47,7 +47,7 @@ const EXPECTED = Object.freeze({
 	'vst3-sdk': Object.freeze({ version: '3.8.0_build_66', commit: '9fad9770f2ae8542ab1a548a68c1ad1ac690abe0', license: 'MIT' }),
 	'vamp-plugin-sdk': Object.freeze({ version: '2.10.0', commit: '67adfc2bf9486912a0fce5123cf54360ea2678bc', license: 'BSD-3-Clause' }),
 	'asio-sdk': Object.freeze({ version: '2.3.4', commit: null, license: 'GPL-3.0-only' }),
-	'ladspa-sdk': Object.freeze({ version: '1.17', commit: null, license: 'LGPL-2.1-only' }),
+	'ladspa-sdk': Object.freeze({ version: '1.17', commit: null, license: 'LGPL-2.1-or-later' }),
 	lv2: Object.freeze({ version: '1.18.10', commit: '0bcde338db1c63bbc503b4d1f6d7b55ed43154af', license: 'ISC' }),
 });
 

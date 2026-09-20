@@ -171,8 +171,8 @@
 				"fileCount": 29,
 				"sha256": "dfacf9305837fc6ddb631130f9a1573ac3645291e9bbc08a60a9dfcf4df4258d"
 			},
-			"license": "LGPL-2.1-only",
-			"licenseSelection": "LGPL-2.1-only",
+			"license": "LGPL-2.1-or-later",
+			"licenseSelection": "LGPL-2.1-or-later",
 			"authenticationStatus": "pinned-metadata",
 			"activationStatus": "accepted",
 			"blockedBy": null,

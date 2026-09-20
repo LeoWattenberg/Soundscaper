@@ -62,7 +62,7 @@ const EXPECTED_LICENSE_SELECTIONS = {
 	'vst3-sdk': 'MIT',
 	'vamp-plugin-sdk': 'BSD-3-Clause',
 	'asio-sdk': 'GPL-3.0-only',
-	'ladspa-sdk': 'LGPL-2.1-only',
+	'ladspa-sdk': 'LGPL-2.1-or-later',
 	lv2: 'ISC',
 	x264: 'GPL-2.0-or-later',
 	x265: 'GPL-2.0-or-later',
