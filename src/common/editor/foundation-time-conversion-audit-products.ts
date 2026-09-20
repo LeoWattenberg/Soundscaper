@@ -48,12 +48,6 @@ export const FOUNDATION_TIME_CONVERSION_PRODUCT_SITES: readonly FoundationTimeCo
 		],
 	},
 	{
-		id: 'framescaper-dissolve-authoring-workflow',
-		file: 'src/framescaper/editor-selected-finishing-authoring-workflows.ts',
-		behavior: 'Adding a dissolve to two adjacent unlinked video clips moves the incoming clip back by the negotiated transition length and states that sequence-frame start as a nearest-point timeline sample position for the move command.',
-		conversions: [{ helper: 'videoFrameToSampleFrame', policies: ['point'] }],
-	},
-	{
 		id: 'framescaper-dissolve-visual-commands',
 		file: 'src/framescaper/editor-selected-finishing-visual-authoring-commands.ts',
 		behavior: 'Applying or removing a dissolve moves the incoming clip to the sequence frame the operation implies as a nearest-point sample position, and shifts a linked audio peer by the difference between the old and new starts converted the same way, so the A/V link survives the edit.',
