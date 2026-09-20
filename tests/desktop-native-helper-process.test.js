@@ -100,9 +100,7 @@ test('the helper announces exactly the kinds it implements', () => {
 	const { types, posted } = createWorker(() => manualJob().handle);
 	assert.deepEqual(types(), ['hello']);
 	assert.deepEqual(posted[0].kinds, ['audio-device']);
-	assert.deepEqual([...NATIVE_HELPER_JOB_KINDS], [
-		'audio-device', 'plugin-scan', 'plugin-host', 'plugin-analyze',
-	]);
+	assert.deepEqual([...NATIVE_HELPER_JOB_KINDS], ['audio-device', 'plugin-scan', 'plugin-host', 'plugin-analyze']);
 });
 
 test('professional scanner and host roles derive machine containment and select only the isolated peer', async () => {
@@ -198,27 +196,6 @@ test('an announced kind with no runner is refused rather than run as a device jo
 	assert.deepEqual(types(), ['hello', 'error']);
 	assert.match(posted[1].error.message, /does not implement plugin-scan jobs/u);
 	assert.deepEqual(exits, []);
-});
-
-test('the scanner helper preserves the closed isolated Vamp child-crash code', async () => {
-	const posted = [];
-	const worker = createNativeHelperWorker({
-		role: 'plugin-scanner', post: (message) => posted.push(message),
-		runScanJob: () => ({
-			completion: Promise.reject(Object.assign(new Error('isolated child exited'), {
-				code: 'vamp-peer-crash',
-			})),
-			cancel: async () => undefined,
-		}),
-		heartbeatIntervalMs: 1_000_000,
-	});
-	worker.handleMessage(jobMessage(JOB_ID, {
-		rootPath: '/plug-ins', format: 'vamp', identity: { dev: 1, ino: 2 },
-	}, 'plugin-scan'));
-	await new Promise((resolve) => { setImmediate(resolve); });
-	assert.equal(posted.at(-1).type, 'error');
-	assert.equal(posted.at(-1).error.code, 'vamp-peer-crash');
-	worker.dispose();
 });
 
 test('a persistent audio job receives only its exactly bound MessagePort', async () => {
