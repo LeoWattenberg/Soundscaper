@@ -49,6 +49,18 @@ function assertExactV13CarrierFoundation(
 	projected.nodes = plan.nodes.filter(
 		({ kind }) => kind !== 'professional-media' && kind !== 'openfx',
 	).map((node) => {
+		if (node.kind === 'finishing') {
+			const inheritedNode = expected.nodes.find((candidate) => (
+				candidate.kind === 'finishing' && candidate.nodeId === node.nodeId
+			));
+			if (!inheritedNode || inheritedNode.kind !== 'finishing') {
+				throw new ReferenceError(`Selected nativeMedia carrier finishing node ${node.nodeId} has no V13 foundation.`);
+			}
+			// The evaluated carrier is picture-only. V14 scopes audio authority to
+			// tracks with programme audio, while V13 retains empty sequence tracks;
+			// neither inventory can change this silent carrier's pixels.
+			return Object.freeze({ ...node, audioContext: inheritedNode.audioContext });
+		}
 		if (node.kind !== 'clip') return node;
 		const inheritedNode = expected.nodes.find((candidate) => (
 			candidate.kind === 'clip' && candidate.nodeId === node.nodeId

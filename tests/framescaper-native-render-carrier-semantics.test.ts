@@ -334,6 +334,26 @@ test('the authored V14 plan and its own project satisfy the exact V13 carrier fo
 	assert.doesNotThrow(() => assertFamilies(plan, project));
 });
 
+test('a silent picture carrier ignores empty sequence audio tracks in its V13 parity projection', () => {
+	const options = projectOptions();
+	const audioTrack = (framescaperV20Options().tracks as Data[])
+		.find(({ type }) => type === 'audio');
+	assert.ok(audioTrack, 'the maintained project fixture supplies one valid audio track');
+	const emptyAudioTrack = { ...audioTrack, clipIds: [] };
+	options.tracks = [...options.tracks as Data[], emptyAudioTrack];
+	const sequence = (options.sequences as Data[])[0]!;
+	sequence.trackIds = [...sequence.trackIds as string[], String(emptyAudioTrack.id)];
+	const project = createFramescaperProjectNativeMedia(PROFILE, options);
+	const plan = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+		PROFILE, project, createFramescaperNativeRenderPlanAuthorityNativeMedia(project),
+	);
+	const finishing = plan.nodes.find(({ kind }) => kind === 'finishing');
+
+	assert.ok(finishing?.kind === 'finishing');
+	assert.deepEqual(finishing.audioContext.audioTracks, []);
+	assert.doesNotThrow(() => assertFamilies(plan, project));
+});
+
 test('verified professional-media and OpenFX nodes project away from the V13 carrier foundation', () => {
 	const { project, plan } = fixture();
 	const drifted = mutablePlan(plan);
