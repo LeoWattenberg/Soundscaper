@@ -8,6 +8,7 @@ import {
 	readNativePluginRuntimeParameter,
 	writeNativePluginRuntimeParameter,
 } from '../../native-plugin-realtime-node.js';
+import { SOUNDSCAPER_NATIVE_SERVICES_COPY } from '../../../i18n/editor-soundscaper-native-services-copy.ts';
 
 const BOOLEAN_PARAMETER_FLAG = 1;
 
@@ -55,9 +56,9 @@ interface ParameterSnapshot {
 }
 
 const DEFAULT_COPY = Object.freeze({
-	title: 'Plug-in parameters',
-	loading: 'Loading plug-in parameters…',
-	unavailable: 'Plug-in parameters are unavailable.',
+	title: SOUNDSCAPER_NATIVE_SERVICES_COPY.pluginParametersTitle,
+	loading: SOUNDSCAPER_NATIVE_SERVICES_COPY.pluginParametersLoading,
+	unavailable: SOUNDSCAPER_NATIVE_SERVICES_COPY.pluginParametersUnavailable,
 });
 
 const DEFAULT_RUNTIME: NativePluginParameterRuntime = Object.freeze({

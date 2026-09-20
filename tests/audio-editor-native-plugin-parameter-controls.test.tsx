@@ -6,7 +6,7 @@ import React, { act } from 'react'
 
 import NativePluginParameterControls, {
 	type NativePluginParameterRuntime,
-} from '../src/common/editor/ui/NativePluginParameterControls.tsx'
+} from '../src/common/editor/ui/dialogs/NativePluginParameterControls.tsx'
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts'
 
 test('generated native plug-in controls read and write bounded normalized parameters', async () => {

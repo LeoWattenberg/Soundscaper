@@ -213,7 +213,11 @@ function PluginInstanceControls({ copy, state, disabled, perform }: SoundscaperN
 	const vendorWindow = state.pluginVendorWindow;
 	return <section data-native-plugin-instance={instance.instanceId}>
 		<h3>{`${instance.format} — ${instance.state}`}</h3>
-		<NativePluginParameterControls instanceId={instance.instanceId} disabled={disabled} />
+		<NativePluginParameterControls instanceId={instance.instanceId} disabled={disabled} copy={{
+			title: copy.pluginParametersTitle,
+			loading: copy.pluginParametersLoading,
+			unavailable: copy.pluginParametersUnavailable,
+		}} />
 		<details className="kw-processing-details"><summary>{copy.pluginOfflineDetails}</summary>
 		<p>{`${instance.latencySamples} latency frames`}</p>
 		<Button variant="secondary" disabled={disabled} data-native-plugin-run-offline="true"
