@@ -203,10 +203,10 @@ not relabel a software fallback as hardware evidence.
 
 ### Nightly test runner artifacts
 
-For a self-contained browser test run, start the workflow manually and choose
-`nightly-with-tests`. Its five platform jobs upload artifacts named
-`nightly-with-tests-win-<architecture>`,
-`nightly-with-tests-mac-<architecture>`, or
+For a self-contained browser test run, see
+[end-to-end coverage](docs/end-to-end-coverage.md). Start the workflow manually
+and choose `nightly-with-tests`. Its five platform jobs upload artifacts named
+`nightly-with-tests-win-<architecture>`, `nightly-with-tests-mac-<architecture>`, or
 `nightly-with-tests-linux-<architecture>` for Windows x64/ARM64, macOS Apple
 silicon, and Linux x64/ARM64. This flavor contains the built site, the
 Playwright suite and runtime, the real packaged Soundscaper and Framescaper
