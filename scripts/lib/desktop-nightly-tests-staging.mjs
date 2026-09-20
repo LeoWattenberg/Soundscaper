@@ -54,6 +54,8 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 		source: `desktop/bundled-${format}-stream.ts`, destination: `desktop/bundled-${format}-stream.ts`,
 		kind: 'file', label: `${format} browser import fixture support`,
 	})),
+	{ source: 'desktop/desktop-audio-codec-capability-contract.ts', destination: 'desktop/desktop-audio-codec-capability-contract.ts', kind: 'file', label: 'browser codec capability source map input' },
+	{ source: 'desktop/desktop-audio-codec-operation-contract.ts', destination: 'desktop/desktop-audio-codec-operation-contract.ts', kind: 'file', label: 'browser codec operation source map input' },
 	{ source: 'desktop/nightly-tests-main.mjs', destination: 'desktop/nightly-tests-main.mjs', kind: 'file', label: 'nightly test launcher' },
 	{ source: 'desktop/nightly-tests-assistance-host.mjs', destination: 'desktop/nightly-tests-assistance-host.mjs', kind: 'file', label: 'nightly-only real assistance Electron host' },
 	{ source: 'desktop/nightly-tests-assistance.html', destination: 'desktop/nightly-tests-assistance.html', kind: 'file', label: 'isolated assistance diagnostic document' },
@@ -93,6 +95,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	// collector, so every spec reaches these three whether or not the packaged
 	// run records anything — an unresolved import here would abort the suite.
 	{ source: 'scripts/lib/browser-coverage-profile.mjs', destination: 'scripts/lib/browser-coverage-profile.mjs', kind: 'file', label: 'browser coverage profile writer' },
+	{ source: 'scripts/lib/browser-target-coverage.mjs', destination: 'scripts/lib/browser-target-coverage.mjs', kind: 'file', label: 'browser worker coverage recorder' },
 	{ source: 'scripts/lib/browser-product-site-plan.mjs', destination: 'scripts/lib/browser-product-site-plan.mjs', kind: 'file', label: 'browser product site plan' },
 	{ source: 'scripts/lib/product-release-lines.mjs', destination: 'scripts/lib/product-release-lines.mjs', kind: 'file', label: 'product release-line reader' },
 	{ source: 'config/product-release-lines.json', destination: 'config/product-release-lines.json', kind: 'file', label: 'product release lines' },
@@ -105,6 +108,8 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'playwright.nightly-tests.config.mjs', destination: 'playwright.nightly-tests.config.mjs', kind: 'file', label: 'nightly test Playwright config' },
 	{ source: '.wrangler/browser-products/soundscaper', destination: 'sites/soundscaper', kind: 'directory', label: 'verified Soundscaper browser site' },
 	{ source: '.wrangler/browser-products/framescaper', destination: 'sites/framescaper', kind: 'directory', label: 'verified Framescaper browser site' },
+	{ source: '.wrangler/browser-products/soundscaper-source-maps', destination: 'sites/soundscaper-source-maps', kind: 'directory', label: 'Soundscaper browser source maps' },
+	{ source: '.wrangler/browser-products/framescaper-source-maps', destination: 'sites/framescaper-source-maps', kind: 'directory', label: 'Framescaper browser source maps' },
 	{ source: 'src', destination: 'src', kind: 'directory', label: 'browser-test source tree' },
 	{ source: 'vendor/audacity-design-system/tokens', destination: 'vendor/audacity-design-system/tokens', kind: 'directory', label: 'design-system tokens used by browser assertions' },
 	{ source: 'handbook/guides', destination: 'handbook/guides', kind: 'directory', label: 'handbook guide step data the browser suite replays' },

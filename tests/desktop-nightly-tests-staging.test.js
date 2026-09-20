@@ -98,6 +98,8 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 
 	for (const relativePath of [
 		...['flac', 'mpeg-audio', 'opus', 'vorbis', 'wavpack'].map((format) => `desktop/bundled-${format}-stream.ts`),
+		'desktop/desktop-audio-codec-capability-contract.ts',
+		'desktop/desktop-audio-codec-operation-contract.ts',
 		'desktop/nightly-tests-main.mjs',
 		'desktop/nightly-tests-assistance-host.mjs',
 		'desktop/nightly-tests-assistance.html',
@@ -120,6 +122,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'scripts/lib/desktop-nightly-tests-metrics.mjs',
 		'scripts/lib/desktop-nightly-tests-packaged-runtime.mjs',
 		'scripts/lib/desktop-nightly-tests-presentation.mjs',
+		'scripts/lib/browser-target-coverage.mjs',
 		'scripts/collect-m3-longform-editorial-quality.mjs',
 		'scripts/collect-m4-production-parity-quality.mjs',
 		'scripts/collect-m4b2-keyframe-parity-quality.mjs',
@@ -132,6 +135,8 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'playwright.nightly-tests.config.mjs',
 		'sites/soundscaper/en/index.html',
 		'sites/framescaper/en/index.html',
+		'sites/soundscaper-source-maps/app.js.map',
+		'sites/framescaper-source-maps/app.js.map',
 		'handbook/src/content/docs/reference/macro-programs.md',
 		'tests/browser/example.spec.js',
 		'tests/electron/local-assistance-models/example.spec.js',

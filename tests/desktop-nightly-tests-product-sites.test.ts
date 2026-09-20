@@ -62,6 +62,18 @@ test('the nightly launcher serves each product from its own staged root and brow
 		framescaper: 'http://127.0.0.1:47778',
 	});
 	assert.deepEqual(JSON.parse(sites.browserEnvironment.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS ?? ''), sites.origins);
+	assert.deepEqual(JSON.parse(sites.browserEnvironment.SCAPE_BROWSER_COVERAGE_SITES ?? ''), [
+		{
+			productId: 'soundscaper',
+			origin: 'http://127.0.0.1:47777',
+			outputDirectory: '/opt/Soundscaper Tests/resources/nightly-tests/sites/soundscaper',
+		},
+		{
+			productId: 'framescaper',
+			origin: 'http://127.0.0.1:47778',
+			outputDirectory: '/opt/Soundscaper Tests/resources/nightly-tests/sites/framescaper',
+		},
+	]);
 	assert.equal(sites.browserEnvironment.EXISTING, 'preserved');
 	assert.equal(Object.isFrozen(sites), true);
 	assert.equal(Object.isFrozen(sites.origins), true);

@@ -238,6 +238,8 @@ test('the Playwright plan is closed over the packaged payload and sibling run ro
 		ELECTRON_RUN_AS_NODE: '1',
 		PLAYWRIGHT_BROWSERS_PATH: '/opt/Soundscaper Tests/resources/nightly-tests/.local-browsers',
 		PLAYWRIGHT_HTML_OPEN: 'never',
+		SCAPE_BROWSER_COVERAGE: '1',
+		SCAPE_BROWSER_COVERAGE_DIRECTORY: '/tmp/Soundscaper-playwright-run/coverage/v8-browser',
 		SOUNDSCAPER_NIGHTLY_TESTS_BASE_URL: 'http://127.0.0.1:45678',
 		SOUNDSCAPER_NIGHTLY_TESTS_PAYLOAD_ROOT: '/opt/Soundscaper Tests/resources/nightly-tests',
 		SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT: '/tmp/Soundscaper-playwright-run',
@@ -350,6 +352,7 @@ test('Playwright exit mapping and result envelopes distinguish failures from inf
 		signal: null,
 		failure: null,
 		artifacts: {
+			browserCoverageRaw: 'coverage/v8-browser',
 			consoleLog: 'console.log',
 			htmlReport: 'playwright-report/index.html',
 			jsonReport: 'results.json',
@@ -444,12 +447,10 @@ test('the injected nightly runtime records terminal results and always closes it
 		completed.result,
 	);
 });
-
 test('the injected nightly runtime turns server and child errors into an error envelope', async (context) => {
 	const outputRoot = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-error-'));
 	context.after(() => rm(outputRoot, { recursive: true, force: true }));
 	let closeCalls = 0;
-
 	const completed = await runDesktopNightlyTests({
 		executablePath: '/opt/soundscaper-tests',
 		payloadRoot: '/opt/resources/nightly-tests',
@@ -472,7 +473,6 @@ test('the injected nightly runtime turns server and child errors into an error e
 		'error',
 	);
 });
-
 test('terminal result replacement falls back safely when Windows refuses rename-over-existing', async (context) => {
 	const runRoot = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-result-'));
 	context.after(() => rm(runRoot, { recursive: true, force: true }));

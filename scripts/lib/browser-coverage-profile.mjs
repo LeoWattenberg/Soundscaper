@@ -2,10 +2,11 @@
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
-import { basename, resolve, sep } from 'node:path';
+import { basename, isAbsolute, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { sourceMapDirectoryFor } from './build-source-map-relocation.mjs';
+import { createBrowserTargetCoverageCollector } from './browser-target-coverage.mjs';
 
 // What the browser suite measures is the same `src/` the Node suite measures, so
 // it has to arrive in the same shape: a raw V8 profile with a source-map cache
@@ -16,10 +17,12 @@ import { sourceMapDirectoryFor } from './build-source-map-relocation.mjs';
 // merges those files like any other shard, and the coverage job's c8 report
 // remaps them onto `src/...` with `--exclude-after-remap`.
 //
-// An entry whose map cannot be found is dropped rather than reported: without a
-// map c8 would report the built chunk itself, which is not a file any coverage
-// scope owns, and the gate fails on production files it cannot classify.
+// An ordinary entry whose map cannot be found is dropped rather than reported.
+// A portable E2E profile retains it under the stable executable URL instead, so
+// the artifact inventory can own shipped scripts such as `service-worker.js`.
 export const BROWSER_COVERAGE_DIRECTORY = 'coverage/v8-browser';
+export const PORTABLE_BROWSER_COVERAGE_URL_PREFIX = 'file:///__soundscaper_e2e__/browser/';
+export const PORTABLE_REPOSITORY_SOURCE_URL_PREFIX = 'file:///__soundscaper_repo__/';
 
 const REPOSITORY_ROOT = resolve(import.meta.dirname, '../..');
 const SCRIPT_FILE_PATTERN = /\.m?js$/u;
@@ -99,7 +102,7 @@ export function sourceMapPathFor(chunk) {
  * Turn Playwright's coverage entries into one raw V8 profile.
  *
  * @param {Array<{ url: string, scriptId?: string, source?: string, functions?: unknown[] }>} entries
- * @param {(url: string) => { path: string, sourceMap: object, source?: string } | null} resolveScript
+ * @param {(url: string) => { path: string, coverageUrl?: string, sourceMap?: object, source?: string } | null} resolveScript
  * @returns {{ result: object[], 'source-map-cache': Record<string, object> }}
  */
 export function browserCoverageProfile(entries, resolveScript) {
@@ -109,13 +112,13 @@ export function browserCoverageProfile(entries, resolveScript) {
 	for (const entry of entries) {
 		const resolved = resolveScript(entry.url);
 		if (!resolved) continue;
-		const url = pathToFileURL(resolved.path).href;
+		const url = resolved.coverageUrl ?? pathToFileURL(resolved.path).href;
 		result.push({
 			scriptId: String(entry.scriptId ?? result.length),
 			url,
 			functions: entry.functions ?? [],
 		});
-		if (url in sourceMapCache) continue;
+		if (resolved.sourceMap === undefined || url in sourceMapCache) continue;
 		sourceMapCache[url] = {
 			lineLengths: sourceLineLengths(entry.source ?? resolved.source ?? ''),
 			data: resolved.sourceMap,
@@ -156,7 +159,7 @@ export function withoutRepeatedSourceMaps(profile, alreadyWritten) {
  *   sites?: Array<{ origin: string, outputDirectory: string }>,
  *   repositoryRoot?: string,
  *   coverageDirectory?: string,
- *   scripts?: Map<string, { path: string, sourceMap: object, source?: string } | null>,
+ *   scripts?: Map<string, { path: string, coverageUrl?: string, sourceMap?: object, source?: string } | null>,
  * }} options
  */
 export function createBrowserCoverageCollector({
@@ -169,8 +172,19 @@ export function createBrowserCoverageCollector({
 }) {
 	if (!collectsBrowserCoverage(browserName, environment)) return null;
 
+	const configuredDirectory = environment.SCAPE_BROWSER_COVERAGE_DIRECTORY;
+	if (configuredDirectory !== undefined) {
+		if (!isAbsolute(configuredDirectory)) {
+			throw new TypeError('SCAPE_BROWSER_COVERAGE_DIRECTORY must be absolute.');
+		}
+		coverageDirectory = configuredDirectory;
+	}
+	const configuredSites = parseCoverageSites(environment.SCAPE_BROWSER_COVERAGE_SITES);
 	const directoriesByOrigin = new Map(
-		(sites ?? []).map((site) => [site.origin, resolve(repositoryRoot, site.outputDirectory)]),
+		(configuredSites ?? sites ?? []).map((site) => [site.origin, resolve(repositoryRoot, site.outputDirectory)]),
+	);
+	const portableProductsByOrigin = new Map(
+		(configuredSites?.map((site) => [site.origin, site.productId]) ?? []),
 	);
 	const started = new Set();
 	const recorders = new Map();
@@ -190,7 +204,8 @@ export function createBrowserCoverageCollector({
 
 	async function startRecording(page) {
 		const session = await page.context().newCDPSession(page);
-		const recorder = { session, taken: [] };
+		const targetCollector = createBrowserTargetCoverageCollector(session);
+		const recorder = { session, targetCollector, taken: [] };
 		recorders.set(page, recorder);
 		// Binary block coverage straight from the profiler: `callCount: false`
 		// records whether a block ran, not how often, which is all a line and
@@ -206,12 +221,18 @@ export function createBrowserCoverageCollector({
 				.catch(() => {}));
 		});
 		await session.send('Profiler.startPreciseCoverage', { callCount: false, detailed: true });
+		await targetCollector.start();
 	}
 
 	async function resolveScript(url) {
 		if (scripts.has(url)) return scripts.get(url) ?? null;
 		const chunk = builtChunkFor(url, directoriesByOrigin);
-		const resolved = chunk === null ? null : await readSourceMap(chunk);
+		const origin = originOf(url);
+		const productId = origin === null ? undefined : portableProductsByOrigin.get(origin);
+		const resolved = chunk === null ? null : await readSourceMap(chunk, {
+			repositoryRoot,
+			productId,
+		});
 		scripts.set(url, resolved);
 		return resolved;
 	}
@@ -243,7 +264,9 @@ export function createBrowserCoverageCollector({
 				recorders.delete(page);
 				if (!recorder) continue;
 				entries.push(...recorder.taken);
-				if (page.isClosed()) continue;
+				const pageClosed = page.isClosed();
+				entries.push(...await recorder.targetCollector.collect());
+				if (pageClosed) continue;
 				try {
 					entries.push(...await stopRecording(recorder.session));
 				} catch (error) {
@@ -271,6 +294,32 @@ export function createBrowserCoverageCollector({
 	};
 }
 
+function parseCoverageSites(serialized) {
+	if (serialized === undefined) return null;
+	let sites;
+	try { sites = JSON.parse(serialized); }
+	catch (error) {
+		throw new TypeError('SCAPE_BROWSER_COVERAGE_SITES must be valid JSON.', { cause: error });
+	}
+	if (!Array.isArray(sites) || sites.length === 0) {
+		throw new TypeError('SCAPE_BROWSER_COVERAGE_SITES must name at least one site.');
+	}
+	const origins = new Set();
+	for (const site of sites) {
+		if (!site || typeof site !== 'object' || Array.isArray(site)
+			|| typeof site.productId !== 'string' || !/^[a-z][a-z0-9-]*$/u.test(site.productId)
+			|| typeof site.origin !== 'string' || new URL(site.origin).origin !== site.origin
+			|| typeof site.outputDirectory !== 'string' || !isAbsolute(site.outputDirectory)) {
+			throw new TypeError('SCAPE_BROWSER_COVERAGE_SITES contains an invalid site.');
+		}
+		if (origins.has(site.origin)) {
+			throw new TypeError('SCAPE_BROWSER_COVERAGE_SITES contains a duplicate origin.');
+		}
+		origins.add(site.origin);
+	}
+	return sites;
+}
+
 async function stopRecording(session) {
 	const { result } = await session.send('Profiler.takePreciseCoverage');
 	await session.send('Profiler.stopPreciseCoverage');
@@ -279,17 +328,67 @@ async function stopRecording(session) {
 	return result;
 }
 
-async function readSourceMap(chunk) {
+async function readSourceMap(chunk, { repositoryRoot, productId }) {
 	let text;
 	try {
 		text = await readFile(sourceMapPathFor(chunk), 'utf8');
 	} catch {
 		// A build made without SCAPE_BUILD_SOURCE_MAPS=1 has no maps at all, and a
 		// script served from outside the build has none either. Neither is an
-		// error: it only means this script contributes no coverage.
-		return null;
+		// error. Ordinary coverage drops it; portable E2E coverage retains the
+		// executable itself so its inventory can still require an exact hit.
+		return productId === undefined ? null : {
+			path: chunk.path,
+			coverageUrl: portableCoverageUrl(chunk, productId),
+		};
 	}
-	return { path: chunk.path, sourceMap: JSON.parse(text) };
+	const sourceMap = productId === undefined
+		? JSON.parse(text)
+		: await portableSourceMap(JSON.parse(text), repositoryRoot);
+	return {
+		path: chunk.path,
+		...(productId === undefined ? {} : { coverageUrl: portableCoverageUrl(chunk, productId) }),
+		sourceMap,
+	};
+}
+
+async function portableSourceMap(map, repositoryRoot) {
+	if (!Array.isArray(map.sources)) return map;
+	const sourcesContent = [];
+	const sources = [];
+	for (const source of map.sources) {
+		const repositoryPath = repositorySourcePath(source);
+		if (repositoryPath === null) {
+			sources.push(source);
+			sourcesContent.push(null);
+			continue;
+		}
+		sources.push(`${PORTABLE_REPOSITORY_SOURCE_URL_PREFIX}${repositoryPath}`);
+		sourcesContent.push(await readFile(resolve(repositoryRoot, repositoryPath), 'utf8'));
+	}
+	return { ...map, sourceRoot: '', sources, sourcesContent };
+}
+
+function repositorySourcePath(source) {
+	if (typeof source !== 'string') return null;
+	let pathname;
+	try { pathname = decodeURIComponent(new URL(source).pathname).replaceAll('\\', '/'); }
+	catch { return null; }
+	for (const root of ['src', 'desktop']) {
+		const marker = `/${root}/`;
+		const at = pathname.lastIndexOf(marker);
+		if (at >= 0) return pathname.slice(at + 1);
+	}
+	return null;
+}
+
+function portableCoverageUrl(chunk, productId) {
+	const served = relative(chunk.directory, chunk.path).split(sep).map(encodeURIComponent).join('/');
+	return `${PORTABLE_BROWSER_COVERAGE_URL_PREFIX}${productId}/${served}`;
+}
+
+function originOf(url) {
+	try { return new URL(url).origin; } catch { return null; }
 }
 
 function profileFileStem(label) {

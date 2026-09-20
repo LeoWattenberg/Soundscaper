@@ -21,6 +21,7 @@ import { mergeProcessCovs } from '@bcoe/v8-coverage';
 // the filter admits it, and merging ranges and de-duplicating maps is the same
 // work. The report is what remaps a chunk onto the sources it was built from.
 const MERGE_BATCH_SIZE = 32;
+const PORTABLE_E2E_COVERAGE_URL_PREFIX = 'file:///__soundscaper_e2e__/';
 
 export function compactV8Coverage(temporaryDirectory, repositoryRoot) {
 	const keep = coverageUrlFilter(repositoryRoot);
@@ -48,7 +49,9 @@ export function compactV8Coverage(temporaryDirectory, repositoryRoot) {
 // dependency tree and any stray absolute path are dropped before merging.
 export function coverageUrlFilter(repositoryRoot) {
 	const rootUrl = `${pathToFileURL(resolve(repositoryRoot)).href.replace(/\/$/u, '')}/`;
-	return (url) => typeof url === 'string' && url.startsWith(rootUrl) && !url.includes('/node_modules/');
+	return (url) => typeof url === 'string'
+		&& (url.startsWith(rootUrl) || url.startsWith(PORTABLE_E2E_COVERAGE_URL_PREFIX))
+		&& !url.includes('/node_modules/');
 }
 
 function readProfile(file) {

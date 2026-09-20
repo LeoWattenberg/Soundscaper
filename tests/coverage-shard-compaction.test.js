@@ -55,6 +55,30 @@ test('compaction sums the ranges every process recorded for the same script', ()
 	assert.deepEqual(Object.keys(compacted['source-map-cache']), [scriptUrl]);
 });
 
+test('compaction retains a portable nightly browser profile outside the checkout', () => {
+	const root = makeWorkspace();
+	const temporaryDirectory = join(root, 'v8-browser');
+	mkdirSync(temporaryDirectory);
+	const scriptUrl = 'file:///__soundscaper_e2e__/browser/soundscaper/assets/app.js';
+	const sourceMap = {
+		lineLengths: [10],
+		data: {
+			version: 3,
+			sources: ['file:///__soundscaper_repo__/src/measured.ts'],
+			sourcesContent: ['export const measured = true;\n'],
+		},
+		url: null,
+	};
+	writeProfile(temporaryDirectory, 'nightly.json', {
+		result: [profileFor(scriptUrl, [{ startOffset: 0, endOffset: 10, count: 1 }])],
+		'source-map-cache': { [scriptUrl]: sourceMap },
+	});
+
+	const compacted = compactV8Coverage(temporaryDirectory, root);
+	assert.deepEqual(compacted.result.map(({ url }) => url), [scriptUrl]);
+	assert.deepEqual(Object.keys(compacted['source-map-cache']), [scriptUrl]);
+});
+
 test('a partially written profile does not take the whole shard down with it', () => {
 	const root = makeWorkspace();
 	const temporaryDirectory = join(root, 'v8');

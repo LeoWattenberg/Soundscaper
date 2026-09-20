@@ -180,6 +180,88 @@ test('the collector records every page a context opens and writes one profile pe
 	assert.deepEqual(profile['source-map-cache'][url].lineLengths, sourceLineLengths(CHUNK));
 });
 
+test('the collector honors a packaged run site map and durable coverage directory', async () => {
+	const workspace = makeWorkspace();
+	const payloadRoot = join(workspace, 'payload');
+	const built = join(payloadRoot, 'sites/soundscaper');
+	mkdirSync(join(built, 'assets'), { recursive: true });
+	writeFileSync(join(built, 'assets/app-abc123.js'), CHUNK);
+	mkdirSync(join(workspace, 'payload/sites/soundscaper-source-maps'), { recursive: true });
+	writeFileSync(
+		join(workspace, 'payload/sites/soundscaper-source-maps/app-abc123.js.map'),
+		JSON.stringify(MAP),
+	);
+	mkdirSync(join(payloadRoot, 'src/common'), { recursive: true });
+	writeFileSync(join(payloadRoot, 'src/common/measured.ts'), 'export const measured = 2;\n');
+	const coverageDirectory = join(workspace, 'run/coverage/v8-browser');
+	const collector = createBrowserCoverageCollector({
+		browserName: 'chromium',
+		environment: {
+			SCAPE_BROWSER_COVERAGE: '1',
+			SCAPE_BROWSER_COVERAGE_DIRECTORY: coverageDirectory,
+			SCAPE_BROWSER_COVERAGE_SITES: JSON.stringify([{
+				productId: 'soundscaper',
+				origin: ORIGIN,
+				outputDirectory: built,
+			}]),
+		},
+		repositoryRoot: payloadRoot,
+		sites: [{ origin: 'http://127.0.0.1:9999', outputDirectory: '/wrong/build' }],
+	});
+	assert.ok(collector);
+	collector.attach(fakeContext([fakePage(`${ORIGIN}/assets/app-abc123.js`)]));
+	await collector.collect('nightly packaged browser', new Set<string>());
+
+	const [name] = readdirSync(coverageDirectory);
+	const profile = JSON.parse(readFileSync(join(coverageDirectory, name), 'utf8')) as {
+		result: { url: string }[],
+		'source-map-cache': Record<string, { data: { sources: string[], sourcesContent: string[] } }>,
+	};
+	const portableUrl = 'file:///__soundscaper_e2e__/browser/soundscaper/assets/app-abc123.js';
+	assert.deepEqual(profile.result.map(({ url }) => url), [portableUrl]);
+	assert.deepEqual(Object.keys(profile['source-map-cache']), [portableUrl]);
+	assert.deepEqual(profile['source-map-cache'][portableUrl].data.sources, [
+		'file:///__soundscaper_repo__/src/common/measured.ts',
+	]);
+	assert.deepEqual(profile['source-map-cache'][portableUrl].data.sourcesContent, [
+		'export const measured = 2;\n',
+	]);
+});
+
+test('a portable nightly profile retains an unmapped shipped script', async () => {
+	const workspace = makeWorkspace();
+	const payloadRoot = join(workspace, 'payload');
+	const built = join(payloadRoot, 'sites/soundscaper');
+	mkdirSync(built, { recursive: true });
+	writeFileSync(join(built, 'service-worker.js'), CHUNK);
+	const coverageDirectory = join(workspace, 'run/coverage/v8-browser');
+	const collector = createBrowserCoverageCollector({
+		browserName: 'chromium',
+		environment: {
+			SCAPE_BROWSER_COVERAGE: '1',
+			SCAPE_BROWSER_COVERAGE_DIRECTORY: coverageDirectory,
+			SCAPE_BROWSER_COVERAGE_SITES: JSON.stringify([{
+				productId: 'soundscaper',
+				origin: ORIGIN,
+				outputDirectory: built,
+			}]),
+		},
+		repositoryRoot: payloadRoot,
+	});
+	assert.ok(collector);
+	collector.attach(fakeContext([fakePage(`${ORIGIN}/service-worker.js`)]));
+	await collector.collect('nightly service worker', new Set<string>());
+
+	const [name] = readdirSync(coverageDirectory);
+	const profile = JSON.parse(readFileSync(join(coverageDirectory, name), 'utf8')) as {
+		result: { url: string }[], 'source-map-cache': Record<string, unknown>,
+	};
+	assert.deepEqual(profile.result.map(({ url }) => url), [
+		'file:///__soundscaper_e2e__/browser/soundscaper/service-worker.js',
+	]);
+	assert.deepEqual(Object.keys(profile['source-map-cache']), []);
+});
+
 test('a test that ran nothing the build serves writes no profile', async () => {
 	const workspace = makeWorkspace();
 	const coverageDirectory = join(workspace, 'v8-browser');

@@ -62,7 +62,10 @@ const CLAIMS: readonly ManifestClaim[] = Object.freeze([
 
 test('every path the desktop payload manifests name is backed by the repository', async () => {
 	const checked = CLAIMS.filter(({ path }) => !isGenerated(path));
-	assert.ok(checked.length >= CLAIMS.length - 2, 'only the built browser sites may be generated');
+	assert.ok(
+		checked.length >= CLAIMS.length - 4,
+		'only the built browser sites and their source maps may be generated',
+	);
 	const failures: string[] = [];
 	for (const claim of checked) {
 		const candidates = repositoryCandidates(claim);

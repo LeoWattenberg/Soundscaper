@@ -36,6 +36,11 @@ export async function startDesktopNightlyTestsProductSites({
 		const browserEnvironment = Object.freeze({
 			...environment,
 			[PRODUCT_ORIGINS_VARIABLE]: JSON.stringify(origins),
+			SCAPE_BROWSER_COVERAGE_SITES: JSON.stringify(servers.map(({ productId, server }) => ({
+				productId,
+				origin: new URL(server.baseURL).origin,
+				outputDirectory: join(payloadRoot, 'sites', productId),
+			}))),
 		});
 		let closed = false;
 		return Object.freeze({

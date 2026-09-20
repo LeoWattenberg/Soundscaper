@@ -12,7 +12,6 @@ import { runDesktopNightlyTestsDiagnosticPhases } from './desktop-nightly-tests-
 import { staticSiteContentType } from './static-site-content-types.mjs';
 import { PACKAGED_RUNTIME_ARTIFACT_PATHS } from './desktop-nightly-tests-packaged-runtime.mjs';
 import { LOCAL_ASSISTANCE_ARTIFACT_PATHS } from './desktop-nightly-tests-local-assistance.mjs';
-
 const RESULT_KIND = 'soundscaper-desktop-nightly-tests';
 const PRODUCT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/u;
 const SOURCE_REVISION_PATTERN = /^[a-f\d]{40}$/u;
@@ -76,7 +75,6 @@ export async function createDesktopNightlyTestsRunDirectory({
 		paths: runPaths(runRoot),
 	});
 }
-
 export async function startDesktopNightlyTestsStaticServer({ root } = {}) {
 	assertAbsolutePath(root, { isAbsolute }, 'Desktop nightly tests static root');
 	const staticRoot = await realpath(root).catch((error) => {
@@ -151,6 +149,8 @@ export function createDesktopNightlyTestsPlaywrightPlan({
 		ELECTRON_RUN_AS_NODE: '1',
 		PLAYWRIGHT_BROWSERS_PATH: join(payloadRoot, '.local-browsers'),
 		PLAYWRIGHT_HTML_OPEN: 'never',
+		SCAPE_BROWSER_COVERAGE: '1',
+		SCAPE_BROWSER_COVERAGE_DIRECTORY: join(runRoot, 'coverage/v8-browser'),
 		...(esbuildBinaryPath === null ? {} : { ESBUILD_BINARY_PATH: esbuildBinaryPath }),
 		SOUNDSCAPER_NIGHTLY_TESTS_BASE_URL: baseURL,
 		SOUNDSCAPER_NIGHTLY_TESTS_PAYLOAD_ROOT: payloadRoot,
@@ -213,6 +213,7 @@ export function createDesktopNightlyTestsResultEnvelope({
 		signal,
 		failure,
 		artifacts: Object.freeze({
+			browserCoverageRaw: 'coverage/v8-browser',
 			consoleLog: 'console.log',
 			htmlReport: 'playwright-report/index.html',
 			jsonReport: 'results.json',
@@ -319,7 +320,6 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 	await writeResult(runRoot, result);
 	return Object.freeze({ exitCode: outcome.exitCode, outputRoot, runRoot, result });
 }
-
 async function serveStaticRequest({ request, response, staticRoot }) {
 	try {
 		if (request.method !== 'GET' && request.method !== 'HEAD') {

@@ -59,6 +59,7 @@ export interface DesktopNightlyTestsResultEnvelope {
 	readonly signal: string | null;
 	readonly failure: string | null;
 	readonly artifacts: {
+		readonly browserCoverageRaw: 'coverage/v8-browser';
 		readonly consoleLog: 'console.log';
 		readonly htmlReport: 'playwright-report/index.html';
 		readonly jsonReport: 'results.json';
