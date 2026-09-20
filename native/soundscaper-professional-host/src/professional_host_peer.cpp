@@ -5,6 +5,7 @@
 #include "professional_host_api.h"
 #include "professional_host_containment_probe.h"
 #include "juce_message_dispatcher.h"
+#include "vamp_analyzer_peer.h"
 
 #if defined(__APPLE__)
 #include "professional_host_macos_bootstrap.hpp"
@@ -469,6 +470,9 @@ int main(int argc, char **argv)
 #if defined(__APPLE__)
 	if (!soundscaper::professional::macosBootstrap::soundscaperProfessionalMacosBootstrap()) return 125;
 #endif
+	if (argc == 2 && std::strcmp(argv[1], "--vamp-analyzer") == 0) {
+		return soundscaper::vamp::runVampAnalyzerPeer();
+	}
 	const int probe = soundscaper::professionalHostContainmentProbe(argc, argv);
 	if (probe >= 0) return probe;
 #if defined(__APPLE__)

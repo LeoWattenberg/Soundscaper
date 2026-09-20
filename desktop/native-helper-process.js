@@ -15,6 +15,7 @@
 import { createSingleKindHelperWorker } from './helper-single-kind-worker.js';
 import { createNativePersistentAudioJobRunner } from './native-helper-persistent-audio-job.js';
 import { createNativePersistentPluginJobRunner } from './native-helper-persistent-plugin-job.js';
+import { createNativePersistentVampAnalyzerJobRunner } from './native-helper-persistent-vamp-analyzer-job.js';
 import { authenticatePluginCandidate } from './plugin-candidate-authentication.mjs';
 
 /** One process role owns one native authority family. */
@@ -22,6 +23,7 @@ export const NATIVE_HELPER_ROLES = Object.freeze({
 	audio: Object.freeze({ kind: 'audio-device', serviceName: 'soundscaper-native-audio-helper' }),
 	'plugin-scanner': Object.freeze({ kind: 'plugin-scan', serviceName: 'soundscaper-native-plugin-scanner' }),
 	'plugin-host': Object.freeze({ kind: 'plugin-host', serviceName: 'soundscaper-native-plugin-host' }),
+	'plugin-analyzer': Object.freeze({ kind: 'plugin-analyze', serviceName: 'soundscaper-native-plugin-analyzer' }),
 });
 
 /** Aggregate vocabulary for callers selecting a dedicated role. */
@@ -76,6 +78,7 @@ export function createNativeHelperWorker({
 	runDeviceJob = null,
 	runScanJob = null,
 	runHostJob = null,
+	runAnalyzerJob = null,
 	heartbeatIntervalMs,
 	setIntervalImpl = setInterval,
 	clearIntervalImpl = clearInterval,
@@ -86,6 +89,7 @@ export function createNativeHelperWorker({
 		audio: runDeviceJob,
 		'plugin-scanner': runScanJob,
 		'plugin-host': runHostJob,
+		'plugin-analyzer': runAnalyzerJob,
 	})[role];
 	if (typeof selectedRunner !== 'function') {
 		throw new TypeError(`The ${role} native helper role needs its one job runner.`);
@@ -295,6 +299,8 @@ if (parentPort && typeof parentPort.on === 'function') {
 	} else if (role === 'plugin-scanner') {
 		const { createNativePluginScanJobRunner } = await import('./native-helper-scan-job.js');
 		runJob = createNativePluginScanJobRunner({ ...addonSeams, hashFile });
+	} else if (role === 'plugin-analyzer') {
+		runJob = createNativePersistentVampAnalyzerJobRunner({ ...addonSeams, hashFile });
 	} else {
 		const { createNativePluginHostJobRunner } = await import('./native-helper-host-job.js');
 		const runOneShot = createNativePluginHostJobRunner({ ...addonSeams, hashFile, hash: () => createHash('sha256') });
@@ -321,8 +327,6 @@ export async function createProfessionalNativeHelperRoleSeams(location, role, po
 	}
 	const createLauncher = ports.createLauncher ?? (await import(
 		'./project-library-runtime/desktop/native-child-isolation-launcher.js')).createNativeChildIsolationLauncher;
-	const createPeer = ports.createPeer ?? (await import(
-		'./project-library-runtime/desktop/soundscaper-professional-plugin-peer.js')).createSoundscaperProfessionalPluginPeer;
 	let entryExecutable = descriptor.isolation.entrypoint;
 	let entryArguments = Object.freeze([]);
 	let runtimeClosure = descriptor.isolation.runtimeClosure;
@@ -359,12 +363,51 @@ export async function createProfessionalNativeHelperRoleSeams(location, role, po
 	if (machineAvailability.status !== 'ready') {
 		throw new Error(`The professional child launcher is unavailable: ${machineAvailability.detail}`);
 	}
-	const formats = descriptor.target.startsWith('mac-') ? ['vst3', 'clap', 'au']
-		: descriptor.target.startsWith('linux-') ? ['vst3', 'clap', 'lv2'] : ['vst3', 'clap'];
-	const peer = createPeer({
-		launcher, peerExecutable: descriptor.pluginPeer, entryExecutable, entryArguments,
-		runtimeReadExecute: runtimeClosure, pluginFormats: formats,
-	});
+	let peer;
+	if (role === 'plugin-analyzer') {
+		const createVampPeer = ports.createVampPeer ?? (await import(
+			'./project-library-runtime/desktop/soundscaper-professional-vamp-peer.js'
+		)).createSoundscaperProfessionalVampPeer;
+		peer = createVampPeer({
+			launcher, peerExecutable: descriptor.pluginPeer, entryExecutable, entryArguments,
+			runtimeReadExecute: runtimeClosure,
+		});
+	} else {
+		const createPeer = ports.createPeer ?? (await import(
+			'./project-library-runtime/desktop/soundscaper-professional-plugin-peer.js'
+		)).createSoundscaperProfessionalPluginPeer;
+		const formats = descriptor.target.startsWith('mac-') ? ['vst3', 'clap', 'au']
+			: descriptor.target.startsWith('linux-') ? ['vst3', 'clap', 'lv2', 'ladspa'] : ['vst3', 'clap'];
+		const effectPeer = createPeer({
+			launcher, peerExecutable: descriptor.pluginPeer, entryExecutable, entryArguments,
+			runtimeReadExecute: runtimeClosure, pluginFormats: formats,
+		});
+		if (role === 'plugin-scanner') {
+			const createVampPeer = ports.createVampPeer ?? (await import(
+				'./project-library-runtime/desktop/soundscaper-professional-vamp-peer.js'
+			)).createSoundscaperProfessionalVampPeer;
+			const vampPeer = createVampPeer({
+				launcher, peerExecutable: descriptor.pluginPeer, entryExecutable, entryArguments,
+				runtimeReadExecute: runtimeClosure,
+			});
+			peer = composeProfessionalScannerPeer(effectPeer, vampPeer);
+		} else peer = effectPeer;
+	}
 	return { addonPath: descriptor.pluginPeer.path, addonSha256: descriptor.pluginPeer.sha256,
 		loadAddon: async () => peer };
+}
+
+function composeProfessionalScannerPeer(effectPeer, vampPeer) {
+	return Object.freeze({
+		describe: async () => {
+			const description = await effectPeer.describe();
+			return Object.freeze({ ...description,
+				pluginFormats: Object.freeze([...description.pluginFormats, 'vamp']) });
+		},
+		listPluginCandidates: (...arguments_) => effectPeer.listPluginCandidates(...arguments_),
+		inspectPluginCandidate: (path, format, context) => format === 'vamp'
+			? vampPeer.inspectPluginCandidate(path, format, context)
+			: effectPeer.inspectPluginCandidate(path, format, context),
+		scanExactLibrary: (...arguments_) => vampPeer.scanExactLibrary(...arguments_),
+	});
 }

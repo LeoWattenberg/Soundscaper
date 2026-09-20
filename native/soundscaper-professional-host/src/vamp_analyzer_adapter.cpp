@@ -8,6 +8,7 @@
 #include <vamp/vamp.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <limits>
 #include <map>
@@ -161,6 +162,11 @@ bool describe(Vamp::Plugin &plugin, AnalyzerDescriptor &target, std::string &det
 	}
 	target.pluginVersion = plugin.getPluginVersion();
 	target.vampApiVersion = plugin.getVampApiVersion();
+	if (target.pluginVersion < 0 || target.vampApiVersion < 1u
+		|| target.vampApiVersion > VAMP_API_VERSION) {
+		detail = "The Vamp analyzer reported unsupported version metadata.";
+		return false;
+	}
 	target.inputDomain = plugin.getInputDomain() == Vamp::Plugin::FrequencyDomain
 		? InputDomain::frequency : InputDomain::time;
 	target.minimumChannels = plugin.getMinChannelCount();

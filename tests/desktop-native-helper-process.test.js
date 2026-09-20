@@ -100,14 +100,23 @@ test('the helper announces exactly the kinds it implements', () => {
 	const { types, posted } = createWorker(() => manualJob().handle);
 	assert.deepEqual(types(), ['hello']);
 	assert.deepEqual(posted[0].kinds, ['audio-device']);
-	assert.deepEqual([...NATIVE_HELPER_JOB_KINDS], ['audio-device', 'plugin-scan', 'plugin-host']);
+	assert.deepEqual([...NATIVE_HELPER_JOB_KINDS], [
+		'audio-device', 'plugin-scan', 'plugin-host', 'plugin-analyze',
+	]);
 });
 
 test('professional scanner and host roles derive machine containment and select only the isolated peer', async () => {
 	const artifact = (path) => Object.freeze({
 		path, byteLength: 10, sha256: 'a'.repeat(64), identity: Object.freeze({ dev: 1, ino: 2 }),
 	});
-	const peer = Object.freeze({ describe: async () => ({ pluginFormats: ['vst3'] }) });
+	const peer = Object.freeze({
+		describe: async () => ({ pluginFormats: ['vst3'] }),
+		listPluginCandidates: async () => [], inspectPluginCandidate: async () => [],
+	});
+	const vampPeer = Object.freeze({
+		describe: async () => ({ pluginFormats: ['vamp'] }),
+		inspectPluginCandidate: async () => [], scanExactLibrary: async () => [],
+	});
 	const systemLoader = artifact('/lib64/ld-linux-x86-64.so.2');
 	const systemLibrary = artifact('/lib/x86_64-linux-gnu/libc.so.6');
 	const systemRuntime = Object.freeze({
@@ -129,7 +138,8 @@ test('professional scanner and host roles derive machine containment and select 
 	});
 	let launcherOptions = null;
 	let peerOptions = null;
-	for (const role of ['plugin-scanner', 'plugin-host']) {
+	let vampPeerOptions = null;
+	for (const role of ['plugin-scanner', 'plugin-host', 'plugin-analyzer']) {
 		const seams = await createProfessionalNativeHelperRoleSeams({}, role, {
 			verifyPayload: async () => descriptor,
 			resolveLinuxSystemRuntime: async ({ target, peer: requestedPeer }) => {
@@ -142,17 +152,22 @@ test('professional scanner and host roles derive machine containment and select 
 				return { machineReady: async () => ({ status: 'ready' }) };
 			},
 			createPeer: (options) => { peerOptions = options; return peer; },
+			createVampPeer: (options) => { vampPeerOptions = options; return vampPeer; },
 		});
-		assert.equal(await seams.loadAddon(), peer);
+		const addon = await seams.loadAddon();
+		if (role === 'plugin-host') assert.equal(addon, peer);
+		else if (role === 'plugin-analyzer') assert.equal(addon, vampPeer);
+		else assert.deepEqual((await addon.describe()).pluginFormats, ['vst3', 'vamp']);
 		assert.equal(seams.addonPath, descriptor.pluginPeer.path);
 		assert.deepEqual(launcherOptions.machineWorkload, {
 			kind: 'soundscaper', payloads: [descriptor.pluginPeer],
 			runtimeClosure: systemRuntime.runtimeClosure,
 		});
-		assert.equal(peerOptions.peerExecutable, descriptor.pluginPeer);
-		assert.equal(peerOptions.entryExecutable, systemRuntime.entryExecutable);
-		assert.equal(peerOptions.entryArguments, systemRuntime.loaderArguments);
-		assert.equal(peerOptions.runtimeReadExecute, systemRuntime.runtimeClosure);
+		const selectedOptions = role === 'plugin-host' ? peerOptions : vampPeerOptions;
+		assert.equal(selectedOptions.peerExecutable, descriptor.pluginPeer);
+		assert.equal(selectedOptions.entryExecutable, systemRuntime.entryExecutable);
+		assert.equal(selectedOptions.entryArguments, systemRuntime.loaderArguments);
+		assert.equal(selectedOptions.runtimeReadExecute, systemRuntime.runtimeClosure);
 	}
 });
 
