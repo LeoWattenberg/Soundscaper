@@ -48,6 +48,7 @@ export default function WorkspacePreferencesDialog({
 	fileService,
 	menus,
 	run,
+	displayAudioSupported,
 	initialPage,
 	isPanelVisible = null,
 	onTogglePanel,
@@ -178,6 +179,7 @@ export default function WorkspacePreferencesDialog({
 								snapshot={snapshot}
 								copy={copy}
 								run={run}
+								displayAudioSupported={displayAudioSupported}
 							/>
 						)}
 

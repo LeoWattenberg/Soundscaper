@@ -245,6 +245,7 @@ export function EditorActionBar({
 	onSaveAup4,
 	onExportAudio,
 	onToggleMixer,
+	displayAudioSupported,
 }) {
 	const canUndo = snapshot.history?.canUndo;
 	const canRedo = snapshot.history?.canRedo;
@@ -289,6 +290,7 @@ export function EditorActionBar({
 					snapshot={snapshot}
 					controller={controller}
 					run={run}
+					displayAudioSupported={displayAudioSupported}
 				/>
 			</div>
 			<div className="kw-audio-editor__action-bar-right">
@@ -309,7 +311,7 @@ export function EditorActionBar({
 	);
 }
 
-function ActionBarAudioDevicesButton({ copy, snapshot, controller, run }) {
+function ActionBarAudioDevicesButton({ copy, snapshot, controller, run, displayAudioSupported }) {
 	const triggerRef = useRef(null);
 	const [position, setPosition] = useState(null);
 	const setTrigger = useCallback((element) => {
@@ -368,7 +370,13 @@ function ActionBarAudioDevicesButton({ copy, snapshot, controller, run }) {
 				role="dialog"
 				className="kw-audio-editor__audacity-level-flyout kw-audio-editor__audio-devices-flyout"
 			>
-				<AudioDevicesFlyout copy={copy} snapshot={snapshot} controller={controller} run={run} />
+				<AudioDevicesFlyout
+					copy={copy}
+					snapshot={snapshot}
+					controller={controller}
+					run={run}
+					displayAudioSupported={displayAudioSupported}
+				/>
 			</Flyout>
 		</>
 	);

@@ -138,6 +138,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 			controller={controller}
 			showAup4={productId === 'soundscaper'}
 			run={run}
+			displayAudioSupported={displayAudioSupported}
 			editBlocked={editBlocked}
 			blocked={blocked}
 			executeEdit={executeEdit}

@@ -65,6 +65,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		controller,
 		copy,
 		dialog,
+		displayAudioSupported,
 		dialogSourceKey,
 		dialogTrackId,
 		dialogValue,
@@ -489,6 +490,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 						fileService={fileService}
 						menus={applicationMenus}
 						run={run}
+						displayAudioSupported={displayAudioSupported}
 						initialPage={preferencesPage}
 						productId={productId}
 						isPanelVisible={(panelId) => (

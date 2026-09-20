@@ -270,6 +270,7 @@ export function AudioDevicesFlyout({
 	snapshot,
 	controller,
 	run,
+	displayAudioSupported,
 	heading = true,
 }) {
 	const devices = snapshot.audioDevices || {};
@@ -278,11 +279,12 @@ export function AudioDevicesFlyout({
 	const preferredInput = devices.preferredInputDeviceId || 'default';
 	const preferredInputChannelCount = devices.preferredInputChannelCount === 2 ? 2 : 1;
 	const displayInputSelected = preferredInput === 'display';
+	const displayInputSupported = devices.displayInputSupported && displayAudioSupported !== false;
 	const preferredOutput = devices.preferredOutputDeviceId || '';
 	const selectedInput = inputs.find((device) => device.deviceId === preferredInput);
 	const stereoUnavailable = Number(selectedInput?.channelCount) === 1;
 	const missingInput = preferredInput === 'display'
-		? !devices.displayInputSupported
+		? !displayInputSupported
 		: preferredInput !== 'default' && !inputs.some((device) => device.deviceId === preferredInput);
 	const missingOutput = Boolean(preferredOutput)
 		&& !outputs.some((device) => device.deviceId === preferredOutput);
@@ -310,13 +312,13 @@ export function AudioDevicesFlyout({
 					{inputs
 						.filter((device) => device.deviceId !== 'default')
 						.map((device) => <option key={device.deviceId} value={device.deviceId}>{device.label}</option>)}
-					{devices.displayInputSupported && <option value="display">{copy.recordingDesktopAudio}</option>}
+					{displayInputSupported && <option value="display">{copy.recordingDesktopAudio}</option>}
 				</select>
 			</label>
 			{!displayInputSelected && !devices.inputAccess && devices.microphoneInputSupported && (
 				<p className="kw-audio-editor__audio-devices-note">{copy.audioDeviceInputAccessRequired}</p>
 			)}
-			{displayInputSelected && (
+			{displayInputSelected && displayInputSupported && (
 				<Button
 					variant="secondary"
 					onClick={() => run(() => controller.actions.audioDevices.configureDisplayInput())}
