@@ -5,8 +5,10 @@ import { ProcessingButton as Button } from './ProcessingButton.tsx';
 import { ProcessingSearchField } from './ProcessingSearchField.tsx';
 import { Table } from '@soundscaper/design-system/Table/Table';
 import PreferenceDropdownField from './PreferenceDropdownField.jsx';
+import NativePluginParameterControls from './NativePluginParameterControls.tsx';
 
 import type {
+	NativePluginEntryView,
 	NativePluginFormatConsentView,
 	NativePluginQuarantineRecord,
 } from '../soundscaper-native-services-bridge.ts';
@@ -139,7 +141,9 @@ export function SoundscaperNativeEffectManagePanel({
 	const [format, setFormat] = useState('all');
 	const [status, setStatus] = useState('all');
 	const [selectedId, setSelectedId] = useState<string | null>(null);
-	const entries = state.registry?.entries ?? [];
+	const entries = (state.registry?.entries ?? []).filter((entry) => (
+		mode === 'manage' || nativePluginEntryCanInstantiateAsEffect(entry)
+	));
 	const visible = entries.filter((entry) => (format === 'all' || entry.format === format)
 		&& (status === 'all' || (status === 'ready' ? entry.eligible : !entry.eligible))
 		&& `${entry.name} ${entry.vendor}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
@@ -209,6 +213,7 @@ function PluginInstanceControls({ copy, state, disabled, perform }: SoundscaperN
 	const vendorWindow = state.pluginVendorWindow;
 	return <section data-native-plugin-instance={instance.instanceId}>
 		<h3>{`${instance.format} — ${instance.state}`}</h3>
+		<NativePluginParameterControls instanceId={instance.instanceId} disabled={disabled} />
 		<details className="kw-processing-details"><summary>{copy.pluginOfflineDetails}</summary>
 		<p>{`${instance.latencySamples} latency frames`}</p>
 		<Button variant="secondary" disabled={disabled} data-native-plugin-run-offline="true"
@@ -247,6 +252,11 @@ function PluginInstanceControls({ copy, state, disabled, perform }: SoundscaperN
 		>{copy.closePlugin}</Button>
 		{state.pluginOffline !== null && <p>{`${state.pluginOffline.blocksRendered} blocks rendered`}</p>}
 	</section>;
+}
+
+/** Vamp entries share discovery management with effects, but are analysis-only. */
+export function nativePluginEntryCanInstantiateAsEffect(entry: NativePluginEntryView): boolean {
+	return entry.kind !== 'analyzer' && entry.format.toLowerCase() !== 'vamp';
 }
 
 function QuarantineRecord({ copy, record, disabled, perform }: Readonly<{
