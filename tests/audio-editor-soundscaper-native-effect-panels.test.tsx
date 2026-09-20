@@ -69,7 +69,9 @@ test('a hosted native effect mounts its generated parameter controls inside the 
 	const state: SoundscaperNativeServicesDialogState = {
 		...registryState(),
 		pluginInstance: {
-			instanceId: 'plugin_instance_ladspa', format: 'ladspa', state: 'hosted',
+			instanceId: 'plugin_instance_ladspa', entryId: 'effect-entry',
+			stablePluginId: 'fixture-ladspa-gain', format: 'ladspa', binarySha256: 'a'.repeat(64),
+			inputChannels: 2, outputChannels: 2, state: 'hosted', enabled: true,
 			bypassed: false, latencySamples: 0,
 		},
 	};

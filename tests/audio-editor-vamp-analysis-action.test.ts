@@ -98,7 +98,7 @@ test('desktop Vamp action cancels the exact native session on abort or project-f
 test('desktop Vamp action requests cancellation while a native PCM operation is pending', async () => {
 	const { action, bridge, calls } = harness();
 	assert.ok(action);
-	let releasePush = (_value: { features: unknown[] }): void => undefined;
+	let releasePush = (_value: { features: never[] }): void => undefined;
 	bridge.pushNativeVampAnalyzerPcm = (value: unknown) => {
 		calls.push(['push', value]);
 		return new Promise((resolve) => { releasePush = resolve; });
