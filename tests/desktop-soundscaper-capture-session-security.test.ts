@@ -45,8 +45,8 @@ interface DesktopSource {
 }
 
 type DisplayResult = Readonly<{
-	readonly video?: DesktopSource;
-	readonly audio?: 'loopback' | object;
+	readonly video?: Readonly<{ readonly id?: unknown; readonly name?: unknown }>;
+	readonly audio?: 'loopback';
 }>;
 
 type DisplayRequestHandler = (
@@ -70,7 +70,7 @@ interface CaptureSession {
 	removeListener(name: 'will-download', listener: DownloadListener): void;
 }
 
-test('Electron 43 audio and speaker permissions require the focused trusted main editor', () => {
+test('Electron 43 audio and speaker permissions keep the trusted main editor enumerated in the background', () => {
 	const harness = captureHarness();
 	harness.configure();
 	const checkDetails = {
@@ -180,18 +180,24 @@ test('Electron 43 audio and speaker permissions require the focused trusted main
 	), false);
 
 	harness.focused = false;
-	assert.equal(harness.permissionCheck(harness.webContents, 'media', ORIGIN, checkDetails), false);
-	assert.equal(harness.permissionRequest(harness.webContents, 'media', requestDetails), false);
+	assert.equal(harness.permissionCheck(harness.webContents, 'media', ORIGIN, checkDetails), true);
+	assert.equal(harness.permissionRequest(harness.webContents, 'media', requestDetails), true);
 	assert.equal(harness.permissionCheck(
 		harness.webContents,
 		'speaker-selection',
 		ORIGIN,
 		checkDetails,
-	), false);
+	), true);
 	assert.equal(harness.permissionRequest(
 		harness.webContents,
 		'speaker-selection',
 		requestDetails,
+	), true);
+	assert.equal(harness.permissionCheck(
+		harness.webContents,
+		'fullscreen',
+		ORIGIN,
+		checkDetails,
 	), false);
 });
 
@@ -285,8 +291,9 @@ test('display capture fails closed off Windows and across source enumeration fai
 });
 
 test('display capture rechecks trust after asynchronous source enumeration', async () => {
-	const pending = Promise.withResolvers<readonly DesktopSource[]>();
-	const harness = captureHarness({ getSources: () => pending.promise });
+	let resolveSources!: (sources: readonly DesktopSource[]) => void;
+	const pending = new Promise<readonly DesktopSource[]>((resolve) => { resolveSources = resolve; });
+	const harness = captureHarness({ getSources: () => pending });
 	const registration = harness.configure();
 	const result = harness.displayRequest({
 		frame: harness.mainFrame,
@@ -296,7 +303,7 @@ test('display capture rechecks trust after asynchronous source enumeration', asy
 		audioRequested: true,
 	});
 	registration.dispose();
-	pending.resolve(harness.sources);
+	resolveSources(harness.sources);
 	assert.deepEqual(await result, {});
 });
 

@@ -104,7 +104,11 @@ export function configureSoundscaperCaptureSessionSecurityV1(
 		details = {},
 	) => {
 		if (disposed || !trustedEditorPermission(
-			seams, webContents, requestingOrigin, details,
+			seams,
+			webContents,
+			requestingOrigin,
+			details,
+			permission === 'fullscreen' || permission === 'display-capture',
 		)) return false;
 		if (permission === 'fullscreen') return true;
 		if (permission === 'display-capture') return seams.platform === 'win32';
@@ -181,9 +185,11 @@ function trustedEditorPermission(
 	webContents: unknown,
 	requestingOrigin: string,
 	details: PermissionDetails,
+	requireFocus: boolean,
 ): boolean {
 	const window = seams.windowFor();
-	return Boolean(window && !window.isDestroyed() && window.isFocused()
+	return Boolean(window && !window.isDestroyed()
+		&& (!requireFocus || window.isFocused())
 		&& webContents === window.webContents
 		&& details.isMainFrame === true
 		&& sameOrigin(requestingOrigin, seams.trustedOrigin)

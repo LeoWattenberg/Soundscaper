@@ -75,7 +75,7 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 	assert.match(desktop.summary, /macOS 15.*system picker.*Windows.*loopback.*other.*unavailable/isu);
 	assert.match(desktop.summary, /standalone Framescaper.*camera.*microphone.*display.*Soundscaper.*camera.*embedded.*deny/isu);
 	assert.match(desktop.summary, /packaged Soundscaper route.*separate strict session boundary.*audio permission check.*singular `mediaType` value `audio`.*audio permission request.*nonempty `mediaTypes` array.*only `audio`.*speaker-selection request.*plain permission detail shape.*without a media field/isu);
-	assert.match(desktop.summary, /Every admitted permission.*exact focused, live Soundscaper main editor WebContents.*main-frame detail.*trusted document URL.*origin/isu);
+	assert.match(desktop.summary, /Audio and speaker permissions.*exact live Soundscaper main editor WebContents.*main-frame detail.*trusted document URL.*origin.*backgrounded.*device enumeration is complete.*Fullscreen and display permission.*focused/isu);
 	assert.match(desktop.summary, /Windows only.*direct-user-gesture main-frame display request.*both video and audio.*first valid screen.*Chromium loopback audio.*capture pool retains.*live video companion/isu);
 	assert.match(desktop.summary, /Non-Windows.*rejected without screen enumeration.*desktop audio is unavailable.*package transformation retains `desktopCapturer`.*self `display-capture` policy.*runtime staging.*strict capture module.*disposal clears both permission handlers.*display handler.*download listener/isu);
 	assert.match(desktop.summary, /Framescaper family v1.*framescaperCapture true.*active on standalone web and desktop.*Recording Setup.*default-hidden.*capture route authority.*desktop control plane/isu);
