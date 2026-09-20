@@ -195,6 +195,7 @@ export function renderReferenceDocuments(sources) {
 			products: productProfiles,
 			source: actions.AUDACITY_ACTION_SOURCE,
 			isProductCommandDisabled: actions.isAudacityShortcutCommandDisabled,
+			applicationMenuEntries: sources.applicationMenuReference?.APPLICATION_MENU_REFERENCE_ENTRIES ?? [],
 		})],
 		['formats.md', renderFormatReference({
 			products: productProfiles,

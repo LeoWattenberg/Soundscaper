@@ -84,6 +84,85 @@ test('command reference includes only implemented visible commands and applies p
 	assert.ok(rendered.indexOf('Mix') < rendered.indexOf('Tone'), 'commands are sorted by label');
 });
 
+test('command reference merges reviewed local application-menu entries with manifest commands', () => {
+	const rendered = renderCommandReference({
+		manifest: Object.freeze({
+			manifest: Object.freeze({
+				id: 'manifest', label: 'Manifest command', status: 'implemented', locations: ['Edit'], origin: 'upstream',
+			}),
+		}),
+		implementedStatus: 'implemented',
+		products,
+		source: {
+			version: '4.0.0',
+			commit: '0123456789abcdef0123456789abcdef01234567',
+			url: 'https://example.test/audacity/tree/0123456789abcdef0123456789abcdef01234567/src',
+		},
+		isProductCommandDisabled: () => false,
+		applicationMenuEntries: Object.freeze([
+			Object.freeze({
+				id: 'delivery-queue',
+				label: 'Delivery queue',
+				locations: Object.freeze(['File', 'Tools > Deliveries']),
+				products: Object.freeze(['framescaper']),
+				kind: 'command',
+			}),
+			Object.freeze({
+				id: 'privacy-policy',
+				label: 'Privacy policy',
+				locations: Object.freeze(['Help']),
+				products: Object.freeze(['soundscaper', 'framescaper']),
+				kind: 'link',
+			}),
+		]),
+	});
+
+	assert.match(rendered, /Delivery queue.*`delivery-queue`.*File; Tools > Deliveries.*Framescaper.*Soundscaper local/u);
+	assert.doesNotMatch(rendered, /Delivery queue.*Soundscaper, Framescaper/u);
+	assert.match(rendered, /Privacy policy.*`privacy-policy`.*Help.*Soundscaper, Framescaper.*Soundscaper local/u);
+	assert.ok(rendered.indexOf('Delivery queue') < rendered.indexOf('Manifest command'));
+	assert.match(rendered, /Local application-menu entries come from the reviewed menu reference registry/u);
+});
+
+test('command reference rejects malformed or conflicting local application-menu entries', () => {
+	const input = {
+		manifest: Object.freeze({
+			existing: Object.freeze({
+				id: 'existing', label: 'Existing', status: 'implemented', locations: ['Edit'], origin: 'upstream',
+			}),
+		}),
+		implementedStatus: 'implemented',
+		products,
+		source: {
+			version: '4.0.0', commit: '0123456789abcdef', url: 'https://example.test/source',
+		},
+		isProductCommandDisabled: () => false,
+	};
+	const entry = {
+		id: 'local', label: 'Local', locations: ['Tools'], products: ['soundscaper'], kind: 'command',
+	};
+
+	assert.throws(() => renderCommandReference({ ...input, applicationMenuEntries: null }), /must be an array/u);
+	assert.throws(() => renderCommandReference({
+		...input, applicationMenuEntries: [{ ...entry, id: '' }],
+	}), /non-empty id and label/u);
+	assert.throws(() => renderCommandReference({
+		...input, applicationMenuEntries: [{ ...entry, locations: [] }],
+	}), /at least one menu location/u);
+	assert.throws(() => renderCommandReference({
+		...input, applicationMenuEntries: [{ ...entry, products: ['unknown'] }],
+	}), /unknown product unknown/u);
+	assert.throws(() => renderCommandReference({
+		...input, applicationMenuEntries: [{ ...entry, kind: 'surface' }],
+	}), /unsupported kind surface/u);
+	assert.throws(() => renderCommandReference({
+		...input, applicationMenuEntries: [{ ...entry, id: 'existing' }],
+	}), /duplicates action manifest id existing/u);
+	assert.throws(() => renderCommandReference({
+		...input, applicationMenuEntries: [entry, { ...entry }],
+	}), /Duplicate local application-menu id local/u);
+});
+
 test('format reference distinguishes built-in writers from conditional FFmpeg formats', () => {
 	const rendered = renderFormatReference({
 		products,
