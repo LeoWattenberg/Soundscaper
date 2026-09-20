@@ -97,12 +97,23 @@ export function createDesktopVampAnalysisAction(options: Readonly<{
 			const sizes = analysisSizes(row.configuration);
 			let sessionId: string | null = null;
 			let finished = false;
+			let cancellation: Promise<void> | null = null;
+			const scheduleCancellation = (reason: string): void => {
+				if (sessionId === null || finished || cancellation !== null) return;
+				const activeSessionId = sessionId;
+				cancellation = Promise.resolve().then(async () => {
+					await bridge.cancelNativeVampAnalyzer({ sessionId: activeSessionId, reason });
+				}).catch(() => undefined);
+			};
+			const abortListener = (): void => { scheduleCancellation('renderer-aborted'); };
 			try {
 				const started = record(await bridge.startNativeVampAnalyzer({
 					analyzerId: request.analyzerId, stableId: request.stableId,
 					binarySha256: request.binarySha256, sessionId: null,
 				}), 'Vamp analyzer start result');
 				sessionId = runtimeId(started.sessionId, 'Vamp analyzer session');
+				signal.addEventListener('abort', abortListener, { once: true });
+				signal.throwIfAborted();
 				const parameterValues = Object.freeze(Object.fromEntries(
 					request.parameters.map(({ id, value }) => [id, value]),
 				));
@@ -134,11 +145,11 @@ export function createDesktopVampAnalysisAction(options: Readonly<{
 				const features = rendererFeatures(nativeFeatures, output, sizes.stepSize, request.sampleRate);
 				return normalizeVampAnalysisResult({ schemaVersion: 1, request, features }, request);
 			} finally {
+				signal.removeEventListener('abort', abortListener);
 				if (sessionId !== null && !finished) {
-					await bridge.cancelNativeVampAnalyzer({
-						sessionId, reason: signal.aborted ? 'renderer-aborted' : 'renderer-fault',
-					}).catch(() => undefined);
+					scheduleCancellation(signal.aborted ? 'renderer-aborted' : 'renderer-fault');
 				}
+				if (cancellation !== null) await cancellation;
 			}
 		},
 	});

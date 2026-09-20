@@ -95,6 +95,28 @@ test('desktop Vamp action cancels the exact native session on abort or project-f
 	assert.equal(calls.at(-1)?.[0], 'cancel');
 });
 
+test('desktop Vamp action requests cancellation while a native PCM operation is pending', async () => {
+	const { action, bridge, calls } = harness();
+	assert.ok(action);
+	let releasePush = (_value: { features: unknown[] }): void => undefined;
+	bridge.pushNativeVampAnalyzerPcm = (value: unknown) => {
+		calls.push(['push', value]);
+		return new Promise((resolve) => { releasePush = resolve; });
+	};
+	const controller = new AbortController();
+	const operation = action.analyze({
+		projectId: 'project-1', projectRevision: 5, selectedTrackId: 'track-1', request: REQUEST,
+	}, controller.signal);
+	while (!calls.some(([kind]) => kind === 'push')) await new Promise((resolve) => setImmediate(resolve));
+	controller.abort();
+	await new Promise((resolve) => setImmediate(resolve));
+	const cancelledWhilePushPending = calls.some(([kind]) => kind === 'cancel');
+	releasePush({ features: [] });
+	await assert.rejects(operation, { name: 'AbortError' });
+	assert.equal(cancelledWhilePushPending, true);
+	assert.equal(calls.filter(([kind]) => kind === 'cancel').length, 1);
+});
+
 test('desktop Vamp action rejects aggregate native feature floods before retaining them', async () => {
 	const frameCount = 65_536 * 2;
 	const { action, bridge, calls } = harness(frameCount);
