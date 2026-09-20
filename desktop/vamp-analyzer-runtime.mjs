@@ -103,6 +103,7 @@ function catalog(view) {
 				sampleType: output.sampleType, sampleRate: output.sampleRate, hasDuration: output.hasDuration,
 			}))),
 			configuration: Object.freeze({
+				inputDomain: descriptor.inputDomain,
 				minimumChannels: descriptor.minimumChannels, maximumChannels: descriptor.maximumChannels,
 				preferredStepSize: descriptor.preferredStepSize,
 				preferredBlockSize: descriptor.preferredBlockSize,

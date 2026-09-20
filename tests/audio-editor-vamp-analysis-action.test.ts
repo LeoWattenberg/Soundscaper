@@ -1,0 +1,104 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { createDesktopVampAnalysisAction } from '../src/common/editor/controller/analysis/vamp-analysis-action.ts';
+
+const REQUEST = Object.freeze({
+	schemaVersion: 1 as const, analyzerId: 'va' + '1'.repeat(30), stableId: 'vi' + '2'.repeat(30),
+	binarySha256: 'a'.repeat(64), outputId: 'onsets', program: null,
+	parameters: Object.freeze([{ id: 'threshold', value: 0.5 }]), scope: 'track' as const,
+	startFrame: 4, endFrame: 12, sampleRate: 48_000,
+});
+
+function rawCatalog() {
+	return [{
+		analyzerId: REQUEST.analyzerId, stableId: REQUEST.stableId,
+		binarySha256: REQUEST.binarySha256, name: 'Onsets', maker: 'Example', programs: [],
+		parameters: [{ id: 'threshold', name: 'Threshold', description: '', unit: '', minValue: 0,
+			maxValue: 1, defaultValue: 0.5, quantizeStep: null }],
+		outputs: [{ id: 'onsets', name: 'Onsets', description: '', unit: '',
+			sampleType: 'one-sample-per-step', sampleRate: null, hasDuration: false }],
+		configuration: { inputDomain: 'time', minimumChannels: 1, maximumChannels: 2,
+			preferredStepSize: 2, preferredBlockSize: 4 },
+	}];
+}
+
+function harness() {
+	const calls: Array<readonly [string, unknown]> = [];
+	const project = { id: 'project-1', revision: 5 };
+	const bridge = {
+		listNativeVampAnalyzers: async () => rawCatalog(),
+		startNativeVampAnalyzer: async (value: unknown) => {
+			calls.push(['start', value]); return { sessionId: 'session-1' };
+		},
+		configureNativeVampAnalyzer: async (value: unknown) => {
+			calls.push(['configure', value]); return { outputs: rawCatalog()[0]!.outputs };
+		},
+		pushNativeVampAnalyzerPcm: async (value: unknown) => {
+			calls.push(['push', value]); return { features: [{ outputId: 'onsets', timestamp: null,
+				duration: null, values: [0.75], label: 'onset' }] };
+		},
+		finishNativeVampAnalyzer: async (value: unknown) => {
+			calls.push(['finish', value]); return { features: [] };
+		},
+		cancelNativeVampAnalyzer: async (value: unknown) => { calls.push(['cancel', value]); return true; },
+	};
+	const engine = {
+		renderTrack: async (trackId: unknown, options: unknown) => {
+			calls.push(['render-track', { trackId, options }]);
+			return { channels: [Float32Array.from({ length: 8 }, (_, index) => index / 8)] };
+		},
+		renderMix: async () => { throw new Error('unexpected master render'); },
+	};
+	const action = createDesktopVampAnalysisAction({ bridge, engine, getProject: () => project });
+	return { action, bridge, calls, project };
+}
+
+test('desktop Vamp action maps the pathless native catalog to the strict renderer catalog', async () => {
+	const { action } = harness();
+	assert.ok(action);
+	const listed = await action.list();
+	assert.deepEqual(listed, rawCatalog().map(({ configuration: _configuration, ...row }) => row));
+	assert.equal(Object.hasOwn(listed[0], 'configuration'), false);
+});
+
+test('desktop Vamp action renders and streams the exact selected range then returns one output', async () => {
+	const { action, calls } = harness();
+	assert.ok(action);
+	const result = await action.analyze({
+		projectId: 'project-1', projectRevision: 5, selectedTrackId: 'track-1', request: REQUEST,
+	}, new AbortController().signal);
+	assert.equal(calls[0]?.[0], 'render-track');
+	assert.deepEqual(calls.map(([kind]) => kind),
+		['render-track', 'start', 'configure', 'push', 'finish']);
+	const configured = calls.find(([kind]) => kind === 'configure')?.[1] as Record<string, unknown>;
+	assert.equal(configured.blockSize, 4);
+	assert.equal(configured.stepSize, 2);
+	const pushed = calls.find(([kind]) => kind === 'push')?.[1] as { channels: Float32Array[] };
+	assert.deepEqual([...pushed.channels[0]!], [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875]);
+	assert.deepEqual(result.features[0]?.timestamp, { seconds: 0, nanoseconds: 0 });
+	assert.equal(result.features[0]?.label, 'onset');
+});
+
+test('desktop Vamp action cancels the exact native session on abort or project-fence failure', async () => {
+	const { action, bridge, calls, project } = harness();
+	assert.ok(action);
+	bridge.pushNativeVampAnalyzerPcm = async () => {
+		project.revision += 1;
+		return { features: [] };
+	};
+	await assert.rejects(() => action.analyze({
+		projectId: 'project-1', projectRevision: 5, selectedTrackId: 'track-1', request: REQUEST,
+	}, new AbortController().signal), /project changed/iu);
+	assert.equal(calls.at(-1)?.[0], 'cancel');
+});
+
+test('Vamp action stays absent when any native analyzer bridge operation is unavailable', () => {
+	assert.equal(createDesktopVampAnalysisAction({
+		bridge: { listNativeVampAnalyzers: async () => [] },
+		engine: { renderTrack: async () => ({ channels: [] }), renderMix: async () => ({ channels: [] }) },
+		getProject: () => null,
+	}), null);
+});
