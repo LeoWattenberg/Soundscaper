@@ -20,7 +20,7 @@ export const VAMP_ANALYZER_LIMITS = Object.freeze({
 	maximumSessionSeconds: 12 * 60 * 60,
 	maximumBatchFeatures: 65_536,
 	maximumBatchValues: 1_048_576,
-	maximumSessionFeatures: 1_000_000,
+	maximumSessionFeatures: 100_000,
 	maximumConcurrentSessions: 64,
 } as const);
 

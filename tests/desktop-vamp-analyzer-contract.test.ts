@@ -141,6 +141,8 @@ test('PCM chunks are copied, finite, contiguous, and bounded by the configured s
 });
 
 test('feature admission binds output IDs, bin counts, timestamps, durations, and aggregate limits', () => {
+	assert.equal(VAMP_ANALYZER_LIMITS.maximumSessionFeatures, 100_000,
+		'the main session bound must match the renderer result contract');
 	const admitted = validDescriptor();
 	const features = admitVampAnalyzerFeatures([{
 		outputId: 'centroid', timestamp: null, duration: null, values: [440], label: 'A4',
