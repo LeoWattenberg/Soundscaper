@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { expect, test, toneA } from './audio-editor-test-fixtures.js';
+import { expect, longTone, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	clipByName,
 	collectClientErrors,
+	chooseCommandAction,
 	chooseNestedCommandAction,
 	importFiles,
 	registerAudioEditorHooks,
@@ -154,6 +155,46 @@ test.describe('Soundscaper inline track automation', () => {
 
 		expect(clientErrors).toEqual([]);
 	});
+
+	test('preserves authored automation through track ripple delete and insert paste', async ({ page }) => {
+		const clientErrors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [longTone]);
+		const row = clipByName(editor, longTone.name).locator('xpath=ancestor::div[@data-track-row]');
+
+		await chooseTrackMenuAction(page, editor, row, 'Add automation');
+		const overlay = row.locator('[data-track-automation-overlay]');
+		const curveHit = overlay.locator('[data-automation-insert-point]').first();
+		await curveHit.focus();
+		await page.keyboard.press('i');
+		const points = overlay.locator('[data-automation-point-id]');
+		await expect(points).toHaveCount(2);
+		const suffixPointId = await points.last().getAttribute('data-automation-point-id');
+		expect(suffixPointId).toBeTruthy();
+		await points.last().focus();
+		await page.keyboard.press('ArrowUp');
+		const pointXBefore = await automationPointX(overlay, suffixPointId);
+		const selectionStart = Math.max(30, Math.floor(pointXBefore * 0.2));
+		const selectionEnd = Math.max(selectionStart + 40, Math.floor(pointXBefore * 0.45));
+
+		await selectAutomationRange(page, editor, selectionStart, selectionEnd);
+		await chooseNestedCommandAction(page, editor, 'Edit', [
+			'Delete', 'Delete and close gap per track',
+		]);
+		await expect.poll(() => automationPointX(overlay, suffixPointId))
+			.toBeLessThan(pointXBefore - 20);
+
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect.poll(async () => Math.abs(
+			(await automationPointX(overlay, suffixPointId)) - pointXBefore,
+		)).toBeLessThan(1);
+
+		await chooseCommandAction(page, editor, 'Edit', 'Copy');
+		await chooseNestedCommandAction(page, editor, 'Edit', ['Paste', 'Insert']);
+		await expect.poll(() => automationPointX(overlay, suffixPointId))
+			.toBeGreaterThan(pointXBefore + 20);
+		expect(clientErrors).toEqual([]);
+	});
 });
 
 async function clickHistory(editor, label) {
@@ -188,4 +229,24 @@ async function openFirstSegmentMenu(curve) {
 			clientY: bounds.top + bounds.height * 0.5,
 		}));
 	});
+}
+
+async function selectAutomationRange(page, editor, startX, endX) {
+	const ruler = editor.locator('[data-ruler-interaction]');
+	const box = await ruler.boundingBox();
+	expect(box).not.toBeNull();
+	const y = box.y + box.height * 0.8;
+	await page.mouse.move(box.x + startX, y);
+	await page.mouse.down();
+	await page.mouse.move(box.x + endX, y, { steps: 5 });
+	await page.mouse.up();
+	await expect(editor.locator('[data-time-selection-overlay]')).toHaveCount(1);
+}
+
+async function automationPointX(overlay, pointId) {
+	return overlay.locator('[data-automation-point-id]').evaluateAll((points, id) => {
+		const point = points.find((candidate) => candidate.dataset.automationPointId === id);
+		if (!point) throw new Error(`Automation point ${String(id)} is not rendered.`);
+		return Number(point.getAttribute('cx'));
+	}, pointId);
 }
