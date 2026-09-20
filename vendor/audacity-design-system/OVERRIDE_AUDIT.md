@@ -6,6 +6,11 @@ and [upstream master](https://github.com/DilsonsPickles/audacity-design-system/t
 Master was [24 commits ahead](https://github.com/DilsonsPickles/audacity-design-system/compare/f5a0e9ee9e9c1ea59a3a13adb516ef0cc3f89447...216c399f5c74620065e3dd1910a478f5a15ee116).
 This audit does not update the vendored revision.
 
+Post-audit note (2026-09-21): `Button.tsx` now forwards the native `form` attribute so a
+submitter rendered in a dialog footer can explicitly own the sibling form body. This patch
+postdates the byte comparison below; its rationale and regression test are recorded as local
+deviation 25 in `README.md`.
+
 ## Removed application overrides
 
 | Override | Why it can go |

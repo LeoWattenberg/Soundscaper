@@ -82,6 +82,7 @@ export default function VideoCompositionDialog({
 
 	const disabled = model.operationsBlocked || pending;
 	const descriptionId = 'video-composition-description';
+	const formId = 'video-composition-form';
 	const title = label(copy, 'videoCompositionTitle', 'Transform and compositing');
 	const blockMessage = model.blockReason === 'read-only'
 		? label(copy, 'videoCompositionReadOnly', 'This project is read-only.')
@@ -152,13 +153,13 @@ export default function VideoCompositionDialog({
 				<Button variant="secondary" disabled={disabled} onClick={reset}>
 					{label(copy, 'videoCompositionReset', 'Reset')}
 				</Button>
-				<Button variant="primary" disabled={disabled} onClick={applyDraft}>
+				<Button variant="primary" type="submit" form={formId} disabled={disabled}>
 					{label(copy, 'videoCompositionApply', 'Apply')}
 				</Button>
 			</>}
 		/>}
 	>
-		<form className="audio-editor-clip-inspector" onSubmit={apply} onBlur={(event) => {
+		<form id={formId} className="audio-editor-clip-inspector" onSubmit={apply} onBlur={(event) => {
 			// The actions now live in the shared footer, outside the form. A blur
 			// that lands on them has not left the dialog, so it must not commit
 			// the draft first — Reset would otherwise record the draft it discards.

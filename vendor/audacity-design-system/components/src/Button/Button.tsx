@@ -44,6 +44,10 @@ export interface ButtonProps {
    */
   type?: 'button' | 'submit' | 'reset';
   /**
+   * ID of the form this button submits when it lives outside that form.
+   */
+  form?: string;
+  /**
    * Tab index for keyboard navigation
    */
   tabIndex?: number;
@@ -63,6 +67,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
   onClick,
   className = '',
   type = 'button',
+  form,
   tabIndex,
   onKeyDown,
 }, ref) => {
@@ -85,6 +90,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
     <button
       ref={ref}
       type={type}
+      form={form}
       className={`button button--${variant} button--${size} ${disabled ? 'button--disabled' : ''} ${className}`}
       onClick={onClick}
       disabled={disabled}

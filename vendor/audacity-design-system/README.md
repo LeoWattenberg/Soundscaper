@@ -211,6 +211,11 @@ application overrides and source patches against the pin and upstream master.
     the viewport, and the host toolbar yields arrow keys to open menus. Covered by
     `tests/audio-editor-frame-timecode.test.tsx` and the grouped timer workflow in
     `tests/browser/audio-editor-dialog-shell.spec.js`.
+25. `Button.tsx` accepts and forwards the native `form` attribute. Dialog footers are
+    deliberately rendered as siblings of their scrollable form bodies, so a primary
+    submitter in the footer otherwise cannot own the form or activate its validation and
+    submit path. Omitting the prop keeps upstream behaviour. Covered by
+    `tests/audio-editor-video-composition-ui.test.tsx`. Upstream-PR candidate.
 
 ## Application-side adaptations
 
