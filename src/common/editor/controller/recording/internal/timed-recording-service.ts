@@ -17,6 +17,7 @@ function invokeAsPromise<T>(operation: () => MaybePromise<T>): Promise<T> {
 
 export interface TimedRecordingOptions {
 	readonly trackId?: string;
+	readonly endTimeMs?: number;
 }
 
 export interface PreparedTimedRecordingInputs {
@@ -42,6 +43,8 @@ export interface TimedRecordingDescriptor {
 export interface TimedRecordingResult {
 	readonly startTimeMs: number;
 	readonly startTime: string;
+	readonly endTimeMs?: number;
+	readonly endTime?: string;
 	readonly trackId: string | null;
 }
 
@@ -65,9 +68,10 @@ export interface TimedRecordingMutableState<TimerHandle = unknown> {
 export interface TimedRecordingMessages {
 	readonly projectReadOnly: string;
 	readonly past: string;
+	readonly endBeforeStart?: string;
 	readonly preparing: string;
 	readonly missed: string;
-	readonly scheduled: (formattedTime: string) => string;
+	readonly scheduled: (formattedTime: string, formattedEndTime?: string) => string;
 	readonly cancelled: string;
 }
 
@@ -260,9 +264,17 @@ export function createTimedRecordingService<TimerHandle>(
 		if (state.timedRecordingPreparing) return null;
 		const startTimeMs = runtime.normalizeStartTime(startTime);
 		if (startTimeMs <= runtime.currentTimeMs()) throw createLocalizedError(RangeError, { ['timedRecordingPast']: runtime.messages.past }, 'timedRecordingPast');
-		const recordingOptions: Readonly<TimedRecordingOptions> = options.trackId
-			? Object.freeze({ trackId: String(options.trackId) })
-			: Object.freeze({});
+		const endTimeMs = options.endTimeMs === undefined
+			? undefined
+			: runtime.normalizeStartTime(options.endTimeMs);
+		if (endTimeMs !== undefined && endTimeMs <= startTimeMs) {
+			const message = runtime.messages.endBeforeStart || 'Choose a recording end after the start.';
+			throw createLocalizedError(RangeError, { ['timedRecordingEndBeforeStart']: message }, 'timedRecordingEndBeforeStart');
+		}
+		const recordingOptions: Readonly<TimedRecordingOptions> = Object.freeze({
+			...(options.trackId ? { trackId: String(options.trackId) } : {}),
+			...(endTimeMs !== undefined ? { endTimeMs } : {}),
+		});
 		if (state.timedRecording) cancelTimedRecording({ releaseInputs: false, status: false });
 		const generation = ++state.timedRecordingGeneration;
 		const projectId = runtime.getProjectId();
@@ -288,8 +300,9 @@ export function createTimedRecordingService<TimerHandle>(
 			});
 			state.timedRecording = scheduled;
 			await runtime.startRecording({
-				...recordingOptions,
+				...(recordingOptions.trackId ? { trackId: recordingOptions.trackId } : {}),
 				timedStartTimeMs: startTimeMs,
+				...(endTimeMs !== undefined ? { timedEndTimeMs: endTimeMs } : {}),
 				timedGeneration: generation,
 				reusePreparedInputsOnly: true,
 			});
@@ -299,10 +312,18 @@ export function createTimedRecordingService<TimerHandle>(
 			armTimedRecordingTimer(scheduled);
 			const formatted = runtime.formatScheduledTime?.(startTimeMs)
 				|| new Date(startTimeMs).toLocaleString();
-			publishLocalizedStatus(setStatus, runtime.messages.scheduled(formatted), { key: 'timedRecordingScheduled', parameters: { time: formatted } }, 'success');
+			const formattedEnd = endTimeMs === undefined ? undefined
+				: runtime.formatScheduledTime?.(endTimeMs) || new Date(endTimeMs).toLocaleString();
+			publishLocalizedStatus(setStatus, runtime.messages.scheduled(formatted, formattedEnd), formattedEnd
+				? { key: 'timedRecordingScheduledRange', parameters: { start: formatted, end: formattedEnd } }
+				: { key: 'timedRecordingScheduled', parameters: { time: formatted } }, 'success');
 			return Object.freeze({
 				startTimeMs,
 				startTime: new Date(startTimeMs).toISOString(),
+				...(endTimeMs !== undefined ? {
+					endTimeMs,
+					endTime: new Date(endTimeMs).toISOString(),
+				} : {}),
 				trackId: recordingOptions.trackId || null,
 			});
 		} catch (error) {

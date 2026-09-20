@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ja",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:a832bb2da128c582ef1f5816c1f1b099be97d3a11e7e8f380aed81d63c4058c2","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:f2d7e2a65858aec48d3d9e943d89d1920d918cf49d66ddaa6739e12cd26f8fd9","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -2467,11 +2467,17 @@
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","スケジュールされた録音をキャンセルする"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","スケジュールされた録音がキャンセルされました。"],
 		"timedRecordingCurrent": ["machine","Recording is scheduled for {time}.","録音は {time} にスケジュールされています。"],
+		"timedRecordingCurrentRange": ["machine","Recording is scheduled from {start} to {end}.","録音は{start}から{end}までに予約されています。"],
 		"timedRecordingDescription": ["machine","Soundscaper opens the recording input immediately so recording can begin at the chosen time without another permission prompt. Keep this tab open.","Soundscaper は、選択した時間に録音を開始できるように、すぐに録音入力を開きます。もう一度許可を求めるプロンプトは表示されません。このタブを開いたままにしておいてください。"],
+		"timedRecordingDuration": ["machine","Duration","継続時間"],
+		"timedRecordingEnd": ["machine","Recording end","録音終了"],
+		"timedRecordingEndBeforeStart": ["machine","Choose a recording end after the start.","録音開始より後の終了時刻を選択してください。"],
+		"timedRecordingEndDateTime": ["machine","End date and time","終了日時"],
 		"timedRecordingPast": ["machine","Choose a recording time in the future.","将来の録音時間を選択してください。"],
 		"timedRecordingPreparing": ["machine","Opening recording inputs","録音入力を開いています"],
 		"timedRecordingSchedule": ["machine","Schedule recording","録音をスケジュール"],
 		"timedRecordingScheduled": ["machine","Recording scheduled for {time}. Keep this tab open.","録音は {time} にスケジュールされています。このタブを開いたままにしておいてください。"],
+		"timedRecordingScheduledRange": ["machine","Recording scheduled from {start} to {end}. Keep this tab open.","録音を{start}から{end}までに予約しました。このタブを開いたままにしてください。"],
 		"timedRecordingStartTime": ["machine","Recording start","録音開始時間"],
 		"timeline": ["machine","Timeline","タイムライン"],
 		"timelineAnnotationBatched": ["machine","Batched {count} annotation(s)","{count} 個の注釈をバッチ処理しました"],

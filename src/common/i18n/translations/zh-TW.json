@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "zh-TW",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:32a19ec48bc86b348912199805af4c12be36e1ef8a6982795f4f49ecb2189336","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:2c62847cbc767ab2603de35355b2ceef54e2e0874f1a319598b2382368008793","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -2467,11 +2467,17 @@
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","取消排程錄音"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","已取消排程錄音。"],
 		"timedRecordingCurrent": ["machine","Recording is scheduled for {time}.","已排定於 {time} 進行錄音。"],
+		"timedRecordingCurrentRange": ["machine","Recording is scheduled from {start} to {end}.","錄音排程為從 {start} 到 {end}。"],
 		"timedRecordingDescription": ["machine","Soundscaper opens the recording input immediately so recording can begin at the chosen time without another permission prompt. Keep this tab open.","Soundscaper 會立即開啟錄音輸入裝置，以便在所選時間開始錄音而不需再次顯示權限提示。請保持此分頁開啟。"],
+		"timedRecordingDuration": ["machine","Duration","持續時間"],
+		"timedRecordingEnd": ["machine","Recording end","錄音結束"],
+		"timedRecordingEndBeforeStart": ["machine","Choose a recording end after the start.","請選擇晚於開始時間的錄音結束時間。"],
+		"timedRecordingEndDateTime": ["machine","End date and time","結束日期與時間"],
 		"timedRecordingPast": ["machine","Choose a recording time in the future.","請選擇未來的錄音時間。"],
 		"timedRecordingPreparing": ["machine","Opening recording inputs","正在開啟錄音輸入裝置"],
 		"timedRecordingSchedule": ["machine","Schedule recording","排程錄音"],
 		"timedRecordingScheduled": ["machine","Recording scheduled for {time}. Keep this tab open.","已排定於 {time} 錄音。請保持此分頁開啟。"],
+		"timedRecordingScheduledRange": ["machine","Recording scheduled from {start} to {end}. Keep this tab open.","錄音已排程為從 {start} 到 {end}。請保持此分頁開啟。"],
 		"timedRecordingStartTime": ["machine","Recording start","錄音開始時間"],
 		"timeline": ["machine","Timeline","時間軸"],
 		"timelineAnnotationBatched": ["machine","Batched {count} annotation(s)","已將 {count} 個註記加入群組"],

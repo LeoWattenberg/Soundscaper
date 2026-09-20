@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "gl",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:41d4277e51c7696eb24f85ef84ba405d3b12f075733c43bc23317b8be3bc3f5e","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:ed036642d7f330f7c5527967de7b83ad09ff448dfd18087bdc5c21042c160f47","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -2467,11 +2467,17 @@
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","Cancelar a gravación programada"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","Gravación programada cancelada."],
 		"timedRecordingCurrent": ["machine","Recording is scheduled for {time}.","A gravación está programada para {time}."],
+		"timedRecordingCurrentRange": ["machine","Recording is scheduled from {start} to {end}.","A gravación está programada de {start} a {end}."],
 		"timedRecordingDescription": ["machine","Soundscaper opens the recording input immediately so recording can begin at the chosen time without another permission prompt. Keep this tab open.","Soundscaper abre a entrada de gravación inmediatamente para que a gravación poida comezar na hora escollida sen outro aviso de permiso. Mantén esta pestana aberta."],
+		"timedRecordingDuration": ["machine","Duration","Duración"],
+		"timedRecordingEnd": ["machine","Recording end","Fin da gravación"],
+		"timedRecordingEndBeforeStart": ["machine","Choose a recording end after the start.","Escolle un final da gravación posterior ao inicio."],
+		"timedRecordingEndDateTime": ["machine","End date and time","Data e hora de finalización"],
 		"timedRecordingPast": ["machine","Choose a recording time in the future.","Escolle unha hora de gravación no futuro."],
 		"timedRecordingPreparing": ["machine","Opening recording inputs","Abrindo as entradas de gravación"],
 		"timedRecordingSchedule": ["machine","Schedule recording","Programar gravación"],
 		"timedRecordingScheduled": ["machine","Recording scheduled for {time}. Keep this tab open.","Gravación programada para {time}. Mantén esta pestana aberta."],
+		"timedRecordingScheduledRange": ["machine","Recording scheduled from {start} to {end}. Keep this tab open.","Gravación programada de {start} a {end}. Mantén esta lapela aberta."],
 		"timedRecordingStartTime": ["machine","Recording start","Inicio da gravación"],
 		"timeline": ["machine","Timeline","Liña de tempo"],
 		"timelineAnnotationBatched": ["machine","Batched {count} annotation(s)","{count} anotación(s) agrupada(s)"],

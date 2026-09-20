@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "hi",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:7568e7c52bab7dbb70344ff99c7661340349301f14b672280b8455bb68640462","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:7c24ae49730a817c162e7493b2b49387d664e99b4a41529ad3c0c9c6864df447","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -2467,11 +2467,17 @@
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","निर्धारित रिकॉर्डिंग रद्द करें"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","निर्धारित रिकॉर्डिंग रद्द कर दी गई।"],
 		"timedRecordingCurrent": ["machine","Recording is scheduled for {time}.","रिकॉर्डिंग {time} के लिए निर्धारित है।"],
+		"timedRecordingCurrentRange": ["machine","Recording is scheduled from {start} to {end}.","रिकॉर्डिंग {start} से {end} तक निर्धारित है।"],
 		"timedRecordingDescription": ["machine","Soundscaper opens the recording input immediately so recording can begin at the chosen time without another permission prompt. Keep this tab open.","Soundscaper रिकॉर्डिंग इनपुट तुरंत खोल देता है ताकि चुने गए समय पर बिना किसी अतिरिक्त अनुमति संकेत के रिकॉर्डिंग शुरू हो सके। यह टैब खुला रखें।"],
+		"timedRecordingDuration": ["machine","Duration","अवधि"],
+		"timedRecordingEnd": ["machine","Recording end","रिकॉर्डिंग समाप्ति"],
+		"timedRecordingEndBeforeStart": ["machine","Choose a recording end after the start.","रिकॉर्डिंग की समाप्ति को प्रारंभ के बाद चुनें।"],
+		"timedRecordingEndDateTime": ["machine","End date and time","समाप्ति दिनांक और समय"],
 		"timedRecordingPast": ["machine","Choose a recording time in the future.","भविष्य में एक रिकॉर्डिंग समय चुनें।"],
 		"timedRecordingPreparing": ["machine","Opening recording inputs","रिकॉर्डिंग इनपुट खोले जा रहे हैं"],
 		"timedRecordingSchedule": ["machine","Schedule recording","रिकॉर्डिंग निर्धारित करें"],
 		"timedRecordingScheduled": ["machine","Recording scheduled for {time}. Keep this tab open.","रिकॉर्डिंग {time} के लिए निर्धारित की गई। यह टैब खुला रखें।"],
+		"timedRecordingScheduledRange": ["machine","Recording scheduled from {start} to {end}. Keep this tab open.","रिकॉर्डिंग {start} से {end} तक निर्धारित है। इस टैब को खुला रखें।"],
 		"timedRecordingStartTime": ["machine","Recording start","रिकॉर्डिंग प्रारंभ"],
 		"timeline": ["machine","Timeline","टाइमलाइन"],
 		"timelineAnnotationBatched": ["machine","Batched {count} annotation(s)","{count} एनोटेशन बैच किए गए"],

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "fi",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:70c1d578c250e40adef73b9aba3901a502a3464356ddf3d6a1c03e41710e6098","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:4a2bd315d924191264d2d3412526d1250b7d7c24e4c4e1d561ba038e1cede9b7","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -2467,11 +2467,17 @@
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","Peruuta ajastettu nauhoitus"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","Ajastettu nauhoitus peruutettu."],
 		"timedRecordingCurrent": ["machine","Recording is scheduled for {time}.","Nauhoitus on ajastettu ajankohtaan {time}."],
+		"timedRecordingCurrentRange": ["machine","Recording is scheduled from {start} to {end}.","Tallennus on ajastettu välille {start}–{end}."],
 		"timedRecordingDescription": ["machine","Soundscaper opens the recording input immediately so recording can begin at the chosen time without another permission prompt. Keep this tab open.","Soundscaper avaa nauhoitustulon heti, jotta nauhoitus voi alkaa valittuna ajankohtana ilman uutta käyttöoikeuskehotetta. Pidä tämä välilehti auki."],
+		"timedRecordingDuration": ["machine","Duration","Kesto"],
+		"timedRecordingEnd": ["machine","Recording end","Tallennuksen loppu"],
+		"timedRecordingEndBeforeStart": ["machine","Choose a recording end after the start.","Valitse tallennuksen lopetus aloituksen jälkeen."],
+		"timedRecordingEndDateTime": ["machine","End date and time","Lopetuspäivä ja -aika"],
 		"timedRecordingPast": ["machine","Choose a recording time in the future.","Valitse nauhoitusajankohta tulevaisuudesta."],
 		"timedRecordingPreparing": ["machine","Opening recording inputs","Avataan nauhoitustuloja"],
 		"timedRecordingSchedule": ["machine","Schedule recording","Ajasta nauhoitus"],
 		"timedRecordingScheduled": ["machine","Recording scheduled for {time}. Keep this tab open.","Nauhoitus ajastettu ajankohtaan {time}. Pidä tämä välilehti auki."],
+		"timedRecordingScheduledRange": ["machine","Recording scheduled from {start} to {end}. Keep this tab open.","Tallennus ajastettu välille {start}–{end}. Pidä tämä välilehti avoinna."],
 		"timedRecordingStartTime": ["machine","Recording start","Nauhoituksen alkamisaika"],
 		"timeline": ["machine","Timeline","Aikajana"],
 		"timelineAnnotationBatched": ["machine","Batched {count} annotation(s)","Niputettiin {count} annotaatio(ta)"],

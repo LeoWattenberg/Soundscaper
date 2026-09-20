@@ -4,7 +4,7 @@ import { AUDIO_EDITOR_SAMPLE_RATE } from '../../project.js';
 import { RECORDING_CHANNEL_COUNT_MAXIMUM } from '../../recording.js';
 import { RECORDING_DEFAULT_DEVICE_ID } from '../../recording-routing.js';
 import { soundscaperNativeAudioCaptureChannelCount } from '../../soundscaper-native-audio-capture.ts';
-import { scaleSampleFrame } from '../../timeline-time.ts';
+import { scaleSampleFrame, secondsToSampleFrame } from '../../timeline-time.ts';
 
 const LIVE_RECORDING_WAVEFORM_BUCKET_FRAMES = 64;
 const LIVE_RECORDING_WAVEFORM_MAXIMUM_BUCKETS = 2_048;
@@ -57,6 +57,23 @@ export function normalizeTimedRecordingStart(value: unknown): number {
 			: new Date(typeof value === 'string' ? value : '').getTime();
 	if (!Number.isFinite(timestamp)) throw new TypeError('A valid timer recording start time is required.');
 	return Math.round(timestamp);
+}
+
+export function timedRecordingStopFrame(
+	startFrame: number,
+	options: Readonly<{ readonly timedStartTimeMs?: number; readonly timedEndTimeMs?: number }>,
+	sampleRate: number,
+): number | undefined {
+	const startTimeMs = Number(options.timedStartTimeMs);
+	const endTimeMs = Number(options.timedEndTimeMs);
+	if (!Number.isFinite(startTimeMs) || !Number.isFinite(endTimeMs) || endTimeMs <= startTimeMs) {
+		return undefined;
+	}
+	return startFrame + secondsToSampleFrame(
+		(endTimeMs - startTimeMs) / 1_000,
+		sampleRate,
+		'enclosingEnd',
+	);
 }
 
 export function scaleRecordingFrames(

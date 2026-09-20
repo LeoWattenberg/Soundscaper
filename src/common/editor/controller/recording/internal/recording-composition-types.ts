@@ -88,6 +88,7 @@ export interface RecordingCompositionCopy {
 	readonly recording: string;
 	readonly recordingLabel: string;
 	readonly timedRecordingPast: string;
+	readonly timedRecordingEndBeforeStart: string;
 	readonly recordingAssignInput: string;
 	readonly recordingNoInputsAvailable: string;
 	readonly timedRecordingAssignedInputsUnavailable: string;
@@ -96,6 +97,7 @@ export interface RecordingCompositionCopy {
 	readonly timedRecordingPreparing: string;
 	readonly timedRecordingMissed?: string;
 	readonly timedRecordingScheduled: string;
+	readonly timedRecordingScheduledRange: string;
 	readonly timedRecordingCancelled: string;
 }
 

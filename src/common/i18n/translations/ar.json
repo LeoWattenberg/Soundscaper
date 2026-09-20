@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ar",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:65df6f96e233ec00a10339ebda1a736090fffc661b8dff4c3867ca6ee332f639","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:8d4716a770a3a2fa2b64b40d53cecfcf45b59a50401989d4691468085ba0c69e","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -2467,11 +2467,17 @@
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","إلغاء التسجيل المجدول"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","تم إلغاء التسجيل المجدول."],
 		"timedRecordingCurrent": ["machine","Recording is scheduled for {time}.","من المقرر أن يتم التسجيل في {time}."],
+		"timedRecordingCurrentRange": ["machine","Recording is scheduled from {start} to {end}.","تمت جدولة التسجيل من {start} إلى {end}."],
 		"timedRecordingDescription": ["machine","Soundscaper opens the recording input immediately so recording can begin at the chosen time without another permission prompt. Keep this tab open.","يفتح Soundscaper مدخل التسجيل على الفور حتى يمكن بدء التسجيل في الوقت المحدد دون حوار إذن آخر. يجب أن يبقى هذا التبويب مفتوحًا."],
+		"timedRecordingDuration": ["machine","Duration","المدة"],
+		"timedRecordingEnd": ["machine","Recording end","نهاية التسجيل"],
+		"timedRecordingEndBeforeStart": ["machine","Choose a recording end after the start.","اختر نهاية للتسجيل بعد البداية."],
+		"timedRecordingEndDateTime": ["machine","End date and time","تاريخ ووقت الانتهاء"],
 		"timedRecordingPast": ["machine","Choose a recording time in the future.","اختر وقت تسجيل في المستقبل."],
 		"timedRecordingPreparing": ["machine","Opening recording inputs","فتح مدخلات التسجيل"],
 		"timedRecordingSchedule": ["machine","Schedule recording","جدولة التسجيل"],
 		"timedRecordingScheduled": ["machine","Recording scheduled for {time}. Keep this tab open.","تم جدولة التسجيل في {time}. يجب أن يبقى هذا التبويب مفتوحًا."],
+		"timedRecordingScheduledRange": ["machine","Recording scheduled from {start} to {end}. Keep this tab open.","تمت جدولة التسجيل من {start} إلى {end}. أبقِ علامة التبويب هذه مفتوحة."],
 		"timedRecordingStartTime": ["machine","Recording start","وقت بدء التسجيل"],
 		"timeline": ["machine","Timeline","الخط الزمني"],
 		"timelineAnnotationBatched": ["machine","Batched {count} annotation(s)","تم تجميع {count} ملاحظة(ات)."],

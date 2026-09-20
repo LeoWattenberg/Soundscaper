@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "id",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:1f299e2eefbc733d933577e3be64dd0a22b02ca3e7ca8b69b8aec6389e1806d1","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:49b5ccd77a75ae2340f25410090ebb9d6dc2993659a4d1502a87e34a9dab90f4","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -2467,11 +2467,17 @@
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","Batalkan rekaman terjadwal"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","Rekaman terjadwal dibatalkan."],
 		"timedRecordingCurrent": ["machine","Recording is scheduled for {time}.","Rekaman dijadwalkan untuk {time}."],
+		"timedRecordingCurrentRange": ["machine","Recording is scheduled from {start} to {end}.","Perekaman dijadwalkan dari {start} hingga {end}."],
 		"timedRecordingDescription": ["machine","Soundscaper opens the recording input immediately so recording can begin at the chosen time without another permission prompt. Keep this tab open.","Soundscaper langsung membuka input rekaman agar rekaman dapat dimulai pada waktu yang dipilih tanpa perlu meminta izin lagi. Biarkan tab ini tetap terbuka."],
+		"timedRecordingDuration": ["machine","Duration","Durasi"],
+		"timedRecordingEnd": ["machine","Recording end","Akhir perekaman"],
+		"timedRecordingEndBeforeStart": ["machine","Choose a recording end after the start.","Pilih akhir perekaman setelah waktu mulai."],
+		"timedRecordingEndDateTime": ["machine","End date and time","Tanggal dan waktu berakhir"],
 		"timedRecordingPast": ["machine","Choose a recording time in the future.","Pilih waktu rekaman di masa mendatang."],
 		"timedRecordingPreparing": ["machine","Opening recording inputs","Membuka input rekaman"],
 		"timedRecordingSchedule": ["machine","Schedule recording","Jadwalkan rekaman"],
 		"timedRecordingScheduled": ["machine","Recording scheduled for {time}. Keep this tab open.","Rekaman dijadwalkan untuk {time}. Biarkan tab ini tetap terbuka."],
+		"timedRecordingScheduledRange": ["machine","Recording scheduled from {start} to {end}. Keep this tab open.","Perekaman dijadwalkan dari {start} hingga {end}. Biarkan tab ini tetap terbuka."],
 		"timedRecordingStartTime": ["machine","Recording start","Awal rekaman"],
 		"timeline": ["machine","Timeline","Linimasa"],
 		"timelineAnnotationBatched": ["machine","Batched {count} annotation(s)","{count} anotasi ditumpuk"],

@@ -7,6 +7,7 @@ import { TextInput } from '@soundscaper/design-system/TextInput';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
+import TimedRecordingDialogFields from './TimedRecordingDialogFields.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import { formatDate } from '../workspace-runtime.js';
 import {
@@ -26,6 +27,7 @@ import {
 	TRACK_RATE_DIALOG_INVALID_RATE,
 	TRACK_RATE_DIALOG_MISSING_TRACK,
 } from './editor-dialog-model.js';
+import { timedRecordingDialogRange } from './timed-recording-dialog-model.ts';
 
 export default function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSourceKeyChange, trackId, controller, snapshot, copy, aboutLabel, locale, run, showArmControls = false, onClose }) {
 	const cancelTimedRecordingOnClose = useRef(false);
@@ -71,11 +73,11 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 	// that was still in the future when the dialog painted may have passed by
 	// the time the footer button is pressed.
 	const timedRecordingReady = () => {
-		const startTimeMs = new Date(value).getTime();
-		return Number.isFinite(startTimeMs) && startTimeMs > Date.now();
+		return timedRecordingDialogRange(value) !== null;
 	};
 	const submitTimedRecording = () => {
-		if (!timedRecordingReady()) return;
+		const range = timedRecordingDialogRange(value);
+		if (!range) return;
 		const trackId = showArmControls
 			? undefined
 			: (() => {
@@ -90,7 +92,10 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 				return snapshot.project?.tracks.find((track) => track.type === 'audio')?.id;
 			})();
 		runThenClose(
-			() => controller.actions.recording.schedule(new Date(value).getTime(), { trackId }),
+			() => controller.actions.recording.schedule(range.startTimeMs, {
+				trackId,
+				endTimeMs: range.endTimeMs,
+			}),
 			(scheduled) => Boolean(scheduled),
 		);
 	};
@@ -215,25 +220,9 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 						</form>
 					)}
 					{type === 'timed-recording' && (
-						<form data-timed-recording-dialog onSubmit={(event) => {
-							event.preventDefault();
-							submitTimedRecording();
-						}}>
-							<p>{copy.timedRecordingDescription}</p>
-							<label className="kw-audio-editor-dialog__field">
-								<span>{copy.timedRecordingStartTime}</span>
-								<input
-									type="datetime-local"
-									step="1"
-									value={value}
-									onChange={(event) => onValueChange(event.currentTarget.value)}
-								/>
-							</label>
-							{snapshot.scheduledRecording && <p>{copy.timedRecordingCurrent.replace(
-								'{time}',
-								new Date(snapshot.scheduledRecording.startTimeMs).toLocaleString(locale),
-							)}</p>}
-						</form>
+						<TimedRecordingDialogFields value={value} onValueChange={onValueChange}
+							onSubmit={submitTimedRecording} scheduledRecording={snapshot.scheduledRecording}
+							copy={copy} locale={locale} />
 					)}
 					{type === 'recording-offset' && (
 						<form onSubmit={(event) => { event.preventDefault(); submitRecordingOffset(); }}>

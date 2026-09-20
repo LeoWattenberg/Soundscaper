@@ -14,6 +14,7 @@ import { compactSoundActivationSegments } from './sound-activation/sound-activat
 import { calculateAudioEditorCountInFrames } from '../../transport/transport-model.ts';
 import { countInSampleFrames, scaleSampleFrame, secondsToSampleFrame } from '../../../timeline-time.ts';
 import { planRoutedRecordingSources } from './routed-recording-source-plan.ts';
+import { timedRecordingStopFrame } from '../recording-model.ts';
 import type {
 	RecordingMediaStream,
 	RecordingStartOptions,
@@ -22,7 +23,6 @@ import type {
 	RoutedRecordingEntry,
 	RoutedRecordingSourceSession,
 } from '../recording-transaction-types.ts';
-
 function errorName(error: unknown): string | undefined {
 	return (error as Readonly<{ name?: string }> | null)?.name;
 }
@@ -458,11 +458,11 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 						? selection.endFrame - selection.startFrame + (session.sourceOffsetProjectFrames || 0)
 						: 0;
 					session.startFrame = startFrame;
-					session.stopFrame = selection
+					session.stopFrame = timedRecordingStopFrame(startFrame, options, context.sampleRate) ?? (selection
 						? startFrame + scaleSampleFrame(
 							selectionProjectFrames, sampleRate, context.sampleRate, 'enclosingEnd',
 						)
-						: undefined;
+						: undefined);
 					for (const entry of session.entries) {
 						state.recordingRouteHealth[entry.trackId] = timedStart ? 'open' : 'recording';
 					}

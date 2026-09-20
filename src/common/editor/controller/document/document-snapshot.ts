@@ -66,7 +66,7 @@ interface SnapshotPreferences extends Readonly<Record<string, unknown>> {
 
 interface TimedRecordingSnapshot {
 	readonly startTimeMs: number;
-	readonly options: Readonly<{ trackId?: string }>;
+	readonly options: Readonly<{ trackId?: string; endTimeMs?: number }>;
 }
 
 interface ProjectTabSnapshot {
@@ -268,6 +268,10 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 			? Object.freeze({
 				startTimeMs: state.timedRecording.startTimeMs,
 				startTime: new Date(state.timedRecording.startTimeMs).toISOString(),
+				...(state.timedRecording.options.endTimeMs !== undefined ? {
+					endTimeMs: state.timedRecording.options.endTimeMs,
+					endTime: new Date(state.timedRecording.options.endTimeMs).toISOString(),
+				} : {}),
 				trackId: state.timedRecording.options.trackId || null,
 			})
 			: null,

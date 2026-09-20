@@ -34,7 +34,7 @@ import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.
 import { supportsDisplayAudioCapture } from '../../recording-display-input.ts';
 import { partitionWorkspaceFiles } from './workspace-file-routing.js';
 import { openWorkspaceProjectFile } from './open-workspace-project-file.ts';
-import { desktopExternalDestination, formatDateTimeLocalInput } from '../workspace-runtime.js';
+import { desktopExternalDestination } from '../workspace-runtime.js'; import { createTimedRecordingDialogValue } from '../dialogs/timed-recording-dialog-model.ts';
 import { useTrackHeaderDrawerFlag, useWorkspaceCompactLayout } from './useWorkspaceCompactLayout.js';
 import { createWorkspaceEditItems } from './workspace-edit-items.js';
 import { useCueImportWorkspace } from './cue-import-workspace.tsx';
@@ -207,9 +207,9 @@ export default function AudioEditorWorkspace({
 
 	const openTimedRecording = useCallback(() => {
 		const startTimeMs = snapshot.scheduledRecording?.startTimeMs ?? Date.now() + 5 * 60_000;
-		setDialogValue(formatDateTimeLocalInput(startTimeMs));
+		setDialogValue(createTimedRecordingDialogValue(startTimeMs, snapshot.scheduledRecording?.endTimeMs));
 		setDialog('timed-recording');
-	}, [snapshot.scheduledRecording?.startTimeMs]);
+	}, [snapshot.scheduledRecording?.endTimeMs, snapshot.scheduledRecording?.startTimeMs]);
 	const openRecordingOffset = useCallback(() => {
 		setDialogValue(String(snapshot.monitor?.latencyOffsetMs ?? 0));
 		setDialogSourceKey('global');

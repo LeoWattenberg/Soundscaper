@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "zh-CN",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:34cb0a0258b9959549298277db6d5d22fceba800087c73d2923dff29ac0764e8","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:7e3aabe197cc20b2dbd31b70c8e81b788486596d8bbddbc722a173b18a9671af","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -2467,11 +2467,17 @@
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","取消计划录音"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","计划录音已取消。"],
 		"timedRecordingCurrent": ["machine","Recording is scheduled for {time}.","录音已安排在 {time}。"],
+		"timedRecordingCurrentRange": ["machine","Recording is scheduled from {start} to {end}.","录音计划为从 {start} 到 {end}。"],
 		"timedRecordingDescription": ["machine","Soundscaper opens the recording input immediately so recording can begin at the chosen time without another permission prompt. Keep this tab open.","Soundscaper 会立即打开录音输入，以便在选定时间开始录音时无需再次弹出权限请求。请保持此标签页处于打开状态。"],
+		"timedRecordingDuration": ["machine","Duration","时长"],
+		"timedRecordingEnd": ["machine","Recording end","录音结束"],
+		"timedRecordingEndBeforeStart": ["machine","Choose a recording end after the start.","请选择晚于开始时间的录音结束时间。"],
+		"timedRecordingEndDateTime": ["machine","End date and time","结束日期和时间"],
 		"timedRecordingPast": ["machine","Choose a recording time in the future.","请选择一个将来的录音时间。"],
 		"timedRecordingPreparing": ["machine","Opening recording inputs","正在打开录音输入"],
 		"timedRecordingSchedule": ["machine","Schedule recording","安排录音"],
 		"timedRecordingScheduled": ["machine","Recording scheduled for {time}. Keep this tab open.","录音已安排在 {time}。请保持此标签页处于打开状态。"],
+		"timedRecordingScheduledRange": ["machine","Recording scheduled from {start} to {end}. Keep this tab open.","录音已计划为从 {start} 到 {end}。请保持此标签页打开。"],
 		"timedRecordingStartTime": ["machine","Recording start","录音开始时间"],
 		"timeline": ["machine","Timeline","时间线"],
 		"timelineAnnotationBatched": ["machine","Batched {count} annotation(s)","已将 {count} 个标注编组"],

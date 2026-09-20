@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "he",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:ca68bf4cfd8d31ed53a67e0e611e3ec7637db47feab91e4cfdab5911f86d7965","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:a6b54c3c227c811ecd5faa551755f3e198dc381dd645644e1e41d83d0b9a3224","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -2467,11 +2467,17 @@
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","ביטול הקלטה מתוזמנת"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","ההקלטה המתוזמנת בוטלה."],
 		"timedRecordingCurrent": ["machine","Recording is scheduled for {time}.","ההקלטה מתוזמנת ל-{time}."],
+		"timedRecordingCurrentRange": ["machine","Recording is scheduled from {start} to {end}.","ההקלטה מתוזמנת מ־{start} עד {end}."],
 		"timedRecordingDescription": ["machine","Soundscaper opens the recording input immediately so recording can begin at the chosen time without another permission prompt. Keep this tab open.","Soundscaper פותח את קלט ההקלטה מייד כדי שההקלטה תוכל להתחיל בזמן שנבחר ללא בקשת הרשאה נוספת. השאר כרטיסייה זו פתוחה."],
+		"timedRecordingDuration": ["machine","Duration","משך"],
+		"timedRecordingEnd": ["machine","Recording end","סיום ההקלטה"],
+		"timedRecordingEndBeforeStart": ["machine","Choose a recording end after the start.","יש לבחור סיום הקלטה לאחר ההתחלה."],
+		"timedRecordingEndDateTime": ["machine","End date and time","תאריך ושעת סיום"],
 		"timedRecordingPast": ["machine","Choose a recording time in the future.","בחר זמן הקלטה עתידי."],
 		"timedRecordingPreparing": ["machine","Opening recording inputs","פותח קלטי הקלטה"],
 		"timedRecordingSchedule": ["machine","Schedule recording","תזמון הקלטה"],
 		"timedRecordingScheduled": ["machine","Recording scheduled for {time}. Keep this tab open.","ההקלטה תוזמנה ל-{time}. השאר כרטיסייה זו פתוחה."],
+		"timedRecordingScheduledRange": ["machine","Recording scheduled from {start} to {end}. Keep this tab open.","ההקלטה תוזמנה מ־{start} עד {end}. יש להשאיר כרטיסייה זו פתוחה."],
 		"timedRecordingStartTime": ["machine","Recording start","התחלת הקלטה"],
 		"timeline": ["machine","Timeline","ציר זמן"],
 		"timelineAnnotationBatched": ["machine","Batched {count} annotation(s)","קובצו {count} סימונים"],

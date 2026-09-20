@@ -54,6 +54,7 @@ test('timed recording prepares input and context in parallel before arming a bou
 	const contextGate = deferred<void>();
 	const timers: Array<{ callback: () => unknown; delay: number }> = [];
 	const events: string[] = [];
+	const startOptions: unknown[] = [];
 	let now = 1_000;
 	const recorder = createRecorder();
 	const service = createTimedRecordingService({
@@ -71,6 +72,7 @@ test('timed recording prepares input and context in parallel before arming a bou
 		},
 		startRecording: async (options) => {
 			events.push(`start:${options.reusePreparedInputsOnly}`);
+			startOptions.push(options);
 			state.recorder = recorder;
 		},
 		cancelRecordingStart: () => false,
@@ -87,7 +89,7 @@ test('timed recording prepares input and context in parallel before arming a bou
 		formatScheduledTime: (value) => `at-${value}`,
 	});
 
-	const pending = service.scheduleTimedRecording(5_000, { trackId: 'track-1' });
+	const pending = service.scheduleTimedRecording(5_000, { trackId: 'track-1', endTimeMs: 8_000 });
 	assert.deepEqual(events.slice(0, 3), ['status:preparing', 'input', 'context']);
 	inputGate.resolve({ inputKeys: ['device:default'] });
 	contextGate.resolve();
@@ -95,8 +97,17 @@ test('timed recording prepares input and context in parallel before arming a bou
 	assert.deepEqual(result, {
 		startTimeMs: 5_000,
 		startTime: new Date(5_000).toISOString(),
+		endTimeMs: 8_000,
+		endTime: new Date(8_000).toISOString(),
 		trackId: 'track-1',
 	});
+	assert.deepEqual(startOptions, [{
+		trackId: 'track-1',
+		timedStartTimeMs: 5_000,
+		timedEndTimeMs: 8_000,
+		timedGeneration: 1,
+		reusePreparedInputsOnly: true,
+	}]);
 	assert.equal(timers.length, 1);
 	assert.equal(timers[0].delay, 1_500);
 	assert.equal(state.timedRecordingPreparing, false);
@@ -113,6 +124,25 @@ test('timed recording prepares input and context in parallel before arming a bou
 	await timers[1].callback();
 	assert.equal(state.timedRecording, null);
 	assert.ok(events.includes('activate'));
+});
+
+test('timed recording refuses an end at or before its start before preparing inputs', async () => {
+	let preparations = 0;
+	const service = createTimedRecordingService({
+		state: createState(),
+		getProjectId: () => 'project-1', normalizeStartTime: Number, currentTimeMs: () => 1_000,
+		prepareInputs: async () => { preparations += 1; return { inputKeys: [] }; },
+		prepareContext: async () => { preparations += 1; }, startRecording: async () => {},
+		cancelRecordingStart: () => false, finalizeRecording: async () => {},
+		activatePreparedRecording: async () => {}, scheduleTimer: () => 1, clearTimer: () => {},
+		messages: messages(),
+	});
+
+	await assert.rejects(
+		service.scheduleTimedRecording(5_000, { endTimeMs: 5_000 }),
+		/after the start/u,
+	);
+	assert.equal(preparations, 0);
 });
 
 test('cancelling preparation invalidates late results and releases unretained inputs', async () => {
@@ -327,6 +357,7 @@ function messages() {
 	return {
 		projectReadOnly: 'read only',
 		past: 'past',
+		endBeforeStart: 'end must be after the start',
 		preparing: 'preparing',
 		missed: 'missed',
 		scheduled: (time: string) => `scheduled ${time}`,

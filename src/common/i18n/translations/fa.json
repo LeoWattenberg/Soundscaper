@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "fa",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:dc30b6d8ad58945d3ce11865c1a527ae11b0d06a51fa2ad0015d272a64c2833f","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:252372936e22d62952c533172223bf46d0cb5da52725d23a82cec79c1b7f25bc","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -2467,11 +2467,17 @@
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","لغو ضبط زمان‌بندی‌شده"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","ضبط زمان‌بندی‌شده لغو شد."],
 		"timedRecordingCurrent": ["machine","Recording is scheduled for {time}.","ضبط برای {time} زمان‌بندی شده است."],
+		"timedRecordingCurrentRange": ["machine","Recording is scheduled from {start} to {end}.","ضبط از {start} تا {end} زمان‌بندی شده است."],
 		"timedRecordingDescription": ["machine","Soundscaper opens the recording input immediately so recording can begin at the chosen time without another permission prompt. Keep this tab open.","Soundscaper بلافاصله ورودی ضبط را باز می‌کند تا ضبط بدون درخواست مجوز دیگری در زمان انتخاب‌شده آغاز شود. این برگه را باز نگه دارید."],
+		"timedRecordingDuration": ["machine","Duration","مدت"],
+		"timedRecordingEnd": ["machine","Recording end","پایان ضبط"],
+		"timedRecordingEndBeforeStart": ["machine","Choose a recording end after the start.","زمان پایان ضبط را پس از زمان شروع انتخاب کنید."],
+		"timedRecordingEndDateTime": ["machine","End date and time","تاریخ و زمان پایان"],
 		"timedRecordingPast": ["machine","Choose a recording time in the future.","زمانی در آینده برای ضبط انتخاب کنید."],
 		"timedRecordingPreparing": ["machine","Opening recording inputs","در حال باز کردن ورودی‌های ضبط"],
 		"timedRecordingSchedule": ["machine","Schedule recording","زمان‌بندی ضبط"],
 		"timedRecordingScheduled": ["machine","Recording scheduled for {time}. Keep this tab open.","ضبط برای {time} زمان‌بندی شد. این برگه را باز نگه دارید."],
+		"timedRecordingScheduledRange": ["machine","Recording scheduled from {start} to {end}. Keep this tab open.","ضبط از {start} تا {end} زمان‌بندی شد. این برگه را باز نگه دارید."],
 		"timedRecordingStartTime": ["machine","Recording start","زمان شروع ضبط"],
 		"timeline": ["machine","Timeline","خط زمان"],
 		"timelineAnnotationBatched": ["machine","Batched {count} annotation(s)","{count} حاشیه‌نویسی دسته‌بندی شد"],

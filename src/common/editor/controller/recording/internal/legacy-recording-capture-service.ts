@@ -15,6 +15,7 @@ import { compactSoundActivationSegments } from './sound-activation/sound-activat
 import { recordingCapturePeakDb } from './recording-capture-channels.ts';
 import { calculateAudioEditorCountInFrames } from '../../transport/transport-model.ts';
 import { countInSampleFrames, scaleSampleFrame, secondsToSampleFrame } from '../../../timeline-time.ts';
+import { timedRecordingStopFrame } from '../recording-model.ts';
 
 function errorName(error: unknown): string | undefined {
 	return (error as Readonly<{ name?: string }> | null)?.name;
@@ -225,11 +226,11 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 				);
 				return {
 					startFrame,
-					stopFrame: selection
+					stopFrame: timedRecordingStopFrame(startFrame, options, context.sampleRate) ?? (selection
 						? startFrame + scaleSampleFrame(
 							selectionProjectFrames, sampleRate, context.sampleRate, 'enclosingEnd',
 						)
-						: undefined,
+						: undefined),
 				};
 			};
 			const interrupt = () => {

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ko",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:770bfeb6fb744f75c2e0af5b7d606a4a0e62f871cb986f47aab174078d322ebd","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:874adc45358bb302fe2475dcb5ae50fc432a17654df128d7e2df4509d15b4d69","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -2467,11 +2467,17 @@
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","예약된 녹음 취소"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","예약된 녹음 취소됨."],
 		"timedRecordingCurrent": ["machine","Recording is scheduled for {time}.","녹음은 {time}에 예약되어 있습니다."],
+		"timedRecordingCurrentRange": ["machine","Recording is scheduled from {start} to {end}.","녹음이 {start}부터 {end}까지 예약되어 있습니다."],
 		"timedRecordingDescription": ["machine","Soundscaper opens the recording input immediately so recording can begin at the chosen time without another permission prompt. Keep this tab open.","Soundscaper는 선택한 시간에 녹음이 시작될 수 있도록 즉시 녹음 입력을 열기 때문에 추가 권한 프롬프트 없이 녹음이 시작될 수 있습니다. 이 탭을 열어두세요."],
+		"timedRecordingDuration": ["machine","Duration","지속 시간"],
+		"timedRecordingEnd": ["machine","Recording end","녹음 종료"],
+		"timedRecordingEndBeforeStart": ["machine","Choose a recording end after the start.","녹음 시작 이후의 종료 시간을 선택하세요."],
+		"timedRecordingEndDateTime": ["machine","End date and time","종료 날짜 및 시간"],
 		"timedRecordingPast": ["machine","Choose a recording time in the future.","미래의 녹음 시간을 선택하세요."],
 		"timedRecordingPreparing": ["machine","Opening recording inputs","녹음 입력 열기 중"],
 		"timedRecordingSchedule": ["machine","Schedule recording","녹음 예약"],
 		"timedRecordingScheduled": ["machine","Recording scheduled for {time}. Keep this tab open.","녹음이 {time}에 예약되었습니다. 이 탭을 열어두세요."],
+		"timedRecordingScheduledRange": ["machine","Recording scheduled from {start} to {end}. Keep this tab open.","녹음이 {start}부터 {end}까지 예약되었습니다. 이 탭을 열어 두세요."],
 		"timedRecordingStartTime": ["machine","Recording start","녹음 시작 시간"],
 		"timeline": ["machine","Timeline","타임라인"],
 		"timelineAnnotationBatched": ["machine","Batched {count} annotation(s)","{count}개의 주석 묶음"],

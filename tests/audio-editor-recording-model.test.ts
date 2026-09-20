@@ -12,6 +12,7 @@ import {
 	recordingStreamIsLive,
 	scaleRecordingFrames,
 	streamAudioChannelCount,
+	timedRecordingStopFrame,
 } from '../src/common/editor/controller/recording/recording-model.ts';
 
 test('recording preferences and timing inputs are normalized at the controller boundary', () => {
@@ -29,6 +30,11 @@ test('recording preferences and timing inputs are normalized at the controller b
 	assert.equal(normalizeTimedRecordingStart('2026-01-02T03:04:05.000Z'), 1_767_323_045_000);
 	assert.throws(() => normalizeTimedRecordingStart('not a date'), /valid timer recording start time/u);
 	assert.equal(scaleRecordingFrames(48_000, 48_000, 96_000), 96_000);
+	assert.equal(timedRecordingStopFrame(48_000, {
+		timedStartTimeMs: 1_000,
+		timedEndTimeMs: 3_500,
+	}, 48_000), 168_000);
+	assert.equal(timedRecordingStopFrame(48_000, { timedStartTimeMs: 1_000 }, 48_000), undefined);
 	assert.equal(
 		scaleRecordingFrames(Number.MAX_SAFE_INTEGER, 96_000, 32_000),
 		3_002_399_751_580_330,

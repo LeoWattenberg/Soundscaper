@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ro",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:fad0c39317bd23638d51be81bc94d0f1475368f8a83bee84eea8b0412cf96530","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:32160744d12fea5c9f0854cf869a3696133c756469c6befe8486ecd2cd46e177","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -2467,11 +2467,17 @@
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","Anulează înregistrarea programată"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","Înregistrare programată anulată."],
 		"timedRecordingCurrent": ["machine","Recording is scheduled for {time}.","Înregistrarea este programată pentru {time}."],
+		"timedRecordingCurrentRange": ["machine","Recording is scheduled from {start} to {end}.","Înregistrarea este programată de la {start} la {end}."],
 		"timedRecordingDescription": ["machine","Soundscaper opens the recording input immediately so recording can begin at the chosen time without another permission prompt. Keep this tab open.","Soundscaper deschide imediat intrarea de înregistrare, astfel încât înregistrarea să poată începe la momentul ales, fără un alt dialog de permisiune. Păstrați această filă deschisă."],
+		"timedRecordingDuration": ["machine","Duration","Durată"],
+		"timedRecordingEnd": ["machine","Recording end","Sfârșitul înregistrării"],
+		"timedRecordingEndBeforeStart": ["machine","Choose a recording end after the start.","Alegeți un sfârșit al înregistrării după început."],
+		"timedRecordingEndDateTime": ["machine","End date and time","Data și ora încheierii"],
 		"timedRecordingPast": ["machine","Choose a recording time in the future.","Alegeți un moment de înregistrare în viitor."],
 		"timedRecordingPreparing": ["machine","Opening recording inputs","Deschiderea intrărilor de înregistrare"],
 		"timedRecordingSchedule": ["machine","Schedule recording","Programați înregistrarea"],
 		"timedRecordingScheduled": ["machine","Recording scheduled for {time}. Keep this tab open.","Înregistrarea programată pentru {time}. Păstrați această filă deschisă."],
+		"timedRecordingScheduledRange": ["machine","Recording scheduled from {start} to {end}. Keep this tab open.","Înregistrare programată de la {start} la {end}. Păstrați această filă deschisă."],
 		"timedRecordingStartTime": ["machine","Recording start","Începutul înregistrării"],
 		"timeline": ["machine","Timeline","Linia timpului"],
 		"timelineAnnotationBatched": ["machine","Batched {count} annotation(s)","Grupat {count} anotare(i)"],

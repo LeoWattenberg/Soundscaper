@@ -51,6 +51,7 @@ export interface RoutedRecordingController extends RecordingControllerLike {
 export interface RecordingStartOptions {
 	readonly trackId?: string;
 	readonly timedStartTimeMs?: number;
+	readonly timedEndTimeMs?: number;
 	readonly timedGeneration?: number;
 	readonly reusePreparedInputsOnly?: boolean;
 }

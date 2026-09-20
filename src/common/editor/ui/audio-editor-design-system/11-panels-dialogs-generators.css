@@ -152,6 +152,28 @@
 	font-weight: 600;
 }
 
+.kw-audio-editor-timed-recording__end {
+	display: grid;
+	gap: 10px;
+}
+
+.kw-audio-editor-timed-recording__end-option {
+	display: grid;
+	grid-template-columns: minmax(120px, 0.8fr) minmax(0, 1.2fr);
+	align-items: center;
+	gap: 12px;
+}
+
+.kw-audio-editor-timed-recording__end-option > label {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+}
+
+.kw-audio-editor-timed-recording__end-option > input[type='datetime-local'] {
+	min-width: 0;
+}
+
 .kw-audio-editor-dialog .audio-editor-clip-properties__card {
 	padding: 12px 0;
 	background: transparent;

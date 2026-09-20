@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "vi",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:f2e62f4831a85278a846d785daa1bea2ddc391a630a1dffb2a94caa7e39c9d28","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:d14a945b930886cf3c30e8fda04ac3fef94b711327be38a0ec1092267b320403","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -2467,11 +2467,17 @@
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","Hủy ghi âm đã lên lịch"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","Đã hủy ghi âm đã lên lịch."],
 		"timedRecordingCurrent": ["machine","Recording is scheduled for {time}.","Bản ghi âm được lên lịch vào lúc {time}."],
+		"timedRecordingCurrentRange": ["machine","Recording is scheduled from {start} to {end}.","Bản ghi được lên lịch từ {start} đến {end}."],
 		"timedRecordingDescription": ["machine","Soundscaper opens the recording input immediately so recording can begin at the chosen time without another permission prompt. Keep this tab open.","Soundscaper mở đầu vào ghi âm ngay lập tức để việc ghi âm có thể bắt đầu vào thời điểm đã chọn mà không cần thêm lời nhắc cấp quyền nào khác. Hãy giữ tab này luôn mở."],
+		"timedRecordingDuration": ["machine","Duration","Thời lượng"],
+		"timedRecordingEnd": ["machine","Recording end","Kết thúc ghi âm"],
+		"timedRecordingEndBeforeStart": ["machine","Choose a recording end after the start.","Chọn thời điểm kết thúc ghi âm sau thời điểm bắt đầu."],
+		"timedRecordingEndDateTime": ["machine","End date and time","Ngày và giờ kết thúc"],
 		"timedRecordingPast": ["machine","Choose a recording time in the future.","Hãy chọn thời điểm ghi âm trong tương lai."],
 		"timedRecordingPreparing": ["machine","Opening recording inputs","Đang mở đầu vào ghi âm"],
 		"timedRecordingSchedule": ["machine","Schedule recording","Lên lịch ghi âm"],
 		"timedRecordingScheduled": ["machine","Recording scheduled for {time}. Keep this tab open.","Đã lên lịch ghi âm vào lúc {time}. Hãy giữ tab này luôn mở."],
+		"timedRecordingScheduledRange": ["machine","Recording scheduled from {start} to {end}. Keep this tab open.","Đã lên lịch ghi âm từ {start} đến {end}. Hãy giữ thẻ này mở."],
 		"timedRecordingStartTime": ["machine","Recording start","Thời điểm bắt đầu ghi âm"],
 		"timeline": ["machine","Timeline","Dòng thời gian"],
 		"timelineAnnotationBatched": ["machine","Batched {count} annotation(s)","Đã gộp {count} chú thích"],

@@ -38,7 +38,10 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 		projects: [{ id: 'older' }, { id: 'project' }],
 		recentProjectIds: ['project', 'missing'],
 		selectedAnnotationId: 'annotation',
-		timedRecording: { startTimeMs: 1_700_000_000_000, options: { trackId: 'track' } },
+		timedRecording: {
+			startTimeMs: 1_700_000_000_000,
+			options: { trackId: 'track', endTimeMs: 1_700_000_060_000 },
+		},
 		recordingPreviews: [null, { frames: 4 }],
 		history: { undoStack: ['old', 'new'], redoStack: ['redo'] },
 		clipboard: { sourceIds: [] },
@@ -128,6 +131,8 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 	assert.deepEqual(snapshot.scheduledRecording, {
 		startTimeMs: 1_700_000_000_000,
 		startTime: '2023-11-14T22:13:20.000Z',
+		endTimeMs: 1_700_000_060_000,
+		endTime: '2023-11-14T22:14:20.000Z',
 		trackId: 'track',
 	});
 	assert.equal(snapshot.recording, false);

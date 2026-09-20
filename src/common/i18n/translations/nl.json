@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "nl",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:af53b4b2f2f772956bc21ad7dc616caba6612c164afecbb3891432f7a0bb5771","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:8b43ccb2855b5309ac44b5595452ef2b2fc833e2e3d359728128b8f81c7d5af1","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -2467,11 +2467,17 @@
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","Geplande opname annuleren"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","Geplande opname geannuleerd."],
 		"timedRecordingCurrent": ["machine","Recording is scheduled for {time}.","Opname is gepland voor {time}."],
+		"timedRecordingCurrentRange": ["machine","Recording is scheduled from {start} to {end}.","De opname is gepland van {start} tot {end}."],
 		"timedRecordingDescription": ["machine","Soundscaper opens the recording input immediately so recording can begin at the chosen time without another permission prompt. Keep this tab open.","Soundscaper opent de opname-ingang direct, zodat de opname op het gekozen tijdstip kan beginnen zonder nog een toestemmingsvraag. Houd dit tabblad open."],
+		"timedRecordingDuration": ["machine","Duration","Duur"],
+		"timedRecordingEnd": ["machine","Recording end","Einde opname"],
+		"timedRecordingEndBeforeStart": ["machine","Choose a recording end after the start.","Kies een opname-einde na het begin."],
+		"timedRecordingEndDateTime": ["machine","End date and time","Einddatum en -tijd"],
 		"timedRecordingPast": ["machine","Choose a recording time in the future.","Kies een opnametijdstip in de toekomst."],
 		"timedRecordingPreparing": ["machine","Opening recording inputs","Opname-ingangen worden geopend"],
 		"timedRecordingSchedule": ["machine","Schedule recording","Opname plannen"],
 		"timedRecordingScheduled": ["machine","Recording scheduled for {time}. Keep this tab open.","Opname gepland voor {time}. Houd dit tabblad open."],
+		"timedRecordingScheduledRange": ["machine","Recording scheduled from {start} to {end}. Keep this tab open.","Opname gepland van {start} tot {end}. Houd dit tabblad geopend."],
 		"timedRecordingStartTime": ["machine","Recording start","Opnamestart"],
 		"timeline": ["machine","Timeline","Tijdlijn"],
 		"timelineAnnotationBatched": ["machine","Batched {count} annotation(s)","{count} annotatie(s) gebundeld"],

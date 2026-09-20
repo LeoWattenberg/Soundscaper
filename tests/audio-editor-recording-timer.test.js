@@ -41,17 +41,20 @@ test('timer recording opens the input immediately and starts the prepared take o
 		const trackId = controller.getSnapshot().project.tracks[0].id;
 		controller.actions.recording.toggleLeadIn();
 		const startTimeMs = now + 10_000;
-		const scheduled = await controller.actions.recording.schedule(startTimeMs, { trackId });
+		const endTimeMs = startTimeMs + 2_500;
+		const scheduled = await controller.actions.recording.schedule(startTimeMs, { trackId, endTimeMs });
 
 		assert.equal(scheduled.startTimeMs, startTimeMs);
+		assert.equal(scheduled.endTimeMs, endTimeMs);
 		assert.equal(controller.getSnapshot().scheduledRecording.startTimeMs, startTimeMs);
+		assert.equal(controller.getSnapshot().scheduledRecording.endTimeMs, endTimeMs);
 		assert.equal(controller.getSnapshot().recording, false);
 		assert.equal(controller.getSnapshot().recordingInputs.hasOpenInputs, true);
 		assert.deepEqual(pool.hardwareRequests, [{ deviceId: 'default', channelCount: 1 }]);
 		assert.equal(createdControllers.length, 1, 'the recorder pipeline is prepared while permission is available');
 		assert.deepEqual(createdControllers[0].startOptions, {
 			startFrame: 480_000,
-			stopFrame: undefined,
+			stopFrame: 600_000,
 		}, 'capture is armed for the requested wall time without adding lead-in delay');
 		assert.equal(engine.playAtCalls.length, 0, 'timeline playback does not begin while the take is only armed');
 		assert.equal(scheduledDelay, 10_000);
