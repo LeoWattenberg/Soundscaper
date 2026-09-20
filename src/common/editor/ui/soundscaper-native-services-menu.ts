@@ -133,13 +133,13 @@ export function createSoundscaperNativeServicesMenuItems(
 	});
 	const analyzer = entry({
 		id: 'native-analyzer-use',
-		label: input.copy?.vampAnalyzers ?? 'Vamp Plugins…',
+		label: copy.vampAnalyzers,
 		disabledReason: reason
 			?? (input.editingBlocked === true || input.readOnly === true ? copy.projectReadOnly : null)
 			?? (snapshot.enabledPluginFormats.includes('vamp')
-				? null : input.copy?.vampFormatBlocked ?? 'No Vamp plug-in format is enabled yet')
+				? null : copy.vampFormatBlocked)
 			?? (input.analyzerRuntimeAvailable === false
-				? input.copy?.vampRuntimeUnavailable ?? 'The Vamp analyzer runtime is unavailable' : null),
+				? copy.vampRuntimeUnavailable : null),
 		open: actions.open,
 	});
 
