@@ -41,6 +41,7 @@ export interface DesktopNativeTierControlsStore {
 
 export interface DesktopHostMenuItem {
 	readonly id: string;
+	readonly documentationId?: string;
 	readonly label: string;
 	readonly shortcut?: string;
 	readonly checked?: boolean;
@@ -66,6 +67,7 @@ export interface DesktopHostMenuInput {
 	readonly copy: DesktopHostCopy;
 	readonly development: boolean;
 	readonly platform?: string;
+	readonly productId: 'soundscaper' | 'framescaper';
 	readonly productName: string;
 	readonly snapshot: DesktopNativeTierControls;
 	applyNativeTierControl(action: DesktopNativeTierControlAction, enabled?: boolean): void;
@@ -122,8 +124,8 @@ export function createDesktopHostMenuItems(input: DesktopHostMenuInput | null): 
 				apply('set-native-effect-discovery-enabled', !input.snapshot.nativeEffectDiscoveryEnabled)),
 		])]),
 		help: Object.freeze([
-			item('desktop-product-help', input.copy.productHelp.replace('{product}', input.productName),
-				() => input.openExternal('help')),
+			documentedItem('desktop-product-help', `desktop-product-help-${input.productId}`,
+				input.copy.productHelp.replace('{product}', input.productName), () => input.openExternal('help')),
 			item('desktop-check-updates', input.copy.checkUpdates, input.checkForUpdates),
 			item('desktop-view-source', input.copy.viewSource, () => input.openExternal('source')),
 		]),
@@ -224,6 +226,15 @@ function item(
 
 function checkedItem(id: string, label: string, checked: boolean, onClick: () => void): DesktopHostMenuItem {
 	return Object.freeze({ id, label, checked, onClick });
+}
+
+function documentedItem(
+	id: string,
+	documentationId: string,
+	label: string,
+	onClick: () => void,
+): DesktopHostMenuItem {
+	return Object.freeze({ id, documentationId, label, onClick });
 }
 
 function sameControls(current: DesktopNativeTierControls, next: DesktopNativeTierControls): boolean {

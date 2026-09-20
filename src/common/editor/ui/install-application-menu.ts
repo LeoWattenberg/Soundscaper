@@ -29,6 +29,9 @@ export function createInstallApplicationMenuItem(input: InstallApplicationMenuIn
 		: { disabled: true, disabledReason: input.copy.installUnavailable });
 	return Object.freeze({
 		id: INSTALL_APPLICATION_MENU_ITEM_ID,
+		documentationId: input.productId === 'framescaper'
+			? 'install-framescaper'
+			: 'install-soundscaper',
 		label: input.productId === 'framescaper'
 			? input.copy.installFramescaper
 			: input.copy.installEditor,

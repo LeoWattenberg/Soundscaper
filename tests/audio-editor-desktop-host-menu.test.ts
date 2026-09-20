@@ -45,6 +45,7 @@ test('desktop host menus migrate every native-only row for either desktop produc
 	const menus = createDesktopHostMenuItems({
 		copy: copy(),
 		development: true,
+		productId: 'framescaper',
 		productName: 'Framescaper',
 		snapshot: snapshot({ probeHelperEnabled: true, nativeEffectDiscoveryEnabled: true }),
 		applyNativeTierControl: (action, enabled) => { controls.push([action, enabled]); },
@@ -66,6 +67,7 @@ test('desktop host menus migrate every native-only row for either desktop produc
 		'desktop-product-help', 'desktop-check-updates', 'desktop-view-source',
 	]);
 	assert.equal(menus.help[0]?.label, 'Framescaper Help');
+	assert.equal(menus.help[0]?.documentationId, 'desktop-product-help-framescaper');
 
 	menus.tools[0]?.items?.[0]?.onClick?.();
 	menus.tools[0]?.items?.[1]?.onClick?.();
@@ -95,6 +97,7 @@ test('web has no desktop host rows and packaged desktop hides development comman
 	const menus = createDesktopHostMenuItems({
 		copy: copy(),
 		development: false,
+		productId: 'soundscaper',
 		productName: 'Soundscaper',
 		snapshot: snapshot(),
 		applyNativeTierControl: () => undefined,
@@ -109,7 +112,7 @@ test('web has no desktop host rows and packaged desktop hides development comman
 
 test('development menu shortcut labels follow the desktop platform', () => {
 	const menusForPlatform = (platform: string) => createDesktopHostMenuItems({
-		copy: copy(), development: true, platform, productName: 'Soundscaper', snapshot: snapshot(),
+		copy: copy(), development: true, platform, productId: 'soundscaper', productName: 'Soundscaper', snapshot: snapshot(),
 		applyNativeTierControl: () => undefined, runWindowAction: () => undefined,
 		checkForUpdates: () => undefined, openExternal: () => undefined,
 	});

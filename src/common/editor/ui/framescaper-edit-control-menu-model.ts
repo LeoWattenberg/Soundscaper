@@ -55,6 +55,7 @@ export interface FramescaperEditControlActions {
 
 export interface FramescaperApplicationMenuItem {
 	readonly id: string;
+	readonly documentationId?: string;
 	readonly label: string;
 	readonly disabled: boolean;
 	onClick(): unknown;
@@ -117,7 +118,7 @@ export function createFramescaperEditControlMenuItems(
 			return operation.kind === 'link'
 				? actions.link(operation.videoClipId, operation.audioClipId)
 				: actions.unlink(operation.clipId);
-		}),
+		}, model.link.operation?.kind === 'unlink' ? 'video-unlink-audio' : 'video-link-audio'),
 		visibility: model.visibility === null ? null : applicationMenuItem(model.visibility, () => {
 			const operation = model.visibility?.operation;
 			return model.visibility?.disabled || !operation
@@ -218,8 +219,15 @@ function menuItem<Operation extends object>(
 function applicationMenuItem<Operation>(
 	item: Readonly<FramescaperEditControlMenuItem<Operation>>,
 	onClick: () => unknown,
+	documentationId?: string,
 ): Readonly<FramescaperApplicationMenuItem> {
-	return Object.freeze({ id: item.id, label: item.label, disabled: item.disabled, onClick });
+	return Object.freeze({
+		id: item.id,
+		...(documentationId === undefined ? {} : { documentationId }),
+		label: item.label,
+		disabled: item.disabled,
+		onClick,
+	});
 }
 
 function validRange(clip: DataRecord): boolean {

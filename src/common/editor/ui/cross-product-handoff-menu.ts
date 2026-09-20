@@ -12,8 +12,10 @@ interface CrossProductHandoffMenuInput {
 export function createCrossProductHandoffMenuItems(input: CrossProductHandoffMenuInput) {
 	const targetLabel = input.productId === 'framescaper'
 		? input.copy.editInSoundscaper : input.copy.editInFramescaper;
+	const targetProduct = input.productId === 'framescaper' ? 'soundscaper' : 'framescaper';
 	const switchItem = Object.freeze({
 		id: 'switch-product',
+		documentationId: `switch-product-to-${targetProduct}`,
 		label: targetLabel,
 		disabled: input.handoffBlocked || !input.available,
 		disabledReason: input.available
@@ -24,6 +26,7 @@ export function createCrossProductHandoffMenuItems(input: CrossProductHandoffMen
 	if (typeof input.actions.cancelCrossProductCopy !== 'function') return [switchItem];
 	return [switchItem, Object.freeze({
 		id: 'cancel-switch-product',
+		documentationId: `cancel-switch-product-to-${targetProduct}`,
 		label: `${input.copy.cancel}: ${targetLabel}`,
 		resolve: () => ({
 			disabled: typeof input.actions.crossProductCopyActive !== 'function'

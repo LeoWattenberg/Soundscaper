@@ -94,6 +94,7 @@ export function createWorkspaceApplicationMenus({
 		|| desktopHostRuntime === null || desktopHostRuntime === undefined ? null : {
 		...desktopHostRuntime,
 		copy,
+		productId,
 		productName: copy.title,
 	});
 	const menus = createApplicationMenus({
