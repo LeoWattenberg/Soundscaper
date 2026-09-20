@@ -67,6 +67,10 @@ export interface SoundscaperNativeServicesSnapshot {
 	readonly quarantined: boolean;
 	readonly payloadAvailable: boolean;
 	readonly payloadDetail: string;
+	readonly pluginEnabled: boolean;
+	readonly pluginQuarantined: boolean;
+	readonly pluginPayloadAvailable: boolean;
+	readonly pluginPayloadDetail: string;
 	readonly usableAudioBackends: readonly string[];
 	readonly enabledPluginFormats: readonly string[];
 }
@@ -101,8 +105,8 @@ export function createSoundscaperNativeServicesMenuItems(
 	if (input.productId !== 'soundscaper' || !input.runtimeAvailable || input.snapshot === null) return EMPTY;
 	const copy = resolveSoundscaperNativeServicesCopy(input.copy);
 	const snapshot = input.snapshot;
-	const sharedReason = unavailableReason(copy, snapshot);
-	const audioReason = sharedReason ?? (!snapshot.enabled ? copy.nativeAudioDisabled : null);
+	const audioReason = audioUnavailableReason(copy, snapshot);
+	const pluginReason = pluginUnavailableReason(copy, snapshot);
 
 	const audioDevice = entry({
 		id: 'native-audio-device',
@@ -122,7 +126,7 @@ export function createSoundscaperNativeServicesMenuItems(
 	});
 	const use = entry({
 		id: 'native-effect-use', label: copy.audioPluginEffects,
-		disabledReason: sharedReason
+		disabledReason: pluginReason
 			?? (input.editingBlocked === true || input.readOnly === true ? copy.projectReadOnly : null)
 			?? (snapshot.enabledPluginFormats.length === 0 ? copy.pluginFormatsBlocked : null),
 		open: actions.open,
@@ -136,7 +140,7 @@ export function createSoundscaperNativeServicesMenuItems(
 	const analyzer = entry({
 		id: 'native-analyzer-use',
 		label: copy.vampAnalyzers,
-		disabledReason: sharedReason
+		disabledReason: pluginReason
 			?? (input.editingBlocked === true || input.readOnly === true ? copy.projectReadOnly : null)
 			?? (snapshot.enabledPluginFormats.includes('vamp')
 				? null : copy.vampFormatBlocked)
@@ -156,12 +160,23 @@ export function createSoundscaperNativeServicesMenuItems(
 	});
 }
 
-function unavailableReason(
+function audioUnavailableReason(
 	copy: SoundscaperNativeServicesCopy,
 	snapshot: SoundscaperNativeServicesSnapshot,
 ): string | null {
 	if (snapshot.quarantined) return copy.audioHelperQuarantined;
 	if (!snapshot.payloadAvailable) return snapshot.payloadDetail || copy.audioBackendUnavailable;
+	if (!snapshot.enabled) return copy.nativeAudioDisabled;
+	return null;
+}
+
+function pluginUnavailableReason(
+	copy: SoundscaperNativeServicesCopy,
+	snapshot: SoundscaperNativeServicesSnapshot,
+): string | null {
+	if (snapshot.pluginQuarantined) return copy.pluginHelperQuarantined;
+	if (!snapshot.pluginPayloadAvailable) return snapshot.pluginPayloadDetail || copy.pluginRuntimeUnavailable;
+	if (!snapshot.pluginEnabled) return copy.discoveryDisabled;
 	return null;
 }
 

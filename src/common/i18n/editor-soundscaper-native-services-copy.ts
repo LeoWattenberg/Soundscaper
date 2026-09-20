@@ -15,6 +15,8 @@ export const SOUNDSCAPER_NATIVE_SERVICES_COPY = Object.freeze({
 	pluginScan: 'Scan for effects',
 	pluginManage: "Plugin Manager",
 	pluginFormatsBlocked: 'No native effect format is enabled yet',
+	pluginHelperQuarantined: 'Native plug-in helper is quarantined',
+	pluginRuntimeUnavailable: 'The native plug-in runtime is unavailable',
 	vampAnalyzers: 'Vamp Plugins',
 	vampFormatBlocked: 'No Vamp plug-in format is enabled yet',
 	vampRuntimeUnavailable: 'The Vamp analyzer runtime is unavailable',

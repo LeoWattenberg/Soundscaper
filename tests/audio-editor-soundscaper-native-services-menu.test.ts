@@ -10,12 +10,17 @@ import {
 	type SoundscaperNativeServicesSnapshot,
 	createSoundscaperNativeServicesMenuItems,
 } from '../src/common/editor/ui/soundscaper-native-services-menu.ts';
+import { resolveSoundscaperNativeServicesSnapshot } from '../src/common/editor/ui/soundscaper-native-services-bridge.ts';
 
 const HEALTHY: SoundscaperNativeServicesSnapshot = Object.freeze({
 	enabled: true,
 	quarantined: false,
 	payloadAvailable: true,
 	payloadDetail: '',
+	pluginEnabled: true,
+	pluginQuarantined: false,
+	pluginPayloadAvailable: true,
+	pluginPayloadDetail: '',
 	usableAudioBackends: Object.freeze(['alsa']),
 	enabledPluginFormats: Object.freeze(['fixture', 'vamp']),
 });
@@ -71,6 +76,37 @@ test('the audio switch does not disable independently enabled effects or analyze
 	assert.equal(find(items.tools, 'native-audio-device').disabled, true);
 	assert.equal(find(items.effect, 'native-effect-use').disabled, false);
 	assert.equal(find(items.analyze, 'native-analyzer-use').disabled, false);
+});
+
+test('audio and plug-in helper health never disable the other native service family', () => {
+	const audioFailed = resolveSoundscaperNativeServicesSnapshot({
+		enabled: true, quarantined: true,
+		payload: { status: 'unavailable', reason: 'audio-missing', detail: 'Audio payload unavailable' },
+		backends: [],
+	}, {
+		enabled: true, quarantined: false, payload: { status: 'available', reason: null },
+		formats: [{ format: 'fixture', consented: true }, { format: 'vamp', consented: true }],
+		consent: { scanningEnabled: true, formats: [] },
+		quarantine: { loaded: true, degraded: false, records: [], pendingFaults: 0 },
+	});
+	const audioFailedItems = build({}, audioFailed).items;
+	assert.equal(find(audioFailedItems.tools, 'native-audio-device').disabled, true);
+	assert.equal(find(audioFailedItems.effect, 'native-effect-use').disabled, false);
+	assert.equal(find(audioFailedItems.analyze, 'native-analyzer-use').disabled, false);
+
+	const pluginsFailed = resolveSoundscaperNativeServicesSnapshot({
+		enabled: true, quarantined: false,
+		payload: { status: 'available', reason: null, detail: '' }, backends: ['alsa'],
+	}, {
+		enabled: true, quarantined: true, payload: { status: 'unavailable', reason: 'plugin-missing' },
+		formats: [{ format: 'fixture', consented: true }, { format: 'vamp', consented: true }],
+		consent: { scanningEnabled: true, formats: [] },
+		quarantine: { loaded: true, degraded: false, records: [], pendingFaults: 0 },
+	});
+	const pluginsFailedItems = build({}, pluginsFailed).items;
+	assert.equal(find(pluginsFailedItems.tools, 'native-audio-device').disabled, false);
+	assert.equal(find(pluginsFailedItems.effect, 'native-effect-use').disabled, true);
+	assert.equal(find(pluginsFailedItems.analyze, 'native-analyzer-use').disabled, true);
 });
 
 test('Vamp analysis is menu-only and requires the enabled Vamp format', () => {

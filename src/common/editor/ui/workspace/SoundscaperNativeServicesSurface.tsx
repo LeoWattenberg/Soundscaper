@@ -61,6 +61,10 @@ export const PENDING_SOUNDSCAPER_NATIVE_SERVICES_SNAPSHOT: SoundscaperNativeServ
 		quarantined: false,
 		payloadAvailable: true,
 		payloadDetail: '',
+		pluginEnabled: false,
+		pluginQuarantined: false,
+		pluginPayloadAvailable: true,
+		pluginPayloadDetail: '',
 		usableAudioBackends: Object.freeze([]),
 		enabledPluginFormats: Object.freeze([]),
 	});
