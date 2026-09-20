@@ -30,6 +30,7 @@ export const SOUNDSCAPER_NATIVE_SERVICE_SURFACES = Object.freeze([
 	'native-effect-scan',
 	'native-effect-manage',
 	'native-effect-use',
+	'native-analyzer-use',
 ] as const);
 
 export type SoundscaperNativeServiceSurface =
@@ -52,6 +53,7 @@ export interface SoundscaperNativeServicesMenuItem {
 export interface SoundscaperNativeServicesMenuItems {
 	readonly tools: readonly SoundscaperNativeServicesMenuItem[];
 	readonly effect: readonly SoundscaperNativeServicesMenuItem[];
+	readonly analyze: readonly SoundscaperNativeServicesMenuItem[];
 }
 
 /**
@@ -75,6 +77,7 @@ export interface SoundscaperNativeServicesMenuInput {
 	readonly snapshot: SoundscaperNativeServicesSnapshot | null;
 	readonly editingBlocked?: boolean;
 	readonly readOnly?: boolean;
+	readonly analyzerRuntimeAvailable?: boolean;
 	readonly copy?: Readonly<Record<string, string | undefined>>;
 }
 
@@ -85,6 +88,7 @@ export interface SoundscaperNativeServicesMenuActions {
 const EMPTY: SoundscaperNativeServicesMenuItems = Object.freeze({
 	tools: Object.freeze([]),
 	effect: Object.freeze([]),
+	analyze: Object.freeze([]),
 });
 
 export function createSoundscaperNativeServicesMenuItems(
@@ -127,6 +131,17 @@ export function createSoundscaperNativeServicesMenuItems(
 		disabledReason: null,
 		open: actions.open,
 	});
+	const analyzer = entry({
+		id: 'native-analyzer-use',
+		label: input.copy?.vampAnalyzers ?? 'Vamp Plugins…',
+		disabledReason: reason
+			?? (input.editingBlocked === true || input.readOnly === true ? copy.projectReadOnly : null)
+			?? (snapshot.enabledPluginFormats.includes('vamp')
+				? null : input.copy?.vampFormatBlocked ?? 'No Vamp plug-in format is enabled yet')
+			?? (input.analyzerRuntimeAvailable === false
+				? input.copy?.vampRuntimeUnavailable ?? 'The Vamp analyzer runtime is unavailable' : null),
+		open: actions.open,
+	});
 
 	return Object.freeze({
 		tools: Object.freeze([
@@ -135,6 +150,7 @@ export function createSoundscaperNativeServicesMenuItems(
 		effect: Object.freeze([
 			manage, use,
 		]),
+		analyze: Object.freeze([analyzer]),
 	});
 }
 

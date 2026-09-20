@@ -36,9 +36,18 @@ import {
 	type SoundscaperNativeServicesDialogRuntime,
 } from '../soundscaper-native-services-dialog-runtime.ts';
 import type { EnginePublicApi } from '../../engine/public-api.ts';
+import {
+	createSoundscaperVampAnalyzerSession,
+	type SoundscaperVampAnalyzerController,
+	type SoundscaperVampAnalyzerPort,
+	type SoundscaperVampAnalyzerSession,
+} from './soundscaper-vamp-analyzer-runtime.ts';
 
 const SoundscaperNativeServicesDialog = React.lazy(() => (
 	import('../dialogs/SoundscaperNativeServicesDialog.tsx')
+));
+const SoundscaperVampAnalyzerSurface = React.lazy(() => (
+	import('./SoundscaperVampAnalyzerSurface.tsx')
 ));
 
 /**
@@ -58,6 +67,7 @@ export const PENDING_SOUNDSCAPER_NATIVE_SERVICES_SNAPSHOT: SoundscaperNativeServ
 
 export interface SoundscaperNativeServicesWorkspaceRuntime {
 	readonly snapshot: SoundscaperNativeServicesSnapshot;
+	readonly vampAnalyzerAvailable: boolean;
 	open(surface: SoundscaperNativeServiceSurface): void;
 }
 
@@ -66,6 +76,7 @@ export interface SoundscaperNativeServicesSurfaceHost {
 	restoreProjectNativePlugins(): Promise<readonly unknown[]>;
 	setProcessingBlocked(blocked: boolean): void;
 	setCopy(copy: Readonly<Record<string, string | undefined>> | undefined): void;
+	setVampAnalyzerSession(session: Readonly<SoundscaperVampAnalyzerSession> | null): void;
 	open(surface: SoundscaperNativeServiceSurface): void;
 	close(): void;
 	dispose(): Promise<void>;
@@ -96,6 +107,7 @@ export function createSoundscaperNativeServicesSurfaceHost(
 	let returnFocus: (() => void) | null = null;
 	let copy = options.copy;
 	let processingBlocked = false;
+	let vampAnalyzerSession: Readonly<SoundscaperVampAnalyzerSession> | null = null;
 	let openSurface: SoundscaperNativeServiceSurface | null = null;
 	const renderer = options.engine
 		? (options.createRendererBridge ?? createSoundscaperNativeRendererBridge)({
@@ -117,6 +129,12 @@ export function createSoundscaperNativeServicesSurfaceHost(
 		restore?.();
 	};
 	const renderDialog = (surface: SoundscaperNativeServiceSurface): void => {
+		if (surface === 'native-analyzer-use') {
+			root?.render(vampAnalyzerSession === null ? null : <React.Suspense fallback={null}>
+				<SoundscaperVampAnalyzerSurface session={vampAnalyzerSession} onClose={close} />
+			</React.Suspense>);
+			return;
+		}
 		root?.render(<React.Suspense fallback={null}>
 			<SoundscaperNativeServicesDialog
 				bridge={bridge}
@@ -159,6 +177,11 @@ export function createSoundscaperNativeServicesSurfaceHost(
 			copy = next;
 			if (openSurface !== null) renderDialog(openSurface);
 		},
+		setVampAnalyzerSession: (next: Readonly<SoundscaperVampAnalyzerSession> | null) => {
+			if (sameVampAnalyzerSession(vampAnalyzerSession, next)) return;
+			vampAnalyzerSession = next;
+			if (openSurface === 'native-analyzer-use') renderDialog(openSurface);
+		},
 		open: (surface: SoundscaperNativeServiceSurface) => {
 			if (!documentValue) return;
 			openSurface = surface;
@@ -194,6 +217,21 @@ export function createSoundscaperNativeServicesSurfaceHost(
 			return operation;
 		},
 	});
+}
+
+function sameVampAnalyzerSession(
+	left: Readonly<SoundscaperVampAnalyzerSession> | null,
+	right: Readonly<SoundscaperVampAnalyzerSession> | null,
+): boolean {
+	return left === right || (left !== null && right !== null
+		&& left.projectId === right.projectId
+		&& left.projectRevision === right.projectRevision
+		&& left.selectedTrackId === right.selectedTrackId
+		&& left.analyzerPort === right.analyzerPort
+		&& left.scope === right.scope
+		&& left.startFrame === right.startFrame
+		&& left.endFrame === right.endFrame
+		&& left.sampleRate === right.sampleRate);
 }
 
 interface OwnedHost {
@@ -255,6 +293,9 @@ export function resolveSoundscaperNativeServicesWorkspaceRuntime(input: Readonly
 	copy?: Readonly<Record<string, string | undefined>>;
 	engine?: EnginePublicApi | null;
 	controller?: Parameters<typeof createSoundscaperNativeRendererBridge>[0]['controller'];
+	durationFrames?: number;
+	selectedTrackId?: string | null;
+	vampAnalyzer?: SoundscaperVampAnalyzerPort | null;
 }>): Readonly<SoundscaperNativeServicesWorkspaceRuntime> | null {
 	const bridge = resolveBridge(input);
 	if (bridge === null) return null;
@@ -271,17 +312,37 @@ export function resolveSoundscaperNativeServicesWorkspaceRuntime(input: Readonly
 		HOSTS.set(owner, owned);
 	}
 	const { host } = owned;
+	const vampController = soundscaperVampController(input.controller);
+	const vampAnalyzerSession = vampController && Number(input.durationFrames) > 0
+		? createSoundscaperVampAnalyzerSession({
+			controller: vampController,
+			durationFrames: Number(input.durationFrames),
+			selectedTrackId: input.selectedTrackId ?? null,
+			port: input.vampAnalyzer,
+		})
+		: null;
 	host.setCopy(input.copy);
 	host.setProcessingBlocked(input.processingBlocked === true);
+	host.setVampAnalyzerSession(vampAnalyzerSession);
 	void host.restoreProjectNativePlugins().catch((error: unknown) => {
 		console.error('Persisted native plug-ins could not be restored:', error);
 	});
 	return Object.freeze({
 		snapshot: store.getSnapshot() ?? PENDING_SOUNDSCAPER_NATIVE_SERVICES_SNAPSHOT,
+		vampAnalyzerAvailable: vampAnalyzerSession !== null,
 		open: (surface: SoundscaperNativeServiceSurface) => {
 			host.open(surface);
 		},
 	});
+}
+
+function soundscaperVampController(value: unknown): SoundscaperVampAnalyzerController | null {
+	if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
+	const controller = value as Partial<SoundscaperVampAnalyzerController>;
+	const edit = controller.actions?.edit;
+	return edit && typeof edit.commit === 'function'
+		? controller as SoundscaperVampAnalyzerController
+		: null;
 }
 
 export function releaseSoundscaperNativeServicesWorkspaceRuntime(owner: object): void {

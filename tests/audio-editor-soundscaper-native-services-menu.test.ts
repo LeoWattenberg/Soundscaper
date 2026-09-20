@@ -17,7 +17,7 @@ const HEALTHY: SoundscaperNativeServicesSnapshot = Object.freeze({
 	payloadAvailable: true,
 	payloadDetail: '',
 	usableAudioBackends: Object.freeze(['alsa']),
-	enabledPluginFormats: Object.freeze(['fixture']),
+	enabledPluginFormats: Object.freeze(['fixture', 'vamp']),
 });
 
 function build(
@@ -46,22 +46,35 @@ test('Framescaper receives none of the Soundscaper native audio tier', () => {
 	const { items } = build({ productId: 'framescaper' });
 	assert.deepEqual(items.tools, []);
 	assert.deepEqual(items.effect, []);
+	assert.deepEqual(items.analyze, []);
 });
 
 test('every native surface is reached from an existing menu family and none is always-visible chrome', () => {
 	const { items } = build();
-	const ids = [...flatten(items.tools), ...flatten(items.effect)].map(({ id }) => id);
+	const ids = [...flatten(items.tools), ...flatten(items.effect), ...flatten(items.analyze)].map(({ id }) => id);
 	for (const surface of SOUNDSCAPER_NATIVE_SERVICE_SURFACES.filter((id) => id !== 'native-effect-scan')) {
 		assert.ok(ids.includes(surface), `${surface} must be menu-reached`);
 	}
-	assert.deepEqual(Object.keys(items), ['tools', 'effect']);
+	assert.deepEqual(Object.keys(items), ['tools', 'effect', 'analyze']);
 });
 
 test('a healthy tier opens each surface exactly once per click', () => {
 	const { items, opened } = build();
 	find(items.tools, 'native-audio-device').onClick?.();
 	find(items.effect, 'native-effect-use').onClick?.();
-	assert.deepEqual(opened, ['native-audio-device', 'native-effect-use']);
+	find(items.analyze, 'native-analyzer-use').onClick?.();
+	assert.deepEqual(opened, ['native-audio-device', 'native-effect-use', 'native-analyzer-use']);
+});
+
+test('Vamp analysis is menu-only and requires the enabled Vamp format', () => {
+	const healthy = build();
+	assert.equal(find(healthy.items.analyze, 'native-analyzer-use').disabled, false);
+	const unavailable = build({}, { ...HEALTHY, enabledPluginFormats: ['fixture'] });
+	const entry = find(unavailable.items.analyze, 'native-analyzer-use');
+	assert.equal(entry.disabled, true);
+	assert.match(entry.disabledReason, /Vamp/iu);
+	const unwired = build({ analyzerRuntimeAvailable: false });
+	assert.match(find(unwired.items.analyze, 'native-analyzer-use').disabledReason, /runtime/iu);
 });
 
 test('the surfaces that turn the tier on or repair it stay reachable while it is off', () => {
@@ -122,6 +135,7 @@ test('a build with no native runtime shows no native entries at all', () => {
 		const { items } = build(input, 'snapshot' in input ? null : HEALTHY);
 		assert.deepEqual(items.tools, [], 'the browser editor advertises no native tier');
 		assert.deepEqual(items.effect, []);
+		assert.deepEqual(items.analyze, []);
 	}
 });
 
