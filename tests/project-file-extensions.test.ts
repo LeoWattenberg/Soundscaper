@@ -7,14 +7,13 @@ import {
 	ACCEPTED_PROJECT_FILE_EXTENSION_LIST,
 	ACCEPTED_PROJECT_FILE_EXTENSIONS,
 	isAcceptedProjectFileExtension,
-	isLegacyProjectFileName,
 	isProjectFileName,
 	LEGACY_PROJECT_FILE_EXTENSION,
 	PROJECT_FILE_EXTENSION_BY_PRODUCT,
 	projectFileExtensionForProduct,
-	projectFileExtensionOf,
 	withProjectFileExtension,
 } from '../src/common/project-file-extensions.ts';
+import * as projectFileExtensions from '../src/common/project-file-extensions.ts';
 import { PRODUCT_IDS, PRODUCT_PROFILES, productProfile } from '../src/common/products.js';
 
 test('the registry names one suffix per product and admits every one of them', () => {
@@ -71,14 +70,14 @@ test('a product suffix is resolved case-insensitively and unknown products are r
 
 test('every accepted suffix is recognized regardless of case', () => {
 	for (const extension of ACCEPTED_PROJECT_FILE_EXTENSIONS) {
-		assert.equal(projectFileExtensionOf(`mix${extension}`), extension);
-		assert.equal(projectFileExtensionOf(`mix${extension.toUpperCase()}`), extension);
-		assert.equal(projectFileExtensionOf(`MIX${extension.replace('s', 'S')}`), extension);
+		assert.ok(isProjectFileName(`mix${extension}`));
+		assert.ok(isProjectFileName(`mix${extension.toUpperCase()}`));
+		assert.ok(isProjectFileName(`MIX${extension.replace('s', 'S')}`));
 		assert.ok(isProjectFileName(`mix${extension.toUpperCase()}`));
 		assert.ok(isAcceptedProjectFileExtension(extension.toUpperCase()));
 	}
-	assert.ok(isLegacyProjectFileName('Legacy.SCAPE'));
-	assert.ok(!isLegacyProjectFileName('current.sscape'));
+	assert.ok(isProjectFileName('Legacy.SCAPE'));
+	assert.ok(isProjectFileName('current.sscape'));
 });
 
 test('a disguised or partial suffix is not a project file', () => {
@@ -101,12 +100,17 @@ test('a disguised or partial suffix is not a project file', () => {
 		42,
 	];
 	for (const candidate of disguised) {
-		assert.equal(projectFileExtensionOf(candidate), null, String(candidate));
 		assert.ok(!isProjectFileName(candidate), String(candidate));
 	}
 	assert.ok(!isAcceptedProjectFileExtension('.sscape.zip'));
 	assert.ok(!isAcceptedProjectFileExtension('sscape'));
 	assert.ok(!isAcceptedProjectFileExtension(null));
+});
+
+test('extension parsing stays private and the retired compatibility aliases are absent', () => {
+	assert.equal('projectFileExtensionOf' in projectFileExtensions, false);
+	assert.equal('isLegacyProjectFileName' in projectFileExtensions, false);
+	assert.equal('SCAPE_FILE_EXTENSION' in projectFileExtensions, false);
 });
 
 test('saving replaces a recognized suffix and otherwise appends the active one', () => {

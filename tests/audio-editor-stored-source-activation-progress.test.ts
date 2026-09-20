@@ -67,6 +67,28 @@ test('waveform activation reports final completion only after the analysis cache
 	assert.equal(fixture.sourcePeaks.size, 1);
 });
 
+test('short stored sources use the composed audio context and full-buffer waveform path', async () => {
+	const fixture = activationFixture();
+	const context = { kind: 'offline-audio-context' };
+	const buffer = { channels: [Float32Array.of(0, 1, 0, -1)] };
+	const cached: unknown[] = [];
+	Object.assign(fixture.runtime, {
+		registerStoredChunkProvider: () => null,
+		engine: { getAudioContext: () => context },
+		readStoredAudioBuffer: (_store: unknown, _source: SourceLifecycleSource, value: unknown) => {
+			assert.equal(value, context);
+			return buffer;
+		},
+		audioBufferChannels: (value: typeof buffer) => value.channels,
+		generateWaveformPeaks: (channels: readonly Float32Array[]) => ({ channels }),
+		cacheSourceBuffer: (_sourceId: string, value: unknown) => { cached.push(value); },
+	});
+
+	const peaks = await activateStoredSourceWithProgress(fixture.runtime, fixture.source, null, {});
+	assert.deepEqual(peaks, { channels: buffer.channels });
+	assert.deepEqual(cached, [buffer]);
+});
+
 test('late cancellation removes a waveform cache saved while cancellation was pending', async () => {
 	const fixture = activationFixture();
 	const controller = new AbortController();
@@ -106,7 +128,7 @@ function activationFixture() {
 		registerStoredChunkProvider: () => ({}),
 		cacheSourceBuffer: () => { throw new Error('Unexpected full buffer cache'); },
 		audioBufferChannels: () => [], copy: {},
-		engine: {},
+		engine: { getAudioContext: () => { throw new Error('Unexpected audio context request'); } },
 		generateStoredWaveformPeaks: (_store: unknown, _source: SourceLifecycleSource, _copy: SourceLifecycleCopy, options?: StoredWaveformAnalysisOptions) =>
 			generateStoredWaveformPeaksFallback({ async *readSourceChunks() {
 				pulls++; yield { channels: [Float32Array.of(0, 1)], frames: 2 };
@@ -118,7 +140,12 @@ function activationFixture() {
 		sourceBuffers: { ...new Map(), [Symbol.iterator]: () => new Map<string, unknown>()[Symbol.iterator](),
 			has: () => false, get: () => undefined, delete: () => true, setIfFits: () => false },
 		sourcePcmBytes: () => 16, sourcePeaks,
-		store: { getSourceMetadata: () => null, loadAnalysis: () => null, saveAnalysis: () => { saved++; } },
+		store: {
+			getSourceMetadata: () => null,
+			loadAnalysis: () => null,
+			saveAnalysis: () => { saved++; },
+			deleteAnalysis: () => undefined,
+		},
 	};
 	return { runtime, source, sourcePeaks, pulls: () => pulls, saved: () => saved };
 }

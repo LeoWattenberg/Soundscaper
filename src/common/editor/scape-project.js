@@ -57,7 +57,6 @@ import {
 } from './video-timing-asset.ts';
 
 export { SCAPE_FORMAT, SCAPE_FORMAT_VERSION, SCAPE_MIME_TYPE };
-export { SCAPE_FILE_EXTENSION } from '../project-file-extensions.ts';
 
 import {
 	assertOwnedScapeMediaWriter,

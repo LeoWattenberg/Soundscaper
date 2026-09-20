@@ -27,7 +27,7 @@ export async function activateStoredSourceWithProgress<Buffer, Provider, Peaks, 
 	if (provider && (requireChunkStream || runtime.sourcePcmBytes(source) > runtime.SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES)) {
 		runtime.sourceBuffers.delete(source.id);
 	} else {
-		const context = peakBuffer ? null : await runtime.engine.getAudioContext?.({ resume: false });
+		const context = peakBuffer ? null : await runtime.engine.getAudioContext!({ resume: false });
 		signal?.throwIfAborted();
 		peakBuffer ||= await runtime.readStoredAudioBuffer(runtime.store, source, context);
 		signal?.throwIfAborted();
@@ -48,7 +48,7 @@ export async function activateStoredSourceWithProgress<Buffer, Provider, Peaks, 
 		return peaks;
 	} catch (error) {
 		runtime.sourcePeaks.delete(source.id);
-		try { await runtime.store.deleteAnalysis?.(peakKey); }
+		try { await runtime.store.deleteAnalysis!(peakKey); }
 		catch (cleanupError) {
 			throw new AggregateError([error, cleanupError], 'Source activation and waveform cleanup both failed.', { cause: cleanupError });
 		}

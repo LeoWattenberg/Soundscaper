@@ -22,73 +22,39 @@
  */
 
 import {
-	compareArchiveManifests,
 	createArchiveManifestFromStreams,
 	type ArchiveManifest,
 	type ArchiveManifestContext,
-	type ArchiveVerification,
 } from './archive-manifest.ts';
 import type { ScapeArchiveEntry } from './scape-archive-envelope.ts';
-import { withScapeArchiveReader, type ScapeArchiveReaderFactory } from './scape-archive-reader.ts';
+import { withScapeArchiveReader } from './scape-archive-reader.ts';
 
-export interface ScapeArchiveManifestOptions extends ArchiveManifestContext {
-	readonly signal?: AbortSignal;
-	/** Injected so a test can supply entries without a real Zip reader. */
-	readonly createReader?: ScapeArchiveReaderFactory;
+export interface ScapeArchiveManifestOptions {
+	readonly signal: AbortSignal;
+	readonly projectTitle?: string | null;
 }
 
 /** Digest every member of a written archive and record what was found. */
 export async function createScapeArchiveManifest(
 	archive: Blob,
-	options: ScapeArchiveManifestOptions = {},
+	options: ScapeArchiveManifestOptions,
 ): Promise<ArchiveManifest> {
 	const context: ArchiveManifestContext = {
-		...(options.generatedAt === undefined ? {} : { generatedAt: options.generatedAt }),
 		...(options.projectTitle === undefined ? {} : { projectTitle: options.projectTitle }),
 	};
-	return readArchive(archive, options, async (entries) => createArchiveManifestFromStreams(
+	return withScapeArchiveReader(archive, options.signal, async (entries) => createArchiveManifestFromStreams(
 		memberStreams(entries, options.signal),
 		context,
 	));
 }
 
-/**
- * Check an archive against a manifest, member by member.
- *
- * Every member is checked even after one fails, and a member the archive
- * carries but the manifest does not list is reported too: an unlisted member
- * means the two disagree about what the archive is, which is not harmless.
- */
-export async function verifyScapeArchiveManifest(
-	archive: Blob,
-	manifest: ArchiveManifest,
-	options: ScapeArchiveManifestOptions = {},
-): Promise<ArchiveVerification> {
-	// The archive is read once, into an observed manifest, and the comparison is
-	// against what that measured. Reading every member a second time to check it
-	// would double the cost of a reference-scale verification to prove the same
-	// thing.
-	return compareArchiveManifests(manifest, await createScapeArchiveManifest(archive, options));
-}
-
-async function readArchive<Value>(
-	archive: Blob,
-	options: ScapeArchiveManifestOptions,
-	action: (entries: readonly ScapeArchiveEntry[]) => Promise<Value>,
-): Promise<Value> {
-	return options.createReader
-		? withScapeArchiveReader(archive, options.signal, action, options.createReader)
-		: withScapeArchiveReader(archive, options.signal, action);
-}
-
 async function* memberStreams(
 	entries: readonly ScapeArchiveEntry[],
-	signal: AbortSignal | undefined,
+	signal: AbortSignal,
 ) {
 	for (const entry of entries) {
 		if (entry.directory) continue;
-		const filename = String(entry.filename ?? '');
-		if (!filename) throw new TypeError('A Scape archive entry has no name to record.');
+		const { filename } = entry;
 		yield {
 			id: filename,
 			path: filename,
@@ -99,24 +65,21 @@ async function* memberStreams(
 
 async function* entryChunks(
 	entry: ScapeArchiveEntry,
-	signal: AbortSignal | undefined,
+	signal: AbortSignal,
 ): AsyncGenerator<Uint8Array> {
-	if (typeof entry.getData !== 'function') {
-		throw new TypeError(`Scape archive entry ${entry.filename} cannot be read.`);
-	}
 	const pending: Uint8Array[] = [];
 	let notify: (() => void) | null = null;
 	let done = false;
 	let failure: unknown = null;
 	const writable = new WritableStream<Uint8Array>({
 		write(chunk) {
-			pending.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk as ArrayBuffer));
+			pending.push(chunk);
 			notify?.();
 		},
 		close() { done = true; notify?.(); },
 		abort(reason: unknown) { failure = reason; done = true; notify?.(); },
 	});
-	const reading = Promise.resolve(entry.getData(writable, signal ? { signal } : undefined))
+	const reading = Promise.resolve(entry.getData!(writable, { signal }))
 		.then(() => { done = true; notify?.(); }, (error: unknown) => {
 			failure ??= error;
 			done = true;

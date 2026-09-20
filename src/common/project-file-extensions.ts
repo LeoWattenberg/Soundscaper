@@ -25,14 +25,6 @@ export const PROJECT_FILE_EXTENSION_BY_PRODUCT = Object.freeze({
  */
 export const LEGACY_PROJECT_FILE_EXTENSION = '.scape';
 
-/**
- * @deprecated The legacy-import alias re-exported by `editor/scape-project.js`,
- * kept so existing importers keep resolving. New code names the suffix a
- * product writes with `projectFileExtensionForProduct` and classifies an
- * incoming file with `isProjectFileName`.
- */
-export const SCAPE_FILE_EXTENSION = LEGACY_PROJECT_FILE_EXTENSION;
-
 export const ACCEPTED_PROJECT_FILE_EXTENSIONS = Object.freeze([
 	'.sscape',
 	'.fscape',
@@ -40,7 +32,7 @@ export const ACCEPTED_PROJECT_FILE_EXTENSIONS = Object.freeze([
 	'.scape',
 ] as const);
 
-export type ProjectFileProductId = keyof typeof PROJECT_FILE_EXTENSION_BY_PRODUCT;
+type ProjectFileProductId = keyof typeof PROJECT_FILE_EXTENSION_BY_PRODUCT;
 export type ProjectFileExtension = typeof ACCEPTED_PROJECT_FILE_EXTENSIONS[number];
 
 const ACCEPTED_EXTENSION_SET: ReadonlySet<string> = new Set(ACCEPTED_PROJECT_FILE_EXTENSIONS);
@@ -72,17 +64,13 @@ export function isAcceptedProjectFileExtension(value: unknown): value is Project
  * with none. Only the terminal path segment is examined, so a directory named
  * `takes.sscape` never lends its suffix to the files inside it.
  */
-export function projectFileExtensionOf(fileName: unknown): ProjectFileExtension | null {
+function projectFileExtensionOf(fileName: unknown): ProjectFileExtension | null {
 	const match = TERMINAL_EXTENSION_PATTERN.exec(terminalSegment(fileName));
 	return match === null ? null : match[1].toLowerCase() as ProjectFileExtension;
 }
 
 export function isProjectFileName(fileName: unknown): boolean {
 	return projectFileExtensionOf(fileName) !== null;
-}
-
-export function isLegacyProjectFileName(fileName: unknown): boolean {
-	return projectFileExtensionOf(fileName) === LEGACY_PROJECT_FILE_EXTENSION;
 }
 
 /**

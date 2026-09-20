@@ -16,10 +16,8 @@
  */
 
 import {
-	parseArchiveManifest,
 	saveArchiveManifest,
 	type ArchiveManifest,
-	type ArchiveVerification,
 } from '../../../../archive-manifest.ts';
 import type { LocalizedPresentationMessage } from '../../../../../i18n/presentation-message.ts';
 import { PROJECT_MEDIA_COPY_BY_LOCALE } from '../../../../../i18n/editor-project-media-copy.ts';
@@ -46,8 +44,7 @@ export async function recordScapeArchiveManifest(
 		archive: Blob | null | undefined;
 		fileName: string;
 		projectTitle?: string | null;
-		generatedAt?: string | null;
-		signal?: AbortSignal;
+		signal: AbortSignal;
 	}>,
 ): Promise<ArchiveManifestSessionRecord> {
 	const record = await manifestRecord(request);
@@ -61,8 +58,7 @@ async function manifestRecord(
 		archive: Blob | null | undefined;
 		fileName: string;
 		projectTitle?: string | null;
-		generatedAt?: string | null;
-		signal?: AbortSignal;
+		signal: AbortSignal;
 	}>,
 ): Promise<ArchiveManifestSessionRecord> {
 	if (!(request.archive instanceof Blob)) {
@@ -78,8 +74,7 @@ async function manifestRecord(
 		return Object.freeze({
 			manifest: await createScapeArchiveManifest(request.archive, {
 				...(request.projectTitle ? { projectTitle: request.projectTitle } : {}),
-				...(request.generatedAt ? { generatedAt: request.generatedAt } : {}),
-				...(request.signal ? { signal: request.signal } : {}),
+				signal: request.signal,
 			}),
 			unavailable: null,
 			fileName: request.fileName,
@@ -119,20 +114,4 @@ export async function saveCurrentScapeArchiveManifest(
 		runtime.fileService as Parameters<typeof saveArchiveManifest>[1],
 	);
 	return Object.freeze({ saved: true, reason: null });
-}
-
-/**
- * Check an archive against a manifest document.
- *
- * The manifest is parsed rather than trusted: a document that is not one is a
- * refusal, because verifying against a manifest nobody can read would report a
- * clean archive for the wrong reason.
- */
-export async function verifyScapeArchiveAgainstManifest(
-	archive: Blob,
-	manifestText: string,
-	options: Readonly<{ signal?: AbortSignal }> = {},
-): Promise<ArchiveVerification> {
-	const { verifyScapeArchiveManifest } = await import('../../../../scape-archive-manifest.ts');
-	return verifyScapeArchiveManifest(archive, parseArchiveManifest(manifestText), options);
 }
