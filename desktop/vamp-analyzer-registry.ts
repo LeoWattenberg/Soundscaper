@@ -18,9 +18,11 @@ export const VAMP_ANALYZER_REGISTRY_LIMITS = Object.freeze({
 	maximumEntries: 512,
 	maximumInstallationsPerEntry: 16,
 	maximumDescriptorsPerLibrary: 256,
-	maximumLibraryBytes: 8 * 1_024 * 1_024 * 1_024,
-	maximumPathLength: 32_768,
+	maximumLibraryBytes: 4 * 1_024 ** 3,
+	maximumPathBytes: 4_096,
 } as const);
+
+const UTF8_ENCODER = new TextEncoder();
 
 export interface VampAnalyzerFileIdentity {
 	readonly dev: number;
@@ -355,7 +357,8 @@ function descriptorClaim(observation: Readonly<VampAnalyzerLibraryObservation>):
 
 function exactPath(value: unknown, platform: 'darwin' | 'linux' | 'win32'): string {
 	if (typeof value !== 'string' || value.length < 1
-		|| value.length > VAMP_ANALYZER_REGISTRY_LIMITS.maximumPathLength || value.includes('\0')) {
+		|| UTF8_ENCODER.encode(value).byteLength > VAMP_ANALYZER_REGISTRY_LIMITS.maximumPathBytes
+		|| value.includes('\0')) {
 		throw new TypeError('Invalid Vamp analyzer library path.');
 	}
 	const api = platform === 'win32' ? win32 : posix;

@@ -6,6 +6,7 @@ import test from 'node:test';
 import type { VampAnalyzerDescriptor } from '../desktop/vamp-analyzer-contract.ts';
 import {
 	DesktopVampAnalyzerRegistry,
+	VAMP_ANALYZER_REGISTRY_LIMITS,
 	VampAnalyzerRegistryError,
 	type VampAnalyzerLibraryObservation,
 	vampAnalyzerIdFor,
@@ -142,4 +143,20 @@ test('registry caps analyzer identities at the renderer catalog boundary', () =>
 	assert.equal(overflow.status, 'rejected');
 	if (overflow.status === 'rejected') assert.equal(overflow.reason, 'capacity');
 	assert.equal(registry.describe().entries.length, 512);
+});
+
+test('registry refuses libraries that cannot fit the helper execution grant', () => {
+	const registry = new DesktopVampAnalyzerRegistry({ isQuarantined: () => false });
+	assert.equal(VAMP_ANALYZER_REGISTRY_LIMITS.maximumLibraryBytes, 4 * 1_024 ** 3);
+	const oversizedLibrary = registry.recordLibrary(observation({
+		libraryBytes: VAMP_ANALYZER_REGISTRY_LIMITS.maximumLibraryBytes + 1,
+	}));
+	assert.equal(oversizedLibrary.status, 'rejected');
+	if (oversizedLibrary.status === 'rejected') assert.equal(oversizedLibrary.reason, 'malformed');
+
+	const oversizedPath = registry.recordLibrary(observation({
+		libraryPath: `/${'é'.repeat(2_048)}`,
+	}));
+	assert.equal(oversizedPath.status, 'rejected');
+	if (oversizedPath.status === 'rejected') assert.equal(oversizedPath.reason, 'malformed');
 });
