@@ -18,7 +18,8 @@ import {
 export const SOUNDSCAPER_PROFESSIONAL_NATIVE_NOTICE_PREFIX = 'licenses/professional-native/';
 
 const ALL_SOURCE_IDS = Object.freeze([
-	'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'asio-sdk', 'lv2',
+	'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
+	'asio-sdk', 'ladspa-sdk', 'lv2',
 ]);
 const FORBIDDEN_SOURCE_IDS = new Set(['x264', 'x265', 'libvpx', 'libopus', 'zlib']);
 const SHA256 = /^[a-f\d]{64}$/u;

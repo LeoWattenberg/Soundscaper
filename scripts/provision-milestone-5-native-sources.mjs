@@ -19,11 +19,11 @@ import { materializeMilestone5SourceArchive } from './lib/milestone-5-source-arc
 /**
  * Provision the Milestone 5 native source acquisition cache.
  *
- * `config/milestone-5-native-source-acquisitions.json` pins eleven upstream inputs
+ * `config/milestone-5-native-source-acquisitions.json` pins thirteen upstream inputs
  * by archive digest and by the portable identity of the tree that archive
  * extracts to, and `auditMilestone5NativeSourceAcquisitions` authenticates a
  * cache against those pins. Until this script existed the register named what a
- * cache must contain but nothing assembled one, so the audit reported 0/11 on
+ * cache must contain but nothing assembled one, so the audit reported 0/13 on
  * every machine and native builds could not use the pinned source set.
  *
  * The cache is deliberately outside the repository and outside the product's

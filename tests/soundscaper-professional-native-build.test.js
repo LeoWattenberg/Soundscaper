@@ -102,6 +102,8 @@ async function sourceRoots(context, withdrawn = 'juce', embeddedVst3Version = '3
 		'electron-node-api-headers': join(root, 'electron-node-api-headers'),
 		juce: join(root, 'juce'), clap: join(root, 'clap'),
 		'vst3-sdk': join(root, 'vst3-sdk'),
+		'vamp-plugin-sdk': join(root, 'vamp-plugin-sdk'),
+		'ladspa-sdk': join(root, 'ladspa-sdk'),
 		'asio-sdk': join(root, 'asio-sdk'), lv2: join(root, 'lv2'),
 	};
 	for (const path of [
@@ -112,6 +114,9 @@ async function sourceRoots(context, withdrawn = 'juce', embeddedVst3Version = '3
 		join(roots.juce, JUCE_VST3_VERSION_HEADER),
 		join(roots.clap, 'include/clap/clap.h'),
 		join(roots['vst3-sdk'], 'README.md'),
+		join(roots['vamp-plugin-sdk'], 'vamp/vamp.h'),
+		join(roots['vamp-plugin-sdk'], 'vamp-hostsdk/PluginHostAdapter.h'),
+		join(roots['ladspa-sdk'], 'src/ladspa.h'),
 		join(roots['asio-sdk'], 'common/asio.h'),
 		join(roots.lv2, 'include/lv2/core/lv2.h'),
 	]) {
@@ -168,7 +173,8 @@ test('professional build plans bind exact SDK pins and never treat the VST3 meta
 	});
 	assert.deepEqual(linux.features.audioStreaming, ['pipewire', 'alsa']);
 	assert.deepEqual(linux.features.discoveryOnly, ['jack']);
-	assert.deepEqual(linux.features.plugins, ['vst3', 'clap', 'lv2']);
+	assert.deepEqual(linux.features.plugins, ['vst3', 'clap', 'lv2', 'ladspa']);
+	assert.deepEqual(linux.features.analyzers, ['vamp']);
 	assert.deepEqual(linux.vst3Closure, {
 		kind: 'juce-embedded-sdk',
 		root: join(linux.sourceSnapshotRoot, 'juce', JUCE_VST3_SDK_CLOSURE),
@@ -180,6 +186,8 @@ test('professional build plans bind exact SDK pins and never treat the VST3 meta
 		commit: '9fad9770f2ae8542ab1a548a68c1ad1ac690abe0',
 	});
 	assert.match(linux.configure.argv.join(' '), /SOUNDSCAPER_LV2_ROOT/u);
+	assert.match(linux.configure.argv.join(' '), /SOUNDSCAPER_LADSPA_ROOT/u);
+	assert.match(linux.configure.argv.join(' '), /SOUNDSCAPER_VAMP_ROOT/u);
 	assert.deepEqual(linux.configure.argv.slice(4, 6), ['-G', 'Ninja']);
 	assert.match(linux.configure.argv.join(' '), /SOUNDSCAPER_NODE_API_INCLUDE=.*electron-node-api-headers/u);
 	assert.equal(linux.configure.argv.some((argument) => Object.values(roots).some((root) => argument.includes(root))), false,

@@ -51,13 +51,13 @@ test('self-test authority recognizes a normalized path on another Windows volume
 
 test('Soundscaper build-result source scope excludes every Framescaper codec input', () => {
 	assert.deepEqual(soundscaperProfessionalNativeSourceIdsForTarget('mac-arm64'), [
-		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk',
+		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
 	]);
 	assert.deepEqual(soundscaperProfessionalNativeSourceIdsForTarget('win-arm64'), [
-		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'asio-sdk',
+		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'asio-sdk',
 	]);
 	assert.deepEqual(soundscaperProfessionalNativeSourceIdsForTarget('linux-x64'), [
-		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'lv2',
+		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'ladspa-sdk', 'lv2',
 	]);
 	assert.throws(() => soundscaperProfessionalNativeSourceIdsForTarget('mac-x64'), /target/u);
 });

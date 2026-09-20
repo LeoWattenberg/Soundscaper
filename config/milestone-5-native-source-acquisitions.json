@@ -104,6 +104,31 @@
 			"uses": ["vst3-provenance", "vst3-host"]
 		},
 		{
+			"id": "vamp-plugin-sdk",
+			"version": "2.10.0",
+			"git": {
+				"tag": "vamp-plugin-sdk-v2.10",
+				"commit": "67adfc2bf9486912a0fce5123cf54360ea2678bc"
+			},
+			"archive": {
+				"url": "https://github.com/vamp-plugins/vamp-plugin-sdk/releases/download/vamp-plugin-sdk-v2.10/vamp-plugin-sdk-2.10.0.tar.gz",
+				"fileName": "vamp-plugin-sdk-2.10.0.tar.gz",
+				"byteLength": 313354,
+				"sha256": "aeaf3762a44b148cebb10cde82f577317ffc9df2720e5445c3df85f3739ff75f"
+			},
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 148,
+				"sha256": "89d4f249f565fef5d91ddaebe7f90b1fa77dab1591a26623ccd3f9b6b955aa9e"
+			},
+			"license": "BSD-3-Clause",
+			"licenseSelection": "BSD-3-Clause",
+			"authenticationStatus": "pinned-metadata",
+			"activationStatus": "accepted",
+			"blockedBy": null,
+			"uses": ["vamp-analyzer-host"]
+		},
+		{
 			"id": "asio-sdk",
 			"version": "2.3.4",
 			"git": {
@@ -127,6 +152,31 @@
 			"activationStatus": "accepted",
 			"blockedBy": null,
 			"uses": ["asio-backend"]
+		},
+		{
+			"id": "ladspa-sdk",
+			"version": "1.17",
+			"git": {
+				"tag": null,
+				"commit": null
+			},
+			"archive": {
+				"url": "https://www.ladspa.org/download/ladspa_sdk_1.17.tgz",
+				"fileName": "ladspa-sdk-1.17.tar.gz",
+				"byteLength": 71053,
+				"sha256": "27d24f279e4b81bd17ecbdcc38e4c42991bb388826c0b200067ce0eb59d3da5b"
+			},
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 29,
+				"sha256": "dfacf9305837fc6ddb631130f9a1573ac3645291e9bbc08a60a9dfcf4df4258d"
+			},
+			"license": "LGPL-2.1-only",
+			"licenseSelection": "LGPL-2.1-only",
+			"authenticationStatus": "pinned-metadata",
+			"activationStatus": "accepted",
+			"blockedBy": null,
+			"uses": ["ladspa-effect-host"]
 		},
 		{
 			"id": "lv2",

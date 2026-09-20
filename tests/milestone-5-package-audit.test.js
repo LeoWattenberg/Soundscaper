@@ -41,7 +41,7 @@ test('Milestone 5 reports a machine package audit without qualification state', 
 	assert.equal(audit.sourceInputsVerified, false);
 	assert.equal(audit.package, null);
 	assert.equal(audit.payloads.total, 20);
-	assert.equal(audit.sources.total, 11);
+	assert.equal(audit.sources.total, 13);
 	assert.equal(audit.licensing.distributionPolicies.length, 3);
 	assert.equal(audit.licensing.nativeFormatPolicies.length, 38);
 	assert.equal(Object.hasOwn(audit.licensing, 'disabledGates'), false);
@@ -63,13 +63,14 @@ test('product-scoped package audits retain only their source and payload invento
 	delete value.mediaHostPayload;
 	delete value.openFxHostPayload;
 	value.sourceAcquisitions.sources = value.sourceAcquisitions.sources.filter(({ id }) => (
-		['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'asio-sdk', 'lv2'].includes(id)
+		['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
+			'asio-sdk', 'ladspa-sdk', 'lv2'].includes(id)
 	));
 	value.sourceAcquisitions.delegatedSources = [];
 	const audit = assessMilestone5PackageAudit(value, ['soundscaper']);
 
 	assert.deepEqual(audit.engineeringScope.products, ['soundscaper']);
-	assert.equal(audit.sources.total, 6);
+	assert.equal(audit.sources.total, 8);
 	assert.equal(audit.payloads.total, 5);
 });
 

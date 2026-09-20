@@ -125,7 +125,10 @@ async function noticeFixture(context, target) {
 }
 
 function fixtureRegisters() {
-	const ids = ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'asio-sdk', 'lv2'];
+	const ids = [
+		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
+		'asio-sdk', 'ladspa-sdk', 'lv2',
+	];
 	const sources = ids.map((id, index) => {
 		const archiveBytes = Buffer.from(`archive-${id}`);
 		const noticeBytes = Buffer.from(`notice-${id}`);

@@ -30,7 +30,7 @@ const MAXIMUM_FILE_BYTES = 512 * 1024 * 1024;
 const SHA256 = /^[a-f\d]{64}$/u;
 const REVISION = /^(?:[a-f\d]{40}|[a-f\d]{64})$/u;
 const BASE_SOURCE_IDS = Object.freeze([
-	'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk',
+	'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
 ]);
 const COMMON_SELF_TEST_IDS = Object.freeze([
 	'addon-exact-backend-format-inventory',
@@ -55,7 +55,7 @@ export function soundscaperProfessionalNativeSourceIdsForTarget(targetValue) {
 	return Object.freeze([
 		...BASE_SOURCE_IDS,
 		...(target.startsWith('win-') ? ['asio-sdk'] : []),
-		...(target.startsWith('linux-') ? ['lv2'] : []),
+		...(target.startsWith('linux-') ? ['ladspa-sdk', 'lv2'] : []),
 	]);
 }
 
@@ -76,7 +76,8 @@ export function expectedSoundscaperProfessionalNativeInventory(targetValue) {
 			: target.startsWith('win-') ? ['wasapi', 'asio'] : ['pipewire', 'alsa', 'jack'],
 		addonPluginFormats: [],
 		peerPluginFormats: target === 'mac-arm64' ? ['vst3', 'clap', 'au']
-			: target.startsWith('linux-') ? ['vst3', 'clap', 'lv2'] : ['vst3', 'clap'],
+			: target.startsWith('linux-') ? ['vst3', 'clap', 'lv2', 'ladspa'] : ['vst3', 'clap'],
+		analyzerPluginFormats: ['vamp'],
 	});
 }
 

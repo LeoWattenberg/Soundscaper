@@ -297,9 +297,9 @@ function hash(bytes) { return createHash('sha256').update(bytes).digest('hex'); 
 function sourceAuthentication(target) {
 	const sourceRegister = JSON.parse(readFileSync(join(ROOT,
 		'config/milestone-5-native-source-acquisitions.json'), 'utf8'));
-	const ids = ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk',
+	const ids = ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
 		...(target.startsWith('win-') ? ['asio-sdk'] : []),
-		...(target.startsWith('linux-') ? ['lv2'] : [])];
+		...(target.startsWith('linux-') ? ['ladspa-sdk', 'lv2'] : [])];
 	return {
 		schemaVersion: 1, status: 'authenticated', sources: ids.map((id) => {
 			const source = sourceRegister.sources.find((entry) => entry.id === id);

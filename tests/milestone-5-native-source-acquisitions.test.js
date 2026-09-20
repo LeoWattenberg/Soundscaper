@@ -32,8 +32,12 @@ const EXPECTED_PINS = {
 		'0f937070e51d3ead11316e757995662a3ea846f81573e720b8e8f7fb63a03a35'],
 	'vst3-sdk': ['3.8.0_build_66', '9fad9770f2ae8542ab1a548a68c1ad1ac690abe0', 325954,
 		'121e1063962aea6e02817fec6bd3066162e22f262904c00b4be4e8a1fb3f826b'],
+	'vamp-plugin-sdk': ['2.10.0', '67adfc2bf9486912a0fce5123cf54360ea2678bc', 313354,
+		'aeaf3762a44b148cebb10cde82f577317ffc9df2720e5445c3df85f3739ff75f'],
 	'asio-sdk': ['2.3.4', null, 8910208,
 		'd5ebf0c20dd2c5f43771fd0c1418f4b361bf52434ee670097cfa6b3a335e2eca'],
+	'ladspa-sdk': ['1.17', null, 71053,
+		'27d24f279e4b81bd17ecbdcc38e4c42991bb388826c0b200067ce0eb59d3da5b'],
 	lv2: ['1.18.10', '0bcde338db1c63bbc503b4d1f6d7b55ed43154af', 299434,
 		'38d515cf1cb95d6f7d0191b8e383cbd95975a1ccec082d4e729eece7ec6a0c3e'],
 	x264: ['stable-b35605ac', 'b35605ace3ddf7c1a5d67a2eb553f034aef41d55', 1040327,
@@ -56,7 +60,9 @@ const EXPECTED_LICENSE_SELECTIONS = {
 	juce: 'AGPL-3.0-only',
 	clap: 'MIT',
 	'vst3-sdk': 'MIT',
+	'vamp-plugin-sdk': 'BSD-3-Clause',
 	'asio-sdk': 'GPL-3.0-only',
+	'ladspa-sdk': 'LGPL-2.1-only',
 	lv2: 'ISC',
 	x264: 'GPL-2.0-or-later',
 	x265: 'GPL-2.0-or-later',
@@ -77,7 +83,7 @@ test('milestone-5 source packet pins and test-enables every native dependency', 
 		], EXPECTED_PINS[source.id], source.id);
 		assert.equal(source.licenseSelection, EXPECTED_LICENSE_SELECTIONS[source.id], source.id);
 		assert.equal(source.authenticationStatus, 'pinned-metadata');
-		if (['asio-sdk', 'electron-node-api-headers'].includes(source.id)) {
+		if (['asio-sdk', 'electron-node-api-headers', 'ladspa-sdk'].includes(source.id)) {
 			assert.equal(source.git.commit, null);
 		}
 		else assert.match(source.git.commit, /^[a-f\d]{40}$/u, source.id);
@@ -137,7 +143,8 @@ test('Soundscaper source audit excludes every deferred Framescaper native input'
 		null,
 	);
 	assert.deepEqual(audit.sources.map(({ id }) => id), [
-		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'asio-sdk', 'lv2',
+		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
+		'asio-sdk', 'ladspa-sdk', 'lv2',
 	]);
 	assert.deepEqual(audit.delegatedSources, []);
 	assert.deepEqual(Object.keys(audit.inputDigests), [

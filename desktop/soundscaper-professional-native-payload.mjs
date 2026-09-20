@@ -143,9 +143,9 @@ function validateManifest(value, sourceRegister) {
 }
 
 function validSourceAuthentication(value, target, sourceRegister) {
-	const ids = ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk',
+	const ids = ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
 		...(target.startsWith('win-') ? ['asio-sdk'] : []),
-		...(target.startsWith('linux-') ? ['lv2'] : [])];
+		...(target.startsWith('linux-') ? ['ladspa-sdk', 'lv2'] : [])];
 	return value?.schemaVersion === 1 && value.status === 'authenticated'
 		&& Array.isArray(value.sources) && value.sources.length === ids.length
 		&& ids.every((id) => value.sources.filter((source) => source?.id === id).length === 1)
