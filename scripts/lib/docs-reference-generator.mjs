@@ -59,6 +59,7 @@ const GUIDE_MODULES = Object.freeze({
 
 const RUNTIME_MODULES = Object.freeze({
 	actions: 'src/common/editor/audacity-action-parity.js',
+	applicationMenuReference: 'src/common/editor/ui/application-menu-reference.ts',
 	assistance: 'src/common/editor/assistance/workflow-recipes.ts',
 	assistanceOperations: 'src/common/editor/assistance/operation.ts',
 	audacityEffects: 'src/common/editor/audacity-effects/manifest.js',

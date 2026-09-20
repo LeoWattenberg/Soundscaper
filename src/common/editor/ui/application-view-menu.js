@@ -66,7 +66,7 @@ export function createApplicationViewMenu(context, actions) {
 					{ id: 'workspace-music', label: copy.workspaceMusic, checked: preferences.workspace.activeId === 'music', onClick: () => actions.setWorkspace('music') },
 					{ id: 'workspace-classic', label: copy.workspaceClassic, checked: preferences.workspace.activeId === 'classic', onClick: () => actions.setWorkspace('classic') },
 					{ id: 'workspace-video-editor', label: copy.workspaceVideo, checked: preferences.workspace.activeId === 'video-editor', onClick: () => actions.setWorkspace('video-editor') },
-					...preferences.workspace.custom.map((workspace) => ({ id: `workspace-${workspace.id}`, label: workspace.name, checked: preferences.workspace.activeId === workspace.id, onClick: () => actions.setWorkspace(workspace.id) })),
+					...preferences.workspace.custom.map((workspace) => ({ id: `workspace-${workspace.id}`, documentationId: 'workspace-custom', label: workspace.name, checked: preferences.workspace.activeId === workspace.id, onClick: () => actions.setWorkspace(workspace.id) })),
 					{ id: 'workspace-onboarding', label: copy.workspaceOnboardingMenu, onClick: actions.openWorkspaceOnboarding },
 				],
 			},

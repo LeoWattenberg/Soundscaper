@@ -74,6 +74,7 @@ const ACTIONABLE_SURFACES = new Set(FRAMESCAPER_ACTIONABLE_NATIVE_SERVICE_SURFAC
 
 export interface FramescaperNativeServicesMenuItem {
 	readonly id: string;
+	readonly documentationId?: string;
 	readonly label: string;
 	readonly disabled: boolean;
 	readonly disabledReason?: string;
@@ -257,6 +258,7 @@ function externalDisplayMenu(
 	for (const display of displays) {
 		items.push(Object.freeze({
 			id: `framescaper-external-display-${display.displayId}`,
+			documentationId: 'framescaper-external-display',
 			label: display.label,
 			disabled: false,
 			checked: active === display.displayId,

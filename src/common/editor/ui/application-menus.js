@@ -186,6 +186,7 @@ export default function createApplicationMenus({
 					items: [
 						...(snapshot.recentProjects || []).map((recentProject) => ({
 							id: `recent-project-${recentProject.id}`,
+							documentationId: 'recent-project',
 							label: recentProject.title,
 							onClick: () => actions.openRecentProject(recentProject.id),
 						})),
