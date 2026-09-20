@@ -8,9 +8,38 @@ import React, { act } from 'react';
 import {
 	CueImportDestinationDialog,
 	useCueImportWorkspace,
+	WorkspaceImportInput,
 } from '../src/common/editor/ui/workspace/cue-import-workspace.tsx';
+import { createWorkspaceApplicationMenus } from '../src/common/editor/ui/workspace/workspace-application-menu-runtime.js';
+import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import { installReactTestDom, reactProps, type ReactTestElement } from './helpers/react-test-dom.ts';
+
+test('the shared File import input always targets the timeline', () => {
+	const imports: Array<Readonly<{ files: readonly File[]; options: unknown }>> = [];
+	const input = WorkspaceImportInput({
+		accept: '.wav',
+		copy: ENGLISH_COPY,
+		importInputRef: { current: null },
+		importRoutedFiles: (files, options) => imports.push({ files, options }),
+		run: (operation) => operation(),
+	});
+	const file = { name: 'voice.wav' } as File;
+	(input.props as Readonly<{ onChange(event: unknown): void }>).onChange({
+		currentTarget: { files: [file], value: 'voice.wav' },
+	});
+
+	assert.deepEqual(imports, [{ files: [file], options: { destination: 'timeline' } }]);
+});
+
+test('desktop File import always targets the timeline', () => {
+	const calls: unknown[][] = [];
+	const menu = workspaceFileMenu((...args: unknown[]) => { calls.push(args); });
+	const item = menu.items?.find(({ id }) => id === 'import-audio');
+	assert.ok(item?.onClick);
+	item.onClick();
+	assert.deepEqual(calls, [['media', true, { destination: 'timeline' }]]);
+});
 
 test('normal file import asks whether a CUE sheet becomes markers or labels', async () => {
 	const dom = installReactTestDom();
@@ -84,4 +113,45 @@ function buttonWithText(root: ReactTestElement, text: string): ReactTestElement 
 	const props = reactProps(button);
 	button.click = () => { void props.onClick({}); };
 	return button;
+}
+
+interface MenuItem {
+	readonly id?: string;
+	readonly items?: readonly MenuItem[];
+	readonly onClick?: () => unknown;
+}
+
+function workspaceFileMenu(openDesktopFiles: (...args: unknown[]) => unknown): MenuItem {
+	const project = {
+		id: 'project', sampleRate: 48_000, sources: [], clips: [], tracks: [],
+		selection: { trackIds: [], clipIds: [] }, loop: { enabled: false },
+		snap: { enabled: false, division: 'samples' },
+	};
+	const input = {
+		productId: 'soundscaper', aboutLabel: 'About', locale: 'en', copy: ENGLISH_COPY,
+		capabilities: { audioGenerators: true, audioEffects: true, audioAnalysis: true },
+		project,
+		snapshot: {
+			project, selectedTrackId: null,
+			preferences: { workspace: {
+				activeId: 'editing', custom: [],
+				panels: Object.fromEntries(WORKSPACE_PANEL_IDS.map((id) => [id, { visible: false }])),
+			}, view: {} },
+			history: { canUndo: false, canRedo: false, hasClipboard: false },
+			effects: { selectionTypes: [], canRepeatLast: false },
+		},
+		blocked: false, editBlocked: false, handoffBlocked: false, showArmControls: false,
+		selectionActive: false, selectedClip: null, selectedAudioTrack: null, durationFrames: 0,
+		projectBinEffectivelyOpen: true, uiFlags: {}, desktopHostRuntime: null,
+		fileService: { isDesktop: true }, parityRuntime: { actions: null }, openDesktopFiles,
+		run: (operation: () => unknown) => operation(),
+	};
+	const menus = createWorkspaceApplicationMenus(new Proxy(input, {
+		get: (target, property, receiver) => Reflect.has(target, property)
+			? Reflect.get(target, property, receiver)
+			: () => undefined,
+	}) as unknown as Parameters<typeof createWorkspaceApplicationMenus>[0]) as readonly MenuItem[];
+	const file = menus.find(({ id }) => id === 'file');
+	assert.ok(file);
+	return file;
 }

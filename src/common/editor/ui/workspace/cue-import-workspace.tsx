@@ -67,13 +67,13 @@ export function WorkspaceImportInput({ accept, copy, importInputRef, importRoute
 	accept: string;
 	copy: Readonly<{ importFile: string }>;
 	importInputRef: RefObject<HTMLInputElement | null>;
-	importRoutedFiles(files: readonly File[]): unknown;
+	importRoutedFiles(files: readonly File[], options: Readonly<{ destination: 'timeline' }>): unknown;
 	run(operation: () => unknown): unknown;
 }>) {
 	const importFiles = (event: ChangeEvent<HTMLInputElement>) => {
 		const files = [...(event.currentTarget.files ?? [])];
 		event.currentTarget.value = '';
-		if (files.length) run(() => importRoutedFiles(files));
+		if (files.length) run(() => importRoutedFiles(files, { destination: 'timeline' }));
 	};
 	return <input ref={importInputRef} className="kw-audio-editor__file-input" data-import-input aria-label={copy.importFile}
 		type="file" tabIndex={-1} accept={accept} multiple onChange={importFiles} />;

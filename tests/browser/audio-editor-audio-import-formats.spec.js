@@ -4,7 +4,7 @@ import { expect, test, createWavFixture, readFile } from './audio-editor-test-fi
 import { encodeDedicatedAudioPcm } from '../../src/common/editor/browser-dedicated-audio-codec.ts';
 import {
 	bootEditor, chooseFileAction, collectClientErrors, registerAudioEditorHooks,
-	closeWorkspacePanel, sourcePeakChannels, waitForEditor, clipByName,
+	sourcePeakChannels, waitForEditor, clipByName,
 } from './audio-editor-test-helpers.js';
 
 const FORMATS = [
@@ -67,9 +67,6 @@ async function encodedFixture(extension, codec, mimeType) {
 }
 
 async function importThroughFileMenu(page, editor, file) {
-	if (await editor.locator('[data-workspace-panel="project-bin"]').isVisible()) {
-		await closeWorkspacePanel(editor, 'project-bin');
-	}
 	const choosingFile = page.waitForEvent('filechooser');
 	await chooseFileAction(page, editor, 'Import');
 	await (await choosingFile).setFiles(file);
@@ -149,7 +146,6 @@ test.describe('audio file import formats', () => {
 		const wav = createWavFixture({ name: 'source.wav', frequency: 330, channelAmplitudes: [0.3, 0.1] });
 		await projectBinChooser.setFiles({ ...wav, name: 'project-bin-field-recording.wave', mimeType: '' });
 		await expect(editor.locator('[data-project-bin-name]')).toHaveValue('project-bin-field-recording');
-		await closeWorkspacePanel(editor, 'project-bin');
 		const choosingFile = page.waitForEvent('filechooser');
 		await chooseFileAction(page, editor, 'Import');
 		const chooser = await choosingFile;
@@ -163,6 +159,23 @@ test.describe('audio file import formats', () => {
 		expect(peaks.channelCount).toBe(2);
 		expect(peaks.channels[0].maximum).toBeGreaterThan(0.2);
 		expect(peaks.channels[1].maximum).toBeGreaterThan(0.05);
+	});
+
+	test('File > Import bypasses a visible Project bin and creates one track per file', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await expect(editor.locator('[data-workspace-panel="project-bin"]')).toBeVisible();
+		const choosingFile = page.waitForEvent('filechooser');
+		await chooseFileAction(page, editor, 'Import');
+		const first = createWavFixture({ name: 'first-track.wav', frequency: 220 });
+		const second = createWavFixture({ name: 'second-track.wav', frequency: 440 });
+		await (await choosingFile).setFiles([first, second]);
+		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 30_000 });
+		const firstClip = clipByName(editor, first.name);
+		const secondClip = clipByName(editor, second.name);
+		await expect(firstClip).toBeVisible();
+		await expect(secondClip).toBeVisible();
+		expect(await firstClip.getAttribute('data-track-index'))
+			.not.toBe(await secondClip.getAttribute('data-track-index'));
 	});
 
 	for (const signature of ['RF64', 'BW64']) {

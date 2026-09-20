@@ -195,7 +195,7 @@ export function createWorkspaceApplicationMenus({
 				saveAup4: () => run(() => controller.actions.project.saveAup4({ saveCopy: snapshot.readOnly })),
 				openDeliveryReport: () => setDialog('delivery-report'),
 				importFiles: () => fileService.isDesktop
-					? run(() => openDesktopFiles('media', true))
+					? run(() => openDesktopFiles('media', true, { destination: 'timeline' }))
 					: importInputRef.current?.click(),
 				exportAudio: () => openSurface('export'),
 				openDeliveryQueue: () => openSurface('delivery-queue'),
