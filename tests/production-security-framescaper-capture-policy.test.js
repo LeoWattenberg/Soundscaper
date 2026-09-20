@@ -74,6 +74,10 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 	assert.match(desktop.summary, /64.*five minutes.*owner- and generation-bound.*15-second single-use/isu);
 	assert.match(desktop.summary, /macOS 15.*system picker.*Windows.*loopback.*other.*unavailable/isu);
 	assert.match(desktop.summary, /standalone Framescaper.*camera.*microphone.*display.*Soundscaper.*camera.*embedded.*deny/isu);
+	assert.match(desktop.summary, /packaged Soundscaper route.*separate strict session boundary.*audio permission check.*singular `mediaType` value `audio`.*audio permission request.*nonempty `mediaTypes` array.*only `audio`.*speaker-selection request.*plain permission detail shape.*without a media field/isu);
+	assert.match(desktop.summary, /Every admitted permission.*exact focused, live Soundscaper main editor WebContents.*main-frame detail.*trusted document URL.*origin/isu);
+	assert.match(desktop.summary, /Windows only.*direct-user-gesture main-frame display request.*both video and audio.*first valid screen.*Chromium loopback audio.*capture pool retains.*live video companion/isu);
+	assert.match(desktop.summary, /Non-Windows.*rejected without screen enumeration.*desktop audio is unavailable.*package transformation retains `desktopCapturer`.*self `display-capture` policy.*runtime staging.*strict capture module.*disposal clears both permission handlers.*display handler.*download listener/isu);
 	assert.match(desktop.summary, /Framescaper family v1.*framescaperCapture true.*active on standalone web and desktop.*Recording Setup.*default-hidden.*capture route authority.*desktop control plane/isu);
 	assert.match(desktop.summary, /real packaged, no-device smoke.*control-plane.*status.*grant.*teardown.*does not establish general device behavior.*actual packaged cameras.*remain unverified/isu);
 	assertEvidence(desktop, [
@@ -82,15 +86,23 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 		'desktop/framescaper-capture-preload.ts',
 		'desktop/framescaper-capture-registration.mjs',
 		'desktop/framescaper-capture-session-security.ts',
+		'desktop/soundscaper-capture-session-security.ts',
 		'desktop/protocol.js',
 		'electron-builder.config.cjs',
+		'scripts/lib/desktop-product-package-files.mjs',
+		'scripts/lib/desktop-soundscaper-runtime-files.mjs',
+		'src/common/editor/recording-capture-pool.js',
 		'src/framescaper/product.js',
+		'tests/audio-editor-recording-inputs.test.js',
 		'tests/desktop-framescaper-capture-desktop-port.test.ts',
 		'tests/desktop-framescaper-capture-artifact-smoke.test.js',
 		'tests/desktop-framescaper-capture-session-security.test.ts',
 		'tests/desktop-framescaper-capture-packaging.test.js',
 		'tests/desktop-framescaper-capture-protocol-policy.test.js',
+		'tests/desktop-product-package-isolation.test.js',
 		'tests/desktop-protocol.test.js',
+		'tests/desktop-soundscaper-capture-session-security.test.ts',
+		'tests/desktop-staged-typescript-guard.test.js',
 		'tests/framescaper-capture-cloudflare-policy.test.js',
 	]);
 	assert.match(threatModel, /policy-narrative:framescaper-capture-desktop-consent-authority/u);

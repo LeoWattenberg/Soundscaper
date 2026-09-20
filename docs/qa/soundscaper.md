@@ -35,7 +35,7 @@ cannot be exercised on the available machine.
 | SQA-10 | Install or unpack the desktop build, launch it, confirm target/version identity, and repeat the core create-save-reopen path. | not-run | |
 | SQA-11 | Close or crash the packaged app during a save, reopen it, and verify recovery preserves the last completed state without a partial publication. | not-run | |
 | SQA-12 | Exercise install, upgrade, rollback, and uninstall as relevant; confirm projects, settings, models, and delivery records survive. | not-run | |
-| SQA-13 | Open Native audio and latency from its menu; verify device selection, supported settings, recording/playback, and truthful unavailable errors. | not-run | |
+| SQA-13 | In a packaged build, open Audio setup, grant microphone access, and confirm every expected microphone and speaker is enumerated. On Windows, choose Desktop audio and record audible system output while its required display-video companion stays live; on non-Windows, confirm Desktop audio is unavailable. Then open Native audio and latency from its menu; verify device selection, supported settings, recording/playback, and truthful unavailable errors. | not-run | |
 | SQA-14 | Scan and load each supported plug-in format with explicit consent; verify stable identity, isolation, quarantine, and project survival after a plug-in failure. | not-run | |
 | SQA-15 | Decode and encode representative OS/native codec media; confirm unsupported combinations are refused rather than silently substituted. | not-run | |
 | SQA-16 | Deliver representative masters and stems; reimport them and inspect channel layout, sample format, loudness report, metadata, and atomic publication. | not-run | |
