@@ -272,11 +272,6 @@ async function executeStep(page, state, entry) {
 				]);
 				await chooser.setFiles(guideFixtureFile(entry.fixture));
 				const clip = guideClip(state.editor, clipName);
-				const addToTimeline = state.editor.getByRole('button', {
-					name: `Add to timeline: ${clipName}`, exact: true,
-				});
-				await expect(addToTimeline.or(clip).first()).toBeVisible({ timeout: EFFECT_TIMEOUT });
-				if (await addToTimeline.isVisible()) await addToTimeline.click();
 				await expectSuccess(state.editor);
 				await expect(clip).toBeVisible({ timeout: EFFECT_TIMEOUT });
 				state.clipName = clipName;

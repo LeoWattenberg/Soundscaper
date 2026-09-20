@@ -226,7 +226,7 @@ test('the workflow steps validate their input and describe the surfaces they dri
 test('file workflow prose names the application menu commands the browser suite drives', () => {
 	const importStep = howto(importAudio('music-loop', { what: 'a recording' }));
 	assert.match(importStep, /\*\*File → Import\*\*/u);
-	assert.match(importStep, /If the file appears in the Project bin, press \*\*Add to timeline\*\*/u);
+	assert.doesNotMatch(importStep, /Add to timeline/u);
 	assert.doesNotMatch(importStep, /Import audio/u);
 	assert.match(howto(openAudacityProject()), /\*\*File → Open\*\*/u);
 	assert.match(howto(openProjectFile()), /\*\*File → Open\*\*/u);
@@ -234,6 +234,11 @@ test('file workflow prose names the application menu commands the browser suite 
 	const guide = SOUNDSCAPER_GUIDES.find((entry) => entry.id === 'open-an-audacity-project');
 	assert.ok(guide, 'the Audacity project guide is missing');
 	assert.ok(guide.tips.some((tip) => tip.includes('File → Export other → Export AUP4')));
+
+	const chapters = SOUNDSCAPER_GUIDES.find((entry) => entry.id === 'export-each-chapter-as-its-own-file');
+	assert.ok(chapters, 'the chapter export guide is missing');
+	assert.match(howto(chapters.steps[2]), /\*\*View → Panels → Project bin\*\*/u);
+	assert.match(chapters.steps[2].why, /leaves room for the Markers panel/u);
 });
 
 test('the guides cover the Audacity 3 features Audacity 4 left out', () => {

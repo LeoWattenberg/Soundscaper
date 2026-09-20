@@ -96,6 +96,7 @@ export const PROJECT_GUIDES = Object.freeze([
 		steps: [
 			open(),
 			importAudio('music-loop', { what: 'the recording to split' }),
+			menu(['View', 'Panels', 'Project bin'], { why: 'The recording is on the timeline now, so hiding the bin leaves room for the Markers panel.' }),
 			menu(['View', 'Show markers'], { why: 'The marker lane is where the chapter starts are shown and named.' }),
 			tool('Jump to project start', { why: 'The first chapter should begin at the very start, so the first marker goes at zero.' }),
 			marker('Part one'),
