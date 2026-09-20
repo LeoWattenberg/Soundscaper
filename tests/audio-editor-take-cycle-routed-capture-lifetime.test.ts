@@ -31,6 +31,7 @@ test('take-cycle input and recorder lifetime loss discards the captured prefix w
 		try {
 			scenario.interrupt(fixture);
 			await waitFor(() => fixture.releaseCalls() === 1, 'the interrupted capture to release its route');
+			await waitFor(() => fixture.sessionStopCalls() === 1, 'the owning recording session to settle');
 			assert.equal(service.active, false);
 			const result = await service.stop();
 
@@ -62,6 +63,7 @@ function captureFixture() {
 	let finalizations = 0;
 	let recorderStops = 0;
 	let recorderDisposals = 0;
+	let sessionStops = 0;
 	let capturedFrames = 0;
 	const project = {
 		id: 'project-cycle', sampleRate: 48_000,
@@ -154,6 +156,7 @@ function captureFixture() {
 		async preflightStorage() {},
 		async beginPlaybackCachePreparation() {},
 		handleError(error) { errors.push(error); },
+		stopRecording() { sessionStops += 1; },
 		createResampler: () => ({ push: (channels) => channels, finish: () => [] }),
 		releaseInputs() { releases += 1; },
 	};
@@ -172,6 +175,7 @@ function captureFixture() {
 		finalizeCalls: () => finalizations,
 		stopCalls: () => recorderStops,
 		disposeCalls: () => recorderDisposals,
+		sessionStopCalls: () => sessionStops,
 		listenerCounts: () => ({ input: inputListeners.size, context: contextListeners.size }),
 		endInput() {
 			inputState = 'ended';

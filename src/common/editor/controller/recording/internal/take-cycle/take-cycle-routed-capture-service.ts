@@ -39,14 +39,12 @@ import type {
 	RecordingRoute,
 	RecordingTrack,
 } from '../../recording-transaction-types.ts';
-import type {
-	RecordingCaptureControllerLike,
-	RecordingStartScope,
-} from '../recording-session-service.ts';
+import type { RecordingCaptureControllerLike, RecordingStartScope } from '../recording-session-service.ts';
 import {
 	pauseTakeCycleCaptureTransport,
 	reportTakeCycleCaptureError,
 	settleTakeCycleCaptureControllers,
+	settleTakeCycleRecordingSessionAfterInterruption,
 } from './take-cycle-routed-capture-settlement.ts';
 import { acquireTakeCycleRoutedSources } from './take-cycle-routed-source-acquisition.ts';
 export type {
@@ -537,7 +535,7 @@ export function createTakeCycleRoutedCaptureService(
 			return;
 		}
 		reportError(reason);
-		void stopCapture({}, { reason, source }).catch(reportError);
+		settleTakeCycleRecordingSessionAfterInterruption(stopCapture({}, { reason, source }), runtime.stopRecording, reportError);
 	}
 
 	function captureCurrentError(capture: ActiveCapture): unknown | null {

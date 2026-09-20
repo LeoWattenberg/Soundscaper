@@ -32,3 +32,20 @@ export function reportTakeCycleCaptureError(
 		// Error reporting must never interrupt durable lane settlement.
 	}
 }
+
+/** Reconcile the outer recording controller after asynchronous routed loss. */
+export function settleTakeCycleRecordingSessionAfterInterruption(
+	settlement: PromiseLike<unknown>,
+	stopRecording: (() => PromiseLike<unknown> | unknown) | undefined,
+	reportError: (error: unknown) => void,
+): void {
+	void Promise.resolve(settlement).catch(reportError).finally(() => {
+		queueMicrotask(() => {
+			try {
+				void Promise.resolve(stopRecording?.()).catch(reportError);
+			} catch (error) {
+				reportError(error);
+			}
+		});
+	});
+}

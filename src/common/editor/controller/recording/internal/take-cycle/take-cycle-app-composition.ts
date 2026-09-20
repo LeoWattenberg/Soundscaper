@@ -49,7 +49,7 @@ type TakeCycleAppProject = TakeCycleProjectDocument;
 type RoutedRuntimePorts = Pick<TakeCycleRoutedCaptureRuntime,
 	'capturePool' | 'engine' | 'sourceChunkFrames' | 'streamAudioChannelCount'
 	| 'recordingStreamIsLive' | 'createRecorder' | 'beginPlaybackCachePreparation'
-	| 'handleError'
+	| 'handleError' | 'stopRecording'
 >;
 
 export interface TakeCycleAppCompositionDependencies {

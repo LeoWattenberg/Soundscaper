@@ -142,6 +142,46 @@ test.describe('Soundscaper routed take-cycle recording', () => {
 			await rm(userDataDir, { force: true, recursive: true });
 		}
 	});
+
+	test('settles an active take cycle when its routed input ends', async ({ browserName, baseURL }) => {
+		test.skip(browserName !== 'chromium', 'The routed input fixture uses a persistent Chromium profile.');
+		test.setTimeout(90_000);
+		const userDataDir = await mkdtemp(join(tmpdir(), 'soundscaper-cycle-interruption-'));
+		const context = await launchCycleContext(userDataDir, baseURL);
+		const page = context.pages()[0] ?? await context.newPage();
+		try {
+			const editor = await bootEditor(page, '/embed/en/');
+			await importFiles(editor, [longTone]);
+			await chooseCommandAction(page, editor, 'Select', 'Select all');
+			await chooseNestedCommandAction(page, editor, 'Select', ['Loop region', 'Set loop to selection']);
+			await chooseCommandAction(page, editor, 'Select', 'Select none');
+
+			await startTakeCycle(page, editor);
+			await expect.poll(() => rawCaptureState(page)).toMatchObject({ count: 1, hasPcm: true });
+			await page.evaluate(() => {
+				const active = globalThis.__takeCycleStreams.at(-1);
+				if (!active) throw new Error('The routed take-cycle input was not acquired.');
+				for (const track of active.stream.getAudioTracks()) {
+					track.stop();
+					// Calling stop() on a locally owned MediaStreamTrack does not
+					// dispatch `ended`; a device disconnection does.
+					track.dispatchEvent(new Event('ended'));
+				}
+			});
+
+			const record = editor.getByRole('button', { name: 'Record onto the active track', exact: true });
+			await expect(record).toHaveAttribute('aria-pressed', 'false', { timeout: 30_000 });
+			await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'error');
+			await expect(editor.locator('[data-status]')).toContainText(/ended|interrupted|stopped/u);
+			await expect.poll(() => durableCycleState(page), {
+				message: 'input interruption discards the partial lane and settles its durable roots',
+				timeout: 30_000,
+			}).toMatchObject({ recoveryCount: 0, rawSpoolCount: 0 });
+		} finally {
+			await context.close().catch(() => undefined);
+			await rm(userDataDir, { force: true, recursive: true });
+		}
+	});
 });
 
 async function startTakeCycle(page, editor) {

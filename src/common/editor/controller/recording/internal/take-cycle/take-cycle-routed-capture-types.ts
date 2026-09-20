@@ -45,6 +45,7 @@ export interface TakeCycleRoutedCaptureRuntime {
 	preflightStorage(requiredBytes: number, operation: 'take-cycle-recording'): Promise<void>;
 	beginPlaybackCachePreparation(project: TakeCycleRoutedCaptureProject): Promise<unknown>;
 	handleError(error: unknown): void;
+	stopRecording?(): PromiseLike<unknown> | unknown;
 	createResampler?: TakeCycleRoutedResamplerFactory;
 	releaseInputs?(): void;
 	readonly monitor?: boolean;
