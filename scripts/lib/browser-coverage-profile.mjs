@@ -374,6 +374,7 @@ function repositorySourcePath(source) {
 	let pathname;
 	try { pathname = decodeURIComponent(new URL(source).pathname).replaceAll('\\', '/'); }
 	catch { return null; }
+	if (pathname.includes('/node_modules/') || pathname.includes('/vendor/')) return null;
 	for (const root of ['src', 'desktop']) {
 		const marker = `/${root}/`;
 		const at = pathname.lastIndexOf(marker);

@@ -184,12 +184,16 @@ test('the collector honors a packaged run site map and durable coverage director
 	const workspace = makeWorkspace();
 	const payloadRoot = join(workspace, 'payload');
 	const built = join(payloadRoot, 'sites/soundscaper');
+	const externalSources = [
+		'file:///old-checkout/vendor/audacity-design-system/components/src/EffectDialog/EffectHeader.css',
+		'file:///old-checkout/node_modules/example/src/index.js',
+	];
 	mkdirSync(join(built, 'assets'), { recursive: true });
 	writeFileSync(join(built, 'assets/app-abc123.js'), CHUNK);
 	mkdirSync(join(workspace, 'payload/sites/soundscaper-source-maps'), { recursive: true });
 	writeFileSync(
 		join(workspace, 'payload/sites/soundscaper-source-maps/app-abc123.js.map'),
-		JSON.stringify(MAP),
+		JSON.stringify({ ...MAP, sources: [...MAP.sources, ...externalSources] }),
 	);
 	mkdirSync(join(payloadRoot, 'src/common'), { recursive: true });
 	writeFileSync(join(payloadRoot, 'src/common/measured.ts'), 'export const measured = 2;\n');
@@ -215,16 +219,22 @@ test('the collector honors a packaged run site map and durable coverage director
 	const [name] = readdirSync(coverageDirectory);
 	const profile = JSON.parse(readFileSync(join(coverageDirectory, name), 'utf8')) as {
 		result: { url: string }[],
-		'source-map-cache': Record<string, { data: { sources: string[], sourcesContent: string[] } }>,
+		'source-map-cache': Record<
+			string,
+			{ data: { sources: string[], sourcesContent: (string | null)[] } }
+		>,
 	};
 	const portableUrl = 'file:///__soundscaper_e2e__/browser/soundscaper/assets/app-abc123.js';
 	assert.deepEqual(profile.result.map(({ url }) => url), [portableUrl]);
 	assert.deepEqual(Object.keys(profile['source-map-cache']), [portableUrl]);
 	assert.deepEqual(profile['source-map-cache'][portableUrl].data.sources, [
 		'file:///__soundscaper_repo__/src/common/measured.ts',
+		...externalSources,
 	]);
 	assert.deepEqual(profile['source-map-cache'][portableUrl].data.sourcesContent, [
 		'export const measured = 2;\n',
+		null,
+		null,
 	]);
 });
 
