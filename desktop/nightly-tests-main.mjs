@@ -40,7 +40,7 @@ async function startNightlyTests() {
 	};
 	let progress = null;
 	let progressWindow = null;
-	let latestProgress = { completed: 0, total: 4, label: 'Application launched' };
+	let latestProgress = { completed: 0, total: 5, label: 'Application launched' };
 	let reportingFailure = false;
 	const updateWindow = (operation) => {
 		try { operation(progressWindow); }

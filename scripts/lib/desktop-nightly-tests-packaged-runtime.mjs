@@ -4,12 +4,14 @@ import { mkdir } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
 import { writeDesktopNightlyTestsMetricsDiagnostics } from './desktop-nightly-tests-metrics.mjs';
+import { PACKAGED_COVERAGE_ARTIFACT_PATHS } from './desktop-nightly-tests-packaged-coverage.mjs';
 
 const PRODUCTS = Object.freeze({
 	soundscaper: Object.freeze({ executable: 'Soundscaper', linuxExecutable: 'soundscaper' }),
 	framescaper: Object.freeze({ executable: 'Framescaper', linuxExecutable: 'framescaper' }),
 });
 export const PACKAGED_RUNTIME_ARTIFACT_PATHS = Object.freeze({
+	...PACKAGED_COVERAGE_ARTIFACT_PATHS,
 	packagedRuntimeConsoleLog: 'packaged-runtime/console.log',
 	packagedRuntimeHtmlReport: 'packaged-runtime/playwright-report/index.html',
 	packagedRuntimeJsonReport: 'packaged-runtime/results.json',

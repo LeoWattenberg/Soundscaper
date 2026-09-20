@@ -269,7 +269,7 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 	let signal = null;
 	let failure = null;
 	try {
-		options.onProgress?.(Object.freeze({ completed: 0, total: 4, label: 'Browser tests' }));
+		options.onProgress?.(Object.freeze({ completed: 0, total: 5, label: 'Browser tests' }));
 		sites = await startDesktopNightlyTestsProductSites({
 			payloadRoot: options.payloadRoot, environment, startStaticServer,
 		});

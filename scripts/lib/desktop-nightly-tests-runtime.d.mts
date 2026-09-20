@@ -72,6 +72,13 @@ export interface DesktopNightlyTestsResultEnvelope {
 		readonly metricsRaw: 'metrics/raw.json';
 		readonly metricsSummary: 'metrics/summary.json';
 		readonly metricsTestResults: 'metrics/test-results';
+		readonly e2eBuildEvidence: 'coverage/build-evidence';
+		readonly packagedCoverageConsoleLog: 'e2e-coverage/packaged-runtime/console.log';
+		readonly packagedCoverageHtmlReport: 'e2e-coverage/packaged-runtime/playwright-report/index.html';
+		readonly packagedCoverageJsonReport: 'e2e-coverage/packaged-runtime/results.json';
+		readonly packagedCoverageJunitReport: 'e2e-coverage/packaged-runtime/junit.xml';
+		readonly packagedCoverageRaw: 'coverage/v8-packaged';
+		readonly packagedCoverageTestResults: 'e2e-coverage/packaged-runtime/test-results';
 		readonly packagedRuntimeConsoleLog: 'packaged-runtime/console.log';
 		readonly packagedRuntimeHtmlReport: 'packaged-runtime/playwright-report/index.html';
 		readonly packagedRuntimeJsonReport: 'packaged-runtime/results.json';
@@ -182,6 +189,10 @@ export interface DesktopNightlyTestsDependencies {
 		readonly artifactDirectory: 'packaged-runtime';
 		readonly executionSurface: 'packaged-runtime';
 	}) => Promise<{ readonly passed: boolean }>;
+	readonly preserveCoverageEvidence?: (options: {
+		readonly payloadRoot: string;
+		readonly runRoot: string;
+	}) => Promise<string>;
 	readonly writeResult?: (
 		runRoot: string,
 		result: DesktopNightlyTestsResultEnvelope,

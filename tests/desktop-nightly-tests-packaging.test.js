@@ -44,6 +44,7 @@ test('nightly-with-tests packaging is isolated, portable, and keeps its payload 
 	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-product-sites.mjs'));
 	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-static-route.mjs'));
 	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-metrics.mjs'));
+	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-packaged-coverage.mjs'));
 	assert.ok(config.files.includes('scripts/collect-m4-production-parity-quality.mjs'));
 	assert.ok(config.files.includes('scripts/collect-m3-longform-editorial-quality.mjs'));
 	assert.ok(config.files.includes('!node_modules/**/*'));
@@ -54,6 +55,7 @@ test('nightly-with-tests packaging is isolated, portable, and keeps its payload 
 	assert.ok(payload.filter.includes('sites/**/*'));
 	assert.equal(payload.filter.includes('dist/**/*'), false);
 	assert.ok(payload.filter.includes('playwright.nightly-metrics.config.mjs'));
+	assert.ok(payload.filter.includes('playwright.nightly-packaged-coverage.config.mjs'));
 	assert.ok(payload.filter.includes('playwright.nightly-tests.config.mjs'));
 	assert.ok(payload.filter.includes('scripts/*.mjs'));
 	assert.ok(payload.filter.includes('scripts/lib/**/*'));

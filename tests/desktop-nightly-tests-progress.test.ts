@@ -85,13 +85,15 @@ test('the nightly runtime reports which serial test phase is active', async (con
 		runPlaywright: async () => ({ code: 0, signal: null }),
 		writeMetricsDiagnostics: async () => ({ passed: true }),
 		writePackagedMetricsDiagnostics: async () => ({ passed: true }),
+		preserveCoverageEvidence: async () => '/tmp/coverage-evidence',
 	});
 
 	assert.equal(completed.exitCode, 0);
 	assert.deepEqual(updates, [
-		{ completed: 0, total: 4, label: 'Browser tests' },
-		{ completed: 1, total: 4, label: 'Performance diagnostics' },
-		{ completed: 2, total: 4, label: 'Packaged app diagnostics' },
-		{ completed: 3, total: 4, label: 'Local model tests' },
+		{ completed: 0, total: 5, label: 'Browser tests' },
+		{ completed: 1, total: 5, label: 'Performance diagnostics' },
+		{ completed: 2, total: 5, label: 'Packaged app diagnostics' },
+		{ completed: 3, total: 5, label: 'Packaged app coverage' },
+		{ completed: 4, total: 5, label: 'Local model tests' },
 	]);
 });
