@@ -3,6 +3,8 @@
 import { createEffectMacroDraft } from './effect-macros.js';
 import { createMacroCommandStep } from './macro-command-steps.ts';
 
+export { effectMacroMissingEmbeddedNoiseProfile } from './effect-macro-readiness.ts';
+
 export const EFFECT_MACRO_TEMPLATE_IDS = Object.freeze(['restoration', 'fade-ends'] as const);
 
 export type EffectMacroTemplateId = typeof EFFECT_MACRO_TEMPLATE_IDS[number];
@@ -71,20 +73,3 @@ const TEMPLATES: Readonly<Record<string, () => Readonly<{
 		],
 	}),
 });
-
-/** Noise Reduction in a macro is portable only when its profile travels with the draft. */
-export function effectMacroMissingEmbeddedNoiseProfile(
-	effects: readonly Readonly<{
-		readonly type?: unknown;
-		readonly enabled?: unknown;
-		readonly context?: Readonly<Record<string, unknown>>;
-	}>[],
-): boolean {
-	return effects.some((effect) => effect.enabled !== false
-		&& effect.type === 'audacity-noise-reduction'
-		&& !isRecord(effect.context?.noiseProfile));
-}
-
-function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
-	return value !== null && typeof value === 'object' && !Array.isArray(value);
-}

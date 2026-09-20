@@ -4,8 +4,10 @@ import { expect, readFile, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	chooseCommandAction,
+	closeDialog,
 	collectClientErrors,
 	commitInput,
+	openNestedCommandMenu,
 	registerAudioEditorHooks,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
@@ -26,6 +28,22 @@ async function openManager(page, editor) {
 }
 
 test.describe('macro manager libraries', () => {
+	test('Tools > Macros lists the saved macros instead of fixed placeholders', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		const manager = await openManager(page, editor);
+		await expect(manager.locator('[data-macro-id]')).toHaveText(['Restoration', 'Fade ends']);
+		await closeDialog(manager);
+		const macros = await openNestedCommandMenu(page, editor, 'Tools', ['Macros']);
+
+		await expect(macros.getByRole('menuitem')).toHaveCount(2);
+		await expect(macros.getByRole('menuitem', { name: /^Restoration(?:\s|—)/u })).toBeDisabled();
+		await expect(macros.getByRole('menuitem', { name: 'Fade ends', exact: true })).toBeEnabled();
+		await expect(macros.getByRole('menuitem', { name: 'Apply macro', exact: true })).toHaveCount(0);
+		await expect(macros.getByRole('menuitem', { name: 'MP3 conversion', exact: true })).toHaveCount(0);
+		expect(errors).toEqual([]);
+	});
+
 	test('default macros are selected and edited in place, and deleted defaults stay deleted', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		let editor = await bootEditor(page, '/embed/en/');

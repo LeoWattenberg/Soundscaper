@@ -31,6 +31,7 @@ import { exportSurfaceMenuLabel } from './export-surface-copy.ts';
 import { createNyquistPluginMenuItems } from './nyquist-plugin-menu-items.js';
 import { audioSelectionEffectAppliesToAllAudio } from '../effects.js';
 import { selectAudioEditorLabelEditBlock } from '../label-edit-blocking.ts';
+import { createEffectMacroApplicationMenu } from './macro-application-menu.ts';
 
 /**
  * The video tracks an edit list would describe.
@@ -490,6 +491,10 @@ export default function createApplicationMenus({
 				...productItems.tools,
 				...desktopHost.tools,
 				{ id: 'manage-macros', label: copy.macroManager, disabled: !project, onClick: actions.openMacroManager },
+				createEffectMacroApplicationMenu(snapshot.macros?.library || [], {
+					label: copy.macros,
+					editBlocked: editBlocked || !project,
+				}, { run: actions.runMacro }),
 				{ id: 'nyquist-prompt', label: copy.nyquistPrompt, disabled: !project, onClick: () => actions.openNyquist() },
 			],
 		},
