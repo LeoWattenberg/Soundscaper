@@ -124,3 +124,56 @@ test('Vamp scanner faults quarantine only their root and owner revocation cancel
 	assert.deepEqual(quarantined, []);
 	release?.(undefined);
 });
+
+test('an isolated Vamp discovery peer crash quarantines the main-owned scan root', async () => {
+	const quarantined: Array<readonly [string, string]> = [];
+	const service = new DesktopVampAnalyzerScanService({
+		supervisor: {
+			runJob: async () => {
+				throw Object.assign(new Error('the Vamp peer exited'), { code: 'vamp-peer-crash' });
+			},
+			snapshot: () => ({ state: 'ready', quarantined: false }),
+		},
+		consent: { isGranted: () => true },
+		quarantine: {
+			isQuarantined: () => false,
+			quarantine: (digest, reason) => { quarantined.push([digest, reason]); },
+		},
+		roots: { resolve: () => ROOT }, isEnabled: () => true,
+		describePayload: async () => ({ status: 'available', descriptor: {} } as never),
+		registry: new DesktopVampAnalyzerRegistry({ isQuarantined: () => false }),
+	});
+	assert.deepEqual(await service.scanRoot({ owner: OWNER, rootId: 'root-1', format: 'vamp' }), {
+		status: 'failed', code: 'helper-failed', message: 'The Vamp scan did not complete.',
+		fault: { reason: 'scanner-crash', quarantined: true },
+	});
+	assert.deepEqual(quarantined, [[ROOT.scanDigest, 'scanner-crash']]);
+});
+
+test('withdrawal and disable cancel active scans without terminally disposing the service', async () => {
+	let runs = 0;
+	const service = new DesktopVampAnalyzerScanService({
+		supervisor: {
+			runJob: async ({ signal }) => {
+				runs += 1;
+				if (runs === 1) await new Promise((resolve, reject) => signal?.addEventListener(
+					'abort', () => reject(signal.reason), { once: true },
+				));
+				return helperResult();
+			},
+			snapshot: () => ({ state: 'ready', quarantined: false }),
+		},
+		consent: { isGranted: () => true },
+		quarantine: { isQuarantined: () => false, quarantine: () => undefined },
+		roots: { resolve: () => ROOT }, isEnabled: () => true,
+		describePayload: async () => ({ status: 'available', descriptor: {} } as never),
+		registry: new DesktopVampAnalyzerRegistry({ isQuarantined: () => false }),
+	});
+	const pending = service.scanRoot({ owner: OWNER, rootId: 'root-1', format: 'vamp' });
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	assert.equal(service.cancelFormat('ladspa'), 0);
+	assert.equal(service.cancelFormat('vamp'), 1);
+	assert.equal((await pending).status, 'failed');
+	assert.equal((await service.scanRoot({ owner: OWNER, rootId: 'root-1', format: 'vamp' })).status,
+		'described');
+});

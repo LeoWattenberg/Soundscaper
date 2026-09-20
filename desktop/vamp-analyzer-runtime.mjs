@@ -22,6 +22,7 @@ export function createDesktopVampAnalyzerRuntime(options) {
 	const sessions = new DesktopVampAnalyzerSessions({
 		registry, backend: options.backend,
 		...(options.mintSessionId ? { mintSessionId: options.mintSessionId } : {}),
+		...(options.onSessionFault ? { onFault: options.onSessionFault } : {}),
 	});
 	return Object.freeze({
 		async scanRoot(owner, value) {
@@ -33,7 +34,7 @@ export function createDesktopVampAnalyzerRuntime(options) {
 			return outcome;
 		},
 		registryView: () => registry.describe(),
-		catalog: () => catalog(registry.describe()),
+		catalog: () => options.isEnabled() ? catalog(registry.describe()) : Object.freeze([]),
 		pluginRegistryEntries: () => pluginRegistryEntries(registry.describe()),
 		async setInstallationAllowed(installationId, allowed) {
 			if (typeof allowed !== 'boolean') throw new TypeError('Vamp analyzer allowance must be boolean.');
@@ -51,6 +52,7 @@ export function createDesktopVampAnalyzerRuntime(options) {
 			return registry.describe();
 		},
 		async start(owner, value) {
+			assertEnabled(options);
 			const request = exact(value,
 				['analyzerId', 'stableId', 'binarySha256', 'sessionId'], 'Vamp analyzer start request');
 			let installation = locate(registry.describe(), request.stableId);
@@ -62,23 +64,47 @@ export function createDesktopVampAnalyzerRuntime(options) {
 				|| installation.installation.librarySha256 !== request.binarySha256) {
 				throw new Error('The Vamp analyzer identity no longer matches its installation.');
 			}
-			return sessions.start(owner, {
+			const session = await sessions.start(owner, {
 				installationId: request.stableId, sessionId: request.sessionId,
 			});
+			if (!options.isEnabled()) {
+				await sessions.cancel(owner, { sessionId: session.sessionId, reason: 'service-disabled' });
+				assertEnabled(options);
+			}
+			return session;
 		},
-		configure: (owner, value) => sessions.configure(owner, value),
-		pushPcm: (owner, value) => sessions.pushPcm(owner, value),
-		finish: (owner, value) => sessions.finish(owner, value),
+		configure(owner, value) {
+			assertEnabled(options);
+			return sessions.configure(owner, value);
+		},
+		pushPcm(owner, value) {
+			assertEnabled(options);
+			return sessions.pushPcm(owner, value);
+		},
+		finish(owner, value) {
+			assertEnabled(options);
+			return sessions.finish(owner, value);
+		},
 		cancel: (owner, value) => sessions.cancel(owner, value),
+		cancelDigest: (digest) => sessions.cancelDigest(digest, 'digest-quarantined'),
+		cancelScans: (format) => scan.cancelFormat(format),
 		revokeOwner(owner) {
 			scan.revokeOwner(owner);
 			return sessions.cancelOwner(owner, 'renderer-revoked');
+		},
+		disable() {
+			scan.cancelAll();
+			return sessions.cancelAll('service-disabled');
 		},
 		async dispose() {
 			scan.dispose();
 			await sessions.dispose();
 		},
 	});
+}
+
+function assertEnabled(options) {
+	if (!options.isEnabled()) throw new Error('Native Vamp analyzer execution is disabled.');
 }
 
 function catalog(view) {

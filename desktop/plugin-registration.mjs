@@ -26,6 +26,7 @@ import { createDesktopNativeAddonHelperSupervisor } from './native-helper-regist
 import { productionSoundscaperPluginFormatActivated } from './soundscaper-native-activation-policy.mjs';
 import { createPluginRegistryAllowanceStore } from './plugin-registry-allowance-store.mjs';
 import { authenticatePluginBinary } from './plugin-binary-authentication.mjs';
+import { registerDesktopVampAnalyzers } from './vamp-analyzer-registration.mjs';
 
 const CONSENT_FILE = 'native-plugin-consent-v1.json';
 const QUARANTINE_FILE = 'native-plugin-quarantine-v1.json';
@@ -151,6 +152,7 @@ export function observeScannedPlugins(supervisor, registry, {
 			}
 			const result = await supervisor.runJob(request);
 			if (request.kind === 'plugin-scan') {
+				if (request.signal?.aborted) return result;
 				if (!isFormatActivated(request.grant?.format)) {
 					throw new Error('That plug-in format activation changed while its scan was running.');
 				}
@@ -171,6 +173,7 @@ export function registerDesktopPluginDiscovery({
 	isPluginHostFormatActivated = productionPluginFormatActivated,
 	createPluginHostHelper = null,
 	openPersistentPluginSession = openNativePersistentPluginSession,
+	vampAnalyzerRuntime = null, vampAnalyzerBackend = null,
 }) {
 	const helper = injectedSupervisor ? null : createDesktopNativeAddonHelperSupervisor({
 		desktopRoot,
@@ -214,27 +217,24 @@ export function registerDesktopPluginDiscovery({
 	});
 	const scannerQuarantine = createScannerQuarantinePort(quarantine);
 	const formatIsActive = (format) => isPluginHostFormatActivated(format) === true;
+	const discoveryConsent = Object.freeze({
+		isGranted: (format) => formatIsActive(format) && consent.isGranted(format),
+	});
+	const discoveryRoots = Object.freeze({
+		resolve: (rootId, format) => {
+			if (!formatIsActive(format)) return null;
+			try { return scanRootLocation(consent.resolveRoot(format, rootId)); }
+			catch { return null; }
+		},
+	});
 	const service = new DesktopPluginScanService({
 		supervisor: observeScannedPlugins(supervisor, registry, {
 			isFormatActivated: formatIsActive, onRecorded: allowances.observe,
 			onIdentityChanged: (digest) => scannerQuarantine.quarantine(digest, 'identity-change'),
 		}),
-		consent: Object.freeze({
-			isGranted: (format) => formatIsActive(format) && consent.isGranted(format),
-		}),
+		consent: discoveryConsent,
 		quarantine: scannerQuarantine,
-		roots: Object.freeze({
-			resolve: (rootId, format) => {
-				if (!formatIsActive(format)) return null;
-				try {
-					return scanRootLocation(consent.resolveRoot(format, rootId));
-				} catch {
-					// An unknown root is a refusal, never an exception that would
-					// tell the renderer which ids do and do not exist.
-					return null;
-				}
-			},
-		}),
+		roots: discoveryRoots,
 		isEnabled: () => settings.snapshot().nativePluginDiscoveryEnabled === true,
 		describePayload,
 	});
@@ -254,6 +254,17 @@ export function registerDesktopPluginDiscovery({
 		})),
 		openPersistentPluginSession,
 	});
+	const vamp = registerDesktopVampAnalyzers({
+		channels, handle, ownerFor, userDataPath, fileSystem: durable, supervisor,
+		consent: discoveryConsent, quarantine: scannerQuarantine, roots: discoveryRoots,
+		hostQuarantine: quarantine,
+		isEnabled: () => settings.snapshot().nativePluginDiscoveryEnabled === true,
+		describePayload, desktopRoot, packaged, resourcesPath,
+		...(vampAnalyzerRuntime ? { runtime: vampAnalyzerRuntime } : {}),
+		...(vampAnalyzerBackend ? { backend: vampAnalyzerBackend } : {}),
+		effects: Object.freeze({ service, registry, allowances, hosting, isFormatActive: formatIsActive,
+			settleQuarantine: () => scannerQuarantine.settle() }),
+	});
 
 	handle(channels.nativePluginAvailability, async () => Object.freeze({
 		...(await service.availability()),
@@ -263,37 +274,29 @@ export function registerDesktopPluginDiscovery({
 	handle(channels.nativePluginConsent, async (event, value) => {
 		void ownerFor(event);
 		const format = String(value?.format || '');
+		const action = String(value?.action || '');
 		if (!formatIsActive(format)) {
 			throw new Error('That plug-in format remains blocked by production policy and source activation.');
 		}
 		const outcome = await applyConsentAction(consent, {
-			action: String(value?.action || ''),
+			action,
 			format,
 			rootId: String(value?.rootId || ''),
 		});
+		if (action === 'revoke' || action === 'remove-root') {
+			service.cancelFormat(format);
+			vamp.cancelFormat(format);
+		}
 		if (!formatIsActive(format)) {
 			consent.revoke(format);
+			service.cancelFormat(format);
+			vamp.cancelFormat(format);
 			await persistConsent();
 			throw new Error('That plug-in format activation changed before consent completed.');
 		}
 		await persistConsent();
 		return outcome;
 	});
-	handle(channels.nativePluginScan, async (event, value) => {
-		const outcome = await service.scanRoot({
-			owner: ownerFor(event),
-			rootId: String(value?.rootId || ''),
-			format: String(value?.format || ''),
-		});
-		// A fault the store could not write is this scan's failure and not a line
-		// in a log: a quarantine that did not persist is one the next start will
-		// not honour, and the scan would have looked clean either way.
-		await scannerQuarantine.settle();
-		allowances.apply(registry);
-		await allowances.capture(registry);
-		return outcome;
-	});
-	handle(channels.nativePluginInventory, () => registry.describe());
 	handle(channels.nativePluginClearQuarantine, async (event, value) => {
 		void ownerFor(event);
 		const clearance = String(value?.clearance || '');
@@ -303,44 +306,12 @@ export function registerDesktopPluginDiscovery({
 		const digest = String(value?.digest || '');
 		// A fault write still in flight lands before the clearance, so the user
 		// clears the quarantine that exists rather than racing its record.
-		await hosting?.settleQuarantineWrites();
+		await Promise.all([hosting?.settleQuarantineWrites(), vamp.settleQuarantineWrites()]);
 		const cleared = await quarantine.clear(digest, clearance);
 		// The in-memory hold releases with the durable one, or an explicit
 		// re-enable would leave the digest dead until the editor restarts.
 		const restored = hosting ? hosting.isolation.restoreDigest(digest) : false;
 		return Object.freeze({ cleared: cleared || restored });
-	});
-	handle(channels.nativePluginSetInstallationAllowed, async (event, value) => {
-		void ownerFor(event);
-		const format = pluginInstallationFormat(registry, value?.installationId);
-		if (!formatIsActive(format)) {
-			throw new Error('That plug-in format remains blocked by production policy and source activation.');
-		}
-		if (value?.allowed === true) {
-			registry.allow(value.installationId);
-			// An explicit re-allow is the one way back from an active revocation.
-			hosting?.isolation.restoreDigest(registry.installationDigest(value.installationId));
-		}
-		else if (value?.allowed === false) {
-			// Active revocation, as 5A-3 acceptance names it: the allowance is
-			// withdrawn, every matching host dies, and nothing restarts the
-			// digest until the user explicitly re-allows this installation.
-			registry.withdrawAllowance(value.installationId);
-			hosting?.isolation.revokeDigest(registry.installationDigest(value.installationId));
-		}
-		else throw new Error('A plug-in installation allowance must be an explicit boolean.');
-		await allowances.capture(registry);
-		return registry.describe();
-	});
-	handle(channels.nativePluginSelectInstallation, async (event, value) => {
-		void ownerFor(event);
-		const format = pluginInstallationFormat(registry, value?.installationId);
-		if (!formatIsActive(format)) {
-			throw new Error('That plug-in format remains blocked by production policy and source activation.');
-		}
-		registry.select(value.installationId);
-		await allowances.capture(registry);
-		return registry.describe();
 	});
 	handle(channels.nativePluginInstantiate, async (event, value) => {
 		await rebindPluginInstallation(allowances, registry, value?.installationId);
@@ -380,7 +351,9 @@ export function registerDesktopPluginDiscovery({
 		supervisorPort: supervisor,
 		registry,
 		quarantine,
-		settlePluginQuarantineWrites: () => hosting?.settleQuarantineWrites() ?? Promise.resolve(),
+		settlePluginQuarantineWrites: () => Promise.all([
+			hosting?.settleQuarantineWrites(), vamp.settleQuarantineWrites(),
+		]),
 		ready: async () => {
 			await quarantine.load();
 			return Object.freeze([]);
@@ -388,8 +361,11 @@ export function registerDesktopPluginDiscovery({
 		setEnabled: async (enabled) => {
 			const result = await settings.setNativePluginDiscoveryEnabled(enabled === true);
 			if (!result) {
+				service.cancelAll();
+				const vampDisabled = vamp.disable();
 				await hosting?.closeAll();
 				hosting?.service.closeAll();
+				await vampDisabled;
 			}
 			return result;
 		},
@@ -397,11 +373,13 @@ export function registerDesktopPluginDiscovery({
 			service.revokeOwner(owner);
 			void hosting?.revokeOwner(owner);
 			hosting?.service.revokeOwner(owner);
+			return vamp.revokeOwner(owner);
 		},
-		dispose: () => {
+		dispose: async () => {
 			void hosting?.closeAll();
 			hosting?.service.dispose();
 			service.dispose();
+			await vamp.dispose();
 		},
 	});
 }
@@ -409,13 +387,6 @@ export function registerDesktopPluginDiscovery({
 /** Resolve machine activation for every known format from authenticated machine state. */
 export function productionPluginFormatActivated() {
 	return productionSoundscaperPluginFormatActivated(...arguments);
-}
-
-function pluginInstallationFormat(registry, installationId) {
-	for (const entry of registry.describe().entries) {
-		if (entry.installations.some((installation) => installation.installationId === installationId)) return entry.format;
-	}
-	throw new Error('That plug-in installation is not registered.');
 }
 
 function activatedConsentProjection(projection, isActive) {

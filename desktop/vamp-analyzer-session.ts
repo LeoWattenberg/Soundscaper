@@ -55,6 +55,7 @@ export interface DesktopVampAnalyzerSessionsOptions {
 	readonly registry: DesktopVampAnalyzerRegistry;
 	readonly backend: VampAnalyzerBackendFactory;
 	readonly mintSessionId?: () => string;
+	readonly onFault?: (grant: Readonly<VampAnalyzerExecutionGrant>, error: unknown) => Promise<void>;
 }
 
 interface Session {
@@ -76,7 +77,10 @@ export class DesktopVampAnalyzerSessions {
 	readonly #registry: DesktopVampAnalyzerRegistry;
 	readonly #backend: VampAnalyzerBackendFactory;
 	readonly #mintSessionId: () => string;
+	readonly #onFault: (grant: Readonly<VampAnalyzerExecutionGrant>, error: unknown) => Promise<void>;
 	readonly #sessions = new Map<string, Session>();
+	readonly #revokedOwners = new WeakSet<object>();
+	#generation = 0;
 	#disposed = false;
 
 	constructor(options: DesktopVampAnalyzerSessionsOptions) {
@@ -86,11 +90,14 @@ export class DesktopVampAnalyzerSessions {
 		this.#registry = options.registry;
 		this.#backend = options.backend;
 		this.#mintSessionId = options.mintSessionId ?? (() => `vamp_${randomUUID()}`);
+		this.#onFault = options.onFault ?? (() => Promise.resolve());
 	}
 
 	async start(owner: object, value: unknown): Promise<Readonly<VampAnalyzerSessionProjection>> {
 		this.#assertLive();
 		assertOwner(owner);
+		if (this.#revokedOwners.has(owner)) throw new Error('That Vamp analyzer owner was revoked.');
+		const generation = this.#generation;
 		const request = closedRecord(value, ['installationId', 'sessionId'], 'Vamp analyzer start request');
 		const installationId = opaqueId(request.installationId, 'installation ID');
 		const sessionId = request.sessionId === null
@@ -100,8 +107,14 @@ export class DesktopVampAnalyzerSessions {
 			throw new Error('The Vamp analyzer session capacity is full.');
 		}
 		const grant = this.#registry.executionGrantFor(installationId);
-		const backend = await this.#backend.open(grant);
-		assertBackend(backend);
+		let backend: VampAnalyzerBackendInstance;
+		try {
+			backend = await this.#backend.open(grant);
+			assertBackend(backend);
+		} catch (error) {
+			await this.#reportFault(grant, error);
+			throw error;
+		}
 		let authorityChanged: boolean;
 		try {
 			const current = this.#registry.executionGrantFor(installationId);
@@ -111,7 +124,8 @@ export class DesktopVampAnalyzerSessions {
 		} catch {
 			authorityChanged = true;
 		}
-		if (this.#disposed || this.#sessions.has(sessionId) || authorityChanged) {
+		if (this.#disposed || generation !== this.#generation || this.#revokedOwners.has(owner)
+			|| this.#sessions.has(sessionId) || authorityChanged) {
 			await closeBackend(backend, 'session-not-admitted');
 			throw new Error('The Vamp analyzer session lost authority while its backend opened.');
 		}
@@ -148,8 +162,7 @@ export class DesktopVampAnalyzerSessions {
 			session.operation = null;
 			return project(session);
 		} catch (error) {
-			try { await this.#fault(session); } catch {}
-			throw error;
+			return this.#rejectFault(session, error);
 		}
 	}
 
@@ -173,8 +186,7 @@ export class DesktopVampAnalyzerSessions {
 			session.operation = null;
 			return Object.freeze({ session: project(session), features });
 		} catch (error) {
-			try { await this.#fault(session); } catch {}
-			throw error;
+			return this.#rejectFault(session, error);
 		}
 	}
 
@@ -195,12 +207,11 @@ export class DesktopVampAnalyzerSessions {
 			session.state = 'finished';
 			session.operation = null;
 			const projection = project(session);
-			this.#sessions.delete(session.sessionId);
 			await session.backend.close();
+			this.#sessions.delete(session.sessionId);
 			return Object.freeze({ session: projection, features });
 		} catch (error) {
-			try { await this.#fault(session); } catch {}
-			throw error;
+			return this.#rejectFault(session, error);
 		}
 	}
 
@@ -216,10 +227,19 @@ export class DesktopVampAnalyzerSessions {
 
 	async cancelOwner(owner: object, cancellationReason: string): Promise<number> {
 		assertOwner(owner);
+		this.#revokedOwners.add(owner);
 		const admittedReason = reason(cancellationReason);
 		const owned = [...this.#sessions.values()].filter((session) => session.owner === owner);
 		await Promise.all(owned.map((session) => this.#cancel(session, admittedReason)));
 		return owned.length;
+	}
+
+	async cancelAll(cancellationReason: string): Promise<number> {
+		const admittedReason = reason(cancellationReason);
+		this.#generation += 1;
+		const sessions = [...this.#sessions.values()];
+		await Promise.all(sessions.map((session) => this.#cancel(session, admittedReason)));
+		return sessions.length;
 	}
 
 	async cancelInstallation(installationIdValue: unknown, cancellationReason: string): Promise<number> {
@@ -232,11 +252,20 @@ export class DesktopVampAnalyzerSessions {
 		return matching.length;
 	}
 
+	async cancelDigest(digestValue: unknown, cancellationReason: string): Promise<number> {
+		const digest = libraryDigest(digestValue);
+		const admittedReason = reason(cancellationReason);
+		const matching = [...this.#sessions.values()].filter(
+			(session) => session.grant.librarySha256 === digest,
+		);
+		await Promise.all(matching.map((session) => this.#cancel(session, admittedReason)));
+		return matching.length;
+	}
+
 	async dispose(): Promise<void> {
 		if (this.#disposed) return;
 		this.#disposed = true;
-		const sessions = [...this.#sessions.values()];
-		await Promise.all(sessions.map((session) => this.#cancel(session, 'service-disposed')));
+		await this.cancelAll('service-disposed');
 	}
 
 	#owned(owner: object, value: unknown): Session {
@@ -265,12 +294,28 @@ export class DesktopVampAnalyzerSessions {
 		session.featureCount += added;
 	}
 
-	async #fault(session: Session): Promise<void> {
-		if (this.#sessions.get(session.sessionId) !== session) return;
+	async #rejectFault(session: Session, error: unknown): Promise<never> {
+		if (this.#sessions.get(session.sessionId) !== session) throw error;
 		this.#sessions.delete(session.sessionId);
 		session.state = 'cancelled';
 		session.operation = null;
-		await closeBackend(session.backend, 'backend-fault');
+		const settled = await Promise.allSettled([
+			closeBackend(session.backend, 'backend-fault'),
+			this.#onFault(session.grant, error),
+		]);
+		const failures = settled.filter((outcome) => outcome.status === 'rejected')
+			.map((outcome) => outcome.reason);
+		if (failures.length) throw new AggregateError([error, ...failures], 'Vamp analyzer fault handling failed.');
+		throw error;
+	}
+
+	async #reportFault(grant: Readonly<VampAnalyzerExecutionGrant>, error: unknown): Promise<void> {
+		try { await this.#onFault(grant, error); }
+		catch (reportError) {
+			throw new AggregateError([error, reportError], 'Vamp analyzer fault reporting failed.', {
+				cause: reportError,
+			});
+		}
 	}
 
 	async #cancel(session: Session, cancellationReason: string): Promise<void> {
@@ -345,6 +390,13 @@ function opaqueId(value: unknown, label: string): string {
 function runtimeId(value: unknown, label: string): string {
 	if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(value)) {
 		throw new TypeError(`Invalid Vamp ${label}.`);
+	}
+	return value;
+}
+
+function libraryDigest(value: unknown): string {
+	if (typeof value !== 'string' || !/^[a-f\d]{64}$/u.test(value)) {
+		throw new TypeError('Invalid Vamp library digest.');
 	}
 	return value;
 }

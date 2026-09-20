@@ -37,7 +37,7 @@ function observation() {
 	};
 }
 
-function harness() {
+function harness({ isEnabled = () => true, deferredOpen = false } = {}) {
 	const persisted = [];
 	const calls = [];
 	const allowances = {
@@ -46,6 +46,8 @@ function harness() {
 		rebind: async () => false,
 		capture: async (registry) => { persisted.push(registry.describe()); },
 	};
+	let releaseOpen;
+	const openGate = new Promise((resolve) => { releaseOpen = resolve; });
 	const runtime = createDesktopVampAnalyzerRuntime({
 		supervisor: {
 			runJob: async () => ({ format: 'vamp', status: 'scanned', detail: '', libraries: [observation()] }),
@@ -54,21 +56,24 @@ function harness() {
 		consent: { isGranted: () => true },
 		quarantine: { isQuarantined: () => false, quarantine: () => undefined },
 		roots: { resolve: () => ({ path: '/usr/lib/vamp', identity: { dev: 1, ino: 1 }, scanDigest: 'f'.repeat(64) }) },
-		isEnabled: () => true,
+		isEnabled,
 		describePayload: async () => ({ status: 'available', descriptor: {} }),
 		allowances,
 		backend: {
-			open: async () => ({
+			open: async () => {
+				if (deferredOpen) await openGate;
+				return ({
 				configure: async () => ({ outputs: observation().descriptors[0].outputs }),
 				process: async () => [{ outputId: 'onsets', timestamp: { seconds: 0, nanoseconds: 0 },
 					duration: null, values: [1], label: 'onset' }],
 				finish: async () => [], cancel: async (reason) => { calls.push(['cancel', reason]); },
 				close: async () => { calls.push(['close']); },
-			}),
+				});
+			},
 		},
 		mintSessionId: () => 'vamp_session_1',
 	});
-	return { runtime, calls, persisted };
+	return { runtime, calls, persisted, releaseOpen: () => releaseOpen() };
 }
 
 test('runtime publishes a pathless catalog only after explicit installation allowance', async () => {
@@ -124,4 +129,43 @@ test('withdrawing allowance actively cancels an analyzer session', async () => {
 		binarySha256: descriptor.binarySha256, sessionId: null });
 	await runtime.setInstallationAllowed(installationId, false);
 	assert.deepEqual(calls.slice(-2), [['cancel', 'allowance-withdrawn'], ['close']]);
+});
+
+test('runtime disable cancels active work without terminally disposing the analyzer service', async () => {
+	let enabled = true;
+	const { runtime, calls } = harness({ isEnabled: () => enabled });
+	await runtime.scanRoot(OWNER, { rootId: 'standard', format: 'vamp' });
+	const installationId = runtime.registryView().entries[0].installations[0].installationId;
+	await runtime.setInstallationAllowed(installationId, true);
+	const descriptor = runtime.catalog()[0];
+	const request = { analyzerId: descriptor.analyzerId, stableId: descriptor.stableId,
+		binarySha256: descriptor.binarySha256, sessionId: null };
+	await runtime.start(OWNER, request);
+	enabled = false;
+	assert.equal(await runtime.disable(), 1);
+	assert.deepEqual(calls.slice(-2), [['cancel', 'service-disabled'], ['close']]);
+	assert.deepEqual(runtime.catalog(), []);
+	await assert.rejects(() => runtime.start(OWNER, request), /disabled/iu);
+	enabled = true;
+	assert.equal((await runtime.start(OWNER, request)).state, 'created',
+		'a later settings re-enable must be able to start a fresh analyzer session');
+	await runtime.dispose();
+});
+
+test('runtime rechecks enabled authority after an analyzer backend opens', async () => {
+	let enabled = true;
+	const fixture = harness({ isEnabled: () => enabled, deferredOpen: true });
+	await fixture.runtime.scanRoot(OWNER, { rootId: 'standard', format: 'vamp' });
+	const installationId = fixture.runtime.registryView().entries[0].installations[0].installationId;
+	await fixture.runtime.setInstallationAllowed(installationId, true);
+	const descriptor = fixture.runtime.catalog()[0];
+	const pending = fixture.runtime.start(OWNER, {
+		analyzerId: descriptor.analyzerId, stableId: descriptor.stableId,
+		binarySha256: descriptor.binarySha256, sessionId: null,
+	});
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	enabled = false;
+	fixture.releaseOpen();
+	await assert.rejects(() => pending, /disabled/iu);
+	assert.deepEqual(fixture.calls.slice(-2), [['cancel', 'service-disabled'], ['close']]);
 });

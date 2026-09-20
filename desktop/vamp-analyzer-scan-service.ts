@@ -201,6 +201,25 @@ export class DesktopVampAnalyzerScanService {
 		controller.abort(new HelperSupervisionError('cancelled', 'The Vamp scan owner went away.'));
 	}
 
+	cancelAll(): number {
+		return this.#cancelScans('Vamp discovery was disabled.');
+	}
+
+	cancelFormat(format: string): number {
+		return format === 'vamp'
+			? this.#cancelScans('Consent for Vamp discovery was withdrawn.')
+			: 0;
+	}
+
+	#cancelScans(detail: string): number {
+		const scans = [...this.#owners.entries()];
+		this.#owners.clear();
+		for (const [, controller] of scans) {
+			controller.abort(new HelperSupervisionError('cancelled', detail));
+		}
+		return scans.length;
+	}
+
 	dispose(): void {
 		if (this.#disposed) return;
 		this.#disposed = true;
@@ -271,12 +290,19 @@ function scanFaultReason(error: unknown): string | null {
 	if (error instanceof HelperContractViolationError) {
 		return error.code === 'oversized' ? 'oversize-answer' : 'malformed-answer';
 	}
+	if (errorCode(error) === 'vamp-peer-crash') return 'scanner-crash';
 	if (error instanceof HelperSupervisionError) {
 		if (['malformed-message', 'job-mismatch'].includes(error.cause_)) return 'malformed-answer';
 		if (['heartbeat', 'cancellation-timeout', 'resource-violation'].includes(error.cause_)) return 'scanner-hang';
 		if (error.cause_ === 'helper-exit') return 'scanner-crash';
 	}
 	return null;
+}
+
+function errorCode(error: unknown): string | null {
+	if (error === null || typeof error !== 'object') return null;
+	const code = (error as { readonly code?: unknown }).code;
+	return typeof code === 'string' ? code : null;
 }
 
 function admitRequest(

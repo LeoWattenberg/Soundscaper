@@ -501,6 +501,21 @@ test('a revoked owner is cancelled, and one revoked before its payload never spa
 	assert.deepEqual(slow.quarantined, [], 'a cancelled owner is not a scanner fault');
 });
 
+test('format withdrawal and global disable cancel scans without disposing discovery', async () => {
+	const fixture = createService({ run: settleOnAbort });
+	const withdrawn = scan(fixture.service);
+	await nextTick();
+	assert.equal(fixture.service.cancelFormat('clap'), 0);
+	assert.equal(fixture.service.cancelFormat('vst3'), 1);
+	assert.equal(failed(await withdrawn).code, 'helper-cancelled');
+
+	const disabled = scan(fixture.service);
+	await nextTick();
+	assert.equal(fixture.service.cancelAll(), 1);
+	assert.equal(failed(await disabled).code, 'helper-cancelled');
+	assert.equal(fixture.disposals.length, 0, 'authority cancellation must leave discovery reusable');
+});
+
 test('disposal aborts every outstanding scan and disposes the supervisor exactly once', async () => {
 	const { service, disposals, quarantined } = createService({ run: settleOnAbort });
 	const pending = scan(service);

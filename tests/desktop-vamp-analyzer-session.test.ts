@@ -35,7 +35,9 @@ function observation(): VampAnalyzerLibraryObservation {
 	};
 }
 
-function harness(options: Readonly<{ malformedProcess?: boolean; deferredProcess?: boolean }> = {}) {
+function harness(options: Readonly<{
+	malformedProcess?: boolean; deferredProcess?: boolean; openFailure?: Error;
+}> = {}) {
 	const registry = new DesktopVampAnalyzerRegistry({ isQuarantined: () => false });
 	const recorded = registry.recordLibrary(observation());
 	assert.equal(recorded.status, 'recorded');
@@ -43,6 +45,7 @@ function harness(options: Readonly<{ malformedProcess?: boolean; deferredProcess
 	const installationId = recorded.analyzers[0]!.installationId;
 	registry.allow(installationId);
 	const calls: string[] = [];
+	const faults: Array<Readonly<{ digest: string; error: unknown }>> = [];
 	let releaseProcess: (() => void) | undefined;
 	const processGate = new Promise<void>((resolve) => { releaseProcess = resolve; });
 	const instance: VampAnalyzerBackendInstance = {
@@ -69,12 +72,14 @@ function harness(options: Readonly<{ malformedProcess?: boolean; deferredProcess
 		backend: {
 			open: async (grant) => {
 				calls.push(`open:${grant.libraryPath}`);
+				if (options.openFailure) throw options.openFailure;
 				return instance;
 			},
 		},
 		mintSessionId: () => 'vamp_session_01',
+		onFault: async (grant, error) => { faults.push({ digest: grant.librarySha256, error }); },
 	});
-	return { sessions, calls, installationId, releaseProcess: () => releaseProcess?.() };
+	return { sessions, calls, faults, installationId, releaseProcess: () => releaseProcess?.() };
 }
 
 async function configuredSession(fixture: ReturnType<typeof harness>, frameCount = 4) {
@@ -132,7 +137,23 @@ test('malformed backend features fail closed and tear down the exact session', a
 		sessionId: configured.sessionId, startFrame: 0, channels: [Float32Array.of(0, 0, 0, 0)],
 	}), /bin count/iu);
 	assert.deepEqual(fixture.calls.slice(-2), ['cancel:backend-fault', 'close']);
+	assert.equal(fixture.faults.length, 1);
+	assert.equal(fixture.faults[0]?.digest, DIGEST);
 	await assert.rejects(() => fixture.sessions.finish(OWNER, { sessionId: configured.sessionId }), /unknown.*session/iu);
+});
+
+test('backend-open failures are reported once while explicit cancellation is never charged as a fault', async () => {
+	const failure = Object.assign(new Error('helper crashed while opening'), { cause_: 'helper-exit' });
+	const opening = harness({ openFailure: failure });
+	await assert.rejects(() => opening.sessions.start(OWNER, {
+		installationId: opening.installationId, sessionId: null,
+	}), failure);
+	assert.deepEqual(opening.faults, [{ digest: DIGEST, error: failure }]);
+
+	const cancelled = harness();
+	const configured = await configuredSession(cancelled);
+	await cancelled.sessions.cancel(OWNER, { sessionId: configured.sessionId, reason: 'user-cancelled' });
+	assert.deepEqual(cancelled.faults, []);
 });
 
 test('one session admits only one in-flight operation and owner revocation cancels its sessions', async () => {

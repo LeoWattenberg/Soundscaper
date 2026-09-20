@@ -184,7 +184,10 @@ export class DesktopPluginScanService {
 	readonly #roots: PluginScanRootPort;
 	readonly #isEnabled: () => boolean;
 	readonly #describePayload: () => Promise<NativeAddonAvailability>;
-	readonly #owners = new Map<object, AbortController>();
+	readonly #owners = new Map<object, Readonly<{
+		controller: AbortController;
+		format: HelperPluginFormat;
+	}>>();
 	#queue: Promise<unknown> = Promise.resolve();
 	#disposed = false;
 
@@ -252,8 +255,8 @@ export class DesktopPluginScanService {
 		// or a helper is spawned for a renderer that is already gone.
 		const controller = new AbortController();
 		const previous = this.#owners.get(admitted.owner);
-		previous?.abort(new HelperSupervisionError('cancelled', 'A newer scan request replaced this one.'));
-		this.#owners.set(admitted.owner, controller);
+		previous?.controller.abort(new HelperSupervisionError('cancelled', 'A newer scan request replaced this one.'));
+		this.#owners.set(admitted.owner, Object.freeze({ controller, format }));
 		try {
 			const payload = await this.#describePayload();
 			if (controller.signal.aborted) {
@@ -279,15 +282,16 @@ export class DesktopPluginScanService {
 					validateResult: (value) => validateHelperPluginScanResult(value),
 				});
 			}) as HelperPluginScanResult;
-			// The quarantine record stands either way: it is main's own durable
-			// knowledge about an installation, not something the owner asked for.
-			this.#quarantineUnusableEntries(result);
 			if (controller.signal.aborted) {
 				// A scanner that answered as the abort landed still answered for
 				// an owner that has gone; publishing it now would hand a
 				// revoked renderer the inventory it was cancelled out of.
 				return failure('helper-cancelled', FAILURE_MESSAGES['helper-cancelled']);
 			}
+			// The quarantine record stands after authority is rechecked: it is
+			// main's durable knowledge, but a scan whose authority was withdrawn
+			// cannot publish or classify the answer it raced with cancellation.
+			this.#quarantineUnusableEntries(result);
 			return Object.freeze({
 				status: 'described' as const,
 				scan: projectPluginScanForRenderer(result),
@@ -304,23 +308,45 @@ export class DesktopPluginScanService {
 			return failure(code, FAILURE_MESSAGES[code],
 				reason === null ? null : Object.freeze({ reason, quarantined: true }));
 		} finally {
-			if (this.#owners.get(admitted.owner) === controller) this.#owners.delete(admitted.owner);
+			if (this.#owners.get(admitted.owner)?.controller === controller) this.#owners.delete(admitted.owner);
 		}
 	}
 
 	revokeOwner(owner: object): void {
-		const controller = this.#owners.get(owner);
-		if (!controller) return;
+		const active = this.#owners.get(owner);
+		if (!active) return;
 		this.#owners.delete(owner);
-		controller.abort(new HelperSupervisionError('cancelled', 'The scan owner went away.'));
+		active.controller.abort(new HelperSupervisionError('cancelled', 'The scan owner went away.'));
+	}
+
+	cancelFormat(format: HelperPluginFormat): number {
+		let cancelled = 0;
+		for (const [owner, active] of [...this.#owners]) {
+			if (active.format !== format) continue;
+			this.#owners.delete(owner);
+			active.controller.abort(new HelperSupervisionError(
+				'cancelled', 'Consent for this plug-in scan format was withdrawn.',
+			));
+			cancelled += 1;
+		}
+		return cancelled;
+	}
+
+	cancelAll(): number {
+		const scans = [...this.#owners.entries()];
+		this.#owners.clear();
+		for (const [, active] of scans) {
+			active.controller.abort(new HelperSupervisionError('cancelled', 'Plug-in discovery was disabled.'));
+		}
+		return scans.length;
 	}
 
 	dispose(): void {
 		if (this.#disposed) return;
 		this.#disposed = true;
-		for (const [owner, controller] of this.#owners) {
+		for (const [owner, active] of this.#owners) {
 			this.#owners.delete(owner);
-			controller.abort(new HelperSupervisionError('disposed', 'Plug-in discovery is shutting down.'));
+			active.controller.abort(new HelperSupervisionError('disposed', 'Plug-in discovery is shutting down.'));
 		}
 		this.#supervisor.dispose();
 	}
@@ -419,4 +445,3 @@ function scanFaultReason(error: unknown): PluginScanFaultReason | null {
 	}
 	return null;
 }
-
