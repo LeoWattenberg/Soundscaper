@@ -72,7 +72,12 @@ async function currentClip(state) {
 	if (!state.clipName) throw new Error('This step needs an imported clip.');
 	const clip = guideClip(state.editor, state.clipName);
 	await expect(clip).toBeVisible();
+	const timeline = state.editor.locator('.audio-editor-timeline-scroll');
+	const scrollLeft = await timeline.evaluate((element) => element.scrollLeft);
 	await clip.scrollIntoViewIfNeeded();
+	// Firefox may reveal a lower track by moving the clip start underneath the
+	// sticky track headers. Keep the reader's horizontal timeline position.
+	await timeline.evaluate((element, left) => { element.scrollLeft = left; }, scrollLeft);
 	const box = await clip.boundingBox();
 	expect(box).not.toBeNull();
 	return { clip, box };
