@@ -51,9 +51,9 @@ type NativeAudioControllerPort = NativeControllerPort & NonNullable<Parameters<t
 		timedRecordingPreparing?: boolean; timedRecording?: unknown; timedRecordingCancelling?: boolean;
 		recordingPoolSources?: readonly unknown[];
 	}>;
-	refreshAudioDevices?(options: Readonly<{
+	actions: NativeControllerPort['actions'] & Readonly<{ audioDevices?: Readonly<{ refresh(options: Readonly<{
 		probe: false; nativeInventory: NativeAudioInventory;
-	}>): Promise<unknown>;
+	}>): Promise<unknown>; }> }>;
 }>;
 
 /** Adds renderer-owned direct-port lifecycle without widening the preload API. */
@@ -399,10 +399,10 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 	}
 
 	async function publishNativeInventories(): Promise<void> {
-		if (!options.controller?.refreshAudioDevices) return;
+		if (!options.controller?.actions.audioDevices?.refresh) return;
 		const inventories = [...nativeInventories.values()]
 			.sort((left, right) => left.backend < right.backend ? -1 : left.backend > right.backend ? 1 : 0);
-		await options.controller.refreshAudioDevices({
+		await options.controller.actions.audioDevices.refresh({
 			probe: false,
 			nativeInventory: Object.freeze({
 				backend: 'native', status: 'ready', detail: '',

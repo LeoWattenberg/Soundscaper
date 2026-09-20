@@ -37,6 +37,32 @@ test('selected Soundscaper exposes the default-off native tier only through menu
 	await expect(page.locator('[data-soundscaper-native-services-dialog="true"]')).toHaveCount(0);
 });
 
+test('described native audio devices survive an ordinary Audio setup refresh', async ({ page }) => {
+	await installNativeServicesFixture(page, false, true);
+	const editor = await bootEditor(page, '/embed/en/');
+	await openNativePreferences(page, editor, 'Audio settings', 'Native audio and latency');
+	const nativeDialog = page.getByRole('dialog', { name: 'Audio devices', exact: true });
+	await nativeDialog.getByRole('tab', { name: 'Devices', exact: true }).click();
+	await nativeDialog.locator('[data-native-audio-describe="alsa"]').click();
+	await expect(nativeDialog.getByText('Studio interface', { exact: true })).toBeVisible();
+	await nativeDialog.getByRole('button', { name: 'Close', exact: true })
+		.filter({ hasText: /^Close$/u }).click();
+
+	await editor.locator('[data-action-bar]')
+		.getByRole('button', { name: 'Audio setup', exact: true }).click();
+	const setup = editor.getByRole('dialog', { name: 'Audio setup', exact: true });
+	const microphone = setup.getByRole('combobox', { name: 'Microphone', exact: true });
+	const speakers = setup.getByRole('combobox', { name: 'Speakers', exact: true });
+	await expect(microphone).toContainText('Studio interface');
+	await expect(speakers).toContainText('Studio interface');
+
+	await setup.getByRole('button', { name: 'Refresh devices', exact: true }).click();
+	await expect(microphone).toContainText('Studio interface');
+	await expect(speakers).toContainText('Studio interface');
+	await expect.poll(() => page.evaluate(() => globalThis.__soundscaperNativeRuntimeCalls))
+		.toContain('describeNativeAudioBackend:alsa');
+});
+
 
 test('Plugin Manager stays available with processing off and supports keyboard and narrow themes', async ({ page }) => {
 	await installNativeServicesFixture(page);
@@ -104,15 +130,18 @@ test('Framescaper never exposes the Soundscaper native-services surface', async 
 	await expect.poll(() => page.evaluate(() => globalThis.__soundscaperNativeRuntimeCalls)).toEqual([]);
 });
 
-async function installNativeServicesFixture(page, withPlugins = false) {
-	await page.addInitScript((includePlugins) => {
+async function installNativeServicesFixture(page, withPlugins = false, withNativeAudio = false) {
+	await page.addInitScript(({ includePlugins, includeNativeAudio }) => {
 		const runtimeCalls = [];
 		let probeCount = 0;
 		const unavailablePayload = Object.freeze({
 			status: 'unavailable', reason: 'not-built', detail: 'Fixture professional payload is unavailable',
 		});
 		const audio = Object.freeze({
-			enabled: false, quarantined: false, payload: unavailablePayload, backends: Object.freeze([]),
+			enabled: includeNativeAudio, quarantined: false,
+			payload: includeNativeAudio
+				? Object.freeze({ status: 'available', reason: null, detail: '' }) : unavailablePayload,
+			backends: Object.freeze(includeNativeAudio ? ['alsa'] : []),
 		});
 		const quarantine = Object.freeze({
 			loaded: true, degraded: false, records: Object.freeze([]), pendingFaults: 0,
@@ -157,8 +186,21 @@ async function installNativeServicesFixture(page, withPlugins = false) {
 			}),
 			applyNativeTierControl: async () => { throw new Error('No fixture tier control is changed.'); },
 			nativeAudioHelperAvailability: async () => { probeCount += 1; return audio; },
-			setNativeAudioHelperEnabled: async () => false,
-			describeNativeAudioBackend: () => refused('describeNativeAudioBackend'),
+			setNativeAudioHelperEnabled: async () => includeNativeAudio,
+			describeNativeAudioBackend: async ({ backend }) => {
+				if (!includeNativeAudio) return refused('describeNativeAudioBackend');
+				runtimeCalls.push(`describeNativeAudioBackend:${backend}`);
+				return Object.freeze({
+					status: 'described',
+					inventory: Object.freeze({
+						backend, status: 'ready', detail: '',
+						devices: Object.freeze([Object.freeze({
+							handle: 'studio-interface', label: 'Studio interface',
+							direction: 'duplex', channelCount: 8, isDefault: false,
+						})]),
+					}),
+				});
+			},
 			nativePluginAvailability: async () => plugins,
 			setNativePluginConsent: () => refused('setNativePluginConsent'),
 			scanNativePlugins: () => refused('scanNativePlugins'),
@@ -190,5 +232,5 @@ async function installNativeServicesFixture(page, withPlugins = false) {
 		});
 		const surface = Object.freeze({ v1: bridge });
 		Object.defineProperty(globalThis, 'soundscaperDesktop', { configurable: true, value: surface });
-	}, withPlugins);
+	}, { includePlugins: withPlugins, includeNativeAudio: withNativeAudio });
 }

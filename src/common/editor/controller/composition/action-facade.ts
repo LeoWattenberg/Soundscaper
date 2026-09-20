@@ -250,7 +250,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 		}),
 		audioDevices: Object.freeze({
 			requestAccess: requestInputAccess,
-			refresh: () => refreshAudioDevices({ probe: true }),
+			refresh: (options: Parameters<typeof refreshAudioDevices>[0] = { probe: true }) => refreshAudioDevices(options),
 			setPreferredInput: setPreferredInputDevice,
 			setPreferredInputChannelCount,
 			configureDisplayInput,
