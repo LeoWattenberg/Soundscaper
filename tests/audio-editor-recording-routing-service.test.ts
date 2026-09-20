@@ -129,6 +129,34 @@ test('native inventory joins Web devices through the routing action without prob
 	assert.equal(fixture.state.audioOutputStatus, 'available');
 });
 
+test('ordinary device refresh preserves native inventory until it is explicitly cleared', async () => {
+	const fixture = createFixture({
+		enumerateDevices: async () => [
+			{ kind: 'audioinput', deviceId: 'web-mic', label: 'Web mic' },
+			{ kind: 'audiooutput', deviceId: 'web-speaker', label: 'Web speaker' },
+		],
+	});
+	const nativeInventory = adaptNativeAudioInventory({
+		backend: 'wasapi', status: 'available', detail: '', devices: [{
+			handle: 'studio-interface', label: 'Studio interface', direction: 'duplex',
+			channelCount: 32, isDefault: false,
+		}],
+	});
+
+	await fixture.service.refreshAudioDevices({ probe: false, nativeInventory });
+	await fixture.service.refreshAudioDevices({ probe: false });
+	assert.deepEqual(fixture.state.audioInputDevices.map((device) => device.deviceId), [
+		'web-mic', 'native:wasapi:in:studio-interface',
+	]);
+	assert.deepEqual(fixture.state.audioOutputDevices.map((device) => device.deviceId), [
+		'web-speaker', 'native:wasapi:out:studio-interface',
+	]);
+
+	await fixture.service.refreshAudioDevices({ probe: false, nativeInventory: null });
+	assert.deepEqual(fixture.state.audioInputDevices.map((device) => device.deviceId), ['web-mic']);
+	assert.deepEqual(fixture.state.audioOutputDevices.map((device) => device.deviceId), ['web-speaker']);
+});
+
 test('audio output failures restore the preference and classify browser errors', async () => {
 	for (const [name, expectedStatus] of [
 		['NotSupportedError', 'unsupported'],
