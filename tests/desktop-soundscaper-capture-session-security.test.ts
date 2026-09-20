@@ -97,7 +97,13 @@ test('Electron 43 audio and speaker permissions require the focused trusted main
 	assert.equal(harness.permissionRequest(
 		harness.webContents,
 		'speaker-selection',
-		requestDetails,
+		{ requestingUrl: `${ORIGIN}/`, isMainFrame: true },
+	), true);
+	assert.equal(harness.permissionCheck(harness.webContents, 'fullscreen', ORIGIN, checkDetails), true);
+	assert.equal(harness.permissionRequest(
+		harness.webContents,
+		'fullscreen',
+		{ requestingUrl: `${ORIGIN}/`, isMainFrame: true },
 	), true);
 
 	assert.equal(harness.permissionCheck(
@@ -167,6 +173,11 @@ test('Electron 43 audio and speaker permissions require the focused trusted main
 	), false);
 	assert.equal(harness.permissionCheck({}, 'media', ORIGIN, checkDetails), false);
 	assert.equal(harness.permissionRequest({}, 'media', requestDetails), false);
+	assert.equal(harness.permissionRequest(
+		harness.webContents,
+		'fullscreen',
+		{ requestingUrl: 'https://example.com/', isMainFrame: true },
+	), false);
 
 	harness.focused = false;
 	assert.equal(harness.permissionCheck(harness.webContents, 'media', ORIGIN, checkDetails), false);
@@ -212,7 +223,9 @@ test('trusted Windows display capture selects the first screen with loopback aud
 
 	for (const rejected of [
 		{ ...request, userGesture: false },
+		{ ...request, videoRequested: false },
 		{ ...request, securityOrigin: 'https://example.com' },
+		{ ...request, securityOrigin: 'soundscaper-app://bundle.evil' },
 		{ ...request, frame: { url: `${ORIGIN}/` } },
 		{ ...request, audioRequested: false },
 	]) {
@@ -240,6 +253,53 @@ test('trusted Windows display capture selects the first screen with loopback aud
 	assert.equal(harness.sourceRequests.length, 1);
 });
 
+test('display capture fails closed off Windows and across source enumeration failures', async () => {
+	const requestFor = (harness: ReturnType<typeof captureHarness>) => ({
+		frame: harness.mainFrame,
+		securityOrigin: ORIGIN,
+		userGesture: true,
+		videoRequested: true,
+		audioRequested: true,
+	});
+	const linux = captureHarness({ platform: 'linux' });
+	linux.configure();
+	assert.equal(linux.permissionRequest(
+		linux.webContents,
+		'display-capture',
+		{ requestingUrl: `${ORIGIN}/`, isMainFrame: true },
+	), false);
+	assert.deepEqual(await linux.displayRequest(requestFor(linux)), {});
+	assert.deepEqual(linux.sourceRequests, []);
+
+	for (const getSources of [
+		() => { throw new Error('source enumeration failed'); },
+		() => Promise.reject(new Error('source enumeration failed')),
+		() => Promise.resolve([]),
+		() => Promise.resolve([{ id: '', name: 'Missing identity' }]),
+	]) {
+		const harness = captureHarness({ getSources });
+		harness.configure();
+		assert.deepEqual(await harness.displayRequest(requestFor(harness)), {});
+		assert.equal(harness.sourceRequests.length, 1);
+	}
+});
+
+test('display capture rechecks trust after asynchronous source enumeration', async () => {
+	const pending = Promise.withResolvers<readonly DesktopSource[]>();
+	const harness = captureHarness({ getSources: () => pending.promise });
+	const registration = harness.configure();
+	const result = harness.displayRequest({
+		frame: harness.mainFrame,
+		securityOrigin: ORIGIN,
+		userGesture: true,
+		videoRequested: true,
+		audioRequested: true,
+	});
+	registration.dispose();
+	pending.resolve(harness.sources);
+	assert.deepEqual(await result, {});
+});
+
 test('disposal clears every Soundscaper capture handler and listener once', () => {
 	const harness = captureHarness();
 	const registration = harness.configure();
@@ -256,7 +316,14 @@ test('disposal clears every Soundscaper capture handler and listener once', () =
 	assert.equal(harness.downloadListeners.size, 0);
 });
 
-function captureHarness() {
+interface CaptureHarnessOptions {
+	readonly platform?: string;
+	readonly getSources?: (
+		options: unknown,
+	) => PromiseLike<readonly DesktopSource[]>;
+}
+
+function captureHarness(options: CaptureHarnessOptions = {}) {
 	const mainFrame = { url: `${ORIGIN}/` };
 	const webContents = { mainFrame, getURL: () => mainFrame.url };
 	const sources: DesktopSource[] = [
@@ -278,11 +345,11 @@ function captureHarness() {
 			return configureSoundscaperCaptureSessionSecurityV1({
 				productId: 'soundscaper',
 				trustedOrigin: ORIGIN,
-				platform: 'win32',
+				platform: options.platform ?? 'win32',
 				desktopCapturer: {
-					async getSources(options: unknown) {
-						harness.sourceRequests.push(options);
-						return sources;
+					getSources(requestOptions: unknown) {
+						harness.sourceRequests.push(requestOptions);
+						return options.getSources?.(requestOptions) ?? Promise.resolve(sources);
 					},
 				},
 				session: session(harness),

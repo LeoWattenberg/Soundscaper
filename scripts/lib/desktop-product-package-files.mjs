@@ -25,7 +25,7 @@ const PRODUCT_CONFIG_FILES = Object.freeze({
 	]),
 });
 
-const SOUNDSCAPER_FORBIDDEN_PATH = /(?:^|\/)(?:src\/framescaper\/|[^/]*framescaper[^/]*|[^/]*(?:openfx|ofx)[^/]*|display-capture|helper-probe[^/]*|native-services[^/]*|native-media-helper-process|external-display[^/]*|assistance-(?:external-ffmpeg-(?:shot-runtime|video-materializer)|selected-video-authority|workflow-owned-video-highlight[^/]*)|framescaper-capture-sandbox-preload\.cjs|framescaper-web-vcr-sandbox-preload\.cjs)(?:\/|$|\.)/iu;
+const SOUNDSCAPER_FORBIDDEN_PATH = /(?:^|\/)(?:src\/framescaper\/|[^/]*framescaper[^/]*|[^/]*(?:openfx|ofx)[^/]*|helper-probe[^/]*|native-services[^/]*|native-media-helper-process|external-display[^/]*|assistance-(?:external-ffmpeg-(?:shot-runtime|video-materializer)|selected-video-authority|workflow-owned-video-highlight[^/]*)|framescaper-capture-sandbox-preload\.cjs|framescaper-web-vcr-sandbox-preload\.cjs)(?:\/|$|\.)/iu;
 const SOUNDSCAPER_DEFERRED_VISUAL_PATH = /(?:^|\/)(?:(?:desktop\/)?(?:desktop-video[^/]*|external-ffmpeg-(?:shot|video)[^/]*|linked-video[^/]*|native-media[^/]*|video-timing[^/]*)|desktop\/assistance-[^/]*(?:frame|shot|video|visual)[^/]*|src\/common\/editor\/(?:assistance\/(?:owned-video|reframe|shot|visual-frame)[^/]*|commands\/video-[^/]*|frame-[^/]*|native-(?:external-display|media|ofx)[^/]*|sequence-frame[^/]*|video-(?:export|ffmpeg|keyframe-(?:encoder|execution|export|webcodecs)|webcodecs)[^/]*|web-vcr-[^/]*))(?:\/|$|\.)/iu;
 const SOUNDSCAPER_FORBIDDEN_CONFIG = /(?:^|\/)config\/framescaper-(?:media|openfx)-host-payload-manifest\.json$/u;
 const SOUNDSCAPER_FORBIDDEN_CONTENT = /(?:framescaperDesktop|framescaper:v1:(?:native-services|capture)|FRAMESCAPER_WEB_VCR_|framescaper-(?:capture|web-vcr)-sandbox-preload)/u;
@@ -123,7 +123,6 @@ export function soundscaperMainSource(sourceValue) {
 		/import \{ createDesktopLinkedVideoLocatorRuntime \} from '\.\/linked-video-locator-runtime\.js';\n/u,
 	];
 	for (const pattern of framesImports) source = replaceOnce(source, pattern, '', 'Framescaper main import');
-	source = replaceOnce(source, '\tdesktopCapturer,\n', '', 'desktop capture import');
 	source = replaceOnce(source, 'EXTERNAL_DESTINATIONS, FRAMESCAPER_WEB_VCR_ENABLED,',
 		'EXTERNAL_DESTINATIONS,', 'Framescaper capture feature flag');
 	const replacement = [
@@ -148,7 +147,6 @@ export function soundscaperMainSource(sourceValue) {
 		'', 'linked-video locator IPC');
 	return `${source.replace("const __dirname = dirname(fileURLToPath(import.meta.url));",
 		"const DEFERRED_CAPTURE_ENABLED = false;\nconst __dirname = dirname(fileURLToPath(import.meta.url));")}`
-		.replace('appOrigin: APP_ORIGIN, desktopCapturer, desktopRoot:', 'appOrigin: APP_ORIGIN, desktopRoot:')
 		.replaceAll('framescaperWebVcrSmokeTrust', 'deferredWebVcrSmokeTrust')
 		.replaceAll('FRAMESCAPER_WEB_VCR_ENABLED', 'DEFERRED_CAPTURE_ENABLED')
 		.replaceAll("linkedVideoLocators: () => linkedVideoLocators", "linkedVideoLocators: () => null")
@@ -283,10 +281,6 @@ export function soundscaperProtocolSource(sourceValue) {
 	source = replaceOnce(source,
 		"\tif (productId === 'framescaper') return FRAMESCAPER_CAPTURE_POLICY;\n",
 		'', 'Framescaper protocol policy selection');
-	source = replaceOnce(source,
-		"const SOUNDSCAPER_CAPTURE_POLICY =\n\t'microphone=(self), speaker-selection=(self), display-capture=(self), camera=(), geolocation=()';",
-		"const SOUNDSCAPER_CAPTURE_POLICY =\n\t'microphone=(self), speaker-selection=(self), display-capture=(), camera=(), geolocation=()';",
-		'Soundscaper display-capture policy');
 	return source;
 }
 
@@ -320,6 +314,9 @@ export function soundscaperProjectRuntimeSource(sourceValue) {
 
 export function soundscaperProductIsolationModuleSource() {
 	return `/* SPDX-License-Identifier: AGPL-3.0-only */
+import { configureSoundscaperCaptureSessionSecurityV1 } from './project-library-runtime/desktop/soundscaper-capture-session-security.js';
+import { isEditorDocumentUrl } from './validation.js';
+
 export const FOREIGN_IMAGE_SEQUENCE_IMPORT_AUTHORITY = null;
 export function createDeferredNativeServicesElectronPorts() { return Object.freeze({}); }
 export async function startDeferredNativeServicesRegistration() { return null; }
@@ -327,26 +324,15 @@ export function deferredWebVcrSmokeTrust() { return null; }
 export function revokeDesktopCaptureOwner(registration, owner) { return registration?.revokeOwner(owner); }
 export function disposeDesktopCaptureSecurity(registration) { return registration?.dispose(); }
 export function registerDesktopCaptureSecurity(options) {
-\tconst permissionCheck = (webContents, permission, requestingOrigin, details) => {
-\t\tif (!String(requestingOrigin || webContents?.getURL()).startsWith(options.appOrigin)) return false;
-\t\tif (permission === 'fullscreen') return true;
-\t\tif (permission === 'display-capture') return false;
-\t\tif (permission !== 'media') return false;
-\t\tconst mediaTypes = details?.mediaTypes || [];
-\t\treturn mediaTypes.length > 0 && mediaTypes.every((type) => type === 'audio');
-\t};
-\tconst permissionRequest = (webContents, permission, callback, details) => callback(permissionCheck(webContents, permission, details?.requestingUrl || webContents?.getURL(), details));
-\toptions.desktopSession.setPermissionCheckHandler(permissionCheck);
-\toptions.desktopSession.setPermissionRequestHandler(permissionRequest);
-\tconst cancelDownload = (_event, item) => item.cancel();
-\toptions.desktopSession.on('will-download', cancelDownload);
-\tlet disposed = false;
-\treturn Object.freeze({ revokeOwner: () => false, dispose() {
-\t\tif (disposed) return; disposed = true;
-\t\toptions.desktopSession.setPermissionCheckHandler(null);
-\t\toptions.desktopSession.setPermissionRequestHandler(null);
-\t\toptions.desktopSession.removeListener('will-download', cancelDownload);
-\t} });
+\treturn configureSoundscaperCaptureSessionSecurityV1({
+\t\tproductId: options.productId,
+\t\ttrustedOrigin: options.appOrigin,
+\t\tplatform: options.platform,
+\t\tdesktopCapturer: options.desktopCapturer,
+\t\tsession: options.desktopSession,
+\t\twindowFor: options.windowFor,
+\t\tisEditorDocumentUrl,
+\t});
 }
 `;
 }

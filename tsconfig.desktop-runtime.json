@@ -59,6 +59,7 @@
 		"desktop/framescaper-capture-desktop-port.ts",
 		"desktop/framescaper-capture-main-channels.js",
 		"desktop/framescaper-capture-session-security.ts",
+		"desktop/soundscaper-capture-session-security.ts",
 		"desktop/framescaper-web-vcr-capture-authority.ts",
 		"desktop/framescaper-web-vcr-contract.ts",
 		"desktop/framescaper-web-vcr-electron-window.ts",

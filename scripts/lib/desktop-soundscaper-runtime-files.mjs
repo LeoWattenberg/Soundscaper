@@ -14,6 +14,7 @@ export const DESKTOP_SOUNDSCAPER_RUNTIME_FILES = Object.freeze([
 	'desktop/plugin-host-service.js',
 	'desktop/plugin-instance-state.js',
 	'desktop/plugin-vendor-window-capability.js',
+	'desktop/soundscaper-capture-session-security.js',
 	'desktop/soundscaper-native-plugin-state-store.js',
 	'desktop/soundscaper-delivery-database.js',
 	'desktop/soundscaper-delivery-filesystem-authority.js',

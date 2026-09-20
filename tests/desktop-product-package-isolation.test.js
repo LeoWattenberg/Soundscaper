@@ -48,7 +48,11 @@ test('Soundscaper package policy excludes product-owned Framescaper implementati
 	assert.equal(desktopProductSourceIncluded(
 		'soundscaper', 'framescaper-web-vcr-smoke-session.js',
 	), false);
-	assert.equal(desktopProductSourceIncluded('soundscaper', 'display-capture.js'), false);
+	assert.deepEqual(desktopProductRuntimeFiles('soundscaper', [
+		'desktop/soundscaper-capture-session-security.js',
+	]), [
+		'desktop/soundscaper-capture-session-security.js',
+	]);
 	assert.doesNotThrow(() => assertDesktopProductPackageIsolation('soundscaper', [
 		'desktop/main.mjs',
 		'desktop/project-library-runtime/src/common/editor/scape-project-document.js',
@@ -112,7 +116,7 @@ test('Soundscaper staged entry sources have no callable Framescaper product surf
 	const stagedProjectRuntime = soundscaperProjectRuntimeSource(projectRuntime);
 	const stagedProtocol = soundscaperProtocolSource(protocol);
 	assert.doesNotMatch(stagedMain, /from '\.\/framescaper-|createFramescaper|startFramescaper/u);
-	assert.doesNotMatch(stagedMain, /desktopCapturer/u);
+	assert.match(stagedMain, /desktopCapturer/u);
 	assert.doesNotMatch(stagedPreload,
 		/framescaperDesktop|framescaper:v1:|FRAMESCAPER_WEB_VCR_|chooseLinkedVideo|DesktopVideo/u);
 	assert.doesNotMatch(stagedProjectRuntime,
@@ -122,7 +126,9 @@ test('Soundscaper staged entry sources have no callable Framescaper product surf
 	assert.doesNotMatch(stagedCodec, /registerDesktopVideoCodecs|registerVideoCodecs/u);
 	assert.doesNotMatch(stagedNativeTier, /registerDesktopHelperProbe/u);
 	assert.doesNotMatch(stagedProtocol, /FRAMESCAPER_CAPTURE_POLICY|productId === 'framescaper'/u);
-	assert.doesNotMatch(stagedProtocol, /display-capture=\(self\)/u);
+	assert.match(stagedProtocol, /display-capture=\(self\)/u);
+	assert.match(soundscaperProductIsolationModuleSource(),
+		/project-library-runtime\/desktop\/soundscaper-capture-session-security\.js/u);
 	assert.doesNotMatch(soundscaperProductIsolationModuleSource(), /framescaper/iu);
 	assert.doesNotThrow(() => assertDesktopProductPackageIsolation(
 		'soundscaper',

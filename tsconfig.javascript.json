@@ -9,7 +9,6 @@
 	},
 	"include": ["src/vite-env.d.ts"],
 	"files": [
-		"desktop/display-capture.js",
 		"desktop/plugin-binary-authentication.mjs",
 		"src/common/editor/analysis-worker.js",
 		"src/common/editor/app.js",

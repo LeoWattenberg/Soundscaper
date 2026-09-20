@@ -4,7 +4,6 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
 const checkedFiles = [
-	'desktop/display-capture.js',
 	'desktop/plugin-binary-authentication.mjs',
 	'src/common/editor/analysis-worker.js',
 	'src/common/editor/app.js',
@@ -25,7 +24,7 @@ test('the checked JavaScript gate pins its strict runtime boundary inventory', a
 		encoding: 'utf8',
 	});
 	assert.equal(result.status, 0, result.stderr);
-	assert.match(result.stdout, /Checked 8 strict JavaScript runtime boundaries\./u);
+	assert.match(result.stdout, /Checked 7 strict JavaScript runtime boundaries\./u);
 
 	for (const path of checkedFiles) {
 		assert.match(readFileSync(path, 'utf8'), /^\/\/ @ts-check\n/u, path);

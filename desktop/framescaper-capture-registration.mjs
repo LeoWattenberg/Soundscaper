@@ -10,12 +10,14 @@ import {
 	configureFramescaperCaptureSessionSecurityV1,
 } from './project-library-runtime/desktop/framescaper-capture-session-security.js';
 import {
+	configureSoundscaperCaptureSessionSecurityV1,
+} from './project-library-runtime/desktop/soundscaper-capture-session-security.js';
+import {
 	registerFramescaperWebVcrDesktopV1,
 } from './project-library-runtime/desktop/framescaper-web-vcr-registration.js';
 import {
 	FRAMESCAPER_CAPTURE_DESKTOP_CHANNELS,
 } from './framescaper-capture-main-channels.js';
-import { acceptsSystemAudioRequest, selectSystemAudioStreams } from './display-capture.js';
 import { isAppUrl, isEditorDocumentUrl } from './validation.js';
 
 const CAPTURE_PRELOAD = 'framescaper-capture-sandbox-preload.cjs';
@@ -23,7 +25,17 @@ const CAPTURE_PRELOAD = 'framescaper-capture-sandbox-preload.cjs';
 /** Composes product-specific permissions while keeping main a one-line owner. */
 export function registerDesktopCaptureSecurity(options) {
 	const seams = requireSeams(options);
-	if (seams.productId !== 'framescaper') return registerLegacySoundscaperSecurity(seams);
+	if (seams.productId !== 'framescaper') {
+		return configureSoundscaperCaptureSessionSecurityV1({
+			productId: seams.productId,
+			trustedOrigin: seams.appOrigin,
+			platform: seams.platform,
+			desktopCapturer: seams.desktopCapturer,
+			session: seams.desktopSession,
+			windowFor: seams.windowFor,
+			isEditorDocumentUrl,
+		});
+	}
 	const capture = createFramescaperCaptureDesktopPortV1({
 		productId: seams.productId,
 		platform: seams.platform,
@@ -134,51 +146,6 @@ function focusedCaptureOwner(seams, event) {
 		throw new Error('Capture IPC requires the focused trusted Framescaper document.');
 	}
 	return seams.ownerFor(event);
-}
-
-function registerLegacySoundscaperSecurity(seams) {
-	const permissionCheck = (webContents, permission, requestingOrigin, details) => {
-		if (!isAppUrl(requestingOrigin || webContents?.getURL())) return false;
-		if (permission === 'fullscreen') return true;
-		if (permission === 'display-capture') return seams.platform === 'win32';
-		if (permission !== 'media') return false;
-		const mediaTypes = details?.mediaTypes || [];
-		return mediaTypes.length > 0 && mediaTypes.every((type) => type === 'audio');
-	};
-	const permissionRequest = (webContents, permission, callback, details) => {
-		callback(permissionCheck(
-			webContents,
-			permission,
-			details?.requestingUrl || webContents?.getURL(),
-			details,
-		));
-	};
-	seams.desktopSession.setPermissionCheckHandler(permissionCheck);
-	seams.desktopSession.setPermissionRequestHandler(permissionRequest);
-	if (seams.platform === 'win32') {
-		seams.desktopSession.setDisplayMediaRequestHandler((request, callback) => {
-			if (!acceptsSystemAudioRequest(request, { platform: seams.platform })) return callback({});
-			void seams.desktopCapturer.getSources({
-				types: ['screen'], thumbnailSize: { width: 0, height: 0 },
-			}).then((sources) => callback(selectSystemAudioStreams(request, sources, {
-				platform: seams.platform,
-			}))).catch(() => callback({}));
-		});
-	}
-	const cancelDownload = (_event, item) => item.cancel();
-	seams.desktopSession.on('will-download', cancelDownload);
-	let disposed = false;
-	return Object.freeze({
-		revokeOwner: () => false,
-		dispose() {
-			if (disposed) return;
-			disposed = true;
-			seams.desktopSession.setPermissionCheckHandler(null);
-			seams.desktopSession.setPermissionRequestHandler(null);
-			if (seams.platform === 'win32') seams.desktopSession.setDisplayMediaRequestHandler(null);
-			seams.desktopSession.removeListener('will-download', cancelDownload);
-		},
-	});
 }
 
 function requireSeams(value) {

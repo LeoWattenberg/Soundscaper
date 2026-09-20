@@ -22,6 +22,7 @@ test('main delegates capture security without growing either ceiling-owned entry
 	assert.doesNotMatch(preload, /framescaper:capture|framescaperCaptureDesktop/u,
 		'the ceiling-owned shared preload must not absorb product-only capture APIs');
 	assert.match(registration, /framescaper-capture-sandbox-preload\.cjs/u);
+	assert.match(registration, /soundscaper-capture-session-security\.js/u);
 	assert.match(registration, /registerFramescaperWebVcrDesktopV1/u);
 	assert.match(registration, /webVcrCapture: webVcr\.captureAuthority/u);
 	assert.match(registration, /enabled: seams\.webVcrEnabled/u);
@@ -46,17 +47,20 @@ test('registration requests a bounded label-only source inventory and never tran
 	assert.match(source, /senderFrame !== event\.sender\.mainFrame/u);
 });
 
-test('staging owns a compiled main port and a sandbox-only Framescaper capture preload', async () => {
-	const [runtime, configuration] = await Promise.all([
+test('staging owns compiled capture security and a sandbox-only Framescaper capture preload', async () => {
+	const [runtime, soundscaperRuntime, configuration] = await Promise.all([
 		readFile(resolve(ROOT, 'scripts/lib/desktop-project-library-runtime.mjs'), 'utf8'),
+		readFile(resolve(ROOT, 'scripts/lib/desktop-soundscaper-runtime-files.mjs'), 'utf8'),
 		readFile(resolve(ROOT, 'tsconfig.desktop-runtime.json'), 'utf8'),
 	]);
 	assert.match(runtime, /framescaper-capture-desktop-port\.js/u);
 	assert.match(runtime, /framescaper-capture-session-security\.js/u);
+	assert.match(soundscaperRuntime, /soundscaper-capture-session-security\.js/u);
 	assert.match(runtime, /framescaper-capture-sandbox-preload\.cjs/u);
 	assert.match(runtime, /framescaper-web-vcr-sandbox-preload\.cjs/u);
 	assert.match(runtime, /framescaper-web-vcr-registration\.js/u);
 	assert.match(configuration, /desktop\/framescaper-capture-desktop-port\.ts/u);
 	assert.match(configuration, /desktop\/framescaper-capture-session-security\.ts/u);
+	assert.match(configuration, /desktop\/soundscaper-capture-session-security\.ts/u);
 	assert.match(configuration, /desktop\/framescaper-web-vcr-registration\.ts/u);
 });

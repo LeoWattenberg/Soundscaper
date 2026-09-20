@@ -4,7 +4,6 @@ import test from 'node:test';
 import vm from 'node:vm';
 
 import { PendingProjectQueue, extractAup4Paths, extractProjectPaths } from '../desktop/file-associations.js';
-import { acceptsSystemAudioRequest, selectSystemAudioStreams } from '../desktop/display-capture.js';
 import {
 	acceptsFile,
 	mimeTypeForPath,
@@ -84,22 +83,6 @@ test('desktop save declarations accept every safe integer byte length', () => {
 	assert.equal(validateDeclaredSize(Number.MAX_SAFE_INTEGER), Number.MAX_SAFE_INTEGER);
 	assert.throws(() => validateDeclaredSize(Number.MAX_SAFE_INTEGER + 1), /Invalid save size/u);
 	assert.throws(() => validateDeclaredSize(BigInt(Number.MAX_SAFE_INTEGER)), /Invalid save size/u);
-});
-
-test('Windows system-audio capture requires a trusted user gesture and selects loopback', () => {
-	const request = {
-		securityOrigin: 'soundscaper-app://bundle/',
-		frame: { url: 'soundscaper-app://bundle/' },
-		userGesture: true,
-		audioRequested: true,
-		videoRequested: true,
-	};
-	const source = { id: 'screen:0:0', name: 'Entire Screen' };
-	assert.equal(acceptsSystemAudioRequest(request, { platform: 'win32' }), true);
-	assert.deepEqual(selectSystemAudioStreams(request, [source], { platform: 'win32' }), { video: source, audio: 'loopback' });
-	assert.equal(acceptsSystemAudioRequest({ ...request, userGesture: false }, { platform: 'win32' }), false);
-	assert.equal(acceptsSystemAudioRequest({ ...request, frame: { url: 'https://example.com/' } }, { platform: 'win32' }), false);
-	assert.equal(acceptsSystemAudioRequest(request, { platform: 'darwin' }), false);
 });
 
 test('sandbox preload exposes only the versioned narrow bridge', async () => {
