@@ -388,7 +388,11 @@ export function ParametricEqEditor({
 
 	return (
 		<div className="audio-editor-parametric-eq" data-parametric-eq onKeyDown={(event) => {
-			if (event.key === 'Escape') cancelGesture();
+			if (event.key === 'Escape' && (dragRef.current || outputGestureRef.current)) {
+				event.preventDefault();
+				event.stopPropagation();
+				cancelGesture();
+			}
 		}}>
 			<div
 				ref={graphRef}

@@ -79,6 +79,40 @@ test('an automated EQ axis preserves and commits the other dragged axis', async 
 	}
 });
 
+test('Escape consumes and cancels an active EQ drag before the dialog sees it', async () => {
+	const fixture = await mountedEq();
+	let prevented = false;
+	let stopped = false;
+	let cancelled = 0;
+	try {
+		await fixture.render(
+			{ captureAvailable() { return false; } },
+			() => undefined,
+			undefined,
+			() => { cancelled += 1; },
+		);
+		const handle = fixture.dom.one('.audio-editor-parametric-eq__handle');
+		await act(async () => reactProps(handle).onPointerDown?.({
+			button: 0, clientX: 100, clientY: 100, pointerId: 3,
+			preventDefault() {}, stopPropagation() {},
+			currentTarget: { setPointerCapture() {} },
+		}));
+
+		const editor = fixture.dom.one('.audio-editor-parametric-eq');
+		await act(async () => reactProps(editor).onKeyDown?.({
+			key: 'Escape',
+			preventDefault() { prevented = true; },
+			stopPropagation() { stopped = true; },
+		}));
+
+		assert.equal(prevented, true);
+		assert.equal(stopped, true);
+		assert.equal(cancelled, 1);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 test('keyboard focus alone does not begin an output-gain automation gesture', async () => {
 	const fixture = await mountedEq();
 	const calls: string[] = [];
@@ -183,6 +217,7 @@ async function mountedEq() {
 			parameterAutomation: Readonly<Record<string, unknown>>,
 			onGestureBegin: () => void,
 			onCommit?: (value: Record<string, unknown>) => void,
+			onCancel?: (value: Record<string, unknown>) => void,
 		) => {
 			await act(async () => root.render(<ParametricEqEditor
 				params={{
@@ -196,7 +231,7 @@ async function mountedEq() {
 				onGestureBegin={onGestureBegin}
 				onPreview={undefined}
 				onCommit={onCommit}
-				onCancel={undefined}
+				onCancel={onCancel}
 				onAudition={undefined}
 				readSpectrum={undefined}
 				parameterAutomation={parameterAutomation}
