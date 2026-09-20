@@ -248,7 +248,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		});
 	});
 
-	test('selects and restores custom microphone and speaker devices', async ({ page, browserName }) => {
+	test('selects and restores custom microphone, display, and speaker devices', async ({ page }) => {
 		await page.addInitScript(() => {
 			const events = new EventTarget();
 			const createTrack = (kind) => {
@@ -338,8 +338,6 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(microphone).toHaveValue('usb-mic');
 		await expect(recordingChannels.getByRole('radio', { name: 'Stereo', exact: true })).toBeChecked();
 		await expect(speakers).toHaveValue('usb-speakers');
-		if (browserName === 'firefox') return;
-
 		await microphone.selectOption('display');
 		await flyout.getByRole('button', { name: 'Choose display source', exact: true }).click();
 		const changeDisplaySource = flyout.getByRole('button', { name: 'Choose a different display source', exact: true });
@@ -470,8 +468,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('keeps pinned recording routes synchronized between track and mixer selectors', async ({ page, browserName }) => {
-		test.skip(browserName === 'firefox', 'Firefox does not provide browser display-audio capture.');
+	test('keeps pinned recording routes synchronized between track and mixer selectors', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		await stubDisplayCapture(page);
 		let editor = await bootEditor(page, '/embed/en/');

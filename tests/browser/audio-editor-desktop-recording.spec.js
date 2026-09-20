@@ -63,9 +63,6 @@ async function installDesktopCapture(page) {
 
 test.describe('desktop audio recording', () => {
 	registerAudioEditorHooks();
-	test.beforeEach(({ browserName }) => {
-		test.skip(browserName === 'firefox', 'Firefox does not provide display-audio capture.');
-	});
 
 	test('records stereo desktop audio from Audio setup without microphone access', async ({ page }) => {
 		await installDesktopCapture(page);
@@ -137,8 +134,8 @@ test.describe('desktop audio recording', () => {
 			await record.click();
 			await expect(editor.locator('[data-editor-toast="workspace-error"]')
 				.getByText(outcome === 'failure'
-				? 'The action failed: Could not start audio source'
-				: 'The action failed: Display capture did not provide an audio track. Firefox does not support browser audio capture; use Chrome or Edge and enable Share audio.', { exact: true })).toBeVisible();
+					? 'The action failed: Could not start audio source'
+					: 'The action failed: Display capture did not provide an audio track. Choose a source with Share audio enabled; browser and operating-system support varies.', { exact: true })).toBeVisible();
 			await expect(record).toHaveAttribute('aria-pressed', 'false');
 			await expect(editor).toHaveAttribute('data-clip-count', '0');
 			if (outcome === 'video-only') {

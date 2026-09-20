@@ -16,11 +16,10 @@ function installCaptureController(context: TestContext, value: unknown): void {
 	});
 }
 
-test('disables browser display-audio capture only on Firefox', () => {
+test('uses display-audio capability detection instead of browser sniffing', () => {
 	const mediaDevices = { getDisplayMedia: () => Promise.resolve({}) };
-	assert.equal(supportsDisplayAudioCapture(mediaDevices, 'Mozilla/5.0 Firefox/142.0'), false);
-	assert.equal(supportsDisplayAudioCapture(mediaDevices, 'Mozilla/5.0 Chrome/140.0'), true);
-	assert.equal(supportsDisplayAudioCapture({}, 'Mozilla/5.0 Chrome/140.0'), false);
+	assert.equal(supportsDisplayAudioCapture(mediaDevices), true);
+	assert.equal(supportsDisplayAudioCapture({}), false);
 });
 
 test('display recording keeps focus on the editor before the permission prompt opens', async (context) => {

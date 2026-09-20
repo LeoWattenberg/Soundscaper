@@ -10,12 +10,15 @@ interface DisplayMediaCapability {
 	readonly getDisplayMedia?: unknown;
 }
 
+/**
+ * Display audio has no pre-prompt capability probe: a conforming host may
+ * return video only. Admit the request here and validate its audio track in
+ * the capture pool so newly capable browsers are not rejected by user agent.
+ */
 export function supportsDisplayAudioCapture(
 	mediaDevices: DisplayMediaCapability | null | undefined = globalThis.navigator?.mediaDevices,
-	userAgent = globalThis.navigator?.userAgent,
 ): boolean {
-	return typeof mediaDevices?.getDisplayMedia === 'function'
-		&& !/Firefox\//u.test(String(userAgent || ''));
+	return typeof mediaDevices?.getDisplayMedia === 'function';
 }
 
 function createCaptureController(): RecordingCaptureController | undefined {
