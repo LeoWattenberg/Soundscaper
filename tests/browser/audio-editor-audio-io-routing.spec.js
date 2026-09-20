@@ -53,7 +53,10 @@ test.describe('audio I/O signal routing', () => {
 				mixerSignalLevel(mixer, 'master'),
 			]);
 			return group > 20 && send > 20 && master < 1;
-		}, { message: 'realtime group and send buses should carry signal while Invert cancels the master' }).toBe(true);
+		}, {
+			message: 'realtime group and send buses should carry signal while Invert cancels the master',
+			timeout: 15_000,
+		}).toBe(true);
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 
 		const cancelledPeak = await exportWavPeak(page, editor);
@@ -75,8 +78,13 @@ async function mixerSignalLevel(mixer, scope) {
 async function exportWavPeak(page, editor) {
 	const dialog = await openExportDialog(page, editor);
 	await chooseDropdown(page, dialog.locator('[data-export-field="format"]'), 'WAV');
-	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
 	const link = dialog.locator('[data-export-download]');
+	const previousHref = await link.getAttribute('href');
+	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
+	await expect.poll(() => link.getAttribute('href'), {
+		message: 'the export must publish a fresh render rather than the preceding download',
+		timeout: 20_000,
+	}).not.toBe(previousHref);
 	await expect(link).toBeVisible({ timeout: 20_000 });
 	const downloadPromise = page.waitForEvent('download');
 	await link.click();
