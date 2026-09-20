@@ -1,0 +1,248 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { spawnSync } from 'node:child_process';
+import {
+	existsSync,
+	mkdirSync,
+	readFileSync,
+	readdirSync,
+	rmSync,
+	writeFileSync,
+} from 'node:fs';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import {
+	E2E_COVERAGE_CONFIGURATION,
+	E2E_REPOSITORY_URL_PREFIX,
+	analyzeE2ECoverage,
+	formatE2ECoverageResult,
+	parseE2EInventory,
+	parseE2ESurfaceManifest,
+	validateE2EInventoryFiles,
+	validateRawV8Surface,
+} from './e2e-coverage-contract.mjs';
+
+export function runE2ECoverageGate({
+	repositoryRoot,
+	artifactRoot,
+	reportRoot,
+	configuration = E2E_COVERAGE_CONFIGURATION,
+	expectedRevision = repositoryRevision(repositoryRoot),
+}) {
+	const inventory = parseE2EInventory(readJson(join(artifactRoot, 'inventory.json')), configuration);
+	const surfaceManifests = {};
+	const coverageBySurface = {};
+	const evidenceFailures = validateE2EInventoryFiles(inventory, repositoryRoot, artifactRoot);
+	for (const { id } of configuration.requiredSurfaces) {
+		const surfaceDirectory = join(artifactRoot, 'surfaces', id);
+		const manifestPath = join(surfaceDirectory, 'manifest.json');
+		if (!existsSync(manifestPath)) continue;
+		const manifestValue = readJson(manifestPath);
+		surfaceManifests[id] = manifestValue;
+		let manifest;
+		try {
+			manifest = parseE2ESurfaceManifest(manifestValue, inventory, configuration);
+		} catch {
+			continue;
+		}
+		try {
+			if (manifest.coverage.format === 'istanbul') {
+				coverageBySurface[id] = normalizeCoveragePaths(
+					readJson(resolveInside(surfaceDirectory, manifest.coverage.path)),
+					inventory,
+					repositoryRoot,
+					artifactRoot,
+				);
+			} else {
+				const materialized = materializeV8SurfaceCoverage({
+					repositoryRoot,
+					artifactRoot,
+					surfaceDirectory,
+					reportDirectory: join(reportRoot, 'surfaces', id),
+					manifest,
+					inventory,
+				});
+				evidenceFailures.push(...materialized.failures);
+				coverageBySurface[id] = materialized.coverage;
+			}
+		} catch (error) {
+			evidenceFailures.push(`${id} coverage could not be materialized: ${errorMessage(error)}`);
+		}
+	}
+	const analysis = analyzeE2ECoverage({
+		configuration,
+		inventory,
+		surfaceManifests,
+		coverageBySurface,
+		expectedRevision,
+	});
+	analysis.failures.unshift(...evidenceFailures);
+	process.stdout.write(formatE2ECoverageResult(analysis));
+	if (analysis.failures.length > 0) process.stderr.write(`${analysis.failures.join('\n')}\n`);
+	return analysis;
+}
+
+export function materializeV8SurfaceCoverage({
+	repositoryRoot,
+	artifactRoot,
+	surfaceDirectory,
+	reportDirectory,
+	manifest,
+	inventory,
+}) {
+	const rawDirectory = resolveInside(surfaceDirectory, manifest.coverage.path);
+	const profiles = readV8Profiles(rawDirectory);
+	const failures = validateRawV8Surface(profiles.map(({ profile }) => profile), manifest.surface, inventory);
+	const rebasedDirectory = join(reportDirectory, 'v8-rebased');
+	rmSync(rebasedDirectory, { recursive: true, force: true });
+	mkdirSync(rebasedDirectory, { recursive: true });
+	for (const { name, profile } of profiles) {
+		writeFileSync(
+			join(rebasedDirectory, name),
+			JSON.stringify(rebasePortableV8Profile(profile, inventory, repositoryRoot, artifactRoot)),
+		);
+	}
+	const istanbulDirectory = join(reportDirectory, 'istanbul');
+	rmSync(istanbulDirectory, { recursive: true, force: true });
+	mkdirSync(istanbulDirectory, { recursive: true });
+	const c8Configuration = join(reportDirectory, 'c8.json');
+	writeFileSync(c8Configuration, JSON.stringify({
+		all: false,
+		exclude: ['**/node_modules/**'],
+		extension: ['.js', '.cjs', '.mjs', '.ts', '.cts', '.mts', '.jsx', '.tsx'],
+		include: ['**/*'],
+	}));
+	const outcome = spawnSync(resolve(repositoryRoot, 'node_modules/.bin/c8'), [
+		'report',
+		`--config=${c8Configuration}`,
+		`--temp-directory=${rebasedDirectory}`,
+		`--reports-dir=${istanbulDirectory}`,
+		'--reporter=json',
+		'--allowExternal',
+	], { cwd: repositoryRoot, env: process.env, encoding: 'utf8' });
+	if (outcome.error) throw outcome.error;
+	if (outcome.signal) throw new Error(`c8 terminated with ${outcome.signal}.`);
+	if (outcome.status !== 0) {
+		throw new Error(`c8 exited with status ${outcome.status ?? 1}: ${outcome.stderr.trim()}`);
+	}
+	const coverage = normalizeCoveragePaths(
+		readJson(join(istanbulDirectory, 'coverage-final.json')),
+		inventory,
+		repositoryRoot,
+		artifactRoot,
+	);
+	return { coverage, failures };
+}
+
+export function rebasePortableV8Profile(profile, inventory, repositoryRoot, artifactRoot) {
+	const urlMap = new Map(inventory.scripts.map((script) => [
+		script.coverageUrl,
+		pathToFileURL(resolveInside(artifactRoot, script.artifactPath)).href,
+	]));
+	const rebased = structuredClone(profile);
+	for (const entry of rebased.result ?? []) entry.url = urlMap.get(entry.url) ?? entry.url;
+	const sourceMapCache = {};
+	for (const [url, cached] of Object.entries(rebased['source-map-cache'] ?? {})) {
+		const entry = structuredClone(cached);
+		if (entry?.data && Array.isArray(entry.data.sources)) {
+			entry.data.sources = entry.data.sources.map((source) => rebaseSourceUrl(
+				source,
+				urlMap,
+				repositoryRoot,
+			));
+		}
+		sourceMapCache[urlMap.get(url) ?? url] = entry;
+	}
+	rebased['source-map-cache'] = sourceMapCache;
+	return rebased;
+}
+
+export function normalizeCoveragePaths(coverage, inventory, repositoryRoot, artifactRoot) {
+	const aliases = new Map();
+	for (const source of inventory.sources) {
+		const actual = source.origin === 'repository'
+			? resolveInside(repositoryRoot, source.path)
+			: resolveInside(artifactRoot, source.artifactPath);
+		aliases.set(actual, source.path);
+		aliases.set(pathToFileURL(actual).href, source.path);
+		aliases.set(source.path, source.path);
+	}
+	const normalized = {};
+	for (const [reportedPath, fileCoverage] of Object.entries(coverage)) {
+		const candidate = typeof fileCoverage?.path === 'string' ? fileCoverage.path : reportedPath;
+		const path = aliases.get(candidate) ?? aliases.get(asAbsolutePath(candidate)) ?? portableSourcePath(candidate)
+			?? normalizeUnknownPath(candidate, repositoryRoot);
+		if (path in normalized) throw new Error(`Coverage reports executable source ${path} twice.`);
+		normalized[path] = { ...fileCoverage, path };
+	}
+	return normalized;
+}
+
+function readV8Profiles(directory) {
+	if (!existsSync(directory)) return [];
+	return readdirSync(directory, { withFileTypes: true })
+		.filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+		.sort((left, right) => left.name.localeCompare(right.name))
+		.map(({ name }) => ({ name, profile: readJson(join(directory, name)) }));
+}
+
+function rebaseSourceUrl(source, urlMap, repositoryRoot) {
+	if (typeof source !== 'string') return source;
+	if (urlMap.has(source)) return urlMap.get(source);
+	if (!source.startsWith(E2E_REPOSITORY_URL_PREFIX)) return source;
+	const relativePath = decodeURIComponent(source.slice(E2E_REPOSITORY_URL_PREFIX.length));
+	return pathToFileURL(resolveInside(repositoryRoot, relativePath)).href;
+}
+
+function portableSourcePath(path) {
+	if (typeof path !== 'string' || !path.startsWith(E2E_REPOSITORY_URL_PREFIX)) return null;
+	return decodeURIComponent(path.slice(E2E_REPOSITORY_URL_PREFIX.length));
+}
+
+function asAbsolutePath(path) {
+	if (typeof path !== 'string') return '';
+	if (path.startsWith('file:')) {
+		try {
+			return fileURLToPath(path);
+		} catch {
+			return '';
+		}
+	}
+	return isAbsolute(path) ? path : '';
+}
+
+function normalizeUnknownPath(path, repositoryRoot) {
+	const absolute = asAbsolutePath(path);
+	if (absolute === '') return String(path).replaceAll('\\', '/').replace(/^\.\//u, '');
+	const candidate = relative(resolve(repositoryRoot), absolute);
+	return candidate.split(sep).join('/');
+}
+
+function repositoryRevision(repositoryRoot) {
+	const outcome = spawnSync('git', ['rev-parse', 'HEAD'], {
+		cwd: repositoryRoot,
+		encoding: 'utf8',
+	});
+	if (outcome.error) throw outcome.error;
+	if (outcome.status !== 0) throw new Error(`Could not read the checked-out revision: ${outcome.stderr.trim()}`);
+	return outcome.stdout.trim();
+}
+
+function readJson(path) {
+	return JSON.parse(readFileSync(path, 'utf8'));
+}
+
+function resolveInside(root, path) {
+	const absoluteRoot = resolve(root);
+	const resolved = resolve(absoluteRoot, path);
+	const child = relative(absoluteRoot, resolved);
+	if (child === '' || child === '..' || child.startsWith(`..${sep}`) || isAbsolute(child)) {
+		throw new Error(`Path ${path} escapes ${absoluteRoot}.`);
+	}
+	return resolved;
+}
+
+function errorMessage(error) {
+	return error instanceof Error ? error.message : String(error);
+}

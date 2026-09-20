@@ -1,0 +1,53 @@
+{
+	"schemaVersion": 1,
+	"thresholds": {
+		"lines": 100,
+		"statements": 100,
+		"functions": 100,
+		"branches": 100
+	},
+	"repositorySourceRoots": ["desktop/", "src/"],
+	"requiredSurfaces": [
+		{
+			"id": "browser-chromium-framescaper-renderer",
+			"coverageFormat": "v8",
+			"description": "Framescaper's Chromium renderer, including its dedicated and shared workers, worklets, lazy chunks and service worker."
+		},
+		{
+			"id": "browser-chromium-soundscaper-renderer",
+			"coverageFormat": "v8",
+			"description": "Soundscaper's Chromium renderer, including its dedicated and shared workers, worklets, lazy chunks and service worker."
+		},
+		{
+			"id": "nightly-electron-framescaper-main",
+			"coverageFormat": "v8",
+			"description": "The packaged Framescaper main process, including utility processes and worker threads it owns."
+		},
+		{
+			"id": "nightly-electron-framescaper-preload",
+			"coverageFormat": "v8",
+			"description": "The packaged Framescaper preload realm."
+		},
+		{
+			"id": "nightly-electron-framescaper-renderer",
+			"coverageFormat": "v8",
+			"description": "The packaged Framescaper renderer, including its dedicated and shared workers, worklets, lazy chunks and service worker."
+		},
+		{
+			"id": "nightly-electron-soundscaper-main",
+			"coverageFormat": "v8",
+			"description": "The packaged Soundscaper main process, including utility processes and worker threads it owns."
+		},
+		{
+			"id": "nightly-electron-soundscaper-preload",
+			"coverageFormat": "v8",
+			"description": "The packaged Soundscaper preload realm."
+		},
+		{
+			"id": "nightly-electron-soundscaper-renderer",
+			"coverageFormat": "v8",
+			"description": "The packaged Soundscaper renderer, including its dedicated and shared workers, worklets, lazy chunks and service worker."
+		}
+	],
+	"reason": "The end-to-end gate is deliberately separate from Node and unit coverage. Its denominator is the executable inventory emitted by the Chromium and packaged Electron builds, and every required runtime surface must contribute evidence. All four Istanbul metrics are fixed at literal 100 percent; this file is a contract, not a ratchet."
+}
