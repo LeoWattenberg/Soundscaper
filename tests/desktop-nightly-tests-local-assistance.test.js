@@ -17,6 +17,7 @@ const ROOT = resolve(import.meta.dirname, '..');
 const OPTIONS = Object.freeze({
 	executablePath: '/opt/nightly-tests', payloadRoot: '/opt/payload',
 	runRoot: '/tmp/nightly-run', platform: 'linux', arch: 'x64',
+	sourceRevision: '1'.repeat(40),
 	environment: { PATH: '/usr/bin' },
 });
 
@@ -74,7 +75,7 @@ test('the real-model phase preserves a failing child result for the nightly verd
 	assert.equal(result.diagnostics.passed, false);
 });
 
-test('nightly model failures fail the overall run after the three earlier phases finish', async (context) => {
+test('nightly model failures fail the overall run after the four earlier phases finish', async (context) => {
 	const outputRoot = await mkdtemp(join(tmpdir(), 'nightly-model-run-'));
 	context.after(() => rm(outputRoot, { recursive: true, force: true }));
 	const phases = [];
@@ -93,9 +94,10 @@ test('nightly model failures fail the overall run after the three earlier phases
 		},
 		writeMetricsDiagnostics: async () => ({ passed: true }),
 		writePackagedMetricsDiagnostics: async () => ({ passed: true }),
+		preserveCoverageEvidence: async () => '/tmp/nightly-build-evidence',
 	});
-	assert.equal(phases.length, 4);
-	assert.match(phases[3], /nightly-local-assistance/u);
+	assert.equal(phases.length, 5);
+	assert.match(phases[4], /nightly-local-assistance/u);
 	assert.equal(result.exitCode, 1);
 	assert.equal(result.result.status, 'failed');
 	assert.equal(result.result.artifacts.localAssistanceJsonReport, 'local-assistance/results.json');
